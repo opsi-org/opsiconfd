@@ -1,0 +1,83 @@
+#! /bin/sh
+# config script for opsiconfd
+#
+# see: dh_installdeb(1)
+
+set -e
+
+. /usr/share/debconf/confmodule
+
+db_title "SSL Certificate for opsiconfd"
+
+valid=false
+while ! $valid ; do
+	db_input high opsiconfd/cert_country || true
+	db_go || true
+	db_get opsiconfd/cert_country
+	case "$RET" in 
+		[[:upper:]][[:upper:]]) 
+			echo "OK"
+			valid=true
+		;;
+		*)
+			db_fset opsiconfd/cert_country seen false
+		;;
+	esac
+done
+
+valid=false
+while ! $valid ; do
+	db_input high opsiconfd/cert_state || true
+	db_go || true
+	db_get opsiconfd/cert_state
+	if [ "$RET" != "" ]; then
+		valid=true
+	else
+		db_fset opsiconfd/cert_state seen false
+	fi
+done
+
+valid=false
+while ! $valid ; do
+	db_input high opsiconfd/cert_locality || true
+	db_go || true
+	db_get opsiconfd/cert_locality
+	if [ "$RET" != "" ]; then
+		valid=true
+	else
+		db_fset opsiconfd/cert_locality seen false
+	fi
+done
+
+valid=false
+while ! $valid ; do
+	db_input high opsiconfd/cert_organization || true
+	db_go || true
+	db_get opsiconfd/cert_organization
+	if [ "$RET" != "" ]; then
+		valid=true
+	else
+		db_fset opsiconfd/cert_organization seen false
+	fi
+done
+
+db_input high opsiconfd/cert_unit || true
+db_go || true
+
+valid=false
+while ! $valid ; do
+	db_input high opsiconfd/cert_commonname || true
+	db_go || true
+	db_get opsiconfd/cert_commonname
+	if [ "$RET" != "" ]; then
+		valid=true
+	else
+		db_fset opsiconfd/cert_commonname seen false
+	fi
+done
+
+db_input high opsiconfd/cert_email || true
+db_go || true
+
+db_stop || true
+

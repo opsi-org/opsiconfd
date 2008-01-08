@@ -1,0 +1,112 @@
+#!/bin/sh
+#
+# Starts/stops opsi config service (opsiconfd)
+#
+#
+
+DAEMON=/usr/sbin/opsiconfd
+# This user must have read access to /etc/shadow
+USER=opsiconfd
+LOGDIR=/var/log/opsi/opsiconfd
+PIDDIR=/var/run
+PIDFILE=$PIDDIR/opsiconfd.pid
+START_GUARD=0
+GUARD_BIN=/usr/sbin/opsiconfd-guard
+
+
+# See if the binary is there
+if [ ! -x $DAEMON ]; then
+	echo Binary \"$DAEMON\" not found or not executable!
+	exit 1
+fi
+
+case "$1" in
+	start)
+		echo -n "Starting opsi config service.."
+		
+		# Kill opsiconfd-guard
+		killall `basename $GUARD_BIN` 1>/dev/null 2>/dev/null
+		
+		# Make sure we have our PIDDIR, even if it's on a tmpfs
+		install -o $USER -g root -m 755 -d $PIDDIR
+		
+		# Make sure logfiles are writable
+		test ! -e $LOGDIR && mkdir -p $LOGDIR
+		chown -R $USER $LOGDIR
+		
+		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
+			echo ".   (already running)."
+			[ "$START_GUARD" = "1" ] && $GUARD_BIN &
+			exit 0
+		else
+			rm -f $PIDFILE 2>/dev/null
+						
+			start-stop-daemon --chuid $USER --pidfile $PIDFILE \
+			   --start --quiet --oknodo --exec $DAEMON -- -D
+			
+			running=false
+			i=1
+			while [ "$running" != "true" -a $i -le 10 ]; do
+				echo -n "."
+				if ([ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null); then
+					running=true
+				else
+					sleep 1
+					i=$(($i+1))
+				fi
+			done
+			
+			if [ "$running" = "true" ]; then
+				echo "   (done)."
+				[ "$START_GUARD" = "1" ] && $GUARD_BIN &
+			else
+				echo "   (failed)."
+				exit 1
+			fi
+		fi
+		
+		if ! su $USER -c "test -r /etc/shadow"; then
+			echo ""
+			echo "      WARNING: User $USER lacks read permission for /etc/shadow."
+			echo "               PAM authentication will fail."
+			echo ""
+		fi
+		;;
+	stop)
+		echo -n "Stopping opsi config service...   "
+		
+		# Kill opsiconfd-guard
+		killall `basename $GUARD_BIN` 1>/dev/null 2>/dev/null
+		
+		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
+			start-stop-daemon --stop --quiet --pidfile $PIDFILE > /dev/null
+			echo "(done)."
+		else
+			echo "(not running)."
+		fi
+			
+		;;
+	reload)
+		echo -n "Reloading opsi config service...   "
+		
+		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
+			start-stop-daemon --stop --signal HUP --pidfile $PIDFILE > /dev/null
+			echo "(done)."
+		else
+			echo "(not running)."
+		fi
+		
+		;;
+	restart|force-reload)
+		$0 stop
+		sleep 1
+		$0 start
+		;;
+	*)
+		echo "Usage: /etc/init.d/opsiconfd {start|stop|reload|restart|force-reload}"
+		exit 1
+		;;
+esac
+
+exit 0
+

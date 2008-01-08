@@ -1,0 +1,92 @@
+#! /bin/sh -e
+
+. /usr/share/debconf/confmodule
+
+case "$1" in
+    configure)
+	
+    if [ -z "`getent group pcpatch`" ]; then
+		groupadd -g 992 pcpatch
+	fi
+	
+	if [ -z "`getent passwd opsiconfd`" ]; then
+		useradd -u 993 -g 992 -d /var/lib/opsi -s /bin/bash opsiconfd
+	fi
+	
+	if [ -z "`getent group opsiadmin`" ]; then
+		groupadd opsiadmin
+	fi
+	
+	deluser pcpatch shadow  1>/dev/null 2>/dev/null || true
+	adduser opsiconfd shadow  1>/dev/null 2>/dev/null || true
+	
+	if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
+		umask 077
+		
+		db_get opsiconfd/cert_country
+		cert_country=$RET
+		db_get opsiconfd/cert_state
+		cert_state=$RET
+		db_get opsiconfd/cert_locality
+		cert_locality=$RET
+		db_get opsiconfd/cert_organization
+		cert_organization=$RET
+		db_get opsiconfd/cert_unit
+		cert_unit=$RET
+		db_get opsiconfd/cert_commonname
+		cert_commonname=$RET
+		db_get opsiconfd/cert_email
+		cert_email=$RET
+		
+		echo "RANDFILE = /tmp/opsiconfd.rand" 	>  /tmp/opsiconfd.cnf
+		echo "" 				>> /tmp/opsiconfd.cnf
+		echo "[ req ]" 				>> /tmp/opsiconfd.cnf
+		echo "default_bits = 1024" 		>> /tmp/opsiconfd.cnf
+		echo "encrypt_key = yes" 		>> /tmp/opsiconfd.cnf
+		echo "distinguished_name = req_dn" 	>> /tmp/opsiconfd.cnf
+		echo "x509_extensions = cert_type" 	>> /tmp/opsiconfd.cnf
+		echo "prompt = no" 			>> /tmp/opsiconfd.cnf
+		echo "" 				>> /tmp/opsiconfd.cnf
+		echo "[ req_dn ]" 			>> /tmp/opsiconfd.cnf
+		echo "C=$cert_country"			>> /tmp/opsiconfd.cnf
+		echo "ST=$cert_state" 			>> /tmp/opsiconfd.cnf
+		echo "L=$cert_locality" 		>> /tmp/opsiconfd.cnf
+		echo "O=$cert_organization" 		>> /tmp/opsiconfd.cnf
+		if [ "$cert_unit" != "" ]; then
+			echo "OU=$cert_unit" 		>> /tmp/opsiconfd.cnf
+		fi
+		echo "CN=$cert_commonname" 		>> /tmp/opsiconfd.cnf
+		if [ "$cert_email" != "" ]; then
+			echo "emailAddress=$cert_email">> /tmp/opsiconfd.cnf
+		fi
+		echo "" 				>> /tmp/opsiconfd.cnf
+		echo "[ cert_type ]" 			>> /tmp/opsiconfd.cnf
+		echo "nsCertType = server" 		>> /tmp/opsiconfd.cnf
+		
+		dd if=/dev/urandom of=/tmp/opsiconfd.rand count=1 2>/dev/null
+		openssl req -new -x509 -days 1000 -nodes \
+			-config /tmp/opsiconfd.cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
+		openssl gendh -rand /tmp/opsiconfd.rand 512 >>/etc/opsi/opsiconfd.pem
+		openssl x509 -subject -dates -fingerprint -noout -in /etc/opsi/opsiconfd.pem
+		rm -f /tmp/opsiconfd.rand /tmp/opsiconfd.cnf
+	fi
+	
+	chmod 600 /etc/opsi/opsiconfd.pem
+	chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
+	
+    ;;
+    
+    abort-upgrade|abort-remove|abort-deconfigure)
+
+    ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+db_stop
+
+#DEBHELPER#
+

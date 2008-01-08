@@ -1,0 +1,28 @@
+#! /bin/sh -e
+
+. /usr/share/debconf/confmodule
+
+case "$1" in
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear|remove)
+	;;
+    purge)
+	deluser pcpatch shadow 1>/dev/null 2>/dev/null || true
+	deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true
+	delgroup opsiadmin 1>/dev/null 2>/dev/null || true
+	rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
+	
+	db_purge
+	db_stop
+
+	;;
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+	;;
+
+esac
+
+db_stop
+
+#DEBHELPER#
+

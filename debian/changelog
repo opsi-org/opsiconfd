@@ -1,0 +1,103 @@
+opsiconfd (1.0.5-2) stable; urgency=low
+
+  * Creation of x509 certificate changed
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue,  8 Jan 2008 10:49:31 +0100
+
+opsiconfd (1.0.5-1) stable; urgency=high
+
+  * Fixed bug: sessions not thread save
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 14 Dec 2007 13:22:05 +0100
+
+opsiconfd (1.0.3-1) stable; urgency=low
+
+  * New username will be accepted after authentication failure
+  * opsiconfd now running as user opsiconfd
+  
+ -- Jan Schneider <j.schneider@uib.de>  Thu,  8 Nov 2007 15:58:40 +0100
+
+opsiconfd (1.0.2-1) stable; urgency=low
+
+  * Changed some logging levels
+  * Added opsiconfd-guard
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 30 Oct 2007 10:23:28 +0100
+
+opsiconfd (1.0.1-1) stable; urgency=low
+
+  * Fixed logging issues
+  * Code cleanups
+
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 22 Oct 2007 13:38:49 +0200
+
+opsiconfd (1.0-1) stable; urgency=low
+
+  * Added possibility to prevent resolving client ips
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 21 Aug 2007 09:29:01 +0200
+
+opsiconfd (0.9.9-1) stable; urgency=low
+
+  * Sending SIGHUP to opsiconfd will show uptime in log
+  * default for "verify ip" in config file switched to "no"
+
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 30 Jul 2007 17:19:59 +0200
+
+opsiconfd (0.9.8-1) stable; urgency=low
+
+  * Logging improved
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 19 Jul 2007 11:53:36 +0200
+
+opsiconfd (0.9.7-1) stable; urgency=low
+
+  * Fixed pid file handling
+  
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 12 Jun 2007 17:58:43 +0200
+
+opsiconfd (0.9.6-1) stable; urgency=low
+
+  * Code cleanups
+  
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 04 Jun 2007 15:20:13 +0200
+
+opsiconfd (0.9.5-1) stable; urgency=low
+
+  * allowing method getDomain() without authentication
+  * Code cleanups
+  
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 14 May 2007 14:27:36 +0200
+
+opsiconfd (0.9.4-1) stable; urgency=low
+
+  * bugfix for HTTP Basic Authentication with long usernames
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 08 May 2007 17:49:01 +0200
+
+opsiconfd (0.9.3-1) stable; urgency=low
+
+  * code cleanups
+  * favicon.ico added
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 04 May 2007 11:45:32 +0200
+
+opsiconfd (0.9.2-1) stable; urgency=low
+
+  * %m macro now correctly replaced by client ip.
+  * code cleanups
+  * logrotate fixed
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 20 Feb 2007 10:25:21 +0200
+
+opsiconfd (0.9.1-1) unstable; urgency=low
+
+  * Improved logging.
+
+ -- Jan Schneider <j.schneider@uib.de>  Wed, 14 Feb 2007 12:49:00 +0200
+
+opsiconfd (0.9-1) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 18 Jan 2007 13:31:44 +0200

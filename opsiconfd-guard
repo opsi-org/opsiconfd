@@ -1,0 +1,44 @@
+#!/bin/sh +e
+
+#===========[ config ]============#
+DEBUG=0
+INTERVAL=5
+PID_FILE=/var/run/opsiconfd.pid
+#=================================#
+
+
+start_opsiconfd() {
+	echo "opsiconfd not running, starting opsiconfd." | logger -p daemon.error -t opsiconfd-guard
+	/etc/init.d/opsiconfd start
+}
+
+start_loop() {
+	sleep 10
+	while true; do
+		PID=`cat $PID_FILE 2>/dev/null`
+		if [ "$?" != "0" ]; then
+			[ "$DEBUG" = "1" ] && echo "opsiconfd pid-file not found." | logger -p daemon.debug -t opsiconfd-guard
+			start_opsiconfd
+		else
+			[ "$DEBUG" = "1" ] && echo "pid of opsiconfd: $PID" | logger -p daemon.debug -t opsiconfd-guard
+			if [ ! -d "/proc/$PID" ]; then
+				start_opsiconfd
+			fi
+		fi
+		sleep $INTERVAL
+	done
+}
+
+if [ "$1" = "daemon" ]; then
+	start_loop
+else
+	exe=$0
+	if [ "${exe:0:1}" = "." ]; then
+		exe=`pwd`${exe:1}
+	fi
+	# prevent blocking umounts
+	cd /
+	# fork daemon
+	$exe daemon </dev/null >/dev/null 2>/dev/null &
+fi
+

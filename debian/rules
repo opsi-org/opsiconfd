@@ -1,0 +1,79 @@
+#!/usr/bin/make -f
+
+build: build-arch build-indep
+
+build-arch: build24-stamp build-stamp
+	
+build24-stamp:
+	rm -f build24-stamp
+	rm -Rf debian/tmp24 || true
+	mkdir debian/tmp24
+	cat opsiconfd | sed 's/#!\/usr\/bin\/python/#!\/usr\/bin\/python2.4/' > debian/tmp24/opsiconfd
+	touch build24-stamp
+
+build-stamp:
+
+build-indep: build-indep-stamp
+
+build-indep-stamp:
+	# Make sure we are in the correct directory
+	dh_testdir
+	# Ensure that package is built as root
+	dh_testroot
+	# Clean up package build directories
+	dh_clean -k
+	# Create subdirectories in package build directories
+	dh_installdirs -A usr/sbin usr/share/opsiconfd/static etc/opsi var/lib/opsi var/run/opsi var/log/opsi
+	rm -f build-indep-stamp
+	touch build-indep-stamp
+
+clean:
+	rm -f *-stamp
+	rm -Rf debian/tmp24 || true
+
+binary: binary-arch binary-indep
+
+binary-arch: build-arch binary24-stamp binary-stamp
+
+binary24-stamp:
+	# Create subdirectories in package build directories
+	install -m 0755 debian/tmp24/opsiconfd debian/opsiconfd-python2.4/usr/sbin/
+	install -m 0755 opsiconfd-guard debian/opsiconfd-python2.4/usr/sbin/
+	install -m 0644 files/opsiconfd.conf debian/opsiconfd-python2.4/etc/opsi/
+	install -m 0644 files/index.html debian/opsiconfd-python2.4/usr/share/opsiconfd/static/index.html
+	install -m 0644 files/opsi_logo.png debian/opsiconfd-python2.4/usr/share/opsiconfd/static/opsi_logo.png
+	install -m 0644 files/favicon.ico debian/opsiconfd-python2.4/usr/share/opsiconfd/static/favicon.ico
+	rm -Rf debian/tmp24 || true
+
+binary-stamp:
+	# Create subdirectories in package build directories
+	install -m 0755 opsiconfd debian/opsiconfd/usr/sbin/
+	install -m 0755 opsiconfd-guard debian/opsiconfd/usr/sbin/
+	install -m 0644 files/opsiconfd.conf debian/opsiconfd/etc/opsi/
+	install -m 0644 files/index.html debian/opsiconfd/usr/share/opsiconfd/static/index.html
+	install -m 0644 files/opsi_logo.png debian/opsiconfd/usr/share/opsiconfd/static/opsi_logo.png
+	install -m 0644 files/favicon.ico debian/opsiconfd/usr/share/opsiconfd/static/favicon.ico
+
+binary-indep: build-indep binary-indep-stamp
+
+binary-indep-stamp:
+	# Install changelogs into package build directories
+	dh_installchangelogs
+	# Fix permissions of files in package build directories
+	dh_fixperms
+	# Generate and install control file
+	dh_gencontrol -i
+	# Install files used by debconf in package build directories
+	dh_installdebconf
+	# Install logrotate config files
+	dh_installlogrotate
+	# Install init scripts into package build directories
+	dh_installinit --init-script=opsiconfd
+	# Install files into the DEBIAN directory
+	dh_installdeb
+	# Generate DEBIAN/md5sums file
+	dh_md5sums
+	# Build debian packages
+	dh_builddeb
+
+.PHONY: clean build build-arch build-indep binary binary-arch binary-indep

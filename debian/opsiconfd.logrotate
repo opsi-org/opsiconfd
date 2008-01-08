@@ -1,0 +1,23 @@
+/var/log/opsi/opsiconfd/[[:digit:]]*.log {
+    weekly
+    missingok
+    rotate 1
+    extension old
+    compress
+    notifempty
+    create 640 opsiconfd pcpatch
+}
+
+/var/log/opsi/opsiconfd/opsiconfd.log {
+    weekly
+    missingok
+    rotate 5
+    compress
+    create 640 opsiconfd pcpatch
+    postrotate
+        if [ -f /var/run/opsiconfd.pid ]; then
+            /etc/init.d/opsiconfd restart > /dev/null
+        fi
+    endscript
+}
+

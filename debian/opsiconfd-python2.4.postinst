@@ -5,7 +5,7 @@
 case "$1" in
     configure)
 	
-    if [ -z "`getent group pcpatch`" ]; then
+	if [ -z "`getent group pcpatch`" ]; then
 		groupadd -g 992 pcpatch
 	fi
 	

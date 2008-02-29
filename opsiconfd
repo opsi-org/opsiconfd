@@ -10,14 +10,17 @@
    @license: GNU GPL, see COPYING for details.
 """
 
-__version__ = '1.0.5'
+__version__ = '2.0'
 
 # Imports
 import socket, os, base64, time, random, urllib, json, getopt, threading, thread
 from OpenSSL import SSL
-from twisted.web import server, resource, static
-from twisted.internet import reactor
-from twisted.internet.threads import deferToThread
+from twisted.web2 import server, channel, resource, http, responsecode #, static
+from twisted.web2.http_headers import Cookie
+from twisted.web2.stream import IByteStream
+from twisted.web2.channel.http import HTTPFactory
+from twisted.web2.dav import static
+from twisted.internet import reactor, defer, threads
 
 # OPSI imports    
 from OPSI import Tools
@@ -38,7 +41,7 @@ sslServerKeyFile = '/etc/opsi/opsiconfd.pem'	# Server's private key file
 sslServerCertFile = '/etc/opsi/opsiconfd.pem'	# Server's certificate file
 sessionName = 'OPSISID'				# Session name for cookie
 sessionMaxInactiveInterval = 120 		# Session expires after 120 seconds
-sessionVerifyInterval = 30
+sessionVerifyInterval = 10
 maxExecutionStatisticValues = 250
 resolveClientIp = True
 symlinkLogs = False
@@ -66,12 +69,12 @@ if os.name == 'nt':
 # Other globals
 root = None
 pid = None
-sessionTimer = None
 verifyIp = False
 machineLogs = False
 statistics = { 
 	'execution': [] 
 }
+sessionHandler = None
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                         CLASS ROOT                                                =
@@ -87,48 +90,113 @@ class Root(resource.Resource):
 	
 	def render(self, request):
 		''' Process request. '''
-		logger.info("Client '%s' requests uri '%s'" % (request.getClientIP(), request.uri))
+		logger.info("Client '%s' requests uri '%s'" % (request.remoteAddr.host, request.uri))
 		
 		return "<html><head><title>opsiconfd</title></head><body></body></html>"
 
-
+class OpsiDAV(static.DAVFile):
+		
+	def renderHTTP(self, request):
+		logger.debug("renderHTTP")
+		try:
+			w = Worker()
+			w.getSession(request)
+			if not w.session.authenticated:
+				w.authenticate()
+			return static.DAVFile.renderHTTP(self, request)
+		except Exception, e:
+			logger.logException(e)
+			response = http.Response(code = responsecode.UNAUTHORIZED, stream = str(e))
+			response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
+			return response
+	
+	def callback(self, response):
+		''' Callback function (thread finished). '''
+		logger.debug("--- Thread finished ---")
+		logger.debug("response: %s" % response)
+		if not response:
+			return http.Response()
+		return response
+	
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                      CLASS OPSIJSONRPC                                            =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class OpsiJsonRpc(resource.Resource):
+	''' This class handles json-rpc requests. '''
+	
+	# No more child resources
+	isLeaf = True
+	addSlash = True
+	
+	def http_GET(self, request):
+		logger.info("(GET) Client '%s' requests uri '%s'" % (request.remoteAddr.host, request.uri))
+		
+		logger.debug2(request.args)
+		logger.debug2(request.chanRequest.__dict__)
+		
+		query = urllib.unquote( request.querystring )
+		
+		return self.processQuery(query, request)
+		
+	def http_POST(self, request):
+		logger.info("(POST) Client '%s' requests uri '%s'" % (request.remoteAddr.host, request.uri))
+		
+		d = request.stream.read()
+		d.addCallback(self.processQuery, (request))
+		return d
+	
+	def processQuery(self, query, request):
+		logger.debug("Processing query: %s" % query)
+		# Create a thread to process request
+		logger.debug("--- Starting thread ---")
+		d = threads.deferToThread(self.run, query, request)
+		# Set callback function (called when thread is finished)
+		d.addCallback(self.callback, (query, request))
+		# Set callback function (called if error occurs)
+		d.addErrback(self.errCallback, (query, request))
+		return d
+		
+	def run(self, query, request):
+		w = Worker()
+		return w.process(query, request)
+	
+	def callback(self, response, params):
+		''' Callback function (thread finished). '''
+		logger.debug("--- Thread finished ---")
+		(result, request) = params
+		# Display standard page plus rpc result
+		if not isinstance(response.stream, IByteStream):
+			response.stream = IByteStream( self.filterResult(response.stream) )
+		return response
+	
+	def errCallback(self, traceback, params):
+		''' Callback function (error occured). '''
+		logger.debug("--- Thread finished ---")
+		(query, request) = params
+		
+		err = "Internal server error: " + str(traceback.value)
+		logger.logTraceback(traceback.tb)
+		logger.critical('     ==>>> %s' % err)
+		
+		logger.debug("Sending error '%s' to client '%s'" % (err, request.remoteAddr.host))
+		return http.Response(
+				code	= responsecode.INTERNAL_SERVER_ERROR,
+				stream	= self.filterResult(
+						json.write( {
+							"id": 		json.read(query).get('id'),
+							"result": 	None,
+							"error": 	err} ) ) )
+	
+	def filterResult(self, result=None, request=None):
+		return result
+	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                   CLASS OPSIJSONINTERFACE                                         =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class OpsiJsonInterface(resource.Resource):
+class OpsiJsonInterface(OpsiJsonRpc):
 	
-	def getChild(self, name, request):
-		''' Get the child resource for the requested path. '''
-		if not name:
-			return self
-		return resource.Resource.getChild(self, name, request)
-	
-	def render_POST(self, request):
-		''' Process POST request. '''
-		logger.info("(POST) Client '%s' requests uri '%s'" % (request.getClientIP(), request.uri))
-		
-		query = request.content.getvalue()
-		
-		logger.debug("(POST) query: %s" % query)
-		
-		return self.processQuery(request, query)
-		
-	def render_GET(self, request):
-		''' Process GET request. '''
-		logger.info("(GET) Client '%s' requests uri '%s'" % (request.getClientIP(), request.uri))
-		
-		query = None
-		
-		# Unquote query string submitted by GET
-		pos = request.uri.find('?')
-		if (pos != -1 ):
-			query = urllib.unquote( request.uri[pos+1:] ).replace('+', ' ')
-		
-		logger.debug("(GET) query: %s" % query)
-		
-		return self.processQuery(request, query)
-	
-	def processQuery(self, request, query):
+	def processQuery(self, query, request):
+		logger.debug("Processing query: %s" % query)
 		
 		try:
 			x = self.possibleMethods
@@ -137,67 +205,48 @@ class OpsiJsonInterface(resource.Resource):
 		
 		if (self.possibleMethods and query):
 			# Create a thread to process request
-			rpc = OpsiJsonRpc()
 			logger.debug("--- Starting thread ---")
-			d = deferToThread(self.run, request, query)
+			d = threads.deferToThread(self.run, query, request)
 			# Set callback function (called when thread is finished)
-			d.addCallback(self.callback)
+			d.addCallback(self.callback, (query, request))
 			# Set callback function (called if error occurs)
-			d.addErrback(self.errCallback, (request, query))
+			d.addErrback(self.errCallback, (query, request))
+			return d
 		else:
 			query = '{"id":1,"method":"getPossibleMethods_listOfHashes","params":[]}'
-			rpc = OpsiJsonRpc()
+			# Create a thread to process request
 			logger.debug("--- Starting thread ---")
-			d = deferToThread(self.run, request, query)
+			d = threads.deferToThread(self.run, query, request)
 			# Set callback function (called when thread is finished)
-			d.addCallback(self.getPossibleMethodsCallback)
+			d.addCallback(self.getPossibleMethodsCallback, (query, request))
 			# Set callback function (called if error occurs)
-			d.addErrback(self.errCallback, (request, query))
-		
-		# Page content not rendered yet
-		return server.NOT_DONE_YET
+			d.addErrback(self.errCallback, (query, request))
+			return d
 	
-	def run(self, request, query):
-		w = Worker()
-		return w.process(request, query)
-	
-	def callback(self, params):
+	def getPossibleMethodsCallback(self, response, params):
 		''' Callback function (thread finished). '''
 		logger.debug("--- Thread finished ---")
-		(result, request) = params
-		# Display standard page plus rpc result
-		request.write( self.content(result, request) )
-		request.finish()
-	
-	def errCallback(self, traceback, params):
-		''' Callback function (error occured). '''
-		logger.debug("--- Thread finished ---")
-		(request, query) = params
+		(query, request) = params
 		
-		err = "Internal server error: " + str(traceback.value)
-		logger.logTraceback(traceback.tb)
-		logger.critical('     ==>>> %s' % err)
-		
-		logger.debug("Sending error '%s' to client '%s'" % (err, request.getClientIP()))
-		#request.setResponseCode(500)
-		request.write( self.content(json.write( {"id": json.read(query).get('id'), "result": None, "error": err} ), request ) )
-		request.finish()
-	
-	def getPossibleMethodsCallback(self, params):
-		''' Callback function (thread finished). '''
-		(result, request) = params
-		error = json.read(result).get('error')
+		if isinstance(response.stream, IByteStream):
+			logger.critical("response stream is instance of IByteStream")
+			return http.Response(
+				code	= responsecode.INTERNAL_SERVER_ERROR,
+				stream	= self.content(
+						json.write( {
+							"id":		json.read(query).get('id'),
+							"result": 	None,
+							"error": "response stream is instance of IByteStream"} ) ) )
+		error = json.read(response.stream).get('error')
 		if error:
 			logger.critical("Cannot get possible methods: %s" % error)
 			self.possibleMethods = []
 		else:
-			self.possibleMethods = json.read(result).get('result', [])
+			self.possibleMethods = json.read(response.stream).get('result', [])
+		response.stream = IByteStream( self.filterResult(response.stream) )
+		return response
 		
-		# Display standard page plus rpc result
-		request.write( self.content(result, request) )
-		request.finish()
-		
-	def content(self, result=None, request=None):
+	def filterResult(self, result=None, request=None):
 		''' This function displays a hardcoded xhtml page to
 		    generate json-rpc requests and show the results. '''
 		
@@ -423,201 +472,178 @@ class OpsiJsonInterface(resource.Resource):
 </html>"""
 		return xhtml
 
-
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                         CLASS SESSION                                             =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class Session:
+	def __init__(self, name = 'OPSISID'):
+		self.name = name
+		self.uid = Tools.randomString(32)
+		self.ip = ''
+		self.hostname = ''
+		self.user = ''
+		self.password = ''
+		self.authenticated = False
+		self.bm = None
+		self.possibleMethods = []
+		self.touch()
+		
+	def touch(self):
+		self.lastModified = time.time()
 
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                      CLASS OPSIJSONRPC                                            =
+# =                                     CLASS SESSIONHANDLER                                          =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class OpsiJsonRpc(resource.Resource):
-	''' This class handles json-rpc requests. '''
+class SessionHandler:
+	def __init__(self, sessionName = 'OSPISID', sessionMaxInactiveInterval = 120, sessionVerifyInterval = 30):
+		self.sessionName = sessionName
+		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
+		self.sessionVerifyInterval = sessionVerifyInterval
+		self.sessions = {}
+		self.sessionTimer = threading.Timer( self.sessionVerifyInterval, self.deleteTimedOutSessions)
+		self.sessionTimer.start()
 	
-	# No more child resources
-	isLeaf = True
+	def __del__(self):
+		self.sessionTimer.cancel()
+		
+	def getSession(self, uid):
+		session = self.sessions.get(uid)
+		if session:
+			if (session.lastModified + self.sessionMaxInactiveInterval >= time.time()):
+				return session
+			# Session is expired
+			logger.notice("Session '%s' expired after %d seconds" % (session.uid, (time.time()-session.lastModified)))
+			# Delete session
+			self.deleteSession(session.uid)
+		return self.createSession()
 	
-	def render_POST(self, request):
-		''' Process POST request. '''
-		logger.info("(POST) Client '%s' requests uri '%s'" % (request.getClientIP(), request.uri))
-		
-		query = request.content.getvalue()
-		
-		logger.debug("(POST) query: %s" % query)
-		
-		if not query:
-			raise Exception('No query string found (POST)')
-		
-		return self.processQuery(request, query)
-		
-	def render_GET(self, request):
-		''' Process GET request. '''
-		logger.info("(GET) Client '%s' requests uri '%s'" % (request.getClientIP(), request.uri))
-		
-		query = None
-		
-		# Unquote query string submitted by GET
-		pos = request.uri.find('?')
-		if (pos != -1 ):
-			query = urllib.unquote( request.uri[pos+1:] ).replace('+', ' ')
-		
-		logger.debug("(GET) query: %s" % query)
-		
-		if not query:
-			raise Exception('No query string found (GET)')
-		
-		return self.processQuery(request, query)
-		
-	def processQuery(self, request, query):
-		
-		logger.debug("--- Starting thread ---")
-		
-		# Create a thread to process request
-		d = deferToThread(self.run, request, query)
-		# Set callback function (called when thread is finished)
-		d.addCallback(self.callback)
-		# Set callback function (called if error occurs)
-		d.addErrback(self.errCallback, (request, query))
-		
-		# Page content not rendered yet
-		return server.NOT_DONE_YET
+	def createSession(self):
+		session = Session(self.sessionName)
+		self.sessions[session.uid] = session
+		logger.notice("New session created")
+		return session
 	
-	def run(self, request, query):
-		w = Worker()
-		return w.process(request, query)
+	def deleteSession(self, uid):
+		session = self.sessions.get(uid)
+		if not session:
+			logger.warning('No such session id: %s' % uid)
+			return
+		
+		try:
+			session.bm.exit()
+		except:
+			pass
+		
+		del self.sessions[uid]
+		
+		logger.notice("Session '%s' deleted" % uid)
 	
-	def errCallback(self, traceback, params):
-		''' Callback function (error occured). '''
-		logger.debug("--- Thread finished ---")
+	def deleteTimedOutSessions(self):
+		if logger: logger.debug('deleteTimedOutSessions() called...')
 		
-		(request, query) = params
+		for (uid, session) in self.sessions.items():
+			logger.confidential("Age of session '%s' is %d seconds, max age is %d seconds" \
+					% ( uid, (time.time() - session.lastModified), self.sessionMaxInactiveInterval ) )
+			if ( session.lastModified + self.sessionMaxInactiveInterval < time.time() ):
+				logger.notice("Session '%s' expired after %d seconds" % (uid, (time.time()-session.lastModified)))
+				self.deleteSession(uid)
 		
-		err = "Internal server error: " + str(traceback.value)
-		logger.logTraceback(traceback.tb)
-		logger.critical('     ==>>> %s' % err)
-		
-		logger.debug("Sending error '%s' to client '%s'" % (err, request.getClientIP()))
-		#request.setResponseCode(500)
-		request.write( json.write( {"id": json.read(query).get('id'), "result": None, "error": err} ) )
-		request.finish()
+		self.sessionTimer.cancel()
+		self.sessionTimer = threading.Timer( self.sessionVerifyInterval, self.deleteTimedOutSessions)
+		self.sessionTimer.start()
 	
-	def callback(self, params):
-		logger.debug("--- Thread finished ---")
-		
-		(result, request) = params
-		
-		# Set content-type in http header
-		request.setHeader('content-type', 'text/json')
-		#request.setHeader('content-type', 'text/plain')
-		
-		# Write result
-		request.write(result)
-		request.finish()
-	
+	def deleteAllSessions(self):
+		for (uid, session) in self.sessions.items():
+			self.deleteSession(uid)
+		self.sessions = {}
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                          CLASS WORKER                                             =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class Worker:
 	def __init__(self):
 		self.session = None
-	
+		
 	def getSession(self, request):
 		''' This method restores a session or generates a new one. '''
-		
-		# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-		# =             Note about Session management                 =
-		# = - - - - - - - - - - - - - - - - - - - - - - - - - - - - - =
-		# =  Session management could be done by request.getSession() =
-		# =  but this would neither allow to set                      =
-		# =  the cookiename (hardcoded: TWISTED_SESSION) nor          =
-		# =  the expiration time (hardcoded: 900 seconds)             =
-		# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-		
 		self.session = None
-		# Get cookie from request header
-		sessionCookie = request.getCookie(sessionName)
-		if sessionCookie:
-			try:
-				# Get Session object
-				self.session = request.site.getSession(sessionCookie)
-				if (self.session.lastModified + sessionMaxInactiveInterval < time.time()):
-					# Session is expired
-					logger.notice("Session '%s' expired" % self.session.uid)
-					# Delete session
-					deleteSession(self.session.uid)
-					self.session = None
-			except KeyError:
-				pass
 		
-		else:
-			logger.notice("Client '%s' did not send cookie" % request.getClientIP())
+		logger.confidential("Request headers: %s " % request.headers)
 		
-		if self.session and verifyIp and (getattr(self.session, 'ip') != request.getClientIP()):
+		# Get session id from cookie request header
+		sessionId = ''
+		try:
+			sessionId = request.headers.getHeader('cookie')[0].value
+		except Exception, e:
+			pass
+		
+		if not sessionId:
+			logger.notice("Client '%s' did not send cookie" % request.remoteAddr.host)
+		
+		# Get Session object
+		self.session = sessionHandler.getSession(sessionId)
+		
+		if self.session.ip and verifyIp and (self.session.ip != request.remoteAddr.host):
 			logger.critical("Client ip '%s' does not match session ip '%s'" \
-				% (request.getClientIP(), getattr(self.session, 'ip')) )
-			self.session = None
+				% (request.remoteAddr.host, self.session.ip) )
+			sessionHandler.deleteSession(self.session.uid)
+			self.session = sessionHandler.getSession()
 		
-		if not self.session:
-			# No session found or session expired => create session
-			self.session = request.site.makeSession()
-			
-			# Set ip
-			setattr(self.session, 'ip', request.getClientIP())
-			setattr(self.session, 'hostname', '')
-			setattr(self.session, 'user', '')
-			setattr(self.session, 'password', '')
-			
-			logger.notice("New session created")
+		# Set ip
+		self.session.ip = request.remoteAddr.host
 		
-		else:
-			logger.info("Reusing session for client '%s'" % request.getClientIP())
+		if (sessionId == self.session.uid):
+			logger.info("Reusing session for client '%s'" % request.remoteAddr.host)
 		
 		logger.confidential("Session id is '%s'" % self.session.uid)
-		
-		# Add session cookie to response header
-		request.addCookie(sessionName, self.session.uid, path='/')
 		
 		# Set last modified to current time
 		self.session.touch()
 		
 		# Set hostname
-		if not getattr(self.session, 'hostname'):
+		if not self.session.hostname:
 			hostname = ''
 			if resolveClientIp:
 				try:
-					hostname = socket.getfqdn(request.getClientIP()).lower()
+					hostname = socket.getfqdn(request.remoteAddr.host).lower()
 					if re.search('^\d+\.\d+\.\d+\.\d+$', hostname):
-						logger.error("Cannot get fqdn for client '%s'" % request.getClientIP())
+						logger.error("Cannot get fqdn for client '%s'" % request.remoteAddr.host)
 						hostname = ''
 					elif (hostname != 'localhost') and (len(hostname.split('.')) == 1):
 						logger.warning("Cannot get fqdn but hostname '%s' for client '%s'" \
-							% (hostname, request.getClientIP()) )
+							% (hostname, request.remoteAddr.host) )
 						
 						defaultDomain = '.'.join(socket.getfqdn().split('.')[1:])
 						if not defaultDomain:
 							logger.error("Cannot get fqdn for client %s (%s), missing domain, failed to add default domain." \
-										% (hostname, request.getClientIP()) )
+										% (hostname, request.remoteAddr.host) )
 						
 						logger.notice("Adding domain '%s' to hostname '%s' for client '%s'" \
-								% (defaultDomain, hostname, request.getClientIP()) )
+								% (defaultDomain, hostname, request.remoteAddr.host) )
 						hostname = hostname + '.' + defaultDomain
 				except Exception, e:
-					logger.warning("Failed to resolve address '%s': %s" % (request.getClientIP(), e))
+					logger.warning("Failed to resolve address '%s': %s" % (request.remoteAddr.host, e))
 			
 			logger.info("Storing hostname '%s' in session" % hostname)
-			setattr(self.session, 'hostname', hostname)
+			self.session.hostname = hostname
 		
 		# Set user and password
-		if not getattr(self.session, 'user') and not getattr(self.session, 'password') and request.getHeader('Authorization'):
+		if not self.session.user and not self.session.password and request.headers.getHeader('Authorization'):
 			(user, password) = ('', '')
 			logger.debug("Trying to get username and password from Authorization header")
-			auth = request.getHeader('Authorization')
+			auth = request.headers.getHeader('Authorization')
 			if auth:
 				logger.debug("Authorization header found")
 				try:
-					encoded = auth.split(' ', 1)[1]
+					encoded = auth[1]
 					(user, password) = base64.decodestring(encoded).split(':')
 					logger.confidential("Client supplied username '%s' and password '%s'" % (user, password))
 				except Exception:
-					logger.error("Bad Authorization header from '%s'" % request.getClientIP())
+					logger.error("Bad Authorization header from '%s'" % request.remoteAddr.host)
 				
-			setattr(self.session, 'user', user)
-			setattr(self.session, 'password', password)
+			self.session.user = user
+			self.session.password = password
 		
 		logger.confidential("Session content: %s" % self.session.__dict__)
 	
@@ -627,12 +653,12 @@ class Worker:
 		
 		isHost = False
 		
-		user = getattr(self.session, 'user')
+		user = self.session.user
 		if not user:
 			isHost = True
-			user = getattr(self.session, 'hostname')
+			user = self.session.hostname
 		
-		logger.notice( "Authorization request from %s@%s" % (user, getattr(self.session, 'ip')) )
+		logger.notice( "Authorization request from %s@%s" % (user, self.session.ip) )
 		if not user:
 			raise Exception("Cannot authenticate, no username given")
 		
@@ -641,8 +667,8 @@ class Worker:
 			# Assuming host is using FQDN to log in
 			isHost = True
 			
-			if not getattr(self.session, 'hostname'):
-				getattr(self.session, 'hostname', user)
+			if not self.session.hostname:
+				self.session.hostname = user
 			
 			addressList = []
 			try:
@@ -650,32 +676,32 @@ class Worker:
 			except Exception, e:
 				logger.warning("Failed to resolve hostname '%s': %s" % (user, e))
 			
-			if (getattr(self.session, 'ip') not in addressList):
+			if self.session.ip not in addressList:
 				# Username (FQDN) of peer does not resolve to peer's ip address
 				if verifyIp:
 					logger.critical("Host login attempt with username '%s'" % user +
 							" from ip '%s', but name resolves to '%s' (access denied)" % 
-							( getattr(self.session, 'ip'), addressList) )
+							( self.session.ip, addressList) )
 					raise Exception("Access denied for username '%s' from '%s'" %
-							(user, getattr(self.session, 'ip')) )
+							(user, self.session.ip) )
 				else:
 					logger.notice("Host login attempt with username '%s'" % user +
 							" from ip '%s', but name resolves to '%s', ip verification is disabled (access granted)" % 
-							( getattr(self.session, 'ip'), addressList) )
+							( self.session.ip, addressList) )
 		
 		# Create BackendManager instance
 		bm = BackendManager(	address		= 'localhost', 
 					username	= user,
-					password	= getattr(self.session, 'password'),
+					password	= self.session.password,
 					configFile	= backendManagerConf )
 		
 		logger.notice('BackendManager created.')
 		
-		setattr(self.session, 'authenticated', True)
+		self.session.authenticated = True
 		# Store BackendManager instance reference in session
-		setattr(self.session, 'bm', bm)
+		self.session.bm = bm
 		
-		setattr(self.session, 'possibleMethods', bm.getPossibleMethods_listOfHashes())
+		self.session.possibleMethods = bm.getPossibleMethods_listOfHashes()
 		
 		if isHost:
 			try:
@@ -690,20 +716,27 @@ class Worker:
 			
 			bm.setHostLastSeen(user, timestamp())
 	
-	def process(self, request, query):
+	def process(self, query, request):
 		
 		# Change log-file
 		if machineLogs and logFile:
-			clientIp = request.getClientIP()
+			clientIp = request.remoteAddr.host
 			logger.info("Setting log-file for current thread %s to: '%s'" % (long(thread.get_ident()), logFile.replace('%m', clientIp)))
 			logger.setLogFile( logFile.replace('%m', clientIp), currentThread=True )
 		
 		# Restore previous session or generate new one
 		self.getSession(request)
 		
+		# Create response
+		response = http.Response()
+		
+		# Add session cookie to response header
+		cookie = Cookie(sessionName, self.session.uid, path='/')
+		response.headers.setHeader('Set-Cookie', [ cookie ] )
+		
 		# Create symlink to log-file
 		if machineLogs and logFile and symlinkLogs:
-			hostname = getattr(self.session, 'hostname', None)
+			hostname = self.session.hostname
 			if hostname:
 				logger.linkLogFile(logFile.replace('%m', hostname), currentThread=True)
 		
@@ -725,14 +758,14 @@ class Worker:
 			logger.warning("Deserialization of json-rpc failed '%s': %s" % 
 					(query, e) )
 			# Bad request
-			request.setResponseCode(400)
+			response.code = responsecode.BAD_REQUEST
+			response.stream = json.write( {"id": None, "result": None, "error": e} )
 			logger.exit()
-			return ( json.write( {"id": None, "result": None, "error": e} ),
-				 request )
+			return response
 		
 		logger.info('Got json-rpc request: %s' % rpc)
 		
-		request.setResponseCode(200)
+		response.code = responsecode.OK
 		
 		# Allowing getHostId even if not authenticated
 		if (rpc['method'] == 'getHostId'):
@@ -742,16 +775,19 @@ class Worker:
 			jsonString = json.write({ "id": rpc.get('id'), "result": self.getHostId(hostname), "error": None})
 			logger.debug2("Returning json object: '%s'" % jsonString)
 			logger.exit()
-			return (jsonString, request )
+			response.stream = jsonString
+			return response
+			
 		# Allowing getDomain even if not authenticated
 		if (rpc['method'] == 'getDomain') and not rpc['params']:
 			jsonString = json.write({ "id": rpc.get('id'), "result": self.getDomain(), "error": None})
 			logger.debug2("Returning json object: '%s'" % jsonString)
 			logger.exit()
-			return (jsonString, request )
+			response.stream = jsonString
+			return response
 		
 		# Authenticate user
-		if not getattr(self.session, 'authenticated', False):
+		if not self.session.authenticated:
 			# Not authenticated
 			try:
 				self.authenticate()
@@ -759,12 +795,14 @@ class Worker:
 				# Forbidden
 				logger.logException(e)
 				logger.error("Forbidden: %s" % str(e))
-				request.setResponseCode(401)
-				request.setHeader('WWW-Authenticate', 'basic realm="OPSI Configuration Service"')
+				#request.setHeader('WWW-Authenticate', 'basic realm="OPSI Configuration Service"')
 				logger.exit()
-				setattr(self.session, 'user', '')
-				setattr(self.session, 'password', '')
-				return ( json.write( {"id": None, "result": None, "error": str(e)}), request )
+				self.session.user = ''
+				self.session.password = ''
+				response.code = responsecode.UNAUTHORIZED
+				response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
+				response.stream = json.write( {"id": None, "result": None, "error": str(e)})
+				return response
 		
 		# Execute rpc and return result
 		try:
@@ -785,7 +823,10 @@ class Worker:
 			logger.error(err)
 			# request.setResponseCode(500)
 			logger.exit()
-			return ( json.write({ "id": rpc.get('id'), "result": None, "error": err}), request )
+			
+			response.stream = json.write({ "id": rpc.get('id'), "result": None, "error": err})
+			return response
+			
 		except Exception, e:
 			logger.error(str(e))
 			raise
@@ -793,7 +834,8 @@ class Worker:
 		jsonString = json.write({ "id": rpc.get('id'), "result": result, "error": None})
 		logger.debug2("Returning json object: '%s'" % jsonString)
 		logger.exit()
-		return (jsonString, request)
+		response.stream = jsonString
+		return response
 	
 	def execute(self, rpc, request):
 		''' Execute json remote procedure call. '''
@@ -803,22 +845,22 @@ class Worker:
 		
 		# Get BackendManager instance from session
 		try:
-			bm = getattr(self.session, 'bm')
+			bm = self.session.bm
 		except Exception, e:
 			logger.critical("Failed to execute rpc, cannot get bm instance from session!")
 			logger.critical("rpc is: %s" % rpc)
 			logger.critical("session is: %s" % self.session)
 			logger.notice("Deleting session!")
-			deleteSession(self.session.uid)
+			sessionHandler.deleteSession(self.session.uid)
 			raise Exception("Failed to execute rpc, cannot get bm instance from session!")
 		
 		if (method == 'exit'):
-			deleteSession(self.session.uid)
+			sessionHandler.deleteSession(self.session.uid)
 			return
 		
 		# Check if possible method
 		valid = False
-		for f in getattr(self.session, 'possibleMethods'):
+		for f in self.session.possibleMethods:
 			if (f['name'] == method):
 				valid = True
 		
@@ -887,42 +929,9 @@ class SSLContext:
 		context.use_certificate_file(sslServerCertFile)
 		return context
 
-
-
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                            MAIN                                                   =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-
-def deleteTimedOutSessions():
-	logger.debug('deleteTimedOutSessions() called...')
-	
-	for (sessionId, session) in site.sessions.items():
-		if ( session.lastModified + sessionMaxInactiveInterval < time.time() ):
-			logger.notice("Session '%s' expired after %s seconds" % (sessionId, sessionMaxInactiveInterval))
-			deleteSession(sessionId)
-	
-	global sessionTimer
-	if sessionTimer:
-		sessionTimer.cancel()
-	sessionTimer = threading.Timer(sessionVerifyInterval, deleteTimedOutSessions)
-	sessionTimer.start()
-
-def deleteSession(sessionId):
-	session = site.sessions.get(sessionId)
-	if not session:
-		logger.warning('No such session id: %s' % sessionId)
-		return
-	
-	try:
-		bm = getattr(session, 'bm')
-		bm.exit()
-	except:
-		pass
-	
-	del site.sessions[sessionId]
-	
-	logger.notice("Session '%s' deleted" % sessionId)
-	
 
 def readConfigFile():
 	''' Get settings from config file '''
@@ -1033,8 +1042,6 @@ def readConfigFile():
 							staticDirectories[option] = windefaultdir+'\\configed.exe'
 						if option == '/':
 							staticDirectories[option] = windefaultdir+'\\share'
-					
-				
 			
 			else:
 				logger.warning("Ignoring unknown section '%s' in config file: '%s'" % (section, configFile))
@@ -1084,8 +1091,7 @@ def signalHandler(signo, stackFrame):
 		logger.notice("Started at %s, running %d day(s), %02d:%02d:%02d" % (
 					time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(startTime)), d, h, m, s ) )
 		logger.notice("Got signal %s, deleting all active sessions..." % signo)
-		for sId in site.sessions.keys():
-			deleteSession(sId)
+		sessionHandler.deleteAllSessions()
 		
 		logger.notice("Got signal %s, logging execution statistics..." % signo)
 		logStatistics()
@@ -1123,7 +1129,72 @@ def createRoot():
 
 	root.putChild("rpc", OpsiJsonRpc())
 	root.putChild("interface", OpsiJsonInterface())
-	
+	root.putChild("opsi-depot", OpsiDAV('/opt/pcbin/install') )
+	#####################
+	#from zope.interface import Interface, implements
+	#from twisted.cred import portal
+	#
+	#class IHTTPUser(Interface):
+	#    pass
+	#
+	#class HTTPUser(object):
+	#    implements(IHTTPUser)
+	#
+	#class HTTPAuthRealm(object):
+	#    implements(portal.IRealm)
+	#
+	#    def requestAvatar(self, avatarId, mind, *interfaces):
+	#	if IHTTPUser in interfaces:
+	#	    return IHTTPUser, HTTPUser()
+	#
+	#	raise NotImplementedError("Only IHTTPUser interface is supported")
+        #
+	#from twisted.cred import error, credentials
+	#from twisted.cred import portal, checkers
+	#from twisted.web2.auth.basic import BasicCredentialFactory
+	#from twisted.web2.auth.wrapper import HTTPAuthResource
+	#
+	#
+	#class AllowAnonymousAccess:
+	#	credentialInterfaces = (credentials.IUsernamePassword,
+	#				credentials.IUsernameHashedPassword)
+	#	#def requestAvatarId(self, credentials):
+	#	#	logger.error("requestAvatarId")
+	#	#	ANONYMOUS = ()
+	#	#	#return defer.succeed(ANONYMOUS)
+	#	#	return defer.fail(ANONYMOUS)
+	#	
+	#	def requestAvatarId(self, credentials):
+	#		logger.debug( credentials.username )
+	#		#logger.error(credentials.__dict)
+	#		#if credentials.username in self.users:
+	#		 #   return defer.maybeDeferred(
+	#		#	credentials.checkPassword,
+	#		#	self.users[credentials.username]).addCallback(
+	#		#	self._cbPasswordMatch, str(credentials.username))
+	#		#else:
+	#		return defer.fail(error.UnauthorizedLogin())
+	#		
+	#	def requestAvatar(self, x, y, z):
+	#		logger.error(str(x))
+	#		logger.error(str(y))
+	#		logger.error(str(z))
+	#		return ("test", "test")
+	#
+	#
+	#checker = AllowAnonymousAccess()
+	#p = portal.Portal(checker)	
+	#p.registerChecker(checker)
+	#
+	#root.putChild("opsi-depot",
+	#	HTTPAuthResource(
+	#		static.DAVFile("/opt/pcbin/install"),
+	#		(BasicCredentialFactory('Twisted Web2 Realm'),),
+	#		p,
+	#		(IHTTPUser,))
+	#)
+	#
+	######################
 	for (name, path) in staticDirectories.items():
 		if (name == '/'):
 			continue
@@ -1233,7 +1304,7 @@ def main(argv):
 	global pid
 	global daemon
 	global site
-	global sessionTimer
+	global sessionHandler
 	global configFile
 	global logFormat
 	global logLevel
@@ -1323,28 +1394,28 @@ def main(argv):
 	createRoot()
 	site = server.Site(root)
 	
-	sessionTimer = threading.Timer(sessionVerifyInterval, deleteTimedOutSessions)
-	sessionTimer.start()
+	sessionHandler = SessionHandler(
+				sessionName = sessionName,
+				sessionMaxInactiveInterval = sessionMaxInactiveInterval,
+				sessionVerifyInterval = sessionVerifyInterval)
 	
 	if (httpPort > 0):
 		if (interface == '0.0.0.0'):
-			reactor.listenTCP(httpPort, site)
+			reactor.listenTCP(httpPort, HTTPFactory(site))
 		else:
-			reactor.listenTCP(httpPort, site, interface = interface)
+			reactor.listenTCP(httpPort, HTTPFactory(site), interface = interface)
 		
 		logger.notice("Accepting HTTP requests on %s:%s" % (interface, httpPort))
 	
 	if (httpsPort > 0):
 		if (interface == '0.0.0.0'):
-			reactor.listenSSL(httpsPort, site, SSLContext())
+			reactor.listenSSL(httpsPort, HTTPFactory(site), SSLContext())
 		else:
-			reactor.listenSSL(httpsPort, site, SSLContext(), interface = interface)
+			reactor.listenSSL(httpsPort, HTTPFactory(site), SSLContext(), interface = interface)
 		
 		logger.notice("Accepting HTTPS requests on %s:%s" % (interface, httpsPort))
 	
 	reactor.run(installSignalHandlers=0)
-	
-	sessionTimer.cancel()
 	sys.exit(0)
 
 
@@ -1366,9 +1437,6 @@ if (__name__ == "__main__"):
 		
 	except Exception, e:
 		exception = e
-	
-	if sessionTimer:
-		sessionTimer.cancel()
 	
 	try:
 		if (pid == os.getpid()):

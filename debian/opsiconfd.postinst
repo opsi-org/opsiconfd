@@ -5,7 +5,7 @@
 case "$1" in
     configure)
 	
-    if [ -z "`getent group pcpatch`" ]; then
+	if [ -z "`getent group pcpatch`" ]; then
 		groupadd -g 992 pcpatch
 	fi
 	
@@ -25,16 +25,21 @@ case "$1" in
 		
 		db_get opsiconfd/cert_country
 		cert_country=$RET
+		[ "$cert_country" = "" ] && cert_country="DE"
 		db_get opsiconfd/cert_state
 		cert_state=$RET
+		[ "$cert_state" = "" ] && cert_state="RP"
 		db_get opsiconfd/cert_locality
 		cert_locality=$RET
+		[ "$cert_locality" = "" ] && cert_locality="Mainz"
 		db_get opsiconfd/cert_organization
 		cert_organization=$RET
+		[ "$cert_organization" = "" ] && cert_organization="uib GmbH"
 		db_get opsiconfd/cert_unit
 		cert_unit=$RET
 		db_get opsiconfd/cert_commonname
 		cert_commonname=$RET
+		[ "$cert_commonname" = "" ] && cert_commonname=`hostname -f`
 		db_get opsiconfd/cert_email
 		cert_email=$RET
 		

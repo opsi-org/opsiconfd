@@ -1,8 +1,14 @@
-opsiconfd (1.0.5-3) stable; urgency=low
+opsiconfd (1.0.5-4) stable; urgency=low
 
   * fixed: config file not in packet 
 
  -- Jan Schneider <j.schneider@uib.de>  Sun, 13 Jan 2008 14:05:11 +0100
+
+opsiconfd (1.0.5-3) stable; urgency=low
+
+  * Added some defaults for x509 certificate
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 10 Jan 2008 11:16:09 +0100
 
 opsiconfd (1.0.5-2) stable; urgency=low
 

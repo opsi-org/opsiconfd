@@ -567,7 +567,6 @@ class SessionHandler:
 			pass
 		
 		del self.sessions[uid]
-		
 		logger.notice("Session '%s' deleted" % uid)
 	
 	def deleteTimedOutSessions(self):
@@ -1133,6 +1132,7 @@ def readConfigFile():
 	logger.notice("Config read")
 	
 def logStatistics():
+	logger.debug("Logging statistics")
 	global statistics
 	minimum = 1000000
 	maximum = 0
@@ -1186,9 +1186,13 @@ def signalHandler(signo, stackFrame):
 		
 	if (signo == SIGTERM or signo == SIGINT):
 		logger.notice("Got signal %s, exiting..." % signo)
+		logger.debug("Stopping session handler")
 		sessionHandler.stop()
+		logger.debug("Session handler stopped")
 		if reactor.running:
+			logger.debug("Stopping reactor")
 			reactor.stop()
+			logger.debug("Reactor stopped")
 		logStatistics()
 
 def createRoot():
@@ -1222,25 +1226,10 @@ def createRoot():
 			logger.error("Cannot add static content '%s': directory '%s' does not exist." % (name, path))
 			continue
 		
-		root.putChild(name, static.File(path))
+		# TODO: rw
+		root.putChild(name, OpsiDAV(path, readOnly=True))
 		
 		logger.notice("Added static content '%s' which points to directory '%s'" % (name, path))
-	
-	for (name, path) in webdavDirectories.items():
-		if (name == '/'):
-			continue
-		
-		if name in ("rpc", "interface"):
-			logger.error("Cannot add WebDAV content '%s', already in use!" % name)
-			continue
-		
-		if not os.path.isdir(path):
-			logger.error("Cannot add WebDAV content '%s': directory '%s' does not exist." % (name, path))
-			continue
-		
-		root.putChild(name, OpsiDAV(path))
-		
-		logger.notice("Added WebDAV content '%s' which points to directory '%s'" % (name, path))
 	
 	
 def daemonize():

@@ -50,6 +50,7 @@ logLevel = LOG_ERROR
 logFormat = '(%l) %D %M (%F|%N)'
 daemon = False
 staticDirectories = {}
+webdavDirectories = {}
 startTime = time.time()
 
 if os.name == 'nt':
@@ -95,28 +96,54 @@ class Root(resource.Resource):
 		return "<html><head><title>opsiconfd</title></head><body></body></html>"
 
 class OpsiDAV(static.DAVFile):
-		
-	def renderHTTP(self, request):
-		logger.debug("renderHTTP")
-		try:
-			w = Worker()
-			w.getSession(request)
-			if not w.session.authenticated:
-				w.authenticate()
-			return static.DAVFile.renderHTTP(self, request)
-		except Exception, e:
-			logger.logException(e)
-			response = http.Response(code = responsecode.UNAUTHORIZED, stream = str(e))
-			response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
-			return response
 	
-	def callback(self, response):
+	def __init__(self, path, readOnly=True, defaultType="text/plain", indexNames=None):
+		static.DAVFile.__init__(self, path, defaultType, indexNames)
+		self._readOnly = readOnly
+	
+	def renderHTTP(self, request):
+		if self._readOnly and request.method not in ('GET', 'PROPFIND'):
+			logger.warning("Command %s not allowed (readonly)" % request.method)
+			return http.Response(
+				code	= responsecode.FORBIDDEN,
+				stream	= "Readonly!" )
+		w = DAVWorker(self)
+		d = threads.deferToThread(w.process, request)
+		# Set callback function (called when thread is finished)
+		d.addCallback(self.callback, (w, request))
+		# Set callback function (called if error occurs)
+		d.addErrback(self.errCallback, (w, request))
+		return d
+	
+	def getProperty(self, element):
+		logger.error("getProperty: %s" % element)
+	
+	def callback(self, result, params):
 		''' Callback function (thread finished). '''
 		logger.debug("--- Thread finished ---")
-		logger.debug("response: %s" % response)
-		if not response:
-			return http.Response()
-		return response
+		(w, request) = params
+		if isinstance(w.response, defer.Deferred):
+			logger.debug("callback: got an deferred, readding callback")
+			w.response.addCallback(self.callback, (w, request))
+		else:
+			cookie = Cookie(w.session.name, w.session.uid, path='/')
+			w.response.headers.setHeader('Set-Cookie', [ cookie ] )
+		return w.response
+	
+	def errCallback(self, traceback, params):
+		''' Callback function (error occured). '''
+		logger.debug("--- Thread finished ---")
+		(w, request) = params
+		
+		err = "Internal server error: " + str(traceback.value)
+		logger.logTraceback(traceback.tb)
+		logger.critical('     ==>>> %s' % err)
+		
+		logger.debug("Sending error '%s' to client '%s'" % (err, w.session.ip))
+		return http.Response(
+				code	= responsecode.INTERNAL_SERVER_ERROR,
+				stream	= err )
+		
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                      CLASS OPSIJSONRPC                                            =
@@ -148,31 +175,28 @@ class OpsiJsonRpc(resource.Resource):
 	def processQuery(self, query, request):
 		logger.debug("Processing query: %s" % query)
 		# Create a thread to process request
+		w = RPCWorker()
 		logger.debug("--- Starting thread ---")
-		d = threads.deferToThread(self.run, query, request)
+		d = threads.deferToThread(w.process, query, request)
 		# Set callback function (called when thread is finished)
-		d.addCallback(self.callback, (query, request))
+		d.addCallback(self.callback, (w, query, request))
 		# Set callback function (called if error occurs)
-		d.addErrback(self.errCallback, (query, request))
+		d.addErrback(self.errCallback, (w, query, request))
 		return d
 		
-	def run(self, query, request):
-		w = Worker()
-		return w.process(query, request)
-	
-	def callback(self, response, params):
+	def callback(self, result, params):
 		''' Callback function (thread finished). '''
 		logger.debug("--- Thread finished ---")
-		(result, request) = params
+		(w, query, request) = params
 		# Display standard page plus rpc result
-		if not isinstance(response.stream, IByteStream):
-			response.stream = IByteStream( self.filterResult(response.stream) )
-		return response
+		if not isinstance(w.response.stream, IByteStream):
+			w.response.stream = IByteStream( self.filterResult(w.response.stream, query, request) )
+		return w.response
 	
 	def errCallback(self, traceback, params):
 		''' Callback function (error occured). '''
 		logger.debug("--- Thread finished ---")
-		(query, request) = params
+		(w, query, request) = params
 		
 		err = "Internal server error: " + str(traceback.value)
 		logger.logTraceback(traceback.tb)
@@ -185,9 +209,11 @@ class OpsiJsonRpc(resource.Resource):
 						json.write( {
 							"id": 		json.read(query).get('id'),
 							"result": 	None,
-							"error": 	err} ) ) )
+							"error": 	err} ),
+						query,
+						request) )
 	
-	def filterResult(self, result=None, request=None):
+	def filterResult(self, result=None, query=None, request=None):
 		return result
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -203,32 +229,34 @@ class OpsiJsonInterface(OpsiJsonRpc):
 		except:
 			self.possibleMethods = []
 		
+		w = RPCWorker()
+		
 		if (self.possibleMethods and query):
 			# Create a thread to process request
 			logger.debug("--- Starting thread ---")
-			d = threads.deferToThread(self.run, query, request)
+			d = threads.deferToThread(w.process, query, request)
 			# Set callback function (called when thread is finished)
-			d.addCallback(self.callback, (query, request))
+			d.addCallback(self.callback, (w, query, request))
 			# Set callback function (called if error occurs)
-			d.addErrback(self.errCallback, (query, request))
+			d.addErrback(self.errCallback, (w, query, request))
 			return d
 		else:
 			query = '{"id":1,"method":"getPossibleMethods_listOfHashes","params":[]}'
 			# Create a thread to process request
 			logger.debug("--- Starting thread ---")
-			d = threads.deferToThread(self.run, query, request)
+			d = threads.deferToThread(w.process, query, request)
 			# Set callback function (called when thread is finished)
-			d.addCallback(self.getPossibleMethodsCallback, (query, request))
+			d.addCallback(self.getPossibleMethodsCallback, (w, query, request))
 			# Set callback function (called if error occurs)
-			d.addErrback(self.errCallback, (query, request))
+			d.addErrback(self.errCallback, (w, query, request))
 			return d
 	
-	def getPossibleMethodsCallback(self, response, params):
+	def getPossibleMethodsCallback(self, result, params):
 		''' Callback function (thread finished). '''
 		logger.debug("--- Thread finished ---")
-		(query, request) = params
+		(w, query, request) = params
 		
-		if isinstance(response.stream, IByteStream):
+		if isinstance(w.response.stream, IByteStream):
 			logger.critical("response stream is instance of IByteStream")
 			return http.Response(
 				code	= responsecode.INTERNAL_SERVER_ERROR,
@@ -236,17 +264,19 @@ class OpsiJsonInterface(OpsiJsonRpc):
 						json.write( {
 							"id":		json.read(query).get('id'),
 							"result": 	None,
-							"error": "response stream is instance of IByteStream"} ) ) )
-		error = json.read(response.stream).get('error')
+							"error": "response stream is instance of IByteStream"} ),
+						query,
+						request) )
+		error = json.read(w.response.stream).get('error')
 		if error:
 			logger.critical("Cannot get possible methods: %s" % error)
 			self.possibleMethods = []
 		else:
-			self.possibleMethods = json.read(response.stream).get('result', [])
-		response.stream = IByteStream( self.filterResult(response.stream) )
-		return response
+			self.possibleMethods = json.read(w.response.stream).get('result', [])
+		w.response.stream = IByteStream( self.filterResult(w.response.stream, query, request) )
+		return w.response
 		
-	def filterResult(self, result=None, request=None):
+	def filterResult(self, result=None, query=None, request=None):
 		''' This function displays a hardcoded xhtml page to
 		    generate json-rpc requests and show the results. '''
 		
@@ -414,14 +444,11 @@ class OpsiJsonInterface(OpsiJsonRpc):
 					<td style="width: 280px;">
 						<select id="select" onchange="selectFunction(this)" name="method">\r\n"""
 		selectedMethod = None
-		if request:
-			pos = request.uri.find('?')
-			if ( pos != -1 ):
-				query = urllib.unquote( request.uri[pos+1:] ).replace('+', ' ')
-				try:
-					selectedMethod = json.read(query).get('method')
-				except:
-					pass
+		if query:
+			try:
+				selectedMethod = json.read(query).get('method')
+			except:
+				pass
 		for f in self.possibleMethods:
 			selected = ''
 			if (selectedMethod and selectedMethod == f['name']):
@@ -506,7 +533,11 @@ class SessionHandler:
 	
 	def __del__(self):
 		self.sessionTimer.cancel()
-		
+	
+	def stop(self):
+		self.sessionTimer.cancel()
+		self.deleteAllSessions()
+	
 	def getSession(self, uid):
 		session = self.sessions.get(uid)
 		if session:
@@ -564,6 +595,7 @@ class SessionHandler:
 class Worker:
 	def __init__(self):
 		self.session = None
+		self.response = None
 		
 	def getSession(self, request):
 		''' This method restores a session or generates a new one. '''
@@ -728,11 +760,11 @@ class Worker:
 		self.getSession(request)
 		
 		# Create response
-		response = http.Response()
+		self.response = http.Response()
 		
 		# Add session cookie to response header
-		cookie = Cookie(sessionName, self.session.uid, path='/')
-		response.headers.setHeader('Set-Cookie', [ cookie ] )
+		cookie = Cookie(self.session.name, self.session.uid, path='/')
+		self.response.headers.setHeader('Set-Cookie', [ cookie ] )
 		
 		# Create symlink to log-file
 		if machineLogs and logFile and symlinkLogs:
@@ -758,14 +790,14 @@ class Worker:
 			logger.warning("Deserialization of json-rpc failed '%s': %s" % 
 					(query, e) )
 			# Bad request
-			response.code = responsecode.BAD_REQUEST
-			response.stream = json.write( {"id": None, "result": None, "error": e} )
+			self.response.code = responsecode.BAD_REQUEST
+			self.response.stream = json.write( {"id": None, "result": None, "error": e} )
 			logger.exit()
-			return response
+			return
 		
 		logger.info('Got json-rpc request: %s' % rpc)
 		
-		response.code = responsecode.OK
+		self.response.code = responsecode.OK
 		
 		# Allowing getHostId even if not authenticated
 		if (rpc['method'] == 'getHostId'):
@@ -775,16 +807,16 @@ class Worker:
 			jsonString = json.write({ "id": rpc.get('id'), "result": self.getHostId(hostname), "error": None})
 			logger.debug2("Returning json object: '%s'" % jsonString)
 			logger.exit()
-			response.stream = jsonString
-			return response
+			self.response.stream = jsonString
+			return
 			
 		# Allowing getDomain even if not authenticated
 		if (rpc['method'] == 'getDomain') and not rpc['params']:
 			jsonString = json.write({ "id": rpc.get('id'), "result": self.getDomain(), "error": None})
 			logger.debug2("Returning json object: '%s'" % jsonString)
 			logger.exit()
-			response.stream = jsonString
-			return response
+			self.response.stream = jsonString
+			return
 		
 		# Authenticate user
 		if not self.session.authenticated:
@@ -799,10 +831,10 @@ class Worker:
 				logger.exit()
 				self.session.user = ''
 				self.session.password = ''
-				response.code = responsecode.UNAUTHORIZED
-				response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
-				response.stream = json.write( {"id": None, "result": None, "error": str(e)})
-				return response
+				self.response.code = responsecode.UNAUTHORIZED
+				self.response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
+				self.response.stream = json.write( {"id": None, "result": None, "error": str(e)})
+				return
 		
 		# Execute rpc and return result
 		try:
@@ -824,8 +856,8 @@ class Worker:
 			# request.setResponseCode(500)
 			logger.exit()
 			
-			response.stream = json.write({ "id": rpc.get('id'), "result": None, "error": err})
-			return response
+			self.response.stream = json.write({ "id": rpc.get('id'), "result": None, "error": err})
+			return
 			
 		except Exception, e:
 			logger.error(str(e))
@@ -834,8 +866,7 @@ class Worker:
 		jsonString = json.write({ "id": rpc.get('id'), "result": result, "error": None})
 		logger.debug2("Returning json object: '%s'" % jsonString)
 		logger.exit()
-		response.stream = jsonString
-		return response
+		self.response.stream = jsonString
 	
 	def execute(self, rpc, request):
 		''' Execute json remote procedure call. '''
@@ -909,6 +940,46 @@ class Worker:
 		elif ( type(obj) == type(1) ):
 			obj = str(obj)
 		return obj
+
+class RPCWorker(Worker):
+	def __init__(self):
+		Worker.__init__(self)
+
+class DAVWorker(Worker):
+	def __init__(self, opsiDav):
+		Worker.__init__(self)
+		self.opsiDav = opsiDav
+		
+	def process(self, request):
+		logger.debug("DAVWorker.process() %s" % request.method)
+		self.getSession(request)
+		if not self.session.authenticated:
+			try:
+				self.authenticate()
+			except Exception, e:
+				logger.logException(e)
+				self.response = http.Response(code = responsecode.UNAUTHORIZED, stream = str(e))
+				self.response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
+				cookie = Cookie(self.session.name, self.session.uid, path='/')
+				self.response.headers.setHeader('Set-Cookie', [ cookie ] )
+				return
+		
+		if not self.session.bm.userIsHost() and not self.session.bm.userIsAdmin():
+			logger.warning("WebDAV access denied for user %s@%s" % (self.session.user, self.session.ip))
+			self.response = http.Response(code = responsecode.UNAUTHORIZED, stream = "WebDAV access denied!")
+			return
+		
+		self.response = super(OpsiDAV, self.opsiDav).renderHTTP(request)
+		if isinstance(self.response, defer.Deferred):
+			self._waitForResponse(self.response)
+	
+	def _waitForResponse(self, response):
+		response = defer.waitForDeferred(response)
+		yield response
+		self.response = response.getResult()
+	
+	_waitForResponse = defer.deferredGenerator(_waitForResponse)
+	
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                       CLASS SSLCONTEXT                                            =
@@ -1029,7 +1100,7 @@ def readConfigFile():
 					else:
 						logger.warning("Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
 			
-			elif (section.lower() == 'directories'):
+			elif (section.lower() == 'static_directories'):
 				# Static directories
 				global staticDirectories
 				staticDirectories = {}
@@ -1042,6 +1113,14 @@ def readConfigFile():
 							staticDirectories[option] = windefaultdir+'\\configed.exe'
 						if option == '/':
 							staticDirectories[option] = windefaultdir+'\\share'
+			
+			elif (section.lower() == 'webdav_directories'):
+				# WebDAV directories
+				global webdavDirectories
+				webdavDirectories = {}
+				
+				for (option, value) in config.items(section):
+					webdavDirectories[option] = value
 			
 			else:
 				logger.warning("Ignoring unknown section '%s' in config file: '%s'" % (section, configFile))
@@ -1107,6 +1186,7 @@ def signalHandler(signo, stackFrame):
 		
 	if (signo == SIGTERM or signo == SIGINT):
 		logger.notice("Got signal %s, exiting..." % signo)
+		sessionHandler.stop()
 		if reactor.running:
 			reactor.stop()
 		logStatistics()
@@ -1129,72 +1209,7 @@ def createRoot():
 
 	root.putChild("rpc", OpsiJsonRpc())
 	root.putChild("interface", OpsiJsonInterface())
-	root.putChild("opsi-depot", OpsiDAV('/opt/pcbin/install') )
-	#####################
-	#from zope.interface import Interface, implements
-	#from twisted.cred import portal
-	#
-	#class IHTTPUser(Interface):
-	#    pass
-	#
-	#class HTTPUser(object):
-	#    implements(IHTTPUser)
-	#
-	#class HTTPAuthRealm(object):
-	#    implements(portal.IRealm)
-	#
-	#    def requestAvatar(self, avatarId, mind, *interfaces):
-	#	if IHTTPUser in interfaces:
-	#	    return IHTTPUser, HTTPUser()
-	#
-	#	raise NotImplementedError("Only IHTTPUser interface is supported")
-        #
-	#from twisted.cred import error, credentials
-	#from twisted.cred import portal, checkers
-	#from twisted.web2.auth.basic import BasicCredentialFactory
-	#from twisted.web2.auth.wrapper import HTTPAuthResource
-	#
-	#
-	#class AllowAnonymousAccess:
-	#	credentialInterfaces = (credentials.IUsernamePassword,
-	#				credentials.IUsernameHashedPassword)
-	#	#def requestAvatarId(self, credentials):
-	#	#	logger.error("requestAvatarId")
-	#	#	ANONYMOUS = ()
-	#	#	#return defer.succeed(ANONYMOUS)
-	#	#	return defer.fail(ANONYMOUS)
-	#	
-	#	def requestAvatarId(self, credentials):
-	#		logger.debug( credentials.username )
-	#		#logger.error(credentials.__dict)
-	#		#if credentials.username in self.users:
-	#		 #   return defer.maybeDeferred(
-	#		#	credentials.checkPassword,
-	#		#	self.users[credentials.username]).addCallback(
-	#		#	self._cbPasswordMatch, str(credentials.username))
-	#		#else:
-	#		return defer.fail(error.UnauthorizedLogin())
-	#		
-	#	def requestAvatar(self, x, y, z):
-	#		logger.error(str(x))
-	#		logger.error(str(y))
-	#		logger.error(str(z))
-	#		return ("test", "test")
-	#
-	#
-	#checker = AllowAnonymousAccess()
-	#p = portal.Portal(checker)	
-	#p.registerChecker(checker)
-	#
-	#root.putChild("opsi-depot",
-	#	HTTPAuthResource(
-	#		static.DAVFile("/opt/pcbin/install"),
-	#		(BasicCredentialFactory('Twisted Web2 Realm'),),
-	#		p,
-	#		(IHTTPUser,))
-	#)
-	#
-	######################
+	
 	for (name, path) in staticDirectories.items():
 		if (name == '/'):
 			continue
@@ -1210,6 +1225,23 @@ def createRoot():
 		root.putChild(name, static.File(path))
 		
 		logger.notice("Added static content '%s' which points to directory '%s'" % (name, path))
+	
+	for (name, path) in webdavDirectories.items():
+		if (name == '/'):
+			continue
+		
+		if name in ("rpc", "interface"):
+			logger.error("Cannot add WebDAV content '%s', already in use!" % name)
+			continue
+		
+		if not os.path.isdir(path):
+			logger.error("Cannot add WebDAV content '%s': directory '%s' does not exist." % (name, path))
+			continue
+		
+		root.putChild(name, OpsiDAV(path))
+		
+		logger.notice("Added WebDAV content '%s' which points to directory '%s'" % (name, path))
+	
 	
 def daemonize():
 	# Fork to allow the shell to return and to call setsid
@@ -1366,7 +1398,6 @@ def main(argv):
 			+ "             OPSI configuration-service starting" + \
 			"\n==================================================================\n")
 	
-	
 	# Test backendmanager
 	bm = BackendManager(	address	 	= 'localhost',
 				authRequired 	= False )
@@ -1420,6 +1451,7 @@ def main(argv):
 
 
 if (__name__ == "__main__"):
+	
 	if (os.name == 'posix'):
 		from signal import *
 		# Call signalHandler on signal SIGHUP, SIGTERM, SIGINT

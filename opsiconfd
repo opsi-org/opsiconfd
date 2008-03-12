@@ -1210,7 +1210,7 @@ def createRoot():
 	
 	else:
 		root = Root()
-
+	
 	root.putChild("rpc", OpsiJsonRpc())
 	root.putChild("interface", OpsiJsonInterface())
 	
@@ -1226,7 +1226,11 @@ def createRoot():
 			logger.error("Cannot add static content '%s': directory '%s' does not exist." % (name, path))
 			continue
 		
-		# TODO: rw
+		if (name == 'configed'):
+			root.putChild(name, static.File(path))
+			logger.notice("Added static content '%s' which points to directory '%s'" % (name, path))
+			continue
+		
 		root.putChild(name, OpsiDAV(path, readOnly=True))
 		
 		logger.notice("Added static content '%s' which points to directory '%s'" % (name, path))
@@ -1398,14 +1402,16 @@ def main(argv):
 			p = pf.readline().strip()
 			pf.close()
 			if p:
-				for line in execute("%s -A" % which("ps")):
-					line = line.strip()
-					if not line:
-						continue
-					if (p == line.split()[0].strip()):
-						# process is running
-						raise Exception("Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
-	
+				running = False
+				try:
+					for i in execute("%s -x opsiconfd" % which("pidof"))[0].strip().split():
+						if (i == p):
+							running = True
+				except Exception, e:
+					logger.error(e)
+				if running:
+					raise Exception("Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
+				
 	pid = os.getpid()
 	pf = open (pidFile, "w")
 	print >> pf, str(pid)

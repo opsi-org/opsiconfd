@@ -101,45 +101,50 @@ class OpsiDAV(static.DAVFile):
 		static.DAVFile.__init__(self, path, defaultType, indexNames)
 		self._readOnly = readOnly
 	
+	def createSimilarFile(self, path):
+		return self.__class__(path, readOnly=self._readOnly, defaultType=self.defaultType, indexNames=self.indexNames[:])
+	
 	def renderHTTP(self, request):
 		if self._readOnly and request.method not in ('GET', 'PROPFIND'):
 			logger.warning("Command %s not allowed (readonly)" % request.method)
 			return http.Response(
 				code	= responsecode.FORBIDDEN,
 				stream	= "Readonly!" )
-		w = DAVWorker(self)
-		d = threads.deferToThread(w.process, request)
+		worker = DAVWorker(request = request, opsiDav = self)
+		d = threads.deferToThread(worker.process)
 		# Set callback function (called when thread is finished)
-		d.addCallback(self.callback, (w, request))
+		d.addCallback(self.callback, worker)
 		# Set callback function (called if error occurs)
-		d.addErrback(self.errCallback, (w, request))
+		d.addErrback(self.errCallback, worker)
 		return d
 	
 	def getProperty(self, element):
 		logger.error("getProperty: %s" % element)
 	
-	def callback(self, result, params):
+	def callback(self, result, worker):
 		''' Callback function (thread finished). '''
 		logger.debug("--- Thread finished ---")
-		(w, request) = params
-		if isinstance(w.response, defer.Deferred):
-			logger.debug("callback: got an deferred, readding callback")
-			w.response.addCallback(self.callback, (w, request))
+		
+		if isinstance(worker.response, defer.Deferred):
+			logger.debug("callback: response is an deferred, readding callback")
+			worker.response.addCallback(self.callback, worker)
+			worker.response.addErrback(self.errCallback, worker)
+		elif worker.error:
+			raise Exception(worker.error)
 		else:
-			cookie = Cookie(w.session.name, w.session.uid, path='/')
-			w.response.headers.setHeader('Set-Cookie', [ cookie ] )
-		return w.response
+			cookie = Cookie(worker.session.name, worker.session.uid, path='/')
+			worker.response.headers.setHeader('Set-Cookie', [ cookie ] )
+		return worker.response
 	
-	def errCallback(self, traceback, params):
+	def errCallback(self, traceback, worker):
 		''' Callback function (error occured). '''
 		logger.debug("--- Thread finished ---")
-		(w, request) = params
 		
 		err = "Internal server error: " + str(traceback.value)
 		logger.logTraceback(traceback.tb)
 		logger.critical('     ==>>> %s' % err)
 		
-		logger.debug("Sending error '%s' to client '%s'" % (err, w.session.ip))
+		logger.debug("Sending error '%s' to client '%s'" % (err, worker.session.ip))
 		return http.Response(
 				code	= responsecode.INTERNAL_SERVER_ERROR,
 				stream	= err )
@@ -158,125 +163,74 @@ class OpsiJsonRpc(resource.Resource):
 	def http_GET(self, request):
 		logger.info("(GET) Client '%s' requests uri '%s'" % (request.remoteAddr.host, request.uri))
 		
-		logger.debug2(request.args)
-		logger.debug2(request.chanRequest.__dict__)
-		
-		query = urllib.unquote( request.querystring )
-		
-		return self.processQuery(query, request)
+		return self.processRequest(request, 'GET')
 		
 	def http_POST(self, request):
 		logger.info("(POST) Client '%s' requests uri '%s'" % (request.remoteAddr.host, request.uri))
 		
-		d = request.stream.read()
-		d.addCallback(self.processQuery, (request))
+		return self.processRequest(request, 'POST')
+		
+	
+	def processRequest(self, request, requestType):
+		logger.debug("Processing request")
+		# Create a thread to process request
+		worker = RPCWorker(request = request, requestType = requestType)
+		logger.debug("--- Starting thread ---")
+		d = threads.deferToThread(worker.process)
+		# Set callback function (called when thread is finished)
+		d.addCallback(self.callback, worker)
+		# Set callback function (called if error occurs)
+		d.addErrback(self.errCallback, worker)
 		return d
 	
-	def processQuery(self, query, request):
-		logger.debug("Processing query: %s" % query)
-		# Create a thread to process request
-		w = RPCWorker()
-		logger.debug("--- Starting thread ---")
-		d = threads.deferToThread(w.process, query, request)
-		# Set callback function (called when thread is finished)
-		d.addCallback(self.callback, (w, query, request))
-		# Set callback function (called if error occurs)
-		d.addErrback(self.errCallback, (w, query, request))
-		return d
-		
-	def callback(self, result, params):
+	def callback(self, result, worker):
 		''' Callback function (thread finished). '''
 		logger.debug("--- Thread finished ---")
-		(w, query, request) = params
-		# Display standard page plus rpc result
-		if not isinstance(w.response.stream, IByteStream):
-			w.response.stream = IByteStream( self.filterResult(w.response.stream, query, request) )
-		return w.response
+		
+		if not worker.gotResult:
+			logger.debug("Worker not finished, readding callback")
+			worker.deferred.addCallback(self.callback, worker)
+			worker.deferred.addErrback(self.errCallback, worker)
+			return worker.deferred
+		else:
+			worker.response.stream = IByteStream(
+				self.filterResult(worker.result, worker) )
+			return worker.response
 	
-	def errCallback(self, traceback, params):
+	def errCallback(self, traceback, worker):
 		''' Callback function (error occured). '''
 		logger.debug("--- Thread finished ---")
-		(w, query, request) = params
 		
 		err = "Internal server error: " + str(traceback.value)
 		logger.logTraceback(traceback.tb)
 		logger.critical('     ==>>> %s' % err)
 		
-		logger.debug("Sending error '%s' to client '%s'" % (err, request.remoteAddr.host))
+		logger.debug("Sending error '%s' to client '%s'" % (err, worker.request.remoteAddr.host))
 		return http.Response(
 				code	= responsecode.INTERNAL_SERVER_ERROR,
 				stream	= self.filterResult(
 						json.write( {
-							"id": 		json.read(query).get('id'),
+							"id": 		worker.rpc.get('id'),
 							"result": 	None,
 							"error": 	err} ),
-						query,
-						request) )
+						worker) )
 	
-	def filterResult(self, result=None, query=None, request=None):
+	def filterResult(self, result, worker):
 		return result
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                   CLASS OPSIJSONINTERFACE                                         =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class OpsiJsonInterface(OpsiJsonRpc):
+	def __init__(self):
+		bm = BackendManager(authRequired = False)
+		self.possibleMethods = bm.getPossibleMethods_listOfHashes()
+		bm.exit()
 	
-	def processQuery(self, query, request):
-		logger.debug("Processing query: %s" % query)
+	def filterResult(self, result, worker):
+		query = worker.query
+		request = worker.request
 		
-		try:
-			x = self.possibleMethods
-		except:
-			self.possibleMethods = []
-		
-		w = RPCWorker()
-		
-		if (self.possibleMethods and query):
-			# Create a thread to process request
-			logger.debug("--- Starting thread ---")
-			d = threads.deferToThread(w.process, query, request)
-			# Set callback function (called when thread is finished)
-			d.addCallback(self.callback, (w, query, request))
-			# Set callback function (called if error occurs)
-			d.addErrback(self.errCallback, (w, query, request))
-			return d
-		else:
-			query = '{"id":1,"method":"getPossibleMethods_listOfHashes","params":[]}'
-			# Create a thread to process request
-			logger.debug("--- Starting thread ---")
-			d = threads.deferToThread(w.process, query, request)
-			# Set callback function (called when thread is finished)
-			d.addCallback(self.getPossibleMethodsCallback, (w, query, request))
-			# Set callback function (called if error occurs)
-			d.addErrback(self.errCallback, (w, query, request))
-			return d
-	
-	def getPossibleMethodsCallback(self, result, params):
-		''' Callback function (thread finished). '''
-		logger.debug("--- Thread finished ---")
-		(w, query, request) = params
-		
-		if isinstance(w.response.stream, IByteStream):
-			logger.critical("response stream is instance of IByteStream")
-			return http.Response(
-				code	= responsecode.INTERNAL_SERVER_ERROR,
-				stream	= self.content(
-						json.write( {
-							"id":		json.read(query).get('id'),
-							"result": 	None,
-							"error": "response stream is instance of IByteStream"} ),
-						query,
-						request) )
-		error = json.read(w.response.stream).get('error')
-		if error:
-			logger.critical("Cannot get possible methods: %s" % error)
-			self.possibleMethods = []
-		else:
-			self.possibleMethods = json.read(w.response.stream).get('result', [])
-		w.response.stream = IByteStream( self.filterResult(w.response.stream, query, request) )
-		return w.response
-		
-	def filterResult(self, result=None, query=None, request=None):
 		''' This function displays a hardcoded xhtml page to
 		    generate json-rpc requests and show the results. '''
 		
@@ -531,11 +485,10 @@ class SessionHandler:
 		self.sessionTimer = threading.Timer( self.sessionVerifyInterval, self.deleteTimedOutSessions)
 		self.sessionTimer.start()
 	
-	def __del__(self):
-		self.sessionTimer.cancel()
-	
 	def stop(self):
 		self.sessionTimer.cancel()
+		while self.sessionTimer.isAlive():
+			time.sleep(0.1)
 		self.deleteAllSessions()
 	
 	def getSession(self, uid):
@@ -566,7 +519,10 @@ class SessionHandler:
 		except:
 			pass
 		
-		del self.sessions[uid]
+		try:
+			del self.sessions[uid]
+		except KeyError:
+			pass
 		logger.notice("Session '%s' deleted" % uid)
 	
 	def deleteTimedOutSessions(self):
@@ -592,40 +548,62 @@ class SessionHandler:
 # =                                          CLASS WORKER                                             =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class Worker:
-	def __init__(self):
+	def __init__(self, request, requestType = 'POST'):
 		self.session = None
+		self.deferred = None
+		self.request = request
+		self.requestType = requestType
 		self.response = None
+		self.result = None
+		self.error = None
+		self.rpc = { 'id': -1, 'method': None, 'params': [] }
+		self.postDataRead = 0
+		self.query = ''
+		self.uploadFile = None
+		self.gotResult = False
+		logger.debug("Worker constructed, request %s, type %s" % (self.request, self.requestType))
+	
+	def _errCallback(self, traceback):
+		#logger.logException(traceback)
+		logger.critical(traceback)
+		self.error = traceback.value
 		
-	def getSession(self, request):
+	def setResult(self, result):
+		self.result = result
+		self.gotResult = True
+		logger.exit()
+		return
+	
+	def getSession(self):
 		''' This method restores a session or generates a new one. '''
 		self.session = None
 		
-		logger.confidential("Request headers: %s " % request.headers)
+		logger.confidential("Request headers: %s " % self.request.headers)
 		
 		# Get session id from cookie request header
 		sessionId = ''
 		try:
-			sessionId = request.headers.getHeader('cookie')[0].value
+			sessionId = self.request.headers.getHeader('cookie')[0].value
 		except Exception, e:
 			pass
 		
 		if not sessionId:
-			logger.notice("Client '%s' did not send cookie" % request.remoteAddr.host)
+			logger.notice("Client '%s' did not send cookie" % self.request.remoteAddr.host)
 		
 		# Get Session object
 		self.session = sessionHandler.getSession(sessionId)
 		
-		if self.session.ip and verifyIp and (self.session.ip != request.remoteAddr.host):
+		if self.session.ip and verifyIp and (self.session.ip != self.request.remoteAddr.host):
 			logger.critical("Client ip '%s' does not match session ip '%s'" \
-				% (request.remoteAddr.host, self.session.ip) )
+				% (self.request.remoteAddr.host, self.session.ip) )
 			sessionHandler.deleteSession(self.session.uid)
 			self.session = sessionHandler.getSession()
 		
 		# Set ip
-		self.session.ip = request.remoteAddr.host
+		self.session.ip = self.request.remoteAddr.host
 		
 		if (sessionId == self.session.uid):
-			logger.info("Reusing session for client '%s'" % request.remoteAddr.host)
+			logger.info("Reusing session for client '%s'" % self.request.remoteAddr.host)
 		
 		logger.confidential("Session id is '%s'" % self.session.uid)
 		
@@ -637,33 +615,33 @@ class Worker:
 			hostname = ''
 			if resolveClientIp:
 				try:
-					hostname = socket.getfqdn(request.remoteAddr.host).lower()
+					hostname = socket.getfqdn(self.request.remoteAddr.host).lower()
 					if re.search('^\d+\.\d+\.\d+\.\d+$', hostname):
-						logger.error("Cannot get fqdn for client '%s'" % request.remoteAddr.host)
+						logger.error("Cannot get fqdn for client '%s'" % self.request.remoteAddr.host)
 						hostname = ''
 					elif (hostname != 'localhost') and (len(hostname.split('.')) == 1):
 						logger.warning("Cannot get fqdn but hostname '%s' for client '%s'" \
-							% (hostname, request.remoteAddr.host) )
+							% (hostname, self.request.remoteAddr.host) )
 						
 						defaultDomain = '.'.join(socket.getfqdn().split('.')[1:])
 						if not defaultDomain:
 							logger.error("Cannot get fqdn for client %s (%s), missing domain, failed to add default domain." \
-										% (hostname, request.remoteAddr.host) )
+										% (hostname, self.request.remoteAddr.host) )
 						
 						logger.notice("Adding domain '%s' to hostname '%s' for client '%s'" \
-								% (defaultDomain, hostname, request.remoteAddr.host) )
+								% (defaultDomain, hostname, self.request.remoteAddr.host) )
 						hostname = hostname + '.' + defaultDomain
 				except Exception, e:
-					logger.warning("Failed to resolve address '%s': %s" % (request.remoteAddr.host, e))
+					logger.warning("Failed to resolve address '%s': %s" % (self.request.remoteAddr.host, e))
 			
 			logger.info("Storing hostname '%s' in session" % hostname)
 			self.session.hostname = hostname
 		
 		# Set user and password
-		if not self.session.user and not self.session.password and request.headers.getHeader('Authorization'):
+		if not self.session.user and not self.session.password and self.request.headers.getHeader('Authorization'):
 			(user, password) = ('', '')
 			logger.debug("Trying to get username and password from Authorization header")
-			auth = request.headers.getHeader('Authorization')
+			auth = self.request.headers.getHeader('Authorization')
 			if auth:
 				logger.debug("Authorization header found")
 				try:
@@ -671,7 +649,7 @@ class Worker:
 					(user, password) = base64.decodestring(encoded).split(':')
 					logger.confidential("Client supplied username '%s' and password '%s'" % (user, password))
 				except Exception:
-					logger.error("Bad Authorization header from '%s'" % request.remoteAddr.host)
+					logger.error("Bad Authorization header from '%s'" % self.request.remoteAddr.host)
 				
 			self.session.user = user
 			self.session.password = password
@@ -721,8 +699,7 @@ class Worker:
 							( self.session.ip, addressList) )
 		
 		# Create BackendManager instance
-		bm = BackendManager(	address		= 'localhost', 
-					username	= user,
+		bm = BackendManager(	username	= user,
 					password	= self.session.password,
 					configFile	= backendManagerConf )
 		
@@ -747,16 +724,96 @@ class Worker:
 			
 			bm.setHostLastSeen(user, timestamp())
 	
-	def process(self, query, request):
+	def _readPostData(self, stream):
+		self.postDataRead = 0
+		self.query = ''
+		self.uploadData = ''
+		self.uploadFile = None
 		
+		dataOffset = -1
+		contentType = self.request.headers.getHeader('content-type')
+		if (contentType.mediaType == 'multipart'):
+			dataOffset = long(contentType.params['data-offset'])
+		
+		while(True):
+			data = stream.read()
+			if isinstance(data, defer.Deferred):
+				data = defer.waitForDeferred(data)
+				yield data
+				data = data.getResult()
+			if not data:
+				data = ''
+			self.postDataRead += len(data)
+			logger.debug('post data read: %d, content-length: %s, dataOffset: %d' \
+					% (self.postDataRead, self.request.stream.length, dataOffset))
+			if self.uploadFile:
+				self.uploadFile.write(data)
+				self.uploadFile.flush()
+			elif (dataOffset > -1) and (self.postDataRead >= dataOffset):
+				self.uploadFile = open('/tmp/test.bin', 'w')
+				x = self.postDataRead-len(self.query)
+				self.query += data[:x]
+				logger.info("Finished reading query, start writing file data.")
+				self.uploadFile.write(data[x:])
+				self.uploadFile.flush()
+			else:
+				self.query += data
+			
+			if (self.postDataRead >= self.request.stream.length):
+				break
+			
+		if self.uploadFile:
+			self.uploadFile.close()
+	_readPostData = defer.deferredGenerator(_readPostData)
+	
+	def _setLogFile(self):
+		clientIp = self.request.remoteAddr.host
+		logger.info("Setting log-file for current thread (%s) to '%s'" % (long(thread.get_ident()), logFile.replace('%m', clientIp)))
+		logger.setLogFile( logFile.replace('%m', clientIp), currentThread=True )
+	
+	def _linkLogFile(self):
+		hostname = self.session.hostname
+		if hostname:
+			logger.linkLogFile(logFile.replace('%m', hostname), currentThread=True)
+		
+	def process(self):
 		# Change log-file
 		if machineLogs and logFile:
-			clientIp = request.remoteAddr.host
-			logger.info("Setting log-file for current thread %s to: '%s'" % (long(thread.get_ident()), logFile.replace('%m', clientIp)))
-			logger.setLogFile( logFile.replace('%m', clientIp), currentThread=True )
+			self._setLogFile()
 		
 		# Restore previous session or generate new one
-		self.getSession(request)
+		self.getSession()
+		
+		# Create symlink to log-file
+		if machineLogs and logFile and symlinkLogs:
+			self._linkLogFile()
+		
+		if (self.requestType == 'GET'):
+			logger.debug2(self.request.args)
+			logger.debug2(self.request.chanRequest.__dict__)
+			
+			self.query = urllib.unquote( self.request.querystring )
+			return self.processQuery()
+		else:
+			contentType = self.request.headers.getHeader('content-type')
+			if (contentType.mediaType == 'multipart'):
+				raise NotImplemented("multipart request currently not implemented")
+			
+			d = self._readPostData(self.request.stream)
+			d.addCallback(self._processPostData)
+			self.deferred = d
+			logger.exit()
+			
+	def _processPostData(self, result):
+		logger.info('Finished reading POST data')
+		self.result = None
+		self.deferred = None
+		return self.processQuery()
+		
+	def processQuery(self):
+		# Change log-file
+		if machineLogs and logFile:
+			self._setLogFile()
 		
 		# Create response
 		self.response = http.Response()
@@ -765,57 +822,46 @@ class Worker:
 		cookie = Cookie(self.session.name, self.session.uid, path='/')
 		self.response.headers.setHeader('Set-Cookie', [ cookie ] )
 		
-		# Create symlink to log-file
-		if machineLogs and logFile and symlinkLogs:
-			hostname = self.session.hostname
-			if hostname:
-				logger.linkLogFile(logFile.replace('%m', hostname), currentThread=True)
-		
 		# Convert query string to json-rpc object
-		rpc = None
-		
-		if not query:
+		if not self.query:
+			if self.request.uri.startswith('/interface'):
+				return self.setResult('')
+			logger.exit()
 			raise Exception('Got no query')
 		
 		try:
 			# Deserialize json-object
-			rpc = json.read(query)
-			if not rpc.get('id'):
+			self.rpc = json.read(self.query)
+			if not self.rpc.get('id'):
 				raise Exception('No id defined!')
-			if not rpc.get('method'):
+			if not self.rpc.get('method'):
 				raise Exception('No method defined!')
 		except Exception, e:
 			e = str(e)
 			logger.warning("Deserialization of json-rpc failed '%s': %s" % 
-					(query, e) )
+					(self.query, e) )
 			# Bad request
 			self.response.code = responsecode.BAD_REQUEST
-			self.response.stream = json.write( {"id": None, "result": None, "error": e} )
-			logger.exit()
-			return
+			return self.setResult( json.write( {"id": None, "result": None, "error": e} ) )
 		
-		logger.info('Got json-rpc request: %s' % rpc)
+		logger.info('Got json-rpc request: %s' % self.rpc)
 		
 		self.response.code = responsecode.OK
 		
 		# Allowing getHostId even if not authenticated
-		if (rpc['method'] == 'getHostId'):
+		if (self.rpc['method'] == 'getHostId'):
 			hostname = ''
-			if (len(rpc['params']) > 0):
-				hostname = rpc['params'][0]
-			jsonString = json.write({ "id": rpc.get('id'), "result": self.getHostId(hostname), "error": None})
+			if (len(self.rpc['params']) > 0):
+				hostname = self.rpc['params'][0]
+			jsonString = json.write({ "id": self.rpc.get('id'), "result": self.getHostId(hostname), "error": None})
 			logger.debug2("Returning json object: '%s'" % jsonString)
-			logger.exit()
-			self.response.stream = jsonString
-			return
+			return self.setResult( jsonString )
 			
 		# Allowing getDomain even if not authenticated
-		if (rpc['method'] == 'getDomain') and not rpc['params']:
-			jsonString = json.write({ "id": rpc.get('id'), "result": self.getDomain(), "error": None})
+		if (self.rpc['method'] == 'getDomain') and not self.rpc['params']:
+			jsonString = json.write({ "id": self.rpc.get('id'), "result": self.getDomain(), "error": None})
 			logger.debug2("Returning json object: '%s'" % jsonString)
-			logger.exit()
-			self.response.stream = jsonString
-			return
+			return self.setResult( jsonString )
 		
 		# Authenticate user
 		if not self.session.authenticated:
@@ -827,22 +873,20 @@ class Worker:
 				logger.logException(e)
 				logger.error("Forbidden: %s" % str(e))
 				#request.setHeader('WWW-Authenticate', 'basic realm="OPSI Configuration Service"')
-				logger.exit()
 				self.session.user = ''
 				self.session.password = ''
 				self.response.code = responsecode.UNAUTHORIZED
 				self.response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
-				self.response.stream = json.write( {"id": None, "result": None, "error": str(e)})
-				return
+				return self.setResult( json.write( {"id": None, "result": None, "error": str(e)}) )
 		
 		# Execute rpc and return result
 		try:
-			result = self.execute(rpc, request)
+			result = self.execute()
 			# Delphi libraries do not support ints
 			result = self.allIntsToString(result)
-		except (BackendBadValueError, BackendMissingDataError, 
+		except (BackendError, BackendBadValueError, BackendMissingDataError, 
 				BackendIOError, BackendPermissionDeniedError,
-				BackendAuthenticationError), e:
+				BackendAuthenticationError, BackendTemporaryError), e:
 			tb = sys.exc_info()[2]
 			while (tb != None):
 				f = tb.tb_frame
@@ -852,25 +896,20 @@ class Worker:
 			# logger.logException(e)
 			err = str(e)
 			logger.error(err)
-			# request.setResponseCode(500)
-			logger.exit()
-			
-			self.response.stream = json.write({ "id": rpc.get('id'), "result": None, "error": err})
-			return
+			return self.setResult( json.write({ "id": self.rpc.get('id'), "result": None, "error": { 'class': e.__class__.__name__, 'message': err }}) )
 			
 		except Exception, e:
 			logger.error(str(e))
 			raise
 		
-		jsonString = json.write({ "id": rpc.get('id'), "result": result, "error": None})
+		jsonString = json.write({ "id": self.rpc.get('id'), "result": result, "error": None})
 		logger.debug2("Returning json object: '%s'" % jsonString)
-		logger.exit()
-		self.response.stream = jsonString
-	
-	def execute(self, rpc, request):
+		return self.setResult( jsonString )
+		
+	def execute(self):
 		''' Execute json remote procedure call. '''
-		method = rpc.get('method')
-		params = rpc.get('params')
+		method = self.rpc.get('method')
+		params = self.rpc.get('params')
 		logger.debug("RPC method: '%s' params: '%s'" % (method, params))
 		
 		# Get BackendManager instance from session
@@ -878,7 +917,7 @@ class Worker:
 			bm = self.session.bm
 		except Exception, e:
 			logger.critical("Failed to execute rpc, cannot get bm instance from session!")
-			logger.critical("rpc is: %s" % rpc)
+			logger.critical("rpc is: %s" % self.rpc)
 			logger.critical("session is: %s" % self.session)
 			logger.notice("Deleting session!")
 			sessionHandler.deleteSession(self.session.uid)
@@ -941,17 +980,28 @@ class Worker:
 		return obj
 
 class RPCWorker(Worker):
-	def __init__(self):
-		Worker.__init__(self)
+	def __init__(self, request, requestType = 'POST'):
+		Worker.__init__(self, request, requestType)
 
 class DAVWorker(Worker):
-	def __init__(self, opsiDav):
-		Worker.__init__(self)
+	def __init__(self, request, opsiDav):
+		Worker.__init__(self, request, 'DAV')
 		self.opsiDav = opsiDav
 		
-	def process(self, request):
-		logger.debug("DAVWorker.process() %s" % request.method)
-		self.getSession(request)
+	def process(self):
+		logger.debug("DAVWorker.process() %s" % self.request.method)
+		
+		# Change log-file
+		if machineLogs and logFile:
+			self._setLogFile()
+		
+		# Restore previous session or generate new one
+		self.getSession()
+		
+		# Create symlink to log-file
+		if machineLogs and logFile and symlinkLogs:
+			self._linkLogFile()
+		
 		if not self.session.authenticated:
 			try:
 				self.authenticate()
@@ -961,16 +1011,18 @@ class DAVWorker(Worker):
 				self.response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
 				cookie = Cookie(self.session.name, self.session.uid, path='/')
 				self.response.headers.setHeader('Set-Cookie', [ cookie ] )
-				return
+				return self.setResult(None)
 		
 		if not self.session.bm.userIsHost() and not self.session.bm.userIsAdmin():
 			logger.warning("WebDAV access denied for user %s@%s" % (self.session.user, self.session.ip))
 			self.response = http.Response(code = responsecode.UNAUTHORIZED, stream = "WebDAV access denied!")
-			return
+			return self.setResult(None)
 		
-		self.response = super(OpsiDAV, self.opsiDav).renderHTTP(request)
+		self.response = super(OpsiDAV, self.opsiDav).renderHTTP(self.request)
 		if isinstance(self.response, defer.Deferred):
+			self.response.addErrback(self._errCallback)
 			self._waitForResponse(self.response)
+		return self.setResult(None)
 	
 	def _waitForResponse(self, response):
 		response = defer.waitForDeferred(response)
@@ -978,7 +1030,6 @@ class DAVWorker(Worker):
 		self.response = response.getResult()
 	
 	_waitForResponse = defer.deferredGenerator(_waitForResponse)
-	
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                       CLASS SSLCONTEXT                                            =
@@ -1099,7 +1150,7 @@ def readConfigFile():
 					else:
 						logger.warning("Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
 			
-			elif (section.lower() == 'static_directories'):
+			elif (section.lower() == 'directories'):
 				# Static directories
 				global staticDirectories
 				staticDirectories = {}
@@ -1112,14 +1163,6 @@ def readConfigFile():
 							staticDirectories[option] = windefaultdir+'\\configed.exe'
 						if option == '/':
 							staticDirectories[option] = windefaultdir+'\\share'
-			
-			elif (section.lower() == 'webdav_directories'):
-				# WebDAV directories
-				global webdavDirectories
-				webdavDirectories = {}
-				
-				for (option, value) in config.items(section):
-					webdavDirectories[option] = value
 			
 			else:
 				logger.warning("Ignoring unknown section '%s' in config file: '%s'" % (section, configFile))
@@ -1233,8 +1276,27 @@ def createRoot():
 		
 		root.putChild(name, OpsiDAV(path, readOnly=True))
 		
-		logger.notice("Added static content '%s' which points to directory '%s'" % (name, path))
+		logger.notice("Added webdav content '%s' which points to directory '%s'" % (name, path))
 	
+	bm = BackendManager(authRequired = False)
+	fqdn = socket.getfqdn()
+	if fqdn in bm.getDepotIds_list():
+		depot = bm.getDepot_hash(fqdn)
+		logger.debug("Depot info: %s" % depot)
+		repositoryLocalUrl = depot.get('repositoryLocalUrl')
+		if not repositoryLocalUrl:
+			raise Exception("Repository local url for depot '%s' not found" % fqdn)
+		if not repositoryLocalUrl.startswith('file:///'):
+			raise Exception("Repository local url '%s' not allowed" % repositoryLocalUrl)
+		path = repositoryLocalUrl[7:]
+		if not os.path.isdir(path):
+			raise Exception("Cannot add webdav content 'products': directory '%s' does not exist." % path)
+		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
+			raise Exception("Cannot add webdav content 'products': permissions on directory '%s' not sufficient." % path)
+		
+		root.putChild('products', OpsiDAV(path, readOnly=False))
+		logger.notice("Added static content 'products' which points to directory '%s'" % path)
+	bm.exit()
 	
 def daemonize():
 	# Fork to allow the shell to return and to call setsid
@@ -1392,8 +1454,7 @@ def main(argv):
 			"\n==================================================================\n")
 	
 	# Test backendmanager
-	bm = BackendManager(	address	 	= 'localhost',
-				authRequired 	= False )
+	bm = BackendManager(authRequired = False)
 	bm.exit()
 	
 	if os.path.exists(pidFile):
@@ -1467,16 +1528,22 @@ if (__name__ == "__main__"):
 	
 	try:
 		if (pid == os.getpid()):
+			logger.info("Removing pid file '%s'" % pidFile)
 			os.unlink(pidFile)
 	except:
 		logger.error("Failed to unlink pid-file '%s'" % pidFile)
 	
+	#print threading.activeCount()
+	#for i in threading.enumerate():
+	#	print i
+	#	print i.__dict__
 	if exception:
 		logger.logException(exception)
 		print >> sys.stderr, "ERROR:", str(exception)
 		sys.exit(1)
-	
 	sys.exit(0)
+	
+	
 	
 	
 

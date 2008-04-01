@@ -1,9 +1,15 @@
+opsiconfd (2.0~a2-1) unstable; urgency=low
+
+  * a lot of fixes
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue,  1 Apr 2008 11:53:11 +0200
+
 opsiconfd (2.0~a1-1) unstable; urgency=low
 
   * Ported to twisted web2
   * Added WebDAV functionality
 
- -- Jan Schneider <j.schneider@uib.de>  Tue, 11 Mar 2008 11:38:22 +0100
+ -- Jan Schneider <j.schneider@uib.de>  Wed, 12 Mar 2008 16:05:07 +0100
 
 opsiconfd (1.0.5-4) stable; urgency=low
 

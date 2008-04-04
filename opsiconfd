@@ -15,7 +15,9 @@ __version__ = '2.0'
 # Imports
 import socket, os, base64, time, random, urllib, json, getopt, threading, thread
 from OpenSSL import SSL
-from twisted.web2 import server, channel, resource, http, responsecode #, static
+#from twisted.application import service, strports
+#from twisted.python import util
+from twisted.web2 import server, channel, resource, http, responsecode, log #,static
 from twisted.web2.http_headers import Cookie
 from twisted.web2.stream import IByteStream
 from twisted.web2.channel.http import HTTPFactory
@@ -52,6 +54,7 @@ daemon = False
 staticDirectories = {}
 webdavDirectories = {}
 startTime = time.time()
+deferredTimeout = 15
 
 if os.name == 'nt':
 	try:
@@ -116,6 +119,7 @@ class OpsiDAV(static.DAVFile):
 		d.addCallback(self.callback, worker)
 		# Set callback function (called if error occurs)
 		d.addErrback(self.errCallback, worker)
+		d.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
 		return d
 	
 	def getProperty(self, element):
@@ -129,6 +133,7 @@ class OpsiDAV(static.DAVFile):
 			logger.debug("callback: response is an deferred, readding callback")
 			worker.response.addCallback(self.callback, worker)
 			worker.response.addErrback(self.errCallback, worker)
+			worker.response.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
 		elif worker.error:
 			raise Exception(worker.error)
 		else:
@@ -169,7 +174,6 @@ class OpsiJsonRpc(resource.Resource):
 		logger.info("(POST) Client '%s' requests uri '%s'" % (request.remoteAddr.host, request.uri))
 		
 		return self.processRequest(request, 'POST')
-		
 	
 	def processRequest(self, request, requestType):
 		logger.debug("Processing request")
@@ -181,6 +185,7 @@ class OpsiJsonRpc(resource.Resource):
 		d.addCallback(self.callback, worker)
 		# Set callback function (called if error occurs)
 		d.addErrback(self.errCallback, worker)
+		d.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
 		return d
 	
 	def callback(self, result, worker):
@@ -191,7 +196,10 @@ class OpsiJsonRpc(resource.Resource):
 			logger.debug("Worker not finished, readding callback")
 			worker.deferred.addCallback(self.callback, worker)
 			worker.deferred.addErrback(self.errCallback, worker)
+			worker.deferred.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker) 
 			return worker.deferred
+		elif worker.error:
+			return self.errCallback(worker.error, worker)
 		else:
 			worker.response.stream = IByteStream(
 				self.filterResult(worker.result, worker) )
@@ -415,7 +423,7 @@ class OpsiJsonInterface(OpsiJsonRpc):
 				<tr id="tr_json">
 					<td colspan="2">
 						<div class="json_label">
-							json-rpc
+							resulting json remote procedure call:
 						</div>
 						<div class="json">
 							{&nbsp;"<font class="json_key">method</font>": <span id="json_method"></span>,<br />
@@ -526,8 +534,12 @@ class SessionHandler:
 		logger.notice("Session '%s' deleted" % uid)
 	
 	def deleteTimedOutSessions(self):
-		if logger: logger.debug('deleteTimedOutSessions() called...')
-		
+		if logger:
+			logger.debug2('deleteTimedOutSessions() called...')
+			logger.debug2('Thread count: %d' % threading.activeCount())
+			for i in threading.enumerate():
+				logger.debug2(' - %s' % i)
+			
 		for (uid, session) in self.sessions.items():
 			logger.confidential("Age of session '%s' is %d seconds, max age is %d seconds" \
 					% ( uid, (time.time() - session.lastModified), self.sessionMaxInactiveInterval ) )
@@ -566,7 +578,8 @@ class Worker:
 	def _errCallback(self, traceback):
 		#logger.logException(traceback)
 		logger.critical(traceback)
-		self.error = traceback.value
+		self.error = traceback
+		self.gotResult = True
 		
 	def setResult(self, result):
 		self.result = result
@@ -679,24 +692,25 @@ class Worker:
 			if not self.session.hostname:
 				self.session.hostname = user
 			
-			addressList = []
-			try:
-				(name, aliasList, addressList) = socket.gethostbyname_ex(user)
-			except Exception, e:
-				logger.warning("Failed to resolve hostname '%s': %s" % (user, e))
-			
-			if self.session.ip not in addressList:
-				# Username (FQDN) of peer does not resolve to peer's ip address
-				if verifyIp:
-					logger.critical("Host login attempt with username '%s'" % user +
-							" from ip '%s', but name resolves to '%s' (access denied)" % 
-							( self.session.ip, addressList) )
-					raise Exception("Access denied for username '%s' from '%s'" %
-							(user, self.session.ip) )
-				else:
-					logger.notice("Host login attempt with username '%s'" % user +
-							" from ip '%s', but name resolves to '%s', ip verification is disabled (access granted)" % 
-							( self.session.ip, addressList) )
+			if (user != socket.getfqdn()):
+				addressList = []
+				try:
+					(name, aliasList, addressList) = socket.gethostbyname_ex(user)
+				except Exception, e:
+					logger.warning("Failed to resolve hostname '%s': %s" % (user, e))
+				
+				if self.session.ip not in addressList:
+					# Username (FQDN) of peer does not resolve to peer's ip address
+					if verifyIp:
+						logger.critical("Host login attempt with username '%s'" % user +
+								" from ip '%s', but name resolves to '%s' (access denied)" % 
+								( self.session.ip, addressList) )
+						raise Exception("Access denied for username '%s' from '%s'" %
+								(user, self.session.ip) )
+					else:
+						logger.notice("Host login attempt with username '%s'" % user +
+								" from ip '%s', but name resolves to '%s', ip verification is disabled (access granted)" % 
+								( self.session.ip, addressList) )
 		
 		# Create BackendManager instance
 		bm = BackendManager(	username	= user,
@@ -801,6 +815,8 @@ class Worker:
 			
 			d = self._readPostData(self.request.stream)
 			d.addCallback(self._processPostData)
+			d.addErrback(self._errCallback)
+			#d.setTimeout(deferredTimeout, self._errCallback, Exception("timed out"))
 			self.deferred = d
 			logger.exit()
 			
@@ -848,6 +864,11 @@ class Worker:
 		
 		self.response.code = responsecode.OK
 		
+		
+		#if (self.rpc['method'] == 'waitSomeTime'):
+		#time.sleep(5)
+		#	return self.setResult( json.write( {"id": None, "result": "Done waiting", "error": None}) )
+			
 		# Allowing getHostId even if not authenticated
 		if (self.rpc['method'] == 'getHostId'):
 			hostname = ''
@@ -1479,7 +1500,10 @@ def main(argv):
 	pf.close()
 	
 	createRoot()
-	site = server.Site(root)
+	site = server.Site(log.LogWrapperResource(root))
+	lo = log.BaseCommonAccessLoggingObserver()
+	lo.logMessage = logger.debug
+	lo.start()
 	
 	sessionHandler = SessionHandler(
 				sessionName = sessionName,

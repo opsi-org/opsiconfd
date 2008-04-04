@@ -15,6 +15,8 @@ __version__ = '2.0'
 # Imports
 import socket, os, base64, time, random, urllib, json, getopt, threading, thread
 from OpenSSL import SSL
+from twisted.internet import selectreactor# threadedselectreactor selectreactor pollreactor
+selectreactor.install()
 #from twisted.application import service, strports
 #from twisted.python import util
 from twisted.web2 import server, channel, resource, http, responsecode, log #,static
@@ -22,7 +24,7 @@ from twisted.web2.http_headers import Cookie
 from twisted.web2.stream import IByteStream
 from twisted.web2.channel.http import HTTPFactory
 from twisted.web2.dav import static
-from twisted.internet import reactor, defer, threads
+from twisted.internet import defer, threads, reactor
 
 # OPSI imports    
 from OPSI import Tools
@@ -55,6 +57,7 @@ staticDirectories = {}
 webdavDirectories = {}
 startTime = time.time()
 deferredTimeout = 15
+
 
 if os.name == 'nt':
 	try:
@@ -119,11 +122,11 @@ class OpsiDAV(static.DAVFile):
 		d.addCallback(self.callback, worker)
 		# Set callback function (called if error occurs)
 		d.addErrback(self.errCallback, worker)
-		d.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
+		#d.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
 		return d
 	
 	def getProperty(self, element):
-		logger.error("getProperty: %s" % element)
+		logger.debug2("getProperty: %s" % element)
 	
 	def callback(self, result, worker):
 		''' Callback function (thread finished). '''
@@ -131,9 +134,10 @@ class OpsiDAV(static.DAVFile):
 		
 		if isinstance(worker.response, defer.Deferred):
 			logger.debug("callback: response is an deferred, readding callback")
+			time.sleep(0.1)
 			worker.response.addCallback(self.callback, worker)
 			worker.response.addErrback(self.errCallback, worker)
-			worker.response.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
+			#worker.response.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
 		elif worker.error:
 			raise Exception(worker.error)
 		else:
@@ -185,21 +189,23 @@ class OpsiJsonRpc(resource.Resource):
 		d.addCallback(self.callback, worker)
 		# Set callback function (called if error occurs)
 		d.addErrback(self.errCallback, worker)
-		d.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
+		#d.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
 		return d
 	
 	def callback(self, result, worker):
 		''' Callback function (thread finished). '''
 		logger.debug("--- Thread finished ---")
 		
-		if not worker.gotResult:
-			logger.debug("Worker not finished, readding callback")
+		if worker.error:
+			#return self.errCallback(worker.error, worker)
+			raise Exception(worker.error)
+		elif not worker.gotResult:
+			logger.debug("Worker not finished, readding callback (rpc: %s)" % worker.rpc)
+			time.sleep(0.01)
 			worker.deferred.addCallback(self.callback, worker)
 			worker.deferred.addErrback(self.errCallback, worker)
-			worker.deferred.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker) 
+			#worker.deferred.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker) 
 			return worker.deferred
-		elif worker.error:
-			return self.errCallback(worker.error, worker)
 		else:
 			worker.response.stream = IByteStream(
 				self.filterResult(worker.result, worker) )
@@ -210,6 +216,7 @@ class OpsiJsonRpc(resource.Resource):
 		logger.debug("--- Thread finished ---")
 		
 		err = "Internal server error: " + str(traceback.value)
+		logger.error("traceback of %s" % traceback)
 		logger.logTraceback(traceback.tb)
 		logger.critical('     ==>>> %s' % err)
 		
@@ -576,9 +583,10 @@ class Worker:
 		logger.debug("Worker constructed, request %s, type %s" % (self.request, self.requestType))
 	
 	def _errCallback(self, traceback):
+		self.error = traceback
+		#logger.error('Worker._errCallback()')
 		#logger.logException(traceback)
 		logger.critical(traceback)
-		self.error = traceback
 		self.gotResult = True
 		
 	def setResult(self, result):
@@ -921,6 +929,10 @@ class Worker:
 				self.response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
 				return self.setResult( json.write( {"id": None, "result": None, "error": str(e)}) )
 		
+		self.deferred = threads.deferToThread(self.startExecution)
+		self.deferred.addErrback(self._errCallback)
+		
+	def startExecution(self):
 		# Execute rpc and return result
 		try:
 			result = self.execute()
@@ -941,6 +953,7 @@ class Worker:
 			return self.setResult( json.write({ "id": self.rpc.get('id'), "result": None, "error": { 'class': e.__class__.__name__, 'message': err }}) )
 			
 		except Exception, e:
+			self.error = e
 			logger.error(str(e))
 			raise
 		
@@ -952,7 +965,7 @@ class Worker:
 		''' Execute json remote procedure call. '''
 		method = self.rpc.get('method')
 		params = self.rpc.get('params')
-		logger.debug("RPC method: '%s' params: '%s'" % (method, params))
+		logger.info("RPC method: '%s' params: '%s'" % (method, params))
 		
 		# Get BackendManager instance from session
 		try:
@@ -966,6 +979,7 @@ class Worker:
 			raise Exception("Failed to execute rpc, cannot get bm instance from session!")
 		
 		if (method == 'exit'):
+			self.setResult(None)
 			sessionHandler.deleteSession(self.session.uid)
 			return
 		

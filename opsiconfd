@@ -738,7 +738,7 @@ class Worker:
 			
 			bm.setHostLastSeen(user, timestamp())
 	
-	def _readPostData(self, stream):
+	def OLD_readPostData(self, stream):
 		self.postDataRead = 0
 		self.query = ''
 		self.uploadData = ''
@@ -778,6 +778,27 @@ class Worker:
 			
 		if self.uploadFile:
 			self.uploadFile.close()
+	OLD_readPostData = defer.deferredGenerator(OLD_readPostData)
+	
+	def _readPostData(self, stream):
+		self.postDataRead = 0
+		self.query = ''
+		
+		while(True):
+			data = stream.read()
+			if isinstance(data, defer.Deferred):
+				data = defer.waitForDeferred(data)
+				yield data
+				data = data.getResult()
+			if not data:
+				data = ''
+			self.postDataRead += len(data)
+			logger.debug('post data read: %d, content-length: %s' \
+					% (self.postDataRead, self.request.stream.length))
+			self.query += data
+			
+			if (self.postDataRead >= self.request.stream.length):
+				break
 	_readPostData = defer.deferredGenerator(_readPostData)
 	
 	def _setLogFile(self):

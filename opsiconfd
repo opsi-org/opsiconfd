@@ -134,7 +134,7 @@ class OpsiDAV(static.DAVFile):
 		
 		if isinstance(worker.response, defer.Deferred):
 			logger.debug("callback: response is an deferred, readding callback")
-			time.sleep(0.1)
+			#time.sleep(0.01)
 			worker.response.addCallback(self.callback, worker)
 			worker.response.addErrback(self.errCallback, worker)
 			#worker.response.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker)
@@ -201,7 +201,7 @@ class OpsiJsonRpc(resource.Resource):
 			raise Exception(worker.error)
 		elif not worker.gotResult:
 			logger.debug("Worker not finished, readding callback (rpc: %s)" % worker.rpc)
-			time.sleep(0.01)
+			#time.sleep(0.01)
 			worker.deferred.addCallback(self.callback, worker)
 			worker.deferred.addErrback(self.errCallback, worker)
 			#worker.deferred.setTimeout(deferredTimeout, self.errCallback, Exception("timed out"), worker) 

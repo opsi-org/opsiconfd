@@ -180,6 +180,21 @@ class Worker:
 		self.response = http.Response( code = responsecode.OK )
 		self.result = ""
 		
+		self._setLogFile()
+	
+	def __del__(self):
+		logger.exit(object = self)
+	
+	def _setLogFile(self):
+		if machineLogs and logFile:
+			logger.setLogFile( logFile.replace('%m', self.request.remoteAddr.host), object = self )
+	
+	def _linkLogFile(self):
+		if machineLogs and logFile and symlinkLogs:
+			hostname = getattr(self.session, 'hostname', None)
+			if hostname:
+				logger.linkLogFile( logFile.replace('%m', hostname), object = self )
+	
 	def process(self):
 		try:
 			self.deferred = defer.Deferred()
@@ -296,6 +311,8 @@ class Worker:
 			
 			logger.info("Storing hostname '%s' in session" % hostname)
 			self.session.hostname = hostname
+		
+		self._linkLogFile()
 		
 		# Set user and password
 		if not self.session.user and not self.session.password and self.request.headers.getHeader('Authorization'):

@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0'
+__version__ = '2.0.0.1'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -192,8 +192,16 @@ class Worker:
 	def _linkLogFile(self):
 		if machineLogs and logFile and symlinkLogs:
 			hostname = getattr(self.session, 'hostname', None)
-			if hostname:
-				logger.linkLogFile( logFile.replace('%m', hostname), object = self )
+			if not hostname:
+				try:
+					hostname = socket.getfqdn(self.request.remoteAddr.host).lower()
+				except Exception, e:
+					logger.error("Failed to get fqdn for ip '%s': %s" % (self.request.remoteAddr.host, e))
+			if not hostname or (hostname == self.request.remoteAddr.host):
+				logger.error("Failed to create symlink to log-file, fqdn for '%s' not known" \
+							% self.request.remoteAddr.host)
+				return
+			logger.linkLogFile( logFile.replace('%m', hostname), object = self )
 	
 	def process(self):
 		try:

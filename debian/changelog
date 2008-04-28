@@ -1,3 +1,9 @@
+opsiconfd (2.0.0.1-1) stable; urgency=low
+
+  * Symlink logs even if option resolve ip = no
+  
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 24 Apr 2008 17:10:31 +0200
+
 opsiconfd (2.0.0-1) stable; urgency=low
 
   * Ported to twisted web2

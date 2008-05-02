@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.1'
+__version__ = '2.0.0.2'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -67,6 +67,7 @@ sessionVerifyInterval = 10
 maxExecutionStatisticValues = 250
 resolveClientIp = True
 verifyIp = False
+updateHardwareAddress = True
 symlinkLogs = False
 logFile = None
 logLevel = LOG_ERROR
@@ -419,6 +420,27 @@ class Worker:
 					bm.createClient(parts[0], domain)
 				
 				bm.setHostLastSeen(user, timestamp())
+				
+				if updateHardwareAddress:
+					try:
+						arp = open('/proc/net/arp')
+						mac = ''
+						for entry in arp:
+							info = entry.split()
+							if (info[0] == self.session.ip):
+								logger.debug("Found ip %s of host '%s' in arp cache" % (self.session.ip, user))
+								if (info[3] != '00:00:00:00:00:00'):
+									mac = info[3].lower()
+								break
+						arp.close()
+						if mac:
+							logger.info("Setting hardware ethernet address for host '%s' (%s) to %s" \
+									% (user, self.session.ip, mac))
+							bm.setMacAddresses(user, [ mac ])
+						else:
+							logger.error("Hardware ethernet address for ip %s not found" % self.session.ip)
+					except Exception, e:
+						logger.error("Failed to set ethernet address for host '%s': %s" % (user, e))
 		except Exception, e:
 			# Forbidden
 			#logger.logException(e)
@@ -1058,6 +1080,12 @@ def readConfigFile():
 						sessionMaxInactiveInterval = int(value.strip())
 						if (sessionMaxInactiveInterval < sessionVerifyInterval*2):
 							sessionVerifyInterval = int(sessionMaxInactiveInterval/2)
+					elif (option.lower() == 'update hardware address'):
+						global updateHardwareAddress
+						if value.strip().lower() in ('1', 'true', 'yes'):
+							updateHardwareAddress = True
+						else:
+							updateHardwareAddress = False
 					else:
 						logger.warning("Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
 			

@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.2'
+__version__ = '2.0.0.3'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -408,7 +408,7 @@ class Worker:
 			
 			self.session.possibleMethods = bm.getPossibleMethods_listOfHashes()
 			
-			if isHost:
+			if isHost and user not in bm.getDepotIds_list():
 				try:
 					bm.getHost_hash(user)
 				except Exception, e:

@@ -1,8 +1,8 @@
 opsiconfd (2.0.0.4-1) stable; urgency=low
 
-  * 
+  * some fixes
 
- -- Jan Schneider <j.schneider@uib.de>  Fri,  2 May 2008 17:16:56 +0200
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 13 May 2008 13:43:41 +0200
 
 opsiconfd (2.0.0.1-1) stable; urgency=low
 

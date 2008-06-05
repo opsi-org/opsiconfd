@@ -1,3 +1,16 @@
+opsiconfd (2.0.0.6-1) stable; urgency=low
+
+  * fixed webdav redirect
+  * added rpc method getServerCertificate
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 05 Jun 2008 16:11:06 +0200
+
+opsiconfd (2.0.0.5-1) stable; urgency=low
+
+  * improved session handling
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 20 May 2008 10:40:31 +0200
+
 opsiconfd (2.0.0.4-1) stable; urgency=low
 
   * some fixes

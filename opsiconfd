@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.6'
+__version__ = '2.0.0.7'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -89,19 +89,10 @@ sessionHandler = None
 # =                                         CLASS ROOT                                                =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class Root(resource.Resource):
-	''' This class is the base class to handle requests. '''
-	
-	def getChild(self, name, request):
-		''' Get the child resource for the requested path. '''
-		if not name:
-			return self
-		return resource.Resource.getChild(self, name, request)
-	
+	addSlash = True
 	def render(self, request):
-		''' Process request. '''
-		logger.info("Client '%s' requests uri '%s'" % (request.remoteAddr.host, request.uri))
-		
-		return "<html><head><title>opsiconfd</title></head><body></body></html>"
+		''' Process GET request. '''
+		return http.Response(stream="<html><head><title>opsiconfd</title></head><body></body></html>")
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                      CLASS OPSIJSONRPC                                            =

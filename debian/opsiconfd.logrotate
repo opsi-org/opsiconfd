@@ -5,7 +5,7 @@
     extension old
     compress
     notifempty
-    size 3M
+    size 2M
     create 640 opsiconfd pcpatch
 }
 

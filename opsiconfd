@@ -181,19 +181,9 @@ class Worker:
 		if machineLogs and logFile:
 			logger.setLogFile( logFile.replace('%m', self.request.remoteAddr.host), object = self )
 	
-	def _linkLogFile(self):
+	def _linkLogFile(self, hostId):
 		if machineLogs and logFile and symlinkLogs:
-			hostname = getattr(self.session, 'hostname', None)
-			if not hostname:
-				try:
-					hostname = socket.getfqdn(self.request.remoteAddr.host).lower()
-				except Exception, e:
-					logger.error("Failed to get fqdn for ip '%s': %s" % (self.request.remoteAddr.host, e))
-			if not hostname or (hostname == self.request.remoteAddr.host):
-				logger.error("Failed to create symlink to log-file, fqdn for '%s' not known" \
-							% self.request.remoteAddr.host)
-				return
-			logger.linkLogFile( logFile.replace('%m', hostname), object = self )
+			logger.linkLogFile( logFile.replace('%m', hostId), object = self )
 	
 	def process(self):
 		try:
@@ -312,8 +302,6 @@ class Worker:
 			logger.info("Storing hostname '%s' in session" % hostname)
 			self.session.hostname = hostname
 		
-		self._linkLogFile()
-		
 		# Set user and password
 		if not self.session.user and not self.session.password and self.request.headers.getHeader('Authorization'):
 			(user, password) = ('', '')
@@ -412,6 +400,7 @@ class Worker:
 					bm.createClient(parts[0], domain)
 				
 				bm.setHostLastSeen(user, timestamp())
+				self._linkLogFile(user)
 				
 		except Exception, e:
 			# Forbidden

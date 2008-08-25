@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.4'
+__version__ = '2.0.0.7'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -63,7 +63,6 @@ sslServerKeyFile = '/etc/opsi/opsiconfd.pem'	# Server's private key file
 sslServerCertFile = '/etc/opsi/opsiconfd.pem'	# Server's certificate file
 sessionName = 'OPSISID'				# Session name for cookie
 sessionMaxInactiveInterval = 120 		# Session expires after 120 seconds
-sessionVerifyInterval = 10
 maxExecutionStatisticValues = 250
 resolveClientIp = True
 verifyIp = False
@@ -71,7 +70,7 @@ updateHardwareAddress = True
 symlinkLogs = False
 logFile = None
 logLevel = LOG_ERROR
-logFormat = '(%l) %D %M (%F|%N)'
+logFormat = '[%l] [%D] %M (%F|%N)'
 machineLogs = False
 daemon = False
 staticDirectories = {}
@@ -90,19 +89,10 @@ sessionHandler = None
 # =                                         CLASS ROOT                                                =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class Root(resource.Resource):
-	''' This class is the base class to handle requests. '''
-	
-	def getChild(self, name, request):
-		''' Get the child resource for the requested path. '''
-		if not name:
-			return self
-		return resource.Resource.getChild(self, name, request)
-	
+	addSlash = True
 	def render(self, request):
-		''' Process request. '''
-		logger.info("Client '%s' requests uri '%s'" % (request.remoteAddr.host, request.uri))
-		
-		return "<html><head><title>opsiconfd</title></head><body></body></html>"
+		''' Process GET request. '''
+		return http.Response(stream="<html><head><title>opsiconfd</title></head><body></body></html>")
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                      CLASS OPSIJSONRPC                                            =
@@ -134,6 +124,7 @@ class OpsiJsonInterface(OpsiJsonRpc):
 		OpsiJsonRpc.__init__(self)
 		bm = BackendManager(authRequired = False)
 		self.possibleMethods = bm.getPossibleMethods_listOfHashes()
+		self.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 		bm.exit()
 	
 	def http_POST(self, request):
@@ -407,6 +398,7 @@ class Worker:
 			self.session.bm = bm
 			
 			self.session.possibleMethods = bm.getPossibleMethods_listOfHashes()
+			self.session.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 			
 			if isHost and user not in bm.getDepotIds_list():
 				try:
@@ -480,6 +472,32 @@ class Worker:
 			sessionHandler.deleteSession(self.session.uid)
 			return
 		
+		if (method == 'getPossibleMethods_listOfHashes'):
+			self.result['result'] = self.session.possibleMethods
+			return
+		
+		if (method == 'getServerCertificate'):
+			try:
+				cert = ""
+				f = open(sslServerCertFile)
+				begin = False
+				for line in f.readlines():
+					if begin and (line.strip() == "-----END CERTIFICATE-----"):
+						cert += line
+						break
+					if begin or (line.strip() == "-----BEGIN CERTIFICATE-----"):
+						begin = True
+						cert += line
+				f.close()
+				if not cert:
+					raise Exception("failed to read cert file '%s'" % sslServerCertFile)
+				self.result['result'] = cert
+				return
+			except Exception, e:
+				logger.error("Failed to get certificate: %s" % e)
+				self.result['error'] = { 'class': 'BackendMissingDataError', 'message': "Failed to get certificate" }
+				return
+			
 		# Check if possible method
 		valid = False
 		for f in self.session.possibleMethods:
@@ -850,15 +868,19 @@ class DAVWorker(Worker):
 			raise Exception("WebDAV access denied!")
 			
 		d = super(OpsiDAV, self.resource).renderHTTP(self.request)
-		d.addErrback(self._errback)
+		if isinstance(d, defer.Deferred):
+			d.addErrback(self._errback)
 		return d
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                         CLASS SESSION                                             =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class Session:
-	def __init__(self, name = 'OPSISID'):
+	def __init__(self, sessionHandler, name = 'OPSISID', sessionMaxInactiveInterval = 120):
+		self.sessionHandler = sessionHandler
 		self.name = name
+		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
+		self.sessionTimer = None
 		self.uid = Tools.randomString(32)
 		self.ip = ''
 		self.hostname = ''
@@ -871,43 +893,55 @@ class Session:
 		
 	def touch(self):
 		self.lastModified = time.time()
-
-
+		if self.sessionTimer:
+			self.sessionTimer.cancel()
+		self.sessionTimer = threading.Timer(self.sessionMaxInactiveInterval, self.expire)
+		self.sessionTimer.start()
+	
+	def expire(self):
+		self.sessionHandler.sessionExpired(self)
+	
+	def __del__(self):
+		if self.sessionTimer:
+			self.sessionTimer.cancel()
+		
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                     CLASS SESSIONHANDLER                                          =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class SessionHandler:
-	def __init__(self, sessionName = 'OSPISID', sessionMaxInactiveInterval = 120, sessionVerifyInterval = 30):
+	def __init__(self, sessionName = 'OSPISID', sessionMaxInactiveInterval = 120):
 		self.sessionName = sessionName
 		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
-		self.sessionVerifyInterval = sessionVerifyInterval
 		self.sessions = {}
-		self.sessionTimer = threading.Timer( self.sessionVerifyInterval, self.deleteTimedOutSessions)
-		self.sessionTimer.start()
 	
 	def stop(self):
-		self.sessionTimer.cancel()
-		while self.sessionTimer.isAlive():
-			time.sleep(0.1)
 		self.deleteAllSessions()
 	
 	def getSession(self, uid):
 		session = self.sessions.get(uid)
 		if session:
-			if (session.lastModified + self.sessionMaxInactiveInterval >= time.time()):
-				return session
-			# Session is expired
-			logger.notice("Session '%s' expired after %d seconds" % (session.uid, (time.time()-session.lastModified)))
-			# Delete session
-			self.deleteSession(session.uid)
+			return session
 		return self.createSession()
 	
 	def createSession(self):
-		session = Session(self.sessionName)
+		session = Session(self, self.sessionName, self.sessionMaxInactiveInterval)
 		self.sessions[session.uid] = session
 		logger.notice("New session created")
 		return session
 	
+	def sessionExpired(self, session):
+		logger.info("Session '%s' expired after %d seconds" % (session.uid, (time.time()-session.lastModified)))
+		try:
+			session.bm.exit()
+		except:
+			pass
+		
+		try:
+			del self.sessions[session.uid]
+		except KeyError:
+			pass
+		logger.info("Session '%s' deleted" % session.uid)
+		
 	def deleteSession(self, uid):
 		session = self.sessions.get(uid)
 		if not session:
@@ -924,20 +958,6 @@ class SessionHandler:
 		except KeyError:
 			pass
 		logger.notice("Session '%s' deleted" % uid)
-	
-	def deleteTimedOutSessions(self):
-		if logger: logger.debug2('deleteTimedOutSessions() called...')
-		
-		for (uid, session) in self.sessions.items():
-			logger.confidential("Age of session '%s' is %d seconds, max age is %d seconds" \
-					% ( uid, (time.time() - session.lastModified), self.sessionMaxInactiveInterval ) )
-			if ( session.lastModified + self.sessionMaxInactiveInterval < time.time() ):
-				logger.notice("Session '%s' expired after %d seconds" % (uid, (time.time()-session.lastModified)))
-				self.deleteSession(uid)
-		
-		self.sessionTimer.cancel()
-		self.sessionTimer = threading.Timer( self.sessionVerifyInterval, self.deleteTimedOutSessions)
-		self.sessionTimer.start()
 	
 	def deleteAllSessions(self):
 		for (uid, session) in self.sessions.items():
@@ -1056,10 +1076,7 @@ def readConfigFile():
 							verifyIp = False
 					elif (option.lower() == 'max inactive interval'):
 						global sessionMaxInactiveInterval
-						global sessionVerifyInterval
 						sessionMaxInactiveInterval = int(value.strip())
-						if (sessionMaxInactiveInterval < sessionVerifyInterval*2):
-							sessionVerifyInterval = int(sessionMaxInactiveInterval/2)
 					elif (option.lower() == 'update hardware address'):
 						global updateHardwareAddress
 						if value.strip().lower() in ('1', 'true', 'yes'):
@@ -1406,8 +1423,7 @@ def main(argv):
 	
 	sessionHandler = SessionHandler(
 				sessionName = sessionName,
-				sessionMaxInactiveInterval = sessionMaxInactiveInterval,
-				sessionVerifyInterval = sessionVerifyInterval)
+				sessionMaxInactiveInterval = sessionMaxInactiveInterval)
 	
 	if (httpPort > 0):
 		if (interface == '0.0.0.0'):

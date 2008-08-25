@@ -5,6 +5,7 @@
     extension old
     compress
     notifempty
+    size 2M
     create 640 opsiconfd pcpatch
 }
 
@@ -13,11 +14,8 @@
     missingok
     rotate 5
     compress
+    notifempty
+    size 5M
     create 640 opsiconfd pcpatch
-    postrotate
-        if [ -f /var/run/opsiconfd.pid ]; then
-            /etc/init.d/opsiconfd restart > /dev/null
-        fi
-    endscript
 }
 

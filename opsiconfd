@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.8'
+__version__ = '2.0.0.9'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -44,7 +44,10 @@ from twisted.python.failure import Failure
 from twisted.web2 import resource, stream, server, log, http, responsecode
 from twisted.web2.http_headers import Cookie
 from twisted.web2.channel.http import HTTPFactory
-from twisted.web2.dav import static
+try:
+	from twisted.web2.dav import static
+except:
+	from OPSI.dav import static
 
 # OPSI imports
 from OPSI import Tools
@@ -539,10 +542,7 @@ class Worker:
 		
 		if isinstance(failure, Failure):
 			self.result = failure.getErrorMessage()
-			try:
-				failure.raiseException()
-			except Exception, e:
-				logger.logException(e)
+			logger.critical(failure.getTraceback())
 		else:
 			self.result = str(failure)
 		logger.error("Failed to process request: %s" % self.result)
@@ -587,10 +587,7 @@ class JsonRpcWorker(Worker):
 		if isinstance(failure, Failure):
 			if not self.result['error']:
 				self.result['error'] = failure.getErrorMessage()
-			try:
-				failure.raiseException()
-			except Exception, e:
-				logger.logException(e)
+			logger.critical(failure.getTraceback())
 		else:
 			if not self.result['error']:
 				self.result['error'] = str(failure)
@@ -821,10 +818,7 @@ class JsonInterfaceWorker(JsonRpcWorker):
 		if isinstance(failure, Failure):
 			if not self.result['error']:
 				self.result['error'] = failure.getErrorMessage()
-			try:
-				failure.raiseException()
-			except Exception, e:
-				logger.logException(e)
+			logger.critical(failure.getTraceback())
 		else:
 			if not self.result['error']:
 				self.result['error'] = str(failure)
@@ -893,7 +887,7 @@ class Session:
 	def __del__(self):
 		if self.sessionTimer:
 			self.sessionTimer.cancel()
-		
+	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                     CLASS SESSIONHANDLER                                          =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -919,17 +913,19 @@ class SessionHandler:
 		return session
 	
 	def sessionExpired(self, session):
-		logger.info("Session '%s' expired after %d seconds" % (session.uid, (time.time()-session.lastModified)))
 		try:
+			logger.info("Session '%s' expired after %d seconds" % (session.uid, (time.time()-session.lastModified)))
+			if session.sessionTimer:
+				session.sessionTimer.cancel()
 			session.bm.exit()
 		except:
 			pass
 		
 		try:
 			del self.sessions[session.uid]
-		except KeyError:
+			logger.info("Session '%s' deleted" % session.uid)
+		except:
 			pass
-		logger.info("Session '%s' deleted" % session.uid)
 		
 	def deleteSession(self, uid):
 		session = self.sessions.get(uid)
@@ -938,21 +934,26 @@ class SessionHandler:
 			return
 		
 		try:
+			if session.sessionTimer:
+				session.sessionTimer.cancel()
+				logger.info("Session timer canceled")
 			session.bm.exit()
 		except:
 			pass
 		
 		try:
 			del self.sessions[uid]
+			logger.notice("Session '%s' deleted" % uid)
 		except KeyError:
 			pass
-		logger.notice("Session '%s' deleted" % uid)
+		
 	
 	def deleteAllSessions(self):
 		for (uid, session) in self.sessions.items():
+			logger.notice("Deleting session '%s'" % uid)
 			self.deleteSession(uid)
 		self.sessions = {}
-
+		
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                       CLASS SSLCONTEXT                                            =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -1431,6 +1432,18 @@ def main(argv):
 		logger.notice("Accepting HTTPS requests on %s:%s" % (interface, httpsPort))
 	
 	reactor.run(installSignalHandlers=0)
+	
+	wait = True
+	while wait:
+		wait = False
+		for thread in threading.enumerate():
+			logger.info("Running thread: %s" % thread)
+			if not isinstance(thread, threading._MainThread):
+				wait = True
+		if wait:
+			logger.info("Waiting for running threads to finish up")
+			time.sleep(0.2)
+	
 	sys.exit(0)
 
 

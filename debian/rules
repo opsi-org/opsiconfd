@@ -28,6 +28,7 @@ build-indep-stamp:
 	touch build-indep-stamp
 
 clean:
+	rm debian/files || true
 	rm -f *-stamp
 	rm -Rf debian/tmp24 || true
 
@@ -68,7 +69,7 @@ binary-indep-stamp:
 	# Install logrotate config files
 	dh_installlogrotate
 	# Install init scripts into package build directories
-	dh_installinit --init-script=opsiconfd
+	dh_installinit --init-script=opsiconfd -u"defaults 80 20"
 	# Install files into the DEBIAN directory
 	dh_installdeb
 	# Generate DEBIAN/md5sums file

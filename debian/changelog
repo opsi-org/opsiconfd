@@ -1,3 +1,10 @@
+opsiconfd (2.0.0.9-1) stable; urgency=low
+
+  * changed init script
+  * dav import from OPSI
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 12 Sep 2008 13:42:04 +0200
+
 opsiconfd (2.0.0.8-1) stable; urgency=low
 
   * changed default log format

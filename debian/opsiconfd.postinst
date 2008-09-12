@@ -93,5 +93,17 @@ esac
 
 db_stop
 
-#DEBHELPER#
+
+if [ -x "/etc/init.d/opsiconfd" ]; then
+	update-rc.d -f opsiconfd remove >/dev/null || true
+	update-rc.d opsiconfd defaults 80 20 >/dev/null
+	if [ -x "`which invoke-rc.d 2>/dev/null`" ]; then
+		invoke-rc.d opsiconfd start || true
+	else
+		/etc/init.d/opsiconfd start || true
+	fi
+fi
+
+
+
 

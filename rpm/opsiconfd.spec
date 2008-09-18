@@ -72,7 +72,7 @@ if [ -z "`getent group opsiadmin`" ]; then
 	groupadd opsiadmin
 fi
 
-adduser opsiconfd shadow  1>/dev/null 2>/dev/null || true
+groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
 
 if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	umask 077

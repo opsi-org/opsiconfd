@@ -8,7 +8,6 @@ case "$1" in
     purge)
 	deluser pcpatch shadow 1>/dev/null 2>/dev/null || true
 	deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true
-	delgroup opsiadmin 1>/dev/null 2>/dev/null || true
 	rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 	
 	db_purge

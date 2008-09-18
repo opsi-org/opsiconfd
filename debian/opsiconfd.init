@@ -108,8 +108,19 @@ case "$1" in
 		sleep 1
 		$0 start
 		;;
+	
+	status)
+		echo -n "Checking opsi config service... "
+		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
+			echo "(running)."
+			exit 0
+		fi
+		echo "(not running)."
+		exit 1
+	;;
+
 	*)
-		echo "Usage: /etc/init.d/opsiconfd {start|stop|reload|restart|force-reload}"
+		echo "Usage: /etc/init.d/opsiconfd {start|stop|status|reload|restart|force-reload}"
 		exit 1
 		;;
 esac

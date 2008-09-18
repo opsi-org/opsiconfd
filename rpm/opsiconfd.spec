@@ -8,6 +8,7 @@
 
 Name:           opsiconfd
 Requires:       python-opsi openssl python-twisted
+PreReq:         %insserv_prereq
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
@@ -41,12 +42,15 @@ This package contains the OPSI configuration service.
 mkdir -p $RPM_BUILD_ROOT/usr/sbin
 mkdir -p $RPM_BUILD_ROOT/usr/share/opsiconfd/static
 mkdir -p $RPM_BUILD_ROOT/etc/opsi
+mkdir -p $RPM_BUILD_ROOT/etc/init.d
 install -m 0755 opsiconfd $RPM_BUILD_ROOT/usr/sbin/
 install -m 0755 opsiconfd-guard $RPM_BUILD_ROOT/usr/sbin/
 install -m 0644 files/opsiconfd.conf $RPM_BUILD_ROOT/etc/opsi/
+install -m 0755 debian/opsiconfd.init $RPM_BUILD_ROOT/etc/init.d/opsiconfd
 install -m 0644 files/index.html $RPM_BUILD_ROOT/usr/share/opsiconfd/static/index.html
 install -m 0644 files/opsi_logo.png $RPM_BUILD_ROOT/usr/share/opsiconfd/static/opsi_logo.png
 install -m 0644 files/favicon.ico $RPM_BUILD_ROOT/usr/share/opsiconfd/static/favicon.ico
+ln -sf ../../etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 # ===[ clean ]======================================
 %clean
@@ -54,6 +58,8 @@ rm -rf $RPM_BUILD_ROOT
 
 # ===[ post ]=======================================
 %post
+%{fillup_and_insserv opsiconfd}
+
 if [ -z "`getent group pcpatch`" ]; then
 	groupadd -g 992 pcpatch
 fi
@@ -110,8 +116,21 @@ fi
 chmod 600 /etc/opsi/opsiconfd.pem
 chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 
+# update?
+if [ ${FIRST_ARG:-0} -gt 1 ]; then
+	if [ -e /var/run/opsiconfd.pid ]; then
+		/etc/init.d/opsiconfd restart
+	fi
+fi
+
+# ===[ preun ]======================================
+%preun
+%stop_on_removal opsiconfd
+
 # ===[ postun ]=====================================
 %postun
+%restart_on_update opsiconfd
+%insserv_cleanup
 deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true
 rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 
@@ -125,10 +144,12 @@ rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 
 # configfiles
 %config(noreplace) /etc/opsi/opsiconfd.conf
+%config /etc/init.d/opsiconfd
 
 # other files
 %attr(0755,root,root) /usr/sbin/opsiconfd
 %attr(0755,root,root) /usr/sbin/opsiconfd-guard
+/usr/sbin/rcdhcpd
 /usr/share/opsiconfd/static/index.html
 /usr/share/opsiconfd/static/opsi_logo.png
 /usr/share/opsiconfd/static/favicon.ico

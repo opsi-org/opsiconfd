@@ -7,7 +7,7 @@
 #
 
 Name:           opsiconfd
-Requires:       python-opsi openssl python-twisted
+Requires:       python-opsi openssl python-twisted python-twisted-web2 python-xml
 PreReq:         %insserv_prereq
 Url:            http://www.opsi.org
 License:        GPL v2 or later
@@ -137,28 +137,27 @@ rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 # ===[ files ]======================================
 %files
 # default attributes
-%defattr(644,root,root)
+%defattr(-,root,root)
 
 # documentation
 #%doc LICENSE README RELNOTES doc
 
 # configfiles
 %config(noreplace) /etc/opsi/opsiconfd.conf
-%config /etc/init.d/opsiconfd
+%attr(0755,root,root) %config /etc/init.d/opsiconfd
 
 # other files
 %attr(0755,root,root) /usr/sbin/opsiconfd
 %attr(0755,root,root) /usr/sbin/opsiconfd-guard
-/usr/sbin/rcdhcpd
+%attr(0755,root,root) /usr/sbin/rcopsiconfd
 /usr/share/opsiconfd/static/index.html
 /usr/share/opsiconfd/static/opsi_logo.png
 /usr/share/opsiconfd/static/favicon.ico
 
 # directories
-%dir /usr/sbin
-%dir /etc/opsi
-%dir /usr/share/opsiconfd
-%dir /usr/share/opsiconfd/static
+%attr(0755,pcpatch,root) %dir /etc/opsi
+%attr(0755,root,root) %dir /usr/share/opsiconfd
+%attr(0755,root,root) %dir /usr/share/opsiconfd/static
 
 # ===[ changelog ]==================================
 %changelog

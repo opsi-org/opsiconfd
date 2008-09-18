@@ -19,7 +19,7 @@ test -e $buildroot && rm -rf $buildroot
 cd $dir/..
 test -e $tmpdir && rm -rf $tmpdir
 mkdir $tmpdir
-cp -r files opsiconfd opsiconfd-guard ${tmpdir}/
+cp -r files debian opsiconfd opsiconfd-guard ${tmpdir}/
 cd ${tmpdir}/..
 tar cjvf ${sourcedir}/${packagename}-${version}.tar.bz2 ${packagename}-${version}
 rm -rf $tmpdir

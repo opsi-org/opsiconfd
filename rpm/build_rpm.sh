@@ -6,7 +6,7 @@ rpmdir=${topdir}/RPMS
 sourcedir=${topdir}/SOURCES
 specdir=${topdir}/SPECS
 srcrpmdir=${topdir}/SRPMS
-packagename=python-opsi
+packagename=opsiconfd
 version=`grep -i ^Version  rpm/${packagename}.spec | awk '{ print $2 }'`
 tmpdir=/tmp/${packagename}-${version}
 cwd=`pwd`
@@ -19,7 +19,7 @@ test -e $buildroot && rm -rf $buildroot
 cd $dir/..
 test -e $tmpdir && rm -rf $tmpdir
 mkdir $tmpdir
-cp -r src files gettext setup.py ${tmpdir}/
+cp -r files opsiconfd opsiconfd-guard ${tmpdir}/
 cd ${tmpdir}/..
 tar cjvf ${sourcedir}/${packagename}-${version}.tar.bz2 ${packagename}-${version}
 rm -rf $tmpdir

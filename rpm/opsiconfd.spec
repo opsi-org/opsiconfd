@@ -6,25 +6,23 @@
 # package are under the same license as the package itself.
 #
 
-Name:           python-opsi
-BuildRequires:  python-devel gettext-devel
-Requires:       python-curses python-crypto python-json python-ldap python-newt python-pam python-openssl python-mysql duplicity
+Name:           opsiconfd
+Requires:       python-opsi openssl python-twisted
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        3.0.0.25
+Version:        2.0.0.9
 Release:        1
-Summary:        opsi python library
-%define tarname python-opsi
+Summary:        OPSI configuration service
+%define tarname opsiconfd
 Source:         %{tarname}-%{version}.tar.bz2
-#Source2:        setup.py
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %{py_requires}
 
 # ===[ description ]================================
 %description
-This package contains the OPSI python library.
+This package contains the OPSI configuration service.
 
 # ===[ debug_package ]==============================
 %debug_package
@@ -37,31 +35,18 @@ This package contains the OPSI python library.
 
 # ===[ build ]======================================
 %build
-export CFLAGS="$RPM_OPT_FLAGS" 
-python setup.py build
-msgfmt -o gettext/opsi_system.mo gettext/opsi_system_de.po
-msgfmt -o gettext/opsi_ui.mo gettext/opsi_ui_de.po
 
 # ===[ install ]====================================
 %install
-# install python files and record installed files in INSTALLED_FILES
-python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=INSTALLED_FILES
-mkdir -p $RPM_BUILD_ROOT/usr/share/locale/de/LC_MESSAGES
-install -m 0644 gettext/opsi_system.mo $RPM_BUILD_ROOT/usr/share/locale/de/LC_MESSAGES/
-install -m 0644 gettext/opsi_ui.mo     $RPM_BUILD_ROOT/usr/share/locale/de/LC_MESSAGES/
-mkdir -p $RPM_BUILD_ROOT/etc/opsi/backendManager.d
-for i in `(cd files/backendManager.d; ls *.conf)`; do install -m 0644 files/backendManager.d/$i $RPM_BUILD_ROOT/etc/opsi/backendManager.d/; done
-mkdir -p $RPM_BUILD_ROOT/etc/opsi/hwaudit/locales
-install -m 0644 files/hwaudit/opsihwaudit.conf $RPM_BUILD_ROOT/etc/opsi/hwaudit/
-for i in files/hwaudit/locales/*; do install -m 0644 $i $RPM_BUILD_ROOT/etc/opsi/hwaudit/locales/; done
-mkdir -p $RPM_BUILD_ROOT/etc/openldap/schema
-install -m 0644 files/opsi.schema $RPM_BUILD_ROOT/etc/openldap/schema/
-install -m 0644 files/opsi-standalone.schema $RPM_BUILD_ROOT/etc/openldap/schema/
-mkdir -p $RPM_BUILD_ROOT/usr/share/opsi
-install -m 0755 files/share/init-opsi-mysql-db.py $RPM_BUILD_ROOT/usr/share/opsi/
-install -m 0755 files/share/register-depot.py $RPM_BUILD_ROOT/usr/share/opsi/
-echo %{version} > $RPM_BUILD_ROOT/etc/opsi/version
-mkdir -p $RPM_BUILD_ROOT/var/lib/opsi
+mkdir -p $RPM_BUILD_ROOT/usr/sbin
+mkdir -p $RPM_BUILD_ROOT/usr/share/opsiconfd/static
+mkdir -p $RPM_BUILD_ROOT/etc/opsi
+install -m 0755 opsiconfd $RPM_BUILD_ROOT/usr/sbin/
+install -m 0755 opsiconfd-guard $RPM_BUILD_ROOT/usr/sbin/
+install -m 0644 files/opsiconfd.conf $RPM_BUILD_ROOT/etc/opsi/
+install -m 0644 files/index.html $RPM_BUILD_ROOT/usr/share/opsiconfd/static/index.html
+install -m 0644 files/opsi_logo.png $RPM_BUILD_ROOT/usr/share/opsiconfd/static/opsi_logo.png
+install -m 0644 files/favicon.ico $RPM_BUILD_ROOT/usr/share/opsiconfd/static/favicon.ico
 
 # ===[ clean ]======================================
 %clean
@@ -73,71 +58,86 @@ if [ -z "`getent group pcpatch`" ]; then
 	groupadd -g 992 pcpatch
 fi
 
-if [ -z "`getent passwd pcpatch`" ]; then
-	useradd -u 992 -g 992 -d /var/lib/opsi -s /bin/bash pcpatch
+if [ -z "`getent passwd opsiconfd`" ]; then
+	useradd -u 993 -g 992 -d /var/lib/opsi -s /bin/bash opsiconfd
 fi
 
 if [ -z "`getent group opsiadmin`" ]; then
 	groupadd opsiadmin
 fi
 
-chown -R pcpatch:pcpatch /etc/opsi/backendManager.d
-chmod 660 /etc/opsi/backendManager.d/*
+adduser opsiconfd shadow  1>/dev/null 2>/dev/null || true
 
-test -e /etc/opsi/pckeys || touch /etc/opsi/pckeys
-chown pcpatch:pcpatch /etc/opsi/pckeys
-chmod 660 /etc/opsi/pckeys
-
-test -e /etc/opsi/passwd || touch /etc/opsi/passwd
-chown pcpatch:pcpatch /etc/opsi/passwd
-chmod 660 /etc/opsi/passwd
-
-if [ -d /var/lib/opsi ]; then
-	chown pcpatch:pcpatch /var/lib/opsi
-	chmod 2750 /var/lib/opsi
+if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
+	umask 077
+	
+	cert_country="DE"
+	cert_state="RP"
+	cert_locality="Mainz"
+	cert_organization="uib GmbH"
+	cert_commonname=`hostname -f`
+	cert_email="root@$cert_commonname"
+	
+	echo "RANDFILE = /tmp/opsiconfd.rand" 	>  /tmp/opsiconfd.cnf
+	echo "" 				>> /tmp/opsiconfd.cnf
+	echo "[ req ]" 				>> /tmp/opsiconfd.cnf
+	echo "default_bits = 1024" 		>> /tmp/opsiconfd.cnf
+	echo "encrypt_key = yes" 		>> /tmp/opsiconfd.cnf
+	echo "distinguished_name = req_dn" 	>> /tmp/opsiconfd.cnf
+	echo "x509_extensions = cert_type" 	>> /tmp/opsiconfd.cnf
+	echo "prompt = no" 			>> /tmp/opsiconfd.cnf
+	echo "" 				>> /tmp/opsiconfd.cnf
+	echo "[ req_dn ]" 			>> /tmp/opsiconfd.cnf
+	echo "C=$cert_country"			>> /tmp/opsiconfd.cnf
+	echo "ST=$cert_state" 			>> /tmp/opsiconfd.cnf
+	echo "L=$cert_locality" 		>> /tmp/opsiconfd.cnf
+	echo "O=$cert_organization" 		>> /tmp/opsiconfd.cnf
+	#echo "OU=$cert_unit" 			>> /tmp/opsiconfd.cnf
+	echo "CN=$cert_commonname" 		>> /tmp/opsiconfd.cnf
+	echo "emailAddress=$cert_email"	>> /tmp/opsiconfd.cnf
+	echo "" 				>> /tmp/opsiconfd.cnf
+	echo "[ cert_type ]" 			>> /tmp/opsiconfd.cnf
+	echo "nsCertType = server" 		>> /tmp/opsiconfd.cnf
+	
+	dd if=/dev/urandom of=/tmp/opsiconfd.rand count=1 2>/dev/null
+	openssl req -new -x509 -days 1000 -nodes \
+		-config /tmp/opsiconfd.cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
+	openssl gendh -rand /tmp/opsiconfd.rand 512 >>/etc/opsi/opsiconfd.pem
+	openssl x509 -subject -dates -fingerprint -noout -in /etc/opsi/opsiconfd.pem
+	rm -f /tmp/opsiconfd.rand /tmp/opsiconfd.cnf
 fi
+
+chmod 600 /etc/opsi/opsiconfd.pem
+chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 
 # ===[ postun ]=====================================
 %postun
-[ -z "`getent passwd pcpatch`" ] || userdel pcpatch
-[ -z "`getent group pcpatch`" ] || groupdel pcpatch
-[ -e /etc/opsi/pckeys ] && rm -f /etc/opsi/pckeys
+deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true
+rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 
 # ===[ files ]======================================
-%files -f INSTALLED_FILES
+%files
 # default attributes
-%defattr(-,root,root)
+%defattr(644,root,root)
 
 # documentation
 #%doc LICENSE README RELNOTES doc
 
 # configfiles
-%config(noreplace) /etc/opsi/backendManager.d/10_file.conf
-%config(noreplace) /etc/opsi/backendManager.d/11_ldap.conf
-%config(noreplace) /etc/opsi/backendManager.d/13_dhcpd.conf
-%config(noreplace) /etc/opsi/backendManager.d/15_jsonrpc.conf
-%config(noreplace) /etc/opsi/backendManager.d/16_etherwake.conf
-%config(noreplace) /etc/opsi/backendManager.d/17_wakeonlan.conf
-%config(noreplace) /etc/opsi/backendManager.d/18_opsipxeconfd.conf
-%config(noreplace) /etc/opsi/backendManager.d/20_file31.conf
-%config(noreplace) /etc/opsi/backendManager.d/21_mysql.conf
-%config(noreplace) /etc/opsi/backendManager.d/30_vars.conf
-%config /etc/opsi/backendManager.d/50_interface.conf
-%config /etc/opsi/hwaudit/opsihwaudit.conf
-%config /etc/opsi/hwaudit/locales/de_DE
-%config /etc/opsi/hwaudit/locales/en_US
-%config /etc/openldap/schema/opsi.schema
-%config /etc/openldap/schema/opsi-standalone.schema
-%config /etc/opsi/version
+%config(noreplace) /etc/opsi/opsiconfd.conf
 
 # other files
-/usr/share/locale/de/LC_MESSAGES/opsi_system.mo
-/usr/share/locale/de/LC_MESSAGES/opsi_ui.mo
-/usr/share/opsi/init-opsi-mysql-db.py
-/usr/share/opsi/register-depot.py
+%attr(0755,root,root) /usr/sbin/opsiconfd
+%attr(0755,root,root) /usr/sbin/opsiconfd-guard
+/usr/share/opsiconfd/static/index.html
+/usr/share/opsiconfd/static/opsi_logo.png
+/usr/share/opsiconfd/static/favicon.ico
 
 # directories
-%dir /var/lib/opsi
+%dir /usr/sbin
+%dir /etc/opsi
+%dir /usr/share/opsiconfd
+%dir /usr/share/opsiconfd/static
 
 # ===[ changelog ]==================================
 %changelog

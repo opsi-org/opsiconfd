@@ -22,8 +22,9 @@ GUARD_BIN=/usr/sbin/opsiconfd-guard
 
 # See if the binary is there
 if [ ! -x $DAEMON ]; then
-	echo Binary \"$DAEMON\" not found or not executable!
-	exit 1
+	echo "$DAEMON not installed"
+	[ "$1" = "stop" ] && exit 0
+	exit 5
 fi
 
 case "$1" in
@@ -46,10 +47,16 @@ case "$1" in
 			exit 0
 		else
 			rm -f $PIDFILE 2>/dev/null
-						
-			start-stop-daemon --chuid $USER --pidfile $PIDFILE \
-			   --start --quiet --oknodo --exec $DAEMON -- -D
-			
+			set -e
+			which startproc 1>/dev/null 2>/dev/null
+			ret=$?
+			set +e
+			if [ "$ret" = "0" ]; then
+				startproc -p $PIDFILE -u $USER $DAEMON -D
+			else
+				start-stop-daemon --chuid $USER --pidfile $PIDFILE \
+					--start --quiet --oknodo --exec $DAEMON -- -D
+			fi
 			running=false
 			i=1
 			while [ "$running" != "true" -a $i -le 10 ]; do

@@ -2,14 +2,7 @@
 
 build: build-arch build-indep
 
-build-arch: build24-stamp build-stamp
-	
-build24-stamp:
-	rm -f build24-stamp
-	rm -Rf debian/tmp24 || true
-	mkdir debian/tmp24
-	cat opsiconfd | sed 's/#!\/usr\/bin\/python/#!\/usr\/bin\/python2.4/' > debian/tmp24/opsiconfd
-	touch build24-stamp
+build-arch: build-stamp
 
 build-stamp:
 
@@ -34,17 +27,7 @@ clean:
 
 binary: binary-arch binary-indep
 
-binary-arch: build-arch binary24-stamp binary-stamp
-
-binary24-stamp:
-	# Create subdirectories in package build directories
-	install -m 0755 debian/tmp24/opsiconfd debian/opsiconfd-python2.4/usr/sbin/
-	install -m 0755 opsiconfd-guard debian/opsiconfd-python2.4/usr/sbin/
-	install -m 0644 files/opsiconfd.conf debian/opsiconfd-python2.4/etc/opsi/
-	install -m 0644 files/index.html debian/opsiconfd-python2.4/usr/share/opsiconfd/static/index.html
-	install -m 0644 files/opsi_logo.png debian/opsiconfd-python2.4/usr/share/opsiconfd/static/opsi_logo.png
-	install -m 0644 files/favicon.ico debian/opsiconfd-python2.4/usr/share/opsiconfd/static/favicon.ico
-	rm -Rf debian/tmp24 || true
+binary-arch: build-arch binary-stamp
 
 binary-stamp:
 	# Create subdirectories in package build directories

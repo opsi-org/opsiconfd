@@ -132,6 +132,7 @@ fi
 %restart_on_update opsiconfd
 %insserv_cleanup
 deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true
+[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
 rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 
 # ===[ files ]======================================

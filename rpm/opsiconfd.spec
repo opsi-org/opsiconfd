@@ -1,5 +1,5 @@
 #
-# spec file for package python-opsi
+# spec file for package opsiconfd
 #
 # Copyright (c) 2008 uib GmbH.
 # This file and all modifications and additions to the pristine
@@ -19,6 +19,7 @@ Summary:        OPSI configuration service
 %define tarname opsiconfd
 Source:         %{tarname}-%{version}.tar.bz2
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+BuildArch:      noarch
 %{py_requires}
 
 # ===[ description ]================================

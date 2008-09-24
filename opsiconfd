@@ -45,9 +45,9 @@ from twisted.web2 import resource, stream, server, log, http, responsecode
 from twisted.web2.http_headers import Cookie
 from twisted.web2.channel.http import HTTPFactory
 try:
-	from twisted.web2.dav import static
-except:
 	from OPSI.dav import static
+except:
+	from twisted.web2.dav import static
 
 # OPSI imports
 from OPSI import Tools

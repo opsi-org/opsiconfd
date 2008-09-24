@@ -118,7 +118,7 @@ fi
 chmod 600 /etc/opsi/opsiconfd.pem
 chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
-chown -R opsiconfd:opsiadmin /var/log/opsi/opsiconfd
+chown -R opsiconfd:pcpatch /var/log/opsi/opsiconfd
 
 # update?
 if [ ${FIRST_ARG:-0} -gt 1 ]; then
@@ -163,7 +163,7 @@ rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 %attr(0755,pcpatch,root) %dir /etc/opsi
 %attr(0755,root,root) %dir /usr/share/opsiconfd
 %attr(0755,root,root) %dir /usr/share/opsiconfd/static
-%attr(0750,opsiconfd,opsiadmin) %dir /var/log/opsi/opsiconfd
+%attr(0750,opsiconfd,pcpatch) %dir /var/log/opsi/opsiconfd
 
 # ===[ changelog ]==================================
 %changelog

@@ -78,6 +78,7 @@ if [ -z "`getent group opsiadmin`" ]; then
 fi
 
 groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
+groupmod -A opsiconfd uucp 1>/dev/null 2>/dev/null || true
 
 if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	umask 077
@@ -138,7 +139,8 @@ fi
 %postun
 %restart_on_update opsiconfd
 %insserv_cleanup
-deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true
+groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
+groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true
 [ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
 rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 

@@ -44,6 +44,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/sbin
 mkdir -p $RPM_BUILD_ROOT/usr/share/opsiconfd/static
 mkdir -p $RPM_BUILD_ROOT/etc/opsi
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
+mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
 install -m 0755 opsiconfd $RPM_BUILD_ROOT/usr/sbin/
 install -m 0755 opsiconfd-guard $RPM_BUILD_ROOT/usr/sbin/
 install -m 0644 files/opsiconfd.conf $RPM_BUILD_ROOT/etc/opsi/
@@ -116,6 +117,8 @@ fi
 
 chmod 600 /etc/opsi/opsiconfd.pem
 chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
+chmod 750 /var/log/opsi/opsiconfd
+chown -R opsiconfd:opsiadmin /var/log/opsi/opsiconfd
 
 # update?
 if [ ${FIRST_ARG:-0} -gt 1 ]; then
@@ -160,6 +163,7 @@ rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 %attr(0755,pcpatch,root) %dir /etc/opsi
 %attr(0755,root,root) %dir /usr/share/opsiconfd
 %attr(0755,root,root) %dir /usr/share/opsiconfd/static
+%attr(0750,opsiconfd,opsiadmin) %dir /var/log/opsi/opsiconfd
 
 # ===[ changelog ]==================================
 %changelog

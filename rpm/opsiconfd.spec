@@ -44,15 +44,18 @@ mkdir -p $RPM_BUILD_ROOT/usr/sbin
 mkdir -p $RPM_BUILD_ROOT/usr/share/opsiconfd/static
 mkdir -p $RPM_BUILD_ROOT/etc/opsi
 mkdir -p $RPM_BUILD_ROOT/etc/init.d
+mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
 mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
 install -m 0755 opsiconfd $RPM_BUILD_ROOT/usr/sbin/
 install -m 0755 opsiconfd-guard $RPM_BUILD_ROOT/usr/sbin/
 install -m 0644 files/opsiconfd.conf $RPM_BUILD_ROOT/etc/opsi/
+install -m 0644 debian/opsiconfd.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
 install -m 0755 debian/opsiconfd.init $RPM_BUILD_ROOT/etc/init.d/opsiconfd
 install -m 0644 files/index.html $RPM_BUILD_ROOT/usr/share/opsiconfd/static/index.html
 install -m 0644 files/opsi_logo.png $RPM_BUILD_ROOT/usr/share/opsiconfd/static/opsi_logo.png
 install -m 0644 files/favicon.ico $RPM_BUILD_ROOT/usr/share/opsiconfd/static/favicon.ico
 ln -sf ../../etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
+
 
 # ===[ clean ]======================================
 %clean
@@ -75,6 +78,7 @@ if [ -z "`getent group opsiadmin`" ]; then
 fi
 
 groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
+groupmod -A opsiconfd uucp 1>/dev/null 2>/dev/null || true
 
 if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	umask 077
@@ -135,7 +139,8 @@ fi
 %postun
 %restart_on_update opsiconfd
 %insserv_cleanup
-deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true
+groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
+groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true
 [ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
 rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 
@@ -150,6 +155,7 @@ rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 # configfiles
 %config(noreplace) /etc/opsi/opsiconfd.conf
 %attr(0755,root,root) %config /etc/init.d/opsiconfd
+%config /etc/logrotate.d/opsiconfd
 
 # other files
 %attr(0755,root,root) /usr/sbin/opsiconfd

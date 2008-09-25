@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.9'
+__version__ = '2.0.0.10'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -333,8 +333,8 @@ class Worker:
 				return
 			
 			if hasattr(self, 'rpc') and \
-			   ( self.rpc['method'] in ('getHostId') or \
-			     ((self.rpc['method'] == 'getDomain') and not self.rpc['params']) ):
+			   ( self.rpc['method'] in ('getHostId', 'getPossibleMethods_listOfHashes') or \
+			     ( self.rpc['method'] == 'getDomain') and ( (len(self.rpc['params']) < 1) or not self.rpc['params'][0] ) ):
 				logger.info("Allowing method '%s' without authentication" % self.rpc['method'])
 				return
 			
@@ -425,8 +425,19 @@ class Worker:
 			self.result['result'] = self._getHostId(hostname)
 			return
 		
-		if (self.rpc['method'] == 'getDomain') and not self.rpc['params']:
+		if (self.rpc['method'] == 'getDomain') and ( (len(self.rpc['params']) < 1) or not self.rpc['params'][0] ):
 			self.result['result'] = self._getDomain()
+			return
+		
+		if (self.rpc['method'] == 'getPossibleMethods_listOfHashes'):
+			if self.session.possibleMethods:
+				self.result['result'] = self.session.possibleMethods
+			else:
+				bm = BackendManager(authRequired = False)
+				possibleMethods = bm.getPossibleMethods_listOfHashes()
+				possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
+				bm = None
+				self.result['result'] = possibleMethods
 			return
 		
 		d = threads.deferToThread(self._realRpc)
@@ -462,10 +473,6 @@ class Worker:
 		
 		if (method == 'exit'):
 			sessionHandler.deleteSession(self.session.uid)
-			return
-		
-		if (method == 'getPossibleMethods_listOfHashes'):
-			self.result['result'] = self.session.possibleMethods
 			return
 		
 		if (method == 'getServerCertificate'):

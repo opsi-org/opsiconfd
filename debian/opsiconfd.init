@@ -47,10 +47,10 @@ case "$1" in
 			exit 0
 		else
 			rm -f $PIDFILE 2>/dev/null
-			set -e
+			set +e
 			which startproc 1>/dev/null 2>/dev/null
 			ret=$?
-			set +e
+			set -e
 			if [ "$ret" = "0" ]; then
 				startproc -p $PIDFILE -u $USER $DAEMON -D
 			else

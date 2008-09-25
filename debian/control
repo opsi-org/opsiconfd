@@ -5,15 +5,6 @@ Maintainer: uib GmbH <info@uib.de>
 Build-Depends: debhelper (>= 4.0.0)
 Standards-Version: 3.6.1
 
-Package: opsiconfd-python2.4
-Section: opsi
-Architecture: all
-Depends: python2.4-opsi (>= 3.3-1), python2.4-twisted-web2, openssl
-Provides: opsiconfd
-Conflicts: opsiconfd
-Description: OPSI configuration service
- This package contains the OPSI configuration service.
-
 Package: opsiconfd
 Section: opsi
 Architecture: all

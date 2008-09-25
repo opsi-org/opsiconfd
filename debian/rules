@@ -23,7 +23,6 @@ build-indep-stamp:
 clean:
 	rm debian/files || true
 	rm -f *-stamp
-	rm -Rf debian/tmp24 || true
 
 binary: binary-arch binary-indep
 

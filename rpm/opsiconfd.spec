@@ -63,7 +63,8 @@ rm -rf $RPM_BUILD_ROOT
 
 # ===[ post ]=======================================
 %post
-%{fillup_and_insserv opsiconfd}
+#%{fillup_and_insserv opsiconfd}
+insserv opsiconfd
 
 if [ -z "`getent group pcpatch`" ]; then
 	groupadd -g 992 pcpatch
@@ -129,6 +130,8 @@ if [ ${FIRST_ARG:-0} -gt 1 ]; then
 	if [ -e /var/run/opsiconfd.pid ]; then
 		/etc/init.d/opsiconfd restart
 	fi
+else
+	/etc/init.d/opsiconfd start
 fi
 
 # ===[ preun ]======================================

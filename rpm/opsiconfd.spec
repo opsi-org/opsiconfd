@@ -13,7 +13,7 @@ Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        2.0.0.9
+Version:        2.0.0.10
 Release:        1
 Summary:        OPSI configuration service
 %define tarname opsiconfd
@@ -63,7 +63,8 @@ rm -rf $RPM_BUILD_ROOT
 
 # ===[ post ]=======================================
 %post
-%{fillup_and_insserv opsiconfd}
+#%{fillup_and_insserv opsiconfd}
+insserv opsiconfd
 
 if [ -z "`getent group pcpatch`" ]; then
 	groupadd -g 992 pcpatch
@@ -127,8 +128,10 @@ chown -R opsiconfd:pcpatch /var/log/opsi/opsiconfd
 # update?
 if [ ${FIRST_ARG:-0} -gt 1 ]; then
 	if [ -e /var/run/opsiconfd.pid ]; then
-		/etc/init.d/opsiconfd restart
+		/etc/init.d/opsiconfd restart || true
 	fi
+else
+	/etc/init.d/opsiconfd start || true
 fi
 
 # ===[ preun ]======================================

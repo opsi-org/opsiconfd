@@ -128,10 +128,10 @@ chown -R opsiconfd:pcpatch /var/log/opsi/opsiconfd
 # update?
 if [ ${FIRST_ARG:-0} -gt 1 ]; then
 	if [ -e /var/run/opsiconfd.pid ]; then
-		/etc/init.d/opsiconfd restart
+		/etc/init.d/opsiconfd restart || true
 	fi
 else
-	/etc/init.d/opsiconfd start
+	/etc/init.d/opsiconfd start || true
 fi
 
 # ===[ preun ]======================================

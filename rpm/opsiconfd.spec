@@ -7,7 +7,7 @@
 #
 
 Name:           opsiconfd
-Requires:       python-opsi openssl python-twisted python-twisted-web2 python-xml
+Requires:       python-opsi openssl python-twisted python-xml
 PreReq:         %insserv_prereq
 Url:            http://www.opsi.org
 License:        GPL v2 or later

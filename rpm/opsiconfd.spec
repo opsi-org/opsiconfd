@@ -7,13 +7,13 @@
 #
 
 Name:           opsiconfd
-Requires:       python-opsi openssl python-twisted python-twisted-web2 python-xml
+Requires:       python-opsi openssl python-twisted python-xml
 PreReq:         %insserv_prereq
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        2.0.0.10
+Version:        2.0.0.11
 Release:        1
 Summary:        OPSI configuration service
 %define tarname opsiconfd
@@ -128,10 +128,10 @@ chown -R opsiconfd:pcpatch /var/log/opsi/opsiconfd
 # update?
 if [ ${FIRST_ARG:-0} -gt 1 ]; then
 	if [ -e /var/run/opsiconfd.pid ]; then
-		/etc/init.d/opsiconfd restart
+		/etc/init.d/opsiconfd restart || true
 	fi
 else
-	/etc/init.d/opsiconfd start
+	/etc/init.d/opsiconfd start || true
 fi
 
 # ===[ preun ]======================================

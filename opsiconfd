@@ -41,13 +41,10 @@ from OpenSSL import SSL
 # Twisted imports
 from twisted.internet import defer, threads, reactor
 from twisted.python.failure import Failure
-from twisted.web2 import resource, stream, server, log, http, responsecode
-from twisted.web2.http_headers import Cookie
-from twisted.web2.channel.http import HTTPFactory
-try:
-	from OPSI.dav import static
-except:
-	from twisted.web2.dav import static
+from OPSI.web2 import resource, stream, server, log, http, responsecode
+from OPSI.web2.http_headers import Cookie
+from OPSI.web2.channel.http import HTTPFactory
+from OPSI.web2.dav import static
 
 # OPSI imports
 from OPSI import Tools

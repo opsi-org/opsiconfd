@@ -13,7 +13,7 @@ Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        2.0.0.10
+Version:        2.0.0.11
 Release:        1
 Summary:        OPSI configuration service
 %define tarname opsiconfd

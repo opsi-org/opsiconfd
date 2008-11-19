@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.11'
+__version__ = '2.0.0.12'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -64,6 +64,7 @@ sslServerCertFile = '/etc/opsi/opsiconfd.pem'	# Server's certificate file
 sessionName = 'OPSISID'				# Session name for cookie
 sessionMaxInactiveInterval = 120 		# Session expires after 120 seconds
 maxExecutionStatisticValues = 250
+paramLengthLogLimit = 200
 resolveClientIp = True
 verifyIp = False
 updateHardwareAddress = True
@@ -455,7 +456,11 @@ class Worker:
 	def _realRpc(self):
 		method = self.rpc.get('method')
 		params = self.rpc.get('params')
-		logger.info("RPC method: '%s' params: '%s'" % (method, params))
+		ps = str(params)
+		if (len(ps) > paramLengthLogLimit):
+			# Do not log long strings like used in writeLog
+			ps = ps[:paramLengthLogLimit-3] + '...'
+		logger.info("RPC method: '%s' params: '%s'" % (method, ps))
 		
 		# Get BackendManager instance from session
 		try:
@@ -504,7 +509,11 @@ class Worker:
 			if not valid:
 				raise BackendBadValueError("Method '%s' is not valid" % method)
 			
-			logger.info( "Executing:  %s(%s)" % (method, str(params)[1:-1]) )
+			ps = str(params)
+			if (len(ps) > paramLengthLogLimit):
+				# Do not log long strings like used in writeLog
+				ps = ps[:paramLengthLogLimit-3] + '...'
+			logger.info( "Executing:  %s(%s)" % (method, ps) )
 			
 			# Execute method
 			start = time.time()
@@ -528,8 +537,12 @@ class Worker:
 			)
 			if (len(statistics['execution']) > maxExecutionStatisticValues):
 				statistics['execution'] = statistics['execution'][1:]
-			
-		logger.info('Took %0.3fs to process %s(%s)' % (duration, method, str(params)[1:-1]))
+		
+		ps = str(params)[1:-1]
+		if (len(ps) > paramLengthLogLimit):
+			# Do not log long strings like used in writeLog
+			ps = ps[:paramLengthLogLimit-3] + '...'
+		logger.info('Took %0.3fs to process %s(%s)' % (duration, method, ps))
 	
 	def _handlePostData(self, chunk):
 		logger.debug2("_handlePostData %s" % chunk)

@@ -233,7 +233,11 @@ class Worker:
 			self.result['error'] = e
 			raise
 		
-		logger.info('Got json-rpc request: %s' % self.rpc)
+		rpc = str(self.rpc)
+		if (len(rpc) > paramLengthLogLimit+103):
+			# Do not log long strings like used in writeLog
+			rpc = rpc[:paramLengthLogLimit+100] + '...'
+		logger.info('Got json-rpc request: %s' % rpc)
 		
 		
 	def _getSession(self, result):

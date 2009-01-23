@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.12'
+__version__ = '2.0.0.13'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -828,7 +828,7 @@ class JsonInterfaceWorker(JsonRpcWorker):
 			else:
 				sel += '\t\t\t\t\t\t\t<option>%s</option>\r\n' % f['name']
 		
-		self.response.stream = stream.IByteStream(self.xhtml % (js, sel, Tools.jsonObjToHtml(self.result)))
+		self.response.stream = stream.IByteStream(self.xhtml % (js, sel, str(Tools.jsonObjToHtml(self.result))))
 		return self.response
 	
 	def _errback(self, failure):

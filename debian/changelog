@@ -1,3 +1,9 @@
+opsiconfd (2.0.0.13-1) stable; urgency=low
+
+  * Fixed opsi interface bug
+
+ -- Jan Schneider <schneider@pcbon14.uib.local>  Fri, 23 Jan 2009 13:35:41 +0100
+
 opsiconfd (2.0.0.12-1) stable; urgency=low
 
   * Avoiding to log long params passed to methods

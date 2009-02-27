@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.13'
+__version__ = '2.0.0.14'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -859,12 +859,19 @@ class DAVWorker(Worker):
 			self.deferred.addCallback(self._getSession)
 			self.deferred.addCallback(self._authenticate)
 			self.deferred.addCallback(self._render)
+			self.deferred.addCallback(self._addCookie)
 			self.deferred.addErrback(self._errback)
 			self.deferred.callback(None)
 			return self.deferred
 		except Exception, e:
 			return self._errback(e)
-	
+		
+	def _addCookie(self, result):
+		# Add cookie to headers
+		cookie = Cookie(self.session.name, self.session.uid, path='/')
+		result.headers.setHeader('set-cookie', [ cookie ] )
+		return result
+		
 	def _render(self, result):
 		if False:#if not self.session.bm.userIsHost() and not self.session.bm.userIsAdmin():
 			logger.warning("WebDAV access denied for user %s@%s" % (self.session.user, self.session.ip))

@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.14'
+__version__ = '2.0.0.15'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -316,10 +316,10 @@ class Worker:
 				logger.debug("Authorization header found (type: %s)" % auth[0])
 				try:
 					encoded = auth[1]
-					(user, password) = base64.decodestring(encoded).split(':')
+					(user, password) = base64.decodestring(encoded).split(':', 1)
 					logger.confidential("Client supplied username '%s' and password '%s'" % (user, password))
 				except Exception:
-					logger.error("Bad Authorization header from '%s'" % self.request.remoteAddr.host)
+					logger.error("Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
 				
 			self.session.user = user
 			self.session.password = password

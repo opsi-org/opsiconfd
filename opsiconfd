@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.12'
+__version__ = '2.0.0.15'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -233,7 +233,11 @@ class Worker:
 			self.result['error'] = e
 			raise
 		
-		logger.info('Got json-rpc request: %s' % self.rpc)
+		rpc = str(self.rpc)
+		if (len(rpc) > paramLengthLogLimit+103):
+			# Do not log long strings like used in writeLog
+			rpc = rpc[:paramLengthLogLimit+100] + '...'
+		logger.info('Got json-rpc request: %s' % rpc)
 		
 		
 	def _getSession(self, result):
@@ -312,10 +316,10 @@ class Worker:
 				logger.debug("Authorization header found (type: %s)" % auth[0])
 				try:
 					encoded = auth[1]
-					(user, password) = base64.decodestring(encoded).split(':')
+					(user, password) = base64.decodestring(encoded).split(':', 1)
 					logger.confidential("Client supplied username '%s' and password '%s'" % (user, password))
 				except Exception:
-					logger.error("Bad Authorization header from '%s'" % self.request.remoteAddr.host)
+					logger.error("Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
 				
 			self.session.user = user
 			self.session.password = password
@@ -824,7 +828,7 @@ class JsonInterfaceWorker(JsonRpcWorker):
 			else:
 				sel += '\t\t\t\t\t\t\t<option>%s</option>\r\n' % f['name']
 		
-		self.response.stream = stream.IByteStream(self.xhtml % (js, sel, Tools.jsonObjToHtml(self.result)))
+		self.response.stream = stream.IByteStream(self.xhtml % (js, sel, str(Tools.jsonObjToHtml(self.result))))
 		return self.response
 	
 	def _errback(self, failure):
@@ -855,12 +859,19 @@ class DAVWorker(Worker):
 			self.deferred.addCallback(self._getSession)
 			self.deferred.addCallback(self._authenticate)
 			self.deferred.addCallback(self._render)
+			self.deferred.addCallback(self._addCookie)
 			self.deferred.addErrback(self._errback)
 			self.deferred.callback(None)
 			return self.deferred
 		except Exception, e:
 			return self._errback(e)
-	
+		
+	def _addCookie(self, result):
+		# Add cookie to headers
+		cookie = Cookie(self.session.name, self.session.uid, path='/')
+		result.headers.setHeader('set-cookie', [ cookie ] )
+		return result
+		
 	def _render(self, result):
 		if False:#if not self.session.bm.userIsHost() and not self.session.bm.userIsAdmin():
 			logger.warning("WebDAV access denied for user %s@%s" % (self.session.user, self.session.ip))

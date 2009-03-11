@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.15'
+__version__ = '2.0.0.16'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -435,7 +435,7 @@ class Worker:
 			if self.session.possibleMethods:
 				self.result['result'] = self.session.possibleMethods
 			else:
-				bm = BackendManager(authRequired = False)
+				bm = BackendManager(authRequired = False, configFile = backendManagerConf)
 				possibleMethods = bm.getPossibleMethods_listOfHashes()
 				possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 				bm = None
@@ -1232,7 +1232,7 @@ def createRoot():
 		
 		logger.notice("Added webdav content '%s' which points to directory '%s'" % (name, path))
 	
-	bm = BackendManager(authRequired = False)
+	bm = BackendManager(authRequired = False, configFile = backendManagerConf)
 	fqdn = socket.getfqdn()
 	if fqdn in bm.getDepotIds_list():
 		depot = bm.getDepot_hash(fqdn)
@@ -1408,7 +1408,7 @@ def main(argv):
 			"\n==================================================================\n")
 	
 	# Test backendmanager
-	bm = BackendManager(authRequired = False)
+	bm = BackendManager(authRequired = False, configFile = backendManagerConf)
 	bm.exit()
 	
 	if os.path.exists(pidFile):

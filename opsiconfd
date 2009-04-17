@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.16'
+__version__ = '2.0.0.17'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -873,11 +873,13 @@ class DAVWorker(Worker):
 		return result
 		
 	def _render(self, result):
+		logger.debug("Client requests DAV operation: %s" % self.request)
+		
 		if False:#if not self.session.bm.userIsHost() and not self.session.bm.userIsAdmin():
 			logger.warning("WebDAV access denied for user %s@%s" % (self.session.user, self.session.ip))
 			self.response.code = responsecode.UNAUTHORIZED
 			raise Exception("WebDAV access denied!")
-			
+		
 		d = super(OpsiDAV, self.resource).renderHTTP(self.request)
 		if isinstance(d, defer.Deferred):
 			d.addErrback(self._errback)

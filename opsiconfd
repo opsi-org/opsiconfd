@@ -218,7 +218,11 @@ class Worker:
 		
 		try:
 			# Deserialize json-object
-			self.rpc = json.read(self.query)
+			if hasattr(json, 'loads'):
+				# Python 2.6 json module
+				self.rpc = json.loads(self.query)
+			else:
+				self.rpc = json.read(self.query)
 			if not self.rpc.get('id'):
 				raise Exception('No id defined!')
 			self.result['id'] = self.rpc['id']
@@ -594,7 +598,11 @@ class JsonRpcWorker(Worker):
 		self.result['result'] = self._allIntsToString(self.result['result'])
 		jsonResult = ''
 		try:
-			jsonResult = json.write( self.result )
+			if hasattr(json, 'dumps'):
+				# Python 2.6 json module
+				jsonResult = json.dumps( self.result )
+			else:
+				jsonResult = json.write( self.result )
 		except Exception, e:
 			logger.critical(e)
 		self.response.stream = stream.IByteStream(jsonResult)

@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.17'
+__version__ = '2.0.0.18'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -123,7 +123,7 @@ class OpsiJsonRpc(resource.Resource):
 class OpsiJsonInterface(OpsiJsonRpc):
 	def __init__(self):
 		OpsiJsonRpc.__init__(self)
-		bm = BackendManager(authRequired = False)
+		bm = BackendManager(authRequired = False, configFile = backendManagerConf)
 		self.possibleMethods = bm.getPossibleMethods_listOfHashes()
 		self.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 		bm.exit()
@@ -529,7 +529,8 @@ class Worker:
 		except(BackendError, BackendTemporaryError,
 		       BackendBadValueError, BackendMissingDataError, 
 		       BackendIOError, BackendPermissionDeniedError,
-		       BackendAuthenticationError), e:
+		       BackendAuthenticationError,
+		       LicenseConfigurationError, LicenseMissingError), e:
 			logger.error(e)
 			self.result['error'] = { 'class': e.__class__.__name__, 'message': str(e) }
 			self.result['result'] = None

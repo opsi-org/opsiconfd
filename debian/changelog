@@ -1,3 +1,9 @@
+opsiconfd (2.0.0.17-1) stable; urgency=low
+
+  * Adapted to python 2.6 an python-opsi 3.4
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 07 May 2009 16:40:42 +0200
+
 opsiconfd (2.0.0.16-1) stable; urgency=low
 
   * Corrected BackendManager initialization

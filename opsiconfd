@@ -529,7 +529,7 @@ class Worker:
 		except(BackendError, BackendTemporaryError,
 		       BackendBadValueError, BackendMissingDataError, 
 		       BackendIOError, BackendPermissionDeniedError,
-		       BackendAuthenticationError,
+		       BackendAuthenticationError, BackendReferentialIntegrityError,
 		       LicenseConfigurationError, LicenseMissingError), e:
 			logger.error(e)
 			self.result['error'] = { 'class': e.__class__.__name__, 'message': str(e) }

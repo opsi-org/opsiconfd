@@ -141,11 +141,13 @@ fi
 # ===[ postun ]=====================================
 %postun
 %restart_on_update opsiconfd
-%insserv_cleanup
-groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
-groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true
-[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
-rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
+if [ $1 -eq 0 ]; then
+	%insserv_cleanup
+	groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
+	groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true
+	[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
+	rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
+fi
 
 # ===[ files ]======================================
 %files

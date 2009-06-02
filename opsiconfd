@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.16'
+__version__ = '2.0.0.18'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -123,7 +123,7 @@ class OpsiJsonRpc(resource.Resource):
 class OpsiJsonInterface(OpsiJsonRpc):
 	def __init__(self):
 		OpsiJsonRpc.__init__(self)
-		bm = BackendManager(authRequired = False)
+		bm = BackendManager(authRequired = False, configFile = backendManagerConf)
 		self.possibleMethods = bm.getPossibleMethods_listOfHashes()
 		self.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 		bm.exit()
@@ -218,7 +218,11 @@ class Worker:
 		
 		try:
 			# Deserialize json-object
-			self.rpc = json.read(self.query)
+			if hasattr(json, 'loads'):
+				# Python 2.6 json module
+				self.rpc = json.loads(self.query)
+			else:
+				self.rpc = json.read(self.query)
 			if not self.rpc.get('id'):
 				raise Exception('No id defined!')
 			self.result['id'] = self.rpc['id']
@@ -525,7 +529,8 @@ class Worker:
 		except(BackendError, BackendTemporaryError,
 		       BackendBadValueError, BackendMissingDataError, 
 		       BackendIOError, BackendPermissionDeniedError,
-		       BackendAuthenticationError), e:
+		       BackendAuthenticationError, BackendReferentialIntegrityError,
+		       LicenseConfigurationError, LicenseMissingError), e:
 			logger.error(e)
 			self.result['error'] = { 'class': e.__class__.__name__, 'message': str(e) }
 			self.result['result'] = None
@@ -594,7 +599,11 @@ class JsonRpcWorker(Worker):
 		self.result['result'] = self._allIntsToString(self.result['result'])
 		jsonResult = ''
 		try:
-			jsonResult = json.write( self.result )
+			if hasattr(json, 'dumps'):
+				# Python 2.6 json module
+				jsonResult = json.dumps( self.result )
+			else:
+				jsonResult = json.write( self.result )
 		except Exception, e:
 			logger.critical(e)
 		self.response.stream = stream.IByteStream(jsonResult)
@@ -873,11 +882,13 @@ class DAVWorker(Worker):
 		return result
 		
 	def _render(self, result):
+		logger.debug("Client requests DAV operation: %s" % self.request)
+		
 		if False:#if not self.session.bm.userIsHost() and not self.session.bm.userIsAdmin():
 			logger.warning("WebDAV access denied for user %s@%s" % (self.session.user, self.session.ip))
 			self.response.code = responsecode.UNAUTHORIZED
 			raise Exception("WebDAV access denied!")
-			
+		
 		d = super(OpsiDAV, self.resource).renderHTTP(self.request)
 		if isinstance(d, defer.Deferred):
 			d.addErrback(self._errback)

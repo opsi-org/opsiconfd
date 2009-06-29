@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.18'
+__version__ = '2.0.0.19'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -522,10 +522,9 @@ class Worker:
 				# Do not log long strings like used in writeLog
 				ps = ps[:paramLengthLogLimit-3] + '...'
 			logger.info( "Executing:  %s(%s)" % (method, ps) )
-			
 			# Execute method
 			start = time.time()
-			self.result['result'] = eval( "bm.%s(%s)" % (method, str(params)[1:-1]) )
+			self.result['result'] = eval( "bm.%s(*params)" % method )
 		except(BackendError, BackendTemporaryError,
 		       BackendBadValueError, BackendMissingDataError, 
 		       BackendIOError, BackendPermissionDeniedError,

@@ -8,6 +8,6 @@ Standards-Version: 3.6.1
 Package: opsiconfd
 Section: opsi
 Architecture: all
-Depends: python-opsi (>= 3.3.0.25-1), python-twisted, openssl
+Depends: python-opsi (>= 3.4), python-twisted, openssl
 Description: OPSI configuration service
  This package contains the OPSI configuration service.

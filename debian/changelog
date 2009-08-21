@@ -1,3 +1,11 @@
+opsiconfd (2.0.0.19-1) stable; urgency=low
+
+  * opsiconfd 2.0.0.19
+  * Use existing ssl certificate/key on ucs
+  * Default for fqdn
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 21 Aug 2009 17:29:00 +0200
+
 opsiconfd (2.0.0.18-1) stable; urgency=low
 
   * Added new Exception classes

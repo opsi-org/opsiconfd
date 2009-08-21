@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.18'
+__version__ = '2.0.0.17'
 
 # Imports
 import os, getopt, socket, urllib, base64

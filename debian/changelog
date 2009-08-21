@@ -1,3 +1,10 @@
+opsiconfd (2.0.0.16-2) stable; urgency=low
+
+  * Use existing ssl certificate/key on ucs
+  * Default for fqdn
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 21 Aug 2009 17:29:00 +0200
+
 opsiconfd (2.0.0.16-1) stable; urgency=low
 
   * Corrected BackendManager initialization

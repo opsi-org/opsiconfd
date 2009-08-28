@@ -55,7 +55,7 @@ from OPSI.Backend.Backend import *
 # Some defaults
 backendManagerConf = '/etc/opsi/backendManager.d'
 configFile = '/etc/opsi/opsiconfd.conf'
-pidFile = '/var/run/opsiconfd.pid'
+pidFile = '/var/run/opsiconfd/opsiconfd.pid'
 httpPort = 0
 httpsPort = 4447
 interface = '0.0.0.0'

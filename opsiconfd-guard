@@ -3,7 +3,7 @@
 #===========[ config ]============#
 DEBUG=0
 INTERVAL=5
-PID_FILE=/var/run/opsiconfd.pid
+PID_FILE=/var/run/opsiconfd/opsiconfd.pid
 #=================================#
 
 

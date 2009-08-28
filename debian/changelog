@@ -1,6 +1,7 @@
 opsiconfd (2.0.0.19-1) stable; urgency=low
 
   * opsiconfd 2.0.0.19
+  * pid file now in /var/run/opsiconfd
   * Use existing ssl certificate/key on ucs
   * Default for fqdn
 

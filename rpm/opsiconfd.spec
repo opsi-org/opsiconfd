@@ -127,7 +127,8 @@ chown -R opsiconfd:pcpatch /var/log/opsi/opsiconfd
 
 # update?
 if [ ${FIRST_ARG:-0} -gt 1 ]; then
-	if [ -e /var/run/opsiconfd.pid ]; then
+	if [ -e /var/run/opsiconfd.pid -e /var/run/opsiconfd/opsiconfd.pid ]; then
+		rm /var/run/opsiconfd.pid >/dev/null 2>&1 || true
 		/etc/init.d/opsiconfd restart || true
 	fi
 else

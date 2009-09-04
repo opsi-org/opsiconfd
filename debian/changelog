@@ -1,6 +1,6 @@
 opsiconfd (2.0.0.16-3) stable; urgency=low
 
-  * Changed postinst/config for ucs
+  * Changed config-script for ucs
 
  -- Jan Schneider <j.schneider@uib.de>  Fri, 04 Sep 2009 14:05:23 +0200
 

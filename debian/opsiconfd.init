@@ -14,9 +14,9 @@ DAEMON=/usr/sbin/opsiconfd
 # This user must have read access to /etc/shadow
 USER=opsiconfd
 LOGDIR=/var/log/opsi/opsiconfd
-PIDDIR=/var/run
+PIDDIR=/var/run/opsiconfd
 PIDFILE=$PIDDIR/opsiconfd.pid
-START_GUARD=0
+START_GUARD=1
 GUARD_BIN=/usr/sbin/opsiconfd-guard
 
 

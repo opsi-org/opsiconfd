@@ -1,6 +1,13 @@
+opsiconfd (2.0.0.19-2) stable; urgency=low
+
+  * Starting opsiconfd-guard by default
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 11 Sep 2009 10:20:58 +0200
+
 opsiconfd (2.0.0.19-1) stable; urgency=low
 
   * opsiconfd 2.0.0.19
+  * pid file now in /var/run/opsiconfd
   * Use existing ssl certificate/key on ucs
   * Default for fqdn
 

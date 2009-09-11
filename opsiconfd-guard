@@ -23,6 +23,7 @@ start_loop() {
 			[ "$DEBUG" = "1" ] && echo "pid of opsiconfd: $PID" | logger -p daemon.debug -t opsiconfd-guard
 			if [ ! -d "/proc/$PID" ]; then
 				start_opsiconfd
+				sleep 60
 			fi
 		fi
 		sleep $INTERVAL

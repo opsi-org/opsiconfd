@@ -16,7 +16,7 @@ USER=opsiconfd
 LOGDIR=/var/log/opsi/opsiconfd
 PIDDIR=/var/run
 PIDFILE=$PIDDIR/opsiconfd.pid
-START_GUARD=0
+START_GUARD=1
 GUARD_BIN=/usr/sbin/opsiconfd-guard
 
 

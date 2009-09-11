@@ -2,7 +2,7 @@
 
 #===========[ config ]============#
 DEBUG=0
-INTERVAL=5
+INTERVAL=30
 PID_FILE=/var/run/opsiconfd.pid
 #=================================#
 
@@ -13,7 +13,7 @@ start_opsiconfd() {
 }
 
 start_loop() {
-	sleep 10
+	sleep 60
 	while true; do
 		PID=`cat $PID_FILE 2>/dev/null`
 		if [ "$?" != "0" ]; then
@@ -23,6 +23,7 @@ start_loop() {
 			[ "$DEBUG" = "1" ] && echo "pid of opsiconfd: $PID" | logger -p daemon.debug -t opsiconfd-guard
 			if [ ! -d "/proc/$PID" ]; then
 				start_opsiconfd
+				sleep 60
 			fi
 		fi
 		sleep $INTERVAL

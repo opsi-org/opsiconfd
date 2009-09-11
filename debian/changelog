@@ -1,6 +1,12 @@
+opsiconfd (2.0.0.16-4) stable; urgency=low
+
+  * Starting opsiconfd-guard by default
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 11 Sep 2009 10:23:12 +0200
+
 opsiconfd (2.0.0.16-3) stable; urgency=low
 
-  * Changed postinst/config for ucs
+  * Changed config-script for ucs
 
  -- Jan Schneider <j.schneider@uib.de>  Fri, 04 Sep 2009 14:05:23 +0200
 

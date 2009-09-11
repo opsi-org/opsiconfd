@@ -2,7 +2,7 @@
 
 #===========[ config ]============#
 DEBUG=0
-INTERVAL=5
+INTERVAL=30
 PID_FILE=/var/run/opsiconfd/opsiconfd.pid
 #=================================#
 
@@ -13,7 +13,7 @@ start_opsiconfd() {
 }
 
 start_loop() {
-	sleep 10
+	sleep 60
 	while true; do
 		PID=`cat $PID_FILE 2>/dev/null`
 		if [ "$?" != "0" ]; then

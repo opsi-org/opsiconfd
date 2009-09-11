@@ -14,7 +14,7 @@ License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
 Version:        2.0.0.19
-Release:        1
+Release:        2
 Summary:        OPSI configuration service
 %define tarname opsiconfd
 Source:         %{tarname}-%{version}.tar.bz2

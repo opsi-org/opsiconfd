@@ -6,6 +6,19 @@ INTERVAL=30
 PID_FILE=/var/run/opsiconfd/opsiconfd.pid
 #=================================#
 
+check_ucs_backend() {
+	[ "$DEBUG" = "1" ] && echo "Checking if ldap bind pw and machine.secret are equal." | logger -p daemon.debug -t opsiconfd-guard
+	bindPw=$(grep "^bindPw" /etc/opsi/backendManager.d/40_opsi4ucs.conf 2>/dev/null | cut -d '"' -f2)
+	LDAP_SECRET=$(cat /etc/machine.secret)
+	if [ "$bindPw" != "$LDAP_SECRET" ]; then
+		echo "need to update opsi4ucs backend config, restarting opsiconfd." | logger -p daemon.error -t opsiconfd-guard
+		[ -e /tmp/.opsi4ucs.conf ] && rm /tmp/.opsi4ucs.conf
+		cp /etc/opsi/backendManager.d/40_opsi4ucs.conf /tmp/.opsi4ucs.conf
+		cat /tmp/.opsi4ucs.conf | sed "s/^bindPw\s*=.*/bindPw = \"${LDAP_SECRET}\"/" > /etc/opsi/backendManager.d/40_opsi4ucs.conf
+		rm /tmp/.opsi4ucs.conf
+		/etc/init.d/opsiconfd restart
+	fi
+}
 
 start_opsiconfd() {
 	echo "opsiconfd not running, starting opsiconfd." | logger -p daemon.error -t opsiconfd-guard
@@ -15,6 +28,7 @@ start_opsiconfd() {
 start_loop() {
 	sleep 60
 	while true; do
+		[ -e /etc/opsi/backendManager.d/40_opsi4ucs.conf ] && check_ucs_backend
 		PID=`cat $PID_FILE 2>/dev/null`
 		if [ "$?" != "0" ]; then
 			[ "$DEBUG" = "1" ] && echo "opsiconfd pid-file not found." | logger -p daemon.debug -t opsiconfd-guard
@@ -23,7 +37,6 @@ start_loop() {
 			[ "$DEBUG" = "1" ] && echo "pid of opsiconfd: $PID" | logger -p daemon.debug -t opsiconfd-guard
 			if [ ! -d "/proc/$PID" ]; then
 				start_opsiconfd
-				sleep 60
 			fi
 		fi
 		sleep $INTERVAL

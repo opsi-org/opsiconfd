@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.19'
+__version__ = '2.0.0.21'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -220,9 +220,9 @@ class Worker:
 			# Deserialize json-object
 			if hasattr(json, 'loads'):
 				# Python 2.6 json module
-				self.rpc = json.loads(self.query)
+				self.rpc = json.loads(self.query.replace(u'\ufffd', '?'))
 			else:
-				self.rpc = json.read(self.query)
+				self.rpc = json.read(self.query.replace(u'\ufffd', '?'))
 			if not self.rpc.get('id'):
 				raise Exception('No id defined!')
 			self.result['id'] = self.rpc['id']
@@ -482,6 +482,7 @@ class Worker:
 			raise Exception("Failed to execute rpc, cannot get bm instance from session!")
 		
 		if (method == 'exit'):
+			logger.notice("RPC client asked to close the session")
 			sessionHandler.deleteSession(self.session.uid)
 			return
 		

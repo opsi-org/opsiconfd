@@ -69,9 +69,10 @@ case "$1" in
 				fi
 			done
 			
+			[ "$START_GUARD" = "1" ] && $GUARD_BIN &
+			
 			if [ "$running" = "true" ]; then
 				echo "   (done)."
-				[ "$START_GUARD" = "1" ] && $GUARD_BIN &
 			else
 				echo "   (failed)."
 				exit 1

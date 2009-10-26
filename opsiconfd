@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.21'
+__version__ = '2.0.0.22'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -220,9 +220,11 @@ class Worker:
 			# Deserialize json-object
 			if hasattr(json, 'loads'):
 				# Python 2.6 json module
-				self.rpc = json.loads(self.query.replace(u'\ufffd', '?'))
+				#self.rpc = json.loads(self.query.replace(u'\ufffd', '?'))
+				self.rpc = json.loads(self.query)
 			else:
-				self.rpc = json.read(self.query.replace(u'\ufffd', '?'))
+				#self.rpc = json.read(self.query.replace(u'\ufffd', '?'))
+				self.rpc = json.read(self.query)
 			if not self.rpc.get('id'):
 				raise Exception('No id defined!')
 			self.result['id'] = self.rpc['id']
@@ -250,6 +252,14 @@ class Worker:
 		
 		logger.confidential("Request headers: %s " % self.request.headers)
 		
+		userAgent = None
+		try:
+			userAgent = self.request.headers.getHeader('user-agent')
+		except Exception, e:
+			logger.info("Client '%s' did not supply user-agent" % self.request.remoteAddr.host)
+		if not userAgent:
+			userAgent = 'unknown'
+		
 		# Get session id from cookie request header
 		sessionId = ''
 		try:
@@ -257,14 +267,18 @@ class Worker:
 		except Exception, e:
 			pass
 		
-		if not sessionId:
-			logger.notice("Client '%s' did not send cookie" % self.request.remoteAddr.host)
+		if sessionId:
+			logger.notice("Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
 		
 		# Get Session object
 		self.session = sessionHandler.getSession(sessionId)
+		if (sessionId == self.session.uid):
+			logger.info("Reusing session for client '%s', application '%s'" % (self.request.remoteAddr.host, userAgent))
+		elif sessionId:
+			logger.notice("Application '%s' on client '%s' supplied non existing session id: %s" % (userAgent, self.request.remoteAddr.host, sessionId))
 		
 		if self.session.ip and verifyIp and (self.session.ip != self.request.remoteAddr.host):
-			logger.critical("Client ip '%s' does not match session ip '%s'" \
+			logger.critical("Client ip '%s' does not match session ip '%s', deleting old session and creating a new one" \
 				% (self.request.remoteAddr.host, self.session.ip) )
 			sessionHandler.deleteSession(self.session.uid)
 			self.session = sessionHandler.getSession()
@@ -272,10 +286,14 @@ class Worker:
 		# Set ip
 		self.session.ip = self.request.remoteAddr.host
 		
-		if (sessionId == self.session.uid):
-			logger.info("Reusing session for client '%s'" % self.request.remoteAddr.host)
+		# Set user-agent / application
+		if self.session.userAgent and (self.session.userAgent != userAgent):
+			logger.warning("Application changed from '%s' to '%s' for existing session of client '%s'" \
+				% (self.session.userAgent, userAgent, self.request.remoteAddr.host))
+		self.session.userAgent = userAgent
 		
-		logger.confidential("Session id is '%s'" % self.session.uid)
+		logger.confidential("Session id is '%s' for client '%s', application '%s'" \
+			% (self.session.uid, self.request.remoteAddr.host, self.session.userAgent))
 		
 		# Set last modified to current time
 		self.session.touch()
@@ -905,6 +923,7 @@ class Session:
 		self.sessionTimer = None
 		self.uid = Tools.randomString(32)
 		self.ip = ''
+		self.userAgent = ''
 		self.hostname = ''
 		self.user = ''
 		self.password = ''
@@ -940,9 +959,12 @@ class SessionHandler:
 		self.deleteAllSessions()
 	
 	def getSession(self, uid):
-		session = self.sessions.get(uid)
-		if session:
-			return session
+		if uid:
+			session = self.sessions.get(uid)
+			if session:
+				return session
+			else:
+				logger.info('Failed to get session: session id %s not found' % uid)
 		return self.createSession()
 	
 	def createSession(self):
@@ -952,19 +974,9 @@ class SessionHandler:
 		return session
 	
 	def sessionExpired(self, session):
-		try:
-			logger.info("Session '%s' expired after %d seconds" % (session.uid, (time.time()-session.lastModified)))
-			if session.sessionTimer:
-				session.sessionTimer.cancel()
-			session.bm.exit()
-		except:
-			pass
-		
-		try:
-			del self.sessions[session.uid]
-			logger.info("Session '%s' deleted" % session.uid)
-		except:
-			pass
+		logger.notice("Session '%s' from ip '%s', application '%s' expired after %d seconds" \
+				% (session.uid, session.ip, session.userAgent, (time.time()-session.lastModified)))
+		self.deleteSession(session.uid)
 		
 	def deleteSession(self, uid):
 		session = self.sessions.get(uid)
@@ -982,12 +994,13 @@ class SessionHandler:
 		
 		try:
 			del self.sessions[uid]
-			logger.notice("Session '%s' deleted" % uid)
+			logger.notice("Session '%s' from ip '%s', application '%s' deleted" % (session.uid, session.ip, session.userAgent))
 		except KeyError:
 			pass
 		
 	
 	def deleteAllSessions(self):
+		logger.notice("Deleting all sessions")
 		for (uid, session) in self.sessions.items():
 			logger.notice("Deleting session '%s'" % uid)
 			self.deleteSession(uid)

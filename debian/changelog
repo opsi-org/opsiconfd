@@ -1,3 +1,11 @@
+opsiconfd (2.0.0.22-1) stable; urgency=low
+
+  * Running opsiconfd-guard script with bash not sh
+  * Getting fqdn from ucr on ucs
+  * Improved logging
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 27 Oct 2009 09:59:09 +0100
+
 opsiconfd (2.0.0.19-3) stable; urgency=low
 
   * Starting opsiconfd guard even if opsiconfd failes to start

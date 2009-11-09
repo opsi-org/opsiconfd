@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.22'
+__version__ = '2.0.0.23'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -921,7 +921,7 @@ class Session:
 		self.name = name
 		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
 		self.sessionTimer = None
-		self.uid = Tools.randomString(32)
+		self.uid = str(Tools.randomString(32))
 		self.ip = ''
 		self.userAgent = ''
 		self.hostname = ''

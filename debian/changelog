@@ -1,3 +1,9 @@
+opsiconfd (2.0.0.16-7) stable; urgency=low
+
+  * Creating ssl cert / key file in init script if running on ucs
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 29 Oct 2009 10:56:42 +0100
+
 opsiconfd (2.0.0.16-6) stable; urgency=low
 
   * Running opsiconfd-guard script with bash not sh

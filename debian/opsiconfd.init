@@ -18,7 +18,7 @@ PIDDIR=/var/run
 PIDFILE=$PIDDIR/opsiconfd.pid
 START_GUARD=1
 GUARD_BIN=/usr/sbin/opsiconfd-guard
-
+FQDN=`hostname -f`
 
 # See if the binary is there
 if [ ! -x $DAEMON ]; then
@@ -46,6 +46,14 @@ case "$1" in
 			[ "$START_GUARD" = "1" ] && $GUARD_BIN &
 			exit 0
 		else
+			# Copy server cert / key if running on ucs
+			if [ -e "/etc/univention/ssl/$FQDN/cert.pem" -a -e "/etc/univention/ssl/$FQDN/private.key" ]; then
+				cat /etc/univention/ssl/$FQDN/private.key > /etc/opsi/opsiconfd.pem
+				grep -A 50 "BEGIN CERTIFICATE" /etc/univention/ssl/$FQDN/cert.pem >> /etc/opsi/opsiconfd.pem
+				chmod 600 /etc/opsi/opsiconfd.pem
+				chown $USER:opsiadmin /etc/opsi/opsiconfd.pem || true
+			fi
+			
 			rm -f $PIDFILE 2>/dev/null
 			set +e
 			which startproc 1>/dev/null 2>/dev/null

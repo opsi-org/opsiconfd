@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.19'
+__version__ = '3.5.99.0'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -51,11 +51,19 @@ from OPSI import Tools
 from OPSI.Logger import *
 from OPSI.Backend.BackendManager import *
 from OPSI.Backend.Backend import *
+from OPSI.Util.File import IniFile
+
+########################################################################
+backendConfigDir   = '/etc/opsi/backends'
+dispatchConfigFile = '/etc/opsi/backendManager/dispatch.conf'
+extensionConfigDir = '/etc/opsi/backendManager/compose.d'
+aclFile            = '/etc/opsi/backendManager/acl.conf'
+########################################################################
 
 # Some defaults
 backendManagerConf = '/etc/opsi/backendManager.d'
 configFile = '/etc/opsi/opsiconfd.conf'
-pidFile = '/var/run/opsiconfd.pid'
+pidFile = '/var/run/opsiconfd/opsiconfd.pid'
 httpPort = 0
 httpsPort = 4447
 interface = '0.0.0.0'
@@ -123,8 +131,14 @@ class OpsiJsonRpc(resource.Resource):
 class OpsiJsonInterface(OpsiJsonRpc):
 	def __init__(self):
 		OpsiJsonRpc.__init__(self)
-		bm = BackendManager(authRequired = False, configFile = backendManagerConf)
-		self.possibleMethods = bm.getPossibleMethods_listOfHashes()
+		bm = BackendManager(
+			dispatchConfigFile = dispatchConfigFile,
+			backendConfigDir   = backendConfigDir,
+			extensionConfigDir = extensionConfigDir,
+			#aclFile            = aclFile
+		)
+		#self.possibleMethods = bm.getPossibleMethods_listOfHashes()
+		self.possibleMethods = bm.getInterface()
 		self.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 		bm.exit()
 	
@@ -220,8 +234,10 @@ class Worker:
 			# Deserialize json-object
 			if hasattr(json, 'loads'):
 				# Python 2.6 json module
+				#self.rpc = json.loads(self.query.replace(u'\ufffd', '?'))
 				self.rpc = json.loads(self.query)
 			else:
+				#self.rpc = json.read(self.query.replace(u'\ufffd', '?'))
 				self.rpc = json.read(self.query)
 			if not self.rpc.get('id'):
 				raise Exception('No id defined!')
@@ -250,6 +266,14 @@ class Worker:
 		
 		logger.confidential("Request headers: %s " % self.request.headers)
 		
+		userAgent = None
+		try:
+			userAgent = self.request.headers.getHeader('user-agent')
+		except Exception, e:
+			logger.info("Client '%s' did not supply user-agent" % self.request.remoteAddr.host)
+		if not userAgent:
+			userAgent = 'unknown'
+		
 		# Get session id from cookie request header
 		sessionId = ''
 		try:
@@ -257,14 +281,18 @@ class Worker:
 		except Exception, e:
 			pass
 		
-		if not sessionId:
-			logger.notice("Client '%s' did not send cookie" % self.request.remoteAddr.host)
+		if sessionId:
+			logger.notice("Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
 		
 		# Get Session object
 		self.session = sessionHandler.getSession(sessionId)
+		if (sessionId == self.session.uid):
+			logger.info("Reusing session for client '%s', application '%s'" % (self.request.remoteAddr.host, userAgent))
+		elif sessionId:
+			logger.notice("Application '%s' on client '%s' supplied non existing session id: %s" % (userAgent, self.request.remoteAddr.host, sessionId))
 		
 		if self.session.ip and verifyIp and (self.session.ip != self.request.remoteAddr.host):
-			logger.critical("Client ip '%s' does not match session ip '%s'" \
+			logger.critical("Client ip '%s' does not match session ip '%s', deleting old session and creating a new one" \
 				% (self.request.remoteAddr.host, self.session.ip) )
 			sessionHandler.deleteSession(self.session.uid)
 			self.session = sessionHandler.getSession()
@@ -272,10 +300,14 @@ class Worker:
 		# Set ip
 		self.session.ip = self.request.remoteAddr.host
 		
-		if (sessionId == self.session.uid):
-			logger.info("Reusing session for client '%s'" % self.request.remoteAddr.host)
+		# Set user-agent / application
+		if self.session.userAgent and (self.session.userAgent != userAgent):
+			logger.warning("Application changed from '%s' to '%s' for existing session of client '%s'" \
+				% (self.session.userAgent, userAgent, self.request.remoteAddr.host))
+		self.session.userAgent = userAgent
 		
-		logger.confidential("Session id is '%s'" % self.session.uid)
+		logger.confidential("Session id is '%s' for client '%s', application '%s'" \
+			% (self.session.uid, self.request.remoteAddr.host, self.session.userAgent))
 		
 		# Set last modified to current time
 		self.session.touch()
@@ -339,7 +371,7 @@ class Worker:
 				return
 			
 			if hasattr(self, 'rpc') and \
-			   ( self.rpc['method'] in ('getHostId', 'getPossibleMethods_listOfHashes') or \
+			   ( self.rpc['method'] in ('getHostId', 'getPossibleMethods_listOfHashes', 'getInterface') or \
 			     ( self.rpc['method'] == 'getDomain') and ( (len(self.rpc['params']) < 1) or not self.rpc['params'][0] ) ):
 				logger.info("Allowing method '%s' without authentication" % self.rpc['method'])
 				return
@@ -384,17 +416,23 @@ class Worker:
 									( self.session.ip, addressList) )
 			
 			# Create BackendManager instance
-			bm = BackendManager(	username	= user,
-						password	= self.session.password,
-						configFile	= backendManagerConf )
+			#bm = BackendManager(	username	= user,
+			#			password	= self.session.password,
+			#			configFile	= backendManagerConf )
 			
+			bm = BackendManager(
+				dispatchConfigFile = dispatchConfigFile,
+				backendConfigDir   = backendConfigDir,
+				extensionConfigDir = extensionConfigDir,
+				#aclFile            = aclFile
+			)
 			logger.notice('BackendManager created.')
 			
 			self.session.authenticated = True
 			# Store BackendManager instance reference in session
 			self.session.bm = bm
 			
-			self.session.possibleMethods = bm.getPossibleMethods_listOfHashes()
+			self.session.possibleMethods = bm.getInterface()
 			self.session.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 			
 			if isHost and user not in bm.getDepotIds_list():
@@ -435,12 +473,18 @@ class Worker:
 			self.result['result'] = self._getDomain()
 			return
 		
-		if (self.rpc['method'] == 'getPossibleMethods_listOfHashes'):
+		if self.rpc['method'] in ('getPossibleMethods_listOfHashes', 'getInterface'):
 			if self.session.possibleMethods:
 				self.result['result'] = self.session.possibleMethods
 			else:
-				bm = BackendManager(authRequired = False, configFile = backendManagerConf)
-				possibleMethods = bm.getPossibleMethods_listOfHashes()
+				#bm = BackendManager(authRequired = False, configFile = backendManagerConf)
+				bm = BackendManager(
+					dispatchConfigFile = dispatchConfigFile,
+					backendConfigDir   = backendConfigDir,
+					extensionConfigDir = extensionConfigDir,
+					#aclFile            = aclFile
+				)
+				possibleMethods = bm.getInterface()
 				possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 				bm = None
 				self.result['result'] = possibleMethods
@@ -482,6 +526,7 @@ class Worker:
 			raise Exception("Failed to execute rpc, cannot get bm instance from session!")
 		
 		if (method == 'exit'):
+			logger.notice("RPC client asked to close the session")
 			sessionHandler.deleteSession(self.session.uid)
 			return
 		
@@ -537,6 +582,7 @@ class Worker:
 		
 		logger.info('Got result...')
 		duration = round(time.time() - start, 3)
+		logger.debug2(result)
 		
 		if (maxExecutionStatisticValues > 0):
 			global statistics
@@ -902,8 +948,9 @@ class Session:
 		self.name = name
 		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
 		self.sessionTimer = None
-		self.uid = Tools.randomString(32)
+		self.uid = str(Tools.randomString(32))
 		self.ip = ''
+		self.userAgent = ''
 		self.hostname = ''
 		self.user = ''
 		self.password = ''
@@ -939,9 +986,12 @@ class SessionHandler:
 		self.deleteAllSessions()
 	
 	def getSession(self, uid):
-		session = self.sessions.get(uid)
-		if session:
-			return session
+		if uid:
+			session = self.sessions.get(uid)
+			if session:
+				return session
+			else:
+				logger.info('Failed to get session: session id %s not found' % uid)
 		return self.createSession()
 	
 	def createSession(self):
@@ -951,19 +1001,9 @@ class SessionHandler:
 		return session
 	
 	def sessionExpired(self, session):
-		try:
-			logger.info("Session '%s' expired after %d seconds" % (session.uid, (time.time()-session.lastModified)))
-			if session.sessionTimer:
-				session.sessionTimer.cancel()
-			session.bm.exit()
-		except:
-			pass
-		
-		try:
-			del self.sessions[session.uid]
-			logger.info("Session '%s' deleted" % session.uid)
-		except:
-			pass
+		logger.notice("Session '%s' from ip '%s', application '%s' expired after %d seconds" \
+				% (session.uid, session.ip, session.userAgent, (time.time()-session.lastModified)))
+		self.deleteSession(session.uid)
 		
 	def deleteSession(self, uid):
 		session = self.sessions.get(uid)
@@ -981,12 +1021,13 @@ class SessionHandler:
 		
 		try:
 			del self.sessions[uid]
-			logger.notice("Session '%s' deleted" % uid)
+			logger.notice("Session '%s' from ip '%s', application '%s' deleted" % (session.uid, session.ip, session.userAgent))
 		except KeyError:
 			pass
 		
 	
 	def deleteAllSessions(self):
+		logger.notice("Deleting all sessions")
 		for (uid, session) in self.sessions.items():
 			logger.notice("Deleting session '%s'" % uid)
 			self.deleteSession(uid)
@@ -1020,11 +1061,8 @@ def readConfigFile():
 	logger.notice("Trying to read config from file: '%s'" % configFile)
 	
 	try:
-		# Import File Module
-		from OPSI.Backend.File import File
-			
 		# Read Config-File
-		config = File().readIniFile(configFile, caseIgnore = False, raw = True)
+		config = IniFile(configFile, ignoreCase = False, raw = True).parse()
 		
 		for section in config.sections():
 			logger.debug("Processing section '%s' in config file: '%s'" % (section, configFile))
@@ -1242,7 +1280,13 @@ def createRoot():
 		
 		logger.notice("Added webdav content '%s' which points to directory '%s'" % (name, path))
 	
-	bm = BackendManager(authRequired = False, configFile = backendManagerConf)
+	#bm = BackendManager(authRequired = False, configFile = backendManagerConf)
+	bm = BackendManager(
+		dispatchConfigFile = dispatchConfigFile,
+		backendConfigDir   = backendConfigDir,
+		extensionConfigDir = extensionConfigDir,
+		#aclFile            = aclFile
+	)
 	fqdn = socket.getfqdn()
 	if fqdn in bm.getDepotIds_list():
 		depot = bm.getDepot_hash(fqdn)
@@ -1418,7 +1462,13 @@ def main(argv):
 			"\n==================================================================\n")
 	
 	# Test backendmanager
-	bm = BackendManager(authRequired = False, configFile = backendManagerConf)
+	#bm = BackendManager(authRequired = False, configFile = backendManagerConf)
+	bm = BackendManager(
+		dispatchConfigFile = dispatchConfigFile,
+		backendConfigDir   = backendConfigDir,
+		extensionConfigDir = extensionConfigDir,
+		#aclFile            = aclFile
+	)
 	bm.exit()
 	
 	if os.path.exists(pidFile):

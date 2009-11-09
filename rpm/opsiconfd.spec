@@ -13,8 +13,8 @@ Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        2.0.0.18
-Release:        1
+Version:        2.0.0.19
+Release:        2
 Summary:        OPSI configuration service
 %define tarname opsiconfd
 Source:         %{tarname}-%{version}.tar.bz2
@@ -127,7 +127,8 @@ chown -R opsiconfd:pcpatch /var/log/opsi/opsiconfd
 
 # update?
 if [ ${FIRST_ARG:-0} -gt 1 ]; then
-	if [ -e /var/run/opsiconfd.pid ]; then
+	if [ -e /var/run/opsiconfd.pid -e /var/run/opsiconfd/opsiconfd.pid ]; then
+		rm /var/run/opsiconfd.pid >/dev/null 2>&1 || true
 		/etc/init.d/opsiconfd restart || true
 	fi
 else

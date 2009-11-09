@@ -1,6 +1,33 @@
+opsiconfd (3.4.99.0-1) experimental; urgency=low
+
+  * starting 3.5 development
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 06 Nov 2009 15:39:26 +0100
+
+opsiconfd (2.0.0.22-1) stable; urgency=low
+
+  * Running opsiconfd-guard script with bash not sh
+  * Getting fqdn from ucr on ucs
+  * Improved logging
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 27 Oct 2009 09:59:09 +0100
+
+opsiconfd (2.0.0.19-3) stable; urgency=low
+
+  * Starting opsiconfd guard even if opsiconfd failes to start
+
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 14 Sep 2009 09:52:46 +0200
+
+opsiconfd (2.0.0.19-2) stable; urgency=low
+
+  * Starting opsiconfd-guard by default
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 11 Sep 2009 10:20:58 +0200
+
 opsiconfd (2.0.0.19-1) stable; urgency=low
 
   * opsiconfd 2.0.0.19
+  * pid file now in /var/run/opsiconfd
   * Use existing ssl certificate/key on ucs
   * Default for fqdn
 

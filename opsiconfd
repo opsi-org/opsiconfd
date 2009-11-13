@@ -52,6 +52,7 @@ from OPSI.Logger import *
 from OPSI.Backend.BackendManager import *
 from OPSI.Backend.Backend import *
 from OPSI.Util.File import IniFile
+from OPSI.Types import *
 
 ########################################################################
 backendConfigDir   = '/etc/opsi/backends'
@@ -275,13 +276,13 @@ class Worker:
 			userAgent = 'unknown'
 		
 		# Get session id from cookie request header
-		sessionId = ''
+		sessionId = u''
 		try:
-			sessionId = self.request.headers.getHeader('cookie')[0].value
+			sessionId = unicode(self.request.headers.getHeader('cookie')[0].value)
 		except Exception, e:
 			pass
 		
-		if sessionId:
+		if not sessionId:
 			logger.notice("Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
 		
 		# Get Session object
@@ -313,7 +314,7 @@ class Worker:
 		self.session.touch()
 		
 		# Add cookie to headers
-		cookie = Cookie(self.session.name, self.session.uid, path='/')
+		cookie = Cookie(self.session.name.encode('ascii', 'replace'), self.session.uid.encode('ascii', 'replace'), path='/')
 		self.response.headers.setHeader('set-cookie', [ cookie ] )
 		
 		# Set hostname
@@ -582,7 +583,6 @@ class Worker:
 		
 		logger.info('Got result...')
 		duration = round(time.time() - start, 3)
-		logger.debug2(result)
 		
 		if (maxExecutionStatisticValues > 0):
 			global statistics
@@ -922,7 +922,7 @@ class DAVWorker(Worker):
 		
 	def _addCookie(self, result):
 		# Add cookie to headers
-		cookie = Cookie(self.session.name, self.session.uid, path='/')
+		cookie = Cookie(self.session.name.encode('ascii', 'replace'), self.session.uid.encode('ascii', 'replace'), path='/')
 		result.headers.setHeader('set-cookie', [ cookie ] )
 		return result
 		
@@ -943,12 +943,12 @@ class DAVWorker(Worker):
 # =                                         CLASS SESSION                                             =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class Session:
-	def __init__(self, sessionHandler, name = 'OPSISID', sessionMaxInactiveInterval = 120):
+	def __init__(self, sessionHandler, name = u'OPSISID', sessionMaxInactiveInterval = 120):
 		self.sessionHandler = sessionHandler
-		self.name = name
+		self.name = forceUnicode(name)
 		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
 		self.sessionTimer = None
-		self.uid = str(Tools.randomString(32))
+		self.uid = Tools.randomString(32)
 		self.ip = ''
 		self.userAgent = ''
 		self.hostname = ''
@@ -1288,22 +1288,22 @@ def createRoot():
 		#aclFile            = aclFile
 	)
 	fqdn = socket.getfqdn()
-	if fqdn in bm.getDepotIds_list():
-		depot = bm.getDepot_hash(fqdn)
-		logger.debug("Depot info: %s" % depot)
-		repositoryLocalUrl = depot.get('repositoryLocalUrl')
-		if not repositoryLocalUrl:
-			raise Exception("Repository local url for depot '%s' not found" % fqdn)
-		if not repositoryLocalUrl.startswith('file:///'):
-			raise Exception("Repository local url '%s' not allowed" % repositoryLocalUrl)
-		path = repositoryLocalUrl[7:]
-		if not os.path.isdir(path):
-			raise Exception("Cannot add webdav content 'products': directory '%s' does not exist." % path)
-		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception("Cannot add webdav content 'products': permissions on directory '%s' not sufficient." % path)
-		
-		root.putChild('products', OpsiDAV(path, readOnly=False))
-		logger.notice("Added static content 'products' which points to directory '%s'" % path)
+	#if fqdn in bm.getDepotIds_list():
+	#	depot = bm.getDepot_hash(fqdn)
+	#	logger.debug("Depot info: %s" % depot)
+	#	repositoryLocalUrl = depot.get('repositoryLocalUrl')
+	#	if not repositoryLocalUrl:
+	#		raise Exception("Repository local url for depot '%s' not found" % fqdn)
+	#	if not repositoryLocalUrl.startswith('file:///'):
+	#		raise Exception("Repository local url '%s' not allowed" % repositoryLocalUrl)
+	#	path = repositoryLocalUrl[7:]
+	#	if not os.path.isdir(path):
+	#		raise Exception("Cannot add webdav content 'products': directory '%s' does not exist." % path)
+	#	if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
+	#		raise Exception("Cannot add webdav content 'products': permissions on directory '%s' not sufficient." % path)
+	#	
+	#	root.putChild('products', OpsiDAV(path, readOnly=False))
+	#	logger.notice("Added static content 'products' which points to directory '%s'" % path)
 	bm.exit()
 	
 def daemonize():

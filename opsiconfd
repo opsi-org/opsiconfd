@@ -53,6 +53,7 @@ from OPSI.Backend.BackendManager import *
 from OPSI.Backend.Backend import *
 from OPSI.Util.File import IniFile
 from OPSI.Types import *
+from OPSI.Backend.Object import serialize, deserialize
 
 ########################################################################
 backendConfigDir   = '/etc/opsi/backends'
@@ -116,13 +117,13 @@ class OpsiJsonRpc(resource.Resource):
 	
 	def http_POST(self, request):
 		''' Process POST request. '''
-		logger.debug2("OpsiJsonRpc.http_POST()")
+		logger.debug2(u"OpsiJsonRpc.http_POST()")
 		worker = JsonRpcWorker(request, self, method = 'POST')
 		return worker.process()
 		
 	def http_GET(self, request):
 		''' Process GET request. '''
-		logger.debug2("OpsiJsonRpc.http_GET()")
+		logger.debug2(u"OpsiJsonRpc.http_GET()")
 		worker = JsonRpcWorker(request, self, method = 'GET')
 		return worker.process()
 
@@ -140,18 +141,18 @@ class OpsiJsonInterface(OpsiJsonRpc):
 		)
 		#self.possibleMethods = bm.getPossibleMethods_listOfHashes()
 		self.possibleMethods = bm.getInterface()
-		self.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
+		#self.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 		bm.exit()
 	
 	def http_POST(self, request):
 		''' Process POST request. '''
-		logger.debug2("OpsiJsonInterface.http_POST()")
+		logger.debug2(u"OpsiJsonInterface.http_POST()")
 		worker = JsonInterfaceWorker(request, self, method = 'POST')
 		return worker.process()
 		
 	def http_GET(self, request):
 		''' Process GET request. '''
-		logger.debug2("OpsiJsonInterface.http_GET()")
+		logger.debug2(u"OpsiJsonInterface.http_GET()")
 		worker = JsonInterfaceWorker(request, self, method = 'GET')
 		return worker.process()
 
@@ -169,7 +170,7 @@ class OpsiDAV(static.DAVFile):
 	
 	def renderHTTP(self, request):
 		if self._readOnly and request.method not in ('GET', 'PROPFIND'):
-			logger.warning("Command %s not allowed (readonly)" % request.method)
+			logger.warning(u"Command %s not allowed (readonly)" % request.method)
 			return http.Response(
 				code	= responsecode.FORBIDDEN,
 				stream	= "Readonly!" )
@@ -218,9 +219,9 @@ class Worker:
 			return self._errback(e)
 	
 	def _getQuery(self, result):
-		self.query = ''
+		self.query = u''
 		if (self.method == 'GET'):
-			self.query = urllib.unquote( self.request.querystring )
+			self.query = forceUnicode( urllib.unquote( self.request.querystring ) )
 		elif (self.method == 'POST'):
 			# Returning deferred needed for chaining
 			d = stream.readStream(self.request.stream, self._handlePostData)
@@ -229,7 +230,7 @@ class Worker:
 		
 	def _getRpc(self, result):
 		if not self.query:
-			raise Exception('Got no query')
+			raise Exception(u'Got no query')
 		
 		try:
 			# Deserialize json-object
@@ -241,37 +242,37 @@ class Worker:
 				#self.rpc = json.read(self.query.replace(u'\ufffd', '?'))
 				self.rpc = json.read(self.query)
 			if not self.rpc.get('id'):
-				raise Exception('No id defined!')
+				raise Exception(u'No id defined!')
 			self.result['id'] = self.rpc['id']
 			if not self.rpc.get('method'):
-				raise Exception('No method defined!')
+				raise Exception(u'No method defined!')
 		except Exception, e:
-			e = str(e)
-			logger.warning("Failed to get rpc from query '%s': %s" % 
+			e = uncode(e)
+			logger.warning(u"Failed to get rpc from query '%s': %s" % 
 					(self.query, e) )
 			# Bad request
 			self.response.code = responsecode.BAD_REQUEST
 			self.result['error'] = e
 			raise
 		
-		rpc = str(self.rpc)
+		rpc = unicode(self.rpc)
 		if (len(rpc) > paramLengthLogLimit+103):
 			# Do not log long strings like used in writeLog
-			rpc = rpc[:paramLengthLogLimit+100] + '...'
-		logger.info('Got json-rpc request: %s' % rpc)
+			rpc = rpc[:paramLengthLogLimit+100] + u'...'
+		logger.info(u'Got json-rpc request: %s' % rpc)
 		
 		
 	def _getSession(self, result):
 		''' This method restores a session or generates a new one. '''
 		self.session = None
 		
-		logger.confidential("Request headers: %s " % self.request.headers)
+		logger.confidential(u"Request headers: %s " % self.request.headers)
 		
 		userAgent = None
 		try:
 			userAgent = self.request.headers.getHeader('user-agent')
 		except Exception, e:
-			logger.info("Client '%s' did not supply user-agent" % self.request.remoteAddr.host)
+			logger.info(u"Client '%s' did not supply user-agent" % self.request.remoteAddr.host)
 		if not userAgent:
 			userAgent = 'unknown'
 		
@@ -283,17 +284,17 @@ class Worker:
 			pass
 		
 		if not sessionId:
-			logger.notice("Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
+			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
 		
 		# Get Session object
 		self.session = sessionHandler.getSession(sessionId)
 		if (sessionId == self.session.uid):
-			logger.info("Reusing session for client '%s', application '%s'" % (self.request.remoteAddr.host, userAgent))
+			logger.info(u"Reusing session for client '%s', application '%s'" % (self.request.remoteAddr.host, userAgent))
 		elif sessionId:
-			logger.notice("Application '%s' on client '%s' supplied non existing session id: %s" % (userAgent, self.request.remoteAddr.host, sessionId))
+			logger.notice(u"Application '%s' on client '%s' supplied non existing session id: %s" % (userAgent, self.request.remoteAddr.host, sessionId))
 		
 		if self.session.ip and verifyIp and (self.session.ip != self.request.remoteAddr.host):
-			logger.critical("Client ip '%s' does not match session ip '%s', deleting old session and creating a new one" \
+			logger.critical(u"Client ip '%s' does not match session ip '%s', deleting old session and creating a new one" \
 				% (self.request.remoteAddr.host, self.session.ip) )
 			sessionHandler.deleteSession(self.session.uid)
 			self.session = sessionHandler.getSession()
@@ -303,11 +304,11 @@ class Worker:
 		
 		# Set user-agent / application
 		if self.session.userAgent and (self.session.userAgent != userAgent):
-			logger.warning("Application changed from '%s' to '%s' for existing session of client '%s'" \
+			logger.warning(u"Application changed from '%s' to '%s' for existing session of client '%s'" \
 				% (self.session.userAgent, userAgent, self.request.remoteAddr.host))
 		self.session.userAgent = userAgent
 		
-		logger.confidential("Session id is '%s' for client '%s', application '%s'" \
+		logger.confidential(u"Session id is '%s' for client '%s', application '%s'" \
 			% (self.session.uid, self.request.remoteAddr.host, self.session.userAgent))
 		
 		# Set last modified to current time
@@ -324,44 +325,44 @@ class Worker:
 				try:
 					hostname = socket.getfqdn(self.request.remoteAddr.host).lower()
 					if re.search('^\d+\.\d+\.\d+\.\d+$', hostname):
-						logger.error("Cannot get fqdn for client '%s'" % self.request.remoteAddr.host)
+						logger.error(u"Cannot get fqdn for client '%s'" % self.request.remoteAddr.host)
 						hostname = ''
 					elif (hostname != 'localhost') and (len(hostname.split('.')) == 1):
-						logger.warning("Cannot get fqdn but hostname '%s' for client '%s'" \
+						logger.warning(u"Cannot get fqdn but hostname '%s' for client '%s'" \
 							% (hostname, self.request.remoteAddr.host) )
 						
 						defaultDomain = '.'.join(socket.getfqdn().split('.')[1:])
 						if not defaultDomain:
-							logger.error("Cannot get fqdn for client %s (%s), missing domain, failed to add default domain." \
+							logger.error(u"Cannot get fqdn for client %s (%s), missing domain, failed to add default domain." \
 										% (hostname, self.request.remoteAddr.host) )
 						
-						logger.notice("Adding domain '%s' to hostname '%s' for client '%s'" \
+						logger.notice(u"Adding domain '%s' to hostname '%s' for client '%s'" \
 								% (defaultDomain, hostname, self.request.remoteAddr.host) )
 						hostname = hostname + '.' + defaultDomain
 				except Exception, e:
-					logger.warning("Failed to resolve address '%s': %s" % (self.request.remoteAddr.host, e))
+					logger.warning(u"Failed to resolve address '%s': %s" % (self.request.remoteAddr.host, e))
 			
-			logger.info("Storing hostname '%s' in session" % hostname)
+			logger.info(u"Storing hostname '%s' in session" % hostname)
 			self.session.hostname = hostname
 		
 		# Set user and password
 		if not self.session.user and not self.session.password and self.request.headers.getHeader('Authorization'):
 			(user, password) = ('', '')
-			logger.debug("Trying to get username and password from Authorization header")
+			logger.debug(u"Trying to get username and password from Authorization header")
 			auth = self.request.headers.getHeader('Authorization')
 			if auth:
-				logger.debug("Authorization header found (type: %s)" % auth[0])
+				logger.debug(u"Authorization header found (type: %s)" % auth[0])
 				try:
 					encoded = auth[1]
 					(user, password) = base64.decodestring(encoded).split(':', 1)
-					logger.confidential("Client supplied username '%s' and password '%s'" % (user, password))
+					logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
 				except Exception:
-					logger.error("Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+					logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
 				
 			self.session.user = user
 			self.session.password = password
 		
-		logger.confidential("Session content: %s" % self.session.__dict__)
+		logger.confidential(u"Session content: %s" % self.session.__dict__)
 	
 	def _authenticate(self, result):
 		''' This function tries to authenticate a user.
@@ -374,7 +375,7 @@ class Worker:
 			if hasattr(self, 'rpc') and \
 			   ( self.rpc['method'] in ('getHostId', 'getPossibleMethods_listOfHashes', 'getInterface') or \
 			     ( self.rpc['method'] == 'getDomain') and ( (len(self.rpc['params']) < 1) or not self.rpc['params'][0] ) ):
-				logger.info("Allowing method '%s' without authentication" % self.rpc['method'])
+				logger.info(u"Allowing method '%s' without authentication" % self.rpc['method'])
 				return
 			
 			isHost = False
@@ -384,9 +385,9 @@ class Worker:
 				isHost = True
 				user = self.session.hostname
 			
-			logger.notice( "Authorization request from %s@%s" % (user, self.session.ip) )
+			logger.notice(u"Authorization request from %s@%s" % (user, self.session.ip))
 			if not user:
-				raise Exception("Cannot authenticate, no username given")
+				raise Exception(u"Cannot authenticate, no username given")
 			
 			if ( len(user.split('.')) > 2 ):
 				# Username is something like xxx.yyy.zzz 
@@ -401,19 +402,19 @@ class Worker:
 					try:
 						(name, aliasList, addressList) = socket.gethostbyname_ex(user)
 					except Exception, e:
-						logger.warning("Failed to resolve hostname '%s': %s" % (user, e))
+						logger.warning(u"Failed to resolve hostname '%s': %s" % (user, e))
 					
 					if self.session.ip not in addressList:
 						# Username (FQDN) of peer does not resolve to peer's ip address
 						if verifyIp:
-							logger.critical("Host login attempt with username '%s'" % user +
-									" from ip '%s', but name resolves to '%s' (access denied)" % 
+							logger.critical(u"Host login attempt with username '%s'" % user +
+									u" from ip '%s', but name resolves to '%s' (access denied)" % 
 									( self.session.ip, addressList) )
-							raise Exception("Access denied for username '%s' from '%s'" %
+							raise Exception(u"Access denied for username '%s' from '%s'" %
 									(user, self.session.ip) )
 						else:
-							logger.notice("Host login attempt with username '%s'" % user +
-									" from ip '%s', but name resolves to '%s', ip verification is disabled (access granted)" % 
+							logger.notice(u"Host login attempt with username '%s'" % user +
+									u" from ip '%s', but name resolves to '%s', ip verification is disabled (access granted)" % 
 									( self.session.ip, addressList) )
 			
 			# Create BackendManager instance
@@ -427,20 +428,20 @@ class Worker:
 				extensionConfigDir = extensionConfigDir,
 				#aclFile            = aclFile
 			)
-			logger.notice('BackendManager created.')
+			logger.notice(u'BackendManager created.')
 			
 			self.session.authenticated = True
 			# Store BackendManager instance reference in session
 			self.session.bm = bm
 			
 			self.session.possibleMethods = bm.getInterface()
-			self.session.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
+			#self.session.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
 			
 			if isHost and user not in bm.getDepotIds_list():
 				try:
 					bm.getHost_hash(user)
 				except Exception, e:
-					logger.warning("Failed to get host info for client '%s', trying to create client" % user)
+					logger.warning(u"Failed to get host info for client '%s', trying to create client" % user)
 					parts = user.split('.')
 					domain = parts[1]
 					if (len(parts) > 2):
@@ -453,12 +454,12 @@ class Worker:
 		except Exception, e:
 			# Forbidden
 			#logger.logException(e)
-			logger.error("Forbidden: %s" % str(e))
+			logger.error(u"Forbidden: %s" % e)
 			self.session.user = ''
 			self.session.password = ''
 			self.response.code = responsecode.UNAUTHORIZED
 			self.response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
-			#self.result['error'] = str(e)
+			#self.result['error'] = uncode(e)
 			raise
 	
 	def _executeRpc(self, result):
@@ -503,31 +504,31 @@ class Worker:
 	def _getDomain(self):
 		defaultDomain = '.'.join(socket.getfqdn().split('.')[1:])
 		if not defaultDomain:
-			raise Exception("Failed to get default domain")
+			raise Exception(u"Failed to get default domain")
 		return defaultDomain
 		
 	def _realRpc(self):
 		method = self.rpc.get('method')
 		params = self.rpc.get('params')
-		ps = str(params)
+		ps = unicode(params)
 		if (len(ps) > paramLengthLogLimit):
 			# Do not log long strings like used in writeLog
-			ps = ps[:paramLengthLogLimit-3] + '...'
-		logger.info("RPC method: '%s' params: '%s'" % (method, ps))
+			ps = ps[:paramLengthLogLimit-3] + u'...'
+		logger.info(u"RPC method: '%s' params: '%s'" % (method, ps))
 		
 		# Get BackendManager instance from session
 		try:
 			bm = self.session.bm
 		except Exception, e:
-			logger.critical("Failed to execute rpc, cannot get bm instance from session!")
-			logger.critical("rpc is: %s" % self.rpc)
-			logger.critical("session is: %s" % self.session)
-			logger.notice("Deleting session!")
+			logger.critical(u"Failed to execute rpc, cannot get bm instance from session!")
+			logger.critical(u"rpc is: %s" % self.rpc)
+			logger.critical(u"session is: %s" % self.session)
+			logger.notice(u"Deleting session!")
 			sessionHandler.deleteSession(self.session.uid)
-			raise Exception("Failed to execute rpc, cannot get bm instance from session!")
+			raise Exception(u"Failed to execute rpc, cannot get bm instance from session!")
 		
 		if (method == 'exit'):
-			logger.notice("RPC client asked to close the session")
+			logger.notice(u"RPC client asked to close the session")
 			sessionHandler.deleteSession(self.session.uid)
 			return
 		
@@ -545,11 +546,11 @@ class Worker:
 						cert += line
 				f.close()
 				if not cert:
-					raise Exception("failed to read cert file '%s'" % sslServerCertFile)
+					raise Exception(u"Failed to read cert file '%s'" % sslServerCertFile)
 				self.result['result'] = cert
 				return
 			except Exception, e:
-				logger.error("Failed to get certificate: %s" % e)
+				logger.error(u"Failed to get certificate: %s" % e)
 				self.result['error'] = { 'class': 'BackendMissingDataError', 'message': "Failed to get certificate" }
 				return
 			
@@ -561,27 +562,38 @@ class Worker:
 		
 		try:
 			if not valid:
-				raise BackendBadValueError("Method '%s' is not valid" % method)
+				raise BackendBadValueError(u"Method '%s' is not valid" % method)
 			
-			ps = str(params)
+			ps = unicode(params)
 			if (len(ps) > paramLengthLogLimit):
 				# Do not log long strings like used in writeLog
-				ps = ps[:paramLengthLogLimit-3] + '...'
-			logger.info( "Executing:  %s(%s)" % (method, ps) )
+				ps = ps[:paramLengthLogLimit-3] + u'...'
+			logger.info(u"Executing:  %s(%s)" % (method, ps))
 			# Execute method
 			start = time.time()
-			self.result['result'] = eval( "bm.%s(*params)" % method )
+			keywords = {}
+			for m in self.session.possibleMethods:
+				if (method == m['name']):
+					if m['keywords']:
+						for (key, value) in params.pop(-1).items():
+							keywords[str(key)] = deserialize(value)
+			params = deserialize(params)
+			if keywords:
+				self.result['result'] = serialize( eval( "bm.%s(*params, **keywords)" % method ) )
+			else:
+				self.result['result'] = serialize( eval( "bm.%s(*params)" % method ) )
+			
 		except(BackendError, BackendTemporaryError,
 		       BackendBadValueError, BackendMissingDataError, 
 		       BackendIOError, BackendPermissionDeniedError,
 		       BackendAuthenticationError, BackendReferentialIntegrityError,
 		       LicenseConfigurationError, LicenseMissingError), e:
 			logger.error(e)
-			self.result['error'] = { 'class': e.__class__.__name__, 'message': str(e) }
+			self.result['error'] = { 'class': e.__class__.__name__, 'message': unicode(e) }
 			self.result['result'] = None
 			return
 		
-		logger.info('Got result...')
+		logger.info(u'Got result...')
 		logger.debug2(self.result['result'])
 		duration = round(time.time() - start, 3)
 		
@@ -593,14 +605,17 @@ class Worker:
 			if (len(statistics['execution']) > maxExecutionStatisticValues):
 				statistics['execution'] = statistics['execution'][1:]
 		
-		ps = str(params)[1:-1]
+		ps = u''
+		for p in params:
+			ps += unicode(p)
 		if (len(ps) > paramLengthLogLimit):
 			# Do not log long strings like used in writeLog
-			ps = ps[:paramLengthLogLimit-3] + '...'
-		logger.info('Took %0.3fs to process %s(%s)' % (duration, method, ps))
+			ps = ps[:paramLengthLogLimit-3] + u'...'
+		logger.info(u'Took %0.3fs to process %s(%s)' % (duration, method, ps))
 	
 	def _handlePostData(self, chunk):
-		logger.debug2("_handlePostData %s" % chunk)
+		chunk = forceUnicode(chunk)
+		logger.debug2(u"_handlePostData %s" % chunk)
 		self.query += chunk
 	
 	def _returnResponse(self, result):
@@ -616,8 +631,8 @@ class Worker:
 			self.result = failure.getErrorMessage()
 			logger.critical(failure.getTraceback())
 		else:
-			self.result = str(failure)
-		logger.error("Failed to process request: %s" % self.result)
+			self.result = unicode(failure)
+		logger.error(u"Failed to process request: %s" % self.result)
 		return self._returnResponse(None)
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -638,7 +653,7 @@ class JsonRpcWorker(Worker):
 			for (key, value) in obj.items():
 				obj[key] = self._allIntsToString(value)
 		elif ( type(obj) == type(1) ):
-			obj = str(obj)
+			obj = unicode(obj)
 		return obj
 	
 	def _returnResponse(self, result):
@@ -673,15 +688,15 @@ class JsonRpcWorker(Worker):
 			logger.critical(failure.getTraceback())
 		else:
 			if not self.result['error']:
-				self.result['error'] = str(failure)
-		logger.error("Failed to process rpc: %s" % self.result['error'])
+				self.result['error'] = unicode(failure)
+		logger.error(u"Failed to process rpc: %s" % self.result['error'])
 		return self._returnResponse(None)
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                  CLASS JSONINTERFACEWORKER                                        =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class JsonInterfaceWorker(JsonRpcWorker):
-	xhtml = """
+	xhtml = u"""
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
 	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -878,18 +893,18 @@ class JsonInterfaceWorker(JsonRpcWorker):
 		JsonRpcWorker.__init__(self, request, resource, method)
 	
 	def _returnResponse(self, result):
-		js = ''
-		sel = ''
+		js = u''
+		sel = u''
 		for f in self.resource.possibleMethods:
-			js += "\t\t\tparameters['%s'] = new Array();\r\n" % (f['name'])
+			js += u"\t\t\tparameters['%s'] = new Array();\r\n" % (f['name'])
 			for p in range(len(f['params'])):
-				js += "\t\t\tparameters['%s'][%s]='%s';\r\n" % (f['name'], p, f['params'][p])
+				js += u"\t\t\tparameters['%s'][%s]='%s';\r\n" % (f['name'], p, f['params'][p])
 			if (f['name'] == self.rpc['method']):
-				sel += '\t\t\t\t\t\t\t<option selected>%s</option>\r\n' % f['name']
+				sel += u'\t\t\t\t\t\t\t<option selected>%s</option>\r\n' % f['name']
 			else:
-				sel += '\t\t\t\t\t\t\t<option>%s</option>\r\n' % f['name']
+				sel += u'\t\t\t\t\t\t\t<option>%s</option>\r\n' % f['name']
 		
-		self.response.stream = stream.IByteStream(self.xhtml % (js, sel, str(Tools.jsonObjToHtml(self.result))))
+		self.response.stream = stream.IByteStream(self.xhtml % (js, sel, unicode(Tools.jsonObjToHtml(self.result))))
 		return self.response
 	
 	def _errback(self, failure):
@@ -903,8 +918,8 @@ class JsonInterfaceWorker(JsonRpcWorker):
 			logger.critical(failure.getTraceback())
 		else:
 			if not self.result['error']:
-				self.result['error'] = str(failure)
-		logger.error("Failed to process rpc: %s" % self.result['error'])
+				self.result['error'] = unicode(failure)
+		logger.error(u"Failed to process rpc: %s" % self.result['error'])
 		return self._returnResponse(None)
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -934,12 +949,12 @@ class DAVWorker(Worker):
 		return result
 		
 	def _render(self, result):
-		logger.debug("Client requests DAV operation: %s" % self.request)
+		logger.debug(u"Client requests DAV operation: %s" % self.request)
 		
 		if False:#if not self.session.bm.userIsHost() and not self.session.bm.userIsAdmin():
-			logger.warning("WebDAV access denied for user %s@%s" % (self.session.user, self.session.ip))
+			logger.warning(u"WebDAV access denied for user %s@%s" % (self.session.user, self.session.ip))
 			self.response.code = responsecode.UNAUTHORIZED
-			raise Exception("WebDAV access denied!")
+			raise Exception(u"WebDAV access denied!")
 		
 		d = super(OpsiDAV, self.resource).renderHTTP(self.request)
 		if isinstance(d, defer.Deferred):
@@ -998,45 +1013,45 @@ class SessionHandler:
 			if session:
 				return session
 			else:
-				logger.info('Failed to get session: session id %s not found' % uid)
+				logger.info(u'Failed to get session: session id %s not found' % uid)
 		return self.createSession()
 	
 	def createSession(self):
 		session = Session(self, self.sessionName, self.sessionMaxInactiveInterval)
 		self.sessions[session.uid] = session
-		logger.notice("New session created")
+		logger.notice(u"New session created")
 		return session
 	
 	def sessionExpired(self, session):
-		logger.notice("Session '%s' from ip '%s', application '%s' expired after %d seconds" \
+		logger.notice(u"Session '%s' from ip '%s', application '%s' expired after %d seconds" \
 				% (session.uid, session.ip, session.userAgent, (time.time()-session.lastModified)))
 		self.deleteSession(session.uid)
 		
 	def deleteSession(self, uid):
 		session = self.sessions.get(uid)
 		if not session:
-			logger.warning('No such session id: %s' % uid)
+			logger.warning(u'No such session id: %s' % uid)
 			return
 		
 		try:
 			if session.sessionTimer:
 				session.sessionTimer.cancel()
-				logger.info("Session timer canceled")
+				logger.info(u"Session timer canceled")
 			session.bm.exit()
 		except:
 			pass
 		
 		try:
 			del self.sessions[uid]
-			logger.notice("Session '%s' from ip '%s', application '%s' deleted" % (session.uid, session.ip, session.userAgent))
+			logger.notice(u"Session '%s' from ip '%s', application '%s' deleted" % (session.uid, session.ip, session.userAgent))
 		except KeyError:
 			pass
 		
 	
 	def deleteAllSessions(self):
-		logger.notice("Deleting all sessions")
+		logger.notice(u"Deleting all sessions")
 		for (uid, session) in self.sessions.items():
-			logger.notice("Deleting session '%s'" % uid)
+			logger.notice(u"Deleting session '%s'" % uid)
 			self.deleteSession(uid)
 		self.sessions = {}
 		
@@ -1049,10 +1064,10 @@ class SSLContext:
 		
 		# Test if server certificate and key file exist.
 		if not os.path.isfile(sslServerKeyFile):
-			raise Exception("Server key file '%s' does not exist!" % sslServerKeyFile)
+			raise Exception(u"Server key file '%s' does not exist!" % sslServerKeyFile)
 			
 		if not os.path.isfile(sslServerCertFile):
-			raise Exception("Server certificate file '%s' does not exist!" % sslServerCertFile)
+			raise Exception(u"Server certificate file '%s' does not exist!" % sslServerCertFile)
 		
 		context = SSL.Context(SSL.SSLv23_METHOD)
 		context.use_privatekey_file(sslServerKeyFile)
@@ -1065,14 +1080,14 @@ class SSLContext:
 
 def readConfigFile():
 	''' Get settings from config file '''
-	logger.notice("Trying to read config from file: '%s'" % configFile)
+	logger.notice(u"Trying to read config from file: '%s'" % configFile)
 	
 	try:
 		# Read Config-File
 		config = IniFile(configFile, ignoreCase = False, raw = True).parse()
 		
 		for section in config.sections():
-			logger.debug("Processing section '%s' in config file: '%s'" % (section, configFile))
+			logger.debug(u"Processing section '%s' in config file: '%s'" % (section, configFile))
 			if (section.lower() == 'global'):
 				# Global settings
 				for (option, value) in config.items(section):
@@ -1104,7 +1119,7 @@ def readConfigFile():
 						global maxExecutionStatisticValues
 						maxExecutionStatisticValues = int(value.strip())
 					else:
-						logger.warning("Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
+						logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
 			
 			elif (section.lower() == 'service'):
 				# Service settings
@@ -1127,7 +1142,7 @@ def readConfigFile():
 							global sslServerKeyFile
 							sslServerKeyFile = value.strip()
 					else:
-						logger.warning("Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
+						logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
 			
 			elif (section.lower() == 'session'):
 				# Session settings
@@ -1157,7 +1172,7 @@ def readConfigFile():
 						else:
 							updateHardwareAddress = False
 					else:
-						logger.warning("Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
+						logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
 			
 			elif (section.lower() == 'directories'):
 				# Static directories
@@ -1174,24 +1189,24 @@ def readConfigFile():
 							staticDirectories[option] = windefaultdir+'\\share'
 			
 			else:
-				logger.warning("Ignoring unknown section '%s' in config file: '%s'" % (section, configFile))
+				logger.warning(u"Ignoring unknown section '%s' in config file: '%s'" % (section, configFile))
 	
 	except Exception, e:
 		# An error occured while trying to read the config file
-		logger.error("Failed to read config file '%s': %s" % (configFile, e))
+		logger.error(u"Failed to read config file '%s': %s" % (configFile, e))
 		logger.logException(e)
 		raise
-	logger.notice("Config read")
+	logger.notice(u"Config read")
 	
 def logStatistics():
-	logger.debug("Logging statistics")
+	logger.debug(u"Logging statistics")
 	global statistics
 	minimum = 1000000
 	maximum = 0
 	summation = 0
 	
 	if (len(statistics['execution']) <= 0):
-		logger.notice("No execution statistics found.")
+		logger.notice(u"No execution statistics found.")
 		return
 	
 	for e in statistics['execution']:
@@ -1200,12 +1215,12 @@ def logStatistics():
 		if (e['duration'] > maximum):
 			maximum = e['duration']
 		summation += e['duration']
-		logger.info("Execution time statistics: duration %0.3fs, method '%s'" % (e['duration'], e['method']))
-		#logger.info("Execution time statistics: duration %ss, method '%s', params '%s'" \
+		logger.info(u"Execution time statistics: duration %0.3fs, method '%s'" % (e['duration'], e['method']))
+		#logger.info(u"Execution time statistics: duration %ss, method '%s', params '%s'" \
 		#	% (e['duration'], e['method'], e['params']))
 	
 	average = round(summation/len(statistics['execution']), 3)
-	logger.notice("Execution time statistics: minimum %0.3fs, maximum %0.3fs, average %0.3fs" \
+	logger.notice(u"Execution time statistics: minimum %0.3fs, maximum %0.3fs, average %0.3fs" \
 		% (minimum, maximum, average))
 	
 	# Cleanup
@@ -1219,15 +1234,15 @@ def signalHandler(signo, stackFrame):
 		h = int( (secs-(d*60*60*24))/(60*60) )
 		m = int( (secs-(d*60*60*24)-(h*60*60))/60 )
 		s = int( (secs-(d*60*60*24)-(h*60*60)-(m*60)) )
-		logger.notice("Started at %s, running %d day(s), %02d:%02d:%02d" % (
+		logger.notice(u"Started at %s, running %d day(s), %02d:%02d:%02d" % (
 					time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(startTime)), d, h, m, s ) )
-		logger.notice("Got signal %s, deleting all active sessions..." % signo)
+		logger.notice(u"Got signal %s, deleting all active sessions..." % signo)
 		sessionHandler.deleteAllSessions()
 		
-		logger.notice("Got signal %s, logging execution statistics..." % signo)
+		logger.notice(u"Got signal %s, logging execution statistics..." % signo)
 		logStatistics()
 		
-		logger.notice("Got signal %s, re-reading config file '%s'..." % (signo, configFile) )
+		logger.notice(u"Got signal %s, re-reading config file '%s'..." % (signo, configFile) )
 		try:
 			readConfigFile()
 			setLogLevel(logLevel)
@@ -1237,14 +1252,14 @@ def signalHandler(signo, stackFrame):
 			pass
 		
 	if (signo == SIGTERM or signo == SIGINT):
-		logger.notice("Got signal %s, exiting..." % signo)
-		logger.debug("Stopping session handler")
+		logger.notice(u"Got signal %s, exiting..." % signo)
+		logger.debug(u"Stopping session handler")
 		sessionHandler.stop()
-		logger.debug("Session handler stopped")
+		logger.debug(u"Session handler stopped")
 		if reactor.running:
-			logger.debug("Stopping reactor")
+			logger.debug(u"Stopping reactor")
 			reactor.stop()
-			logger.debug("Reactor stopped")
+			logger.debug(u"Reactor stopped")
 		logStatistics()
 
 def createRoot():
@@ -1252,12 +1267,12 @@ def createRoot():
 	
 	if staticDirectories.get('/'):
 		if not os.path.isdir(staticDirectories.get('/')):
-			logger.error("Cannot add static content '/': directory '%s' does not exist." \
+			logger.error(u"Cannot add static content '/': directory '%s' does not exist." \
 				% staticDirectories.get('/'))
 			root = Root()
 		else:
 			root = static.File(staticDirectories.get('/'))
-			logger.notice("Added static content '/' which points to directory '%s'" \
+			logger.notice(u"Added static content '/' which points to directory '%s'" \
 				% staticDirectories.get('/'))
 	
 	else:
@@ -1271,21 +1286,21 @@ def createRoot():
 			continue
 		
 		if name in ("rpc", "interface"):
-			logger.error("Cannot add static content '%s', already in use!" % name)
+			logger.error(u"Cannot add static content '%s', already in use!" % name)
 			continue
 		
 		if not os.path.isdir(path):
-			logger.error("Cannot add static content '%s': directory '%s' does not exist." % (name, path))
+			logger.error(u"Cannot add static content '%s': directory '%s' does not exist." % (name, path))
 			continue
 		
 		if (name == 'configed'):
 			root.putChild(name, static.File(path))
-			logger.notice("Added static content '%s' which points to directory '%s'" % (name, path))
+			logger.notice(u"Added static content '%s' which points to directory '%s'" % (name, path))
 			continue
 		
 		root.putChild(name, OpsiDAV(path, readOnly=True))
 		
-		logger.notice("Added webdav content '%s' which points to directory '%s'" % (name, path))
+		logger.notice(u"Added webdav content '%s' which points to directory '%s'" % (name, path))
 	
 	#bm = BackendManager(authRequired = False, configFile = backendManagerConf)
 	bm = BackendManager(
@@ -1297,20 +1312,20 @@ def createRoot():
 	fqdn = socket.getfqdn()
 	#if fqdn in bm.getDepotIds_list():
 	#	depot = bm.getDepot_hash(fqdn)
-	#	logger.debug("Depot info: %s" % depot)
+	#	logger.debug(u"Depot info: %s" % depot)
 	#	repositoryLocalUrl = depot.get('repositoryLocalUrl')
 	#	if not repositoryLocalUrl:
-	#		raise Exception("Repository local url for depot '%s' not found" % fqdn)
+	#		raise Exception(u"Repository local url for depot '%s' not found" % fqdn)
 	#	if not repositoryLocalUrl.startswith('file:///'):
-	#		raise Exception("Repository local url '%s' not allowed" % repositoryLocalUrl)
+	#		raise Exception(u"Repository local url '%s' not allowed" % repositoryLocalUrl)
 	#	path = repositoryLocalUrl[7:]
 	#	if not os.path.isdir(path):
-	#		raise Exception("Cannot add webdav content 'products': directory '%s' does not exist." % path)
+	#		raise Exception(u"Cannot add webdav content 'products': directory '%s' does not exist." % path)
 	#	if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-	#		raise Exception("Cannot add webdav content 'products': permissions on directory '%s' not sufficient." % path)
+	#		raise Exception(u"Cannot add webdav content 'products': permissions on directory '%s' not sufficient." % path)
 	#	
 	#	root.putChild('products', OpsiDAV(path, readOnly=False))
-	#	logger.notice("Added static content 'products' which points to directory '%s'" % path)
+	#	logger.notice(u"Added static content 'products' which points to directory '%s'" % path)
 	bm.exit()
 	
 def daemonize():
@@ -1321,7 +1336,7 @@ def daemonize():
 			# Parent exits
 			sys.exit(0)
 	except OSError, e:
-		raise Exception("First fork failed: %e" % e)
+		raise Exception(u"First fork failed: %e" % e)
 	
 	# Do not hinder umounts
 	os.chdir("/")
@@ -1334,7 +1349,7 @@ def daemonize():
 		if (pid > 0):
 			sys.exit(0)
 	except OSError, e:
-		raise Exception("Second fork failed: %e" % e)
+		raise Exception(u"Second fork failed: %e" % e)
 	
 	logger.setConsoleLevel(LOG_NONE)
 	
@@ -1389,18 +1404,18 @@ def setLogFormat(format):
 	logger.setLogFormat(logFormat)
 
 def usage():
-	print "\nUsage: %s [-D] [-c <filename>] [-f <filename>] [-l <log level>] [-i <ipaddress>] [-p <http port>] [-P <https port>]" % os.path.basename(sys.argv[0])
-	print "Options:"
-	print "  -v    Show version information and exit"
-	print "  -D    Causes the server to operate as a daemon"
-	print "  -p    HTTP Port to listen on (0 to disable)"
-	print "  -P    HTTPS Port to listen on (0 to disable)"
-	print "  -i    IP address of interface to listen on (default: 0.0.0.0)"
-	print "  -f    Log to given file instead of syslog"
-	print "  -c    Location of config file"
-	print "  -l    Set log level (default: 4)"
-	print "        0=nothing, 1=critical, 2=error, 3=warning, 4=notice, 5=info, 6=debug"
-	print ""
+	print u"\nUsage: %s [-D] [-c <filename>] [-f <filename>] [-l <log level>] [-i <ipaddress>] [-p <http port>] [-P <https port>]" % os.path.basename(sys.argv[0])
+	print u"Options:"
+	print u"  -v    Show version information and exit"
+	print u"  -D    Causes the server to operate as a daemon"
+	print u"  -p    HTTP Port to listen on (0 to disable)"
+	print u"  -P    HTTPS Port to listen on (0 to disable)"
+	print u"  -i    IP address of interface to listen on (default: 0.0.0.0)"
+	print u"  -f    Log to given file instead of syslog"
+	print u"  -c    Location of config file"
+	print u"  -l    Set log level (default: 4)"
+	print u"        0=nothing, 1=critical, 2=error, 3=warning, 4=notice, 5=info, 6=debug"
+	print u""
 
 def main(argv):
 	global pid
@@ -1438,11 +1453,11 @@ def main(argv):
 	try:
 		readConfigFile()
 	except Exception, e:
-		print >> sys.stderr, str(e)
+		print >> sys.stderr, unicode(e)
 		
 	for (opt, arg) in opts:
 		if   (opt == "-v"):
-			print "opsiconfd version %s" % __version__
+			print u"opsiconfd version %s" % __version__
 			sys.exit(0)
 		if   (opt == "-D"):
 			daemon = True
@@ -1464,9 +1479,9 @@ def main(argv):
 	setLogLevel(logLevel)
 	setLogFormat(logFormat)
 	
-	logger.comment(	"\n==================================================================\n" \
-			+ "             OPSI configuration-service starting" + \
-			"\n==================================================================\n")
+	logger.comment(	u"\n==================================================================\n" \
+			+ u"             OPSI configuration-service starting" + \
+			u"\n==================================================================\n")
 	
 	# Test backendmanager
 	#bm = BackendManager(authRequired = False, configFile = backendManagerConf)
@@ -1492,7 +1507,7 @@ def main(argv):
 				except Exception, e:
 					logger.error(e)
 				if running:
-					raise Exception("Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
+					raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
 				
 	pid = os.getpid()
 	pf = open (pidFile, "w")
@@ -1516,7 +1531,7 @@ def main(argv):
 		else:
 			reactor.listenTCP(httpPort, HTTPFactory(site), interface = interface)
 		
-		logger.notice("Accepting HTTP requests on %s:%s" % (interface, httpPort))
+		logger.notice(u"Accepting HTTP requests on %s:%s" % (interface, httpPort))
 	
 	if (httpsPort > 0):
 		if (interface == '0.0.0.0'):
@@ -1524,7 +1539,7 @@ def main(argv):
 		else:
 			reactor.listenSSL(httpsPort, HTTPFactory(site), SSLContext(), interface = interface)
 		
-		logger.notice("Accepting HTTPS requests on %s:%s" % (interface, httpsPort))
+		logger.notice(u"Accepting HTTPS requests on %s:%s" % (interface, httpsPort))
 	
 	reactor.run(installSignalHandlers=0)
 	
@@ -1532,11 +1547,11 @@ def main(argv):
 	while wait:
 		wait = False
 		for thread in threading.enumerate():
-			logger.info("Running thread: %s" % thread)
+			logger.info(u"Running thread: %s" % thread)
 			if not isinstance(thread, threading._MainThread):
 				wait = True
 		if wait:
-			logger.info("Waiting for running threads to finish up")
+			logger.info(u"Waiting for running threads to finish up")
 			time.sleep(0.2)
 	
 	sys.exit(0)
@@ -1564,14 +1579,14 @@ if (__name__ == "__main__"):
 	
 	try:
 		if (pid == os.getpid()):
-			logger.info("Removing pid file '%s'" % pidFile)
+			logger.info(u"Removing pid file '%s'" % pidFile)
 			os.unlink(pidFile)
 	except:
-		logger.error("Failed to unlink pid-file '%s'" % pidFile)
+		logger.error(u"Failed to unlink pid-file '%s'" % pidFile)
 	
 	if exception:
 		logger.logException(exception)
-		print >> sys.stderr, "ERROR:", str(exception)
+		print >> sys.stderr, u"ERROR:", unicode(exception)
 		sys.exit(1)
 	sys.exit(0)
 	

@@ -234,6 +234,9 @@ class Worker:
 		
 		try:
 			# Deserialize json-object
+			index = self.query.rfind('}&_dc=')
+			if (index != -1):
+				self.query = self.query[:index+1]
 			if hasattr(json, 'loads'):
 				# Python 2.6 json module
 				#self.rpc = json.loads(self.query.replace(u'\ufffd', '?'))
@@ -247,7 +250,7 @@ class Worker:
 			if not self.rpc.get('method'):
 				raise Exception(u'No method defined!')
 		except Exception, e:
-			e = uncode(e)
+			e = unicode(e)
 			logger.warning(u"Failed to get rpc from query '%s': %s" % 
 					(self.query, e) )
 			# Bad request
@@ -459,7 +462,7 @@ class Worker:
 			self.session.password = ''
 			self.response.code = responsecode.UNAUTHORIZED
 			self.response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
-			#self.result['error'] = uncode(e)
+			#self.result['error'] = unicode(e)
 			raise
 	
 	def _executeRpc(self, result):
@@ -575,8 +578,14 @@ class Worker:
 			for m in self.session.possibleMethods:
 				if (method == m['name']):
 					if m['keywords']:
-						for (key, value) in params.pop(-1).items():
-							keywords[str(key)] = deserialize(value)
+						l = 0
+						if m['args']:
+							l += len(m['args'])
+						if m['varargs']:
+							l += len(m['varargs'])
+						if (len(params) >= l):
+							for (key, value) in params.pop(-1).items():
+								keywords[str(key)] = deserialize(value)
 			params = deserialize(params)
 			if keywords:
 				self.result['result'] = serialize( eval( "bm.%s(*params, **keywords)" % method ) )

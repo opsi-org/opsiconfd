@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '3.5.99.0'
+__version__ = '3.4.99.0'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -133,12 +133,13 @@ class OpsiJsonRpc(resource.Resource):
 class OpsiJsonInterface(OpsiJsonRpc):
 	def __init__(self):
 		OpsiJsonRpc.__init__(self)
-		bm = BackendManager(
+		bm = DepotserverBackend(BackendManager(
 			dispatchConfigFile = dispatchConfigFile,
 			backendConfigDir   = backendConfigDir,
 			extensionConfigDir = extensionConfigDir,
+			depotBackend       = True,
 			#aclFile            = aclFile
-		)
+		))
 		#self.possibleMethods = bm.getPossibleMethods_listOfHashes()
 		self.possibleMethods = bm.getInterface()
 		#self.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
@@ -429,6 +430,7 @@ class Worker:
 				dispatchConfigFile = dispatchConfigFile,
 				backendConfigDir   = backendConfigDir,
 				extensionConfigDir = extensionConfigDir,
+				depotBackend       = True,
 				#aclFile            = aclFile
 			)
 			logger.notice(u'BackendManager created.')
@@ -621,7 +623,7 @@ class Worker:
 			# Do not log long strings like used in writeLog
 			ps = ps[:paramLengthLogLimit-3] + u'...'
 		logger.info(u'Took %0.3fs to process %s(%s)' % (duration, method, ps))
-	
+		
 	def _handlePostData(self, chunk):
 		chunk = forceUnicode(chunk)
 		logger.debug2(u"_handlePostData %s" % chunk)
@@ -913,7 +915,7 @@ class JsonInterfaceWorker(JsonRpcWorker):
 			else:
 				sel += u'\t\t\t\t\t\t\t<option>%s</option>\r\n' % f['name']
 		
-		self.response.stream = stream.IByteStream(self.xhtml % (js, sel, unicode(Tools.jsonObjToHtml(self.result))))
+		self.response.stream = stream.IByteStream((self.xhtml % (js, sel, unicode(Tools.jsonObjToHtml(self.result)))).encode('utf-8'))
 		return self.response
 	
 	def _errback(self, failure):
@@ -1046,7 +1048,9 @@ class SessionHandler:
 			if session.sessionTimer:
 				session.sessionTimer.cancel()
 				logger.info(u"Session timer canceled")
-			session.bm.exit()
+			if session.bm:
+				logger.debug(u"Calling exit() on backend %s" % session.bm)
+				session.bm.exit()
 		except:
 			pass
 		
@@ -1055,7 +1059,6 @@ class SessionHandler:
 			logger.notice(u"Session '%s' from ip '%s', application '%s' deleted" % (session.uid, session.ip, session.userAgent))
 		except KeyError:
 			pass
-		
 	
 	def deleteAllSessions(self):
 		logger.notice(u"Deleting all sessions")

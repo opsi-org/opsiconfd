@@ -32,1482 +32,153 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '3.4.99.0'
+import os, sys, getopt, threading, time
+from signal import *
 
-# Imports
-import os, getopt, socket, urllib, base64
-from OpenSSL import SSL
-
-# Twisted imports
-from twisted.internet import defer, threads, reactor
-from twisted.python.failure import Failure
-from OPSI.web2 import resource, stream, server, log, http, responsecode
-from OPSI.web2.http_headers import Cookie
-from OPSI.web2.channel.http import HTTPFactory
-from OPSI.web2.dav import static
-
-# OPSI imports
-from OPSI import Tools
 from OPSI.Logger import *
-from OPSI.Backend.BackendManager import *
-from OPSI.Backend.Backend import *
 from OPSI.Util.File import IniFile
 from OPSI.Types import *
-from OPSI.Backend.Object import serialize, deserialize
+from OPSI.System import which, execute
 
-########################################################################
-backendConfigDir   = '/etc/opsi/backends'
-dispatchConfigFile = '/etc/opsi/backendManager/dispatch.conf'
-extensionConfigDir = '/etc/opsi/backendManager/compose.d'
-aclFile            = '/etc/opsi/backendManager/acl.conf'
-########################################################################
+logger = Logger()
+logger.setConsoleLevel(100)
 
-# Some defaults
-backendManagerConf = '/etc/opsi/backendManager.d'
-configFile = '/etc/opsi/opsiconfd.conf'
-pidFile = '/var/run/opsiconfd/opsiconfd.pid'
-httpPort = 0
-httpsPort = 4447
-interface = '0.0.0.0'
-sslServerKeyFile = '/etc/opsi/opsiconfd.pem'	# Server's private key file
-sslServerCertFile = '/etc/opsi/opsiconfd.pem'	# Server's certificate file
-sessionName = 'OPSISID'				# Session name for cookie
-sessionMaxInactiveInterval = 120 		# Session expires after 120 seconds
-maxExecutionStatisticValues = 250
-paramLengthLogLimit = 200
-resolveClientIp = True
-verifyIp = False
-updateHardwareAddress = True
-symlinkLogs = True
-logFile = None
-logLevel = LOG_ERROR
-logFormat = '[%l] [%D] %M (%F|%N)'
-machineLogs = False
-daemon = False
-staticDirectories = {}
-webdavDirectories = {}
-startTime = time.time()
+__version__ = '3.4.99'
 
-# Other globals
-root = None
-pid = None
-statistics = { 
-	'execution': [] 
-}
-sessionHandler = None
 
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                         CLASS ROOT                                                =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class Root(resource.Resource):
-	addSlash = True
-	def render(self, request):
-		''' Process GET request. '''
-		return http.Response(stream="<html><head><title>opsiconfd</title></head><body></body></html>")
-
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                      CLASS OPSIJSONRPC                                            =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class OpsiJsonRpc(resource.Resource):
-	def getChild(self, name, request):
-		''' Get the child resource for the requested path. '''
-		if not name:
-			return self
-		return resource.Resource.getChild(self, name, request)
-	
-	def http_POST(self, request):
-		''' Process POST request. '''
-		logger.debug2(u"OpsiJsonRpc.http_POST()")
-		worker = JsonRpcWorker(request, self, method = 'POST')
-		return worker.process()
+class Opsiconfd(threading.Thread):
+	def __init__(self, config):
+		threading.Thread.__init__(self)
 		
-	def http_GET(self, request):
-		''' Process GET request. '''
-		logger.debug2(u"OpsiJsonRpc.http_GET()")
-		worker = JsonRpcWorker(request, self, method = 'GET')
-		return worker.process()
-
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                   CLASS OPSIJSONINTERFACE                                         =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class OpsiJsonInterface(OpsiJsonRpc):
-	def __init__(self):
-		OpsiJsonRpc.__init__(self)
-		bm = DepotserverBackend(BackendManager(
-			dispatchConfigFile = dispatchConfigFile,
-			backendConfigDir   = backendConfigDir,
-			extensionConfigDir = extensionConfigDir,
-			depotBackend       = True,
-			#aclFile            = aclFile
-		))
-		#self.possibleMethods = bm.getPossibleMethods_listOfHashes()
-		self.possibleMethods = bm.getInterface()
-		#self.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
-		bm.exit()
-	
-	def http_POST(self, request):
-		''' Process POST request. '''
-		logger.debug2(u"OpsiJsonInterface.http_POST()")
-		worker = JsonInterfaceWorker(request, self, method = 'POST')
-		return worker.process()
+		self.config = config
+		self._running = False
+		self._stopped = False
 		
-	def http_GET(self, request):
-		''' Process GET request. '''
-		logger.debug2(u"OpsiJsonInterface.http_GET()")
-		worker = JsonInterfaceWorker(request, self, method = 'GET')
-		return worker.process()
-
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                        CLASS OPSIDAV                                              =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class OpsiDAV(static.DAVFile):
-	
-	def __init__(self, path, readOnly=True, defaultType="text/plain", indexNames=None):
-		static.DAVFile.__init__(self, path, defaultType, indexNames)
-		self._readOnly = readOnly
-	
-	def createSimilarFile(self, path):
-		return self.__class__(path, readOnly=self._readOnly, defaultType=self.defaultType, indexNames=self.indexNames[:])
-	
-	def renderHTTP(self, request):
-		if self._readOnly and request.method not in ('GET', 'PROPFIND'):
-			logger.warning(u"Command %s not allowed (readonly)" % request.method)
-			return http.Response(
-				code	= responsecode.FORBIDDEN,
-				stream	= "Readonly!" )
-		worker = DAVWorker(request, self)
-		return worker.process()
-
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                        CLASS WORKER                                               =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class Worker:
-	def __init__(self, request, resource, method = 'POST'):
-		self.request = request
-		self.resource = resource
-		self.method = method
-		self.session = None
-		self.response = http.Response( code = responsecode.OK )
-		self.result = ""
+		self.setLogging()
+		logger.comment(	"\n==================================================================\n" \
+				+ "=             OPSI configuration-service starting                =\n" \
+				+ "==================================================================\n")
 		
-		self._setLogFile()
-	
-	def __del__(self):
-		logger.exit(object = self)
-	
-	def _setLogFile(self):
-		if machineLogs and logFile:
-			logger.setLogFile( logFile.replace('%m', self.request.remoteAddr.host), object = self )
-	
-	def _linkLogFile(self, hostId):
-		if machineLogs and logFile and symlinkLogs:
-			logger.linkLogFile( logFile.replace('%m', hostId), object = self )
-	
-	def process(self):
-		try:
-			self.deferred = defer.Deferred()
-			self.deferred.addCallback(self._getSession)
-			self.deferred.addCallback(self._getQuery)
-			self.deferred.addCallback(self._getRpc)
-			self.deferred.addCallback(self._authenticate)
-			self.deferred.addCallback(self._executeRpc)
-			# Convert ints to strings to prevent problems with delphi libraries
-			self.deferred.addCallback(self._returnResponse)
-			self.deferred.addErrback(self._errback)
-			self.deferred.callback(None)
-			return self.deferred
-		except Exception, e:
-			return self._errback(e)
-	
-	def _getQuery(self, result):
-		self.query = u''
-		if (self.method == 'GET'):
-			self.query = forceUnicode( urllib.unquote( self.request.querystring ) )
-		elif (self.method == 'POST'):
-			# Returning deferred needed for chaining
-			d = stream.readStream(self.request.stream, self._handlePostData)
-			d.addErrback(self._errback)
-			return d
-		
-	def _getRpc(self, result):
-		if not self.query:
-			raise Exception(u'Got no query')
-		
-		try:
-			# Deserialize json-object
-			index = self.query.rfind('}&_dc=')
-			if (index != -1):
-				self.query = self.query[:index+1]
-			if hasattr(json, 'loads'):
-				# Python 2.6 json module
-				#self.rpc = json.loads(self.query.replace(u'\ufffd', '?'))
-				self.rpc = json.loads(self.query)
-			else:
-				#self.rpc = json.read(self.query.replace(u'\ufffd', '?'))
-				self.rpc = json.read(self.query)
-			if not self.rpc.get('id'):
-				raise Exception(u'No id defined!')
-			self.result['id'] = self.rpc['id']
-			if not self.rpc.get('method'):
-				raise Exception(u'No method defined!')
-		except Exception, e:
-			e = unicode(e)
-			logger.warning(u"Failed to get rpc from query '%s': %s" % 
-					(self.query, e) )
-			# Bad request
-			self.response.code = responsecode.BAD_REQUEST
-			self.result['error'] = e
-			raise
-		
-		rpc = unicode(self.rpc)
-		if (len(rpc) > paramLengthLogLimit+103):
-			# Do not log long strings like used in writeLog
-			rpc = rpc[:paramLengthLogLimit+100] + u'...'
-		logger.info(u'Got json-rpc request: %s' % rpc)
-		
-		
-	def _getSession(self, result):
-		''' This method restores a session or generates a new one. '''
-		self.session = None
-		
-		logger.confidential(u"Request headers: %s " % self.request.headers)
-		
-		userAgent = None
-		try:
-			userAgent = self.request.headers.getHeader('user-agent')
-		except Exception, e:
-			logger.info(u"Client '%s' did not supply user-agent" % self.request.remoteAddr.host)
-		if not userAgent:
-			userAgent = 'unknown'
-		
-		# Get session id from cookie request header
-		sessionId = u''
-		try:
-			sessionId = unicode(self.request.headers.getHeader('cookie')[0].value)
-		except Exception, e:
-			pass
-		
-		if not sessionId:
-			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
-		
-		# Get Session object
-		self.session = sessionHandler.getSession(sessionId)
-		if (sessionId == self.session.uid):
-			logger.info(u"Reusing session for client '%s', application '%s'" % (self.request.remoteAddr.host, userAgent))
-		elif sessionId:
-			logger.notice(u"Application '%s' on client '%s' supplied non existing session id: %s" % (userAgent, self.request.remoteAddr.host, sessionId))
-		
-		if self.session.ip and verifyIp and (self.session.ip != self.request.remoteAddr.host):
-			logger.critical(u"Client ip '%s' does not match session ip '%s', deleting old session and creating a new one" \
-				% (self.request.remoteAddr.host, self.session.ip) )
-			sessionHandler.deleteSession(self.session.uid)
-			self.session = sessionHandler.getSession()
-		
-		# Set ip
-		self.session.ip = self.request.remoteAddr.host
-		
-		# Set user-agent / application
-		if self.session.userAgent and (self.session.userAgent != userAgent):
-			logger.warning(u"Application changed from '%s' to '%s' for existing session of client '%s'" \
-				% (self.session.userAgent, userAgent, self.request.remoteAddr.host))
-		self.session.userAgent = userAgent
-		
-		logger.confidential(u"Session id is '%s' for client '%s', application '%s'" \
-			% (self.session.uid, self.request.remoteAddr.host, self.session.userAgent))
-		
-		# Set last modified to current time
-		self.session.touch()
-		
-		# Add cookie to headers
-		cookie = Cookie(self.session.name.encode('ascii', 'replace'), self.session.uid.encode('ascii', 'replace'), path='/')
-		self.response.headers.setHeader('set-cookie', [ cookie ] )
-		
-		# Set hostname
-		if not self.session.hostname:
-			hostname = ''
-			if resolveClientIp:
-				try:
-					hostname = socket.getfqdn(self.request.remoteAddr.host).lower()
-					if re.search('^\d+\.\d+\.\d+\.\d+$', hostname):
-						logger.error(u"Cannot get fqdn for client '%s'" % self.request.remoteAddr.host)
-						hostname = ''
-					elif (hostname != 'localhost') and (len(hostname.split('.')) == 1):
-						logger.warning(u"Cannot get fqdn but hostname '%s' for client '%s'" \
-							% (hostname, self.request.remoteAddr.host) )
-						
-						defaultDomain = '.'.join(socket.getfqdn().split('.')[1:])
-						if not defaultDomain:
-							logger.error(u"Cannot get fqdn for client %s (%s), missing domain, failed to add default domain." \
-										% (hostname, self.request.remoteAddr.host) )
-						
-						logger.notice(u"Adding domain '%s' to hostname '%s' for client '%s'" \
-								% (defaultDomain, hostname, self.request.remoteAddr.host) )
-						hostname = hostname + '.' + defaultDomain
-				except Exception, e:
-					logger.warning(u"Failed to resolve address '%s': %s" % (self.request.remoteAddr.host, e))
-			
-			logger.info(u"Storing hostname '%s' in session" % hostname)
-			self.session.hostname = hostname
-		
-		# Set user and password
-		if not self.session.user and not self.session.password and self.request.headers.getHeader('Authorization'):
-			(user, password) = ('', '')
-			logger.debug(u"Trying to get username and password from Authorization header")
-			auth = self.request.headers.getHeader('Authorization')
-			if auth:
-				logger.debug(u"Authorization header found (type: %s)" % auth[0])
-				try:
-					encoded = auth[1]
-					(user, password) = base64.decodestring(encoded).split(':', 1)
-					logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
-				except Exception:
-					logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
-				
-			self.session.user = user
-			self.session.password = password
-		
-		logger.confidential(u"Session content: %s" % self.session.__dict__)
-	
-	def _authenticate(self, result):
-		''' This function tries to authenticate a user.
-		    Raises an exception on authentication failure. '''
-		
-		try:
-			if self.session.authenticated:
-				return
-			
-			if hasattr(self, 'rpc') and \
-			   ( self.rpc['method'] in ('getHostId', 'getPossibleMethods_listOfHashes', 'getInterface') or \
-			     ( self.rpc['method'] == 'getDomain') and ( (len(self.rpc['params']) < 1) or not self.rpc['params'][0] ) ):
-				logger.info(u"Allowing method '%s' without authentication" % self.rpc['method'])
-				return
-			
-			isHost = False
-			
-			user = self.session.user
-			if not user:
-				isHost = True
-				user = self.session.hostname
-			
-			logger.notice(u"Authorization request from %s@%s" % (user, self.session.ip))
-			if not user:
-				raise Exception(u"Cannot authenticate, no username given")
-			
-			if ( len(user.split('.')) > 2 ):
-				# Username is something like xxx.yyy.zzz 
-				# Assuming host is using FQDN to log in
-				isHost = True
-				
-				if not self.session.hostname:
-					self.session.hostname = user
-				
-				if (user != socket.getfqdn()):
-					addressList = []
-					try:
-						(name, aliasList, addressList) = socket.gethostbyname_ex(user)
-					except Exception, e:
-						logger.warning(u"Failed to resolve hostname '%s': %s" % (user, e))
-					
-					if self.session.ip not in addressList:
-						# Username (FQDN) of peer does not resolve to peer's ip address
-						if verifyIp:
-							logger.critical(u"Host login attempt with username '%s'" % user +
-									u" from ip '%s', but name resolves to '%s' (access denied)" % 
-									( self.session.ip, addressList) )
-							raise Exception(u"Access denied for username '%s' from '%s'" %
-									(user, self.session.ip) )
-						else:
-							logger.notice(u"Host login attempt with username '%s'" % user +
-									u" from ip '%s', but name resolves to '%s', ip verification is disabled (access granted)" % 
-									( self.session.ip, addressList) )
-			
-			# Create BackendManager instance
-			#bm = BackendManager(	username	= user,
-			#			password	= self.session.password,
-			#			configFile	= backendManagerConf )
-			
-			bm = BackendManager(
-				dispatchConfigFile = dispatchConfigFile,
-				backendConfigDir   = backendConfigDir,
-				extensionConfigDir = extensionConfigDir,
-				depotBackend       = True,
-				#aclFile            = aclFile
-			)
-			logger.notice(u'BackendManager created.')
-			
-			self.session.authenticated = True
-			# Store BackendManager instance reference in session
-			self.session.bm = bm
-			
-			self.session.possibleMethods = bm.getInterface()
-			#self.session.possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
-			
-			if isHost and user not in bm.getDepotIds_list():
-				try:
-					bm.getHost_hash(user)
-				except Exception, e:
-					logger.warning(u"Failed to get host info for client '%s', trying to create client" % user)
-					parts = user.split('.')
-					domain = parts[1]
-					if (len(parts) > 2):
-						domain = '.'.join(parts[1:])
-					bm.createClient(parts[0], domain)
-				
-				bm.setHostLastSeen(user, timestamp())
-				self._linkLogFile(user)
-				
-		except Exception, e:
-			# Forbidden
-			#logger.logException(e)
-			logger.error(u"Forbidden: %s" % e)
-			self.session.user = ''
-			self.session.password = ''
-			self.response.code = responsecode.UNAUTHORIZED
-			self.response.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
-			#self.result['error'] = unicode(e)
-			raise
-	
-	def _executeRpc(self, result):
-		''' Execute json remote procedure call. '''
-		if (self.rpc['method'] == 'getHostId'):
-			hostname = None
-			if self.rpc['params']:
-				hostname = self.rpc['params'][0]
-			self.result['result'] = self._getHostId(hostname)
-			return
-		
-		if (self.rpc['method'] == 'getDomain') and ( (len(self.rpc['params']) < 1) or not self.rpc['params'][0] ):
-			self.result['result'] = self._getDomain()
-			return
-		
-		if self.rpc['method'] in ('getPossibleMethods_listOfHashes', 'getInterface'):
-			if self.session.possibleMethods:
-				self.result['result'] = self.session.possibleMethods
-			else:
-				#bm = BackendManager(authRequired = False, configFile = backendManagerConf)
-				bm = BackendManager(
-					dispatchConfigFile = dispatchConfigFile,
-					backendConfigDir   = backendConfigDir,
-					extensionConfigDir = extensionConfigDir,
-					#aclFile            = aclFile
-				)
-				possibleMethods = bm.getInterface()
-				possibleMethods.append( { 'name': 'getServerCertificate', 'params': [] } )
-				bm = None
-				self.result['result'] = possibleMethods
-			return
-		
-		d = threads.deferToThread(self._realRpc)
-		d.addErrback(self._errback)
-		return d
-	
-	def _getHostId(self, hostname=''):
-		if hostname:
-			return '%s.%s' % (hostname, self._getDomain())
-		return getattr(self.session, 'hostname')
-		
-	def _getDomain(self):
-		defaultDomain = '.'.join(socket.getfqdn().split('.')[1:])
-		if not defaultDomain:
-			raise Exception(u"Failed to get default domain")
-		return defaultDomain
-		
-	def _realRpc(self):
-		method = self.rpc.get('method')
-		params = self.rpc.get('params')
-		ps = unicode(params)
-		if (len(ps) > paramLengthLogLimit):
-			# Do not log long strings like used in writeLog
-			ps = ps[:paramLengthLogLimit-3] + u'...'
-		logger.info(u"RPC method: '%s' params: '%s'" % (method, ps))
-		
-		# Get BackendManager instance from session
-		try:
-			bm = self.session.bm
-		except Exception, e:
-			logger.critical(u"Failed to execute rpc, cannot get bm instance from session!")
-			logger.critical(u"rpc is: %s" % self.rpc)
-			logger.critical(u"session is: %s" % self.session)
-			logger.notice(u"Deleting session!")
-			sessionHandler.deleteSession(self.session.uid)
-			raise Exception(u"Failed to execute rpc, cannot get bm instance from session!")
-		
-		if (method == 'exit'):
-			logger.notice(u"RPC client asked to close the session")
-			sessionHandler.deleteSession(self.session.uid)
-			return
-		
-		if (method == 'getServerCertificate'):
-			try:
-				cert = ""
-				f = open(sslServerCertFile)
-				begin = False
-				for line in f.readlines():
-					if begin and (line.strip() == "-----END CERTIFICATE-----"):
-						cert += line
-						break
-					if begin or (line.strip() == "-----BEGIN CERTIFICATE-----"):
-						begin = True
-						cert += line
-				f.close()
-				if not cert:
-					raise Exception(u"Failed to read cert file '%s'" % sslServerCertFile)
-				self.result['result'] = cert
-				return
-			except Exception, e:
-				logger.error(u"Failed to get certificate: %s" % e)
-				self.result['error'] = { 'class': 'BackendMissingDataError', 'message': "Failed to get certificate" }
-				return
-			
-		# Check if possible method
-		valid = False
-		for f in self.session.possibleMethods:
-			if (f['name'] == method):
-				valid = True
-		
-		try:
-			if not valid:
-				raise BackendBadValueError(u"Method '%s' is not valid" % method)
-			
-			ps = unicode(params)
-			if (len(ps) > paramLengthLogLimit):
-				# Do not log long strings like used in writeLog
-				ps = ps[:paramLengthLogLimit-3] + u'...'
-			logger.info(u"Executing:  %s(%s)" % (method, ps))
-			# Execute method
-			start = time.time()
-			keywords = {}
-			for m in self.session.possibleMethods:
-				if (method == m['name']):
-					if m['keywords']:
-						l = 0
-						if m['args']:
-							l += len(m['args'])
-						if m['varargs']:
-							l += len(m['varargs'])
-						if (len(params) >= l):
-							for (key, value) in params.pop(-1).items():
-								keywords[str(key)] = deserialize(value)
-			params = deserialize(params)
-			if keywords:
-				self.result['result'] = serialize( eval( "bm.%s(*params, **keywords)" % method ) )
-			else:
-				self.result['result'] = serialize( eval( "bm.%s(*params)" % method ) )
-			
-		except(BackendError, BackendTemporaryError,
-		       BackendBadValueError, BackendMissingDataError, 
-		       BackendIOError, BackendPermissionDeniedError,
-		       BackendAuthenticationError, BackendReferentialIntegrityError,
-		       LicenseConfigurationError, LicenseMissingError), e:
-			logger.error(e)
-			self.result['error'] = { 'class': e.__class__.__name__, 'message': unicode(e) }
-			self.result['result'] = None
-			return
-		
-		logger.info(u'Got result...')
-		logger.debug2(self.result['result'])
-		duration = round(time.time() - start, 3)
-		
-		if (maxExecutionStatisticValues > 0):
-			global statistics
-			statistics['execution'].append(
-				{ "method": method, "params": params, "duration": duration }
-			)
-			if (len(statistics['execution']) > maxExecutionStatisticValues):
-				statistics['execution'] = statistics['execution'][1:]
-		
-		ps = u''
-		for p in params:
-			ps += unicode(p)
-		if (len(ps) > paramLengthLogLimit):
-			# Do not log long strings like used in writeLog
-			ps = ps[:paramLengthLogLimit-3] + u'...'
-		logger.info(u'Took %0.3fs to process %s(%s)' % (duration, method, ps))
-		
-	def _handlePostData(self, chunk):
-		chunk = forceUnicode(chunk)
-		logger.debug2(u"_handlePostData %s" % chunk)
-		self.query += chunk
-	
-	def _returnResponse(self, result):
-		self.response.stream = stream.IByteStream(self.result)
-		return self.response
-	
-	def _errback(self, failure):
-		if (self.response.code == responsecode.OK):
-			# Do not overwrite responsecodes set earlier
-			self.response.code = responsecode.INTERNAL_SERVER_ERROR
-		
-		if isinstance(failure, Failure):
-			self.result = failure.getErrorMessage()
-			logger.critical(failure.getTraceback())
-		else:
-			self.result = unicode(failure)
-		logger.error(u"Failed to process request: %s" % self.result)
-		return self._returnResponse(None)
-
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                     CLASS JSONRPCWORKER                                           =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class JsonRpcWorker(Worker):
-	def __init__(self, request, resource, method = 'POST'):
-		Worker.__init__(self, request, resource, method)
-		self.rpc = {"id": None, "method": None, "params": []}
-		self.result = {"id": None, "result": None, "error": None}
-		
-	def _allIntsToString(self, obj):
-		if ( type(obj) == type([]) ):
-			for i in range( len(obj) ):
-				obj[i] = self._allIntsToString(obj[i])
-		
-		elif ( type(obj) == type({}) ):
-			for (key, value) in obj.items():
-				obj[key] = self._allIntsToString(value)
-		elif ( type(obj) == type(1) ):
-			obj = unicode(obj)
-		return obj
-	
-	def _returnResponse(self, result):
-		self.result['result'] = self._allIntsToString(self.result['result'])
-		jsonResult = ''
-		if type(self.result['result']) is list:
-			res = []
-			for r in self.result['result']:
-				if hasattr(r, 'toHash'):
-					res.append(r.toHash())
-			if res:
-				self.result['result'] = res
-		try:
-			if hasattr(json, 'dumps'):
-				# Python 2.6 json module
-				jsonResult = json.dumps( self.result )
-			else:
-				jsonResult = json.write( self.result )
-		except Exception, e:
-			logger.critical(e)
-		self.response.stream = stream.IByteStream(jsonResult)
-		return self.response
-	
-	def _errback(self, failure):
-		if (self.response.code == responsecode.OK):
-			# Do not overwrite responsecodes set earlier
-			self.response.code = responsecode.INTERNAL_SERVER_ERROR
-		
-		if isinstance(failure, Failure):
-			if not self.result['error']:
-				self.result['error'] = failure.getErrorMessage()
-			logger.critical(failure.getTraceback())
-		else:
-			if not self.result['error']:
-				self.result['error'] = unicode(failure)
-		logger.error(u"Failed to process rpc: %s" % self.result['error'])
-		return self._returnResponse(None)
-
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                  CLASS JSONINTERFACEWORKER                                        =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class JsonInterfaceWorker(JsonRpcWorker):
-	xhtml = u"""
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-	
-<html xmlns="http://www.w3.org/1999/xhtml">
-	<head>
-		<title>opsi configuration interface</title>
-		<style>
-		input, select {
-			background-color: #fafafa;
-			border-color: #abb1ef;
-			border-width: 1px;
-			border-style: solid;
-			font-family: verdana, arial;
-			font-size: 12px;
-			width: 280px;
-		}
-		.json {
-			background-color: #fafafa;
-			border-color: #abb1ef;
-			border-width: 1px;
-			border-style: dashed;
-			font-family: verdana, arial;
-			font-size: 11px;
-			padding: 10px;
-			color: #555555;
-		}
-		.json_key {
-			color: #9e445a;
-		}
-		.json_label {
-			color: #abb1ef;
-			margin-top: 20px;
-			margin-bottom: 5px;
-			font-family: verdana, arial;
-			font-size: 11px;
-		}
-		.title {
-			color: #555555; 
-			font-size: 20px; 
-			font-weight: bolder; 
-			letter-spacing: 5px;
-		}
-		.button {
-			background-color: #fafafa;
-			border: none;
-			margin-top: 20px;
-			color: #9e445a;
-			font-weight: bolder;
-		}
-		.box {
-			background-color: #fafafa;
-			border-color: #555555;
-			border-width: 2px;
-			border-style: solid;
-			padding: 20px;
-			margin: 30px;
-			font-family: verdana, arial;
-			font-size: 12px;
-		}
-		</style>
-		<script type="text/javascript">
-			var parameters = new Array();
-			var method = '';
-			var params = '';
-			var id = '"id": 1';
-%s
-			function selectFunction(select) {
-				method = select.value;
-				tbody = document.getElementById('tbody');
-				var button;
-				var json;
-				for (i=tbody.childNodes.length-1; i>=0; i--) {
-					if (tbody.childNodes[i].id == 'tr_method') {
-					}
-					else if (tbody.childNodes[i].id == 'tr_submit') {
-						button = tbody.childNodes[i];
-						tbody.removeChild(button);
-					}
-					else if (tbody.childNodes[i].id == 'tr_json') {
-						json = tbody.childNodes[i];
-						tbody.removeChild(json);
-					}
-					else {
-						tbody.removeChild(tbody.childNodes[i]);
-					}
-				}
-
-				for (i=0; i < parameters[select.value].length; i++) {
-					tr = document.createElement("tr");
-					td1 = document.createElement("td");
-					text = document.createTextNode(parameters[select.value][i] + ":");
-					td1.appendChild(text);
-					td2 = document.createElement("td");
-					input = document.createElement("input");
-					input.setAttribute('onchange', 'jsonString()');
-					input.setAttribute('type', 'text');
-					td2.appendChild(input);
-					tr.appendChild(td1);
-					tr.appendChild(td2);
-					tbody.appendChild(tr)
-				}
-				tbody.appendChild(json)
-				tbody.appendChild(button)
-				
-				jsonString();
-			}
-			
-			function onSubmit() {
-				var json = '{ "id": 1, "method": ';
-				json += document.getElementById('json_method').firstChild.data;
-				json += ', "params": ';
-				json += document.getElementById('json_params').firstChild.data;
-				json += ' }';
-				window.location.href = '?' + json;
-				return false;
-			}
-			
-			function jsonString() {
-				span = document.getElementById('json_method');
-				for (i=span.childNodes.length-1; i>=0; i--) {
-					span.removeChild(span.childNodes[i])
-				}
-				span.appendChild(document.createTextNode('"' + method + '"'));
-				
-				span = document.getElementById('json_params');
-				for (i=span.childNodes.length-1; i>=0; i--) {
-					span.removeChild(span.childNodes[i])
-				}
-				params = '['
-				inputs = document.getElementsByTagName('input');
-				for (i=0; i<inputs.length; i++) {
-					if (inputs[i].id != 'submit') {
-						if (inputs[i].value == '') {
-							i = inputs.length;
-						}
-						else {
-							if (i>0) {
-								params += ', ';
-							}
-							params += inputs[i].value.replace(/\\\/g, '\\\\\\\\');
-						}
-					}
-				}
-				span.appendChild(document.createTextNode(params + ']'));
-			}
-		</script>
-	</head>
-	<body onload="selectFunction(document.getElementById('select'))">
-		<div class="title">opsi config interface</div>
-		<form action="cgi" method="post" onsubmit="return onSubmit()">
-			<table class="box">
-			<tbody id="tbody">
-				<tr id="tr_method">
-					<td style="width: 120px;">Method:</td>
-					<td style="width: 280px;">
-						<select id="select" onchange="selectFunction(this)" name="method">
-%s
-						</select>
-					</td>
-				</tr>
-				<tr id="tr_json">
-					<td colspan="2">
-						<div class="json_label">
-							resulting json remote procedure call:
-						</div>
-						<div class="json">
-							{&nbsp;"<font class="json_key">method</font>": <span id="json_method"></span>,<br />
-							&nbsp;&nbsp;&nbsp;"<font class="json_key">params</font>": <span id="json_params">[]</span>,<br />
-							&nbsp;&nbsp;&nbsp;"<font class="json_key">id</font>": 1 }
-						</div>
-					</td>
-				</tr>
-				<tr id="tr_submit">
-					<td align="center" colspan="2">
-						<input value="Execute" id="submit" class="button" type="submit" />
-					</td>
-				</tr>
-			</tbody>
-			</table>
-		</form>
-		<div>
-			<div class="json_label">
-				json-rpc result
-			</div>
-			<div class="json">
-				<pre>%s</pre>
-			</div>
-		</div>
-	</body>
-</html>"""
-
-	def __init__(self, request, resource, method = 'POST'):
-		JsonRpcWorker.__init__(self, request, resource, method)
-	
-	def _returnResponse(self, result):
-		js = u''
-		sel = u''
-		for f in self.resource.possibleMethods:
-			js += u"\t\t\tparameters['%s'] = new Array();\r\n" % (f['name'])
-			for p in range(len(f['params'])):
-				js += u"\t\t\tparameters['%s'][%s]='%s';\r\n" % (f['name'], p, f['params'][p])
-			if (f['name'] == self.rpc['method']):
-				sel += u'\t\t\t\t\t\t\t<option selected>%s</option>\r\n' % f['name']
-			else:
-				sel += u'\t\t\t\t\t\t\t<option>%s</option>\r\n' % f['name']
-		
-		self.response.stream = stream.IByteStream((self.xhtml % (js, sel, unicode(Tools.jsonObjToHtml(self.result)))).encode('utf-8'))
-		return self.response
-	
-	def _errback(self, failure):
-		if (self.response.code == responsecode.OK):
-			# Do not overwrite responsecodes set earlier
-			self.response.code = responsecode.INTERNAL_SERVER_ERROR
-		
-		if isinstance(failure, Failure):
-			if not self.result['error']:
-				self.result['error'] = failure.getErrorMessage()
-			logger.critical(failure.getTraceback())
-		else:
-			if not self.result['error']:
-				self.result['error'] = unicode(failure)
-		logger.error(u"Failed to process rpc: %s" % self.result['error'])
-		return self._returnResponse(None)
-	
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                        CLASS DAVWORKER                                            =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class DAVWorker(Worker):
-	def __init__(self, request, resource):
-		Worker.__init__(self, request, resource, 'POST')
-		
-	def process(self):
-		try:
-			self.deferred = defer.Deferred()
-			self.deferred.addCallback(self._getSession)
-			self.deferred.addCallback(self._authenticate)
-			self.deferred.addCallback(self._render)
-			self.deferred.addCallback(self._addCookie)
-			self.deferred.addErrback(self._errback)
-			self.deferred.callback(None)
-			return self.deferred
-		except Exception, e:
-			return self._errback(e)
-		
-	def _addCookie(self, result):
-		# Add cookie to headers
-		cookie = Cookie(self.session.name.encode('ascii', 'replace'), self.session.uid.encode('ascii', 'replace'), path='/')
-		result.headers.setHeader('set-cookie', [ cookie ] )
-		return result
-		
-	def _render(self, result):
-		logger.debug(u"Client requests DAV operation: %s" % self.request)
-		
-		if False:#if not self.session.bm.userIsHost() and not self.session.bm.userIsAdmin():
-			logger.warning(u"WebDAV access denied for user %s@%s" % (self.session.user, self.session.ip))
-			self.response.code = responsecode.UNAUTHORIZED
-			raise Exception(u"WebDAV access denied!")
-		
-		d = super(OpsiDAV, self.resource).renderHTTP(self.request)
-		if isinstance(d, defer.Deferred):
-			d.addErrback(self._errback)
-		return d
-	
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                         CLASS SESSION                                             =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class Session:
-	def __init__(self, sessionHandler, name = u'OPSISID', sessionMaxInactiveInterval = 120):
-		self.sessionHandler = sessionHandler
-		self.name = forceUnicode(name)
-		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
-		self.sessionTimer = None
-		self.uid = Tools.randomString(32)
-		self.ip = ''
-		self.userAgent = ''
-		self.hostname = ''
-		self.user = ''
-		self.password = ''
-		self.authenticated = False
-		self.bm = None
-		self.possibleMethods = []
-		self.touch()
-		
-	def touch(self):
-		self.lastModified = time.time()
-		if self.sessionTimer:
-			self.sessionTimer.cancel()
-		self.sessionTimer = threading.Timer(self.sessionMaxInactiveInterval, self.expire)
-		self.sessionTimer.start()
-	
-	def expire(self):
-		self.sessionHandler.sessionExpired(self)
-	
-	def __del__(self):
-		if self.sessionTimer:
-			self.sessionTimer.cancel()
-	
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                     CLASS SESSIONHANDLER                                          =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class SessionHandler:
-	def __init__(self, sessionName = 'OSPISID', sessionMaxInactiveInterval = 120):
-		self.sessionName = sessionName
-		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
-		self.sessions = {}
+	def isRunning(self):
+		return self._running
 	
 	def stop(self):
-		self.deleteAllSessions()
-	
-	def getSession(self, uid):
-		if uid:
-			session = self.sessions.get(uid)
-			if session:
-				return session
-			else:
-				logger.info(u'Failed to get session: session id %s not found' % uid)
-		return self.createSession()
-	
-	def createSession(self):
-		session = Session(self, self.sessionName, self.sessionMaxInactiveInterval)
-		self.sessions[session.uid] = session
-		logger.notice(u"New session created")
-		return session
-	
-	def sessionExpired(self, session):
-		logger.notice(u"Session '%s' from ip '%s', application '%s' expired after %d seconds" \
-				% (session.uid, session.ip, session.userAgent, (time.time()-session.lastModified)))
-		self.deleteSession(session.uid)
+		logger.notice(u"Stopping opsiconfd main thread")
+		self._stopped = True
 		
-	def deleteSession(self, uid):
-		session = self.sessions.get(uid)
-		if not session:
-			logger.warning(u'No such session id: %s' % uid)
-			return
-		
+	def setLogging(self):
+		# Set logging options
+		if self.config['logFile']:
+			logger.setLogFile(self.config['logFile'])
+		if self.config['logFormat']:
+			logger.setLogFormat(self.config['logFormat'])
+		logger.setFileLevel(self.config['logLevel'])
+	
+	def run(self):
+		self._running = True
+		logger.notice(u"Starting opsiconfd main thread")
 		try:
-			if session.sessionTimer:
-				session.sessionTimer.cancel()
-				logger.info(u"Session timer canceled")
-			if session.bm:
-				logger.debug(u"Calling exit() on backend %s" % session.bm)
-				session.bm.exit()
-		except:
-			pass
+			while not self._stopped:
+				logger.comment(u"Running")
+				time.sleep(1)
+		except Exception, e:
+			logger.logException(e)
+		self._running = False
+	
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# -                                           OPSICONFD INIT                                          -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+class OpsiconfdInit(object):
+	def __init__(self):
+		logger.debug(u"OpsiconfdInit")
+		# Set umask
+		os.umask(0077)
 		
+		self._pid = 0
+		self.config = {
+			'pidFile'                      : u'/var/run/opsiconfd/opsiconfd.pid',
+			'configFile'                   : u'/etc/opsi/opsiconfd.conf',
+			'daemon'                       : False,
+			'logLevel'                     : LOG_NOTICE,
+			'logFile'                      : u'/var/log/opsi/opsiconfd/opsiconfd.log',
+			'logFormat'                    : u'[%l] [%D] %M (%F|%N)',
+			'symlinkLogs'                  : False,
+			'httpPort'                     : 0,
+			'httpsPort'                    : 4447,
+			'interface'                    : u'0.0.0.0',
+			'backendManagerConf'           : None,
+			'maxExecutionStatisticValues'  : 250,
+			'sslServerCertFile'            : u'/etc/opsi/opsiconfd.pem',
+			'sslServerKeyFile'             : u'/etc/opsi/opsiconfd.pem',
+			'sessionName'                  : u'OPSISID',
+			'resolveClientIp'              : True,
+			'resolveVerifyIp'              : False,
+			'sessionMaxInactiveInterval'   : 120,
+			'updateHardwareAddress'        : True,
+			'staticDirectories'            : {},
+		}
+		
+		argv = sys.argv[1:]
+		
+		# Call signalHandler on signal SIGHUP, SIGTERM, SIGINT
+		signal(SIGHUP,  self.signalHandler)
+		signal(SIGTERM, self.signalHandler)
+		signal(SIGINT,  self.signalHandler)
+		
+		# Process command line arguments
 		try:
-			del self.sessions[uid]
-			logger.notice(u"Session '%s' from ip '%s', application '%s' deleted" % (session.uid, session.ip, session.userAgent))
-		except KeyError:
-			pass
-	
-	def deleteAllSessions(self):
-		logger.notice(u"Deleting all sessions")
-		for (uid, session) in self.sessions.items():
-			logger.notice(u"Deleting session '%s'" % uid)
-			self.deleteSession(uid)
-		self.sessions = {}
+			(opts, args) = getopt.getopt(argv, "vc:f:l:p:P:i:D")
 		
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                       CLASS SSLCONTEXT                                            =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class SSLContext:
-	def getContext(self):
-		''' Create an SSL context. '''
+		except getopt.GetoptError:
+			self.usage()
+			sys.exit(1)
 		
-		# Test if server certificate and key file exist.
-		if not os.path.isfile(sslServerKeyFile):
-			raise Exception(u"Server key file '%s' does not exist!" % sslServerKeyFile)
-			
-		if not os.path.isfile(sslServerCertFile):
-			raise Exception(u"Server certificate file '%s' does not exist!" % sslServerCertFile)
+		for (opt, arg) in opts:
+			if (opt == "-c"):
+				self.config['configFile'] = forceFilename(arg)
 		
-		context = SSL.Context(SSL.SSLv23_METHOD)
-		context.use_privatekey_file(sslServerKeyFile)
-		context.use_certificate_file(sslServerCertFile)
-		return context
-
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                            MAIN                                                   =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-
-def readConfigFile():
-	''' Get settings from config file '''
-	logger.notice(u"Trying to read config from file: '%s'" % configFile)
-	
-	try:
-		# Read Config-File
-		config = IniFile(configFile, ignoreCase = False, raw = True).parse()
+		self.readConfigFile()
 		
-		for section in config.sections():
-			logger.debug(u"Processing section '%s' in config file: '%s'" % (section, configFile))
-			if (section.lower() == 'global'):
-				# Global settings
-				for (option, value) in config.items(section):
-					if (option.lower() == 'bm config'):
-						if os.name == 'posix':
-							global backendManagerConf
-							backendManagerConf = value.strip()
-					elif (option.lower() == 'pid file'):
-						if os.name == 'posix':
-							global pidFile
-							pidFile = value.strip()
-					elif (option.lower() == 'log level'):
-						global logLevel
-						logLevel = int(value.strip())
-					elif (option.lower() == 'log file'):
-						if os.name == 'posix':
-							global logFile
-							logFile = value.strip()
-					elif (option.lower() == 'log format'):
-						global logFormat
-						logFormat = value.strip()
-					elif (option.lower() == 'symlink logs'):
-						global symlinkLogs
-						if value.strip().lower() in ('1', 'true', 'yes'):
-							symlinkLogs = True
-						else:
-							symlinkLogs = False
-					elif (option.lower() == 'max execution statistics'):
-						global maxExecutionStatisticValues
-						maxExecutionStatisticValues = int(value.strip())
-					else:
-						logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
-			
-			elif (section.lower() == 'service'):
-				# Service settings
-				for (option, value) in config.items(section):
-					if (option.lower() == 'http port'):
-						global httpPort
-						httpPort = int(value.strip())
-					elif (option.lower() == 'https port'):
-						global httpsPort
-						httpsPort = int(value.strip())
-					elif (option.lower() == 'interface'):
-						global interface
-						interface = value.strip()
-					elif (option.lower() == 'ssl server cert'):
-						if os.name == 'posix':
-							global sslServerCertFile
-							sslServerCertFile = value.strip()
-					elif (option.lower() == 'ssl server key'):
-						if os.name == 'posix':
-							global sslServerKeyFile
-							sslServerKeyFile = value.strip()
-					else:
-						logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
-			
-			elif (section.lower() == 'session'):
-				# Session settings
-				for (option, value) in config.items(section):
-					if (option.lower() == 'session name'):
-						global sessionName
-						sessionName = value.strip()
-					elif (option.lower() == 'resolve ip'):
-						global resolveClientIp
-						if value.strip().lower() in ('1', 'true', 'yes'):
-							resolveClientIp = True
-						else:
-							resolveClientIp = False
-					elif (option.lower() == 'verify ip'):
-						global verifyIp
-						if value.strip().lower() in ('1', 'true', 'yes'):
-							verifyIp = True
-						else:
-							verifyIp = False
-					elif (option.lower() == 'max inactive interval'):
-						global sessionMaxInactiveInterval
-						sessionMaxInactiveInterval = int(value.strip())
-					elif (option.lower() == 'update hardware address'):
-						global updateHardwareAddress
-						if value.strip().lower() in ('1', 'true', 'yes'):
-							updateHardwareAddress = True
-						else:
-							updateHardwareAddress = False
-					else:
-						logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, configFile))
-			
-			elif (section.lower() == 'directories'):
-				# Static directories
-				global staticDirectories
-				staticDirectories = {}
-				
-				for (option, value) in config.items(section):
-					if os.name == 'posix':
-						staticDirectories[option] = value
-					else:
-						if option == 'configed':
-							staticDirectories[option] = windefaultdir+'\\configed.exe'
-						if option == '/':
-							staticDirectories[option] = windefaultdir+'\\share'
-			
-			else:
-				logger.warning(u"Ignoring unknown section '%s' in config file: '%s'" % (section, configFile))
-	
-	except Exception, e:
-		# An error occured while trying to read the config file
-		logger.error(u"Failed to read config file '%s': %s" % (configFile, e))
-		logger.logException(e)
-		raise
-	logger.notice(u"Config read")
-	
-def logStatistics():
-	logger.debug(u"Logging statistics")
-	global statistics
-	minimum = 1000000
-	maximum = 0
-	summation = 0
-	
-	if (len(statistics['execution']) <= 0):
-		logger.notice(u"No execution statistics found.")
-		return
-	
-	for e in statistics['execution']:
-		if (e['duration'] < minimum):
-			minimum = e['duration']
-		if (e['duration'] > maximum):
-			maximum = e['duration']
-		summation += e['duration']
-		logger.info(u"Execution time statistics: duration %0.3fs, method '%s'" % (e['duration'], e['method']))
-		#logger.info(u"Execution time statistics: duration %ss, method '%s', params '%s'" \
-		#	% (e['duration'], e['method'], e['params']))
-	
-	average = round(summation/len(statistics['execution']), 3)
-	logger.notice(u"Execution time statistics: minimum %0.3fs, maximum %0.3fs, average %0.3fs" \
-		% (minimum, maximum, average))
-	
-	# Cleanup
-	statistics = { 'execution': [] }
-	
-def signalHandler(signo, stackFrame):
-	
-	if (signo == SIGHUP):
-		secs = time.time()-startTime
-		d = int( (secs/(60*60*24)) )
-		h = int( (secs-(d*60*60*24))/(60*60) )
-		m = int( (secs-(d*60*60*24)-(h*60*60))/60 )
-		s = int( (secs-(d*60*60*24)-(h*60*60)-(m*60)) )
-		logger.notice(u"Started at %s, running %d day(s), %02d:%02d:%02d" % (
-					time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(startTime)), d, h, m, s ) )
-		logger.notice(u"Got signal %s, deleting all active sessions..." % signo)
-		sessionHandler.deleteAllSessions()
+		for (opt, arg) in opts:
+			if   (opt == "-v"):
+				print u"opsiconfd version %s" % __version__
+				sys.exit(0)
+			if   (opt == "-D"):
+				self.config['daemon'] = True
+			elif (opt == "-l"):
+				self.config['logLevel'] = forceInt(arg)
+			elif (opt == "-f"):
+				self.config['logFile'] = forceFilename(arg)
+			elif (opt == "-p"):
+				self.config['httpPort'] = forceInt(arg)
+			elif (opt == "-P"):
+				self.config['httpsPort'] = forceInt(arg)
+			elif (opt == "-i"):
+				self.config['interface'] = forceUnicode(arg)
 		
-		logger.notice(u"Got signal %s, logging execution statistics..." % signo)
-		logStatistics()
-		
-		logger.notice(u"Got signal %s, re-reading config file '%s'..." % (signo, configFile) )
-		try:
-			readConfigFile()
-			setLogLevel(logLevel)
-			setLogFile(logFile)
-			setLogFormat(logFormat)
-		except:
-			pass
-		
-	if (signo == SIGTERM or signo == SIGINT):
-		logger.notice(u"Got signal %s, exiting..." % signo)
-		logger.debug(u"Stopping session handler")
-		sessionHandler.stop()
-		logger.debug(u"Session handler stopped")
-		if reactor.running:
-			logger.debug(u"Stopping reactor")
-			reactor.stop()
-			logger.debug(u"Reactor stopped")
-		logStatistics()
-
-def createRoot():
-	global root
-	
-	if staticDirectories.get('/'):
-		if not os.path.isdir(staticDirectories.get('/')):
-			logger.error(u"Cannot add static content '/': directory '%s' does not exist." \
-				% staticDirectories.get('/'))
-			root = Root()
+		if self.config['daemon']:
+			logger.setConsoleLevel(LOG_NONE)
+			self.daemonize()
 		else:
-			root = static.File(staticDirectories.get('/'))
-			logger.notice(u"Added static content '/' which points to directory '%s'" \
-				% staticDirectories.get('/'))
-	
-	else:
-		root = Root()
-	
-	root.putChild("rpc", OpsiJsonRpc())
-	root.putChild("interface", OpsiJsonInterface())
-	
-	for (name, path) in staticDirectories.items():
-		if (name == '/'):
-			continue
+			logger.setConsoleLevel(self.config['logLevel'])
+			logger.setConsoleColor(True)
 		
-		if name in ("rpc", "interface"):
-			logger.error(u"Cannot add static content '%s', already in use!" % name)
-			continue
+		self.createPidFile()
 		
-		if not os.path.isdir(path):
-			logger.error(u"Cannot add static content '%s': directory '%s' does not exist." % (name, path))
-			continue
+		# Start opsiconfd
+		self._opsiconfd = Opsiconfd(self.config)
+		self._opsiconfd.start()
+		#self._opsiconfd.join()
+		while self._opsiconfd.isRunning():
+			time.sleep(1)
+			
+		self.removePidFile()
 		
-		if (name == 'configed'):
-			root.putChild(name, static.File(path))
-			logger.notice(u"Added static content '%s' which points to directory '%s'" % (name, path))
-			continue
 		
-		root.putChild(name, OpsiDAV(path, readOnly=True))
-		
-		logger.notice(u"Added webdav content '%s' which points to directory '%s'" % (name, path))
-	
-	#bm = BackendManager(authRequired = False, configFile = backendManagerConf)
-	bm = BackendManager(
-		dispatchConfigFile = dispatchConfigFile,
-		backendConfigDir   = backendConfigDir,
-		extensionConfigDir = extensionConfigDir,
-		#aclFile            = aclFile
-	)
-	fqdn = socket.getfqdn()
-	#if fqdn in bm.getDepotIds_list():
-	#	depot = bm.getDepot_hash(fqdn)
-	#	logger.debug(u"Depot info: %s" % depot)
-	#	repositoryLocalUrl = depot.get('repositoryLocalUrl')
-	#	if not repositoryLocalUrl:
-	#		raise Exception(u"Repository local url for depot '%s' not found" % fqdn)
-	#	if not repositoryLocalUrl.startswith('file:///'):
-	#		raise Exception(u"Repository local url '%s' not allowed" % repositoryLocalUrl)
-	#	path = repositoryLocalUrl[7:]
-	#	if not os.path.isdir(path):
-	#		raise Exception(u"Cannot add webdav content 'products': directory '%s' does not exist." % path)
-	#	if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-	#		raise Exception(u"Cannot add webdav content 'products': permissions on directory '%s' not sufficient." % path)
-	#	
-	#	root.putChild('products', OpsiDAV(path, readOnly=False))
-	#	logger.notice(u"Added static content 'products' which points to directory '%s'" % path)
-	bm.exit()
-	
-def daemonize():
-	# Fork to allow the shell to return and to call setsid
-	try:
-		pid = os.fork()
-		if (pid > 0):
-			# Parent exits
-			sys.exit(0)
-	except OSError, e:
-		raise Exception(u"First fork failed: %e" % e)
-	
-	# Do not hinder umounts
-	os.chdir("/")
-	# Create a new session
-	os.setsid()
-	
-	# Fork a second time to not remain session leader
-	try:
-		pid = os.fork()
-		if (pid > 0):
-			sys.exit(0)
-	except OSError, e:
-		raise Exception(u"Second fork failed: %e" % e)
-	
-	logger.setConsoleLevel(LOG_NONE)
-	
-	# Close standard output and standard error.
-	os.close(0)
-	os.close(1)
-	os.close(2)
-	
-	# Open standard input (0)
-	if (hasattr(os, "devnull")):
-		os.open(os.devnull, os.O_RDWR)
-	else:
-		os.open("/dev/null", os.O_RDWR)
-	
-	# Duplicate standard input to standard output and standard error.
-	os.dup2(0, 1)
-	os.dup2(0, 2)
-	sys.stdout = logger.getStdout()
-	sys.stderr = logger.getStderr()
-	
-	
-def setLogLevel(level):
-	logLevel = level
-	
-	if not daemon:
-		logger.setConsoleLevel(logLevel)
-		logger.setConsoleColor(True)
-	
-	if logFile:
-		logger.setFileLevel(logLevel)
-		logger.setSyslogLevel(LOG_NONE)
-	else:
-		logger.setSyslogLevel(logLevel)
-		logger.setFileLevel(LOG_NONE)
-
-def setLogFile(lFile):
-	logFile = lFile
-	
-	global machineLogs
-	if logFile:
-		if (logFile.find('%m') != -1):
-			machineLogs = True
-			logger.setLogFile( logFile.replace('%m', 'opsiconfd') )
-		else:
-			logger.setLogFile( logFile )
-	else:
-		machineLogs = False
-
-def setLogFormat(format):
-	logFormat = format
-	
-	logger.setLogFormat(logFormat)
-
-def usage():
-	print u"\nUsage: %s [-D] [-c <filename>] [-f <filename>] [-l <log level>] [-i <ipaddress>] [-p <http port>] [-P <https port>]" % os.path.basename(sys.argv[0])
-	print u"Options:"
-	print u"  -v    Show version information and exit"
-	print u"  -D    Causes the server to operate as a daemon"
-	print u"  -p    HTTP Port to listen on (0 to disable)"
-	print u"  -P    HTTPS Port to listen on (0 to disable)"
-	print u"  -i    IP address of interface to listen on (default: 0.0.0.0)"
-	print u"  -f    Log to given file instead of syslog"
-	print u"  -c    Location of config file"
-	print u"  -l    Set log level (default: 4)"
-	print u"        0=nothing, 1=critical, 2=error, 3=warning, 4=notice, 5=info, 6=debug"
-	print u""
-
-def main(argv):
-	global pid
-	global daemon
-	global site
-	global sessionHandler
-	global configFile
-	global logFormat
-	global logLevel
-	global logFile
-	global httpPort
-	global httpsPort
-	global interface
-	
-	# Set umask
-	os.umask(0077)
-	
-	# Get Logger instance
-	logger = Logger()
-	setLogFormat(logFormat)
-	setLogLevel(logLevel)
-	
-	# Process command line arguments
-	try:
-		(opts, args) = getopt.getopt(argv, "vc:f:l:p:P:i:D")
-
-	except getopt.GetoptError:
-		usage()
-		sys.exit(1)
-	
-	for (opt, arg) in opts:
-		if (opt == "-c"):
-			configFile = arg
-	
-	try:
-		readConfigFile()
-	except Exception, e:
-		print >> sys.stderr, unicode(e)
-		
-	for (opt, arg) in opts:
-		if   (opt == "-v"):
-			print u"opsiconfd version %s" % __version__
-			sys.exit(0)
-		if   (opt == "-D"):
-			daemon = True
-		elif (opt == "-l"):
-			logLevel = int(arg)
-		elif (opt == "-f"):
-			logFile = arg
-		elif (opt == "-p"):
-			httpPort = int(arg)
-		elif (opt == "-P"):
-			httpsPort = int(arg)
-		elif (opt == "-i"):
-			interface = arg
-	
-	if daemon:
-		daemonize()
-	
-	setLogFile(logFile)
-	setLogLevel(logLevel)
-	setLogFormat(logFormat)
-	
-	logger.comment(	u"\n==================================================================\n" \
-			+ u"             OPSI configuration-service starting" + \
-			u"\n==================================================================\n")
-	
-	# Test backendmanager
-	#bm = BackendManager(authRequired = False, configFile = backendManagerConf)
-	bm = BackendManager(
-		dispatchConfigFile = dispatchConfigFile,
-		backendConfigDir   = backendConfigDir,
-		extensionConfigDir = extensionConfigDir,
-		#aclFile            = aclFile
-	)
-	bm.exit()
-	
-	if os.path.exists(pidFile):
-		if (os.name == 'posix'):
-			pf = open(pidFile, 'r')
+	def createPidFile(self):
+		logger.info(u"Creating pid file '%s'" % self.config['pidFile'])
+		if os.path.exists(self.config['pidFile']):
+			pf = open(self.config['pidFile'], 'r')
 			p = pf.readline().strip()
 			pf.close()
 			if p:
@@ -1516,93 +187,186 @@ def main(argv):
 					for i in execute("%s -x opsiconfd" % which("pidof"))[0].strip().split():
 						if (i == p):
 							running = True
+							break
 				except Exception, e:
 					logger.error(e)
 				if running:
 					raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
 				
-	pid = os.getpid()
-	pf = open (pidFile, "w")
-	print >> pf, str(pid)
-	pf.close()
+		pid = os.getpid()
+		pf = open (self.config['pidFile'], "w")
+		print >> pf, str(pid)
+		pf.close()
 	
-	createRoot()
-	site = server.Site(root)
-	#site = server.Site(log.LogWrapperResource(root))
-	#lo = log.BaseCommonAccessLoggingObserver()
-	#lo.logMessage = logger.debug
-	#lo.start()
-	
-	sessionHandler = SessionHandler(
-				sessionName = sessionName,
-				sessionMaxInactiveInterval = sessionMaxInactiveInterval)
-	
-	if (httpPort > 0):
-		if (interface == '0.0.0.0'):
-			reactor.listenTCP(httpPort, HTTPFactory(site))
-		else:
-			reactor.listenTCP(httpPort, HTTPFactory(site), interface = interface)
+	def removePidFile(self):
+		try:
+			# if (self._pid == os.getpid())
+			if os.path.exists(self.config['pidFile']):
+				logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
+				os.unlink(self.config['pidFile'])
+		except Exception, e:
+			logger.error(u"Failed to remove pid file '%s': %s" % (self.config['pidFile'], e))
 		
-		logger.notice(u"Accepting HTTP requests on %s:%s" % (interface, httpPort))
+	def signalHandler(self, signo, stackFrame):
+		if (signo == SIGHUP):
+			return
+		if (signo == SIGTERM or signo == SIGINT):
+			self._opsiconfd.stop()
 	
-	if (httpsPort > 0):
-		if (interface == '0.0.0.0'):
-			reactor.listenSSL(httpsPort, HTTPFactory(site), SSLContext())
-		else:
-			reactor.listenSSL(httpsPort, HTTPFactory(site), SSLContext(), interface = interface)
+	def readConfigFile(self):
+		''' Get settings from config file '''
+		logger.notice(u"Trying to read config from file: '%s'" % self.config['configFile'])
 		
-		logger.notice(u"Accepting HTTPS requests on %s:%s" % (interface, httpsPort))
+		try:
+			iniFile = IniFile(filename = self.config['configFile'], raw = True)
+			config = iniFile.parse()
+			
+			for section in config.sections():
+				logger.debug(u"Processing section '%s' in config file: '%s'" % (section, self.config['configFile']))
+				if (section.lower() == 'global'):
+					# Global settings
+					for (option, value) in config.items(section):
+						if   (option == 'bm config'):
+							self.config['backendManagerConf'] = forceFilename(value)
+						elif (option == 'pid file'):
+							self.config['pidFile'] = forceFilename(value)
+						elif (option == 'log level'):
+							self.config['logLevel'] = forceInt(value)
+						elif (option == 'log file'):
+							self.config['logFile'] = forceFilename(value)
+						elif (option == 'log format'):
+							self.config['logFormat'] = forceUnicode(value)
+						elif (option == 'symlink logs'):
+							self.config['symlinkLogs'] = forceBool(value)
+						elif (option == 'max execution statistics'):
+							self.config['maxExecutionStatisticValues'] = forceInt(value)
+						else:
+							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
+				
+				elif (section.lower() == 'service'):
+					# Service settings
+					for (option, value) in config.items(section):
+						if   (option == 'http port'):
+							self.config['httpPort'] = forceInt(value)
+						elif (option == 'https port'):
+							self.config['httpsPort'] = forceInt(value)
+						elif (option == 'interface'):
+							self.config['interface'] = forceUnicode(value)
+						elif (option == 'ssl server cert'):
+							self.config['sslServerCertFile'] = forceFilename(value)
+						elif (option == 'ssl server key'):
+							self.config['sslServerKeyFile'] = forceFilename(value)
+						else:
+							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
+				
+				elif (section.lower() == 'session'):
+					# Session settings
+					for (option, value) in config.items(section):
+						if   (option == 'session name'):
+							self.config['sessionName'] = forceUnicode(value)
+						elif (option == 'resolve ip'):
+							self.config['resolveClientIp'] = forceBool(value)
+						elif (option == 'verify ip'):
+							self.config['resolveVerifyIp'] = forceBool(value)
+						elif (option == 'max inactive interval'):
+							self.config['sessionMaxInactiveInterval'] = forceInt(value)
+						elif (option == 'update hardware address'):
+							self.config['updateHardwareAddress'] = forceBool(value)
+						else:
+							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
+				
+				elif (section.lower() == 'directories'):
+					# Static directories
+					self.config['staticDirectories'] = {}
+					for (option, value) in config.items(section):
+						self.config['staticDirectories'][option] = forceFilename(value)
+				else:
+					logger.warning(u"Ignoring unknown section '%s' in config file: '%s'" % (section, self.config['configFile']))
+		
+		except Exception, e:
+			# An error occured while trying to read the config file
+			logger.error(u"Failed to read config file '%s': %s" % (self.config['configFile'], e))
+			logger.logException(e)
+			raise
+		logger.notice(u"Config read")
+		
+	def usage(self):
+		print u"\nUsage: %s [-D] [-c <filename>] [-f <filename>] [-l <log level>] [-i <ipaddress>] [-p <http port>] [-P <https port>]" % os.path.basename(sys.argv[0])
+		print u"Options:"
+		print u"  -v    Show version information and exit"
+		print u"  -D    Causes the server to operate as a daemon"
+		print u"  -p    HTTP Port to listen on (0 to disable)"
+		print u"  -P    HTTPS Port to listen on (0 to disable)"
+		print u"  -i    IP address of interface to listen on (default: 0.0.0.0)"
+		print u"  -f    Log to given file instead of syslog"
+		print u"  -c    Location of config file"
+		print u"  -l    Set log level (default: 4)"
+		print u"        0=nothing, 1=critical, 2=error, 3=warning, 4=notice, 5=info, 6=debug, 7=debug2, 9=confidential"
+		print u""
 	
-	reactor.run(installSignalHandlers=0)
-	
-	wait = True
-	while wait:
-		wait = False
-		for thread in threading.enumerate():
-			logger.info(u"Running thread: %s" % thread)
-			if not isinstance(thread, threading._MainThread):
-				wait = True
-		if wait:
-			logger.info(u"Waiting for running threads to finish up")
-			time.sleep(0.2)
-	
-	sys.exit(0)
+	def daemonize(self):
+		# Fork to allow the shell to return and to call setsid
+		try:
+			self._pid = os.fork()
+			if (self._pid > 0):
+				# Parent exits
+				sys.exit(0)
+		except OSError, e:
+			raise Exception(u"First fork failed: %e" % e)
+		
+		# Do not hinder umounts
+		os.chdir("/")
+		# Create a new session
+		os.setsid()
+		
+		# Fork a second time to not remain session leader
+		try:
+			self._pid = os.fork()
+			if (self._pid > 0):
+				sys.exit(0)
+		except OSError, e:
+			raise Exception(u"Second fork failed: %e" % e)
+		
+		logger.setConsoleLevel(LOG_NONE)
+		
+		# Close standard output and standard error.
+		os.close(0)
+		os.close(1)
+		os.close(2)
+		
+		# Open standard input (0)
+		if (hasattr(os, "devnull")):
+			os.open(os.devnull, os.O_RDWR)
+		else:
+			os.open("/dev/null", os.O_RDWR)
+		
+		# Duplicate standard input to standard output and standard error.
+		os.dup2(0, 1)
+		os.dup2(0, 2)
+		sys.stdout = logger.getStdout()
+		sys.stderr = logger.getStderr()
 
-
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# -                                               MAIN                                                -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 if (__name__ == "__main__"):
-	
-	if (os.name == 'posix'):
-		from signal import *
-		# Call signalHandler on signal SIGHUP, SIGTERM, SIGINT
-		signal(SIGHUP, signalHandler)
-		signal(SIGTERM, signalHandler)
-		signal(SIGINT, signalHandler)
-	
+	logger.setConsoleLevel(LOG_WARNING)
 	exception = None
 	
 	try:
-		main(sys.argv[1:])
-	
+		OpsiconfdInit()
+		
 	except SystemExit, e:
 		pass
 		
 	except Exception, e:
 		exception = e
 	
-	try:
-		if (pid == os.getpid()):
-			logger.info(u"Removing pid file '%s'" % pidFile)
-			os.unlink(pidFile)
-	except:
-		logger.error(u"Failed to unlink pid-file '%s'" % pidFile)
-	
 	if exception:
 		logger.logException(exception)
 		print >> sys.stderr, u"ERROR:", unicode(exception)
 		sys.exit(1)
 	sys.exit(0)
-	
-	
-	
-	
+
+
 

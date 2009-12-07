@@ -32,55 +32,744 @@
    @license: GNU General Public License version 2
 """
 
-import os, sys, getopt, threading, time
+__version__ = '3.4.99'
+
+# Imports
+import os, sys, getopt, threading, time, socket
+from OpenSSL import SSL
 from signal import *
 
+# Twisted imports
+from twisted.internet import defer, threads, reactor
+from twisted.python.failure import Failure
+from twisted.python import log
+from OPSI.web2 import resource, stream, server, http, responsecode
+from OPSI.web2.http_headers import Cookie
+from OPSI.web2.channel.http import HTTPFactory
+from OPSI.web2.dav import static
+
+# OPSI imports
 from OPSI.Logger import *
 from OPSI.Util.File import IniFile
 from OPSI.Types import *
 from OPSI.System import which, execute
+from OPSI.Backend.BackendManager import BackendManager
+from OPSI import Tools
 
 logger = Logger()
 logger.setConsoleLevel(100)
 
-__version__ = '3.4.99'
+
+infoPage = u'''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+	
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title>opsi configuration interface</title>
+	<style>
+	input, select {
+		background-color: #fafafa;
+		border-color: #abb1ef;
+		border-width: 1px;
+		border-style: solid;
+		font-family: verdana, arial;
+		font-size: 12px;
+		width: 280px;
+	}
+	</style>
+</head>
+<body>
+	<p>Thread info</p>
+	%thread_info%
+	<p>Session info</p>
+	%session_info%
+</body>
+'''
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                        CLASS WORKER                                               =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class Worker:
+	def __init__(self, opsiconfd, request, resource, method = 'POST'):
+		self.opsiconfd = opsiconfd
+		self.request   = request
+		self.resource  = resource
+		self.method    = method
+		self.session   = None
+		self.response  = http.Response()
+		self.result    = ""
+		self.deferred  = None
+		self._setLogFile()
+	
+	def process(self):
+		logger.info("Worker %s started processing" % self)
+		try:
+			self.deferred = defer.Deferred()
+			self.deferred.addCallback(self._getSession)
+			self.deferred.addCallback(self._linkLogFile)
+			self.deferred.addCallback(self._setResult)
+			self.deferred.addCallback(self._freeSession)
+			self.deferred.addCallback(self._returnResponse)
+			self.deferred.addErrback(self._returnError)
+			self.deferred.callback(None)
+			return self.deferred
+		except Exception, e:
+			return self._returnError(e)
+	
+	def _returnResponse(self, result):
+		logger.debug2("%s._returnResponse" % self.__class__.__name__)
+		self.response.code   = responsecode.OK
+		self.response.stream = stream.IByteStream(self.result)
+		return self.response
+	
+	def _returnError(self, failure):
+		logger.debug2("%s._returnError" % self.__class__.__name__)
+		self._freeSession(failure)
+		if (self.response.code == responsecode.OK):
+			# Do not overwrite responsecodes set earlier
+			self.response.code = responsecode.INTERNAL_SERVER_ERROR
+		
+		if isinstance(failure, Failure):
+			self.result = failure.getErrorMessage()
+			tb = failure.getTraceback()
+			if type(tb) in (unicode, str):
+				logger.critical(tb)
+			else:
+				logger.logTraceback(tb)
+			
+		else:
+			self.result = unicode(failure)
+		logger.error(u"Failed to process request: %s" % self.result)
+		return self._returnResponse(None)
+	
+	def _setLogFile(self):
+		if self.opsiconfd.config['machineLogs'] and self.opsiconfd.config['logFile']:
+			logger.setLogFile( self.opsiconfd.config['logFile'].replace('%m', self.request.remoteAddr.host), object = self )
+	
+	def _linkLogFile(self, result):
+		if self.session.hostname and self.opsiconfd.config['machineLogs'] and self.opsiconfd.config['logFile']:
+			logger.linkLogFile( self.opsiconfd.config['logFile'].replace('%m', self.session.hostname), object = self )
+	
+	def _freeSession(self, resultOrFailure):
+		logger.info(u"Freeing session %s" % self.session)
+		self.session.setInUse(False)
+		
+	def _getSession(self, result):
+		''' This method restores a session or generates a new one. '''
+		self.session = None
+		
+		logger.confidential(u"Request headers: %s " % self.request.headers)
+		
+		# Get user agent
+		userAgent = None
+		try:
+			userAgent = self.request.headers.getHeader('user-agent')
+		except Exception, e:
+			logger.info(u"Client '%s' did not supply user-agent" % self.request.remoteAddr.host)
+		if not userAgent:
+			userAgent = 'unknown'
+		
+		# Get session handler
+		sessionHandler = self.opsiconfd.getSessionHandler()
+		
+		# Get session id from cookie request header
+		sessionId = u''
+		try:
+			for cookie in self.request.headers.getHeader('cookie'):
+				if (cookie.name == sessionHandler.sessionName):
+					sessionId = unicode(cookie.value)
+		except Exception, e:
+			pass
+		
+		if not sessionId:
+			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
+		
+		# Get Session object
+		self.session = sessionHandler.getSession(sessionId)
+		if (sessionId == self.session.uid):
+			logger.info(u"Reusing session for client '%s', application '%s'" % (self.request.remoteAddr.host, userAgent))
+		elif sessionId:
+			logger.notice(u"Application '%s' on client '%s' supplied non existing session id: %s" % (userAgent, self.request.remoteAddr.host, sessionId))
+		
+		if self.session.ip and verifyIp and (self.session.ip != self.request.remoteAddr.host):
+			logger.critical(u"Client ip '%s' does not match session ip '%s', deleting old session and creating a new one" \
+				% (self.request.remoteAddr.host, self.session.ip) )
+			sessionHandler.deleteSession(self.session.uid)
+			self.session = sessionHandler.getSession()
+		
+		# Set ip
+		self.session.ip = self.request.remoteAddr.host
+		
+		# Set user-agent / application
+		if self.session.userAgent and (self.session.userAgent != userAgent):
+			logger.warning(u"Application changed from '%s' to '%s' for existing session of client '%s'" \
+				% (self.session.userAgent, userAgent, self.request.remoteAddr.host))
+		self.session.userAgent = userAgent
+		
+		logger.confidential(u"Session id is '%s' for client '%s', application '%s'" \
+			% (self.session.uid, self.request.remoteAddr.host, self.session.userAgent))
+		
+		# Set last modified to current time
+		self.session.setInUse(True)
+		
+		# Add cookie to headers
+		cookie = Cookie(self.session.name.encode('ascii', 'replace'), self.session.uid.encode('ascii', 'replace'), path='/')
+		self.response.headers.setHeader('set-cookie', [ cookie ] )
+		
+		# Set user and password
+		if not self.session.user and not self.session.password and self.request.headers.getHeader('Authorization'):
+			(user, password) = ('', '')
+			logger.debug(u"Trying to get username and password from Authorization header")
+			auth = self.request.headers.getHeader('Authorization')
+			if auth:
+				logger.debug(u"Authorization header found (type: %s)" % auth[0])
+				try:
+					encoded = auth[1]
+					(user, password) = base64.decodestring(encoded).split(':', 1)
+					logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
+				except Exception:
+					logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+			
+			self.session.user = user
+			self.session.password = password
+		
+		# Set hostname
+		if not self.session.hostname:
+			hostname = ''
+			if (self.session.user.count('.') > 2):
+				hostname = self.session.user
+			elif self.opsiconfd.config['resolveClientIp']:
+				try:
+					hostname = socket.getfqdn(self.request.remoteAddr.host).lower()
+					if re.search('^\d+\.\d+\.\d+\.\d+$', hostname):
+						logger.error(u"Cannot get fqdn for client '%s'" % self.request.remoteAddr.host)
+						hostname = ''
+					elif (hostname.count('.') == 1):
+						logger.error(u"Cannot get fqdn for client '%s', got hostname '%s' only" % (self.request.remoteAddr.host, hostname))
+						hostname = ''
+				except Exception, e:
+					logger.warning(u"Failed to resolve address '%s': %s" % (self.request.remoteAddr.host, e))
+			if hostname:
+				logger.info(u"Storing hostname '%s' in session" % hostname)
+				self.session.hostname = hostname
+			else:
+				logger.warning(u"Failed to get hostname for client '%s'" % self.request.remoteAddr.host,)
+		
+		
+		logger.confidential(u"Session content: %s" % self.session.__dict__)
 
 
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                  CLASS WORKER OPSI JSON RPC                                       =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class WorkerOpsiJsonRpc(Worker):
+	def __init__(self, opsiconfd, request, resource, method = 'POST'):
+		Worker.__init__(self, opsiconfd, request, resource, method)
+		#self.rpc = {"id": None, "method": None, "params": []}
+		#self.result = {"id": None, "result": None, "error": None}
+	
+	def process(self):
+		logger.info("Worker %s started processing" % self)
+		try:
+			self.deferred = defer.Deferred()
+			self.deferred.addCallback(self._getSession)
+			self.deferred.addCallback(self._linkLogFile)
+			#self.deferred.addCallback(self._getQuery)
+			#self.deferred.addCallback(self._getRpc)
+			#self.deferred.addCallback(self._authenticate)
+			#self.deferred.addCallback(self._executeRpc)
+			## Convert ints to strings to prevent problems with delphi libraries
+			self.deferred.addCallback(self._freeSession)
+			self.deferred.addCallback(self._returnResponse)
+			self.deferred.addErrback(self._freeSession)
+			self.deferred.addErrback(self._returnError)
+			self.deferred.callback(None)
+			return self.deferred
+		except Exception, e:
+			return self._returnError(e)
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                               CLASS WORKER OPSI JSON INTERFACE                                    =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
+	def __init__(self, opsiconfd, request, resource, method = 'POST'):
+		WorkerOpsiJsonRpc.__init__(self, opsiconfd, request, resource, method)
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                 CLASS WORKER OPSICONFD INFO                                       =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class WorkerOpsiconfdInfo(Worker):
+	def __init__(self, opsiconfd, request, resource, method = 'POST'):
+		Worker.__init__(self, opsiconfd, request, resource, method)
+
+	def _setResult(self, result):
+		logger.info(u"Creating opsiconfd info page")
+		
+		threads = []
+		for thread in threading.enumerate():
+			threads.append(unicode(thread))
+		threads.sort()
+		threadInfo = u'<p>Running threads: %d<br /><ul>' % len(threads)
+		for thread in threads:
+			threadInfo += u'<li>%s</li>' % thread.replace('<', '').replace('>', '')
+		threadInfo += u'</ul></p>'
+		
+		sessions = self.opsiconfd.getSessionHandler().getSessions()
+		sessionInfo = u'<p>Active sessions: %d<br /><ul>' % len(sessions.keys())
+		for session in sessions.values():
+			sessionInfo += u'<li>%s %s %s %s</li>' % (session.hostname, session.userAgent, session.user, session.inUse)
+		sessionInfo += u'</ul></p>'
+		
+		self.result = infoPage
+		self.result = self.result.replace('%thread_info%',  threadInfo)
+		self.result = self.result.replace('%session_info%', sessionInfo)
+		self.result = self.result.encode('utf-8')
+
+
+
+
+
+
+
+
+
+
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                     CLASS RESOURCE ROOT                                           =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class ResourceRoot(resource.Resource):
+	addSlash = True
+	def render(self, request):
+		''' Process request. '''
+		return http.Response(stream="<html><head><title>opsiconfd</title></head><body></body></html>")
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                     CLASS RESOURCE OPSI                                           =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class ResourceOpsi(resource.Resource):
+	WorkerClass = None
+	
+	def __init__(self, opsiconfd):
+		resource.Resource.__init__(self)
+		self._opsiconfd = opsiconfd
+		
+	def getChild(self, name, request):
+		''' Get the child resource for the requested path. '''
+		if not name:
+			return self
+		return resource.Resource.getChild(self, name, request)
+	
+	def http_POST(self, request):
+		''' Process POST request. '''
+		try:
+			logger.debug2(u"%s.http_POST()" % self.__class__.__name__)
+			if not self.WorkerClass:
+				raise Exception(u"No worker class defined in resource %s" % self.__class__.__name__)
+			worker = self.WorkerClass(self._opsiconfd, request, self, method = 'POST')
+			return worker.process()
+		except Exception, e:
+			logger.logException(e)
+		
+	def http_GET(self, request):
+		''' Process GET request. '''
+		try:
+			logger.debug2(u"%s.http_GET()" % self.__class__.__name__)
+			if not self.WorkerClass:
+				raise Exception(u"No worker class defined in resource %s" % self.__class__.__name__)
+			worker = self.WorkerClass(self._opsiconfd, request, self, method = 'GET')
+			return worker.process()
+		except Exception, e:
+			logger.logException(e)
+	
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                 CLASS RESOURCE OPSI JSONRPC                                       =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class ResourceOpsiJsonRpc(ResourceOpsi):
+	WorkerClass = WorkerOpsiJsonRpc
+	
+	def __init__(self, opsiconfd):
+		ResourceOpsi.__init__(self, opsiconfd)
+	
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                              CLASS RESOURCE OPSI JSON INTERFACE                                   =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class ResourceOpsiJsonInterface(ResourceOpsiJsonRpc):
+	WorkerClass = WorkerOpsiJsonInterface
+	
+	def __init__(self, opsiconfd):
+		ResourceOpsiJsonRpc.__init__(self, opsiconfd)
+		self._interface = self._opsiconfd.getBackend().getInterface()
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                CLASS RESOURCE OPSICONFD INFO                                      =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class ResourceOpsiconfdInfo(ResourceOpsi):
+	WorkerClass = WorkerOpsiconfdInfo
+	
+	def __init__(self, opsiconfd):
+		ResourceOpsi.__init__(self, opsiconfd)
+	
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                   CLASS RESOURCE OPSI DAV                                         =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class ResourceOpsiDAV(static.DAVFile):
+	
+	def __init__(self, path, readOnly=True, defaultType="text/plain", indexNames=None):
+		static.DAVFile.__init__(self, path, defaultType, indexNames)
+		self._readOnly = readOnly
+	
+	def createSimilarFile(self, path):
+		return self.__class__(path, readOnly=self._readOnly, defaultType=self.defaultType, indexNames=self.indexNames[:])
+	
+	def renderHTTP(self, request):
+		try:
+			if self._readOnly and request.method not in ('GET', 'PROPFIND'):
+				logger.warning(u"Command %s not allowed (readonly)" % request.method)
+				return http.Response(
+					code	= responsecode.FORBIDDEN,
+					stream	= "Readonly!" )
+			worker = DAVWorker(request, self)
+			return worker.process()
+		except Exception, e:
+			logger.logException(e)
+
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                      CLASS SSL CONTEXT                                            =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class SSLContext:
+	def __init__(self, sslServerKeyFile, sslServerCertFile):
+		self._sslServerKeyFile  = sslServerKeyFile
+		self._sslServerCertFile = sslServerCertFile
+		
+	def getContext(self):
+		''' Create an SSL context. '''
+		
+		# Test if server certificate and key file exist.
+		if not os.path.isfile(self._sslServerKeyFile):
+			raise Exception(u"Server key file '%s' does not exist!" % self._sslServerKeyFile)
+			
+		if not os.path.isfile(self._sslServerCertFile):
+			raise Exception(u"Server certificate file '%s' does not exist!" % self._sslServerCertFile)
+		
+		context = SSL.Context(SSL.SSLv23_METHOD)
+		context.use_privatekey_file(self._sslServerKeyFile)
+		context.use_certificate_file(self._sslServerCertFile)
+		return context
+
+	
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                         CLASS SESSION                                             =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class Session:
+	def __init__(self, sessionHandler, name = u'OPSISID', sessionMaxInactiveInterval = 120):
+		self.sessionHandler = sessionHandler
+		self.name = forceUnicode(name)
+		self.sessionMaxInactiveInterval = forceInt(sessionMaxInactiveInterval)
+		self.sessionTimer = None
+		self.uid = Tools.randomString(32)
+		self.ip = ''
+		self.userAgent = ''
+		self.hostname = ''
+		self.user = ''
+		self.password = ''
+		self.authenticated = False
+		self.backend = None
+		self.interface = None
+		self.inUse = False
+		self.touch()
+	
+	def setInUse(self, inUse):
+		self.inUse = forceBool(inUse)
+		self.touch()
+		
+	def touch(self):
+		self.lastModified = time.time()
+		if self.sessionTimer:
+			self.sessionTimer.cancel()
+		self.sessionTimer = threading.Timer(self.sessionMaxInactiveInterval, self.expire)
+		self.sessionTimer.start()
+	
+	def expire(self):
+		self.sessionHandler.sessionExpired(self)
+	
+	def delete(self):
+		if self.inUse:
+			logger.warning(u"Deleting session in use: %s" % self)
+		if self.sessionTimer:
+			try:
+				self.sessionTimer.cancel()
+				try:
+					self.sessionTimer.join(1)
+				except:
+					pass
+				logger.info(u"Session timer %s canceled" % self.sessionTimer)
+			except Exception, e:
+				logger.error(u"Failed to cancel session timer: %s" % e)
+		if session.backend:
+			logger.debug(u"Calling exit() on backend %s" % session.backend)
+			session.backend.exit()
+	
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                    CLASS SESSION HANDLER                                          =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class SessionHandler:
+	def __init__(self, sessionName = 'OSPISID', sessionMaxInactiveInterval = 120):
+		self.sessionName = sessionName
+		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
+		self.sessions = {}
+	
+	def stop(self):
+		self.deleteAllSessions()
+	
+	def getSessions(self):
+		return self.sessions
+		
+	def getSession(self, uid):
+		if uid:
+			session = self.sessions.get(uid)
+			if session:
+				return session
+			else:
+				logger.info(u'Failed to get session: session id %s not found' % uid)
+		return self.createSession()
+	
+	def createSession(self):
+		session = Session(self, self.sessionName, self.sessionMaxInactiveInterval)
+		self.sessions[session.uid] = session
+		logger.notice(u"New session created")
+		return session
+	
+	def sessionExpired(self, session):
+		logger.notice(u"Session '%s' from ip '%s', application '%s' expired after %d seconds" \
+				% (session.uid, session.ip, session.userAgent, (time.time()-session.lastModified)))
+		if session.inUse:
+			logger.notice(u"Session currently in use, waiting before deletion")
+		while session.inUse:
+			time.sleep(1)
+		self.deleteSession(session.uid)
+		
+	def deleteSession(self, uid):
+		session = self.sessions.get(uid)
+		if not session:
+			logger.warning(u'No such session id: %s' % uid)
+			return
+		
+		try:
+			session.delete()
+		except:
+			pass
+		
+		try:
+			del self.sessions[uid]
+			logger.notice(u"Session '%s' from ip '%s', application '%s' deleted" % (session.uid, session.ip, session.userAgent))
+			del session
+		except KeyError:
+			pass
+	
+	def deleteAllSessions(self):
+		logger.notice(u"Deleting all sessions")
+		for (uid, session) in self.sessions.items():
+			logger.notice(u"Deleting session '%s'" % uid)
+			self.deleteSession(uid)
+		self.sessions = {}
+	
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                       CLASS OPSICONFD                                             =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class Opsiconfd(threading.Thread):
 	def __init__(self, config):
 		threading.Thread.__init__(self)
 		
-		self.config = config
-		self._running = False
-		self._stopped = False
+		self.config          = config
+		self._running        = False
+		
+		self._backend        = None
+		self._root           = None
+		self._site           = None
+		self._httpServer     = None
+		self._httpsServer    = None
+		self._sessionHandler = None
 		
 		self.setLogging()
 		logger.comment(	"\n==================================================================\n" \
 				+ "=             OPSI configuration-service starting                =\n" \
 				+ "==================================================================\n")
-		
+	
 	def isRunning(self):
 		return self._running
 	
+	def getBackend(self):
+		return self._backend
+	
+	def getSessionHandler(self):
+		return self._sessionHandler
+	
 	def stop(self):
 		logger.notice(u"Stopping opsiconfd main thread")
-		self._stopped = True
+		if self._httpServer:
+			self._httpServer.stopListening()
+			self._httpServer = None
+			logger.notice(u"No longer accepting http requests")
+		if self._httpsServer:
+			self._httpsServer.stopListening()
+			self._httpsServer = None
+			logger.notice(u"No longer accepting https requests")
+		
+		if self._sessionHandler:
+			logger.notice(u"Stopping session handler")
+			self._sessionHandler.stop()
+		
+		if reactor.running:
+			try:
+				logger.notice(u"Stopping reactor")
+				reactor.stop()
+			except Exception, e:
+				logger.error(u"Failed to stop reactor: %s" % e)
+		self._running = False
 		
 	def setLogging(self):
 		# Set logging options
+		self.config['machineLogs'] = False
 		if self.config['logFile']:
-			logger.setLogFile(self.config['logFile'])
+			if (self.config['logFile'].find('%m') != -1):
+				self.config['machineLogs'] = True
+			logger.setLogFile( self.config['logFile'].replace('%m', 'opsiconfd') )
+		
 		if self.config['logFormat']:
 			logger.setLogFormat(self.config['logFormat'])
 		logger.setFileLevel(self.config['logLevel'])
+		
+		def twistedLogObserver(eventDict):
+			if eventDict.get('isError'):
+				if eventDict.get('failure'):
+					logger.logTraceback(eventDict['failure'].getTracebackObject())
+					logger.critical(u"     ==>>> %s" % eventDict['failure'].getErrorMessage())
+				for line in eventDict.get('message', ()):
+					logger.error(line)
+			else:
+				for line in eventDict.get('message', ()):
+					logger.debug(u"[twisted] %s" % line)
+		
+		log.startLoggingWithObserver(twistedLogObserver, setStdout=0)
 	
+	def createBackendInstance(self):
+		logger.info(u"Creating backend instance")
+		self._backend = BackendManager(
+			dispatchConfigFile = self.config['dispatchConfigFile'],
+			backendConfigDir   = self.config['backendConfigDir'],
+			extensionConfigDir = self.config['extensionConfigDir'],
+			#aclFile            = self.config['aclFile']
+		)
+	
+	def createSite(self):
+		logger.info(u"Creating site")
+		if self.config['staticDirectories'].get('/'):
+			if not os.path.isdir(self.config['staticDirectories']['/']):
+				logger.error(u"Cannot add static content '/': directory '%s' does not exist." \
+					% staticDirectories.get('/'))
+			else:
+				self._root = static.File(self.config['staticDirectories']['/'])
+				logger.notice(u"Added static content '/' which points to directory '%s'" \
+					% self.config['staticDirectories']['/'])
+		
+		if not self._root:
+			self._root = ResourceRoot()
+		
+		self._root.putChild('rpc',       ResourceOpsiJsonRpc(self))
+		self._root.putChild('interface', ResourceOpsiJsonInterface(self))
+		self._root.putChild('info',      ResourceOpsiconfdInfo(self))
+		
+		for (name, path) in self.config['staticDirectories'].items():
+			if (name == '/'):
+				continue
+			
+			if name in ('rpc', 'interface', 'info'):
+				logger.error(u"Cannot add static content '%s', already in use!" % name)
+				continue
+			
+			if not os.path.isdir(path):
+				logger.error(u"Cannot add static content '%s': directory '%s' does not exist." % (name, path))
+				continue
+			
+			if (name == 'configed'):
+				self._root.putChild(name, static.File(path))
+				logger.notice(u"Added static content '%s' which points to directory '%s'" % (name, path))
+				continue
+			
+			self._root.putChild(name, ResourceOpsiDAV(path, readOnly=True))
+			logger.notice(u"Added webdav content '%s' which points to directory '%s'" % (name, path))
+		
+		hosts = self._backend.host_getObjects(type = 'OpsiDepotserver', id = self.config['depotId'])
+		if hosts:
+			depot = hosts[0]
+			logger.notice(u"Running on depot server '%s', exporting depot directory" % self.config['depotId'])
+			if not depot.getRepositoryLocalUrl():
+				raise Exception(u"Repository local url for depot '%s' not found" % self.config['depotId'])
+			if not depot.getRepositoryLocalUrl().startswith('file:///'):
+				raise Exception(u"Repository local url '%s' not allowed" % depot.getRepositoryLocalUrl())
+			path = depot.getRepositoryLocalUrl()[7:]
+			if not os.path.isdir(path):
+				raise Exception(u"Cannot add webdav content 'products': directory '%s' does not exist." % path)
+			if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
+				raise Exception(u"Cannot add webdav content 'products': permissions on directory '%s' not sufficient." % path)
+			
+			self._root.putChild('products', ResourceOpsiDAV(path, readOnly=False))
+			logger.notice(u"Added static content 'products' which points to directory '%s'" % path)
+		
+		self._site = server.Site(self._root)
+	
+	def startListening(self):
+		if (self.config['httpPort'] > 0):
+			if (self.config['interface'] == '0.0.0.0'):
+				self._httpServer = reactor.listenTCP(
+					self.config['httpPort'],
+					HTTPFactory(self._site)
+				)
+			else:
+				self._httpServer = reactor.listenTCP(
+					self.config['httpPort'],
+					HTTPFactory(self._site),
+					interface = self.config['interface']
+				)
+			
+			logger.notice(u"Accepting HTTP requests on %s:%s" % (self.config['interface'], self.config['httpPort']))
+		
+		if (self.config['httpsPort'] > 0):
+			if (self.config['interface'] == '0.0.0.0'):
+				self._httpsServer = reactor.listenSSL(
+					self.config['httpsPort'],
+					HTTPFactory(self._site),
+					SSLContext(self.config['sslServerKeyFile'], self.config['sslServerCertFile'])
+				)
+			else:
+				self._httpsServer = reactor.listenSSL(
+					self.config['httpsPort'],
+					HTTPFactory(self._site),
+					SSLContext(self.config['sslServerKeyFile'], self.config['sslServerCertFile']),
+					interface = self.config['interface']
+				)
+			
+			logger.notice(u"Accepting HTTPS requests on %s:%s" % (self.config['interface'], self.config['httpsPort']))
+		
 	def run(self):
 		self._running = True
 		logger.notice(u"Starting opsiconfd main thread")
 		try:
-			while not self._stopped:
-				logger.comment(u"Running")
-				time.sleep(1)
+			self.createBackendInstance()
+			self._sessionHandler = SessionHandler(
+				sessionName                = self.config['sessionName'],
+				sessionMaxInactiveInterval = self.config['sessionMaxInactiveInterval']
+			)
+			self.createSite()
+			self.startListening()
+			if not reactor.running:
+				reactor.run(installSignalHandlers=0)
+			
+			logger.notice(u"Opsiconfd main thread exiting...")
 		except Exception, e:
 			logger.logException(e)
 		self._running = False
@@ -116,6 +805,11 @@ class OpsiconfdInit(object):
 			'sessionMaxInactiveInterval'   : 120,
 			'updateHardwareAddress'        : True,
 			'staticDirectories'            : {},
+			'depotId'                      : socket.getfqdn(),
+			'backendConfigDir'             : '/etc/opsi/backends',
+			'dispatchConfigFile'           : '/etc/opsi/backendManager/dispatch.conf',
+			'extensionConfigDir'           : '/etc/opsi/backendManager/compose.d',
+			'aclFile '                     : '/etc/opsi/backendManager/acl.conf'
 		}
 		
 		argv = sys.argv[1:]
@@ -168,7 +862,6 @@ class OpsiconfdInit(object):
 		# Start opsiconfd
 		self._opsiconfd = Opsiconfd(self.config)
 		self._opsiconfd.start()
-		#self._opsiconfd.join()
 		while self._opsiconfd.isRunning():
 			time.sleep(1)
 			
@@ -208,11 +901,18 @@ class OpsiconfdInit(object):
 			logger.error(u"Failed to remove pid file '%s': %s" % (self.config['pidFile'], e))
 		
 	def signalHandler(self, signo, stackFrame):
+		for thread in threading.enumerate():
+			logger.info(u"Running thread before signal: %s" % thread)
+		
 		if (signo == SIGHUP):
 			return
 		if (signo == SIGTERM or signo == SIGINT):
-			self._opsiconfd.stop()
-	
+			if self._opsiconfd:
+				self._opsiconfd.stop()
+		
+		for thread in threading.enumerate():
+			logger.info(u"Running thread after signal: %s" % thread)
+		
 	def readConfigFile(self):
 		''' Get settings from config file '''
 		logger.notice(u"Trying to read config from file: '%s'" % self.config['configFile'])

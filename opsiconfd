@@ -52,7 +52,7 @@ from OPSI.web2.dav import static
 from OPSI.Logger import *
 from OPSI.Util.File import IniFile
 from OPSI.Types import *
-from OPSI.System import which, execute
+from OPSI.System import which, execute, getDiskSpaceUsage
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI import Tools
 
@@ -62,29 +62,37 @@ logger.setConsoleLevel(100)
 
 infoPage = u'''
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-	
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-	<title>opsi configuration interface</title>
+	<title>opsiconfd info</title>
 	<style>
-	input, select {
-		background-color: #fafafa;
-		border-color: #abb1ef;
-		border-width: 1px;
-		border-style: solid;
-		font-family: verdana, arial;
-		font-size: 12px;
-		width: 280px;
-	}
+	a:link 	  { color: #555555; text-decoration: none; }
+	a:visited { color: #555555; text-decoration: none; }
+	a:hover	  { color: #46547f; text-decoration: none; }
+	a:active  { color: #555555; text-decoration: none; }
+	body      { font-family: verdana, arial; font-size: 12px; }
+	#title    { padding: 10px; color: #6276a0; font-size: 20px; letter-spacing: 5px; }
+	#infos    { padding: 50px; color: #555555; font-size: 14px; }
+	#info     { padding-bottom: 20px }
+	h1        { font-size: 14px; font-weight; bold; letter-spacing: 2px; }
+	table     { table-layout: auto; background-color: #fafafa; }
+	td, th    { font-size: 12px; border: 1px #6276a0 solid; text-align: left; padding: 2px 10px 2px 10px; }
+	th        { color: #eeeeee; background-color: #6276a0; }
 	</style>
 </head>
 <body>
-	<p>Thread info</p>
-	%thread_info%
-	<p>Session info</p>
-	%session_info%
+	<span id="title">
+		<img src="opsi_logo.png" />
+		<span sytle="padding: 1px">opsiconfd info</span>
+	</span>
+	<div id="infos">
+		<div id="info">%time%</div>
+		<div id="info">%config_info%</div>
+		<div id="info">%thread_info%</div>
+		<div id="info">%session_info%</div>
+		<div id="info">%disk_usage_info%</div>
+	<div>
 </body>
 '''
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -192,7 +200,7 @@ class Worker:
 		elif sessionId:
 			logger.notice(u"Application '%s' on client '%s' supplied non existing session id: %s" % (userAgent, self.request.remoteAddr.host, sessionId))
 		
-		if self.session.ip and verifyIp and (self.session.ip != self.request.remoteAddr.host):
+		if self.session.ip and (self.session.ip != self.request.remoteAddr.host):
 			logger.critical(u"Client ip '%s' does not match session ip '%s', deleting old session and creating a new one" \
 				% (self.request.remoteAddr.host, self.session.ip) )
 			sessionHandler.deleteSession(self.session.uid)
@@ -307,24 +315,57 @@ class WorkerOpsiconfdInfo(Worker):
 	def _setResult(self, result):
 		logger.info(u"Creating opsiconfd info page")
 		
+		configInfo  = u'<h1>Server config</h1>'
+		configInfo += u'<table>'
+		configInfo += u'<tr><th>key</th><th>value</th></tr>'
+		keys = self.opsiconfd.config.keys()
+		keys.sort()
+		for key in keys:
+			if key in ('staticDirectories'):
+				continue
+			configInfo += u'<tr><td>%s</td><td>%s</td>' % (key, self.opsiconfd.config[key])
+		configInfo += u'</table>'
+		
 		threads = []
 		for thread in threading.enumerate():
-			threads.append(unicode(thread))
-		threads.sort()
-		threadInfo = u'<p>Running threads: %d<br /><ul>' % len(threads)
+			threads.append(thread)
+		threadInfo  = u'<h1>Running threads (%d)</h1>' % len(threads)
+		threadInfo += u'<table>'
+		threadInfo += u'<tr><th>class</th><th>name</th><th>ident</th><th>alive</th></tr>'
 		for thread in threads:
-			threadInfo += u'<li>%s</li>' % thread.replace('<', '').replace('>', '')
-		threadInfo += u'</ul></p>'
+			threadInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (thread.__class__.__name__, thread.name, thread.ident, thread.isAlive())
+		threadInfo += u'</table>'
 		
 		sessions = self.opsiconfd.getSessionHandler().getSessions()
-		sessionInfo = u'<p>Active sessions: %d<br /><ul>' % len(sessions.keys())
+		sessionInfo  = u'<h1>Active sessions (%d)</h1>' % len(sessions.keys())
+		sessionInfo += u'<table>'
+		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>ip</th><th>hostname</th><th>user</th><th>in use</th><th>application</th></tr>'
 		for session in sessions.values():
-			sessionInfo += u'<li>%s %s %s %s</li>' % (session.hostname, session.userAgent, session.user, session.inUse)
-		sessionInfo += u'</ul></p>'
+			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
+				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created)), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.lastModified)), \
+					session.ip, session.hostname, session.user, session.inUse, session.userAgent)
+		sessionInfo += u'</table>'
+		
+		diskUsageInfo  = u'<h1>Disk usage</h1>'
+		diskUsageInfo += u'<table>'
+		diskUsageInfo += u'<tr><th>resource</th><th>path</th><th>capacity</th><th>used</th><th>available</th><th>usage</th></tr>'
+		resources = self.opsiconfd.config['staticDirectories'].keys()
+		resources.sort()
+		for resource in resources:
+			path = self.opsiconfd.config['staticDirectories'][resource]
+			if os.path.isdir(path):
+				if not resource.startswith('/'): resource = u'/' + resource
+				info = getDiskSpaceUsage(path)
+				diskUsageInfo += u'<tr><td><a href="%s">%s</a></td><td>%s</td><td>%0.2f GB</td><td>%0.2f GB</td><td>%0.2f GB</td><td>%0.2f %%</td></tr>' \
+					% (resource, resource, path, (float(info['capacity'])/1073741824), (float(info['available'])/1073741824), (float(info['used'])/1073741824), (info['usage']*100))
+		diskUsageInfo += u'</table>'
 		
 		self.result = infoPage
-		self.result = self.result.replace('%thread_info%',  threadInfo)
-		self.result = self.result.replace('%session_info%', sessionInfo)
+		self.result = self.result.replace('%time%',            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+		self.result = self.result.replace('%config_info%',     configInfo)
+		self.result = self.result.replace('%thread_info%',     threadInfo)
+		self.result = self.result.replace('%session_info%',    sessionInfo)
+		self.result = self.result.replace('%disk_usage_info%', diskUsageInfo)
 		self.result = self.result.encode('utf-8')
 
 
@@ -469,6 +510,8 @@ class Session:
 		self.sessionHandler = sessionHandler
 		self.name = forceUnicode(name)
 		self.sessionMaxInactiveInterval = forceInt(sessionMaxInactiveInterval)
+		self.created = time.time()
+		self.lastModified = time.time()
 		self.sessionTimer = None
 		self.uid = Tools.randomString(32)
 		self.ip = ''
@@ -490,6 +533,7 @@ class Session:
 		self.lastModified = time.time()
 		if self.sessionTimer:
 			self.sessionTimer.cancel()
+			self.sessionTimer.join(1)
 		self.sessionTimer = threading.Timer(self.sessionMaxInactiveInterval, self.expire)
 		self.sessionTimer.start()
 	
@@ -864,7 +908,7 @@ class OpsiconfdInit(object):
 		self._opsiconfd.start()
 		while self._opsiconfd.isRunning():
 			time.sleep(1)
-			
+		self._opsiconfd.join(1)
 		self.removePidFile()
 		
 		

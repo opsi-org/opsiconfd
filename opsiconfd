@@ -412,7 +412,9 @@ class JsonRpc(object):
 		self.tid       = rpc.get('tid', rpc.get('id'))
 		self.action    = rpc.get('action')
 		self.method    = rpc.get('method')
-		self.params    = rpc.get('params', rpc.get('data', []))
+		self.params    = rpc.get('params', rpc.get('data'))
+		if not self.params:
+			self.params = []
 		self.result    = None
 		self.exception = None
 		self.traceback = None
@@ -473,6 +475,7 @@ class JsonRpc(object):
 			logger.debug2(self.result)
 			
 		except Exception, e:
+			logger.logException(e)
 			logger.error(u'Execution error: %s' % e)
 			self.exception = e
 			self.traceback = []
@@ -488,11 +491,6 @@ class JsonRpc(object):
 		self.ended = time.time()
 	
 	def getResponse(self):
-		# {"action": "host", "method":"getObjects", "data":[], "type":"rpc", "tid": 1}
-		# {"method": "host_getObjects", "params":[], "id": 1 }
-		# {"type": "rpc", "tid": 1, "result": None, "action": "host", "method":"getObjects"}
-		# {"type": "exception", "where": ["'<doctest ...>", 3, "error", "return "A common mistake"], "message": "Error", "tid": 1, "action": "host", "method":"getObjects"}
-		# {"error": "None", "id": 1, "result": None}
 		response = {}
 		if (self.type == 'rpc'):
 			response['tid']    = self.tid
@@ -503,6 +501,7 @@ class JsonRpc(object):
 				response['message'] = { 'class': self.exception.__class__.__name__, 'message': unicode(self.exception) }
 				response['where']   = self.traceback
 			else:
+				response['type']   = 'rpc'
 				response['result'] = self.result
 		else:
 			response['id'] = self.tid
@@ -512,7 +511,6 @@ class JsonRpc(object):
 			else:
 				response['error']  = None
 				response['result'] = self.result
-		
 		return response
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -568,7 +566,6 @@ class WorkerOpsiJsonRpc(Worker):
 	def _executeRpcs(self, result):
 		if not self.session.backend:
 			raise OpsiconfdError(u"Failed to get backend from session")
-		
 		deferred = None
 		for rpc in self._rpcs:
 			if rpc.hasEnded():
@@ -579,7 +576,9 @@ class WorkerOpsiJsonRpc(Worker):
 				self.opsiconfd.getSessionHandler().deleteSession(self.session.uid)
 				return result
 			deferred = threads.deferToThread(rpc.execute)
+			deferred.addCallback(self._executeRpcs)
 			deferred.addErrback(self._errback)
+			break
 		if deferred:
 			return deferred
 		return result
@@ -694,8 +693,8 @@ class WorkerOpsiDAV(Worker):
 		deferred = defer.Deferred()
 		deferred.addCallback(self._getSession)
 		deferred.addCallback(self._authenticate)
-		deferred.addCallback(self._setCookie)
 		deferred.addCallback(self._setResponse)
+		deferred.addCallback(self._setCookie)
 		deferred.addCallback(self._freeSession)
 		deferred.addErrback(self._errback)
 		deferred.callback(None)
@@ -1267,7 +1266,7 @@ class OpsiconfdInit(object):
 		time.sleep(3)
 		while self._opsiconfd.isRunning():
 			time.sleep(1)
-		self._opsiconfd.join(3)
+		self._opsiconfd.join(30)
 		self.removePidFile()
 	
 	def setDefaultConfig(self):

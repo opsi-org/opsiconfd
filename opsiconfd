@@ -35,7 +35,7 @@
 __version__ = '3.4.99'
 
 # Imports
-import os, sys, getopt, threading, time, socket, base64
+import os, sys, getopt, threading, time, socket, base64, urllib
 from OpenSSL import SSL
 from signal import *
 
@@ -125,9 +125,10 @@ class OpsiconfdAuthenticationError(Exception):
 # =                                        CLASS WORKER                                               =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class Worker:
-	def __init__(self, opsiconfd, request, resource, method = 'POST'):
+	def __init__(self, opsiconfd, request, resource):
 		self.opsiconfd = opsiconfd
 		self.request   = request
+		self.query     = u''
 		self.resource  = resource
 		self.session   = None
 		self._setLogFile()
@@ -138,8 +139,10 @@ class Worker:
 		deferred.addCallback(self._getSession)
 		deferred.addCallback(self._linkLogFile)
 		deferred.addCallback(self._authenticate)
+		deferred.addCallback(self._getQuery)
+		deferred.addCallback(self._decodeQuery)
+		deferred.addCallback(self._setResponse)
 		deferred.addCallback(self._setCookie)
-		deferred.addCallback(self._getResponse)
 		deferred.addCallback(self._freeSession)
 		deferred.addErrback(self._errback)
 		deferred.callback(None)
@@ -325,6 +328,8 @@ class Worker:
 							raise Exception(u"Access denied for username '%s' from '%s'" %
 									(self.session.user, self.session.ip) )
 			
+			self._createBackend()
+			
 			self.session.authenticated = True
 			
 		except Exception, e:
@@ -333,7 +338,30 @@ class Worker:
 			raise OpsiconfdAuthenticationError(u"Forbidden: %s" % e)
 		return result
 	
-	def _createBackend(self, result):
+	def _getQuery(self, result):
+		self.query = u''
+		if (self.request.method == 'GET'):
+			self.query = urllib.unquote( self.request.querystring )
+		elif (self.method == 'POST'):
+			# Returning deferred needed for chaining
+			d = stream.readStream(self.request.stream, self._handlePostData)
+			d.addErrback(self._errback)
+			return d
+		else:
+			raise ValueError(u"Unhandled method %s" % request.method)
+		return result
+		
+	def _handlePostData(self, chunk):
+		chunk = forceUnicode(chunk)
+		logger.debug2(u"_handlePostData %s" % chunk)
+		self.query += chunk
+	
+	def _decodeQuery(self, result):
+		self.query = unicode(self.query, 'utf-8', 'replace')
+		logger.debug2(u"query: %s" % self.query)
+		return result
+	
+	def _createBackend(self):
 		if self.session.backend and self.session.interface:
 			return result
 		
@@ -345,19 +373,17 @@ class Worker:
 			depotBackend       = bool(self.opsiconfd.config['depotId'])
 		)
 		logger.notice(u'Backend created')
-		self.session.interface = backend.getInterface()
+		self.session.interface = self.session.backend.getInterface()
 		if self.session.isHost:
-			hosts = backend.host_getObjects(id = self.session.user)
+			hosts = self.session.backend.host_getObjects(id = self.session.user)
 			if not hosts:
 				raise Exception(u"Host '%s' not found in backend" % self.session.user)
 			host = hosts[0]
 			if (host.getType() == 'OpsiClient'):
 				host.setLastSeen(Tools.timestamp())
-				backend.host_updateObjects(host)
-			
-		return result
-	
-	def _getResponse(self, result):
+				self.session.backend.host_updateObjects(host)
+		
+	def _setResponse(self, result):
 		if not isinstance(result, http.Response):
 			result = http.Response()
 		result.code = responsecode.OK
@@ -368,24 +394,48 @@ class Worker:
 # =                                  CLASS WORKER OPSI JSON RPC                                       =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class WorkerOpsiJsonRpc(Worker):
-	def __init__(self, opsiconfd, request, resource, method = 'POST'):
-		Worker.__init__(self, opsiconfd, request, resource, method)
+	def __init__(self, opsiconfd, request, resource):
+		Worker.__init__(self, opsiconfd, request, resource)
 	
+	def process(self):
+		logger.info("Worker %s started processing" % self)
+		deferred = defer.Deferred()
+		deferred.addCallback(self._getSession)
+		deferred.addCallback(self._linkLogFile)
+		deferred.addCallback(self._authenticate)
+		deferred.addCallback(self._getQuery)
+		deferred.addCallback(self._decodeQuery)
+		deferred.addCallback(self._getRpcs)
+		deferred.addCallback(self._setResponse)
+		deferred.addCallback(self._setCookie)
+		deferred.addCallback(self._freeSession)
+		deferred.addErrback(self._errback)
+		deferred.callback(None)
+		return deferred
+	
+	def _getRpcs(self, result):
+		# {"action": "host", "method":"getObjects", "data":[], "type":"rpc", "tid": 1}
+		# {"method": "host_getObjects", "params":[], "id": 1 }
+		# {"type": "rpc", "tid": 1, "result": None, "action": "host", "method":"getObjects"}
+		# {"type": "exception", "where": ["'<doctest ...>", 3, "error", "return "A common mistake"], "message": "Error", "tid": 1, "action": "host", "method":"getObjects"}
+		# {"error": "None", "id": 1, "result": None}
+		print "_getRpcs"
+		
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                               CLASS WORKER OPSI JSON INTERFACE                                    =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
-	def __init__(self, opsiconfd, request, resource, method = 'POST'):
-		WorkerOpsiJsonRpc.__init__(self, opsiconfd, request, resource, method)
+	def __init__(self, opsiconfd, request, resource):
+		WorkerOpsiJsonRpc.__init__(self, opsiconfd, request, resource)
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                 CLASS WORKER OPSICONFD INFO                                       =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class WorkerOpsiconfdInfo(Worker):
-	def __init__(self, opsiconfd, request, resource, method = 'POST'):
-		Worker.__init__(self, opsiconfd, request, resource, method)
+	def __init__(self, opsiconfd, request, resource):
+		Worker.__init__(self, opsiconfd, request, resource)
 
-	def _getResponse(self, result):
+	def _setResponse(self, result):
 		logger.info(u"Creating opsiconfd info page")
 		
 		configInfo  = u'<h1>Server config</h1>'
@@ -454,7 +504,7 @@ class WorkerOpsiconfdInfo(Worker):
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class WorkerOpsiDAV(Worker):
 	def __init__(self, opsiconfd, request, resource):
-		Worker.__init__(self, opsiconfd, request, resource, 'POST')
+		Worker.__init__(self, opsiconfd, request, resource)
 	
 	def process(self):
 		logger.info("Worker %s started processing" % self)
@@ -462,13 +512,13 @@ class WorkerOpsiDAV(Worker):
 		deferred.addCallback(self._getSession)
 		deferred.addCallback(self._authenticate)
 		deferred.addCallback(self._setCookie)
-		deferred.addCallback(self._getResponse)
+		deferred.addCallback(self._setResponse)
 		deferred.addCallback(self._freeSession)
 		deferred.addErrback(self._errback)
 		deferred.callback(None)
 		return deferred
 		
-	def _getResponse(self, result):
+	def _setResponse(self, result):
 		logger.debug(u"Client requests DAV operation: %s" % self.request)
 		deferred = super(ResourceOpsiDAV, self.resource).renderHTTP(self.request)
 		if isinstance(d, defer.Deferred):
@@ -501,24 +551,13 @@ class ResourceOpsi(resource.Resource):
 			return self
 		return resource.Resource.getChild(self, name, request)
 	
-	def http_POST(self, request):
+	def renderHTTP(self, request):
 		''' Process POST request. '''
 		try:
-			logger.debug2(u"%s.http_POST()" % self.__class__.__name__)
+			logger.debug2(u"%s.renderHTTP()" % self.__class__.__name__)
 			if not self.WorkerClass:
 				raise Exception(u"No worker class defined in resource %s" % self.__class__.__name__)
-			worker = self.WorkerClass(self._opsiconfd, request, self, method = 'POST')
-			return worker.process()
-		except Exception, e:
-			logger.logException(e)
-		
-	def http_GET(self, request):
-		''' Process GET request. '''
-		try:
-			logger.debug2(u"%s.http_GET()" % self.__class__.__name__)
-			if not self.WorkerClass:
-				raise Exception(u"No worker class defined in resource %s" % self.__class__.__name__)
-			worker = self.WorkerClass(self._opsiconfd, request, self, method = 'GET')
+			worker = self.WorkerClass(self._opsiconfd, request, self)
 			return worker.process()
 		except Exception, e:
 			logger.logException(e)

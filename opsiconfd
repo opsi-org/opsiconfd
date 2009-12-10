@@ -35,7 +35,7 @@
 __version__ = '3.4.99'
 
 # Imports
-import os, sys, getopt, threading, time, socket, base64, urllib, json
+import os, sys, getopt, threading, time, socket, base64, urllib, json, operator
 from OpenSSL import SSL
 from signal import *
 
@@ -93,6 +93,7 @@ infoPage = u'''
 		<div id="info">%thread_info%</div>
 		<div id="info">%session_info%</div>
 		<div id="info">%disk_usage_info%</div>
+		<div id="info">%rpc_statistic_info%</div>
 	</div>
 </body>
 '''
@@ -642,7 +643,8 @@ class JsonRpc(object):
 			#self.result['result'] = None
 			#return
 		self.ended = time.time()
-	
+		self._worker.opsiconfd.statistics().addRpcStatistic(self)
+		
 	def getResponse(self):
 		response = {}
 		if (self.type == 'rpc'):
@@ -693,7 +695,7 @@ class WorkerOpsiJsonRpc(Worker):
 	
 	def _getRpcs(self, result):
 		if not self.query:
-			raise OpsiconfdBadRpcError(u"Got no query")
+			return result
 		
 		rpcs = []
 		try:
@@ -746,6 +748,8 @@ class WorkerOpsiJsonRpc(Worker):
 			response.append(rpc.getResponse())
 		if (len(response) == 1):
 			response = response[0]
+		if not response:
+			response = None
 		
 		jsonResponse = None
 		if hasattr(json, 'dumps'):
@@ -850,6 +854,7 @@ class WorkerOpsiconfdInfo(Worker):
 					session.getValidity(), session.ip, session.hostname, session.user, session.isHost, session.usageCount, session.userAgent)
 		sessionInfo += u'</table>'
 		
+		
 		diskUsageInfo  = u'<h1>Disk usage</h1>'
 		diskUsageInfo += u'<table>'
 		diskUsageInfo += u'<tr><th>resource</th><th>path</th><th>capacity</th><th>used</th><th>available</th><th>usage</th></tr>'
@@ -864,11 +869,21 @@ class WorkerOpsiconfdInfo(Worker):
 					% (resource, resource, path, (float(info['capacity'])/1073741824), (float(info['available'])/1073741824), (float(info['used'])/1073741824), (info['usage']*100))
 		diskUsageInfo += u'</table>'
 		
-		html = infoPage.replace('%time%',            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
-		html = html.replace('%config_info%',     configInfo)
-		html = html.replace('%thread_info%',     threadInfo)
-		html = html.replace('%session_info%',    sessionInfo)
+		#combinedRpcStatistsics = {}
+		statisticInfo  = u'<h1>RPC statistics</h1>'
+		statisticInfo += u'<table>'
+		statisticInfo += u'<tr><th>method</th><th>params</th><th>results</th><th>duration</th><th>success</th></tr>'
+		for statistic in sorted(self.opsiconfd.statistics().getRpcStatistics(), key=operator.itemgetter('method')):
+			statisticInfo += u'<tr><td>%s</td><td>%d</td><td>%d</td><td>%0.3f s</td><td>%s</td></tr>' \
+					% (statistic['method'], statistic['params'], statistic['results'], statistic['duration'], not statistic['failed'])
+		statisticInfo += u'</table>'
+		
+		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+		html = html.replace('%config_info%', configInfo)
+		html = html.replace('%thread_info%', threadInfo)
+		html = html.replace('%session_info%', sessionInfo)
 		html = html.replace('%disk_usage_info%', diskUsageInfo)
+		html = html.replace('%rpc_statistic_info%', statisticInfo)
 		
 		if not isinstance(result, http.Response):
 			result = http.Response()
@@ -1164,6 +1179,35 @@ class SessionHandler:
 			logger.notice(u"Deleting session '%s'" % uid)
 			self.deleteSession(uid)
 		self.sessions = {}
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                       CLASS STATISTICS                                            =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class Statistics(object):
+	def __init__(self, maxExecutionStatisticValues=250):
+		self._maxExecutionStatisticValues = maxExecutionStatisticValues
+		self._rpcStatistics = []
+	
+	def addRpcStatistic(self, jsonrpc):
+		results = 0
+		if not jsonrpc.exception:
+			results = 0
+			if type(jsonrpc.result) is list:
+				results = len(jsonrpc.result)
+		
+		self._rpcStatistics.append({
+			'duration': jsonrpc.ended - jsonrpc.started,
+			'method':   jsonrpc.getMethodName(),
+			'failed':   bool(jsonrpc.exception),
+			'params':   len(jsonrpc.params),
+			'results':  results,
+		})
+		if (len(self._rpcStatistics) > self._maxExecutionStatisticValues):
+			self._rpcStatistics = self._rpcStatistics[1:]
+					
+	def getRpcStatistics(self):
+		return self._rpcStatistics
+	
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                       CLASS OPSICONFD                                             =
@@ -1181,13 +1225,14 @@ class Opsiconfd(threading.Thread):
 		self._httpPort       = None
 		self._httpsPort      = None
 		self._sessionHandler = None
+		self._statistics     = None
 		
 		self._setOpsiLogging()
 		self._setTwistedLogging()
 		logger.comment(	"\n==================================================================\n" \
 				+ "=             OPSI configuration-service starting                =\n" \
 				+ "==================================================================\n")
-	
+		
 	def setConfig(self, config):
 		logger.notice(u"Got new config")
 		self.config = config
@@ -1198,6 +1243,9 @@ class Opsiconfd(threading.Thread):
 	def getBackend(self):
 		return self._backend
 	
+	def statistics(self):
+		return self._statistics
+		
 	def getSessionHandler(self):
 		return self._sessionHandler
 	
@@ -1224,6 +1272,7 @@ class Opsiconfd(threading.Thread):
 		if self._sessionHandler:
 			self._sessionHandler.cleanup()
 		self._createSessionHandler()
+		self._createStatistics()
 		self._createSite()
 		
 		if self._httpPort:
@@ -1239,6 +1288,9 @@ class Opsiconfd(threading.Thread):
 				deferred.addCallback(self._startListeningHTTPS)
 		else:
 			self._startListeningHTTPS()
+		
+	def _createStatistics(self):
+		self._statistics = Statistics(maxExecutionStatisticValues = self.config['maxExecutionStatisticValues'])
 		
 	def _createSessionHandler(self):
 		self._sessionHandler = SessionHandler(
@@ -1407,6 +1459,7 @@ class Opsiconfd(threading.Thread):
 		try:
 			self._createBackendInstance()
 			self._createSessionHandler()
+			self._createStatistics()
 			self._createSite()
 			self._startListening()
 			

@@ -93,10 +93,161 @@ infoPage = u'''
 		<div id="info">%thread_info%</div>
 		<div id="info">%session_info%</div>
 		<div id="info">%disk_usage_info%</div>
-	<div>
+	</div>
 </body>
 '''
 
+interfacePage = u'''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title>opsi config interface</title>
+	<style>
+	a:link 	      { color: #555555; text-decoration: none; }
+	a:visited     { color: #555555; text-decoration: none; }
+	a:hover	      { color: #46547f; text-decoration: none; }
+	a:active      { color: #555555; text-decoration: none; }
+	body          { font-family: verdana, arial; font-size: 12px; }
+	#title        { padding: 10px; color: #6276a0; font-size: 20px; letter-spacing: 5px; }
+	input, select { background-color: #fafafa; border: 1px #abb1ef solid; width: 430px; font-family: verdana, arial; }
+	.json         { color: #555555; width: 600px; float: left; clear: both; margin: 30px; padding: 20px; background-color: #fafafa; border: 1px #abb1ef dashed; font-size: 11px; }
+	.json_key     { color: #9e445a; }
+	.json_label   { color: #abb1ef; margin-top: 20px; margin-bottom: 5px; font-size: 11px; }
+	.title        { color: #555555; font-size: 20px; font-weight: bolder; letter-spacing: 5px; }
+	.button       { color: #9e445a; background-color: #fafafa; border: none; margin-top: 20px; font-weight: bolder; }
+	.box          { background-color: #fafafa; border: 1px #555555 solid; padding: 20px; margin-left: 30px; margin-top: 50px;}
+	</style>
+	<script type="text/javascript">
+		var parameters = new Array();
+		var method = '';
+		var params = '';
+		var id = '"id": 1';
+		%javascript%
+		function selectFunction(select) {
+			method = select.value;
+			tbody = document.getElementById('tbody');
+			var button;
+			var json;
+			for (i=tbody.childNodes.length-1; i>=0; i--) {
+				if (tbody.childNodes[i].id == 'tr_method') {
+				}
+				else if (tbody.childNodes[i].id == 'tr_submit') {
+					button = tbody.childNodes[i];
+					tbody.removeChild(button);
+				}
+				else if (tbody.childNodes[i].id == 'tr_json') {
+					json = tbody.childNodes[i];
+					tbody.removeChild(json);
+				}
+				else {
+					tbody.removeChild(tbody.childNodes[i]);
+				}
+			}
+
+			for (i=0; i < parameters[select.value].length; i++) {
+				tr = document.createElement("tr");
+				td1 = document.createElement("td");
+				text = document.createTextNode(parameters[select.value][i] + ":");
+				td1.appendChild(text);
+				td2 = document.createElement("td");
+				input = document.createElement("input");
+				input.setAttribute('onchange', 'jsonString()');
+				input.setAttribute('type', 'text');
+				if ((method == currentMethod) && (currentParams[i] != null)) {
+					input.value = currentParams[i];
+				}
+				td2.appendChild(input);
+				tr.appendChild(td1);
+				tr.appendChild(td2);
+				tbody.appendChild(tr)
+			}
+			tbody.appendChild(json)
+			tbody.appendChild(button)
+			
+			jsonString();
+		}
+		
+		function onSubmit() {
+			var json = '{ "id": 1, "method": ';
+			json += document.getElementById('json_method').firstChild.data;
+			json += ', "params": ';
+			json += document.getElementById('json_params').firstChild.data;
+			json += ' }';
+			window.location.href = '?' + json;
+			return false;
+		}
+		
+		function jsonString() {
+			span = document.getElementById('json_method');
+			for (i=span.childNodes.length-1; i>=0; i--) {
+				span.removeChild(span.childNodes[i])
+			}
+			span.appendChild(document.createTextNode('"' + method + '"'));
+			
+			span = document.getElementById('json_params');
+			for (i=span.childNodes.length-1; i>=0; i--) {
+				span.removeChild(span.childNodes[i])
+			}
+			params = '['
+			inputs = document.getElementsByTagName('input');
+			for (i=0; i<inputs.length; i++) {
+				if (inputs[i].id != 'submit') {
+					if (inputs[i].value == '') {
+						i = inputs.length;
+					}
+					else {
+						if (i>0) {
+							params += ', ';
+						}
+						params += inputs[i].value.replace(/\\\/g, '\\\\\\\\');
+					}
+				}
+			}
+			span.appendChild(document.createTextNode(params + ']'));
+		}
+	</script>
+</head>
+<body onload="selectFunction(document.getElementById('select'))">
+	<span id="title">
+		<img src="opsi_logo.png" />
+		<span sytle="padding: 1px">opsi config interface</span>
+	</span>
+	<form action="cgi" method="post" onsubmit="return onSubmit()">
+		<table class="box">
+			<tbody id="tbody">
+				<tr id="tr_method">
+					<td style="width: 150px;">Method:</td>
+					<td style="width: 440px;">
+						<select id="select" onchange="selectFunction(this)" name="method">
+							%select_method%
+						</select>
+					</td>
+				</tr>
+				<tr id="tr_json">
+					<td colspan="2">
+						<div class="json_label">
+							resulting json remote procedure call:
+						</div>
+						<div class="json" style="width: 480px;">
+							{&nbsp;"<font class="json_key">method</font>": <span id="json_method"></span>,<br />
+							&nbsp;&nbsp;&nbsp;"<font class="json_key">params</font>": <span id="json_params">[]</span>,<br />
+							&nbsp;&nbsp;&nbsp;"<font class="json_key">id</font>": 1 }
+						</div>
+					</td>
+				</tr>
+				<tr id="tr_submit">
+					<td align="center" colspan="2">
+						<input value="Execute" id="submit" class="button" type="submit" />
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</form>
+	<div class="json_label" style="padding-left: 30px">json-rpc result</div>
+	%result%
+</body>
+'''
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                  OPSICONFD ERROR CLASSES                                          =
@@ -381,7 +532,7 @@ class Worker:
 			#aclFile            = self.opsiconfd.config['aclFile'],
 			depotBackend       = bool(self.opsiconfd.config['depotId'])
 		)
-		logger.notice(u'Backend created')
+		logger.notice(u'Backend created: %s' % self.session.backend)
 		self.session.interface = self.session.backend.getInterface()
 		if self.session.isHost:
 			hosts = self.session.backend.host_getObjects(id = self.session.user)
@@ -446,7 +597,9 @@ class JsonRpc(object):
 		self.started = time.time()
 		try:
 			found = False
-			params = self.params
+			params = []
+			for p in self.params:
+				params.append(p)
 			keywords = {}
 			for m in self._worker.session.interface:
 				if (self.getMethodName() == m['name']):
@@ -609,7 +762,53 @@ class WorkerOpsiJsonRpc(Worker):
 class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 	def __init__(self, opsiconfd, request, resource):
 		WorkerOpsiJsonRpc.__init__(self, opsiconfd, request, resource)
-
+	
+	def _setResponse(self, result):
+		logger.info(u"Creating opsiconfd interface page")
+		
+		javascript  = u"var currentParams = new Array();\n"
+		javascript += u"var currentMethod = null;\n"
+		currentMethod = u''
+		if self._rpcs:
+			currentMethod = self._rpcs[0].getMethodName()
+			javascript += u"currentMethod = '%s';\n" % currentMethod
+			for i in range(len(self._rpcs[0].params)):
+				param = self._rpcs[0].params[i]
+				if hasattr(json, 'dumps'):
+					# Python 2.6 json module
+					param = json.dumps(param)
+				else:
+					params = json.write(param)
+				javascript += u"currentParams[%d] = '%s';\n" % (i, param)
+		
+		selectMethod = u''
+		for method in self.resource._interface:
+			javascript += u"parameters['%s'] = new Array();\n" % (method['name'])
+			for param in range(len(method['params'])):
+				javascript += u"parameters['%s'][%s]='%s';\n" % (method['name'], param, method['params'][param])
+			selected = u''
+			if (method['name'] == currentMethod):
+				selected = u' selected'
+			selectMethod += '<option%s>%s</option>' % (selected, method['name'])
+		
+		resultDiv = u'<div id="result">'
+		for rpc in self._rpcs:
+			resultDiv += '<div class="json">'
+			resultDiv += Tools.jsonObjToHtml(rpc.getResponse())
+			resultDiv += u'</div>'
+		resultDiv += u'</div>'
+		
+		html = interfacePage
+		html = html.replace('%javascript%', javascript)
+		html = html.replace('%select_method%', selectMethod)
+		html = html.replace('%result%', resultDiv)
+		
+		if not isinstance(result, http.Response):
+			result = http.Response()
+		result.code = responsecode.OK
+		result.stream = stream.IByteStream(html.encode('utf-8'))
+		return result
+	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                 CLASS WORKER OPSICONFD INFO                                       =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =

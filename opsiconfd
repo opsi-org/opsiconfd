@@ -1176,7 +1176,7 @@ class SessionHandler:
 	def deleteAllSessions(self):
 		logger.notice(u"Deleting all sessions")
 		for (uid, session) in self.sessions.items():
-			logger.notice(u"Deleting session '%s'" % uid)
+			logger.debug(u"Deleting session '%s'" % uid)
 			self.deleteSession(uid)
 		self.sessions = {}
 
@@ -1511,15 +1511,16 @@ class OpsiconfdInit(object):
 			logger.setConsoleColor(True)
 		
 		self.createPidFile()
-		
-		# Start opsiconfd
-		self._opsiconfd = Opsiconfd(self.config)
-		self._opsiconfd.start()
-		time.sleep(3)
-		while self._opsiconfd.isRunning():
-			time.sleep(1)
-		self._opsiconfd.join(30)
-		self.removePidFile()
+		try:
+			# Start opsiconfd
+			self._opsiconfd = Opsiconfd(self.config)
+			self._opsiconfd.start()
+			time.sleep(3)
+			while self._opsiconfd.isRunning():
+				time.sleep(1)
+			self._opsiconfd.join(30)
+		finally:
+			self.removePidFile()
 	
 	def setDefaultConfig(self):
 		self.config = {
@@ -1771,6 +1772,7 @@ if (__name__ == "__main__"):
 		print >> sys.stderr, u"ERROR:", unicode(exception)
 		sys.exit(1)
 	sys.exit(0)
+	
 
 
 

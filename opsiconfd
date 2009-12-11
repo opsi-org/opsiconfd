@@ -471,7 +471,7 @@ class Worker:
 			if self.session.authenticated:
 				return result
 			
-			logger.notice(u"Authorization request from %s@%s" % (self.session.user, self.session.ip))
+			logger.notice(u"Authorization request from %s@%s (application: %s)" % (self.session.user, self.session.ip, self.session.userAgent))
 			if not self.session.user:
 				raise Exception(u"Cannot authenticate, no username given")
 			
@@ -597,14 +597,19 @@ class JsonRpc(object):
 		
 	def execute(self):
 		# Execute rpc
-		logger.info(u"Executing: %s" % self.getMethodName())
+		params = []
+		for param in self.params:
+			params.append(param)
+		
+		pString = unicode(params)[1:-1]
+		if (len(pString) > 200):
+			pString = pString[:200] + u'...'
+		
+		logger.notice(u"==>>> Executing: %s(%s)" % (self.getMethodName(), pString))
 		
 		self.started = time.time()
 		try:
 			found = False
-			params = []
-			for p in self.params:
-				params.append(p)
 			keywords = {}
 			for m in self._worker.session.interface:
 				if (self.getMethodName() == m['name']):
@@ -1367,7 +1372,8 @@ class Opsiconfd(threading.Thread):
 			dispatchConfigFile = self.config['dispatchConfigFile'],
 			backendConfigDir   = self.config['backendConfigDir'],
 			extensionConfigDir = self.config['extensionConfigDir'],
-			#aclFile            = self.config['aclFile']
+			#aclFile            = self.config['aclFile'],
+			depotBackend       = bool(self.config['depotId'])
 		)
 	
 	def _createSite(self):

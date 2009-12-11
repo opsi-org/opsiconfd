@@ -518,7 +518,11 @@ class Worker:
 		self.query += chunk
 	
 	def _decodeQuery(self, result):
-		self.query = unicode(self.query, 'utf-8', 'replace')
+		try:
+			self.query = unicode(self.query, 'utf-8')
+		except UnicodeError, e:
+			self.opsiconfd.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(e))
+			self.query = unicode(self.query, 'utf-8', 'replace')
 		logger.debug2(u"query: %s" % self.query)
 		return result
 	
@@ -643,7 +647,7 @@ class JsonRpc(object):
 			#self.result['result'] = None
 			#return
 		self.ended = time.time()
-		self._worker.opsiconfd.statistics().addRpcStatistic(self)
+		self._worker.opsiconfd.statistics().addRpc(self)
 		
 	def getResponse(self):
 		response = {}
@@ -869,14 +873,35 @@ class WorkerOpsiconfdInfo(Worker):
 					% (resource, resource, path, (float(info['capacity'])/1073741824), (float(info['available'])/1073741824), (float(info['used'])/1073741824), (info['usage']*100))
 		diskUsageInfo += u'</table>'
 		
-		#combinedRpcStatistsics = {}
+		average = { 'params': 0.0, 'results': 0.0, 'duration': 0.0, 'failed': 0.0 }
 		statisticInfo  = u'<h1>RPC statistics</h1>'
 		statisticInfo += u'<table>'
 		statisticInfo += u'<tr><th>method</th><th>params</th><th>results</th><th>duration</th><th>success</th></tr>'
-		for statistic in sorted(self.opsiconfd.statistics().getRpcStatistics(), key=operator.itemgetter('method')):
+		rpcs = self.opsiconfd.statistics().getRpcs()
+		for statistic in sorted(rpcs, key=operator.itemgetter('method')):
+			average['params']   += statistic['params']
+			average['results']  += statistic['results']
+			average['duration'] += statistic['duration']
+			if statistic['failed']: average['failed'] += 1
 			statisticInfo += u'<tr><td>%s</td><td>%d</td><td>%d</td><td>%0.3f s</td><td>%s</td></tr>' \
 					% (statistic['method'], statistic['params'], statistic['results'], statistic['duration'], not statistic['failed'])
+		if rpcs:
+			statisticInfo += u'<tr><td>average</td><td>%0.0f</td><td>%0.0f</td><td>%0.3f s</td><td>%0.2f %%</td></tr>' \
+					% (average['params']/len(rpcs), average['results']/len(rpcs), average['duration']/len(rpcs), ((len(rpcs)-average['failed'])/len(rpcs))*100)
 		statisticInfo += u'</table>'
+		
+		statisticInfo += u'<br />'
+		
+		statisticInfo += u'<h1>Encoding error statistics</h1>'
+		statisticInfo += u'<table>'
+		statisticInfo += u'<tr><th>application</th><th>what</th><th>ip</th><th>error</th></tr>'
+		for statistic in sorted(self.opsiconfd.statistics().getEncodingErrors(), key=operator.itemgetter('application')):
+			statisticInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
+					% (statistic['application'], statistic['what'], statistic['ip'], statistic['error'])
+		statisticInfo += u'</table>'
+		
+		
+		#self.opsiconfd.statistics().addEncodingError('query', self.session.ip, self.session.user, self.session.userAgent, unicode(e))
 		
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
 		html = html.replace('%config_info%', configInfo)
@@ -1186,28 +1211,40 @@ class SessionHandler:
 class Statistics(object):
 	def __init__(self, maxExecutionStatisticValues=250):
 		self._maxExecutionStatisticValues = maxExecutionStatisticValues
-		self._rpcStatistics = []
-	
-	def addRpcStatistic(self, jsonrpc):
+		self._rpcs = []
+		self._encodinErrors = []
+		
+	def addRpc(self, jsonrpc):
 		results = 0
 		if not jsonrpc.exception:
 			results = 0
 			if type(jsonrpc.result) is list:
 				results = len(jsonrpc.result)
 		
-		self._rpcStatistics.append({
+		self._rpcs.append({
+			'started':  jsonrpc.started,
 			'duration': jsonrpc.ended - jsonrpc.started,
 			'method':   jsonrpc.getMethodName(),
 			'failed':   bool(jsonrpc.exception),
 			'params':   len(jsonrpc.params),
 			'results':  results,
 		})
-		if (len(self._rpcStatistics) > self._maxExecutionStatisticValues):
-			self._rpcStatistics = self._rpcStatistics[1:]
-					
-	def getRpcStatistics(self):
-		return self._rpcStatistics
+		if (len(self._rpcs) > self._maxExecutionStatisticValues):
+			self._rpcs = self._rpcs[1:]
 	
+	def getRpcs(self):
+		return self._rpcs
+	
+	def addEncodingError(self, what, client, application, error):
+		self._encodinErrors.append({
+			'what':        forceUnicode(what),
+			'client':      forceUnicode(client),
+			'application': forceUnicode(application),
+			'error':       forceUnicode(error)
+		})
+		
+	def getEncodingErrors(self):
+		return self._encodinErrors
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                       CLASS OPSICONFD                                             =

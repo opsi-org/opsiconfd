@@ -1,3 +1,15 @@
+opsiconfd (2.0.0.16-9) stable; urgency=low
+
+  * Fixed typo in postinst
+
+ -- Jan Schneider <j.schneider@uib.de>  Wed, 25 Nov 2009 14:58:26 +0100
+
+opsiconfd (2.0.0.16-8) stable; urgency=low
+
+  * Fixed postinst for ucs
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 24 Nov 2009 17:12:52 +0100
+
 opsiconfd (2.0.0.16-7) stable; urgency=low
 
   * Creating ssl cert / key file in init script if running on ucs

@@ -5,8 +5,6 @@
 case "$1" in
 	configure)
 		
-		FQDN=$(hostname -f)
-		
 		if [ -z "`getent group pcpatch`" ]; then
 			groupadd -g 992 pcpatch
 		fi
@@ -25,11 +23,9 @@ case "$1" in
 		if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 			umask 077
 			
-			if [ -e "/etc/univention/ssl/$FQDN/cert.pem" -a -e "/etc/univention/ssl/$FQDN/private.key" ]; then
-				# Using ucs key and cert
-				cat /etc/univention/ssl/$FQDN/private.key > /etc/opsi/opsiconfd.pem
-				grep -A 50 "BEGIN CERTIFICATE" /etc/univention/ssl/$FQDN/cert.pem >> /etc/opsi/opsiconfd.pem
-			else
+			if [! -e "/usr/sbin/ucr" ]; then
+				# On ucs cert / key file will be created in init script
+				
 				db_get opsiconfd/cert_country
 				cert_country=$RET
 				[ "$cert_country" = "" ] && cert_country="DE"
@@ -83,10 +79,10 @@ case "$1" in
 				rm -f /tmp/opsiconfd.rand /tmp/opsiconfd.cnf
 			fi
 		fi
-		
-		chmod 600 /etc/opsi/opsiconfd.pem
-		chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
-		
+		if [ ! -e "/usr/sbin/ucr" ]; then
+			chmod 600 /etc/opsi/opsiconfd.pem
+			chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
+		fi
 	;;
 	
 	abort-upgrade|abort-remove|abort-deconfigure)

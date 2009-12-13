@@ -35,7 +35,7 @@
 __version__ = '3.4.99'
 
 # Imports
-import os, sys, getopt, threading, time, socket, base64, urllib, json, operator
+import os, sys, getopt, threading, time, socket, base64, urllib, json, operator, rrdtool
 from OpenSSL import SSL
 from signal import *
 
@@ -89,6 +89,7 @@ infoPage = u'''
 	</span>
 	<div id="infos">
 		<div id="info">%time%</div>
+		<div id="info">%graphs%</div>
 		<div id="info">%config_info%</div>
 		<div id="info">%thread_info%</div>
 		<div id="info">%session_info%</div>
@@ -214,7 +215,7 @@ interfacePage = u'''
 		<img src="opsi_logo.png" />
 		<span sytle="padding: 1px">opsi config interface</span>
 	</span>
-	<form action="cgi" method="post" onsubmit="return onSubmit()">
+	<form method="post" onsubmit="return onSubmit()">
 		<table class="box">
 			<tbody id="tbody">
 				<tr id="tr_method">
@@ -313,6 +314,7 @@ class Worker:
 		
 		result = self._renderError(failure)
 		result.code = responsecode.INTERNAL_SERVER_ERROR
+		result = self._setCookie(result)
 		try:
 			failure.raiseException()
 		except OpsiconfdAuthenticationError, e:
@@ -375,10 +377,11 @@ class Worker:
 		sessionId = u''
 		try:
 			for cookie in self.request.headers.getHeader('cookie'):
-				if (cookie.name == sessionHandler.sessionName):
+				if (cookie.name == self.opsiconfd.config['sessionName']):
 					sessionId = unicode(cookie.value)
+					break
 		except Exception, e:
-			pass
+			logger.error(u"Failed to get cookie from header: %s" % e)
 		
 		if not sessionId:
 			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
@@ -832,6 +835,8 @@ class WorkerOpsiconfdInfo(Worker):
 	def _setResponse(self, result):
 		logger.info(u"Creating opsiconfd info page")
 		
+		graph  = u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24))
+		
 		configInfo  = u'<h1>Server config</h1>'
 		configInfo += u'<table>'
 		configInfo += u'<tr><th>key</th><th>value</th></tr>'
@@ -909,6 +914,7 @@ class WorkerOpsiconfdInfo(Worker):
 		#self.opsiconfd.statistics().addEncodingError('query', self.session.ip, self.session.user, self.session.userAgent, unicode(e))
 		
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+		html = html.replace('%graphs%', graph)
 		html = html.replace('%config_info%', configInfo)
 		html = html.replace('%thread_info%', threadInfo)
 		html = html.replace('%session_info%', sessionInfo)
@@ -980,6 +986,7 @@ class ResourceOpsi(resource.Resource):
 	def renderHTTP(self, request):
 		''' Process POST request. '''
 		try:
+			self._opsiconfd.statistics().addRequest(request)
 			logger.debug2(u"%s.renderHTTP()" % self.__class__.__name__)
 			if not self.WorkerClass:
 				raise Exception(u"No worker class defined in resource %s" % self.__class__.__name__)
@@ -1032,6 +1039,7 @@ class ResourceOpsiDAV(static.DAVFile):
 	
 	def renderHTTP(self, request):
 		try:
+			self._opsiconfd.statistics().addRequest(request)
 			if self._readOnly and request.method not in ('GET', 'PROPFIND'):
 				logger.warning(u"Command %s not allowed (readonly)" % request.method)
 				return http.Response(
@@ -1150,9 +1158,8 @@ class Session:
 # =                                    CLASS SESSION HANDLER                                          =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class SessionHandler:
-	def __init__(self, sessionName = 'OSPISID', sessionMaxInactiveInterval = 120):
-		self.sessionName = sessionName
-		self.sessionMaxInactiveInterval = sessionMaxInactiveInterval
+	def __init__(self, opsiconfd):
+		self.opsiconfd = opsiconfd
 		self.sessions = {}
 	
 	def cleanup(self):
@@ -1171,9 +1178,10 @@ class SessionHandler:
 		return self.createSession()
 	
 	def createSession(self):
-		session = Session(self, self.sessionName, self.sessionMaxInactiveInterval)
+		session = Session(self, self.opsiconfd.config['sessionName'], self.opsiconfd.config['sessionMaxInactiveInterval'])
 		self.sessions[session.uid] = session
 		logger.notice(u"New session created")
+		self.opsiconfd.statistics().addSession(session)
 		return session
 	
 	def sessionExpired(self, session):
@@ -1183,6 +1191,7 @@ class SessionHandler:
 			logger.notice(u"Session currently in use, waiting before deletion")
 		while (session.usageCount > 0):
 			time.sleep(1)
+		self.opsiconfd.statistics().removeSession(session)
 		self.deleteSession(session.uid)
 		
 	def deleteSession(self, uid):
@@ -1214,11 +1223,143 @@ class SessionHandler:
 # =                                       CLASS STATISTICS                                            =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class Statistics(object):
-	def __init__(self, maxExecutionStatisticValues=250):
-		self._maxExecutionStatisticValues = maxExecutionStatisticValues
+	def __init__(self, opsiconfd):
+		self.opsiconfd = opsiconfd
 		self._rpcs = []
 		self._encodinErrors = []
+		self._rrdConfig = {
+			'step':              60,
+			'heartbeat':         60,
+			'xPoints':          800,
+			'yPoints':          160,
+			'pointsPerSample':    3,
+			'rrdFile':          os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
+		}
+		self._rrdCache = { 'requests': 0, 'sessions': 0, 'rpcs': 0, 'rpcerrors': 0 }
+		if not os.path.exists(self._rrdConfig['rrdFile']):
+			self.createRrd()
+		reactor.callLater(int(self._rrdConfig['step']/2), self.updateRrd)
 		
+	def createRrd(self):
+		startTime = time.time()
+		rows = self._rrdConfig['xPoints']/self._rrdConfig['pointsPerSample']
+		realRows = int(rows * 1.1) # ensure that the full range is covered
+		daySteps = int(3600 * 24 / (self._rrdConfig['step'] * rows))
+		# use multiples, otherwise rrdtool could choose the wrong RRA
+		weekSteps  = daySteps   * 7
+		monthSteps = weekSteps  * 5
+		yearSteps  = monthSteps * 12
+		
+		if os.path.exists(self._rrdConfig['rrdFile']):
+			os.unlink(self._rrdConfig['rrdFile'])
+		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(int(time.time())), '--step', str(self._rrdConfig['step']),
+			'DS:requests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:sessions:DERIVE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:rpcs:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:rpcerrors:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'RRA:AVERAGE:0.5:%d:%d' % (daySteps, realRows),   # day
+			'RRA:AVERAGE:0.5:%d:%d' % (weekSteps, realRows),  # week
+			'RRA:AVERAGE:0.5:%d:%d' % (monthSteps, realRows), # month
+			'RRA:AVERAGE:0.5:%d:%d' % (yearSteps, realRows),  # year
+			'RRA:MAX:0.5:%d:%d' % (daySteps, realRows),    # day
+			'RRA:MAX:0.5:%d:%d' % (weekSteps, realRows),   # week
+			'RRA:MAX:0.5:%d:%d' % (monthSteps, realRows),  # month
+			'RRA:MAX:0.5:%d:%d' % (yearSteps, realRows),   # year
+		)
+	
+	def updateRrd(self):
+		try:
+			now = int(time.time())
+			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors']))
+			self._rrdCache['requests'] = 0
+			self._rrdCache['rpcs'] = 0
+			self._rrdCache['rpcerrors'] = 0
+		except Exception, e:
+			logger.error(u"Failed to update rrd: %s" % e)
+		reactor.callLater(int(self._rrdConfig['step']/2), self.updateRrd)
+	
+	def getRrdGraphImage(self, range):
+		step = range*self._rrdConfig['pointsPerSample']/self._rrdConfig['xPoints']
+		end  = int(time.time())
+		end -= end % step
+		date = time.strftime("%a, %d %b %Y %H\:%M\:%S", time.localtime())
+		
+		graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '%s.png' % range)
+		if os.path.exists(graphImage):
+			os.unlink(graphImage)
+		rrdtool.graph(str(graphImage),
+			'--imgformat',      'PNG',
+			'--width',          str(self._rrdConfig['xPoints']),
+			'--height',         str(self._rrdConfig['yPoints']),
+			'--start',          "-%d" % range,
+			'--end',            str(end),
+			'--vertical-label', 'avg per minute',
+			'--lower-limit',    str(0),
+			'--units-exponent', str(0), # don't show milli-messages/s
+			'--lazy',
+			'--color',          'SHADEA#ffffff',
+			'--color',          'SHADEB#ffffff',
+			'--color',          'BACK#ffffff',
+			
+			'DEF:requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:mrequ=%s:requests:MAX'    % str(self._rrdConfig['rrdFile']),
+			"CDEF:rrequ=requ,60,*",
+			"CDEF:rmrequ=mrequ,60,*",
+			"CDEF:drequ=requ,UN,0,requ,IF,%d,*" % step,
+			"CDEF:srequ=PREV,UN,drequ,PREV,IF,drequ,+",
+			"AREA:rrequ#0000dd:Requests     ",
+			'GPRINT:srequ:MAX:total\: %8.0lf requests   ',
+			'GPRINT:rrequ:AVERAGE:avg\: %5.2lf requests/min   ',
+			'GPRINT:rmrequ:MAX:max\: %4.0lf requests/min\\l',
+			
+			'DEF:sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:msess=%s:sessions:MAX'    % str(self._rrdConfig['rrdFile']),
+			"CDEF:rsess=sess,60,*",
+			"CDEF:rmsess=msess,60,*",
+			"CDEF:dsess=sess,UN,0,sess,IF,%d,*" % step,
+			"CDEF:ssess=PREV,UN,dsess,PREV,IF,dsess,+",
+			"AREA:rsess#dddd00:Sessions     ",
+			'GPRINT:ssess:MAX:total\: %8.0lf sessions   ',
+			'GPRINT:rsess:AVERAGE:avg\: %5.2lf sessions/min   ',
+			'GPRINT:rmsess:MAX:max\: %4.0lf sessions/min\\l',
+			
+			'DEF:rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:mrpc=%s:rpcs:MAX'    % str(self._rrdConfig['rrdFile']),
+			"CDEF:rrpc=rpc,60,*",
+			"CDEF:rmrpc=mrpc,60,*",
+			"CDEF:drpc=rpc,UN,0,rpc,IF,%d,*" % step,
+			"CDEF:srpc=PREV,UN,drpc,PREV,IF,drpc,+",
+			"LINE2:rrpc#00dd00:RPCs         ",
+			'GPRINT:srpc:MAX:total\: %8.0lf rpcs       ',
+			'GPRINT:rrpc:AVERAGE:avg\: %5.2lf rpcs/min       ',
+			'GPRINT:rmrpc:MAX:max\: %4.0lf rpcs/min\\l',
+			
+			'DEF:rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:mrpcerror=%s:rpcerrors:MAX'    % str(self._rrdConfig['rrdFile']),
+			"CDEF:rrpcerror=rpcerror,60,*",
+			"CDEF:rmrpcerror=mrpcerror,60,*",
+			"CDEF:drpcerror=rpcerror,UN,0,rpcerror,IF,%d,*" % step,
+			"CDEF:srpcerror=PREV,UN,drpcerror,PREV,IF,drpcerror,+",
+			"LINE2:rrpcerror#dd0000:RPC errors   ",
+			'GPRINT:srpcerror:MAX:total\: %8.0lf rpc errors ',
+			'GPRINT:rrpcerror:AVERAGE:avg\: %5.2lf rpc errors/min ',
+			'GPRINT:rmrpcerror:MAX:max\: %4.0lf rpc errors/min\\l',
+			
+			'COMMENT:[%s]\\r' % date,
+		)
+		return graphImage
+	
+	def addSession(self, session):
+		self._rrdCache['sessions'] += 1
+	
+	def removeSession(self, session):
+		if (self._rrdCache['sessions'] > 0):
+			self._rrdCache['sessions'] -= 1
+		 
+	def addRequest(self, request):
+		self._rrdCache['requests'] += 1
+	
 	def addRpc(self, jsonrpc):
 		results = 0
 		if not jsonrpc.exception:
@@ -1234,9 +1375,12 @@ class Statistics(object):
 			'params':   len(jsonrpc.params),
 			'results':  results,
 		})
-		if (len(self._rpcs) > self._maxExecutionStatisticValues):
+		if (len(self._rpcs) > self.opsiconfd.config['maxExecutionStatisticValues']):
 			self._rpcs = self._rpcs[1:]
-	
+		self._rrdCache['rpcs'] += 1
+		if jsonrpc.exception:
+			self._rrdCache['rpcerrors'] += 1
+		
 	def getRpcs(self):
 		return self._rpcs
 	
@@ -1332,13 +1476,10 @@ class Opsiconfd(threading.Thread):
 			self._startListeningHTTPS()
 		
 	def _createStatistics(self):
-		self._statistics = Statistics(maxExecutionStatisticValues = self.config['maxExecutionStatisticValues'])
+		self._statistics = Statistics(self)
 		
 	def _createSessionHandler(self):
-		self._sessionHandler = SessionHandler(
-			sessionName                = self.config['sessionName'],
-			sessionMaxInactiveInterval = self.config['sessionMaxInactiveInterval']
-		)
+		self._sessionHandler = SessionHandler(self)
 	
 	def _setOpsiLogging(self):
 		# Set logging options
@@ -1393,6 +1534,7 @@ class Opsiconfd(threading.Thread):
 		if not self._root:
 			self._root = ResourceRoot()
 		
+		self._root.putChild('rrd',       static.File(self.config['rrdDir']))
 		self._root.putChild('rpc',       ResourceOpsiJsonRpc(self))
 		self._root.putChild('interface', ResourceOpsiJsonInterface(self))
 		self._root.putChild('info',      ResourceOpsiconfdInfo(self))
@@ -1589,6 +1731,7 @@ class OpsiconfdInit(object):
 			'staticDirectories'            : {},
 			'depotId'                      : None,
 			'fqdn'                         : socket.getfqdn(),
+			'rrdDir'                       : u'/var/lib/opsiconfd/rrd',
 			'backendConfigDir'             : u'/etc/opsi/backends',
 			'dispatchConfigFile'           : u'/etc/opsi/backendManager/dispatch.conf',
 			'extensionConfigDir'           : u'/etc/opsi/backendManager/compose.d',

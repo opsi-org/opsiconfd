@@ -43,8 +43,7 @@ from signal import *
 from twisted.internet import defer, threads, reactor
 from twisted.python.failure import Failure
 from twisted.python import log
-from OPSI.web2 import resource, stream, server, http, responsecode
-from OPSI.web2 import http_headers
+from OPSI.web2 import resource, stream, server, http, responsecode, http_headers
 from OPSI.web2.channel.http import HTTPFactory
 from OPSI.web2.dav import static
 
@@ -633,9 +632,9 @@ class JsonRpc(object):
 			params = deserialize(params)
 			backend = self._worker.session.backend
 			if keywords:
-				self.result = serialize( eval( "backend.%s(*params, **keywords)" % self.getMethodName() ) )
+				self.result = eval( "backend.%s(*params, **keywords)" % self.getMethodName() )
 			else:
-				self.result = serialize( eval( "backend.%s(*params)" % self.getMethodName() ) )
+				self.result = eval( "backend.%s(*params)" % self.getMethodName() )
 			
 			logger.info(u'Got result')
 			logger.debug2(self.result)
@@ -651,9 +650,6 @@ class JsonRpc(object):
 				c = f.f_code
 				self.traceback.append(u"     line %s in '%s' in file '%s'" % (tb.tb_lineno, c.co_name, c.co_filename))
 				tb = tb.tb_next
-			#self.result['error'] = { 'class': e.__class__.__name__, 'message': unicode(e) }
-			#self.result['result'] = None
-			#return
 		self.ended = time.time()
 		self._worker.opsiconfd.statistics().addRpc(self)
 		
@@ -757,7 +753,7 @@ class WorkerOpsiJsonRpc(Worker):
 		result.headers.setHeader('content-type', http_headers.MimeType("application", "json", {"charset": "utf-8"}))
 		response = []
 		for rpc in self._rpcs:
-			response.append(rpc.getResponse())
+			response.append(serialize(rpc.getResponse()))
 		if (len(response) == 1):
 			response = response[0]
 		if not response:
@@ -766,10 +762,10 @@ class WorkerOpsiJsonRpc(Worker):
 		jsonResponse = None
 		if hasattr(json, 'dumps'):
 			# Python 2.6 json module
-			jsonResponse = json.dumps(serialize(response))
+			jsonResponse = json.dumps(response)
 		else:
-			jsonResponse = json.write(serialize(response))
-		result.stream = stream.IByteStream(jsonResponse)
+			jsonResponse = json.write(response)
+		result.stream = stream.IByteStream(jsonResponse.encode('utf-8'))
 		return result
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -810,7 +806,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 		resultDiv = u'<div id="result">'
 		for rpc in self._rpcs:
 			resultDiv += '<div class="json">'
-			resultDiv += Tools.jsonObjToHtml(rpc.getResponse())
+			resultDiv += Tools.objectToHtml(serialize(rpc.getResponse()))
 			resultDiv += u'</div>'
 		resultDiv += u'</div>'
 		
@@ -835,7 +831,14 @@ class WorkerOpsiconfdInfo(Worker):
 	def _setResponse(self, result):
 		logger.info(u"Creating opsiconfd info page")
 		
-		graph  = u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24))
+		graphs  = u'<h1>Last hour</h1>'
+		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600))
+		graphs += u'<h1>Last day</h1>'
+		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24))
+		graphs += u'<h1>Last week</h1>'
+		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*7))
+		graphs += u'<h1>Last month</h1>'
+		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*31))
 		
 		configInfo  = u'<h1>Server config</h1>'
 		configInfo += u'<table>'
@@ -914,7 +917,7 @@ class WorkerOpsiconfdInfo(Worker):
 		#self.opsiconfd.statistics().addEncodingError('query', self.session.ip, self.session.user, self.session.userAgent, unicode(e))
 		
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
-		html = html.replace('%graphs%', graph)
+		html = html.replace('%graphs%', graphs)
 		html = html.replace('%config_info%', configInfo)
 		html = html.replace('%thread_info%', threadInfo)
 		html = html.replace('%session_info%', sessionInfo)
@@ -984,7 +987,7 @@ class ResourceOpsi(resource.Resource):
 		return resource.Resource.getChild(self, name, request)
 	
 	def renderHTTP(self, request):
-		''' Process POST request. '''
+		''' Process request. '''
 		try:
 			self._opsiconfd.statistics().addRequest(request)
 			logger.debug2(u"%s.renderHTTP()" % self.__class__.__name__)
@@ -1232,7 +1235,7 @@ class Statistics(object):
 			'heartbeat':         60,
 			'xPoints':          800,
 			'yPoints':          160,
-			'pointsPerSample':    3,
+			'pointsPerSample':    1,
 			'rrdFile':          os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
 		}
 		self._rrdCache = { 'requests': 0, 'sessions': 0, 'rpcs': 0, 'rpcerrors': 0 }
@@ -1244,10 +1247,11 @@ class Statistics(object):
 		startTime = time.time()
 		rows = self._rrdConfig['xPoints']/self._rrdConfig['pointsPerSample']
 		realRows = int(rows * 1.1) # ensure that the full range is covered
-		daySteps = int(3600 * 24 / (self._rrdConfig['step'] * rows))
+		hourSteps = (3600/self._rrdConfig['step']) * rows
 		# use multiples, otherwise rrdtool could choose the wrong RRA
-		weekSteps  = daySteps   * 7
-		monthSteps = weekSteps  * 5
+		daySteps   = hourSteps  * 24
+		weekSteps  = daySteps   *  7
+		monthSteps = weekSteps  *  5
 		yearSteps  = monthSteps * 12
 		
 		if os.path.exists(self._rrdConfig['rrdFile']):
@@ -1257,10 +1261,12 @@ class Statistics(object):
 			'DS:sessions:DERIVE:%d:0:U' % self._rrdConfig['heartbeat'],
 			'DS:rpcs:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
 			'DS:rpcerrors:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'RRA:AVERAGE:0.5:%d:%d' % (hourSteps, realRows),  # hour
 			'RRA:AVERAGE:0.5:%d:%d' % (daySteps, realRows),   # day
 			'RRA:AVERAGE:0.5:%d:%d' % (weekSteps, realRows),  # week
 			'RRA:AVERAGE:0.5:%d:%d' % (monthSteps, realRows), # month
 			'RRA:AVERAGE:0.5:%d:%d' % (yearSteps, realRows),  # year
+			'RRA:MAX:0.5:%d:%d' % (hourSteps, realRows),   # hour
 			'RRA:MAX:0.5:%d:%d' % (daySteps, realRows),    # day
 			'RRA:MAX:0.5:%d:%d' % (weekSteps, realRows),   # week
 			'RRA:MAX:0.5:%d:%d' % (monthSteps, realRows),  # month
@@ -1280,14 +1286,18 @@ class Statistics(object):
 		reactor.callLater(int(self._rrdConfig['step']/2), self.updateRrd)
 	
 	def getRrdGraphImage(self, range):
-		step = range*self._rrdConfig['pointsPerSample']/self._rrdConfig['xPoints']
-		end  = int(time.time())
-		end -= end % step
 		date = time.strftime("%a, %d %b %Y %H\:%M\:%S", time.localtime())
+		step = (range*self._rrdConfig['pointsPerSample']*self._rrdConfig['step'])/self._rrdConfig['xPoints']
+		end  = int(time.time())
+		# choose carefully the end otherwise rrd will maybe pick the wrong RRA:
+		end -= end % step
+		
+		print range, step, end
 		
 		graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '%s.png' % range)
 		if os.path.exists(graphImage):
 			os.unlink(graphImage)
+		
 		rrdtool.graph(str(graphImage),
 			'--imgformat',      'PNG',
 			'--width',          str(self._rrdConfig['xPoints']),
@@ -1302,49 +1312,49 @@ class Statistics(object):
 			'--color',          'SHADEB#ffffff',
 			'--color',          'BACK#ffffff',
 			
-			'DEF:requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:mrequ=%s:requests:MAX'    % str(self._rrdConfig['rrdFile']),
-			"CDEF:rrequ=requ,60,*",
-			"CDEF:rmrequ=mrequ,60,*",
-			"CDEF:drequ=requ,UN,0,requ,IF,%d,*" % step,
-			"CDEF:srequ=PREV,UN,drequ,PREV,IF,drequ,+",
-			"AREA:rrequ#0000dd:Requests     ",
-			'GPRINT:srequ:MAX:total\: %8.0lf requests   ',
-			'GPRINT:rrequ:AVERAGE:avg\: %5.2lf requests/min   ',
-			'GPRINT:rmrequ:MAX:max\: %4.0lf requests/min\\l',
+			'DEF:avg_requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:max_requ=%s:requests:MAX'     % str(self._rrdConfig['rrdFile']),
+			"CDEF:avg_requ_permin=avg_requ,60,*",
+			"CDEF:max_requ_permin=max_requ,60,*",
+			"CDEF:delta_requ=avg_requ,UN,0,avg_requ,IF,%d,*" % step,
+			"CDEF:sum_requ=PREV,UN,delta_requ,PREV,IF,delta_requ,+",
+			"AREA:avg_requ_permin#0000dd:Requests     ",
+			'GPRINT:avg_requ:MAX:total\: %8.0lf requests   ',
+			'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min   ',
+			'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
 			
-			'DEF:sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:msess=%s:sessions:MAX'    % str(self._rrdConfig['rrdFile']),
-			"CDEF:rsess=sess,60,*",
-			"CDEF:rmsess=msess,60,*",
-			"CDEF:dsess=sess,UN,0,sess,IF,%d,*" % step,
-			"CDEF:ssess=PREV,UN,dsess,PREV,IF,dsess,+",
-			"AREA:rsess#dddd00:Sessions     ",
-			'GPRINT:ssess:MAX:total\: %8.0lf sessions   ',
-			'GPRINT:rsess:AVERAGE:avg\: %5.2lf sessions/min   ',
-			'GPRINT:rmsess:MAX:max\: %4.0lf sessions/min\\l',
+			'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:max_sess=%s:sessions:MAX'     % str(self._rrdConfig['rrdFile']),
+			"CDEF:avg_sess_permin=avg_sess,60,*",
+			"CDEF:max_sess_permin=max_sess,60,*",
+			"CDEF:delta_sess=avg_sess,UN,0,avg_sess,IF,%d,*" % step,
+			"CDEF:sum_sess=PREV,UN,delta_sess,PREV,IF,delta_sess,+",
+			"AREA:avg_sess_permin#dddd00:Sessions     ",
+			'GPRINT:sum_sess:MAX:total\: %8.0lf sessions   ',
+			'GPRINT:avg_sess_permin:AVERAGE:avg\: %5.2lf sessions/min   ',
+			'GPRINT:max_sess_permin:MAX:max\: %4.0lf sessions/min\\l',
 			
-			'DEF:rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:mrpc=%s:rpcs:MAX'    % str(self._rrdConfig['rrdFile']),
-			"CDEF:rrpc=rpc,60,*",
-			"CDEF:rmrpc=mrpc,60,*",
-			"CDEF:drpc=rpc,UN,0,rpc,IF,%d,*" % step,
-			"CDEF:srpc=PREV,UN,drpc,PREV,IF,drpc,+",
-			"LINE2:rrpc#00dd00:RPCs         ",
-			'GPRINT:srpc:MAX:total\: %8.0lf rpcs       ',
-			'GPRINT:rrpc:AVERAGE:avg\: %5.2lf rpcs/min       ',
-			'GPRINT:rmrpc:MAX:max\: %4.0lf rpcs/min\\l',
+			'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:max_rpc=%s:rpcs:MAX'     % str(self._rrdConfig['rrdFile']),
+			"CDEF:avg_rpc_permin=avg_rpc,60,*",
+			"CDEF:max_rpc_permin=max_rpc,60,*",
+			"CDEF:delta_rpc=avg_rpc,UN,0,avg_rpc,IF,%d,*" % step,
+			"CDEF:sum_rpc=PREV,UN,delta_rpc,PREV,IF,delta_rpc,+",
+			"LINE2:avg_rpc_permin#00dd00:RPCs         ",
+			'GPRINT:sum_rpc:MAX:total\: %8.0lf rpcs       ',
+			'GPRINT:avg_rpc_permin:AVERAGE:avg\: %5.2lf rpcs/min       ',
+			'GPRINT:max_rpc_permin:MAX:max\: %4.0lf rpcs/min\\l',
 			
-			'DEF:rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:mrpcerror=%s:rpcerrors:MAX'    % str(self._rrdConfig['rrdFile']),
-			"CDEF:rrpcerror=rpcerror,60,*",
-			"CDEF:rmrpcerror=mrpcerror,60,*",
-			"CDEF:drpcerror=rpcerror,UN,0,rpcerror,IF,%d,*" % step,
-			"CDEF:srpcerror=PREV,UN,drpcerror,PREV,IF,drpcerror,+",
-			"LINE2:rrpcerror#dd0000:RPC errors   ",
-			'GPRINT:srpcerror:MAX:total\: %8.0lf rpc errors ',
-			'GPRINT:rrpcerror:AVERAGE:avg\: %5.2lf rpc errors/min ',
-			'GPRINT:rmrpcerror:MAX:max\: %4.0lf rpc errors/min\\l',
+			'DEF:avg_rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:max_rpcerror=%s:rpcerrors:MAX'     % str(self._rrdConfig['rrdFile']),
+			"CDEF:avg_rpcerror_permin=avg_rpcerror,60,*",
+			"CDEF:max_rpcerror_permin=max_rpcerror,60,*",
+			"CDEF:delta_rpcerror=avg_rpcerror,UN,0,avg_rpcerror,IF,%d,*" % step,
+			"CDEF:sum_rpcerror=PREV,UN,delta_rpcerror,PREV,IF,delta_rpcerror,+",
+			"LINE2:avg_rpcerror_permin#dd0000:RPC errors   ",
+			'GPRINT:sum_rpcerror:MAX:total\: %8.0lf rpc errors ',
+			'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min ',
+			'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
 			
 			'COMMENT:[%s]\\r' % date,
 		)

@@ -112,7 +112,7 @@ interfacePage = u'''
 	body          { font-family: verdana, arial; font-size: 12px; }
 	#title        { padding: 10px; color: #6276a0; font-size: 20px; letter-spacing: 5px; }
 	input, select { background-color: #fafafa; border: 1px #abb1ef solid; width: 430px; font-family: verdana, arial; }
-	.json         { color: #555555; width: 600px; float: left; clear: both; margin: 30px; padding: 20px; background-color: #fafafa; border: 1px #abb1ef dashed; font-size: 11px; }
+	.json         { color: #555555; width: 95%; float: left; clear: both; margin: 30px; padding: 20px; background-color: #fafafa; border: 1px #abb1ef dashed; font-size: 11px; }
 	.json_key     { color: #9e445a; }
 	.json_label   { color: #abb1ef; margin-top: 20px; margin-bottom: 5px; font-size: 11px; }
 	.title        { color: #555555; font-size: 20px; font-weight: bolder; letter-spacing: 5px; }

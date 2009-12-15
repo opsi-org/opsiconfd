@@ -49,11 +49,11 @@ from OPSI.web2.dav import static
 
 # OPSI imports
 from OPSI.Logger import *
+from OPSI.Util import timestamp, objectToHtml, randomString
 from OPSI.Util.File import IniFile
 from OPSI.Types import *
 from OPSI.System import which, execute, getDiskSpaceUsage
 from OPSI.Backend.BackendManager import BackendManager
-from OPSI import Tools
 from OPSI.Object import serialize, deserialize
 
 logger = Logger()
@@ -548,7 +548,7 @@ class Worker:
 				raise Exception(u"Host '%s' not found in backend" % self.session.user)
 			host = hosts[0]
 			if (host.getType() == 'OpsiClient'):
-				host.setLastSeen(Tools.timestamp())
+				host.setLastSeen(timestamp())
 				self.session.backend.host_updateObjects(host)
 		
 	def _setResponse(self, result):
@@ -807,7 +807,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 		resultDiv = u'<div id="result">'
 		for rpc in self._rpcs:
 			resultDiv += '<div class="json">'
-			resultDiv += Tools.objectToHtml(serialize(rpc.getResponse()))
+			resultDiv += objectToHtml(serialize(rpc.getResponse()))
 			resultDiv += u'</div>'
 		resultDiv += u'</div>'
 		
@@ -1092,7 +1092,7 @@ class Session:
 		self.created = time.time()
 		self.lastModified = time.time()
 		self.sessionTimer = None
-		self.uid = Tools.randomString(32)
+		self.uid = randomString(32)
 		self.ip = ''
 		self.userAgent = ''
 		self.isHost = False

@@ -375,10 +375,11 @@ class Worker:
 		# Get session id from cookie request header
 		sessionId = u''
 		try:
-			for cookie in self.request.headers.getHeader('cookie'):
-				if (cookie.name == self.opsiconfd.config['sessionName']):
-					sessionId = unicode(cookie.value)
-					break
+			if self.request.headers.getHeader('cookie'):
+				for cookie in self.request.headers.getHeader('cookie'):
+					if (cookie.name == self.opsiconfd.config['sessionName']):
+						sessionId = unicode(cookie.value)
+						break
 		except Exception, e:
 			logger.error(u"Failed to get cookie from header: %s" % e)
 		
@@ -790,7 +791,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 					# Python 2.6 json module
 					param = json.dumps(param)
 				else:
-					params = json.write(param)
+					param = json.write(param)
 				javascript += u"currentParams[%d] = '%s';\n" % (i, param)
 		
 		selectMethod = u''
@@ -839,6 +840,8 @@ class WorkerOpsiconfdInfo(Worker):
 		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*7))
 		graphs += u'<h1>Last month</h1>'
 		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*31))
+		graphs += u'<h1>Last year</h1>'
+		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*365))
 		
 		configInfo  = u'<h1>Server config</h1>'
 		configInfo += u'<table>'
@@ -1232,50 +1235,45 @@ class Statistics(object):
 		self._encodinErrors = []
 		self._rrdConfig = {
 			'step':              60,
-			'heartbeat':         60,
+			'heartbeat':        120,
 			'xPoints':          800,
 			'yPoints':          160,
-			'pointsPerSample':    1,
 			'rrdFile':          os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
 		}
 		self._rrdCache = { 'requests': 0, 'sessions': 0, 'rpcs': 0, 'rpcerrors': 0 }
 		if not os.path.exists(self._rrdConfig['rrdFile']):
 			self.createRrd()
-		reactor.callLater(int(self._rrdConfig['step']/2), self.updateRrd)
+		reactor.callLater(int(self._rrdConfig['step']), self.updateRrd)
 		
 	def createRrd(self):
-		startTime = time.time()
-		rows = self._rrdConfig['xPoints']/self._rrdConfig['pointsPerSample']
-		realRows = int(rows * 1.1) # ensure that the full range is covered
-		hourSteps = (3600/self._rrdConfig['step']) * rows
-		# use multiples, otherwise rrdtool could choose the wrong RRA
-		daySteps   = hourSteps  * 24
-		weekSteps  = daySteps   *  7
-		monthSteps = weekSteps  *  5
-		yearSteps  = monthSteps * 12
-		
 		if os.path.exists(self._rrdConfig['rrdFile']):
 			os.unlink(self._rrdConfig['rrdFile'])
-		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(int(time.time())), '--step', str(self._rrdConfig['step']),
-			'DS:requests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:sessions:DERIVE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:rpcs:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+		
+		start = int(time.time())
+		logger.notice(u"Creating rrd '%s', start: %s" % (self._rrdConfig['rrdFile'], start))
+		
+		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(start), '--step', str(self._rrdConfig['step']),
+			'DS:requests:ABSOLUTE:%d:0:U'  % self._rrdConfig['heartbeat'],
+			'DS:sessions:DERIVE:%d:0:U'    % self._rrdConfig['heartbeat'],
+			'DS:rpcs:ABSOLUTE:%d:0:U'      % self._rrdConfig['heartbeat'],
 			'DS:rpcerrors:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'RRA:AVERAGE:0.5:%d:%d' % (hourSteps, realRows),  # hour
-			'RRA:AVERAGE:0.5:%d:%d' % (daySteps, realRows),   # day
-			'RRA:AVERAGE:0.5:%d:%d' % (weekSteps, realRows),  # week
-			'RRA:AVERAGE:0.5:%d:%d' % (monthSteps, realRows), # month
-			'RRA:AVERAGE:0.5:%d:%d' % (yearSteps, realRows),  # year
-			'RRA:MAX:0.5:%d:%d' % (hourSteps, realRows),   # hour
-			'RRA:MAX:0.5:%d:%d' % (daySteps, realRows),    # day
-			'RRA:MAX:0.5:%d:%d' % (weekSteps, realRows),   # week
-			'RRA:MAX:0.5:%d:%d' % (monthSteps, realRows),  # month
-			'RRA:MAX:0.5:%d:%d' % (yearSteps, realRows),   # year
+			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])),    # hour
+			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])*24), # day
+			'RRA:AVERAGE:0.5:%d:%d' % (7,   (3600/self._rrdConfig['step'])*24), # week
+			'RRA:AVERAGE:0.5:%d:%d' % (31,  (3600/self._rrdConfig['step'])*24), # month
+			'RRA:AVERAGE:0.5:%d:%d' % (365, (3600/self._rrdConfig['step'])*24), # year
+			'RRA:MAX:0.5:%d:%d'     % (1,   (3600/self._rrdConfig['step'])),    # hour
+			'RRA:MAX:0.5:%d:%d'     % (1,   (3600/self._rrdConfig['step'])*24), # day
+			'RRA:MAX:0.5:%d:%d'     % (7,   (3600/self._rrdConfig['step'])*24), # week
+			'RRA:MAX:0.5:%d:%d'     % (31,  (3600/self._rrdConfig['step'])*24), # month
+			'RRA:MAX:0.5:%d:%d'     % (365, (3600/self._rrdConfig['step'])*24), # year
 		)
 	
 	def updateRrd(self):
 		try:
 			now = int(time.time())
+			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors']))
 			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d' \
 				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors']))
 			self._rrdCache['requests'] = 0
@@ -1286,15 +1284,14 @@ class Statistics(object):
 		reactor.callLater(int(self._rrdConfig['step']/2), self.updateRrd)
 	
 	def getRrdGraphImage(self, range):
+		
 		date = time.strftime("%a, %d %b %Y %H\:%M\:%S", time.localtime())
-		step = (range*self._rrdConfig['pointsPerSample']*self._rrdConfig['step'])/self._rrdConfig['xPoints']
-		end  = int(time.time())
-		# choose carefully the end otherwise rrd will maybe pick the wrong RRA:
-		end -= end % step
-		
-		print range, step, end
-		
+		end = int(time.time())
+		start = end - range
 		graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '%s.png' % range)
+		
+		logger.debug(u"Creating rrd graph image '%s', start: %s, end: %s" % (graphImage, start, end))
+		
 		if os.path.exists(graphImage):
 			os.unlink(graphImage)
 		
@@ -1302,57 +1299,53 @@ class Statistics(object):
 			'--imgformat',      'PNG',
 			'--width',          str(self._rrdConfig['xPoints']),
 			'--height',         str(self._rrdConfig['yPoints']),
-			'--start',          "-%d" % range,
+			'--start',          str(start),
 			'--end',            str(end),
 			'--vertical-label', 'avg per minute',
 			'--lower-limit',    str(0),
 			'--units-exponent', str(0), # don't show milli-messages/s
-			'--lazy',
+			'--slope-mode',
 			'--color',          'SHADEA#ffffff',
 			'--color',          'SHADEB#ffffff',
 			'--color',          'BACK#ffffff',
 			
 			'DEF:avg_requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
 			'DEF:max_requ=%s:requests:MAX'     % str(self._rrdConfig['rrdFile']),
-			"CDEF:avg_requ_permin=avg_requ,60,*",
-			"CDEF:max_requ_permin=max_requ,60,*",
-			"CDEF:delta_requ=avg_requ,UN,0,avg_requ,IF,%d,*" % step,
-			"CDEF:sum_requ=PREV,UN,delta_requ,PREV,IF,delta_requ,+",
-			"AREA:avg_requ_permin#0000dd:Requests     ",
-			'GPRINT:avg_requ:MAX:total\: %8.0lf requests   ',
+			'CDEF:avg_requ_permin=avg_requ,60,*',
+			'CDEF:max_requ_permin=max_requ,60,*',
+			'VDEF:total_requ=avg_requ,TOTAL',
+			'AREA:avg_requ_permin#0000dd:Requests     ',
+			'GPRINT:total_requ:total\: %8.0lf requests   ',
 			'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min   ',
 			'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
 			
 			'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
 			'DEF:max_sess=%s:sessions:MAX'     % str(self._rrdConfig['rrdFile']),
-			"CDEF:avg_sess_permin=avg_sess,60,*",
-			"CDEF:max_sess_permin=max_sess,60,*",
-			"CDEF:delta_sess=avg_sess,UN,0,avg_sess,IF,%d,*" % step,
-			"CDEF:sum_sess=PREV,UN,delta_sess,PREV,IF,delta_sess,+",
-			"AREA:avg_sess_permin#dddd00:Sessions     ",
-			'GPRINT:sum_sess:MAX:total\: %8.0lf sessions   ',
+			'CDEF:avg_sess_permin=avg_sess,60,*',
+			'CDEF:max_sess_permin=max_sess,60,*',
+			'VDEF:total_sess=avg_sess,TOTAL',
+			'AREA:avg_sess_permin#dddd00:Sessions     ',
+			'GPRINT:total_sess:total\: %8.0lf sessions   ',
 			'GPRINT:avg_sess_permin:AVERAGE:avg\: %5.2lf sessions/min   ',
 			'GPRINT:max_sess_permin:MAX:max\: %4.0lf sessions/min\\l',
 			
 			'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
 			'DEF:max_rpc=%s:rpcs:MAX'     % str(self._rrdConfig['rrdFile']),
-			"CDEF:avg_rpc_permin=avg_rpc,60,*",
-			"CDEF:max_rpc_permin=max_rpc,60,*",
-			"CDEF:delta_rpc=avg_rpc,UN,0,avg_rpc,IF,%d,*" % step,
-			"CDEF:sum_rpc=PREV,UN,delta_rpc,PREV,IF,delta_rpc,+",
-			"LINE2:avg_rpc_permin#00dd00:RPCs         ",
-			'GPRINT:sum_rpc:MAX:total\: %8.0lf rpcs       ',
+			'CDEF:avg_rpc_permin=avg_rpc,60,*',
+			'CDEF:max_rpc_permin=max_rpc,60,*',
+			'VDEF:total_rpc=avg_rpc,TOTAL',
+			'LINE2:avg_rpc_permin#00dd00:RPCs         ',
+			'GPRINT:total_rpc:total\: %8.0lf rpcs       ',
 			'GPRINT:avg_rpc_permin:AVERAGE:avg\: %5.2lf rpcs/min       ',
 			'GPRINT:max_rpc_permin:MAX:max\: %4.0lf rpcs/min\\l',
 			
 			'DEF:avg_rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
 			'DEF:max_rpcerror=%s:rpcerrors:MAX'     % str(self._rrdConfig['rrdFile']),
-			"CDEF:avg_rpcerror_permin=avg_rpcerror,60,*",
-			"CDEF:max_rpcerror_permin=max_rpcerror,60,*",
-			"CDEF:delta_rpcerror=avg_rpcerror,UN,0,avg_rpcerror,IF,%d,*" % step,
-			"CDEF:sum_rpcerror=PREV,UN,delta_rpcerror,PREV,IF,delta_rpcerror,+",
-			"LINE2:avg_rpcerror_permin#dd0000:RPC errors   ",
-			'GPRINT:sum_rpcerror:MAX:total\: %8.0lf rpc errors ',
+			'CDEF:avg_rpcerror_permin=avg_rpcerror,60,*',
+			'CDEF:max_rpcerror_permin=max_rpcerror,60,*',
+			'VDEF:total_rpcerror=avg_rpcerror,TOTAL',
+			'LINE2:avg_rpcerror_permin#dd0000:RPC errors   ',
+			'GPRINT:total_rpcerror:total\: %8.0lf rpc errors ',
 			'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min ',
 			'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
 			
@@ -1510,7 +1503,11 @@ class Opsiconfd(threading.Thread):
 					logger.logTraceback(eventDict['failure'].getTracebackObject())
 					logger.critical(u"     ==>>> %s" % eventDict['failure'].getErrorMessage())
 				for line in eventDict.get('message', ()):
-					logger.error(line)
+					if line.find("Can't find property" != -1):
+						# Dav property errors
+						logger.debug(line)
+					else:
+						logger.error(line)
 			else:
 				for line in eventDict.get('message', ()):
 					logger.debug(u"[twisted] %s" % line)

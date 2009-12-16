@@ -978,16 +978,11 @@ class ResourceRoot(resource.Resource):
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class ResourceOpsi(resource.Resource):
 	WorkerClass = None
+	isLeaf = True
 	
 	def __init__(self, opsiconfd):
 		resource.Resource.__init__(self)
 		self._opsiconfd = opsiconfd
-		
-	def getChild(self, name, request):
-		''' Get the child resource for the requested path. '''
-		if not name:
-			return self
-		return resource.Resource.getChild(self, name, request)
 	
 	def renderHTTP(self, request):
 		''' Process request. '''
@@ -1006,9 +1001,18 @@ class ResourceOpsi(resource.Resource):
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class ResourceOpsiJsonRpc(ResourceOpsi):
 	WorkerClass = WorkerOpsiJsonRpc
+	isLeaf = False
 	
 	def __init__(self, opsiconfd):
 		ResourceOpsi.__init__(self, opsiconfd)
+		#if hasattr(self._opsiconfd.getBackend(), 'dispatcher_getBackendNames'):
+		#	self.putChild('backend', self)
+		#	for i in self._opsiconfd.getBackend().dispatcher_getBackendNames():
+		#		self.putChild(i, self)
+	
+	def locateChild(self, request, segments):
+		return self, server.StopTraversal
+	
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                              CLASS RESOURCE OPSI JSON INTERFACE                                   =
@@ -1017,7 +1021,7 @@ class ResourceOpsiJsonInterface(ResourceOpsiJsonRpc):
 	WorkerClass = WorkerOpsiJsonInterface
 	
 	def __init__(self, opsiconfd):
-		ResourceOpsiJsonRpc.__init__(self, opsiconfd)
+		ResourceOpsi.__init__(self, opsiconfd)
 		self._interface = self._opsiconfd.getBackend().getInterface()
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =

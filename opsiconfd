@@ -49,7 +49,7 @@ from OPSI.web2.dav import static
 
 # OPSI imports
 from OPSI.Logger import *
-from OPSI.Util import timestamp, objectToHtml, randomString
+from OPSI.Util import timestamp, objectToHtml, randomString, toJson, fromJson
 from OPSI.Util.File import IniFile
 from OPSI.Types import *
 from OPSI.System import which, execute, getDiskSpaceUsage
@@ -57,8 +57,6 @@ from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Object import serialize, deserialize
 
 logger = Logger()
-logger.setConsoleLevel(100)
-
 
 infoPage = u'''
 <?xml version="1.0" encoding="UTF-8"?>
@@ -120,18 +118,28 @@ interfacePage = u'''
 	.box          { background-color: #fafafa; border: 1px #555555 solid; padding: 20px; margin-left: 30px; margin-top: 50px;}
 	</style>
 	<script type="text/javascript">
+		var path = 'interface';
 		var parameters = new Array();
 		var method = '';
 		var params = '';
 		var id = '"id": 1';
 		%javascript%
-		function selectFunction(select) {
+		
+		function selectPath(select) {
+			path = select.value;
+			document.getElementById('json_method').firstChild.data = '"getInterface"';
+			document.getElementById('json_params').firstChild.data = '[]';
+			onSubmit();
+		}
+		function selectMethod(select) {
 			method = select.value;
 			tbody = document.getElementById('tbody');
 			var button;
 			var json;
 			for (i=tbody.childNodes.length-1; i>=0; i--) {
-				if (tbody.childNodes[i].id == 'tr_method') {
+				if (tbody.childNodes[i].id == 'tr_path') {
+				}
+				else if (tbody.childNodes[i].id == 'tr_method') {
 				}
 				else if (tbody.childNodes[i].id == 'tr_submit') {
 					button = tbody.childNodes[i];
@@ -145,7 +153,7 @@ interfacePage = u'''
 					tbody.removeChild(tbody.childNodes[i]);
 				}
 			}
-
+			
 			for (i=0; i < parameters[select.value].length; i++) {
 				tr = document.createElement("tr");
 				td1 = document.createElement("td");
@@ -175,7 +183,7 @@ interfacePage = u'''
 			json += ', "params": ';
 			json += document.getElementById('json_params').firstChild.data;
 			json += ' }';
-			window.location.href = '?' + json;
+			window.location.href = '/' + path + '?' + json;
 			return false;
 		}
 		
@@ -209,18 +217,26 @@ interfacePage = u'''
 		}
 	</script>
 </head>
-<body onload="selectFunction(document.getElementById('select'))">
+<body onload="selectMethod(document.getElementById('method_select'))">
 	<span id="title">
-		<img src="opsi_logo.png" />
+		<img src="/opsi_logo.png" />
 		<span sytle="padding: 1px">opsi config interface</span>
 	</span>
 	<form method="post" onsubmit="return onSubmit()">
 		<table class="box">
 			<tbody id="tbody">
+				<tr id="tr_path">
+					<td style="width: 150px;">Path:</td>
+					<td style="width: 440px;">
+						<select id="path_select" onchange="selectPath(this)" name="path">
+							%select_path%
+						</select>
+					</td>
+				</tr>
 				<tr id="tr_method">
 					<td style="width: 150px;">Method:</td>
 					<td style="width: 440px;">
-						<select id="select" onchange="selectFunction(this)" name="method">
+						<select id="method_select" onchange="selectMethod(this)" name="method">
 							%select_method%
 						</select>
 					</td>
@@ -250,34 +266,6 @@ interfacePage = u'''
 </body>
 '''
 
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =                                  OPSICONFD ERROR CLASSES                                          =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class OpsiconfdError(Exception):
-	ExceptionShortDescription = u"Opsiconfd error"
-	
-	def __init__(self, message = u''):
-		self._message = forceUnicode(message)
-	
-	def __unicode__(self):
-		if self._message:
-			return u"%s: %s" % (self.ExceptionShortDescription, self._message)
-		else:
-			return u"%s" % self.ExceptionShortDescription
-		
-	def __repr__(self):
-		return unicode(self).encode("utf-8")
-	
-	__str__ = __repr__
-
-class OpsiconfdAuthenticationError(Exception):
-	ExceptionShortDescription = u"Opsiconfd authentication error"
-
-class OpsiconfdBadRpcError(Exception):
-	ExceptionShortDescription = u"Opsiconfd bad rpc error"
-
-class OpsiconfdRpcError(Exception):
-	ExceptionShortDescription = u"Opsiconfd rpc error"
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                        CLASS WORKER                                               =
@@ -297,6 +285,7 @@ class Worker:
 		deferred.addCallback(self._getSession)
 		deferred.addCallback(self._linkLogFile)
 		deferred.addCallback(self._authenticate)
+		deferred.addCallback(self._createBackend)
 		deferred.addCallback(self._getQuery)
 		deferred.addCallback(self._decodeQuery)
 		deferred.addCallback(self._setResponse)
@@ -316,11 +305,11 @@ class Worker:
 		result = self._setCookie(result)
 		try:
 			failure.raiseException()
-		except OpsiconfdAuthenticationError, e:
+		except OpsiAuthenticationError, e:
 			logger.error(e)
 			result.code = responsecode.UNAUTHORIZED
 			result.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
-		except OpsiconfdBadRpcError, e:
+		except OpsiBadRpcError, e:
 			logger.error(e)
 			result.code = responsecode.BAD_REQUEST
 		except Exception, e:
@@ -493,14 +482,14 @@ class Worker:
 					raise Exception(u"Access denied for username '%s' from '%s'" %
 							(self.session.user, self.session.ip) )
 			
-			self._createBackend()
+			self._createBackend(result)
 			
 			self.session.authenticated = True
 			
 		except Exception, e:
 			self._freeSession(result)
 			self.opsiconfd.getSessionHandler().deleteSession(self.session.uid)
-			raise OpsiconfdAuthenticationError(u"Forbidden: %s" % e)
+			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
 		return result
 	
 	def _getQuery(self, result):
@@ -529,17 +518,33 @@ class Worker:
 		logger.debug2(u"query: %s" % self.query)
 		return result
 	
-	def _createBackend(self):
+	def _createBackend(self, result):
 		if self.session.backend and self.session.interface:
-			return result
+			if (len(self.session.postpath) == len(self.request.postpath)):
+				postpathMatch = True
+				for i in range(len(self.request.postpath)):
+					if (self.request.postpath[i] != self.session.postpath[i]):
+						postpathMatch = False
+				if postpathMatch:
+					return result
+			self.session.interface = None
+			self.session.backend.exit()
 		
-		self.session.backend = BackendManager(
-			dispatchConfigFile = self.opsiconfd.config['dispatchConfigFile'],
-			backendConfigDir   = self.opsiconfd.config['backendConfigDir'],
-			extensionConfigDir = self.opsiconfd.config['extensionConfigDir'],
-			#aclFile            = self.opsiconfd.config['aclFile'],
-			depotBackend       = bool(self.opsiconfd.config['depotId'])
-		)
+		self.session.postpath = self.request.postpath
+		if (len(self.request.postpath) == 2) and (self.request.postpath[0] == 'backend'):
+			self.session.backend = BackendManager(
+				backend          = self.request.postpath[1],
+				backendConfigDir = self.opsiconfd.config['backendConfigDir'],
+				#acl    = self.opsiconfd.config['aclFile'],
+			)
+		else:
+			self.session.backend = BackendManager(
+				dispatchConfigFile = self.opsiconfd.config['dispatchConfigFile'],
+				backendConfigDir   = self.opsiconfd.config['backendConfigDir'],
+				extensionConfigDir = self.opsiconfd.config['extensionConfigDir'],
+				#aclFile            = self.opsiconfd.config['aclFile'],
+				depotBackend       = bool(self.opsiconfd.config['depotId'])
+			)
 		logger.notice(u'Backend created: %s' % self.session.backend)
 		self.session.interface = self.session.backend.getInterface()
 		if self.session.isHost:
@@ -550,6 +555,7 @@ class Worker:
 			if (host.getType() == 'OpsiClient'):
 				host.setLastSeen(timestamp())
 				self.session.backend.host_updateObjects(host)
+		return result
 		
 	def _setResponse(self, result):
 		if not isinstance(result, http.Response):
@@ -628,7 +634,7 @@ class JsonRpc(object):
 					found = True
 					break
 			if not found:
-				raise OpsiconfdRpcError(u"Method '%s' is not valid" % self.getMethodName())
+				raise OpsiRpcError(u"Method '%s' is not valid" % self.getMethodName())
 			
 			params = deserialize(params)
 			backend = self._worker.session.backend
@@ -691,6 +697,7 @@ class WorkerOpsiJsonRpc(Worker):
 		deferred.addCallback(self._getSession)
 		deferred.addCallback(self._linkLogFile)
 		deferred.addCallback(self._authenticate)
+		deferred.addCallback(self._createBackend)
 		deferred.addCallback(self._getQuery)
 		deferred.addCallback(self._decodeQuery)
 		deferred.addCallback(self._getRpcs)
@@ -708,19 +715,12 @@ class WorkerOpsiJsonRpc(Worker):
 		
 		rpcs = []
 		try:
-			if hasattr(json, 'loads'):
-				# Python 2.6 json module
-				#rpcs = json.loads(self.query.replace(u'\ufffd', '?'))
-				rpcs = json.loads(self.query)
-			else:
-				#rpcs = json.read(self.query.replace(u'\ufffd', '?'))
-				rpcs = json.read(self.query)
-			
+			rpcs = fromJson(self.query)
 			if not rpcs:
 				raise Exception(u"Got no rpcs")
 		
 		except Exception, e:
-			raise OpsiconfdBadRpcError(u"Failed to decode rpc: %s" % e)
+			raise OpsiBadRpcError(u"Failed to decode rpc: %s" % e)
 		
 		for rpc in forceList(rpcs):
 			self._rpcs.append(JsonRpc(self, rpc))
@@ -760,13 +760,7 @@ class WorkerOpsiJsonRpc(Worker):
 		if not response:
 			response = None
 		
-		jsonResponse = None
-		if hasattr(json, 'dumps'):
-			# Python 2.6 json module
-			jsonResponse = json.dumps(response)
-		else:
-			jsonResponse = json.write(response)
-		result.stream = stream.IByteStream(jsonResponse.encode('utf-8'))
+		result.stream = stream.IByteStream(toJson(response).encode('utf-8'))
 		return result
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -787,15 +781,23 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 			javascript += u"currentMethod = '%s';\n" % currentMethod
 			for i in range(len(self._rpcs[0].params)):
 				param = self._rpcs[0].params[i]
-				if hasattr(json, 'dumps'):
-					# Python 2.6 json module
-					param = json.dumps(param)
-				else:
-					param = json.write(param)
-				javascript += u"currentParams[%d] = '%s';\n" % (i, param)
+				javascript += u"currentParams[%d] = '%s';\n" % (i, toJson(param))
+		
+		currentPath = u'interface'
+		selected = u' selected'
+		for pp in self.request.postpath:
+			currentPath += u'/%s' % pp
+			selected = u''
+		selectPath = u'<option%s>interface</option>' % selected
+		for name in self.opsiconfd.getBackend().dispatcher_getBackendNames():
+			selected = u''
+			path = u'interface/backend/%s' % name
+			if (path == currentPath):
+				selected = u' selected'
+			selectPath += '<option%s>%s</option>' % (selected, path)
 		
 		selectMethod = u''
-		for method in self.resource._interface:
+		for method in self.session.interface:
 			javascript += u"parameters['%s'] = new Array();\n" % (method['name'])
 			for param in range(len(method['params'])):
 				javascript += u"parameters['%s'][%s]='%s';\n" % (method['name'], param, method['params'][param])
@@ -813,6 +815,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 		
 		html = interfacePage
 		html = html.replace('%javascript%', javascript)
+		html = html.replace('%select_path%', selectPath)
 		html = html.replace('%select_method%', selectMethod)
 		html = html.replace('%result%', resultDiv)
 		
@@ -916,9 +919,6 @@ class WorkerOpsiconfdInfo(Worker):
 					% (statistic['application'], statistic['what'], statistic['ip'], statistic['error'])
 		statisticInfo += u'</table>'
 		
-		
-		#self.opsiconfd.statistics().addEncodingError('query', self.session.ip, self.session.user, self.session.userAgent, unicode(e))
-		
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
 		html = html.replace('%graphs%', graphs)
 		html = html.replace('%config_info%', configInfo)
@@ -1005,10 +1005,6 @@ class ResourceOpsiJsonRpc(ResourceOpsi):
 	
 	def __init__(self, opsiconfd):
 		ResourceOpsi.__init__(self, opsiconfd)
-		#if hasattr(self._opsiconfd.getBackend(), 'dispatcher_getBackendNames'):
-		#	self.putChild('backend', self)
-		#	for i in self._opsiconfd.getBackend().dispatcher_getBackendNames():
-		#		self.putChild(i, self)
 	
 	def locateChild(self, request, segments):
 		return self, server.StopTraversal
@@ -1104,6 +1100,7 @@ class Session:
 		self.user = ''
 		self.password = ''
 		self.authenticated = False
+		self.postpath = []
 		self.backend = None
 		self.interface = None
 		self.usageCount = 0

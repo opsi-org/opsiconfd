@@ -127,7 +127,7 @@ interfacePage = u'''
 		
 		function selectPath(select) {
 			path = select.value;
-			document.getElementById('json_method').firstChild.data = '"getInterface"';
+			document.getElementById('json_method').firstChild.data = '"backend_getInterface"';
 			document.getElementById('json_params').firstChild.data = '[]';
 			onSubmit();
 		}
@@ -405,14 +405,14 @@ class Worker:
 		
 		# Set user and password
 		if not self.session.user and not self.session.password and self.request.headers.getHeader('Authorization'):
-			(user, password) = ('', '')
+			(user, password) = (u'', u'')
 			logger.debug(u"Trying to get username and password from Authorization header")
 			auth = self.request.headers.getHeader('Authorization')
 			if auth:
 				logger.debug(u"Authorization header found (type: %s)" % auth[0])
 				try:
 					encoded = auth[1]
-					(user, password) = base64.decodestring(encoded).split(':', 1)
+					(user, password) = forceUnicode(base64.decodestring(encoded)).split(':', 1)
 					logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
 				except Exception, e:
 					raise Exception(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
@@ -528,7 +528,7 @@ class Worker:
 				if postpathMatch:
 					return result
 			self.session.interface = None
-			self.session.backend.exit()
+			self.session.backend.backend_exit()
 		
 		self.session.postpath = self.request.postpath
 		if (len(self.request.postpath) == 2) and (self.request.postpath[0] == 'backend'):
@@ -546,7 +546,7 @@ class Worker:
 				depotBackend       = bool(self.opsiconfd.config['depotId'])
 			)
 		logger.notice(u'Backend created: %s' % self.session.backend)
-		self.session.interface = self.session.backend.getInterface()
+		self.session.interface = self.session.backend.backend_getInterface()
 		if self.session.isHost:
 			hosts = self.session.backend.host_getObjects(id = self.session.user)
 			if not hosts:
@@ -734,7 +734,7 @@ class WorkerOpsiJsonRpc(Worker):
 		for rpc in self._rpcs:
 			if rpc.hasEnded():
 				continue
-			if (rpc.getMethodName() == 'exit'):
+			if (rpc.getMethodName() == 'backend_exit'):
 				logger.notice(u"User '%s' asked to close the session" % self.session.user)
 				self._freeSession(result)
 				self.opsiconfd.getSessionHandler().deleteSession(self.session.uid)
@@ -788,6 +788,8 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 		for pp in self.request.postpath:
 			currentPath += u'/%s' % pp
 			selected = u''
+		javascript += u"path = '%s';\n" % currentPath
+		
 		selectPath = u'<option%s>interface</option>' % selected
 		for name in self.opsiconfd.getBackend().dispatcher_getBackendNames():
 			selected = u''
@@ -1018,7 +1020,7 @@ class ResourceOpsiJsonInterface(ResourceOpsiJsonRpc):
 	
 	def __init__(self, opsiconfd):
 		ResourceOpsi.__init__(self, opsiconfd)
-		self._interface = self._opsiconfd.getBackend().getInterface()
+		self._interface = self._opsiconfd.getBackend().backend_getInterface()
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                CLASS RESOURCE OPSICONFD INFO                                      =
@@ -1157,9 +1159,9 @@ class Session:
 				logger.info(u"Session timer %s canceled" % self.sessionTimer)
 			except Exception, e:
 				logger.error(u"Failed to cancel session timer: %s" % e)
-		if session.backend:
-			logger.debug(u"Calling exit() on backend %s" % session.backend)
-			session.backend.exit()
+		if self.backend:
+			logger.debug(u"Calling backend_exit() on backend %s" % self.backend)
+			self.backend.backend_exit()
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                    CLASS SESSION HANDLER                                          =

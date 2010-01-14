@@ -1535,13 +1535,13 @@ class Opsiconfd(threading.Thread):
 		if self.config['staticDirectories'].get('/'):
 			if not os.path.isdir(self.config['staticDirectories']['/']):
 				logger.error(u"Cannot add static content '/': directory '%s' does not exist." \
-					% staticDirectories.get('/'))
+					% self.config['staticDirectories']['/'])
 			else:
 				self._root = static.File(self.config['staticDirectories']['/'])
 				logger.notice(u"Added static content '/' which points to directory '%s'" \
 					% self.config['staticDirectories']['/'])
 		
-		if not self._root:
+		if not hasattr(self, '_root'):
 			self._root = ResourceRoot()
 		
 		self._root.putChild('rrd',       static.File(self.config['rrdDir']))

@@ -16,7 +16,7 @@ build-indep-stamp:
 	# Clean up package build directories
 	dh_clean -k
 	# Create subdirectories in package build directories
-	dh_installdirs -A usr/sbin usr/share/opsiconfd/static etc/opsi var/lib/opsi var/run/opsi var/log/opsi
+	dh_installdirs -A usr/sbin usr/share/opsiconfd/static etc/opsi var/lib/opsiconfd var/run/opsiconfd var/log/opsi/opsiconfd
 	rm -f build-indep-stamp
 	touch build-indep-stamp
 
@@ -30,12 +30,12 @@ binary-arch: build-arch binary-stamp
 
 binary-stamp:
 	# Create subdirectories in package build directories
-	install -m 0755 opsiconfd debian/opsiconfd/usr/sbin/
-	install -m 0755 opsiconfd-guard debian/opsiconfd/usr/sbin/
-	install -m 0644 files/opsiconfd.conf debian/opsiconfd/etc/opsi/
-	install -m 0644 files/index.html debian/opsiconfd/usr/share/opsiconfd/static/index.html
-	install -m 0644 files/opsi_logo.png debian/opsiconfd/usr/share/opsiconfd/static/opsi_logo.png
-	install -m 0644 files/favicon.ico debian/opsiconfd/usr/share/opsiconfd/static/favicon.ico
+	install -m 0755 opsiconfd             debian/opsiconfd/usr/sbin/
+	install -m 0755 opsiconfd-guard       debian/opsiconfd/usr/sbin/
+	install -m 0644 files/opsiconfd.conf  debian/opsiconfd/etc/opsi/
+	install -m 0644 files/index.html      debian/opsiconfd/usr/share/opsiconfd/static/index.html
+	install -m 0644 files/opsi_logo.png   debian/opsiconfd/usr/share/opsiconfd/static/opsi_logo.png
+	install -m 0644 files/favicon.ico     debian/opsiconfd/usr/share/opsiconfd/static/favicon.ico
 
 binary-indep: build-indep binary-indep-stamp
 

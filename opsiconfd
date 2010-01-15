@@ -8,7 +8,7 @@
    opsiconfd is part of the desktop management solution opsi
    (open pc server integration) http://www.opsi.org
    
-   Copyright (C) 2008 uib GmbH
+   Copyright (C) 2010 uib GmbH
    
    http://www.uib.de/
    
@@ -1422,7 +1422,7 @@ class Opsiconfd(threading.Thread):
 		self._setOpsiLogging()
 		self._setTwistedLogging()
 		logger.comment(	"\n==================================================================\n" \
-				+ "=             OPSI configuration-service starting                =\n" \
+				+ "=             opsi configuration service starting                =\n" \
 				+ "==================================================================\n")
 		
 	def setConfig(self, config):
@@ -1729,7 +1729,6 @@ class OpsiconfdInit(object):
 			'httpPort'                     : 0,
 			'httpsPort'                    : 4447,
 			'interface'                    : u'0.0.0.0',
-			'backendManagerConf'           : None,
 			'maxExecutionStatisticValues'  : 250,
 			'sslServerCertFile'            : u'/etc/opsi/opsiconfd.pem',
 			'sslServerKeyFile'             : u'/etc/opsi/opsiconfd.pem',
@@ -1744,7 +1743,7 @@ class OpsiconfdInit(object):
 			'rrdDir'                       : u'/var/lib/opsiconfd/rrd',
 			'backendConfigDir'             : u'/etc/opsi/backends',
 			'dispatchConfigFile'           : u'/etc/opsi/backendManager/dispatch.conf',
-			'extensionConfigDir'           : u'/etc/opsi/backendManager/compose.d',
+			'extensionConfigDir'           : u'/etc/opsi/backendManager/extend.d',
 			'aclFile '                     : u'/etc/opsi/backendManager/acl.conf'
 		}
 	
@@ -1827,9 +1826,7 @@ class OpsiconfdInit(object):
 				if (section.lower() == 'global'):
 					# Global settings
 					for (option, value) in config.items(section):
-						if   (option == 'bm config'):
-							self.config['backendManagerConf'] = forceFilename(value)
-						elif (option == 'pid file'):
+						if (option == 'pid file'):
 							self.config['pidFile'] = forceFilename(value)
 						elif (option == 'log level'):
 							self.config['logLevel'] = forceInt(value)
@@ -1902,7 +1899,7 @@ class OpsiconfdInit(object):
 		print u"  -f    Log to given file instead of syslog"
 		print u"  -c    Location of config file"
 		print u"  -l    Set log level (default: 4)"
-		print u"        0=nothing, 1=critical, 2=error, 3=warning, 4=notice, 5=info, 6=debug, 7=debug2, 9=confidential"
+		print u"        0=comment, 1=critical, 2=error, 3=warning, 4=notice, 5=info, 6=debug, 7=debug2, 9=confidential"
 		print u""
 	
 	def daemonize(self):

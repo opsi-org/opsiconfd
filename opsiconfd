@@ -287,7 +287,6 @@ class Worker:
 		deferred.addCallback(self._authenticate)
 		deferred.addCallback(self._createBackend)
 		deferred.addCallback(self._getQuery)
-		deferred.addCallback(self._decodeQuery)
 		deferred.addCallback(self._setResponse)
 		deferred.addCallback(self._setCookie)
 		deferred.addCallback(self._freeSession)
@@ -493,9 +492,15 @@ class Worker:
 		return result
 	
 	def _getQuery(self, result):
-		self.query = ''
+		self.query = u''
 		if   (self.request.method == 'GET'):
 			self.query = urllib.unquote( self.request.querystring )
+			try:
+				self.query = unicode(self.query, 'utf-8')
+			except UnicodeError, e:
+				self.opsiconfd.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(e))
+				self.query = unicode(self.query, 'utf-8', 'replace')
+			
 		elif (self.request.method == 'POST'):
 			# Returning deferred needed for chaining
 			d = stream.readStream(self.request.stream, self._handlePostData)
@@ -506,17 +511,13 @@ class Worker:
 		return result
 		
 	def _handlePostData(self, chunk):
+		try:
+			chunk = unicode(chunk, 'utf-8')
+		except UnicodeError, e:
+			self.opsiconfd.statistics().addEncodingError('postData', self.session.ip, self.session.userAgent, unicode(e))
+			chunk = unicode(chunk, 'utf-8', 'replace')
 		logger.debug2(u"_handlePostData %s" % chunk)
 		self.query += chunk
-	
-	def _decodeQuery(self, result):
-		try:
-			self.query = unicode(self.query, 'utf-8')
-		except UnicodeError, e:
-			self.opsiconfd.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(e))
-			self.query = unicode(self.query, 'utf-8', 'replace')
-		logger.debug2(u"query: %s" % self.query)
-		return result
 	
 	def _createBackend(self, result):
 		if self.session.backend and self.session.interface:
@@ -699,7 +700,6 @@ class WorkerOpsiJsonRpc(Worker):
 		deferred.addCallback(self._authenticate)
 		deferred.addCallback(self._createBackend)
 		deferred.addCallback(self._getQuery)
-		deferred.addCallback(self._decodeQuery)
 		deferred.addCallback(self._getRpcs)
 		deferred.addCallback(self._executeRpcs)
 		deferred.addCallback(self._setResponse)

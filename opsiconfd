@@ -629,6 +629,8 @@ class JsonRpc(object):
 						if m['varargs']:
 							l += len(m['varargs'])
 						if (len(params) >= l):
+							if not type(params[-1]) is types.DictType:
+								raise Exception(u"Not a dict: %s" % params[-1])
 							for (key, value) in params.pop(-1).items():
 								keywords[str(key)] = deserialize(value)
 					found = True
@@ -872,11 +874,11 @@ class WorkerOpsiconfdInfo(Worker):
 		sessions = self.opsiconfd.getSessionHandler().getSessions()
 		sessionInfo  = u'<h1>Active sessions (%d)</h1>' % len(sessions.keys())
 		sessionInfo += u'<table>'
-		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>validity</th><th>ip</th><th>hostname</th><th>user</th><th>is host</th><th>usage count</th><th>application</th></tr>'
+		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>validity</th><th>del. marked</th><th>ip</th><th>hostname</th><th>user</th><th>is host</th><th>usage count</th><th>application</th></tr>'
 		for session in sessions.values():
-			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%ss</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
+			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%ss</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
 				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created)), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.lastModified)), \
-					session.getValidity(), session.ip, session.hostname, session.user, session.isHost, session.usageCount, session.userAgent)
+					session.getValidity(), session.getMarkedForDeletion(), session.ip, session.hostname, session.user, session.isHost, session.usageCount, session.userAgent)
 		sessionInfo += u'</table>'
 		
 		
@@ -1107,6 +1109,7 @@ class Session:
 		self.interface = None
 		self.usageCount = 0
 		self.usageCountLock = threading.Lock()
+		self.markedForDeletion = False
 		self.deleted = False
 		self.touch()
 		
@@ -1134,6 +1137,12 @@ class Session:
 			self.sessionTimer.join(1)
 		self.sessionTimer = threading.Timer(self.sessionMaxInactiveInterval, self.expire)
 		self.sessionTimer.start()
+	
+	def setMarkedForDeletion(self):
+		self.markedForDeletion = True
+	
+	def getMarkedForDeletion(self):
+		return self.markedForDeletion
 		
 	def getValidity(self):
 		if self.deleted:
@@ -1198,6 +1207,7 @@ class SessionHandler:
 				% (session.uid, session.ip, session.userAgent, (time.time()-session.lastModified)))
 		if (session.usageCount > 0):
 			logger.notice(u"Session currently in use, waiting before deletion")
+		session.setMarkedForDeletion()
 		while (session.usageCount > 0):
 			time.sleep(1)
 		self.opsiconfd.statistics().removeSession(session)

@@ -874,9 +874,9 @@ class WorkerOpsiconfdInfo(Worker):
 		sessions = self.opsiconfd.getSessionHandler().getSessions()
 		sessionInfo  = u'<h1>Active sessions (%d)</h1>' % len(sessions.keys())
 		sessionInfo += u'<table>'
-		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>validity</th><th>del. marked</th><th>ip</th><th>hostname</th><th>user</th><th>is host</th><th>usage count</th><th>application</th></tr>'
+		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>validity</th><th>marked for deletion</th><th>ip</th><th>hostname</th><th>user</th><th>is host</th><th>usage count</th><th>application</th></tr>'
 		for session in sessions.values():
-			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%ss</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
+			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
 				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created)), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.lastModified)), \
 					session.getValidity(), session.getMarkedForDeletion(), session.ip, session.hostname, session.user, session.isHost, session.usageCount, session.userAgent)
 		sessionInfo += u'</table>'
@@ -897,7 +897,7 @@ class WorkerOpsiconfdInfo(Worker):
 		diskUsageInfo += u'</table>'
 		
 		average = { 'params': 0.0, 'results': 0.0, 'duration': 0.0, 'failed': 0.0 }
-		statisticInfo  = u'<h1>RPC statistics</h1>'
+		statisticInfo  = u'<h1>RPC statistics (last %d)</h1>' % self.opsiconfd.config['maxExecutionStatisticValues']
 		statisticInfo += u'<table>'
 		statisticInfo += u'<tr><th>method</th><th>params</th><th>results</th><th>duration</th><th>success</th></tr>'
 		rpcs = self.opsiconfd.statistics().getRpcs()
@@ -1208,8 +1208,12 @@ class SessionHandler:
 		if (session.usageCount > 0):
 			logger.notice(u"Session currently in use, waiting before deletion")
 		session.setMarkedForDeletion()
-		while (session.usageCount > 0):
+		timeout = 3600*12
+		while (session.usageCount > 0) and (timeout > 0):
 			time.sleep(1)
+			timeout -= 1
+		if (timeout == 0):
+			logger.warning(u"Session '%s': timeout occured while waiting for session to get free for deletion")
 		self.opsiconfd.statistics().removeSession(session)
 		self.deleteSession(session.uid)
 		

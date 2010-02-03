@@ -412,7 +412,9 @@ class Worker:
 				logger.debug(u"Authorization header found (type: %s)" % auth[0])
 				try:
 					encoded = auth[1]
-					(user, password) = forceUnicode(base64.decodestring(encoded)).split(':', 1)
+					
+					logger.confidential(u"Auth encoded: %s" % encoded)
+					(user, password) = unicode(base64.decodestring(encoded), 'latin-1').split(':')
 					logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
 				except Exception, e:
 					raise Exception(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
@@ -535,15 +537,19 @@ class Worker:
 			self.session.backend = BackendManager(
 				backend          = self.request.postpath[1],
 				backendConfigDir = self.opsiconfd.config['backendConfigDir'],
-				#acl    = self.opsiconfd.config['aclFile'],
+				aclFile          = self.opsiconfd.config['aclFile'],
+				username         = self.session.user,
+				password         = self.session.password
 			)
 		else:
 			self.session.backend = BackendManager(
 				dispatchConfigFile = self.opsiconfd.config['dispatchConfigFile'],
 				backendConfigDir   = self.opsiconfd.config['backendConfigDir'],
 				extensionConfigDir = self.opsiconfd.config['extensionConfigDir'],
-				#aclFile            = self.opsiconfd.config['aclFile'],
-				depotBackend       = bool(self.opsiconfd.config['depotId'])
+				aclFile            = self.opsiconfd.config['aclFile'],
+				depotBackend       = bool(self.opsiconfd.config['depotId']),
+				username           = self.session.user,
+				password           = self.session.password
 			)
 		logger.notice(u'Backend created: %s' % self.session.backend)
 		self.session.interface = self.session.backend.backend_getInterface()
@@ -1537,7 +1543,6 @@ class Opsiconfd(threading.Thread):
 			dispatchConfigFile = self.config['dispatchConfigFile'],
 			backendConfigDir   = self.config['backendConfigDir'],
 			extensionConfigDir = self.config['extensionConfigDir'],
-			#aclFile            = self.config['aclFile'],
 			depotBackend       = bool(self.config['depotId'])
 		)
 	
@@ -1758,7 +1763,7 @@ class OpsiconfdInit(object):
 			'backendConfigDir'             : u'/etc/opsi/backends',
 			'dispatchConfigFile'           : u'/etc/opsi/backendManager/dispatch.conf',
 			'extensionConfigDir'           : u'/etc/opsi/backendManager/extend.d',
-			'aclFile '                     : u'/etc/opsi/backendManager/acl.conf'
+			'aclFile'                      : u'/etc/opsi/backendManager/acl.conf'
 		}
 	
 	def setCommandlineConfig(self):
@@ -1850,6 +1855,14 @@ class OpsiconfdInit(object):
 							self.config['logFormat'] = forceUnicode(value)
 						elif (option == 'symlink logs'):
 							self.config['symlinkLogs'] = forceBool(value)
+						elif (option == 'backend config dir'):
+							self.config['backendConfigDir'] = forceFilename(value)
+						elif (option == 'dispatch config file'):
+							self.config['dispatchConfigFile'] = forceFilename(value)
+						elif (option == 'extension config dir'):
+							self.config['extensionConfigDir'] = forceFilename(value)
+						elif (option == 'acl file'):
+							self.config['aclFile'] = forceFilename(value)
 						elif (option == 'max execution statistics'):
 							self.config['maxExecutionStatisticValues'] = forceInt(value)
 						else:

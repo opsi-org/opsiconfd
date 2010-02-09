@@ -1,4 +1,10 @@
-#! /bin/sh -e
+#! /bin/bash -e
+
+# = = = = = = = = = = = = = = = = = = = = = = =
+# =       Copyright (C) 2010 uib GmbH         =
+# =           http://www.uib.de               =
+# =          All rights reserved.             =
+# = = = = = = = = = = = = = = = = = = = = = = =
 
 . /usr/share/debconf/confmodule
 

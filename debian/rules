@@ -1,62 +1,41 @@
 #!/usr/bin/make -f
-
-build: build-arch build-indep
-
-build-arch: build-stamp
-
-build-stamp:
-
-build-indep: build-indep-stamp
-
-build-indep-stamp:
-	# Make sure we are in the correct directory
-	dh_testdir
-	# Ensure that package is built as root
-	dh_testroot
-	# Clean up package build directories
-	dh_clean -k
-	# Create subdirectories in package build directories
-	dh_installdirs -A usr/sbin usr/share/opsiconfd/static etc/opsi var/lib/opsiconfd var/run/opsiconfd var/log/opsi/opsiconfd
-	rm -f build-indep-stamp
-	touch build-indep-stamp
+# -*- makefile -*-
 
 clean:
-	rm debian/files || true
-	rm -f *-stamp
+	dh_testdir
+	dh_testroot
+	dh_clean
+	rm -f debian/files || true
 
-binary: binary-arch binary-indep
-
-binary-arch: build-arch binary-stamp
-
-binary-stamp:
-	# Create subdirectories in package build directories
+	install:
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+	
 	install -m 0755 opsiconfd             debian/opsiconfd/usr/sbin/
 	install -m 0755 opsiconfd-guard       debian/opsiconfd/usr/sbin/
 	install -m 0644 files/opsiconfd.conf  debian/opsiconfd/etc/opsi/
 	install -m 0644 files/index.html      debian/opsiconfd/usr/share/opsiconfd/static/index.html
 	install -m 0644 files/opsi_logo.png   debian/opsiconfd/usr/share/opsiconfd/static/opsi_logo.png
 	install -m 0644 files/favicon.ico     debian/opsiconfd/usr/share/opsiconfd/static/favicon.ico
+	
+	dh_install
 
-binary-indep: build-indep binary-indep-stamp
-
-binary-indep-stamp:
-	# Install changelogs into package build directories
-	dh_installchangelogs
-	# Fix permissions of files in package build directories
-	dh_fixperms
-	# Generate and install control file
-	dh_gencontrol -i
-	# Install files used by debconf in package build directories
+binary-indep: install
+	dh_testdir -i
+	dh_testroot -i
 	dh_installdebconf
-	# Install logrotate config files
 	dh_installlogrotate
-	# Install init scripts into package build directories
 	dh_installinit --init-script=opsiconfd -u"defaults 80 20"
-	# Install files into the DEBIAN directory
-	dh_installdeb
-	# Generate DEBIAN/md5sums file
+	dh_installchangelogs -i
+	dh_shlibdeps
 	dh_md5sums
-	# Build debian packages
+	dh_gencontrol
+	dh_installdeb
 	dh_builddeb
 
-.PHONY: clean build build-arch build-indep binary binary-arch binary-indep
+binary: binary-indep
+build: binary
+.PHONY: clean binary-indep binary install build
+

@@ -7,7 +7,7 @@ clean:
 	dh_clean
 	rm -f debian/files || true
 
-	install:
+install:
 	dh_testdir
 	dh_testroot
 	dh_clean -k
@@ -36,6 +36,6 @@ binary-indep: install
 	dh_builddeb
 
 binary: binary-indep
-build: binary
+build:
 .PHONY: clean binary-indep binary install build
 

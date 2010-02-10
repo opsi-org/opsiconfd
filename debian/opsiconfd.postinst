@@ -91,6 +91,8 @@ case "$1" in
 		chmod 600 /etc/opsi/opsiconfd.pem
 		chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 		
+		chmod 770 /var/lib/opsiconfd/rrd
+		chown opsiconfd:opsiadmin /var/lib/opsiconfd/rrd
 	;;
 	
 	abort-upgrade|abort-remove|abort-deconfigure)

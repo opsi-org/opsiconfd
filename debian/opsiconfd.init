@@ -102,7 +102,19 @@ case "$1" in
 		
 		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
 			start-stop-daemon --stop --quiet --pidfile $PIDFILE > /dev/null
-			echo "(done)."
+			running=true
+			i=1
+			while [ "$running" = "true" -a $i -le 10 ]; do
+				echo -n "."
+				if ([ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null); then
+					sleep 1
+					i=$(($i+1))
+				else
+					running=false
+				fi
+			done
+			$running && killall -9 `basename $DAEMON` >/dev/null 2>/dev/null
+			echo "   (done)."
 		else
 			echo "(not running)."
 		fi

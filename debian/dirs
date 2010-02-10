@@ -2,4 +2,5 @@ etc/opsi
 usr/sbin
 usr/share/opsiconfd/static
 var/run/opsiconfd
+var/lib/opsiconfd/rrd
 var/log/opsi/opsiconfd

@@ -65,6 +65,7 @@ case "$1" in
 				start-stop-daemon --chuid $USER --pidfile $PIDFILE \
 					--start --quiet --oknodo --exec $DAEMON -- -D
 			fi
+			sleep 5
 			running=false
 			i=1
 			while [ "$running" != "true" -a $i -le 10 ]; do
@@ -95,7 +96,7 @@ case "$1" in
 		fi
 		;;
 	stop)
-		echo -n "Stopping opsi config service...   "
+		echo -n "Stopping opsi config service.."
 		
 		# Kill opsiconfd-guard
 		killall `basename $GUARD_BIN` 1>/dev/null 2>/dev/null

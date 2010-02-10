@@ -25,6 +25,7 @@ case "$1" in
 		
 		deluser pcpatch shadow  1>/dev/null 2>/dev/null || true
 		adduser opsiconfd shadow  1>/dev/null 2>/dev/null || true
+		adduser opsiconfd opsiadmin  1>/dev/null 2>/dev/null || true
 		
 		if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 			umask 077

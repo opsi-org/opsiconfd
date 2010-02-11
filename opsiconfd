@@ -489,6 +489,7 @@ class Worker:
 			self.session.authenticated = True
 			
 		except Exception, e:
+			logger.logException(e, LOG_INFO)
 			self._freeSession(result)
 			self.opsiconfd.getSessionHandler().deleteSession(self.session.uid)
 			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
@@ -655,7 +656,6 @@ class JsonRpc(object):
 			logger.debug2(self.result)
 			
 		except Exception, e:
-			logger.logException(e)
 			logger.error(u'Execution error: %s' % e)
 			self.exception = e
 			self.traceback = []

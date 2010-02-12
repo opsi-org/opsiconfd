@@ -874,7 +874,17 @@ class WorkerOpsiconfdInfo(Worker):
 		threadInfo += u'<table>'
 		threadInfo += u'<tr><th>class</th><th>name</th><th>ident</th><th>alive</th></tr>'
 		for thread in threads:
-			threadInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (thread.__class__.__name__, thread.name, thread.ident, thread.isAlive())
+			threadName = u''
+			try:
+				threadName = thread.name
+			except:
+				pass
+			threadIdent = u''
+			try:
+				threadIdent = thread.ident
+			except:
+				pass
+			threadInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (thread.__class__.__name__, threadName, threadIdent, thread.isAlive())
 		threadInfo += u'</table>'
 		
 		sessions = self.opsiconfd.getSessionHandler().getSessions()

@@ -656,6 +656,7 @@ class JsonRpc(object):
 			logger.debug2(self.result)
 			
 		except Exception, e:
+			logger.logException(e, LOG_INFO)
 			logger.error(u'Execution error: %s' % e)
 			self.exception = e
 			self.traceback = []

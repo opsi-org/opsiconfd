@@ -54,7 +54,7 @@ from OPSI.Util.File import IniFile
 from OPSI.Types import *
 from OPSI.System import which, execute, getDiskSpaceUsage
 from OPSI.Backend.BackendManager import BackendManager
-from OPSI.Object import serialize, deserialize
+from OPSI.Object import BaseObject, serialize, deserialize
 
 logger = Logger()
 
@@ -636,8 +636,10 @@ class JsonRpc(object):
 						if m['varargs']:
 							l += len(m['varargs'])
 						if (len(params) >= l):
+							if isinstance(params[-1], BaseObject):
+								params[-1] = params[-1].toHash()
 							if not type(params[-1]) is types.DictType:
-								raise Exception(u"Not a dict: %s" % params[-1])
+								raise Exception(u"kwargs param is not a dict: %s" % params[-1])
 							for (key, value) in params.pop(-1).items():
 								keywords[str(key)] = deserialize(value)
 					found = True

@@ -1256,9 +1256,22 @@ class SessionHandler:
 	
 	def deleteAllSessions(self):
 		logger.notice(u"Deleting all sessions")
+		class SessionDeletionThread(threading.Thread):
+			def __init__(self, sessionHandler, uid):
+				threading.Thread.__init__(self)
+				self._sessionHandler = sessionHandler
+				self._uid = uid
+			
+			def run(self):
+				self._sessionHandler.deleteSession(self._uid)
+		
+		dts = []
 		for (uid, session) in self.sessions.items():
 			logger.debug(u"Deleting session '%s'" % uid)
-			self.deleteSession(uid)
+			dts.append(SessionDeletionThread(self, uid))
+			dts[-1].start()
+		for dt in dts:
+			dt.join(2)
 		self.sessions = {}
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =

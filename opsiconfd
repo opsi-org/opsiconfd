@@ -325,6 +325,7 @@ class Worker:
 			failure.raiseException()
 		except Exception, e:
 			error = unicode(e)
+			error = toJson({"id": None, "result": None, "error": error})
 		result.stream = stream.IByteStream(error.encode('utf-8'))
 		return result
 		

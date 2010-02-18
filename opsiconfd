@@ -537,12 +537,12 @@ class Worker:
 		self.session.postpath = self.request.postpath
 		if (len(self.request.postpath) == 2) and (self.request.postpath[0] == 'backend'):
 			self.session.backend = BackendManager(
-				backend                   = self.request.postpath[1],
-				accessControlHostBackend  = self.opsiconfd._backend,
-				backendConfigDir          = self.opsiconfd.config['backendConfigDir'],
-				aclFile                   = self.opsiconfd.config['aclFile'],
-				username                  = self.session.user,
-				password                  = self.session.password
+				backend               = self.request.postpath[1],
+				accessControlContext  = self.opsiconfd._backend,
+				backendConfigDir      = self.opsiconfd.config['backendConfigDir'],
+				aclFile               = self.opsiconfd.config['aclFile'],
+				username              = self.session.user,
+				password              = self.session.password
 			)
 		else:
 			self.session.backend = BackendManager(
@@ -867,7 +867,7 @@ class WorkerOpsiconfdInfo(Worker):
 		keys = self.opsiconfd.config.keys()
 		keys.sort()
 		for key in keys:
-			if key in ('staticDirectories'):
+			if key in ('staticDirectories',):
 				continue
 			configInfo += u'<tr><td>%s</td><td>%s</td>' % (key, self.opsiconfd.config[key])
 		configInfo += u'</table>'

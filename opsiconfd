@@ -551,6 +551,7 @@ class Worker:
 				extensionConfigDir = self.opsiconfd.config['extensionConfigDir'],
 				aclFile            = self.opsiconfd.config['aclFile'],
 				depotBackend       = bool(self.opsiconfd.config['depotId']),
+				hostControlBackend = True,
 				username           = self.session.user,
 				password           = self.session.password
 			)

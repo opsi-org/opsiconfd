@@ -546,14 +546,15 @@ class Worker:
 			)
 		else:
 			self.session.backend = BackendManager(
-				dispatchConfigFile = self.opsiconfd.config['dispatchConfigFile'],
-				backendConfigDir   = self.opsiconfd.config['backendConfigDir'],
-				extensionConfigDir = self.opsiconfd.config['extensionConfigDir'],
-				aclFile            = self.opsiconfd.config['aclFile'],
-				depotBackend       = bool(self.opsiconfd.config['depotId']),
-				hostControlBackend = True,
-				username           = self.session.user,
-				password           = self.session.password
+				dispatchConfigFile  = self.opsiconfd.config['dispatchConfigFile'],
+				backendConfigDir     = self.opsiconfd.config['backendConfigDir'],
+				extensionConfigDir   = self.opsiconfd.config['extensionConfigDir'],
+				aclFile              = self.opsiconfd.config['aclFile'],
+				accessControlContext = self.opsiconfd._backend,
+				depotBackend         = bool(self.opsiconfd.config['depotId']),
+				hostControlBackend   = True,
+				username             = self.session.user,
+				password             = self.session.password
 			)
 		logger.notice(u'Backend created: %s' % self.session.backend)
 		self.session.interface = self.session.backend.backend_getInterface()

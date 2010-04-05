@@ -427,6 +427,7 @@ class Worker:
 				if not hosts:
 					raise Exception(u"Host with hardware address '%s' found in backend" % mac)
 				user = hosts[0].id
+				logger.info(u"Hardware address '%s' found in backend, using '%s' as username" % (mac, user))
 				
 			self.session.user = user
 			self.session.password = password

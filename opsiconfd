@@ -420,6 +420,14 @@ class Worker:
 				except Exception, e:
 					raise Exception(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
 			
+			if re.search('^([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})$'):
+				mac = forceHardwareAddress(user)
+				logger.info(u"Found hardware address '%s' as username, searching host in backend" % mac)
+				hosts = self.opsiconfd._backend.host_getObjects(hardwareAddress = mac)
+				if not hosts:
+					raise Exception(u"Host with hardware address '%s' found in backend" % mac)
+				user = hosts[0].id
+				
 			self.session.user = user
 			self.session.password = password
 			if (self.session.user.count('.') >= 2):

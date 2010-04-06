@@ -1976,7 +1976,8 @@ class OpsiconfdInit(object):
 		print u"  -f    Log to given file instead of syslog"
 		print u"  -c    Location of config file"
 		print u"  -l    Set log level (default: 4)"
-		print u"        0=comment, 1=critical, 2=error, 3=warning, 4=notice, 5=info, 6=debug, 7=debug2, 9=confidential"
+		print u"        0=nothing, 1=essential, 2=critical, 3=error, 4=warning"
+		print u"        5=notice, 6=info, 7=debug, 8=debug2, 9=confidential"
 		print u""
 	
 	def daemonize(self):

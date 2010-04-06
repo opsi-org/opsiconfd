@@ -65,22 +65,29 @@ case "$1" in
 				start-stop-daemon --chuid $USER --pidfile $PIDFILE \
 					--start --quiet --oknodo --exec $DAEMON -- -D
 			fi
-			sleep 5
+			pidfileseen=0
 			running=false
 			i=1
-			while [ "$running" != "true" -a $i -le 10 ]; do
+			while [ $i -le 10 ]; do
 				echo -n "."
 				if ([ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null); then
-					running=true
+					pidfileseen=$(($pidfileseen+1))
+					if [ $pidfileseen -ge 3 ]; then
+						running=true
+						break
+					fi
 				else
-					sleep 1
-					i=$(($i+1))
+					if [ $pidfileseen -ge 1 ]; then
+						running=false
+						break
+					fi
 				fi
+				sleep 1
+				i=$(($i+1))
 			done
 			
-			[ "$START_GUARD" = "1" ] && $GUARD_BIN &
-			
 			if [ "$running" = "true" ]; then
+				[ "$START_GUARD" = "1" ] && $GUARD_BIN &
 				echo "   (done)."
 			else
 				echo "   (failed)."
@@ -117,7 +124,7 @@ case "$1" in
 			$running && killall -9 `basename $DAEMON` >/dev/null 2>/dev/null
 			echo "   (done)."
 		else
-			echo "(not running)."
+			echo ".   (not running)."
 		fi
 			
 		;;

@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '3.4.99.1'
+__version__ = '3.99.0.0'
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, rrdtool, types
@@ -550,18 +550,31 @@ class Worker:
 			self.session.backend.backend_exit()
 		
 		self.session.postpath = self.request.postpath
-		if (len(self.request.postpath) == 2) and (self.request.postpath[0] == 'backend'):
+		if   (len(self.request.postpath) == 2) and (self.request.postpath[0] == 'backend'):
 			self.session.backend = BackendManager(
-				backend               = self.request.postpath[1],
-				accessControlContext  = self.opsiconfd._backend,
-				backendConfigDir      = self.opsiconfd.config['backendConfigDir'],
-				aclFile               = self.opsiconfd.config['aclFile'],
-				username              = self.session.user,
-				password              = self.session.password
+				backend              = self.request.postpath[1],
+				accessControlContext = self.opsiconfd._backend,
+				backendConfigDir     = self.opsiconfd.config['backendConfigDir'],
+				aclFile              = self.opsiconfd.config['aclFile'],
+				username             = self.session.user,
+				password             = self.session.password
+			)
+		elif (len(self.request.postpath) == 2) and (self.request.postpath[0] == 'extend'):
+			extendPath = self.request.postpath[1]
+			if not re.search('^[a-zA-Z0-9\_\-]+$', extendPath):
+				raise ValueError(u"Extension config path '%s' refused" % extendPath)
+			self.session.backend = BackendManager(
+				dispatchConfigFile   = self.opsiconfd.config['dispatchConfigFile'],
+				accessControlContext = self.opsiconfd._backend,
+				backendConfigDir     = self.opsiconfd.config['backendConfigDir'],
+				extensionConfigDir   = os.path.join(self.opsiconfd.config['extensionConfigDir'], extendPath),
+				aclFile              = self.opsiconfd.config['aclFile'],
+				username             = self.session.user,
+				password             = self.session.password
 			)
 		else:
 			self.session.backend = BackendManager(
-				dispatchConfigFile  = self.opsiconfd.config['dispatchConfigFile'],
+				dispatchConfigFile   = self.opsiconfd.config['dispatchConfigFile'],
 				backendConfigDir     = self.opsiconfd.config['backendConfigDir'],
 				extensionConfigDir   = self.opsiconfd.config['extensionConfigDir'],
 				aclFile              = self.opsiconfd.config['aclFile'],
@@ -748,6 +761,8 @@ class WorkerOpsiJsonRpc(Worker):
 		if not self.query:
 			return result
 		
+		self.session.setLastRpcSuccessfullyDecoded(False)
+		
 		rpcs = []
 		try:
 			rpcs = fromJson(self.query)
@@ -760,6 +775,8 @@ class WorkerOpsiJsonRpc(Worker):
 		for rpc in forceList(rpcs):
 			self._rpcs.append(JsonRpc(self, rpc))
 		
+		self.session.setLastRpcSuccessfullyDecoded(True)
+		
 		return result
 	
 	def _executeRpcs(self, result):
@@ -769,6 +786,7 @@ class WorkerOpsiJsonRpc(Worker):
 		for rpc in self._rpcs:
 			if rpc.hasEnded():
 				continue
+			self.session.setLastRpcMethod(rpc.getMethodName())
 			if (rpc.getMethodName() == 'backend_exit'):
 				logger.notice(u"User '%s' asked to close the session" % self.session.user)
 				self._freeSession(result)
@@ -829,6 +847,15 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 		for name in self.opsiconfd.getBackend().dispatcher_getBackendNames():
 			selected = u''
 			path = u'interface/backend/%s' % name
+			if (path == currentPath):
+				selected = u' selected'
+			selectPath += '<option%s>%s</option>' % (selected, path)
+		
+		for name in os.listdir(self.opsiconfd.config['extensionConfigDir']):
+			if not os.path.isdir(os.path.join(self.opsiconfd.config['extensionConfigDir'], name)):
+				continue
+			selected = u''
+			path = u'interface/extend/%s' % name
 			if (path == currentPath):
 				selected = u' selected'
 			selectPath += '<option%s>%s</option>' % (selected, path)
@@ -917,11 +944,14 @@ class WorkerOpsiconfdInfo(Worker):
 		sessions = self.opsiconfd.getSessionHandler().getSessions()
 		sessionInfo  = u'<h1>Active sessions (%d)</h1>' % len(sessions.keys())
 		sessionInfo += u'<table>'
-		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>validity</th><th>marked for deletion</th><th>ip</th><th>hostname</th><th>user</th><th>is host</th><th>usage count</th><th>application</th></tr>'
+		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>validity</th><th>marked for deletion</th><th>ip</th><th>hostname</th><th>user</th>' + \
+		               u'<th>is host</th><th>usage count</th><th>application</th><th>last rpc decoded</th><th>last rpc method</th></tr>'
 		for session in sessions.values():
-			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
+			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
 				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created)), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.lastModified)), \
-					session.getValidity(), session.getMarkedForDeletion(), session.ip, session.hostname, session.user, session.isHost, session.usageCount, session.userAgent)
+					session.getValidity(), session.getMarkedForDeletion(), \
+					session.ip, session.hostname, session.user, session.isHost, session.usageCount, session.userAgent, \
+					session.lastRpcSuccessfullyDecoded, session.lastRpcMethod)
 		sessionInfo += u'</table>'
 		
 		
@@ -1150,6 +1180,8 @@ class Session:
 		self.postpath = []
 		self.backend = None
 		self.interface = None
+		self.lastRpcSuccessfullyDecoded = False
+		self.lastRpcMethod = u''
 		self.usageCount = 0
 		self.usageCountLock = threading.Lock()
 		self.markedForDeletion = False
@@ -1181,12 +1213,18 @@ class Session:
 		self.sessionTimer = threading.Timer(self.sessionMaxInactiveInterval, self.expire)
 		self.sessionTimer.start()
 	
+	def setLastRpcSuccessfullyDecoded(self, successfullyDecoded):
+		self.lastRpcSuccessfullyDecoded = forceBool(successfullyDecoded)
+		
+	def setLastRpcMethod(self, methodName):
+		self.lastRpcMethod = forceUnicode(methodName)
+	
 	def setMarkedForDeletion(self):
 		self.markedForDeletion = True
 	
 	def getMarkedForDeletion(self):
 		return self.markedForDeletion
-		
+	
 	def getValidity(self):
 		if self.deleted:
 			return 0

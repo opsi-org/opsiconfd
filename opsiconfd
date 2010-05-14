@@ -435,9 +435,9 @@ class Worker:
 				user = hosts[0].id
 				logger.info(u"Hardware address '%s' found in backend, using '%s' as username" % (mac, user))
 			
-			hosts = self.opsiconfd._backend.host_getObjects(id = user)
+			hosts = self.opsiconfd._backend.host_getObjects(type = 'OpsiClient', id = user)
 			if hosts:
-				if password and hosts[0].getOneTimePassword() and (password = hosts[0].getOneTimePassword()):
+				if password and hosts[0].getOneTimePassword() and (password == hosts[0].getOneTimePassword()):
 					logger.info(u"Client '%s' supplied one-time password" % user)
 					password = hosts[0].getOpsiHostKey()
 					hosts[0].oneTimePassword = None

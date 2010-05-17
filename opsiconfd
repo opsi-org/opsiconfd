@@ -53,7 +53,7 @@ from OPSI.Util import timestamp, objectToHtml, randomString, toJson, fromJson
 from OPSI.Util.File import IniFile
 from OPSI.Types import *
 from OPSI.System import which, execute, getDiskSpaceUsage
-from OPSI.Backend.BackendManager import BackendManager
+from OPSI.Backend.BackendManager import BackendManager, BackendAccessControl
 from OPSI.Object import BaseObject, serialize, deserialize
 
 logger = Logger()
@@ -365,11 +365,17 @@ class Worker:
 		# Get session id from cookie request header
 		sessionId = u''
 		try:
-			if self.request.headers.getHeader('cookie'):
-				for cookie in self.request.headers.getHeader('cookie'):
-					if (cookie.name == self.opsiconfd.config['sessionName']):
-						sessionId = unicode(cookie.value)
-						break
+			for (k, v) in self.request.headers.getAllRawHeaders():
+				if (k.lower() == 'cookie'):
+					for cookie in v:
+						for c in cookie.split(';'):
+							if (c.find('=') == -1):
+								continue
+							(name, value) = c.split('=', 1)
+							if (name == self.opsiconfd.config['sessionName']):
+								sessionId = forceUnicode(value)
+								break
+					break
 		except Exception, e:
 			logger.error(u"Failed to get cookie from header: %s" % e)
 		
@@ -1030,23 +1036,116 @@ class WorkerOpsiDAV(Worker):
 		Worker.__init__(self, opsiconfd, request, resource)
 	
 	def process(self):
-		logger.info("Worker %s started processing" % self)
+		logger.debug("Worker %s started processing" % self)
 		deferred = defer.Deferred()
 		deferred.addCallback(self._getSession)
 		deferred.addCallback(self._authenticate)
 		deferred.addCallback(self._setResponse)
 		deferred.addCallback(self._setCookie)
-		deferred.addCallback(self._freeSession)
+		#deferred.addCallback(self._freeSession)
 		deferred.addErrback(self._errback)
 		deferred.callback(None)
 		return deferred
+	
+	def _getSession(self, result):
+		# Get session id from cookie request header
+		sessionId = u''
+		try:
+			for (k, v) in self.request.headers.getAllRawHeaders():
+				if (k.lower() == 'cookie'):
+					for cookie in v:
+						for c in cookie.split(';'):
+							if (c.find('=') == -1):
+								continue
+							(name, value) = c.split('=', 1)
+							if (name == self.opsiconfd.config['sessionName']):
+								sessionId = forceUnicode(value)
+								break
+					break
+		except Exception, e:
+			logger.error(u"Failed to get cookie from header: %s" % e)
+		
+		self.session = self.opsiconfd.getSessionHandler().getSession(sessionId)
+		self.session.ip = self.request.remoteAddr.host
+		# Get user agent
+		userAgent = None
+		try:
+			userAgent = self.request.headers.getHeader('user-agent')
+		except Exception, e:
+			logger.info(u"Client '%s' did not supply user-agent" % self.request.remoteAddr.host)
+		if not userAgent:
+			userAgent = 'unknown'
+		self.session.userAgent = userAgent
+		
+		return result
+	
+	def _authenticate(self, result):
+		try:
+			if self.session.authenticated:
+				return result
+			
+			(user, password) = (u'', u'')
+			logger.debug(u"Trying to get username and password from Authorization header")
+			auth = self.request.headers.getHeader('Authorization')
+			if not auth:
+				raise Exception(u"No authorization header from '%s'" % self.request.remoteAddr.host)
+			
+			logger.debug(u"Authorization header found (type: %s)" % auth[0])
+			try:
+				encoded = auth[1]
+				logger.confidential(u"Auth encoded: %s" % encoded)
+				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
+				if (len(parts) > 6):
+					user = u':'.join(parts[:6])
+					password = u':'.join(parts[6:])
+				else:
+					user = parts[0]
+					password = u':'.join(parts[1:])
+				logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
+			except Exception, e:
+				raise Exception(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+			
+			self.session.user = user
+			self.session.password = password
+			if (self.session.user.count('.') >= 2):
+				self.session.isHost = True
+				
+			bac = BackendAccessControl(
+				backend  = self.opsiconfd._backend,
+				username = self.session.user,
+				password = self.session.password
+			)
+			if not bac.accessControl_authenticated():
+				raise Exception(u"Bad user or password")
+			
+			if not self.session.isHost and not bac.accessControl_userIsAdmin:
+				raise Exception(u"Neither host nor admin user")
+			
+		except Exception, e:
+			raise OpsiAuthenticationError(u"%s" % e)
+		
+		self.session.authenticated = True
+		return result
 		
 	def _setResponse(self, result):
 		logger.debug(u"Client requests DAV operation: %s" % self.request)
+		if self.session.isHost and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO'):
+			logger.critical(u"Method '%s' not allowed (read only)" % self.request.method)
+			return http.Response(
+				code	= responsecode.FORBIDDEN,
+				stream	= "Readonly!" )
+			#raise OpsiAuthenticationError(u"read only")
+		
 		deferred = super(ResourceOpsiDAV, self.resource).renderHTTP(self.request)
 		if isinstance(deferred, defer.Deferred):
 			deferred.addErrback(self._errback)
 		return deferred
+	
+	def _setCookie(self, result):
+		# Add cookie to headers
+		cookie = http_headers.Cookie(self.session.name.encode('ascii', 'replace'), self.session.uid.encode('ascii', 'replace'), path='/')
+		result.headers.setHeader('set-cookie', [ cookie ] )
+		return result
 
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -1131,7 +1230,7 @@ class ResourceOpsiDAV(static.DAVFile):
 	def renderHTTP(self, request):
 		try:
 			self._opsiconfd.statistics().addRequest(request)
-			if self._readOnly and request.method not in ('GET', 'PROPFIND'):
+			if self._readOnly and request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO'):
 				logger.warning(u"Command %s not allowed (readonly)" % request.method)
 				return http.Response(
 					code	= responsecode.FORBIDDEN,
@@ -1668,7 +1767,7 @@ class Opsiconfd(threading.Thread):
 			if (name == '/'):
 				continue
 			
-			if name in ('rpc', 'interface', 'info', 'depot', 'repository'):
+			if name in ('rpc', 'interface', 'info', 'depot', 'repository', 'opt_pcbin'):
 				logger.error(u"Cannot add static content '%s', already in use!" % name)
 				continue
 			
@@ -1715,7 +1814,7 @@ class Opsiconfd(threading.Thread):
 			
 			self._root.putChild('depot', ResourceOpsiDAV(self, path, readOnly=True))
 			logger.notice(u"Added static content 'depot' which points to directory '%s'" % path)
-		
+			
 		self._site = server.Site(self._root)
 	
 	def _startListening(self):

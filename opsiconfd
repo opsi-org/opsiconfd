@@ -1042,7 +1042,7 @@ class WorkerOpsiDAV(Worker):
 		deferred.addCallback(self._authenticate)
 		deferred.addCallback(self._setResponse)
 		deferred.addCallback(self._setCookie)
-		#deferred.addCallback(self._freeSession)
+		deferred.addCallback(self._freeSession)
 		deferred.addErrback(self._errback)
 		deferred.callback(None)
 		return deferred
@@ -1079,6 +1079,9 @@ class WorkerOpsiDAV(Worker):
 			userAgent = 'unknown'
 		self.session.userAgent = userAgent
 		
+		return result
+	
+	def _freeSession(self, result):
 		return result
 	
 	def _authenticate(self, result):

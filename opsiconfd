@@ -1066,8 +1066,7 @@ class WorkerOpsiDAV(Worker):
 			logger.error(u"Failed to get cookie from header: %s" % e)
 		
 		self.session = self.opsiconfd.getSessionHandler().getSession(sessionId)
-		
-		self.session.increaseUsageCount()
+		self.session.touch()
 		
 		self.session.ip = self.request.remoteAddr.host
 		# Get user agent

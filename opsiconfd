@@ -297,6 +297,7 @@ class Worker:
 	
 	def _errback(self, failure):
 		logger.debug2("%s._errback" % self.__class__.__name__)
+		logger.info(failure)
 		
 		self._freeSession(failure)
 		
@@ -1139,7 +1140,6 @@ class WorkerOpsiDAV(Worker):
 			return http.Response(
 				code	= responsecode.FORBIDDEN,
 				stream	= "Readonly!" )
-			#raise OpsiAuthenticationError(u"read only")
 		
 		deferred = super(ResourceOpsiDAV, self.resource).renderHTTP(self.request)
 		if isinstance(deferred, defer.Deferred):

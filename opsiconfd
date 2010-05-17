@@ -297,7 +297,6 @@ class Worker:
 	
 	def _errback(self, failure):
 		logger.debug2("%s._errback" % self.__class__.__name__)
-		logger.debug(failure)
 		
 		self._freeSession(failure)
 		
@@ -314,7 +313,8 @@ class Worker:
 			logger.error(e)
 			result.code = responsecode.BAD_REQUEST
 		except Exception, e:
-			logger.logException(e)
+			# logger.logException(e)
+			logger.error(failure)
 		
 		return result
 	

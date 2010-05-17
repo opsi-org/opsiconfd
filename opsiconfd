@@ -297,7 +297,7 @@ class Worker:
 	
 	def _errback(self, failure):
 		logger.debug2("%s._errback" % self.__class__.__name__)
-		logger.info(failure)
+		logger.debug(failure)
 		
 		self._freeSession(failure)
 		

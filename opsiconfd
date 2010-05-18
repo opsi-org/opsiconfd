@@ -1756,14 +1756,14 @@ class Opsiconfd(threading.Thread):
 				logger.error(u"Cannot add static content '/': directory '%s' does not exist." \
 					% self.config['staticDirectories']['/'])
 			else:
-				self._root = static.File(self.config['staticDirectories']['/'])
+				self._root = static.DAVFile(self.config['staticDirectories']['/'])
 				logger.notice(u"Added static content '/' which points to directory '%s'" \
 					% self.config['staticDirectories']['/'])
 		
 		if not hasattr(self, '_root'):
 			self._root = ResourceRoot()
 		
-		self._root.putChild('rrd',       static.File(self.config['rrdDir']))
+		self._root.putChild('rrd',       static.DAVFile(self.config['rrdDir']))
 		self._root.putChild('rpc',       ResourceOpsiJsonRpc(self))
 		self._root.putChild('interface', ResourceOpsiJsonInterface(self))
 		self._root.putChild('info',      ResourceOpsiconfdInfo(self))
@@ -1781,7 +1781,7 @@ class Opsiconfd(threading.Thread):
 				continue
 			
 			if (name == 'configed'):
-				self._root.putChild(name, static.File(path))
+				self._root.putChild(name, static.DAVFile(path))
 				logger.notice(u"Added static content '%s' which points to directory '%s'" % (name, path))
 				continue
 			

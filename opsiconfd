@@ -1284,7 +1284,7 @@ class ResourceOpsiDAV(OPSI.web2.dav.static.DAVFile):
 	
 	def renderHTTP(self, request):
 		try:
-			self._opsiconfd.statistics().addRequest(request)
+			self._opsiconfd.statistics().addWebDAVRequest(request)
 			if self._readOnly and request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO'):
 				logger.warning(u"Command %s not allowed (readonly)" % request.method)
 				return http.Response(
@@ -1513,7 +1513,7 @@ class Statistics(object):
 			'yPoints':          160,
 			'rrdFile':          os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
 		}
-		self._rrdCache = { 'requests': 0, 'sessions': 0, 'rpcs': 0, 'rpcerrors': 0 }
+		self._rrdCache = { 'requests': 0, 'sessions': 0, 'davrequests': 0, 'rpcs': 0, 'rpcerrors': 0 }
 		if not os.path.exists(self._rrdConfig['rrdFile']):
 			self.createRrd()
 		reactor.callLater(int(self._rrdConfig['step']), self.updateRrd)
@@ -1526,10 +1526,11 @@ class Statistics(object):
 		logger.notice(u"Creating rrd '%s', start: %s" % (self._rrdConfig['rrdFile'], start))
 		
 		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(start), '--step', str(self._rrdConfig['step']),
-			'DS:requests:ABSOLUTE:%d:0:U'  % self._rrdConfig['heartbeat'],
-			'DS:sessions:DERIVE:%d:0:U'    % self._rrdConfig['heartbeat'],
-			'DS:rpcs:ABSOLUTE:%d:0:U'      % self._rrdConfig['heartbeat'],
-			'DS:rpcerrors:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:requests:ABSOLUTE:%d:0:U'    % self._rrdConfig['heartbeat'],
+			'DS:sessions:DERIVE:%d:0:U'      % self._rrdConfig['heartbeat'],
+			'DS:davrequests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:rpcs:ABSOLUTE:%d:0:U'        % self._rrdConfig['heartbeat'],
+			'DS:rpcerrors:ABSOLUTE:%d:0:U'   % self._rrdConfig['heartbeat'],
 			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])),    # hour
 			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])*24), # day
 			'RRA:AVERAGE:0.5:%d:%d' % (7,   (3600/self._rrdConfig['step'])*24), # week
@@ -1545,11 +1546,12 @@ class Statistics(object):
 	def updateRrd(self):
 		try:
 			now = int(time.time())
-			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors']))
-			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors']))
+			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors']))
+			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors']))
 			self._rrdCache['requests'] = 0
+			self._rrdCache['davrequests'] = 0
 			self._rrdCache['rpcs'] = 0
 			self._rrdCache['rpcerrors'] = 0
 		except Exception, e:
@@ -1588,9 +1590,19 @@ class Statistics(object):
 			'CDEF:max_requ_permin=max_requ,60,*',
 			'VDEF:total_requ=avg_requ,TOTAL',
 			'AREA:avg_requ_permin#0000dd:Requests     ',
-			'GPRINT:total_requ:total\: %8.0lf requests   ',
-			'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min   ',
+			'GPRINT:total_requ:total\: %8.0lf requests     ',
+			'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min     ',
 			'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
+			
+			'DEF:avg_davrequ=%s:davrequests:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:max_davrequ=%s:davrequests:MAX'     % str(self._rrdConfig['rrdFile']),
+			'CDEF:avg_davrequ_permin=avg_davrequ,60,*',
+			'CDEF:max_davrequ_permin=max_davrequ,60,*',
+			'VDEF:total_davrequ=avg_davrequ,TOTAL',
+			'LINE2:avg_davrequ_permin#ff8000:DAV requests ',
+			'GPRINT:total_davrequ:total\: %8.0lf dav requests ',
+			'GPRINT:avg_davrequ_permin:AVERAGE:avg\: %5.2lf dav requests/min ',
+			'GPRINT:max_davrequ_permin:MAX:max\: %4.0lf dav requests/min\\l',
 			
 			'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
 			'DEF:max_sess=%s:sessions:MAX'     % str(self._rrdConfig['rrdFile']),
@@ -1598,8 +1610,8 @@ class Statistics(object):
 			'CDEF:max_sess_permin=max_sess,60,*',
 			'VDEF:total_sess=avg_sess,TOTAL',
 			'AREA:avg_sess_permin#dddd00:Sessions     ',
-			'GPRINT:total_sess:total\: %8.0lf sessions   ',
-			'GPRINT:avg_sess_permin:AVERAGE:avg\: %5.2lf sessions/min   ',
+			'GPRINT:total_sess:total\: %8.0lf sessions     ',
+			'GPRINT:avg_sess_permin:AVERAGE:avg\: %5.2lf sessions/min     ',
 			'GPRINT:max_sess_permin:MAX:max\: %4.0lf sessions/min\\l',
 			
 			'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
@@ -1608,8 +1620,8 @@ class Statistics(object):
 			'CDEF:max_rpc_permin=max_rpc,60,*',
 			'VDEF:total_rpc=avg_rpc,TOTAL',
 			'LINE2:avg_rpc_permin#00dd00:RPCs         ',
-			'GPRINT:total_rpc:total\: %8.0lf rpcs       ',
-			'GPRINT:avg_rpc_permin:AVERAGE:avg\: %5.2lf rpcs/min       ',
+			'GPRINT:total_rpc:total\: %8.0lf rpcs         ',
+			'GPRINT:avg_rpc_permin:AVERAGE:avg\: %5.2lf rpcs/min         ',
 			'GPRINT:max_rpc_permin:MAX:max\: %4.0lf rpcs/min\\l',
 			
 			'DEF:avg_rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
@@ -1618,8 +1630,8 @@ class Statistics(object):
 			'CDEF:max_rpcerror_permin=max_rpcerror,60,*',
 			'VDEF:total_rpcerror=avg_rpcerror,TOTAL',
 			'LINE2:avg_rpcerror_permin#dd0000:RPC errors   ',
-			'GPRINT:total_rpcerror:total\: %8.0lf rpc errors ',
-			'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min ',
+			'GPRINT:total_rpcerror:total\: %8.0lf rpc errors   ',
+			'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min   ',
 			'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
 			
 			'COMMENT:[%s]\\r' % date,
@@ -1632,9 +1644,12 @@ class Statistics(object):
 	def removeSession(self, session):
 		if (self._rrdCache['sessions'] > 0):
 			self._rrdCache['sessions'] -= 1
-		 
+		
 	def addRequest(self, request):
 		self._rrdCache['requests'] += 1
+	
+	def addWebDAVRequest(self, request):
+		self._rrdCache['davrequests'] += 1
 	
 	def addRpc(self, jsonrpc):
 		results = 0

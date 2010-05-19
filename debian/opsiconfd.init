@@ -15,6 +15,7 @@ DAEMON=/usr/sbin/opsiconfd
 USER=opsiconfd
 LOGDIR=/var/log/opsi/opsiconfd
 PIDDIR=/var/run/opsiconfd
+RRDDIR=/var/lib/opsiconfd/rrd
 PIDFILE=$PIDDIR/opsiconfd.pid
 START_GUARD=1
 GUARD_BIN=/usr/sbin/opsiconfd-guard
@@ -37,9 +38,11 @@ case "$1" in
 		# Make sure we have our PIDDIR, even if it's on a tmpfs
 		install -o $USER -g root -m 755 -d $PIDDIR
 		
-		# Make sure logfiles are writable
-		test ! -e $LOGDIR && mkdir -p $LOGDIR
+		# Make sure files are writable
+		test -e $LOGDIR || mkdir -p $LOGDIR
 		chown -R $USER $LOGDIR
+		test -e $RRDDIR || mkdir -p $RRDDIR
+		chown -R $USER $RRDDIR
 		
 		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
 			echo ".   (already running)."

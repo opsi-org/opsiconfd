@@ -45,7 +45,8 @@ from twisted.python.failure import Failure
 from twisted.python import log
 from OPSI.web2 import resource, stream, server, http, responsecode, http_headers
 from OPSI.web2.channel.http import HTTPFactory
-from OPSI.web2.dav import static
+import OPSI.web2.dav.static
+import OPSI.web2.static
 
 # OPSI imports
 from OPSI.Logger import *
@@ -305,6 +306,10 @@ class Worker:
 		result = self._setCookie(result)
 		try:
 			failure.raiseException()
+		except AttributeError, e:
+			logger.debug(e)
+			result = http.Response()
+			result.code = responsecode.NOT_FOUND
 		except OpsiAuthenticationError, e:
 			logger.error(e)
 			result.code = responsecode.UNAUTHORIZED
@@ -1048,6 +1053,38 @@ class WorkerOpsiDAV(Worker):
 		deferred.callback(None)
 		return deferred
 	
+	
+	#def _errback(self, failure):
+	#	logger.debug2("%s._errback" % self.__class__.__name__)
+	#	# [Failure instance: Traceback: <type 'exceptions.AttributeError'>: 'Request' object has no attribute 'credentialFactories'
+	#	#self._freeSession(failure)
+	#	result = http.Response()
+	#	#result = self._renderError(failure)
+	#	#['count', 'parents', 'frames', 'type', 'tb', 'stack', 'value', 'pickled']
+	#	try:
+	#		failure.raiseException()
+	#	except AttributeError, e:
+	#		logger.debug(e)
+	#	except Exception, e:
+	#		logger.error(failure)
+	#	
+	#	result.code = responsecode.INTERNAL_SERVER_ERROR
+	#	#result = self._setCookie(result)
+	#	#try:
+	#	#	failure.raiseException()
+	#	#except OpsiAuthenticationError, e:
+	#	#	logger.error(e)
+	#	#	result.code = responsecode.UNAUTHORIZED
+	#	#	result.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
+	#	#except OpsiBadRpcError, e:
+	#	#	logger.error(e)
+	#	#	result.code = responsecode.BAD_REQUEST
+	#	#except Exception, e:
+	#	#	# logger.logException(e)
+	#	#	logger.error(failure)
+	#	#
+	#	return result
+	
 	def _getSession(self, result):
 		# Get session id from cookie request header
 		sessionId = u''
@@ -1173,6 +1210,19 @@ class ResourceOpsi(resource.Resource):
 		resource.Resource.__init__(self)
 		self._opsiconfd = opsiconfd
 	
+	def checkPrivileges(self, request, privileges, recurse=False, principal=None, inherited_aces=None):
+		deferred = defer.Deferred()
+		deferred.callback(None)
+		return deferred
+	
+	def isCollection(self):
+		return not self.isLeaf
+	
+	def hasProperty(self, property, request):
+		deferred = defer.Deferred()
+		deferred.callback(None)
+		return deferred
+	
 	def renderHTTP(self, request):
 		''' Process request. '''
 		try:
@@ -1221,11 +1271,11 @@ class ResourceOpsiconfdInfo(ResourceOpsi):
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                   CLASS RESOURCE OPSI DAV                                         =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class ResourceOpsiDAV(static.DAVFile):
+class ResourceOpsiDAV(OPSI.web2.dav.static.DAVFile):
 	
 	def __init__(self, opsiconfd, path, readOnly=True, defaultType="text/plain", indexNames=None):
 		path = forceUnicode(path).encode('utf-8')
-		static.DAVFile.__init__(self, path, defaultType, indexNames)
+		OPSI.web2.dav.static.DAVFile.__init__(self, path, defaultType, indexNames)
 		self._opsiconfd = opsiconfd
 		self._readOnly = readOnly
 	
@@ -1756,14 +1806,14 @@ class Opsiconfd(threading.Thread):
 				logger.error(u"Cannot add static content '/': directory '%s' does not exist." \
 					% self.config['staticDirectories']['/'])
 			else:
-				self._root = static.DAVFile(self.config['staticDirectories']['/'])
+				self._root = ResourceOpsiDAV(self, path = self.config['staticDirectories']['/'], readOnly = True)
 				logger.notice(u"Added static content '/' which points to directory '%s'" \
 					% self.config['staticDirectories']['/'])
 		
 		if not hasattr(self, '_root'):
 			self._root = ResourceRoot()
 		
-		self._root.putChild('rrd',       static.DAVFile(self.config['rrdDir']))
+		self._root.putChild('rrd',       ResourceOpsiDAV(self, path = self.config['rrdDir'], readOnly = True))
 		self._root.putChild('rpc',       ResourceOpsiJsonRpc(self))
 		self._root.putChild('interface', ResourceOpsiJsonInterface(self))
 		self._root.putChild('info',      ResourceOpsiconfdInfo(self))
@@ -1781,7 +1831,7 @@ class Opsiconfd(threading.Thread):
 				continue
 			
 			if (name == 'configed'):
-				self._root.putChild(name, static.DAVFile(path))
+				self._root.putChild(name, ResourceOpsiDAV(self, path, readOnly=True))
 				logger.notice(u"Added static content '%s' which points to directory '%s'" % (name, path))
 				continue
 			

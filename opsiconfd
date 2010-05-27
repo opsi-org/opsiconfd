@@ -35,7 +35,7 @@
 __version__ = '3.99.0.0'
 
 # Imports
-import os, sys, getopt, threading, time, socket, base64, urllib, operator, rrdtool, types
+import os, sys, getopt, threading, time, socket, base64, urllib, operator, rrdtool, types, zlib
 from OpenSSL import SSL
 from signal import *
 
@@ -541,14 +541,20 @@ class Worker:
 			d.addErrback(self._errback)
 			return d
 		else:
-			raise ValueError(u"Unhandled method %s" % request.method)
+			raise ValueError(u"Unhandled method '%s'" % self.request.method)
 		return result
 		
 	def _handlePostData(self, chunk):
-		logger.debug2(u"_handlePostData %s" % unicode(chunk, 'utf-8', 'replace'))
+		#logger.debug2(u"_handlePostData %s" % unicode(chunk, 'utf-8', 'replace'))
 		self.query += chunk
-	
+		
 	def _decodeQuery(self, result):
+		if (self.request.method == 'POST'):
+			contentType = self.request.headers.getHeader('content-type')
+			logger.debug(u"Content-Type: %s" % contentType)
+			if contentType and contentType.mediaType.startswith('gzip'):
+				logger.debug(u"Expecting compressed data from client")
+				self.query = zlib.decompress(self.query)
 		try:
 			self.query = unicode(self.query, 'utf-8')
 		except UnicodeError, e:
@@ -824,7 +830,21 @@ class WorkerOpsiJsonRpc(Worker):
 		if not isinstance(result, http.Response):
 			result = http.Response()
 		result.code = responsecode.OK
-		result.headers.setHeader('content-type', http_headers.MimeType("application", "json", {"charset": "utf-8"}))
+		
+		deflate = False
+		try:
+			for accept in self.request.headers.getHeader('Accept', {}).keys():
+				if accept.mediaType.startswith('gzip'):
+					deflate = True
+					break
+		except Exception, e:
+			logger.error(u"Failed to get accepted mime types from header: %s" % e)
+		
+		if deflate:
+			result.headers.setHeader('content-type', http_headers.MimeType("gzip-application", "json", {"charset": "utf-8"}))
+		else:
+			result.headers.setHeader('content-type', http_headers.MimeType("application", "json", {"charset": "utf-8"}))
+		
 		response = []
 		for rpc in self._rpcs:
 			response.append(serialize(rpc.getResponse()))
@@ -833,7 +853,13 @@ class WorkerOpsiJsonRpc(Worker):
 		if not response:
 			response = None
 		
-		result.stream = stream.IByteStream(toJson(response).encode('utf-8'))
+		if deflate:
+			# level 1 (fastest) to 9 (most compression)
+			level = 1
+			logger.debug(u"Sending compressed (level: %d) data" % level)
+			result.stream = stream.IByteStream(zlib.compress(toJson(response).encode('utf-8'), level))
+		else:
+			result.stream = stream.IByteStream(toJson(response).encode('utf-8'))
 		return result
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =

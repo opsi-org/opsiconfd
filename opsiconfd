@@ -833,10 +833,11 @@ class WorkerOpsiJsonRpc(Worker):
 		
 		deflate = False
 		try:
-			for accept in self.request.headers.getHeader('Accept', {}).keys():
-				if accept.mediaType.startswith('gzip'):
-					deflate = True
-					break
+			if self.request.headers.getHeader('Accept'):
+				for accept in self.request.headers.getHeader('Accept').keys():
+					if accept.mediaType.startswith('gzip'):
+						deflate = True
+						break
 		except Exception, e:
 			logger.error(u"Failed to get accepted mime types from header: %s" % e)
 		

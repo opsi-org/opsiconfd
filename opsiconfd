@@ -1807,14 +1807,14 @@ class Opsiconfd(threading.Thread):
 	
 	def stop(self):
 		logger.notice(u"Stopping opsiconfd main thread")
+		if self._zeroconfService:
+			self._zeroconfService.unpublish()
 		if self._httpPort:
 			self._httpPort.stopListening()
 		if self._httpsPort:
 			self._httpsPort.stopListening()
 		if self._sessionHandler:
 			self._sessionHandler.cleanup()
-		if self._zeroconfService:
-+			self._zeroconfService.unpublish()
 		if reactor.running:
 			try:
 				logger.notice(u"Stopping reactor")

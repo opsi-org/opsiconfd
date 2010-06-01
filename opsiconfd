@@ -1734,7 +1734,8 @@ class ZeroconfService():
 		self._domain = domain
 		self._host = host
 		self._text = text
-	
+		self._group = None
+		
 	def publish(self):
 		bus = dbus.SystemBus()
 		server = dbus.Interface(
@@ -1758,11 +1759,11 @@ class ZeroconfService():
 				dbus.UInt16(self._port), self._text)
 		
 		g.Commit()
-		self.group = g
+		self._group = g
 	
 	def unpublish(self):
-		if self.group:
-			self.group.Reset()
+		if self._group:
+			self._group.Reset()
 
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                       CLASS OPSICONFD                                             =

@@ -16,6 +16,7 @@ USER=opsiconfd
 LOGDIR=/var/log/opsi/opsiconfd
 PIDDIR=/var/run/opsiconfd
 RRDDIR=/var/lib/opsiconfd/rrd
+REPDIR=/var/lib/opsi/repository
 PIDFILE=$PIDDIR/opsiconfd.pid
 START_GUARD=1
 GUARD_BIN=/usr/sbin/opsiconfd-guard
@@ -43,6 +44,7 @@ case "$1" in
 		chown -R $USER $LOGDIR
 		test -e $RRDDIR || mkdir -p $RRDDIR
 		chown -R $USER $RRDDIR
+		test -e $REPDIR && chown -R $USER $REPDIR
 		
 		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
 			echo ".   (already running)."

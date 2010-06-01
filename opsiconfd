@@ -36,6 +36,7 @@ __version__ = '3.99.0.0'
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, rrdtool, types, zlib
+import dbus, avahi
 from OpenSSL import SSL
 from signal import *
 
@@ -611,7 +612,10 @@ class Worker:
 				password             = self.session.password
 			)
 		logger.notice(u'Backend created: %s' % self.session.backend)
+		
 		self.session.interface = self.session.backend.backend_getInterface()
+		self.session.isAdmin = self.session.backend.accessControl_userIsAdmin()
+		
 		if self.session.isHost:
 			hosts = self.opsiconfd._backend.host_getObjects(['ipAddress', 'lastSeen'], id = self.session.user)
 			if not hosts:
@@ -1188,7 +1192,9 @@ class WorkerOpsiDAV(Worker):
 			if not bac.accessControl_authenticated():
 				raise Exception(u"Bad user or password")
 			
-			if not self.session.isHost and not bac.accessControl_userIsAdmin:
+			self.session.isAdmin = bac.accessControl_userIsAdmin()
+			
+			if not self.session.isHost and not self.session.isAdmin:
 				raise Exception(u"Neither host nor admin user")
 			
 		except Exception, e:
@@ -1199,7 +1205,7 @@ class WorkerOpsiDAV(Worker):
 		
 	def _setResponse(self, result):
 		logger.debug(u"Client requests DAV operation: %s" % self.request)
-		if self.session.isHost and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO'):
+		if not self.session.isAdmin and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO'):
 			logger.critical(u"Method '%s' not allowed (read only)" % self.request.method)
 			return http.Response(
 				code	= responsecode.FORBIDDEN,
@@ -1362,6 +1368,7 @@ class Session:
 		self.ip = ''
 		self.userAgent = ''
 		self.isHost = False
+		self.isAdmin = False
 		self.hostname = ''
 		self.user = ''
 		self.password = ''
@@ -1712,7 +1719,51 @@ class Statistics(object):
 		
 	def getEncodingErrors(self):
 		return self._encodinErrors
+
+
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                                    CLASS ZEROCONFSERVICE                                          =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class ZeroconfService():
+
+	def __init__(self, name, port, serviceType="_opsiconfd._tcp", domain="", host="", text=""):
+		self._name = name
+		self._port = port
+		self._serviceType = serviceType
+		self._domain = domain
+		self._host = host
+		self._text = text
 	
+	def publish(self):
+		bus = dbus.SystemBus()
+		server = dbus.Interface(
+			bus.get_object(
+				avahi.DBUS_NAME,
+				avahi.DBUS_PATH_SERVER
+			),
+			avahi.DBUS_INTERFACE_SERVER
+		)
+		
+		g = dbus.Interface(
+			bus.get_object(
+				avahi.DBUS_NAME,
+				server.EntryGroupNew()
+			),
+			avahi.DBUS_INTERFACE_ENTRY_GROUP
+		)
+		
+		g.AddService(avahi.IF_UNSPEC, avahi.PROTO_UNSPEC,dbus.UInt32(0),
+				self._name, self._serviceType, self._domain, self._host,
+				dbus.UInt16(self._port), self._text)
+		
+		g.Commit()
+		self.group = g
+	
+	def unpublish(self):
+		if self.group:
+			self.group.Reset()
+
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                       CLASS OPSICONFD                                             =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -1720,16 +1771,17 @@ class Opsiconfd(threading.Thread):
 	def __init__(self, config):
 		threading.Thread.__init__(self)
 		
-		self.config          = config
-		self._running        = False
+		self.config           = config
+		self._running         = False
 		
-		self._backend        = None
-		self._root           = None
-		self._site           = None
-		self._httpPort       = None
-		self._httpsPort      = None
-		self._sessionHandler = None
-		self._statistics     = None
+		self._backend         = None
+		self._root            = None
+		self._site            = None
+		self._httpPort        = None
+		self._httpsPort       = None
+		self._sessionHandler  = None
+		self._statistics      = None
+		self._zeroconfService = None
 		
 		self._setOpsiLogging()
 		self._setTwistedLogging()
@@ -1761,6 +1813,8 @@ class Opsiconfd(threading.Thread):
 			self._httpsPort.stopListening()
 		if self._sessionHandler:
 			self._sessionHandler.cleanup()
+		if self._zeroconfService:
++			self._zeroconfService.unpublish()
 		if reactor.running:
 			try:
 				logger.notice(u"Stopping reactor")
@@ -1958,6 +2012,23 @@ class Opsiconfd(threading.Thread):
 			)
 		
 		logger.notice(u"Accepting HTTPS requests on %s:%s" % (self.config['interface'], self.config['httpsPort']))
+	
+	def _publish(self):
+		port = 0
+		name = "opsi configuration daemon"
+	
+		if self._httpsPort is not None:
+			port = self.config['httpsPort']
+		elif self._httpPort is not None:
+			port = self.config['httpPort']
+		else:
+			logger.notice(u"No open port found, there is nothing to publish")
+			return
+	
+		logger.notice(u"Publishing opsiconfd over zeroconf as %s on %s" % (name, port))
+	
+		self._zeroconfService = ZeroconfService(name=name, port=port)
+		self._zeroconfService.publish()
 		
 	def run(self):
 		self._running = True
@@ -1968,6 +2039,7 @@ class Opsiconfd(threading.Thread):
 			self._createStatistics()
 			self._createSite()
 			self._startListening()
+			self._publish()
 			
 			if not reactor.running:
 				reactor.run(installSignalHandlers=0)

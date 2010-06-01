@@ -2026,9 +2026,11 @@ class Opsiconfd(threading.Thread):
 			return
 	
 		logger.notice(u"Publishing opsiconfd over zeroconf as %s on %s" % (name, port))
-	
-		self._zeroconfService = ZeroconfService(name=name, port=port)
-		self._zeroconfService.publish()
+		try:
+			self._zeroconfService = ZeroconfService(name = name, port = port)
+			self._zeroconfService.publish()
+		except Exception, e:
+			logger.error(u"Failed to publish opsiconfd over zeroconf: %s" % e)
 		
 	def run(self):
 		self._running = True

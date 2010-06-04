@@ -60,8 +60,7 @@ from OPSI.Object import BaseObject, serialize, deserialize
 
 logger = Logger()
 
-infoPage = u'''
-<?xml version="1.0" encoding="UTF-8"?>
+infoPage = u'''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -98,8 +97,7 @@ infoPage = u'''
 </body>
 '''
 
-interfacePage = u'''
-<?xml version="1.0" encoding="UTF-8"?>
+interfacePage = u'''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>

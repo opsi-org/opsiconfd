@@ -95,6 +95,7 @@ infoPage = u'''<?xml version="1.0" encoding="UTF-8"?>
 		<div id="info">%rpc_statistic_info%</div>
 	</div>
 </body>
+</html>
 '''
 
 interfacePage = u'''<?xml version="1.0" encoding="UTF-8"?>
@@ -264,6 +265,7 @@ interfacePage = u'''<?xml version="1.0" encoding="UTF-8"?>
 	<div class="json_label" style="padding-left: 30px">json-rpc result</div>
 	%result%
 </body>
+</html>
 '''
 
 
@@ -967,7 +969,7 @@ class WorkerOpsiconfdInfo(Worker):
 		for key in keys:
 			if key in ('staticDirectories',):
 				continue
-			configInfo += u'<tr><td>%s</td><td>%s</td>' % (key, self.opsiconfd.config[key])
+			configInfo += u'<tr><td>%s</td><td>%s</td></tr>' % (key, self.opsiconfd.config[key])
 		configInfo += u'</table>'
 		
 		threads = []

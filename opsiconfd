@@ -388,7 +388,10 @@ class Worker:
 		
 		if not sessionId:
 			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
-		
+			if (self.opsiconfd.config['maxSessionsPerIp'] > 0):
+				if (sessionHandler.getSessionCount(self.request.remoteAddr.host) >= self.opsiconfd.config['maxSessionsPerIp']):
+					raise Exception(u"Session limit per ip reached")
+			
 		# Get Session object
 		self.session = sessionHandler.getSession(sessionId)
 		if (sessionId == self.session.uid):
@@ -1472,6 +1475,13 @@ class SessionHandler:
 				logger.info(u'Failed to get session: session id %s not found' % uid)
 		return self.createSession()
 	
+	def getSessionCount(self, ip):
+		count = 0
+		for session in self.sessions.values():
+			if (session.ip == ip):
+				count += 1
+		return count
+		
 	def createSession(self):
 		session = Session(self, self.opsiconfd.config['sessionName'], self.opsiconfd.config['sessionMaxInactiveInterval'])
 		self.sessions[session.uid] = session
@@ -2119,6 +2129,7 @@ class OpsiconfdInit(object):
 			'sslServerCertFile'            : u'/etc/opsi/opsiconfd.pem',
 			'sslServerKeyFile'             : u'/etc/opsi/opsiconfd.pem',
 			'sessionName'                  : u'OPSISID',
+			'maxSessionsPerIp'             : 50,
 			'resolveClientIp'              : True,
 			'resolveVerifyIp'              : False,
 			'sessionMaxInactiveInterval'   : 120,
@@ -2264,6 +2275,8 @@ class OpsiconfdInit(object):
 							self.config['updateIpAddress'] = forceBool(value)
 						elif (option == 'max inactive interval'):
 							self.config['sessionMaxInactiveInterval'] = forceInt(value)
+						elif (option == 'max sessions per ip'):
+							self.config['maxSessionsPerIp'] = forceInt(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 				

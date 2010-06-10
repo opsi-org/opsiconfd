@@ -388,12 +388,9 @@ class Worker:
 		
 		if not sessionId:
 			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
-			if (self.opsiconfd.config['maxSessionsPerIp'] > 0):
-				if (sessionHandler.getSessionCount(self.request.remoteAddr.host) >= self.opsiconfd.config['maxSessionsPerIp']):
-					raise Exception(u"Session limit per ip reached")
-			
+		
 		# Get Session object
-		self.session = sessionHandler.getSession(sessionId)
+		self.session = sessionHandler.getSession(sessionId, self.request.remoteAddr.host)
 		if (sessionId == self.session.uid):
 			logger.info(u"Reusing session for client '%s', application '%s'" % (self.request.remoteAddr.host, userAgent))
 		elif sessionId:
@@ -1466,13 +1463,16 @@ class SessionHandler:
 	def getSessions(self):
 		return self.sessions
 		
-	def getSession(self, uid):
+	def getSession(self, uid, ip):
 		if uid:
 			session = self.sessions.get(uid)
 			if session:
 				return session
 			else:
 				logger.info(u'Failed to get session: session id %s not found' % uid)
+		if (self.opsiconfd.config['maxSessionsPerIp'] > 0):
+			if (sessionHandler.getSessionCount(ip) >= self.opsiconfd.config['maxSessionsPerIp']):
+				raise Exception(u"Session limit per ip reached")
 		return self.createSession()
 	
 	def getSessionCount(self, ip):

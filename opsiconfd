@@ -2026,7 +2026,7 @@ class Opsiconfd(threading.Thread):
 			logger.notice(u"No open port found, there is nothing to publish")
 			return
 	
-		logger.notice(u"Publishing opsiconfd over zeroconf as %s on %s" % (name, port))
+		logger.notice(u"Publishing opsiconfd over zeroconf as '%s' on '%s'" % (name, port))
 		try:
 			self._zeroconfService = ZeroconfService(name = name, port = port)
 			self._zeroconfService.publish()

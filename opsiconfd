@@ -60,7 +60,8 @@ from OPSI.Object import BaseObject, serialize, deserialize
 
 logger = Logger()
 
-infoPage = u'''<?xml version="1.0" encoding="UTF-8"?>
+infoPage = u'''
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -82,7 +83,7 @@ infoPage = u'''<?xml version="1.0" encoding="UTF-8"?>
 </head>
 <body>
 	<span id="title">
-		<img src="opsi_logo.png" />
+		<img src="/opsi_logo.png" />
 		<span sytle="padding: 1px">opsiconfd info</span>
 	</span>
 	<div id="infos">
@@ -98,7 +99,8 @@ infoPage = u'''<?xml version="1.0" encoding="UTF-8"?>
 </html>
 '''
 
-interfacePage = u'''<?xml version="1.0" encoding="UTF-8"?>
+interfacePage = u'''
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -951,15 +953,15 @@ class WorkerOpsiconfdInfo(Worker):
 		logger.info(u"Creating opsiconfd info page")
 		
 		graphs  = u'<h1>Last hour</h1>'
-		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600))
 		graphs += u'<h1>Last day</h1>'
-		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24))
 		graphs += u'<h1>Last week</h1>'
-		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*7))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*7))
 		graphs += u'<h1>Last month</h1>'
-		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*31))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*31))
 		graphs += u'<h1>Last year</h1>'
-		graphs += u'<image src="rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*365))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*365))
 		
 		configInfo  = u'<h1>Server config</h1>'
 		configInfo += u'<table>'
@@ -1134,7 +1136,7 @@ class WorkerOpsiDAV(Worker):
 		except Exception, e:
 			logger.error(u"Failed to get cookie from header: %s" % e)
 		
-		self.session = self.opsiconfd.getSessionHandler().getSession(sessionId)
+		self.session = self.opsiconfd.getSessionHandler().getSession(sessionId, self.request.remoteAddr.host)
 		self.session.touch()
 		
 		self.session.ip = self.request.remoteAddr.host
@@ -1471,8 +1473,9 @@ class SessionHandler:
 			else:
 				logger.info(u'Failed to get session: session id %s not found' % uid)
 		if (self.opsiconfd.config['maxSessionsPerIp'] > 0):
-			if (sessionHandler.getSessionCount(ip) >= self.opsiconfd.config['maxSessionsPerIp']):
-				raise Exception(u"Session limit per ip reached")
+			if (self.getSessionCount(ip) >= self.opsiconfd.config['maxSessionsPerIp']):
+				logger.error(u"Session limit for ip '%s' reached" % ip)
+				raise Exception(u"Session limit for ip '%s' reached" % ip)
 		return self.createSession()
 	
 	def getSessionCount(self, ip):
@@ -2129,7 +2132,7 @@ class OpsiconfdInit(object):
 			'sslServerCertFile'            : u'/etc/opsi/opsiconfd.pem',
 			'sslServerKeyFile'             : u'/etc/opsi/opsiconfd.pem',
 			'sessionName'                  : u'OPSISID',
-			'maxSessionsPerIp'             : 50,
+			'maxSessionsPerIp'             : 25,
 			'resolveClientIp'              : True,
 			'resolveVerifyIp'              : False,
 			'sessionMaxInactiveInterval'   : 120,

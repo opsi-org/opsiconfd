@@ -1492,7 +1492,6 @@ class SessionHandler:
 					if (session.usageCount > 0):
 						continue
 					logger.info(u"Deleting unused session")
-					self.opsiconfd.statistics().removeSession(session)
 					self.deleteSession(session.uid)
 				if (len(self.getSessions(ip)) >= self.opsiconfd.config['maxSessionsPerIp']):
 					raise OpsiAuthenticationError(u"Session limit for ip '%s' reached" % ip)
@@ -1517,7 +1516,6 @@ class SessionHandler:
 			timeout -= 1
 		if (timeout == 0):
 			logger.warning(u"Session '%s': timeout occured while waiting for session to get free for deletion")
-		self.opsiconfd.statistics().removeSession(session)
 		self.deleteSession(session.uid)
 		
 	def deleteSession(self, uid):
@@ -1525,7 +1523,7 @@ class SessionHandler:
 		if not session:
 			logger.warning(u'No such session id: %s' % uid)
 			return
-		
+		self.opsiconfd.statistics().removeSession(session)
 		try:
 			session.delete()
 		except:

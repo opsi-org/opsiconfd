@@ -489,6 +489,9 @@ class Worker:
 		return result
 	
 	def _setCookie(self, result):
+		if not self.session:
+			return result
+		
 		# Add cookie to headers
 		cookie = http_headers.Cookie(self.session.name.encode('ascii', 'replace'), self.session.uid.encode('ascii', 'replace'), path='/')
 		if not isinstance(result, http.Response):
@@ -1219,6 +1222,9 @@ class WorkerOpsiDAV(Worker):
 		return deferred
 	
 	def _setCookie(self, result):
+		if not self.session:
+			return result
+		
 		# Add cookie to headers
 		cookie = http_headers.Cookie(self.session.name.encode('ascii', 'replace'), self.session.uid.encode('ascii', 'replace'), path='/')
 		result.headers.setHeader('set-cookie', [ cookie ] )
@@ -1462,29 +1468,36 @@ class SessionHandler:
 	def cleanup(self):
 		self.deleteAllSessions()
 	
-	def getSessions(self):
-		return self.sessions
+	def getSessions(self, ip=None):
+		if not ip:
+			return self.sessions
+		sessions = []
+		for session in self.sessions.values():
+			if (session.ip == ip):
+				sessions.append(session)
+		return sessions
 		
-	def getSession(self, uid, ip):
+	def getSession(self, uid=None, ip=None):
 		if uid:
 			session = self.sessions.get(uid)
 			if session:
 				return session
 			else:
 				logger.info(u'Failed to get session: session id %s not found' % uid)
-		if (self.opsiconfd.config['maxSessionsPerIp'] > 0):
-			if (self.getSessionCount(ip) >= self.opsiconfd.config['maxSessionsPerIp']):
+		if ip and (self.opsiconfd.config['maxSessionsPerIp'] > 0):
+			sessions = self.getSessions(ip)
+			if (len(sessions) >= self.opsiconfd.config['maxSessionsPerIp']):
 				logger.error(u"Session limit for ip '%s' reached" % ip)
-				raise Exception(u"Session limit for ip '%s' reached" % ip)
+				for session in sessions:
+					if (session.usageCount > 0):
+						continue
+					logger.info(u"Deleting unused session")
+					self.opsiconfd.statistics().removeSession(session)
+					self.deleteSession(session.uid)
+				if (len(self.getSessions(ip)) >= self.opsiconfd.config['maxSessionsPerIp']):
+					raise OpsiAuthenticationError(u"Session limit for ip '%s' reached" % ip)
 		return self.createSession()
 	
-	def getSessionCount(self, ip):
-		count = 0
-		for session in self.sessions.values():
-			if (session.ip == ip):
-				count += 1
-		return count
-		
 	def createSession(self):
 		session = Session(self, self.opsiconfd.config['sessionName'], self.opsiconfd.config['sessionMaxInactiveInterval'])
 		self.sessions[session.uid] = session

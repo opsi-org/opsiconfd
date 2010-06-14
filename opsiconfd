@@ -1939,26 +1939,6 @@ class Opsiconfd(threading.Thread):
 		self._root.putChild('interface', ResourceOpsiJsonInterface(self))
 		self._root.putChild('info',      ResourceOpsiconfdInfo(self))
 		
-		for (name, path) in self.config['staticDirectories'].items():
-			if (name == '/'):
-				continue
-			
-			if name in ('rpc', 'interface', 'info', 'depot', 'repository', 'opt_pcbin'):
-				logger.error(u"Cannot add static content '%s', already in use!" % name)
-				continue
-			
-			if not os.path.isdir(path):
-				logger.error(u"Cannot add static content '%s': directory '%s' does not exist." % (name, path))
-				continue
-			
-			if (name == 'configed'):
-				self._root.putChild(name, ResourceOpsiDAV(self, path, readOnly=True))
-				logger.notice(u"Added static content '%s' which points to directory '%s'" % (name, path))
-				continue
-			
-			self._root.putChild(name, ResourceOpsiDAV(self, path, readOnly=True))
-			logger.notice(u"Added webdav content '%s' which points to directory '%s'" % (name, path))
-		
 		hosts = self._backend.host_getObjects(type = 'OpsiDepotserver', id = self.config['fqdn'])
 		if hosts:
 			depot = hosts[0]
@@ -1974,8 +1954,7 @@ class Opsiconfd(threading.Thread):
 			if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
 				raise Exception(u"Cannot add webdav content 'repository': permissions on directory '%s' not sufficient." % path)
 			
-			self._root.putChild('repository', ResourceOpsiDAV(self, path, readOnly=False))
-			logger.notice(u"Added static content 'repository' which points to directory '%s'" % path)
+			self.config['staticDirectories']['repository'] = path
 			
 			logger.notice(u"Running on depot server '%s', exporting depot directory" % self.config['depotId'])
 			if not depot.getDepotLocalUrl():
@@ -1988,9 +1967,27 @@ class Opsiconfd(threading.Thread):
 			if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
 				raise Exception(u"Cannot add webdav content 'depot': permissions on directory '%s' not sufficient." % path)
 			
-			self._root.putChild('depot', ResourceOpsiDAV(self, path, readOnly=True))
-			logger.notice(u"Added static content 'depot' which points to directory '%s'" % path)
+			self.config['staticDirectories']['depot'] = path
+		
+		for (name, path) in self.config['staticDirectories'].items():
+			if (name == '/'):
+				continue
 			
+			if name in ('rpc', 'interface', 'info'):
+				logger.error(u"Cannot add static content '%s', already in use!" % name)
+				continue
+			
+			if not os.path.isdir(path):
+				logger.error(u"Cannot add static content '%s': directory '%s' does not exist." % (name, path))
+				continue
+			
+			readOnly = True
+			if name in ('repository', 'depot'):
+				readOnly = False
+			
+			self._root.putChild(name, ResourceOpsiDAV(self, path, readOnly = readOnly))
+			logger.notice(u"Added webdav content '%s' which points to directory '%s'" % (name, path))
+		
 		self._site = server.Site(self._root)
 	
 	def _startListening(self):

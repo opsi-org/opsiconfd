@@ -41,6 +41,12 @@ from OpenSSL import SSL
 from signal import *
 
 # Twisted imports
+from twisted.internet import epollreactor
+epollreactor.install()
+#from twisted.internet import pollreactor
+#pollreactor.install()
+#from twisted.internet import selectreactor
+#selectreactor.install()
 from twisted.internet import defer, threads, reactor
 from twisted.python.failure import Failure
 from twisted.python import log
@@ -416,9 +422,6 @@ class Worker:
 		logger.confidential(u"Session id is '%s' for client '%s', application '%s'" \
 			% (self.session.uid, self.request.remoteAddr.host, self.session.userAgent))
 		
-		# Set last modified to current time
-		self.session.increaseUsageCount()
-		
 		# Set user and password
 		if not self.session.user and not self.session.password and self.request.headers.getHeader('Authorization'):
 			(user, password) = (u'', u'')
@@ -636,14 +639,18 @@ class Worker:
 				self.opsiconfd._backend.host_updateObjects(host)
 		return result
 		
-	def _setResponse(self, result):
+	def _generateResponse(self, result):
 		if not isinstance(result, http.Response):
 			result = http.Response()
 		result.code = responsecode.OK
 		result.headers.setHeader('content-type', http_headers.MimeType("text", "html", {"charset": "utf-8"}))
 		result.stream = stream.IByteStream("")
 		return result
-
+	
+	def _setResponse(self, result):
+		deferred = threads.deferToThread(self._generateResponse, result)
+		return deferred
+	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                       CLASS JSON RPC                                              =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -683,7 +690,7 @@ class JsonRpc(object):
 			return None
 		return round(self.ended - self.started, 3)
 		
-	def execute(self):
+	def execute(self, result=None):
 		# Execute rpc
 		params = []
 		for param in self.params:
@@ -814,28 +821,27 @@ class WorkerOpsiJsonRpc(Worker):
 		
 		return result
 	
+	def _executeRpc(self, result, rpc):
+		self.session.setLastRpcMethod(rpc.getMethodName())
+		if (rpc.getMethodName() == 'backend_exit'):
+			logger.notice(u"User '%s' asked to close the session" % self.session.user)
+			self._freeSession(result)
+			self.opsiconfd.getSessionHandler().deleteSession(self.session.uid)
+			return result
+		deferred = threads.deferToThread(rpc.execute)
+		return deferred
+		
 	def _executeRpcs(self, result):
 		if not self.session.backend:
 			raise OpsiconfdError(u"Failed to get backend from session")
-		deferred = None
+		deferred = defer.Deferred()
 		for rpc in self._rpcs:
-			if rpc.hasEnded():
-				continue
-			self.session.setLastRpcMethod(rpc.getMethodName())
-			if (rpc.getMethodName() == 'backend_exit'):
-				logger.notice(u"User '%s' asked to close the session" % self.session.user)
-				self._freeSession(result)
-				self.opsiconfd.getSessionHandler().deleteSession(self.session.uid)
-				return result
-			deferred = threads.deferToThread(rpc.execute)
-			deferred.addCallback(self._executeRpcs)
-			deferred.addErrback(self._errback)
-			break
-		if deferred:
-			return deferred
-		return result
-	
-	def _setResponse(self, result):
+			deferred.addCallback(self._executeRpc, rpc)
+		deferred.addErrback(self._errback)
+		deferred.callback(None)
+		return deferred
+		
+	def _generateResponse(self, result):
 		if not isinstance(result, http.Response):
 			result = http.Response()
 		result.code = responsecode.OK
@@ -879,7 +885,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 	def __init__(self, opsiconfd, request, resource):
 		WorkerOpsiJsonRpc.__init__(self, opsiconfd, request, resource)
 	
-	def _setResponse(self, result):
+	def _generateResponse(self, result):
 		logger.info(u"Creating opsiconfd interface page")
 		
 		javascript  = u"var currentParams = new Array();\n"
@@ -928,6 +934,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 		
 		resultDiv = u'<div id="result">'
 		for rpc in self._rpcs:
+			print "RESULT 2.2", result
 			resultDiv += '<div class="json">'
 			resultDiv += objectToHtml(serialize(rpc.getResponse()))
 			resultDiv += u'</div>'
@@ -943,6 +950,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 			result = http.Response()
 		result.code = responsecode.OK
 		result.stream = stream.IByteStream(html.encode('utf-8'))
+		
 		return result
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
@@ -952,7 +960,7 @@ class WorkerOpsiconfdInfo(Worker):
 	def __init__(self, opsiconfd, request, resource):
 		Worker.__init__(self, opsiconfd, request, resource)
 
-	def _setResponse(self, result):
+	def _generateResponse(self, result):
 		logger.info(u"Creating opsiconfd info page")
 		
 		graphs  = u'<h1>Last hour</h1>'
@@ -1140,7 +1148,6 @@ class WorkerOpsiDAV(Worker):
 			logger.error(u"Failed to get cookie from header: %s" % e)
 		
 		self.session = self.opsiconfd.getSessionHandler().getSession(sessionId, self.request.remoteAddr.host)
-		self.session.touch()
 		
 		self.session.ip = self.request.remoteAddr.host
 		# Get user agent
@@ -1153,9 +1160,6 @@ class WorkerOpsiDAV(Worker):
 			userAgent = 'unknown'
 		self.session.userAgent = userAgent
 		
-		return result
-	
-	def _freeSession(self, result):
 		return result
 	
 	def _authenticate(self, result):
@@ -1481,7 +1485,13 @@ class SessionHandler:
 		if uid:
 			session = self.sessions.get(uid)
 			if session:
-				return session
+				if session.getMarkedForDeletion():
+					logger.info(u'Session found but marked for deletion')
+				else:
+					# Set last modified to current time
+					session.increaseUsageCount()
+					logger.confidential(u"Returning session: %s (count: %d)" % (session.uid, session.usageCount))
+					return session
 			else:
 				logger.info(u'Failed to get session: session id %s not found' % uid)
 		if ip and (self.opsiconfd.config['maxSessionsPerIp'] > 0):
@@ -1495,8 +1505,11 @@ class SessionHandler:
 					self.deleteSession(session.uid)
 				if (len(self.getSessions(ip)) >= self.opsiconfd.config['maxSessionsPerIp']):
 					raise OpsiAuthenticationError(u"Session limit for ip '%s' reached" % ip)
-		return self.createSession()
-	
+		
+		session = self.createSession()
+		session.increaseUsageCount()
+		return session
+		
 	def createSession(self):
 		session = Session(self, self.opsiconfd.config['sessionName'], self.opsiconfd.config['sessionMaxInactiveInterval'])
 		self.sessions[session.uid] = session

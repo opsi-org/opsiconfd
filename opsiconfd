@@ -339,7 +339,7 @@ class Worker:
 		try:
 			failure.raiseException()
 		except Exception, e:
-			error = unicode(e)
+			error = {'class': e.__class__.__name__, 'message': unicode(e)}
 			error = toJson({"id": None, "result": None, "error": error})
 		result.stream = stream.IByteStream(error.encode('utf-8'))
 		return result
@@ -700,7 +700,7 @@ class JsonRpc(object):
 		if (len(pString) > 200):
 			pString = pString[:200] + u'...'
 		
-		logger.notice(u"==>>> Executing: %s(%s)" % (self.getMethodName(), pString))
+		logger.notice(u"-----> Executing: %s(%s)" % (self.getMethodName(), pString))
 		
 		self.started = time.time()
 		try:

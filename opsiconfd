@@ -287,7 +287,7 @@ class Worker:
 		self.query     = u''
 		self.resource  = resource
 		self.session   = None
-		self._setLogFile()
+		self._setLogFile(self)
 	
 	def process(self):
 		logger.info("Worker %s started processing" % self)
@@ -344,9 +344,9 @@ class Worker:
 		result.stream = stream.IByteStream(error.encode('utf-8'))
 		return result
 		
-	def _setLogFile(self):
+	def _setLogFile(self, obj):
 		if self.opsiconfd.config['machineLogs'] and self.opsiconfd.config['logFile']:
-			logger.setLogFile( self.opsiconfd.config['logFile'].replace('%m', self.request.remoteAddr.host), object = self )
+			logger.setLogFile( self.opsiconfd.config['logFile'].replace('%m', self.request.remoteAddr.host), object = obj )
 	
 	def _linkLogFile(self, result):
 		if self.session.hostname and self.opsiconfd.config['machineLogs'] and self.opsiconfd.config['logFile']:
@@ -815,7 +815,9 @@ class WorkerOpsiJsonRpc(Worker):
 			raise OpsiBadRpcError(u"Failed to decode rpc: %s" % e)
 		
 		for rpc in forceList(rpcs):
-			self._rpcs.append(JsonRpc(self, rpc))
+			rpc = JsonRpc(self, rpc)
+			self._setLogFile(rpc)
+			self._rpcs.append(rpc)
 		
 		self.session.setLastRpcSuccessfullyDecoded(True)
 		

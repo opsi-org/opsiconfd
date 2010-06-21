@@ -936,7 +936,6 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 		
 		resultDiv = u'<div id="result">'
 		for rpc in self._rpcs:
-			print "RESULT 2.2", result
 			resultDiv += '<div class="json">'
 			resultDiv += objectToHtml(serialize(rpc.getResponse()))
 			resultDiv += u'</div>'

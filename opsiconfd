@@ -692,41 +692,44 @@ class JsonRpc(object):
 		
 	def execute(self, result=None):
 		# Execute rpc
+		self.result = None
 		params = []
 		for param in self.params:
 			params.append(param)
-		
-		pString = unicode(params)[1:-1]
-		if (len(pString) > 200):
-			pString = pString[:200] + u'...'
-		
-		logger.notice(u"-----> Executing: %s(%s)" % (self.getMethodName(), pString))
-		
-		self.started = time.time()
 		try:
-			found = False
-			keywords = {}
+			self.started = time.time()
+			
+			methodInterface = None
 			for m in self._worker.session.interface:
 				if (self.getMethodName() == m['name']):
-					if m['keywords']:
-						l = 0
-						if m['args']:
-							l += len(m['args'])
-						if m['varargs']:
-							l += len(m['varargs'])
-						if (len(params) >= l):
-							if isinstance(params[-1], BaseObject):
-								params[-1] = params[-1].toHash()
-							if not type(params[-1]) is types.DictType:
-								raise Exception(u"kwargs param is not a dict: %s" % params[-1])
-							for (key, value) in params.pop(-1).items():
-								keywords[str(key)] = deserialize(value)
-					found = True
+					methodInterface = m
 					break
-			if not found:
+			if not methodInterface:
 				raise OpsiRpcError(u"Method '%s' is not valid" % self.getMethodName())
 			
+			keywords = {}
+			if methodInterface['keywords']:
+				l = 0
+				if methodInterface['args']:
+					l += len(methodInterface['args'])
+				if methodInterface['varargs']:
+					l += len(methodInterface['varargs'])
+				if (len(params) >= l):
+					if not type(params[-1]) is types.DictType:
+						raise Exception(u"kwargs param is not a dict: %s" % params[-1])
+					for (key, value) in params.pop(-1).items():
+						keywords[str(key)] = deserialize(value)
+			
 			params = deserialize(params)
+			
+			pString = unicode(params)[1:-1]
+			if keywords:
+				pString += u', ' + unicode(keywords)
+			if (len(pString) > 200):
+				pString = pString[:200] + u'...'
+			
+			logger.notice(u"-----> Executing: %s(%s)" % (self.getMethodName(), pString))
+			
 			backend = self._worker.session.backend
 			if keywords:
 				self.result = eval( "backend.%s(*params, **keywords)" % self.getMethodName() )
@@ -735,7 +738,7 @@ class JsonRpc(object):
 			
 			logger.info(u'Got result')
 			logger.debug2(self.result)
-			
+		
 		except Exception, e:
 			logger.logException(e, LOG_INFO)
 			logger.error(u'Execution error: %s' % e)
@@ -807,7 +810,7 @@ class WorkerOpsiJsonRpc(Worker):
 		
 		rpcs = []
 		try:
-			rpcs = fromJson(self.query)
+			rpcs = fromJson(self.query, preventObjectCreation = True)
 			if not rpcs:
 				raise Exception(u"Got no rpcs")
 		

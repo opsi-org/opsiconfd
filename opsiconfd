@@ -1218,7 +1218,7 @@ class WorkerOpsiDAV(Worker):
 		
 	def _setResponse(self, result):
 		logger.debug(u"Client requests DAV operation: %s" % self.request)
-		if not self.session.isAdmin and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO'):
+		if not self.session.isAdmin and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
 			logger.critical(u"Method '%s' not allowed (read only)" % self.request.method)
 			return http.Response(
 				code	= responsecode.FORBIDDEN,
@@ -1334,7 +1334,7 @@ class ResourceOpsiDAV(OPSI.web2.dav.static.DAVFile):
 	def renderHTTP(self, request):
 		try:
 			self._opsiconfd.statistics().addWebDAVRequest(request)
-			if self._readOnly and request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO'):
+			if self._readOnly and request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
 				logger.warning(u"Command %s not allowed (readonly)" % request.method)
 				return http.Response(
 					code	= responsecode.FORBIDDEN,

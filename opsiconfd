@@ -440,6 +440,7 @@ class Worker:
 					else:
 						user = parts[0]
 						password = u':'.join(parts[1:])
+					user = user.strip()
 					logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
 				except Exception, e:
 					raise Exception(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
@@ -453,14 +454,19 @@ class Worker:
 				user = hosts[0].id
 				logger.info(u"Hardware address '%s' found in backend, using '%s' as username" % (mac, user))
 			
-			hosts = self.opsiconfd._backend.host_getObjects(type = 'OpsiClient', id = user)
+			hosts = None
+			try:
+				hosts = self.opsiconfd._backend.host_getObjects(type = 'OpsiClient', id = forceClientId(user))
+			except:
+				pass
+			
 			if hosts:
 				if password and hosts[0].getOneTimePassword() and (password == hosts[0].getOneTimePassword()):
 					logger.info(u"Client '%s' supplied one-time password" % user)
 					password = hosts[0].getOpsiHostKey()
 					hosts[0].oneTimePassword = None
 					self.opsiconfd._backend.host_createObjects(hosts[0])
-				
+			
 			self.session.user = user
 			self.session.password = password
 			if (self.session.user.count('.') >= 2):
@@ -512,8 +518,13 @@ class Worker:
 			
 			logger.notice(u"Authorization request from %s@%s (application: %s)" % (self.session.user, self.session.ip, self.session.userAgent))
 			if not self.session.user:
-				raise Exception(u"Cannot authenticate, no username given")
-			
+				logger.warning(u"No username from %s (application: %s)" % (self.session.ip, self.session.userAgent))
+				try:
+					(hostname, aliaslist, ipaddrlist) = socket.gethostbyaddr(self.session.ip)
+					self.session.user = forceHostId(hostname)
+				except Exception, e:
+					raise Exception(u"Cannot authenticate, no username given and resolve failed: %s" % e)
+				
 			if self.session.hostname and self.opsiconfd.config['resolveVerifyIp'] and (self.session.user != self.opsiconfd.config['fqdn']):
 				addressList = []
 				try:
@@ -1189,8 +1200,17 @@ class WorkerOpsiDAV(Worker):
 					user = parts[0]
 					password = u':'.join(parts[1:])
 				logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
+				user = user.strip()
 			except Exception, e:
 				raise Exception(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+			
+			if not user:
+				logger.warning(u"No username from %s (application: %s)" % (self.request.remoteAddr.host, self.session.userAgent))
+				try:
+					(hostname, aliaslist, ipaddrlist) = socket.gethostbyaddr(self.request.remoteAddr.host)
+					user = forceHostId(hostname)
+				except Exception, e:
+					raise Exception(u"Cannot authenticate, no username given and resolve failed: %s" % e)
 			
 			self.session.user = user
 			self.session.password = password

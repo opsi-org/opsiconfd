@@ -1,0 +1,12 @@
+#! /bin/bash -e
+
+# = = = = = = = = = = = = = = = = = = = = = = =
+# =       Copyright (C) 2010 uib GmbH         =
+# =           http://www.uib.de               =
+# =          All rights reserved.             =
+# = = = = = = = = = = = = = = = = = = = = = = =
+
+if [ -x /etc/init.d/opsiconfd ] /etc/init.d/opsiconfd stop || true
+
+#DEBHELPER#
+

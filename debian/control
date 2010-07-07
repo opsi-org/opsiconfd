@@ -2,12 +2,14 @@ Source: opsiconfd
 Section: opsi
 Priority: optional
 Maintainer: uib GmbH <info@uib.de>
-Build-Depends: debhelper (>= 4.0.0)
-Standards-Version: 3.6.1
+XS-Python-Version: >=2.5
+Build-Depends: debhelper (>= 7), python (>=2.5), python-support, python-setuptools
+Standards-Version: 3.8.4
 
 Package: opsiconfd
-Section: opsi
 Architecture: all
-Depends: python-opsi (>= 3.99), python-twisted, python-rrdtool, python-dbus, python-avahi, openssl, psmisc
+XB-Python-Version: ${python:Versions}
+Depends: python-opsi (>= 3.99), python-twisted, python-openssl, python-rrdtool, python(>=2.5), psmisc, ${misc:Depends}, ${python:Depends}
+Provides: ${python:Provides}
 Description: opsi configuration service
  This package contains the opsi configuration service.

@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '3.99.0.0'
+from . import __version__
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, rrdtool, types, zlib
@@ -2403,7 +2403,7 @@ class OpsiconfdInit(object):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # -                                               MAIN                                                -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-if (__name__ == "__main__"):
+def main():
 	logger.setConsoleLevel(LOG_WARNING)
 	exception = None
 	
@@ -2419,9 +2419,10 @@ if (__name__ == "__main__"):
 	if exception:
 		logger.logException(exception)
 		print >> sys.stderr, u"ERROR:", unicode(exception)
-		sys.exit(1)
-	sys.exit(0)
+		return(1)
+	return(0)
 	
-
+if __name__=="__main__":
+	sys.exit(main())
 
 

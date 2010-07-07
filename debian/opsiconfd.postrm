@@ -9,9 +9,11 @@
 . /usr/share/debconf/confmodule
 
 case "$1" in
-	upgrade|failed-upgrade|abort-install|abort-upgrade|disappear|remove)
+	upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
 	;;
-	
+	remove)
+		update-rc.d -f opsiconfd remove >/dev/null || true
+	;;
 	purge)
 		deluser pcpatch shadow 1>/dev/null 2>/dev/null || true
 		deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true

@@ -1,41 +1,4 @@
 #!/usr/bin/make -f
-# -*- makefile -*-
 
-clean:
-	dh_testdir
-	dh_testroot
-	dh_clean
-	rm -f debian/files || true
-
-install:
-	dh_testdir
-	dh_testroot
-	dh_clean -k
-	dh_installdirs
-	
-	install -m 0755 opsiconfd             debian/opsiconfd/usr/sbin/
-	install -m 0755 opsiconfd-guard       debian/opsiconfd/usr/sbin/
-	install -m 0644 files/opsiconfd.conf  debian/opsiconfd/etc/opsi/
-	install -m 0644 files/index.html      debian/opsiconfd/usr/share/opsiconfd/static/index.html
-	install -m 0644 files/opsi_logo.png   debian/opsiconfd/usr/share/opsiconfd/static/opsi_logo.png
-	install -m 0644 files/favicon.ico     debian/opsiconfd/usr/share/opsiconfd/static/favicon.ico
-	
-	dh_install
-
-binary-indep: install
-	dh_testdir -i
-	dh_testroot -i
-	dh_installdebconf
-	dh_installlogrotate
-	dh_installinit --init-script=opsiconfd -u"defaults 80 20"
-	dh_installchangelogs -i
-	dh_shlibdeps
-	dh_md5sums
-	dh_gencontrol
-	dh_installdeb
-	dh_builddeb
-
-binary: binary-indep
-build:
-.PHONY: clean binary-indep binary install build
-
+%:
+	dh $@

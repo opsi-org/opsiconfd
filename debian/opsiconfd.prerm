@@ -6,7 +6,7 @@
 # =          All rights reserved.             =
 # = = = = = = = = = = = = = = = = = = = = = = =
 
-if [ -x /etc/init.d/opsiconfd ] /etc/init.d/opsiconfd stop || true
+if [ -x /etc/init.d/opsiconfd ]; then /etc/init.d/opsiconfd stop || true; fi
 
 #DEBHELPER#
 

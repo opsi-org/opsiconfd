@@ -456,9 +456,9 @@ class Worker:
 			
 			hosts = None
 			try:
-				hosts = self.opsiconfd._backend.host_getObjects(type = 'OpsiClient', id = forceClientId(user))
-			except:
-				pass
+				hosts = self.opsiconfd._backend.host_getObjects(type = 'OpsiClient', id = forceHostId(user))
+			except Exception, e:
+				logger.debug(u"Host not found: %s" % e)
 			
 			if hosts:
 				if password and hosts[0].getOneTimePassword() and (password == hosts[0].getOneTimePassword()):
@@ -569,15 +569,15 @@ class Worker:
 		self.query += chunk
 		
 	def _decodeQuery(self, result):
-		if (self.request.method == 'POST'):
-			contentType = self.request.headers.getHeader('content-type')
-			logger.debug(u"Content-Type: %s" % contentType)
-			if contentType and contentType.mediaType.startswith('gzip'):
-				logger.debug(u"Expecting compressed data from client")
-				self.query = zlib.decompress(self.query)
 		try:
+			if (self.request.method == 'POST'):
+				contentType = self.request.headers.getHeader('content-type')
+				logger.debug(u"Content-Type: %s" % contentType)
+				if contentType and contentType.mediaType.startswith('gzip'):
+					logger.debug(u"Expecting compressed data from client")
+					self.query = zlib.decompress(self.query)
 			self.query = unicode(self.query, 'utf-8')
-		except UnicodeError, e:
+		except (UnicodeError, UnicodeEncodeError), e:
 			self.opsiconfd.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(e))
 			self.query = unicode(self.query, 'utf-8', 'replace')
 		logger.debug2(u"query: %s" % self.query)
@@ -752,7 +752,7 @@ class JsonRpc(object):
 		
 		except Exception, e:
 			logger.logException(e, LOG_INFO)
-			logger.error(u'Execution error: %s' % e)
+			logger.error(u'Execution error: %s' % forceUnicode(e))
 			self.exception = e
 			self.traceback = []
 			tb = sys.exc_info()[2]
@@ -772,7 +772,7 @@ class JsonRpc(object):
 			response['method'] = self.method
 			if self.exception:
 				response['type']    = 'exception'
-				response['message'] = { 'class': self.exception.__class__.__name__, 'message': unicode(self.exception) }
+				response['message'] = { 'class': self.exception.__class__.__name__, 'message': forceUnicode(self.exception) }
 				response['where']   = self.traceback
 			else:
 				response['type']   = 'rpc'
@@ -780,7 +780,7 @@ class JsonRpc(object):
 		else:
 			response['id'] = self.tid
 			if self.exception:
-				response['error']  = { 'class': self.exception.__class__.__name__, 'message': unicode(self.exception) }
+				response['error']  = { 'class': self.exception.__class__.__name__, 'message': forceUnicode(self.exception) }
 				response['result'] = None
 			else:
 				response['error']  = None
@@ -1071,7 +1071,7 @@ class WorkerOpsiconfdInfo(Worker):
 		statisticInfo += u'<table>'
 		statisticInfo += u'<tr><th>application</th><th>what</th><th>client</th><th>error</th></tr>'
 		for statistic in sorted(self.opsiconfd.statistics().getEncodingErrors(), key=operator.itemgetter('application')):
-			statisticInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
+			statisticInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
 					% (statistic['application'], statistic['what'], statistic['client'], statistic['error'])
 		statisticInfo += u'</table>'
 		
@@ -1600,7 +1600,7 @@ class Statistics(object):
 	def __init__(self, opsiconfd):
 		self.opsiconfd = opsiconfd
 		self._rpcs = []
-		self._encodinErrors = []
+		self._encodingErrors = []
 		self._rrdConfig = {
 			'step':              60,
 			'heartbeat':        120,
@@ -1771,7 +1771,7 @@ class Statistics(object):
 		return self._rpcs
 	
 	def addEncodingError(self, what, client, application, error):
-		self._encodinErrors.append({
+		self._encodingErrors.append({
 			'what':        forceUnicode(what),
 			'client':      forceUnicode(client),
 			'application': forceUnicode(application),
@@ -1779,7 +1779,7 @@ class Statistics(object):
 		})
 		
 	def getEncodingErrors(self):
-		return self._encodinErrors
+		return self._encodingErrors
 
 
 

@@ -124,7 +124,7 @@ case "$1" in
 					running=false
 				fi
 			done
-			$running && killall -9 `basename $DAEMON` >/dev/null 2>/dev/null
+			$running && kill -9 `cat $PIDFILE` >/dev/null 2>/dev/null || true
 			echo "   (done)."
 		else
 			echo ".   (not running)."

@@ -1,3 +1,9 @@
+opsiconfd (2.0.0.24-1) stable; urgency=low
+
+  * Fix cookie handling
+
+ -- Jan Schneider <j.schneider@uib.de>  Wed, 04 Aug 2010 14:18:27 +0200
+
 opsiconfd (2.0.0.23-1) stable; urgency=low
 
   * session.uid str not unicode

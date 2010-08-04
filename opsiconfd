@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.23'
+__version__ = '2.0.0.24'
 
 # Imports
 import os, getopt, socket, urllib, base64
@@ -261,14 +261,23 @@ class Worker:
 			userAgent = 'unknown'
 		
 		# Get session id from cookie request header
-		sessionId = ''
+		sessionId = u''
 		try:
-			sessionId = self.request.headers.getHeader('cookie')[0].value
+			for (k, v) in self.request.headers.getAllRawHeaders():
+				if (k.lower() == 'cookie'):
+					for cookie in v:
+						for c in cookie.split(';'):
+							if (c.find('=') == -1):
+								continue
+							(name, value) = c.split('=', 1)
+							sessionId = value
+							break
+					break
 		except Exception, e:
-			pass
+			logger.error(u"Failed to get cookie from header: %s" % e)
 		
-		if sessionId:
-			logger.notice("Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
+		if not sessionId:
+			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
 		
 		# Get Session object
 		self.session = sessionHandler.getSession(sessionId)

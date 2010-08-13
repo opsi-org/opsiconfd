@@ -1687,7 +1687,7 @@ class Statistics(object):
 			'--height',         str(self._rrdConfig['yPoints']),
 			'--start',          str(start),
 			'--end',            str(end),
-			'--vertical-label', 'avg per minute',
+			'--vertical-label', 'avg per minute / %',
 			'--lower-limit',    str(0),
 			'--units-exponent', str(0), # don't show milli-messages/s
 			'--slope-mode',

@@ -32,11 +32,15 @@
    @license: GNU General Public License version 2
 """
 
-from . import __version__
+try:
+	from . import __version__
+except:
+	pass
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, rrdtool, types, zlib
 import dbus, avahi
+import resource as pyresource
 from OpenSSL import SSL
 from signal import *
 
@@ -48,6 +52,7 @@ epollreactor.install()
 #from twisted.internet import selectreactor
 #selectreactor.install()
 from twisted.internet import defer, threads, reactor
+from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 from twisted.python import log
 from OPSI.web2 import resource, stream, server, http, responsecode, http_headers
@@ -1601,6 +1606,9 @@ class Statistics(object):
 		self.opsiconfd = opsiconfd
 		self._rpcs = []
 		self._encodingErrors = []
+		self._utime = 0.0
+		self._stime = 0.0
+		self._last = time.time()
 		self._rrdConfig = {
 			'step':              60,
 			'heartbeat':        120,
@@ -1611,7 +1619,8 @@ class Statistics(object):
 		self._rrdCache = { 'requests': 0, 'sessions': 0, 'davrequests': 0, 'rpcs': 0, 'rpcerrors': 0 }
 		if not os.path.exists(self._rrdConfig['rrdFile']):
 			self.createRrd()
-		reactor.callLater(int(self._rrdConfig['step']), self.updateRrd)
+		loop = LoopingCall(self.updateRrd)
+		loop.start(int(self._rrdConfig['step']), now=False)
 		
 	def createRrd(self):
 		if os.path.exists(self._rrdConfig['rrdFile']):
@@ -1626,6 +1635,7 @@ class Statistics(object):
 			'DS:davrequests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
 			'DS:rpcs:ABSOLUTE:%d:0:U'        % self._rrdConfig['heartbeat'],
 			'DS:rpcerrors:ABSOLUTE:%d:0:U'   % self._rrdConfig['heartbeat'],
+			'DS:cpu:GAUGE:%d:0:U'            % self._rrdConfig['heartbeat'],
 			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])),    # hour
 			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])*24), # day
 			'RRA:AVERAGE:0.5:%d:%d' % (7,   (3600/self._rrdConfig['step'])*24), # week
@@ -1641,17 +1651,23 @@ class Statistics(object):
 	def updateRrd(self):
 		try:
 			now = int(time.time())
-			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors']))
-			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors']))
+			last = self._last
+			self._last = now
+			(utime, stime) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:2]
+			usr = (utime - self._utime)/(now - last)
+			sys = (stime - self._stime)/(now - last)
+			(self._utime, self._stime) = (utime, stime)
+			cpu = int("%0.0f" % ((usr + sys) * 100))
+			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu))
+			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu))
 			self._rrdCache['requests'] = 0
 			self._rrdCache['davrequests'] = 0
 			self._rrdCache['rpcs'] = 0
 			self._rrdCache['rpcerrors'] = 0
 		except Exception, e:
 			logger.error(u"Failed to update rrd: %s" % e)
-		reactor.callLater(int(self._rrdConfig['step']/2), self.updateRrd)
 	
 	def getRrdGraphImage(self, range):
 		
@@ -1728,6 +1744,12 @@ class Statistics(object):
 			'GPRINT:total_rpcerror:total\: %8.0lf rpc errors   ',
 			'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min   ',
 			'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
+			
+			'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:max_cpu=%s:cpu:MAX'     % str(self._rrdConfig['rrdFile']),
+			'LINE2:avg_cpu#dd00dd:CPU usage                               ',
+			'GPRINT:avg_cpu:AVERAGE:current\: %5.2lf %%                ',
+			'GPRINT:max_cpu:MAX:max\: %4.2lf %%\\l',
 			
 			'COMMENT:[%s]\\r' % date,
 		)

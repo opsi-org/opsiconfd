@@ -1695,12 +1695,18 @@ class Statistics(object):
 			'--color',          'SHADEB#ffffff',
 			'--color',          'BACK#ffffff',
 			
+			'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
+			'DEF:max_cpu=%s:cpu:MAX'     % str(self._rrdConfig['rrdFile']),
+			'LINE2:avg_cpu#dd00dd:CPU usage                               ',
+			'GPRINT:avg_cpu:AVERAGE:current\: %5.2lf %%                ',
+			'GPRINT:max_cpu:MAX:max\: %4.2lf %%\\l',
+			
 			'DEF:avg_requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
 			'DEF:max_requ=%s:requests:MAX'     % str(self._rrdConfig['rrdFile']),
 			'CDEF:avg_requ_permin=avg_requ,60,*',
 			'CDEF:max_requ_permin=max_requ,60,*',
 			'VDEF:total_requ=avg_requ,TOTAL',
-			'AREA:avg_requ_permin#0000dd:Requests     ',
+			'LINE2:avg_requ_permin#0000dd:Requests     ',
 			'GPRINT:total_requ:total\: %8.0lf requests     ',
 			'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min     ',
 			'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
@@ -1720,7 +1726,7 @@ class Statistics(object):
 			'CDEF:avg_sess_permin=avg_sess,60,*',
 			'CDEF:max_sess_permin=max_sess,60,*',
 			'VDEF:total_sess=avg_sess,TOTAL',
-			'AREA:avg_sess_permin#dddd00:Sessions     ',
+			'LINE2:avg_sess_permin#dddd00:Sessions     ',
 			'GPRINT:total_sess:total\: %8.0lf sessions     ',
 			'GPRINT:avg_sess_permin:AVERAGE:avg\: %5.2lf sessions/min     ',
 			'GPRINT:max_sess_permin:MAX:max\: %4.0lf sessions/min\\l',
@@ -1744,12 +1750,6 @@ class Statistics(object):
 			'GPRINT:total_rpcerror:total\: %8.0lf rpc errors   ',
 			'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min   ',
 			'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
-			
-			'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:max_cpu=%s:cpu:MAX'     % str(self._rrdConfig['rrdFile']),
-			'LINE2:avg_cpu#dd00dd:CPU usage                               ',
-			'GPRINT:avg_cpu:AVERAGE:current\: %5.2lf %%                ',
-			'GPRINT:max_cpu:MAX:max\: %4.2lf %%\\l',
 			
 			'COMMENT:[%s]\\r' % date,
 		)

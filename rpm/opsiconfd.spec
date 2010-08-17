@@ -14,7 +14,7 @@ Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        3.99
+Version:        3.99.0.0
 Release:        1
 Summary:        opsi configuration service
 %define tarname opsiconfd
@@ -25,7 +25,7 @@ BuildArch:      noarch
 
 # ===[ description ]================================
 %description
-This package contains the OPSI configuration service.
+This package contains the opsi configuration service.
 
 # ===[ debug_package ]==============================
 %debug_package
@@ -186,13 +186,3 @@ fi
 
 # ===[ changelog ]==================================
 %changelog
-
-
-
-
-
-
-
-
-
-

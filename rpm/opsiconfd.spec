@@ -45,11 +45,13 @@ python setup.py build
 %install
 python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=INSTALLED_FILES
 
+mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
+
 #mkdir -p $RPM_BUILD_ROOT/usr/share/opsiconfd/static
 #mkdir -p $RPM_BUILD_ROOT/etc/opsi
 #mkdir -p $RPM_BUILD_ROOT/etc/init.d
 #mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
-#mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
+#
 #install -m 0755 opsiconfd $RPM_BUILD_ROOT/usr/sbin/
 #install -m 0755 opsiconfd-guard $RPM_BUILD_ROOT/usr/sbin/
 #install -m 0644 files/opsiconfd.conf $RPM_BUILD_ROOT/etc/opsi/
@@ -70,7 +72,7 @@ rm -rf $RPM_BUILD_ROOT
 # ===[ post ]=======================================
 %post
 #%{fillup_and_insserv opsiconfd}
-insserv opsiconfd
+insserv opsiconfd || true
 
 if [ -z "`getent group pcpatch`" ]; then
 	groupadd -g 992 pcpatch

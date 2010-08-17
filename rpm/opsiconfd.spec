@@ -7,15 +7,16 @@
 #
 
 Name:           opsiconfd
-Requires:       python-opsi openssl python-twisted python-xml
+BuildRequires:  python-devel python-setuptools
+Requires:       python-opsi >= 3.99 openssl python-twisted python-rrdtool python-avahi psmisc
 PreReq:         %insserv_prereq
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        2.0.0.19
-Release:        2
-Summary:        OPSI configuration service
+Version:        3.99
+Release:        1
+Summary:        opsi configuration service
 %define tarname opsiconfd
 Source:         %{tarname}-%{version}.tar.bz2
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
@@ -37,24 +38,28 @@ This package contains the OPSI configuration service.
 
 # ===[ build ]======================================
 %build
+export CFLAGS="$RPM_OPT_FLAGS"
+python setup.py build
 
 # ===[ install ]====================================
 %install
-mkdir -p $RPM_BUILD_ROOT/usr/sbin
-mkdir -p $RPM_BUILD_ROOT/usr/share/opsiconfd/static
-mkdir -p $RPM_BUILD_ROOT/etc/opsi
-mkdir -p $RPM_BUILD_ROOT/etc/init.d
-mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
-mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
-install -m 0755 opsiconfd $RPM_BUILD_ROOT/usr/sbin/
-install -m 0755 opsiconfd-guard $RPM_BUILD_ROOT/usr/sbin/
-install -m 0644 files/opsiconfd.conf $RPM_BUILD_ROOT/etc/opsi/
-install -m 0644 debian/opsiconfd.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
-install -m 0755 debian/opsiconfd.init $RPM_BUILD_ROOT/etc/init.d/opsiconfd
-install -m 0644 files/index.html $RPM_BUILD_ROOT/usr/share/opsiconfd/static/index.html
-install -m 0644 files/opsi_logo.png $RPM_BUILD_ROOT/usr/share/opsiconfd/static/opsi_logo.png
-install -m 0644 files/favicon.ico $RPM_BUILD_ROOT/usr/share/opsiconfd/static/favicon.ico
-ln -sf ../../etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
+python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=INSTALLED_FILES
+
+#mkdir -p $RPM_BUILD_ROOT/usr/sbin
+#mkdir -p $RPM_BUILD_ROOT/usr/share/opsiconfd/static
+#mkdir -p $RPM_BUILD_ROOT/etc/opsi
+#mkdir -p $RPM_BUILD_ROOT/etc/init.d
+#mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
+#mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
+#install -m 0755 opsiconfd $RPM_BUILD_ROOT/usr/sbin/
+#install -m 0755 opsiconfd-guard $RPM_BUILD_ROOT/usr/sbin/
+#install -m 0644 files/opsiconfd.conf $RPM_BUILD_ROOT/etc/opsi/
+#install -m 0644 debian/opsiconfd.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
+#install -m 0755 debian/opsiconfd.init $RPM_BUILD_ROOT/etc/init.d/opsiconfd
+#install -m 0644 files/index.html $RPM_BUILD_ROOT/usr/share/opsiconfd/static/index.html
+#install -m 0644 files/opsi_logo.png $RPM_BUILD_ROOT/usr/share/opsiconfd/static/opsi_logo.png
+#install -m 0644 files/favicon.ico $RPM_BUILD_ROOT/usr/share/opsiconfd/static/favicon.ico
+#ln -sf ../../etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 
 # ===[ clean ]======================================
@@ -80,6 +85,7 @@ fi
 
 groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
 groupmod -A opsiconfd uucp 1>/dev/null 2>/dev/null || true
+groupmod -A opsiconfd opsiadmin 1>/dev/null 2>/dev/null || true
 
 if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	umask 077
@@ -163,24 +169,23 @@ fi
 %attr(0755,root,root) %config /etc/init.d/opsiconfd
 %config /etc/logrotate.d/opsiconfd
 
-# other files
-%attr(0755,root,root) /usr/sbin/opsiconfd
-%attr(0755,root,root) /usr/sbin/opsiconfd-guard
-%attr(0755,root,root) /usr/sbin/rcopsiconfd
-/usr/share/opsiconfd/static/index.html
-/usr/share/opsiconfd/static/opsi_logo.png
-/usr/share/opsiconfd/static/favicon.ico
-
-# directories
-%attr(0755,pcpatch,root) %dir /etc/opsi
-%attr(0755,root,root) %dir /usr/share/opsiconfd
-%attr(0755,root,root) %dir /usr/share/opsiconfd/static
-%attr(0750,opsiconfd,pcpatch) %dir /var/log/opsi/opsiconfd
+## other files
+#%attr(0755,root,root) /usr/sbin/opsiconfd
+#%attr(0755,root,root) /usr/sbin/opsiconfd-guard
+#%attr(0755,root,root) /usr/sbin/rcopsiconfd
+#/usr/share/opsiconfd/static/index.html
+#/usr/share/opsiconfd/static/opsi_logo.png
+#/usr/share/opsiconfd/static/favicon.ico
+#
+## directories
+#%attr(0755,pcpatch,root) %dir /etc/opsi
+#%attr(0755,root,root) %dir /usr/share/opsiconfd
+#%attr(0755,root,root) %dir /usr/share/opsiconfd/static
+#%attr(0750,opsiconfd,pcpatch) %dir /var/log/opsi/opsiconfd
 
 # ===[ changelog ]==================================
 %changelog
-* Wed Sep 17 2008 - j.schneider@uib.de
-- created new package
+
 
 
 

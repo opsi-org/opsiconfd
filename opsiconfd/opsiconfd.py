@@ -616,10 +616,12 @@ class Worker:
 				raise ValueError(u"Extension config path '%s' refused" % extendPath)
 			self.session.backend = BackendManager(
 				dispatchConfigFile   = self.opsiconfd.config['dispatchConfigFile'],
-				accessControlContext = self.opsiconfd._backend,
 				backendConfigDir     = self.opsiconfd.config['backendConfigDir'],
 				extensionConfigDir   = os.path.join(self.opsiconfd.config['extensionConfigDir'], extendPath),
 				aclFile              = self.opsiconfd.config['aclFile'],
+				accessControlContext = self.opsiconfd._backend,
+				depotBackend         = bool(self.opsiconfd.config['depotId']),
+				hostControlBackend   = True,
 				username             = self.session.user,
 				password             = self.session.password
 			)

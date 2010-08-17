@@ -170,7 +170,7 @@ fi
 # configfiles
 %config(noreplace) /etc/opsi/opsiconfd.conf
 %attr(0755,root,root) %config /etc/init.d/opsiconfd
-%config /etc/logrotate.d/opsiconfd.logrotate
+%config /etc/logrotate.d/opsiconfd
 
 ## other files
 #%attr(0755,root,root) /usr/sbin/opsiconfd

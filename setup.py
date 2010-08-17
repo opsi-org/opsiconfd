@@ -53,7 +53,7 @@ setup(
 		 'scripts/opsiconfd-guard'],
 	data_files=[('/etc/opsi', ['data/etc/opsi/opsiconfd.conf']),
 		    ('/etc/init.d', ['data/etc/init.d/opsiconfd']),
-		    ('/etc/logrotate.d/', ['data/etc/logrotate.d/opsiconfd.logrotate']),
+		    ('/etc/logrotate.d/', ['data/etc/logrotate.d/opsiconfd']),
 		    ('share/opsiconfd/static', [ 'data/shared/index.html',
 						 'data/shared/favicon.ico',
 						 'data/shared/opsi_logo.png'])

@@ -45,7 +45,7 @@ setup(
 	name='opsiconfd',
 	version=version,
 	license='GPL-2',
-	url="http://www.opsi.de",
+	url="http://www.opsi.org",
 	description='The opsi configiration management daemon',
 	#long-description='Long description goes here',
 	packages=['opsiconfd'],

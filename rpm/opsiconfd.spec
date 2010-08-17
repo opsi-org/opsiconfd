@@ -114,7 +114,7 @@ if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	echo "O=$cert_organization" 		>> /tmp/opsiconfd.cnf
 	#echo "OU=$cert_unit" 			>> /tmp/opsiconfd.cnf
 	echo "CN=$cert_commonname" 		>> /tmp/opsiconfd.cnf
-	echo "emailAddress=$cert_email"	>> /tmp/opsiconfd.cnf
+	echo "emailAddress=$cert_email"		>> /tmp/opsiconfd.cnf
 	echo "" 				>> /tmp/opsiconfd.cnf
 	echo "[ cert_type ]" 			>> /tmp/opsiconfd.cnf
 	echo "nsCertType = server" 		>> /tmp/opsiconfd.cnf
@@ -182,7 +182,7 @@ fi
 #%attr(0755,pcpatch,root) %dir /etc/opsi
 #%attr(0755,root,root) %dir /usr/share/opsiconfd
 #%attr(0755,root,root) %dir /usr/share/opsiconfd/static
-#%attr(0750,opsiconfd,pcpatch) %dir /var/log/opsi/opsiconfd
+%attr(0750,opsiconfd,pcpatch) %dir /var/log/opsi/opsiconfd
 
 # ===[ changelog ]==================================
 %changelog

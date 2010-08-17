@@ -158,7 +158,7 @@ if [ $1 -eq 0 ]; then
 fi
 
 # ===[ files ]======================================
-%files
+%files -f INSTALLED_FILES
 # default attributes
 %defattr(-,root,root)
 

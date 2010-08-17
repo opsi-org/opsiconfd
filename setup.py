@@ -33,10 +33,17 @@
 """
 
 from setuptools import setup, os
-from opsiconfd import __version__
+version = None
+f = open("opsiconfd/__init__.py")
+for line in f.readlines():
+	if (line.find('__version__') != -1):
+		version = line.split('=')[1].strip()
+		break
+f.close()
+
 setup(
 	name='opsiconfd',
-	version=__version__,
+	version=version,
 	license='GPL-2',
 	url="http://www.opsi.de",
 	description='The opsi configiration management daemon',

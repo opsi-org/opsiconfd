@@ -45,7 +45,6 @@ python setup.py build
 %install
 python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=INSTALLED_FILES
 
-#mkdir -p $RPM_BUILD_ROOT/usr/sbin
 #mkdir -p $RPM_BUILD_ROOT/usr/share/opsiconfd/static
 #mkdir -p $RPM_BUILD_ROOT/etc/opsi
 #mkdir -p $RPM_BUILD_ROOT/etc/init.d
@@ -60,6 +59,7 @@ python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=
 #install -m 0644 files/opsi_logo.png $RPM_BUILD_ROOT/usr/share/opsiconfd/static/opsi_logo.png
 #install -m 0644 files/favicon.ico $RPM_BUILD_ROOT/usr/share/opsiconfd/static/favicon.ico
 
+mkdir -p $RPM_BUILD_ROOT/usr/sbin
 ln -sf ../../etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 

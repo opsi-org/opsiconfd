@@ -59,7 +59,8 @@ python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=
 #install -m 0644 files/index.html $RPM_BUILD_ROOT/usr/share/opsiconfd/static/index.html
 #install -m 0644 files/opsi_logo.png $RPM_BUILD_ROOT/usr/share/opsiconfd/static/opsi_logo.png
 #install -m 0644 files/favicon.ico $RPM_BUILD_ROOT/usr/share/opsiconfd/static/favicon.ico
-#ln -sf ../../etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
+
+ln -sf ../../etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 
 # ===[ clean ]======================================
@@ -167,12 +168,12 @@ fi
 # configfiles
 %config(noreplace) /etc/opsi/opsiconfd.conf
 %attr(0755,root,root) %config /etc/init.d/opsiconfd
-%config /etc/logrotate.d/opsiconfd
+%config /etc/logrotate.d/opsiconfd.logrotate
 
 ## other files
 #%attr(0755,root,root) /usr/sbin/opsiconfd
 #%attr(0755,root,root) /usr/sbin/opsiconfd-guard
-#%attr(0755,root,root) /usr/sbin/rcopsiconfd
+%attr(0755,root,root) /usr/sbin/rcopsiconfd
 #/usr/share/opsiconfd/static/index.html
 #/usr/share/opsiconfd/static/opsi_logo.png
 #/usr/share/opsiconfd/static/favicon.ico

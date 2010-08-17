@@ -7,7 +7,7 @@
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl
+BuildRequires:  python-devel python-setuptools openssl python-opsi >= 3.99
 Requires:       python-opsi >= 3.99 openssl python-twisted python-rrdtool python-avahi psmisc
 PreReq:         %insserv_prereq
 Url:            http://www.opsi.org

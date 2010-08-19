@@ -32,11 +32,16 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = '2.0.0.23'
+__version__ = '2.0.0.25'
 
 # Imports
 import os, getopt, socket, urllib, base64
 from OpenSSL import SSL
+from sys import version_info
+if (version_info >= (2,6)):
+	import json
+else:
+	import simplejson as json
 
 # Twisted imports
 from twisted.internet import defer, threads, reactor
@@ -218,13 +223,7 @@ class Worker:
 		
 		try:
 			# Deserialize json-object
-			if hasattr(json, 'loads'):
-				# Python 2.6 json module
-				#self.rpc = json.loads(self.query.replace(u'\ufffd', '?'))
-				self.rpc = json.loads(self.query)
-			else:
-				#self.rpc = json.read(self.query.replace(u'\ufffd', '?'))
-				self.rpc = json.read(self.query)
+			self.rpc = json.loads(self.query)
 			if not self.rpc.get('id'):
 				raise Exception('No id defined!')
 			self.result['id'] = self.rpc['id']
@@ -261,14 +260,23 @@ class Worker:
 			userAgent = 'unknown'
 		
 		# Get session id from cookie request header
-		sessionId = ''
+		sessionId = u''
 		try:
-			sessionId = self.request.headers.getHeader('cookie')[0].value
+			for (k, v) in self.request.headers.getAllRawHeaders():
+				if (k.lower() == 'cookie'):
+					for cookie in v:
+						for c in cookie.split(';'):
+							if (c.find('=') == -1):
+								continue
+							(name, value) = c.split('=', 1)
+							sessionId = value
+							break
+					break
 		except Exception, e:
-			pass
+			logger.error(u"Failed to get cookie from header: %s" % e)
 		
-		if sessionId:
-			logger.notice("Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
+		if not sessionId:
+			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
 		
 		# Get Session object
 		self.session = sessionHandler.getSession(sessionId)
@@ -617,11 +625,7 @@ class JsonRpcWorker(Worker):
 		self.result['result'] = self._allIntsToString(self.result['result'])
 		jsonResult = ''
 		try:
-			if hasattr(json, 'dumps'):
-				# Python 2.6 json module
-				jsonResult = json.dumps( self.result )
-			else:
-				jsonResult = json.write( self.result )
+			jsonResult = json.dumps( self.result )
 		except Exception, e:
 			logger.critical(e)
 		self.response.stream = stream.IByteStream(jsonResult)

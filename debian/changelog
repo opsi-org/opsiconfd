@@ -1,8 +1,20 @@
-opsiconfd (2.0.0.23-1) jaunty; urgency=low
+opsiconfd (2.0.0.25-1) stable; urgency=low
+
+  * Replaced json module
+
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 16 Aug 2010 10:18:26 +0200
+
+opsiconfd (2.0.0.24-1) stable; urgency=low
+
+  * Fix cookie handling
+
+ -- Jan Schneider <j.schneider@uib.de>  Wed, 04 Aug 2010 14:18:27 +0200
+
+opsiconfd (2.0.0.23-1) stable; urgency=low
 
   * session.uid str not unicode
 
- -- Jan Schneider <j.schneider@uib.de>  Fri, 06 Nov 2009 20:09:56 +0100
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 03 Aug 2010 10:23:14 +0200
 
 opsiconfd (2.0.0.22-1) stable; urgency=low
 

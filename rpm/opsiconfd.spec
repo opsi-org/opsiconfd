@@ -79,7 +79,7 @@ if [ -z "`getent group pcpatch`" ]; then
 fi
 
 if [ -z "`getent passwd opsiconfd`" ]; then
-	useradd -u 993 -g 992 -d /var/lib/opsi -s /bin/bash opsiconfd
+	useradd -r -u 993 -g 992 -d /var/lib/opsi -s /bin/bash opsiconfd
 fi
 
 if [ -z "`getent group opsiadmin`" ]; then

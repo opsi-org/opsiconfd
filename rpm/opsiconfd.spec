@@ -7,8 +7,11 @@
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl python-rrdtool python-avahi dbus-1-python python-opsi >= 3.99 procps
-Requires:       python-opsi >= 3.99 openssl python-twisted python-rrdtool python-avahi dbus-1-python psmisc procps
+BuildRequires:  python-devel python-setuptools openssl python-rrdtool dbus-1-python python-opsi >= 3.99 procps
+Requires:       python-opsi >= 3.99 openssl python-twisted python-rrdtool dbus-1-python psmisc procps
+%if 0%{?suse_version}
+Requires:       python-avahi
+%endif
 PreReq:         %insserv_prereq
 Url:            http://www.opsi.org
 License:        GPL v2 or later

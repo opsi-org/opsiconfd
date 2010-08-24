@@ -986,15 +986,20 @@ class WorkerOpsiconfdInfo(Worker):
 		logger.info(u"Creating opsiconfd info page")
 		
 		graphs  = u'<h1>Last hour</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600))
 		graphs += u'<h1>Last day</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24))
 		graphs += u'<h1>Last week</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*7))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*7))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*7))
 		graphs += u'<h1>Last month</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*31))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*31))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*31))
 		graphs += u'<h1>Last year</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(3600*24*365))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*365))
+		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*365))
 		
 		configInfo  = u'<h1>Server config</h1>'
 		configInfo += u'<table>'
@@ -1638,6 +1643,7 @@ class Statistics(object):
 			'DS:rpcs:ABSOLUTE:%d:0:U'        % self._rrdConfig['heartbeat'],
 			'DS:rpcerrors:ABSOLUTE:%d:0:U'   % self._rrdConfig['heartbeat'],
 			'DS:cpu:GAUGE:%d:0:U'            % self._rrdConfig['heartbeat'],
+			'DS:mem:GAUGE:%d:0:U'            % self._rrdConfig['heartbeat'],
 			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])),    # hour
 			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])*24), # day
 			'RRA:AVERAGE:0.5:%d:%d' % (7,   (3600/self._rrdConfig['step'])*24), # week
@@ -1655,15 +1661,16 @@ class Statistics(object):
 			now = int(time.time())
 			last = self._last
 			self._last = now
-			(utime, stime) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:2]
+			(utime, stime, maxrss) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
 			usr = (utime - self._utime)/(now - last)
 			sys = (stime - self._stime)/(now - last)
 			(self._utime, self._stime) = (utime, stime)
+			mem = int("%0.0f" % (float(maxrss * pyresource.getpagesize())/(1024*1024))) # Mbyte
 			cpu = int("%0.0f" % ((usr + sys) * 100))
-			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu))
-			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu))
+			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu, mem))
+			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu, mem))
 			self._rrdCache['requests'] = 0
 			self._rrdCache['davrequests'] = 0
 			self._rrdCache['rpcs'] = 0
@@ -1671,90 +1678,120 @@ class Statistics(object):
 		except Exception, e:
 			logger.error(u"Failed to update rrd: %s" % e)
 	
-	def getRrdGraphImage(self, range):
+	def getRrdGraphImage(self, type, range):
+		
+		if (type == 1):
+			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '1_%s.png' % range)
+		else:
+			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '2_%s.png' % range)
 		
 		date = time.strftime("%a, %d %b %Y %H\:%M\:%S", time.localtime())
 		end = int(time.time())
 		start = end - range
-		graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '%s.png' % range)
+		
 		
 		logger.debug(u"Creating rrd graph image '%s', start: %s, end: %s" % (graphImage, start, end))
 		
 		if os.path.exists(graphImage):
 			os.unlink(graphImage)
 		
-		rrdtool.graph(str(graphImage),
-			'--imgformat',      'PNG',
-			'--width',          str(self._rrdConfig['xPoints']),
-			'--height',         str(self._rrdConfig['yPoints']),
-			'--start',          str(start),
-			'--end',            str(end),
-			'--vertical-label', 'avg per minute / %',
-			'--lower-limit',    str(0),
-			'--units-exponent', str(0), # don't show milli-messages/s
-			'--slope-mode',
-			'--color',          'SHADEA#ffffff',
-			'--color',          'SHADEB#ffffff',
-			'--color',          'BACK#ffffff',
-			
-			'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:max_cpu=%s:cpu:MAX'     % str(self._rrdConfig['rrdFile']),
-			'LINE2:avg_cpu#dd00dd:CPU usage                               ',
-			'GPRINT:avg_cpu:AVERAGE:current\: %5.2lf %%                ',
-			'GPRINT:max_cpu:MAX:max\: %4.2lf %%\\l',
-			
-			'DEF:avg_requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:max_requ=%s:requests:MAX'     % str(self._rrdConfig['rrdFile']),
-			'CDEF:avg_requ_permin=avg_requ,60,*',
-			'CDEF:max_requ_permin=max_requ,60,*',
-			'VDEF:total_requ=avg_requ,TOTAL',
-			'LINE2:avg_requ_permin#0000dd:Requests     ',
-			'GPRINT:total_requ:total\: %8.0lf requests     ',
-			'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min     ',
-			'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
-			
-			'DEF:avg_davrequ=%s:davrequests:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:max_davrequ=%s:davrequests:MAX'     % str(self._rrdConfig['rrdFile']),
-			'CDEF:avg_davrequ_permin=avg_davrequ,60,*',
-			'CDEF:max_davrequ_permin=max_davrequ,60,*',
-			'VDEF:total_davrequ=avg_davrequ,TOTAL',
-			'LINE2:avg_davrequ_permin#ff8000:DAV requests ',
-			'GPRINT:total_davrequ:total\: %8.0lf dav requests ',
-			'GPRINT:avg_davrequ_permin:AVERAGE:avg\: %5.2lf dav requests/min ',
-			'GPRINT:max_davrequ_permin:MAX:max\: %4.0lf dav requests/min\\l',
-			
-			'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:max_sess=%s:sessions:MAX'     % str(self._rrdConfig['rrdFile']),
-			'CDEF:avg_sess_permin=avg_sess,60,*',
-			'CDEF:max_sess_permin=max_sess,60,*',
-			'VDEF:total_sess=avg_sess,TOTAL',
-			'LINE2:avg_sess_permin#dddd00:Sessions     ',
-			'GPRINT:total_sess:total\: %8.0lf sessions     ',
-			'GPRINT:avg_sess_permin:AVERAGE:avg\: %5.2lf sessions/min     ',
-			'GPRINT:max_sess_permin:MAX:max\: %4.0lf sessions/min\\l',
-			
-			'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:max_rpc=%s:rpcs:MAX'     % str(self._rrdConfig['rrdFile']),
-			'CDEF:avg_rpc_permin=avg_rpc,60,*',
-			'CDEF:max_rpc_permin=max_rpc,60,*',
-			'VDEF:total_rpc=avg_rpc,TOTAL',
-			'LINE2:avg_rpc_permin#00dd00:RPCs         ',
-			'GPRINT:total_rpc:total\: %8.0lf rpcs         ',
-			'GPRINT:avg_rpc_permin:AVERAGE:avg\: %5.2lf rpcs/min         ',
-			'GPRINT:max_rpc_permin:MAX:max\: %4.0lf rpcs/min\\l',
-			
-			'DEF:avg_rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
-			'DEF:max_rpcerror=%s:rpcerrors:MAX'     % str(self._rrdConfig['rrdFile']),
-			'CDEF:avg_rpcerror_permin=avg_rpcerror,60,*',
-			'CDEF:max_rpcerror_permin=max_rpcerror,60,*',
-			'VDEF:total_rpcerror=avg_rpcerror,TOTAL',
-			'LINE2:avg_rpcerror_permin#dd0000:RPC errors   ',
-			'GPRINT:total_rpcerror:total\: %8.0lf rpc errors   ',
-			'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min   ',
-			'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
-			
-			'COMMENT:[%s]\\r' % date,
-		)
+		if (type == 1):
+			rrdtool.graph(str(graphImage),
+				'--imgformat',      'PNG',
+				'--width',          str(self._rrdConfig['xPoints']),
+				'--height',         str(self._rrdConfig['yPoints']),
+				'--start',          str(start),
+				'--end',            str(end),
+				'--vertical-label', 'avg per minute',
+				'--lower-limit',    str(0),
+				'--units-exponent', str(0), # don't show milli-messages/s
+				'--slope-mode',
+				'--color',          'SHADEA#ffffff',
+				'--color',          'SHADEB#ffffff',
+				'--color',          'BACK#ffffff',
+				
+				'DEF:avg_requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
+				'DEF:max_requ=%s:requests:MAX'     % str(self._rrdConfig['rrdFile']),
+				'CDEF:avg_requ_permin=avg_requ,60,*',
+				'CDEF:max_requ_permin=max_requ,60,*',
+				'VDEF:total_requ=avg_requ,TOTAL',
+				'LINE2:avg_requ_permin#0000dd:Requests     ',
+				'GPRINT:total_requ:total\: %8.0lf requests     ',
+				'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min     ',
+				'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
+				
+				'DEF:avg_davrequ=%s:davrequests:AVERAGE' % str(self._rrdConfig['rrdFile']),
+				'DEF:max_davrequ=%s:davrequests:MAX'     % str(self._rrdConfig['rrdFile']),
+				'CDEF:avg_davrequ_permin=avg_davrequ,60,*',
+				'CDEF:max_davrequ_permin=max_davrequ,60,*',
+				'VDEF:total_davrequ=avg_davrequ,TOTAL',
+				'LINE2:avg_davrequ_permin#ff8000:DAV requests ',
+				'GPRINT:total_davrequ:total\: %8.0lf dav requests ',
+				'GPRINT:avg_davrequ_permin:AVERAGE:avg\: %5.2lf dav requests/min ',
+				'GPRINT:max_davrequ_permin:MAX:max\: %4.0lf dav requests/min\\l',
+				
+				'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
+				'DEF:max_sess=%s:sessions:MAX'     % str(self._rrdConfig['rrdFile']),
+				'CDEF:avg_sess_permin=avg_sess,60,*',
+				'CDEF:max_sess_permin=max_sess,60,*',
+				'VDEF:total_sess=avg_sess,TOTAL',
+				'LINE2:avg_sess_permin#dddd00:Sessions     ',
+				'GPRINT:total_sess:total\: %8.0lf sessions     ',
+				'GPRINT:avg_sess_permin:AVERAGE:avg\: %5.2lf sessions/min     ',
+				'GPRINT:max_sess_permin:MAX:max\: %4.0lf sessions/min\\l',
+				
+				'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
+				'DEF:max_rpc=%s:rpcs:MAX'     % str(self._rrdConfig['rrdFile']),
+				'CDEF:avg_rpc_permin=avg_rpc,60,*',
+				'CDEF:max_rpc_permin=max_rpc,60,*',
+				'VDEF:total_rpc=avg_rpc,TOTAL',
+				'LINE2:avg_rpc_permin#00dd00:RPCs         ',
+				'GPRINT:total_rpc:total\: %8.0lf rpcs         ',
+				'GPRINT:avg_rpc_permin:AVERAGE:avg\: %5.2lf rpcs/min         ',
+				'GPRINT:max_rpc_permin:MAX:max\: %4.0lf rpcs/min\\l',
+				
+				'DEF:avg_rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
+				'DEF:max_rpcerror=%s:rpcerrors:MAX'     % str(self._rrdConfig['rrdFile']),
+				'CDEF:avg_rpcerror_permin=avg_rpcerror,60,*',
+				'CDEF:max_rpcerror_permin=max_rpcerror,60,*',
+				'VDEF:total_rpcerror=avg_rpcerror,TOTAL',
+				'LINE2:avg_rpcerror_permin#dd0000:RPC errors   ',
+				'GPRINT:total_rpcerror:total\: %8.0lf rpc errors   ',
+				'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min   ',
+				'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
+				
+				'COMMENT:[%s]\\r' % date,
+			)
+		else:
+			rrdtool.graph(str(graphImage),
+				'--imgformat',      'PNG',
+				'--width',          str(self._rrdConfig['xPoints']),
+				'--height',         str(self._rrdConfig['yPoints']),
+				'--start',          str(start),
+				'--end',            str(end),
+				'--vertical-label', '% CPU / MByte RAM',
+				'--lower-limit',    str(0),
+				'--units-exponent', str(0), # don't show milli-messages/s
+				'--slope-mode',
+				'--color',          'SHADEA#ffffff',
+				'--color',          'SHADEB#ffffff',
+				'--color',          'BACK#ffffff',
+				
+				'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
+				'DEF:max_cpu=%s:cpu:MAX'     % str(self._rrdConfig['rrdFile']),
+				'LINE2:avg_cpu#dd0000:CPU usage     ',
+				'GPRINT:avg_cpu:AVERAGE:current\: %5.2lf %%     ',
+				'GPRINT:max_cpu:MAX:max\: %4.2lf %%\\l',
+				
+				'DEF:avg_mem=%s:mem:AVERAGE' % str(self._rrdConfig['rrdFile']),
+				'DEF:max_mem=%s:mem:MAX'     % str(self._rrdConfig['rrdFile']),
+				'LINE2:avg_mem#0000dd:MEM usage     ',
+				'GPRINT:avg_mem:AVERAGE:current\: %5.2lf MByte ',
+				'GPRINT:max_mem:MAX:max\: %4.2lf MByte\\l',
+				
+				'COMMENT:[%s]\\r' % date,
+			)
+		
 		return graphImage
 	
 	def addSession(self, session):

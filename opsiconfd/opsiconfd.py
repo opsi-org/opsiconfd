@@ -38,7 +38,11 @@ except:
 	pass
 
 # Imports
-import os, sys, getopt, threading, time, socket, base64, urllib, operator, rrdtool, types, zlib
+import os, sys, getopt, threading, time, socket, base64, urllib, operator, types, zlib
+try:
+	import rrdtool
+except:
+	rrdtool = None
 import dbus, avahi
 import resource as pyresource
 from OpenSSL import SSL
@@ -985,22 +989,24 @@ class WorkerOpsiconfdInfo(Worker):
 	def _generateResponse(self, result):
 		logger.info(u"Creating opsiconfd info page")
 		
-		graphs  = u'<h1>Last hour</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600))
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600))
-		graphs += u'<h1>Last day</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24))
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24))
-		graphs += u'<h1>Last week</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*7))
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*7))
-		graphs += u'<h1>Last month</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*31))
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*31))
-		graphs += u'<h1>Last year</h1>'
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*365))
-		graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*365))
-		
+		graphs = u''
+		if rrdtool:
+			graphs += u'<h1>Last hour</h1>'
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600))
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600))
+			graphs += u'<h1>Last day</h1>'
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24))
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24))
+			graphs += u'<h1>Last week</h1>'
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*7))
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*7))
+			graphs += u'<h1>Last month</h1>'
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*31))
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*31))
+			graphs += u'<h1>Last year</h1>'
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*365))
+			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*365))
+			
 		configInfo  = u'<h1>Server config</h1>'
 		configInfo += u'<table>'
 		configInfo += u'<tr><th>key</th><th>value</th></tr>'
@@ -1624,12 +1630,15 @@ class Statistics(object):
 			'rrdFile':          os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
 		}
 		self._rrdCache = { 'requests': 0, 'sessions': 0, 'davrequests': 0, 'rpcs': 0, 'rpcerrors': 0 }
+		
 		if not os.path.exists(self._rrdConfig['rrdFile']):
 			self.createRrd()
 		loop = LoopingCall(self.updateRrd)
 		loop.start(int(self._rrdConfig['step']), now=False)
 		
 	def createRrd(self):
+		if not rrdtool:
+			return
 		if os.path.exists(self._rrdConfig['rrdFile']):
 			os.unlink(self._rrdConfig['rrdFile'])
 		
@@ -1658,6 +1667,8 @@ class Statistics(object):
 		)
 	
 	def updateRrd(self):
+		if not rrdtool:
+			return
 		try:
 			now = int(time.time())
 			last = self._last
@@ -1687,6 +1698,8 @@ class Statistics(object):
 			logger.error(u"Failed to update rrd: %s" % e)
 	
 	def getRrdGraphImage(self, type, range):
+		if not rrdtool:
+			return None
 		
 		if (type == 1):
 			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '1_%s.png' % range)

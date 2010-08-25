@@ -7,8 +7,8 @@
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl python-rrdtool dbus-1-python python-opsi >= 3.99 procps
-Requires:       python-opsi >= 3.99 openssl python-twisted python-rrdtool dbus-1-python psmisc procps
+BuildRequires:  python-devel python-setuptools openssl dbus-1-python python-opsi >= 3.99 procps
+Requires:       python-opsi >= 3.99 openssl python-twisted dbus-1-python psmisc procps
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
@@ -21,7 +21,8 @@ Source:         %{tarname}-%{version}.tar.bz2
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
 %if 0%{?suse_version}
-Requires:       python-avahi
+Requires:       python-avahi python-rrdtool
+BuildRequires:  python-rrdtool
 PreReq:         %insserv_prereq
 %{py_requires}
 %endif

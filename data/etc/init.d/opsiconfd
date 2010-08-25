@@ -15,7 +15,8 @@ DAEMON=/usr/bin/opsiconfd
 USER=opsiconfd
 LOGDIR=/var/log/opsi/opsiconfd
 PIDDIR=/var/run/opsiconfd
-RRDDIR=/var/lib/opsiconfd/rrd
+LIBDIR=/var/lib/opsiconfd
+RRDDIR=$LIBDIR/rrd
 PIDFILE=$PIDDIR/opsiconfd.pid
 START_GUARD=1
 GUARD_BIN=/usr/bin/opsiconfd-guard
@@ -41,6 +42,8 @@ case "$1" in
 		# Make sure files are writable
 		test -e $LOGDIR || mkdir -p $LOGDIR
 		chown -R $USER $LOGDIR
+		test -e $LIBDIR || mkdir -p $LIBDIR
+		chown -R $USER $LIBDIR
 		test -e $RRDDIR || mkdir -p $RRDDIR
 		chown -R $USER $RRDDIR
 		
@@ -112,7 +115,16 @@ case "$1" in
 		killall `basename $GUARD_BIN` 1>/dev/null 2>/dev/null
 		
 		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
-			start-stop-daemon --stop --quiet --pidfile $PIDFILE > /dev/null
+			
+			set +e
+			which startproc 1>/dev/null 2>/dev/null
+			ret=$?
+			set -e
+			if [ "$ret" = "0" ]; then
+				startproc -p $PIDFILE $DAEMON
+			else
+				start-stop-daemon --stop --quiet --pidfile $PIDFILE > /dev/null
+			fi
 			running=true
 			i=1
 			while [ "$running" = "true" -a $i -le 10 ]; do
@@ -135,7 +147,15 @@ case "$1" in
 		echo -n "Reloading opsi config service...   "
 		
 		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
-			start-stop-daemon --stop --signal HUP --pidfile $PIDFILE > /dev/null
+			set +e
+			which startproc 1>/dev/null 2>/dev/null
+			ret=$?
+			set -e
+			if [ "$ret" = "0" ]; then
+				killproc -p $PIDFILE -HUP $DAEMON
+			else
+				start-stop-daemon --stop --signal HUP --pidfile $PIDFILE > /dev/null
+			fi
 			echo "(done)."
 		else
 			echo "(not running)."

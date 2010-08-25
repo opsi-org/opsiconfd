@@ -117,11 +117,11 @@ case "$1" in
 		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
 			
 			set +e
-			which startproc 1>/dev/null 2>/dev/null
+			which killproc 1>/dev/null 2>/dev/null
 			ret=$?
 			set -e
 			if [ "$ret" = "0" ]; then
-				startproc -p $PIDFILE $DAEMON
+				killproc -p $PIDFILE -TERM $DAEMON
 			else
 				start-stop-daemon --stop --quiet --pidfile $PIDFILE > /dev/null
 			fi
@@ -148,7 +148,7 @@ case "$1" in
 		
 		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
 			set +e
-			which startproc 1>/dev/null 2>/dev/null
+			which killproc 1>/dev/null 2>/dev/null
 			ret=$?
 			set -e
 			if [ "$ret" = "0" ]; then

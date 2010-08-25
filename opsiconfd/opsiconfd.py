@@ -1875,7 +1875,7 @@ class Statistics(object):
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                    CLASS ZEROCONFSERVICE                                          =
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-class ZeroconfService():
+class ZeroconfService(object):
 
 	def __init__(self, name, port, serviceType="_opsiconfd._tcp", domain="", host="", text=""):
 		self._name = name

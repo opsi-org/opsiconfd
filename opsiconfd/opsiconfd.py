@@ -32,10 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-try:
-	from . import __version__
-except:
-	pass
+__version__ = "3.99.0.0"
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, types, zlib

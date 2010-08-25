@@ -194,5 +194,10 @@ fi
 #%attr(0755,root,root) %dir /usr/share/opsiconfd/static
 %attr(0750,opsiconfd,pcpatch) %dir /var/log/opsi/opsiconfd
 
+%if 0%{?centos_version}
+%define python_sitearch %(%{__python} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')
+%{python_sitearch}/opsiconfd/*
+%endif
+
 # ===[ changelog ]==================================
 %changelog

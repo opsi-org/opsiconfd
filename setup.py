@@ -34,7 +34,7 @@
 
 from setuptools import setup, os
 version = None
-f = open("opsiconfd/__init__.py")
+f = open("opsiconfd/opsiconfd.py")
 for line in f.readlines():
 	if (line.find('__version__') != -1):
 		version = line.split('=')[1].strip()

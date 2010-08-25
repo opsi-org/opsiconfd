@@ -31,5 +31,3 @@
    @author: Christian Kampka <c.kampka@uib.de>
    @license: GNU General Public License version 2
 """
-
-__version__ = "3.99.0.0"

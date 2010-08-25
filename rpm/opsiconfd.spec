@@ -9,10 +9,6 @@
 Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl python-rrdtool dbus-1-python python-opsi >= 3.99 procps
 Requires:       python-opsi >= 3.99 openssl python-twisted python-rrdtool dbus-1-python psmisc procps
-%if 0%{?suse_version}
-Requires:       python-avahi
-%endif
-PreReq:         %insserv_prereq
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
@@ -24,7 +20,11 @@ Summary:        opsi configuration service
 Source:         %{tarname}-%{version}.tar.bz2
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
+%if 0%{?suse_version}
+Requires:       python-avahi
+PreReq:         %insserv_prereq
 %{py_requires}
+%endif
 
 # ===[ description ]================================
 %description
@@ -46,7 +46,11 @@ python setup.py build
 
 # ===[ install ]====================================
 %install
+%if 0%{?suse_version}
 python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=INSTALLED_FILES
+%else
+python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+%endif
 
 mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
 
@@ -65,7 +69,7 @@ mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
 #install -m 0644 files/favicon.ico $RPM_BUILD_ROOT/usr/share/opsiconfd/static/favicon.ico
 
 mkdir -p $RPM_BUILD_ROOT/usr/sbin
-ln -sf ../../etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
+ln -sf /etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 
 # ===[ clean ]======================================

@@ -1644,6 +1644,7 @@ class Statistics(object):
 			'DS:rpcerrors:ABSOLUTE:%d:0:U'   % self._rrdConfig['heartbeat'],
 			'DS:cpu:GAUGE:%d:0:U'            % self._rrdConfig['heartbeat'],
 			'DS:mem:GAUGE:%d:0:U'            % self._rrdConfig['heartbeat'],
+			'DS:threads:GAUGE:%d:0:U'        % self._rrdConfig['heartbeat'],
 			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])),    # hour
 			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])*24), # day
 			'RRA:AVERAGE:0.5:%d:%d' % (7,   (3600/self._rrdConfig['step'])*24), # week
@@ -1665,12 +1666,19 @@ class Statistics(object):
 			usr = (utime - self._utime)/(now - last)
 			sys = (stime - self._stime)/(now - last)
 			(self._utime, self._stime) = (utime, stime)
-			mem = int("%0.0f" % (float(maxrss * pyresource.getpagesize())/(1024*1024))) # Mbyte
+			#mem = int("%0.0f" % (float(maxrss * pyresource.getpagesize())/(1024*1024))) # Mbyte
+			f = open('/proc/%s/stat' % os.getpid())
+			data = f.read().split()
+			f.close()
+			virtMem = int("%0.0f" % (float(data[22])/(1024*1024)))
 			cpu = int("%0.0f" % ((usr + sys) * 100))
-			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu, mem))
-			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu, mem))
+			threads = []
+			for thread in threading.enumerate():
+				threads.append(thread)
+			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu, virtMem, len(threads)))
+			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu, virtMem, len(threads)))
 			self._rrdCache['requests'] = 0
 			self._rrdCache['davrequests'] = 0
 			self._rrdCache['rpcs'] = 0
@@ -1730,16 +1738,6 @@ class Statistics(object):
 				'GPRINT:avg_davrequ_permin:AVERAGE:avg\: %5.2lf dav requests/min ',
 				'GPRINT:max_davrequ_permin:MAX:max\: %4.0lf dav requests/min\\l',
 				
-				'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_sess=%s:sessions:MAX'     % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_sess_permin=avg_sess,60,*',
-				'CDEF:max_sess_permin=max_sess,60,*',
-				'VDEF:total_sess=avg_sess,TOTAL',
-				'LINE2:avg_sess_permin#dddd00:Sessions     ',
-				'GPRINT:total_sess:total\: %8.0lf sessions     ',
-				'GPRINT:avg_sess_permin:AVERAGE:avg\: %5.2lf sessions/min     ',
-				'GPRINT:max_sess_permin:MAX:max\: %4.0lf sessions/min\\l',
-				
 				'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_rpc=%s:rpcs:MAX'     % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_rpc_permin=avg_rpc,60,*',
@@ -1764,30 +1762,50 @@ class Statistics(object):
 			)
 		else:
 			rrdtool.graph(str(graphImage),
-				'--imgformat',      'PNG',
-				'--width',          str(self._rrdConfig['xPoints']),
-				'--height',         str(self._rrdConfig['yPoints']),
-				'--start',          str(start),
-				'--end',            str(end),
-				'--vertical-label', '% CPU / MByte RAM',
-				'--lower-limit',    str(0),
-				'--units-exponent', str(0), # don't show milli-messages/s
+				'--imgformat',        'PNG',
+				'--width',            str(self._rrdConfig['xPoints']),
+				'--height',           str(self._rrdConfig['yPoints']),
+				'--start',            str(start),
+				'--end',              str(end),
+				'--vertical-label',   '% / num / MByte*0.1',
+				'--lower-limit',      str(0),
+				'--units-exponent',   str(0), # don't show milli-messages/s
 				'--slope-mode',
-				'--color',          'SHADEA#ffffff',
-				'--color',          'SHADEB#ffffff',
-				'--color',          'BACK#ffffff',
+				'--color',            'SHADEA#ffffff',
+				'--color',            'SHADEB#ffffff',
+				'--color',            'BACK#ffffff',
+				
+				'DEF:avg_threads=%s:threads:AVERAGE' % str(self._rrdConfig['rrdFile']),
+				'DEF:max_threads=%s:threads:MAX'     % str(self._rrdConfig['rrdFile']),
+				'LINE2:avg_threads#00dd00:Threads      ',
+				'GPRINT:max_threads:LAST:cur\: %8.0lf threads      ',
+				'GPRINT:avg_threads:AVERAGE:avg\: %8.2lf threads          ',
+				'GPRINT:max_threads:MAX:max\: %8.0lf threads\\l',
+				
+				'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
+				'DEF:max_sess=%s:sessions:MAX'     % str(self._rrdConfig['rrdFile']),
+				'CDEF:avg_sess_permin=avg_sess,60,*',
+				'CDEF:max_sess_permin=max_sess,60,*',
+				'VDEF:total_sess=avg_sess,TOTAL',
+				'LINE2:avg_sess_permin#ff8000:Sessions     ',
+				'GPRINT:max_sess:LAST:cur\: %8.0lf sessions     ',
+				'GPRINT:avg_sess_permin:AVERAGE:avg\: %8.2lf sessions/min     ',
+				'GPRINT:max_sess_permin:MAX:max\: %8.0lf sessions/min\\l',
 				
 				'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_cpu=%s:cpu:MAX'     % str(self._rrdConfig['rrdFile']),
-				'LINE2:avg_cpu#dd0000:CPU usage     ',
-				'GPRINT:avg_cpu:AVERAGE:current\: %5.2lf %%     ',
-				'GPRINT:max_cpu:MAX:max\: %4.2lf %%\\l',
+				'LINE2:avg_cpu#dd0000:CPU usage    ',
+				'GPRINT:max_cpu:LAST:cur\: %8.2lf %%            ',
+				'GPRINT:avg_cpu:AVERAGE:avg\: %8.2lf %%                ',
+				'GPRINT:max_cpu:MAX:max\: %8.2lf %%\\l',
 				
 				'DEF:avg_mem=%s:mem:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_mem=%s:mem:MAX'     % str(self._rrdConfig['rrdFile']),
-				'LINE2:avg_mem#0000dd:MEM usage     ',
-				'GPRINT:avg_mem:AVERAGE:current\: %5.2lf MByte ',
-				'GPRINT:max_mem:MAX:max\: %4.2lf MByte\\l',
+				'CDEF:avg_mem_scaled=avg_mem,10,/',
+				'LINE2:avg_mem_scaled#0000dd:MEM usage    ',
+				'GPRINT:max_mem:LAST:cur\: %8.2lf MByte        ',
+				'GPRINT:avg_mem:AVERAGE:avg\: %8.2lf MByte            ',
+				'GPRINT:max_mem:MAX:max\: %8.2lf MByte\\l',
 				
 				'COMMENT:[%s]\\r' % date,
 			)

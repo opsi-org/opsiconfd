@@ -161,6 +161,11 @@ fi
 %restart_on_update opsiconfd
 if [ $1 -eq 0 ]; then
 	%insserv_cleanup
+	%if 0%{?rhel_version} || 0%{?centos_version}
+		getent group shadow > /dev/null || groupadd -r shadow
+		chgrp shadow /etc/shadow
+		chmod g+r /etc/shadow
+	%endif
 	groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
 	groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true
 	[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
@@ -194,7 +199,7 @@ fi
 #%attr(0755,root,root) %dir /usr/share/opsiconfd/static
 %attr(0750,opsiconfd,pcpatch) %dir /var/log/opsi/opsiconfd
 
-%if 0%{?centos_version}
+%if 0%{?rhel_version} || 0%{?centos_version}
 %define python_sitearch %(%{__python} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')
 %{python_sitearch}/opsiconfd/*
 %endif

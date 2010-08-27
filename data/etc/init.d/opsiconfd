@@ -34,7 +34,7 @@ case "$1" in
 		echo -n "Starting opsi config service.."
 		
 		# Kill opsiconfd-guard
-		killall `basename $GUARD_BIN` 1>/dev/null 2>/dev/null
+		killall $(basename $GUARD_BIN) 1>/dev/null 2>/dev/null
 		
 		# Make sure we have our PIDDIR, even if it's on a tmpfs
 		install -o $USER -g root -m 755 -d $PIDDIR
@@ -60,17 +60,8 @@ case "$1" in
 				chown $USER:opsiadmin /etc/opsi/opsiconfd.pem || true
 			fi
 			
-			rm -f $PIDFILE 2>/dev/null
-			set +e
-			which startproc 1>/dev/null 2>/dev/null
-			ret=$?
-			set -e
-			if [ "$ret" = "0" ]; then
-				startproc -p $PIDFILE -u $USER $DAEMON -D
-			else
-				start-stop-daemon --chuid $USER --pidfile $PIDFILE \
-					--start --quiet --oknodo --exec $DAEMON -- -D
-			fi
+			su - $USER -c "$DAEMON -D"
+			
 			pidfileseen=0
 			running=false
 			i=1
@@ -112,31 +103,23 @@ case "$1" in
 		echo -n "Stopping opsi config service.."
 		
 		# Kill opsiconfd-guard
-		killall `basename $GUARD_BIN` 1>/dev/null 2>/dev/null
+		killall $(basename $GUARD_BIN) 1>/dev/null 2>/dev/null
 		
-		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
+		if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) > /dev/null; then
 			
-			set +e
-			which killproc 1>/dev/null 2>/dev/null
-			ret=$?
-			set -e
-			if [ "$ret" = "0" ]; then
-				killproc -p $PIDFILE -TERM $DAEMON
-			else
-				start-stop-daemon --stop --quiet --pidfile $PIDFILE > /dev/null
-			fi
+			kill $(cat $PIDFILE) >/dev/null 2>/dev/null
 			running=true
 			i=1
 			while [ "$running" = "true" -a $i -le 10 ]; do
 				echo -n "."
-				if ([ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null); then
+				if ([ -f $PIDFILE ] && ps h $(cat $PIDFILE) > /dev/null); then
 					sleep 1
 					i=$(($i+1))
 				else
 					running=false
 				fi
 			done
-			$running && kill -9 `cat $PIDFILE` >/dev/null 2>/dev/null || true
+			$running && kill -9 $(cat $PIDFILE) >/dev/null 2>/dev/null || true
 			echo "   (done)."
 		else
 			echo ".   (not running)."
@@ -146,16 +129,8 @@ case "$1" in
 	reload)
 		echo -n "Reloading opsi config service...   "
 		
-		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
-			set +e
-			which killproc 1>/dev/null 2>/dev/null
-			ret=$?
-			set -e
-			if [ "$ret" = "0" ]; then
-				killproc -p $PIDFILE -HUP $DAEMON
-			else
-				start-stop-daemon --stop --signal HUP --pidfile $PIDFILE > /dev/null
-			fi
+		if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) > /dev/null; then
+			kill -1 $(cat $PIDFILE) >/dev/null 2>/dev/null
 			echo "(done)."
 		else
 			echo "(not running)."
@@ -170,7 +145,7 @@ case "$1" in
 	
 	status)
 		echo -n "Checking opsi config service... "
-		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
+		if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) > /dev/null; then
 			echo "(running)."
 			exit 0
 		fi

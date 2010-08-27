@@ -40,7 +40,15 @@ try:
 	import rrdtool
 except:
 	rrdtool = None
-import dbus, avahi
+try:
+	import dbus
+except:
+	dbus = None
+try:
+	import avahi
+except:
+	avahi = None
+
 import resource as pyresource
 from OpenSSL import SSL
 from signal import *
@@ -1887,6 +1895,10 @@ class ZeroconfService(object):
 		self._group = None
 		
 	def publish(self):
+		if not dbus or not avahi:
+			logger.warning(u"Failed to publish ZeroconfService: avahi/dbus module missing")
+			return
+		
 		bus = dbus.SystemBus()
 		server = dbus.Interface(
 			bus.get_object(

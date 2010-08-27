@@ -94,9 +94,17 @@ if [ -z "`getent group opsiadmin`" ]; then
 	groupadd opsiadmin
 fi
 
-groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
-groupmod -A opsiconfd uucp 1>/dev/null 2>/dev/null || true
-groupmod -A opsiconfd opsiadmin 1>/dev/null 2>/dev/null || true
+%if 0%{?rhel_version} || 0%{?centos_version}
+	getent group shadow > /dev/null || groupadd -r shadow
+	chgrp shadow /etc/shadow
+	chmod g+r /etc/shadow
+	usermod -a -G shadow opsiconfd 1>/dev/null 2>/dev/null || true
+	usermod -a -G opsiadmin opsiconfd 1>/dev/null 2>/dev/null || true
+%else
+	groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
+	groupmod -A opsiconfd uucp 1>/dev/null 2>/dev/null || true
+	groupmod -A opsiconfd opsiadmin 1>/dev/null 2>/dev/null || true
+%endif
 
 if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	umask 077
@@ -161,13 +169,10 @@ fi
 %restart_on_update opsiconfd
 if [ $1 -eq 0 ]; then
 	%insserv_cleanup
-	%if 0%{?rhel_version} || 0%{?centos_version}
-		getent group shadow > /dev/null || groupadd -r shadow
-		chgrp shadow /etc/shadow
-		chmod g+r /etc/shadow
+	%if 0%{?suse_version}
+		groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
+		groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true
 	%endif
-	groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
-	groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true
 	[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
 	rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 fi

@@ -9,6 +9,7 @@
 # Short-Description: opsi config service
 # Description:       Opsi Configuration Service
 ### END INIT INFO
+# chkconfig: 2345 20 80
 
 DAEMON=/usr/bin/opsiconfd
 # This user must have read access to /etc/shadow

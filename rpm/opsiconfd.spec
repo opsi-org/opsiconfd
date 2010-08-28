@@ -80,7 +80,11 @@ rm -rf $RPM_BUILD_ROOT
 # ===[ post ]=======================================
 %post
 #%{fillup_and_insserv opsiconfd}
-insserv opsiconfd || true
+%if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
+	chkconfig --add opsiconfd
+%else
+	insserv opsiconfd || true
+%endif
 
 if [ -z "`getent group pcpatch`" ]; then
 	groupadd -g 992 pcpatch
@@ -168,7 +172,11 @@ fi
 %postun
 %restart_on_update opsiconfd
 if [ $1 -eq 0 ]; then
-	%insserv_cleanup
+	%if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
+		chkconfig --del opsiconfd
+	%else
+		%insserv_cleanup
+	%endif
 	%if 0%{?suse_version}
 		groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
 		groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true

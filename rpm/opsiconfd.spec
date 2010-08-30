@@ -19,12 +19,14 @@ Summary:        opsi configuration service
 %define tarname opsiconfd
 Source:         %{tarname}-%{version}.tar.bz2
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
-BuildArch:      noarch
 %if 0%{?suse_version}
 Requires:       python-avahi python-rrdtool
 BuildRequires:  python-rrdtool
 PreReq:         %insserv_prereq
 %{py_requires}
+%endif
+%if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
+BuildArch:      noarch
 %endif
 
 # ===[ description ]================================
@@ -71,6 +73,8 @@ mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
 
 mkdir -p $RPM_BUILD_ROOT/usr/sbin
 ln -sf /etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
+
+sed -i 's#/etc/init.d$##;s#/etc/logrotate.d$##' INSTALLED_FILES
 
 
 # ===[ clean ]======================================

@@ -85,36 +85,39 @@ rm -rf $RPM_BUILD_ROOT
 
 # ===[ post ]=======================================
 %post
-#%{fillup_and_insserv opsiconfd}
-%if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
-	chkconfig --add opsiconfd
-%else
-	insserv opsiconfd || true
-%endif
-
-if [ -z "`getent group pcpatch`" ]; then
-	groupadd -g 992 pcpatch
+if [ $1 -eq 1 ]; then
+	# Install
+	#%{fillup_and_insserv opsiconfd}
+	%if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
+		chkconfig --add opsiconfd
+	%else
+		insserv opsiconfd || true
+	%endif
+	
+	if [ -z "`getent group pcpatch`" ]; then
+		groupadd -g 992 pcpatch
+	fi
+	
+	if [ -z "`getent passwd opsiconfd`" ]; then
+		useradd -r -u 993 -g 992 -d /var/lib/opsi -s /bin/bash opsiconfd
+	fi
+	
+	if [ -z "`getent group opsiadmin`" ]; then
+		groupadd opsiadmin
+	fi
+	
+	%if 0%{?rhel_version} || 0%{?centos_version}
+		getent group shadow > /dev/null || groupadd -r shadow
+		chgrp shadow /etc/shadow
+		chmod g+r /etc/shadow
+		usermod -a -G shadow opsiconfd 1>/dev/null 2>/dev/null || true
+		usermod -a -G opsiadmin opsiconfd 1>/dev/null 2>/dev/null || true
+	%else
+		groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
+		groupmod -A opsiconfd uucp 1>/dev/null 2>/dev/null || true
+		groupmod -A opsiconfd opsiadmin 1>/dev/null 2>/dev/null || true
+	%endif
 fi
-
-if [ -z "`getent passwd opsiconfd`" ]; then
-	useradd -r -u 993 -g 992 -d /var/lib/opsi -s /bin/bash opsiconfd
-fi
-
-if [ -z "`getent group opsiadmin`" ]; then
-	groupadd opsiadmin
-fi
-
-%if 0%{?rhel_version} || 0%{?centos_version}
-	getent group shadow > /dev/null || groupadd -r shadow
-	chgrp shadow /etc/shadow
-	chmod g+r /etc/shadow
-	usermod -a -G shadow opsiconfd 1>/dev/null 2>/dev/null || true
-	usermod -a -G opsiadmin opsiconfd 1>/dev/null 2>/dev/null || true
-%else
-	groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
-	groupmod -A opsiconfd uucp 1>/dev/null 2>/dev/null || true
-	groupmod -A opsiconfd opsiadmin 1>/dev/null 2>/dev/null || true
-%endif
 
 if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	umask 077
@@ -160,14 +163,15 @@ chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:pcpatch /var/log/opsi/opsiconfd
 
-# update?
-if [ ${FIRST_ARG:-0} -gt 1 ]; then
+if [ $1 -eq 1 ]; then
+	# Install
+	/etc/init.d/opsiconfd start || true
+else
+	# Upgrade
 	if [ -e /var/run/opsiconfd.pid -e /var/run/opsiconfd/opsiconfd.pid ]; then
-		rm /var/run/opsiconfd.pid >/dev/null 2>&1 || true
+		rm /var/run/opsiconfd.pid 2>/dev/null || true
 		/etc/init.d/opsiconfd restart || true
 	fi
-else
-	/etc/init.d/opsiconfd start || true
 fi
 
 # ===[ preun ]======================================

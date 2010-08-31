@@ -1690,6 +1690,7 @@ class Statistics(object):
 			f.close()
 			virtMem = int("%0.0f" % (float(data[22])/(1024*1024)))
 			cpu = int("%0.0f" % ((usr + sys) * 100))
+			if (cpu > 100): cpu = 100
 			threads = []
 			for thread in threading.enumerate():
 				threads.append(thread)

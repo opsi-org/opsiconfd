@@ -12,9 +12,9 @@ tmpdir=/tmp/${packagename}-${version}
 
 
 cd $dir
-rm destdir/${packagename}*.tar.gz  2>/dev/null || true
-rm destdir/${packagename}*.dsc     2>/dev/null || true
-rm destdir/${packagename}*.spec    2>/dev/null || true
+rm ${destdir}/${packagename}*.tar.gz  2>/dev/null || true
+rm ${destdir}/${packagename}*.dsc     2>/dev/null || true
+rm ${destdir}/${packagename}*.spec    2>/dev/null || true
 
 cp rpm/${packagename}.spec /tmp/
 cat /tmp/${packagename}.spec \

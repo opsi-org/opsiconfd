@@ -1571,7 +1571,7 @@ class SessionHandler:
 			logger.notice(u"Session currently in use, waiting before deletion")
 		session.setMarkedForDeletion()
 		timeout = 60
-		if self.lastRpcSuccessfullyDecoded:
+		if session.lastRpcSuccessfullyDecoded:
 			timeout = 3600
 		while (session.usageCount > 0) and (timeout > 0):
 			time.sleep(1)

@@ -85,7 +85,8 @@ rm -rf $RPM_BUILD_ROOT
 
 # ===[ post ]=======================================
 %post
-if [ $1 -eq 1 ]; then
+arg0=$1
+if [ $arg0 -eq 1 ]; then
 	# Install
 	#%{fillup_and_insserv opsiconfd}
 	%if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
@@ -163,12 +164,12 @@ chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:pcpatch /var/log/opsi/opsiconfd
 
-if [ $1 -eq 1 ]; then
+if [ $arg0 -eq 1 ]; then
 	# Install
 	/etc/init.d/opsiconfd start || true
 else
 	# Upgrade
-	if [ -e /var/run/opsiconfd.pid -e /var/run/opsiconfd/opsiconfd.pid ]; then
+	if [ -e /var/run/opsiconfd.pid -o -e /var/run/opsiconfd/opsiconfd.pid ]; then
 		rm /var/run/opsiconfd.pid 2>/dev/null || true
 		/etc/init.d/opsiconfd restart || true
 	fi

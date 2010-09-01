@@ -13,11 +13,11 @@ Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        3.99.0.0
+Version:        3.99.0.1
 Release:        1
 Summary:        opsi configuration service
 %define tarname opsiconfd
-Source:         opsiconfd_3.99.0.0-1.tar.gz
+Source:         opsiconfd_3.99.0.1-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?suse_version}
 Requires:       python-avahi python-rrdtool

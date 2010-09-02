@@ -23,6 +23,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Requires:       python-rrdtool
 BuildRequires:  python-rrdtool
 PreReq:         %insserv_prereq
+%{py_requires}
 %else
 %if 0%{?suse_version}
 Requires:       python-avahi python-rrdtool

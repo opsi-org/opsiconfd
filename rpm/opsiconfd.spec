@@ -19,11 +19,17 @@ Summary:        opsi configuration service
 %define tarname opsiconfd
 Source:         opsiconfd_3.99.0.1-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+%if 0%{?sles_version}
+Requires:       python-rrdtool
+BuildRequires:  python-rrdtool
+PreReq:         %insserv_prereq
+%else
 %if 0%{?suse_version}
 Requires:       python-avahi python-rrdtool
 BuildRequires:  python-rrdtool
 PreReq:         %insserv_prereq
 %{py_requires}
+%endif
 %endif
 %if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
 BuildArch:      noarch

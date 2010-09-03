@@ -32,7 +32,7 @@ PreReq:         %insserv_prereq
 %{py_requires}
 %endif
 %endif
-%if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
+%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
 BuildArch:      noarch
 %endif
 
@@ -96,7 +96,7 @@ arg0=$1
 if [ $arg0 -eq 1 ]; then
 	# Install
 	#%{fillup_and_insserv opsiconfd}
-	%if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
+	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
 		chkconfig --add opsiconfd
 	%else
 		insserv opsiconfd || true
@@ -114,7 +114,7 @@ if [ $arg0 -eq 1 ]; then
 		groupadd opsiadmin
 	fi
 	
-	%if 0%{?rhel_version} || 0%{?centos_version}
+	%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
 		getent group shadow > /dev/null || groupadd -r shadow
 		chgrp shadow /etc/shadow
 		chmod g+r /etc/shadow
@@ -190,7 +190,7 @@ fi
 %postun
 %restart_on_update opsiconfd
 if [ $1 -eq 0 ]; then
-	%if 0%{?centos_version} || 0%{?redhat_version} || 0%{?fedora_version}
+	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
 		chkconfig --del opsiconfd
 	%else
 		%insserv_cleanup
@@ -231,7 +231,7 @@ fi
 %dir /var/log/opsi
 %attr(0750,opsiconfd,pcpatch) %dir /var/log/opsi/opsiconfd
 
-%if 0%{?rhel_version} || 0%{?centos_version}
+%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
 %define python_sitearch %(%{__python} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')
 %{python_sitearch}/opsiconfd/*
 %endif

@@ -1981,6 +1981,11 @@ class Opsiconfd(threading.Thread):
 			self._httpsPort.stopListening()
 		if self._sessionHandler:
 			self._sessionHandler.cleanup()
+		if self._backend:
+			try:
+				self._backend.backend_exit()
+			except:
+				pass
 		if reactor.running:
 			try:
 				logger.notice(u"Stopping reactor")

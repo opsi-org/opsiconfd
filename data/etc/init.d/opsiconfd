@@ -60,6 +60,10 @@ case "$1" in
 				chmod 600 /etc/opsi/opsiconfd.pem
 				chown $USER:opsiadmin /etc/opsi/opsiconfd.pem || true
 			fi
+			if [ -e /etc/opsi/backends/univention.conf -a -e /etc/machine.secret ]; then
+				LDAP_SECRET=$(cat /etc/machine.secret)
+				sed -i "s/^password\s*=.*/password = \"${LDAP_SECRET}\"/" /etc/opsi/backends/univention.conf
+			fi
 			
 			su - $USER -c "$DAEMON -D"
 			

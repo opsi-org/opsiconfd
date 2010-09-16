@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "3.99.0.0"
+__version__ = "3.99.0.2"
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, types, zlib
@@ -337,6 +337,17 @@ class Worker:
 			logger.error(e)
 			result.code = responsecode.UNAUTHORIZED
 			result.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
+			if self.request.remoteAddr.host not in (self.opsiconfd.config['ipAddress'], '127.0.0.1'):
+				if (self.opsiconfd.config['maxAuthenticationFailures'] > 0):
+					if not self.opsiconfd.authFailureCount.has_key(self.request.remoteAddr.host):
+						self.opsiconfd.authFailureCount[self.request.remoteAddr.host] = 0
+					self.opsiconfd.authFailureCount[self.request.remoteAddr.host] += 1
+					if (self.opsiconfd.authFailureCount[self.request.remoteAddr.host] > self.opsiconfd.config['maxAuthenticationFailures']):
+						logger.error("%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding" \
+								% (self.opsiconfd.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host))
+						return self._delayResult(60, result)
+					else:
+						return self._delayResult(3, result)
 		except OpsiBadRpcError, e:
 			logger.error(e)
 			result.code = responsecode.BAD_REQUEST
@@ -346,6 +357,17 @@ class Worker:
 		
 		return result
 	
+	def _delayResult(self, seconds, result):
+		class DelayResult:
+			def __init__(self, seconds, result):
+				self.result = result
+				self.deferred = defer.Deferred()
+				reactor.callLater(seconds, self.returnResult)
+				
+			def returnResult(self):
+				self.deferred.callback(self.result)
+		return DelayResult(seconds, result).deferred
+		
 	def _renderError(self, failure):
 		result = http.Response()
 		result.headers.setHeader('content-type', http_headers.MimeType("text", "html", {"charset": "utf-8"}))
@@ -373,6 +395,29 @@ class Worker:
 			self.session.decreaseUsageCount()
 		return result
 	
+	def _getAuthorization(self):
+		(user, password) = (u'', u'')
+		logger.debug(u"Trying to get username and password from Authorization header")
+		auth = self.request.headers.getHeader('Authorization')
+		if auth:
+			logger.debug(u"Authorization header found (type: %s)" % auth[0])
+			try:
+				encoded = auth[1]
+				
+				logger.confidential(u"Auth encoded: %s" % encoded)
+				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
+				if (len(parts) > 6):
+					user = u':'.join(parts[:6])
+					password = u':'.join(parts[6:])
+				else:
+					user = parts[0]
+					password = u':'.join(parts[1:])
+				user = user.strip()
+				logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
+			except Exception, e:
+				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+		return (user, password)
+		
 	def _getSession(self, result):
 		''' This method restores a session or generates a new one. '''
 		self.session = None
@@ -390,6 +435,9 @@ class Worker:
 		
 		# Get session handler
 		sessionHandler = self.opsiconfd.getSessionHandler()
+		
+		# Get authorization
+		(user, password) = self._getAuthorization()
 		
 		# Get session id from cookie request header
 		sessionId = u''
@@ -410,6 +458,8 @@ class Worker:
 		
 		if not sessionId:
 			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
+			if not password:
+				raise OpsiAuthenticationError(u"Application '%s' on client '%s' did neither supply session id nor password" % (userAgent, self.request.remoteAddr.host))
 		
 		# Get Session object
 		self.session = sessionHandler.getSession(sessionId, self.request.remoteAddr.host)
@@ -437,28 +487,7 @@ class Worker:
 			% (self.session.uid, self.request.remoteAddr.host, self.session.userAgent))
 		
 		# Set user and password
-		if not self.session.user and not self.session.password and self.request.headers.getHeader('Authorization'):
-			(user, password) = (u'', u'')
-			logger.debug(u"Trying to get username and password from Authorization header")
-			auth = self.request.headers.getHeader('Authorization')
-			if auth:
-				logger.debug(u"Authorization header found (type: %s)" % auth[0])
-				try:
-					encoded = auth[1]
-					
-					logger.confidential(u"Auth encoded: %s" % encoded)
-					parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
-					if (len(parts) > 6):
-						user = u':'.join(parts[:6])
-						password = u':'.join(parts[6:])
-					else:
-						user = parts[0]
-						password = u':'.join(parts[1:])
-					user = user.strip()
-					logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
-				except Exception, e:
-					raise Exception(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
-			
+		if not self.session.user and not self.session.password:
 			if re.search('^([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})$', user):
 				mac = forceHardwareAddress(user)
 				logger.info(u"Found hardware address '%s' as username, searching host in backend" % mac)
@@ -557,7 +586,8 @@ class Worker:
 			self._createBackend(result)
 			
 			self.session.authenticated = True
-			
+			if self.opsiconfd.authFailureCount.has_key(self.request.remoteAddr.host):
+				del self.opsiconfd.authFailureCount[self.request.remoteAddr.host]
 		except Exception, e:
 			logger.logException(e, LOG_INFO)
 			self._freeSession(result)
@@ -1072,6 +1102,7 @@ class WorkerOpsiconfdInfo(Worker):
 		diskUsageInfo += u'</table>'
 		
 		average = { 'params': 0.0, 'results': 0.0, 'duration': 0.0, 'failed': 0.0 }
+		maxDuration = { 'duration': 0 }
 		statisticInfo  = u'<h1>RPC statistics (last %d)</h1>' % self.opsiconfd.config['maxExecutionStatisticValues']
 		statisticInfo += u'<table>'
 		statisticInfo += u'<tr><th>method</th><th>params</th><th>results</th><th>duration</th><th>success</th></tr>'
@@ -1081,11 +1112,21 @@ class WorkerOpsiconfdInfo(Worker):
 			average['results']  += statistic['results']
 			average['duration'] += statistic['duration']
 			if statistic['failed']: average['failed'] += 1
+			if (statistic['duration'] > maxDuration['duration']):
+				maxDuration['duration'] = statistic['duration']
+				maxDuration['method']   = statistic['method']
+				maxDuration['params']   = statistic['params']
+				maxDuration['results']  = statistic['results']
+				maxDuration['failed']   = statistic['failed']
 			statisticInfo += u'<tr><td>%s</td><td>%d</td><td>%d</td><td>%0.3f s</td><td>%s</td></tr>' \
 					% (statistic['method'], statistic['params'], statistic['results'], statistic['duration'], not statistic['failed'])
 		if rpcs:
-			statisticInfo += u'<tr><td>average</td><td>%0.0f</td><td>%0.0f</td><td>%0.3f s</td><td>%0.2f %%</td></tr>' \
+			statisticInfo += u'<tr><td colspan="5" style="border:none; text-align:left">average</td></tr>'
+			statisticInfo += u'<tr><td></td><td>%0.0f</td><td>%0.0f</td><td>%0.3f s</td><td>%0.2f %%</td></tr>' \
 					% (average['params']/len(rpcs), average['results']/len(rpcs), average['duration']/len(rpcs), ((len(rpcs)-average['failed'])/len(rpcs))*100)
+			statisticInfo += u'<tr><td colspan="5" style="border:none; text-align:left">max duration</td></tr>'
+			statisticInfo += u'<tr><td>%s</td><td>%d</td><td>%d</td><td>%0.3f s</td><td>%s</td></tr>' \
+					% (maxDuration['method'], maxDuration['params'], maxDuration['results'], maxDuration['duration'], not maxDuration['failed'])
 		statisticInfo += u'</table>'
 		
 		statisticInfo += u'<br />'
@@ -1096,6 +1137,15 @@ class WorkerOpsiconfdInfo(Worker):
 		for statistic in sorted(self.opsiconfd.statistics().getEncodingErrors(), key=operator.itemgetter('application')):
 			statisticInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
 					% (statistic['application'], statistic['what'], statistic['client'], statistic['error'])
+		statisticInfo += u'</table>'
+		
+		statisticInfo += u'<br />'
+		
+		statisticInfo += u'<h1>Authentication failures</h1>'
+		statisticInfo += u'<table>'
+		statisticInfo += u'<tr><th>ip address</th><th>count</th></tr>'
+		for (ipAddress, count) in self.opsiconfd.authFailureCount.items():
+			statisticInfo += u'<tr><td>%s</td><td>%d</td></tr>' % (ipAddress, count)
 		statisticInfo += u'</table>'
 		
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
@@ -1205,27 +1255,10 @@ class WorkerOpsiDAV(Worker):
 			if self.session.authenticated:
 				return result
 			
-			(user, password) = (u'', u'')
-			logger.debug(u"Trying to get username and password from Authorization header")
-			auth = self.request.headers.getHeader('Authorization')
-			if not auth:
-				raise Exception(u"No authorization header from '%s'" % self.request.remoteAddr.host)
-			
-			logger.debug(u"Authorization header found (type: %s)" % auth[0])
-			try:
-				encoded = auth[1]
-				logger.confidential(u"Auth encoded: %s" % encoded)
-				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
-				if (len(parts) > 6):
-					user = u':'.join(parts[:6])
-					password = u':'.join(parts[6:])
-				else:
-					user = parts[0]
-					password = u':'.join(parts[1:])
-				logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
-				user = user.strip()
-			except Exception, e:
-				raise Exception(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+			# Get authorization
+			(user, password) = self._getAuthorization()
+			if not password:
+				raise Exception(u"No password from %s (application: %s)" % (self.request.remoteAddr.host, self.session.userAgent))
 			
 			if not user:
 				logger.warning(u"No username from %s (application: %s)" % (self.request.remoteAddr.host, self.session.userAgent))
@@ -1949,6 +1982,8 @@ class Opsiconfd(threading.Thread):
 		self._statistics      = None
 		self._zeroconfService = None
 		
+		self.authFailureCount = {}
+		
 		self._setOpsiLogging()
 		self._setTwistedLogging()
 		logger.comment(	"\n==================================================================\n" \
@@ -1996,6 +2031,8 @@ class Opsiconfd(threading.Thread):
 	
 	def reload(self):
 		logger.notice(u"Reloading opsiconfd")
+		self.authFailureCount = {}
+		
 		self._setOpsiLogging()
 		self._createBackendInstance()
 		if self._sessionHandler:
@@ -2287,6 +2324,7 @@ class OpsiconfdInit(object):
 			'sslServerKeyFile'             : u'/etc/opsi/opsiconfd.pem',
 			'sessionName'                  : u'OPSISID',
 			'maxSessionsPerIp'             : 25,
+			'maxAuthenticationFailures'    : 3,
 			'resolveClientIp'              : True,
 			'resolveVerifyIp'              : False,
 			'sessionMaxInactiveInterval'   : 120,
@@ -2294,6 +2332,7 @@ class OpsiconfdInit(object):
 			'staticDirectories'            : {},
 			'depotId'                      : None,
 			'fqdn'                         : socket.getfqdn(),
+			'ipAddress'                    : socket.gethostbyname(socket.gethostname()),
 			'rrdDir'                       : u'/var/lib/opsiconfd/rrd',
 			'backendConfigDir'             : u'/etc/opsi/backends',
 			'dispatchConfigFile'           : u'/etc/opsi/backendManager/dispatch.conf',
@@ -2434,6 +2473,8 @@ class OpsiconfdInit(object):
 							self.config['sessionMaxInactiveInterval'] = forceInt(value)
 						elif (option == 'max sessions per ip'):
 							self.config['maxSessionsPerIp'] = forceInt(value)
+						elif (option == 'max authentication failures'):
+							self.config['maxAuthenticationFailures'] = forceInt(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 				

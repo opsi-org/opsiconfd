@@ -1,3 +1,9 @@
+opsiconfd (3.99.0.2-1) testing; urgency=low
+
+  * opsi 4.0 rc 2
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 16 Sep 2010 10:07:12 +0200
+
 opsiconfd (3.99.0.1-1) testing; urgency=low
 
   * opsi 4.0 rc 1

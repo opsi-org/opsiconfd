@@ -12,7 +12,7 @@ check_univention_backend() {
 	LDAP_SECRET=$(cat /etc/machine.secret)
 	if [ "$password" != "$LDAP_SECRET" ]; then
 		echo "Need to update univention backend config, restarting opsiconfd." | logger -p daemon.error -t opsiconfd-guard
-		sed -i "s/^password\s*=.*/password = \"${LDAP_SECRET}\"/" > /etc/opsi/backends/univention.conf
+		sed -i "s/^password\s*=.*/password = \"${LDAP_SECRET}\"/" /etc/opsi/backends/univention.conf
 		/etc/init.d/opsiconfd restart
 	fi
 }

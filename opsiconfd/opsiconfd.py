@@ -449,8 +449,8 @@ class Worker:
 							if (c.find('=') == -1):
 								continue
 							(name, value) = c.split('=', 1)
-							if (name == self.opsiconfd.config['sessionName']):
-								sessionId = forceUnicode(value)
+							if (name.strip() == self.opsiconfd.config['sessionName']):
+								sessionId = forceUnicode(value.strip())
 								break
 					break
 		except Exception, e:

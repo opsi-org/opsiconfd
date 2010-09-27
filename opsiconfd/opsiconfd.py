@@ -52,6 +52,7 @@ except:
 import resource as pyresource
 from OpenSSL import SSL
 from signal import *
+from ctypes import *
 
 # Twisted imports
 from twisted.internet import epollreactor
@@ -2300,6 +2301,12 @@ class OpsiconfdInit(object):
 			# Start opsiconfd
 			self._opsiconfd = Opsiconfd(self.config)
 			self._opsiconfd.start()
+			
+			# fix the process name on linux systems
+			# this works for killall/pkill/top/ps -A, not for ps a
+			libc = CDLL("libc.so.6")
+			libc.prctl( 15, 'opsiconfd', 0, 0, 0)
+			
 			time.sleep(3)
 			while self._opsiconfd.isRunning():
 				time.sleep(1)

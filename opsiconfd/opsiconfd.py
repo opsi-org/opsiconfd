@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "3.99.0.2"
+__version__ = "3.99.0.3"
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, types, zlib
@@ -346,8 +346,7 @@ class Worker:
 						logger.error("%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding" \
 								% (self.opsiconfd.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host))
 						return self._delayResult(60, result)
-					else:
-						return self._delayResult(3, result)
+					
 		except OpsiBadRpcError, e:
 			logger.error(e)
 			result.code = responsecode.BAD_REQUEST
@@ -779,9 +778,9 @@ class JsonRpc(object):
 			
 			params = deserialize(params)
 			
-			pString = unicode(params)[1:-1]
+			pString = forceUnicode(params)[1:-1]
 			if keywords:
-				pString += u', ' + unicode(keywords)
+				pString += u', ' + forceUnicode(keywords)
 			if (len(pString) > 200):
 				pString = pString[:200] + u'...'
 			
@@ -1145,7 +1144,8 @@ class WorkerOpsiconfdInfo(Worker):
 		statisticInfo += u'<table>'
 		statisticInfo += u'<tr><th>ip address</th><th>count</th></tr>'
 		for (ipAddress, count) in self.opsiconfd.authFailureCount.items():
-			statisticInfo += u'<tr><td>%s</td><td>%d</td></tr>' % (ipAddress, count)
+			if (count > self.opsiconfd.config['maxAuthenticationFailures']):
+				statisticInfo += u'<tr><td>%s</td><td>%d</td></tr>' % (ipAddress, count)
 		statisticInfo += u'</table>'
 		
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))

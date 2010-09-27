@@ -1,3 +1,9 @@
+opsiconfd (3.99.0.3-1) testing; urgency=low
+
+  * fixed cookie handling
+
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 27 Sep 2010 10:34:13 +0200
+
 opsiconfd (3.99.0.2-1) testing; urgency=low
 
   * opsi 4.0 rc 2

@@ -2366,7 +2366,7 @@ class OpsiconfdInit(object):
 		logger.info(u"Creating pid file '%s'" % self.config['pidFile'])
 		if not os.path.exists(os.path.dirname(self.config['pidFile'])):
 			os.makedirs(os.path.dirname(self.config['pidFile']))
-		if os.access(os.path.dirname(self.config['pidFile']), os.W_OK):
+		elif os.path.exists(self.config['pidFile']) and os.access(self.config['pidFile'], os.R_OK | os.W_OK):
 			pf = open(self.config['pidFile'], 'r')
 			p = pf.readline().strip()
 			pf.close()

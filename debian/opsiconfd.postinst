@@ -1,4 +1,12 @@
-#! /bin/sh -e
+#! /bin/bash -e
+
+# = = = = = = = = = = = = = = = = = = = = = = =
+# =       Copyright (C) 2010 uib GmbH         =
+# =           http://www.uib.de               =
+# =          All rights reserved.             =
+# = = = = = = = = = = = = = = = = = = = = = = =
+
+#DEBHELPER#
 
 . /usr/share/debconf/confmodule
 
@@ -10,7 +18,7 @@ case "$1" in
 		fi
 		
 		if [ -z "`getent passwd opsiconfd`" ]; then
-			useradd -u 993 -g 992 -d /var/lib/opsi -s /bin/bash opsiconfd
+			useradd -u 993 -g pcpatch -d /var/lib/opsi -s /bin/bash opsiconfd
 		fi
 		
 		if [ -z "`getent group opsiadmin`" ]; then
@@ -19,13 +27,16 @@ case "$1" in
 		
 		deluser pcpatch shadow  1>/dev/null 2>/dev/null || true
 		adduser opsiconfd shadow  1>/dev/null 2>/dev/null || true
+		adduser opsiconfd opsiadmin  1>/dev/null 2>/dev/null || true
 		
 		if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 			umask 077
 			
-			if [ ! -e "/usr/sbin/ucr" ]; then
-				# On ucs cert / key file will be created in init script
-				
+			if [ -e "/usr/sbin/ucr" ]; then
+				# Running on ucs
+				# cert / key file will be created in init script
+				exit 0
+			else
 				db_get opsiconfd/cert_country
 				cert_country=$RET
 				[ "$cert_country" = "" ] && cert_country="DE"
@@ -46,43 +57,47 @@ case "$1" in
 				db_get opsiconfd/cert_email
 				cert_email=$RET
 				
-				echo "RANDFILE = /tmp/opsiconfd.rand" 	>  /tmp/opsiconfd.cnf
-				echo "" 				>> /tmp/opsiconfd.cnf
-				echo "[ req ]" 				>> /tmp/opsiconfd.cnf
-				echo "default_bits = 1024" 		>> /tmp/opsiconfd.cnf
-				echo "encrypt_key = yes" 		>> /tmp/opsiconfd.cnf
-				echo "distinguished_name = req_dn" 	>> /tmp/opsiconfd.cnf
-				echo "x509_extensions = cert_type" 	>> /tmp/opsiconfd.cnf
-				echo "prompt = no" 			>> /tmp/opsiconfd.cnf
-				echo "" 				>> /tmp/opsiconfd.cnf
-				echo "[ req_dn ]" 			>> /tmp/opsiconfd.cnf
-				echo "C=$cert_country"			>> /tmp/opsiconfd.cnf
-				echo "ST=$cert_state" 			>> /tmp/opsiconfd.cnf
-				echo "L=$cert_locality" 		>> /tmp/opsiconfd.cnf
-				echo "O=$cert_organization" 		>> /tmp/opsiconfd.cnf
+				tmp_opsiconfd_rand=$(tempfile)
+				tmp_opsiconfd_cnf=$(tempfile)
+				echo "RANDFILE = $tmp_opsiconfd_rand" 	>  $tmp_opsiconfd_cnf
+				echo "" 				>> $tmp_opsiconfd_cnf
+				echo "[ req ]" 				>> $tmp_opsiconfd_cnf
+				echo "default_bits = 1024" 		>> $tmp_opsiconfd_cnf
+				echo "encrypt_key = yes" 		>> $tmp_opsiconfd_cnf
+				echo "distinguished_name = req_dn" 	>> $tmp_opsiconfd_cnf
+				echo "x509_extensions = cert_type" 	>> $tmp_opsiconfd_cnf
+				echo "prompt = no" 			>> $tmp_opsiconfd_cnf
+				echo "" 				>> $tmp_opsiconfd_cnf
+				echo "[ req_dn ]" 			>> $tmp_opsiconfd_cnf
+				echo "C=$cert_country"			>> $tmp_opsiconfd_cnf
+				echo "ST=$cert_state" 			>> $tmp_opsiconfd_cnf
+				echo "L=$cert_locality" 		>> $tmp_opsiconfd_cnf
+				echo "O=$cert_organization" 		>> $tmp_opsiconfd_cnf
 				if [ "$cert_unit" != "" ]; then
-				echo "OU=$cert_unit" 		>> /tmp/opsiconfd.cnf
+				echo "OU=$cert_unit" 		>> $tmp_opsiconfd_cnf
 				fi
-				echo "CN=$cert_commonname" 		>> /tmp/opsiconfd.cnf
+				echo "CN=$cert_commonname" 		>> $tmp_opsiconfd_cnf
 				if [ "$cert_email" != "" ]; then
-				echo "emailAddress=$cert_email">> /tmp/opsiconfd.cnf
+				echo "emailAddress=$cert_email">> $tmp_opsiconfd_cnf
 				fi
-				echo "" 				>> /tmp/opsiconfd.cnf
-				echo "[ cert_type ]" 			>> /tmp/opsiconfd.cnf
-				echo "nsCertType = server" 		>> /tmp/opsiconfd.cnf
+				echo "" 				>> $tmp_opsiconfd_cnf
+				echo "[ cert_type ]" 			>> $tmp_opsiconfd_cnf
+				echo "nsCertType = server" 		>> $tmp_opsiconfd_cnf
 				
-				dd if=/dev/urandom of=/tmp/opsiconfd.rand count=1 2>/dev/null
+				dd if=/dev/urandom of=$tmp_opsiconfd_rand count=1 2>/dev/null
 				openssl req -new -x509 -days 1000 -nodes \
-					-config /tmp/opsiconfd.cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
-				openssl gendh -rand /tmp/opsiconfd.rand 512 >>/etc/opsi/opsiconfd.pem
+					-config $tmp_opsiconfd_cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
+				openssl gendh -rand $tmp_opsiconfd_rand 512 >>/etc/opsi/opsiconfd.pem
 				openssl x509 -subject -dates -fingerprint -noout -in /etc/opsi/opsiconfd.pem
-				rm -f /tmp/opsiconfd.rand /tmp/opsiconfd.cnf
+				rm -f $tmp_opsiconfd_rand $tmp_opsiconfd_cnf
 			fi
 		fi
-		if [ ! -e "/usr/sbin/ucr" ]; then
-			chmod 600 /etc/opsi/opsiconfd.pem
-			chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
-		fi
+		
+		chmod 600 /etc/opsi/opsiconfd.pem
+		chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
+		
+		chmod 770 /var/lib/opsiconfd/rrd
+		chown opsiconfd:opsiadmin /var/lib/opsiconfd/rrd
 	;;
 	
 	abort-upgrade|abort-remove|abort-deconfigure)
@@ -96,7 +111,6 @@ case "$1" in
 esac
 
 db_stop
-
 
 if [ -x "/etc/init.d/opsiconfd" ]; then
 	update-rc.d -f opsiconfd remove >/dev/null || true

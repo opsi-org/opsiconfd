@@ -1,0 +1,21 @@
+/var/log/opsi/opsiconfd/[[:digit:]]*.log {
+    weekly
+    missingok
+    rotate 1
+    extension old
+    compress
+    notifempty
+    size 2M
+    create 640 opsiconfd pcpatch
+}
+
+/var/log/opsi/opsiconfd/opsiconfd.log {
+    weekly
+    missingok
+    rotate 5
+    compress
+    notifempty
+    size 5M
+    create 640 opsiconfd pcpatch
+}
+

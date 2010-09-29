@@ -1,20 +1,44 @@
-opsiconfd (2.0.0.25-1) stable; urgency=low
+opsiconfd (4.0-1) stable; urgency=low
 
-  * Replaced json module
+  * opsi 4.0 stable release
 
- -- Jan Schneider <j.schneider@uib.de>  Mon, 16 Aug 2010 10:18:26 +0200
+ -- Jan Schneider <j.schneider@uib.de>  Wed, 29 Sep 2010 11:26:47 +0200
 
-opsiconfd (2.0.0.24-1) stable; urgency=low
+opsiconfd (3.99.0.3-1) testing; urgency=low
 
-  * Fix cookie handling
+  * fixed cookie handling
 
- -- Jan Schneider <j.schneider@uib.de>  Wed, 04 Aug 2010 14:18:27 +0200
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 27 Sep 2010 10:34:13 +0200
 
-opsiconfd (2.0.0.23-1) stable; urgency=low
+opsiconfd (3.99.0.2-1) testing; urgency=low
 
-  * session.uid str not unicode
+  * opsi 4.0 rc 2
 
- -- Jan Schneider <j.schneider@uib.de>  Tue, 03 Aug 2010 10:23:14 +0200
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 16 Sep 2010 10:07:12 +0200
+
+opsiconfd (3.99.0.1-1) testing; urgency=low
+
+  * opsi 4.0 rc 1
+
+ -- Jan Schneider <j.schneider@uib.de>  Wed, 01 Sep 2010 15:49:36 +0200
+
+opsiconfd (3.99.0.0-1) testing; urgency=low
+
+  * opsi 4.0
+
+ -- Jan Schneider <j.schneider@uib.de>  Wed, 21 Apr 2010 10:06:25 +0200
+
+opsiconfd (3.4.99.1-1) testing; urgency=low
+
+  * testing release
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 06 Apr 2010 12:15:44 +0200
+
+opsiconfd (3.4.99.0-1) experimental; urgency=low
+
+  * starting 3.5 development
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 06 Nov 2009 15:39:26 +0100
 
 opsiconfd (2.0.0.22-1) stable; urgency=low
 

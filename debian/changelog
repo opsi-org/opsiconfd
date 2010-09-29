@@ -1,3 +1,9 @@
+opsiconfd (4.0-1) stable; urgency=low
+
+  * opsi 4.0 stable release
+
+ -- Jan Schneider <j.schneider@uib.de>  Wed, 29 Sep 2010 11:26:47 +0200
+
 opsiconfd (3.99.0.3-1) testing; urgency=low
 
   * fixed cookie handling

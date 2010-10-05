@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "3.99.0.3"
+__version__ = "4.0"
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, types, zlib
@@ -1611,7 +1611,7 @@ class SessionHandler:
 			time.sleep(1)
 			timeout -= 1
 		if (timeout == 0):
-			logger.warning(u"Session '%s': timeout occured while waiting for session to get free for deletion")
+			logger.warning(u"Session '%s': timeout occured while waiting for session to get free for deletion" % session.uid)
 		self.deleteSession(session.uid)
 		
 	def deleteSession(self, uid):

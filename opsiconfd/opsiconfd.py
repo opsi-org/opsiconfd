@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "4.0"
+__version__ = "4.0.0.1"
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, types, zlib
@@ -487,8 +487,24 @@ class Worker:
 			% (self.session.uid, self.request.remoteAddr.host, self.session.userAgent))
 		
 		# Set user and password
-		if not self.session.user and not self.session.password:
-			if re.search('^([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})$', user):
+		if not self.session.password:
+			self.session.password = password
+		
+		if not self.session.user:
+			if not user:
+				logger.warning(u"No username from %s (application: %s)" % (self.session.ip, self.session.userAgent))
+				try:
+					(hostname, aliaslist, ipaddrlist) = socket.gethostbyaddr(self.session.ip)
+					user = forceHostId(hostname)
+				except Exception, e:
+					raise Exception(u"No username given and resolve failed: %s" % e)
+			
+			if (user.count('.') >= 2):
+				self.session.isHost = True
+				if (user.find('_') != -1):
+					user.replace('_', '-')
+			elif re.search('^([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})$', user):
+				self.session.isHost = True
 				mac = forceHardwareAddress(user)
 				logger.info(u"Found hardware address '%s' as username, searching host in backend" % mac)
 				hosts = self.opsiconfd._backend.host_getObjects(hardwareAddress = mac)
@@ -497,40 +513,26 @@ class Worker:
 				user = hosts[0].id
 				logger.info(u"Hardware address '%s' found in backend, using '%s' as username" % (mac, user))
 			
-			hosts = None
-			try:
-				hosts = self.opsiconfd._backend.host_getObjects(type = 'OpsiClient', id = forceHostId(user))
-			except Exception, e:
-				logger.debug(u"Host not found: %s" % e)
-			
-			if hosts:
-				if password and hosts[0].getOneTimePassword() and (password == hosts[0].getOneTimePassword()):
-					logger.info(u"Client '%s' supplied one-time password" % user)
-					password = hosts[0].getOpsiHostKey()
-					hosts[0].oneTimePassword = None
-					self.opsiconfd._backend.host_createObjects(hosts[0])
-			
+			if self.session.isHost:
+				hosts = None
+				try:
+					hosts = self.opsiconfd._backend.host_getObjects(type = 'OpsiClient', id = forceHostId(user))
+				except Exception, e:
+					logger.debug(u"Host not found: %s" % e)
+				
+				if hosts:
+					if self.session.password and hosts[0].getOneTimePassword() and (self.session.password == hosts[0].getOneTimePassword()):
+						logger.info(u"Client '%s' supplied one-time password" % user)
+						self.session.password = hosts[0].getOpsiHostKey()
+						hosts[0].oneTimePassword = None
+						self.opsiconfd._backend.host_createObjects(hosts[0])
 			self.session.user = user
-			self.session.password = password
-			if (self.session.user.count('.') >= 2):
-				self.session.isHost = True
-			
+		
 		# Set hostname
 		if not self.session.hostname:
 			hostname = ''
 			if self.session.isHost:
 				hostname = self.session.user
-			elif self.opsiconfd.config['resolveClientIp']:
-				try:
-					hostname = socket.getfqdn(self.request.remoteAddr.host).lower()
-					if re.search('^\d+\.\d+\.\d+\.\d+$', hostname):
-						logger.error(u"Cannot get fqdn for client '%s'" % self.request.remoteAddr.host)
-						hostname = ''
-					elif (hostname.count('.') == 1):
-						logger.error(u"Cannot get fqdn for client '%s', got hostname '%s' only" % (self.request.remoteAddr.host, hostname))
-						hostname = ''
-				except Exception, e:
-					logger.warning(u"Failed to resolve address '%s': %s" % (self.request.remoteAddr.host, e))
 			if hostname:
 				logger.info(u"Storing hostname '%s' in session" % hostname)
 				self.session.hostname = hostname
@@ -560,13 +562,12 @@ class Worker:
 				return result
 			
 			logger.notice(u"Authorization request from %s@%s (application: %s)" % (self.session.user, self.session.ip, self.session.userAgent))
+			
 			if not self.session.user:
-				logger.warning(u"No username from %s (application: %s)" % (self.session.ip, self.session.userAgent))
-				try:
-					(hostname, aliaslist, ipaddrlist) = socket.gethostbyaddr(self.session.ip)
-					self.session.user = forceHostId(hostname)
-				except Exception, e:
-					raise Exception(u"Cannot authenticate, no username given and resolve failed: %s" % e)
+				raise Exception(u"No username from %s (application: %s)" % (self.session.ip, self.session.userAgent))
+				
+			if not self.session.password:
+				raise Exception(u"No password from %s (application: %s)" % (self.session.ip, self.session.userAgent))
 				
 			if self.session.hostname and self.opsiconfd.config['resolveVerifyIp'] and (self.session.user != self.opsiconfd.config['fqdn']):
 				addressList = []
@@ -1186,94 +1187,22 @@ class WorkerOpsiDAV(Worker):
 		deferred.callback(None)
 		return deferred
 	
-	
-	#def _errback(self, failure):
-	#	logger.debug2("%s._errback" % self.__class__.__name__)
-	#	# [Failure instance: Traceback: <type 'exceptions.AttributeError'>: 'Request' object has no attribute 'credentialFactories'
-	#	#self._freeSession(failure)
-	#	result = http.Response()
-	#	#result = self._renderError(failure)
-	#	#['count', 'parents', 'frames', 'type', 'tb', 'stack', 'value', 'pickled']
-	#	try:
-	#		failure.raiseException()
-	#	except AttributeError, e:
-	#		logger.debug(e)
-	#	except Exception, e:
-	#		logger.error(failure)
-	#	
-	#	result.code = responsecode.INTERNAL_SERVER_ERROR
-	#	#result = self._setCookie(result)
-	#	#try:
-	#	#	failure.raiseException()
-	#	#except OpsiAuthenticationError, e:
-	#	#	logger.error(e)
-	#	#	result.code = responsecode.UNAUTHORIZED
-	#	#	result.headers.setHeader('www-authenticate', [('basic', { 'realm': 'OPSI Configuration Service' } )])
-	#	#except OpsiBadRpcError, e:
-	#	#	logger.error(e)
-	#	#	result.code = responsecode.BAD_REQUEST
-	#	#except Exception, e:
-	#	#	# logger.logException(e)
-	#	#	logger.error(failure)
-	#	#
-	#	return result
-	
-	def _getSession(self, result):
-		# Get session id from cookie request header
-		sessionId = u''
-		try:
-			for (k, v) in self.request.headers.getAllRawHeaders():
-				if (k.lower() == 'cookie'):
-					for cookie in v:
-						for c in cookie.split(';'):
-							if (c.find('=') == -1):
-								continue
-							(name, value) = c.split('=', 1)
-							if (name == self.opsiconfd.config['sessionName']):
-								sessionId = forceUnicode(value)
-								break
-					break
-		except Exception, e:
-			logger.error(u"Failed to get cookie from header: %s" % e)
-		
-		self.session = self.opsiconfd.getSessionHandler().getSession(sessionId, self.request.remoteAddr.host)
-		
-		self.session.ip = self.request.remoteAddr.host
-		# Get user agent
-		userAgent = None
-		try:
-			userAgent = self.request.headers.getHeader('user-agent')
-		except Exception, e:
-			logger.info(u"Client '%s' did not supply user-agent" % self.request.remoteAddr.host)
-		if not userAgent:
-			userAgent = 'unknown'
-		self.session.userAgent = userAgent
-		
-		return result
-	
 	def _authenticate(self, result):
+		''' This function tries to authenticate a user.
+		    Raises an exception on authentication failure. '''
+		
 		try:
 			if self.session.authenticated:
 				return result
 			
-			# Get authorization
-			(user, password) = self._getAuthorization()
-			if not password:
-				raise Exception(u"No password from %s (application: %s)" % (self.request.remoteAddr.host, self.session.userAgent))
+			logger.notice(u"Authorization request from %s@%s (application: %s)" % (self.session.user, self.session.ip, self.session.userAgent))
 			
-			if not user:
-				logger.warning(u"No username from %s (application: %s)" % (self.request.remoteAddr.host, self.session.userAgent))
-				try:
-					(hostname, aliaslist, ipaddrlist) = socket.gethostbyaddr(self.request.remoteAddr.host)
-					user = forceHostId(hostname)
-				except Exception, e:
-					raise Exception(u"Cannot authenticate, no username given and resolve failed: %s" % e)
-			
-			self.session.user = user
-			self.session.password = password
-			if (self.session.user.count('.') >= 2):
-				self.session.isHost = True
+			if not self.session.user:
+				raise Exception(u"No username from %s (application: %s)" % (self.session.ip, self.session.userAgent))
 				
+			if not self.session.password:
+				raise Exception(u"No password from %s (application: %s)" % (self.session.ip, self.session.userAgent))
+			
 			bac = BackendAccessControl(
 				backend  = self.opsiconfd._backend,
 				username = self.session.user,
@@ -1287,12 +1216,16 @@ class WorkerOpsiDAV(Worker):
 			if not self.session.isHost and not self.session.isAdmin:
 				raise Exception(u"Neither host nor admin user")
 			
+			self.session.authenticated = True
+			if self.opsiconfd.authFailureCount.has_key(self.request.remoteAddr.host):
+				del self.opsiconfd.authFailureCount[self.request.remoteAddr.host]
 		except Exception, e:
-			raise OpsiAuthenticationError(u"%s" % e)
-		
-		self.session.authenticated = True
+			logger.logException(e, LOG_INFO)
+			self._freeSession(result)
+			self.opsiconfd.getSessionHandler().deleteSession(self.session.uid)
+			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
 		return result
-		
+	
 	def _setResponse(self, result):
 		logger.debug(u"Client requests DAV operation: %s" % self.request)
 		if not self.session.isAdmin and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
@@ -2332,7 +2265,6 @@ class OpsiconfdInit(object):
 			'sessionName'                  : u'OPSISID',
 			'maxSessionsPerIp'             : 25,
 			'maxAuthenticationFailures'    : 3,
-			'resolveClientIp'              : True,
 			'resolveVerifyIp'              : False,
 			'sessionMaxInactiveInterval'   : 120,
 			'updateIpAddress'              : False,
@@ -2472,8 +2404,6 @@ class OpsiconfdInit(object):
 					for (option, value) in config.items(section):
 						if   (option == 'session name'):
 							self.config['sessionName'] = forceUnicode(value)
-						elif (option == 'resolve ip'):
-							self.config['resolveClientIp'] = forceBool(value)
 						elif (option == 'verify ip'):
 							self.config['resolveVerifyIp'] = forceBool(value)
 						elif (option == 'update ip'):

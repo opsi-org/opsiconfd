@@ -502,7 +502,7 @@ class Worker:
 			if (user.count('.') >= 2):
 				self.session.isHost = True
 				if (user.find('_') != -1):
-					user.replace('_', '-')
+					user = user.replace('_', '-')
 			elif re.search('^([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})$', user):
 				self.session.isHost = True
 				mac = forceHardwareAddress(user)
@@ -527,17 +527,11 @@ class Worker:
 						hosts[0].oneTimePassword = None
 						self.opsiconfd._backend.host_createObjects(hosts[0])
 			self.session.user = user
-		
+			
 		# Set hostname
-		if not self.session.hostname:
-			hostname = ''
-			if self.session.isHost:
-				hostname = self.session.user
-			if hostname:
-				logger.info(u"Storing hostname '%s' in session" % hostname)
-				self.session.hostname = hostname
-			else:
-				logger.debug(u"Failed to get hostname for client '%s'" % self.request.remoteAddr.host)
+		if not self.session.hostname and self.session.isHost:
+			logger.info(u"Storing hostname '%s' in session" % self.session.user)
+			self.session.hostname = self.session.user
 		
 		logger.confidential(u"Session content: %s" % self.session.__dict__)
 		return result

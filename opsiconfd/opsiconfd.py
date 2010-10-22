@@ -1005,7 +1005,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 		if not isinstance(result, http.Response):
 			result = http.Response()
 		result.code = responsecode.OK
-		result.stream = stream.IByteStream(html.encode('utf-8'))
+		result.stream = stream.IByteStream(html.encode('utf-8').strip())
 		
 		return result
 	
@@ -1022,20 +1022,20 @@ class WorkerOpsiconfdInfo(Worker):
 		graphs = u''
 		if rrdtool:
 			graphs += u'<h1>Last hour</h1>'
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600))
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600))
 			graphs += u'<h1>Last day</h1>'
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24))
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24))
 			graphs += u'<h1>Last week</h1>'
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*7))
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*7))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*7))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*7))
 			graphs += u'<h1>Last month</h1>'
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*31))
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*31))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*31))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*31))
 			graphs += u'<h1>Last year</h1>'
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*365))
-			graphs += u'<image src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*365))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*365))
+			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*365))
 			
 		configInfo  = u'<h1>Server config</h1>'
 		configInfo += u'<table>'
@@ -1155,7 +1155,7 @@ class WorkerOpsiconfdInfo(Worker):
 		if not isinstance(result, http.Response):
 			result = http.Response()
 		result.code = responsecode.OK
-		result.stream = stream.IByteStream(html.encode('utf-8'))
+		result.stream = stream.IByteStream(html.encode('utf-8').strip())
 		return result
 
 

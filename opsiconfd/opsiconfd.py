@@ -142,6 +142,7 @@ interfacePage = u'''
 	.box          { background-color: #fafafa; border: 1px #555555 solid; padding: 20px; margin-left: 30px; margin-top: 50px;}
 	</style>
 	<script type="text/javascript">
+	<![CDATA[
 		var path = 'interface';
 		var parameters = new Array();
 		var method = '';
@@ -239,6 +240,7 @@ interfacePage = u'''
 			}
 			span.appendChild(document.createTextNode(params + ']'));
 		}
+	]]>
 	</script>
 </head>
 <body onload="selectMethod(document.getElementById('method_select'))">
@@ -956,7 +958,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 				javascript += u"currentParams[%d] = '%s';\n" % (i, toJson(param))
 		
 		currentPath = u'interface'
-		selected = u' selected'
+		selected = u' selected="selected"'
 		for pp in self.request.postpath:
 			currentPath += u'/%s' % pp
 			selected = u''
@@ -967,7 +969,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 			selected = u''
 			path = u'interface/backend/%s' % name
 			if (path == currentPath):
-				selected = u' selected'
+				selected = u' selected="selected"'
 			selectPath += '<option%s>%s</option>' % (selected, path)
 		
 		for name in os.listdir(self.opsiconfd.config['extensionConfigDir']):
@@ -976,7 +978,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 			selected = u''
 			path = u'interface/extend/%s' % name
 			if (path == currentPath):
-				selected = u' selected'
+				selected = u' selected="selected"'
 			selectPath += '<option%s>%s</option>' % (selected, path)
 		
 		selectMethod = u''
@@ -986,7 +988,7 @@ class WorkerOpsiJsonInterface(WorkerOpsiJsonRpc):
 				javascript += u"parameters['%s'][%s]='%s';\n" % (method['name'], param, method['params'][param])
 			selected = u''
 			if (method['name'] == currentMethod):
-				selected = u' selected'
+				selected = u' selected="selected"'
 			selectMethod += u'<option%s>%s</option>' % (selected, method['name'])
 		
 		resultDiv = u'<div id="result">'

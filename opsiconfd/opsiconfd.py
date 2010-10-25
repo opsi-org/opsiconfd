@@ -1322,6 +1322,21 @@ class ResourceOpsiconfdInfo(ResourceOpsi):
 	
 	def __init__(self, opsiconfd):
 		ResourceOpsi.__init__(self, opsiconfd)
+		
+
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+# =                             CLASS RESOURCE OPSICONFD STATISTICS                                   =
+# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+class ResourceOpsiconfdStatistics(resource.Resource):
+	def __init__(self, opsiconfd):
+		self._opsiconfd = opsiconfd
+	
+	def renderHTTP(self, request):
+		''' Process request. '''
+		resp = ''
+		for (k, v) in self._opsiconfd.statistics().getStatistics().items():
+			resp += '%s:%s\n' % (k, v)
+		return http.Response(stream=resp)
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                                   CLASS RESOURCE OPSI DAV                                         =
@@ -1635,6 +1650,47 @@ class Statistics(object):
 			'RRA:MAX:0.5:%d:%d'     % (31,  (3600/self._rrdConfig['step'])*24), # month
 			'RRA:MAX:0.5:%d:%d'     % (365, (3600/self._rrdConfig['step'])*24), # year
 		)
+	
+	def getStatistics(self):
+		result = {}
+	
+		try:
+			now = int(time.time())
+			last = self._last
+			self._last = now
+			(utime, stime, maxrss) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
+			usr = (utime - self._utime)/(now - last)
+			sys = (stime - self._stime)/(now - last)
+			(self._utime, self._stime) = (utime, stime)
+			#mem = int("%0.0f" % (float(maxrss * pyresource.getpagesize())/(1024*1024))) # Mbyte
+			f = open('/proc/%s/stat' % os.getpid())
+			data = f.read().split()
+			f.close()
+			virtMem = int("%0.0f" % (float(data[22])/(1024*1024)))
+			
+			#cpu
+			cpu = int("%0.0f" % ((usr + sys) * 100))
+			if (cpu > 100): cpu = 100
+			
+			#threads
+			threads = []
+			for thread in threading.enumerate():
+				threads.append(thread)
+			#build result-Hash
+			result["requests"] = self._rrdCache['requests']
+			result["sessions"] = self._rrdCache['sessions']
+			result["davrequests"] = self._rrdCache['davrequests']
+			result["rpcs"] = self._rrdCache['rpcs']
+			result["rpcerrors"] = self._rrdCache['rpcerrors']
+			result["cpu"] = cpu
+			result["virtmem"] = virtMem
+			result["threads"] = len(threads)
+			
+			return result
+			
+		except Exception, e:
+			logger.error(u"Failed to get Statistics: %s" % e)
+			return result
 	
 	def updateRrd(self):
 		if not rrdtool:

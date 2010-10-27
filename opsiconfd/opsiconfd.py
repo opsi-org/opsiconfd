@@ -150,6 +150,16 @@ interfacePage = u'''
 		var id = '"id": 1';
 		%javascript%
 		
+		function createElement(element) {
+			if (typeof document.createElementNS != 'undefined') {
+				return document.createElementNS('http://www.w3.org/1999/xhtml', element);
+			}
+			if (typeof document.createElement != 'undefined') {
+				return document.createElement(element);
+			}
+			return false;
+		}
+		
 		function selectPath(select) {
 			path = select.value;
 			document.getElementById('json_method').firstChild.data = '"backend_getInterface"';
@@ -180,12 +190,12 @@ interfacePage = u'''
 			}
 			
 			for (i=0; i < parameters[select.value].length; i++) {
-				tr = document.createElement("tr");
-				td1 = document.createElement("td");
+				tr = createElement("tr");
+				td1 = createElement("td");
 				text = document.createTextNode(parameters[select.value][i] + ":");
 				td1.appendChild(text);
-				td2 = document.createElement("td");
-				input = document.createElement("input");
+				td2 = createElement("td");
+				input = createElement("input");
 				input.setAttribute('onchange', 'jsonString()');
 				input.setAttribute('type', 'text');
 				if ((method == currentMethod) && (currentParams[i] != null)) {

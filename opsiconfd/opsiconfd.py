@@ -2113,10 +2113,11 @@ class Opsiconfd(threading.Thread):
 		if not hasattr(self, '_root'):
 			self._root = ResourceRoot()
 		
-		self._root.putChild('rrd',       ResourceOpsiDAV(self, path = self.config['rrdDir'], readOnly = True))
-		self._root.putChild('rpc',       ResourceOpsiJsonRpc(self))
-		self._root.putChild('interface', ResourceOpsiJsonInterface(self))
-		self._root.putChild('info',      ResourceOpsiconfdInfo(self))
+		self._root.putChild('rrd',             ResourceOpsiDAV(self, path = self.config['rrdDir'], readOnly = True))
+		self._root.putChild('rpc',             ResourceOpsiJsonRpc(self))
+		self._root.putChild('interface',       ResourceOpsiJsonInterface(self))
+		self._root.putChild('info',            ResourceOpsiconfdInfo(self))
+		self._root.putChild('statistics',      ResourceOpsiconfdStatistics(self))
 		
 		hosts = self._backend.host_getObjects(type = 'OpsiDepotserver', id = self.config['fqdn'])
 		if hosts:

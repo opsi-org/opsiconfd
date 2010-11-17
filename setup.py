@@ -33,6 +33,16 @@
 """
 
 from setuptools import setup, os
+
+cmdclass = {}
+
+try:
+	from opsidistutils.commands.osc_cmd import osc_publish as osc
+	cmdclass['osc'] = osc
+except ImportError, e:
+	print "osc integration is not available on this machine. please install ospi-distutils."
+
+
 version = None
 f = open("opsiconfd/opsiconfd.py")
 for line in f.readlines():
@@ -57,5 +67,6 @@ setup(
 		    ('share/opsiconfd/static', [ 'data/shared/index.html',
 						 'data/shared/favicon.ico',
 						 'data/shared/opsi_logo.png'])
-		   ]
+		   ],
+	cmdclass = cmdclass
 )

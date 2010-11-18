@@ -110,6 +110,7 @@ infoPage = u'''
 	<div id="infos">
 		<div id="info">%time%</div>
 		<div id="info">%graphs%</div>
+		<div id="info">%object_info%</div>
 		<div id="info">%config_info%</div>
 		<div id="info">%thread_info%</div>
 		<div id="info">%session_info%</div>
@@ -1048,7 +1049,16 @@ class WorkerOpsiconfdInfo(Worker):
 			graphs += u'<h1>Last year</h1>'
 			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(1, 3600*24*365))
 			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.opsiconfd.statistics().getRrdGraphImage(2, 3600*24*365))
-			
+		
+		objectInfo  = u'<h1>Object info</h1>'
+		objectInfo += u'<table>'
+		objectInfo += u'<tr><th>type</th><th>number</th></tr>'
+		objectInfo += u'<tr><td>Depotserver</td><td>%d</td></tr>' % len(self.opsiconfd._backend.host_getIdents(returnType = 'unicode', type = 'OpsiDepotserver'))
+		objectInfo += u'<tr><td>Clients</td><td>%d</td></tr>' % len(self.opsiconfd._backend.host_getIdents(returnType = 'unicode', type = 'OpsiClient'))
+		objectInfo += u'<tr><td>Products</td><td>%d</td></tr>' % len(self.opsiconfd._backend.product_getIdents(returnType = 'unicode'))
+		objectInfo += u'<tr><td>Configs</td><td>%d</td></tr>' % len(self.opsiconfd._backend.config_getIdents(returnType = 'unicode'))
+		objectInfo += u'</table>'
+		
 		configInfo  = u'<h1>Server config</h1>'
 		configInfo += u'<table>'
 		configInfo += u'<tr><th>key</th><th>value</th></tr>'
@@ -1158,6 +1168,7 @@ class WorkerOpsiconfdInfo(Worker):
 		
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
 		html = html.replace('%graphs%', graphs)
+		html = html.replace('%object_info%', objectInfo)
 		html = html.replace('%config_info%', configInfo)
 		html = html.replace('%thread_info%', threadInfo)
 		html = html.replace('%session_info%', sessionInfo)

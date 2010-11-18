@@ -1054,9 +1054,9 @@ class WorkerOpsiconfdInfo(Worker):
 		objectInfo += u'<table>'
 		objectInfo += u'<tr><th>type</th><th>number</th></tr>'
 		objectInfo += u'<tr><td>Depotserver</td><td>%d</td></tr>' % len(self.opsiconfd._backend.host_getIdents(returnType = 'unicode', type = 'OpsiDepotserver'))
-		objectInfo += u'<tr><td>Clients</td><td>%d</td></tr>' % len(self.opsiconfd._backend.host_getIdents(returnType = 'unicode', type = 'OpsiClient'))
-		objectInfo += u'<tr><td>Products</td><td>%d</td></tr>' % len(self.opsiconfd._backend.product_getIdents(returnType = 'unicode'))
-		objectInfo += u'<tr><td>Configs</td><td>%d</td></tr>' % len(self.opsiconfd._backend.config_getIdents(returnType = 'unicode'))
+		objectInfo += u'<tr><td>Client</td><td>%d</td></tr>' % len(self.opsiconfd._backend.host_getIdents(returnType = 'unicode', type = 'OpsiClient'))
+		objectInfo += u'<tr><td>Product</td><td>%d</td></tr>' % len(self.opsiconfd._backend.product_getIdents(returnType = 'unicode'))
+		objectInfo += u'<tr><td>Config</td><td>%d</td></tr>' % len(self.opsiconfd._backend.config_getIdents(returnType = 'unicode'))
 		objectInfo += u'</table>'
 		
 		configInfo  = u'<h1>Server config</h1>'

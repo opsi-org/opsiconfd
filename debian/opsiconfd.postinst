@@ -32,11 +32,9 @@ case "$1" in
 		if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 			umask 077
 			
-			if [ -e "/usr/sbin/ucr" ]; then
-				# Running on ucs
-				# cert / key file will be created in init script
-				exit 0
-			else
+			if [ ! -e "/usr/sbin/ucr" ]; then
+				# Not on ucs
+				
 				db_get opsiconfd/cert_country
 				cert_country=$RET
 				[ "$cert_country" = "" ] && cert_country="DE"
@@ -93,8 +91,10 @@ case "$1" in
 			fi
 		fi
 		
-		chmod 600 /etc/opsi/opsiconfd.pem
-		chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
+		if [ -e "/etc/opsi/opsiconfd.pem" ]; then
+			chmod 600 /etc/opsi/opsiconfd.pem
+			chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
+		fi
 		
 		chmod 770 /var/lib/opsiconfd/rrd
 		chown opsiconfd:opsiadmin /var/lib/opsiconfd/rrd

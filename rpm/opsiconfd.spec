@@ -14,10 +14,10 @@ License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
 Version:        4.0.0.2
-Release:        1
+Release:        2
 Summary:        opsi configuration service
 %define tarname opsiconfd
-Source:         opsiconfd_4.0.0.2-1.tar.gz
+Source:         opsiconfd_4.0.0.2-2.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?sles_version}
 Requires:       python-rrdtool

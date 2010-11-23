@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "4.0.0.1"
+__version__ = "4.0.0.3"
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, types, zlib
@@ -2344,7 +2344,7 @@ class OpsiconfdInit(object):
 			'updateIpAddress'              : False,
 			'staticDirectories'            : {},
 			'depotId'                      : None,
-			'fqdn'                         : socket.getfqdn(),
+			'fqdn'                         : forceHostId(socket.getfqdn()),
 			'ipAddress'                    : socket.gethostbyname(socket.gethostname()),
 			'rrdDir'                       : u'/var/lib/opsiconfd/rrd',
 			'backendConfigDir'             : u'/etc/opsi/backends',

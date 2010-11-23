@@ -1,3 +1,9 @@
+opsiconfd (4.0.0.3-1) stable; urgency=low
+
+  * forceHostId fqdn
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 23 Nov 2010 12:21:54 +0100
+
 opsiconfd (4.0.0.2-2) stable; urgency=low
 
   * Fix postinst script for ucs

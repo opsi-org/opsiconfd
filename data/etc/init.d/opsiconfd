@@ -53,6 +53,8 @@ case "$1" in
 			[ "$START_GUARD" = "1" ] && $GUARD_BIN &
 			exit 0
 		else
+			[ -f $PIDFILE ] && rm $PIDFILE
+			
 			# Copy server cert / key if running on ucs
 			if [ -e "/etc/univention/ssl/$FQDN/cert.pem" -a -e "/etc/univention/ssl/$FQDN/private.key" ]; then
 				cat /etc/univention/ssl/$FQDN/private.key > /etc/opsi/opsiconfd.pem

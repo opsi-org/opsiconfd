@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "4.0.0.3"
+__version__ = "4.0.0.4"
 
 # Imports
 import os, sys, getopt, threading, time, socket, base64, urllib, operator, types, zlib
@@ -2338,7 +2338,7 @@ class OpsiconfdInit(object):
 			'sslServerKeyFile'             : u'/etc/opsi/opsiconfd.pem',
 			'sessionName'                  : u'OPSISID',
 			'maxSessionsPerIp'             : 25,
-			'maxAuthenticationFailures'    : 3,
+			'maxAuthenticationFailures'    : 5,
 			'resolveVerifyIp'              : False,
 			'sessionMaxInactiveInterval'   : 120,
 			'updateIpAddress'              : False,

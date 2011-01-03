@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
+
 
 import sys,os
 
@@ -9,7 +9,7 @@ if os.path.dirname(os.path.abspath(sys.argv[0])) == os.path.abspath('scripts'):
 
 
 
-from opsiconfd.opsiconfd import main
+from opsiconfd.opsisupervisor import main
 
 if __name__=="__main__":
 	sys.exit(main())

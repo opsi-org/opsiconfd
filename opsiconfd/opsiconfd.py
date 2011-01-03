@@ -74,6 +74,7 @@ import OPSI.web2.static
 from OPSI.Logger import *
 from OPSI.Util import timestamp, objectToHtml, randomString, toJson, fromJson
 from OPSI.Util.File import IniFile
+from OPSI.Util.amp import OpsiProcessProtocolFactory
 from OPSI.Types import *
 from OPSI.System import which, execute, getDiskSpaceUsage
 from OPSI.Backend.BackendManager import BackendManager, BackendAccessControl
@@ -1988,6 +1989,7 @@ class Opsiconfd(threading.Thread):
 		self._sessionHandler  = None
 		self._statistics      = None
 		self._zeroconfService = None
+		self._socket          = None
 		
 		self.authFailureCount = {}
 		
@@ -2028,6 +2030,10 @@ class Opsiconfd(threading.Thread):
 				self._backend.backend_exit()
 			except:
 				pass
+			
+		if self._socket:
+			self._socket.stopListening()
+			
 		if reactor.running:
 			try:
 				logger.notice(u"Stopping reactor")
@@ -2244,11 +2250,18 @@ class Opsiconfd(threading.Thread):
 			self._zeroconfService.publish()
 		except Exception, e:
 			logger.error(u"Failed to publish opsiconfd over zeroconf: %s" % e)
-		
+	
+	def _startListeningSocket(self):
+		pid = os.getpid()
+		socket = os.path.join(self.config["socketDir"], "opsiconfd.%s.socket"% pid)
+		logger.notice("Opening socket %s for interprocess communication." % socket)
+		self._socket = reactor.listenUNIX(socket, OpsiProcessProtocolFactory(self))
+	
 	def run(self):
 		self._running = True
 		logger.notice(u"Starting opsiconfd main thread")
 		try:
+			self._startListeningSocket()
 			self._createBackendInstance()
 			self._createSessionHandler()
 			self._createStatistics()
@@ -2298,12 +2311,11 @@ class OpsiconfdInit(object):
 		
 		if self.config['daemon']:
 			logger.setConsoleLevel(LOG_NONE)
-			self.daemonize()
 		else:
 			logger.setConsoleLevel(self.config['logLevel'])
 			logger.setConsoleColor(True)
 		
-		self.createPidFile()
+		#self.createPidFile()
 		try:
 			# Start opsiconfd
 			self._opsiconfd = Opsiconfd(self.config)
@@ -2319,7 +2331,8 @@ class OpsiconfdInit(object):
 				time.sleep(1)
 			self._opsiconfd.join(30)
 		finally:
-			self.removePidFile()
+			pass
+			#self.removePidFile()
 	
 	def setDefaultConfig(self):
 		self.config = {
@@ -2350,7 +2363,8 @@ class OpsiconfdInit(object):
 			'backendConfigDir'             : u'/etc/opsi/backends',
 			'dispatchConfigFile'           : u'/etc/opsi/backendManager/dispatch.conf',
 			'extensionConfigDir'           : u'/etc/opsi/backendManager/extend.d',
-			'aclFile'                      : u'/etc/opsi/backendManager/acl.conf'
+			'aclFile'                      : u'/etc/opsi/backendManager/acl.conf',
+			'socketDir'                    : u'/var/run/opsiconfd/'
 		}
 	
 	def setCommandlineConfig(self):
@@ -2448,6 +2462,8 @@ class OpsiconfdInit(object):
 							self.config['backendConfigDir'] = forceFilename(value)
 						elif (option == 'dispatch config file'):
 							self.config['dispatchConfigFile'] = forceFilename(value)
+						elif (option == 'socket dir'):
+							self.config['socketDir'] = forceFilename(value)
 						elif (option == 'extension config dir'):
 							self.config['extensionConfigDir'] = forceFilename(value)
 						elif (option == 'acl file'):
@@ -2516,52 +2532,12 @@ class OpsiconfdInit(object):
 		print u"  -i    IP address of interface to listen on (default: 0.0.0.0)"
 		print u"  -f    Log to given file instead of syslog"
 		print u"  -c    Location of config file"
+		print u"  -s    Location of socket dir"
 		print u"  -l    Set log level (default: 4)"
 		print u"        0=nothing, 1=essential, 2=critical, 3=error, 4=warning"
 		print u"        5=notice, 6=info, 7=debug, 8=debug2, 9=confidential"
 		print u""
-	
-	def daemonize(self):
-		# Fork to allow the shell to return and to call setsid
-		try:
-			self._pid = os.fork()
-			if (self._pid > 0):
-				# Parent exits
-				sys.exit(0)
-		except OSError, e:
-			raise Exception(u"First fork failed: %e" % e)
-		
-		# Do not hinder umounts
-		os.chdir("/")
-		# Create a new session
-		os.setsid()
-		
-		# Fork a second time to not remain session leader
-		try:
-			self._pid = os.fork()
-			if (self._pid > 0):
-				sys.exit(0)
-		except OSError, e:
-			raise Exception(u"Second fork failed: %e" % e)
-		
-		logger.setConsoleLevel(LOG_NONE)
-		
-		# Close standard output and standard error.
-		os.close(0)
-		os.close(1)
-		os.close(2)
-		
-		# Open standard input (0)
-		if (hasattr(os, "devnull")):
-			os.open(os.devnull, os.O_RDWR)
-		else:
-			os.open("/dev/null", os.O_RDWR)
-		
-		# Duplicate standard input to standard output and standard error.
-		os.dup2(0, 1)
-		os.dup2(0, 2)
-		sys.stdout = logger.getStdout()
-		sys.stderr = logger.getStderr()
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # -                                               MAIN                                                -

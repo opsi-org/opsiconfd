@@ -117,7 +117,7 @@ class OpsiDaemon(object):
 		return script
 
 	def callRemote(self, method, *args, **kwargs):
-		def disconnect(result):		
+		def disconnect(result):
 			self._connector.disconnect()
 			return result
 		
@@ -177,9 +177,9 @@ class Supervisor(object):
 				
 				for i in range(instanceCount):
 					logger.notice("Starting daemon %s" % daemon.script)
-				 	d = daemon(args=args, config=conf)		 	
-				 	d.start()
-				 	self.daemons.append(d)				 	
+					d = daemon(args=args, config=conf)
+					d.start()
+					self.daemons.append(d)
 			except Exception, e:
 				logger.error("Failed to start daemon %s"% (daemon.script))
 				logger.logException(e)
@@ -213,28 +213,28 @@ class Supervisor(object):
 			
 			
 class SupervisionProtocol(ProcessProtocol):
- 	
- 	def __init__(self, daemon):
- 		self.daemon = daemon
- 		self.pid = None
- 		
- 	def connectionMade(self):
- 		self.pid = self.transport.pid 		
- 		socket = "/var/run/opsiconfd/%s.%s.socket" %(self.daemon.script, self.pid) 	
- 		self.daemon._connector = self.daemon.connector(socket=socket)
- 		
- 	def stop(self):
- 		if self.transport.pid:
- 			self.defer = Deferred()
- 			self.transport.signalProcess(signal.SIGTERM)
- 			reactor.callLater(10, self.kill)
- 			return self.defer
- 		return succeed(None)
+	
+	def __init__(self, daemon):
+		self.daemon = daemon
+		self.pid = None
+		
+	def connectionMade(self):
+		self.pid = self.transport.pid
+		socket = "/var/run/opsiconfd/%s.%s.socket" %(self.daemon.script, self.pid)
+		self.daemon._connector = self.daemon.connector(socket=socket)
+		
+	def stop(self):
+		if self.transport.pid:
+			self.defer = Deferred()
+			self.transport.signalProcess(signal.SIGTERM)
+			reactor.callLater(10, self.kill)
+			return self.defer
+		return succeed(None)
 
- 	def kill(self):
- 		if self.transport.pid:
- 			self.transport.signalProcess(signal.SIGKILL)
- 			
+	def kill(self):
+		if self.transport.pid:
+			self.transport.signalProcess(signal.SIGKILL)
+			
 	def outReceived(self, data):
 		logger.debug2(data)
 
@@ -248,47 +248,47 @@ class SupervisionProtocol(ProcessProtocol):
 			if defer is not None:
 				defer.callback(None)
 def daemonize():
-		# Fork to allow the shell to return and to call setsid
-		try:
-			pid = os.fork()
-			if (pid > 0):
-				# Parent exits
-				sys.exit(0)
-		except OSError, e:
-			raise Exception(u"First fork failed: %e" % e)
-		
-		# Do not hinder umounts
-		os.chdir("/")
-		# Create a new session
-		os.setsid()
-		
-		# Fork a second time to not remain session leader
-		try:
-			pid = os.fork()
-			if (pid > 0):
-				sys.exit(0)
-		except OSError, e:
-			raise Exception(u"Second fork failed: %e" % e)
-		
-		logger.setConsoleLevel(LOG_NONE)
-		
-		# Close standard output and standard error.
-		os.close(0)
-		os.close(1)
-		os.close(2)
-		
-		# Open standard input (0)
-		if (hasattr(os, "devnull")):
-			os.open(os.devnull, os.O_RDWR)
-		else:
-			os.open("/dev/null", os.O_RDWR)
-		
-		# Duplicate standard input to standard output and standard error.
-		os.dup2(0, 1)
-		os.dup2(0, 2)
-		sys.stdout = logger.getStdout()
-		sys.stderr = logger.getStderr()
-			
+	# Fork to allow the shell to return and to call setsid
+	try:
+		pid = os.fork()
+		if (pid > 0):
+			# Parent exits
+			sys.exit(0)
+	except OSError, e:
+		raise Exception(u"First fork failed: %e" % e)
+	
+	# Do not hinder umounts
+	os.chdir("/")
+	# Create a new session
+	os.setsid()
+	
+	# Fork a second time to not remain session leader
+	try:
+		pid = os.fork()
+		if (pid > 0):
+			sys.exit(0)
+	except OSError, e:
+		raise Exception(u"Second fork failed: %e" % e)
+	
+	logger.setConsoleLevel(LOG_NONE)
+	
+	# Close standard output and standard error.
+	os.close(0)
+	os.close(1)
+	os.close(2)
+	
+	# Open standard input (0)
+	if (hasattr(os, "devnull")):
+		os.open(os.devnull, os.O_RDWR)
+	else:
+		os.open("/dev/null", os.O_RDWR)
+	
+	# Duplicate standard input to standard output and standard error.
+	os.dup2(0, 1)
+	os.dup2(0, 2)
+	sys.stdout = logger.getStdout()
+	sys.stderr = logger.getStderr()
+	
 class SupervisionService(Service):
 	
 	def __init__(self, config):
@@ -302,7 +302,7 @@ class SupervisionService(Service):
 		try:
 			#daemonize()
 			logger.debug2("Starting supervisor.")
-			self._supervisor.start()			
+			self._supervisor.start()
 		except Exception, e:
 			logger.critical(u"Error starting opsi supervision service: %s" %e)
 			self.exitCode = 1
@@ -339,7 +339,7 @@ def main(args = sys.argv):
 	service.setServiceParent(application)
 	
 	reactor.callLater(0, startApplication, application, False)
-        reactor.run()
-        
-        return service.exitCode
+	reactor.run()
+	
+	return service.exitCode
 	

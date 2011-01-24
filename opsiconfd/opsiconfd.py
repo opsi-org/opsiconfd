@@ -351,9 +351,10 @@ class OpsiconfdWorker(Worker):
 					self.service.authFailureCount[self.request.remoteAddr.host] = 0
 				self.service.authFailureCount[self.request.remoteAddr.host] += 1
 				if (self.service.authFailureCount[self.request.remoteAddr.host] > self.service.config['maxAuthenticationFailures']):
-					logger.error("%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding" \
+					logger.error(u"%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding" \
 							% (self.service.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host))
 					return self._delayResult(60, result)
+		return result
 	
 	def _getCredentials(self):
 		(user, password) = self._getAuthorization()
@@ -376,7 +377,7 @@ class OpsiconfdWorker(Worker):
 			logger.info(u"Found hardware address '%s' as username, searching host in backend" % mac)
 			hosts = self.service._backend.host_getObjects(hardwareAddress = mac)
 			if not hosts:
-				raise Exception(u"Host with hardware address '%s' found in backend" % mac)
+				raise Exception(u"Host with hardware address '%s' not found in backend" % mac)
 			user = hosts[0].id
 			logger.info(u"Hardware address '%s' found in backend, using '%s' as username" % (mac, user))
 		
@@ -628,17 +629,17 @@ class WorkerOpsiJsonRpc(OpsiconfdWorker):
 			result.stream = stream.IByteStream(toJson(response).encode('utf-8'))
 		return result
 	
-	#def _renderError(self, failure):
-	#	result = http.Response()
-	#	result.headers.setHeader('content-type', http_headers.MimeType("text", "html", {"charset": "utf-8"}))
-	#	error = u'Unknown error'
-	#	try:
-	#		failure.raiseException()
-	#	except Exception, e:
-	#		error = {'class': e.__class__.__name__, 'message': unicode(e)}
-	#		error = toJson({"id": None, "result": None, "error": error})
-	#	result.stream = stream.IByteStream(error.encode('utf-8'))
-	#	return result
+	def _renderError(self, failure):
+		result = http.Response()
+		result.headers.setHeader('content-type', http_headers.MimeType("text", "html", {"charset": "utf-8"}))
+		error = u'Unknown error'
+		try:
+			failure.raiseException()
+		except Exception, e:
+			error = {'class': e.__class__.__name__, 'message': unicode(e)}
+			error = toJson({"id": None, "result": None, "error": error})
+		result.stream = stream.IByteStream(error.encode('utf-8'))
+		return result
 	
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 # =                               CLASS WORKER OPSI JSON INTERFACE                                    =
@@ -887,11 +888,13 @@ class WorkerOpsiDAV(OpsiconfdWorker):
 	def process(self):
 		logger.debug("Worker %s started processing" % self)
 		deferred = defer.Deferred()
-		deferred.addCallback(self._getSession)
-		deferred.addCallback(self._authenticate)
+		if self.resource._authRequired:
+			deferred.addCallback(self._getSession)
+			deferred.addCallback(self._authenticate)
 		deferred.addCallback(self._setResponse)
-		deferred.addCallback(self._setCookie)
-		deferred.addCallback(self._freeSession)
+		if self.resource._authRequired:
+			deferred.addCallback(self._setCookie)
+			deferred.addCallback(self._freeSession)
 		deferred.addErrback(self._errback)
 		deferred.callback(None)
 		return deferred
@@ -938,7 +941,7 @@ class WorkerOpsiDAV(OpsiconfdWorker):
 	
 	def _setResponse(self, result):
 		logger.debug(u"Client requests DAV operation: %s" % self.request)
-		if not self.session.isAdmin and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
+		if (not self.resource._authRequired or not self.session.isAdmin) and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
 			logger.critical(u"Method '%s' not allowed (read only)" % self.request.method)
 			return http.Response(
 				code	= responsecode.FORBIDDEN,
@@ -1057,14 +1060,15 @@ class ResourceOpsiconfdStatistics(resource.Resource):
 # = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 class ResourceOpsiDAV(OPSI.web2.dav.static.DAVFile):
 	
-	def __init__(self, opsiconfd, path, readOnly=True, defaultType="text/plain", indexNames=None):
+	def __init__(self, opsiconfd, path, readOnly=True, defaultType="text/plain", indexNames=None, authRequired=True):
 		path = forceUnicode(path).encode('utf-8')
 		OPSI.web2.dav.static.DAVFile.__init__(self, path, defaultType, indexNames)
 		self._opsiconfd = opsiconfd
 		self._readOnly = readOnly
-	
+		self._authRequired = authRequired
+		
 	def createSimilarFile(self, path):
-		return self.__class__(self._opsiconfd, path, readOnly=self._readOnly, defaultType=self.defaultType, indexNames=self.indexNames[:])
+		return self.__class__(self._opsiconfd, path, readOnly=self._readOnly, defaultType=self.defaultType, indexNames=self.indexNames[:], authRequired = self._authRequired)
 	
 	def renderHTTP(self, request):
 		try:
@@ -1666,7 +1670,7 @@ class Opsiconfd(threading.Thread):
 				logger.error(u"Cannot add static content '/': directory '%s' does not exist." \
 					% self.config['staticDirectories']['/'])
 			else:
-				self._root = ResourceOpsiDAV(self, path = self.config['staticDirectories']['/'], readOnly = True)
+				self._root = ResourceOpsiDAV(self, path = self.config['staticDirectories']['/'], readOnly = True, authRequired = False)
 				logger.notice(u"Added static content '/' which points to directory '%s'" \
 					% self.config['staticDirectories']['/'])
 		
@@ -1725,7 +1729,10 @@ class Opsiconfd(threading.Thread):
 			if name in ('repository', 'depot'):
 				readOnly = False
 			
-			self._root.putChild(name, ResourceOpsiDAV(self, path, readOnly = readOnly))
+			authRequired = True
+			if name in ('configed', ):
+				authRequired = False
+			self._root.putChild(name, ResourceOpsiDAV(self, path, readOnly = readOnly, authRequired = authRequired))
 			logger.notice(u"Added webdav content '%s' which points to directory '%s'" % (name, path))
 		
 		self._site = server.Site(self._root)

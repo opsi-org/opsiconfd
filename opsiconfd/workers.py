@@ -50,21 +50,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 		WorkerOpsi.__init__(self, service, request, resource)
 		self._setLogFile(self)
 	
-	def process(self):
-		logger.info(u"Worker %s started processing" % self)
-		deferred = defer.Deferred()
-		deferred.addCallback(self._getSession)
-		deferred.addCallback(self._linkLogFile)
-		deferred.addCallback(self._authenticate)
-		deferred.addCallback(self._getQuery)
-		deferred.addCallback(self._decodeQuery)
-		deferred.addCallback(self._setResponse)
-		deferred.addCallback(self._setCookie)
-		deferred.addCallback(self._freeSession)
-		deferred.addErrback(self._errback)
-		deferred.callback(None)
-		return deferred
-	
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
 			logger.setLogFile( self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object = obj )
@@ -134,15 +119,15 @@ class WorkerOpsiconfd(WorkerOpsi):
 		if self.session.isHost and not self.session.hostname:
 			logger.info(u"Storing hostname '%s' in session" % self.session.user)
 			self.session.hostname = self.session.user
+		return self._linkLogFile(result)
 		
 	def _authenticate(self, result):
 		''' This function tries to authenticate a user.
 		    Raises an exception on authentication failure. '''
-		if self.session.authenticated:
-			return result
 		
+		if self.session.authenticated and self.session.isAdmin:
+			return result
 		try:
-			# Get authorization
 			(self.session.user, self.session.password) = self._getCredentials()
 			
 			logger.notice(u"Authorization request from %s@%s (application: %s)" % (self.session.user, self.session.ip, self.session.userAgent))
@@ -168,7 +153,18 @@ class WorkerOpsiconfd(WorkerOpsi):
 					raise Exception(u"Access denied for username '%s' from '%s'" %
 							(self.session.user, self.session.ip) )
 			
-			self._getBackend(result)
+			bac = BackendAccessControl(
+				backend  = self.service._backend,
+				username = self.session.user,
+				password = self.session.password
+			)
+			if not bac.accessControl_authenticated():
+				raise Exception(u"Bad user or password")
+			
+			self.session.isAdmin = bac.accessControl_userIsAdmin()
+			
+			if not self.session.isHost and not self.session.isAdmin:
+				raise Exception(u"Neither host nor admin user")
 			
 			self.session.authenticated = True
 			if self.service.authFailureCount.has_key(self.request.remoteAddr.host):
@@ -176,7 +172,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 		except Exception, e:
 			logger.logException(e, LOG_INFO)
 			self._freeSession(result)
-			self._getSessionHandler().deleteSession(self.session.uid)
+			self.service.getSessionHandler().deleteSession(self.session.uid)
 			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
 		return result
 	
@@ -258,24 +254,6 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc):
 	def __init__(self, service, request, resource):
 		WorkerOpsiconfd.__init__(self, service, request, resource)
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
-		
-	def process(self):
-		logger.info("Worker %s started processing" % self)
-		deferred = defer.Deferred()
-		deferred.addCallback(self._getSession)
-		deferred.addCallback(self._linkLogFile)
-		deferred.addCallback(self._authenticate)
-		deferred.addCallback(self._getCallInstance)
-		deferred.addCallback(self._getQuery)
-		deferred.addCallback(self._decodeQuery)
-		deferred.addCallback(self._getRpcs)
-		deferred.addCallback(self._executeRpcs)
-		deferred.addCallback(self._setResponse)
-		deferred.addCallback(self._setCookie)
-		deferred.addCallback(self._freeSession)
-		deferred.addErrback(self._errback)
-		deferred.callback(None)
-		return deferred
 	
 	def _getCallInstance(self, result):
 		self._getBackend(result)
@@ -307,6 +285,9 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc):
 		result.addCallback(self._addRpcToStatistics, rpc)
 		return result
 	
+	def _processQuery(self, result):
+		return WorkerOpsiJsonRpc._processQuery(self, result)
+		
 	def _generateResponse(self, result):
 		return WorkerOpsiJsonRpc._generateResponse(self, result)
 	
@@ -353,7 +334,7 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 			selectPath += '<option%s>%s</option>' % (selected, path)
 		
 		selectMethod = u''
-		for method in self.session.callInterface:
+		for method in self._callInterface:
 			javascript += u"parameters['%s'] = new Array();\n" % (method['name'])
 			for param in range(len(method['params'])):
 				javascript += u"parameters['%s'][%s]='%s';\n" % (method['name'], param, method['params'][param])
@@ -364,16 +345,18 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		
 		resultDiv = u'<div id="result">'
 		for rpc in self._rpcs:
-			resultDiv += '<div class="json">'
+			resultDiv += u'<div class="json">'
 			resultDiv += objectToHtml(serialize(rpc.getResponse()))
 			resultDiv += u'</div>'
 		resultDiv += u'</div>'
 		
-		html = interfacePage
-		html = html.replace(u'%javascript%', javascript)
-		html = html.replace(u'%select_path%', selectPath)
-		html = html.replace(u'%select_method%', selectMethod)
-		html = html.replace(u'%result%', resultDiv)
+		html = interfacePage % {
+			'title':         u'opsiconfd interface page',
+			'javascript':    javascript,
+			'select_path':   selectPath,
+			'select_method': selectMethod,
+			'result':        resultDiv
+		}
 		
 		if not isinstance(result, http.Response):
 			result = http.Response()
@@ -382,50 +365,9 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		
 		return result
 	
-
 class WorkerOpsiconfdDAV(WorkerOpsiDAV):
 	def __init__(self, service, request, resource):
 		WorkerOpsiDAV.__init__(self, service, request, resource)
-	
-	def _authenticate(self, result):
-		''' This function tries to authenticate a user.
-		    Raises an exception on authentication failure. '''
-		
-		if self.session.authenticated:
-			return result
-		try:
-			(self.session.user, self.session.password) = self._getCredentials()
-			
-			logger.notice(u"Authorization request from %s@%s (application: %s)" % (self.session.user, self.session.ip, self.session.userAgent))
-			
-			if not self.session.user:
-				raise Exception(u"No username from %s (application: %s)" % (self.session.ip, self.session.userAgent))
-				
-			if not self.session.password:
-				raise Exception(u"No password from %s (application: %s)" % (self.session.ip, self.session.userAgent))
-			
-			bac = BackendAccessControl(
-				backend  = self.service._backend,
-				username = self.session.user,
-				password = self.session.password
-			)
-			if not bac.accessControl_authenticated():
-				raise Exception(u"Bad user or password")
-			
-			self.session.isAdmin = bac.accessControl_userIsAdmin()
-			
-			if not self.session.isHost and not self.session.isAdmin:
-				raise Exception(u"Neither host nor admin user")
-			
-			self.session.authenticated = True
-			if self.service.authFailureCount.has_key(self.request.remoteAddr.host):
-				del self.service.authFailureCount[self.request.remoteAddr.host]
-		except Exception, e:
-			logger.logException(e, LOG_INFO)
-			self._freeSession(result)
-			self.service.getSessionHandler().deleteSession(self.session.uid)
-			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
-		return result
 	
 
 

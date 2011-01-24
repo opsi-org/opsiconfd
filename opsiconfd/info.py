@@ -86,9 +86,12 @@ infoPage = u'''
 class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 	def __init__(self, service, request, resource):
 		WorkerOpsiconfd.__init__(self, service, request, resource)
-
+	
 	def _generateResponse(self, result):
 		logger.info(u"Creating opsiconfd info page")
+		
+		if not self.session.isAdmin:
+			raise OpsiAuthenticationError(u"Permission denied")
 		
 		graphs = u''
 		if self.service.statistics().rrdsAvailable():

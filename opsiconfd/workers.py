@@ -56,7 +56,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 		self.authRealm = 'OPSI Configuration Service'
 		self.multiProcessing = multiProcessing
-		
+	
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
 			logger.setLogFile( self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object = obj )
@@ -118,6 +118,15 @@ class WorkerOpsiconfd(WorkerOpsi):
 					hosts[0].oneTimePassword = None
 					self.service._backend.host_createObjects(hosts[0])
 		return (user, password)
+	
+	def _getSessionId(self):
+		sessionId = WorkerOpsi._getSessionId(self)
+		if not sessionId:
+			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
+			(user, password) = self._getAuthorization()
+			if not password:
+				raise OpsiAuthenticationError(u"Application '%s' on client '%s' did neither supply session id nor password" % (userAgent, self.request.remoteAddr.host))
+		return sessionId
 	
 	def _getSession(self, result):
 		WorkerOpsi._getSession(self, result)
@@ -284,7 +293,6 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing = True)
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
 		MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
-		
 	
 	def _getCallInstance(self, result):
 		d = defer.maybeDeferred(self._getBackend,result)
@@ -297,6 +305,9 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		
 		return d
 	
+	def _getSessionId(self):
+		return WorkerOpsiconfd._getSessionId(self)
+		
 	def _getRpcs(self, result):
 		if not self.query:
 			return result
@@ -352,9 +363,10 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		WorkerOpsiJsonInterface.__init__(self, service, request, resource)
 		WorkerOpsiconfdJsonRpc.__init__(self, service, request, resource)
 		self.multiProcessing = False
-		
-		
-		
+	
+	def _getSessionId(self):
+		return WorkerOpsiconfd._getSessionId(self)
+	
 	def _generateResponse(self, result):
 		logger.info(u"Creating opsiconfd interface page")
 		javascript  = u"var currentParams = new Array();\n"
@@ -428,7 +440,7 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 class WorkerOpsiconfdDAV(WorkerOpsiDAV):
 	def __init__(self, service, request, resource):
 		WorkerOpsiDAV.__init__(self, service, request, resource)
-
+	
 	def _setResponse(self, result):
 		logger.debug(u"Client requests DAV operation: %s" % self.request)
 
@@ -439,3 +451,6 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV):
 				stream	= "Readonly!" )
 		
 		return self.resource.renderHTTP_super(self.request, self)
+
+
+

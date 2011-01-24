@@ -44,7 +44,7 @@ from OPSI.Types import *
 from OPSI.Util import timestamp, objectToHtml, toJson, fromJson
 from OPSI.Object import serialize, deserialize
 from OPSI.Backend.Process import OpsiBackendProcess
-from OPSI.Backend.BackendManager import BackendManager, BackendAccessControl, getBackend
+from OPSI.Backend.BackendManager import BackendManager, BackendAccessControl, backendManagerFactory
 from OPSI.Logger import *
 
 logger = Logger()
@@ -184,9 +184,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 		return result
 	
 	def _getBackend(self, result):
-		
-	
-		
 		if self.session.callInstance and self.session.callInterface:
 			if (len(self.session.postpath) == len(self.request.postpath)):
 				postpathMatch = True
@@ -198,20 +195,18 @@ class WorkerOpsiconfd(WorkerOpsi):
 			self.session.interface = None
 			self.session.callInstance.backend_exit()
 		
-		
-		
 		def _createBackend():
-
 			self.session.postpath = self.request.postpath
-			self.session.callInstance = getBackend(	user=self.session.user,
-								password=self.session.password,
-								dispatchConfigFile=self.service.config['dispatchConfigFile'],
-								backendConfigDir=self.service.config['backendConfigDir'],
-								extensionConfigDir=self.service.config['extensionConfigDir'],
-								aclFile=self.service.config['aclFile'],
-								depotId=self.service.config['depotId'],
-								postpath=self.request.postpath,
-								context=self.service._backend)
+			self.session.callInstance = backendManagerFactory(
+					user=self.session.user,
+					password=self.session.password,
+					dispatchConfigFile=self.service.config['dispatchConfigFile'],
+					backendConfigDir=self.service.config['backendConfigDir'],
+					extensionConfigDir=self.service.config['extensionConfigDir'],
+					aclFile=self.service.config['aclFile'],
+					depotId=self.service.config['depotId'],
+					postpath=self.request.postpath,
+					context=self.service._backend)
 
 		def _spawnProcess():
 			
@@ -229,14 +224,14 @@ class WorkerOpsiconfd(WorkerOpsi):
 										aclFile = self.service.config['aclFile'],
 										depotId = self.service.config['depotId'],
 										postpath = self.request.postpath))
-
+		
 			return d
-
+		
 		if self.multiProcessing:
 			d = _spawnProcess()
 		else:
 			d = defer.maybeDeferred(_createBackend)
-
+		
 		def finish(ignored):
 			
 			self.session.callInterface = None
@@ -332,6 +327,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 			return MultiprocessWorkerOpsiJsonRpc._processQuery(self, result)
 		else:
 			return WorkerOpsiJsonRpc._processQuery(self, result)
+	
 	def _generateResponse(self, result):
 		return WorkerOpsiJsonRpc._generateResponse(self, result)
 	
@@ -399,6 +395,7 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		resultDiv += u'</div>'
 		
 		html = interfacePage % {
+			'path':          currentPath,
 			'title':         u'opsiconfd interface page',
 			'javascript':    javascript,
 			'select_path':   selectPath,

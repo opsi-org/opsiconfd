@@ -57,7 +57,8 @@ class Opsiconfd(OpsiDaemon):
 	
 class Supervisor(object):
 
-	def __init__(self, daemons=[Opsiconfd]):
+	def __init__(self, config, daemons=[Opsiconfd]):
+		self._config = config
 		self.daemons = []
 		self.enabledDaemons = daemons
 		
@@ -68,7 +69,7 @@ class Supervisor(object):
 		for daemon in self.enabledDaemons:
 			try:
 				logger.notice("Starting daemon %s" % daemon.script)
-				d = daemon()
+				d = daemon(args=["-l", self._config["logLevel"]])
 				d.start()
 				self.daemons.append(d)
 
@@ -152,10 +153,14 @@ def daemonize():
 class SupervisionService(Service):
 	
 	def __init__(self, config):
-		
-		self._supervisor = Supervisor()
 		self.config = config
+		
+		logger.setConsoleLevel(config['logLevel'])
+		logger.setFileLevel(config['logLevel'])
+		
+		self._supervisor = Supervisor(config=config)
 		self.exitCode = 0
+		
 		
 	def startService(self):
 		Service.startService(self)
@@ -192,14 +197,15 @@ class SupervisionService(Service):
 				os.unlink(pid_file)
 				
 def main(args = sys.argv):
-	logger.setConsoleLevel(LOG_DEBUG2)
+	logger.setConsoleLevel(LOG_WARNING)
 	logger.setConsoleColor(True)
 
 	opt = OptionParser()
 	opt.add_option("-D", "--daemonize", dest="daemonize", action="store_true", 
 			default=False, help="Causes the server to operate as a daemon")
 	opt.add_option("--pid-file", dest="pid_file", metavar="FILE")
-
+	opt.add_option("-l", "--log-level", help="Set log level (default: 4)", 
+			type="int", default=4, action="store", dest="logLevel")
 	config = vars(opt.parse_args(args)[0])
 
 	application = Application("opsi-supervisor")

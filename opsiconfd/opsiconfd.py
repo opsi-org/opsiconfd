@@ -67,6 +67,7 @@ from OPSI.Util.amp import OpsiProcessProtocolFactory
 from OPSI.Types import *
 
 from OPSI.System import which, execute
+from OPSI.System.Posix import daemonize
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Service import SSLContext, OpsiService
 
@@ -237,8 +238,8 @@ class Opsiconfd(threading.Thread, OpsiService):
 		
 		if self.config['logFormat']:
 			logger.setLogFormat(self.config['logFormat'])
-		#logger.setFileLevel(self.config['logLevel'])
-		logger.setFileLevel(0)
+		logger.setFileLevel(self.config['logLevel'])
+		
 
 	def _setTwistedLogging(self):
 		def twistedLogObserver(eventDict):
@@ -480,6 +481,7 @@ class OpsiconfdInit(object):
 		
 		if self.config['daemon']:
 			logger.setConsoleLevel(LOG_NONE)
+			daemonize()
 		else:
 			logger.setConsoleLevel(self.config['logLevel'])
 			logger.setConsoleColor(True)

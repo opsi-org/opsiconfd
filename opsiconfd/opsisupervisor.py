@@ -45,6 +45,7 @@ from twisted.internet.task import LoopingCall
 from OPSI.Logger import *
 from OPSI.Util.amp import OpsiProcessProtocolFactory, OpsiProcessConnector
 from OPSI.Util.File import IniFile
+from OPSI.System.Posix import daemonize
 logger = Logger()
 
 from OPSI.Service.Process import OpsiDaemon
@@ -107,48 +108,6 @@ class Supervisor(object):
 			l.append(daemon.stop())
 		return DeferredList(l)
 
-
-def daemonize():
-	# Fork to allow the shell to return and to call setsid
-	try:
-		pid = os.fork()
-		if (pid > 0):
-			# Parent exits
-			sys.exit(0)
-	except OSError, e:
-		raise Exception(u"First fork failed: %e" % e)
-	
-	# Do not hinder umounts
-	os.chdir("/")
-	# Create a new session
-	os.setsid()
-	
-	# Fork a second time to not remain session leader
-	try:
-		pid = os.fork()
-		if (pid > 0):
-			sys.exit(0)
-	except OSError, e:
-		raise Exception(u"Second fork failed: %e" % e)
-	
-	logger.setConsoleLevel(LOG_NONE)
-	
-	# Close standard output and standard error.
-	os.close(0)
-	os.close(1)
-	os.close(2)
-	
-	# Open standard input (0)
-	if (hasattr(os, "devnull")):
-		os.open(os.devnull, os.O_RDWR)
-	else:
-		os.open("/dev/null", os.O_RDWR)
-	
-	# Duplicate standard input to standard output and standard error.
-	os.dup2(0, 1)
-	os.dup2(0, 2)
-	sys.stdout = logger.getStdout()
-	sys.stderr = logger.getStderr()
 	
 class SupervisionService(Service):
 	

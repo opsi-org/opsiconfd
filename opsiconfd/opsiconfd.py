@@ -417,6 +417,10 @@ class Opsiconfd(threading.Thread, OpsiService):
 		
 		if not os.path.exists(os.path.dirname(socket)):
 			os.makedirs(os.path.dirname(socket))
+		elif os.path.exists(socket):
+			# If the daemon dies without closing the socket properly
+			# this is necessary to clean up the remains.
+			os.unlink(socket)
 		
 		logger.notice("Opening socket %s for interprocess communication." % socket)
 		self._socket = reactor.listenUNIX(socket, OpsiProcessProtocolFactory(self))

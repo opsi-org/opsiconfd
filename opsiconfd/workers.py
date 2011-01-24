@@ -53,13 +53,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 	def __init__(self, service, request, resource, multiProcessing = False):
 		WorkerOpsi.__init__(self, service, request, resource)
 		self._setLogFile(self)
-<<<<<<< HEAD
-		self.authRealm = 'OPSI Configuration Service'
-=======
 
 		self.authRealm = 'OPSI Configuration Service'
 		self.multiProcessing = multiProcessing
->>>>>>> -
 		
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
@@ -420,31 +416,6 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 class WorkerOpsiconfdDAV(WorkerOpsiDAV):
 	def __init__(self, service, request, resource):
 		WorkerOpsiDAV.__init__(self, service, request, resource)
-<<<<<<< HEAD
-	
-	def _setResponse(self, result):
-		logger.debug(u"Client requests DAV operation: %s" % self.request)
-		if (not self.resource._authRequired or not self.session.isAdmin) and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
-			logger.critical(u"Method '%s' not allowed (read only)" % self.request.method)
-			return http.Response(
-				code	= responsecode.FORBIDDEN,
-				stream	= "Readonly!" )
-		
-		return self.resource.renderHTTP_super(self.request, self)
-	
-
-
-
-
-
-
-
-
-
-
-
-=======
->>>>>>> -
 
 	def _setResponse(self, result):
 		logger.debug(u"Client requests DAV operation: %s" % self.request)

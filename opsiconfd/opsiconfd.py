@@ -163,7 +163,7 @@ class Opsiconfd(threading.Thread, OpsiService):
 	def statistics(self):
 		return self._statistics
 		
-	def getSessionHandler(self):
+	def _getSessionHandler(self):
 		return self._sessionHandler
 	
 	def stop(self):

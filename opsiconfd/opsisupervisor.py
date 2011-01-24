@@ -53,8 +53,8 @@ class Opsiconfd(OpsiDaemon):
 	script = 'opsiconfd'
 	user = 'opsiconfd'
 	socket = '/var/run/opsiconfd/opsiconfd.socket'
-	
-	
+
+
 class Supervisor(object):
 
 	def __init__(self, config, daemons=[Opsiconfd]):

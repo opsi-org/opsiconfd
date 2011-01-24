@@ -1,8 +1,9 @@
-opsiconfd (4.0.0.4-1) stable; urgency=low
+opsiconfd (4.0.1-1) stable; urgency=low
 
   * new default for max authentication failures is 5
+  * add multiprocessing feature
 
- -- Jan Schneider <j.schneider@uib.de>  Thu, 02 Dec 2010 18:32:02 +0100
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 24 Jan 2011 10:43:44 +0100
 
 opsiconfd (4.0.0.3-1) stable; urgency=low
 

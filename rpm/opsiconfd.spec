@@ -8,7 +8,7 @@
 
 Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl dbus-1-python python-opsi >= 3.99 procps
-Requires:       python-opsi >= 4.0 openssl python-twisted dbus-1-python psmisc procps
+Requires:       python-opsi >= 4.0.1 openssl python-twisted dbus-1-python psmisc procps
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi

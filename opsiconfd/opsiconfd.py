@@ -65,9 +65,11 @@ from OPSI.web2.channel.http import HTTPFactory
 from OPSI.Util.File import IniFile
 from OPSI.Util.amp import OpsiProcessProtocolFactory
 from OPSI.Types import *
+
 from OPSI.System import which, execute
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Service import SSLContext, OpsiService
+
 
 from workers import WorkerOpsiconfd
 from resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV
@@ -409,10 +411,14 @@ class Opsiconfd(threading.Thread, OpsiService):
 			logger.error(u"Failed to publish opsiconfd over zeroconf: %s" % e)
 	
 	def _startListeningSocket(self):
-		pid = os.getpid()
-		socket = os.path.join(self.config["socketDir"], "opsiconfd.%s.socket"% pid)
+		socket = self.config["socket"]
+		
+		if not os.path.exists(os.path.dirname(socket)):
+			os.makedirs(os.path.dirname(socket))
+		
 		logger.notice("Opening socket %s for interprocess communication." % socket)
 		self._socket = reactor.listenUNIX(socket, OpsiProcessProtocolFactory(self))
+
 	
 	def run(self):
 		self._running = True
@@ -521,7 +527,7 @@ class OpsiconfdInit(object):
 			'dispatchConfigFile'           : u'/etc/opsi/backendManager/dispatch.conf',
 			'extensionConfigDir'           : u'/etc/opsi/backendManager/extend.d',
 			'aclFile'                      : u'/etc/opsi/backendManager/acl.conf',
-			'socketDir'                    : u'/var/run/opsiconfd/'
+			'socket'                       : u'/var/run/opsiconfd/opsiconfd.socket'
 		}
 	
 	def setCommandlineConfig(self):
@@ -619,8 +625,8 @@ class OpsiconfdInit(object):
 							self.config['backendConfigDir'] = forceFilename(value)
 						elif (option == 'dispatch config file'):
 							self.config['dispatchConfigFile'] = forceFilename(value)
-						elif (option == 'socket dir'):
-							self.config['socketDir'] = forceFilename(value)
+						elif (option == 'socket'):
+							self.config['socket'] = forceFilename(value)
 						elif (option == 'extension config dir'):
 							self.config['extensionConfigDir'] = forceFilename(value)
 						elif (option == 'acl file'):
@@ -696,7 +702,7 @@ class OpsiconfdInit(object):
 		print u"  -i    IP address of interface to listen on (default: 0.0.0.0)"
 		print u"  -f    Log to given file instead of syslog"
 		print u"  -c    Location of config file"
-		print u"  -s    Location of socket dir"
+		print u"  -s    Location of socket (default: /var/run/opsiconfd/opsiconfd.socket"
 		print u"  -l    Set log level (default: 4)"
 		print u"        0=nothing, 1=essential, 2=critical, 3=error, 4=warning"
 		print u"        5=notice, 6=info, 7=debug, 8=debug2, 9=confidential"

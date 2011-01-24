@@ -32,24 +32,34 @@
    @license: GNU General Public License version 2
 """
 
+
+import random, time, os
+
 from twisted.internet import defer, threads
 
 from OPSI.web2 import responsecode, http, stream
 
-from OPSI.Service.Worker import WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV, interfacePage
+from OPSI.Service.Worker import WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV, interfacePage, MultiprocessWorkerOpsiJsonRpc
 from OPSI.Types import *
 from OPSI.Util import timestamp, objectToHtml, toJson, fromJson
 from OPSI.Object import serialize, deserialize
-from OPSI.Backend.BackendManager import BackendManager, BackendAccessControl
+from OPSI.Backend.Process import OpsiBackendProcess
+from OPSI.Backend.BackendManager import BackendManager, BackendAccessControl, getBackend
 from OPSI.Logger import *
 
 logger = Logger()
 
 class WorkerOpsiconfd(WorkerOpsi):
-	def __init__(self, service, request, resource):
+	def __init__(self, service, request, resource, multiProcessing = False):
 		WorkerOpsi.__init__(self, service, request, resource)
 		self._setLogFile(self)
+<<<<<<< HEAD
 		self.authRealm = 'OPSI Configuration Service'
+=======
+
+		self.authRealm = 'OPSI Configuration Service'
+		self.multiProcessing = multiProcessing
+>>>>>>> -
 		
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
@@ -178,6 +188,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 		return result
 	
 	def _getBackend(self, result):
+		
+	
+		
 		if self.session.callInstance and self.session.callInterface:
 			if (len(self.session.postpath) == len(self.request.postpath)):
 				postpathMatch = True
@@ -189,77 +202,109 @@ class WorkerOpsiconfd(WorkerOpsi):
 			self.session.interface = None
 			self.session.callInstance.backend_exit()
 		
-		self.session.postpath = self.request.postpath
-		if   (len(self.request.postpath) == 2) and (self.request.postpath[0] == 'backend'):
-			self.session.callInstance = BackendManager(
-				backend              = self.request.postpath[1],
-				accessControlContext = self.service._backend,
-				backendConfigDir     = self.service.config['backendConfigDir'],
-				aclFile              = self.service.config['aclFile'],
-				username             = self.session.user,
-				password             = self.session.password
-			)
-		elif (len(self.request.postpath) == 2) and (self.request.postpath[0] == 'extend'):
-			extendPath = self.request.postpath[1]
-			if not re.search('^[a-zA-Z0-9\_\-]+$', extendPath):
-				raise ValueError(u"Extension config path '%s' refused" % extendPath)
-			self.session.callInstance = BackendManager(
-				dispatchConfigFile   = self.service.config['dispatchConfigFile'],
-				backendConfigDir     = self.service.config['backendConfigDir'],
-				extensionConfigDir   = os.path.join(self.service.config['extensionConfigDir'], extendPath),
-				aclFile              = self.service.config['aclFile'],
-				accessControlContext = self.service._backend,
-				depotBackend         = bool(self.service.config['depotId']),
-				hostControlBackend   = True,
-				username             = self.session.user,
-				password             = self.session.password
-			)
+		
+		
+		def _createBackend():
+
+			self.session.postpath = self.request.postpath
+			self.session.callInstance = getBackend(	user=self.session.user,
+								password=self.session.password,
+								dispatchConfigFile=self.service.config['dispatchConfigFile'],
+								backendConfigDir=self.service.config['backendConfigDir'],
+								extensionConfigDir=self.service.config['extensionConfigDir'],
+								aclFile=self.service.config['aclFile'],
+								depotId=self.service.config['depotId'],
+								postpath=self.request.postpath,
+								context=self.service._backend)
+
+		def _spawnProcess():
+			
+			socket = "/var/run/opsiconfd/worker-%s.socket" % self.session.uid
+			process = OpsiBackendProcess(socket = socket, logFile = self.service.config['logFile'].replace('%m', self.request.remoteAddr.host))
+			process.start()
+			time.sleep(1)	# wait for process to start
+			self.session.callInstance = process
+
+			d = process.callRemote("setLogging", console=logger.getConsoleLevel(), file=logger.getFileLevel())
+			d.addCallback(lambda x: process.callRemote("initialize",user=self.session.user, password=self.session.password,
+										dispatchConfigFile = self.service.config['dispatchConfigFile'],
+										backendConfigDir = self.service.config['backendConfigDir'],
+										extensionConfigDir = self.service.config['extensionConfigDir'],
+										aclFile = self.service.config['aclFile'],
+										depotId = self.service.config['depotId'],
+										postpath = self.request.postpath))
+
+			return d
+
+		if self.multiProcessing:
+			d = _spawnProcess()
 		else:
-			self.session.callInstance = BackendManager(
-				dispatchConfigFile   = self.service.config['dispatchConfigFile'],
-				backendConfigDir     = self.service.config['backendConfigDir'],
-				extensionConfigDir   = self.service.config['extensionConfigDir'],
-				aclFile              = self.service.config['aclFile'],
-				accessControlContext = self.service._backend,
-				depotBackend         = bool(self.service.config['depotId']),
-				hostControlBackend   = True,
-				username             = self.session.user,
-				password             = self.session.password
-			)
-		logger.notice(u'Backend created: %s' % self.session.callInstance)
+			d = defer.maybeDeferred(_createBackend)
+
+		def finish(ignored):
+			
+			self.session.callInterface = None
+			self.session.isAdmin = False
+			
+			def setInterface(interface):
+				self.session.callInterface = interface
+	
+			def setCredentials(isAdmin):
+				self.session.isAdmin = isAdmin
+			
+			l = []
+			l.append(defer.maybeDeferred(self.session.callInstance.backend_getInterface).addCallback(setInterface))
+			l.append(defer.maybeDeferred(self.session.callInstance.accessControl_userIsAdmin).addCallback(setCredentials))
+			
+			
+			dl = defer.DeferredList(l)
+			
+			def f(ingnored):
+				if self.session.isHost:
+					hosts = self.service._backend.host_getObjects(['ipAddress', 'lastSeen'], id = self.session.user)
+					if not hosts:
+						raise Exception(u"Host '%s' not found in backend" % self.session.user)
+					host = hosts[0]
+					if (host.getType() == 'OpsiClient'):
+						host.setLastSeen(timestamp())
+						if self.service.config['updateIpAddress'] and (host.ipAddress != self.session.ip) and (self.session.ip != '127.0.0.1'):
+							host.setIpAddress(self.session.ip)
+						else:
+							# Value None on update means no change!
+							host.ipAddress = None
+						self.service._backend.host_updateObjects(host)
+				
+			dl.addCallback(f)
+			return dl
+		d.addCallback(finish)
+		r = defer.Deferred()
+		d.chainDeferred(r)
+		return r
 		
-		self.session.callInterface = self.session.callInstance.backend_getInterface()
-		self.session.isAdmin = self.session.callInstance.accessControl_userIsAdmin()
-		
-		if self.session.isHost:
-			hosts = self.service._backend.host_getObjects(['ipAddress', 'lastSeen'], id = self.session.user)
-			if not hosts:
-				raise Exception(u"Host '%s' not found in backend" % self.session.user)
-			host = hosts[0]
-			if (host.getType() == 'OpsiClient'):
-				host.setLastSeen(timestamp())
-				if self.service.config['updateIpAddress'] and (host.ipAddress != self.session.ip) and (self.session.ip != '127.0.0.1'):
-					host.setIpAddress(self.session.ip)
-				else:
-					# Value None on update means no change!
-					host.ipAddress = None
-				self.service._backend.host_updateObjects(host)
-		return result
 	
 	def _setResponse(self, result):
 		deferred = threads.deferToThread(self._generateResponse, result)
 		return deferred
 
 
-class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc):
+class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWorkerOpsiJsonRpc):
 	def __init__(self, service, request, resource):
-		WorkerOpsiconfd.__init__(self, service, request, resource)
+		
+		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing = True)
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
+		MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
+		
 	
 	def _getCallInstance(self, result):
-		self._getBackend(result)
-		self._callInstance = self.session.callInstance
-		self._callInterface = self.session.callInterface
+		d = defer.maybeDeferred(self._getBackend,result)
+		
+		def setInterface():
+			self._callInstance = self.session.callInstance
+			self._callInterface = self.session.callInterface
+		
+		d.addCallback(lambda x: setInterface())
+		
+		return d
 	
 	def _getRpcs(self, result):
 		if not self.query:
@@ -287,19 +332,24 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc):
 		return result
 	
 	def _processQuery(self, result):
-		return WorkerOpsiJsonRpc._processQuery(self, result)
-		
+		if self.multiProcessing:
+			return MultiprocessWorkerOpsiJsonRpc._processQuery(self, result)
+		else:
+			return WorkerOpsiJsonRpc._processQuery(self, result)
 	def _generateResponse(self, result):
 		return WorkerOpsiJsonRpc._generateResponse(self, result)
 	
 class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterface):
 	def __init__(self, service, request, resource):
-		WorkerOpsiconfdJsonRpc.__init__(self, service, request, resource)
+		
 		WorkerOpsiJsonInterface.__init__(self, service, request, resource)
-	
+		WorkerOpsiconfdJsonRpc.__init__(self, service, request, resource)
+		self.multiProcessing = False
+		
+		
+		
 	def _generateResponse(self, result):
 		logger.info(u"Creating opsiconfd interface page")
-		
 		javascript  = u"var currentParams = new Array();\n"
 		javascript += u"var currentMethod = null;\n"
 		currentMethod = u''
@@ -335,6 +385,7 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 			selectPath += '<option%s>%s</option>' % (selected, path)
 		
 		selectMethod = u''
+		
 		for method in self._callInterface:
 			javascript += u"parameters['%s'] = new Array();\n" % (method['name'])
 			for param in range(len(method['params'])):
@@ -369,6 +420,7 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 class WorkerOpsiconfdDAV(WorkerOpsiDAV):
 	def __init__(self, service, request, resource):
 		WorkerOpsiDAV.__init__(self, service, request, resource)
+<<<<<<< HEAD
 	
 	def _setResponse(self, result):
 		logger.debug(u"Client requests DAV operation: %s" % self.request)
@@ -391,5 +443,16 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV):
 
 
 
+=======
+>>>>>>> -
 
+	def _setResponse(self, result):
+		logger.debug(u"Client requests DAV operation: %s" % self.request)
 
+		if (not self.resource._authRequired or not self.session.isAdmin) and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
+			logger.critical(u"Method '%s' not allowed (read only)" % self.request.method)
+			return http.Response(
+				code	= responsecode.FORBIDDEN,
+				stream	= "Readonly!" )
+		
+		return self.resource.renderHTTP_super(self.request, self)

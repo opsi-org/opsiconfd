@@ -305,7 +305,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		result = WorkerOpsiJsonRpc._getRpcs(self, result)
 		self.session.setLastRpcSuccessfullyDecoded(True)
 		return result
-	
+		
 	def _addRpcToStatistics(self, result, rpc):
 		self.service.statistics().addRpc(rpc)
 		return result
@@ -320,6 +320,21 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 			return result
 		result = WorkerOpsiJsonRpc._executeRpc(self, result, rpc)
 		result.addCallback(self._addRpcToStatistics, rpc)
+		return result
+	
+	def _decodeQuery(self, result):
+		try:
+			if (self.request.method == 'POST'):
+				contentType = self.request.headers.getHeader('content-type')
+				logger.debug(u"Content-Type: %s" % contentType)
+				if contentType and contentType.mediaType.startswith('gzip'):
+					logger.debug(u"Expecting compressed data from client")
+					self.query = zlib.decompress(self.query)
+			self.query = unicode(self.query, 'utf-8')
+		except (UnicodeError, UnicodeEncodeError), e:
+			self.service.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(e))
+			self.query = unicode(self.query, 'utf-8', 'replace')
+		logger.debug2(u"query: %s" % self.query)
 		return result
 	
 	def _processQuery(self, result):

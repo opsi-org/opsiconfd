@@ -310,7 +310,7 @@ class Opsiconfd(threading.Thread, OpsiService):
 			if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
 				raise Exception(u"Cannot add webdav content 'repository': permissions on directory '%s' not sufficient." % path)
 			
-			self.config['staticDirectories']['repository'] = path
+			self.config['staticDirectories']['repository'] = {"path": path, "options": []}
 			
 			logger.notice(u"Running on depot server '%s', exporting depot directory" % self.config['depotId'])
 			if not depot.getDepotLocalUrl():
@@ -323,7 +323,7 @@ class Opsiconfd(threading.Thread, OpsiService):
 			if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
 				raise Exception(u"Cannot add webdav content 'depot': permissions on directory '%s' not sufficient." % path)
 			
-			self.config['staticDirectories']['depot'] = path
+			self.config['staticDirectories']['depot'] = {"path": path, "options": []}
 		
 		for (name, pathAndOptions) in self.config['staticDirectories'].items():
 			path = pathAndOptions['path']

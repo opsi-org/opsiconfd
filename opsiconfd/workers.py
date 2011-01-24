@@ -307,6 +307,9 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc):
 		result.addCallback(self._addRpcToStatistics, rpc)
 		return result
 	
+	def _generateResponse(self, result):
+		return WorkerOpsiJsonRpc._generateResponse(self, result)
+	
 class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterface):
 	def __init__(self, service, request, resource):
 		WorkerOpsiconfdJsonRpc.__init__(self, service, request, resource)

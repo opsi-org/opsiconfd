@@ -237,12 +237,14 @@ class Opsiconfd(threading.Thread, OpsiService):
 		
 		if self.config['logFormat']:
 			logger.setLogFormat(self.config['logFormat'])
-		logger.setFileLevel(self.config['logLevel'])
-		
+		#logger.setFileLevel(self.config['logLevel'])
+		logger.setFileLevel(0)
+
 	def _setTwistedLogging(self):
 		def twistedLogObserver(eventDict):
 			if eventDict.get('isError'):
 				if eventDict.get('failure'):
+					logger.essential(eventDict['failure'])
 					logger.logTraceback(eventDict['failure'].getTracebackObject())
 					logger.critical(u"     ==>>> %s" % eventDict['failure'].getErrorMessage())
 				for line in eventDict.get('message', ()):

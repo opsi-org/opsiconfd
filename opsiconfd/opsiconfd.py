@@ -245,7 +245,6 @@ class Opsiconfd(threading.Thread, OpsiService):
 		def twistedLogObserver(eventDict):
 			if eventDict.get('isError'):
 				if eventDict.get('failure'):
-					logger.essential(eventDict['failure'])
 					logger.logTraceback(eventDict['failure'].getTracebackObject())
 					logger.critical(u"     ==>>> %s" % eventDict['failure'].getErrorMessage())
 				for line in eventDict.get('message', ()):

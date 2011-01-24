@@ -33,7 +33,7 @@
 """
 
 
-import random, time, os, base64
+import random, time, os, base64, socket
 from hashlib import md5
 
 from twisted.internet import defer, threads
@@ -296,7 +296,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 				
 			dl.addCallback(f)
 			return dl
-		d.addCallback(finish)
+		d.addBoth(finish)
 		r = defer.Deferred()
 		d.chainDeferred(r)
 		return r
@@ -320,8 +320,8 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		def setInterface():
 			self._callInstance = self.session.callInstance
 			self._callInterface = self.session.callInterface
-		
-		d.addCallback(lambda x: setInterface())
+
+		d.addBoth(lambda x: setInterface())
 		
 		return d
 	

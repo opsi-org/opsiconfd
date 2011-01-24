@@ -151,7 +151,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			threadInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (thread.__class__.__name__, threadName, threadIdent, thread.isAlive())
 		threadInfo += u'</table>'
 		
-		sessions = self.service.getSessionHandler().getSessions()
+		sessions = self.service._getSessionHandler().getSessions()
 		sessionInfo  = u'<h1>Active sessions (%d)</h1>' % len(sessions.keys())
 		sessionInfo += u'<table>'
 		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>validity</th><th>marked for deletion</th><th>ip</th><th>hostname</th><th>user</th>' + \

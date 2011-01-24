@@ -190,7 +190,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 		except Exception, e:
 			logger.logException(e, LOG_INFO)
 			self._freeSession(result)
-			self.service.getSessionHandler().deleteSession(self.session.uid)
+			self.service._getSessionHandler().deleteSession(self.session.uid)
 			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
 		return result
 	
@@ -347,7 +347,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		if (rpc.getMethodName() == 'backend_exit'):
 			logger.notice(u"User '%s' asked to close the session" % self.session.user)
 			self._freeSession(result)
-			self.service.getSessionHandler().deleteSession(self.session.uid)
+			self.service._getSessionHandler().deleteSession(self.session.uid)
 			return result
 		result = WorkerOpsiJsonRpc._executeRpc(self, result, rpc)
 		result.addCallback(self._addRpcToStatistics, rpc)

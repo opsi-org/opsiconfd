@@ -49,7 +49,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 	def __init__(self, service, request, resource):
 		WorkerOpsi.__init__(self, service, request, resource)
 		self._setLogFile(self)
-	
+		self.authRealm = 'OPSI Configuration Service'
+		
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
 			logger.setLogFile( self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object = obj )
@@ -125,7 +126,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 		''' This function tries to authenticate a user.
 		    Raises an exception on authentication failure. '''
 		
-		if self.session.authenticated and self.session.isAdmin:
+		if self.session.authenticated:
 			return result
 		try:
 			(self.session.user, self.session.password) = self._getCredentials()
@@ -368,6 +369,16 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 class WorkerOpsiconfdDAV(WorkerOpsiDAV):
 	def __init__(self, service, request, resource):
 		WorkerOpsiDAV.__init__(self, service, request, resource)
+	
+	def _setResponse(self, result):
+		logger.debug(u"Client requests DAV operation: %s" % self.request)
+		if (not self.resource._authRequired or not self.session.isAdmin) and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
+			logger.critical(u"Method '%s' not allowed (read only)" % self.request.method)
+			return http.Response(
+				code	= responsecode.FORBIDDEN,
+				stream	= "Readonly!" )
+		
+		return self.resource.renderHTTP_super(self.request, self)
 	
 
 

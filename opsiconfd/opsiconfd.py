@@ -527,7 +527,8 @@ class OpsiconfdInit(object):
 			'dispatchConfigFile'           : u'/etc/opsi/backendManager/dispatch.conf',
 			'extensionConfigDir'           : u'/etc/opsi/backendManager/extend.d',
 			'aclFile'                      : u'/etc/opsi/backendManager/acl.conf',
-			'socket'                       : u'/var/run/opsiconfd/opsiconfd.socket'
+			'socket'                       : u'/var/run/opsiconfd/opsiconfd.socket',
+			'multiprocessing'              : False
 		}
 	
 	def setCommandlineConfig(self):
@@ -633,6 +634,8 @@ class OpsiconfdInit(object):
 							self.config['aclFile'] = forceFilename(value)
 						elif (option == 'max execution statistics'):
 							self.config['maxExecutionStatisticValues'] = forceInt(value)
+						elif (option == 'multiprocessing'):
+							self.config['multiprocessing'] = forceBool(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 				

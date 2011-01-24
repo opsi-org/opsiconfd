@@ -290,7 +290,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWorkerOpsiJsonRpc):
 	def __init__(self, service, request, resource):
 		
-		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing = True)
+		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing = service.config["multiprocessing"])
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
 		MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
 	
@@ -362,11 +362,10 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		
 		WorkerOpsiJsonInterface.__init__(self, service, request, resource)
 		WorkerOpsiconfdJsonRpc.__init__(self, service, request, resource)
-		self.multiProcessing = False
-	
+
 	def _getSessionId(self):
 		return WorkerOpsiconfd._getSessionId(self)
-	
+
 	def _generateResponse(self, result):
 		logger.info(u"Creating opsiconfd interface page")
 		javascript  = u"var currentParams = new Array();\n"

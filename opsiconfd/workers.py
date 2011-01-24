@@ -124,10 +124,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 	def _getSessionId(self):
 		sessionId = WorkerOpsi._getSessionId(self)
 		if not sessionId:
-			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (userAgent, self.request.remoteAddr.host))
+			logger.notice(u"Application '%s' on client '%s' did not send cookie" % (self._getUserAgent(), self.request.remoteAddr.host))
 			(user, password) = self._getAuthorization()
 			if not password:
-				raise OpsiAuthenticationError(u"Application '%s' on client '%s' did neither supply session id nor password" % (userAgent, self.request.remoteAddr.host))
+				raise OpsiAuthenticationError(u"Application '%s' on client '%s' did neither supply session id nor password" % (self._getUserAgent(), self.request.remoteAddr.host))
 		return sessionId
 	
 	def _getSession(self, result):

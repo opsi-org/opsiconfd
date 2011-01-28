@@ -206,6 +206,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 			self.session.interface = None
 			self.session.callInstance.backend_exit()
 		
+		self.session.postpath = self.request.postpath
+		
 		def _createBackend():
 			self.session.postpath = self.request.postpath
 			self.session.callInstance = backendManagerFactory(
@@ -272,14 +274,13 @@ class WorkerOpsiconfd(WorkerOpsi):
 			def setCredentials(isAdmin):
 				self.session.isAdmin = isAdmin
 			
-			l = []
-			l.append(defer.maybeDeferred(self.session.callInstance.backend_getInterface).addCallback(setInterface))
-			l.append(defer.maybeDeferred(self.session.callInstance.accessControl_userIsAdmin).addCallback(setCredentials))
+			df = defer.maybeDeferred(self.session.callInstance.backend_getInterface)
+			df.addCallback(setInterface)
+			df.addCallback(lambda x: defer.maybeDeferred(self.session.callInstance.accessControl_userIsAdmin))
+			df.addCallback(setCredentials)
 			
 			
-			dl = defer.DeferredList(l)
-			
-			def f(ingnored):
+			def f():
 				if self.session.isHost:
 					hosts = self.service._backend.host_getObjects(['ipAddress', 'lastSeen'], id = self.session.user)
 					if not hosts:
@@ -294,8 +295,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 							host.ipAddress = None
 						self.service._backend.host_updateObjects(host)
 				
-			dl.addCallback(f)
-			return dl
+			df.addCallback(lambda x: f())
+			return df
 		d.addBoth(finish)
 		r = defer.Deferred()
 		d.chainDeferred(r)
@@ -313,7 +314,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing = service.config["multiprocessing"])
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
 		MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
-	
+		
 	def _getCallInstance(self, result):
 		d = defer.maybeDeferred(self._getBackend,result)
 		

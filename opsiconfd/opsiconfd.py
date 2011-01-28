@@ -485,7 +485,7 @@ class OpsiconfdInit(object):
 			logger.setConsoleLevel(self.config['logLevel'])
 			logger.setConsoleColor(True)
 		
-		#self.createPidFile()
+		self.createPidFile()
 		try:
 			# Start opsiconfd
 			self._opsiconfd = Opsiconfd(self.config)
@@ -501,8 +501,7 @@ class OpsiconfdInit(object):
 				time.sleep(1)
 			self._opsiconfd.join(30)
 		finally:
-			pass
-			#self.removePidFile()
+			self.removePidFile()
 	
 	def setDefaultConfig(self):
 		self.config = {
@@ -554,29 +553,30 @@ class OpsiconfdInit(object):
 				self.config['interface'] = forceUnicode(arg)
 		
 	def createPidFile(self):
-		logger.info(u"Creating pid file '%s'" % self.config['pidFile'])
-		if not os.path.exists(os.path.dirname(self.config['pidFile'])):
-			os.makedirs(os.path.dirname(self.config['pidFile']))
-		elif os.path.exists(self.config['pidFile']) and os.access(self.config['pidFile'], os.R_OK | os.W_OK):
-			pf = open(self.config['pidFile'], 'r')
-			p = pf.readline().strip()
+		if self.config['daemon']:
+			logger.info(u"Creating pid file '%s'" % self.config['pidFile'])
+			if not os.path.exists(os.path.dirname(self.config['pidFile'])):
+				os.makedirs(os.path.dirname(self.config['pidFile']))
+			elif os.path.exists(self.config['pidFile']) and os.access(self.config['pidFile'], os.R_OK | os.W_OK):
+				pf = open(self.config['pidFile'], 'r')
+				p = pf.readline().strip()
+				pf.close()
+				if p:
+					running = False
+					try:
+						for i in execute("%s -x opsiconfd" % which("pidof"))[0].strip().split():
+							if (i == p):
+								running = True
+								break
+					except Exception, e:
+						logger.error(e)
+					if running:
+						raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
+					
+			pid = os.getpid()
+			pf = open (self.config['pidFile'], "w")
+			print >> pf, str(pid)
 			pf.close()
-			if p:
-				running = False
-				try:
-					for i in execute("%s -x opsiconfd" % which("pidof"))[0].strip().split():
-						if (i == p):
-							running = True
-							break
-				except Exception, e:
-					logger.error(e)
-				if running:
-					raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
-				
-		pid = os.getpid()
-		pf = open (self.config['pidFile'], "w")
-		print >> pf, str(pid)
-		pf.close()
 	
 	def removePidFile(self):
 		try:

@@ -37,9 +37,6 @@ case "$1" in
 		# Kill opsiconfd-guard
 		killall $(basename $GUARD_BIN) 1>/dev/null 2>/dev/null
 		
-		# Make sure we have our PIDDIR, even if it's on a tmpfs
-		install -o $USER -g root -m 755 -d $PIDDIR
-		
 		# Make sure files are writable
 		test -e $LOGDIR || mkdir -p $LOGDIR
 		chown -R $USER $LOGDIR
@@ -47,6 +44,8 @@ case "$1" in
 		chown -R $USER $LIBDIR
 		test -e $RRDDIR || mkdir -p $RRDDIR
 		chown -R $USER $RRDDIR
+		test -e $PIDDIR || mkdir -p $PIDDIR
+		chown -R $USER $PIDDIR
 		
 		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
 			echo ".   (already running)."

@@ -45,7 +45,7 @@ from OPSI.Service.Worker import WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInt
 from OPSI.Types import *
 from OPSI.Util import timestamp, objectToHtml, toJson, fromJson, randomString
 from OPSI.Object import serialize, deserialize
-from OPSI.Backend.Process import OpsiBackendProcess
+from OPSI.Backend.BackendProcess import OpsiBackendProcess
 from OPSI.Backend.BackendManager import BackendManager, BackendAccessControl, backendManagerFactory
 from OPSI.Logger import *
 

@@ -579,13 +579,14 @@ class OpsiconfdInit(object):
 			pf.close()
 	
 	def removePidFile(self):
-		try:
-			# if (self._pid == os.getpid())
-			if os.path.exists(self.config['pidFile']):
-				logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
-				os.unlink(self.config['pidFile'])
-		except Exception, e:
-			logger.error(u"Failed to remove pid file '%s': %s" % (self.config['pidFile'], e))
+		if self.config['daemon']:
+			try:
+				# if (self._pid == os.getpid())
+				if os.path.exists(self.config['pidFile']):
+					logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
+					os.unlink(self.config['pidFile'])
+			except Exception, e:
+				logger.error(u"Failed to remove pid file '%s': %s" % (self.config['pidFile'], e))
 		
 	def signalHandler(self, signo, stackFrame):
 		for thread in threading.enumerate():

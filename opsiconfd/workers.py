@@ -297,7 +297,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 				
 			df.addCallback(lambda x: f())
 			return df
-		d.addBoth(finish)
+		d.addCallback(finish)
+		d.addErrback(self._errback)
 		r = defer.Deferred()
 		d.chainDeferred(r)
 		return r

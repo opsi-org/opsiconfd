@@ -33,7 +33,7 @@
 """
 
 
-import random, time, os, base64, socket
+import random, time, os, base64, socket, zlib
 from hashlib import md5
 
 from twisted.internet import defer, threads
@@ -83,7 +83,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 	
 	def _getCredentials(self):
 		(user, password) = self._getAuthorization()
-		isHost = False
+		self.session.isHost = False
 		if not user:
 			logger.warning(u"No username from %s (application: %s)" % (self.session.ip, self.session.userAgent))
 			try:
@@ -93,11 +93,11 @@ class WorkerOpsiconfd(WorkerOpsi):
 				raise Exception(u"No username given and resolve failed: %s" % e)
 		
 		if (user.count('.') >= 2):
-			isHost = True
+			self.session.isHost = True
 			if (user.find('_') != -1):
 				user = user.replace('_', '-')
 		elif re.search('^([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})$', user):
-			isHost = True
+			self.session.isHost = True
 			mac = forceHardwareAddress(user)
 			logger.info(u"Found hardware address '%s' as username, searching host in backend" % mac)
 			hosts = self.service._backend.host_getObjects(hardwareAddress = mac)
@@ -106,7 +106,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 			user = hosts[0].id
 			logger.info(u"Hardware address '%s' found in backend, using '%s' as username" % (mac, user))
 		
-		if isHost:
+		if self.session.isHost:
 			hosts = None
 			try:
 				hosts = self.service._backend.host_getObjects(type = 'OpsiClient', id = forceHostId(user))
@@ -142,6 +142,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 	def _authenticate(self, result):
 		''' This function tries to authenticate a user.
 		    Raises an exception on authentication failure. '''
+		
 		
 		if self.session.authenticated:
 			return result

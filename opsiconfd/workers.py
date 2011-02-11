@@ -183,6 +183,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 			self.session.isAdmin = bac.accessControl_userIsAdmin()
 			
 			self.session.authenticated = self._authorize()
+			if not self.session.authenticated:
+				raise Exception("Access denied: User or host is not authorized for this resource.")
+			
 			if self.service.authFailureCount.has_key(self.request.remoteAddr.host):
 				del self.service.authFailureCount[self.request.remoteAddr.host]
 		except Exception, e:
@@ -459,6 +462,13 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		
 		return result
 	
+	def _authorize(self):
+		if not self.session.isHost and not self.session.isAdmin:
+			logger.error(u"Authentication Error: Neither host nor admin user.")
+			return False
+		logger.debug("User is authorized.")
+		return True
+	
 class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 	def __init__(self, service, request, resource):
 		WorkerOpsiDAV.__init__(self, service, request, resource)
@@ -485,7 +495,7 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 	
 	def _authorize(self):
 		if not self.session.isHost and not self.session.isAdmin:
-			logger.logError(u"Authentication Error: Neither host nor admin user.")
+			logger.error(u"Authentication Error: Neither host nor admin user.")
 			return False
 		return True
 

@@ -182,7 +182,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 			
 			self.session.isAdmin = bac.accessControl_userIsAdmin()
 			
-			self.session.authenticated = True
+			self.session.authenticated = self._authorize()
 			if self.service.authFailureCount.has_key(self.request.remoteAddr.host):
 				del self.service.authFailureCount[self.request.remoteAddr.host]
 		except Exception, e:
@@ -191,6 +191,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 			self.service._getSessionHandler().deleteSession(self.session.uid)
 			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
 		return result
+	
+	def _authorize(self):
+		return True
 	
 	def _getBackend(self, result):
 		if self.session.callInstance and self.session.callInterface:
@@ -476,10 +479,13 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 		logger.essential("WorkerOpsiconfdDAV._authenticate")
 		
 		r = WorkerOpsiconfd._authenticate(self, result)
-		if not self.session.isHost and not self.session.isAdmin:
-			raise Exception(u"Neither host nor admin user")
+
 		return r
 		
 	
-
+	def _authorize(self):
+		if not self.session.isHost and not self.session.isAdmin:
+			logger.logError(u"Authentication Error: Neither host nor admin user.")
+			return False
+		return True
 

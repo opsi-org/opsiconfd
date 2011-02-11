@@ -463,7 +463,7 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		
 		return result
 	
-class WorkerOpsiconfdDAV(WorkerOpsiDAV):
+class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 	def __init__(self, service, request, resource):
 		WorkerOpsiDAV.__init__(self, service, request, resource)
 	
@@ -477,6 +477,9 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV):
 				stream	= "Readonly!" )
 		
 		return self.resource.renderHTTP_super(self.request, self)
-
+	
+	def _authenticate(self, result):
+		return WorkerOpsiconfd._authenticate(self, result)
+	
 
 

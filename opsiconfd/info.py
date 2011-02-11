@@ -37,7 +37,7 @@ import operator
 from OPSI.web2 import responsecode, http, stream
 from OPSI.System import getDiskSpaceUsage
 from OPSI.Logger import *
-
+from OPSI.Types import *
 from resources import ResourceOpsiconfd
 from workers import WorkerOpsiconfd
 

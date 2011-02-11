@@ -466,9 +466,10 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 	def __init__(self, service, request, resource):
 		WorkerOpsiDAV.__init__(self, service, request, resource)
+		WorkerOpsiconfd.__init__(self, service, request, resource)
 	
 	def _setResponse(self, result):
-		logger.debug(u"Client requests DAV operation: %s" % self.request)
+		logger.debug(u"Client requests opsiconfd DAV operation: %s" % self.request)
 
 		if (not self.resource._authRequired or not self.session.isAdmin) and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
 			logger.critical(u"Method '%s' not allowed (read only)" % self.request.method)
@@ -479,6 +480,7 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 		return self.resource.renderHTTP_super(self.request, self)
 	
 	def _authenticate(self, result):
+		logger.essential("WorkerOpsiconfdDAV._authenticate")
 		return WorkerOpsiconfd._authenticate(self, result)
 	
 

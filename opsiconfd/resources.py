@@ -36,7 +36,7 @@ from OPSI.web2 import http, resource
 from OPSI.Service.Resource import ResourceOpsi, ResourceOpsiJsonRpc, ResourceOpsiJsonInterface, ResourceOpsiDAV
 from OPSI.Logger import *
 
-from workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface
+from workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface, WorkerOpsiconfdDAV
 logger = Logger()
 
 
@@ -60,6 +60,8 @@ class ResourceOpsiconfdJsonInterface(ResourceOpsiJsonInterface):
 	WorkerClass = WorkerOpsiconfdJsonInterface
 
 class ResourceOpsiconfdDAV(ResourceOpsiDAV):
+	WorkerClass = WorkerOpsiconfdDAV
+	
 	def __init__(self, service, path, readOnly=True, defaultType="text/plain", indexNames=None, authRequired=True):
 		ResourceOpsiDAV.__init__(self, service, path, readOnly, defaultType, indexNames, authRequired)
 	

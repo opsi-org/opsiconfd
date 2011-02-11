@@ -227,7 +227,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 			socket = "/var/run/opsiconfd/worker-%s.socket" % randomString(32)
 			process = OpsiBackendProcess(socket = socket, logFile = self.service.config['logFile'].replace('%m', self.request.remoteAddr.host))
 			process.start()
-			time.sleep(1)			# wait for process to start
+			# @TODO
+			time.sleep(1) # wait for process to start
 			self.session.callInstance = process
 
 			d = process.callRemote("setLogging", console=logger.getConsoleLevel(), file=logger.getFileLevel())
@@ -299,10 +300,12 @@ class WorkerOpsiconfd(WorkerOpsi):
 			df.addCallback(lambda x: f())
 			return df
 		d.addCallback(finish)
-		d.addErrback(self._errback)
-		r = defer.Deferred()
-		d.chainDeferred(r)
-		return r
+		#################################d.addErrback(self._errback)
+		#d.callback(None)
+		return d
+		#r = defer.Deferred()
+		#d.chainDeferred(r)
+		#return r
 		
 	
 	def _setResponse(self, result):
@@ -427,15 +430,16 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		
 		selectMethod = u''
 		
-		for method in self._callInterface:
-			javascript += u"parameters['%s'] = new Array();\n" % (method['name'])
-			for param in range(len(method['params'])):
-				javascript += u"parameters['%s'][%s]='%s';\n" % (method['name'], param, method['params'][param])
-			selected = u''
-			if (method['name'] == currentMethod):
-				selected = u' selected="selected"'
-			selectMethod += u'<option%s>%s</option>' % (selected, method['name'])
-		
+		if self._callInterface:
+			for method in self._callInterface:
+				javascript += u"parameters['%s'] = new Array();\n" % (method['name'])
+				for param in range(len(method['params'])):
+					javascript += u"parameters['%s'][%s]='%s';\n" % (method['name'], param, method['params'][param])
+				selected = u''
+				if (method['name'] == currentMethod):
+					selected = u' selected="selected"'
+				selectMethod += u'<option%s>%s</option>' % (selected, method['name'])
+			
 		resultDiv = u'<div id="result">'
 		for rpc in self._rpcs:
 			resultDiv += u'<div class="json">'

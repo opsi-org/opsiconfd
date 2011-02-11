@@ -182,9 +182,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 			
 			self.session.isAdmin = bac.accessControl_userIsAdmin()
 			
-			if not self.session.isHost and not self.session.isAdmin:
-				raise Exception(u"Neither host nor admin user")
-			
 			self.session.authenticated = True
 			if self.service.authFailureCount.has_key(self.request.remoteAddr.host):
 				del self.service.authFailureCount[self.request.remoteAddr.host]
@@ -303,10 +300,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 		#################################d.addErrback(self._errback)
 		#d.callback(None)
 		return d
-		#r = defer.Deferred()
-		#d.chainDeferred(r)
-		#return r
-		
 	
 	def _setResponse(self, result):
 		deferred = threads.deferToThread(self._generateResponse, result)
@@ -327,7 +320,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 			self._callInstance = self.session.callInstance
 			self._callInterface = self.session.callInterface
 
-		d.addBoth(lambda x: setInterface())
+		d.addCallback(lambda x: setInterface())
 		
 		return d
 	
@@ -481,7 +474,12 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 	
 	def _authenticate(self, result):
 		logger.essential("WorkerOpsiconfdDAV._authenticate")
-		return WorkerOpsiconfd._authenticate(self, result)
+		
+		r = WorkerOpsiconfd._authenticate(self, result)
+		if not self.session.isHost and not self.session.isAdmin:
+			raise Exception(u"Neither host nor admin user")
+		return r
+		
 	
 
 

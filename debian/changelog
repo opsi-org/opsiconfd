@@ -1,10 +1,10 @@
-opsiconfd (4.0.1-1) stable; urgency=low
+opsiconfd (4.0.0.99-1) testing; urgency=low
 
   * new default for max authentication failures is 5
   * add multiprocessing feature
   * major parts moved to python-opsi
 
- -- Jan Schneider <j.schneider@uib.de>  Sat, 12 Feb 2011 12:42:22 +0100
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 22 Feb 2011 12:50:23 +0100
 
 opsiconfd (4.0.0.3-1) stable; urgency=low
 

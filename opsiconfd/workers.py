@@ -352,9 +352,13 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		try:
 			if (self.request.method == 'POST'):
 				contentType = self.request.headers.getHeader('content-type')
-				contentEncoding = self.request.headers.getHeader('content-encoding')
+				contentEncoding = None
+				try:
+					contentEncoding = self.request.headers.getHeader('content-encoding')[0].lower()
+				except:
+					pass
 				logger.debug(u"Content-Type: %s, Content-Encoding: %s" % (contentType, contentEncoding))
-				if (contentEncoding and "gzip" in contentEncoding) or (contentType and contentType.mediaType.startswith('gzip')):
+				if (contentEncoding == 'gzip') or (contentType and contentType.mediaType.startswith('gzip')):
 					logger.debug(u"Expecting compressed data from client")
 					self.query = zlib.decompress(self.query)
 			self.query = unicode(self.query, 'utf-8')

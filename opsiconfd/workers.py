@@ -71,9 +71,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 	
 	def _errback(self, failure):
 		result = WorkerOpsi._errback(self, failure)
-		if self.opsiServiceVerificationKey:
-			result.headers.setHeader('opsi-service-verification-key', [ self.opsiServiceVerificationKey ] )
-		
 		if (result.code == responsecode.UNAUTHORIZED) and self.request.remoteAddr.host not in (self.service.config['ipAddress'], '127.0.0.1'):
 			if (self.service.config['maxAuthenticationFailures'] > 0):
 				if not self.service.authFailureCount.has_key(self.request.remoteAddr.host):
@@ -95,15 +92,23 @@ class WorkerOpsiconfd(WorkerOpsi):
 				encoded = auth[1]
 				
 				if (auth[0].lower() == 'opsi'):
-					f = open(self.service.config['sslServerKeyFile'], 'r')
-					privateKeyString = f.read()
-					f.close()
-					privateKey = keys.Key.fromString(data = privateKeyString).keyObject
-					res = privateKey.decrypt(auth[1])
+					import M2Crypto
+					privateKey = M2Crypto.RSA.load_key(self.service.config['sslServerKeyFile'])
+					data = base64.decodestring(auth[1])
+					chunks = []
+					while (len(data) > 128):
+						chunks.append(data[:128])
+						data = data[128:]
+					chunks.append(data)
+					res = ''
+					for chunk in chunks:
+						r = privateKey.private_decrypt(data = chunk, padding = M2Crypto.RSA.pkcs1_oaep_padding)
+						res += r
+					res = unicode(res, 'latin-1').strip()
 					if (len(res) < 32):
 						raise Exception(u"No service verification key found")
 					self.opsiServiceVerificationKey = res[-32:]
-					encoded = res[:-32]
+					encoded = base64.encodestring(res[:-32])
 				
 				logger.confidential(u"Auth encoded: %s" % encoded)
 				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
@@ -331,10 +336,14 @@ class WorkerOpsiconfd(WorkerOpsi):
 		return d
 	
 	def _setResponse(self, result):
-		if self.opsiServiceVerificationKey:
-			result.headers.setHeader('opsi-service-verification-key', [ self.opsiServiceVerificationKey ] )
 		deferred = threads.deferToThread(self._generateResponse, result)
 		return deferred
+	
+	def _setCookie(self, result):
+		result = WorkerOpsi._setCookie(self, result)
+		if self.opsiServiceVerificationKey:
+			result.headers.setRawHeaders('X-opsi-service-verification-key', [ self.opsiServiceVerificationKey ] )
+		return result
 	
 class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWorkerOpsiJsonRpc):
 	def __init__(self, service, request, resource):
@@ -410,6 +419,9 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 	
 	def _generateResponse(self, result):
 		return WorkerOpsiJsonRpc._generateResponse(self, result)
+	
+	def _setCookie(self, result):
+		return WorkerOpsiconfd._setCookie(self, result)
 	
 class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterface):
 	def __init__(self, service, request, resource):

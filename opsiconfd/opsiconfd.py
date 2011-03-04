@@ -63,7 +63,7 @@ from OPSI.Logger import *
 from OPSI.web2 import server
 from OPSI.web2.channel.http import HTTPFactory
 from OPSI.Util.File import IniFile
-from OPSI.Util.amp import OpsiProcessProtocolFactory
+from OPSI.Util.AMP import OpsiProcessProtocolFactory
 from OPSI.Types import *
 
 from OPSI.System import which, execute

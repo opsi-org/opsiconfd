@@ -58,7 +58,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 		self.authRealm = 'OPSI Configuration Service'
 		self.multiProcessing = multiProcessing
-	
+		self.opsiServiceVerificationKey = None
+		
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
 			logger.setLogFile( self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object = obj )
@@ -70,6 +71,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 	
 	def _errback(self, failure):
 		result = WorkerOpsi._errback(self, failure)
+		if self.opsiServiceVerificationKey:
+			result.headers.setHeader('opsi-service-verification-key', [ self.opsiServiceVerificationKey ] )
+		
 		if (result.code == responsecode.UNAUTHORIZED) and self.request.remoteAddr.host not in (self.service.config['ipAddress'], '127.0.0.1'):
 			if (self.service.config['maxAuthenticationFailures'] > 0):
 				if not self.service.authFailureCount.has_key(self.request.remoteAddr.host):
@@ -80,6 +84,40 @@ class WorkerOpsiconfd(WorkerOpsi):
 							% (self.service.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host))
 					return self._delayResult(60, result)
 		return result
+	
+	def _getAuthorization(self):
+		(user, password) = (u'', u'')
+		logger.debug(u"Trying to get username and password from Authorization header")
+		auth = self.request.headers.getHeader('Authorization')
+		if auth:
+			try:
+				logger.debug(u"Authorization header found (type: %s)" % auth[0])
+				encoded = auth[1]
+				
+				if (auth[0].lower() == 'opsi'):
+					f = open(self.service.config['sslServerKeyFile'], 'r')
+					privateKeyString = f.read()
+					f.close()
+					privateKey = keys.Key.fromString(data = privateKeyString).keyObject
+					res = privateKey.decrypt(auth[1])
+					if (len(res) < 32):
+						raise Exception(u"No service verification key found")
+					self.opsiServiceVerificationKey = res[-32:]
+					encoded = res[:-32]
+				
+				logger.confidential(u"Auth encoded: %s" % encoded)
+				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
+				if (len(parts) > 6):
+					user = u':'.join(parts[:6])
+					password = u':'.join(parts[6:])
+				else:
+					user = parts[0]
+					password = u':'.join(parts[1:])
+				user = user.strip()
+				logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
+			except Exception, e:
+				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+		return (user, password)
 	
 	def _getCredentials(self):
 		(user, password) = self._getAuthorization()
@@ -142,7 +180,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 	def _authenticate(self, result):
 		''' This function tries to authenticate a user.
 		    Raises an exception on authentication failure. '''
-		
 		
 		if self.session.authenticated:
 			return result
@@ -215,18 +252,17 @@ class WorkerOpsiconfd(WorkerOpsi):
 		def _createBackend():
 			self.session.postpath = self.request.postpath
 			self.session.callInstance = backendManagerFactory(
-					user=self.session.user,
-					password=self.session.password,
-					dispatchConfigFile=self.service.config['dispatchConfigFile'],
-					backendConfigDir=self.service.config['backendConfigDir'],
-					extensionConfigDir=self.service.config['extensionConfigDir'],
-					aclFile=self.service.config['aclFile'],
-					depotId=self.service.config['depotId'],
-					postpath=self.request.postpath,
-					context=self.service._backend)
+					user               = self.session.user,
+					password           = self.session.password,
+					dispatchConfigFile = self.service.config['dispatchConfigFile'],
+					backendConfigDir   = self.service.config['backendConfigDir'],
+					extensionConfigDir = self.service.config['extensionConfigDir'],
+					aclFile            = self.service.config['aclFile'],
+					depotId            = self.service.config['depotId'],
+					postpath           = self.request.postpath,
+					context            = self.service._backend)
 
 		def _spawnProcess():
-			
 			socket = "/var/run/opsiconfd/worker-%s.socket" % randomString(32)
 			process = OpsiBackendProcess(socket = socket, logFile = self.service.config['logFile'].replace('%m', self.request.remoteAddr.host))
 			process.start()
@@ -235,18 +271,17 @@ class WorkerOpsiconfd(WorkerOpsi):
 			self.session.callInstance = process
 
 			d = process.callRemote("setLogging", console=logger.getConsoleLevel(), file=logger.getFileLevel())
-			d.addCallback(lambda x: process.callRemote("initialize",user=self.session.user, password=self.session.password,
-										dispatchConfigFile = self.service.config['dispatchConfigFile'],
-										backendConfigDir = self.service.config['backendConfigDir'],
-										extensionConfigDir = self.service.config['extensionConfigDir'],
-										aclFile = self.service.config['aclFile'],
-										depotId = self.service.config['depotId'],
-										postpath = self.request.postpath))
-		
+			d.addCallback(lambda x: process.callRemote("initialize",
+							user               = self.session.user,
+							password           = self.session.password,
+							dispatchConfigFile = self.service.config['dispatchConfigFile'],
+							backendConfigDir   = self.service.config['backendConfigDir'],
+							extensionConfigDir = self.service.config['extensionConfigDir'],
+							aclFile            = self.service.config['aclFile'],
+							depotId            = self.service.config['depotId'],
+							postpath           = self.request.postpath))
 			return d
 		
-		
-			
 		modules = self.service._backend.backend_info()['modules']
 		if self.multiProcessing and \
 		(not modules.get('valid', False) or not modules.get('high_availability', False)):
@@ -293,15 +328,14 @@ class WorkerOpsiconfd(WorkerOpsi):
 			df.addCallback(lambda x: f())
 			return df
 		d.addCallback(finish)
-		#################################d.addErrback(self._errback)
-		#d.callback(None)
 		return d
 	
 	def _setResponse(self, result):
+		if self.opsiServiceVerificationKey:
+			result.headers.setHeader('opsi-service-verification-key', [ self.opsiServiceVerificationKey ] )
 		deferred = threads.deferToThread(self._generateResponse, result)
 		return deferred
-
-
+	
 class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWorkerOpsiJsonRpc):
 	def __init__(self, service, request, resource):
 		

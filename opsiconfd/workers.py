@@ -269,6 +269,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 		def _spawnProcess():
 			socket = "/var/run/opsiconfd/worker-%s.socket" % randomString(32)
+
 			process = OpsiBackendProcess(socket = socket, logFile = self.service.config['logFile'].replace('%m', self.request.remoteAddr.host))
 			process.start()
 			# @TODO

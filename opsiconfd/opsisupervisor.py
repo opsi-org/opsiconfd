@@ -43,7 +43,7 @@ from twisted.application.app import startApplication
 from twisted.internet.task import LoopingCall
 
 from OPSI.Logger import *
-from OPSI.Util.amp import OpsiProcessProtocolFactory, OpsiProcessConnector
+from OPSI.Util.AMP import OpsiProcessProtocolFactory, OpsiProcessConnector
 from OPSI.Util.File import IniFile
 from OPSI.System.Posix import daemonize
 logger = Logger()

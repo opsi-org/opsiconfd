@@ -68,5 +68,3 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 	def renderHTTP(self, request):
 		self._service.statistics().addWebDAVRequest(request)
 		return ResourceOpsiDAV.renderHTTP(self, request)
-
-

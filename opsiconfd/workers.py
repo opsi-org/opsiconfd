@@ -43,7 +43,7 @@ from OPSI.web2 import responsecode, http, stream
 
 from OPSI.Service.Worker import WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV, interfacePage, MultiprocessWorkerOpsiJsonRpc
 from OPSI.Types import *
-from OPSI.Util import timestamp, objectToHtml, toJson, fromJson, randomString
+from OPSI.Util import timestamp, objectToHtml, toJson, fromJson, randomString, decryptWithPrivateKeyFromPEMFile
 from OPSI.Object import serialize, deserialize
 from OPSI.Backend.BackendProcess import OpsiBackendProcess
 from OPSI.Backend.BackendManager import BackendManager, BackendAccessControl, backendManagerFactory
@@ -55,10 +55,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 	def __init__(self, service, request, resource, multiProcessing = False):
 		WorkerOpsi.__init__(self, service, request, resource)
 		self._setLogFile(self)
-
+		
 		self.authRealm = 'OPSI Configuration Service'
 		self.multiProcessing = multiProcessing
-		self.opsiServiceVerificationKey = None
 		
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
@@ -89,29 +88,17 @@ class WorkerOpsiconfd(WorkerOpsi):
 		if auth:
 			try:
 				logger.debug(u"Authorization header found (type: %s)" % auth[0])
-				encoded = auth[1]
-				
+				logger.confidential(u"Auth encoded: %s" % auth[1])
+				authString = None
 				if (auth[0].lower() == 'opsi'):
-					import M2Crypto
-					privateKey = M2Crypto.RSA.load_key(self.service.config['sslServerKeyFile'])
-					data = base64.decodestring(auth[1])
-					chunks = []
-					while (len(data) > 128):
-						chunks.append(data[:128])
-						data = data[128:]
-					chunks.append(data)
-					res = ''
-					for chunk in chunks:
-						r = privateKey.private_decrypt(data = chunk, padding = M2Crypto.RSA.pkcs1_oaep_padding)
-						res += r
-					res = unicode(res, 'latin-1').strip()
-					if (len(res) < 32):
-						raise Exception(u"No service verification key found")
-					self.opsiServiceVerificationKey = res[-32:]
-					encoded = base64.encodestring(res[:-32])
+					authString = unicode(
+						decryptWithPrivateKeyFromPEMFile(
+							base64.decodestring(auth[1]),
+							self.service.config['sslServerKeyFile']), 'latin-1').strip()
+				else:
+					authString = unicode(base64.decodestring(auth[1]), 'latin-1').strip()
 				
-				logger.confidential(u"Auth encoded: %s" % encoded)
-				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
+				parts = authString.split(':')
 				if (len(parts) > 6):
 					user = u':'.join(parts[:6])
 					password = u':'.join(parts[6:])
@@ -342,8 +329,21 @@ class WorkerOpsiconfd(WorkerOpsi):
 	
 	def _setCookie(self, result):
 		result = WorkerOpsi._setCookie(self, result)
-		if self.opsiServiceVerificationKey:
-			result.headers.setRawHeaders('X-opsi-service-verification-key', [ self.opsiServiceVerificationKey ] )
+		return self._processOpsiServiceVerificationKey(result)
+	
+	def _processOpsiServiceVerificationKey(self, result):
+		try:
+			for (k, v) in self.request.headers.getAllRawHeaders():
+				if (k.lower() == 'x-opsi-service-verification-key'):
+					if not isinstance(result, http.Response):
+						result = http.Response()
+					result.headers.setRawHeaders(
+						'X-opsi-service-verification-key',
+						[ decryptWithPrivateKeyFromPEMFile(base64.decodestring(v[0]), self.service.config['sslServerKeyFile']) ]
+					)
+					return result
+		except Exception, e:
+			logger.error(u"Failed to process opsi service verification key: %s" % e)
 		return result
 	
 class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWorkerOpsiJsonRpc):

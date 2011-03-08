@@ -335,6 +335,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 		try:
 			for (k, v) in self.request.headers.getAllRawHeaders():
 				if (k.lower() == 'x-opsi-service-verification-key'):
+					logger.info(u"Adding header x-opsi-service-verification-key")
 					if not isinstance(result, http.Response):
 						result = http.Response()
 					result.headers.setRawHeaders(
@@ -348,7 +349,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 	
 class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWorkerOpsiJsonRpc):
 	def __init__(self, service, request, resource):
-		
 		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing = service.config["multiprocessing"])
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
 		MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)

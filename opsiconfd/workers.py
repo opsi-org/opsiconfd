@@ -424,6 +424,9 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 	def _setCookie(self, result):
 		return WorkerOpsiconfd._setCookie(self, result)
 	
+	def _renderError(self, failure):
+		return WorkerOpsiJsonRpc._renderError(self, failure)
+	
 class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterface):
 	def __init__(self, service, request, resource):
 		

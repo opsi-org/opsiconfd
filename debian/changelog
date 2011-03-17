@@ -1,3 +1,9 @@
+opsiconfd (4.0.1-4) testing; urgency=low
+
+  * Remove some errbacks
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 17 Mar 2011 16:48:09 +0100
+
 opsiconfd (4.0.1-3) testing; urgency=low
 
   * Fix renderError in rpc worker

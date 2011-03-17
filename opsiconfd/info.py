@@ -241,7 +241,10 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		result.code = responsecode.OK
 		result.stream = stream.IByteStream(html.encode('utf-8').strip())
 		return result
-
+	
+	def _processQuery(self, result):
+		return result
+	
 class ResourceOpsiconfdInfo(ResourceOpsiconfd):
 	WorkerClass = WorkerOpsiconfdInfo
 	

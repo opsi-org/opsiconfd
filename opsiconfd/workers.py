@@ -37,6 +37,7 @@ import random, time, os, base64, socket, zlib
 from hashlib import md5
 
 from twisted.internet import defer, threads
+from twisted.python import failure
 from twisted.conch.ssh import keys
 
 from OPSI.web2 import responsecode, http, stream
@@ -485,10 +486,21 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 				selectMethod += u'<option%s>%s</option>' % (selected, method['name'])
 			
 		resultDiv = u'<div id="result">'
-		for rpc in self._rpcs:
+		if isinstance(result, failure.Failure):
+			error = u'Unknown error'
+			try:
+				result.raiseException()
+			except Exception, e:
+				error = {'class': e.__class__.__name__, 'message': unicode(e)}
+				error = toJson({"id": None, "result": None, "error": error})
 			resultDiv += u'<div class="json">'
-			resultDiv += objectToHtml(serialize(rpc.getResponse()))
+			resultDiv += objectToHtml(error)
 			resultDiv += u'</div>'
+		else:
+			for rpc in self._rpcs:
+				resultDiv += u'<div class="json">'
+				resultDiv += objectToHtml(serialize(rpc.getResponse()))
+				resultDiv += u'</div>'
 		resultDiv += u'</div>'
 		
 		html = interfacePage % {
@@ -511,8 +523,11 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		if not self.session.isHost and not self.session.isAdmin:
 			logger.error(u"Authentication Error: Neither host nor admin user.")
 			return False
-		logger.debug("User is authorized.")
+		logger.debug(u"User is authorized.")
 		return True
+	
+	def _renderError(self, failure):
+		return WorkerOpsiJsonInterface._renderError(self, failure)
 	
 class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 	def __init__(self, service, request, resource):
@@ -531,12 +546,9 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 		return self.resource.renderHTTP_super(self.request, self)
 	
 	def _authenticate(self, result):
-		logger.essential("WorkerOpsiconfdDAV._authenticate")
-		
+		logger.debug("WorkerOpsiconfdDAV._authenticate")
 		r = WorkerOpsiconfd._authenticate(self, result)
-
 		return r
-		
 	
 	def _authorize(self):
 		if not self.session.isHost and not self.session.isAdmin:

@@ -1,3 +1,9 @@
+opsiconfd (4.0.1-5) testing; urgency=low
+
+  * Fore host id
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 18 Mar 2011 15:32:25 +0100
+
 opsiconfd (4.0.1-4) testing; urgency=low
 
   * Remove some errbacks

@@ -126,7 +126,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 		if (user.count('.') >= 2):
 			self.session.isHost = True
 			if (user.find('_') != -1):
-				user = user.replace('_', '-')
+				user = forceHostId(user.replace('_', '-'))
 		elif re.search('^([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})$', user):
 			self.session.isHost = True
 			mac = forceHardwareAddress(user)
@@ -140,7 +140,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 		if self.session.isHost:
 			hosts = None
 			try:
-				hosts = self.service._backend.host_getObjects(type = 'OpsiClient', id = forceHostId(user))
+				hosts = self.service._backend.host_getObjects(type = 'OpsiClient', id = user)
 			except Exception, e:
 				logger.debug(u"Host not found: %s" % e)
 			

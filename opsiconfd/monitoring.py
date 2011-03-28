@@ -108,6 +108,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					return result
 				else:
 					raise Exception(u"Failure: Parameterlist for task not complete, clientId needed for these check.")
+			elif query["task"] == "getOpsiClientsForGroup":
+				if query["param"]:
+					if query["param"].has_key("groups"):
+						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
+						result.stream = stream.IByteStream(res.encode('utf-8'))
+						return result
 			else:
 				raise Exception(u"Failure: unknown task!")
 				
@@ -159,6 +165,22 @@ class Monitoring(object):
 				products.append("%s (%s)" % (product.productId, product.actionRequest))
 				return self._generateResponse(state, u"WARNING: Actions set for products: '%s'." % (",".join(products)))
 		return self._generateResponse(state,u"OK: No failed products and no actions set for client")
-		
+	def getOpsiClientsForGroup(self, goups):
+		clients = []
+		result = {}
+		objectToGroups = self.backend.objectToGroup_getObjects(groupId=groups)
+		if objectToGroups:
+			for objectToGroup in objectToGroups:
+				clients.append(objectToGroup.objectId)
+			if clients:
+				hosts = self.backend.host_getObjects(id=clients)
+				if hosts:
+					for host in hosts:
+						result[host.id] = {
+							"description" : host.description,
+							"inventoryNumber" : host.inventoryNumber,
+							"ipAddress" : host.ipAddress
+						}
+		return json.dumps(result)
 
 

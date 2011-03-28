@@ -34,10 +34,9 @@
 
 from twisted.internet import defer
 import resource as pyresource
-try:
-	import rrdtool
-except:
-	rrdtool = None
+
+import simplejson as json
+
 
 from OPSI.web2 import http, resource, stream
 from OPSI.Backend.BackendManager import BackendManager
@@ -92,28 +91,25 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			result = http.Response()
 		
 		if self.query:
-			logger.debug(u"QUERY: '%s'" % self.query)
+			logger.notice(u"QUERY: '%s'" % self.query)
 			
-			task, param = self.query.split(" ", 1)
-			param = param.split()
-			
-				#for pair in self.query.split(u' '):
-				#	print "----------->",pair
-				#	if 'task' in pair:
-				#		task = pair.split(u':')[1]
-				#		continue
-				#	param[pair.split(u':')[0]] = pair.split(u':')[1] 
-
-			if task == "clientStatusCheck":
+			query = json.loads(self.query)
+			if not query.has_key("task"):
+				raise Exception("No task set, nothing to do") 
+			print ">>>>>>>>>>>>>",query["task"]
+			if query["task"] == "checkClientStatus":
 				
-				if param:
-					res = self.monitoring.checkClientStatus(param[0])
-					print res
-					#result.code = responsecode.OK
-					result.stream = stream.IByteStream("".join(str(res)).encode('utf-8'))
+				if query["param"]:
+					if query["param"].has_key("exclude"):
+						res = self.monitoring.checkClientStatus(query["param"]["clientId"], query["param"]["exclude"])
+					else:
+						res = self.monitoring.checkClientStatus(query["param"]["clientId"])
+					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
 				else:
-					raise Exception(u"Parameterlist for task not complete, clientId needed for these check.")
+					raise Exception(u"Failure: Parameterlist for task not complete, clientId needed for these check.")
+			else:
+				raise Exception(u"Failure: unknown task!")
 				
 		
 		
@@ -131,13 +127,14 @@ class Monitoring(object):
 		self._UNKNOWN = 3
 	
 	def _generateResponse(self, state, message, perfdata=None):
-		response = []
-		response.append(state)
+		response = {}
+		response["state"] = str(state)
 		if perfdata:
-			response.append("%s | %s" % (message, perfdata))
+			response["message"] = "%s | %s" % (message, perfdata)
 		else:
-			response.append(message)
-		return response
+			response["message"] = message
+		print ">>>>>>>>>>>>>>>>>>>>>>>",json.dumps(response)
+		return json.dumps(response)
 	
 	def checkClientStatus(self, clientId, excludeProductList=None):
 		state = self._OK

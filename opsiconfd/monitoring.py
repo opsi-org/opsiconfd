@@ -169,6 +169,7 @@ class Monitoring(object):
 		clients = []
 		result = {}
 		objectToGroups = self.backend.objectToGroup_getObjects(groupId=groups)
+		print objectToGroups
 		if objectToGroups:
 			for objectToGroup in objectToGroups:
 				clients.append(objectToGroup.objectId)

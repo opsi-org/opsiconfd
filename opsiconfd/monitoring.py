@@ -114,6 +114,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					if query["param"].has_key("groups"):
 						print ">>>>>>>>>>",query["param"]["groups"]
 						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
+						print "!!!!!!!!!!!!,",res
 						result.stream = stream.IByteStream(res.encode('utf-8'))
 						return result
 			else:

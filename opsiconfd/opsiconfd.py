@@ -77,6 +77,7 @@ from resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJ
 from info import ResourceOpsiconfdInfo, WorkerOpsiconfdInfo
 from doc import ResourceOpsiDocumentation
 from statistics import Statistics, ResourceOpsiconfdStatistics
+from monitoring import ResourceOpsiconfdMonitoring
 from session import OpsiconfdSessionHandler, OpsiconfdSession
 
 logger = Logger()
@@ -295,6 +296,7 @@ class Opsiconfd(threading.Thread, OpsiService):
 		self._root.putChild('info',            ResourceOpsiconfdInfo(self))
 		self._root.putChild('statistics',      ResourceOpsiconfdStatistics(self))
 		self._root.putChild('doc',             ResourceOpsiDocumentation())
+		self._root.putChild('monitoring',      ResourceOpsiconfdMonitoring(self))
 		
 		hosts = self._backend.host_getObjects(type = 'OpsiDepotserver', id = self.config['fqdn'])
 		if hosts:

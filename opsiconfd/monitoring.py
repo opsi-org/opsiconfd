@@ -110,7 +110,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					raise Exception(u"Failure: Parameterlist for task not complete, clientId needed for these check.")
 			elif query["task"] == "getOpsiClientsForGroup":
 				if query["param"]:
+					print ">>>>>>>>>",query["param"]
 					if query["param"].has_key("groups"):
+						print ">>>>>>>>>>",query["param"]["groups"]
 						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
 						result.stream = stream.IByteStream(res.encode('utf-8'))
 						return result

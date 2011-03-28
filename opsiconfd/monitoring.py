@@ -165,7 +165,7 @@ class Monitoring(object):
 				products.append("%s (%s)" % (product.productId, product.actionRequest))
 				return self._generateResponse(state, u"WARNING: Actions set for products: '%s'." % (",".join(products)))
 		return self._generateResponse(state,u"OK: No failed products and no actions set for client")
-	def getOpsiClientsForGroup(self, goups):
+	def getOpsiClientsForGroup(self, groups):
 		clients = []
 		result = {}
 		objectToGroups = self.backend.objectToGroup_getObjects(groupId=groups)

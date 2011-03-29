@@ -179,7 +179,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 		try:
 			(self.session.user, self.session.password) = self._getCredentials()
 			
-			logger.notice(u"Authorization request from %s@%s (application: %s)" % (self.session.user, self.session.ip, self.session.userAgent))
+			if self.session.isHost:
+				logger.notice(u"Authorization request from host %s@%s (application: %s)" % (self.session.user, self.session.ip, self.session.userAgent))
+			else:
+				logger.notice(u"Authorization request from %s@%s (application: %s)" % (self.session.user, self.session.ip, self.session.userAgent))
 			
 			if not self.session.user:
 				raise Exception(u"No username from %s (application: %s)" % (self.session.ip, self.session.userAgent))
@@ -545,10 +548,12 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 		
 		return self.resource.renderHTTP_super(self.request, self)
 	
+	def _getCredentials(self):
+		return WorkerOpsiconfd._getCredentials(self)
+	
 	def _authenticate(self, result):
 		logger.debug("WorkerOpsiconfdDAV._authenticate")
-		r = WorkerOpsiconfd._authenticate(self, result)
-		return r
+		return WorkerOpsiconfd._authenticate(self, result)
 	
 	def _authorize(self):
 		if not self.session.isHost and not self.session.isAdmin:

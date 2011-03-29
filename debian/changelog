@@ -1,3 +1,9 @@
+opsiconfd (4.0.1-6) testing; urgency=low
+
+  * Fix webdav auth for hosts
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 29 Mar 2011 18:25:47 +0200
+
 opsiconfd (4.0.1-5) testing; urgency=low
 
   * Fore host id

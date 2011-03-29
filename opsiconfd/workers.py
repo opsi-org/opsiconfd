@@ -560,4 +560,7 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 			logger.error(u"Authentication Error: Neither host nor admin user.")
 			return False
 		return True
-
+	
+	def _setCookie(self, result):
+		return WorkerOpsiconfd._setCookie(self, result)
+	

@@ -134,44 +134,48 @@ class Monitoring(object):
 		self._WARNING = 1
 		self._CRITICAL = 2
 		self._UNKNOWN = 3
+		
+		self._stateText = [u"OK",u"WARNING", u"CRITICAL", u"UNKNOWN"]
 	
 	def _generateResponse(self, state, message, perfdata=None):
 		response = {}
 		response["state"] = str(state)
 		if perfdata:
-			response["message"] = "%s | %s" % (message, perfdata)
+			response["message"] = u"%s: %s | %s" % (self._stateText[int(state)], message, perfdata)
 		else:
-			response["message"] = message
-		print ">>>>>>>>>>>>>>>>>>>>>>>",json.dumps(response)
+			response["message"] = u"%s: %s" % (self._stateText[int(state)],message)
+		if len(resonse["message"]) > 3800:
+			response["message"] = u"%s ..." % response["message"][:3800]
 		return json.dumps(response)
 	
 	def checkClientStatus(self, clientId, excludeProductList=None):
 		state = self._OK
 		if not clientId:
-			raise Exception(u"Failed: ClientId is needed for checkClientStatus")
+			raise Exception(u"Failed to check: ClientId is needed for checkClientStatus")
 		clientObj = self.backend.host_getObjects(id = clientId)
 		if not clientObj:
 			state = self._UNKNOWN
-			return self._generateResponse(state, u"UNKNOWN: opsi-client: '%s' not found" % clientId)
+			return self._generateResponse(state, u"opsi-client: '%s' not found" % clientId)
 		failedProducts = self.backend.productOnClient_getObjects(clientId = clientId, installationStatus = 'failed')
 		if failedProducts:
 			state = self._CRITICAL
 			products = []
 			for product in failedProducts:
 				products.append(product.productId)
-				return self._generateResponse(state, u"CRITICAL: Products: '%s' are in failed state." % (",".join(products)))
+				return self._generateResponse(state, u"Products: '%s' are in failed state." % (",".join(products)))
 		actionProducts = self.backend.productOnClient_getObjects(clientId = clientId, installationStatus = ['setup','update','uninstall'])
 		if actionProducts:
 			state = self._WARNING
 			products = []
 			for product in actionProducts:
 				products.append("%s (%s)" % (product.productId, product.actionRequest))
-				return self._generateResponse(state, u"WARNING: Actions set for products: '%s'." % (",".join(products)))
-		return self._generateResponse(state,u"OK: No failed products and no actions set for client")
+				return self._generateResponse(state, u"Actions set for products: '%s'." % (",".join(products)))
+		return self._generateResponse(state,u"No failed products and no actions set for client")
+	
 	def getOpsiClientsForGroup(self, groups):
 		clients = []
 		result = {}
-		objectToGroups = self.backend.objectToGroup_getObjects(groupId=groups)
+		objectToGroups = self.backend.objectToGroup_getObjects(groupId=groups, type="HostGroup")
 		print objectToGroups
 		if objectToGroups:
 			for objectToGroup in objectToGroups:
@@ -186,5 +190,118 @@ class Monitoring(object):
 							"ipAddress" : host.ipAddress
 						}
 		return json.dumps(result)
+	
+	def checkProductStatus(self, productIds = [], productGroups = [], depotIds = [], exclude=[]):
+		productOnDepotInfo = {}
+		hostOnDepotInfo = {}
+		productOnClientInfo = {}
+		
+		productProblemsOnClient = {}
+		productProblemsOnDepot = {}
+		productVersionProblemsOnClient = {}
+		
+		
+		
+		state = self._OK
+		if not productIds and not productGroups:
+			raise Exception(u"Failed to check: No ProductId or ProductGroup is given.")
+		elif not productIds:
+			productIds = []
+			objectToGroups = self.backend.objectToGroup_getObjects(groupId=productGroups, type="ProductGroup")
+			for objectToGroup in objectToGroups:
+				productIds.append(objectToGroup.objectId)
+		
+		if exclude:
+			newlist = []
+			for productId in productIds:
+				if not productId in excludes:
+					newlist.append(productId)
+			if newlist:
+				productId = newlist		
+			
+		configServer = self.backend.host_getObjects(type="OpsiConfigServer")[0].id
+		
+		if not depotIds:
+			depotIds = []
+			depots = self.backend.host_getObjects(type=["OpsiConfigserver","OpsiDepotserver"])
+			for depot in depots:
+				depotIds.append(depot.id)
+				productOnDepotInfo[depot.id] = {}
+		
+		productsOnDepot = self.backend.productOnDepot_getObjects(productId=productIds, depotId=depotIds)
+		
+		for productOnDepot in productsOnDepot:
+			productOnDepotInfo[prodouctOnDepot.depotId][productOnDepot.productId] = productOnDepot
+		
+		configStates = self.backend.configState_getObjects(configId="clientconfig.depot.id")
+		
+		for configState in configStates:
+			hostOnDepotInfo[configState.objectId] = configState.values[0]
+			
+		
+		
+		
+		productsOnClient = self.backend.productOnClient_getObjects(productId=prodictIds, depotId=depotIds)
+		
+		for productOnClient in productsOnClient:
+			versionDifference = False
+			
+			if productOnClient.installationStatus != "installed":
+				if state = self._OK:
+					state = self._CRITICAL
+					if not productProblemsOnClient[productOnClient.productId]:
+						productProblemsOnClient[productOnClient.productId] = []
+					productProblemsOnClient[productOnClient.productId].append(productOnClient.clientId)
+			depotId = hostOnDepotInfo[productOnClient.clientId]
+			if not depotId:
+				depotId = configServer
+			productOnDepot = productOnDepotInfo[depotId].get(productOnClient.productId)
+			if not productOnDepot:
+				state = self._CRITICAL
+				if not productProblemsOnDepot[productOnClient.productId]:
+					productProblemsOnDepot[productOnClient.productId] = []
+				productProblemsOnDepot[productOnClient.productId].append(depotId)
+				continue
+			else:
+				if productOnDepot.productVersion != productOnClient.productVersion:
+					if state != self._CRITICAL:
+						state = self._WARNING
+						versionDifference = True
+				elif productOnDepot.packageVersion != productOnClient.packageVersion:
+					if state != self._CRITICAL:
+						state = self._WARNING
+						versionDifference = True
+				if versionDifference:
+					if not productVersionProblemsOnClient[productOnClient.productId]:
+						productVersionProblemsOnClient[productOnClient.productId] = []
+					productVersionProblemsOnClient[productOnClient.productId].append(productOnClient.clientId)		
+		
+		message = ''		
+		
+		if productProblemsOnClient:
+			message += u"Status Problem detected for: "
+			for productId in productIds:
+				if productProblemsOnClient.has_key(productId):
+					message += u"%s (%s) " % (productProblemsOnClient[productId], productId)
+					
+		elif productProblemsOnDepot:
+			message += u"Cannot check, because product not installed on depot: "
+			for productId in productIds:
+				if productProblemsOnDepot.has_key(productId):
+					message += u"%s (%s) " % (productProblemsOnDepot[productId], productId)
+	
+		elif productVersionProblemsOnClient:
+			message += u"Version of Installed Software on Client differs from Software on Depot: "
+			for productId in productIds:
+				if productVersionProblemsOnClient.has_key(productId):
+					message += u"%s (%s) " % (productVersionProblemsOnClient[productId], productId)
+		
+		else:
+			message += u"Checked Product looks good, no problems found."
+	
+		return self._generateResponse(state, message)
+	
+	def checkPluginOnClient(self, clientId, plugin, params=None, state=None):
+		pass
 
 

@@ -108,15 +108,34 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					return result
 				else:
 					raise Exception(u"Failure: Parameterlist for task not complete, clientId needed for these check.")
+					
 			elif query["task"] == "getOpsiClientsForGroup":
 				if query["param"]:
-					print ">>>>>>>>>",query["param"]
 					if query["param"].has_key("groups"):
-						print ">>>>>>>>>>",query["param"]["groups"]
 						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
-						print "!!!!!!!!!!!!,",res
 						result.stream = stream.IByteStream(res.encode('utf-8'))
 						return result
+						
+			elif query["task"] == "checkProductStatus":
+# def checkProductStatus(self, productIds = [], productGroups = [], depotIds = [], exclude=[]):
+				if query["param"]:
+					productIds = []
+					groupIds = [] 
+					depotIds = [] 
+					exclude=[]
+					if query["param"].has_key("productIds"):
+						productIds = query["param"]["productIds"]
+					elif query["param"].has_key("groupIds"):
+						groupIds = query["param"]["groupIds"]
+					elif query["param"].has_key("depotIds"):
+						depotIds = query["param"]["depotIds"]
+					elif query["param"].has_key("exclude"):
+						exclude = query["param"]["exclude"]
+					res = self.monitoring.checkProductStatus(productIds, groupIds, depotIds, exclude)
+					result.stream = stream.IByteStream(res.encode('utf-8'))
+					return result
+				else:
+					raise Exception(u"Failure: Parameterlist for task not complete, clientId needed for these check.")
 			else:
 				raise Exception(u"Failure: unknown task!")
 				
@@ -144,8 +163,8 @@ class Monitoring(object):
 			response["message"] = u"%s: %s | %s" % (self._stateText[int(state)], message, perfdata)
 		else:
 			response["message"] = u"%s: %s" % (self._stateText[int(state)],message)
-		if len(resonse["message"]) > 3800:
-			response["message"] = u"%s ..." % response["message"][:3800]
+		if len(response["message"]) > 3800:
+			response["message"] = u"%s ..." % response["message"][:3800]	
 		return json.dumps(response)
 	
 	def checkClientStatus(self, clientId, excludeProductList=None):
@@ -156,14 +175,14 @@ class Monitoring(object):
 		if not clientObj:
 			state = self._UNKNOWN
 			return self._generateResponse(state, u"opsi-client: '%s' not found" % clientId)
-		failedProducts = self.backend.productOnClient_getObjects(clientId = clientId, installationStatus = 'failed')
+		failedProducts = self.backend.productOnClient_getObjects(clientId = clientId, actionResult = 'failed')
 		if failedProducts:
 			state = self._CRITICAL
 			products = []
 			for product in failedProducts:
 				products.append(product.productId)
 				return self._generateResponse(state, u"Products: '%s' are in failed state." % (",".join(products)))
-		actionProducts = self.backend.productOnClient_getObjects(clientId = clientId, installationStatus = ['setup','update','uninstall'])
+		actionProducts = self.backend.productOnClient_getObjects(clientId = clientId, actionRequest = ['setup','update','uninstall'])
 		if actionProducts:
 			state = self._WARNING
 			products = []
@@ -231,7 +250,7 @@ class Monitoring(object):
 		productsOnDepot = self.backend.productOnDepot_getObjects(productId=productIds, depotId=depotIds)
 		
 		for productOnDepot in productsOnDepot:
-			productOnDepotInfo[prodouctOnDepot.depotId][productOnDepot.productId] = productOnDepot
+			productOnDepotInfo[productOnDepot.depotId][productOnDepot.productId] = productOnDepot
 		
 		configStates = self.backend.configState_getObjects(configId="clientconfig.depot.id")
 		
@@ -241,20 +260,29 @@ class Monitoring(object):
 		
 		
 		
-		productsOnClient = self.backend.productOnClient_getObjects(productId=prodictIds, depotId=depotIds)
+		productsOnClient = self.backend.productOnClient_getObjects(productId=productIds)
 		
 		for productOnClient in productsOnClient:
 			versionDifference = False
-			
-			if productOnClient.installationStatus != "installed":
-				if state = self._OK:
-					state = self._CRITICAL
-					if not productProblemsOnClient[productOnClient.productId]:
+			if exclude:
+				if productOnClient.clientId in exclude:
+					continue
+			print ">>>>>>>>>>>>>>>",productOnClient.installationStatus
+			print ">>>>>>>>>>>>>>>",productOnClient.actionResult
+			if productOnClient.installationStatus == "installed":
+				if productOnClient.actionResult:	
+					if not "success" in productOnClient.actionResult:
+						if state != self._CRITICAL:
+							state = self._CRITICAL
+					if not productProblemsOnClient.has_key(productOnClient.productId):
 						productProblemsOnClient[productOnClient.productId] = []
 					productProblemsOnClient[productOnClient.productId].append(productOnClient.clientId)
-			depotId = hostOnDepotInfo[productOnClient.clientId]
-			if not depotId:
+			
+			if hostOnDepotInfo.has_key(productOnClient.clientId):
+				depotId = hostOnDepotInfo[productOnClient.clientId]
+			else:
 				depotId = configServer
+				
 			productOnDepot = productOnDepotInfo[depotId].get(productOnClient.productId)
 			if not productOnDepot:
 				state = self._CRITICAL
@@ -272,7 +300,7 @@ class Monitoring(object):
 						state = self._WARNING
 						versionDifference = True
 				if versionDifference:
-					if not productVersionProblemsOnClient[productOnClient.productId]:
+					if not productVersionProblemsOnClient.has_key(productOnClient.productId):
 						productVersionProblemsOnClient[productOnClient.productId] = []
 					productVersionProblemsOnClient[productOnClient.productId].append(productOnClient.clientId)		
 		
@@ -282,23 +310,27 @@ class Monitoring(object):
 			message += u"Status Problem detected for: "
 			for productId in productIds:
 				if productProblemsOnClient.has_key(productId):
-					message += u"%s (%s) " % (productProblemsOnClient[productId], productId)
+					for clientId in productProblemsOnClient[productId]:
+						message += u"%s (%s) " % (clientId, productId)
 					
 		elif productProblemsOnDepot:
 			message += u"Cannot check, because product not installed on depot: "
 			for productId in productIds:
 				if productProblemsOnDepot.has_key(productId):
-					message += u"%s (%s) " % (productProblemsOnDepot[productId], productId)
+					for clientId in productProblemsOnDepot[productId]:
+						message += u"%s (%s) " % (clientId, productId)
 	
 		elif productVersionProblemsOnClient:
 			message += u"Version of Installed Software on Client differs from Software on Depot: "
 			for productId in productIds:
 				if productVersionProblemsOnClient.has_key(productId):
-					message += u"%s (%s) " % (productVersionProblemsOnClient[productId], productId)
+					for clientId in productVersionProblemsOnClient[productId]:
+						message += u"%s (%s) " % (clientId, productId)
 		
 		else:
 			message += u"Checked Product looks good, no problems found."
-	
+		print ">>>>>>>>>>>>>>>",state
+		print ">>>>>>>>>>>>>>>",message
 		return self._generateResponse(state, message)
 	
 	def checkPluginOnClient(self, clientId, plugin, params=None, state=None):

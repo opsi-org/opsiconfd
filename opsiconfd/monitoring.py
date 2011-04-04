@@ -61,7 +61,8 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			dispatchConfigFile = self.opsiconfd.config['dispatchConfigFile'],
 			backendConfigDir   = self.opsiconfd.config['backendConfigDir'],
 			extensionConfigDir = self.opsiconfd.config['extensionConfigDir'],
-			depotBackend       = bool(self.opsiconfd.config['depotId'])	
+			depotBackend       = bool(self.opsiconfd.config['depotId']),
+			hostControlBackend = True	
 		)
 		
 		self.monitoring = Monitoring(self._backend)
@@ -153,10 +154,28 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
+			elif query["task"] == "checkPluginOnClient":
+				if query["param"]:
+					clientId = []
+					command = ''
+					timeout = 30
+					captureStdErr = True
+					encoding = None
+					state = None
+				if query["param"].has_key("clientId"):
+					clientId.append(query["param"]["clientId"])
+				if query["param"].has_key("plugin"):
+					command = query["param"]["plugin"]
+				if query["param"].has_key("state"):
+					state = query["param"]["state"]
+				res = self.monitoring.checkPluginOnClient(clientId, command, timeout,captureStdErr,encoding,state)
+				result.stream = stream.IByteStream(res.encode('utf-8'))
+				return result	
+					
 			else:
 				raise Exception(u"Failure: unknown task!")
 				
-		
+		#def checkPluginOnClient(self, hostIds, command, timeout=30, captureStdErr=True, encoding=None, state=None):
 		
 class ResourceOpsiconfdMonitoring(ResourceOpsi):
 	WorkerClass = WorkerOpsiconfdMonitoring
@@ -422,6 +441,15 @@ class Monitoring(object):
 			
 		
 	
+	def checkPluginOnClient(self, hostIds, command, timeout=30, waitForEnding= True, captureStdErr=True, encoding=None, state=None):
+		res = self.backend.hostControl_execute(command, hostIds, waitForEnding, captureStdErr, encoding, timeout)
+		if res.has_key(hostIds[0]):
+			state = res[hostIds[0]]["result"][0]
+			message = res[hostIds[0]]["result"][1]
+			return self._generateResponse(state, message)
+		
+				
+		
 	'''
 	def checkProductStatus(self, productIds = [], productGroups = [], depotIds = [], exclude=[]):
 		productOnDepotInfo = {}
@@ -546,8 +574,6 @@ class Monitoring(object):
 		print ">>>>>>>>>>>>>>>",state
 		print ">>>>>>>>>>>>>>>",message
 		return self._generateResponse(state, message)
-	
-	def checkPluginOnClient(self, clientId, plugin, params=None, state=None):
-		pass
-'''
+'''	
+
 

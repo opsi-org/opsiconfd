@@ -75,7 +75,7 @@ from OPSI.Service import SSLContext, OpsiService
 from workers import WorkerOpsiconfd
 from resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV
 from info import ResourceOpsiconfdInfo, WorkerOpsiconfdInfo
-from doc import ResourceOpsiDocumentation
+# from doc import ResourceOpsiDocumentation
 from statistics import Statistics, ResourceOpsiconfdStatistics
 from session import OpsiconfdSessionHandler, OpsiconfdSession
 
@@ -294,7 +294,7 @@ class Opsiconfd(threading.Thread, OpsiService):
 		self._root.putChild('interface',       ResourceOpsiconfdJsonInterface(self))
 		self._root.putChild('info',            ResourceOpsiconfdInfo(self))
 		self._root.putChild('statistics',      ResourceOpsiconfdStatistics(self))
-		self._root.putChild('doc',             ResourceOpsiDocumentation())
+		# self._root.putChild('doc',             ResourceOpsiDocumentation())
 		
 		hosts = self._backend.host_getObjects(type = 'OpsiDepotserver', id = self.config['fqdn'])
 		if hosts:

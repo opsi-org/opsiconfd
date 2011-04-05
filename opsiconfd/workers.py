@@ -34,7 +34,6 @@
 
 
 import random, time, os, base64, socket, zlib
-from hashlib import md5
 
 from twisted.internet import defer, threads
 from twisted.python import failure

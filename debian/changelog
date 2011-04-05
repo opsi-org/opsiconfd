@@ -1,3 +1,9 @@
+opsiconfd (4.0.1-7) stable; urgency=low
+
+  * Fixed import for python 2.4 evironments
+
+ -- Christian Kampka <c.kampka@uib.de>  Tue, 05 Apr 2011 12:14:43 +0200
+
 opsiconfd (4.0.1-6) testing; urgency=low
 
   * Fix webdav auth for hosts

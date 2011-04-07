@@ -160,18 +160,22 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					command = ''
 					timeout = 30
 					captureStdErr = True
+					waitForEnding = True
 					encoding = None
-					state = None
+					statebefore = None
+					output = None
 				if query["param"].has_key("clientId"):
 					clientId.append(query["param"]["clientId"])
 				if query["param"].has_key("plugin"):
 					command = query["param"]["plugin"]
 				if query["param"].has_key("state"):
-					state = query["param"]["state"]
-				res = self.monitoring.checkPluginOnClient(clientId, command, timeout,captureStdErr,encoding,state)
+					statebefore = query["param"]["state"]
+				if query["param"].has_key("output"):
+					output = query["param"]["output"]
+				res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result	
-					
+#def checkPluginOnClient(self, hostIds, command, timeout=30, waitForEnding= True, captureStdErr=True, statebefore=None, output=None, encoding=None):
 			else:
 				raise Exception(u"Failure: unknown task!")
 				
@@ -196,9 +200,15 @@ class Monitoring(object):
 		response = {}
 		response["state"] = str(state)
 		if perfdata:
-			response["message"] = u"%s: %s | %s" % (self._stateText[int(state)], message, perfdata)
+			if self._stateText[int(state)] in message:
+				response["message"] = u"%s | %s" % (message, perfdata)
+			else:
+				response["message"] = u"%s: %s | %s" % (self._stateText[int(state)], message, perfdata)
 		else:
-			response["message"] = u"%s: %s" % (self._stateText[int(state)],message)
+			if self._stateText[int(state)] in message:
+				response["message"] = u"%s" %  message
+			else:
+				response["message"] = u"%s: %s" % (self._stateText[int(state)],message)
 		if len(response["message"]) > 3800:
 			response["message"] = u"%s ..." % response["message"][:3800]	
 		return json.dumps(response)
@@ -325,22 +335,28 @@ class Monitoring(object):
 		message = ''
 		if not verbose:
 			for depotId in depotIds:
-				message += "Result for Depot: '%s': " % depotId
+				if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId): 
+					message += "Result for Depot: '%s': " % depotId
+				else:
+					continue
 				if actionRequestOnClient.has_key(depotId):
 					for product in actionRequestOnClient[depotId].keys():
-						message += "For product '%s' action set on '%d' clients; " % (product, len(actionRequestOnClient[depotId][product]))
+						message += "For product '%s' action set on '%d' clients! " % (product, len(actionRequestOnClient[depotId][product]))
 				if productProblemsOnClient.has_key(depotId):
 					for product in productProblemsOnClient[depotId].keys():
-						message += "For product '%s' problems found on '%d' clients; " % (product, len(productProblemsOnClient[depotId][product]))
+						message += "For product '%s' problems found on '%d' clients! " % (product, len(productProblemsOnClient[depotId][product]))
 				if productVersionProblemsOnClient.has_key(depotId):
 					for product in productVersionProblemsOnClient[depotId].keys():
-						message += "For product '%s' version defference problems found on '%d' clients; " % (product, len(productVersionProblemsOnClient[depotId][product]))
+						message += "For product '%s' version defference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
 			if state == self._OK:
-				message = u"No Problem found for productIds; '%s'" % productIds
+				message = u"No Problem found for productIds: '%s'" % productIds
 			return self._generateResponse(state, message)
 				
 		for depotId in depotIds:
-			message += "Result for Depot: '%s': " % depotId
+			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId): 
+				message += "Result for Depot: '%s': " % depotId
+			else:
+				continue
 			if actionRequestOnClient.has_key(depotId):
 				message += "Action Request set for "
 				for product in actionRequestOnClient[depotId].keys():
@@ -361,7 +377,10 @@ class Monitoring(object):
 						message += "%s " % item
 		
 		if state == self._OK:
-			message = u"No Problem found for productIds; '%s'" % "".join(productIds)
+			if productGroups:
+				message = u"No Problem found for productIds; '%s'" % "".join(productGroups)
+			else:
+				message = u"No Problem found for productIds; '%s'" % "".join(productIds)
 			
 		return self._generateResponse(state, message)
 		
@@ -441,14 +460,42 @@ class Monitoring(object):
 			
 		
 	
-	def checkPluginOnClient(self, hostIds, command, timeout=30, waitForEnding= True, captureStdErr=True, encoding=None, state=None):
-		res = self.backend.hostControl_execute(command, hostIds, waitForEnding, captureStdErr, encoding, timeout)
+	def checkPluginOnClient(self, hostIds, command, timeout=30, waitForEnding= True, captureStdErr=True, statebefore=None, output=None, encoding=None):
+		res = self.backend.hostControl_reachable(hostIds)
 		if res.has_key(hostIds[0]):
-			state = res[hostIds[0]]["result"][0]
-			message = res[hostIds[0]]["result"][1]
+			if not res[hostIds[0]]:
+				print ">>>>>>>>>>>>",statebefore
+				print ">>>>>>>>>>>>",output
+				if statebefore and output:
+					return self._generateResponse(statebefore, output)
+				else:
+					state = self._UNKNOWN
+					message = u"Cannot Check, host not reachable!"
+					return self._generateResponse(state, message)
+			else:
+				res = self.backend.hostControl_execute(command, hostIds, waitForEnding, captureStdErr, encoding, timeout)
+				if res.has_key(hostIds[0]):
+					if not res[hostIds[0]]["result"]:
+						if statebefore and output:
+							return self._generateResponse(statebefore, output)
+						#else:
+						#	state = self._UNKNOWN
+						#	message = res[hostIds[0]]["error"][1]
+						#	return self._generateResponse(state, message)
+					state = res[hostIds[0]]["result"][0]
+					message = res[hostIds[0]]["result"][1]
+					return self._generateResponse(state, message)
+				else:
+					state = self._UNKNOWN
+					message = u"cannot check plugin."
+					return self._generateResponse(state[0], state[1])
+		else:
+			if statebefore and output:
+				return self._generateResponse(int(statebefore), output)
+			state = self._UNKNOWN
+			message = u"cannot check plugin. Host not found."
 			return self._generateResponse(state, message)
 		
-				
 		
 	'''
 	def checkProductStatus(self, productIds = [], productGroups = [], depotIds = [], exclude=[]):

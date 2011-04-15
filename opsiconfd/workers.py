@@ -264,11 +264,21 @@ class WorkerOpsiconfd(WorkerOpsi):
 		
 		self.session.postpath = self.request.postpath
 		
+		forceGroups = []
+		if (len(self.service.config['adminNetworks']) == 1) and (self.service.config['adminNetworks'][0] == u'0.0.0.0/0'):
+			forceGroups = None
+		else:
+			for networkAddress in self.service.config['adminNetworks']:
+				if ipAddressInNetwork(self.session.ip, networkAddress):
+					forceGroups = None
+					break
+		
 		def _createBackend():
 			self.session.postpath = self.request.postpath
 			self.session.callInstance = backendManagerFactory(
 					user               = self.session.user,
 					password           = self.session.password,
+					forceGroups        = forceGroups,
 					dispatchConfigFile = self.service.config['dispatchConfigFile'],
 					backendConfigDir   = self.service.config['backendConfigDir'],
 					extensionConfigDir = self.service.config['extensionConfigDir'],
@@ -290,6 +300,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 			d.addCallback(lambda x: process.callRemote("initialize",
 							user               = self.session.user,
 							password           = self.session.password,
+							forceGroups        = forceGroups,
 							dispatchConfigFile = self.service.config['dispatchConfigFile'],
 							backendConfigDir   = self.service.config['backendConfigDir'],
 							extensionConfigDir = self.service.config['extensionConfigDir'],

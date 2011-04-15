@@ -647,7 +647,7 @@ class OpsiconfdInit(object):
 							self.config['maxExecutionStatisticValues'] = forceInt(value)
 						elif (option == 'multiprocessing'):
 							self.config['multiprocessing'] = forceBool(value)
-						elif (option == 'adminnetworks'):
+						elif (option == 'admin networks'):
 							self.config['adminNetworks'] = []
 							for net in value.split(','):
 								self.config['adminNetworks'].append(forceNetworkAddress(net.strip()))

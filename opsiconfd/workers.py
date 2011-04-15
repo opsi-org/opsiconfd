@@ -43,7 +43,7 @@ from OPSI.web2 import responsecode, http, stream
 
 from OPSI.Service.Worker import WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV, interfacePage, MultiprocessWorkerOpsiJsonRpc
 from OPSI.Types import *
-from OPSI.Util import timestamp, objectToHtml, toJson, fromJson, randomString, decryptWithPrivateKeyFromPEMFile
+from OPSI.Util import timestamp, objectToHtml, toJson, fromJson, randomString, decryptWithPrivateKeyFromPEMFile, ipAddressInNetwork
 from OPSI.Object import serialize, deserialize
 from OPSI.Backend.BackendProcess import OpsiBackendProcess
 from OPSI.Backend.BackendManager import BackendManager, BackendAccessControl, backendManagerFactory
@@ -204,15 +204,35 @@ class WorkerOpsiconfd(WorkerOpsi):
 					raise Exception(u"Access denied for username '%s' from '%s'" %
 							(self.session.user, self.session.ip) )
 			
+			adminNetwork = False
+			if (len(self.service.config['adminNetworks']) == 1) and (self.service.config['adminNetworks'][0] == u'0.0.0.0/0'):
+				adminNetwork = True
+			else:
+				for networkAddress in self.service.config['adminNetworks']:
+					if ipAddressInNetwork(self.session.ip, networkAddress):
+						adminNetwork = True
+						break
+			
+			forceGroups = None
+			if adminNetwork:
+				logger.info(u"Connection from admin network")
+			else:
+				forceGroups = []
+				logger.info(u"Connection from non admin network")
+			
 			bac = BackendAccessControl(
-				backend  = self.service._backend,
-				username = self.session.user,
-				password = self.session.password
+				backend     = self.service._backend,
+				username    = self.session.user,
+				password    = self.session.password,
+				forceGroups = forceGroups
 			)
 			if not bac.accessControl_authenticated():
 				raise Exception(u"Bad user or password")
 			
-			self.session.isAdmin = bac.accessControl_userIsAdmin()
+			if adminNetwork:
+				self.session.isAdmin = bac.accessControl_userIsAdmin()
+			else:
+				self.session.isAdmin = False
 			
 			self.session.authenticated = self._authorize()
 			if not self.session.authenticated:

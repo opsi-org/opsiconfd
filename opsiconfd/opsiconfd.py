@@ -517,6 +517,7 @@ class OpsiconfdInit(object):
 			'httpPort'                     : 0,
 			'httpsPort'                    : 4447,
 			'interface'                    : u'0.0.0.0',
+			'adminNetworks'                : [ u'0.0.0.0/0' ],
 			'maxExecutionStatisticValues'  : 250,
 			'sslServerCertFile'            : u'/etc/opsi/opsiconfd.pem',
 			'sslServerKeyFile'             : u'/etc/opsi/opsiconfd.pem',
@@ -646,6 +647,10 @@ class OpsiconfdInit(object):
 							self.config['maxExecutionStatisticValues'] = forceInt(value)
 						elif (option == 'multiprocessing'):
 							self.config['multiprocessing'] = forceBool(value)
+						elif (option == 'adminnetworks'):
+							self.config['adminNetworks'] = []
+							for net in value.split(','):
+								self.config['adminNetworks'].append(forceNetworkAddress(net.strip()))
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 				

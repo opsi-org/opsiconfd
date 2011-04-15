@@ -1,3 +1,9 @@
+opsiconfd (4.0.1-9) stable; urgency=low
+
+  * New feature: admin network
+
+ -- Jan Schneider <j.schneider@uib.de>  Fri, 15 Apr 2011 12:27:18 +0200
+
 opsiconfd (4.0.1-8) stable; urgency=low
 
   * Fixed import of non-existing resource

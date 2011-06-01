@@ -291,12 +291,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 			socket = "/var/run/opsiconfd/worker-%s.socket" % randomString(32)
 
 			process = OpsiBackendProcess(socket = socket, logFile = self.service.config['logFile'].replace('%m', self.request.remoteAddr.host))
-			process.start()
-			# @TODO
-			time.sleep(1) # wait for process to start
 			self.session.callInstance = process
 
-			d = process.callRemote("setLogging", console=logger.getConsoleLevel(), file=logger.getFileLevel())
+			d = process.start()
+			d.addCallback(lambda x: process.callRemote("setLogging", console=logger.getConsoleLevel(), file=logger.getFileLevel()))
 			d.addCallback(lambda x: process.callRemote("initialize",
 							user               = self.session.user,
 							password           = self.session.password,
@@ -385,7 +383,11 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 	def __init__(self, service, request, resource):
 		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing = service.config["multiprocessing"])
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
-		MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
+		
+		modules = self.service._backend.backend_info()['modules']
+		if self.multiProcessing and \
+		(modules.get('valid', False) and modules.get('high_availability', False)):
+				MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
 		
 	def _getCallInstance(self, result):
 		d = defer.maybeDeferred(self._getBackend,result)

@@ -184,7 +184,13 @@ fi
 
 # ===[ preun ]======================================
 %preun
-%stop_on_removal opsiconfd
+%if 0%{?suse_version}
+	%stop_on_removal opsiconfd
+%else
+	if [ $1 = 0 ] ; then
+		/etc/init.d/opsiconfd stop >/dev/null 2>&1
+	fi
+%endif
 
 # ===[ postun ]=====================================
 %postun

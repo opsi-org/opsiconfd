@@ -42,7 +42,6 @@ epollreactor.install()
 #from twisted.internet import selectreactor
 #selectreactor.install()
 from twisted.internet import reactor
-from twisted.python import log
 
 # Imports
 import os, sys, getopt, threading, time, socket
@@ -126,10 +125,8 @@ class ZeroconfService(object):
 			self._group.Reset()
 
 
-class Opsiconfd(threading.Thread, OpsiService):
+class Opsiconfd(OpsiService):
 	def __init__(self, config):
-		threading.Thread.__init__(self)
-		
 		self.config           = config
 		self._running         = False
 		
@@ -147,6 +144,7 @@ class Opsiconfd(threading.Thread, OpsiService):
 		
 		self._setOpsiLogging()
 		self._setTwistedLogging()
+		
 		logger.comment(	"\n==================================================================\n" \
 				+ "=             opsi configuration service starting                =\n" \
 				+ "==================================================================\n")
@@ -172,30 +170,27 @@ class Opsiconfd(threading.Thread, OpsiService):
 	
 	def stop(self):
 		logger.notice(u"Stopping opsiconfd main thread")
-		if self._zeroconfService:
-			self._zeroconfService.unpublish()
-		if self._httpPort:
-			self._httpPort.stopListening()
-		if self._httpsPort:
-			self._httpsPort.stopListening()
-		if self._sessionHandler:
-			self._sessionHandler.cleanup()
-		if self._backend:
-			try:
-				self._backend.backend_exit()
-			except:
-				pass
-			
-		if self._socket:
-			self._socket.stopListening()
-			
-		if reactor.running:
-			try:
-				logger.notice(u"Stopping reactor")
-				reactor.stop()
-			except Exception, e:
-				logger.error(u"Failed to stop reactor: %s" % e)
-		self._running = False
+		try:
+			if self._zeroconfService:
+				self._zeroconfService.unpublish()
+			if self._httpPort:
+				self._httpPort.stopListening()
+			if self._httpsPort:
+				self._httpsPort.stopListening()
+			if self._sessionHandler:
+				self._sessionHandler.cleanup()
+			if self._backend:
+				try:
+					self._backend.backend_exit()
+				except:
+					pass
+			if self._socket:
+				self._socket.stopListening()
+
+			self._running = False
+		except Exception, e:
+			logger.logError("Failed to stop opsiconfd cleanly.")
+			logger.logException(e)
 	
 	def reload(self):
 		logger.notice(u"Reloading opsiconfd")
@@ -231,6 +226,7 @@ class Opsiconfd(threading.Thread, OpsiService):
 	
 	def _setOpsiLogging(self):
 		# Set logging options
+		logger.logWarnings()
 		self.config['machineLogs'] = False
 		if self.config['logFile']:
 			if (self.config['logFile'].find('%m') != -1):
@@ -243,22 +239,7 @@ class Opsiconfd(threading.Thread, OpsiService):
 		
 
 	def _setTwistedLogging(self):
-		def twistedLogObserver(eventDict):
-			if eventDict.get('isError'):
-				if eventDict.get('failure'):
-					logger.logTraceback(eventDict['failure'].getTracebackObject())
-					logger.critical(u"     ==>>> %s" % eventDict['failure'].getErrorMessage())
-				for line in eventDict.get('message', ()):
-					if line.find("Can't find property" != -1):
-						# Dav property errors
-						logger.debug(line)
-					else:
-						logger.error(line)
-			else:
-				for line in eventDict.get('message', ()):
-					logger.debug(u"[twisted] %s" % line)
-		
-		log.startLoggingWithObserver(twistedLogObserver, setStdout=0)
+		logger.startTwistedLogging()
 	
 	def _createBackendInstance(self):
 		logger.info(u"Creating backend instance")
@@ -427,11 +408,11 @@ class Opsiconfd(threading.Thread, OpsiService):
 		logger.notice("Opening socket %s for interprocess communication." % socket)
 		self._socket = reactor.listenUNIX(socket, OpsiProcessProtocolFactory(self))
 
-	
 	def run(self):
 		self._running = True
 		logger.notice(u"Starting opsiconfd main thread")
 		try:
+			reactor.addSystemEventTrigger("before", "shutdown", self.stop)
 			self._startListeningSocket()
 			self._createBackendInstance()
 			self._createSessionHandler()
@@ -441,7 +422,7 @@ class Opsiconfd(threading.Thread, OpsiService):
 			self._publish()
 			
 			if not reactor.running:
-				reactor.run(installSignalHandlers=0)
+				reactor.run(installSignalHandlers=1)
 			
 			logger.notice(u"Opsiconfd main thread exiting...")
 		except Exception, e:
@@ -477,9 +458,7 @@ class OpsiconfdInit(object):
 		
 		# Call signalHandler on signal SIGHUP, SIGTERM, SIGINT
 		signal(SIGHUP,  self.signalHandler)
-		signal(SIGTERM, self.signalHandler)
-		signal(SIGINT,  self.signalHandler)
-		
+
 		if self.config['daemon']:
 			logger.setConsoleLevel(LOG_NONE)
 			daemonize()
@@ -489,22 +468,20 @@ class OpsiconfdInit(object):
 		
 		self.createPidFile()
 		try:
-			# Start opsiconfd
-			self._opsiconfd = Opsiconfd(self.config)
-			self._opsiconfd.start()
 			
 			# fix the process name on linux systems
 			# this works for killall/pkill/top/ps -A, not for ps a
 			libc = CDLL("libc.so.6")
 			libc.prctl( 15, 'opsiconfd', 0, 0, 0)
 			
-			time.sleep(3)
-			while self._opsiconfd.isRunning():
-				time.sleep(1)
-			self._opsiconfd.join(30)
+			# Start opsiconfd
+			self._opsiconfd = Opsiconfd(self.config)
+			self._opsiconfd.run()
+
 		finally:
+
 			self.removePidFile()
-	
+			
 	def setDefaultConfig(self):
 		self.config = {
 			'pidFile'                      : u'/var/run/opsiconfd/opsiconfd.pid',
@@ -590,7 +567,11 @@ class OpsiconfdInit(object):
 					os.unlink(self.config['pidFile'])
 			except Exception, e:
 				logger.error(u"Failed to remove pid file '%s': %s" % (self.config['pidFile'], e))
-		
+	
+	def stop(self):
+		if reactor and reactor.running and self._opsiconfd:
+			reactor.callFromThread(self._opsiconfd.stop)
+				
 	def signalHandler(self, signo, stackFrame):
 		for thread in threading.enumerate():
 			logger.debug(u"Running thread before signal: %s" % thread)
@@ -604,9 +585,7 @@ class OpsiconfdInit(object):
 				reactor.callFromThread(self._opsiconfd.reload)
 		
 		if (signo == SIGTERM or signo == SIGINT):
-			if reactor and reactor.running and self._opsiconfd:
-				reactor.callFromThread(self._opsiconfd.stop)
-				
+			self.stop()
 		for thread in threading.enumerate():
 			logger.debug(u"Running thread after signal: %s" % thread)
 		

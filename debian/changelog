@@ -1,3 +1,13 @@
+opsiconfd (4.0.1.2-1) stable; urgency=low
+
+  * stop opsiconfd cleanly on non-suse os before uninstalling
+  * let twisted take over SIGINT / SIGTERM
+  * moved twisted logging to logger
+  * removed sleep time to wait for finished worker process
+  * only init MultiProcessWorker if multiprocessing is enabled
+
+ -- Jan Schneider <j.schneider@uib.de>  Mon, 13 Jun 2011 20:40:16 +0200
+
 opsiconfd (4.0.1.1-1) stable; urgency=low
 
   * New feature: admin network

@@ -344,7 +344,9 @@ class Statistics(object):
 			"expirationTime":      now,
 			"exipredAfterSeconds": int(now - session.lastModified),
 			"userAgent":           session.userAgent,
-			"ip":                  session.ip
+			"lastRpcMethod":       session.lastRpcMethod or u'',
+			"ip":                  session.ip,
+			"user":                session.user
 		})
 		if (len(self._expiredSessionInfo) > self._maxExpiredSessionInfos):
 			self._expiredSessionInfo = self._expiredSessionInfos[1:]

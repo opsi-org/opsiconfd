@@ -169,12 +169,13 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		expiredSessions = self.service.statistics().getExpiredSessionInfo()
 		expiredSessionInfo  = u'<h1>Expired sessions (%d)</h1>' % len(expiredSessions)
 		expiredSessionInfo += u'<table>'
-		expiredSessionInfo += u'<tr><th>created</th><th>expired</th><th>timed out after</th><th>ip</th><th>user agent</th></tr>'
+		expiredSessionInfo += u'<tr><th>created</th><th>expired</th><th>timed out after</th><th>ip</th><th>user</th><th>user agent</th><th>last rpc method</th></tr>'
 		for expiredSession in expiredSessions:
-			expiredSessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s sec</td><td>%s</td><td>%s</td></tr>' \
+			expiredSessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s sec</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
 				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['creationTime'])), \
 					time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['expirationTime'])), \
-					expiredSession['exipredAfterSeconds'], expiredSession['ip'], expiredSession['userAgent'] )
+					expiredSession['exipredAfterSeconds'], expiredSession['ip'], expiredSession['user'], \
+					expiredSession['userAgent'], expiredSession['lastRpcMethod'] )
 		expiredSessionInfo += u'</table>'
 		
 		diskUsageInfo  = u'<h1>Disk usage</h1>'

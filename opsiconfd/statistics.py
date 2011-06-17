@@ -347,7 +347,7 @@ class Statistics(object):
 		if (len(self._expiredSessionInfo) > self._maxExpiredSessionInfos):
 			self._expiredSessionInfo = self._expiredSessionInfos[1:]
 		
-	def getExpiredSessionsInfo(self):
+	def getExpiredSessionInfo(self):
 		return self._expiredSessionInfo
 	
 	def addRequest(self, request):

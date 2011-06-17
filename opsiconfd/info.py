@@ -172,7 +172,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		expiredSessionInfo += u'<tr><th>created</th><th>timed out after (seconds)</th><th>ip</th><th>user agent</th></tr>'
 		for expiredSession in expiredSessions:
 			expiredSessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
-				% (time.strftime('%Y-%m-%d %H:%M:%S', expiredSession['creationTime'])), expiredSession['exipredAfterSeconds'], \
+				% (time.strftime('%Y-%m-%d %H:%M:%S', expiredSession['creationTime']), expiredSession['exipredAfterSeconds'], \
 					expiredSession['ip'], expiredSession['userAgent'] )
 		expiredSessionInfo += u'</table>'
 		

@@ -167,7 +167,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		
 		
 		expiredSessions = self.service.statistics().getExpiredSessionInfo()
-		expiredSessionInfo  = u'<h1>Expired sessions (%d)</h1>' % len(expiredSessionInfos)
+		expiredSessionInfo  = u'<h1>Expired sessions (%d)</h1>' % len(expiredSessions)
 		expiredSessionInfo += u'<table>'
 		expiredSessionInfo += u'<tr><th>created</th><th>timed out after (seconds)</th><th>ip</th><th>user agent</th></tr>'
 		for expiredSession in expiredSessions:

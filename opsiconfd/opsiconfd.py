@@ -58,6 +58,7 @@ from signal import *
 from ctypes import *
 
 # OPSI imports
+from OPSI.Application import Application
 from OPSI.Logger import *
 from OPSI.web2 import server
 from OPSI.web2.channel.http import HTTPFactory
@@ -189,7 +190,6 @@ class Opsiconfd(OpsiService):
 
 			self._running = False
 		except Exception, e:
-			logger.logError("Failed to stop opsiconfd cleanly.")
 			logger.logException(e)
 	
 	def reload(self):
@@ -432,7 +432,7 @@ class Opsiconfd(OpsiService):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # -                                           OPSICONFD INIT                                          -
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-class OpsiconfdInit(object):
+class OpsiconfdInit(Application):
 	def __init__(self):
 		logger.debug(u"OpsiconfdInit")
 		# Set umask
@@ -440,7 +440,7 @@ class OpsiconfdInit(object):
 		self._pid = 0
 		
 		try:
-			(self.opts, self.args) = getopt.getopt(sys.argv[1:], "vc:f:l:p:P:i:D")
+			(self.opts, self.args) = getopt.getopt(sys.argv[1:], "vc:f:l:p:P:i:D", ["profile=", "profiler="])
 		except getopt.GetoptError:
 			self.usage()
 			sys.exit(1)
@@ -456,32 +456,36 @@ class OpsiconfdInit(object):
 		self.readConfigFile()
 		self.setCommandlineConfig()
 		
-		# Call signalHandler on signal SIGHUP, SIGTERM, SIGINT
-		signal(SIGHUP,  self.signalHandler)
-
 		if self.config['daemon']:
 			logger.setConsoleLevel(LOG_NONE)
-			daemonize()
 		else:
 			logger.setConsoleLevel(self.config['logLevel'])
 			logger.setConsoleColor(True)
 		
+		Application.__init__(self, self.config)
+		
+		self.run()
+
+	def _getApplication(self):
+		self._opsiconfd = Opsiconfd(self.config)
+		return self._opsiconfd
+	
+	def setup(self):
+		# Call signalHandler on signal SIGHUP, SIGTERM, SIGINT
+		signal(SIGHUP,  self.signalHandler)
+
+		if self.config['daemon']:
+			daemonize()
+		
+		
 		self.createPidFile()
-		try:
-			
-			# fix the process name on linux systems
-			# this works for killall/pkill/top/ps -A, not for ps a
-			libc = CDLL("libc.so.6")
-			libc.prctl( 15, 'opsiconfd', 0, 0, 0)
-			
-			# Start opsiconfd
-			self._opsiconfd = Opsiconfd(self.config)
-			self._opsiconfd.run()
+		libc = CDLL("libc.so.6")
+		libc.prctl( 15, 'opsiconfd', 0, 0, 0)
+		
 
-		finally:
+	def shutdown(self):
+		self.removePidFile()
 
-			self.removePidFile()
-			
 	def setDefaultConfig(self):
 		self.config = {
 			'pidFile'                      : u'/var/run/opsiconfd/opsiconfd.pid',
@@ -514,7 +518,9 @@ class OpsiconfdInit(object):
 			'extensionConfigDir'           : u'/etc/opsi/backendManager/extend.d',
 			'aclFile'                      : u'/etc/opsi/backendManager/acl.conf',
 			'socket'                       : u'/var/run/opsiconfd/opsiconfd.socket',
-			'multiprocessing'              : False
+			'multiprocessing'              : False,
+			'profile'                      : False,
+			'profiler'                     : u'profiler',
 		}
 	
 	def setCommandlineConfig(self):
@@ -531,6 +537,11 @@ class OpsiconfdInit(object):
 				self.config['httpsPort'] = forceInt(arg)
 			elif (opt == "-i"):
 				self.config['interface'] = forceUnicode(arg)
+			elif (opt == "--profile"):
+				self.config["profile"] = forceFilename(arg)
+			elif (opt == "--profiler"):
+				self.config["profiler"] = forceUnicode(arg)
+
 		
 	def createPidFile(self):
 		if self.config['daemon']:

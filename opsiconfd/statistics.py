@@ -32,13 +32,17 @@
    @license: GNU General Public License version 2
 """
 
+import os, time
 from twisted.internet.task import LoopingCall
 import resource as pyresource
 try:
 	import rrdtool
 except:
 	rrdtool = None
-
+try:
+	import objgraph
+except:
+	objgraph = None
 from OPSI.web2 import http, resource
 from OPSI.Logger import *
 
@@ -60,6 +64,8 @@ class Statistics(object):
 		self.opsiconfd = opsiconfd
 		self._rpcs = []
 		self._encodingErrors = []
+		self._expiredSessionInfo = []
+		self._maxExpiredSessionInfos = 300
 		self._utime = 0.0
 		self._stime = 0.0
 		self._last = time.time()
@@ -79,6 +85,15 @@ class Statistics(object):
 	
 	def rrdsAvailable(self):
 		return bool(rrdtool)
+	
+	def createObjectGraph(self, maxDepth):
+		if objgraph:
+			path = os.getcwd()
+			try:
+				os.chdir('/tmp')
+				objgraph.show_backrefs([self.opsiconfd], max_depth = maxDepth)
+			finally:
+				os.chdir(path)
 		
 	def createRrd(self):
 		if not rrdtool:
@@ -321,7 +336,20 @@ class Statistics(object):
 			return
 		if (self._rrdCache['sessions'] > 0):
 			self._rrdCache['sessions'] -= 1
+	
+	def sessionExpired(self, session):
+		self._expiredSessionInfo.append({
+			"creationTime":        session.created,
+			"exipredAfterSeconds": int(time.time() - session.lastModified),
+			"userAgent":           session.userAgent,
+			"ip":                  session.ip
+		})
+		if (len(self._expiredSessionInfo) > self._maxExpiredSessionInfos):
+			self._expiredSessionInfo = self._expiredSessionInfos[1:]
 		
+	def getExpiredSessionsInfo(self):
+		return self._expiredSessionInfo
+	
 	def addRequest(self, request):
 		self._rrdCache['requests'] += 1
 	

@@ -76,6 +76,7 @@ infoPage = u'''
 		<div id="info">%config_info%</div>
 		<div id="info">%thread_info%</div>
 		<div id="info">%session_info%</div>
+		<div id="info">%expired_session_info%</div>
 		<div id="info">%disk_usage_info%</div>
 		<div id="info">%rpc_statistic_info%</div>
 	</div>
@@ -165,6 +166,16 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		sessionInfo += u'</table>'
 		
 		
+		expiredSessions = self.service._getSessionHandler().getExpiredSessionInfo()
+		expiredSessionInfo  = u'<h1>Expired sessions (%d)</h1>' % len(expiredSessionInfos)
+		expiredSessionInfo += u'<table>'
+		expiredSessionInfo += u'<tr><th>created</th><th>timed out after (seconds)</th><th>ip</th><th>user agent</th></tr>'
+		for expiredSession in expiredSessions:
+			expiredSessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
+				% (time.strftime('%Y-%m-%d %H:%M:%S', expiredSession['creationTime'])), expiredSession['exipredAfterSeconds'], \
+					expiredSession['ip'], expiredSession['userAgent'] )
+		expiredSessionInfo += u'</table>'
+		
 		diskUsageInfo  = u'<h1>Disk usage</h1>'
 		diskUsageInfo += u'<table>'
 		diskUsageInfo += u'<tr><th>resource</th><th>path</th><th>capacity</th><th>used</th><th>available</th><th>usage</th></tr>'
@@ -233,6 +244,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		html = html.replace('%config_info%', configInfo)
 		html = html.replace('%thread_info%', threadInfo)
 		html = html.replace('%session_info%', sessionInfo)
+		html = html.replace('%expired_session_info%', expiredSessionInfo)
 		html = html.replace('%disk_usage_info%', diskUsageInfo)
 		html = html.replace('%rpc_statistic_info%', statisticInfo)
 		
@@ -243,6 +255,11 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return result
 	
 	def _processQuery(self, result):
+		if self.query.startswith('objgraph'):
+			maxDepth = 10
+			if (self.query.find('=') != -1):
+				maxDepth = int(self.query.split('=')[1])
+			self.service.statistics().createObjectGraph(maxDepth)
 		return result
 	
 class ResourceOpsiconfdInfo(ResourceOpsiconfd):

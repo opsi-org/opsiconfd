@@ -140,6 +140,7 @@ class Opsiconfd(OpsiService):
 		self._statistics      = None
 		self._zeroconfService = None
 		self._socket          = None
+		self._debugShell      = None
 		
 		self.authFailureCount = {}
 		
@@ -180,6 +181,8 @@ class Opsiconfd(OpsiService):
 				self._httpsPort.stopListening()
 			if self._sessionHandler:
 				self._sessionHandler.cleanup()
+			if self._debugShell:
+				self._debugShell.close()
 			if self._backend:
 				try:
 					self._backend.backend_exit()
@@ -190,6 +193,7 @@ class Opsiconfd(OpsiService):
 
 			self._running = False
 		except Exception, e:
+			logger.error("Failed to stop opsiconfd cleanly.")
 			logger.logException(e)
 	
 	def reload(self):
@@ -408,6 +412,17 @@ class Opsiconfd(OpsiService):
 		logger.notice("Opening socket %s for interprocess communication." % socket)
 		self._socket = reactor.listenUNIX(socket, OpsiProcessProtocolFactory(self))
 
+	def _startListeningShell(self):
+		from OPSI.Util.Debug import DebugShell
+		
+		ns = globals()
+		ns.update({"opsiconfd":self})
+
+		self._debugShell = DebugShell(self, self._backend, namespace=ns)
+		
+		logger.notice("Opening debug shell.")
+		self._debugShell.open()
+
 	def run(self):
 		self._running = True
 		logger.notice(u"Starting opsiconfd main thread")
@@ -420,6 +435,9 @@ class Opsiconfd(OpsiService):
 			self._createSite()
 			self._startListening()
 			self._publish()
+
+			if self.config["debug"]:
+				self._startListeningShell()
 			
 			if not reactor.running:
 				reactor.run(installSignalHandlers=1)
@@ -440,7 +458,7 @@ class OpsiconfdInit(Application):
 		self._pid = 0
 		
 		try:
-			(self.opts, self.args) = getopt.getopt(sys.argv[1:], "vc:f:l:p:P:i:D", ["profile=", "profiler="])
+			(self.opts, self.args) = getopt.getopt(sys.argv[1:], "vc:f:l:p:P:i:D", ["profile=", "profiler=", "debug"])
 		except getopt.GetoptError:
 			self.usage()
 			sys.exit(1)
@@ -521,6 +539,8 @@ class OpsiconfdInit(Application):
 			'multiprocessing'              : False,
 			'profile'                      : False,
 			'profiler'                     : u'profiler',
+			'debug'                        : False
+
 		}
 	
 	def setCommandlineConfig(self):
@@ -541,6 +561,8 @@ class OpsiconfdInit(Application):
 				self.config["profile"] = forceFilename(arg)
 			elif (opt == "--profiler"):
 				self.config["profiler"] = forceUnicode(arg)
+			elif (opt == "--debug"):
+				self.config["debug"] = True
 
 		
 	def createPidFile(self):

@@ -338,9 +338,11 @@ class Statistics(object):
 			self._rrdCache['sessions'] -= 1
 	
 	def sessionExpired(self, session):
+		now = time.time()
 		self._expiredSessionInfo.append({
 			"creationTime":        session.created,
-			"exipredAfterSeconds": int(time.time() - session.lastModified),
+			"expirationTime":      now,
+			"exipredAfterSeconds": int(now - session.lastModified),
 			"userAgent":           session.userAgent,
 			"ip":                  session.ip
 		})

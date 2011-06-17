@@ -158,7 +158,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>validity</th><th>marked for deletion</th><th>ip</th><th>hostname</th><th>user</th>' + \
 		               u'<th>is host</th><th>usage count</th><th>application</th><th>last rpc decoded</th><th>last rpc method</th></tr>'
 		for session in sessions.values():
-			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
+			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s sec</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
 				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created)), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.lastModified)), \
 					session.getValidity(), session.getMarkedForDeletion(), \
 					session.ip, session.hostname, session.user, session.isHost, session.usageCount, session.userAgent, \
@@ -169,11 +169,12 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		expiredSessions = self.service.statistics().getExpiredSessionInfo()
 		expiredSessionInfo  = u'<h1>Expired sessions (%d)</h1>' % len(expiredSessions)
 		expiredSessionInfo += u'<table>'
-		expiredSessionInfo += u'<tr><th>created</th><th>timed out after (seconds)</th><th>ip</th><th>user agent</th></tr>'
+		expiredSessionInfo += u'<tr><th>created</th><th>expired</th><th>timed out after</th><th>ip</th><th>user agent</th></tr>'
 		for expiredSession in expiredSessions:
-			expiredSessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
-				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['creationTime'])), expiredSession['exipredAfterSeconds'], \
-					expiredSession['ip'], expiredSession['userAgent'] )
+			expiredSessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s sec</td><td>%s</td><td>%s</td></tr>' \
+				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['creationTime'])), \
+					time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['expirationTime'])), \
+					expiredSession['exipredAfterSeconds'], expiredSession['ip'], expiredSession['userAgent'] )
 		expiredSessionInfo += u'</table>'
 		
 		diskUsageInfo  = u'<h1>Disk usage</h1>'

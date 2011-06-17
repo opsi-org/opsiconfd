@@ -344,7 +344,7 @@ class Statistics(object):
 			"expirationTime":      now,
 			"exipredAfterSeconds": int(now - session.lastModified),
 			"userAgent":           session.userAgent,
-			"lastRpcMethod":       session.lastRpcMethod or u'',
+			"lastRpcMethod":       session.lastRpcMethod,
 			"ip":                  session.ip,
 			"user":                session.user
 		})

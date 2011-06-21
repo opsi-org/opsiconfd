@@ -73,7 +73,7 @@ from OPSI.Service import SSLContext, OpsiService
 
 
 from workers import WorkerOpsiconfd
-from resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV
+from resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV, ResourceOpsiconfdConfigedJNLP
 from info import ResourceOpsiconfdInfo, WorkerOpsiconfdInfo
 # from doc import ResourceOpsiDocumentation
 from statistics import Statistics, ResourceOpsiconfdStatistics
@@ -280,6 +280,7 @@ class Opsiconfd(OpsiService):
 		self._root.putChild('info',            ResourceOpsiconfdInfo(self))
 		self._root.putChild('statistics',      ResourceOpsiconfdStatistics(self))
 		# self._root.putChild('doc',             ResourceOpsiDocumentation())
+		self._root.putChild('configed.jnlp',   ResourceOpsiconfdConfigedJNLP())
 		
 		hosts = self._backend.host_getObjects(type = 'OpsiDepotserver', id = self.config['fqdn'])
 		if hosts:
@@ -332,7 +333,7 @@ class Opsiconfd(OpsiService):
 			authRequired = not('noauth' in options)
 			self._root.putChild(name, ResourceOpsiconfdDAV(self, path, readOnly = readOnly, authRequired = authRequired))
 			logger.notice(u"Added webdav content '%s' which points to directory '%s' %s" % (name, path, tuple(options)))
-		
+			
 		self._site = server.Site(self._root)
 	
 	def _startListening(self):

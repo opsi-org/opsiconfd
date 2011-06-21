@@ -39,6 +39,29 @@ from OPSI.Logger import *
 from workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface, WorkerOpsiconfdDAV
 logger = Logger()
 
+CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
+<jnlp spec="1.0+" codebase="%(codebase)s" href="configed.jnlp">
+	<information>
+		<title>opsi-configed</title>
+		<vendor>uib GmbH</vendor>
+		<homepage href="http://www.opsi.org/"/>
+		<description>Management console application for the opsi client management system</description>
+		<description kind="short">opsi management interface (opsi-confifed)</description>
+		<icon href="configed.gif"/>
+		<offline-allowed/>
+	</information>
+	<security>
+		<all-permissions/>
+	</security>
+	<resources>
+		<j2se version="1.6+" max-heap-size="512M"/>
+		<property name="loglevel" value="4" />
+		<jar href="configed.jar" main="true"/>
+		<jar href="swingx.jar"/>
+	</resources>
+	<application-desc main-class="de.uib.configed.configed"></application-desc>
+</jnlp>
+'''
 
 class ResourceRoot(resource.Resource):
 	addSlash = True
@@ -68,3 +91,9 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 	def renderHTTP(self, request):
 		self._service.statistics().addWebDAVRequest(request)
 		return ResourceOpsiDAV.renderHTTP(self, request)
+
+class ResourceOpsiconfdConfigedJNLP(resource.Resource):
+	def render(self, request):
+		return http.Response(stream = CONFIGED_JNLP_TEMPLATE % {"codebase": "https://%s/configed" % (request.headers.getHeader('host'))})
+
+

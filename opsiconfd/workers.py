@@ -91,10 +91,14 @@ class WorkerOpsiconfd(WorkerOpsi):
 				logger.confidential(u"Auth encoded: %s" % auth[1])
 				authString = None
 				if (auth[0].lower() == 'opsi'):
-					authString = unicode(
-						decryptWithPrivateKeyFromPEMFile(
-							base64.decodestring(auth[1]),
-							self.service.config['sslServerKeyFile']), 'latin-1').strip()
+					try:
+						authString = unicode(
+							decryptWithPrivateKeyFromPEMFile(
+								base64.decodestring(auth[1]),
+								self.service.config['sslServerKeyFile']), 'latin-1').strip()
+					except Exception, e:
+						logger.logException(e)
+						raise
 				else:
 					authString = unicode(base64.decodestring(auth[1]), 'latin-1').strip()
 				
@@ -376,6 +380,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 					)
 					return result
 		except Exception, e:
+			logger.logException(e)
 			logger.error(u"Failed to process opsi service verification key: %s" % e)
 		return result
 	

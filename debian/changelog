@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.4-1) stable; urgency=low
+
+  * Use virtual fqdn if available 
+
+ -- Christian Kampka <c.kampka@uib.de>  Tue, 12 Jul 2011 13:01:34 +0200
+
 opsiconfd (4.0.1.3-1) stable; urgency=low
 
   * Add expired session info to statistics

@@ -62,6 +62,7 @@ from OPSI.Application import Application
 from OPSI.Logger import *
 from OPSI.web2 import server
 from OPSI.web2.channel.http import HTTPFactory
+from OPSI.Util import getfqdn
 from OPSI.Util.File import IniFile
 from OPSI.Util.AMP import OpsiProcessProtocolFactory
 from OPSI.Types import *
@@ -529,7 +530,7 @@ class OpsiconfdInit(Application):
 			'updateIpAddress'              : False,
 			'staticDirectories'            : {},
 			'depotId'                      : None,
-			'fqdn'                         : forceHostId(socket.getfqdn()),
+			'fqdn'                         : forceHostId(getfqdn(conf='/etc/opsi/global.conf')),
 			'ipAddress'                    : socket.gethostbyname(socket.gethostname()),
 			'rrdDir'                       : u'/var/lib/opsiconfd/rrd',
 			'backendConfigDir'             : u'/etc/opsi/backends',

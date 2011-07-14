@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.5-1) stable; urgency=low
+
+  * Change jnlp codebase
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 14 Jul 2011 17:39:14 +0200
+
 opsiconfd (4.0.1.4-1) stable; urgency=low
 
   * Use virtual fqdn if available 

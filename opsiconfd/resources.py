@@ -46,7 +46,7 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 		<vendor>uib GmbH</vendor>
 		<homepage href="http://www.opsi.org/"/>
 		<description>Management console application for the opsi client management system</description>
-		<description kind="short">opsi management interface (opsi-confifed)</description>
+		<description kind="short">opsi management interface (opsi-configed)</description>
 		<icon href="configed.gif"/>
 		<offline-allowed/>
 	</information>
@@ -56,8 +56,8 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 	<resources>
 		<j2se version="1.6+" max-heap-size="512M"/>
 		<property name="loglevel" value="4" />
-		<jar href="configed.jar" main="true"/>
-		<jar href="swingx.jar"/>
+		<jar href="configed/configed.jar" main="true"/>
+		<jar href="configed/swingx.jar"/>
 	</resources>
 	<application-desc main-class="de.uib.configed.configed"></application-desc>
 </jnlp>
@@ -94,6 +94,6 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 
 class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 	def render(self, request):
-		return http.Response(stream = CONFIGED_JNLP_TEMPLATE % {"codebase": "https://%s/configed" % (request.headers.getHeader('host'))})
+		return http.Response(stream = CONFIGED_JNLP_TEMPLATE % {"codebase": "https://%s" % (request.headers.getHeader('host'))})
 
 

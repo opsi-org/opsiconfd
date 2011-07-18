@@ -7,7 +7,7 @@
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl dbus-1-python python-opsi >= 3.99 procps
+BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
 Requires:       python-opsi >= 4.0.1 openssl python-twisted dbus-1-python psmisc procps
 Url:            http://www.opsi.org
 License:        GPL v2 or later
@@ -21,7 +21,7 @@ Source:         opsiconfd_4.0.1.4-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?sles_version}
 Requires:       python-rrdtool
-BuildRequires:  python-rrdtool
+BuildRequires:  python-rrdtool python-opsi >= 4.0.1
 PreReq:         %insserv_prereq
 %{py_requires}
 %else

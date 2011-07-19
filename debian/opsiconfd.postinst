@@ -1,0 +1,127 @@
+#! /bin/bash -e
+
+# = = = = = = = = = = = = = = = = = = = = = = =
+# =       Copyright (C) 2010 uib GmbH         =
+# =           http://www.uib.de               =
+# =          All rights reserved.             =
+# = = = = = = = = = = = = = = = = = = = = = = =
+
+#DEBHELPER#
+
+. /usr/share/debconf/confmodule
+
+case "$1" in
+	configure)
+		
+		if [ -z "`getent group pcpatch`" ]; then
+			groupadd -g 992 pcpatch
+		fi
+		
+		if [ -z "`getent passwd opsiconfd`" ]; then
+			useradd -u 993 -g pcpatch -d /var/lib/opsi -s /bin/bash opsiconfd
+		fi
+		
+		if [ -z "`getent group opsiadmin`" ]; then
+			groupadd opsiadmin
+		fi
+		
+		deluser pcpatch shadow  1>/dev/null 2>/dev/null || true
+		adduser opsiconfd shadow  1>/dev/null 2>/dev/null || true
+		adduser opsiconfd opsiadmin  1>/dev/null 2>/dev/null || true
+		
+		if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
+			umask 077
+			
+			if [ ! -e "/usr/sbin/ucr" ]; then
+				# Not on ucs
+				
+				db_get opsiconfd/cert_country
+				cert_country=$RET
+				[ "$cert_country" = "" ] && cert_country="DE"
+				db_get opsiconfd/cert_state
+				cert_state=$RET
+				[ "$cert_state" = "" ] && cert_state="RP"
+				db_get opsiconfd/cert_locality
+				cert_locality=$RET
+				[ "$cert_locality" = "" ] && cert_locality="Mainz"
+				db_get opsiconfd/cert_organization
+				cert_organization=$RET
+				[ "$cert_organization" = "" ] && cert_organization="uib GmbH"
+				db_get opsiconfd/cert_unit
+				cert_unit=$RET
+				db_get opsiconfd/cert_commonname
+				cert_commonname=$RET
+				[ "$cert_commonname" = "" ] && cert_commonname=`hostname -f`
+				db_get opsiconfd/cert_email
+				cert_email=$RET
+				
+				tmp_opsiconfd_rand=$(tempfile)
+				tmp_opsiconfd_cnf=$(tempfile)
+				echo "RANDFILE = $tmp_opsiconfd_rand" 	>  $tmp_opsiconfd_cnf
+				echo "" 				>> $tmp_opsiconfd_cnf
+				echo "[ req ]" 				>> $tmp_opsiconfd_cnf
+				echo "default_bits = 1024" 		>> $tmp_opsiconfd_cnf
+				echo "encrypt_key = yes" 		>> $tmp_opsiconfd_cnf
+				echo "distinguished_name = req_dn" 	>> $tmp_opsiconfd_cnf
+				echo "x509_extensions = cert_type" 	>> $tmp_opsiconfd_cnf
+				echo "prompt = no" 			>> $tmp_opsiconfd_cnf
+				echo "" 				>> $tmp_opsiconfd_cnf
+				echo "[ req_dn ]" 			>> $tmp_opsiconfd_cnf
+				echo "C=$cert_country"			>> $tmp_opsiconfd_cnf
+				echo "ST=$cert_state" 			>> $tmp_opsiconfd_cnf
+				echo "L=$cert_locality" 		>> $tmp_opsiconfd_cnf
+				echo "O=$cert_organization" 		>> $tmp_opsiconfd_cnf
+				if [ "$cert_unit" != "" ]; then
+				echo "OU=$cert_unit" 		>> $tmp_opsiconfd_cnf
+				fi
+				echo "CN=$cert_commonname" 		>> $tmp_opsiconfd_cnf
+				if [ "$cert_email" != "" ]; then
+				echo "emailAddress=$cert_email">> $tmp_opsiconfd_cnf
+				fi
+				echo "" 				>> $tmp_opsiconfd_cnf
+				echo "[ cert_type ]" 			>> $tmp_opsiconfd_cnf
+				echo "nsCertType = server" 		>> $tmp_opsiconfd_cnf
+				
+				dd if=/dev/urandom of=$tmp_opsiconfd_rand count=1 2>/dev/null
+				openssl req -new -x509 -days 1000 -nodes \
+					-config $tmp_opsiconfd_cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
+				openssl gendh -rand $tmp_opsiconfd_rand 512 >>/etc/opsi/opsiconfd.pem
+				openssl x509 -subject -dates -fingerprint -noout -in /etc/opsi/opsiconfd.pem
+				rm -f $tmp_opsiconfd_rand $tmp_opsiconfd_cnf
+			fi
+		fi
+		
+		if [ -e "/etc/opsi/opsiconfd.pem" ]; then
+			chmod 600 /etc/opsi/opsiconfd.pem
+			chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
+		fi
+		
+		chmod 770 /var/lib/opsiconfd/rrd
+		chown opsiconfd:opsiadmin /var/lib/opsiconfd/rrd
+	;;
+	
+	abort-upgrade|abort-remove|abort-deconfigure)
+	
+	;;
+	
+	*)
+		echo "postinst called with unknown argument \`$1'" >&2
+		exit 1
+	;;
+esac
+
+db_stop
+
+if [ -x "/etc/init.d/opsiconfd" ]; then
+	update-rc.d -f opsiconfd remove >/dev/null || true
+	update-rc.d opsiconfd defaults 80 20 >/dev/null
+	if [ -x "`which invoke-rc.d 2>/dev/null`" ]; then
+		invoke-rc.d opsiconfd start || true
+	else
+		/etc/init.d/opsiconfd start || true
+	fi
+fi
+
+
+
+

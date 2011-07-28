@@ -496,6 +496,7 @@ class OpsiconfdInit(Application):
 
 		if self.config['daemon']:
 			daemonize()
+			time.sleep(2)
 		
 		
 		self.createPidFile()

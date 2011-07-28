@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.6-1) stable; urgency=low
+
+  * Workarround for daemonize-problem on slow machines
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Thu, 28 Jul 2011 16:28:31 +0200
+
 opsiconfd (4.0.1.5-1) stable; urgency=low
 
   * Change jnlp codebase

@@ -47,7 +47,7 @@ case "$1" in
 		test -e $PIDDIR || mkdir -p $PIDDIR
 		chown -R $USER $PIDDIR
 		
-		if [ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null; then
+		if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) > /dev/null; then
 			echo ".   (already running)."
 			[ "$START_GUARD" = "1" ] && $GUARD_BIN &
 			exit 0
@@ -73,7 +73,7 @@ case "$1" in
 			i=1
 			while [ $i -le 10 ]; do
 				echo -n "."
-				if ([ -f $PIDFILE ] && ps h `cat $PIDFILE` > /dev/null); then
+				if ([ -f $PIDFILE ] && ps h $(cat $PIDFILE) > /dev/null); then
 					pidfileseen=$(($pidfileseen+1))
 					if [ $pidfileseen -ge 3 ]; then
 						running=true

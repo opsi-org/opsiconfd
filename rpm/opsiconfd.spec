@@ -8,7 +8,7 @@
 
 Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
-Requires:       python-opsi >= 4.0.1 openssl python-twisted dbus-1-python psmisc procps
+Requires:       python-opsi >= 4.0.1 openssl python-twisted dbus-1-python psmisc procps python-rrdtool
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
@@ -20,13 +20,12 @@ Summary:        opsi configuration service
 Source:         opsiconfd_4.0.1.6-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?sles_version}
-Requires:       python-rrdtool
 BuildRequires:  python-rrdtool python-opsi >= 4.0.1
 PreReq:         %insserv_prereq
 %{py_requires}
 %else
 %if 0%{?suse_version}
-Requires:       python-avahi python-rrdtool
+Requires:       python-avahi
 BuildRequires:  python-rrdtool
 PreReq:         %insserv_prereq
 %{py_requires}
@@ -188,7 +187,7 @@ fi
 	%stop_on_removal opsiconfd
 %else
 	if [ $1 = 0 ] ; then
-		/etc/init.d/opsiconfd stop >/dev/null 2>&1
+		/etc/init.d/opsiconfd stop >/dev/null 2>&1 || true
 	fi
 %endif
 

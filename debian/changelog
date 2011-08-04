@@ -1,3 +1,10 @@
+opsiconfd (4.0.1.7-1) stable; urgency=low
+
+  * Update dependencies for python-rrdtool
+  * %preun exit 0
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 04 Aug 2011 10:00:12 +0200
+
 opsiconfd (4.0.1.6-1) stable; urgency=low
 
   * Workarround for daemonize-problem on slow machines

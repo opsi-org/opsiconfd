@@ -26,7 +26,7 @@ start_loop() {
 	sleep 20
 	while true; do
 		[ -e /etc/opsi/backends/univention.conf -a -e /etc/machine.secret ] && check_univention_backend
-		PID=`cat $PID_FILE 2>/dev/null`
+		PID=$(cat $PID_FILE 2>/dev/null)
 		if [ "$?" != "0" ]; then
 			[ "$DEBUG" = "1" ] && echo "opsiconfd pid-file not found." | logger -p daemon.debug -t opsiconfd-guard
 			start_opsiconfd
@@ -45,7 +45,7 @@ if [ "$1" = "daemon" ]; then
 else
 	exe=$0
 	if [ "${exe:0:1}" = "." ]; then
-		exe=`pwd`${exe:1}
+		exe=$(pwd)${exe:1}
 	fi
 	# prevent blocking umounts
 	cd /

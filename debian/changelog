@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.8-1) stable; urgency=low
+
+  * configed.jnlp arguments
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 18 Aug 2011 11:07:51 +0200
+
 opsiconfd (4.0.1.7-1) stable; urgency=low
 
   * Update dependencies for python-rrdtool

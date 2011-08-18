@@ -32,6 +32,8 @@
    @license: GNU General Public License version 2
 """
 
+import urllib
+
 from OPSI.web2 import http, resource
 from OPSI.Service.Resource import ResourceOpsi, ResourceOpsiJsonRpc, ResourceOpsiJsonInterface, ResourceOpsiDAV
 from OPSI.Logger import *
@@ -59,7 +61,9 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 		<jar href="configed/configed.jar" main="true"/>
 		<jar href="configed/swingx.jar"/>
 	</resources>
-	<application-desc main-class="de.uib.configed.configed"></application-desc>
+	<application-desc main-class="de.uib.configed.configed">
+	%(arguments)s
+	</application-desc>
 </jnlp>
 '''
 
@@ -94,6 +98,15 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 
 class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 	def render(self, request):
-		return http.Response(stream = CONFIGED_JNLP_TEMPLATE % {"codebase": "https://%s" % (request.headers.getHeader('host'))})
+		arguments = '<argument>-h</argument><argument>%s</argument>' % request.headers.getHeader('host')
+		if (request.uri.find('?') != -1):
+			arguments = ''
+			for a in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
+				arguments += '<argument>%s</argument>' % a
+		
+		return http.Response(stream = CONFIGED_JNLP_TEMPLATE % {
+			"codebase": "https://%s" % (request.headers.getHeader('host')),
+			"arguments": arguments
+		})
 
 

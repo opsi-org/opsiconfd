@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.9-1) stable; urgency=low
+
+  * Fix typo in statistics
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 23 Aug 2011 12:23:04 +0200
+
 opsiconfd (4.0.1.8-1) stable; urgency=low
 
   * configed.jnlp arguments

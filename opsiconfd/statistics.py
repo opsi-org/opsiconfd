@@ -349,7 +349,7 @@ class Statistics(object):
 			"user":                session.user
 		})
 		if (len(self._expiredSessionInfo) > self._maxExpiredSessionInfos):
-			self._expiredSessionInfo = self._expiredSessionInfos[1:]
+			self._expiredSessionInfo = self._expiredSessionInfo[1:]
 		
 	def getExpiredSessionInfo(self):
 		return self._expiredSessionInfo

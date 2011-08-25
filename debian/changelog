@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.9-2) stable; urgency=low
+
+  * Improve init script
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 25 Aug 2011 13:39:38 +0200
+
 opsiconfd (4.0.1.9-1) stable; urgency=low
 
   * Fix typo in statistics

@@ -132,7 +132,7 @@ case "$1" in
 			for pid in $(ps -A | grep opsiconfd | sed s'/^\s*//' | cut -d' ' -f1); do
 				[ "$pid" != "$$" ] && opsiconfd_pid=$pid
 			done
-			if [ "$opsiconfd_pid" == "" ]; then
+			if [ "$opsiconfd_pid" = "" ]; then
 				echo ".   (not running)."
 			else
 				kill -9 $opsiconfd_pid >/dev/null 2>/dev/null || true

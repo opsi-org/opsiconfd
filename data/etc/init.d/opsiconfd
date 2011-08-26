@@ -128,14 +128,14 @@ case "$1" in
 			[ -f $PIDFILE ] && kill -9 $(cat $PIDFILE) >/dev/null 2>/dev/null || true
 			echo "   (done)."
 		else
-			opsiconfd_pid=""
+			opsiconfd_pids=""
 			for pid in $(ps -A | grep opsiconfd | sed s'/^\s*//' | cut -d' ' -f1); do
-				[ "$pid" != "$$" ] && opsiconfd_pid=$pid
+				[ -d "/proc/$pid" -a "$pid" != "$$" ] && opsiconfd_pids="$opsiconfd_pids $pid"
 			done
-			if [ "$opsiconfd_pid" = "" ]; then
+			if [ "$opsiconfd_pids" = "" ]; then
 				echo ".   (not running)."
 			else
-				kill -9 $opsiconfd_pid >/dev/null 2>/dev/null || true
+				kill -9 $opsiconfd_pids >/dev/null 2>/dev/null || true
 				echo "   (done)."
 			fi
 		fi

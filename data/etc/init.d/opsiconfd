@@ -30,119 +30,130 @@ if [ ! -x $DAEMON ]; then
 	exit 5
 fi
 
-case "$1" in
-	start)
-		echo -n "Starting opsi config service.."
+
+start() {
+	echo -n "Starting opsi config service.."
 		
-		# Kill opsiconfd-guard
-		killall $(basename $GUARD_BIN) 1>/dev/null 2>/dev/null
+	# Kill opsiconfd-guard
+	killall $(basename $GUARD_BIN) 1>/dev/null 2>/dev/null
+	
+	# Make sure files are writable
+	test -e $LOGDIR || mkdir -p $LOGDIR
+	chown -R $USER $LOGDIR
+	test -e $LIBDIR || mkdir -p $LIBDIR
+	chown -R $USER $LIBDIR
+	test -e $RRDDIR || mkdir -p $RRDDIR
+	chown -R $USER $RRDDIR
+	test -e $PIDDIR || mkdir -p $PIDDIR
+	chown -R $USER $PIDDIR
+	
+	if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) >/dev/null 2>/dev/null; then
+		echo ".   (already running)."
+		[ "$START_GUARD" = "1" ] && $GUARD_BIN &
+		exit 0
+	else
+		[ -f $PIDFILE ] && rm $PIDFILE
 		
-		# Make sure files are writable
-		test -e $LOGDIR || mkdir -p $LOGDIR
-		chown -R $USER $LOGDIR
-		test -e $LIBDIR || mkdir -p $LIBDIR
-		chown -R $USER $LIBDIR
-		test -e $RRDDIR || mkdir -p $RRDDIR
-		chown -R $USER $RRDDIR
-		test -e $PIDDIR || mkdir -p $PIDDIR
-		chown -R $USER $PIDDIR
+		# Copy server cert / key if running on ucs
+		if [ -e "/etc/univention/ssl/$FQDN/cert.pem" -a -e "/etc/univention/ssl/$FQDN/private.key" ]; then
+			cat /etc/univention/ssl/$FQDN/private.key > /etc/opsi/opsiconfd.pem
+			grep -A 50 "BEGIN CERTIFICATE" /etc/univention/ssl/$FQDN/cert.pem >> /etc/opsi/opsiconfd.pem
+			chmod 600 /etc/opsi/opsiconfd.pem
+			chown $USER:opsiadmin /etc/opsi/opsiconfd.pem || true
+		fi
+		if [ -e /etc/opsi/backends/univention.conf -a -e /etc/machine.secret ]; then
+			LDAP_SECRET=$(cat /etc/machine.secret)
+			sed -i "s/^password\s*=.*/password = \"${LDAP_SECRET}\"/" /etc/opsi/backends/univention.conf
+		fi
 		
-		if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) >/dev/null 2>/dev/null; then
-			echo ".   (already running)."
-			[ "$START_GUARD" = "1" ] && $GUARD_BIN &
-			exit 0
-		else
-			[ -f $PIDFILE ] && rm $PIDFILE
-			
-			# Copy server cert / key if running on ucs
-			if [ -e "/etc/univention/ssl/$FQDN/cert.pem" -a -e "/etc/univention/ssl/$FQDN/private.key" ]; then
-				cat /etc/univention/ssl/$FQDN/private.key > /etc/opsi/opsiconfd.pem
-				grep -A 50 "BEGIN CERTIFICATE" /etc/univention/ssl/$FQDN/cert.pem >> /etc/opsi/opsiconfd.pem
-				chmod 600 /etc/opsi/opsiconfd.pem
-				chown $USER:opsiadmin /etc/opsi/opsiconfd.pem || true
-			fi
-			if [ -e /etc/opsi/backends/univention.conf -a -e /etc/machine.secret ]; then
-				LDAP_SECRET=$(cat /etc/machine.secret)
-				sed -i "s/^password\s*=.*/password = \"${LDAP_SECRET}\"/" /etc/opsi/backends/univention.conf
-			fi
-			
-			su - $USER -c "$DAEMON -D"
-			
-			pidfileseen=0
-			running=false
-			i=1
-			while [ $i -le 10 ]; do
-				echo -n "."
-				if ([ -f $PIDFILE ] && ps h $(cat $PIDFILE) >/dev/null 2>/dev/null); then
-					pidfileseen=$(($pidfileseen+1))
-					if [ $pidfileseen -ge 3 ]; then
-						running=true
-						break
-					fi
-				else
-					if [ $pidfileseen -ge 1 ]; then
-						running=false
-						break
-					fi
+		su - $USER -c "$DAEMON -D"
+		
+		pidfileseen=0
+		running=false
+		i=1
+		while [ $i -le 10 ]; do
+			echo -n "."
+			if ([ -f $PIDFILE ] && ps h $(cat $PIDFILE) >/dev/null 2>/dev/null); then
+				pidfileseen=$(($pidfileseen+1))
+				if [ $pidfileseen -ge 3 ]; then
+					running=true
+					break
 				fi
-				sleep 1
-				i=$(($i+1))
-			done
-			
-			if [ "$running" = "true" ]; then
-				[ "$START_GUARD" = "1" ] && $GUARD_BIN &
-				echo "   (done)."
 			else
-				echo "   (failed)."
-				exit 1
-			fi
-		fi
-		
-		if ! su $USER -c "test -r /etc/shadow"; then
-			echo ""
-			echo "      WARNING: User $USER lacks read permission for /etc/shadow."
-			echo "               PAM authentication will fail."
-			echo ""
-		fi
-		;;
-	stop)
-		echo -n "Stopping opsi config service.."
-		
-		# Kill opsiconfd-guard
-		killall $(basename $GUARD_BIN) >/dev/null 2>/dev/null || true
-		
-		if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) > /dev/null; then
-			
-			kill $(cat $PIDFILE) >/dev/null 2>/dev/null || true
-			running=true
-			i=1
-			while [ "$running" = "true" -a $i -le 10 ]; do
-				echo -n "."
-				if ([ -f $PIDFILE ] && ps h $(cat $PIDFILE) >/dev/null 2>/dev/null); then
-					sleep 1
-					i=$(($i+1))
-				else
+				if [ $pidfileseen -ge 1 ]; then
 					running=false
+					break
 				fi
-			done
-			[ -f $PIDFILE ] && kill -9 $(cat $PIDFILE) >/dev/null 2>/dev/null || true
+			fi
+			sleep 1
+			i=$(($i+1))
+		done
+		
+		if [ "$running" = "true" ]; then
+			[ "$START_GUARD" = "1" ] && $GUARD_BIN &
 			echo "   (done)."
 		else
-			opsiconfd_pids=""
-			for pid in $(ps -A | grep opsiconfd | sed s'/^\s*//' | cut -d' ' -f1); do
-				[ -d "/proc/$pid" -a "$pid" != "$$" ] && opsiconfd_pids="$opsiconfd_pids $pid"
-			done
-			if [ "$opsiconfd_pids" = "" ]; then
-				echo ".   (not running)."
-			else
-				kill -9 $opsiconfd_pids >/dev/null 2>/dev/null || true
-				echo "   (done)."
-			fi
+			echo "   (failed)."
+			exit 1
 		fi
+	fi
+	
+	if ! su $USER -c "test -r /etc/shadow"; then
+		echo ""
+		echo "      WARNING: User $USER lacks read permission for /etc/shadow."
+		echo "               PAM authentication will fail."
+		echo ""
+	fi
+}
+
+stop() {
+	echo -n "Stopping opsi config service.."
+	
+	# Kill opsiconfd-guard
+	killall $(basename $GUARD_BIN) >/dev/null 2>/dev/null || true
+	
+	if [ -f $PIDFILE ] && ps h $(cat $PIDFILE 2>/dev/null) >/dev/null 2>/dev/null; then
 		
-		[ -f $PIDFILE ] && rm $PIDFILE >/dev/null 2>/dev/null || true
-		
-		;;
+		kill $(cat $PIDFILE 2>/dev/null) >/dev/null 2>/dev/null || true
+		running=true
+		i=1
+		while [ "$running" = "true" -a $i -le 10 ]; do
+			echo -n "."
+			if ([ -f $PIDFILE ] && ps h $(cat $PIDFILE 2>/dev/null) >/dev/null 2>/dev/null); then
+				sleep 1
+				i=$(($i+1))
+			else
+				running=false
+			fi
+		done
+		[ -f $PIDFILE ] && kill -9 $(cat $PIDFILE 2>/dev/null) >/dev/null 2>/dev/null || true
+		echo "   (done)."
+	else
+		opsiconfd_pids=""
+		for pid in $(ps -A | grep opsiconfd | sed s'/^\s*//' | cut -d' ' -f1); do
+			[ -d "/proc/$pid" -a "$pid" != "$$" ] && opsiconfd_pids="$opsiconfd_pids $pid"
+		done
+		if [ "$opsiconfd_pids" = "" ]; then
+			echo ".   (not running)."
+		else
+			kill -9 $opsiconfd_pids >/dev/null 2>/dev/null || true
+			echo "   (done)."
+		fi
+	fi
+	
+	[ -f $PIDFILE ] && rm $PIDFILE >/dev/null 2>/dev/null || true
+	
+}
+
+case "$1" in
+	start)
+		start
+	;;
+	
+	stop)
+		stop
+	;;
+	
 	reload)
 		echo -n "Reloading opsi config service...   "
 		
@@ -152,13 +163,13 @@ case "$1" in
 		else
 			echo "(not running)."
 		fi
-		
-		;;
+	;;
+	
 	restart|force-reload)
-		$0 stop
+		stop
 		sleep 1
-		$0 start
-		;;
+		start
+	;;
 	
 	status)
 		echo -n "Checking opsi config service... "
@@ -173,7 +184,7 @@ case "$1" in
 	*)
 		echo "Usage: /etc/init.d/opsiconfd {start|stop|status|reload|restart|force-reload}"
 		exit 1
-		;;
+	;;
 esac
 
 exit 0

@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.9-4) stable; urgency=low
+
+  * Fix init script for restart
+
+ -- Jan Schneider <j.schneider@uib.de>  Thu, 08 Sep 2011 16:03:36 +0200
+
 opsiconfd (4.0.1.9-3) stable; urgency=low
 
   * Fix init script

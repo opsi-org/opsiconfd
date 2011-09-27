@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.10-1) stable; urgency=low
+
+  * opsi message bus
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 27 Sep 2011 13:12:42 +0200
+
 opsiconfd (4.0.1.9-4) stable; urgency=low
 
   * Fix init script for restart

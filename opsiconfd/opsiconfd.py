@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "4.0.1.1"
+__version__ = "4.0.1.10"
 
 # Twisted imports
 from twisted.internet import epollreactor
@@ -129,19 +129,20 @@ class ZeroconfService(object):
 
 class Opsiconfd(OpsiService):
 	def __init__(self, config):
-		self.config           = config
-		self._running         = False
+		self.config            = config
+		self._running          = False
 		
-		self._backend         = None
-		self._root            = None
-		self._site            = None
-		self._httpPort        = None
-		self._httpsPort       = None
-		self._sessionHandler  = None
-		self._statistics      = None
-		self._zeroconfService = None
-		self._socket          = None
-		self._debugShell      = None
+		self._backend          = None
+		self._root             = None
+		self._site             = None
+		self._httpPort         = None
+		self._httpsPort        = None
+		self._sessionHandler   = None
+		self._statistics       = None
+		self._zeroconfService  = None
+		self._messageBusServer = None
+		self._socket           = None
+		self._debugShell       = None
 		
 		self.authFailureCount = {}
 		
@@ -176,6 +177,9 @@ class Opsiconfd(OpsiService):
 		try:
 			if self._zeroconfService:
 				self._zeroconfService.unpublish()
+			if self._messageBusServer:
+				self._messageBusServer.stop(stopReactor=False)
+				self._messageBusServer.join(10)
 			if self._httpPort:
 				self._httpPort.stopListening()
 			if self._httpsPort:
@@ -252,7 +256,8 @@ class Opsiconfd(OpsiService):
 			dispatchConfigFile = self.config['dispatchConfigFile'],
 			backendConfigDir   = self.config['backendConfigDir'],
 			extensionConfigDir = self.config['extensionConfigDir'],
-			depotBackend       = bool(self.config['depotId'])
+			depotBackend       = bool(self.config['depotId']),
+			messageBusNotifier = bool(self.config['messageBus'])
 		)
 	
 	def _createSite(self):
@@ -422,14 +427,20 @@ class Opsiconfd(OpsiService):
 
 		self._debugShell = DebugShell(self, self._backend, namespace=ns)
 		
-		logger.notice("Opening debug shell.")
+		logger.notice(u"Opening debug shell.")
 		self._debugShell.open()
-
+	
+	def _startMessageBusServer(self):
+		self._messageBusServer = OPSI.Util.MessageBus.MessageBusServer()
+		self._messageBusServer.start()
+	
 	def run(self):
 		self._running = True
 		logger.notice(u"Starting opsiconfd main thread")
 		try:
 			reactor.addSystemEventTrigger("before", "shutdown", self.stop)
+			if self.config['messageBus']:
+				self._startMessageBusServer()
 			self._startListeningSocket()
 			self._createBackendInstance()
 			self._createSessionHandler()
@@ -542,8 +553,8 @@ class OpsiconfdInit(Application):
 			'multiprocessing'              : False,
 			'profile'                      : False,
 			'profiler'                     : u'profiler',
-			'debug'                        : False
-
+			'debug'                        : False,
+			'messageBus'                   : False,
 		}
 	
 	def setCommandlineConfig(self):
@@ -569,40 +580,38 @@ class OpsiconfdInit(Application):
 
 		
 	def createPidFile(self):
-		if self.config['daemon']:
-			logger.info(u"Creating pid file '%s'" % self.config['pidFile'])
-			if not os.path.exists(os.path.dirname(self.config['pidFile'])):
-				os.makedirs(os.path.dirname(self.config['pidFile']))
-			elif os.path.exists(self.config['pidFile']) and os.access(self.config['pidFile'], os.R_OK | os.W_OK):
-				pf = open(self.config['pidFile'], 'r')
-				p = pf.readline().strip()
-				pf.close()
-				if p:
-					running = False
-					try:
-						for i in execute("%s -x opsiconfd" % which("pidof"))[0].strip().split():
-							if (i == p):
-								running = True
-								break
-					except Exception, e:
-						logger.error(e)
-					if running:
-						raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
-					
-			pid = os.getpid()
-			pf = open (self.config['pidFile'], "w")
-			print >> pf, str(pid)
+		logger.info(u"Creating pid file '%s'" % self.config['pidFile'])
+		if not os.path.exists(os.path.dirname(self.config['pidFile'])):
+			os.makedirs(os.path.dirname(self.config['pidFile']))
+		elif os.path.exists(self.config['pidFile']) and os.access(self.config['pidFile'], os.R_OK | os.W_OK):
+			pf = open(self.config['pidFile'], 'r')
+			p = pf.readline().strip()
 			pf.close()
+			if p:
+				running = False
+				try:
+					for i in execute("%s -x opsiconfd" % which("pidof"))[0].strip().split():
+						if (i == p):
+							running = True
+							break
+				except Exception, e:
+					logger.error(e)
+				if running:
+					raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
+				
+		pid = os.getpid()
+		pf = open (self.config['pidFile'], "w")
+		print >> pf, str(pid)
+		pf.close()
 	
 	def removePidFile(self):
-		if self.config['daemon']:
-			try:
-				# if (self._pid == os.getpid())
-				if os.path.exists(self.config['pidFile']):
-					logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
-					os.unlink(self.config['pidFile'])
-			except Exception, e:
-				logger.error(u"Failed to remove pid file '%s': %s" % (self.config['pidFile'], e))
+		try:
+			# if (self._pid == os.getpid())
+			if os.path.exists(self.config['pidFile']):
+				logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
+				os.unlink(self.config['pidFile'])
+		except Exception, e:
+			logger.error(u"Failed to remove pid file '%s': %s" % (self.config['pidFile'], e))
 	
 	def stop(self):
 		if reactor and reactor.running and self._opsiconfd:
@@ -666,6 +675,8 @@ class OpsiconfdInit(Application):
 							self.config['adminNetworks'] = []
 							for net in value.split(','):
 								self.config['adminNetworks'].append(forceNetworkAddress(net.strip()))
+						elif (option == 'message bus'):
+							self.config['messageBus'] = forceBool(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 				

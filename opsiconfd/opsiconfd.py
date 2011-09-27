@@ -65,6 +65,7 @@ from OPSI.web2.channel.http import HTTPFactory
 from OPSI.Util import getfqdn
 from OPSI.Util.File import IniFile
 from OPSI.Util.AMP import OpsiProcessProtocolFactory
+from OPSI.Util.MessageBus import MessageBusServer
 from OPSI.Types import *
 
 from OPSI.System import which, execute
@@ -431,7 +432,7 @@ class Opsiconfd(OpsiService):
 		self._debugShell.open()
 	
 	def _startMessageBusServer(self):
-		self._messageBusServer = OPSI.Util.MessageBus.MessageBusServer()
+		self._messageBusServer = MessageBusServer()
 		self._messageBusServer.start()
 	
 	def run(self):

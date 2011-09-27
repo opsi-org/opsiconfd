@@ -20,7 +20,7 @@ Summary:        opsi configuration service
 Source:         opsiconfd_4.0.1.9-4.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?sles_version}
-BuildRequires:  python-rrdtool python-opsi >= 4.0.1
+BuildRequires:  python-rrdtool python-opsi >= 4.0.1.32
 PreReq:         %insserv_prereq
 %{py_requires}
 %else

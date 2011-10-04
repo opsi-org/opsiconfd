@@ -289,7 +289,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 					aclFile            = self.service.config['aclFile'],
 					depotId            = self.service.config['depotId'],
 					postpath           = self.request.postpath,
-					context            = self.service._backend)
+					context            = self.service._backend,
+					messageBusNotifier = self.service.config['messageBus'],
+					startReactor       = False)
 
 		def _spawnProcess():
 			socket = "/var/run/opsiconfd/worker-%s.socket" % randomString(32)
@@ -308,7 +310,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 							extensionConfigDir = self.service.config['extensionConfigDir'],
 							aclFile            = self.service.config['aclFile'],
 							depotId            = self.service.config['depotId'],
-							postpath           = self.request.postpath))
+							postpath           = self.request.postpath,
+							messageBusNotifier = self.service.config['messageBus'],
+							startReactor       = False))
 			return d
 		
 		modules = self.service._backend.backend_info()['modules']

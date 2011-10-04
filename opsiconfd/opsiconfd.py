@@ -32,7 +32,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "4.0.1.10"
+__version__ = "4.0.1.11"
 
 # Twisted imports
 from twisted.internet import epollreactor
@@ -258,7 +258,8 @@ class Opsiconfd(OpsiService):
 			backendConfigDir   = self.config['backendConfigDir'],
 			extensionConfigDir = self.config['extensionConfigDir'],
 			depotBackend       = bool(self.config['depotId']),
-			messageBusNotifier = bool(self.config['messageBus'])
+			messageBusNotifier = bool(self.config['messageBus']),
+			startReactor       = False
 		)
 	
 	def _createSite(self):
@@ -433,7 +434,7 @@ class Opsiconfd(OpsiService):
 	
 	def _startMessageBusServer(self):
 		self._messageBusServer = MessageBusServer()
-		self._messageBusServer.start()
+		self._messageBusServer.start(startReactor = False)
 	
 	def run(self):
 		self._running = True
@@ -455,10 +456,11 @@ class Opsiconfd(OpsiService):
 			
 			if not reactor.running:
 				reactor.run(installSignalHandlers=1)
-			
-			logger.notice(u"Opsiconfd main thread exiting...")
 		except Exception, e:
 			logger.logException(e)
+			self.stop()
+		
+		logger.notice(u"Opsiconfd main thread exiting...")
 		self._running = False
 	
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -601,16 +603,19 @@ class OpsiconfdInit(Application):
 					raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
 				
 		pid = os.getpid()
-		pf = open (self.config['pidFile'], "w")
+		pf = open(self.config['pidFile'], "w")
 		print >> pf, str(pid)
 		pf.close()
 	
 	def removePidFile(self):
 		try:
-			# if (self._pid == os.getpid())
 			if os.path.exists(self.config['pidFile']):
-				logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
-				os.unlink(self.config['pidFile'])
+				pf = open(self.config['pidFile'], "r")
+				pid = pf.read().strip()
+				pf.close()
+				if (int(pid) == int(os.getpid())):
+					logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
+					os.unlink(self.config['pidFile'])
 		except Exception, e:
 			logger.error(u"Failed to remove pid file '%s': %s" % (self.config['pidFile'], e))
 	

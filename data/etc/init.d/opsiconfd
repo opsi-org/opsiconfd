@@ -17,11 +17,13 @@ USER=opsiconfd
 LOGDIR=/var/log/opsi/opsiconfd
 PIDDIR=/var/run/opsiconfd
 LIBDIR=/var/lib/opsiconfd
+MBUSDIR=/var/run/opsi-message-bus
 RRDDIR=$LIBDIR/rrd
 PIDFILE=$PIDDIR/opsiconfd.pid
 START_GUARD=1
 GUARD_BIN=/usr/bin/opsiconfd-guard
-FQDN=`hostname -f`
+FQDN=$(hostname -f)
+GLOBAL_CONF=/etc/opsi/global.conf
 
 # See if the binary is there
 if [ ! -x $DAEMON ]; then
@@ -29,7 +31,14 @@ if [ ! -x $DAEMON ]; then
 	[ "$1" = "stop" ] && exit 0
 	exit 5
 fi
-
+if [ -e $GLOBAL_CONF ]; then
+	for kv in $(cat $GLOBAL_CONF | grep -v '^[#;]' | grep '=');
+		do eval $kv
+	done
+	if [ ${opsi_message_bus_socket:0:5} = "/var/" ]; then
+		MBUSDIR=$(dirname $opsi_message_bus_socket)
+	fi
+fi
 
 start() {
 	echo -n "Starting opsi config service.."
@@ -46,6 +55,8 @@ start() {
 	chown -R $USER $RRDDIR
 	test -e $PIDDIR || mkdir -p $PIDDIR
 	chown -R $USER $PIDDIR
+	test -e $MBUSDIR || mkdir -p $MBUSDIR
+	chown -R $USER $MBUSDIR
 	
 	if [ -f $PIDFILE ] && ps h $(cat $PIDFILE) >/dev/null 2>/dev/null; then
 		echo ".   (already running)."

@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.11-2) testing; urgency=low
+
+  * Require rrdtool-python instead of python-rrdtool on rhel centos and fedora
+
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 20 Dec 2011 10:03:37 +0100
+
 opsiconfd (4.0.1.11-1) stable; urgency=low
 
   * Create message bus socket dir in init script

@@ -61,7 +61,6 @@ from ctypes import *
 from OPSI.Application import Application
 from OPSI.Logger import *
 from OPSI.web2 import server
-from OPSI.web2.channel.http import HTTPFactory
 from OPSI.Util import getfqdn
 from OPSI.Util.File import IniFile
 from OPSI.Util.AMP import OpsiProcessProtocolFactory
@@ -80,6 +79,7 @@ from info import ResourceOpsiconfdInfo, WorkerOpsiconfdInfo
 # from doc import ResourceOpsiDocumentation
 from statistics import Statistics, ResourceOpsiconfdStatistics
 from session import OpsiconfdSessionHandler, OpsiconfdSession
+from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
 logger = Logger()
 
@@ -130,20 +130,20 @@ class ZeroconfService(object):
 
 class Opsiconfd(OpsiService):
 	def __init__(self, config):
-		self.config            = config
-		self._running          = False
-		
-		self._backend          = None
-		self._root             = None
-		self._site             = None
-		self._httpPort         = None
-		self._httpsPort        = None
-		self._sessionHandler   = None
-		self._statistics       = None
-		self._zeroconfService  = None
-		self._messageBusServer = None
-		self._socket           = None
-		self._debugShell       = None
+		self.config             = config
+		self._running           = False
+		self._backend           = None
+		self._root              = None
+		self._site              = None
+		self._httpPort          = None
+		self._httpsPort         = None
+		self._sessionHandler    = None
+		self._statistics        = None
+		self._zeroconfService   = None
+		self._messageBusServer  = None
+		self._messageBusService = None
+		self._socket            = None
+		self._debugShell        = None
 		
 		self.authFailureCount = {}
 		
@@ -178,9 +178,11 @@ class Opsiconfd(OpsiService):
 		try:
 			if self._zeroconfService:
 				self._zeroconfService.unpublish()
+			if self._messageBusService:
+				self._messageBusService.stop()
 			if self._messageBusServer:
 				self._messageBusServer.stop(stopReactor=False)
-				self._messageBusServer.join(10)
+				self._messageBusServer.join(5)
 			if self._httpPort:
 				self._httpPort.stopListening()
 			if self._httpsPort:
@@ -199,7 +201,7 @@ class Opsiconfd(OpsiService):
 
 			self._running = False
 		except Exception, e:
-			logger.error("Failed to stop opsiconfd cleanly.")
+			logger.error(u"Failed to stop opsiconfd cleanly.")
 			logger.logException(e)
 	
 	def reload(self):
@@ -261,6 +263,7 @@ class Opsiconfd(OpsiService):
 			messageBusNotifier = bool(self.config['messageBus']),
 			startReactor       = False
 		)
+		OpsiconfdHTTPChannel.backend = self._backend
 	
 	def _createSite(self):
 		logger.info(u"Creating site")
@@ -357,12 +360,12 @@ class Opsiconfd(OpsiService):
 		if (self.config['interface'] == '0.0.0.0'):
 			self._httpPort = reactor.listenTCP(
 				self.config['httpPort'],
-				HTTPFactory(self._site)
+				OpsiconfdHTTPFactory(self._site)
 			)
 		else:
 			self._httpPort = reactor.listenTCP(
 				self.config['httpPort'],
-				HTTPFactory(self._site),
+				OpsiconfdHTTPFactory(self._site),
 				interface = self.config['interface']
 			)
 		
@@ -376,13 +379,13 @@ class Opsiconfd(OpsiService):
 		if (self.config['interface'] == '0.0.0.0'):
 			self._httpsPort = reactor.listenSSL(
 				self.config['httpsPort'],
-				HTTPFactory(self._site),
+				OpsiconfdHTTPFactory(self._site),
 				SSLContext(self.config['sslServerKeyFile'], self.config['sslServerCertFile'])
 			)
 		else:
 			self._httpsPort = reactor.listenSSL(
 				self.config['httpsPort'],
-				HTTPFactory(self._site),
+				OpsiconfdHTTPFactory(self._site),
 				SSLContext(self.config['sslServerKeyFile'], self.config['sslServerCertFile']),
 				interface = self.config['interface']
 			)
@@ -435,7 +438,10 @@ class Opsiconfd(OpsiService):
 	def _startMessageBusServer(self):
 		self._messageBusServer = MessageBusServer()
 		self._messageBusServer.start(startReactor = False)
-	
+		self._messageBusService = MessageBusService()
+		OpsiconfdHTTPChannel.messageBusService = self._messageBusService
+		self._messageBusService.start()
+		
 	def run(self):
 		self._running = True
 		logger.notice(u"Starting opsiconfd main thread")

@@ -38,7 +38,7 @@ from OPSI.web2 import http, resource
 from OPSI.Service.Resource import ResourceOpsi, ResourceOpsiJsonRpc, ResourceOpsiJsonInterface, ResourceOpsiDAV
 from OPSI.Logger import *
 
-from workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface, WorkerOpsiconfdDAV
+from workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface, WorkerOpsiconfdDAV, WorkerOpsiMessageBus
 logger = Logger()
 
 CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
@@ -108,5 +108,7 @@ class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 			"codebase": "https://%s" % (request.headers.getHeader('host')),
 			"arguments": arguments
 		})
+
+
 
 

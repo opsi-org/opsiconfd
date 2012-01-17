@@ -2,7 +2,7 @@ opsiconfd (4.0.1.12-1) testing; urgency=low
 
   * Implement opsi message bus
 
- -- Jan Schneider <j.schneider@uib.de>  Tue, 10 Jan 2012 12:54:17 +0100
+ -- Jan Schneider <j.schneider@uib.de>  Tue, 17 Jan 2012 16:21:14 +0100
 
 opsiconfd (4.0.1.11-2) testing; urgency=low
 

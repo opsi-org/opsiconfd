@@ -44,6 +44,7 @@ from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 from OPSI.Util.MessageBus import MessageBusClient, MessageBusServerFactory
 from OPSI.Util.HTTP import hybi10Encode, hybi10Decode
 from OPSI.Backend.BackendManager import BackendAccessControl
+from OPSI.Types import *
 
 logger = Logger()
 
@@ -186,7 +187,8 @@ class OpsiconfdHTTPChannel(HTTPChannel):
 	def rawDataReceived(self, data):
 		if self._isWebsocketConnection():
 			self.__wsbuffer += data
-			data = hybi10Decode(self.__wsbuffer)
+			# @FIXME: Why do we need to rstrip data here?
+			data = hybi10Decode(self.__wsbuffer.rstrip())
 			if data:
 				self.onMessage(data.decode('utf-8'))
 				self.__wsbuffer = ''

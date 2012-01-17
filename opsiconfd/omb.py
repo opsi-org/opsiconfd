@@ -186,9 +186,12 @@ class OpsiconfdHTTPChannel(HTTPChannel):
 	
 	def rawDataReceived(self, data):
 		if self._isWebsocketConnection():
+			if data and data.endswith('\n'):
+				data = data[:-1]
+			if data and data.endswith('\r'):
+				data = data[:-1]
 			self.__wsbuffer += data
-			# @FIXME: Why do we need to rstrip data here?
-			data = hybi10Decode(self.__wsbuffer.rstrip())
+			data = hybi10Decode(self.__wsbuffer)
 			if data:
 				self.onMessage(data.decode('utf-8'))
 				self.__wsbuffer = ''

@@ -8,7 +8,11 @@
 
 Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
+%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
+Requires:       python-opsi >= 4.0.1.37 openssl python-twisted dbus-1-python psmisc procps
+%else
 Requires:       python-opsi >= 4.0.1.37 openssl python-twisted dbus-1-python psmisc procps python-rrdtool
+%endif
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
@@ -31,11 +35,7 @@ PreReq:         %insserv_prereq
 %{py_requires}
 %endif
 %endif
-%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
-Requires:       python-opsi >= 4.0.1.37 openssl python-twisted dbus-1-python psmisc procps
-%else
-Requires:       python-opsi >= 4.0.1.37 openssl python-twisted dbus-1-python psmisc procps python-rrdtool
-%endif
+
 
 %define toplevel_dir %{name}-%{version}
 

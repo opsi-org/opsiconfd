@@ -32,7 +32,9 @@ PreReq:         %insserv_prereq
 %endif
 %endif
 %if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
-BuildArch:      noarch
+Requires:       python-opsi >= 4.0.1.37 openssl python-twisted dbus-1-python psmisc procps
+%else
+Requires:       python-opsi >= 4.0.1.37 openssl python-twisted dbus-1-python psmisc procps python-rrdtool
 %endif
 
 %define toplevel_dir %{name}-%{version}

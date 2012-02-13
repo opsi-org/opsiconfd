@@ -128,8 +128,13 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			(user, password) = self._getCredentials()
 			
 			try:
-				moni_user = "monitoring"
-				moni_password = self.service._backend.user_getCredentials(username=moni_user)["password"]
+				moni_password = False
+				moni_user = self.service.config['monitoringUser']
+				try:
+					moni_password = self.service._backend.user_getCredentials(username=moni_user)["password"]
+				except Exception,e:
+					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % moni_user)
+					return
 				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (moni_user, moni_password))
 			except Exception, e:
 				logger.logException(e, LOG_INFO)
@@ -172,7 +177,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						if not bool(publicKey.verify(md5(data).digest(), [ long(modules['signature']) ])):
 							logger.error(u"Disabling monitoring module: modules file invalid")
 						else:
-							logger.notice(u"Modules file signature verified (customer: %s)" % modules.get('customer'))
+							logger.debug(u"Modules file signature verified (customer: %s)" % modules.get('customer'))
 							
 							if modules.get('monitoring'):
 								self.monitoring = Monitoring(self.service)
@@ -300,7 +305,11 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 			elif query["task"] == "checkOpsiDiskUsage":
-				res = self.monitoring.checkOpsiDiskUsage()
+				if query["param"]:
+					opsiresource = None
+				if query["param"].has_key("resource"):
+					opsiresource = query["param"]["resource"]
+				res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 			else:
@@ -624,13 +633,17 @@ class Monitoring(object):
 			message = u"cannot check plugin. Host not found."
 			return self._generateResponse(state, message)
 	
-	def checkOpsiDiskUsage(self, thresholds = [], perfdata=False):
+	def checkOpsiDiskUsage(self, thresholds = [], opsiresource = None, perfdata=False):
 		results = {}
 		helper = 0
 		state = self._OK
 		message = []
+		resourceToCheck = []
+		print opsiresource
+		if opsiresource:
+			resourceToCheck.append(opsiresource)
 		
-		if not thresholds or len(threshold) < 2:
+		if not thresholds or len(thresholds) < 2:
 			threshold = ["1G","5G"]
 		if threshold[0].lower().endswith("g"):
 			unit = "GB"
@@ -642,12 +655,15 @@ class Monitoring(object):
 			warning = threshold[1][:-1]
 		else:
 			unit = "%"
-			critical = threshold[0]
-			warning = threshold[1]
+			critical = thresholds[0]
+			warning = thresholds[1]
 		
-		
-		
-		resources = self.service.config['staticDirectories'].keys()
+		print resourceToCheck
+		if resourceToCheck:
+			resources = resourceToCheck
+		else:
+			resources = self.service.config['staticDirectories'].keys()
+		print resources
 		resources.sort()
 		
 		try:
@@ -672,20 +688,18 @@ class Monitoring(object):
 				available = float(info['available'])/1073741824
 				usage = info['usage']*100
 				if unit == "GB":
-					print "available",available
-					print "critical",critical
 					if available <= critical:
 						state = self._CRITICAL
-						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%s')." % (result, available))
+						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%.2f'GB)." % (result, available))
 										
 						
 					elif (available <= warning):
 						if state != self._CRITICAL:
 							state = self._WARNING
-						message.append(u"DiskUsage warning from ressource: '%s' (available: '%s')." % (result, available))
+						message.append(u"DiskUsage warning from ressource: '%s' (available: '%.2f'GB)." % (result, available))
 						
 					else:
-						message.append(u"DiskUsage from ressource '%s' is ok. (available: '%s')." % (result, available))
+						message.append(u"DiskUsage from ressource '%s' is ok. (available: '%.2f'GB)." % (result, available))
 				elif unit == "%":
 					freeSpace = 100 - usage
 					if freeSpace <= critical:
@@ -704,11 +718,12 @@ class Monitoring(object):
 			state = self._UNKNOWN
 			message.append("No results get. Nothing to check.")
 		if state == self._OK:
-			message.append(u"OK: %s" % " ".join(message))
+			print message
+			message = u"OK: %s" % " ".join(message)
 		elif state == self._WARNING:
-			message.append(u"WARNING: %s" % " ".join(message))
+			message = u"WARNING: %s" % " ".join(message)
 		elif state == self._CRITICAL:
-			message.append(u"CRITICAL: %s" % " ".join(message))
+			message = u"CRITICAL: %s" % " ".join(message)
 		
 		return self._generateResponse(state, message)
 		

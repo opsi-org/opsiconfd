@@ -565,6 +565,7 @@ class OpsiconfdInit(Application):
 			'profiler'                     : u'profiler',
 			'debug'                        : False,
 			'messageBus'                   : False,
+			'monitoringUser'               : u"monitoring",
 		}
 	
 	def setCommandlineConfig(self):
@@ -690,6 +691,8 @@ class OpsiconfdInit(Application):
 								self.config['adminNetworks'].append(forceNetworkAddress(net.strip()))
 						elif (option == 'message bus'):
 							self.config['messageBus'] = forceBool(value)
+						elif (option == 'monitoring user'):
+							self.config['monitoringUser'] = forceUnicode(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 				

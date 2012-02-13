@@ -78,6 +78,7 @@ from resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJ
 from info import ResourceOpsiconfdInfo, WorkerOpsiconfdInfo
 # from doc import ResourceOpsiDocumentation
 from statistics import Statistics, ResourceOpsiconfdStatistics
+from monitoring import ResourceOpsiconfdMonitoring
 from session import OpsiconfdSessionHandler, OpsiconfdSession
 from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
@@ -289,7 +290,7 @@ class Opsiconfd(OpsiService):
 		self._root.putChild('rpc',             ResourceOpsiconfdJsonRpc(self))
 		self._root.putChild('interface',       ResourceOpsiconfdJsonInterface(self))
 		self._root.putChild('info',            ResourceOpsiconfdInfo(self))
-		self._root.putChild('statistics',      ResourceOpsiconfdStatistics(self))
+		self._root.putChild('monitoring',      ResourceOpsiconfdMonitoring(self))
 		# self._root.putChild('doc',             ResourceOpsiDocumentation())
 		self._root.putChild('configed.jnlp',   ResourceOpsiconfdConfigedJNLP())
 		

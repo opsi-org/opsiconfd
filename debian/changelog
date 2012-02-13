@@ -1,3 +1,9 @@
+opsiconfd (4.0.1.11-1) testing; urgency=low
+
+  * monitoring
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Sun, 12 Feb 2012 23:37:46 +0100
+
 opsiconfd (4.0.1.10-1) stable; urgency=low
 
   * Require rrdtool-python instead of python-rrdtool on rhel centos and fedora

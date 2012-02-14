@@ -83,17 +83,11 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 		deferred.callback(None)
 		return deferred
 	
-	##def _getQuery(self):
-	##	return WorkerOpsi._getQuery(self)
-		
 	def _processQuery(self, result):
 		self._decodeQuery(result)
 		
 	def _executeQuery(self, param, od_productIds, clientId):
 		pass
-	
-	##def _errback(self, failure):
-	##	return WorkerOpsi._errback(self, failure)
 	
 	def _getAuthorization(self):
 		(user, password) = (u'', u'')
@@ -194,9 +188,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
 		return result
 			
-		#
-		#return WorkerOpsi._authenticate(self, result)
-	
 	def _authorize(self):
 		return True
 	
@@ -220,15 +211,20 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				return result
 				
 			if query["task"] == "checkClientStatus":
-				if query["param"]:
-					if query["param"].has_key("exclude"):
-						res = self.monitoring.checkClientStatus(query["param"]["clientId"], query["param"]["exclude"])
-					else:
-						res = self.monitoring.checkClientStatus(query["param"]["clientId"])
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+				#def checkClientStatus(self, clientId, excludeProductList=None):
+				exclude = query.get("param", {}).get("exclude", None)
+				clientId = query.get("param", {}).get("clientId", None)
+					
+				if not clientId:
+					res = {
+						"state": "3",
+						"message": u"Failure: Parameterlist for task not complete, clientId needed for these check.",
+					}
 				else:
-					raise Exception(u"Failure: Parameterlist for task not complete, clientId needed for these check.")
+					res = self.monitoring.checkClientStatus(clientId = clientId, exclude = exclude)
+					
+				result.stream = stream.IByteStream(res.encode('utf-8'))
+				return result
 					
 			elif query["task"] == "getOpsiClientsForGroup":
 				if query["param"]:
@@ -238,85 +234,62 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						return result
 						
 			elif query["task"] == "checkProductStatus":
-				if query["param"]:
-					productIds = []
-					groupIds = [] 
-					depotIds = [] 
-					exclude=[]
-					verbose = False
-					
-					productIds = query.get("param", None).get("productIds", [])
-					groupIds    = query.get("param", None).get("groupIds", [])
-					depotIds    = query.get("param", None).get("depotIds", [])
-					exclude      = query.get("param", None).get("exclude", [])
-					verbose      = query.get("param", None).get("verbose", False)
-					
-					res = self.monitoring.checkProductStatus(productIds, groupIds, depotIds, exclude, verbose)
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
-				else:
-					raise Exception(u"Failure: Parameterlist for task not complete, clientId needed for these check.")
-			elif query["task"] == "checkDepotSyncStatus":
-				if query["param"]:
-					depotIds = []
-					productIds = []
-					exclude = []
-					
-				depotIds    = query.get("param", None).get("depotIds", [])
-				productIds = query.get("param", None).get("productIds", [])
-				exclude      = query.get("param", None).get("exclude", [])
+				productIds = query.get("param", {}).get("productIds", [])
+				groupIds   = query.get("param", {}).get("groupIds", [])
+				depotIds   = query.get("param", {}).get("depotIds", [])
+				exclude    = query.get("param", {}).get("exclude", [])
+				verbose    = query.get("param", {}).get("verbose", False)
 				
+				res = self.monitoring.checkProductStatus(productIds, groupIds, depotIds, exclude, verbose)
+				result.stream = stream.IByteStream(res.encode('utf-8'))
+				return result
+				
+			elif query["task"] == "checkDepotSyncStatus":
+				depotIds   = query.get("param", {}).get("depotIds", [])
+				productIds = query.get("param", {}).get("productIds", [])
+				exclude    = query.get("param", {}).get("exclude", [])
+					
 				res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 				
 			elif query["task"] == "checkPluginOnClient":
-				if query["param"]:
-					clientId = []
-					command = ''
-					timeout = 30
-					captureStdErr = True
-					waitForEnding = True
-					encoding = None
-					statebefore = None
-					output = None
-				
-				clientId        = query.get("param", None).get("clientId", [])
-				command    = query.get("param", None).get("plugin", "")
-				statebefore = query.get("param", None).get("state", None)
-				output         = query.get("param", None).get("output", None)
-				timeout        = query.get("param", None).get("timeout", 30)
+				clientId      = query.get("param", {}).get("clientId", [])
+				command       = query.get("param", {}).get("plugin", "")
+				statebefore   = query.get("param", {}).get("state", None)
+				output        = query.get("param", {}).get("output", None)
+				timeout       = query.get("param", {}).get("timeout", 30)
+				captureStdErr = query.get("param", {}).get("captureStdErr", True)
+				waitForEnding = query.get("param", {}).get("waitForEnding", True)
+				encoding      = query.get("param", {}).get("encoding", None)
 				
 				res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 				
 			elif query["task"] == "checkOpsiWebservice":
-				if query["param"]:
-					cpu = []
-					errors = []
-				
-				cpu = query.get("param", None).get("cpu", [])
-				errors = query.get("param", None).get("errors", [])
+				cpu    = query.get("param", {}).get("cpu", [])
+				errors = query.get("param", {}).get("errors", [])
 				
 				res = self.monitoring.checkOpsiWebservice(cpu, errors)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 				
 			elif query["task"] == "checkOpsiDiskUsage":
-				opsiresource = None
+				opsiresource = query.get("param", {}).get("resource", None)
 				threshold = {}
-				threshold["warning"] = (query["param"].get("warning", "5G"))
-				threshold["critical"] = (query["param"].get("critical", "1G"))
-				opsiresource = query["param"].get("resource", None)
+				threshold["warning"] = (query.get("param", {}).get("warning", "5G"))
+				threshold["critical"] = (query.get("param", {}).get("critical", "1G"))
 				
 				res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 			else:
-				res = {}
-				res["state"] = "3"
-				res["message"] = u"Failure: unknown task!"
+				res = {
+					"state": "3",
+					"message": u"Failure: unknown task!",
+				}
+				
 				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
 				return result
 				

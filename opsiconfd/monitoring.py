@@ -55,6 +55,7 @@ from OPSI.System import getDiskSpaceUsage
 
 from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Logger import *
+from OPSI.Types import *
 from cgi import escape
 from pprint import pprint
 
@@ -129,6 +130,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			
 			try:
 				moni_password = False
+				moni_user = False
 				moni_user = self.service.config['monitoringUser']
 				try:
 					moni_password = self.service._backend.user_getCredentials(username=moni_user)["password"]
@@ -305,11 +307,13 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 			elif query["task"] == "checkOpsiDiskUsage":
-				if query["param"]:
-					opsiresource = None
-				if query["param"].has_key("resource"):
-					opsiresource = query["param"]["resource"]
-				res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource)
+				opsiresource = None
+				threshold = {}
+				threshold["warning"] = (query["param"].get("warning", "5G"))
+				threshold["critical"] = (query["param"].get("critical", "1G"))
+				opsiresource = query["param"].get("resource", None)
+				
+				res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 			else:
@@ -633,38 +637,32 @@ class Monitoring(object):
 			message = u"cannot check plugin. Host not found."
 			return self._generateResponse(state, message)
 	
-	def checkOpsiDiskUsage(self, thresholds = [], opsiresource = None, perfdata=False):
-		results = {}
-		helper = 0
-		state = self._OK
-		message = []
-		resourceToCheck = []
-		print opsiresource
+	def checkOpsiDiskUsage(self, thresholds = {}, opsiresource = None, perfdata=False):
+		results     = {}
+		helper      = 0
+		state        = self._OK
+		message  = []
+		warning    = thresholds.get("warning", "5G")
+		critical      = thresholds.get("critical", "1G")
+		
 		if opsiresource:
-			resourceToCheck.append(opsiresource)
-		
-		if not thresholds or len(thresholds) < 2:
-			threshold = ["1G","5G"]
-		if threshold[0].lower().endswith("g"):
-			unit = "GB"
-			critical = float(threshold[0][:-1])
-			warning = float(threshold[1][:-1])
-		elif threshold[0].lower().endswith("%"):
-			unit = "%"
-			critical = threshold[0][:-1]
-			warning = threshold[1][:-1]
-		else:
-			unit = "%"
-			critical = thresholds[0]
-			warning = thresholds[1]
-		
-		print resourceToCheck
-		if resourceToCheck:
-			resources = resourceToCheck
+			resources = forceList(opsiresource)
 		else:
 			resources = self.service.config['staticDirectories'].keys()
-		print resources
-		resources.sort()
+			resources.sort()
+		
+		if warning.lower().endswith("g"):
+			unit = "GB"
+			warning = float(warning[:-1])
+			critical   = float(critical[:-1])
+		elif warning.lower().endswith("%"):
+			unit = "%"
+			warning = float(warning[:-1])
+			critical   = float(critical[:-1])
+		else:
+			unit = "%"
+			warning = float(warning)
+			critical   = float(critical)
 		
 		try:
 			for resource in resources:
@@ -704,21 +702,20 @@ class Monitoring(object):
 					freeSpace = 100 - usage
 					if freeSpace <= critical:
 						state = self._CRITICAL
-						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%s%')." % (result, freeSpace))
+						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%.2f%%')." % (result, freeSpace))
 										
 					elif freeSpace <= warning:
 						if state != self._CRITICAL:
 							state = self._WARNING
-						message.append(u"DiskUsage warning from ressource: '%s' (available: '%s%')." % (result, freeSpace))
+						message.append(u"DiskUsage warning from ressource: '%s' (available: '%.2f%%')." % (result, freeSpace))
 										
 					else:
-						message.append(u"DiskUsage from ressource: '%s' is ok. (available: '%s%')." % (result, freeSpace))
+						message.append(u"DiskUsage from ressource: '%s' is ok. (available: '%.2f%%')." % (result, freeSpace))
 				
 		else:
 			state = self._UNKNOWN
 			message.append("No results get. Nothing to check.")
 		if state == self._OK:
-			print message
 			message = u"OK: %s" % " ".join(message)
 		elif state == self._WARNING:
 			message = u"WARNING: %s" % " ".join(message)

@@ -220,7 +220,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				return result
 				
 			if query["task"] == "checkClientStatus":
-				
 				if query["param"]:
 					if query["param"].has_key("exclude"):
 						res = self.monitoring.checkClientStatus(query["param"]["clientId"], query["param"]["exclude"])
@@ -245,16 +244,13 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					depotIds = [] 
 					exclude=[]
 					verbose = False
-					if query["param"].has_key("productIds"):
-						productIds = query["param"]["productIds"]
-					if query["param"].has_key("groupIds"):
-						groupIds = query["param"]["groupIds"]
-					if query["param"].has_key("depotIds"):
-						depotIds = query["param"]["depotIds"]
-					if query["param"].has_key("exclude"):
-						exclude = query["param"]["exclude"]
-					if query["param"].has_key("verbose"):
-						verbose = True
+					
+					productIds = query.get("param", None).get("productIds", [])
+					groupIds    = query.get("param", None).get("groupIds", [])
+					depotIds    = query.get("param", None).get("depotIds", [])
+					exclude      = query.get("param", None).get("exclude", [])
+					verbose      = query.get("param", None).get("verbose", False)
+					
 					res = self.monitoring.checkProductStatus(productIds, groupIds, depotIds, exclude, verbose)
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -265,15 +261,15 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					depotIds = []
 					productIds = []
 					exclude = []
-				if query["param"].has_key("productIds"):
-					productIds = query["param"]["productIds"]
-				if query["param"].has_key("depotIds"):
-					depotIds = query["param"]["depotIds"]
-				if query["param"].has_key("exclude"):
-					exclude = query["param"]["exclude"]
+					
+				depotIds    = query.get("param", None).get("depotIds", [])
+				productIds = query.get("param", None).get("productIds", [])
+				exclude      = query.get("param", None).get("exclude", [])
+				
 				res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
+				
 			elif query["task"] == "checkPluginOnClient":
 				if query["param"]:
 					clientId = []
@@ -284,28 +280,29 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					encoding = None
 					statebefore = None
 					output = None
-				if query["param"].has_key("clientId"):
-					clientId.append(query["param"]["clientId"])
-				if query["param"].has_key("plugin"):
-					command = query["param"]["plugin"]
-				if query["param"].has_key("state"):
-					statebefore = query["param"]["state"]
-				if query["param"].has_key("output"):
-					output = query["param"]["output"]
+				
+				clientId        = query.get("param", None).get("clientId", [])
+				command    = query.get("param", None).get("plugin", "")
+				statebefore = query.get("param", None).get("state", None)
+				output         = query.get("param", None).get("output", None)
+				timeout        = query.get("param", None).get("timeout", 30)
+				
 				res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
+				
 			elif query["task"] == "checkOpsiWebservice":
 				if query["param"]:
 					cpu = []
 					errors = []
-				if query["param"].has_key("cpu"):
-					cpu = query["param"]["cpu"]
-				if query["param"].has_key("errors"):
-					errors = query["param"]["errors"]
+				
+				cpu = query.get("param", None).get("cpu", [])
+				errors = query.get("param", None).get("errors", [])
+				
 				res = self.monitoring.checkOpsiWebservice(cpu, errors)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
+				
 			elif query["task"] == "checkOpsiDiskUsage":
 				opsiresource = None
 				threshold = {}

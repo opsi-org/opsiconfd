@@ -34,7 +34,7 @@
 
 from twisted.internet import defer
 import resource as pyresource
-import base64
+import base64, re
 from twisted.conch.ssh import keys
 from sys import version_info
 if (version_info >= (2,6)):
@@ -308,6 +308,8 @@ class Monitoring(object):
 		self._UNKNOWN = 3
 		
 		self._stateText = [u"OK",u"WARNING", u"CRITICAL", u"UNKNOWN"]
+		self._errorcodePattern = re.compile('\[Errno\s(\d*)\]\sCommand\s\'\"(.*)\"\'.*\s(.*)')
+		
 	
 	def _generateResponse(self, state, message, perfdata=None):
 		response = {}
@@ -573,38 +575,61 @@ class Monitoring(object):
 			
 		
 	
-	def checkPluginOnClient(self, hostIds, command, timeout=30, waitForEnding= True, captureStdErr=True, statebefore=None, output=None, encoding=None):
-		res = self.service._backend.hostControl_reachable(hostIds)
-		if res.has_key(hostIds[0]):
-			if not res[hostIds[0]]:
-				if statebefore and output:
-					return self._generateResponse(statebefore, output)
-				else:
-					state = self._UNKNOWN
-					message = u"Cannot Check, host not reachable!"
-					return self._generateResponse(state, message)
+	def checkPluginOnClient(self, hostId, command, timeout=30, waitForEnding= True, captureStdErr=True, statebefore=None, output=None, encoding=None):
+		state  = self._OK
+		message = ""
+		command = ""
+		hostId = forceList(hostId)
+		
+		try:
+			result = self.service._backend.hostControl_reachable(hostId)
+			
+			if result.get("result", {}).get(hostId, False):
+				
+				checkresult = self.service._backend.hostControl_execute(command, hostId, waitForEnding, captureStdErr, encoding, timeout)
+				checkresult = checkresult.get(hostId, None)
+				if checkresult:
+					if checkresult.get(result, None):
+						message = checkresult.get(result)[0]
+					elif checkresult.get("error", None):
+						errormessage = checkresult.get("error", {}).get("message")
+						if errormessage:
+							logger.debug(u"Try to find Errorcode")
+							match = re.match(self._errorcodePattern, errormessage)
+							if not match:
+								state = self._UNKNOWN
+								message = u"Unable to parse Errorcode from plugin"
+							else:
+								errorcode = int(match.group(1))
+								command = match.group(2)
+								message = match.group(3)
+								if not errorcode > 3:
+									state = errorcode
+								else:
+									state = self._UNKNOWN
+									message = "Failed to determine Errorcode from check_command: '%s', message is: '%s'" \
+										% (command,message)
+						else:
+							state = self._UNKNOWN
+							message = u"Unknown Problem by checking plugin on Client. Check your configuration."
+					else:
+						state = self._UNKNOWN
+						message = u"Unknown Problem by checking plugin on Client. Check your configuration."
+					
+					
 			else:
-				res = self.service._backend.hostControl_execute(command, hostIds, waitForEnding, captureStdErr, encoding, timeout)
-				if res.has_key(hostIds[0]):
-					if not res[hostIds[0]]["result"]:
-						if statebefore and output:
-							return self._generateResponse(statebefore, output)
-						#else:
-						#	state = self._UNKNOWN
-						#	message = res[hostIds[0]]["error"][1]
-						#	return self._generateResponse(state, message)
-					state = res[hostIds[0]]["result"][0]
-					message = res[hostIds[0]]["result"][1]
-					return self._generateResponse(state, message)
-				else:
+				if result.get("error", None):
+					message = result.get("error").get("message", "")
 					state = self._UNKNOWN
-					message = u"cannot check plugin."
-					return self._generateResponse(state[0], state[1])
-		else:
-			if statebefore and output:
-				return self._generateResponse(int(statebefore), output)
-			state = self._UNKNOWN
-			message = u"cannot check plugin. Host not found."
+				elif statebefore and output:
+					return self._generateResponse(int(statebefore), output)
+				else:
+					message = "Can't check host '%s' is not reachable." % hostId[0]
+					state = self._UNKNOWN
+			return self._generateResponse(state, message)
+		except Exception,e:
+			state = _UNKNOWN
+			message = str(e)
 			return self._generateResponse(state, message)
 	
 	def checkOpsiDiskUsage(self, thresholds = {}, opsiresource = None, perfdata=False):

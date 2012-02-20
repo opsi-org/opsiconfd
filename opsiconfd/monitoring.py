@@ -245,11 +245,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				return result
 				
 			elif query["task"] == "checkDepotSyncStatus":
-				depotIds   = query.get("param", {}).get("depotIds", [])
+				depotIds    = query.get("param", {}).get("depotIds", [])
 				productIds = query.get("param", {}).get("productIds", [])
-				exclude    = query.get("param", {}).get("exclude", [])
+				exclude      = query.get("param", {}).get("exclude", [])
+				strict          = query.get("param", {}).get("strict", False)
 					
-				res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude)
+				res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 				
@@ -499,7 +500,7 @@ class Monitoring(object):
 			
 		return self._generateResponse(state, message)
 		
-	def checkDepotSyncStatus(self, depotIds, productIds = [], exclude = []):
+	def checkDepotSyncStatus(self, depotIds, productIds = [], exclude = [], strict=False):
 		state = self._OK
 		productOnDepotInfo = {}
 		differenceProducts = {}
@@ -529,6 +530,8 @@ class Monitoring(object):
 			for depotId in depotIds:
 				productOnDepot = productOnDepotInfo[depotId].get(productId)
 				if not productOnDepot:
+					if not strict:
+						continue
 					if not differenceProducts.has_key(productId): 
 						differenceProducts[productId] = {}
 					differenceProducts[productId][depotId] = "not installed"
@@ -569,11 +572,8 @@ class Monitoring(object):
 		else:
 			message += "Syncstate ok for depots: '%s' " % ",".join(depotIds)
 		
-		
-		print message
 		return self._generateResponse(state, message)
-			
-		
+	
 	
 	def checkPluginOnClient(self, hostId, command, timeout=30, waitForEnding= True, captureStdErr=True, statebefore=None, output=None, encoding=None):
 		state  = self._OK

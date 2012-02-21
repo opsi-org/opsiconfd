@@ -436,14 +436,14 @@ class Monitoring(object):
 					if not actionRequestOnClient[depotId].has_key(poc.productId):
 						actionRequestOnClient[depotId][poc.productId] = []
 					actionRequestOnClient[depotId][poc.productId].append(u"%s (%s)" % (poc.clientId, poc.actionRequest) )
-				if poc.installationStatus != "not_installed" and poc.actionResult != "successful": 
+				if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none": 
 					if state != self._CRITICAL:
 						state = self._CRITICAL
 					if not productProblemsOnClient.has_key(depotId):
 						productProblemsOnClient[depotId] = {}
 					if not productProblemsOnClient[depotId].has_key(poc.productId):
 						productProblemsOnClient[depotId][poc.productId] = []
-					productProblemsOnClient[depotId][poc.productId].append(u"%s (%s)" % (poc.clientId, poc.actionResult))
+					productProblemsOnClient[depotId][poc.productId].append(u"%s (%s lastAction: [%s])" % (poc.clientId, poc.actionResult, poc.lastAction))
 				if not poc.productVersion or not poc.packageVersion:
 					continue
 				if poc.productVersion != productOnDepotInfo[depotId][poc.productId]["productVersion"] or \

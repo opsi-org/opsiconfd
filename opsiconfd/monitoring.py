@@ -467,7 +467,7 @@ class Monitoring(object):
 						message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
 			if state == self._OK:
 				message = u"No Problem found for productIds: '%s'" % productIds
-			return self._generateResponse(state, message)
+			#return self._generateResponse(state, message)
 				
 		for depotId in depotIds:
 			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId): 

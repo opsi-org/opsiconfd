@@ -135,7 +135,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			except Exception, e:
 				logger.logException(e, LOG_INFO)
 			
-			
+			logger.notice(u"user: '%s' moni_user: '%s' password: '%s' moni_password: '%s' " % (user,moni_user,password,moni_password)
 			if user == moni_user and password == moni_password:
 				
 				if not self.monitoring:
@@ -181,7 +181,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 								self.monitoring = u'Module monitoring is Disabled, please contact info@uib.de for activation.'
 				return result
 			else:
-				raise Exception(u"Wrong credentials, please check your configurations.")
+				logger.error(u"Wrong credentials, please check your configurations.")
 				
 		except Exception, e:
 			logger.logException(e, LOG_INFO)

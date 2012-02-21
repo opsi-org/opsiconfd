@@ -221,7 +221,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						"message": u"Failure: Parameterlist for task not complete, clientId needed for these check.",
 					}
 				else:
-					res = self.monitoring.checkClientStatus(clientId = clientId, exclude = exclude)
+					res = self.monitoring.checkClientStatus(clientId = clientId, excludeProductList = exclude)
 					
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result

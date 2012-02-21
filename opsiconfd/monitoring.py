@@ -418,8 +418,9 @@ class Monitoring(object):
 		for pod in self.service._backend.productOnDepot_getObjects(depotId = depotIds, productId = productIds):
 			if not productOnDepotInfo.has_key(pod.depotId):
 				productOnDepotInfo[pod.depotId] = {}
-				productOnDepotInfo[pod.depotId][pod.productId] = {	"productVersion": 	pod.productVersion,
-											"packageVersion":	pod.packageVersion }
+			productOnDepotInfo[pod.depotId][pod.productId] = {	"productVersion": 	pod.productVersion,
+										"packageVersion":	pod.packageVersion }
+										
 		for depotId in depotIds:
 			for poc in self.service._backend.productOnClient_getObjects(productId = productIds, clientId = clientsOnDepot[depotId]):
 				if poc.actionRequest != 'none':
@@ -467,7 +468,7 @@ class Monitoring(object):
 						message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
 			if state == self._OK:
 				message = u"No Problem found for productIds: '%s'" % productIds
-			#return self._generateResponse(state, message)
+			return self._generateResponse(state, message)
 				
 		for depotId in depotIds:
 			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId): 

@@ -245,12 +245,13 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				return result
 				
 			elif query["task"] == "checkDepotSyncStatus":
-				depotIds    = query.get("param", {}).get("depotIds", [])
+				depotIds   = query.get("param", {}).get("depotIds", [])
 				productIds = query.get("param", {}).get("productIds", [])
-				exclude      = query.get("param", {}).get("exclude", [])
-				strict          = query.get("param", {}).get("strict", False)
+				exclude    = query.get("param", {}).get("exclude", [])
+				strict     = query.get("param", {}).get("strict", False)
+				verbose    = query.get("param", {}).get("verbose", False)
 					
-				res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict)
+				res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict, verbose)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 				
@@ -500,7 +501,7 @@ class Monitoring(object):
 			
 		return self._generateResponse(state, message)
 		
-	def checkDepotSyncStatus(self, depotIds, productIds = [], exclude = [], strict=False):
+	def checkDepotSyncStatus(self, depotIds, productIds = [], exclude = [], strict=False, verbose=False):
 		state = self._OK
 		productOnDepotInfo = {}
 		differenceProducts = {}
@@ -553,22 +554,23 @@ class Monitoring(object):
 		message = u''
 		if differenceProducts:
 			state = self._WARNING
-			message += u"Differences found for "
+			message += u"Differences found for '%d'\n" % len(differenceProducts)
 			
-			for productId in differenceProducts.keys():
-				message += u"product: '%s': " % productId
-				for depotId in depotIds:
-					if differenceProducts[productId].has_key(depotId):
-						if differenceProducts[productId][depotId] == "not installed":
-							message += u"%s (not installed) \n" % depotId
+			if verbose:
+				for productId in differenceProducts.keys():
+					message += u"product: '%s': " % productId
+					for depotId in depotIds:
+						if differenceProducts[productId].has_key(depotId):
+							if differenceProducts[productId][depotId] == "not installed":
+								message += u"%s (not installed) \n" % depotId
+							else:
+								message += u"%s (%s-%s) \n" % (depotId,
+									productOnDepotInfo[depotId][productId].productVersion,
+									productOnDepotInfo[depotId][productId].packageVersion)
 						else:
-							message += u"%s (%s-%s) \n" % (depotId,
-								productOnDepotInfo[depotId][productId].productVersion,
-								productOnDepotInfo[depotId][productId].packageVersion)
-					else:
-						message += u"%s (%s-%s)" % (depotId,
-								productOnDepotInfo[depotId][productId].productVersion,
-								productOnDepotInfo[depotId][productId].packageVersion)	
+							message += u"%s (%s-%s)" % (depotId,
+									productOnDepotInfo[depotId][productId].productVersion,
+									productOnDepotInfo[depotId][productId].packageVersion)	
 		else:
 			message += "Syncstate ok for depots: '%s' " % ",".join(depotIds)
 		

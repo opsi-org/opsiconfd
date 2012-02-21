@@ -472,33 +472,33 @@ class Monitoring(object):
 				
 		for depotId in depotIds:
 			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId): 
-				message += "Result for Depot: '%s': " % depotId
+				message += "Result for Depot: '%s': \n" % depotId
 			else:
 				continue
 			if actionRequestOnClient.has_key(depotId):
 				message += "Action Request set for "
 				for product in actionRequestOnClient[depotId].keys():
-					message += "product '%s': " % product
+					message += "product '%s': \n" % product
 					for item in actionRequestOnClient[depotId][product]:
-						message += "%s " % item
+						message += "%s \n" % item
 			if productProblemsOnClient.has_key(depotId):
 				message += "Product Problems for "
 				for product in productProblemsOnClient[depotId].keys():
-					message += "product '%s': " % product
+					message += "product '%s': \n" % product
 					for item in productProblemsOnClient[depotId][product]:
-						message += "%s " % item
+						message += "%s \n" % item
 			if productVersionProblemsOnClient.has_key(depotId):
 				message += "Product Version difference found for: "
 				for product in productVersionProblemsOnClient[depotId].keys():
-					message += "product '%s': " % product
+					message += "product '%s': \n" % product
 					for item in productVersionProblemsOnClient[depotId][product]:
-						message += "%s " % item
+						message += "%s \n" % item
 		
 		if state == self._OK:
 			if productGroups:
-				message = u"No Problem found for productIds; '%s'" % "".join(productGroups)
+				message = u"No Problem found for productIds; '%s'" % ",".join(productGroups)
 			else:
-				message = u"No Problem found for productIds; '%s'" % "".join(productIds)
+				message = u"No Problem found for productIds; '%s'" % ",".join(productIds)
 			
 		return self._generateResponse(state, message)
 		

@@ -196,7 +196,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			result = http.Response()
 		
 		if self.query:
-			logger.confidential(u"QUERY: '%s'" % self.query)
+			logger.notice(u"QUERY: '%s'" % self.query)
 			
 			query = json.loads(self.query)
 			if not query.has_key("task"):

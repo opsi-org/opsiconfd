@@ -325,8 +325,8 @@ class Monitoring(object):
 				response["message"] = u"%s" %  message
 			else:
 				response["message"] = u"%s: %s" % (self._stateText[int(state)],message)
-		if len(response["message"]) > 3800:
-			response["message"] = u"%s ..." % response["message"][:3800]	
+		#if len(response["message"]) > 3800:
+		#	response["message"] = u"%s ..." % response["message"][:3800]	
 		return json.dumps(response)
 	
 	def checkClientStatus(self, clientId, excludeProductList=None):
@@ -566,7 +566,7 @@ class Monitoring(object):
 								productOnDepotInfo[depotId][productId].productVersion,
 								productOnDepotInfo[depotId][productId].packageVersion)
 					else:
-						message += u"%s (%s-%s) \n" % (depotId,
+						message += u"%s (%s-%s)" % (depotId,
 								productOnDepotInfo[depotId][productId].productVersion,
 								productOnDepotInfo[depotId][productId].packageVersion)	
 		else:

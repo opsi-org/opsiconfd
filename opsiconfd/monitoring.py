@@ -388,7 +388,7 @@ class Monitoring(object):
 					productIds.append(product)
 		if not depotIds or 'all' in depotIds:
 			depotIds = []
-			depots = self.service._backend.host_getObjects(type="OpsiDepotserver")
+			depots = self.service._backend.host_getObjects(type="ConfigDepotserver")
 			for depot in depots:
 				depotIds.append(depot.id)
 		
@@ -418,9 +418,9 @@ class Monitoring(object):
 		for pod in self.service._backend.productOnDepot_getObjects(depotId = depotIds, productId = productIds):
 			if not productOnDepotInfo.has_key(pod.depotId):
 				productOnDepotInfo[pod.depotId] = {}
-			productOnDepotInfo[pod.depotId][pod.productId] = {	"productVersion": 	pod.productVersion,
-										"packageVersion":	pod.packageVersion }
-										
+			productOnDepotInfo[pod.depotId][pod.productId] = {"productVersion": 	pod.productVersion,
+									  "packageVersion":	pod.packageVersion }
+
 		for depotId in depotIds:
 			for poc in self.service._backend.productOnClient_getObjects(productId = productIds, clientId = clientsOnDepot[depotId]):
 				if poc.actionRequest != 'none':
@@ -439,7 +439,7 @@ class Monitoring(object):
 					if not productProblemsOnClient[depotId].has_key(poc.productId):
 						productProblemsOnClient[depotId][poc.productId] = []
 					productProblemsOnClient[depotId][poc.productId].append(u"%s (%s)" % (poc.clientId, poc.actionResult))
-				if not poc.productVersion or poc.packageVersion:
+				if not poc.productVersion or not poc.packageVersion:
 					continue
 				if poc.productVersion != productOnDepotInfo[depotId][poc.productId]["productVersion"] or \
 					poc.packageVersion != productOnDepotInfo[depotId][poc.productId]["packageVersion"]:

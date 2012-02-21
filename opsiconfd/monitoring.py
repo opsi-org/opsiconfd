@@ -136,7 +136,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			except Exception, e:
 				logger.logException(e, LOG_INFO)
 			
-			logger.notice(u"user: '%s' moni_user: '%s' password: '%s' moni_password: '%s' " % (user,moni_user,password,moni_password))
 			if user == moni_user and password == moni_password:
 				
 				if not self.monitoring:
@@ -464,7 +463,7 @@ class Monitoring(object):
 						message += "For product '%s' problems found on '%d' clients! " % (product, len(productProblemsOnClient[depotId][product]))
 				if productVersionProblemsOnClient.has_key(depotId):
 					for product in productVersionProblemsOnClient[depotId].keys():
-						message += "For product '%s' version defference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
+						message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
 			if state == self._OK:
 				message = u"No Problem found for productIds: '%s'" % productIds
 			return self._generateResponse(state, message)
@@ -561,13 +560,13 @@ class Monitoring(object):
 				for depotId in depotIds:
 					if differenceProducts[productId].has_key(depotId):
 						if differenceProducts[productId][depotId] == "not installed":
-							message += u"%s (not installed) " % depotId
+							message += u"%s (not installed) \n" % depotId
 						else:
-							message += u"%s (%s-%s) " % (depotId,
+							message += u"%s (%s-%s) \n" % (depotId,
 								productOnDepotInfo[depotId][productId].productVersion,
 								productOnDepotInfo[depotId][productId].packageVersion)
 					else:
-						message += u"%s (%s-%s) " % (depotId,
+						message += u"%s (%s-%s) \n" % (depotId,
 								productOnDepotInfo[depotId][productId].productVersion,
 								productOnDepotInfo[depotId][productId].packageVersion)	
 		else:

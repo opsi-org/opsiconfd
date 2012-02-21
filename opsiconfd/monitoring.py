@@ -386,9 +386,14 @@ class Monitoring(object):
 			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup',groupId=productGroups).split(";")[2]:
 				if not product in productIds:
 					productIds.append(product)
-		if not depotIds or 'all' in depotIds:
+		serverType = None
+		if not depotIds:
+			serverType = "OpsiConfigserver"
+		elif 'all' in depotIds:
+			serverType = "OpsiDepotserver"
+		if serverType:
 			depotIds = []
-			depots = self.service._backend.host_getObjects(type="ConfigDepotserver")
+			depots = self.service._backend.host_getObjects(type=serverType)
 			for depot in depots:
 				depotIds.append(depot.id)
 		

@@ -65,6 +65,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 	def __init__(self, service, request, resource):
 		moduleName = u' %-30s' % (u'monitoring')
 		logger.setLogFormat(u'[%l] [%D] [' + moduleName + u'] %M   (%F|%N)', object=self)
+		logger.setLogFile( self.service.config['logFile'].replace('%m', 'monitoring') )
 		WorkerOpsi.__init__(self, service, request, resource)
 		
 		self.monitoring = None

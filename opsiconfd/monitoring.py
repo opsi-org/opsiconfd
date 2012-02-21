@@ -554,9 +554,10 @@ class Monitoring(object):
 		message = u''
 		if differenceProducts:
 			state = self._WARNING
-			message += u"Differences found for '%d'\n" % len(differenceProducts)
+			message += u"Differences found for '%d'" % len(differenceProducts)
 			
 			if verbose:
+				message += u":\n"
 				for productId in differenceProducts.keys():
 					message += u"product: '%s': " % productId
 					for depotId in depotIds:
@@ -568,7 +569,7 @@ class Monitoring(object):
 									productOnDepotInfo[depotId][productId].productVersion,
 									productOnDepotInfo[depotId][productId].packageVersion)
 						else:
-							message += u"%s (%s-%s)" % (depotId,
+							message += u"%s (%s-%s) " % (depotId,
 									productOnDepotInfo[depotId][productId].productVersion,
 									productOnDepotInfo[depotId][productId].packageVersion)	
 		else:

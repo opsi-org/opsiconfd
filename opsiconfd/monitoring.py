@@ -241,7 +241,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				exclude      = query.get("param", {}).get("exclude", [])
 				verbose      = query.get("param", {}).get("verbose", False)
 				
-				res = self.monitoring.checkProductStatus(productIds = productIds, groupIds = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
+				res = self.monitoring.checkProductStatus(productIds = productIds, productGroups = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 				

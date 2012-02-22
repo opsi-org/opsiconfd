@@ -234,13 +234,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						return result
 						
 			elif query["task"] == "checkProductStatus":
-				productIds = query.get("param", {}).get("productIds", [])
-				groupIds   = query.get("param", {}).get("groupIds", [])
-				depotIds   = query.get("param", {}).get("depotIds", [])
-				exclude    = query.get("param", {}).get("exclude", [])
-				verbose    = query.get("param", {}).get("verbose", False)
+				productIds   = query.get("param", {}).get("productIds", [])
+				groupIds     = query.get("param", {}).get("groupIds", [])
+				hostGroupIds = query.get("param", {}).get("hostGroupIds", [])
+				depotIds     = query.get("param", {}).get("depotIds", [])
+				exclude      = query.get("param", {}).get("exclude", [])
+				verbose      = query.get("param", {}).get("verbose", False)
 				
-				res = self.monitoring.checkProductStatus(productIds, groupIds, depotIds, exclude, verbose)
+				res = self.monitoring.checkProductStatus(productIds = productIds, groupIds = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 				
@@ -372,7 +373,7 @@ class Monitoring(object):
 						}
 		return json.dumps(result)
 	
-	def checkProductStatus(self, productIds = [], productGroups = [], depotIds = [], exclude=[], verbose = False):
+	def checkProductStatus(self, productIds = [], productGroups = [], hostGroupIds = [], depotIds = [], exclude=[], verbose = False):
 		state = self._OK
 		clientsOnDepot = {}
 		
@@ -386,6 +387,11 @@ class Monitoring(object):
 			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup',groupId=productGroups).split(";")[2]:
 				if not product in productIds:
 					productIds.append(product)
+		if not productIds:
+			state = self._UNKNOWN
+			message = u"Neither productId nor productGroup given, nothing to check!"
+			return self._generateResponse(state, message)
+			
 		serverType = None
 		if not depotIds:
 			serverType = "OpsiConfigserver"
@@ -397,7 +403,16 @@ class Monitoring(object):
 			for depot in depots:
 				depotIds.append(depot.id)
 		
-		clientIds = self.service._backend.host_getIdents(type="OpsiClient")
+		clientIds = None
+		if hostGroupIds:
+			clientIds = []
+			objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=groups, type="HostGroup")
+			if objectToGroups:
+				for objectToGroup in objectToGroups:
+					clientIds.append(objectToGroup.objectId)
+		else:
+			clientIds = self.service._backend.host_getIdents(type="OpsiClient")
+		
 		addConfigStateDefaults = self.service._backend.backend_getOptions().get('addConfigStateDefaults', False)
 		try:
 			logger.debug("Calling backend_setOptions on %s" % self)

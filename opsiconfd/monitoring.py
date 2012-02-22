@@ -384,7 +384,8 @@ class Monitoring(object):
 		
 		if not productIds:
 			productIds = []
-			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup',groupId=productGroups).split(";")[2]:
+			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup',groupId=productGroups):
+				product = product.split(";")[2]
 				if not product in productIds:
 					productIds.append(product)
 		if not productIds:

@@ -406,7 +406,7 @@ class Monitoring(object):
 		clientIds = None
 		if hostGroupIds:
 			clientIds = []
-			objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=groups, type="HostGroup")
+			objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=hostGroupIds, type="HostGroup")
 			if objectToGroups:
 				for objectToGroup in objectToGroups:
 					clientIds.append(objectToGroup.objectId)

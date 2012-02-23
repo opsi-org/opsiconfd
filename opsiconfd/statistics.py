@@ -163,6 +163,7 @@ class Statistics(object):
 			return result
 			
 		except Exception, e:
+			logger.logException(e)
 			logger.error(u"Failed to get Statistics: %s" % e)
 			return result
 	

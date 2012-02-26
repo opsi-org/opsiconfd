@@ -5,7 +5,7 @@
    =   opsi configuration daemon   =
    = = = = = = = = = = = = = = = = =
 
-   opsiconfd is part of the desktop management solution opsi
+   opsi-nagios-connector is part of the desktop management solution opsi
    (open pc server integration) http://www.opsi.org
 
    Copyright (C) 2010 uib GmbH
@@ -14,22 +14,8 @@
 
    All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
    @copyright:  uib GmbH <info@uib.de>
    @author: Erol Ueluekmen <e.ueluekmen@uib.de>
-   @license: GNU General Public License version 2
 """
 
 from twisted.internet import defer
@@ -56,30 +42,26 @@ from OPSI.System import getDiskSpaceUsage
 from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Logger import *
 from OPSI.Types import *
-from cgi import escape
-from pprint import pprint
+from datetime import datetime
 
 logger = Logger()
 
 class WorkerOpsiconfdMonitoring(WorkerOpsi):
 	def __init__(self, service, request, resource):
-		moduleName = u' %-30s' % (u'monitoring')
-		logger.setLogFormat(u'[%l] [%D] [' + moduleName + u'] %M   (%F|%N)', object=self)
-		logger.setLogFile( service.config['logFile'].replace('%m', 'monitoring') )
 		WorkerOpsi.__init__(self, service, request, resource)
-		
+		self._setLogFile(self)
 		self.monitoring = None
+	
+	def _setLogFile(self, obj):
+		logger.setLogFile( service.config['logFile'].replace('%m', 'monitoring'), object =obj )
 		
 	def process(self):
 		logger.info(u"Worker %s started processing" % self)
 		deferred = defer.Deferred()
-		#deferred.addCallback(self._getSession)
 		deferred.addCallback(self._authenticate)
 		deferred.addCallback(self._getQuery)
 		deferred.addCallback(self._processQuery)
 		deferred.addCallback(self._setResponse)
-		#deferred.addCallback(self._setCookie)
-		#deferred.addCallback(self._freeSession)
 		deferred.addErrback(self._errback)
 		deferred.callback(None)
 		return deferred
@@ -87,9 +69,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 	def _processQuery(self, result):
 		self._decodeQuery(result)
 		
-	def _executeQuery(self, param, od_productIds, clientId):
-		pass
-	
 	def _getAuthorization(self):
 		(user, password) = (u'', u'')
 		logger.debug(u"Trying to get username and password from Authorization header")
@@ -196,12 +175,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			result = http.Response()
 		
 		if self.query:
-			logger.notice(u"QUERY: '%s'" % self.query)
-			
 			query = json.loads(self.query)
 			if not query.has_key("task"):
-				raise Exception("No task set, nothing to do") 
-			logger.debug(u"Queried task: '%s'" % query["task"])
+				res["state"] = "3"
+				res["message"] = u"No task set, nothing to do"
+				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
+				return result
 			
 			if not isinstance(self.monitoring, Monitoring):
 				res = {}
@@ -211,20 +190,17 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				return result
 				
 			if query["task"] == "checkClientStatus":
-				#def checkClientStatus(self, clientId, excludeProductList=None):
 				exclude = query.get("param", {}).get("exclude", None)
 				clientId = query.get("param", {}).get("clientId", None)
 					
-				if not clientId:
-					res = {
-						"state": "3",
-						"message": u"Failure: Parameterlist for task not complete, clientId needed for these check.",
-					}
-				else:
+				try:
 					res = self.monitoring.checkClientStatus(clientId = clientId, excludeProductList = exclude)
-					
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
+				except Exception,e:
+					logger.logException(e, LOG_INFO)
+					res = { "state":"3", "message":str(e) }
+				finally:
+					result.stream = stream.IByteStream(res.encode('utf-8'))
+					return result
 					
 			elif query["task"] == "getOpsiClientsForGroup":
 				if query["param"]:
@@ -241,9 +217,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				exclude      = query.get("param", {}).get("exclude", [])
 				verbose      = query.get("param", {}).get("verbose", False)
 				
-				res = self.monitoring.checkProductStatus(productIds = productIds, productGroups = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
+				try:
+					res = self.monitoring.checkProductStatus(productIds = productIds, productGroups = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
+				except Exception,e:
+					logger.logException(e, LOG_INFO)
+					res = { "state":"3", "message":str(e) }
+				finally:
+					result.stream = stream.IByteStream(res.encode('utf-8'))
+					return result
 				
 			elif query["task"] == "checkDepotSyncStatus":
 				depotIds   = query.get("param", {}).get("depotIds", [])
@@ -251,10 +232,15 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				exclude    = query.get("param", {}).get("exclude", [])
 				strict     = query.get("param", {}).get("strict", False)
 				verbose    = query.get("param", {}).get("verbose", False)
-					
-				res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict, verbose)
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
+				
+				try:	
+					res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict, verbose)
+				except Exception,e:
+					logger.logException(e, LOG_INFO)
+					res = { "state":"3", "message":str(e) }
+				finally:
+					result.stream = stream.IByteStream(res.encode('utf-8'))
+					return result
 				
 			elif query["task"] == "checkPluginOnClient":
 				clientId      = query.get("param", {}).get("clientId", [])
@@ -266,17 +252,27 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				waitForEnding = query.get("param", {}).get("waitForEnding", True)
 				encoding      = query.get("param", {}).get("encoding", None)
 				
-				res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
+				try:
+					res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
+				except Exception,e:
+					logger.logException(e, LOG_INFO)
+					res = { "state":"3", "message":str(e) }
+				finally:
+					result.stream = stream.IByteStream(res.encode('utf-8'))
+					return result
 				
 			elif query["task"] == "checkOpsiWebservice":
 				cpu    = query.get("param", {}).get("cpu", [])
 				errors = query.get("param", {}).get("errors", [])
 				
-				res = self.monitoring.checkOpsiWebservice(cpu, errors)
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
+				try:
+					res = self.monitoring.checkOpsiWebservice(cpu, errors)
+				except Exception,e:
+					logger.logException(e, LOG_INFO)
+					res = { "state":"3", "message":str(e) }
+				finally:
+					result.stream = stream.IByteStream(res.encode('utf-8'))
+					return result
 				
 			elif query["task"] == "checkOpsiDiskUsage":
 				opsiresource = query.get("param", {}).get("resource", None)
@@ -284,9 +280,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				threshold["warning"] = (query.get("param", {}).get("warning", "5G"))
 				threshold["critical"] = (query.get("param", {}).get("critical", "1G"))
 				
-				res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
+				try:
+					res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
+				except Exception,e:
+					logger.logException(e, LOG_INFO)
+					res = { "state":"3", "message":str(e) }
+				finally:
+					result.stream = stream.IByteStream(res.encode('utf-8'))
+					return result
 			else:
 				res = {
 					"state": "3",
@@ -333,12 +334,31 @@ class Monitoring(object):
 	
 	def checkClientStatus(self, clientId, excludeProductList=None):
 		state = self._OK
+		message = ''
 		if not clientId:
 			raise Exception(u"Failed to check: ClientId is needed for checkClientStatus")
 		clientObj = self.service._backend.host_getObjects(id = clientId)
 		if not clientObj:
 			state = self._UNKNOWN
 			return self._generateResponse(state, u"opsi-client: '%s' not found" % clientId)
+		if not clientObj.lastSeen:
+			state = _WARNING
+			message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
+		else:
+			lastSeen = clientObj.lastSeen.split("-")
+			today = datetime.today()
+			lastSeenDate = datetime.today()
+			lastSeenDate = lastSeenDate.replace(year = int(lastSeen[0]), month = int(lastSeen[1]), day = int(lastSeen[2]))
+			today = today.replace(second = today.second + 1)
+			
+			delta = today - lastSeenDate
+			
+			if delta >= 30:
+				state = self._WARNING
+				message += "opsi-client %s has not been seen, since %d days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. " % (clientId, delta)
+			else:
+				message += "opsi-client %s has been seen %d days before."
+			
 		failedProducts = self.service._backend.productOnClient_getObjects(clientId = clientId, actionResult = 'failed')
 		if failedProducts:
 			state = self._CRITICAL
@@ -472,21 +492,23 @@ class Monitoring(object):
 						productVersionProblemsOnClient[depotId][poc.productId] = []
 					productVersionProblemsOnClient[depotId][poc.productId].append("%s (%s-%s)" % (poc.clientId,poc.productVersion, poc.packageVersion))
 		message = ''
+		
+		for depotId in depotIds:
+			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId): 
+				message += "Result for Depot: '%s': " % depotId
+			else:
+				continue
+			if actionRequestOnClient.has_key(depotId):
+				for product in actionRequestOnClient[depotId].keys():
+					message += "For product '%s' action set on '%d' clients! " % (product, len(actionRequestOnClient[depotId][product]))
+			if productProblemsOnClient.has_key(depotId):
+				for product in productProblemsOnClient[depotId].keys():
+					message += "For product '%s' problems found on '%d' clients! " % (product, len(productProblemsOnClient[depotId][product]))
+			if productVersionProblemsOnClient.has_key(depotId):
+				for product in productVersionProblemsOnClient[depotId].keys():
+					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
+		
 		if not verbose:
-			for depotId in depotIds:
-				if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId): 
-					message += "Result for Depot: '%s': " % depotId
-				else:
-					continue
-				if actionRequestOnClient.has_key(depotId):
-					for product in actionRequestOnClient[depotId].keys():
-						message += "For product '%s' action set on '%d' clients! " % (product, len(actionRequestOnClient[depotId][product]))
-				if productProblemsOnClient.has_key(depotId):
-					for product in productProblemsOnClient[depotId].keys():
-						message += "For product '%s' problems found on '%d' clients! " % (product, len(productProblemsOnClient[depotId][product]))
-				if productVersionProblemsOnClient.has_key(depotId):
-					for product in productVersionProblemsOnClient[depotId].keys():
-						message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
 			if state == self._OK:
 				message = u"No Problem found for productIds: '%s'" % ",".join(productIds)
 			return self._generateResponse(state, message)

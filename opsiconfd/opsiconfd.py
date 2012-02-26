@@ -566,6 +566,7 @@ class OpsiconfdInit(Application):
 			'debug'                        : False,
 			'messageBus'                   : False,
 			'monitoringUser'               : u"monitoring",
+			'monitoringDebug'            : 0,
 		}
 	
 	def setCommandlineConfig(self):

@@ -643,7 +643,6 @@ class Monitoring(object):
 		state  = self._OK
 		message = ""
 		hostId = forceList(hostId)
-		print hostId
 		
 		try:
 			result = self.service._backend.hostControl_reachable(hostId)

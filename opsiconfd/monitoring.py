@@ -199,6 +199,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception,e:
 					logger.logException(e, LOG_INFO)
 					res = { "state":"3", "message":str(e) }
+					res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -223,6 +224,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception,e:
 					logger.logException(e, LOG_INFO)
 					res = { "state":"3", "message":str(e) }
+					res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -239,6 +241,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception,e:
 					logger.logException(e, LOG_INFO)
 					res = { "state":"3", "message":str(e) }
+					res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -258,6 +261,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception,e:
 					logger.logException(e, LOG_INFO)
 					res = { "state":"3", "message":str(e) }
+					res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -271,6 +275,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception,e:
 					logger.logException(e, LOG_INFO)
 					res = { "state":"3", "message":str(e) }
+					res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -286,6 +291,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception,e:
 					logger.logException(e, LOG_INFO)
 					res = { "state":"3", "message":str(e) }
+					res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -313,7 +319,7 @@ class Monitoring(object):
 		self._UNKNOWN = 3
 		
 		self._stateText = [u"OK",u"WARNING", u"CRITICAL", u"UNKNOWN"]
-		self._errorcodePattern = re.compile('\[Errno\s(\d*)\]\sCommand\s\'\"(.*)\"\'.*\s(.*)')
+		self._errorcodePattern = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')
 		
 	
 	def _generateResponse(self, state, message, perfdata=None):
@@ -342,23 +348,30 @@ class Monitoring(object):
 		if not clientObj:
 			state = self._UNKNOWN
 			return self._generateResponse(state, u"opsi-client: '%s' not found" % clientId)
+		else:
+			clientObj = clientObj[0]
 		if not clientObj.lastSeen:
 			state = _WARNING
 			message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
 		else:
 			lastSeen = clientObj.lastSeen.split("-")
+			year = int(lastSeen[0])
+			month = int(lastSeen[1])
+			day = int(lastSeen[1].split()[0])
+			
 			today = datetime.today()
 			lastSeenDate = datetime.today()
-			lastSeenDate = lastSeenDate.replace(year = int(lastSeen[0]), month = int(lastSeen[1]), day = int(lastSeen[2]))
+			
+			lastSeenDate = lastSeenDate.replace(year = year, month = month, day = day)
 			today = today.replace(second = today.second + 1)
 			
 			delta = today - lastSeenDate
 			
-			if delta >= 30:
+			if delta.days >= 30:
 				state = self._WARNING
-				message += "opsi-client %s has not been seen, since %d days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. " % (clientId, delta)
+				message += "opsi-client %s has not been seen, since %d days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. " % (clientId, delta.days)
 			else:
-				message += "opsi-client %s has been seen %d days before."
+				message += "opsi-client %s has been seen %d days before. " % (clientId, delta.days)
 			
 		failedProducts = self.service._backend.productOnClient_getObjects(clientId = clientId, actionResult = 'failed')
 		if failedProducts:
@@ -366,15 +379,18 @@ class Monitoring(object):
 			products = []
 			for product in failedProducts:
 				products.append(product.productId)
-				return self._generateResponse(state, u"Products: '%s' are in failed state." % (",".join(products)))
+			message += "Products: '%s' are in failed state. " % (",".join(products))
 		actionProducts = self.service._backend.productOnClient_getObjects(clientId = clientId, actionRequest = ['setup','update','uninstall'])
 		if actionProducts:
-			state = self._WARNING
+			if state != self._CRITICAL:
+				state = self._WARNING
 			products = []
 			for product in actionProducts:
 				products.append("%s (%s)" % (product.productId, product.actionRequest))
-				return self._generateResponse(state, u"Actions set for products: '%s'." % (",".join(products)))
-		return self._generateResponse(state,u"No failed products and no actions set for client")
+			message += "Actions set for products: '%s'." % (",".join(products))
+		if state == self._OK:
+			message += "No failed products and no actions set for client"
+		return self._generateResponse(state,message)
 	
 	def getOpsiClientsForGroup(self, groups):
 		clients = []
@@ -626,19 +642,18 @@ class Monitoring(object):
 	def checkPluginOnClient(self, hostId, command, timeout=30, waitForEnding= True, captureStdErr=True, statebefore=None, output=None, encoding=None):
 		state  = self._OK
 		message = ""
-		command = ""
 		hostId = forceList(hostId)
+		print hostId
 		
 		try:
 			result = self.service._backend.hostControl_reachable(hostId)
-			
-			if result.get("result", {}).get(hostId, False):
-				
+			if result.get(hostId[0], False):
 				checkresult = self.service._backend.hostControl_execute(command, hostId, waitForEnding, captureStdErr, encoding, timeout)
-				checkresult = checkresult.get(hostId, None)
+				checkresult = checkresult.get(hostId[0], None)
+				
 				if checkresult:
-					if checkresult.get(result, None):
-						message = checkresult.get(result)[0]
+					if checkresult.get("result", None):
+						message = checkresult.get("result")[0]
 					elif checkresult.get("error", None):
 						errormessage = checkresult.get("error", {}).get("message")
 						if errormessage:
@@ -676,7 +691,7 @@ class Monitoring(object):
 					state = self._UNKNOWN
 			return self._generateResponse(state, message)
 		except Exception,e:
-			state = _UNKNOWN
+			state = self._UNKNOWN
 			message = str(e)
 			return self._generateResponse(state, message)
 	

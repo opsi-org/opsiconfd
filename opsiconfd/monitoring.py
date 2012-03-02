@@ -195,11 +195,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				clientId = query.get("param", {}).get("clientId", None)
 					
 				try:
-					res = self.monitoring.checkClientStatus(clientId = clientId, excludeProductList = exclude)
-				except Exception,e:
-					logger.logException(e, LOG_INFO)
-					res = { "state":"3", "message":str(e) }
-					res = res = json.dumps(res)
+					try:
+						res = self.monitoring.checkClientStatus(clientId = clientId, excludeProductList = exclude)
+					except Exception,e:
+						logger.logException(e, LOG_INFO)
+						res = { "state":"3", "message":str(e) }
+						res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -220,11 +221,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				verbose      = query.get("param", {}).get("verbose", False)
 				
 				try:
-					res = self.monitoring.checkProductStatus(productIds = productIds, productGroups = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
-				except Exception,e:
-					logger.logException(e, LOG_INFO)
-					res = { "state":"3", "message":str(e) }
-					res = res = json.dumps(res)
+					try:
+						res = self.monitoring.checkProductStatus(productIds = productIds, productGroups = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
+					except Exception,e:
+						logger.logException(e, LOG_INFO)
+						res = { "state":"3", "message":str(e) }
+						res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -236,12 +238,13 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				strict     = query.get("param", {}).get("strict", False)
 				verbose    = query.get("param", {}).get("verbose", False)
 				
-				try:	
-					res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict, verbose)
-				except Exception,e:
-					logger.logException(e, LOG_INFO)
-					res = { "state":"3", "message":str(e) }
-					res = res = json.dumps(res)
+				try:
+					try:
+						res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict, verbose)
+					except Exception,e:
+						logger.logException(e, LOG_INFO)
+						res = { "state":"3", "message":str(e) }
+						res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -257,11 +260,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				encoding      = query.get("param", {}).get("encoding", None)
 				
 				try:
-					res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
-				except Exception,e:
-					logger.logException(e, LOG_INFO)
-					res = { "state":"3", "message":str(e) }
-					res = res = json.dumps(res)
+					try:
+						res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
+					except Exception,e:
+						logger.logException(e, LOG_INFO)
+						res = { "state":"3", "message":str(e) }
+						res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -271,11 +275,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				errors = query.get("param", {}).get("errors", [])
 				
 				try:
-					res = self.monitoring.checkOpsiWebservice(cpu, errors)
-				except Exception,e:
-					logger.logException(e, LOG_INFO)
-					res = { "state":"3", "message":str(e) }
-					res = json.dumps(res)
+					try:
+						res = self.monitoring.checkOpsiWebservice(cpu, errors)
+					except Exception,e:
+						logger.logException(e, LOG_INFO)
+						res = { "state":"3", "message":str(e) }
+						res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -287,11 +292,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				threshold["critical"] = (query.get("param", {}).get("critical", "1G"))
 				
 				try:
-					res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
-				except Exception,e:
-					logger.logException(e, LOG_INFO)
-					res = { "state":"3", "message":str(e) }
-					res = json.dumps(res)
+					try:
+						res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
+					except Exception,e:
+						logger.logException(e, LOG_INFO)
+						res = { "state":"3", "message":str(e) }
+						res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result

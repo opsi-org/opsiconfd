@@ -508,7 +508,7 @@ class Monitoring(object):
 				if poc.productVersion != productOnDepotInfo[depotId][poc.productId]["productVersion"] or \
 					poc.packageVersion != productOnDepotInfo[depotId][poc.productId]["packageVersion"]:
 					if state != self._CRITICAL:
-						state = self._CRITICAL
+						state = self._WARNING
 					if not productVersionProblemsOnClient.has_key(depotId):
 						productVersionProblemsOnClient[depotId] = {}
 					if not productVersionProblemsOnClient[depotId].has_key(poc.productId):

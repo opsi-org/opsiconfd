@@ -1,6 +1,6 @@
 opsiconfd (4.0.1.11-1) testing; urgency=low
 
-  * opsi-nagios-connector
+  * first release of opsi-nagios-connector
 
  -- Erol Ueluekmen <e.ueluekmen@uib.de>  Sun, 28 Feb 2012 23:37:46 +0100
 

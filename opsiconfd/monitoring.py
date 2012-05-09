@@ -636,6 +636,8 @@ class Monitoring(object):
 									productOnDepotInfo[depotId][productId].productVersion,
 									productOnDepotInfo[depotId][productId].packageVersion)
 						else:
+							if not productOnDepotInfo.get(depotId, {}).get(productId, None):
+								continue
 							message += u"%s (%s-%s) " % (depotId,
 									productOnDepotInfo[depotId][productId].productVersion,
 									productOnDepotInfo[depotId][productId].packageVersion)	

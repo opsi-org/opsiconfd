@@ -486,7 +486,7 @@ class Monitoring(object):
 									  "packageVersion":	pod.packageVersion }
 
 		for depotId in depotIds:
-			for poc in self.service._backend.productOnClient_getObjects(productId = productIds, clientId = clientsOnDepot[depotId]):
+			for poc in self.service._backend.productOnClient_getObjects(productId = productIds, clientId = clientsOnDepot.get(depotId, None)):
 				if poc.actionRequest != 'none':
 					if state != self._CRITICAL:
 						state = self._WARNING

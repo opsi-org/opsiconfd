@@ -363,7 +363,7 @@ class Monitoring(object):
 			lastSeen = clientObj.lastSeen.split("-")
 			year = int(lastSeen[0])
 			month = int(lastSeen[1])
-			day = int(lastSeen[1].split()[0])
+			day = int(lastSeen[2].split()[0])
 			
 			today = datetime.date.today()
 			delta = None

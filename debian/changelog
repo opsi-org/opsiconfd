@@ -1,8 +1,9 @@
 opsiconfd (4.0.1.12-1) testing; urgency=low
 
-  * monitoring:
+  * opsi-nagios-connector:
     * fix check-depotsyncstatus-longoutput for more then two depotservers in one check
     * checkProductStatus: change Statechange from critical to warning when only versions are different on clients 
+    * fix checkClientStatus: determining last seen
 
  -- Erol Ueluekmen <e.ueluekmen@uib.de>  Thu, 10 May 2012 01:19:20 +0200
 

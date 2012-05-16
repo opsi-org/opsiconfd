@@ -42,7 +42,7 @@ from OPSI.System import getDiskSpaceUsage
 from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Logger import *
 from OPSI.Types import *
-from datetime import datetime
+import datetime
 
 logger = Logger()
 
@@ -365,17 +365,23 @@ class Monitoring(object):
 			month = int(lastSeen[1])
 			day = int(lastSeen[1].split()[0])
 			
-			today = datetime.today()
-			lastSeenDate = datetime.today()
+			today = datetime.date.today()
+			delta = None
 			
-			lastSeenDate = lastSeenDate.replace(year = year, month = month, day = day)
-			today = today.replace(second = today.second + 1)
+			if year and month and day:
+				lastSeenDate = datetime.date(year,month,day)
+				delta = today - lastSeenDate
+			elif state == self._OK:
+				state = _WARNING
+				message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
 			
-			delta = today - lastSeenDate
+			
 			
 			if delta.days >= 30:
 				state = self._WARNING
 				message += "opsi-client %s has not been seen, since %d days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. " % (clientId, delta.days)
+			elif delta.days == 0:
+				message += "opsi-client %s has been seen today. " % (clientId)
 			else:
 				message += "opsi-client %s has been seen %d days before. " % (clientId, delta.days)
 			

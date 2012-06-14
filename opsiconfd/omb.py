@@ -32,12 +32,17 @@
    @license: GNU General Public License version 2
 """
 
-import hashlib, base64, random
+import base64, random
 from sys import version_info
 if (version_info >= (2,6)):
 	import json
 else:
 	import simplejson as json
+
+if sys.version_info < (2,5):
+	import sha as sha1
+else:
+	from hashlib import sha1
 
 from OPSI.Logger import *
 from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
@@ -242,7 +247,7 @@ class OpsiconfdHTTPChannel(HTTPChannel):
 		
 		key = self.__headers.get('sec-websocket-key').strip()
 		key += '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
-		key = hashlib.sha1(key).digest()
+		key = sha1(key).digest()
 		key = base64.encodestring(key)
 		
 		headers =  'HTTP/1.1 101 Switching Protocols\r\n'

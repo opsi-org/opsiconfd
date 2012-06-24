@@ -39,7 +39,7 @@ if (version_info >= (2,6)):
 else:
 	import simplejson as json
 
-if sys.version_info < (2,5):
+if (version_info < (2,5)):
 	import sha as sha1
 else:
 	from hashlib import sha1

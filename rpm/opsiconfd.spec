@@ -85,7 +85,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/sbin
 ln -sf /etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 sed -i 's#/etc/init.d$##;s#/etc/logrotate.d$##' INSTALLED_FILES
-
+sed -i "s/2 3 4 5/2 3 5/g; s/2345/235/g" /etc/init.di/opsiconfd
 
 
 
@@ -99,12 +99,6 @@ arg0=$1
 
 if [ $arg0 -eq 1 ]; then
 	# Install
-	if [ -e "/etc/init.di/opsiconfd" ]; then
-		%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version} || 0%{?suse_version}
-			sed -i "s/2 3 4 5/2 3 5/g; s/2345/235/g" /etc/init.di/opsiconfd
-		%endif
-	fi
-
 	#%{fillup_and_insserv opsiconfd}
 	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
 		chkconfig --add opsiconfd

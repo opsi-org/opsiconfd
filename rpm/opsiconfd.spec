@@ -35,6 +35,7 @@ PreReq:         %insserv_prereq
 %{py_requires}
 %endif
 %endif
+BuildArch:      noarch
 
 
 %define toplevel_dir %{name}-%{version}

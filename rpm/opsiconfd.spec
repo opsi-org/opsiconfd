@@ -99,7 +99,7 @@ rm -rf $RPM_BUILD_ROOT
 arg0=$1
 
 #fix for runlevel 4 (not used on rpm-based machines)
-if  [ -e  "/etc/init.d/opsiconfd" ]
+if  [ -e  "/etc/init.d/opsiconfd" ]; then
 	sed -i "s/2 3 4 5/2 3 5/g; s/2345/235/g" /etc/init.d/opsiconfd
 fi
 

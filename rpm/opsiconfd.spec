@@ -35,7 +35,9 @@ PreReq:         %insserv_prereq
 %{py_requires}
 %endif
 %endif
+%if 0%{?suse_version} != 1110 
 BuildArch:      noarch
+%endif
 
 
 %define toplevel_dir %{name}-%{version}

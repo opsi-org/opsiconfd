@@ -133,8 +133,14 @@ class Statistics(object):
 			last = self._last
 			self._last = now
 			(utime, stime, maxrss) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
-			usr = (utime - self._utime)/(now - last)
-			sys = (stime - self._stime)/(now - last)
+			if int(utime - self._utime) == 0:
+				usr = 0.0
+			else:
+				usr = (utime - self._utime)/(now - last)
+			if int(stime - self._stime) == 0:
+				sys = 0.0
+			else:
+				sys = (stime - self._stime)/(now - last)
 			(self._utime, self._stime) = (utime, stime)
 			#mem = int("%0.0f" % (float(maxrss * pyresource.getpagesize())/(1024*1024))) # Mbyte
 			f = open('/proc/%s/stat' % os.getpid())
@@ -175,8 +181,14 @@ class Statistics(object):
 			last = self._last
 			self._last = now
 			(utime, stime, maxrss) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
-			usr = (utime - self._utime)/(now - last)
-			sys = (stime - self._stime)/(now - last)
+			if int(utime - self._utime) == 0:
+				usr = 0.0
+			else:
+				usr = (utime - self._utime)/(now - last)
+			if int(stime - self._stime) == 0:
+				sys = 0.0
+			else:
+				sys = (stime - self._stime)/(now - last)
 			(self._utime, self._stime) = (utime, stime)
 			#mem = int("%0.0f" % (float(maxrss * pyresource.getpagesize())/(1024*1024))) # Mbyte
 			f = open('/proc/%s/stat' % os.getpid())

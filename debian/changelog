@@ -1,3 +1,9 @@
+opsiconfd (4.0.2.3-1) testing; urgency=low
+
+  * fixing floatdivision in statistics-class
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Wed, 18 Jul 2012 17:05:54 +0200
+
 opsiconfd (4.0.2.2-1) testing; urgency=low
 
   * omb: python 2.4 fixing import hashlib

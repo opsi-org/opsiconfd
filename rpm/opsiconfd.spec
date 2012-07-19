@@ -114,8 +114,16 @@ if [ $arg0 -eq 1 ]; then
 		insserv opsiconfd || true
 	%endif
 	
-	if [ -z "`getent group pcpatch`" ]; then
-		groupadd -g 992 pcpatch
+	fileadmingroup=$(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
+	if [ -z "$fileadmingroup" ]; then
+		fileadmingroup=pcpatch
+	fi
+	if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
+		groupmod -n $fileadmingroup pcpatch
+	else
+		if [ -z "$(getent group $fileadmingroup)"  ]; then
+			groupadd -g 992 $fileadmingroup
+		fi
 	fi
 	
 	if [ -z "`getent passwd opsiconfd`" ]; then
@@ -181,7 +189,7 @@ fi
 chmod 600 /etc/opsi/opsiconfd.pem
 chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
-chown -R opsiconfd:pcpatch /var/log/opsi/opsiconfd
+chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
 if [ $arg0 -eq 1 ]; then
 	# Install
@@ -247,7 +255,8 @@ fi
 #%attr(0755,root,root) %dir /usr/share/opsiconfd
 #%attr(0755,root,root) %dir /usr/share/opsiconfd/static
 %dir /var/log/opsi
-%attr(0750,opsiconfd,pcpatch) %dir /var/log/opsi/opsiconfd
+fileadmingroup=$(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
+%attr(0750,opsiconfd,$fileadmingroup) %dir /var/log/opsi/opsiconfd
 
 %if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
 %define python_sitearch %(%{__python} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')

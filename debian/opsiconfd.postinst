@@ -26,7 +26,7 @@ case "$1" in
 		fi
 		
 		if [ -z "`getent passwd opsiconfd`" ]; then
-			useradd -u 993 -g pcpatch -d /var/lib/opsi -s /bin/bash opsiconfd
+			useradd -u 993 -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
 		fi
 		
 		if [ -z "`getent group opsiadmin`" ]; then

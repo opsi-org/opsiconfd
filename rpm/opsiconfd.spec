@@ -256,7 +256,7 @@ fi
 #%attr(0755,root,root) %dir /usr/share/opsiconfd/static
 %dir /var/log/opsi
 
-%attr(0750,opsiconfd,%{fileadmingroup}) %dir /var/log/opsi/opsiconfd
+%attr(0750,opsiconfd,root) %dir /var/log/opsi/opsiconfd
 
 %if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
 %define python_sitearch %(%{__python} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')

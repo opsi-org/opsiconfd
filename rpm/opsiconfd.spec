@@ -38,7 +38,7 @@ PreReq:         %insserv_prereq
 %if 0%{?suse_version} != 1110 
 BuildArch:      noarch
 %endif
-
+%define fileadmingroup %(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
 
 %define toplevel_dir %{name}-%{version}
 
@@ -255,8 +255,8 @@ fi
 #%attr(0755,root,root) %dir /usr/share/opsiconfd
 #%attr(0755,root,root) %dir /usr/share/opsiconfd/static
 %dir /var/log/opsi
-fileadmingroup=$(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
-%attr(0750,opsiconfd,$fileadmingroup) %dir /var/log/opsi/opsiconfd
+
+%attr(0750,opsiconfd,%{fileadmingroup}) %dir /var/log/opsi/opsiconfd
 
 %if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
 %define python_sitearch %(%{__python} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')

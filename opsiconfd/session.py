@@ -45,6 +45,7 @@ class OpsiconfdSession(Session):
 		self.callInterface = None
 		self.isHost = False
 		self.isAdmin = False
+		self.isReadOnlyUser = False
 		self.lastRpcSuccessfullyDecoded = False
 		self.lastRpcMethod = u''
 		

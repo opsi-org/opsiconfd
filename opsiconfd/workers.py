@@ -237,6 +237,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 				self.session.isAdmin = bac.accessControl_userIsAdmin()
 			else:
 				self.session.isAdmin = False
+				
+			self.session.isReadOnlyUser = bac.accessControl_userIsReadOnlyUser()
 			
 			self.session.authenticated = self._authorize()
 			if not self.session.authenticated:

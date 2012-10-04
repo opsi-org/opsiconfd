@@ -1,3 +1,9 @@
+opsiconfd (4.0.2.4-1) testing; urgency=low
+
+  * added readOnly-State in session
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Thu, 04 Oct 2012 11:18:36 +0200
+
 opsiconfd (4.0.2.3-1) testing; urgency=low
 
   * fixing floatdivision in statistics-class

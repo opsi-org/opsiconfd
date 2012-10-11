@@ -1,6 +1,6 @@
 opsiconfd (4.0.2.4-1) testing; urgency=low
 
-  * added readOnly-State in session
+  * added readOnly-State in session and worker
 
  -- Erol Ueluekmen <e.ueluekmen@uib.de>  Thu, 04 Oct 2012 11:18:36 +0200
 

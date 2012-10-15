@@ -1,4 +1,4 @@
-opsiconfd (4.0.2.4-1) testing; urgency=low
+opsiconfd (4.0.2.4-1) stable; urgency=low
 
   * added readOnly-State in session and worker
 

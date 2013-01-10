@@ -42,7 +42,7 @@ from workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJson
 logger = Logger()
 
 CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
-<jnlp spec="1.0+" codebase="%(codebase)s" href="configed.jnlp">
+<jnlp spec="1.0+" codebase="%(codebase)s" href="configed.jnlp%(rawarguments)s">
 	<information>
 		<title>opsi-configed</title>
 		<vendor>uib GmbH</vendor>
@@ -99,14 +99,17 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 	def render(self, request):
 		arguments = '<argument>-h</argument><argument>%s</argument>' % request.headers.getHeader('host')
+		rawargs = ''
 		if (request.uri.find('?') != -1):
 			arguments = ''
+			rawargs = "?%s" % (request.uri.split('?', 1)[1])
 			for a in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
 				arguments += '<argument>%s</argument>' % a
 		
 		return http.Response(stream = CONFIGED_JNLP_TEMPLATE % {
 			"codebase": "https://%s" % (request.headers.getHeader('host')),
-			"arguments": arguments
+			"rawarguments": rawargs,
+			"arguments": arguments,
 		})
 
 

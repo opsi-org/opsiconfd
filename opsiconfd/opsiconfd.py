@@ -567,7 +567,7 @@ class OpsiconfdInit(Application):
 			'debug'                        : False,
 			'messageBus'                   : False,
 			'monitoringUser'               : u"monitoring",
-			'monitoringDebug'            : 0,
+			'monitoringDebug'            : False,
 		}
 	
 	def setCommandlineConfig(self):
@@ -695,6 +695,8 @@ class OpsiconfdInit(Application):
 							self.config['messageBus'] = forceBool(value)
 						elif (option == 'monitoring user'):
 							self.config['monitoringUser'] = forceUnicode(value)
+						elif (option == 'monitoring debug'):
+							self.config['monitoringDebug'] = forceBool(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 				

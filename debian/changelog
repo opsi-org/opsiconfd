@@ -1,8 +1,9 @@
 opsiconfd (4.0.2.5-1) testing; urgency=low
 
   * ressource: webstart jnlp build fixed for arguments.
+  * added monitoring debug switch in opsiconfd.conf
 
- -- Erol Ueluekmen <e.ueluekmen@uib.de>  Thu, 10 Jan 2013 11:15:56 +0100
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Tue, 05 Jan 2013 13:15:56 +0100
 
 opsiconfd (4.0.2.4-1) stable; urgency=low
 

@@ -67,6 +67,20 @@ class WorkerOpsiconfd(WorkerOpsi):
 		if self.session.hostname and self.service.config['machineLogs'] and self.service.config['logFile']:
 			logger.linkLogFile( self.service.config['logFile'].replace('%m', self.session.hostname), object = self )
 		return result
+		
+	def process(self):
+		logger.info(u"Worker %s started processing" % self)
+		deferred = defer.Deferred()
+		deferred.addCallback(self._getSession)
+		deferred.addCallback(self._authenticate)
+		deferred.addCallback(self._getQuery)
+		deferred.addCallback(self._processQuery)
+		deferred.addCallback(self._setResponse)
+		deferred.addCallback(self._setCookie)
+		deferred.addCallback(self._freeSession)
+		deferred.addErrback(self._errback)
+		deferred.callback(None)
+		return deferred
 	
 	def _errback(self, failure):
 		result = WorkerOpsi._errback(self, failure)

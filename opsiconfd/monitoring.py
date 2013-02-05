@@ -54,6 +54,8 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 	
 	def _setLogFile(self, obj):
 		logger.setLogFile( self.service.config['logFile'].replace('%m', 'monitoring'), object =obj )
+		if not self.service.config.get('monitoringDebug', False):
+			logger.setFileLevel(LOG_NONE)
 		
 	def process(self):
 		logger.info(u"Worker %s started processing" % self)

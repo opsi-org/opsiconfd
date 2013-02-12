@@ -35,9 +35,9 @@ if [ -e $GLOBAL_CONF ]; then
 	for kv in $(cat $GLOBAL_CONF | grep -v '^[#;]' | grep '=');
 		do eval $kv
 	done
-	if [ ${opsi_message_bus_socket:0:5} = "/var/" ]; then
-		MBUSDIR=$(dirname $opsi_message_bus_socket)
-	fi
+	#if [ ${opsi_message_bus_socket:0:5} = "/var/" ]; then
+	#	MBUSDIR=$(dirname $opsi_message_bus_socket)
+	#fi
 fi
 
 start() {

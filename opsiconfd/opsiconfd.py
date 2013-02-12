@@ -261,6 +261,7 @@ class Opsiconfd(OpsiService):
 			backendConfigDir   = self.config['backendConfigDir'],
 			extensionConfigDir = self.config['extensionConfigDir'],
 			hostControlBackend = True,
+			hostControlSafeBackend = True,
 			depotBackend       = bool(self.config['depotId']),
 			messageBusNotifier = bool(self.config['messageBus']),
 			startReactor       = False

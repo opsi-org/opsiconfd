@@ -49,9 +49,10 @@ logger = Logger()
 class WorkerOpsiconfdMonitoring(WorkerOpsi):
 	def __init__(self, service, request, resource):
 		WorkerOpsi.__init__(self, service, request, resource)
+		self._debug = self.service.config.get('monitoringDebug', False)
 		self._setLogFile(self)
 		self.monitoring = None
-		self._debug = self.service.config.get('monitoringDebug', False)
+		
 	
 	def _setLogFile(self, obj):
 		if self._debug:

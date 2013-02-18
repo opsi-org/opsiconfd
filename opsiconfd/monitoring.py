@@ -58,8 +58,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			logger.setLogFile( self.service.config['logFile'].replace('%m', 'monitoring'), object =obj )
 		
 	def process(self):
-		if self._debug:
-			logger.info(u"Worker %s started processing" % self)
+		logger.info(u"Worker %s started processing" % self)
 		deferred = defer.Deferred()
 		deferred.addCallback(self._authenticate)
 		deferred.addCallback(self._getQuery)
@@ -74,17 +73,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 		
 	def _getAuthorization(self):
 		(user, password) = (u'', u'')
-		if self._debug:
-			logger.debug(u"Trying to get username and password from Authorization header")
+		logger.debug(u"Trying to get username and password from Authorization header")
 		auth = self.request.headers.getHeader('Authorization')
 		if auth:
-			if self._debug:
-				logger.debug(u"Authorization header found (type: %s)" % auth[0])
+			logger.debug(u"Authorization header found (type: %s)" % auth[0])
 			try:
 				encoded = auth[1]
 				
-				if self._debug:
-					logger.confidential(u"Auth encoded: %s" % encoded)
+				logger.confidential(u"Auth encoded: %s" % encoded)
 				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
 				if (len(parts) > 6):
 					user = u':'.join(parts[:6])
@@ -93,13 +89,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					user = parts[0]
 					password = u':'.join(parts[1:])
 				user = user.strip()
-				if self._debug:
-					logger.confidential(u"Plugin supplied username '%s' and password '%s'" % (user, password))
+				logger.confidential(u"Plugin supplied username '%s' and password '%s'" % (user, password))
 			except Exception, e:
-				if self._debug:
-					logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
-				else:
-					pass
+				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
 		return (user, password)
 	
 	def _getCredentials(self):
@@ -119,14 +111,11 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					moni_password = self.service._backend.user_getCredentials(username=moni_user)["password"]
 				except Exception,e:
-					if self._debug:
-						logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % moni_user)
+					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % moni_user)
 					return
-				if self._debug:
-					logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (moni_user, moni_password))
+				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (moni_user, moni_password))
 			except Exception, e:
-				if self._debug:
-					logger.logException(e, LOG_INFO)
+				logger.logException(e, LOG_INFO)
 			
 			if user == moni_user and password == moni_password:
 				
@@ -136,16 +125,13 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					helpermodules = backendinfo['realmodules']
 					
 					if not modules.get('customer'):
-						if self._debug:
-							logger.notice(u"Disabling monitoring module: no customer in modules file")
+						logger.notice(u"Disabling monitoring module: no customer in modules file")
 						self.monitoring = u"Disabling monitoring module: no customer in modules file"
 					elif not modules.get('valid'):
-						if self._debug:
-							logger.notice(u"Disabling monitoring module: modules file invalid")
+						logger.notice(u"Disabling monitoring module: modules file invalid")
 						self.monitoring = u"Disabling monitoring module: modules file invalid"
 					elif (modules.get('expires', '') != 'never') and (time.mktime(time.strptime(modules.get('expires', '2000-01-01'), "%Y-%m-%d")) - time.time() <= 0):
-						if self._debug:
-							logger.notice(u"Disabling monitoring module: modules file expired")
+						logger.notice(u"Disabling monitoring module: modules file expired")
 						self.monitoring = u"Disabling monitoring module: modules file expired"
 					else:
 						
@@ -214,8 +200,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					try:
 						res = self.monitoring.checkClientStatus(clientId = clientId, excludeProductList = exclude)
 					except Exception,e:
-						if self._debug:
-							logger.logException(e, LOG_INFO)
+						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = res = json.dumps(res)
 				finally:
@@ -241,8 +226,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					try:
 						res = self.monitoring.checkProductStatus(productIds = productIds, productGroups = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
 					except Exception,e:
-						if self._debug:
-							logger.logException(e, LOG_INFO)
+						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = res = json.dumps(res)
 				finally:
@@ -260,8 +244,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					try:
 						res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict, verbose)
 					except Exception,e:
-						if self._debug:
-							logger.logException(e, LOG_INFO)
+						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = res = json.dumps(res)
 				finally:
@@ -282,8 +265,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					try:
 						res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
 					except Exception,e:
-						if self._debug:
-							logger.logException(e, LOG_INFO)
+						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = res = json.dumps(res)
 				finally:
@@ -298,8 +280,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					try:
 						res = self.monitoring.checkOpsiWebservice(cpu, errors)
 					except Exception,e:
-						if self._debug:
-							logger.logException(e, LOG_INFO)
+						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = json.dumps(res)
 				finally:
@@ -316,8 +297,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					try:
 						res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
 					except Exception,e:
-						if self._debug:
-							logger.logException(e, LOG_INFO)
+						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = json.dumps(res)
 				finally:
@@ -340,7 +320,6 @@ class ResourceOpsiconfdMonitoring(ResourceOpsi):
 class Monitoring(object):
 	def __init__(self, service):
 		self.service = service
-		self._debug = self.service.config.get('monitoringDebug', False)
 
 		self._OK = 0
 		self._WARNING = 1
@@ -488,14 +467,12 @@ class Monitoring(object):
 		
 		addConfigStateDefaults = self.service._backend.backend_getOptions().get('addConfigStateDefaults', False)
 		try:
-			if self._debug:
-				logger.debug("Calling backend_setOptions on %s" % self)
+			logger.debug("Calling backend_setOptions on %s" % self)
 			self.service._backend.backend_setOptions({'addConfigStateDefaults': True})
 			
 			for configState in self.service._backend.configState_getObjects(configId = u'clientconfig.depot.id', objectId = clientIds):
 				if not configState.values or not configState.values[0]:
-					if self._debug:
-						logger.error(u"No depot server configured for client '%s'" % configState.objectId)
+					logger.error(u"No depot server configured for client '%s'" % configState.objectId)
 					continue
 				depotId = configState.values[0]
 				if not depotId in depotIds:
@@ -695,8 +672,7 @@ class Monitoring(object):
 					elif checkresult.get("error", None):
 						errormessage = checkresult.get("error", {}).get("message")
 						if errormessage:
-							if self._debug:
-								logger.debug(u"Try to find Errorcode")
+							logger.debug(u"Try to find Errorcode")
 							match = re.match(self._errorcodePattern, errormessage)
 							if not match:
 								state = self._UNKNOWN
@@ -824,8 +800,7 @@ class Monitoring(object):
 	
 	def checkOpsiWebservice(self, cputhreshold = [], errors = [], perfdata = True):
 		state = self._OK
-		if self._debug:
-			logger.debug(u"Generating Defaults for checkOpsiWebservice if not given")
+		logger.debug(u"Generating Defaults for checkOpsiWebservice if not given")
 		if not cputhreshold:
 			cputhreshold = [80,60]
 		if not errors:

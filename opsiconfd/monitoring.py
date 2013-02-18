@@ -54,7 +54,8 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 		self._debug = self.service.config.get('monitoringDebug', False)
 	
 	def _setLogFile(self, obj):
-		logger.setLogFile( self.service.config['logFile'].replace('%m', 'monitoring'), object =obj )
+		if self._debug:
+			logger.setLogFile( self.service.config['logFile'].replace('%m', 'monitoring'), object =obj )
 		
 	def process(self):
 		if self._debug:

@@ -7,13 +7,16 @@ PID_FILE=/var/run/opsiconfd/opsiconfd.pid
 #=================================#
 
 check_univention_backend() {
-	[ "$DEBUG" = "1" ] && echo "Checking if ldap password and machine.secret are equal." | logger -p daemon.debug -t opsiconfd-guard
-	password=$(grep "^password" /etc/opsi/backends/univention.conf 2>/dev/null | cut -d '"' -f2)
-	LDAP_SECRET=$(cat /etc/machine.secret)
-	if [ "$password" != "$LDAP_SECRET" ]; then
-		echo "Need to update univention backend config, restarting opsiconfd." | logger -p daemon.error -t opsiconfd-guard
-		sed -i "s/^password\s*=.*/password = \"${LDAP_SECRET}\"/" /etc/opsi/backends/univention.conf
-		/etc/init.d/opsiconfd restart
+	UCSBACKEND=$(grep "^backend" /etc/opsi/backendManager/dispatch.conf | grep "univention")
+	if [ "$UCSBACKEND" != "" ]; then
+		[ "$DEBUG" = "1" ] && echo "Checking if ldap password and machine.secret are equal." | logger -p daemon.debug -t opsiconfd-guard
+		password=$(grep "^password" /etc/opsi/backends/univention.conf 2>/dev/null | cut -d '"' -f2)
+		LDAP_SECRET=$(cat /etc/machine.secret)
+		if [ "$password" != "$LDAP_SECRET" ]; then
+			echo "Need to update univention backend config, restarting opsiconfd." | logger -p daemon.error -t opsiconfd-guard
+			sed -i "s/^password\s*=.*/password = \"${LDAP_SECRET}\"/" /etc/opsi/backends/univention.conf
+			/etc/init.d/opsiconfd restart
+		fi
 	fi
 }
 

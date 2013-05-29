@@ -1,6 +1,6 @@
 opsiconfd (4.0.3.2-1) experimental; urgency=low
 
-  * resource.py: max-heap-size increased to 1024M. (fixes #464)
+  * resource.py: max-heap-size increased to 1024M. 
 
  -- Erol Ueluekmen <e.ueluekmen@uib.de>  Wed, 29 May 2013 16:21:39 +0200
 

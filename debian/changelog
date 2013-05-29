@@ -1,3 +1,9 @@
+opsiconfd (4.0.3.2-1) experimental; urgency=low
+
+  * resource.py: max-heap-size increased to 1024M. (fixes #464)
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Wed, 29 May 2013 16:21:39 +0200
+
 opsiconfd (4.0.3.1-1) testing; urgency=low
 
   * ressource: webstart jnlp build fixed for arguments.

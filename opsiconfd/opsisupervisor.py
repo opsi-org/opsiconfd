@@ -1,54 +1,51 @@
 """
-   = = = = = = = = = = = = = = = = = = = = = = =
-   =   opsi supervision daemon                 =
-   = = = = = = = = = = = = = = = = = = = = = = =
-   
-   opsiconfd is part of the desktop management solution opsi
-   (open pc server integration) http://www.opsi.org
-   
-   Copyright (C) 2010 uib GmbH
-   
-   http://www.uib.de/
-   
-   All rights reserved.
-   
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation.
-   
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-   
-   @copyright:	uib GmbH <info@uib.de>
-   @author: Christian Kampka <c.kampka@uib.de>
-   @license: GNU General Public License version 2
+opsi supervision daemon
+
+opsiconfd is part of the desktop management solution opsi
+(open pc server integration) http://www.opsi.org
+
+Copyright (C) 2010-2013 uib GmbH
+
+http://www.uib.de/
+
+All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+@copyright:  uib GmbH <info@uib.de>
+@author: Christian Kampka <c.kampka@uib.de>
+@author: Niko Wenselowski <n.wenselowski@uib.de>
+@license: GNU Affero General Public License version 3
 """
 
-
-import os, pwd, signal,sys
+import os
+import signal
+import sys
 from optparse import OptionParser
 
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, succeed, fail, DeferredList
-from twisted.internet.protocol import ProcessProtocol
-from twisted.internet.error import ProcessExitedAlready
+from twisted.internet.defer import DeferredList
 from twisted.application.service import Service, Application
 from twisted.application.app import startApplication
 from twisted.internet.task import LoopingCall
 
-from OPSI.Logger import *
-from OPSI.Util.AMP import OpsiProcessProtocolFactory, OpsiProcessConnector
-from OPSI.Util.File import IniFile
+from OPSI.Logger import Logger, LOG_WARNING
 from OPSI.System.Posix import daemonize
+from OPSI.Service.Process import OpsiDaemon
+
 logger = Logger()
 
-from OPSI.Service.Process import OpsiDaemon
 
 class Opsiconfd(OpsiDaemon):
 	script = 'opsiconfd'
@@ -62,10 +59,10 @@ class Supervisor(object):
 		self._config = config
 		self.daemons = []
 		self.enabledDaemons = daemons
-		
+
 		self.check = LoopingCall(self.checkRunning)
 		signal.signal(signal.SIGHUP, self.reload)
-		
+
 	def start(self):
 		for daemon in self.enabledDaemons:
 			try:
@@ -79,7 +76,7 @@ class Supervisor(object):
 				logger.logException(e)
 				raise
 		self.delayedCall = reactor.callLater(5, self.check.start, 15, True)
-		
+
 	def reload(self):
 		self.config.reload()
 		for daemon in self.daemons:
@@ -108,19 +105,19 @@ class Supervisor(object):
 			l.append(daemon.stop())
 		return DeferredList(l)
 
-	
+
 class SupervisionService(Service):
-	
+
 	def __init__(self, config):
 		self.config = config
-		
+
 		logger.setConsoleLevel(config['logLevel'])
 		logger.setFileLevel(config['logLevel'])
-		
+
 		self._supervisor = Supervisor(config=config)
 		self.exitCode = 0
-		
-		
+
+
 	def startService(self):
 		Service.startService(self)
 		try:
@@ -140,8 +137,8 @@ class SupervisionService(Service):
 	def stopService(self):
 		Service.stopService(self)
 		signal.signal(signal.SIGINT, signal.SIG_IGN)
-		
-		
+
+
 		done = self._supervisor.stop()
 		done.addBoth(lambda r: self._remove_pid())
 		return done
@@ -154,25 +151,24 @@ class SupervisionService(Service):
 			stream.close()
 			if pid == str(os.getpid()):
 				os.unlink(pid_file)
-				
+
 def main(args = sys.argv):
 	logger.setConsoleLevel(LOG_WARNING)
 	logger.setConsoleColor(True)
 
 	opt = OptionParser()
-	opt.add_option("-D", "--daemonize", dest="daemonize", action="store_true", 
+	opt.add_option("-D", "--daemonize", dest="daemonize", action="store_true",
 			default=False, help="Causes the server to operate as a daemon")
 	opt.add_option("--pid-file", dest="pid_file", metavar="FILE")
-	opt.add_option("-l", "--log-level", help="Set log level (default: 4)", 
+	opt.add_option("-l", "--log-level", help="Set log level (default: 4)",
 			type="int", default=4, action="store", dest="logLevel")
 	config = vars(opt.parse_args(args)[0])
 
 	application = Application("opsi-supervisor")
 	service = SupervisionService(config=config)
 	service.setServiceParent(application)
-	
+
 	reactor.callLater(0, startApplication, application, False)
 	reactor.run()
 
 	return service.exitCode
-	

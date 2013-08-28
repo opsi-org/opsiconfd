@@ -1,43 +1,46 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-   = = = = = = = = = = = = = = = = =
-   =   opsi configuration daemon   =
-   = = = = = = = = = = = = = = = = =
+opsi configuration daemon - info page
 
-   opsiconfd is part of the desktop management solution opsi
-   (open pc server integration) http://www.opsi.org
+opsiconfd is part of the desktop management solution opsi
+(open pc server integration) http://www.opsi.org
 
-   Copyright (C) 2010 uib GmbH
+Copyright (C) 2010-2013 uib GmbH
 
-   http://www.uib.de/
+http://www.uib.de/
 
-   All rights reserved.
+All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-   @copyright:  uib GmbH <info@uib.de>
-   @author: Jan Schneider <j.schneider@uib.de>
-   @license: GNU General Public License version 2
+@copyright:  uib GmbH <info@uib.de>
+@author: Jan Schneider <j.schneider@uib.de>
+@author: Niko Wenselowski <n.wenselowski@uib.de>
+@license: GNU Affero General Public License version 3
 """
 
+import os
 import operator
+import threading
+import time
 
-from OPSI.web2 import responsecode, http, stream
+from OPSI.Logger import Logger
 from OPSI.System import getDiskSpaceUsage
-from OPSI.Logger import *
-from OPSI.Types import *
+from OPSI.Types import OpsiAuthenticationError
+from OPSI.web2 import responsecode, http, stream
+
 from resources import ResourceOpsiconfd
 from workers import WorkerOpsiconfd
 
@@ -84,16 +87,17 @@ infoPage = u'''
 </html>
 '''
 
+
 class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 	def __init__(self, service, request, resource):
 		WorkerOpsiconfd.__init__(self, service, request, resource)
-	
+
 	def _generateResponse(self, result):
 		logger.info(u"Creating opsiconfd info page")
-		
+
 		if not self.session.isAdmin:
 			raise OpsiAuthenticationError(u"Permission denied")
-		
+
 		graphs = u''
 		if self.service.statistics().rrdsAvailable():
 			graphs += u'<h1>Last hour</h1>'
@@ -111,7 +115,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			graphs += u'<h1>Last year</h1>'
 			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(1, 3600*24*365))
 			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(2, 3600*24*365))
-		
+
 		objectInfo  = u'<h1>Object info</h1>'
 		objectInfo += u'<table>'
 		objectInfo += u'<tr><th>type</th><th>number</th></tr>'
@@ -120,7 +124,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		objectInfo += u'<tr><td>Product</td><td>%d</td></tr>' % len(self.service._backend.product_getIdents(returnType = 'unicode'))
 		objectInfo += u'<tr><td>Config</td><td>%d</td></tr>' % len(self.service._backend.config_getIdents(returnType = 'unicode'))
 		objectInfo += u'</table>'
-		
+
 		configInfo  = u'<h1>Server config</h1>'
 		configInfo += u'<table>'
 		configInfo += u'<tr><th>key</th><th>value</th></tr>'
@@ -131,7 +135,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				continue
 			configInfo += u'<tr><td>%s</td><td>%s</td></tr>' % (key, self.service.config[key])
 		configInfo += u'</table>'
-		
+
 		threads = []
 		for thread in threading.enumerate():
 			threads.append(thread)
@@ -151,7 +155,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				pass
 			threadInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (thread.__class__.__name__, threadName, threadIdent, thread.isAlive())
 		threadInfo += u'</table>'
-		
+
 		sessions = self.service._getSessionHandler().getSessions()
 		sessionInfo  = u'<h1>Active sessions (%d)</h1>' % len(sessions.keys())
 		sessionInfo += u'<table>'
@@ -164,8 +168,8 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 					session.ip, session.hostname, session.user, session.isHost, session.usageCount, session.userAgent, \
 					session.lastRpcSuccessfullyDecoded, session.lastRpcMethod)
 		sessionInfo += u'</table>'
-		
-		
+
+
 		expiredSessions = self.service.statistics().getExpiredSessionInfo()
 		expiredSessionInfo  = u'<h1>Expired sessions (%d)</h1>' % len(expiredSessions)
 		expiredSessionInfo += u'<table>'
@@ -177,7 +181,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 					expiredSession['exipredAfterSeconds'], expiredSession['ip'], expiredSession['user'], \
 					expiredSession['userAgent'], expiredSession['lastRpcMethod'] )
 		expiredSessionInfo += u'</table>'
-		
+
 		diskUsageInfo  = u'<h1>Disk usage</h1>'
 		diskUsageInfo += u'<table>'
 		diskUsageInfo += u'<tr><th>resource</th><th>path</th><th>capacity</th><th>used</th><th>available</th><th>usage</th></tr>'
@@ -191,7 +195,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				diskUsageInfo += u'<tr><td><a href="%s">%s</a></td><td>%s</td><td>%0.2f GB</td><td>%0.2f GB</td><td>%0.2f GB</td><td>%0.2f %%</td></tr>' \
 					% (resource, resource, path, (float(info['capacity'])/1073741824), (float(info['used'])/1073741824), (float(info['available'])/1073741824), (info['usage']*100))
 		diskUsageInfo += u'</table>'
-		
+
 		average = { 'params': 0.0, 'results': 0.0, 'duration': 0.0, 'failed': 0.0 }
 		maxDuration = { 'duration': 0 }
 		statisticInfo  = u'<h1>RPC statistics (last %d)</h1>' % self.service.config['maxExecutionStatisticValues']
@@ -219,9 +223,9 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			statisticInfo += u'<tr><td>%s</td><td>%d</td><td>%d</td><td>%0.3f s</td><td>%s</td></tr>' \
 					% (maxDuration['method'], maxDuration['params'], maxDuration['results'], maxDuration['duration'], not maxDuration['failed'])
 		statisticInfo += u'</table>'
-		
+
 		statisticInfo += u'<br />'
-		
+
 		statisticInfo += u'<h1>Encoding error statistics</h1>'
 		statisticInfo += u'<table>'
 		statisticInfo += u'<tr><th>application</th><th>what</th><th>client</th><th>error</th></tr>'
@@ -229,9 +233,9 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			statisticInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
 					% (statistic['application'], statistic['what'], statistic['client'], statistic['error'])
 		statisticInfo += u'</table>'
-		
+
 		statisticInfo += u'<br />'
-		
+
 		statisticInfo += u'<h1>Authentication failures</h1>'
 		statisticInfo += u'<table>'
 		statisticInfo += u'<tr><th>ip address</th><th>count</th></tr>'
@@ -239,7 +243,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			if (count > self.service.config['maxAuthenticationFailures']):
 				statisticInfo += u'<tr><td>%s</td><td>%d</td></tr>' % (ipAddress, count)
 		statisticInfo += u'</table>'
-		
+
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
 		html = html.replace('%graphs%', graphs)
 		html = html.replace('%object_info%', objectInfo)
@@ -249,13 +253,13 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		html = html.replace('%expired_session_info%', expiredSessionInfo)
 		html = html.replace('%disk_usage_info%', diskUsageInfo)
 		html = html.replace('%rpc_statistic_info%', statisticInfo)
-		
+
 		if not isinstance(result, http.Response):
 			result = http.Response()
 		result.code = responsecode.OK
 		result.stream = stream.IByteStream(html.encode('utf-8').strip())
 		return result
-	
+
 	def _processQuery(self, result):
 		if self.query.startswith('objgraph'):
 			maxDepth = 10
@@ -263,12 +267,10 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				maxDepth = int(self.query.split('=')[1])
 			self.service.statistics().createObjectGraph(maxDepth)
 		return result
-	
+
+
 class ResourceOpsiconfdInfo(ResourceOpsiconfd):
 	WorkerClass = WorkerOpsiconfdInfo
-	
+
 	def __init__(self, service):
 		ResourceOpsiconfd.__init__(self, service)
-
-
-

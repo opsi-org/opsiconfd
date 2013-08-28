@@ -1,38 +1,37 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-   = = = = = = = = = = = = = = = = =
-   =   opsi configuration daemon   =
-   = = = = = = = = = = = = = = = = =
+opsi configuration daemon - message bus
 
-   opsiconfd is part of the desktop management solution opsi
-   (open pc server integration) http://www.opsi.org
+opsiconfd is part of the desktop management solution opsi
+(open pc server integration) http://www.opsi.org
 
-   Copyright (C) 2011 uib GmbH
+Copyright (C) 2011-2013 uib GmbH
 
-   http://www.uib.de/
+http://www.uib.de/
 
-   All rights reserved.
+All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-   @copyright:  uib GmbH <info@uib.de>
-   @author: Jan Schneider <j.schneider@uib.de>
-   @license: GNU General Public License version 2
+@copyright:  uib GmbH <info@uib.de>
+@author: Jan Schneider <j.schneider@uib.de>
+@author: Niko Wenselowski <n.wenselowski@uib.de>
+@license: GNU Affero General Public License version 3
 """
 
-import base64, random
+import base64
 from sys import version_info
 if (version_info >= (2,6)):
 	import json
@@ -44,12 +43,12 @@ if (version_info < (2,5)):
 else:
 	from hashlib import sha1
 
-from OPSI.Logger import *
+from OPSI.Logger import Logger
 from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 from OPSI.Util.MessageBus import MessageBusClient, MessageBusServerFactory
 from OPSI.Util.HTTP import hybi10Encode, hybi10Decode
 from OPSI.Backend.BackendManager import BackendAccessControl
-from OPSI.Types import *
+from OPSI.Types import forceUnicode
 
 logger = Logger()
 
@@ -65,7 +64,7 @@ ombTestPage = '''
 	</p>
 	<p name="connection" id="connection" style="color: #a5183b; font-family: verdana, arial; padding: 20px 0px 0px 30px; font-size: 13px;">Not connected</p>
 	<textarea name="events" id="events" style="font-family: verdana, arial; width: 95%%; height: 80%%; color: #555555; margin: 0px 30px 30px 30px; padding: 20px; background-color: #fafafa; border: 1px #abb1ef dashed; font-size: 11px;"></textarea>
-	
+
 	<script type="text/javascript">
 	var websocket = null;
 	var websocket_url = "wss://%(host)s:%(port)s/omb";
@@ -83,7 +82,7 @@ ombTestPage = '''
 				var el = document.getElementById("connection");
 				el.innerHTML = 'Connected';
 				el.style.color = '#0ca225';
-				
+
 				cookies = client.headers['cookie'];
 			}
 			websocket.onclose = function() {
@@ -102,7 +101,7 @@ ombTestPage = '''
 					client_id = obj[0].client_id;
 					websocket.send('{"client_id":"' + client_id + '","message_type":"register_for_object_events","operations":[],"object_types":[]}');
 				}
-				
+
 			}
 		}
 	}
@@ -132,31 +131,31 @@ class OMBClient(MessageBusClient):
 	def __init__(self, ombService):
 		MessageBusClient.__init__(self)
 		self.__ombService = ombService
-	
+
 	def initialized(self):
 		self.registerForObjectEvents(object_types = [], operations = [])
-	
+
 	def objectEventReceived(self, object_type, ident, operation):
 		self.__ombService.objectEventReceived(object_type, ident, operation)
-	
+
 class MessageBusService(MessageBusServerFactory):
 	def __init__(self):
 		MessageBusServerFactory.__init__(self)
 		self._ombClient = OMBClient(self)
-	
+
 	def start(self):
 		self._ombClient.start(startReactor = False)
-	
+
 	def stop(self):
 		self._ombClient.stop()
 		self._ombClient.join(5)
-	
+
 	def objectEventReceived(self, object_type, ident, operation):
 		self._sendObjectEvent(object_type, ident, operation)
-	
+
 	def connectionMade(self, client, readonly = True):
 		MessageBusServerFactory.connectionMade(self, client, readonly=readonly)
-	
+
 	def transmitMessages(self, messages, clientId):
 		logger.info(u"Transmitting messages to client '%s'" % clientId)
 		messages = json.dumps(messages)
@@ -169,7 +168,7 @@ class MessageBusService(MessageBusServerFactory):
 class OpsiconfdHTTPChannel(HTTPChannel):
 	messageBusService = None
 	backend = None
-	
+
 	def __init__(self):
 		HTTPChannel.__init__(self)
 		self.__handshakeDone = False
@@ -177,18 +176,18 @@ class OpsiconfdHTTPChannel(HTTPChannel):
 		self.__authenticated = False
 		self.__headers = {}
 		self.__wsbuffer = ''
-	
+
 	def _isWebsocketConnection(self):
 		if not self.messageBusService:
 			return False
 		return self.__handshakeDone
-	
+
 	def connectionLost(self, reason):
 		if self._isWebsocketConnection():
 			self.messageBusService.connectionLost(self, reason)
 		else:
 			HTTPChannel.connectionLost(self, reason)
-	
+
 	def rawDataReceived(self, data):
 		if self._isWebsocketConnection():
 			if data and data.endswith('\n'):
@@ -202,28 +201,27 @@ class OpsiconfdHTTPChannel(HTTPChannel):
 				self.__wsbuffer = ''
 		else:
 			HTTPChannel.rawDataReceived(self, data)
-	
+
 	def sendMessage(self, message):
 		encodedData = hybi10Encode(forceUnicode(message).encode('utf-8'))
 		self.transport.write(encodedData)
-		
+
 	def onMessage(self, message):
 		logger.debug2(u"onMessage: %s" % message)
 		self.messageBusService.lineReceived(message)
-	
+
 	def _authenticate(self):
 		if self.__authenticated:
 			return
 		(user, password) = (u'', u'')
 		try:
-			import base64
 			encoded = self.__headers['authorization'].strip().split()[1]
 			parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
 			user = parts[0].strip()
 			password = u':'.join(parts[1:]).strip()
 		except:
 			raise OpsiAuthenticationError(u"Failed to read authorization header")
-		
+
 		bac = BackendAccessControl(
 			backend     = self.backend,
 			username    = user,
@@ -235,34 +233,34 @@ class OpsiconfdHTTPChannel(HTTPChannel):
 			raise OpsiAuthenticationError(u"User is not allowed to access opsi message bus")
 		self.__authenticated = True
 		self.__readOnly = False
-		
+
 	def _websocketHandshake(self):
 		self.__handshakeDone = False
-		
-		# 'sec-websocket-origin', 
+
+		# 'sec-websocket-origin',
 		for header in ('upgrade', 'connection', 'host', 'sec-websocket-key', 'sec-websocket-version'):
 			if not self.__headers.get(header):
 				logger.error(u'Websocket handshake error: header %s missing' % header)
 				raise Exception(u'Websocket handshake error: header %s missing' % header)
-		
+
 		key = self.__headers.get('sec-websocket-key').strip()
 		key += '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 		key = sha1(key).digest()
 		key = base64.encodestring(key)
-		
+
 		headers =  'HTTP/1.1 101 Switching Protocols\r\n'
 		headers += 'Upgrade: websocket\r\n'
 		headers += 'Connection: Upgrade\r\n'
 		headers += 'Sec-WebSocket-Accept: %s\r\n' % key.strip()
 		headers += 'WebSocket-Protocol: omb\r\n'
 		self.sendLine(headers)
-		
+
 		self.setRawMode()
-		
+
 		self.__handshakeDone = True
-		
+
 		self.messageBusService.connectionMade(self, readonly = self.__readOnly)
-		
+
 	def lineReceived(self, line):
 		#logger.debug2("lineReceived: %s" % line)
 		if self.chanRequest and self.chanRequest.path.startswith('/omb'):
@@ -284,7 +282,7 @@ class OpsiconfdHTTPChannel(HTTPChannel):
 					#self.sendLine(headers)
 					#self.lingeringClose()
 					#return
-				
+
 				if (self.chanRequest.path == '/omb.html'):
 					(host, port) = self.chanRequest.transport.socket.getsockname()
 					headers  = 'HTTP/1.1 200 OK\r\n'
@@ -296,7 +294,6 @@ class OpsiconfdHTTPChannel(HTTPChannel):
 					self._websocketHandshake()
 			return
 		return HTTPChannel.lineReceived(self, line)
-	
+
 class OpsiconfdHTTPFactory(HTTPFactory):
 	protocol = OpsiconfdHTTPChannel
-

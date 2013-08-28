@@ -1,63 +1,70 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-   = = = = = = = = = = = = = = = = =
-   =   opsi configuration daemon   =
-   = = = = = = = = = = = = = = = = =
+opsi configuration daemon - statistics
 
-   opsiconfd is part of the desktop management solution opsi
-   (open pc server integration) http://www.opsi.org
+opsiconfd is part of the desktop management solution opsi
+(open pc server integration) http://www.opsi.org
 
-   Copyright (C) 2010 uib GmbH
+Copyright (C) 2010-2013 uib GmbH
 
-   http://www.uib.de/
+http://www.uib.de/
 
-   All rights reserved.
+All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-   @copyright:  uib GmbH <info@uib.de>
-   @author: Jan Schneider <j.schneider@uib.de>
-   @license: GNU General Public License version 2
+@copyright:  uib GmbH <info@uib.de>
+@author: Jan Schneider <j.schneider@uib.de>
+@author: Niko Wenselowski <n.wenselowski@uib.de>
+@license: GNU Affero General Public License version 3
 """
 
-import os, time
+import os
+import time
+import threading
 from twisted.internet.task import LoopingCall
 import resource as pyresource
+
 try:
 	import rrdtool
-except:
+except ImportError:
 	rrdtool = None
+
 try:
 	import objgraph
-except:
+except ImportError:
 	objgraph = None
+
 from OPSI.web2 import http, resource
-from OPSI.Logger import *
+from OPSI.Logger import Logger
+from OPSI.Types import forceUnicode
 
 logger = Logger()
+
 
 class ResourceOpsiconfdStatistics(resource.Resource):
 	def __init__(self, opsiconfd):
 		self._opsiconfd = opsiconfd
-	
+
 	def renderHTTP(self, request):
 		''' Process request. '''
 		resp = ''
 		for (k, v) in self._opsiconfd.statistics().getStatistics().items():
 			resp += '%s:%s\n' % (k, v)
 		return http.Response(stream=resp)
+
 
 class Statistics(object):
 	def __init__(self, opsiconfd):
@@ -77,15 +84,15 @@ class Statistics(object):
 			'rrdFile':          os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
 		}
 		self._rrdCache = { 'requests': 0, 'sessions': 0, 'davrequests': 0, 'rpcs': 0, 'rpcerrors': 0 }
-		
+
 		if not os.path.exists(self._rrdConfig['rrdFile']):
 			self.createRrd()
 		loop = LoopingCall(self.updateRrd)
 		loop.start(int(self._rrdConfig['step']), now=False)
-	
+
 	def rrdsAvailable(self):
 		return bool(rrdtool)
-	
+
 	def createObjectGraph(self, maxDepth):
 		if objgraph:
 			path = os.getcwd()
@@ -94,16 +101,16 @@ class Statistics(object):
 				objgraph.show_backrefs([self.opsiconfd], max_depth = maxDepth)
 			finally:
 				os.chdir(path)
-		
+
 	def createRrd(self):
 		if not rrdtool:
 			return
 		if os.path.exists(self._rrdConfig['rrdFile']):
 			os.unlink(self._rrdConfig['rrdFile'])
-		
+
 		start = int(time.time())
 		logger.notice(u"Creating rrd '%s', start: %s" % (self._rrdConfig['rrdFile'], start))
-		
+
 		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(start), '--step', str(self._rrdConfig['step']),
 			'DS:requests:ABSOLUTE:%d:0:U'    % self._rrdConfig['heartbeat'],
 			'DS:sessions:DERIVE:%d:0:U'      % self._rrdConfig['heartbeat'],
@@ -124,10 +131,10 @@ class Statistics(object):
 			'RRA:MAX:0.5:%d:%d'     % (31,  (3600/self._rrdConfig['step'])*24), # month
 			'RRA:MAX:0.5:%d:%d'     % (365, (3600/self._rrdConfig['step'])*24), # year
 		)
-	
+
 	def getStatistics(self):
 		result = {}
-	
+
 		try:
 			now = int(time.time())
 			last = self._last
@@ -147,11 +154,11 @@ class Statistics(object):
 			data = f.read().split()
 			f.close()
 			virtMem = int("%0.0f" % (float(data[22])/(1024*1024)))
-			
+
 			#cpu
 			cpu = int("%0.0f" % ((usr + sys) * 100))
 			if (cpu > 100): cpu = 100
-			
+
 			#threads
 			threads = []
 			for thread in threading.enumerate():
@@ -165,14 +172,14 @@ class Statistics(object):
 			result["cpu"] = cpu
 			result["virtmem"] = virtMem
 			result["threads"] = len(threads)
-			
+
 			return result
-			
+
 		except Exception, e:
 			logger.logException(e)
 			logger.error(u"Failed to get Statistics: %s" % e)
 			return result
-	
+
 	def updateRrd(self):
 		if not rrdtool:
 			return
@@ -210,26 +217,26 @@ class Statistics(object):
 			self._rrdCache['rpcerrors'] = 0
 		except Exception, e:
 			logger.error(u"Failed to update rrd: %s" % e)
-	
+
 	def getRrdGraphImage(self, type, range):
 		if not rrdtool:
 			return None
-		
+
 		if (type == 1):
 			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '1_%s.png' % range)
 		else:
 			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '2_%s.png' % range)
-		
+
 		date = time.strftime("%a, %d %b %Y %H\:%M\:%S", time.localtime())
 		end = int(time.time())
 		start = end - range
-		
-		
+
+
 		logger.debug(u"Creating rrd graph image '%s', start: %s, end: %s" % (graphImage, start, end))
-		
+
 		if os.path.exists(graphImage):
 			os.unlink(graphImage)
-		
+
 		if (type == 1):
 			rrdtool.graph(str(graphImage),
 				'--imgformat',      'PNG',
@@ -244,7 +251,7 @@ class Statistics(object):
 				'--color',          'SHADEA#ffffff',
 				'--color',          'SHADEB#ffffff',
 				'--color',          'BACK#ffffff',
-				
+
 				'DEF:avg_requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_requ=%s:requests:MAX'     % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_requ_permin=avg_requ,60,*',
@@ -254,7 +261,7 @@ class Statistics(object):
 				'GPRINT:total_requ:total\: %8.0lf requests     ',
 				'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min     ',
 				'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
-				
+
 				'DEF:avg_davrequ=%s:davrequests:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_davrequ=%s:davrequests:MAX'     % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_davrequ_permin=avg_davrequ,60,*',
@@ -264,7 +271,7 @@ class Statistics(object):
 				'GPRINT:total_davrequ:total\: %8.0lf dav requests ',
 				'GPRINT:avg_davrequ_permin:AVERAGE:avg\: %5.2lf dav requests/min ',
 				'GPRINT:max_davrequ_permin:MAX:max\: %4.0lf dav requests/min\\l',
-				
+
 				'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_rpc=%s:rpcs:MAX'     % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_rpc_permin=avg_rpc,60,*',
@@ -274,7 +281,7 @@ class Statistics(object):
 				'GPRINT:total_rpc:total\: %8.0lf rpcs         ',
 				'GPRINT:avg_rpc_permin:AVERAGE:avg\: %5.2lf rpcs/min         ',
 				'GPRINT:max_rpc_permin:MAX:max\: %4.0lf rpcs/min\\l',
-				
+
 				'DEF:avg_rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_rpcerror=%s:rpcerrors:MAX'     % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_rpcerror_permin=avg_rpcerror,60,*',
@@ -284,7 +291,7 @@ class Statistics(object):
 				'GPRINT:total_rpcerror:total\: %8.0lf rpc errors   ',
 				'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min   ',
 				'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
-				
+
 				'COMMENT:[%s]\\r' % date,
 			)
 		else:
@@ -301,14 +308,14 @@ class Statistics(object):
 				'--color',            'SHADEA#ffffff',
 				'--color',            'SHADEB#ffffff',
 				'--color',            'BACK#ffffff',
-				
+
 				'DEF:avg_threads=%s:threads:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_threads=%s:threads:MAX'     % str(self._rrdConfig['rrdFile']),
 				'LINE2:avg_threads#00dd00:Threads      ',
 				'GPRINT:max_threads:LAST:cur\: %8.0lf threads      ',
 				'GPRINT:avg_threads:AVERAGE:avg\: %8.2lf threads          ',
 				'GPRINT:max_threads:MAX:max\: %8.0lf threads\\l',
-				
+
 				'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_sess=%s:sessions:MAX'     % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_sess_permin=avg_sess,60,*',
@@ -318,14 +325,14 @@ class Statistics(object):
 				'GPRINT:max_sess:LAST:cur\: %8.0lf sessions     ',
 				'GPRINT:avg_sess_permin:AVERAGE:avg\: %8.2lf sessions/min     ',
 				'GPRINT:max_sess_permin:MAX:max\: %8.0lf sessions/min\\l',
-				
+
 				'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_cpu=%s:cpu:MAX'     % str(self._rrdConfig['rrdFile']),
 				'LINE2:avg_cpu#dd0000:CPU usage    ',
 				'GPRINT:max_cpu:LAST:cur\: %8.2lf %%            ',
 				'GPRINT:avg_cpu:AVERAGE:avg\: %8.2lf %%                ',
 				'GPRINT:max_cpu:MAX:max\: %8.2lf %%\\l',
-				
+
 				'DEF:avg_mem=%s:mem:AVERAGE' % str(self._rrdConfig['rrdFile']),
 				'DEF:max_mem=%s:mem:MAX'     % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_mem_scaled=avg_mem,10,/',
@@ -333,23 +340,23 @@ class Statistics(object):
 				'GPRINT:max_mem:LAST:cur\: %8.2lf MByte        ',
 				'GPRINT:avg_mem:AVERAGE:avg\: %8.2lf MByte            ',
 				'GPRINT:max_mem:MAX:max\: %8.2lf MByte\\l',
-				
+
 				'COMMENT:[%s]\\r' % date,
 			)
-		
+
 		return graphImage
-	
+
 	def addSession(self, session):
 		if not session:
 			return
 		self._rrdCache['sessions'] += 1
-	
+
 	def removeSession(self, session):
 		if not session:
 			return
 		if (self._rrdCache['sessions'] > 0):
 			self._rrdCache['sessions'] -= 1
-	
+
 	def sessionExpired(self, session):
 		now = time.time()
 		self._expiredSessionInfo.append({
@@ -363,23 +370,23 @@ class Statistics(object):
 		})
 		if (len(self._expiredSessionInfo) > self._maxExpiredSessionInfos):
 			self._expiredSessionInfo = self._expiredSessionInfo[1:]
-		
+
 	def getExpiredSessionInfo(self):
 		return self._expiredSessionInfo
-	
+
 	def addRequest(self, request):
 		self._rrdCache['requests'] += 1
-	
+
 	def addWebDAVRequest(self, request):
 		self._rrdCache['davrequests'] += 1
-	
+
 	def addRpc(self, jsonrpc):
 		results = 0
 		if not jsonrpc.exception:
 			results = 0
 			if type(jsonrpc.result) is list:
 				results = len(jsonrpc.result)
-		
+
 		self._rpcs.append({
 			'started':  jsonrpc.started,
 			'duration': jsonrpc.ended - jsonrpc.started,
@@ -393,10 +400,10 @@ class Statistics(object):
 		self._rrdCache['rpcs'] += 1
 		if jsonrpc.exception:
 			self._rrdCache['rpcerrors'] += 1
-		
+
 	def getRpcs(self):
 		return self._rpcs
-	
+
 	def addEncodingError(self, what, client, application, error):
 		self._encodingErrors.append({
 			'what':        forceUnicode(what),
@@ -404,8 +411,6 @@ class Statistics(object):
 			'application': forceUnicode(application),
 			'error':       forceUnicode(error)
 		})
-		
+
 	def getEncodingErrors(self):
 		return self._encodingErrors
-
-

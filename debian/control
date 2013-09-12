@@ -9,7 +9,7 @@ Standards-Version: 3.8.4
 Package: opsiconfd
 Architecture: all
 XB-Python-Version: ${python:Versions}
-Depends: python-opsi (>= 4.0.1.37), python-twisted, python-openssl, python-rrdtool, python-dbus, python-avahi, python(>=2.5), openssl, psmisc, ${misc:Depends}, ${python:Depends}
+Depends: python-opsi (>= 4.0.3.4), python-twisted, python-openssl, python-rrdtool, python-dbus, python-avahi, python(>=2.5), openssl, psmisc, ${misc:Depends}, ${python:Depends}
 Provides: ${python:Provides}
 Description: opsi configuration service
  This package contains the opsi configuration service.

@@ -12,7 +12,7 @@
 
 case "$1" in
 	configure)
-		
+
 		fileadmingroup=$(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
 		if [ -z "$fileadmingroup" ]; then
 			fileadmingroup=pcpatch
@@ -24,25 +24,25 @@ case "$1" in
 				groupadd -g 992 $fileadmingroup
 			fi
 		fi
-		
+
 		if [ -z "`getent passwd opsiconfd`" ]; then
 			useradd -u 993 -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
 		fi
-		
+
 		if [ -z "`getent group opsiadmin`" ]; then
 			groupadd opsiadmin
 		fi
-		
+
 		deluser $fileadmingroup shadow  1>/dev/null 2>/dev/null || true
 		adduser opsiconfd shadow  1>/dev/null 2>/dev/null || true
 		adduser opsiconfd opsiadmin  1>/dev/null 2>/dev/null || true
-		
+
 		if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 			umask 077
-			
+
 			if [ ! -e "/usr/sbin/ucr" ]; then
 				# Not on ucs
-				
+
 				db_get opsiconfd/cert_country
 				cert_country=$RET
 				[ "$cert_country" = "" ] && cert_country="DE"
@@ -62,7 +62,7 @@ case "$1" in
 				[ "$cert_commonname" = "" ] && cert_commonname=`hostname -f`
 				db_get opsiconfd/cert_email
 				cert_email=$RET
-				
+
 				tmp_opsiconfd_rand=$(tempfile)
 				tmp_opsiconfd_cnf=$(tempfile)
 				echo "RANDFILE = $tmp_opsiconfd_rand" 	>  $tmp_opsiconfd_cnf
@@ -89,7 +89,7 @@ case "$1" in
 				echo "" 				>> $tmp_opsiconfd_cnf
 				echo "[ cert_type ]" 			>> $tmp_opsiconfd_cnf
 				echo "nsCertType = server" 		>> $tmp_opsiconfd_cnf
-				
+
 				dd if=/dev/urandom of=$tmp_opsiconfd_rand count=1 2>/dev/null
 				openssl req -new -x509 -days 1000 -nodes \
 					-config $tmp_opsiconfd_cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
@@ -98,20 +98,28 @@ case "$1" in
 				rm -f $tmp_opsiconfd_rand $tmp_opsiconfd_cnf
 			fi
 		fi
-		
+
 		if [ -e "/etc/opsi/opsiconfd.pem" ]; then
 			chmod 600 /etc/opsi/opsiconfd.pem
 			chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 		fi
-		
+
 		chmod 770 /var/lib/opsiconfd/rrd
 		chown opsiconfd:opsiadmin /var/lib/opsiconfd/rrd
+
+		# Making logrotate config backwards-compatible
+		LOGROTATE_VERSION="$(dpkg --list | grep logrotate | grep "^ii" | awk '{ print $3 }' | cut -d '-' -f 1)"
+		if [ "$(dpkg --compare-versions $LOGROTATE_VERSION '<' 3.8)" != "0" ]; then
+			LOGROTATE_TEMP=$(tempfile)
+			grep -v "su opsiconfd pcpatch" /etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
+			mv $LOGROTATE_TEMP /etc/logrotate.d/opsiconfd
+		fi
 	;;
-	
+
 	abort-upgrade|abort-remove|abort-deconfigure)
-	
+
 	;;
-	
+
 	*)
 		echo "postinst called with unknown argument \`$1'" >&2
 		exit 1

@@ -7,6 +7,7 @@
     notifempty
     size 2M
     create 640 opsiconfd pcpatch
+    su opsiconfd pcpatch
 }
 
 /var/log/opsi/opsiconfd/opsiconfd.log {
@@ -17,5 +18,5 @@
     notifempty
     size 5M
     create 640 opsiconfd pcpatch
+    su opsiconfd pcpatch
 }
-

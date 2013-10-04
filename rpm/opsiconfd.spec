@@ -35,7 +35,7 @@ PreReq:         %insserv_prereq
 %{py_requires}
 %endif
 %endif
-%if 0%{?suse_version} != 1110 
+%if 0%{?suse_version} != 1110
 BuildArch:      noarch
 %endif
 %define fileadmingroup %(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
@@ -113,7 +113,7 @@ if [ $arg0 -eq 1 ]; then
 	%else
 		insserv opsiconfd || true
 	%endif
-	
+
 	fileadmingroup=$(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
 	if [ -z "$fileadmingroup" ]; then
 		fileadmingroup=pcpatch
@@ -125,15 +125,15 @@ if [ $arg0 -eq 1 ]; then
 			groupadd -g 992 $fileadmingroup
 		fi
 	fi
-	
+
 	if [ -z "`getent passwd opsiconfd`" ]; then
 		useradd -r -u 993 -g 992 -d /var/lib/opsi -s /bin/bash opsiconfd
 	fi
-	
+
 	if [ -z "`getent group opsiadmin`" ]; then
 		groupadd opsiadmin
 	fi
-	
+
 	%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
 		getent group shadow > /dev/null || groupadd -r shadow
 		chgrp shadow /etc/shadow
@@ -149,14 +149,14 @@ fi
 
 if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	umask 077
-	
+
 	cert_country="DE"
 	cert_state="RP"
 	cert_locality="Mainz"
 	cert_organization="uib GmbH"
 	cert_commonname=`hostname -f`
 	cert_email="root@$cert_commonname"
-	
+
 	echo "RANDFILE = /tmp/opsiconfd.rand" 	>  /tmp/opsiconfd.cnf
 	echo "" 				>> /tmp/opsiconfd.cnf
 	echo "[ req ]" 				>> /tmp/opsiconfd.cnf
@@ -177,7 +177,7 @@ if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	echo "" 				>> /tmp/opsiconfd.cnf
 	echo "[ cert_type ]" 			>> /tmp/opsiconfd.cnf
 	echo "nsCertType = server" 		>> /tmp/opsiconfd.cnf
-	
+
 	dd if=/dev/urandom of=/tmp/opsiconfd.rand count=1 2>/dev/null
 	openssl req -new -x509 -days 1000 -nodes \
 		-config /tmp/opsiconfd.cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
@@ -190,6 +190,26 @@ chmod 600 /etc/opsi/opsiconfd.pem
 chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
+
+%if 0%{?suse_version}
+LOGROTATE_VERSION="$(zypper info logrotate | grep -i "version" | awk '{print $2}' | cut -d '-' -f 1)"
+if [ "$(zypper --terse versioncmp $LOGROTATE_VERSION 3.8)" == "-1" ]; then
+	LOGROTATE_TEMP=/tmp/opsi-logrotate_config
+	grep -v "su opsiconfd pcpatch" /etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
+	mv $LOGROTATE_TEMP /etc/logrotate.d/opsiconfd
+fi
+%else
+	%if 0%{?rhel_version} || 0%{?centos_version}
+		# Currently neither RHEL nor CentOS ship an logrotate > 3.8
+		# Maybe some day in the future RHEL / CentOS will have a way for easy version comparison
+		# LOGROTATE_VERSION="$(yum list logrotate | grep "installed$" | awk '{ print $2 }' | cut -d '-' -f 1)"
+		LOGROTATE_TEMP=/tmp/opsi-logrotate_config
+		grep -v "su opsiconfd pcpatch" /etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
+		mv $LOGROTATE_TEMP /etc/logrotate.d/opsiconfd
+	%endif
+%endif
+
+
 
 if [ $arg0 -eq 1 ]; then
 	# Install

@@ -1,9 +1,9 @@
-
-opsiconfd (4.0.3.3-1ubuntu1) UNRELEASED; urgency=low
+opsiconfd (4.0.4.1-1) UNRELEASED; urgency=low
 
   * Internals: re-organised imports to work with newer python-opsi.
+  * Specified user / group to use for logrotate 3.8 or newer 
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 21 Aug 2013 11:52:34 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 04 Oct 2013 22:23:17 +0200
 
 opsiconfd (4.0.3.2-1) experimental; urgency=low
 

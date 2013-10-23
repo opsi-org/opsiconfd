@@ -104,8 +104,10 @@ class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 			for a in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
 				arguments += '<argument>%s</argument>' % a
 
-		return http.Response(stream = CONFIGED_JNLP_TEMPLATE % {
+		response = http.Response(stream = CONFIGED_JNLP_TEMPLATE % {
 			"codebase": "https://%s" % (request.headers.getHeader('host')),
 			"rawarguments": rawargs,
 			"arguments": arguments,
 		})
+		response.setContentType("application/x-java-jnlp-file")
+		return response

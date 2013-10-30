@@ -27,6 +27,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 @copyright:  uib GmbH <info@uib.de>
 @author: Jan Schneider <j.schneider@uib.de>
+@author: Erol Ueluekmen <e.ueluekmen@uib.de>
 @author: Niko Wenselowski <n.wenselowski@uib.de>
 @license: GNU Affero General Public License version 3
 """
@@ -58,6 +59,7 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 		<property name="loglevel" value="4" />
 		<jar href="configed/configed.jar" main="true"/>
 		<jar href="configed/swingx.jar"/>
+		<jar href="configed/commons-io.jar"/>
 	</resources>
 	<application-desc main-class="de.uib.configed.configed">
 	%(arguments)s

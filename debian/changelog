@@ -4,6 +4,7 @@ opsiconfd (4.0.4.1-1) testing; urgency=low
   * Specified user / group to use for logrotate 3.8 or newer 
   * fixed java webstart problem for internet explorer.
   * link to configed applet on webservice-page redirected to webstart.
+  * configed.jnlp: max-heap-space set to 768M.
 
  -- Erol Ueluekmen <e.ueluekmen@uib.de>  Fri, 23 Oct 2013 14:23:17 +0200
 

@@ -109,8 +109,7 @@ case "$1" in
 
 		# Making logrotate config backwards-compatible
 		LOGROTATE_VERSION="$(dpkg --list | grep logrotate | grep "^ii" | awk '{ print $3 }' | cut -d '-' -f 1)"
-		dpkg --compare-versions $LOGROTATE_VERSION gt 3.8
-		if [ "$?" != "0" ]; then
+		if dpkg --compare-versions "$LOGROTATE_VERSION" gt "3.8"; then
 			LOGROTATE_TEMP=$(tempfile)
 			grep -v "su opsiconfd $fileadmingroup" /etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
 			mv $LOGROTATE_TEMP /etc/logrotate.d/opsiconfd

@@ -1,3 +1,9 @@
+opsiconfd (4.0.4.1-2) testing; urgency=low
+
+  * version modified for buildservice
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Tue, 05 Nov 2013 15:16:31 +0100
+
 opsiconfd (4.0.4.1-1) testing; urgency=low
 
   * Internals: re-organised imports to work with newer python-opsi.

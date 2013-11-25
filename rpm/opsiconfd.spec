@@ -1,7 +1,7 @@
 #
 # spec file for package opsiconfd
 #
-# Copyright (c) 2008 uib GmbH.
+# Copyright (c) 2008-2013 uib GmbH.
 # This file and all modifications and additions to the pristine
 # package are under the same license as the package itself.
 #
@@ -134,7 +134,7 @@ if [ $arg0 -eq 1 ]; then
 		groupadd opsiadmin
 	fi
 
-	%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
+	%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version} || 0%{?suse_version} >= 1230
 		getent group shadow > /dev/null || groupadd -r shadow
 		chgrp shadow /etc/shadow
 		chmod g+r /etc/shadow

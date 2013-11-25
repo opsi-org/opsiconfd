@@ -107,7 +107,6 @@ fi
 
 if [ $arg0 -eq 1 ]; then
 	# Install
-	#%{fillup_and_insserv opsiconfd}
 	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
 		chkconfig --add opsiconfd
 	%else

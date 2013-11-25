@@ -105,6 +105,11 @@ if  [ -e  "/etc/init.d/opsiconfd" ]; then
 	sed -i "s/2 3 4 5/2 3 5/g; s/2345/235/g" /etc/init.d/opsiconfd
 fi
 
+fileadmingroup=$(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
+if [ -z "$fileadmingroup" ]; then
+	fileadmingroup=pcpatch
+fi
+
 if [ $arg0 -eq 1 ]; then
 	# Install
 	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
@@ -113,10 +118,6 @@ if [ $arg0 -eq 1 ]; then
 		insserv opsiconfd || true
 	%endif
 
-	fileadmingroup=$(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
-	if [ -z "$fileadmingroup" ]; then
-		fileadmingroup=pcpatch
-	fi
 	if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
 		groupmod -n $fileadmingroup pcpatch
 	else

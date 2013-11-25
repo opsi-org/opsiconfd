@@ -209,6 +209,11 @@ fi
 	%endif
 %endif
 
+if [ "$fileadmingroup" != "pcpatch" ]; then
+	LOGROTATE_TEMP=/tmp/opsi-logrotate_config
+	cat /etc/logrotate.d/opsiconfd | sed "s/pcpatch/$fileadmingroup/g" > $LOGROTATE_TEMP
+	mv "$LOGROTATE_TEMP" /etc/logrotate.d/opsiconfd
+fi
 
 
 if [ $arg0 -eq 1 ]; then

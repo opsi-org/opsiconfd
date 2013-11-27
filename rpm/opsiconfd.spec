@@ -191,7 +191,7 @@ chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
-%if 0%{?suse_version}
+%if 0%{?suse_version} || 0%{?sles_version}
 LOGROTATE_VERSION="$(zypper info logrotate | grep -i "version" | awk '{print $2}' | cut -d '-' -f 1)"
 if [ "$(zypper --terse versioncmp $LOGROTATE_VERSION 3.8)" == "-1" ]; then
 	LOGROTATE_TEMP=/tmp/opsi-logrotate_config

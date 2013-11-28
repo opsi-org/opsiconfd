@@ -29,6 +29,7 @@ PreReq:         %insserv_prereq
 %{py_requires}
 %else
 %if 0%{?suse_version}
+Suggests: logrotate
 Requires:       python-avahi
 BuildRequires:  python-rrdtool zypper logrotate
 PreReq:         %insserv_prereq

@@ -9,9 +9,9 @@
 Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
 %if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
-Requires:       python-opsi >= 4.0.1.37 openssl python-twisted dbus-1-python psmisc procps
+Requires:       python-opsi >= 4.0.3.4 openssl python-twisted dbus-1-python psmisc procps
 %else
-Requires:       python-opsi >= 4.0.1.37 openssl python-twisted dbus-1-python psmisc procps python-rrdtool
+Requires:       python-opsi >= 4.0.3.4 openssl python-twisted dbus-1-python psmisc procps python-rrdtool
 %endif
 Url:            http://www.opsi.org
 License:        GPL v2 or later
@@ -24,7 +24,7 @@ Summary:        This is the opsi configuration service
 Source:         opsiconfd_4.0.4.1-2.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?sles_version}
-BuildRequires:  python-rrdtool python-opsi >= 4.0.1.32 zypper logrotate
+BuildRequires:  python-rrdtool python-opsi >= 4.0.3.4 zypper logrotate
 PreReq:         %insserv_prereq
 %{py_requires}
 %else

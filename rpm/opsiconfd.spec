@@ -82,7 +82,7 @@ echo "Detected openSuse / SLES"
 LOGROTATE_VERSION="$(zypper info logrotate | grep -i "version" | awk '{print $2}' | cut -d '-' -f 1)"
 if [ "$(zypper --terse versioncmp $LOGROTATE_VERSION 3.8)" == "-1" ]; then
 	echo "Fixing logrotate configuration for logrotate version older than 3.8"
-	LOGROTATE_TEMP=$RPM_BUILD_ROOT/tmp/opsi-logrotate_config
+	LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
 	grep -v "su opsiconfd pcpatch" $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
 	mv $LOGROTATE_TEMP $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
 else
@@ -95,7 +95,7 @@ fi
 		# Maybe some day in the future RHEL / CentOS will have a way for easy version comparison
 		# LOGROTATE_VERSION="$(yum list logrotate | grep "installed$" | awk '{ print $2 }' | cut -d '-' -f 1)"
 		echo "Fixing logrotate configuration"
-		LOGROTATE_TEMP=$RPM_BUILD_ROOT/tmp/opsi-logrotate_config
+		LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
 		grep -v "su opsiconfd pcpatch" $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
 		mv $LOGROTATE_TEMP $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
 	%endif

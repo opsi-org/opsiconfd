@@ -61,6 +61,30 @@ This package contains the opsi configuration service.
 export CFLAGS="$RPM_OPT_FLAGS"
 python setup.py build
 
+%if 0%{?suse_version} || 0%{?sles_version}
+echo "Detected openSuse / SLES"
+LOGROTATE_VERSION="$(zypper info logrotate | grep -i "version" | awk '{print $2}' | cut -d '-' -f 1)"
+if [ "$(zypper --terse versioncmp $LOGROTATE_VERSION 3.8)" == "-1" ]; then
+	echo "Fixing logrotate configuration for logrotate version older than 3.8"
+	LOGROTATE_TEMP=/tmp/opsi-logrotate_config
+	grep -v "su opsiconfd pcpatch" /etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
+	mv $LOGROTATE_TEMP /etc/logrotate.d/opsiconfd
+else
+	echo "Logrotate version $LOGROTATE_VERSION is 3.8 or newer. Nothing to do."
+fi
+%else
+	%if 0%{?rhel_version} || 0%{?centos_version}
+		echo "Detected RHEL / CentOS"
+		# Currently neither RHEL nor CentOS ship an logrotate > 3.8
+		# Maybe some day in the future RHEL / CentOS will have a way for easy version comparison
+		# LOGROTATE_VERSION="$(yum list logrotate | grep "installed$" | awk '{ print $2 }' | cut -d '-' -f 1)"
+		echo "Fixing logrotate configuration"
+		LOGROTATE_TEMP=/tmp/opsi-logrotate_config
+		grep -v "su opsiconfd pcpatch" /etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
+		mv $LOGROTATE_TEMP /etc/logrotate.d/opsiconfd
+	%endif
+%endif
+
 # ===[ install ]====================================
 %install
 %if 0%{?suse_version}
@@ -175,29 +199,6 @@ chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
-%if 0%{?suse_version} || 0%{?sles_version}
-echo "Detected openSuse / SLES"
-LOGROTATE_VERSION="$(zypper info logrotate | grep -i "version" | awk '{print $2}' | cut -d '-' -f 1)"
-if [ "$(zypper --terse versioncmp $LOGROTATE_VERSION 3.8)" == "-1" ]; then
-	echo "Fixing logrotate configuration for logrotate version older than 3.8"
-	LOGROTATE_TEMP=/tmp/opsi-logrotate_config
-	grep -v "su opsiconfd pcpatch" /etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
-	mv $LOGROTATE_TEMP /etc/logrotate.d/opsiconfd
-else
-	echo "Logrotate version $LOGROTATE_VERSION is 3.8 or newer. Nothing to do."
-fi
-%else
-	%if 0%{?rhel_version} || 0%{?centos_version}
-		echo "Detected RHEL / CentOS"
-		# Currently neither RHEL nor CentOS ship an logrotate > 3.8
-		# Maybe some day in the future RHEL / CentOS will have a way for easy version comparison
-		# LOGROTATE_VERSION="$(yum list logrotate | grep "installed$" | awk '{ print $2 }' | cut -d '-' -f 1)"
-		echo "Fixing logrotate configuration"
-		LOGROTATE_TEMP=/tmp/opsi-logrotate_config
-		grep -v "su opsiconfd pcpatch" /etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
-		mv $LOGROTATE_TEMP /etc/logrotate.d/opsiconfd
-	%endif
-%endif
 
 if [ "$fileadmingroup" != "pcpatch" ]; then
 	LOGROTATE_TEMP=/tmp/opsi-logrotate_config

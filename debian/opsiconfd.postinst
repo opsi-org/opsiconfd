@@ -111,13 +111,9 @@ case "$1" in
 		LOGROTATE_VERSION="$(dpkg --list | grep logrotate | grep "^ii" | awk '{ print $3 }' | cut -d '-' -f 1)"
 		if dpkg --compare-versions "$LOGROTATE_VERSION" lt "3.8"; then
 			LOGROTATE_TEMP=$(tempfile)
-			grep -v "su opsiconfd $fileadmingroup" /etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
-			mv $LOGROTATE_TEMP /etc/logrotate.d/opsiconfd
-		fi
-		if [ "$fileadmingroup" != "pcpatch" ]; then
-			LOGROTATE_TEMP=$(tempfile)
-			cat /etc/logrotate.d/opsiconfd | sed "s/pcpatch/$fileadmingroup/g" > $LOGROTATE_TEMP
-			mv "$LOGROTATE_TEMP" /etc/logrotate.d/opsiconfd
+			LOGROTATE_CONFIG=/etc/logrotate.d/opsiconfd
+			grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
+			mv $LOGROTATE_TEMP $LOGROTATE_CONFIG 
 		fi
 	;;
 

@@ -83,8 +83,9 @@ LOGROTATE_VERSION="$(zypper info logrotate | grep -i "version" | awk '{print $2}
 if [ "$(zypper --terse versioncmp $LOGROTATE_VERSION 3.8)" == "-1" ]; then
 	echo "Fixing logrotate configuration for logrotate version older than 3.8"
 	LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
-	grep -v "su opsiconfd pcpatch" $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
-	mv $LOGROTATE_TEMP $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
+	LOGROTATE_CONFIG=$RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
+	grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
+	mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
 else
 	echo "Logrotate version $LOGROTATE_VERSION is 3.8 or newer. Nothing to do."
 fi
@@ -96,8 +97,9 @@ fi
 		# LOGROTATE_VERSION="$(yum list logrotate | grep "installed$" | awk '{ print $2 }' | cut -d '-' -f 1)"
 		echo "Fixing logrotate configuration"
 		LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
-		grep -v "su opsiconfd pcpatch" $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd > $LOGROTATE_TEMP
-		mv $LOGROTATE_TEMP $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
+		LOGROTATE_CONFIG=$RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
+		grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
+		mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
 	%endif
 %endif
 
@@ -200,14 +202,6 @@ chmod 600 /etc/opsi/opsiconfd.pem
 chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
-
-
-if [ "$fileadmingroup" != "pcpatch" ]; then
-	LOGROTATE_TEMP=/tmp/opsi-logrotate_config
-	cat /etc/logrotate.d/opsiconfd | sed "s/pcpatch/$fileadmingroup/g" > $LOGROTATE_TEMP
-	mv "$LOGROTATE_TEMP" /etc/logrotate.d/opsiconfd
-fi
-
 
 if [ $arg0 -eq 1 ]; then
 	# Install

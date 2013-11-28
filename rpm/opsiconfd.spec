@@ -71,27 +71,10 @@ python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record=INST
 
 mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
 
-#mkdir -p $RPM_BUILD_ROOT/usr/share/opsiconfd/static
-#mkdir -p $RPM_BUILD_ROOT/etc/opsi
-#mkdir -p $RPM_BUILD_ROOT/etc/init.d
-#mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
-#
-#install -m 0755 opsiconfd $RPM_BUILD_ROOT/usr/sbin/
-#install -m 0755 opsiconfd-guard $RPM_BUILD_ROOT/usr/sbin/
-#install -m 0644 files/opsiconfd.conf $RPM_BUILD_ROOT/etc/opsi/
-#install -m 0644 debian/opsiconfd.logrotate $RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
-#install -m 0755 debian/opsiconfd.init $RPM_BUILD_ROOT/etc/init.d/opsiconfd
-#install -m 0644 files/index.html $RPM_BUILD_ROOT/usr/share/opsiconfd/static/index.html
-#install -m 0644 files/opsi_logo.png $RPM_BUILD_ROOT/usr/share/opsiconfd/static/opsi_logo.png
-#install -m 0644 files/favicon.ico $RPM_BUILD_ROOT/usr/share/opsiconfd/static/favicon.ico
-
 mkdir -p $RPM_BUILD_ROOT/usr/sbin
 ln -sf /etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 sed -i 's#/etc/init.d$##;s#/etc/logrotate.d$##' INSTALLED_FILES
-
-
-
 
 # ===[ clean ]======================================
 %clean

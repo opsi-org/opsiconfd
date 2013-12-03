@@ -455,7 +455,10 @@ class Opsiconfd(OpsiService):
 			self._createStatistics()
 			self._createSite()
 			self._startListening()
-			self._publish()
+			if self.config['loadbalancing']:
+				logger.debug(u"Loadbalancing is activated, zeroconf-publishing is deactivated")
+			else:
+				self._publish()
 
 			if self.config["debug"]:
 				self._startListeningShell()
@@ -560,6 +563,7 @@ class OpsiconfdInit(Application):
 			'aclFile'                      : u'/etc/opsi/backendManager/acl.conf',
 			'socket'                       : u'/var/run/opsiconfd/opsiconfd.socket',
 			'multiprocessing'              : False,
+			'loadbalancing'			: False,
 			'profile'                      : False,
 			'profiler'                     : u'profiler',
 			'debug'                        : False,
@@ -685,6 +689,8 @@ class OpsiconfdInit(Application):
 							self.config['maxExecutionStatisticValues'] = forceInt(value)
 						elif (option == 'multiprocessing'):
 							self.config['multiprocessing'] = forceBool(value)
+						elif (option == 'loadbalancing'):
+							self.config['loadbalancing'] = forceBool(value)
 						elif (option == 'admin networks'):
 							self.config['adminNetworks'] = []
 							for net in value.split(','):

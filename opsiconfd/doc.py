@@ -78,13 +78,14 @@ class DocumentationDirectoryLister(DirectoryLister):
 
 </body>
 </html>
-'''% (_title,_title)
+''' % (_title, _title)
 	_li = '<li><a href="%s">%s</a></li>'
 
-	_langs = {	"en": u"English",
-			"de": u"Deutsch",
-			"fr": u"Française",
-		}
+	_langs = {
+		"en": u"English",
+		"de": u"Deutsch",
+		"fr": u"Française",
+	}
 
 	def render(self, request):
 		s = self._template
@@ -119,8 +120,10 @@ class ResourceOpsiDocumentation(File):
 		File.__init__(self, path, defaultType, *args, **kwargs)
 
 	def directoryListing(self):
-		return DocumentationDirectoryLister(	self.fp.path,
-							self.listChildren(),
-							self.contentTypes,
-							self.contentEncodings,
-							self.defaultType)
+		return DocumentationDirectoryLister(
+			self.fp.path,
+			self.listChildren(),
+			self.contentTypes,
+			self.contentEncodings,
+			self.defaultType
+		)

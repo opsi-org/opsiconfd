@@ -21,14 +21,10 @@
 import base64
 import json
 import re
+from hashlib import md5
 from twisted.internet import defer
 import resource as pyresource
 from twisted.conch.ssh import keys
-try:
-	from hashlib import md5
-except ImportError:
-	from md5 import md5
-
 
 from OPSI.web2 import http, resource, stream
 from OPSI.Backend.BackendManager import BackendManager

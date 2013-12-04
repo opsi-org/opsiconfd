@@ -18,15 +18,12 @@
    @author: Erol Ueluekmen <e.ueluekmen@uib.de>
 """
 
+import base64
+import json
+import re
 from twisted.internet import defer
 import resource as pyresource
-import base64, re
 from twisted.conch.ssh import keys
-from sys import version_info
-if (version_info >= (2,6)):
-	import json
-else:
-	import simplejson as json
 try:
 	from hashlib import md5
 except ImportError:

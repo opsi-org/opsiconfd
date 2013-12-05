@@ -493,7 +493,7 @@ class OpsiconfdInit(Application):
 		for (opt, arg) in self.opts:
 			if (opt == "-c"):
 				self.config['configFile'] = forceFilename(arg)
-			if   (opt == "-v"):
+			if  (opt == "-v"):
 				print u"opsiconfd version %s" % __version__
 				sys.exit(0)
 		self.readConfigFile()

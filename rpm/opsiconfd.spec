@@ -21,7 +21,7 @@ Version:        4.0.4.1
 Release:        3
 Summary:        This is the opsi configuration service
 %define tarname opsiconfd
-Source:         opsiconfd_4.0.4.1-2.tar.gz
+Source:         opsiconfd_4.0.4.1-3.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?sles_version}
 BuildRequires:  python-rrdtool python-opsi >= 4.0.3.4 zypper logrotate

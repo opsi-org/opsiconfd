@@ -1,3 +1,9 @@
+opsiconfd (4.0.4.3-1) testing; urgency=low
+
+  * webstart service modified for signed jar support.
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Tue, 07 Jan 2014 16:03:46 +0100
+
 opsiconfd (4.0.4.2-1) testing; urgency=low
 
   * Consistent ownership of logfiles: all are now owned by opsiadmin

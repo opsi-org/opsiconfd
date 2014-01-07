@@ -62,7 +62,7 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 		<jar href="configed/commons-io.jar"/>
 	</resources>
 	<application-desc main-class="de.uib.configed.configed">
-	%(arguments)s
+	<argument>--args</argument>%(arguments)s
 	</application-desc>
 </jnlp>
 '''
@@ -101,10 +101,13 @@ class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 		arguments = '<argument>-h</argument><argument>%s</argument>' % request.headers.getHeader('host')
 		rawargs = ''
 		if (request.uri.find('?') != -1):
-			arguments = ''
+			arguments = []
 			rawargs = "?%s" % (request.uri.split('?', 1)[1])
 			for a in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
-				arguments += '<argument>%s</argument>' % a
+				arguments.append(a)
+				#arguments += '<argument>%s</argument>' % a
+			if arguments:
+				arguments = ";;".join(arguments)
 
 		response = http.Response(stream = CONFIGED_JNLP_TEMPLATE % {
 			"codebase": "https://%s" % (request.headers.getHeader('host')),

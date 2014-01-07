@@ -98,7 +98,7 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 
 class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 	def render(self, request):
-		arguments = '<argument>-h</argument><argument>%s</argument>' % request.headers.getHeader('host')
+		arguments = '<argument>-h;;%s</argument>' % request.headers.getHeader('host')
 		rawargs = ''
 		if (request.uri.find('?') != -1):
 			arguments = []

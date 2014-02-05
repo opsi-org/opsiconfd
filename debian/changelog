@@ -1,4 +1,4 @@
-opsiconfd (4.0.4.3-1) testing; urgency=low
+opsiconfd (4.0.4.3-1) stable; urgency=low
 
   * webstart service modified for signed jar support.
 

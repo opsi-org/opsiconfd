@@ -71,7 +71,7 @@ class Supervisor(object):
 				d.start()
 				self.daemons.append(d)
 
-			except Exception, e:
+			except Exception as e:
 				logger.error("Failed to start daemon %s"% (daemon.script))
 				logger.logException(e)
 				raise
@@ -128,7 +128,7 @@ class SupervisionService(Service):
 					stream.write(str(os.getpid()))
 					stream.close()
 			logger.debug2("Starting supervisor.")
-		except Exception, e:
+		except Exception as e:
 			logger.critical(u"Error starting opsi supervision service: %s" %e)
 			self.exitCode = 1
 			reactor.crash()

@@ -175,7 +175,7 @@ class Statistics(object):
 
 			return result
 
-		except Exception, e:
+		except Exception as e:
 			logger.logException(e)
 			logger.error(u"Failed to get Statistics: %s" % e)
 			return result
@@ -215,7 +215,7 @@ class Statistics(object):
 			self._rrdCache['davrequests'] = 0
 			self._rrdCache['rpcs'] = 0
 			self._rrdCache['rpcerrors'] = 0
-		except Exception, e:
+		except Exception as e:
 			logger.error(u"Failed to update rrd: %s" % e)
 
 	def getRrdGraphImage(self, type, range):

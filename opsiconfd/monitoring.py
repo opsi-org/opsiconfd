@@ -45,12 +45,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 		self._debug = self.service.config.get('monitoringDebug', False)
 		self._setLogFile(self)
 		self.monitoring = None
-		
-	
+
+
 	def _setLogFile(self, obj):
 		if self._debug:
 			logger.setLogFile( self.service.config['logFile'].replace('%m', 'monitoring'), object =obj )
-		
+
 	def process(self):
 		logger.info(u"Worker %s started processing" % self)
 		deferred = defer.Deferred()
@@ -61,10 +61,10 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 		deferred.addErrback(self._errback)
 		deferred.callback(None)
 		return deferred
-	
+
 	def _processQuery(self, result):
 		self._decodeQuery(result)
-		
+
 	def _getAuthorization(self):
 		(user, password) = (u'', u'')
 		logger.debug(u"Trying to get username and password from Authorization header")
@@ -73,7 +73,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			logger.debug(u"Authorization header found (type: %s)" % auth[0])
 			try:
 				encoded = auth[1]
-				
+
 				logger.confidential(u"Auth encoded: %s" % encoded)
 				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
 				if (len(parts) > 6):
@@ -84,20 +84,20 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					password = u':'.join(parts[1:])
 				user = user.strip()
 				logger.confidential(u"Plugin supplied username '%s' and password '%s'" % (user, password))
-			except Exception, e:
+			except Exception as e:
 				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
 		return (user, password)
-	
+
 	def _getCredentials(self):
 		return self._getAuthorization()
-	
+
 	def _authenticate(self, result):
 		''' This function tries to authenticate the opsi-monitoring-plugin '''
-		
+
 		try:
 			# Get authorization from header
 			(user, password) = self._getCredentials()
-			
+
 			try:
 				moni_password = False
 				moni_user = False
@@ -108,16 +108,16 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % moni_user)
 					return
 				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (moni_user, moni_password))
-			except Exception, e:
+			except Exception as e:
 				logger.logException(e, LOG_INFO)
-			
+
 			if user == moni_user and password == moni_password:
-				
+
 				if not self.monitoring:
 					backendinfo = self.service._backend.backend_info()
 					modules = backendinfo['modules']
 					helpermodules = backendinfo['realmodules']
-					
+
 					if not modules.get('customer'):
 						logger.notice(u"Disabling monitoring module: no customer in modules file")
 						self.monitoring = u"Disabling monitoring module: no customer in modules file"
@@ -128,13 +128,13 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						logger.notice(u"Disabling monitoring module: modules file expired")
 						self.monitoring = u"Disabling monitoring module: modules file expired"
 					else:
-						
+
 						publicKey = keys.Key.fromString(data = base64.decodestring('AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDojY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDUlk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP')).keyObject
 						data = u''; mks = modules.keys(); mks.sort()
 						for module in mks:
 							if module in ('valid', 'signature'):
 								continue
-							
+
 							if helpermodules.has_key(module):
 								val = helpermodules[module]
 								if int(val) > 0:
@@ -143,14 +143,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 								val = modules[module]
 								if (val == False): val = 'no'
 								if (val == True):  val = 'yes'
-							
+
 							data += u'%s = %s\r\n' % (module.lower().strip(), val)
 						if not bool(publicKey.verify(md5(data).digest(), [ long(modules['signature']) ])):
 							logger.error(u"Disabling monitoring module: modules file invalid")
 							self.monitoring = u'Module monitoring is Disabled, please contact info@uib.de for activation.'
 						else:
 							logger.debug(u"Modules file signature verified (customer: %s)" % modules.get('customer'))
-							
+
 							if modules.get('monitoring'):
 								self.monitoring = Monitoring(self.service)
 							else:
@@ -158,19 +158,19 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				return result
 			else:
 				logger.error(u"Wrong credentials, please check your configurations.")
-				
-		except Exception, e:
+
+		except Exception as e:
 			logger.logException(e, LOG_INFO)
 			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
 		return result
-			
+
 	def _authorize(self):
 		return True
-	
+
 	def _generateResponse(self, result):
 		if not isinstance(result, http.Response):
 			result = http.Response()
-		
+
 		if self.query:
 			query = json.loads(self.query)
 			if not query.has_key("task"):
@@ -178,18 +178,18 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				res["message"] = u"No task set, nothing to do"
 				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
 				return result
-			
+
 			if not isinstance(self.monitoring, Monitoring):
 				res = {}
 				res["state"] = "3"
 				res["message"] = self.monitoring
 				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
 				return result
-				
+
 			if query["task"] == "checkClientStatus":
 				exclude = query.get("param", {}).get("exclude", None)
 				clientId = query.get("param", {}).get("clientId", None)
-					
+
 				try:
 					try:
 						res = self.monitoring.checkClientStatus(clientId = clientId, excludeProductList = exclude)
@@ -200,14 +200,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
-					
+
 			elif query["task"] == "getOpsiClientsForGroup":
 				if query["param"]:
 					if query["param"].has_key("groups"):
 						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
 						result.stream = stream.IByteStream(res.encode('utf-8'))
 						return result
-						
+
 			elif query["task"] == "checkProductStatus":
 				productIds   = query.get("param", {}).get("productIds", [])
 				groupIds     = query.get("param", {}).get("groupIds", [])
@@ -215,7 +215,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				depotIds     = query.get("param", {}).get("depotIds", [])
 				exclude      = query.get("param", {}).get("exclude", [])
 				verbose      = query.get("param", {}).get("verbose", False)
-				
+
 				try:
 					try:
 						res = self.monitoring.checkProductStatus(productIds = productIds, productGroups = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
@@ -226,14 +226,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
-				
+
 			elif query["task"] == "checkDepotSyncStatus":
 				depotIds   = query.get("param", {}).get("depotIds", [])
 				productIds = query.get("param", {}).get("productIds", [])
 				exclude    = query.get("param", {}).get("exclude", [])
 				strict     = query.get("param", {}).get("strict", False)
 				verbose    = query.get("param", {}).get("verbose", False)
-				
+
 				try:
 					try:
 						res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict, verbose)
@@ -244,7 +244,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
-				
+
 			elif query["task"] == "checkPluginOnClient":
 				clientId      = query.get("param", {}).get("clientId", [])
 				command       = query.get("param", {}).get("plugin", "")
@@ -254,7 +254,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				captureStdErr = query.get("param", {}).get("captureStdErr", True)
 				waitForEnding = query.get("param", {}).get("waitForEnding", True)
 				encoding      = query.get("param", {}).get("encoding", None)
-				
+
 				try:
 					try:
 						res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
@@ -265,11 +265,11 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
-				
+
 			elif query["task"] == "checkOpsiWebservice":
 				cpu    = query.get("param", {}).get("cpu", [])
 				errors = query.get("param", {}).get("errors", [])
-				
+
 				try:
 					try:
 						res = self.monitoring.checkOpsiWebservice(cpu, errors)
@@ -280,13 +280,13 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
-				
+
 			elif query["task"] == "checkOpsiDiskUsage":
 				opsiresource = query.get("param", {}).get("resource", None)
 				threshold = {}
 				threshold["warning"] = (query.get("param", {}).get("warning", "5G"))
 				threshold["critical"] = (query.get("param", {}).get("critical", "1G"))
-				
+
 				try:
 					try:
 						res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
@@ -302,14 +302,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					"state": "3",
 					"message": u"Failure: unknown task!",
 				}
-				
+
 				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
 				return result
-				
-		
+
+
 class ResourceOpsiconfdMonitoring(ResourceOpsi):
 	WorkerClass = WorkerOpsiconfdMonitoring
-		
+
 
 class Monitoring(object):
 	def __init__(self, service):
@@ -319,11 +319,11 @@ class Monitoring(object):
 		self._WARNING = 1
 		self._CRITICAL = 2
 		self._UNKNOWN = 3
-		
+
 		self._stateText = [u"OK",u"WARNING", u"CRITICAL", u"UNKNOWN"]
 		self._errorcodePattern = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')
-		
-	
+
+
 	def _generateResponse(self, state, message, perfdata=None):
 		response = {}
 		response["state"] = str(state)
@@ -338,9 +338,9 @@ class Monitoring(object):
 			else:
 				response["message"] = u"%s: %s" % (self._stateText[int(state)],message)
 		#if len(response["message"]) > 3800:
-		#	response["message"] = u"%s ..." % response["message"][:3800]	
+		#	response["message"] = u"%s ..." % response["message"][:3800]
 		return json.dumps(response)
-	
+
 	def checkClientStatus(self, clientId, excludeProductList=None):
 		state = self._OK
 		message = ''
@@ -360,19 +360,19 @@ class Monitoring(object):
 			year = int(lastSeen[0])
 			month = int(lastSeen[1])
 			day = int(lastSeen[2].split()[0])
-			
+
 			today = datetime.date.today()
 			delta = None
-			
+
 			if year and month and day:
 				lastSeenDate = datetime.date(year,month,day)
 				delta = today - lastSeenDate
 			elif state == self._OK:
 				state = _WARNING
 				message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
-			
-			
-			
+
+
+
 			if delta.days >= 30:
 				state = self._WARNING
 				message += "opsi-client %s has not been seen, since %d days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. " % (clientId, delta.days)
@@ -380,7 +380,7 @@ class Monitoring(object):
 				message += "opsi-client %s has been seen today. " % (clientId)
 			else:
 				message += "opsi-client %s has been seen %d days before. " % (clientId, delta.days)
-			
+
 		failedProducts = self.service._backend.productOnClient_getObjects(clientId = clientId, actionResult = 'failed')
 		if failedProducts:
 			state = self._CRITICAL
@@ -399,7 +399,7 @@ class Monitoring(object):
 		if state == self._OK:
 			message += "No failed products and no actions set for client"
 		return self._generateResponse(state,message)
-	
+
 	def getOpsiClientsForGroup(self, groups):
 		clients = []
 		result = {}
@@ -417,16 +417,16 @@ class Monitoring(object):
 							"ipAddress" : host.ipAddress
 						}
 		return json.dumps(result)
-	
+
 	def checkProductStatus(self, productIds = [], productGroups = [], hostGroupIds = [], depotIds = [], exclude=[], verbose = False):
 		state = self._OK
 		clientsOnDepot = {}
-		
+
 		actionRequestOnClient = {}
 		productProblemsOnClient = {}
 		productProblemsOnDepot = {}
 		productVersionProblemsOnClient = {}
-		
+
 		if not productIds:
 			productIds = []
 			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup',groupId=productGroups):
@@ -437,7 +437,7 @@ class Monitoring(object):
 			state = self._UNKNOWN
 			message = u"Neither productId nor productGroup given, nothing to check!"
 			return self._generateResponse(state, message)
-			
+
 		serverType = None
 		if not depotIds:
 			serverType = "OpsiConfigserver"
@@ -448,7 +448,7 @@ class Monitoring(object):
 			depots = self.service._backend.host_getObjects(type=serverType)
 			for depot in depots:
 				depotIds.append(depot.id)
-		
+
 		clientIds = None
 		if hostGroupIds:
 			clientIds = []
@@ -458,12 +458,12 @@ class Monitoring(object):
 					clientIds.append(objectToGroup.objectId)
 		else:
 			clientIds = self.service._backend.host_getIdents(type="OpsiClient")
-		
+
 		addConfigStateDefaults = self.service._backend.backend_getOptions().get('addConfigStateDefaults', False)
 		try:
 			logger.debug("Calling backend_setOptions on %s" % self)
 			self.service._backend.backend_setOptions({'addConfigStateDefaults': True})
-			
+
 			for configState in self.service._backend.configState_getObjects(configId = u'clientconfig.depot.id', objectId = clientIds):
 				if not configState.values or not configState.values[0]:
 					logger.error(u"No depot server configured for client '%s'" % configState.objectId)
@@ -474,12 +474,12 @@ class Monitoring(object):
 				if not clientsOnDepot.has_key(depotId):
 					clientsOnDepot[depotId] = []
 				clientsOnDepot[depotId].append(configState.objectId)
-					
+
 		finally:
 			self.service._backend.backend_setOptions({'addConfigStateDefaults': addConfigStateDefaults})
-		
-		
-		
+
+
+
 		productOnDepotInfo = {}
 		for pod in self.service._backend.productOnDepot_getObjects(depotId = depotIds, productId = productIds):
 			if not productOnDepotInfo.has_key(pod.depotId):
@@ -497,7 +497,7 @@ class Monitoring(object):
 					if not actionRequestOnClient[depotId].has_key(poc.productId):
 						actionRequestOnClient[depotId][poc.productId] = []
 					actionRequestOnClient[depotId][poc.productId].append(u"%s (%s)" % (poc.clientId, poc.actionRequest) )
-				if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none": 
+				if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
 					if state != self._CRITICAL:
 						state = self._CRITICAL
 					if not productProblemsOnClient.has_key(depotId):
@@ -517,9 +517,9 @@ class Monitoring(object):
 						productVersionProblemsOnClient[depotId][poc.productId] = []
 					productVersionProblemsOnClient[depotId][poc.productId].append("%s (%s-%s)" % (poc.clientId,poc.productVersion, poc.packageVersion))
 		message = ''
-		
+
 		for depotId in depotIds:
-			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId): 
+			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId):
 				message += "Result for Depot: '%s': " % depotId
 			else:
 				continue
@@ -532,14 +532,14 @@ class Monitoring(object):
 			if productVersionProblemsOnClient.has_key(depotId):
 				for product in productVersionProblemsOnClient[depotId].keys():
 					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
-		
+
 		if not verbose:
 			if state == self._OK:
 				message = u"No Problem found for productIds: '%s'" % ",".join(productIds)
 			return self._generateResponse(state, message)
-				
+
 		for depotId in depotIds:
-			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId): 
+			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId):
 				message += "Result for Depot: '%s': \n" % depotId
 			else:
 				continue
@@ -561,26 +561,26 @@ class Monitoring(object):
 					message += "product '%s': \n" % product
 					for item in productVersionProblemsOnClient[depotId][product]:
 						message += "%s \n" % item
-		
+
 		if state == self._OK:
 			if productGroups:
 				message = u"No Problem found for productIds; '%s'" % ",".join(productGroups)
 			else:
 				message = u"No Problem found for productIds; '%s'" % ",".join(productIds)
-			
+
 		return self._generateResponse(state, message)
-		
+
 	def checkDepotSyncStatus(self, depotIds, productIds = [], exclude = [], strict=False, verbose=False):
 		state = self._OK
 		productOnDepotInfo = {}
 		differenceProducts = {}
-		
+
 		if not depotIds or 'all' in depotIds:
 			depotIds = []
 			depots = self.service._backend.host_getObjects(type="OpsiDepotserver")
 			for depot in depots:
 				depotIds.append(depot.id)
-		
+
 		productOnDepots = self.service._backend.productOnDepot_getObjects(depotId = depotIds, productId = productIds)
 		productIds = []
 		for depotId in depotIds:
@@ -590,7 +590,7 @@ class Monitoring(object):
 				productIds.append(pod.productId)
 			productOnDepotInfo[pod.depotId][pod.productId] = pod
 		productIds.sort()
-		
+
 		for productId in productIds:
 			if productId in exclude:
 				continue
@@ -602,7 +602,7 @@ class Monitoring(object):
 				if not productOnDepot:
 					if not strict:
 						continue
-					if not differenceProducts.has_key(productId): 
+					if not differenceProducts.has_key(productId):
 						differenceProducts[productId] = {}
 					differenceProducts[productId][depotId] = "not installed"
 					continue
@@ -614,17 +614,17 @@ class Monitoring(object):
 					packageVersion = productOnDepot.packageVersion
 				elif (packageVersion != productOnDepot.packageVersion):
 					differs = True
-				
+
 				if differs:
-					if not differenceProducts.has_key(productId): 
+					if not differenceProducts.has_key(productId):
 						differenceProducts[productId] = {}
 					differenceProducts[productId][depotId] = "different"
-		
+
 		message = u''
 		if differenceProducts:
 			state = self._WARNING
 			message += u"Differences found for '%d'" % len(differenceProducts)
-			
+
 			if verbose:
 				message += u":\n"
 				for productId in differenceProducts.keys():
@@ -642,24 +642,24 @@ class Monitoring(object):
 								continue
 							message += u"%s (%s-%s) " % (depotId,
 									productOnDepotInfo[depotId][productId].productVersion,
-									productOnDepotInfo[depotId][productId].packageVersion)	
+									productOnDepotInfo[depotId][productId].packageVersion)
 		else:
 			message += "Syncstate ok for depots: '%s' " % ",".join(depotIds)
-		
+
 		return self._generateResponse(state, message)
-	
-	
+
+
 	def checkPluginOnClient(self, hostId, command, timeout=30, waitForEnding= True, captureStdErr=True, statebefore=None, output=None, encoding=None):
 		state  = self._OK
 		message = ""
 		hostId = forceList(hostId)
-		
+
 		try:
 			result = self.service._backend.hostControl_reachable(hostId)
 			if result.get(hostId[0], False):
 				checkresult = self.service._backend.hostControl_execute(command, hostId, waitForEnding, captureStdErr, encoding, timeout)
 				checkresult = checkresult.get(hostId[0], None)
-				
+
 				if checkresult:
 					if checkresult.get("result", None):
 						message = checkresult.get("result")[0]
@@ -687,8 +687,8 @@ class Monitoring(object):
 					else:
 						state = self._UNKNOWN
 						message = u"Unknown Problem by checking plugin on Client. Check your configuration."
-					
-					
+
+
 			else:
 				if result.get("error", None):
 					message = result.get("error").get("message", "")
@@ -703,7 +703,7 @@ class Monitoring(object):
 			state = self._UNKNOWN
 			message = str(e)
 			return self._generateResponse(state, message)
-	
+
 	def checkOpsiDiskUsage(self, thresholds = {}, opsiresource = None, perfdata=False):
 		results     = {}
 		helper      = 0
@@ -711,13 +711,13 @@ class Monitoring(object):
 		message  = []
 		warning    = thresholds.get("warning", "5G")
 		critical      = thresholds.get("critical", "1G")
-		
+
 		if opsiresource:
 			resources = forceList(opsiresource)
 		else:
 			resources = self.service.config['staticDirectories'].keys()
 			resources.sort()
-		
+
 		if warning.lower().endswith("g"):
 			unit = "GB"
 			warning = float(warning[:-1])
@@ -730,7 +730,7 @@ class Monitoring(object):
 			unit = "%"
 			warning = float(warning)
 			critical   = float(critical)
-		
+
 		try:
 			for resource in resources:
 				path = self.service.config['staticDirectories'][resource]['path']
@@ -738,16 +738,16 @@ class Monitoring(object):
 					if not resource.startswith('/'): resource = u'/' + resource
 					info = getDiskSpaceUsage(path)
 					results[resource] = info
-		except Exception, e:
+		except Exception as e:
 			state = self._UNKNOWN
 			message.append(u"Not able to check DiskUsage. Error: '%s'" % str(e))
 			return self._generateResponse(state, message)
-		
+
 		if results:
 			state = self._OK
 			for result in results.keys():
 				info = results[result]
-				
+
 				capacity = float(info['capacity'])/1073741824
 				used = float(info['used'])/1073741824
 				available = float(info['available'])/1073741824
@@ -756,13 +756,13 @@ class Monitoring(object):
 					if available <= critical:
 						state = self._CRITICAL
 						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%.2f'GB)." % (result, available))
-										
-						
+
+
 					elif (available <= warning):
 						if state != self._CRITICAL:
 							state = self._WARNING
 						message.append(u"DiskUsage warning from ressource: '%s' (available: '%.2f'GB)." % (result, available))
-						
+
 					else:
 						message.append(u"DiskUsage from ressource '%s' is ok. (available: '%.2f'GB)." % (result, available))
 				elif unit == "%":
@@ -770,15 +770,15 @@ class Monitoring(object):
 					if freeSpace <= critical:
 						state = self._CRITICAL
 						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%.2f%%')." % (result, freeSpace))
-										
+
 					elif freeSpace <= warning:
 						if state != self._CRITICAL:
 							state = self._WARNING
 						message.append(u"DiskUsage warning from ressource: '%s' (available: '%.2f%%')." % (result, freeSpace))
-										
+
 					else:
 						message.append(u"DiskUsage from ressource: '%s' is ok. (available: '%.2f%%')." % (result, freeSpace))
-				
+
 		else:
 			state = self._UNKNOWN
 			message.append("No results get. Nothing to check.")
@@ -788,10 +788,10 @@ class Monitoring(object):
 			message = u"WARNING: %s" % " ".join(message)
 		elif state == self._CRITICAL:
 			message = u"CRITICAL: %s" % " ".join(message)
-		
+
 		return self._generateResponse(state, message)
-		
-	
+
+
 	def checkOpsiWebservice(self, cputhreshold = [], errors = [], perfdata = True):
 		state = self._OK
 		logger.debug(u"Generating Defaults for checkOpsiWebservice if not given")
@@ -804,22 +804,22 @@ class Monitoring(object):
 			message = []
 			performanceHash = {}
 			performanceHash = self.service.statistics().getStatistics()
-			
+
 			requests = performanceHash["requests"]
 			davrequests = performanceHash["davrequests"]
 			rpcerrors = performanceHash["rpcerrors"]
 			rpcs = performanceHash["rpcs"]
-			
-			
+
+
 			perfdata.append(u'requests=%s;;;0; ' % requests)
 			perfdata.append(u'davrequests=%s;;;0; ' % davrequests)
 			perfdata.append(u'rpcs=%s;;;0; ' % rpcs)
-			
+
 			if int(rpcerrors) == 0 or int(rpcs) == '0':
 				errorrate = 0
 			else:
 				errorrate = int(rpcerrors)*100//int(rpcs)
-			
+
 			if (errorrate > errors[0] ):
 				messages.append(u'RPC errors over 20\%')
 				state = self._CRITICAL
@@ -829,14 +829,14 @@ class Monitoring(object):
 			perfdata.append(u'rpcerror=%s;;;0; ' % rpcerrors)
 			#sessions
 			perfdata.append(u"sessions=%s;;;0; " % performanceHash["sessions"])
-			
+
 			#threads
 			perfdata.append(u"threads=%s;;;0; " % performanceHash["threads"])
-			
+
 			#virtmem
 			virtmem = performanceHash["virtmem"]
 			perfdata.append(u"virtmem=%s;;;0; " % virtmem)
-			
+
 			#cpu
 			if int(performanceHash["cpu"]) > cputhreshold[0]:
 				state = self._CRITICAL
@@ -846,26 +846,21 @@ class Monitoring(object):
 					state = self._WARNING
 				message.append(u'CPU-Usage over 60%')
 			perfdata.append(u"cpu=%s;;;0;100 " % performanceHash["cpu"])
-			
+
 			if state == self._OK:
 				message.append("OK: Opsi Webservice has no Problem")
-			
+
 			if perfdata:
 				message = "%s | %s" % (" ".join(message),"".join(perfdata))
 			else:
 				message = "%s" % (" ".join(message))
 			return self._generateResponse(state, message)
-			
-			
-		except Exception, e:
+
+
+		except Exception as e:
 			state = self._UNKNOWN
 			message = u"cannot check webservice state: '%s'." % str(e)
 			return self._generateResponse(state, message)
-			
+
 	def checkOpsiLicensePool(self, poolId = 'all'):
 		pass
-		
-	
-
-
-

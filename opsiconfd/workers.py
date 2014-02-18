@@ -100,7 +100,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 							decryptWithPrivateKeyFromPEMFile(
 								base64.decodestring(auth[1]),
 								self.service.config['sslServerKeyFile']), 'latin-1').strip()
-					except Exception, e:
+					except Exception as e:
 						logger.logException(e)
 						raise
 				else:
@@ -115,7 +115,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 					password = u':'.join(parts[1:])
 				user = user.strip()
 				logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
-			except Exception, e:
+			except Exception as e:
 				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
 		return (user, password)
 
@@ -127,7 +127,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 			try:
 				(hostname, aliaslist, ipaddrlist) = socket.gethostbyaddr(self.session.ip)
 				user = forceHostId(hostname)
-			except Exception, e:
+			except Exception as e:
 				raise Exception(u"No username given and resolve failed: %s" % e)
 
 		if (user.count('.') >= 2):
@@ -148,7 +148,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 			hosts = None
 			try:
 				hosts = self.service._backend.host_getObjects(type = 'OpsiClient', id = user)
-			except Exception, e:
+			except Exception as e:
 				logger.debug(u"Host not found: %s" % e)
 
 			if hosts:
@@ -201,7 +201,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 				addressList = []
 				try:
 					(name, aliasList, addressList) = socket.gethostbyname_ex(self.session.hostname)
-				except Exception, e:
+				except Exception as e:
 					logger.warning(u"Failed to resolve hostname '%s': %s" % (self.session.hostname, e))
 
 				if self.session.ip not in addressList:
@@ -250,7 +250,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 			if self.service.authFailureCount.has_key(self.request.remoteAddr.host):
 				del self.service.authFailureCount[self.request.remoteAddr.host]
-		except Exception, e:
+		except Exception as e:
 			logger.logException(e, LOG_INFO)
 			self._freeSession(result)
 			self.service._getSessionHandler().deleteSession(self.session.uid)
@@ -389,7 +389,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 						[ decryptWithPrivateKeyFromPEMFile(base64.decodestring(v[0]), self.service.config['sslServerKeyFile']) ]
 					)
 					return result
-		except Exception, e:
+		except Exception as e:
 			logger.logException(e)
 			logger.error(u"Failed to process opsi service verification key: %s" % e)
 		return result
@@ -458,7 +458,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 					logger.debug(u"Expecting compressed data from client")
 					self.query = zlib.decompress(self.query)
 			self.query = unicode(self.query, 'utf-8')
-		except (UnicodeError, UnicodeEncodeError), e:
+		except (UnicodeError, UnicodeEncodeError) as e:
 			self.service.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(e))
 			self.query = unicode(self.query, 'utf-8', 'replace')
 		logger.debug2(u"query: %s" % self.query)
@@ -542,7 +542,7 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 			error = u'Unknown error'
 			try:
 				result.raiseException()
-			except Exception, e:
+			except Exception as e:
 				error = {'class': e.__class__.__name__, 'message': unicode(e)}
 				error = toJson({"id": None, "result": None, "error": error})
 			resultDiv += u'<div class="json">'

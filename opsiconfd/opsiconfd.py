@@ -198,7 +198,7 @@ class Opsiconfd(OpsiService):
 				self._socket.stopListening()
 
 			self._running = False
-		except Exception, e:
+		except Exception as e:
 			logger.error(u"Failed to stop opsiconfd cleanly.")
 			logger.logException(e)
 
@@ -408,7 +408,7 @@ class Opsiconfd(OpsiService):
 		try:
 			self._zeroconfService = ZeroconfService(name = name, port = port)
 			self._zeroconfService.publish()
-		except Exception, e:
+		except Exception as e:
 			logger.error(u"Failed to publish opsiconfd over zeroconf: %s" % e)
 
 	def _startListeningSocket(self):
@@ -465,7 +465,7 @@ class Opsiconfd(OpsiService):
 
 			if not reactor.running:
 				reactor.run(installSignalHandlers=1)
-		except Exception, e:
+		except Exception as e:
 			logger.logException(e)
 			self.stop()
 
@@ -609,7 +609,7 @@ class OpsiconfdInit(Application):
 						if (i == p):
 							running = True
 							break
-				except Exception, e:
+				except Exception as e:
 					logger.error(e)
 				if running:
 					raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
@@ -628,7 +628,7 @@ class OpsiconfdInit(Application):
 				if (int(pid) == int(os.getpid())):
 					logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
 					os.unlink(self.config['pidFile'])
-		except Exception, e:
+		except Exception as e:
 			logger.error(u"Failed to remove pid file '%s': %s" % (self.config['pidFile'], e))
 
 	def stop(self):
@@ -753,7 +753,7 @@ class OpsiconfdInit(Application):
 				else:
 					logger.warning(u"Ignoring unknown section '%s' in config file: '%s'" % (section, self.config['configFile']))
 
-		except Exception, e:
+		except Exception as e:
 			# An error occured while trying to read the config file
 			logger.error(u"Failed to read config file '%s': %s" % (self.config['configFile'], e))
 			logger.logException(e)
@@ -786,20 +786,14 @@ def main():
 
 	try:
 		OpsiconfdInit()
-
-	except SystemExit, e:
+	except SystemExit:
 		pass
-
-	except Exception, e:
-		exception = e
-
-	if exception:
+	except Exception as exception:
 		logger.logException(exception)
 		print >> sys.stderr, u"ERROR:", unicode(exception)
 		return(1)
+
 	return(0)
 
 if (__name__ == "__main__"):
 	sys.exit(main())
-
-

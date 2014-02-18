@@ -274,7 +274,7 @@ class OpsiconfdHTTPChannel(HTTPChannel):
 				logger.confidential("Headers: %s" % self.__headers)
 				try:
 					self._authenticate()
-				except Exception, e:
+				except Exception as e:
 					logger.debug(u"Unauthorized connection attempt to opsi message bus: %s" % e)
 					#logger.warning(u"Unauthorized connection attempt to opsi message bus: %s" % e)
 					#headers =  'HTTP/1.1 401 Unauthorized\r\n'

@@ -46,7 +46,8 @@ from OPSI.Service.Worker import (WorkerOpsi, WorkerOpsiJsonRpc,
 								WorkerOpsiJsonInterface, WorkerOpsiDAV,
 								interfacePage, MultiprocessWorkerOpsiJsonRpc)
 from OPSI.Types import forceHostId, forceHardwareAddress, OpsiAuthenticationError
-from OPSI.Util import timestamp, objectToHtml, toJson, randomString, decryptWithPrivateKeyFromPEMFile, ipAddressInNetwork, serialize
+from OPSI.Util import (timestamp, objectToHtml, toJson, randomString,
+	decryptWithPrivateKeyFromPEMFile, ipAddressInNetwork, serialize)
 from OPSI.Backend.BackendProcess import OpsiBackendProcess
 from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
 from OPSI.Logger import Logger, LOG_INFO
@@ -56,7 +57,7 @@ logger = Logger()
 
 
 class WorkerOpsiconfd(WorkerOpsi):
-	def __init__(self, service, request, resource, multiProcessing = False):
+	def __init__(self, service, request, resource, multiProcessing=False):
 		WorkerOpsi.__init__(self, service, request, resource)
 		self._setLogFile(self)
 
@@ -229,10 +230,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 				logger.info(u"Connection from non admin network")
 
 			bac = BackendAccessControl(
-				backend     = self.service._backend,
-				username    = self.session.user,
-				password    = self.session.password,
-				forceGroups = forceGroups
+				backend=self.service._backend,
+				username=self.session.user,
+				password=self.session.password,
+				forceGroups=forceGroups
 			)
 			if not bac.accessControl_authenticated():
 				raise Exception(u"Bad user or password")
@@ -631,5 +632,6 @@ class WorkerOpsiMessageBus(WorkerOpsi):
 
 	def _setResponse(self, result):
 		return http.Response(
-			code	= responsecode.FORBIDDEN,
-			stream	= "TEST!" )
+			code=responsecode.FORBIDDEN,
+			stream="TEST!"
+		)

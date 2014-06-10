@@ -81,6 +81,7 @@ CSS = """
 	</style>
 """
 
+
 class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 	def __init__(self, service, request, resource):
 		WorkerOpsiconfd.__init__(self, service, request, resource)
@@ -93,7 +94,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 
 		startTime = time.localtime()
 		content = [
-			info.join(('<div id="info">','</div>')) for info in (
+			info.join(('<div id="info">', '</div>')) for info in (
 				time.strftime('%Y-%m-%d %H:%M:%S', startTime),
 				self.getGraphs(),
 				self.getObjectInfo(),
@@ -119,7 +120,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 	def _processQuery(self, result):
 		if self.query.startswith('objgraph'):
 			maxDepth = 10
-			if (self.query.find('=') != -1):
+			if '=' in self.query:
 				maxDepth = int(self.query.split('=')[1])
 			self.service.statistics().createObjectGraph(maxDepth)
 		return result
@@ -299,7 +300,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 					average['failed'] += 1
 
 				if statistic['duration'] > maxDuration['duration']:
-					for key in  ('duration', 'method', 'params', 'results', 'failed'):
+					for key in ('duration', 'method', 'params', 'results', 'failed'):
 						maxDuration[key] = statistic[key]
 
 				statisticInfo.append(

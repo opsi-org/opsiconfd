@@ -217,10 +217,10 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 
 	def getObjectInfo(self):
 		objectInfo = [u'<h1>Object info</h1>', u'<table>', u'<tr><th>type</th><th>number</th></tr>']
-		objectInfo.append(u'<tr><td>Depotserver</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver')))
-		objectInfo.append(u'<tr><td>Client</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient')))
-		objectInfo.append(u'<tr><td>Product</td><td>{0}</td></tr>'.format(len(self.service._backend.product_getIdents(returnType='unicode')))
-		objectInfo.append(u'<tr><td>Config</td><td>{0}</td></tr>'.format(len(self.service._backend.config_getIdents(returnType='unicode')))
+		objectInfo.append(u'<tr><td>Depotserver</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver'))))
+		objectInfo.append(u'<tr><td>Client</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient'))))
+		objectInfo.append(u'<tr><td>Product</td><td>{0}</td></tr>'.format(len(self.service._backend.product_getIdents(returnType='unicode'))))
+		objectInfo.append(u'<tr><td>Config</td><td>{0}</td></tr>'.format(len(self.service._backend.config_getIdents(returnType='unicode'))))
 		objectInfo.append(u'</table>')
 
 		return ''.join(objectInfo)
@@ -318,10 +318,10 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 					u'<tr><td><a href="{0}">{0}</a></td><td>{1}</td>'
 					u'<td>{2:0.2f} GB</td><td>{3:0.2f} GB</td>'
 					u'<td>{4:0.2f} GB</td><td>{5:0.2f} %</td></tr>'.format(
-						resource, path, (float(info['capacity'])/1073741824),
-						(float(info['used'])/1073741824),
-						(float(info['available'])/1073741824),
-						(info['usage']*100)
+						resource, path, (float(info['capacity']) / 1073741824),
+						(float(info['used']) / 1073741824),
+						(float(info['available']) / 1073741824),
+						(info['usage'] * 100)
 					)
 				)
 		diskUsageInfo.append(u'</table>')

@@ -260,7 +260,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				session.lastRpcSuccessfullyDecoded, session.lastRpcMethod
 			)
 			for value in sessionValues:
-				sessionInfo.append(u'<td>{0}</td>'.format(value)
+				sessionInfo.append(u'<td>{0}</td>'.format(value))
 			sessionInfo.append(u'</tr>')
 		sessionInfo.append(u'</table>')
 

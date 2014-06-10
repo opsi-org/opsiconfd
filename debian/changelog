@@ -1,3 +1,9 @@
+opsiconfd (4.0.5.1-1) UNRELEASED; urgency=low
+
+  * Improved info page render speed.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 10 Jun 2014 12:36:13 +0200
+
 opsiconfd (4.0.4.3-1) stable; urgency=low
 
   * webstart service modified for signed jar support.

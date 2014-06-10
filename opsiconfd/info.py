@@ -98,44 +98,6 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		if not self.session.isAdmin:
 			raise OpsiAuthenticationError(u"Permission denied")
 
-		graphs = u''
-		if self.service.statistics().rrdsAvailable():
-			graphs += u'<h1>Last hour</h1>'
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(1, 3600))
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(2, 3600))
-			graphs += u'<h1>Last day</h1>'
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(1, 3600*24))
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(2, 3600*24))
-			graphs += u'<h1>Last week</h1>'
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(1, 3600*24*7))
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(2, 3600*24*7))
-			graphs += u'<h1>Last month</h1>'
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(1, 3600*24*31))
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(2, 3600*24*31))
-			graphs += u'<h1>Last year</h1>'
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(1, 3600*24*365))
-			graphs += u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(2, 3600*24*365))
-
-		objectInfo  = u'<h1>Object info</h1>'
-		objectInfo += u'<table>'
-		objectInfo += u'<tr><th>type</th><th>number</th></tr>'
-		objectInfo += u'<tr><td>Depotserver</td><td>%d</td></tr>' % len(self.service._backend.host_getIdents(returnType = 'unicode', type = 'OpsiDepotserver'))
-		objectInfo += u'<tr><td>Client</td><td>%d</td></tr>' % len(self.service._backend.host_getIdents(returnType = 'unicode', type = 'OpsiClient'))
-		objectInfo += u'<tr><td>Product</td><td>%d</td></tr>' % len(self.service._backend.product_getIdents(returnType = 'unicode'))
-		objectInfo += u'<tr><td>Config</td><td>%d</td></tr>' % len(self.service._backend.config_getIdents(returnType = 'unicode'))
-		objectInfo += u'</table>'
-
-		configInfo  = u'<h1>Server config</h1>'
-		configInfo += u'<table>'
-		configInfo += u'<tr><th>key</th><th>value</th></tr>'
-		keys = self.service.config.keys()
-		keys.sort()
-		for key in keys:
-			if key in ('staticDirectories',):
-				continue
-			configInfo += u'<tr><td>%s</td><td>%s</td></tr>' % (key, self.service.config[key])
-		configInfo += u'</table>'
-
 		threads = []
 		for thread in threading.enumerate():
 			threads.append(thread)
@@ -155,46 +117,6 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				pass
 			threadInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (thread.__class__.__name__, threadName, threadIdent, thread.isAlive())
 		threadInfo += u'</table>'
-
-		sessions = self.service._getSessionHandler().getSessions()
-		sessionInfo  = u'<h1>Active sessions (%d)</h1>' % len(sessions.keys())
-		sessionInfo += u'<table>'
-		sessionInfo += u'<tr><th>created</th><th>last modified</th><th>validity</th><th>marked for deletion</th><th>ip</th><th>hostname</th><th>user</th>' + \
-		               u'<th>is host</th><th>usage count</th><th>application</th><th>last rpc decoded</th><th>last rpc method</th></tr>'
-		for session in sessions.values():
-			sessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s sec</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
-				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created)), time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.lastModified)), \
-					session.getValidity(), session.getMarkedForDeletion(), \
-					session.ip, session.hostname, session.user, session.isHost, session.usageCount, session.userAgent, \
-					session.lastRpcSuccessfullyDecoded, session.lastRpcMethod)
-		sessionInfo += u'</table>'
-
-
-		expiredSessions = self.service.statistics().getExpiredSessionInfo()
-		expiredSessionInfo  = u'<h1>Expired sessions (%d)</h1>' % len(expiredSessions)
-		expiredSessionInfo += u'<table>'
-		expiredSessionInfo += u'<tr><th>created</th><th>expired</th><th>timed out after</th><th>ip</th><th>user</th><th>user agent</th><th>last rpc method</th></tr>'
-		for expiredSession in expiredSessions:
-			expiredSessionInfo += u'<tr><td>%s</td><td>%s</td><td>%s sec</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
-				% (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['creationTime'])), \
-					time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['expirationTime'])), \
-					expiredSession['exipredAfterSeconds'], expiredSession['ip'], expiredSession['user'], \
-					expiredSession['userAgent'], expiredSession['lastRpcMethod'] )
-		expiredSessionInfo += u'</table>'
-
-		diskUsageInfo  = u'<h1>Disk usage</h1>'
-		diskUsageInfo += u'<table>'
-		diskUsageInfo += u'<tr><th>resource</th><th>path</th><th>capacity</th><th>used</th><th>available</th><th>usage</th></tr>'
-		resources = self.service.config['staticDirectories'].keys()
-		resources.sort()
-		for resource in resources:
-			path = self.service.config['staticDirectories'][resource]['path']
-			if os.path.isdir(path):
-				if not resource.startswith('/'): resource = u'/' + resource
-				info = getDiskSpaceUsage(path)
-				diskUsageInfo += u'<tr><td><a href="%s">%s</a></td><td>%s</td><td>%0.2f GB</td><td>%0.2f GB</td><td>%0.2f GB</td><td>%0.2f %%</td></tr>' \
-					% (resource, resource, path, (float(info['capacity'])/1073741824), (float(info['used'])/1073741824), (float(info['available'])/1073741824), (info['usage']*100))
-		diskUsageInfo += u'</table>'
 
 		average = { 'params': 0.0, 'results': 0.0, 'duration': 0.0, 'failed': 0.0 }
 		maxDuration = { 'duration': 0 }
@@ -244,6 +166,14 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				statisticInfo += u'<tr><td>%s</td><td>%d</td></tr>' % (ipAddress, count)
 		statisticInfo += u'</table>'
 
+		graphs = self.getGraphs()
+		objectInfo = self.getObjectInfo()
+		configInfo = self.getConfigInfo()
+		sessionInfo = self.getSessionInfo()
+		expiredSessionInfo = self.getExpiredSessionInfo()
+		diskUsageInfo = self.getDiskUsageInfo()
+
+		# TODO: add time the page needed to render.
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
 		html = html.replace('%graphs%', graphs)
 		html = html.replace('%object_info%', objectInfo)
@@ -267,6 +197,136 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				maxDepth = int(self.query.split('=')[1])
 			self.service.statistics().createObjectGraph(maxDepth)
 		return result
+
+	def getGraphs(self):
+		graphs = []
+		if self.service.statistics().rrdsAvailable():
+			graphMapping = (
+				('hour', 3600),
+				('day', 3600 * 24),
+				('week', 3600 * 24 * 7),
+				('month', 3600 * 24 * 31),
+				('year', 3600 * 24 * 365),
+			)
+			for (term, duration) in graphMapping:
+				graphs.append(u'<h1>Last {0}</h1>'.format(term))
+				for imageType in (1, 2):
+					graphs.append(u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(imageType, duration)))
+
+		return ''.join(graphs)
+
+	def getObjectInfo(self):
+		objectInfo = [u'<h1>Object info</h1>', u'<table>', u'<tr><th>type</th><th>number</th></tr>']
+		objectInfo.append(u'<tr><td>Depotserver</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver')))
+		objectInfo.append(u'<tr><td>Client</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient')))
+		objectInfo.append(u'<tr><td>Product</td><td>{0}</td></tr>'.format(len(self.service._backend.product_getIdents(returnType='unicode')))
+		objectInfo.append(u'<tr><td>Config</td><td>{0}</td></tr>'.format(len(self.service._backend.config_getIdents(returnType='unicode')))
+		objectInfo.append(u'</table>')
+
+		return ''.join(objectInfo)
+
+	def getConfigInfo(self):
+		configInfo = [u'<h1>Server config</h1>', u'<table>', u'<tr><th>key</th><th>value</th></tr>']
+		for key in sorted(self.service.config.keys()):
+			if key in ('staticDirectories',):
+				continue
+			configInfo.append(u'<tr><td>{0}</td><td>{1}</td></tr>'.format(key, self.service.config[key]))
+		configInfo.append(u'</table>')
+
+		return ''.join(configInfo)
+
+	def getSessionInfo(self):
+		sessions = self.service._getSessionHandler().getSessions()
+		sessionInfo = [u'<h1>Active sessions (%d)</h1>' % len(sessions)]
+		sessionInfo.append(u'<table>')
+		sessionInfo.append(
+			(
+				u'<tr><th>created</th><th>last modified</th><th>validity</th>'
+				u'<th>marked for deletion</th><th>ip</th><th>hostname</th>'
+				u'<th>user</th><th>is host</th><th>usage count</th>'
+				u'<th>application</th><th>last rpc decoded</th>'
+				u'<th>last rpc method</th></tr>'
+			)
+		)
+
+		for session in sessions.values():
+			sessionInfo.append(u'<tr>')
+			sessionValues = (
+				time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created)),
+				time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.lastModified)),
+				session.getValidity(), session.getMarkedForDeletion(),
+				session.ip, session.hostname, session.user, session.isHost,
+				session.usageCount, session.userAgent,
+				session.lastRpcSuccessfullyDecoded, session.lastRpcMethod
+			)
+			for value in sessionValues:
+				sessionInfo.append(u'<td>{0}</td>'.format(value)
+			sessionInfo.append(u'</tr>')
+		sessionInfo.append(u'</table>')
+
+		return ''.join(sessionInfo)
+
+	def getExpiredSessionInfo(self):
+		expiredSessions = self.service.statistics().getExpiredSessionInfo()
+		expiredSessionInfo = [u'<h1>Expired sessions (%d)</h1>' % len(expiredSessions)]
+		expiredSessionInfo.append(u'<table>')
+		expiredSessionInfo.append(
+			(
+				u'<tr><th>created</th><th>expired</th><th>timed out after</th>'
+				u'<th>ip</th><th>user</th><th>user agent</th>'
+				u'<th>last rpc method</th></tr>'
+			)
+		)
+
+		for expiredSession in expiredSessions:
+			values = (
+				time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['creationTime'])),
+				time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['expirationTime'])),
+				'{0} secs'.format(expiredSession['exipredAfterSeconds']),
+				expiredSession['ip'], expiredSession['user'],
+				expiredSession['userAgent'], expiredSession['lastRpcMethod']
+			)
+			expiredSessionInfo.append('')
+			expiredSessionInfo.append(u'<tr>')
+
+			for value in values:
+				expiredSessionInfo.append(u'<td>{0}</td>'.format(value))
+
+			expiredSessionInfo.append(u'</tr>')
+		expiredSessionInfo.append(u'</table>')
+
+		return ''.join(expiredSessionInfo)
+
+	def getDiskUsageInfo(self):
+		diskUsageInfo = [u'<h1>Disk usage</h1>', u'<table>']
+		diskUsageInfo.append(
+			(
+				u'<tr><th>resource</th><th>path</th><th>capacity</th>'
+				u'<th>used</th><th>available</th><th>usage</th></tr>'
+			)
+		)
+
+		for resource in sorted(self.service.config['staticDirectories'].keys()):
+			path = self.service.config['staticDirectories'][resource]['path']
+			if os.path.isdir(path):
+				if not resource.startswith('/'):
+					resource = u'/{0}'.format(resource)
+
+				info = getDiskSpaceUsage(path)
+
+				diskUsageInfo.append(
+					u'<tr><td><a href="{0}">{0}</a></td><td>{1}</td>'
+					u'<td>{2:0.2f} GB</td><td>{3:0.2f} GB</td>'
+					u'<td>{4:0.2f} GB</td><td>{5:0.2f} %</td></tr>'.format(
+						resource, path, (float(info['capacity'])/1073741824),
+						(float(info['used'])/1073741824),
+						(float(info['available'])/1073741824),
+						(info['usage']*100)
+					)
+				)
+		diskUsageInfo.append(u'</table>')
+
+		return ''.join(diskUsageInfo)
 
 
 class ResourceOpsiconfdInfo(ResourceOpsiconfd):

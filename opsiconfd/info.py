@@ -42,14 +42,29 @@ from OPSI.web2 import responsecode, http, stream
 from resources import ResourceOpsiconfd
 from workers import WorkerOpsiconfd
 
-logger = Logger()
+LOGGER = Logger()
 
-infoPage = u'''
+PAGE_TEMPLATE = u'''
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 	<title>opsiconfd info</title>
+	{css}
+</head>
+<body>
+	<span id="title">
+		<img src="/opsi_logo.png" />
+		<span sytle="padding: 1px">opsiconfd info</span>
+	</span>
+	<div id="infos">
+		{content}
+	</div>
+</body>
+</html>
+'''
+
+CSS = """
 	<style>
 	a:link 	  { color: #555555; text-decoration: none; }
 	a:visited { color: #555555; text-decoration: none; }
@@ -64,59 +79,36 @@ infoPage = u'''
 	td, th    { font-size: 12px; border: 1px #6276a0 solid; text-align: left; padding: 2px 10px 2px 10px; }
 	th        { color: #eeeeee; background-color: #6276a0; }
 	</style>
-</head>
-<body>
-	<span id="title">
-		<img src="/opsi_logo.png" />
-		<span sytle="padding: 1px">opsiconfd info</span>
-	</span>
-	<div id="infos">
-		<div id="info">%time%</div>
-		<div id="info">%graphs%</div>
-		<div id="info">%object_info%</div>
-		<div id="info">%config_info%</div>
-		<div id="info">%thread_info%</div>
-		<div id="info">%session_info%</div>
-		<div id="info">%expired_session_info%</div>
-		<div id="info">%disk_usage_info%</div>
-		<div id="info">%rpc_statistic_info%</div>
-	</div>
-</body>
-</html>
-'''
-
+"""
 
 class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 	def __init__(self, service, request, resource):
 		WorkerOpsiconfd.__init__(self, service, request, resource)
 
 	def _generateResponse(self, result):
-		logger.info(u"Creating opsiconfd info page")
+		LOGGER.info(u"Creating opsiconfd info page")
 
 		if not self.session.isAdmin:
 			raise OpsiAuthenticationError(u"Permission denied")
 
 		startTime = time.localtime()
+		content = [
+			info.join(('<div id="info">','</div>')) for info in (
+				time.strftime('%Y-%m-%d %H:%M:%S', startTime),
+				self.getGraphs(),
+				self.getObjectInfo(),
+				self.getConfigInfo(),
+				self.getThreadInfo(),
+				self.getSessionInfo(),
+				self.getExpiredSessionInfo(),
+				self.getDiskUsageInfo(),
+				self.getStatisticsInfo(),
+				'Rendered info page in {0} seconds'.format(time.mktime(time.localtime()) - time.mktime(startTime))
+			)
+		]
 
-		graphs = self.getGraphs()
-		objectInfo = self.getObjectInfo()
-		configInfo = self.getConfigInfo()
-		threadInfo = self.getThreadInfo()
-		sessionInfo = self.getSessionInfo()
-		expiredSessionInfo = self.getExpiredSessionInfo()
-		diskUsageInfo = self.getDiskUsageInfo()
-		statisticInfo = self.getStatisticsInfo()
-
-		# TODO: add time the page needed to render.
-		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', startTime))
-		html = html.replace('%graphs%', graphs)
-		html = html.replace('%object_info%', objectInfo)
-		html = html.replace('%config_info%', configInfo)
-		html = html.replace('%thread_info%', threadInfo)
-		html = html.replace('%session_info%', sessionInfo)
-		html = html.replace('%expired_session_info%', expiredSessionInfo)
-		html = html.replace('%disk_usage_info%', diskUsageInfo)
-		html = html.replace('%rpc_statistic_info%', statisticInfo)
+		html = PAGE_TEMPLATE.format(content='\n'.join(content), css=CSS)
+		LOGGER.debug('Total render time for info page: {0} seconds'.format(time.mktime(time.localtime()) - time.mktime(startTime)))
 
 		if not isinstance(result, http.Response):
 			result = http.Response()

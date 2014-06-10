@@ -118,60 +118,13 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			threadInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (thread.__class__.__name__, threadName, threadIdent, thread.isAlive())
 		threadInfo += u'</table>'
 
-		average = { 'params': 0.0, 'results': 0.0, 'duration': 0.0, 'failed': 0.0 }
-		maxDuration = { 'duration': 0 }
-		statisticInfo  = u'<h1>RPC statistics (last %d)</h1>' % self.service.config['maxExecutionStatisticValues']
-		statisticInfo += u'<table>'
-		statisticInfo += u'<tr><th>method</th><th>params</th><th>results</th><th>duration</th><th>success</th></tr>'
-		rpcs = self.service.statistics().getRpcs()
-		for statistic in sorted(rpcs, key=operator.itemgetter('method')):
-			average['params']   += statistic['params']
-			average['results']  += statistic['results']
-			average['duration'] += statistic['duration']
-			if statistic['failed']: average['failed'] += 1
-			if (statistic['duration'] > maxDuration['duration']):
-				maxDuration['duration'] = statistic['duration']
-				maxDuration['method']   = statistic['method']
-				maxDuration['params']   = statistic['params']
-				maxDuration['results']  = statistic['results']
-				maxDuration['failed']   = statistic['failed']
-			statisticInfo += u'<tr><td>%s</td><td>%d</td><td>%d</td><td>%0.3f s</td><td>%s</td></tr>' \
-					% (statistic['method'], statistic['params'], statistic['results'], statistic['duration'], not statistic['failed'])
-		if rpcs:
-			statisticInfo += u'<tr><td colspan="5" style="border:none; text-align:left">average</td></tr>'
-			statisticInfo += u'<tr><td></td><td>%0.0f</td><td>%0.0f</td><td>%0.3f s</td><td>%0.2f %%</td></tr>' \
-					% (average['params']/len(rpcs), average['results']/len(rpcs), average['duration']/len(rpcs), ((len(rpcs)-average['failed'])/len(rpcs))*100)
-			statisticInfo += u'<tr><td colspan="5" style="border:none; text-align:left">max duration</td></tr>'
-			statisticInfo += u'<tr><td>%s</td><td>%d</td><td>%d</td><td>%0.3f s</td><td>%s</td></tr>' \
-					% (maxDuration['method'], maxDuration['params'], maxDuration['results'], maxDuration['duration'], not maxDuration['failed'])
-		statisticInfo += u'</table>'
-
-		statisticInfo += u'<br />'
-
-		statisticInfo += u'<h1>Encoding error statistics</h1>'
-		statisticInfo += u'<table>'
-		statisticInfo += u'<tr><th>application</th><th>what</th><th>client</th><th>error</th></tr>'
-		for statistic in sorted(self.service.statistics().getEncodingErrors(), key=operator.itemgetter('application')):
-			statisticInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' \
-					% (statistic['application'], statistic['what'], statistic['client'], statistic['error'])
-		statisticInfo += u'</table>'
-
-		statisticInfo += u'<br />'
-
-		statisticInfo += u'<h1>Authentication failures</h1>'
-		statisticInfo += u'<table>'
-		statisticInfo += u'<tr><th>ip address</th><th>count</th></tr>'
-		for (ipAddress, count) in self.service.authFailureCount.items():
-			if (count > self.service.config['maxAuthenticationFailures']):
-				statisticInfo += u'<tr><td>%s</td><td>%d</td></tr>' % (ipAddress, count)
-		statisticInfo += u'</table>'
-
 		graphs = self.getGraphs()
 		objectInfo = self.getObjectInfo()
 		configInfo = self.getConfigInfo()
 		sessionInfo = self.getSessionInfo()
 		expiredSessionInfo = self.getExpiredSessionInfo()
 		diskUsageInfo = self.getDiskUsageInfo()
+		statisticInfo = self.getStatisticsInfo()
 
 		# TODO: add time the page needed to render.
 		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
@@ -327,6 +280,95 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		diskUsageInfo.append(u'</table>')
 
 		return ''.join(diskUsageInfo)
+
+	def getStatisticsInfo(self):
+		statisticInfo = [u'<h1>RPC statistics (last {0:d})</h1>'.format(self.service.config['maxExecutionStatisticValues'])]
+		statisticInfo.append(u'<table>')
+		statisticInfo.append(u'<tr><th>method</th><th>params</th><th>results</th><th>duration</th><th>success</th></tr>')
+		rpcs = self.service.statistics().getRpcs()
+		if rpcs:
+			average = {
+				'params': 0,
+				'results': 0,
+				'duration': 0.0,
+				'failed': 0
+			}
+			maxDuration = {'duration': 0}
+
+			for statistic in sorted(rpcs, key=operator.itemgetter('method')):
+				for key in ('params', 'results', 'duration'):
+					average[key] += statistic[key]
+
+				if statistic['failed']:
+					average['failed'] += 1
+
+				if statistic['duration'] > maxDuration['duration']:
+					for key in  ('duration', 'method', 'params', 'results', 'failed'):
+						maxDuration[key] = statistic[key]
+
+				statisticInfo.append(
+					u'<tr><td>{0}</td><td>{1:d}</td><td>{2:d}</td>'
+					u'<td>{3:0.3f} s</td><td>{4}</td></tr>'.format(
+						statistic['method'],
+						statistic['params'],
+						statistic['results'],
+						statistic['duration'],
+						not statistic['failed']
+					)
+				)
+
+			overallResults = len(rpcs)
+			statisticInfo.append(u'<tr><td colspan="5" style="border:none; text-align:left">average</td></tr>')
+			statisticInfo.append(
+				u'<tr><td></td><td>{0:0.0f}</td><td>{1:0.0f}</td>'
+				u'<td>{2:0.3f} s</td><td>{3:0.2f} %</td></tr>'.format(
+					average['params'] / overallResults,
+					average['results'] / overallResults,
+					average['duration'] / overallResults,
+					((overallResults - average['failed']) / overallResults) * 100
+				)
+			)
+			statisticInfo.append(u'<tr><td colspan="5" style="border:none; text-align:left">max duration</td></tr>')
+			statisticInfo.append(
+				u'<tr><td>{0}</td><td>{1:d}</td><td>{2:d}</td>'
+				u'<td>{3:0.3f} s</td><td>{4}</td></tr>'.format(
+					maxDuration['method'],
+					maxDuration['params'],
+					maxDuration['results'],
+					maxDuration['duration'],
+					not maxDuration['failed']
+				)
+			)
+		statisticInfo.append(u'</table>')
+
+		statisticInfo.append(u'<br />')
+		statisticInfo.append(self.getEncodingErrorStatistics())
+		statisticInfo.append(u'<br />')
+		statisticInfo.append(self.getAuthenticationFailures())
+
+		return ''.join(statisticInfo)
+
+	def getEncodingErrorStatistics(self):
+		statisticInfo = [u'<h1>Encoding error statistics</h1>', u'<table>']
+		statisticInfo.append(u'<tr><th>application</th><th>what</th><th>client</th><th>error</th></tr>')
+		for statistic in sorted(self.service.statistics().getEncodingErrors(), key=operator.itemgetter('application')):
+			statisticInfo.append(u'<tr>')
+			for key in ('application', 'what', 'client', 'error'):
+				statisticInfo.append(u'<td>{0}</td>'.format(statistic[key]))
+			statisticInfo.append(u'</tr>')
+		statisticInfo.append(u'</table>')
+
+		return ''.join(statisticInfo)
+
+	def getAuthenticationFailures(self):
+		statisticInfo = [u'<h1>Authentication failures</h1>', u'<table>']
+		statisticInfo.append(u'<tr><th>ip address</th><th>count</th></tr>')
+		for (ipAddress, count) in self.service.authFailureCount.items():
+			if count > self.service.config['maxAuthenticationFailures']:
+				statisticInfo.append(u'<tr><td>{0}</td><td>{1}</td></tr>'.format(ipAddress, count))
+		statisticInfo.append(u'</table>')
+
+		return ''.join(statisticInfo)
 
 
 class ResourceOpsiconfdInfo(ResourceOpsiconfd):

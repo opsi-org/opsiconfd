@@ -98,36 +98,19 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		if not self.session.isAdmin:
 			raise OpsiAuthenticationError(u"Permission denied")
 
-		threads = []
-		for thread in threading.enumerate():
-			threads.append(thread)
-		threadInfo  = u'<h1>Running threads (%d)</h1>' % len(threads)
-		threadInfo += u'<table>'
-		threadInfo += u'<tr><th>class</th><th>name</th><th>ident</th><th>alive</th></tr>'
-		for thread in threads:
-			threadName = u''
-			try:
-				threadName = thread.name
-			except:
-				pass
-			threadIdent = u''
-			try:
-				threadIdent = thread.ident
-			except:
-				pass
-			threadInfo += u'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>' % (thread.__class__.__name__, threadName, threadIdent, thread.isAlive())
-		threadInfo += u'</table>'
+		startTime = time.localtime()
 
 		graphs = self.getGraphs()
 		objectInfo = self.getObjectInfo()
 		configInfo = self.getConfigInfo()
+		threadInfo = self.getThreadInfo()
 		sessionInfo = self.getSessionInfo()
 		expiredSessionInfo = self.getExpiredSessionInfo()
 		diskUsageInfo = self.getDiskUsageInfo()
 		statisticInfo = self.getStatisticsInfo()
 
 		# TODO: add time the page needed to render.
-		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+		html = infoPage.replace('%time%', time.strftime('%Y-%m-%d %H:%M:%S', startTime))
 		html = html.replace('%graphs%', graphs)
 		html = html.replace('%object_info%', objectInfo)
 		html = html.replace('%config_info%', configInfo)
@@ -187,6 +170,29 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		configInfo.append(u'</table>')
 
 		return ''.join(configInfo)
+
+	def getThreadInfo(self):
+		threads = [thread for thread in threading.enumerate()]
+
+		threadInfo = [u'<h1>Running threads ({0:d})</h1>'.format(len(threads))]
+		threadInfo.append(u'<table>')
+		threadInfo.append(u'<tr><th>class</th><th>name</th><th>ident</th><th>alive</th></tr>')
+		for thread in threads:
+			try:
+				threadName = thread.name
+			except Exception:
+				threadName = u''
+
+			try:
+				threadIdent = thread.ident
+			except Exception:
+				threadIdent = u''
+			threadInfo.append(
+				u'<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td></tr>'.format(thread.__class__.__name__, threadName, threadIdent, thread.isAlive())
+			)
+		threadInfo.append(u'</table>')
+
+		return ''.join(threadInfo)
 
 	def getSessionInfo(self):
 		sessions = self.service._getSessionHandler().getSessions()

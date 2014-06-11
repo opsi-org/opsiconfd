@@ -100,7 +100,7 @@ class Statistics(object):
 		return bool(rrdtool)
 
 	def createObjectGraph(self, maxDepth):
-		if objgraph:
+		if objgraph is not None:
 			path = os.getcwd()
 			try:
 				os.chdir('/tmp')
@@ -109,8 +109,9 @@ class Statistics(object):
 				os.chdir(path)
 
 	def createRrd(self):
-		if not rrdtool:
+		if rrdtool is None:
 			return
+
 		if os.path.exists(self._rrdConfig['rrdFile']):
 			os.unlink(self._rrdConfig['rrdFile'])
 
@@ -187,17 +188,20 @@ class Statistics(object):
 			return result
 
 	def updateRrd(self):
-		if not rrdtool:
+		if rrdtool is None:
 			return
+
 		try:
 			now = int(time.time())
 			last = self._last
 			self._last = now
 			(utime, stime, maxrss) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
+
 			if int(utime - self._utime) == 0:
 				usr = 0.0
 			else:
 				usr = (utime - self._utime)/(now - last)
+
 			if int(stime - self._stime) == 0:
 				sys = 0.0
 			else:
@@ -225,7 +229,7 @@ class Statistics(object):
 			logger.error(u"Failed to update rrd: %s" % e)
 
 	def getRrdGraphImage(self, type, range):
-		if not rrdtool:
+		if rrdtool is None:
 			return None
 
 		if (type == 1):

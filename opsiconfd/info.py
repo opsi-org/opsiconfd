@@ -167,7 +167,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 
 		threadInfo = [u'<h1>Running threads ({0:d})</h1>'.format(len(threads))]
 		threadInfo.append(u'<table>')
-		threadInfo.append(self.getTableHeader('class', 'name', 'ident', 'alive', 'additional information'))
+		threadInfo.append(self.createTableHeader('class', 'name', 'ident', 'alive', 'additional information'))
 		for thread in threads:
 			try:
 				threadName = thread.name
@@ -201,7 +201,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return ''.join(threadInfo)
 
 	@staticmethod
-	def getTableHeader(*header):
+	def createTableHeader(*header):
 		headerline = [u'<tr>']
 		for term in header:
 			headerline.append(term.join((u'<th>', u'</th>')))
@@ -214,12 +214,10 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		sessionInfo = [u'<h1>Active sessions (%d)</h1>' % len(sessions)]
 		sessionInfo.append(u'<table>')
 		sessionInfo.append(
-			(
-				u'<tr><th>created</th><th>last modified</th><th>validity</th>'
-				u'<th>marked for deletion</th><th>ip</th><th>hostname</th>'
-				u'<th>user</th><th>is host</th><th>usage count</th>'
-				u'<th>application</th><th>last rpc decoded</th>'
-				u'<th>last rpc method</th></tr>'
+			self.createTableHeader(
+				'created', 'last modified', 'validity', 'marked for deletion',
+				'ip', 'hostname', 'user', 'is host', 'usage count',
+				'application', 'last rpc decoded', 'last rpc method'
 			)
 		)
 
@@ -245,10 +243,9 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		expiredSessionInfo = [u'<h1>Expired sessions (%d)</h1>' % len(expiredSessions)]
 		expiredSessionInfo.append(u'<table>')
 		expiredSessionInfo.append(
-			(
-				u'<tr><th>created</th><th>expired</th><th>timed out after</th>'
-				u'<th>ip</th><th>user</th><th>user agent</th>'
-				u'<th>last rpc method</th></tr>'
+			self.createTableHeader(
+				'created', 'expired', 'timed out after', 'ip', 'user',
+				'user agent', 'last rpc method'
 			)
 		)
 
@@ -274,9 +271,8 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 	def getDiskUsageInfo(self):
 		diskUsageInfo = [u'<h1>Disk usage</h1>', u'<table>']
 		diskUsageInfo.append(
-			(
-				u'<tr><th>resource</th><th>path</th><th>capacity</th>'
-				u'<th>used</th><th>available</th><th>usage</th></tr>'
+			self.createTableHeader(
+				'resource', 'path', 'capacity', 'used', 'available', 'usage'
 			)
 		)
 
@@ -305,7 +301,11 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 	def getStatisticsInfo(self):
 		statisticInfo = [u'<h1>RPC statistics (last {0:d})</h1>'.format(self.service.config['maxExecutionStatisticValues'])]
 		statisticInfo.append(u'<table>')
-		statisticInfo.append(u'<tr><th>method</th><th>params</th><th>results</th><th>duration</th><th>success</th></tr>')
+		statisticInfo.append(
+			self.createTableHeader(
+				'method', 'params', 'results', 'duration', 'success'
+			)
+		)
 		rpcs = self.service.statistics().getRpcs()
 		if rpcs:
 			average = {
@@ -371,7 +371,9 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 
 	def getEncodingErrorStatistics(self):
 		statisticInfo = [u'<h1>Encoding error statistics</h1>', u'<table>']
-		statisticInfo.append(u'<tr><th>application</th><th>what</th><th>client</th><th>error</th></tr>')
+		statisticInfo.append(
+			self.createTableHeader('application', 'what', 'client', 'error')
+		)
 		for statistic in sorted(self.service.statistics().getEncodingErrors(), key=operator.itemgetter('application')):
 			statisticInfo.append(u'<tr>')
 			for key in ('application', 'what', 'client', 'error'):
@@ -383,7 +385,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 
 	def getAuthenticationFailures(self):
 		statisticInfo = [u'<h1>Authentication failures</h1>', u'<table>']
-		statisticInfo.append(u'<tr><th>ip address</th><th>count</th></tr>')
+		statisticInfo.append(self.createTableHeader('ip address', 'count'))
 		for (ipAddress, count) in self.service.authFailureCount.items():
 			if count > self.service.config['maxAuthenticationFailures']:
 				statisticInfo.append(u'<tr><td>{0}</td><td>{1}</td></tr>'.format(ipAddress, count))

@@ -64,7 +64,7 @@ PAGE_TEMPLATE = u'''
 </html>
 '''
 
-CSS = """
+CSS = """\
 	<style>
 	a:link 	  { color: #555555; text-decoration: none; }
 	a:visited { color: #555555; text-decoration: none; }
@@ -78,7 +78,7 @@ CSS = """
 	table     { table-layout: auto; background-color: #fafafa; }
 	td, th    { font-size: 12px; border: 1px #6276a0 solid; text-align: left; padding: 2px 10px 2px 10px; }
 	th        { color: #eeeeee; background-color: #6276a0; }
-	</style>
+	</style>\
 """
 
 
@@ -145,13 +145,31 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 	def getObjectInfo(self):
 		objectInfo = [u'<h1>Object info</h1>', u'<table>']
 		objectInfo.append(self.createTableHeader('type', 'number'))
-		objectInfo.append(u'<tr><td>Depotserver</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver'))))
-		objectInfo.append(u'<tr><td>Client</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient'))))
-		objectInfo.append(u'<tr><td>Product</td><td>{0}</td></tr>'.format(len(self.service._backend.product_getIdents(returnType='unicode'))))
-		objectInfo.append(u'<tr><td>Config</td><td>{0}</td></tr>'.format(len(self.service._backend.config_getIdents(returnType='unicode'))))
+		objectInfo.append(self.createTableRow('Depotserver', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver'))))
+		objectInfo.append(self.createTableRow('Client', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient'))))
+		objectInfo.append(self.createTableRow('Product', len(self.service._backend.product_getIdents(returnType='unicode'))))
+		objectInfo.append(self.createTableRow('Config', len(self.service._backend.config_getIdents(returnType='unicode'))))
 		objectInfo.append(u'</table>')
 
 		return ''.join(objectInfo)
+
+	@staticmethod
+	def createTableHeader(*header):
+		headerline = [u'<tr>']
+		for term in header:
+			headerline.append(term.join((u'<th>', u'</th>')))
+
+		headerline.append(u'</tr>')
+		return ''.join(headerline)
+
+	@staticmethod
+	def createTableRow(*values):
+		row = [u'<tr>']
+		for value in values:
+			row.append(u'<td>{0}</td>'.format(value))
+		row.append(u'</tr>')
+
+		return ''.join(row)
 
 	def getConfigInfo(self):
 		configInfo = [u'<h1>Server config</h1>', u'<table>']
@@ -159,7 +177,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		for key in sorted(self.service.config.keys()):
 			if key in ('staticDirectories',):
 				continue
-			configInfo.append(u'<tr><td>{0}</td><td>{1}</td></tr>'.format(key, self.service.config[key]))
+			configInfo.append(self.createTableRow(key, self.service.config[key]))
 		configInfo.append(u'</table>')
 
 		return ''.join(configInfo)
@@ -196,20 +214,14 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			additionalInfo = ', '.join(additionalInfo)
 
 			threadInfo.append(
-				u'<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td><td>{4}</td></tr>'.format(thread.__class__.__name__, threadName, threadIdent, thread.isAlive(), additionalInfo)
+				self.createTableRow(
+					thread.__class__.__name__, threadName, threadIdent,
+					thread.isAlive(), additionalInfo
+				)
 			)
 		threadInfo.append(u'</table>')
 
 		return ''.join(threadInfo)
-
-	@staticmethod
-	def createTableHeader(*header):
-		headerline = [u'<tr>']
-		for term in header:
-			headerline.append(term.join((u'<th>', u'</th>')))
-
-		headerline.append(u'</tr>')
-		return ''.join(headerline)
 
 	def getSessionInfo(self):
 		sessions = self.service._getSessionHandler().getSessions()
@@ -224,18 +236,16 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		)
 
 		for session in sessions.values():
-			sessionInfo.append(u'<tr>')
-			sessionValues = (
-				time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created)),
-				time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.lastModified)),
-				session.getValidity(), session.getMarkedForDeletion(),
-				session.ip, session.hostname, session.user, session.isHost,
-				session.usageCount, session.userAgent,
-				session.lastRpcSuccessfullyDecoded, session.lastRpcMethod
+			sessionInfo.append(
+				self.createTableRow(
+					time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.created)),
+					time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(session.lastModified)),
+					session.getValidity(), session.getMarkedForDeletion(),
+					session.ip, session.hostname, session.user, session.isHost,
+					session.usageCount, session.userAgent,
+					session.lastRpcSuccessfullyDecoded, session.lastRpcMethod
+				)
 			)
-			for value in sessionValues:
-				sessionInfo.append(u'<td>{0}</td>'.format(value))
-			sessionInfo.append(u'</tr>')
 		sessionInfo.append(u'</table>')
 
 		return ''.join(sessionInfo)
@@ -252,20 +262,17 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		)
 
 		for expiredSession in expiredSessions:
-			values = (
-				time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['creationTime'])),
-				time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['expirationTime'])),
-				'{0} secs'.format(expiredSession['exipredAfterSeconds']),
-				expiredSession['ip'], expiredSession['user'],
-				expiredSession['userAgent'], expiredSession['lastRpcMethod']
+			expiredSessionInfo.append(
+				self.createTableRow(
+					time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['creationTime'])),
+					time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(expiredSession['expirationTime'])),
+					'{0} secs'.format(expiredSession['exipredAfterSeconds']),
+					expiredSession['ip'],
+					expiredSession['user'],
+					expiredSession['userAgent'],
+					expiredSession['lastRpcMethod']
+				)
 			)
-			expiredSessionInfo.append('')
-			expiredSessionInfo.append(u'<tr>')
-
-			for value in values:
-				expiredSessionInfo.append(u'<td>{0}</td>'.format(value))
-
-			expiredSessionInfo.append(u'</tr>')
 		expiredSessionInfo.append(u'</table>')
 
 		return ''.join(expiredSessionInfo)
@@ -287,13 +294,13 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				info = getDiskSpaceUsage(path)
 
 				diskUsageInfo.append(
-					u'<tr><td><a href="{0}">{0}</a></td><td>{1}</td>'
-					u'<td>{2:0.2f} GB</td><td>{3:0.2f} GB</td>'
-					u'<td>{4:0.2f} GB</td><td>{5:0.2f} %</td></tr>'.format(
-						resource, path, (float(info['capacity']) / 1073741824),
-						(float(info['used']) / 1073741824),
-						(float(info['available']) / 1073741824),
-						(info['usage'] * 100)
+					self.createTableRow(
+						u'<a href="{0}">{0}</a>'.format(resource),
+						path,
+						u'{0:0.2f} GB'.format(float(info['capacity']) / 1073741824),
+						u'{0:0.2f} GB'.format(float(info['used']) / 1073741824),
+						u'{0:0.2f} GB'.format(float(info['available']) / 1073741824),
+						u'{0:0.2f} %'.format(info['usage'] * 100),
 					)
 				)
 		diskUsageInfo.append(u'</table>')
@@ -330,12 +337,11 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 						maxDuration[key] = statistic[key]
 
 				statisticInfo.append(
-					u'<tr><td>{0}</td><td>{1:d}</td><td>{2:d}</td>'
-					u'<td>{3:0.3f} s</td><td>{4}</td></tr>'.format(
+					self.createTableRow(
 						statistic['method'],
 						statistic['params'],
 						statistic['results'],
-						statistic['duration'],
+						'{0:0.3f} s'.format(statistic['duration']),
 						not statistic['failed']
 					)
 				)
@@ -343,22 +349,20 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			overallResults = len(rpcs)
 			statisticInfo.append(u'<tr><td colspan="5" style="border:none; text-align:left">average</td></tr>')
 			statisticInfo.append(
-				u'<tr><td></td><td>{0:0.0f}</td><td>{1:0.0f}</td>'
-				u'<td>{2:0.3f} s</td><td>{3:0.2f} %</td></tr>'.format(
-					average['params'] / overallResults,
-					average['results'] / overallResults,
-					average['duration'] / overallResults,
-					((overallResults - average['failed']) / overallResults) * 100
+				self.createTableRow(
+					'{0:0.0f}'.format(average['params'] / overallResults),
+					'{0:0.0f}'.format(average['results'] / overallResults),
+					'{0:0.3f} s'.format(average['duration'] / overallResults),
+					'{0:0.2f} %'.format(((overallResults - average['failed']) / overallResults) * 100)
 				)
 			)
 			statisticInfo.append(u'<tr><td colspan="5" style="border:none; text-align:left">max duration</td></tr>')
 			statisticInfo.append(
-				u'<tr><td>{0}</td><td>{1:d}</td><td>{2:d}</td>'
-				u'<td>{3:0.3f} s</td><td>{4}</td></tr>'.format(
+				self.createTableRow(
 					maxDuration['method'],
 					maxDuration['params'],
 					maxDuration['results'],
-					maxDuration['duration'],
+					'{0:0.3f} s'.format(maxDuration['duration']),
 					not maxDuration['failed']
 				)
 			)
@@ -376,11 +380,14 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		statisticInfo.append(
 			self.createTableHeader('application', 'what', 'client', 'error')
 		)
+		wantedKeys = ('application', 'what', 'client', 'error')
 		for statistic in sorted(self.service.statistics().getEncodingErrors(), key=operator.itemgetter('application')):
-			statisticInfo.append(u'<tr>')
-			for key in ('application', 'what', 'client', 'error'):
-				statisticInfo.append(u'<td>{0}</td>'.format(statistic[key]))
-			statisticInfo.append(u'</tr>')
+			statisticInfo.append(
+				self.createTableRow(
+					*[statistic[key] for key in wantedKeys]
+				)
+			)
+
 		statisticInfo.append(u'</table>')
 
 		return ''.join(statisticInfo)
@@ -390,7 +397,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		statisticInfo.append(self.createTableHeader('ip address', 'count'))
 		for (ipAddress, count) in self.service.authFailureCount.items():
 			if count > self.service.config['maxAuthenticationFailures']:
-				statisticInfo.append(u'<tr><td>{0}</td><td>{1}</td></tr>'.format(ipAddress, count))
+				statisticInfo.append(self.createTableRow(ipAddress, count))
 		statisticInfo.append(u'</table>')
 
 		return ''.join(statisticInfo)

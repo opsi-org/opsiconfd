@@ -143,7 +143,8 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return ''.join(graphs)
 
 	def getObjectInfo(self):
-		objectInfo = [u'<h1>Object info</h1>', u'<table>', u'<tr><th>type</th><th>number</th></tr>']
+		objectInfo = [u'<h1>Object info</h1>', u'<table>']
+		objectInfo.append(self.createTableHeader('type', 'number'))
 		objectInfo.append(u'<tr><td>Depotserver</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver'))))
 		objectInfo.append(u'<tr><td>Client</td><td>{0}</td></tr>'.format(len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient'))))
 		objectInfo.append(u'<tr><td>Product</td><td>{0}</td></tr>'.format(len(self.service._backend.product_getIdents(returnType='unicode'))))
@@ -153,7 +154,8 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return ''.join(objectInfo)
 
 	def getConfigInfo(self):
-		configInfo = [u'<h1>Server config</h1>', u'<table>', u'<tr><th>key</th><th>value</th></tr>']
+		configInfo = [u'<h1>Server config</h1>', u'<table>']
+		configInfo.append(self.createTableHeader('key', 'value'))
 		for key in sorted(self.service.config.keys()):
 			if key in ('staticDirectories',):
 				continue

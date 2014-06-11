@@ -179,13 +179,11 @@ class Statistics(object):
 			result["cpu"] = cpu
 			result["virtmem"] = virtMem
 			result["threads"] = len(threads)
-
-			return result
-
 		except Exception as e:
 			logger.logException(e)
 			logger.error(u"Failed to get Statistics: %s" % e)
-			return result
+
+		return result
 
 	def updateRrd(self):
 		if rrdtool is None:

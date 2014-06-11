@@ -104,9 +104,9 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				self.getExpiredSessionInfo(),
 				self.getDiskUsageInfo(),
 				self.getStatisticsInfo(),
-				'Rendered info page in {0} seconds'.format(time.mktime(time.localtime()) - time.mktime(startTime))
 			)
 		]
+		content.append('<!-- Rendered info page in {0} seconds -->'.format(time.mktime(time.localtime()) - time.mktime(startTime)))
 
 		html = PAGE_TEMPLATE.format(content='\n'.join(content), css=CSS)
 		LOGGER.debug('Total render time for info page: {0} seconds'.format(time.mktime(time.localtime()) - time.mktime(startTime)))

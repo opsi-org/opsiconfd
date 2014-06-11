@@ -168,9 +168,8 @@ class Statistics(object):
 				cpu = 100
 
 			#threads
-			threads = []
-			for thread in threading.enumerate():
-				threads.append(thread)
+			threads = [thread for thread in threading.enumerate()]
+
 			#build result-Hash
 			result["requests"] = self._rrdCache['requests']
 			result["sessions"] = self._rrdCache['sessions']
@@ -214,10 +213,9 @@ class Statistics(object):
 			f.close()
 			virtMem = int("%0.0f" % (float(data[22])/(1024*1024)))
 			cpu = int("%0.0f" % ((usr + sys) * 100))
-			if (cpu > 100): cpu = 100
-			threads = []
-			for thread in threading.enumerate():
-				threads.append(thread)
+			if cpu > 100:
+				cpu = 100
+			threads = [thread for thread in threading.enumerate()]
 			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d:%d:%d:%d:%d' \
 				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu, virtMem, len(threads)))
 			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d:%d:%d:%d:%d' \

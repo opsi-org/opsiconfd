@@ -167,7 +167,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 
 		threadInfo = [u'<h1>Running threads ({0:d})</h1>'.format(len(threads))]
 		threadInfo.append(u'<table>')
-		threadInfo.append(u'<tr><th>class</th><th>name</th><th>ident</th><th>alive</th></tr>')
+		threadInfo.append(self.getTableHeader('class', 'name', 'ident', 'alive', 'additional information'))
 		for thread in threads:
 			try:
 				threadName = thread.name
@@ -178,12 +178,36 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				threadIdent = thread.ident
 			except Exception:
 				threadIdent = u''
+
+			additionalInfo = []
+			try:
+				additionalInfo.append('Started at: {0}'.format(thread.started))
+				additionalInfo.append('Ended at: {0}'.format(thread.ended))
+			except AttributeError:
+				pass
+
+			try:
+				additionalInfo.append('Method: {0}'.format(thread.method))
+				additionalInfo.append('Parameters: {0}'.format(thread.params))
+			except AttributeError:
+				pass
+			additionalInfo = ', '.join(additionalInfo)
+
 			threadInfo.append(
-				u'<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td></tr>'.format(thread.__class__.__name__, threadName, threadIdent, thread.isAlive())
+				u'<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3}</td><td>{4}</td></tr>'.format(thread.__class__.__name__, threadName, threadIdent, thread.isAlive(), additionalInfo)
 			)
 		threadInfo.append(u'</table>')
 
 		return ''.join(threadInfo)
+
+	@staticmethod
+	def getTableHeader(*header):
+		headerline = [u'<tr>']
+		for term in header:
+			headerline.append(term.join((u'<th>', u'</th>')))
+
+		headerline.append(u'</tr>')
+		return ''.join(headerline)
 
 	def getSessionInfo(self):
 		sessions = self.service._getSessionHandler().getSessions()

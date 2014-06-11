@@ -60,10 +60,10 @@ class ResourceOpsiconfdStatistics(resource.Resource):
 
 	def renderHTTP(self, request):
 		''' Process request. '''
-		resp = ''
+		resp = []
 		for (k, v) in self._opsiconfd.statistics().getStatistics().items():
-			resp += '%s:%s\n' % (k, v)
-		return http.Response(stream=resp)
+			resp.append('%s:%s\n' % (k, v))
+		return http.Response(stream=''.join(resp))
 
 
 class Statistics(object):

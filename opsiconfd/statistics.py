@@ -77,13 +77,19 @@ class Statistics(object):
 		self._stime = 0.0
 		self._last = time.time()
 		self._rrdConfig = {
-			'step':              60,
-			'heartbeat':        120,
-			'xPoints':          800,
-			'yPoints':          160,
-			'rrdFile':          os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
+			'step': 60,
+			'heartbeat': 120,
+			'xPoints': 800,
+			'yPoints': 160,
+			'rrdFile': os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
 		}
-		self._rrdCache = { 'requests': 0, 'sessions': 0, 'davrequests': 0, 'rpcs': 0, 'rpcerrors': 0 }
+		self._rrdCache = {
+			'requests': 0,
+			'sessions': 0,
+			'davrequests': 0,
+			'rpcs': 0,
+			'rpcerrors': 0
+		}
 
 		if not os.path.exists(self._rrdConfig['rrdFile']):
 			self.createRrd()
@@ -112,24 +118,24 @@ class Statistics(object):
 		logger.notice(u"Creating rrd '%s', start: %s" % (self._rrdConfig['rrdFile'], start))
 
 		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(start), '--step', str(self._rrdConfig['step']),
-			'DS:requests:ABSOLUTE:%d:0:U'    % self._rrdConfig['heartbeat'],
-			'DS:sessions:DERIVE:%d:0:U'      % self._rrdConfig['heartbeat'],
+			'DS:requests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:sessions:DERIVE:%d:0:U' % self._rrdConfig['heartbeat'],
 			'DS:davrequests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:rpcs:ABSOLUTE:%d:0:U'        % self._rrdConfig['heartbeat'],
-			'DS:rpcerrors:ABSOLUTE:%d:0:U'   % self._rrdConfig['heartbeat'],
-			'DS:cpu:GAUGE:%d:0:U'            % self._rrdConfig['heartbeat'],
-			'DS:mem:GAUGE:%d:0:U'            % self._rrdConfig['heartbeat'],
-			'DS:threads:GAUGE:%d:0:U'        % self._rrdConfig['heartbeat'],
-			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])),    # hour
-			'RRA:AVERAGE:0.5:%d:%d' % (1,   (3600/self._rrdConfig['step'])*24), # day
-			'RRA:AVERAGE:0.5:%d:%d' % (7,   (3600/self._rrdConfig['step'])*24), # week
-			'RRA:AVERAGE:0.5:%d:%d' % (31,  (3600/self._rrdConfig['step'])*24), # month
+			'DS:rpcs:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:rpcerrors:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:cpu:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:mem:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:threads:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'RRA:AVERAGE:0.5:%d:%d' % (1, (3600/self._rrdConfig['step'])),    # hour
+			'RRA:AVERAGE:0.5:%d:%d' % (1, (3600/self._rrdConfig['step'])*24), # day
+			'RRA:AVERAGE:0.5:%d:%d' % (7, (3600/self._rrdConfig['step'])*24), # week
+			'RRA:AVERAGE:0.5:%d:%d' % (31, (3600/self._rrdConfig['step'])*24), # month
 			'RRA:AVERAGE:0.5:%d:%d' % (365, (3600/self._rrdConfig['step'])*24), # year
-			'RRA:MAX:0.5:%d:%d'     % (1,   (3600/self._rrdConfig['step'])),    # hour
-			'RRA:MAX:0.5:%d:%d'     % (1,   (3600/self._rrdConfig['step'])*24), # day
-			'RRA:MAX:0.5:%d:%d'     % (7,   (3600/self._rrdConfig['step'])*24), # week
-			'RRA:MAX:0.5:%d:%d'     % (31,  (3600/self._rrdConfig['step'])*24), # month
-			'RRA:MAX:0.5:%d:%d'     % (365, (3600/self._rrdConfig['step'])*24), # year
+			'RRA:MAX:0.5:%d:%d' % (1, (3600/self._rrdConfig['step'])),    # hour
+			'RRA:MAX:0.5:%d:%d' % (1, (3600/self._rrdConfig['step'])*24), # day
+			'RRA:MAX:0.5:%d:%d' % (7, (3600/self._rrdConfig['step'])*24), # week
+			'RRA:MAX:0.5:%d:%d' % (31, (3600/self._rrdConfig['step'])*24), # month
+			'RRA:MAX:0.5:%d:%d' % (365, (3600/self._rrdConfig['step'])*24), # year
 		)
 
 	def getStatistics(self):
@@ -237,23 +243,23 @@ class Statistics(object):
 		if os.path.exists(graphImage):
 			os.unlink(graphImage)
 
-		if (type == 1):
+		if type == 1:
 			rrdtool.graph(str(graphImage),
-				'--imgformat',      'PNG',
-				'--width',          str(self._rrdConfig['xPoints']),
-				'--height',         str(self._rrdConfig['yPoints']),
-				'--start',          str(start),
-				'--end',            str(end),
+				'--imgformat', 'PNG',
+				'--width', str(self._rrdConfig['xPoints']),
+				'--height', str(self._rrdConfig['yPoints']),
+				'--start', str(start),
+				'--end', str(end),
 				'--vertical-label', 'avg per minute',
-				'--lower-limit',    str(0),
+				'--lower-limit', str(0),
 				'--units-exponent', str(0), # don't show milli-messages/s
 				'--slope-mode',
-				'--color',          'SHADEA#ffffff',
-				'--color',          'SHADEB#ffffff',
-				'--color',          'BACK#ffffff',
+				'--color', 'SHADEA#ffffff',
+				'--color', 'SHADEB#ffffff',
+				'--color', 'BACK#ffffff',
 
 				'DEF:avg_requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_requ=%s:requests:MAX'     % str(self._rrdConfig['rrdFile']),
+				'DEF:max_requ=%s:requests:MAX' % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_requ_permin=avg_requ,60,*',
 				'CDEF:max_requ_permin=max_requ,60,*',
 				'VDEF:total_requ=avg_requ,TOTAL',
@@ -263,7 +269,7 @@ class Statistics(object):
 				'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
 
 				'DEF:avg_davrequ=%s:davrequests:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_davrequ=%s:davrequests:MAX'     % str(self._rrdConfig['rrdFile']),
+				'DEF:max_davrequ=%s:davrequests:MAX' % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_davrequ_permin=avg_davrequ,60,*',
 				'CDEF:max_davrequ_permin=max_davrequ,60,*',
 				'VDEF:total_davrequ=avg_davrequ,TOTAL',
@@ -273,7 +279,7 @@ class Statistics(object):
 				'GPRINT:max_davrequ_permin:MAX:max\: %4.0lf dav requests/min\\l',
 
 				'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_rpc=%s:rpcs:MAX'     % str(self._rrdConfig['rrdFile']),
+				'DEF:max_rpc=%s:rpcs:MAX' % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_rpc_permin=avg_rpc,60,*',
 				'CDEF:max_rpc_permin=max_rpc,60,*',
 				'VDEF:total_rpc=avg_rpc,TOTAL',
@@ -283,7 +289,7 @@ class Statistics(object):
 				'GPRINT:max_rpc_permin:MAX:max\: %4.0lf rpcs/min\\l',
 
 				'DEF:avg_rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_rpcerror=%s:rpcerrors:MAX'     % str(self._rrdConfig['rrdFile']),
+				'DEF:max_rpcerror=%s:rpcerrors:MAX' % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_rpcerror_permin=avg_rpcerror,60,*',
 				'CDEF:max_rpcerror_permin=max_rpcerror,60,*',
 				'VDEF:total_rpcerror=avg_rpcerror,TOTAL',
@@ -296,28 +302,28 @@ class Statistics(object):
 			)
 		else:
 			rrdtool.graph(str(graphImage),
-				'--imgformat',        'PNG',
-				'--width',            str(self._rrdConfig['xPoints']),
-				'--height',           str(self._rrdConfig['yPoints']),
-				'--start',            str(start),
-				'--end',              str(end),
-				'--vertical-label',   '% / num / MByte*0.1',
-				'--lower-limit',      str(0),
-				'--units-exponent',   str(0), # don't show milli-messages/s
+				'--imgformat', 'PNG',
+				'--width', str(self._rrdConfig['xPoints']),
+				'--height', str(self._rrdConfig['yPoints']),
+				'--start', str(start),
+				'--end', str(end),
+				'--vertical-label', '% / num / MByte*0.1',
+				'--lower-limit', str(0),
+				'--units-exponent', str(0), # don't show milli-messages/s
 				'--slope-mode',
-				'--color',            'SHADEA#ffffff',
-				'--color',            'SHADEB#ffffff',
-				'--color',            'BACK#ffffff',
+				'--color', 'SHADEA#ffffff',
+				'--color', 'SHADEB#ffffff',
+				'--color', 'BACK#ffffff',
 
 				'DEF:avg_threads=%s:threads:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_threads=%s:threads:MAX'     % str(self._rrdConfig['rrdFile']),
+				'DEF:max_threads=%s:threads:MAX' % str(self._rrdConfig['rrdFile']),
 				'LINE2:avg_threads#00dd00:Threads      ',
 				'GPRINT:max_threads:LAST:cur\: %8.0lf threads      ',
 				'GPRINT:avg_threads:AVERAGE:avg\: %8.2lf threads          ',
 				'GPRINT:max_threads:MAX:max\: %8.0lf threads\\l',
 
 				'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_sess=%s:sessions:MAX'     % str(self._rrdConfig['rrdFile']),
+				'DEF:max_sess=%s:sessions:MAX' % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_sess_permin=avg_sess,60,*',
 				'CDEF:max_sess_permin=max_sess,60,*',
 				'VDEF:total_sess=avg_sess,TOTAL',
@@ -327,14 +333,14 @@ class Statistics(object):
 				'GPRINT:max_sess_permin:MAX:max\: %8.0lf sessions/min\\l',
 
 				'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_cpu=%s:cpu:MAX'     % str(self._rrdConfig['rrdFile']),
+				'DEF:max_cpu=%s:cpu:MAX' % str(self._rrdConfig['rrdFile']),
 				'LINE2:avg_cpu#dd0000:CPU usage    ',
 				'GPRINT:max_cpu:LAST:cur\: %8.2lf %%            ',
 				'GPRINT:avg_cpu:AVERAGE:avg\: %8.2lf %%                ',
 				'GPRINT:max_cpu:MAX:max\: %8.2lf %%\\l',
 
 				'DEF:avg_mem=%s:mem:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_mem=%s:mem:MAX'     % str(self._rrdConfig['rrdFile']),
+				'DEF:max_mem=%s:mem:MAX' % str(self._rrdConfig['rrdFile']),
 				'CDEF:avg_mem_scaled=avg_mem,10,/',
 				'LINE2:avg_mem_scaled#0000dd:MEM usage    ',
 				'GPRINT:max_mem:LAST:cur\: %8.2lf MByte        ',
@@ -360,13 +366,13 @@ class Statistics(object):
 	def sessionExpired(self, session):
 		now = time.time()
 		self._expiredSessionInfo.append({
-			"creationTime":        session.created,
-			"expirationTime":      now,
+			"creationTime": session.created,
+			"expirationTime": now,
 			"exipredAfterSeconds": int(now - session.lastModified),
-			"userAgent":           session.userAgent,
-			"lastRpcMethod":       session.lastRpcMethod,
-			"ip":                  session.ip,
-			"user":                session.user
+			"userAgent": session.userAgent,
+			"lastRpcMethod": session.lastRpcMethod,
+			"ip": session.ip,
+			"user": session.user
 		})
 		if (len(self._expiredSessionInfo) > self._maxExpiredSessionInfos):
 			self._expiredSessionInfo = self._expiredSessionInfo[1:]
@@ -384,16 +390,16 @@ class Statistics(object):
 		results = 0
 		if not jsonrpc.exception:
 			results = 0
-			if type(jsonrpc.result) is list:
+			if type(jsonrpc.result) is list or type is dict:
 				results = len(jsonrpc.result)
 
 		self._rpcs.append({
-			'started':  jsonrpc.started,
+			'started': jsonrpc.started,
 			'duration': jsonrpc.ended - jsonrpc.started,
-			'method':   jsonrpc.getMethodName(),
-			'failed':   bool(jsonrpc.exception),
-			'params':   len(jsonrpc.params),
-			'results':  results,
+			'method': jsonrpc.getMethodName(),
+			'failed': bool(jsonrpc.exception),
+			'params': len(jsonrpc.params),
+			'results': results,
 		})
 		if (len(self._rpcs) > self.opsiconfd.config['maxExecutionStatisticValues']):
 			self._rpcs = self._rpcs[1:]
@@ -406,10 +412,10 @@ class Statistics(object):
 
 	def addEncodingError(self, what, client, application, error):
 		self._encodingErrors.append({
-			'what':        forceUnicode(what),
-			'client':      forceUnicode(client),
+			'what': forceUnicode(what),
+			'client': forceUnicode(client),
 			'application': forceUnicode(application),
-			'error':       forceUnicode(error)
+			'error': forceUnicode(error)
 		})
 
 	def getEncodingErrors(self):

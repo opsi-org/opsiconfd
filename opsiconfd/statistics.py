@@ -164,7 +164,8 @@ class Statistics(object):
 
 			#cpu
 			cpu = int("%0.0f" % ((usr + sys) * 100))
-			if (cpu > 100): cpu = 100
+			if cpu > 100:
+				cpu = 100
 
 			#threads
 			threads = []
@@ -240,7 +241,6 @@ class Statistics(object):
 		date = time.strftime("%a, %d %b %Y %H\:%M\:%S", time.localtime())
 		end = int(time.time())
 		start = end - range
-
 
 		logger.debug(u"Creating rrd graph image '%s', start: %s, end: %s" % (graphImage, start, end))
 
@@ -364,7 +364,7 @@ class Statistics(object):
 	def removeSession(self, session):
 		if not session:
 			return
-		if (self._rrdCache['sessions'] > 0):
+		if self._rrdCache['sessions'] > 0:
 			self._rrdCache['sessions'] -= 1
 
 	def sessionExpired(self, session):
@@ -378,7 +378,8 @@ class Statistics(object):
 			"ip": session.ip,
 			"user": session.user
 		})
-		if (len(self._expiredSessionInfo) > self._maxExpiredSessionInfos):
+
+		if len(self._expiredSessionInfo) > self._maxExpiredSessionInfos:
 			self._expiredSessionInfo = self._expiredSessionInfo[1:]
 
 	def getExpiredSessionInfo(self):
@@ -405,7 +406,7 @@ class Statistics(object):
 			'params': len(jsonrpc.params),
 			'results': results,
 		})
-		if (len(self._rpcs) > self.opsiconfd.config['maxExecutionStatisticValues']):
+		if len(self._rpcs) > self.opsiconfd.config['maxExecutionStatisticValues']:
 			self._rpcs = self._rpcs[1:]
 		self._rrdCache['rpcs'] += 1
 		if jsonrpc.exception:

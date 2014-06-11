@@ -350,6 +350,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			statisticInfo.append(u'<tr><td colspan="5" style="border:none; text-align:left">average</td></tr>')
 			statisticInfo.append(
 				self.createTableRow(
+					'',
 					'{0:0.0f}'.format(average['params'] / overallResults),
 					'{0:0.0f}'.format(average['results'] / overallResults),
 					'{0:0.3f} s'.format(average['duration'] / overallResults),

@@ -8,7 +8,7 @@
    opsiconfd is part of the desktop management solution opsi
    (open pc server integration) http://www.opsi.org
 
-   Copyright (C) 2010 uib GmbH
+   Copyright (C) 2010-2014 uib GmbH
 
    http://www.uib.de/
 
@@ -33,7 +33,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "4.0.3.1"
+__version__ = "4.0.5.1"
 
 # Twisted imports
 from twisted.internet import epollreactor

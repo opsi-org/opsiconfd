@@ -45,8 +45,8 @@ except ImportError:
 
 version = None
 with open("opsiconfd/opsiconfd.py") as f:
-	for line in f.readlines():
-		if (line.find('__version__') != -1):
+	for line in f:
+		if '__version__' in line:
 			version = line.split('=')[1].strip()
 			break
 

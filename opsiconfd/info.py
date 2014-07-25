@@ -183,6 +183,9 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return ''.join(configInfo)
 
 	def getThreadInfo(self):
+		def getReadableTime(timeObject):
+			return time.strftime("%d %b %Y %H:%M:%S", time.gmtime(timeObject))
+
 		threads = [thread for thread in threading.enumerate()]
 
 		threadInfo = [u'<h1>Running threads ({0:d})</h1>'.format(len(threads))]
@@ -201,8 +204,10 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 
 			additionalInfo = []
 			try:
-				additionalInfo.append('Started at: {0}'.format(thread.started))
-				additionalInfo.append('Ended at: {0}'.format(thread.ended))
+				additionalInfo.append('Started at: {0}'.format(getReadableTime(thread.started)))
+
+				if thread.ended:
+					additionalInfo.append('Ended at: {0}'.format(getReadableTime(thread.ended)))
 			except AttributeError:
 				pass
 

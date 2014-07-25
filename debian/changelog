@@ -1,6 +1,8 @@
-opsiconfd (4.0.5.1-1) UNRELEASED; urgency=low
+opsiconfd (4.0.5.1-1) experimental; urgency=low
 
   * Improved info page render speed.
+  * Info page: show additional information about running threads
+  * Info page: display human-readable time at thread information
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 10 Jun 2014 12:36:13 +0200
 
@@ -25,7 +27,7 @@ opsiconfd (4.0.4.1-2) testing; urgency=low
 opsiconfd (4.0.4.1-1) testing; urgency=low
 
   * Internals: re-organised imports to work with newer python-opsi.
-  * Specified user / group to use for logrotate 3.8 or newer 
+  * Specified user / group to use for logrotate 3.8 or newer
   * fixed java webstart problem for internet explorer.
   * configed.jnlp: max-heap-space set to 768M.
 

@@ -55,7 +55,7 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 		<all-permissions/>
 	</security>
 	<resources>
-		<j2se version="1.6+" max-heap-size="768M"/>
+		<j2se version="1.7+" max-heap-size="1024M"/>
 		<property name="loglevel" value="4" />
 		<jar href="configed/configed.jar" main="true"/>
 		<jar href="configed/swingx.jar"/>

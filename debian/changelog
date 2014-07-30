@@ -1,3 +1,9 @@
+opsiconfd (4.0.5.1-2) experimental; urgency=low
+
+  * Using dh_python instead of python-support
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 30 Jul 2014 17:29:48 +0200
+
 opsiconfd (4.0.5.1-1) experimental; urgency=low
 
   * Improved info page render speed.

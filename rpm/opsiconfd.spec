@@ -14,7 +14,6 @@ Requires:       python-twisted
 Requires:       dbus-1-python
 Requires:       psmisc
 Requires:       procps
-Suggests:       python-rrdtool
 Url:            http://www.opsi.org
 License:        GPL v2 or later
 Group:          Productivity/Networking/Opsi
@@ -28,6 +27,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?sles_version}
 BuildRequires:  python-opsi >= 4.0.3.4 zypper logrotate
 PreReq:         %insserv_prereq
+Suggests:       python-rrdtool
 %{py_requires}
 %else
 %if 0%{?suse_version}

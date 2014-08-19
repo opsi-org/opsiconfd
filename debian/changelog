@@ -1,3 +1,10 @@
+opsiconfd (4.0.5.1-7) experimental; urgency=low
+
+  * Fix for newer logrotate-versions not applied on SLES because 11SP3
+    provides an updated version that can handle su directive
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 19 Aug 2014 16:41:48 +0200
+
 opsiconfd (4.0.5.1-6) experimental; urgency=low
 
   * Suggesting only on SLES, not everyone.

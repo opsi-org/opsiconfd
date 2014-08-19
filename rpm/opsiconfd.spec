@@ -79,7 +79,7 @@ ln -sf /etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 sed -i 's#/etc/init.d$##;s#/etc/logrotate.d$##' INSTALLED_FILES
 
-%if 0%{?suse_version} || 0%{?sles_version}
+%if 0%{?suse_version} > 1110
 echo "Detected openSuse / SLES"
 LOGROTATE_VERSION="$(zypper info logrotate | grep -i "version" | awk '{print $2}' | cut -d '-' -f 1)"
 if [ "$(zypper --terse versioncmp $LOGROTATE_VERSION 3.8)" == "-1" ]; then

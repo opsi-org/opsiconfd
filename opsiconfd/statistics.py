@@ -391,7 +391,7 @@ class Statistics(object):
 		results = 0
 		if not jsonrpc.exception:
 			results = 0
-			if type(jsonrpc.result) is list or type is dict:
+			if type(jsonrpc.result) is list or type(jsonrpc.result) is dict:
 				results = len(jsonrpc.result)
 
 		self._rpcs.append({

@@ -334,7 +334,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 			d = defer.maybeDeferred(_createBackend)
 
 		def finish(ignored):
-
 			self.session.callInterface = None
 			self.session.isAdmin = False
 
@@ -436,11 +435,12 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 	def _executeRpc(self, result, rpc):
 		self._setLogFile(rpc)
 		self.session.setLastRpcMethod(rpc.getMethodName())
-		if (rpc.getMethodName() == 'backend_exit'):
+		if rpc.getMethodName() == 'backend_exit':
 			logger.notice(u"User '%s' asked to close the session" % self.session.user)
 			self._freeSession(result)
 			self.service._getSessionHandler().deleteSession(self.session.uid)
 			return result
+
 		result = WorkerOpsiJsonRpc._executeRpc(self, result, rpc)
 		result.addCallback(self._addRpcToStatistics, rpc)
 		return result

@@ -1,3 +1,9 @@
+opsiconfd (4.0.5.2-1) UNRELEASED; urgency=low
+
+  * Info page: display the correct percentage if calls failed
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 04 Sep 2014 17:18:25 +0200
+
 opsiconfd (4.0.5.1-7) experimental; urgency=low
 
   * Fix for newer logrotate-versions not applied on SLES because 11SP3

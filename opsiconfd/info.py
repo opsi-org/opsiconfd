@@ -358,8 +358,8 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 					'',
 					'{0:0.0f}'.format(average['params'] / overallResults),
 					'{0:0.0f}'.format(average['results'] / overallResults),
-					'{0:0.3f} s'.format(average['duration'] / overallResults),
-					'{0:0.2f} %'.format(((overallResults - average['failed']) / overallResults) * 100)
+					'{0:0.3f}s'.format(average['duration'] / overallResults),
+					'{0:0.2f}%'.format(((overallResults - average['failed']) / float(overallResults)) * 100)
 				)
 			)
 			statisticInfo.append(u'<tr><td colspan="5" style="border:none; text-align:left">max duration</td></tr>')

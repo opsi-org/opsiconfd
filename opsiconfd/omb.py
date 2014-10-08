@@ -32,16 +32,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import base64
-from sys import version_info
-if (version_info >= (2,6)):
-	import json
-else:
-	import simplejson as json
-
-if (version_info < (2,5)):
-	import sha as sha1
-else:
-	from hashlib import sha1
+import json
+from hashlib import sha1
 
 from OPSI.Logger import Logger
 from OPSI.web2.channel.http import HTTPChannel, HTTPFactory

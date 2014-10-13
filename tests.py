@@ -31,9 +31,9 @@ import unittest
 from opsiconfd.statistics import Statistics
 
 try:
-  xrange
+    xrange
 except NameError:
-  xrange = range
+    xrange = range
 
 
 class StatisticsTestCase(unittest.TestCase):

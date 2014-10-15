@@ -212,6 +212,16 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				pass
 
 			try:
+				additionalInfo.append('HostID: {0}'.format(thread.hostId))
+			except AttributeError:
+				pass
+
+			try:
+				additionalInfo.append('Address: {0}'.format(thread.address))
+			except AttributeError:
+				pass
+
+			try:
 				additionalInfo.append('Method: {0}'.format(thread.method))
 				additionalInfo.append('Parameters: {0}'.format(thread.params))
 			except AttributeError:

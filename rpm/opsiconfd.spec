@@ -92,16 +92,15 @@ else
 	echo "Logrotate version $LOGROTATE_VERSION is 3.8 or newer. Nothing to do."
 fi
 %else
-	%if 0%{?rhel_version} || 0%{?centos_version}
-		echo "Detected RHEL / CentOS"
-		# Currently neither RHEL nor CentOS ship an logrotate > 3.8
-		# Maybe some day in the future RHEL / CentOS will have a way for easy version comparison
-		# LOGROTATE_VERSION="$(yum list logrotate | grep "installed$" | awk '{ print $2 }' | cut -d '-' -f 1)"
-		echo "Fixing logrotate configuration"
-		LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
-		LOGROTATE_CONFIG=$RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
-		grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
-		mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
+	%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
+		echo "Detected RHEL / CentOS / Fedora"
+		%if 0%{?rhel_version} == 600 || 0%{?centos_version} == 600
+			echo "Fixing logrotate configuration"
+			LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
+			LOGROTATE_CONFIG=$RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
+			grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
+			mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
+		%endif
 	%endif
 %endif
 

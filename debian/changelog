@@ -1,10 +1,11 @@
-opsiconfd (4.0.5.2-2) UNRELEASED; urgency=low
+opsiconfd (4.0.5.2-1) experimental; urgency=low
 
   * Info page: display the correct percentage if calls failed
   * Statistics: display correct result-length if returned type is dict
   * Info page: Show more info about threads if possible 
+  * RHEL / CentOS 7 and Fedora: Fix logrotate configuration
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 15 Oct 2014 15:12:51 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 20 Oct 2014 09:38:46 +0200
 
 opsiconfd (4.0.5.1-7) experimental; urgency=low
 

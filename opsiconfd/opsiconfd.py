@@ -81,6 +81,7 @@ from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
 logger = Logger()
 
+
 class ZeroconfService(object):
 
 	def __init__(self, name, port, serviceType="_opsiconfd._tcp", domain="", host="", text=""):
@@ -519,11 +520,9 @@ class OpsiconfdInit(Application):
 			daemonize()
 			time.sleep(2)
 
-
 		self.createPidFile()
 		libc = CDLL("libc.so.6")
-		libc.prctl( 15, 'opsiconfd', 0, 0, 0)
-
+		libc.prctl(15, 'opsiconfd', 0, 0, 0)
 
 	def shutdown(self):
 		self.removePidFile()
@@ -590,7 +589,6 @@ class OpsiconfdInit(Application):
 				self.config["profiler"] = forceUnicode(arg)
 			elif (opt == "--debug"):
 				self.config["debug"] = True
-
 
 	def createPidFile(self):
 		logger.info(u"Creating pid file '%s'" % self.config['pidFile'])

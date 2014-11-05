@@ -39,7 +39,7 @@ logger = Logger()
 
 
 class OpsiconfdSession(Session):
-	def __init__(self, sessionHandler, name = u'OPSISID', sessionMaxInactiveInterval = 120):
+	def __init__(self, sessionHandler, name=u'OPSISID', sessionMaxInactiveInterval=120):
 		Session.__init__(self, sessionHandler, name, sessionMaxInactiveInterval)
 		self.callInstance = None
 		self.callInterface = None
@@ -61,13 +61,15 @@ class OpsiconfdSession(Session):
 			logger.debug(u"Calling backend_exit() on backend %s" % self.callInstance)
 			self.callInstance.backend_exit()
 
+
 class OpsiconfdSessionHandler(SessionHandler):
 	def __init__(self, opsiconfd):
 		self.opsiconfd = opsiconfd
 		SessionHandler.__init__(self,
-			sessionName                = self.opsiconfd.config['sessionName'],
-			sessionMaxInactiveInterval = self.opsiconfd.config['sessionMaxInactiveInterval'],
-			maxSessionsPerIp           = self.opsiconfd.config['maxSessionsPerIp'])
+			sessionName=self.opsiconfd.config['sessionName'],
+			sessionMaxInactiveInterval=self.opsiconfd.config['sessionMaxInactiveInterval'],
+			maxSessionsPerIp=self.opsiconfd.config['maxSessionsPerIp']
+		)
 
 	def createSession(self):
 		session = OpsiconfdSession(self, self.sessionName, self.sessionMaxInactiveInterval)

@@ -355,11 +355,13 @@ class Statistics(object):
 	def addSession(self, session):
 		if not session:
 			return
+
 		self._rrdCache['sessions'] += 1
 
 	def removeSession(self, session):
 		if not session:
 			return
+
 		if self._rrdCache['sessions'] > 0:
 			self._rrdCache['sessions'] -= 1
 

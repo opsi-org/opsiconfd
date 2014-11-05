@@ -472,9 +472,7 @@ class Opsiconfd(OpsiService):
 		logger.notice(u"Opsiconfd main thread exiting...")
 		self._running = False
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# -                                           OPSICONFD INIT                                          -
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 class OpsiconfdInit(Application):
 	def __init__(self):
 		logger.debug(u"OpsiconfdInit")
@@ -777,9 +775,6 @@ class OpsiconfdInit(Application):
 		print u""
 
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# -                                               MAIN                                                -
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def main():
 	logger.setConsoleLevel(LOG_WARNING)
 	exception = None

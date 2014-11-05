@@ -79,13 +79,13 @@ class OpsiconfdSessionHandler(SessionHandler):
 		return session
 
 	def sessionExpired(self, session):
-		if (session.usageCount > 0):
+		if session.usageCount > 0:
 			# Session in use (long running method?)
 			self.sessionDeletionTimeout = 3600
+
 		if SessionHandler.sessionExpired(self, session):
 			# Session expired
 			self.opsiconfd.statistics().sessionExpired(session)
-
 
 	def deleteSession(self, uid):
 		session = self.sessions.get(uid)

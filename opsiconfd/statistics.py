@@ -26,6 +26,7 @@ These classes provide the data that is shown on the info page.
 :license: GNU Affero General Public License version 3
 """
 
+import collections
 import os
 import time
 import threading
@@ -66,10 +67,10 @@ class ResourceOpsiconfdStatistics(resource.Resource):
 class Statistics(object):
 	def __init__(self, opsiconfd):
 		self.opsiconfd = opsiconfd
-		self._rpcs = []
+		self._rpcs = collections.deque(maxlen=self.opsiconfd.config['maxExecutionStatisticValues'])
 		self._encodingErrors = []
-		self._expiredSessionInfo = []
 		self._maxExpiredSessionInfos = 300
+		self._expiredSessionInfo = collections.deque(maxlen=self._maxExpiredSessionInfos)
 		self._utime = 0.0
 		self._stime = 0.0
 		self._last = time.time()
@@ -374,9 +375,6 @@ class Statistics(object):
 			"user": session.user
 		})
 
-		if len(self._expiredSessionInfo) > self._maxExpiredSessionInfos:
-			self._expiredSessionInfo = self._expiredSessionInfo[1:]
-
 	def getExpiredSessionInfo(self):
 		return self._expiredSessionInfo
 
@@ -401,8 +399,7 @@ class Statistics(object):
 			'params': len(jsonrpc.params),
 			'results': results,
 		})
-		if len(self._rpcs) > self.opsiconfd.config['maxExecutionStatisticValues']:
-			self._rpcs = self._rpcs[1:]
+
 		self._rrdCache['rpcs'] += 1
 		if jsonrpc.exception:
 			self._rrdCache['rpcerrors'] += 1

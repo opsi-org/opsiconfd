@@ -65,6 +65,18 @@ class ResourceOpsiconfdStatistics(resource.Resource):
 
 
 class Statistics(object):
+	"""
+	Statistics about the opsiconfd.
+
+	These are mainly data about the executed rpcs, possibly encountered
+	encoding errors and the expired sessions.
+	This class is also used for creating graphics via rrdtool.
+
+	.. versionchanged:: 4.0.6
+
+		Storing RPCs and expired sessions in a length-limited deque.
+	"""
+
 	def __init__(self, opsiconfd):
 		self.opsiconfd = opsiconfd
 		self._rpcs = collections.deque(maxlen=self.opsiconfd.config['maxExecutionStatisticValues'])

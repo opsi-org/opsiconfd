@@ -135,6 +135,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				('month', 3600 * 24 * 31),
 				('year', 3600 * 24 * 365),
 			)
+
 			for (term, duration) in graphMapping:
 				graphs.append(u'<h1>Last {0}</h1>'.format(term))
 				for imageType in (1, 2):

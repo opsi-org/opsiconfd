@@ -104,7 +104,7 @@ class Statistics(object):
 			path = os.getcwd()
 			try:
 				os.chdir('/tmp')
-				objgraph.show_backrefs([self.opsiconfd], max_depth = maxDepth)
+				objgraph.show_backrefs([self.opsiconfd], max_depth=maxDepth)
 			finally:
 				os.chdir(path)
 

@@ -39,6 +39,7 @@ import datetime
 
 logger = Logger()
 
+
 class WorkerOpsiconfdMonitoring(WorkerOpsi):
 	def __init__(self, service, request, resource):
 		WorkerOpsi.__init__(self, service, request, resource)
@@ -370,8 +371,6 @@ class Monitoring(object):
 			elif state == self._OK:
 				state = _WARNING
 				message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
-
-
 
 			if delta.days >= 30:
 				state = self._WARNING

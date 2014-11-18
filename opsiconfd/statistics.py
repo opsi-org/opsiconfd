@@ -106,7 +106,8 @@ class Statistics(object):
 		loop = LoopingCall(self.updateRrd)
 		loop.start(int(self._rrdConfig['step']), now=False)
 
-	def rrdsAvailable(self):
+	@staticmethod
+	def rrdsAvailable():
 		return bool(rrdtool)
 
 	def createObjectGraph(self, maxDepth):

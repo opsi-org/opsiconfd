@@ -48,11 +48,12 @@ import time
 import socket
 try:
 	import dbus
-except:
+except ImportError:
 	dbus = None
+
 try:
 	import avahi
-except:
+except ImportError:
 	avahi = None
 
 from signal import *

@@ -178,9 +178,6 @@ class Statistics(object):
 			if cpu > 100:
 				cpu = 100
 
-			#threads
-			threads = [thread for thread in threading.enumerate()]
-
 			#build result-Hash
 			result["requests"] = self._rrdCache['requests']
 			result["sessions"] = self._rrdCache['sessions']
@@ -189,7 +186,7 @@ class Statistics(object):
 			result["rpcerrors"] = self._rrdCache['rpcerrors']
 			result["cpu"] = cpu
 			result["virtmem"] = virtMem
-			result["threads"] = len(threads)
+			result["threads"] = len(list(threading.enumerate()))
 		except Exception as e:
 			logger.logException(e)
 			logger.error(u"Failed to get Statistics: %s" % e)
@@ -224,11 +221,13 @@ class Statistics(object):
 			cpu = int("%0.0f" % ((usr + sys) * 100))
 			if cpu > 100:
 				cpu = 100
-			threads = [thread for thread in threading.enumerate()]
-			logger.debug(u'Updating rrd: %d:%d:%d:%d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu, virtMem, len(threads)))
-			rrdtool.update(str(self._rrdConfig['rrdFile']), '%d:%d:%d:%d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'], self._rrdCache['davrequests'], self._rrdCache['rpcs'], self._rrdCache['rpcerrors'], cpu, virtMem, len(threads)))
+			threadCount = len([thread for thread in threading.enumerate()])
+			rrdValues = '%d:%d:%d:%d:%d:%d:%d:%d:%d' \
+				% (now, self._rrdCache['requests'], self._rrdCache['sessions'],
+					self._rrdCache['davrequests'], self._rrdCache['rpcs'],
+					self._rrdCache['rpcerrors'], cpu, virtMem, threadCount)
+			logger.debug(u'Updating rrd: {0}'.format(rrdValues))
+			rrdtool.update(str(self._rrdConfig['rrdFile']), rrdValues)
 			self._rrdCache['requests'] = 0
 			self._rrdCache['davrequests'] = 0
 			self._rrdCache['rpcs'] = 0

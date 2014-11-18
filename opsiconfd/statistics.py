@@ -235,11 +235,17 @@ class Statistics(object):
 		except Exception as e:
 			logger.error(u"Failed to update rrd: %s" % e)
 
-	def getRrdGraphImage(self, type, range):
+	def getRrdGraphImage(self, imageType, range):
+		"""
+		Create an graph image with rrdtool.
+
+		:param imageType: Type of the Image. 1 is webservice data, 2 is \
+information about the host.
+		"""
 		if rrdtool is None:
 			return None
 
-		if (type == 1):
+		if imageType == 1:
 			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '1_%s.png' % range)
 		else:
 			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '2_%s.png' % range)
@@ -252,8 +258,9 @@ class Statistics(object):
 
 		if os.path.exists(graphImage):
 			os.unlink(graphImage)
+		# TODO: for the imageType use some kind of constant
 
-		if type == 1:
+		if imageType == 1:
 			rrdtool.graph(str(graphImage),
 				'--imgformat', 'PNG',
 				'--width', str(self._rrdConfig['xPoints']),

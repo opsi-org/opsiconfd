@@ -1,4 +1,4 @@
-opsiconfd (4.0.5.2-1) experimental; urgency=low
+opsiconfd (4.0.5.2-1) stable; urgency=low
 
   * Info page: display the correct percentage if calls failed
   * Statistics: display correct result-length if returned type is dict

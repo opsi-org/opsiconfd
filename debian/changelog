@@ -4,7 +4,7 @@ opsiconfd (4.0.6.1-1) UNRELEASED; urgency=low
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 18 Nov 2014 18:03:47 +0100
 
-opsiconfd (4.0.5.2-1) experimental; urgency=low
+opsiconfd (4.0.5.2-1) stable; urgency=low
 
   * Info page: display the correct percentage if calls failed
   * Statistics: display correct result-length if returned type is dict

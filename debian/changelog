@@ -1,6 +1,7 @@
 opsiconfd (4.0.6.1-1) UNRELEASED; urgency=low
 
   * RPC call statistics are stored in a deque for faster operation
+  * Reset maxAuthenticationFailure before connection will blocked (eu)
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 18 Nov 2014 18:03:47 +0100
 

@@ -29,6 +29,7 @@ opsi configuration daemon - info page
 :license: GNU Affero General Public License version 3
 """
 
+import heapq
 import os
 import operator
 import threading
@@ -386,10 +387,33 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		statisticInfo.append(u'</table>')
 
 		statisticInfo.append(u'<br />')
+		statisticInfo.append(self.getMostCalledFunctions())
+		statisticInfo.append(u'<br />')
 		statisticInfo.append(self.getEncodingErrorStatistics())
 		statisticInfo.append(u'<br />')
 		statisticInfo.append(self.getAuthenticationFailures())
 
+		return ''.join(statisticInfo)
+
+	def getMostCalledFunctions(self):
+		numberOfFunctions = 10
+		statisticInfo = [
+			u'<h1>{0:d} most called RPCs</h1>'.format(numberOfFunctions),
+			u'<table>',
+			self.createTableHeader('', 'method', 'count')
+		]
+
+		callStatistics = self.service.statistics().getRPCCallCounts()
+		for (index, key) in enumerate(heapq.nlargest(numberOfFunctions, callStatistics, key=callStatistics.get), start=1):
+			statisticInfo.append(
+				self.createTableRow(
+					'{0:d}.'.format(index),
+					key,
+					str(callStatistics[key])
+				)
+			)
+
+		statisticInfo.append('</table>')
 		return ''.join(statisticInfo)
 
 	def getEncodingErrorStatistics(self):

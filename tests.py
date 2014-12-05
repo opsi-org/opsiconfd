@@ -36,33 +36,44 @@ except NameError:
     xrange = range
 
 
+class FakeOpsiconfd(object):
+    def __init__(self):
+        self.config = {
+            'maxExecutionStatisticValues': 250,
+            'rrdDir': '/tmp'
+        }
+
+
+class FakeRPC(object):
+    def __init__(self, exception=False, methodName="dummy_method"):
+        self.exception = exception
+        self.result = []
+        self.params = []
+        self.started = time.time()
+        self.ended = time.time()
+        self.methodName = methodName
+
+    def getMethodName(self):
+        return self.methodName
+
 class StatisticsTestCase(unittest.TestCase):
     def testNumberOfStatisticsIsLimited(self):
-        allowedNumberOfEntries = 250
+        stats = Statistics(FakeOpsiconfd())
+        [stats.addRpc(FakeRPC()) for _ in xrange(500000)]
+        self.assertEquals(250, len(stats.getRpcs()))
 
-        class FakeOpsiconfd(object):
-            def __init__(self):
-                self.config = {
-                    'maxExecutionStatisticValues': allowedNumberOfEntries,
-                    'rrdDir': '/tmp'
-                }
-
-        class FakeRPC(object):
-            def __init__(self, exception=False):
-                self.exception = exception
-                self.result = []
-                self.params = []
-                self.started = time.time()
-                self.ended = time.time()
-
-            def getMethodName(self):
-                return "dummy_method"
-
-
+    def testGettingOverallCallCount(self):
         stats = Statistics(FakeOpsiconfd())
         [stats.addRpc(FakeRPC()) for _ in xrange(500000)]
 
         self.assertEquals(allowedNumberOfEntries, len(stats.getRpcs()))
+        self.assertEquals(1, len(stats.getRPCCallCounts().keys()))
+        self.assertTrue("dummy_method" in stats.getRPCCallCounts())
+        self.assertEquals(500000, stats.getRPCCallCounts()['dummy_method'])
+
+        stats.addRpc(FakeRPC(methodName="another_method"))
+        self.assertEquals(2, len(stats.getRPCCallCounts().keys()))
+        self.assertTrue("another_method" in stats.getRPCCallCounts())
 
 
 if __name__ == '__main__':

@@ -80,6 +80,7 @@ class Statistics(object):
 	def __init__(self, opsiconfd):
 		self.opsiconfd = opsiconfd
 		self._rpcs = collections.deque(maxlen=self.opsiconfd.config['maxExecutionStatisticValues'])
+		self._rpcCallCount = collections.defaultdict(lambda: 0)
 		self._encodingErrors = []
 		self._maxExpiredSessionInfos = 300
 		self._expiredSessionInfo = collections.deque(maxlen=self._maxExpiredSessionInfos)
@@ -396,14 +397,18 @@ information about the host.
 			if type(jsonrpc.result) is list or type(jsonrpc.result) is dict:
 				results = len(jsonrpc.result)
 
+		methodName = jsonrpc.getMethodName()
+
 		self._rpcs.append({
 			'started': jsonrpc.started,
 			'duration': jsonrpc.ended - jsonrpc.started,
-			'method': jsonrpc.getMethodName(),
+			'method': methodName,
 			'failed': bool(jsonrpc.exception),
 			'params': len(jsonrpc.params),
 			'results': results,
 		})
+
+		self._rpcCallCount[methodName] += 1
 
 		self._rrdCache['rpcs'] += 1
 		if jsonrpc.exception:
@@ -411,6 +416,9 @@ information about the host.
 
 	def getRpcs(self):
 		return self._rpcs
+
+	def getRPCCallCounts(self):
+		return self._rpcCallCount
 
 	def addEncodingError(self, what, client, application, error):
 		self._encodingErrors.append({

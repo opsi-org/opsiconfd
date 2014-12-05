@@ -1,4 +1,10 @@
-opsiconfd (4.0.5.3-1) UNRELEASED; urgency=low
+opsiconfd (4.0.6.1-1) UNRELEASED; urgency=low
+
+  * Info page: Show info about ten most executed RPCs
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 05 Dec 2014 15:50:19 +0100
+
+opsiconfd (4.0.5.3-1) experimental; urgency=low
 
   * RPC call statistics are stored in a deque for faster operation
   * Reset maxAuthenticationFailure before connection will blocked (eu)
@@ -9,7 +15,7 @@ opsiconfd (4.0.5.2-1) stable; urgency=low
 
   * Info page: display the correct percentage if calls failed
   * Statistics: display correct result-length if returned type is dict
-  * Info page: Show more info about threads if possible 
+  * Info page: Show more info about threads if possible
   * RHEL / CentOS 7 and Fedora: Fix logrotate configuration
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 20 Oct 2014 09:38:46 +0200

@@ -66,7 +66,7 @@ class StatisticsTestCase(unittest.TestCase):
         stats = Statistics(FakeOpsiconfd())
         [stats.addRpc(FakeRPC()) for _ in xrange(500000)]
 
-        self.assertEquals(allowedNumberOfEntries, len(stats.getRpcs()))
+        self.assertEquals(250, len(stats.getRpcs()))
         self.assertEquals(1, len(stats.getRPCCallCounts().keys()))
         self.assertTrue("dummy_method" in stats.getRPCCallCounts())
         self.assertEquals(500000, stats.getRPCCallCounts()['dummy_method'])

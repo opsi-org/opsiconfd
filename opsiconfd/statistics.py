@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # This file is part of python-opsi.
@@ -151,47 +151,50 @@ class Statistics(object):
 		)
 
 	def getStatistics(self):
-		result = {}
-
 		try:
 			now = int(time.time())
 			last = self._last
 			self._last = now
-			(utime, stime, maxrss) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
-			if int(utime - self._utime) == 0:
-				usr = 0.0
-			else:
-				usr = (utime - self._utime)/(now - last)
-			if int(stime - self._stime) == 0:
-				sys = 0.0
-			else:
-				sys = (stime - self._stime)/(now - last)
+			(utime, stime, cpu, virtMem) = self._getOwnResourceUsage(now, last)
 			(self._utime, self._stime) = (utime, stime)
-			#mem = int("%0.0f" % (float(maxrss * pyresource.getpagesize())/(1024*1024))) # Mbyte
-			f = open('/proc/%s/stat' % os.getpid())
-			data = f.read().split()
-			f.close()
-			virtMem = int("%0.0f" % (float(data[22])/(1024*1024)))
 
-			#cpu
-			cpu = int("%0.0f" % ((usr + sys) * 100))
-			if cpu > 100:
-				cpu = 100
-
-			#build result-Hash
-			result["requests"] = self._rrdCache['requests']
-			result["sessions"] = self._rrdCache['sessions']
-			result["davrequests"] = self._rrdCache['davrequests']
-			result["rpcs"] = self._rrdCache['rpcs']
-			result["rpcerrors"] = self._rrdCache['rpcerrors']
-			result["cpu"] = cpu
-			result["virtmem"] = virtMem
-			result["threads"] = len(list(threading.enumerate()))
+			return {
+				"requests": self._rrdCache['requests'],
+				"sessions": self._rrdCache['sessions'],
+				"davrequests": self._rrdCache['davrequests'],
+				"rpcs": self._rrdCache['rpcs'],
+				"rpcerrors": self._rrdCache['rpcerrors'],
+				"cpu": cpu,
+				"virtmem": virtMem,
+				"threads": len(list(threading.enumerate()))
+			}
 		except Exception as e:
 			logger.logException(e)
 			logger.error(u"Failed to get Statistics: %s" % e)
+			return {}
 
-		return result
+	def _getOwnResourceUsage(self, currentTime, unixtimeOfLastCall):
+		(utime, stime, maxrss) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
+		if int(utime - self._utime) == 0:
+			usr = 0.0
+		else:
+			usr = (utime - self._utime) / (currentTime - unixtimeOfLastCall)
+
+		if int(stime - self._stime) == 0:
+			sys = 0.0
+		else:
+			sys = (stime - self._stime) / (currentTime - unixtimeOfLastCall)
+
+		cpu = int("%0.0f" % ((usr + sys) * 100))
+		if cpu > 100:
+			cpu = 100
+
+		f = open('/proc/%s/stat' % os.getpid())
+		data = f.read().split()
+		f.close()
+		virtMem = int("%0.0f" % (float(data[22])/(1024*1024)))
+
+		return (utime, stime, cpu, virtMem)
 
 	def updateRrd(self):
 		if rrdtool is None:
@@ -201,26 +204,9 @@ class Statistics(object):
 			now = int(time.time())
 			last = self._last
 			self._last = now
-			(utime, stime, maxrss) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
-
-			if int(utime - self._utime) == 0:
-				usr = 0.0
-			else:
-				usr = (utime - self._utime)/(now - last)
-
-			if int(stime - self._stime) == 0:
-				sys = 0.0
-			else:
-				sys = (stime - self._stime)/(now - last)
+			(utime, stime, cpu, virtMem) = self._getOwnResourceUsage(now, last)
 			(self._utime, self._stime) = (utime, stime)
-			#mem = int("%0.0f" % (float(maxrss * pyresource.getpagesize())/(1024*1024))) # Mbyte
-			f = open('/proc/%s/stat' % os.getpid())
-			data = f.read().split()
-			f.close()
-			virtMem = int("%0.0f" % (float(data[22])/(1024*1024)))
-			cpu = int("%0.0f" % ((usr + sys) * 100))
-			if cpu > 100:
-				cpu = 100
+
 			threadCount = len([thread for thread in threading.enumerate()])
 			rrdValues = '%d:%d:%d:%d:%d:%d:%d:%d:%d' \
 				% (now, self._rrdCache['requests'], self._rrdCache['sessions'],

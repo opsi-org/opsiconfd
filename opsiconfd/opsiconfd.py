@@ -33,7 +33,7 @@
    @license: GNU General Public License version 2
 """
 
-__version__ = "4.0.5.1"
+__version__ = "4.0.6.1"
 
 # Twisted imports
 from twisted.internet import epollreactor
@@ -263,7 +263,8 @@ class Opsiconfd(OpsiService):
 			hostControlSafeBackend = True,
 			depotBackend       = bool(self.config['depotId']),
 			messageBusNotifier = bool(self.config['messageBus']),
-			startReactor       = False
+			startReactor       = False,
+			maxLogSize=self.config['maxlogsize'],
 		)
 		OpsiconfdHTTPChannel.backend = self._backend
 
@@ -670,6 +671,8 @@ class OpsiconfdInit(Application):
 							self.config['logFile'] = forceFilename(value)
 						elif (option == 'log format'):
 							self.config['logFormat'] = forceUnicode(value)
+						elif (option == 'max log size'):
+							self.config['maxlogsize'] = forceUnicode(value)
 						elif (option == 'symlink logs'):
 							self.config['symlinkLogs'] = forceBool(value)
 						elif (option == 'backend config dir'):

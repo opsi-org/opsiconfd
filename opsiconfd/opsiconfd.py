@@ -613,16 +613,16 @@ class OpsiconfdInit(Application):
 					raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
 
 		pid = os.getpid()
-		pf = open(self.config['pidFile'], "w")
-		print >> pf, str(pid)
-		pf.close()
+
+		with open(self.config['pidFile'], "w") as pf:
+			pf.write(str(pid))
 
 	def removePidFile(self):
 		try:
 			if os.path.exists(self.config['pidFile']):
-				pf = open(self.config['pidFile'], "r")
-				pid = pf.read().strip()
-				pf.close()
+				with open(self.config['pidFile'], "r") as pf:
+					pid = pf.read().strip()
+
 				if (int(pid) == int(os.getpid())):
 					logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
 					os.unlink(self.config['pidFile'])

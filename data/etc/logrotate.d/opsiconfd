@@ -20,3 +20,47 @@
     create 640 opsiconfd opsiadmin
     su opsiconfd opsiadmin
 }
+
+/var/log/opsi/instlog/*.log {
+    weekly
+    missingok
+    rotate 2
+    compress
+    notifempty
+    size 5M
+    create 640 opsiconfd opsiadmin
+    su opsiconfd opsiadmin
+}
+
+/var/log/opsi/bootimage/*.log {
+    monthly
+    missingok
+    rotate 1
+    compress
+    notifempty
+    size 5M
+    create 640 opsiconfd opsiadmin
+    su opsiconfd opsiadmin
+}
+
+/var/log/opsi/clientconnect/*.log {
+    monthly
+    missingok
+    rotate 1
+    compress
+    notifempty
+    size 5M
+    create 640 opsiconfd opsiadmin
+    su opsiconfd opsiadmin
+}
+
+/var/log/opsi/userlogin/*.log {
+    monthly
+    missingok
+    rotate 1
+    compress
+    notifempty
+    size 5M
+    create 640 opsiconfd opsiadmin
+    su opsiconfd opsiadmin
+}

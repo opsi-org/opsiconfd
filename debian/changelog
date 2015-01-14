@@ -4,8 +4,9 @@ opsiconfd (4.0.6.1-1) UNRELEASED; urgency=low
   * Setting +x on /etc/init.d/opsiconfd for openSuse 13.2
   * Make it possible to set a limit for the size of logfiles.
   * Extending logrotate config to match more logtypes.
+  * Added logrotate configuration for /var/log/opsi/package.log
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 13 Jan 2015 14:18:52 +0100
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 14 Jan 2015 10:07:18 +0100
 
 opsiconfd (4.0.5.3-1) experimental; urgency=low
 

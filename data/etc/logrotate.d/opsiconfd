@@ -1,3 +1,14 @@
+/var/log/opsi/package.log {
+    weekly
+    missingok
+    rotate 2
+    compress
+    notifempty
+    size 10M
+    create 640 opsiconfd opsiadmin
+    su opsiconfd opsiadmin
+}
+
 /var/log/opsi/opsiconfd/[[:digit:]]*.log {
     weekly
     missingok

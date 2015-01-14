@@ -9,22 +9,21 @@
     su opsiconfd opsiadmin
 }
 
-/var/log/opsi/opsiconfd/[[:digit:]]*.log {
-    weekly
+/var/log/opsi/bootimage/*.log {
+    monthly
     missingok
     rotate 1
-    extension old
     compress
     notifempty
-    size 2M
+    size 5M
     create 640 opsiconfd opsiadmin
     su opsiconfd opsiadmin
 }
 
-/var/log/opsi/opsiconfd/opsiconfd.log {
-    weekly
+/var/log/opsi/clientconnect/*.log {
+    monthly
     missingok
-    rotate 5
+    rotate 1
     compress
     notifempty
     size 5M
@@ -43,21 +42,22 @@
     su opsiconfd opsiadmin
 }
 
-/var/log/opsi/bootimage/*.log {
-    monthly
+/var/log/opsi/opsiconfd/[[:digit:]]*.log {
+    weekly
     missingok
     rotate 1
+    extension old
     compress
     notifempty
-    size 5M
+    size 2M
     create 640 opsiconfd opsiadmin
     su opsiconfd opsiadmin
 }
 
-/var/log/opsi/clientconnect/*.log {
-    monthly
+/var/log/opsi/opsiconfd/opsiconfd.log {
+    weekly
     missingok
-    rotate 1
+    rotate 5
     compress
     notifempty
     size 5M

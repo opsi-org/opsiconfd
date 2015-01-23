@@ -4,7 +4,7 @@
 # This file is part of the desktop management solution opsi
 # (open pc server integration) http://www.opsi.org
 
-# Copyright (C) 2010-2014 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2015 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,12 @@ opsi configuration daemon - info page
 
 .. versionchanged:: 4.0.5
 
+
+.. versionchanged:: 4.0.6
+
+  Extended info page.
+
+
 :copyright:  uib GmbH <info@uib.de>
 :author: Jan Schneider <j.schneider@uib.de>
 :author: Niko Wenselowski <n.wenselowski@uib.de>
@@ -34,6 +40,7 @@ import os
 import operator
 import threading
 import time
+from datetime import datetime
 
 from OPSI.Logger import Logger
 from OPSI.System import getDiskSpaceUsage
@@ -93,10 +100,10 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		if not self.session.isAdmin:
 			raise OpsiAuthenticationError(u"Permission denied")
 
-		startTime = time.localtime()
+		startDatetime = datetime.now()
 		content = [
 			info.join(('<div id="info">', '</div>')) for info in (
-				time.strftime('%Y-%m-%d %H:%M:%S', startTime),
+				str(startDatetime),
 				self.getGraphs(),
 				self.getObjectInfo(),
 				self.getConfigInfo(),
@@ -107,10 +114,10 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				self.getStatisticsInfo(),
 			)
 		]
-		content.append('<!-- Rendered info page in {0} seconds -->'.format(time.mktime(time.localtime()) - time.mktime(startTime)))
+		content.append('<!-- Rendered info page in {0} seconds -->'.format(datetime.now() - startDatetime))
 
 		html = PAGE_TEMPLATE.format(content='\n'.join(content), css=CSS)
-		LOGGER.debug('Total render time for info page: {0} seconds'.format(time.mktime(time.localtime()) - time.mktime(startTime)))
+		LOGGER.debug('Total render time for info page: {0} seconds'.format(datetime.now() - startDatetime))
 
 		if not isinstance(result, http.Response):
 			result = http.Response()

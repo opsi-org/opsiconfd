@@ -5,8 +5,9 @@ opsiconfd (4.0.6.1-1) UNRELEASED; urgency=low
   * Make it possible to set a limit for the size of logfiles.
   * Extending logrotate config to match more logtypes.
   * Added logrotate configuration for /var/log/opsi/package.log
+  * Info page: show total number of calls.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 14 Jan 2015 10:07:18 +0100
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 23 Jan 2015 16:22:39 +0100
 
 opsiconfd (4.0.5.3-1) experimental; urgency=low
 

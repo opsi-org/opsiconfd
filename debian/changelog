@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.2-1) experimental; urgency=low
+
+  * Fix HTML table code. 
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 30 Jan 2015 10:14:10 +0100
+
 opsiconfd (4.0.6.1-1) experimental; urgency=low
 
   * Info page: Show info about 15 most executed RPCs

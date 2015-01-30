@@ -421,7 +421,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			)
 
 		statisticInfo.append(u'''<tr><td colspan="2" style="text-align:left">
-Total number of calls:</td><td>{0}</tr>'''.format(sum(callStatistics.values())))
+Total number of calls:</td><td>{0}</td></tr>'''.format(sum(callStatistics.values())))
 
 		statisticInfo.append('</table>')
 		return ''.join(statisticInfo)

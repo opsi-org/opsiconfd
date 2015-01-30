@@ -403,7 +403,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return ''.join(statisticInfo)
 
 	def getMostCalledFunctions(self):
-		numberOfFunctions = 10
+		numberOfFunctions = 15
 		statisticInfo = [
 			u'<h1>{0:d} most called RPCs</h1>'.format(numberOfFunctions),
 			u'<table>',

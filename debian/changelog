@@ -1,4 +1,4 @@
-opsiconfd (4.0.6.1-1) UNRELEASED; urgency=low
+opsiconfd (4.0.6.1-1) experimental; urgency=low
 
   * Info page: Show info about 15 most executed RPCs
   * Setting +x on /etc/init.d/opsiconfd for openSuse 13.2

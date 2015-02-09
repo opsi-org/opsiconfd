@@ -113,7 +113,7 @@ case "$1" in
 			LOGROTATE_TEMP=$(tempfile)
 			LOGROTATE_CONFIG=/etc/logrotate.d/opsiconfd
 			grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
-			mv $LOGROTATE_TEMP $LOGROTATE_CONFIG 
+			mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
 		fi
 	;;
 

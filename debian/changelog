@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.3-1) UNRELEASED; urgency=low
+
+  * Logrotate config: client logs in opsiclientd require size >= 5MB
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 09 Feb 2015 14:28:17 +0100
+
 opsiconfd (4.0.6.2-1) experimental; urgency=low
 
   * Fix HTML table code. 

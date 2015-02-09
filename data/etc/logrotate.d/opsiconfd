@@ -49,7 +49,7 @@
     extension old
     compress
     notifempty
-    size 2M
+    size 5M
     create 640 opsiconfd opsiadmin
     su opsiconfd opsiadmin
 }

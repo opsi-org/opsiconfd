@@ -1,9 +1,9 @@
-opsiconfd (4.0.6.3-1) UNRELEASED; urgency=low
+opsiconfd (4.0.6.3-1) experimental; urgency=low
 
   * Logrotate config: client logs in opsiclientd require size >= 5MB
   * opsiconfd.conf: Added entry for "max sessions per ip"
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 09 Feb 2015 14:28:17 +0100
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 09 Mar 2015 11:05:01 +0100
 
 opsiconfd (4.0.6.2-1) experimental; urgency=low
 

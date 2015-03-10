@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.4-1) UNRELEASED; urgency=low
+
+  * opsiconfd.conf: Default log-level is 5.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 10 Mar 2015 15:17:33 +0100
+
 opsiconfd (4.0.6.3-1) experimental; urgency=low
 
   * Logrotate config: client logs in opsiclientd require size >= 5MB

@@ -60,6 +60,7 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 		<jar href="configed/configed.jar" main="true"/>
 		<jar href="configed/swingx.jar"/>
 		<jar href="configed/commons-io.jar"/>
+		<jar href="configed/itext-pdf.jar"/>
 	</resources>
 	<application-desc main-class="de.uib.configed.configed">
 	<argument>--args</argument>%(arguments)s

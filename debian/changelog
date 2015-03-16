@@ -26,15 +26,15 @@ opsiconfd (4.0.6.1-1) experimental; urgency=low
   * Extending logrotate config to match more logtypes.
   * Added logrotate configuration for /var/log/opsi/package.log
   * Info page: show total number of calls.
+  * RPC call statistics are stored in a deque for faster operation
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 30 Jan 2015 09:24:16 +0100
 
-opsiconfd (4.0.5.3-1) experimental; urgency=low
+opsiconfd (4.0.5.3-1) testing; urgency=low
 
-  * RPC call statistics are stored in a deque for faster operation
-  * Reset maxAuthenticationFailure before connection will blocked (eu)
+  * Reset maxAuthenticationFailure before connection will blocked
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 18 Nov 2014 18:03:47 +0100
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Mon, 16 Mar 2015 14:17:58 +0100
 
 opsiconfd (4.0.5.2-1) stable; urgency=low
 

@@ -413,6 +413,7 @@ information about the host.
 		self._rrdCache['rpcs'] += 1
 		if jsonrpc.exception:
 			self._rrdCache['rpcerrors'] += 1
+			logger.warning("Failed RPC on '{name}' with params: {params}".format(name=methodName, params=params))
 
 	def getRpcs(self):
 		return self._rpcs

@@ -2,8 +2,9 @@ opsiconfd (4.0.6.4-1) UNRELEASED; urgency=low
 
   * opsiconfd.conf: Default log-level is 5.
   * fix in webstart implementation for configed
+  * Failed RPDs now get logged as a warning.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 10 Mar 2015 15:17:33 +0100
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 23 Apr 2015 13:44:20 +0200
 
 opsiconfd (4.0.6.3-1) experimental; urgency=low
 

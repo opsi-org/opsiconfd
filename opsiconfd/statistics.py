@@ -394,7 +394,7 @@ information about the host.
 		results = 0
 		if not jsonrpc.exception:
 			results = 0
-			if type(jsonrpc.result) is list or type(jsonrpc.result) is dict:
+			if isinstance(jsonrpc.result, (list, tuple, dict)):
 				results = len(jsonrpc.result)
 
 		methodName = jsonrpc.getMethodName()

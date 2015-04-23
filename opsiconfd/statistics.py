@@ -139,16 +139,16 @@ class Statistics(object):
 			'DS:cpu:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
 			'DS:mem:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
 			'DS:threads:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'RRA:AVERAGE:0.5:%d:%d' % (1, (3600/self._rrdConfig['step'])),    # hour
-			'RRA:AVERAGE:0.5:%d:%d' % (1, (3600/self._rrdConfig['step'])*24), # day
-			'RRA:AVERAGE:0.5:%d:%d' % (7, (3600/self._rrdConfig['step'])*24), # week
-			'RRA:AVERAGE:0.5:%d:%d' % (31, (3600/self._rrdConfig['step'])*24), # month
-			'RRA:AVERAGE:0.5:%d:%d' % (365, (3600/self._rrdConfig['step'])*24), # year
-			'RRA:MAX:0.5:%d:%d' % (1, (3600/self._rrdConfig['step'])),    # hour
-			'RRA:MAX:0.5:%d:%d' % (1, (3600/self._rrdConfig['step'])*24), # day
-			'RRA:MAX:0.5:%d:%d' % (7, (3600/self._rrdConfig['step'])*24), # week
-			'RRA:MAX:0.5:%d:%d' % (31, (3600/self._rrdConfig['step'])*24), # month
-			'RRA:MAX:0.5:%d:%d' % (365, (3600/self._rrdConfig['step'])*24), # year
+			'RRA:AVERAGE:0.5:%d:%d' % (1, (3600 / self._rrdConfig['step'])),    # hour
+			'RRA:AVERAGE:0.5:%d:%d' % (1, (3600 / self._rrdConfig['step']) * 24), # day
+			'RRA:AVERAGE:0.5:%d:%d' % (7, (3600 / self._rrdConfig['step']) * 24), # week
+			'RRA:AVERAGE:0.5:%d:%d' % (31, (3600 / self._rrdConfig['step']) * 24), # month
+			'RRA:AVERAGE:0.5:%d:%d' % (365, (3600 / self._rrdConfig['step']) * 24), # year
+			'RRA:MAX:0.5:%d:%d' % (1, (3600 / self._rrdConfig['step'])),    # hour
+			'RRA:MAX:0.5:%d:%d' % (1, (3600 / self._rrdConfig['step']) * 24), # day
+			'RRA:MAX:0.5:%d:%d' % (7, (3600 / self._rrdConfig['step']) * 24), # week
+			'RRA:MAX:0.5:%d:%d' % (31, (3600 / self._rrdConfig['step']) * 24), # month
+			'RRA:MAX:0.5:%d:%d' % (365, (3600 / self._rrdConfig['step']) * 24), # year
 		)
 
 	def getStatistics(self):
@@ -190,10 +190,9 @@ class Statistics(object):
 		if cpu > 100:
 			cpu = 100
 
-		f = open('/proc/%s/stat' % os.getpid())
-		data = f.read().split()
-		f.close()
-		virtMem = int("%0.0f" % (float(data[22])/(1024*1024)))
+		with open('/proc/%s/stat' % os.getpid()) as f:
+			data = f.read().split()
+		virtMem = int("%0.0f" % (float(data[22]) / (1024 * 1024)))
 
 		return (utime, stime, cpu, virtMem)
 

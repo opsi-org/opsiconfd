@@ -169,9 +169,9 @@ class Statistics(object):
 				"virtmem": virtMem,
 				"threads": len(list(threading.enumerate()))
 			}
-		except Exception as e:
-			logger.logException(e)
-			logger.error(u"Failed to get Statistics: %s" % e)
+		except Exception as error:
+			logger.logException(error)
+			logger.error(u"Failed to get Statistics: %s" % error)
 			return {}
 
 	def _getOwnResourceUsage(self, currentTime, unixtimeOfLastCall):
@@ -218,8 +218,8 @@ class Statistics(object):
 			self._rrdCache['davrequests'] = 0
 			self._rrdCache['rpcs'] = 0
 			self._rrdCache['rpcerrors'] = 0
-		except Exception as e:
-			logger.error(u"Failed to update rrd: %s" % e)
+		except Exception as error:
+			logger.error(u"Failed to update rrd: %s" % error)
 
 	def getRrdGraphImage(self, imageType, range):
 		"""

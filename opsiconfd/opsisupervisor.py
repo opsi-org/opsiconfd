@@ -78,7 +78,7 @@ class Supervisor(object):
 		self.delayedCall = reactor.callLater(5, self.check.start, 15, True)
 
 	def reload(self):
-		self.config.reload()
+		self._config.reload()
 		for daemon in self.daemons:
 			daemon.sendSignal(signal.SIGHUP)
 

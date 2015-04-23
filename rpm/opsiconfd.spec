@@ -15,7 +15,7 @@ Requires:       dbus-1-python
 Requires:       psmisc
 Requires:       procps
 Url:            http://www.opsi.org
-License:        GPL v2 or later
+License:        AGPLv3+
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
 Version:        4.0.4.1

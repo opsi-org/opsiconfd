@@ -175,7 +175,7 @@ class Statistics(object):
 			return {}
 
 	def _getOwnResourceUsage(self, currentTime, unixtimeOfLastCall):
-		(utime, stime, maxrss) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
+		(utime, stime, _) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
 		if int(utime - self._utime) == 0:
 			usr = 0.0
 		else:

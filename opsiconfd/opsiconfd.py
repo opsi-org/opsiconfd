@@ -328,7 +328,7 @@ class Opsiconfd(OpsiService):
 		for (name, pathAndOptions) in self.config['staticDirectories'].items():
 			path = pathAndOptions['path']
 			options = pathAndOptions['options']
-			if (name == '/'):
+			if name == '/':
 				continue
 
 			if name in ('rpc', 'interface', 'info'):
@@ -572,23 +572,23 @@ class OpsiconfdInit(Application):
 
 	def setCommandlineConfig(self):
 		for (opt, arg) in self.opts:
-			if   (opt == "-D"):
+			if opt == "-D":
 				self.config['daemon'] = True
-			elif (opt == "-l"):
+			elif opt == "-l":
 				self.config['logLevel'] = forceInt(arg)
-			elif (opt == "-f"):
+			elif opt == "-f":
 				self.config['logFile'] = forceFilename(arg)
-			elif (opt == "-p"):
+			elif opt == "-p":
 				self.config['httpPort'] = forceInt(arg)
-			elif (opt == "-P"):
+			elif opt == "-P":
 				self.config['httpsPort'] = forceInt(arg)
-			elif (opt == "-i"):
+			elif opt == "-i":
 				self.config['interface'] = forceUnicode(arg)
-			elif (opt == "--profile"):
+			elif opt == "--profile":
 				self.config["profile"] = forceFilename(arg)
-			elif (opt == "--profiler"):
+			elif opt == "--profiler":
 				self.config["profiler"] = forceUnicode(arg)
-			elif (opt == "--debug"):
+			elif opt == "--debug":
 				self.config["debug"] = True
 
 	def createPidFile(self):
@@ -623,7 +623,7 @@ class OpsiconfdInit(Application):
 				with open(self.config['pidFile'], "r") as pf:
 					pid = pf.read().strip()
 
-				if (int(pid) == int(os.getpid())):
+				if int(pid) == int(os.getpid()):
 					logger.info(u"Removing pid file '%s'" % self.config['pidFile'])
 					os.unlink(self.config['pidFile'])
 		except Exception as e:
@@ -661,85 +661,85 @@ class OpsiconfdInit(Application):
 
 			for section in config.sections():
 				logger.debug(u"Processing section '%s' in config file: '%s'" % (section, self.config['configFile']))
-				if (section.lower() == 'global'):
+				if section.lower() == 'global':
 					# Global settings
 					for (option, value) in config.items(section):
-						if (option == 'pid file'):
+						if option == 'pid file':
 							self.config['pidFile'] = forceFilename(value)
-						elif (option == 'log level'):
+						elif option == 'log level':
 							self.config['logLevel'] = forceInt(value)
-						elif (option == 'log file'):
+						elif option == 'log file':
 							self.config['logFile'] = forceFilename(value)
-						elif (option == 'log format'):
+						elif option == 'log format':
 							self.config['logFormat'] = forceUnicode(value)
-						elif (option == 'max log size'):
+						elif option == 'max log size':
 							self.config['maxlogsize'] = forceUnicode(value)
-						elif (option == 'symlink logs'):
+						elif option == 'symlink logs':
 							self.config['symlinkLogs'] = forceBool(value)
-						elif (option == 'backend config dir'):
+						elif option == 'backend config dir':
 							self.config['backendConfigDir'] = forceFilename(value)
-						elif (option == 'dispatch config file'):
+						elif option == 'dispatch config file':
 							self.config['dispatchConfigFile'] = forceFilename(value)
-						elif (option == 'socket'):
+						elif option == 'socket':
 							self.config['socket'] = forceFilename(value)
-						elif (option == 'extension config dir'):
+						elif option == 'extension config dir':
 							self.config['extensionConfigDir'] = forceFilename(value)
-						elif (option == 'acl file'):
+						elif option == 'acl file':
 							self.config['aclFile'] = forceFilename(value)
-						elif (option == 'max execution statistics'):
+						elif option == 'max execution statistics':
 							self.config['maxExecutionStatisticValues'] = forceInt(value)
-						elif (option == 'multiprocessing'):
+						elif option == 'multiprocessing':
 							self.config['multiprocessing'] = forceBool(value)
-						elif (option == 'loadbalancing'):
+						elif option == 'loadbalancing':
 							self.config['loadbalancing'] = forceBool(value)
-						elif (option == 'admin networks'):
+						elif option == 'admin networks':
 							self.config['adminNetworks'] = []
 							for net in value.split(','):
 								self.config['adminNetworks'].append(forceNetworkAddress(net.strip()))
-						elif (option == 'message bus'):
+						elif option == 'message bus':
 							self.config['messageBus'] = forceBool(value)
-						elif (option == 'monitoring user'):
+						elif option == 'monitoring user':
 							self.config['monitoringUser'] = forceUnicode(value)
-						elif (option == 'monitoring debug'):
+						elif option == 'monitoring debug':
 							self.config['monitoringDebug'] = forceBool(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 
-				elif (section.lower() == 'service'):
+				elif section.lower() == 'service':
 					# Service settings
 					for (option, value) in config.items(section):
-						if   (option == 'http port'):
+						if option == 'http port':
 							self.config['httpPort'] = forceInt(value)
-						elif (option == 'https port'):
+						elif option == 'https port':
 							self.config['httpsPort'] = forceInt(value)
-						elif (option == 'interface'):
+						elif option == 'interface':
 							self.config['interface'] = forceUnicode(value)
-						elif (option == 'ssl server cert'):
+						elif option == 'ssl server cert':
 							self.config['sslServerCertFile'] = forceFilename(value)
-						elif (option == 'ssl server key'):
+						elif option == 'ssl server key':
 							self.config['sslServerKeyFile'] = forceFilename(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 
-				elif (section.lower() == 'session'):
+				elif section.lower() == 'session':
 					# Session settings
 					for (option, value) in config.items(section):
-						if   (option == 'session name'):
+						if option == 'session name':
 							self.config['sessionName'] = forceUnicode(value)
-						elif (option == 'verify ip'):
+						elif option == 'verify ip':
 							self.config['resolveVerifyIp'] = forceBool(value)
-						elif (option == 'update ip'):
+						elif option == 'update ip':
 							self.config['updateIpAddress'] = forceBool(value)
-						elif (option == 'max inactive interval'):
+						elif option == 'max inactive interval':
 							self.config['sessionMaxInactiveInterval'] = forceInt(value)
-						elif (option == 'max sessions per ip'):
+						elif option == 'max sessions per ip':
 							self.config['maxSessionsPerIp'] = forceInt(value)
-						elif (option == 'max authentication failures'):
+						elif option == 'max authentication failures':
 							self.config['maxAuthenticationFailures'] = forceInt(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 
-				elif (section.lower() == 'directories'):
+				elif section.lower() == 'directories':
 					# Static directories
 					self.config['staticDirectories'] = {}
 					for (directory, path) in config.items(section):

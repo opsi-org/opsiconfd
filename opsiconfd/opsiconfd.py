@@ -780,7 +780,6 @@ class OpsiconfdInit(Application):
 
 def main():
 	logger.setConsoleLevel(LOG_WARNING)
-	exception = None
 
 	try:
 		OpsiconfdInit()

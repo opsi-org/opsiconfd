@@ -491,9 +491,9 @@ class OpsiconfdInit(Application):
 		self.setDefaultConfig()
 		# Process command line arguments
 		for (opt, arg) in self.opts:
-			if (opt == "-c"):
+			if opt == "-c":
 				self.config['configFile'] = forceFilename(arg)
-			if  (opt == "-v"):
+			elif opt == "-v":
 				print u"opsiconfd version %s" % __version__
 				sys.exit(0)
 		self.readConfigFile()
@@ -793,5 +793,5 @@ def main():
 
 	return 0
 
-if (__name__ == "__main__"):
+if __name__ == "__main__":
 	sys.exit(main())

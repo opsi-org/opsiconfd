@@ -125,20 +125,20 @@ class ZeroconfService(object):
 
 class Opsiconfd(OpsiService):
 	def __init__(self, config):
-		self.config             = config
-		self._running           = False
-		self._backend           = None
-		self._root              = None
-		self._site              = None
-		self._httpPort          = None
-		self._httpsPort         = None
-		self._sessionHandler    = None
-		self._statistics        = None
-		self._zeroconfService   = None
-		self._messageBusServer  = None
+		self.config = config
+		self._running = False
+		self._backend = None
+		self._root = None
+		self._site = None
+		self._httpPort = None
+		self._httpsPort = None
+		self._sessionHandler = None
+		self._statistics = None
+		self._zeroconfService = None
+		self._messageBusServer = None
 		self._messageBusService = None
-		self._socket            = None
-		self._debugShell        = None
+		self._socket = None
+		self._debugShell = None
 
 		self.authFailureCount = {}
 
@@ -251,14 +251,14 @@ class Opsiconfd(OpsiService):
 	def _createBackendInstance(self):
 		logger.info(u"Creating backend instance")
 		self._backend = BackendManager(
-			dispatchConfigFile = self.config['dispatchConfigFile'],
-			backendConfigDir   = self.config['backendConfigDir'],
-			extensionConfigDir = self.config['extensionConfigDir'],
-			hostControlBackend = True,
-			hostControlSafeBackend = True,
-			depotBackend       = bool(self.config['depotId']),
-			messageBusNotifier = bool(self.config['messageBus']),
-			startReactor       = False,
+			dispatchConfigFile=self.config['dispatchConfigFile'],
+			backendConfigDir=self.config['backendConfigDir'],
+			extensionConfigDir=self.config['extensionConfigDir'],
+			hostControlBackend=True,
+			hostControlSafeBackend=True,
+			depotBackend=bool(self.config['depotId']),
+			messageBusNotifier=bool(self.config['messageBus']),
+			startReactor=False,
 			maxLogSize=self.config['maxlogsize'],
 		)
 		OpsiconfdHTTPChannel.backend = self._backend
@@ -274,24 +274,25 @@ class Opsiconfd(OpsiService):
 					% self.config['staticDirectories']['/']['path'])
 			else:
 				self._root = ResourceOpsiconfdDAV(self,
-					path = self.config['staticDirectories']['/']['path'],
-					readOnly = True,
-					authRequired = (not 'noauth' in (self.config['staticDirectories']['/']['options'])) )
+					path=self.config['staticDirectories']['/']['path'],
+					readOnly=True,
+					authRequired=(not 'noauth' in (self.config['staticDirectories']['/']['options']))
+				)
 				logger.notice(u"Added static content '/' which points to directory '%s'" \
 					% self.config['staticDirectories']['/']['path'])
 
 		if not hasattr(self, '_root'):
 			self._root = ResourceRoot()
 
-		self._root.putChild('rrd',             ResourceOpsiconfdDAV(self, path = self.config['rrdDir'], readOnly = True))
-		self._root.putChild('rpc',             ResourceOpsiconfdJsonRpc(self))
-		self._root.putChild('interface',       ResourceOpsiconfdJsonInterface(self))
-		self._root.putChild('info',            ResourceOpsiconfdInfo(self))
-		self._root.putChild('monitoring',      ResourceOpsiconfdMonitoring(self))
+		self._root.putChild('rrd', ResourceOpsiconfdDAV(self, path=self.config['rrdDir'], readOnly=True))
+		self._root.putChild('rpc', ResourceOpsiconfdJsonRpc(self))
+		self._root.putChild('interface', ResourceOpsiconfdJsonInterface(self))
+		self._root.putChild('info', ResourceOpsiconfdInfo(self))
+		self._root.putChild('monitoring', ResourceOpsiconfdMonitoring(self))
 		# self._root.putChild('doc',             ResourceOpsiDocumentation())
-		self._root.putChild('configed.jnlp',   ResourceOpsiconfdConfigedJNLP())
+		self._root.putChild('configed.jnlp', ResourceOpsiconfdConfigedJNLP())
 
-		hosts = self._backend.host_getObjects(type = 'OpsiDepotserver', id = self.config['fqdn'])
+		hosts = self._backend.host_getObjects(type='OpsiDepotserver', id=self.config['fqdn'])
 		if hosts:
 			depot = hosts[0]
 			self.config['depotId'] = depot.getId()
@@ -364,7 +365,7 @@ class Opsiconfd(OpsiService):
 			self._httpPort = reactor.listenTCP(
 				self.config['httpPort'],
 				OpsiconfdHTTPFactory(self._site),
-				interface = self.config['interface']
+				interface=self.config['interface']
 			)
 
 		logger.notice(u"Accepting HTTP requests on %s:%s" % (self.config['interface'], self.config['httpPort']))
@@ -404,7 +405,7 @@ class Opsiconfd(OpsiService):
 
 		logger.notice(u"Publishing opsiconfd over zeroconf as '%s' on '%s'" % (name, port))
 		try:
-			self._zeroconfService = ZeroconfService(name = name, port = port)
+			self._zeroconfService = ZeroconfService(name=name, port=port)
 			self._zeroconfService.publish()
 		except Exception as e:
 			logger.error(u"Failed to publish opsiconfd over zeroconf: %s" % e)
@@ -435,7 +436,7 @@ class Opsiconfd(OpsiService):
 
 	def _startMessageBusServer(self):
 		self._messageBusServer = MessageBusServer()
-		self._messageBusServer.start(startReactor = False)
+		self._messageBusServer.start(startReactor=False)
 		self._messageBusService = MessageBusService()
 		OpsiconfdHTTPChannel.messageBusService = self._messageBusService
 		self._messageBusService.start()

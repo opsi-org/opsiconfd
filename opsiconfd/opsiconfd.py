@@ -592,20 +592,21 @@ class OpsiconfdInit(Application):
 		if not os.path.exists(os.path.dirname(self.config['pidFile'])):
 			os.makedirs(os.path.dirname(self.config['pidFile']))
 		elif os.path.exists(self.config['pidFile']) and os.access(self.config['pidFile'], os.R_OK | os.W_OK):
-			pf = open(self.config['pidFile'], 'r')
-			p = pf.readline().strip()
-			pf.close()
-			if p:
+			with open(self.config['pidFile'], 'r') as pf:
+				pidFromFile = pf.readline().strip()
+
+			if pidFromFile:
 				running = False
 				try:
-					for i in execute("%s -x opsiconfd" % which("pidof"))[0].strip().split():
-						if (i == p):
+					for pid in execute("%s -x opsiconfd" % which("pidof"))[0].strip().split():
+						if pid == pidFromFile:
 							running = True
 							break
 				except Exception as e:
 					logger.error(e)
+
 				if running:
-					raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % p )
+					raise Exception(u"Another opsiconfd process is running (pid: %s), stop process first or change pidfile." % pidFromFile)
 
 		pid = os.getpid()
 

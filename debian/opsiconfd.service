@@ -1,0 +1,17 @@
+[Unit]
+Description=Opsi Configuration Service
+After=mysql.service
+After=smbd.service
+Requires=smbd.service
+Wants=isc-dhcp-server.service
+Wants=mysql.service
+
+[Service]
+User=opsiconfd
+ExecStart=/usr/bin/opsiconfd
+RestartSec=10
+KillMode=process
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

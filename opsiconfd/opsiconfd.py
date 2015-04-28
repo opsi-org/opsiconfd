@@ -343,8 +343,8 @@ class Opsiconfd(OpsiService):
 			if name in ('repository', 'depot'):
 				readOnly = False
 
-			authRequired = not('noauth' in options)
-			self._root.putChild(name, ResourceOpsiconfdDAV(self, path, readOnly = readOnly, authRequired = authRequired))
+			authRequired = 'noauth' not in options
+			self._root.putChild(name, ResourceOpsiconfdDAV(self, path, readOnly=readOnly, authRequired=authRequired))
 			logger.notice(u"Added webdav content '%s' which points to directory '%s' %s" % (name, path, tuple(options)))
 
 		self._site = server.Site(self._root)

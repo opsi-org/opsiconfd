@@ -30,8 +30,6 @@ opsi configuration daemon (opsiconfd)
 
 from __future__ import print_function
 
-__version__ = "4.0.6.4"
-
 # Twisted imports
 from twisted.internet import epollreactor
 epollreactor.install()
@@ -76,6 +74,8 @@ from statistics import Statistics
 from monitoring import ResourceOpsiconfdMonitoring
 from session import OpsiconfdSessionHandler
 from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
+
+__version__ = "4.0.6.4"
 
 logger = Logger()
 

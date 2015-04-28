@@ -633,7 +633,7 @@ class OpsiconfdInit(Application):
 		for thread in threading.enumerate():
 			logger.debug(u"Running thread before signal: %s" % thread)
 
-		if (signo == SIGHUP):
+		if signo == SIGHUP:
 			if reactor and reactor.running and self._opsiconfd:
 				self.setDefaultConfig()
 				self.readConfigFile()
@@ -641,8 +641,9 @@ class OpsiconfdInit(Application):
 				self._opsiconfd.setConfig(self.config)
 				reactor.callFromThread(self._opsiconfd.reload)
 
-		if (signo == SIGTERM or signo == SIGINT):
+		if signo in (SIGTERM, SIGINT):
 			self.stop()
+
 		for thread in threading.enumerate():
 			logger.debug(u"Running thread after signal: %s" % thread)
 

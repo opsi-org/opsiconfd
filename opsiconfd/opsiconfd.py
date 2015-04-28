@@ -239,7 +239,7 @@ class Opsiconfd(OpsiService):
 		logger.logWarnings()
 		self.config['machineLogs'] = False
 		if self.config['logFile']:
-			if (self.config['logFile'].find('%m') != -1):
+			if '%m' in self.config['logFile']:
 				self.config['machineLogs'] = True
 			logger.setLogFile(self.config['logFile'].replace('%m', 'opsiconfd'))
 

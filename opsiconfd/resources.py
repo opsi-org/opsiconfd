@@ -68,11 +68,14 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 </jnlp>
 '''
 
+
 class ResourceRoot(resource.Resource):
 	addSlash = True
+
 	def render(self, request):
 		''' Process request. '''
 		return http.Response(stream="<html><head><title>opsiconfd</title></head><body></body></html>")
+
 
 class ResourceOpsiconfd(ResourceOpsi):
 	WorkerClass = WorkerOpsiconfd
@@ -81,11 +84,14 @@ class ResourceOpsiconfd(ResourceOpsi):
 		self._service.statistics().addRequest(request)
 		return ResourceOpsi.renderHTTP(self, request)
 
+
 class ResourceOpsiconfdJsonRpc(ResourceOpsiJsonRpc):
 	WorkerClass = WorkerOpsiconfdJsonRpc
 
+
 class ResourceOpsiconfdJsonInterface(ResourceOpsiJsonInterface):
 	WorkerClass = WorkerOpsiconfdJsonInterface
+
 
 class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 	WorkerClass = WorkerOpsiconfdDAV
@@ -97,16 +103,15 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 		self._service.statistics().addWebDAVRequest(request)
 		return ResourceOpsiDAV.renderHTTP(self, request)
 
+
 class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 	def render(self, request):
 		arguments = '<argument>-h;;%s</argument>' % request.headers.getHeader('host')
 		rawargs = ''
 		if '?' in request.uri:
-			arguments = []
-			rawargs = "?%s" % (request.uri.split('?', 1)[1])
-			for a in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
-				arguments.append(a)
+			rawargs = "?%s" % request.uri.split('?', 1)[1]
 
+			arguments = [argument for argument in urllib.unquote(request.uri.split('?', 1)[1]).split('&')]
 			if arguments:
 				arguments = ";;".join(arguments)
 

@@ -279,7 +279,7 @@ class Opsiconfd(OpsiService):
 				self._root = ResourceOpsiconfdDAV(self,
 					path=self.config['staticDirectories']['/']['path'],
 					readOnly=True,
-					authRequired=(not 'noauth' in (self.config['staticDirectories']['/']['options']))
+					authRequired='noauth' not in self.config['staticDirectories']['/']['options']
 				)
 				logger.notice(u"Added static content '/' which points to directory '%s'" \
 					% self.config['staticDirectories']['/']['path'])

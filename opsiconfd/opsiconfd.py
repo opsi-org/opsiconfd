@@ -754,10 +754,10 @@ class OpsiconfdInit(Application):
 				else:
 					logger.warning(u"Ignoring unknown section '%s' in config file: '%s'" % (section, self.config['configFile']))
 
-		except Exception as e:
+		except Exception as error:
 			# An error occured while trying to read the config file
-			logger.error(u"Failed to read config file '%s': %s" % (self.config['configFile'], e))
-			logger.logException(e)
+			logger.error(u"Failed to read config file '%s': %s" % (self.config['configFile'], error))
+			logger.logException(error)
 			raise
 		logger.notice(u"Config read")
 

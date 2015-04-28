@@ -744,7 +744,7 @@ class OpsiconfdInit(Application):
 					self.config['staticDirectories'] = {}
 					for (directory, path) in config.items(section):
 						opt = []
-						if (path.find('(') != -1):
+						if '(' in path:
 							(path, opt) = path.split('(', 1)
 							path = path.strip()
 							opt = opt.lower().replace(')', '').strip().split(',')

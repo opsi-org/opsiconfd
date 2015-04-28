@@ -192,7 +192,7 @@ class Opsiconfd(OpsiService):
 			if self._backend:
 				try:
 					self._backend.backend_exit()
-				except:
+				except Exception:
 					pass
 			if self._socket:
 				self._socket.stopListening()

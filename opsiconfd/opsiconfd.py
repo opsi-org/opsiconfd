@@ -389,7 +389,7 @@ class Opsiconfd(OpsiService):
 				self.config['httpsPort'],
 				OpsiconfdHTTPFactory(self._site),
 				SSLContext(self.config['sslServerKeyFile'], self.config['sslServerCertFile']),
-				interface = self.config['interface']
+				interface=self.config['interface']
 			)
 
 		logger.notice(u"Accepting HTTPS requests on %s:%s" % (self.config['interface'], self.config['httpsPort']))
@@ -430,7 +430,7 @@ class Opsiconfd(OpsiService):
 		from OPSI.Util.Debug import DebugShell
 
 		ns = globals()
-		ns.update({"opsiconfd":self})
+		ns.update({"opsiconfd": self})
 
 		self._debugShell = DebugShell(self, self._backend, namespace=ns)
 

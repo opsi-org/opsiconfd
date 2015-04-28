@@ -28,6 +28,8 @@ opsi configuration daemon (opsiconfd)
 :license: GNU Affero General Public License version 3
 """
 
+from __future__ import print_function
+
 __version__ = "4.0.6.4"
 
 # Twisted imports
@@ -785,10 +787,10 @@ def main():
 		pass
 	except Exception as exception:
 		logger.logException(exception)
-		print >> sys.stderr, u"ERROR:", unicode(exception)
-		return(1)
+		print(u"ERROR: {0}".format(unicode(exception)), file=sys.stderr)
+		return 1
 
-	return(0)
+	return 0
 
 if (__name__ == "__main__"):
 	sys.exit(main())

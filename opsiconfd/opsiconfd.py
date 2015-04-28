@@ -355,11 +355,11 @@ class Opsiconfd(OpsiService):
 		self._startListeningHTTPS()
 
 	def _startListeningHTTP(self, dontcare=None):
-		if (self.config['httpPort'] <= 0):
+		if self.config['httpPort'] <= 0:
 			self._httpPort = None
 			return
 
-		if (self.config['interface'] == '0.0.0.0'):
+		if self.config['interface'] == '0.0.0.0':
 			self._httpPort = reactor.listenTCP(
 				self.config['httpPort'],
 				OpsiconfdHTTPFactory(self._site)
@@ -378,7 +378,7 @@ class Opsiconfd(OpsiService):
 			self._httpsPort = None
 			return
 
-		if (self.config['interface'] == '0.0.0.0'):
+		if self.config['interface'] == '0.0.0.0':
 			self._httpsPort = reactor.listenSSL(
 				self.config['httpsPort'],
 				OpsiconfdHTTPFactory(self._site),

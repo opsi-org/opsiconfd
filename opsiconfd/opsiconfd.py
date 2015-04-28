@@ -51,7 +51,7 @@ try:
 except ImportError:
 	avahi = None
 
-from signal import *
+from signal import signal, SIGHUB, SIGINT, SIGTERM
 from ctypes import *
 
 from OPSI.Application import Application

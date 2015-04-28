@@ -494,7 +494,7 @@ class OpsiconfdInit(Application):
 			if opt == "-c":
 				self.config['configFile'] = forceFilename(arg)
 			elif opt == "-v":
-				print u"opsiconfd version %s" % __version__
+				print(u"opsiconfd version {0}".format(__version__))
 				sys.exit(0)
 		self.readConfigFile()
 		self.setCommandlineConfig()
@@ -762,20 +762,20 @@ class OpsiconfdInit(Application):
 		logger.notice(u"Config read")
 
 	def usage(self):
-		print u"\nUsage: %s [-D] [-c <filename>] [-f <filename>] [-l <log level>] [-i <ipaddress>] [-p <http port>] [-P <https port>]" % os.path.basename(sys.argv[0])
-		print u"Options:"
-		print u"  -v    Show version information and exit"
-		print u"  -D    Causes the server to operate as a daemon"
-		print u"  -p    HTTP Port to listen on (0 to disable)"
-		print u"  -P    HTTPS Port to listen on (0 to disable)"
-		print u"  -i    IP address of interface to listen on (default: 0.0.0.0)"
-		print u"  -f    Log to given file instead of syslog"
-		print u"  -c    Location of config file"
-		print u"  -s    Location of socket (default: /var/run/opsiconfd/opsiconfd.socket"
-		print u"  -l    Set log level (default: 4)"
-		print u"        0=nothing, 1=essential, 2=critical, 3=error, 4=warning"
-		print u"        5=notice, 6=info, 7=debug, 8=debug2, 9=confidential"
-		print u""
+		print(u"\nUsage: %s [-D] [-c <filename>] [-f <filename>] [-l <log level>] [-i <ipaddress>] [-p <http port>] [-P <https port>]" % os.path.basename(sys.argv[0]))
+		print(u"Options:")
+		print(u"  -v    Show version information and exit")
+		print(u"  -D    Causes the server to operate as a daemon")
+		print(u"  -p    HTTP Port to listen on (0 to disable)")
+		print(u"  -P    HTTPS Port to listen on (0 to disable)")
+		print(u"  -i    IP address of interface to listen on (default: 0.0.0.0)")
+		print(u"  -f    Log to given file instead of syslog")
+		print(u"  -c    Location of config file")
+		print(u"  -s    Location of socket (default: /var/run/opsiconfd/opsiconfd.socket")
+		print(u"  -l    Set log level (default: 4)")
+		print(u"        0=nothing, 1=essential, 2=critical, 3=error, 4=warning")
+		print(u"        5=notice, 6=info, 7=debug, 8=debug2, 9=confidential")
+		print(u"")
 
 
 def main():

@@ -28,7 +28,7 @@ opsi configuration daemon (opsiconfd)
 :license: GNU Affero General Public License version 3
 """
 
-__version__ = "4.0.6.1"
+__version__ = "4.0.6.4"
 
 # Twisted imports
 from twisted.internet import epollreactor
@@ -61,7 +61,8 @@ from OPSI.Util import getfqdn
 from OPSI.Util.File import IniFile
 from OPSI.Util.AMP import OpsiProcessProtocolFactory
 from OPSI.Util.MessageBus import MessageBusServer
-from OPSI.Types import *
+from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
+						forceNetworkAddress, forceUnicode)
 
 from OPSI.System import which, execute
 from OPSI.System.Posix import daemonize

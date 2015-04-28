@@ -54,7 +54,7 @@ except ImportError:
 	avahi = None
 
 from signal import signal, SIGHUP, SIGINT, SIGTERM
-from ctypes import *
+from ctypes import CDLL
 
 from OPSI.Application import Application
 from OPSI.Logger import Logger, LOG_NONE, LOG_WARNING, LOG_NOTICE

@@ -374,7 +374,7 @@ class Opsiconfd(OpsiService):
 		logger.notice(u"Accepting HTTP requests on %s:%s" % (self.config['interface'], self.config['httpPort']))
 
 	def _startListeningHTTPS(self, dontcare=None):
-		if (self.config['httpsPort'] <= 0):
+		if self.config['httpsPort'] <= 0:
 			self._httpsPort = None
 			return
 

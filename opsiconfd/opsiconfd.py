@@ -113,7 +113,7 @@ class ZeroconfService(object):
 			avahi.DBUS_INTERFACE_ENTRY_GROUP
 		)
 
-		g.AddService(avahi.IF_UNSPEC, avahi.PROTO_UNSPEC,dbus.UInt32(0),
+		g.AddService(avahi.IF_UNSPEC, avahi.PROTO_UNSPEC, dbus.UInt32(0),
 				self._name, self._serviceType, self._domain, self._host,
 				dbus.UInt16(self._port), self._text)
 
@@ -241,7 +241,7 @@ class Opsiconfd(OpsiService):
 		if self.config['logFile']:
 			if (self.config['logFile'].find('%m') != -1):
 				self.config['machineLogs'] = True
-			logger.setLogFile( self.config['logFile'].replace('%m', 'opsiconfd') )
+			logger.setLogFile(self.config['logFile'].replace('%m', 'opsiconfd'))
 
 		if self.config['logFormat']:
 			logger.setLogFormat(self.config['logFormat'])
@@ -515,7 +515,7 @@ class OpsiconfdInit(Application):
 
 	def setup(self):
 		# Call signalHandler on signal SIGHUP, SIGTERM, SIGINT
-		signal(SIGHUP,  self.signalHandler)
+		signal(SIGHUP, self.signalHandler)
 
 		if self.config['daemon']:
 			daemonize()

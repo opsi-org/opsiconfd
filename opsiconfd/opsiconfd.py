@@ -656,7 +656,7 @@ class OpsiconfdInit(Application):
 		logger.notice(u"Trying to read config from file: '%s'" % self.config['configFile'])
 
 		try:
-			iniFile = IniFile(filename = self.config['configFile'], raw = True)
+			iniFile = IniFile(filename=self.config['configFile'], raw=True)
 			config = iniFile.parse()
 
 			for section in config.sections():

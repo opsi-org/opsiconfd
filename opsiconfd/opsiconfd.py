@@ -51,7 +51,7 @@ try:
 except ImportError:
 	avahi = None
 
-from signal import signal, SIGHUB, SIGINT, SIGTERM
+from signal import signal, SIGHUP, SIGINT, SIGTERM
 from ctypes import *
 
 from OPSI.Application import Application
@@ -63,7 +63,6 @@ from OPSI.Util.AMP import OpsiProcessProtocolFactory
 from OPSI.Util.MessageBus import MessageBusServer
 from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
 						forceNetworkAddress, forceUnicode)
-
 from OPSI.System import which, execute
 from OPSI.System.Posix import daemonize
 from OPSI.Backend.BackendManager import BackendManager

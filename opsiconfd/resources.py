@@ -110,12 +110,12 @@ class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 			if arguments:
 				arguments = ";;".join(arguments)
 
-		response = http.Response(stream = CONFIGED_JNLP_TEMPLATE % {
+		response = http.Response(stream=CONFIGED_JNLP_TEMPLATE % {
 			"codebase": "https://%s" % (request.headers.getHeader('host')),
 			"rawarguments": rawargs,
 			"arguments": arguments,
 		})
 		# Setting content-type as raw header for fixing the webstart problem
-		# internet explorer. Tested with Internet Explorer 8 on Windows XP SP3 
+		# internet explorer. Tested with Internet Explorer 8 on Windows XP SP3
 		response.headers.addRawHeader('content-type', 'application/x-java-jnlp-file')
 		return response

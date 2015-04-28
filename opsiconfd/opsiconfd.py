@@ -147,9 +147,10 @@ class Opsiconfd(OpsiService):
 		self._setOpsiLogging()
 		self._setTwistedLogging()
 
-		logger.comment(	"\n==================================================================\n" \
-				+ "=             opsi configuration service starting                =\n" \
-				+ "==================================================================\n")
+		logger.comment("""
+==================================================================
+=             opsi configuration service starting                =
+==================================================================""")
 
 	def getInterface(self):
 		return self.getBackend().backend_getInterface()

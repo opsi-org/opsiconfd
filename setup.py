@@ -50,23 +50,32 @@ with open("opsiconfd/opsiconfd.py") as f:
 			version = line.split('=')[1].strip()
 			break
 
+data_files = [
+	('/etc/opsi', ['data/etc/opsi/opsiconfd.conf']),
+	('/etc/init.d', ['data/etc/init.d/opsiconfd']),
+	('/etc/logrotate.d', ['data/etc/logrotate.d/opsiconfd']),
+	('share/opsiconfd/static', [
+		'data/shared/index.html',
+		'data/shared/favicon.ico',
+		'data/shared/opsi_logo.png'
+	])
+]
+
+for path in POSSIBLE_SERVICE_FILE_PATHS:
+	if os.path.exists(path):
+		data_files.append((path, ['debian/opsiconfd.service']))
+		break
+else:
+	print("No systemd-path found. Not installing unitfile.")
+
 setup(
 	name='opsiconfd',
 	version=version,
-	license='GPL-2',
+	license='AGPL-3',
 	url="http://www.opsi.org",
 	description='The opsi configiration management daemon',
 	packages=['opsiconfd'],
 	scripts=['scripts/opsiconfd', 'scripts/opsiconfd-guard'],
-	data_files=[
-		('/etc/opsi', ['data/etc/opsi/opsiconfd.conf']),
-		('/etc/init.d', ['data/etc/init.d/opsiconfd']),
-		('/etc/logrotate.d', ['data/etc/logrotate.d/opsiconfd']),
-		('share/opsiconfd/static', [
-			'data/shared/index.html',
-			'data/shared/favicon.ico',
-			'data/shared/opsi_logo.png'
-		])
-	],
+	data_files=data_files,
 	cmdclass = cmdclass
 )

@@ -28,12 +28,6 @@ opsi configuration daemon (opsiconfd) setup file
 import os
 from setuptools import setup
 
-POSSIBLE_SERVICE_FILE_PATHS = (
-	'/usr/lib/systemd/system/',  # systemd default
-	'/lib/systemd/system',  # path on Ubuntu 15.04
-	'/etc/systemd/system/'  # usually meant for units installed by sysadmin
-)
-
 cmdclass = {}
 
 try:
@@ -61,10 +55,12 @@ data_files = [
 	])
 ]
 
-for path in POSSIBLE_SERVICE_FILE_PATHS:
-	if os.path.exists(path):
-		data_files.append((path, ['debian/opsiconfd.service']))
-		break
+for line in os.popen('pkg-config systemd --variable=systemdsystemunitdir', 'r'):
+	if line and line.strip():
+		path = line.strip()
+		if os.path.isdir(path):
+			data_files.append((path, ['debian/opsiconfd.service']))
+			break
 else:
 	print("No systemd-path found. Not installing unitfile.")
 

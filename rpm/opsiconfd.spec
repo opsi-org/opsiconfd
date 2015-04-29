@@ -7,13 +7,14 @@
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps pkgconfig
+BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
 Requires:       python-opsi >= 4.0.3.4
 Requires:       openssl
 Requires:       python-twisted
 Requires:       dbus-1-python
 Requires:       psmisc
 Requires:       procps
+Requires:       pkgconfig
 Url:            http://www.opsi.org
 License:        AGPLv3+
 Group:          Productivity/Networking/Opsi

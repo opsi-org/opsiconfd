@@ -139,6 +139,7 @@ if [ -x "/etc/init.d/opsiconfd" ]; then
 	fi
 fi
 
-
-
-
+if [ -x "`which systemctl 2>/dev/null`" ]; then
+	systemctl daemon-reload || echo "Reloading unit-files failed!"
+	systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+fi

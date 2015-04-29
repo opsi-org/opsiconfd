@@ -6,7 +6,7 @@ opsi configuration daemon - workers
 opsiconfd is part of the desktop management solution opsi
 (open pc server integration) http://www.opsi.org
 
-Copyright (C) 2010-2013 uib GmbH
+Copyright (C) 2010-2015 uib GmbH
 
 http://www.uib.de/
 
@@ -494,77 +494,78 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 
 	def _generateResponse(self, result):
 		logger.info(u"Creating opsiconfd interface page")
-		javascript  = u"var currentParams = new Array();\n"
-		javascript += u"var currentMethod = null;\n"
+
+		javascript = [
+			u"var currentParams = new Array();",
+			u"var currentMethod = null;"
+		]
 		currentMethod = u''
 		if self._rpcs:
 			currentMethod = self._rpcs[0].getMethodName()
-			javascript += u"currentMethod = '%s';\n" % currentMethod
-			for i in range(len(self._rpcs[0].params)):
-				param = self._rpcs[0].params[i]
-				javascript += u"currentParams[%d] = '%s';\n" % (i, toJson(param))
+			javascript.append(u"currentMethod = '%s';" % currentMethod)
+			for (i, param) in enumerate(self._rpcs[0].params):
+				javascript.append(u"currentParams[%d] = '%s';" % (i, toJson(param)))
 
 		currentPath = u'interface'
 		selected = u' selected="selected"'
 		for pp in self.request.postpath:
-			currentPath += u'/%s' % pp
+			currentPath = u'{0}/{1}'.format(currentPath, pp)
 			selected = u''
-		javascript += u"path = '%s';\n" % currentPath
+		javascript.append(u"path = '%s';" % currentPath)
 
-		selectPath = u'<option%s>interface</option>' % selected
+		selectPath = [u'<option%s>interface</option>' % selected]
 		for name in self.service.getBackend().dispatcher_getBackendNames():
 			selected = u''
 			path = u'interface/backend/%s' % name
-			if (path == currentPath):
+			if path == currentPath:
 				selected = u' selected="selected"'
-			selectPath += '<option%s>%s</option>' % (selected, path)
+			selectPath.append('<option%s>%s</option>' % (selected, path))
 
 		for name in os.listdir(self.service.config['extensionConfigDir']):
 			if not os.path.isdir(os.path.join(self.service.config['extensionConfigDir'], name)):
 				continue
 			selected = u''
 			path = u'interface/extend/%s' % name
-			if (path == currentPath):
+			if path == currentPath:
 				selected = u' selected="selected"'
-			selectPath += '<option%s>%s</option>' % (selected, path)
+			selectPath.append('<option%s>%s</option>' % (selected, path))
 
-		selectMethod = u''
-
+		selectMethod = []
 		if self._callInterface:
 			for method in self._callInterface:
-				javascript += u"parameters['%s'] = new Array();\n" % (method['name'])
-				for param in range(len(method['params'])):
-					javascript += u"parameters['%s'][%s]='%s';\n" % (method['name'], param, method['params'][param])
+				methodName = method['name']
+				javascript.append(u"parameters['%s'] = new Array();" % methodName)
+				for (index, param) in enumerate(method['params']):
+					javascript.append(u"parameters['%s'][%s]='%s';" % (methodName, index, param))
 				selected = u''
-				if (method['name'] == currentMethod):
+				if methodName == currentMethod:
 					selected = u' selected="selected"'
-				selectMethod += u'<option%s>%s</option>' % (selected, method['name'])
+				selectMethod.append(u'<option%s>%s</option>' % (selected, methodName))
 
-		resultDiv = u'<div id="result">'
+		def wrapInDiv(obj):
+			return u'<div class="json">{0}</div>'.format(obj)
+
+		resultDiv = [u'<div id="result">']
 		if isinstance(result, failure.Failure):
 			error = u'Unknown error'
 			try:
 				result.raiseException()
-			except Exception as e:
-				error = {'class': e.__class__.__name__, 'message': unicode(e)}
+			except Exception as err:
+				error = {'class': err.__class__.__name__, 'message': unicode(err)}
 				error = toJson({"id": None, "result": None, "error": error})
-			resultDiv += u'<div class="json">'
-			resultDiv += objectToHtml(error)
-			resultDiv += u'</div>'
+			resultDiv.append(wrapInDiv(objectToHtml(error)))
 		else:
 			for rpc in self._rpcs:
-				resultDiv += u'<div class="json">'
-				resultDiv += objectToHtml(serialize(rpc.getResponse()))
-				resultDiv += u'</div>'
-		resultDiv += u'</div>'
+				resultDiv.append(wrapInDiv(objectToHtml(serialize(rpc.getResponse()))))
+		resultDiv.append(u'</div>')
 
 		html = interfacePage % {
-			'path':          currentPath,
-			'title':         u'opsiconfd interface page',
-			'javascript':    javascript,
-			'select_path':   selectPath,
-			'select_method': selectMethod,
-			'result':        resultDiv
+			'path': currentPath,
+			'title': u'opsiconfd interface page',
+			'javascript': u'\n'.join(javascript),
+			'select_path': u''.join(selectPath),
+			'select_method': u''.join(selectMethod),
+			'result': u''.join(resultDiv)
 		}
 
 		if not isinstance(result, http.Response):

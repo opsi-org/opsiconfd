@@ -7,7 +7,7 @@
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
+BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps pkgconfig
 Requires:       python-opsi >= 4.0.3.4
 Requires:       openssl
 Requires:       python-twisted

@@ -205,6 +205,11 @@ chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
+if [ -x "`which systemctl 2>/dev/null`" ]; then
+	systemctl daemon-reload || echo "Reloading unit-files failed!"
+	systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+fi
+
 if [ $arg0 -eq 1 ]; then
 	# Install
 	/etc/init.d/opsiconfd start || true

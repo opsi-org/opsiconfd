@@ -5,8 +5,9 @@ opsiconfd (4.0.6.4-1) UNRELEASED; urgency=low
   * Failed RPDs now get logged as a warning.
   * Various small refactorings.
   * Supply a unit-file for systemd.
+  * debian/format: removed file.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 28 Apr 2015 14:51:17 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 19 May 2015 15:36:26 +0200
 
 opsiconfd (4.0.6.3-1) experimental; urgency=low
 

@@ -1,3 +1,9 @@
+opsiconfd (4.0.5.3-2) testing; urgency=low
+
+  * source/format file removed from debian packaging
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Thu, 21 May 2015 15:15:09 +0200
+
 opsiconfd (4.0.5.3-1) testing; urgency=low
 
   * Reset maxAuthenticationFailure before connection will blocked

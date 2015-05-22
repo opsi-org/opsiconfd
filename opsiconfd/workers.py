@@ -75,12 +75,12 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 	def _errback(self, failure):
 		result = WorkerOpsi._errback(self, failure)
-		if (result.code == responsecode.UNAUTHORIZED) and self.request.remoteAddr.host not in (self.service.config['ipAddress'], '127.0.0.1'):
-			if (self.service.config['maxAuthenticationFailures'] > 0):
+		if result.code == responsecode.UNAUTHORIZED and self.request.remoteAddr.host not in (self.service.config['ipAddress'], '127.0.0.1'):
+			if self.service.config['maxAuthenticationFailures'] > 0:
 				if not self.service.authFailureCount.has_key(self.request.remoteAddr.host):
 					self.service.authFailureCount[self.request.remoteAddr.host] = 0
 				self.service.authFailureCount[self.request.remoteAddr.host] += 1
-				if (self.service.authFailureCount[self.request.remoteAddr.host] > self.service.config['maxAuthenticationFailures']):
+				if self.service.authFailureCount[self.request.remoteAddr.host] > self.service.config['maxAuthenticationFailures']:
 					logger.error(u"%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding" \
 							% (self.service.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host))
 					#Will prevent flooding, before block for prevention, delete actual remoteAddr to reset the maxAuthenticationFailure marker
@@ -97,7 +97,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 				logger.debug(u"Authorization header found (type: %s)" % auth[0])
 				logger.confidential(u"Auth encoded: %s" % auth[1])
 				authString = None
-				if (auth[0].lower() == 'opsi'):
+				if auth[0].lower() == 'opsi':
 					try:
 						authString = unicode(
 							decryptWithPrivateKeyFromPEMFile(
@@ -110,7 +110,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 					authString = unicode(base64.decodestring(auth[1]), 'latin-1').strip()
 
 				parts = authString.split(':')
-				if (len(parts) > 6):
+				if len(parts) > 6:
 					user = u':'.join(parts[:6])
 					password = u':'.join(parts[6:])
 				else:
@@ -133,7 +133,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 			except Exception as e:
 				raise Exception(u"No username given and resolve failed: %s" % e)
 
-		if (user.count('.') >= 2):
+		if user.count('.') >= 2:
 			self.session.isHost = True
 			if (user.find('_') != -1):
 				user = forceHostId(user.replace('_', '-'))
@@ -155,7 +155,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 				logger.debug(u"Host not found: %s" % e)
 
 			if hosts:
-				if password and hosts[0].getOneTimePassword() and (password == hosts[0].getOneTimePassword()):
+				if password and hosts[0].getOneTimePassword() and password == hosts[0].getOneTimePassword():
 					logger.info(u"Client '%s' supplied one-time password" % user)
 					password = hosts[0].getOpsiHostKey()
 					hosts[0].oneTimePassword = None
@@ -169,12 +169,14 @@ class WorkerOpsiconfd(WorkerOpsi):
 			(user, password) = self._getAuthorization()
 			if not password:
 				raise OpsiAuthenticationError(u"Application '%s' on client '%s' did neither supply session id nor password" % (self._getUserAgent(), self.request.remoteAddr.host))
+
 		return sessionId
 
 	def _getSession(self, result):
 		WorkerOpsi._getSession(self, result)
-		if self.session.user and (self.session.user.count('.') >= 2):
+		if self.session.user and self.session.user.count('.') >= 2:
 			self.session.isHost = True
+
 		if self.session.isHost and not self.session.hostname:
 			logger.info(u"Storing hostname '%s' in session" % self.session.user)
 			self.session.hostname = self.session.user
@@ -217,7 +219,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 							(self.session.user, self.session.ip) )
 
 			adminNetwork = False
-			if (len(self.service.config['adminNetworks']) == 1) and (self.service.config['adminNetworks'][0] == u'0.0.0.0/0'):
+			if len(self.service.config['adminNetworks']) == 1 and self.service.config['adminNetworks'][0] == u'0.0.0.0/0':
 				adminNetwork = True
 			else:
 				for networkAddress in self.service.config['adminNetworks']:
@@ -266,10 +268,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 	def _getBackend(self, result):
 		if self.session.callInstance and self.session.callInterface:
-			if (len(self.session.postpath) == len(self.request.postpath)):
+			if len(self.session.postpath) == len(self.request.postpath):
 				postpathMatch = True
 				for i in range(len(self.request.postpath)):
-					if (self.request.postpath[i] != self.session.postpath[i]):
+					if self.request.postpath[i] != self.session.postpath[i]:
 						postpathMatch = False
 				if postpathMatch:
 					return result
@@ -279,7 +281,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 		self.session.postpath = self.request.postpath
 
 		forceGroups = []
-		if (len(self.service.config['adminNetworks']) == 1) and (self.service.config['adminNetworks'][0] == u'0.0.0.0/0'):
+		if len(self.service.config['adminNetworks']) == 1 and self.service.config['adminNetworks'][0] == u'0.0.0.0/0':
 			forceGroups = None
 		else:
 			for networkAddress in self.service.config['adminNetworks']:
@@ -362,9 +364,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 					if not hosts:
 						raise Exception(u"Host '%s' not found in backend" % self.session.user)
 					host = hosts[0]
-					if (host.getType() == 'OpsiClient'):
+					if host.getType() == 'OpsiClient':
 						host.setLastSeen(timestamp())
-						if self.service.config['updateIpAddress'] and (host.ipAddress != self.session.ip) and (self.session.ip != '127.0.0.1'):
+						if self.service.config['updateIpAddress'] and host.ipAddress != self.session.ip and self.session.ip != '127.0.0.1':
 							host.setIpAddress(self.session.ip)
 						else:
 							# Value None on update means no change!
@@ -454,7 +456,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 
 	def _decodeQuery(self, result):
 		try:
-			if (self.request.method == 'POST'):
+			if self.request.method == 'POST':
 				contentType = self.request.headers.getHeader('content-type')
 				contentEncoding = None
 				try:
@@ -462,7 +464,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 				except Exception:
 					pass
 				logger.debug(u"Content-Type: %s, Content-Encoding: %s" % (contentType, contentEncoding))
-				if (contentEncoding == 'gzip') or (contentType and contentType.mediaType.startswith('gzip')):
+				if contentEncoding == 'gzip' or (contentType and contentType.mediaType.startswith('gzip')):
 					logger.debug(u"Expecting compressed data from client")
 					self.query = zlib.decompress(self.query)
 			self.query = unicode(self.query, 'utf-8')

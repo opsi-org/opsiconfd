@@ -91,7 +91,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 		return result
 
 	def _getAuthorization(self):
-		(user, password) = (u'', u'')
+		user = password = u''
 		logger.debug(u"Trying to get username and password from Authorization header")
 		auth = self.request.headers.getHeader('Authorization')
 		if auth:

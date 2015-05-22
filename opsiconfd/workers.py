@@ -152,7 +152,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 		if self.session.isHost:
 			hosts = None
 			try:
-				hosts = self.service._backend.host_getObjects(type = 'OpsiClient', id = user)
+				hosts = self.service._backend.host_getObjects(type='OpsiClient', id=user)
 			except Exception as e:
 				logger.debug(u"Host not found: %s" % e)
 
@@ -162,6 +162,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 					password = hosts[0].getOpsiHostKey()
 					hosts[0].oneTimePassword = None
 					self.service._backend.host_createObjects(hosts[0])
+
 		return (user, password)
 
 	def _getSessionId(self):
@@ -275,8 +276,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 				for i in range(len(self.request.postpath)):
 					if self.request.postpath[i] != self.session.postpath[i]:
 						postpathMatch = False
+
 				if postpathMatch:
 					return result
+
 			self.session.interface = None
 			self.session.callInstance.backend_exit()
 

@@ -414,7 +414,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 			MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
 
 	def _getCallInstance(self, result):
-		d = defer.maybeDeferred(self._getBackend,result)
+		d = defer.maybeDeferred(self._getBackend, result)
 
 		def setInterface():
 			self._callInstance = self.session.callInstance

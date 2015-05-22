@@ -410,9 +410,8 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
 
 		modules = self.service._backend.backend_info()['modules']
-		if self.multiProcessing and \
-		(modules.get('valid', False) and modules.get('high_availability', False)):
-				MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
+		if self.multiProcessing and (modules.get('valid', False) and modules.get('high_availability', False)):
+			MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
 
 	def _getCallInstance(self, result):
 		d = defer.maybeDeferred(self._getBackend,result)

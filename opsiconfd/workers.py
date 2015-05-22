@@ -66,11 +66,11 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
-			logger.setLogFile( self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object = obj )
+			logger.setLogFile(self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object=obj)
 
 	def _linkLogFile(self, result):
 		if self.session.hostname and self.service.config['machineLogs'] and self.service.config['logFile']:
-			logger.linkLogFile( self.service.config['logFile'].replace('%m', self.session.hostname), object = self )
+			logger.linkLogFile(self.service.config['logFile'].replace('%m', self.session.hostname), object=self)
 		return result
 
 	def _errback(self, failure):
@@ -141,7 +141,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 			self.session.isHost = True
 			mac = forceHardwareAddress(user)
 			logger.info(u"Found hardware address '%s' as username, searching host in backend" % mac)
-			hosts = self.service._backend.host_getObjects(hardwareAddress = mac)
+			hosts = self.service._backend.host_getObjects(hardwareAddress=mac)
 			if not hosts:
 				raise Exception(u"Host with hardware address '%s' not found in backend" % mac)
 			user = hosts[0].id
@@ -186,6 +186,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 		if self.session.authenticated:
 			return result
+
 		try:
 			(self.session.user, self.session.password) = self._getCredentials()
 
@@ -289,39 +290,43 @@ class WorkerOpsiconfd(WorkerOpsi):
 		def _createBackend():
 			self.session.postpath = self.request.postpath
 			self.session.callInstance = backendManagerFactory(
-					user               = self.session.user,
-					password           = self.session.password,
-					forceGroups        = forceGroups,
-					dispatchConfigFile = self.service.config['dispatchConfigFile'],
-					backendConfigDir   = self.service.config['backendConfigDir'],
-					extensionConfigDir = self.service.config['extensionConfigDir'],
-					aclFile            = self.service.config['aclFile'],
-					depotId            = self.service.config['depotId'],
-					postpath           = self.request.postpath,
-					context            = self.service._backend,
-					messageBusNotifier = self.service.config['messageBus'],
-					startReactor       = False)
+				user=self.session.user,
+				password=self.session.password,
+				forceGroups=forceGroups,
+				dispatchConfigFile=self.service.config['dispatchConfigFile'],
+				backendConfigDir=self.service.config['backendConfigDir'],
+				extensionConfigDir=self.service.config['extensionConfigDir'],
+				aclFile=self.service.config['aclFile'],
+				depotId=self.service.config['depotId'],
+				postpath=self.request.postpath,
+				context=self.service._backend,
+				messageBusNotifier=self.service.config['messageBus'],
+				startReactor=False
+			)
 
 		def _spawnProcess():
 			socket = "/var/run/opsiconfd/worker-%s.socket" % randomString(32)
 
-			process = OpsiBackendProcess(socket = socket, logFile = self.service.config['logFile'].replace('%m', self.request.remoteAddr.host))
+			process = OpsiBackendProcess(
+				socket=socket,
+				logFile=self.service.config['logFile'].replace('%m', self.request.remoteAddr.host)
+			)
 			self.session.callInstance = process
 
 			d = process.start()
 			d.addCallback(lambda x: process.callRemote("setLogging", console=logger.getConsoleLevel(), file=logger.getFileLevel()))
 			d.addCallback(lambda x: process.callRemote("initialize",
-							user               = self.session.user,
-							password           = self.session.password,
-							forceGroups        = forceGroups,
-							dispatchConfigFile = self.service.config['dispatchConfigFile'],
-							backendConfigDir   = self.service.config['backendConfigDir'],
-							extensionConfigDir = self.service.config['extensionConfigDir'],
-							aclFile            = self.service.config['aclFile'],
-							depotId            = self.service.config['depotId'],
-							postpath           = self.request.postpath,
-							messageBusNotifier = self.service.config['messageBus'],
-							startReactor       = False))
+							user=self.session.user,
+							password=self.session.password,
+							forceGroups=forceGroups,
+							dispatchConfigFile=self.service.config['dispatchConfigFile'],
+							backendConfigDir=self.service.config['backendConfigDir'],
+							extensionConfigDir=self.service.config['extensionConfigDir'],
+							aclFile=self.service.config['aclFile'],
+							depotId=self.service.config['depotId'],
+							postpath=self.request.postpath,
+							messageBusNotifier=self.service.config['messageBus'],
+							startReactor=False))
 			return d
 
 		modules = self.service._backend.backend_info()['modules']
@@ -353,7 +358,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 			def f():
 				if self.session.isHost:
-					hosts = self.service._backend.host_getObjects(['ipAddress', 'lastSeen'], id = self.session.user)
+					hosts = self.service._backend.host_getObjects(['ipAddress', 'lastSeen'], id=self.session.user)
 					if not hosts:
 						raise Exception(u"Host '%s' not found in backend" % self.session.user)
 					host = hosts[0]
@@ -381,14 +386,14 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 	def _processOpsiServiceVerificationKey(self, result):
 		try:
-			for (k, v) in self.request.headers.getAllRawHeaders():
-				if (k.lower() == 'x-opsi-service-verification-key'):
+			for key, value in self.request.headers.getAllRawHeaders():
+				if key.lower() == 'x-opsi-service-verification-key':
 					logger.info(u"Adding header x-opsi-service-verification-key")
 					if not isinstance(result, http.Response):
 						result = http.Response()
 					result.headers.setRawHeaders(
 						'X-opsi-service-verification-key',
-						[ decryptWithPrivateKeyFromPEMFile(base64.decodestring(v[0]), self.service.config['sslServerKeyFile']) ]
+						[decryptWithPrivateKeyFromPEMFile(base64.decodestring(value[0]), self.service.config['sslServerKeyFile'])]
 					)
 					return result
 		except Exception as e:
@@ -399,7 +404,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWorkerOpsiJsonRpc):
 	def __init__(self, service, request, resource):
-		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing = service.config["multiprocessing"])
+		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing=service.config["multiprocessing"])
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
 
 		modules = self.service._backend.backend_info()['modules']
@@ -485,7 +490,6 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 
 class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterface):
 	def __init__(self, service, request, resource):
-
 		WorkerOpsiJsonInterface.__init__(self, service, request, resource)
 		WorkerOpsiconfdJsonRpc.__init__(self, service, request, resource)
 
@@ -596,9 +600,7 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 
 		if (not self.resource._authRequired or not self.session.isAdmin) and self.request.method not in ('GET', 'PROPFIND', 'OPTIONS', 'USERINFO', 'HEAD'):
 			logger.critical(u"Method '%s' not allowed (read only)" % self.request.method)
-			return http.Response(
-				code	= responsecode.FORBIDDEN,
-				stream	= "Readonly!" )
+			return http.Response(code=responsecode.FORBIDDEN, stream="Readonly!")
 
 		return self.resource.renderHTTP_super(self.request, self)
 

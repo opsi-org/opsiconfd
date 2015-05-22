@@ -100,8 +100,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 							decryptWithPrivateKeyFromPEMFile(
 								base64.decodestring(auth[1]),
 								self.service.config['sslServerKeyFile']), 'latin-1').strip()
-					except Exception as e:
-						logger.logException(e)
+					except Exception as error:
+						logger.logException(error)
 						raise
 				else:
 					authString = unicode(base64.decodestring(auth[1]), 'latin-1').strip()
@@ -115,8 +115,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 					password = u':'.join(parts[1:])
 				user = user.strip()
 				logger.confidential(u"Client supplied username '%s' and password '%s'" % (user, password))
-			except Exception as e:
-				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+			except Exception as error:
+				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, error))
 		return (user, password)
 
 	def _getCredentials(self):
@@ -127,8 +127,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 			try:
 				(hostname, aliaslist, ipaddrlist) = socket.gethostbyaddr(self.session.ip)
 				user = forceHostId(hostname)
-			except Exception as e:
-				raise Exception(u"No username given and resolve failed: %s" % e)
+			except Exception as error:
+				raise Exception(u"No username given and resolve failed: %s" % error)
 
 		if user.count('.') >= 2:
 			self.session.isHost = True
@@ -148,8 +148,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 			hosts = None
 			try:
 				hosts = self.service._backend.host_getObjects(type='OpsiClient', id=user)
-			except Exception as e:
-				logger.debug(u"Host not found: %s" % e)
+			except Exception as error:
+				logger.debug(u"Host not found: %s" % error)
 
 			if hosts:
 				if password and hosts[0].getOneTimePassword() and password == hosts[0].getOneTimePassword():
@@ -205,8 +205,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 				addressList = []
 				try:
 					(name, aliasList, addressList) = socket.gethostbyname_ex(self.session.hostname)
-				except Exception as e:
-					logger.warning(u"Failed to resolve hostname '%s': %s" % (self.session.hostname, e))
+				except Exception as error:
+					logger.warning(u"Failed to resolve hostname '%s': %s" % (self.session.hostname, error))
 
 				if self.session.ip not in addressList:
 					# Username (FQDN) of peer does not resolve to peer's ip address
@@ -254,11 +254,11 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 			if self.service.authFailureCount.has_key(self.request.remoteAddr.host):
 				del self.service.authFailureCount[self.request.remoteAddr.host]
-		except Exception as e:
-			logger.logException(e, LOG_INFO)
+		except Exception as error:
+			logger.logException(error, LOG_INFO)
 			self._freeSession(result)
 			self.service._getSessionHandler().deleteSession(self.session.uid)
-			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
+			raise OpsiAuthenticationError(u"Forbidden: %s" % error)
 		return result
 
 	def _authorize(self):
@@ -398,9 +398,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 						[decryptWithPrivateKeyFromPEMFile(base64.decodestring(value[0]), self.service.config['sslServerKeyFile'])]
 					)
 					return result
-		except Exception as e:
-			logger.logException(e)
-			logger.error(u"Failed to process opsi service verification key: %s" % e)
+		except Exception as error:
+			logger.logException(error)
+			logger.error(u"Failed to process opsi service verification key: %s" % error)
 		return result
 
 
@@ -467,8 +467,8 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 					logger.debug(u"Expecting compressed data from client")
 					self.query = zlib.decompress(self.query)
 			self.query = unicode(self.query, 'utf-8')
-		except (UnicodeError, UnicodeEncodeError) as e:
-			self.service.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(e))
+		except (UnicodeError, UnicodeEncodeError) as error:
+			self.service.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(error))
 			self.query = unicode(self.query, 'utf-8', 'replace')
 		logger.debug2(u"query: %s" % self.query)
 		return result

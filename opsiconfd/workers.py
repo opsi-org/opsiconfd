@@ -137,7 +137,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 		if user.count('.') >= 2:
 			self.session.isHost = True
-			if (user.find('_') != -1):
+			if '_' in user:
 				user = forceHostId(user.replace('_', '-'))
 		elif re.search('^([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})[:-]?([0-9a-f]{2})$', user):
 			self.session.isHost = True

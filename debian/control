@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: uib GmbH <info@uib.de>
 Build-Depends: debhelper (>= 7), python (>=2.6), dh-python | python-support, python-setuptools
 X-Python-Version: >=2.6
-Standards-Version: 3.9.6
+Standards-Version: 3.9.4
 
 Package: opsiconfd
 Architecture: all

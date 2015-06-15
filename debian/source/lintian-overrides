@@ -1,1 +1,2 @@
 opsiconfd source: native-package-with-dash-version
+opsiconfd source: not-using-po-debconf

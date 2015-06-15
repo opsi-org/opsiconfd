@@ -1,6 +1,7 @@
 opsiconfd (4.0.6.4-3) UNRELEASED; urgency=medium
 
   * Debian: Downgrade Standards-Version to 3.9.4
+  * Debian: Removing the support for python-support in favor of dh_python2
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 15 Jun 2015 13:01:16 +0200
 

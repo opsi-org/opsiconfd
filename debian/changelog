@@ -1,3 +1,11 @@
+opsiconfd (4.0.6.4-3) UNRELEASED; urgency=medium
+
+  * Debian: Re-introduce dependency for python-support.
+    As opposed to the Debian docs dh-python alone is not sufficent since
+    Debian Squeeze.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 15 Jun 2015 14:38:02 +0200
+
 opsiconfd (4.0.6.4-3) experimental; urgency=medium
 
   * Debian: Downgrade Standards-Version to 3.9.4

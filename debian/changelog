@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.4-2) experimental; urgency=medium
+
+  * Packaging adjustments to make lintian happy.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 15 Jun 2015 11:30:00 +0200
+
 opsiconfd (4.0.6.4-1) experimental; urgency=low
 
   * opsiconfd.conf: Default log-level is 5.

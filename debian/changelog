@@ -4,8 +4,9 @@ opsiconfd (4.0.6.4-3) UNRELEASED; urgency=medium
   * Debian: Removing the support for python-support in favor of dh_python2
   * Debian: bump minimum required python-version to 2.6.6-3~.
   * Debian: specify "Uploader" in control-file.
+  * Debian: specify "3.0 (native)" as format.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 15 Jun 2015 14:13:57 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 15 Jun 2015 14:17:54 +0200
 
 opsiconfd (4.0.6.4-2) experimental; urgency=medium
 

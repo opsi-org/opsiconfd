@@ -1,4 +1,4 @@
-opsiconfd (4.0.6.4-1) UNRELEASED; urgency=low
+opsiconfd (4.0.6.4-1) experimental; urgency=low
 
   * opsiconfd.conf: Default log-level is 5.
   * fix in webstart implementation for configed
@@ -8,7 +8,7 @@ opsiconfd (4.0.6.4-1) UNRELEASED; urgency=low
   * debian/format: removed file.
   * Various small refactorings in opsiconfd.workers
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 19 May 2015 15:36:26 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 15 Jun 2015 11:18:06 +0200
 
 opsiconfd (4.0.6.3-1) experimental; urgency=low
 

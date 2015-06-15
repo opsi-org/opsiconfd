@@ -19,7 +19,6 @@
 """
 opsi configuration daemon (opsiconfd)
 
-.. versionadded:: 4.0.4
 
 :copyright:uib GmbH <info@uib.de>
 :author: Jan Schneider <j.schneider@uib.de>

@@ -29,11 +29,6 @@ opsi configuration daemon (opsiconfd)
 
 from __future__ import print_function
 
-# Twisted imports
-from twisted.internet import epollreactor
-epollreactor.install()
-from twisted.internet import reactor
-
 import getopt
 import os
 import sys
@@ -52,6 +47,10 @@ except ImportError:
 
 from signal import signal, SIGHUP, SIGINT, SIGTERM
 from ctypes import CDLL
+
+from twisted.internet import epollreactor
+epollreactor.install()
+from twisted.internet import reactor
 
 from OPSI.Application import Application
 from OPSI.Logger import Logger, LOG_NONE, LOG_WARNING, LOG_NOTICE

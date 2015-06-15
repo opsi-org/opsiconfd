@@ -213,12 +213,12 @@ fi
 
 if [ $arg0 -eq 1 ]; then
 	# Install
-	/etc/init.d/opsiconfd start || true
+	/sbin/service opsiconfd start || true
 else
 	# Upgrade
 	if [ -e /var/run/opsiconfd.pid -o -e /var/run/opsiconfd/opsiconfd.pid ]; then
 		rm /var/run/opsiconfd.pid 2>/dev/null || true
-		/etc/init.d/opsiconfd restart || true
+		/sbin/service opsiconfd restart || true
 	fi
 fi
 

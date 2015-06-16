@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.4-7) experimental; urgency=medium
+
+  * Debian: lintian-override fix
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 16 Jun 2015 12:09:55 +0200
+
 opsiconfd (4.0.6.4-6) experimental; urgency=medium
 
   * Debian: extending lintian-overrides for Debian 8

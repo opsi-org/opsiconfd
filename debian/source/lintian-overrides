@@ -1,2 +1,4 @@
 opsiconfd source: native-package-with-dash-version
 opsiconfd source: not-using-po-debconf
+opsiconfd source: untranslatable-debconf-templates opsiconfd.templates
+opsiconfd source: python-depends-but-no-python-helper

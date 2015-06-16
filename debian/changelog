@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.4-6) UNRELEASED; urgency=medium
+
+  * Debian: extending lintian-overrides for Debian 8
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 16 Jun 2015 12:02:16 +0200
+
 opsiconfd (4.0.6.4-5) experimental; urgency=medium
 
   * Debian: changing package format to 1.0 so Jessy is happy.

@@ -271,26 +271,14 @@ fi
 # default attributes
 %defattr(-,root,root)
 
-# documentation
-#%doc LICENSE README RELNOTES doc
-
 # configfiles
 %config(noreplace) /etc/opsi/opsiconfd.conf
 %attr(0755,root,root) %config /etc/init.d/opsiconfd
 %config /etc/logrotate.d/opsiconfd
 
 ## other files
-#%attr(0755,root,root) /usr/sbin/opsiconfd
-#%attr(0755,root,root) /usr/sbin/opsiconfd-guard
 %attr(0755,root,root) /usr/sbin/rcopsiconfd
-#/usr/share/opsiconfd/static/index.html
-#/usr/share/opsiconfd/static/opsi_logo.png
-#/usr/share/opsiconfd/static/favicon.ico
-#
 ## directories
-#%attr(0755,pcpatch,root) %dir /etc/opsi
-#%attr(0755,root,root) %dir /usr/share/opsiconfd
-#%attr(0755,root,root) %dir /usr/share/opsiconfd/static
 %dir /var/log/opsi
 
 %attr(0750,opsiconfd,root) %dir /var/log/opsi/opsiconfd

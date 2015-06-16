@@ -206,7 +206,7 @@ chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
 SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
-if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/"]; then
+if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/" ]; then
 	echo "Copying opsiclientd.service to $SYSTEMDUNITDIR"
 	cp "/etc/opsi/systemdTemplates/opsiclientd.service" "$SYSTEMDUNITDIR"
 

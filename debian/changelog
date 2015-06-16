@@ -1,8 +1,9 @@
 opsiconfd (4.0.6.4-9) UNRELEASED; urgency=medium
 
   * RPM: Removing debug package.
+  * RPM: small fix in postinst-script.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 16 Jun 2015 13:58:04 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 16 Jun 2015 13:59:59 +0200
 
 opsiconfd (4.0.6.4-8) experimental; urgency=medium
 

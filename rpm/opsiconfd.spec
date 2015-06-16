@@ -8,7 +8,7 @@
 
 Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
-Requires:       python-opsi >= 4.0.3.4
+Requires:       python-opsi >= 4.0.6.10
 Requires:       openssl
 Requires:       python-twisted
 Requires:       dbus-1-python
@@ -27,7 +27,7 @@ Source:         opsiconfd_4.0.4.1-3.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?suse_version} == 1110 || 0%{?suse_version} == 1315
 # SLES
-BuildRequires:  python-opsi >= 4.0.3.4 zypper logrotate
+BuildRequires:  python-opsi >= 4.0.6.10 zypper logrotate
 PreReq:         %insserv_prereq
 Suggests:       python-rrdtool
 %{py_requires}
@@ -206,9 +206,16 @@ chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
-if [ -x "`which systemctl 2>/dev/null`" ]; then
-	systemctl daemon-reload || echo "Reloading unit-files failed!"
-	systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
+if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/"]; then
+	echo "Copying opsiclientd.service to $SYSTEMDUNITDIR"
+	cp "/etc/opsi/systemdTemplates/opsiclientd.service" "$SYSTEMDUNITDIR"
+
+	if [ -x "`which systemctl 2>/dev/null`" ]; then
+		echo "Reloading unit-files"
+		systemctl daemon-reload || echo "Reloading unit-files failed!"
+		systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+	fi
 fi
 
 if [ $arg0 -eq 1 ]; then

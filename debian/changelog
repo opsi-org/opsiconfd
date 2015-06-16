@@ -1,6 +1,8 @@
 opsiconfd (4.0.6.4-5) experimental; urgency=medium
 
-  * Debian: changing package format to 3.0 (quilt) so Jessy is happy.
+  * Debian: changing package format to 1.0 so Jessy is happy.
+  * Rewrote the way that the systemd unitfile is integrated.
+  * Removed references to opsi-distutils.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 15 Jun 2015 14:59:18 +0200
 

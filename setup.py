@@ -28,14 +28,6 @@ opsi configuration daemon (opsiconfd) setup file
 import os
 from setuptools import setup
 
-cmdclass = {}
-
-try:
-	from opsidistutils.commands.osc_cmd import osc_publish as osc
-	cmdclass['osc'] = osc
-except ImportError:
-	print("osc integration is not available on this machine. please install ospi-distutils.")
-
 
 version = None
 with open("opsiconfd/opsiconfd.py") as f:
@@ -46,6 +38,7 @@ with open("opsiconfd/opsiconfd.py") as f:
 
 data_files = [
 	('/etc/opsi', ['data/etc/opsi/opsiconfd.conf']),
+	('/etc/opsi/systemdTemplates', ['data/etc/opsi/systemdTemplates/opsiconfd.service']),
 	('/etc/init.d', ['data/etc/init.d/opsiconfd']),
 	('/etc/logrotate.d', ['data/etc/logrotate.d/opsiconfd']),
 	('share/opsiconfd/static', [
@@ -54,15 +47,6 @@ data_files = [
 		'data/shared/opsi_logo.png'
 	])
 ]
-
-for line in os.popen('pkg-config systemd --variable=systemdsystemunitdir', 'r'):
-	if line and line.strip():
-		path = line.strip()
-		if os.path.isdir(path):
-			data_files.append((path, ['debian/opsiconfd.service']))
-			break
-else:
-	print("No systemd-path found. Not installing unitfile.")
 
 setup(
 	name='opsiconfd',
@@ -73,5 +57,4 @@ setup(
 	packages=['opsiconfd'],
 	scripts=['scripts/opsiconfd', 'scripts/opsiconfd-guard'],
 	data_files=data_files,
-	cmdclass = cmdclass
 )

@@ -115,6 +115,18 @@ case "$1" in
 			grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
 			mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
 		fi
+
+		SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
+		if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/"]; then
+			echo "Copying opsiclientd.service to $SYSTEMDUNITDIR"
+			cp "/etc/opsi/systemdTemplates/opsiclientd.service" "$SYSTEMDUNITDIR"
+
+			if [ -x "`which systemctl 2>/dev/null`" ]; then
+				echo "Reloading unit-files"
+				systemctl daemon-reload || echo "Reloading unit-files failed!"
+				systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+			fi
+		fi
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)
@@ -137,9 +149,4 @@ if [ -x "/etc/init.d/opsiconfd" ]; then
 	else
 		/etc/init.d/opsiconfd start || true
 	fi
-fi
-
-if [ -x "`which systemctl 2>/dev/null`" ]; then
-	systemctl daemon-reload || echo "Reloading unit-files failed!"
-	systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 fi

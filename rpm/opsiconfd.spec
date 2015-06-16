@@ -51,9 +51,6 @@ BuildArch:      noarch
 %description
 This package contains the opsi configuration service.
 
-# ===[ debug_package ]==============================
-%debug_package
-
 # ===[ prep ]=======================================
 %prep
 

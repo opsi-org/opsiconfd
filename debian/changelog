@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.4-9) UNRELEASED; urgency=medium
+
+  * RPM: Removing debug package.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 16 Jun 2015 13:58:04 +0200
+
 opsiconfd (4.0.6.4-8) experimental; urgency=medium
 
   * RPM: creating folder for systemd templates before installation

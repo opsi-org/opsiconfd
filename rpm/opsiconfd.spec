@@ -68,6 +68,8 @@ python setup.py build
 
 # ===[ install ]====================================
 %install
+mkdir -p $RPM_BUILD_ROOT/etc/opsi/systemdTemplates
+
 %if 0%{?suse_version}
 python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=INSTALLED_FILES
 %else

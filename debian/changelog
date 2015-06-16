@@ -1,4 +1,4 @@
-opsiconfd (4.0.6.4-10) UNRELEASED; urgency=medium
+opsiconfd (4.0.6.4-10) experimental; urgency=medium
 
   * Improving the removal of the service files.
 

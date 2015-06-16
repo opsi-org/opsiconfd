@@ -262,6 +262,12 @@ if [ $1 -eq 0 ]; then
 
 	SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
 	if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -e "$SYSTEMDUNITDIR/opsiconfd.service" ]; then
+		systemctl=`which systemctl 2>/dev/null`
+		if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
+			$systemctl disable opsiconfd.service && echo "Disabled opsiconfd.service" || echo "Disabling opsiconfd.service failed!"
+			$systemctl daemon-reload || echo "Reloading unit-files failed!"
+		fi
+
 		rm "$SYSTEMDUNITDIR/opsiclientd.service" || echo "Removing opsiclientd.service failed"
 	fi
 fi

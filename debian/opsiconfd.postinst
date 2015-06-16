@@ -117,14 +117,15 @@ case "$1" in
 		fi
 
 		SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
-		if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/"]; then
+		if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/" ]; then
 			echo "Copying opsiclientd.service to $SYSTEMDUNITDIR"
-			cp "/etc/opsi/systemdTemplates/opsiclientd.service" "$SYSTEMDUNITDIR"
+			cp "/etc/opsi/systemdTemplates/opsiclientd.service" "$SYSTEMDUNITDIR" || echo "Copying service file failed."
 
-			if [ -x "`which systemctl 2>/dev/null`" ]; then
+			systemctl=`which systemctl 2>/dev/null`
+			if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
 				echo "Reloading unit-files"
-				systemctl daemon-reload || echo "Reloading unit-files failed!"
-				systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+				$systemctl daemon-reload || echo "Reloading unit-files failed!"
+				$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 			fi
 		fi
 	;;

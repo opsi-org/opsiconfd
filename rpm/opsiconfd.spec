@@ -253,6 +253,11 @@ if [ $1 -eq 0 ]; then
 	%endif
 	[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
 	rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
+
+	SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
+	if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -e "$SYSTEMDUNITDIR/opsiconfd.service" ]; then
+		rm "$SYSTEMDUNITDIR/opsiclientd.service" || echo "Removing opsiclientd.service failed"
+	fi
 fi
 
 # ===[ files ]======================================

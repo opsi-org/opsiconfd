@@ -14,7 +14,6 @@ Requires:       python-twisted
 Requires:       dbus-1-python
 Requires:       psmisc
 Requires:       procps
-Requires:       pkgconfig
 Url:            http://www.opsi.org
 License:        AGPLv3+
 Group:          Productivity/Networking/Opsi
@@ -27,7 +26,9 @@ Source:         opsiconfd_4.0.4.1-3.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?suse_version} == 1110 || 0%{?suse_version} == 1315
 # SLES
+Requires:       pkg-config
 BuildRequires:  python-opsi >= 4.0.6.10 zypper logrotate
+BuildRequires:  pkg-config
 PreReq:         %insserv_prereq
 Suggests:       python-rrdtool
 %{py_requires}
@@ -35,11 +36,16 @@ Suggests:       python-rrdtool
 %if 0%{?suse_version}
 Suggests: logrotate
 Requires:       python-avahi
+Requires:       pkg-config
+BuildRequires:  pkg-config
 BuildRequires:  python-rrdtool zypper logrotate
 PreReq:         %insserv_prereq
 %{py_requires}
+%else
+Requires:       pkgconfig
 %endif
 %endif
+
 %if 0%{?suse_version} != 1110
 BuildArch:      noarch
 %endif

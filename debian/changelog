@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.4-12) experimental; urgency=medium
+
+  * Ignore error from pkg-config in postinst.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 Jun 2015 10:42:56 +0200
+
 opsiconfd (4.0.6.4-11) experimental; urgency=medium
 
   * Correct name of service file.

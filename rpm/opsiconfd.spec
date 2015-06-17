@@ -213,8 +213,8 @@ chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
 SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
 if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/" ]; then
-	echo "Copying opsiclientd.service to $SYSTEMDUNITDIR"
-	cp "/etc/opsi/systemdTemplates/opsiclientd.service" "$SYSTEMDUNITDIR"
+	echo "Copying opsiconfd.service to $SYSTEMDUNITDIR"
+	cp "/etc/opsi/systemdTemplates/opsiconfd.service" "$SYSTEMDUNITDIR" || echo "Copying opsiconfd.service failed"
 
 	if [ -x "`which systemctl 2>/dev/null`" ]; then
 		echo "Reloading unit-files"
@@ -268,7 +268,7 @@ if [ $1 -eq 0 ]; then
 			$systemctl daemon-reload || echo "Reloading unit-files failed!"
 		fi
 
-		rm "$SYSTEMDUNITDIR/opsiclientd.service" || echo "Removing opsiclientd.service failed"
+		rm "$SYSTEMDUNITDIR/opsiconfd.service" || echo "Removing opsiconfd.service failed"
 	fi
 fi
 

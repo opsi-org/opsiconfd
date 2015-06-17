@@ -118,8 +118,8 @@ case "$1" in
 
 		SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
 		if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/" ]; then
-			echo "Copying opsiclientd.service to $SYSTEMDUNITDIR"
-			cp "/etc/opsi/systemdTemplates/opsiclientd.service" "$SYSTEMDUNITDIR" || echo "Copying service file failed."
+			echo "Copying opsiconfd.service to $SYSTEMDUNITDIR"
+			cp "/etc/opsi/systemdTemplates/opsiconfd.service" "$SYSTEMDUNITDIR" || echo "Copying service file failed."
 
 			systemctl=`which systemctl 2>/dev/null`
 			if [ ! -z "$systemctl" -a -x "$systemctl" ]; then

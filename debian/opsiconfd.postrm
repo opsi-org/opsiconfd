@@ -33,7 +33,7 @@ case "$1" in
 				$systemctl daemon-reload || echo "Reloading unit-files failed!"
 			fi
 
-			rm -f "$SYSTEMDUNITDIR/opsiclientd.service" || echo "Removing opsiclientd.service failed"
+			rm -f "$SYSTEMDUNITDIR/opsiconfd.service" || echo "Removing opsiconfd.service failed"
 		fi
 
 		db_purge

@@ -1,3 +1,10 @@
+opsiconfd (4.0.6.4-11) experimental; urgency=medium
+
+  * Correct name of service file.
+  * More error resistant installation.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 Jun 2015 09:43:22 +0200
+
 opsiconfd (4.0.6.4-10) experimental; urgency=medium
 
   * Improving the removal of the service files.

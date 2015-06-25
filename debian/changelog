@@ -1,3 +1,9 @@
+opsiconfd (4.0.5.3-3) testing; urgency=medium
+
+  * Packaging fixes for OBS.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 25 Jun 2015 14:09:31 +0200
+
 opsiconfd (4.0.5.3-2) testing; urgency=low
 
   * source/format file removed from debian packaging

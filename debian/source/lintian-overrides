@@ -3,3 +3,4 @@ opsiconfd source: changelog-should-mention-nmu
 opsiconfd source: source-nmu-has-incorrect-version-number
 opsiconfd source: not-using-po-debconf
 opsiconfd source: python-depends-but-no-python-helper
+opsiconfd source: untranslatable-debconf-templates

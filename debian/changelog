@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.5-1) UNRELEASED; urgency=medium
+
+  * Showing what the actual error was that was experienced when collecting statistics.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 30 Jun 2015 16:11:07 +0200
+
 opsiconfd (4.0.6.4-12) experimental; urgency=medium
 
   * Ignore error from pkg-config in postinst.

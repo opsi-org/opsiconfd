@@ -45,6 +45,7 @@ try:
 except ImportError:
 	avahi = None
 
+from datetime import datetime
 from signal import signal, SIGHUP, SIGINT, SIGTERM
 from ctypes import CDLL
 
@@ -144,6 +145,9 @@ class Opsiconfd(OpsiService):
 
 		self._setOpsiLogging()
 		self._setTwistedLogging()
+
+		if 'startTime' not in self.config:
+			self.config['startTime'] = datetime.now()
 
 		logger.comment("""
 ==================================================================

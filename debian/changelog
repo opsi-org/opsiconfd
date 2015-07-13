@@ -2,8 +2,9 @@ opsiconfd (4.0.6.5-1) UNRELEASED; urgency=medium
 
   * Showing what the actual error was that was experienced when collecting statistics.
   * Showing the time of service start on the info page.
+  * simplify logrotate config.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 02 Jul 2015 16:25:00 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 13 Jul 2015 10:20:29 +0200
 
 opsiconfd (4.0.6.4-12) experimental; urgency=medium
 

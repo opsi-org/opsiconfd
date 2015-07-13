@@ -1,77 +1,43 @@
+missingok
+compress
+notifempty
+create 640 opsiconfd opsiadmin
+su opsiconfd opsiadmin
+size 5M
+
 /var/log/opsi/package.log {
     weekly
-    missingok
     rotate 2
-    compress
-    notifempty
     size 10M
-    create 640 opsiconfd opsiadmin
-    su opsiconfd opsiadmin
 }
 
 /var/log/opsi/bootimage/*.log {
     monthly
-    missingok
     rotate 1
-    compress
-    notifempty
-    size 5M
-    create 640 opsiconfd opsiadmin
-    su opsiconfd opsiadmin
 }
 
 /var/log/opsi/clientconnect/*.log {
     monthly
-    missingok
     rotate 1
-    compress
-    notifempty
-    size 5M
-    create 640 opsiconfd opsiadmin
-    su opsiconfd opsiadmin
 }
 
 /var/log/opsi/instlog/*.log {
     weekly
-    missingok
     rotate 2
-    compress
-    notifempty
-    size 5M
-    create 640 opsiconfd opsiadmin
-    su opsiconfd opsiadmin
 }
 
 /var/log/opsi/opsiconfd/[[:digit:]]*.log {
     weekly
-    missingok
     rotate 1
     extension old
-    compress
-    notifempty
-    size 5M
-    create 640 opsiconfd opsiadmin
-    su opsiconfd opsiadmin
 }
 
 /var/log/opsi/opsiconfd/opsiconfd.log {
     weekly
-    missingok
     rotate 5
-    compress
-    notifempty
-    size 5M
-    create 640 opsiconfd opsiadmin
-    su opsiconfd opsiadmin
 }
 
 /var/log/opsi/userlogin/*.log {
     monthly
-    missingok
     rotate 1
-    compress
-    notifempty
-    size 5M
-    create 640 opsiconfd opsiadmin
-    su opsiconfd opsiadmin
 }

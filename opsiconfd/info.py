@@ -187,6 +187,18 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			if key in ('staticDirectories',):
 				continue
 			configInfo.append(self.createTableRow(key, self.service.config[key]))
+
+		try:
+			configInfo.append(
+				self.createTableRow(
+					"uptime",
+					str(datetime.now() - self.service.config['startTime'])
+				)
+			)
+		except KeyError:
+			# For when no startTime is found.
+			pass
+
 		configInfo.append(u'</table>')
 
 		return ''.join(configInfo)

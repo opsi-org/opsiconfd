@@ -1,4 +1,4 @@
-opsiconfd (4.0.6.5-1) UNRELEASED; urgency=medium
+opsiconfd (4.0.6.5-1) experimental; urgency=medium
 
   * Showing what the actual error was that was experienced when collecting statistics.
   * Showing the time of service start on the info page.

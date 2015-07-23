@@ -439,12 +439,14 @@ Total number of calls:</td><td>{0}</td></tr>'''.format(sum(callStatistics.values
 		return ''.join(statisticInfo)
 
 	def getEncodingErrorStatistics(self):
+		wantedKeys = ('when', 'application', 'what', 'client', 'error')
+
 		statisticInfo = [u'<h1>Encoding error statistics</h1>', u'<table>']
 		statisticInfo.append(
-			self.createTableHeader('application', 'what', 'client', 'error')
+			self.createTableHeader(*[key for key in wantedKeys])
 		)
-		wantedKeys = ('application', 'what', 'client', 'error')
-		for statistic in sorted(self.service.statistics().getEncodingErrors(), key=operator.itemgetter('application')):
+
+		for statistic in sorted(self.service.statistics().getEncodingErrors(), key=operator.itemgetter('when')):
 			statisticInfo.append(
 				self.createTableRow(
 					*[statistic[key] for key in wantedKeys]

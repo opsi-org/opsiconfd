@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.6-1) UNRELEASED; urgency=medium
+
+  * Info page: show at what time an ecoding error occured.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 23 Jul 2015 15:11:01 +0200
+
 opsiconfd (4.0.6.5-1) experimental; urgency=medium
 
   * Showing what the actual error was that was experienced when collecting statistics.

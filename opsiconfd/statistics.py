@@ -27,6 +27,7 @@ These classes provide the data that is shown on the info page.
 """
 
 import collections
+import datetime
 import os
 import time
 import threading
@@ -425,7 +426,8 @@ information about the host.
 			'what': forceUnicode(what),
 			'client': forceUnicode(client),
 			'application': forceUnicode(application),
-			'error': forceUnicode(error)
+			'error': forceUnicode(error),
+			'when': datetime.datetime.now(),
 		})
 
 	def getEncodingErrors(self):

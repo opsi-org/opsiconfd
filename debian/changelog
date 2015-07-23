@@ -1,8 +1,9 @@
 opsiconfd (4.0.6.6-1) UNRELEASED; urgency=medium
 
   * Info page: show at what time an ecoding error occured.
+  * Infos about updated rrd now only are shown with loglevel 8
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 23 Jul 2015 15:11:01 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 23 Jul 2015 15:13:26 +0200
 
 opsiconfd (4.0.6.5-1) experimental; urgency=medium
 

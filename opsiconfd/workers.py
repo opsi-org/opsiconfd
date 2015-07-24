@@ -43,6 +43,7 @@ from OPSI.Service.Worker import (WorkerOpsi, WorkerOpsiJsonRpc,
 from OPSI.Types import forceHostId, forceHardwareAddress, OpsiAuthenticationError
 from OPSI.Util import (timestamp, objectToHtml, toJson, randomString,
 	decryptWithPrivateKeyFromPEMFile, ipAddressInNetwork, serialize)
+from OPSI.Util.HTTP import deflateDecode, gzipDecode
 from OPSI.Backend.BackendProcess import OpsiBackendProcess
 from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
 from OPSI.Logger import Logger, LOG_INFO
@@ -457,19 +458,40 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		try:
 			if self.request.method == 'POST':
 				contentType = self.request.headers.getHeader('content-type')
-				contentEncoding = None
 				try:
 					contentEncoding = self.request.headers.getHeader('content-encoding')[0].lower()
 				except Exception:
-					pass
+					contentEncoding = None
+
 				logger.debug(u"Content-Type: %s, Content-Encoding: %s" % (contentType, contentEncoding))
-				if contentEncoding == 'gzip' or (contentType and contentType.mediaType.startswith('gzip')):
-					logger.debug(u"Expecting compressed data from client")
-					self.query = zlib.decompress(self.query)
-			self.query = unicode(self.query, 'utf-8')
+				if contentType and contentType.mediaType.startswith('gzip'):
+					# Invalid MIME type.
+					# Probably it is gzip-application/json-rpc and therefore
+					# we need to behave like we did before.
+					logger.debug(u"Expecting compressed data from client (backwards compatible)")
+					self.query = deflateDecode(self.query)
+					self.gzip = True
+				elif contentEncoding == 'gzip':
+					logger.debug(u"Expecting gzip compressed data from client")
+					self.query = gzipDecode(self.query)
+					self.gzip = True
+				elif contentEncoding == 'deflate':
+					logger.debug(u"Expecting deflate compressed data from client")
+					self.query = deflateDecode(self.query)
+					self.gzip = True
+
+			if not isinstance(self.query, unicode):
+				self.query = unicode(self.query, 'utf-8')
 		except (UnicodeError, UnicodeEncodeError) as error:
+			logger.logException(error)
 			self.service.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(error))
-			self.query = unicode(self.query, 'utf-8', 'replace')
+			if not isinstance(self,query, unicode):
+				self.query = unicode(self.query, 'utf-8', 'replace')
+		except Exception as error:
+			logger.logException(error)
+			logger.warning("Unexpected error during decoding of query: {0}".format(error))
+			raise error
+
 		logger.debug2(u"query: %s" % self.query)
 		return result
 

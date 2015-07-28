@@ -4,6 +4,7 @@ opsiconfd (4.0.6.6-1) UNRELEASED; urgency=medium
   * Infos about updated rrd now only are shown with loglevel 8
   * opsiconfd.workers: Query decoding now working similar to the one in
     OPSI.Service.Worker
+  * CentOS / Red Hat 7: Fix requiring /bin/python instead of /usr/bin/python
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 24 Jul 2015 14:27:18 +0200
 

@@ -65,6 +65,10 @@ This package contains the opsi configuration service.
 
 # ===[ build ]======================================
 %build
+%if 0%{?rhel_version} >= 700 || 0%{?centos_version} >= 700
+# Fix for https://bugzilla.redhat.com/show_bug.cgi?id=1117878
+export PATH="/usr/bin:$PATH"
+%endif
 export CFLAGS="$RPM_OPT_FLAGS"
 python setup.py build
 

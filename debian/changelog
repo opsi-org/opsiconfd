@@ -1,6 +1,6 @@
-opsiconfd (4.0.6.6-1) UNRELEASED; urgency=medium
+opsiconfd (4.0.6.6-1) experimental; urgency=medium
 
-  * Info page: show at what time an ecoding error occured.
+  * Info page: show at what time an encoding error occured.
   * Infos about updated rrd now only are shown with loglevel 8
   * opsiconfd.workers: Query decoding now working similar to the one in
     OPSI.Service.Worker

@@ -1,7 +1,7 @@
 #! /bin/bash -e
 
 # = = = = = = = = = = = = = = = = = = = = = = =
-# =       Copyright (C) 2010 uib GmbH         =
+# =     Copyright (C) 2010-2015 uib GmbH      =
 # =           http://www.uib.de               =
 # =          All rights reserved.             =
 # = = = = = = = = = = = = = = = = = = = = = = =
@@ -20,13 +20,13 @@ case "$1" in
 		if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
 			groupmod -n $fileadmingroup pcpatch
 		else
-			if [ -z "$(getent group $fileadmingroup)"  ]; then
-				groupadd -g 992 $fileadmingroup
+			if [ -z "$(getent group $fileadmingroup)" ]; then
+				groupadd $fileadmingroup
 			fi
 		fi
 
 		if [ -z "`getent passwd opsiconfd`" ]; then
-			useradd -u 993 -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
+			useradd --system -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
 		fi
 
 		if [ -z "`getent group opsiadmin`" ]; then

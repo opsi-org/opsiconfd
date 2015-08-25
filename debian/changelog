@@ -6,8 +6,9 @@ opsiconfd (4.0.6.6-1) UNRELEASED; urgency=medium
     OPSI.Service.Worker
   * CentOS / Red Hat 7: Fix requiring /bin/python instead of /usr/bin/python
   * RPM: License is now machine-parseable.
+  * Create user / groups without explicit uid / gid.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 20 Aug 2015 15:57:18 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 25 Aug 2015 10:52:46 +0200
 
 opsiconfd (4.0.6.5-1) experimental; urgency=medium
 

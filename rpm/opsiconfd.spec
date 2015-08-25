@@ -1,7 +1,7 @@
 #
 # spec file for package opsiconfd
 #
-# Copyright (c) 2008-2013 uib GmbH.
+# Copyright (c) 2008-2015 uib GmbH.
 # This file and all modifications and additions to the pristine
 # package are under the same license as the package itself.
 #
@@ -145,13 +145,13 @@ if [ $arg0 -eq 1 ]; then
 	if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
 		groupmod -n $fileadmingroup pcpatch
 	else
-		if [ -z "$(getent group $fileadmingroup)"  ]; then
-			groupadd -g 992 $fileadmingroup
+		if [ -z "$(getent group $fileadmingroup)" ]; then
+			groupadd $fileadmingroup
 		fi
 	fi
 
 	if [ -z "`getent passwd opsiconfd`" ]; then
-		useradd -r -u 993 -g 992 -d /var/lib/opsi -s /bin/bash opsiconfd
+		useradd --system -d /var/lib/opsi -s /bin/bash opsiconfd
 	fi
 
 	if [ -z "`getent group opsiadmin`" ]; then

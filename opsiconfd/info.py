@@ -430,7 +430,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 					'{0:d}.'.format(index),
 					key,
 					str(callStatistics[key]),
-					str(callAverages[key])
+					'{0:0.3f}s'.format(callAverages[key])
 				)
 			)
 

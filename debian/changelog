@@ -1,4 +1,10 @@
-opsiconfd (4.0.6.7-1) UNRELEASED; urgency=medium
+opsiconfd (4.0.6.8-1) experimental; urgency=medium
+
+  * Info page: limit the length of average call duration.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 10 Sep 2015 14:47:00 +0200
+
+opsiconfd (4.0.6.7-1) experimental; urgency=medium
 
   * Collect statistics about the average method call duration.
   * Info page: show the average call duration next to the most called functions

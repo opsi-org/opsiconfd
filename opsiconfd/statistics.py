@@ -414,7 +414,7 @@ information about the host.
 		current = self._rpcStatistics[methodName]
 		newCount = current.count + 1
 		average = ((current.average * current.count) + duration) / newCount
-		self._rpcCallAverages[methodName] = CallStatistics(newCount, average)
+		self._rpcStatistics[methodName] = CallStatistics(newCount, average)
 
 		self._rrdCache['rpcs'] += 1
 		if jsonrpc.exception:

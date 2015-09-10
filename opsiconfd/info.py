@@ -399,7 +399,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 					maxDuration['method'],
 					maxDuration['params'],
 					maxDuration['results'],
-					'{0:0.3f} s'.format(maxDuration['duration']),
+					'{0:0.3f}s'.format(maxDuration['duration']),
 					not maxDuration['failed']
 				)
 			)

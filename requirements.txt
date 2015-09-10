@@ -1,4 +1,4 @@
 # python-rrdtool  # Disabled for local builds because a lot of dependencies.
-zope.interface==3.6.0
+zope.interface==4.1.2
 twisted<=15.0
 pyOpenSSL

@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.7-1) UNRELEASED; urgency=medium
+
+  * Collect statistics about the average method call duration.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 10 Sep 2015 14:00:15 +0200
+
 opsiconfd (4.0.6.6-1) experimental; urgency=medium
 
   * Info page: show at what time an encoding error occured.

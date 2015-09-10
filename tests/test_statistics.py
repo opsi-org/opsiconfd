@@ -45,13 +45,17 @@ class FakeOpsiconfd(object):
 
 
 class FakeRPC(object):
-    def __init__(self, exception=False, methodName="dummy_method"):
+    def __init__(self, exception=False, methodName="dummy_method", duration=0.0):
         self.exception = exception
         self.result = []
         self.params = []
         self.started = time.time()
-        self.ended = time.time()
         self.methodName = methodName
+
+        if duration:
+            self.ended = self.started + duration
+        else:
+            self.ended = time.time()
 
     def getMethodName(self):
         return self.methodName
@@ -74,6 +78,18 @@ class StatisticsTestCase(unittest.TestCase):
         stats.addRpc(FakeRPC(methodName="another_method"))
         self.assertEquals(2, len(stats.getRPCCallCounts().keys()))
         self.assertTrue("another_method" in stats.getRPCCallCounts())
+
+    def testCollectingCountAlsoHasInformationAboutDuration(self):
+        stats = Statistics(FakeOpsiconfd())
+        [stats.addRpc(FakeRPC(duration=10.0)) for _ in xrange(100)]
+
+        averages = stats.getRPCAverageDurations()
+        self.assertEqual(1, len(averages))
+        self.assertEqual(10.0, averages["dummy_method"])
+
+        stats.addRpc(FakeRPC(duration=5))
+        newAverages = stats.getRPCAverageDurations()
+        self.assertAlmostEqual(9.950495049504951, newAverages["dummy_method"])
 
 
 if __name__ == '__main__':

@@ -50,6 +50,8 @@ from OPSI.Types import forceUnicode
 
 logger = Logger()
 
+CallStatistics = collections.namedtuple('CallStatistics', ['count', 'average'])
+
 
 class ResourceOpsiconfdStatistics(resource.Resource):
 	def __init__(self, opsiconfd):
@@ -81,7 +83,7 @@ class Statistics(object):
 	def __init__(self, opsiconfd):
 		self.opsiconfd = opsiconfd
 		self._rpcs = collections.deque(maxlen=self.opsiconfd.config['maxExecutionStatisticValues'])
-		self._rpcCallCount = collections.defaultdict(lambda: 0)
+		self._rpcStatistics = collections.defaultdict(lambda: CallStatistics(0, 0.0))
 		self._encodingErrors = []
 		self._maxExpiredSessionInfos = 300
 		self._expiredSessionInfo = collections.deque(maxlen=self._maxExpiredSessionInfos)
@@ -398,17 +400,21 @@ information about the host.
 				results = len(jsonrpc.result)
 
 		methodName = jsonrpc.getMethodName()
+		duration = jsonrpc.ended - jsonrpc.started
 
 		self._rpcs.append({
 			'started': jsonrpc.started,
-			'duration': jsonrpc.ended - jsonrpc.started,
+			'duration': duration,
 			'method': methodName,
 			'failed': bool(jsonrpc.exception),
 			'params': len(jsonrpc.params),
 			'results': results,
 		})
 
-		self._rpcCallCount[methodName] += 1
+		current = self._rpcStatistics[methodName]
+		newCount = current.count + 1
+		average = ((current.average * current.count) + duration) / newCount
+		self._rpcCallAverages[methodName] = CallStatistics(newCount, average)
 
 		self._rrdCache['rpcs'] += 1
 		if jsonrpc.exception:
@@ -419,7 +425,10 @@ information about the host.
 		return self._rpcs
 
 	def getRPCCallCounts(self):
-		return self._rpcCallCount
+		return dict((name, rpcStat.count) for name, rpcStat in self._rpcStatistics.items())
+
+	def getRPCAverageDurations(self):
+		return dict((name, rpcStat.average) for name, rpcStat in self._rpcStatistics.items())
 
 	def addEncodingError(self, what, client, application, error):
 		self._encodingErrors.append({

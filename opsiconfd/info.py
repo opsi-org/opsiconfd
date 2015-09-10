@@ -419,16 +419,18 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		statisticInfo = [
 			u'<h1>{0:d} most called RPCs</h1>'.format(numberOfFunctions),
 			u'<table>',
-			self.createTableHeader('', 'method', 'count')
+			self.createTableHeader('', 'method', 'count', 'average')
 		]
 
 		callStatistics = self.service.statistics().getRPCCallCounts()
+		callAverages = self.service.statistics().getRPCAverageDurations()
 		for (index, key) in enumerate(heapq.nlargest(numberOfFunctions, callStatistics, key=callStatistics.get), start=1):
 			statisticInfo.append(
 				self.createTableRow(
 					'{0:d}.'.format(index),
 					key,
-					str(callStatistics[key])
+					str(callStatistics[key]),
+					str(callAverages[key])
 				)
 			)
 

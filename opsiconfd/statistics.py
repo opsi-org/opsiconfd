@@ -159,8 +159,7 @@ class Statistics(object):
 			now = int(time.time())
 			last = self._last
 			self._last = now
-			(utime, stime, cpu, virtMem) = self._getOwnResourceUsage(now, last)
-			(self._utime, self._stime) = (utime, stime)
+			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, last)
 
 			return {
 				"requests": self._rrdCache['requests'],

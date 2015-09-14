@@ -483,6 +483,7 @@ class OpsiconfdInit(Application):
 		# Set umask
 		os.umask(0077)
 		self._pid = 0
+		self.config = {}
 
 		try:
 			(self.opts, self.args) = getopt.getopt(sys.argv[1:], "vc:f:l:p:P:i:D", ["profile=", "profiler=", "debug"])
@@ -539,6 +540,7 @@ class OpsiconfdInit(Application):
 			'logFile': u'/var/log/opsi/opsiconfd/opsiconfd.log',
 			'logFormat': u'[%l] [%D] %M (%F|%N)',
 			'symlinkLogs': False,
+			'maxlogsize': 5000000,
 			'httpPort': 0,
 			'httpsPort': 4447,
 			'interface': u'0.0.0.0',

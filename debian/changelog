@@ -1,4 +1,4 @@
-opsiconfd (4.0.6.10-1) UNRELEASED; urgency=medium
+opsiconfd (4.0.6.10-1) experimental; urgency=medium
 
   * Adjusting configuration for logrotate.
   * opsiconfd: Config 'maxLogSize' now is a number

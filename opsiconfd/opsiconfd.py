@@ -56,7 +56,7 @@ from twisted.internet import reactor
 from OPSI.Application import Application
 from OPSI.Logger import Logger, LOG_NONE, LOG_WARNING, LOG_NOTICE
 from OPSI.web2 import server
-from OPSI.Util import getfqdn
+from OPSI.Util import getfqdn, removeUnit
 from OPSI.Util.File import IniFile
 from OPSI.Util.AMP import OpsiProcessProtocolFactory
 from OPSI.Util.MessageBus import MessageBusServer
@@ -74,7 +74,7 @@ from monitoring import ResourceOpsiconfdMonitoring
 from session import OpsiconfdSessionHandler
 from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
-__version__ = "4.0.6.4"
+__version__ = "4.0.6.10"
 
 logger = Logger()
 
@@ -675,7 +675,7 @@ class OpsiconfdInit(Application):
 						elif option == 'log format':
 							self.config['logFormat'] = forceUnicode(value)
 						elif option == 'max log size':
-							self.config['maxlogsize'] = forceUnicode(value)
+							self.config['maxlogsize'] = removeUnit(value)
 						elif option == 'symlink logs':
 							self.config['symlinkLogs'] = forceBool(value)
 						elif option == 'backend config dir':
@@ -761,6 +761,7 @@ class OpsiconfdInit(Application):
 			logger.error(u"Failed to read config file '%s': %s" % (self.config['configFile'], error))
 			logger.logException(error)
 			raise
+
 		logger.notice(u"Config read")
 
 	def usage(self):

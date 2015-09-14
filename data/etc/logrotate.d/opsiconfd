@@ -6,35 +6,35 @@ su opsiconfd opsiadmin
 size 5M
 
 /var/log/opsi/package.log {
-    weekly
-    rotate 2
+    daily
+    rotate 1
     size 10M
 }
 
 /var/log/opsi/bootimage/*.log {
-    monthly
+    daily
     rotate 1
 }
 
 /var/log/opsi/clientconnect/*.log {
-    monthly
+    daily
     rotate 1
 }
 
 /var/log/opsi/instlog/*.log {
-    weekly
-    rotate 2
+    daily
+    rotate 1
 }
 
 /var/log/opsi/opsiconfd/[[:digit:]]*.log {
-    weekly
+    daily
     rotate 1
     extension old
 }
 
 /var/log/opsi/opsiconfd/opsiconfd.log {
     weekly
-    rotate 5
+    rotate 1
 }
 
 /var/log/opsi/userlogin/*.log {

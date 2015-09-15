@@ -1,3 +1,10 @@
+opsiconfd (4.0.6.10-2) UNRELEASED; urgency=medium
+
+  * Default logrotate configuration now only rotates package.log
+    and opsiconfd.log.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 15 Sep 2015 14:13:18 +0200
+
 opsiconfd (4.0.6.10-1) experimental; urgency=medium
 
   * Adjusting configuration for logrotate.

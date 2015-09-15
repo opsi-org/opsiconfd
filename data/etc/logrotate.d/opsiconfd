@@ -11,33 +11,7 @@ size 5M
     size 10M
 }
 
-/var/log/opsi/bootimage/*.log {
-    daily
-    rotate 1
-}
-
-/var/log/opsi/clientconnect/*.log {
-    daily
-    rotate 1
-}
-
-/var/log/opsi/instlog/*.log {
-    daily
-    rotate 1
-}
-
-/var/log/opsi/opsiconfd/[[:digit:]]*.log {
-    daily
-    rotate 1
-    extension old
-}
-
 /var/log/opsi/opsiconfd/opsiconfd.log {
     weekly
-    rotate 1
-}
-
-/var/log/opsi/userlogin/*.log {
-    monthly
     rotate 1
 }

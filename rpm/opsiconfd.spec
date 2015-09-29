@@ -222,6 +222,12 @@ if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemp
 	echo "Copying opsiconfd.service to $SYSTEMDUNITDIR"
 	cp "/etc/opsi/systemdTemplates/opsiconfd.service" "$SYSTEMDUNITDIR" || echo "Copying opsiconfd.service failed"
 
+	%if 0%{?suse_version} == 1320
+		# Adjusting to the correct service names
+		sed --in-place "s/=smbd.service/=smb.service/" "$SYSTEMDUNITDIR/opsiconfd.service" || True
+		sed --in-place "s/=isc-dhcp-server.service/=dhcpd.service/" "$SYSTEMDUNITDIR/opsiconfd.service" || True
+	%endif
+
 	if [ -x "`which systemctl 2>/dev/null`" ]; then
 		echo "Reloading unit-files"
 		systemctl daemon-reload || echo "Reloading unit-files failed!"

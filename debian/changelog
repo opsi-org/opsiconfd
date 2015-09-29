@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.10-3) experimental; urgency=low
+
+  * openSuse 13.2: Specify correct servie names in systemd unit.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 29 Sep 2015 12:27:11 +0200
+
 opsiconfd (4.0.6.10-2) experimental; urgency=medium
 
   * Default logrotate configuration now only rotates package.log

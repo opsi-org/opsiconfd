@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.10-4) experimental; urgency=medium
+
+  * RPM: opsiconfd is member of the file admin group again.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 02 Oct 2015 10:49:31 +0200
+
 opsiconfd (4.0.6.10-3) experimental; urgency=low
 
   * openSuse 13.2: Specify correct servie names in systemd unit.

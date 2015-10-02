@@ -151,7 +151,7 @@ if [ $arg0 -eq 1 ]; then
 	fi
 
 	if [ -z "`getent passwd opsiconfd`" ]; then
-		useradd --system -d /var/lib/opsi -s /bin/bash opsiconfd
+		useradd --system -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
 	fi
 
 	if [ -z "`getent group opsiadmin`" ]; then

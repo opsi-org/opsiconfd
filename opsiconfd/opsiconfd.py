@@ -74,7 +74,7 @@ from monitoring import ResourceOpsiconfdMonitoring
 from session import OpsiconfdSessionHandler
 from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
-__version__ = "4.0.6.10"
+__version__ = "4.0.6.11"
 
 logger = Logger()
 
@@ -596,10 +596,11 @@ class OpsiconfdInit(Application):
 				self.config["debug"] = True
 
 	def createPidFile(self):
-		logger.info(u"Creating pid file '%s'" % self.config['pidFile'])
 		if not os.path.exists(os.path.dirname(self.config['pidFile'])):
+			logger.notice(u"Missing directory {0!r} - creating.".format(self.config['pidFile']))
 			os.makedirs(os.path.dirname(self.config['pidFile']))
 		elif os.path.exists(self.config['pidFile']) and os.access(self.config['pidFile'], os.R_OK | os.W_OK):
+			logger.notice(u"Found old pid file {0!r}".format(self.config['pidFile']))
 			with open(self.config['pidFile'], 'r') as pf:
 				pidFromFile = pf.readline().strip()
 
@@ -618,6 +619,7 @@ class OpsiconfdInit(Application):
 
 		pid = os.getpid()
 
+		logger.notice(u"Creating pid file {0!r}".format(self.config['pidFile']))
 		with open(self.config['pidFile'], "w") as pf:
 			pf.write(str(pid))
 

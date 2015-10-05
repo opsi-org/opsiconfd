@@ -228,6 +228,13 @@ if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemp
 		sed --in-place "s/=isc-dhcp-server.service/=dhcpd.service/" "$SYSTEMDUNITDIR/opsiconfd.service" || True
 	%endif
 
+	%if 0%{?suse_version} || 0%{?centos_version} || 0%{?rhel_version}
+		MKDIR_PATH=$(which mkdir)
+		CHOWN_PATH=$(which chown)
+		sed --in-place "s!=-/bin/mkdir!=-$MKDIR_PATH!" "$SYSTEMDUNITDIR/opsiconfd.service" || True
+		sed --in-place "s!=-/bin/chown!=-$CHOWN_PATH!" "$SYSTEMDUNITDIR/opsiconfd.service" || True
+	%endif
+
 	if [ -x "`which systemctl 2>/dev/null`" ]; then
 		echo "Reloading unit-files"
 		systemctl daemon-reload || echo "Reloading unit-files failed!"

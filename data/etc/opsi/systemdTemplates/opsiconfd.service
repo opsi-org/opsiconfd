@@ -13,5 +13,12 @@ RestartSec=10
 KillMode=process
 TimeoutStopSec=10
 
+# Fix for maybe not existing /var/run or wrong permissions
+# PermissionsStartOnly makes the switch to the opsiconfd user just
+# before executing the ExecStart-part.
+PermissionsStartOnly=True
+ExecStartPre=-/bin/mkdir /var/run/opsiconfd
+ExecStartPre=-/bin/chown -R opsiconfd /var/run/opsiconfd/
+
 [Install]
 WantedBy=multi-user.target

@@ -1,3 +1,9 @@
+opsiconfd (4.0.6.10-7) experimental; urgency=medium
+
+  * opsiconfd.service: Make sure that /var/run/opsiconfd can be accessed.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 05 Oct 2015 17:27:32 +0200
+
 opsiconfd (4.0.6.10-6) stable; urgency=medium
 
   * CentOS / RHEL 7: reference the right service in systemd template.

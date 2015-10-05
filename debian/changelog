@@ -1,4 +1,4 @@
-opsiconfd (4.0.6.10-5) experimental; urgency=medium
+opsiconfd (4.0.6.10-5) stable; urgency=medium
 
   * added sles12 fix for smb service name
 

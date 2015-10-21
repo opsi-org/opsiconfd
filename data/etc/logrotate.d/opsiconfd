@@ -1,17 +1,21 @@
-missingok
-compress
-notifempty
-create 640 opsiconfd opsiadmin
-su opsiconfd opsiadmin
-size 5M
-
 /var/log/opsi/package.log {
     daily
     rotate 1
     size 10M
+    missingok
+    compress
+    notifempty
+    create 640 opsiconfd opsiadmin
+    su opsiconfd opsiadmin
 }
 
 /var/log/opsi/opsiconfd/opsiconfd.log {
     weekly
     rotate 1
+    size 5M
+    missingok
+    compress
+    notifempty
+    create 640 opsiconfd opsiadmin
+    su opsiconfd opsiadmin
 }

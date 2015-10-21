@@ -1,8 +1,9 @@
 opsiconfd (4.0.6.11-1) UNRELEASED; urgency=medium
 
   * Show messages during creation of pid file.
+  * logrotate-config: no more global options.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 05 Oct 2015 17:53:55 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 21 Oct 2015 11:51:02 +0200
 
 opsiconfd (4.0.6.10-7) stable; urgency=medium
 

@@ -23,14 +23,12 @@ import base64
 import json
 import os
 import re
-import resource as pyresource
 import time
 from hashlib import md5
 from twisted.internet import defer
 from twisted.conch.ssh import keys
 
-from OPSI.web2 import http, resource, stream
-from OPSI.Backend.BackendManager import BackendManager
+from OPSI.web2 import http, stream
 from OPSI.Service.Worker import WorkerOpsi
 from OPSI.Object import *
 from OPSI.System import getDiskSpaceUsage

@@ -34,6 +34,7 @@ from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Service.Worker import WorkerOpsi
 from OPSI.Object import *
 from OPSI.System import getDiskSpaceUsage
+from OPSI.Types import OpsiAuthenticationError
 
 from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Logger import LOG_INFO, Logger

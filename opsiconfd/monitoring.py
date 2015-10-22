@@ -357,7 +357,7 @@ class Monitoring(object):
 		else:
 			clientObj = clientObj[0]
 		if not clientObj.lastSeen:
-			state = _WARNING
+			state = self._WARNING
 			message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
 		else:
 			lastSeen = clientObj.lastSeen.split("-")
@@ -372,7 +372,7 @@ class Monitoring(object):
 				lastSeenDate = datetime.date(year,month,day)
 				delta = today - lastSeenDate
 			elif state == self._OK:
-				state = _WARNING
+				state = self._WARNING
 				message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
 
 			if delta.days >= 30:

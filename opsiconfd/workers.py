@@ -485,7 +485,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		except (UnicodeError, UnicodeEncodeError) as error:
 			logger.logException(error)
 			self.service.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(error))
-			if not isinstance(self,query, unicode):
+			if not isinstance(self.query, unicode):
 				self.query = unicode(self.query, 'utf-8', 'replace')
 		except Exception as error:
 			logger.logException(error)

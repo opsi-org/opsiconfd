@@ -176,8 +176,10 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 		if self.query:
 			query = json.loads(self.query)
 			if not query.has_key("task"):
-				res["state"] = "3"
-				res["message"] = u"No task set, nothing to do"
+				res = {
+					"state": 3,
+					"message": u"No task set, nothing to do"
+				}
 				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
 				return result
 
@@ -821,7 +823,7 @@ class Monitoring(object):
 				errorrate = int(rpcerrors)*100//int(rpcs)
 
 			if (errorrate > errors[0] ):
-				messages.append(u'RPC errors over 20\%')
+				message.append(u'RPC errors over 20\%')
 				state = self._CRITICAL
 			elif (errorrate > errors[1]):
 				message.append(u'RPC errors over 10\%')

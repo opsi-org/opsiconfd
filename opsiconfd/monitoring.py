@@ -8,7 +8,7 @@
    opsi-nagios-connector is part of the desktop management solution opsi
    (open pc server integration) http://www.opsi.org
 
-   Copyright (C) 2010 uib GmbH
+   Copyright (C) 2010-2015 uib GmbH
 
    http://www.uib.de/
 
@@ -18,12 +18,15 @@
    @author: Erol Ueluekmen <e.ueluekmen@uib.de>
 """
 
+import datetime
 import base64
 import json
+import os
 import re
+import resource as pyresource
+import time
 from hashlib import md5
 from twisted.internet import defer
-import resource as pyresource
 from twisted.conch.ssh import keys
 
 from OPSI.web2 import http, resource, stream
@@ -33,9 +36,8 @@ from OPSI.Object import *
 from OPSI.System import getDiskSpaceUsage
 
 from OPSI.Service.Resource import ResourceOpsi
-from OPSI.Logger import *
-from OPSI.Types import *
-import datetime
+from OPSI.Logger import LOG_INFO, Logger
+from OPSI.Types import forceList
 
 logger = Logger()
 

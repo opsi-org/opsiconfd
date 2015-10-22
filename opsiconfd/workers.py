@@ -30,7 +30,6 @@ import base64
 import os
 import re
 import socket
-import zlib
 
 from twisted.internet import defer, threads
 from twisted.python import failure

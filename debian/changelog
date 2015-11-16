@@ -1,4 +1,4 @@
-opsiconfd (4.0.6.11-2) UNRELEASED; urgency=medium
+opsiconfd (4.0.6.11-2) experimental; urgency=medium
 
   * opsiconfd.service: specify a PID file.
   * opsiconfd.service: start opsiconfd with -D and set type to forking to

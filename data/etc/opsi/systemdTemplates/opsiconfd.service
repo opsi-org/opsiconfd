@@ -8,7 +8,9 @@ Wants=mysql.service
 
 [Service]
 User=opsiconfd
-ExecStart=/usr/bin/opsiconfd
+Type=forking
+ExecStart=/usr/bin/opsiconfd -D
+PIDFile=/var/run/opsiconfd/opsiconfd.pid
 RestartSec=10
 KillMode=process
 TimeoutStopSec=10

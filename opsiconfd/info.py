@@ -243,10 +243,16 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				pass
 
 			try:
+				additionalInfo.append('Connection: {0}'.format(thread.jsonrpcBackend))
+			except AttributeError:
+				pass
+
+			try:
 				additionalInfo.append('Method: {0}'.format(thread.method))
 				additionalInfo.append('Parameters: {0}'.format(thread.params))
 			except AttributeError:
 				pass
+
 			additionalInfo = ', '.join(additionalInfo)
 
 			threadInfo.append(

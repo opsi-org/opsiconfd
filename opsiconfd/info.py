@@ -35,6 +35,7 @@ opsi configuration daemon - info page
 :license: GNU Affero General Public License version 3
 """
 
+import cgi
 import heapq
 import os
 import operator
@@ -253,7 +254,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			except AttributeError:
 				pass
 
-			additionalInfo = ', '.join(additionalInfo)
+			additionalInfo = ', '.join(cgi.escape(i) for i in additionalInfo)
 
 			threadInfo.append(
 				self.createTableRow(

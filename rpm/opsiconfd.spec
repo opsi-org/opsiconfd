@@ -235,10 +235,11 @@ if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemp
 		sed --in-place "s!=-/bin/chown!=-$CHOWN_PATH!" "$SYSTEMDUNITDIR/opsiconfd.service" || True
 	%endif
 
-	if [ -x "`which systemctl 2>/dev/null`" ]; then
+	systemctl=`which systemctl 2>/dev/null` || true
+	if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
 		echo "Reloading unit-files"
-		systemctl daemon-reload || echo "Reloading unit-files failed!"
-		systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+		$systemctl daemon-reload || echo "Reloading unit-files failed!"
+		$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 	fi
 fi
 
@@ -281,7 +282,7 @@ if [ $1 -eq 0 ]; then
 
 	SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
 	if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -e "$SYSTEMDUNITDIR/opsiconfd.service" ]; then
-		systemctl=`which systemctl 2>/dev/null`
+		systemctl=`which systemctl 2>/dev/null` || true
 		if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
 			$systemctl disable opsiconfd.service && echo "Disabled opsiconfd.service" || echo "Disabling opsiconfd.service failed!"
 			$systemctl daemon-reload || echo "Reloading unit-files failed!"

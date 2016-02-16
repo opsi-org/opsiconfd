@@ -157,9 +157,8 @@ class Statistics(object):
 	def getStatistics(self):
 		try:
 			now = int(time.time())
-			last = self._last
+			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
 			self._last = now
-			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, last)
 
 			return {
 				"requests": self._rrdCache['requests'],
@@ -204,10 +203,8 @@ class Statistics(object):
 
 		try:
 			now = int(time.time())
-			last = self._last
+			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
 			self._last = now
-			(utime, stime, cpu, virtMem) = self._getOwnResourceUsage(now, last)
-			(self._utime, self._stime) = (utime, stime)
 
 			threadCount = len([thread for thread in threading.enumerate()])
 			rrdValues = '%d:%d:%d:%d:%d:%d:%d:%d:%d' \

@@ -391,7 +391,6 @@ information about the host.
 	def addRpc(self, jsonrpc):
 		results = 0
 		if not jsonrpc.exception:
-			results = 0
 			if isinstance(jsonrpc.result, (list, tuple, dict)):
 				results = len(jsonrpc.result)
 

@@ -61,8 +61,8 @@ class ResourceOpsiconfdStatistics(resource.Resource):
 		''' Process request. '''
 		return http.Response(
 			stream='\n'.join(
-				['{0}:{1}'.format(k, v) for (k, v) in
-				self._opsiconfd.statistics().getStatistics().items()]
+				'{0}:{1}'.format(k, v) for (k, v) in
+				self._opsiconfd.statistics().getStatistics().items()
 			)
 		)
 

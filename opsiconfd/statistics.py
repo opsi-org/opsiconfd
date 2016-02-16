@@ -155,8 +155,9 @@ class Statistics(object):
 		)
 
 	def getStatistics(self):
+		now = int(time.time())
+
 		try:
-			now = int(time.time())
 			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
 			self._last = now
 
@@ -201,8 +202,8 @@ class Statistics(object):
 		if rrdtool is None:
 			return
 
+		now = int(time.time())
 		try:
-			now = int(time.time())
 			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
 			self._last = now
 

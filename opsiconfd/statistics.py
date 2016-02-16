@@ -168,7 +168,7 @@ class Statistics(object):
 				"rpcerrors": self._rrdCache['rpcerrors'],
 				"cpu": cpu,
 				"virtmem": virtMem,
-				"threads": len(list(threading.enumerate()))
+				"threads": len([t for t in threading.enumerate()])
 			}
 		except Exception as error:
 			logger.logException(error)

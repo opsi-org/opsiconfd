@@ -490,12 +490,12 @@ class Opsiconfd(OpsiService):
 		stats = self._statistics
 		logger.debug("Current system status: {0}".format(stats.getStatistics()))
 
-		logger.info("Statistics: ")
-		logger.info("Methodname\tCallcount\tAverage processing duration")
+		logger.notice("Statistics: ")
+		logger.notice("Methodname\tCallcount\tAverage processing duration")
 		callStatistics = stats.getRPCCallCounts()
 		callAverages = stats.getRPCAverageDurations()
-		for key in heapq.nlargest(numberOfFunctions, callStatistics, key=callStatistics.get):
-			logger.info("{name}\t{count}\t{average}".format(name=key, count=callStatistics[key], average='{0:0.3f}s'.format(callAverages[key])))
+		for key in callStatistics:
+			logger.notice("{name}\t{count}\t{average}".format(name=key, count=callStatistics[key], average='{0:0.3f}s'.format(callAverages[key])))
 
 
 class OpsiconfdInit(Application):

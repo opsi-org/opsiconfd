@@ -489,6 +489,7 @@ class Opsiconfd(OpsiService):
 	def _logStatistics(self):
 		stats = self._statistics
 		logger.debug("Current system status: {0}".format(stats.getStatistics()))
+		logger.notice("Uptime: {0}".format(str(datetime.now() - self.config['startTime'])))
 
 		logger.notice("Statistics: ")
 		logger.notice("Methodname\tCallcount\tAverage processing duration")

@@ -45,6 +45,7 @@ try:
 except ImportError:
 	avahi = None
 
+from contextlib import contextmanager
 from datetime import datetime
 from signal import signal, SIGHUP, SIGINT, SIGTERM
 from ctypes import CDLL
@@ -213,6 +214,7 @@ class Opsiconfd(OpsiService):
 		if self._sessionHandler:
 			self._sessionHandler.cleanup()
 		self._createSessionHandler()
+		self._logStatistics()
 		self._createStatistics()
 		self._createSite()
 
@@ -447,6 +449,14 @@ class Opsiconfd(OpsiService):
 		self._messageBusService.start()
 
 	def run(self):
+		@contextmanager
+		def collectStatistics():
+			self._createStatistics()
+			try:
+				yield
+			finally:
+				self._logStatistics()
+
 		self._running = True
 		logger.notice(u"Starting opsiconfd main thread")
 		try:
@@ -456,25 +466,37 @@ class Opsiconfd(OpsiService):
 			self._startListeningSocket()
 			self._createBackendInstance()
 			self._createSessionHandler()
-			self._createStatistics()
-			self._createSite()
-			self._startListening()
-			if self.config['loadbalancing']:
-				logger.debug(u"Loadbalancing is activated, zeroconf-publishing is deactivated")
-			else:
-				self._publish()
+			with collectStatistics():
+				self._createSite()
+				self._startListening()
+				if self.config['loadbalancing']:
+					logger.debug(u"Loadbalancing is activated, zeroconf-publishing is deactivated")
+				else:
+					self._publish()
 
-			if self.config["debug"]:
-				self._startListeningShell()
+				if self.config["debug"]:
+					self._startListeningShell()
 
-			if not reactor.running:
-				reactor.run(installSignalHandlers=1)
+				if not reactor.running:
+					reactor.run(installSignalHandlers=1)
 		except Exception as e:
 			logger.logException(e)
 			self.stop()
 
 		logger.notice(u"Opsiconfd main thread exiting...")
 		self._running = False
+
+	def _logStatistics(self):
+		stats = self._statistics
+		logger.debug("Current system status: {0}".format(stats.getStatistics()))
+		logger.notice("Uptime: {0}".format(str(datetime.now() - self.config['startTime'])))
+
+		logger.notice("Statistics: ")
+		logger.notice("Methodname\tCallcount\tAverage processing duration")
+		callStatistics = stats.getRPCCallCounts()
+		callAverages = stats.getRPCAverageDurations()
+		for key in callStatistics:
+			logger.notice("{name}\t{count}\t{average}".format(name=key, count=callStatistics[key], average='{0:0.3f}s'.format(callAverages[key])))
 
 
 class OpsiconfdInit(Application):

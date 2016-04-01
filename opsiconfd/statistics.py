@@ -61,8 +61,8 @@ class ResourceOpsiconfdStatistics(resource.Resource):
 		''' Process request. '''
 		return http.Response(
 			stream='\n'.join(
-				['{0}:{1}'.format(k, v) for (k, v) in
-				self._opsiconfd.statistics().getStatistics().items()]
+				'{0}:{1}'.format(k, v) for (k, v) in
+				self._opsiconfd.statistics().getStatistics().items()
 			)
 		)
 
@@ -155,11 +155,11 @@ class Statistics(object):
 		)
 
 	def getStatistics(self):
+		now = int(time.time())
+
 		try:
-			now = int(time.time())
-			last = self._last
+			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
 			self._last = now
-			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, last)
 
 			return {
 				"requests": self._rrdCache['requests'],
@@ -169,7 +169,7 @@ class Statistics(object):
 				"rpcerrors": self._rrdCache['rpcerrors'],
 				"cpu": cpu,
 				"virtmem": virtMem,
-				"threads": len(list(threading.enumerate()))
+				"threads": len([t for t in threading.enumerate()])
 			}
 		except Exception as error:
 			logger.logException(error)
@@ -177,7 +177,7 @@ class Statistics(object):
 			return {}
 
 	def _getOwnResourceUsage(self, currentTime, unixtimeOfLastCall):
-		(utime, stime, _) = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
+		utime, stime, _ = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
 		if int(utime - self._utime) == 0:
 			usr = 0.0
 		else:
@@ -202,12 +202,10 @@ class Statistics(object):
 		if rrdtool is None:
 			return
 
+		now = int(time.time())
 		try:
-			now = int(time.time())
-			last = self._last
+			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
 			self._last = now
-			(utime, stime, cpu, virtMem) = self._getOwnResourceUsage(now, last)
-			(self._utime, self._stime) = (utime, stime)
 
 			threadCount = len([thread for thread in threading.enumerate()])
 			rrdValues = '%d:%d:%d:%d:%d:%d:%d:%d:%d' \
@@ -394,7 +392,6 @@ information about the host.
 	def addRpc(self, jsonrpc):
 		results = 0
 		if not jsonrpc.exception:
-			results = 0
 			if isinstance(jsonrpc.result, (list, tuple, dict)):
 				results = len(jsonrpc.result)
 

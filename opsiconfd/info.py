@@ -193,7 +193,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		def getConfigHTML():
 			yield u'<h1>Server config</h1>'
 			yield u'<table>'
-			yield self.createTableHeader('key', 'value'))
+			yield self.createTableHeader('key', 'value')
 			for key in sorted(self.service.config):
 				if key == 'staticDirectories':
 					continue

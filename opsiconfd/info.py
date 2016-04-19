@@ -217,34 +217,34 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			return time.strftime("%d %b %Y %H:%M:%S", time.gmtime(timeObject))
 
 		def getAdditionalInfo(thread):
-				try:
-					yield 'Started at: {0}'.format(getReadableTime(thread.started))
+			try:
+				yield 'Started at: {0}'.format(getReadableTime(thread.started))
 
-					if thread.ended:
-						yield 'Ended at: {0}'.format(getReadableTime(thread.ended))
-				except AttributeError:
-					pass
+				if thread.ended:
+					yield 'Ended at: {0}'.format(getReadableTime(thread.ended))
+			except AttributeError:
+				pass
 
-				try:
-					yield 'HostID: {0}'.format(thread.hostId)
-				except AttributeError:
-					pass
+			try:
+				yield 'HostID: {0}'.format(thread.hostId)
+			except AttributeError:
+				pass
 
-				try:
-					yield 'Address: {0}'.format(thread.address)
-				except AttributeError:
-					pass
+			try:
+				yield 'Address: {0}'.format(thread.address)
+			except AttributeError:
+				pass
 
-				try:
-					yield 'Connection: {0}'.format(thread.jsonrpcBackend)
-				except AttributeError:
-					pass
+			try:
+				yield 'Connection: {0}'.format(thread.jsonrpcBackend)
+			except AttributeError:
+				pass
 
-				try:
-					yield 'Method: {0}'.format(thread.method)
-					yield 'Parameters: {0}'.format(thread.params)
-				except AttributeError:
-					pass
+			try:
+				yield 'Method: {0}'.format(thread.method)
+				yield 'Parameters: {0}'.format(thread.params)
+			except AttributeError:
+				pass
 
 		def getThreadInfoHTML():
 			threads = [thread for thread in threading.enumerate()]

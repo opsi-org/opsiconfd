@@ -143,14 +143,14 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return result
 
 	def getGraphs(self):
-		graphs = []
-		if self.service.statistics().rrdsAvailable():
-			for term, duration in _GRAPH_MAPPING:
-				graphs.append(u'<h1>Last {0}</h1>'.format(term))
-				for imageType in (1, 2):
-					graphs.append(u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(imageType, duration)))
+		def getGraphCode():
+			if self.service.statistics().rrdsAvailable():
+				for term, duration in _GRAPH_MAPPING:
+					yield u'<h1>Last {0}</h1>'.format(term)
+					for imageType in (1, 2):
+						yield u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(imageType, duration))
 
-		return ''.join(graphs)
+		return ''.join(getGraphCode())
 
 	def getObjectInfo(self):
 		objectInfo = [u'<h1>Object info</h1>', u'<table>']

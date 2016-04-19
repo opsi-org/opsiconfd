@@ -139,10 +139,10 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		if self.service.statistics().rrdsAvailable():
 			graphMapping = (
 				('hour', 3600),
-				('day', 3600 * 24),
-				('week', 3600 * 24 * 7),
-				('month', 3600 * 24 * 31),
-				('year', 3600 * 24 * 365),
+				('day', 86400),  # 3600 * 24
+				('week', 604800),  # 3600 * 24 * 7
+				('month', 2678400),  # 3600 * 24 * 31
+				('year', 31536000),  # 3600 * 24 * 365
 			)
 
 			for (term, duration) in graphMapping:

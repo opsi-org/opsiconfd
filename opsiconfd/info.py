@@ -216,23 +216,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		def getReadableTime(timeObject):
 			return time.strftime("%d %b %Y %H:%M:%S", time.gmtime(timeObject))
 
-		threads = [thread for thread in threading.enumerate()]
-
-		threadInfo = [u'<h1>Running threads ({0:d})</h1>'.format(len(threads))]
-		threadInfo.append(u'<table>')
-		threadInfo.append(self.createTableHeader('class', 'name', 'ident', 'alive', 'additional information'))
-		for thread in threads:
-			try:
-				threadName = thread.name
-			except Exception:
-				threadName = u''
-
-			try:
-				threadIdent = thread.ident
-			except Exception:
-				threadIdent = u''
-
-			def getAdditionalInfo(thread):
+		def getAdditionalInfo(thread):
 				try:
 					yield 'Started at: {0}'.format(getReadableTime(thread.started))
 
@@ -261,6 +245,22 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 					yield 'Parameters: {0}'.format(thread.params)
 				except AttributeError:
 					pass
+
+		threads = [thread for thread in threading.enumerate()]
+
+		threadInfo = [u'<h1>Running threads ({0:d})</h1>'.format(len(threads))]
+		threadInfo.append(u'<table>')
+		threadInfo.append(self.createTableHeader('class', 'name', 'ident', 'alive', 'additional information'))
+		for thread in threads:
+			try:
+				threadName = thread.name
+			except Exception:
+				threadName = u''
+
+			try:
+				threadIdent = thread.ident
+			except Exception:
+				threadIdent = u''
 
 			threadInfo.append(
 				self.createTableRow(

@@ -246,32 +246,32 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				except AttributeError:
 					pass
 
-		threads = [thread for thread in threading.enumerate()]
+		def getThreadInfoHTML():
+			threads = [thread for thread in threading.enumerate()]
 
-		threadInfo = [u'<h1>Running threads ({0:d})</h1>'.format(len(threads))]
-		threadInfo.append(u'<table>')
-		threadInfo.append(self.createTableHeader('class', 'name', 'ident', 'alive', 'additional information'))
-		for thread in threads:
-			try:
-				threadName = thread.name
-			except Exception:
-				threadName = u''
+			yield u'<h1>Running threads ({0:d})</h1>'.format(len(threads))
+			yield u'<table>'
+			yield self.createTableHeader('class', 'name', 'ident', 'alive', 'additional information')
 
-			try:
-				threadIdent = thread.ident
-			except Exception:
-				threadIdent = u''
+			for thread in threads:
+				try:
+					threadName = thread.name
+				except Exception:
+					threadName = u''
 
-			threadInfo.append(
-				self.createTableRow(
+				try:
+					threadIdent = thread.ident
+				except Exception:
+					threadIdent = u''
+
+				yield self.createTableRow(
 					thread.__class__.__name__, threadName, threadIdent,
 					thread.isAlive(),
 					', '.join(cgi.escape(i) for i in getAdditionalInfo(thread))
 				)
-			)
-		threadInfo.append(u'</table>')
+			yield u'</table>'
 
-		return ''.join(threadInfo)
+		return ''.join(getThreadInfoHTML())
 
 	def getSessionInfo(self):
 		sessions = self.service._getSessionHandler().getSessions()

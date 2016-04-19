@@ -232,42 +232,41 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			except Exception:
 				threadIdent = u''
 
-			additionalInfo = []
-			try:
-				additionalInfo.append('Started at: {0}'.format(getReadableTime(thread.started)))
+			def getAdditionalInfo(thread):
+				try:
+					yield 'Started at: {0}'.format(getReadableTime(thread.started))
 
-				if thread.ended:
-					additionalInfo.append('Ended at: {0}'.format(getReadableTime(thread.ended)))
-			except AttributeError:
-				pass
+					if thread.ended:
+						yield 'Ended at: {0}'.format(getReadableTime(thread.ended))
+				except AttributeError:
+					pass
 
-			try:
-				additionalInfo.append('HostID: {0}'.format(thread.hostId))
-			except AttributeError:
-				pass
+				try:
+					yield 'HostID: {0}'.format(thread.hostId)
+				except AttributeError:
+					pass
 
-			try:
-				additionalInfo.append('Address: {0}'.format(thread.address))
-			except AttributeError:
-				pass
+				try:
+					yield 'Address: {0}'.format(thread.address)
+				except AttributeError:
+					pass
 
-			try:
-				additionalInfo.append('Connection: {0}'.format(thread.jsonrpcBackend))
-			except AttributeError:
-				pass
+				try:
+					yield 'Connection: {0}'.format(thread.jsonrpcBackend)
+				except AttributeError:
+					pass
 
-			try:
-				additionalInfo.append('Method: {0}'.format(thread.method))
-				additionalInfo.append('Parameters: {0}'.format(thread.params))
-			except AttributeError:
-				pass
-
-			additionalInfo = ', '.join(cgi.escape(i) for i in additionalInfo)
+				try:
+					yield 'Method: {0}'.format(thread.method)
+					yield 'Parameters: {0}'.format(thread.params)
+				except AttributeError:
+					pass
 
 			threadInfo.append(
 				self.createTableRow(
 					thread.__class__.__name__, threadName, threadIdent,
-					thread.isAlive(), additionalInfo
+					thread.isAlive(),
+					', '.join(cgi.escape(i) for i in getAdditionalInfo(thread))
 				)
 			)
 		threadInfo.append(u'</table>')

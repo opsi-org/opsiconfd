@@ -153,56 +153,64 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return ''.join(graphs)
 
 	def getObjectInfo(self):
-		objectInfo = [u'<h1>Object info</h1>', u'<table>']
-		objectInfo.append(self.createTableHeader('type', 'number'))
-		objectInfo.append(self.createTableRow('Depotserver', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver'))))
-		objectInfo.append(self.createTableRow('Client', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient'))))
-		objectInfo.append(self.createTableRow('Product', len(self.service._backend.product_getIdents(returnType='unicode'))))
-		objectInfo.append(self.createTableRow('Config', len(self.service._backend.config_getIdents(returnType='unicode'))))
-		objectInfo.append(u'</table>')
+		def getObjectInfoHTML():
+			yield u'<h1>Object info</h1>'
+			yield u'<table>'
+			yield self.createTableHeader('type', 'number')
+			yield self.createTableRow('Depotserver', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver')))
+			yield self.createTableRow('Client', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient')))
+			yield self.createTableRow('Product', len(self.service._backend.product_getIdents(returnType='unicode')))
+			yield self.createTableRow('Config', len(self.service._backend.config_getIdents(returnType='unicode')))
+			yield u'</table>'
 
-		return ''.join(objectInfo)
+		return ''.join(getObjectInfoHTML())
 
 	@staticmethod
 	def createTableHeader(*header):
-		headerline = [u'<tr>']
-		for term in header:
-			headerline.append(term.join((u'<th>', u'</th>')))
+		def createHeader():
+			yield u'<tr>'
+			for term in header:
+				yield u'<th>'
+				yield term
+				yield u'</th>'
+			yield u'</tr>'
 
-		headerline.append(u'</tr>')
-		return ''.join(headerline)
+		return ''.join(createHeader())
 
 	@staticmethod
 	def createTableRow(*values):
-		row = [u'<tr>']
-		for value in values:
-			row.append(u'<td>{0}</td>'.format(value))
-		row.append(u'</tr>')
+		def createRow():
+			yield u'<tr>'
+			for value in values:
+				yield u'<td>'
+				yield {0}
+				yield u'</td>'
+			yield u'</tr>'
 
-		return ''.join(row)
+		return ''.join(createRow())
 
 	def getConfigInfo(self):
-		configInfo = [u'<h1>Server config</h1>', u'<table>']
-		configInfo.append(self.createTableHeader('key', 'value'))
-		for key in sorted(self.service.config.keys()):
-			if key in ('staticDirectories',):
-				continue
-			configInfo.append(self.createTableRow(key, self.service.config[key]))
+		def getConfigHTML():
+			yield u'<h1>Server config</h1>'
+			yield u'<table>'
+			yield self.createTableHeader('key', 'value'))
+			for key in sorted(self.service.config):
+				if key == 'staticDirectories':
+					continue
+				yield self.createTableRow(key, self.service.config[key])
 
-		try:
-			configInfo.append(
-				self.createTableRow(
+			try:
+				yield self.createTableRow(
 					"uptime",
 					str(datetime.now() - self.service.config['startTime'])
 				)
-			)
-		except KeyError:
-			# For when no startTime is found.
-			pass
+			except KeyError:
+				# For when no startTime is found.
+				pass
 
-		configInfo.append(u'</table>')
+			yield u'</table>'
 
-		return ''.join(configInfo)
+		return ''.join(getConfigHTML())
 
 	def getThreadInfo(self):
 		def getReadableTime(timeObject):

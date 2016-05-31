@@ -4,7 +4,7 @@
 # This file is part of the desktop management solution opsi
 # (open pc server integration) http://www.opsi.org
 
-# Copyright (C) 2010-2015 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2016 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -52,6 +52,14 @@ from resources import ResourceOpsiconfd
 from workers import WorkerOpsiconfd
 
 LOGGER = Logger()
+
+_GRAPH_MAPPING = (
+	('hour', 3600),
+	('day', 86400),  # 3600 * 24
+	('week', 604800),  # 3600 * 24 * 7
+	('month', 2678400),  # 3600 * 24 * 31
+	('year', 31536000),  # 3600 * 24 * 365
+)
 
 PAGE_TEMPLATE = u'''
 <?xml version="1.0" encoding="UTF-8"?>
@@ -135,22 +143,14 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return result
 
 	def getGraphs(self):
-		graphs = []
-		if self.service.statistics().rrdsAvailable():
-			graphMapping = (
-				('hour', 3600),
-				('day', 3600 * 24),
-				('week', 3600 * 24 * 7),
-				('month', 3600 * 24 * 31),
-				('year', 3600 * 24 * 365),
-			)
+		def getGraphCode():
+			if self.service.statistics().rrdsAvailable():
+				for term, duration in _GRAPH_MAPPING:
+					yield u'<h1>Last {0}</h1>'.format(term)
+					for imageType in (1, 2):
+						yield u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(imageType, duration))
 
-			for (term, duration) in graphMapping:
-				graphs.append(u'<h1>Last {0}</h1>'.format(term))
-				for imageType in (1, 2):
-					graphs.append(u'<img src="/rrd/%s" />' % os.path.basename(self.service.statistics().getRrdGraphImage(imageType, duration)))
-
-		return ''.join(graphs)
+		return ''.join(getGraphCode())
 
 	def getObjectInfo(self):
 		objectInfo = [u'<h1>Object info</h1>', u'<table>']

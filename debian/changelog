@@ -1,3 +1,11 @@
+opsiconfd (4.0.7.1-1) testing; urgency=medium
+
+  * The path "/configed" now servers the Java Web Start version.
+    Java applet is deprecated as more and more browsers disable
+    applets by default.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 31 May 2016 13:52:57 +0200
+
 opsiconfd (4.0.6.14-1) experimental; urgency=medium
 
   * Small improvements during statistics collections and display.

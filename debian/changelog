@@ -1,3 +1,10 @@
+opsiconfd (4.0.7.2-1) testing; urgency=medium
+
+  * The path "/configed/" is now also accessible.
+    It serves the Java Web Start version of Configed.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 01 Jun 2016 10:09:02 +0200
+
 opsiconfd (4.0.7.1-1) testing; urgency=medium
 
   * The path "/configed" now servers the Java Web Start version.

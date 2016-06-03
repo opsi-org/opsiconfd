@@ -6,7 +6,7 @@ opsi configuration daemon - resources
 opsiconfd is part of the desktop management solution opsi
 (open pc server integration) http://www.opsi.org
 
-Copyright (C) 2010-2013 uib GmbH
+Copyright (C) 2010-2016 uib GmbH
 
 http://www.uib.de/
 
@@ -102,12 +102,6 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 		self._service.statistics().addWebDAVRequest(request)
 		return ResourceOpsiDAV.renderHTTP(self, request)
 
-
-# arguments = '<argument>-h</argument><argument>%s</argument>' % request.headers.getHeader('host')
-# if (request.uri.find('?') != -1):
-# 	arguments = ''
-# 	for a in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
-# 		arguments += '<argument>%s</argument>' % a
 
 class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 

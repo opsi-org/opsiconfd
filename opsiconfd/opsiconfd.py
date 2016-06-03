@@ -127,7 +127,7 @@ class ZeroconfService(object):
 
 class Opsiconfd(OpsiService):
 	def __init__(self, config):
-		self.config = config
+		self.config = {}
 		self._running = False
 		self._backend = None
 		self._root = None
@@ -144,11 +144,9 @@ class Opsiconfd(OpsiService):
 
 		self.authFailureCount = {}
 
+		self.setConfig(config)
 		self._setOpsiLogging()
 		self._setTwistedLogging()
-
-		if 'startTime' not in self.config:
-			self.config['startTime'] = datetime.now()
 
 		logger.comment("""
 ==================================================================
@@ -160,7 +158,11 @@ class Opsiconfd(OpsiService):
 
 	def setConfig(self, config):
 		logger.notice(u"Got new config")
+		oldStarttime = self.config.get('startTime')
 		self.config = config
+
+		if 'startTime' not in self.config:
+			self.config['startTime'] = oldStarttime or datetime.now()
 
 	def isRunning(self):
 		return self._running

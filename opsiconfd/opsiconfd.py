@@ -298,9 +298,6 @@ class Opsiconfd(OpsiService):
 		self._root.putChild('monitoring', ResourceOpsiconfdMonitoring(self))
 		# self._root.putChild('doc',             ResourceOpsiDocumentation())
 		self._root.putChild('configed.jnlp', ResourceOpsiconfdConfigedJNLP())
-		configedResource = ResourceOpsiconfdConfigedJNLP()
-		configedResource.putChild("", configedResource)
-		self._root.putChild('configed', configedResource)
 
 		hosts = self._backend.host_getObjects(type='OpsiDepotserver', id=self.config['fqdn'])
 		if hosts:

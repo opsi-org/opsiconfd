@@ -110,10 +110,9 @@ class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 		yield '<argument>-h;;%s</argument>' % request.headers.getHeader('host')
 
 		if '?' in request.uri:
-			arguments = [argument for argument in urllib.unquote(request.uri.split('?', 1)[1]).split('&')]
-			if arguments:
-				arguments = ";;".join(arguments)
-				yield arguments
+			for argument in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
+				yield '<argument>%s</argument>' % argument
+
 
 	def render(self, request):
 		if '?' in request.uri:

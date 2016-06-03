@@ -52,9 +52,22 @@ class JNLPResourceTestCase(unittest.TestCase):
     def testAdditionalArgumentsAreInTags(self):
         arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar', FakeHeaders(host='blabla'))))
 
-        self.assertEquals(2, arguments.count('<argument>'))
-        self.assertEquals(2, arguments.count('</argument>'))
-        self.assertTrue('<argument>-h;;blabla</argument>' in arguments)
+        self.assertEquals(1, arguments.count('<argument>'))
+        self.assertEquals(1, arguments.count('</argument>'))
+        self.assertEquals('<argument>-h;;blabla;;--foo;;bar</argument>', arguments)
+
+    def testPassingAdditionalArguments(self):
+        arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar&hey=ho', FakeHeaders(host='blabla'))))
+
+        self.assertEquals('<argument>-h;;blabla;;-foo;;bar;;-hey;;ho</argument>', arguments)
+
+    def testHandlingShortOptAndLongOpt(self):
+        arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?f=bar&hey=ho', FakeHeaders(host='a'))))
+
+        arguments = arguments.lstrip('<argument>')
+        arguments = arguments.rstrip('</argument>')
+        self.assertTrue('-f;;bar' in arguments)
+        self.assertTrue('--hey;;ho' in arguments)
 
 
 if __name__ == '__main__':

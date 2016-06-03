@@ -38,13 +38,14 @@ class FakeHeaders:
 
 
 class FakeRequest:
-    def __init__(self, headers):
+    def __init__(self, uri, headers):
+        self.uri = uri
         self.headers = headers
 
 
 class JNLPResourceTestCase(unittest.TestCase):
     def testDefaultArgumentIsTheAddressOfTheServer(self):
-        arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest(FakeHeaders(host='blabla'))))
+        arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('', FakeHeaders(host='blabla'))))
 
         self.assertEqual('<argument>-h;;blabla</argument>', arguments)
 

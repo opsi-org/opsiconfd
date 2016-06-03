@@ -49,6 +49,13 @@ class JNLPResourceTestCase(unittest.TestCase):
 
         self.assertEqual('<argument>-h;;blabla</argument>', arguments)
 
+    def testAdditionalArgumentsAreInTags(self):
+        arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar', FakeHeaders(host='blabla'))))
+
+        self.assertEquals(2, arguments.count('<argument>'))
+        self.assertEquals(2, arguments.count('</argument>'))
+        self.assertTrue('<argument>-h;;blabla</argument>' in arguments)
+
 
 if __name__ == '__main__':
     unittest.main()

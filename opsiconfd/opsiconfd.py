@@ -498,7 +498,7 @@ class Opsiconfd(OpsiService):
 		logger.notice("Methodname\tCallcount\tAverage processing duration")
 		callStatistics = stats.getRPCCallCounts()
 		callAverages = stats.getRPCAverageDurations()
-		for key in callStatistics:
+		for key in sorted(callStatistics):
 			logger.notice("{name}\t{count}\t{average}".format(name=key, count=callStatistics[key], average='{0:0.3f}s'.format(callAverages[key])))
 
 

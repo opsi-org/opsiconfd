@@ -107,7 +107,7 @@ class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 
 	@staticmethod
 	def getArguments(request):
-		yield = '<argument>-h;;%s</argument>' % request.headers.getHeader('host')
+		yield '<argument>-h;;%s</argument>' % request.headers.getHeader('host')
 
 		if '?' in request.uri:
 			arguments = [argument for argument in urllib.unquote(request.uri.split('?', 1)[1]).split('&')]

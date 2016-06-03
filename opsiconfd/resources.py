@@ -6,7 +6,7 @@ opsi configuration daemon - resources
 opsiconfd is part of the desktop management solution opsi
 (open pc server integration) http://www.opsi.org
 
-Copyright (C) 2010-2013 uib GmbH
+Copyright (C) 2010-2016 uib GmbH
 
 http://www.uib.de/
 
@@ -104,20 +104,40 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 
 
 class ResourceOpsiconfdConfigedJNLP(resource.Resource):
+
+	@staticmethod
+	def getArguments(request):
+		yield '-h'
+		yield '%s' % request.headers.getHeader('host')
+
+		if '?' in request.uri:
+			for argument in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
+				if '=' in argument:
+					key, value = argument.split('=', 1)
+
+					if len(key) == 1:
+						yield '-%s' % key  # shortopt
+					else:
+						yield '--%s' % key  # longopt
+
+					yield value
+				else:
+					yield argument
+
+
 	def render(self, request):
-		arguments = '<argument>-h;;%s</argument>' % request.headers.getHeader('host')
-		rawargs = ''
+		def argumentTags(text):
+			return '<argument>%s</argument>' % text
+
 		if '?' in request.uri:
 			rawargs = "?%s" % request.uri.split('?', 1)[1]
-
-			arguments = [argument for argument in urllib.unquote(request.uri.split('?', 1)[1]).split('&')]
-			if arguments:
-				arguments = ";;".join(arguments)
+		else:
+			rawargs = ''
 
 		response = http.Response(stream=CONFIGED_JNLP_TEMPLATE % {
 			"codebase": "https://%s" % (request.headers.getHeader('host')),
 			"rawarguments": rawargs,
-			"arguments": arguments,
+			"arguments": argumentTags(';;'.join(self.getArguments(request))),
 		})
 		# Setting content-type as raw header for fixing the webstart problem
 		# internet explorer. Tested with Internet Explorer 8 on Windows XP SP3

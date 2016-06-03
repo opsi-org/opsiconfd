@@ -75,7 +75,7 @@ from monitoring import ResourceOpsiconfdMonitoring
 from session import OpsiconfdSessionHandler
 from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
-__version__ = "4.0.7.2"
+__version__ = "4.0.7.3"
 
 logger = Logger()
 
@@ -127,7 +127,7 @@ class ZeroconfService(object):
 
 class Opsiconfd(OpsiService):
 	def __init__(self, config):
-		self.config = config
+		self.config = {}
 		self._running = False
 		self._backend = None
 		self._root = None
@@ -144,11 +144,9 @@ class Opsiconfd(OpsiService):
 
 		self.authFailureCount = {}
 
+		self.setConfig(config)
 		self._setOpsiLogging()
 		self._setTwistedLogging()
-
-		if 'startTime' not in self.config:
-			self.config['startTime'] = datetime.now()
 
 		logger.comment("""
 ==================================================================
@@ -160,7 +158,11 @@ class Opsiconfd(OpsiService):
 
 	def setConfig(self, config):
 		logger.notice(u"Got new config")
+		oldStarttime = self.config.get('startTime')
 		self.config = config
+
+		if 'startTime' not in self.config:
+			self.config['startTime'] = oldStarttime or datetime.now()
 
 	def isRunning(self):
 		return self._running
@@ -298,9 +300,6 @@ class Opsiconfd(OpsiService):
 		self._root.putChild('monitoring', ResourceOpsiconfdMonitoring(self))
 		# self._root.putChild('doc',             ResourceOpsiDocumentation())
 		self._root.putChild('configed.jnlp', ResourceOpsiconfdConfigedJNLP())
-		configedResource = ResourceOpsiconfdConfigedJNLP()
-		configedResource.putChild("", configedResource)
-		self._root.putChild('configed', configedResource)
 
 		hosts = self._backend.host_getObjects(type='OpsiDepotserver', id=self.config['fqdn'])
 		if hosts:
@@ -498,7 +497,7 @@ class Opsiconfd(OpsiService):
 		logger.notice("Methodname\tCallcount\tAverage processing duration")
 		callStatistics = stats.getRPCCallCounts()
 		callAverages = stats.getRPCAverageDurations()
-		for key in callStatistics:
+		for key in sorted(callStatistics):
 			logger.notice("{name}\t{count}\t{average}".format(name=key, count=callStatistics[key], average='{0:0.3f}s'.format(callAverages[key])))
 
 

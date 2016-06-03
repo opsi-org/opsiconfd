@@ -103,15 +103,24 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 		return ResourceOpsiDAV.renderHTTP(self, request)
 
 
+# arguments = '<argument>-h</argument><argument>%s</argument>' % request.headers.getHeader('host')
+# if (request.uri.find('?') != -1):
+# 	arguments = ''
+# 	for a in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
+# 		arguments += '<argument>%s</argument>' % a
+
 class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 
 	@staticmethod
 	def getArguments(request):
-		yield '<argument>-h;;%s</argument>' % request.headers.getHeader('host')
+		def argumentTags(text):
+			return '<argument>%s</argument>' % text
+
+		yield argumentTags('-h;;%s' % request.headers.getHeader('host'))
 
 		if '?' in request.uri:
 			for argument in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
-				yield '<argument>%s</argument>' % argument
+				yield argumentTags(argument)
 
 
 	def render(self, request):

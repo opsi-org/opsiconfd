@@ -45,29 +45,27 @@ class FakeRequest:
 
 class JNLPResourceTestCase(unittest.TestCase):
     def testDefaultArgumentIsTheAddressOfTheServer(self):
-        arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('', FakeHeaders(host='blabla'))))
+        arguments = list(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('', FakeHeaders(host='blabla'))))
 
-        self.assertEqual('<argument>-h;;blabla</argument>', arguments)
+        self.assertEqual(['-h', 'blabla'], arguments)
 
     def testAdditionalArgumentsAreInTags(self):
-        arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar', FakeHeaders(host='blabla'))))
+        arguments = list(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar', FakeHeaders(host='blabla'))))
 
-        self.assertEquals(1, arguments.count('<argument>'))
-        self.assertEquals(1, arguments.count('</argument>'))
-        self.assertEquals('<argument>-h;;blabla;;--foo;;bar</argument>', arguments)
+        self.assertEquals(['-h', 'blabla', '--foo', 'bar'], arguments)
 
     def testPassingAdditionalArguments(self):
-        arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar&hey=ho', FakeHeaders(host='blabla'))))
+        arguments = ';;'.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar&hey=ho', FakeHeaders(host='blabla'))))
 
-        self.assertEquals('<argument>-h;;blabla;;-foo;;bar;;-hey;;ho</argument>', arguments)
+        self.assertEquals('-h;;blabla;;--foo;;bar;;--hey;;ho', arguments)
 
     def testHandlingShortOptAndLongOpt(self):
-        arguments = ''.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?f=bar&hey=ho', FakeHeaders(host='a'))))
+        arguments = list(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?f=bar&hey=ho', FakeHeaders(host='a'))))
 
-        arguments = arguments.lstrip('<argument>')
-        arguments = arguments.rstrip('</argument>')
-        self.assertTrue('-f;;bar' in arguments)
-        self.assertTrue('--hey;;ho' in arguments)
+        self.assertTrue('-f' in arguments)
+        self.assertEquals('bar', arguments[arguments.index('-f') + 1])
+        self.assertTrue('--hey' in arguments)
+        self.assertEquals('ho', arguments[arguments.index('--hey') + 1])
 
 
 if __name__ == '__main__':

@@ -104,20 +104,27 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 
 
 class ResourceOpsiconfdConfigedJNLP(resource.Resource):
-	def render(self, request):
-		arguments = '<argument>-h;;%s</argument>' % request.headers.getHeader('host')
-		rawargs = ''
-		if '?' in request.uri:
-			rawargs = "?%s" % request.uri.split('?', 1)[1]
 
+	@staticmethod
+	def getArguments(request):
+		yield = '<argument>-h;;%s</argument>' % request.headers.getHeader('host')
+
+		if '?' in request.uri:
 			arguments = [argument for argument in urllib.unquote(request.uri.split('?', 1)[1]).split('&')]
 			if arguments:
 				arguments = ";;".join(arguments)
+				yield arguments
+
+	def render(self, request):
+		if '?' in request.uri:
+			rawargs = "?%s" % request.uri.split('?', 1)[1]
+		else:
+			rawargs = ''
 
 		response = http.Response(stream=CONFIGED_JNLP_TEMPLATE % {
 			"codebase": "https://%s" % (request.headers.getHeader('host')),
 			"rawarguments": rawargs,
-			"arguments": arguments,
+			"arguments": ''.join(self.getArguments(request)),
 		})
 		# Setting content-type as raw header for fixing the webstart problem
 		# internet explorer. Tested with Internet Explorer 8 on Windows XP SP3

@@ -130,7 +130,15 @@ class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 			return '<argument>%s</argument>' % text
 
 		if '?' in request.uri:
-			rawargs = "?%s" % request.uri.split('?', 1)[1]
+			# The resulting file is handled as ANSI and '&' (ampersand)
+			# or '?' (question mark) in it may cause a break.
+			# The solution according to http://stackoverflow.com/a/12247414
+			# is to use the HTML encoded versions.
+			# This may be specific to OpenJDK:
+			# http://mail.openjdk.java.net/pipermail/distro-pkg-dev/2014-April/027109.html
+			rawargs = request.uri.split('?', 1)[1]
+			rawargs = '&#38;'.join(rawargs.split('&'))
+			rawargs = "&#063;%s" % rawargs
 		else:
 			rawargs = ''
 

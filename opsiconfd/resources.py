@@ -32,12 +32,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 @license: GNU Affero General Public License version 3
 """
 
+from __future__ import absolute_import
+
 import urllib
 
 from OPSI.web2 import http, resource
 from OPSI.Service.Resource import ResourceOpsi, ResourceOpsiJsonRpc, ResourceOpsiJsonInterface, ResourceOpsiDAV
 
-from workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface, WorkerOpsiconfdDAV
+from .workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface, WorkerOpsiconfdDAV
 
 
 CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>

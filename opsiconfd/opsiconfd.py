@@ -27,7 +27,7 @@ opsi configuration daemon (opsiconfd)
 :license: GNU Affero General Public License version 3
 """
 
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 
 import getopt
 import os
@@ -68,12 +68,12 @@ from OPSI.System.Posix import daemonize
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Service import SSLContext, OpsiService
 
-from resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV, ResourceOpsiconfdConfigedJNLP
-from info import ResourceOpsiconfdInfo
-from statistics import Statistics
-from monitoring import ResourceOpsiconfdMonitoring
-from session import OpsiconfdSessionHandler
-from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
+from .resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV, ResourceOpsiconfdConfigedJNLP
+from .info import ResourceOpsiconfdInfo
+from .statistics import Statistics
+from .monitoring import ResourceOpsiconfdMonitoring
+from .session import OpsiconfdSessionHandler
+from .omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
 __version__ = "4.0.7.4"
 

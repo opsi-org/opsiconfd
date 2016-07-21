@@ -57,6 +57,7 @@ from twisted.internet import reactor
 from OPSI.Application import Application
 from OPSI.Logger import Logger, LOG_NONE, LOG_WARNING, LOG_NOTICE
 from OPSI.web2 import server
+from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 from OPSI.Util import getfqdn, removeUnit
 from OPSI.Util.File import IniFile
 from OPSI.Util.AMP import OpsiProcessProtocolFactory
@@ -73,11 +74,14 @@ from info import ResourceOpsiconfdInfo
 from statistics import Statistics
 from monitoring import ResourceOpsiconfdMonitoring
 from session import OpsiconfdSessionHandler
-from omb import OpsiconfdHTTPFactory
 
 __version__ = "4.0.7.4"
 
 logger = Logger()
+
+
+class OpsiconfdHTTPFactory(HTTPFactory):
+	protocol = HTTPChannel
 
 
 class ZeroconfService(object):

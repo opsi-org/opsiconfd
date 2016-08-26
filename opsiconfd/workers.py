@@ -408,7 +408,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 					break  # to avoid unnecessary further iteration
 		except Exception as error:
 			logger.logException(error)
-			logger.error(u"Failed to process opsi service verification key: %s" % error)
+			logger.error(u"Failed to process opsi service verification key: {0!r}", error)
+
 		return result
 
 

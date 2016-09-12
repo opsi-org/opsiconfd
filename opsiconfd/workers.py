@@ -302,7 +302,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 				depotId=self.service.config['depotId'],
 				postpath=self.request.postpath,
 				context=self.service._backend,
-				messageBusNotifier=self.service.config['messageBus'],
 				startReactor=False
 			)
 
@@ -327,7 +326,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 							aclFile=self.service.config['aclFile'],
 							depotId=self.service.config['depotId'],
 							postpath=self.request.postpath,
-							messageBusNotifier=self.service.config['messageBus'],
 							startReactor=False))
 			return d
 

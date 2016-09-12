@@ -61,7 +61,6 @@ from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 from OPSI.Util import getfqdn, removeUnit
 from OPSI.Util.File import IniFile
 from OPSI.Util.AMP import OpsiProcessProtocolFactory
-from OPSI.Util.MessageBus import MessageBusServer
 from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
 						forceNetworkAddress, forceUnicode)
 from OPSI.System import which, execute

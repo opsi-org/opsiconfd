@@ -57,10 +57,10 @@ from twisted.internet import reactor
 from OPSI.Application import Application
 from OPSI.Logger import Logger, LOG_NONE, LOG_WARNING, LOG_NOTICE
 from OPSI.web2 import server
+from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 from OPSI.Util import getfqdn, removeUnit
 from OPSI.Util.File import IniFile
 from OPSI.Util.AMP import OpsiProcessProtocolFactory
-from OPSI.Util.MessageBus import MessageBusServer
 from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
 						forceNetworkAddress, forceUnicode)
 from OPSI.System import which, execute
@@ -73,11 +73,14 @@ from .info import ResourceOpsiconfdInfo
 from .statistics import Statistics
 from .monitoring import ResourceOpsiconfdMonitoring
 from .session import OpsiconfdSessionHandler
-from .omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
-__version__ = "4.0.7.5"
+__version__ = "4.1.1"
 
 logger = Logger()
+
+
+class OpsiconfdHTTPFactory(HTTPFactory):
+	protocol = HTTPChannel
 
 
 class ZeroconfService(object):
@@ -137,8 +140,6 @@ class Opsiconfd(OpsiService):
 		self._sessionHandler = None
 		self._statistics = None
 		self._zeroconfService = None
-		self._messageBusServer = None
-		self._messageBusService = None
 		self._socket = None
 		self._debugShell = None
 
@@ -181,11 +182,6 @@ class Opsiconfd(OpsiService):
 		try:
 			if self._zeroconfService:
 				self._zeroconfService.unpublish()
-			if self._messageBusService:
-				self._messageBusService.stop()
-			if self._messageBusServer:
-				self._messageBusServer.stop(stopReactor=False)
-				self._messageBusServer.join(5)
 			if self._httpPort:
 				self._httpPort.stopListening()
 			if self._httpsPort:
@@ -266,11 +262,9 @@ class Opsiconfd(OpsiService):
 			hostControlBackend=True,
 			hostControlSafeBackend=True,
 			depotBackend=bool(self.config['depotId']),
-			messageBusNotifier=bool(self.config['messageBus']),
 			startReactor=False,
 			maxLogSize=self.config['maxlogsize'],
 		)
-		OpsiconfdHTTPChannel.backend = self._backend
 
 	def _createSite(self):
 		logger.info(u"Creating site")
@@ -443,13 +437,6 @@ class Opsiconfd(OpsiService):
 		logger.notice(u"Opening debug shell.")
 		self._debugShell.open()
 
-	def _startMessageBusServer(self):
-		self._messageBusServer = MessageBusServer()
-		self._messageBusServer.start(startReactor=False)
-		self._messageBusService = MessageBusService()
-		OpsiconfdHTTPChannel.messageBusService = self._messageBusService
-		self._messageBusService.start()
-
 	def run(self):
 		@contextmanager
 		def collectStatistics():
@@ -463,8 +450,6 @@ class Opsiconfd(OpsiService):
 		logger.notice(u"Starting opsiconfd main thread")
 		try:
 			reactor.addSystemEventTrigger("before", "shutdown", self.stop)
-			if self.config['messageBus']:
-				self._startMessageBusServer()
 			self._startListeningSocket()
 			self._createBackendInstance()
 			self._createSessionHandler()
@@ -593,7 +578,6 @@ class OpsiconfdInit(Application):
 			'profile': False,
 			'profiler': u'profiler',
 			'debug': False,
-			'messageBus': False,
 			'monitoringUser': u"monitoring",
 			'monitoringDebug': False,
 		}
@@ -726,8 +710,6 @@ class OpsiconfdInit(Application):
 							self.config['adminNetworks'] = []
 							for net in value.split(','):
 								self.config['adminNetworks'].append(forceNetworkAddress(net.strip()))
-						elif option == 'message bus':
-							self.config['messageBus'] = forceBool(value)
 						elif option == 'monitoring user':
 							self.config['monitoringUser'] = forceUnicode(value)
 						elif option == 'monitoring debug':

@@ -302,7 +302,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 				depotId=self.service.config['depotId'],
 				postpath=self.request.postpath,
 				context=self.service._backend,
-				messageBusNotifier=self.service.config['messageBus'],
 				startReactor=False
 			)
 
@@ -327,7 +326,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 							aclFile=self.service.config['aclFile'],
 							depotId=self.service.config['depotId'],
 							postpath=self.request.postpath,
-							messageBusNotifier=self.service.config['messageBus'],
 							startReactor=False))
 			return d
 
@@ -650,24 +648,3 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 
 	def _setCookie(self, result):
 		return WorkerOpsiconfd._setCookie(self, result)
-
-
-class WorkerOpsiMessageBus(WorkerOpsi):
-
-	def process(self):
-		logger.debug(u"Worker %s started processing" % self)
-		deferred = defer.Deferred()
-		deferred.addCallback(self._getSession)
-		deferred.addCallback(self._authenticate)
-		deferred.addCallback(self._setResponse)
-		deferred.addCallback(self._setCookie)
-		deferred.addCallback(self._freeSession)
-		deferred.addErrback(self._errback)
-		deferred.callback(None)
-		return deferred
-
-	def _setResponse(self, result):
-		return http.Response(
-			code=responsecode.FORBIDDEN,
-			stream="TEST!"
-		)

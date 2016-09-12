@@ -390,17 +390,26 @@ class WorkerOpsiconfd(WorkerOpsi):
 		try:
 			for key, value in self.request.headers.getAllRawHeaders():
 				if key.lower() == 'x-opsi-service-verification-key':
-					logger.info(u"Adding header x-opsi-service-verification-key")
+					logger.debug(u"Adding header x-opsi-service-verification-key")
+
+					verificationKey = decryptWithPrivateKeyFromPEMFile(
+						base64.decodestring(value[0]),
+						self.service.config['sslServerKeyFile']
+					)
+
 					if not isinstance(result, http.Response):
 						result = http.Response()
+
 					result.headers.setRawHeaders(
 						'X-opsi-service-verification-key',
-						[decryptWithPrivateKeyFromPEMFile(base64.decodestring(value[0]), self.service.config['sslServerKeyFile'])]
+						[verificationKey]
 					)
-					return result
+
+					break  # to avoid unnecessary further iteration
 		except Exception as error:
 			logger.logException(error)
-			logger.error(u"Failed to process opsi service verification key: %s" % error)
+			logger.error(u"Failed to process opsi service verification key: {0!r}", error)
+
 		return result
 
 

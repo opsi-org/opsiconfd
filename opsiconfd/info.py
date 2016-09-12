@@ -155,118 +155,125 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		return ''.join(getGraphCode())
 
 	def getObjectInfo(self):
-		objectInfo = [u'<h1>Object info</h1>', u'<table>']
-		objectInfo.append(self.createTableHeader('type', 'number'))
-		objectInfo.append(self.createTableRow('Depotserver', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver'))))
-		objectInfo.append(self.createTableRow('Client', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient'))))
-		objectInfo.append(self.createTableRow('Product', len(self.service._backend.product_getIdents(returnType='unicode'))))
-		objectInfo.append(self.createTableRow('Config', len(self.service._backend.config_getIdents(returnType='unicode'))))
-		objectInfo.append(u'</table>')
+		def getObjectInfoHTML():
+			yield u'<h1>Object info</h1>'
+			yield u'<table>'
+			yield self.createTableHeader('type', 'number')
+			yield self.createTableRow('Depotserver', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiDepotserver')))
+			yield self.createTableRow('Client', len(self.service._backend.host_getIdents(returnType='unicode', type='OpsiClient')))
+			yield self.createTableRow('Product', len(self.service._backend.product_getIdents(returnType='unicode')))
+			yield self.createTableRow('Config', len(self.service._backend.config_getIdents(returnType='unicode')))
+			yield u'</table>'
 
-		return ''.join(objectInfo)
+		return ''.join(getObjectInfoHTML())
 
 	@staticmethod
 	def createTableHeader(*header):
-		headerline = [u'<tr>']
-		for term in header:
-			headerline.append(term.join((u'<th>', u'</th>')))
+		def createHeader():
+			yield u'<tr>'
+			for term in header:
+				yield u'<th>'
+				yield term
+				yield u'</th>'
+			yield u'</tr>'
 
-		headerline.append(u'</tr>')
-		return ''.join(headerline)
+		return ''.join(createHeader())
 
 	@staticmethod
 	def createTableRow(*values):
-		row = [u'<tr>']
-		for value in values:
-			row.append(u'<td>{0}</td>'.format(value))
-		row.append(u'</tr>')
+		def createRow():
+			yield u'<tr>'
+			for value in values:
+				yield u'<td>'
+				yield {0}
+				yield u'</td>'
+			yield u'</tr>'
 
-		return ''.join(row)
+		return ''.join(createRow())
 
 	def getConfigInfo(self):
-		configInfo = [u'<h1>Server config</h1>', u'<table>']
-		configInfo.append(self.createTableHeader('key', 'value'))
-		for key in sorted(self.service.config.keys()):
-			if key in ('staticDirectories',):
-				continue
-			configInfo.append(self.createTableRow(key, self.service.config[key]))
+		def getConfigHTML():
+			yield u'<h1>Server config</h1>'
+			yield u'<table>'
+			yield self.createTableHeader('key', 'value')
+			for key in sorted(self.service.config):
+				if key == 'staticDirectories':
+					continue
+				yield self.createTableRow(key, self.service.config[key])
 
-		try:
-			configInfo.append(
-				self.createTableRow(
+			try:
+				yield self.createTableRow(
 					"uptime",
 					str(datetime.now() - self.service.config['startTime'])
 				)
-			)
-		except KeyError:
-			# For when no startTime is found.
-			pass
+			except KeyError:
+				# For when no startTime is found.
+				pass
 
-		configInfo.append(u'</table>')
+			yield u'</table>'
 
-		return ''.join(configInfo)
+		return ''.join(getConfigHTML())
 
 	def getThreadInfo(self):
 		def getReadableTime(timeObject):
 			return time.strftime("%d %b %Y %H:%M:%S", time.gmtime(timeObject))
 
-		threads = [thread for thread in threading.enumerate()]
-
-		threadInfo = [u'<h1>Running threads ({0:d})</h1>'.format(len(threads))]
-		threadInfo.append(u'<table>')
-		threadInfo.append(self.createTableHeader('class', 'name', 'ident', 'alive', 'additional information'))
-		for thread in threads:
+		def getAdditionalInfo(thread):
 			try:
-				threadName = thread.name
-			except Exception:
-				threadName = u''
-
-			try:
-				threadIdent = thread.ident
-			except Exception:
-				threadIdent = u''
-
-			additionalInfo = []
-			try:
-				additionalInfo.append('Started at: {0}'.format(getReadableTime(thread.started)))
+				yield 'Started at: {0}'.format(getReadableTime(thread.started))
 
 				if thread.ended:
-					additionalInfo.append('Ended at: {0}'.format(getReadableTime(thread.ended)))
+					yield 'Ended at: {0}'.format(getReadableTime(thread.ended))
 			except AttributeError:
 				pass
 
 			try:
-				additionalInfo.append('HostID: {0}'.format(thread.hostId))
+				yield 'HostID: {0}'.format(thread.hostId)
 			except AttributeError:
 				pass
 
 			try:
-				additionalInfo.append('Address: {0}'.format(thread.address))
+				yield 'Address: {0}'.format(thread.address)
 			except AttributeError:
 				pass
 
 			try:
-				additionalInfo.append('Connection: {0}'.format(thread.jsonrpcBackend))
+				yield 'Connection: {0}'.format(thread.jsonrpcBackend)
 			except AttributeError:
 				pass
 
 			try:
-				additionalInfo.append('Method: {0}'.format(thread.method))
-				additionalInfo.append('Parameters: {0}'.format(thread.params))
+				yield 'Method: {0}'.format(thread.method)
+				yield 'Parameters: {0}'.format(thread.params)
 			except AttributeError:
 				pass
 
-			additionalInfo = ', '.join(cgi.escape(i) for i in additionalInfo)
+		def getThreadInfoHTML():
+			threads = [thread for thread in threading.enumerate()]
 
-			threadInfo.append(
-				self.createTableRow(
+			yield u'<h1>Running threads ({0:d})</h1>'.format(len(threads))
+			yield u'<table>'
+			yield self.createTableHeader('class', 'name', 'ident', 'alive', 'additional information')
+
+			for thread in threads:
+				try:
+					threadName = thread.name
+				except Exception:
+					threadName = u''
+
+				try:
+					threadIdent = thread.ident
+				except Exception:
+					threadIdent = u''
+
+				yield self.createTableRow(
 					thread.__class__.__name__, threadName, threadIdent,
-					thread.isAlive(), additionalInfo
+					thread.isAlive(),
+					', '.join(cgi.escape(i) for i in getAdditionalInfo(thread))
 				)
-			)
-		threadInfo.append(u'</table>')
+			yield u'</table>'
 
-		return ''.join(threadInfo)
+		return ''.join(getThreadInfoHTML())
 
 	def getSessionInfo(self):
 		sessions = self.service._getSessionHandler().getSessions()

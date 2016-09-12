@@ -35,6 +35,8 @@ opsi configuration daemon - info page
 :license: GNU Affero General Public License version 3
 """
 
+from __future__ import absolute_import
+
 import cgi
 import heapq
 import os
@@ -48,8 +50,8 @@ from OPSI.System import getDiskSpaceUsage
 from OPSI.Types import OpsiAuthenticationError
 from OPSI.web2 import responsecode, http, stream
 
-from resources import ResourceOpsiconfd
-from workers import WorkerOpsiconfd
+from .resources import ResourceOpsiconfd
+from .workers import WorkerOpsiconfd
 
 LOGGER = Logger()
 

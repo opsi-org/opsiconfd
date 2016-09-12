@@ -505,7 +505,7 @@ class OpsiconfdInit(Application):
 	def __init__(self):
 		logger.debug(u"OpsiconfdInit")
 		# Set umask
-		os.umask(0077)
+		os.umask(0o077)
 		self._pid = 0
 		self.config = {}
 

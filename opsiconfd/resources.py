@@ -49,6 +49,7 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 		<description>Management console application for the opsi client management system</description>
 		<description kind="short">opsi management interface (opsi-configed)</description>
 		<offline-allowed/>
+		<icon href="configed.gif"/>
 	</information>
 	<security>
 		<all-permissions/>

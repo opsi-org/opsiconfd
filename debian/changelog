@@ -1,3 +1,10 @@
+opsiconfd (4.0.7.5.1-1) stable; urgency=medium
+
+  * Re-introduce reference to non-existing file to not break currently
+    distributed signed versions of opsi-configed.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 13 Sep 2016 12:02:51 +0200
+
 opsiconfd (4.0.7.5-1) stable; urgency=medium
 
   * Remove reference to non-existing file from JNLP template.

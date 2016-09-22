@@ -72,9 +72,11 @@ class WorkerOpsiconfd(WorkerOpsi):
 		result = WorkerOpsi._errback(self, failure)
 		if result.code == responsecode.UNAUTHORIZED and self.request.remoteAddr.host not in (self.service.config['ipAddress'], '127.0.0.1'):
 			if self.service.config['maxAuthenticationFailures'] > 0:
-				if not self.service.authFailureCount.has_key(self.request.remoteAddr.host):
-					self.service.authFailureCount[self.request.remoteAddr.host] = 0
-				self.service.authFailureCount[self.request.remoteAddr.host] += 1
+				try:
+					self.service.authFailureCount[self.request.remoteAddr.host] += 1
+				except KeyError:
+					self.service.authFailureCount[self.request.remoteAddr.host] = 1
+
 				if self.service.authFailureCount[self.request.remoteAddr.host] > self.service.config['maxAuthenticationFailures']:
 					logger.error(u"%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding" \
 							% (self.service.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host))
@@ -252,8 +254,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 			if not self.session.authenticated:
 				raise Exception("Access denied: User or host is not authorized for this resource.")
 
-			if self.service.authFailureCount.has_key(self.request.remoteAddr.host):
+			try:
 				del self.service.authFailureCount[self.request.remoteAddr.host]
+			except KeyError:
+				pass  # May not be present
 		except Exception as error:
 			logger.logException(error, LOG_INFO)
 			self._freeSession(result)

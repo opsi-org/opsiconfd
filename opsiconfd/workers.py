@@ -183,8 +183,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 		return self._linkLogFile(result)
 
 	def _authenticate(self, result):
-		''' This function tries to authenticate a user.
-		    Raises an exception on authentication failure. '''
+		'''
+		This function tries to authenticate a user.
+		Raises an exception on authentication failure.
+		'''
 
 		if self.session.authenticated:
 			return result

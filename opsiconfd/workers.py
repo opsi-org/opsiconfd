@@ -78,7 +78,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 					self.service.authFailureCount[self.request.remoteAddr.host] = 1
 
 				if self.service.authFailureCount[self.request.remoteAddr.host] > self.service.config['maxAuthenticationFailures']:
-					logger.error(u"%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding" \
+					logger.error(u"%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding"
 							% (self.service.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host))
 					# Will prevent flooding, before block for prevention,
 					# delete actual remoteAddr to reset the

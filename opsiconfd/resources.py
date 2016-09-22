@@ -126,7 +126,6 @@ class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 				else:
 					yield argument
 
-
 	def render(self, request):
 		def argumentTags(text):
 			return '<argument>%s</argument>' % text

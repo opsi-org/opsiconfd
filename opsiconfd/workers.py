@@ -214,11 +214,21 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 				if self.session.ip not in addressList:
 					# Username (FQDN) of peer does not resolve to peer's ip address
-					logger.critical(u"Host login attempt with username '%s'" % self.session.user +
-							u" from ip '%s', but name resolves to '%s' (access denied)" %
-							( self.session.ip, addressList) )
-					raise Exception(u"Access denied for username '%s' from '%s'" %
-							(self.session.user, self.session.ip) )
+					logger.critical(
+						u"Host login attempt with username '%s'"
+						u" from ip '%s', but name resolves to '%s' "
+						u"(access denied)" % (
+							self.session.user,
+							self.session.ip,
+							addressList
+						)
+					)
+
+					raise Exception(
+						u"Access denied for username '%s' from '%s'" % (
+							self.session.user, self.session.ip
+						)
+					)
 
 			adminNetwork = False
 			if len(self.service.config['adminNetworks']) == 1 and self.service.config['adminNetworks'][0] == u'0.0.0.0/0':

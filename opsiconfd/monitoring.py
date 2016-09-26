@@ -27,7 +27,6 @@ from twisted.internet import defer
 from twisted.conch.ssh import keys
 
 from OPSI.Logger import LOG_INFO, Logger
-from OPSI.Object import *
 from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Service.Worker import WorkerOpsi
 from OPSI.System import getDiskSpaceUsage

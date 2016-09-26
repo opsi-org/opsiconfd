@@ -16,8 +16,8 @@ All rights reserved.
 @author: Erol Ueluekmen <e.ueluekmen@uib.de>
 """
 
-import datetime
 import base64
+import datetime
 import json
 import os
 import re
@@ -26,15 +26,14 @@ from hashlib import md5
 from twisted.internet import defer
 from twisted.conch.ssh import keys
 
-from OPSI.web2 import http, stream
-from OPSI.Service.Worker import WorkerOpsi
+from OPSI.Logger import LOG_INFO, Logger
 from OPSI.Object import *
+from OPSI.Service.Resource import ResourceOpsi
+from OPSI.Service.Worker import WorkerOpsi
 from OPSI.System import getDiskSpaceUsage
 from OPSI.Types import OpsiAuthenticationError
-
-from OPSI.Service.Resource import ResourceOpsi
-from OPSI.Logger import LOG_INFO, Logger
 from OPSI.Types import forceList
+from OPSI.web2 import http, stream
 
 logger = Logger()
 

@@ -86,8 +86,8 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					password = u':'.join(parts[1:])
 				user = user.strip()
 				logger.confidential(u"Plugin supplied username '%s' and password '%s'" % (user, password))
-			except Exception as e:
-				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+			except Exception as error:
+				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, error))
 		return (user, password)
 
 	def _getCredentials(self):
@@ -104,14 +104,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				monitoringUsername = self.service.config['monitoringUser']
 				try:
 					monitoringPassword = self.service._backend.user_getCredentials(username=monitoringUsername)["password"]
-				except Exception as e:
+				except Exception as error:
 					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % monitoringUsername)
 					return
 				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (monitoringUsername, monitoringPassword))
-			except Exception as e:
+			except Exception as error:
 				monitoringPassword = False
 				monitoringUsername = False
-				logger.logException(e, LOG_INFO)
+				logger.logException(error, LOG_INFO)
 
 			if user == monitoringUsername and password == monitoringPassword:
 
@@ -165,9 +165,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			else:
 				logger.error(u"Wrong credentials, please check your configurations.")
 
-		except Exception as e:
-			logger.logException(e, LOG_INFO)
-			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
+		except Exception as error:
+			logger.logException(error, LOG_INFO)
+			raise OpsiAuthenticationError(u"Forbidden: %s" % error)
 		return result
 
 	def _authorize(self):
@@ -204,9 +204,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 							clientId=clientId,
 							excludeProductList=exclude
 						)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = {"state": "3", "message": str(e)}
+					except Exception as error:
+						logger.logException(error, LOG_INFO)
+						res = {"state": "3", "message": str(error)}
 						res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
@@ -237,9 +237,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 							exclude=exclude,
 							verbose=verbose
 						)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = {"state": "3", "message": str(e)}
+					except Exception as error:
+						logger.logException(error, LOG_INFO)
+						res = {"state": "3", "message": str(error)}
 						res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
@@ -261,9 +261,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 							strict,
 							verbose
 						)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = {"state": "3", "message": str(e)}
+					except Exception as error:
+						logger.logException(error, LOG_INFO)
+						res = {"state": "3", "message": str(error)}
 						res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
@@ -291,9 +291,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 							output,
 							encoding
 						)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = {"state": "3", "message": str(e)}
+					except Exception as error:
+						logger.logException(error, LOG_INFO)
+						res = {"state": "3", "message": str(error)}
 						res = res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
@@ -306,9 +306,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					try:
 						res = self.monitoring.checkOpsiWebservice(cpu, errors)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = {"state": "3", "message": str(e)}
+					except Exception as error:
+						logger.logException(error, LOG_INFO)
+						res = {"state": "3", "message": str(error)}
 						res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
@@ -326,9 +326,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 							opsiresource=opsiresource,
 							thresholds=threshold
 						)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = {"state": "3", "message": str(e)}
+					except Exception as error:
+						logger.logException(error, LOG_INFO)
+						res = {"state": "3", "message": str(error)}
 						res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
@@ -734,9 +734,9 @@ class Monitoring(object):
 					message = "Can't check host '%s' is not reachable." % hostId[0]
 					state = self._UNKNOWN
 			return self._generateResponse(state, message)
-		except Exception as e:
+		except Exception as erro:
 			state = self._UNKNOWN
-			message = str(e)
+			message = str(erro)
 			return self._generateResponse(state, message)
 
 	def checkOpsiDiskUsage(self, thresholds={}, opsiresource=None, perfdata=False):
@@ -774,9 +774,9 @@ class Monitoring(object):
 
 					info = getDiskSpaceUsage(path)
 					results[resource] = info
-		except Exception as e:
+		except Exception as error:
 			state = self._UNKNOWN
-			message.append(u"Not able to check DiskUsage. Error: '%s'" % str(e))
+			message.append(u"Not able to check DiskUsage. Error: '%s'" % str(error))
 			return self._generateResponse(state, message)
 
 		if results:
@@ -879,9 +879,9 @@ class Monitoring(object):
 			else:
 				message = "%s" % (" ".join(message))
 			return self._generateResponse(state, message)
-		except Exception as e:
+		except Exception as error:
 			state = self._UNKNOWN
-			message = u"cannot check webservice state: '%s'." % str(e)
+			message = u"cannot check webservice state: '%s'." % str(error)
 			return self._generateResponse(state, message)
 
 	def checkOpsiLicensePool(self, poolId='all'):

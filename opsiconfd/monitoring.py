@@ -77,7 +77,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 				logger.confidential(u"Auth encoded: %s" % encoded)
 				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
-				if (len(parts) > 6):
+				if len(parts) > 6:
 					user = u':'.join(parts[:6])
 					password = u':'.join(parts[6:])
 				else:
@@ -97,7 +97,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 		try:
 			# Get authorization from header
-			(user, password) = self._getCredentials()
+			user, password = self._getCredentials()
 
 			try:
 				moni_password = False
@@ -660,11 +660,12 @@ class Monitoring(object):
 
 				if not productVersion:
 					productVersion = productOnDepot.productVersion
-				elif (productVersion != productOnDepot.productVersion):
+				elif productVersion != productOnDepot.productVersion:
 					differs = True
+
 				if not packageVersion:
 					packageVersion = productOnDepot.packageVersion
-				elif (packageVersion != productOnDepot.packageVersion):
+				elif packageVersion != productOnDepot.packageVersion:
 					differs = True
 
 				if differs:
@@ -808,7 +809,7 @@ class Monitoring(object):
 					if available <= critical:
 						state = self._CRITICAL
 						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%.2f'GB)." % (result, available))
-					elif (available <= warning):
+					elif available <= warning:
 						if state != self._CRITICAL:
 							state = self._WARNING
 						message.append(u"DiskUsage warning from ressource: '%s' (available: '%.2f'GB)." % (result, available))
@@ -871,7 +872,7 @@ class Monitoring(object):
 			if errorrate > errors[0]:
 				message.append(u'RPC errors over 20\%')
 				state = self._CRITICAL
-			elif (errorrate > errors[1]):
+			elif errorrate > errors[1]:
 				message.append(u'RPC errors over 10\%')
 				state = self._WARNING
 			perfdata.append(u'rpcerror=%s;;;0; ' % rpcerrors)

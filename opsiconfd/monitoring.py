@@ -100,8 +100,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			user, password = self._getCredentials()
 
 			try:
-				monitoringPassword = False
-				monitoringUsername = False
 				monitoringUsername = self.service.config['monitoringUser']
 				try:
 					monitoringPassword = self.service._backend.user_getCredentials(username=monitoringUsername)["password"]
@@ -110,6 +108,8 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					return
 				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (monitoringUsername, monitoringPassword))
 			except Exception as e:
+				monitoringPassword = False
+				monitoringUsername = False
 				logger.logException(e, LOG_INFO)
 
 			if user == monitoringUsername and password == monitoringPassword:

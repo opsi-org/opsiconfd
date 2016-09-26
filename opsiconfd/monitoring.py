@@ -22,6 +22,7 @@ import json
 import os
 import re
 import time
+from collections import defaultdict
 from hashlib import md5
 from twisted.internet import defer
 from twisted.conch.ssh import keys
@@ -460,11 +461,6 @@ class Monitoring(object):
 
 	def checkProductStatus(self, productIds=[], productGroups=[], hostGroupIds=[], depotIds=[], exclude=[], verbose=False):
 		state = self._OK
-		clientsOnDepot = {}
-
-		actionRequestOnClient = {}
-		productProblemsOnClient = {}
-		productVersionProblemsOnClient = {}
 
 		if not productIds:
 			productIds = []
@@ -500,6 +496,7 @@ class Monitoring(object):
 		else:
 			clientIds = self.service._backend.host_getIdents(type="OpsiClient")
 
+		clientsOnDepot = defaultdict(list)
 		addConfigStateDefaults = self.service._backend.backend_getOptions().get('addConfigStateDefaults', False)
 		try:
 			logger.debug("Calling backend_setOptions on %s" % self)
@@ -514,40 +511,32 @@ class Monitoring(object):
 				if depotId not in depotIds:
 					continue
 
-				if depotId not in clientsOnDepot:
-					clientsOnDepot[depotId] = []
 				clientsOnDepot[depotId].append(configState.objectId)
 		finally:
 			self.service._backend.backend_setOptions({'addConfigStateDefaults': addConfigStateDefaults})
 
-		productOnDepotInfo = {}
+		productOnDepotInfo = defaultdict(dict)
 		for pod in self.service._backend.productOnDepot_getObjects(depotId=depotIds, productId=productIds):
-			if pod.depotId not in productOnDepotInfo:
-				productOnDepotInfo[pod.depotId] = {}
 			productOnDepotInfo[pod.depotId][pod.productId] = {
 				"productVersion": pod.productVersion,
 				"packageVersion": pod.packageVersion
 			}
 
+		productVersionProblemsOnClient = defaultdict(lambda: defaultdict(list))
+		productProblemsOnClient = defaultdict(lambda: defaultdict(list))
+		actionRequestOnClient = defaultdict(lambda: defaultdict(list))
 		for depotId in depotIds:
 			for poc in self.service._backend.productOnClient_getObjects(productId=productIds, clientId=clientsOnDepot.get(depotId, None)):
 				if poc.actionRequest != 'none':
-					# TODO: defaultdict?!
 					if state != self._CRITICAL:
 						state = self._WARNING
-					if depotId not in actionRequestOnClient:
-						actionRequestOnClient[depotId] = {}
-					if poc.productId not in actionRequestOnClient[depotId]:
-						actionRequestOnClient[depotId][poc.productId] = []
+
 					actionRequestOnClient[depotId][poc.productId].append(u"%s (%s)" % (poc.clientId, poc.actionRequest))
 
 				if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
 					if state != self._CRITICAL:
 						state = self._CRITICAL
-					if depotId not in productProblemsOnClient:
-						productProblemsOnClient[depotId] = {}
-					if poc.productId not in productProblemsOnClient[depotId]:
-						productProblemsOnClient[depotId][poc.productId] = []
+
 					productProblemsOnClient[depotId][poc.productId].append(u"%s (%s lastAction: [%s])" % (poc.clientId, poc.actionResult, poc.lastAction))
 
 				if not poc.productVersion or not poc.packageVersion:
@@ -557,13 +546,10 @@ class Monitoring(object):
 					poc.packageVersion != productOnDepotInfo[depotId][poc.productId]["packageVersion"]:
 					if state != self._CRITICAL:
 						state = self._WARNING
-					if depotId not in productVersionProblemsOnClient:
-						productVersionProblemsOnClient[depotId] = {}
-					if poc.productId not in productVersionProblemsOnClient[depotId]:
-						productVersionProblemsOnClient[depotId][poc.productId] = []
-					productVersionProblemsOnClient[depotId][poc.productId].append("%s (%s-%s)" % (poc.clientId, poc.productVersion, poc.packageVersion))
-		message = ''
 
+					productVersionProblemsOnClient[depotId][poc.productId].append("%s (%s-%s)" % (poc.clientId, poc.productVersion, poc.packageVersion))
+
+		message = ''
 		for depotId in depotIds:
 			if depotId in actionRequestOnClient or depotId in productProblemsOnClient or depotId in productVersionProblemsOnClient:
 				message += "Result for Depot: '%s': " % depotId
@@ -622,8 +608,6 @@ class Monitoring(object):
 
 	def checkDepotSyncStatus(self, depotIds, productIds=[], exclude=[], strict=False, verbose=False):
 		state = self._OK
-		productOnDepotInfo = {}
-		differenceProducts = {}
 
 		if not depotIds or 'all' in depotIds:
 			depotIds = []
@@ -633,14 +617,14 @@ class Monitoring(object):
 
 		productOnDepots = self.service._backend.productOnDepot_getObjects(depotId=depotIds, productId=productIds)
 		productIds = []
-		for depotId in depotIds:
-			productOnDepotInfo[depotId] = {}
+		productOnDepotInfo = defaultdict(dict)
 		for pod in productOnDepots:
 			if pod.productId not in productIds:
 				productIds.append(pod.productId)
 			productOnDepotInfo[pod.depotId][pod.productId] = pod
 		productIds.sort()
 
+		differenceProducts = defaultdict(dict)
 		for productId in productIds:
 			if productId in exclude:
 				continue
@@ -653,8 +637,6 @@ class Monitoring(object):
 					if not strict:
 						continue
 
-					if productId not in differenceProducts:
-						differenceProducts[productId] = {}
 					differenceProducts[productId][depotId] = "not installed"
 					continue
 
@@ -669,8 +651,6 @@ class Monitoring(object):
 					differs = True
 
 				if differs:
-					if productId not in differenceProducts:
-						differenceProducts[productId] = {}
 					differenceProducts[productId][depotId] = "different"
 
 		message = u''

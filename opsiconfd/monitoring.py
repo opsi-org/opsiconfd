@@ -100,19 +100,19 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			user, password = self._getCredentials()
 
 			try:
-				moni_password = False
-				moni_user = False
-				moni_user = self.service.config['monitoringUser']
+				monitoringPassword = False
+				monitoringUsername = False
+				monitoringUsername = self.service.config['monitoringUser']
 				try:
-					moni_password = self.service._backend.user_getCredentials(username=moni_user)["password"]
+					monitoringPassword = self.service._backend.user_getCredentials(username=monitoringUsername)["password"]
 				except Exception as e:
-					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % moni_user)
+					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % monitoringUsername)
 					return
-				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (moni_user, moni_password))
+				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (monitoringUsername, monitoringPassword))
 			except Exception as e:
 				logger.logException(e, LOG_INFO)
 
-			if user == moni_user and password == moni_password:
+			if user == monitoringUsername and password == monitoringPassword:
 
 				if not self.monitoring:
 					backendinfo = self.service._backend.backend_info()

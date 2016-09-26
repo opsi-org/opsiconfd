@@ -347,15 +347,17 @@ class ResourceOpsiconfdMonitoring(ResourceOpsi):
 
 
 class Monitoring(object):
+
+	_OK = 0
+	_WARNING = 1
+	_CRITICAL = 2
+	_UNKNOWN = 3
+
+	_stateText = [u"OK", u"WARNING", u"CRITICAL", u"UNKNOWN"]
+
 	def __init__(self, service):
 		self.service = service
 
-		self._OK = 0
-		self._WARNING = 1
-		self._CRITICAL = 2
-		self._UNKNOWN = 3
-
-		self._stateText = [u"OK", u"WARNING", u"CRITICAL", u"UNKNOWN"]
 		self._errorcodePattern = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')
 
 	def _generateResponse(self, state, message, perfdata=None):

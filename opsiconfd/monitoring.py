@@ -1,21 +1,19 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-   = = = = = = = = = = = = = = = = =
-   =   opsi configuration daemon   =
-   = = = = = = = = = = = = = = = = =
+opsi-nagios-connector endpoint.
 
-   opsi-nagios-connector is part of the desktop management solution opsi
-   (open pc server integration) http://www.opsi.org
+opsi-nagios-connector is part of the desktop management solution opsi
+(open pc server integration) http://www.opsi.org
 
-   Copyright (C) 2010-2015 uib GmbH
+Copyright (C) 2010-2016 uib GmbH
 
-   http://www.uib.de/
+http://www.uib.de/
 
-   All rights reserved.
+All rights reserved.
 
-   @copyright:  uib GmbH <info@uib.de>
-   @author: Erol Ueluekmen <e.ueluekmen@uib.de>
+@copyright:  uib GmbH <info@uib.de>
+@author: Erol Ueluekmen <e.ueluekmen@uib.de>
 """
 
 import datetime

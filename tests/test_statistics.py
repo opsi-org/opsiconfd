@@ -60,6 +60,7 @@ class FakeRPC(object):
     def getMethodName(self):
         return self.methodName
 
+
 class StatisticsTestCase(unittest.TestCase):
     def testNumberOfStatisticsIsLimited(self):
         stats = Statistics(FakeOpsiconfd())

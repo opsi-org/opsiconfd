@@ -23,7 +23,6 @@ Testing the resources that provide concrete sites.
 :license: GNU Affero General Public License version 3
 """
 
-import time
 import unittest
 
 from opsiconfd.resources import ResourceOpsiconfdConfigedJNLP

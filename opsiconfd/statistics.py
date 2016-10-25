@@ -216,7 +216,7 @@ class Statistics(object):
 				% (now, self._rrdCache['requests'], self._rrdCache['sessions'],
 					self._rrdCache['davrequests'], self._rrdCache['rpcs'],
 					self._rrdCache['rpcerrors'], cpu, virtMem, threadCount)
-			logger.debug2(u'Updating rrd: {0}'.format(rrdValues))
+			logger.debug2(u'Updating rrd: {0}', rrdValues)
 			rrdtool.update(str(self._rrdConfig['rrdFile']), rrdValues)
 			self._rrdCache['requests'] = 0
 			self._rrdCache['davrequests'] = 0

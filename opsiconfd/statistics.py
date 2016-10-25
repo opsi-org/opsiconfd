@@ -131,8 +131,11 @@ class Statistics(object):
 			os.unlink(self._rrdConfig['rrdFile'])
 
 		start = int(time.time())
+		# TODO: use modern logging
 		logger.notice(u"Creating rrd '%s', start: %s" % (self._rrdConfig['rrdFile'], start))
 
+		# TODO: precompute the step value to not do it many times in a row.
+		# TODO: pre-set the values that stay the same (1, 1, 7, 31, 365)
 		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(start), '--step', str(self._rrdConfig['step']),
 			'DS:requests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
 			'DS:sessions:DERIVE:%d:0:U' % self._rrdConfig['heartbeat'],
@@ -208,6 +211,7 @@ class Statistics(object):
 			self._last = now
 
 			threadCount = len([thread for thread in threading.enumerate()])
+			# TODO: improve the following by using format and unpacking of a dict.
 			rrdValues = '%d:%d:%d:%d:%d:%d:%d:%d:%d' \
 				% (now, self._rrdCache['requests'], self._rrdCache['sessions'],
 					self._rrdCache['davrequests'], self._rrdCache['rpcs'],

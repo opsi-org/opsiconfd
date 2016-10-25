@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of python-opsi.
-# Copyright (C) 2010-2014 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2016 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -91,7 +91,7 @@ class Statistics(object):
 		self._stime = 0.0
 		self._last = time.time()
 		self._rrdConfig = {
-			'step': 60,
+			'step': 60,  # in seconds
 			'heartbeat': 120,
 			'xPoints': 800,
 			'yPoints': 160,

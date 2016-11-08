@@ -135,16 +135,17 @@ class Statistics(object):
 
 		# TODO: pre-set the values that stay the same (1, 1, 7, 31, 365)
 		step = 3600 / self._rrdConfig['step']
+		heartbeat = self._rrdConfig['heartbeat']
 
 		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(start), '--step', str(self._rrdConfig['step']),
-			'DS:requests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:sessions:DERIVE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:davrequests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:rpcs:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:rpcerrors:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:cpu:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:mem:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:threads:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
+			'DS:requests:ABSOLUTE:%d:0:U' % heartbeat,
+			'DS:sessions:DERIVE:%d:0:U' % heartbeat,
+			'DS:davrequests:ABSOLUTE:%d:0:U' % heartbeat,
+			'DS:rpcs:ABSOLUTE:%d:0:U' % heartbeat,
+			'DS:rpcerrors:ABSOLUTE:%d:0:U' % heartbeat,
+			'DS:cpu:GAUGE:%d:0:U' % heartbeat,
+			'DS:mem:GAUGE:%d:0:U' % heartbeat,
+			'DS:threads:GAUGE:%d:0:U' % heartbeat,
 			'RRA:AVERAGE:0.5:%d:%d' % (1, step),    # hour
 			'RRA:AVERAGE:0.5:%d:%d' % (1, step * 24), # day
 			'RRA:AVERAGE:0.5:%d:%d' % (7, step * 24), # week

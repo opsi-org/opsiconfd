@@ -212,11 +212,9 @@ class Statistics(object):
 			self._last = now
 
 			threadCount = len([thread for thread in threading.enumerate()])
-			# TODO: improve the following by using format and unpacking of a dict.
-			rrdValues = '%d:%d:%d:%d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'],
-					self._rrdCache['davrequests'], self._rrdCache['rpcs'],
-					self._rrdCache['rpcerrors'], cpu, virtMem, threadCount)
+			rrdValues = '{0:d}:{requests:d}:{sessions:d}:{davrequests:d}:{rpcs:d}:{rpcerrors:d}:{1:d}:{2:d}:{3:d}'.format(
+				now, cpu, virtMem, threadCount, **self._rrdCache
+			)
 			logger.debug2(u'Updating rrd: {0}', rrdValues)
 			rrdtool.update(str(self._rrdConfig['rrdFile']), rrdValues)
 			self._rrdCache['requests'] = 0

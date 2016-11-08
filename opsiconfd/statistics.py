@@ -131,8 +131,7 @@ class Statistics(object):
 			os.unlink(self._rrdConfig['rrdFile'])
 
 		start = int(time.time())
-		# TODO: use modern logging
-		logger.notice(u"Creating rrd '%s', start: %s" % (self._rrdConfig['rrdFile'], start))
+		logger.notice(u"Creating rrd '{rrdFile}', start: {0}", start, rrdFile=self._rrdConfig['rrdFile'])
 
 		# TODO: precompute the step value to not do it many times in a row.
 		# TODO: pre-set the values that stay the same (1, 1, 7, 31, 365)
@@ -176,7 +175,7 @@ class Statistics(object):
 			}
 		except Exception as error:
 			logger.logException(error)
-			logger.error(u"Failed to get Statistics: %s" % error)
+			logger.error(u"Failed to get Statistics: {0}", error)
 			return {}
 
 	def _getOwnResourceUsage(self, currentTime, unixtimeOfLastCall):
@@ -223,7 +222,7 @@ class Statistics(object):
 			self._rrdCache['rpcs'] = 0
 			self._rrdCache['rpcerrors'] = 0
 		except Exception as error:
-			logger.error(u"Failed to update rrd: %s" % error)
+			logger.error(u"Failed to update rrd: {0}", error)
 
 	def getRrdGraphImage(self, imageType, range):
 		"""
@@ -244,7 +243,7 @@ information about the host.
 		end = int(time.time())
 		start = end - range
 
-		logger.debug(u"Creating rrd graph image '%s', start: %s, end: %s" % (graphImage, start, end))
+		logger.debug(u"Creating rrd graph image '{0}', start: {1}, end: {2}", graphImage, start, end)
 
 		if os.path.exists(graphImage):
 			os.unlink(graphImage)

@@ -133,7 +133,6 @@ class Statistics(object):
 		start = int(time.time())
 		logger.notice(u"Creating rrd '{rrdFile}', start: {0}", start, rrdFile=self._rrdConfig['rrdFile'])
 
-		# TODO: pre-set the values that stay the same (1, 1, 7, 31, 365)
 		step = 3600 / self._rrdConfig['step']
 		heartbeat = self._rrdConfig['heartbeat']
 
@@ -146,16 +145,16 @@ class Statistics(object):
 			'DS:cpu:GAUGE:%d:0:U' % heartbeat,
 			'DS:mem:GAUGE:%d:0:U' % heartbeat,
 			'DS:threads:GAUGE:%d:0:U' % heartbeat,
-			'RRA:AVERAGE:0.5:%d:%d' % (1, step),    # hour
-			'RRA:AVERAGE:0.5:%d:%d' % (1, step * 24), # day
-			'RRA:AVERAGE:0.5:%d:%d' % (7, step * 24), # week
-			'RRA:AVERAGE:0.5:%d:%d' % (31, step * 24), # month
-			'RRA:AVERAGE:0.5:%d:%d' % (365, step * 24), # year
-			'RRA:MAX:0.5:%d:%d' % (1, step),    # hour
-			'RRA:MAX:0.5:%d:%d' % (1, step * 24), # day
-			'RRA:MAX:0.5:%d:%d' % (7, step * 24), # week
-			'RRA:MAX:0.5:%d:%d' % (31, step * 24), # month
-			'RRA:MAX:0.5:%d:%d' % (365, step * 24), # year
+			'RRA:AVERAGE:0.5:1:%d' % step,    # hour
+			'RRA:AVERAGE:0.5:1:%d' % (step * 24), # day
+			'RRA:AVERAGE:0.5:7:%d' % (step * 24), # week
+			'RRA:AVERAGE:0.5:31:%d' % (step * 24), # month
+			'RRA:AVERAGE:0.5:365:%d' % (step * 24), # year
+			'RRA:MAX:0.5:1:%d' % step,    # hour
+			'RRA:MAX:0.5:1:%d' % (step * 24), # day
+			'RRA:MAX:0.5:7:%d' % (step * 24), # week
+			'RRA:MAX:0.5:31:%d' % (step * 24), # month
+			'RRA:MAX:0.5:365:%d' % (step * 24), # year
 		)
 
 	def getStatistics(self):

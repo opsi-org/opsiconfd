@@ -179,12 +179,15 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 		if self.query:
 			query = json.loads(self.query)
-			if "task" not in query:
-				res = {
+
+			try:
+				task = query['task']
+			except KeyError:
+				res = json.dumps({
 					"state": 3,
 					"message": u"No task set, nothing to do"
-				}
-				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
+				})
+				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
 			if not isinstance(self.monitoring, Monitoring):
@@ -196,7 +199,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
-			if query["task"] == "checkClientStatus":
+			if task == "checkClientStatus":
 				exclude = query.get("param", {}).get("exclude", None)
 				clientId = query.get("param", {}).get("clientId", None)
 
@@ -212,14 +215,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
-			elif query["task"] == "getOpsiClientsForGroup":
+			elif task == "getOpsiClientsForGroup":
 				if query["param"]:
 					if "groups" in query["param"]:
 						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
 						result.stream = stream.IByteStream(res.encode('utf-8'))
 						return result
 
-			elif query["task"] == "checkProductStatus":
+			elif task == "checkProductStatus":
 				productIds = query.get("param", {}).get("productIds", [])
 				groupIds = query.get("param", {}).get("groupIds", [])
 				hostGroupIds = query.get("param", {}).get("hostGroupIds", [])
@@ -243,7 +246,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
-			elif query["task"] == "checkDepotSyncStatus":
+			elif task == "checkDepotSyncStatus":
 				depotIds = query.get("param", {}).get("depotIds", [])
 				productIds = query.get("param", {}).get("productIds", [])
 				exclude = query.get("param", {}).get("exclude", [])
@@ -265,7 +268,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
-			elif query["task"] == "checkPluginOnClient":
+			elif task == "checkPluginOnClient":
 				clientId = query.get("param", {}).get("clientId", [])
 				command = query.get("param", {}).get("plugin", "")
 				statebefore = query.get("param", {}).get("state", None)
@@ -293,7 +296,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
-			elif query["task"] == "checkOpsiWebservice":
+			elif task == "checkOpsiWebservice":
 				cpu = query.get("param", {}).get("cpu", [])
 				errors = query.get("param", {}).get("errors", [])
 
@@ -306,7 +309,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
-			elif query["task"] == "checkOpsiDiskUsage":
+			elif task == "checkOpsiDiskUsage":
 				opsiresource = query.get("param", {}).get("resource", None)
 				threshold = {}
 				threshold["warning"] = (query.get("param", {}).get("warning", "5G"))

@@ -458,11 +458,10 @@ class Monitoring(object):
 						"inventoryNumber": host.inventoryNumber,
 						"ipAddress": host.ipAddress
 					}
+
 		return json.dumps(result)
 
 	def checkProductStatus(self, productIds=[], productGroups=[], hostGroupIds=[], depotIds=[], exclude=[], verbose=False):
-		state = self._OK
-
 		if not productIds:
 			productIds = []
 			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup', groupId=productGroups):
@@ -523,6 +522,7 @@ class Monitoring(object):
 				"packageVersion": pod.packageVersion
 			}
 
+		state = self._OK
 		productVersionProblemsOnClient = defaultdict(lambda: defaultdict(list))
 		productProblemsOnClient = defaultdict(lambda: defaultdict(list))
 		actionRequestOnClient = defaultdict(lambda: defaultdict(list))

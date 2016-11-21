@@ -327,12 +327,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 			else:
-				res = {
+				res = json.dumps({
 					"state": "3",
 					"message": u"Failure: unknown task!",
-				}
+				})
 
-				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
+				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 		else:
 			logger.debug("No query given.")

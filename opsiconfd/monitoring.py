@@ -439,6 +439,7 @@ class Monitoring(object):
 			for product in actionProducts:
 				products.append("%s (%s)" % (product.productId, product.actionRequest))
 			message += "Actions set for products: '%s'." % (",".join(products))
+
 		if state == self._OK:
 			message += "No failed products and no actions set for client"
 
@@ -446,6 +447,7 @@ class Monitoring(object):
 
 	def getOpsiClientsForGroup(self, groups):
 		result = {}
+
 		objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=groups, type="HostGroup")
 		if objectToGroups:
 			clients = [objectToGroup.objectId for objectToGroup in objectToGroups]
@@ -810,6 +812,7 @@ class Monitoring(object):
 		else:
 			state = self._UNKNOWN
 			message.append("No results get. Nothing to check.")
+
 		if state == self._OK:
 			message = u"OK: %s" % " ".join(message)
 		elif state == self._WARNING:

@@ -470,9 +470,7 @@ class Monitoring(object):
 					productIds.append(product)
 
 		if not productIds:
-			state = self._UNKNOWN
-			message = u"Neither productId nor productGroup given, nothing to check!"
-			return self._generateResponse(state, message)
+			return self._generateResponse(self._UNKNOWN, u"Neither productId nor productGroup given, nothing to check!")
 
 		serverType = None
 		if not depotIds:

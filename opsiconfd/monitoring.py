@@ -362,8 +362,10 @@ class Monitoring(object):
 		self._errorcodePattern = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')
 
 	def _generateResponse(self, state, message, perfdata=None):
-		response = {}
-		response["state"] = str(state)
+		response = {
+			"state": str(state)
+		}
+
 		if perfdata:
 			if self._stateText[int(state)] in message:
 				response["message"] = u"%s | %s" % (message, perfdata)

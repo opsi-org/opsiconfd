@@ -201,17 +201,16 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				clientId = query.get("param", {}).get("clientId", None)
 
 				try:
-					try:
-						res = self.monitoring.checkClientStatus(
-							clientId=clientId,
-							excludeProductList=exclude
-						)
-					except Exception as error:
-						logger.logException(error, LOG_INFO)
-						res = json.dumps({"state": "3", "message": str(error)})
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+					res = self.monitoring.checkClientStatus(
+						clientId=clientId,
+						excludeProductList=exclude
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": "3", "message": str(error)})
+
+				result.stream = stream.IByteStream(res.encode('utf-8'))
+				return result
 
 			elif query["task"] == "getOpsiClientsForGroup":
 				if query["param"]:
@@ -229,21 +228,20 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				verbose = query.get("param", {}).get("verbose", False)
 
 				try:
-					try:
-						res = self.monitoring.checkProductStatus(
-							productIds=productIds,
-							productGroups=groupIds,
-							hostGroupIds=hostGroupIds,
-							depotIds=depotIds,
-							exclude=exclude,
-							verbose=verbose
-						)
-					except Exception as error:
-						logger.logException(error, LOG_INFO)
-						res = json.dumps({"state": "3", "message": str(error)})
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+					res = self.monitoring.checkProductStatus(
+						productIds=productIds,
+						productGroups=groupIds,
+						hostGroupIds=hostGroupIds,
+						depotIds=depotIds,
+						exclude=exclude,
+						verbose=verbose
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": "3", "message": str(error)})
+
+				result.stream = stream.IByteStream(res.encode('utf-8'))
+				return result
 
 			elif query["task"] == "checkDepotSyncStatus":
 				depotIds = query.get("param", {}).get("depotIds", [])
@@ -253,20 +251,19 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				verbose = query.get("param", {}).get("verbose", False)
 
 				try:
-					try:
-						res = self.monitoring.checkDepotSyncStatus(
-							depotIds,
-							productIds,
-							exclude,
-							strict,
-							verbose
-						)
-					except Exception as error:
-						logger.logException(error, LOG_INFO)
-						res = json.dumps({"state": "3", "message": str(error)})
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+					res = self.monitoring.checkDepotSyncStatus(
+						depotIds,
+						productIds,
+						exclude,
+						strict,
+						verbose
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": "3", "message": str(error)})
+
+				result.stream = stream.IByteStream(res.encode('utf-8'))
+				return result
 
 			elif query["task"] == "checkPluginOnClient":
 				clientId = query.get("param", {}).get("clientId", [])
@@ -279,37 +276,35 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				encoding = query.get("param", {}).get("encoding", None)
 
 				try:
-					try:
-						res = self.monitoring.checkPluginOnClient(
-							clientId,
-							command,
-							timeout,
-							waitForEnding,
-							captureStdErr,
-							statebefore,
-							output,
-							encoding
-						)
-					except Exception as error:
-						logger.logException(error, LOG_INFO)
-						res = json.dumps({"state": "3", "message": str(error)})
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+					res = self.monitoring.checkPluginOnClient(
+						clientId,
+						command,
+						timeout,
+						waitForEnding,
+						captureStdErr,
+						statebefore,
+						output,
+						encoding
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": "3", "message": str(error)})
+
+				result.stream = stream.IByteStream(res.encode('utf-8'))
+				return result
 
 			elif query["task"] == "checkOpsiWebservice":
 				cpu = query.get("param", {}).get("cpu", [])
 				errors = query.get("param", {}).get("errors", [])
 
 				try:
-					try:
-						res = self.monitoring.checkOpsiWebservice(cpu, errors)
-					except Exception as error:
-						logger.logException(error, LOG_INFO)
-						res = json.dumps({"state": "3", "message": str(error)})
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+					res = self.monitoring.checkOpsiWebservice(cpu, errors)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": "3", "message": str(error)})
+
+				result.stream = stream.IByteStream(res.encode('utf-8'))
+				return result
 
 			elif query["task"] == "checkOpsiDiskUsage":
 				opsiresource = query.get("param", {}).get("resource", None)
@@ -318,17 +313,16 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				threshold["critical"] = (query.get("param", {}).get("critical", "1G"))
 
 				try:
-					try:
-						res = self.monitoring.checkOpsiDiskUsage(
-							opsiresource=opsiresource,
-							thresholds=threshold
-						)
-					except Exception as error:
-						logger.logException(error, LOG_INFO)
-						res = json.dumps({"state": "3", "message": str(error)})
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+					res = self.monitoring.checkOpsiDiskUsage(
+						opsiresource=opsiresource,
+						thresholds=threshold
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": "3", "message": str(error)})
+
+				result.stream = stream.IByteStream(res.encode('utf-8'))
+				return result
 			else:
 				res = {
 					"state": "3",

@@ -334,6 +334,8 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
 				return result
+		else:
+			logger.debug("No query given.")
 
 
 class ResourceOpsiconfdMonitoring(ResourceOpsi):

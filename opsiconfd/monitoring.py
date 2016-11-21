@@ -381,7 +381,7 @@ class Monitoring(object):
 
 	def checkClientStatus(self, clientId, excludeProductList=None):
 		state = self._OK
-		message = ''
+
 		if not clientId:
 			raise Exception(u"Failed to check: ClientId is needed for checkClientStatus")
 
@@ -392,6 +392,7 @@ class Monitoring(object):
 		else:
 			clientObj = clientObj[0]
 
+		message = ''
 		if not clientObj.lastSeen:
 			state = self._WARNING
 			message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId

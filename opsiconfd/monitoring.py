@@ -759,7 +759,7 @@ class Monitoring(object):
 			for result in results.keys():
 				info = results[result]
 				available = float(info['available']) / 1073741824
-				usage = info['usage']*100
+				usage = info['usage'] * 100
 				if unit == "GB":
 					if available <= critical:
 						state = self._CRITICAL

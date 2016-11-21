@@ -445,12 +445,10 @@ class Monitoring(object):
 		return self._generateResponse(state, message)
 
 	def getOpsiClientsForGroup(self, groups):
-		clients = []
 		result = {}
 		objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=groups, type="HostGroup")
 		if objectToGroups:
-			for objectToGroup in objectToGroups:
-				clients.append(objectToGroup.objectId)
+			clients = [objectToGroup.objectId for objectToGroup in objectToGroups]
 
 			if clients:
 				hosts = self.service._backend.host_getObjects(id=clients)

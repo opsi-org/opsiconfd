@@ -606,8 +606,6 @@ class Monitoring(object):
 		return self._generateResponse(state, message)
 
 	def checkDepotSyncStatus(self, depotIds, productIds=[], exclude=[], strict=False, verbose=False):
-		state = self._OK
-
 		if not depotIds or 'all' in depotIds:
 			depotIds = []
 			depots = self.service._backend.host_getObjects(type="OpsiDepotserver")
@@ -652,6 +650,7 @@ class Monitoring(object):
 				if differs:
 					differenceProducts[productId][depotId] = "different"
 
+		state = self._OK
 		message = u''
 		if differenceProducts:
 			state = self._WARNING
@@ -739,9 +738,6 @@ class Monitoring(object):
 			return self._generateResponse(state, message)
 
 	def checkOpsiDiskUsage(self, thresholds={}, opsiresource=None, perfdata=False):
-		results = {}
-		state = self._OK
-		message = []
 		warning = thresholds.get("warning", "5G")
 		critical = thresholds.get("critical", "1G")
 
@@ -763,6 +759,10 @@ class Monitoring(object):
 			unit = "%"
 			warning = float(warning)
 			critical = float(critical)
+
+		results = {}
+		state = self._OK
+		message = []
 
 		try:
 			for resource in resources:

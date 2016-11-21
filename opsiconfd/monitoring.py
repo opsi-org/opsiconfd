@@ -212,9 +212,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": "3", "message": str(error)})
 
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
-
 			elif task == "getOpsiClientsForGroup":
 				if query["param"]:
 					if "groups" in query["param"]:
@@ -243,9 +240,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": "3", "message": str(error)})
 
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
-
 			elif task == "checkDepotSyncStatus":
 				depotIds = query.get("param", {}).get("depotIds", [])
 				productIds = query.get("param", {}).get("productIds", [])
@@ -264,9 +258,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": "3", "message": str(error)})
-
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
 
 			elif task == "checkPluginOnClient":
 				clientId = query.get("param", {}).get("clientId", [])
@@ -292,10 +283,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": "3", "message": str(error)})
-
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
-
 			elif task == "checkOpsiWebservice":
 				cpu = query.get("param", {}).get("cpu", [])
 				errors = query.get("param", {}).get("errors", [])
@@ -305,10 +292,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": "3", "message": str(error)})
-
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
-
 			elif task == "checkOpsiDiskUsage":
 				opsiresource = query.get("param", {}).get("resource", None)
 				threshold = {}
@@ -323,17 +306,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": "3", "message": str(error)})
-
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
 			else:
 				res = json.dumps({
 					"state": "3",
 					"message": u"Failure: unknown task!",
 				})
 
-				result.stream = stream.IByteStream(res.encode('utf-8'))
-				return result
+			result.stream = stream.IByteStream(res.encode('utf-8'))
+			return result
 		else:
 			logger.debug("No query given.")
 

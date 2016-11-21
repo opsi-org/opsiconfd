@@ -822,7 +822,7 @@ class Monitoring(object):
 			if int(rpcerrors) == 0 or int(rpcs) == '0':
 				errorrate = 0
 			else:
-				errorrate = int(rpcerrors)*100//int(rpcs)
+				errorrate = int(rpcerrors) * 100 // int(rpcs)
 
 			message = []
 			if errorrate > errors[0]:

@@ -806,9 +806,6 @@ class Monitoring(object):
 			errors = [20, 10]
 
 		try:
-			perfdata = []
-			message = []
-			performanceHash = {}
 			performanceHash = self.service.statistics().getStatistics()
 
 			requests = performanceHash["requests"]
@@ -827,6 +824,7 @@ class Monitoring(object):
 			else:
 				errorrate = int(rpcerrors)*100//int(rpcs)
 
+			message = []
 			if errorrate > errors[0]:
 				message.append(u'RPC errors over 20\%')
 				state = self._CRITICAL

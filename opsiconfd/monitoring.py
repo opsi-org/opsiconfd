@@ -816,9 +816,11 @@ class Monitoring(object):
 			rpcerrors = performanceHash["rpcerrors"]
 			rpcs = performanceHash["rpcs"]
 
-			perfdata.append(u'requests=%s;;;0; ' % requests)
-			perfdata.append(u'davrequests=%s;;;0; ' % davrequests)
-			perfdata.append(u'rpcs=%s;;;0; ' % rpcs)
+			perfdata = [
+				u'requests=%s;;;0; ' % requests,
+				u'davrequests=%s;;;0; ' % davrequests,
+				u'rpcs=%s;;;0; ' % rpcs,
+			]
 
 			if int(rpcerrors) == 0 or int(rpcs) == '0':
 				errorrate = 0

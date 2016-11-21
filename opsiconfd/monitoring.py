@@ -774,9 +774,8 @@ class Monitoring(object):
 					info = getDiskSpaceUsage(path)
 					results[resource] = info
 		except Exception as error:
-			state = self._UNKNOWN
 			message.append(u"Not able to check DiskUsage. Error: '%s'" % str(error))
-			return self._generateResponse(state, message)
+			return self._generateResponse(self._UNKNOWN, message)
 
 		if results:
 			state = self._OK

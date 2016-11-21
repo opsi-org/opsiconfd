@@ -206,8 +206,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						)
 					except Exception as error:
 						logger.logException(error, LOG_INFO)
-						res = {"state": "3", "message": str(error)}
-						res = res = json.dumps(res)
+						res = json.dumps({"state": "3", "message": str(error)})
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -262,8 +261,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						)
 					except Exception as error:
 						logger.logException(error, LOG_INFO)
-						res = {"state": "3", "message": str(error)}
-						res = res = json.dumps(res)
+						res = json.dumps({"state": "3", "message": str(error)})
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -292,8 +290,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						)
 					except Exception as error:
 						logger.logException(error, LOG_INFO)
-						res = {"state": "3", "message": str(error)}
-						res = res = json.dumps(res)
+						res = json.dumps({"state": "3", "message": str(error)})
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -307,8 +304,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						res = self.monitoring.checkOpsiWebservice(cpu, errors)
 					except Exception as error:
 						logger.logException(error, LOG_INFO)
-						res = {"state": "3", "message": str(error)}
-						res = json.dumps(res)
+						res = json.dumps({"state": "3", "message": str(error)})
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -327,8 +323,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						)
 					except Exception as error:
 						logger.logException(error, LOG_INFO)
-						res = {"state": "3", "message": str(error)}
-						res = json.dumps(res)
+						res = json.dumps({"state": "3", "message": str(error)})
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result

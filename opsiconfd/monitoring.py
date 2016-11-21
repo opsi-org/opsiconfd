@@ -731,11 +731,11 @@ class Monitoring(object):
 				else:
 					message = "Can't check host '%s' is not reachable." % hostId[0]
 					state = self._UNKNOWN
-			return self._generateResponse(state, message)
 		except Exception as erro:
 			state = self._UNKNOWN
 			message = str(erro)
-			return self._generateResponse(state, message)
+
+		return self._generateResponse(state, message)
 
 	def checkOpsiDiskUsage(self, thresholds={}, opsiresource=None, perfdata=False):
 		warning = thresholds.get("warning", "5G")

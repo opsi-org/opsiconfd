@@ -188,10 +188,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				return result
 
 			if not isinstance(self.monitoring, Monitoring):
-				res = {}
-				res["state"] = "3"
-				res["message"] = self.monitoring
-				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
+				res = json.dumps({
+					"state": "3",
+					"message": self.monitoring
+				})
+
+				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
 			if query["task"] == "checkClientStatus":

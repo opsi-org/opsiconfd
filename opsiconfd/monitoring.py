@@ -343,10 +343,10 @@ class ResourceOpsiconfdMonitoring(ResourceOpsi):
 
 class Monitoring(object):
 
+	ERRORCODE_PATTERN = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')
+
 	def __init__(self, service):
 		self.service = service
-
-		self._errorcodePattern = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')
 
 	def _generateResponse(self, state, message, perfdata=None):
 		response = {
@@ -691,7 +691,7 @@ class Monitoring(object):
 						errormessage = checkresult.get("error", {}).get("message")
 						if errormessage:
 							logger.debug(u"Try to find Errorcode")
-							match = self._errorcodePattern.match(errormessage)
+							match = self.ERRORCODE_PATTERN.match(errormessage)
 							if not match:
 								state = self._UNKNOWN
 								message = u"Unable to parse Errorcode from plugin"

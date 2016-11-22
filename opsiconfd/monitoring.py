@@ -197,7 +197,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				task = query['task']
 			except KeyError:
 				res = json.dumps({
-					"state": 3,
+					"state": State.UNKNOWN,
 					"message": u"No task set, nothing to do"
 				})
 				result.stream = stream.IByteStream(res.encode('utf-8'))
@@ -205,7 +205,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 			if not isinstance(self.monitoring, Monitoring):
 				res = json.dumps({
-					"state": "3",
+					"state": State.UNKNOWN,
 					"message": self.monitoring
 				})
 
@@ -223,7 +223,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
-					res = json.dumps({"state": "3", "message": str(error)})
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "getOpsiClientsForGroup":
 				if query["param"]:
@@ -232,11 +232,11 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					except KeyError:
 						errorMessage = 'Check for getOpsiClientsForGroup requires configuring at least one group'
 						logger.warning(errorMessage)
-						res = json.dumps({"state": "3", "message": str(errorMessage)})
+						res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
 				else:
 					errorMessage = 'Check for getOpsiClientsForGroup requires parameters!'
 					logger.warning(errorMessage)
-					res = json.dumps({"state": "3", "message": str(errorMessage)})
+					res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
 
 			elif task == "checkProductStatus":
 				productIds = query.get("param", {}).get("productIds", [])
@@ -257,7 +257,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
-					res = json.dumps({"state": "3", "message": str(error)})
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "checkDepotSyncStatus":
 				depotIds = query.get("param", {}).get("depotIds", [])
@@ -276,7 +276,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
-					res = json.dumps({"state": "3", "message": str(error)})
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "checkPluginOnClient":
 				clientId = query.get("param", {}).get("clientId", [])
@@ -301,7 +301,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
-					res = json.dumps({"state": "3", "message": str(error)})
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 			elif task == "checkOpsiWebservice":
 				cpu = query.get("param", {}).get("cpu", [])
 				errors = query.get("param", {}).get("errors", [])
@@ -310,7 +310,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					res = self.monitoring.checkOpsiWebservice(cpu, errors)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
-					res = json.dumps({"state": "3", "message": str(error)})
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 			elif task == "checkOpsiDiskUsage":
 				opsiresource = query.get("param", {}).get("resource", None)
 				threshold = {}
@@ -324,10 +324,10 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
-					res = json.dumps({"state": "3", "message": str(error)})
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 			else:
 				res = json.dumps({
-					"state": "3",
+					"state": State.UNKNOWN,
 					"message": u"Failure: unknown task!",
 				})
 

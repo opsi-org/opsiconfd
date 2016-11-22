@@ -425,11 +425,10 @@ class Monitoring(object):
 
 	def checkProductStatus(self, productIds=[], productGroups=[], hostGroupIds=[], depotIds=[], exclude=[], verbose=False):
 		if not productIds:
-			productIds = []
+			productIds = set()
 			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup', groupId=productGroups):
 				product = product.split(";")[2]
-				if product not in productIds:
-					productIds.append(product)
+				productIds.add(product)
 
 		if not productIds:
 			return self._generateResponse(State.UNKNOWN, u"Neither productId nor productGroup given, nothing to check!")
@@ -441,10 +440,8 @@ class Monitoring(object):
 			serverType = "OpsiDepotserver"
 
 		if serverType:
-			depotIds = []
 			depots = self.service._backend.host_getObjects(type=serverType)
-			for depot in depots:
-				depotIds.append(depot.id)
+			depotIds = set(depot.id for depot in depots)
 
 		clientIds = None
 		if hostGroupIds:
@@ -575,13 +572,11 @@ class Monitoring(object):
 				depotIds.append(depot.id)
 
 		productOnDepots = self.service._backend.productOnDepot_getObjects(depotId=depotIds, productId=productIds)
-		productIds = []
+		productIds = set()
 		productOnDepotInfo = defaultdict(dict)
 		for pod in productOnDepots:
-			if pod.productId not in productIds:
-				productIds.append(pod.productId)
+			productIds.add(pod.productId)
 			productOnDepotInfo[pod.depotId][pod.productId] = pod
-		productIds.sort()
 
 		differenceProducts = defaultdict(dict)
 		for productId in productIds:

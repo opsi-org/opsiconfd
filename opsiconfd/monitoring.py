@@ -38,6 +38,19 @@ from OPSI.web2 import http, stream
 logger = Logger()
 
 
+class State:
+	OK = 0
+	WARNING = 1
+	CRITICAL = 2
+	UNKNOWN = 3
+
+	_stateText = [u"OK", u"WARNING", u"CRITICAL", u"UNKNOWN"]
+
+	@classmethod
+	def text(cls, state):
+		return cls._stateText[state]
+
+
 class WorkerOpsiconfdMonitoring(WorkerOpsi):
 	def __init__(self, service, request, resource):
 		WorkerOpsi.__init__(self, service, request, resource)
@@ -330,13 +343,6 @@ class ResourceOpsiconfdMonitoring(ResourceOpsi):
 
 class Monitoring(object):
 
-	_OK = 0
-	_WARNING = 1
-	_CRITICAL = 2
-	_UNKNOWN = 3
-
-	_stateText = [u"OK", u"WARNING", u"CRITICAL", u"UNKNOWN"]
-
 	def __init__(self, service):
 		self.service = service
 
@@ -348,20 +354,20 @@ class Monitoring(object):
 		}
 
 		if perfdata:
-			if self._stateText[int(state)] in message:
+			if State.text(int(state)) in message:
 				response["message"] = u"%s | %s" % (message, perfdata)
 			else:
-				response["message"] = u"%s: %s | %s" % (self._stateText[int(state)], message, perfdata)
+				response["message"] = u"%s: %s | %s" % (State.text(int(state)), message, perfdata)
 		else:
-			if self._stateText[int(state)] in message:
+			if State.text(int(state)) in message:
 				response["message"] = u"%s" % message
 			else:
-				response["message"] = u"%s: %s" % (self._stateText[int(state)], message)
+				response["message"] = u"%s: %s" % (State.text(int(state)), message)
 
 		return json.dumps(response)
 
 	def checkClientStatus(self, clientId, excludeProductList=None):
-		state = self._OK
+		state = State.OK
 
 		if not clientId:
 			raise Exception(u"Failed to check: ClientId is needed for checkClientStatus")
@@ -375,7 +381,7 @@ class Monitoring(object):
 
 		message = ''
 		if not clientObj.lastSeen:
-			state = self._WARNING
+			state = State.WARNING
 			message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
 		else:
 			lastSeen = clientObj.lastSeen.split("-")
@@ -389,12 +395,12 @@ class Monitoring(object):
 			if year and month and day:
 				lastSeenDate = datetime.date(year, month, day)
 				delta = today - lastSeenDate
-			elif state == self._OK:
-				state = self._WARNING
+			elif state == State.OK:
+				state = State.WARNING
 				message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
 
 			if delta.days >= 30:
-				state = self._WARNING
+				state = State.WARNING
 				message += "opsi-client %s has not been seen, since %d days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. " % (clientId, delta.days)
 			elif delta.days == 0:
 				message += "opsi-client %s has been seen today. " % (clientId)
@@ -406,7 +412,7 @@ class Monitoring(object):
 			actionResult='failed'
 		)
 		if failedProducts:
-			state = self._CRITICAL
+			state = State.CRITICAL
 			products = []
 			for product in failedProducts:
 				products.append(product.productId)
@@ -414,14 +420,14 @@ class Monitoring(object):
 
 		actionProducts = self.service._backend.productOnClient_getObjects(clientId=clientId, actionRequest=['setup', 'update', 'uninstall'])
 		if actionProducts:
-			if state != self._CRITICAL:
-				state = self._WARNING
+			if state != State.CRITICAL:
+				state = State.WARNING
 			products = []
 			for product in actionProducts:
 				products.append("%s (%s)" % (product.productId, product.actionRequest))
 			message += "Actions set for products: '%s'." % (",".join(products))
 
-		if state == self._OK:
+		if state == State.OK:
 			message += "No failed products and no actions set for client"
 
 		return self._generateResponse(state, message)
@@ -503,21 +509,21 @@ class Monitoring(object):
 				"packageVersion": pod.packageVersion
 			}
 
-		state = self._OK
+		state = State.OK
 		productVersionProblemsOnClient = defaultdict(lambda: defaultdict(list))
 		productProblemsOnClient = defaultdict(lambda: defaultdict(list))
 		actionRequestOnClient = defaultdict(lambda: defaultdict(list))
 		for depotId in depotIds:
 			for poc in self.service._backend.productOnClient_getObjects(productId=productIds, clientId=clientsOnDepot.get(depotId, None)):
 				if poc.actionRequest != 'none':
-					if state != self._CRITICAL:
-						state = self._WARNING
+					if state != State.CRITICAL:
+						state = State.WARNING
 
 					actionRequestOnClient[depotId][poc.productId].append(u"%s (%s)" % (poc.clientId, poc.actionRequest))
 
 				if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
-					if state != self._CRITICAL:
-						state = self._CRITICAL
+					if state != State.CRITICAL:
+						state = State.CRITICAL
 
 					productProblemsOnClient[depotId][poc.productId].append(u"%s (%s lastAction: [%s])" % (poc.clientId, poc.actionResult, poc.lastAction))
 
@@ -526,8 +532,8 @@ class Monitoring(object):
 
 				if poc.productVersion != productOnDepotInfo[depotId][poc.productId]["productVersion"] or \
 					poc.packageVersion != productOnDepotInfo[depotId][poc.productId]["packageVersion"]:
-					if state != self._CRITICAL:
-						state = self._WARNING
+					if state != State.CRITICAL:
+						state = State.WARNING
 
 					productVersionProblemsOnClient[depotId][poc.productId].append("%s (%s-%s)" % (poc.clientId, poc.productVersion, poc.packageVersion))
 
@@ -549,7 +555,7 @@ class Monitoring(object):
 					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
 
 		if not verbose:
-			if state == self._OK:
+			if state == State.OK:
 				message = u"No Problem found for productIds: '%s'" % ",".join(productIds)
 			return self._generateResponse(state, message)
 
@@ -580,7 +586,7 @@ class Monitoring(object):
 					for item in productVersionProblemsOnClient[depotId][product]:
 						message += "%s \n" % item
 
-		if state == self._OK:
+		if state == State.OK:
 			if productGroups:
 				message = u"No Problem found for productIds; '%s'" % ",".join(productGroups)
 			else:
@@ -633,10 +639,10 @@ class Monitoring(object):
 				if differs:
 					differenceProducts[productId][depotId] = "different"
 
-		state = self._OK
+		state = State.OK
 		message = u''
 		if differenceProducts:
-			state = self._WARNING
+			state = State.WARNING
 			message += u"Differences found for '%d'" % len(differenceProducts)
 
 			if verbose:
@@ -668,7 +674,7 @@ class Monitoring(object):
 		return self._generateResponse(state, message)
 
 	def checkPluginOnClient(self, hostId, command, timeout=30, waitForEnding=True, captureStdErr=True, statebefore=None, output=None, encoding=None):
-		state = self._OK
+		state = State.OK
 		message = ""
 		hostId = forceList(hostId)
 
@@ -744,7 +750,7 @@ class Monitoring(object):
 			critical = float(critical)
 
 		results = {}
-		state = self._OK
+		state = State.OK
 		message = []
 
 		try:
@@ -761,30 +767,30 @@ class Monitoring(object):
 			return self._generateResponse(self._UNKNOWN, message)
 
 		if results:
-			state = self._OK
+			state = State.OK
 			for result in results.keys():
 				info = results[result]
 				available = float(info['available']) / 1073741824
 				usage = info['usage'] * 100
 				if unit == "GB":
 					if available <= critical:
-						state = self._CRITICAL
+						state = State.CRITICAL
 						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%.2f'GB)." % (result, available))
 					elif available <= warning:
-						if state != self._CRITICAL:
-							state = self._WARNING
+						if state != State.CRITICAL:
+							state = State.WARNING
 						message.append(u"DiskUsage warning from ressource: '%s' (available: '%.2f'GB)." % (result, available))
 					else:
 						message.append(u"DiskUsage from ressource '%s' is ok. (available: '%.2f'GB)." % (result, available))
 				elif unit == "%":
 					freeSpace = 100 - usage
 					if freeSpace <= critical:
-						state = self._CRITICAL
+						state = State.CRITICAL
 						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%.2f%%')." % (result, freeSpace))
 
 					elif freeSpace <= warning:
-						if state != self._CRITICAL:
-							state = self._WARNING
+						if state != State.CRITICAL:
+							state = State.WARNING
 						message.append(u"DiskUsage warning from ressource: '%s' (available: '%.2f%%')." % (result, freeSpace))
 
 					else:
@@ -794,17 +800,17 @@ class Monitoring(object):
 			state = self._UNKNOWN
 			message.append("No results get. Nothing to check.")
 
-		if state == self._OK:
+		if state == State.OK:
 			message = u"OK: %s" % " ".join(message)
-		elif state == self._WARNING:
+		elif state == State.WARNING:
 			message = u"WARNING: %s" % " ".join(message)
-		elif state == self._CRITICAL:
+		elif state == State.CRITICAL:
 			message = u"CRITICAL: %s" % " ".join(message)
 
 		return self._generateResponse(state, message)
 
 	def checkOpsiWebservice(self, cputhreshold=[], errors=[], perfdata=True):
-		state = self._OK
+		state = State.OK
 		logger.debug(u"Generating Defaults for checkOpsiWebservice if not given")
 		if not cputhreshold:
 			cputhreshold = [80, 60]
@@ -833,10 +839,10 @@ class Monitoring(object):
 			message = []
 			if errorrate > errors[0]:
 				message.append(u'RPC errors over 20\%')
-				state = self._CRITICAL
+				state = State.CRITICAL
 			elif errorrate > errors[1]:
 				message.append(u'RPC errors over 10\%')
-				state = self._WARNING
+				state = State.WARNING
 			perfdata.append(u'rpcerror=%s;;;0; ' % rpcerrors)
 			perfdata.append(u"sessions=%s;;;0; " % performanceHash["sessions"])
 			perfdata.append(u"threads=%s;;;0; " % performanceHash["threads"])
@@ -845,15 +851,15 @@ class Monitoring(object):
 			perfdata.append(u"virtmem=%s;;;0; " % virtmem)
 
 			if int(performanceHash["cpu"]) > cputhreshold[0]:
-				state = self._CRITICAL
+				state = State.CRITICAL
 				message.append(u'CPU-Usage over 80%')
 			elif int(performanceHash["cpu"]) > cputhreshold[1]:
-				if not state == self._CRITICAL:
-					state = self._WARNING
+				if not state == State.CRITICAL:
+					state = State.WARNING
 				message.append(u'CPU-Usage over 60%')
 			perfdata.append(u"cpu=%s;;;0;100 " % performanceHash["cpu"])
 
-			if state == self._OK:
+			if state == State.OK:
 				message.append("OK: Opsi Webservice has no Problem")
 
 			if perfdata:

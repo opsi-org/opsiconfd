@@ -565,10 +565,8 @@ class Monitoring(object):
 
 	def checkDepotSyncStatus(self, depotIds, productIds=[], exclude=[], strict=False, verbose=False):
 		if not depotIds or 'all' in depotIds:
-			depotIds = []
 			depots = self.service._backend.host_getObjects(type="OpsiDepotserver")
-			for depot in depots:
-				depotIds.append(depot.id)
+			depotIds = [depot.id for depot in depots]
 
 		productOnDepots = self.service._backend.productOnDepot_getObjects(depotId=depotIds, productId=productIds)
 		productIds = set()

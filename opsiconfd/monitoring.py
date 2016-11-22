@@ -374,7 +374,7 @@ class Monitoring(object):
 
 		clientObj = self.service._backend.host_getObjects(id=clientId)
 		if not clientObj:
-			state = self._UNKNOWN
+			state = State.UNKNOWN
 			return self._generateResponse(state, u"opsi-client: '%s' not found" % clientId)
 		else:
 			clientObj = clientObj[0]
@@ -459,7 +459,7 @@ class Monitoring(object):
 					productIds.append(product)
 
 		if not productIds:
-			return self._generateResponse(self._UNKNOWN, u"Neither productId nor productGroup given, nothing to check!")
+			return self._generateResponse(State.UNKNOWN, u"Neither productId nor productGroup given, nothing to check!")
 
 		serverType = None
 		if not depotIds:
@@ -693,7 +693,7 @@ class Monitoring(object):
 							logger.debug(u"Try to find Errorcode")
 							match = self.ERRORCODE_PATTERN.match(errormessage)
 							if not match:
-								state = self._UNKNOWN
+								state = State.UNKNOWN
 								message = u"Unable to parse Errorcode from plugin"
 							else:
 								errorcode = int(match.group(1))
@@ -702,26 +702,26 @@ class Monitoring(object):
 								if not errorcode > 3:
 									state = errorcode
 								else:
-									state = self._UNKNOWN
+									state = State.UNKNOWN
 									message = "Failed to determine Errorcode from check_command: '%s', message is: '%s'" \
 										% (command, message)
 						else:
-							state = self._UNKNOWN
+							state = State.UNKNOWN
 							message = u"Unknown Problem by checking plugin on Client. Check your configuration."
 					else:
-						state = self._UNKNOWN
+						state = State.UNKNOWN
 						message = u"Unknown Problem by checking plugin on Client. Check your configuration."
 			else:
 				if result.get("error", None):
 					message = result.get("error").get("message", "")
-					state = self._UNKNOWN
+					state = State.UNKNOWN
 				elif statebefore and output:
 					return self._generateResponse(int(statebefore), output)
 				else:
 					message = "Can't check host '%s' is not reachable." % hostId[0]
-					state = self._UNKNOWN
+					state = State.UNKNOWN
 		except Exception as erro:
-			state = self._UNKNOWN
+			state = State.UNKNOWN
 			message = str(erro)
 
 		return self._generateResponse(state, message)
@@ -764,7 +764,7 @@ class Monitoring(object):
 					results[resource] = info
 		except Exception as error:
 			message.append(u"Not able to check DiskUsage. Error: '%s'" % str(error))
-			return self._generateResponse(self._UNKNOWN, message)
+			return self._generateResponse(State.UNKNOWN, message)
 
 		if results:
 			state = State.OK
@@ -797,7 +797,7 @@ class Monitoring(object):
 						message.append(u"DiskUsage from ressource: '%s' is ok. (available: '%.2f%%')." % (result, freeSpace))
 
 		else:
-			state = self._UNKNOWN
+			state = State.UNKNOWN
 			message.append("No results get. Nothing to check.")
 
 		if state == State.OK:
@@ -868,7 +868,7 @@ class Monitoring(object):
 				message = "%s" % (" ".join(message))
 			return self._generateResponse(state, message)
 		except Exception as error:
-			state = self._UNKNOWN
+			state = State.UNKNOWN
 			message = u"cannot check webservice state: '%s'." % str(error)
 			return self._generateResponse(state, message)
 

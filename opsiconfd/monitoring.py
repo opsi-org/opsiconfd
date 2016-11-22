@@ -443,13 +443,12 @@ class Monitoring(object):
 			depots = self.service._backend.host_getObjects(type=serverType)
 			depotIds = set(depot.id for depot in depots)
 
-		clientIds = None
 		if hostGroupIds:
-			clientIds = []
 			objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=hostGroupIds, groupType="HostGroup")
 			if objectToGroups:
-				for objectToGroup in objectToGroups:
-					clientIds.append(objectToGroup.objectId)
+				clientIds = [objectToGroup.objectId for objectToGroup in objectToGroups]
+			else:
+				clientIds = []
 		else:
 			clientIds = self.service._backend.host_getIdents(type="OpsiClient")
 

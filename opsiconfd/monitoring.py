@@ -214,10 +214,16 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 			elif task == "getOpsiClientsForGroup":
 				if query["param"]:
-					if "groups" in query["param"]:
+					try:
 						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
-						result.stream = stream.IByteStream(res.encode('utf-8'))
-						return result
+					except KeyError:
+						errorMessage = 'Check for getOpsiClientsForGroup requires configuring at least one group'
+						logger.warning(errorMessage)
+						res = json.dumps({"state": "3", "message": str(errorMessage)})
+				else:
+					errorMessage = 'Check for getOpsiClientsForGroup requires parameters!'
+					logger.warning(errorMessage)
+					res = json.dumps({"state": "3", "message": str(errorMessage)})
 
 			elif task == "checkProductStatus":
 				productIds = query.get("param", {}).get("productIds", [])

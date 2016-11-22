@@ -215,13 +215,10 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			params = query.get("param", {})
 
 			if task == "checkClientStatus":
-				exclude = params.get("exclude", None)
-				clientId = params.get("clientId", None)
-
 				try:
 					res = self.monitoring.checkClientStatus(
-						clientId=clientId,
-						excludeProductList=exclude
+						clientId=params.get("clientId", None),
+						excludeProductList=params.get("exclude", None)
 					)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
@@ -241,65 +238,43 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
 
 			elif task == "checkProductStatus":
-				productIds = params.get("productIds", [])
-				groupIds = params.get("groupIds", [])
-				hostGroupIds = params.get("hostGroupIds", [])
-				depotIds = params.get("depotIds", [])
-				exclude = params.get("exclude", [])
-				verbose = params.get("verbose", False)
-
 				try:
 					res = self.monitoring.checkProductStatus(
-						productIds=productIds,
-						productGroups=groupIds,
-						hostGroupIds=hostGroupIds,
-						depotIds=depotIds,
-						exclude=exclude,
-						verbose=verbose
+						productIds=params.get("productIds", []),
+						productGroups=params.get("groupIds", []),
+						hostGroupIds=params.get("hostGroupIds", []),
+						depotIds=params.get("depotIds", []),
+						exclude=params.get("exclude", []),
+						verbose=params.get("verbose", False)
 					)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "checkDepotSyncStatus":
-				depotIds = params.get("depotIds", [])
-				productIds = params.get("productIds", [])
-				exclude = params.get("exclude", [])
-				strict = params.get("strict", False)
-				verbose = params.get("verbose", False)
-
 				try:
 					res = self.monitoring.checkDepotSyncStatus(
-						depotIds,
-						productIds,
-						exclude,
-						strict,
-						verbose
+						depotIds=params.get("depotIds", []),
+						productIds=params.get("productIds", []),
+						exclude=params.get("exclude", []),
+						strict=params.get("strict", False),
+						verbose=params.get("verbose", False)
 					)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "checkPluginOnClient":
-				clientId = params.get("clientId", [])
-				command = params.get("plugin", "")
-				statebefore = params.get("state", None)
-				output = params.get("output", None)
-				timeout = params.get("timeout", 30)
-				captureStdErr = params.get("captureStdErr", True)
-				waitForEnding = params.get("waitForEnding", True)
-				encoding = params.get("encoding", None)
-
 				try:
 					res = self.monitoring.checkPluginOnClient(
-						clientId,
-						command,
-						timeout,
-						waitForEnding,
-						captureStdErr,
-						statebefore,
-						output,
-						encoding
+						hostId=params.get("clientId", []),
+						command=params.get("plugin", ""),
+						timeout=params.get("timeout", 30),
+						waitForEnding=params.get("waitForEnding", True),
+						captureStdErr=params.get("captureStdErr", True),
+						statebefore=params.get("state", None),
+						output=params.get("output", None),
+						encoding=params.get("encoding", None)
 					)
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
@@ -314,7 +289,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 			elif task == "checkOpsiDiskUsage":
-				opsiresource = params.get("resource", None)
 				threshold = {
 					"warning": params.get("warning", "5G"),
 					"critical": params.get("critical", "1G")
@@ -322,7 +296,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 				try:
 					res = self.monitoring.checkOpsiDiskUsage(
-						opsiresource=opsiresource,
+						opsiresource=params.get("resource", None),
 						thresholds=threshold
 					)
 				except Exception as error:

@@ -390,18 +390,14 @@ class Monitoring(object):
 		)
 		if failedProducts:
 			state = State.CRITICAL
-			products = []
-			for product in failedProducts:
-				products.append(product.productId)
+			products = [product.productId for product in failedProducts]
 			message += "Products: '%s' are in failed state. " % (",".join(products))
 
 		actionProducts = self.service._backend.productOnClient_getObjects(clientId=clientId, actionRequest=['setup', 'update', 'uninstall'])
 		if actionProducts:
 			if state != State.CRITICAL:
 				state = State.WARNING
-			products = []
-			for product in actionProducts:
-				products.append("%s (%s)" % (product.productId, product.actionRequest))
+			products = ["%s (%s)" % (product.productId, product.actionRequest) for product in actionProducts]
 			message += "Actions set for products: '%s'." % (",".join(products))
 
 		if state == State.OK:

@@ -230,7 +230,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			elif task == "getOpsiClientsForGroup":
 				if params:
 					try:
-						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
+						res = self.monitoring.getOpsiClientsForGroup(params["groups"])
 					except KeyError:
 						errorMessage = 'Check for getOpsiClientsForGroup requires configuring at least one group'
 						logger.warning(errorMessage)

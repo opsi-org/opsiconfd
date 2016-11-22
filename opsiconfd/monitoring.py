@@ -212,9 +212,11 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
+			params = query.get("param", {})
+
 			if task == "checkClientStatus":
-				exclude = query.get("param", {}).get("exclude", None)
-				clientId = query.get("param", {}).get("clientId", None)
+				exclude = params.get("exclude", None)
+				clientId = params.get("clientId", None)
 
 				try:
 					res = self.monitoring.checkClientStatus(
@@ -226,7 +228,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "getOpsiClientsForGroup":
-				if query["param"]:
+				if params:
 					try:
 						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
 					except KeyError:
@@ -239,12 +241,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
 
 			elif task == "checkProductStatus":
-				productIds = query.get("param", {}).get("productIds", [])
-				groupIds = query.get("param", {}).get("groupIds", [])
-				hostGroupIds = query.get("param", {}).get("hostGroupIds", [])
-				depotIds = query.get("param", {}).get("depotIds", [])
-				exclude = query.get("param", {}).get("exclude", [])
-				verbose = query.get("param", {}).get("verbose", False)
+				productIds = params.get("productIds", [])
+				groupIds = params.get("groupIds", [])
+				hostGroupIds = params.get("hostGroupIds", [])
+				depotIds = params.get("depotIds", [])
+				exclude = params.get("exclude", [])
+				verbose = params.get("verbose", False)
 
 				try:
 					res = self.monitoring.checkProductStatus(
@@ -260,11 +262,11 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "checkDepotSyncStatus":
-				depotIds = query.get("param", {}).get("depotIds", [])
-				productIds = query.get("param", {}).get("productIds", [])
-				exclude = query.get("param", {}).get("exclude", [])
-				strict = query.get("param", {}).get("strict", False)
-				verbose = query.get("param", {}).get("verbose", False)
+				depotIds = params.get("depotIds", [])
+				productIds = params.get("productIds", [])
+				exclude = params.get("exclude", [])
+				strict = params.get("strict", False)
+				verbose = params.get("verbose", False)
 
 				try:
 					res = self.monitoring.checkDepotSyncStatus(
@@ -279,14 +281,14 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "checkPluginOnClient":
-				clientId = query.get("param", {}).get("clientId", [])
-				command = query.get("param", {}).get("plugin", "")
-				statebefore = query.get("param", {}).get("state", None)
-				output = query.get("param", {}).get("output", None)
-				timeout = query.get("param", {}).get("timeout", 30)
-				captureStdErr = query.get("param", {}).get("captureStdErr", True)
-				waitForEnding = query.get("param", {}).get("waitForEnding", True)
-				encoding = query.get("param", {}).get("encoding", None)
+				clientId = params.get("clientId", [])
+				command = params.get("plugin", "")
+				statebefore = params.get("state", None)
+				output = params.get("output", None)
+				timeout = params.get("timeout", 30)
+				captureStdErr = params.get("captureStdErr", True)
+				waitForEnding = params.get("waitForEnding", True)
+				encoding = params.get("encoding", None)
 
 				try:
 					res = self.monitoring.checkPluginOnClient(
@@ -303,8 +305,8 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 			elif task == "checkOpsiWebservice":
-				cpu = query.get("param", {}).get("cpu", [])
-				errors = query.get("param", {}).get("errors", [])
+				cpu = params.get("cpu", [])
+				errors = params.get("errors", [])
 
 				try:
 					res = self.monitoring.checkOpsiWebservice(cpu, errors)
@@ -312,10 +314,11 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 			elif task == "checkOpsiDiskUsage":
-				opsiresource = query.get("param", {}).get("resource", None)
-				threshold = {}
-				threshold["warning"] = (query.get("param", {}).get("warning", "5G"))
-				threshold["critical"] = (query.get("param", {}).get("critical", "1G"))
+				opsiresource = params.get("resource", None)
+				threshold = {
+					"warning": params.get("warning", "5G"),
+					"critical": params.get("critical", "1G")
+				}
 
 				try:
 					res = self.monitoring.checkOpsiDiskUsage(

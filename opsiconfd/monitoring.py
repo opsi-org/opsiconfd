@@ -685,7 +685,7 @@ class Monitoring(object):
 						errormessage = checkresult.get("error", {}).get("message")
 						if errormessage:
 							logger.debug(u"Try to find Errorcode")
-							match = re.match(self._errorcodePattern, errormessage)
+							match = self._errorcodePattern.match(errormessage)
 							if not match:
 								state = self._UNKNOWN
 								message = u"Unable to parse Errorcode from plugin"

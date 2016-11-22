@@ -614,7 +614,7 @@ class Monitoring(object):
 
 			if verbose:
 				message += u":\n"
-				for productId in differenceProducts.keys():
+				for productId in sorted(differenceProducts.keys()):
 					message += u"product: '%s': " % productId
 					for depotId in depotIds:
 						if depotId in differenceProducts[productId]:

@@ -5,6 +5,7 @@ opsiconfd (4.1.1-1) UNRELEASED; urgency=medium
   * Python 3 compatible octal values.
   * opsiconfd.conf: Update ip now defaults to yes.
   * Removed references to old message bus implementation.
+  * Refactored monitoring module.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 16 Sep 2016 12:12:24 +0200
 

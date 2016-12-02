@@ -1,4 +1,4 @@
-opsiconfd (4.1.1-1) UNRELEASED; urgency=medium
+opsiconfd (4.1.1.1-1) experimental; urgency=medium
 
   * Using absolute imports.
   * Info page uses now generators for site generation.

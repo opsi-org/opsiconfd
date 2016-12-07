@@ -1,3 +1,9 @@
+opsiconfd (4.0.7.5.3-1) stable; urgency=medium
+
+  * opsiconfd.spec: added detection of SLES12SP2 & OpenSUSE Leap42.2 
+
+ -- Mathias Radtke <m.radtke@uib.de>  Tue, 06 Dec 2016 15:28:13 +0100
+
 opsiconfd (4.0.7.5.2-1) stable; urgency=medium
 
   * Restore the ordering of the statement to avoid problems with signed

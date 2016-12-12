@@ -40,10 +40,9 @@ from OPSI.Service.Worker import (WorkerOpsi, WorkerOpsiJsonRpc,
 								WorkerOpsiJsonInterface, WorkerOpsiDAV,
 								interfacePage, MultiprocessWorkerOpsiJsonRpc)
 from OPSI.Types import forceHostId, forceHardwareAddress, OpsiAuthenticationError
-from OPSI.Util import (timestamp, objectToHtml, toJson, randomString,
+from OPSI.Util import (timestamp, objectToHtml, toJson,
 	decryptWithPrivateKeyFromPEMFile, ipAddressInNetwork, serialize)
 from OPSI.Util.HTTP import deflateDecode, gzipDecode
-from OPSI.Backend.BackendProcess import OpsiBackendProcess
 from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
 from OPSI.Logger import Logger, LOG_INFO
 

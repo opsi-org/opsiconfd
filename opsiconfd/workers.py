@@ -320,32 +320,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 				startReactor=False
 			)
 
-		def _spawnProcess():
-			socket = "/var/run/opsiconfd/worker-%s.socket" % randomString(32)
-
-			process = OpsiBackendProcess(
-				socket=socket,
-				logFile=self.service.config['logFile'].replace('%m', self.request.remoteAddr.host)
-			)
-			self.session.callInstance = process
-
-			d = process.start()
-			d.addCallback(lambda x: process.callRemote("setLogging", console=logger.getConsoleLevel(), file=logger.getFileLevel()))
-			d.addCallback(lambda x: process.callRemote("initialize",
-							user=self.session.user,
-							password=self.session.password,
-							forceGroups=forceGroups,
-							dispatchConfigFile=self.service.config['dispatchConfigFile'],
-							backendConfigDir=self.service.config['backendConfigDir'],
-							extensionConfigDir=self.service.config['extensionConfigDir'],
-							aclFile=self.service.config['aclFile'],
-							depotId=self.service.config['depotId'],
-							postpath=self.request.postpath,
-							startReactor=False))
-			return d
-
-		modules = self.service._backend.backend_info()['modules']
-
 		d = defer.maybeDeferred(_createBackend)
 
 		def finish(ignored):

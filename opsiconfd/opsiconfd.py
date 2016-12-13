@@ -573,7 +573,6 @@ class OpsiconfdInit(Application):
 			'extensionConfigDir': u'/etc/opsi/backendManager/extend.d',
 			'aclFile': u'/etc/opsi/backendManager/acl.conf',
 			'socket': u'/var/run/opsiconfd/opsiconfd.socket',
-			'multiprocessing': False,
 			'loadbalancing': False,
 			'profile': False,
 			'profiler': u'profiler',
@@ -702,8 +701,6 @@ class OpsiconfdInit(Application):
 							self.config['aclFile'] = forceFilename(value)
 						elif option == 'max execution statistics':
 							self.config['maxExecutionStatisticValues'] = forceInt(value)
-						elif option == 'multiprocessing':
-							self.config['multiprocessing'] = forceBool(value)
 						elif option == 'loadbalancing':
 							self.config['loadbalancing'] = forceBool(value)
 						elif option == 'admin networks':

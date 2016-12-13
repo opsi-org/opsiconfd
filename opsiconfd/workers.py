@@ -40,10 +40,9 @@ from OPSI.Service.Worker import (WorkerOpsi, WorkerOpsiJsonRpc,
 								WorkerOpsiJsonInterface, WorkerOpsiDAV,
 								interfacePage, MultiprocessWorkerOpsiJsonRpc)
 from OPSI.Types import forceHostId, forceHardwareAddress, OpsiAuthenticationError
-from OPSI.Util import (timestamp, objectToHtml, toJson, randomString,
+from OPSI.Util import (timestamp, objectToHtml, toJson,
 	decryptWithPrivateKeyFromPEMFile, ipAddressInNetwork, serialize)
 from OPSI.Util.HTTP import deflateDecode, gzipDecode
-from OPSI.Backend.BackendProcess import OpsiBackendProcess
 from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
 from OPSI.Logger import Logger, LOG_INFO
 
@@ -52,12 +51,11 @@ logger = Logger()
 
 
 class WorkerOpsiconfd(WorkerOpsi):
-	def __init__(self, service, request, resource, multiProcessing=False):
+	def __init__(self, service, request, resource):
 		WorkerOpsi.__init__(self, service, request, resource)
 		self._setLogFile(self)
 
 		self.authRealm = 'OPSI Configuration Service'
-		self.multiProcessing = multiProcessing
 
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
@@ -321,40 +319,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 				startReactor=False
 			)
 
-		def _spawnProcess():
-			socket = "/var/run/opsiconfd/worker-%s.socket" % randomString(32)
-
-			process = OpsiBackendProcess(
-				socket=socket,
-				logFile=self.service.config['logFile'].replace('%m', self.request.remoteAddr.host)
-			)
-			self.session.callInstance = process
-
-			d = process.start()
-			d.addCallback(lambda x: process.callRemote("setLogging", console=logger.getConsoleLevel(), file=logger.getFileLevel()))
-			d.addCallback(lambda x: process.callRemote("initialize",
-							user=self.session.user,
-							password=self.session.password,
-							forceGroups=forceGroups,
-							dispatchConfigFile=self.service.config['dispatchConfigFile'],
-							backendConfigDir=self.service.config['backendConfigDir'],
-							extensionConfigDir=self.service.config['extensionConfigDir'],
-							aclFile=self.service.config['aclFile'],
-							depotId=self.service.config['depotId'],
-							postpath=self.request.postpath,
-							startReactor=False))
-			return d
-
-		modules = self.service._backend.backend_info()['modules']
-		if self.multiProcessing and \
-		(not modules.get('valid', False) or not modules.get('high_availability', False)):
-			logger.warning("Failed to verify modules signature")
-			self.multiProcessing = False
-
-		if self.multiProcessing:
-			d = _spawnProcess()
-		else:
-			d = defer.maybeDeferred(_createBackend)
+		d = defer.maybeDeferred(_createBackend)
 
 		def finish(ignored):
 			self.session.callInterface = None
@@ -370,7 +335,6 @@ class WorkerOpsiconfd(WorkerOpsi):
 			df.addCallback(setInterface)
 			df.addCallback(lambda x: defer.maybeDeferred(self.session.callInstance.accessControl_userIsAdmin))
 			df.addCallback(setCredentials)
-
 
 			def f():
 				if self.session.isHost:
@@ -429,12 +393,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWorkerOpsiJsonRpc):
 	def __init__(self, service, request, resource):
-		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing=service.config["multiprocessing"])
+		WorkerOpsiconfd.__init__(self, service, request, resource)
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
 
 		modules = self.service._backend.backend_info()['modules']
-		if self.multiProcessing and (modules.get('valid', False) and modules.get('high_availability', False)):
-			MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
 
 	def _getCallInstance(self, result):
 		d = defer.maybeDeferred(self._getBackend, result)
@@ -518,10 +480,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		return result
 
 	def _processQuery(self, result):
-		if self.multiProcessing:
-			return MultiprocessWorkerOpsiJsonRpc._processQuery(self, result)
-		else:
-			return WorkerOpsiJsonRpc._processQuery(self, result)
+		return WorkerOpsiJsonRpc._processQuery(self, result)
 
 	def _generateResponse(self, result):
 		return WorkerOpsiJsonRpc._generateResponse(self, result)

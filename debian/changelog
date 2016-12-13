@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.2-1ubuntu1) UNRELEASED; urgency=medium
+
+  * Removed more obsolete code.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 13 Dec 2016 13:45:00 +0100
+
 opsiconfd (4.1.1.1-1) experimental; urgency=medium
 
   * Using absolute imports.

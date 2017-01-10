@@ -577,6 +577,7 @@ class OpsiconfdInit(Application):
 			'maxExecutionStatisticValues': 250,
 			'sslServerCertFile': u'/etc/opsi/opsiconfd.pem',
 			'sslServerKeyFile': u'/etc/opsi/opsiconfd.pem',
+			'acceptedCiphers': '',
 			'sessionName': u'OPSISID',
 			'maxSessionsPerIp': 25,
 			'maxAuthenticationFailures': 5,
@@ -753,6 +754,8 @@ class OpsiconfdInit(Application):
 							self.config['sslServerCertFile'] = forceFilename(value)
 						elif option == 'ssl server key':
 							self.config['sslServerKeyFile'] = forceFilename(value)
+						elif option == 'accepted ciphers':
+							self.config['acceptedCiphers'] = forceUnicode(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 

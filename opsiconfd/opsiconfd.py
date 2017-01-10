@@ -386,7 +386,8 @@ class Opsiconfd(OpsiService):
 
 		sslContext = SSLContext(
 			self.config['sslServerKeyFile'],
-			self.config['sslServerCertFile']
+			self.config['sslServerCertFile'],
+			acceptedCiphers=self.config['acceptedCiphers']
 		)
 
 		if self.config['interface'] == '0.0.0.0':

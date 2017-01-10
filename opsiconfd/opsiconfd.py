@@ -384,17 +384,22 @@ class Opsiconfd(OpsiService):
 			self._httpsPort = None
 			return
 
+		sslContext = SSLContext(
+			self.config['sslServerKeyFile'],
+			self.config['sslServerCertFile']
+		)
+
 		if self.config['interface'] == '0.0.0.0':
 			self._httpsPort = reactor.listenSSL(
 				self.config['httpsPort'],
 				OpsiconfdHTTPFactory(self._site),
-				SSLContext(self.config['sslServerKeyFile'], self.config['sslServerCertFile'])
+				sslContext
 			)
 		else:
 			self._httpsPort = reactor.listenSSL(
 				self.config['httpsPort'],
 				OpsiconfdHTTPFactory(self._site),
-				SSLContext(self.config['sslServerKeyFile'], self.config['sslServerCertFile']),
+				sslContext,
 				interface=self.config['interface']
 			)
 

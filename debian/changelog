@@ -1,3 +1,10 @@
+opsiconfd (4.0.7.6-1) experimental; urgency=medium
+
+  * Added support to configure the ciphers accepted by the opsiconfd when
+    creating an secured connection (https).
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 11 Jan 2017 14:53:01 +0100
+
 opsiconfd (4.0.7.5.3-2) stable; urgency=medium
 
   * opsiconfd.spec: deactivated removing su line from logrotate on SLES11SP4

@@ -1,3 +1,15 @@
+opsiconfd (4.0.7.5.3-2) stable; urgency=medium
+
+  * opsiconfd.spec: deactivated removing su line from logrotate on SLES11SP4
+
+ -- Mathias Radtke <m.radtke@uib.de>  Thu, 08 Dec 2016 10:36:22 +0100
+
+opsiconfd (4.0.7.5.3-1) stable; urgency=medium
+
+  * opsiconfd.spec: added detection of SLES12SP2 & OpenSUSE Leap42.2 
+
+ -- Mathias Radtke <m.radtke@uib.de>  Tue, 06 Dec 2016 15:28:13 +0100
+
 opsiconfd (4.0.7.5.2-1) stable; urgency=medium
 
   * Restore the ordering of the statement to avoid problems with signed

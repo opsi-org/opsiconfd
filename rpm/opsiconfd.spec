@@ -18,11 +18,11 @@ Url:            http://www.opsi.org
 License:        AGPL-3.0+
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        4.0.6.10
-Release:        3
+Version:        4.0.7.5.3
+Release:        2
 Summary:        This is the opsi configuration service
 %define tarname opsiconfd
-Source:         opsiconfd_4.0.6.10-3.tar.gz
+Source:         opsiconfd_4.0.7.5.3-2.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?suse_version} == 1110 || 0%{?suse_version} == 1315
 # SLES
@@ -90,7 +90,7 @@ ln -sf /etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 sed -i 's#/etc/init.d$##;s#/etc/logrotate.d$##' INSTALLED_FILES
 
-%if 0%{?suse_version} > 1110
+%if 0%{?suse_version} < 1110
 echo "Detected openSuse / SLES"
 LOGROTATE_VERSION="$(zypper info logrotate | grep -i "version" | awk '{print $2}' | cut -d '-' -f 1)"
 if [ "$(zypper --terse versioncmp $LOGROTATE_VERSION 3.8)" == "-1" ]; then

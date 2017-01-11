@@ -16,6 +16,25 @@ opsiconfd (4.1.1.1-1) experimental; urgency=medium
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 16 Sep 2016 12:12:24 +0200
 
+opsiconfd (4.0.7.6-1) experimental; urgency=medium
+
+  * Added support to configure the ciphers accepted by the opsiconfd when
+    creating an secured connection (https).
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 11 Jan 2017 14:53:01 +0100
+
+opsiconfd (4.0.7.5.3-2) stable; urgency=medium
+
+  * opsiconfd.spec: deactivated removing su line from logrotate on SLES11SP4
+
+ -- Mathias Radtke <m.radtke@uib.de>  Thu, 08 Dec 2016 10:36:22 +0100
+
+opsiconfd (4.0.7.5.3-1) stable; urgency=medium
+
+  * opsiconfd.spec: added detection of SLES12SP2 & OpenSUSE Leap42.2
+
+ -- Mathias Radtke <m.radtke@uib.de>  Tue, 06 Dec 2016 15:28:13 +0100
+
 opsiconfd (4.0.7.5.2-1) stable; urgency=medium
 
   * Restore the ordering of the statement to avoid problems with signed

@@ -145,6 +145,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 			logger.info(u"Hardware address '%s' found in backend, using '%s' as username" % (mac, user))
 
 		if self.session.isHost:
+			if not self.session.hostname:
+				logger.debug(u"Storing hostname {0!r} in session", user)
+				self.session.hostname = user
+
 			hosts = None
 			try:
 				hosts = self.service._backend.host_getObjects(type='OpsiClient', id=user)

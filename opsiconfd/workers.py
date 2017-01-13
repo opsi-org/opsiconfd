@@ -206,11 +206,11 @@ class WorkerOpsiconfd(WorkerOpsi):
 				raise Exception(u"No password from %s (application: %s)" % (self.session.ip, self.session.userAgent))
 
 			if self.session.hostname and self.service.config['resolveVerifyIp'] and (self.session.user != self.service.config['fqdn']):
-				addressList = []
 				try:
-					(name, aliasList, addressList) = socket.gethostbyname_ex(self.session.hostname)
+					(_, _, addressList) = socket.gethostbyname_ex(self.session.hostname)
 				except Exception as error:
 					logger.warning(u"Failed to resolve hostname '%s': %s" % (self.session.hostname, error))
+					addressList = []
 
 				if self.session.ip not in addressList:
 					# Username (FQDN) of peer does not resolve to peer's ip address

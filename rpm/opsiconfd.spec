@@ -90,31 +90,16 @@ ln -sf /etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
 
 sed -i 's#/etc/init.d$##;s#/etc/logrotate.d$##' INSTALLED_FILES
 
-%if 0%{?suse_version} < 1110
-echo "Detected openSuse / SLES"
-LOGROTATE_VERSION="$(zypper info logrotate | grep -i "version" | awk '{print $2}' | cut -d '-' -f 1)"
-if [ "$(zypper --terse versioncmp $LOGROTATE_VERSION 3.8)" == "-1" ]; then
-	echo "Fixing logrotate configuration for logrotate version older than 3.8"
-	LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
-	LOGROTATE_CONFIG=$RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
-	grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
-	mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
-else
-	echo "Logrotate version $LOGROTATE_VERSION is 3.8 or newer. Nothing to do."
-fi
-%else
-	%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
-		echo "Detected RHEL / CentOS / Fedora"
-		%if 0%{?rhel_version} == 600 || 0%{?centos_version} == 600
-			echo "Fixing logrotate configuration"
-			LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
-			LOGROTATE_CONFIG=$RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
-			grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
-			mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
-		%endif
+%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
+	echo "Detected RHEL / CentOS / Fedora"
+	%if 0%{?rhel_version} == 600 || 0%{?centos_version} == 600
+		echo "Fixing logrotate configuration"
+		LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
+		LOGROTATE_CONFIG=$RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
+		grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
+		mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
 	%endif
 %endif
-
 
 # ===[ clean ]======================================
 %clean

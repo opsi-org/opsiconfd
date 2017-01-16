@@ -1,3 +1,9 @@
+opsiconfd (4.0.7.6-2) experimental; urgency=low
+
+  * fixing broken logrotate on CentOS6 & RHEL6
+
+ -- Mathias Radtke <m.radtke@uib.de> Mon, 16 Jan 2017 09:37:00 +0100
+
 opsiconfd (4.0.7.6-1) experimental; urgency=medium
 
   * Added support to configure the ciphers accepted by the opsiconfd when

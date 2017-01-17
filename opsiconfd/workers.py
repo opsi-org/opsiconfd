@@ -228,14 +228,13 @@ class WorkerOpsiconfd(WorkerOpsi):
 						)
 					)
 
-			adminNetwork = False
 			if len(self.service.config['adminNetworks']) == 1 and self.service.config['adminNetworks'][0] == u'0.0.0.0/0':
 				adminNetwork = True
 			else:
-				for networkAddress in self.service.config['adminNetworks']:
-					if ipAddressInNetwork(self.session.ip, networkAddress):
-						adminNetwork = True
-						break
+				adminNetwork = any(
+					ipAddressInNetwork(self.session.ip, networkAddress)
+					for networkAddress in self.service.config['adminNetworks']
+				)
 
 			if adminNetwork:
 				logger.info(u"Connection from admin network")

@@ -137,7 +137,10 @@ class Statistics(object):
 		stepForDay = step * 24
 		heartbeat = self._rrdConfig['heartbeat']
 
-		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(start), '--step', str(self._rrdConfig['step']),
+		rrdtool.create(
+			str(self._rrdConfig['rrdFile']),
+			'--start', str(start),
+			'--step', str(self._rrdConfig['step']),
 			'DS:requests:ABSOLUTE:%d:0:U' % heartbeat,
 			'DS:sessions:DERIVE:%d:0:U' % heartbeat,
 			'DS:davrequests:ABSOLUTE:%d:0:U' % heartbeat,
@@ -146,16 +149,16 @@ class Statistics(object):
 			'DS:cpu:GAUGE:%d:0:U' % heartbeat,
 			'DS:mem:GAUGE:%d:0:U' % heartbeat,
 			'DS:threads:GAUGE:%d:0:U' % heartbeat,
-			'RRA:AVERAGE:0.5:1:%d' % step,    # hour
-			'RRA:AVERAGE:0.5:1:%d' % stepForDay, # day
-			'RRA:AVERAGE:0.5:7:%d' % stepForDay, # week
-			'RRA:AVERAGE:0.5:31:%d' % stepForDay, # month
-			'RRA:AVERAGE:0.5:365:%d' % stepForDay, # year
-			'RRA:MAX:0.5:1:%d' % step,    # hour
-			'RRA:MAX:0.5:1:%d' % stepForDay, # day
-			'RRA:MAX:0.5:7:%d' % stepForDay, # week
-			'RRA:MAX:0.5:31:%d' % stepForDay, # month
-			'RRA:MAX:0.5:365:%d' % stepForDay, # year
+			'RRA:AVERAGE:0.5:1:%d' % step,  # hour
+			'RRA:AVERAGE:0.5:1:%d' % stepForDay,  # day
+			'RRA:AVERAGE:0.5:7:%d' % stepForDay,  # week
+			'RRA:AVERAGE:0.5:31:%d' % stepForDay,  # month
+			'RRA:AVERAGE:0.5:365:%d' % stepForDay,  # year
+			'RRA:MAX:0.5:1:%d' % step,  # hour
+			'RRA:MAX:0.5:1:%d' % stepForDay,  # day
+			'RRA:MAX:0.5:7:%d' % stepForDay,  # week
+			'RRA:MAX:0.5:31:%d' % stepForDay,  # month
+			'RRA:MAX:0.5:365:%d' % stepForDay,  # year
 		)
 
 	def getStatistics(self):

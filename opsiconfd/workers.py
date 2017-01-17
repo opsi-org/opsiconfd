@@ -237,9 +237,9 @@ class WorkerOpsiconfd(WorkerOpsi):
 						adminNetwork = True
 						break
 
-			forceGroups = None
 			if adminNetwork:
 				logger.info(u"Connection from admin network")
+				forceGroups = None
 			else:
 				forceGroups = []
 				logger.info(u"Connection from non admin network")

@@ -145,6 +145,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 			logger.info(u"Hardware address '%s' found in backend, using '%s' as username" % (mac, user))
 
 		if self.session.isHost:
+			if not self.session.hostname:
+				logger.debug(u"Storing hostname {0!r} in session", user)
+				self.session.hostname = user
+
 			hosts = None
 			try:
 				hosts = self.service._backend.host_getObjects(type='OpsiClient', id=user)
@@ -204,11 +208,11 @@ class WorkerOpsiconfd(WorkerOpsi):
 				raise Exception(u"No password from %s (application: %s)" % (self.session.ip, self.session.userAgent))
 
 			if self.session.hostname and self.service.config['resolveVerifyIp'] and (self.session.user != self.service.config['fqdn']):
-				addressList = []
 				try:
-					(name, aliasList, addressList) = socket.gethostbyname_ex(self.session.hostname)
+					(_, _, addressList) = socket.gethostbyname_ex(self.session.hostname)
 				except Exception as error:
 					logger.warning(u"Failed to resolve hostname '%s': %s" % (self.session.hostname, error))
+					addressList = []
 
 				if self.session.ip not in addressList:
 					# Username (FQDN) of peer does not resolve to peer's ip address

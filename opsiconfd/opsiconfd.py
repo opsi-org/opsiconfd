@@ -249,7 +249,6 @@ class Opsiconfd(OpsiService):
 			logger.setLogFormat(self.config['logFormat'])
 		logger.setFileLevel(self.config['logLevel'])
 
-
 	def _setTwistedLogging(self):
 		logger.startTwistedLogging()
 

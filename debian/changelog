@@ -1,8 +1,8 @@
-opsiconfd (4.1.1.2-1ubuntu1) UNRELEASED; urgency=medium
+opsiconfd (4.1.1.2-1) experimental; urgency=medium
 
   * Removed more obsolete code.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 13 Dec 2016 13:45:00 +0100
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 27 Jan 2017 15:14:05 +0100
 
 opsiconfd (4.1.1.1-1) experimental; urgency=medium
 

@@ -4,7 +4,7 @@
 # This file is part of the desktop management solution opsi
 # (open pc server integration) http://www.opsi.org
 
-# Copyright (C) 2010-2016 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2017 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -337,7 +337,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			)
 		)
 
-		for resource in sorted(self.service.config['staticDirectories'].keys()):
+		for resource in sorted(self.service.config['staticDirectories']):
 			path = self.service.config['staticDirectories'][resource]['path']
 			if os.path.isdir(path):
 				if not resource.startswith('/'):

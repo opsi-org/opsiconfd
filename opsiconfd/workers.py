@@ -62,6 +62,15 @@ class WorkerOpsiconfd(WorkerOpsi):
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
 			machineName = self.request.remoteAddr.host
+			if not self.service.config['symlinkLogs']:
+				try:
+					if self.session.hostname:
+						machineName = self.session.hostname
+				except AttributeError:
+					# With a fresh session there may not yet be an
+					# hostname assigned to the session so this may fail.
+					pass
+
 			logger.setLogFile(self.service.config['logFile'].replace('%m', machineName), object=obj)
 
 	def _linkLogFile(self, result):

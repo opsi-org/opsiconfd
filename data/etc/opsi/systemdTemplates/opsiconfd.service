@@ -11,6 +11,7 @@ User=opsiconfd
 Type=forking
 ExecStart=/usr/bin/opsiconfd -D
 PIDFile=/var/run/opsiconfd/opsiconfd.pid
+Restart=on-failure
 RestartSec=10
 KillMode=process
 TimeoutStopSec=10

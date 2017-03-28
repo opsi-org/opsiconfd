@@ -64,8 +64,12 @@ class WorkerOpsiconfd(WorkerOpsi):
 			logger.setLogFile(self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object=obj)
 
 	def _linkLogFile(self, result):
-		if self.session.hostname and self.service.config['machineLogs'] and self.service.config['logFile']:
+		def linkingRequired(config):
+			return config['machineLogs'] and config['logFile']
+
+		if self.session.hostname and linkingRequired(self.service.config):
 			logger.linkLogFile(self.service.config['logFile'].replace('%m', self.session.hostname), object=self)
+
 		return result
 
 	def _errback(self, failure):

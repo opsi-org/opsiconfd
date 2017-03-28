@@ -65,7 +65,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 	def _linkLogFile(self, result):
 		def linkingRequired(config):
-			return config['machineLogs'] and config['logFile']
+			return config['machineLogs'] and config['logFile'] and config['symlinkLogs']
 
 		if self.session.hostname and linkingRequired(self.service.config):
 			logger.linkLogFile(self.service.config['logFile'].replace('%m', self.session.hostname), object=self)

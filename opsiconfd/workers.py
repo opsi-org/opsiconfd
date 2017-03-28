@@ -61,7 +61,8 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
-			logger.setLogFile(self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object=obj)
+			machineName = self.request.remoteAddr.host
+			logger.setLogFile(self.service.config['logFile'].replace('%m', machineName), object=obj)
 
 	def _linkLogFile(self, result):
 		def linkingRequired(config):

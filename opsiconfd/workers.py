@@ -3,7 +3,7 @@
 
 # opsiconfd is part of the desktop management solution opsi
 # (open pc server integration) http://www.opsi.org
-# Copyright (C) 2010-2015 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2017 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -59,11 +59,24 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
-			logger.setLogFile(self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object=obj)
+			machineName = self.request.remoteAddr.host
+			if not self.service.config['symlinkLogs']:
+				try:
+					machineName = self.session.hostname
+				except AttributeError:
+					# With a fresh session there may not yet be an
+					# hostname assigned to the session so this may fail.
+					pass
+
+			logger.setLogFile(self.service.config['logFile'].replace('%m', machineName), object=obj)
 
 	def _linkLogFile(self, result):
-		if self.session.hostname and self.service.config['machineLogs'] and self.service.config['logFile']:
+		def linkingRequired(config):
+			return config['machineLogs'] and config['logFile'] and config['symlinkLogs']
+
+		if self.session.hostname and linkingRequired(self.service.config):
 			logger.linkLogFile(self.service.config['logFile'].replace('%m', self.session.hostname), object=self)
+
 		return result
 
 	def _errback(self, failure):

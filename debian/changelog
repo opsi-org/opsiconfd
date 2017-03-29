@@ -1,3 +1,17 @@
+opsiconfd (4.0.7.7-1) stable; urgency=medium
+
+  * Disabling "symlink logs" now has the desired effect that logs will
+    not be linked. Once a client is successful authenticated %m will be
+    replaced with the client ID instead of the IP in the logfile name.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 29 Mar 2017 10:36:50 +0200
+
+opsiconfd (4.0.7.6-2) experimental; urgency=low
+
+  * fixing broken logrotate on CentOS6 & RHEL6
+
+ -- Mathias Radtke <m.radtke@uib.de> Mon, 16 Jan 2017 09:37:00 +0100
+
 opsiconfd (4.0.7.6-1) experimental; urgency=medium
 
   * Added support to configure the ciphers accepted by the opsiconfd when

@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.2-2) testing; urgency=medium
+
+  * systemd: Automatically restart service on failure.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 29 Mar 2017 17:43:04 +0200
+
 opsiconfd (4.1.1.2-1) experimental; urgency=medium
 
   * Removed more obsolete code.

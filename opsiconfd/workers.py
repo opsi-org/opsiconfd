@@ -64,8 +64,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 			machineName = self.request.remoteAddr.host
 			if not self.service.config['symlinkLogs']:
 				try:
-					if self.session.hostname:
-						machineName = self.session.hostname
+					machineName = self.session.hostname
 				except AttributeError:
 					# With a fresh session there may not yet be an
 					# hostname assigned to the session so this may fail.

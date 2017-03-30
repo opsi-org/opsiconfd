@@ -4,7 +4,7 @@
 # This file is part of the desktop management solution opsi
 # (open pc server integration) http://www.opsi.org
 
-# Copyright (C) 2010-2016 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2017 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -119,6 +119,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				self.getThreadInfo(),
 				self.getSessionInfo(),
 				self.getExpiredSessionInfo(),
+				self.getUserAgents(),
 				self.getDiskUsageInfo(),
 				self.getStatisticsInfo(),
 			)
@@ -319,6 +320,22 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		expiredSessionInfo.append(u'</table>')
 
 		return ''.join(expiredSessionInfo)
+
+	def getUserAgents(self):
+		userAgentsInfo = [u'<h1>Seen useragents</h1>', u'<table>']
+		userAgentsInfo.append(
+			self.createTableHeader(
+				'Useragent', 'requests'
+			)
+		)
+
+		userAgentsAndCount = self.service.statistics().getUserAgents()
+		for userAgent, count in sorted(userAgentsAndCount.items(), key=lambda x: x[0]):
+			userAgentsInfo.append(u'<tr><td>{agent}</td><td>{requests}</td></tr>'.format(agent=userAgent, requests=count))
+
+		userAgentsInfo.append(u'</table>')
+
+		return ''.join(userAgentsInfo)
 
 	def getDiskUsageInfo(self):
 		diskUsageInfo = [u'<h1>Disk usage</h1>', u'<table>']

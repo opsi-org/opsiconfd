@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of opsiconfd.
-# Copyright (C) 2014 uib GmbH <info@uib.de>
+# Copyright (C) 2014-2017 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -91,6 +91,22 @@ class StatisticsTestCase(unittest.TestCase):
         stats.addRpc(FakeRPC(duration=5))
         newAverages = stats.getRPCAverageDurations()
         self.assertAlmostEqual(9.950495049504951, newAverages["dummy_method"])
+
+    def testCollectingUseragents(self):
+        stats = Statistics(FakeOpsiconfd())
+
+        for _ in range(10):
+            stats.addUserAgent('test agent 1.2.3')
+
+        stats.addUserAgent('test agent 1.2.4')
+        stats.addUserAgent('test agent 1.2.4')
+        stats.addUserAgent('another agent 5.6')
+
+        collectedAgents = stats.getUserAgents()
+        assert collectedAgents['test agent 1.2.3'] == 10
+        assert collectedAgents['test agent 1.2.4'] == 2
+        assert collectedAgents['another agent 5.6'] == 1
+        assert 'not seen' not in collectedAgents
 
 
 if __name__ == '__main__':

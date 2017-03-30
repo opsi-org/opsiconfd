@@ -1,3 +1,10 @@
+opsiconfd (4.0.7.8-1) stable; urgency=medium
+
+  * The infopage now shows what user agents have been seen during the
+    run of opsiconfd.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 30 Mar 2017 13:23:36 +0200
+
 opsiconfd (4.0.7.7-1) stable; urgency=medium
 
   * Disabling "symlink logs" now has the desired effect that logs will

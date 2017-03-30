@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of python-opsi.
-# Copyright (C) 2010-2014 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2017 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -104,6 +104,7 @@ class Statistics(object):
 			'rpcs': 0,
 			'rpcerrors': 0
 		}
+		self._userAgents = collections.defaultdict(int)
 
 		if not os.path.exists(self._rrdConfig['rrdFile']):
 			self.createRrd()
@@ -437,3 +438,9 @@ information about the host.
 
 	def getEncodingErrors(self):
 		return self._encodingErrors
+
+	def addUserAgent(self, useragent):
+		self._userAgents[useragent] += 1
+
+	def getUserAgents(self, useragent):
+		return self._userAgents

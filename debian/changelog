@@ -1,4 +1,4 @@
-opsiconfd (4.0.7.8-1) UNRELEASED; urgency=medium
+opsiconfd (4.0.7.8-1) stable; urgency=medium
 
   * The infopage now shows what user agents have been seen during the
     run of opsiconfd.

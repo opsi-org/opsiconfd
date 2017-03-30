@@ -442,5 +442,5 @@ information about the host.
 	def addUserAgent(self, useragent):
 		self._userAgents[useragent] += 1
 
-	def getUserAgents(self, useragent):
+	def getUserAgents(self):
 		return self._userAgents

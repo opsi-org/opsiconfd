@@ -462,10 +462,6 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		self.session.setLastRpcSuccessfullyDecoded(True)
 		return result
 
-	def _addRpcToStatistics(self, result, rpc):
-		self.service.statistics().addRpc(rpc)
-		return result
-
 	def _executeRpc(self, result, rpc):
 		self._setLogFile(rpc)
 		self.session.setLastRpcMethod(rpc.getMethodName())
@@ -477,6 +473,15 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 
 		result = WorkerOpsiJsonRpc._executeRpc(self, result, rpc)
 		result.addCallback(self._addRpcToStatistics, rpc)
+		result.addCallback(self._addUserAgentToStatistics)
+		return result
+
+	def _addRpcToStatistics(self, result, rpc):
+		self.service.statistics().addRpc(rpc)
+		return result
+
+	def _addUserAgentToStatistics(self, result):
+		self.service.statistics().addUserAgent(self.session.userAgent)
 		return result
 
 	def _decodeQuery(self, result):

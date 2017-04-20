@@ -385,7 +385,13 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			}
 			maxDuration = {'duration': 0}
 
-			for statistic in sorted(rpcs, key=operator.itemgetter('method')):
+			def uppercaseGetter(field):
+				"Returns the value for `field` in uppercase."
+				def getField(obj):
+					return obj[field].upper()
+				return getField
+
+			for statistic in sorted(rpcs, key=uppercaseGetter('method')):
 				for key in ('params', 'results', 'duration'):
 					average[key] += statistic[key]
 

@@ -387,9 +387,9 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 
 			def uppercaseGetter(field):
 				"Returns the value for `field` in uppercase."
-				def getField(obj):
+				def getUppercaseField(obj):
 					return obj[field].upper()
-				return getField
+				return getUppercaseField
 
 			for statistic in sorted(rpcs, key=uppercaseGetter('method')):
 				for key in ('params', 'results', 'duration'):

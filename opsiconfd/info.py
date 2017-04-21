@@ -330,7 +330,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		)
 
 		userAgentsAndCount = self.service.statistics().getUserAgents()
-		for userAgent, count in sorted(userAgentsAndCount.items(), key=lambda x: x[0]):
+		for userAgent, count in sorted(userAgentsAndCount.items(), key=lambda x: x[0].upper()):
 			userAgentsInfo.append(u'<tr><td>{agent}</td><td>{requests}</td></tr>'.format(agent=userAgent, requests=count))
 
 		userAgentsInfo.append(u'</table>')

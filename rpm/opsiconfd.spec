@@ -7,11 +7,10 @@
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
+BuildRequires:  python-devel python-setuptools openssl procps
 Requires:       python-opsi >= 4.0.7.33
 Requires:       openssl
 Requires:       python-twisted
-Requires:       dbus-1-python
 Requires:       psmisc
 Requires:       procps
 Url:            http://www.opsi.org
@@ -35,7 +34,6 @@ Suggests:       python-rrdtool
 %else
 %if 0%{?suse_version}
 Suggests: logrotate
-Requires:       python-avahi
 Requires:       pkg-config
 BuildRequires:  pkg-config
 BuildRequires:  python-rrdtool zypper logrotate

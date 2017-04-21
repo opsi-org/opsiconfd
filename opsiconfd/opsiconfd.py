@@ -75,7 +75,7 @@ from monitoring import ResourceOpsiconfdMonitoring
 from session import OpsiconfdSessionHandler
 from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
-__version__ = "4.0.7.7"
+__version__ = "4.0.7.9"
 
 logger = Logger()
 

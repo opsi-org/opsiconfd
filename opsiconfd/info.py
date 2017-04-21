@@ -330,7 +330,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 		)
 
 		userAgentsAndCount = self.service.statistics().getUserAgents()
-		for userAgent, count in sorted(userAgentsAndCount.items(), key=lambda x: x[0]):
+		for userAgent, count in sorted(userAgentsAndCount.items(), key=lambda x: x[0].upper()):
 			userAgentsInfo.append(u'<tr><td>{agent}</td><td>{requests}</td></tr>'.format(agent=userAgent, requests=count))
 
 		userAgentsInfo.append(u'</table>')
@@ -385,7 +385,13 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			}
 			maxDuration = {'duration': 0}
 
-			for statistic in sorted(rpcs, key=operator.itemgetter('method')):
+			def uppercaseGetter(field):
+				"Returns the value for `field` in uppercase."
+				def getUppercaseField(obj):
+					return obj[field].upper()
+				return getUppercaseField
+
+			for statistic in sorted(rpcs, key=uppercaseGetter('method')):
 				for key in ('params', 'results', 'duration'):
 					average[key] += statistic[key]
 

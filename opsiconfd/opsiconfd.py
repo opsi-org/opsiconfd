@@ -74,7 +74,7 @@ from .statistics import Statistics
 from .monitoring import ResourceOpsiconfdMonitoring
 from .session import OpsiconfdSessionHandler
 
-__version__ = "4.1.1"
+__version__ = "4.1.1.3"
 
 logger = Logger()
 

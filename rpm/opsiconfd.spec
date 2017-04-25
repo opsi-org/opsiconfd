@@ -8,7 +8,7 @@
 
 Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
-Requires:       python-opsi >= 4.0.7.33
+Requires:       python-opsi >= 4.1.1.5
 Requires:       openssl
 Requires:       python-twisted
 Requires:       dbus-1-python
@@ -27,7 +27,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?suse_version} == 1110 || 0%{?suse_version} == 1315
 # SLES
 Requires:       pkg-config
-BuildRequires:  python-opsi >= 4.0.7.33 zypper logrotate
+BuildRequires:  python-opsi >= 4.1.1.5 zypper logrotate
 BuildRequires:  pkg-config
 PreReq:         %insserv_prereq
 Suggests:       python-rrdtool

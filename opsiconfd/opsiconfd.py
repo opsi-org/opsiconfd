@@ -55,18 +55,18 @@ epollreactor.install()
 from twisted.internet import reactor
 
 from OPSI.Application import Application
+from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Logger import Logger, LOG_NONE, LOG_WARNING, LOG_NOTICE
-from OPSI.web2 import server
-from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 from OPSI.Util import getfqdn, removeUnit
 from OPSI.Util.File import IniFile
 from OPSI.Util.AMP import OpsiProcessProtocolFactory
-from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
-						forceNetworkAddress, forceUnicode)
+from OPSI.Service import SSLContext, OpsiService
 from OPSI.System import which, execute
 from OPSI.System.Posix import daemonize
-from OPSI.Backend.BackendManager import BackendManager
-from OPSI.Service import SSLContext, OpsiService
+from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
+						forceNetworkAddress, forceUnicode)
+from OPSI.web2 import server
+from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 
 from .resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV, ResourceOpsiconfdConfigedJNLP
 from .info import ResourceOpsiconfdInfo

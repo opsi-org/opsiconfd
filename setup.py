@@ -35,6 +35,8 @@ with open("opsiconfd/__init__.py") as f:
 			version = line.split('=')[1].strip()
 			break
 
+assert version, "Could not read version!"
+
 data_files = [
 	('/etc/opsi', ['data/etc/opsi/opsiconfd.conf']),
 	('/etc/opsi/systemdTemplates', ['data/etc/opsi/systemdTemplates/opsiconfd.service']),

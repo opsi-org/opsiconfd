@@ -1,3 +1,13 @@
+opsiconfd (4.1.1.3-1) testing; urgency=medium
+
+  * Drop support for avahi / zeroconf.
+  * Interface page is now only accessible for admins.
+  * Added config option for accepted ciphers to opsiconfd.conf.
+  * Info page: show versions of opsiconfd and python-opsi.
+  * opsiconfd now requires at least Python 2.7.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 26 Apr 2017 11:37:21 +0200
+
 opsiconfd (4.1.1.2-2) testing; urgency=medium
 
   * systemd: Automatically restart service on failure.

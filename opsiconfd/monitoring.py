@@ -514,14 +514,14 @@ class Monitoring(object):
 				continue
 
 			if depotId in actionRequestOnClient:
-				for product in actionRequestOnClient[depotId]:
-					message += "For product '%s' action set on '%d' clients! " % (product, len(actionRequestOnClient[depotId][product]))
+				for product, clients in actionRequestOnClient[depotId].items():
+					message += "For product '%s' action set on '%d' clients! " % (product, len(clients))
 			if depotId in productProblemsOnClient:
-				for product in productProblemsOnClient[depotId]:
-					message += "For product '%s' problems found on '%d' clients! " % (product, len(productProblemsOnClient[depotId][product]))
+				for product, clients in productProblemsOnClient[depotId].items():
+					message += "For product '%s' problems found on '%d' clients! " % (product, len(clients))
 			if depotId in productVersionProblemsOnClient:
-				for product in productVersionProblemsOnClient[depotId]:
-					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
+				for product, clients in productVersionProblemsOnClient[depotId].items():
+					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(clients))
 
 		if not verbose:
 			if state == State.OK:

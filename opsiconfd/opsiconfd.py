@@ -58,13 +58,12 @@ from OPSI.System.Posix import daemonize
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Service import SSLContext, OpsiService
 
+from . import __version__
 from .resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV, ResourceOpsiconfdConfigedJNLP
 from .info import ResourceOpsiconfdInfo
 from .statistics import Statistics
 from .monitoring import ResourceOpsiconfdMonitoring
 from .session import OpsiconfdSessionHandler
-
-__version__ = "4.1.1.3"
 
 logger = Logger()
 

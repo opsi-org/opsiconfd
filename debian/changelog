@@ -1,3 +1,13 @@
+opsiconfd (4.1.1.3-1) testing; urgency=medium
+
+  * Drop support for avahi / zeroconf.
+  * Interface page is now only accessible for admins.
+  * Added config option for accepted ciphers to opsiconfd.conf.
+  * Info page: show versions of opsiconfd and python-opsi.
+  * opsiconfd now requires at least Python 2.7.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 26 Apr 2017 11:37:21 +0200
+
 opsiconfd (4.1.1.2-2) testing; urgency=medium
 
   * systemd: Automatically restart service on failure.
@@ -21,6 +31,12 @@ opsiconfd (4.1.1.1-1) experimental; urgency=medium
   * Removed unsupported multiprocessing option.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 16 Sep 2016 12:12:24 +0200
+
+opsiconfd (4.0.7.9-1) stable; urgency=medium
+
+  * Infopage now sorts the seen user agents and rpc calls case-insensitive.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 21 Apr 2017 15:10:02 +0200
 
 opsiconfd (4.0.7.8-1) stable; urgency=medium
 

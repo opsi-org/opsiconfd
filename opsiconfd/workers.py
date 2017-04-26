@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # opsiconfd is part of the desktop management solution opsi
@@ -605,8 +604,8 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		return result
 
 	def _authorize(self):
-		if not self.session.isHost and not self.session.isAdmin:
-			logger.error(u"Authentication Error: Neither host nor admin user.")
+		if not self.session.isAdmin:
+			logger.error(u"Authentication Error: No admin user.")
 			return False
 		logger.debug(u"User is authorized.")
 		return True

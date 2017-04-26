@@ -32,6 +32,12 @@ opsiconfd (4.1.1.1-1) experimental; urgency=medium
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 16 Sep 2016 12:12:24 +0200
 
+opsiconfd (4.0.7.9-1) stable; urgency=medium
+
+  * Infopage now sorts the seen user agents and rpc calls case-insensitive.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 21 Apr 2017 15:10:02 +0200
+
 opsiconfd (4.0.7.8-1) stable; urgency=medium
 
   * The infopage now shows what user agents have been seen during the

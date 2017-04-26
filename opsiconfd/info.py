@@ -49,6 +49,7 @@ from OPSI import __version__ as pythonOpsiVersion
 from OPSI.Logger import Logger
 from OPSI.System import getDiskSpaceUsage
 from OPSI.Types import OpsiAuthenticationError
+from OPSI.Types import forceUnicode
 from OPSI.web2 import responsecode, http, stream
 
 from . import __version__ as opsiconfdVersion
@@ -188,7 +189,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			yield u'<tr>'
 			for value in values:
 				yield u'<td>'
-				yield {0}
+				yield forceUnicode(value)
 				yield u'</td>'
 			yield u'</tr>'
 

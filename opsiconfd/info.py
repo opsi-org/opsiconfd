@@ -45,11 +45,13 @@ import threading
 import time
 from datetime import datetime
 
+from OPSI import __version__ as pythonOpsiVersion
 from OPSI.Logger import Logger
 from OPSI.System import getDiskSpaceUsage
 from OPSI.Types import OpsiAuthenticationError
 from OPSI.web2 import responsecode, http, stream
 
+from . import __version__ as opsiconfdVersion
 from .resources import ResourceOpsiconfd
 from .workers import WorkerOpsiconfd
 
@@ -210,6 +212,16 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			except KeyError:
 				# For when no startTime is found.
 				pass
+
+			yield self.createTableRow(
+				"opsiconfd version",
+				opsiconfdVersion
+			)
+
+			yield self.createTableRow(
+				"python-opsi version",
+				pythonOpsiVersion
+			)
 
 			yield u'</table>'
 

@@ -213,16 +213,8 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 				# For when no startTime is found.
 				pass
 
-			yield self.createTableRow(
-				"opsiconfd version",
-				opsiconfdVersion
-			)
-
-			yield self.createTableRow(
-				"python-opsi version",
-				pythonOpsiVersion
-			)
-
+			yield self.createTableRow("opsiconfd version", opsiconfdVersion)
+			yield self.createTableRow("python-opsi version", pythonOpsiVersion)
 			yield u'</table>'
 
 		return ''.join(getConfigHTML())

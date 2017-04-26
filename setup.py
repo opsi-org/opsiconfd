@@ -25,17 +25,34 @@ opsi configuration daemon (opsiconfd) setup file
 :license: GNU Affero General Public License version 3
 """
 
+import codecs
+import os
 from setuptools import setup
 
 
-version = None
-with open("opsiconfd/__init__.py") as f:
-	for line in f:
-		if '__version__' in line:
-			version = line.split('=')[1].strip()
-			break
+VERSION = None
+with codecs.open(os.path.join("debian", "changelog"), 'r', 'utf-8') as changelog:
+	VERSION = changelog.readline().split('(')[1].split('-')[0]
 
-assert version, "Could not read version!"
+if not VERSION:
+	raise Exception(u"Failed to get version info")
+
+# Always set __version__ in OPSI.__init__.py to the version found in
+# the changelog to make sure the version is always up-to-date
+# and nobody needs to manually update it.
+initFilePath = os.path.join('opsiconfd', '__init__.py')
+newInitLines = []
+with open(initFilePath) as originalFile:
+	for line in originalFile:
+		if line.startswith('__version__'):
+			newInitLines.append("__version__ = '{0}'\n".format(VERSION))
+			continue
+
+		newInitLines.append(line)
+
+with open(initFilePath, 'w') as newInitFile:
+	newInitFile.writelines(newInitLines)
+print("Patched version {1!r} from changelog into {0}".format(initFilePath, VERSION))
 
 data_files = [
 	('/etc/opsi', ['data/etc/opsi/opsiconfd.conf']),
@@ -51,7 +68,7 @@ data_files = [
 
 setup(
 	name='opsiconfd',
-	version=version,
+	version=VERSION,
 	license='AGPL-3',
 	url="http://www.opsi.org",
 	description='The opsi configiration management daemon',

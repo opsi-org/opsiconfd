@@ -615,7 +615,7 @@ class Monitoring(object):
 				for productId in sorted(differenceProducts):
 					message += u"product: '%s': " % productId
 					for depotId in depotIds:
-						if depotId in differenceProducts[productId]:
+						try:
 							if differenceProducts[productId][depotId] == "not installed":
 								message += u"%s (not installed) \n" % depotId
 							else:
@@ -624,7 +624,7 @@ class Monitoring(object):
 									productOnDepotInfo[depotId][productId].productVersion,
 									productOnDepotInfo[depotId][productId].packageVersion
 								)
-						else:
+						except KeyError:
 							if not productOnDepotInfo.get(depotId, {}).get(productId, None):
 								continue
 

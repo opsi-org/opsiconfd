@@ -536,24 +536,24 @@ class Monitoring(object):
 
 			if depotId in actionRequestOnClient:
 				message += "Action Request set for "
-				for product in actionRequestOnClient[depotId]:
+				for product, clients in actionRequestOnClient[depotId].items():
 					message += "product '%s': \n" % product
-					for item in actionRequestOnClient[depotId][product]:
-						message += "%s \n" % item
+					for client in clients:
+						message += "%s \n" % client
 
 			if depotId in productProblemsOnClient:
 				message += "Product Problems for "
-				for product in productProblemsOnClient[depotId]:
+				for product, clients in productProblemsOnClient[depotId].items():
 					message += "product '%s': \n" % product
-					for item in productProblemsOnClient[depotId][product]:
-						message += "%s \n" % item
+					for client in clients:
+						message += "%s \n" % client
 
 			if depotId in productVersionProblemsOnClient:
 				message += "Product Version difference found for: "
-				for product in productVersionProblemsOnClient[depotId]:
+				for product, clients in productVersionProblemsOnClient[depotId].items():
 					message += "product '%s': \n" % product
-					for item in productVersionProblemsOnClient[depotId][product]:
-						message += "%s \n" % item
+					for client in clients:
+						message += "%s \n" % client
 
 		if state == State.OK:
 			if productGroups:

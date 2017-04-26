@@ -29,7 +29,7 @@ from setuptools import setup
 
 
 version = None
-with open("opsiconfd/opsiconfd.py") as f:
+with open("opsiconfd/__init__.py") as f:
 	for line in f:
 		if '__version__' in line:
 			version = line.split('=')[1].strip()

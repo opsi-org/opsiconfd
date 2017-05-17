@@ -202,18 +202,16 @@ chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 systemctl=`which systemctl 2>/dev/null` || true
 if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
 	$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
-fi
 
-if [ $arg0 -eq 1 ]; then
-	# Install
-	/sbin/service opsiconfd start || true
-else
-	# Upgrade
-	if [ -e /var/run/opsiconfd.pid -o -e /var/run/opsiconfd/opsiconfd.pid ]; then
-		rm /var/run/opsiconfd.pid 2>/dev/null || true
-		/sbin/service opsiconfd restart || true
+	if [ $arg0 -eq 1 ]; then
+		# Install
+		$systemctl start opsiconfd.service || true
+	else
+		# Upgrade
+		$systemctl restart opsiconfd.service || true
 	fi
 fi
+
 
 # ===[ preun ]======================================
 %preun
@@ -222,6 +220,7 @@ fi
 # ===[ postun ]=====================================
 %postun
 %service_del_postun opsiconfd.service
+
 if [ $1 -eq 0 ]; then
 	%if 0%{?suse_version}
 		groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true

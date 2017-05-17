@@ -39,8 +39,6 @@ assert version, "Could not read version!"
 
 data_files = [
 	('/etc/opsi', ['data/etc/opsi/opsiconfd.conf']),
-	('/etc/opsi/systemdTemplates', ['data/etc/opsi/systemdTemplates/opsiconfd.service']),
-	('/etc/init.d', ['data/etc/init.d/opsiconfd']),
 	('/etc/logrotate.d', ['data/etc/logrotate.d/opsiconfd']),
 	('share/opsiconfd/static', [
 		'data/shared/index.html',
@@ -56,6 +54,10 @@ setup(
 	url="http://www.opsi.org",
 	description='The opsi configiration management daemon',
 	packages=['opsiconfd'],
-	scripts=['scripts/opsiconfd', 'scripts/opsiconfd-guard'],
+	entry_points={
+		'console_scripts': [
+			'opsiconfd = opsiconfd.opsiconfd:rumFromCommandline',
+		]
+	},
 	data_files=data_files,
 )

@@ -17,11 +17,7 @@ Requires:       openssl
 Requires:       python-twisted
 Requires:       psmisc
 Requires:       procps
-%if 0%{?suse_version} >= 1210
-Requires:       %{?systemd_requires}
-%else
-Requires:       systemd
-%endif
+%{?systemd_requires}
 Url:            http://www.opsi.org
 License:        AGPL-3.0+
 Group:          Productivity/Networking/Opsi

@@ -201,8 +201,6 @@ chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
 systemctl=`which systemctl 2>/dev/null` || true
 if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-	echo "Reloading unit-files"
-	$systemctl daemon-reload || echo "Reloading unit-files failed!"
 	$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 fi
 

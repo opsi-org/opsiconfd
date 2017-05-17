@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.5-2) testing; urgency=medium
+
+  * RPM: fix wrong indentation on SUSE.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 16:49:30 +0200
+
 opsiconfd (4.1.1.5-1) testing; urgency=medium
 
   * Switch to systemd for providing the service.

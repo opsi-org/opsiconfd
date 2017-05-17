@@ -1,10 +1,11 @@
-opsiconfd (4.1.1.5-1) UNRELEASED; urgency=medium
+opsiconfd (4.1.1.5-1) testing; urgency=medium
 
   * Switch to systemd for providing the service.
   * Drop helper scripts only used for SysV init.
   * setup.py: Create the opsiconfd script as an entry point.
+  * setup.py: Set the version of opsiconfd based on changelog.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 15:54:54 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 16:07:27 +0200
 
 opsiconfd (4.1.1.4-1) testing; urgency=medium
 

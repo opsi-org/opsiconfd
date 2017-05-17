@@ -50,7 +50,6 @@ from OPSI.web2 import server
 from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 from OPSI.Util import getfqdn, removeUnit
 from OPSI.Util.File import IniFile
-from OPSI.Util.AMP import OpsiProcessProtocolFactory
 from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
 						forceNetworkAddress, forceUnicode)
 from OPSI.System import which, execute
@@ -136,8 +135,6 @@ class Opsiconfd(OpsiService):
 					self._backend.backend_exit()
 				except Exception:
 					pass
-			if self._socket:
-				self._socket.stopListening()
 
 			self._running = False
 		except Exception as e:
@@ -377,7 +374,6 @@ class Opsiconfd(OpsiService):
 		logger.notice(u"Starting opsiconfd main thread")
 		try:
 			reactor.addSystemEventTrigger("before", "shutdown", self.stop)
-			self._startListeningSocket()
 			self._createBackendInstance()
 			self._createSessionHandler()
 			with collectStatistics():
@@ -496,7 +492,6 @@ class OpsiconfdInit(Application):
 			'dispatchConfigFile': u'/etc/opsi/backendManager/dispatch.conf',
 			'extensionConfigDir': u'/etc/opsi/backendManager/extend.d',
 			'aclFile': u'/etc/opsi/backendManager/acl.conf',
-			'socket': u'/var/run/opsiconfd/opsiconfd.socket',
 			'loadbalancing': False,
 			'profile': False,
 			'profiler': u'profiler',
@@ -617,8 +612,6 @@ class OpsiconfdInit(Application):
 							self.config['backendConfigDir'] = forceFilename(value)
 						elif option == 'dispatch config file':
 							self.config['dispatchConfigFile'] = forceFilename(value)
-						elif option == 'socket':
-							self.config['socket'] = forceFilename(value)
 						elif option == 'extension config dir':
 							self.config['extensionConfigDir'] = forceFilename(value)
 						elif option == 'acl file':
@@ -707,14 +700,13 @@ class OpsiconfdInit(Application):
 		print(u"  -i    IP address of interface to listen on (default: 0.0.0.0)")
 		print(u"  -f    Log to given file instead of syslog")
 		print(u"  -c    Location of config file")
-		print(u"  -s    Location of socket (default: /var/run/opsiconfd/opsiconfd.socket")
 		print(u"  -l    Set log level (default: 4)")
 		print(u"        0=nothing, 1=essential, 2=critical, 3=error, 4=warning")
 		print(u"        5=notice, 6=info, 7=debug, 8=debug2, 9=confidential")
 		print(u"")
 
 
-def main():
+def rumFromCommandline():
 	logger.setConsoleLevel(LOG_WARNING)
 
 	try:
@@ -729,4 +721,4 @@ def main():
 	return 0
 
 if __name__ == "__main__":
-	sys.exit(main())
+	sys.exit(rumFromCommandline())

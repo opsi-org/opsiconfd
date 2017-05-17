@@ -219,14 +219,6 @@ fi
 
 # ===[ preun ]======================================
 %preun
-%if 0%{?suse_version}
-	%stop_on_removal opsiconfd
-%else
-	if [ $1 = 0 ] ; then
-		/sbin/service opsiconfd stop >/dev/null 2>&1 || true
-	fi
-%endif
-
 %service_del_preun opsiconfd.service
 
 # ===[ postun ]=====================================

@@ -1,3 +1,13 @@
+opsiconfd (4.1.1.5-5) testing; urgency=medium
+
+  * RPM: Removed call to old macro.
+  * RPM: Fixed syntax-error in postun
+  * RPM: Removed manual service removal.
+  * RPM: Cleanup of duplicate actions.
+  * RPM: rely on systemctl for service actions.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 17:31:35 +0200
+
 opsiconfd (4.1.1.5-4) testing; urgency=medium
 
   * RPM: Removed obosolete references to insserv and chkconfig.

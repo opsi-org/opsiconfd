@@ -240,14 +240,13 @@ if [ $1 -eq 0 ]; then
 	[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
 	rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
 
-		systemctl=`which systemctl 2>/dev/null` || true
-		if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-			$systemctl disable opsiconfd.service && echo "Disabled opsiconfd.service" || echo "Disabling opsiconfd.service failed!"
-			$systemctl daemon-reload || echo "Reloading unit-files failed!"
-		fi
-
-		rm "%{_unitdir}/opsiconfd.service" || echo "Removing opsiconfd.service failed"
+	systemctl=`which systemctl 2>/dev/null` || true
+	if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
+		$systemctl disable opsiconfd.service && echo "Disabled opsiconfd.service" || echo "Disabling opsiconfd.service failed!"
+		$systemctl daemon-reload || echo "Reloading unit-files failed!"
 	fi
+
+	rm "%{_unitdir}/opsiconfd.service" || echo "Removing opsiconfd.service failed"
 fi
 
 # ===[ files ]======================================

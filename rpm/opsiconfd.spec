@@ -32,7 +32,6 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 Requires:       pkg-config
 BuildRequires:  python-opsi >= 4.1.1.1 zypper logrotate
 BuildRequires:  pkg-config
-PreReq:         %insserv_prereq
 Suggests:       python-rrdtool
 %{py_requires}
 %else
@@ -41,7 +40,6 @@ Suggests: logrotate
 Requires:       pkg-config
 BuildRequires:  pkg-config
 BuildRequires:  python-rrdtool zypper logrotate
-PreReq:         %insserv_prereq
 %{py_requires}
 %else
 Requires:       pkgconfig
@@ -126,12 +124,6 @@ fi
 
 if [ $arg0 -eq 1 ]; then
 	# Install
-	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
-		chkconfig --add opsiconfd
-	%else
-		insserv opsiconfd || true
-	%endif
-
 	if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
 		groupmod -n $fileadmingroup pcpatch
 	else
@@ -242,12 +234,6 @@ fi
 %service_del_postun opsiconfd.service
 %restart_on_update opsiconfd
 if [ $1 -eq 0 ]; then
-	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
-		chkconfig --del opsiconfd
-	%else
-		%insserv_cleanup
-	%endif
-
 	%if 0%{?suse_version}
 		groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
 		groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true

@@ -42,7 +42,7 @@ if not VERSION:
 # and nobody needs to manually update it.
 initFilePath = os.path.join('opsiconfd', '__init__.py')
 newInitLines = []
-with codecs.open(initFilePath, 'w', 'utf-8') as originalFile:
+with codecs.open(initFilePath, 'r', 'utf-8') as originalFile:
 	for line in originalFile:
 		if line.startswith('__version__'):
 			newInitLines.append("__version__ = '{0}'\n".format(VERSION))

@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.5-4) testing; urgency=medium
+
+  * RPM: Removed obosolete references to insserv and chkconfig.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 17:18:09 +0200
+
 opsiconfd (4.1.1.5-3) testing; urgency=medium
 
   * RPM: Correct the usage of the systemd_requires macro.

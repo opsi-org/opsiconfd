@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.5-3) testing; urgency=medium
+
+  * RPM: Correct the usage of the systemd_requires macro.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 17:03:23 +0200
+
 opsiconfd (4.1.1.5-2) testing; urgency=medium
 
   * RPM: fix wrong indentation on SUSE.

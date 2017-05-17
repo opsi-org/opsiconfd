@@ -232,7 +232,6 @@ fi
 # ===[ postun ]=====================================
 %postun
 %service_del_postun opsiconfd.service
-%restart_on_update opsiconfd
 if [ $1 -eq 0 ]; then
 	%if 0%{?suse_version}
 		groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true

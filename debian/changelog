@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.5-10) testing; urgency=medium
+
+  * RPM: No pre-macro for systemd under CentOS / RHEL.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 13:24:38 +0200
+
 opsiconfd (4.1.1.5-9) testing; urgency=medium
 
   * RPM: Add switch to systemd macros because not every RPM distribution

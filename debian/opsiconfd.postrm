@@ -9,10 +9,7 @@
 . /usr/share/debconf/confmodule
 
 case "$1" in
-	upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
-	;;
-	remove)
-		update-rc.d -f opsiconfd remove >/dev/null || true
+	upgrade|failed-upgrade|abort-install|abort-upgrade|disappear|remove)
 	;;
 	purge)
 		deluser pcpatch shadow 1>/dev/null 2>/dev/null || true
@@ -26,7 +23,6 @@ case "$1" in
 		echo "postrm called with unknown argument \`$1'" >&2
 		exit 1
 	;;
-
 esac
 
 #DEBHELPER#

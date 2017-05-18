@@ -1,3 +1,10 @@
+opsiconfd (4.1.1.5-12) testing; urgency=medium
+
+  * RPM: fix call to possibly undefined name.
+  * RPM: drop a distribution-based switch.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 16:11:53 +0200
+
 opsiconfd (4.1.1.5-11) testing; urgency=medium
 
   * Debian-based distros: depend on systemd.

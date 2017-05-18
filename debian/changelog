@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.5-7) testing; urgency=medium
+
+  * RPM: listing opsiconfd.service as normal file.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 09:40:50 +0200
+
 opsiconfd (4.1.1.5-6) testing; urgency=medium
 
   * RPM: do not mark opsiconfd.service as a config.

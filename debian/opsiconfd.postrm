@@ -1,7 +1,7 @@
 #! /bin/bash -e
 
 # = = = = = = = = = = = = = = = = = = = = = = =
-# =       Copyright (C) 2010 uib GmbH         =
+# =     Copyright (C) 2010-2017 uib GmbH      =
 # =           http://www.uib.de               =
 # =          All rights reserved.             =
 # = = = = = = = = = = = = = = = = = = = = = = =
@@ -13,28 +13,12 @@ case "$1" in
 	;;
 	remove)
 		update-rc.d -f opsiconfd remove >/dev/null || true
-
-		systemctl=`which systemctl 2>/dev/null` || true
-		if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-			$systemctl disable opsiconfd.service && echo "Disabled opsiconfd.service" || echo "Disabling opsiconfd.service failed!"
-		fi
 	;;
 	purge)
 		deluser pcpatch shadow 1>/dev/null 2>/dev/null || true
 		deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true
 		[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
 		rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
-
-		SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
-		if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -e "$SYSTEMDUNITDIR/opsiconfd.service" ]; then
-			systemctl=`which systemctl 2>/dev/null` || true
-			if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-				$systemctl disable opsiconfd.service && echo "Disabled opsiconfd.service" || echo "Disabling opsiconfd.service failed!"
-				$systemctl daemon-reload || echo "Reloading unit-files failed!"
-			fi
-
-			rm -f "$SYSTEMDUNITDIR/opsiconfd.service" || echo "Removing opsiconfd.service failed"
-		fi
 
 		db_purge
 	;;
@@ -45,6 +29,4 @@ case "$1" in
 
 esac
 
-
 #DEBHELPER#
-

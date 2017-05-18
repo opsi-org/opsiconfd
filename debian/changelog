@@ -1,3 +1,61 @@
+opsiconfd (4.1.1.5-8) testing; urgency=medium
+
+  * RPM: Fix call to macro in %pre.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 09:55:46 +0200
+
+opsiconfd (4.1.1.5-7) testing; urgency=medium
+
+  * RPM: listing opsiconfd.service as normal file.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 09:40:50 +0200
+
+opsiconfd (4.1.1.5-6) testing; urgency=medium
+
+  * RPM: do not mark opsiconfd.service as a config.
+  * RPM: added %pre section for better service integration.
+  * opsiconfd.info: Dropped shebang line.
+  * Added dependency to logrotate.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 09:30:33 +0200
+
+opsiconfd (4.1.1.5-5) testing; urgency=medium
+
+  * RPM: Removed call to old macro.
+  * RPM: Fixed syntax-error in postun
+  * RPM: Removed manual service removal.
+  * RPM: Cleanup of duplicate actions.
+  * RPM: rely on systemctl for service actions.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 17:31:35 +0200
+
+opsiconfd (4.1.1.5-4) testing; urgency=medium
+
+  * RPM: Removed obosolete references to insserv and chkconfig.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 17:18:09 +0200
+
+opsiconfd (4.1.1.5-3) testing; urgency=medium
+
+  * RPM: Correct the usage of the systemd_requires macro.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 17:03:23 +0200
+
+opsiconfd (4.1.1.5-2) testing; urgency=medium
+
+  * RPM: fix wrong indentation on SUSE.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 16:49:30 +0200
+
+opsiconfd (4.1.1.5-1) testing; urgency=medium
+
+  * Switch to systemd for providing the service.
+  * Drop helper scripts only used for SysV init.
+  * setup.py: Create the opsiconfd script as an entry point.
+  * setup.py: Set the version of opsiconfd based on changelog.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 16:07:27 +0200
+
 opsiconfd (4.1.1.4-1) testing; urgency=medium
 
   * Info page: fix bug that prevented rendering.

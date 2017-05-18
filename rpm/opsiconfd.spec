@@ -239,6 +239,8 @@ fi
 # default attributes
 %defattr(-,root,root)
 
+%{_unitdir}/opsiconfd.service
+
 # configfiles
 %config(noreplace) /etc/opsi/opsiconfd.conf
 %config /etc/logrotate.d/opsiconfd

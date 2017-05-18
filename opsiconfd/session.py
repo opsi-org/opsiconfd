@@ -6,7 +6,7 @@ opsi configuration daemon - sessions
 opsiconfd is part of the desktop management solution opsi
 (open pc server integration) http://www.opsi.org
 
-Copyright (C) 2010-2013 uib GmbH
+Copyright (C) 2010-2017 uib GmbH
 
 http://www.uib.de/
 
@@ -65,7 +65,8 @@ class OpsiconfdSession(Session):
 class OpsiconfdSessionHandler(SessionHandler):
 	def __init__(self, opsiconfd):
 		self.opsiconfd = opsiconfd
-		SessionHandler.__init__(self,
+		SessionHandler.__init__(
+			self,
 			sessionName=self.opsiconfd.config['sessionName'],
 			sessionMaxInactiveInterval=self.opsiconfd.config['sessionMaxInactiveInterval'],
 			maxSessionsPerIp=self.opsiconfd.config['maxSessionsPerIp']

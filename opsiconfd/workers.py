@@ -35,12 +35,13 @@ from twisted.python import failure
 
 from OPSI.web2 import responsecode, http, stream
 
-from OPSI.Service.Worker import (WorkerOpsi, WorkerOpsiJsonRpc,
-								WorkerOpsiJsonInterface, WorkerOpsiDAV,
-								interfacePage, MultiprocessWorkerOpsiJsonRpc)
+from OPSI.Service.Worker import (
+	WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV,
+	interfacePage, MultiprocessWorkerOpsiJsonRpc)
 from OPSI.Types import forceHostId, forceHardwareAddress, OpsiAuthenticationError
-from OPSI.Util import (timestamp, objectToHtml, toJson,
-	decryptWithPrivateKeyFromPEMFile, ipAddressInNetwork, serialize)
+from OPSI.Util import (
+	timestamp, objectToHtml, toJson, decryptWithPrivateKeyFromPEMFile,
+	ipAddressInNetwork, serialize)
 from OPSI.Util.HTTP import deflateDecode, gzipDecode
 from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
 from OPSI.Logger import Logger, LOG_INFO
@@ -88,8 +89,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 					self.service.authFailureCount[self.request.remoteAddr.host] = 1
 
 				if self.service.authFailureCount[self.request.remoteAddr.host] > self.service.config['maxAuthenticationFailures']:
-					logger.error(u"%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding"
-							% (self.service.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host))
+					logger.error(
+						u"%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding"
+						% (self.service.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host)
+					)
 					# Will prevent flooding, before block for prevention,
 					# delete actual remoteAddr to reset the
 					# maxAuthenticationFailure marker

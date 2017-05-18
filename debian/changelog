@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.5-8) testing; urgency=medium
+
+  * RPM: Fix call to macro in %pre.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 09:55:46 +0200
+
 opsiconfd (4.1.1.5-7) testing; urgency=medium
 
   * RPM: listing opsiconfd.service as normal file.

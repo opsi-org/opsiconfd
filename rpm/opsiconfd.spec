@@ -102,16 +102,14 @@ sed -i 's#/etc/logrotate.d$##' INSTALLED_FILES
 # Patching systemd service file
 %if 0%{?suse_version} >= 1315 || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
 	# Adjusting to the correct service names
-	sed --in-place "s/=smbd.service/=smb.service/" "debian/opsiconfd.service" || True
-	sed --in-place "s/=isc-dhcp-server.service/=dhcpd.service/" "debian/opsiconfd.service" || True
+	sed --in-place "s/=smbd.service/=smb.service/" "debian/opsiconfd.service" || true
+	sed --in-place "s/=isc-dhcp-server.service/=dhcpd.service/" "debian/opsiconfd.service" || true
 %endif
 
-%if 0%{?suse_version} || 0%{?centos_version} || 0%{?rhel_version}
-	MKDIR_PATH=$(which mkdir)
-	CHOWN_PATH=$(which chown)
-	sed --in-place "s!=-/bin/mkdir!=-$MKDIR_PATH!" "debian/opsiconfd.service" || True
-	sed --in-place "s!=-/bin/chown!=-$CHOWN_PATH!" "debian/opsiconfd.service" || True
-%endif
+MKDIR_PATH=$(which mkdir)
+CHOWN_PATH=$(which chown)
+sed --in-place "s!=-/bin/mkdir!=-$MKDIR_PATH!" "debian/opsiconfd.service" || true
+sed --in-place "s!=-/bin/chown!=-$CHOWN_PATH!" "debian/opsiconfd.service" || true
 
 install -D -m 644 debian/opsiconfd.service %{buildroot}%{_unitdir}/opsiconfd.service
 

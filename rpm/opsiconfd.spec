@@ -69,6 +69,9 @@ export PATH="/usr/bin:$PATH"
 export CFLAGS="$RPM_OPT_FLAGS"
 python setup.py build
 
+%pre
+service_add_pre opsiconfd.service
+
 # ===[ install ]====================================
 %install
 

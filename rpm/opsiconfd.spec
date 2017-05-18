@@ -71,9 +71,7 @@ export CFLAGS="$RPM_OPT_FLAGS"
 python setup.py build
 
 %pre
-%if 0%{?rhel_version} || 0%{?centos_version}
-%systemd_pre opsiconfd.service
-%else
+%if 0%{?suse_version}
 %service_add_pre opsiconfd.service
 %endif
 

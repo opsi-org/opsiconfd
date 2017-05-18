@@ -71,7 +71,9 @@ export CFLAGS="$RPM_OPT_FLAGS"
 python setup.py build
 
 %pre
+%if 0%{?suse_version}
 %service_add_pre opsiconfd.service
+%endif
 
 # ===[ install ]====================================
 %install
@@ -201,7 +203,11 @@ chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
+%if 0%{?rhel_version} || 0%{?centos_version}
+%systemd_post opsiconfd.service
+%else
 %service_add_post opsiconfd.service
+%endif
 
 systemctl=`which systemctl 2>/dev/null` || true
 if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
@@ -219,11 +225,19 @@ fi
 
 # ===[ preun ]======================================
 %preun
+%if 0%{?rhel_version} || 0%{?centos_version}
+%systemd_preun opsiconfd.service
+%else
 %service_del_preun opsiconfd.service
+%endif
 
 # ===[ postun ]=====================================
 %postun
+%if 0%{?rhel_version} || 0%{?centos_version}
+%systemd_postun opsiconfd.service
+%else
 %service_del_postun opsiconfd.service
+%endif
 
 if [ $1 -eq 0 ]; then
 	%if 0%{?suse_version}

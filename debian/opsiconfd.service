@@ -20,7 +20,7 @@ TimeoutStopSec=10
 # PermissionsStartOnly makes the switch to the opsiconfd user just
 # before executing the ExecStart-part.
 PermissionsStartOnly=True
-ExecStartPre=-/bin/mkdir /var/run/opsiconfd
+ExecStartPre=-/bin/mkdir -p /var/run/opsiconfd
 ExecStartPre=-/bin/chown -R opsiconfd /var/run/opsiconfd/
 
 [Install]

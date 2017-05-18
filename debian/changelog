@@ -1,3 +1,11 @@
+opsiconfd (4.1.1.5-11) testing; urgency=medium
+
+  * Debian-based distros: depend on systemd.
+  * Debian-based distros: no more calls to update-rc.d.
+  * opsiconfd.service: execute mkdir with -p.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 14:27:28 +0200
+
 opsiconfd (4.1.1.5-10) testing; urgency=medium
 
   * RPM: No pre-macro for systemd under CentOS / RHEL.

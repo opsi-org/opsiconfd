@@ -17,6 +17,7 @@ Requires:       openssl
 Requires:       python-twisted
 Requires:       psmisc
 Requires:       procps
+Requires:       logrotate
 %{?systemd_requires}
 Url:            http://www.opsi.org
 License:        AGPL-3.0+

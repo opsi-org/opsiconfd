@@ -1,3 +1,12 @@
+opsiconfd (4.1.1.5-6) testing; urgency=medium
+
+  * RPM: do not mark opsiconfd.service as a config.
+  * RPM: added %pre section for better service integration.
+  * opsiconfd.info: Dropped shebang line.
+  * Added dependency to logrotate.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 09:30:33 +0200
+
 opsiconfd (4.1.1.5-5) testing; urgency=medium
 
   * RPM: Removed call to old macro.

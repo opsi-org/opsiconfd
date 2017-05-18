@@ -241,7 +241,6 @@ fi
 # configfiles
 %config(noreplace) /etc/opsi/opsiconfd.conf
 %config /etc/logrotate.d/opsiconfd
-%config %{_unitdir}/opsiconfd.service
 
 ## directories
 %dir /var/log/opsi

@@ -1,3 +1,10 @@
+opsiconfd (4.1.1.5-13) testing; urgency=medium
+
+  * Removed obsolete logrotate configuration fix.
+  * Debian-based distros: drop build requirement python-support.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 19 May 2017 11:53:50 +0200
+
 opsiconfd (4.1.1.5-12) testing; urgency=medium
 
   * RPM: fix call to possibly undefined name.

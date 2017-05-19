@@ -3,13 +3,13 @@ Section: opsi
 Priority: optional
 Maintainer: uib GmbH <info@uib.de>
 Uploaders: Niko Wenselowski <n.wenselowski@uib.de>
-Build-Depends: debhelper (>= 7), python (>= 2.7), dh-python | python-support, python-setuptools, dh-systemd (>= 1.5)
+Build-Depends: debhelper (>= 7), python (>= 2.7), dh-python, python-setuptools, dh-systemd (>= 1.5)
 X-Python-Version: >= 2.6
 Standards-Version: 3.9.4
 
 Package: opsiconfd
 Architecture: all
-Depends: logrotate, openssl, pkg-config, psmisc, python (>= 2.7), python-openssl, python-opsi (>= 4.1.1.1), python-rrdtool, python-twisted, systemd, ${misc:Depends}, ${python:Depends}
+Depends: logrotate, openssl, psmisc, python (>= 2.7), python-openssl, python-opsi (>= 4.1.1.1), python-rrdtool, python-twisted, systemd, ${misc:Depends}, ${python:Depends}
 Provides: ${python:Provides}
 Description: opsi configuration service
  This package contains the opsi configuration service.

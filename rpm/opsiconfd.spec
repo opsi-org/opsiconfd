@@ -63,6 +63,7 @@ export PATH="/usr/bin:$PATH"
 export CFLAGS="$RPM_OPT_FLAGS"
 python setup.py build
 
+# ===[ pre ]========================================
 %pre
 %if 0%{?suse_version}
 %service_add_pre opsiconfd.service

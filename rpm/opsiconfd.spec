@@ -28,22 +28,15 @@ Release:        2
 Summary:        This is the opsi configuration service
 Source:         opsiconfd_4.1.1.4-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
-%if 0%{?suse_version} == 1110 || 0%{?suse_version} == 1315
+%if 0%{?suse_version} == 1315
 # SLES
-Requires:       pkg-config
 BuildRequires:  python-opsi >= 4.1.1.1 zypper logrotate
-BuildRequires:  pkg-config
 Suggests:       python-rrdtool
 %{py_requires}
 %else
 %if 0%{?suse_version}
-Suggests: logrotate
-Requires:       pkg-config
-BuildRequires:  pkg-config
 BuildRequires:  python-rrdtool zypper logrotate
 %{py_requires}
-%else
-Requires:       pkgconfig
 %endif
 %endif
 
@@ -87,17 +80,6 @@ python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record=INST
 mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
 
 sed -i 's#/etc/logrotate.d$##' INSTALLED_FILES
-
-%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
-	echo "Detected RHEL / CentOS / Fedora"
-	%if 0%{?rhel_version} == 600 || 0%{?centos_version} == 600
-		echo "Fixing logrotate configuration"
-		LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
-		LOGROTATE_CONFIG=$RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
-		grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
-		mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
-	%endif
-%endif
 
 # Patching systemd service file
 %if 0%{?suse_version} >= 1315 || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700

@@ -18,7 +18,9 @@ case "$1" in
 			fileadmingroup=pcpatch
 		fi
 		if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
-			groupmod -n $fileadmingroup pcpatch
+			if [ ! -z "$(getent group pcpatch)"  ]; then
+				groupmod -n $fileadmingroup pcpatch
+			fi
 		else
 			if [ -z "$(getent group $fileadmingroup)" ]; then
 				groupadd $fileadmingroup

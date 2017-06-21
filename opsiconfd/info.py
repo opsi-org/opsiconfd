@@ -45,9 +45,9 @@ import time
 from datetime import datetime
 
 from OPSI import __version__ as pythonOpsiVersion
+from OPSI.Exceptions import OpsiAuthenticationError
 from OPSI.Logger import Logger
 from OPSI.System import getDiskSpaceUsage
-from OPSI.Types import OpsiAuthenticationError
 from OPSI.Types import forceUnicode
 from OPSI.web2 import responsecode, http, stream
 
@@ -358,7 +358,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			)
 		)
 
-		for resource in sorted(self.service.config['staticDirectories'].keys()):
+		for resource in sorted(self.service.config['staticDirectories']):
 			path = self.service.config['staticDirectories'][resource]['path']
 			if os.path.isdir(path):
 				if not resource.startswith('/'):

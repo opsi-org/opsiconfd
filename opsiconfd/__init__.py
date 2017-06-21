@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # This file is part of the desktop management solution opsi
@@ -27,4 +26,4 @@ opsi configuration daemon (opsiconfd)
 :license: GNU Affero General Public License version 3
 """
 
-__version__ = "4.1.1.3"
+__version__ = "4.1.1.6"

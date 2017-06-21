@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # This file is part of python-opsi.
@@ -45,17 +44,17 @@ epollreactor.install()
 from twisted.internet import reactor
 
 from OPSI.Application import Application
+from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Logger import Logger, LOG_NONE, LOG_WARNING, LOG_NOTICE
-from OPSI.web2 import server
-from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 from OPSI.Util import getfqdn, removeUnit
 from OPSI.Util.File import IniFile
-from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
-						forceNetworkAddress, forceUnicode)
+from OPSI.Service import SSLContext, OpsiService
 from OPSI.System import which, execute
 from OPSI.System.Posix import daemonize
-from OPSI.Backend.BackendManager import BackendManager
-from OPSI.Service import SSLContext, OpsiService
+from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
+						forceNetworkAddress, forceUnicode)
+from OPSI.web2 import server
+from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 
 from . import __version__
 from .resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV, ResourceOpsiconfdConfigedJNLP
@@ -63,6 +62,7 @@ from .info import ResourceOpsiconfdInfo
 from .statistics import Statistics
 from .monitoring import ResourceOpsiconfdMonitoring
 from .session import OpsiconfdSessionHandler
+
 
 logger = Logger()
 
@@ -82,7 +82,6 @@ class Opsiconfd(OpsiService):
 		self._httpsPort = None
 		self._sessionHandler = None
 		self._statistics = None
-		self._socket = None
 		self._debugShell = None
 
 		self.authFailureCount = {}
@@ -336,19 +335,6 @@ class Opsiconfd(OpsiService):
 			)
 
 		logger.notice(u"Accepting HTTPS requests on %s:%s" % (self.config['interface'], self.config['httpsPort']))
-
-	def _startListeningSocket(self):
-		socket = self.config["socket"]
-
-		if not os.path.exists(os.path.dirname(socket)):
-			os.makedirs(os.path.dirname(socket))
-		elif os.path.exists(socket):
-			# If the daemon dies without closing the socket properly
-			# this is necessary to clean up the remains.
-			os.unlink(socket)
-
-		logger.notice("Opening socket %s for interprocess communication." % socket)
-		self._socket = reactor.listenUNIX(socket, OpsiProcessProtocolFactory(self))
 
 	def _startListeningShell(self):
 		from OPSI.Util.Debug import DebugShell
@@ -719,6 +705,3 @@ def rumFromCommandline():
 		return 1
 
 	return 0
-
-if __name__ == "__main__":
-	sys.exit(rumFromCommandline())

@@ -1,4 +1,4 @@
-opsiconfd (4.1.1.6-1) UNRELEASED; urgency=medium
+opsiconfd (4.1.1.6-1) testing; urgency=medium
 
   * Removed unnecessary shebangs.
   * Removed socket for interprocess communication.

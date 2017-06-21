@@ -33,18 +33,18 @@ import socket
 from twisted.internet import defer, threads
 from twisted.python import failure
 
-from OPSI.web2 import responsecode, http, stream
-
+from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
+from OPSI.Exceptions import BackendMissingDataError, OpsiAuthenticationError
+from OPSI.Logger import Logger, LOG_INFO
+from OPSI.Types import forceHardwareAddress, forceHostId
 from OPSI.Service.Worker import (
 	WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV,
 	interfacePage, MultiprocessWorkerOpsiJsonRpc)
-from OPSI.Types import forceHostId, forceHardwareAddress, OpsiAuthenticationError
 from OPSI.Util import (
 	timestamp, objectToHtml, toJson, decryptWithPrivateKeyFromPEMFile,
 	ipAddressInNetwork, serialize)
 from OPSI.Util.HTTP import deflateDecode, gzipDecode
-from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
-from OPSI.Logger import Logger, LOG_INFO
+from OPSI.web2 import responsecode, http, stream
 
 
 logger = Logger()
@@ -354,11 +354,11 @@ class WorkerOpsiconfd(WorkerOpsi):
 			df.addCallback(lambda x: defer.maybeDeferred(self.session.callInstance.accessControl_userIsAdmin))
 			df.addCallback(setCredentials)
 
-			def f():
+			def updateIPOfClient():
 				if self.session.isHost:
 					hosts = self.service._backend.host_getObjects(['ipAddress', 'lastSeen'], id=self.session.user)
 					if not hosts:
-						raise Exception(u"Host '%s' not found in backend" % self.session.user)
+						raise BackendMissingDataError(u"Host '%s' not found in backend" % self.session.user)
 					host = hosts[0]
 					if host.getType() == 'OpsiClient':
 						host.setLastSeen(timestamp())
@@ -369,7 +369,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 							host.ipAddress = None
 						self.service._backend.host_updateObjects(host)
 
-			df.addCallback(lambda x: f())
+			df.addCallback(lambda x: updateIPOfClient())
 			return df
 		d.addCallback(finish)
 		return d

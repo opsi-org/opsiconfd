@@ -33,9 +33,9 @@ import socket
 from twisted.internet import defer, threads
 from twisted.python import failure
 
-from OPSI.web2 import responsecode, http, stream
-
+from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
 from OPSI.Exceptions import OpsiAuthenticationError
+from OPSI.Logger import Logger, LOG_INFO
 from OPSI.Service.Worker import (
 	WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV,
 	interfacePage, MultiprocessWorkerOpsiJsonRpc)
@@ -44,8 +44,7 @@ from OPSI.Util import (
 	timestamp, objectToHtml, toJson, decryptWithPrivateKeyFromPEMFile,
 	ipAddressInNetwork, serialize)
 from OPSI.Util.HTTP import deflateDecode, gzipDecode
-from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
-from OPSI.Logger import Logger, LOG_INFO
+from OPSI.web2 import responsecode, http, stream
 
 
 logger = Logger()

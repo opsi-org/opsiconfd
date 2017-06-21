@@ -35,10 +35,11 @@ from twisted.python import failure
 
 from OPSI.web2 import responsecode, http, stream
 
+from OPSI.Exceptions import OpsiAuthenticationError
 from OPSI.Service.Worker import (
 	WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV,
 	interfacePage, MultiprocessWorkerOpsiJsonRpc)
-from OPSI.Types import forceHostId, forceHardwareAddress, OpsiAuthenticationError
+from OPSI.Types import forceHostId, forceHardwareAddress
 from OPSI.Util import (
 	timestamp, objectToHtml, toJson, decryptWithPrivateKeyFromPEMFile,
 	ipAddressInNetwork, serialize)

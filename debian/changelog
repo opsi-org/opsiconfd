@@ -1,8 +1,9 @@
 opsiconfd (4.1.1.6-1) UNRELEASED; urgency=medium
 
   * Removed unnecessary shebangs.
+  * Removed socket for interprocess communication.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 21 Jun 2017 16:10:40 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 21 Jun 2017 16:22:08 +0200
 
 opsiconfd (4.1.1.5-13) testing; urgency=medium
 

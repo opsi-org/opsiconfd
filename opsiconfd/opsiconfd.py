@@ -81,7 +81,6 @@ class Opsiconfd(OpsiService):
 		self._httpsPort = None
 		self._sessionHandler = None
 		self._statistics = None
-		self._socket = None
 		self._debugShell = None
 
 		self.authFailureCount = {}
@@ -335,19 +334,6 @@ class Opsiconfd(OpsiService):
 			)
 
 		logger.notice(u"Accepting HTTPS requests on %s:%s" % (self.config['interface'], self.config['httpsPort']))
-
-	def _startListeningSocket(self):
-		socket = self.config["socket"]
-
-		if not os.path.exists(os.path.dirname(socket)):
-			os.makedirs(os.path.dirname(socket))
-		elif os.path.exists(socket):
-			# If the daemon dies without closing the socket properly
-			# this is necessary to clean up the remains.
-			os.unlink(socket)
-
-		logger.notice("Opening socket %s for interprocess communication." % socket)
-		self._socket = reactor.listenUNIX(socket, OpsiProcessProtocolFactory(self))
 
 	def _startListeningShell(self):
 		from OPSI.Util.Debug import DebugShell

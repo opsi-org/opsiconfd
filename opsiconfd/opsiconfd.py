@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # This file is part of python-opsi.
@@ -719,6 +718,3 @@ def rumFromCommandline():
 		return 1
 
 	return 0
-
-if __name__ == "__main__":
-	sys.exit(rumFromCommandline())

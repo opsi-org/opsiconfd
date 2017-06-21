@@ -30,7 +30,7 @@ Source:         opsiconfd_4.1.1.4-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?suse_version} == 1315
 # SLES
-BuildRequires:  python-opsi >= 4.1.1.1 zypper logrotate
+BuildRequires:  python-opsi >= 4.1.1.7 zypper logrotate
 Suggests:       python-rrdtool
 %{py_requires}
 %else

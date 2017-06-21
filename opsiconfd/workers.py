@@ -36,10 +36,10 @@ from twisted.python import failure
 from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
 from OPSI.Exceptions import BackendMissingDataError, OpsiAuthenticationError
 from OPSI.Logger import Logger, LOG_INFO
-from OPSI.Types import forceHardwareAddress, forceHostId
 from OPSI.Service.Worker import (
 	WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV,
 	interfacePage, MultiprocessWorkerOpsiJsonRpc)
+from OPSI.Types import forceHostId, forceHardwareAddress
 from OPSI.Util import (
 	timestamp, objectToHtml, toJson, decryptWithPrivateKeyFromPEMFile,
 	ipAddressInNetwork, serialize)

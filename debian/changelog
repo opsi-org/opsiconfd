@@ -1,3 +1,112 @@
+opsiconfd (4.1.1.5-13) testing; urgency=medium
+
+  * Removed obsolete logrotate configuration fix.
+  * Debian-based distros: drop build requirement python-support.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 19 May 2017 11:53:50 +0200
+
+opsiconfd (4.1.1.5-12) testing; urgency=medium
+
+  * RPM: fix call to possibly undefined name.
+  * RPM: drop a distribution-based switch.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 16:11:53 +0200
+
+opsiconfd (4.1.1.5-11) testing; urgency=medium
+
+  * Debian-based distros: depend on systemd.
+  * Debian-based distros: no more calls to update-rc.d.
+  * opsiconfd.service: execute mkdir with -p.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 14:27:28 +0200
+
+opsiconfd (4.1.1.5-10) testing; urgency=medium
+
+  * RPM: No pre-macro for systemd under CentOS / RHEL.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 13:24:38 +0200
+
+opsiconfd (4.1.1.5-9) testing; urgency=medium
+
+  * RPM: Add switch to systemd macros because not every RPM distribution
+    is the same.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 12:17:27 +0200
+
+opsiconfd (4.1.1.5-8) testing; urgency=medium
+
+  * RPM: Fix call to macro in %pre.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 09:55:46 +0200
+
+opsiconfd (4.1.1.5-7) testing; urgency=medium
+
+  * RPM: listing opsiconfd.service as normal file.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 09:40:50 +0200
+
+opsiconfd (4.1.1.5-6) testing; urgency=medium
+
+  * RPM: do not mark opsiconfd.service as a config.
+  * RPM: added %pre section for better service integration.
+  * opsiconfd.info: Dropped shebang line.
+  * Added dependency to logrotate.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 May 2017 09:30:33 +0200
+
+opsiconfd (4.1.1.5-5) testing; urgency=medium
+
+  * RPM: Removed call to old macro.
+  * RPM: Fixed syntax-error in postun
+  * RPM: Removed manual service removal.
+  * RPM: Cleanup of duplicate actions.
+  * RPM: rely on systemctl for service actions.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 17:31:35 +0200
+
+opsiconfd (4.1.1.5-4) testing; urgency=medium
+
+  * RPM: Removed obosolete references to insserv and chkconfig.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 17:18:09 +0200
+
+opsiconfd (4.1.1.5-3) testing; urgency=medium
+
+  * RPM: Correct the usage of the systemd_requires macro.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 17:03:23 +0200
+
+opsiconfd (4.1.1.5-2) testing; urgency=medium
+
+  * RPM: fix wrong indentation on SUSE.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 16:49:30 +0200
+
+opsiconfd (4.1.1.5-1) testing; urgency=medium
+
+  * Switch to systemd for providing the service.
+  * Drop helper scripts only used for SysV init.
+  * setup.py: Create the opsiconfd script as an entry point.
+  * setup.py: Set the version of opsiconfd based on changelog.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 17 May 2017 16:07:27 +0200
+
+opsiconfd (4.1.1.4-1) testing; urgency=medium
+
+  * Info page: fix bug that prevented rendering.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 26 Apr 2017 13:34:34 +0200
+
+opsiconfd (4.1.1.3-1) testing; urgency=medium
+
+  * Drop support for avahi / zeroconf.
+  * Interface page is now only accessible for admins.
+  * Added config option for accepted ciphers to opsiconfd.conf.
+  * Info page: show versions of opsiconfd and python-opsi.
+  * opsiconfd now requires at least Python 2.7.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 26 Apr 2017 11:37:21 +0200
+
 opsiconfd (4.1.1.2-2) testing; urgency=medium
 
   * systemd: Automatically restart service on failure.
@@ -21,6 +130,12 @@ opsiconfd (4.1.1.1-1) experimental; urgency=medium
   * Removed unsupported multiprocessing option.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 16 Sep 2016 12:12:24 +0200
+
+opsiconfd (4.0.7.9-1) stable; urgency=medium
+
+  * Infopage now sorts the seen user agents and rpc calls case-insensitive.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 21 Apr 2017 15:10:02 +0200
 
 opsiconfd (4.0.7.8-1) stable; urgency=medium
 

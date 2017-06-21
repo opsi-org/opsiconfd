@@ -254,7 +254,8 @@ information about the host.
 		# TODO: for the imageType use some kind of constant
 
 		if imageType == 1:
-			rrdtool.graph(str(graphImage),
+			rrdtool.graph(
+				str(graphImage),
 				'--imgformat', 'PNG',
 				'--width', str(self._rrdConfig['xPoints']),
 				'--height', str(self._rrdConfig['yPoints']),
@@ -262,7 +263,7 @@ information about the host.
 				'--end', str(end),
 				'--vertical-label', 'avg per minute',
 				'--lower-limit', str(0),
-				'--units-exponent', str(0), # don't show milli-messages/s
+				'--units-exponent', str(0),  # don't show milli-messages/s
 				'--slope-mode',
 				'--color', 'SHADEA#ffffff',
 				'--color', 'SHADEB#ffffff',
@@ -311,7 +312,8 @@ information about the host.
 				'COMMENT:[%s]\\r' % date,
 			)
 		else:
-			rrdtool.graph(str(graphImage),
+			rrdtool.graph(
+				str(graphImage),
 				'--imgformat', 'PNG',
 				'--width', str(self._rrdConfig['xPoints']),
 				'--height', str(self._rrdConfig['yPoints']),
@@ -319,7 +321,7 @@ information about the host.
 				'--end', str(end),
 				'--vertical-label', '% / num / MByte*0.1',
 				'--lower-limit', str(0),
-				'--units-exponent', str(0), # don't show milli-messages/s
+				'--units-exponent', str(0),  # don't show milli-messages/s
 				'--slope-mode',
 				'--color', 'SHADEA#ffffff',
 				'--color', 'SHADEB#ffffff',

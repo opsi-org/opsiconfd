@@ -35,16 +35,6 @@ import sys
 import threading
 import time
 import socket
-try:
-	import dbus
-except ImportError:
-	dbus = None
-
-try:
-	import avahi
-except ImportError:
-	avahi = None
-
 from contextlib import contextmanager
 from datetime import datetime
 from signal import signal, SIGHUP, SIGINT, SIGTERM
@@ -59,7 +49,6 @@ from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Logger import Logger, LOG_NONE, LOG_WARNING, LOG_NOTICE
 from OPSI.Util import getfqdn, removeUnit
 from OPSI.Util.File import IniFile
-from OPSI.Util.AMP import OpsiProcessProtocolFactory
 from OPSI.Service import SSLContext, OpsiService
 from OPSI.System import which, execute
 from OPSI.System.Posix import daemonize
@@ -68,64 +57,19 @@ from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
 from OPSI.web2 import server
 from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 
+from . import __version__
 from .resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV, ResourceOpsiconfdConfigedJNLP
 from .info import ResourceOpsiconfdInfo
 from .statistics import Statistics
 from .monitoring import ResourceOpsiconfdMonitoring
 from .session import OpsiconfdSessionHandler
 
-__version__ = "4.1.1.3"
 
 logger = Logger()
 
 
 class OpsiconfdHTTPFactory(HTTPFactory):
 	protocol = HTTPChannel
-
-
-class ZeroconfService(object):
-
-	def __init__(self, name, port, serviceType="_opsiconfd._tcp", domain="", host="", text=""):
-		self._name = name
-		self._port = port
-		self._serviceType = serviceType
-		self._domain = domain
-		self._host = host
-		self._text = text
-		self._group = None
-
-	def publish(self):
-		if not dbus or not avahi:
-			logger.warning(u"Failed to publish ZeroconfService: avahi/dbus module missing")
-			return
-
-		bus = dbus.SystemBus()
-		srv = dbus.Interface(
-			bus.get_object(
-				avahi.DBUS_NAME,
-				avahi.DBUS_PATH_SERVER
-			),
-			avahi.DBUS_INTERFACE_SERVER
-		)
-
-		g = dbus.Interface(
-			bus.get_object(
-				avahi.DBUS_NAME,
-				srv.EntryGroupNew()
-			),
-			avahi.DBUS_INTERFACE_ENTRY_GROUP
-		)
-
-		g.AddService(avahi.IF_UNSPEC, avahi.PROTO_UNSPEC, dbus.UInt32(0),
-				self._name, self._serviceType, self._domain, self._host,
-				dbus.UInt16(self._port), self._text)
-
-		g.Commit()
-		self._group = g
-
-	def unpublish(self):
-		if self._group:
-			self._group.Reset()
 
 
 class Opsiconfd(OpsiService):
@@ -139,7 +83,6 @@ class Opsiconfd(OpsiService):
 		self._httpsPort = None
 		self._sessionHandler = None
 		self._statistics = None
-		self._zeroconfService = None
 		self._socket = None
 		self._debugShell = None
 
@@ -180,8 +123,6 @@ class Opsiconfd(OpsiService):
 	def stop(self):
 		logger.notice(u"Stopping opsiconfd main thread")
 		try:
-			if self._zeroconfService:
-				self._zeroconfService.unpublish()
 			if self._httpPort:
 				self._httpPort.stopListening()
 			if self._httpsPort:
@@ -195,8 +136,6 @@ class Opsiconfd(OpsiService):
 					self._backend.backend_exit()
 				except Exception:
 					pass
-			if self._socket:
-				self._socket.stopListening()
 
 			self._running = False
 		except Exception as e:
@@ -399,25 +338,6 @@ class Opsiconfd(OpsiService):
 
 		logger.notice(u"Accepting HTTPS requests on %s:%s" % (self.config['interface'], self.config['httpsPort']))
 
-	def _publish(self):
-		port = 0
-		name = "opsi configuration daemon"
-
-		if self._httpsPort is not None:
-			port = self.config['httpsPort']
-		elif self._httpPort is not None:
-			port = self.config['httpPort']
-		else:
-			logger.notice(u"No open port found, there is nothing to publish")
-			return
-
-		logger.notice(u"Publishing opsiconfd over zeroconf as '%s' on '%s'" % (name, port))
-		try:
-			self._zeroconfService = ZeroconfService(name=name, port=port)
-			self._zeroconfService.publish()
-		except Exception as e:
-			logger.error(u"Failed to publish opsiconfd over zeroconf: %s" % e)
-
 	def _startListeningSocket(self):
 		socket = self.config["socket"]
 
@@ -455,16 +375,11 @@ class Opsiconfd(OpsiService):
 		logger.notice(u"Starting opsiconfd main thread")
 		try:
 			reactor.addSystemEventTrigger("before", "shutdown", self.stop)
-			self._startListeningSocket()
 			self._createBackendInstance()
 			self._createSessionHandler()
 			with collectStatistics():
 				self._createSite()
 				self._startListening()
-				if self.config['loadbalancing']:
-					logger.debug(u"Loadbalancing is activated, zeroconf-publishing is deactivated")
-				else:
-					self._publish()
 
 				if self.config["debug"]:
 					self._startListeningShell()
@@ -578,7 +493,6 @@ class OpsiconfdInit(Application):
 			'dispatchConfigFile': u'/etc/opsi/backendManager/dispatch.conf',
 			'extensionConfigDir': u'/etc/opsi/backendManager/extend.d',
 			'aclFile': u'/etc/opsi/backendManager/acl.conf',
-			'socket': u'/var/run/opsiconfd/opsiconfd.socket',
 			'loadbalancing': False,
 			'profile': False,
 			'profiler': u'profiler',
@@ -699,8 +613,6 @@ class OpsiconfdInit(Application):
 							self.config['backendConfigDir'] = forceFilename(value)
 						elif option == 'dispatch config file':
 							self.config['dispatchConfigFile'] = forceFilename(value)
-						elif option == 'socket':
-							self.config['socket'] = forceFilename(value)
 						elif option == 'extension config dir':
 							self.config['extensionConfigDir'] = forceFilename(value)
 						elif option == 'acl file':
@@ -789,14 +701,13 @@ class OpsiconfdInit(Application):
 		print(u"  -i    IP address of interface to listen on (default: 0.0.0.0)")
 		print(u"  -f    Log to given file instead of syslog")
 		print(u"  -c    Location of config file")
-		print(u"  -s    Location of socket (default: /var/run/opsiconfd/opsiconfd.socket")
 		print(u"  -l    Set log level (default: 4)")
 		print(u"        0=nothing, 1=essential, 2=critical, 3=error, 4=warning")
 		print(u"        5=notice, 6=info, 7=debug, 8=debug2, 9=confidential")
 		print(u"")
 
 
-def main():
+def rumFromCommandline():
 	logger.setConsoleLevel(LOG_WARNING)
 
 	try:
@@ -811,4 +722,4 @@ def main():
 	return 0
 
 if __name__ == "__main__":
-	sys.exit(main())
+	sys.exit(rumFromCommandline())

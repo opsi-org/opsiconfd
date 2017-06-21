@@ -6,7 +6,7 @@ opsi-nagios-connector endpoint.
 opsi-nagios-connector is part of the desktop management solution opsi
 (open pc server integration) http://www.opsi.org
 
-Copyright (C) 2010-2016 uib GmbH
+Copyright (C) 2010-2017 uib GmbH
 
 http://www.uib.de/
 
@@ -514,14 +514,14 @@ class Monitoring(object):
 				continue
 
 			if depotId in actionRequestOnClient:
-				for product in actionRequestOnClient[depotId].keys():
-					message += "For product '%s' action set on '%d' clients! " % (product, len(actionRequestOnClient[depotId][product]))
+				for product, clients in actionRequestOnClient[depotId].items():
+					message += "For product '%s' action set on '%d' clients! " % (product, len(clients))
 			if depotId in productProblemsOnClient:
-				for product in productProblemsOnClient[depotId].keys():
-					message += "For product '%s' problems found on '%d' clients! " % (product, len(productProblemsOnClient[depotId][product]))
+				for product, clients in productProblemsOnClient[depotId].items():
+					message += "For product '%s' problems found on '%d' clients! " % (product, len(clients))
 			if depotId in productVersionProblemsOnClient:
-				for product in productVersionProblemsOnClient[depotId].keys():
-					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
+				for product, clients in productVersionProblemsOnClient[depotId].items():
+					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(clients))
 
 		if not verbose:
 			if state == State.OK:
@@ -536,24 +536,24 @@ class Monitoring(object):
 
 			if depotId in actionRequestOnClient:
 				message += "Action Request set for "
-				for product in actionRequestOnClient[depotId].keys():
+				for product, clients in actionRequestOnClient[depotId].items():
 					message += "product '%s': \n" % product
-					for item in actionRequestOnClient[depotId][product]:
-						message += "%s \n" % item
+					for client in clients:
+						message += "%s \n" % client
 
 			if depotId in productProblemsOnClient:
 				message += "Product Problems for "
-				for product in productProblemsOnClient[depotId].keys():
+				for product, clients in productProblemsOnClient[depotId].items():
 					message += "product '%s': \n" % product
-					for item in productProblemsOnClient[depotId][product]:
-						message += "%s \n" % item
+					for client in clients:
+						message += "%s \n" % client
 
 			if depotId in productVersionProblemsOnClient:
 				message += "Product Version difference found for: "
-				for product in productVersionProblemsOnClient[depotId].keys():
+				for product, clients in productVersionProblemsOnClient[depotId].items():
 					message += "product '%s': \n" % product
-					for item in productVersionProblemsOnClient[depotId][product]:
-						message += "%s \n" % item
+					for client in clients:
+						message += "%s \n" % client
 
 		if state == State.OK:
 			if productGroups:
@@ -612,10 +612,10 @@ class Monitoring(object):
 
 			if verbose:
 				message += u":\n"
-				for productId in sorted(differenceProducts.keys()):
+				for productId in sorted(differenceProducts):
 					message += u"product: '%s': " % productId
 					for depotId in depotIds:
-						if depotId in differenceProducts[productId]:
+						try:
 							if differenceProducts[productId][depotId] == "not installed":
 								message += u"%s (not installed) \n" % depotId
 							else:
@@ -624,7 +624,7 @@ class Monitoring(object):
 									productOnDepotInfo[depotId][productId].productVersion,
 									productOnDepotInfo[depotId][productId].packageVersion
 								)
-						else:
+						except KeyError:
 							if not productOnDepotInfo.get(depotId, {}).get(productId, None):
 								continue
 
@@ -698,7 +698,7 @@ class Monitoring(object):
 		if opsiresource:
 			resources = forceList(opsiresource)
 		else:
-			resources = self.service.config['staticDirectories'].keys()
+			resources = list(self.service.config['staticDirectories'])
 			resources.sort()
 
 		if warning.lower().endswith("g"):
@@ -733,8 +733,7 @@ class Monitoring(object):
 
 		if results:
 			state = State.OK
-			for result in results.keys():
-				info = results[result]
+			for result, info in results.items():
 				available = float(info['available']) / 1073741824
 				usage = info['usage'] * 100
 				if unit == "GB":

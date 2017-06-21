@@ -358,7 +358,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 			)
 		)
 
-		for resource in sorted(self.service.config['staticDirectories'].keys()):
+		for resource in sorted(self.service.config['staticDirectories']):
 			path = self.service.config['staticDirectories'][resource]['path']
 			if os.path.isdir(path):
 				if not resource.startswith('/'):

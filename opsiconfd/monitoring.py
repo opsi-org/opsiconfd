@@ -212,6 +212,20 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						result.stream = stream.IByteStream(res.encode('utf-8'))
 						return result
 
+			elif query["task"] == "checkShortProductStatus":
+				productId = query.get("param", {}).get("productId", "")
+				try:
+					try:
+						res = self.monitoring.checkShortProductStatus(productId = productId)
+					except Exception as e:
+						logger.logException(e, LOG_INFO)
+						res = { "state":"3", "message":str(e) }
+						res = res = json.dumps(res)
+				finally:
+					result.stream = stream.IByteStream(res.encode('utf-8'))
+					return result
+
+
 			elif query["task"] == "checkProductStatus":
 				productIds   = query.get("param", {}).get("productIds", [])
 				groupIds     = query.get("param", {}).get("groupIds", [])
@@ -420,7 +434,61 @@ class Monitoring(object):
 						}
 		return json.dumps(result)
 
-	def checkProductStatus(self, productIds = [], productGroups = [], hostGroupIds = [], depotIds = [], exclude=[], verbose = False):
+	def checkShortProductStatus(self, productId=None):
+		actionRequestOnClient = []
+		productProblemsOnClient = []
+		productVersionProblemsOnClient = []
+		targetProductVersion = None
+		targetPackackeVersion = None
+
+		state = self._OK
+		message = []
+
+		logger.debug("Checking shortly the productStates on Clients")
+		configServer = self.service._backend.host_getObjects(type="OpsiConfigserver")[0]
+		for pod in self.service._backend.productOnDepot_getObjects(depotId=configServer.id, productId=productId):
+			targetProductVersion = pod.productVersion
+			targetPackackeVersion = pod.packageVersion
+
+		productOnClients = self.service._backend.productOnClient_getObjects(productId=productId)
+
+		if not productOnClients:
+			return self._generateResponse(self._UNKNOWN, "No ProductStates found for product '%s'" % productId)
+
+		for poc in productOnClients:
+			if poc.actionRequest != 'none':
+				if state != self._CRITICAL:
+					state = self._WARNING
+				if not poc.clientId in actionRequestOnClient:
+					actionRequestOnClient.append(poc.clientId)
+					continue
+			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
+				state = self._CRITICAL
+				if not poc.clientId in productProblemsOnClient:
+					productProblemsOnClient.append(poc.clientId)
+
+			if not poc.productVersion or not poc.packageVersion:
+				continue
+			if poc.productVersion != targetProductVersion or poc.packageVersion != targetPackackeVersion:
+				if state != self._CRITICAL:
+					state = self._WARNING
+				if not poc.clientId in productVersionProblemsOnClient:
+					productVersionProblemsOnClient.append(poc.clientId)
+
+		if actionRequestOnClient:
+			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClient))
+		if productProblemsOnClient:
+			message.append("Problems found on '%d' clients" % len(productProblemsOnClient))
+		if productVersionProblemsOnClient:
+			message.append("Version difference found on '%d' clients" % len(productVersionProblemsOnClient))
+
+		if not message and state == self._OK:
+			message = "Product found on '%d'" % len(productOnClients)
+			return self._generateResponse(state,message)
+		else:
+			return self._generateResponse(state, "; ".join(message))
+
+	def checkProductStatus(self, productIds=[], productGroups=[], hostGroupIds=[], depotIds=[], exclude=[], verbose=False, short=False):
 		state = self._OK
 		clientsOnDepot = {}
 
@@ -480,7 +548,11 @@ class Monitoring(object):
 		finally:
 			self.service._backend.backend_setOptions({'addConfigStateDefaults': addConfigStateDefaults})
 
-
+		if short:
+			if len(productIds) > 1:
+				state = self._UNKNOWN
+				message = "shortProductStatusCheck supports only one product per check"
+			self.shortProductStatusCheck(productIds[0])
 
 		productOnDepotInfo = {}
 		for pod in self.service._backend.productOnDepot_getObjects(depotId = depotIds, productId = productIds):
@@ -508,6 +580,8 @@ class Monitoring(object):
 						productProblemsOnClient[depotId][poc.productId] = []
 					productProblemsOnClient[depotId][poc.productId].append(u"%s (%s lastAction: [%s])" % (poc.clientId, poc.actionResult, poc.lastAction))
 				if not poc.productVersion or not poc.packageVersion:
+					continue
+				if not productOnDepotInfo.has_key(depotId):
 					continue
 				if poc.productVersion != productOnDepotInfo[depotId][poc.productId]["productVersion"] or \
 					poc.packageVersion != productOnDepotInfo[depotId][poc.productId]["packageVersion"]:

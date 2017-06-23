@@ -433,7 +433,7 @@ class Monitoring(object):
 			productIds = []
 			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup',groupId=productGroups):
 				product = product.split(";")[2]
-				if not product in productIds:
+				if not product in productIds and product not in exclude:
 					productIds.append(product)
 		if not productIds:
 			state = self._UNKNOWN

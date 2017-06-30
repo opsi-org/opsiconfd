@@ -8,7 +8,7 @@
    opsi-nagios-connector is part of the desktop management solution opsi
    (open pc server integration) http://www.opsi.org
 
-   Copyright (C) 2010-2015 uib GmbH
+   Copyright (C) 2010-2017 uib GmbH
 
    http://www.uib.de/
 
@@ -213,10 +213,13 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						return result
 
 			elif query["task"] == "checkShortProductStatus":
-				productId = query.get("param", {}).get("productId", "")
+				productId = query.get("param", {}).get("productIds", [])[0]
+				threshold = {}
+				threshold["warning"] = (query.get("param", {}).get("warning", "20%"))
+				threshold["critical"] = (query.get("param", {}).get("critical", "20%"))
 				try:
 					try:
-						res = self.monitoring.checkShortProductStatus(productId = productId)
+						res = self.monitoring.checkShortProductStatus(productId = productId, thresholds=threshold)
 					except Exception as e:
 						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
@@ -434,15 +437,23 @@ class Monitoring(object):
 						}
 		return json.dumps(result)
 
-	def checkShortProductStatus(self, productId=None):
-		actionRequestOnClient = []
-		productProblemsOnClient = []
-		productVersionProblemsOnClient = []
+	def checkShortProductStatus(self, productId=None, thresholds={}):
+		actionRequestOnClients = []
+		productProblemsOnClients = []
+		productVersionProblemsOnClients = []
+		uptodateClients = []
 		targetProductVersion = None
 		targetPackackeVersion = None
 
 		state = self._OK
 		message = []
+
+		warning = thresholds.get("warning", "20")
+		critical = thresholds.get("critical", "20")
+		if warning.endswith("%"): warning = warning[:-1]
+		if critical.endswith("%"): critical = critical[:-1]
+		warning = float(warning)
+		critical = float(critical)
 
 		logger.debug("Checking shortly the productStates on Clients")
 		configServer = self.service._backend.host_getObjects(type="OpsiConfigserver")[0]
@@ -456,39 +467,44 @@ class Monitoring(object):
 			return self._generateResponse(self._UNKNOWN, "No ProductStates found for product '%s'" % productId)
 
 		for poc in productOnClients:
-			if poc.actionRequest != 'none':
-				if state != self._CRITICAL:
-					state = self._WARNING
-				if not poc.clientId in actionRequestOnClient:
-					actionRequestOnClient.append(poc.clientId)
-					continue
 			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
-				state = self._CRITICAL
-				if not poc.clientId in productProblemsOnClient:
-					productProblemsOnClient.append(poc.clientId)
+				if not poc.clientId in productProblemsOnClients:
+					productProblemsOnClients.append(poc.clientId)
+					continue
+
+			if poc.actionRequest != 'none':
+				if not poc.clientId in actionRequestOnClients:
+					actionRequestOnClients.append(poc.clientId)
+					continue
 
 			if not poc.productVersion or not poc.packageVersion:
 				continue
+
 			if poc.productVersion != targetProductVersion or poc.packageVersion != targetPackackeVersion:
-				if state != self._CRITICAL:
-					state = self._WARNING
-				if not poc.clientId in productVersionProblemsOnClient:
-					productVersionProblemsOnClient.append(poc.clientId)
+				productVersionProblemsOnClients.append(poc.clientId)
+				continue
 
-		if actionRequestOnClient:
-			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClient))
-		if productProblemsOnClient:
-			message.append("Problems found on '%d' clients" % len(productProblemsOnClient))
-		if productVersionProblemsOnClient:
-			message.append("Version difference found on '%d' clients" % len(productVersionProblemsOnClient))
+			if poc.actionResult == "successful":
+				uptodateClients.append(poc.clientId)
 
-		if not message and state == self._OK:
-			message = "Product found on '%d'" % len(productOnClients)
-			return self._generateResponse(state,message)
-		else:
-			return self._generateResponse(state, "; ".join(message))
+		message.append("'%d' ProductStates for product: '%s' found" % (len(productOnClients), productId))
+		if uptodateClients:
+			message.append("'%d' Clients are up to date" % len(uptodateClients))
+		if actionRequestOnClients and len(actionRequestOnClients)*100/len(productOnClients) > warning:
+			state = self._WARNING
+			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClients))
+		if productProblemsOnClients:
+			message.append("Problems found on '%d' clients" % len(productProblemsOnClients))
+		if productVersionProblemsOnClients:
+			message.append("Version difference found on '%d' clients" % len(productVersionProblemsOnClients))
 
-	def checkProductStatus(self, productIds=[], productGroups=[], hostGroupIds=[], depotIds=[], exclude=[], verbose=False, short=False):
+		problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
+		if problemClientsCount*100/len(productOnClients) > critical:
+			state = self._CRITICAL
+
+		return self._generateResponse(state, "; ".join(message))
+
+	def checkProductStatus(self, productIds=[], productGroups=[], hostGroupIds=[], depotIds=[], exclude=[], verbose=False):
 		state = self._OK
 		clientsOnDepot = {}
 
@@ -547,12 +563,6 @@ class Monitoring(object):
 
 		finally:
 			self.service._backend.backend_setOptions({'addConfigStateDefaults': addConfigStateDefaults})
-
-		if short:
-			if len(productIds) > 1:
-				state = self._UNKNOWN
-				message = "shortProductStatusCheck supports only one product per check"
-			self.shortProductStatusCheck(productIds[0])
 
 		productOnDepotInfo = {}
 		for pod in self.service._backend.productOnDepot_getObjects(depotId = depotIds, productId = productIds):

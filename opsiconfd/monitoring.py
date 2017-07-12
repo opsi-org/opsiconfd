@@ -472,12 +472,12 @@ class Monitoring(object):
 
 		for poc in productOnClients:
 			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
-				if not poc.clientId in productProblemsOnClients:
+				if poc.clientId not in productProblemsOnClients:
 					productProblemsOnClients.append(poc.clientId)
 					continue
 
 			if poc.actionRequest != 'none':
-				if not poc.clientId in actionRequestOnClients:
+				if poc.clientId not in actionRequestOnClients:
 					actionRequestOnClients.append(poc.clientId)
 					continue
 

@@ -456,10 +456,8 @@ class Monitoring(object):
 
 		warning = thresholds.get("warning", "20")
 		critical = thresholds.get("critical", "20")
-		if warning.endswith("%"): warning = warning[:-1]
-		if critical.endswith("%"): critical = critical[:-1]
-		warning = float(warning)
-		critical = float(critical)
+		warning = float(removePercent(warning))
+		critical = float(removePercent(critical))
 
 		logger.debug("Checking shortly the productStates on Clients")
 		configServer = self.service._backend.host_getObjects(type="OpsiConfigserver")[0]
@@ -930,3 +928,10 @@ class Monitoring(object):
 
 	def checkOpsiLicensePool(self, poolId='all'):
 		pass
+
+
+def removePercent(string):
+	if string.endswith("%"):
+		return string[:-1]
+	else:
+		return string

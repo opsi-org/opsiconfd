@@ -106,7 +106,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				moni_user = self.service.config['monitoringUser']
 				try:
 					moni_password = self.service._backend.user_getCredentials(username=moni_user)["password"]
-				except Exception,e:
+				except Exception as e:
 					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % moni_user)
 					return
 				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (moni_user, moni_password))
@@ -197,7 +197,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					try:
 						res = self.monitoring.checkClientStatus(clientId = clientId, excludeProductList = exclude)
-					except Exception,e:
+					except Exception as e:
 						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = res = json.dumps(res)
@@ -213,7 +213,10 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						return result
 
 			elif query["task"] == "checkShortProductStatus":
-				productId = query.get("param", {}).get("productIds", [])[0]
+				try:
+					productId = query.get("param", {}).get("productIds", [])[0]
+				except IndexError:
+					productId = None
 				threshold = {}
 				threshold["warning"] = (query.get("param", {}).get("warning", "20%"))
 				threshold["critical"] = (query.get("param", {}).get("critical", "20%"))
@@ -223,7 +226,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					except Exception as e:
 						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
-						res = res = json.dumps(res)
+						res = json.dumps(res)
 				finally:
 					result.stream = stream.IByteStream(res.encode('utf-8'))
 					return result
@@ -240,7 +243,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					try:
 						res = self.monitoring.checkProductStatus(productIds = productIds, productGroups = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
-					except Exception,e:
+					except Exception as e:
 						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = res = json.dumps(res)
@@ -258,7 +261,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					try:
 						res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict, verbose)
-					except Exception,e:
+					except Exception as e:
 						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = res = json.dumps(res)
@@ -279,7 +282,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					try:
 						res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
-					except Exception,e:
+					except Exception as e:
 						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = res = json.dumps(res)
@@ -294,7 +297,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					try:
 						res = self.monitoring.checkOpsiWebservice(cpu, errors)
-					except Exception,e:
+					except Exception as e:
 						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = json.dumps(res)
@@ -311,7 +314,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					try:
 						res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
-					except Exception,e:
+					except Exception as e:
 						logger.logException(e, LOG_INFO)
 						res = { "state":"3", "message":str(e) }
 						res = json.dumps(res)

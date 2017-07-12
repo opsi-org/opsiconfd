@@ -237,6 +237,26 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					logger.warning(errorMessage)
 					res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
 
+			elif task == "checkShortProductStatus":
+				try:
+					productId = params.get("productIds", [])[0]
+				except IndexError:
+					productId = None
+
+				threshold = {
+					"warning": params.get("warning", "20%"),
+					"critical": params.get("critical", "20%")
+				}
+
+				try:
+					res = self.monitoring.checkShortProductStatus(
+						productId=productId,
+						thresholds=threshold
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
+
 			elif task == "checkProductStatus":
 				try:
 					res = self.monitoring.checkProductStatus(
@@ -423,12 +443,78 @@ class Monitoring(object):
 
 		return json.dumps(result)
 
+	def checkShortProductStatus(self, productId=None, thresholds={}):
+		actionRequestOnClients = []
+		productProblemsOnClients = []
+		productVersionProblemsOnClients = []
+		uptodateClients = []
+		targetProductVersion = None
+		targetPackackeVersion = None
+
+		state = self._OK
+		message = []
+
+		warning = thresholds.get("warning", "20")
+		critical = thresholds.get("critical", "20")
+		warning = float(removePercent(warning))
+		critical = float(removePercent(critical))
+
+		logger.debug("Checking shortly the productStates on Clients")
+		configServer = self.service._backend.host_getObjects(type="OpsiConfigserver")[0]
+		for pod in self.service._backend.productOnDepot_getObjects(depotId=configServer.id, productId=productId):
+			targetProductVersion = pod.productVersion
+			targetPackackeVersion = pod.packageVersion
+
+		productOnClients = self.service._backend.productOnClient_getObjects(productId=productId)
+
+		if not productOnClients:
+			return self._generateResponse(self._UNKNOWN, "No ProductStates found for product '%s'" % productId)
+
+		for poc in productOnClients:
+			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
+				if poc.clientId not in productProblemsOnClients:
+					productProblemsOnClients.append(poc.clientId)
+					continue
+
+			if poc.actionRequest != 'none':
+				if poc.clientId not in actionRequestOnClients:
+					actionRequestOnClients.append(poc.clientId)
+					continue
+
+			if not poc.productVersion or not poc.packageVersion:
+				continue
+
+			if poc.productVersion != targetProductVersion or poc.packageVersion != targetPackackeVersion:
+				productVersionProblemsOnClients.append(poc.clientId)
+				continue
+
+			if poc.actionResult == "successful":
+				uptodateClients.append(poc.clientId)
+
+		message.append("'%d' ProductStates for product: '%s' found" % (len(productOnClients), productId))
+		if uptodateClients:
+			message.append("'%d' Clients are up to date" % len(uptodateClients))
+		if actionRequestOnClients and len(actionRequestOnClients)*100/len(productOnClients) > warning:
+			state = self._WARNING
+			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClients))
+		if productProblemsOnClients:
+			message.append("Problems found on '%d' clients" % len(productProblemsOnClients))
+		if productVersionProblemsOnClients:
+			message.append("Version difference found on '%d' clients" % len(productVersionProblemsOnClients))
+
+		problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
+		if problemClientsCount*100/len(productOnClients) > critical:
+			state = self._CRITICAL
+
+		return self._generateResponse(state, "; ".join(message))
+
 	def checkProductStatus(self, productIds=[], productGroups=[], hostGroupIds=[], depotIds=[], exclude=[], verbose=False):
 		if not productIds:
 			productIds = set()
 			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup', groupId=productGroups):
 				product = product.split(";")[2]
-				productIds.add(product)
+				if product not in exclude:
+					productIds.add(product)
 
 		if not productIds:
 			return self._generateResponse(State.UNKNOWN, u"Neither productId nor productGroup given, nothing to check!")
@@ -482,6 +568,7 @@ class Monitoring(object):
 		productVersionProblemsOnClient = defaultdict(lambda: defaultdict(list))
 		productProblemsOnClient = defaultdict(lambda: defaultdict(list))
 		actionRequestOnClient = defaultdict(lambda: defaultdict(list))
+
 		for depotId in depotIds:
 			for poc in self.service._backend.productOnClient_getObjects(productId=productIds, clientId=clientsOnDepot.get(depotId, None)):
 				if poc.actionRequest != 'none':
@@ -497,6 +584,9 @@ class Monitoring(object):
 					productProblemsOnClient[depotId][poc.productId].append(u"%s (%s lastAction: [%s])" % (poc.clientId, poc.actionResult, poc.lastAction))
 
 				if not poc.productVersion or not poc.packageVersion:
+					continue
+
+				if depotId not in productOnDepotInfo:
 					continue
 
 				if poc.productVersion != productOnDepotInfo[depotId][poc.productId]["productVersion"] or \
@@ -838,3 +928,10 @@ class Monitoring(object):
 
 	def checkOpsiLicensePool(self, poolId='all'):
 		pass
+
+
+def removePercent(string):
+	if string.endswith("%"):
+		return string[:-1]
+	else:
+		return string

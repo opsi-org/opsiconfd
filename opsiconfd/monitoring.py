@@ -216,7 +216,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					productId = query.get("param", {}).get("productIds", [])[0]
 				except IndexError:
-					raise("No productId given")
+					raise ValueError("No ProductId given")
 				threshold = {}
 				threshold["warning"] = (query.get("param", {}).get("warning", "20%"))
 				threshold["critical"] = (query.get("param", {}).get("critical", "20%"))

@@ -1,6 +1,7 @@
 .project
 .pydevproject
 .settings
+.idea
 *.pyc
 *.pyo
 *.egg-info

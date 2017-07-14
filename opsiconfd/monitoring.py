@@ -216,7 +216,11 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					productId = query.get("param", {}).get("productIds", [])[0]
 				except IndexError:
-					raise ValueError("No ProductId given")
+					res = {"state": "3", "message": "No ProductId given"}
+					res = json.dumps(res)
+					result.stream = stream.IByteStream(res.encode('utf-8'))
+					return result
+
 				threshold = {}
 				threshold["warning"] = (query.get("param", {}).get("warning", "20%"))
 				threshold["critical"] = (query.get("param", {}).get("critical", "20%"))

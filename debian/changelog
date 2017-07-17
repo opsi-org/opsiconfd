@@ -1,4 +1,4 @@
-opsiconfd (4.0.7.11-3) UNRELEASED; urgency=medium
+opsiconfd (4.0.7.11-3) stable; urgency=medium
 
   * systemd: always restart once the service exits.
 

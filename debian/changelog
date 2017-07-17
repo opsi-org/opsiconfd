@@ -1,3 +1,9 @@
+opsiconfd (4.0.7.11-3) stable; urgency=medium
+
+  * systemd: always restart once the service exits.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 17 Jul 2017 12:16:09 +0200
+
 opsiconfd (4.0.7.11-2) stable; urgency=medium
 
   * opsi-nagios-connector: better errorhandling

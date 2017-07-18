@@ -2,7 +2,7 @@
 Description=Opsi Configuration Service
 After=mysql.service
 After=smbd.service
-Requires=smbd.service
+Wants=smbd.service
 Wants=isc-dhcp-server.service
 Wants=mysql.service
 

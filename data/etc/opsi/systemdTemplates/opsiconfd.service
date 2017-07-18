@@ -2,9 +2,9 @@
 Description=Opsi Configuration Service
 After=mysql.service
 After=smbd.service
-Wants=smbd.service
 Wants=isc-dhcp-server.service
 Wants=mysql.service
+Wants=smbd.service
 
 [Service]
 User=opsiconfd

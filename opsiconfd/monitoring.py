@@ -494,7 +494,7 @@ class Monitoring(object):
 			if poc.actionResult == "successful":
 				uptodateClients.append(poc.clientId)
 
-		message.append("'%d' ProductStates for product: '%s' found" % (len(productOnClients), productId))
+		message.append("'%d' ProductStates for product: '%s' found; checking for Version: '%s' and Package: '%s'" % (len(productOnClients), productId, targetProductVersion, targetPackackeVersion))
 		if uptodateClients:
 			message.append("'%d' Clients are up to date" % len(uptodateClients))
 		if actionRequestOnClients and len(actionRequestOnClients)*100/len(productOnClients) > warning:

@@ -190,7 +190,7 @@ if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	dd if=/dev/urandom of=/tmp/opsiconfd.rand count=1 2>/dev/null
 	openssl req -new -x509 -days 1000 -nodes \
 		-config /tmp/opsiconfd.cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
-	openssl gendh -rand /tmp/opsiconfd.rand 512 >>/etc/opsi/opsiconfd.pem
+	openssl dhparam -rand /tmp/opsiconfd.rand 512 >>/etc/opsi/opsiconfd.pem
 	openssl x509 -subject -dates -fingerprint -noout -in /etc/opsi/opsiconfd.pem
 	rm -f /tmp/opsiconfd.rand /tmp/opsiconfd.cnf
 fi

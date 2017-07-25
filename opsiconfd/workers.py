@@ -3,7 +3,7 @@
 
 # opsiconfd is part of the desktop management solution opsi
 # (open pc server integration) http://www.opsi.org
-# Copyright (C) 2010-2015 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2017 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -61,11 +61,24 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
-			logger.setLogFile(self.service.config['logFile'].replace('%m', self.request.remoteAddr.host), object=obj)
+			machineName = self.request.remoteAddr.host
+			if not self.service.config['symlinkLogs']:
+				try:
+					machineName = self.session.hostname
+				except AttributeError:
+					# With a fresh session there may not yet be an
+					# hostname assigned to the session so this may fail.
+					pass
+
+			logger.setLogFile(self.service.config['logFile'].replace('%m', machineName), object=obj)
 
 	def _linkLogFile(self, result):
-		if self.session.hostname and self.service.config['machineLogs'] and self.service.config['logFile']:
+		def linkingRequired(config):
+			return config['machineLogs'] and config['logFile'] and config['symlinkLogs']
+
+		if self.session.hostname and linkingRequired(self.service.config):
 			logger.linkLogFile(self.service.config['logFile'].replace('%m', self.session.hostname), object=self)
+
 		return result
 
 	def _errback(self, failure):
@@ -145,6 +158,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 			logger.info(u"Hardware address '%s' found in backend, using '%s' as username" % (mac, user))
 
 		if self.session.isHost:
+			if not self.session.hostname:
+				logger.debug(u"Storing hostname {0!r} in session", user)
+				self.session.hostname = user
+
 			hosts = None
 			try:
 				hosts = self.service._backend.host_getObjects(type='OpsiClient', id=user)
@@ -202,11 +219,11 @@ class WorkerOpsiconfd(WorkerOpsi):
 				raise Exception(u"No password from %s (application: %s)" % (self.session.ip, self.session.userAgent))
 
 			if self.session.hostname and self.service.config['resolveVerifyIp'] and (self.session.user != self.service.config['fqdn']):
-				addressList = []
 				try:
-					(name, aliasList, addressList) = socket.gethostbyname_ex(self.session.hostname)
+					(_, _, addressList) = socket.gethostbyname_ex(self.session.hostname)
 				except Exception as error:
 					logger.warning(u"Failed to resolve hostname '%s': %s" % (self.session.hostname, error))
+					addressList = []
 
 				if self.session.ip not in addressList:
 					# Username (FQDN) of peer does not resolve to peer's ip address
@@ -445,10 +462,6 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		self.session.setLastRpcSuccessfullyDecoded(True)
 		return result
 
-	def _addRpcToStatistics(self, result, rpc):
-		self.service.statistics().addRpc(rpc)
-		return result
-
 	def _executeRpc(self, result, rpc):
 		self._setLogFile(rpc)
 		self.session.setLastRpcMethod(rpc.getMethodName())
@@ -460,6 +473,15 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 
 		result = WorkerOpsiJsonRpc._executeRpc(self, result, rpc)
 		result.addCallback(self._addRpcToStatistics, rpc)
+		result.addCallback(self._addUserAgentToStatistics)
+		return result
+
+	def _addRpcToStatistics(self, result, rpc):
+		self.service.statistics().addRpc(rpc)
+		return result
+
+	def _addUserAgentToStatistics(self, result):
+		self.service.statistics().addUserAgent(self.session.userAgent)
 		return result
 
 	def _decodeQuery(self, result):

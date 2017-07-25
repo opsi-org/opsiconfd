@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of python-opsi.
-# Copyright (C) 2010-2016 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2017 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -75,7 +75,7 @@ from monitoring import ResourceOpsiconfdMonitoring
 from session import OpsiconfdSessionHandler
 from omb import MessageBusService, OpsiconfdHTTPFactory, OpsiconfdHTTPChannel
 
-__version__ = "4.0.7.5.1"
+__version__ = "4.0.7.9"
 
 logger = Logger()
 
@@ -384,17 +384,23 @@ class Opsiconfd(OpsiService):
 			self._httpsPort = None
 			return
 
+		sslContext = SSLContext(
+			self.config['sslServerKeyFile'],
+			self.config['sslServerCertFile'],
+			acceptedCiphers=self.config['acceptedCiphers']
+		)
+
 		if self.config['interface'] == '0.0.0.0':
 			self._httpsPort = reactor.listenSSL(
 				self.config['httpsPort'],
 				OpsiconfdHTTPFactory(self._site),
-				SSLContext(self.config['sslServerKeyFile'], self.config['sslServerCertFile'])
+				sslContext
 			)
 		else:
 			self._httpsPort = reactor.listenSSL(
 				self.config['httpsPort'],
 				OpsiconfdHTTPFactory(self._site),
-				SSLContext(self.config['sslServerKeyFile'], self.config['sslServerCertFile']),
+				sslContext,
 				interface=self.config['interface']
 			)
 
@@ -572,6 +578,7 @@ class OpsiconfdInit(Application):
 			'maxExecutionStatisticValues': 250,
 			'sslServerCertFile': u'/etc/opsi/opsiconfd.pem',
 			'sslServerKeyFile': u'/etc/opsi/opsiconfd.pem',
+			'acceptedCiphers': '',
 			'sessionName': u'OPSISID',
 			'maxSessionsPerIp': 25,
 			'maxAuthenticationFailures': 5,
@@ -748,6 +755,8 @@ class OpsiconfdInit(Application):
 							self.config['sslServerCertFile'] = forceFilename(value)
 						elif option == 'ssl server key':
 							self.config['sslServerKeyFile'] = forceFilename(value)
+						elif option == 'accepted ciphers':
+							self.config['acceptedCiphers'] = forceUnicode(value)
 						else:
 							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
 

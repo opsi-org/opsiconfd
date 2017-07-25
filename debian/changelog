@@ -1,3 +1,80 @@
+opsiconfd (4.0.7.12-1) stable; urgency=medium
+
+  * opsi-nagios-connector: checkShortProductStatus added reference version for check in output.
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Mon, 24 Jul 2017 13:34:42 +0200
+
+opsiconfd (4.0.7.11-5) stable; urgency=medium
+
+  * systemd: Dependency to smbd is now soft.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 18 Jul 2017 13:33:39 +0200
+
+opsiconfd (4.0.7.11-4) stable; urgency=medium
+
+  * systemd: Fix typo in service regarding the restart.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 17 Jul 2017 21:46:07 +0200
+
+opsiconfd (4.0.7.11-3) stable; urgency=medium
+
+  * systemd: always restart once the service exits.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 17 Jul 2017 12:16:09 +0200
+
+opsiconfd (4.0.7.11-2) stable; urgency=medium
+
+  * opsi-nagios-connector: better errorhandling
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Fri, 14 Jul 2017 14:41:07 +0200
+
+opsiconfd (4.0.7.11-1) stable; urgency=medium
+
+  * opsi-nagios-connector: Small fixes
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Fri, 14 Jul 2017 14:14:19 +0200
+
+opsiconfd (4.0.7.10-1) stable; urgency=medium
+
+  * opsi-nagios-connector: new check: checkShortProductStatus implemented
+  * opsi-nagios-connector: small fixes in handling with excludes
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Mon, 03 Jul 2017 14:27:38 +0200
+
+opsiconfd (4.0.7.9-1) stable; urgency=medium
+
+  * Infopage now sorts the seen user agents and rpc calls case-insensitive.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 21 Apr 2017 15:10:02 +0200
+
+opsiconfd (4.0.7.8-1) stable; urgency=medium
+
+  * The infopage now shows what user agents have been seen during the
+    run of opsiconfd.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 30 Mar 2017 13:23:36 +0200
+
+opsiconfd (4.0.7.7-1) stable; urgency=medium
+
+  * Disabling "symlink logs" now has the desired effect that logs will
+    not be linked. Once a client is successful authenticated %m will be
+    replaced with the client ID instead of the IP in the logfile name.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 29 Mar 2017 10:36:50 +0200
+
+opsiconfd (4.0.7.6-2) experimental; urgency=low
+
+  * fixing broken logrotate on CentOS6 & RHEL6
+
+ -- Mathias Radtke <m.radtke@uib.de> Mon, 16 Jan 2017 09:37:00 +0100
+
+opsiconfd (4.0.7.6-1) experimental; urgency=medium
+
+  * Added support to configure the ciphers accepted by the opsiconfd when
+    creating an secured connection (https).
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 11 Jan 2017 14:53:01 +0100
+
 opsiconfd (4.0.7.5.3-2) stable; urgency=medium
 
   * opsiconfd.spec: deactivated removing su line from logrotate on SLES11SP4
@@ -6,7 +83,7 @@ opsiconfd (4.0.7.5.3-2) stable; urgency=medium
 
 opsiconfd (4.0.7.5.3-1) stable; urgency=medium
 
-  * opsiconfd.spec: added detection of SLES12SP2 & OpenSUSE Leap42.2 
+  * opsiconfd.spec: added detection of SLES12SP2 & OpenSUSE Leap42.2
 
  -- Mathias Radtke <m.radtke@uib.de>  Tue, 06 Dec 2016 15:28:13 +0100
 
@@ -30,6 +107,13 @@ opsiconfd (4.0.7.5-1) stable; urgency=medium
   * Refactored key verification code to be easier to debug.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 12 Sep 2016 16:08:32 +0200
+
+opsiconfd (4.0.7.4.1-1) stable; urgency=medium
+
+  * opsiconfd.workers: Make sure that "verify ip" has the desired effects if
+    a non-host connects with host credentials from a foreign address.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 13 Jan 2017 16:34:59 +0100
 
 opsiconfd (4.0.7.4-1) stable; urgency=medium
 

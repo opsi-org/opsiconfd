@@ -1,3 +1,9 @@
+opsiconfd (4.0.7.12-1) stable; urgency=medium
+
+  * opsi-nagios-connector: checkShortProductStatus added reference version for check in output.
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Mon, 24 Jul 2017 13:34:42 +0200
+
 opsiconfd (4.0.7.11-5) stable; urgency=medium
 
   * systemd: Dependency to smbd is now soft.

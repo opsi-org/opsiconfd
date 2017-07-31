@@ -153,7 +153,7 @@ if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	echo "RANDFILE = /tmp/opsiconfd.rand" 	>  /tmp/opsiconfd.cnf
 	echo "" 				>> /tmp/opsiconfd.cnf
 	echo "[ req ]" 				>> /tmp/opsiconfd.cnf
-	echo "default_bits = 1024" 		>> /tmp/opsiconfd.cnf
+	echo "default_bits = 2048" 		>> /tmp/opsiconfd.cnf
 	echo "encrypt_key = yes" 		>> /tmp/opsiconfd.cnf
 	echo "distinguished_name = req_dn" 	>> /tmp/opsiconfd.cnf
 	echo "x509_extensions = cert_type" 	>> /tmp/opsiconfd.cnf

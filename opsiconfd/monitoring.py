@@ -118,7 +118,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					monitoringPassword = self.service._backend.user_getCredentials(username=monitoringUsername)["password"]
 				except Exception as error:
-					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % monitoringUsername)
+					logger.error(u"Password not set, please check documentation for opsi-Nagios-Connector: Have you executed user_setCredentials for User: '%s'" % monitoringUsername)
 					return
 				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (monitoringUsername, monitoringPassword))
 			except Exception as error:
@@ -238,24 +238,26 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
 
 			elif task == "checkShortProductStatus":
+				res = None
 				try:
 					productId = params.get("productIds", [])[0]
 				except IndexError:
-					productId = None
+					res = json.dumps({"state": State.UNKNOWN, "message": "No ProductId given"})
 
-				threshold = {
-					"warning": params.get("warning", "20%"),
-					"critical": params.get("critical", "20%")
-				}
+				if res is None:  # no error encountered
+					threshold = {
+						"warning": params.get("warning", "20%"),
+						"critical": params.get("critical", "20%")
+					}
 
-				try:
-					res = self.monitoring.checkShortProductStatus(
-						productId=productId,
-						thresholds=threshold
-					)
-				except Exception as error:
-					logger.logException(error, LOG_INFO)
-					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
+					try:
+						res = self.monitoring.checkShortProductStatus(
+							productId=productId,
+							thresholds=threshold
+						)
+					except Exception as error:
+						logger.logException(error, LOG_INFO)
+						res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "checkProductStatus":
 				try:
@@ -491,7 +493,7 @@ class Monitoring(object):
 			if poc.actionResult == "successful":
 				uptodateClients.append(poc.clientId)
 
-		message.append("'%d' ProductStates for product: '%s' found" % (len(productOnClients), productId))
+		message.append("'%d' ProductStates for product: '%s' found; checking for Version: '%s' and Package: '%s'" % (len(productOnClients), productId, targetProductVersion, targetPackackeVersion))
 		if uptodateClients:
 			message.append("'%d' Clients are up to date" % len(uptodateClients))
 		if actionRequestOnClients and len(actionRequestOnClients)*100/len(productOnClients) > warning:

@@ -93,7 +93,7 @@ case "$1" in
 				dd if=/dev/urandom of=$tmp_opsiconfd_rand count=1 2>/dev/null
 				openssl req -new -x509 -days 1000 -nodes \
 					-config $tmp_opsiconfd_cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
-				openssl gendh -rand $tmp_opsiconfd_rand 512 >>/etc/opsi/opsiconfd.pem
+				openssl dhparam -rand $tmp_opsiconfd_rand 512 >>/etc/opsi/opsiconfd.pem
 				openssl x509 -subject -dates -fingerprint -noout -in /etc/opsi/opsiconfd.pem
 				rm -f $tmp_opsiconfd_rand $tmp_opsiconfd_cnf
 			fi

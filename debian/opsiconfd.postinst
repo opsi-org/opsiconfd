@@ -68,7 +68,7 @@ case "$1" in
 				echo "RANDFILE = $tmp_opsiconfd_rand" 	>  $tmp_opsiconfd_cnf
 				echo "" 				>> $tmp_opsiconfd_cnf
 				echo "[ req ]" 				>> $tmp_opsiconfd_cnf
-				echo "default_bits = 1024" 		>> $tmp_opsiconfd_cnf
+				echo "default_bits = 2048" 		>> $tmp_opsiconfd_cnf
 				echo "encrypt_key = yes" 		>> $tmp_opsiconfd_cnf
 				echo "distinguished_name = req_dn" 	>> $tmp_opsiconfd_cnf
 				echo "x509_extensions = cert_type" 	>> $tmp_opsiconfd_cnf
@@ -93,7 +93,7 @@ case "$1" in
 				dd if=/dev/urandom of=$tmp_opsiconfd_rand count=1 2>/dev/null
 				openssl req -new -x509 -days 1000 -nodes \
 					-config $tmp_opsiconfd_cnf -out /etc/opsi/opsiconfd.pem -keyout /etc/opsi/opsiconfd.pem
-				openssl gendh -rand $tmp_opsiconfd_rand 512 >>/etc/opsi/opsiconfd.pem
+				openssl dhparam -rand $tmp_opsiconfd_rand 512 >>/etc/opsi/opsiconfd.pem
 				openssl x509 -subject -dates -fingerprint -noout -in /etc/opsi/opsiconfd.pem
 				rm -f $tmp_opsiconfd_rand $tmp_opsiconfd_cnf
 			fi

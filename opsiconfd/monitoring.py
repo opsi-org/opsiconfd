@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
 opsi-nagios-connector endpoint.
@@ -118,7 +117,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				try:
 					monitoringPassword = self.service._backend.user_getCredentials(username=monitoringUsername)["password"]
 				except Exception as error:
-					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % monitoringUsername)
+					logger.error(u"Password not set, please check documentation for opsi-Nagios-Connector: Have you executed user_setCredentials for User: '%s'" % monitoringUsername)
 					return
 				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (monitoringUsername, monitoringPassword))
 			except Exception as error:
@@ -238,24 +237,26 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
 
 			elif task == "checkShortProductStatus":
+				res = None
 				try:
 					productId = params.get("productIds", [])[0]
 				except IndexError:
-					productId = None
+					res = json.dumps({"state": State.UNKNOWN, "message": "No ProductId given"})
 
-				threshold = {
-					"warning": params.get("warning", "20%"),
-					"critical": params.get("critical", "20%")
-				}
+				if res is None:  # no error encountered
+					threshold = {
+						"warning": params.get("warning", "20%"),
+						"critical": params.get("critical", "20%")
+					}
 
-				try:
-					res = self.monitoring.checkShortProductStatus(
-						productId=productId,
-						thresholds=threshold
-					)
-				except Exception as error:
-					logger.logException(error, LOG_INFO)
-					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
+					try:
+						res = self.monitoring.checkShortProductStatus(
+							productId=productId,
+							thresholds=threshold
+						)
+					except Exception as error:
+						logger.logException(error, LOG_INFO)
+						res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
 			elif task == "checkProductStatus":
 				try:
@@ -451,7 +452,7 @@ class Monitoring(object):
 		targetProductVersion = None
 		targetPackackeVersion = None
 
-		state = self._OK
+		state = State.OK
 		message = []
 
 		warning = thresholds.get("warning", "20")
@@ -468,7 +469,7 @@ class Monitoring(object):
 		productOnClients = self.service._backend.productOnClient_getObjects(productId=productId)
 
 		if not productOnClients:
-			return self._generateResponse(self._UNKNOWN, "No ProductStates found for product '%s'" % productId)
+			return self._generateResponse(State.UNKNOWN, "No ProductStates found for product '%s'" % productId)
 
 		for poc in productOnClients:
 			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
@@ -491,11 +492,11 @@ class Monitoring(object):
 			if poc.actionResult == "successful":
 				uptodateClients.append(poc.clientId)
 
-		message.append("'%d' ProductStates for product: '%s' found" % (len(productOnClients), productId))
+		message.append("'%d' ProductStates for product: '%s' found; checking for Version: '%s' and Package: '%s'" % (len(productOnClients), productId, targetProductVersion, targetPackackeVersion))
 		if uptodateClients:
 			message.append("'%d' Clients are up to date" % len(uptodateClients))
-		if actionRequestOnClients and len(actionRequestOnClients)*100/len(productOnClients) > warning:
-			state = self._WARNING
+		if actionRequestOnClients and len(actionRequestOnClients) * 100 / len(productOnClients) > warning:
+			state = State.WARNING
 			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClients))
 		if productProblemsOnClients:
 			message.append("Problems found on '%d' clients" % len(productProblemsOnClients))
@@ -503,8 +504,8 @@ class Monitoring(object):
 			message.append("Version difference found on '%d' clients" % len(productVersionProblemsOnClients))
 
 		problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
-		if problemClientsCount*100/len(productOnClients) > critical:
-			state = self._CRITICAL
+		if problemClientsCount * 100 / len(productOnClients) > critical:
+			state = State.CRITICAL
 
 		return self._generateResponse(state, "; ".join(message))
 

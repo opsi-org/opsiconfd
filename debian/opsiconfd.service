@@ -2,16 +2,16 @@
 Description=Opsi Configuration Service
 After=mysql.service
 After=smbd.service
-Requires=smbd.service
 Wants=isc-dhcp-server.service
 Wants=mysql.service
+Wants=smbd.service
 
 [Service]
 User=opsiconfd
 Type=forking
 ExecStart=/usr/bin/opsiconfd -D
 PIDFile=/var/run/opsiconfd/opsiconfd.pid
-Restart=on-failure
+Restart=always
 RestartSec=10
 KillMode=process
 TimeoutStopSec=10

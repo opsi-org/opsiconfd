@@ -495,7 +495,7 @@ class Monitoring(object):
 		message.append("'%d' ProductStates for product: '%s' found; checking for Version: '%s' and Package: '%s'" % (len(productOnClients), productId, targetProductVersion, targetPackackeVersion))
 		if uptodateClients:
 			message.append("'%d' Clients are up to date" % len(uptodateClients))
-		if actionRequestOnClients and len(actionRequestOnClients)*100/len(productOnClients) > warning:
+		if actionRequestOnClients and len(actionRequestOnClients) * 100 / len(productOnClients) > warning:
 			state = State.WARNING
 			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClients))
 		if productProblemsOnClients:
@@ -504,7 +504,7 @@ class Monitoring(object):
 			message.append("Version difference found on '%d' clients" % len(productVersionProblemsOnClients))
 
 		problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
-		if problemClientsCount*100/len(productOnClients) > critical:
+		if problemClientsCount * 100 / len(productOnClients) > critical:
 			state = State.CRITICAL
 
 		return self._generateResponse(state, "; ".join(message))

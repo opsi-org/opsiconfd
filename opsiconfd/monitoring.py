@@ -452,7 +452,7 @@ class Monitoring(object):
 		targetProductVersion = None
 		targetPackackeVersion = None
 
-		state = self._OK
+		state = State.OK
 		message = []
 
 		warning = thresholds.get("warning", "20")
@@ -469,7 +469,7 @@ class Monitoring(object):
 		productOnClients = self.service._backend.productOnClient_getObjects(productId=productId)
 
 		if not productOnClients:
-			return self._generateResponse(self._UNKNOWN, "No ProductStates found for product '%s'" % productId)
+			return self._generateResponse(State.UNKNOWN, "No ProductStates found for product '%s'" % productId)
 
 		for poc in productOnClients:
 			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
@@ -496,7 +496,7 @@ class Monitoring(object):
 		if uptodateClients:
 			message.append("'%d' Clients are up to date" % len(uptodateClients))
 		if actionRequestOnClients and len(actionRequestOnClients)*100/len(productOnClients) > warning:
-			state = self._WARNING
+			state = State.WARNING
 			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClients))
 		if productProblemsOnClients:
 			message.append("Problems found on '%d' clients" % len(productProblemsOnClients))
@@ -505,7 +505,7 @@ class Monitoring(object):
 
 		problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
 		if problemClientsCount*100/len(productOnClients) > critical:
-			state = self._CRITICAL
+			state = State.CRITICAL
 
 		return self._generateResponse(state, "; ".join(message))
 

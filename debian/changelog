@@ -1,3 +1,9 @@
+opsiconfd (4.0.7.13-2) testing; urgency=medium
+
+  * Only running invoke-rc.d if configuring and not always.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 07 Sep 2017 17:34:42 +0200
+
 opsiconfd (4.0.7.13-1) experimental; urgency=medium
 
   * gendh is obsolete: replaced with dhparam

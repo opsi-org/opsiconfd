@@ -1,7 +1,7 @@
 #! /bin/bash -e
 
 # = = = = = = = = = = = = = = = = = = = = = = =
-# =     Copyright (C) 2010-2015 uib GmbH      =
+# =     Copyright (C) 2010-2017 uib GmbH      =
 # =           http://www.uib.de               =
 # =          All rights reserved.             =
 # = = = = = = = = = = = = = = = = = = = = = = =
@@ -130,6 +130,16 @@ case "$1" in
 				$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 			fi
 		fi
+
+		if [ -x "/etc/init.d/opsiconfd" ]; then
+			update-rc.d -f opsiconfd remove >/dev/null || true
+			update-rc.d opsiconfd defaults 80 20 >/dev/null
+			if [ -x "`which invoke-rc.d 2>/dev/null`" ]; then
+				invoke-rc.d opsiconfd start || true
+			else
+				/etc/init.d/opsiconfd start || true
+			fi
+		fi
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)
@@ -143,13 +153,3 @@ case "$1" in
 esac
 
 db_stop
-
-if [ -x "/etc/init.d/opsiconfd" ]; then
-	update-rc.d -f opsiconfd remove >/dev/null || true
-	update-rc.d opsiconfd defaults 80 20 >/dev/null
-	if [ -x "`which invoke-rc.d 2>/dev/null`" ]; then
-		invoke-rc.d opsiconfd start || true
-	else
-		/etc/init.d/opsiconfd start || true
-	fi
-fi

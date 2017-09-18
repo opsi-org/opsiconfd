@@ -129,16 +129,12 @@ case "$1" in
 				$systemctl daemon-reload || echo "Reloading unit-files failed!"
 				$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 			fi
-		fi
-
-		if [ -x "/etc/init.d/opsiconfd" ]; then
-			update-rc.d -f opsiconfd remove >/dev/null || true
-			update-rc.d opsiconfd defaults 80 20 >/dev/null
-			if [ -x "`which invoke-rc.d 2>/dev/null`" ]; then
-				invoke-rc.d opsiconfd start || true
-			else
-				/etc/init.d/opsiconfd start || true
+		else
+			if [ -x "/etc/init.d/opsiconfd" ]; then
+				update-rc.d -f opsiconfd remove >/dev/null || true
+				update-rc.d opsiconfd defaults 80 20 >/dev/null
 			fi
+			/usr/sbin/service opsiconfd start || true
 		fi
 	;;
 

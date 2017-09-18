@@ -1,12 +1,13 @@
 #! /bin/bash -e
 
 # = = = = = = = = = = = = = = = = = = = = = = =
-# =       Copyright (C) 2010 uib GmbH         =
+# =     Copyright (C) 2010-2017 uib GmbH      =
 # =           http://www.uib.de               =
 # =          All rights reserved.             =
 # = = = = = = = = = = = = = = = = = = = = = = =
 
-if [ -x /etc/init.d/opsiconfd ]; then /etc/init.d/opsiconfd stop || true; fi
+set +e
+/usr/sbin/service opsiconfd stop || echo "Failed to stop opsiconfd."
+set -e
 
 #DEBHELPER#
-

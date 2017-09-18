@@ -134,8 +134,9 @@ case "$1" in
 				update-rc.d -f opsiconfd remove >/dev/null || true
 				update-rc.d opsiconfd defaults 80 20 >/dev/null
 			fi
-			/usr/sbin/service opsiconfd start || true
 		fi
+
+		/usr/sbin/service opsiconfd start || true
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)

@@ -6,6 +6,8 @@
 # =          All rights reserved.             =
 # = = = = = = = = = = = = = = = = = = = = = = =
 
-/usr/sbin/service opsiconfd stop || true
+set +e
+/usr/sbin/service opsiconfd stop || echo "Failed to stop opsiconfd."
+set -e
 
 #DEBHELPER#

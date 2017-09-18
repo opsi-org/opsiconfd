@@ -1,3 +1,10 @@
+opsiconfd (4.0.7.13-3) testing; urgency=medium
+
+  * Debian: Refactorings in postinst and prerm to have less
+    init-system-specific code-paths.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 18 Sep 2017 15:18:30 +0200
+
 opsiconfd (4.0.7.13-2) testing; urgency=medium
 
   * Only running invoke-rc.d if configuring and not always.

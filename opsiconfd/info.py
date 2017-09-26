@@ -313,7 +313,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 					'{0} secs'.format(expiredSession['exipredAfterSeconds']),
 					expiredSession['ip'],
 					expiredSession['user'],
-					expiredSession['userAgent'],
+					cgi.escape(expiredSession['userAgent']),
 					expiredSession['lastRpcMethod']
 				)
 			)
@@ -331,7 +331,7 @@ class WorkerOpsiconfdInfo(WorkerOpsiconfd):
 
 		userAgentsAndCount = self.service.statistics().getUserAgents()
 		for userAgent, count in sorted(userAgentsAndCount.items(), key=lambda x: x[0].upper()):
-			userAgentsInfo.append(u'<tr><td>{agent}</td><td>{requests}</td></tr>'.format(agent=userAgent, requests=count))
+			userAgentsInfo.append(u'<tr><td>{agent}</td><td>{requests}</td></tr>'.format(agent=cgi.escape(userAgent), requests=count))
 
 		userAgentsInfo.append(u'</table>')
 

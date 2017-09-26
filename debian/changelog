@@ -1,3 +1,9 @@
+opsiconfd (4.0.7.14-1) stable; urgency=medium
+
+  * Info page: Fix possible data injection through a clients User Agent.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 26 Sep 2017 17:40:50 +0200
+
 opsiconfd (4.0.7.13-4) testing; urgency=medium
 
   * Uninstalling opsiconfd is now possible even though the stopping of

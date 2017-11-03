@@ -63,7 +63,6 @@ from .statistics import Statistics
 from .monitoring import ResourceOpsiconfdMonitoring
 from .session import OpsiconfdSessionHandler
 
-
 logger = Logger()
 
 

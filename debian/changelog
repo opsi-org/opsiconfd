@@ -159,6 +159,32 @@ opsiconfd (4.1.1.1-1) experimental; urgency=medium
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 16 Sep 2016 12:12:24 +0200
 
+opsiconfd (4.0.7.14-1) stable; urgency=medium
+
+  * Info page: Fix possible data injection through a clients User Agent.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 26 Sep 2017 17:40:50 +0200
+
+opsiconfd (4.0.7.13-4) testing; urgency=medium
+
+  * Uninstalling opsiconfd is now possible even though the stopping of
+    the service in prerm may fail.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 18 Sep 2017 16:49:43 +0200
+
+opsiconfd (4.0.7.13-3) testing; urgency=medium
+
+  * Debian: Refactorings in postinst and prerm to have less
+    init-system-specific code-paths.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 18 Sep 2017 15:18:30 +0200
+
+opsiconfd (4.0.7.13-2) testing; urgency=medium
+
+  * Only running invoke-rc.d if configuring and not always.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 07 Sep 2017 17:34:42 +0200
+
 opsiconfd (4.0.7.13-1) experimental; urgency=medium
 
   * gendh is obsolete: replaced with dhparam

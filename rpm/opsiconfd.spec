@@ -194,7 +194,7 @@ systemctl=`which systemctl 2>/dev/null` || true
 if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
 	$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 
-	if [ $arg0 -eq 1 ]; then
+	if [ -n "$arg0" -a $arg0 -eq 1 ]; then
 		# Install
 		$systemctl start opsiconfd.service || true
 	else

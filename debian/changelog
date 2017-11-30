@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.10-2) stable; urgency=medium
+
+  * RPM: fix syntax error on upgrading.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 30 Nov 2017 09:33:10 +0100
+
 opsiconfd (4.1.1.10-1) stable; urgency=medium
 
   * Based source on 4.0.7.14.

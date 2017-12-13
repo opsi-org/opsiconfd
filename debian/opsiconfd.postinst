@@ -106,6 +106,12 @@ case "$1" in
 
 		chmod 770 /var/lib/opsiconfd/rrd
 		chown opsiconfd:opsiadmin /var/lib/opsiconfd/rrd
+
+		systemctl=`which systemctl 2>/dev/null`
+		if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
+			$systemctl daemon-reload || echo "Reloading unit-files failed!"
+			$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+		fi
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)

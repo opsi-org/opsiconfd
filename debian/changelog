@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.10-3) stable; urgency=medium
+
+  * .deb: Enable opsiconfd.service in postinst.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 13 Dec 2017 15:20:47 +0100
+
 opsiconfd (4.1.1.10-2) stable; urgency=medium
 
   * RPM: fix syntax error on upgrading.

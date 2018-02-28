@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # This file is part of python-opsi.
@@ -91,7 +90,7 @@ class Statistics(object):
 		self._stime = 0.0
 		self._last = time.time()
 		self._rrdConfig = {
-			'step': 60,
+			'step': 60,  # in seconds
 			'heartbeat': 120,
 			'xPoints': 800,
 			'yPoints': 160,
@@ -132,27 +131,34 @@ class Statistics(object):
 			os.unlink(self._rrdConfig['rrdFile'])
 
 		start = int(time.time())
-		logger.notice(u"Creating rrd '%s', start: %s" % (self._rrdConfig['rrdFile'], start))
+		logger.notice(u"Creating rrd '{rrdFile}', start: {0}", start, rrdFile=self._rrdConfig['rrdFile'])
 
-		rrdtool.create(str(self._rrdConfig['rrdFile']), '--start', str(start), '--step', str(self._rrdConfig['step']),
-			'DS:requests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:sessions:DERIVE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:davrequests:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:rpcs:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:rpcerrors:ABSOLUTE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:cpu:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:mem:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'DS:threads:GAUGE:%d:0:U' % self._rrdConfig['heartbeat'],
-			'RRA:AVERAGE:0.5:%d:%d' % (1, (3600 / self._rrdConfig['step'])),    # hour
-			'RRA:AVERAGE:0.5:%d:%d' % (1, (3600 / self._rrdConfig['step']) * 24), # day
-			'RRA:AVERAGE:0.5:%d:%d' % (7, (3600 / self._rrdConfig['step']) * 24), # week
-			'RRA:AVERAGE:0.5:%d:%d' % (31, (3600 / self._rrdConfig['step']) * 24), # month
-			'RRA:AVERAGE:0.5:%d:%d' % (365, (3600 / self._rrdConfig['step']) * 24), # year
-			'RRA:MAX:0.5:%d:%d' % (1, (3600 / self._rrdConfig['step'])),    # hour
-			'RRA:MAX:0.5:%d:%d' % (1, (3600 / self._rrdConfig['step']) * 24), # day
-			'RRA:MAX:0.5:%d:%d' % (7, (3600 / self._rrdConfig['step']) * 24), # week
-			'RRA:MAX:0.5:%d:%d' % (31, (3600 / self._rrdConfig['step']) * 24), # month
-			'RRA:MAX:0.5:%d:%d' % (365, (3600 / self._rrdConfig['step']) * 24), # year
+		step = 3600 / self._rrdConfig['step']
+		stepForDay = step * 24
+		heartbeat = self._rrdConfig['heartbeat']
+
+		rrdtool.create(
+			str(self._rrdConfig['rrdFile']),
+			'--start', str(start),
+			'--step', str(self._rrdConfig['step']),
+			'DS:requests:ABSOLUTE:%d:0:U' % heartbeat,
+			'DS:sessions:DERIVE:%d:0:U' % heartbeat,
+			'DS:davrequests:ABSOLUTE:%d:0:U' % heartbeat,
+			'DS:rpcs:ABSOLUTE:%d:0:U' % heartbeat,
+			'DS:rpcerrors:ABSOLUTE:%d:0:U' % heartbeat,
+			'DS:cpu:GAUGE:%d:0:U' % heartbeat,
+			'DS:mem:GAUGE:%d:0:U' % heartbeat,
+			'DS:threads:GAUGE:%d:0:U' % heartbeat,
+			'RRA:AVERAGE:0.5:1:%d' % step,  # hour
+			'RRA:AVERAGE:0.5:1:%d' % stepForDay,  # day
+			'RRA:AVERAGE:0.5:7:%d' % stepForDay,  # week
+			'RRA:AVERAGE:0.5:31:%d' % stepForDay,  # month
+			'RRA:AVERAGE:0.5:365:%d' % stepForDay,  # year
+			'RRA:MAX:0.5:1:%d' % step,  # hour
+			'RRA:MAX:0.5:1:%d' % stepForDay,  # day
+			'RRA:MAX:0.5:7:%d' % stepForDay,  # week
+			'RRA:MAX:0.5:31:%d' % stepForDay,  # month
+			'RRA:MAX:0.5:365:%d' % stepForDay,  # year
 		)
 
 	def getStatistics(self):
@@ -174,7 +180,7 @@ class Statistics(object):
 			}
 		except Exception as error:
 			logger.logException(error)
-			logger.error(u"Failed to get Statistics: %s" % error)
+			logger.error(u"Failed to get Statistics: {0}", error)
 			return {}
 
 	def _getOwnResourceUsage(self, currentTime, unixtimeOfLastCall):
@@ -209,18 +215,17 @@ class Statistics(object):
 			self._last = now
 
 			threadCount = len([thread for thread in threading.enumerate()])
-			rrdValues = '%d:%d:%d:%d:%d:%d:%d:%d:%d' \
-				% (now, self._rrdCache['requests'], self._rrdCache['sessions'],
-					self._rrdCache['davrequests'], self._rrdCache['rpcs'],
-					self._rrdCache['rpcerrors'], cpu, virtMem, threadCount)
-			logger.debug2(u'Updating rrd: {0}'.format(rrdValues))
+			rrdValues = '{0:d}:{requests:d}:{sessions:d}:{davrequests:d}:{rpcs:d}:{rpcerrors:d}:{1:d}:{2:d}:{3:d}'.format(
+				now, cpu, virtMem, threadCount, **self._rrdCache
+			)
+			logger.debug2(u'Updating rrd: {0}', rrdValues)
 			rrdtool.update(str(self._rrdConfig['rrdFile']), rrdValues)
 			self._rrdCache['requests'] = 0
 			self._rrdCache['davrequests'] = 0
 			self._rrdCache['rpcs'] = 0
 			self._rrdCache['rpcerrors'] = 0
 		except Exception as error:
-			logger.error(u"Failed to update rrd: %s" % error)
+			logger.error(u"Failed to update rrd: {0}", error)
 
 	def getRrdGraphImage(self, imageType, range):
 		"""
@@ -241,14 +246,15 @@ information about the host.
 		end = int(time.time())
 		start = end - range
 
-		logger.debug(u"Creating rrd graph image '%s', start: %s, end: %s" % (graphImage, start, end))
+		logger.debug(u"Creating rrd graph image '{0}', start: {1}, end: {2}", graphImage, start, end)
 
 		if os.path.exists(graphImage):
 			os.unlink(graphImage)
 		# TODO: for the imageType use some kind of constant
 
 		if imageType == 1:
-			rrdtool.graph(str(graphImage),
+			rrdtool.graph(
+				str(graphImage),
 				'--imgformat', 'PNG',
 				'--width', str(self._rrdConfig['xPoints']),
 				'--height', str(self._rrdConfig['yPoints']),
@@ -256,7 +262,7 @@ information about the host.
 				'--end', str(end),
 				'--vertical-label', 'avg per minute',
 				'--lower-limit', str(0),
-				'--units-exponent', str(0), # don't show milli-messages/s
+				'--units-exponent', str(0),  # don't show milli-messages/s
 				'--slope-mode',
 				'--color', 'SHADEA#ffffff',
 				'--color', 'SHADEB#ffffff',
@@ -305,7 +311,8 @@ information about the host.
 				'COMMENT:[%s]\\r' % date,
 			)
 		else:
-			rrdtool.graph(str(graphImage),
+			rrdtool.graph(
+				str(graphImage),
 				'--imgformat', 'PNG',
 				'--width', str(self._rrdConfig['xPoints']),
 				'--height', str(self._rrdConfig['yPoints']),
@@ -313,7 +320,7 @@ information about the host.
 				'--end', str(end),
 				'--vertical-label', '% / num / MByte*0.1',
 				'--lower-limit', str(0),
-				'--units-exponent', str(0), # don't show milli-messages/s
+				'--units-exponent', str(0),  # don't show milli-messages/s
 				'--slope-mode',
 				'--color', 'SHADEA#ffffff',
 				'--color', 'SHADEB#ffffff',

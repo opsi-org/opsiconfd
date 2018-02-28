@@ -1,44 +1,53 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
-   = = = = = = = = = = = = = = = = =
-   =   opsi configuration daemon   =
-   = = = = = = = = = = = = = = = = =
+opsi-nagios-connector endpoint.
 
-   opsi-nagios-connector is part of the desktop management solution opsi
-   (open pc server integration) http://www.opsi.org
+opsi-nagios-connector is part of the desktop management solution opsi
+(open pc server integration) http://www.opsi.org
 
-   Copyright (C) 2010-2017 uib GmbH
+Copyright (C) 2010-2017 uib GmbH
 
-   http://www.uib.de/
+http://www.uib.de/
 
-   All rights reserved.
+All rights reserved.
 
-   @copyright:  uib GmbH <info@uib.de>
-   @author: Erol Ueluekmen <e.ueluekmen@uib.de>
+@copyright:  uib GmbH <info@uib.de>
+@author: Erol Ueluekmen <e.ueluekmen@uib.de>
 """
 
-import datetime
 import base64
+import datetime
 import json
 import os
 import re
 import time
+from collections import defaultdict
 from hashlib import md5
 from twisted.internet import defer
 from twisted.conch.ssh import keys
 
-from OPSI.web2 import http, stream
-from OPSI.Service.Worker import WorkerOpsi
-from OPSI.Object import *
-from OPSI.System import getDiskSpaceUsage
-from OPSI.Types import OpsiAuthenticationError
-
-from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Logger import LOG_INFO, Logger
+from OPSI.Service.Resource import ResourceOpsi
+from OPSI.Service.Worker import WorkerOpsi
+from OPSI.System import getDiskSpaceUsage
+from OPSI.Exceptions import OpsiAuthenticationError
 from OPSI.Types import forceList
+from OPSI.web2 import http, stream
 
 logger = Logger()
+
+
+class State:
+	OK = 0
+	WARNING = 1
+	CRITICAL = 2
+	UNKNOWN = 3
+
+	_stateText = [u"OK", u"WARNING", u"CRITICAL", u"UNKNOWN"]
+
+	@classmethod
+	def text(cls, state):
+		return cls._stateText[state]
 
 
 class WorkerOpsiconfdMonitoring(WorkerOpsi):
@@ -48,10 +57,12 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 		self._setLogFile(self)
 		self.monitoring = None
 
-
 	def _setLogFile(self, obj):
 		if self._debug:
-			logger.setLogFile( self.service.config['logFile'].replace('%m', 'monitoring'), object =obj )
+			logger.setLogFile(
+				self.service.config['logFile'].replace('%m', 'monitoring'),
+				object=obj
+			)
 
 	def process(self):
 		logger.info(u"Worker %s started processing" % self)
@@ -68,7 +79,8 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 		self._decodeQuery(result)
 
 	def _getAuthorization(self):
-		(user, password) = (u'', u'')
+		user = u''
+		password = u''
 		logger.debug(u"Trying to get username and password from Authorization header")
 		auth = self.request.headers.getHeader('Authorization')
 		if auth:
@@ -78,7 +90,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 				logger.confidential(u"Auth encoded: %s" % encoded)
 				parts = unicode(base64.decodestring(encoded), 'latin-1').split(':')
-				if (len(parts) > 6):
+				if len(parts) > 6:
 					user = u':'.join(parts[:6])
 					password = u':'.join(parts[6:])
 				else:
@@ -86,8 +98,8 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					password = u':'.join(parts[1:])
 				user = user.strip()
 				logger.confidential(u"Plugin supplied username '%s' and password '%s'" % (user, password))
-			except Exception as e:
-				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, e))
+			except Exception as error:
+				logger.error(u"Bad Authorization header from '%s': %s" % (self.request.remoteAddr.host, error))
 		return (user, password)
 
 	def _getCredentials(self):
@@ -98,22 +110,22 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 		try:
 			# Get authorization from header
-			(user, password) = self._getCredentials()
+			user, password = self._getCredentials()
 
 			try:
-				moni_password = False
-				moni_user = False
-				moni_user = self.service.config['monitoringUser']
+				monitoringUsername = self.service.config['monitoringUser']
 				try:
-					moni_password = self.service._backend.user_getCredentials(username=moni_user)["password"]
-				except Exception as e:
-					logger.error(u"Password not set, please check documentation from opsi-Nagios-Connector: Have you execute user_setCredentials for User: '%s'" % moni_user)
+					monitoringPassword = self.service._backend.user_getCredentials(username=monitoringUsername)["password"]
+				except Exception as error:
+					logger.error(u"Password not set, please check documentation for opsi-Nagios-Connector: Have you executed user_setCredentials for User: '%s'" % monitoringUsername)
 					return
-				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (moni_user, moni_password))
-			except Exception as e:
-				logger.logException(e, LOG_INFO)
+				logger.confidential(u"Monitoring User Credentials are: user: '%s' password: '%s'" % (monitoringUsername, monitoringPassword))
+			except Exception as error:
+				monitoringPassword = False
+				monitoringUsername = False
+				logger.logException(error, LOG_INFO)
 
-			if user == moni_user and password == moni_password:
+			if user == monitoringUsername and password == monitoringPassword:
 
 				if not self.monitoring:
 					backendinfo = self.service._backend.backend_info()
@@ -131,23 +143,27 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						self.monitoring = u"Disabling monitoring module: modules file expired"
 					else:
 
-						publicKey = keys.Key.fromString(data = base64.decodestring('AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDojY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDUlk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP')).keyObject
-						data = u''; mks = modules.keys(); mks.sort()
+						publicKey = keys.Key.fromString(data=base64.decodestring('AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDojY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDUlk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP')).keyObject
+						data = u''
+						mks = modules.keys()
+						mks.sort()
 						for module in mks:
 							if module in ('valid', 'signature'):
 								continue
 
-							if helpermodules.has_key(module):
+							if module in helpermodules:
 								val = helpermodules[module]
 								if int(val) > 0:
 									modules[module] = True
 							else:
 								val = modules[module]
-								if (val == False): val = 'no'
-								if (val == True):  val = 'yes'
+								if val is False:
+									val = 'no'
+								if val is True:
+									val = 'yes'
 
 							data += u'%s = %s\r\n' % (module.lower().strip(), val)
-						if not bool(publicKey.verify(md5(data).digest(), [ long(modules['signature']) ])):
+						if not bool(publicKey.verify(md5(data).digest(), [long(modules['signature'])])):
 							logger.error(u"Disabling monitoring module: modules file invalid")
 							self.monitoring = u'Module monitoring is Disabled, please contact info@uib.de for activation.'
 						else:
@@ -161,9 +177,9 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 			else:
 				logger.error(u"Wrong credentials, please check your configurations.")
 
-		except Exception as e:
-			logger.logException(e, LOG_INFO)
-			raise OpsiAuthenticationError(u"Forbidden: %s" % e)
+		except Exception as error:
+			logger.logException(error, LOG_INFO)
+			raise OpsiAuthenticationError(u"Forbidden: %s" % error)
 		return result
 
 	def _authorize(self):
@@ -175,164 +191,148 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 		if self.query:
 			query = json.loads(self.query)
-			if not query.has_key("task"):
-				res = {
-					"state": 3,
+
+			try:
+				task = query['task']
+			except KeyError:
+				res = json.dumps({
+					"state": State.UNKNOWN,
 					"message": u"No task set, nothing to do"
-				}
-				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
+				})
+				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
 			if not isinstance(self.monitoring, Monitoring):
-				res = {}
-				res["state"] = "3"
-				res["message"] = self.monitoring
-				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
+				res = json.dumps({
+					"state": State.UNKNOWN,
+					"message": self.monitoring
+				})
+
+				result.stream = stream.IByteStream(res.encode('utf-8'))
 				return result
 
-			if query["task"] == "checkClientStatus":
-				exclude = query.get("param", {}).get("exclude", None)
-				clientId = query.get("param", {}).get("clientId", None)
+			params = query.get("param", {})
 
+			if task == "checkClientStatus":
 				try:
+					res = self.monitoring.checkClientStatus(
+						clientId=params.get("clientId", None),
+						excludeProductList=params.get("exclude", None)
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
+
+			elif task == "getOpsiClientsForGroup":
+				if params:
 					try:
-						res = self.monitoring.checkClientStatus(clientId = clientId, excludeProductList = exclude)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = { "state":"3", "message":str(e) }
-						res = res = json.dumps(res)
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+						res = self.monitoring.getOpsiClientsForGroup(params["groups"])
+					except KeyError:
+						errorMessage = 'Check for getOpsiClientsForGroup requires configuring at least one group'
+						logger.warning(errorMessage)
+						res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
+				else:
+					errorMessage = 'Check for getOpsiClientsForGroup requires parameters!'
+					logger.warning(errorMessage)
+					res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
 
-			elif query["task"] == "getOpsiClientsForGroup":
-				if query["param"]:
-					if query["param"].has_key("groups"):
-						res = self.monitoring.getOpsiClientsForGroup(query["param"]["groups"])
-						result.stream = stream.IByteStream(res.encode('utf-8'))
-						return result
-
-			elif query["task"] == "checkShortProductStatus":
+			elif task == "checkShortProductStatus":
+				res = None
 				try:
-					productId = query.get("param", {}).get("productIds", [])[0]
+					productId = params.get("productIds", [])[0]
 				except IndexError:
-					res = {"state": "3", "message": "No ProductId given"}
-					res = json.dumps(res)
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+					res = json.dumps({"state": State.UNKNOWN, "message": "No ProductId given"})
 
-				threshold = {}
-				threshold["warning"] = (query.get("param", {}).get("warning", "20%"))
-				threshold["critical"] = (query.get("param", {}).get("critical", "20%"))
-				try:
+				if res is None:  # no error encountered
+					threshold = {
+						"warning": params.get("warning", "20%"),
+						"critical": params.get("critical", "20%")
+					}
+
 					try:
-						res = self.monitoring.checkShortProductStatus(productId = productId, thresholds=threshold)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = { "state":"3", "message":str(e) }
-						res = json.dumps(res)
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+						res = self.monitoring.checkShortProductStatus(
+							productId=productId,
+							thresholds=threshold
+						)
+					except Exception as error:
+						logger.logException(error, LOG_INFO)
+						res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
-
-			elif query["task"] == "checkProductStatus":
-				productIds   = query.get("param", {}).get("productIds", [])
-				groupIds     = query.get("param", {}).get("groupIds", [])
-				hostGroupIds = query.get("param", {}).get("hostGroupIds", [])
-				depotIds     = query.get("param", {}).get("depotIds", [])
-				exclude      = query.get("param", {}).get("exclude", [])
-				verbose      = query.get("param", {}).get("verbose", False)
-
+			elif task == "checkProductStatus":
 				try:
-					try:
-						res = self.monitoring.checkProductStatus(productIds = productIds, productGroups = groupIds, hostGroupIds = hostGroupIds, depotIds = depotIds, exclude = exclude, verbose = verbose)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = { "state":"3", "message":str(e) }
-						res = res = json.dumps(res)
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+					res = self.monitoring.checkProductStatus(
+						productIds=params.get("productIds", []),
+						productGroups=params.get("groupIds", []),
+						hostGroupIds=params.get("hostGroupIds", []),
+						depotIds=params.get("depotIds", []),
+						exclude=params.get("exclude", []),
+						verbose=params.get("verbose", False)
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
-			elif query["task"] == "checkDepotSyncStatus":
-				depotIds   = query.get("param", {}).get("depotIds", [])
-				productIds = query.get("param", {}).get("productIds", [])
-				exclude    = query.get("param", {}).get("exclude", [])
-				strict     = query.get("param", {}).get("strict", False)
-				verbose    = query.get("param", {}).get("verbose", False)
-
+			elif task == "checkDepotSyncStatus":
 				try:
-					try:
-						res = self.monitoring.checkDepotSyncStatus(depotIds, productIds, exclude, strict, verbose)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = { "state":"3", "message":str(e) }
-						res = res = json.dumps(res)
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
+					res = self.monitoring.checkDepotSyncStatus(
+						depotIds=params.get("depotIds", []),
+						productIds=params.get("productIds", []),
+						exclude=params.get("exclude", []),
+						strict=params.get("strict", False),
+						verbose=params.get("verbose", False)
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
-			elif query["task"] == "checkPluginOnClient":
-				clientId      = query.get("param", {}).get("clientId", [])
-				command       = query.get("param", {}).get("plugin", "")
-				statebefore   = query.get("param", {}).get("state", None)
-				output        = query.get("param", {}).get("output", None)
-				timeout       = query.get("param", {}).get("timeout", 30)
-				captureStdErr = query.get("param", {}).get("captureStdErr", True)
-				waitForEnding = query.get("param", {}).get("waitForEnding", True)
-				encoding      = query.get("param", {}).get("encoding", None)
+			elif task == "checkPluginOnClient":
+				try:
+					res = self.monitoring.checkPluginOnClient(
+						hostId=params.get("clientId", []),
+						command=params.get("plugin", ""),
+						timeout=params.get("timeout", 30),
+						waitForEnding=params.get("waitForEnding", True),
+						captureStdErr=params.get("captureStdErr", True),
+						statebefore=params.get("state", None),
+						output=params.get("output", None),
+						encoding=params.get("encoding", None)
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
+			elif task == "checkOpsiWebservice":
+				cpu = params.get("cpu", [])
+				errors = params.get("errors", [])
 
 				try:
-					try:
-						res = self.monitoring.checkPluginOnClient(clientId, command, timeout,waitForEnding, captureStdErr,statebefore, output, encoding)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = { "state":"3", "message":str(e) }
-						res = res = json.dumps(res)
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
-
-			elif query["task"] == "checkOpsiWebservice":
-				cpu    = query.get("param", {}).get("cpu", [])
-				errors = query.get("param", {}).get("errors", [])
-
-				try:
-					try:
-						res = self.monitoring.checkOpsiWebservice(cpu, errors)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = { "state":"3", "message":str(e) }
-						res = json.dumps(res)
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
-
-			elif query["task"] == "checkOpsiDiskUsage":
-				opsiresource = query.get("param", {}).get("resource", None)
-				threshold = {}
-				threshold["warning"] = (query.get("param", {}).get("warning", "5G"))
-				threshold["critical"] = (query.get("param", {}).get("critical", "1G"))
-
-				try:
-					try:
-						res = self.monitoring.checkOpsiDiskUsage(opsiresource=opsiresource,thresholds=threshold)
-					except Exception as e:
-						logger.logException(e, LOG_INFO)
-						res = { "state":"3", "message":str(e) }
-						res = json.dumps(res)
-				finally:
-					result.stream = stream.IByteStream(res.encode('utf-8'))
-					return result
-			else:
-				res = {
-					"state": "3",
-					"message": u"Failure: unknown task!",
+					res = self.monitoring.checkOpsiWebservice(cpu, errors)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
+			elif task == "checkOpsiDiskUsage":
+				threshold = {
+					"warning": params.get("warning", "5G"),
+					"critical": params.get("critical", "1G")
 				}
 
-				result.stream = stream.IByteStream(json.dumps(res).encode('utf-8'))
-				return result
+				try:
+					res = self.monitoring.checkOpsiDiskUsage(
+						opsiresource=params.get("resource", None),
+						thresholds=threshold
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
+			else:
+				res = json.dumps({
+					"state": State.UNKNOWN,
+					"message": u"Failure: unknown task!",
+				})
+
+			result.stream = stream.IByteStream(res.encode('utf-8'))
+			return result
+		else:
+			logger.debug("No query given.")
 
 
 class ResourceOpsiconfdMonitoring(ResourceOpsi):
@@ -340,48 +340,46 @@ class ResourceOpsiconfdMonitoring(ResourceOpsi):
 
 
 class Monitoring(object):
+
+	ERRORCODE_PATTERN = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')
+
 	def __init__(self, service):
 		self.service = service
 
-		self._OK = 0
-		self._WARNING = 1
-		self._CRITICAL = 2
-		self._UNKNOWN = 3
-
-		self._stateText = [u"OK",u"WARNING", u"CRITICAL", u"UNKNOWN"]
-		self._errorcodePattern = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')
-
-
 	def _generateResponse(self, state, message, perfdata=None):
-		response = {}
-		response["state"] = str(state)
+		response = {
+			"state": str(state)
+		}
+
 		if perfdata:
-			if self._stateText[int(state)] in message:
+			if State.text(int(state)) in message:
 				response["message"] = u"%s | %s" % (message, perfdata)
 			else:
-				response["message"] = u"%s: %s | %s" % (self._stateText[int(state)], message, perfdata)
+				response["message"] = u"%s: %s | %s" % (State.text(int(state)), message, perfdata)
 		else:
-			if self._stateText[int(state)] in message:
-				response["message"] = u"%s" %  message
+			if State.text(int(state)) in message:
+				response["message"] = u"%s" % message
 			else:
-				response["message"] = u"%s: %s" % (self._stateText[int(state)],message)
-		#if len(response["message"]) > 3800:
-		#	response["message"] = u"%s ..." % response["message"][:3800]
+				response["message"] = u"%s: %s" % (State.text(int(state)), message)
+
 		return json.dumps(response)
 
 	def checkClientStatus(self, clientId, excludeProductList=None):
-		state = self._OK
-		message = ''
+		state = State.OK
+
 		if not clientId:
 			raise Exception(u"Failed to check: ClientId is needed for checkClientStatus")
-		clientObj = self.service._backend.host_getObjects(id = clientId)
+
+		clientObj = self.service._backend.host_getObjects(id=clientId)
 		if not clientObj:
-			state = self._UNKNOWN
+			state = State.UNKNOWN
 			return self._generateResponse(state, u"opsi-client: '%s' not found" % clientId)
 		else:
 			clientObj = clientObj[0]
+
+		message = ''
 		if not clientObj.lastSeen:
-			state = self._WARNING
+			state = State.WARNING
 			message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
 		else:
 			lastSeen = clientObj.lastSeen.split("-")
@@ -393,55 +391,57 @@ class Monitoring(object):
 			delta = None
 
 			if year and month and day:
-				lastSeenDate = datetime.date(year,month,day)
+				lastSeenDate = datetime.date(year, month, day)
 				delta = today - lastSeenDate
-			elif state == self._OK:
-				state = self._WARNING
+			elif state == State.OK:
+				state = State.WARNING
 				message += u"opsi-client: '%s' never seen, please check opsi-client-agent installation on client. " % clientId
 
 			if delta.days >= 30:
-				state = self._WARNING
+				state = State.WARNING
 				message += "opsi-client %s has not been seen, since %d days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. " % (clientId, delta.days)
 			elif delta.days == 0:
 				message += "opsi-client %s has been seen today. " % (clientId)
 			else:
 				message += "opsi-client %s has been seen %d days before. " % (clientId, delta.days)
 
-		failedProducts = self.service._backend.productOnClient_getObjects(clientId = clientId, actionResult = 'failed')
+		failedProducts = self.service._backend.productOnClient_getObjects(
+			clientId=clientId,
+			actionResult='failed'
+		)
 		if failedProducts:
-			state = self._CRITICAL
-			products = []
-			for product in failedProducts:
-				products.append(product.productId)
+			state = State.CRITICAL
+			products = [product.productId for product in failedProducts]
 			message += "Products: '%s' are in failed state. " % (",".join(products))
-		actionProducts = self.service._backend.productOnClient_getObjects(clientId = clientId, actionRequest = ['setup','update','uninstall'])
+
+		actionProducts = self.service._backend.productOnClient_getObjects(clientId=clientId, actionRequest=['setup', 'update', 'uninstall'])
 		if actionProducts:
-			if state != self._CRITICAL:
-				state = self._WARNING
-			products = []
-			for product in actionProducts:
-				products.append("%s (%s)" % (product.productId, product.actionRequest))
+			if state != State.CRITICAL:
+				state = State.WARNING
+			products = ["%s (%s)" % (product.productId, product.actionRequest) for product in actionProducts]
 			message += "Actions set for products: '%s'." % (",".join(products))
-		if state == self._OK:
+
+		if state == State.OK:
 			message += "No failed products and no actions set for client"
-		return self._generateResponse(state,message)
+
+		return self._generateResponse(state, message)
 
 	def getOpsiClientsForGroup(self, groups):
-		clients = []
 		result = {}
+
 		objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=groups, type="HostGroup")
 		if objectToGroups:
-			for objectToGroup in objectToGroups:
-				clients.append(objectToGroup.objectId)
+			clients = [objectToGroup.objectId for objectToGroup in objectToGroups]
+
 			if clients:
 				hosts = self.service._backend.host_getObjects(id=clients)
-				if hosts:
-					for host in hosts:
-						result[host.id] = {
-							"description" : host.description,
-							"inventoryNumber" : host.inventoryNumber,
-							"ipAddress" : host.ipAddress
-						}
+				for host in hosts:
+					result[host.id] = {
+						"description": host.description,
+						"inventoryNumber": host.inventoryNumber,
+						"ipAddress": host.ipAddress
+					}
+
 		return json.dumps(result)
 
 	def checkShortProductStatus(self, productId=None, thresholds={}):
@@ -452,15 +452,13 @@ class Monitoring(object):
 		targetProductVersion = None
 		targetPackackeVersion = None
 
-		state = self._OK
+		state = State.OK
 		message = []
 
 		warning = thresholds.get("warning", "20")
 		critical = thresholds.get("critical", "20")
-		if warning.endswith("%"): warning = warning[:-1]
-		if critical.endswith("%"): critical = critical[:-1]
-		warning = float(warning)
-		critical = float(critical)
+		warning = float(removePercent(warning))
+		critical = float(removePercent(critical))
 
 		logger.debug("Checking shortly the productStates on Clients")
 		configServer = self.service._backend.host_getObjects(type="OpsiConfigserver")[0]
@@ -471,16 +469,16 @@ class Monitoring(object):
 		productOnClients = self.service._backend.productOnClient_getObjects(productId=productId)
 
 		if not productOnClients:
-			return self._generateResponse(self._UNKNOWN, "No ProductStates found for product '%s'" % productId)
+			return self._generateResponse(State.UNKNOWN, "No ProductStates found for product '%s'" % productId)
 
 		for poc in productOnClients:
 			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
-				if not poc.clientId in productProblemsOnClients:
+				if poc.clientId not in productProblemsOnClients:
 					productProblemsOnClients.append(poc.clientId)
 					continue
 
 			if poc.actionRequest != 'none':
-				if not poc.clientId in actionRequestOnClients:
+				if poc.clientId not in actionRequestOnClients:
 					actionRequestOnClients.append(poc.clientId)
 					continue
 
@@ -497,8 +495,8 @@ class Monitoring(object):
 		message.append("'%d' ProductStates for product: '%s' found; checking for Version: '%s' and Package: '%s'" % (len(productOnClients), productId, targetProductVersion, targetPackackeVersion))
 		if uptodateClients:
 			message.append("'%d' Clients are up to date" % len(uptodateClients))
-		if actionRequestOnClients and len(actionRequestOnClients)*100/len(productOnClients) > warning:
-			state = self._WARNING
+		if actionRequestOnClients and len(actionRequestOnClients) * 100 / len(productOnClients) > warning:
+			state = State.WARNING
 			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClients))
 		if productProblemsOnClients:
 			message.append("Problems found on '%d' clients" % len(productProblemsOnClients))
@@ -506,156 +504,149 @@ class Monitoring(object):
 			message.append("Version difference found on '%d' clients" % len(productVersionProblemsOnClients))
 
 		problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
-		if problemClientsCount*100/len(productOnClients) > critical:
-			state = self._CRITICAL
+		if problemClientsCount * 100 / len(productOnClients) > critical:
+			state = State.CRITICAL
 
 		return self._generateResponse(state, "; ".join(message))
 
 	def checkProductStatus(self, productIds=[], productGroups=[], hostGroupIds=[], depotIds=[], exclude=[], verbose=False):
-		state = self._OK
-		clientsOnDepot = {}
-
-		actionRequestOnClient = {}
-		productProblemsOnClient = {}
-		productProblemsOnDepot = {}
-		productVersionProblemsOnClient = {}
-
 		if not productIds:
-			productIds = []
-			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup',groupId=productGroups):
+			productIds = set()
+			for product in self.service._backend.objectToGroup_getIdents(groupType='ProductGroup', groupId=productGroups):
 				product = product.split(";")[2]
-				if not product in productIds and product not in exclude:
-					productIds.append(product)
+				if product not in exclude:
+					productIds.add(product)
+
 		if not productIds:
-			state = self._UNKNOWN
-			message = u"Neither productId nor productGroup given, nothing to check!"
-			return self._generateResponse(state, message)
+			return self._generateResponse(State.UNKNOWN, u"Neither productId nor productGroup given, nothing to check!")
 
 		serverType = None
 		if not depotIds:
 			serverType = "OpsiConfigserver"
 		elif 'all' in depotIds:
 			serverType = "OpsiDepotserver"
-		if serverType:
-			depotIds = []
-			depots = self.service._backend.host_getObjects(type=serverType)
-			for depot in depots:
-				depotIds.append(depot.id)
 
-		clientIds = None
+		if serverType:
+			depots = self.service._backend.host_getObjects(type=serverType)
+			depotIds = set(depot.id for depot in depots)
+
 		if hostGroupIds:
-			clientIds = []
 			objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=hostGroupIds, groupType="HostGroup")
 			if objectToGroups:
-				for objectToGroup in objectToGroups:
-					clientIds.append(objectToGroup.objectId)
+				clientIds = [objectToGroup.objectId for objectToGroup in objectToGroups]
+			else:
+				clientIds = []
 		else:
 			clientIds = self.service._backend.host_getIdents(type="OpsiClient")
 
+		clientsOnDepot = defaultdict(list)
 		addConfigStateDefaults = self.service._backend.backend_getOptions().get('addConfigStateDefaults', False)
 		try:
 			logger.debug("Calling backend_setOptions on %s" % self)
 			self.service._backend.backend_setOptions({'addConfigStateDefaults': True})
 
-			for configState in self.service._backend.configState_getObjects(configId = u'clientconfig.depot.id', objectId = clientIds):
+			for configState in self.service._backend.configState_getObjects(configId=u'clientconfig.depot.id', objectId=clientIds):
 				if not configState.values or not configState.values[0]:
 					logger.error(u"No depot server configured for client '%s'" % configState.objectId)
 					continue
-				depotId = configState.values[0]
-				if not depotId in depotIds:
-					continue
-				if not clientsOnDepot.has_key(depotId):
-					clientsOnDepot[depotId] = []
-				clientsOnDepot[depotId].append(configState.objectId)
 
+				depotId = configState.values[0]
+				if depotId not in depotIds:
+					continue
+
+				clientsOnDepot[depotId].append(configState.objectId)
 		finally:
 			self.service._backend.backend_setOptions({'addConfigStateDefaults': addConfigStateDefaults})
 
-		productOnDepotInfo = {}
-		for pod in self.service._backend.productOnDepot_getObjects(depotId = depotIds, productId = productIds):
-			if not productOnDepotInfo.has_key(pod.depotId):
-				productOnDepotInfo[pod.depotId] = {}
-			productOnDepotInfo[pod.depotId][pod.productId] = {"productVersion": 	pod.productVersion,
-									  "packageVersion":	pod.packageVersion }
+		productOnDepotInfo = defaultdict(dict)
+		for pod in self.service._backend.productOnDepot_getObjects(depotId=depotIds, productId=productIds):
+			productOnDepotInfo[pod.depotId][pod.productId] = {
+				"productVersion": pod.productVersion,
+				"packageVersion": pod.packageVersion
+			}
+
+		state = State.OK
+		productVersionProblemsOnClient = defaultdict(lambda: defaultdict(list))
+		productProblemsOnClient = defaultdict(lambda: defaultdict(list))
+		actionRequestOnClient = defaultdict(lambda: defaultdict(list))
 
 		for depotId in depotIds:
-			for poc in self.service._backend.productOnClient_getObjects(productId = productIds, clientId = clientsOnDepot.get(depotId, None)):
+			for poc in self.service._backend.productOnClient_getObjects(productId=productIds, clientId=clientsOnDepot.get(depotId, None)):
 				if poc.actionRequest != 'none':
-					if state != self._CRITICAL:
-						state = self._WARNING
-					if not actionRequestOnClient.has_key(depotId):
-						actionRequestOnClient[depotId] = {}
-					if not actionRequestOnClient[depotId].has_key(poc.productId):
-						actionRequestOnClient[depotId][poc.productId] = []
-					actionRequestOnClient[depotId][poc.productId].append(u"%s (%s)" % (poc.clientId, poc.actionRequest) )
+					if state != State.CRITICAL:
+						state = State.WARNING
+
+					actionRequestOnClient[depotId][poc.productId].append(u"%s (%s)" % (poc.clientId, poc.actionRequest))
+
 				if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
-					if state != self._CRITICAL:
-						state = self._CRITICAL
-					if not productProblemsOnClient.has_key(depotId):
-						productProblemsOnClient[depotId] = {}
-					if not productProblemsOnClient[depotId].has_key(poc.productId):
-						productProblemsOnClient[depotId][poc.productId] = []
+					if state != State.CRITICAL:
+						state = State.CRITICAL
+
 					productProblemsOnClient[depotId][poc.productId].append(u"%s (%s lastAction: [%s])" % (poc.clientId, poc.actionResult, poc.lastAction))
+
 				if not poc.productVersion or not poc.packageVersion:
 					continue
-				if not productOnDepotInfo.has_key(depotId):
+
+				if depotId not in productOnDepotInfo:
 					continue
+
 				if poc.productVersion != productOnDepotInfo[depotId][poc.productId]["productVersion"] or \
 					poc.packageVersion != productOnDepotInfo[depotId][poc.productId]["packageVersion"]:
-					if state != self._CRITICAL:
-						state = self._WARNING
-					if not productVersionProblemsOnClient.has_key(depotId):
-						productVersionProblemsOnClient[depotId] = {}
-					if not productVersionProblemsOnClient[depotId].has_key(poc.productId):
-						productVersionProblemsOnClient[depotId][poc.productId] = []
-					productVersionProblemsOnClient[depotId][poc.productId].append("%s (%s-%s)" % (poc.clientId,poc.productVersion, poc.packageVersion))
-		message = ''
+					if state != State.CRITICAL:
+						state = State.WARNING
 
+					productVersionProblemsOnClient[depotId][poc.productId].append("%s (%s-%s)" % (poc.clientId, poc.productVersion, poc.packageVersion))
+
+		message = ''
 		for depotId in depotIds:
-			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId):
+			if depotId in actionRequestOnClient or depotId in productProblemsOnClient or depotId in productVersionProblemsOnClient:
 				message += "Result for Depot: '%s': " % depotId
 			else:
 				continue
-			if actionRequestOnClient.has_key(depotId):
-				for product in actionRequestOnClient[depotId].keys():
-					message += "For product '%s' action set on '%d' clients! " % (product, len(actionRequestOnClient[depotId][product]))
-			if productProblemsOnClient.has_key(depotId):
-				for product in productProblemsOnClient[depotId].keys():
-					message += "For product '%s' problems found on '%d' clients! " % (product, len(productProblemsOnClient[depotId][product]))
-			if productVersionProblemsOnClient.has_key(depotId):
-				for product in productVersionProblemsOnClient[depotId].keys():
-					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(productVersionProblemsOnClient[depotId][product]))
+
+			if depotId in actionRequestOnClient:
+				for product, clients in actionRequestOnClient[depotId].items():
+					message += "For product '%s' action set on '%d' clients! " % (product, len(clients))
+			if depotId in productProblemsOnClient:
+				for product, clients in productProblemsOnClient[depotId].items():
+					message += "For product '%s' problems found on '%d' clients! " % (product, len(clients))
+			if depotId in productVersionProblemsOnClient:
+				for product, clients in productVersionProblemsOnClient[depotId].items():
+					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(clients))
 
 		if not verbose:
-			if state == self._OK:
+			if state == State.OK:
 				message = u"No Problem found for productIds: '%s'" % ",".join(productIds)
 			return self._generateResponse(state, message)
 
 		for depotId in depotIds:
-			if actionRequestOnClient.has_key(depotId) or productProblemsOnClient.has_key(depotId) or productVersionProblemsOnClient.has_key(depotId):
+			if depotId in actionRequestOnClient or depotId in productProblemsOnClient or depotId in productVersionProblemsOnClient:
 				message += "Result for Depot: '%s': \n" % depotId
 			else:
 				continue
-			if actionRequestOnClient.has_key(depotId):
-				message += "Action Request set for "
-				for product in actionRequestOnClient[depotId].keys():
-					message += "product '%s': \n" % product
-					for item in actionRequestOnClient[depotId][product]:
-						message += "%s \n" % item
-			if productProblemsOnClient.has_key(depotId):
-				message += "Product Problems for "
-				for product in productProblemsOnClient[depotId].keys():
-					message += "product '%s': \n" % product
-					for item in productProblemsOnClient[depotId][product]:
-						message += "%s \n" % item
-			if productVersionProblemsOnClient.has_key(depotId):
-				message += "Product Version difference found for: "
-				for product in productVersionProblemsOnClient[depotId].keys():
-					message += "product '%s': \n" % product
-					for item in productVersionProblemsOnClient[depotId][product]:
-						message += "%s \n" % item
 
-		if state == self._OK:
+			if depotId in actionRequestOnClient:
+				message += "Action Request set for "
+				for product, clients in actionRequestOnClient[depotId].items():
+					message += "product '%s': \n" % product
+					for client in clients:
+						message += "%s \n" % client
+
+			if depotId in productProblemsOnClient:
+				message += "Product Problems for "
+				for product, clients in productProblemsOnClient[depotId].items():
+					message += "product '%s': \n" % product
+					for client in clients:
+						message += "%s \n" % client
+
+			if depotId in productVersionProblemsOnClient:
+				message += "Product Version difference found for: "
+				for product, clients in productVersionProblemsOnClient[depotId].items():
+					message += "product '%s': \n" % product
+					for client in clients:
+						message += "%s \n" % client
+
+		if state == State.OK:
 			if productGroups:
 				message = u"No Problem found for productIds; '%s'" % ",".join(productGroups)
 			else:
@@ -663,27 +654,19 @@ class Monitoring(object):
 
 		return self._generateResponse(state, message)
 
-	def checkDepotSyncStatus(self, depotIds, productIds = [], exclude = [], strict=False, verbose=False):
-		state = self._OK
-		productOnDepotInfo = {}
-		differenceProducts = {}
-
+	def checkDepotSyncStatus(self, depotIds, productIds=[], exclude=[], strict=False, verbose=False):
 		if not depotIds or 'all' in depotIds:
-			depotIds = []
 			depots = self.service._backend.host_getObjects(type="OpsiDepotserver")
-			for depot in depots:
-				depotIds.append(depot.id)
+			depotIds = [depot.id for depot in depots]
 
-		productOnDepots = self.service._backend.productOnDepot_getObjects(depotId = depotIds, productId = productIds)
-		productIds = []
-		for depotId in depotIds:
-			productOnDepotInfo[depotId] = {}
+		productOnDepots = self.service._backend.productOnDepot_getObjects(depotId=depotIds, productId=productIds)
+		productIds = set()
+		productOnDepotInfo = defaultdict(dict)
 		for pod in productOnDepots:
-			if not pod.productId in productIds:
-				productIds.append(pod.productId)
+			productIds.add(pod.productId)
 			productOnDepotInfo[pod.depotId][pod.productId] = pod
-		productIds.sort()
 
+		differenceProducts = defaultdict(dict)
 		for productId in productIds:
 			if productId in exclude:
 				continue
@@ -695,55 +678,59 @@ class Monitoring(object):
 				if not productOnDepot:
 					if not strict:
 						continue
-					if not differenceProducts.has_key(productId):
-						differenceProducts[productId] = {}
+
 					differenceProducts[productId][depotId] = "not installed"
 					continue
+
 				if not productVersion:
 					productVersion = productOnDepot.productVersion
-				elif (productVersion != productOnDepot.productVersion):
+				elif productVersion != productOnDepot.productVersion:
 					differs = True
+
 				if not packageVersion:
 					packageVersion = productOnDepot.packageVersion
-				elif (packageVersion != productOnDepot.packageVersion):
+				elif packageVersion != productOnDepot.packageVersion:
 					differs = True
 
 				if differs:
-					if not differenceProducts.has_key(productId):
-						differenceProducts[productId] = {}
 					differenceProducts[productId][depotId] = "different"
 
+		state = State.OK
 		message = u''
 		if differenceProducts:
-			state = self._WARNING
+			state = State.WARNING
 			message += u"Differences found for '%d'" % len(differenceProducts)
 
 			if verbose:
 				message += u":\n"
-				for productId in differenceProducts.keys():
+				for productId in sorted(differenceProducts):
 					message += u"product: '%s': " % productId
 					for depotId in depotIds:
-						if differenceProducts[productId].has_key(depotId):
+						try:
 							if differenceProducts[productId][depotId] == "not installed":
 								message += u"%s (not installed) \n" % depotId
 							else:
-								message += u"%s (%s-%s) \n" % (depotId,
+								message += u"%s (%s-%s) \n" % (
+									depotId,
 									productOnDepotInfo[depotId][productId].productVersion,
-									productOnDepotInfo[depotId][productId].packageVersion)
-						else:
+									productOnDepotInfo[depotId][productId].packageVersion
+								)
+						except KeyError:
 							if not productOnDepotInfo.get(depotId, {}).get(productId, None):
 								continue
-							message += u"%s (%s-%s) " % (depotId,
-									productOnDepotInfo[depotId][productId].productVersion,
-									productOnDepotInfo[depotId][productId].packageVersion)
+
+							message += u"%s (%s-%s) " % (
+								depotId,
+								productOnDepotInfo[depotId][productId].productVersion,
+								productOnDepotInfo[depotId][productId].packageVersion
+							)
 		else:
 			message += "Syncstate ok for depots: '%s' " % ",".join(depotIds)
 
 		return self._generateResponse(state, message)
 
-
-	def checkPluginOnClient(self, hostId, command, timeout=30, waitForEnding= True, captureStdErr=True, statebefore=None, output=None, encoding=None):
-		state  = self._OK
+	def checkPluginOnClient(self, hostId, command, timeout=30, waitForEnding=True, captureStdErr=True, statebefore=None, output=None, encoding=None):
+		state = State.OK
 		message = ""
 		hostId = forceList(hostId)
 
@@ -760,9 +747,9 @@ class Monitoring(object):
 						errormessage = checkresult.get("error", {}).get("message")
 						if errormessage:
 							logger.debug(u"Try to find Errorcode")
-							match = re.match(self._errorcodePattern, errormessage)
+							match = self.ERRORCODE_PATTERN.match(errormessage)
 							if not match:
-								state = self._UNKNOWN
+								state = State.UNKNOWN
 								message = u"Unable to parse Errorcode from plugin"
 							else:
 								errorcode = int(match.group(1))
@@ -771,131 +758,121 @@ class Monitoring(object):
 								if not errorcode > 3:
 									state = errorcode
 								else:
-									state = self._UNKNOWN
+									state = State.UNKNOWN
 									message = "Failed to determine Errorcode from check_command: '%s', message is: '%s'" \
-										% (command,message)
+										% (command, message)
 						else:
-							state = self._UNKNOWN
+							state = State.UNKNOWN
 							message = u"Unknown Problem by checking plugin on Client. Check your configuration."
 					else:
-						state = self._UNKNOWN
+						state = State.UNKNOWN
 						message = u"Unknown Problem by checking plugin on Client. Check your configuration."
-
-
 			else:
 				if result.get("error", None):
 					message = result.get("error").get("message", "")
-					state = self._UNKNOWN
+					state = State.UNKNOWN
 				elif statebefore and output:
 					return self._generateResponse(int(statebefore), output)
 				else:
 					message = "Can't check host '%s' is not reachable." % hostId[0]
-					state = self._UNKNOWN
-			return self._generateResponse(state, message)
-		except Exception,e:
-			state = self._UNKNOWN
-			message = str(e)
-			return self._generateResponse(state, message)
+					state = State.UNKNOWN
+		except Exception as erro:
+			state = State.UNKNOWN
+			message = str(erro)
 
-	def checkOpsiDiskUsage(self, thresholds = {}, opsiresource = None, perfdata=False):
-		results     = {}
-		helper      = 0
-		state        = self._OK
-		message  = []
-		warning    = thresholds.get("warning", "5G")
-		critical      = thresholds.get("critical", "1G")
+		return self._generateResponse(state, message)
+
+	def checkOpsiDiskUsage(self, thresholds={}, opsiresource=None, perfdata=False):
+		warning = thresholds.get("warning", "5G")
+		critical = thresholds.get("critical", "1G")
 
 		if opsiresource:
 			resources = forceList(opsiresource)
 		else:
-			resources = self.service.config['staticDirectories'].keys()
+			resources = list(self.service.config['staticDirectories'])
 			resources.sort()
 
 		if warning.lower().endswith("g"):
 			unit = "GB"
 			warning = float(warning[:-1])
-			critical   = float(critical[:-1])
+			critical = float(critical[:-1])
 		elif warning.lower().endswith("%"):
 			unit = "%"
 			warning = float(warning[:-1])
-			critical   = float(critical[:-1])
+			critical = float(critical[:-1])
 		else:
 			unit = "%"
 			warning = float(warning)
-			critical   = float(critical)
+			critical = float(critical)
+
+		results = {}
+		state = State.OK
+		message = []
 
 		try:
 			for resource in resources:
 				path = self.service.config['staticDirectories'][resource]['path']
 				if os.path.isdir(path):
-					if not resource.startswith('/'): resource = u'/' + resource
+					if not resource.startswith('/'):
+						resource = u'/' + resource
+
 					info = getDiskSpaceUsage(path)
 					results[resource] = info
-		except Exception as e:
-			state = self._UNKNOWN
-			message.append(u"Not able to check DiskUsage. Error: '%s'" % str(e))
-			return self._generateResponse(state, message)
+		except Exception as error:
+			message.append(u"Not able to check DiskUsage. Error: '%s'" % str(error))
+			return self._generateResponse(State.UNKNOWN, message)
 
 		if results:
-			state = self._OK
-			for result in results.keys():
-				info = results[result]
-
-				capacity = float(info['capacity'])/1073741824
-				used = float(info['used'])/1073741824
-				available = float(info['available'])/1073741824
-				usage = info['usage']*100
+			state = State.OK
+			for result, info in results.items():
+				available = float(info['available']) / 1073741824
+				usage = info['usage'] * 100
 				if unit == "GB":
 					if available <= critical:
-						state = self._CRITICAL
+						state = State.CRITICAL
 						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%.2f'GB)." % (result, available))
-
-
-					elif (available <= warning):
-						if state != self._CRITICAL:
-							state = self._WARNING
+					elif available <= warning:
+						if state != State.CRITICAL:
+							state = State.WARNING
 						message.append(u"DiskUsage warning from ressource: '%s' (available: '%.2f'GB)." % (result, available))
-
 					else:
 						message.append(u"DiskUsage from ressource '%s' is ok. (available: '%.2f'GB)." % (result, available))
 				elif unit == "%":
 					freeSpace = 100 - usage
 					if freeSpace <= critical:
-						state = self._CRITICAL
+						state = State.CRITICAL
 						message.append(u"DiskUsage from ressource: '%s' is critical (available: '%.2f%%')." % (result, freeSpace))
 
 					elif freeSpace <= warning:
-						if state != self._CRITICAL:
-							state = self._WARNING
+						if state != State.CRITICAL:
+							state = State.WARNING
 						message.append(u"DiskUsage warning from ressource: '%s' (available: '%.2f%%')." % (result, freeSpace))
 
 					else:
 						message.append(u"DiskUsage from ressource: '%s' is ok. (available: '%.2f%%')." % (result, freeSpace))
 
 		else:
-			state = self._UNKNOWN
+			state = State.UNKNOWN
 			message.append("No results get. Nothing to check.")
-		if state == self._OK:
+
+		if state == State.OK:
 			message = u"OK: %s" % " ".join(message)
-		elif state == self._WARNING:
+		elif state == State.WARNING:
 			message = u"WARNING: %s" % " ".join(message)
-		elif state == self._CRITICAL:
+		elif state == State.CRITICAL:
 			message = u"CRITICAL: %s" % " ".join(message)
 
 		return self._generateResponse(state, message)
 
-
-	def checkOpsiWebservice(self, cputhreshold = [], errors = [], perfdata = True):
-		state = self._OK
+	def checkOpsiWebservice(self, cputhreshold=[], errors=[], perfdata=True):
+		state = State.OK
 		logger.debug(u"Generating Defaults for checkOpsiWebservice if not given")
 		if not cputhreshold:
-			cputhreshold = [80,60]
+			cputhreshold = [80, 60]
 		if not errors:
-			errors = [20,10]
+			errors = [20, 10]
+
 		try:
-			perfdata = []
-			message = []
-			performanceHash = {}
 			performanceHash = self.service.statistics().getStatistics()
 
 			requests = performanceHash["requests"]
@@ -903,57 +880,59 @@ class Monitoring(object):
 			rpcerrors = performanceHash["rpcerrors"]
 			rpcs = performanceHash["rpcs"]
 
-
-			perfdata.append(u'requests=%s;;;0; ' % requests)
-			perfdata.append(u'davrequests=%s;;;0; ' % davrequests)
-			perfdata.append(u'rpcs=%s;;;0; ' % rpcs)
+			perfdata = [
+				u'requests=%s;;;0; ' % requests,
+				u'davrequests=%s;;;0; ' % davrequests,
+				u'rpcs=%s;;;0; ' % rpcs,
+			]
 
 			if int(rpcerrors) == 0 or int(rpcs) == '0':
 				errorrate = 0
 			else:
-				errorrate = int(rpcerrors)*100//int(rpcs)
+				errorrate = int(rpcerrors) * 100 // int(rpcs)
 
-			if (errorrate > errors[0] ):
+			message = []
+			if errorrate > errors[0]:
 				message.append(u'RPC errors over 20\%')
-				state = self._CRITICAL
-			elif (errorrate > errors[1]):
+				state = State.CRITICAL
+			elif errorrate > errors[1]:
 				message.append(u'RPC errors over 10\%')
-				state = self._WARNING
+				state = State.WARNING
 			perfdata.append(u'rpcerror=%s;;;0; ' % rpcerrors)
-			#sessions
 			perfdata.append(u"sessions=%s;;;0; " % performanceHash["sessions"])
-
-			#threads
 			perfdata.append(u"threads=%s;;;0; " % performanceHash["threads"])
 
-			#virtmem
 			virtmem = performanceHash["virtmem"]
 			perfdata.append(u"virtmem=%s;;;0; " % virtmem)
 
-			#cpu
 			if int(performanceHash["cpu"]) > cputhreshold[0]:
-				state = self._CRITICAL
+				state = State.CRITICAL
 				message.append(u'CPU-Usage over 80%')
 			elif int(performanceHash["cpu"]) > cputhreshold[1]:
-				if not state == self._CRITICAL:
-					state = self._WARNING
+				if not state == State.CRITICAL:
+					state = State.WARNING
 				message.append(u'CPU-Usage over 60%')
 			perfdata.append(u"cpu=%s;;;0;100 " % performanceHash["cpu"])
 
-			if state == self._OK:
+			if state == State.OK:
 				message.append("OK: Opsi Webservice has no Problem")
 
 			if perfdata:
-				message = "%s | %s" % (" ".join(message),"".join(perfdata))
+				message = "%s | %s" % (" ".join(message), "".join(perfdata))
 			else:
 				message = "%s" % (" ".join(message))
 			return self._generateResponse(state, message)
-
-
-		except Exception as e:
-			state = self._UNKNOWN
-			message = u"cannot check webservice state: '%s'." % str(e)
+		except Exception as error:
+			state = State.UNKNOWN
+			message = u"cannot check webservice state: '%s'." % str(error)
 			return self._generateResponse(state, message)
 
-	def checkOpsiLicensePool(self, poolId = 'all'):
+	def checkOpsiLicensePool(self, poolId='all'):
 		pass
+
+
+def removePercent(string):
+	if string.endswith("%"):
+		return string[:-1]
+	else:
+		return string

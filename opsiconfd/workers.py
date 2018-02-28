@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # opsiconfd is part of the desktop management solution opsi
@@ -34,30 +33,29 @@ import socket
 from twisted.internet import defer, threads
 from twisted.python import failure
 
-from OPSI.web2 import responsecode, http, stream
-
-from OPSI.Service.Worker import (WorkerOpsi, WorkerOpsiJsonRpc,
-								WorkerOpsiJsonInterface, WorkerOpsiDAV,
-								interfacePage, MultiprocessWorkerOpsiJsonRpc)
-from OPSI.Types import forceHostId, forceHardwareAddress, OpsiAuthenticationError
-from OPSI.Util import (timestamp, objectToHtml, toJson, randomString,
-	decryptWithPrivateKeyFromPEMFile, ipAddressInNetwork, serialize)
-from OPSI.Util.HTTP import deflateDecode, gzipDecode
-from OPSI.Backend.BackendProcess import OpsiBackendProcess
 from OPSI.Backend.BackendManager import BackendAccessControl, backendManagerFactory
+from OPSI.Exceptions import BackendMissingDataError, OpsiAuthenticationError
 from OPSI.Logger import Logger, LOG_INFO
+from OPSI.Service.Worker import (
+	WorkerOpsi, WorkerOpsiJsonRpc, WorkerOpsiJsonInterface, WorkerOpsiDAV,
+	interfacePage, MultiprocessWorkerOpsiJsonRpc)
+from OPSI.Types import forceHostId, forceHardwareAddress
+from OPSI.Util import (
+	timestamp, objectToHtml, toJson, decryptWithPrivateKeyFromPEMFile,
+	ipAddressInNetwork, serialize)
+from OPSI.Util.HTTP import deflateDecode, gzipDecode
+from OPSI.web2 import responsecode, http, stream
 
 
 logger = Logger()
 
 
 class WorkerOpsiconfd(WorkerOpsi):
-	def __init__(self, service, request, resource, multiProcessing=False):
+	def __init__(self, service, request, resource):
 		WorkerOpsi.__init__(self, service, request, resource)
 		self._setLogFile(self)
 
 		self.authRealm = 'OPSI Configuration Service'
-		self.multiProcessing = multiProcessing
 
 	def _setLogFile(self, obj):
 		if self.service.config['machineLogs'] and self.service.config['logFile']:
@@ -85,12 +83,16 @@ class WorkerOpsiconfd(WorkerOpsi):
 		result = WorkerOpsi._errback(self, failure)
 		if result.code == responsecode.UNAUTHORIZED and self.request.remoteAddr.host not in (self.service.config['ipAddress'], '127.0.0.1'):
 			if self.service.config['maxAuthenticationFailures'] > 0:
-				if not self.service.authFailureCount.has_key(self.request.remoteAddr.host):
-					self.service.authFailureCount[self.request.remoteAddr.host] = 0
-				self.service.authFailureCount[self.request.remoteAddr.host] += 1
+				try:
+					self.service.authFailureCount[self.request.remoteAddr.host] += 1
+				except KeyError:
+					self.service.authFailureCount[self.request.remoteAddr.host] = 1
+
 				if self.service.authFailureCount[self.request.remoteAddr.host] > self.service.config['maxAuthenticationFailures']:
-					logger.error(u"%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding" \
-							% (self.service.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host))
+					logger.error(
+						u"%s authentication failures from '%s' in a row, waiting 60 seconds to prevent flooding"
+						% (self.service.authFailureCount[self.request.remoteAddr.host], self.request.remoteAddr.host)
+					)
 					# Will prevent flooding, before block for prevention,
 					# delete actual remoteAddr to reset the
 					# maxAuthenticationFailure marker
@@ -198,8 +200,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 		return self._linkLogFile(result)
 
 	def _authenticate(self, result):
-		''' This function tries to authenticate a user.
-		    Raises an exception on authentication failure. '''
+		'''
+		This function tries to authenticate a user.
+		Raises an exception on authentication failure.
+		'''
 
 		if self.session.authenticated:
 			return result
@@ -227,24 +231,33 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 				if self.session.ip not in addressList:
 					# Username (FQDN) of peer does not resolve to peer's ip address
-					logger.critical(u"Host login attempt with username '%s'" % self.session.user +
-							u" from ip '%s', but name resolves to '%s' (access denied)" %
-							( self.session.ip, addressList) )
-					raise Exception(u"Access denied for username '%s' from '%s'" %
-							(self.session.user, self.session.ip) )
+					logger.critical(
+						u"Host login attempt with username '%s'"
+						u" from ip '%s', but name resolves to '%s' "
+						u"(access denied)" % (
+							self.session.user,
+							self.session.ip,
+							addressList
+						)
+					)
 
-			adminNetwork = False
+					raise Exception(
+						u"Access denied for username '%s' from '%s'" % (
+							self.session.user, self.session.ip
+						)
+					)
+
 			if len(self.service.config['adminNetworks']) == 1 and self.service.config['adminNetworks'][0] == u'0.0.0.0/0':
 				adminNetwork = True
 			else:
-				for networkAddress in self.service.config['adminNetworks']:
-					if ipAddressInNetwork(self.session.ip, networkAddress):
-						adminNetwork = True
-						break
+				adminNetwork = any(
+					ipAddressInNetwork(self.session.ip, networkAddress)
+					for networkAddress in self.service.config['adminNetworks']
+				)
 
-			forceGroups = None
 			if adminNetwork:
 				logger.info(u"Connection from admin network")
+				forceGroups = None
 			else:
 				forceGroups = []
 				logger.info(u"Connection from non admin network")
@@ -269,8 +282,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 			if not self.session.authenticated:
 				raise Exception("Access denied: User or host is not authorized for this resource.")
 
-			if self.service.authFailureCount.has_key(self.request.remoteAddr.host):
+			try:
 				del self.service.authFailureCount[self.request.remoteAddr.host]
+			except KeyError:
+				pass  # May not be present
 		except Exception as error:
 			logger.logException(error, LOG_INFO)
 			self._freeSession(result)
@@ -319,45 +334,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 				depotId=self.service.config['depotId'],
 				postpath=self.request.postpath,
 				context=self.service._backend,
-				messageBusNotifier=self.service.config['messageBus'],
 				startReactor=False
 			)
 
-		def _spawnProcess():
-			socket = "/var/run/opsiconfd/worker-%s.socket" % randomString(32)
-
-			process = OpsiBackendProcess(
-				socket=socket,
-				logFile=self.service.config['logFile'].replace('%m', self.request.remoteAddr.host)
-			)
-			self.session.callInstance = process
-
-			d = process.start()
-			d.addCallback(lambda x: process.callRemote("setLogging", console=logger.getConsoleLevel(), file=logger.getFileLevel()))
-			d.addCallback(lambda x: process.callRemote("initialize",
-							user=self.session.user,
-							password=self.session.password,
-							forceGroups=forceGroups,
-							dispatchConfigFile=self.service.config['dispatchConfigFile'],
-							backendConfigDir=self.service.config['backendConfigDir'],
-							extensionConfigDir=self.service.config['extensionConfigDir'],
-							aclFile=self.service.config['aclFile'],
-							depotId=self.service.config['depotId'],
-							postpath=self.request.postpath,
-							messageBusNotifier=self.service.config['messageBus'],
-							startReactor=False))
-			return d
-
-		modules = self.service._backend.backend_info()['modules']
-		if self.multiProcessing and \
-		(not modules.get('valid', False) or not modules.get('high_availability', False)):
-			logger.warning("Failed to verify modules signature")
-			self.multiProcessing = False
-
-		if self.multiProcessing:
-			d = _spawnProcess()
-		else:
-			d = defer.maybeDeferred(_createBackend)
+		d = defer.maybeDeferred(_createBackend)
 
 		def finish(ignored):
 			self.session.callInterface = None
@@ -374,12 +354,11 @@ class WorkerOpsiconfd(WorkerOpsi):
 			df.addCallback(lambda x: defer.maybeDeferred(self.session.callInstance.accessControl_userIsAdmin))
 			df.addCallback(setCredentials)
 
-
-			def f():
+			def updateIPOfClient():
 				if self.session.isHost:
 					hosts = self.service._backend.host_getObjects(['ipAddress', 'lastSeen'], id=self.session.user)
 					if not hosts:
-						raise Exception(u"Host '%s' not found in backend" % self.session.user)
+						raise BackendMissingDataError(u"Host '%s' not found in backend" % self.session.user)
 					host = hosts[0]
 					if host.getType() == 'OpsiClient':
 						host.setLastSeen(timestamp())
@@ -390,7 +369,7 @@ class WorkerOpsiconfd(WorkerOpsi):
 							host.ipAddress = None
 						self.service._backend.host_updateObjects(host)
 
-			df.addCallback(lambda x: f())
+			df.addCallback(lambda x: updateIPOfClient())
 			return df
 		d.addCallback(finish)
 		return d
@@ -432,12 +411,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 
 class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWorkerOpsiJsonRpc):
 	def __init__(self, service, request, resource):
-		WorkerOpsiconfd.__init__(self, service, request, resource, multiProcessing=service.config["multiprocessing"])
+		WorkerOpsiconfd.__init__(self, service, request, resource)
 		WorkerOpsiJsonRpc.__init__(self, service, request, resource)
 
 		modules = self.service._backend.backend_info()['modules']
-		if self.multiProcessing and (modules.get('valid', False) and modules.get('high_availability', False)):
-			MultiprocessWorkerOpsiJsonRpc.__init__(self, service, request, resource)
 
 	def _getCallInstance(self, result):
 		d = defer.maybeDeferred(self._getBackend, result)
@@ -526,10 +503,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		return result
 
 	def _processQuery(self, result):
-		if self.multiProcessing:
-			return MultiprocessWorkerOpsiJsonRpc._processQuery(self, result)
-		else:
-			return WorkerOpsiJsonRpc._processQuery(self, result)
+		return WorkerOpsiJsonRpc._processQuery(self, result)
 
 	def _generateResponse(self, result):
 		return WorkerOpsiJsonRpc._generateResponse(self, result)
@@ -633,8 +607,8 @@ class WorkerOpsiconfdJsonInterface(WorkerOpsiconfdJsonRpc, WorkerOpsiJsonInterfa
 		return result
 
 	def _authorize(self):
-		if not self.session.isHost and not self.session.isAdmin:
-			logger.error(u"Authentication Error: Neither host nor admin user.")
+		if not self.session.isAdmin:
+			logger.error(u"Authentication Error: No admin user.")
 			return False
 		logger.debug(u"User is authorized.")
 		return True
@@ -672,24 +646,3 @@ class WorkerOpsiconfdDAV(WorkerOpsiDAV, WorkerOpsiconfd):
 
 	def _setCookie(self, result):
 		return WorkerOpsiconfd._setCookie(self, result)
-
-
-class WorkerOpsiMessageBus(WorkerOpsi):
-
-	def process(self):
-		logger.debug(u"Worker %s started processing" % self)
-		deferred = defer.Deferred()
-		deferred.addCallback(self._getSession)
-		deferred.addCallback(self._authenticate)
-		deferred.addCallback(self._setResponse)
-		deferred.addCallback(self._setCookie)
-		deferred.addCallback(self._freeSession)
-		deferred.addErrback(self._errback)
-		deferred.callback(None)
-		return deferred
-
-	def _setResponse(self, result):
-		return http.Response(
-			code=responsecode.FORBIDDEN,
-			stream="TEST!"
-		)

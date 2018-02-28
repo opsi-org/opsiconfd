@@ -1,56 +1,47 @@
 #
 # spec file for package opsiconfd
 #
-# Copyright (c) 2008-2015 uib GmbH.
+# Copyright (c) 2008-2017 uib GmbH.
 # This file and all modifications and additions to the pristine
 # package are under the same license as the package itself.
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl dbus-1-python procps
-Requires:       python-opsi >= 4.0.7.33
+BuildRequires:  python-devel python-setuptools openssl procps systemd
+Requires:       python-opsi >= 4.1.1.7
+%if 0%{?suse_version} >= 1210
+BuildRequires: systemd-rpm-macros
+%endif
+BuildArch:      noarch
 Requires:       openssl
 Requires:       python-twisted
-Requires:       dbus-1-python
 Requires:       psmisc
 Requires:       procps
+Requires:       logrotate
+%{?systemd_requires}
 Url:            http://www.opsi.org
 License:        AGPL-3.0+
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        4.0.7.13
-Release:        1
+Version:        4.1.1.4
+Release:        2
 Summary:        This is the opsi configuration service
-%define tarname opsiconfd
-Source:         opsiconfd_4.0.7.13-1.tar.gz
+Source:         opsiconfd_4.1.1.4-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
-%if 0%{?suse_version} == 1110 || 0%{?suse_version} == 1315
+%if 0%{?suse_version} == 1315
 # SLES
-Requires:       pkg-config
-BuildRequires:  python-opsi >= 4.0.7.33 zypper logrotate
-BuildRequires:  pkg-config
-PreReq:         %insserv_prereq
+BuildRequires:  python-opsi >= 4.1.1.7 zypper logrotate
 Suggests:       python-rrdtool
 %{py_requires}
 %else
 %if 0%{?suse_version}
-Suggests: logrotate
-Requires:       python-avahi
-Requires:       pkg-config
-BuildRequires:  pkg-config
 BuildRequires:  python-rrdtool zypper logrotate
-PreReq:         %insserv_prereq
 %{py_requires}
-%else
-Requires:       pkgconfig
 %endif
 %endif
 
-%if 0%{?suse_version} != 1110
-BuildArch:      noarch
-%endif
+%define tarname opsiconfd
 %define fileadmingroup %(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
-
 %define toplevel_dir %{name}-%{version}
 
 # ===[ description ]================================
@@ -72,10 +63,14 @@ export PATH="/usr/bin:$PATH"
 export CFLAGS="$RPM_OPT_FLAGS"
 python setup.py build
 
+# ===[ pre ]========================================
+%pre
+%if 0%{?suse_version}
+%service_add_pre opsiconfd.service
+%endif
 
 # ===[ install ]====================================
 %install
-mkdir -p $RPM_BUILD_ROOT/etc/opsi/systemdTemplates
 
 %if 0%{?suse_version}
 python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=INSTALLED_FILES
@@ -85,21 +80,21 @@ python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record=INST
 
 mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
 
-mkdir -p $RPM_BUILD_ROOT/usr/sbin
-ln -sf /etc/init.d/opsiconfd $RPM_BUILD_ROOT/usr/sbin/rcopsiconfd
+sed -i 's#/etc/logrotate.d$##' INSTALLED_FILES
 
-sed -i 's#/etc/init.d$##;s#/etc/logrotate.d$##' INSTALLED_FILES
-
-%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
-	echo "Detected RHEL / CentOS / Fedora"
-	%if 0%{?rhel_version} == 600 || 0%{?centos_version} == 600
-		echo "Fixing logrotate configuration"
-		LOGROTATE_TEMP=$RPM_BUILD_ROOT/opsi-logrotate_config.temp
-		LOGROTATE_CONFIG=$RPM_BUILD_ROOT/etc/logrotate.d/opsiconfd
-		grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
-		mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
-	%endif
+# Patching systemd service file
+%if 0%{?suse_version} >= 1315 || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
+	# Adjusting to the correct service names
+	sed --in-place "s/=smbd.service/=smb.service/" "debian/opsiconfd.service" || true
+	sed --in-place "s/=isc-dhcp-server.service/=dhcpd.service/" "debian/opsiconfd.service" || true
 %endif
+
+MKDIR_PATH=$(which mkdir)
+CHOWN_PATH=$(which chown)
+sed --in-place "s!=-/bin/mkdir!=-$MKDIR_PATH!" "debian/opsiconfd.service" || true
+sed --in-place "s!=-/bin/chown!=-$CHOWN_PATH!" "debian/opsiconfd.service" || true
+
+install -D -m 644 debian/opsiconfd.service %{buildroot}%{_unitdir}/opsiconfd.service
 
 # ===[ clean ]======================================
 %clean
@@ -109,11 +104,6 @@ rm -rf $RPM_BUILD_ROOT
 %post
 arg0=$1
 
-#fix for runlevel 4 (not used on rpm-based machines)
-if  [ -e  "/etc/init.d/opsiconfd" ]; then
-	sed -i "s/2 3 4 5/2 3 5/g; s/2345/235/g" /etc/init.d/opsiconfd
-fi
-
 fileadmingroup=$(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
 if [ -z "$fileadmingroup" ]; then
 	fileadmingroup=pcpatch
@@ -121,12 +111,6 @@ fi
 
 if [ $arg0 -eq 1 ]; then
 	# Install
-	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
-		chkconfig --add opsiconfd
-	%else
-		insserv opsiconfd || true
-	%endif
-
 	if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
 		groupmod -n $fileadmingroup pcpatch
 	else
@@ -169,7 +153,7 @@ if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
 	echo "RANDFILE = /tmp/opsiconfd.rand" 	>  /tmp/opsiconfd.cnf
 	echo "" 				>> /tmp/opsiconfd.cnf
 	echo "[ req ]" 				>> /tmp/opsiconfd.cnf
-	echo "default_bits = 1024" 		>> /tmp/opsiconfd.cnf
+	echo "default_bits = 2048" 		>> /tmp/opsiconfd.cnf
 	echo "encrypt_key = yes" 		>> /tmp/opsiconfd.cnf
 	echo "distinguished_name = req_dn" 	>> /tmp/opsiconfd.cnf
 	echo "x509_extensions = cert_type" 	>> /tmp/opsiconfd.cnf
@@ -200,81 +184,49 @@ chown opsiconfd:opsiadmin /etc/opsi/opsiconfd.pem || true
 chmod 750 /var/log/opsi/opsiconfd
 chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 
-set +e
-SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
-set -e
-if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/" ]; then
-	echo "Copying opsiconfd.service to $SYSTEMDUNITDIR"
-	cp "/etc/opsi/systemdTemplates/opsiconfd.service" "$SYSTEMDUNITDIR" || echo "Copying opsiconfd.service failed"
+%if 0%{?rhel_version} || 0%{?centos_version}
+%systemd_post opsiconfd.service
+%else
+%service_add_post opsiconfd.service
+%endif
 
-	%if 0%{?suse_version} >= 1315 || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
-		# Adjusting to the correct service names
-		sed --in-place "s/=smbd.service/=smb.service/" "$SYSTEMDUNITDIR/opsiconfd.service" || True
-		sed --in-place "s/=isc-dhcp-server.service/=dhcpd.service/" "$SYSTEMDUNITDIR/opsiconfd.service" || True
-	%endif
+systemctl=`which systemctl 2>/dev/null` || true
+if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
+	$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 
-	%if 0%{?suse_version} || 0%{?centos_version} || 0%{?rhel_version}
-		MKDIR_PATH=$(which mkdir)
-		CHOWN_PATH=$(which chown)
-		sed --in-place "s!=-/bin/mkdir!=-$MKDIR_PATH!" "$SYSTEMDUNITDIR/opsiconfd.service" || True
-		sed --in-place "s!=-/bin/chown!=-$CHOWN_PATH!" "$SYSTEMDUNITDIR/opsiconfd.service" || True
-	%endif
-
-	systemctl=`which systemctl 2>/dev/null` || true
-	if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-		echo "Reloading unit-files"
-		$systemctl daemon-reload || echo "Reloading unit-files failed!"
-		$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+	if [ "$arg0" -eq 1 ]; then
+		# Install
+		$systemctl start opsiconfd.service || true
+	else
+		# Upgrade
+		$systemctl restart opsiconfd.service || true
 	fi
 fi
 
-if [ $arg0 -eq 1 ]; then
-	# Install
-	/sbin/service opsiconfd start || true
-else
-	# Upgrade
-	if [ -e /var/run/opsiconfd.pid -o -e /var/run/opsiconfd/opsiconfd.pid ]; then
-		rm /var/run/opsiconfd.pid 2>/dev/null || true
-		/sbin/service opsiconfd restart || true
-	fi
-fi
 
 # ===[ preun ]======================================
 %preun
-%if 0%{?suse_version}
-	%stop_on_removal opsiconfd
+%if 0%{?rhel_version} || 0%{?centos_version}
+%systemd_preun opsiconfd.service
 %else
-	if [ $1 = 0 ] ; then
-		/sbin/service opsiconfd stop >/dev/null 2>&1 || true
-	fi
+%service_del_preun opsiconfd.service
 %endif
 
 # ===[ postun ]=====================================
 %postun
-%restart_on_update opsiconfd
+%if 0%{?rhel_version} || 0%{?centos_version}
+%systemd_postun opsiconfd.service
+%else
+%service_del_postun opsiconfd.service
+%endif
+
 if [ $1 -eq 0 ]; then
-	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
-		chkconfig --del opsiconfd
-	%else
-		%insserv_cleanup
-	%endif
 	%if 0%{?suse_version}
 		groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
 		groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true
 	%endif
 	[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
 	rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
-
-	SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
-	if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -e "$SYSTEMDUNITDIR/opsiconfd.service" ]; then
-		systemctl=`which systemctl 2>/dev/null` || true
-		if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-			$systemctl disable opsiconfd.service && echo "Disabled opsiconfd.service" || echo "Disabling opsiconfd.service failed!"
-			$systemctl daemon-reload || echo "Reloading unit-files failed!"
-		fi
-
-		rm "$SYSTEMDUNITDIR/opsiconfd.service" || echo "Removing opsiconfd.service failed"
-	fi
 fi
 
 # ===[ files ]======================================
@@ -282,13 +234,12 @@ fi
 # default attributes
 %defattr(-,root,root)
 
+%{_unitdir}/opsiconfd.service
+
 # configfiles
 %config(noreplace) /etc/opsi/opsiconfd.conf
-%attr(0755,root,root) %config /etc/init.d/opsiconfd
 %config /etc/logrotate.d/opsiconfd
 
-## other files
-%attr(0755,root,root) /usr/sbin/rcopsiconfd
 ## directories
 %dir /var/log/opsi
 

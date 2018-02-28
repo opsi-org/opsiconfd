@@ -5,7 +5,7 @@ opsi configuration daemon - documentation
 opsiconfd is part of the desktop management solution opsi
 (open pc server integration) http://www.opsi.org
 
-Copyright (C) 2010-2013 uib GmbH
+Copyright (C) 2010-2017 uib GmbH
 
 http://www.uib.de/
 
@@ -97,11 +97,12 @@ class DocumentationDirectoryLister(DirectoryLister):
 			if row['type'] == '-':
 				if linktext.startswith("opsi"):
 					content.append(self._li % (row['link'] + ("%s.html" % linktext), linktext))
-				elif linktext in self._langs.keys():
+				elif linktext in self._langs:
 					lang = linktext.rstrip("/")
-					if lang in self._langs.keys():
+					try:
 						linktext = self._langs[lang]
-						#linktext += "/"
+					except KeyError:
+						pass
 					content.append(self._li % (row['link'], linktext))
 
 		if len(content):

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """
 opsi configuration daemon - resources
@@ -32,12 +31,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 @license: GNU Affero General Public License version 3
 """
 
+from __future__ import absolute_import
+
 import urllib
 
 from OPSI.web2 import http, resource
 from OPSI.Service.Resource import ResourceOpsi, ResourceOpsiJsonRpc, ResourceOpsiJsonInterface, ResourceOpsiDAV
 
-from workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface, WorkerOpsiconfdDAV
+from .workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface, WorkerOpsiconfdDAV
 
 
 CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
@@ -48,7 +49,6 @@ CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
 		<homepage href="http://www.opsi.org/"/>
 		<description>Management console application for the opsi client management system</description>
 		<description kind="short">opsi management interface (opsi-configed)</description>
-		<icon href="configed.gif"/>
 		<offline-allowed/>
 	</information>
 	<security>
@@ -123,7 +123,6 @@ class ResourceOpsiconfdConfigedJNLP(resource.Resource):
 					yield value
 				else:
 					yield argument
-
 
 	def render(self, request):
 		def argumentTags(text):

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of python-opsi.
-# Copyright (C) 2010-2015 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2017 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -25,21 +25,37 @@ opsi configuration daemon (opsiconfd) setup file
 :license: GNU Affero General Public License version 3
 """
 
+import codecs
 import os
 from setuptools import setup
 
 
-version = None
-with open("opsiconfd/opsiconfd.py") as f:
-	for line in f:
-		if '__version__' in line:
-			version = line.split('=')[1].strip()
-			break
+VERSION = None
+with codecs.open(os.path.join("debian", "changelog"), 'r', 'utf-8') as changelog:
+	VERSION = changelog.readline().split('(')[1].split('-')[0]
+
+if not VERSION:
+	raise Exception(u"Failed to get version info")
+
+# Always set __version__ in opsiconfd.__init__.py to the version found
+# in the changelog to make sure the version is always up-to-date
+# and nobody needs to manually update it.
+initFilePath = os.path.join('opsiconfd', '__init__.py')
+newInitLines = []
+with codecs.open(initFilePath, 'r', 'utf-8') as originalFile:
+	for line in originalFile:
+		if line.startswith('__version__'):
+			newInitLines.append("__version__ = '{0}'\n".format(VERSION))
+			continue
+
+		newInitLines.append(line)
+
+with codecs.open(initFilePath, 'w', 'utf-8') as newInitFile:
+	newInitFile.writelines(newInitLines)
+print("Patched version {1!r} from changelog into {0}".format(initFilePath, VERSION))
 
 data_files = [
 	('/etc/opsi', ['data/etc/opsi/opsiconfd.conf']),
-	('/etc/opsi/systemdTemplates', ['data/etc/opsi/systemdTemplates/opsiconfd.service']),
-	('/etc/init.d', ['data/etc/init.d/opsiconfd']),
 	('/etc/logrotate.d', ['data/etc/logrotate.d/opsiconfd']),
 	('share/opsiconfd/static', [
 		'data/shared/index.html',
@@ -50,11 +66,15 @@ data_files = [
 
 setup(
 	name='opsiconfd',
-	version=version,
+	version=VERSION,
 	license='AGPL-3',
 	url="http://www.opsi.org",
 	description='The opsi configiration management daemon',
 	packages=['opsiconfd'],
-	scripts=['scripts/opsiconfd', 'scripts/opsiconfd-guard'],
+	entry_points={
+		'console_scripts': [
+			'opsiconfd = opsiconfd.opsiconfd:rumFromCommandline',
+		]
+	},
 	data_files=data_files,
 )

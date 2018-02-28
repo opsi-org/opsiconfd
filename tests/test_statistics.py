@@ -72,12 +72,12 @@ class StatisticsTestCase(unittest.TestCase):
         [stats.addRpc(FakeRPC()) for _ in xrange(500000)]
 
         self.assertEquals(250, len(stats.getRpcs()))
-        self.assertEquals(1, len(stats.getRPCCallCounts().keys()))
+        self.assertEquals(1, len(stats.getRPCCallCounts()))
         self.assertTrue("dummy_method" in stats.getRPCCallCounts())
         self.assertEquals(500000, stats.getRPCCallCounts()['dummy_method'])
 
         stats.addRpc(FakeRPC(methodName="another_method"))
-        self.assertEquals(2, len(stats.getRPCCallCounts().keys()))
+        self.assertEquals(2, len(stats.getRPCCallCounts()))
         self.assertTrue("another_method" in stats.getRPCCallCounts())
 
     def testCollectingCountAlsoHasInformationAboutDuration(self):

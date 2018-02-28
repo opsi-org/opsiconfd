@@ -68,7 +68,7 @@ case "$1" in
 				echo "RANDFILE = $tmp_opsiconfd_rand" 	>  $tmp_opsiconfd_cnf
 				echo "" 				>> $tmp_opsiconfd_cnf
 				echo "[ req ]" 				>> $tmp_opsiconfd_cnf
-				echo "default_bits = 1024" 		>> $tmp_opsiconfd_cnf
+				echo "default_bits = 2048" 		>> $tmp_opsiconfd_cnf
 				echo "encrypt_key = yes" 		>> $tmp_opsiconfd_cnf
 				echo "distinguished_name = req_dn" 	>> $tmp_opsiconfd_cnf
 				echo "x509_extensions = cert_type" 	>> $tmp_opsiconfd_cnf
@@ -107,36 +107,11 @@ case "$1" in
 		chmod 770 /var/lib/opsiconfd/rrd
 		chown opsiconfd:opsiadmin /var/lib/opsiconfd/rrd
 
-		# Making logrotate config backwards-compatible
-		LOGROTATE_VERSION="$(dpkg --list | grep logrotate | grep "^ii" | awk '{ print $3 }' | cut -d '-' -f 1)"
-		if dpkg --compare-versions "$LOGROTATE_VERSION" lt "3.8"; then
-			LOGROTATE_TEMP=$(tempfile)
-			LOGROTATE_CONFIG=/etc/logrotate.d/opsiconfd
-			grep -v "su opsiconfd opsiadmin" $LOGROTATE_CONFIG > $LOGROTATE_TEMP
-			mv $LOGROTATE_TEMP $LOGROTATE_CONFIG
+		systemctl=`which systemctl 2>/dev/null`
+		if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
+			$systemctl daemon-reload || echo "Reloading unit-files failed!"
+			$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 		fi
-
-		set +e
-		SYSTEMDUNITDIR=$(pkg-config systemd --variable=systemdsystemunitdir)
-		set -e
-		if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemplates/" ]; then
-			echo "Copying opsiconfd.service to $SYSTEMDUNITDIR"
-			cp "/etc/opsi/systemdTemplates/opsiconfd.service" "$SYSTEMDUNITDIR" || echo "Copying service file failed."
-
-			systemctl=`which systemctl 2>/dev/null`
-			if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-				echo "Reloading unit-files"
-				$systemctl daemon-reload || echo "Reloading unit-files failed!"
-				$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
-			fi
-		else
-			if [ -x "/etc/init.d/opsiconfd" ]; then
-				update-rc.d -f opsiconfd remove >/dev/null || true
-				update-rc.d opsiconfd defaults 80 20 >/dev/null
-			fi
-		fi
-
-		/usr/sbin/service opsiconfd start || true
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)

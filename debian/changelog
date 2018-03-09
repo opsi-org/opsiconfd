@@ -177,6 +177,14 @@ opsiconfd (4.1.1.1-1) experimental; urgency=medium
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 16 Sep 2016 12:12:24 +0200
 
+opsiconfd (4.0.7.14-2) stable; urgency=medium
+
+  * RPM: prevent possible shell syntax errors.
+  * postinst: Added quotation around variables to avoid side effects.
+  * postinst: Do not fail on renaming fileadmingroup.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 09 Mar 2018 12:33:07 +0100
+
 opsiconfd (4.0.7.14-1) stable; urgency=medium
 
   * Info page: Fix possible data injection through a clients User Agent.

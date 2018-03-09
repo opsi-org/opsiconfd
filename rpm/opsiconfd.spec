@@ -109,18 +109,20 @@ if [ -z "$fileadmingroup" ]; then
 	fileadmingroup=pcpatch
 fi
 
-if [ $arg0 -eq 1 ]; then
+if [ "$arg0" -eq 1 ]; then
 	# Install
-	if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
-		groupmod -n $fileadmingroup pcpatch
+	if [ "$fileadmingroup" != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
+		if [ -n "$(getent group pcpatch)" ]; then
+			groupmod -n "$fileadmingroup" pcpatch
+		fi
 	else
 		if [ -z "$(getent group $fileadmingroup)" ]; then
-			groupadd $fileadmingroup
+			groupadd "$fileadmingroup"
 		fi
 	fi
 
 	if [ -z "`getent passwd opsiconfd`" ]; then
-		useradd --system -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
+		useradd --system -g "$fileadmingroup" -d /var/lib/opsi -s /bin/bash opsiconfd
 	fi
 
 	if [ -z "`getent group opsiadmin`" ]; then
@@ -203,7 +205,6 @@ if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
 	fi
 fi
 
-
 # ===[ preun ]======================================
 %preun
 %if 0%{?rhel_version} || 0%{?centos_version}
@@ -220,7 +221,7 @@ fi
 %service_del_postun opsiconfd.service
 %endif
 
-if [ $1 -eq 0 ]; then
+if [ "$1" -eq 0 ]; then
 	%if 0%{?suse_version}
 		groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
 		groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true

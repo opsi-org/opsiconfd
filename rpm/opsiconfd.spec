@@ -128,7 +128,9 @@ if [ $arg0 -eq 1 ]; then
 	%endif
 
 	if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
-		groupmod -n $fileadmingroup pcpatch
+		if [ -n "$(getent group pcpatch)" ]; then
+			groupmod -n $fileadmingroup pcpatch
+		fi
 	else
 		if [ -z "$(getent group $fileadmingroup)" ]; then
 			groupadd $fileadmingroup

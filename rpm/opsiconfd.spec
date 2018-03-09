@@ -193,16 +193,14 @@ chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 %endif
 
 systemctl=`which systemctl`
-if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-	$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 
-	if [ "$arg0" -eq 1 ]; then
-		# Install
-		$systemctl start opsiconfd.service || true
-	else
-		# Upgrade
-		$systemctl restart opsiconfd.service || true
-	fi
+if [ "$arg0" -eq 1 ]; then
+	# Install
+	$systemctl start opsiconfd.service || true
+else
+	# Upgrade
+	$systemctl restart opsiconfd.service || true
 fi
 
 # ===[ preun ]======================================

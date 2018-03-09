@@ -1,7 +1,7 @@
 #! /bin/bash -e
 
 # = = = = = = = = = = = = = = = = = = = = = = =
-# =     Copyright (C) 2010-2017 uib GmbH      =
+# =     Copyright (C) 2010-2018 uib GmbH      =
 # =           http://www.uib.de               =
 # =          All rights reserved.             =
 # = = = = = = = = = = = = = = = = = = = = = = =
@@ -109,7 +109,7 @@ case "$1" in
 		chmod 770 /var/lib/opsiconfd/rrd
 		chown opsiconfd:opsiadmin /var/lib/opsiconfd/rrd
 
-		systemctl=`which systemctl 2>/dev/null`
+		systemctl=`which systemctl`
 		if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
 			$systemctl daemon-reload || echo "Reloading unit-files failed!"
 			$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"

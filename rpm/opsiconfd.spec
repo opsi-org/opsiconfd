@@ -1,7 +1,7 @@
 #
 # spec file for package opsiconfd
 #
-# Copyright (c) 2008-2017 uib GmbH.
+# Copyright (c) 2008-2018 uib GmbH.
 # This file and all modifications and additions to the pristine
 # package are under the same license as the package itself.
 #
@@ -192,7 +192,7 @@ chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 %service_add_post opsiconfd.service
 %endif
 
-systemctl=`which systemctl 2>/dev/null` || true
+systemctl=`which systemctl`
 if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
 	$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 

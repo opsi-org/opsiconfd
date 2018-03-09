@@ -1,7 +1,7 @@
 #! /bin/bash -e
 
 # = = = = = = = = = = = = = = = = = = = = = = =
-# =     Copyright (C) 2010-2017 uib GmbH      =
+# =     Copyright (C) 2010-2018 uib GmbH      =
 # =           http://www.uib.de               =
 # =          All rights reserved.             =
 # = = = = = = = = = = = = = = = = = = = = = = =
@@ -17,23 +17,25 @@ case "$1" in
 		if [ -z "$fileadmingroup" ]; then
 			fileadmingroup=pcpatch
 		fi
-		if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
-			groupmod -n $fileadmingroup pcpatch
+		if [ "$fileadmingroup" != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
+			if [ -n "$(getent group pcpatch)" ]; then
+				groupmod -n "$fileadmingroup" pcpatch
+			fi
 		else
 			if [ -z "$(getent group $fileadmingroup)" ]; then
-				groupadd $fileadmingroup
+				groupadd "$fileadmingroup"
 			fi
 		fi
 
 		if [ -z "`getent passwd opsiconfd`" ]; then
-			useradd --system -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
+			useradd --system -g "$fileadmingroup" -d /var/lib/opsi -s /bin/bash opsiconfd
 		fi
 
 		if [ -z "`getent group opsiadmin`" ]; then
 			groupadd opsiadmin
 		fi
 
-		deluser $fileadmingroup shadow  1>/dev/null 2>/dev/null || true
+		deluser "$fileadmingroup" shadow  1>/dev/null 2>/dev/null || true
 		adduser opsiconfd shadow  1>/dev/null 2>/dev/null || true
 		adduser opsiconfd opsiadmin  1>/dev/null 2>/dev/null || true
 
@@ -107,11 +109,9 @@ case "$1" in
 		chmod 770 /var/lib/opsiconfd/rrd
 		chown opsiconfd:opsiadmin /var/lib/opsiconfd/rrd
 
-		systemctl=`which systemctl 2>/dev/null`
-		if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-			$systemctl daemon-reload || echo "Reloading unit-files failed!"
-			$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
-		fi
+		systemctl=`which systemctl`
+		$systemctl daemon-reload || echo "Reloading unit-files failed!"
+		$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)

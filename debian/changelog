@@ -1,3 +1,11 @@
+opsiconfd (4.0.7.14-2) stable; urgency=medium
+
+  * RPM: prevent possible shell syntax errors.
+  * postinst: Added quotation around variables to avoid side effects.
+  * postinst: Do not fail on renaming fileadmingroup.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 09 Mar 2018 12:33:07 +0100
+
 opsiconfd (4.0.7.14-1) stable; urgency=medium
 
   * Info page: Fix possible data injection through a clients User Agent.

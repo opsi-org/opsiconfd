@@ -1,7 +1,7 @@
 #
 # spec file for package opsiconfd
 #
-# Copyright (c) 2008-2017 uib GmbH.
+# Copyright (c) 2008-2018 uib GmbH.
 # This file and all modifications and additions to the pristine
 # package are under the same license as the package itself.
 #
@@ -109,18 +109,20 @@ if [ -z "$fileadmingroup" ]; then
 	fileadmingroup=pcpatch
 fi
 
-if [ $arg0 -eq 1 ]; then
+if [ "$arg0" -eq 1 ]; then
 	# Install
-	if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
-		groupmod -n $fileadmingroup pcpatch
+	if [ "$fileadmingroup" != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
+		if [ -n "$(getent group pcpatch)" ]; then
+			groupmod -n "$fileadmingroup" pcpatch
+		fi
 	else
 		if [ -z "$(getent group $fileadmingroup)" ]; then
-			groupadd $fileadmingroup
+			groupadd "$fileadmingroup"
 		fi
 	fi
 
 	if [ -z "`getent passwd opsiconfd`" ]; then
-		useradd --system -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
+		useradd --system -g "$fileadmingroup" -d /var/lib/opsi -s /bin/bash opsiconfd
 	fi
 
 	if [ -z "`getent group opsiadmin`" ]; then
@@ -190,19 +192,16 @@ chown -R opsiconfd:$fileadmingroup /var/log/opsi/opsiconfd
 %service_add_post opsiconfd.service
 %endif
 
-systemctl=`which systemctl 2>/dev/null` || true
-if [ ! -z "$systemctl" -a -x "$systemctl" ]; then
-	$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
+systemctl=`which systemctl`
+$systemctl enable opsiconfd.service && echo "Enabled opsiconfd.service" || echo "Enabling opsiconfd.service failed!"
 
-	if [ "$arg0" -eq 1 ]; then
-		# Install
-		$systemctl start opsiconfd.service || true
-	else
-		# Upgrade
-		$systemctl restart opsiconfd.service || true
-	fi
+if [ "$arg0" -eq 1 ]; then
+	# Install
+	$systemctl start opsiconfd.service || true
+else
+	# Upgrade
+	$systemctl restart opsiconfd.service || true
 fi
-
 
 # ===[ preun ]======================================
 %preun
@@ -220,7 +219,7 @@ fi
 %service_del_postun opsiconfd.service
 %endif
 
-if [ $1 -eq 0 ]; then
+if [ "$1" -eq 0 ]; then
 	%if 0%{?suse_version}
 		groupmod -R opsiconfd shadow 1>/dev/null 2>/dev/null || true
 		groupmod -R opsiconfd uucp 1>/dev/null 2>/dev/null || true

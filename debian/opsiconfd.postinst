@@ -17,25 +17,25 @@ case "$1" in
 		if [ -z "$fileadmingroup" ]; then
 			fileadmingroup=pcpatch
 		fi
-		if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
+		if [ "$fileadmingroup" != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
 			if [ -n "$(getent group pcpatch)" ]; then
-				groupmod -n $fileadmingroup pcpatch
+				groupmod -n "$fileadmingroup" pcpatch
 			fi
 		else
 			if [ -z "$(getent group $fileadmingroup)" ]; then
-				groupadd $fileadmingroup
+				groupadd "$fileadmingroup"
 			fi
 		fi
 
 		if [ -z "`getent passwd opsiconfd`" ]; then
-			useradd --system -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
+			useradd --system -g "$fileadmingroup" -d /var/lib/opsi -s /bin/bash opsiconfd
 		fi
 
 		if [ -z "`getent group opsiadmin`" ]; then
 			groupadd opsiadmin
 		fi
 
-		deluser $fileadmingroup shadow  1>/dev/null 2>/dev/null || true
+		deluser "$fileadmingroup" shadow  1>/dev/null 2>/dev/null || true
 		adduser opsiconfd shadow  1>/dev/null 2>/dev/null || true
 		adduser opsiconfd opsiadmin  1>/dev/null 2>/dev/null || true
 

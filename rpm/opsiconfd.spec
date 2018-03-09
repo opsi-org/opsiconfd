@@ -119,7 +119,7 @@ if [ -z "$fileadmingroup" ]; then
 	fileadmingroup=pcpatch
 fi
 
-if [ $arg0 -eq 1 ]; then
+if [ "$arg0" -eq 1 ]; then
 	# Install
 	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
 		chkconfig --add opsiconfd
@@ -127,16 +127,18 @@ if [ $arg0 -eq 1 ]; then
 		insserv opsiconfd || true
 	%endif
 
-	if [ $fileadmingroup != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
-		groupmod -n $fileadmingroup pcpatch
+	if [ "$fileadmingroup" != pcpatch -a -z "$(getent group $fileadmingroup)" ]; then
+		if [ -n "$(getent group pcpatch)" ]; then
+			groupmod -n "$fileadmingroup" pcpatch
+		fi
 	else
 		if [ -z "$(getent group $fileadmingroup)" ]; then
-			groupadd $fileadmingroup
+			groupadd "$fileadmingroup"
 		fi
 	fi
 
 	if [ -z "`getent passwd opsiconfd`" ]; then
-		useradd --system -g $fileadmingroup -d /var/lib/opsi -s /bin/bash opsiconfd
+		useradd --system -g "$fileadmingroup" -d /var/lib/opsi -s /bin/bash opsiconfd
 	fi
 
 	if [ -z "`getent group opsiadmin`" ]; then
@@ -228,7 +230,7 @@ if [ ! -z "$SYSTEMDUNITDIR" -a -d "$SYSTEMDUNITDIR" -a -d "/etc/opsi/systemdTemp
 	fi
 fi
 
-if [ $arg0 -eq 1 ]; then
+if [ "$arg0" -eq 1 ]; then
 	# Install
 	/sbin/service opsiconfd start || true
 else
@@ -244,15 +246,18 @@ fi
 %if 0%{?suse_version}
 	%stop_on_removal opsiconfd
 %else
-	if [ $1 = 0 ] ; then
+	if [ "$1" -eq 0 ] ; then
 		/sbin/service opsiconfd stop >/dev/null 2>&1 || true
 	fi
 %endif
 
 # ===[ postun ]=====================================
 %postun
+%if 0%{?suse_version}
 %restart_on_update opsiconfd
-if [ $1 -eq 0 ]; then
+%endif
+
+if [ "$1" -eq 0 ]; then
 	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
 		chkconfig --del opsiconfd
 	%else

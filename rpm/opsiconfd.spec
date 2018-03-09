@@ -244,7 +244,7 @@ fi
 %if 0%{?suse_version}
 	%stop_on_removal opsiconfd
 %else
-	if [ $1 = 0 ] ; then
+	if [ "$1" -eq 0 ] ; then
 		/sbin/service opsiconfd stop >/dev/null 2>&1 || true
 	fi
 %endif
@@ -255,7 +255,7 @@ fi
 %restart_on_update opsiconfd
 %endif
 
-if [ $1 -eq 0 ]; then
+if [ "$1" -eq 0 ]; then
 	%if 0%{?centos_version} || 0%{?rhel_version} || 0%{?fedora_version}
 		chkconfig --del opsiconfd
 	%else

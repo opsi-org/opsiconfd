@@ -13,6 +13,13 @@ BuildRequires: systemd-rpm-macros
 BuildRequires: logrotate
 BuildRequires: zypper
 %{py_requires}
+%if 0%{?suse_version} == 1315
+# SLES
+BuildRequires:  python-opsi >= 4.1.1.7
+Suggests:       python-rrdtool
+%else
+BuildRequires:  python-rrdtool
+%endif
 %endif
 BuildArch:      noarch
 Requires:       logrotate
@@ -31,15 +38,6 @@ Release:        2
 Summary:        This is the opsi configuration service
 Source:         opsiconfd_4.1.1.4-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
-%if 0%{?suse_version} == 1315
-# SLES
-BuildRequires:  python-opsi >= 4.1.1.7
-Suggests:       python-rrdtool
-%else
-%if 0%{?suse_version}
-BuildRequires:  python-rrdtool
-%endif
-%endif
 
 %define tarname opsiconfd
 %define fileadmingroup %(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')

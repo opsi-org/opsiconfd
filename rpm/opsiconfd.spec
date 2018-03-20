@@ -13,13 +13,7 @@ BuildRequires: systemd-rpm-macros
 BuildRequires: logrotate
 BuildRequires: zypper
 %{py_requires}
-%if 0%{?suse_version} == 1315
-# SLES
 BuildRequires:  python-opsi >= 4.1.1.7
-Suggests:       python-rrdtool
-%else
-BuildRequires:  python-rrdtool
-%endif
 %endif
 BuildArch:      noarch
 Requires:       logrotate
@@ -29,6 +23,9 @@ Requires:       python-twisted
 Requires:       psmisc
 Requires:       procps
 %{?systemd_requires}
+%if 0%{?suse_version}
+Suggests:       python-rrdtool
+%endif
 Url:            http://www.opsi.org
 License:        AGPL-3.0+
 Group:          Productivity/Networking/Opsi

@@ -13,11 +13,11 @@ BuildRequires:  python-devel
 BuildRequires:  python-setuptools
 BuildRequires:  systemd
 %if 0%{?suse_version}
-BuildRequires: systemd-rpm-macros
-BuildRequires: logrotate
-BuildRequires: zypper
-%{py_requires}
+BuildRequires:  logrotate
 BuildRequires:  python-opsi >= 4.1.1.7
+BuildRequires:  systemd-rpm-macros
+BuildRequires:  zypper
+%{py_requires}
 %endif
 BuildArch:      noarch
 Requires:       logrotate

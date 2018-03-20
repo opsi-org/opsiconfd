@@ -241,7 +241,6 @@ fi
 
 ## directories
 %dir /var/log/opsi
-
 %attr(0750,opsiconfd,root) %dir /var/log/opsi/opsiconfd
 
 %if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}

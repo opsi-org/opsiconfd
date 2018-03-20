@@ -8,16 +8,16 @@
 
 Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl procps systemd
-Requires:       python-opsi >= 4.1.1.7
 %if 0%{?suse_version}
 BuildRequires: systemd-rpm-macros
 %endif
 BuildArch:      noarch
+Requires:       logrotate
 Requires:       openssl
+Requires:       python-opsi >= 4.1.1.7
 Requires:       python-twisted
 Requires:       psmisc
 Requires:       procps
-Requires:       logrotate
 %{?systemd_requires}
 Url:            http://www.opsi.org
 License:        AGPL-3.0+

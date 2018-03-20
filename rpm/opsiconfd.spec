@@ -9,7 +9,7 @@
 Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl procps systemd
 Requires:       python-opsi >= 4.1.1.7
-%if 0%{?suse_version} >= 1210
+%if 0%{?suse_version}
 BuildRequires: systemd-rpm-macros
 %endif
 BuildArch:      noarch

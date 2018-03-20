@@ -79,6 +79,7 @@ python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record=INST
 %endif
 
 mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
+mkdir -p $RPM_BUILD_ROOT/var/lib/opsiconfd/rrd
 
 sed -i 's#/etc/logrotate.d$##' INSTALLED_FILES
 
@@ -232,8 +233,9 @@ fi
 
 ## directories
 %dir /var/log/opsi
-
 %attr(0750,opsiconfd,root) %dir /var/log/opsi/opsiconfd
+%dir /var/lib/opsiconfd
+%attr(0770,opsiconfd,opsiadmin) %dir /var/lib/opsiconfd/rrd
 
 %if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
 %define python_sitearch %(%{__python} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')

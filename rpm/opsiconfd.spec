@@ -10,6 +10,9 @@ Name:           opsiconfd
 BuildRequires:  python-devel python-setuptools openssl procps systemd
 %if 0%{?suse_version}
 BuildRequires: systemd-rpm-macros
+BuildRequires: logrotate
+BuildRequires: zypper
+%{py_requires}
 %endif
 BuildArch:      noarch
 Requires:       logrotate
@@ -30,13 +33,11 @@ Source:         opsiconfd_4.1.1.4-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 %if 0%{?suse_version} == 1315
 # SLES
-BuildRequires:  python-opsi >= 4.1.1.7 zypper logrotate
+BuildRequires:  python-opsi >= 4.1.1.7
 Suggests:       python-rrdtool
-%{py_requires}
 %else
 %if 0%{?suse_version}
-BuildRequires:  python-rrdtool zypper logrotate
-%{py_requires}
+BuildRequires:  python-rrdtool
 %endif
 %endif
 

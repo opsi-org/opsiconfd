@@ -122,17 +122,11 @@ if [ "$arg0" -eq 1 ]; then
 		groupadd opsiadmin
 	fi
 
-	%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version} || 0%{?suse_version} >= 1230
-		getent group shadow > /dev/null || groupadd -r shadow
-		chgrp shadow /etc/shadow
-		chmod g+r /etc/shadow
-		usermod -a -G shadow opsiconfd 1>/dev/null 2>/dev/null || true
-		usermod -a -G opsiadmin opsiconfd 1>/dev/null 2>/dev/null || true
-	%else
-		groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
-		groupmod -A opsiconfd uucp 1>/dev/null 2>/dev/null || true
-		groupmod -A opsiconfd opsiadmin 1>/dev/null 2>/dev/null || true
-	%endif
+	getent group shadow > /dev/null || groupadd -r shadow
+	chgrp shadow /etc/shadow
+	chmod g+r /etc/shadow
+	usermod -a -G shadow opsiconfd 1>/dev/null 2>/dev/null || true
+	usermod -a -G opsiadmin opsiconfd 1>/dev/null 2>/dev/null || true
 fi
 
 if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then

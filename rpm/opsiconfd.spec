@@ -7,18 +7,28 @@
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl procps systemd
-Requires:       python-opsi >= 4.1.1.7
-%if 0%{?suse_version} >= 1210
-BuildRequires: systemd-rpm-macros
+BuildRequires:  openssl
+BuildRequires:  procps
+BuildRequires:  python-devel
+BuildRequires:  python-setuptools
+BuildRequires:  systemd
+%if 0%{?suse_version}
+BuildRequires:  logrotate
+BuildRequires:  systemd-rpm-macros
+BuildRequires:  zypper
+%{py_requires}
 %endif
 BuildArch:      noarch
+Requires:       logrotate
 Requires:       openssl
+Requires:       python-opsi >= 4.1.1.7
 Requires:       python-twisted
 Requires:       psmisc
 Requires:       procps
-Requires:       logrotate
 %{?systemd_requires}
+%if 0%{?suse_version}
+Suggests:       python-rrdtool
+%endif
 Url:            http://www.opsi.org
 License:        AGPL-3.0+
 Group:          Productivity/Networking/Opsi
@@ -28,17 +38,6 @@ Release:        2
 Summary:        This is the opsi configuration service
 Source:         opsiconfd_4.1.1.4-1.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
-%if 0%{?suse_version} == 1315
-# SLES
-BuildRequires:  python-opsi >= 4.1.1.7 zypper logrotate
-Suggests:       python-rrdtool
-%{py_requires}
-%else
-%if 0%{?suse_version}
-BuildRequires:  python-rrdtool zypper logrotate
-%{py_requires}
-%endif
-%endif
 
 %define tarname opsiconfd
 %define fileadmingroup %(grep "fileadmingroup" /etc/opsi/opsi.conf | cut -d "=" -f 2 | sed 's/\s*//g')
@@ -56,7 +55,7 @@ This package contains the opsi configuration service.
 
 # ===[ build ]======================================
 %build
-%if 0%{?rhel_version} >= 700 || 0%{?centos_version} >= 700
+%if 0%{?rhel_version} || 0%{?centos_version}
 # Fix for https://bugzilla.redhat.com/show_bug.cgi?id=1117878
 export PATH="/usr/bin:$PATH"
 %endif
@@ -79,15 +78,13 @@ python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record=INST
 %endif
 
 mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd
+mkdir -p $RPM_BUILD_ROOT/var/lib/opsiconfd/rrd
 
 sed -i 's#/etc/logrotate.d$##' INSTALLED_FILES
 
-# Patching systemd service file
-%if 0%{?suse_version} >= 1315 || 0%{?centos_version} >= 700 || 0%{?rhel_version} >= 700
-	# Adjusting to the correct service names
-	sed --in-place "s/=smbd.service/=smb.service/" "debian/opsiconfd.service" || true
-	sed --in-place "s/=isc-dhcp-server.service/=dhcpd.service/" "debian/opsiconfd.service" || true
-%endif
+# Adjusting to the correct service names
+sed --in-place "s/=smbd.service/=smb.service/" "debian/opsiconfd.service" || true
+sed --in-place "s/=isc-dhcp-server.service/=dhcpd.service/" "debian/opsiconfd.service" || true
 
 MKDIR_PATH=$(which mkdir)
 CHOWN_PATH=$(which chown)
@@ -129,17 +126,11 @@ if [ "$arg0" -eq 1 ]; then
 		groupadd opsiadmin
 	fi
 
-	%if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version} || 0%{?suse_version} >= 1230
-		getent group shadow > /dev/null || groupadd -r shadow
-		chgrp shadow /etc/shadow
-		chmod g+r /etc/shadow
-		usermod -a -G shadow opsiconfd 1>/dev/null 2>/dev/null || true
-		usermod -a -G opsiadmin opsiconfd 1>/dev/null 2>/dev/null || true
-	%else
-		groupmod -A opsiconfd shadow 1>/dev/null 2>/dev/null || true
-		groupmod -A opsiconfd uucp 1>/dev/null 2>/dev/null || true
-		groupmod -A opsiconfd opsiadmin 1>/dev/null 2>/dev/null || true
-	%endif
+	getent group shadow > /dev/null || groupadd -r shadow
+	chgrp shadow /etc/shadow
+	chmod g+r /etc/shadow
+	usermod -a -G shadow opsiconfd 1>/dev/null 2>/dev/null || true
+	usermod -a -G opsiadmin opsiconfd 1>/dev/null 2>/dev/null || true
 fi
 
 if [ ! -e "/etc/opsi/opsiconfd.pem" ]; then
@@ -241,8 +232,9 @@ fi
 
 ## directories
 %dir /var/log/opsi
-
 %attr(0750,opsiconfd,root) %dir /var/log/opsi/opsiconfd
+%dir /var/lib/opsiconfd
+%attr(0770,opsiconfd,opsiadmin) %dir /var/lib/opsiconfd/rrd
 
 %if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
 %define python_sitearch %(%{__python} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')

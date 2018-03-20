@@ -1,3 +1,14 @@
+opsiconfd (4.1.1.10-5) testing; urgency=medium
+
+  * opsiconfd.spec: Clean up specfile.
+  * opsiconfd.spec: Less branches - a lot of this is now considered our
+    standard environment.
+  * opsiconfd.spec: Removed BuildRequires python-opsi on SUSE.
+  * opsiconfd.spec: Directories required for using rrdtool from within
+    opsiconfd are now created by default.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 20 Mar 2018 18:02:37 +0100
+
 opsiconfd (4.1.1.10-4) stable; urgency=medium
 
   * Based on opsiconfd 4.0.7.14-2.

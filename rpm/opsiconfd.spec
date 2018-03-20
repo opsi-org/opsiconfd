@@ -7,7 +7,11 @@
 #
 
 Name:           opsiconfd
-BuildRequires:  python-devel python-setuptools openssl procps systemd
+BuildRequires:  openssl
+BuildRequires:  procps
+BuildRequires:  python-devel
+BuildRequires:  python-setuptools
+BuildRequires:  systemd
 %if 0%{?suse_version}
 BuildRequires: systemd-rpm-macros
 BuildRequires: logrotate

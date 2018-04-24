@@ -24,6 +24,7 @@ Requires:       openssl
 Requires:       procps
 Requires:       psmisc
 Requires:       python-opsi >= 4.1.1.7
+Requires:       python-setuptools
 Requires:       python-twisted
 %{?systemd_requires}
 %if 0%{?sle_version} == 120300 && 0%{?is_opensuse}

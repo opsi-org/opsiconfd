@@ -1,3 +1,10 @@
+opsiconfd (4.1.1.10-7) stable; urgency=medium
+
+  * Added python-setuptools as an explicit requirement so that script
+    entry points work.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 24 Apr 2018 16:41:08 +0200
+
 opsiconfd (4.1.1.10-6) testing; urgency=medium
 
   * RPM: On openSUSE 42.3 require python-rrdtool.

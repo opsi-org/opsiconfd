@@ -21,10 +21,10 @@ BuildRequires:  zypper
 BuildArch:      noarch
 Requires:       logrotate
 Requires:       openssl
+Requires:       procps
+Requires:       psmisc
 Requires:       python-opsi >= 4.1.1.7
 Requires:       python-twisted
-Requires:       psmisc
-Requires:       procps
 %{?systemd_requires}
 %if 0%{?sle_version} == 120300 && 0%{?is_opensuse}
 # openSUSE 42.3 but not SLE12

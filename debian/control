@@ -4,10 +4,10 @@ Priority: optional
 Maintainer: uib GmbH <info@uib.de>
 Uploaders: Niko Wenselowski <n.wenselowski@uib.de>
 Build-Depends: debhelper (>= 7),
-	python (>= 2.7),
 	dh-python,
-	python-setuptools,
-	dh-systemd (>= 1.5)
+	dh-systemd (>= 1.5),
+	python (>= 2.7),
+	python-setuptools
 X-Python-Version: >= 2.6
 Standards-Version: 3.9.4
 

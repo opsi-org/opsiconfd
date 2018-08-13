@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of python-opsi.
-# Copyright (C) 2010-2017 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2018 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -68,7 +68,7 @@ from OPSI.System.Posix import daemonize
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Service import SSLContext, OpsiService
 
-from resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV, ResourceOpsiconfdConfigedJNLP
+from resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV
 from info import ResourceOpsiconfdInfo
 from statistics import Statistics
 from monitoring import ResourceOpsiconfdMonitoring
@@ -299,7 +299,6 @@ class Opsiconfd(OpsiService):
 		self._root.putChild('info', ResourceOpsiconfdInfo(self))
 		self._root.putChild('monitoring', ResourceOpsiconfdMonitoring(self))
 		# self._root.putChild('doc',             ResourceOpsiDocumentation())
-		self._root.putChild('configed.jnlp', ResourceOpsiconfdConfigedJNLP())
 
 		hosts = self._backend.host_getObjects(type='OpsiDepotserver', id=self.config['fqdn'])
 		if hosts:

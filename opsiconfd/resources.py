@@ -6,7 +6,7 @@ opsi configuration daemon - resources
 opsiconfd is part of the desktop management solution opsi
 (open pc server integration) http://www.opsi.org
 
-Copyright (C) 2010-2016 uib GmbH
+Copyright (C) 2010-2018 uib GmbH
 
 http://www.uib.de/
 
@@ -32,40 +32,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 @license: GNU Affero General Public License version 3
 """
 
-import urllib
-
 from OPSI.web2 import http, resource
 from OPSI.Service.Resource import ResourceOpsi, ResourceOpsiJsonRpc, ResourceOpsiJsonInterface, ResourceOpsiDAV
 
 from workers import WorkerOpsiconfd, WorkerOpsiconfdJsonRpc, WorkerOpsiconfdJsonInterface, WorkerOpsiconfdDAV
-
-
-CONFIGED_JNLP_TEMPLATE = '''<?xml version="1.0" encoding="UTF-8"?>
-<jnlp spec="1.0+" codebase="%(codebase)s" href="configed.jnlp%(rawarguments)s">
-	<information>
-		<title>opsi-configed</title>
-		<vendor>uib GmbH</vendor>
-		<homepage href="http://www.opsi.org/"/>
-		<description>Management console application for the opsi client management system</description>
-		<description kind="short">opsi management interface (opsi-configed)</description>
-		<icon href="configed.gif"/>
-		<offline-allowed/>
-	</information>
-	<security>
-		<all-permissions/>
-	</security>
-	<resources>
-		<j2se version="1.7+" max-heap-size="1024M"/>
-		<property name="loglevel" value="4" />
-		<jar href="configed/configed.jar" main="true"/>
-		<jar href="configed/swingx.jar"/>
-		<jar href="configed/commons-io.jar"/>
-	</resources>
-	<application-desc main-class="de.uib.configed.configed">
-	<argument>--args</argument>%(arguments)s
-	</application-desc>
-</jnlp>
-'''
 
 
 class ResourceRoot(resource.Resource):
@@ -101,53 +71,3 @@ class ResourceOpsiconfdDAV(ResourceOpsiDAV):
 	def renderHTTP(self, request):
 		self._service.statistics().addWebDAVRequest(request)
 		return ResourceOpsiDAV.renderHTTP(self, request)
-
-
-class ResourceOpsiconfdConfigedJNLP(resource.Resource):
-
-	@staticmethod
-	def getArguments(request):
-		yield '-h'
-		yield '%s' % request.headers.getHeader('host')
-
-		if '?' in request.uri:
-			for argument in urllib.unquote(request.uri.split('?', 1)[1]).split('&'):
-				if '=' in argument:
-					key, value = argument.split('=', 1)
-
-					if len(key) == 1:
-						yield '-%s' % key  # shortopt
-					else:
-						yield '--%s' % key  # longopt
-
-					yield value
-				else:
-					yield argument
-
-
-	def render(self, request):
-		def argumentTags(text):
-			return '<argument>%s</argument>' % text
-
-		if '?' in request.uri:
-			# The resulting file is handled as ANSI and '&' (ampersand)
-			# or '?' (question mark) in it may cause a break.
-			# The solution according to http://stackoverflow.com/a/12247414
-			# is to use the HTML encoded versions.
-			# This may be specific to OpenJDK:
-			# http://mail.openjdk.java.net/pipermail/distro-pkg-dev/2014-April/027109.html
-			rawargs = request.uri.split('?', 1)[1]
-			rawargs = '&#38;'.join(rawargs.split('&'))
-			rawargs = "&#063;%s" % rawargs
-		else:
-			rawargs = ''
-
-		response = http.Response(stream=CONFIGED_JNLP_TEMPLATE % {
-			"codebase": "https://%s" % (request.headers.getHeader('host')),
-			"rawarguments": rawargs,
-			"arguments": argumentTags(';;'.join(self.getArguments(request))),
-		})
-		# Setting content-type as raw header for fixing the webstart problem
-		# internet explorer. Tested with Internet Explorer 8 on Windows XP SP3
-		response.headers.addRawHeader('content-type', 'application/x-java-jnlp-file')
-		return response

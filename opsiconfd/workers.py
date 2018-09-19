@@ -2,7 +2,7 @@
 
 # opsiconfd is part of the desktop management solution opsi
 # (open pc server integration) http://www.opsi.org
-# Copyright (C) 2010-2017 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2018 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -492,8 +492,10 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		except (UnicodeError, UnicodeEncodeError) as error:
 			logger.logException(error)
 			self.service.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(error))
+			logger.debug(u"Failed at Decoding query (type {}): {!r}", type(self.query), self.query)
 			if not isinstance(self.query, unicode):
 				self.query = unicode(self.query, 'utf-8', 'replace')
+				logger.debug(u"Fallback Decoded query: {!r}", self.query)
 		except Exception as error:
 			logger.logException(error)
 			logger.warning("Unexpected error during decoding of query: {0}".format(error))

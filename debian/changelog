@@ -1,3 +1,11 @@
+opsiconfd (4.1.1.11-1) stable; urgency=medium
+
+  * opsiconfd.monitoring: Added task checkProductLocks.
+  * opsiconfd.workers.WorkerOpsiconfdJsonRpc: Added additional logging
+    in case decoding a query fails.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 19 Sep 2018 11:51:18 +0200
+
 opsiconfd (4.1.1.10-7) stable; urgency=medium
 
   * Added python-setuptools as an explicit requirement so that script

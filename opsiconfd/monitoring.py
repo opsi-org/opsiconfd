@@ -5,7 +5,7 @@ opsi-nagios-connector endpoint.
 opsi-nagios-connector is part of the desktop management solution opsi
 (open pc server integration) http://www.opsi.org
 
-Copyright (C) 2010-2017 uib GmbH
+Copyright (C) 2010-2018 uib GmbH
 
 http://www.uib.de/
 
@@ -13,6 +13,7 @@ All rights reserved.
 
 @copyright:  uib GmbH <info@uib.de>
 @author: Erol Ueluekmen <e.ueluekmen@uib.de>
+@author: Niko Wenselowski <n.wenselowski@uib.de>
 """
 
 import base64
@@ -331,6 +332,15 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 			result.stream = stream.IByteStream(res.encode('utf-8'))
 			return result
+		elif task == "checkProductLocks":
+			try:
+				res = self.monitoring.checkLockedProducts(
+					depotIds=params.get("depotIds", []),
+					productIds=params.get("productIds", []),
+				)
+			except Exception as error:
+				logger.logException(error, LOG_INFO)
+				res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 		else:
 			logger.debug("No query given.")
 
@@ -929,6 +939,25 @@ class Monitoring(object):
 
 	def checkOpsiLicensePool(self, poolId='all'):
 		pass
+
+	def checkLockedProducts(self, depotIds, productIds=[]):
+		if not depotIds or 'all' in depotIds:
+			depots = self.service._backend.host_getObjects(type="OpsiDepotserver")
+			depotIds = [depot.id for depot in depots]
+
+		lockedProducts = self.service._backend.productOnDepot_getObjects(depotId=depotIds, productId=productIds, locked=True)
+
+		state = State.OK
+		if lockedProducts:
+			state = State.WARNING
+
+			message = u''
+			for prodOnDepot in lockedProducts:
+				message += 'Product {0.productId} locked on depot {0.depotId}\n'.format(prodOnDepot)
+		else:
+			message = "No products locked on depots: {}".format(",".join(depotIds))
+
+		return self._generateResponse(state, message)
 
 
 def removePercent(string):

@@ -492,8 +492,10 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 		except (UnicodeError, UnicodeEncodeError) as error:
 			logger.logException(error)
 			self.service.statistics().addEncodingError('query', self.session.ip, self.session.userAgent, unicode(error))
+			logger.debug(u"Failed at Decoding query (type {}): {!r}", type(self.query), self.query)
 			if not isinstance(self.query, unicode):
 				self.query = unicode(self.query, 'utf-8', 'replace')
+				logger.debug(u"Fallback Decoded query: {!r}", self.query)
 		except Exception as error:
 			logger.logException(error)
 			logger.warning("Unexpected error during decoding of query: {0}".format(error))

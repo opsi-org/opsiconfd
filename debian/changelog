@@ -4,7 +4,7 @@ opsiconfd (4.1.1.11-1) stable; urgency=medium
   * opsiconfd.workers.WorkerOpsiconfdJsonRpc: Added additional logging
     in case decoding a query fails.
 
- -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 24 Apr 2018 16:41:08 +0200
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 19 Sep 2018 11:51:18 +0200
 
 opsiconfd (4.1.1.10-7) stable; urgency=medium
 

@@ -940,7 +940,7 @@ class Monitoring(object):
 	def checkOpsiLicensePool(self, poolId='all'):
 		pass
 
-	def checkLockedProducts(self, depotIds, productIds=[]):
+	def checkLockedProducts(self, depotIds=[], productIds=[]):
 		if not depotIds or 'all' in depotIds:
 			depots = self.service._backend.host_getObjects(type="OpsiDepotserver")
 			depotIds = [depot.id for depot in depots]

@@ -324,6 +324,15 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 				except Exception as error:
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
+			elif task == "checkProductLocks":
+				try:
+					res = self.monitoring.checkLockedProducts(
+						depotIds=params.get("depotIds", []),
+						productIds=params.get("productIds", []),
+					)
+				except Exception as error:
+					logger.logException(error, LOG_INFO)
+					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 			else:
 				res = json.dumps({
 					"state": State.UNKNOWN,
@@ -332,15 +341,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 
 			result.stream = stream.IByteStream(res.encode('utf-8'))
 			return result
-		elif task == "checkProductLocks":
-			try:
-				res = self.monitoring.checkLockedProducts(
-					depotIds=params.get("depotIds", []),
-					productIds=params.get("productIds", []),
-				)
-			except Exception as error:
-				logger.logException(error, LOG_INFO)
-				res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 		else:
 			logger.debug("No query given.")
 

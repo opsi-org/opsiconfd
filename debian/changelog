@@ -1,3 +1,10 @@
+opsiconfd (4.1.1.12-1) stable; urgency=medium
+
+  * opsiconfd.monitoring: Fixed a bug where executing task checkProductLocks
+    would lead to "unknown task".
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 18 Oct 2018 11:51:53 +0200
+
 opsiconfd (4.1.1.11-1) stable; urgency=medium
 
   * opsiconfd.monitoring: Added task checkProductLocks.

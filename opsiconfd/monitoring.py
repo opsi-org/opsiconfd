@@ -27,6 +27,7 @@ from hashlib import md5
 from twisted.internet import defer
 from twisted.conch.ssh import keys
 
+from OPSI.Backend.Backend import temporaryBackendOptions
 from OPSI.Logger import LOG_INFO, Logger
 from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Service.Worker import WorkerOpsi
@@ -550,11 +551,7 @@ class Monitoring(object):
 			clientIds = self.service._backend.host_getIdents(type="OpsiClient")
 
 		clientsOnDepot = defaultdict(list)
-		addConfigStateDefaults = self.service._backend.backend_getOptions().get('addConfigStateDefaults', False)
-		try:
-			logger.debug("Calling backend_setOptions on %s" % self)
-			self.service._backend.backend_setOptions({'addConfigStateDefaults': True})
-
+		with temporaryBackendOptions(self.service._backend, addConfigStateDefaults=True):
 			for configState in self.service._backend.configState_getObjects(configId=u'clientconfig.depot.id', objectId=clientIds):
 				if not configState.values or not configState.values[0]:
 					logger.error(u"No depot server configured for client '%s'" % configState.objectId)
@@ -565,8 +562,6 @@ class Monitoring(object):
 					continue
 
 				clientsOnDepot[depotId].append(configState.objectId)
-		finally:
-			self.service._backend.backend_setOptions({'addConfigStateDefaults': addConfigStateDefaults})
 
 		productOnDepotInfo = defaultdict(dict)
 		for pod in self.service._backend.productOnDepot_getObjects(depotId=depotIds, productId=productIds):
@@ -580,9 +575,11 @@ class Monitoring(object):
 		productProblemsOnClient = defaultdict(lambda: defaultdict(list))
 		actionRequestOnClient = defaultdict(lambda: defaultdict(list))
 
+		actionRequestsToIgnore = set([None, 'none', 'always'])
+
 		for depotId in depotIds:
 			for poc in self.service._backend.productOnClient_getObjects(productId=productIds, clientId=clientsOnDepot.get(depotId, None)):
-				if poc.actionRequest != 'none':
+				if poc.actionRequest not in actionRequestsToIgnore:
 					if state != State.CRITICAL:
 						state = State.WARNING
 

@@ -789,7 +789,7 @@ class Monitoring(object):
 
 		return self._generateResponse(state, message)
 
-	def checkOpsiDiskUsage(self, thresholds={}, opsiresource=None, perfdata=False):
+	def checkOpsiDiskUsage(self, thresholds={}, opsiresource=None):
 		warning = thresholds.get("warning", "5G")
 		critical = thresholds.get("critical", "1G")
 

@@ -32,7 +32,7 @@ from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Service.Worker import WorkerOpsi
 from OPSI.System import getDiskSpaceUsage
 from OPSI.Exceptions import OpsiAuthenticationError
-from OPSI.Types import forceList
+from OPSI.Types import forceList, forceProductIdList
 from OPSI.web2 import http, stream
 
 logger = Logger()
@@ -419,12 +419,28 @@ class Monitoring(object):
 			clientId=clientId,
 			actionResult='failed'
 		)
+
+		if excludeProductList:
+			productsToExclude = set(forceProductIdList(excludeProductList))
+		else:
+			productsToExclude = []
+
+		failedProducts = [
+			poc for poc in failedProducts
+			if poc.productId not in productsToExclude
+		]
+
 		if failedProducts:
 			state = State.CRITICAL
 			products = [product.productId for product in failedProducts]
 			message += "Products: '%s' are in failed state. " % (",".join(products))
 
 		actionProducts = self.service._backend.productOnClient_getObjects(clientId=clientId, actionRequest=['setup', 'update', 'uninstall'])
+		actionProducts = [
+			poc for poc in actionProducts
+			if poc.productId not in productsToExclude
+		]
+
 		if actionProducts:
 			if state != State.CRITICAL:
 				state = State.WARNING

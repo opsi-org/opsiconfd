@@ -937,9 +937,6 @@ class Monitoring(object):
 			message = u"cannot check webservice state: '%s'." % str(error)
 			return self._generateResponse(state, message)
 
-	def checkOpsiLicensePool(self, poolId='all'):
-		pass
-
 	def checkLockedProducts(self, depotIds, productIds=[]):
 		if not depotIds or 'all' in depotIds:
 			depots = self.service._backend.host_getObjects(type="OpsiDepotserver")

@@ -575,9 +575,11 @@ class Monitoring(object):
 		productProblemsOnClient = defaultdict(lambda: defaultdict(list))
 		actionRequestOnClient = defaultdict(lambda: defaultdict(list))
 
+		actionRequestsToIgnore = set([None, 'none', 'always'])
+
 		for depotId in depotIds:
 			for poc in self.service._backend.productOnClient_getObjects(productId=productIds, clientId=clientsOnDepot.get(depotId, None)):
-				if poc.actionRequest != 'none':
+				if poc.actionRequest not in actionRequestsToIgnore:
 					if state != State.CRITICAL:
 						state = State.WARNING
 

@@ -503,16 +503,16 @@ class Monitoring(object):
 			if poc.actionResult == "successful":
 				uptodateClients.append(poc.clientId)
 
-		message.append("'%d' ProductStates for product: '%s' found; checking for Version: '%s' and Package: '%s'" % (len(productOnClients), productId, targetProductVersion, targetPackackeVersion))
+		message.append("%d ProductStates for product: '%s' found; checking for Version: '%s' and Package: '%s'" % (len(productOnClients), productId, targetProductVersion, targetPackackeVersion))
 		if uptodateClients:
-			message.append("'%d' Clients are up to date" % len(uptodateClients))
+			message.append("%d Clients are up to date" % len(uptodateClients))
 		if actionRequestOnClients and len(actionRequestOnClients) * 100 / len(productOnClients) > warning:
 			state = State.WARNING
-			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClients))
+			message.append("ActionRequest set on %d clients" % len(actionRequestOnClients))
 		if productProblemsOnClients:
-			message.append("Problems found on '%d' clients" % len(productProblemsOnClients))
+			message.append("Problems found on %d clients" % len(productProblemsOnClients))
 		if productVersionProblemsOnClients:
-			message.append("Version difference found on '%d' clients" % len(productVersionProblemsOnClients))
+			message.append("Version difference found on %d clients" % len(productVersionProblemsOnClients))
 
 		problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
 		if problemClientsCount * 100 / len(productOnClients) > critical:
@@ -613,13 +613,13 @@ class Monitoring(object):
 
 			if depotId in actionRequestOnClient:
 				for product, clients in actionRequestOnClient[depotId].items():
-					message += "For product '%s' action set on '%d' clients! " % (product, len(clients))
+					message += "For product '%s' action set on %d clients! " % (product, len(clients))
 			if depotId in productProblemsOnClient:
 				for product, clients in productProblemsOnClient[depotId].items():
-					message += "For product '%s' problems found on '%d' clients! " % (product, len(clients))
+					message += "For product '%s' problems found on %d clients! " % (product, len(clients))
 			if depotId in productVersionProblemsOnClient:
 				for product, clients in productVersionProblemsOnClient[depotId].items():
-					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(clients))
+					message += "For product '%s' version difference problems found on %d clients! " % (product, len(clients))
 
 		if not verbose:
 			if state == State.OK:
@@ -706,7 +706,7 @@ class Monitoring(object):
 		message = u''
 		if differenceProducts:
 			state = State.WARNING
-			message += u"Differences found for '%d'" % len(differenceProducts)
+			message += u"Differences found for %d" % len(differenceProducts)
 
 			if verbose:
 				message += u":\n"

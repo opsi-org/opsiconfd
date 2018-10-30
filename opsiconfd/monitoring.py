@@ -925,10 +925,11 @@ class Monitoring(object):
 			virtmem = performanceHash["virtmem"]
 			perfdata.append(u"virtmem=%s;;;0; " % virtmem)
 
-			if int(performanceHash["cpu"]) > cputhreshold[0]:
+			cpu = int(performanceHash["cpu"])
+			if cpu > cputhreshold[0]:
 				state = State.CRITICAL
 				message.append(u'CPU-Usage over {}%'.format(cputhreshold[0]))
-			elif int(performanceHash["cpu"]) > cputhreshold[1]:
+			elif cpu > cputhreshold[1]:
 				if not state == State.CRITICAL:
 					state = State.WARNING
 				message.append(u'CPU-Usage over {}%'.format(cputhreshold[1]))

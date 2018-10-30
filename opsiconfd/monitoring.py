@@ -958,9 +958,9 @@ class Monitoring(object):
 		if lockedProducts:
 			state = State.WARNING
 
-			message = u''
+			message = u'{} products are in locked state.'.format(len(lockedProducts))
 			for prodOnDepot in lockedProducts:
-				message += 'Product {0.productId} locked on depot {0.depotId}\n'.format(prodOnDepot)
+				message += '\nProduct {0.productId} locked on depot {0.depotId}'.format(prodOnDepot)
 		else:
 			message = "No products locked on depots: {}".format(",".join(depotIds))
 

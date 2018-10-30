@@ -913,10 +913,10 @@ class Monitoring(object):
 
 			message = []
 			if errorrate > errors[0]:
-				message.append(u'RPC errors over 20\%')
+				message.append(u'RPC errors over {}%'.format(errors[0]))
 				state = State.CRITICAL
 			elif errorrate > errors[1]:
-				message.append(u'RPC errors over 10\%')
+				message.append(u'RPC errors over {}%'.format(errors[1]))
 				state = State.WARNING
 			perfdata.append(u'rpcerror=%s;;;0; ' % rpcerrors)
 			perfdata.append(u"sessions=%s;;;0; " % performanceHash["sessions"])
@@ -927,11 +927,11 @@ class Monitoring(object):
 
 			if int(performanceHash["cpu"]) > cputhreshold[0]:
 				state = State.CRITICAL
-				message.append(u'CPU-Usage over 80%')
+				message.append(u'CPU-Usage over {}%'.format(cputhreshold[0]))
 			elif int(performanceHash["cpu"]) > cputhreshold[1]:
 				if not state == State.CRITICAL:
 					state = State.WARNING
-				message.append(u'CPU-Usage over 60%')
+				message.append(u'CPU-Usage over {}%'.format(cputhreshold[1]))
 			perfdata.append(u"cpu=%s;;;0;100 " % performanceHash["cpu"])
 
 			if state == State.OK:

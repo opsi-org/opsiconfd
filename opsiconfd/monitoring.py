@@ -936,7 +936,8 @@ class Monitoring(object):
 
 				message = "%s | %s" % (" ".join(message), "".join(performance))
 			else:
-				message = "%s" % (" ".join(message))
+				message = " ".join(message)
+
 			return self._generateResponse(state, message)
 		except Exception as error:
 			state = State.UNKNOWN

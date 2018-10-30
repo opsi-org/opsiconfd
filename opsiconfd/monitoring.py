@@ -628,36 +628,33 @@ class Monitoring(object):
 
 		for depotId in depotIds:
 			if depotId in actionRequestOnClient or depotId in productProblemsOnClient or depotId in productVersionProblemsOnClient:
-				message += "Result for Depot: '%s': \n" % depotId
+				message += "\nResult for Depot: '%s':" % depotId
 			else:
 				continue
 
 			if depotId in actionRequestOnClient:
-				message += "Action Request set for "
 				for product, clients in actionRequestOnClient[depotId].items():
-					message += "product '%s': \n" % product
+					message += "\n  Action Request set for product '%s':\n" % product
 					for client in clients:
-						message += "%s \n" % client
+						message += "    %s\n" % client
 
 			if depotId in productProblemsOnClient:
-				message += "Product Problems for "
 				for product, clients in productProblemsOnClient[depotId].items():
-					message += "product '%s': \n" % product
+					message += "\n  Product Problems for product '%s':\n" % product
 					for client in clients:
-						message += "%s \n" % client
+						message += "    %s\n" % client
 
 			if depotId in productVersionProblemsOnClient:
-				message += "Product Version difference found for: "
 				for product, clients in productVersionProblemsOnClient[depotId].items():
-					message += "product '%s': \n" % product
+					message += "\n  Product Version difference found for product '%s': \n" % product
 					for client in clients:
-						message += "%s \n" % client
+						message += "    %s\n" % client
 
 		if state == State.OK:
 			if productGroups:
-				message = u"No Problem found for productIds; '%s'" % ",".join(productGroups)
+				message = u"No Problem found for product groups '%s'" % ",".join(productGroups)
 			else:
-				message = u"No Problem found for productIds; '%s'" % ",".join(productIds)
+				message = u"No Problem found for productIds '%s'" % ",".join(productIds)
 
 		return self._generateResponse(state, message)
 
@@ -706,12 +703,12 @@ class Monitoring(object):
 		message = u''
 		if differenceProducts:
 			state = State.WARNING
-			message += u"Differences found for %d" % len(differenceProducts)
+			message += u"Differences found for %d products" % len(differenceProducts)
 
 			if verbose:
 				message += u":\n"
 				for productId in sorted(differenceProducts):
-					message += u"product: '%s': " % productId
+					message += u"product '%s': " % productId
 					for depotId in depotIds:
 						try:
 							if differenceProducts[productId][depotId] == "not installed":
@@ -732,7 +729,7 @@ class Monitoring(object):
 								productOnDepotInfo[depotId][productId].packageVersion
 							)
 		else:
-			message += "Syncstate ok for depots: '%s' " % ",".join(depotIds)
+			message += "Syncstate ok for depots %s" % ", ".join(depotIds)
 
 		return self._generateResponse(state, message)
 

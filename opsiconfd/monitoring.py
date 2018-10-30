@@ -27,12 +27,13 @@ from hashlib import md5
 from twisted.internet import defer
 from twisted.conch.ssh import keys
 
+from OPSI.Backend.Backend import temporaryBackendOptions
 from OPSI.Logger import LOG_INFO, Logger
 from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Service.Worker import WorkerOpsi
 from OPSI.System import getDiskSpaceUsage
 from OPSI.Exceptions import OpsiAuthenticationError
-from OPSI.Types import forceList
+from OPSI.Types import forceList, forceProductIdList
 from OPSI.web2 import http, stream
 
 logger = Logger()
@@ -419,12 +420,28 @@ class Monitoring(object):
 			clientId=clientId,
 			actionResult='failed'
 		)
+
+		if excludeProductList:
+			productsToExclude = set(forceProductIdList(excludeProductList))
+		else:
+			productsToExclude = []
+
+		failedProducts = [
+			poc for poc in failedProducts
+			if poc.productId not in productsToExclude
+		]
+
 		if failedProducts:
 			state = State.CRITICAL
 			products = [product.productId for product in failedProducts]
 			message += "Products: '%s' are in failed state. " % (",".join(products))
 
 		actionProducts = self.service._backend.productOnClient_getObjects(clientId=clientId, actionRequest=['setup', 'update', 'uninstall'])
+		actionProducts = [
+			poc for poc in actionProducts
+			if poc.productId not in productsToExclude
+		]
+
 		if actionProducts:
 			if state != State.CRITICAL:
 				state = State.WARNING
@@ -502,16 +519,16 @@ class Monitoring(object):
 			if poc.actionResult == "successful":
 				uptodateClients.append(poc.clientId)
 
-		message.append("'%d' ProductStates for product: '%s' found; checking for Version: '%s' and Package: '%s'" % (len(productOnClients), productId, targetProductVersion, targetPackackeVersion))
+		message.append("%d ProductStates for product: '%s' found; checking for Version: '%s' and Package: '%s'" % (len(productOnClients), productId, targetProductVersion, targetPackackeVersion))
 		if uptodateClients:
-			message.append("'%d' Clients are up to date" % len(uptodateClients))
+			message.append("%d Clients are up to date" % len(uptodateClients))
 		if actionRequestOnClients and len(actionRequestOnClients) * 100 / len(productOnClients) > warning:
 			state = State.WARNING
-			message.append("ActionRequest set on '%d' clients" % len(actionRequestOnClients))
+			message.append("ActionRequest set on %d clients" % len(actionRequestOnClients))
 		if productProblemsOnClients:
-			message.append("Problems found on '%d' clients" % len(productProblemsOnClients))
+			message.append("Problems found on %d clients" % len(productProblemsOnClients))
 		if productVersionProblemsOnClients:
-			message.append("Version difference found on '%d' clients" % len(productVersionProblemsOnClients))
+			message.append("Version difference found on %d clients" % len(productVersionProblemsOnClients))
 
 		problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
 		if problemClientsCount * 100 / len(productOnClients) > critical:
@@ -550,11 +567,7 @@ class Monitoring(object):
 			clientIds = self.service._backend.host_getIdents(type="OpsiClient")
 
 		clientsOnDepot = defaultdict(list)
-		addConfigStateDefaults = self.service._backend.backend_getOptions().get('addConfigStateDefaults', False)
-		try:
-			logger.debug("Calling backend_setOptions on %s" % self)
-			self.service._backend.backend_setOptions({'addConfigStateDefaults': True})
-
+		with temporaryBackendOptions(self.service._backend, addConfigStateDefaults=True):
 			for configState in self.service._backend.configState_getObjects(configId=u'clientconfig.depot.id', objectId=clientIds):
 				if not configState.values or not configState.values[0]:
 					logger.error(u"No depot server configured for client '%s'" % configState.objectId)
@@ -565,8 +578,6 @@ class Monitoring(object):
 					continue
 
 				clientsOnDepot[depotId].append(configState.objectId)
-		finally:
-			self.service._backend.backend_setOptions({'addConfigStateDefaults': addConfigStateDefaults})
 
 		productOnDepotInfo = defaultdict(dict)
 		for pod in self.service._backend.productOnDepot_getObjects(depotId=depotIds, productId=productIds):
@@ -580,9 +591,11 @@ class Monitoring(object):
 		productProblemsOnClient = defaultdict(lambda: defaultdict(list))
 		actionRequestOnClient = defaultdict(lambda: defaultdict(list))
 
+		actionRequestsToIgnore = set([None, 'none', 'always'])
+
 		for depotId in depotIds:
 			for poc in self.service._backend.productOnClient_getObjects(productId=productIds, clientId=clientsOnDepot.get(depotId, None)):
-				if poc.actionRequest != 'none':
+				if poc.actionRequest not in actionRequestsToIgnore:
 					if state != State.CRITICAL:
 						state = State.WARNING
 
@@ -616,13 +629,13 @@ class Monitoring(object):
 
 			if depotId in actionRequestOnClient:
 				for product, clients in actionRequestOnClient[depotId].items():
-					message += "For product '%s' action set on '%d' clients! " % (product, len(clients))
+					message += "For product '%s' action set on %d clients! " % (product, len(clients))
 			if depotId in productProblemsOnClient:
 				for product, clients in productProblemsOnClient[depotId].items():
-					message += "For product '%s' problems found on '%d' clients! " % (product, len(clients))
+					message += "For product '%s' problems found on %d clients! " % (product, len(clients))
 			if depotId in productVersionProblemsOnClient:
 				for product, clients in productVersionProblemsOnClient[depotId].items():
-					message += "For product '%s' version difference problems found on '%d' clients! " % (product, len(clients))
+					message += "For product '%s' version difference problems found on %d clients! " % (product, len(clients))
 
 		if not verbose:
 			if state == State.OK:
@@ -631,36 +644,33 @@ class Monitoring(object):
 
 		for depotId in depotIds:
 			if depotId in actionRequestOnClient or depotId in productProblemsOnClient or depotId in productVersionProblemsOnClient:
-				message += "Result for Depot: '%s': \n" % depotId
+				message += "\nResult for Depot: '%s':" % depotId
 			else:
 				continue
 
 			if depotId in actionRequestOnClient:
-				message += "Action Request set for "
 				for product, clients in actionRequestOnClient[depotId].items():
-					message += "product '%s': \n" % product
+					message += "\n  Action Request set for product '%s':\n" % product
 					for client in clients:
-						message += "%s \n" % client
+						message += "    %s\n" % client
 
 			if depotId in productProblemsOnClient:
-				message += "Product Problems for "
 				for product, clients in productProblemsOnClient[depotId].items():
-					message += "product '%s': \n" % product
+					message += "\n  Product Problems for product '%s':\n" % product
 					for client in clients:
-						message += "%s \n" % client
+						message += "    %s\n" % client
 
 			if depotId in productVersionProblemsOnClient:
-				message += "Product Version difference found for: "
 				for product, clients in productVersionProblemsOnClient[depotId].items():
-					message += "product '%s': \n" % product
+					message += "\n  Product Version difference found for product '%s': \n" % product
 					for client in clients:
-						message += "%s \n" % client
+						message += "    %s\n" % client
 
 		if state == State.OK:
 			if productGroups:
-				message = u"No Problem found for productIds; '%s'" % ",".join(productGroups)
+				message = u"No Problem found for product groups '%s'" % ",".join(productGroups)
 			else:
-				message = u"No Problem found for productIds; '%s'" % ",".join(productIds)
+				message = u"No Problem found for productIds '%s'" % ",".join(productIds)
 
 		return self._generateResponse(state, message)
 
@@ -709,12 +719,12 @@ class Monitoring(object):
 		message = u''
 		if differenceProducts:
 			state = State.WARNING
-			message += u"Differences found for '%d'" % len(differenceProducts)
+			message += u"Differences found for %d products" % len(differenceProducts)
 
 			if verbose:
 				message += u":\n"
 				for productId in sorted(differenceProducts):
-					message += u"product: '%s': " % productId
+					message += u"product '%s': " % productId
 					for depotId in depotIds:
 						try:
 							if differenceProducts[productId][depotId] == "not installed":
@@ -735,7 +745,7 @@ class Monitoring(object):
 								productOnDepotInfo[depotId][productId].packageVersion
 							)
 		else:
-			message += "Syncstate ok for depots: '%s' " % ",".join(depotIds)
+			message += "Syncstate ok for depots %s" % ", ".join(depotIds)
 
 		return self._generateResponse(state, message)
 
@@ -792,7 +802,7 @@ class Monitoring(object):
 
 		return self._generateResponse(state, message)
 
-	def checkOpsiDiskUsage(self, thresholds={}, opsiresource=None, perfdata=False):
+	def checkOpsiDiskUsage(self, thresholds={}, opsiresource=None):
 		warning = thresholds.get("warning", "5G")
 		critical = thresholds.get("critical", "1G")
 
@@ -937,10 +947,7 @@ class Monitoring(object):
 			message = u"cannot check webservice state: '%s'." % str(error)
 			return self._generateResponse(state, message)
 
-	def checkOpsiLicensePool(self, poolId='all'):
-		pass
-
-	def checkLockedProducts(self, depotIds, productIds=[]):
+	def checkLockedProducts(self, depotIds=None, productIds=[]):
 		if not depotIds or 'all' in depotIds:
 			depots = self.service._backend.host_getObjects(type="OpsiDepotserver")
 			depotIds = [depot.id for depot in depots]

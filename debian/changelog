@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.14-1) stable; urgency=medium
+
+  * opsiconfd.workers: small modification in errormessage for usage with fail2ban
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Wed, 31 Oct 2018 14:42:33 +0100
+
 opsiconfd (4.1.1.13-1) stable; urgency=medium
 
   * opsiconfd.monitoring: implemented exclusion of productIds for

@@ -288,9 +288,10 @@ class WorkerOpsiconfd(WorkerOpsi):
 				pass  # May not be present
 		except Exception as error:
 			logger.logException(error, LOG_INFO)
+			e = u"Authentication failure for '%s' from '%s': %s" % (self.session.user or '', self.session.ip or '', error)
 			self._freeSession(result)
 			self.service._getSessionHandler().deleteSession(self.session.uid)
-			raise OpsiAuthenticationError(u"Forbidden: %s" % error)
+			raise OpsiAuthenticationError(e)
 		return result
 
 	def _authorize(self):

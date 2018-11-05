@@ -470,7 +470,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 				except Exception:
 					contentEncoding = None
 
-				logger.debug(u"Content-Type: %s, Content-Encoding: %s" % (contentType, contentEncoding))
+				logger.debug(u"Content-Type: {0}, Content-Encoding: {1}", contentType, contentEncoding)
 				if contentType and contentType.mediaType.startswith('gzip'):
 					# Invalid MIME type.
 					# Probably it is gzip-application/json-rpc and therefore
@@ -498,7 +498,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 			logger.warning("Unexpected error during decoding of query: {0}".format(error))
 			raise error
 
-		logger.debug2(u"query: %s" % self.query)
+		logger.debug2(u"query: {0}", self.query)
 		return result
 
 	def _processQuery(self, result):

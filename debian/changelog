@@ -1,3 +1,15 @@
+opsiconfd (4.1.1.15-1) stable; urgency=medium
+
+  * opsiconfd.monitoring: Removed getOpsiClientsForGroup as this check isn't
+    runnable through check_opsi and does not return a response in the format
+    expected for Nagios-compatible plugins.
+  * opsiconfd.workers: WorkerOpsiconfdJsonRpc._decodeQuery is implemented the
+    way it is in python-opsi.
+  * opsiconfd.monitoring: only collect performance data if this is requested.
+  * opsiconfd.monitoring: checkProductLocks shows a summary in the first line.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 06 Nov 2018 13:55:56 +0100
+
 opsiconfd (4.1.1.14-1) stable; urgency=medium
 
   * opsiconfd.workers: small modification in errormessage for usage with fail2ban

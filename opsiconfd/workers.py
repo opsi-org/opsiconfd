@@ -471,22 +471,19 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 				except Exception:
 					contentEncoding = None
 
-				logger.debug(u"Content-Type: %s, Content-Encoding: %s" % (contentType, contentEncoding))
+				logger.debug(u"Content-Type: {0}, Content-Encoding: {1}", contentType, contentEncoding)
 				if contentType and contentType.mediaType.startswith('gzip'):
 					# Invalid MIME type.
 					# Probably it is gzip-application/json-rpc and therefore
 					# we need to behave like we did before.
 					logger.debug(u"Expecting compressed data from client (backwards compatible)")
 					self.query = deflateDecode(self.query)
-					self.gzip = True
 				elif contentEncoding == 'gzip':
 					logger.debug(u"Expecting gzip compressed data from client")
 					self.query = gzipDecode(self.query)
-					self.gzip = True
 				elif contentEncoding == 'deflate':
 					logger.debug(u"Expecting deflate compressed data from client")
 					self.query = deflateDecode(self.query)
-					self.gzip = True
 
 			if not isinstance(self.query, unicode):
 				self.query = unicode(self.query, 'utf-8')
@@ -502,7 +499,7 @@ class WorkerOpsiconfdJsonRpc(WorkerOpsiconfd, WorkerOpsiJsonRpc, MultiprocessWor
 			logger.warning("Unexpected error during decoding of query: {0}".format(error))
 			raise error
 
-		logger.debug2(u"query: %s" % self.query)
+		logger.debug2(u"query: {0}", self.query)
 		return result
 
 	def _processQuery(self, result):

@@ -225,19 +225,6 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 					logger.logException(error, LOG_INFO)
 					res = json.dumps({"state": State.UNKNOWN, "message": str(error)})
 
-			elif task == "getOpsiClientsForGroup":
-				if params:
-					try:
-						res = self.monitoring.getOpsiClientsForGroup(params["groups"])
-					except KeyError:
-						errorMessage = 'Check for getOpsiClientsForGroup requires configuring at least one group'
-						logger.warning(errorMessage)
-						res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
-				else:
-					errorMessage = 'Check for getOpsiClientsForGroup requires parameters!'
-					logger.warning(errorMessage)
-					res = json.dumps({"state": State.UNKNOWN, "message": str(errorMessage)})
-
 			elif task == "checkShortProductStatus":
 				res = None
 				try:
@@ -452,24 +439,6 @@ class Monitoring(object):
 			message += "No failed products and no actions set for client"
 
 		return self._generateResponse(state, message)
-
-	def getOpsiClientsForGroup(self, groups):
-		result = {}
-
-		objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=groups, type="HostGroup")
-		if objectToGroups:
-			clients = [objectToGroup.objectId for objectToGroup in objectToGroups]
-
-			if clients:
-				hosts = self.service._backend.host_getObjects(id=clients)
-				for host in hosts:
-					result[host.id] = {
-						"description": host.description,
-						"inventoryNumber": host.inventoryNumber,
-						"ipAddress": host.ipAddress
-					}
-
-		return json.dumps(result)
 
 	def checkShortProductStatus(self, productId=None, thresholds={}):
 		actionRequestOnClients = []

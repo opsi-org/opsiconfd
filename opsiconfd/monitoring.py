@@ -922,6 +922,8 @@ class Monitoring(object):
 			if state == State.OK:
 				message.append("OK: Opsi Webservice has no Problem")
 
+			message = " ".join(message)
+
 			if perfdata:
 				performance = [
 					u'requests=%s;;;0; ' % performanceHash["requests"],
@@ -934,11 +936,9 @@ class Monitoring(object):
 					u"cpu=%s;;;0;100 " % performanceHash["cpu"]
 				]
 
-				message = "%s | %s" % (" ".join(message), "".join(performance))
+				return self._generateResponse(state, message, "".join(performance))
 			else:
-				message = " ".join(message)
-
-			return self._generateResponse(state, message)
+				return self._generateResponse(state, message)
 		except Exception as error:
 			state = State.UNKNOWN
 			message = u"cannot check webservice state: '%s'." % str(error)

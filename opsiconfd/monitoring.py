@@ -864,17 +864,8 @@ class Monitoring(object):
 		try:
 			performanceHash = self.service.statistics().getStatistics()
 
-			requests = performanceHash["requests"]
-			davrequests = performanceHash["davrequests"]
 			rpcerrors = performanceHash["rpcerrors"]
 			rpcs = performanceHash["rpcs"]
-
-			perfdata = [
-				u'requests=%s;;;0; ' % requests,
-				u'davrequests=%s;;;0; ' % davrequests,
-				u'rpcs=%s;;;0; ' % rpcs,
-			]
-
 			if int(rpcerrors) == 0 or int(rpcs) == '0':
 				errorrate = 0
 			else:
@@ -882,35 +873,41 @@ class Monitoring(object):
 
 			message = []
 			if errorrate > errors[0]:
-				message.append(u'RPC errors over 20\%')
+				message.append(u'RPC errors over {}%'.format(errors[0]))
 				state = State.CRITICAL
 			elif errorrate > errors[1]:
-				message.append(u'RPC errors over 10\%')
+				message.append(u'RPC errors over {}%'.format(errors[1]))
 				state = State.WARNING
-			perfdata.append(u'rpcerror=%s;;;0; ' % rpcerrors)
-			perfdata.append(u"sessions=%s;;;0; " % performanceHash["sessions"])
-			perfdata.append(u"threads=%s;;;0; " % performanceHash["threads"])
 
-			virtmem = performanceHash["virtmem"]
-			perfdata.append(u"virtmem=%s;;;0; " % virtmem)
-
-			if int(performanceHash["cpu"]) > cputhreshold[0]:
+			cpu = int(performanceHash["cpu"])
+			if cpu > cputhreshold[0]:
 				state = State.CRITICAL
-				message.append(u'CPU-Usage over 80%')
-			elif int(performanceHash["cpu"]) > cputhreshold[1]:
+				message.append(u'CPU-Usage over {}%'.format(cputhreshold[0]))
+			elif cpu > cputhreshold[1]:
 				if not state == State.CRITICAL:
 					state = State.WARNING
-				message.append(u'CPU-Usage over 60%')
-			perfdata.append(u"cpu=%s;;;0;100 " % performanceHash["cpu"])
+				message.append(u'CPU-Usage over {}%'.format(cputhreshold[1]))
 
 			if state == State.OK:
 				message.append("OK: Opsi Webservice has no Problem")
 
+			message = " ".join(message)
+
 			if perfdata:
-				message = "%s | %s" % (" ".join(message), "".join(perfdata))
+				performance = [
+					u'requests=%s;;;0; ' % performanceHash["requests"],
+					u'davrequests=%s;;;0; ' % performanceHash["davrequests"],
+					u'rpcs=%s;;;0; ' % rpcs,
+					u'rpcerror=%s;;;0; ' % rpcerrors,
+					u"sessions=%s;;;0; " % performanceHash["sessions"],
+					u"threads=%s;;;0; " % performanceHash["threads"],
+					u"virtmem=%s;;;0; " % performanceHash["virtmem"],
+					u"cpu=%s;;;0;100 " % performanceHash["cpu"]
+				]
+
+				return self._generateResponse(state, message, "".join(performance))
 			else:
-				message = "%s" % (" ".join(message))
-			return self._generateResponse(state, message)
+				return self._generateResponse(state, message)
 		except Exception as error:
 			state = State.UNKNOWN
 			message = u"cannot check webservice state: '%s'." % str(error)

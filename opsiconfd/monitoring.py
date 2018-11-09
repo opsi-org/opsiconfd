@@ -613,7 +613,7 @@ class Monitoring(object):
 
 		for depotId in depotIds:
 			if depotId in actionRequestOnClient or depotId in productProblemsOnClient or depotId in productVersionProblemsOnClient:
-				message += "\nResult for Depot: '%s':" % depotId
+				message += "\nResult for Depot: '%s':\n" % depotId
 			else:
 				continue
 

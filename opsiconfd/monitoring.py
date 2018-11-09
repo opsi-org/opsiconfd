@@ -523,7 +523,7 @@ class Monitoring(object):
 			serverType = "OpsiDepotserver"
 
 		if serverType:
-			depots = self.service._backend.host_getObjects(type=serverType)
+			depots = self.service._backend.host_getObjects(attributes=['id'], type=serverType)
 			depotIds = set(depot.id for depot in depots)
 
 		if hostGroupIds:

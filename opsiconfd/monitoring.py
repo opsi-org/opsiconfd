@@ -583,8 +583,12 @@ class Monitoring(object):
 				if depotId not in productOnDepotInfo:
 					continue
 
-				if poc.productVersion != productOnDepotInfo[depotId][poc.productId]["productVersion"] or \
-					poc.packageVersion != productOnDepotInfo[depotId][poc.productId]["packageVersion"]:
+				# TODO: Problematic case is here if the product is not present on the depot.
+				productOnDepot = productOnDepotInfo[depotId][poc.productId]
+
+				if (poc.productVersion != productOnDepot["productVersion"] or
+					poc.packageVersion != productOnDepot["packageVersion"]):
+
 					if state != State.CRITICAL:
 						state = State.WARNING
 

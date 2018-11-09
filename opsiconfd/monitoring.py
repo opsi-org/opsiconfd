@@ -525,6 +525,7 @@ class Monitoring(object):
 		if serverType:
 			depots = self.service._backend.host_getObjects(attributes=['id'], type=serverType)
 			depotIds = set(depot.id for depot in depots)
+			del depots
 
 		if hostGroupIds:
 			objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=hostGroupIds, groupType="HostGroup")

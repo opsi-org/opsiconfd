@@ -592,19 +592,19 @@ class Monitoring(object):
 		message = ''
 		for depotId in depotIds:
 			if depotId in actionRequestOnClient or depotId in productProblemsOnClient or depotId in productVersionProblemsOnClient:
-				message += "Result for Depot: '%s': " % depotId
+				message += "\nResult for Depot: '%s':\n" % depotId
 			else:
 				continue
 
 			if depotId in actionRequestOnClient:
 				for product, clients in actionRequestOnClient[depotId].items():
-					message += "For product '%s' action set on %d clients! " % (product, len(clients))
+					message += "For product '%s' action set on %d clients!\n" % (product, len(clients))
 			if depotId in productProblemsOnClient:
 				for product, clients in productProblemsOnClient[depotId].items():
-					message += "For product '%s' problems found on %d clients! " % (product, len(clients))
+					message += "For product '%s' problems found on %d clients!\n" % (product, len(clients))
 			if depotId in productVersionProblemsOnClient:
 				for product, clients in productVersionProblemsOnClient[depotId].items():
-					message += "For product '%s' version difference problems found on %d clients! " % (product, len(clients))
+					message += "For product '%s' version difference problems found on %d clients!\n" % (product, len(clients))
 
 		if not verbose:
 			if state == State.OK:

@@ -1,3 +1,12 @@
+opsiconfd (4.1.1.16-1) stable; urgency=medium
+
+  * New module for config parsing: opsiconfd.config.
+  * opsiconfd.monitoring: checkProductStatus: Improving readability in output.
+  * opsiconfd.monitoring: checkProductStatus: in case a product is not to be
+    found on a depot the check of productOnClient will be skipped.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 13 Nov 2018 13:22:06 +0100
+
 opsiconfd (4.1.1.15-1) stable; urgency=medium
 
   * opsiconfd.monitoring: Removed getOpsiClientsForGroup as this check isn't

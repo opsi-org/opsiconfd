@@ -583,7 +583,6 @@ class Monitoring(object):
 				if depotId not in productOnDepotInfo:
 					continue
 
-				# TODO: Problematic case is here if the product is not present on the depot.
 				try:
 					productOnDepot = productOnDepotInfo[depotId][poc.productId]
 				except KeyError:

@@ -584,7 +584,11 @@ class Monitoring(object):
 					continue
 
 				# TODO: Problematic case is here if the product is not present on the depot.
-				productOnDepot = productOnDepotInfo[depotId][poc.productId]
+				try:
+					productOnDepot = productOnDepotInfo[depotId][poc.productId]
+				except KeyError:
+					logger.debug("Product {} not found on depot {}", poc.productId, depotId)
+					continue
 
 				if (poc.productVersion != productOnDepot["productVersion"] or
 					poc.packageVersion != productOnDepot["packageVersion"]):

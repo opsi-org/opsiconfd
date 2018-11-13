@@ -46,17 +46,16 @@ from twisted.internet import reactor
 from OPSI.Application import Application
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Logger import Logger, LOG_NONE, LOG_WARNING, LOG_NOTICE
-from OPSI.Util import getfqdn, removeUnit
-from OPSI.Util.File import IniFile
+from OPSI.Util import getfqdn
 from OPSI.Service import SSLContext, OpsiService
 from OPSI.System import which, execute
 from OPSI.System.Posix import daemonize
-from OPSI.Types import (forceBool, forceFilename, forceHostId, forceInt,
-						forceNetworkAddress, forceUnicode)
+from OPSI.Types import forceFilename, forceHostId, forceInt, forceUnicode
 from OPSI.web2 import server
 from OPSI.web2.channel.http import HTTPChannel, HTTPFactory
 
 from . import __version__
+from .config import readConfigFile
 from .resources import ResourceRoot, ResourceOpsiconfdJsonRpc, ResourceOpsiconfdJsonInterface, ResourceOpsiconfdDAV, ResourceOpsiconfdConfigedJNLP
 from .info import ResourceOpsiconfdInfo
 from .statistics import Statistics
@@ -570,110 +569,8 @@ class OpsiconfdInit(Application):
 
 	def readConfigFile(self):
 		''' Get settings from config file '''
-		logger.notice(u"Trying to read config from file: '%s'" % self.config['configFile'])
-
-		try:
-			iniFile = IniFile(filename=self.config['configFile'], raw=True)
-			config = iniFile.parse()
-
-			for section in config.sections():
-				logger.debug(u"Processing section '%s' in config file: '%s'" % (section, self.config['configFile']))
-				if section.lower() == 'global':
-					# Global settings
-					for (option, value) in config.items(section):
-						if option == 'pid file':
-							self.config['pidFile'] = forceFilename(value)
-						elif option == 'log level':
-							self.config['logLevel'] = forceInt(value)
-						elif option == 'log file':
-							self.config['logFile'] = forceFilename(value)
-						elif option == 'log format':
-							self.config['logFormat'] = forceUnicode(value)
-						elif option == 'max log size':
-							self.config['maxlogsize'] = removeUnit(value)
-						elif option == 'symlink logs':
-							self.config['symlinkLogs'] = forceBool(value)
-						elif option == 'backend config dir':
-							self.config['backendConfigDir'] = forceFilename(value)
-						elif option == 'dispatch config file':
-							self.config['dispatchConfigFile'] = forceFilename(value)
-						elif option == 'extension config dir':
-							self.config['extensionConfigDir'] = forceFilename(value)
-						elif option == 'acl file':
-							self.config['aclFile'] = forceFilename(value)
-						elif option == 'max execution statistics':
-							self.config['maxExecutionStatisticValues'] = forceInt(value)
-						elif option == 'loadbalancing':
-							self.config['loadbalancing'] = forceBool(value)
-						elif option == 'admin networks':
-							self.config['adminNetworks'] = []
-							for net in value.split(','):
-								self.config['adminNetworks'].append(forceNetworkAddress(net.strip()))
-						elif option == 'monitoring user':
-							self.config['monitoringUser'] = forceUnicode(value)
-						elif option == 'monitoring debug':
-							self.config['monitoringDebug'] = forceBool(value)
-						else:
-							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
-
-				elif section.lower() == 'service':
-					# Service settings
-					for (option, value) in config.items(section):
-						if option == 'http port':
-							self.config['httpPort'] = forceInt(value)
-						elif option == 'https port':
-							self.config['httpsPort'] = forceInt(value)
-						elif option == 'interface':
-							self.config['interface'] = forceUnicode(value)
-						elif option == 'ssl server cert':
-							self.config['sslServerCertFile'] = forceFilename(value)
-						elif option == 'ssl server key':
-							self.config['sslServerKeyFile'] = forceFilename(value)
-						elif option == 'accepted ciphers':
-							self.config['acceptedCiphers'] = forceUnicode(value)
-						else:
-							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
-
-				elif section.lower() == 'session':
-					# Session settings
-					for (option, value) in config.items(section):
-						if option == 'session name':
-							self.config['sessionName'] = forceUnicode(value)
-						elif option == 'verify ip':
-							self.config['resolveVerifyIp'] = forceBool(value)
-						elif option == 'update ip':
-							self.config['updateIpAddress'] = forceBool(value)
-						elif option == 'max inactive interval':
-							self.config['sessionMaxInactiveInterval'] = forceInt(value)
-						elif option == 'max sessions per ip':
-							self.config['maxSessionsPerIp'] = forceInt(value)
-						elif option == 'max authentication failures':
-							self.config['maxAuthenticationFailures'] = forceInt(value)
-						else:
-							logger.warning(u"Ignoring unknown option '%s' in config file: '%s'" % (option, self.config['configFile']))
-
-				elif section.lower() == 'directories':
-					# Static directories
-					self.config['staticDirectories'] = {}
-					for (directory, path) in config.items(section):
-						opt = []
-						if '(' in path:
-							(path, opt) = path.split('(', 1)
-							path = path.strip()
-							opt = opt.lower().replace(')', '').strip().split(',')
-							for i in range(len(opt)):
-								opt[i] = opt[i].strip()
-						self.config['staticDirectories'][directory] = {"path": forceFilename(path), "options": opt}
-				else:
-					logger.warning(u"Ignoring unknown section '%s' in config file: '%s'" % (section, self.config['configFile']))
-
-		except Exception as error:
-			# An error occured while trying to read the config file
-			logger.error(u"Failed to read config file '%s': %s" % (self.config['configFile'], error))
-			logger.logException(error)
-			raise
-
-		logger.notice(u"Config read")
+		configFromFile = readConfigFile(self.config['configFile'])
+		self.config.update(configFromFile)
 
 	def usage(self):
 		print(u"\nUsage: %s [-D] [-c <filename>] [-f <filename>] [-l <log level>] [-i <ipaddress>] [-p <http port>] [-P <https port>]" % os.path.basename(sys.argv[0]))

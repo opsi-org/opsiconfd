@@ -523,8 +523,9 @@ class Monitoring(object):
 			serverType = "OpsiDepotserver"
 
 		if serverType:
-			depots = self.service._backend.host_getObjects(type=serverType)
+			depots = self.service._backend.host_getObjects(attributes=['id'], type=serverType)
 			depotIds = set(depot.id for depot in depots)
+			del depots
 
 		if hostGroupIds:
 			objectToGroups = self.service._backend.objectToGroup_getObjects(groupId=hostGroupIds, groupType="HostGroup")
@@ -582,8 +583,15 @@ class Monitoring(object):
 				if depotId not in productOnDepotInfo:
 					continue
 
-				if poc.productVersion != productOnDepotInfo[depotId][poc.productId]["productVersion"] or \
-					poc.packageVersion != productOnDepotInfo[depotId][poc.productId]["packageVersion"]:
+				try:
+					productOnDepot = productOnDepotInfo[depotId][poc.productId]
+				except KeyError:
+					logger.debug("Product {} not found on depot {}", poc.productId, depotId)
+					continue
+
+				if (poc.productVersion != productOnDepot["productVersion"] or
+					poc.packageVersion != productOnDepot["packageVersion"]):
+
 					if state != State.CRITICAL:
 						state = State.WARNING
 

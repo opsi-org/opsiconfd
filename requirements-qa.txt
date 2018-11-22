@@ -1,5 +1,5 @@
 -r requirements-tests.txt
 pytest-cov
-flake8<3.0
-astroid==1.2.1
-pylint<1.4
+flake8
+astroid
+pylint

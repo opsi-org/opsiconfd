@@ -1,5 +1,5 @@
 -r requirements-tests.txt
 pytest-cov
-flake8<3.0
+flake8
 astroid
 pylint

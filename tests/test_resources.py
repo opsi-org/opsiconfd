@@ -1,8 +1,7 @@
-#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # This file is part of opsiconfd.
-# Copyright (C) 2016 uib GmbH <info@uib.de>
+# Copyright (C) 2016-2018 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -23,8 +22,6 @@ Testing the resources that provide concrete sites.
 :license: GNU Affero General Public License version 3
 """
 
-import unittest
-
 from opsiconfd.resources import ResourceOpsiconfdConfigedJNLP
 
 
@@ -42,30 +39,28 @@ class FakeRequest:
         self.headers = headers
 
 
-class JNLPResourceTestCase(unittest.TestCase):
-    def testDefaultArgumentIsTheAddressOfTheServer(self):
-        arguments = list(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('', FakeHeaders(host='blabla'))))
+def testDefaultArgumentIsTheAddressOfTheServer():
+    arguments = list(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('', FakeHeaders(host='blabla'))))
 
-        self.assertEqual(['-h', 'blabla'], arguments)
-
-    def testAdditionalArgumentsAreInTags(self):
-        arguments = list(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar', FakeHeaders(host='blabla'))))
-
-        self.assertEquals(['-h', 'blabla', '--foo', 'bar'], arguments)
-
-    def testPassingAdditionalArguments(self):
-        arguments = ';;'.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar&hey=ho', FakeHeaders(host='blabla'))))
-
-        self.assertEquals('-h;;blabla;;--foo;;bar;;--hey;;ho', arguments)
-
-    def testHandlingShortOptAndLongOpt(self):
-        arguments = list(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?f=bar&hey=ho', FakeHeaders(host='a'))))
-
-        self.assertTrue('-f' in arguments)
-        self.assertEquals('bar', arguments[arguments.index('-f') + 1])
-        self.assertTrue('--hey' in arguments)
-        self.assertEquals('ho', arguments[arguments.index('--hey') + 1])
+    assert ['-h', 'blabla'] == arguments
 
 
-if __name__ == '__main__':
-    unittest.main()
+def testAdditionalArgumentsAreInTags():
+    arguments = list(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar', FakeHeaders(host='blabla'))))
+
+    assert ['-h', 'blabla', '--foo', 'bar'] == arguments
+
+
+def testPassingAdditionalArguments():
+    arguments = ';;'.join(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?foo=bar&hey=ho', FakeHeaders(host='blabla'))))
+
+    assert '-h;;blabla;;--foo;;bar;;--hey;;ho' == arguments
+
+
+def testHandlingShortOptAndLongOpt():
+    arguments = list(ResourceOpsiconfdConfigedJNLP.getArguments(FakeRequest('?f=bar&hey=ho', FakeHeaders(host='a'))))
+
+    assert '-f' in arguments
+    assert 'bar' == arguments[arguments.index('-f') + 1]
+    assert '--hey' in arguments
+    assert 'ho' == arguments[arguments.index('--hey') + 1]

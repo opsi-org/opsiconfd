@@ -1,3 +1,11 @@
+opsiconfd (4.1.1.16-2) stable; urgency=medium
+
+  * Removed rotating /var/log/opsi/package.log.
+    This logfile is used by opsi-package-manager and logrotate config for this
+    file is part of the package opsi-utils.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 22 Nov 2018 10:55:44 +0100
+
 opsiconfd (4.1.1.16-1) stable; urgency=medium
 
   * New module for config parsing: opsiconfd.config.

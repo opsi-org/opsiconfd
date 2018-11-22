@@ -1,3 +1,2 @@
 # python-rrdtool  # Disabled for local builds because a lot of dependencies.
-twisted<15
-pyOpenSSL
+twisted[conch,tls]<18.4

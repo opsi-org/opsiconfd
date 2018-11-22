@@ -1,4 +1,4 @@
-#! bash
+#! sh
 
 py.test --junitxml=testreport.xml --cov-report xml --cov=opsiconfd tests/
 pylint --rcfile=pylintrc opsiconfd/ > pylint.txt || echo 'pylint did not finish with return code 0'

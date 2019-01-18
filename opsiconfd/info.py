@@ -3,7 +3,7 @@
 # This file is part of the desktop management solution opsi
 # (open pc server integration) http://www.opsi.org
 
-# Copyright (C) 2010-2018 uib GmbH <info@uib.de>
+# Copyright (C) 2010-2019 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -25,7 +25,7 @@ opsi configuration daemon - info page
 
 .. versionchanged:: 4.0.6
 
-  Extended info page.
+	Extended info page.
 
 
 :copyright:  uib GmbH <info@uib.de>

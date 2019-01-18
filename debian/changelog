@@ -1,3 +1,11 @@
+opsiconfd (4.1.1.17-1) testing; urgency=medium
+
+  * Removed support for serving JNLP for use with Java Webstart.
+    Java Webstart is about to removed from Java.
+  * Overview page: Link configed installer for Windows.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 18 Jan 2019 11:59:45 +0100
+
 opsiconfd (4.1.1.16-2) stable; urgency=medium
 
   * Removed rotating /var/log/opsi/package.log.

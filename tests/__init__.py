@@ -1,9 +1,8 @@
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# This file is part of the desktop management solution opsi
-# (open pc server integration) http://www.opsi.org
-
-# Copyright (C) 2010-2019 uib GmbH <info@uib.de>
+# This file is part of opsiconfd.
+# Copyright (C) 2018 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -18,12 +17,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-opsi configuration daemon (opsiconfd)
+opsiconfd tests.
 
+opsiconfd is part of opsi - https://opsi.org
 
-:author: Christian Kampka <c.kampka@uib.de>
 :author: Niko Wenselowski <n.wenselowski@uib.de>
 :license: GNU Affero General Public License version 3
 """
-
-__version__ = "4.1.1.6"

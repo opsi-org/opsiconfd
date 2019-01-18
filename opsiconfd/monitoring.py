@@ -5,7 +5,7 @@ opsi-nagios-connector endpoint.
 opsi-nagios-connector is part of the desktop management solution opsi
 (open pc server integration) http://www.opsi.org
 
-Copyright (C) 2010-2018 uib GmbH
+Copyright (C) 2010-2019 uib GmbH
 
 http://www.uib.de/
 

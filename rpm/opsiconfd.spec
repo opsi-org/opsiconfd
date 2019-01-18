@@ -1,7 +1,7 @@
 #
 # spec file for package opsiconfd
 #
-# Copyright (c) 2008-2018 uib GmbH.
+# Copyright (c) 2008-2019 uib GmbH.
 # This file and all modifications and additions to the pristine
 # package are under the same license as the package itself.
 #

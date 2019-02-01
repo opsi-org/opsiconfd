@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.18-1) stable; urgency=medium
+
+  * Overview page: Added link to opsi configed linux installer.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 01 Feb 2019 13:51:31 +0100
+
 opsiconfd (4.1.1.17-1) testing; urgency=medium
 
   * Removed support for serving JNLP for use with Java Webstart.

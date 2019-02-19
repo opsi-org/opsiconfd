@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.18-2) stable; urgency=medium
+
+  * Overview page updated to use HTML5, new logo and colours.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 19 Feb 2019 18:17:45 +0100
+
 opsiconfd (4.1.1.18-1) stable; urgency=medium
 
   * Overview page: Added link to opsi configed linux installer.

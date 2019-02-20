@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.18-3) stable; urgency=medium
+
+  * Fix asset collection.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 20 Feb 2019 16:13:46 +0100
+
 opsiconfd (4.1.1.18-2) stable; urgency=medium
 
   * Overview page updated to use HTML5, new logo and colours.

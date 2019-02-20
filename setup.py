@@ -59,7 +59,7 @@ data_files = [
 	('/etc/logrotate.d', ['data/etc/logrotate.d/opsiconfd']),
 	('share/opsiconfd/static', [
 		'data/shared/index.html',
-		'data/shared/opsi_logo.png'
+		'data/shared/opsi_logo.png',
 		'data/shared/favicon.ico',
 		'data/shared/browserconfig.xml',
 		'data/shared/manifest.json',

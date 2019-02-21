@@ -26,7 +26,7 @@
 		span, a:link, a:visited, a:active	{ color: #555555; }
 		span:hover, a:hover	{ color: #c91254; }
 		body	{ background-color: #f7f7f7; color: #555555; font-family: verdana, arial; }
-		h1, h2	{ color: #0067a9; }
+		h1, h2	{ color: #0067a9;text-align:center;}
 		h1	{ font-size: 3em; }
 		h2	{ font-size: 2em; }
 		img	{ max-width: 256px; height: auto; }
@@ -38,16 +38,15 @@
 	<script>
 		function download(){
 			os = getOS();
-			console.log("detected os: " + os);
 			
 			url = getDownloadLink(os);
-			if (url === undefined)
-				document.getElementById("sectioninstaller").style.display=block;
-			console.log("target url: " + url);
-				
+			if (url === undefined){
+				document.getElementById("sectioninstaller").style.display="block";
+				document.getElementById("liteminstaller").style.display="none";
+			}
 			var form = document.createElement('form');
 			form.setAttribute('method', 'get');
-			form.setAttribute('target', '_blank');
+			form.setAttribute('target', '_self');
 			form.setAttribute('action', url);
 			document.body.appendChild(form);
 			form.submit();
@@ -89,7 +88,7 @@
 		<ul>
 			<li><a href="interface">opsi config interface</a></li>
 			<li><a href="info">opsiconfd info</a></li>
-			<li><span onclick="download();">opsi configed installer</span></li>
+			<li id="liteminstaller" ><span onclick="download();" >opsi configed installer</span></li>
 			<!--li><a href="doc">opsi documentation and manuals</a></li-->
 		</ul>
 		</div>

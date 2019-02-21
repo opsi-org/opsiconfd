@@ -22,34 +22,86 @@
 	<meta name="msapplication-TileImage" content="/ms-icon-144x144.png">
 	<meta name="theme-color" content="#ffffff">
 	<style>
-		a:link, a:visited, a:active	{ color: #555555; }
-		a:hover	{ color: #c91254; }
+		span	{text-decoration: underline;cursor:pointer;}
+		span, a:link, a:visited, a:active	{ color: #555555; }
+		span:hover, a:hover	{ color: #c91254; }
 		body	{ background-color: #f7f7f7; color: #555555; font-family: verdana, arial; }
 		h1, h2	{ color: #0067a9; }
 		h1	{ font-size: 3em; }
 		h2	{ font-size: 2em; }
 		img	{ max-width: 256px; height: auto; }
+		img.center {display:block; margin-left:auto; margin-right:auto;}
+		div.center {display:block; margin-left:auto; margin-right:auto;width:300px;}
+		section.center {text-align:center;}
+		li 	{text-align:left;}
 	</style>
+	<script>
+		function download(){
+			os = getOS();
+			console.log("detected os: " + os);
+			
+			url = getDownloadLink(os);
+			if (url === undefined)
+				document.getElementById("sectioninstaller").style.display=block;
+			console.log("target url: " + url);
+				
+			var form = document.createElement('form');
+			form.setAttribute('method', 'get');
+			form.setAttribute('target', '_blank');
+			form.setAttribute('action', url);
+			document.body.appendChild(form);
+			form.submit();
+			document.body.removeChild(form);
+		}
+		function getDownloadLink(ostype){
+			var configedDownloadLink_windows="https://download.uib.de/opsi4.1/misc/helper/opsi-configed-setup.exe";
+			var configedDownloadLink_linux="https://download.uib.de/opsi4.1/misc/helper/opsi-configed-linux-setup.tar.gz";
+			if (ostype === "Windows")  	return configedDownloadLink_windows;
+			else if (ostype === "UNIX")	return configedDownloadLink_linux;
+			else if (ostype === "Linux")	return configedDownloadLink_linux;
+			else				return undefined;
+		}
+		function getOS(){
+			var OSName = "Unknown";
+			userAgent = window.navigator.userAgent;
+			if ((userAgent.indexOf("Windows NT 10.0") != -1) || (userAgent.indexOf("Windows NT 6.2") != -1)
+			   || (userAgent.indexOf("Windows NT 6.1") != -1) || (userAgent.indexOf("Windows NT 6.0") != -1)
+			   || (userAgent.indexOf("Windows NT 5.1") != -1) || (userAgent.indexOf("Windows NT 5.0") != -1)
+			   || (userAgent.indexOf("Windows") != -1) || (userAgent.indexOf("windows") != -1))
+				OSName="Windows";
+			else if (window.navigator.userAgent.indexOf("Mac") != -1) OSName="Mac/iOS";
+			else if (window.navigator.userAgent.indexOf("X11") != -1) OSName="UNIX";
+			else if (window.navigator.userAgent.indexOf("Linux") != -1) OSName="Linux";
+			return OSName;
+		}
+	</script>
 </head>
 <body>
 	<div>
-		<img src="opsi_logo.png" alt="opsi logo" />
+		<br />
+		<br />
+		<img class="center" src="opsi_logo.png" alt="opsi logo" />
 	</div>
 
-	<section>
+	<section class="center">
 		<h1>opsiconfd</h1>
+		<div class="center">
 		<ul>
 			<li><a href="interface">opsi config interface</a></li>
 			<li><a href="info">opsiconfd info</a></li>
+			<li><span onclick="download();">opsi configed installer</span></li>
 			<!--li><a href="doc">opsi documentation and manuals</a></li-->
 		</ul>
+		</div>
 	</section>
-	<section>
+	<section id="sectioninstaller" class="center" style="display:none;">
 		<h2>opsi configuration editor installer</h2>
+		<div class="center">
 		<ul>
 			<li><a href="https://download.uib.de/opsi4.1/misc/helper/opsi-configed-setup.exe">for Windows</a></li>
 			<li><a href="https://download.uib.de/opsi4.1/misc/helper/opsi-configed-linux-setup.tar.gz">for Linux</a></li>
 		</ul>
+		</div>
 	</section>
 </body>
 </html>

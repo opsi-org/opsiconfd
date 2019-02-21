@@ -75,7 +75,7 @@ PAGE_TEMPLATE = u'''
 </head>
 <body>
 	<span id="title">
-		<img src="/opsi_logo.png" />
+		<img src="/opsi_logo.png" /><br /><br />
 		<span sytle="padding: 1px">opsiconfd info</span>
 	</span>
 	<div id="infos">

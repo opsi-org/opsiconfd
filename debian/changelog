@@ -1,3 +1,10 @@
+opsiconfd (4.1.1.18-4) stable; urgency=medium
+
+  * Overview page: Automatic selection of download link per requesting OS.
+  * Info page: Place the logo above the heading.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Thu, 21 Feb 2019 16:17:16 +0100
+
 opsiconfd (4.1.1.18-3) stable; urgency=medium
 
   * Fix asset collection.

@@ -6,18 +6,8 @@
 # =          All rights reserved.             =
 # = = = = = = = = = = = = = = = = = = = = = = =
 
-. /usr/share/debconf/confmodule
-
 case "$1" in
-	upgrade|failed-upgrade|abort-install|abort-upgrade|disappear|remove)
-	;;
-	purge)
-		deluser pcpatch shadow 1>/dev/null 2>/dev/null || true
-		deluser opsiconfd shadow 1>/dev/null 2>/dev/null || true
-		[ -z "`getent passwd opsiconfd`" ] || userdel opsiconfd
-		rm -f /etc/opsi/opsiconfd.pem  1>/dev/null 2>/dev/null || true
-
-		db_purge
+	upgrade|failed-upgrade|abort-install|abort-upgrade|disappear|remove|purge)
 	;;
 	*)
 		echo "postrm called with unknown argument \`$1'" >&2

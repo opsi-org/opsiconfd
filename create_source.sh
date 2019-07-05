@@ -35,7 +35,7 @@ find ${tmpdir} -iname "*~"      -exec rm "{}" \;
 find ${tmpdir} -iname "*.svn"   -exec rm -rf "{}" \; 2>/dev/null
 
 cd ${tmpdir}/
-dpkg-buildpackage -S
+dpkg-buildpackage --build=source --no-sign || dpkg-buildpackage -S -uc -us
 mv ${tmpdir}/../${packagename}_${version}-${release}.tar.gz $destdir/
 mv ${tmpdir}/../${packagename}_${version}-${release}.dsc    $destdir/
 rm -rf $tmpdir

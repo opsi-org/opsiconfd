@@ -28,11 +28,11 @@ from twisted.internet import defer
 from twisted.conch.ssh import keys
 
 from OPSI.Backend.Backend import temporaryBackendOptions
+from OPSI.Exceptions import OpsiAuthenticationError
 from OPSI.Logger import LOG_INFO, Logger
 from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Service.Worker import WorkerOpsi
 from OPSI.System import getDiskSpaceUsage
-from OPSI.Exceptions import OpsiAuthenticationError
 from OPSI.Types import forceList, forceProductIdList
 from OPSI.web2 import http, stream
 

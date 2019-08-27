@@ -1,2 +1,2 @@
 # python-rrdtool  # Disabled for local builds because a lot of dependencies.
-twisted[conch,tls]<18.4
+twisted[tls]<18.4

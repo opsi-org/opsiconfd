@@ -80,7 +80,6 @@ class Opsiconfd(OpsiService):
 		self._httpsPort = None
 		self._sessionHandler = None
 		self._statistics = None
-		self._debugShell = None
 
 		self.authFailureCount = {}
 
@@ -125,8 +124,6 @@ class Opsiconfd(OpsiService):
 				self._httpsPort.stopListening()
 			if self._sessionHandler:
 				self._sessionHandler.cleanup()
-			if self._debugShell:
-				self._debugShell.close()
 			if self._backend:
 				try:
 					self._backend.backend_exit()
@@ -333,17 +330,6 @@ class Opsiconfd(OpsiService):
 
 		logger.notice(u"Accepting HTTPS requests on %s:%s" % (self.config['interface'], self.config['httpsPort']))
 
-	def _startListeningShell(self):
-		from OPSI.Util.Debug import DebugShell
-
-		ns = globals()
-		ns.update({"opsiconfd": self})
-
-		self._debugShell = DebugShell(self, self._backend, namespace=ns)
-
-		logger.notice(u"Opening debug shell.")
-		self._debugShell.open()
-
 	def run(self):
 		@contextmanager
 		def collectStatistics():
@@ -362,9 +348,6 @@ class Opsiconfd(OpsiService):
 			with collectStatistics():
 				self._createSite()
 				self._startListening()
-
-				if self.config["debug"]:
-					self._startListeningShell()
 
 				if not reactor.running:
 					reactor.run(installSignalHandlers=1)
@@ -501,8 +484,6 @@ class OpsiconfdInit(Application):
 				self.config["profile"] = forceFilename(arg)
 			elif opt == "--profiler":
 				self.config["profiler"] = forceUnicode(arg)
-			elif opt == "--debug":
-				self.config["debug"] = True
 
 	def createPidFile(self):
 		if not os.path.exists(os.path.dirname(self.config['pidFile'])):

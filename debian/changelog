@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.20-1) stable; urgency=medium
+
+  * Do not depend on twisted.conch anymore.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 28 Aug 2019 10:28:17 +0200
+
 opsiconfd (4.1.1.19-1) stable; urgency=medium
 
   * Removed debug shell.

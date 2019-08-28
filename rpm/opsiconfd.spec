@@ -23,7 +23,7 @@ Requires:       logrotate
 Requires:       openssl
 Requires:       procps
 Requires:       psmisc
-Requires:       python-opsi >= 4.1.1.7
+Requires:       python-opsi >= 4.1.1.76
 Requires:       python-setuptools
 Requires:       python-twisted
 %{?systemd_requires}

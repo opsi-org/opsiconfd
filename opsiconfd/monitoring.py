@@ -25,15 +25,15 @@ import time
 from collections import defaultdict
 from hashlib import md5
 from twisted.internet import defer
-from twisted.conch.ssh import keys
 
 from OPSI.Backend.Backend import temporaryBackendOptions
+from OPSI.Exceptions import OpsiAuthenticationError
 from OPSI.Logger import LOG_INFO, Logger
 from OPSI.Service.Resource import ResourceOpsi
 from OPSI.Service.Worker import WorkerOpsi
 from OPSI.System import getDiskSpaceUsage
-from OPSI.Exceptions import OpsiAuthenticationError
 from OPSI.Types import forceList, forceProductIdList
+from OPSI.Util import getPublicKey
 from OPSI.web2 import http, stream
 
 logger = Logger()
@@ -144,8 +144,7 @@ class WorkerOpsiconfdMonitoring(WorkerOpsi):
 						logger.notice(u"Disabling monitoring module: modules file expired")
 						self.monitoring = u"Disabling monitoring module: modules file expired"
 					else:
-
-						publicKey = keys.Key.fromString(data=base64.decodestring('AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDojY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDUlk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP')).keyObject
+						publicKey = getPublicKey(data=base64.decodestring('AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDojY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDUlk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP'))
 						data = u''
 						mks = modules.keys()
 						mks.sort()

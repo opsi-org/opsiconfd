@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# This file is part of the desktop management solution opsi
+# opsiconfd is part of the desktop management solution opsi
 # (open pc server integration) http://www.opsi.org
 
 # Copyright (C) 2010-2019 uib GmbH <info@uib.de>

@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.20-3) testing; urgency=medium
+
+  * spec: using python2 instead of python
+
+ -- Mathias Radtke <m.radtke@uib.de>  Tue, 17 Dec 2019 17:23:47 +0100
+
 opsiconfd (4.1.1.20-2) testing; urgency=medium
 
   * CentOS/RHEL 8: requirements changed

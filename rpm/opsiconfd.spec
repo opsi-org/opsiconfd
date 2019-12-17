@@ -48,10 +48,10 @@ Url:            http://www.opsi.org
 License:        AGPL-3.0+
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
-Version:        4.1.1.4
+Version:        4.1.1.20
 Release:        2
 Summary:        This is the opsi configuration service
-Source:         opsiconfd_4.1.1.4-1.tar.gz
+Source:         opsiconfd_4.1.1.20-2.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %define tarname opsiconfd
@@ -75,7 +75,7 @@ This package contains the opsi configuration service.
 export PATH="/usr/bin:$PATH"
 %endif
 export CFLAGS="$RPM_OPT_FLAGS"
-python setup.py build
+python2 setup.py build
 
 # ===[ pre ]========================================
 %pre
@@ -87,9 +87,9 @@ python setup.py build
 %install
 
 %if 0%{?suse_version}
-python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=INSTALLED_FILES
+python2 setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record-rpm=INSTALLED_FILES
 %else
-python setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+python2 setup.py install --prefix=%{_prefix} --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
 %endif
 
 mkdir -p $RPM_BUILD_ROOT/var/log/opsi/opsiconfd

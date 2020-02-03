@@ -49,9 +49,9 @@ License:        AGPL-3.0+
 Group:          Productivity/Networking/Opsi
 AutoReqProv:    on
 Version:        4.1.1.20
-Release:        2
+Release:        4
 Summary:        This is the opsi configuration service
-Source:         opsiconfd_4.1.1.20-2.tar.gz
+Source:         opsiconfd_4.1.1.20-4.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %define tarname opsiconfd

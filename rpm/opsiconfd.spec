@@ -8,9 +8,14 @@
 
 Name:           opsiconfd
 BuildRequires:  openssl
-BuildRequires:  procps
+%if 0%{?rhel_version} >= 800 || 0%{?centos_version} >= 800
+BuildRequires:  python2-devel
+BuildRequires:  python2-setuptools
+%else
 BuildRequires:  python-devel
 BuildRequires:  python-setuptools
+%endif
+BuildRequires:  procps
 BuildRequires:  systemd
 %if 0%{?suse_version}
 BuildRequires:  logrotate
@@ -24,7 +29,11 @@ Requires:       openssl
 Requires:       procps
 Requires:       psmisc
 Requires:       python-opsi >= 4.1.1.76
-Requires:       python-setuptools
+%if 0%{?rhel_version} >= 800 || 0%{?centos_version} >= 800
+Requires:  	python2-setuptools
+%else
+Requires: 	python-setuptools
+%endif
 Requires:       python-twisted
 %{?systemd_requires}
 %if 0%{?sle_version} == 120300 && 0%{?is_opensuse}

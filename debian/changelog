@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.20-2) testing; urgency=medium
+
+  * CentOS/RHEL 8: requirements changed
+
+ -- Mathias Radtke <m.radtke@uib.de>  Tue, 17 Dec 2019 15:03:52 +0100
+
 opsiconfd (4.1.1.20-1) stable; urgency=medium
 
   * Do not depend on twisted.conch anymore.

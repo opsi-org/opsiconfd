@@ -252,8 +252,13 @@ fi
 %attr(0770,opsiconfd,opsiadmin) %dir /var/lib/opsiconfd/rrd
 
 %if 0%{?rhel_version} || 0%{?centos_version} || 0%{?fedora_version}
+%if 0%{?rhel_version} >= 800 || 0%{?centos_version} >= 800
+%define python2_sitearch %(%{__python2} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')
+%{python2_sitearch}/opsiconfd/*
+%else
 %define python_sitearch %(%{__python} -c 'from distutils import sysconfig; print sysconfig.get_python_lib()')
 %{python_sitearch}/opsiconfd/*
+%endif
 %endif
 
 # ===[ changelog ]==================================

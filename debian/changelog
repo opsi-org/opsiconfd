@@ -1,3 +1,9 @@
+opsiconfd (4.1.1.20-4) stable; urgency=medium
+
+  * spec: small fix for centos8
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Mon, 03 Feb 2020 22:46:38 +0100
+
 opsiconfd (4.1.1.20-3) testing; urgency=medium
 
   * spec: using python2 instead of python

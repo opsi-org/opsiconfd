@@ -1,0 +1,19 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 50,
+	"iterations": 1,
+	"test_cases": [
+		{
+			"name": "JSONRPC",
+			"requests": {
+				"test": [
+					["jsonrpc", "authenticated", []],
+					["jsonrpc", "productOnClient_getObjects", [[],{"clientId":"pctest.uib.local"}]],
+					["jsonrpc", "product_getObjects", [[],{}]]
+				]
+			}
+		}
+	]
+}

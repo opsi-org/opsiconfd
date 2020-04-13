@@ -1,0 +1,72 @@
+html, body {
+	width: calc(100% - 10px);
+	height: calc(100% - 10px);
+	margin: 0px;
+	padding: 0px;
+	font-family: Arial, Helvetica, sans-serif;
+    background-color: #eeeeee;
+	color: #3a3a3a;
+}
+a:link, a:visited, a:active {
+	/* #555555 */
+	color: #0068aa;
+	text-decoration: none;
+}
+
+a:hover {
+	color: #02456e;
+	text-decoration: none;
+}
+
+#content {
+	margin-top: 50px;
+	width: auto;
+	height: auto;
+}
+
+#link-list {
+	width: 250px;
+	margin: 50px auto 0px auto;
+	font-size: 20px;
+}
+
+li {
+	list-style-type: none;
+}
+
+#logo {
+	width: 200px;
+	display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#log-settings {
+	margin: 15px 0px 0px 10px;
+}
+
+#log-container {
+	width: 100%;
+	height: calc(100% - 40px);
+	margin: 10px;
+	overflow: scroll;
+	/*line-height: 0.9;*/
+	background-color: black;
+	color:white;
+}
+.log-line {
+	display: inline-table;
+	font-family: monospace;
+	white-space: pre;
+	clear: both;
+	float: left;
+}
+.LEVEL_SECRET { color: #795b00; }
+.LEVEL_TRACE { color: #636d6e; }
+.LEVEL_DEBUG { color: #94a3a5; }
+.LEVEL_INFO { color: #eeeeee; }
+.LEVEL_NOTICE { color: #859900; }
+.LEVEL_WARNING { color: #b58900; }
+.LEVEL_ERROR { color: #dc322b; }
+.LEVEL_CRITICAL { color: #c74b16; }
+.LEVEL_ESSENTIAL { color: #2aa198; }

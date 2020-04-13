@@ -1,0 +1,45 @@
+version: '3.3'
+
+services:
+  opsiconfd:
+    depends_on:
+      - mysql
+      - redis
+    build:
+      context: ..
+      dockerfile: docker/opsiconfd-dev-Dockerfile
+    ports:
+      - "4447:4447"
+    #restart: always
+    volumes:
+      - ..:/src
+    environment:
+      OPSICONFD_EXTERNAL_URL: https://localhost:4447
+      OPSICONFD_INTERNAL_URL: https://opsiconfd:4447
+      OPSICONFD_GRAFANA_INTERNAL_URL: http://grafana:3000
+      OPSICONFD_GRAFANA_EXTERNAL_URL: http://localhost:3000
+    #working_dir: /poetry
+    entrypoint: ["sleep", "infinity"]
+    #entrypoint: ["poetry", "run", "opsiconfd"]
+  mysql:
+    image: mysql:5.7
+    command: --max_allowed_packet=32505856 # Set max_allowed_packet to 256M
+    ports:
+      - "3307:3306"
+    environment:
+       MYSQL_ROOT_PASSWORD: opsi
+       MYSQL_DATABASE: opsi
+       MYSQL_USER: opsi
+       MYSQL_PASSWORD: opsi
+  redis:
+    image: redislabs/redistimeseries:1.2.5
+    ports:
+      - "6380:6379"
+  grafana:
+    image: grafana/grafana:6.7.1
+    environment:
+      GF_INSTALL_PLUGINS: grafana-simple-json-datasource
+      GF_SECURITY_ADMIN_USER: adminuser
+      GF_SECURITY_ADMIN_PASSWORD: adminuser
+    ports:
+      - "3000:3000"

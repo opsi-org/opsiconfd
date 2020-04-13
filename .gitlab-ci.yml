@@ -1,0 +1,19 @@
+image: python:3.7-buster
+
+stages:
+  - package
+
+pyinstaller build:
+  stage: package
+  before_script:
+    - apt update
+    - apt -y upgrade
+    - apt -y install curl # python3-pip
+  script:
+    - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
+    - ./pyinstaller-build.sh
+  artifacts:
+    name: 'opsiconfd_pyinstaller'
+    paths:
+      - dist/
+    expire_in: 7 day

@@ -16,5 +16,5 @@ pyinstaller build:
   artifacts:
     name: 'opsiconfd_pyinstaller'
     paths:
-      - dist/opsiconfd/
+      - dist/opsiconfd
     expire_in: 14 day

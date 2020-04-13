@@ -1,9 +1,15 @@
 #!/bin/sh
+#
+# On RecursionError (maximum recursion depth exceeded while calling a Python object) set LOG_LEVEL to DEBUG
+#
+
+#LOG_LEVEL="INFO"
+LOG_LEVEL="DEBUG"
 
 poetry install
 poetry run rm .venv/lib/python3*/site-packages/pydantic/*.so
 poetry run rm -r dist build
-poetry run pyinstaller \
+poetry run pyinstaller --log-level=$LOG_LEVEL \
     --hidden-import ipaddress \
     --hidden-import colorsys \
     --hidden-import gunicorn.glogging \

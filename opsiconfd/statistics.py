@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
-# opsiconfd is part of the desktop management solution opsi
-# (open pc server integration) http://www.opsi.org
-# Copyright (C) 2010-2019 uib GmbH <info@uib.de>
+# This file is part of opsi.
+# Copyright (C) 2020 uib GmbH <info@uib.de>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -17,438 +16,623 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-Statistics about an running opsiconfd.
-
-These classes provide the data that is shown on the info page.
-
+:copyright: uib GmbH <info@uib.de>
 :author: Jan Schneider <j.schneider@uib.de>
-:author: Niko Wenselowski <n.wenselowski@uib.de>
 :license: GNU Affero General Public License version 3
 """
 
-import collections
-import datetime
 import os
+import re
 import time
+import asyncio
 import threading
-from twisted.internet.task import LoopingCall
-import resource as pyresource
+import psutil
+import json
+import copy
+from contextvars import ContextVar
+from typing import Dict, List
+from ctypes import c_long
+import yappi
+from yappi import YFuncStats
 
-try:
-	import rrdtool
-except ImportError:
-	rrdtool = None
+from starlette.datastructures import MutableHeaders
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+from starlette.requests import Request
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-try:
-	import objgraph
-except ImportError:
-	objgraph = None
-
-from OPSI.web2 import http, resource
-from OPSI.Logger import Logger
-from OPSI.Types import forceUnicode
-
-logger = Logger()
-
-CallStatistics = collections.namedtuple('CallStatistics', ['count', 'average'])
-
-
-class ResourceOpsiconfdStatistics(resource.Resource):
-	def __init__(self, opsiconfd):
-		self._opsiconfd = opsiconfd
-
-	def renderHTTP(self, request):
-		''' Process request. '''
-		return http.Response(
-			stream='\n'.join(
-				'{0}:{1}'.format(k, v) for (k, v) in
-				self._opsiconfd.statistics().getStatistics().items()
-			)
-		)
+from .logging import logger
+from .worker import get_redis_client, get_metrics_collector, \
+	contextvar_request_id, contextvar_client_address, contextvar_server_address, contextvar_server_timing
+from .config import config
+from .utils import Singleton, get_worker_processes, get_node_name, get_worker_num
 
 
-class Statistics(object):
-	"""
-	Statistics about the opsiconfd.
+def get_yappi_tag() -> int:
+	tag = contextvar_request_id.get()
+	if not tag:
+		return -1
+	return tag
 
-	These are mainly data about the executed rpcs, possibly encountered
-	encoding errors and the expired sessions.
-	This class is also used for creating graphics via rrdtool.
+GRAFANA_DATASOURCE_TEMPLATE = {
+	"orgId": 1,
+	"name": "opsiconfd",
+	"type": "grafana-simple-json-datasource",
+	"typeLogoUrl": "public/plugins/grafana-simple-json-datasource/img/simpleJson_logo.svg",
+	"access": "proxy",
+	"url": "https://opsiconfd:4447/metrics/grafana/",
+	"password": "",
+	"user": "",
+	"database": "",
+	"basicAuth": True,
+	"isDefault": True,
+	"jsonData": {
+		"tlsSkipVerify": True
+	},
+	"basicAuthUser": "adminuser",
+	"secureJsonData": {
+		"basicAuthPassword": "adminuser"
+	},
+	"readOnly": False
+}
 
-	.. versionchanged:: 4.0.6
-
-		Storing RPCs and expired sessions in a length-limited deque.
-	"""
-
-	def __init__(self, opsiconfd):
-		self.opsiconfd = opsiconfd
-		self._rpcs = collections.deque(maxlen=self.opsiconfd.config['maxExecutionStatisticValues'])
-		self._rpcStatistics = collections.defaultdict(lambda: CallStatistics(0, 0.0))
-		self._encodingErrors = []
-		self._maxExpiredSessionInfos = 300
-		self._expiredSessionInfo = collections.deque(maxlen=self._maxExpiredSessionInfos)
-		self._utime = 0.0
-		self._stime = 0.0
-		self._last = time.time()
-		self._rrdConfig = {
-			'step': 60,  # in seconds
-			'heartbeat': 120,
-			'xPoints': 800,
-			'yPoints': 160,
-			'rrdFile': os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
-		}
-		self._rrdCache = {
-			'requests': 0,
-			'sessions': 0,
-			'davrequests': 0,
-			'rpcs': 0,
-			'rpcerrors': 0
-		}
-		self._userAgents = collections.defaultdict(int)
-
-		if not os.path.exists(self._rrdConfig['rrdFile']):
-			self.createRrd()
-		loop = LoopingCall(self.updateRrd)
-		loop.start(int(self._rrdConfig['step']), now=False)
-
-	@staticmethod
-	def rrdsAvailable():
-		return bool(rrdtool)
-
-	def createObjectGraph(self, maxDepth):
-		if objgraph is not None:
-			path = os.getcwd()
-			try:
-				os.chdir('/tmp')
-				objgraph.show_backrefs([self.opsiconfd], max_depth=maxDepth)
-			finally:
-				os.chdir(path)
-
-	def createRrd(self):
-		if rrdtool is None:
-			return
-
-		if os.path.exists(self._rrdConfig['rrdFile']):
-			os.unlink(self._rrdConfig['rrdFile'])
-
-		start = int(time.time())
-		logger.notice(u"Creating rrd '{rrdFile}', start: {0}", start, rrdFile=self._rrdConfig['rrdFile'])
-
-		step = 3600 / self._rrdConfig['step']
-		stepForDay = step * 24
-		heartbeat = self._rrdConfig['heartbeat']
-
-		rrdtool.create(
-			str(self._rrdConfig['rrdFile']),
-			'--start', str(start),
-			'--step', str(self._rrdConfig['step']),
-			'DS:requests:ABSOLUTE:%d:0:U' % heartbeat,
-			'DS:sessions:DERIVE:%d:0:U' % heartbeat,
-			'DS:davrequests:ABSOLUTE:%d:0:U' % heartbeat,
-			'DS:rpcs:ABSOLUTE:%d:0:U' % heartbeat,
-			'DS:rpcerrors:ABSOLUTE:%d:0:U' % heartbeat,
-			'DS:cpu:GAUGE:%d:0:U' % heartbeat,
-			'DS:mem:GAUGE:%d:0:U' % heartbeat,
-			'DS:threads:GAUGE:%d:0:U' % heartbeat,
-			'RRA:AVERAGE:0.5:1:%d' % step,  # hour
-			'RRA:AVERAGE:0.5:1:%d' % stepForDay,  # day
-			'RRA:AVERAGE:0.5:7:%d' % stepForDay,  # week
-			'RRA:AVERAGE:0.5:31:%d' % stepForDay,  # month
-			'RRA:AVERAGE:0.5:365:%d' % stepForDay,  # year
-			'RRA:MAX:0.5:1:%d' % step,  # hour
-			'RRA:MAX:0.5:1:%d' % stepForDay,  # day
-			'RRA:MAX:0.5:7:%d' % stepForDay,  # week
-			'RRA:MAX:0.5:31:%d' % stepForDay,  # month
-			'RRA:MAX:0.5:365:%d' % stepForDay,  # year
-		)
-
-	def getStatistics(self):
-		now = int(time.time())
-
-		try:
-			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
-			self._last = now
-
-			return {
-				"requests": self._rrdCache['requests'],
-				"sessions": self._rrdCache['sessions'],
-				"davrequests": self._rrdCache['davrequests'],
-				"rpcs": self._rrdCache['rpcs'],
-				"rpcerrors": self._rrdCache['rpcerrors'],
-				"cpu": cpu,
-				"virtmem": virtMem,
-				"threads": len([t for t in threading.enumerate()])
+GRAFANA_DASHBOARD_TEMPLATE = {
+	"id": None,
+	"uid": "opsiconfd_main",
+	"annotations": {
+		"list": [
+			{
+			"builtIn": 1,
+			"datasource": "-- Grafana --",
+			"enable": True,
+			"hide": True,
+			"iconColor": "rgba(0, 211, 255, 1)",
+			"name": "Annotations & Alerts",
+			"type": "dashboard"
 			}
-		except Exception as error:
-			logger.logException(error)
-			logger.error(u"Failed to get Statistics: {0}", error)
-			return {}
+		]
+	},
+	"timezone": "",
+	"title": "opsiconfd main dashboard",
+	"editable": True,
+	"gnetId": None,
+	"graphTooltip": 0,
+	"links": [],
+	"panels": [],
+	"refresh": "5s",
+	"schemaVersion": 22,
+	"version": 12,
+	"style": "dark",
+	"tags": [],
+	"templating": {
+		"list": []
+	},
+	"time": {
+		"from": "now-5m",
+		"to": "now"
+	},
+	"timepicker": {
+		"refresh_intervals": [
+			"1s",
+			"5s",
+			"10s",
+			"30s",
+			"1m",
+			"5m",
+			"15m",
+			"30m",
+			"1h",
+			"2h",
+			"1d"
+		]
+	},
+	"variables": {
+		"list": []
+	}
+}
 
-	def _getOwnResourceUsage(self, currentTime, unixtimeOfLastCall):
-		utime, stime, _ = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
-		if int(utime - self._utime) == 0:
-			usr = 0.0
+GRAFANA_GRAPH_PANEL_TEMPLATE = {
+	"aliasColors": {},
+	"bars": False,
+	"dashLength": 10,
+	"dashes": False,
+	"datasource": "opsiconfd",
+	"description": "",
+	"fill": 1,
+	"fillGradient": 0,
+	"gridPos": {
+		"h": 12,
+		"w": 8,
+		"x": 0,
+		"y": 0
+	},
+	"hiddenSeries": False,
+	"id": None,
+	"legend": {
+		"alignAsTable": True,
+		"avg": True,
+		"current": True,
+		"hideEmpty": True,
+		"hideZero": False,
+		"max": True,
+		"min": True,
+		"show": True,
+		"total": False,
+		"values": True
+	},
+	"lines": True,
+	"linewidth": 1,
+	"nullPointMode": "null",
+	"options": {
+		"dataLinks": []
+	},
+	"percentage": False,
+	"pointradius": 2,
+	"points": False,
+	"renderer": "flot",
+	"seriesOverrides": [],
+	"spaceLength": 10,
+	"stack": True,
+	"steppedLine": False,
+	"targets": [],
+	"thresholds": [],
+	"timeFrom": None,
+	"timeRegions": [],
+	"timeShift": None,
+	"title": "",
+	"tooltip": {
+		"shared": True,
+		"sort": 0,
+		"value_type": "individual"
+	},
+	"type": "graph",
+	"xaxis": {
+		"buckets": None,
+		"mode": "time",
+		"name": None,
+		"show": True,
+		"values": []
+	},
+	"yaxes": [
+		{
+			"format": "short",
+			"label": None,
+			"logBase": 1,
+			"max": None,
+			"min": None,
+			"show": True
+		},
+		{
+			"format": "short",
+			"label": None,
+			"logBase": 1,
+			"max": None,
+			"min": None,
+			"show": True
+		}
+	],
+	"yaxis": {
+		"align": False,
+		"alignLevel": None
+	}
+}
+
+GRAFANA_HEATMAP_PANEL_TEMPLATE = {
+  "datasource": "opsiconfd",
+  "description": "",
+  "gridPos": {
+		"h": 12,
+		"w": 8,
+		"x": 0,
+		"y": 0
+	},
+  "id": None,
+  "targets": [],
+  "timeFrom": None,
+  "timeShift": None,
+  "title": "Duration of remote procedure calls",
+  "type": "heatmap",
+  "heatmap": {},
+  "cards": {
+    "cardPadding": None,
+    "cardRound": None
+  },
+  "color": {
+    "mode": "opacity",
+    "cardColor": "#73BF69",
+    "colorScale": "sqrt",
+    "exponent": 0.5,
+    #"colorScheme": "interpolateSpectral",
+    "min": None
+  },
+  "legend": {
+    "show": False
+  },
+  "dataFormat": "timeseries",
+  "yBucketBound": "auto",
+  "reverseYBuckets": False,
+  "xAxis": {
+    "show": True
+  },
+  "yAxis": {
+    "show": True,
+    "format": "s",
+    "decimals": 2,
+    "logBase": 2,
+    "splitFactor": None,
+    "min": "0",
+    "max": None
+  },
+  "xBucketSize": None,
+  "xBucketNumber": None,
+  "yBucketSize": None,
+  "yBucketNumber": None,
+  "tooltip": {
+    "show": False,
+    "showHistogram": False
+  },
+  "highlightCards": True,
+  "hideZeroBuckets": False,
+  "tooltipDecimals": 0
+}
+
+class GrafanaPanelConfig:
+	def __init__(self, type="graph", title="", units=["short", "short"], decimals=0, stack=False):
+		self.type = type
+		self.title = title
+		self.units = units
+		self.decimals = decimals
+		self.stack = stack
+		self._template = ""
+		if self.type == "graph":
+			self._template = GRAFANA_GRAPH_PANEL_TEMPLATE
+		elif self.type == "heatmap":
+			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE
+	
+	def get_panel(self, id=1, x=0, y=0):
+		panel = copy.deepcopy(self._template)
+		panel["id"] = id
+		panel["gridPos"]["x"] = x
+		panel["gridPos"]["y"] = y
+		panel["title"] = self.title
+		if self.type == "graph":
+			panel["stack"] = self.stack
+			panel["decimals"] = self.decimals
+			for i, unit in enumerate(self.units):
+				panel["yaxes"][i]["format"] = unit
+		elif self.type == "heatmap":
+			panel["yAxis"]["format"] = self.units[0]
+			panel["tooltipDecimals"] = self.decimals
+		return panel
+
+class Metric:
+	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,
+				scope: str = "arbiter", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None):
+		assert aggregation in ("sum", "avg")
+		assert scope in ("arbiter", "worker")
+		self.id = id
+		self.name = name
+		self.vars = vars
+		self.aggregation = aggregation
+		self.retention = retention
+		self.zero_if_missing = zero_if_missing
+		self.scope = scope
+		self.server_timing_header_factor = server_timing_header_factor
+		self.grafana_config = grafana_config
+		self.redis_key = self.redis_key_prefix = f"opsiconfd:stats:{id}"
+		for var in self.vars:
+			self.redis_key += ":{" + var + "}"
+		name_regex = self.name
+		for var in vars:
+			name_regex = name_regex.replace('{' + var + '}', f"(?P<{var}>\S+)")
+		self.name_regex = re.compile(name_regex)
+
+	def get_redis_key(self, **kwargs):
+		if not kwargs:
+			return self.redis_key_prefix
+		return self.redis_key.format(**kwargs)
+	
+	def get_name(self, **kwargs):
+		return self.name.format(**kwargs)
+	
+	def get_vars_by_redis_key(self, redis_key):
+		vars = {}
+		if self.vars:
+			values = redis_key[len(self.redis_key_prefix)+1:].split(':')
+			for i, value in enumerate(values):
+				vars[self.vars[i]] = value
+		return vars
+	
+	def get_name_by_redis_key(self, redis_key):
+		vars = self.get_vars_by_redis_key(redis_key)
+		return self.get_name(**vars)
+
+	def get_vars_by_name(self, name):
+		return self.name_regex.fullmatch(name).groupdict()
+
+class MetricsRegistry(metaclass=Singleton):
+	def __init__(self):
+		self._metrics_by_id = {}
+	
+	def register(self, *metric):
+		for m in metric:
+			self._metrics_by_id[m.id] = m
+
+	def get_metric_ids(self):
+		return list(self._metrics_by_id)
+	
+	def get_metrics(self, scope: str = None):
+		for metric in self._metrics_by_id.values():
+			if not scope or scope == metric.scope:
+				yield metric
+
+	def get_metric_by_id(self, id):
+		if id in self._metrics_by_id:
+			return self._metrics_by_id[id]
+		raise ValueError(f"Metric with id '{id}' not found")
+
+	def get_metric_by_name(self, name):
+		for metric in self._metrics_by_id.values():
+			match = metric.name_regex.fullmatch(name)
+			if match:
+				return metric
+		raise ValueError(f"Metric with name '{name}' not found")
+	
+	def get_metric_by_redis_key(self, redis_key):
+		for metric in self._metrics_by_id.values():
+			if redis_key == metric.redis_key_prefix or redis_key.startswith(metric.redis_key_prefix + ':'):
+				return metric
+		raise ValueError(f"Metric with redis key '{redis_key}' not found")
+
+metrics_registry = MetricsRegistry()
+
+metrics_registry.register(
+	Metric(
+		id="worker:mem_allocated",
+		name="Memory usage of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=24 * 3600 * 1000,
+		scope="worker",
+		grafana_config=GrafanaPanelConfig(title="Memory usage", units=["decbytes"], stack=True)
+	),
+	Metric(
+		id="worker:cpu_percent",
+		name="CPU usage of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=24 * 3600 * 1000,
+		scope="worker",
+		grafana_config=GrafanaPanelConfig(title="CPU usage", units=["percent"], decimals=1, stack=True)
+	),
+	Metric(
+		id="worker:num_threads",
+		name="Threads of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=24 * 3600 * 1000,
+		scope="worker",
+		grafana_config=GrafanaPanelConfig(title="Threads", units=["short"], decimals=0, stack=True)
+	),
+	Metric(
+		id="worker:num_filehandles",
+		name="Filehandles of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=24 * 3600 * 1000,
+		scope="worker",
+		grafana_config=GrafanaPanelConfig(title="Filehandles", units=["short"], decimals=0, stack=True)
+	),
+	Metric(
+		id="worker:num_http_request",
+		name="HTTP requests of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=24 * 3600 * 1000,
+		scope="worker",
+		grafana_config=GrafanaPanelConfig(title="HTTP requests", units=["short"], decimals=0, stack=True)
+	),
+	Metric(
+		id="worker:http_response_bytes",
+		name="HTTP response size of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=24 * 3600 * 1000,
+		scope="worker",
+		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True)
+	),
+	Metric(
+		id="worker:http_request_duration",
+		name="Duration of HTTP requests processed by worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		aggregation="avg",
+		retention=24 * 3600 * 1000,
+		zero_if_missing=False,
+		scope="worker",
+		grafana_config=GrafanaPanelConfig(type="heatmap", title="Duration of HTTP requests", units=["s"], decimals=0)
+	)
+)
+
+
+class MetricsCollector():
+	def __init__(self, scope: str = "arbiter", interval: int = 5):
+		self._scope = scope
+		self._interval = interval
+		self._node_name = get_node_name()
+		self._worker_num = get_worker_num()
+		self._proc = None
+		self._values = {}
+		self._values_lock = asyncio.Lock()
+		self._last_timestamp = 0
+	
+	async def _fetch_values(self):
+		if not self._proc:
+			self._proc = psutil.Process()
+		await self.add_value("worker:mem_allocated", self._proc.memory_info().rss)
+		await self.add_value("worker:cpu_percent", self._proc.cpu_percent())
+		await self.add_value("worker:num_threads", self._proc.num_threads())
+		await self.add_value("worker:num_filehandles", self._proc.num_fds())
+
+	async def main_loop(self):
+		while True:
+			cmd = None
+			try:
+				await self._fetch_values()
+				timestamp = round(time.time())*1000
+				for metric in metrics_registry.get_metrics(scope=self._scope):
+					value = 0
+					count = 0
+					async with self._values_lock:
+						values = self._values.get(metric.id, {})
+						if not values and not metric.zero_if_missing:
+							continue
+						for ts in list(values):
+							if ts <= timestamp:
+								count += 1
+								value += values[ts]
+								del values[ts]
+					if metric.aggregation == "avg" and count > 0:
+						value /= count
+					labels = {}
+					if self._scope == "worker":
+						labels = {
+							"node_name": self._node_name,
+							"worker_num": self._worker_num
+						}
+					cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
+					await self._execute_redis_command(cmd)
+			except Exception as exc:
+				err = str(exc)
+				if cmd:
+					err += f" while executing redis command: {cmd}"
+				logger.error(err, exc_info=True)
+			await asyncio.sleep(self._interval)
+
+	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels):
+		timestamp = timestamp or "*"
+		l_labels = []
+		for var in metric.vars:
+			if not var in labels:
+				raise ValueError(f"No value for var {var} provided")
+			l_labels.extend([var, labels[var]])
+		if cmd == "ADD":
+			cmd = ["TS.ADD", metric.get_redis_key(**labels), timestamp, value, "RETENTION", metric.retention, "LABELS"] + l_labels
+		elif cmd == "INCRBY":
+			cmd = ["TS.INCRBY", metric.get_redis_key(**labels), value, timestamp, "RETENTION", metric.retention, "LABELS"] + l_labels
 		else:
-			usr = (utime - self._utime) / (currentTime - unixtimeOfLastCall)
+			raise ValueError(f"Invalid command {cmd}")
+		return " ".join([ str(x) for x in cmd ])
 
-		if int(stime - self._stime) == 0:
-			sys = 0.0
-		else:
-			sys = (stime - self._stime) / (currentTime - unixtimeOfLastCall)
+	async def _execute_redis_command(self, cmd, max_tries=1):
+		if type(cmd) is list:
+			cmd = " ".join([ str(x) for x in cmd ])
+		logger.debug("Executing redis command: %s", cmd)
+		for trynum in range(1, max_tries + 1):
+			try:
+				redis = await get_redis_client()
+				return await redis.execute_command(cmd)
+			except:
+				if trynum >= max_tries:
+					raise
+	
+	#def add_value(self, metric: Metric, value: float, timestamp: int = None, **kwargs):
+	async def add_value(self, metric_id: str, value: float, timestamp: int = None):
+		metric = metrics_registry.get_metric_by_id(metric_id)
+		if metric.server_timing_header_factor:
+			server_timing = contextvar_server_timing.get()
+			if type(server_timing) is dict:
+				# Only if dict (initialized)
+				server_timing[metric_id.split(':')[-1]] = value * metric.server_timing_header_factor
+				contextvar_server_timing.set(server_timing)
+		if not timestamp:
+			timestamp = int(round(time.time()*1000))
+		async with self._values_lock:
+			#key = json.dumps(kwargs, sort_keys=True)
+			if not metric_id in self._values:
+				self._values[metric_id] = {}
+			if not timestamp in self._values[metric_id]:
+				self._values[metric_id][timestamp] = 0
+			self._values[metric_id][timestamp] += value
 
-		cpu = int("%0.0f" % ((usr + sys) * 100))
-		if cpu > 100:
-			cpu = 100
 
-		with open('/proc/%s/stat' % os.getpid()) as f:
-			data = f.read().split()
-		virtMem = int("%0.0f" % (float(data[22]) / (1024 * 1024)))
+class StatisticsMiddleware(BaseHTTPMiddleware):
+	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
+		super().__init__(app)
+		
+		self._profiler_enabled = profiler_enabled
+		self._log_func_stats = log_func_stats
+		self._profile_methods: Dict[str, str] = {
+			"BackendManager._executeMethod": "backend",
+			"MySQL.execute": "mysql",
+			"Response.render": "render",
+			#"serialize": "opsi_serialize",
+			#"deserialize": "opsi_deserialize",
+		}
+		if self._profiler_enabled:
+			yappi.set_tag_callback(get_yappi_tag)
+			yappi.set_clock_type("wall")
+			# TODO: Schedule some kind of periodic profiler cleanup with clear_stats()
+			yappi.start()
 
-		return (utime, stime, cpu, virtMem)
+	def yappi(self, scope):
+		# https://github.com/sumerc/yappi/blob/master/doc/api.md
 
-	def updateRrd(self):
-		if rrdtool is None:
+		tag = get_yappi_tag()
+		if tag == -1:
 			return
 
-		now = int(time.time())
-		try:
-			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
-			self._last = now
+		#yappi.get_func_stats({"tag": tag}).sort('ttot', sort_order="asc").debug_print()
 
-			threadCount = len([thread for thread in threading.enumerate()])
-			rrdValues = '{0:d}:{requests:d}:{sessions:d}:{davrequests:d}:{rpcs:d}:{rpcerrors:d}:{1:d}:{2:d}:{3:d}'.format(
-				now, cpu, virtMem, threadCount, **self._rrdCache
-			)
-			logger.debug2(u'Updating rrd: {0}', rrdValues)
-			rrdtool.update(str(self._rrdConfig['rrdFile']), rrdValues)
-			self._rrdCache['requests'] = 0
-			self._rrdCache['davrequests'] = 0
-			self._rrdCache['rpcs'] = 0
-			self._rrdCache['rpcerrors'] = 0
-		except Exception as error:
-			logger.error(u"Failed to update rrd: {0}", error)
+		max_stats = 500
+		if self._log_func_stats:
+			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")
+			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope['method']} {scope['path']}")
+			logger.essential(f"{'module':<45} | {'function':<60} | {'calls':>5} | {'total time':>10}")
+			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")
+			func_stats = yappi.get_func_stats({"tag": tag}).sort("ttot", sort_order="desc")
+			for stat_num, stat in enumerate(func_stats):
+				module = re.sub(r".*(site-packages|python3\.\d|python-opsi)/", "", stat.module)
+				logger.essential(f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}")
+				if stat_num >= max_stats:
+					break
+			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")
 
-	def getRrdGraphImage(self, imageType, range):
-		"""
-		Create an graph image with rrdtool.
+		func_stats: Dict[str, YFuncStats] = {
+			stat_name: yappi.get_func_stats({"name": function, "tag": tag})
+			for function, stat_name in self._profile_methods.items()
+		}
+		server_timing = {}
+		for stat_name, stats in func_stats.items():
+			if not stats.empty():
+				server_timing[stat_name] = stats.pop().ttot * 1000
+		return server_timing
 
-		:param imageType: Type of the Image. 1 is webservice data, 2 is \
-information about the host.
-		"""
-		if rrdtool is None:
-			return None
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+		logger.trace(f"StatisticsMiddleware {scope}")
 
-		if imageType == 1:
-			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '1_%s.png' % range)
-		else:
-			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '2_%s.png' % range)
-
-		date = time.strftime("%a, %d %b %Y %H\:%M\:%S", time.localtime())
-		end = int(time.time())
-		start = end - range
-
-		logger.debug(u"Creating rrd graph image '{0}', start: {1}, end: {2}", graphImage, start, end)
-
-		if os.path.exists(graphImage):
-			os.unlink(graphImage)
-		# TODO: for the imageType use some kind of constant
-
-		if imageType == 1:
-			rrdtool.graph(
-				str(graphImage),
-				'--imgformat', 'PNG',
-				'--width', str(self._rrdConfig['xPoints']),
-				'--height', str(self._rrdConfig['yPoints']),
-				'--start', str(start),
-				'--end', str(end),
-				'--vertical-label', 'avg per minute',
-				'--lower-limit', str(0),
-				'--units-exponent', str(0),  # don't show milli-messages/s
-				'--slope-mode',
-				'--color', 'SHADEA#ffffff',
-				'--color', 'SHADEB#ffffff',
-				'--color', 'BACK#ffffff',
-
-				'DEF:avg_requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_requ=%s:requests:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_requ_permin=avg_requ,60,*',
-				'CDEF:max_requ_permin=max_requ,60,*',
-				'VDEF:total_requ=avg_requ,TOTAL',
-				'LINE2:avg_requ_permin#0000dd:Requests     ',
-				'GPRINT:total_requ:total\: %8.0lf requests     ',
-				'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min     ',
-				'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
-
-				'DEF:avg_davrequ=%s:davrequests:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_davrequ=%s:davrequests:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_davrequ_permin=avg_davrequ,60,*',
-				'CDEF:max_davrequ_permin=max_davrequ,60,*',
-				'VDEF:total_davrequ=avg_davrequ,TOTAL',
-				'LINE2:avg_davrequ_permin#ff8000:DAV requests ',
-				'GPRINT:total_davrequ:total\: %8.0lf dav requests ',
-				'GPRINT:avg_davrequ_permin:AVERAGE:avg\: %5.2lf dav requests/min ',
-				'GPRINT:max_davrequ_permin:MAX:max\: %4.0lf dav requests/min\\l',
-
-				'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_rpc=%s:rpcs:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_rpc_permin=avg_rpc,60,*',
-				'CDEF:max_rpc_permin=max_rpc,60,*',
-				'VDEF:total_rpc=avg_rpc,TOTAL',
-				'LINE2:avg_rpc_permin#00dd00:RPCs         ',
-				'GPRINT:total_rpc:total\: %8.0lf rpcs         ',
-				'GPRINT:avg_rpc_permin:AVERAGE:avg\: %5.2lf rpcs/min         ',
-				'GPRINT:max_rpc_permin:MAX:max\: %4.0lf rpcs/min\\l',
-
-				'DEF:avg_rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_rpcerror=%s:rpcerrors:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_rpcerror_permin=avg_rpcerror,60,*',
-				'CDEF:max_rpcerror_permin=max_rpcerror,60,*',
-				'VDEF:total_rpcerror=avg_rpcerror,TOTAL',
-				'LINE2:avg_rpcerror_permin#dd0000:RPC errors   ',
-				'GPRINT:total_rpcerror:total\: %8.0lf rpc errors   ',
-				'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min   ',
-				'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
-
-				'COMMENT:[%s]\\r' % date,
-			)
-		else:
-			rrdtool.graph(
-				str(graphImage),
-				'--imgformat', 'PNG',
-				'--width', str(self._rrdConfig['xPoints']),
-				'--height', str(self._rrdConfig['yPoints']),
-				'--start', str(start),
-				'--end', str(end),
-				'--vertical-label', '% / num / MByte*0.1',
-				'--lower-limit', str(0),
-				'--units-exponent', str(0),  # don't show milli-messages/s
-				'--slope-mode',
-				'--color', 'SHADEA#ffffff',
-				'--color', 'SHADEB#ffffff',
-				'--color', 'BACK#ffffff',
-
-				'DEF:avg_threads=%s:threads:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_threads=%s:threads:MAX' % str(self._rrdConfig['rrdFile']),
-				'LINE2:avg_threads#00dd00:Threads      ',
-				'GPRINT:max_threads:LAST:cur\: %8.0lf threads      ',
-				'GPRINT:avg_threads:AVERAGE:avg\: %8.2lf threads          ',
-				'GPRINT:max_threads:MAX:max\: %8.0lf threads\\l',
-
-				'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_sess=%s:sessions:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_sess_permin=avg_sess,60,*',
-				'CDEF:max_sess_permin=max_sess,60,*',
-				'VDEF:total_sess=avg_sess,TOTAL',
-				'LINE2:avg_sess_permin#ff8000:Sessions     ',
-				'GPRINT:max_sess:LAST:cur\: %8.0lf sessions     ',
-				'GPRINT:avg_sess_permin:AVERAGE:avg\: %8.2lf sessions/min     ',
-				'GPRINT:max_sess_permin:MAX:max\: %8.0lf sessions/min\\l',
-
-				'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_cpu=%s:cpu:MAX' % str(self._rrdConfig['rrdFile']),
-				'LINE2:avg_cpu#dd0000:CPU usage    ',
-				'GPRINT:max_cpu:LAST:cur\: %8.2lf %%            ',
-				'GPRINT:avg_cpu:AVERAGE:avg\: %8.2lf %%                ',
-				'GPRINT:max_cpu:MAX:max\: %8.2lf %%\\l',
-
-				'DEF:avg_mem=%s:mem:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_mem=%s:mem:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_mem_scaled=avg_mem,10,/',
-				'LINE2:avg_mem_scaled#0000dd:MEM usage    ',
-				'GPRINT:max_mem:LAST:cur\: %8.2lf MByte        ',
-				'GPRINT:avg_mem:AVERAGE:avg\: %8.2lf MByte            ',
-				'GPRINT:max_mem:MAX:max\: %8.2lf MByte\\l',
-
-				'COMMENT:[%s]\\r' % date,
-			)
-
-		return graphImage
-
-	def addSession(self, session):
-		if not session:
+		if scope["type"] not in ("http", "websocket"):
+			await self.app(scope, receive, send)
 			return
-
-		self._rrdCache['sessions'] += 1
-
-	def removeSession(self, session):
-		if not session:
-			return
-
-		if self._rrdCache['sessions'] > 0:
-			self._rrdCache['sessions'] -= 1
-
-	def sessionExpired(self, session):
-		now = time.time()
-		self._expiredSessionInfo.append({
-			"creationTime": session.created,
-			"expirationTime": now,
-			"exipredAfterSeconds": int(now - session.lastModified),
-			"userAgent": session.userAgent,
-			"lastRpcMethod": session.lastRpcMethod,
-			"ip": session.ip,
-			"user": session.user
-		})
-
-	def getExpiredSessionInfo(self):
-		return self._expiredSessionInfo
-
-	def addRequest(self, request):
-		self._rrdCache['requests'] += 1
-
-	def addWebDAVRequest(self, request):
-		self._rrdCache['davrequests'] += 1
-
-	def addRpc(self, jsonrpc):
-		results = 0
-		if not jsonrpc.exception:
-			if isinstance(jsonrpc.result, (list, tuple, dict)):
-				results = len(jsonrpc.result)
-
-		methodName = jsonrpc.getMethodName()
-		duration = jsonrpc.ended - jsonrpc.started
-
-		self._rpcs.append({
-			'started': jsonrpc.started,
-			'duration': duration,
-			'method': methodName,
-			'failed': bool(jsonrpc.exception),
-			'params': len(jsonrpc.params),
-			'results': results,
-		})
-
-		current = self._rpcStatistics[methodName]
-		newCount = current.count + 1
-		average = ((current.average * current.count) + duration) / newCount
-		self._rpcStatistics[methodName] = CallStatistics(newCount, average)
-
-		self._rrdCache['rpcs'] += 1
-		if jsonrpc.exception:
-			self._rrdCache['rpcerrors'] += 1
-			logger.warning("Failed RPC on {name!r} with params {params!r}: {error}".format(name=methodName, params=jsonrpc.params, error=jsonrpc.exception))
-
-	def getRpcs(self):
-		return self._rpcs
-
-	def getRPCCallCounts(self):
-		return dict((name, rpcStat.count) for name, rpcStat in self._rpcStatistics.items())
-
-	def getRPCAverageDurations(self):
-		return dict((name, rpcStat.average) for name, rpcStat in self._rpcStatistics.items())
-
-	def addEncodingError(self, what, client, application, error):
-		self._encodingErrors.append({
-			'what': forceUnicode(what),
-			'client': forceUnicode(client),
-			'application': forceUnicode(application),
-			'error': forceUnicode(error),
-			'when': datetime.datetime.now(),
-		})
-
-	def getEncodingErrors(self):
-		return self._encodingErrors
-
-	def addUserAgent(self, useragent):
-		self._userAgents[useragent] += 1
-
-	def getUserAgents(self):
-		return self._userAgents
+		
+		start = time.perf_counter()
+		request_id = id(scope)
+		# Longs on Windows are only 32 bits, but memory adresses on 64 bit python are 64 bits
+		request_id = abs(c_long(request_id).value) # Ensure it fits inside a long, truncating if necessary
+		scope['request_id'] = request_id
+		contextvar_request_id.set(request_id)
+		contextvar_client_address.set(scope["client"][0])
+		contextvar_server_address.set(scope["server"][0])
+		contextvar_server_timing.set({})
+		
+		async def send_wrapper(message: Message) -> None:
+			await get_metrics_collector().add_value("worker:num_http_request", 1)
+			if message["type"] == "http.response.start":
+				headers = MutableHeaders(scope=message)
+				server_timing = contextvar_server_timing.get() or {}
+				if self._profiler_enabled:
+					server_timing.update(self.yappi(scope))
+				if server_timing:
+					server_timing = [f"{k};dur={v:.3f}"	for k, v in server_timing.items()]
+					headers.append("Server-Timing", ','.join(server_timing))
+			await send(message)
+			end = time.perf_counter()
+			if scope["type"] == "http":
+				if "body" in message:
+					await get_metrics_collector().add_value("worker:http_response_bytes", len(message['body']))
+				await get_metrics_collector().add_value("worker:http_request_duration", end - start)
+		
+		await self.app(scope, receive, send_wrapper)

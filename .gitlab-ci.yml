@@ -8,13 +8,15 @@ pyinstaller build:
   before_script:
     - apt update
     - apt -y upgrade
-    - apt -y install curl # python3-pip
+    - apt -y install curl tar # python3-pip
     - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
     - source $HOME/.poetry/env
   script:
     - ./pyinstaller-build.sh
+    - cd dist
+    - tar cjvf ../opsiconfd-pyinstaller.tar.bz2 opsiconfd
   artifacts:
-    name: 'opsiconfd_pyinstaller'
+    #name: 'opsiconfd-pyinstaller.tar.bz2'
     paths:
-      - dist/opsiconfd
+      - opsiconfd-pyinstaller.tar.bz2
     expire_in: 14 day

@@ -9,8 +9,9 @@ pyinstaller build:
     - apt update
     - apt -y upgrade
     - apt -y install curl # python3-pip
-  script:
     - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
+    - source $HOME/.poetry/env
+  script:
     - ./pyinstaller-build.sh
   artifacts:
     name: 'opsiconfd_pyinstaller'

@@ -16,4 +16,4 @@ pyinstaller build:
     name: 'opsiconfd_pyinstaller'
     paths:
       - dist/
-    expire_in: 7 day
+    expire_in: 14 day

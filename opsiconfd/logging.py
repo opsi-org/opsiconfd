@@ -159,6 +159,11 @@ def addConfidentialString(string):
 	secret_filter.add_secrets(string)
 logger.addConfidentialString = addConfidentialString
 
+def logException(e, logLevel=logging.CRITICAL):
+	logger.log(level=logLevel, msg=e, exc_info=True)
+logger.logException = logException
+# /Replace OPSI Logger
+
 def handle_log_exception(exc, record=None, log=True):
 	print("Logging error:", file=sys.stderr)
 	traceback.print_exc(file=sys.stderr)
@@ -490,7 +495,7 @@ def init_logging():
 			enable_slow_callback_logging(config.log_slow_async_callbacks)
 		
 		logging.captureWarnings(True)
-
+		
 		"""
 		logger.secret("SECRET")
 		logger.trace("TRACE")

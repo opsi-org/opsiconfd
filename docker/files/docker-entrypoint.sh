@@ -25,9 +25,15 @@ until redis_ready; do
 done
 echo 'Redis is ready.' 1>&2
 
+echo 'Restore opsi database' 1>&2
 zcat /opsi.sql.gz | mariadb -h mysql -u opsi --password=opsi opsi
+
+echo 'Set depotserver name in /etc/hosts' 1>&2
+echo "127.0.0.1       localhost bonifax.uib.local" >/tmp/hosts
+grep -v "127.0.0.1" /etc/hosts >>/tmp/hosts
+cp /tmp/hosts /etc/hosts
+rm /tmp/hosts
 
 # Evaluating passed command (do not touch):
 # shellcheck disable=SC2086
 exec $cmd
-

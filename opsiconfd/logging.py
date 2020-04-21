@@ -187,7 +187,7 @@ class SecretFilter(metaclass=Singleton):
 	
 	def add_secrets(self, *secrets):
 		for secret in secrets:
-			if not secret in self.secrets:
+			if secret and not secret in self.secrets:
 				self.secrets.append(secret)
 	
 	def remove_secrets(self, *secrets):

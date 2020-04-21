@@ -21,6 +21,7 @@ ENV DOCKER_ENV=${DOCKER_ENV} \
 RUN apt-get update \
 	&& apt-get --yes dist-upgrade \
 	&& apt-get --yes install \
+		cpio \
 		vim \
 		wget \
 		gettext \

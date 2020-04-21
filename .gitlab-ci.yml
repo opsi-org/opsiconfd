@@ -13,10 +13,11 @@ pyinstaller build:
     - source $HOME/.poetry/env
   script:
     - ./pyinstaller-build.sh
-    - cd dist
-    - tar cjvf ../opsiconfd-pyinstaller.tar.bz2 opsiconfd
+    - mv opsiconfd opsiconfd.src
+    - mv dist/opsiconfd .
   artifacts:
-    #name: 'opsiconfd-pyinstaller.tar.bz2'
+    name: 'opsiconfd-pyinstaller.zip'
     paths:
-      - opsiconfd-pyinstaller.tar.bz2
-    expire_in: 14 day
+      - opsiconfd
+    expire_in: 7 day
+

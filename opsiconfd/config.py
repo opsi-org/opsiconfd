@@ -23,12 +23,62 @@
 
 import re
 import sys
+import codecs
 import configargparse
 from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS
 
 from .utils import Singleton
 
 DEFAULT_CONFIG_FILES = ["/etc/opsi/opsiconfd.conf"]
+
+def upgrade_config_files():
+	cf = DEFAULT_CONFIG_FILES[0]
+	with codecs.open(cf, "r", "utf-8") as f:
+		data = f.read()
+	if data.find('[global]') == -1:
+		return
+	
+	defaults = {}
+	for action in parser._actions:
+		defaults[action.dest] = action.default #[0] if action.default else None,
+	mapping = {
+		"backend config dir": "backend-config-dir",
+		"dispatch config file": "dispatch-config-file",
+		"extension config dir": "extension-config-dir",
+		"acl file": "acl-file",
+		"admin networks": "admin-networks",
+		"log file": "log-file",
+		"symlink logs": "symlink-logs",
+		"log level": "log-level",
+		"monitoring user": "monitoring-user",
+		"monitoring debug": "monitoring-debug",
+		"interface": "interface",
+		"https port": "port",
+		"ssl server cert": "ssl-server-cert",
+		"ssl server key": "ssl-server-key",
+		"verify ip": "verify-ip",
+		"update ip": "update-ip",
+		"max inactive interval": "session-lifetime",
+		"max authentication failures": "max-auth-failures",
+		"max sessions per ip": "max-session-per-ip"
+	}
+	re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
+	with codecs.open(cf, "w", "utf-8") as f:
+		for line in data.split('\n'):
+			match = re_opt.match(line)
+			if match:
+				opt = match.group(1).strip().lower()
+				val = match.group(2).strip()
+				if not opt in mapping:
+					continue
+				if val.lower() in ("yes", "no", "true", "false"):
+					val = val.lower() in ("yes", "true")
+				default = defaults.get(mapping[opt].replace('-', '_'))
+				if str(default) == str(val):
+					continue
+				if type(val) is bool:
+					val = str(val).lower()
+				f.write(f"{mapping[opt]} = {val}\n")
 
 def network_address(value):
 	if not re.search(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/\d\d?$", value):
@@ -305,6 +355,7 @@ parser.add(
 class Config(metaclass=Singleton):
 	def __init__(self):
 		self._config = None
+		upgrade_config_files()
 		if '--ex-help' in sys.argv:
 			args = sys.argv
 			if not '--help' in args:

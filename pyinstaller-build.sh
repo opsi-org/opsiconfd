@@ -28,8 +28,16 @@ poetry run pyinstaller --log-level=$LOG_LEVEL \
     --hidden-import pydantic.color \
     --hidden-import pydantic.validators \
     --hidden-import pydantic.datetime_parse \
-    --hidden-import OPSI.Backend.MySQL \
+    --hidden-import OPSI.Backend.Depotsever \
     --hidden-import OPSI.Backend.DHCPD \
+    --hidden-import OPSI.Backend.File \
+    --hidden-import OPSI.Backend.HostControl \
+    --hidden-import OPSI.Backend.HostControlSafe \
+    --hidden-import OPSI.Backend.JSONRPC \
+    --hidden-import OPSI.Backend.MySQL \
+    --hidden-import OPSI.Backend.OpsiPXEConfd \
+    --hidden-import OPSI.Backend.Replicator \
+    --hidden-import OPSI.Backend.SQLite \
     run-opsiconfd
 mv dist/run-opsiconfd dist/opsiconfd
 mv dist/opsiconfd/site-packages/wsgidav dist/opsiconfd/wsgidav

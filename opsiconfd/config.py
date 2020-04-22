@@ -29,18 +29,12 @@ from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS
 
 from .utils import Singleton
 
-DEFAULT_CONFIG_FILES = ["/etc/opsi/opsiconfd.conf"]
+DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
 
 def upgrade_config_files():
-	cf = DEFAULT_CONFIG_FILES[0]
-	with codecs.open(cf, "r", "utf-8") as f:
-		data = f.read()
-	if data.find('[global]') == -1:
-		return
-	
 	defaults = {}
 	for action in parser._actions:
-		defaults[action.dest] = action.default #[0] if action.default else None,
+		defaults[action.dest] = action.default
 	mapping = {
 		"backend config dir": "backend-config-dir",
 		"dispatch config file": "dispatch-config-file",
@@ -62,23 +56,30 @@ def upgrade_config_files():
 		"max authentication failures": "max-auth-failures",
 		"max sessions per ip": "max-session-per-ip"
 	}
-	re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-	with codecs.open(cf, "w", "utf-8") as f:
-		for line in data.split('\n'):
-			match = re_opt.match(line)
-			if match:
-				opt = match.group(1).strip().lower()
-				val = match.group(2).strip()
-				if not opt in mapping:
-					continue
-				if val.lower() in ("yes", "no", "true", "false"):
-					val = val.lower() in ("yes", "true")
-				default = defaults.get(mapping[opt].replace('-', '_'))
-				if str(default) == str(val):
-					continue
-				if type(val) is bool:
-					val = str(val).lower()
-				f.write(f"{mapping[opt]} = {val}\n")
+
+	for c in parser._open_config_files(sys.argv[1:]):
+		data = c.read()
+		c.close()
+		if data.find('[global]') == -1:
+			continue
+		
+		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
+		with codecs.open(c.name, "w", "utf-8") as f:
+			for line in data.split('\n'):
+				match = re_opt.match(line)
+				if match:
+					opt = match.group(1).strip().lower()
+					val = match.group(2).strip()
+					if not opt in mapping:
+						continue
+					if val.lower() in ("yes", "no", "true", "false"):
+						val = val.lower() in ("yes", "true")
+					default = defaults.get(mapping[opt].replace('-', '_'))
+					if str(default) == str(val):
+						continue
+					if type(val) is bool:
+						val = str(val).lower()
+					f.write(f"{mapping[opt]} = {val}\n")
 
 def network_address(value):
 	if not re.search(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/\d\d?$", value):
@@ -91,7 +92,6 @@ def expert_help(help):
 	return SUPPRESS
 
 parser = configargparse.ArgParser(
-	default_config_files=DEFAULT_CONFIG_FILES,
 	formatter_class=lambda prog: HelpFormatter(
 		prog, max_help_position=30, width=100
 	)
@@ -100,6 +100,7 @@ parser.add(
 	"-c", "--config-file",
 	required=False,
 	is_config_file=True,
+	default=DEFAULT_CONFIG_FILE,
 	help="Path to config file."
 )
 parser.add(

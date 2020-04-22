@@ -39,9 +39,5 @@ poetry run pyinstaller --log-level=$LOG_LEVEL \
     --hidden-import OPSI.Backend.Replicator \
     --hidden-import OPSI.Backend.SQLite \
     run-opsiconfd
-echo "pyinstaller ended"
-ls -l dist/
-mv dist/run-opsiconfd dist/opsiconfd
-ls -l dist/
+mv dist/opsiconfd/run-opsiconfd dist/opsiconfd/opsiconfd
 mv dist/opsiconfd/site-packages/wsgidav dist/opsiconfd/wsgidav
-echo "all done"

@@ -29,6 +29,7 @@ poetry run pyinstaller --log-level=$LOG_LEVEL \
     --hidden-import pydantic.validators \
     --hidden-import pydantic.datetime_parse \
     --hidden-import OPSI.Backend.MySQL \
+    --hidden-import OPSI.Backend.DHCPD \
     run-opsiconfd
 mv dist/run-opsiconfd dist/opsiconfd
 mv dist/opsiconfd/site-packages/wsgidav dist/opsiconfd/wsgidav

@@ -179,7 +179,8 @@ def handle_log_exception(exc, record=None, log=True):
 
 
 class SecretFilter(metaclass=Singleton):
-	def __init__(self):
+	def __init__(self, min_length=6):
+		self._min_length = min_length
 		self.secrets = []
 	
 	def clear_secrets(self):
@@ -187,7 +188,7 @@ class SecretFilter(metaclass=Singleton):
 	
 	def add_secrets(self, *secrets):
 		for secret in secrets:
-			if secret and not secret in self.secrets:
+			if secret and len(secret) >= self._min_length and not secret in self.secrets:
 				self.secrets.append(secret)
 	
 	def remove_secrets(self, *secrets):

@@ -53,6 +53,7 @@ from .config import config
 #DEFAULT_FORMAT = '[%(levelname)s] [%(asctime)s] %(message)s (%(filename)s:%(lineno)d)'
 #DEFAULT_FORMAT = '[%(log_color)s%(levelname)-9s %(asctime)s]%(reset)s %(filename)16s:%(lineno)4s   %(message)s'
 #DEFAULT_FORMAT = '[%(log_color)s%(levelname)-9s %(asctime)s]%(reset)s %(message)s'
+#DEFAULT_FORMAT = '[%(log_color)s%(levelname)-9s %(asctime)s]%(reset)s %(client_address)s - %(message)s   (%(filename)s:%(lineno)d)'
 DEFAULT_FORMAT = '[%(log_color)s%(levelname)-9s %(asctime)s]%(reset)s %(client_address)s - %(message)s'
 #DEFAULT_FORMATTER = Formatter(DEFAULT_FORMAT)
 SECRET_REPLACEMENT_STRING = '***secret***'

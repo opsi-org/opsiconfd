@@ -102,7 +102,7 @@ async def process_jsonrpc(request: Request, response: Response):
 		if body:
 			jsonrpc = body
 			if "gzip" in request.headers.get("content-encoding", ""):
-				jsonrpc = gzip.decompress(jsonrpc)
+				jsonrpc = await self.loop.run_in_executor(None, lambda: ogzip.decompress(jsonrpc))
 		else:
 			jsonrpc = urllib.parse.unquote(request.url.query)
 		logger.trace("jsonrpc: %s", jsonrpc)

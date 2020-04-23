@@ -28,6 +28,10 @@ import urllib
 
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
+from starlette.exceptions import ExceptionMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.errors import ServerErrorMiddleware
+from fastapi import HTTPException
 from websockets.exceptions import ConnectionClosedOK
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
@@ -99,14 +103,46 @@ async def startup_event():
 async def shutdown_event():
 	app.is_shutting_down = True
 
+#@app.exception_handler(StarletteHTTPException)
+#async def http_exception_handler(request, exc):
+#    return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
+"""
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exception: Exception):
+	print("==============================exception_handler=====================================")
+	return PlainTextResponse(str(exception.detail), status_code=exception.status_code)
+	#return Response(content=str(exception), status_code=500, media_type='application/json')
+	#return JSONResponse(content={'error': str(exception)}, status_code=500)
+	#return JSONResponse(content={'error': str(exception)}, status_code=200)
+
+def http_exception(self, request: Request, exc: HTTPException) -> Response:
+	print("==============================http_exception=====================================")
+	if exc.status_code in {204, 304}:
+		return Response(b"", status_code=exc.status_code)
+	return PlainTextResponse(exc.detail, status_code=exc.status_code)
+
+def error_response(self, request: Request, exc: Exception) -> Response:
+	print("==============================error_response=====================================")
+	return PlainTextResponse("Internal Server Error", status_code=500)
+"""
+
+
 def application_setup():
 	FileResponse.chunk_size = 32*1024 # speeds up transfer of big files massively, original value is 4*1024
 
+	# Every Starlette application automatically includes two pieces of middleware by default:
+	#    ServerErrorMiddleware - Ensures that application exceptions may return a custom 500 page, or display an application traceback in DEBUG mode. This is always the outermost middleware layer.
+	#    ExceptionMiddleware - Adds exception handlers, so that particular types of expected exception cases can be associated with handler functions. For example raising HTTPException(status_code=404) within an endpoint will end up rendering a custom 404 page.
 	# Last added middleware will be executed first
+	# middleware stack:
+	#    ServerErrorMiddleware 
+	#    user added middlewares
+	#    ExceptionMiddleware
+	#
+	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
 	app.add_middleware(SessionMiddleware, public_path=["/boot"])
 	#app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
-
 	app.mount("/static", StaticFiles(directory="static"), name="static")
 	# Exporting /tftpboot via webdav currently
 	#if os.path.isdir("/tftpboot"):

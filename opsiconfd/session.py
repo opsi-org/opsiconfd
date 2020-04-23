@@ -45,7 +45,7 @@ from collections import namedtuple
 from typing import List
 
 from fastapi import HTTPException, status
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, JSONResponse
 from starlette.datastructures import MutableHeaders
 from starlette.requests import HTTPConnection
 #from starlette.sessions import CookieBackend, Session, SessionBackend
@@ -148,8 +148,31 @@ class SessionMiddleware:
 				await send(message)
 
 			await self.app(scope, receive, send_wrapper)
-		except HTTPException as exc:
-			response = PlainTextResponse(exc.detail, status_code=exc.status_code, headers=exc.headers)
+		except HTTPException as e:
+			response = None
+			if scope["path"].startswith("/rpc"):
+				logger.debug("Auth error - returning jsonrpc response")
+				response = JSONResponse(
+					status_code=e.status_code,
+					content={"jsonrpc": "2.0", "id": None, "result": None, "error": e.detail},
+					headers=e.headers
+				)
+			if not response:
+				for k, v in scope['headers']:
+					if k == b"accept" and b"application/json" in v:
+						logger.debug("Auth error - returning json response")
+						response = JSONResponse(
+							status_code=e.status_code,
+							content={"error": e.detail},
+							headers=e.headers
+						)
+			if not response:
+				logger.debug("Auth error - returning plaintext response")
+				response = PlainTextResponse(
+					status_code=e.status_code,
+					content=e.detail,
+					headers=e.headers
+				)
 			await response(scope, receive, send)
 
 

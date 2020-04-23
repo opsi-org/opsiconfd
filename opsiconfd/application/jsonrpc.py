@@ -22,6 +22,7 @@
 """
 
 import time
+import gzip
 import traceback
 import urllib.parse
 import orjson
@@ -100,8 +101,11 @@ async def process_jsonrpc(request: Request, response: Response):
 		jsonrpc = None
 		if body:
 			jsonrpc = body
+			if "gzip" in request.headers.get("content-encoding", ""):
+				jsonrpc = gzip.decompress(jsonrpc)
 		else:
 			jsonrpc = urllib.parse.unquote(request.url.query)
+		logger.trace("jsonrpc: %s", jsonrpc)
 		jsonrpc = orjson.loads(jsonrpc)
 		if not type(jsonrpc) is list:
 			jsonrpc = [jsonrpc]

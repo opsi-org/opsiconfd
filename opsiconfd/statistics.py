@@ -628,6 +628,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 				if server_timing:
 					server_timing = [f"{k};dur={v:.3f}"	for k, v in server_timing.items()]
 					headers.append("Server-Timing", ','.join(server_timing))
+			logger.trace(message)
 			await send(message)
 			end = time.perf_counter()
 			if scope["type"] == "http":

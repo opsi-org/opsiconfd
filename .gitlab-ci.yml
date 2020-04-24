@@ -24,7 +24,7 @@ build:pyinstaller:
 package:deb:
   stage: package
   dependencies:
-    build:pyinstaller
+    - build:pyinstaller
   script:
     - apt update
     - apt -y upgrade

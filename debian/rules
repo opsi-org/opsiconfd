@@ -27,10 +27,10 @@ install:
 	find debian/opsiconfd/usr/share/opsiconfd/static -type d -exec chmod 755 "{}" \;
 
 	# create config file
-	echo "# For available options see: opsiconfd --help"  > /etc/opsi/opsiconfd.conf
-	echo "# config example:"                             >> /etc/opsi/opsiconfd.conf
-	echo "# log-level = 5"                               >> /etc/opsi/opsiconfd.conf
-	chmod 644 /etc/opsi/opsiconfd.conf
+	echo "# For available options see: opsiconfd --help"  > debian/opsiconfd/etc/opsi/opsiconfd.conf
+	echo "# config example:"                             >> debian/opsiconfd/etc/opsi/opsiconfd.conf
+	echo "# log-level = 5"                               >> debian/opsiconfd/etc/opsi/opsiconfd.conf
+	chmod 644 debian/opsiconfd/etc/opsi/opsiconfd.conf
 	
 	dh_install
 

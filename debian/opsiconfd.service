@@ -1,27 +1,16 @@
 [Unit]
-Description=Opsi Configuration Service
-After=mysql.service
-After=smbd.service
-Wants=isc-dhcp-server.service
-Wants=mysql.service
-Wants=smbd.service
+Description=opsi server daemon
+After=remote-fs.target
+After=local-fs.target
+After=network-online.target
+Requires=remote-fs.target
+Requires=local-fs.target
+Wants=network-online.target
 
 [Service]
-User=opsiconfd
-Type=forking
-ExecStart=/usr/bin/opsiconfd -D
-PIDFile=/var/run/opsiconfd/opsiconfd.pid
-Restart=always
+ExecStart=/usr/bin/opsiconfd
 RestartSec=10
-KillMode=process
-TimeoutStopSec=10
-
-# Fix for maybe not existing /var/run or wrong permissions
-# PermissionsStartOnly makes the switch to the opsiconfd user just
-# before executing the ExecStart-part.
-PermissionsStartOnly=True
-ExecStartPre=-/bin/mkdir -p /var/run/opsiconfd
-ExecStartPre=-/bin/chown -R opsiconfd /var/run/opsiconfd/
+TimeoutStopSec=15
 
 [Install]
 WantedBy=multi-user.target

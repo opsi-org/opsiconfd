@@ -1,5 +1,6 @@
-etc/opsi
+etc/opsiconfd
 usr/bin
-usr/share/opsiconfd/static
-var/lib/opsiconfd/rrd
-var/log/opsi/opsiconfd
+usr/lib/opsiconfd
+usr/share/opsiconfd
+var/log/opsiconfd
+var/run/opsiconfd

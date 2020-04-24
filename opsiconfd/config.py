@@ -287,13 +287,13 @@ parser.add(
 parser.add(
 	"--redis-internal-url",
 	env_var="OPSICONFD_REDIS_INTERNAL_URL",
-	default='redis://redis',
+	default='redis://localhost',
 	help="Redis connection url"
 )
 parser.add(
 	"--grafana-internal-url",
 	env_var="OPSICONFD_GRAFANA_INTERNAL_URL",
-	default='http://grafana:3000',
+	default='http://localhost:3000',
 	help="Grafana base url for internal use"
 )
 parser.add(

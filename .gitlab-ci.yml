@@ -1,17 +1,17 @@
 image: python:3.7-stretch
 
 stages:
+  - build
   - package
 
-pyinstaller build:
-  stage: package
-  before_script:
+build:pyinstaller:
+  stage: build
+  script:
     - apt update
     - apt -y upgrade
     - apt -y install curl tar # python3-pip
     - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
     - source $HOME/.poetry/env
-  script:
     - ./pyinstaller-build.sh
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd .
@@ -21,3 +21,23 @@ pyinstaller build:
       - opsiconfd
     expire_in: 2 day
 
+package:deb:
+  stage: package
+  dependencies:
+    build:pyinstaller
+  script:
+    - apt update
+    - apt -y upgrade
+    - apt -y install debhelper
+    - deps=$((dpkg-checkbuilddeps 2>&1 | sed "s/dpkg-checkbuilddeps\:\serror\:\sUnmet build dependencies\://g" | sed "s/[\(][^)]*[\)] //g") || echo -n "")
+    - echo $deps
+    - test -z "$deps" || apt -y install $deps
+    - dpkg-buildpackage -b
+    - mkdir deb
+    - mv opsiconfd_*.deb deb/
+
+  artifacts:
+    name: 'opsiconfd-deb'
+    paths:
+      - deb/*
+    expire_in: 2 day

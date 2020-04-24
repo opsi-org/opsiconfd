@@ -34,7 +34,7 @@ package:deb:
     - test -z "$deps" || apt -y install $deps
     - dpkg-buildpackage -b
     - mkdir deb
-    - mv opsiconfd_*.deb deb/
+    - mv ../opsiconfd_*.deb deb/
 
   artifacts:
     name: 'opsiconfd-deb'

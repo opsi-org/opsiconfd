@@ -3,4 +3,3 @@ usr/bin
 usr/lib/opsiconfd
 usr/share/opsiconfd
 var/log/opsiconfd
-var/run/opsiconfd

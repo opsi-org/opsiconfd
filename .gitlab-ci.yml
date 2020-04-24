@@ -16,8 +16,8 @@ pyinstaller build:
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd .
   artifacts:
-    name: 'opsiconfd-pyinstaller.zip'
+    name: 'opsiconfd-pyinstaller'
     paths:
       - opsiconfd
-    expire_in: 7 day
+    expire_in: 2 day
 

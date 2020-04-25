@@ -144,6 +144,16 @@ parser.add(
 	help="Comma separated list of network addresses from which administrative connections are allowed."
 )
 parser.add(
+	"--log-level",
+	env_var="OPSICONFD_LOG_LEVEL",
+	type=int,
+	default=5,
+	choices=range(0, 10),
+	help="Set the general log level."
+		+ "0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices"
+		+ " 6: infos, 7: debug messages, 8: trace messages, 9: secrets"
+)
+parser.add(
 	"--log-file",
 	env_var="OPSICONFD_LOG_FILE",
 	default="/var/log/opsi/opsiconfd/%m.log",
@@ -158,22 +168,6 @@ parser.add(
 		+ " opsiconfd will create a symlink in the log dir which points"
 		+ " to the clients log file. The name of the symlink will be the same"
 		+ " as the log files but %%m will be replaced by <client-fqdn>."
-)
-parser.add(
-	"--log-level",
-	env_var="OPSICONFD_LOG_LEVEL",
-	type=int,
-	default=5,
-	choices=range(0, 10),
-	help="Set the log level."
-		+ "0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices"
-		+ " 6: infos, 7: debug messages, 8: trace messages, 9: secrets"
-)
-parser.add(
-	"--log-format",
-	env_var="OPSICONFD_LOG_FORMAT",
-	default="[%(log_color)s%(levelname)-9s %(asctime)s]%(reset)s %(message)s",
-	help="Set the log format."
 )
 parser.add(
 	"--max-log-size",
@@ -191,6 +185,38 @@ parser.add(
 	type=int,
 	default=1,
 	help="Number of rotated log files to keep."
+)
+parser.add(
+	"--log-level-file",
+	env_var="OPSICONFD_LOG_LEVEL_FILE",
+	type=int,
+	default=4,
+	choices=range(0, 10),
+	help="Set the log level for logfiles."
+		+ "0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices"
+		+ " 6: infos, 7: debug messages, 8: trace messages, 9: secrets"
+)
+parser.add(
+	"--log-format-file",
+	env_var="OPSICONFD_LOG_FORMAT_FILE",
+	default="[%(log_color)s%(levelname)-9s %(asctime)s]%(reset)s %(message)s",
+	help="Set the log format for logfiles."
+)
+parser.add(
+	"--log-level-stderr",
+	env_var="OPSICONFD_LOG_LEVEL_STDERR",
+	type=int,
+	default=4,
+	choices=range(0, 10),
+	help="Set the log level for stderr."
+		+ "0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices"
+		+ " 6: infos, 7: debug messages, 8: trace messages, 9: secrets"
+)
+parser.add(
+	"--log-format-stderr",
+	env_var="OPSICONFD_LOG_FORMAT_STDERR",
+	default="[%(log_color)s%(levelname)-9s %(asctime)s]%(reset)s %(message)s",
+	help="Set the log format for stder."
 )
 #parser.add(
 #	"--max-execution-statistics",

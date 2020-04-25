@@ -217,7 +217,8 @@ class SecretFormatter(object):
 class AsyncRotatingFileHandler(AsyncFileHandler):
 	rollover_check_interval = 10
 
-	def __init__(self, filename: str, formatter: Formatter, active_lifetime: int = 0, mode: str = "a", encoding: str = 'utf-8', max_bytes: int = 0, keep_rotated: int = 0) -> None:
+	def __init__(self, filename: str, formatter: Formatter,
+				active_lifetime: int = 0, mode: str = "a", encoding: str = 'utf-8', max_bytes: int = 0, keep_rotated: int = 0) -> None:
 		super().__init__(filename, mode, encoding)
 		self.active_lifetime = active_lifetime
 		self._max_bytes = max_bytes
@@ -268,38 +269,45 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 			handle_log_exception(exception, record)
 
 class AsyncRedisLogAdapter:
-	def __init__(self, running_event=None, log_format=DEFAULT_FORMAT, log_file_template=None,
-				max_log_file_size=0, keep_rotated_log_files=0, symlink_client_log_files=False):
+	def __init__(self, running_event=None, log_file_template=None,
+				max_log_file_size=0, keep_rotated_log_files=0, symlink_client_log_files=False,
+				log_format_stderr=DEFAULT_FORMAT, log_format_file=DEFAULT_FORMAT,
+				log_level_stderr=logging.NOTSET, log_level_file=logging.NOTSET):
 		self._running_event = running_event
-		self._log_format = log_format
 		self._log_file_template = log_file_template
 		self._max_log_file_size = max_log_file_size
 		self._keep_rotated_log_files = keep_rotated_log_files
 		self._symlink_client_log_files = symlink_client_log_files
+		self._log_level_stderr = log_level_stderr
+		self._log_level_file = log_level_file
+		self._log_format_stderr = log_format_stderr
+		self._log_format_file = log_format_file
 		self._loop = asyncio.get_event_loop()
 		self._redis = None
 		self._file_logs = {}
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
+
+		self._stderr_handler = None
+		if self._log_level_stderr != logging.NONE:
+			if sys.stderr.isatty():
+				# colorize
+				console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS)
+			else:
+				console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr))
+			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=console_formatter)
 		
-		if sys.stderr.isatty():
-			# colorize
-			console_formatter = colorlog.ColoredFormatter(self._log_format, log_colors=LOG_COLORS)
-		else:
-			console_formatter = Formatter(self._log_format_no_color)
-		self._console_handler = AsyncStreamHandler(stream=sys.stderr, formatter=console_formatter)
-		
-		if self._log_file_template:
-			self.get_file_handler()
+		if self._log_level_file != logging.NONE:
+			if self._log_file_template:
+				self.get_file_handler()
 
 		self._loop.create_task(self._start())
 
 	def stop(self):
 		self._loop.stop()
 	
-	@property
-	def _log_format_no_color(self):
-		return self._log_format.replace('%(log_color)s', '').replace('%(reset)s', '')
+	def _log_format_no_color(self, log_format):
+		return log_format.replace('%(log_color)s', '').replace('%(reset)s', '')
 	
 	async def _create_client_log_file_symlink(self, ip_address):
 		try:
@@ -329,7 +337,7 @@ class AsyncRedisLogAdapter:
 					active_lifetime = 0 if name == 'opsiconfd' else self._file_log_active_lifetime
 					self._file_logs[filename] = AsyncRotatingFileHandler(
 						filename=filename,
-						formatter=Formatter(self._log_format_no_color),
+						formatter=Formatter(self._log_format_no_color(self._log_format_file)),
 						active_lifetime=active_lifetime,
 						mode='a',
 						encoding='utf-8',
@@ -389,10 +397,14 @@ class AsyncRedisLogAdapter:
 						'args': None
 					})
 					record = logging.makeLogRecord(record_dict)
-					await self._console_handler.emit(record)
-					file_handler = self.get_file_handler(client)
-					if file_handler:
-						await file_handler.emit(record)
+
+					if self._stderr_handler and record.levelno >= self._log_level_stderr:
+						await self._stderr_handler.emit(record)
+					
+					if record.levelno >= self._log_level_file:
+						file_handler = self.get_file_handler(client)
+						if file_handler:
+							await file_handler.emit(record)
 			except (KeyboardInterrupt, SystemExit):
 				raise
 			except EOFError:
@@ -470,8 +482,8 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 def init_logging():
 	try:
 		fallback_logging = False
-		log_level = (10 - config.log_level) * 10
-		
+		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
+		log_level = (10 - log_level) * 10
 		log_handler = None
 		if not fallback_logging:
 			log_handler = RedisLogHandler()
@@ -532,10 +544,13 @@ class RedisLogAdapterThread(threading.Thread):
 			self._redis_log_adapter = AsyncRedisLogAdapter(
 				running_event=self._running_event,
 				log_file_template=config.log_file,
-				log_format=config.log_format,
+				log_format_stderr=config.log_format_stderr,
+				log_format_file=config.log_format_file,
 				max_log_file_size=round(config.max_log_size * 1000 * 1000),
 				keep_rotated_log_files=config.keep_rotated_logs,
-				#symlink_client_log_files=config.symlink_logs
+				symlink_client_log_files=config.symlink_logs,
+				log_level_stderr=(10 - config.log_level_stderr) * 10,
+				log_level_file=(10 - config.log_level_file) * 10
 			)
 			self._loop.run_forever()
 		except Exception as exc:

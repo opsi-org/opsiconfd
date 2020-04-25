@@ -104,9 +104,11 @@ class ArbiterAsyncMainThread(threading.Thread):
 def main():
 	init_logging()
 
-	running = threading.Event()
-	redis_log_adapter_thread = start_redis_log_adapter_thread(running)
-	running.wait()
+	redis_log_adapter_thread = None
+	if config.log_level_stderr > 0:
+		running = threading.Event()
+		redis_log_adapter_thread = start_redis_log_adapter_thread(running)
+		running.wait()
 
 	# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
 	# https://github.com/b2wdigital/aiologger/issues/38
@@ -129,5 +131,6 @@ def main():
 	main_async_thread.stop()
 	main_async_thread.join()
 
-	redis_log_adapter_thread.stop()
-	redis_log_adapter_thread.join()
+	if redis_log_adapter_thread:
+		redis_log_adapter_thread.stop()
+		redis_log_adapter_thread.join()

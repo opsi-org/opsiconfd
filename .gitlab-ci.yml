@@ -9,7 +9,7 @@ build:linux-pyinstaller:
   script:
     - apt update
     - apt -y upgrade
-    - apt -y install curl tar # python3-pip
+    - apt -y install curl gettext
     - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
     - source $HOME/.poetry/env
     - ./pyinstaller-build.sh

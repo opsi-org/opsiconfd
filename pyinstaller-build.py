@@ -43,7 +43,7 @@ HIDDEN_IMPORTS = [
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 subprocess.check_call(["poetry", "install"])
-subprocess.check_call(["poetry", "run", "rm", ".venv/lib/python3*/site-packages/pydantic/*.so"])
+subprocess.call(["poetry", "run", "rm", ".venv/lib/python3*/site-packages/pydantic/*.so"])
 
 for d in ("dist", "build"):
 	if os.path.isdir(d):

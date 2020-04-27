@@ -500,6 +500,9 @@ class MetricsCollector():
 				if cmd:
 					err += f" while executing redis command: {cmd}"
 				logger.error(err, exc_info=True)
+				if err.lower().startswith("unknown command"):
+					logger.error("RedisTimeSeries module missing, metrics collector ending")
+					break
 			await asyncio.sleep(self._interval)
 
 	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels):

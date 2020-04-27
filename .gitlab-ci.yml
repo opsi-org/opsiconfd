@@ -4,7 +4,7 @@ stages:
   - build
   - package
 
-build:pyinstaller:
+build:linux-pyinstaller:
   stage: build
   script:
     - apt update
@@ -16,7 +16,7 @@ build:pyinstaller:
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd .
   artifacts:
-    name: 'opsiconfd-pyinstaller'
+    name: 'opsiconfd-linux-pyinstaller'
     paths:
       - opsiconfd
     expire_in: 2 day
@@ -24,7 +24,7 @@ build:pyinstaller:
 package:deb:
   stage: package
   dependencies:
-    - build:pyinstaller
+    - build:linux-pyinstaller
   script:
     - apt update
     - apt -y upgrade

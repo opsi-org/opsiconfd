@@ -134,6 +134,12 @@ parser.add(
 	default="/etc/opsi/backendManager/acl.conf",
 	help="Location of the acl file."
 )
+parser.add(
+	"--static-dir",
+	env_var="OPSICONFD_STATIC_DIR",
+	default="/usr/share/opsiconfd/static",
+	help="Location of the static files."
+)
 # TODO: Implement
 parser.add(
 	"--admin-networks",

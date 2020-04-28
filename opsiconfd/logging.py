@@ -389,12 +389,13 @@ class AsyncRedisLogAdapter:
 					continue
 				for entry in data[b_stream_name]:
 					last_id = entry[0] 
-					client = entry[1][b'client'].decode('utf-8')
-					record_dict = msgpack.unpackb(entry[1][b'record'])
+					client = entry[1][b"client"].decode("utf-8")
+					record_dict = msgpack.unpackb(entry[1][b"record"'])
 					record_dict.update({
-						'scope': None,
-						'exc_info': None,
-						'args': None
+						"scope": None,
+						"exc_info": None,
+						"args": None,
+						"client_address" : record_dict.get("client_address") or ""
 					})
 					record = logging.makeLogRecord(record_dict)
 

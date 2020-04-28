@@ -390,7 +390,7 @@ class AsyncRedisLogAdapter:
 				for entry in data[b_stream_name]:
 					last_id = entry[0] 
 					client = entry[1][b"client"].decode("utf-8")
-					record_dict = msgpack.unpackb(entry[1][b"record"'])
+					record_dict = msgpack.unpackb(entry[1][b"record"])
 					record_dict.update({
 						"scope": None,
 						"exc_info": None,

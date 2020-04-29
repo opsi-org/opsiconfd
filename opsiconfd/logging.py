@@ -206,8 +206,7 @@ class SecretFormatter(object):
 	def format(self, record):
 		msg = self.orig_formatter.format(record)
 		for secret in secret_filter.secrets:
-			msg = msg.replace(secret, SECRET_REPLACEMENT_STRING, 1)
-			msg = msg.replace(secret, '')
+			msg = msg.replace(secret, SECRET_REPLACEMENT_STRING)
 		return msg
 	
 	def __getattr__(self, attr):
@@ -433,8 +432,7 @@ class RedisLogHandler(logging.Handler):
 			else:
 				record.msg = record.getMessage()
 		for secret in secret_filter.secrets:
-			record.msg = record.msg.replace(secret, SECRET_REPLACEMENT_STRING, 1)
-			record.msg = record.msg.replace(secret, '')
+			record.msg = record.msg.replace(secret, SECRET_REPLACEMENT_STRING)
 		if hasattr(record, 'exc_info') and record.exc_info:
 			# by calling format the formatted exception information is cached in attribute exc_text
 			self.format(record)

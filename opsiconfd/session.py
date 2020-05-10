@@ -127,6 +127,8 @@ class SessionMiddleware:
 				auth = get_basic_auth(scope['headers'])
 				try:
 					get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
+					if not session.user_store.host and not session.user_store.isAdmin:
+						raise Exception(f"Not an admin user '{session.user_store.username}'")
 				except Exception as e:
 					logger.warning(e)
 					raise HTTPException(

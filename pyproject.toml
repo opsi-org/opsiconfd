@@ -3,7 +3,7 @@ name = "opsiconfd"
 version = "4.2.0"
 description = ""
 authors = ["Jan Schneider <j.schneider@uib.de>"]
-iinclude = [
+include = [
     "run-opsiconfd",
     "opsiconfd_data/**/*"
 ]

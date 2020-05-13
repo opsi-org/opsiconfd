@@ -51,11 +51,13 @@ package:
   systemd: yes
   dependencies: []
   source_script:
+    - pyi_src="${SRC}"
+    - if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi
     - mkdir -p ${DST}/rootfs/usr/lib
     - mkdir -p ${DST}/rootfs/etc/opsi
     - mkdir -p ${DST}/rootfs/usr/share/opsiconfd
     - mkdir -p ${DST}/systemd_units
-    - cp -a ${SRC}/opsiconfd ${DST}/rootfs/usr/lib/
+    - cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/
     - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
     - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.conf ${DST}/rootfs/etc/opsi/
     - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/

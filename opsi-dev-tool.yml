@@ -40,6 +40,10 @@ pyinstaller-poetry:
     - src: opsiconfd_data/**/*
       dst: opsiconfd_data
   dirname: opsiconfd
+  after_script:
+    - find dist/opsiconfd -iname "*.c" -delete
+    - find dist/opsiconfd -iname "*.h" -delete
+    - rm -r dist/opsiconfd/site-packages/Crypto/SelfTest
 
 package:
   name: opsiconfd

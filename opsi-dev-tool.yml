@@ -1,0 +1,46 @@
+pyinstaller-poetry:
+  update_version_in:
+    - opsiconfd/__init__.py
+  one_file: no
+  hidden_imports:
+    all:
+      - ipaddress
+      - colorsys
+      - gunicorn.glogging
+      - uvicorn.workers
+      - uvicorn.loops
+      - uvicorn.loops.auto
+      - uvicorn.loops.uvloop
+      - uvicorn.lifespan
+      - uvicorn.lifespan.on
+      - uvicorn.protocols
+      - uvicorn.protocols.http
+      - uvicorn.protocols.http.h11_impl
+      - uvicorn.protocols.http.httptools_impl
+      - uvicorn.protocols.websockets
+      - uvicorn.protocols.websockets.auto
+      - pydantic.color
+      - pydantic.validators
+      - pydantic.datetime_parse
+      - OPSI.Backend.Depotsever
+      - OPSI.Backend.DHCPD
+      - OPSI.Backend.File
+      - OPSI.Backend.HostControl
+      - OPSI.Backend.HostControlSafe
+      - OPSI.Backend.JSONRPC
+      - OPSI.Backend.MySQL
+      - OPSI.Backend.OpsiPXEConfd
+      - OPSI.Backend.Replicator
+      - OPSI.Backend.SQLite
+  scripts:
+    - script: run-opsiconfd
+      binaries:
+        - opsiconfd
+  data_files:
+    - src: opsiconfd_data/**/*
+      dst: opsiconfd_data
+  dirname: opsiconfd
+ 
+changelog:
+  next:
+    - Full rewrite using Starlette, FastAPI, ASGI, uvloop, Redis

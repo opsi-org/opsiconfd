@@ -1,0 +1,16 @@
+[Unit]
+Description=opsi server daemon
+After=remote-fs.target
+After=local-fs.target
+After=network-online.target
+Requires=remote-fs.target
+Requires=local-fs.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/opsiconfd
+RestartSec=10
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

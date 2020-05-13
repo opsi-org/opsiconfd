@@ -44,6 +44,7 @@ pytest = "^5.2"
 pyinstaller = "^3.6"
 idna = "^2.9"
 pylint = "^2.4.4"
+opsi-dev-tools = "^1.0.4"
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"

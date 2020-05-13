@@ -12,7 +12,8 @@ build:linux-pyinstaller:
     - apt -y install curl gettext
     - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
     - source $HOME/.poetry/env
-    - ./pyinstaller-build.py
+    - poetry install
+    - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd .
   artifacts:

@@ -1,8 +1,11 @@
 [tool.poetry]
 name = "opsiconfd"
 version = "4.2.0"
-description = ""
-authors = ["Jan Schneider <j.schneider@uib.de>"]
+description = "opsi configuration service"
+homepage = "https://www.opsi.org"
+license = "AGPL-3.0"
+maintainers = ["uib GmbH <info@uib.de>"]
+authors = ["uib GmbH <info@uib.de>"]
 include = [
     "run-opsiconfd",
     "opsiconfd_data/**/*"

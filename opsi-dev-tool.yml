@@ -40,7 +40,17 @@ pyinstaller-poetry:
     - src: opsiconfd_data/**/*
       dst: opsiconfd_data
   dirname: opsiconfd
- 
+
+package:
+  name: opsiconfd
+  type: binary
+  dependencies: []
+  source_script:
+    - mkdir -p ${DST}/rootfs/usr/lib
+    - cp -a ${SRC}/opsiconfd ${DST}/rootfs/usr/lib/
+    - mkdir -p ${DST}/rootfs/usr/share/opsiconfd
+    - cp -a ${SRC}/opsiconfd/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
+
 changelog:
   next:
     - Full rewrite using Starlette, FastAPI, ASGI, uvloop, Redis

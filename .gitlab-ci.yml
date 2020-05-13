@@ -22,23 +22,34 @@ build:linux-pyinstaller:
       - opsiconfd
     expire_in: 2 day
 
-package:deb:
+package:obs:
   stage: package
   dependencies:
     - build:linux-pyinstaller
   script:
     - apt update
-    - apt -y upgrade
-    - apt -y install debhelper
-    - deps=$((dpkg-checkbuilddeps 2>&1 | sed "s/dpkg-checkbuilddeps\:\serror\:\sUnmet build dependencies\://g" | sed "s/[\(][^)]*[\)] //g") || echo -n "")
-    - echo $deps
-    - test -z "$deps" || apt -y install $deps
-    - dpkg-buildpackage -b
-    - mkdir deb
-    - mv ../opsiconfd_*.deb deb/
+    - apt -y install debhelper osc
+    - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
+    - source $HOME/.poetry/env
+    - poetry install
+    - poetry run opsi-dev-tool -l info --obs-update-package https://obs.uib.local home:uibmz:opsi:4.2:experimental
 
-  artifacts:
-    name: 'opsiconfd-deb'
-    paths:
-      - deb/*
-    expire_in: 2 day
+#package:deb:
+#  stage: package
+#  dependencies:
+#    - build:linux-pyinstaller
+#  script:
+#    - apt update
+#    - apt -y upgrade
+#    - apt -y install debhelper
+#    - deps=$((dpkg-checkbuilddeps 2>&1 | sed "s/dpkg-checkbuilddeps\:\serror\:\sUnmet build dependencies\://g" | sed "s/[\(][^)]*[\)] //g") || echo -n "")
+#    - echo $deps
+#    - test -z "$deps" || apt -y install $deps
+#    - dpkg-buildpackage -b
+#    - mkdir deb
+#    - mv ../opsiconfd_*.deb deb/
+#  artifacts:
+#    name: 'opsiconfd-deb'
+#    paths:
+#      - deb/*
+#    expire_in: 2 day

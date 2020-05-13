@@ -61,7 +61,7 @@ RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "
 RUN chmod +x "/docker-entrypoint.sh" \
 	&& poetry install --no-interaction --no-ansi \
 	&& ln -s /src/opsiconfd opsiconfd \
-	&& ln -s /src/static static \
+	&& ln -s /src/opsiconfd_data/static static \
 	&& ln -s /src/run-opsiconfd run-opsiconfd \
 	&& ln -s /src/pyinstaller-build.sh pyinstaller-build.sh \
 	&& mkdir tftpboot

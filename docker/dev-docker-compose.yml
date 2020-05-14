@@ -19,7 +19,7 @@ services:
       OPSICONFD_GRAFANA_INTERNAL_URL: http://grafana:3000
       OPSICONFD_GRAFANA_EXTERNAL_URL: http://localhost:3000
     #working_dir: /poetry
-    entrypoint: ["sleep", "infinity"]
+    entrypoint: ["/docker-entrypoint.sh"]
     #entrypoint: ["poetry", "run", "opsiconfd"]
   mysql:
     image: mysql:5.7

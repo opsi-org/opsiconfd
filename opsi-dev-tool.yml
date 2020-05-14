@@ -41,6 +41,7 @@ pyinstaller-poetry:
       dst: opsiconfd_data
   dirname: opsiconfd
   after_script:
+    - mv dist/opsiconfd/site-packages/wsgidav dist/opsiconfd/wsgidav
     - find dist/opsiconfd -iname "*.c" -delete
     - find dist/opsiconfd -iname "*.h" -delete
     - rm -r dist/opsiconfd/site-packages/Crypto/SelfTest

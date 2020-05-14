@@ -18,6 +18,7 @@ Thus, long runinng JSON-RPC requests could block other requests.
 
 # Development
 * Install docker and docker compose on your linux machine
+* python-opsi has to be in the opsiconfd root directory (links dont work).
 * Build und run the docker environment: `./docker/build_and_run.py --type dev`
 * Run a bash in the opsiconfd docker container: `docker exec -it docker_opsiconfd_1 bash`
 * Start opsiconfd in the opsiconfd container: `poetry run opsiconfd`

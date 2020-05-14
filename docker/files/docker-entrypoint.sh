@@ -3,7 +3,8 @@
 set -o errexit
 set -o nounset
 
-cmd="$*"
+# cmd="$*"
+cmd="sleep infinity"
 
 mysql_ready () {
 	# Check that mysql is up and running:

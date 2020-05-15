@@ -21,16 +21,51 @@
 """
 
 from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Request
+from fastapi.templating import Jinja2Templates
+
+import os
+import json
+
 
 from ..logging import logger
 from ..config import config
 
+from ..backend import get_client_backend, get_backend_interface
+
 jsonrpc_interface_router = APIRouter()
+
+
+templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
 def jsonrpc_interface_setup(app):
 	app.include_router(jsonrpc_interface_router, prefix="/interface")
 
-@jsonrpc_interface_router.get("/")
+@jsonrpc_interface_router.get("/?")
 async def jsonrpc_interface_index(request: Request):
-	return HTMLResponse('<html><body><h1>Hello, world!</h1></body></html>')
+	interface = get_backend_interface()
+	methods = []
+	for method in interface:
+	# 	logger.notice(method.get("name"))
+		methods.append(method.get("name"))
+	# logger.notice(methods)
 
+
+	template = "interface.html"
+	# context = {"methods": methods}
+	interfaceJSON = json.dumps(interface)
+	context = {
+		"request": request,
+		"interface": interface,
+		"methods": methods,
+		"interfaceJSON": interfaceJSON,
+		"testVar": "hallo"
+		}
+	
+	# return HTMLResponse('<html><body><h1>Hello, world!</h1></body></html>',)
+	return templates.TemplateResponse(template, context)
+
+@jsonrpc_interface_router.get("/method")
+async def test():
+	logger.notice("test")
+	return "test"

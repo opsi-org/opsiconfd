@@ -1,0 +1,132 @@
+<html>
+<head>
+    <title>Interface</title>
+    
+</head>
+<body>
+<h1>Interface: </h1>
+
+        <label>Methods:
+          <select  id="method-select" onchange="get_method(this.value)">
+            {% for method in interface %}
+                <option>{{  method.get("name") }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <br><br>
+        <div>
+          <form id="params">
+
+          </form>
+        </div>
+        
+        <div id="demo">
+          <h2>Let AJAX change this text</h2>
+          <button type="button" onclick="loadDoc()">Change Content</button>
+        </div>
+
+        {{interfaceJSON}}
+
+</body>
+</html>
+
+
+
+
+<script>
+
+
+var decode = function (html) {
+	var txt = document.createElement('textarea');
+	txt.innerHTML = html;
+	return txt.value;
+};
+
+let interface =  decode("{{interfaceJSON}}");
+
+// interface = interface.replace(/'/g,'"');
+// interface = interface.replace(/None/g,'null');
+// console.log(interface);
+
+interface = JSON.parse(interface);
+
+// console.log(interface);
+// test = JSON.parse(JSON.stringify("{{interfaceJSON}}"))
+
+
+
+function get_method(value){
+    console.log("get_method: " + value);
+    console.log( "{{testVar}}" );
+
+    let html = "";
+    interface.forEach(method => {
+      if (method.name == value){
+        console.log(method.name);
+        console.log(method.params)
+        method.params.forEach(param => {
+          console.log(param);
+          html = html+"<label for=\"fname\">"+param+": </label>\n<input type=\"text\" id=\""+param+"\" name=\""+param+"\"><br><br>";
+       
+        });
+       
+      }
+    });
+    document.getElementById("params").innerHTML = html;
+   
+    // array = JSON.stringify(unescape("{{interface}}"));
+    // // array = JSON.parse("{{interfaceJSON}}")
+    // var txt = document.createElement("textarea");
+    // txt.innerHTML = "{{interfaceJSON}}";
+    // console.log(txt.value);
+
+    // myjson = decode("{{interface}}");
+    // interface = interface.replace(/'/g,'"');
+    // interface = interface.replace(/None/g,'null');
+    // console.log(interface);
+    // console.log(JSON.parse(interface));
+
+    // let test = "";
+    // myjson = JSON.parse(myjson);
+    // console.log(myjson);
+
+    // myjson = ("{{ testVar}}");
+    
+    // for (var i = 0; i < myjson.length; i++){
+    //   console.log(myjson[i]);
+    // }
+
+    // myjson = JSON.stringify(myjson);
+    // myjson = JSON.parse(myjson);
+
+    // myjson = '{ "name":"John", "age":30, "city":"New York"}';
+    // myjson.forEach(element => {
+    //   console.log(element);
+    // });
+   
+
+    // console.log(myjson);
+    
+    // console.log(JSON.stringify(myjson));
+    // console.log(JSON.parse(myjson));
+    
+    
+    // myjson.forEach(element => {
+    //   console.log(element);
+      
+    // });
+    // console.log(test);
+    
+  
+}
+
+
+function loadDoc() {
+
+  document.getElementById("demo").innerHTML = "<h1>TEST</h1>";
+ 
+}
+
+
+
+</script>

@@ -71,12 +71,14 @@ li {
 .LEVEL_CRITICAL { color: #c74b16; }
 .LEVEL_ESSENTIAL { color: #2aa198; }
 
+/* css for interfacesite */
 
 .intefraceContent {
 	width: 800px;
     margin: 25px 25px;
   }
 
+/* pretty json output */
 pre {outline: 1px solid #ccc; padding: 5px; margin: 5px; }
 .string { color: green; }
 .number { color: darkorange; }

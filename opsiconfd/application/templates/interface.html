@@ -9,16 +9,9 @@
 
   <div class="intefraceContent">
   <h1>Interface: </h1>
-  <script>
-
-    // console.log('{{interface|tojson}}');
-    
-
-  </script>
-              
               
           <label>Methods:
-            <select  id="method-select" onchange="get_method(this.value)">
+            <select  id="method-select" onchange="createParamInputs(this.value)">
               {% for method in interface %}
                 <option>{{  method.get("name") }}</option>
               {% endfor %}
@@ -63,7 +56,7 @@ interface = JSON.parse(interface);
 
 
 
-function get_method(value){
+function createParamInputs(value){
     console.log("get_method: " + value);
 
 
@@ -74,7 +67,7 @@ function get_method(value){
         console.log(method.params)
         method.params.forEach(param => {
           console.log(param);
-          html = html+"<label for=\"fname\">"+param+": </label>\n<input type=\"text\" id=\""+param+"\" name=\""+param+"\" onchange=\"changeJSONRPC(this.name,this.value)\"><br><br>";
+          html = html+"<label for=\"fname\">"+param+": </label>\n<input type=\"text\" id=\""+param+"\" name=\""+param+"\" oninput=\"changeJSONRPC(this.name,this.value)\"><br><br>";
        
         });
        
@@ -114,8 +107,41 @@ function createJSON(){
     console.log("NAME:" + name);
 
     if(value){
-      parameter.push(JSON.parse(value));
-    }
+      console.log("NAME:"+name+" ist nicht leer");
+      
+      if(name.substr(0, 1) == "*"){
+        try {
+          parameter.push(JSON.parse(value));
+        }
+        catch (e){
+            if (e instanceof SyntaxError) {
+              console.error("JSON not valid. " + e)
+            }
+            else{
+              console.log(e);
+            } 
+        }
+      } // if(name.substr(0, 1) == "*")
+      else{
+        console.log("\""+name+"\":\""+value+"\"");
+        
+        // parameter.push(JSON.parse("\""+name+"\":\""+value+"\""));
+        // console.log(JSON.parse("\""+name+"\":\""+value+"\""));
+        console.log("############");
+        let json = {};
+        json[name] = value;
+        console.log(json);
+        console.log("############");
+        
+        parameter.push(json);
+      }   
+    } // if value
+    else{
+      console.log("NAME:"+name+" ist leer");
+      if (name.substr(0, 2) == "**"){
+        parameter.push(JSON.parse("attributs:[]"));
+      }
+    } //else
   }
 
   console.log("-------------------");

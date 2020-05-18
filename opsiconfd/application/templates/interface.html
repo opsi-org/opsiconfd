@@ -109,8 +109,9 @@ function createJSON(){
     if(value){
       console.log("NAME:"+name+" ist nicht leer");
       
-      if(name.substr(0, 1) == "*"){
+      if(name.substr(0, 2) == "**" || name == "*attributes"){
         try {
+          console.log(JSON.parse(value));         
           parameter.push(JSON.parse(value));
         }
         catch (e){
@@ -123,23 +124,29 @@ function createJSON(){
         }
       } // if(name.substr(0, 1) == "*")
       else{
-        console.log("\""+name+"\":\""+value+"\"");
+        console.log(value);
         
         // parameter.push(JSON.parse("\""+name+"\":\""+value+"\""));
         // console.log(JSON.parse("\""+name+"\":\""+value+"\""));
-        console.log("############");
-        let json = {};
-        json[name] = value;
-        console.log(json);
-        console.log("############");
+        // console.log("############");
+        // let json = {};
+        // json[name] = value;
+        // console.log(json);
+        // console.log("############");
         
-        parameter.push(json);
+        parameter.push(value);
       }   
     } // if value
     else{
-      console.log("NAME:"+name+" ist leer");
-      if (name.substr(0, 2) == "**"){
-        parameter.push(JSON.parse("attributs:[]"));
+      // console.log("NAME:"+name+" ist leer");
+      // console.log(name.search(/\**/));
+      // console.log(name.substr(0,2));
+      // console.log(name.substr(0,1));
+      // console.log(name.indexOf("*",0));
+      // console.log(name.indexOf("*",1));
+      
+      if (name.indexOf("*",1) == -1){
+        parameter.push(null);
       }
     } //else
   }

@@ -65,7 +65,12 @@ async def jsonrpc_interface_index(request: Request):
 	# return HTMLResponse('<html><body><h1>Hello, world!</h1></body></html>',)
 	return templates.TemplateResponse(template, context)
 
-@jsonrpc_interface_router.get("/method")
-async def test():
+@jsonrpc_interface_router.post("/jsonrpc")
+async def test(request: Request):
+	# assert scope['type'] == 'http'
+	# request = Request(scope, receive)
+	test = await request.json()
+	logger.notice(test)
+	# logger.notice(body)
 	logger.notice("test")
-	return "test"
+	return test

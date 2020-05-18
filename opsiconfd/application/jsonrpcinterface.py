@@ -44,25 +44,15 @@ def jsonrpc_interface_setup(app):
 @jsonrpc_interface_router.get("/?")
 async def jsonrpc_interface_index(request: Request):
 	interface = get_backend_interface()
-	methods = []
-	for method in interface:
-	# 	logger.notice(method.get("name"))
-		methods.append(method.get("name"))
-	# logger.notice(methods)
-
 
 	template = "interface.html"
-	# context = {"methods": methods}
-	interfaceJSON = json.dumps(interface)
+
 	context = {
 		"request": request,
-		"interface": interface,
-		"methods": methods,
-		"interfaceJSON": interfaceJSON,
-		"testVar": "hallo"
+		"interface": interface,	
 		}
 	
-	# return HTMLResponse('<html><body><h1>Hello, world!</h1></body></html>',)
+
 	return templates.TemplateResponse(template, context)
 
 @jsonrpc_interface_router.post("/jsonrpc")

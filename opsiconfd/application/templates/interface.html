@@ -1,65 +1,71 @@
 <html>
-<head>
-    <title>Interface</title>
+  <head>
+      <title>Interface</title>
+
+      <link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
+      
+  </head>
+  <body>
+
+  <div class="intefraceContent">
+  <h1>Interface: </h1>
+  <script>
+
+    // console.log('{{interface|tojson}}');
     
-</head>
-<body>
-<h1>Interface: </h1>
 
-        <label>Methods:
-          <select  id="method-select" onchange="get_method(this.value)">
-            {% for method in interface %}
+  </script>
+              
+              
+          <label>Methods:
+            <select  id="method-select" onchange="get_method(this.value)">
+              {% for method in interface %}
                 <option>{{  method.get("name") }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <br><br>
-        <div>
-          <form>
-            <div id="params">
-
+              {% endfor %}
+            </select>
+          </label>
+          <br><br>
+          <div>
+            <form>
+              <div id="parameter">
+                
+              </div>
+              
+            </form>
+            <div>
+              <pre id=jsonrpc></pre>
             </div>
-            
-          </form>
-          <button onclick="callJSONRPC()">execute</button>
-        </div>
+            <button onclick="callJSONRPC()">Execute</button>
+          </div>
 
-        <div id="result">
-          <pre id=json-result>
-          </pre>
-        </div>
-        
-        <!-- <div id="demo">
-          <h2>Let AJAX change this text</h2>
-          <button type="button" onclick="loadDoc()">Change Content</button>
-        </div> -->
+          <div id="result">
+            <pre id=json-result></pre>
+          </div>
+          
+    </div>         
 
-        
-
-</body>
+  </body>
 </html>
 
 
 
 
 <script>
+document.getElementById("result").style.visibility = 'hidden'
+document.getElementById("jsonrpc").style.visibility = 'hidden'
 
 
-var decode = function (html) {
-	var txt = document.createElement('textarea');
-	txt.innerHTML = html;
-	return txt.value;
-};
-
-let interface =  decode("{{interfaceJSON}}");
-
+// !!! use '' because json uses "" !!! 
+let interface = '{{interface|tojson}}';
 
 interface = JSON.parse(interface);
 
 
+
+
 function get_method(value){
     console.log("get_method: " + value);
-    console.log( "{{testVar}}" );
+
 
     let html = "";
     interface.forEach(method => {
@@ -68,22 +74,18 @@ function get_method(value){
         console.log(method.params)
         method.params.forEach(param => {
           console.log(param);
-          html = html+"<label for=\"fname\">"+param+": </label>\n<input type=\"text\" id=\""+param+"\" name=\""+param+"\"><br><br>";
+          html = html+"<label for=\"fname\">"+param+": </label>\n<input type=\"text\" id=\""+param+"\" name=\""+param+"\" onchange=\"changeJSONRPC(this.name,this.value)\"><br><br>";
        
         });
        
       }
     });
-    document.getElementById("params").innerHTML = html;
-   
+    document.getElementById("parameter").innerHTML = html;
 
-    
-  
+   
 }
 
-function callJSONRPC(){
-
-
+function createJSON(){
   let apiJSON = {
     "id": 1,
     "method": "",
@@ -92,23 +94,18 @@ function callJSONRPC(){
       {}
     ]
   } 
-  
-  
+
+    
   let option = document.getElementById("method-select");
   let method = option.options[option.selectedIndex].text; 
   let inputs = document.getElementsByTagName("input");
 
-
-
-  apiJSON.params = [ ["TEST"], {"id": 123}];
   apiJSON.method = method;
   console.log(apiJSON);
- 
-  
 
-  var params = [];
+  let parameter = [];
  
-  console.log(params);
+  console.log(parameter);
   
   for (i = 0; i < inputs.length; i++) {
     let name = inputs[i].name.trim();
@@ -117,40 +114,79 @@ function callJSONRPC(){
     console.log("NAME:" + name);
 
     if(value){
-      params.push(value.length == 0);
+      parameter.push(JSON.parse(value));
     }
-    else{
-      console.log("SUBSTR: " + name.substr(0, 1));
-      
-      if (name.substr(0, 1) != "*"){
+  }
+
+  console.log("-------------------");
+  console.log(parameter);  
+  console.log("-------------------");
+  
+
+  apiJSON.params = parameter;
+  return apiJSON;
+}
+
+function changeJSONRPC(name,value){
+
+  console.log(name);
+  console.log(value);
+  let apiJSON = createJSON();
+  console.log("#######################");
+  console.log(apiJSON);
+  
+  console.log("#######################");
+
+  outputToHTML(apiJSON,"jsonrpc");
+
+}
+
+
+function callJSONRPC(){
+
+  let inputs = document.getElementsByTagName("input");
+
+   
+  for (i = 0; i < inputs.length; i++) {
+    let name = inputs[i].name.trim();
+    let value = inputs[i].value.trim();
+    console.log("VALUE: " + value);
+    console.log("NAME:" + name);
+
+    if(!value && name.substr(0, 1) != "*"){
+     
         alert("mandatory field empty");
         return {"error": "mandatory field empty"};
         
-      }
     }
+    
 
   }
+  
+  let apiJSON = createJSON()
 
-  console.log(params);
-  apiJSON.params = params;
+  
+
+  console.log("#######################");
   console.log(apiJSON);
-
- 
+  
+  console.log("#######################");
 
   console.log(window.location.protocol);
   console.log(window.location.host);
   console.log(window.location.hostname);
   console.log(window.location.port);
   let request = new XMLHttpRequest();
-  request.open("POST","https://localhost:4447/rpc");
+  request.open("POST","/rpc");
 
   console.log(request);
   
   request.addEventListener('load', function(event) {
     if (request.status >= 200 && request.status < 300) {
         result = request.responseText
-        console.log(result);
-        document.getElementById("json-result").textContent = JSON.stringify(JSON.parse(result), undefined, 2);
+        // console.log(result);
+        result = JSON.parse(result);
+        outputToHTML(result,"json-result");
         return result;
         
     } else {
@@ -162,30 +198,44 @@ function callJSONRPC(){
   request.send(JSON.stringify(apiJSON));
 
 
-  
-  // request = new XMLHttpRequest();
-  // request.open("POST","/interface/jsonrpc");
+}
 
-  // console.log(request);
-   
-  // request.addEventListener('load', function(event) {
-  //   if (request.status >= 200 && request.status < 300) {
-  //       console.log(request.responseText);
-  //   } else {
-  //       console.warn(request.statusText, request.responseText);
-  //   }
-  // });
-  // request.send(JSON.stringify(apiJSON));
-
+function outputToHTML(json,id) {
+    jsonStr = JSON.stringify(json,undefined,2);
+    jsonStr = syntaxHighlight(jsonStr);
+    // console.log(jsonStr);
+    document.getElementById(id).style.visibility = 'visible'
+    document.getElementById(id).innerHTML = jsonStr;    
 }
 
 
-function loadDoc() {
-
-  document.getElementById("demo").innerHTML = "<h1>TEST</h1>";
- 
+function syntaxHighlight(json) {
+    if (typeof json != 'string') {
+         json = JSON.stringify(json, undefined, 2);
+    }
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        var cls = 'number';
+        if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+                cls = 'key';
+            } else {
+                cls = 'string';
+            }
+        } else if (/true|false/.test(match)) {
+            cls = 'boolean';
+        } else if (/null/.test(match)) {
+            cls = 'null';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+    });
 }
 
+function decode(html) {
+	var txt = document.createElement('textarea');
+	txt.innerHTML = html;
+	return txt.value;
+};
 
 
 </script>

@@ -286,7 +286,6 @@ class AsyncRedisLogAdapter:
 		self._file_logs = {}
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
-
 		self._stderr_handler = None
 		if self._log_level_stderr != logging.NONE:
 			if sys.stderr.isatty():
@@ -539,7 +538,10 @@ class RedisLogAdapterThread(threading.Thread):
 			self._loop = asyncio.new_event_loop()
 			self._loop.set_debug(config.debug)
 			asyncio.set_event_loop(self._loop)
-			config.max_log_size
+			def handle_asyncio_exception(loop, context):
+				msg = context.get("exception", context["message"])
+				print("Unhandled exception in RedisLogAdapterThread asyncio loop: %s", msg, file=sys.stderr)
+			self._loop.set_exception_handler(handle_asyncio_exception)
 			self._redis_log_adapter = AsyncRedisLogAdapter(
 				running_event=self._running_event,
 				log_file_template=config.log_file,

@@ -46,6 +46,7 @@ from ..statistics import StatisticsMiddleware
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
 from .webdav import webdav_setup
+from .jsonrpcinterface import jsonrpc_interface_setup
 
 app = FastAPI()
 
@@ -148,5 +149,7 @@ def application_setup():
 	#if os.path.isdir("/tftpboot"):
 	#	app.mount("/boot", StaticFiles(directory="/tftpboot"), name="boot")
 	jsonrpc_setup(app)
+	jsonrpc_interface_setup(app)
 	webdav_setup(app)
 	metrics_setup(app)
+

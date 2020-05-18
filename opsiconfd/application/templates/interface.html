@@ -20,8 +20,10 @@
           <br><br>
           <div>
             <form>
-              <div id="parameter">
-                
+              <div>
+                <table id="parameter" >
+
+                </table>
               </div>
               
             </form>
@@ -34,7 +36,8 @@
           <div id="result">
             <pre id=json-result></pre>
           </div>
-          
+
+         
     </div>         
 
   </body>
@@ -67,7 +70,7 @@ function createParamInputs(value){
         console.log(method.params)
         method.params.forEach(param => {
           console.log(param);
-          html = html+"<label for=\"fname\">"+param+": </label>\n<input type=\"text\" id=\""+param+"\" name=\""+param+"\" oninput=\"changeJSONRPC(this.name,this.value)\"><br><br>";
+          html = html+" <tr><th align=left><label for=\"fname\">"+param+": </label></th><th><input type=\"text\" id=\""+param+"\" name=\""+param+"\" oninput=\"changeJSONRPC(this.name,this.value)\"><th></tr>";
        
         });
        
@@ -125,36 +128,17 @@ function createJSON(){
       } // if(name.substr(0, 1) == "*")
       else{
         console.log(value);
-        
-        // parameter.push(JSON.parse("\""+name+"\":\""+value+"\""));
-        // console.log(JSON.parse("\""+name+"\":\""+value+"\""));
-        // console.log("############");
-        // let json = {};
-        // json[name] = value;
-        // console.log(json);
-        // console.log("############");
-        
         parameter.push(value);
       }   
     } // if value
     else{
-      // console.log("NAME:"+name+" ist leer");
-      // console.log(name.search(/\**/));
-      // console.log(name.substr(0,2));
-      // console.log(name.substr(0,1));
-      // console.log(name.indexOf("*",0));
-      // console.log(name.indexOf("*",1));
+    
       
       if (name.indexOf("*",1) == -1){
         parameter.push(null);
       }
     } //else
   }
-
-  console.log("-------------------");
-  console.log(parameter);  
-  console.log("-------------------");
-  
 
   apiJSON.params = parameter;
   return apiJSON;
@@ -165,11 +149,6 @@ function changeJSONRPC(name,value){
   console.log(name);
   console.log(value);
   let apiJSON = createJSON();
-  console.log("#######################");
-  console.log(apiJSON);
-  
-  console.log("#######################");
-
   outputToHTML(apiJSON,"jsonrpc");
 
 }
@@ -197,12 +176,10 @@ function callJSONRPC(){
   }
   
   let apiJSON = createJSON()
-
-  
+ 
 
   console.log("#######################");
-  console.log(apiJSON);
-  
+  console.log(apiJSON);  
   console.log("#######################");
 
   console.log(window.location.protocol);
@@ -236,7 +213,6 @@ function callJSONRPC(){
 function outputToHTML(json,id) {
     jsonStr = JSON.stringify(json,undefined,2);
     jsonStr = syntaxHighlight(jsonStr);
-    // console.log(jsonStr);
     document.getElementById(id).style.visibility = 'visible'
     document.getElementById(id).innerHTML = jsonStr;    
 }

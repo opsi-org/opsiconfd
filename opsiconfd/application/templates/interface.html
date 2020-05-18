@@ -15,17 +15,26 @@
         </label>
         <br><br>
         <div>
-          <form id="params">
+          <form>
+            <div id="params">
 
+            </div>
+            
           </form>
+          <button onclick="callJSONRPC()">execute</button>
+        </div>
+
+        <div id="result">
+          <pre id=json-result>
+          </pre>
         </div>
         
-        <div id="demo">
+        <!-- <div id="demo">
           <h2>Let AJAX change this text</h2>
           <button type="button" onclick="loadDoc()">Change Content</button>
-        </div>
+        </div> -->
 
-        {{interfaceJSON}}
+        
 
 </body>
 </html>
@@ -44,15 +53,8 @@ var decode = function (html) {
 
 let interface =  decode("{{interfaceJSON}}");
 
-// interface = interface.replace(/'/g,'"');
-// interface = interface.replace(/None/g,'null');
-// console.log(interface);
 
 interface = JSON.parse(interface);
-
-// console.log(interface);
-// test = JSON.parse(JSON.stringify("{{interfaceJSON}}"))
-
 
 
 function get_method(value){
@@ -74,50 +76,107 @@ function get_method(value){
     });
     document.getElementById("params").innerHTML = html;
    
-    // array = JSON.stringify(unescape("{{interface}}"));
-    // // array = JSON.parse("{{interfaceJSON}}")
-    // var txt = document.createElement("textarea");
-    // txt.innerHTML = "{{interfaceJSON}}";
-    // console.log(txt.value);
 
-    // myjson = decode("{{interface}}");
-    // interface = interface.replace(/'/g,'"');
-    // interface = interface.replace(/None/g,'null');
-    // console.log(interface);
-    // console.log(JSON.parse(interface));
-
-    // let test = "";
-    // myjson = JSON.parse(myjson);
-    // console.log(myjson);
-
-    // myjson = ("{{ testVar}}");
-    
-    // for (var i = 0; i < myjson.length; i++){
-    //   console.log(myjson[i]);
-    // }
-
-    // myjson = JSON.stringify(myjson);
-    // myjson = JSON.parse(myjson);
-
-    // myjson = '{ "name":"John", "age":30, "city":"New York"}';
-    // myjson.forEach(element => {
-    //   console.log(element);
-    // });
-   
-
-    // console.log(myjson);
-    
-    // console.log(JSON.stringify(myjson));
-    // console.log(JSON.parse(myjson));
-    
-    
-    // myjson.forEach(element => {
-    //   console.log(element);
-      
-    // });
-    // console.log(test);
     
   
+}
+
+function callJSONRPC(){
+
+
+  let apiJSON = {
+    "id": 1,
+    "method": "",
+    "params": [
+      [],
+      {}
+    ]
+  } 
+  
+  
+  let option = document.getElementById("method-select");
+  let method = option.options[option.selectedIndex].text; 
+  let inputs = document.getElementsByTagName("input");
+
+
+
+  apiJSON.params = [ ["TEST"], {"id": 123}];
+  apiJSON.method = method;
+  console.log(apiJSON);
+ 
+  
+
+  var params = [];
+ 
+  console.log(params);
+  
+  for (i = 0; i < inputs.length; i++) {
+    let name = inputs[i].name.trim();
+    let value = inputs[i].value.trim();
+    console.log("VALUE: " + value);
+    console.log("NAME:" + name);
+
+    if(value){
+      params.push(value.length == 0);
+    }
+    else{
+      console.log("SUBSTR: " + name.substr(0, 1));
+      
+      if (name.substr(0, 1) != "*"){
+        alert("mandatory field empty");
+        return {"error": "mandatory field empty"};
+        
+      }
+    }
+
+  }
+
+  console.log(params);
+  apiJSON.params = params;
+  console.log(apiJSON);
+
+ 
+
+  console.log(window.location.protocol);
+  console.log(window.location.host);
+  console.log(window.location.hostname);
+  console.log(window.location.port);
+  let request = new XMLHttpRequest();
+  request.open("POST","https://localhost:4447/rpc");
+
+  console.log(request);
+  
+  request.addEventListener('load', function(event) {
+    if (request.status >= 200 && request.status < 300) {
+        result = request.responseText
+        console.log(result);
+        document.getElementById("json-result").textContent = JSON.stringify(JSON.parse(result), undefined, 2);
+        return result;
+        
+    } else {
+        console.warn(request.statusText, request.responseText);
+    }
+  });
+  console.log(apiJSON);
+  
+  request.send(JSON.stringify(apiJSON));
+
+
+  
+  // request = new XMLHttpRequest();
+  // request.open("POST","/interface/jsonrpc");
+
+  // console.log(request);
+   
+  // request.addEventListener('load', function(event) {
+  //   if (request.status >= 200 && request.status < 300) {
+  //       console.log(request.responseText);
+  //   } else {
+  //       console.warn(request.statusText, request.responseText);
+  //   }
+  // });
+  // request.send(JSON.stringify(apiJSON));
+
 }
 
 

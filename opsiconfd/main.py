@@ -105,7 +105,7 @@ def main():
 	init_logging()
 
 	redis_log_adapter_thread = None
-	if config.log_level_stderr > 0:
+	if config.log_level_stderr > 0 or config.log_level_file > 0:
 		running = threading.Event()
 		redis_log_adapter_thread = start_redis_log_adapter_thread(running)
 		running.wait()

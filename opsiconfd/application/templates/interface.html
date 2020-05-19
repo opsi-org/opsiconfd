@@ -20,7 +20,9 @@
         {% endfor %}
       </select>
     </label>
+
     <br><br>
+
     <div>
       <form>
         <div>
@@ -28,19 +30,18 @@
 
           </table>
         </div>
-
       </form>
+
       <div>
         <pre id=jsonrpc></pre>
       </div>
       <button onclick="callJSONRPC()">Execute</button>
-    </div>
-
-    
+    </div>  
 
     <div id="result">
       <pre id=json-result></pre>
     </div>
+
   </div>
 
 </body>
@@ -77,7 +78,7 @@
 
   }
 
-  function createJSON() {
+  function createRequestJSON() {
 
     let apiJSON = {
       "id": 1,
@@ -91,13 +92,10 @@
     let option = document.getElementById("method-select");
     let method = option.options[option.selectedIndex].text;
     let inputs = document.getElementsByTagName("input");
-
-    apiJSON.method = method;
-    console.log(apiJSON);
-
     let parameter = [];
 
-    console.log(parameter);
+    apiJSON.method = method;
+
     try {
       for (i = 0; i < inputs.length; i++) {
         let name = inputs[i].name.trim();
@@ -107,30 +105,17 @@
 
         if (value) {
           console.log("NAME:" + name + " ist nicht leer");
-
-          if (name.substr(0, 2) == "**" || name == "*attributes") {
-
-            console.log(JSON.parse(value));
-            parameter.push(JSON.parse(value));
-
-
-          } // if(name.substr(0, 1) == "*")
-          else {
-            console.log(value);
-            parameter.push(JSON.parse(value));
-          }
-        } // if value
+          parameter.push(JSON.parse(value));
+        }
         else {
-
-
           if (name.indexOf("*", 1) == -1) {
             parameter.push(null);
           }
-        } //else
+        } 
       }
     } catch (e) {
       if (e instanceof SyntaxError) {
-        console.error("JSON not valid. " + e)
+        console.error("JSON not valid... " + e);
       } else {
         console.log(e);
       }
@@ -144,7 +129,7 @@
 
     console.log(name);
     console.log(value);
-    let apiJSON = createJSON();
+    let apiJSON = createRequestJSON();
     outputToHTML(apiJSON, "jsonrpc");
 
   }
@@ -167,22 +152,19 @@
         return {
           "error": "mandatory field empty"
         };
-
       }
-
-
     }
 
-    let apiJSON = createJSON()
+    let apiJSON = createRequestJSON();
 
-    console.log("#######################");
+    console.log("apiJSON: ");
     console.log(apiJSON);
-    console.log("#######################");
+  
 
-    console.log(window.location.protocol);
-    console.log(window.location.host);
-    console.log(window.location.hostname);
-    console.log(window.location.port);
+    // console.log(window.location.protocol);
+    // console.log(window.location.host);
+    // console.log(window.location.hostname);
+    // console.log(window.location.port);
     let request = new XMLHttpRequest();
     request.open("POST", "/rpc");
 
@@ -191,20 +173,20 @@
     request.addEventListener('load', function (event) {
       if (request.status >= 200 && request.status < 300) {
         result = request.responseText
-        // console.log(result);
         result = JSON.parse(result);
         outputToHTML(result, "json-result");
         return result;
 
       } else {
         console.warn(request.statusText, request.responseText);
+        return request.statusText;
       }
     });
-    console.log(apiJSON);
-
+   
     request.send(JSON.stringify(apiJSON));
 
   }
+
 
   function outputToHTML(json, id) {
     jsonStr = JSON.stringify(json, undefined, 2);
@@ -244,4 +226,5 @@
     txt.innerHTML = html;
     return txt.value;
   };
+
 </script>

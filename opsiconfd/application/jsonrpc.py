@@ -105,11 +105,18 @@ async def process_jsonrpc(request: Request, response: Response):
 			content_encoding = request.headers.get("content-encoding", "")
 			logger.debug("Content-Type: %s, Content-Encoding: %s", content_type, content_encoding)
 			if "gzip" in content_encoding:
+				logger.debug("gzip decompress data")
 				jsonrpc = await run_in_threadpool(gzip.decompress, jsonrpc)
 		else:
 			jsonrpc = urllib.parse.unquote(request.url.query)
+		# workaround for "JSONDecodeError: str is not valid UTF-8: surrogates not allowed".
+		# opsi-script produces invalid UTF-8.
+		# Therefore we do not pass bytes to orjson.loads but
+		# decoding with "replace" first and passing unicode to orjson.loads.
+		# See orjson documentation for details.
+		jsonrpc = await run_in_threadpool(jsonrpc.decode, "utf-8", "replace")
 		logger.trace("jsonrpc: %s", jsonrpc)
-		jsonrpc = orjson.loads(jsonrpc)
+		jsonrpc = await run_in_threadpool(orjson.loads, jsonrpc)
 		if not type(jsonrpc) is list:
 			jsonrpc = [jsonrpc]
 		tasks = []

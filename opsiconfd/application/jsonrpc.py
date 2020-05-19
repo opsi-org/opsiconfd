@@ -101,7 +101,10 @@ async def process_jsonrpc(request: Request, response: Response):
 		jsonrpc = None
 		if body:
 			jsonrpc = body
-			if "gzip" in request.headers.get("content-encoding", ""):
+			content_type = request.headers.get("content-type", "")
+			content_encoding = request.headers.get("content-encoding", "")
+			logger.debug("Content-Type: %s, Content-Encoding: %s", content_type, content_encoding)
+			if "gzip" in content_encoding:
 				jsonrpc = await run_in_threadpool(gzip.decompress, jsonrpc)
 		else:
 			jsonrpc = urllib.parse.unquote(request.url.query)

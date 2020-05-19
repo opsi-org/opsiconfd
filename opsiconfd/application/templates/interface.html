@@ -51,19 +51,15 @@
 
 
 <script>
-  document.getElementById("result").style.visibility = 'hidden'
-  document.getElementById("jsonrpc").style.visibility = 'hidden'
+  document.getElementById("result").style.visibility = 'hidden';
+  document.getElementById("jsonrpc").style.visibility = 'hidden';
 
-
-  // !!! use '' because json uses "" !!! 
-  let interface = '{{interface|tojson}}';
-
-  interface = JSON.parse(interface);
-
-
-
-
+ 
   function createParamInputs(value) {
+    // !!! use '' because json uses "" !!! 
+    let interface = '{{interface|tojson}}';
+
+    interface = JSON.parse(interface);
     console.log("get_method: " + value);
 
 
@@ -84,10 +80,12 @@
     });
     document.getElementById("parameter").innerHTML = html;
 
+    changeJSONRPC();
 
   }
 
   function createJSON() {
+
     let apiJSON = {
       "id": 1,
       "method": "",
@@ -96,7 +94,6 @@
         {}
       ]
     }
-
 
     let option = document.getElementById("method-select");
     let method = option.options[option.selectedIndex].text;

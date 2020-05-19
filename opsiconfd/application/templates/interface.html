@@ -36,18 +36,16 @@
       <button onclick="callJSONRPC()">Execute</button>
     </div>
 
+    
+
     <div id="result">
       <pre id=json-result></pre>
     </div>
-
-  
   </div>
 
 </body>
 
 </html>
-
-
 
 
 <script>
@@ -66,21 +64,16 @@
     let html = "";
     interface.forEach(method => {
       if (method.name == value) {
-        console.log(method.name);
-        console.log(method.params)
         method.params.forEach(param => {
-          console.log(param);
           html = html + " <tr><th align=left><label for=\"fname\">" + param +
             ": </label></th><th><input type=\"text\" id=\"" + param + "\" name=\"" + param +
-            "\" oninput=\"changeJSONRPC(this.name,this.value)\"><th></tr>";
-
+            "\" oninput=\"changeRequestJSON(this.name,this.value)\"><th></tr>";
         });
-
       }
     });
     document.getElementById("parameter").innerHTML = html;
 
-    changeJSONRPC();
+    changeRequestJSON();
 
   }
 
@@ -147,7 +140,7 @@
     return apiJSON;
   }
 
-  function changeJSONRPC(name, value) {
+  function changeRequestJSON(name, value) {
 
     console.log(name);
     console.log(value);
@@ -182,7 +175,6 @@
 
     let apiJSON = createJSON()
 
-
     console.log("#######################");
     console.log(apiJSON);
     console.log("#######################");
@@ -212,7 +204,6 @@
 
     request.send(JSON.stringify(apiJSON));
 
-
   }
 
   function outputToHTML(json, id) {
@@ -223,6 +214,7 @@
   }
 
 
+  // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
   function syntaxHighlight(json) {
     if (typeof json != 'string') {
       json = JSON.stringify(json, undefined, 2);

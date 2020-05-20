@@ -10,7 +10,7 @@
 <body>
 
   <div class="intefraceContent">
-    <img src="/static/opsi_logo.png" alt="opsi-logo" style="width:128px;height:128px;">
+    <img class="interfaceLogo" src="/static/opsi_logo.png" alt="opsi-logo">
     <h1>Interface: </h1>
 
     <label>Methods:
@@ -33,7 +33,7 @@
       </form>
 
       <div>
-        <pre id=jsonrpc></pre>
+        <pre class="interfaceRequestJSON" id=jsonrpc></pre>
       </div>
       <button onclick="callJSONRPC()">Execute</button>
     </div>  
@@ -59,7 +59,7 @@
     let interface = '{{interface|tojson}}';
 
     interface = JSON.parse(interface);
-    console.log("get_method: " + value);
+    // console.log("get_method: " + value);
 
 
     let html = "";
@@ -100,11 +100,8 @@
       for (i = 0; i < inputs.length; i++) {
         let name = inputs[i].name.trim();
         let value = inputs[i].value.trim();
-        console.log("VALUE: " + value);
-        console.log("NAME:" + name);
 
         if (value) {
-          console.log("NAME:" + name + " ist nicht leer");
           parameter.push(JSON.parse(value));
         }
         else {
@@ -127,8 +124,6 @@
 
   function changeRequestJSON(name, value) {
 
-    console.log(name);
-    console.log(value);
     let apiJSON = createRequestJSON();
     outputToHTML(apiJSON, "jsonrpc");
 
@@ -139,12 +134,9 @@
 
     let inputs = document.getElementsByTagName("input");
 
-
     for (i = 0; i < inputs.length; i++) {
       let name = inputs[i].name.trim();
       let value = inputs[i].value.trim();
-      console.log("VALUE: " + value);
-      console.log("NAME:" + name);
 
       if (!value && name.substr(0, 1) != "*") {
 
@@ -157,8 +149,8 @@
 
     let apiJSON = createRequestJSON();
 
-    console.log("apiJSON: ");
-    console.log(apiJSON);
+    // console.log("apiJSON: ");
+    // console.log(apiJSON);
   
 
     // console.log(window.location.protocol);
@@ -167,8 +159,6 @@
     // console.log(window.location.port);
     let request = new XMLHttpRequest();
     request.open("POST", "/rpc");
-
-    console.log(request);
 
     request.addEventListener('load', function (event) {
       if (request.status >= 200 && request.status < 300) {

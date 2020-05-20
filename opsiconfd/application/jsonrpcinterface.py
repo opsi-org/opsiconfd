@@ -22,7 +22,6 @@
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
-from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 
 import os
@@ -44,9 +43,8 @@ def jsonrpc_interface_setup(app):
 
 @jsonrpc_interface_router.get("/?")
 async def jsonrpc_interface_index(request: Request):
-	interface = get_backend_interface()
-	return HTMLResponse(f"<html><body><pre>{interface}</pre></body></html>")
-
-@jsonrpc_interface_router.get("/test/?")
-async def jsonrpc_interface_index(request: Request):
-	return HTMLResponse('<html><body><h1>Test</h1></body></html>')
+	context = {
+		"request": request,
+		"interface": get_backend_interface()
+	}
+	return templates.TemplateResponse("interface.html", context)

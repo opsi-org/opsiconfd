@@ -20,14 +20,15 @@
 :license: GNU Affero General Public License version 3
 """
 
-from fastapi.responses import HTMLResponse
 from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 import os
 
 from ..logging import logger
 from ..config import config
+from ..backend import get_client_backend, get_backend_interface
 
 from ..backend import get_backend_interface
 
@@ -42,17 +43,8 @@ def jsonrpc_interface_setup(app):
 
 @jsonrpc_interface_router.get("/?")
 async def jsonrpc_interface_index(request: Request):
-
-	interface = get_backend_interface()
-
-	template = "interface.html"
-
 	context = {
 		"request": request,
-		"interface": interface,	
-		}
-	
-
-	return templates.TemplateResponse(template, context)
-
-
+		"interface": get_backend_interface()
+	}
+	return templates.TemplateResponse("interface.html", context)

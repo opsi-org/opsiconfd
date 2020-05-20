@@ -52,11 +52,12 @@ from starlette.requests import HTTPConnection
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from OPSI.Backend.Manager.AccessControl import UserStore
-from OPSI.Util import serialize, deserialize
+from OPSI.Util import serialize, deserialize, ipAddressInNetwork
 
 from .logging import logger, secret_filter
 from .worker import get_redis_client, contextvar_client_session
 from .backend import get_client_backend
+from .config import config
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 def get_basic_auth(headers):
@@ -122,15 +123,30 @@ class SessionMiddleware:
 			scope["session"] = session = OPSISession(self, session_id)
 			await session.init()
 			contextvar_client_session.set(session)
-			
+					
 			if not is_public and (not session.user_store.username or not session.user_store.authenticated):
 				auth = get_basic_auth(scope['headers'])
 				try:
+					
 					get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
-					if not session.user_store.host and not session.user_store.isAdmin:
-						raise Exception(f"Not an admin user '{session.user_store.username}'")
+					
+					if not session.user_store.host:
+						if not session.user_store.isAdmin:
+							raise Exception(f"Not an admin user '{session.user_store.username}'")
+						
+						if config.admin_networks:
+							is_admin_network = False
+							for network in config.admin_networks:
+								ip_adress_in_network = ipAddressInNetwork(connection.client.host,network)							
+								if ip_adress_in_network:
+									is_admin_network = ip_adress_in_network
+									break
+
+						if not is_admin_network:
+							raise Exception(f"User not in admin network '{config.admin_networks}'")
 				except Exception as e:
 					logger.warning(e)
+			
 					raise HTTPException(
 						status_code=status.HTTP_401_UNAUTHORIZED,
 						detail=str(e),

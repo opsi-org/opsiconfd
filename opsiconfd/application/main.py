@@ -152,4 +152,3 @@ def application_setup():
 	jsonrpc_interface_setup(app)
 	webdav_setup(app)
 	metrics_setup(app)
-

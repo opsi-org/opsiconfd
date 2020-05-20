@@ -70,3 +70,23 @@ li {
 .LEVEL_ERROR { color: #dc322b; }
 .LEVEL_CRITICAL { color: #c74b16; }
 .LEVEL_ESSENTIAL { color: #2aa198; }
+
+/* css for interfacesite */
+
+.intefraceContent {
+	width: 800px;
+    margin: 25px 25px;
+  }
+
+.interfaceLogo{
+	width:128px;
+	height:128px;
+}
+
+/* pretty json output */
+.interfaceRequestJSON {outline: 1px solid #ccc; padding: 5px; margin: 5px; }
+.string { color: green; }
+.number { color: darkorange; }
+.boolean { color: blue; }
+.null { color: magenta; }
+.key { color: red; }

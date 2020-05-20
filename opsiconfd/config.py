@@ -140,12 +140,11 @@ parser.add(
 	default="/usr/share/opsiconfd/static",
 	help="Location of the static files."
 )
-# TODO: Implement
 parser.add(
 	"--admin-networks",
 	nargs="+",
 	env_var="OPSICONFD_ADMIN_NETWORKS",
-	default="0.0.0.0/0",
+	default=["0.0.0.0/0"],
 	type=network_address,
 	help="Comma separated list of network addresses from which administrative connections are allowed."
 )

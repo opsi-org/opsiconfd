@@ -69,6 +69,7 @@ package:
     - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.conf ${DST}/rootfs/etc/opsi/
     - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
     - rm -r ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data
+  postinst_script: opsiconfd_data/postinst
 
 changelog:
   next:

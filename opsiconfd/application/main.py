@@ -149,6 +149,6 @@ def application_setup():
 	#if os.path.isdir("/tftpboot"):
 	#	app.mount("/boot", StaticFiles(directory="/tftpboot"), name="boot")
 	jsonrpc_setup(app)
+	jsonrpc_interface_setup(app)
 	webdav_setup(app)
 	metrics_setup(app)
-	jsonrpc_interface_setup(app)

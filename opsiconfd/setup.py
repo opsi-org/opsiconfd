@@ -88,7 +88,7 @@ def setup_ssl():
 		cmd = ["openssl", "req", "-nodes", "-x509", "-newkey", "rsa:2048", "-keyout", ca_key, "-out", ca_crt, "-subj", subject]
 		subprocess.check_call(cmd)
 
-		subject = f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsiconfd/CN={fqdn}/emailAddress=root@{fqdn}" \
+		subject = f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsiconfd/CN={fqdn}/emailAddress=root@{fqdn}"
 		cmd = ["openssl", "req", "-nodes", "-newkey", "rsa:2048", "-keyout", srv_key, "-out", srv_csr, "-subj", subject]
 		subprocess.check_call(cmd)
 

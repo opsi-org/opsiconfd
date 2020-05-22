@@ -145,7 +145,7 @@ def setup_systemd():
 	subprocess.call(["systemctl", "enable", "opsiconfd.service"])
 
 def setup(full: bool = True):
-	logger.notice("Running setup")
+	logger.notice("Running opsiconfd setup")
 	if not config.run_as_user:
 		config.run_as_user = getpass.getuser()
 	setup_limits()

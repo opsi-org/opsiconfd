@@ -24,6 +24,7 @@
 import re
 import sys
 import codecs
+import getpass
 import configargparse
 from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS
 
@@ -104,17 +105,23 @@ parser.add(
 	help="Path to config file."
 )
 parser.add(
+	"--setup",
+	action="store_true",
+	help="Setup opsiconfd installation."
+)
+parser.add(
+	"--run-as-user",
+	env_var="OPSICONFD_RUN_AS_USER",
+	default=getpass.getuser(),
+	metavar="USER",
+	help="Run service as USER."
+)
+parser.add(
 	"--workers",
 	env_var="OPSICONFD_WORKERS",
 	type=int,
 	default=1,
 	help="Number of workers to fork."
-)
-parser.add(
-	"--run-as-user",
-	env_var="OPSICONFD_RUN_AS_USER",
-	metavar="USER",
-	help="Run service as USER."
 )
 parser.add(
 	"--backend-config-dir",

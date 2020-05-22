@@ -111,6 +111,12 @@ parser.add(
 	help="Number of workers to fork."
 )
 parser.add(
+	"--run-as-user",
+	env_var="OPSICONFD_RUN_AS_USER",
+	metavar="USER",
+	help="Run service as USER."
+)
+parser.add(
 	"--backend-config-dir",
 	env_var="OPSICONFD_BACKEND_CONFIG_DIR",
 	default="/etc/opsi/backends",

@@ -19,7 +19,9 @@
 :copyright: uib GmbH <info@uib.de>
 :author: Jan Schneider <j.schneider@uib.de>
 :license: GNU Affero General Public License version 3
+"""
 
+"""
 https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 
 You can add middleware to FastAPI applications.

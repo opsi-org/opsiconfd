@@ -91,6 +91,11 @@ class ArbiterAsyncMainThread(threading.Thread):
 			await asyncio.sleep(1)
 
 def main():
+	if config.setup:
+		init_logging(redis_logging=False)
+		setup(full=True)
+		return
+	
 	redis_log_adapter_thread = None
 	main_async_thread = None
 	try:
@@ -99,10 +104,6 @@ def main():
 			running = threading.Event()
 			redis_log_adapter_thread = start_redis_log_adapter_thread(running)
 			running.wait()
-		
-		if config.setup:
-			setup(full=True)
-			return
 		
 		setup(full=False)
 		

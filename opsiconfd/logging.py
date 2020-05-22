@@ -301,7 +301,7 @@ class AsyncRedisLogAdapter:
 
 		self._loop.create_task(self._start())
 
-	def stop(self):
+	async def stop(self):
 		self._loop.stop()
 	
 	def _log_format_no_color(self, log_format):
@@ -528,10 +528,10 @@ class RedisLogAdapterThread(threading.Thread):
 		threading.Thread.__init__(self)
 		self._running_event = running_event
 		self._redis_log_adapter = None
-
+	
 	def stop(self):
 		if self._redis_log_adapter:
-			self._redis_log_adapter.stop()
+			self._loop.create_task(self._redis_log_adapter.stop())
 	
 	def run(self):
 		try:
@@ -539,8 +539,9 @@ class RedisLogAdapterThread(threading.Thread):
 			self._loop.set_debug(config.debug)
 			asyncio.set_event_loop(self._loop)
 			def handle_asyncio_exception(loop, context):
-				msg = context.get("exception", context["message"])
-				print("Unhandled exception in RedisLogAdapterThread asyncio loop: %s" % msg, file=sys.stderr)
+				if loop.running:
+					msg = context.get("exception", context["message"])
+					print("Unhandled exception in RedisLogAdapterThread asyncio loop: %s" % msg, file=sys.stderr)
 			self._loop.set_exception_handler(handle_asyncio_exception)
 			self._redis_log_adapter = AsyncRedisLogAdapter(
 				running_event=self._running_event,

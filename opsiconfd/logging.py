@@ -477,13 +477,12 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 
 	asyncio.events.Handle._run = _run
 
-def init_logging():
+def init_logging(redis_logging=True):
 	try:
-		fallback_logging = False
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
 		log_level = (10 - log_level) * 10
 		log_handler = None
-		if not fallback_logging:
+		if redis_logging:
 			log_handler = RedisLogHandler()
 			log_handler.setLevel(log_level)
 		else:

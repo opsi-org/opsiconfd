@@ -21,6 +21,8 @@
 :license: GNU Affero General Public License version 3
 """
 
+import os
+import pwd
 import threading
 import pprint
 import asyncio
@@ -28,6 +30,7 @@ import uvloop
 import resource
 import psutil
 import aredis
+import getpass
 
 from .logging import logger, init_logging, start_redis_log_adapter_thread
 from .config import config
@@ -102,6 +105,13 @@ class ArbiterAsyncMainThread(threading.Thread):
 			await asyncio.sleep(1)
 
 def main():
+	if config.run_as_user and getpass.getuser() != config.run_as_user:
+		try:
+			uid = pwd.getpwnam(config.run_as_user)[2]
+			os.setuid(uid)
+		except Exception as e:
+			raise Exception("Failed to run as user '{0}': {1}", config.run_as_user, e)
+	
 	init_logging()
 
 	redis_log_adapter_thread = None

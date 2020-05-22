@@ -540,7 +540,7 @@ class RedisLogAdapterThread(threading.Thread):
 			asyncio.set_event_loop(self._loop)
 			def handle_asyncio_exception(loop, context):
 				msg = context.get("exception", context["message"])
-				print("Unhandled exception in RedisLogAdapterThread asyncio loop: %s", msg, file=sys.stderr)
+				print("Unhandled exception in RedisLogAdapterThread asyncio loop: %s" % msg, file=sys.stderr)
 			self._loop.set_exception_handler(handle_asyncio_exception)
 			self._redis_log_adapter = AsyncRedisLogAdapter(
 				running_event=self._running_event,

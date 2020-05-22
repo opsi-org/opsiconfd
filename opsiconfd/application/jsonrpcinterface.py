@@ -35,7 +35,7 @@ from ..backend import get_backend_interface
 jsonrpc_interface_router = APIRouter()
 
 
-templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
+templates = Jinja2Templates(directory=config.static_dir, "templates"))
 
 
 def jsonrpc_interface_setup(app):

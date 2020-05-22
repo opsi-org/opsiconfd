@@ -27,7 +27,6 @@ import threading
 import pprint
 import asyncio
 import uvloop
-import resource
 import psutil
 import aredis
 import getpass
@@ -37,20 +36,7 @@ from .config import config
 from .application import application_setup
 from .server import run_gunicorn, run_uvicorn
 from .utils import get_node_name, get_worker_processes
-
-def check_limits():
-	# The hard limit is the maximum value that is allowed for the soft limit. Any changes to the hard limit require root access.
-	# The soft limit is the value that Linux uses to limit the system resources for running processes. The soft limit cannot be greater than the hard limit.
-	(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
-	if (soft_limit > 0 and soft_limit < 10000):
-		try:
-			# ulimit -n 10000
-			resource.setrlimit(resource.RLIMIT_NOFILE, (10000, hard_limit))
-			(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
-		except Exception as exc:
-			logger.warning("Failed to set RLIMIT_NOFILE: %s", exc)
-	logger.info("Maximum number of open file descriptors: %s", soft_limit)
-
+from .setup import setup
 
 async def update_worker_registry():
 	redis = aredis.StrictRedis.from_url(config.redis_internal_url)
@@ -105,6 +91,14 @@ class ArbiterAsyncMainThread(threading.Thread):
 			await asyncio.sleep(1)
 
 def main():
+	init_logging()
+
+	if config.setup:
+		setup(full=True)
+		return
+	
+	setup(full=False)
+	
 	if config.run_as_user and getpass.getuser() != config.run_as_user:
 		try:
 			uid = pwd.getpwnam(config.run_as_user)[2]
@@ -112,8 +106,6 @@ def main():
 		except Exception as e:
 			raise Exception("Failed to run as user '{0}': {1}", config.run_as_user, e)
 	
-	init_logging()
-
 	redis_log_adapter_thread = None
 	if config.log_level_stderr > 0 or config.log_level_file > 0:
 		running = threading.Event()
@@ -123,8 +115,6 @@ def main():
 	# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
 	# https://github.com/b2wdigital/aiologger/issues/38
 	uvloop.install()
-
-	check_limits()
 
 	logger.essential("opsiconfd is starting")
 	logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))

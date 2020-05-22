@@ -4,7 +4,7 @@ html, body {
 	margin: 0px;
 	padding: 0px;
 	font-family: Arial, Helvetica, sans-serif;
-    background-color: #eeeeee;
+	background-color: #eeeeee;
 	color: #3a3a3a;
 }
 a:link, a:visited, a:active {
@@ -18,7 +18,7 @@ a:hover {
 	text-decoration: none;
 }
 
-#content {
+.content {
 	margin-top: 50px;
 	width: auto;
 	height: auto;
@@ -34,11 +34,11 @@ li {
 	list-style-type: none;
 }
 
-#logo {
+#logo, #interface-logo {
 	width: 200px;
 	display: block;
-    margin-left: auto;
-    margin-right: auto;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 #log-settings {
@@ -61,6 +61,25 @@ li {
 	clear: both;
 	float: left;
 }
+
+/* css for interfacesite */
+.interface-container {
+	width: 800px;
+	margin: 50px auto 0px auto;
+}
+#jsonrpc-request-table > tr > td {
+	padding-right: 5px;
+}
+#jsonrpc-request-table > tr > td > input, select {
+	width: 500px;
+}
+.jsonrpc-request, .jsonrpc-result {
+	outline: 1px solid #ccc;
+	padding: 5px;
+	margin: 15px 0px 15px 0px;
+	overflow: auto;
+}
+
 .LEVEL_SECRET { color: #795b00; }
 .LEVEL_TRACE { color: #636d6e; }
 .LEVEL_DEBUG { color: #94a3a5; }
@@ -71,22 +90,8 @@ li {
 .LEVEL_CRITICAL { color: #c74b16; }
 .LEVEL_ESSENTIAL { color: #2aa198; }
 
-/* css for interfacesite */
-
-.intefraceContent {
-	width: 800px;
-    margin: 25px 25px;
-  }
-
-.interfaceLogo{
-	width:128px;
-	height:128px;
-}
-
-/* pretty json output */
-.interfaceRequestJSON {outline: 1px solid #ccc; padding: 5px; margin: 5px; }
-.string { color: green; }
-.number { color: darkorange; }
-.boolean { color: blue; }
-.null { color: magenta; }
-.key { color: red; }
+.json_string { color: green; }
+.json_number { color: darkorange; }
+.json_boolean { color: blue; }
+.json_null { color: magenta; }
+.json_key { color: red; }

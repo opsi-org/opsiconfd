@@ -24,6 +24,7 @@ import os
 import pwd
 import grp
 import shutil
+import psutil
 import getpass
 import resource
 import tempfile
@@ -130,6 +131,15 @@ def setup_file_permissions():
 				os.chmod(path=root, mode=0o660)
 	
 def setup_systemd():
+	systemd_running = False
+	for proc in psutil.process_iter():
+		if proc.name() == "systemd":
+			systemd_running = True
+			break
+	if not systemd_running:
+		logger.debug("Systemd not running")
+		return
+	
 	logger.info("Setup systemd")
 	subprocess.call(["systemctl", "daemon-reload"])
 	subprocess.call(["systemctl", "enable", "opsiconfd.service"])

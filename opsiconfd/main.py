@@ -91,46 +91,47 @@ class ArbiterAsyncMainThread(threading.Thread):
 			await asyncio.sleep(1)
 
 def main():
-	init_logging()
-
-	if config.setup:
-		setup(full=True)
-		return
-	
-	setup(full=False)
-	
-	if config.run_as_user and getpass.getuser() != config.run_as_user:
-		try:
-			uid = pwd.getpwnam(config.run_as_user)[2]
-			os.setuid(uid)
-		except Exception as e:
-			raise Exception("Failed to run as user '{0}': {1}", config.run_as_user, e)
-	
 	redis_log_adapter_thread = None
-	if config.log_level_stderr > 0 or config.log_level_file > 0:
-		running = threading.Event()
-		redis_log_adapter_thread = start_redis_log_adapter_thread(running)
-		running.wait()
+	main_async_thread = None
+	try:
+		init_logging()
+		if config.log_level_stderr > 0 or config.log_level_file > 0:
+			running = threading.Event()
+			redis_log_adapter_thread = start_redis_log_adapter_thread(running)
+			running.wait()
+		
+		if config.setup:
+			setup(full=True)
+			return
+		
+		setup(full=False)
+		
+		if config.run_as_user and getpass.getuser() != config.run_as_user:
+			try:
+				uid = pwd.getpwnam(config.run_as_user)[2]
+				os.setuid(uid)
+			except Exception as e:
+				raise Exception("Failed to run as user '{0}': {1}", config.run_as_user, e)
+		
+		# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
+		# https://github.com/b2wdigital/aiologger/issues/38
+		uvloop.install()
 
-	# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
-	# https://github.com/b2wdigital/aiologger/issues/38
-	uvloop.install()
+		logger.essential("opsiconfd is starting")
+		logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
 
-	logger.essential("opsiconfd is starting")
-	logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
-
-	main_async_thread = ArbiterAsyncMainThread()
-	main_async_thread.daemon = True
-	main_async_thread.start()
-	
-	if config.server_type == "gunicorn":
-		run_gunicorn()
-	elif config.server_type == "uvicorn":
-		run_uvicorn()
-
-	main_async_thread.stop()
-	main_async_thread.join()
-
-	if redis_log_adapter_thread:
-		redis_log_adapter_thread.stop()
-		redis_log_adapter_thread.join()
+		main_async_thread = ArbiterAsyncMainThread()
+		main_async_thread.daemon = True
+		main_async_thread.start()
+		
+		if config.server_type == "gunicorn":
+			run_gunicorn()
+		elif config.server_type == "uvicorn":
+			run_uvicorn()
+	finally:
+		if main_async_thread:
+			main_async_thread.stop()
+			main_async_thread.join()
+		if redis_log_adapter_thread:
+			redis_log_adapter_thread.stop()
+			redis_log_adapter_thread.join()

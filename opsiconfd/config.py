@@ -162,6 +162,13 @@ parser.add(
 	help="Comma separated list of network addresses from which administrative connections are allowed."
 )
 parser.add(
+	"--log-mode",
+	env_var="OPSICONFD_LOG_MODE",
+	default="redis",
+	choices=("redis", "local"),
+	help="Set the logging mode. 'redis': use centralized redis logging, 'local': local logging."
+)
+parser.add(
 	"--log-level",
 	env_var="OPSICONFD_LOG_LEVEL",
 	type=int,

@@ -92,14 +92,14 @@ class ArbiterAsyncMainThread(threading.Thread):
 
 def main():
 	if config.setup:
-		init_logging(redis_logging=False)
+		init_logging(log_mode="local")
 		setup(full=True)
 		return
-	
+
 	redis_log_adapter_thread = None
 	main_async_thread = None
 	try:
-		init_logging()
+		init_logging(log_mode=config.log_mode)
 		if config.log_level_stderr > 0 or config.log_level_file > 0:
 			running = threading.Event()
 			redis_log_adapter_thread = start_redis_log_adapter_thread(running)

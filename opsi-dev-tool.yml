@@ -50,7 +50,7 @@ package:
   name: opsiconfd
   type: binary
   systemd: yes
-  dependencies: []
+  depends: []
   source_script:
     - pyi_src="${SRC}"
     - if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi

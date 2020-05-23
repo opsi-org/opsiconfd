@@ -31,7 +31,7 @@ import tempfile
 import subprocess
 
 from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP, DEFAULT_DEPOT_USER
-from OPSI.setup import setup as python_opsi_setup, get_users, get_groups, add_user_to_group
+from OPSI.setup import setup as python_opsi_setup, get_users, get_groups, add_user_to_group, create_user
 from OPSI.Util import getfqdn
 
 from .logging import logger

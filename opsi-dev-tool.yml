@@ -49,6 +49,7 @@ pyinstaller-poetry:
 package:
   name: opsiconfd
   type: binary
+  architecture: amd64
   systemd: yes
   depends: []
   source_script:

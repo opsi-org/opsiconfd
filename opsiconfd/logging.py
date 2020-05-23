@@ -477,22 +477,24 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 
 	asyncio.events.Handle._run = _run
 
-def init_logging(redis_logging=True):
+def init_logging(log_mode="redis"):
 	try:
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
 		log_level = (10 - log_level) * 10
 		log_handler = None
-		if redis_logging:
+		if log_mode == "redis":
 			log_handler = RedisLogHandler()
 			log_handler.setLevel(log_level)
-		else:
+		elif log_mode == "local":
 			console_formatter = colorlog.ColoredFormatter(
 				'[%(log_color)s%(levelname)-9s %(asctime)s]%(reset)s %(message)s',
 				log_colors=LOG_COLORS
 			)
 			log_handler = StreamHandler(stream=sys.stderr)
 			log_handler.setFormatter(console_formatter)
-
+		else:
+			raise ValueError(f"Invalid log mode '{log_mode}'")
+		
 		logger.handlers = [log_handler]
 		logger.setLevel(log_level)
 

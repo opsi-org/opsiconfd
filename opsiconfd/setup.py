@@ -152,5 +152,6 @@ def setup(full: bool = True):
 	if full:
 		python_opsi_setup()
 		setup_users_and_groups()
+		setup_ssl()
 		setup_file_permissions()
 		setup_systemd()

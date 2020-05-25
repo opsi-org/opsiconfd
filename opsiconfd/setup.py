@@ -141,8 +141,8 @@ def setup(full: bool = True):
 		config.run_as_user = getpass.getuser()
 	setup_limits()
 	if full:
-		python_opsi_setup()
 		setup_users_and_groups()
+		python_opsi_setup()
 		setup_ssl()
 		setup_systemd()
 	# Always correct file permissions (run_as_user could be changed)

@@ -71,7 +71,7 @@ package:
     - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
     - rm -r ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data
   postinst_script:
-    - /usr/bin/opsiconfd --setup || true
+    - /usr/bin/opsiconfd --setup --run-as-user=opsiconfd || true
 
 changelog:
   next:

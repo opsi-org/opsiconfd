@@ -23,6 +23,7 @@
 
 import os
 import pwd
+import grp
 import threading
 import pprint
 import asyncio
@@ -110,9 +111,15 @@ def main():
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)
 			try:
-				uid = pwd.getpwnam(config.run_as_user)[2]
-				logger.debug("Set uid %s", uid)
-				os.setuid(uid)
+				user = pwd.getpwnam(config.run_as_user)
+				gids = [user.pw_gid]
+				for g in grp.getgrall():
+					if user.pw_name in g.gr_mem and not g.gr_gid in gids:
+						gids.append(g.gr_gid)
+				logger.debug("Set uid=%s, gid=%s, groups=%s", user.pw_uid, gids[0], gids)
+				os.setgid(gids[0])
+				os.setgroups(gids)
+				os.setuid(user.pw_uid)
 			except Exception as e:
 				raise Exception("Failed to run as user '{0}': {1}", config.run_as_user, e)
 		

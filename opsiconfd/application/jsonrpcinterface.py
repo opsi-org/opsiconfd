@@ -20,20 +20,18 @@
 :license: GNU Affero General Public License version 3
 """
 
+import os
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-
-import os
 
 from ..logging import logger
 from ..config import config
 from ..backend import get_client_backend, get_backend_interface
 
-from ..backend import get_backend_interface
-
 jsonrpc_interface_router = APIRouter()
-templates = Jinja2Templates(directory=os.path.join("static" "templates"))
+templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
 
 def jsonrpc_interface_setup(app):
 	app.include_router(jsonrpc_interface_router, prefix="/interface")

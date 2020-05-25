@@ -108,8 +108,10 @@ def main():
 		setup(full=False)
 		
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
+			logger.essential("Switching to user %s", config.run_as_user)
 			try:
 				uid = pwd.getpwnam(config.run_as_user)[2]
+				logger.debug("Set uid %s", uid)
 				os.setuid(uid)
 			except Exception as e:
 				raise Exception("Failed to run as user '{0}': {1}", config.run_as_user, e)

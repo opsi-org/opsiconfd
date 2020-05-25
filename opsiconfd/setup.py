@@ -34,6 +34,7 @@ from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP, DEFAULT_DEPOT_USER
 from OPSI.setup import setup as python_opsi_setup, get_users, get_groups, add_user_to_group, create_user
 from OPSI.Util import getfqdn
 from OPSI.System import get_subprocess_environment
+from OPSI.Util.Task.Rights import setRights
 
 from .logging import logger
 from .config import config
@@ -118,19 +119,8 @@ def setup_file_permissions():
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
+	setRights("/var/log/opsi")
 
-	log_dir = os.path.dirname(os.path.abspath(config.log_file))
-	if log_dir.count(os.sep) > 0:
-		for root, dirs, files in os.walk(log_dir):
-			shutil.chown(root, config.run_as_user, OPSI_ADMIN_GROUP)
-			os.chmod(path=root, mode=0o770)
-			for item in dirs:
-				shutil.chown(path=os.path.join(root, item), user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-				os.chmod(path=root, mode=0o770)
-			for item in files:
-				shutil.chown(path=os.path.join(root, item), user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-				os.chmod(path=root, mode=0o660)
-	
 def setup_systemd():
 	systemd_running = False
 	for proc in psutil.process_iter():
@@ -154,5 +144,6 @@ def setup(full: bool = True):
 		python_opsi_setup()
 		setup_users_and_groups()
 		setup_ssl()
-		setup_file_permissions()
 		setup_systemd()
+	# Always correct file permissions (run_as_user could be changed)
+	setup_file_permissions()

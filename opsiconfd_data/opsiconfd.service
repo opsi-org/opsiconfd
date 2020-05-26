@@ -8,7 +8,7 @@ Requires=local-fs.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/opsiconfd --log-level-stderr=0 --run-as-user=opsiconfd
+ExecStart=/usr/bin/opsiconfd --log-level-stderr=0
 RestartSec=10
 TimeoutStopSec=15
 

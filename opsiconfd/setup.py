@@ -145,7 +145,7 @@ def setup(full: bool = True):
 		config.run_as_user = getpass.getuser()
 	setup_limits()
 	if full:
-		po_setup_users_and_groups
+		po_setup_users_and_groups()
 		setup_users_and_groups()
 		po_setup_file_permissions()
 		setup_ssl()

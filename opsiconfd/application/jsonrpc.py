@@ -155,8 +155,8 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		method_name = rpc.get('method')
 		params = rpc.get('params', [])
 		rpc_id = rpc.get('id')
-		logger.debug(f"Processing request from {request.client.host} ({user_agent}) for {method_name}")
-		logger.trace(f"Retrieved parameters {params} for {method_name}")
+		logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, method_name)
+		logger.trace("Retrieved parameters %s for %s", params, method_name)
 
 		for method in get_backend_interface():
 			if method_name == method['name']:
@@ -193,9 +193,9 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 
 		end = time.perf_counter()
 
-		logger.info(f"Backend execution of method '{method_name}' took {end - start:0.4f} seconds")
+		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		
-		logger.debug(f"Sending result (len: {len(str(response))})")
+		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
 		return [response, end - start]
 	except Exception as e:
@@ -207,81 +207,3 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 			error["details"] = str(tb)
 		return [{"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}, 0]
 		
-
-"""
-@jsonrpc_router.get("/rpc/?")
-@jsonrpc_router.post("/rpc/?")
-async def aget(request: Request, response: Response):
-	body = await request.body()
-	return await run_in_threadpool(get, request, response, body)
-
-def get(request: Request, response: Response, body: str = None):
-	rpc_id = 0
-	try:
-		jsonrpc = None
-		user_agent = request.headers.get('user-agent')
-		if body:
-			jsonrpc = body
-		else:
-			jsonrpc = urllib.parse.unquote(request.url.query)
-		jsonrpc = orjson.loads(jsonrpc)
-		method_name = jsonrpc.get('method')
-		params = jsonrpc.get('params', [])
-		rpc_id = jsonrpc.get('id', 0)
-		logger.debug(f"Processing request from {request.client.host} ({user_agent}) for {method_name}")
-		logger.trace(f"Retrieved parameters {params} for {method_name}")
-
-		backend = get_backend(request)
-		# TODO: TEST cached interface!
-		#for method in backend.backend_getInterface():
-		for method in get_backend_interface():
-			if method_name == method['name']:
-				method_description = method
-				break
-		else:
-			raise Exception("Method {method_name} not found!")
-		
-		keywords = {}
-		if method_description['keywords']:
-			parameter_count = 0
-			if method_description['args']:
-				parameter_count += len(method_description['args'])
-			if method_description['varargs']:
-				parameter_count += len(method_description['varargs'])
-
-			if len(params) >= parameter_count:
-				kwargs = params.pop(-1)
-				if not isinstance(kwargs, dict):
-					raise TypeError(u"kwargs param is not a dict: %r" % params[-1])
-
-				for (key, value) in kwargs.items():
-					keywords[str(key)] = deserialize(value)
-
-		tic = time.perf_counter()
-		result = None
-		method = getattr(backend, method_name)
-		if keywords:
-			result = method(*params, **keywords)
-		else:
-			result = method(*params)
-		toc = time.perf_counter()
-		logger.debug(f"Backend execution of method '{method_name}' took {toc - tic:0.4f} seconds")
-		response = {"jsonrpc": "2.0", "id": rpc_id, "result": result, "error": None}
-		response = serialize(response)
-		logger.debug(f"Sending result (len: {len(str(response))})")
-		logger.trace(response)
-		return response
-	except HTTPException as e:
-		raise
-	#except OPSI.Exceptions.BackendPermissionDeniedError
-	except Exception as e:
-		logger.error(e, exc_info=True)
-		tb = traceback.format_exc()
-		error = {"message": str(e), "class": e.__class__.__name__}
-		if True:
-			error["details"] = str(tb)
-		return {"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}
-		#return JSONResponse(content={'error': str(e)}, status_code=500)
-"""
-
-

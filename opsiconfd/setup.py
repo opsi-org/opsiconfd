@@ -31,7 +31,11 @@ import tempfile
 import subprocess
 
 from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP, DEFAULT_DEPOT_USER
-from OPSI.setup import setup as python_opsi_setup, get_users, get_groups, add_user_to_group, create_user
+from OPSI.setup import (
+	setup_users_and_groups as po_setup_users_and_groups,
+	setup_file_permissions as po_setup_file_permissions,
+	get_users, get_groups, add_user_to_group, create_user
+)
 from OPSI.Util import getfqdn
 from OPSI.System import get_subprocess_environment
 from OPSI.Util.Task.Rights import setRights
@@ -141,8 +145,9 @@ def setup(full: bool = True):
 		config.run_as_user = getpass.getuser()
 	setup_limits()
 	if full:
+		po_setup_users_and_groups
 		setup_users_and_groups()
-		python_opsi_setup()
+		po_setup_file_permissions()
 		setup_ssl()
 		setup_systemd()
 	# Always correct file permissions (run_as_user could be changed)

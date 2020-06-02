@@ -120,6 +120,7 @@ def main():
 				os.setgid(gids[0])
 				os.setgroups(gids)
 				os.setuid(user.pw_uid)
+				os.environ["HOME"] = user.pw_dir
 			except Exception as e:
 				raise Exception("Failed to run as user '{0}': {1}", config.run_as_user, e)
 		

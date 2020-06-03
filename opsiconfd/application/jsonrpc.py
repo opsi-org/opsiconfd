@@ -105,7 +105,10 @@ async def process_jsonrpc(request: Request, response: Response):
 			content_encoding = request.headers.get("content-encoding", "")
 			logger.debug("Content-Type: %s, Content-Encoding: %s", content_type, content_encoding)
 			if "gzip" in content_encoding:
-				logger.debug("gzip decompress data")
+				logger.debug("decompress gzip data")
+				jsonrpc = await run_in_threadpool(gzip.decompress, jsonrpc)
+			elif "deflate" in content_encoding:
+				logger.debug("decompress deflate data")
 				jsonrpc = await run_in_threadpool(gzip.decompress, jsonrpc)
 		else:
 			jsonrpc = urllib.parse.unquote(request.url.query)

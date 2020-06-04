@@ -55,6 +55,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork
+from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
 from .logging import logger, secret_filter
 from .worker import get_redis_client, contextvar_client_session
@@ -134,25 +135,30 @@ class SessionMiddleware:
 					
 					if not session.user_store.host:
 						if not session.user_store.isAdmin:
-							raise Exception(f"Not an admin user '{session.user_store.username}'")
+							raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 						
 						if config.admin_networks:
 							is_admin_network = False
 							for network in config.admin_networks:
-								ip_adress_in_network = ipAddressInNetwork(connection.client.host,network)							
+								ip_adress_in_network = ipAddressInNetwork(connection.client.host, network)							
 								if ip_adress_in_network:
 									is_admin_network = ip_adress_in_network
 									break
 
 						if not is_admin_network:
-							raise Exception(f"User not in admin network '{config.admin_networks}'")
-				except Exception as e:
+							raise BackendPermissionDeniedError(f"User not in admin network '{config.admin_networks}'")
+				except (BackendAuthenticationError, BackendPermissionDeniedError) as e:
 					logger.warning(e)
-			
 					raise HTTPException(
 						status_code=status.HTTP_401_UNAUTHORIZED,
 						detail=str(e),
 						headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+					)
+				except Exception as e:
+					logger.error(e, exc_info=True)
+					raise HTTPException(
+						status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+						detail=str(e)
 					)
 			
 			async def send_wrapper(message: Message) -> None:

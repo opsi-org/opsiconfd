@@ -50,13 +50,8 @@ import OPSI.Logger
 from .utils import Singleton
 from .config import config
 
-#DEFAULT_FORMAT = '[%(levelname)s] [%(asctime)s] %(message)s (%(filename)s:%(lineno)d)'
-#DEFAULT_FORMAT = '%(log_color)s[%(levelname)-9s %(asctime)s]%(reset)s %(filename)16s:%(lineno)4s   %(message)s'
-#DEFAULT_FORMAT = '%(log_color)s[%(levelname)-9s %(asctime)s]%(reset)s %(message)s'
-#DEFAULT_FORMAT = '%(log_color)s[%(levelname)-9s %(asctime)s]%(reset)s %(client_address)s - %(message)s   (%(filename)s:%(lineno)d)'
-DEFAULT_FORMAT = '%(log_color)s[%(levelnum)s] [%(asctime)s]%(reset)s [%(client_address)s] %(message)s'
-#DEFAULT_FORMATTER = Formatter(DEFAULT_FORMAT)
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+DEFAULT_FORMAT = "%(log_color)s[%(opsilevel)s] [%(asctime)s.%(msecs)03d]%(reset)s [%(client_address)s] %(message)s   (%(filename)s:%(lineno)d)"
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 SECRET_REPLACEMENT_STRING = '***secret***'
 
 #logger = logging.getLogger('opsiconfd')
@@ -105,6 +100,32 @@ logging._nameToLevel = {
 	'NONE': logging.NONE
 }
 
+logging._levelToOpsiLevel = {
+	logging.SECRET: 9,
+	logging.TRACE: 8,
+	logging.DEBUG: 7,
+	logging.INFO: 6,
+	logging.NOTICE: 5,
+	logging.WARNING: 4,
+	logging.ERROR: 3,
+	logging.CRITICAL: 2,
+	logging.ESSENTIAL: 1,
+	logging.NONE: 0
+}
+
+logging._opsiLevelToLevel = {
+	9: logging.SECRET,
+	8: logging.TRACE,
+	7: logging.DEBUG,
+	6: logging.INFO,
+	5: logging.NOTICE,
+	4: logging.WARNING,
+	3: logging.ERROR,
+	2: logging.CRITICAL,
+	1: logging.ESSENTIAL,
+	0: logging.NONE
+}
+
 LOG_COLORS = {
 	'SECRET': 'thin_yellow',
 	'TRACE': 'thin_white',
@@ -140,7 +161,13 @@ def essential(self, msg, *args, **kwargs):
 logging.Logger.essential = essential
 logging.Logger.comment = essential
 
-# Set default log level to WARNING early
+def logrecord_init(self, name, level, pathname, lineno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
+	self.__init_orig__(name, level, pathname, lineno, msg, args, exc_info, func=func, sinfo=sinfo, **kwargs)
+	self.opsilevel = logging._levelToOpsiLevel.get(level, level)
+LogRecord.__init_orig__ = LogRecord.__init__
+LogRecord.__init__ = logrecord_init
+
+# Set default log level to ERROR early
 logger.setLevel(logging.ERROR)
 
 # Replace OPSI Logger
@@ -481,7 +508,7 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 def init_logging(log_mode="redis"):
 	try:
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
-		log_level = (10 - log_level) * 10
+		log_level = logging._opsiLevelToLevel[log_level]
 		log_handler = None
 		if log_mode == "redis":
 			log_handler = RedisLogHandler()
@@ -550,8 +577,8 @@ class RedisLogAdapterThread(threading.Thread):
 				max_log_file_size=round(config.max_log_size * 1000 * 1000),
 				keep_rotated_log_files=config.keep_rotated_logs,
 				symlink_client_log_files=config.symlink_logs,
-				log_level_stderr=(10 - config.log_level_stderr) * 10,
-				log_level_file=(10 - config.log_level_file) * 10
+				log_level_stderr=logging._opsiLevelToLevel[config.log_level_stderr],
+				log_level_file=logging._opsiLevelToLevel[config.log_level_file]
 			)
 			self._loop.run_forever()
 		except Exception as exc:

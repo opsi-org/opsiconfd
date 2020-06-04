@@ -23,6 +23,7 @@
 
 import time
 import gzip
+import zlib
 import traceback
 import urllib.parse
 import orjson
@@ -109,7 +110,7 @@ async def process_jsonrpc(request: Request, response: Response):
 				jsonrpc = await run_in_threadpool(gzip.decompress, jsonrpc)
 			elif "deflate" in content_encoding:
 				logger.debug("decompress deflate data")
-				jsonrpc = await run_in_threadpool(gzip.decompress, jsonrpc)
+				jsonrpc = await run_in_threadpool(zlib.decompress, jsonrpc)
 		else:
 			jsonrpc = urllib.parse.unquote(request.url.query)
 		# workaround for "JSONDecodeError: str is not valid UTF-8: surrogates not allowed".

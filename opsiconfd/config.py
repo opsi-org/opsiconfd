@@ -224,7 +224,7 @@ parser.add(
 parser.add(
 	"--log-format-file",
 	env_var="OPSICONFD_LOG_FORMAT_FILE",
-	default="[%(levelname)-9s %(asctime)s] %(message)s   (%(filename)s:%(lineno)d)",
+	default="[%(levelnum)s] [%(asctime)s] %(message)s   (%(filename)s:%(lineno)d)",
 	help="Set the log format for logfiles."
 )
 parser.add(
@@ -240,7 +240,7 @@ parser.add(
 parser.add(
 	"--log-format-stderr",
 	env_var="OPSICONFD_LOG_FORMAT_STDERR",
-	default="%(log_color)s[%(levelname)-9s %(asctime)s]%(reset)s %(client_address)s - %(message)s   (%(filename)s:%(lineno)d)",
+	default="%(log_color)s[%(levelnum)s] [%(asctime)s]%(reset)s [%(client_address)s] %(message)s   (%(filename)s:%(lineno)d)",
 	help="Set the log format for stder."
 )
 #parser.add(

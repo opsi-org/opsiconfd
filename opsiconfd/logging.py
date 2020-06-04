@@ -54,8 +54,9 @@ from .config import config
 #DEFAULT_FORMAT = '%(log_color)s[%(levelname)-9s %(asctime)s]%(reset)s %(filename)16s:%(lineno)4s   %(message)s'
 #DEFAULT_FORMAT = '%(log_color)s[%(levelname)-9s %(asctime)s]%(reset)s %(message)s'
 #DEFAULT_FORMAT = '%(log_color)s[%(levelname)-9s %(asctime)s]%(reset)s %(client_address)s - %(message)s   (%(filename)s:%(lineno)d)'
-DEFAULT_FORMAT = '%(log_color)s[%(levelname)-9s %(asctime)s]%(reset)s %(client_address)s - %(message)s'
+DEFAULT_FORMAT = '%(log_color)s[%(levelnum)s] [%(asctime)s]%(reset)s [%(client_address)s] %(message)s'
 #DEFAULT_FORMATTER = Formatter(DEFAULT_FORMAT)
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 SECRET_REPLACEMENT_STRING = '***secret***'
 
 #logger = logging.getLogger('opsiconfd')
@@ -290,9 +291,9 @@ class AsyncRedisLogAdapter:
 		if self._log_level_stderr != logging.NONE:
 			if sys.stderr.isatty():
 				# colorize
-				console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS)
+				console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS, datefmt=DATETIME_FORMAT)
 			else:
-				console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr))
+				console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
 			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=console_formatter)
 		
 		if self._log_level_file != logging.NONE:
@@ -335,7 +336,7 @@ class AsyncRedisLogAdapter:
 					active_lifetime = 0 if name == 'opsiconfd' else self._file_log_active_lifetime
 					self._file_logs[filename] = AsyncRotatingFileHandler(
 						filename=filename,
-						formatter=Formatter(self._log_format_no_color(self._log_format_file)),
+						formatter=Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT),
 						active_lifetime=active_lifetime,
 						mode='a',
 						encoding='utf-8',
@@ -486,10 +487,7 @@ def init_logging(log_mode="redis"):
 			log_handler = RedisLogHandler()
 			log_handler.setLevel(log_level)
 		elif log_mode == "local":
-			console_formatter = colorlog.ColoredFormatter(
-				'[%(log_color)s%(levelname)-9s %(asctime)s]%(reset)s %(message)s',
-				log_colors=LOG_COLORS
-			)
+			console_formatter = colorlog.ColoredFormatter(config.log_format_stderr, datefmt=DATETIME_FORMAT, log_colors=LOG_COLORS)
 			log_handler = StreamHandler(stream=sys.stderr)
 			log_handler.setFormatter(console_formatter)
 		else:

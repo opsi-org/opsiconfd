@@ -164,6 +164,8 @@ logging.Logger.comment = essential
 def logrecord_init(self, name, level, pathname, lineno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
 	self.__init_orig__(name, level, pathname, lineno, msg, args, exc_info, func=func, sinfo=sinfo, **kwargs)
 	self.opsilevel = logging._levelToOpsiLevel.get(level, level)
+	self.client_address = kwargs.get("client_address", "")
+
 LogRecord.__init_orig__ = LogRecord.__init__
 LogRecord.__init__ = logrecord_init
 

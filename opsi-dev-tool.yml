@@ -32,6 +32,7 @@ pyinstaller-poetry:
       - OPSI.Backend.OpsiPXEConfd
       - OPSI.Backend.Replicator
       - OPSI.Backend.SQLite
+      - OPSI.Util.WIM
   scripts:
     - script: run-opsiconfd
       binaries:

@@ -115,7 +115,7 @@ def main():
 		setup(full=True)
 		return
 
-	monkey_patch()
+	#monkey_patch()
 	
 	redis_log_adapter_thread = None
 	main_async_thread = None

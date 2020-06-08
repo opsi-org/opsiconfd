@@ -67,8 +67,10 @@ async def grafana_index(request: Request):
 	if url.username is not None:
 		if url.password is None:
 			# Username only, assuming this is an api key
+			logger.debug("Using api key for grafana authorization")
 			headers = {"Authorization": f"Bearer {url.username}"}
 		else:
+			logger.debug("Using username %s and password grafana authorization", url.username)
 			auth = aiohttp.BasicAuth(url.username, url.password)
 	
 	async with aiohttp.ClientSession(auth=auth) as session:

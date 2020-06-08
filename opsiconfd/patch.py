@@ -23,7 +23,7 @@
 from websockets import protocol
 from websockets.protocol import State
 from websockets.framing import Frame
-import textwrap
+from websockets.exceptions import InvalidState
 
 from .logging import logger
 
@@ -60,7 +60,7 @@ def patch_websockets_protocol():
 			# drain() cannot be called concurrently by multiple coroutines:
 			# http://bugs.python.org/issue29930. Remove this lock when no
 			# version of Python where this bugs exists is supported anymore.
-			async with self._drain_lock:
+			async with self._drain_lock: # pylint: disable=protected-access
 				# Handle flow control automatically.
 				await self.writer.drain()
 		except ConnectionError:

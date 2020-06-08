@@ -27,15 +27,12 @@ import grp
 import threading
 import pprint
 import asyncio
-import uvloop
-import psutil
-import aredis
 import getpass
-import inspect
+import uvloop
+import aredis
 
 from .logging import logger, init_logging, start_redis_log_adapter_thread
 from .config import config
-from .application import application_setup
 from .server import run_gunicorn, run_uvicorn
 from .utils import get_node_name, get_worker_processes
 from .setup import setup
@@ -49,7 +46,11 @@ async def update_worker_registry():
 		for worker_num, proc in enumerate(get_worker_processes()):
 			worker_num += 1
 			redis_key = f"opsiconfd:worker_registry:{node_name}:{worker_num}"
-			await redis.hmset(redis_key, {"worker_pid": proc.pid, "node_name": node_name, "worker_num": worker_num})
+			await redis.hmset(redis_key, {
+				"worker_pid": proc.pid,
+				"node_name": node_name,
+				"worker_num": worker_num
+			})
 			await redis.expire(redis_key, 60)
 		
 		if worker_num == 0:
@@ -61,12 +62,12 @@ async def update_worker_registry():
 			redis_key = redis_key.decode("utf-8")
 			try:
 				wn = int(redis_key.split(':')[-1])
-			except Exception as exc:
+			except IndexError:
 				wn = -1
 			if wn == -1 or wn > worker_num:
 				await redis.delete(redis_key)
 		
-		for i in range(10):
+		for _ in range(10):
 			await asyncio.sleep(1)
 
 class ArbiterAsyncMainThread(threading.Thread):
@@ -85,7 +86,7 @@ class ArbiterAsyncMainThread(threading.Thread):
 			asyncio.set_event_loop(self._loop)
 			self._loop.create_task(self.main())
 			self._loop.run_forever()
-		except Exception as exc:
+		except Exception as exc: # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 	
 	async def main(self):
@@ -126,7 +127,7 @@ def main():
 				os.setuid(user.pw_uid)
 				os.environ["HOME"] = user.pw_dir
 			except Exception as e:
-				raise Exception("Failed to run as user '{0}': {1}", config.run_as_user, e)
+				raise Exception(f"Failed to run as user '{config.run_as_user}': {e}")
 		
 		# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
 		# https://github.com/b2wdigital/aiologger/issues/38

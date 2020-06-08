@@ -39,6 +39,7 @@ from .application import application_setup
 from .server import run_gunicorn, run_uvicorn
 from .utils import get_node_name, get_worker_processes
 from .setup import setup
+from .patch import apply_patches
 
 async def update_worker_registry():
 	redis = aredis.StrictRedis.from_url(config.redis_internal_url)
@@ -92,30 +93,13 @@ class ArbiterAsyncMainThread(threading.Thread):
 		while True:
 			await asyncio.sleep(1)
 
-
-from websockets import protocol
-from websockets.protocol import State
-from websockets.framing import Frame
-import textwrap
-def monkey_patch():
-	# Change log level for logging websocket frame data to trace
-	source = textwrap.dedent(inspect.getsource(protocol.WebSocketCommonProtocol.read_frame))
-	source = source.replace('logger.debug("%s < %r", self.side, frame)', 'logger.trace("%s < %r", self.side, frame)')
-	exec(compile(source, '<string>', 'exec'))
-	protocol.WebSocketCommonProtocol.read_frame = locals()["read_frame"]
-	
-	source = textwrap.dedent(inspect.getsource(protocol.WebSocketCommonProtocol.write_frame))
-	source = source.replace('logger.debug("%s > %r", self.side, frame)', 'logger.trace("%s > %r", self.side, frame)')
-	exec(compile(source, '<string>', 'exec'))
-	protocol.WebSocketCommonProtocol.write_frame = locals()["write_frame"]
-
 def main():
 	if config.setup:
 		init_logging(log_mode="local")
 		setup(full=True)
 		return
 
-	#monkey_patch()
+	apply_patches()
 	
 	redis_log_adapter_thread = None
 	main_async_thread = None

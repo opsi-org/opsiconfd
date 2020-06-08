@@ -31,6 +31,7 @@ import uvloop
 import psutil
 import aredis
 import getpass
+import inspect
 
 from .logging import logger, init_logging, start_redis_log_adapter_thread
 from .config import config
@@ -91,12 +92,31 @@ class ArbiterAsyncMainThread(threading.Thread):
 		while True:
 			await asyncio.sleep(1)
 
+
+from websockets import protocol
+from websockets.protocol import State
+from websockets.framing import Frame
+import textwrap
+def monkey_patch():
+	# Change log level for logging websocket frame data to trace
+	source = textwrap.dedent(inspect.getsource(protocol.WebSocketCommonProtocol.read_frame))
+	source = source.replace('logger.debug("%s < %r", self.side, frame)', 'logger.trace("%s < %r", self.side, frame)')
+	exec(compile(source, '<string>', 'exec'))
+	protocol.WebSocketCommonProtocol.read_frame = locals()["read_frame"]
+	
+	source = textwrap.dedent(inspect.getsource(protocol.WebSocketCommonProtocol.write_frame))
+	source = source.replace('logger.debug("%s > %r", self.side, frame)', 'logger.trace("%s > %r", self.side, frame)')
+	exec(compile(source, '<string>', 'exec'))
+	protocol.WebSocketCommonProtocol.write_frame = locals()["write_frame"]
+
 def main():
 	if config.setup:
 		init_logging(log_mode="local")
 		setup(full=True)
 		return
 
+	monkey_patch()
+	
 	redis_log_adapter_thread = None
 	main_async_thread = None
 	try:

@@ -243,6 +243,12 @@ parser.add(
 	default="%(log_color)s[%(opsilevel)d] [%(asctime)s.%(msecs)03d]%(reset)s [%(client_address)s] %(message)s   (%(filename)s:%(lineno)d)",
 	help="Set the log format for stder."
 )
+parser.add(
+	"--log-max-msg-len",
+	env_var="OPSICONFD_LOG_MAX_MSG_LEN",
+	default=5000,
+	help=expert_help("Set maximum log message length.")
+)
 #parser.add(
 #	"--max-execution-statistics",
 #	env_var="OPSICONFD_MAX_EXECUTION_STATISTICS",
@@ -339,24 +345,24 @@ parser.add(
 	"--redis-internal-url",
 	env_var="OPSICONFD_REDIS_INTERNAL_URL",
 	default='redis://localhost',
-	help="Redis connection url"
+	help="Redis connection url."
 )
 parser.add(
 	"--grafana-internal-url",
 	env_var="OPSICONFD_GRAFANA_INTERNAL_URL",
 	default='http://localhost:3000',
-	help="Grafana base url for internal use"
+	help="Grafana base url for internal use."
 )
 parser.add(
 	"--grafana-external-url",
 	env_var="OPSICONFD_GRAFANA_EXTERNAL_URL",
 	default='http://grafana:3000',
-	help="External grafana base url"
+	help="External grafana base url."
 )
 parser.add(
 	"--ex-help",
 	action='store_true',
-	help=expert_help("Show expert help message and exit")
+	help=expert_help("Show expert help message and exit.")
 )
 parser.add(
 	"--debug",

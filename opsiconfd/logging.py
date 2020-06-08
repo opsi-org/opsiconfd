@@ -516,7 +516,7 @@ def init_logging(log_mode="redis"):
 		log_level = logging._opsiLevelToLevel[log_level]
 		log_handler = None
 		if log_mode == "redis":
-			log_handler = RedisLogHandler(max_msg_len=config.log_max_msg_len)
+			log_handler = RedisLogHandler(max_msg_len=int(config.log_max_msg_len))
 			log_handler.setLevel(log_level)
 		elif log_mode == "local":
 			console_formatter = colorlog.ColoredFormatter(config.log_format_stderr, datefmt=DATETIME_FORMAT, log_colors=LOG_COLORS)

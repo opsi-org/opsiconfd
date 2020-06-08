@@ -442,8 +442,9 @@ class AsyncRedisLogAdapter:
 				handle_log_exception(exc, log=False)
 
 class RedisLogHandler(logging.Handler):
-	def __init__(self):
+	def __init__(self, max_msg_len: int = 0):
 		super().__init__()
+		self._max_msg_len = max_msg_len
 		self._redis = redis.Redis.from_url(config.redis_internal_url)
 		self._redis_lock = threading.Lock()
 		from .worker import contextvar_client_address, contextvar_server_address
@@ -462,6 +463,8 @@ class RedisLogHandler(logging.Handler):
 				record.msg = record.getMessage()
 		for secret in secret_filter.secrets:
 			record.msg = record.msg.replace(secret, SECRET_REPLACEMENT_STRING)
+		if self._max_msg_len and len(record.msg) > self._max_msg_len:
+			record.msg = record.msg[:self._max_msg_len - 1] + '…'
 		if hasattr(record, 'exc_info') and record.exc_info:
 			# by calling format the formatted exception information is cached in attribute exc_text
 			self.format(record)
@@ -513,7 +516,7 @@ def init_logging(log_mode="redis"):
 		log_level = logging._opsiLevelToLevel[log_level]
 		log_handler = None
 		if log_mode == "redis":
-			log_handler = RedisLogHandler()
+			log_handler = RedisLogHandler(max_msg_len=config.log_max_msg_len)
 			log_handler.setLevel(log_level)
 		elif log_mode == "local":
 			console_formatter = colorlog.ColoredFormatter(config.log_format_stderr, datefmt=DATETIME_FORMAT, log_colors=LOG_COLORS)

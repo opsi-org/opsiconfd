@@ -128,14 +128,14 @@ async def process_jsonrpc(request: Request, response: Response):
 			task = run_in_threadpool(process_rpc, request, response, rpc, backend)
 			tasks.append(task)
 		
-		await get_metrics_collector().add_value("worker:num_rpcs", len(jsonrpc))
+		await get_metrics_collector().add_value("worker:num_rpcs", len(jsonrpc), {"node_name": get_node_name(), "worker_num": get_worker_num()})
 
 		#context_jsonrpc_call_id.set(myid)
 		#print(f"start {myid}")
 		results = []
 		for result in await asyncio.gather(*tasks):
 			results.append(result[0])
-			await get_metrics_collector().add_value("worker:rpc_duration", result[1])
+			await get_metrics_collector().add_value("worker:rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
 		#print(f"done {myid}")
 		if len(results) == 1:
 			return results[0]

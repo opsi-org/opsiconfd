@@ -1,0 +1,7 @@
+/.venv
+/build
+/debian
+/dist
+/python-opsi
+__pycache__
+*.egg-info

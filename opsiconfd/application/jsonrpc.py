@@ -184,7 +184,8 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 
 				for (key, value) in kwargs.items():
 					keywords[str(key)] = deserialize(value)
-
+		params = deserialize(params)
+		
 		result = None
 		method = getattr(backend, method_name)
 		if keywords:

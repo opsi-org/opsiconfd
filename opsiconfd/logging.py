@@ -454,11 +454,17 @@ class RedisLogHandler(logging.Handler):
 	def log_record_to_dict(self, record):
 		if hasattr(record, 'args'):
 			if record.args:
-				record.msg = record.msg.format(*record.args)
+				errors = []
+				try:
+					record.msg = record.msg.format(*record.args)
+				except (TypeError, ValueError) as e:
+					errors.append(e)
 				try:
 					record.msg = record.msg % record.args
 				except (TypeError, ValueError) as e:
-					pass
+					errors.append(e)
+				if len(errors) == 2:
+					handle_log_exception(errors[0], log=False)
 			else:
 				record.msg = record.getMessage()
 		for secret in secret_filter.secrets:

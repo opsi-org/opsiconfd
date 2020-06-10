@@ -94,7 +94,8 @@ def init_worker():
 	# create redis pool
 	loop.create_task(get_redis_client())
 	# create and start MetricsCollector
-	_metrics_collector = MetricsCollector(scope="worker")
+	# _metrics_collector = MetricsCollector(scope="worker")
+	_metrics_collector = MetricsCollector()
 	loop.create_task(_metrics_collector.main_loop())
 	# create BackendManager instance
 	get_backend()

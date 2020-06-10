@@ -34,6 +34,7 @@ from typing import Dict, List
 from ctypes import c_long
 import yappi
 from yappi import YFuncStats
+from aredis.exceptions import ResponseError 
 
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -362,12 +363,16 @@ class MetricsRegistry(metaclass=Singleton):
 		return list(self._metrics_by_id)
 	
 	def get_metrics(self, scope: str = None):
+
+		# logger.notice("self._metrics_by_id.values(): %s", self._metrics_by_id.values())
+		# logger.notice("self._metrics_by_id: %s", self._metrics_by_id)
 		for metric in self._metrics_by_id.values():
-			# logger.notice(metric.id)
+			# logger.notice("METRIC ID: %s", metric.id)
 			# logger.notice(metric.scope)
 			# logger.notice(scope)
 			if not scope or scope == metric.scope: # or metric.scope == "client":
 				yield metric
+			# yield metric
 
 	def get_metric_by_id(self, id):
 		if id in self._metrics_by_id:
@@ -450,20 +455,20 @@ metrics_registry.register(
 	),
 	Metric(
 		id="client:num_http_request",
-		name="HTTP requests of Client",
+		name="HTTP requests of Client {client_addr}",
 		vars=["client_addr"],
 		retention=24 * 3600 * 1000,
-		scope="worker",
+		scope="client",
 		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=True)
 	),
-	Metric(
-		id="client:num_http_request:172.18.0.1",
-		name="HTTP requests of Client 172.18.0.1",
-		vars=["client_addr"],
-		retention=24 * 3600 * 1000,
-		scope="worker",
-		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=True)
-	),
+	# Metric(
+	# 	id="client:num_http_request:172.18.0.1",
+	# 	name="HTTP requests of Client 172.18.0.1",
+	# 	vars=["client_addr"],
+	# 	retention=24 * 3600 * 1000,
+	# 	scope="client",
+	# 	grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=True)
+	# )
 	# Metric(
 	# 	id="client:num_http_request:172.18.0.4",
 	# 	name="HTTP requests of Client 172.18.0.4",
@@ -476,8 +481,7 @@ metrics_registry.register(
 
 
 class MetricsCollector():
-	def __init__(self, scope: str = "arbiter", interval: int = 5):
-		self._scope = scope
+	def __init__(self, interval: int = 5):
 		self._interval = interval
 		self._node_name = get_node_name()
 		self._worker_num = get_worker_num()
@@ -496,21 +500,30 @@ class MetricsCollector():
 
 	async def main_loop(self):
 
+		# logger.error(metrics_registry.get_metric_by_id("worker:num_rpcs"))
 		
 		while True:
+			# logger.notice(round(time.time()))
 			# logger.notice(self._node_name)
 			# logger.notice(self._worker_num)
 			# logger.notice("VALUES: %s", self._values)
+
+			# logger.warning(metrics_registry.get_metric_ids())
+
 			cmd = None
-			# logger.warning(self._scope)
+			# logger.notice(self._scope)
 			try:
 				await self._fetch_values()
 				# logger.notice(self._values)
 				timestamp = round(time.time())*1000
-				for metric in metrics_registry.get_metrics(scope=self._scope):
+				
+				for metric in metrics_registry.get_metrics():
 
+					# logger.notice(metric.id)
+					# logger.notice(metric.name)
+					
 					if not metric.id in self._values:
-						break
+						continue
 
 					value = 0
 					count = 0
@@ -539,7 +552,7 @@ class MetricsCollector():
 					for idx, var in enumerate(metric.vars):
 						labels[var] = label_values[idx]
 
-					logger.notice("##########: %s", labels)
+					# logger.notice("##########: %s", labels)
 					# logger.notice("LABEL_VALUES: %s", label_values)
 					# logger.warning(metric.id)
 					# logger.warning(metric.scope)
@@ -557,7 +570,7 @@ class MetricsCollector():
 					# for var in metric.vars:
 					# 	labels = 
 					cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
-					logger.warning("CMD: %s", cmd)
+					# logger.warning("CMD: %s", cmd)
 					await self._execute_redis_command(cmd)
 			except Exception as exc:
 				err = str(exc)
@@ -590,22 +603,37 @@ class MetricsCollector():
 			raise ValueError(f"Invalid command {cmd}")
 		return " ".join([ str(x) for x in cmd ])
 
-	async def _execute_redis_command(self, cmd, max_tries=1):
+	async def _execute_redis_command(self, cmd, max_tries=2):
+		# logger.notice("List: %s", cmd)
 		if type(cmd) is list:
+			# logger.notice("!!!")
 			cmd = " ".join([ str(x) for x in cmd ])
-		logger.debug("Executing redis command: %s", cmd)
+		# logger.warning(cmd.split(" "))
+		# logger.warning(cmd.split(" ")[2])
+		# test = cmd.split(" ") 
+		# test[2] = "123"
+		# logger.warning(test)
+		# logger.debug("Executing redis command: %s", cmd)
+		# logger.notice("str: %s", cmd)
 		for trynum in range(1, max_tries + 1):
 			try:
+				# logger.error(trynum)
 				redis = await get_redis_client()
+				if trynum > 1:
+					cmd = cmd.split(" ")
+					cmd[2] = timestamp = (round(time.time())*1000)+1
+					# logger.error(time.time())
+					# logger.error(cmd)
+					cmd = " ".join([ str(x) for x in cmd ])
 				return await redis.execute_command(cmd)
-			except:
+			except ResponseError:
 				if trynum >= max_tries:
 					raise
 	
 	#def add_value(self, metric: Metric, value: float, timestamp: int = None, **kwargs):
 	async def add_value(self, metric_id: str, value: float, labels: dict = {}, timestamp: int = None):
 		metric = metrics_registry.get_metric_by_id(metric_id)
-
+		# logger.notice(metric_id)
 		key_string = ""
 		for var in metric.vars:
 			if not key_string: 
@@ -626,8 +654,8 @@ class MetricsCollector():
 		if not timestamp:
 			timestamp = int(round(time.time()*1000))
 		async with self._values_lock:
-			if metric_id == "worker:num_http_request":
-				logger.warning("VALUES: %s", self._values)
+			# if metric_id == "worker:num_http_request":
+				# logger.warning("VALUES: %s", self._values)
 			#key = json.dumps(kwargs, sort_keys=True)
 			if not metric_id in self._values:
 				self._values[metric_id] = {}
@@ -637,13 +665,15 @@ class MetricsCollector():
 				self._values[metric_id][key_string][timestamp] = 0
 			self._values[metric_id][key_string][timestamp] += value
 			# logger.warning("VALUES: %s", self._values)
+		if metric_id == "worker:num_rpcs":
+			logger.notice(self._values)
 
 
 class StatisticsMiddleware(BaseHTTPMiddleware):
 	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
 		super().__init__(app)
 
-		self.matric_collector = MetricsCollector(scope="client")
+		
 		
 		self._profiler_enabled = profiler_enabled
 		self._log_func_stats = log_func_stats
@@ -740,6 +770,17 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 		# 		value /= count
 		# 	cmd = get_metrics_collector()._redis_ts_cmd(metric, "ADD", 1, timestamp, **labels)
 		# 	await get_metrics_collector()._execute_redis_command(cmd)
+		# test = contextvar_client_address.get()
+		# metrics_registry.register(
+		# 	Metric(
+		# 		id="client:num_http_request:{test}",
+		# 		name="HTTP requests of Client {test}",
+		# 		vars=["client_addr"],
+		# 		retention=24 * 3600 * 1000,
+		# 		scope="client",
+		# 		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=True)
+		# 	)
+		# )
 		
 		# await client_stat()
 		

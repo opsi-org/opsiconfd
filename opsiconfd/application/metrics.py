@@ -103,6 +103,12 @@ async def grafana_dashboard_config():
 		workers.append({"node_name": redis_key.split(':')[-2], "worker_num": int(redis_key.split(':')[-1])})
 	workers.sort(key=itemgetter("node_name", "worker_num"))
 
+	clients = []
+	async for redis_key in redis.scan_iter(f"opsiconfd:stats:client:num_http_request:*"):
+		redis_key = redis_key.decode("utf-8")
+		clients.append({"client_addr": redis_key.split(':')[-1]})
+	clients.sort(key=itemgetter("client_addr"))
+
 	dashboard = copy.deepcopy(GRAFANA_DASHBOARD_TEMPLATE)
 	panels = []
 	x = 0
@@ -113,12 +119,20 @@ async def grafana_dashboard_config():
 		panel_id += 1
 		#print(metric)
 		panel = metric.grafana_config.get_panel(id=panel_id, x=x, y=y)
-		for i, worker in enumerate(workers):
-			panel["targets"].append({
-				"refId": chr(65+i),
-				"target": metric.get_name(node_name=worker["node_name"], worker_num=worker["worker_num"]),
-				"type": "timeserie"
-			})
+		if metric.scope == "worker":
+			for i, worker in enumerate(workers):
+				panel["targets"].append({
+					"refId": chr(65+i),
+					"target": metric.get_name(node_name=worker["node_name"], worker_num=worker["worker_num"]),
+					"type": "timeserie"
+				})
+		elif metric.scope == "client":
+			for i, client in enumerate(clients):
+				panel["targets"].append({
+					"refId": chr(65+i),
+					"target": metric.get_name(client_addr=client["client_addr"]),
+					"type": "timeserie"
+				})
 		panels.append(panel)
 		x += panel["gridPos"]["w"]
 		if x >= 24:
@@ -137,16 +151,29 @@ async def grafana_index():
 @grafana_metrics_router.post('/search')
 async def grafana_search():
 	redis = await get_redis_client()
-	workers = []
-	async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:*"):
-		redis_key = redis_key.decode("utf-8")
-		workers.append({"node_name": redis_key.split(':')[-2], "worker_num": int(redis_key.split(':')[-1])})
-	workers.sort(key=itemgetter("node_name", "worker_num"))
-
+	
 	names = []
 	for metric in metrics_registry.get_metrics():
-		for worker in workers:
-			names.append(metric.get_name(**worker))
+		logger.notice(metric.id)
+		if metric.scope == "worker":
+			workers = []
+			async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:*"):
+				redis_key = redis_key.decode("utf-8")
+				workers.append({"node_name": redis_key.split(':')[-2], "worker_num": int(redis_key.split(':')[-1])})
+			workers.sort(key=itemgetter("node_name", "worker_num"))
+			for worker in workers:
+				names.append(metric.get_name(**worker))
+		elif metric.scope == "client":
+			clients = []
+			async for redis_key in redis.scan_iter(f"opsiconfd:stats:client:num_http_request:*"):
+				redis_key = redis_key.decode("utf-8")
+				clients.append({"client_addr": redis_key.split(':')[-1]})
+				logger.error(redis_key)
+			clients.sort(key=itemgetter("client_addr"))
+			for client in clients:
+				names.append(metric.get_name(**client))
+		else:
+			names.append(metric.get_name())
 	return sorted(names)
 
 class GrafanaQueryTargetRange(BaseModel):

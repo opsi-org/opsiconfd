@@ -86,9 +86,9 @@ def jsonrpc_setup(app):
 	app.include_router(jsonrpc_router, prefix="/rpc")
 
 
-
-@jsonrpc_router.get("/?", response_class=ORJSONResponse)
-@jsonrpc_router.post("/?", response_class=ORJSONResponse)
+# Some clients are using /rpc/rpc
+@jsonrpc_router.get(".*", response_class=ORJSONResponse)
+@jsonrpc_router.post(".*", response_class=ORJSONResponse)
 async def process_jsonrpc(request: Request, response: Response):
 	try:
 		global xid

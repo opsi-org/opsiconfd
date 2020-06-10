@@ -6,6 +6,7 @@ pyinstaller-poetry:
     all:
       - ipaddress
       - colorsys
+      - distro
       - gunicorn.glogging
       - uvicorn.workers
       - uvicorn.loops

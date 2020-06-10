@@ -16,6 +16,8 @@ build:linux-pyinstaller:
     - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd .
+    # Check if binary is working
+    - ./opsiconfd/opsiconfd --version
   artifacts:
     name: 'opsiconfd-linux-pyinstaller'
     paths:

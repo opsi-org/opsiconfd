@@ -111,14 +111,14 @@ async def process_jsonrpc(request: Request, response: Response):
 			elif "deflate" in content_encoding:
 				logger.debug("decompress deflate data")
 				jsonrpc = await run_in_threadpool(zlib.decompress, jsonrpc)
+			# workaround for "JSONDecodeError: str is not valid UTF-8: surrogates not allowed".
+			# opsi-script produces invalid UTF-8.
+			# Therefore we do not pass bytes to orjson.loads but
+			# decoding with "replace" first and passing unicode to orjson.loads.
+			# See orjson documentation for details.
+			jsonrpc = await run_in_threadpool(jsonrpc.decode, "utf-8", "replace")
 		else:
 			jsonrpc = urllib.parse.unquote(request.url.query)
-		# workaround for "JSONDecodeError: str is not valid UTF-8: surrogates not allowed".
-		# opsi-script produces invalid UTF-8.
-		# Therefore we do not pass bytes to orjson.loads but
-		# decoding with "replace" first and passing unicode to orjson.loads.
-		# See orjson documentation for details.
-		jsonrpc = await run_in_threadpool(jsonrpc.decode, "utf-8", "replace")
 		logger.trace("jsonrpc: %s", jsonrpc)
 		jsonrpc = await run_in_threadpool(orjson.loads, jsonrpc)
 		if not type(jsonrpc) is list:

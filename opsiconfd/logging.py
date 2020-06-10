@@ -251,8 +251,10 @@ class AdditionalFieldsFilter(Filter):
 		self._contextvar_server_address = contextvar_server_address
 
 	def filter(self, record):
-		record.client_address = self._contextvar_client_address.get()
-		record.server_address = self._contextvar_server_address.get()	
+		if not hasattr(record, "client_address"):
+			record.client_address = self._contextvar_client_address.get()
+		if not hasattr(record, "server_address"):
+			record.server_address = self._contextvar_server_address.get()	
 		return True
 
 

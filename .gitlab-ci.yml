@@ -17,7 +17,7 @@ build:linux-pyinstaller:
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd .
     # Check if binary is working
-    - ./opsiconfd/opsiconfd --version
+    - ./opsiconfd/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
   artifacts:
     name: 'opsiconfd-linux-pyinstaller'
     paths:

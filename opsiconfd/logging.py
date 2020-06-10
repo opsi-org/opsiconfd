@@ -254,7 +254,7 @@ class AdditionalFieldsFilter(Filter):
 		if not hasattr(record, "client_address"):
 			record.client_address = self._contextvar_client_address.get()
 		if not hasattr(record, "server_address"):
-			record.server_address = self._contextvar_server_address.get()	
+			record.server_address = self._contextvar_server_address.get()
 		return True
 
 

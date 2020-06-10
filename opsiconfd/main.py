@@ -31,6 +31,7 @@ import getpass
 import uvloop
 import aredis
 
+from . import __version__
 from .logging import logger, init_logging, start_redis_log_adapter_thread
 from .config import config
 from .server import run_gunicorn, run_uvicorn
@@ -95,6 +96,10 @@ class ArbiterAsyncMainThread(threading.Thread):
 			await asyncio.sleep(1)
 
 def main():
+	if config.version:
+		print(__version__)
+		return
+	
 	if config.setup:
 		init_logging(log_mode="local")
 		setup(full=True)

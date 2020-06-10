@@ -105,6 +105,11 @@ parser.add(
 	help="Path to config file."
 )
 parser.add(
+	"--version",
+	action='store_true',
+	help="Show version info and exit."
+)
+parser.add(
 	"--setup",
 	action="store_true",
 	help="Setup opsiconfd installation."

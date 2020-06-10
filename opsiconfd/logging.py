@@ -32,7 +32,7 @@ import queue
 import socket
 import logging
 import inspect
-from logging import LogRecord, Formatter, StreamHandler
+from logging import LogRecord, Formatter, StreamHandler, Filter
 import threading
 import asyncio
 import aredis
@@ -229,6 +229,7 @@ class SecretFilter(metaclass=Singleton):
 
 secret_filter = SecretFilter()
 
+
 class SecretFormatter(object):
 	def __init__(self, orig_formatter):
 		self.orig_formatter = orig_formatter
@@ -241,6 +242,18 @@ class SecretFormatter(object):
 	
 	def __getattr__(self, attr):
 		return getattr(self.orig_formatter, attr)
+
+
+class AdditionalFieldsFilter(Filter):
+	def __init__(self):
+		from .worker import contextvar_client_address, contextvar_server_address
+		self._contextvar_client_address = contextvar_client_address
+		self._contextvar_server_address = contextvar_server_address
+
+	def filter(self, record):
+		record.client_address = self._contextvar_client_address.get()
+		record.server_address = self._contextvar_server_address.get()	
+		return True
 
 
 class AsyncRotatingFileHandler(AsyncFileHandler):
@@ -447,9 +460,6 @@ class RedisLogHandler(logging.Handler):
 		self._max_msg_len = max_msg_len
 		self._redis = redis.Redis.from_url(config.redis_internal_url)
 		self._redis_lock = threading.Lock()
-		from .worker import contextvar_client_address, contextvar_server_address
-		self._contextvar_client_address = contextvar_client_address
-		self._contextvar_server_address = contextvar_server_address
 
 	def log_record_to_dict(self, record):
 		if hasattr(record, 'args'):
@@ -483,8 +493,6 @@ class RedisLogHandler(logging.Handler):
 
 	def emit(self, record):
 		try:
-			record.client_address = self._contextvar_client_address.get()
-			record.server_address = self._contextvar_server_address.get()
 			str_record = msgpack.packb(self.log_record_to_dict(record))
 			client = str(record.client_address or "")
 			with self._redis_lock:
@@ -518,6 +526,7 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 
 def init_logging(log_mode="redis"):
 	try:
+		logger.addFilter(AdditionalFieldsFilter())
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
 		log_level = logging._opsiLevelToLevel[log_level]
 		log_handler = None

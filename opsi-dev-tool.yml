@@ -52,7 +52,8 @@ package:
   type: binary
   architecture: amd64
   systemd: yes
-  depends: []
+  depends:
+    - librsync1
   source_script:
     - pyi_src="${SRC}"
     - if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi
@@ -72,7 +73,7 @@ package:
     - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
     - rm -r ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data
   postinst_script:
-    - /usr/bin/opsiconfd --setup --run-as-user=opsiconfd || true
+    - /usr/bin/opsiconfd --setup --log-level-stderr=5 --log-level-file=0 --run-as-user=opsiconfd || true
     - grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf
 
 changelog:

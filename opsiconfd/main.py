@@ -32,6 +32,7 @@ import uvloop
 import aredis
 
 from . import __version__
+from OPSI import __version__ as python_opsi_version
 from .logging import logger, init_logging, start_redis_log_adapter_thread
 from .config import config
 from .server import run_gunicorn, run_uvicorn
@@ -97,7 +98,7 @@ class ArbiterAsyncMainThread(threading.Thread):
 
 def main():
 	if config.version:
-		print(__version__)
+		print(f"{__version__} [python-opsi={python_opsi_version}]")
 		return
 	
 	if config.setup:

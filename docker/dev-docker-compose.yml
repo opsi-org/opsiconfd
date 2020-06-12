@@ -22,8 +22,8 @@ services:
     entrypoint: ["/docker-entrypoint.sh"]
     #entrypoint: ["poetry", "run", "opsiconfd"]
   mysql:
-    image: mysql:5.7
-    command: --max_allowed_packet=32505856 # Set max_allowed_packet to 256M
+    image: mysql:8
+    command: --max_allowed_packet=256M --sort_buffer_size=4M
     ports:
       - "3307:3306"
     environment:

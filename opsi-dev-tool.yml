@@ -53,7 +53,7 @@ package:
   architecture: amd64
   systemd: yes
   depends:
-    - librsync1
+    - librsync || librsync2 || librsync1
   source_script:
     - pyi_src="${SRC}"
     - if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi

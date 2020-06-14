@@ -44,7 +44,7 @@ class Perftest:
 		self.base_url = "%s://%s:%d" % (u.scheme or 'https', u.hostname or u.path, u.port or 4447)
 		self.username = username
 		self.password = password
-		self.num_clients = clients if clients > 0 else 1
+		self.num_clients = clients if clients and clients > 0 else 1
 		self.iterations = iterations
 		self.print_responses = print_responses
 		self.test_cases = []

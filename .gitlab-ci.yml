@@ -1,8 +1,67 @@
 image: python:3.7-stretch
 
 stages:
+  - test
   - build
   - package
+
+test:perftest:
+  when: manual
+  image: ubuntu:focal
+  services:
+    - mysql:latest
+    - redislabs/redistimeseries:latest
+  variables:
+    MYSQL_ROOT_PASSWORD: "opsi"
+    MYSQL_DATABASE: "opsi"
+  stage: test
+  script:
+    # Install debian packages
+    - export DEBIAN_FRONTEND=noninteractive
+    - apt update
+    - apt -y install python3-pip python3-venv mysql-client git
+    # Deactivate mysql strict mode
+    - mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "SET GLOBAL sql_mode = 'NO_ENGINE_SUBSTITUTION';"
+    # Get config files from opsi-server package
+    - "[ -e /etc/opsi ] && rm -r /etc/opsi"
+    - "[ -e ../opsi-server ] && rm -r ../opsi-server"
+    - url=$(git remote -v | grep fetch | cut -f2 | sed s'#/opsiconfd.git.*#/opsi-server.git#')
+    #- branch=$(git rev-parse --abbrev-ref HEAD)
+    - branch=master
+    - GIT_TERMINAL_PROMPT=0 git clone --branch $branch $url ../opsi-server
+    - cp -a ../opsi-server/opsi-server_data/etc /etc/opsi
+    # Set mysql address in config
+    - "sed -i 's/127.0.0.1/mysql/' opsi-server_data/etc/backends/mysql.conf"
+    # Use mysql backend only
+    - "echo '.* : mysql' > /etc/opsi/backendManager/dispatch.conf"
+    # Configure opsiconfd
+    - "echo redis-internal-url = redis://redis > /etc/opsi/opsiconfd.conf"
+    - "echo log-level-stderr = 4 >> /etc/opsi/opsiconfd.conf"
+    - "echo log-level-file = 4 >> /etc/opsi/opsiconfd.conf"
+    # Installing opsi test modules file
+    - echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
+    # TODO: restore some backend
+    # Install poetry
+    - pip3 install poetry
+    - poetry install
+    - poetry run opsiconfd &
+    - poetry run ./perftest/opsiconfd-perftest.py
+  script:
+#    - echo waiting 20sec to wait for mysql
+#    - sleep 20
+    - poetry run ./run_tests.sh
+#    - poetry run ./run_qa.sh
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
+  artifacts:
+    name: 'python-opsi_test'
+    paths:
+      #- pylint.txt
+      #- pep8.txt
+      - coverage.xml
+      - testreport.xml
+#    reports:
+#        junit: testreport.xml
+    expire_in: 14 days
 
 build:linux-pyinstaller:
   stage: build

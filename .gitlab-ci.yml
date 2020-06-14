@@ -46,22 +46,6 @@ test:perftest:
     - poetry install
     - poetry run opsiconfd &
     - poetry run ./perftest/opsiconfd-perftest.py
-  script:
-#    - echo waiting 20sec to wait for mysql
-#    - sleep 20
-    - poetry run ./run_tests.sh
-#    - poetry run ./run_qa.sh
-  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
-  artifacts:
-    name: 'python-opsi_test'
-    paths:
-      #- pylint.txt
-      #- pep8.txt
-      - coverage.xml
-      - testreport.xml
-#    reports:
-#        junit: testreport.xml
-    expire_in: 14 days
 
 build:linux-pyinstaller:
   stage: build

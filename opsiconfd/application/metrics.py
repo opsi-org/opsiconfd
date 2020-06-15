@@ -169,7 +169,7 @@ async def grafana_search():
 				redis_key = redis_key.decode("utf-8")
 				clients.append({"client_addr": redis_key.split(':')[-1]})
 				logger.error(redis_key)
-			clients.sort(key=itemgetter("client_addr"))
+			# clients.sort(key=itemgetter("client_addr"))
 			for client in clients:
 				names.append(metric.get_name(**client))
 		else:

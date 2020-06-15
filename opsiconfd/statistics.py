@@ -459,7 +459,7 @@ metrics_registry.register(
 		vars=["client_addr"],
 		retention=24 * 3600 * 1000,
 		scope="client",
-		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=True)
+		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=False)
 	),
 	# Metric(
 	# 	id="client:num_http_request:172.18.0.1",
@@ -525,53 +525,129 @@ class MetricsCollector():
 					if not metric.id in self._values:
 						continue
 
-					value = 0
-					count = 0
-					async with self._values_lock:
-						for key in self._values.get(metric.id, {}):
-							# logger.notice("V: %s", key)
-							values = self._values[metric.id].get(key, {})
-						# logger.notice("NEW VALUES: %s", values)
-						if not values and not metric.zero_if_missing:
-							continue
-						for ts in list(values):
-							if ts <= timestamp:
-								count += 1
-								value += values[ts]
-								del values[ts]
-					if metric.aggregation == "avg" and count > 0:
-						value /= count
-					labels = {}
-					label_values = None
-					
-					for key in self._values[metric.id]:
-						if label_values == None:
-							label_values = (key.split(":"))
-						else:
-							label_values.append(key.split(":"))
-					for idx, var in enumerate(metric.vars):
-						labels[var] = label_values[idx]
 
-					# logger.notice("##########: %s", labels)
-					# logger.notice("LABEL_VALUES: %s", label_values)
-					# logger.warning(metric.id)
-					# logger.warning(metric.scope)
-					# if self._scope == "worker": # and not metric.scope == "client":
-					# 	labels = {
-					# 		"node_name": self._node_name,
-					# 		"worker_num": self._worker_num,
-					# 	}
-					# if metric.scope == "client":
-					# 	logger.warning("SCOPE: CLIENT")
-					# 	labels = {
-					# 		"client_addr": contextvar_client_address.get()
-					# 	}
-					
-					# for var in metric.vars:
-					# 	labels = 
-					cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
-					# logger.warning("CMD: %s", cmd)
-					await self._execute_redis_command(cmd)
+					if metric.scope == "client":
+						# logger.error(self._values)
+						labels = {}
+						for addr in self._values[metric.id]:
+
+							# values = self._values[metric.id].get(key, {})
+							logger.notice("ADDR: %s", addr)
+							timestamps = self._values[metric.id][addr]
+							logger.warning("timestamps: %s", timestamps)
+
+								
+							value = 0
+							count = 0
+							async with self._values_lock:
+
+								values = self._values[metric.id].get(addr, {})
+								logger.warning("VALUES: %s ", values)
+
+								if not values and not metric.zero_if_missing:
+									continue
+
+								for ts in list(values):
+									logger.error(ts)
+									if ts <= timestamp:
+										count += 1
+										value += values[ts]
+										del values[ts]
+
+							if metric.aggregation == "avg" and count > 0:
+								value /= count
+
+							labels["client_addr"] = addr
+							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
+							logger.warning(cmd)
+							await self._execute_redis_command(cmd)
+						
+							# 	for key in self._values.get(metric.id, {}):
+							# 		# logger.notice("KEY: %s", key)
+							# 		values = self._values[metric.id].get(key, {})
+							# 	# logger.notice("NEW VALUES: %s", values)
+								
+							# 	if not values and not metric.zero_if_missing:
+							# 		continue
+							# 	# logger.warning("IP: %s and VALUES: %s", addr, list(values))
+							# 	for ts in list(values):
+							# 		if ts <= timestamp:
+							# 			count += 1
+							# 			value += values[ts]
+							# 			del values[ts]
+							# if metric.aggregation == "avg" and count > 0:
+							# 	value /= count
+							# logger.error("IP: %s VALUE: %s", addr, value)
+							# labels["client_addr"] = addr
+							
+							# cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
+							# # logger.error(cmd)
+							# await self._execute_redis_command(cmd)
+
+					else:
+
+						value = 0
+						count = 0
+						
+						async with self._values_lock:
+							for key in self._values.get(metric.id, {}):
+								# logger.notice("V: %s", key)
+								values = self._values[metric.id].get(key, {})
+							# logger.notice("NEW VALUES: %s", values)
+							if not values and not metric.zero_if_missing:
+								continue
+							for ts in list(values):
+								if ts <= timestamp:
+									count += 1
+									value += values[ts]
+									del values[ts]
+						if metric.aggregation == "avg" and count > 0:
+							value /= count
+
+						labels = {}
+						label_values = None
+						
+						for key in self._values[metric.id]:
+							# logger.error(key)
+							# logger.error(key.split(":"))
+							# if metric.scope == "client":
+							# 	logger.notice("KEY: %s", key)
+							if label_values == None:
+								label_values = (key.split(":"))
+							else:
+								label_values.append(key.split(":"))
+						# if metric.scope == "client":
+						# 	logger.notice("label_values: %s", label_values)
+						for idx, var in enumerate(metric.vars):
+							# if metric.scope == "client":
+								# logger.notice("VAR: %s", var)
+							labels[var] = label_values[idx]
+						# logger.notice(label_values)
+						# logger.notice(labels)
+						
+						# 	logger.notice(label_values)
+
+						# logger.notice("##########: %s", labels)
+						# logger.notice("LABEL_VALUES: %s", label_values)
+						# logger.warning(metric.id)
+						# logger.warning(metric.scope)
+						# if self._scope == "worker": # and not metric.scope == "client":
+						# 	labels = {
+						# 		"node_name": self._node_name,
+						# 		"worker_num": self._worker_num,
+						# 	}
+						# if metric.scope == "client":
+						# 	logger.warning("SCOPE: CLIENT")
+						# 	labels = {
+						# 		"client_addr": contextvar_client_address.get()
+						# 	}
+						
+						# for var in metric.vars:
+						# 	labels = 
+						cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
+						# if metric.scope == "client":
+						# 	logger.warning("CMD: %s", cmd)
+						await self._execute_redis_command(cmd)
 			except Exception as exc:
 				err = str(exc)
 				if cmd:
@@ -665,9 +741,6 @@ class MetricsCollector():
 				self._values[metric_id][key_string][timestamp] = 0
 			self._values[metric_id][key_string][timestamp] += value
 			# logger.warning("VALUES: %s", self._values)
-		if metric_id == "worker:num_rpcs":
-			logger.notice(self._values)
-
 
 class StatisticsMiddleware(BaseHTTPMiddleware):
 	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
@@ -783,7 +856,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 		# )
 		
 		# await client_stat()
-		
+		logger.error(contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
 			await get_metrics_collector().add_value("worker:num_http_request", 1, {"node_name": get_node_name(), "worker_num": get_worker_num()})
 			await get_metrics_collector().add_value("client:num_http_request", 1, {"client_addr": contextvar_client_address.get()})

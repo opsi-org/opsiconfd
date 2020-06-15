@@ -516,6 +516,7 @@ class MetricsCollector():
 				await self._fetch_values()
 				# logger.notice(self._values)
 				timestamp = round(time.time())*1000
+				# timestamp = int(time.time() * 1000)
 				
 				for metric in metrics_registry.get_metrics():
 
@@ -527,14 +528,14 @@ class MetricsCollector():
 
 
 					if metric.scope == "client":
-						# logger.error(self._values)
+						# logger.notice(self._values)
 						labels = {}
 						for addr in self._values[metric.id]:
 
 							# values = self._values[metric.id].get(key, {})
 							logger.notice("ADDR: %s", addr)
 							timestamps = self._values[metric.id][addr]
-							logger.warning("timestamps: %s", timestamps)
+							logger.notice("timestamps: %s", timestamps)
 
 								
 							value = 0
@@ -542,11 +543,11 @@ class MetricsCollector():
 							async with self._values_lock:
 
 								values = self._values[metric.id].get(addr, {})
-								logger.warning("VALUES: %s ", values)
+								logger.notice("VALUES: %s ", values)
 
 								if not values and not metric.zero_if_missing:
 									continue
-
+								
 								for ts in list(values):
 									logger.error(ts)
 									if ts <= timestamp:
@@ -559,7 +560,7 @@ class MetricsCollector():
 
 							labels["client_addr"] = addr
 							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
-							logger.warning(cmd)
+							logger.notice(cmd)
 							await self._execute_redis_command(cmd)
 						
 							# 	for key in self._values.get(metric.id, {}):
@@ -746,7 +747,8 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
 		super().__init__(app)
 
-		
+		logger.warning("WORKER: %s", get_worker_num())
+		logger.warning("NODE: %s" ,get_node_name())
 		
 		self._profiler_enabled = profiler_enabled
 		self._log_func_stats = log_func_stats
@@ -856,10 +858,13 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 		# )
 		
 		# await client_stat()
+		logger.warning(scope)
 		logger.error(contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
 			await get_metrics_collector().add_value("worker:num_http_request", 1, {"node_name": get_node_name(), "worker_num": get_worker_num()})
+			# if not scope["path"] == "/metrics/grafana/query":
 			await get_metrics_collector().add_value("client:num_http_request", 1, {"client_addr": contextvar_client_address.get()})
+
 			# await get_metrics_collector().add_value("client:client_addr", 1)
 			# await get_metrics_collector().add_value(f"client:client_addr:{contextvar_client_address.get()}", 1)
 			if message["type"] == "http.response.start":

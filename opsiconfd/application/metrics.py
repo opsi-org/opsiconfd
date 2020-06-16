@@ -117,7 +117,6 @@ async def grafana_dashboard_config():
 		if not metric.grafana_config:
 			continue
 		panel_id += 1
-		#print(metric)
 		panel = metric.grafana_config.get_panel(id=panel_id, x=x, y=y)
 		if metric.scope == "worker":
 			for i, worker in enumerate(workers):
@@ -154,7 +153,6 @@ async def grafana_search():
 	
 	names = []
 	for metric in metrics_registry.get_metrics():
-		logger.notice(metric.id)
 		if metric.scope == "worker":
 			workers = []
 			async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:*"):
@@ -169,7 +167,6 @@ async def grafana_search():
 				redis_key = redis_key.decode("utf-8")
 				clients.append({"client_addr": redis_key.split(':')[-1]})
 				logger.error(redis_key)
-			# clients.sort(key=itemgetter("client_addr"))
 			for client in clients:
 				names.append(metric.get_name(**client))
 		else:

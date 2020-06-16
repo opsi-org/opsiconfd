@@ -310,7 +310,7 @@ class Metric:
 	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,
 				scope: str = "arbiter", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None):
 		assert aggregation in ("sum", "avg")
-		assert scope in ("arbiter", "worker","client")
+		assert scope in ("arbiter", "worker", "client")
 		self.id = id
 		self.name = name
 		self.vars = vars
@@ -364,7 +364,7 @@ class MetricsRegistry(metaclass=Singleton):
 	
 	def get_metrics(self, scope: str = None):
 		for metric in self._metrics_by_id.values():
-			if not scope or scope == metric.scope: # or metric.scope == "client":
+			if not scope or scope == metric.scope:
 				yield metric
 
 	def get_metric_by_id(self, id):
@@ -497,7 +497,6 @@ class MetricsCollector():
 								if not values and not metric.zero_if_missing:
 									continue
 								for ts in list(values):
-									logger.error(ts)
 									if ts <= timestamp:
 										count += 1
 										value += values[ts]
@@ -507,7 +506,7 @@ class MetricsCollector():
 
 							labels["client_addr"] = addr
 							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
-							logger.notice(cmd)
+							logger.debug(cmd)
 							await self._execute_redis_command(cmd)
 					else:
 						value = 0
@@ -610,9 +609,6 @@ class MetricsCollector():
 class StatisticsMiddleware(BaseHTTPMiddleware):
 	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
 		super().__init__(app)
-
-		logger.warning("WORKER: %s", get_worker_num())
-		logger.warning("NODE: %s" ,get_node_name())
 		
 		self._profiler_enabled = profiler_enabled
 		self._log_func_stats = log_func_stats

@@ -65,7 +65,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
 		scope="worker",
-		grafana_config=GrafanaPanelConfig(title="Remote procedure calls", units=["short"], decimals=0, stack=True)
+		grafana_config=GrafanaPanelConfig(title="Remote procedure calls", units=["short"], decimals=0, stack=True, yaxis_min = 0)
 	),
 	Metric(
 		id="worker:rpc_duration",

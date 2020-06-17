@@ -64,7 +64,7 @@ metrics_registry.register(
 		name="RPCs processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
-		scope="worker",
+		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Remote procedure calls", units=["short"], decimals=0, stack=True, yaxis_min = 0)
 	),
 	Metric(
@@ -74,7 +74,7 @@ metrics_registry.register(
 		aggregation="avg",
 		retention=24 * 3600 * 1000,
 		zero_if_missing=False,
-		scope="worker",
+		subject="worker",
 		server_timing_header_factor=1000,
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="Duration of remote procedure calls", units=["s"], decimals=0)
 	)

@@ -312,16 +312,16 @@ class GrafanaPanelConfig:
 
 class Metric:
 	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,
-				scope: str = "arbiter", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None):
+				subject: str = "worker", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None):
 		assert aggregation in ("sum", "avg")
-		assert scope in ("arbiter", "worker", "client")
+		assert subject in ("worker", "client")
 		self.id = id
 		self.name = name
 		self.vars = vars
 		self.aggregation = aggregation
 		self.retention = retention
 		self.zero_if_missing = zero_if_missing
-		self.scope = scope
+		self.subject = subject
 		self.server_timing_header_factor = server_timing_header_factor
 		self.grafana_config = grafana_config
 		self.redis_key = self.redis_key_prefix = f"opsiconfd:stats:{id}"
@@ -366,9 +366,9 @@ class MetricsRegistry(metaclass=Singleton):
 	def get_metric_ids(self):
 		return list(self._metrics_by_id)
 	
-	def get_metrics(self, scope: str = None):
+	def get_metrics(self, subject: str = None):
 		for metric in self._metrics_by_id.values():
-			if not scope or scope == metric.scope:
+			if not subject or subject == metric.subject:
 				yield metric
 
 	def get_metric_by_id(self, id):
@@ -397,7 +397,7 @@ metrics_registry.register(
 		name="Memory usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
-		scope="worker",
+		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Memory usage", units=["decbytes"], stack=True)
 	),
 	Metric(
@@ -405,7 +405,7 @@ metrics_registry.register(
 		name="CPU usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
-		scope="worker",
+		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="CPU usage", units=["percent"], decimals=1, stack=True)
 	),
 	Metric(
@@ -413,7 +413,7 @@ metrics_registry.register(
 		name="Threads of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
-		scope="worker",
+		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Threads", units=["short"], decimals=0, stack=True)
 	),
 	Metric(
@@ -421,7 +421,7 @@ metrics_registry.register(
 		name="Filehandles of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
-		scope="worker",
+		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Filehandles", units=["short"], decimals=0, stack=True)
 	),
 	Metric(
@@ -429,7 +429,7 @@ metrics_registry.register(
 		name="HTTP requests of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
-		scope="worker",
+		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP requests", units=["short"], decimals=0, stack=True)
 	),
 	Metric(
@@ -437,7 +437,7 @@ metrics_registry.register(
 		name="HTTP response size of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
-		scope="worker",
+		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True)
 	),
 	Metric(
@@ -447,7 +447,7 @@ metrics_registry.register(
 		aggregation="avg",
 		retention=24 * 3600 * 1000,
 		zero_if_missing=False,
-		scope="worker",
+		subject="worker",
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="Duration of HTTP requests", units=["s"], decimals=0)
 	),
 	Metric(
@@ -455,7 +455,7 @@ metrics_registry.register(
 		name="HTTP requests of Client {client_addr}",
 		vars=["client_addr"],
 		retention=24 * 3600 * 1000,
-		scope="client",
+		subject="client",
 		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=False)
 	)
 )
@@ -490,7 +490,7 @@ class MetricsCollector():
 				for metric in metrics_registry.get_metrics():
 					if not metric.id in self._values:
 						continue
-					if metric.scope == "client":
+					if metric.subject == "client":
 						labels = {}
 						for addr in self._values[metric.id]:
 							value = 0

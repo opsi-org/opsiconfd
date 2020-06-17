@@ -118,14 +118,14 @@ async def grafana_dashboard_config():
 			continue
 		panel_id += 1
 		panel = metric.grafana_config.get_panel(id=panel_id, x=x, y=y)
-		if metric.scope == "worker":
+		if metric.subject == "worker":
 			for i, worker in enumerate(workers):
 				panel["targets"].append({
 					"refId": chr(65+i),
 					"target": metric.get_name(node_name=worker["node_name"], worker_num=worker["worker_num"]),
 					"type": "timeserie"
 				})
-		elif metric.scope == "client":
+		elif metric.subject == "client":
 			for i, client in enumerate(clients):
 				panel["targets"].append({
 					"refId": chr(65+i),
@@ -153,7 +153,7 @@ async def grafana_search():
 	
 	names = []
 	for metric in metrics_registry.get_metrics():
-		if metric.scope == "worker":
+		if metric.subject == "worker":
 			workers = []
 			async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:*"):
 				redis_key = redis_key.decode("utf-8")
@@ -161,7 +161,7 @@ async def grafana_search():
 			workers.sort(key=itemgetter("node_name", "worker_num"))
 			for worker in workers:
 				names.append(metric.get_name(**worker))
-		elif metric.scope == "client":
+		elif metric.subject == "client":
 			clients = []
 			async for redis_key in redis.scan_iter(f"opsiconfd:stats:client:num_http_request:*"):
 				redis_key = redis_key.decode("utf-8")

@@ -34,6 +34,7 @@ from typing import Dict, List
 from ctypes import c_long
 import yappi
 from yappi import YFuncStats
+from aredis.exceptions import ResponseError 
 
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -309,7 +310,7 @@ class Metric:
 	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,
 				scope: str = "arbiter", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None):
 		assert aggregation in ("sum", "avg")
-		assert scope in ("arbiter", "worker")
+		assert scope in ("arbiter", "worker", "client")
 		self.id = id
 		self.name = name
 		self.vars = vars
@@ -444,13 +445,20 @@ metrics_registry.register(
 		zero_if_missing=False,
 		scope="worker",
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="Duration of HTTP requests", units=["s"], decimals=0)
+	),
+	Metric(
+		id="client:num_http_request",
+		name="HTTP requests of Client {client_addr}",
+		vars=["client_addr"],
+		retention=24 * 3600 * 1000,
+		scope="client",
+		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=False)
 	)
 )
 
 
 class MetricsCollector():
-	def __init__(self, scope: str = "arbiter", interval: int = 5):
-		self._scope = scope
+	def __init__(self, interval: int = 5):
 		self._interval = interval
 		self._node_name = get_node_name()
 		self._worker_num = get_worker_num()
@@ -462,39 +470,72 @@ class MetricsCollector():
 	async def _fetch_values(self):
 		if not self._proc:
 			self._proc = psutil.Process()
-		await self.add_value("worker:mem_allocated", self._proc.memory_info().rss)
-		await self.add_value("worker:cpu_percent", self._proc.cpu_percent())
-		await self.add_value("worker:num_threads", self._proc.num_threads())
-		await self.add_value("worker:num_filehandles", self._proc.num_fds())
+		await self.add_value("worker:mem_allocated", self._proc.memory_info().rss, {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		await self.add_value("worker:cpu_percent", self._proc.cpu_percent(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		await self.add_value("worker:num_threads", self._proc.num_threads(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		await self.add_value("worker:num_filehandles", self._proc.num_fds(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
 
-	async def main_loop(self):
+	async def main_loop(self):		
 		while True:
 			cmd = None
+		
 			try:
 				await self._fetch_values()
 				timestamp = round(time.time())*1000
-				for metric in metrics_registry.get_metrics(scope=self._scope):
-					value = 0
-					count = 0
-					async with self._values_lock:
-						values = self._values.get(metric.id, {})
-						if not values and not metric.zero_if_missing:
-							continue
-						for ts in list(values):
-							if ts <= timestamp:
-								count += 1
-								value += values[ts]
-								del values[ts]
-					if metric.aggregation == "avg" and count > 0:
-						value /= count
-					labels = {}
-					if self._scope == "worker":
-						labels = {
-							"node_name": self._node_name,
-							"worker_num": self._worker_num
-						}
-					cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
-					await self._execute_redis_command(cmd)
+		
+				for metric in metrics_registry.get_metrics():
+					if not metric.id in self._values:
+						continue
+					if metric.scope == "client":
+						labels = {}
+						for addr in self._values[metric.id]:
+							value = 0
+							count = 0
+							async with self._values_lock:
+								values = self._values[metric.id].get(addr, {})
+								logger.debug("MetricsCollector VALUES: %s ", values)
+								if not values and not metric.zero_if_missing:
+									continue
+								for ts in list(values):
+									if ts <= timestamp:
+										count += 1
+										value += values[ts]
+										del values[ts]
+							if metric.aggregation == "avg" and count > 0:
+								value /= count
+
+							labels["client_addr"] = addr
+							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
+							logger.debug(cmd)
+							await self._execute_redis_command(cmd)
+					else:
+						value = 0
+						count = 0
+						async with self._values_lock:
+							for key in self._values.get(metric.id, {}):
+								values = self._values[metric.id].get(key, {})
+							if not values and not metric.zero_if_missing:
+								continue
+							for ts in list(values):
+								if ts <= timestamp:
+									count += 1
+									value += values[ts]
+									del values[ts]
+						if metric.aggregation == "avg" and count > 0:
+							value /= count
+						labels = {}
+						label_values = None
+						for key in self._values[metric.id]:
+							if label_values == None:
+								label_values = (key.split(":"))
+							else:
+								label_values.append(key.split(":"))
+						for idx, var in enumerate(metric.vars):
+							labels[var] = label_values[idx]
+						cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
+						logger.debug("CMD: %s", cmd)
+						await self._execute_redis_command(cmd)
+
 			except Exception as exc:
 				err = str(exc)
 				if cmd:
@@ -508,10 +549,9 @@ class MetricsCollector():
 	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels):
 		timestamp = timestamp or "*"
 		l_labels = []
-		for var in metric.vars:
-			if not var in labels:
-				raise ValueError(f"No value for var {var} provided")
-			l_labels.extend([var, labels[var]])
+		
+		for key in labels:
+			l_labels.extend([key, labels[key]])
 		if cmd == "ADD":
 			cmd = ["TS.ADD", metric.get_redis_key(**labels), timestamp, value, "RETENTION", metric.retention, "LABELS"] + l_labels
 		elif cmd == "INCRBY":
@@ -520,21 +560,33 @@ class MetricsCollector():
 			raise ValueError(f"Invalid command {cmd}")
 		return " ".join([ str(x) for x in cmd ])
 
-	async def _execute_redis_command(self, cmd, max_tries=1):
+	async def _execute_redis_command(self, cmd, max_tries=2):
 		if type(cmd) is list:
 			cmd = " ".join([ str(x) for x in cmd ])
 		logger.debug("Executing redis command: %s", cmd)
 		for trynum in range(1, max_tries + 1):
 			try:
 				redis = await get_redis_client()
+				if trynum > 1:
+					cmd = cmd.split(" ")
+					cmd[2] = timestamp = (round(time.time())*1000)+1
+					cmd = " ".join([ str(x) for x in cmd ])
 				return await redis.execute_command(cmd)
-			except:
+			except ResponseError:
 				if trynum >= max_tries:
 					raise
 	
 	#def add_value(self, metric: Metric, value: float, timestamp: int = None, **kwargs):
-	async def add_value(self, metric_id: str, value: float, timestamp: int = None):
+	async def add_value(self, metric_id: str, value: float, labels: dict = {}, timestamp: int = None):
 		metric = metrics_registry.get_metric_by_id(metric_id)
+		# logger.debug("add_value metric_id: %s, labels: %s ", metric_id, labels)
+		key_string = ""
+		for var in metric.vars:
+			if not key_string: 
+				key_string = labels[var]
+			else:
+				key_string = f"{key_string}:{labels[var]}"
+		# logger.debug(f"KEYSTRING: {key_string}")	
 		if metric.server_timing_header_factor:
 			server_timing = contextvar_server_timing.get()
 			if type(server_timing) is dict:
@@ -544,13 +596,15 @@ class MetricsCollector():
 		if not timestamp:
 			timestamp = int(round(time.time()*1000))
 		async with self._values_lock:
-			#key = json.dumps(kwargs, sort_keys=True)
+			# key = json.dumps(kwargs, sort_keys=True)
 			if not metric_id in self._values:
 				self._values[metric_id] = {}
-			if not timestamp in self._values[metric_id]:
-				self._values[metric_id][timestamp] = 0
-			self._values[metric_id][timestamp] += value
-
+			if not key_string in self._values[metric_id]:
+				self._values[metric_id][key_string] = {}
+			if not timestamp in self._values[metric_id][key_string]:
+				self._values[metric_id][key_string][timestamp] = 0
+			self._values[metric_id][key_string][timestamp] += value
+			# logger.debug("VALUES end add_value: %s", self._values)
 
 class StatisticsMiddleware(BaseHTTPMiddleware):
 	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
@@ -620,9 +674,12 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 		contextvar_client_address.set(scope["client"][0])
 		contextvar_server_address.set(scope["server"][0])
 		contextvar_server_timing.set({})
-		
+
+		# logger.debug("Client Addr: %s", contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
-			await get_metrics_collector().add_value("worker:num_http_request", 1)
+			await get_metrics_collector().add_value("worker:num_http_request", 1, {"node_name": get_node_name(), "worker_num": get_worker_num()})
+			await get_metrics_collector().add_value("client:num_http_request", 1, {"client_addr": contextvar_client_address.get()})
+
 			if message["type"] == "http.response.start":
 				headers = MutableHeaders(scope=message)
 				server_timing = contextvar_server_timing.get() or {}
@@ -636,7 +693,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 			end = time.perf_counter()
 			if scope["type"] == "http":
 				if "body" in message:
-					await get_metrics_collector().add_value("worker:http_response_bytes", len(message['body']))
-				await get_metrics_collector().add_value("worker:http_request_duration", end - start)
-		
+					await get_metrics_collector().add_value("worker:http_response_bytes", len(message['body']), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+				await get_metrics_collector().add_value("worker:http_request_duration", end - start, {"node_name": get_node_name(), "worker_num": get_worker_num()})
+				
 		await self.app(scope, receive, send_wrapper)

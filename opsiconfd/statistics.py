@@ -278,13 +278,14 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 }
 
 class GrafanaPanelConfig:
-	def __init__(self, type="graph", title="", units=["short", "short"], decimals=0, stack=False):
+	def __init__(self, type="graph", title="", units=["short", "short"], decimals=0, stack=False, yaxis_min = "auto"):
 		self.type = type
 		self.title = title
 		self.units = units
 		self.decimals = decimals
 		self.stack = stack
 		self._template = ""
+		self.yaxis_min = yaxis_min
 		if self.type == "graph":
 			self._template = GRAFANA_GRAPH_PANEL_TEMPLATE
 		elif self.type == "heatmap":
@@ -304,6 +305,9 @@ class GrafanaPanelConfig:
 		elif self.type == "heatmap":
 			panel["yAxis"]["format"] = self.units[0]
 			panel["tooltipDecimals"] = self.decimals
+		if self.yaxis_min != "auto":
+			for axis in panel["yaxes"]:
+				axis["min"] = self.yaxis_min
 		return panel
 
 class Metric:

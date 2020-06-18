@@ -253,10 +253,12 @@ class AdditionalFieldsFilter(Filter):
 		self._contextvar_server_address = contextvar_server_address
 
 	def filter(self, record):
+		if not hasattr(record, "opsilevel"):
+			record.opsilevel = logging._levelToOpsiLevel.get(record.levelno, record.levelno)
 		if not hasattr(record, "client_address"):
-			record.client_address = self._contextvar_client_address.get()
+			record.client_address = self._contextvar_client_address.get() or ''
 		if not hasattr(record, "server_address"):
-			record.server_address = self._contextvar_server_address.get()
+			record.server_address = self._contextvar_server_address.get() or ''
 		return True
 
 

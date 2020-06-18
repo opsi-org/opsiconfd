@@ -495,7 +495,9 @@ class RedisLogHandler(logging.Handler):
 	def emit(self, record):
 		try:
 			str_record = msgpack.packb(self.log_record_to_dict(record))
-			client = str(record.client_address or "")
+			client = ""
+			if hasattr(record, "client_address") and record.client_address:
+				client = record.client_address
 			with self._redis_lock:
 				stream_id = self._redis.xadd("opsiconfd:log", {"client": client, "record": str_record})
 				#self._redis.publish(channel, message)
@@ -575,7 +577,7 @@ class RedisLogAdapterThread(threading.Thread):
 			self._loop.set_debug(config.debug)
 			asyncio.set_event_loop(self._loop)
 			def handle_asyncio_exception(loop, context):
-				if loop.running:
+				if loop.is_running():
 					msg = context.get("exception", context["message"])
 					print("Unhandled exception in RedisLogAdapterThread asyncio loop: %s" % msg, file=sys.stderr)
 			self._loop.set_exception_handler(handle_asyncio_exception)

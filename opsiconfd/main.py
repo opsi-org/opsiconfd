@@ -30,15 +30,28 @@ import asyncio
 import getpass
 import uvloop
 import aredis
+import time
+import base64
+try:
+	# python3-pycryptodome installs into Cryptodome
+	from Cryptodome.Hash import MD5
+	from Cryptodome.Signature import pkcs1_15
+except ImportError:
+	# PyCryptodome from pypi installs into Crypto
+	from Crypto.Hash import MD5
+	from Crypto.Signature import pkcs1_15
+
+from OPSI import __version__ as python_opsi_version
+from OPSI.Util import getPublicKey
 
 from . import __version__
-from OPSI import __version__ as python_opsi_version
 from .logging import logger, init_logging, start_redis_log_adapter_thread
 from .config import config
 from .server import run_gunicorn, run_uvicorn
 from .utils import get_node_name, get_worker_processes
 from .setup import setup
 from .patch import apply_patches
+from .backend import get_backend
 
 async def update_worker_registry():
 	redis = aredis.StrictRedis.from_url(config.redis_internal_url)
@@ -145,6 +158,67 @@ def main():
 		main_async_thread = ArbiterAsyncMainThread()
 		main_async_thread.daemon = True
 		main_async_thread.start()
+		
+		if config.workers != 1:
+			num_workers = 1
+			backend_info = get_backend().backend_info()
+			modules = backend_info['modules']
+			helper_modules = backend_info['realmodules']
+
+			if not all(key in modules for key in ('expires', 'customer')):
+				logger.error("Missing important information about modules. Probably no modules file installed. Limiting to %d workers.", num_workers)
+			elif not modules.get('customer'):
+				logger.error("No customer in modules file. Limiting to %d workers.", num_workers)
+			elif not modules.get('valid'):
+				logger.error("Modules file invalid. Limiting to %d workers.", num_workers)
+			elif (modules.get('expires', '') != 'never') and (time.mktime(time.strptime(modules.get('expires', '2000-01-01'), "%Y-%m-%d")) - time.time() <= 0):
+				logger.error("Modules file expired. Limiting to %d workers.", num_workers)
+			else:
+				logger.info("Verifying modules file signature")
+				publicKey = getPublicKey(data=base64.decodebytes(b"AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDojY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDUlk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP"))
+				data = ""
+				mks = list(modules.keys())
+				mks.sort()
+				for module in mks:
+					if module in ("valid", "signature"):
+						continue
+					if module in helper_modules:
+						val = helper_modules[module]
+						if int(val) > 0:
+							modules[module] = True
+					else:
+						val = modules[module]
+						if val is False:
+							val = "no"
+						if val is True:
+							val = "yes"
+					data += "%s = %s\r\n" % (module.lower().strip(), val)
+
+				verified = False
+				if modules["signature"].startswith("{"):
+					s_bytes = int(modules['signature'].split("}", 1)[-1]).to_bytes(256, "big")
+					try:
+						pkcs1_15.new(publicKey).verify(MD5.new(data.encode()), s_bytes)
+						verified = True
+					except ValueError:
+						# Invalid signature
+						pass
+				else:
+					h_int = int.from_bytes(MD5.new(data.encode()).digest(), "big")
+					s_int = publicKey._encrypt(int(modules["signature"]))
+					verified = h_int == s_int
+				
+				if not verified:
+					logger.error("Modules file invalid. Limiting to %d workers.", num_workers)
+				else:
+					logger.debug("Modules file signature verified (customer: %s)", modules.get('customer'))
+
+					if modules.get("scalability1"):
+						num_workers = config.workers
+					else:
+						logger.error("scalability1 missing in modules file. Limiting to %d workers.", num_workers)
+			
+			config.workers = num_workers
 		
 		if config.server_type == "gunicorn":
 			run_gunicorn()

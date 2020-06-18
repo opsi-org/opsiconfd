@@ -161,15 +161,12 @@ def essential(self, msg, *args, **kwargs):
 logging.Logger.essential = essential
 logging.Logger.comment = essential
 
-"""
 def logrecord_init(self, name, level, pathname, lineno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
 	self.__init_orig__(name, level, pathname, lineno, msg, args, exc_info, func=func, sinfo=sinfo, **kwargs)
 	self.opsilevel = logging._levelToOpsiLevel.get(level, level)
-	self.client_address = kwargs.get("client_address", "")
 
 LogRecord.__init_orig__ = LogRecord.__init__
 LogRecord.__init__ = logrecord_init
-"""
 
 # Set default log level to ERROR early
 logger.setLevel(logging.ERROR)
@@ -253,8 +250,6 @@ class AdditionalFieldsFilter(Filter):
 		self._contextvar_server_address = contextvar_server_address
 
 	def filter(self, record):
-		if not hasattr(record, "opsilevel"):
-			record.opsilevel = logging._levelToOpsiLevel.get(record.levelno, record.levelno)
 		if not hasattr(record, "client_address"):
 			record.client_address = self._contextvar_client_address.get() or ''
 		if not hasattr(record, "server_address"):

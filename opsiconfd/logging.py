@@ -554,18 +554,7 @@ def init_logging(log_mode="redis"):
 			enable_slow_callback_logging(config.log_slow_async_callbacks)
 		
 		logging.captureWarnings(True)
-		
-		"""
-		logger.secret("SECRET")
-		logger.trace("TRACE")
-		logger.debug("DEBUG")
-		logger.info("INFO")
-		logger.notice("NOTICE")
-		logger.warning("WARNING")
-		logger.error("ERROR")
-		logger.critical("CRITICAL")
-		logger.essential("ESSENTIAL")
-		"""
+	
 	except Exception as exc:
 		handle_log_exception(exc)
 

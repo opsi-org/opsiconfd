@@ -43,6 +43,7 @@ import base64
 import datetime
 import contextvars
 import orjson
+import time
 from collections import namedtuple
 from typing import List
 
@@ -53,6 +54,8 @@ from starlette.requests import HTTPConnection
 #from starlette.sessions import CookieBackend, Session, SessionBackend
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from aredis.exceptions import ResponseError
+
 from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
@@ -61,6 +64,11 @@ from .logging import logger, secret_filter
 from .worker import get_redis_client, contextvar_client_session
 from .backend import get_client_backend
 from .config import config
+
+_allowd_login_attempts = 5
+# _login_locktime = 60000
+# the remaining window before the rate limit resets in ms
+_login_limit_reset = 60000
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 def get_basic_auth(headers):
@@ -96,7 +104,8 @@ def get_session_from_context():
 	try:
 		return contextvar_client_session.get()
 	except LookupError as exc:
-		logger.debug("Failed to get session from context: {0}", exc)
+		logger.debug("Failed to get session from context: %s", exc)
+
 
 class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = []) -> None:
@@ -105,12 +114,14 @@ class SessionMiddleware:
 		self.max_age = 120  # in seconds
 		#self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
+		self.redis_client = None
 		self._public_path = public_path
+		
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace(f"SessionMiddleware {scope}")
-		try:
-			
+		try:	
+			self.redis_client = await get_redis_client() 
 			if scope["type"] not in ("http", "websocket"):
 				await self.app(scope, receive, send)
 				return
@@ -130,10 +141,33 @@ class SessionMiddleware:
 			if not is_public and (not session.user_store.username or not session.user_store.authenticated):
 				auth = get_basic_auth(scope['headers'])
 				try:
+					now = round(time.time())*1000
+					# timeFrom = (now-60000)
+					cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-_login_limit_reset)} {now} aggregation count 60000"
+					
+					logger.warning("from: %s - to: %s", (now-60000), now)
+					# cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(timeFrom-3600000)} {now}"
+					logger.warning(cmd)
+					try:
+						num_failed_auth = await self.redis_client.execute_command(cmd)
+						logger.warning("REDIS: %s", int(num_failed_auth[-1][1]))
+						logger.warning("REDIS: %s", num_failed_auth)
+						if int(num_failed_auth[-1][1]) > _allowd_login_attempts:
+							logger.error("ADDR: %s is blocked for 1 minute!", connection.client.host)
+							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for 1 minute!")
+					except ResponseError as e:
+						num_failed_auth = 0
+						logger.warning(e)
+						cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 0 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+						logger.warning(cmd)
+						await self.redis_client.execute_command(cmd)
+					
 					
 					get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
-					
+					# if int(test[-1][1]) > 5:
+					# 		logger.error("ADDR: %s is block for x minutes", connection.client.host)
 					if not session.user_store.host:
+						
 						if not session.user_store.isAdmin:
 							raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 						
@@ -147,15 +181,29 @@ class SessionMiddleware:
 
 						if not is_admin_network:
 							raise BackendPermissionDeniedError(f"User not in admin network '{config.admin_networks}'")
+
+						
+						
 				except (BackendAuthenticationError, BackendPermissionDeniedError) as e:
 					logger.warning(e)
+					cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+					logger.warning(cmd)
+					await self.redis_client.execute_command(cmd)
 					raise HTTPException(
 						status_code=status.HTTP_401_UNAUTHORIZED,
 						detail=str(e),
 						headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 					)
+				except ConnectionRefusedError as e:
+					raise HTTPException(
+						status_code=status.HTTP_403_FORBIDDEN,
+						detail=str(e)
+					)
 				except Exception as e:
 					logger.error(e, exc_info=True)
+					# cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+					# logger.error(cmd)
+					# await self.redis_client.execute_command(cmd)
 					raise HTTPException(
 						status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 						detail=str(e)

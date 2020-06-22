@@ -121,8 +121,6 @@ class SessionMiddleware:
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace(f"SessionMiddleware {scope}")
-		logger.notice(config.allowd_login_attempts)
-		logger.notice(config.login_limit_reset)
 		try:	
 			self.redis_client = await get_redis_client() 
 			if scope["type"] not in ("http", "websocket"):
@@ -146,35 +144,25 @@ class SessionMiddleware:
 				try:
 					is_blocked = await self.redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
 					is_blocked = bool(is_blocked)
-					logger.error(is_blocked)
 					if is_blocked:
 						raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(client_lock_time/60)} minute!")
 					now = round(time.time())*1000
-					# timeFrom = (now-60000)
 					cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-config.login_limit_reset)} {now} aggregation count {config.login_limit_reset}"
-					
-					logger.warning("from: %s - to: %s", (now-config.login_limit_reset), now)
-					# cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(timeFrom-3600000)} {now}"
-					logger.warning(cmd)
+					logger.debug(cmd)
 					try:
 						num_failed_auth = await self.redis_client.execute_command(cmd)
-						logger.warning("REDIS: %s", int(num_failed_auth[-1][1]))
-						logger.warning("REDIS: %s", num_failed_auth)
+						logger.debug("num_failed_auth: %s", num_failed_auth)
 						if int(num_failed_auth[-1][1]) > config.allowd_login_attempts:
 							logger.warning("ADDR: %s is blocked for %s minute!", connection.client.host, (client_lock_time/60))
 							await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", client_lock_time, True)
 							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(client_lock_time/60)} minute!")
 					except ResponseError as e:
-						num_failed_auth = 0
 						logger.warning(e)
 						cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 0 RETENTION 86400000 LABELS client_addr {connection.client.host}"
 						logger.warning(cmd)
 						await self.redis_client.execute_command(cmd)
-					
-					
+
 					get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
-					# if int(test[-1][1]) > 5:
-					# 		logger.error("ADDR: %s is block for x minutes", connection.client.host)
 					if not session.user_store.host:
 						
 						if not session.user_store.isAdmin:
@@ -190,9 +178,7 @@ class SessionMiddleware:
 
 						if not is_admin_network:
 							raise BackendPermissionDeniedError(f"User not in admin network '{config.admin_networks}'")
-
-						
-						
+			
 				except (BackendAuthenticationError, BackendPermissionDeniedError) as e:
 					logger.warning(e)
 					cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
@@ -210,9 +196,6 @@ class SessionMiddleware:
 					)
 				except Exception as e:
 					logger.error(e, exc_info=True)
-					# cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
-					# logger.error(cmd)
-					# await self.redis_client.execute_command(cmd)
 					raise HTTPException(
 						status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 						detail=str(e)

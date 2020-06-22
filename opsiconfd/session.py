@@ -65,12 +65,6 @@ from .worker import get_redis_client, contextvar_client_session
 from .backend import get_client_backend
 from .config import config
 
-_allowd_login_attempts = 5
-# _login_locktime = 60000
-# the remaining window before the login limit resets in ms
-_login_limit_reset = 60000
-client_lock_time = 120
-
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 def get_basic_auth(headers):
 	auth_header = None
@@ -145,7 +139,7 @@ class SessionMiddleware:
 					is_blocked = await self.redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
 					is_blocked = bool(is_blocked)
 					if is_blocked:
-						raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(client_lock_time/60)} minute!")
+						raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(config.client_lock_time/60)} minutes!")
 					now = round(time.time())*1000
 					cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-config.login_limit_reset)} {now} aggregation count {config.login_limit_reset}"
 					logger.debug(cmd)
@@ -153,13 +147,13 @@ class SessionMiddleware:
 						num_failed_auth = await self.redis_client.execute_command(cmd)
 						logger.debug("num_failed_auth: %s", num_failed_auth)
 						if int(num_failed_auth[-1][1]) > config.allowd_login_attempts:
-							logger.warning("ADDR: %s is blocked for %s minute!", connection.client.host, (client_lock_time/60))
-							await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", client_lock_time, True)
-							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(client_lock_time/60)} minute!")
+							logger.warning("ADDR: %s is blocked for %s minutes!", connection.client.host, (config.client_lock_time/60))
+							await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_lock_time, True)
+							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(config.client_lock_time/60)} minutes!")
 					except ResponseError as e:
 						logger.warning(e)
 						cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 0 RETENTION 86400000 LABELS client_addr {connection.client.host}"
-						logger.warning(cmd)
+						logger.debug(cmd)
 						await self.redis_client.execute_command(cmd)
 
 					get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
@@ -182,7 +176,7 @@ class SessionMiddleware:
 				except (BackendAuthenticationError, BackendPermissionDeniedError) as e:
 					logger.warning(e)
 					cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
-					logger.warning(cmd)
+					logger.debug(cmd)
 					await self.redis_client.execute_command(cmd)
 					raise HTTPException(
 						status_code=status.HTTP_401_UNAUTHORIZED,

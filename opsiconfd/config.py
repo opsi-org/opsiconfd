@@ -57,7 +57,8 @@ def upgrade_config_files():
 		"max authentication failures": "max-auth-failures",
 		"max sessions per ip": "max-session-per-ip",
 		"allowd login attempts": "allowd-login-attempts",
-		"login_limit_reset": "login-limit-reset"
+		"login limit reset": "login-limit-reset",
+		"client lock time": "client-lock-time"
 	}
 
 	for c in parser._open_config_files(sys.argv[1:]):
@@ -430,6 +431,13 @@ parser.add(
 	type=int,
 	default=60000,
 	help=expert_help("The time window before the login limit resets in ms.")
+)
+parser.add(
+	"--client-lock-time",
+	env_var="OPSICONFD_CLIENT_LOCK_TIME",
+	type=int,
+	default=120,
+	help=expert_help("Time the client is locked in s.")
 )
 class Config(metaclass=Singleton):
 	def __init__(self):

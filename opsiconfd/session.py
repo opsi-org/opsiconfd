@@ -67,7 +67,7 @@ from .config import config
 
 _allowd_login_attempts = 5
 # _login_locktime = 60000
-# the remaining window before the rate limit resets in ms
+# the remaining window before the login limit resets in ms
 _login_limit_reset = 60000
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
@@ -120,6 +120,8 @@ class SessionMiddleware:
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace(f"SessionMiddleware {scope}")
+		logger.notice(config.allowd_login_attempts)
+		logger.notice(config.login_limit_reset)
 		try:	
 			self.redis_client = await get_redis_client() 
 			if scope["type"] not in ("http", "websocket"):
@@ -143,16 +145,16 @@ class SessionMiddleware:
 				try:
 					now = round(time.time())*1000
 					# timeFrom = (now-60000)
-					cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-_login_limit_reset)} {now} aggregation count 60000"
+					cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-config.login_limit_reset)} {now} aggregation count {config.login_limit_reset}"
 					
-					logger.warning("from: %s - to: %s", (now-60000), now)
+					logger.warning("from: %s - to: %s", (now-config.login_limit_reset), now)
 					# cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(timeFrom-3600000)} {now}"
 					logger.warning(cmd)
 					try:
 						num_failed_auth = await self.redis_client.execute_command(cmd)
 						logger.warning("REDIS: %s", int(num_failed_auth[-1][1]))
 						logger.warning("REDIS: %s", num_failed_auth)
-						if int(num_failed_auth[-1][1]) > _allowd_login_attempts:
+						if int(num_failed_auth[-1][1]) > config.allowd_login_attempts:
 							logger.error("ADDR: %s is blocked for 1 minute!", connection.client.host)
 							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for 1 minute!")
 					except ResponseError as e:

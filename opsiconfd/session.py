@@ -69,6 +69,7 @@ _allowd_login_attempts = 5
 # _login_locktime = 60000
 # the remaining window before the login limit resets in ms
 _login_limit_reset = 60000
+client_lock_time = 120
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 def get_basic_auth(headers):
@@ -143,6 +144,11 @@ class SessionMiddleware:
 			if not is_public and (not session.user_store.username or not session.user_store.authenticated):
 				auth = get_basic_auth(scope['headers'])
 				try:
+					is_blocked = await self.redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
+					is_blocked = bool(is_blocked)
+					logger.error(is_blocked)
+					if is_blocked:
+						raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(client_lock_time/60)} minute!")
 					now = round(time.time())*1000
 					# timeFrom = (now-60000)
 					cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-config.login_limit_reset)} {now} aggregation count {config.login_limit_reset}"
@@ -155,8 +161,9 @@ class SessionMiddleware:
 						logger.warning("REDIS: %s", int(num_failed_auth[-1][1]))
 						logger.warning("REDIS: %s", num_failed_auth)
 						if int(num_failed_auth[-1][1]) > config.allowd_login_attempts:
-							logger.error("ADDR: %s is blocked for 1 minute!", connection.client.host)
-							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for 1 minute!")
+							logger.warning("ADDR: %s is blocked for %s minute!", connection.client.host, (client_lock_time/60))
+							await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", client_lock_time, True)
+							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(client_lock_time/60)} minute!")
 					except ResponseError as e:
 						num_failed_auth = 0
 						logger.warning(e)

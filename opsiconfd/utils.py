@@ -51,9 +51,13 @@ def get_node_name():
 		node_name = get_config().node_name
 		if not node_name:
 			if running_in_docker():
-				ip = socket.gethostbyname(socket.getfqdn())
-				rev = reversename.from_address(ip)
-				node_name = str(resolver.query(rev, "PTR")[0]).split('.')[0].replace("docker_", "")
+				try:
+					ip = socket.gethostbyname(socket.getfqdn())
+					rev = reversename.from_address(ip)
+					node_name = str(resolver.query(rev, "PTR")[0]).split('.')[0].replace("docker_", "")
+				except resolver.NXDOMAIN as exc:
+					logger.debug(exc)
+					node_name = socket.gethostname()
 			else:
 				node_name = socket.gethostname()
 	return node_name

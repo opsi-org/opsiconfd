@@ -46,7 +46,10 @@ test:perftest:
     - echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
     # Create adminuser
     - useradd adminuser
-    - echo -e "adminuser\adminuser" | passwd adminuser
+    - ls -l /etc/pam.d
+    - cat /etc/pam.d/common-password
+    - echo "adminuser" | passwd --stdin adminuser
+    #- echo -e "adminuser\adminuser" | passwd adminuser
     - adduser adminuser opsiadmin
     # TODO: restore some backend
     # Install poetry

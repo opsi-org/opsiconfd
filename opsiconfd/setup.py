@@ -37,11 +37,14 @@ from OPSI.setup import (
 	get_users, get_groups, add_user_to_group, create_user
 )
 from OPSI.Util import getfqdn
-from OPSI.System import get_subprocess_environment
+from OPSI.System.Posix import getLocalFqdn
 from OPSI.Util.Task.Rights import setRights
+from OPSI.Util.Task.InitializeBackend import initializeBackends
+from OPSI.System import get_subprocess_environment
 
 from .logging import logger
 from .config import config
+from .backend import get_backend
 
 def setup_limits():
 	logger.info("Setup system limits")
@@ -139,12 +142,26 @@ def setup_systemd():
 	subprocess.call(["systemctl", "daemon-reload"], env=get_subprocess_environment())
 	subprocess.call(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment())
 
+def setup_backend():
+	fqdn = getLocalFqdn()
+	try:
+		backend = get_backend()
+		depot = backend.host_getObjects(type='OpsiDepotserver', id=fqdn)
+		if depot:
+			return
+	except Exception as e:
+		logger.debug(e)
+	
+	logger.info("Setup backend")
+	initializeBackends()
+
 def setup(full: bool = True):
 	logger.notice("Running opsiconfd setup")
 	if not config.run_as_user:
 		config.run_as_user = getpass.getuser()
 	setup_limits()
 	if full:
+		setup_backend()
 		po_setup_users_and_groups()
 		setup_users_and_groups()
 		po_setup_file_permissions()

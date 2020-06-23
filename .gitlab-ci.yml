@@ -41,7 +41,7 @@ test:perftest:
     # Configure opsiconfd
     - "echo redis-internal-url = redis://redis > /etc/opsi/opsiconfd.conf"
     - "echo log-level-stderr = 4 >> /etc/opsi/opsiconfd.conf"
-    - "echo log-level-file = 4 >> /etc/opsi/opsiconfd.conf"
+    - "echo log-level-file = 0 >> /etc/opsi/opsiconfd.conf"
     # Installing opsi test modules file
     - echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
     # TODO: restore some backend
@@ -53,6 +53,7 @@ test:perftest:
     - useradd adminuser
     - echo "adminuser:adminuser" | chpasswd
     - adduser adminuser opsiadmin  
+    - ping -c 3 redis
     - poetry run opsiconfd --log-level-stderr=6
     - sleep 5
     - netstat -anp

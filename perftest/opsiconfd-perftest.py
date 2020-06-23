@@ -339,7 +339,7 @@ def main():
 	#loop.create_task(perftest.run())
 	signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
 	for sig in signals:
-		loop.add_signal_handler(sig, lambda sig=sig: asyncio.create_task(signal_handler(sig, loop, perftest)))
+		loop.add_signal_handler(sig, lambda sig=sig: loop.create_task(signal_handler(sig, loop, perftest)))
 	loop.run_until_complete(perftest.run())
 	
 if __name__ == '__main__':

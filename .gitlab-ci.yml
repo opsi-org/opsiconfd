@@ -48,7 +48,7 @@ test:perftest:
     - useradd adminuser
     - ls -l /etc/pam.d
     - cat /etc/pam.d/common-password
-    - echo "adminuser" | passwd --stdin adminuser
+    - echo "adminuser:adminuser" | chpasswd
     #- echo -e "adminuser\adminuser" | passwd adminuser
     - adduser adminuser opsiadmin
     # TODO: restore some backend

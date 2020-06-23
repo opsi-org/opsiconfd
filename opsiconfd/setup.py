@@ -120,13 +120,18 @@ def setup_ssl():
 	finally:
 		shutil.rmtree(tmp_dir)
 
+def setup_files():
+	log_dir = os.path.dirname(config.log_file)
+	if not os.path.isdir(d):
+		os.makedirs(log_dir)
+
 def setup_file_permissions():
 	logger.info("Setup file permissions")
 	for fn in (config.ssl_server_key, config.ssl_server_cert):
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
-	setRights("/var/log/opsi")
+	setRights(os.path.dirname(config.log_file))
 
 def setup_systemd():
 	systemd_running = False
@@ -164,6 +169,7 @@ def setup(full: bool = True):
 		po_setup_users_and_groups()
 		setup_users_and_groups()
 		setup_backend()
+		setup_files()
 		po_setup_file_permissions()
 		setup_ssl()
 		setup_systemd()

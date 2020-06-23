@@ -44,18 +44,15 @@ test:perftest:
     - "echo log-level-file = 4 >> /etc/opsi/opsiconfd.conf"
     # Installing opsi test modules file
     - echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
-    # Create adminuser
-    - useradd adminuser
-    - ls -l /etc/pam.d
-    - cat /etc/pam.d/common-password
-    - echo "adminuser:adminuser" | chpasswd
-    #- echo -e "adminuser\adminuser" | passwd adminuser
-    - adduser adminuser opsiadmin
     # TODO: restore some backend
     # Install poetry
     - pip3 install poetry
     - poetry install
     - poetry run opsiconfd --setup --log-level-stderr=5
+    # Create adminuser used with opsiconfd-perftest.py
+    - useradd adminuser
+    - echo "adminuser:adminuser" | chpasswd
+    - adduser adminuser opsiadmin  
     - poetry run opsiconfd &
     - poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_jsonrpc_authenticated.json
 

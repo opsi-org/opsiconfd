@@ -56,9 +56,6 @@ def upgrade_config_files():
 		"max inactive interval": "session-lifetime",
 		"max authentication failures": "max-auth-failures",
 		"max sessions per ip": "max-session-per-ip",
-		"allowd login attempts": "allowd-login-attempts",
-		"login limit reset": "login-limit-reset",
-		"client lock time": "client-lock-time"
 	}
 
 	for c in parser._open_config_files(sys.argv[1:]):
@@ -419,18 +416,18 @@ parser.add(
 	help=expert_help("Log asyncio callbacks which takes THRESHOLD seconds ore more.")
 )
 parser.add(
-	"--allowd-login-attempts",
-	env_var="OPSICONFD_ALLOWD_LOGIN_ATTEMPTS",
+	"--allowed-login-attempts",
+	env_var="OPSICONFD_ALLOWED_LOGIN_ATTEMPTS",
 	type=int,
 	default=5,
-	help=expert_help("Number of allowd login attempts.")
+	help=expert_help("Number of allowed login attempts.")
 )
 parser.add(
 	"--login-limit-reset",
 	env_var="OPSICONFD_LOGIN_LIMIT_RESET",
 	type=int,
-	default=60000,
-	help=expert_help("The time window before the login limit resets in ms.")
+	default=60,
+	help=expert_help("The time window before the login limit resets in s.")
 )
 parser.add(
 	"--client-lock-time",

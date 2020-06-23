@@ -21,7 +21,7 @@ test:perftest:
     # Install debian packages
     - export DEBIAN_FRONTEND=noninteractive
     - apt update
-    - apt -y install git python3-pip python3-venv libmysqlclient-dev mysql-client
+    - apt -y install git python3-pip python3-venv libmysqlclient-dev mysql-client iproute2
     # Deactivate mysql strict mode
     - mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "SET GLOBAL sql_mode = 'NO_ENGINE_SUBSTITUTION';"
     #- mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "CREATE USER 'opsi'@'%' IDENTIFIED BY 'opsi';"

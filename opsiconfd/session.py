@@ -146,7 +146,7 @@ class SessionMiddleware:
 					try:
 						num_failed_auth = await self.redis_client.execute_command(cmd)
 						logger.debug("num_failed_auth: %s", num_failed_auth)
-						if int(num_failed_auth[-1][1]) > config.allowed_login_attempts:
+						if int(num_failed_auth[-1][1]) > config.max_auth_failures:
 							logger.warning("ADDR: %s is blocked for %s minutes!", connection.client.host, (config.client_lock_time/60))
 							await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_lock_time, True)
 							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(config.client_lock_time/60)} minutes!")

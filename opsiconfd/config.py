@@ -416,13 +416,6 @@ parser.add(
 	help=expert_help("Log asyncio callbacks which takes THRESHOLD seconds ore more.")
 )
 parser.add(
-	"--allowed-login-attempts",
-	env_var="OPSICONFD_ALLOWED_LOGIN_ATTEMPTS",
-	type=int,
-	default=5,
-	help=expert_help("Number of allowed login attempts.")
-)
-parser.add(
 	"--login-limit-reset",
 	env_var="OPSICONFD_LOGIN_LIMIT_RESET",
 	type=int,

@@ -55,7 +55,7 @@ def upgrade_config_files():
 		"update ip": "update-ip",
 		"max inactive interval": "session-lifetime",
 		"max authentication failures": "max-auth-failures",
-		"max sessions per ip": "max-session-per-ip"
+		"max sessions per ip": "max-session-per-ip",
 	}
 
 	for c in parser._open_config_files(sys.argv[1:]):
@@ -414,6 +414,27 @@ parser.add(
 	default=0.0,
 	metavar="THRESHOLD",
 	help=expert_help("Log asyncio callbacks which takes THRESHOLD seconds ore more.")
+)
+parser.add(
+	"--allowed-login-attempts",
+	env_var="OPSICONFD_ALLOWED_LOGIN_ATTEMPTS",
+	type=int,
+	default=5,
+	help=expert_help("Number of allowed login attempts.")
+)
+parser.add(
+	"--login-limit-reset",
+	env_var="OPSICONFD_LOGIN_LIMIT_RESET",
+	type=int,
+	default=60,
+	help=expert_help("The time window before the login limit resets in s.")
+)
+parser.add(
+	"--client-lock-time",
+	env_var="OPSICONFD_CLIENT_LOCK_TIME",
+	type=int,
+	default=120,
+	help=expert_help("Time the client is locked in s.")
 )
 class Config(metaclass=Singleton):
 	def __init__(self):

@@ -43,6 +43,7 @@ import base64
 import datetime
 import contextvars
 import orjson
+import time
 from collections import namedtuple
 from typing import List
 
@@ -52,6 +53,8 @@ from starlette.datastructures import MutableHeaders
 from starlette.requests import HTTPConnection
 #from starlette.sessions import CookieBackend, Session, SessionBackend
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from aredis.exceptions import ResponseError
 
 from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork
@@ -96,7 +99,8 @@ def get_session_from_context():
 	try:
 		return contextvar_client_session.get()
 	except LookupError as exc:
-		logger.debug("Failed to get session from context: {0}", exc)
+		logger.debug("Failed to get session from context: %s", exc)
+
 
 class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = []) -> None:
@@ -105,12 +109,14 @@ class SessionMiddleware:
 		self.max_age = 120  # in seconds
 		#self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
+		self.redis_client = None
 		self._public_path = public_path
+		
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace(f"SessionMiddleware {scope}")
-		try:
-			
+		try:	
+			self.redis_client = await get_redis_client() 
 			if scope["type"] not in ("http", "websocket"):
 				await self.app(scope, receive, send)
 				return
@@ -130,10 +136,29 @@ class SessionMiddleware:
 			if not is_public and (not session.user_store.username or not session.user_store.authenticated):
 				auth = get_basic_auth(scope['headers'])
 				try:
-					
+					is_blocked = await self.redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
+					is_blocked = bool(is_blocked)
+					if is_blocked:
+						raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(config.client_lock_time/60)} minutes!")
+					now = round(time.time())*1000
+					cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-(config.login_limit_reset*1000))} {now} aggregation count {(config.login_limit_reset*1000)}"
+					logger.debug(cmd)
+					try:
+						num_failed_auth = await self.redis_client.execute_command(cmd)
+						logger.debug("num_failed_auth: %s", num_failed_auth)
+						if int(num_failed_auth[-1][1]) > config.allowed_login_attempts:
+							logger.warning("ADDR: %s is blocked for %s minutes!", connection.client.host, (config.client_lock_time/60))
+							await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_lock_time, True)
+							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(config.client_lock_time/60)} minutes!")
+					except ResponseError as e:
+						logger.debug(e)
+						cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 0 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+						logger.debug(cmd)
+						await self.redis_client.execute_command(cmd)
+
 					get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
-					
 					if not session.user_store.host:
+						
 						if not session.user_store.isAdmin:
 							raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 						
@@ -147,12 +172,21 @@ class SessionMiddleware:
 
 						if not is_admin_network:
 							raise BackendPermissionDeniedError(f"User not in admin network '{config.admin_networks}'")
+			
 				except (BackendAuthenticationError, BackendPermissionDeniedError) as e:
 					logger.warning(e)
+					cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+					logger.debug(cmd)
+					await self.redis_client.execute_command(cmd)
 					raise HTTPException(
 						status_code=status.HTTP_401_UNAUTHORIZED,
 						detail=str(e),
 						headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+					)
+				except ConnectionRefusedError as e:
+					raise HTTPException(
+						status_code=status.HTTP_403_FORBIDDEN,
+						detail=str(e)
 					)
 				except Exception as e:
 					logger.error(e, exc_info=True)

@@ -122,7 +122,7 @@ def setup_ssl():
 
 def setup_files():
 	log_dir = os.path.dirname(config.log_file)
-	if not os.path.isdir(d):
+	if not os.path.isdir(log_dir):
 		os.makedirs(log_dir)
 
 def setup_file_permissions():

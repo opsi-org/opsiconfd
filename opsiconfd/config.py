@@ -340,6 +340,20 @@ parser.add(
 	help="The maximum number of authentication failures before a client ip is blocked."
 )
 parser.add(
+	"--auth-failures-interval",
+	env_var="OPSICONFD_AUTH_FAILURES_INTERVAL",
+	type=int,
+	default=60,
+	help="The time window in seconds in which max auth failures are counted."
+)
+parser.add(
+	"--client-block-time",
+	env_var="OPSICONFD_CLIENT_BLOCK_TIME",
+	type=int,
+	default=120,
+	help="Time in seconds for which the client is blocked after max auth failures."
+)
+parser.add(
 	"--max-session-per-ip",
 	env_var="OPSICONFD_MAX_SESSIONS_PER_IP",
 	type=int,
@@ -414,20 +428,6 @@ parser.add(
 	default=0.0,
 	metavar="THRESHOLD",
 	help=expert_help("Log asyncio callbacks which takes THRESHOLD seconds ore more.")
-)
-parser.add(
-	"--login-limit-reset",
-	env_var="OPSICONFD_LOGIN_LIMIT_RESET",
-	type=int,
-	default=60,
-	help=expert_help("The time window before the login limit resets in s.")
-)
-parser.add(
-	"--client-lock-time",
-	env_var="OPSICONFD_CLIENT_LOCK_TIME",
-	type=int,
-	default=120,
-	help=expert_help("Time the client is locked in s.")
 )
 class Config(metaclass=Singleton):
 	def __init__(self):

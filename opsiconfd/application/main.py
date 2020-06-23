@@ -23,22 +23,17 @@
 
 import os
 import asyncio
-from fastapi import FastAPI
 import urllib
 
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
-from starlette.exceptions import ExceptionMiddleware
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.errors import ServerErrorMiddleware
-from fastapi import HTTPException
-from websockets.exceptions import ConnectionClosedOK
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
 from fastapi.responses import Response, HTMLResponse, FileResponse, RedirectResponse
-from fastapi.middleware.gzip import GZipMiddleware
+from websockets.exceptions import ConnectionClosedOK
 
-from ..logging import init_logging, logger
+from ..logging import logger
 from ..config import config
 from ..worker import get_redis_client, init_worker
 from ..session import SessionMiddleware

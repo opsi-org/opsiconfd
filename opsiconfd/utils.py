@@ -26,12 +26,20 @@ import psutil
 import socket
 from dns import resolver, reversename
 
+logger = None
+def get_logger():
+	global logger
+	if not logger:
+		from .logger import logger
+	return logger
+
 config = None
 def get_config():
 	global config
 	if not config:
 		from .config import config
 	return config
+
 
 class Singleton(type):
 	_instances = {}
@@ -56,7 +64,7 @@ def get_node_name():
 					rev = reversename.from_address(ip)
 					node_name = str(resolver.query(rev, "PTR")[0]).split('.')[0].replace("docker_", "")
 				except resolver.NXDOMAIN as exc:
-					logger.debug(exc)
+					get_logger().debug(exc)
 					node_name = socket.gethostname()
 			else:
 				node_name = socket.gethostname()

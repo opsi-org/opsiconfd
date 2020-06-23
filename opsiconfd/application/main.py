@@ -79,7 +79,7 @@ class LoggerWebsocket(WebSocketEndpoint):
 		start_id = params.get("start_time", ["$"])[0]
 		await self._websocket.accept()
 		self._redis = await get_redis_client()
-		await asyncio.create_task(self._reader(start_id, client))
+		await asyncio.get_event_loop().create_task(self._reader(start_id, client))
 	
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		pass

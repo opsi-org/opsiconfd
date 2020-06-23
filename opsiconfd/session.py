@@ -150,10 +150,12 @@ class SessionMiddleware:
 								logger.warning("Blocking client '%s' for %0.2f minutes!", connection.client.host, (config.client_block_time/60))
 								await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
 						except ResponseError as e:
+							logger.debug("RESPONSE ERROR")
 							logger.debug(e)
-							cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 0 RETENTION 86400000 LABELS client_addr {connection.client.host}"
-							logger.debug(cmd)
-							await self.redis_client.execute_command(cmd)
+							if e == "TSDB: key does not exist":
+								cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 0 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+								logger.debug(cmd)
+								await self.redis_client.execute_command(cmd)
 					if is_blocked:
 						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked for {(config.client_block_time/60):.2f} minutes!")
 					

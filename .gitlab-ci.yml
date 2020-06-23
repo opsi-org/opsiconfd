@@ -53,7 +53,7 @@ test:perftest:
     - useradd adminuser
     - echo "adminuser:adminuser" | chpasswd
     - adduser adminuser opsiadmin  
-    - poetry run opsiconfd --log-level-stderr=5 &
+    - poetry run opsiconfd --log-level-stderr=6
     - sleep 5
     - netstat -anp
     - poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_jsonrpc_authenticated.json

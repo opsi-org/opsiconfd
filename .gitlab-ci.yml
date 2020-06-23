@@ -22,6 +22,9 @@ test:perftest:
     - apt -y install git python3-pip python3-venv libmysqlclient-dev mysql-client
     # Deactivate mysql strict mode
     - mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "SET GLOBAL sql_mode = 'NO_ENGINE_SUBSTITUTION';"
+    - mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "CREATE DATABASE opsi;"
+    - mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "CREATE USER 'opsi'@'%' IDENTIFIED BY 'opsi';"
+    - mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON *.* TO 'opsi'@'%';"
     # Get config files from opsi-server package
     - "[ -e /etc/opsi ] && rm -r /etc/opsi"
     - "[ -e ../opsi-server ] && rm -r ../opsi-server"

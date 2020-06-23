@@ -138,24 +138,25 @@ class SessionMiddleware:
 				try:
 					is_blocked = await self.redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
 					is_blocked = bool(is_blocked)
-					if is_blocked:
-						raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(config.client_lock_time/60)} minutes!")
-					now = round(time.time())*1000
-					cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-(config.login_limit_reset*1000))} {now} aggregation count {(config.login_limit_reset*1000)}"
-					logger.debug(cmd)
-					try:
-						num_failed_auth = await self.redis_client.execute_command(cmd)
-						logger.debug("num_failed_auth: %s", num_failed_auth)
-						if int(num_failed_auth[-1][1]) > config.max_auth_failures:
-							logger.warning("ADDR: %s is blocked for %s minutes!", connection.client.host, (config.client_lock_time/60))
-							await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_lock_time, True)
-							raise ConnectionRefusedError(f"ADDR: {connection.client.host} is blocked for {(config.client_lock_time/60)} minutes!")
-					except ResponseError as e:
-						logger.debug(e)
-						cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 0 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+					if not is_blocked:
+						now = round(time.time())*1000
+						cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-(config.login_limit_reset*1000))} {now} aggregation count {(config.login_limit_reset*1000)}"
 						logger.debug(cmd)
-						await self.redis_client.execute_command(cmd)
-
+						try:
+							num_failed_auth = await self.redis_client.execute_command(cmd)
+							logger.debug("num_failed_auth: %s", num_failed_auth)
+							if int(num_failed_auth[-1][1]) > config.max_auth_failures:
+								is_blocked = True
+								logger.warning("Blocking client '%s' for %0.2f minutes!", connection.client.host, (config.client_lock_time/60))
+								await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_lock_time, True)
+						except ResponseError as e:
+							logger.debug(e)
+							cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 0 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+							logger.debug(cmd)
+							await self.redis_client.execute_command(cmd)
+					if is_blocked:
+						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked for {(config.client_lock_time/60):.2f} minutes!")
+					
 					get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
 					if not session.user_store.host:
 						

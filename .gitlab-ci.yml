@@ -44,6 +44,7 @@ test:perftest:
     # Install poetry
     - pip3 install poetry
     - poetry install
+    - poetry run opsiconfd --setup --log-level-stderr=5
     - poetry run opsiconfd &
     - poetry run ./perftest/opsiconfd-perftest.py
 

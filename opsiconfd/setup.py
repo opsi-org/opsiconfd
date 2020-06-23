@@ -161,9 +161,9 @@ def setup(full: bool = True):
 		config.run_as_user = getpass.getuser()
 	setup_limits()
 	if full:
-		setup_backend()
 		po_setup_users_and_groups()
 		setup_users_and_groups()
+		setup_backend()
 		po_setup_file_permissions()
 		setup_ssl()
 		setup_systemd()

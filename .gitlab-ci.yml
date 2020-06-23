@@ -11,6 +11,7 @@ test:perftest:
   services:
     - mysql:latest
     - redislabs/redistimeseries:latest
+      alias: redis
   variables:
     MYSQL_ROOT_PASSWORD: "opsi"
     MYSQL_DATABASE: "opsi"

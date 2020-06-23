@@ -30,7 +30,7 @@ logger = None
 def get_logger():
 	global logger
 	if not logger:
-		from .logger import logger
+		from .logging import logger
 	return logger
 
 config = None

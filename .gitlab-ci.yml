@@ -10,7 +10,7 @@ test:perftest:
   image: ubuntu:focal
   services:
     - mysql:latest
-    - redislabs/redistimeseries:latest
+    - name: redislabs/redistimeseries:latest
       alias: redis
   variables:
     MYSQL_ROOT_PASSWORD: "opsi"

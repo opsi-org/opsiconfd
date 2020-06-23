@@ -56,7 +56,7 @@ test:perftest:
     - adduser adminuser opsiadmin  
     - poetry run opsiconfd &
     - sleep 5
-    - poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_jsonrpc_authenticated.json -i1 -c1
+    - poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_jsonrpc_authenticated.json -i10 -c10
 
 build:linux-pyinstaller:
   stage: build

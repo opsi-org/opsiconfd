@@ -39,7 +39,7 @@ import uvloop
 import signal
 
 class Perftest:
-	def __init__(self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=[]):
+	def __init__(self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=[], write_results=None):
 		u = urlparse(server)
 		self.base_url = "%s://%s:%d" % (u.scheme or 'https', u.hostname or u.path, u.port or 4447)
 		self.username = username
@@ -48,6 +48,10 @@ class Perftest:
 		self.iterations = iterations
 		self.print_responses = print_responses
 		self.test_cases = []
+		self.write_results = write_results
+		if self.write_results:
+			open(self.write_results, "w").close()
+
 		if jsonrpc_methods:
 			requests = []
 			for m in jsonrpc_methods:
@@ -148,6 +152,8 @@ class TestCase:
 		
 		print("")
 		self.display_results()
+		if self.perftest.write_results:
+			self.write_results()
 		print("")
 
 	def add_result(self, error: None, seconds: float, bytes_sent: int, bytes_received: int):
@@ -162,12 +168,12 @@ class TestCase:
 			sys.stdout.write('\n')
 			sys.stdout.flush()
 
-	def display_results(self):
-		total_seconds = self.end - self.start
+	def calc_results(self):
 		r = {
+			"total_seconds": self.end - self.start,
 			"requests": 0,
 			"errors": 0,
-			"total_seconds": 0.0, 
+			"total_request_seconds": 0.0, 
 			"bytes_sent": 0, 
 			"bytes_received": 0,
 			"avg_requests_per_second": 0,
@@ -180,7 +186,7 @@ class TestCase:
 			r["requests"] += 1
 			if res["error"]:
 				r["errors"] += 1
-			r["total_seconds"] += res["seconds"]
+			r["total_request_seconds"] += res["seconds"]
 			r["bytes_sent"] += res["bytes_sent"]
 			r["bytes_received"] += res["bytes_received"]
 			if r["min_seconds_per_request"] == 0 or r["min_seconds_per_request"] > res["seconds"]:
@@ -188,15 +194,25 @@ class TestCase:
 			if r["max_seconds_per_request"] == 0 or r["max_seconds_per_request"] < res["seconds"]:
 				r["max_seconds_per_request"] = res["seconds"]
 		
-		r["avg_seconds_per_request"] = r["total_seconds"] / r["requests"]
-		r["avg_requests_per_second"] = r["requests"] / total_seconds
-		r["avg_bytes_received_per_second"] = r["bytes_received"] / total_seconds
-		r["avg_bytes_send_per_second"] = r["bytes_sent"] / total_seconds
-		
+		r["avg_seconds_per_request"] = r["total_request_seconds"] / r["requests"]
+		r["avg_requests_per_second"] = r["requests"] / r["total_seconds"]
+		r["avg_bytes_received_per_second"] = r["bytes_received"] / r["total_seconds"]
+		r["avg_bytes_send_per_second"] = r["bytes_sent"] / r["total_seconds"]
+		return r
+	
+	def write_results(self):
+		with codecs.open(self.perftest.write_results, "a", "utf-8") as f:
+			f.write(f"[{self.name}]\n")
+			for k, v in self.calc_results().items():
+				f.write(f"{k}={v}\n")
+			f.write(f"\n")
+	
+	def display_results(self):
+		r = self.calc_results()
 		print("Results:")
 		print(f" * Requests: {r['requests']}")
 		print(f" * Errors: {r['errors']}")
-		print(f" * Total seconds: {total_seconds:0.3f}")
+		print(f" * Total seconds: {r['total_seconds']:0.3f}")
 		print(f" * Requests/second: {r['avg_requests_per_second']:0.3f}")
 		print(f" * Request duration: min/avg/max {r['min_seconds_per_request']:0.3f}s/{r['avg_seconds_per_request']:0.3f}s/{r['max_seconds_per_request']:0.3f}s")
 		print(f" * Bytes sent: {r['bytes_sent']/1000/1000:0.2f}MB ({r['avg_bytes_send_per_second']/1000/1000:0.2f}MB/s)")
@@ -318,7 +334,8 @@ def main():
 	arg_parser.add_argument("-i", "--iterations", action="store", type=int, help="Number of test iterations")
 	arg_parser.add_argument("-j", "--jsonrpc-methods", action="store", type=str, nargs="*", help="Execute jsonrpc methods")
 	arg_parser.add_argument("-r", "--print-responses", action="store_true", default=None, help="Print server responses")
-	arg_parser.add_argument("-l", "--load", action="store", nargs='+', help="Load test from file")
+	arg_parser.add_argument("-l", "--load", action="store", nargs='+', metavar="FILE", help="Load test from FILE")
+	arg_parser.add_argument("-w", "--write-results", action="store", metavar="FILE", help="Write results to FILE")
 	args = arg_parser.parse_args()
 	kwargs = args.__dict__
 	

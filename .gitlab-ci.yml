@@ -23,6 +23,7 @@ test:perftest:
     - export DEBIAN_FRONTEND=noninteractive
     - apt update
     - apt -y install wget git python3-pip python3-venv libmysqlclient-dev mysql-client iproute2 net-tools iputils-ping
+    # Need redis-timeseries 1.2.8 which is not yet available, installing patched version from obs
     - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-server_6.0.4-1_amd64.deb
     - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-tools_6.0.4-1_amd64.deb
     - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-timeseries_1.2.6-1_amd64.deb
@@ -45,6 +46,7 @@ test:perftest:
     # Use mysql backend only
     - "echo '.* : mysql' > /etc/opsi/backendManager/dispatch.conf"
     # Configure opsiconfd
+    - mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot
     #- "echo redis-internal-url = redis://redis > /etc/opsi/opsiconfd.conf"
     - "echo log-level-stderr = 4 >> /etc/opsi/opsiconfd.conf"
     - "echo log-level-file = 0 >> /etc/opsi/opsiconfd.conf"
@@ -63,7 +65,7 @@ test:perftest:
     - sleep 5
     - poetry run opsiconfd &
     - sleep 5
-    - poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_jsonrpc_authenticated.json -i50 -c50 -w /tmp/perftest-result
+    - poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_jsonrpc_authenticated.json -w /tmp/perftest-result
     - "[ $(grep errors= /tmp/perftest-result | cut -d '=' -f2) -gt 0 ] && ( echo 'Errors in perftest' >&2 && exit 1 )"
     - "[ $(grep avg_requests_per_second= /tmp/perftest-result | cut -d '=' -f2 | cut -d'.' -f 1) -ge 300 ] || ( echo 'Requests per second < 300' >&2 && exit 1 )"
     

@@ -49,7 +49,7 @@ async def get_redis_client():
 	global _redis_client
 	if not _redis_client:
 		# The client automatically uses a connection from a connection pool for every command 
-		_redis_client = aredis.StrictRedis.from_url(config.redis_internal_url, max_connections=config.executor_workers + 10, decode_responses=True)
+		_redis_client = aredis.StrictRedis.from_url(config.redis_internal_url, max_connections=config.executor_workers + 10)
 		# _redis_client.flushdb()
 	pool = _redis_client.connection_pool
 	if len(pool._in_use_connections) >= pool.max_connections:

@@ -23,10 +23,11 @@ test:perftest:
     - export DEBIAN_FRONTEND=noninteractive
     - apt update
     - apt -y install wget git python3-pip python3-venv libmysqlclient-dev mysql-client iproute2 net-tools iputils-ping
-    - wget http://obs.uib.local:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-server_6.0.4-1_amd64.deb
-    - wget http://obs.uib.local:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-tools_6.0.4-1_amd64.deb
+    - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-server_6.0.4-1_amd64.deb
+    - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-tools_6.0.4-1_amd64.deb
     - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-timeseries_1.2.6-1_amd64.deb
-    - dpkg -i *.deb
+    - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/liblzf1_3.6-2_amd64.deb
+    - dpkg -i *.deb || apt -y -f install
     # Deactivate mysql strict mode
     - mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "SET GLOBAL sql_mode = 'NO_ENGINE_SUBSTITUTION';"
     #- mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "CREATE USER 'opsi'@'%' IDENTIFIED BY 'opsi';"

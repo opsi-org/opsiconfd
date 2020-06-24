@@ -129,7 +129,9 @@ class SessionMiddleware:
 			connection = HTTPConnection(scope)
 			session_id = connection.cookies.get(self.session_cookie, None)
 
-			scope["session"] = session = OPSISession(self, session_id)
+			logger.notice("Cpnnection.client.host type: %s", type(connection.client.host))
+
+			scope["session"] = session = OPSISession(self, connection.client.host ,session_id)
 			await session.init()
 			contextvar_client_session.set(session)
 					
@@ -241,15 +243,17 @@ class SessionMiddleware:
 
 
 class OPSISession():
-	def __init__(self, session_middelware: SessionMiddleware, session_id: str = None) -> None:
+	def __init__(self, session_middelware: SessionMiddleware, client_addr: str, session_id: str = None) -> None:
 		self._session_middelware = session_middelware
 		self.session_id = session_id
+		self.client_addr = client_addr
 		self.created = 0
 		self.last_used = 0
 		self.user_store = UserStore()
 		self.option_store = {}
 		self._data: typing.Dict[str, typing.Any] = {}
 		#self._redis = redis_connection()
+		logger.notice("CLIENT_ADDR: %s", self.client_addr)
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__} created={self.created} last_used={self.last_used}>"
@@ -271,7 +275,7 @@ class OPSISession():
 	@property
 	def redis_key(self) -> str:
 		assert self.session_id
-		return f"{self.session_cookie}_{self.session_id}"
+		return f"{self.session_cookie}:{self.client_addr}:{self.session_id}"
 
 	@property
 	def expired(self) -> bool:
@@ -302,8 +306,49 @@ class OPSISession():
 		logger.debug(f"Generated a new session id: {self.session_id}")
 
 	async def load(self) -> bool:
+		logger.notice("LOAD")
 		self._data = {}
 		client = await get_redis_client()
+		redis_session_keys = await client.keys(f"{self.session_cookie}:*:{self.session_id}")
+		redis_test_key = await client.keys("test")
+		logger.warning(redis_test_key)
+		if len(redis_session_keys) == 0:
+			return False
+		logger.notice("redis_session_keys: %s", redis_session_keys)
+		# logger.warning("key split: %s", redis_session_keys[0].decode("utf8").split(":"))
+		logger.notice("TEST1: %s", (self.redis_key in redis_session_keys))
+		logger.notice("TEST2: %s", (len(redis_session_keys) > 1))
+		logger.notice("TEST3: %s", (not self.redis_key.strip() in redis_session_keys or len(redis_session_keys) > 1))
+
+		logger.notice("len: %s", (len(redis_session_keys)))
+		time = await client.ttl(self.redis_key)
+		logger.notice("TTL: %s", time)
+		if not self.redis_key.strip() in redis_session_keys or len(redis_session_keys) > 1: 
+			if len(redis_session_keys) == 1:
+				logger.warning("rename key with new ip")
+				await client.rename(redis_session_keys[0], self.redis_key)
+			else:
+				maxtime = -1
+				lastkey = ""
+				for key in redis_session_keys:										
+					logger.notice("key split: %s", key.split(":"))	
+					time = await client.ttl(key)
+					logger.notice("Time to live: %s", time)	
+					if time > maxtime:
+						maxtime = time
+						await client.delete(lastkey)
+						if lastkey in redis_session_keys:
+							redis_session_keys.remove(lastkey)
+					else:
+						await client.delete(key)
+						if key in redis_session_keys: 
+							redis_session_keys.remove(key)
+					maxtime = time
+					lastkey = key
+				if redis_session_keys[0] != self.redis_key:
+					await client.rename(redis_session_keys[0], self.redis_key)
+
+		logger.notice("redis key: %s", self.redis_key)
 		data = await client.get(self.redis_key)
 		if not data:
 			return False

@@ -146,19 +146,17 @@ class SessionMiddleware:
 						logger.debug(cmd)
 						try:
 							num_failed_auth = await self.redis_client.execute_command(cmd)
-							logger.debug("num_failed_auth: %s", num_failed_auth)
-							if int(num_failed_auth[-1][1]) > config.max_auth_failures:
-								is_blocked = True
-								logger.warning("Blocking client '%s' for %0.2f minutes!", connection.client.host, (config.client_block_time/60))
-								await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
+							num_failed_auth =  int(num_failed_auth[-1][1])
+							logger.debug("num_failed_auth: %s", num_failed_auth)						
 						except ResponseError as e:
-							logger.debug(e)
-							if str(e).strip() == "TSDB: key does not exist":
-								cmd = f"ts.create opsiconfd:stats:client:failed_auth:{connection.client.host} RETENTION 86400000 LABELS client_addr {connection.client.host}"
-								logger.debug(cmd)
-								await self.redis_client.execute_command(cmd)
-							else:
+							num_failed_auth = 0
+							if str(e).find("key does not exist") == -1:
 								raise
+						if num_failed_auth > config.max_auth_failures:
+							is_blocked = True
+							logger.warning("Blocking client '%s' for %0.2f minutes!", connection.client.host, (config.client_block_time/60))
+							await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
+						
 					if is_blocked:
 						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked for {(config.client_block_time/60):.2f} minutes!")
 					

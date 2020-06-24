@@ -129,7 +129,7 @@ class SessionMiddleware:
 			connection = HTTPConnection(scope)
 			session_id = connection.cookies.get(self.session_cookie, None)
 
-			scope["session"] = session = OPSISession(self, session_id)
+			scope["session"] = session = OPSISession(self, connection.client.host ,session_id)
 			await session.init()
 			contextvar_client_session.set(session)
 					
@@ -239,9 +239,10 @@ class SessionMiddleware:
 
 
 class OPSISession():
-	def __init__(self, session_middelware: SessionMiddleware, session_id: str = None) -> None:
+	def __init__(self, session_middelware: SessionMiddleware, client_addr: str, session_id: str = None) -> None:
 		self._session_middelware = session_middelware
 		self.session_id = session_id
+		self.client_addr = client_addr
 		self.created = 0
 		self.last_used = 0
 		self.user_store = UserStore()
@@ -269,7 +270,7 @@ class OPSISession():
 	@property
 	def redis_key(self) -> str:
 		assert self.session_id
-		return f"{self.session_cookie}_{self.session_id}"
+		return f"{self.session_cookie}:{self.client_addr}:{self.session_id}"
 
 	@property
 	def expired(self) -> bool:
@@ -302,6 +303,16 @@ class OPSISession():
 	async def load(self) -> bool:
 		self._data = {}
 		client = await get_redis_client()
+		redis_session_keys = await client.keys(f"{self.session_cookie}:*:{self.session_id}")
+		if len(redis_session_keys) == 0:
+			return False
+		# There sould only be one key with self.session_id in redis.
+		# Logging if there is a problem in the future.
+		if len(redis_session_keys) > 1:
+			logger.warning("More than one redis key with same session id!")
+		if redis_session_keys[0].decode("utf8") != self.redis_key:
+			await client.rename(redis_session_keys[0], self.redis_key)
+
 		data = await client.get(self.redis_key)
 		if not data:
 			return False

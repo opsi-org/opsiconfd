@@ -22,7 +22,7 @@ test:perftest:
     # Install debian packages
     - export DEBIAN_FRONTEND=noninteractive
     - apt update
-    - apt -y install wget git python3-pip python3-venv libmysqlclient-dev mysql-client iproute2 net-tools iputils-ping
+    - apt -y install wget systemd git python3-pip python3-venv libmysqlclient-dev mysql-client iproute2 net-tools iputils-ping
     - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-server_6.0.4-1_amd64.deb
     - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-tools_6.0.4-1_amd64.deb
     - wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/experimental/xUbuntu_20.04/amd64/redis-timeseries_1.2.6-1_amd64.deb

@@ -121,13 +121,11 @@ def main():
 
 	apply_patches()
 	
-	redis_log_adapter_thread = None
-	main_async_thread = None
 	try:
 		init_logging(log_mode=config.log_mode)
 		if config.log_level_stderr > 0 or config.log_level_file > 0:
 			running = threading.Event()
-			redis_log_adapter_thread = start_redis_log_adapter_thread(running)
+			start_redis_log_adapter_thread(running)
 			running.wait()
 		
 		setup(full=False)
@@ -225,9 +223,8 @@ def main():
 		elif config.server_type == "uvicorn":
 			run_uvicorn()
 	finally:
-		if main_async_thread:
-			main_async_thread.stop()
-			main_async_thread.join()
-		if redis_log_adapter_thread:
-			redis_log_adapter_thread.stop()
-			redis_log_adapter_thread.join()
+		for t in threading.enumerate():
+			if hasattr(t, "stop"):
+				t.stop()
+				t.join()
+	

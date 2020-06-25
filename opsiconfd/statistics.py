@@ -50,10 +50,7 @@ from .utils import Singleton, get_worker_processes, get_node_name, get_worker_nu
 
 
 def get_yappi_tag() -> int:
-	tag = contextvar_request_id.get()
-	if not tag:
-		return -1
-	return tag
+	return int(contextvar_request_id.get() or -1)
 
 GRAFANA_DATASOURCE_TEMPLATE = {
 	"orgId": 1,
@@ -635,16 +632,15 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 		tag = get_yappi_tag()
 		if tag == -1:
 			return
-
-		#yappi.get_func_stats({"tag": tag}).sort('ttot', sort_order="asc").debug_print()
-
+		
+		#yappi.get_func_stats(filter={"tag": tag}).sort('ttot', sort_order="asc").debug_print()
 		max_stats = 500
 		if self._log_func_stats:
 			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")
 			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope['method']} {scope['path']}")
 			logger.essential(f"{'module':<45} | {'function':<60} | {'calls':>5} | {'total time':>10}")
 			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")
-			func_stats = yappi.get_func_stats({"tag": tag}).sort("ttot", sort_order="desc")
+			func_stats = yappi.get_func_stats(filter={"tag": tag}).sort("ttot", sort_order="desc")
 			for stat_num, stat in enumerate(func_stats):
 				module = re.sub(r".*(site-packages|python3\.\d|python-opsi)/", "", stat.module)
 				logger.essential(f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}")
@@ -653,7 +649,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")
 
 		func_stats: Dict[str, YFuncStats] = {
-			stat_name: yappi.get_func_stats({"name": function, "tag": tag})
+			stat_name: yappi.get_func_stats(filter={"name": function, "tag": tag})
 			for function, stat_name in self._profile_methods.items()
 		}
 		server_timing = {}

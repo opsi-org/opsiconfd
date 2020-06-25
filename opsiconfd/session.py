@@ -129,13 +129,23 @@ class SessionMiddleware:
 			connection = HTTPConnection(scope)
 			session_id = connection.cookies.get(self.session_cookie, None)
 
-			scope["session"] = session = OPSISession(self, connection.client.host ,session_id)
+			scope["session"] = session = OPSISession(self, connection.client.host, session_id)
 			await session.init()
 			contextvar_client_session.set(session)
 					
 			if not is_public and (not session.user_store.username or not session.user_store.authenticated):
 				auth = get_basic_auth(scope['headers'])
 				try:
+					redis_session_keys = []
+					async for key in self.redis_client.scan_iter(f"{self.session_cookie}:{connection.client.host}:*"):
+						redis_session_keys.append(key.decode("utf8"))
+					logger.warning("redis session keys: %s", redis_session_keys)
+					logger.warning(len(redis_session_keys))
+					logger.notice(config.max_session_per_ip)
+					if len(redis_session_keys) > config.max_session_per_ip:
+						logger.warning(f"Too many sessions on '{connection.client.host}'! Max is {config.max_session_per_ip}.")
+						raise ConnectionRefusedError(f"Too many sessions on '{connection.client.host}'. Max is {config.max_session_per_ip}.")
+					
 					is_blocked = await self.redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
 					is_blocked = bool(is_blocked)
 					if not is_blocked:

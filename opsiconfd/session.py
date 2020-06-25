@@ -303,14 +303,16 @@ class OPSISession():
 	async def load(self) -> bool:
 		self._data = {}
 		client = await get_redis_client()
-		redis_session_keys = await client.keys(f"{self.session_cookie}:*:{self.session_id}")
+		redis_session_keys = []
+		async for redis_key in client.scan_iter(f"{self.session_cookie}:*:{self.session_id}"):
+			redis_session_keys.append(redis_key.decode("utf8"))
 		if len(redis_session_keys) == 0:
 			return False
 		# There sould only be one key with self.session_id in redis.
 		# Logging if there is a problem in the future.
 		if len(redis_session_keys) > 1:
 			logger.warning("More than one redis key with same session id!")
-		if redis_session_keys[0].decode("utf8") != self.redis_key:
+		if redis_session_keys[0] != self.redis_key:
 			await client.rename(redis_session_keys[0], self.redis_key)
 
 		data = await client.get(self.redis_key)

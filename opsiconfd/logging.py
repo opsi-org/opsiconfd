@@ -455,13 +455,32 @@ class AsyncRedisLogAdapter:
 			except Exception as exc:
 				handle_log_exception(exc, log=False)
 
-class RedisLogHandler(logging.Handler):
-	def __init__(self, max_msg_len: int = 0):
-		super().__init__()
+class RedisLogHandler(threading.Thread, logging.Handler):
+	"""
+	Will collect log messages in pipeline and send collected
+	log messages at once to redis in regular intervals.
+	"""
+	def __init__(self, max_msg_len: int = 0, max_delay: float = 0.1):
+		logging.Handler.__init__(self)
+		threading.Thread.__init__(self)
 		self._max_msg_len = max_msg_len
+		self._max_delay = max_delay
 		self._redis = redis.Redis.from_url(config.redis_internal_url)
 		self._redis_lock = threading.Lock()
+		self._pipeline = self._redis.pipeline()
+		self._should_stop = False
+		self.start()
 
+	def run(self):
+		while not self._should_stop:
+			time.sleep(self._max_delay)
+			if len(self._pipeline) > 0:
+				with self._redis_lock:
+					self._pipeline.execute()
+	
+	def stop(self):
+		self._should_stop = True
+	
 	def log_record_to_dict(self, record):
 		if hasattr(record, 'args'):
 			if record.args:
@@ -499,8 +518,7 @@ class RedisLogHandler(logging.Handler):
 			if hasattr(record, "client_address") and record.client_address:
 				client = record.client_address
 			with self._redis_lock:
-				stream_id = self._redis.xadd("opsiconfd:log", {"client": client, "record": str_record})
-				#self._redis.publish(channel, message)
+				self._pipeline.xadd("opsiconfd:log", {"client": client, "record": str_record})
 		except (KeyboardInterrupt, SystemExit):
 			raise
 		except Exception as exc:

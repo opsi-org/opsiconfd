@@ -43,6 +43,7 @@ def webdav_setup(app):
 		"enable_loggers": [],
 		"property_manager": True,  # True: use property_manager.PropertyManager
 		"lock_manager": True,  # True: use lock_manager.LockManager
+		"block_size": 32 * 1024, # default = 8192
 	}
 
 	fqdn = getfqdn()

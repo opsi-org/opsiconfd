@@ -212,6 +212,12 @@ class SessionMiddleware:
 			await self.app(scope, receive, send_wrapper)
 		except HTTPException as e:
 			response = None
+			cookie = f"%s=%s; path=/; Max-Age=%d" % (
+						self.session_cookie,
+						session.session_id,
+						self.max_age
+					)
+			e.headers["Set-Cookie"] = cookie
 			if scope["path"].startswith("/rpc"):
 				logger.debug("Auth error - returning jsonrpc response")
 				response = JSONResponse(

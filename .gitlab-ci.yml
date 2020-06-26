@@ -6,6 +6,7 @@ stages:
   - package
 
 .install_tools: &install_tools |
+  export DEBIAN_FRONTEND=noninteractive
   apt update
   apt -y install debhelper osc
   pip3 install --trusted-host pypi.uib.gmbh --index-url http://pypi.uib.gmbh:8080/simple opsi-dev-tools

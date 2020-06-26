@@ -198,7 +198,6 @@ class SessionMiddleware:
 					)
 			
 			async def send_wrapper(message: Message) -> None:
-				logger.notice("!!!!!")
 				await session.store()
 				if message["type"] == "http.response.start":
 					headers = MutableHeaders(scope=message)
@@ -304,9 +303,6 @@ class OPSISession():
 		try:
 			async for key in self.redis_client.scan_iter(f"{self.session_cookie}:{self.client_addr}:*"):
 				redis_session_keys.append(key.decode("utf8"))
-			logger.notice("redis session keys: %s", redis_session_keys)
-			logger.notice(len(redis_session_keys))
-			logger.notice(config.max_session_per_ip)
 			if len(redis_session_keys) > config.max_session_per_ip:
 				logger.warning(f"Too many sessions on '{self.client_addr}'! Max is {config.max_session_per_ip}.")
 				raise ConnectionRefusedError(f"Too many sessions on '{self.client_addr}'. Max is {config.max_session_per_ip}.")
@@ -314,7 +310,8 @@ class OPSISession():
 			raise HTTPException(
 			status_code=status.HTTP_403_FORBIDDEN,
 			detail=str(e)
-					)
+			)
+
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		logger.debug(f"Generated a new session id: {self.session_id}")
 

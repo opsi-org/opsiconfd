@@ -41,11 +41,11 @@ pyinstaller-poetry:
     - src: opsiconfd_data/**/*
       dst: opsiconfd_data
   dirname: opsiconfd
-  after_script:
-    - mv dist/opsiconfd/site-packages/wsgidav dist/opsiconfd/wsgidav
-    - find dist/opsiconfd -iname "*.c" -delete
-    - find dist/opsiconfd -iname "*.h" -delete
-    - rm -r dist/opsiconfd/site-packages/Crypto/SelfTest
+  after_script: |
+    mv dist/opsiconfd/site-packages/wsgidav dist/opsiconfd/wsgidav
+    find dist/opsiconfd -iname "*.c" -delete
+    find dist/opsiconfd -iname "*.h" -delete
+    rm -r dist/opsiconfd/site-packages/Crypto/SelfTest
 
 package:
   name: opsiconfd
@@ -54,27 +54,27 @@ package:
   systemd: yes
   depends:
     - librsync | librsync2 | librsync1
-  source_script:
-    - pyi_src="${SRC}"
-    - if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi
-    - mkdir -p ${DST}/rootfs/etc/opsi
-    - mkdir -p ${DST}/rootfs/usr/bin
-    - mkdir -p ${DST}/rootfs/usr/lib
-    - mkdir -p ${DST}/rootfs/usr/share/opsiconfd
-    - mkdir -p ${DST}/rootfs/var/log/opsi/opsiconfd
-    - mkdir -p ${DST}/systemd_units
-    - cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/
-    - echo "#!/bin/sh"               > ${DST}/rootfs/usr/bin/opsiconfd
-    - echo "cd /usr/lib/opsiconfd"  >> ${DST}/rootfs/usr/bin/opsiconfd
-    - echo "exec ./opsiconfd \"\$@\""   >> ${DST}/rootfs/usr/bin/opsiconfd
-    - chmod 755 ${DST}/rootfs/usr/bin/opsiconfd
-    - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
-    - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.conf ${DST}/rootfs/etc/opsi/
-    - mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
-    - rm -r ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data
-  postinst_script:
-    - /usr/bin/opsiconfd --setup --log-level-stderr=5 --log-level-file=0 --run-as-user=opsiconfd || true
-    - grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf
+  source_script: |
+    pyi_src="${SRC}"
+    if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi
+    mkdir -p ${DST}/rootfs/etc/opsi
+    mkdir -p ${DST}/rootfs/usr/bin
+    mkdir -p ${DST}/rootfs/usr/lib
+    mkdir -p ${DST}/rootfs/usr/share/opsiconfd
+    mkdir -p ${DST}/rootfs/var/log/opsi/opsiconfd
+    mkdir -p ${DST}/systemd_units
+    cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/
+    echo "#!/bin/sh"               > ${DST}/rootfs/usr/bin/opsiconfd
+    echo "cd /usr/lib/opsiconfd"  >> ${DST}/rootfs/usr/bin/opsiconfd
+    echo "exec ./opsiconfd \"\$@\""   >> ${DST}/rootfs/usr/bin/opsiconfd
+    chmod 755 ${DST}/rootfs/usr/bin/opsiconfd
+    mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
+    mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.conf ${DST}/rootfs/etc/opsi/
+    mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
+    rm -r ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data
+  postinst_script: |
+    /usr/bin/opsiconfd --setup --log-level-stderr=5 --log-level-file=0 --run-as-user=opsiconfd || true
+    grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf
 
 changelog:
   next:

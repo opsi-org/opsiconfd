@@ -111,6 +111,12 @@ class SessionMiddleware:
 		self.security_flags = ""
 		self.redis_client = None
 		self._public_path = public_path
+
+	def get_cookie_header(self, session_id) -> dict:
+		logger.notice("get_cookie_header")
+		cookie = f"{self.session_cookie}={session_id}; path=/; Max-Age={self.max_age}"
+		headers = {"Set-Cookie": cookie}
+		return headers
 		
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -201,24 +207,14 @@ class SessionMiddleware:
 				await session.store()
 				if message["type"] == "http.response.start":
 					headers = MutableHeaders(scope=message)
-					cookie = f"%s=%s; path=/; Max-Age=%d" % (
-						self.session_cookie,
-						session.session_id,
-						self.max_age
-					)
-					headers.append("Set-Cookie", cookie)
+					headers.append("Set-Cookie", self.get_cookie_header(session.session_id).get("Set-Cookie"))
 				await send(message)
 
 			await self.app(scope, receive, send_wrapper)
 		except HTTPException as e:
 			response = None
 			if e.headers != None:
-				cookie = f"%s=%s; path=/; Max-Age=%d" % (
-							self.session_cookie,
-							session.session_id,
-							self.max_age
-						)
-				e.headers["Set-Cookie"] = cookie
+				e.headers.update(self.get_cookie_header(session.session_id))
 			if scope["path"].startswith("/rpc"):
 				logger.debug("Auth error - returning jsonrpc response")
 				response = JSONResponse(

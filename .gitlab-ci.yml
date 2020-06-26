@@ -89,7 +89,7 @@ build:linux-pyinstaller:
       - opsiconfd
     expire_in: 2 day
 
-package:obs:
+package:obs_int:
   stage: package
   dependencies:
     - build:linux-pyinstaller
@@ -98,6 +98,16 @@ package:obs:
     - apt -y install debhelper osc
     - pip3 install --trusted-host pypi.uib.gmbh --index-url http://pypi.uib.gmbh:8080/simple opsi-dev-tools
     - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.local home:uibmz:opsi:4.2:experimental
+
+package:obs_ext:
+  stage: package
+  dependencies:
+    - build:linux-pyinstaller
+  script:
+    - apt update
+    - apt -y install debhelper osc
+    - pip3 install --trusted-host pypi.uib.gmbh --index-url http://pypi.uib.gmbh:8080/simple opsi-dev-tools
+    - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:experimental
 
 #package:deb:
 #  stage: package

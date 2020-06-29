@@ -1,6 +1,16 @@
 #!/usr/bin/python3
 
+import sys
+import traceback
+
 from opsiconfd.__main__ import main
 
-main()
-
+try:
+	main()
+except SystemExit:
+	raise
+except Exception as e:
+	# Do not let pyinstaller handle exceptions and print:
+	# "Failed to execute script run-opsiconfd"
+	traceback.print_exc()
+	sys.exit(1)

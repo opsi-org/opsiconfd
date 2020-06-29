@@ -168,7 +168,12 @@ def setup(full: bool = True):
 	if full:
 		po_setup_users_and_groups()
 		setup_users_and_groups()
-		setup_backend()
+		try:
+			setup_backend()
+		except Exception as e:
+			# This can happen during package installation
+			# where backend config files are missing
+			logger.warning("Failed to setup backend: %s", e)
 		setup_files()
 		po_setup_file_permissions()
 		setup_ssl()

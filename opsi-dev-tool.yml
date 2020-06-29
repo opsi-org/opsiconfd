@@ -64,9 +64,9 @@ package:
     mkdir -p ${DST}/rootfs/var/log/opsi/opsiconfd
     mkdir -p ${DST}/systemd_units
     cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/
-    echo "#!/bin/sh"               > ${DST}/rootfs/usr/bin/opsiconfd
-    echo "cd /usr/lib/opsiconfd"  >> ${DST}/rootfs/usr/bin/opsiconfd
-    echo "exec ./opsiconfd \"\$@\""   >> ${DST}/rootfs/usr/bin/opsiconfd
+    echo "#!/bin/sh"                 > ${DST}/rootfs/usr/bin/opsiconfd
+    echo "cd /usr/lib/opsiconfd"    >> ${DST}/rootfs/usr/bin/opsiconfd
+    echo "exec ./opsiconfd \"\$@\"" >> ${DST}/rootfs/usr/bin/opsiconfd
     chmod 755 ${DST}/rootfs/usr/bin/opsiconfd
     mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
     mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.conf ${DST}/rootfs/etc/opsi/

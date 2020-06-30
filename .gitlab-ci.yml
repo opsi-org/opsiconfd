@@ -127,40 +127,21 @@ test:pytest:
     pip3 install poetry
     poetry install
     poetry run opsiconfd --setup --log-level-stderr=5
-    # Create adminuser used with opsiconfd-perftest.py
     echo "Create adminuser"
     useradd adminuser
     echo "adminuser:adminuser" | chpasswd
     adduser adminuser pcpatch
     adduser adminuser opsiadmin  
-    groups
     redis-server /etc/redis/redis.conf &
     sleep 5
-    echo "Start OPSI Server"
-    pwd
-    mkdir /usr/share/opsiconfd
-    # cp -R /build/uib/opsiconfd/opsiconfd_data/static /usr/share/opsiconfd/static
-    echo "OPSI STATIC DIR"
+    echo "Set OPSI STATIC DIR"
     export OPSICONFD_STATIC_DIR="opsiconfd_data/static"
     echo "${OPSICONFD_STATIC_DIR}"
-    sleep 30
-    ls -la 
-    ls -la opsiconfd_data
-    ls -la opsiconfd_data/static
     sleep 5
-    ip addr
-    sleep 5
-    # cat /etc/services
-    # poetry run opsiconfd --static-dir="opsiconfd_data/static" --workers=1 --log-level-stderr=5 &
+    echo "Start OPSI Server"    
     poetry run opsiconfd &
-    sleep 30
-    echo "test connection with wget"
-    # wget --user=adminuser --password="adminuser" https://localhost:4447 --no-check-certificate 
-    # wget --user=adminuser --password="adminuser" https://127.0.0.1:4447 --no-check-certificate 
-    # echo "end wget"
-    # sleep 20
-    echo "RUN TESTS"
-    sleep 10
+    sleep 20
+    echo "Run tests"
     poetry run pytest /builds/uib/opsiconfd/tests
  
   # poetry run pytest --junit-xml=pytestreport.xml junit_family=xunit2 --quiet /builds/uib/opsiconfd/tests

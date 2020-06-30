@@ -3,12 +3,37 @@
 <head>
 	<title>opsiconfd</title>
 	<link rel="stylesheet" href="opsiconfd.css" />
+	<script>
+		var opsiVersion = "4.2";
+		var CONFIGED_DOWNLOAD_LINKS = {
+			"Windows": "https://download.uib.de/opsi" + opsiVersion + "/misc/helper/opsi-configed-setup.exe",
+			"UNIX": "https://download.uib.de/opsi" + opsiVersion + "/misc/helper/opsi-configed-linux-setup.tar.gz",
+			"Linux": "https://download.uib.de/opsi" + opsiVersion + "/misc/helper/opsi-configed-linux-setup.tar.gz",
+			"MacOS": "https://download.uib.de/opsi" + opsiVersion + "/misc/helper/opsi-configed-linux-setup.tar.gz"
+		}
+		
+		function downloadConfiged(){
+			let os = getOS();
+			url = CONFIGED_DOWNLOAD_LINKS[os];
+			window.open(url);
+		}
+
+		function getOS(){
+			userAgent = window.navigator.userAgent.toLowerCase();
+			if (userAgent.indexOf("windows") != -1) return "Windows";
+			else if (userAgent.indexOf("mac") != -1) return "MacOS";
+			else if (userAgent.indexOf("x11") != -1) return "UNIX";
+			else if (userAgent.indexOf("linux") != -1) return "Linux";
+			return "Windows";
+		}
+	</script>
 </head>
 <body>
 	<div class="content">
 		<img id="logo" src="opsi_logo.png" alt="opsi logo">
 		<div id="link-list">
 			<ul>
+				<li><a onclick="downloadConfiged();" href="#">Opsi configed installer</a></li>
 				<li><a href="/metrics/grafana/dashboard" target="_blank">Grafana dashboard</a></li>
 				<li><a href="log_viewer.html" target="_blank">Log viewer</a></li>
 				<li><a href="/interface" target="_blank">Interface</a></li>

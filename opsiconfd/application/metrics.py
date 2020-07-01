@@ -73,15 +73,16 @@ async def grafana_index(request: Request):
 			logger.debug("Using username %s and password grafana authorization", url.username)
 			auth = aiohttp.BasicAuth(url.username, url.password)
 	
-	async with aiohttp.ClientSession(auth=auth) as session:
+	base_url = f"{url.scheme}://{url.netloc.split('@', 1)[-1]}"
+	async with aiohttp.ClientSession(auth=auth, headers=headers) as session:
 		json = GRAFANA_DATASOURCE_TEMPLATE
 		json["url"] = f"{get_internal_url()}/metrics/grafana/"
-		resp = await session.get(f"{url.scheme}://{url.netloc}/api/datasources/name/{json['name']}")
+		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}")
 		if resp.status == 200:
 			_id = (await resp.json())["id"]
-			resp = await session.put(f"{url.scheme}://{url.netloc}/api/datasources/{_id}", json=json)
+			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json)
 		else:
-			resp = await session.post(f"{url.scheme}://{url.netloc}/api/datasources", json=json)
+			resp = await session.post(f"{base_url}/api/datasources", json=json)
 		
 		if resp.status == 200:
 			json = {
@@ -89,7 +90,7 @@ async def grafana_index(request: Request):
 				"overwrite": True,
 				"dashboard": await grafana_dashboard_config()
 			}
-			resp = await session.post(f"{url.scheme}://{url.netloc}/api/dashboards/db", json=json)
+			resp = await session.post(f"{base_url}/api/dashboards/db", json=json)
 		else:
 			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
 	return RedirectResponse(url=f"{config.grafana_external_url}/d/opsiconfd_main/opsiconfd-main-dashboard?refresh=5s&kiosk=tv")

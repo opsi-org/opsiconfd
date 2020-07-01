@@ -68,15 +68,17 @@ test:perftest:
     useradd adminuser
     echo "adminuser:adminuser" | chpasswd
     adduser adminuser opsiadmin  
-    redis-server /etc/redis/redis.conf &
     sleep 5
+    ulimit -a
+    sleep 5
+    redis-server /etc/redis/redis.conf --maxclients 150000 --loglevel verbose &
+    sleep 20
     echo "Set OPSI STATIC DIR"
     export OPSICONFD_STATIC_DIR="opsiconfd_data/static"
     echo "${OPSICONFD_STATIC_DIR}"
     echo "Set OPSICONFD_MAX_SESSIONS_PER_IP"
     export OPSICONFD_MAX_SESSIONS_PER_IP=20000
     echo "${OPSICONFD_MAX_SESSIONS_PER_IP}"
-    sleep 5
     poetry run opsiconfd &
     sleep 5
     poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_jsonrpc_authenticated.json -w /tmp/perftest-result

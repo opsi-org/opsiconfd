@@ -57,7 +57,8 @@ class LoggerWebsocket(WebSocketEndpoint):
 		while True:
 			try:
 				# It is also possible to specify multiple streams
-				data = await self._redis.xread(block=1000, **{stream_name: last_id})
+				redis_client = await get_redis_client()
+				data = await redis_client.xread(block=1000, **{stream_name: last_id})
 				if not data:
 					continue
 				buf = b""
@@ -78,7 +79,6 @@ class LoggerWebsocket(WebSocketEndpoint):
 		client = params.get("client", [None])[0]
 		start_id = params.get("start_time", ["$"])[0]
 		await self._websocket.accept()
-		self._redis = await get_redis_client()
 		await asyncio.get_event_loop().create_task(self._reader(start_id, client))
 	
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:

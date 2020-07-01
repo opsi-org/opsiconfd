@@ -81,7 +81,7 @@ build:linux-pyinstaller:
   script:
     - *install_tools
     - poetry install
-    - find .venv -iname "*linux-gnu.so"
+    #- find .venv -iname "*linux-gnu.so"
     - poetry run opsi-dev-tool -l trace --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd .

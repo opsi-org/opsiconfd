@@ -98,7 +98,7 @@ package:obs_int:
     - build:linux-pyinstaller
   script:
     - *install_tools
-    - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:experimental
+    - python3 -m opsidevtools -l debug --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:experimental
   only:
     - tags
  

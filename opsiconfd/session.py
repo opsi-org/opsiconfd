@@ -110,6 +110,7 @@ class SessionMiddleware:
 		#self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
 		self._public_path = public_path
+		self.redis_client = None
 
 	def get_cookie_header(self, session_id) -> dict:
 		cookie = f"{self.session_cookie}={session_id}; path=/; Max-Age={self.max_age}"
@@ -119,10 +120,8 @@ class SessionMiddleware:
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace(f"SessionMiddleware {scope}")
-		logger.notice("__call__")
-		logger.notice("get redis client")
-		redis_client = await get_redis_client()		
 		try:
+			redis_client = await get_redis_client()
 			if scope["type"] not in ("http", "websocket"):
 				await self.app(scope, receive, send)
 				return
@@ -257,6 +256,7 @@ class OPSISession():
 		self.user_store = UserStore()
 		self.option_store = {}
 		self._data: typing.Dict[str, typing.Any] = {}
+		self.redis_client = None
 		#self._redis = redis_connection()
 
 	def __repr__(self):
@@ -309,6 +309,7 @@ class OPSISession():
 		redis_session_keys = []
 		try:
 			redis_client = await get_redis_client()
+			# self.redis_client = await get_redis_client()
 			async for key in redis_client.scan_iter(f"{self.session_cookie}:{self.client_addr}:*"):
 				redis_session_keys.append(key.decode("utf8"))
 			if len(redis_session_keys) > config.max_session_per_ip:
@@ -327,6 +328,7 @@ class OPSISession():
 		self._data = {}
 		# client = await get_redis_client()
 		redis_client = await get_redis_client()
+		# self.redis_client = await get_redis_client()
 		redis_session_keys = []
 		async for redis_key in redis_client.scan_iter(f"{self.session_cookie}:*:{self.session_id}"):
 			redis_session_keys.append(redis_key.decode("utf8"))
@@ -367,6 +369,7 @@ class OPSISession():
 			del data["user_store"]["password"]
 		# client = await get_redis_client()
 		redis_client = await get_redis_client()
+		# self.redis_client = await get_redis_client()
 		await redis_client.set(self.redis_key, orjson.dumps(data), ex=self.max_age)
 
 	def _update_last_used(self):

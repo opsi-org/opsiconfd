@@ -81,7 +81,7 @@ build:linux-pyinstaller:
   script:
     - *install_tools
     - poetry install
-    - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
+    - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd .
     # Check if binary is working
@@ -98,7 +98,7 @@ package:obs_int:
     - build:linux-pyinstaller
   script:
     - *install_tools
-    - python3 -m opsidevtools -l debug --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:experimental
+    - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:experimental
   only:
     - tags
  
@@ -108,6 +108,6 @@ package:obs_ext:
     - build:linux-pyinstaller
   script:
     - *install_tools
-    - python3 -m opsidevtools -l debug --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:experimental
+    - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:experimental
   only:
     - tags

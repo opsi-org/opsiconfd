@@ -71,7 +71,8 @@ test:perftest:
     sleep 5
     ulimit -a
     sleep 5
-    redis-server /etc/redis/redis.conf --maxclients 150000 --loglevel verbose &
+    # redis-server /etc/redis/redis.conf --maxclients 150000 --loglevel verbose &
+    redis-server /etc/redis/redis.conf &
     sleep 20
     echo "Set OPSI STATIC DIR"
     export OPSICONFD_STATIC_DIR="opsiconfd_data/static"

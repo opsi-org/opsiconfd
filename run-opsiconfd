@@ -2,10 +2,12 @@
 
 import sys
 import traceback
+from multiprocessing import freeze_support
 
-from opsiconfd.__main__ import main
+freeze_support()
 
 try:
+	from opsiconfd.__main__ import main
 	main()
 except SystemExit:
 	raise

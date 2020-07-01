@@ -24,6 +24,7 @@
 import os
 import re
 import time
+import datetime
 import asyncio
 import threading
 import psutil
@@ -468,6 +469,12 @@ class MetricsCollector():
 		self._values_lock = asyncio.Lock()
 		self._last_timestamp = 0
 	
+	def _get_timestamp(self):
+		# utc timestamp
+		#return round(datetime.datetime.utcnow().timestamp())
+		# local timestamp
+		return int(round(time.time())*1000)
+	
 	async def _fetch_values(self):
 		if not self._proc:
 			self._proc = psutil.Process()
@@ -482,7 +489,7 @@ class MetricsCollector():
 		
 			try:
 				await self._fetch_values()
-				timestamp = round(time.time())*1000
+				timestamp = self._get_timestamp()
 		
 				for metric in metrics_registry.get_metrics():
 					if not metric.id in self._values:
@@ -494,7 +501,7 @@ class MetricsCollector():
 							count = 0
 							async with self._values_lock:
 								values = self._values[metric.id].get(addr, {})
-								logger.debug("MetricsCollector VALUES: %s ", values)
+								logger.debug("MetricsCollector values: %s ", values)
 								if not values and not metric.zero_if_missing:
 									continue
 								for ts in list(values):
@@ -570,7 +577,7 @@ class MetricsCollector():
 				redis = await get_redis_client()
 				if trynum > 1:
 					cmd = cmd.split(" ")
-					cmd[2] = timestamp = (round(time.time())*1000)+1
+					cmd[2] = timestamp = self._get_timestamp() + 1
 					cmd = " ".join([ str(x) for x in cmd ])
 				return await redis.execute_command(cmd)
 			except ResponseError:
@@ -595,7 +602,7 @@ class MetricsCollector():
 				server_timing[metric_id.split(':')[-1]] = value * metric.server_timing_header_factor
 				contextvar_server_timing.set(server_timing)
 		if not timestamp:
-			timestamp = int(round(time.time()*1000))
+			timestamp = self._get_timestamp()
 		async with self._values_lock:
 			# key = json.dumps(kwargs, sort_keys=True)
 			if not metric_id in self._values:

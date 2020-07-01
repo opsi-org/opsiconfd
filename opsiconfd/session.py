@@ -113,7 +113,6 @@ class SessionMiddleware:
 		self._public_path = public_path
 
 	def get_cookie_header(self, session_id) -> dict:
-		logger.notice("get_cookie_header")
 		cookie = f"{self.session_cookie}={session_id}; path=/; Max-Age={self.max_age}"
 		headers = {"Set-Cookie": cookie}
 		return headers

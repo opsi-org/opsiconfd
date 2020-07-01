@@ -60,7 +60,7 @@ async def create_api_key():
 """
 
 @grafana_metrics_router.get("/dashboard")
-async def grafana_index(request: Request):
+async def grafana_dashboard(request: Request):
 	auth = None
 	headers = None
 	url = urlparse(config.grafana_internal_url)

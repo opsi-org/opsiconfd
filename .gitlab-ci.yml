@@ -81,7 +81,7 @@ build:linux-pyinstaller:
   script:
     - *install_tools
     - poetry install
-    - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
+    - poetry run opsi-dev-tool -l trace --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd .
     # Check if binary is working

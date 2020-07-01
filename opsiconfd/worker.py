@@ -24,6 +24,8 @@
 import os
 import socket
 import typing
+import signal
+import threading
 import functools
 import asyncio
 import aredis
@@ -81,8 +83,19 @@ def handle_asyncio_exception(loop, context):
 	msg = context.get("exception", context["message"])
 	logger.error("Unhandled exception in asyncio loop '%s': %s", loop, msg)
 
+def signal_handler(signum, frame):
+	logger.info("Worker %s got signal %d", os.getpid(), signum)
+	exit_worker()
+
+def exit_worker():
+	for t in threading.enumerate():
+		if hasattr(t, "stop"):
+			t.stop()
+			t.join()
+
 def init_worker():
 	global _metrics_collector
+	signal.signal(signal.SIGINT, signal_handler)
 	init_logging()
 	from .backend import get_backend
 	from .statistics import MetricsCollector

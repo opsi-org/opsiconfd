@@ -3,7 +3,7 @@ image: python:3.7-stretch
 stages:
   - test
   - build
-  - package
+  - publish
 
 .install_tools: &install_tools |
   export DEBIAN_FRONTEND=noninteractive
@@ -93,17 +93,21 @@ build:linux-pyinstaller:
     expire_in: 2 day
 
 package:obs_int:
-  stage: package
+  stage: publish
   dependencies:
     - build:linux-pyinstaller
   script:
     - *install_tools
     - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:experimental
-
+  only:
+    - tags
+ 
 package:obs_ext:
-  stage: package
+  stage: publish
   dependencies:
     - build:linux-pyinstaller
   script:
     - *install_tools
     - python3 -m opsidevtools -l debug --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:experimental
+  only:
+    - tags

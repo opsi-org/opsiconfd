@@ -134,11 +134,15 @@ class SessionMiddleware:
 
 			connection = HTTPConnection(scope)
 			session_id = connection.cookies.get(self.session_cookie, None)
+			session = None
 
-			scope["session"] = session = OPSISession(self, connection.client.host, session_id)
-			await session.init()
+			if not is_public or session_id:
+				session = OPSISession(self, connection.client.host, session_id)
+				await session.init()
+			
 			contextvar_client_session.set(session)
-					
+			scope["session"] = session
+			
 			if not is_public and (not session.user_store.username or not session.user_store.authenticated):
 				auth = get_basic_auth(scope['headers'])
 				try:
@@ -205,10 +209,11 @@ class SessionMiddleware:
 					)
 			
 			async def send_wrapper(message: Message) -> None:
-				await session.store()
-				if message["type"] == "http.response.start":
-					headers = MutableHeaders(scope=message)
-					headers.append("Set-Cookie", self.get_cookie_header(session.session_id).get("Set-Cookie"))
+				if session:
+					await session.store()
+					if message["type"] == "http.response.start":
+						headers = MutableHeaders(scope=message)
+						headers.append("Set-Cookie", self.get_cookie_header(session.session_id).get("Set-Cookie"))
 				await send(message)
 
 			await self.app(scope, receive, send_wrapper)

@@ -91,7 +91,7 @@ GRAFANA_DASHBOARD_TEMPLATE = {
 			}
 		]
 	},
-	"timezone": "",
+	"timezone": "browser", # "utc", "browser" or "" (default)
 	"title": "opsiconfd main dashboard",
 	"editable": True,
 	"gnetId": None,
@@ -469,11 +469,9 @@ class MetricsCollector():
 		self._values_lock = asyncio.Lock()
 		self._last_timestamp = 0
 	
-	def _get_timestamp(self):
-		# utc timestamp
-		#return round(datetime.datetime.utcnow().timestamp())
-		# local timestamp
-		return int(round(time.time())*1000)
+	def _get_timestamp(self) -> int:
+		# utc timestamp in millis
+		return int(round(datetime.datetime.utcnow().timestamp())*1000)
 	
 	async def _fetch_values(self):
 		if not self._proc:
@@ -575,14 +573,14 @@ class MetricsCollector():
 		for trynum in range(1, max_tries + 1):
 			try:
 				redis = await get_redis_client()
-				if trynum > 1:
-					cmd = cmd.split(" ")
-					cmd[2] = timestamp = self._get_timestamp() + 1
-					cmd = " ".join([ str(x) for x in cmd ])
 				return await redis.execute_command(cmd)
 			except ResponseError:
 				if trynum >= max_tries:
 					raise
+				# TODO: Remove or refactor, timestamp is not always cmd[2]
+				cmd = cmd.split(" ")
+				cmd[2] = timestamp = self._get_timestamp() + 1
+				cmd = " ".join([ str(x) for x in cmd ])
 	
 	#def add_value(self, metric: Metric, value: float, timestamp: int = None, **kwargs):
 	async def add_value(self, metric_id: str, value: float, labels: dict = {}, timestamp: int = None):

@@ -109,7 +109,6 @@ class SessionMiddleware:
 		self.max_age = 120  # in seconds
 		#self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
-		self.redis_client = None
 		self._public_path = public_path
 
 	def get_cookie_header(self, session_id) -> dict:
@@ -120,8 +119,8 @@ class SessionMiddleware:
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace(f"SessionMiddleware {scope}")
-		try:	
-			self.redis_client = await get_redis_client() 
+		try:
+			redis_client = await get_redis_client()
 			if scope["type"] not in ("http", "websocket"):
 				await self.app(scope, receive, send)
 				return
@@ -144,15 +143,16 @@ class SessionMiddleware:
 			
 			if not is_public and (not session.user_store.username or not session.user_store.authenticated):
 				auth = get_basic_auth(scope['headers'])
-				try:					
-					is_blocked = await self.redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
+				try:
+								
+					is_blocked = await redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
 					is_blocked = bool(is_blocked)
 					if not is_blocked:
 						now = round(time.time())*1000
 						cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
 						logger.debug(cmd)
 						try:
-							num_failed_auth = await self.redis_client.execute_command(cmd)
+							num_failed_auth = await redis_client.execute_command(cmd)
 							num_failed_auth =  int(num_failed_auth[-1][1])
 							logger.debug("num_failed_auth: %s", num_failed_auth)						
 						except ResponseError as e:
@@ -162,7 +162,7 @@ class SessionMiddleware:
 						if num_failed_auth > config.max_auth_failures:
 							is_blocked = True
 							logger.warning("Blocking client '%s' for %0.2f minutes!", connection.client.host, (config.client_block_time/60))
-							await self.redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
+							await redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
 						
 					if is_blocked:
 						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked for {(config.client_block_time/60):.2f} minutes!")
@@ -188,7 +188,7 @@ class SessionMiddleware:
 					logger.warning(e)
 					cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
 					logger.debug(cmd)
-					await self.redis_client.execute_command(cmd)
+					await redis_client.execute_command(cmd)
 					raise HTTPException(
 						status_code=status.HTTP_401_UNAUTHORIZED,
 						detail=str(e),
@@ -255,8 +255,6 @@ class OPSISession():
 		self.user_store = UserStore()
 		self.option_store = {}
 		self._data: typing.Dict[str, typing.Any] = {}
-		self.redis_client = None
-		#self._redis = redis_connection()
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__} created={self.created} last_used={self.last_used}>"
@@ -285,7 +283,6 @@ class OPSISession():
 		return self.utc_time_timestamp() - self.last_used > self.max_age
 
 	async def init(self) -> None:
-		self.redis_client = await get_redis_client()
 		if self.session_id is None:
 			await self.init_new_session()
 		else:
@@ -308,7 +305,8 @@ class OPSISession():
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
 		redis_session_keys = []
 		try:
-			async for key in self.redis_client.scan_iter(f"{self.session_cookie}:{self.client_addr}:*"):
+			redis_client = await get_redis_client()
+			async for key in redis_client.scan_iter(f"{self.session_cookie}:{self.client_addr}:*"):
 				redis_session_keys.append(key.decode("utf8"))
 			if len(redis_session_keys) > config.max_session_per_ip:
 				logger.warning(f"Too many sessions on '{self.client_addr}'! Max is {config.max_session_per_ip}.")
@@ -324,9 +322,9 @@ class OPSISession():
 
 	async def load(self) -> bool:
 		self._data = {}
-		# client = await get_redis_client()
+		redis_client = await get_redis_client()
 		redis_session_keys = []
-		async for redis_key in self.redis_client.scan_iter(f"{self.session_cookie}:*:{self.session_id}"):
+		async for redis_key in redis_client.scan_iter(f"{self.session_cookie}:*:{self.session_id}"):
 			redis_session_keys.append(redis_key.decode("utf8"))
 		if len(redis_session_keys) == 0:
 			return False
@@ -335,9 +333,9 @@ class OPSISession():
 		if len(redis_session_keys) > 1:
 			logger.warning("More than one redis key with same session id!")
 		if redis_session_keys[0] != self.redis_key:
-			await self.redis_client.rename(redis_session_keys[0], self.redis_key)
+			await redis_client.rename(redis_session_keys[0], self.redis_key)
 
-		data = await self.redis_client.get(self.redis_key)
+		data = await redis_client.get(self.redis_key)
 		if not data:
 			return False
 		data = orjson.loads(data)
@@ -363,8 +361,8 @@ class OPSISession():
 		# Do not store password
 		if "password" in data["user_store"]:
 			del data["user_store"]["password"]
-		# client = await get_redis_client()
-		await self.redis_client.set(self.redis_key, orjson.dumps(data), ex=self.max_age)
+		redis_client = await get_redis_client()
+		await redis_client.set(self.redis_key, orjson.dumps(data), ex=self.max_age)
 
 	def _update_last_used(self):
 		self.last_used = self.utc_time_timestamp()

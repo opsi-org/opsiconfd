@@ -41,7 +41,7 @@ def get_internal_url():
 			addr = "localhost"
 			if running_in_docker():
 				addr = get_node_name()
-			external_url = f"{scheme}://{addr}:{config.port}"
+			internal_url = f"{scheme}://{addr}:{config.port}"
 	return internal_url
 
 external_url = None

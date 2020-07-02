@@ -24,6 +24,7 @@
 import os
 import re
 import time
+import datetime
 import asyncio
 import threading
 import psutil
@@ -67,10 +68,10 @@ GRAFANA_DATASOURCE_TEMPLATE = {
 	"jsonData": {
 		"tlsSkipVerify": True
 	},
-	"basicAuthUser": "adminuser",
-	"secureJsonData": {
-		"basicAuthPassword": "adminuser"
-	},
+	#"basicAuthUser": "adminuser",
+	#"secureJsonData": {
+	#	"basicAuthPassword": "adminuser"
+	#},
 	"readOnly": False
 }
 
@@ -90,7 +91,7 @@ GRAFANA_DASHBOARD_TEMPLATE = {
 			}
 		]
 	},
-	"timezone": "",
+	"timezone": "browser", # "utc", "browser" or "" (default)
 	"title": "opsiconfd main dashboard",
 	"editable": True,
 	"gnetId": None,
@@ -468,6 +469,10 @@ class MetricsCollector():
 		self._values_lock = asyncio.Lock()
 		self._last_timestamp = 0
 	
+	def _get_timestamp(self) -> int:
+		# utc timestamp in millis
+		return int(round(datetime.datetime.utcnow().timestamp())*1000)
+	
 	async def _fetch_values(self):
 		if not self._proc:
 			self._proc = psutil.Process()
@@ -482,7 +487,7 @@ class MetricsCollector():
 		
 			try:
 				await self._fetch_values()
-				timestamp = round(time.time())*1000
+				timestamp = self._get_timestamp()
 		
 				for metric in metrics_registry.get_metrics():
 					if not metric.id in self._values:
@@ -494,7 +499,7 @@ class MetricsCollector():
 							count = 0
 							async with self._values_lock:
 								values = self._values[metric.id].get(addr, {})
-								logger.debug("MetricsCollector VALUES: %s ", values)
+								logger.debug("MetricsCollector values: %s ", values)
 								if not values and not metric.zero_if_missing:
 									continue
 								for ts in list(values):
@@ -568,14 +573,14 @@ class MetricsCollector():
 		for trynum in range(1, max_tries + 1):
 			try:
 				redis = await get_redis_client()
-				if trynum > 1:
-					cmd = cmd.split(" ")
-					cmd[2] = timestamp = (round(time.time())*1000)+1
-					cmd = " ".join([ str(x) for x in cmd ])
 				return await redis.execute_command(cmd)
 			except ResponseError:
 				if trynum >= max_tries:
 					raise
+				# TODO: Remove or refactor, timestamp is not always cmd[2]
+				cmd = cmd.split(" ")
+				cmd[2] = timestamp = self._get_timestamp() + 1
+				cmd = " ".join([ str(x) for x in cmd ])
 	
 	#def add_value(self, metric: Metric, value: float, timestamp: int = None, **kwargs):
 	async def add_value(self, metric_id: str, value: float, labels: dict = {}, timestamp: int = None):
@@ -595,7 +600,7 @@ class MetricsCollector():
 				server_timing[metric_id.split(':')[-1]] = value * metric.server_timing_header_factor
 				contextvar_server_timing.set(server_timing)
 		if not timestamp:
-			timestamp = int(round(time.time()*1000))
+			timestamp = self._get_timestamp()
 		async with self._values_lock:
 			# key = json.dumps(kwargs, sort_keys=True)
 			if not metric_id in self._values:

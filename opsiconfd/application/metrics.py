@@ -22,6 +22,7 @@
 """
 
 import copy
+import time
 import aredis
 import aiohttp
 from datetime import datetime
@@ -60,7 +61,7 @@ async def create_api_key():
 """
 
 @grafana_metrics_router.get("/dashboard")
-async def grafana_index(request: Request):
+async def grafana_dashboard(request: Request):
 	auth = None
 	headers = None
 	url = urlparse(config.grafana_internal_url)
@@ -73,15 +74,16 @@ async def grafana_index(request: Request):
 			logger.debug("Using username %s and password grafana authorization", url.username)
 			auth = aiohttp.BasicAuth(url.username, url.password)
 	
-	async with aiohttp.ClientSession(auth=auth) as session:
+	base_url = f"{url.scheme}://{url.netloc.split('@', 1)[-1]}"
+	async with aiohttp.ClientSession(auth=auth, headers=headers) as session:
 		json = GRAFANA_DATASOURCE_TEMPLATE
 		json["url"] = f"{get_internal_url()}/metrics/grafana/"
-		resp = await session.get(f"{url.scheme}://{url.netloc}/api/datasources/name/{json['name']}")
+		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}")
 		if resp.status == 200:
 			_id = (await resp.json())["id"]
-			resp = await session.put(f"{url.scheme}://{url.netloc}/api/datasources/{_id}", json=json)
+			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json)
 		else:
-			resp = await session.post(f"{url.scheme}://{url.netloc}/api/datasources", json=json)
+			resp = await session.post(f"{base_url}/api/datasources", json=json)
 		
 		if resp.status == 200:
 			json = {
@@ -89,7 +91,7 @@ async def grafana_index(request: Request):
 				"overwrite": True,
 				"dashboard": await grafana_dashboard_config()
 			}
-			resp = await session.post(f"{url.scheme}://{url.netloc}/api/dashboards/db", json=json)
+			resp = await session.post(f"{base_url}/api/dashboards/db", json=json)
 		else:
 			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
 	return RedirectResponse(url=f"{config.grafana_external_url}/d/opsiconfd_main/opsiconfd-main-dashboard?refresh=5s&kiosk=tv")
@@ -200,6 +202,7 @@ async def grafana_query(query: GrafanaQuery):
 	results = []
 	redis = await get_redis_client()
 	for target in query.targets:
+		# UTC time values
 		from_ = datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ")
 		to = datetime.strptime(query.range.to, "%Y-%m-%dT%H:%M:%S.%fZ")
 		time_bucket = int(query.intervalMs/1000)
@@ -229,12 +232,10 @@ async def grafana_query(query: GrafanaQuery):
 			except aredis.exceptions.ResponseError as exc:
 				logger.debug("%s %s", cmd, exc)
 				rows = []
-			# [ [value1, timestamp1], [value2, timestamp2] ]
-			res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), r[0]] for r in rows ]
+			# [ [value1, timestamp1], [value2, timestamp2] ] # Metric value, unixtimestamp in milliseconds (UTC)
+			# utc_offset_millis = time.localtime().tm_gmtoff * 1000
+			res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), int(r[0])] for r in rows ]
 			
-			#########logger.essential("Grafana query result: %s", target.target)
-			#print(target.target)
-			#if target.target.find("Duration of RPCs") != -1:
-			#	print(res)
+			#logger.trace("Grafana query result: %s", target.target)
 			results.append(res)
 	return results

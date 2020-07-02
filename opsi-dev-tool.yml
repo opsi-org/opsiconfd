@@ -22,6 +22,7 @@ pyinstaller-poetry:
       - pydantic.color
       - pydantic.validators
       - pydantic.datetime_parse
+      - pkg_resources.py2_warn
       - OPSI.Backend.Depotserver
       - OPSI.Backend.DHCPD
       - OPSI.Backend.File
@@ -33,6 +34,8 @@ pyinstaller-poetry:
       - OPSI.Backend.Replicator
       - OPSI.Backend.SQLite
       - OPSI.Util.WIM
+  before_script: |
+    find .venv -iname "*linux-gnu.so" | grep pydantic | xargs rm -v 2>/dev/null || true
   scripts:
     - script: run-opsiconfd
       binaries:

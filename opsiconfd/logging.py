@@ -555,6 +555,8 @@ def init_logging(log_mode="redis"):
 			log_handler = RedisLogHandler(max_msg_len=int(config.log_max_msg_len))
 			log_handler.setLevel(log_level)
 		elif log_mode == "local":
+			config.log_format_stderr = config.log_format_stderr.replace("%(client_address)s", "")
+			config.log_format_file = config.log_format_file.replace("%(client_address)s", "")
 			console_formatter = colorlog.ColoredFormatter(config.log_format_stderr, datefmt=DATETIME_FORMAT, log_colors=LOG_COLORS)
 			log_handler = StreamHandler(stream=sys.stderr)
 			log_handler.setFormatter(console_formatter)

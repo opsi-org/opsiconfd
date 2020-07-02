@@ -120,7 +120,6 @@ test:pytest:
   
 
 build:linux-pyinstaller:
-  when: manual
   stage: build
   script:
     - *install_tools
@@ -138,7 +137,6 @@ build:linux-pyinstaller:
     expire_in: 2 day
 
 package:obs_int:
-  when: manual
   stage: publish
   dependencies:
     - build:linux-pyinstaller
@@ -149,7 +147,6 @@ package:obs_int:
     - tags
  
 package:obs_ext:
-  when: manual
   stage: publish
   dependencies:
     - build:linux-pyinstaller

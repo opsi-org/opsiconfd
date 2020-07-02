@@ -22,6 +22,7 @@
 """
 
 import copy
+import time
 import aredis
 import aiohttp
 from datetime import datetime
@@ -201,6 +202,7 @@ async def grafana_query(query: GrafanaQuery):
 	results = []
 	redis = await get_redis_client()
 	for target in query.targets:
+		# UTC time values
 		from_ = datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ")
 		to = datetime.strptime(query.range.to, "%Y-%m-%dT%H:%M:%S.%fZ")
 		time_bucket = int(query.intervalMs/1000)
@@ -230,12 +232,10 @@ async def grafana_query(query: GrafanaQuery):
 			except aredis.exceptions.ResponseError as exc:
 				logger.debug("%s %s", cmd, exc)
 				rows = []
-			# [ [value1, timestamp1], [value2, timestamp2] ]
-			res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), r[0]] for r in rows ]
+			# [ [value1, timestamp1], [value2, timestamp2] ] # Metric value, unixtimestamp in milliseconds (UTC)
+			# utc_offset_millis = time.localtime().tm_gmtoff * 1000
+			res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), int(r[0])] for r in rows ]
 			
-			#########logger.essential("Grafana query result: %s", target.target)
-			#print(target.target)
-			#if target.target.find("Duration of RPCs") != -1:
-			#	print(res)
+			#logger.trace("Grafana query result: %s", target.target)
 			results.append(res)
 	return results

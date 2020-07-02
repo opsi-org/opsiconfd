@@ -95,7 +95,6 @@ test:perftest:
     
 
 test:pytest:
-  when: manual
   image: ubuntu:focal
   services:
     - mysql:latest

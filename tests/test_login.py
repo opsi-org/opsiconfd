@@ -61,23 +61,24 @@ def test_proper_login():
 
 def test_max_sessions_client():
 	print(config.max_session_per_ip)
-	for i in range(0,26):
+	redis_client = redis.StrictRedis.from_url("redis://redis")
+	for i in range(0,40):
 		session_id = str(uuid.uuid4()).replace("-", "")
 		print(f"opsiconfd-session:127.0.0.1:{session_id}")
-		redis_client = redis.StrictRedis.from_url("redis://redis")
-		redis_client.setex(name=f"opsiconfd-session:127.0.0.1:{session_id}", value=f"empty test session {i}", time=20)
+		redis_client.setex(name=f"opsiconfd-session:127.0.0.1:{session_id}", value=f"empty test session {i}", time=120)
+	print(redis_client.keys("opsiconfd-session:1*"))
 	r = requests.get(OPSI_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert r.status_code == 403
 	assert r.text == "Too many sessions on '127.0.0.1'. Max is 25."
 	print(r.text)
-	time.sleep(30)
+	time.sleep(35)
 	r = requests.get(OPSI_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert r.status_code == 200
 	assert r.url == f"{OPSI_URL}/static/index.html"
 
 def test_max_auth():
 	for i in range(0,12):
-		r = requests.get(OPSI_URL, auth=("false_user","dalse_pw"), verify=False)
+		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
 		print(r.status_code)
 		if i >= 9:
 			assert r.status_code == 403
@@ -87,27 +88,3 @@ def test_max_auth():
 	assert r.status_code == 200
 	assert r.url == f"{OPSI_URL}/static/index.html"
 
-# def test_admin_network():
-# 	config._parse_args(["--admin-networks", "10.10.10.0/24"])
-	
-	# assert config.admin_networks == ["0.0.0.0/0"]
-	# print(config.admin_networks)
-	# # print(os.environ["OPSICONFD_ADMIN_NETWORKS"])
-	# # config.admin_networks = ['192.168.2.0/24']
-	# os.environ["OPSICONFD_ADMIN_NETWORKS"] = "['192.168.2.0/24']"
-	
-	# # config._parse_args(["--admin-networks", "10.10.10.0/24"])
-	# networks = config.admin_networks
-	# print(config.admin_networks)
-	# for network in networks:
-	# 	ip_adress_in_network = ipAddressInNetwork("127.0.0.1", network)
-	# 	print(ip_adress_in_network)
-	# r = requests.get("https://localhost:4447/static/log_viewer.html", auth=(TEST_USER,TEST_PW), verify=False)
-	# assert r.status_code == 403
-	# assert r.text == f"User not in admin network '{config.admin_networks}'"
-	# # config.admin_networks = ["0.0.0.0/0"]
-	# config._parse_args(["--admin-networks", "10.10.10.0/24"])
-	# r = requests.get(OPSI_URL, auth=(TEST_USER,TEST_PW), verify=False)
-	# assert r.status_code == 200
-	# print(config.items())
-	# assert config.admin_networks == ""

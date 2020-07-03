@@ -71,7 +71,7 @@ def test_max_sessions_client():
 	assert r.status_code == 403
 	assert r.text == "Too many sessions on '127.0.0.1'. Max is 25."
 	print(r.text)
-	time.sleep(35)
+	time.sleep(130)
 	r = requests.get(OPSI_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert r.status_code == 200
 	assert r.url == f"{OPSI_URL}/static/index.html"

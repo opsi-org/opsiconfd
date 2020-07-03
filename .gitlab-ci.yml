@@ -61,18 +61,20 @@ stages:
   echo "Set OPSI STATIC DIR"
   export OPSICONFD_STATIC_DIR="opsiconfd_data/static"
   echo "${OPSICONFD_STATIC_DIR}"
+  
+.perftest: &perftest |
   echo "Set OPSICONFD_MAX_SESSIONS_PER_IP"
   export OPSICONFD_MAX_SESSIONS_PER_IP=20000
   echo "${OPSICONFD_MAX_SESSIONS_PER_IP}"
   poetry run opsiconfd &
   sleep 20
-
-.perftest: &perftest |
   poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_jsonrpc_authenticated.json -w /tmp/perftest-result
   [ $(grep errors= /tmp/perftest-result | cut -d '=' -f2) -gt 0 ] && ( echo 'Errors in perftest' >&2 && exit 1 )
   [ $(grep avg_requests_per_second= /tmp/perftest-result | cut -d '=' -f2 | cut -d'.' -f 1) -ge 200 ] || ( echo 'Requests per second < 200' >&2 && exit 1 )
 
 .pytest: &pytest |
+  poetry run opsiconfd &
+  sleep 20
   echo "Run tests"
   poetry run pytest /builds/uib/opsiconfd/tests
 

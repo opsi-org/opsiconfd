@@ -139,7 +139,7 @@ build:linux-pyinstaller:
       - opsiconfd
     expire_in: 2 day
 
-package:obs_int:
+publish:obs_int:
   stage: publish
   dependencies:
     - build:linux-pyinstaller
@@ -149,7 +149,7 @@ package:obs_int:
   only:
     - tags
  
-package:obs_ext:
+publish:obs_ext:
   stage: publish
   dependencies:
     - build:linux-pyinstaller

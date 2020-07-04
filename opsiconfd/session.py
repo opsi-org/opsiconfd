@@ -49,7 +49,7 @@ from typing import List
 
 from fastapi import HTTPException, status
 from fastapi.responses import PlainTextResponse, JSONResponse
-from starlette.datastructures import MutableHeaders
+from starlette.datastructures import MutableHeaders, Headers
 from starlette.requests import HTTPConnection
 #from starlette.sessions import CookieBackend, Session, SessionBackend
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -66,13 +66,8 @@ from .backend import get_client_backend
 from .config import config
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
-def get_basic_auth(headers):
-	auth_header = None
-	for (k, v) in headers:
-		if (k.lower() == b'authorization'):
-			auth_header = v
-			break
-	#auth_header = headers.get('Authorization')
+def get_basic_auth(headers: Headers):
+	auth_header = headers.get("authorization")
 	if not auth_header:
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
@@ -80,7 +75,7 @@ def get_basic_auth(headers):
 			headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 		)
 
-	if not auth_header.startswith(b'Basic '):
+	if not auth_header.startswith("Basic "):
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail="Authorization method unsupported",
@@ -88,7 +83,7 @@ def get_basic_auth(headers):
 		)
 
 	encoded_auth = auth_header[6:] # Stripping "Basic "
-	auth = base64.decodebytes(encoded_auth).decode('utf-8')
+	auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
 	(username, password) = auth.rsplit(':', 1)
 
 	secret_filter.add_secrets(password)
@@ -111,12 +106,22 @@ class SessionMiddleware:
 		self.security_flags = ""
 		self._public_path = public_path
 
-	def get_cookie_header(self, session_id) -> dict:
-		cookie = f"{self.session_cookie_name}={session_id}; path=/; Max-Age={self.max_age}"
-		headers = {"Set-Cookie": cookie}
-		return headers
-		
-
+	def get_set_cookie_string(self, session_id) -> dict:
+		return f"{self.session_cookie_name}={session_id}; path=/; Max-Age={self.max_age}"
+	
+	def get_session_id_from_headers(self, headers: Headers) -> str:
+		#connection.cookies.get(self.session_cookie_name, None)
+		# Not working for opsi-script, which sometimes sends:
+		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
+		# Workaround:
+		cookies = headers.get("cookie")
+		if cookies:
+			for cookie in cookies.split(';'):
+				cookie = cookie.strip().split('=', 1)
+				if len(cookie) == 2:
+					if cookie[0].strip().lower() == self.session_cookie_name:
+						return cookie[1].strip().lower()
+	
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace(f"SessionMiddleware {scope}")
 		try:
@@ -131,18 +136,16 @@ class SessionMiddleware:
 					is_public = True
 
 			connection = HTTPConnection(scope)
-			session_id = connection.cookies.get(self.session_cookie_name, None)
+			session_id = self.get_session_id_from_headers(connection.headers)
 			session = None
-
 			if not is_public or session_id:
-				session = OPSISession(self, connection.client.host, session_id)
+				session = OPSISession(self, session_id, connection)
 				await session.init()
-			
 			contextvar_client_session.set(session)
 			scope["session"] = session
 			
 			if not is_public and (not session.user_store.username or not session.user_store.authenticated):
-				auth = get_basic_auth(scope['headers'])
+				auth = get_basic_auth(connection.headers)
 				try:
 								
 					is_blocked = await redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
@@ -211,14 +214,14 @@ class SessionMiddleware:
 					await session.store()
 					if message["type"] == "http.response.start":
 						headers = MutableHeaders(scope=message)
-						headers.append("Set-Cookie", self.get_cookie_header(session.session_id).get("Set-Cookie"))
+						headers.append("Set-Cookie", self.get_set_cookie_string(session.session_id))
 				await send(message)
 
 			await self.app(scope, receive, send_wrapper)
 		except HTTPException as e:
 			response = None
 			if e.headers != None:
-				e.headers.update(self.get_cookie_header(session.session_id))
+				e.headers.update({"Set-Cookie": self.get_set_cookie_string(session.session_id)})
 			if scope["path"].startswith("/rpc"):
 				logger.debug("Auth error - returning jsonrpc response")
 				response = JSONResponse(
@@ -227,14 +230,13 @@ class SessionMiddleware:
 					headers=e.headers
 				)
 			if not response:
-				for k, v in scope['headers']:
-					if k == b"accept" and b"application/json" in v:
-						logger.debug("Auth error - returning json response")
-						response = JSONResponse(
-							status_code=e.status_code,
-							content={"error": e.detail},
-							headers=e.headers
-						)
+				if connection.headers.get("accept") and "application/json" in connection.headers.get("accept"):
+					logger.debug("Auth error - returning json response")
+					response = JSONResponse(
+						status_code=e.status_code,
+						content={"error": e.detail},
+						headers=e.headers
+					)
 			if not response:
 				logger.debug("Auth error - returning plaintext response")
 				response = PlainTextResponse(
@@ -246,10 +248,11 @@ class SessionMiddleware:
 
 
 class OPSISession():
-	def __init__(self, session_middelware: SessionMiddleware, client_addr: str, session_id: str = None) -> None:
+	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection) -> None:
 		self._session_middelware = session_middelware
 		self.session_id = session_id
-		self.client_addr = client_addr
+		self.client_addr = connection.client.host
+		self.user_agent = connection.headers.get("user-agent")
 		self.created = 0
 		self.last_used = 0
 		self.user_store = UserStore()
@@ -284,17 +287,17 @@ class OPSISession():
 
 	async def init(self) -> None:
 		if self.session_id is None:
-			logger.error(f"Session id missing")
+			logger.debug("Session id missing (%s / %s)", self.client_addr, self.user_agent)
 			await self.init_new_session()
 		else:
 			if await self.load():
 				if self.expired:
-					logger.error(f"sSssion expired: {self}")
+					logger.debug("Session expired: %s (%s / %s)", self, self.client_addr, self.user_agent)
 					await self.init_new_session()
 				else:
-					logger.error(f"Reusing session: {self}")
+					logger.debug("Reusing session: %s (%s / %s)", self, self.client_addr, self.user_agent)
 			else:
-				logger.error(f"Session not found: {self}")
+				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
 				await self.init_new_session()
 
 		if not self.created:
@@ -310,7 +313,7 @@ class OPSISession():
 			async for key in redis_client.scan_iter(f"{self.session_cookie_name}:{self.client_addr}:*"):
 				redis_session_keys.append(key.decode("utf8"))
 			if len(redis_session_keys) > config.max_session_per_ip:
-				error = f"Too many sessions from '{self.client_addr}', configured maximum is: {config.max_session_per_ip}"
+				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {config.max_session_per_ip}"
 				logger.warning(error)
 				raise ConnectionRefusedError(error)
 		except ConnectionRefusedError as e:
@@ -320,7 +323,7 @@ class OPSISession():
 			)
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
-		logger.debug(f"Generated a new session id: {self.session_id}")
+		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def load(self) -> bool:
 		self._data = {}

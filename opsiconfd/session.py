@@ -105,14 +105,14 @@ def get_session_from_context():
 class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = []) -> None:
 		self.app = app
-		self.session_cookie = 'opsiconfd-session'
+		self.session_cookie_name = 'opsiconfd-session'
 		self.max_age = 120  # in seconds
 		#self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
 		self._public_path = public_path
 
 	def get_cookie_header(self, session_id) -> dict:
-		cookie = f"{self.session_cookie}={session_id}; path=/; Max-Age={self.max_age}"
+		cookie = f"{self.session_cookie_name}={session_id}; path=/; Max-Age={self.max_age}"
 		headers = {"Set-Cookie": cookie}
 		return headers
 		
@@ -131,7 +131,7 @@ class SessionMiddleware:
 					is_public = True
 
 			connection = HTTPConnection(scope)
-			session_id = connection.cookies.get(self.session_cookie, None)
+			session_id = connection.cookies.get(self.session_cookie_name, None)
 			session = None
 
 			if not is_public or session_id:
@@ -161,7 +161,7 @@ class SessionMiddleware:
 								raise
 						if num_failed_auth > config.max_auth_failures:
 							is_blocked = True
-							logger.warning("Blocking client '%s' for %0.2f minutes!", connection.client.host, (config.client_block_time/60))
+							logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
 							await redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
 						
 					if is_blocked:
@@ -270,13 +270,13 @@ class OPSISession():
 		return self._session_middelware.max_age
 
 	@property
-	def session_cookie(self):
-		return self._session_middelware.session_cookie
+	def session_cookie_name(self):
+		return self._session_middelware.session_cookie_name
 
 	@property
 	def redis_key(self) -> str:
 		assert self.session_id
-		return f"{self.session_cookie}:{self.client_addr}:{self.session_id}"
+		return f"{self.session_cookie_name}:{self.client_addr}:{self.session_id}"
 
 	@property
 	def expired(self) -> bool:
@@ -284,16 +284,17 @@ class OPSISession():
 
 	async def init(self) -> None:
 		if self.session_id is None:
+			logger.error(f"Session id missing")
 			await self.init_new_session()
 		else:
 			if await self.load():
 				if self.expired:
-					logger.debug(f"session expired: {self}")
+					logger.error(f"sSssion expired: {self}")
 					await self.init_new_session()
 				else:
-					logger.debug(f"Reusing session: {self}")
+					logger.error(f"Reusing session: {self}")
 			else:
-				logger.debug(f"Session not found: {self}")
+				logger.error(f"Session not found: {self}")
 				await self.init_new_session()
 
 		if not self.created:
@@ -306,11 +307,12 @@ class OPSISession():
 		redis_session_keys = []
 		try:
 			redis_client = await get_redis_client()
-			async for key in redis_client.scan_iter(f"{self.session_cookie}:{self.client_addr}:*"):
+			async for key in redis_client.scan_iter(f"{self.session_cookie_name}:{self.client_addr}:*"):
 				redis_session_keys.append(key.decode("utf8"))
 			if len(redis_session_keys) > config.max_session_per_ip:
-				logger.warning(f"Too many sessions on '{self.client_addr}'! Max is {config.max_session_per_ip}.")
-				raise ConnectionRefusedError(f"Too many sessions on '{self.client_addr}'. Max is {config.max_session_per_ip}.")
+				error = f"Too many sessions from '{self.client_addr}', configured maximum is: {config.max_session_per_ip}"
+				logger.warning(error)
+				raise ConnectionRefusedError(error)
 		except ConnectionRefusedError as e:
 			raise HTTPException(
 			status_code=status.HTTP_403_FORBIDDEN,
@@ -324,7 +326,7 @@ class OPSISession():
 		self._data = {}
 		redis_client = await get_redis_client()
 		redis_session_keys = []
-		async for redis_key in redis_client.scan_iter(f"{self.session_cookie}:*:{self.session_id}"):
+		async for redis_key in redis_client.scan_iter(f"{self.session_cookie_name}:*:{self.session_id}"):
 			redis_session_keys.append(redis_key.decode("utf8"))
 		if len(redis_session_keys) == 0:
 			return False

@@ -92,9 +92,9 @@ test:perftest:
   script: 
     - *prepare_tests
     - *perftest
-    
 
 test:pytest:
+  when: manual
   image: ubuntu:focal
   services:
     - mysql:latest
@@ -117,7 +117,6 @@ test:pytest:
   #   reports:
   #     junit: pytestreport.xml
   #   expire_in: 1 day
-  
 
 build:linux-pyinstaller:
   stage: build

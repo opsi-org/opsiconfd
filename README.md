@@ -22,3 +22,4 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * Build und run the docker environment: `./docker/build_and_run.py --type dev`
 * Run a bash in the opsiconfd docker container: `docker exec -it docker_opsiconfd_1 bash`
 * Start opsiconfd in the opsiconfd container: `poetry run opsiconfd`
+* Run local tests: `./tests/run_tests.sh`. Starts tests in docker container docker_opsiconfd_1.

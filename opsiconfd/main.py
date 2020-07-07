@@ -54,6 +54,7 @@ from .utils import get_node_name, get_worker_processes
 from .setup import setup
 from .patch import apply_patches
 from .backend import get_backend
+from .worker import set_arbiter_pid
 
 async def update_worker_registry():
 	redis = aredis.StrictRedis.from_url(config.redis_internal_url)
@@ -155,8 +156,8 @@ def main():
 			os.kill(pid, send_signal)
 		return
 
+	set_arbiter_pid(os.getpid())
 	signal.signal(signal.SIGHUP, signal_handler)
-
 	apply_patches()
 	
 	try:

@@ -46,6 +46,7 @@ contextvar_server_timing = contextvars.ContextVar("server_timing", default=None)
 _redis_client = None
 _pool_executor = None
 _metrics_collector = None
+_arbiter_pid = None
 
 async def get_redis_client():
 	global _redis_client
@@ -78,6 +79,13 @@ async def run_in_threadpool(func: typing.Callable[..., T], *args: typing.Any, **
 def get_metrics_collector():
 	return _metrics_collector
 
+def set_arbiter_pid(pid: int) -> None:
+	global _arbiter_pid
+	_arbiter_pid = pid
+
+def get_arbiter_pid() -> int:
+	return _arbiter_pid
+
 def handle_asyncio_exception(loop, context):
 	# context["message"] will always be there but context["exception"] may not
 	msg = context.get("exception", context["message"])
@@ -100,11 +108,15 @@ def exit_worker():
 
 def init_worker():
 	global _metrics_collector
-	signal.signal(signal.SIGINT, signal_handler)
-	signal.signal(signal.SIGHUP, signal_handler)
-	init_logging(log_mode=config.log_mode, is_worker=True)
 	from .backend import get_backend
 	from .statistics import MetricsCollector
+
+	if get_arbiter_pid() != os.getpid():
+		# Only if this process is a worker process (multiprocessing)
+		signal.signal(signal.SIGINT, signal_handler)
+		signal.signal(signal.SIGHUP, signal_handler)
+		init_logging(log_mode=config.log_mode, is_worker=True)
+	
 	logger.notice("Init worker: %s", os.getpid())
 	loop = asyncio.get_event_loop()
 	loop.set_debug(config.debug)

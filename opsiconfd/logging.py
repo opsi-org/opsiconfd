@@ -545,7 +545,7 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 
 	asyncio.events.Handle._run = _run
 
-def init_logging(log_mode="redis"):
+def init_logging(log_mode: str = "redis", is_worker: bool = False):
 	try:
 		logger.addFilter(AdditionalFieldsFilter())
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
@@ -576,6 +576,12 @@ def init_logging(log_mode="redis"):
 			enable_slow_callback_logging(config.log_slow_async_callbacks)
 		
 		logging.captureWarnings(True)
+		
+		if not is_worker:
+			if log_mode == "redis" and config.log_level_stderr > 0 or config.log_level_file > 0:
+				start_redis_log_adapter_thread()
+			else:
+				stop_redis_log_adapter_thread()
 	
 	except Exception as exc:
 		handle_log_exception(exc)
@@ -616,8 +622,19 @@ class RedisLogAdapterThread(threading.Thread):
 		except Exception as exc:
 			logger.error(exc, exc_info=True)
 
-def start_redis_log_adapter_thread(running_event):
-	thread = RedisLogAdapterThread(running_event)
-	thread.daemon = True
-	thread.start()
-	return thread
+redis_log_adapter_thread = None
+def start_redis_log_adapter_thread():
+	global redis_log_adapter_thread
+	if redis_log_adapter_thread:
+		return
+	running_event = threading.Event()
+	redis_log_adapter_thread = RedisLogAdapterThread(running_event)
+	redis_log_adapter_thread.daemon = True
+	redis_log_adapter_thread.start()
+	running_event.wait()
+
+def stop_redis_log_adapter_thread():
+	global redis_log_adapter_thread
+	if not redis_log_adapter_thread:
+		return
+	redis_log_adapter_thread.stop()

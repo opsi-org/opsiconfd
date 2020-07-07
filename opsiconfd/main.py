@@ -32,6 +32,8 @@ import uvloop
 import aredis
 import time
 import base64
+import psutil
+import signal
 try:
 	# python3-pycryptodome installs into Cryptodome
 	from Cryptodome.Hash import MD5
@@ -109,24 +111,56 @@ class ArbiterAsyncMainThread(threading.Thread):
 		while True:
 			await asyncio.sleep(1)
 
+last_reload_time = time.time()
+def signal_handler(signum, frame):
+	global last_reload_time
+	logger.info("Arbiter %s got signal %d", os.getpid(), signum)
+	if signum == signal.SIGHUP and time.time() - last_reload_time > 2:
+		last_reload_time = time.time()
+		logger.notice("Arbiter %s reloading", os.getpid())
+		config.reload()
+		init_logging(log_mode=config.log_mode)
+
 def main():
 	if config.version:
 		print(f"{__version__} [python-opsi={python_opsi_version}]")
 		return
 	
-	if config.setup:
+	if config.action == "setup" or config.setup:
 		init_logging(log_mode="local")
 		setup(full=True)
 		return
+
+	if config.action in ("reload", "stop"):
+		send_signal = signal.SIGINT if config.action == "stop" else signal.SIGHUP
+		our_pid = os.getpid()
+		our_proc = psutil.Process(our_pid)
+		ignore_pids = [our_pid]
+		ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
+		ignore_pids += [p.pid for p in our_proc.parents()]
+		pids = []
+		for proc in psutil.process_iter():
+			if proc.pid in ignore_pids:
+				continue
+			if proc.name() == "opsiconfd":
+				pids.append(proc.pid)
+				pids.extend([p.pid for p in proc.children(recursive=True)])
+			elif proc.name() in ("python", "python3"):
+				for arg in proc.cmdline():
+					if arg.find("opsiconfd.__main__") != -1:
+						pids.append(proc.pid)
+						pids.extend([p.pid for p in proc.children(recursive=True)])
+						break
+		for pid in sorted(set(pids), reverse=True):
+			os.kill(pid, send_signal)
+		return
+
+	signal.signal(signal.SIGHUP, signal_handler)
 
 	apply_patches()
 	
 	try:
 		init_logging(log_mode=config.log_mode)
-		if config.log_level_stderr > 0 or config.log_level_file > 0:
-			running = threading.Event()
-			start_redis_log_adapter_thread(running)
-			running.wait()
 		
 		setup(full=False)
 		

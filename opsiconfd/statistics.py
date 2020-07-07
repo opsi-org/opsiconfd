@@ -470,8 +470,10 @@ class MetricsCollector():
 		self._last_timestamp = 0
 	
 	def _get_timestamp(self) -> int:
-		# utc timestamp in millis
-		return int(round(datetime.datetime.utcnow().timestamp())*1000)
+		# return unix timestamp in millis
+		# milliseconds since Jan 01 1970. (UTC)
+		return int(time.time() * 1000)
+		#return int(round(datetime.datetime.utcnow().timestamp())*1000)
 	
 	async def _fetch_values(self):
 		if not self._proc:

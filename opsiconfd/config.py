@@ -61,7 +61,7 @@ def upgrade_config_files():
 	for c in parser._open_config_files(sys.argv[1:]):
 		data = c.read()
 		c.close()
-		if data.find('[global]') == -1:
+		if data.find("[global]") == -1:
 			continue
 		
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
@@ -88,7 +88,7 @@ def network_address(value):
 	return value
 
 def expert_help(help):
-	if '--ex-help' in sys.argv:
+	if "--ex-help" in sys.argv:
 		return help
 	return SUPPRESS
 
@@ -106,7 +106,7 @@ parser.add(
 )
 parser.add(
 	"--version",
-	action='store_true',
+	action="store_true",
 	help="Show version info and exit."
 )
 parser.add(
@@ -193,7 +193,7 @@ parser.add(
 parser.add(
 	"--symlink-logs",
 	env_var="OPSICONFD_SYMLINK_LOGS",
-	action='store_true',
+	action="store_true",
 	help="If separate log files are used and this option is enabled"
 		+ " opsiconfd will create a symlink in the log dir which points"
 		+ " to the clients log file. The name of the symlink will be the same"
@@ -270,7 +270,7 @@ parser.add(
 parser.add(
 	"--monitoring-debug",
 	env_var="OPSICONFD_MONITORING_DEBUG",
-	action='store_true',
+	action="store_true",
 	help="If enabled monitoring will be logged using the main log-level."
 )
 parser.add(
@@ -286,7 +286,7 @@ parser.add(
 parser.add(
 	"--interface",
 	env_var="OPSICONFD_INTERFACE",
-	default='0.0.0.0',
+	default="0.0.0.0",
 	help="The network interface to bind to (ip address of an network interface)."
 		+ "Use 0.0.0.0 to listen on all interfaces"
 )
@@ -300,19 +300,19 @@ parser.add(
 parser.add(
 	"--ssl-server-key",
 	env_var="OPSICONFD_SSL_SERVER_KEY",
-	default='/etc/opsi/opsiconfd.pem',
+	default="/etc/opsi/opsiconfd.pem",
 	help="TThe location of the ssl server key."
 )
 parser.add(
 	"--ssl-server-cert",
 	env_var="OPSICONFD_SSL_SERVER_CERT",
-	default='/etc/opsi/opsiconfd.pem',
+	default="/etc/opsi/opsiconfd.pem",
 	help="TThe location of the ssl server certificate."
 )
 parser.add(
 	"--verify-ip",
 	env_var="OPSICONFD_VERIFY_IP",
-	action='store_true',
+	action="store_true",
 	help="If a client uses its fqdn and opsi-host-key for authentication,"
 		+ " opsiconfd will try to resolve the fqdn (username) by a system call."
 		+ " If there is no result or the resulting IP address does not match"
@@ -321,7 +321,7 @@ parser.add(
 parser.add(
 	"--update-ip",
 	env_var="OPSICONFD_UPDATE_IP",
-	action='store_true',
+	action="store_true",
 	help="If enabled, a client's ip address will be updated in the opsi database,"
 		" when the client connects to the service and authentication is successful."
 )
@@ -363,36 +363,36 @@ parser.add(
 parser.add(
 	"--redis-internal-url",
 	env_var="OPSICONFD_REDIS_INTERNAL_URL",
-	default='redis://localhost',
+	default="redis://localhost",
 	help="Redis connection url."
 )
 parser.add(
 	"--grafana-internal-url",
 	env_var="OPSICONFD_GRAFANA_INTERNAL_URL",
-	default='http://localhost:3000',
+	default="http://localhost:3000",
 	help="Grafana base url for internal use."
 )
 parser.add(
 	"--grafana-external-url",
 	env_var="OPSICONFD_GRAFANA_EXTERNAL_URL",
-	default='http://grafana:3000',
+	default="http://grafana:3000",
 	help="External grafana base url."
 )
 parser.add(
 	"--ex-help",
-	action='store_true',
+	action="store_true",
 	help=expert_help("Show expert help message and exit.")
 )
 parser.add(
 	"--debug",
 	env_var="OPSICONFD_DEBUG",
-	action='store_true',
+	action="store_true",
 	help=expert_help("Turn debug mode on, never use in production.")
 )
 parser.add(
 	"--profiler",
 	env_var="OPSICONFD_PROFILER",
-	action='store_true',
+	action="store_true",
 	help=expert_help("Turn profiler on. This will slow down requests, never use in production.")
 )
 parser.add(
@@ -410,8 +410,8 @@ parser.add(
 parser.add(
 	"--executor-type",
 	env_var="OPSICONFD_EXECUTOR_TYPE",
-	choices=('thread', 'process'),
-	default='thread',
+	choices=("thread", "process"),
+	default="thread",
 	help=expert_help("Asyncio executor type.")
 )
 parser.add(
@@ -429,25 +429,36 @@ parser.add(
 	metavar="THRESHOLD",
 	help=expert_help("Log asyncio callbacks which takes THRESHOLD seconds ore more.")
 )
+parser.add(
+	"action",
+	nargs="?",
+	choices=("start", "stop", "reload", "setup"),
+	default="start",
+	metavar="ACTION",
+	help="The ACTION to perform."
+)
 class Config(metaclass=Singleton):
 	def __init__(self):
 		self._config = None
 		upgrade_config_files()
-		if '--ex-help' in sys.argv:
+		if "--ex-help" in sys.argv:
 			args = sys.argv
-			if not '--help' in args:
-				args.append('--help')
+			if not "--help" in args:
+				args.append("--help")
 			self._parse_args(args)
 
 	def _parse_args(self, args=None):
 		self._config = parser.parse_args(args)
 	
 	def __getattr__(self, attr):
-		if attr.startswith('_'):
+		if attr.startswith("_"):
 			raise AttributeError()
 		if not self._config:
 			self._parse_args()
 		return getattr(self._config, attr)
+	
+	def reload(self):
+		self._parse_args()
 	
 	def items(self):
 		return self._config.__dict__

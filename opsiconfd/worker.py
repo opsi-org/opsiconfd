@@ -85,7 +85,12 @@ def handle_asyncio_exception(loop, context):
 
 def signal_handler(signum, frame):
 	logger.info("Worker %s got signal %d", os.getpid(), signum)
-	exit_worker()
+	if signum == signal.SIGHUP:
+		logger.notice("Worker %s reloading", os.getpid())
+		config.reload()
+		init_logging(log_mode=config.log_mode, is_worker=True)
+	else:
+		exit_worker()
 
 def exit_worker():
 	for t in threading.enumerate():
@@ -96,7 +101,8 @@ def exit_worker():
 def init_worker():
 	global _metrics_collector
 	signal.signal(signal.SIGINT, signal_handler)
-	init_logging()
+	signal.signal(signal.SIGHUP, signal_handler)
+	init_logging(log_mode=config.log_mode, is_worker=True)
 	from .backend import get_backend
 	from .statistics import MetricsCollector
 	logger.notice("Init worker: %s", os.getpid())

@@ -168,7 +168,6 @@ async def grafana_search():
 			async for redis_key in redis.scan_iter(f"opsiconfd:stats:client:num_http_request:*"):
 				redis_key = redis_key.decode("utf-8")
 				clients.append({"client_addr": redis_key.split(':')[-1]})
-				logger.error(redis_key)
 			for client in clients:
 				names.append(metric.get_name(**client))
 		else:
@@ -193,18 +192,19 @@ class GrafanaQuery(BaseModel):
 	app: str
 	range: GrafanaQueryTargetRange
 	intervalMs: int
+	timezone: str
 	targets: List[GrafanaQueryTarget]
 
 @grafana_metrics_router.get('/query')
 @grafana_metrics_router.post('/query')
 async def grafana_query(query: GrafanaQuery):
-	logger.debug("Grafana query: %s", query)
+	logger.trace("Grafana query: %s", query)
 	results = []
 	redis = await get_redis_client()
 	for target in query.targets:
 		# UTC time values
-		from_ = datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ")
-		to = datetime.strptime(query.range.to, "%Y-%m-%dT%H:%M:%S.%fZ")
+		from_ = int((datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
+		to = int((datetime.strptime(query.range.to, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
 		time_bucket = int(query.intervalMs/1000)
 		if (time_bucket <= 0):
 			time_bucket = 1
@@ -225,17 +225,15 @@ async def grafana_query(query: GrafanaQuery):
 					#results.append(res)
 					continue
 			
-			cmd = ["TS.RANGE", metric.get_redis_key(**vars), int(from_.timestamp()*1000), int(to.timestamp()*1000), "AGGREGATION", "avg", time_bucket]
+			cmd = ["TS.RANGE", metric.get_redis_key(**vars), from_, to, "AGGREGATION", "avg", time_bucket]
 			try:
 				#rows = await redis.execute_command(" ".join([ str(x) for x in cmd ]))
 				rows = await redis.execute_command(*cmd)
 			except aredis.exceptions.ResponseError as exc:
 				logger.debug("%s %s", cmd, exc)
 				rows = []
-			# [ [value1, timestamp1], [value2, timestamp2] ] # Metric value, unixtimestamp in milliseconds (UTC)
-			# utc_offset_millis = time.localtime().tm_gmtoff * 1000
+			# [ [value1, timestamp1], [value2, timestamp2] ] # Metric value, unixtimestamp (milliseconds since Jan 01 1970 UTC)
 			res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), int(r[0])] for r in rows ]
-			
-			#logger.trace("Grafana query result: %s", target.target)
+			logger.trace("Grafana query result: %s", res)
 			results.append(res)
 	return results

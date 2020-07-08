@@ -24,6 +24,7 @@
 import os
 import asyncio
 import urllib
+import datetime
 
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
@@ -84,6 +85,21 @@ class LoggerWebsocket(WebSocketEndpoint):
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		pass
 
+@app.websocket_route("/ws/test")
+class TestWebsocket(WebSocketEndpoint):
+	encoding = 'bytes'
+
+	async def on_connect(self, websocket: WebSocket):
+		#params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
+		#client = params.get("client", [None])[0]
+		await websocket.accept()
+		while True:
+			ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+			await websocket.send_text(f"current time: {ts}")
+			await asyncio.sleep(10)
+	
+	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
+		pass
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, response: Response):
@@ -136,7 +152,7 @@ def application_setup():
 	#    ExceptionMiddleware
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana"])
+	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana", "/ws/test"])
 	#app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	if os.path.isdir(config.static_dir):

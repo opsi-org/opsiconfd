@@ -219,32 +219,35 @@ class SessionMiddleware:
 
 			await self.app(scope, receive, send_wrapper)
 		except HTTPException as e:
-			response = None
-			if e.headers != None:
-				e.headers.update({"Set-Cookie": self.get_set_cookie_string(session.session_id)})
-			if scope["path"].startswith("/rpc"):
-				logger.debug("Auth error - returning jsonrpc response")
-				response = JSONResponse(
-					status_code=e.status_code,
-					content={"jsonrpc": "2.0", "id": None, "result": None, "error": e.detail},
-					headers=e.headers
-				)
-			if not response:
-				if connection.headers.get("accept") and "application/json" in connection.headers.get("accept"):
-					logger.debug("Auth error - returning json response")
+			if scope["type"] == "websocket":
+				await send({"type": "websocket.close", "code": e.status_code})
+			else:
+				response = None
+				if e.headers != None:
+					e.headers.update({"Set-Cookie": self.get_set_cookie_string(session.session_id)})
+				if scope["path"].startswith("/rpc"):
+					logger.debug("Auth error - returning jsonrpc response")
 					response = JSONResponse(
 						status_code=e.status_code,
-						content={"error": e.detail},
+						content={"jsonrpc": "2.0", "id": None, "result": None, "error": e.detail},
 						headers=e.headers
 					)
-			if not response:
-				logger.debug("Auth error - returning plaintext response")
-				response = PlainTextResponse(
-					status_code=e.status_code,
-					content=e.detail,
-					headers=e.headers
-				)
-			await response(scope, receive, send)
+				if not response:
+					if connection.headers.get("accept") and "application/json" in connection.headers.get("accept"):
+						logger.debug("Auth error - returning json response")
+						response = JSONResponse(
+							status_code=e.status_code,
+							content={"error": e.detail},
+							headers=e.headers
+						)
+				if not response:
+					logger.debug("Auth error - returning plaintext response")
+					response = PlainTextResponse(
+						status_code=e.status_code,
+						content=e.detail,
+						headers=e.headers
+					)
+				await response(scope, receive, send)
 
 
 class OPSISession():

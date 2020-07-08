@@ -132,7 +132,7 @@ class SessionMiddleware:
 
 			is_public = False
 			for p in self._public_path:
-				if scope["path"].startswith(f"{p}/"):
+				if scope["path"].startswith(f"{p}"):
 					is_public = True
 
 			connection = HTTPConnection(scope)

@@ -282,7 +282,7 @@ class OPSISession():
 	@property
 	def redis_key(self) -> str:
 		assert self.session_id
-		return f"{self.session_cookie_name}:{self.client_addr}:{self.session_id}"
+		return f"opsiconfd:sessions:{self.client_addr}:{self.session_id}"
 
 	@property
 	def expired(self) -> bool:
@@ -313,7 +313,7 @@ class OPSISession():
 		redis_session_keys = []
 		try:
 			redis_client = await get_redis_client()
-			async for key in redis_client.scan_iter(f"{self.session_cookie_name}:{self.client_addr}:*"):
+			async for key in redis_client.scan_iter(f"opsiconfd:sessions:{self.client_addr}:*"):
 				redis_session_keys.append(key.decode("utf8"))
 			if len(redis_session_keys) > config.max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {config.max_session_per_ip}"

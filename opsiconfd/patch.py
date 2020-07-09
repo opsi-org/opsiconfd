@@ -40,7 +40,7 @@ def patch_websockets_protocol():
 	# Assert that functions to patch are unchanged
 	assert_function_unchanged(protocol.WebSocketCommonProtocol.read_frame, "464d14376d9fdcb5cf9865350948d5633fea6afa1cbda162d90d23f8bbd8b3f8dfdcdd1142c832a5fa5e45b5855527d68208d1d79a3f380fb8e1670878a309fb")
 	assert_function_unchanged(protocol.WebSocketCommonProtocol.write_frame, "7b743bb1696651d7e6a871c14dca3066ca038054bc943e1a67ce53d461e2da8ff61cd2dba1ef95d23c0f23d77c3dea0ebc14dc96d47b9b0687fad44d80fd66ff")
-	
+
 	async def read_frame(self, max_size: int) -> Frame:
 		"""
 		Read a single frame from the connection.
@@ -77,7 +77,7 @@ def patch_websockets_protocol():
 			# version of Python where this bugs exists is supported anymore.
 			async with self._drain_lock: # pylint: disable=protected-access
 				# Handle flow control automatically.
-				await self.writer.drain()
+				await self._drain()
 		except ConnectionError:
 			# Terminate the connection if the socket died.
 			self.fail_connection()

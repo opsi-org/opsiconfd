@@ -94,8 +94,10 @@ class TestWebsocket(WebSocketEndpoint):
 		#client = params.get("client", [None])[0]
 		await websocket.accept()
 		while True:
-			ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-			await websocket.send_text(f"current time: {ts}")
+			ts = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+			text = f"current utc time: {ts}"
+			logger.info("Sending '%s'", text)
+			await websocket.send_text(text)
 			await asyncio.sleep(10)
 	
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:

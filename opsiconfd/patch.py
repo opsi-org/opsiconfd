@@ -20,6 +20,7 @@
 :license: GNU Affero General Public License version 3
 """
 
+import sys
 import inspect
 from hashlib import sha512
 
@@ -37,9 +38,10 @@ def assert_function_unchanged(function_to_patch: callable, function_hash: str):
 		raise ValueError(f"Function to patch '{function_to_patch}' has changed, expected '{function_hash}', got '{source_hash}'")
 
 def patch_websockets_protocol():
-	# Assert that functions to patch are unchanged
-	assert_function_unchanged(protocol.WebSocketCommonProtocol.read_frame, "464d14376d9fdcb5cf9865350948d5633fea6afa1cbda162d90d23f8bbd8b3f8dfdcdd1142c832a5fa5e45b5855527d68208d1d79a3f380fb8e1670878a309fb")
-	assert_function_unchanged(protocol.WebSocketCommonProtocol.write_frame, "7b743bb1696651d7e6a871c14dca3066ca038054bc943e1a67ce53d461e2da8ff61cd2dba1ef95d23c0f23d77c3dea0ebc14dc96d47b9b0687fad44d80fd66ff")
+	if not getattr(sys, 'frozen', False):
+		# Assert that functions to patch are unchanged
+		assert_function_unchanged(protocol.WebSocketCommonProtocol.read_frame, "464d14376d9fdcb5cf9865350948d5633fea6afa1cbda162d90d23f8bbd8b3f8dfdcdd1142c832a5fa5e45b5855527d68208d1d79a3f380fb8e1670878a309fb")
+		assert_function_unchanged(protocol.WebSocketCommonProtocol.write_frame, "7b743bb1696651d7e6a871c14dca3066ca038054bc943e1a67ce53d461e2da8ff61cd2dba1ef95d23c0f23d77c3dea0ebc14dc96d47b9b0687fad44d80fd66ff")
 
 	async def read_frame(self, max_size: int) -> Frame:
 		"""

@@ -251,6 +251,8 @@ class SessionMiddleware:
 
 
 class OPSISession():
+	redis_key_prefix = "opsiconfd:sessions"
+
 	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection) -> None:
 		self._session_middelware = session_middelware
 		self.session_id = session_id
@@ -282,7 +284,7 @@ class OPSISession():
 	@property
 	def redis_key(self) -> str:
 		assert self.session_id
-		return f"opsiconfd:sessions:{self.client_addr}:{self.session_id}"
+		return f"{self.redis_key_prefix}:{self.client_addr}:{self.session_id}"
 
 	@property
 	def expired(self) -> bool:
@@ -313,7 +315,7 @@ class OPSISession():
 		redis_session_keys = []
 		try:
 			redis_client = await get_redis_client()
-			async for key in redis_client.scan_iter(f"opsiconfd:sessions:{self.client_addr}:*"):
+			async for key in redis_client.scan_iter(f"{self.redis_key_prefix}:{self.client_addr}:*"):
 				redis_session_keys.append(key.decode("utf8"))
 			if len(redis_session_keys) > config.max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {config.max_session_per_ip}"
@@ -332,7 +334,7 @@ class OPSISession():
 		self._data = {}
 		redis_client = await get_redis_client()
 		redis_session_keys = []
-		async for redis_key in redis_client.scan_iter(f"{self.session_cookie_name}:*:{self.session_id}"):
+		async for redis_key in redis_client.scan_iter(f"{self.redis_key_prefix}:*:{self.session_id}"):
 			redis_session_keys.append(redis_key.decode("utf8"))
 		if len(redis_session_keys) == 0:
 			return False

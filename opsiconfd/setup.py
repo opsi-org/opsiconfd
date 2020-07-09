@@ -175,7 +175,7 @@ def setup(full: bool = True):
 			# where backend config files are missing
 			logger.warning("Failed to setup backend: %s", e)
 		setup_files()
-		po_setup_file_permissions()
+		#po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
 		setup_ssl()
 		setup_systemd()
 	# Always correct file permissions (run_as_user could be changed)

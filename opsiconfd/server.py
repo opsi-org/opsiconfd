@@ -21,9 +21,11 @@
 :license: GNU Affero General Public License version 3
 """
 
+import gunicorn
 import gunicorn.app.base
 import uvicorn
 
+from . import __version__
 from .logging import GunicornLoggerSetup, logger
 from .config import config
 from .utils import running_in_docker, get_node_name
@@ -78,6 +80,7 @@ class GunicornApplication(gunicorn.app.base.BaseApplication):
 		return self.application
 
 def run_gunicorn():
+	gunicorn.SERVER_SOFTWARE = f"opsiconfd {__version__} (gunicorn)"
 	from .application import app
 	# https://docs.gunicorn.org/en/stable/settings.html
 	options = {
@@ -113,12 +116,17 @@ def run_uvicorn():
 		"port": config.port,
 		"workers": config.workers,
 		"log_config": None,
-		"debug": config.debug
+		"debug": config.debug,
+		"headers": [
+			["Server", f"opsiconfd {__version__} (uvicorn)"]
+		]
 	}
 	if config.ssl_server_key and config.ssl_server_cert:
 		options["ssl_keyfile"] = config.ssl_server_key
 		options["ssl_certfile"] = config.ssl_server_cert
 	
+	gunicorn.SERVER_SOFTWARE = f"opsiconfd {__version__} (gunicorn)"
+
 	logger.notice("uvicorn server starting")
 	uvicorn.run("opsiconfd.application:app", **options)
 	logger.notice("uvicorn server exited")

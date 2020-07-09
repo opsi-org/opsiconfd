@@ -34,29 +34,23 @@ async def admin_interface_index(request: Request):
 
 @admin_interface_router.post("/unblock-all")
 async def unblock_all_clients(request: Request):
-	logger.notice("unblock_all_clients")
-	logger.notice(request)
-
 	redis_client = await get_redis_client()
 	keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")
+
 	async for key in keys:
-		logger.warning(key)
+		logger.debug("redis key to delete: %s", key)
 		await redis_client.delete(key)
 
 	keys = redis_client.scan_iter("opsiconfd:stats:client:failed_auth:*")
 	async for key in keys:
-		logger.warning(key)
+		logger.debug("redis key to delete: %s", key)
 		await redis_client.delete(key)
 
 @admin_interface_router.post("/unblock-client")
 async def unblock_client(request: Request):
-	logger.notice("unblock-client")
-
-	client_addr = await request.body() 
-	logger.notice(client_addr)
 	request_body = await request.json()
 	client_addr = request_body.get("client_addr")
-	logger.notice(client_addr)
+	logger.debug("unblock client addr: %s ", client_addr)
 	redis_client = await get_redis_client()
 	await redis_client.delete(f"opsiconfd:stats:client:failed_auth:{client_addr}")
 	await redis_client.delete(f"opsiconfd:stats:client:blocked:{client_addr}")
@@ -64,12 +58,9 @@ async def unblock_client(request: Request):
 
 @admin_interface_router.post("/delete-client-sessions")
 async def delete_client_sessions(request: Request):
-	
 	request_body = await request.json()
 	client_addr = request_body.get("client_addr")
-	logger.notice(client_addr)
 	redis_client = await get_redis_client()
 	keys = redis_client.scan_iter(f"opsiconfd-session:{client_addr}:*")
 	async for key in keys:
-		logger.warning(key)
 		await redis_client.delete(key)

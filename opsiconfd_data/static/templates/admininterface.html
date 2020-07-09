@@ -1,0 +1,74 @@
+<html>
+<head>
+	<title>Admin page</title>
+	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
+</head>
+<body>
+	<div class="content">
+		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
+		<div class="interface-container">
+
+			<h2>Admin Interface</h2>
+
+			<h4>Unblock Clients:</h4>
+			<table>
+				<tr>
+					<td align=left><label>Unblock all clients:</label></td>
+					<td></td>
+					<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button>	</td>
+				</tr>
+				<tr>
+					<td align=left>Unblock address:</td> 
+					<td><input id="clientAddr" type="text" name="clientAddr"></td>
+					<td><input type="button" onclick="unblockClient()" value="Execute"></td>
+				</tr>
+				<tr>
+					<td align=left>Delete client sessions:</td> 
+					<td><input id="sessionAddr" type="text" name="sessionAddr"></td>
+					<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
+				</tr>
+			</table>	
+		</div>
+	</div>
+</body>
+
+<script>
+
+	function unblockAll(){
+		console.log("unblock all");
+		let request = new XMLHttpRequest();
+		request.open("POST", "/admin/unblock-all");
+		request.send();
+	}
+
+	function unblockClient(){
+		console.log(JSON.stringify({"client_addr": clientAddr.value}));
+		
+		console.log("unblock client " + clientAddr.value);
+		let request = new XMLHttpRequest();
+		request.open("POST", "/admin/unblock-client");
+
+		body = {
+			"client_addr": clientAddr.value
+		}		
+		request.send(JSON.stringify(body));
+		
+	}
+
+	function deleteClientSessions(){
+		
+		let request = new XMLHttpRequest();
+		request.open("POST", "/admin/delete-client-sessions");
+
+		body = {
+			"client_addr": sessionAddr.value
+		}		
+		request.send(JSON.stringify(body));
+		
+	}
+	
+
+</script>
+
+</html>
+

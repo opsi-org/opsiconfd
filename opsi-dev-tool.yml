@@ -22,7 +22,7 @@ pyinstaller-poetry:
       - pydantic.color
       - pydantic.validators
       - pydantic.datetime_parse
-      - pkg_resources.py2_warn
+      #- pkg_resources.py2_warn
       - OPSI.Backend.Depotserver
       - OPSI.Backend.DHCPD
       - OPSI.Backend.File

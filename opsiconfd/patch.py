@@ -35,6 +35,7 @@ def assert_function_unchanged(function_to_patch: callable, function_hash: str):
 	source = inspect.getsource(function_to_patch)
 	source_hash = sha512(source.encode("utf-8")).hexdigest()
 	if source_hash != function_hash:
+		#logger.debug(source)
 		raise ValueError(f"Function to patch '{function_to_patch}' has changed, expected '{function_hash}', got '{source_hash}'")
 
 def patch_websockets_protocol():

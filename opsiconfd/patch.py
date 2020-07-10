@@ -40,8 +40,8 @@ def assert_function_unchanged(function_to_patch: callable, function_hash: str):
 def patch_websockets_protocol():
 	if not getattr(sys, 'frozen', False):
 		# Assert that functions to patch are unchanged
-		assert_function_unchanged(protocol.WebSocketCommonProtocol.read_frame, "464d14376d9fdcb5cf9865350948d5633fea6afa1cbda162d90d23f8bbd8b3f8dfdcdd1142c832a5fa5e45b5855527d68208d1d79a3f380fb8e1670878a309fb")
-		assert_function_unchanged(protocol.WebSocketCommonProtocol.write_frame, "7b743bb1696651d7e6a871c14dca3066ca038054bc943e1a67ce53d461e2da8ff61cd2dba1ef95d23c0f23d77c3dea0ebc14dc96d47b9b0687fad44d80fd66ff")
+		assert_function_unchanged(protocol.WebSocketCommonProtocol.read_frame, "5de6c28d279813fda6499ea980f578c10d7eedef38effb89152d0a93154923891f12f256b63ceb8a9b6611593e777325a593a1e9438f53bf17dd16985632f519")
+		assert_function_unchanged(protocol.WebSocketCommonProtocol.write_frame, "805f88a9201ae53fb09b9c96b6fab1d6b8e3063ff6e3c02362a56e081bf96b1e9a02766662e01c8928fc07c3066215ac383ec45037416b651506a90462214ed5")
 
 	async def read_frame(self, max_size: int) -> Frame:
 		"""

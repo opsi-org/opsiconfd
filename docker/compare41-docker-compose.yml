@@ -1,17 +1,10 @@
 version: '3.3'
 
-networks:
-  opsiconfd_internal:
-    internal: true
-  opsiconfd_external:
-    external: true
-
 services:
-  opsiconfd_1:
+  opsiconfd42:
     depends_on:
       - mysql
       - redis
-      - grafana
     build:
       context: ..
       dockerfile: docker/opsiconfd-dev-Dockerfile
@@ -19,111 +12,30 @@ services:
       - "44472:4447"
     volumes:
       - ..:/src
-    restart: always
-    working_dir: /poetry
-    #entrypoint: ["poetry", "run", "opsiconfd"]
-    entrypoint: ["sleep", "infinity"]
     environment:
       OPSICONFD_EXTERNAL_URL: https://localhost:4447
-      OPSICONFD_INTERNAL_URL: https://opsiconfd_1:4447
+      OPSICONFD_INTERNAL_URL: https://opsiconfd42:4447
       OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@grafana:3000
       OPSICONFD_GRAFANA_EXTERNAL_URL: http://localhost:3000
-      OPSICONFD_WORKERS: 2
-    networks:
-      - opsiconfd_internal
-      - opsiconfd_external
-    labels:
-      - "traefik.enable=true"
-      #- "traefik.http.routers.opsiconfd.rule=Host(`opsiconfd.localhost`)"
-      #- "traefik.http.routers.opsiconfd.entrypoints=opsiconfd"
-      #- "traefik.http.services.opsiconfd.loadbalancer.server.port=4447"
-      #- "traefik.http.routers.opsiconfd.service=opsiconfd"
-      #- "traefik.docker.network=docker_opsiconfd_internal"
-      #- "traefik.port=4447"
-      - "traefik.tcp.routers.opsiconfd.rule=HostSNI(`opsiconfd.localhost`)"
-      - "traefik.tcp.routers.opsiconfd.entrypoints=opsiconfd"
-      - "traefik.tcp.routers.opsiconfd.tls=true"
-      - "traefik.tcp.routers.opsiconfd.tls.passthrough=true"
-      - "traefik.tcp.services.opsiconfd.loadbalancer.server.port=4447"
- 
-  opsiconfd_2:
-    depends_on:
-      - mysql
-      - redis
-      - grafana
-    build:
-      context: ..
-      dockerfile: docker/opsiconfd-dev-Dockerfile
-    volumes:
-      - ..:/src
-    restart: always
+      OPSICONFD_MAX_SESSIONS_PER_IP: 0
+      OPSICONFD_WORKERS: 1
+      OPSICONFD_LOG_LEVEL_STDERR: 4
+    #restart: always
     working_dir: /poetry
     entrypoint: ["poetry", "run", "opsiconfd"]
-    environment:
-      OPSICONFD_EXTERNAL_URL: https://localhost:4447
-      OPSICONFD_INTERNAL_URL: https://opsiconfd_2:4447
-      OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@grafana:3000
-      OPSICONFD_GRAFANA_EXTERNAL_URL: http://localhost:3000
-      OPSICONFD_WORKERS: 2
-    networks:
-      - opsiconfd_internal
-      #- opsiconfd_external
-    labels:
-      - "traefik.enable=true"
-      - "traefik.tcp.routers.opsiconfd.rule=HostSNI(`opsiconfd.localhost`)"
-      - "traefik.tcp.routers.opsiconfd.entrypoints=opsiconfd"
-      - "traefik.tcp.routers.opsiconfd.tls=true"
-      - "traefik.tcp.routers.opsiconfd.tls.passthrough=true"
-      - "traefik.tcp.services.opsiconfd.loadbalancer.server.port=4447"
-  
+    #entrypoint: ["sleep", "infinity"] 
+
   mysql:
-    image: mysql:5.7
-    command: --max_allowed_packet=32505856 # Set max_allowed_packet to 256M
-    networks:
-      - opsiconfd_internal
+    image: mysql:8
+    command: --max_allowed_packet=256M --sort_buffer_size=4M
     environment:
-       MYSQL_ROOT_PASSWORD: opsi
-       MYSQL_DATABASE: opsi
-       MYSQL_USER: opsi
-       MYSQL_PASSWORD: opsi
+      MYSQL_ROOT_PASSWORD: opsi
+      MYSQL_DATABASE: opsi
+      MYSQL_USER: opsi
+      MYSQL_PASSWORD: opsi
 
   redis:
-    image: redislabs/redistimeseries:1.2.5
-    networks:
-      - opsiconfd_internal
-
-  grafana:
-    image: grafana/grafana:6.7.1
-    environment:
-      # Installing plugins needs an internet connection
-      GF_INSTALL_PLUGINS: grafana-simple-json-datasource
-      GF_SECURITY_ADMIN_USER: adminuser
-      GF_SECURITY_ADMIN_PASSWORD: adminuser
-    ports:
-      - "3000:3000"
-    networks:
-      - opsiconfd_internal
-      - opsiconfd_external
-
-  traefik:
-    image: traefik:v2.2.0
-    command:
-      #- "--log.level=DEBUG"
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      #- "--providers.docker.network=docker_opsiconfd_internal"
-      - "--providers.docker.network=opsiconfd_internal"
-      - "--entrypoints.opsiconfd.address=:4447"
-      #- "--entrypoints.opsiconfd.tls.certificates.certFile="
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-    ports:
-      - "4447:4447"
-      - "8080:8080"
-    networks:
-      - opsiconfd_internal
-      - opsiconfd_external
+    image: redislabs/redistimeseries:1.4.1
 
   opsiconfd41:
     depends_on:
@@ -133,9 +45,6 @@ services:
       dockerfile: docker/opsiconfd41-Dockerfile
     ports:
       - "44471:4447"
-    networks:
-      - opsiconfd_internal
-      - opsiconfd_external
     #restart: always
     #entrypoint: ["sleep", "infinity"]
     entrypoint: ["/usr/bin/opsiconfd"]

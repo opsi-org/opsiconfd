@@ -27,10 +27,10 @@ services:
     ports:
       - "3307:3306"
     environment:
-       MYSQL_ROOT_PASSWORD: opsi
-       MYSQL_DATABASE: opsi
-       MYSQL_USER: opsi
-       MYSQL_PASSWORD: opsi
+      MYSQL_ROOT_PASSWORD: opsi
+      MYSQL_DATABASE: opsi
+      MYSQL_USER: opsi
+      MYSQL_PASSWORD: opsi
   redis:
     image: redislabs/redistimeseries:1.4.1
     ports:

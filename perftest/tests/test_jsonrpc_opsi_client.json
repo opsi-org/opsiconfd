@@ -11,7 +11,8 @@
 				"test": [
 					["jsonrpc", "authenticated", []],
 					["jsonrpc", "productOnClient_getObjects", [[],{"clientId":"pctest.uib.local"}]],
-					["jsonrpc", "product_getObjects", [[],{}]]
+					["jsonrpc", "productOnDepot_getObjects", [[],{}]],
+					["jsonrpc", "product_getObjects", [[],{"id":"opsi-client-agent"}]]
 				]
 			}
 		}

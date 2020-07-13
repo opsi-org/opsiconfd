@@ -5,7 +5,7 @@
 
 	<script>
 		function onLoad() {
-				document.getElementById("jsonrpc-result").style.visibility = 'hidden';
+				document.getElementById("json-result").style.visibility = 'hidden';
 				document.getElementById("text-result").style.visibility = 'hidden';
 			}
 	
@@ -19,7 +19,7 @@
 						result = request.responseText
 						result = JSON.parse(result);
 						console.log(result);
-						outputToHTML(result, "jsonrpc-result");
+						outputToHTML(result, "json-result");
 						outputResult(result, "text-result");
 						return result;
 		
@@ -42,7 +42,7 @@
 						result = request.responseText
 						result = JSON.parse(result);
 						console.log(result);
-						outputToHTML(result, "jsonrpc-result");
+						outputToHTML(result, "json-result");
 						outputResult(result, "text-result");
 						return result;
 					} else {
@@ -53,7 +53,9 @@
 			body = {
 				"client_addr": clientAddr.value
 			}		
-			request.send(JSON.stringify(body));	
+			if (ValidateIPaddress(clientAddr.value)) {
+				request.send(JSON.stringify(body));
+			}		
 		}
 	
 		function deleteClientSessions(){	
@@ -64,7 +66,7 @@
 						result = request.responseText
 						result = JSON.parse(result);
 						console.log(result);
-						outputToHTML(result, "jsonrpc-result");
+						outputToHTML(result, "json-result");
 						outputResult(result, "text-result");
 						return result;
 					} else {
@@ -74,8 +76,11 @@
 				});
 			body = {
 				"client_addr": sessionAddr.value
+			}
+			if (ValidateIPaddress(sessionAddr.value)) {
+				request.send(JSON.stringify(body));
 			}		
-			request.send(JSON.stringify(body));		
+					
 		}
 	
 		function outputResult(json, id) {
@@ -152,6 +157,15 @@
 			return txt.value;
 		}
 		
+		function ValidateIPaddress(ipaddress) 
+			{
+			if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipaddress))
+			{
+				return (true)
+			}
+				alert("You have entered an invalid IP address!")
+			return (false)
+		}
 	
 	</script>
 </head>
@@ -182,10 +196,10 @@
 				</table>	
 			</div>
 			<div id="result">
-				<p class="jsonrpc-result" id="text-result"></p>
+				<p class="json-result" id="text-result"></p>
 			</div>
 			<div id="result">
-				<pre class="jsonrpc-result" id="jsonrpc-result"></pre>
+				<pre class="json-result" id="json-result"></pre>
 			</div>
 			
 		</div>

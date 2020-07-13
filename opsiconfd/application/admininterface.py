@@ -62,7 +62,7 @@ async def unblock_all_clients(request: Request, response: Response):
 		response = JSONResponse({"status": 200, "error": None, "data": {"clients": clients, "redis-keys": deleted_keys}})
 	except Exception as e:
 		logger.error("Error while removing redis client keys: %s", e)
-		response = JSONResponse({"status": 500, "error": "Error while removing redis client keys", "detail": str(e)})
+		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
 
 	return response
 
@@ -72,6 +72,7 @@ async def unblock_client(request: Request):
 	try:
 		request_body = await request.json()
 		client_addr = request_body.get("client_addr")
+		
 		logger.debug("unblock client addr: %s ", client_addr)
 		redis_client = await get_redis_client()
 		deleted_keys = []
@@ -86,7 +87,7 @@ async def unblock_client(request: Request):
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "redis-keys": deleted_keys}})
 	except Exception as e:
 		logger.error("Error while removing redis client keys: %s", e)
-		response = JSONResponse({"status": 500, "error": str(e)})
+		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
 
 	return response
 
@@ -112,7 +113,6 @@ async def delete_client_sessions(request: Request):
 		logger.notice(deleted_keys)
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}})
 	except Exception as e:
-		logger.error("Error while removing redis client keys: %s", e)
-		response = JSONResponse({"status": 500, "error": str(e)})
-
+		logger.error("Error while removing redis session keys: %s", e)
+		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
 	return response

@@ -317,7 +317,7 @@ class OPSISession():
 			redis_client = await get_redis_client()
 			async for key in redis_client.scan_iter(f"{self.redis_key_prefix}:{self.client_addr}:*"):
 				redis_session_keys.append(key.decode("utf8"))
-			if len(redis_session_keys) > config.max_session_per_ip:
+			if config.max_session_per_ip > 0 and len(redis_session_keys) > config.max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {config.max_session_per_ip}"
 				logger.warning(error)
 				raise ConnectionRefusedError(error)

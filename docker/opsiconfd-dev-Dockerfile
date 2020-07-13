@@ -40,6 +40,7 @@ COPY docker/files/ /
 
 # Setup poetry
 WORKDIR /poetry
+COPY poetry.lock pyproject.toml /poetry/
 RUN poetry config --local virtualenvs.in-project true
 
 RUN groupadd pcpatch \
@@ -62,11 +63,11 @@ RUN chmod +x "/docker-entrypoint.sh" \
 	&& ln -s /src/opsiconfd opsiconfd \
 	&& ln -s /src/opsiconfd_data/static static \
 	&& ln -s /src/run-opsiconfd run-opsiconfd \
-	&& ln -s /src/poetry.lock poetry.lock \
-	&& ln -s /src/pyproject.toml pyproject.toml \
 	&& mkdir tftpboot
 
 RUN ln -s /src/python-opsi python-opsi \
-	&& sed -i s'/^python-opsi = .*/python-opsi = {path = "python-opsi"}/' pyproject.toml
+	&& rm poetry.lock && ln -s /src/poetry.lock poetry.lock \
+	&& rm pyproject.toml && ln -s /src/pyproject.toml pyproject.toml
+# && sed -i s'/^python-opsi = .*/python-opsi = {path = "python-opsi"}/' pyproject.toml
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/docker-entrypoint.sh"]

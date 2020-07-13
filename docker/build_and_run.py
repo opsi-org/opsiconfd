@@ -18,7 +18,7 @@ subprocess.call([
 	"docker_mysql_1", "docker_redis_1", "docker_grafana_1", "docker_traefik_1",
 	"docker_opsiconfd_1", "docker_opsiconfd_2", "docker_opsiconfd_3", "docker_opsiconfd_4",
 	"docker_opsiconfd_1_1", "docker_opsiconfd_2_1",
-	"docker_opsiconfd41_1"
+	"docker_opsiconfd41_1", "docker_opsiconfd42_1"
 ])
 
 if args.type == "dev":

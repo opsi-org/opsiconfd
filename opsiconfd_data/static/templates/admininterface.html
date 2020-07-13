@@ -3,42 +3,69 @@
 	<title>Admin page</title>
 	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
 </head>
-<body>
+<body onload="onLoad();">
 	<div class="content">
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
 		<div class="interface-container">
 
 			<h2>Admin Interface</h2>
-
-			<h4>Unblock Clients:</h4>
-			<table>
-				<tr>
-					<td align=left><label>Unblock all clients:</label></td>
-					<td></td>
-					<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button>	</td>
-				</tr>
-				<tr>
-					<td align=left>Unblock address:</td> 
-					<td><input id="clientAddr" type="text" name="clientAddr"></td>
-					<td><input type="button" onclick="unblockClient()" value="Execute"></td>
-				</tr>
-				<tr>
-					<td align=left>Delete client sessions:</td> 
-					<td><input id="sessionAddr" type="text" name="sessionAddr"></td>
-					<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
-				</tr>
-			</table>	
+			<div class="adminpage-box">
+				<h4>Unblock Clients:</h4>
+				<table>
+					<tr>
+						<td align=left><label>Unblock all clients:</label></td>
+						<td></td>
+						<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button>	</td>
+					</tr>
+					<tr>
+						<td align=left>Unblock address:</td> 
+						<td><input id="clientAddr" type="text" name="clientAddr" placeholder="127.0.0.1"></td>
+						<td><input type="button" onclick="unblockClient()" value="Execute"></td>
+					</tr>
+					<tr>
+						<td align=left>Delete client sessions:</td> 
+						<td><input id="sessionAddr" type="text" name="sessionAddr" placeholder="127.0.0.1"></td>
+						<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
+					</tr>
+				</table>	
+			</div>
+			<div id="result">
+				<p class="jsonrpc-result" id="text-result"></p>
+			</div>
+			<div id="result">
+				<pre class="jsonrpc-result" id="jsonrpc-result"></pre>
+			</div>
+			
 		</div>
 	</div>
 </body>
 
 <script>
+	function onLoad() {
+			document.getElementById("jsonrpc-result").style.visibility = 'hidden';
+			document.getElementById("text-result").style.visibility = 'hidden';
+			
+		}
 
 	function unblockAll(){
 		console.log("unblock all");
 		let request = new XMLHttpRequest();
 		request.open("POST", "/admin/unblock-all");
-		request.send();
+		request.addEventListener('load', function (event) {
+				if (request.status >= 200 && request.status < 300) {
+					result = request.responseText
+					result = JSON.parse(result);
+					console.log(result);
+					outputToHTML(result, "jsonrpc-result");
+					outputResult(result, "text-result");
+					return result;
+	
+				} else {
+					console.warn(request.statusText, request.responseText);
+					return request.statusText;
+				}
+			});
+		request.send();	
 	}
 
 	function unblockClient(){
@@ -47,6 +74,20 @@
 		console.log("unblock client " + clientAddr.value);
 		let request = new XMLHttpRequest();
 		request.open("POST", "/admin/unblock-client");
+		request.addEventListener('load', function (event) {
+				if (request.status >= 200 && request.status < 300) {
+					result = request.responseText
+					result = JSON.parse(result);
+					console.log(result);
+					outputToHTML(result, "jsonrpc-result");
+					outputResult(result, "text-result");
+					return result;
+	
+				} else {
+					console.warn(request.statusText, request.responseText);
+					return request.statusText;
+				}
+			});
 
 		body = {
 			"client_addr": clientAddr.value
@@ -59,12 +100,86 @@
 		
 		let request = new XMLHttpRequest();
 		request.open("POST", "/admin/delete-client-sessions");
+		request.addEventListener('load', function (event) {
+				if (request.status >= 200 && request.status < 300) {
+					result = request.responseText
+					result = JSON.parse(result);
+					console.log(result);
+					outputToHTML(result, "jsonrpc-result");
+					
+					return result;
+	
+				} else {
+					console.warn(request.statusText, request.responseText);
+					return request.statusText;
+				}
+			});
 
 		body = {
 			"client_addr": sessionAddr.value
 		}		
 		request.send(JSON.stringify(body));
 		
+	}
+
+	function outputResult(json, id) {
+		
+		if (json["success"]) {
+			console.log("success");
+			if (json["clients"] != undefined && json["clients"].length != 0){
+				text = json["clients"].length + " clients unblocked.";
+			}
+			else if (json["client"] != undefined && json["client"].length != 0) {
+				text = "client with address " + json["client"] + " unblocked.";
+			}
+			else {
+				text = "No blocked clients found.";
+			}
+			
+		}
+		else {
+			test = "Error while unblocking clients";
+		}
+		document.getElementById(id).style.visibility = 'visible';
+		document.getElementById(id).innerHTML = text;
+	}
+
+	function outputToHTML(json, id) {
+			jsonStr = JSON.stringify(json, undefined, 2);
+			jsonStr = syntaxHighlight(jsonStr);
+			document.getElementById(id).style.visibility = 'visible'
+			document.getElementById(id).innerHTML = jsonStr;
+		}
+	
+	// https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
+	function syntaxHighlight(json) {
+		if (typeof json != 'string') {
+			json = JSON.stringify(json, undefined, 2);
+		}
+		json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+		return json.replace(
+			/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+			function (match) {
+				var cls = 'json_number';
+				if (/^"/.test(match)) {
+					if (/:$/.test(match)) {
+						cls = 'json_key';
+					} else {
+						cls = 'json_string';
+					}
+				} else if (/true|false/.test(match)) {
+					cls = 'json_boolean';
+				} else if (/null/.test(match)) {
+					cls = 'json_null';
+				}
+				return '<span class="' + cls + '">' + match + '</span>';
+			});
+	}
+
+	function decode(html) {
+		var txt = document.createElement('textarea');
+		txt.innerHTML = html;
+		return txt.value;
 	}
 	
 

@@ -8,7 +8,7 @@ See LICENSES/README.md for more Information
 
 
 import os
-
+import datetime
 
 from fastapi import APIRouter, Request, Response, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -29,10 +29,30 @@ def admin_interface_setup(app):
 @admin_interface_router.get("/?")
 async def admin_interface_index(request: Request):
 	logger.notice("ADMIN INTERFACE")
+
+	now = datetime.time()
+	time = datetime.datetime.now() - datetime.timedelta(days=2)
+	time = time.strftime("%m/%d/%Y, %H:%M:%S")
+	logger.notice("TIME: %s",  time)
+	
+	redis_client = await get_redis_client()
+	# keys = redis_client.scan_iter("opsiconfd:stats:worker:num_rpcs:*")
+	# count = 0
+	# logger.notice(keys)
+	# async for key in keys:
+	# 	logger.notice(key)
+	# 	cmd = f"TS.RANGE {key.decode('utf8')} - + AGGREGATION sum 315400000000"
+	# 	redis_result = await redis_client.execute_command(cmd)
+	# 	count += int(redis_result[0][1].decode("utf8"))
+	# 	logger.warning(count)
+	count = await redis_client.get("opsiconfd:stats:rpc:count")
 	context = {
 		"request": request,
-		"interface": get_backend_interface()
+		"interface": get_backend_interface(),
+		"count": count.decode("utf8"),
+		"time": time
 	}
+
 	return templates.TemplateResponse("admininterface.html", context)
 
 @admin_interface_router.post("/unblock-all")

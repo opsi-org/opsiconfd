@@ -45,13 +45,32 @@ async def admin_interface_index(request: Request):
 	# 	redis_result = await redis_client.execute_command(cmd)
 	# 	count += int(redis_result[0][1].decode("utf8"))
 	# 	logger.warning(count)
-	count = await redis_client.get("opsiconfd:stats:rpc:count")
+
+	redis_keys = redis_client.scan_iter(f"opsiconfd:stats:rpc:*")
+
+	rpc_list = []
+	async for key in redis_keys:
+		
+		num_params = await redis_client.hget(key, "num_params")
+		error = await redis_client.hget(key, "error")
+		duration = await redis_client.hget(key, "duration")
+		method_name = key.decode("utf8").split(":")[-1]
+		rpc = {"method_name": method_name, "num_params": num_params.decode("utf8"), "error": error.decode("utf8"), "duration": duration.decode("utf8")}
+		rpc_list.append(rpc)
+
+	# for rpc in rpc_list:
+	# 	rpc_list = {k.decode('utf8'): v.decode('utf8') for k, v in rpc_list.items()}
+	logger.warning(rpc_list)
+	count = await redis_client.get("opsiconfd:stats:num_rpcs")
 	context = {
 		"request": request,
 		"interface": get_backend_interface(),
 		"count": count.decode("utf8"),
-		"time": time
+		"time": time,
+		"rpc_list": rpc_list
 	}
+
+	
 
 	return templates.TemplateResponse("admininterface.html", context)
 

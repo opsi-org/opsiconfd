@@ -138,7 +138,7 @@ async def process_jsonrpc(request: Request, response: Response):
 			results.append(result[0])
 			await get_metrics_collector().add_value("worker:rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
 			redis_client = await get_redis_client()
-			rpc_count = await redis_client.incr("opsiconfd:stats:rpc:count")
+			rpc_count = await redis_client.incr("opsiconfd:stats:num_rpcs")
 			error = True
 			if result[0].get("error") == None:
 				error = False

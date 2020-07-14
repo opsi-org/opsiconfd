@@ -145,13 +145,18 @@ async def process_jsonrpc(request: Request, response: Response):
 			logger.notice("RPC Count: %s", rpc_count)
 			# params = list(filter(None, result[0].get("params")))
 			# params = list(filter({}, result[0].get("params")))
-			logger.warning("PARAMS: %s", result[0].get("params"))
-			params = [param for param in result[0].get("params") if param]
+			logger.warning("PARAMS: %s", result[0].get("params",[]))
+			params = [param for param in result[0].get("params",[]) if param]
 			logger.warning("PARAMS: %s", params)
 			logger.notice("num params: ", len(result[0].get("params")))
+			# logger.error(result[0].get("result", []))
+			num_results = 0
+			if result[0].get("result"):
+				num_results = len(result[0].get("result"))
+			logger.warning("num_results: %s", num_results)
 			redis_key = f"opsiconfd:stats:rpc:{rpc_count}:{result[0].get('method')}"
 			async with await redis_client.pipeline(transaction=False) as pipe:
-				await pipe.hmset(redis_key, {"num_params": len(params), "error": error, "duration": result[1]})
+				await pipe.hmset(redis_key, {"num_params": len(params), "error": error,"num_results": num_results, "duration": result[1]})
 				await pipe.expire(redis_key, 172800)
 				redis_returncode = await pipe.execute()
 

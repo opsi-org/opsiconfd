@@ -54,10 +54,16 @@ async def admin_interface_index(request: Request):
 		
 		num_params = await redis_client.hget(key, "num_params")
 		error = await redis_client.hget(key, "error")
+		num_results = await redis_client.hget(key, "num_results")
 		duration = await redis_client.hget(key, "duration")
 		duration = "{:.3f} s".format(float(duration.decode("utf8")))
 		method_name = key.decode("utf8").split(":")[-1]
-		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "num_params": num_params.decode("utf8"), "error": error.decode("utf8"), "duration": duration}
+		
+		if error.decode("utf8") == "True":
+			error = True
+		else:
+			error = False
+		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params.decode("utf8"), "results": num_results.decode("utf8"), "error": error, "duration": duration}
 		rpc_list.append(rpc)
 
 
@@ -65,10 +71,13 @@ async def admin_interface_index(request: Request):
 	# rpc_list = rpc_list.sort(key=get_rpc_num)
 	logger.warning(rpc_list)
 	count = await redis_client.get("opsiconfd:stats:num_rpcs")
+	if count:
+		count = count.decode("utf8")
+	logger.notice(count)
 	context = {
 		"request": request,
 		"interface": get_backend_interface(),
-		"count": count.decode("utf8"),
+		"count": count,
 		"time": time,
 		"rpc_list": rpc_list
 	}

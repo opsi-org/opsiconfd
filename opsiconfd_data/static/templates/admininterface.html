@@ -203,8 +203,28 @@
 				<pre class="json-result" id="json-result"></pre>
 			</div>
 
-			Number of RPCs since {{time}} (UTC): {{count}}
-			
+			<div class="adminpage-box">
+				<h4>RPCs:</h4>
+
+				Number of RPCs since {{time}} (UTC): {{count}}
+				<br><br>
+
+				<table class="rpc-table">
+					<tr>
+					{% for key in rpc_list[0].keys() %}
+					<th class="rpc-th">{{key}}</th>					
+					{% endfor %}
+					</tr>
+					{% for rpc in rpc_list %}
+					<tr>
+						<td class="rpc-td">{{rpc.get("method_name")}}</td>
+						<td class="rpc-td">{{rpc.get("num_params")}}</td>
+						<td class="rpc-td">{{rpc.get("error")}}</td>
+						<td class="rpc-td">{{rpc.get("duration")}}</td>
+					</tr>
+					{% endfor %}
+				</table>
+			</div>
 		</div>
 	</div>
 </body>

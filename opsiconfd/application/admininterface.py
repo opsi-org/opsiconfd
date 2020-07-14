@@ -9,6 +9,7 @@ See LICENSES/README.md for more Information
 
 import os
 import datetime
+from operator import itemgetter
 
 from fastapi import APIRouter, Request, Response, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -54,12 +55,14 @@ async def admin_interface_index(request: Request):
 		num_params = await redis_client.hget(key, "num_params")
 		error = await redis_client.hget(key, "error")
 		duration = await redis_client.hget(key, "duration")
+		duration = "{:.3f} s".format(float(duration.decode("utf8")))
 		method_name = key.decode("utf8").split(":")[-1]
-		rpc = {"method_name": method_name, "num_params": num_params.decode("utf8"), "error": error.decode("utf8"), "duration": duration.decode("utf8")}
+		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "num_params": num_params.decode("utf8"), "error": error.decode("utf8"), "duration": duration}
 		rpc_list.append(rpc)
 
-	# for rpc in rpc_list:
-	# 	rpc_list = {k.decode('utf8'): v.decode('utf8') for k, v in rpc_list.items()}
+
+	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
+	# rpc_list = rpc_list.sort(key=get_rpc_num)
 	logger.warning(rpc_list)
 	count = await redis_client.get("opsiconfd:stats:num_rpcs")
 	context = {
@@ -69,8 +72,6 @@ async def admin_interface_index(request: Request):
 		"time": time,
 		"rpc_list": rpc_list
 	}
-
-	
 
 	return templates.TemplateResponse("admininterface.html", context)
 

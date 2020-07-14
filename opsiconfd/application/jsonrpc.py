@@ -139,14 +139,14 @@ async def process_jsonrpc(request: Request, response: Response):
 			await get_metrics_collector().add_value("worker:rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
 			redis_client = await get_redis_client()
 			rpc_count = await redis_client.incr("opsiconfd:stats:rpc:count")
-			success = 1
+			error = True
 			if result[0].get("error") == None:
-				success = 0
+				error = False
 			logger.notice("RPC Count: %s", rpc_count)
 			logger.notice("num params: ", len(result[0].get("params")))
 			redis_key = f"opsiconfd:stats:rpc:{rpc_count}:{result[0].get('method')}"
 			async with await redis_client.pipeline(transaction=False) as pipe:
-				await pipe.hmset(redis_key, {"num_params": len(result[0].get("params")), "success": success, "duration": result[1]})
+				await pipe.hmset(redis_key, {"num_params": len(result[0].get("params")), "error": error, "duration": result[1]})
 				await pipe.expire(redis_key, 172800)
 				redis_returncode = await pipe.execute()
 

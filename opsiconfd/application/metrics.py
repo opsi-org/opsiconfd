@@ -17,7 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 :copyright: uib GmbH <info@uib.de>
-:author: Jan Schneider <j.schneider@uib.de>
 :license: GNU Affero General Public License version 3
 """
 
@@ -35,30 +34,20 @@ from urllib.parse import urlparse
 
 from ..logging import logger
 from ..config import config
-from ..server import get_external_url, get_internal_url
+from ..server import get_internal_url
 from ..worker import get_redis_client
-from ..statistics import metrics_registry, GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE
+from ..statistics import metrics_registry
+from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE
 
 grafana_metrics_router = APIRouter()
 
 def metrics_setup(app):
 	app.include_router(grafana_metrics_router, prefix="/metrics/grafana")
 
-
-"""
-async def create_api_key():
-	api_key = None
-	if not api_key:
-		auth = aiohttp.BasicAuth("adminuser", "adminuser")
-		async with aiohttp.ClientSession(auth=auth) as session:
-			resp = await session.get(f"{config.grafana_internal_url}/api/auth/keys")
-			for key in await resp.json():
-				if key["name"] == "opsiconfd":
-					await session.delete(f"{config.grafana_internal_url}/api/auth/keys/{key['id']}")
-			json = {"name": "opsiconfd", "role":"Admin", "secondsToLive": None}
-			resp = await session.post(f"{config.grafana_internal_url}/api/auth/keys", json=json)
-			api_key = (await resp.json())["key"]
-"""
+@grafana_metrics_router.get('/?')
+async def grafana_index():
+	# should return 200 ok. Used for "Test connection" on the datasource config page.
+	return None
 
 @grafana_metrics_router.get("/dashboard")
 async def grafana_dashboard(request: Request):
@@ -142,11 +131,6 @@ async def grafana_dashboard_config():
 	
 	dashboard["panels"] = panels
 	return dashboard
-
-@grafana_metrics_router.get('/?')
-async def grafana_index():
-	# should return 200 ok. Used for "Test connection" on the datasource config page.
-	return None
 
 @grafana_metrics_router.get('/search')
 @grafana_metrics_router.post('/search')

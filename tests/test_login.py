@@ -10,13 +10,11 @@ import requests
 from OPSI.Util import ipAddressInNetwork
 
 from opsiconfd.config import config
-from opsiconfd.session import OPSISession
-
-
 
 OPSI_URL = "https://localhost:4447" 
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"
+OPSI_SESSION_KEY = "opsiconfd:session"
 
 @pytest.fixture(autouse=True)
 def clean_redis():
@@ -24,7 +22,7 @@ def clean_redis():
 	redis_client = redis.StrictRedis.from_url("redis://redis")
 	redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
 	redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
-	session_keys = redis_client.scan_iter("{OPSISession.redis_key_prefix}:*")
+	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:127.0.0.1:*")
 	for key in session_keys:
 		redis_client.delete(key)
 
@@ -66,9 +64,8 @@ def test_max_sessions_client():
 	redis_client = redis.StrictRedis.from_url("redis://redis")
 	for i in range(0,40):
 		session_id = str(uuid.uuid4()).replace("-", "")
-		print(f"{OPSISession.redis_key_prefix}:127.0.0.1:{session_id}")
-		redis_client.setex(name=f"{OPSISession.redis_key_prefix}:127.0.0.1:{session_id}", value=f"empty test session {i}", time=120)
-	print(redis_client.keys("{OPSISession.redis_key_prefix}:1*"))
+		print(f"{OPSI_SESSION_KEY}:127.0.0.1:{session_id}", value=f"empty test session {i}", time=120)
+	print(redis_client.keys(f"{OPSI_SESSION_KEY}:*"))
 	r = requests.get(OPSI_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert r.status_code == 403
 	assert r.text == "Too many sessions on '127.0.0.1'. Max is 25."

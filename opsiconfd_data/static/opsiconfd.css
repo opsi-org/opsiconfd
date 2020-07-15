@@ -82,7 +82,8 @@ li {
 }
 .rpc-table {
 	table-layout: auto; 
-	background-color: #fafafa; 
+	/* background-color: #fafafa;  */
+	background-color:#eeeeee; 
 }
 .rpc-td {
 	font-size: 12px; 

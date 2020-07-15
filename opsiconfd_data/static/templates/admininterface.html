@@ -168,7 +168,7 @@
 					result = request.responseText;
 					result = JSON.parse(result);
 					console.log(result);
-					printTable(result, "blocked-clients-div");
+					printClientTable(result, "blocked-clients-div");
 					return result;
 				} else {
 					console.warn(request.statusText, request.responseText);
@@ -178,7 +178,7 @@
 			request.send()
 		}
 
-		function printTable(data, htmlId) {
+		function printClientTable(data, htmlId) {
 			if (data.length == 0) {
 				htmlStr = "<p>No clients are blocked by the server.</p>";
 			} else {
@@ -240,10 +240,9 @@
 
 		}
 
-		var desc = false;
+		var desc = true;
 
 		function sortRPCTable(rowName) {
-
 
 			let request = new XMLHttpRequest();
 			request.open("GET", "/admin/rpc-list");

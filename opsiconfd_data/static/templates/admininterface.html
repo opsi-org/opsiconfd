@@ -7,7 +7,9 @@
 		function onLoad() {
 				document.getElementById("json-result").style.visibility = 'hidden';
 				document.getElementById("text-result").style.visibility = 'hidden';
+				// document.getElementById("blocked-clients").style.visibility = 'hidden';				
 			}
+
 	
 		function unblockAll(){
 			console.log("unblock all");
@@ -21,6 +23,7 @@
 						console.log(result);
 						outputToHTML(result, "json-result");
 						outputResult(result, "text-result");
+						refreshTable()
 						return result;
 		
 					} else {
@@ -31,9 +34,9 @@
 			request.send();	
 		}
 	
-		function unblockClient(){
+		function unblockClient(ip){
 			console.log(JSON.stringify({"client_addr": clientAddr.value}));
-			
+			console.log("CLIENT: " + ip);
 			console.log("unblock client " + clientAddr.value);
 			let request = new XMLHttpRequest();
 			request.open("POST", "/admin/unblock-client");
@@ -44,6 +47,8 @@
 						console.log(result);
 						outputToHTML(result, "json-result");
 						outputResult(result, "text-result");
+						refreshTable()
+						// document.getElementById("blocked-clients").refresh();
 						return result;
 					} else {
 						console.warn(request.statusText, request.responseText);
@@ -51,9 +56,9 @@
 					}
 				});
 			body = {
-				"client_addr": clientAddr.value
+				"client_addr": ip
 			}		
-			if (ValidateIPaddress(clientAddr.value)) {
+			if (ValidateIPaddress(ip)) {
 				request.send(JSON.stringify(body));
 			}		
 		}
@@ -106,7 +111,7 @@
 					}
 				}
 				else if (data["client"] != undefined && data["client"].length != 0) {
-					text = "client with address " + data["client"] + " unblocked.";
+					text = "Client with address " + data["client"] + " unblocked.";
 				}			
 				else {
 					text = "No blocked clients found.";
@@ -166,7 +171,198 @@
 				alert("You have entered an invalid IP address!")
 			return (false)
 		}
-	
+
+		function refreshTable(){
+			// console.log(document.getElementById("blocked-clients-table"));
+			// document.getElementById("blocked-clients-table").refresh();
+			let request = new XMLHttpRequest();
+			request.open("GET", "/admin/blocked-clients");
+			request.addEventListener('load', function (event) {
+					if (request.status >= 200 && request.status < 300) {
+						result = request.responseText
+						result = JSON.parse(result);
+						console.log(result);
+						printTable(result, "blocked-clients-div");
+						return result;
+					} else {
+						console.warn(request.statusText, request.responseText);
+						return request.statusText;
+					}
+				});
+			request.send()
+		}
+
+		function printTable(data, htmlId){
+			if(data.length == 0){
+				htmlStr = "<p>No clients are blocked by the server.</p>"
+			}
+			else{
+				htmlStr = "<table class=\"rpc-table\" id=\"blocked-clients-table\">" +
+							"<tr>" +
+								"<th class='rpc-th'>Client</th>" +
+								"<th class='rpc-th'>Action</th>" +
+							"</tr>";
+				data.forEach(element => {
+					htmlStr += "<tr>";
+					htmlStr += "<td class=\"rpc-td\">" + element + "</td>";
+					htmlStr += "<td class=\"rpc-td\"><p onclick='unblockClient(\""+element+"\")'>unblock</p></td>";
+					htmlStr += "</tr>";
+
+				});
+				htmlStr += "</table>"
+			}
+			console.log(htmlStr);
+			console.log("TEST");
+			div = document.getElementById(htmlId)
+			div.innerHTML = htmlStr
+			return htmlStr
+
+		}
+
+		function printRPCTable(data, htmlId){
+
+			let htmlStr = "<table class=\"rpc-table\">"
+			htmlStr += "<tr>"	
+			keys = Object.keys(data[0])
+			console.log("KEYS: " + keys);
+			Object.keys(data[0]).forEach(element => {
+				htmlStr += "<th class=\"rpc-th\" onclick=\"sortRPCTable('"+element+"')\">"+element+"</th>"
+			});
+			htmlStr += "</tr>"
+			
+				
+				data.forEach( (element, idx) => {
+					htmlStr += "<tr>";
+					if(element["error"]){
+						keys.forEach(key => {
+						htmlStr += "<td class=\"rpc-error-td\">"+element[key]+"</td>";
+					});
+					}
+					else{
+						keys.forEach(key => {
+						htmlStr += "<td class=\"rpc-td\">"+element[key]+"</td>";
+					});
+					}
+					
+					htmlStr += "</tr>";
+				});
+		
+			htmlStr  += "</table>"
+			console.log(htmlStr);
+			console.log("TEST");
+			div = document.getElementById(htmlId)
+			div.innerHTML = htmlStr
+			return htmlStr
+
+		}
+
+
+		function decode(html) {
+			var txt = document.createElement('textarea');
+			txt.innerHTML = html;
+			return txt.value;
+		}
+		var desc = false;
+		function sortRPCTable(rowName){
+			
+			// let list = [1,2,36,5,3,7];
+			// list = list.sort(compareNumbers);
+			// console.log('{{rpc_list}}');
+			let request = new XMLHttpRequest();
+			request.open("GET", "/admin/rpc-list");
+			request.addEventListener('load', function (event) {
+					if (request.status >= 200 && request.status < 300) {
+						result = request.responseText
+						result = JSON.parse(result);
+						console.log(result);
+						data = result.sort((a, b) => {
+						// console.log("A: " + a);
+						// console.log("B: " + b);
+						// console.log(Number(a[rowName]) - Number(b[rowName]));
+						if (rowName == "method") {
+							var nameA = a[rowName].toUpperCase(); 
+							var nameB = b[rowName].toUpperCase(); 
+							if (nameA < nameB) {
+								return -1;
+							}
+							if (nameA > nameB) {
+								return 1;
+							}
+							return 0;
+						}
+						else {
+							return Number(a[rowName]) - Number(b[rowName]);
+						}
+						console.log(data);
+						
+					});
+						if (desc){
+							data = data.reverse()
+							desc = false
+						}
+						else{
+							desc = true
+						}
+						
+						printRPCTable(data, "rpc-table-div");
+						return data;
+					} else {
+						console.warn(request.statusText, request.responseText);
+						return request.statusText;
+					}
+				});
+			request.send()
+			// let data = '{{rpc_list}}';
+			// data = decode(data);
+			// console.log("DATA!!! ", data);
+			// data = JSON.parse(data);
+			// console.log("DATA::: ", data);
+			// console.log(rowName);
+			// data = [{"duration": "0.074 s", "error": false, "method": "host_getObjects", "params": "0", "results": "823", "rpc_num": 1}, {"duration": "0.074 s", "error": false, "method": "host_getObjects", "params": "0", "results": "823", "rpc_num": 2}, {"duration": "0.077 s", "error": false, "method": "host_getObjects", "params": "0", "results": "823", "rpc_num": 3}, {"duration": "0.032 s", "error": false, "method": "host_getObjects", "params": "1", "results": "583", "rpc_num": 4}, {"duration": "0.067 s", "error": false, "method": "host_getObjects", "params": "1", "results": "583", "rpc_num": 5}, {"duration": "0.004 s", "error": false, "method": "host_getObjects", "params": "1", "results": "9", "rpc_num": 6}, {"duration": "0.008 s", "error": false, "method": "host_getIdents", "params": "1", "results": "9", "rpc_num": 7}, {"duration": "0.008 s", "error": false, "method": "host_getIdents", "params": "1", "results": "9", "rpc_num": 8}, {"duration": "0.042 s", "error": false, "method": "host_getIdents", "params": "1", "results": "583", "rpc_num": 9}, {"duration": "0.047 s", "error": false, "method": "host_getIdents", "params": "0", "results": "823", "rpc_num": 10}, {"duration": "0.050 s", "error": false, "method": "host_getIdents", "params": "0", "results": "823", "rpc_num": 11}]
+			// console.log("DATA1: " + Array(data));
+			// console.log("RESULT 0 " + data[0][rowName]);
+			// data = data.sort(compareResults);
+			// data.forEach(element => {
+			// 	console.log(element);
+			// });
+			// data = data.sort((a, b) => {
+				// console.log("A: " + a);
+				// console.log("B: " + b);
+				// console.log(Number(a[rowName]) - Number(b[rowName]));
+			// 	if (rowName == "method") {
+			// 		var nameA = a[rowName].toUpperCase(); // Groß-/Kleinschreibung ignorieren
+			// 		var nameB = b[rowName].toUpperCase(); // Groß-/Kleinschreibung ignorieren
+			// 		if (nameA < nameB) {
+			// 			return -1;
+			// 		}
+			// 		if (nameA > nameB) {
+			// 			return 1;
+			// 		}
+			// 		return 0;
+			// 	}
+			// 	else {
+			// 		return Number(a[rowName]) - Number(b[rowName]);
+			// 	}
+				
+ 				
+			// });
+			// data.sort()
+			// data.forEach(element => {
+			// 	console.log(element);
+			// });
+			// console.log("DATA: " + data);
+			// printRPCTable(data, "rpc-table-div")
+		}
+
+		function compareResults(a, b){
+			console.log(a);
+			return Number(a["results"]) - Number(b["results"]);
+		}
+
+		function compareNumbers(a, b) {
+			console.log(a);
+			return a - b;
+		}	
 	</script>
 </head>
 <body onload="onLoad();">
@@ -175,6 +371,37 @@
 		<div class="interface-container">
 
 			<h2>Admin Interface</h2>
+			<!-- <button id="refreshBtn" onclick="refreshTable()">refresh</button> -->
+			<!-- <button id="refreshBtn" onclick="sortRPCTable('rpc_num')">rpc_num</button>
+			<button id="refreshBtn" onclick="sortRPCTable('method')">method</button>
+			<button id="refreshBtn" onclick="sortRPCTable('params')">params</button>
+			<button id="refreshBtn" onclick="sortRPCTable('results')">results</button>
+			<button id="refreshBtn" onclick="sortRPCTable('error')">error</button>
+			<button id="refreshBtn" onclick="sortRPCTable('duration')">duration</button> -->
+			
+			<div class="adminpage-box" id="blocked-clients">
+				<h4>Blocked Clients:</h4>
+				<div id="blocked-clients-div">
+				{% if blocked_clients|length == 0 %}
+				<p>No clients are blocked by the server.</p>
+				{% else %}
+				<table class="rpc-table" id="blocked-clients-table">
+					<tr>
+						<th class="rpc-th">Client</th>
+						<th class="rpc-th">Action</th>
+					</tr>
+					{% for client in blocked_clients %}
+					<tr>
+						<td class="rpc-td">{{client}}</td>
+						<td class="rpc-td"><p onclick='unblockClient("{{client}}")' value="unblock">unblock</p></td>
+					</tr>
+					{% endfor %}
+					
+				</table>
+				{% endif %}
+				</div>
+			</div>
+			
 
 			<div class="adminpage-box">
 				<h4>Unblock Clients:</h4>
@@ -187,7 +414,7 @@
 					<tr>
 						<td align=left>Unblock address:</td> 
 						<td><input id="clientAddr" type="text" name="clientAddr" placeholder="127.0.0.1"></td>
-						<td><input type="button" onclick="unblockClient()" value="Execute"></td>
+						<td><input type="button" onclick="unblockClient(clientAddr.value)" value="Execute"></td>
 					</tr>
 					<tr>
 						<td align=left>Delete client sessions:</td> 
@@ -206,13 +433,14 @@
 			<div class="adminpage-box">
 				<h4>RPCs:</h4>
 
-				Number of RPCs since {{time}} (UTC): {{count}}
+				Number of RPCs since {{date_first_rpc}} (UTC): {{rpc_count}}
 				<br><br>
+				<div id="rpc-table-div">
 				{% if rpc_list != [] %}
 				<table class="rpc-table">
 					<tr>
 					{% for key in rpc_list[0].keys() %}
-							<th class="rpc-th">{{key}}</th>			
+							<th class="rpc-th" onclick="sortRPCTable('{{key}}')">{{key}}</th>			
 					{% endfor %}
 					</tr>
 					{% for rpc in rpc_list %}
@@ -236,6 +464,7 @@
 					{% endfor %}
 				</table>
 				{% endif %}
+				</div>
 			</div>
 		</div>
 	</div>

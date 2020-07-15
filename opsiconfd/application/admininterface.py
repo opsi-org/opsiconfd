@@ -29,57 +29,22 @@ def admin_interface_setup(app):
 
 @admin_interface_router.get("/?")
 async def admin_interface_index(request: Request):
-	logger.notice("ADMIN INTERFACE")
 
 	now = datetime.time()
 	time = datetime.datetime.now() - datetime.timedelta(days=2)
-	time = time.strftime("%m/%d/%Y, %H:%M:%S")
-	logger.notice("TIME: %s",  time)
+	date_first_rpc = time.strftime("%m/%d/%Y, %H:%M:%S")
+
+	blocked_clients = await get_blocked_clients()
+	rpc_list = await get_rpc_list()
+	rpc_count = await get_rpc_count()
 	
-	redis_client = await get_redis_client()
-	# keys = redis_client.scan_iter("opsiconfd:stats:worker:num_rpcs:*")
-	# count = 0
-	# logger.notice(keys)
-	# async for key in keys:
-	# 	logger.notice(key)
-	# 	cmd = f"TS.RANGE {key.decode('utf8')} - + AGGREGATION sum 315400000000"
-	# 	redis_result = await redis_client.execute_command(cmd)
-	# 	count += int(redis_result[0][1].decode("utf8"))
-	# 	logger.warning(count)
-
-	redis_keys = redis_client.scan_iter(f"opsiconfd:stats:rpc:*")
-
-	rpc_list = []
-	async for key in redis_keys:
-		
-		num_params = await redis_client.hget(key, "num_params")
-		error = await redis_client.hget(key, "error")
-		num_results = await redis_client.hget(key, "num_results")
-		duration = await redis_client.hget(key, "duration")
-		duration = "{:.3f} s".format(float(duration.decode("utf8")))
-		method_name = key.decode("utf8").split(":")[-1]
-		
-		if error.decode("utf8") == "True":
-			error = True
-		else:
-			error = False
-		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params.decode("utf8"), "results": num_results.decode("utf8"), "error": error, "duration": duration}
-		rpc_list.append(rpc)
-
-
-	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
-	# rpc_list = rpc_list.sort(key=get_rpc_num)
-	logger.warning(rpc_list)
-	count = await redis_client.get("opsiconfd:stats:num_rpcs")
-	if count:
-		count = count.decode("utf8")
-	logger.notice(count)
 	context = {
 		"request": request,
 		"interface": get_backend_interface(),
-		"count": count,
-		"time": time,
-		"rpc_list": rpc_list
+		"rpc_count": rpc_count,
+		"date_first_rpc": date_first_rpc,
+		"rpc_list": rpc_list,
+		"blocked_clients": blocked_clients
 	}
 
 	return templates.TemplateResponse("admininterface.html", context)
@@ -165,3 +130,51 @@ async def delete_client_sessions(request: Request):
 		logger.error("Error while removing redis session keys: %s", e)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
 	return response
+
+@admin_interface_router.get("/rpc-list")
+async def get_rpc_list() -> list:
+
+	redis_client = await get_redis_client()
+	redis_keys = redis_client.scan_iter(f"opsiconfd:stats:rpc:*")
+
+	rpc_list = []
+	async for key in redis_keys:
+		num_params = await redis_client.hget(key, "num_params")
+		error = await redis_client.hget(key, "error")
+		num_results = await redis_client.hget(key, "num_results")
+		duration = await redis_client.hget(key, "duration")
+		duration = "{:.3f}".format(float(duration.decode("utf8")))
+		method_name = key.decode("utf8").split(":")[-1]	
+		if error.decode("utf8") == "True":
+			error = True
+		else:
+			error = False
+		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params.decode("utf8"), "results": num_results.decode("utf8"), "error": error, "duration": duration}
+		rpc_list.append(rpc)
+
+	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
+
+	return rpc_list
+
+async def get_rpc_count() -> int: 
+	redis_client = await get_redis_client()
+
+	count = await redis_client.get("opsiconfd:stats:num_rpcs")
+	if count:
+		count = count.decode("utf8")
+	logger.notice(count)
+
+	return count
+
+@admin_interface_router.get("/blocked-clients")
+async def get_blocked_clients() -> list:
+	redis_client = await get_redis_client()
+	redis_keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")
+
+	block_clients = []
+	async for key in redis_keys:
+		logger.debug("redis key to delete: %s", key)
+		block_clients.append(key.decode("utf8").split(":")[-1])
+	
+	return block_clients
+

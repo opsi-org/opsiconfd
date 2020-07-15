@@ -26,7 +26,7 @@ import sys
 import codecs
 import getpass
 import configargparse
-from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentTypeError, SUPPRESS
 
 from .utils import Singleton
 
@@ -93,7 +93,7 @@ def expert_help(help):
 	return SUPPRESS
 
 parser = configargparse.ArgParser(
-	formatter_class=lambda prog: HelpFormatter(
+	formatter_class=lambda prog: ArgumentDefaultsHelpFormatter(
 		prog, max_help_position=30, width=100
 	)
 )

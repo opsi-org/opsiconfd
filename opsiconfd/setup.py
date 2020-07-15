@@ -45,6 +45,7 @@ from OPSI.System import get_subprocess_environment
 from .logging import logger
 from .config import config
 from .backend import get_backend
+from .grafana import setup_grafana
 
 def setup_limits():
 	logger.info("Setup system limits")
@@ -180,3 +181,7 @@ def setup(full: bool = True):
 		setup_systemd()
 	# Always correct file permissions (run_as_user could be changed)
 	setup_file_permissions()
+	try:
+		setup_grafana()
+	except Exception as e:
+		logger.warning("Failed to setup grafana: %s", e)

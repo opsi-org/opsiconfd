@@ -323,8 +323,8 @@ class OPSISession():
 				raise ConnectionRefusedError(error)
 		except ConnectionRefusedError as e:
 			raise HTTPException(
-			status_code=status.HTTP_403_FORBIDDEN,
-			detail=str(e)
+				status_code=status.HTTP_403_FORBIDDEN,
+				detail=str(e)
 			)
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")

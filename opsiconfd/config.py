@@ -26,6 +26,7 @@ import sys
 import codecs
 import getpass
 import configargparse
+from typing import Union
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentTypeError, SUPPRESS
 
 from .utils import Singleton
@@ -58,14 +59,14 @@ def upgrade_config_files():
 		"max sessions per ip": "max-session-per-ip",
 	}
 
-	for c in parser._open_config_files(sys.argv[1:]):
-		data = c.read()
-		c.close()
+	for config_file in parser._open_config_files(sys.argv[1:]):
+		data = config_file.read()
+		config_file.close()
 		if data.find("[global]") == -1:
 			continue
 		
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-		with codecs.open(c.name, "w", "utf-8") as f:
+		with codecs.open(config_file.name, "w", "utf-8") as f:
 			for line in data.split('\n'):
 				match = re_opt.match(line)
 				if match:
@@ -81,6 +82,31 @@ def upgrade_config_files():
 					if type(val) is bool:
 						val = str(val).lower()
 					f.write(f"{mapping[opt]} = {val}\n")
+
+def set_config_in_config_file(arg: str, value: Union[str,int,float]):
+	arg = arg.lstrip("-").replace("_", "-")
+	config_file = parser._open_config_files(sys.argv[1:])[0]
+	data = config_file.read()
+	config_file.close()
+	
+	conf_line = f"{arg} = {value}"
+	re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
+	lines = []
+	found = False
+	for line in data.split("\n"):
+		match = re_opt.match(line)
+		if match and match.group(1).strip().lower() == arg:
+			line = conf_line
+			found = True
+		lines.append(line)
+	if not found:
+		if lines[-1] == "":
+			lines.pop()
+		lines.append(conf_line)
+	with codecs.open(config_file.name, "w", "utf-8") as f:
+		f.write("\n".join(lines))
+	
+	config.reload()
 
 def network_address(value):
 	if not re.search(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/\d\d?$", value):

@@ -173,6 +173,9 @@
 				if (request.status >= 200 && request.status < 300) {
 					result = request.responseText;
 					result = JSON.parse(result);
+					if (result.length == 0) {
+						return null
+					}
 					result = sortRPCTable(result, sortKey);
 					printRPCTable(result, "rpc-table-div");
 					return result;

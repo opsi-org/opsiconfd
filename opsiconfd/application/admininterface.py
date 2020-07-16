@@ -137,8 +137,11 @@ async def get_rpc_list() -> list:
 		num_results = await redis_client.hget(key, "num_results")
 		duration = await redis_client.hget(key, "duration")
 		duration = "{:.3f}".format(float(duration.decode("utf8")))
-		method_name = key.decode("utf8").split(":")[-1]	
-		error = bool(error.decode("utf8"))
+		method_name = key.decode("utf8").split(":")[-1]		
+		if error.decode("utf8") == "True":
+			erro = True
+		else:
+			error = False
 		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params.decode("utf8"), "results": num_results.decode("utf8"), "error": error, "duration": duration}
 		rpc_list.append(rpc)
 

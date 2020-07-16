@@ -165,7 +165,9 @@ async def get_rpc_count() -> int:
 
 	count = await redis_client.get("opsiconfd:stats:num_rpcs")
 	if count:
-		count = count.decode("utf8")
+		count = int(count.decode("utf8"))
+	else:
+		count = 0
 
 	return count
 

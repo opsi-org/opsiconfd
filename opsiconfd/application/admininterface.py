@@ -171,10 +171,10 @@ async def get_blocked_clients() -> list:
 	redis_client = await get_redis_client()
 	redis_keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")
 
-	block_clients = []
+	blocked_clients = []
 	async for key in redis_keys:
 		logger.debug("redis key to delete: %s", key)
-		block_clients.append(key.decode("utf8").split(":")[-1])
+		blocked_clients.append(key.decode("utf8").split(":")[-1])
 	
-	return block_clients
+	return blocked_clients
 

@@ -152,6 +152,7 @@ function loadClientTable() {
 }
 
 function loadRPCTable(sortKey, sort) {
+	console.log("loadRPCTABEL");
 	let request = new XMLHttpRequest();
 	request.open("GET", "/admin/rpc-list");
 	request.addEventListener('load', function (event) {
@@ -232,7 +233,7 @@ function printRPCTable(data, htmlId) {
 	return htmlStr;
 }
 
-var desc = false;
+var desc = true;
 
 function sortRPCTable(data, sortKey) {
 
@@ -316,7 +317,7 @@ function sortRPCTable(data, sortKey) {
 	}
 
 	function callJSONRPC() {
-		let inputs = document.getElementById("rpc-interface").getElementsByTagName("input");
+		let inputs = document.getElementById("rpcInterface").getElementsByTagName("input");
 		for (i = 0; i < inputs.length; i++) {
 			let name = inputs[i].name.trim();
 			let value = inputs[i].value.trim();

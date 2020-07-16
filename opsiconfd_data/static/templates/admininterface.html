@@ -11,12 +11,15 @@
 	<div class="content">
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
 		<div class="interface-container">
+			<h2>Admin Interface</h2>
+
 			<div class="tab">
 				<button class="tablinks" id="startTab-button" onclick="openTab(event, 'clients')">Blocked Clients</button>
-				<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC</button>
+				<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
+				<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
+				<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
 			</div>
 
-			<h2>Admin Interface</h2>
 
 			<div id="clients" class="tabcontent">
 
@@ -56,7 +59,7 @@
 				</div>
 			</div>
 
-			<div id="rpcInterface" class="tabcontent">
+			<div id="rpcInfos" class="tabcontent">
 
 
 				<div class="adminpage-box">
@@ -68,56 +71,60 @@
 
 					</div>
 				</div>
+			</div>
 
-				<div id="rpc-interface">
-					<form>
-						<div>
-							<table id="jsonrpc-request-table">
-								<tr>
-									<td align=left><label>Method:</label></td>
-									<td>
-										<select id="method-select" onchange="createParamInputs()">
-											{% for method in interface %}
-											<option>{{	method.get("name") }}</option>
-											{% endfor %}
-										</select>
-									</td>
-								</tr>
-							</table>
-						</div>
-					</form>
+			<div id="rpcInterface" class="tabcontent">
+				<form>
 					<div>
-						<pre class="jsonrpc-request" id="jsonrpc-request"></pre>
+						<table id="jsonrpc-request-table">
+							<tr>
+								<td align=left><label>Method:</label></td>
+								<td>
+									<select id="method-select" onchange="createParamInputs()">
+										{% for method in interface %}
+										<option>{{	method.get("name") }}</option>
+										{% endfor %}
+									</select>
+								</td>
+							</tr>
+						</table>
 					</div>
-					<button id="jsonrpc-execute-button" onclick="callJSONRPC()">Execute</button>
+				</form>
+				<div>
+					<pre class="jsonrpc-request" id="jsonrpc-request"></pre>
 				</div>
+				<button id="jsonrpc-execute-button" onclick="callJSONRPC()">Execute</button>
+
 
 				<div id="result">
 					<pre class="jsonrpc-result" id="jsonrpc-result"></pre>
 				</div>
 			</div>
+			<div id="redisInterface" class="tabcontent">
+				TODO
+			</div>
+
 		</div>
-	</div>
 </body>
 
 </html>
 <script>
 	function onLoad() {
-	document.getElementById("startTab-button").click()
+		document.getElementById("startTab-button").click()
 
-	document.getElementById("json-result").style.visibility = 'hidden';
-	document.getElementById("text-result").style.visibility = 'hidden';
-	loadClientTable();
-	loadRPCTable('rpc_num', false);
+		document.getElementById("json-result").style.visibility = 'hidden';
+		document.getElementById("text-result").style.visibility = 'hidden';
+		loadClientTable();
+		loadRPCTable('rpc_num', false);
 
-	document.getElementById("jsonrpc-result").style.visibility = 'hidden';
-	document.getElementById("jsonrpc-request").style.visibility = 'hidden';
-	createParamInputs();
+		document.getElementById("jsonrpc-result").style.visibility = 'hidden';
+		document.getElementById("jsonrpc-request").style.visibility = 'hidden';
+		createParamInputs();
 
-	
-}
 
-function createParamInputs() {
+	}
+
+	function createParamInputs() {
 		let value = document.getElementById("method-select").value;
 		// !!! use '' because json uses "" !!! 
 		let interface = '{{interface|tojson}}';

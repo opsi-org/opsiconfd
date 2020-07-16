@@ -4,323 +4,96 @@
 	<title>Admin page</title>
 	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
 
-	<script>
-		function onLoad() {
-			document.getElementById("json-result").style.visibility = 'hidden';
-			document.getElementById("text-result").style.visibility = 'hidden';
-			loadClientTable();
-			loadRPCTable('rpc_num');
-		}
-
-
-		function unblockAll() {
-			let request = new XMLHttpRequest();
-			request.open("POST", "/admin/unblock-all");
-			request.addEventListener('load', function (event) {
-				if (request.status >= 200 && request.status < 300) {
-					result = request.responseText
-					result = JSON.parse(result);
-					outputToHTML(result, "json-result");
-					outputResult(result, "text-result");
-					loadClientTable()
-					return result;
-
-				} else {
-					console.warn(request.statusText, request.responseText);
-					return request.statusText;
-				}
-			});
-			request.send();
-		}
-
-		function unblockClient(ip) {
-			let request = new XMLHttpRequest();
-			request.open("POST", "/admin/unblock-client");
-			request.addEventListener('load', function (event) {
-				if (request.status >= 200 && request.status < 300) {
-					result = request.responseText
-					result = JSON.parse(result);
-					outputToHTML(result, "json-result");
-					outputResult(result, "text-result");
-					loadClientTable();
-					return result;
-				} else {
-					console.warn(request.statusText, request.responseText);
-					return request.statusText;
-				}
-			});
-			body = {
-				"client_addr": ip
-			}
-			if (ValidateIPaddress(ip)) {
-				request.send(JSON.stringify(body));
-			}
-		}
-
-		function deleteClientSessions() {
-			let request = new XMLHttpRequest();
-			request.open("POST", "/admin/delete-client-sessions");
-			request.addEventListener('load', function (event) {
-				if (request.status >= 200 && request.status < 300) {
-					result = request.responseText
-					result = JSON.parse(result);
-					outputToHTML(result, "json-result");
-					outputResult(result, "text-result");
-					return result;
-				} else {
-					console.warn(request.statusText, request.responseText);
-					return request.statusText;
-				}
-			});
-			body = {
-				"client_addr": sessionAddr.value
-			};
-			if (ValidateIPaddress(sessionAddr.value)) {
-				request.send(JSON.stringify(body));
-			}
-
-		}
-
-		function outputResult(json, id) {
-			if (json["status"] == 200) {
-				data = json["data"]
-				if (data["clients"] != undefined && data["clients"].length != 0) {
-					if (json["data"]["clients"].length == 1) {
-						text = data["clients"].length + " client unblocked.";
-					} else {
-						text = data["clients"].length + " clients unblocked.";
-					}
-				} else if (data["sessions"] != undefined) {
-					if (data["sessions"] != 0) {
-						text = "All sessions from client " + data["client"] + " deleted.";
-					} else {
-						text = "No sessions on client found.";
-					}
-				} else if (data["client"] != undefined && data["client"].length != 0) {
-					text = "Client with address " + data["client"] + " unblocked.";
-				} else {
-					text = "No blocked clients found.";
-				}
-			} else {
-				text = "Error while unblocking clients.";
-			}
-			document.getElementById(id).style.visibility = 'visible';
-			document.getElementById(id).innerHTML = text;
-		}
-
-		function outputToHTML(json, id) {
-			jsonStr = JSON.stringify(json, undefined, 2);
-			jsonStr = syntaxHighlight(jsonStr);
-			document.getElementById(id).style.visibility = 'visible'
-			document.getElementById(id).innerHTML = jsonStr;
-		}
-
-		// https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
-		function syntaxHighlight(json) {
-			if (typeof json != 'string') {
-				json = JSON.stringify(json, undefined, 2);
-			}
-			json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-			return json.replace(
-				/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-				function (match) {
-					var cls = 'json_number';
-					if (/^"/.test(match)) {
-						if (/:$/.test(match)) {
-							cls = 'json_key';
-						} else {
-							cls = 'json_string';
-						}
-					} else if (/true|false/.test(match)) {
-						cls = 'json_boolean';
-					} else if (/null/.test(match)) {
-						cls = 'json_null';
-					}
-					return '<span class="' + cls + '">' + match + '</span>';
-				});
-		}
-
-		function ValidateIPaddress(ipaddress) {
-			if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
-				.test(ipaddress)) {
-				return (true)
-			}
-			alert("You have entered an invalid IP address!")
-			return (false)
-		}
-
-		function loadClientTable() {
-			let request = new XMLHttpRequest();
-			request.open("GET", "/admin/blocked-clients");
-			request.addEventListener('load', function (event) {
-				if (request.status >= 200 && request.status < 300) {
-					result = request.responseText;
-					result = JSON.parse(result);
-					printClientTable(result, "blocked-clients-div");
-					return result;
-				} else {
-					console.warn(request.statusText, request.responseText);
-					return request.statusText;
-				}
-			});
-			request.send()
-		}
-
-		function loadRPCTable(sortKey) {
-			let request = new XMLHttpRequest();
-			request.open("GET", "/admin/rpc-list");
-			request.addEventListener('load', function (event) {
-				if (request.status >= 200 && request.status < 300) {
-					result = request.responseText;
-					result = JSON.parse(result);
-					if (result.length == 0) {
-						return null
-					}
-					result = sortRPCTable(result, sortKey);
-					printRPCTable(result, "rpc-table-div");
-					return result;
-				} else {
-					console.warn(request.statusText, request.responseText);
-					return request.statusText;
-				}
-			});
-			request.send();
-		}
-
-		function printClientTable(data, htmlId) {
-			if (data.length == 0) {
-				htmlStr = "<p>No clients are blocked by the server.</p>";
-			} else {
-				htmlStr = "<table class=\"rpc-table\" id=\"blocked-clients-table\">" +
-					"<tr>" +
-					"<th class='rpc-th'>Client</th>" +
-					"<th class='rpc-th'>Action</th>" +
-					"</tr>";
-				data.forEach(element => {
-					htmlStr += "<tr>";
-					htmlStr += "<td class=\"rpc-td\">" + element + "</td>";
-					htmlStr += "<td class=\"rpc-td\"><p onclick='unblockClient(\"" + element +
-						"\")'>unblock</p></td>";
-					htmlStr += "</tr>";
-
-				});
-				htmlStr += "</table>";
-			}
-			div = document.getElementById(htmlId);
-			div.innerHTML = htmlStr;
-			return htmlStr;
-
-		}
-
-		function printRPCTable(data, htmlId) {
-
-			let htmlStr = "<table class=\"rpc-table\">";
-			htmlStr += "<tr>";
-			keys = Object.keys(data[0]);
-			Object.keys(data[0]).forEach(element => {
-				htmlStr += "<th class=\"rpc-th\" onclick=\"loadRPCTable('" + element + "')\">" + element + "</th>";
-			});
-			htmlStr += "</tr>";
-
-			data.forEach((element, idx) => {
-				htmlStr += "<tr>";
-				if (element["error"]) {
-					keys.forEach(key => {
-						htmlStr += "<td class=\"rpc-error-td\">" + element[key] + "</td>";
-					});
-				} else {
-					keys.forEach(key => {
-						htmlStr += "<td class=\"rpc-td\">" + element[key] + "</td>";
-					});
-				}
-				htmlStr += "</tr>";
-			});
-
-			htmlStr += "</table>";
-			div = document.getElementById(htmlId);
-			div.innerHTML = htmlStr;
-			return htmlStr;
-		}
-
-		var desc = false;
-
-		function sortRPCTable(data, sortKey) {
-
-			data = result.sort((a, b) => {
-				if (sortKey == "method") {
-					var nameA = a[sortKey].toUpperCase();
-					var nameB = b[sortKey].toUpperCase();
-					if (nameA < nameB) {
-						return -1;
-					}
-					if (nameA > nameB) {
-						return 1;
-					}
-					return 0;
-				} else {
-					return Number(a[sortKey]) - Number(b[sortKey]);
-				}
-			});
-			if (desc) {
-				data = data.reverse();
-				desc = false;
-			} else {
-				desc = true;
-			}
-			return data;
-
-		}
-	</script>
+	<script src="/static/javascript/admininterface.js"></script>
 </head>
 
 <body onload="onLoad();">
 	<div class="content">
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
 		<div class="interface-container">
+			<div class="tab">
+				<button class="tablinks" id="startTab-button" onclick="openTab(event, 'clients')">Blocked Clients</button>
+				<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC</button>
+			</div>
 
 			<h2>Admin Interface</h2>
 
-			<div class="adminpage-box" id="blocked-clients">
-				<h4>Blocked Clients:</h4>
-				<div id="blocked-clients-div">
+			<div id="clients" class="tabcontent">
 
+
+				<div class="adminpage-box" id="blocked-clients">
+					<h4>Blocked Clients:</h4>
+					<div id="blocked-clients-div">
+
+					</div>
+				</div>
+
+				<div class="adminpage-box">
+					<h4>Unblock Clients:</h4>
+					<table>
+						<tr>
+							<td align=left><label>Unblock all clients:</label></td>
+							<td></td>
+							<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button> </td>
+						</tr>
+						<tr>
+							<td align=left>Unblock address:</td>
+							<td><input id="clientAddr" type="text" name="clientAddr" placeholder="127.0.0.1"></td>
+							<td><input type="button" onclick="unblockClient(clientAddr.value)" value="Execute"></td>
+						</tr>
+						<tr>
+							<td align=left>Delete client sessions:</td>
+							<td><input id="sessionAddr" type="text" name="sessionAddr" placeholder="127.0.0.1"></td>
+							<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
+						</tr>
+					</table>
+				</div>
+				<div id="result">
+					<p class="json-result" id="text-result"></p>
+				</div>
+				<div id="result">
+					<pre class="json-result" id="json-result"></pre>
 				</div>
 			</div>
 
-			<div class="adminpage-box">
-				<h4>Unblock Clients:</h4>
-				<table>
-					<tr>
-						<td align=left><label>Unblock all clients:</label></td>
-						<td></td>
-						<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button> </td>
-					</tr>
-					<tr>
-						<td align=left>Unblock address:</td>
-						<td><input id="clientAddr" type="text" name="clientAddr" placeholder="127.0.0.1"></td>
-						<td><input type="button" onclick="unblockClient(clientAddr.value)" value="Execute"></td>
-					</tr>
-					<tr>
-						<td align=left>Delete client sessions:</td>
-						<td><input id="sessionAddr" type="text" name="sessionAddr" placeholder="127.0.0.1"></td>
-						<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
-					</tr>
-				</table>
-			</div>
-			<div id="result">
-				<p class="json-result" id="text-result"></p>
-			</div>
-			<div id="result">
-				<pre class="json-result" id="json-result"></pre>
-			</div>
+			<div id="rpcInterface" class="tabcontent">
 
-			<div class="adminpage-box">
-				<h4>RPCs:</h4>
 
-				Number of RPCs since {{date_first_rpc}} (UTC): {{rpc_count}}
-				<br><br>
-				<div id="rpc-table-div">
+				<div class="adminpage-box">
+					<h4>RPCs:</h4>
 
+					Number of RPCs since {{date_first_rpc}} (UTC): {{rpc_count}}
+					<br><br>
+					<div id="rpc-table-div">
+
+					</div>
+				</div>
+
+				<div id="rpc-interface">
+					<form>
+						<div>
+							<table id="jsonrpc-request-table">
+								<tr>
+									<td align=left><label>Method:</label></td>
+									<td>
+										<select id="method-select" onchange="createParamInputs()">
+											{% for method in interface %}
+											<option>{{	method.get("name") }}</option>
+											{% endfor %}
+										</select>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</form>
+					<div>
+						<pre class="jsonrpc-request" id="jsonrpc-request"></pre>
+					</div>
+					<button id="jsonrpc-execute-button" onclick="callJSONRPC()">Execute</button>
+				</div>
+
+				<div id="result">
+					<pre class="jsonrpc-result" id="jsonrpc-result"></pre>
 				</div>
 			</div>
 		</div>
@@ -328,3 +101,69 @@
 </body>
 
 </html>
+<script>
+	function onLoad() {
+	document.getElementById("startTab-button").click()
+
+	document.getElementById("json-result").style.visibility = 'hidden';
+	document.getElementById("text-result").style.visibility = 'hidden';
+	loadClientTable();
+	loadRPCTable('rpc_num', false);
+
+	document.getElementById("jsonrpc-result").style.visibility = 'hidden';
+	document.getElementById("jsonrpc-request").style.visibility = 'hidden';
+	createParamInputs();
+
+	
+}
+
+function createParamInputs() {
+		let value = document.getElementById("method-select").value;
+		// !!! use '' because json uses "" !!! 
+		let interface = '{{interface|tojson}}';
+
+		interface = JSON.parse(interface);
+		// console.log("get_method: " + value);
+
+		let table = document.getElementById("jsonrpc-request-table");
+		var elements = table.getElementsByClassName("param");
+		while (elements.length > 0) {
+			table.removeChild(elements[0]);
+		}
+		interface.forEach(method => {
+			if (method.name == value) {
+				method.params.forEach(param => {
+					let tr = document.createElement("tr");
+					tr.className = "param";
+					tr.innerHTML = "\
+						<td align=left><label>" + param + ": </label></td> \
+						<td><input type=\"text\" id=\"" + param + "\" name=\"" + param + "\" oninput=\"changeRequestJSON(this.name,this.value)\" /></td> \
+					";
+					table.appendChild(tr);
+				});
+			}
+		});
+		changeRequestJSON();
+	}
+
+	function openTab(evt, tabName) {
+		// Declare all variables
+		var i, tabcontent, tablinks;
+
+		// Get all elements with class="tabcontent" and hide them
+		tabcontent = document.getElementsByClassName("tabcontent");
+		for (i = 0; i < tabcontent.length; i++) {
+			tabcontent[i].style.display = "none";
+		}
+
+		// Get all elements with class="tablinks" and remove the class "active"
+		tablinks = document.getElementsByClassName("tablinks");
+		for (i = 0; i < tablinks.length; i++) {
+			tablinks[i].className = tablinks[i].className.replace(" active", "");
+		}
+
+		// Show the current tab, and add an "active" class to the button that opened the tab
+		document.getElementById(tabName).style.display = "block";
+		evt.currentTarget.className += " active";
+	}
+</script>

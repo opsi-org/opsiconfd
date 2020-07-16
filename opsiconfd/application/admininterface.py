@@ -51,7 +51,6 @@ async def admin_interface_index(request: Request):
 
 @admin_interface_router.post("/unblock-all")
 async def unblock_all_clients(request: Request, response: Response):
-	logger.notice("unblock_all_clients")
 	redis_client = await get_redis_client()
 	
 	try:
@@ -97,7 +96,6 @@ async def unblock_client(request: Request):
 		if redis_code == 1:
 			deleted_keys.append(f"opsiconfd:stats:client:blocked:{client_addr}")
 
-
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "redis-keys": deleted_keys}})
 	except Exception as e:
 		logger.error("Error while removing redis client keys: %s", e)
@@ -116,15 +114,10 @@ async def delete_client_sessions(request: Request):
 		sessions = []
 		deleted_keys = []
 		async for key in keys:
-			logger.warning(key)
-			logger.notice(key.decode("utf8").split(":")[-1])
-			logger.warning(sessions)
 			sessions.append(key.decode("utf8").split(":")[-1])
 			deleted_keys.append(key.decode("utf8"))
 			await redis_client.delete(key)
-			
-		logger.notice(sessions)
-		logger.notice(deleted_keys)
+
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}})
 	except Exception as e:
 		logger.error("Error while removing redis session keys: %s", e)
@@ -145,10 +138,7 @@ async def get_rpc_list() -> list:
 		duration = await redis_client.hget(key, "duration")
 		duration = "{:.3f}".format(float(duration.decode("utf8")))
 		method_name = key.decode("utf8").split(":")[-1]	
-		if error.decode("utf8") == "True":
-			error = True
-		else:
-			error = False
+		error = bool(error.decode("utf8"))
 		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params.decode("utf8"), "results": num_results.decode("utf8"), "error": error, "duration": duration}
 		rpc_list.append(rpc)
 
@@ -162,7 +152,6 @@ async def get_rpc_count() -> int:
 	count = await redis_client.get("opsiconfd:stats:num_rpcs")
 	if count:
 		count = count.decode("utf8")
-	logger.notice(count)
 
 	return count
 

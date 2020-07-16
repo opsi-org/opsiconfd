@@ -57,20 +57,22 @@ async def unblock_all_clients(request: Request, response: Response):
 		clients = []
 		deleted_keys = []
 		keys = redis_client.scan_iter("opsiconfd:stats:client:failed_auth:*")
-		async for key in keys:
-			deleted_keys.append(key.decode("utf8"))
-			if key.decode("utf8").split(":")[-1] not in clients:
-				clients.append(key.decode("utf8").split(":")[-1])
-			logger.debug("redis key to delete: %s", key)
-			await redis_client.delete(key)
+		async with await redis_client.pipeline(transaction=False) as pipe:
+			async for key in keys:
+				deleted_keys.append(key.decode("utf8"))
+				if key.decode("utf8").split(":")[-1] not in clients:
+					clients.append(key.decode("utf8").split(":")[-1])
+				logger.debug("redis key to delete: %s", key)
+				await pipe.delete(key)
 
-		keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")		
-		async for key in keys:
-			logger.debug("redis key to delete: %s", key)
-			deleted_keys.append(key.decode("utf8"))
-			if key.decode("utf8").split(":")[-1] not in clients:
-				clients.append(key.decode("utf8").split(":")[-1])
-			await redis_client.delete(key)
+			keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")		
+			async for key in keys:
+				logger.debug("redis key to delete: %s", key)
+				deleted_keys.append(key.decode("utf8"))
+				if key.decode("utf8").split(":")[-1] not in clients:
+					clients.append(key.decode("utf8").split(":")[-1])
+				await pipe.delete(key)
+			redis_result = await pipe.execute()
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"clients": clients, "redis-keys": deleted_keys}})
 	except Exception as e:
@@ -113,10 +115,12 @@ async def delete_client_sessions(request: Request):
 		keys = redis_client.scan_iter(f"{OPSISession.redis_key_prefix}:{client_addr}:*")
 		sessions = []
 		deleted_keys = []
-		async for key in keys:
-			sessions.append(key.decode("utf8").split(":")[-1])
-			deleted_keys.append(key.decode("utf8"))
-			await redis_client.delete(key)
+		async with await redis_client.pipeline(transaction=False) as pipe:
+			async for key in keys:
+				sessions.append(key.decode("utf8").split(":")[-1])
+				deleted_keys.append(key.decode("utf8"))
+				await pipe.delete(key)
+			redis_result = await pipe.execute()
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}})
 	except Exception as e:
@@ -132,17 +136,24 @@ async def get_rpc_list() -> list:
 
 	rpc_list = []
 	async for key in redis_keys:
-		num_params = await redis_client.hget(key, "num_params")
-		error = await redis_client.hget(key, "error")
-		num_results = await redis_client.hget(key, "num_results")
-		duration = await redis_client.hget(key, "duration")
-		duration = "{:.3f}".format(float(duration.decode("utf8")))
-		method_name = key.decode("utf8").split(":")[-1]		
-		if error.decode("utf8") == "True":
-			erro = True
+		async with await redis_client.pipeline(transaction=False) as pipe:
+			await pipe.hget(key, "num_params")
+			await pipe.hget(key, "error")
+			await pipe.hget(key, "num_results")
+			await pipe.hget(key, "duration")
+			redis_result = await pipe.execute()
+
+		num_params = redis_result[0].decode("utf8")
+		error = redis_result[1].decode("utf8")
+		if error == "True":
+			error = True
 		else:
 			error = False
-		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params.decode("utf8"), "results": num_results.decode("utf8"), "error": error, "duration": duration}
+		num_results = redis_result[2].decode("utf8")
+		duration = "{:.3f}".format(float(redis_result[3].decode("utf8")))
+		method_name = key.decode("utf8").split(":")[-1]		
+		
+		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params, "results": num_results, "error": error, "duration": duration}
 		rpc_list.append(rpc)
 
 	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 

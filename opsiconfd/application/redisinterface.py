@@ -9,6 +9,7 @@ See LICENSES/README.md for more Information
 
 import os
 import datetime
+import traceback
 
 from fastapi import APIRouter, Request, Response, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -31,7 +32,6 @@ def redis_interface_setup(app):
 @admin_interface_router.post("/?")
 async def redis_command(request: Request, response: Response):
 	redis_client = await get_redis_client()
-	logger.notice(request)
 	try:
 		request_body = await request.json()
 		redis_cmd = request_body.get("cmd")
@@ -41,15 +41,16 @@ async def redis_command(request: Request, response: Response):
 			
 			result = []
 			for value in redis_result:
-				logger.notice(value)
 				result.append(value.decode("utf8"))
-			logger.warning(result)
 		else:
 			result = redis_result.decode("utf8")
 		
 		response = JSONResponse({"status": 200, "error": None, "data": {"result": result}})
 	except Exception as e:
-		logger.warning(e)
-		response = JSONResponse({"status": 500, "error": {"detail": str(e)}})
-
+		logger.error(e, exc_info=True)
+		tb = traceback.format_exc()
+		error = {"message": str(e), "class": e.__class__.__name__}
+		if True:
+			error["details"] = str(tb)
+		response = JSONResponse({"status": 500, "error": error, "data": {"result": None} })
 	return response

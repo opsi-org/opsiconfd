@@ -1,131 +1,120 @@
 <html>
+
 <head>
 	<title>Admin page</title>
 	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
 
 	<script>
 		function onLoad() {
-				document.getElementById("json-result").style.visibility = 'hidden';
-				document.getElementById("text-result").style.visibility = 'hidden';
-			}
-	
-		function unblockAll(){
-			console.log("unblock all");
+			document.getElementById("json-result").style.visibility = 'hidden';
+			document.getElementById("text-result").style.visibility = 'hidden';
+			loadClientTable();
+			loadRPCTable('rpc_num');
+		}
+
+
+		function unblockAll() {
 			let request = new XMLHttpRequest();
 			request.open("POST", "/admin/unblock-all");
 			request.addEventListener('load', function (event) {
-					if (request.status >= 200 && request.status < 300) {
-						console.log(request);
-						result = request.responseText
-						result = JSON.parse(result);
-						console.log(result);
-						outputToHTML(result, "json-result");
-						outputResult(result, "text-result");
-						return result;
-		
-					} else {
-						console.warn(request.statusText, request.responseText);
-						return request.statusText;
-					}
-				});
-			request.send();	
+				if (request.status >= 200 && request.status < 300) {
+					result = request.responseText
+					result = JSON.parse(result);
+					outputToHTML(result, "json-result");
+					outputResult(result, "text-result");
+					loadClientTable()
+					return result;
+
+				} else {
+					console.warn(request.statusText, request.responseText);
+					return request.statusText;
+				}
+			});
+			request.send();
 		}
-	
-		function unblockClient(){
-			console.log(JSON.stringify({"client_addr": clientAddr.value}));
-			
-			console.log("unblock client " + clientAddr.value);
+
+		function unblockClient(ip) {
 			let request = new XMLHttpRequest();
 			request.open("POST", "/admin/unblock-client");
 			request.addEventListener('load', function (event) {
-					if (request.status >= 200 && request.status < 300) {
-						result = request.responseText
-						result = JSON.parse(result);
-						console.log(result);
-						outputToHTML(result, "json-result");
-						outputResult(result, "text-result");
-						return result;
-					} else {
-						console.warn(request.statusText, request.responseText);
-						return request.statusText;
-					}
-				});
+				if (request.status >= 200 && request.status < 300) {
+					result = request.responseText
+					result = JSON.parse(result);
+					outputToHTML(result, "json-result");
+					outputResult(result, "text-result");
+					loadClientTable();
+					return result;
+				} else {
+					console.warn(request.statusText, request.responseText);
+					return request.statusText;
+				}
+			});
 			body = {
-				"client_addr": clientAddr.value
-			}		
-			if (ValidateIPaddress(clientAddr.value)) {
+				"client_addr": ip
+			}
+			if (ValidateIPaddress(ip)) {
 				request.send(JSON.stringify(body));
-			}		
+			}
 		}
-	
-		function deleteClientSessions(){	
+
+		function deleteClientSessions() {
 			let request = new XMLHttpRequest();
 			request.open("POST", "/admin/delete-client-sessions");
 			request.addEventListener('load', function (event) {
-					if (request.status >= 200 && request.status < 300) {
-						result = request.responseText
-						result = JSON.parse(result);
-						console.log(result);
-						outputToHTML(result, "json-result");
-						outputResult(result, "text-result");
-						return result;
-					} else {
-						console.warn(request.statusText, request.responseText);
-						return request.statusText;
-					}
-				});
+				if (request.status >= 200 && request.status < 300) {
+					result = request.responseText
+					result = JSON.parse(result);
+					outputToHTML(result, "json-result");
+					outputResult(result, "text-result");
+					return result;
+				} else {
+					console.warn(request.statusText, request.responseText);
+					return request.statusText;
+				}
+			});
 			body = {
 				"client_addr": sessionAddr.value
-			}
+			};
 			if (ValidateIPaddress(sessionAddr.value)) {
 				request.send(JSON.stringify(body));
-			}		
-					
+			}
+
 		}
-	
+
 		function outputResult(json, id) {
-			console.log("JSON: " + json);
 			if (json["status"] == 200) {
-				console.log("success");
-				console.log(json.data.clients);
 				data = json["data"]
-				if (data["clients"] != undefined && data["clients"].length != 0){
-					if (json["data"]["clients"].length == 1){
+				if (data["clients"] != undefined && data["clients"].length != 0) {
+					if (json["data"]["clients"].length == 1) {
 						text = data["clients"].length + " client unblocked.";
-					}
-					else {
+					} else {
 						text = data["clients"].length + " clients unblocked.";
-					}	
-				}
-				else if (data["sessions"] != undefined ){
-					if(data["sessions"] != 0){
-						text = "All sessions from client " +  data["client"] + " deleted.";
 					}
-					else {
+				} else if (data["sessions"] != undefined) {
+					if (data["sessions"] != 0) {
+						text = "All sessions from client " + data["client"] + " deleted.";
+					} else {
 						text = "No sessions on client found.";
 					}
-				}
-				else if (data["client"] != undefined && data["client"].length != 0) {
-					text = "client with address " + data["client"] + " unblocked.";
-				}			
-				else {
+				} else if (data["client"] != undefined && data["client"].length != 0) {
+					text = "Client with address " + data["client"] + " unblocked.";
+				} else {
 					text = "No blocked clients found.";
 				}
-			}
-			else {
+			} else {
 				text = "Error while unblocking clients.";
 			}
 			document.getElementById(id).style.visibility = 'visible';
 			document.getElementById(id).innerHTML = text;
 		}
-	
+
 		function outputToHTML(json, id) {
-				jsonStr = JSON.stringify(json, undefined, 2);
-				jsonStr = syntaxHighlight(jsonStr);
-				document.getElementById(id).style.visibility = 'visible'
-				document.getElementById(id).innerHTML = jsonStr;
-			}
-		
+			jsonStr = JSON.stringify(json, undefined, 2);
+			jsonStr = syntaxHighlight(jsonStr);
+			document.getElementById(id).style.visibility = 'visible'
+			document.getElementById(id).innerHTML = jsonStr;
+		}
+
 		// https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
 		function syntaxHighlight(json) {
 			if (typeof json != 'string') {
@@ -150,50 +139,173 @@
 					return '<span class="' + cls + '">' + match + '</span>';
 				});
 		}
-	
-		function decode(html) {
-			var txt = document.createElement('textarea');
-			txt.innerHTML = html;
-			return txt.value;
-		}
-		
-		function ValidateIPaddress(ipaddress) 
-			{
-			if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipaddress))
-			{
+
+		function ValidateIPaddress(ipaddress) {
+			if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+				.test(ipaddress)) {
 				return (true)
 			}
-				alert("You have entered an invalid IP address!")
+			alert("You have entered an invalid IP address!")
 			return (false)
 		}
-	
+
+		function loadClientTable() {
+			let request = new XMLHttpRequest();
+			request.open("GET", "/admin/blocked-clients");
+			request.addEventListener('load', function (event) {
+				if (request.status >= 200 && request.status < 300) {
+					result = request.responseText;
+					result = JSON.parse(result);
+					printClientTable(result, "blocked-clients-div");
+					return result;
+				} else {
+					console.warn(request.statusText, request.responseText);
+					return request.statusText;
+				}
+			});
+			request.send()
+		}
+
+		function loadRPCTable(sortKey) {
+			let request = new XMLHttpRequest();
+			request.open("GET", "/admin/rpc-list");
+			request.addEventListener('load', function (event) {
+				if (request.status >= 200 && request.status < 300) {
+					result = request.responseText;
+					result = JSON.parse(result);
+					if (result.length == 0) {
+						return null
+					}
+					result = sortRPCTable(result, sortKey);
+					printRPCTable(result, "rpc-table-div");
+					return result;
+				} else {
+					console.warn(request.statusText, request.responseText);
+					return request.statusText;
+				}
+			});
+			request.send();
+		}
+
+		function printClientTable(data, htmlId) {
+			if (data.length == 0) {
+				htmlStr = "<p>No clients are blocked by the server.</p>";
+			} else {
+				htmlStr = "<table class=\"rpc-table\" id=\"blocked-clients-table\">" +
+					"<tr>" +
+					"<th class='rpc-th'>Client</th>" +
+					"<th class='rpc-th'>Action</th>" +
+					"</tr>";
+				data.forEach(element => {
+					htmlStr += "<tr>";
+					htmlStr += "<td class=\"rpc-td\">" + element + "</td>";
+					htmlStr += "<td class=\"rpc-td\"><p onclick='unblockClient(\"" + element +
+						"\")'>unblock</p></td>";
+					htmlStr += "</tr>";
+
+				});
+				htmlStr += "</table>";
+			}
+			div = document.getElementById(htmlId);
+			div.innerHTML = htmlStr;
+			return htmlStr;
+
+		}
+
+		function printRPCTable(data, htmlId) {
+
+			let htmlStr = "<table class=\"rpc-table\">";
+			htmlStr += "<tr>";
+			keys = Object.keys(data[0]);
+			Object.keys(data[0]).forEach(element => {
+				htmlStr += "<th class=\"rpc-th\" onclick=\"loadRPCTable('" + element + "')\">" + element + "</th>";
+			});
+			htmlStr += "</tr>";
+
+			data.forEach((element, idx) => {
+				htmlStr += "<tr>";
+				if (element["error"]) {
+					keys.forEach(key => {
+						htmlStr += "<td class=\"rpc-error-td\">" + element[key] + "</td>";
+					});
+				} else {
+					keys.forEach(key => {
+						htmlStr += "<td class=\"rpc-td\">" + element[key] + "</td>";
+					});
+				}
+				htmlStr += "</tr>";
+			});
+
+			htmlStr += "</table>";
+			div = document.getElementById(htmlId);
+			div.innerHTML = htmlStr;
+			return htmlStr;
+		}
+
+		var desc = false;
+
+		function sortRPCTable(data, sortKey) {
+
+			data = result.sort((a, b) => {
+				if (sortKey == "method") {
+					var nameA = a[sortKey].toUpperCase();
+					var nameB = b[sortKey].toUpperCase();
+					if (nameA < nameB) {
+						return -1;
+					}
+					if (nameA > nameB) {
+						return 1;
+					}
+					return 0;
+				} else {
+					return Number(a[sortKey]) - Number(b[sortKey]);
+				}
+			});
+			if (desc) {
+				data = data.reverse();
+				desc = false;
+			} else {
+				desc = true;
+			}
+			return data;
+
+		}
 	</script>
 </head>
+
 <body onload="onLoad();">
 	<div class="content">
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
 		<div class="interface-container">
 
 			<h2>Admin Interface</h2>
+
+			<div class="adminpage-box" id="blocked-clients">
+				<h4>Blocked Clients:</h4>
+				<div id="blocked-clients-div">
+
+				</div>
+			</div>
+
 			<div class="adminpage-box">
 				<h4>Unblock Clients:</h4>
 				<table>
 					<tr>
 						<td align=left><label>Unblock all clients:</label></td>
 						<td></td>
-						<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button>	</td>
+						<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button> </td>
 					</tr>
 					<tr>
-						<td align=left>Unblock address:</td> 
+						<td align=left>Unblock address:</td>
 						<td><input id="clientAddr" type="text" name="clientAddr" placeholder="127.0.0.1"></td>
-						<td><input type="button" onclick="unblockClient()" value="Execute"></td>
+						<td><input type="button" onclick="unblockClient(clientAddr.value)" value="Execute"></td>
 					</tr>
 					<tr>
-						<td align=left>Delete client sessions:</td> 
+						<td align=left>Delete client sessions:</td>
 						<td><input id="sessionAddr" type="text" name="sessionAddr" placeholder="127.0.0.1"></td>
 						<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
 					</tr>
-				</table>	
+				</table>
 			</div>
 			<div id="result">
 				<p class="json-result" id="text-result"></p>
@@ -201,10 +313,18 @@
 			<div id="result">
 				<pre class="json-result" id="json-result"></pre>
 			</div>
-			
+
+			<div class="adminpage-box">
+				<h4>RPCs:</h4>
+
+				Number of RPCs since {{date_first_rpc}} (UTC): {{rpc_count}}
+				<br><br>
+				<div id="rpc-table-div">
+
+				</div>
+			</div>
 		</div>
 	</div>
 </body>
 
 </html>
-

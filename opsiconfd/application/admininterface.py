@@ -8,7 +8,8 @@ See LICENSES/README.md for more Information
 
 
 import os
-
+import datetime
+from operator import itemgetter
 
 from fastapi import APIRouter, Request, Response, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -28,36 +29,50 @@ def admin_interface_setup(app):
 
 @admin_interface_router.get("/?")
 async def admin_interface_index(request: Request):
-	logger.notice("ADMIN INTERFACE")
+
+	now = datetime.time()
+	time = datetime.datetime.now() - datetime.timedelta(days=2)
+	date_first_rpc = time.strftime("%m/%d/%Y, %H:%M:%S")
+
+	blocked_clients = await get_blocked_clients()
+	rpc_list = await get_rpc_list()
+	rpc_count = await get_rpc_count()
+	
 	context = {
 		"request": request,
-		"interface": get_backend_interface()
+		"interface": get_backend_interface(),
+		"rpc_count": rpc_count,
+		"date_first_rpc": date_first_rpc,
+		"rpc_list": rpc_list,
+		"blocked_clients": blocked_clients
 	}
+
 	return templates.TemplateResponse("admininterface.html", context)
 
 @admin_interface_router.post("/unblock-all")
 async def unblock_all_clients(request: Request, response: Response):
-	logger.notice("unblock_all_clients")
 	redis_client = await get_redis_client()
 	
 	try:
 		clients = []
 		deleted_keys = []
 		keys = redis_client.scan_iter("opsiconfd:stats:client:failed_auth:*")
-		async for key in keys:
-			deleted_keys.append(key.decode("utf8"))
-			if key.decode("utf8").split(":")[-1] not in clients:
-				clients.append(key.decode("utf8").split(":")[-1])
-			logger.debug("redis key to delete: %s", key)
-			await redis_client.delete(key)
+		async with await redis_client.pipeline(transaction=False) as pipe:
+			async for key in keys:
+				deleted_keys.append(key.decode("utf8"))
+				if key.decode("utf8").split(":")[-1] not in clients:
+					clients.append(key.decode("utf8").split(":")[-1])
+				logger.debug("redis key to delete: %s", key)
+				await pipe.delete(key)
 
-		keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")		
-		async for key in keys:
-			logger.debug("redis key to delete: %s", key)
-			deleted_keys.append(key.decode("utf8"))
-			if key.decode("utf8").split(":")[-1] not in clients:
-				clients.append(key.decode("utf8").split(":")[-1])
-			await redis_client.delete(key)
+			keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")		
+			async for key in keys:
+				logger.debug("redis key to delete: %s", key)
+				deleted_keys.append(key.decode("utf8"))
+				if key.decode("utf8").split(":")[-1] not in clients:
+					clients.append(key.decode("utf8").split(":")[-1])
+				await pipe.delete(key)
+			redis_result = await pipe.execute()
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"clients": clients, "redis-keys": deleted_keys}})
 	except Exception as e:
@@ -83,7 +98,6 @@ async def unblock_client(request: Request):
 		if redis_code == 1:
 			deleted_keys.append(f"opsiconfd:stats:client:blocked:{client_addr}")
 
-
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "redis-keys": deleted_keys}})
 	except Exception as e:
 		logger.error("Error while removing redis client keys: %s", e)
@@ -101,18 +115,67 @@ async def delete_client_sessions(request: Request):
 		keys = redis_client.scan_iter(f"{OPSISession.redis_key_prefix}:{client_addr}:*")
 		sessions = []
 		deleted_keys = []
-		async for key in keys:
-			logger.warning(key)
-			logger.notice(key.decode("utf8").split(":")[-1])
-			logger.warning(sessions)
-			sessions.append(key.decode("utf8").split(":")[-1])
-			deleted_keys.append(key.decode("utf8"))
-			await redis_client.delete(key)
-			
-		logger.notice(sessions)
-		logger.notice(deleted_keys)
+		async with await redis_client.pipeline(transaction=False) as pipe:
+			async for key in keys:
+				sessions.append(key.decode("utf8").split(":")[-1])
+				deleted_keys.append(key.decode("utf8"))
+				await pipe.delete(key)
+			redis_result = await pipe.execute()
+
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}})
 	except Exception as e:
 		logger.error("Error while removing redis session keys: %s", e)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
 	return response
+
+@admin_interface_router.get("/rpc-list")
+async def get_rpc_list() -> list:
+
+	redis_client = await get_redis_client()
+	redis_keys = redis_client.scan_iter(f"opsiconfd:stats:rpc:*")
+
+	rpc_list = []
+	async for key in redis_keys:
+		async with await redis_client.pipeline(transaction=False) as pipe:
+			await pipe.hget(key, "num_params")
+			await pipe.hget(key, "error")
+			await pipe.hget(key, "num_results")
+			await pipe.hget(key, "duration")
+			redis_result = await pipe.execute()
+
+		num_params = redis_result[0].decode("utf8")
+		error = (redis_result[1].decode("utf8") == "True")
+		num_results = redis_result[2].decode("utf8")
+		duration = "{:.3f}".format(float(redis_result[3].decode("utf8")))
+		method_name = key.decode("utf8").split(":")[-1]		
+		
+		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params, "results": num_results, "error": error, "duration": duration}
+		rpc_list.append(rpc)
+
+	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
+
+	return rpc_list
+
+async def get_rpc_count() -> int: 
+	redis_client = await get_redis_client()
+
+	count = await redis_client.get("opsiconfd:stats:num_rpcs")
+	if count:
+		count = int(count.decode("utf8"))
+	else:
+		count = 0
+
+	return count
+
+@admin_interface_router.get("/blocked-clients")
+async def get_blocked_clients() -> list:
+	redis_client = await get_redis_client()
+	redis_keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")
+
+	blocked_clients = []
+	async for key in redis_keys:
+		logger.debug("redis key to delete: %s", key)
+		blocked_clients.append(key.decode("utf8").split(":")[-1])
+	
+	return blocked_clients
+

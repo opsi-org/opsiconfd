@@ -38,7 +38,7 @@ from OPSI.Util import serialize, deserialize
 
 from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface
-from ..worker import run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, contextvar_request_id
+from ..worker import run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, contextvar_request_id, get_redis_client
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
 
 
@@ -136,6 +136,23 @@ async def process_jsonrpc(request: Request, response: Response):
 		for result in await asyncio.gather(*tasks):
 			results.append(result[0])
 			await get_metrics_collector().add_value("worker:rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
+			redis_client = await get_redis_client()
+			rpc_count = await redis_client.incr("opsiconfd:stats:num_rpcs")
+			error = bool(result[0].get("error"))
+			params = result[0].get("params")
+			logger.debug("RPC Count: %s", rpc_count)			
+			logger.debug("PARAMS: %s", params)
+			logger.debug("num params: ", len(params))
+			num_results = 0
+			if result[0].get("result"):
+				num_results = len(result[0].get("result"))
+			logger.debug("num_results: %s", num_results)
+			redis_key = f"opsiconfd:stats:rpc:{rpc_count}:{result[0].get('method')}"
+			async with await redis_client.pipeline(transaction=False) as pipe:
+				await pipe.hmset(redis_key, {"num_params": len(params), "error": error,"num_results": num_results, "duration": result[1]})
+				await pipe.expire(redis_key, 172800)
+				redis_returncode = await pipe.execute()
+
 		#print(f"done {myid}")
 		if len(results) == 1:
 			return results[0]
@@ -192,16 +209,16 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 			result = method(*params, **keywords)
 		else:
 			result = method(*params)
-		
-		response = {"jsonrpc": "2.0", "id": rpc_id, "result": result, "error": None}
+		params.append(keywords)
+		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "error": None}
 		response = serialize(response)
 
 		end = time.perf_counter()
 
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
-		
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
+
 		return [response, end - start]
 	except Exception as e:
 		logger.error(e, exc_info=True)
@@ -210,5 +227,5 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		# TODO: config
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}, 0]
+		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "error": error}, 0]
 		

@@ -10,7 +10,6 @@ See LICENSES/README.md for more Information
 import os
 import datetime
 from operator import itemgetter
-from distutils.util import strtobool
 
 from fastapi import APIRouter, Request, Response, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -145,7 +144,7 @@ async def get_rpc_list() -> list:
 			redis_result = await pipe.execute()
 
 		num_params = redis_result[0].decode("utf8")
-		error = bool(strtobool(redis_result[1].decode("utf8")))
+		error = (redis_result[1].decode("utf8") == "True")
 		num_results = redis_result[2].decode("utf8")
 		duration = "{:.3f}".format(float(redis_result[3].decode("utf8")))
 		method_name = key.decode("utf8").split(":")[-1]		

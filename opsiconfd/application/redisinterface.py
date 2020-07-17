@@ -6,7 +6,6 @@ This file is part of opsi - https://www.opsi.org
 See LICENSES/README.md for more Information
 """
 
-
 import os
 import datetime
 import traceback
@@ -27,8 +26,6 @@ templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates
 def redis_interface_setup(app):
 	app.include_router(admin_interface_router, prefix="/redis-interface")
 
-
-
 @admin_interface_router.post("/?")
 async def redis_command(request: Request, response: Response):
 	redis_client = await get_redis_client()
@@ -38,7 +35,6 @@ async def redis_command(request: Request, response: Response):
 		redis_result = await redis_client.execute_command(redis_cmd)
 		
 		if type(redis_result) == list:
-			
 			result = []
 			for value in redis_result:
 				result.append(value.decode("utf8"))

@@ -6,7 +6,6 @@ This file is part of opsi - https://www.opsi.org
 See LICENSES/README.md for more Information
 """
 
-
 import os
 import datetime
 from operator import itemgetter
@@ -46,7 +45,6 @@ async def admin_interface_index(request: Request):
 		"rpc_list": rpc_list,
 		"blocked_clients": blocked_clients
 	}
-
 	return templates.TemplateResponse("admininterface.html", context)
 
 @admin_interface_router.post("/unblock-all")
@@ -78,7 +76,6 @@ async def unblock_all_clients(request: Request, response: Response):
 	except Exception as e:
 		logger.error("Error while removing redis client keys: %s", e)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
-
 	return response
 
 
@@ -102,9 +99,7 @@ async def unblock_client(request: Request):
 	except Exception as e:
 		logger.error("Error while removing redis client keys: %s", e)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
-
 	return response
-
 
 @admin_interface_router.post("/delete-client-sessions")
 async def delete_client_sessions(request: Request):
@@ -151,9 +146,7 @@ async def get_rpc_list() -> list:
 		
 		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params, "results": num_results, "error": error, "duration": duration}
 		rpc_list.append(rpc)
-
 	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
-
 	return rpc_list
 
 async def get_rpc_count() -> int: 
@@ -164,7 +157,6 @@ async def get_rpc_count() -> int:
 		count = int(count.decode("utf8"))
 	else:
 		count = 0
-
 	return count
 
 @admin_interface_router.get("/blocked-clients")
@@ -176,6 +168,5 @@ async def get_blocked_clients() -> list:
 	async for key in redis_keys:
 		logger.debug("redis key to delete: %s", key)
 		blocked_clients.append(key.decode("utf8").split(":")[-1])
-	
 	return blocked_clients
 

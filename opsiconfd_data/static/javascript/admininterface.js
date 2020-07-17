@@ -155,7 +155,7 @@ function loadRPCTable(sortKey, sort) {
 				return null
 			}
 			if (sort) {
-			    result = sortRPCTable(result, sortKey);
+				result = sortRPCTable(result, sortKey);
 			}
 			printRPCTable(result, "rpc-table-div");
 			printRPCCount(result.length);
@@ -168,10 +168,12 @@ function loadRPCTable(sortKey, sort) {
 	request.send();
 }
 
-function printRPCCount(rpcCount){
+function printRPCCount(rpcCount) {
 	p = document.getElementById("rpc-count");
 	let date = new Date(Date.now());
-	htmlStr = "Number of RPCs since " + date.toLocaleString('en-US', { timeZone: 'UTC' }) + " (UTC): " + rpcCount;
+	htmlStr = "Number of RPCs since " + date.toLocaleString('en-US', {
+		timeZone: 'UTC'
+	}) + " (UTC): " + rpcCount;
 	p.innerHTML = htmlStr;
 }
 
@@ -206,7 +208,7 @@ function printRPCTable(data, htmlId) {
 	htmlStr += "<tr>";
 	keys = Object.keys(data[0]);
 	Object.keys(data[0]).forEach(element => {
-		htmlStr += "<th class=\"rpc-th\" onclick=\"loadRPCTable('" + element + "', "+true+")\">" + element + "</th>";
+		htmlStr += "<th class=\"rpc-th\" onclick=\"loadRPCTable('" + element + "', " + true + ")\">" + element + "</th>";
 	});
 	htmlStr += "</tr>";
 
@@ -259,14 +261,13 @@ function sortRPCTable(data, sortKey) {
 
 }
 
-function callRedis(){
+function callRedis() {
 	let request = new XMLHttpRequest();
 	request.open("POST", "/redis-interface");
 	request.addEventListener('load', function (event) {
 		if (request.status >= 200 && request.status < 300) {
 			result = request.responseText;
 			result = JSON.parse(result);
-			console.log(result.data.result);
 			outputToHTML(result, "redis-result");
 			return result;
 		} else {
@@ -278,109 +279,108 @@ function callRedis(){
 	body = {
 		"cmd": cmd
 	}
-	console.log("body: " + body);
 	request.send(JSON.stringify(body));
 }
 
-	function createRequestJSON() {
-		let apiJSON = {
-			"id": 1,
-			"method": "",
-			"params": [
-				[],
-				{}
-			]
-		}
-
-		let option = document.getElementById("method-select");
-		let method = option.options[option.selectedIndex].text;
-		let inputs = document.getElementById("rpcInterface").getElementsByTagName("input");
-		let parameter = [];
-
-		apiJSON.method = method;
-
-		try {
-			for (i = 0; i < inputs.length; i++) {
-				let name = inputs[i].name.trim();
-				let value = inputs[i].value.trim();
-
-				if (value) {
-					parameter.push(JSON.parse(value));
-				} else {
-					if (name.indexOf("*", 1) == -1) {
-						parameter.push(null);
-					}
-				}
-			}
-		} catch (e) {
-			if (e instanceof SyntaxError) {
-				console.log("JSON not valid... " + e);
-			} else {
-				console.log(e);
-			}
-		}
-
-		apiJSON.params = parameter;
-		return apiJSON;
+function createRequestJSON() {
+	let apiJSON = {
+		"id": 1,
+		"method": "",
+		"params": [
+			[],
+			{}
+		]
 	}
 
-	function changeRequestJSON(name, value) {
-		let apiJSON = createRequestJSON();
-		outputToHTML(apiJSON, "jsonrpc-request");
-	}
+	let option = document.getElementById("method-select");
+	let method = option.options[option.selectedIndex].text;
+	let inputs = document.getElementById("rpcInterface").getElementsByTagName("input");
+	let parameter = [];
 
-	function callJSONRPC() {
-		let inputs = document.getElementById("rpcInterface").getElementsByTagName("input");
+	apiJSON.method = method;
+
+	try {
 		for (i = 0; i < inputs.length; i++) {
 			let name = inputs[i].name.trim();
 			let value = inputs[i].value.trim();
 
-			if (!value && name.substr(0, 1) != "*") {
-
-				alert("mandatory field empty");
-				return {
-					"error": "mandatory field empty"
-				};
+			if (value) {
+				parameter.push(JSON.parse(value));
+			} else {
+				if (name.indexOf("*", 1) == -1) {
+					parameter.push(null);
+				}
 			}
 		}
-
-		let apiJSON = createRequestJSON();
-		// console.log("apiJSON: ");
-		// console.log(apiJSON);
-		// console.log(window.location.protocol);
-		// console.log(window.location.host);
-		// console.log(window.location.hostname);
-		// console.log(window.location.port);
-		let request = new XMLHttpRequest();
-		request.open("POST", "/rpc");
-
-		request.addEventListener('load', function (event) {
-			document.getElementById("jsonrpc-execute-button").disabled = false;
-			if (request.status >= 200 && request.status < 300) {
-				result = request.responseText
-				result = JSON.parse(result);
-				outputToHTML(result, "jsonrpc-result");
-				loadRPCTable("rpc_num", false);
-				return result;
-
-			} else {
-				console.warn(request.statusText, request.responseText);
-				return request.statusText;
-			}
-		});
-		document.getElementById("jsonrpc-execute-button").disabled = true;
-		request.send(JSON.stringify(apiJSON));
+	} catch (e) {
+		if (e instanceof SyntaxError) {
+			console.log("JSON not valid... " + e);
+		} else {
+			console.log(e);
+		}
 	}
 
-	function outputToHTML(json, id) {
-		jsonStr = JSON.stringify(json, undefined, 2);
-		jsonStr = syntaxHighlight(jsonStr);
-		document.getElementById(id).style.visibility = 'visible'
-		document.getElementById(id).innerHTML = jsonStr;
+	apiJSON.params = parameter;
+	return apiJSON;
+}
+
+function changeRequestJSON(name, value) {
+	let apiJSON = createRequestJSON();
+	outputToHTML(apiJSON, "jsonrpc-request");
+}
+
+function callJSONRPC() {
+	let inputs = document.getElementById("rpcInterface").getElementsByTagName("input");
+	for (i = 0; i < inputs.length; i++) {
+		let name = inputs[i].name.trim();
+		let value = inputs[i].value.trim();
+
+		if (!value && name.substr(0, 1) != "*") {
+
+			alert("mandatory field empty");
+			return {
+				"error": "mandatory field empty"
+			};
+		}
 	}
 
-	function decode(html) {
-		var txt = document.createElement('textarea');
-		txt.innerHTML = html;
-		return txt.value;
-	}
+	let apiJSON = createRequestJSON();
+	// console.log("apiJSON: ");
+	// console.log(apiJSON);
+	// console.log(window.location.protocol);
+	// console.log(window.location.host);
+	// console.log(window.location.hostname);
+	// console.log(window.location.port);
+	let request = new XMLHttpRequest();
+	request.open("POST", "/rpc");
+
+	request.addEventListener('load', function (event) {
+		document.getElementById("jsonrpc-execute-button").disabled = false;
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText
+			result = JSON.parse(result);
+			outputToHTML(result, "jsonrpc-result");
+			loadRPCTable("rpc_num", false);
+			return result;
+
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	document.getElementById("jsonrpc-execute-button").disabled = true;
+	request.send(JSON.stringify(apiJSON));
+}
+
+function outputToHTML(json, id) {
+	jsonStr = JSON.stringify(json, undefined, 2);
+	jsonStr = syntaxHighlight(jsonStr);
+	document.getElementById(id).style.visibility = 'visible'
+	document.getElementById(id).innerHTML = jsonStr;
+}
+
+function decode(html) {
+	var txt = document.createElement('textarea');
+	txt.innerHTML = html;
+	return txt.value;
+}

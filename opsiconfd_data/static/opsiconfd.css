@@ -74,7 +74,7 @@ li {
 #jsonrpc-request-table > tr > td > input, select {
 	width: 500px;
 }
-.jsonrpc-request, .jsonrpc-result, .json-result, .adminpage-box {
+.jsonrpc-request, .jsonrpc-result, .json-result, .redis-result, .adminpage-box {
 	outline: 1px solid #ccc;
 	padding: 5px;
 	margin: 15px 0px 15px 0px;
@@ -107,6 +107,42 @@ li {
 	color: #eeeeee; 
 	background-color: #6276a0;
 }
+
+ /* Style the tab */
+ .tab {
+	overflow: hidden;
+	border: 1px solid #ccc;
+	background-color: #f1f1f1;
+  }
+  
+  /* Style the buttons that are used to open the tab content */
+  .tab button {
+	background-color: inherit;
+	float: left;
+	border: none;
+	outline: none;
+	cursor: pointer;
+	padding: 14px 16px;
+	transition: 0.3s;
+  }
+  
+  /* Change background color of buttons on hover */
+  .tab button:hover {
+	background-color: #ddd;
+  }
+  
+  /* Create an active/current tablink class */
+  .tab button.active {
+	background-color: #ccc;
+  }
+  
+  /* Style the tab content */
+  .tabcontent {
+	display: none;
+	padding: 6px 12px;
+	/* #border: 1px solid #ccc;
+	border-top: none; */
+  } 
 
 .LEVEL_SECRET { color: #795b00; }
 .LEVEL_TRACE { color: #636d6e; }

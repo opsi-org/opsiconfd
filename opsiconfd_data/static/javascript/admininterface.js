@@ -158,6 +158,7 @@ function loadRPCTable(sortKey, sort) {
 			    result = sortRPCTable(result, sortKey);
 			}
 			printRPCTable(result, "rpc-table-div");
+			printRPCCount(result.length);
 			return result;
 		} else {
 			console.warn(request.statusText, request.responseText);
@@ -165,6 +166,13 @@ function loadRPCTable(sortKey, sort) {
 		}
 	});
 	request.send();
+}
+
+function printRPCCount(rpcCount){
+	p = document.getElementById("rpc-count");
+	let date = new Date(Date.now());
+	htmlStr = "Number of RPCs since " + date.toLocaleString('en-US', { timeZone: 'UTC' }) + " (UTC): " + rpcCount;
+	p.innerHTML = htmlStr;
 }
 
 function printClientTable(data, htmlId) {

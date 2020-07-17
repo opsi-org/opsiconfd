@@ -65,8 +65,8 @@
 				<div class="adminpage-box">
 					<h4>RPCs:</h4>
 
-					Number of RPCs since {{date_first_rpc}} (UTC): {{rpc_count}}
-					<br><br>
+					<p id=rpc-count>Number of RPCs since {{date_first_rpc}} (UTC): {{rpc_count}}</p>
+					<br>
 					<div id="rpc-table-div">
 
 					</div>
@@ -74,6 +74,7 @@
 			</div>
 
 			<div id="rpcInterface" class="tabcontent">
+				<div class="adminpage-box">
 				<form>
 					<div>
 						<table id="jsonrpc-request-table">
@@ -88,6 +89,7 @@
 								</td>
 							</tr>
 						</table>
+					</div>
 					</div>
 				</form>
 				<div>

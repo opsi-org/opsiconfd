@@ -14,7 +14,8 @@
 			<h2>Admin Interface</h2>
 
 			<div class="tab">
-				<button class="tablinks" id="startTab-button" onclick="openTab(event, 'clients')">Blocked Clients</button>
+				<button class="tablinks" id="startTab-button" onclick="openTab(event, 'clients')">Blocked
+					Clients</button>
 				<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
 				<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
 				<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
@@ -75,22 +76,22 @@
 
 			<div id="rpcInterface" class="tabcontent">
 				<div class="adminpage-box">
-				<form>
-					<div>
-						<table id="jsonrpc-request-table">
-							<tr>
-								<td align=left><label>Method:</label></td>
-								<td>
-									<select id="method-select" onchange="createParamInputs()">
-										{% for method in interface %}
-										<option>{{	method.get("name") }}</option>
-										{% endfor %}
-									</select>
-								</td>
-							</tr>
-						</table>
-					</div>
-					</div>
+					<form>
+						<div>
+							<table id="jsonrpc-request-table">
+								<tr>
+									<td align=left><label>Method:</label></td>
+									<td>
+										<select id="method-select" onchange="createParamInputs()">
+											{% for method in interface %}
+											<option>{{	method.get("name") }}</option>
+											{% endfor %}
+										</select>
+									</td>
+								</tr>
+							</table>
+						</div>
+				</div>
 				</form>
 				<div>
 					<pre class="jsonrpc-request" id="jsonrpc-request"></pre>
@@ -105,7 +106,7 @@
 			<div id="redisInterface" class="tabcontent">
 				<div class="adminpage-box">
 					<h4>Redis</h4>
-					<input type="text" id="redis-cmd" name="redis-cmd" size=50/>
+					<input type="text" id="redis-cmd" name="redis-cmd" size=50 />
 					<button id="redis-button" onclick="callRedis()">Execute</button>
 				</div>
 				<div id="resultRedis">
@@ -118,17 +119,15 @@
 
 </html>
 <script>
+	let input = document.getElementById("redis-cmd");
 
-
-let input = document.getElementById("redis-cmd");
-
-input.addEventListener("keyup", function(event) {
-  // Number 13 is the "Enter" key on the keyboard
-  if (event.keyCode === 13) {
-    // event.preventDefault();
-    document.getElementById("redis-button").click();
-  }
-});
+	input.addEventListener("keyup", function (event) {
+		// Number 13 is the "Enter" key on the keyboard
+		if (event.keyCode === 13) {
+			// event.preventDefault();
+			document.getElementById("redis-button").click();
+		}
+	});
 
 
 
@@ -182,10 +181,10 @@ input.addEventListener("keyup", function(event) {
 		var i, tabcontent, tablinks;
 
 		if (tabName == "rpcInfos") {
-			loadRPCTable("rpc_num", false)			
+			loadRPCTable("rpc_num", false)
 		}
 		if (tabName == "clients") {
-			loadClientTable()			
+			loadClientTable()
 		}
 
 		// Get all elements with class="tabcontent" and hide them
@@ -204,7 +203,4 @@ input.addEventListener("keyup", function(event) {
 		document.getElementById(tabName).style.display = "block";
 		evt.currentTarget.className += " active";
 	}
-
-
-
 </script>

@@ -101,7 +101,14 @@
 				</div>
 			</div>
 			<div id="redisInterface" class="tabcontent">
-				TODO
+				<div class="adminpage-box">
+					<h4>Redis</h4>
+					<input type="text" id="redis-cmd" name="redis-cmd" size=50/>
+					<button id="redis-button" onclick="callRedis()">Execute</button>
+				</div>
+				<div id="resultRedis">
+					<pre class="redis-result" id="redis-result"></pre>
+				</div>
 			</div>
 
 		</div>
@@ -109,11 +116,26 @@
 
 </html>
 <script>
+
+
+let input = document.getElementById("redis-cmd");
+
+input.addEventListener("keyup", function(event) {
+  // Number 13 is the "Enter" key on the keyboard
+  if (event.keyCode === 13) {
+    // event.preventDefault();
+    document.getElementById("redis-button").click();
+  }
+});
+
+
+
 	function onLoad() {
 		document.getElementById("startTab-button").click()
 
 		document.getElementById("json-result").style.visibility = 'hidden';
 		document.getElementById("text-result").style.visibility = 'hidden';
+		document.getElementById("redis-result").style.visibility = 'hidden';
 		loadClientTable();
 		loadRPCTable('rpc_num', false);
 
@@ -157,6 +179,13 @@
 		// Declare all variables
 		var i, tabcontent, tablinks;
 
+		if (tabName == "rpcInfos") {
+			loadRPCTable("rpc_num", false)			
+		}
+		if (tabName == "clients") {
+			loadClientTable()			
+		}
+
 		// Get all elements with class="tabcontent" and hide them
 		tabcontent = document.getElementsByClassName("tabcontent");
 		for (i = 0; i < tabcontent.length; i++) {
@@ -173,4 +202,7 @@
 		document.getElementById(tabName).style.display = "block";
 		evt.currentTarget.className += " active";
 	}
+
+
+
 </script>

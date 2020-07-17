@@ -93,13 +93,6 @@ function outputResult(json, id) {
 	document.getElementById(id).innerHTML = text;
 }
 
-// function outputToHTML(json, id) {
-// 	jsonStr = JSON.stringify(json, undefined, 2);
-// 	jsonStr = syntaxHighlight(jsonStr);
-// 	document.getElementById(id).style.visibility = 'visible'
-// 	document.getElementById(id).innerHTML = jsonStr;
-// }
-
 // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
 function syntaxHighlight(json) {
 	if (typeof json != 'string') {
@@ -152,7 +145,6 @@ function loadClientTable() {
 }
 
 function loadRPCTable(sortKey, sort) {
-	console.log("loadRPCTABEL");
 	let request = new XMLHttpRequest();
 	request.open("GET", "/admin/rpc-list");
 	request.addEventListener('load', function (event) {
@@ -165,9 +157,6 @@ function loadRPCTable(sortKey, sort) {
 			if (sort) {
 			    result = sortRPCTable(result, sortKey);
 			}
-
-			console.log("SORT: " + sort);
-			
 			printRPCTable(result, "rpc-table-div");
 			return result;
 		} else {
@@ -262,12 +251,28 @@ function sortRPCTable(data, sortKey) {
 
 }
 
-	// function onLoad() {
-	// 	document.getElementById("jsonrpc-result").style.visibility = 'hidden';
-	// 	document.getElementById("jsonrpc-request").style.visibility = 'hidden';
-	// 	createParamInputs();
-	// }
-	
+function callRedis(){
+	let request = new XMLHttpRequest();
+	request.open("POST", "/redis-interface");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			console.log(result.data.result);
+			outputToHTML(result, "redis-result");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	cmd = document.getElementById("redis-cmd").value;
+	body = {
+		"cmd": cmd
+	}
+	console.log("body: " + body);
+	request.send(JSON.stringify(body));
+}
 
 	function createRequestJSON() {
 		let apiJSON = {
@@ -365,31 +370,6 @@ function sortRPCTable(data, sortKey) {
 		document.getElementById(id).style.visibility = 'visible'
 		document.getElementById(id).innerHTML = jsonStr;
 	}
-
-	// // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
-	// function syntaxHighlight(json) {
-	// 	if (typeof json != 'string') {
-	// 		json = JSON.stringify(json, undefined, 2);
-	// 	}
-	// 	json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-	// 	return json.replace(
-	// 		/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-	// 		function (match) {
-	// 			var cls = 'json_number';
-	// 			if (/^"/.test(match)) {
-	// 				if (/:$/.test(match)) {
-	// 					cls = 'json_key';
-	// 				} else {
-	// 					cls = 'json_string';
-	// 				}
-	// 			} else if (/true|false/.test(match)) {
-	// 				cls = 'json_boolean';
-	// 			} else if (/null/.test(match)) {
-	// 				cls = 'json_null';
-	// 			}
-	// 			return '<span class="' + cls + '">' + match + '</span>';
-	// 		});
-	// }
 
 	function decode(html) {
 		var txt = document.createElement('textarea');

@@ -42,8 +42,8 @@ from aiologger.handlers.streams import AsyncStreamHandler
 from aiologger.handlers.files import AsyncFileHandler
 
 from opsicommon.logging import (
-	logger, secret_filter, handle_log_exception, set_context, set_format, set_filter_from_string,
-	ContextSecretFormatter,
+	logger, secret_filter, context_filter, handle_log_exception, set_context, set_format,
+	set_filter_from_string, ContextSecretFormatter, print_logger_info,
 	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT, DEFAULT_COLORED_FORMAT
 )
 
@@ -364,8 +364,11 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):
 		logger.handlers = [log_handler]
 		logger.setLevel(log_level)
 		set_format(stderr_format=config.log_format_stderr, file_format=config.log_format_file)
+
+
 		if config.log_filter:
 			set_filter_from_string(config.log_filter)
+		
 		for ln in ("asyncio", "uvicorn.error"):
 			al = pylogging.getLogger(ln)
 			al.setLevel(log_level)
@@ -382,7 +385,9 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):
 				start_redis_log_adapter_thread()
 			else:
 				stop_redis_log_adapter_thread()
-	
+		
+		#print_logger_info()
+
 	except Exception as exc:
 		handle_log_exception(exc)
 

@@ -146,7 +146,7 @@ async def process_jsonrpc(request: Request, response: Response):
 			if result[0].get("result"):
 				num_results = 1
 				if isinstance(result[0].get("result"), list):
-					num_results = len(result[0].get("result"))	
+					num_results = len(result[0].get("result"))
 			logger.debug("num_results: %s", num_results)
 			redis_key = f"opsiconfd:stats:rpc:{rpc_count}:{result[0].get('method')}"
 			async with await redis_client.pipeline(transaction=False) as pipe:

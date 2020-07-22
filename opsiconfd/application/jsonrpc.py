@@ -180,6 +180,9 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, method_name)
 		logger.trace("Retrieved parameters %s for %s", params, method_name)
 
+		if method_name == "backend_exit":
+			return [None, 0]
+		
 		for method in get_backend_interface():
 			if method_name == method['name']:
 				method_description = method

@@ -50,7 +50,6 @@ from opsicommon.logging import (
 from .utils import Singleton
 from .config import config
 
-
 # Set default log level to ERROR early
 logger.setLevel(pylogging.ERROR)
 
@@ -309,7 +308,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		
 		d = record.__dict__.copy()
 		d["msg"] = msg
-		for attr in ('scope', 'exc_info', 'args'):
+		for attr in ('scope', 'exc_info', 'args', 'contextstring'):
 			if attr in d:
 				del d[attr]
 		return d

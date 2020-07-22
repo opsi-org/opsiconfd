@@ -271,7 +271,7 @@ parser.add(
 parser.add(
 	"--log-format-stderr",
 	env_var="OPSICONFD_LOG_FORMAT_STDERR",
-	default="%(log_color)s[%(opsilevel)d] [%(asctime)s.%(msecs)03d]%(reset)s [%(client_address)s] %(message)s   (%(filename)s:%(lineno)d)",
+	default="%(log_color)s[%(opsilevel)d] [%(asctime)s.%(msecs)03d]%(reset)s [%(contextstring)s] %(message)s   (%(filename)s:%(lineno)d)",
 	help="Set the log format for stder."
 )
 parser.add(
@@ -280,6 +280,12 @@ parser.add(
 	default=5000,
 	help=expert_help("Set maximum log message length.")
 )
+parser.add(
+	"--log-filter",
+	env_var="OPSICONFD_LOG_FILTER",
+	help="Filter log records contexts (<ctx-name-1>=<val1>[,val2][;ctx-name-2=val3])"
+)
+
 #parser.add(
 #	"--max-execution-statistics",
 #	env_var="OPSICONFD_MAX_EXECUTION_STATISTICS",

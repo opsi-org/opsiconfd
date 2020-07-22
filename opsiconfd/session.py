@@ -144,12 +144,10 @@ class SessionMiddleware:
 			contextvar_client_session.set(session)
 			scope["session"] = session
 			
-			if not is_public and (not session.user_store.username or not session.user_store.authenticated):
-				auth = get_basic_auth(connection.headers)
-				try:
-								
-					is_blocked = await redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}")
-					is_blocked = bool(is_blocked)
+			if not is_public:
+				if not session.user_store.username or not session.user_store.authenticated:
+					# Check if blocked
+					is_blocked = bool(await redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}"))
 					if not is_blocked:
 						now = round(time.time())*1000
 						cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
@@ -166,48 +164,33 @@ class SessionMiddleware:
 							is_blocked = True
 							logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
 							await redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
-						
 					if is_blocked:
 						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked for {(config.client_block_time/60):.2f} minutes!")
 					
+					# Authenticate
+					auth = get_basic_auth(connection.headers)
 					get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
-					if not session.user_store.host:
-						
-						if not session.user_store.isAdmin:
-							raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
-						
-						if config.admin_networks:
-							is_admin_network = False
-							for network in config.admin_networks:
-								ip_adress_in_network = ipAddressInNetwork(connection.client.host, network)							
-								if ip_adress_in_network:
-									is_admin_network = ip_adress_in_network
-									break
 
+					if config.admin_networks:
+						is_admin_network = False
+						for network in config.admin_networks:
+							if ipAddressInNetwork(connection.client.host, network):
+								is_admin_network = True
+								break
+						
 						if not is_admin_network:
-							raise BackendPermissionDeniedError(f"User not in admin network '{config.admin_networks}'")
-			
-				except (BackendAuthenticationError, BackendPermissionDeniedError) as e:
-					logger.warning(e)
-					cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
-					logger.debug(cmd)
-					await redis_client.execute_command(cmd)
-					raise HTTPException(
-						status_code=status.HTTP_401_UNAUTHORIZED,
-						detail=str(e),
-						headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
-					)
-				except ConnectionRefusedError as e:
-					raise HTTPException(
-						status_code=status.HTTP_403_FORBIDDEN,
-						detail=str(e)
-					)
-				except Exception as e:
-					logger.error(e, exc_info=True)
-					raise HTTPException(
-						status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-						detail=str(e)
-					)
+							logger.warning("User '%s' from '%s' not in admin network '%s'",
+								session.user_store.username,
+								connection.client.host,
+								config.admin_networks
+							)
+							session.user_store.isAdmin = False
+							session.store()
+				
+				# Check authorization
+				needs_admin = not scope["path"].startswith("/rpc")
+				if needs_admin and not session.user_store.isAdmin:
+					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 			
 			async def send_wrapper(message: Message) -> None:
 				if session:
@@ -218,37 +201,69 @@ class SessionMiddleware:
 				await send(message)
 
 			await self.app(scope, receive, send_wrapper)
-		except HTTPException as e:
+		
+		except Exception as e:
+			status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+			headers = None
+			error_detail = None
+
+			if isinstance(e, BackendAuthenticationError) or isinstance(e, BackendPermissionDeniedError):
+				logger.warning(e)
+
+				status_code = status.HTTP_401_UNAUTHORIZED
+				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+				error_detail = str(e)
+				
+				cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+				logger.debug(cmd)
+				await redis_client.execute_command(cmd)
+			
+			elif isinstance(e, ConnectionRefusedError):
+				status_code = status.HTTP_403_FORBIDDEN
+				error_detail = str(e)
+
+			elif isinstance(e, HTTPException):
+				status_code = e.status_code
+				headers = e.headers
+				error_detail = str(e)
+			
+			else:
+				logger.error(e, exc_info=True)
+				status_code = e.status_code
+				headers = e.headers
+				error_detail = str(e)
+
 			if scope["type"] == "websocket":
 				await send({"type": "websocket.close", "code": e.status_code})
 			else:
 				response = None
-				if e.headers != None:
-					e.headers.update({"Set-Cookie": self.get_set_cookie_string(session.session_id)})
+				headers = headers or {}
+				if session and session.session_id:
+					headers.update({"Set-Cookie": self.get_set_cookie_string(session.session_id)})
+				
 				if scope["path"].startswith("/rpc"):
-					logger.debug("Auth error - returning jsonrpc response")
+					logger.debug("Returning jsonrpc response because path startswith /rpc")
 					response = JSONResponse(
-						status_code=e.status_code,
-						content={"jsonrpc": "2.0", "id": None, "result": None, "error": e.detail},
-						headers=e.headers
+						status_code=status_code,
+						content={"jsonrpc": "2.0", "id": None, "result": None, "error": error_detail},
+						headers=headers
 					)
 				if not response:
 					if connection.headers.get("accept") and "application/json" in connection.headers.get("accept"):
-						logger.debug("Auth error - returning json response")
+						logger.debug("Returning json response because of accept header")
 						response = JSONResponse(
-							status_code=e.status_code,
-							content={"error": e.detail},
-							headers=e.headers
+							status_code=status_code,
+							content={"error": error_detail},
+							headers=headers
 						)
 				if not response:
-					logger.debug("Auth error - returning plaintext response")
+					logger.debug("Returning plaintext response")
 					response = PlainTextResponse(
-						status_code=e.status_code,
-						content=e.detail,
-						headers=e.headers
+						status_code=status_code,
+						content=error_detail,
+						headers=headers
 					)
 				await response(scope, receive, send)
-
 
 class OPSISession():
 	redis_key_prefix = "opsiconfd:sessions"

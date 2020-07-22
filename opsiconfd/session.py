@@ -60,7 +60,7 @@ from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
-from .logging import logger, secret_filter
+from .logging import logger, secret_filter, set_context
 from .worker import get_redis_client, contextvar_client_session
 from .backend import get_client_backend
 from .config import config
@@ -123,7 +123,9 @@ class SessionMiddleware:
 						return cookie[1].strip().lower()
 	
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-		logger.trace(f"SessionMiddleware {scope}")
+		connection = HTTPConnection(scope)
+		set_context({"client_address": connection.client.host})
+		logger.trace("SessionMiddleware %s", scope)
 		try:
 			redis_client = await get_redis_client()
 			if scope["type"] not in ("http", "websocket"):
@@ -135,7 +137,6 @@ class SessionMiddleware:
 				if scope["path"].startswith(f"{p}"):
 					is_public = True
 
-			connection = HTTPConnection(scope)
 			session_id = self.get_session_id_from_headers(connection.headers)
 			session = None
 			if not is_public or session_id:

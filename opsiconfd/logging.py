@@ -16,11 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-Logging helpers
-
 :copyright: uib GmbH <info@uib.de>
-:author: Niko Wenselowski <n.wenselowski@uib.de>
-:author: Jan Schneider <j.schneider@uib.de>
 :license: GNU Affero General Public License version 3
 """
 
@@ -30,9 +26,7 @@ import sys
 import os
 import queue
 import socket
-import logging
 import inspect
-from logging import LogRecord, Formatter, StreamHandler, Filter
 import threading
 import asyncio
 import aredis
@@ -41,221 +35,24 @@ import msgpack
 import colorlog
 from collections import namedtuple
 from gunicorn import glogging
+import logging as pylogging
+from logging import LogRecord, Formatter, StreamHandler, Filter
 from logging.handlers import WatchedFileHandler, RotatingFileHandler
 from aiologger.handlers.streams import AsyncStreamHandler
 from aiologger.handlers.files import AsyncFileHandler
 
-import OPSI.Logger
+from opsicommon.logging import (
+	logger, secret_filter, handle_log_exception, set_context, set_format, set_filter_from_string,
+	ContextSecretFormatter,
+	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT, DEFAULT_COLORED_FORMAT
+)
 
 from .utils import Singleton
 from .config import config
 
-DEFAULT_FORMAT = "%(log_color)s[%(opsilevel)d] [%(asctime)s.%(msecs)03d]%(reset)s %(message)s   (%(filename)s:%(lineno)d)"
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
-SECRET_REPLACEMENT_STRING = '***secret***'
-
-#logger = logging.getLogger('opsiconfd')
-logger = logging.getLogger()
-#redis_log_handler = None
-
-logging.NONE = 0
-logging.NOTSET = logging.NONE
-logging.SECRET = 10
-logging.CONFIDENTIAL = logging.SECRET
-logging.TRACE = 20
-logging.DEBUG2 = logging.TRACE
-logging.DEBUG = 30
-logging.INFO = 40
-logging.NOTICE = 50
-logging.WARNING = 60
-logging.WARN = logging.WARNING
-logging.ERROR = 70
-logging.CRITICAL = 80
-logging.ESSENTIAL = 90
-logging.COMMENT = logging.ESSENTIAL
-
-logging._levelToName = {
-	logging.SECRET: 'SECRET',
-	logging.TRACE: 'TRACE',
-	logging.DEBUG: 'DEBUG',
-	logging.INFO: 'INFO',
-	logging.NOTICE: 'NOTICE',
-	logging.WARNING: 'WARNING',
-	logging.ERROR: 'ERROR',
-	logging.CRITICAL: 'CRITICAL',
-	logging.ESSENTIAL: 'ESSENTIAL',
-	logging.NONE: 'NONE'
-}
-
-logging._nameToLevel = {
-	'SECRET': logging.SECRET,
-	'TRACE': logging.TRACE,
-	'DEBUG': logging.DEBUG,
-	'INFO': logging.INFO,
-	'NOTICE': logging.NOTICE,
-	'WARNING': logging.WARNING,
-	'ERROR': logging.ERROR,
-	'CRITICAL': logging.CRITICAL,
-	'ESSENTIAL': logging.ESSENTIAL,
-	'NONE': logging.NONE
-}
-
-logging._levelToOpsiLevel = {
-	logging.SECRET: 9,
-	logging.TRACE: 8,
-	logging.DEBUG: 7,
-	logging.INFO: 6,
-	logging.NOTICE: 5,
-	logging.WARNING: 4,
-	logging.ERROR: 3,
-	logging.CRITICAL: 2,
-	logging.ESSENTIAL: 1,
-	logging.NONE: 0
-}
-
-logging._opsiLevelToLevel = {
-	9: logging.SECRET,
-	8: logging.TRACE,
-	7: logging.DEBUG,
-	6: logging.INFO,
-	5: logging.NOTICE,
-	4: logging.WARNING,
-	3: logging.ERROR,
-	2: logging.CRITICAL,
-	1: logging.ESSENTIAL,
-	0: logging.NONE
-}
-
-LOG_COLORS = {
-	'SECRET': 'thin_yellow',
-	'TRACE': 'thin_white',
-	'DEBUG': 'white',
-	'INFO': 'bold_white',
-	'NOTICE': 'bold_green',
-	'WARNING': 'bold_yellow',
-	'ERROR': 'red',
-	'CRITICAL': 'bold_red',
-	'ESSENTIAL': 'bold_cyan'
-}
-
-def secret(self, msg, *args, **kwargs):
-	if self.isEnabledFor(logging.SECRET):
-		self._log(logging.SECRET, msg, args, **kwargs)
-logging.Logger.secret = secret
-logging.Logger.confidential = secret
-
-def trace(self, msg, *args, **kwargs):
-	if self.isEnabledFor(logging.TRACE):
-		self._log(logging.TRACE, msg, args, **kwargs)
-logging.Logger.trace = trace
-logging.Logger.debug2 = trace
-
-def notice(self, msg, *args, **kwargs):
-	if self.isEnabledFor(logging.NOTICE):
-		self._log(logging.NOTICE, msg, args, **kwargs)
-logging.Logger.notice = notice
-
-def essential(self, msg, *args, **kwargs):
-	if self.isEnabledFor(logging.ESSENTIAL):
-		self._log(logging.ESSENTIAL, msg, args, **kwargs)
-logging.Logger.essential = essential
-logging.Logger.comment = essential
-
-def logrecord_init(self, name, level, pathname, lineno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
-	self.__init_orig__(name, level, pathname, lineno, msg, args, exc_info, func=func, sinfo=sinfo, **kwargs)
-	self.opsilevel = logging._levelToOpsiLevel.get(level, level)
-
-LogRecord.__init_orig__ = LogRecord.__init__
-LogRecord.__init__ = logrecord_init
 
 # Set default log level to ERROR early
-logger.setLevel(logging.ERROR)
-
-# Replace OPSI Logger
-def opsi_logger_factory():
-	return logger
-OPSI.Logger.Logger = opsi_logger_factory
-
-def setLogFile(logFile, currentThread=False, object=None):
-	pass
-logger.setLogFile = setLogFile
-
-def setConfidentialStrings(strings):
-	secret_filter.clear_secrets()
-	secret_filter.add_secrets(*strings)
-logger.setConfidentialStrings = setConfidentialStrings
-
-def addConfidentialString(string):
-	secret_filter.add_secrets(string)
-logger.addConfidentialString = addConfidentialString
-
-def logException(e, logLevel=logging.CRITICAL):
-	logger.log(level=logLevel, msg=e, exc_info=True)
-logger.logException = logException
-# /Replace OPSI Logger
-
-def handle_log_exception(exc, record=None, log=True):
-	print("Logging error:", file=sys.stderr)
-	traceback.print_exc(file=sys.stderr)
-	if not log:
-		return
-	try:
-		logger.error(f"Logging error: {exc}", exc_info=True)
-		if record:
-			logger.error(record.__dict__)
-			#logger.error(f"{record.msg} - {record.args}")
-	except:
-		pass
-
-
-class SecretFilter(metaclass=Singleton):
-	def __init__(self, min_length=6):
-		self._min_length = min_length
-		self.secrets = []
-	
-	def clear_secrets(self):
-		self.secrets = []
-	
-	def add_secrets(self, *secrets):
-		for secret in secrets:
-			if secret and len(secret) >= self._min_length and not secret in self.secrets:
-				self.secrets.append(secret)
-	
-	def remove_secrets(self, *secrets):
-		for secret in secrets:
-			if secret in self.secrets:
-				self.secrets.remove(secret)
-
-secret_filter = SecretFilter()
-
-
-class SecretFormatter(object):
-	def __init__(self, orig_formatter):
-		self.orig_formatter = orig_formatter
-	
-	def format(self, record):
-		msg = self.orig_formatter.format(record)
-		for secret in secret_filter.secrets:
-			msg = msg.replace(secret, SECRET_REPLACEMENT_STRING)
-		return msg
-	
-	def __getattr__(self, attr):
-		return getattr(self.orig_formatter, attr)
-
-
-class AdditionalFieldsFilter(Filter):
-	def __init__(self):
-		from .worker import contextvar_client_address, contextvar_server_address
-		self._contextvar_client_address = contextvar_client_address
-		self._contextvar_server_address = contextvar_server_address
-
-	def filter(self, record):
-		if not hasattr(record, "client_address"):
-			record.client_address = self._contextvar_client_address.get() or ''
-		if not hasattr(record, "server_address"):
-			record.server_address = self._contextvar_server_address.get() or ''
-		return True
-
+logger.setLevel(pylogging.ERROR)
 
 class AsyncRotatingFileHandler(AsyncFileHandler):
 	rollover_check_interval = 10
@@ -314,8 +111,8 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 class AsyncRedisLogAdapter:
 	def __init__(self, running_event=None, log_file_template=None,
 				max_log_file_size=0, keep_rotated_log_files=0, symlink_client_log_files=False,
-				log_format_stderr=DEFAULT_FORMAT, log_format_file=DEFAULT_FORMAT,
-				log_level_stderr=logging.NOTSET, log_level_file=logging.NOTSET):
+				log_format_stderr=DEFAULT_COLORED_FORMAT, log_format_file=DEFAULT_COLORED_FORMAT,
+				log_level_stderr=pylogging.NOTSET, log_level_file=pylogging.NOTSET):
 		self._running_event = running_event
 		self._log_file_template = log_file_template
 		self._max_log_file_size = max_log_file_size
@@ -331,15 +128,15 @@ class AsyncRedisLogAdapter:
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
-		if self._log_level_stderr != logging.NONE:
+		if self._log_level_stderr != pylogging.NONE:
 			if sys.stderr.isatty():
 				# colorize
 				console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS, datefmt=DATETIME_FORMAT)
 			else:
 				console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
-			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=console_formatter)
+			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=ContextSecretFormatter(console_formatter))
 		
-		if self._log_level_file != logging.NONE:
+		if self._log_level_file != pylogging.NONE:
 			if self._log_file_template:
 				self.get_file_handler()
 
@@ -379,7 +176,7 @@ class AsyncRedisLogAdapter:
 					active_lifetime = 0 if name == 'opsiconfd' else self._file_log_active_lifetime
 					self._file_logs[filename] = AsyncRotatingFileHandler(
 						filename=filename,
-						formatter=Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT),
+						formatter=ContextSecretFormatter(Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT)),
 						active_lifetime=active_lifetime,
 						mode='a',
 						encoding='utf-8',
@@ -436,11 +233,11 @@ class AsyncRedisLogAdapter:
 					record_dict.update({
 						"scope": None,
 						"exc_info": None,
-						"args": None,
-						"client_address" : record_dict.get("client_address") or ""
+						"args": None
 					})
-					record = logging.makeLogRecord(record_dict)
-
+					record = pylogging.makeLogRecord(record_dict)
+					# workaround for problem in aiologger.formatters.base.Formatter.format
+					record.get_message = record.getMessage
 					if self._stderr_handler and record.levelno >= self._log_level_stderr:
 						await self._stderr_handler.emit(record)
 					
@@ -448,6 +245,7 @@ class AsyncRedisLogAdapter:
 						file_handler = self.get_file_handler(client)
 						if file_handler:
 							await file_handler.emit(record)
+			
 			except (KeyboardInterrupt, SystemExit):
 				raise
 			except EOFError:
@@ -455,13 +253,13 @@ class AsyncRedisLogAdapter:
 			except Exception as exc:
 				handle_log_exception(exc, log=False)
 
-class RedisLogHandler(threading.Thread, logging.Handler):
+class RedisLogHandler(threading.Thread, pylogging.Handler):
 	"""
 	Will collect log messages in pipeline and send collected
 	log messages at once to redis in regular intervals.
 	"""
 	def __init__(self, max_msg_len: int = 0, max_delay: float = 0.1):
-		logging.Handler.__init__(self)
+		pylogging.Handler.__init__(self)
 		threading.Thread.__init__(self)
 		self._max_msg_len = max_msg_len
 		self._max_delay = max_delay
@@ -482,6 +280,7 @@ class RedisLogHandler(threading.Thread, logging.Handler):
 		self._should_stop = True
 	
 	def log_record_to_dict(self, record):
+		"""
 		if hasattr(record, 'args'):
 			if record.args:
 				errors = []
@@ -495,17 +294,21 @@ class RedisLogHandler(threading.Thread, logging.Handler):
 					errors.append(e)
 				if len(errors) == 2:
 					handle_log_exception(errors[0], log=False)
-			else:
-				record.msg = record.getMessage()
+		else:
+		"""
+		msg = record.getMessage()
 		for secret in secret_filter.secrets:
-			record.msg = record.msg.replace(secret, SECRET_REPLACEMENT_STRING)
-		if self._max_msg_len and len(record.msg) > self._max_msg_len:
-			record.msg = record.msg[:self._max_msg_len - 1] + '…'
+			msg = msg.replace(secret, SECRET_REPLACEMENT_STRING)
+		if self._max_msg_len and len(msg) > self._max_msg_len:
+			msg = msg[:self._max_msg_len - 1] + '…'
+		
 		if hasattr(record, 'exc_info') and record.exc_info:
 			# by calling format the formatted exception information is cached in attribute exc_text
 			self.format(record)
 			record.exc_info = None
-		d = record.__dict__
+		
+		d = record.__dict__.copy()
+		d["msg"] = msg
 		for attr in ('scope', 'exc_info', 'args'):
 			if attr in d:
 				del d[attr]
@@ -515,8 +318,8 @@ class RedisLogHandler(threading.Thread, logging.Handler):
 		try:
 			str_record = msgpack.packb(self.log_record_to_dict(record))
 			client = ""
-			if hasattr(record, "client_address") and record.client_address:
-				client = record.client_address
+			if hasattr(record, "context") and "client_address" in record.context and record.context["client_address"]:
+				client = record.context["client_address"]
 			with self._redis_lock:
 				self._pipeline.xadd("opsiconfd:log", {"client": client, "record": str_record})
 		except (KeyboardInterrupt, SystemExit):
@@ -547,27 +350,24 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 
 def init_logging(log_mode: str = "redis", is_worker: bool = False):
 	try:
-		logger.addFilter(AdditionalFieldsFilter())
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
-		log_level = logging._opsiLevelToLevel[log_level]
+		log_level = pylogging._opsiLevelToLevel[log_level]
 		log_handler = None
 		if log_mode == "redis":
 			log_handler = RedisLogHandler(max_msg_len=int(config.log_max_msg_len))
 			log_handler.setLevel(log_level)
 		elif log_mode == "local":
-			config.log_format_stderr = config.log_format_stderr.replace("%(client_address)s", "")
-			config.log_format_file = config.log_format_file.replace("%(client_address)s", "")
-			console_formatter = colorlog.ColoredFormatter(config.log_format_stderr, datefmt=DATETIME_FORMAT, log_colors=LOG_COLORS)
 			log_handler = StreamHandler(stream=sys.stderr)
-			log_handler.setFormatter(console_formatter)
 		else:
 			raise ValueError(f"Invalid log mode '{log_mode}'")
 		
 		logger.handlers = [log_handler]
 		logger.setLevel(log_level)
-
+		set_format(stderr_format=config.log_format_stderr, file_format=config.log_format_file)
+		if config.log_filter:
+			set_filter_from_string(config.log_filter)
 		for ln in ("asyncio", "uvicorn.error"):
-			al = logging.getLogger(ln)
+			al = pylogging.getLogger(ln)
 			al.setLevel(log_level)
 			al.handlers = [log_handler]
 			al.propagate = False
@@ -575,7 +375,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):
 		if config.log_slow_async_callbacks > 0:
 			enable_slow_callback_logging(config.log_slow_async_callbacks)
 		
-		logging.captureWarnings(True)
+		pylogging.captureWarnings(True)
 		
 		if not is_worker:
 			if log_mode == "redis" and config.log_level_stderr > 0 or config.log_level_file > 0:
@@ -615,8 +415,8 @@ class RedisLogAdapterThread(threading.Thread):
 				max_log_file_size=round(config.max_log_size * 1000 * 1000),
 				keep_rotated_log_files=config.keep_rotated_logs,
 				symlink_client_log_files=config.symlink_logs,
-				log_level_stderr=logging._opsiLevelToLevel[config.log_level_stderr],
-				log_level_file=logging._opsiLevelToLevel[config.log_level_file]
+				log_level_stderr=pylogging._opsiLevelToLevel[config.log_level_stderr],
+				log_level_file=pylogging._opsiLevelToLevel[config.log_level_file]
 			)
 			self._loop.run_forever()
 		except Exception as exc:

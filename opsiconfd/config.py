@@ -354,6 +354,7 @@ parser.add(
 	"--update-ip",
 	env_var="OPSICONFD_UPDATE_IP",
 	action="store_true",
+        default=True,
 	help="If enabled, a client's ip address will be updated in the opsi database,"
 		" when the client connects to the service and authentication is successful."
 )

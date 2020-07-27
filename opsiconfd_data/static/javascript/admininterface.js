@@ -190,7 +190,7 @@ function printClientTable(data, htmlId) {
 			htmlStr += "<tr>";
 			htmlStr += "<td class=\"rpc-td\">" + element + "</td>";
 			htmlStr += "<td class=\"rpc-td\"><p onclick='unblockClient(\"" + element +
-				"\")'>unblock</p></td>";
+				"\")' style=\"cursor: pointer;\">unblock</p></td>";
 			htmlStr += "</tr>";
 
 		});
@@ -208,7 +208,7 @@ function printRPCTable(data, htmlId) {
 	htmlStr += "<tr>";
 	keys = Object.keys(data[0]);
 	Object.keys(data[0]).forEach(element => {
-		htmlStr += "<th class=\"rpc-th\" onclick=\"loadRPCTable('" + element + "', " + true + ")\">" + element + "</th>";
+		htmlStr += "<th class=\"rpc-th\" onclick=\"loadRPCTable('" + element + "', " + true + ")\" onmouseover=\"\" style=\"cursor: pointer;\">" + element + "</th>";
 	});
 	htmlStr += "</tr>";
 

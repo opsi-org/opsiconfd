@@ -68,8 +68,7 @@ def test_unblock_client():
 def test_get_rpc_list():
 
 	for i in range(0, 3):
-		rpc_request_data = "{\"id\": 1,\"method\": \"host_getIdents\",\"params\": [null]}"
-
+		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
 		r = requests.post(f"{OPSI_URL}/rpc", auth=("adminuser","adminuser"), data=rpc_request_data, verify=False)
 		result_json = json.loads(r.text)
 		assert r.status_code == 200

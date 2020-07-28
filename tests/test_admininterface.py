@@ -6,6 +6,8 @@ import uuid
 import urllib3
 import redis
 import requests
+import json
+
 
 from OPSI.Util import ipAddressInNetwork
 
@@ -62,3 +64,27 @@ def test_unblock_client():
 
 	r = requests.get(OPSI_URL, auth=("adminuser","adminuser"), verify=False)
 	assert r.status_code == 200
+
+def test_get_rpc_list():
+
+	for i in range(0, 3):
+		rpc_request_data = "{\"id\": 1,\"method\": \"host_getIdents\",\"params\": [null]}"
+
+		r = requests.post(f"{OPSI_URL}/rpc", auth=("adminuser","adminuser"), data=rpc_request_data, verify=False)
+		result_json = json.loads(r.text)
+		assert r.status_code == 200
+		assert result_json.get("error") == None
+		assert result_json.get("result") != None
+		assert result_json.get("method") == "host_getIdents"
+
+	r = requests.get(f"{OPSI_URL}/admin/rpc-list", auth=("adminuser","adminuser"), verify=False)
+	assert r.status_code == 200
+	print(r.status_code)
+	result = json.loads(r.text)
+	print(result)
+	for i in range(0,3):
+		assert result[i].get("rpc_num") == i+1
+		assert result[i].get("error") == False
+		assert result[i].get("params") == "0"
+	
+	

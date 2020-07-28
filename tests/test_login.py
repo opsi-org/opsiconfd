@@ -14,7 +14,7 @@ from opsiconfd.config import config
 OPSI_URL = "https://localhost:4447" 
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"
-OPSI_SESSION_KEY = "opsiconfd:session"
+OPSI_SESSION_KEY = "opsiconfd:sessions"
 
 @pytest.fixture(autouse=True)
 def clean_redis():
@@ -31,7 +31,7 @@ def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 login_test_data = [
-	(None, 401, "Authorization header missing"),
+	(None, 401, ""),
 	# ((None, None), 401, "Backend authentication error: <BackendAuthenticationError(\"Authentication failed for user 'None': Backend authentication error: PAM authentication failed for user 'None': Authentication failure\")>"),
 	(("", ""), 401, "Backend authentication error: No username specified"),
 	((TEST_USER, ""), 401, "Backend authentication error: No password specified"),

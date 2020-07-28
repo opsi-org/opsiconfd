@@ -33,9 +33,9 @@ def disable_request_warning():
 
 def test_unblock_all():
 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=("adminuser","adminuser"), verify=False)
-	for i in range(0, 12):
+	for i in range(0, 15):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
-		if i >= 10:
+		if i >= 12:
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 
@@ -48,9 +48,9 @@ def test_unblock_all():
 
 def test_unblock_client():
 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=("adminuser","adminuser"), verify=False)
-	for i in range(0, 12):
+	for i in range(0, 15):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
-		if i >= 10:
+		if i >= 12:
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 	

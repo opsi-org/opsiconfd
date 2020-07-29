@@ -56,35 +56,35 @@ def disable_request_warning():
 
 def test_unblock_all():
 	
-	admin_request = requests.get(f"{OPSI_URL}/admin", auth=("adminuser","adminuser"), verify=False)
+	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
 	for i in range(0, 15):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
 		if i >= 12:
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 
-	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-all", auth=("adminuser","adminuser"), cookies=admin_request.cookies, verify=False)
+	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-all", auth=(TEST_USER, TEST_PW), cookies=admin_request.cookies, verify=False)
 	assert admin_request.status_code == 200
 
-	r = requests.get(OPSI_URL, auth=("adminuser","adminuser"), verify=False)
+	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 200
 
 
 def test_unblock_client():
-	admin_request = requests.get(f"{OPSI_URL}/admin", auth=("adminuser","adminuser"), verify=False)
+	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
 	for i in range(0, 15):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
 		if i >= 12:
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 	
-	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-client", auth=("adminuser","adminuser"), data="{\"client_addr\": \"127.0.0.1\"}", cookies=admin_request.cookies, verify=False)
+	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-client", auth=(TEST_USER, TEST_PW), data="{\"client_addr\": \"127.0.0.1\"}", cookies=admin_request.cookies, verify=False)
 	assert admin_request.status_code == 200
 	print("unblock-client")
 	print(admin_request.text)
 	print(admin_request.status_code)
 
-	r = requests.get(OPSI_URL, auth=("adminuser","adminuser"), verify=False)
+	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 200
 
 
@@ -92,14 +92,14 @@ def test_get_rpc_list():
 
 	for i in range(0, 3):
 		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
-		r = requests.post(f"{OPSI_URL}/rpc", auth=("adminuser","adminuser"), data=rpc_request_data, verify=False)
+		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 		result_json = json.loads(r.text)
 		assert r.status_code == 200
 		assert result_json.get("error") == None
 		assert result_json.get("result") != None
 		assert result_json.get("method") == "host_getIdents"
 
-	r = requests.get(f"{OPSI_URL}/admin/rpc-list", auth=("adminuser","adminuser"), verify=False)
+	r = requests.get(f"{OPSI_URL}/admin/rpc-list", auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 200
 	print(r.status_code)
 	result = json.loads(r.text)
@@ -111,14 +111,14 @@ def test_get_rpc_list():
 
 
 def test_get_blocked_clients():
-	admin_request = requests.get(f"{OPSI_URL}/admin", auth=("adminuser","adminuser"), verify=False)
+	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
 	for i in range(0, 15):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
 		if i >= 12:
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 	
-	admin_request = requests.get(f"{OPSI_URL}/admin/blocked-clients", auth=("adminuser","adminuser"), cookies=admin_request.cookies, verify=False)
+	admin_request = requests.get(f"{OPSI_URL}/admin/blocked-clients", auth=(TEST_USER, TEST_PW), cookies=admin_request.cookies, verify=False)
 	assert admin_request.status_code == 200
 	
 	
@@ -138,10 +138,33 @@ async def test_get_rpc_count(admininterface, num_rpcs, expexted_value):
 
 	for i in range(0, num_rpcs):
 		rpc_request_data = json.dumps({"id": i, "method": "host_getIdents","params": [None]})
-		r = requests.post(f"{OPSI_URL}/rpc", auth=("adminuser","adminuser"), data=rpc_request_data, verify=False)
+		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 		print(i)
+		print(r.text)
+		print(r.status_code)
 		assert r.status_code == 200
 	count = await admininterface.get_rpc_count()
 	assert count == expexted_value
 
+get_rpc_list_test_data = [1,3,5]
 
+@pytest.mark.parametrize("num_rpcs", get_rpc_list_test_data)
+@pytest.mark.asyncio
+async def get_rpc_list(admininterface, num_rpcs):
+
+	for i in range(0, num_rpcs):
+		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
+		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+		result_json = json.loads(r.text)
+		assert r.status_code == 200
+		assert result_json.get("error") == None
+		assert result_json.get("result") != None
+		assert result_json.get("method") == "host_getIdents"
+
+
+	rpc_list = admininterface.get_rpc_list()
+	print(rpc_list)
+	for i in range(0, num_rpcs):
+		assert rpc_list[i].get("rpc_num") == i+1
+		assert rpc_list[i].get("error") == False
+		assert rpc_list[i].get("params") == "0"

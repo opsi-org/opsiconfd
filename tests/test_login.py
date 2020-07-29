@@ -76,10 +76,10 @@ def test_max_sessions_client():
 	assert r.url == f"{OPSI_URL}/static/index.html"
 
 def test_max_auth():
-	for i in range(0,12):
+	for i in range(0,15):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
 		print(r.status_code)
-		if i >= 9:
+		if i >= 12:
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 	time.sleep(120)

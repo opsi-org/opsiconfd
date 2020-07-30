@@ -6,6 +6,7 @@ import time
 import uuid
 import urllib3
 import redis
+import aredis
 import requests
 import json
 
@@ -33,20 +34,21 @@ def admininterface(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def clean_redis():
+@pytest.mark.asyncio
+async def clean_redis():
 	yield None
-	redis_client = redis.StrictRedis.from_url("redis://redis")
+	redis_client = aredis.StrictRedis.from_url("redis://redis")
 	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:127.0.0.1:*")
-	for key in session_keys:
+	async for key in session_keys:
 		# print(key)
-		redis_client.delete(key)
-	redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
-	redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
+		await redis_client.delete(key)
+	await redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
+	await redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
 	session_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
-	for key in session_keys:
+	async for key in session_keys:
 		print(key)
-		redis_client.delete(key)
-	redis_client.delete("opsiconfd:stats:num_rpcs")
+		await redis_client.delete(key)
+	await redis_client.delete("opsiconfd:stats:num_rpcs")
 
 
 @pytest.fixture(autouse=True)

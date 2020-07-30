@@ -100,7 +100,7 @@ test:perftest:
     - *perftest
 
 test:pytest:
-  when: manual
+  #when: manual
   image: ubuntu:focal
   services:
     - mysql:latest

@@ -13,6 +13,7 @@ import json
 from opsiconfd.config import config
 
 # from fastapi import Request
+from fastapi import Response
 from starlette.requests import Request
 from starlette.datastructures import Headers
 
@@ -262,3 +263,74 @@ async def test_delete_client_sessions(admininterface, rpc_request_data, expected
 		print("?")
 		print(key)
 	assert len(keys) == expected_key_len
+
+
+
+@pytest.mark.asyncio
+async def test_unblock_all(admininterface):
+	headers = Headers()
+	scope = {
+		'method': 'GET',
+		'type': 'http',
+		'headers': headers
+	}
+	test_request = Request(scope=scope)
+	test_response = Response()
+	
+	for i in range(0, 15):
+		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
+		if i >= 12:
+			assert r.status_code == 403
+			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
+
+	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
+	assert r.status_code == 403
+
+	response = await admininterface.unblock_all_clients(test_request, test_response)
+	print(response.__dict__)
+
+
+	assert response.status_code == 200
+	response_body =  json.loads(response.body)
+	assert response_body.get("error") == None
+	assert response_body.get("status") == 200
+	assert len(response_body.get("data")) != 0 
+
+	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
+	assert r.status_code == 200
+	
+
+@pytest.mark.asyncio
+async def test_unblock_client(admininterface):
+
+
+	for i in range(0, 15):
+		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
+		if i >= 12:
+			assert r.status_code == 403
+			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
+
+	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
+	assert r.status_code == 403
+
+	headers = Headers()
+	scope = {
+		'method': 'GET',
+		'type': 'http',
+		'headers': headers
+	}
+	test_request = Request(scope=scope)
+	print(test_request)
+	test_request._json = {"client_addr":"127.0.0.1"}
+	body = '{"client_addr":"127.0.0.1"}'
+	test_request._body = body.encode()
+	print(test_request)
+	print(test_request.json)
+	response = await admininterface.unblock_client(test_request)
+	response_dict = json.loads(response.body)
+	assert response_dict.get("status") == 200
+	assert response_dict.get("error") == None 
+
+	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
+	assert r.status_code == 200
+	

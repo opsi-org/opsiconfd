@@ -61,136 +61,137 @@ def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-# def test_unblock_all_request():
+def test_unblock_all_request():
 	
-# 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
-# 	for i in range(0, 15):
-# 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
-# 		if i >= 12:
-# 			assert r.status_code == 403
-# 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
+	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
+	for i in range(0, 15):
+		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
+		if i >= 12:
+			assert r.status_code == 403
+			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 
-# 	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-all", auth=(TEST_USER, TEST_PW), cookies=admin_request.cookies, verify=False)
-# 	assert admin_request.status_code == 200
+	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-all", auth=(TEST_USER, TEST_PW), cookies=admin_request.cookies, verify=False)
+	assert admin_request.status_code == 200
 
-# 	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
-# 	assert r.status_code == 200
+	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
+	assert r.status_code == 200
 
 
-# def test_unblock_client_request():
-# 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
-# 	for i in range(0, 15):
-# 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
-# 		if i >= 12:
-# 			assert r.status_code == 403
-# 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
+def test_unblock_client_request():
+	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
+	for i in range(0, 15):
+		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
+		if i >= 12:
+			assert r.status_code == 403
+			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 	
-# 	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-client", auth=(TEST_USER, TEST_PW), data="{\"client_addr\": \"127.0.0.1\"}", cookies=admin_request.cookies, verify=False)
-# 	assert admin_request.status_code == 200
-# 	print("unblock-client")
-# 	print(admin_request.text)
-# 	print(admin_request.status_code)
+	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-client", auth=(TEST_USER, TEST_PW), data="{\"client_addr\": \"127.0.0.1\"}", cookies=admin_request.cookies, verify=False)
+	assert admin_request.status_code == 200
+	print("unblock-client")
+	print(admin_request.text)
+	print(admin_request.status_code)
 
-# 	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
-# 	assert r.status_code == 200
-
-
-# def test_get_rpc_list_request():
-
-# 	for i in range(0, 3):
-# 		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
-# 		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
-# 		result_json = json.loads(r.text)
-# 		assert r.status_code == 200
-# 		assert result_json.get("error") == None
-# 		assert result_json.get("result") != None
-# 		assert result_json.get("method") == "host_getIdents"
-
-# 	r = requests.get(f"{OPSI_URL}/admin/rpc-list", auth=(TEST_USER, TEST_PW), verify=False)
-# 	assert r.status_code == 200
-# 	print(r.status_code)
-# 	result = json.loads(r.text)
-# 	print(result)
-# 	for i in range(0,3):
-# 		assert result[i].get("rpc_num") == i+1
-# 		assert result[i].get("error") == False
-# 		assert result[i].get("params") == "0"
+	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
+	assert r.status_code == 200
 
 
-# def test_get_blocked_clients_request():
-# 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
-# 	for i in range(0, 15):
-# 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
-# 		if i >= 12:
-# 			assert r.status_code == 403
-# 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
+def test_get_rpc_list_request():
+
+	for i in range(0, 3):
+		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
+		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+		result_json = json.loads(r.text)
+		assert r.status_code == 200
+		assert result_json.get("error") == None
+		assert result_json.get("result") != None
+		assert result_json.get("method") == "host_getIdents"
+
+	r = requests.get(f"{OPSI_URL}/admin/rpc-list", auth=(TEST_USER, TEST_PW), verify=False)
+	assert r.status_code == 200
+	print(r.status_code)
+	result = json.loads(r.text)
+	print(result)
+	for i in range(0,3):
+		assert result[i].get("rpc_num") == i+1
+		assert result[i].get("error") == False
+		assert result[i].get("params") == "0"
+
+
+def test_get_blocked_clients_request():
+	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
+	for i in range(0, 15):
+		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
+		if i >= 12:
+			assert r.status_code == 403
+			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 	
-# 	admin_request = requests.get(f"{OPSI_URL}/admin/blocked-clients", auth=(TEST_USER, TEST_PW), cookies=admin_request.cookies, verify=False)
-# 	assert admin_request.status_code == 200
+	admin_request = requests.get(f"{OPSI_URL}/admin/blocked-clients", auth=(TEST_USER, TEST_PW), cookies=admin_request.cookies, verify=False)
+	assert admin_request.status_code == 200
 	
 	
-# 	print(admin_request.text)
-# 	assert admin_request.text ==  '["127.0.0.1"]'
+	print(admin_request.text)
+	assert admin_request.text ==  '["127.0.0.1"]'
 
 
-# get_rpc_count_test_data = [
-# 	(0,0),
-# 	(20,20),
-# 	(3,3)
-# ]
+get_rpc_count_test_data = [
+	(0,0),
+	(20,20),
+	(3,3)
+]
 
-# @pytest.mark.parametrize("num_rpcs, expexted_value", get_rpc_count_test_data)
-# @pytest.mark.asyncio
-# async def test_get_rpc_count(admininterface, num_rpcs, expexted_value):
+@pytest.mark.parametrize("num_rpcs, expexted_value", get_rpc_count_test_data)
+@pytest.mark.asyncio
+async def test_get_rpc_count(admininterface, num_rpcs, expexted_value):
 
-# 	for i in range(0, num_rpcs):
-# 		rpc_request_data = json.dumps({"id": i, "method": "host_getIdents","params": [None]})
-# 		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
-# 		print(i)
-# 		print(r.text)
-# 		print(r.status_code)
-# 		assert r.status_code == 200
-# 	count = await admininterface.get_rpc_count()
-# 	assert count == expexted_value
+	for i in range(0, num_rpcs):
+		rpc_request_data = json.dumps({"id": i, "method": "host_getIdents","params": [None]})
+		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+		print(i)
+		print(r.text)
+		print(r.status_code)
+		assert r.status_code == 200
+	count = await admininterface.get_rpc_count()
+	assert count == expexted_value
 
-# get_rpc_list_test_data = [1,3,5]
+get_rpc_list_test_data = [1,3,5]
 
-# @pytest.mark.parametrize("num_rpcs", get_rpc_list_test_data)
-# @pytest.mark.asyncio
-# async def test_get_rpc_list(admininterface, num_rpcs):
+@pytest.mark.parametrize("num_rpcs", get_rpc_list_test_data)
+@pytest.mark.asyncio
+async def test_get_rpc_list(admininterface, num_rpcs):
 
-# 	for i in range(0, num_rpcs):
-# 		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
-# 		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
-# 		result_json = json.loads(r.text)
-# 		assert r.status_code == 200
-# 		assert result_json.get("error") == None
-# 		assert result_json.get("result") != None
-# 		assert result_json.get("method") == "host_getIdents"
+	for i in range(0, num_rpcs):
+		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
+		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+		result_json = json.loads(r.text)
+		assert r.status_code == 200
+		assert result_json.get("error") == None
+		assert result_json.get("result") != None
+		assert result_json.get("method") == "host_getIdents"
 
 
-# 	rpc_list = await admininterface.get_rpc_list()
-# 	print(rpc_list)
-# 	for i in range(0, num_rpcs):
-# 		assert rpc_list[i].get("rpc_num") == i+1
-# 		assert rpc_list[i].get("error") == False
-# 		assert rpc_list[i].get("params") == "0"
+	rpc_list = await admininterface.get_rpc_list()
+	print(rpc_list)
+	for i in range(0, num_rpcs):
+		assert rpc_list[i].get("rpc_num") == i+1
+		assert rpc_list[i].get("error") == False
+		assert rpc_list[i].get("params") == "0"
 
-# @pytest.mark.asyncio
-# async def test_get_blocked_clients(admininterface):
+@pytest.mark.asyncio
+async def test_get_blocked_clients(admininterface):
 
-# 	for i in range(0, 15):
-# 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
-# 		if i >= 12:
-# 			assert r.status_code == 403
-# 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
-# 	blocked_clients = await admininterface.get_blocked_clients()
-# 	assert blocked_clients == ['127.0.0.1']
+	for i in range(0, 15):
+		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
+		if i >= 12:
+			assert r.status_code == 403
+			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
+	blocked_clients = await admininterface.get_blocked_clients()
+	assert blocked_clients == ['127.0.0.1']
 
 
 test_data = [
 		({"client_addr":"127.0.0.1"}, 0, [200, None, "127.0.0.1", 1]),
-		({"client_addr":"192.168.2.1"}, 1, [200, None, "192.168.2.1", 0])
+		({"client_addr":"192.168.2.1"}, 1, [200, None, "192.168.2.1", 0]),
+		(None, 1, [500, {'detail': "'NoneType' object has no attribute 'get'", 'message': 'Error while removing redis client keys'}, None, 1])
 		
 	]
 
@@ -244,13 +245,16 @@ async def test_delete_client_sessions(admininterface, rpc_request_data, expected
 	response_dict = json.loads(response.body)
 	assert response_dict.get("status") == expected_response[0]
 	assert response_dict.get("error") == expected_response[1]
-	assert response_dict.get("data").get("client") == expected_response[2]
-	print(response_dict)
-	print("DATA: ", response_dict.get("data"))
-	print("session: ", response_dict.get("data").get("sessions"))
-	if response_dict.get("status") == 200 and response_dict.get("data").get("client") == "127.0.0.1":
-		assert response_dict.get("data").get("sessions") == [session]
-	assert len(response_dict.get("data").get("redis-keys")) == expected_response[3]
+
+	if response_dict.get("error") == None:
+		assert response_dict.get("data").get("client") == expected_response[2]
+		print(response_dict)
+		print("DATA: ", response_dict.get("data"))
+		print("session: ", response_dict.get("data").get("sessions"))
+		if response_dict.get("status") == 200 and response_dict.get("data").get("client") == "127.0.0.1":
+			assert response_dict.get("data").get("sessions") == [session]
+
+		assert len(response_dict.get("data").get("redis-keys")) == expected_response[3]
 	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:127.0.0.1:*")
 	keys = []
 	async for key in session_keys:

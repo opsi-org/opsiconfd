@@ -170,3 +170,14 @@ async def get_rpc_list(admininterface, num_rpcs):
 		assert rpc_list[i].get("rpc_num") == i+1
 		assert rpc_list[i].get("error") == False
 		assert rpc_list[i].get("params") == "0"
+
+@pytest.mark.asyncio
+async def get_blocked_clients(admininterface):
+
+	for i in range(0, 15):
+		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
+		if i >= 12:
+			assert r.status_code == 403
+			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
+	blocked_clients = admininterface.blocked_clients()
+	await blocked_clients == '["127.0.0.1"]'

@@ -12,6 +12,11 @@ import json
 
 from opsiconfd.config import config
 
+# from fastapi import Request
+from starlette.requests import Request
+from starlette.datastructures import Headers
+
+
 OPSI_URL = "https://localhost:4447" 
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"
@@ -56,7 +61,7 @@ def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-def test_unblock_all():
+def test_unblock_all_request():
 	
 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
 	for i in range(0, 15):
@@ -72,7 +77,7 @@ def test_unblock_all():
 	assert r.status_code == 200
 
 
-def test_unblock_client():
+def test_unblock_client_request():
 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
 	for i in range(0, 15):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
@@ -90,7 +95,7 @@ def test_unblock_client():
 	assert r.status_code == 200
 
 
-def test_get_rpc_list():
+def test_get_rpc_list_request():
 
 	for i in range(0, 3):
 		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
@@ -112,7 +117,7 @@ def test_get_rpc_list():
 		assert result[i].get("params") == "0"
 
 
-def test_get_blocked_clients():
+def test_get_blocked_clients_request():
 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
 	for i in range(0, 15):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
@@ -152,7 +157,7 @@ get_rpc_list_test_data = [1,3,5]
 
 @pytest.mark.parametrize("num_rpcs", get_rpc_list_test_data)
 @pytest.mark.asyncio
-async def get_rpc_list(admininterface, num_rpcs):
+async def test_get_rpc_list(admininterface, num_rpcs):
 
 	for i in range(0, num_rpcs):
 		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
@@ -164,7 +169,7 @@ async def get_rpc_list(admininterface, num_rpcs):
 		assert result_json.get("method") == "host_getIdents"
 
 
-	rpc_list = admininterface.get_rpc_list()
+	rpc_list = await admininterface.get_rpc_list()
 	print(rpc_list)
 	for i in range(0, num_rpcs):
 		assert rpc_list[i].get("rpc_num") == i+1
@@ -172,12 +177,65 @@ async def get_rpc_list(admininterface, num_rpcs):
 		assert rpc_list[i].get("params") == "0"
 
 @pytest.mark.asyncio
-async def get_blocked_clients(admininterface):
+async def test_get_blocked_clients(admininterface):
 
 	for i in range(0, 15):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
 		if i >= 12:
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
-	blocked_clients = admininterface.blocked_clients()
-	await blocked_clients == '["127.0.0.1"]'
+	blocked_clients = await admininterface.get_blocked_clients()
+	assert blocked_clients == ['127.0.0.1']
+
+
+@pytest.mark.asyncio
+async def test_delete_client_sessions(admininterface):
+	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
+	redis_client = aredis.StrictRedis.from_url("redis://redis")
+	print(r.status_code)
+	print(r.cookies.get_dict().get("opsiconfd-session"))
+	session = r.cookies.get_dict().get("opsiconfd-session")
+	print(r.url)
+	# print(r.text)
+	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:127.0.0.1:*")
+	
+	keys = []
+	async for key in session_keys:
+		keys.append(key)
+		print("!")
+		print(key)
+		assert key.decode("utf8") == f"{OPSI_SESSION_KEY}:127.0.0.1:{session}"
+
+	assert len(keys) != 0
+	print(len(keys))
+
+	rpc_request_data = json.dumps({"client_addr":"127.0.0.1"})
+	r = requests.Request('POST',f'{OPSI_URL}/delete_client_sessions', auth=(TEST_USER, TEST_PW), json=rpc_request_data)
+
+	headers = Headers()
+	scope = {
+		'method': 'GET',
+		'type': 'http',
+		'headers': headers
+	}
+	test_request = Request(scope=scope)
+	print(test_request)
+	test_request._json = {'client_addr': '127.0.0.1'}
+	test_request._body = b'{"client_addr":"127.0.0.1"}'
+	print(test_request)
+	print(test_request.json)
+	response = await admininterface.delete_client_sessions(test_request)
+	print(response)
+	print(response.__dict__)
+	print(response.__repr__())
+	print(response.body)
+	# b'{"status":200,"error":null,"data":{"client":"127.0.0.1","sessions":["663c7f69ba8e4ca7a77b43e484967311"],"redis-keys":["opsiconfd:sessions:127.0.0.1:663c7f69ba8e4ca7a77b43e484967311"]}}'
+	print(json.loads(response.body))
+	assert json.loads(response.body) == {"status":200,"error":None,"data":{"client":"127.0.0.1","sessions":[session],"redis-keys":[f"opsiconfd:sessions:127.0.0.1:{session}"]}}
+	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:127.0.0.1:*")
+	keys = []
+	async for key in session_keys:
+		keys.append(key)
+		print("?")
+		print(key)
+	assert len(keys) == 0

@@ -13,48 +13,18 @@ from OPSI.Util import ipAddressInNetwork
 
 from opsiconfd.config import config
 
-# OPSI_URL = "https://localhost:4447"
 OPSI_URL = "https://127.0.0.1:4447"
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"
 OPSI_SESSION_KEY = "opsiconfd:sessions"
 
 
-# @pytest.fixture(scope="session")
-# def event_loop(request):
-#     """Create an instance of the default event loop for each test case."""
-#     loop = asyncio.get_event_loop_policy().new_event_loop()
-#     yield loop
-#     loop.close()
-
-
-# @pytest.fixture(autouse=True)
-# @pytest.mark.asyncio
-# async def clean_redis():
-# 	yield None
-# 	redis_client = aredis.StrictRedis.from_url("redis://redis")
-# 	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:127.0.0.1:*")
-# 	async for key in session_keys:
-# 		# print(key)
-# 		await redis_client.delete(key)
-# 	await redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
-# 	await redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
-# 	session_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
-# 	async for key in session_keys:
-# 		print(key)
-# 		await redis_client.delete(key)
-# 	await redis_client.delete("opsiconfd:stats:num_rpcs")
-
 @pytest.fixture(autouse=True)
 def clean_redis():
 	yield None
-	print("clean redis")
-	retuncode = redis_client = redis.StrictRedis.from_url("redis://redis")
-	print("1", retuncode)
-	retuncode = redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
-	print("2", retuncode)
-	retuncode = redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
-	print("3", retuncode)
+	redis_client = redis.StrictRedis.from_url("redis://redis")
+	redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
+	redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
 	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:127.0.0.1:*")
 	for key in session_keys:
 		redis_client.delete(key)
@@ -76,7 +46,6 @@ login_test_data = [
 
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
 def test_false_login(auth_data, expected_status_code, expected_text):
-	# urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 	
 	r = requests.get(OPSI_URL, auth=(auth_data), verify=False)
 	assert r.status_code == expected_status_code
@@ -84,7 +53,7 @@ def test_false_login(auth_data, expected_status_code, expected_text):
 	assert r.headers.get("set-cookie", None) != None 
 
 def test_proper_login():
-	# urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 	print(OPSI_URL)
 	print(TEST_USER)
 	print(TEST_PW)

@@ -334,8 +334,53 @@ async def test_unblock_client(admininterface):
 	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 200
 	
+
+test_data = [
+	(
+		[
+			{"id": 1, "method": "host_getIdents", "params": [None]},
+			{"id": 2, "method": "host_getIdents", "params": [None]},
+			{"id": 3, "method": "host_getIdents", "params": [None]}
+		], 
+		{
+			"rpc_count": 3, 
+			"method": ["host_getIdents", "host_getIdents", "host_getIdents"],
+			"params": [0,0,0],
+			"error": [False, False, False]
+		},
+	),
+	(
+		[
+			{"id": 1, "method": "false_method", "params": [None]},
+			{"id": 2, "method": "false_method", "params": ["test"]},
+			{"id": 3, "method": "host_getIdents", "params": [None]}
+		], 
+		{
+			"rpc_count": 3, 
+			"method": ["false_method", "false_method", "host_getIdents"],
+			"params": [0,1,0],
+			"error": [True, True, False]
+		},
+	),
+	(
+		[
+			{"id": 1, "method": "host_getObjects", "params": [["ipAddress","lastSeen"],{"ipAddress": "192.*"}]},
+			{"id": 2, "method": "host_getObjects", "params": [["ipAddress"],{"ipAddress": "192.*"}]},
+			{"id": 3, "method": "host_getObjects", "params": [[],{"ipAddress": "192.*"}]},
+			{"id": 4, "method": "host_getObjects", "params": [["ipAddress"],{"ipAddress": "192.*","type": "OpsiClient"}]}
+		], 
+		{
+			"rpc_count": 4, 
+			"method": ["host_getObjects", "host_getObjects", "host_getObjects", "host_getObjects"],
+			"params": [2,2,1,2],
+			"error": [False, False, False, False]
+		},
+	)
+]
+
+@pytest.mark.parametrize("rpc_request_data, expected_response", test_data)
 @pytest.mark.asyncio
-async def test_admin_interface_index(admininterface):
+async def test_admin_interface_index(admininterface, rpc_request_data, expected_response):
 
 	# r = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
 	# print(r.headers)
@@ -346,8 +391,9 @@ async def test_admin_interface_index(admininterface):
 	# print("----------------")
 	# print(r.__dict__)
 
-	for i in range(0, 3):
-		rpc_request_data = json.dumps({"id": 1, "method": "host_getIdents","params": [None]})
+	for data in rpc_request_data:
+		print(data)
+		rpc_request_data = json.dumps(data)
 		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 
 	
@@ -369,14 +415,14 @@ async def test_admin_interface_index(admininterface):
 	# print(response.context)
 	print(response.context.get("rpc_list"))
 
-	assert response.context.get("rpc_count") == 3
+	assert response.context.get("rpc_count") == expected_response.get("rpc_count")
 	assert response.context.get("blocked_clients") == ['127.0.0.1']
 	
 	for idx,rpc in enumerate(response.context.get("rpc_list")):
 		assert rpc.get("rpc_num") == idx+1
-		assert rpc.get("method") == "host_getIdents"
-		assert int(rpc.get("params")) == 0
-		assert rpc.get("error") == False
+		assert rpc.get("method") == expected_response.get("method")[idx]
+		assert int(rpc.get("params")) == expected_response.get("params")[idx]
+		assert rpc.get("error") == expected_response.get("error")[idx]
 	
 	# print(response)
 	

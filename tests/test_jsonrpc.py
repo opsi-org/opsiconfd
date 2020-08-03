@@ -49,7 +49,7 @@ def disable_request_warning():
 @pytest.fixture()
 def fill_db():
 	print("????")
-	db=_mysql.connect(host="172.19.0.1",port=3307,user="opsi",passwd="opsi",db="opsi")
+	db=_mysql.connect(host="mysql",user="opsi",passwd="opsi",db="opsi")
 	db.query("INSERT INTO HOST (description, notes, hostId, ipAddress, inventoryNumber, type, hardwareAddress) VALUES (\"\", \"pytest test data\", \"pytest.uib.gmbh\", \"192.168.0.12\", 0815, \"OpsiClient\", \"32:58:fd:f7:3b:26\");")
 	db.query("SELECT * FROM HOST WHERE ipAddress like \"192.168.0.12\";")
 	r=db.store_result()
@@ -90,7 +90,7 @@ def test_process_jsonrpc_request(fill_db):
 	assert result_json.get("result")[0].get("ipAddress") == "192.168.0.12"
 	assert result_json.get("result")[0].get("id") == "pytest.uib.gmbh"
 	assert result_json.get("method") == "host_getObjects"
-	
+
 
 
 # def test_jsonrpc(app):

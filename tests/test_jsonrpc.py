@@ -11,6 +11,10 @@ import json
 
 from fastapi.testclient import TestClient
 
+from MySQLdb import _mysql
+
+
+
 # import nest_asyncio
 
 OPSI_URL = "https://localhost:4447" 
@@ -42,6 +46,20 @@ async def clean_redis():
 def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+@pytest.fixture()
+def fill_db():
+	print("????")
+	db=_mysql.connect(host="172.19.0.1",port=3307,user="opsi",passwd="opsi",db="opsi")
+	db.query("INSERT INTO HOST (description, notes, hostId, ipAddress, inventoryNumber, type, hardwareAddress) VALUES (\"\", \"pytest test data\", \"pytest.uib.gmbh\", \"192.168.0.12\", 0815, \"OpsiClient\", \"32:58:fd:f7:3b:26\");")
+	db.query("SELECT * FROM HOST WHERE ipAddress like \"192.168.0.12\";")
+	r=db.store_result()
+	print(r.fetch_row(maxrows=0))
+	yield None
+	db.query("DELETE FROM HOST WHERE ipAddress like \"192.168.0.12\";")
+	print("????")
+	
+	
+
 # @pytest.fixture
 # def client(monkeypatch):
 # 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
@@ -58,19 +76,21 @@ def app(monkeypatch):
 	return app
 
 
-def test_process_jsonrpc_request():
-	data = {"id": 1, "method": "host_getObjects", "params": [None]}
+def test_process_jsonrpc_request(fill_db):
+	data = {"id": 1, "method": "host_getObjects", "params": [["ipAddress","id","notes"], {"ipAddress": "192.168.0.12"}]}
 	rpc_request_data = json.dumps(data)
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	print(result_json)
-
+	print("!!!!")
 	assert r.status_code == 200
-	assert len(result_json.get("result")) >= 0
+	assert len(result_json.get("result")) == 1
+	assert result_json.get("result")[0].get("notes") == "pytest test data"
+	assert result_json.get("result")[0].get("ipAddress") == "192.168.0.12"
+	assert result_json.get("result")[0].get("id") == "pytest.uib.gmbh"
 	assert result_json.get("method") == "host_getObjects"
-
-
+	
 
 
 # def test_jsonrpc(app):

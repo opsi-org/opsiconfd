@@ -52,6 +52,42 @@ def fill_db():
 			"created": "2017-11-14 14:43:48",
 			"lastSeen": "2017-11-14 14:43:48"
 
+		},
+		{
+			"hostId": "pytest2.uib.gmbh",
+			"type": "OpsiClient",
+			"description": "pytest test data description",
+			"notes": "pytest test data notes",
+			"hardwareAddress": "32:58:fd:f7:3b:26",
+			"ipAddress": "192.168.0.111",
+			"inventoryNumber": "0815",
+			"created": "2017-11-14 14:43:48",
+			"lastSeen": "2017-11-14 14:43:48"
+
+		},
+		{
+			"hostId": "pytest3.uib.gmbh",
+			"type": "OpsiClient",
+			"description": "pytest test data description",
+			"notes": "pytest test data notes",
+			"hardwareAddress": "32:58:fd:f7:3b:26",
+			"ipAddress": "192.168.0.111",
+			"inventoryNumber": "0815",
+			"created": "2017-11-14 14:43:48",
+			"lastSeen": "2017-11-14 14:43:48"
+
+		},
+		{
+			"hostId": "pytest4.uib.gmbh",
+			"type": "OpsiClient",
+			"description": "pytest test data description",
+			"notes": "pytest test data notes",
+			"hardwareAddress": "32:58:fd:f7:3b:26",
+			"ipAddress": "192.168.0.111",
+			"inventoryNumber": "0815",
+			"created": "2017-11-14 14:43:48",
+			"lastSeen": "2017-11-14 14:43:48"
+
 		}
 	]
 
@@ -70,6 +106,7 @@ def fill_db():
 	
 	for data in mysql_data:
 		db.query(f'DELETE FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
+
 
 
 
@@ -150,6 +187,19 @@ jsonrpc_test_data = [
 			"method": "host_getObjects", 
 			"error": None
 		}
+	),
+	(
+		{"id": 1, "method": "host_getObjects", "params": [["ipAddress"], {"ipAddress": "192.168.0.111"}]},
+		{
+			"num_results": 3, 
+			"status_code": 200, 
+			"method": "host_getObjects", 
+			"id": "pytest2.uib.gmbh", 
+			"ipAddress": "192.168.0.111", 
+			"notes": None, 
+			"type": "OpsiClient",
+			"error": None
+		}
 	)
 
 ]
@@ -178,3 +228,59 @@ def test_process_jsonrpc_request(fill_db, request_data, expected_result):
 		assert error.get("message") == expected_error.get("message")
 		assert error.get("class") == expected_error.get("class")
 
+
+def test_create_OPSI_Client():
+
+	request_data = {
+		"id": 1,
+		"method": "host_createOpsiClient",
+		"params": [
+			"test.fabian.uib.local"
+		]
+	}
+
+	rpc_request_data = json.dumps(request_data)
+
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+
+	print(result_json)
+	# {"jsonrpc":"2.0","id":1,"method":"host_createOpsiClient","params":["test.fabian.uib.local",null,null,null,null,null,null,null,null,null,{}],"result":[],"error":null}
+	assert result_json.get("error") == None
+	assert result_json.get("method") == "host_createOpsiClient"
+	assert result_json.get("params")[0] == "test.fabian.uib.local"
+	assert r.status_code == 200
+
+
+	request_data = {
+		"id": 1,
+		"method": "host_getObjects",
+		"params": [
+			[],
+			{
+				"id": "test.fabian.uib.local"
+			}
+		]
+	}
+
+	rpc_request_data = json.dumps(request_data)
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+
+	print("RESULT1: ", result_json)
+	assert len(result_json.get("result")) == 1
+	assert result_json.get("result")[0].get("id") == "test.fabian.uib.local"
+	assert result_json.get("error") == None
+
+	db=_mysql.connect(host="mysql",user="opsi",passwd="opsi",db="opsi")
+	db.query('DELETE FROM HOST WHERE hostId like "test.fabian.uib.local";')
+
+
+
+	rpc_request_data = json.dumps(request_data)
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+
+	print("RESULT2: ", result_json)
+	assert len(result_json.get("result")) == 0
+	assert result_json.get("error") == None

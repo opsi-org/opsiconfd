@@ -1,111 +1,106 @@
-# -*- coding: utf-8 -*-
-
-# This file is part of opsiconfd.
-# Copyright (C) 2014-2018 uib GmbH <info@uib.de>
-
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
-Testing the opsiconfd.
-
-opsiconfd is part of opsi - https://opsi.org
-
-:author: Niko Wenselowski <n.wenselowski@uib.de>
-:license: GNU Affero General Public License version 3
-"""
-
+import os
+import sys
+import pytest
+import redis
+import json
+import asyncio
 import time
 
-import pytest
-
-from opsiconfd.statistics import Statistics
-
-try:
-    xrange
-except NameError:
-    xrange = range
+from opsiconfd.statistics import MetricsCollector
 
 
-class FakeOpsiconfd(object):
-    def __init__(self):
-        self.config = {
-            'maxExecutionStatisticValues': 250,
-            'rrdDir': '/tmp'
-        }
+@pytest.fixture(scope="session")
+def event_loop(request):
+    """Create an instance of the default event loop for each test case."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
 
-class FakeRPC(object):
-    def __init__(self, exception=False, methodName="dummy_method", duration=0.0):
-        self.exception = exception
-        self.result = []
-        self.params = []
-        self.started = time.time()
-        self.methodName = methodName
+@pytest.fixture
+def metrics_collector(monkeypatch):
+	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
+	from opsiconfd.statistics import MetricsCollector
+	return MetricsCollector()
 
-        if duration:
-            self.ended = self.started + duration
-        else:
-            self.ended = time.time()
+@pytest.fixture
+def metrics_registry(monkeypatch):
+	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
+	from opsiconfd.statistics import MetricsRegistry, Metric
+	metrics_registry = MetricsRegistry()
+	metrics_registry.register(
+		Metric(
+			id="opsiconfd:pytest:metric",
+			name="opsiconfd pytest metric",
+			vars=["node_name", "worker_num"],
+			retention=24 * 3600 * 1000,
+			subject="worker",
+			grafana_config=None
+		)
+	)
+	return MetricsRegistry()
 
-    def getMethodName(self):
-        return self.methodName
-
-
-def testNumberOfStatisticsIsLimited():
-    stats = Statistics(FakeOpsiconfd())
-    [stats.addRpc(FakeRPC()) for _ in xrange(500000)]
-    assert 250 == len(stats.getRpcs())
-
-
-def testGettingOverallCallCount():
-    stats = Statistics(FakeOpsiconfd())
-    [stats.addRpc(FakeRPC()) for _ in xrange(500000)]
-
-    assert 250 == len(stats.getRpcs())
-    assert 1 == len(stats.getRPCCallCounts())
-    assert "dummy_method" in stats.getRPCCallCounts()
-    assert 500000 == stats.getRPCCallCounts()['dummy_method']
-
-    stats.addRpc(FakeRPC(methodName="another_method"))
-    assert 2 == len(stats.getRPCCallCounts())
-    assert "another_method" in stats.getRPCCallCounts()
+@pytest.fixture()
+@pytest.mark.asyncio
+async def redis_client():
+	redis_client = redis.StrictRedis.from_url("redis://redis")
+	redis_client.set("opsiconfd:stats:num_rpcs", 5)
+	time.sleep(5)
+	yield redis_client
+	redis_client.delete("opsiconfd:stats:num_rpcs")
 
 
-def testCollectingCountAlsoHasInformationAboutDuration():
-    stats = Statistics(FakeOpsiconfd())
-    [stats.addRpc(FakeRPC(duration=10.0)) for _ in xrange(100)]
+redis_test_data = [
+	(
+		[
+			"GET opsiconfd:stats:num_rpcs",
+			"SET opsiconfd:stats:num_rpcs 10",
+			"GET opsiconfd:stats:num_rpcs"
+		],
+		[
+			b"5",
+			b"OK",
+			b"10"
+		]
+	),
+	(
+		[
+			"GET opsiconfd:stats:num_rpcs",
+			"SET opsiconfd:stats:num_rpcs 111",
+			"DEL opsiconfd:stats:num_rpcs",
+			"DEL opsiconfd:stats:num_rpcs"
+		],
+		[
+			b"5",
+			b"OK",
+			1,
+			0
+		]	
+	)
+]
 
-    averages = stats.getRPCAverageDurations()
-    assert 1 == len(averages)
-    assert 10.0 == averages["dummy_method"]
+@pytest.mark.parametrize("cmds, expected_results", redis_test_data)
+@pytest.mark.asyncio
+async def test_execute_redis_command(metrics_collector, redis_client, cmds, expected_results):
 
-    stats.addRpc(FakeRPC(duration=5))
-    newAverages = stats.getRPCAverageDurations()
-    assert pytest.approx(9.950495049504951) == newAverages["dummy_method"]
+	for idx, cmd in enumerate(cmds):
+		result = await metrics_collector._execute_redis_command(cmd)
+		print(result)
+		assert result == expected_results[idx]
+		time.sleep(5)
 
+	# result = await redis_client.get("opsiconfd:stats:num_rpcs")
+	# print(result)
+	# assert result == b"10"
 
-def testCollectingUseragents():
-    stats = Statistics(FakeOpsiconfd())
+@pytest.mark.asyncio
+async def test_redis_ts_cmd(metrics_registry, metrics_collector):
 
-    for _ in range(10):
-        stats.addUserAgent('test agent 1.2.3')
+	metrics = list(metrics_registry.get_metrics()) 
+	# for metric in :
+	# 	print(metric.id)
 
-    stats.addUserAgent('test agent 1.2.4')
-    stats.addUserAgent('test agent 1.2.4')
-    stats.addUserAgent('another agent 5.6')
-
-    collectedAgents = stats.getUserAgents()
-    assert collectedAgents['test agent 1.2.3'] == 10
-    assert collectedAgents['test agent 1.2.4'] == 2
-    assert collectedAgents['another agent 5.6'] == 1
-    assert 'not seen' not in collectedAgents
+	result = metrics_collector._redis_ts_cmd(metrics[-1], "ADD", 4711)
+	print(result)
+	assert result == "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 LABELS"
+	

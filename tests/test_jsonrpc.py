@@ -144,7 +144,7 @@ def test_process_jsonrpc_request(fill_db, request_data, expected_result):
 
 	assert r.status_code == expected_result.get("status_code")
 	assert result_json.get("method") == expected_result.get("method")
-	assert result_json.get("error") == expected_result.get("error")
+	
 	if result_json.get("error") == None:
 		assert len(result_json.get("result")) == expected_result.get("num_results")
 		if len(result_json.get("result")) > 0:
@@ -152,4 +152,10 @@ def test_process_jsonrpc_request(fill_db, request_data, expected_result):
 			assert result_json.get("result")[0].get("ipAddress") == expected_result.get("ipAddress")
 			assert result_json.get("result")[0].get("id") == expected_result.get("id")
 			assert result_json.get("result")[0].get("type") == expected_result.get("type")
-	
+	else:
+		error = result_json.get("error")
+		expected_error = expected_result.get("error")
+		assert error.get("message") == expected_error.get("message")
+		assert error.get("class") == expected_error.get("class")
+		assert error.get("details") == expected_error.get("details")
+

@@ -40,15 +40,36 @@ def disable_request_warning():
 
 @pytest.fixture()
 def fill_db():
+	mysql_data = [
+		{
+			"hostId": "pytest.uib.gmbh",
+			"type": "OpsiClient",
+			"description": "pytest test data description",
+			"notes": "pytest test data notes",
+			"hardwareAddress": "32:58:fd:f7:3b:26",
+			"ipAddress": "192.168.0.12",
+			"inventoryNumber": "0815",
+			"created": "2017-11-14 14:43:48",
+			"lastSeen": "2017-11-14 14:43:48"
+
+		}
+	]
+
 	# TODO assert mysql results
 	# TODO insert more Data
-	db=_mysql.connect(host="mysql",user="opsi",passwd="opsi",db="opsi")
-	db.query("INSERT INTO HOST (description, notes, hostId, ipAddress, inventoryNumber, type, hardwareAddress) VALUES (\"\", \"pytest test data\", \"pytest.uib.gmbh\", \"192.168.0.12\", 0815, \"OpsiClient\", \"32:58:fd:f7:3b:26\");")
-	db.query("SELECT * FROM HOST WHERE ipAddress like \"192.168.0.12\";")
-	r=db.store_result()
-	print(r.fetch_row(maxrows=0))
+	for data in mysql_data:
+		db=_mysql.connect(host="mysql",user="opsi",passwd="opsi",db="opsi")
+		sql_string = f'INSERT INTO HOST (hostId, type, description, notes,  hardwareAddress, ipAddress, inventoryNumber, created, lastSeen) VALUES (\"{data["hostId"]}\", \"{data["type"]}\", \"{data["description"]}\", \"{data["notes"]}\", \"{data["hardwareAddress"]}\", \"{data["ipAddress"]}\", \"{data["inventoryNumber"]}\", \"{data["created"]}\",  \"{data["lastSeen"]}\");'
+		print(sql_string)
+		db.query(sql_string)
+		db.query(f'SELECT * FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
+		r=db.store_result()
+		print(r.fetch_row(maxrows=0))
+	
 	yield None
-	db.query("DELETE FROM HOST WHERE ipAddress like \"192.168.0.12\";")
+	
+	for data in mysql_data:
+		db.query(f'DELETE FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
 
 
 
@@ -61,7 +82,7 @@ jsonrpc_test_data = [
 			"method": "host_getObjects", 
 			"id": "pytest.uib.gmbh", 
 			"ipAddress": "192.168.0.12", 
-			"notes": "pytest test data", 
+			"notes": "pytest test data notes", 
 			"type": "OpsiClient",
 			"error": None
 		}
@@ -87,8 +108,8 @@ jsonrpc_test_data = [
 			"method": "host_getObjects", 
 			"id": "pytest.uib.gmbh", 
 			"ipAddress": None, 
-			"notes": None, "type": 
-			"OpsiClient",
+			"notes": None, 
+			"type": "OpsiClient",
 			"error": None
 		}
 	),
@@ -100,7 +121,7 @@ jsonrpc_test_data = [
 			"method": "host_getObjects", 
 			"id": "pytest.uib.gmbh", 
 			"ipAddress": "192.168.0.12", 
-			"notes": "pytest test data", 
+			"notes": "pytest test data notes", 
 			"type": "OpsiClient",
 			"error": None
 		}
@@ -113,7 +134,7 @@ jsonrpc_test_data = [
 			"method": "host_getObjects", 
 			"id": "pytest.uib.gmbh", 
 			"ipAddress": "192.168.0.12", 
-			"notes": "pytest test data", 
+			"notes": "pytest test data notes", 
 			"type": "OpsiClient",
 			"error": {
 				"message": "(1054, \"Unknown column 'bla' in 'field list'\")",

@@ -44,12 +44,14 @@ def call_rpc(rpc_request_data: list, expect_error: list):
 		assert result_json.get("method") == data.get("method")
 	
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def event_loop(request):
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+	"""Create an instance of the default event loop for each test case."""
+	print("!!!!!!!!!!!!!!!!!!!!!!!!!!! event loop admininterface")
+	loop = asyncio.get_event_loop_policy().new_event_loop()
+	yield loop
+	print("!!!!!!!!!!!!!!!!!!!!!! event loop admininterface end")
+	loop.close()
 
 
 @pytest.fixture

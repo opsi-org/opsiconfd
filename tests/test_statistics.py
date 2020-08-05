@@ -9,13 +9,27 @@ import time
 from opsiconfd.statistics import MetricsCollector
 
 
-@pytest.fixture(scope="session")
-def event_loop(request):
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# @pytest.fixture(autouse=True)
+# def event_loop(request):
+# 	"""Create an instance of the default event loop for each test case."""
+# 	# await asyncio.sleep(5)
+# 	print("################################### event_loop statistics")
+# 	loop = asyncio.get_event_loop_policy().new_event_loop()
+# 	yield loop
+# 	print("######################## event_loop statistics end ")
+# 	loop.close()
+# 	# time.sleep(10)
+# 	# await asyncio.sleep(10)
 
+
+# @pytest.fixture(scope="module")
+# @pytest.mark.asyncio
+# async def event_loop(request):
+# 	"""Create an instance of the default event loop for each test case."""
+# 	loop = asyncio.get_event_loop()
+# 	yield loop
+# 	await asyncio.sleep(2)
+# 	# loop.close()
 
 @pytest.fixture
 def metrics_collector(monkeypatch):
@@ -40,14 +54,16 @@ def metrics_registry(monkeypatch):
 	)
 	return MetricsRegistry()
 
+
 @pytest.fixture()
 @pytest.mark.asyncio
 async def redis_client():
 	redis_client = redis.StrictRedis.from_url("redis://redis")
 	redis_client.set("opsiconfd:stats:num_rpcs", 5)
-	time.sleep(5)
+	await asyncio.sleep(2)
 	yield redis_client
 	redis_client.delete("opsiconfd:stats:num_rpcs")
+
 
 
 redis_test_data = [
@@ -87,7 +103,7 @@ async def test_execute_redis_command(metrics_collector, redis_client, cmds, expe
 		result = await metrics_collector._execute_redis_command(cmd)
 		print(result)
 		assert result == expected_results[idx]
-		time.sleep(5)
+		
 
 	# result = await redis_client.get("opsiconfd:stats:num_rpcs")
 	# print(result)

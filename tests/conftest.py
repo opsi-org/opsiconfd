@@ -5,8 +5,6 @@ import asyncio
 def event_loop(request):
 	"""Create an instance of the default event loop for each test case."""
 	loop = asyncio.get_event_loop_policy().new_event_loop()
-	print("!!!!!!!!!!!!!!!!!!!!!!!!!!! event loop admininterface")
 	yield loop
-	print("!!!!!!!!!!!!!!!!!!!!!! event loop admininterface end")
 	loop.close()
 

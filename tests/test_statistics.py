@@ -9,28 +9,6 @@ import time
 from opsiconfd.statistics import MetricsCollector
 
 
-# @pytest.fixture()
-# def event_loop(request):
-# 	"""Create an instance of the default event loop for each test case."""
-# 	# await asyncio.sleep(5)
-# 	print("################################### event_loop statistics")
-# 	loop = asyncio.get_event_loop_policy().get_event_loop()
-# 	yield loop
-# 	print("######################## event_loop statistics end ")
-# 	loop.close()
-# 	# time.sleep(10)
-# 	# await asyncio.sleep(10)
-
-
-# @pytest.fixture(scope="module")
-# @pytest.mark.asyncio
-# async def event_loop(request):
-# 	"""Create an instance of the default event loop for each test case."""
-# 	loop = asyncio.get_event_loop()
-# 	yield loop
-# 	await asyncio.sleep(2)
-# 	# loop.close()
-
 @pytest.fixture
 def metrics_collector(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
@@ -105,16 +83,10 @@ async def test_execute_redis_command(metrics_collector, redis_client, cmds, expe
 		assert result == expected_results[idx]
 		
 
-	# result = await redis_client.get("opsiconfd:stats:num_rpcs")
-	# print(result)
-	# assert result == b"10"
-
 @pytest.mark.asyncio
 async def test_redis_ts_cmd(metrics_registry, metrics_collector):
 
 	metrics = list(metrics_registry.get_metrics()) 
-	# for metric in :
-	# 	print(metric.id)
 
 	result = metrics_collector._redis_ts_cmd(metrics[-1], "ADD", 4711)
 	print(result)

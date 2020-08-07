@@ -284,3 +284,51 @@ def test_create_OPSI_Client():
 	print("RESULT2: ", result_json)
 	assert len(result_json.get("result")) == 0
 	assert result_json.get("error") == None
+
+
+def test_delete_OPSI_Client(fill_db):
+
+	request_data = {
+		"id": 1,
+		"method": "host_getObjects",
+		"params": [
+			[],
+			{
+				"id": "pytest4.uib.gmbh"
+			}
+		]
+	}
+
+	rpc_request_data = json.dumps(request_data)
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+
+	print("RESULT1: ", result_json)
+	assert len(result_json.get("result")) == 1
+	assert result_json.get("result")[0].get("id") == "pytest4.uib.gmbh"
+	assert result_json.get("error") == None
+
+
+	delete_request = {
+		"id": 1,
+		"method": "host_delete",
+		"params": ["pytest4.uib.gmbh"]
+	}
+	rpc_delete_request = json.dumps(delete_request)
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_delete_request, verify=False)
+	assert r.status_code == 200
+	result_json = json.loads(r.text)
+	print("Del result: ", result_json)
+	
+	assert result_json.get("error") == None
+	assert result_json.get("method") == "host_delete"
+	assert result_json.get("params")[0] == "pytest4.uib.gmbh"
+	assert result_json.get("ressult") == None
+
+
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+
+	print("RESULT2: ", result_json)
+	assert len(result_json.get("result")) == 0
+	assert result_json.get("error") == None

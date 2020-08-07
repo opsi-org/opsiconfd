@@ -83,16 +83,29 @@ async def test_execute_redis_command(metrics_collector, redis_client, cmds, expe
 		assert result == expected_results[idx]
 		
 
-
-def test_redis_ts_cmd(metrics_registry, metrics_collector):
+test_data = [
+	("ADD", 4711, "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 LABELS"),
+	("INCRBY", 4711,"TS.INCRBY opsiconfd:stats:opsiconfd:pytest:metric 4711 * RETENTION 86400000 LABELS"),
+]
+@pytest.mark.parametrize("cmd, value, expected_result", test_data)
+def test_redis_ts_cmd(metrics_registry, metrics_collector, cmd, value, expected_result):
 
 	metrics = list(metrics_registry.get_metrics()) 
 
-	result = metrics_collector._redis_ts_cmd(metrics[-1], "ADD", 4711)
+	result = metrics_collector._redis_ts_cmd(metrics[-1], cmd, value)
 	print(result)
-	assert result == "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 LABELS"
+	assert result == expected_result
 	
+def test_redis_ts_cmd_error(metrics_registry, metrics_collector):
 
+	metrics = list(metrics_registry.get_metrics()) 
+
+	with pytest.raises(ValueError) as excinfo:
+		result = metrics_collector._redis_ts_cmd(metrics[-1], "unknown CMD", 42)
+	
+	print(excinfo)
+	assert excinfo.type == ValueError
+	assert excinfo.value.__str__() == ValueError("Invalid command unknown CMD").__str__()
 
 def test_metric_by_redis_key(metrics_registry):
 

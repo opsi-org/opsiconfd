@@ -83,8 +83,8 @@ async def test_execute_redis_command(metrics_collector, redis_client, cmds, expe
 		assert result == expected_results[idx]
 		
 
-@pytest.mark.asyncio
-async def test_redis_ts_cmd(metrics_registry, metrics_collector):
+
+def test_redis_ts_cmd(metrics_registry, metrics_collector):
 
 	metrics = list(metrics_registry.get_metrics()) 
 
@@ -92,3 +92,25 @@ async def test_redis_ts_cmd(metrics_registry, metrics_collector):
 	print(result)
 	assert result == "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 LABELS"
 	
+
+
+def test_metric_by_redis_key(metrics_registry):
+
+	metric = metrics_registry.get_metric_by_redis_key("opsiconfd:stats:opsiconfd:pytest:metric")
+
+	print(metric.__dict__)
+	assert metric.get_name() == "opsiconfd pytest metric"
+	assert metric.id == "opsiconfd:pytest:metric"
+	assert metric.get_redis_key() == "opsiconfd:stats:opsiconfd:pytest:metric"
+
+def test_metric_by_redis_key_error(metrics_registry):
+
+	with pytest.raises(ValueError) as excinfo:
+		metrics_registry.get_metric_by_redis_key("opsiconfd:stats:opsiconfd:notinredis:metric")
+
+	assert excinfo.type == ValueError
+	assert excinfo.value.__str__() == ValueError("Metric with redis key 'opsiconfd:stats:opsiconfd:notinredis:metric' not found").__str__()
+	# print(excinfo.value.__eq__(ValueError("Metric with redis key 'opsiconfd:stats:opsiconfd:notinredis:metric' not found")))
+	# print(type(excinfo.value))
+	# print(type(ValueError("Metric with redis key 'opsiconfd:stats:opsiconfd:notinredis:metric' not found")))
+

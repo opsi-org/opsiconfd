@@ -216,14 +216,14 @@ class SessionMiddleware:
 		except Exception as e:
 			status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 			headers = None
-			error_detail = None
+			error = None
 
 			if isinstance(e, BackendAuthenticationError) or isinstance(e, BackendPermissionDeniedError):
 				logger.warning(e)
 
 				status_code = status.HTTP_401_UNAUTHORIZED
 				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
-				error_detail = str(e)
+				error = str(e)
 				
 				cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
 				logger.debug(cmd)
@@ -231,16 +231,16 @@ class SessionMiddleware:
 			
 			elif isinstance(e, ConnectionRefusedError):
 				status_code = status.HTTP_403_FORBIDDEN
-				error_detail = str(e)
+				error = str(e)
 
 			elif isinstance(e, HTTPException):
 				status_code = e.status_code
 				headers = e.headers
-				error_detail = str(e)
+				error = str(e)
 			
 			else:
 				logger.error(e, exc_info=True)
-				error_detail = str(e)
+				error = str(e)
 
 			if scope["type"] == "websocket":
 				await send({"type": "websocket.close", "code": status_code})
@@ -254,7 +254,7 @@ class SessionMiddleware:
 					logger.debug("Returning jsonrpc response because path startswith /rpc")
 					response = JSONResponse(
 						status_code=status_code,
-						content={"jsonrpc": "2.0", "id": None, "result": None, "error": error_detail},
+						content={"jsonrpc": "2.0", "id": None, "result": None, "error": error},
 						headers=headers
 					)
 				if not response:
@@ -262,14 +262,14 @@ class SessionMiddleware:
 						logger.debug("Returning json response because of accept header")
 						response = JSONResponse(
 							status_code=status_code,
-							content={"error": error_detail},
+							content={"error": error},
 							headers=headers
 						)
 				if not response:
 					logger.debug("Returning plaintext response")
 					response = PlainTextResponse(
 						status_code=status_code,
-						content=error_detail,
+						content=error,
 						headers=headers
 					)
 				await response(scope, receive, send)

@@ -57,11 +57,11 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from aredis.exceptions import ResponseError
 
 from OPSI.Backend.Manager.AccessControl import UserStore
-from OPSI.Util import serialize, deserialize, ipAddressInNetwork
+from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
 from .logging import logger, secret_filter, set_context
-from .worker import get_redis_client, contextvar_client_session
+from .worker import get_redis_client, contextvar_client_session, run_in_threadpool
 from .backend import get_client_backend
 from .config import config
 
@@ -89,6 +89,10 @@ def get_basic_auth(headers: Headers):
 	secret_filter.add_secrets(password)
 
 	return BasicAuth(username, password)
+
+def authenticate(connection: HTTPConnection) -> None:
+	auth = get_basic_auth(connection.headers)
+	get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
 
 def get_session_from_context():
 	try:
@@ -124,6 +128,8 @@ class SessionMiddleware:
 	
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		connection = HTTPConnection(scope)
+		# TODO: Check client.host with reverse proxy and set it here to HTTP_X_FORWARDED_FOR if needed
+		# https://github.com/encode/starlette/issues/234
 		set_context({"client_address": connection.client.host})
 		logger.trace("SessionMiddleware %s", scope)
 		try:
@@ -169,10 +175,14 @@ class SessionMiddleware:
 						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked for {(config.client_block_time/60):.2f} minutes!")
 					
 					# Authenticate
-					auth = get_basic_auth(connection.headers)
-					get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
+					logger.info("Start authentication of client %s", connection.client.host)
+					await run_in_threadpool(authenticate, connection)
 
-					if config.admin_networks:
+					if session.user_store.host:
+						logger.info("Host authenticated, updating host object")
+						await run_in_threadpool(update_host_object, connection, session)
+					
+					if session.user_store.isAdmin and config.admin_networks:
 						is_admin_network = False
 						for network in config.admin_networks:
 							if ipAddressInNetwork(connection.client.host, network):
@@ -230,12 +240,10 @@ class SessionMiddleware:
 			
 			else:
 				logger.error(e, exc_info=True)
-				status_code = e.status_code
-				headers = e.headers
 				error_detail = str(e)
 
 			if scope["type"] == "websocket":
-				await send({"type": "websocket.close", "code": e.status_code})
+				await send({"type": "websocket.close", "code": status_code})
 			else:
 				response = None
 				headers = headers or {}
@@ -398,3 +406,20 @@ class OPSISession():
 
 	def set(self, key: str, value: typing.Any) -> None:
 		self._data[key] = value
+
+
+def update_host_object(connection: HTTPConnection, session: OPSISession) -> None:
+	hosts = get_client_backend().host_getObjects(['ipAddress', 'lastSeen'], id=session.user_store.host.id)
+	if not hosts:
+		logger.error("Host %s not found in backend while trying to update ip address and lastseen", session.user_store.host.id)
+		return
+	host = hosts[0]
+	if host.getType() != 'OpsiClient':
+		return
+	host.setLastSeen(timestamp())
+	if config.update_ip and connection.client.host not in (None, "127.0.0.1", "::1", host.ipAddress):
+		host.setIpAddress(connection.client.host)
+	else:
+		# Value None on update means no change!
+		host.ipAddress = None
+	get_client_backend().host_updateObjects(host)

@@ -181,6 +181,8 @@ def setup(full: bool = True):
 		#po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
 		setup_ssl()
 		setup_systemd()
+	else:
+		setup_users_and_groups()
 	# Always correct file permissions (run_as_user could be changed)
 	setup_file_permissions()
 	try:

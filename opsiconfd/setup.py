@@ -34,7 +34,7 @@ from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP, DEFAULT_DEPOT_USER
 from OPSI.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,
 	setup_file_permissions as po_setup_file_permissions,
-	get_users, get_groups, add_user_to_group, create_user
+	get_users, get_groups, add_user_to_group, create_user, set_primary_group
 )
 from OPSI.Util import getfqdn
 from OPSI.System.Posix import getLocalFqdn
@@ -80,6 +80,8 @@ def setup_users_and_groups():
 			add_user_to_group(config.run_as_user, "shadow")
 		if OPSI_ADMIN_GROUP in groups and config.run_as_user not in groups[OPSI_ADMIN_GROUP].gr_mem:
 			add_user_to_group(config.run_as_user, OPSI_ADMIN_GROUP)
+		if FILE_ADMIN_GROUP in groups and config.run_as_user not in groups[FILE_ADMIN_GROUP].gr_mem:
+			set_primary_group(config.run_as_user, FILE_ADMIN_GROUP)
 
 def setup_ssl():
 	logger.info("Setup ssl")

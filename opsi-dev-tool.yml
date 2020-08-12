@@ -1,6 +1,4 @@
 pyinstaller-poetry:
-  update_version_in:
-    - opsiconfd/__init__.py
   one_file: no
   hidden_imports:
     all:

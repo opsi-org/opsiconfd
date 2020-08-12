@@ -180,9 +180,6 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, method_name)
 		logger.trace("Retrieved parameters %s for %s", params, method_name)
 
-		if method_name == "backend_exit":
-			return [None, 0]
-		
 		for method in get_backend_interface():
 			if method_name == method['name']:
 				method_description = method
@@ -209,10 +206,11 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		
 		result = None
 		method = getattr(backend, method_name)
-		if keywords:
-			result = method(*params, **keywords)
-		else:
-			result = method(*params)
+		if method_name != "backend_exit":
+			if keywords:
+				result = method(*params, **keywords)
+			else:
+				result = method(*params)
 		params.append(keywords)
 		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "error": None}
 		response = serialize(response)
@@ -222,7 +220,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
-
+		
 		return [response, end - start]
 	except Exception as e:
 		logger.error(e, exc_info=True)

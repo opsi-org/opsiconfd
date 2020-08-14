@@ -491,7 +491,7 @@ description = "opsi development tools"
 name = "opsi-dev-tools"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "1.0.18"
+version = "1.0.19"
 
 [package.dependencies]
 colorlog = ">=4.1.0,<5.0.0"
@@ -729,7 +729,7 @@ description = "Pytest plugin for measuring coverage."
 name = "pytest-cov"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-version = "2.10.0"
+version = "2.10.1"
 
 [package.dependencies]
 coverage = ">=4.4"
@@ -760,7 +760,7 @@ description = "The opsi python library"
 name = "python-opsi"
 optional = false
 python-versions = ">=3.7,<4.0"
-version = "4.2.0.48"
+version = "4.2.0.49"
 
 [package.dependencies]
 SQLAlchemy = ">=1.3.15,<2.0.0"
@@ -1490,8 +1490,8 @@ mysqlclient = [
     {file = "mysqlclient-1.4.6.tar.gz", hash = "sha256:f3fdaa9a38752a3b214a6fe79d7cae3653731a53e577821f9187e67cbecb2e16"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.0.18.tar.gz", hash = "md5:12e21e4b43407d706d2e957a7666dfed"},
-    {file = "opsi_dev_tools-1.0.18-py3-none-any.whl", hash = "md5:65c959295bbdb4712c737a2bcae91bd8"},
+    {file = "opsi-dev-tools-1.0.19.tar.gz", hash = "md5:0ba399af2c360c6cebd44a9a5b33658f"},
+    {file = "opsi_dev_tools-1.0.19-py3-none-any.whl", hash = "md5:f0df33922bfb3dade38188323e7c89ff"},
 ]
 orjson = [
     {file = "orjson-2.6.8-cp36-cp36m-macosx_10_7_x86_64.whl", hash = "sha256:440acee918752157b578e489656776b17704089ab6f06d669409e1f1bfe431ac"},
@@ -1652,8 +1652,8 @@ pytest-asyncio = [
     {file = "pytest_asyncio-0.14.0-py3-none-any.whl", hash = "sha256:2eae1e34f6c68fc0a9dc12d4bea190483843ff4708d24277c41568d6b6044f1d"},
 ]
 pytest-cov = [
-    {file = "pytest-cov-2.10.0.tar.gz", hash = "sha256:1a629dc9f48e53512fcbfda6b07de490c374b0c83c55ff7a1720b3fccff0ac87"},
-    {file = "pytest_cov-2.10.0-py2.py3-none-any.whl", hash = "sha256:6e6d18092dce6fad667cd7020deed816f858ad3b49d5b5e2b1cc1c97a4dba65c"},
+    {file = "pytest-cov-2.10.1.tar.gz", hash = "sha256:47bd0ce14056fdd79f93e1713f88fad7bdcc583dcd7783da86ef2f085a0bb88e"},
+    {file = "pytest_cov-2.10.1-py2.py3-none-any.whl", hash = "sha256:45ec2d5182f89a81fc3eb29e3d1ed3113b9e9a873bcddb2a71faaab066110191"},
 ]
 python-gettext = [
     {file = "python-gettext-4.0.tar.gz", hash = "sha256:626b501a51ac892fc3460cf550e60dca121f544eaa46eb69c90ce4682fc7ec02"},
@@ -1663,8 +1663,8 @@ python-magic = [
     {file = "python_magic-0.4.18-py2.py3-none-any.whl", hash = "sha256:356efa93c8899047d1eb7d3eb91e871ba2f5b1376edbaf4cc305e3c872207355"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.48.tar.gz", hash = "md5:0457c95ee6976810e26d616653e5291d"},
-    {file = "python_opsi-4.2.0.48-py3-none-any.whl", hash = "md5:4cdbf70681efc51e71ed7c54f8800528"},
+    {file = "python-opsi-4.2.0.49.tar.gz", hash = "md5:40a13e9167fbbd54035b36f9336f613c"},
+    {file = "python_opsi-4.2.0.49-py3-none-any.whl", hash = "md5:824602592994e08d03be481eab8b1ea5"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

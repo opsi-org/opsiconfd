@@ -303,7 +303,9 @@ def setup_grafana():
 	url = urlparse(config.grafana_internal_url)
 	if url.hostname not in ("localhost", "127.0.0.1", "::1"):
 		return
-	for f in (grafana_plugin_dir, grafana_db, grafana_cli):
+	if not os.path.exists(grafana_cli):
+		return
+	for f in (grafana_plugin_dir, grafana_db):
 		if not os.path.exists(f):
 			raise FileNotFoundError(f"'{f}' not found")
 	

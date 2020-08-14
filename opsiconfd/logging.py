@@ -363,8 +363,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):
 		logger.handlers = [log_handler]
 		logger.setLevel(log_level)
 		set_format(stderr_format=config.log_format_stderr, file_format=config.log_format_file)
-
-
+		
 		if config.log_filter:
 			set_filter_from_string(config.log_filter)
 		
@@ -380,7 +379,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):
 		pylogging.captureWarnings(True)
 		
 		if not is_worker:
-			if log_mode == "redis" and config.log_level_stderr > 0 or config.log_level_file > 0:
+			if log_mode == "redis" and (config.log_level_stderr != pylogging.NONE or config.log_level_file != pylogging.NONE):
 				start_redis_log_adapter_thread()
 			else:
 				stop_redis_log_adapter_thread()

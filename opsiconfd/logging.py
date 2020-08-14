@@ -354,12 +354,12 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):
 		log_handler = None
 		if log_mode == "redis":
 			log_handler = RedisLogHandler(max_msg_len=int(config.log_max_msg_len))
-			log_handler.setLevel(log_level)
 		elif log_mode == "local":
 			log_handler = StreamHandler(stream=sys.stderr)
 		else:
 			raise ValueError(f"Invalid log mode '{log_mode}'")
-		
+		log_handler.setLevel(log_level)
+
 		logger.handlers = [log_handler]
 		logger.setLevel(log_level)
 		set_format(stderr_format=config.log_format_stderr, file_format=config.log_format_file)

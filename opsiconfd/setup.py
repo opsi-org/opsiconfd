@@ -38,7 +38,6 @@ from OPSI.setup import (
 )
 from OPSI.Util import getfqdn
 from OPSI.System.Posix import getLocalFqdn
-from OPSI.Util.Task.Rights import setRights
 from OPSI.Util.Task.InitializeBackend import initializeBackends
 from OPSI.System import get_subprocess_environment
 
@@ -130,11 +129,10 @@ def setup_files():
 
 def setup_file_permissions():
 	logger.info("Setup file permissions")
-	for fn in (config.ssl_server_key, config.ssl_server_cert):
+	for fn in (config.ssl_server_key, config.ssl_server_cert, os.path.dirname(config.log_file)):
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
-	setRights(os.path.dirname(config.log_file))
 
 def setup_systemd():
 	systemd_running = False

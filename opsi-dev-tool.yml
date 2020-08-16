@@ -47,6 +47,7 @@ pyinstaller-poetry:
     find dist/opsiconfd -iname "*.c" -delete
     find dist/opsiconfd -iname "*.h" -delete
     find dist/opsiconfd -iname "*.so" -exec chmod -x "{}" \;
+    find dist/opsiconfd -iname "*.so.*" -exec chmod -x "{}" \;
     rm -r dist/opsiconfd/site-packages/Crypto/SelfTest
 
 package:

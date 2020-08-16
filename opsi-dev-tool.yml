@@ -46,7 +46,7 @@ pyinstaller-poetry:
     mv dist/opsiconfd/site-packages/wsgidav dist/opsiconfd/wsgidav
     find dist/opsiconfd -iname "*.c" -delete
     find dist/opsiconfd -iname "*.h" -delete
-    find dist/opsiconfd -iname "*.so" -iname "*.so" -exec chmod -x "{}" \;
+    find dist/opsiconfd -iname "*.so" -exec chmod -x "{}" \;
     rm -r dist/opsiconfd/site-packages/Crypto/SelfTest
 
 package:

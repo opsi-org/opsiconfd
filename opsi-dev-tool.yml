@@ -76,6 +76,9 @@ package:
     mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
     rm -r ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data
   postinst_script: |
+    # remove obsolete files
+    [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
+    # setup opsiconfd
     /usr/bin/opsiconfd setup --log-level-stderr=5 --log-level-file=0 --run-as-user=opsiconfd || true
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf
 

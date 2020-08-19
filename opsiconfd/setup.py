@@ -129,10 +129,19 @@ def setup_files():
 
 def setup_file_permissions():
 	logger.info("Setup file permissions")
-	for fn in (config.ssl_server_key, config.ssl_server_cert, os.path.dirname(config.log_file)):
+	for fn in (config.ssl_server_key, config.ssl_server_cert):
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
+	log_dir = os.path.dirname(config.log_file)
+	if os.path.isdir(log_dir):
+		shutil.chown(path=log_dir, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+		os.chmod(path=log_dir, mode=0o770)
+		for fn in os.listdir(log_dir):
+			fn = os.path.join(log_dir, fn)
+			if os.path.isfile(fn):
+				shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+				os.chmod(path=fn, mode=0o660)
 
 def setup_systemd():
 	systemd_running = False

@@ -107,7 +107,8 @@ class TestWebsocket(WebSocketEndpoint):
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, response: Response):
-	return RedirectResponse("/static/index.html", status_code=301)
+	# return RedirectResponse("/static/index.html", status_code=301)
+	return RedirectResponse("/admin", status_code=301)
 
 @app.on_event("startup")
 async def startup_event():

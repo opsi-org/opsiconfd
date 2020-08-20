@@ -59,7 +59,7 @@ def test_proper_login():
 	print(TEST_PW)
 	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 200
-	assert r.url == f"{OPSI_URL}/static/index.html"
+	assert r.url == f"{OPSI_URL}/admin"
 
 @pytest.mark.skip(reason="test does not work in gitlab ci")
 def test_max_sessions_client():
@@ -76,7 +76,7 @@ def test_max_sessions_client():
 	time.sleep(130)
 	r = requests.get(OPSI_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert r.status_code == 200
-	assert r.url == f"{OPSI_URL}/static/index.html"
+	assert r.url == f"{OPSI_URL}/admin"
 
 def test_max_auth():
 	for i in range(0,15):
@@ -88,4 +88,4 @@ def test_max_auth():
 	time.sleep(120)
 	r = requests.get(OPSI_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert r.status_code == 200
-	assert r.url == f"{OPSI_URL}/static/index.html"
+	assert r.url == f"{OPSI_URL}/admin"

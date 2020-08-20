@@ -196,3 +196,8 @@ def setup(full: bool = True):
 		setup_grafana()
 	except Exception as e:
 		logger.warning("Failed to setup grafana: %s", e)
+
+	try:
+		setup_metric_downsampling()
+	except Exception as e:
+		logger.warn("Faild to setup redis downsampling: %s", e)

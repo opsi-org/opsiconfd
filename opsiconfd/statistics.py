@@ -30,6 +30,7 @@ import threading
 import psutil
 import json
 import copy
+import redis
 from contextvars import ContextVar
 from typing import Dict, List
 from ctypes import c_long
@@ -54,9 +55,96 @@ def get_yappi_tag() -> int:
 	return int(contextvar_request_id.get() or -1)
 
 
+def setup_metric_downsampling() -> None:
+
+	logger.devel("get_worker_processes: %s", get_worker_processes())
+
+	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
+	redis_keys = redis_client.scan_iter("*")
+	logger.devel("redis keys:")
+	for key in redis_keys:
+		logger.devel(key)
+
+	for metric in metrics_registry.get_metrics():
+		logger.devel("metric id %s", metric.id)
+		if metric.downsampling:
+
+			# logger.devel("name: %s", metric.name)
+			# logger.devel("redis_key %s", metric.redis_key)
+
+			# logger.devel("downsampling: %s", metric.downsampling)
+
+			# logger.devel("node name: %s", get_node_name())
+
+			
+			logger.devel(metric.subject)
+
+			# if ("node_name" in metric.vars and "worker_num" in metric.vars):
+			if metric.subject == "worker":
+				
+				redis_keys = redis_client.scan_iter("opsiconfd:worker_registry:*")
+
+				for worker_registry in redis_keys:
+					worker_registry = worker_registry.decode("utf8")
+					logger.devel("worker_registry %s", worker_registry)
+					node_name = worker_registry.split(":")[-2]
+					worker_num = worker_registry.split(":")[-1]
+					logger.devel("worker: %s:%s", node_name, worker_num)
+					logger.devel(f"{metric.redis_key}")
+					logger.devel(metric.redis_key.format(node_name=node_name, worker_num=worker_num))
+					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+					logger.devel("orig_key: %s", orig_key)
+					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
+					logger.devel(cmd)
+					redis_client.execute_command(cmd)
+					source_key = orig_key
+					for idx, rule in enumerate(metric.downsampling):
+						logger.devel("###### %s", idx)
+						logger.devel(rule[0])
+						logger.devel(rule[1])	
+						logger.devel("###### %s", idx)
+
+						key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+						key = f"{key}:{rule[0]}"
+						retention_time = rule[1]
+						
+						cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
+						logger.devel(cmd)
+						redis_client.execute_command(cmd)
+						
+						time_bucket = get_time_bucket(rule[0])
+						cmd = f"TS.CREATERULE {source_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
+						logger.devel(cmd)
+						redis_client.execute_command(cmd)
+						source_key = key
+
+
+def get_time_bucket(interval: str ) -> int:
+	logger.devel("interval: %s", interval)
+	time_buckets = {
+		"minute": 60 * 1000,
+		"hour": 3600 * 1000,
+		"day": 24 * 3600 * 1000,
+		"week": 7 * 24 * 3600 * 1000,
+		"month": 30 * 24 * 3600 * 1000,
+		"year": 365 * 24 * 3600 * 1000
+	}
+	time_bucket = time_buckets.get(interval)
+	
+	return time_bucket
+
+
+# downsampling={
+# 	"minute"
+# 	"hour": 24 * 3600 * 1000,
+# 	"4hour": 24 * 3600 * 1000,
+# 	"day": 24 * 3600 * 1000
+# 	"week"
+# 	"month"
+# }
 class Metric:
 	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,
-				subject: str = "worker", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None):
+				subject: str = "worker", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None, downsampling: List = None):
 		assert aggregation in ("sum", "avg")
 		assert subject in ("worker", "client")
 		self.id = id
@@ -69,6 +157,7 @@ class Metric:
 		self.server_timing_header_factor = server_timing_header_factor
 		self.grafana_config = grafana_config
 		self.redis_key = self.redis_key_prefix = f"opsiconfd:stats:{id}"
+		self.downsampling = downsampling
 		for var in self.vars:
 			self.redis_key += ":{" + var + "}"
 		name_regex = self.name
@@ -174,7 +263,8 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="HTTP requests", units=["short"], decimals=0, stack=True)
+		grafana_config=GrafanaPanelConfig(title="HTTP requests", units=["short"], decimals=0, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:http_response_bytes",
@@ -200,7 +290,8 @@ metrics_registry.register(
 		vars=["client_addr"],
 		retention=24 * 3600 * 1000,
 		subject="client",
-		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=False)
+		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=False),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000]]
 	)
 )
 

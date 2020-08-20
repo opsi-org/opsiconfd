@@ -45,6 +45,7 @@ from .logging import logger
 from .config import config
 from .backend import get_backend
 from .grafana import setup_grafana
+from .statistics import setup_metric_downsampling
 
 def setup_limits():
 	logger.info("Setup system limits")
@@ -196,3 +197,8 @@ def setup(full: bool = True):
 		setup_grafana()
 	except Exception as e:
 		logger.warning("Failed to setup grafana: %s", e)
+
+	try:
+		setup_metric_downsampling()
+	except Exception as e:
+		logger.warn("Faild to setup redis downsampling: %s", e)

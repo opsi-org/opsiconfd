@@ -30,11 +30,13 @@ import threading
 import psutil
 import json
 import copy
+import redis
 from contextvars import ContextVar
 from typing import Dict, List
 from ctypes import c_long
 import yappi
 from yappi import YFuncStats
+from redis import ResponseError as RedisResponseError
 from aredis.exceptions import ResponseError 
 
 from starlette.datastructures import MutableHeaders
@@ -54,9 +56,65 @@ def get_yappi_tag() -> int:
 	return int(contextvar_request_id.get() or -1)
 
 
+def setup_metric_downsampling() -> None:
+
+	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
+
+	for metric in metrics_registry.get_metrics():
+		if not metric.downsampling or metric.subject != "worker":
+			continue
+		for worker in range(1, config.workers+1):
+			node_name = get_node_name()
+			worker_num = worker
+			logger.debug("worker: %s:%s", node_name, worker_num)
+			orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+			cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
+			logger.debug("REDIS CMD: %s", cmd)
+			try:
+				redis_client.execute_command(cmd)
+			except RedisResponseError as e:
+				if str(e) != "TSDB: key already exists":
+					raise RedisResponseError(e)
+			
+			for rule in metric.downsampling:
+				key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+				key = f"{key}:{rule[0]}"
+				retention_time = rule[1]
+				cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
+				logger.debug("REDIS CMD: %s", cmd)
+				try:
+					redis_client.execute_command(cmd)
+				except RedisResponseError as e: 
+					if str(e) != "TSDB: key already exists":
+						raise RedisResponseError(e)
+				
+				time_bucket = get_time_bucket(rule[0])
+				cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
+				logger.debug("REDIS CMD: %s", cmd)
+				try:
+					redis_client.execute_command(cmd)
+				except RedisResponseError as e: 
+					if str(e) != "TSDB: the destination key already has a rule":
+						raise RedisResponseError(e)
+				
+
+def get_time_bucket(interval: str ) -> int:
+	time_buckets = {
+		"minute": 60 * 1000,
+		"hour": 3600 * 1000,
+		"day": 24 * 3600 * 1000,
+		"week": 7 * 24 * 3600 * 1000,
+		"month": 30 * 24 * 3600 * 1000,
+		"year": 365 * 24 * 3600 * 1000
+	}
+	time_bucket = time_buckets.get(interval)
+	if time_bucket is None:
+		raise ValueError(f"Invalid interval: {interval}")
+	return time_bucket
+
 class Metric:
 	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,
-				subject: str = "worker", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None):
+				subject: str = "worker", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None, downsampling: List = None):
 		assert aggregation in ("sum", "avg")
 		assert subject in ("worker", "client")
 		self.id = id
@@ -69,6 +127,7 @@ class Metric:
 		self.server_timing_header_factor = server_timing_header_factor
 		self.grafana_config = grafana_config
 		self.redis_key = self.redis_key_prefix = f"opsiconfd:stats:{id}"
+		self.downsampling = downsampling
 		for var in self.vars:
 			self.redis_key += ":{" + var + "}"
 		name_regex = self.name
@@ -140,59 +199,68 @@ metrics_registry.register(
 		id="worker:mem_allocated",
 		name="Memory usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
+		aggregation="avg",
+		retention=2 * 3600 * 1000,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Memory usage", units=["decbytes"], stack=True)
+		grafana_config=GrafanaPanelConfig(title="Memory usage", units=["decbytes"], stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:cpu_percent",
 		name="CPU usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
+		aggregation="avg",
+		retention=2 * 3600 * 1000,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="CPU usage", units=["percent"], decimals=1, stack=True)
+		grafana_config=GrafanaPanelConfig(title="CPU usage", units=["percent"], decimals=1, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:num_threads",
 		name="Threads of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
+		retention=2 * 3600 * 1000,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Threads", units=["short"], decimals=0, stack=True)
+		grafana_config=GrafanaPanelConfig(title="Threads", units=["short"], decimals=0, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:num_filehandles",
 		name="Filehandles of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
+		retention=2 * 3600 * 1000,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Filehandles", units=["short"], decimals=0, stack=True)
+		grafana_config=GrafanaPanelConfig(title="Filehandles", units=["short"], decimals=0, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:num_http_request",
 		name="HTTP requests of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
+		retention=2 * 3600 * 1000,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="HTTP requests", units=["short"], decimals=0, stack=True)
+		grafana_config=GrafanaPanelConfig(title="HTTP requests", units=["short"], decimals=0, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:http_response_bytes",
 		name="HTTP response size of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
+		retention=2 * 3600 * 1000,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True)
+		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:http_request_duration",
 		name="Duration of HTTP requests processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		aggregation="avg",
-		retention=24 * 3600 * 1000,
+		retention=2 * 3600 * 1000,
 		zero_if_missing=False,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(type="heatmap", title="Duration of HTTP requests", units=["s"], decimals=0)
+		grafana_config=GrafanaPanelConfig(type="heatmap", title="Duration of HTTP requests", units=["s"], decimals=0),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="client:num_http_request",

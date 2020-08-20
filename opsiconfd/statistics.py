@@ -68,27 +68,19 @@ def setup_metric_downsampling() -> None:
 	for metric in metrics_registry.get_metrics():
 		logger.devel("metric id %s", metric.id)
 		if metric.downsampling:
-
 			# logger.devel("name: %s", metric.name)
 			# logger.devel("redis_key %s", metric.redis_key)
-
 			# logger.devel("downsampling: %s", metric.downsampling)
-
 			# logger.devel("node name: %s", get_node_name())
-
-			
 			logger.devel(metric.subject)
-
 			# if ("node_name" in metric.vars and "worker_num" in metric.vars):
-			if metric.subject == "worker":
-				
+			if metric.subject == "worker":	
 				redis_keys = redis_client.scan_iter("opsiconfd:worker_registry:*")
-
-				for worker_registry in redis_keys:
-					worker_registry = worker_registry.decode("utf8")
-					logger.devel("worker_registry %s", worker_registry)
-					node_name = worker_registry.split(":")[-2]
-					worker_num = worker_registry.split(":")[-1]
+				for worker in range(1, config.workers+1):
+					
+					logger.devel("worker %s", worker)
+					node_name = get_node_name()
+					worker_num = worker
 					logger.devel("worker: %s:%s", node_name, worker_num)
 					logger.devel(f"{metric.redis_key}")
 					logger.devel(metric.redis_key.format(node_name=node_name, worker_num=worker_num))
@@ -97,7 +89,7 @@ def setup_metric_downsampling() -> None:
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
 					logger.devel(cmd)
 					redis_client.execute_command(cmd)
-					source_key = orig_key
+					
 					for idx, rule in enumerate(metric.downsampling):
 						logger.devel("###### %s", idx)
 						logger.devel(rule[0])
@@ -113,10 +105,10 @@ def setup_metric_downsampling() -> None:
 						redis_client.execute_command(cmd)
 						
 						time_bucket = get_time_bucket(rule[0])
-						cmd = f"TS.CREATERULE {source_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
+						cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
 						logger.devel(cmd)
 						redis_client.execute_command(cmd)
-						source_key = key
+				
 
 
 def get_time_bucket(interval: str ) -> int:

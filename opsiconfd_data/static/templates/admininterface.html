@@ -5,6 +5,8 @@
 	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
 
 	<script src="/static/javascript/admininterface.js"></script>
+	<script src="/static/javascript/msgpack.js"></script>
+	<script src="/static/javascript/log_viewer.js"></script>
 </head>
 
 <body onload="onLoad();">
@@ -19,6 +21,7 @@
 				<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
 				<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
 				<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
+				<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
 			</div>
 
 
@@ -112,6 +115,25 @@
 				<div id="resultRedis">
 					<pre class="redis-result" id="redis-result"></pre>
 				</div>
+			</div>
+			<div id="log-viewer" class="tabcontent">
+				<!-- <div class="adminpage-box"> -->
+					<!-- <script>
+						startLog();
+					</script> -->
+					<!--
+					<label for="log-channel">Log channel:</label>
+					<select id="log-channel">
+						<option value="">*all</option>
+					</select>
+					-->
+					<div id="log-settings">
+						Font size:
+						<button id="decrease-font-size" onclick="change_font_size(-1);">-</button>
+						<button id="increase-font-size" onclick="change_font_size(+1);">+</button>
+					</div>
+					<div id="log-container" style="font-size: 14px;" />
+				<!-- </div> -->
 			</div>
 
 		</div>

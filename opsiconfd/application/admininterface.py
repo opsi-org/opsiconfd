@@ -151,6 +151,7 @@ async def get_rpc_list() -> list:
 
 async def get_rpc_count() -> int: 
 	redis_client = await get_redis_client()
+	logger.devel("HUHU LOG VIewer")
 
 	count = await redis_client.get("opsiconfd:stats:num_rpcs")
 	if count:

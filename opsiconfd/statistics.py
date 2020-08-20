@@ -266,7 +266,7 @@ metrics_registry.register(
 		id="client:num_http_request",
 		name="HTTP requests of Client {client_addr}",
 		vars=["client_addr"],
-		retention=2 * 3600 * 1000,
+		retention=24 * 3600 * 1000,
 		subject="client",
 		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=False)
 	)

@@ -58,56 +58,30 @@ def get_yappi_tag() -> int:
 
 def setup_metric_downsampling() -> None:
 
-	logger.devel("get_worker_processes: %s", get_worker_processes())
-
 	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
-	redis_keys = redis_client.scan_iter("*")
-	logger.devel("redis keys:")
-	for key in redis_keys:
-		logger.devel(key)
 
 	for metric in metrics_registry.get_metrics():
-		logger.devel("metric id %s", metric.id)
 		if metric.downsampling:
-			# logger.devel("name: %s", metric.name)
-			# logger.devel("redis_key %s", metric.redis_key)
-			# logger.devel("downsampling: %s", metric.downsampling)
-			# logger.devel("node name: %s", get_node_name())
-			logger.devel(metric.subject)
-			# if ("node_name" in metric.vars and "worker_num" in metric.vars):
 			if metric.subject == "worker":	
-				redis_keys = redis_client.scan_iter("opsiconfd:worker_registry:*")
 				for worker in range(1, config.workers+1):
-					
-					logger.devel("worker %s", worker)
 					node_name = get_node_name()
 					worker_num = worker
-					logger.devel("worker: %s:%s", node_name, worker_num)
-					logger.devel(f"{metric.redis_key}")
-					logger.devel(metric.redis_key.format(node_name=node_name, worker_num=worker_num))
+					logger.debug("worker: %s:%s", node_name, worker_num)
 					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
-					logger.devel("orig_key: %s", orig_key)
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
-					logger.devel(cmd)
+					logger.debug("REDIS CMD: %s", cmd)
 					try:
 						redis_client.execute_command(cmd)
 					except RedisResponseError as e:
-						logger.devel(str(e))
 						if str(e) != "TSDB: key already exists":
 							raise RedisResponseError(e)
 					
 					for idx, rule in enumerate(metric.downsampling):
-						logger.devel("###### %s", idx)
-						logger.devel(rule[0])
-						logger.devel(rule[1])	
-						logger.devel("###### %s", idx)
-
 						key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
 						key = f"{key}:{rule[0]}"
 						retention_time = rule[1]
-						
 						cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
-						logger.devel(cmd)
+						logger.debug("REDIS CMD: %s", cmd)
 						try:
 							redis_client.execute_command(cmd)
 						except RedisResponseError as e: 
@@ -116,7 +90,7 @@ def setup_metric_downsampling() -> None:
 						
 						time_bucket = get_time_bucket(rule[0])
 						cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
-						logger.devel(cmd)
+						logger.debug("REDIS CMD: %s", cmd)
 						try:
 							redis_client.execute_command(cmd)
 						except RedisResponseError as e: 
@@ -124,9 +98,7 @@ def setup_metric_downsampling() -> None:
 								raise RedisResponseError(e)
 				
 
-
 def get_time_bucket(interval: str ) -> int:
-	logger.devel("interval: %s", interval)
 	time_buckets = {
 		"minute": 60 * 1000,
 		"hour": 3600 * 1000,
@@ -139,15 +111,6 @@ def get_time_bucket(interval: str ) -> int:
 	
 	return time_bucket
 
-
-# downsampling={
-# 	"minute"
-# 	"hour": 24 * 3600 * 1000,
-# 	"4hour": 24 * 3600 * 1000,
-# 	"day": 24 * 3600 * 1000
-# 	"week"
-# 	"month"
-# }
 class Metric:
 	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,
 				subject: str = "worker", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None, downsampling: List = None):

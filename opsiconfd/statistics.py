@@ -76,7 +76,7 @@ def setup_metric_downsampling() -> None:
 						if str(e) != "TSDB: key already exists":
 							raise RedisResponseError(e)
 					
-					for idx, rule in enumerate(metric.downsampling):
+					for rule in metric.downsampling:
 						key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
 						key = f"{key}:{rule[0]}"
 						retention_time = rule[1]

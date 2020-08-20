@@ -61,41 +61,41 @@ def setup_metric_downsampling() -> None:
 	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
 
 	for metric in metrics_registry.get_metrics():
-		if metric.downsampling:
-			if metric.subject == "worker":	
-				for worker in range(1, config.workers+1):
-					node_name = get_node_name()
-					worker_num = worker
-					logger.debug("worker: %s:%s", node_name, worker_num)
-					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
-					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
-					logger.debug("REDIS CMD: %s", cmd)
-					try:
-						redis_client.execute_command(cmd)
-					except RedisResponseError as e:
-						if str(e) != "TSDB: key already exists":
-							raise RedisResponseError(e)
-					
-					for rule in metric.downsampling:
-						key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
-						key = f"{key}:{rule[0]}"
-						retention_time = rule[1]
-						cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
-						logger.debug("REDIS CMD: %s", cmd)
-						try:
-							redis_client.execute_command(cmd)
-						except RedisResponseError as e: 
-							if str(e) != "TSDB: key already exists":
-								raise RedisResponseError(e)
-						
-						time_bucket = get_time_bucket(rule[0])
-						cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
-						logger.debug("REDIS CMD: %s", cmd)
-						try:
-							redis_client.execute_command(cmd)
-						except RedisResponseError as e: 
-							if str(e) != "TSDB: the destination key already has a rule":
-								raise RedisResponseError(e)
+		if not metric.downsampling or metric.subject != "worker":
+			continue
+		for worker in range(1, config.workers+1):
+			node_name = get_node_name()
+			worker_num = worker
+			logger.debug("worker: %s:%s", node_name, worker_num)
+			orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+			cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
+			logger.debug("REDIS CMD: %s", cmd)
+			try:
+				redis_client.execute_command(cmd)
+			except RedisResponseError as e:
+				if str(e) != "TSDB: key already exists":
+					raise RedisResponseError(e)
+			
+			for rule in metric.downsampling:
+				key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+				key = f"{key}:{rule[0]}"
+				retention_time = rule[1]
+				cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
+				logger.debug("REDIS CMD: %s", cmd)
+				try:
+					redis_client.execute_command(cmd)
+				except RedisResponseError as e: 
+					if str(e) != "TSDB: key already exists":
+						raise RedisResponseError(e)
+				
+				time_bucket = get_time_bucket(rule[0])
+				cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
+				logger.debug("REDIS CMD: %s", cmd)
+				try:
+					redis_client.execute_command(cmd)
+				except RedisResponseError as e: 
+					if str(e) != "TSDB: the destination key already has a rule":
+						raise RedisResponseError(e)
 				
 
 def get_time_bucket(interval: str ) -> int:
@@ -108,7 +108,8 @@ def get_time_bucket(interval: str ) -> int:
 		"year": 365 * 24 * 3600 * 1000
 	}
 	time_bucket = time_buckets.get(interval)
-	
+	if time_bucket is None:
+		raise ValueError(f"Invalid interval: {interval}")
 	return time_bucket
 
 class Metric:

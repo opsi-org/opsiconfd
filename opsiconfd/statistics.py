@@ -202,7 +202,7 @@ metrics_registry.register(
 		retention=24 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Memory usage", units=["decbytes"], stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000], ["day", 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:cpu_percent",
@@ -212,7 +212,7 @@ metrics_registry.register(
 		retention=24 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="CPU usage", units=["percent"], decimals=1, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000], ["day", 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:num_threads",
@@ -221,7 +221,7 @@ metrics_registry.register(
 		retention=24 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Threads", units=["short"], decimals=0, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000], ["day", 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:num_filehandles",
@@ -230,7 +230,7 @@ metrics_registry.register(
 		retention=24 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Filehandles", units=["short"], decimals=0, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000], ["day", 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:num_http_request",
@@ -239,7 +239,7 @@ metrics_registry.register(
 		retention=24 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP requests", units=["short"], decimals=0, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000], ["day", 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:http_response_bytes",
@@ -248,7 +248,7 @@ metrics_registry.register(
 		retention=24 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000], ["day", 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="worker:http_request_duration",
@@ -259,7 +259,7 @@ metrics_registry.register(
 		zero_if_missing=False,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="Duration of HTTP requests", units=["s"], decimals=0),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 7 * 24 * 3600 * 1000], ["day", 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
 		id="client:num_http_request",

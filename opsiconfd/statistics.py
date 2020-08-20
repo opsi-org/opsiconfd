@@ -36,6 +36,7 @@ from typing import Dict, List
 from ctypes import c_long
 import yappi
 from yappi import YFuncStats
+from redis import ResponseError as RedisResponseError
 from aredis.exceptions import ResponseError 
 
 from starlette.datastructures import MutableHeaders
@@ -88,7 +89,12 @@ def setup_metric_downsampling() -> None:
 					logger.devel("orig_key: %s", orig_key)
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
 					logger.devel(cmd)
-					redis_client.execute_command(cmd)
+					try:
+						redis_client.execute_command(cmd)
+					except RedisResponseError as e:
+						logger.devel(str(e))
+						if str(e) != "TSDB: key already exists":
+							raise RedisResponseError(e)
 					
 					for idx, rule in enumerate(metric.downsampling):
 						logger.devel("###### %s", idx)
@@ -102,12 +108,20 @@ def setup_metric_downsampling() -> None:
 						
 						cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
 						logger.devel(cmd)
-						redis_client.execute_command(cmd)
+						try:
+							redis_client.execute_command(cmd)
+						except RedisResponseError as e: 
+							if str(e) != "TSDB: key already exists":
+								raise RedisResponseError(e)
 						
 						time_bucket = get_time_bucket(rule[0])
 						cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
 						logger.devel(cmd)
-						redis_client.execute_command(cmd)
+						try:
+							redis_client.execute_command(cmd)
+						except RedisResponseError as e: 
+							if str(e) != "TSDB: the destination key already has a rule":
+								raise RedisResponseError(e)
 				
 
 

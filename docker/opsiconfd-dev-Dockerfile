@@ -29,6 +29,7 @@ RUN apt-get update \
 		libmariadb-dev \
 		tini \
 		psmisc \
+		librsync1 \
 	#&& pip install "poetry==$POETRY_VERSION" \
 	&& pip install "poetry"
 

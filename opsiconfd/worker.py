@@ -117,7 +117,7 @@ def init_worker():
 		signal.signal(signal.SIGHUP, signal_handler)
 		init_logging(log_mode=config.log_mode, is_worker=True)
 	
-	logger.notice("Init worker: %s", os.getpid())
+	logger.notice("Init worker (pid %s)", os.getpid())
 	loop = asyncio.get_event_loop()
 	loop.set_debug(config.debug)
 	loop.set_default_executor(get_pool_executor())

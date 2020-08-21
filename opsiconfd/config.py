@@ -25,6 +25,7 @@ import re
 import sys
 import codecs
 import getpass
+import socket
 import configargparse
 from typing import Union
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentTypeError, SUPPRESS
@@ -32,6 +33,7 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentTypeError, SUPPRESS
 from .utils import Singleton
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
+fqdn = socket.getfqdn()
 
 def upgrade_config_files():
 	defaults = {}
@@ -408,7 +410,7 @@ parser.add(
 parser.add(
 	"--grafana-external-url",
 	env_var="OPSICONFD_GRAFANA_EXTERNAL_URL",
-	default="http://grafana:3000",
+	default=f"http://{fqdn}:3000",
 	help="External grafana base url."
 )
 parser.add(

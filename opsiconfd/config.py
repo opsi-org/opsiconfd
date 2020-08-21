@@ -257,11 +257,11 @@ parser.add(
 parser.add(
 	"--log-format-file",
 	env_var="OPSICONFD_LOG_FORMAT_FILE",
-	default="[%(opsilevel)d] [%(asctime)s.%(msecs)03d] %(message)s   (%(filename)s:%(lineno)d)",
+	default="[%(opsilevel)d] [%(asctime)s.%(msecs)03d] [%(contextstring)-15s] %(message)s   (%(filename)s:%(lineno)d)",
 	help="Set the log format for logfiles."
 )
 parser.add(
-	"--log-level-stderr",
+	"-l", "--log-level-stderr",
 	env_var="OPSICONFD_LOG_LEVEL_STDERR",
 	type=int,
 	default=4,

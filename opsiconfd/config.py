@@ -29,7 +29,6 @@ import configargparse
 from typing import Union
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentTypeError, SUPPRESS
 
-from OPSI.Util import getfqdn
 from .utils import Singleton
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
@@ -409,7 +408,7 @@ parser.add(
 parser.add(
 	"--grafana-external-url",
 	env_var="OPSICONFD_GRAFANA_EXTERNAL_URL",
-	default=f"http://{getfqdn()}:3000",
+	default="http://grafana:3000",
 	help="External grafana base url."
 )
 parser.add(

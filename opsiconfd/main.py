@@ -203,9 +203,6 @@ def main():
 		main_async_thread.daemon = True
 		main_async_thread.start()
 		
-		from OPSI.Util.Sync import librsyncDeltaFile, librsyncSignature, librsyncPatchFile
-		librsyncSignature("/tmp/x")
-
 		if config.workers != 1:
 			num_workers = 1
 			backend_info = get_backend().backend_info()

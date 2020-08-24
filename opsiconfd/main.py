@@ -47,7 +47,7 @@ from OPSI import __version__ as python_opsi_version
 from OPSI.Util import getPublicKey
 
 from . import __version__
-from .logging import logger, init_logging, start_redis_log_adapter_thread
+from .logging import logger, init_logging
 from .config import config
 from .server import run_gunicorn, run_uvicorn
 from .utils import get_node_name, get_worker_processes

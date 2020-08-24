@@ -251,14 +251,20 @@ class Client:
 		await self._session.close()
 	
 	async def random_data_generator(self, size=0, chunk_size=1*1000*1000):
-		sent = 0
-		while sent < size:
-			to_send = size - sent
-			if to_send > chunk_size:
-				to_send = chunk_size
-			data = b"o" * to_send
-			yield data
-			sent += len(data)
+		import tempfile
+		tf = tempfile.TemporaryFile(mode="wb+")
+		tf.write(b"o" * size)
+		tf.seek(0)
+		try:
+			sent = 0
+			while sent < size:
+				data = tf.read(chunk_size)
+				if not data:
+					break
+				yield data
+				sent += len(data)
+		finally:
+			tf.close()
 
 	async def execute_requests(self, requests, add_results=True):
 		for request in requests:
@@ -280,6 +286,7 @@ class Client:
 				data = self.random_data_generator(size)
 			else:
 				size = len(data)
+		
 		headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 		async with self.session.request(method, url=url, allow_redirects=False, data=data, headers=headers) as response:
 			end = time.perf_counter()

@@ -20,8 +20,8 @@ url = "http://pypi.uib.gmbh:8080/simple"
 python = "^3.7"
 # Get the latest python-opsi from branch 4.2
 #python-opsi = { git = "git@gitlab.uib.local:uib/python-opsi.git", branch = "v4.2" }
-#python-opsi = {path = "python-opsi"}
-python-opsi = "^4.2.0.57"
+python-opsi = {path = "python-opsi"}
+#python-opsi = "^4.2.0.57"
 gunicorn = "^20.0.4"
 uvicorn = "^0.11.3"
 fastapi = "^0.52.0"
@@ -35,7 +35,8 @@ configargparse = "^1.0"
 yappi = "^1.2.3"
 aiologger = "^0.5.0"
 aredis = "^1.1.8"
-wsgidav = "^3.0.2"
+#wsgidav = "^3.0.2"
+wsgidav = {path = "wsgidav"}
 psutil = "^5.7.0"
 aiohttp = "^3.6.2"
 dnspython = "^1.16.0"

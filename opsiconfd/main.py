@@ -59,6 +59,7 @@ from .worker import set_arbiter_pid
 async def update_worker_registry():
 	redis = aredis.StrictRedis.from_url(config.redis_internal_url)
 	node_name = get_node_name()
+	num_workers = 0
 	while True:
 		worker_num = 0
 		for worker_num, proc in enumerate(get_worker_processes()):
@@ -76,13 +77,23 @@ async def update_worker_registry():
 			await asyncio.sleep(1)
 			continue
 		
+		if worker_num > num_workers:
+			# New worker started
+			pass	
+		elif worker_num < num_workers:
+			# Worker crashed / killed
+			logger.warning("Number of workers decreased from %d to %d", num_workers, worker_num)
+		
+		num_workers = worker_num
+
 		async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:{node_name}:*"):
 			redis_key = redis_key.decode("utf-8")
 			try:
 				wn = int(redis_key.split(':')[-1])
 			except IndexError:
 				wn = -1
-			if wn == -1 or wn > worker_num:
+			if wn == -1 or wn > num_workers:
+				# Delete obsolete worker entry
 				await redis.delete(redis_key)
 		
 		for _ in range(10):

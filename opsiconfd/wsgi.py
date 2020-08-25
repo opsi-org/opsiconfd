@@ -2,10 +2,12 @@ import asyncio
 import io
 import sys
 import typing
+import tempfile
 
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Message, Receive, Scope, Send
 
+MAX_BODY_MEM_SIZE = 10 * 1000 * 1000
 
 def build_environ(scope: Scope) -> dict:
 	"""
@@ -19,7 +21,7 @@ def build_environ(scope: Scope) -> dict:
 		"SERVER_PROTOCOL": f"HTTP/{scope['http_version']}",
 		"wsgi.version": (1, 0),
 		"wsgi.url_scheme": scope.get("scheme", "http"),
-		"wsgi.input": io.BytesIO(),
+		"wsgi.input": None,
 		"wsgi.errors": sys.stdout,
 		"wsgi.multithread": True,
 		"wsgi.multiprocess": True,
@@ -49,6 +51,14 @@ def build_environ(scope: Scope) -> dict:
 		if corrected_name in environ:
 			value = environ[corrected_name] + "," + value
 		environ[corrected_name] = value
+	
+	if environ.get("CONTENT_LENGTH") is not None and int(environ["CONTENT_LENGTH"]) <= MAX_BODY_MEM_SIZE:
+		# io.BytesIO is faster than tempfile.SpooledTemporaryFile
+		environ["wsgi.input"] = io.BytesIO()
+	else:
+		#environ["wsgi.input"] = tempfile.SpooledTemporaryFile(max_size=MAX_BODY_MEM_SIZE)
+		environ["wsgi.input"] = tempfile.TemporaryFile()
+	
 	return environ
 
 
@@ -91,6 +101,7 @@ class WSGIResponder:
 					self.exc_info[1], self.exc_info[2]
 				)
 		finally:
+			environ["wsgi.input"].close()
 			if sender and not sender.done():
 				sender.cancel()  # pragma: no cover
 

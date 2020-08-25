@@ -25,7 +25,8 @@ import os
 
 from wsgidav.fs_dav_provider import FilesystemProvider
 from wsgidav.wsgidav_app import WsgiDAVApp
-from starlette.middleware.wsgi import WSGIMiddleware
+#from starlette.middleware.wsgi import WSGIMiddleware
+from ..wsgi import WSGIMiddleware
 
 from OPSI.Util import getfqdn
 

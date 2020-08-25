@@ -1,0 +1,20 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 1,
+	"iterations": 1,
+	"test_cases": [
+		{
+			"name": "WebDAV - write 100MB",
+			"requests": {
+				"test":[
+					["webdav", "PUT", "{http_client_id}.txt", "{random_data:100000000}"]
+				],
+				"teardown":[
+					["webdav", "DELETE", "{http_client_id}.txt"]
+				]
+			}
+		}
+	]
+}

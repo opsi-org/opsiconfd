@@ -798,7 +798,7 @@ description = "The opsi python library"
 name = "python-opsi"
 optional = false
 python-versions = ">=3.7,<4.0"
-version = "4.2.0.58"
+version = "4.2.0.60"
 
 [package.dependencies]
 SQLAlchemy = ">=1.3.15,<2.0.0"
@@ -1722,8 +1722,8 @@ python-magic = [
     {file = "python_magic-0.4.18-py2.py3-none-any.whl", hash = "sha256:356efa93c8899047d1eb7d3eb91e871ba2f5b1376edbaf4cc305e3c872207355"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.58.tar.gz", hash = "md5:efeef760b1415af92c3cf19d690e1b41"},
-    {file = "python_opsi-4.2.0.58-py3-none-any.whl", hash = "md5:78b40f00408449acfe4615a7ff96e66d"},
+    {file = "python-opsi-4.2.0.60.tar.gz", hash = "md5:04d8334e842b3ca03acf285ed2451c50"},
+    {file = "python_opsi-4.2.0.60-py3-none-any.whl", hash = "md5:7239a4efbe4deb7e866486f77e16ca8b"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

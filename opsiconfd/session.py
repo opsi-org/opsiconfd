@@ -219,8 +219,9 @@ class SessionMiddleware:
 			error = None
 
 			if isinstance(e, BackendAuthenticationError) or isinstance(e, BackendPermissionDeniedError):
+				logger.debug(e, exc_info=True)
 				logger.warning(e)
-
+				
 				status_code = status.HTTP_401_UNAUTHORIZED
 				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 				error = str(e)

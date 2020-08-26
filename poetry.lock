@@ -431,10 +431,10 @@ description = "A strictly RFC 4510 conforming LDAP V3 pure Python client library
 name = "ldap3"
 optional = false
 python-versions = "*"
-version = "2.8"
+version = "2.7"
 
 [package.dependencies]
-pyasn1 = ">=0.4.6"
+pyasn1 = ">=0.1.8"
 
 [[package]]
 category = "dev"
@@ -1172,7 +1172,7 @@ test = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 
 [metadata]
-content-hash = "cff429f549e7f2ec6d746e1d8570e5f5799e07b35ff9126e069350e95125c662"
+content-hash = "d4c3a6fed6ad227abde5880594534bcc751c230f37a25b3bcd7ebb0d90a6862c"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -1443,11 +1443,12 @@ lazy-object-proxy = [
     {file = "lazy_object_proxy-1.4.3-cp38-cp38-win_amd64.whl", hash = "sha256:59f79fef100b09564bc2df42ea2d8d21a64fdcda64979c0fa3db7bdaabaf6239"},
 ]
 ldap3 = [
-    {file = "ldap3-2.8-py2.6.egg", hash = "sha256:7abbb3e5f4522114e0230ec175b60ae968b938d1f8a7d8bce7789f78d871fb9f"},
-    {file = "ldap3-2.8-py2.7.egg", hash = "sha256:b399c39e80b6459e349b33fbe9787c1bcbf86de05994d41806a05c06f3e7574d"},
-    {file = "ldap3-2.8-py2.py3-none-any.whl", hash = "sha256:df27407f4991f25bd669b5bb1bc8cb9ddf44a3e713ff6b3afeb3b3c26502f88f"},
-    {file = "ldap3-2.8-py3.8.egg", hash = "sha256:bdaf568cd30fc0006c8bb4f5e6014554afeb0c4bbea1677de9706e278a4057e7"},
-    {file = "ldap3-2.8.tar.gz", hash = "sha256:59d1adcd5ead263387039e2a37d7cd772a2006b1cdb3ecfcbaab5192a601c515"},
+    {file = "ldap3-2.7-py2.6.egg", hash = "sha256:52ab557b3c4908db4a90bea16731aa714b1b54e039b54fd4c4b83994c6c48c0c"},
+    {file = "ldap3-2.7-py2.7.egg", hash = "sha256:4fd2db72d0412cc16ee86be01332095e86e361329c3579b314231eb2e56c7871"},
+    {file = "ldap3-2.7-py2.py3-none-any.whl", hash = "sha256:81df4ac8b6df10fb1f05b17c18d0cb8c4c344d5a03083c382824960ed959cf5b"},
+    {file = "ldap3-2.7-py3.8.egg", hash = "sha256:298769ab0232b3a3efa1e84881096c24526fe37911c83a11285f222fe4975efd"},
+    {file = "ldap3-2.7.tar.gz", hash = "sha256:17f04298b70bf7ecaa5db8a7d8622b5a962ef7fc2b245b2eea705ac1c24338c0"},
+    {file = "ldap3-2.7.win-amd64.exe", hash = "sha256:53aaae5bf14f3827c69600ddf4d61b88f49c055bb93060e9702c5bafd206c744"},
 ]
 macholib = [
     {file = "macholib-1.14-py2.py3-none-any.whl", hash = "sha256:c500f02867515e6c60a27875b408920d18332ddf96b4035ef03beddd782d4281"},

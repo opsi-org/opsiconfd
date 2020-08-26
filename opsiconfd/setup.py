@@ -163,8 +163,6 @@ def setup_backend():
 	try:
 		backend = get_backend()
 		depot = backend.host_getObjects(type='OpsiDepotserver', id=fqdn)
-		if depot:
-			return
 	except Exception as e:
 		logger.debug(e)
 	

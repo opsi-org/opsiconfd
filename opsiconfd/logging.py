@@ -154,7 +154,7 @@ class AsyncRedisLogAdapter:
 				src = self._log_file_template.replace('%m', ip_address)
 				src = os.path.basename(src)
 				dst = self._log_file_template.replace('%m', fqdn)
-				if src != dst:
+				if not os.path.exists(dst):
 					await self._loop.run_in_executor(None, lambda: os.symlink(src, dst))
 		except Exception as exc:
 			handle_log_exception(exc)

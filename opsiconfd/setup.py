@@ -80,8 +80,14 @@ def setup_users_and_groups():
 			add_user_to_group(config.run_as_user, "shadow")
 		if OPSI_ADMIN_GROUP in groups and config.run_as_user not in groups[OPSI_ADMIN_GROUP].gr_mem:
 			add_user_to_group(config.run_as_user, OPSI_ADMIN_GROUP)
+		if FILE_ADMIN_GROUP in groups and config.run_as_user not in groups[FILE_ADMIN_GROUP].gr_mem:
+			add_user_to_group(config.run_as_user, FILE_ADMIN_GROUP)
 		if FILE_ADMIN_GROUP in groups and users[config.run_as_user].pw_gid != groups[FILE_ADMIN_GROUP].gr_gid:
-			set_primary_group(config.run_as_user, FILE_ADMIN_GROUP)
+			try:
+				set_primary_group(config.run_as_user, FILE_ADMIN_GROUP)
+			except Exception as e:
+				# Could be a user in active directory / ldap 
+				logger.debug("Failed to set primary group of %s to %s: %s", config.run_as_user, FILE_ADMIN_GROUP, e)
 
 def setup_ssl():
 	logger.info("Setup ssl")

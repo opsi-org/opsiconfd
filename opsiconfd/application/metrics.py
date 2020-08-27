@@ -36,7 +36,7 @@ from ..logging import logger
 from ..config import config
 from ..server import get_internal_url
 from ..worker import get_redis_client
-from ..statistics import metrics_registry
+from ..statistics import metrics_registry, get_time_bucket_name, get_time_bucket
 from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE
 
 grafana_metrics_router = APIRouter()
@@ -197,18 +197,25 @@ async def grafana_query(query: GrafanaQuery):
 				"target": target.target,
 				"datapoints": []
 			}
+			logger.devel(to - from_)
+			logger.devel(query.__dict__)
+			logger.devel(target.__dict__)
 			try:
 				metric = metrics_registry.get_metric_by_name(target.target)
+				logger.devel("try 1: %s", metric)
 				vars = metric.get_vars_by_name(target.target)
 			except Exception:
 				try:
 					metric = metrics_registry.get_metric_by_redis_key(target.target)
+					logger.devel("try 2: %s", metric)
 					vars = metric.get_vars_by_redis_key(target.target)
 				except Exception as exc:
 					logger.debug(exc)
 					#results.append(res)
 					continue
-			
+			redis_key =  metric.get_redis_key(**vars)
+			if get_time_bucket_name(to - from_):
+				logger.devel("TIME BUCKET NAME: %s", get_time_bucket_name(to - from_))
 			cmd = ["TS.RANGE", metric.get_redis_key(**vars), from_, to, "AGGREGATION", "avg", time_bucket]
 			try:
 				#rows = await redis.execute_command(" ".join([ str(x) for x in cmd ]))

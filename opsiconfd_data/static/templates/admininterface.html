@@ -212,6 +212,12 @@
 		if (tabName == "clients") {
 			loadClientTable()
 		}
+		if(tabName == "log-viewer"){
+			startLog()
+		}
+		else{
+			stopLog()
+		}
 
 		// Get all elements with class="tabcontent" and hide them
 		tabcontent = document.getElementsByClassName("tabcontent");

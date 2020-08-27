@@ -5,6 +5,7 @@ var MAX_LOG_LINES = 5000;
 var ws;
 
 function addRecordToLog(record) {
+	HTMLFormControlsCollection.log(record)
 	var date = new Date((record.created - (new Date()).getTimezoneOffset() * 60) * 1000);	
 	var day = String(date.getDay()).padStart(2, "0");
 	var month = String(date.getMonth() + 1).padStart(2, "0");
@@ -21,7 +22,7 @@ function addRecordToLog(record) {
 	var colorSpan = document.createElement('span');
 	colorSpan.setAttribute("class", "LEVEL_" + record.levelname);
 	
-	var colorText = document.createTextNode("[" + record.levelname.padEnd(9, ' ') + time + "]");
+	var colorText = document.createTextNode("[" + record.levelno + "][" + time + "]");
 	colorSpan.appendChild(colorText);
 
 	div.appendChild(colorSpan);

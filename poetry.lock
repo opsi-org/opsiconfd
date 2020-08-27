@@ -798,13 +798,13 @@ description = "The opsi python library"
 name = "python-opsi"
 optional = false
 python-versions = ">=3.7,<4.0"
-version = "4.2.0.60"
+version = "4.2.0.61"
 
 [package.dependencies]
 SQLAlchemy = ">=1.3.15,<2.0.0"
 colorlog = ">=4.2.1,<5.0.0"
 distro = ">=1.5.0,<2.0.0"
-ldap3 = ">=2.7,<3.0"
+ldap3 = "2.7"
 mysqlclient = ">=1.4.6,<2.0.0"
 psutil = ">=5.7.0,<6.0.0"
 pyOpenSSL = ">=19.1.0,<20.0.0"
@@ -1723,8 +1723,8 @@ python-magic = [
     {file = "python_magic-0.4.18-py2.py3-none-any.whl", hash = "sha256:356efa93c8899047d1eb7d3eb91e871ba2f5b1376edbaf4cc305e3c872207355"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.60.tar.gz", hash = "md5:04d8334e842b3ca03acf285ed2451c50"},
-    {file = "python_opsi-4.2.0.60-py3-none-any.whl", hash = "md5:7239a4efbe4deb7e866486f77e16ca8b"},
+    {file = "python-opsi-4.2.0.61.tar.gz", hash = "md5:9d134a3bd4f1b047ce6a1bfb6be55074"},
+    {file = "python_opsi-4.2.0.61-py3-none-any.whl", hash = "md5:482f7516f3a155335f2ed8523b989b39"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

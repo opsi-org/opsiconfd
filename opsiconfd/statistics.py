@@ -98,19 +98,28 @@ def setup_metric_downsampling() -> None:
 						raise RedisResponseError(e)
 				
 
-def get_time_bucket(interval: str ) -> int:
-	time_buckets = {
+time_buckets = {
 		"minute": 60 * 1000,
 		"hour": 3600 * 1000,
 		"day": 24 * 3600 * 1000,
 		"week": 7 * 24 * 3600 * 1000,
 		"month": 30 * 24 * 3600 * 1000,
 		"year": 365 * 24 * 3600 * 1000
-	}
+}
+
+def get_time_bucket(interval: str ) -> int:
 	time_bucket = time_buckets.get(interval)
 	if time_bucket is None:
 		raise ValueError(f"Invalid interval: {interval}")
 	return time_bucket
+
+def get_time_bucket_name(time: int) -> str:
+	time_bucket_name = None
+	for name, t in time_buckets.items():
+		if time >= t:
+			time_bucket_name = name
+			
+	return time_bucket_name
 
 class Metric:
 	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,

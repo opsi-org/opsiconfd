@@ -105,14 +105,14 @@ def setup_ssl():
 
 		subject = f"/C=DE/ST=RP/L=Mainz/O=uib/OU=root/CN={fqdn}/emailAddress=root@{fqdn}"
 		cmd = ["openssl", "req", "-nodes", "-x509", "-newkey", "rsa:2048", "-keyout", ca_key, "-out", ca_crt, "-subj", subject]
-		subprocess.check_call(cmd, env=get_subprocess_environment())
+		subprocess.check_output(cmd, env=get_subprocess_environment())
 
 		subject = f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsiconfd/CN={fqdn}/emailAddress=root@{fqdn}"
 		cmd = ["openssl", "req", "-nodes", "-newkey", "rsa:2048", "-keyout", srv_key, "-out", srv_csr, "-subj", subject]
-		subprocess.check_call(cmd, env=get_subprocess_environment())
+		subprocess.check_output(cmd, env=get_subprocess_environment())
 
 		cmd = ["openssl", "x509", "-req", "-in", srv_csr, "-CA", ca_crt, "-CAkey", ca_key, "-CAcreateserial", "-out", srv_crt]
-		subprocess.check_call(cmd, env=get_subprocess_environment())
+		subprocess.check_output(cmd, env=get_subprocess_environment())
 
 		if os.path.exists(config.ssl_server_key):
 			os.unlink(config.ssl_server_key)
@@ -161,8 +161,8 @@ def setup_systemd():
 		return
 	
 	logger.info("Setup systemd")
-	subprocess.call(["systemctl", "daemon-reload"], env=get_subprocess_environment())
-	subprocess.call(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment())
+	subprocess.run(["systemctl", "daemon-reload"], env=get_subprocess_environment(), capture_output=True)
+	subprocess.run(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment(), capture_output=True)
 
 def setup_backend():
 	fqdn = getLocalFqdn()

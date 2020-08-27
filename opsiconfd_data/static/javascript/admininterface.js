@@ -67,14 +67,37 @@ function deleteClientSessions() {
 }
 
 function outputResult(json, id) {
+	let text = "";
 	if (json["status"] == 200) {
 		data = json["data"]
+		let failedCount = 0;
+		let blockedCount = 0;
+		if(data["redis-keys"] != undefined){
+			data["redis-keys"].forEach(element => {
+				console.log(element);
+				if(element.includes("failed_auth")){
+					failedCount += 1;
+				}
+				else{
+					blockedCount += 1;
+				}
+			});
+		}		
 		if (data["clients"] != undefined && data["clients"].length != 0) {
-			if (json["data"]["clients"].length == 1) {
-				text = data["clients"].length + " client unblocked.";
-			} else {
-				text = data["clients"].length + " clients unblocked.";
+			if (blockedCount == 0){
+				text = "No blocked clients found."
 			}
+			else if (blockedCount == 1) {
+				text = blockedCount + " client unblocked.";
+			} else {
+				text = blockedCount + " clients unblocked.";
+			}
+			if (failedCount == 1) {
+				text = text + " Failed logins for "+ failedCount +" client deleted.";
+			} else {
+				text = text + " Failed logins for "+ failedCount +" clients deleted.";
+			}
+			
 		} else if (data["sessions"] != undefined) {
 			if (data["sessions"] != 0) {
 				text = "All sessions from client " + data["client"] + " deleted.";

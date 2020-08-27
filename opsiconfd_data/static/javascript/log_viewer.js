@@ -92,4 +92,8 @@ function change_font_size(val) {
 	cont.style.fontSize = String(size) + "px";
 }
 
-startLog();
+function stopLog(){
+	if(ws != undefined){
+		ws.close(1000, "LogViewer closed.")
+	}	
+}

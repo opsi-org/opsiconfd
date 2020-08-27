@@ -69,7 +69,6 @@ function startLog() {
 	
 	ws.onmessage = function (message) {
 		//console.log(message.data);
-		console.log("???")
 		message.data.arrayBuffer().then(function(buffer) {
 			buffer = new Uint8Array(buffer, 0);
 			var records = msgpack.deserialize(buffer, true);

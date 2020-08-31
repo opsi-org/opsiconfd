@@ -214,7 +214,9 @@ async def grafana_query(query: GrafanaQuery):
 				retention_time = 0
 				downsampling = sorted(metric.downsampling, key = lambda x: x[1])
 				for time_frame in  downsampling:
-					if get_time_bucket(time_frame[0])+1 <= (to - from_):
+					t = get_time_bucket(time_frame[0])
+					logger.devel(t*1.5)
+					if (t * 1.5) <= (to - from_):
 						redis_key_extention = time_frame[0]
 						retention_time = time_frame[1]
 					time_min = round(time.time() * 1000) - retention_time

@@ -36,7 +36,7 @@ from ..logging import logger
 from ..config import config
 from ..server import get_internal_url
 from ..worker import get_redis_client
-from ..statistics import metrics_registry, get_time_bucket_name, get_time_bucket, get_time_buckets
+from ..statistics import metrics_registry, get_time_bucket_name, get_time_bucket
 from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE
 
 grafana_metrics_router = APIRouter()
@@ -172,28 +172,19 @@ class GrafanaQueryTarget(BaseModel):
 	target: str
 	refId: str
 
-class GrafanaQueryFilter(BaseModel):
-	key: str
-	operator:str
-	value: str
-	condition: str
-
 class GrafanaQuery(BaseModel):
 	app: str
 	range: GrafanaQueryTargetRange
 	intervalMs: int
 	timezone: str
 	targets: List[GrafanaQueryTarget]
-	adhocFilters: List[GrafanaQueryFilter]
 
 @grafana_metrics_router.get('/query')
 @grafana_metrics_router.post('/query')
 async def grafana_query(query: GrafanaQuery):
 	logger.trace("Grafana query: %s", query)
-	# logger.devel(query)
 	results = []
 	redis = await get_redis_client()
-	# logger.devel(query)
 	for target in query.targets:
 		# UTC time values
 		from_ = int((datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
@@ -206,110 +197,44 @@ async def grafana_query(query: GrafanaQuery):
 				"target": target.target,
 				"datapoints": []
 			}
-			# logger.devel("time diff %s", to - from_)
-			# logger.devel(round(time.time() * 1000))
-			# logger.devel(query.__dict__)
-			# logger.devel(target.__dict__)
 			try:
 				metric = metrics_registry.get_metric_by_name(target.target)
-				# logger.devel("try 1: %s", metric)
 				vars = metric.get_vars_by_name(target.target)
 			except Exception:
 				try:
 					metric = metrics_registry.get_metric_by_redis_key(target.target)
-					logger.devel("try 2: %s", metric)
 					vars = metric.get_vars_by_redis_key(target.target)
 				except Exception as exc:
 					logger.debug(exc)
 					#results.append(res)
 					continue
 
-			
-		
-			redis_key_extention = None
 			redis_key =  metric.get_redis_key(**vars)
 			if metric.downsampling:
-
-				# logger.devel("####")
-				# logger.devel("Metric retention time %s", metric.retention)
-				# logger.devel("time: %s", round(time.time() * 1000))
-				# logger.devel("from: %s", from_)
-				# logger.devel("to: %s", to)
-				# logger.devel("diff: %s", round(time.time() * 1000) - from_)
-				# logger.devel("diff time_bucket - retention: %s",  metric.retention - (round(time.time() * 1000) - from_))
-				# logger.devel("times: %s", get_time_buckets())
-				logger.devel("###")
 				retention_time = 0
-				redis_key_extention = None
 				downsampling = sorted(metric.downsampling, key = lambda x: x[1])
-				logger.devel(downsampling)
 				for time_frame in  downsampling:
-					
-					# logger.devel(time_frame[0])
-					# logger.devel(time_frame[1])
-					if get_time_bucket(time_frame[0]) <= (to - from_):
-						logger.devel(time_frame)
+					if get_time_bucket(time_frame[0])+1 <= (to - from_):
 						redis_key_extention = time_frame[0]
-						# logger.devel("last data point: %s", (round(time.time() * 1000) - time_frame[1]))
-						# logger.devel("from: %s", from_ )
-						# logger.devel("diff: %s ",  (round(time.time() * 1000) - time_frame[1]) - from_)
-						# if (from_ - (round(time.time() * 1000) - time_frame[1])) < 0:
-						# 	logger.error("No Data")
 						retention_time = time_frame[1]
 					time_min = round(time.time() * 1000) - retention_time
 					if redis_key_extention and (from_ - time_min) < 0: 
-						logger.devel(redis_key_extention)
 						redis_key_extention = time_frame[0]
 						retention_time = time_frame[1]
-						logger.warning("Data out of range. Using next higher time bucket (%s).", time_frame[0])
-					
+						logger.warning("Data out of range. Using next higher time bucket (%s).", time_frame[0])	
 				time_bucket = get_time_bucket(redis_key_extention)
-				logger.devel("###")
-					# logger.error( (round(time.time() * 1000) - time_frame[1]))
-					# if  (round(time.time() * 1000) - time_frame[1]) < from_:
-				
-				
-				# logger.devel("time_bucket: %s",  time_bucket)
-				# logger.devel("redis key extention: %s", redis_key_extention)
-				# logger.devel("####")
-			
-				
+
 				redis_key = f"{redis_key}:{redis_key_extention}"
-				logger.devel(redis_key)
-			
-			# if get_time_bucket_name(to - from_):
-				# logger.devel("TIME BUCKET NAME: %s", get_time_bucket_name(to - from_))
+
 			cmd = ["TS.RANGE", redis_key, from_, to, "AGGREGATION", metric.aggregation, time_bucket]
-			logger.devel(cmd)
 			try:
 				#rows = await redis.execute_command(" ".join([ str(x) for x in cmd ]))
 				rows = await redis.execute_command(*cmd)
-				# logger.devel("redis rows: %s", rows)
 			except aredis.exceptions.ResponseError as exc:
 				logger.debug("%s %s", cmd, exc)
-				logger.devel("%s %s", cmd, exc)
 				rows = []
 			# [ [value1, timestamp1], [value2, timestamp2] ] # Metric value, unixtimestamp (milliseconds since Jan 01 1970 UTC)
 			res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), int(r[0])] for r in rows ]
 			logger.trace("Grafana query result: %s", res)
 			results.append(res)
-			# logger.devel("res: %s", res)
 	return results
-
-
-@grafana_metrics_router.get('/tag-keys')
-@grafana_metrics_router.post('/tag-keys')
-async def grafana_tag_keys():
-	logger.devel("tag_keys")
-	tag_keys = json.dumps('[{"type":"string","text":"resolution"}]')
-	logger.devel(tag_keys)
-	return [{"type":"string","text":"resolution"}]
-
-@grafana_metrics_router.get('/tag-values')
-@grafana_metrics_router.post('/tag-values')
-async def grafana_tag_values():
-	# logger.devel(request)
-	logger.devel("tag_values")
-	tag_values = json.dumps('[{"text":"minute"}, {"text":"hour"}]')
-	logger.devel(tag_values)
-	return [{"text":"minute"}, {"text":"hour"}]

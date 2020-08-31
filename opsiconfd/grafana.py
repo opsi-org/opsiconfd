@@ -89,17 +89,7 @@ GRAFANA_DASHBOARD_TEMPLATE = {
 	"style": "dark",
 	"tags": [],
 	"templating": {
-		"list": [
-			{
-				"datasource": "opsiconfd",
-				"filters": [],
-				"hide": 0,
-				"label": None,
-				"name": "Filter",
-				"skipUrlSync": False,
-				"type": "adhoc"
-			}
-		]
+		"list": []
 	},
 	"time": {
 		"from": "now-5m",

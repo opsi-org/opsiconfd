@@ -212,19 +212,19 @@ async def grafana_query(query: GrafanaQuery):
 			redis_key =  metric.get_redis_key(**vars)
 			if metric.downsampling:
 				retention_time = 0
+				redis_key_extention = None
 				downsampling = sorted(metric.downsampling, key = lambda x: x[1])
 				for time_frame in  downsampling:
-					t = get_time_bucket(time_frame[0])
-					logger.devel(t*1.5)
-					if (t * 1.5) <= (to - from_):
+					if not redis_key_extention and (to - from_) <= time_frame[1]:
 						redis_key_extention = time_frame[0]
 						retention_time = time_frame[1]
+						time_bucket = get_time_bucket(redis_key_extention)
 					time_min = round(time.time() * 1000) - retention_time
 					if redis_key_extention and (from_ - time_min) < 0: 
 						redis_key_extention = time_frame[0]
 						retention_time = time_frame[1]
+						time_bucket = get_time_bucket(redis_key_extention)
 						logger.warning("Data out of range. Using next higher time bucket (%s).", time_frame[0])	
-				time_bucket = get_time_bucket(redis_key_extention)
 
 				redis_key = f"{redis_key}:{redis_key_extention}"
 

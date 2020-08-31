@@ -113,6 +113,12 @@ def get_time_bucket(interval: str ) -> int:
 		raise ValueError(f"Invalid interval: {interval}")
 	return time_bucket
 
+def get_time_buckets() -> list:
+	times = []
+	for time in time_buckets.values():
+		times.append(time)
+	return times
+
 def get_time_bucket_name(time: int) -> str:
 	time_bucket_name = None
 	for name, t in time_buckets.items():

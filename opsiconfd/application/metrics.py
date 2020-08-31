@@ -211,31 +211,31 @@ async def grafana_query(query: GrafanaQuery):
 
 			redis_key =  metric.get_redis_key(**vars)
 			retention_time = metric.retention
-			redis_key_extention = None
+			redis_key_extension = None
 			
 			if metric.downsampling:
 				downsampling = sorted(metric.downsampling, key = lambda x: x[1])
 				if not (to - from_) <= retention_time:			
 					for time_frame in downsampling:			
 						if (to - from_) <= time_frame[1]:	
-							redis_key_extention = time_frame[0]
+							redis_key_extension = time_frame[0]
 							retention_time = time_frame[1]
-							time_bucket = get_time_bucket(redis_key_extention)
+							time_bucket = get_time_bucket(redis_key_extension)
 							break
 
 				time_min = round(time.time() * 1000) - retention_time
 				if (from_ - time_min + 5000)  < 0:
 					for time_frame in downsampling:	
-						redis_key_extention = time_frame[0]
+						redis_key_extension = time_frame[0]
 						retention_time = time_frame[1]
-						time_bucket = get_time_bucket(redis_key_extention)
+						time_bucket = get_time_bucket(redis_key_extension)
 						time_min = round(time.time() * 1000) - retention_time
 						if (from_ - time_min + 5000)  >= 0:
 							break
-					logger.warning("Data out of range. Using next higher time bucket (%s).", redis_key_extention)
+					logger.warning("Data out of range. Using next higher time bucket (%s).", redis_key_extension)
 						
-			if redis_key_extention:			
-				redis_key = f"{redis_key}:{redis_key_extention}"
+			if redis_key_extension:			
+				redis_key = f"{redis_key}:{redis_key_extension}"
 
 			cmd = ["TS.RANGE", redis_key, from_, to, "AGGREGATION", metric.aggregation, time_bucket]	
 			try:

@@ -190,7 +190,7 @@ class GrafanaQuery(BaseModel):
 @grafana_metrics_router.post('/query')
 async def grafana_query(query: GrafanaQuery):
 	logger.trace("Grafana query: %s", query)
-	logger.devel(query)
+	# logger.devel(query)
 	results = []
 	redis = await get_redis_client()
 	# logger.devel(query)
@@ -206,8 +206,8 @@ async def grafana_query(query: GrafanaQuery):
 				"target": target.target,
 				"datapoints": []
 			}
-			logger.devel("time diff %s", to - from_)
-			logger.devel(round(time.time() * 1000))
+			# logger.devel("time diff %s", to - from_)
+			# logger.devel(round(time.time() * 1000))
 			# logger.devel(query.__dict__)
 			# logger.devel(target.__dict__)
 			try:
@@ -238,16 +238,36 @@ async def grafana_query(query: GrafanaQuery):
 				# logger.devel("diff: %s", round(time.time() * 1000) - from_)
 				# logger.devel("diff time_bucket - retention: %s",  metric.retention - (round(time.time() * 1000) - from_))
 				# logger.devel("times: %s", get_time_buckets())
-				for time_frame in  metric.downsampling:
-					logger.devel(time_frame)
-					logger.devel(time_frame[0])
-					logger.devel(time_frame[1])
+				logger.devel("###")
+				retention_time = 0
+				redis_key_extention = None
+				downsampling = sorted(metric.downsampling, key = lambda x: x[1])
+				logger.devel(downsampling)
+				for time_frame in  downsampling:
+					
+					# logger.devel(time_frame[0])
+					# logger.devel(time_frame[1])
 					if get_time_bucket(time_frame[0]) <= (to - from_):
+						logger.devel(time_frame)
 						redis_key_extention = time_frame[0]
-					time_bucket = get_time_bucket(redis_key_extention)
-					logger.error( (round(time.time() * 1000) - time_frame[1]))
+						# logger.devel("last data point: %s", (round(time.time() * 1000) - time_frame[1]))
+						# logger.devel("from: %s", from_ )
+						# logger.devel("diff: %s ",  (round(time.time() * 1000) - time_frame[1]) - from_)
+						# if (from_ - (round(time.time() * 1000) - time_frame[1])) < 0:
+						# 	logger.error("No Data")
+						retention_time = time_frame[1]
+					time_min = round(time.time() * 1000) - retention_time
+					if redis_key_extention and (from_ - time_min) < 0: 
+						logger.devel(redis_key_extention)
+						redis_key_extention = time_frame[0]
+						retention_time = time_frame[1]
+						logger.warning("Data out of range. Using next higher time bucket (%s).", time_frame[0])
+					
+				time_bucket = get_time_bucket(redis_key_extention)
+				logger.devel("###")
+					# logger.error( (round(time.time() * 1000) - time_frame[1]))
 					# if  (round(time.time() * 1000) - time_frame[1]) < from_:
-					# 	logger.error("No Data")
+				
 				
 				# logger.devel("time_bucket: %s",  time_bucket)
 				# logger.devel("redis key extention: %s", redis_key_extention)
@@ -255,7 +275,7 @@ async def grafana_query(query: GrafanaQuery):
 			
 				
 				redis_key = f"{redis_key}:{redis_key_extention}"
-			
+				logger.devel(redis_key)
 			
 			# if get_time_bucket_name(to - from_):
 				# logger.devel("TIME BUCKET NAME: %s", get_time_bucket_name(to - from_))

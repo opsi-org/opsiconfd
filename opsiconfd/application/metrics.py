@@ -210,7 +210,7 @@ async def grafana_query(query: GrafanaQuery):
 					continue
 
 			redis_key =  metric.get_redis_key(**vars)
-			if metric.downsampling:
+			if metric.downsampling and not (to - from_) <= metric.retention:
 				retention_time = 0
 				redis_key_extention = None
 				downsampling = sorted(metric.downsampling, key = lambda x: x[1])
@@ -228,7 +228,7 @@ async def grafana_query(query: GrafanaQuery):
 
 				redis_key = f"{redis_key}:{redis_key_extention}"
 
-			cmd = ["TS.RANGE", redis_key, from_, to, "AGGREGATION", metric.aggregation, time_bucket]
+			cmd = ["TS.RANGE", redis_key, from_, to, "AGGREGATION", metric.aggregation, time_bucket]	
 			try:
 				#rows = await redis.execute_command(" ".join([ str(x) for x in cmd ]))
 				rows = await redis.execute_command(*cmd)

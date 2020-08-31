@@ -99,12 +99,12 @@ def setup_metric_downsampling() -> None:
 				
 
 time_buckets = {
-		"minute": 60 * 1000,
-		"hour": 3600 * 1000,
-		"day": 24 * 3600 * 1000,
-		"week": 7 * 24 * 3600 * 1000,
-		"month": 30 * 24 * 3600 * 1000,
-		"year": 365 * 24 * 3600 * 1000
+	"minute": 60 * 1000,
+	"hour": 3600 * 1000,
+	"day": 24 * 3600 * 1000,
+	"week": 7 * 24 * 3600 * 1000,
+	"month": 30 * 24 * 3600 * 1000,
+	"year": 365 * 24 * 3600 * 1000
 }
 
 def get_time_bucket(interval: str ) -> int:

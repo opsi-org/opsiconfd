@@ -60,17 +60,16 @@ async def exception_handler(request: Request, exception: Exception):
 
 metrics_registry.register(
 	Metric(
-		id="worker:num_rpcs",
-		name="RPCs processed by worker {worker_num} on {node_name}",
+		id="worker:avg_rpc_number",
+		name="Average RPCs processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		aggregation="sum",
 		retention=24 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Remote procedure calls", units=["short"], decimals=0, stack=True, yaxis_min = 0)
 	),
 	Metric(
-		id="worker:rpc_duration",
-		name="Duration of RPCs processed by worker {worker_num} on {node_name}",
+		id="worker:avg_rpc_duration",
+		name="Average duration of RPCs processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
 		zero_if_missing=False,
@@ -128,14 +127,14 @@ async def process_jsonrpc(request: Request, response: Response):
 			task = run_in_threadpool(process_rpc, request, response, rpc, backend)
 			tasks.append(task)
 		
-		await get_metrics_collector().add_value("worker:num_rpcs", len(jsonrpc), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		await get_metrics_collector().add_value("worker:avg_rpc_number", len(jsonrpc), {"node_name": get_node_name(), "worker_num": get_worker_num()})
 
 		#context_jsonrpc_call_id.set(myid)
 		#print(f"start {myid}")
 		results = []
 		for result in await asyncio.gather(*tasks):
 			results.append(result[0])
-			await get_metrics_collector().add_value("worker:rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
+			await get_metrics_collector().add_value("worker:avg_rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
 			redis_client = await get_redis_client()
 			rpc_count = await redis_client.incr("opsiconfd:stats:num_rpcs")
 			error = bool(result[0].get("error"))

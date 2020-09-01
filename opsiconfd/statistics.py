@@ -64,12 +64,10 @@ def setup_metric_downsampling() -> None:
 		if not metric.downsampling or metric.subject != "worker":
 			continue
 		for worker in range(1, config.workers+1):
-			
 			node_name = get_node_name()
 			worker_num = worker
 			logger.debug("worker: %s:%s", node_name, worker_num)
 			orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
-			
 			cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
 			logger.debug("REDIS CMD: %s", cmd)
 			try:
@@ -80,19 +78,15 @@ def setup_metric_downsampling() -> None:
 
 			cmd = f"TS.INFO {orig_key}"
 			info = redis_client.execute_command(cmd)
-			logger.devel(info[19])
-
 			existing_rules = {}
 			for rule in info[19]:
 				rule_name = rule[0].decode("utf8").split(":")[-1] 
 				existing_rules[rule_name] = {"retention": rule[1], "aggregation": rule[2].decode("utf8")}
-			logger.devel(existing_rules)
 			for rule in metric.downsampling:
 				key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
 				key = f"{key}:{rule[0]}"
 				retention_time = rule[1]
 				cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
-				logger.debug("REDIS CMD: %s", cmd)
 				try:
 					redis_client.execute_command(cmd)
 				except RedisResponseError as e: 
@@ -100,17 +94,10 @@ def setup_metric_downsampling() -> None:
 						raise RedisResponseError(e)
 				
 				if rule[0] in existing_rules.keys():
-					logger.devel("rule in existing rules: %s - %s", rule, existing_rules)
 					old_rule = existing_rules.get(rule[0])
-					logger.devel("old aggregation: %s", old_rule.get("aggregation").lower())
-					logger.devel("new aggregation: %s", metric.aggregation.lower())
-					logger.devel("old time: %s", old_rule.get("retention"))
-					logger.devel("new time: %s",  get_time_bucket(rule[0]))
 					if get_time_bucket(rule[0]) != old_rule.get("retention") or metric.aggregation.lower() != old_rule.get("aggregation").lower():
-						logger.devel("DEL RULE")
 						cmd = f"TS.DELETERULE {orig_key} {key}"
 						redis_result = redis_client.execute_command(cmd)
-						logger.devel("REDIS RESULT: %s", redis_result)
 
 				time_bucket = get_time_bucket(rule[0])
 				cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"

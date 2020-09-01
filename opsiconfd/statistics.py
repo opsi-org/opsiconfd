@@ -122,7 +122,7 @@ def get_time_bucket_name(time: int) -> str:
 	return time_bucket_name
 
 class Metric:
-	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,
+	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "avg", retention: int = 0, zero_if_missing: bool = True,
 				subject: str = "worker", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None, downsampling: List = None):
 		assert aggregation in ("sum", "avg")
 		assert subject in ("worker", "client")
@@ -208,7 +208,6 @@ metrics_registry.register(
 		id="worker:mem_allocated",
 		name="Memory usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		aggregation="avg",
 		retention=2 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Memory usage", units=["decbytes"], stack=True),
@@ -218,7 +217,6 @@ metrics_registry.register(
 		id="worker:cpu_percent",
 		name="CPU usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		aggregation="avg",
 		retention=2 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="CPU usage", units=["percent"], decimals=1, stack=True),
@@ -237,6 +235,7 @@ metrics_registry.register(
 		id="worker:num_filehandles",
 		name="Filehandles of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
+		aggregation="sum",
 		retention=2 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Filehandles", units=["short"], decimals=0, stack=True),
@@ -246,6 +245,7 @@ metrics_registry.register(
 		id="worker:num_http_request",
 		name="HTTP requests of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
+		aggregation="sum",
 		retention=2 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP requests", units=["short"], decimals=0, stack=True),
@@ -264,7 +264,6 @@ metrics_registry.register(
 		id="worker:http_request_duration",
 		name="Duration of HTTP requests processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		aggregation="avg",
 		retention=2 * 3600 * 1000,
 		zero_if_missing=False,
 		subject="worker",
@@ -275,6 +274,7 @@ metrics_registry.register(
 		id="client:num_http_request",
 		name="HTTP requests of Client {client_addr}",
 		vars=["client_addr"],
+		aggregation="sum",
 		retention=24 * 3600 * 1000,
 		subject="client",
 		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=False)

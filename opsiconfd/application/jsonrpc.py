@@ -63,6 +63,7 @@ metrics_registry.register(
 		id="worker:num_rpcs",
 		name="RPCs processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
+		aggregation="sum",
 		retention=24 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Remote procedure calls", units=["short"], decimals=0, stack=True, yaxis_min = 0)
@@ -71,7 +72,6 @@ metrics_registry.register(
 		id="worker:rpc_duration",
 		name="Duration of RPCs processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		aggregation="avg",
 		retention=24 * 3600 * 1000,
 		zero_if_missing=False,
 		subject="worker",

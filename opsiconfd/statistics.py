@@ -75,19 +75,30 @@ def setup_metric_downsampling() -> None:
 			except RedisResponseError as e:
 				if str(e) != "TSDB: key already exists":
 					raise RedisResponseError(e)
-			
+
+			cmd = f"TS.INFO {orig_key}"
+			info = redis_client.execute_command(cmd)
+			existing_rules = {}
+			for rule in info[19]:
+				rule_name = rule[0].decode("utf8").split(":")[-1] 
+				existing_rules[rule_name] = {"retention": rule[1], "aggregation": rule[2].decode("utf8")}
 			for rule in metric.downsampling:
 				key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
 				key = f"{key}:{rule[0]}"
 				retention_time = rule[1]
 				cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
-				logger.debug("REDIS CMD: %s", cmd)
 				try:
 					redis_client.execute_command(cmd)
 				except RedisResponseError as e: 
 					if str(e) != "TSDB: key already exists":
 						raise RedisResponseError(e)
 				
+				if rule[0] in existing_rules.keys():
+					old_rule = existing_rules.get(rule[0])
+					if get_time_bucket(rule[0]) != old_rule.get("retention") or metric.aggregation.lower() != old_rule.get("aggregation").lower():
+						cmd = f"TS.DELETERULE {orig_key} {key}"
+						redis_result = redis_client.execute_command(cmd)
+
 				time_bucket = get_time_bucket(rule[0])
 				cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
 				logger.debug("REDIS CMD: %s", cmd)
@@ -122,7 +133,7 @@ def get_time_bucket_name(time: int) -> str:
 	return time_bucket_name
 
 class Metric:
-	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "sum", retention: int = 0, zero_if_missing: bool = True,
+	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "avg", retention: int = 0, zero_if_missing: bool = True,
 				subject: str = "worker", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None, downsampling: List = None):
 		assert aggregation in ("sum", "avg")
 		assert subject in ("worker", "client")
@@ -205,28 +216,26 @@ metrics_registry = MetricsRegistry()
 
 metrics_registry.register(
 	Metric(
-		id="worker:mem_allocated",
-		name="Memory usage of worker {worker_num} on {node_name}",
+		id="worker:avg_mem_allocated",
+		name="Average memory usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		aggregation="avg",
 		retention=2 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Memory usage", units=["decbytes"], stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="worker:cpu_percent",
-		name="CPU usage of worker {worker_num} on {node_name}",
+		id="worker:avg_cpu_percent",
+		name="Average CPU usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		aggregation="avg",
 		retention=2 * 3600 * 1000,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="CPU usage", units=["percent"], decimals=1, stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="worker:num_threads",
-		name="Threads of worker {worker_num} on {node_name}",
+		id="worker:avg_thread_number",
+		name="Average threads of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		subject="worker",
@@ -234,8 +243,8 @@ metrics_registry.register(
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="worker:num_filehandles",
-		name="Filehandles of worker {worker_num} on {node_name}",
+		id="worker:avg_filehandle_number",
+		name="Average filehandles of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		subject="worker",
@@ -243,8 +252,8 @@ metrics_registry.register(
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="worker:num_http_request",
-		name="HTTP requests of worker {worker_num} on {node_name}",
+		id="worker:avg_http_request_number",
+		name="Average HTTP requests of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		subject="worker",
@@ -252,8 +261,8 @@ metrics_registry.register(
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="worker:http_response_bytes",
-		name="HTTP response size of worker {worker_num} on {node_name}",
+		id="worker:avg_http_response_bytes",
+		name="Average HTTP response size of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		subject="worker",
@@ -261,10 +270,9 @@ metrics_registry.register(
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="worker:http_request_duration",
-		name="Duration of HTTP requests processed by worker {worker_num} on {node_name}",
+		id="worker:avg_http_request_duration",
+		name="Average duration of HTTP requests processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
-		aggregation="avg",
 		retention=2 * 3600 * 1000,
 		zero_if_missing=False,
 		subject="worker",
@@ -272,9 +280,10 @@ metrics_registry.register(
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="client:num_http_request",
+		id="client:sum_http_request",
 		name="HTTP requests of Client {client_addr}",
 		vars=["client_addr"],
+		aggregation="sum",
 		retention=24 * 3600 * 1000,
 		subject="client",
 		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=False)
@@ -301,10 +310,10 @@ class MetricsCollector():
 	async def _fetch_values(self):
 		if not self._proc:
 			self._proc = psutil.Process()
-		await self.add_value("worker:mem_allocated", self._proc.memory_info().rss, {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		await self.add_value("worker:cpu_percent", self._proc.cpu_percent(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		await self.add_value("worker:num_threads", self._proc.num_threads(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		await self.add_value("worker:num_filehandles", self._proc.num_fds(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		await self.add_value("worker:avg_mem_allocated", self._proc.memory_info().rss, {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		await self.add_value("worker:avg_cpu_percent", self._proc.cpu_percent(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		await self.add_value("worker:avg_thread_number", self._proc.num_threads(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		await self.add_value("worker:avg_filehandle_number", self._proc.num_fds(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
 
 	async def main_loop(self):		
 		while True:
@@ -507,8 +516,8 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 
 		# logger.debug("Client Addr: %s", contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
-			await get_metrics_collector().add_value("worker:num_http_request", 1, {"node_name": get_node_name(), "worker_num": get_worker_num()})
-			await get_metrics_collector().add_value("client:num_http_request", 1, {"client_addr": contextvar_client_address.get()})
+			await get_metrics_collector().add_value("worker:avg_http_request_number", 1, {"node_name": get_node_name(), "worker_num": get_worker_num()})
+			await get_metrics_collector().add_value("client:sum_http_request", 1, {"client_addr": contextvar_client_address.get()})
 
 			if message["type"] == "http.response.start":
 				headers = MutableHeaders(scope=message)
@@ -524,12 +533,12 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 			if scope["type"] == "http":
 				if "body" in message:
 					await get_metrics_collector().add_value(
-						"worker:http_response_bytes",
+						"worker:avg_http_response_bytes",
 						len(message['body']),
 						{"node_name": get_node_name(), "worker_num": get_worker_num()}
 					)
 				await get_metrics_collector().add_value(
-					"worker:http_request_duration",
+					"worker:avg_http_request_duration",
 					end - start,
 					{"node_name": get_node_name(), "worker_num": get_worker_num()}
 				)

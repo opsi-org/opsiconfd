@@ -162,13 +162,9 @@
 		document.getElementById("json-result").style.visibility = 'hidden';
 		document.getElementById("text-result").style.visibility = 'hidden';
 		document.getElementById("redis-result").style.visibility = 'hidden';
-		// loadClientTable();
-		// loadRPCTable('rpc_num', false);
 
 		document.getElementById("jsonrpc-result").style.visibility = 'hidden';
 		document.getElementById("jsonrpc-request").style.visibility = 'hidden';
-		// createParamInputs();
-
 
 	}
 
@@ -204,9 +200,6 @@
 	function openTab(evt, tabName) {
 		// Declare all variables
 		var i, tabcontent, tablinks;
-
-		console.log("TAB NAME: " + tabName);
-		console.log(tabName == "rpcInfos");
 
 		if (tabName == "rpcInfos") {
 			loadRPCTable("rpc_num", false)

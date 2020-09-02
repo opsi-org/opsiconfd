@@ -383,7 +383,6 @@ function callJSONRPC() {
 			result = request.responseText
 			result = JSON.parse(result);
 			outputToHTML(result, "jsonrpc-result");
-			// loadRPCTable("rpc_num", false);
 			return result;
 
 		} else {

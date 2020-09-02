@@ -33,8 +33,8 @@ async def admin_interface_index(request: Request):
 	time = datetime.datetime.now() - datetime.timedelta(days=2)
 	date_first_rpc = time.strftime("%m/%d/%Y, %H:%M:%S")
 
-	blocked_clients = await get_blocked_clients()
-	rpc_list = await get_rpc_list()
+	# blocked_clients = await get_blocked_clients()
+	# rpc_list = await get_rpc_list()
 	rpc_count = await get_rpc_count()
 	
 	context = {
@@ -42,8 +42,6 @@ async def admin_interface_index(request: Request):
 		"interface": get_backend_interface(),
 		"rpc_count": rpc_count,
 		"date_first_rpc": date_first_rpc,
-		"rpc_list": rpc_list,
-		"blocked_clients": blocked_clients
 	}
 	return templates.TemplateResponse("admininterface.html", context)
 

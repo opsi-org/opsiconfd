@@ -33,8 +33,6 @@ async def admin_interface_index(request: Request):
 	time = datetime.datetime.now() - datetime.timedelta(days=2)
 	date_first_rpc = time.strftime("%m/%d/%Y, %H:%M:%S")
 
-	# blocked_clients = await get_blocked_clients()
-	# rpc_list = await get_rpc_list()
 	rpc_count = await get_rpc_count()
 	
 	context = {

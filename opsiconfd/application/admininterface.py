@@ -23,8 +23,10 @@ from ..worker import get_redis_client
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
 
+
 def admin_interface_setup(app):
 	app.include_router(admin_interface_router, prefix="/admin")
+
 
 @admin_interface_router.get("/?")
 async def admin_interface_index(request: Request):
@@ -33,7 +35,7 @@ async def admin_interface_index(request: Request):
 	time = datetime.datetime.now() - datetime.timedelta(days=2)
 	date_first_rpc = time.strftime("%m/%d/%Y, %H:%M:%S")
 
-	rpc_count = await get_rpc_count()
+	rpc_count = await _get_rpc_count()
 	
 	context = {
 		"request": request,
@@ -42,6 +44,7 @@ async def admin_interface_index(request: Request):
 		"date_first_rpc": date_first_rpc,
 	}
 	return templates.TemplateResponse("admininterface.html", context)
+
 
 @admin_interface_router.post("/unblock-all")
 async def unblock_all_clients(request: Request, response: Response):
@@ -97,6 +100,7 @@ async def unblock_client(request: Request):
 		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
 	return response
 
+
 @admin_interface_router.post("/delete-client-sessions")
 async def delete_client_sessions(request: Request):
 	try:
@@ -119,14 +123,21 @@ async def delete_client_sessions(request: Request):
 		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
 	return response
 
+
 @admin_interface_router.get("/rpc-list")
 async def get_rpc_list() -> list:
 
 	redis_client = await get_redis_client()
 	redis_keys = redis_client.scan_iter(f"opsiconfd:stats:rpc:*")
 
-	rpc_list = []
+	keys = []
 	async for key in redis_keys:
+		keys.append(key)
+	keys = sorted(keys, key=lambda key: get_num_from_key(key)) 
+	keys = keys[-250:]
+
+	rpc_list = []
+	for key in keys:
 		async with await redis_client.pipeline(transaction=False) as pipe:
 			await pipe.hget(key, "num_params")
 			await pipe.hget(key, "error")
@@ -145,7 +156,17 @@ async def get_rpc_list() -> list:
 	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
 	return rpc_list
 
-async def get_rpc_count() -> int: 
+
+@admin_interface_router.get("/rpc-count")
+async def get_rpc_count(): 
+	count = await _get_rpc_count()
+	time = datetime.datetime.now() - datetime.timedelta(days=2)
+	date_first_rpc = time.strftime("%m/%d/%Y, %H:%M:%S")
+
+	response = JSONResponse({"rpc_count": count, "date_first_rpc": date_first_rpc})
+	return response
+
+async def _get_rpc_count() -> int: 
 	redis_client = await get_redis_client()
 
 	count = await redis_client.get("opsiconfd:stats:num_rpcs")
@@ -166,3 +187,6 @@ async def get_blocked_clients() -> list:
 		blocked_clients.append(key.decode("utf8").split(":")[-1])
 	return blocked_clients
 
+def get_num_from_key(key):
+	num = key.decode("utf8").split(":")[-2]
+	return int(num)

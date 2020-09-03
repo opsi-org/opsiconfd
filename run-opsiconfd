@@ -10,7 +10,10 @@ try:
 	from opsiconfd.__main__ import main
 	main()
 except SystemExit:
-	raise
+	pass
+except KeyboardInterrupt:
+	print("Interrupted", file=sys.stderr)
+	sys.exit(1)
 except Exception as e:
 	# Do not let pyinstaller handle exceptions and print:
 	# "Failed to execute script run-opsiconfd"

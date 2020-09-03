@@ -181,7 +181,7 @@ function loadRPCTable(sortKey, sort) {
 				result = sortRPCTable(result, sortKey);
 			}
 			printRPCTable(result, "rpc-table-div");
-			printRPCCount(result.length);
+			// printRPCCount(result.length);
 			return result;
 		} else {
 			console.warn(request.statusText, request.responseText);
@@ -189,14 +189,31 @@ function loadRPCTable(sortKey, sort) {
 		}
 	});
 	request.send();
+	let request_count = new XMLHttpRequest();
+	request_count.open("GET", "/admin/rpc-count");
+	request_count.addEventListener('load', function (event) {
+		if (request_count.status >= 200 && request_count.status < 300) {
+			result = request_count.responseText;
+			result = JSON.parse(result);
+			console.log(result["rpc_count"]);
+			console.log(result["date_first_rpc"]);
+			printRPCCount(result["rpc_count"], result["date_first_rpc"])
+			return result;
+		} else {
+			console.warn(request_count.statusText, request_count.responseText);
+			return request_count.statusText;
+		}
+	});
+	request_count.send();
 }
 
-function printRPCCount(rpcCount) {
+function printRPCCount(rpcCount, date) {
 	p = document.getElementById("rpc-count");
-	let date = new Date(Date.now());
-	htmlStr = "Number of RPCs since " + date.toLocaleString('en-US', {
-		timeZone: 'UTC'
-	}) + " (UTC): " + rpcCount;
+	// let date = new Date(Date.now());
+	// htmlStr = "Number of RPCs since " + date.toLocaleString('en-US', {
+	// 	timeZone: 'UTC'
+	// }) + " (UTC): " + rpcCount;
+	htmlStr = "Number of RPCs since " + date + " (UTC): " + rpcCount;
 	p.innerHTML = htmlStr;
 }
 

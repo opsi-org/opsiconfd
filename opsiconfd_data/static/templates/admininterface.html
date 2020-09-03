@@ -17,8 +17,7 @@
 			<h2>Admin Interface</h2>
 
 			<div class="tab">
-				<button class="tablinks" id="startTab-button" onclick="openTab(event, 'clients')">Blocked
-					Clients</button>
+				<button class="tablinks" id="startTab-button" onclick="openTab(event, 'clients')">Blocked Clients</button>
 				<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
 				<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
 				<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
@@ -163,13 +162,9 @@
 		document.getElementById("json-result").style.visibility = 'hidden';
 		document.getElementById("text-result").style.visibility = 'hidden';
 		document.getElementById("redis-result").style.visibility = 'hidden';
-		loadClientTable();
-		loadRPCTable('rpc_num', false);
 
 		document.getElementById("jsonrpc-result").style.visibility = 'hidden';
 		document.getElementById("jsonrpc-request").style.visibility = 'hidden';
-		createParamInputs();
-
 
 	}
 
@@ -211,6 +206,9 @@
 		}
 		if (tabName == "clients") {
 			loadClientTable()
+		}
+		if (tabName == "rpcInterface") {
+			createParamInputs();
 		}
 		if(tabName == "log-viewer"){
 			startLog()

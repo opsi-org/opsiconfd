@@ -334,15 +334,6 @@ async def test_admin_interface_index(admininterface, rpc_request_data, expected_
 	test_request = Request(scope=scope)
 	response = await admininterface.admin_interface_index(test_request)
 
-	print(response.context.get("rpc_list"))
-
 	assert response.context.get("rpc_count") == expected_response.get("rpc_count")
-	assert response.context.get("blocked_clients") == ['127.0.0.1']
-	
-	for idx,rpc in enumerate(response.context.get("rpc_list")):
-		assert rpc.get("rpc_num") == idx+1
-		assert rpc.get("method") == expected_response.get("method")[idx]
-		assert int(rpc.get("params")) == expected_response.get("params")[idx]
-		assert rpc.get("error") == expected_response.get("error")[idx]
 
 

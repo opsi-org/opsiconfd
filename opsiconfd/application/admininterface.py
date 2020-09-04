@@ -150,7 +150,10 @@ async def get_rpc_list() -> list:
 		error = (redis_result[1].decode("utf8") == "True")
 		num_results = redis_result[2].decode("utf8")
 		duration = "{:.3f}".format(float(redis_result[3].decode("utf8")))
-		date = redis_result[4].decode("utf8")
+		if redis_result[4]:
+			date = redis_result[4].decode("utf8")
+		else:
+			date = datetime.date(2020,1,1).strftime('%Y-%m-%dT%H:%M:%SZ')
 		method_name = key.decode("utf8").split(":")[-1]			
 		
 		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params, "results": num_results, "date": date, "error": error, "duration": duration}

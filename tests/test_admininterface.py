@@ -134,7 +134,7 @@ async def test_get_rpc_count(admininterface, num_rpcs, expexted_value):
 
 	for i in range(0, num_rpcs):
 		call_rpc([{"id": 1, "method": "host_getIdents","params": [None]}], [False])
-	count = await admininterface.get_rpc_count()
+	count = await admininterface._get_rpc_count()
 	assert count == expexted_value
 
 

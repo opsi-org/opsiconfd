@@ -194,9 +194,8 @@ function loadRPCTable(sortKey, sort) {
 		if (request_count.status >= 200 && request_count.status < 300) {
 			result = request_count.responseText;
 			result = JSON.parse(result);
-			console.log(result["rpc_count"]);
-			console.log(result["date_first_rpc"]);
-			printRPCCount(result["rpc_count"], result["date_first_rpc"])
+			date = new Date(result["date_first_rpc"])
+			printRPCCount(result["rpc_count"], date)
 			return result;
 		} else {
 			console.warn(request_count.statusText, request_count.responseText);
@@ -208,7 +207,7 @@ function loadRPCTable(sortKey, sort) {
 
 function printRPCCount(rpcCount, date) {
 	p = document.getElementById("rpc-count");
-	htmlStr = "Number of RPCs since " + date + " (UTC): " + rpcCount;
+	htmlStr = "Number of RPCs since " + date.toLocaleString('en-US', {timeZone: 'UTC'}) + " (UTC): " + rpcCount;
 	p.innerHTML = htmlStr;
 }
 

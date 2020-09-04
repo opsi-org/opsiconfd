@@ -220,8 +220,6 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		response = serialize(response)
 
 		end = time.perf_counter()
-		logger.devel(rpc_call_time)
-		logger.devel(start)
 
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))

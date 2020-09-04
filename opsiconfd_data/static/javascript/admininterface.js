@@ -74,7 +74,7 @@ function outputResult(json, id) {
 		let blockedCount = 0;
 		if(data["redis-keys"] != undefined){
 			data["redis-keys"].forEach(element => {
-				console.log(element);
+				// console.log(element);
 				if(element.includes("failed_auth")){
 					failedCount += 1;
 				}
@@ -179,7 +179,6 @@ function loadRPCTable(sortKey, sort) {
 			}
 			if (sort) {
 				result = sortRPCTable(result, sortKey);
-				console.log(result);
 			}
 			printRPCTable(result, "rpc-table-div");
 			return result;
@@ -238,7 +237,6 @@ function printClientTable(data, htmlId) {
 }
 
 function printRPCTable(data, htmlId) {
-	console.log(data[0]);
 	let htmlStr = "<table class=\"rpc-table\">";
 	htmlStr += "<tr>";
 	keys = Object.keys(data[0]);
@@ -276,9 +274,6 @@ function printRPCTable(data, htmlId) {
 var desc = true;
 
 function sortRPCTable(data, sortKey) {
-	console.log("SORT");
-	console.log(data);
-	console.log(sortKey);
 	data = result.sort((a, b) => {
 		if (sortKey == "method") {
 			var nameA = a[sortKey].toUpperCase();
@@ -293,9 +288,6 @@ function sortRPCTable(data, sortKey) {
 		} else if (sortKey == "date"){
 			var dateA = new Date(a[sortKey])
 			var dateB = new Date(b[sortKey])
-			console.log(dateA);
-			console.log(dateB);
-			console.log(dateA < dateB);
 			if (dateA < dateB) {
 				return -1;
 			}

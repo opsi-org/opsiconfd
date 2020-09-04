@@ -161,7 +161,7 @@ async def get_rpc_list() -> list:
 async def get_rpc_count(): 
 	count = await _get_rpc_count()
 	time = datetime.datetime.now() - datetime.timedelta(days=2)
-	date_first_rpc = time.strftime("%m/%d/%Y, %H:%M:%S")
+	date_first_rpc = time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 	response = JSONResponse({"rpc_count": count, "date_first_rpc": date_first_rpc})
 	return response

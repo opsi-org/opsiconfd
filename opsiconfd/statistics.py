@@ -328,7 +328,7 @@ class MetricsCollector():
 						continue
 					if metric.subject == "client":
 						labels = {}
-						for addr in self._values[metric.id]:
+						for addr in list(self._values[metric.id]):
 							value = 0
 							count = 0
 							async with self._values_lock:

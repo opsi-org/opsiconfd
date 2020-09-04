@@ -276,7 +276,9 @@ function printRPCTable(data, htmlId) {
 var desc = true;
 
 function sortRPCTable(data, sortKey) {
-
+	console.log("SORT");
+	console.log(data);
+	console.log(sortKey);
 	data = result.sort((a, b) => {
 		if (sortKey == "method") {
 			var nameA = a[sortKey].toUpperCase();
@@ -285,6 +287,19 @@ function sortRPCTable(data, sortKey) {
 				return -1;
 			}
 			if (nameA > nameB) {
+				return 1;
+			}
+			return 0;
+		} else if (sortKey == "date"){
+			var dateA = new Date(a[sortKey])
+			var dateB = new Date(b[sortKey])
+			console.log(dateA);
+			console.log(dateB);
+			console.log(dateA < dateB);
+			if (dateA < dateB) {
+				return -1;
+			}
+			if (dateA > dateB) {
 				return 1;
 			}
 			return 0;

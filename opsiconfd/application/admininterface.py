@@ -31,7 +31,6 @@ def admin_interface_setup(app):
 @admin_interface_router.get("/?")
 async def admin_interface_index(request: Request):
 
-	now = datetime.time()
 	time = datetime.datetime.now() - datetime.timedelta(days=2)
 	date_first_rpc = time.strftime("%m/%d/%Y, %H:%M:%S")
 

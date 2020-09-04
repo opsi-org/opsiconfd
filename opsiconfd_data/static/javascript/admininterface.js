@@ -1,3 +1,5 @@
+LISTLIMIT = 250
+
 function unblockAll() {
 	let request = new XMLHttpRequest();
 	request.open("POST", "/admin/unblock-all");
@@ -169,7 +171,7 @@ function loadClientTable() {
 
 function loadRPCTable(sortKey, sort) {
 	let request = new XMLHttpRequest();
-	request.open("GET", "/admin/rpc-list");
+	request.open("GET", "/admin/rpc-list?limit=" + LISTLIMIT );
 	request.addEventListener('load', function (event) {
 		if (request.status >= 200 && request.status < 300) {
 			result = request.responseText;

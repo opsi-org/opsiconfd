@@ -124,7 +124,7 @@ async def delete_client_sessions(request: Request):
 
 
 @admin_interface_router.get("/rpc-list")
-async def get_rpc_list() -> list:
+async def get_rpc_list(limit: int = 250) -> list:
 
 	redis_client = await get_redis_client()
 	redis_keys = redis_client.scan_iter(f"opsiconfd:stats:rpc:*")
@@ -133,7 +133,7 @@ async def get_rpc_list() -> list:
 	async for key in redis_keys:
 		keys.append(key)
 	keys = sorted(keys, key=lambda key: get_num_from_key(key)) 
-	keys = keys[-250:]
+	keys = keys[-limit:]
 
 	rpc_list = []
 	for key in keys:

@@ -143,15 +143,17 @@ async def get_rpc_list() -> list:
 			await pipe.hget(key, "error")
 			await pipe.hget(key, "num_results")
 			await pipe.hget(key, "duration")
+			await pipe.hget(key, "date")
 			redis_result = await pipe.execute()
 
 		num_params = redis_result[0].decode("utf8")
 		error = (redis_result[1].decode("utf8") == "True")
 		num_results = redis_result[2].decode("utf8")
 		duration = "{:.3f}".format(float(redis_result[3].decode("utf8")))
-		method_name = key.decode("utf8").split(":")[-1]		
+		date = redis_result[4].decode("utf8")
+		method_name = key.decode("utf8").split(":")[-1]			
 		
-		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params, "results": num_results, "error": error, "duration": duration}
+		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params, "results": num_results, "date": date, "error": error, "duration": duration}
 		rpc_list.append(rpc)
 	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
 	return rpc_list

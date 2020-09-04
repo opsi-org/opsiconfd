@@ -28,6 +28,7 @@ import traceback
 import urllib.parse
 import orjson
 import asyncio
+import datetime
 from contextvars import ContextVar
 
 from fastapi import HTTPException, APIRouter
@@ -140,6 +141,7 @@ async def process_jsonrpc(request: Request, response: Response):
 			redis_client = await get_redis_client()
 			rpc_count = await redis_client.incr("opsiconfd:stats:num_rpcs")
 			error = bool(result[0].get("error"))
+			date = result[0].get("date")
 			params = [param for param in result[0].get("params", []) if param]
 			logger.trace("RPC Count: %s", rpc_count)			
 			logger.trace("params: %s", params)
@@ -151,7 +153,7 @@ async def process_jsonrpc(request: Request, response: Response):
 			logger.debug("num_results: %s", num_results)
 			redis_key = f"opsiconfd:stats:rpc:{rpc_count}:{result[0].get('method')}"
 			async with await redis_client.pipeline(transaction=False) as pipe:
-				await pipe.hmset(redis_key, {"num_params": len(params), "error": error,"num_results": num_results, "duration": result[1]})
+				await pipe.hmset(redis_key, {"num_params": len(params), "date": date, "error": error,"num_results": num_results, "duration": result[1]})
 				await pipe.expire(redis_key, 172800)
 				redis_returncode = await pipe.execute()
 
@@ -174,6 +176,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 	rpc_id = None
 	try:
 		start = time.perf_counter()
+		rpc_call_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 		user_agent = request.headers.get('user-agent')
 		method_name = rpc.get('method')
 		params = rpc.get('params', [])
@@ -213,14 +216,18 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 			else:
 				result = method(*params)
 		params.append(keywords)
-		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "error": None}
+		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "date": rpc_call_time, "error": None}
 		response = serialize(response)
 
 		end = time.perf_counter()
+		logger.devel(rpc_call_time)
+		logger.devel(start)
 
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
+		
+		
 		
 		return [response, end - start]
 	except Exception as e:
@@ -230,5 +237,5 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		# TODO: config
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "error": error}, 0]
+		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "date": rpc_call_time, "error": error}, 0]
 		

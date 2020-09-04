@@ -179,6 +179,7 @@ function loadRPCTable(sortKey, sort) {
 			}
 			if (sort) {
 				result = sortRPCTable(result, sortKey);
+				console.log(result);
 			}
 			printRPCTable(result, "rpc-table-div");
 			return result;
@@ -237,7 +238,7 @@ function printClientTable(data, htmlId) {
 }
 
 function printRPCTable(data, htmlId) {
-
+	console.log(data[0]);
 	let htmlStr = "<table class=\"rpc-table\">";
 	htmlStr += "<tr>";
 	keys = Object.keys(data[0]);
@@ -254,7 +255,13 @@ function printRPCTable(data, htmlId) {
 			});
 		} else {
 			keys.forEach(key => {
-				htmlStr += "<td class=\"rpc-td\">" + element[key] + "</td>";
+				if(key == "date"){
+					date = new Date(element[key]).toLocaleString('en-US', {timeZone: 'UTC'})
+					htmlStr += "<td class=\"rpc-td\">" + date + "</td>";
+				}
+				else {
+					htmlStr += "<td class=\"rpc-td\">" + element[key] + "</td>";
+				}
 			});
 		}
 		htmlStr += "</tr>";

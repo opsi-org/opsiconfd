@@ -141,6 +141,8 @@ def setup_file_permissions():
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
+	po_setup_file_permissions("/var/log")
+	"""
 	log_dir = os.path.dirname(config.log_file)
 	if os.path.isdir(log_dir):
 		shutil.chown(path=log_dir, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
@@ -150,6 +152,7 @@ def setup_file_permissions():
 			if os.path.isfile(fn):
 				shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 				os.chmod(path=fn, mode=0o660)
+	"""
 
 def setup_systemd():
 	systemd_running = False

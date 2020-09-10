@@ -141,18 +141,14 @@ def setup_file_permissions():
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
-	po_setup_file_permissions("/var/log")
-	"""
-	log_dir = os.path.dirname(config.log_file)
-	if os.path.isdir(log_dir):
-		shutil.chown(path=log_dir, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-		os.chmod(path=log_dir, mode=0o770)
-		for fn in os.listdir(log_dir):
-			fn = os.path.join(log_dir, fn)
-			if os.path.isfile(fn):
-				shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-				os.chmod(path=fn, mode=0o660)
-	"""
+	
+	for d in (
+		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
+		"/var/log/opsi/opsiconfd", "/var/log/opsi/userlogin", "/var/lib/opsi/depot",
+		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository", "/var/lib/opsi/workbench"
+	):
+		if os.path.isdir(d) and not os.access(d, os.R_OK | os.W_OK | os.X_OK):
+			po_setup_file_permissions(d)
 
 def setup_systemd():
 	systemd_running = False

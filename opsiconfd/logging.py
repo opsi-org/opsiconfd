@@ -444,3 +444,4 @@ def stop_redis_log_adapter_thread():
 	if not redis_log_adapter_thread:
 		return
 	redis_log_adapter_thread.stop()
+

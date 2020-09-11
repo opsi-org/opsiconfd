@@ -192,7 +192,7 @@ parser.add(
 	env_var="OPSICONFD_NETWORKS",
 	default=["0.0.0.0/0"],
 	type=network_address,
-	help="Comma separated list of network addresses from which connections are allowed."
+	help="A list of network addresses from which connections are allowed."
 )
 parser.add(
 	"--admin-networks",
@@ -200,7 +200,7 @@ parser.add(
 	env_var="OPSICONFD_ADMIN_NETWORKS",
 	default=["0.0.0.0/0"],
 	type=network_address,
-	help="Comma separated list of network addresses from which administrative connections are allowed."
+	help="A list of network addresses from which administrative connections are allowed."
 )
 parser.add(
 	"--log-mode",

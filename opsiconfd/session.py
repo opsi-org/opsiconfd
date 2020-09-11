@@ -135,6 +135,16 @@ class SessionMiddleware:
 		set_context({"client_address": connection.client.host})
 		logger.trace("SessionMiddleware %s", scope)
 		try:
+			if config.networks:
+				is_allowed_network = False
+				for network in config.networks:
+					if ipAddressInNetwork(connection.client.host, network):
+						is_allowed_network = True
+						break
+				
+				if not is_allowed_network:
+					raise BackendPermissionDeniedError(f"Host '{connection.client.host}' is not allowed to connect")
+				
 			redis_client = await get_redis_client()
 			if scope["type"] not in ("http", "websocket"):
 				await self.app(scope, receive, send)

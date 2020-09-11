@@ -207,7 +207,7 @@ function loadRPCTable(sortKey, sort) {
 
 function printRPCCount(rpcCount, date) {
 	p = document.getElementById("rpc-count");
-	htmlStr = "Number of RPCs since " + date.toLocaleString('en-US', {timeZone: 'UTC'}) + " (UTC): " + rpcCount;
+	htmlStr = "Number of RPCs since " + formateDate(date) + " (UTC): " + rpcCount;
 	p.innerHTML = htmlStr;
 }
 
@@ -254,7 +254,7 @@ function printRPCTable(data, htmlId) {
 		} else {
 			keys.forEach(key => {
 				if(key == "date"){
-					date = new Date(element[key]).toLocaleString('en-US', {timeZone: 'UTC'})
+					date = formateDate(new Date(element[key]))
 					htmlStr += "<td class=\"rpc-td\">" + date + "</td>";
 				}
 				else {
@@ -275,6 +275,8 @@ var desc = true;
 
 function sortRPCTable(data, sortKey) {
 	data = result.sort((a, b) => {
+		console.log(a);
+		console.log(b);
 		if (sortKey == "method") {
 			var nameA = a[sortKey].toUpperCase();
 			var nameB = b[sortKey].toUpperCase();
@@ -292,6 +294,16 @@ function sortRPCTable(data, sortKey) {
 				return -1;
 			}
 			if (dateA > dateB) {
+				return 1;
+			}
+			return 0;
+		} else if (sortKey == "client"){
+			var numA = Number(a[sortKey].split(".").map((num) => (`000${num}`).slice(-3) ).join(""));
+			var numB = Number(b[sortKey].split(".").map((num) => (`000${num}`).slice(-3) ).join(""));
+			if (numA < numB) {
+				return -1;
+			}
+			if (numA > numB) {
 				return 1;
 			}
 			return 0;
@@ -430,4 +442,31 @@ function decode(html) {
 	var txt = document.createElement('textarea');
 	txt.innerHTML = html;
 	return txt.value;
+}
+
+function formateDate(date){
+	year = date.getFullYear();
+	month = date.getMonth()+1;
+	dt = date.getDate();
+	hour = date.getHours();
+	minutes = date.getMinutes();
+	seconds = date.getSeconds();
+
+	if (dt < 10) {
+		dt = '0' + dt;
+	}
+	if (month < 10) {
+		month = '0' + month;
+	}
+	if (hour < 10){
+		hour = '0' + hour;
+	}
+	if(minutes < 10){
+		minutes = '0' + minutes;
+	}
+	if (seconds < 10){
+		seconds = '0' + seconds;
+	}
+	date = year+'-' + month + '-'+dt+' '+hour+':'+minutes+':'+seconds
+	return date;
 }

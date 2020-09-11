@@ -275,8 +275,6 @@ var desc = true;
 
 function sortRPCTable(data, sortKey) {
 	data = result.sort((a, b) => {
-		console.log(a);
-		console.log(b);
 		if (sortKey == "method") {
 			var nameA = a[sortKey].toUpperCase();
 			var nameB = b[sortKey].toUpperCase();

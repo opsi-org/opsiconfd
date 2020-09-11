@@ -153,7 +153,7 @@ async def process_jsonrpc(request: Request, response: Response):
 			logger.debug("num_results: %s", num_results)
 			redis_key = f"opsiconfd:stats:rpc:{rpc_count}:{result[0].get('method')}"
 			async with await redis_client.pipeline(transaction=False) as pipe:
-				await pipe.hmset(redis_key, {"num_params": len(params), "date": date, "error": error,"num_results": num_results, "duration": result[1]})
+				await pipe.hmset(redis_key, {"num_params": len(params), "date": date, "client": request.client.host, "error": error, "num_results": num_results, "duration": result[1]})
 				await pipe.expire(redis_key, 172800)
 				redis_returncode = await pipe.execute()
 
@@ -175,6 +175,7 @@ async def process_jsonrpc(request: Request, response: Response):
 def process_rpc(request: Request, response: Response, rpc, backend):
 	rpc_id = None
 	try:
+		
 		start = time.perf_counter()
 		rpc_call_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 		user_agent = request.headers.get('user-agent')
@@ -183,7 +184,6 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		rpc_id = rpc.get('id')
 		logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, method_name)
 		logger.trace("Retrieved parameters %s for %s", params, method_name)
-
 		for method in get_backend_interface():
 			if method_name == method['name']:
 				method_description = method
@@ -216,7 +216,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 			else:
 				result = method(*params)
 		params.append(keywords)
-		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "date": rpc_call_time, "error": None}
+		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "date": rpc_call_time, "client": request.client.host, "error": None}
 		response = serialize(response)
 
 		end = time.perf_counter()
@@ -235,5 +235,5 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		# TODO: config
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "date": rpc_call_time, "error": error}, 0]
+		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "date": rpc_call_time, "client": request.client.host,  "error": error}, 0]
 		

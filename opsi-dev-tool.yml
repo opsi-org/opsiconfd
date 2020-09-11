@@ -76,6 +76,9 @@ package:
     mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
     rm -r ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data
   postinst_script: |
+    # workaround for error on openSUSE Leap 15.2:
+    #  /bin/sh: /usr/lib/opsiconfd/libreadline.so.7: no version information available (required by /bin/sh)
+    [ -e /usr/lib/opsiconfd/libreadline.so.7 -a -e /lib64/libreadline.so.7 ] && cp /lib64/libreadline.so.7 /usr/lib/opsiconfd/libreadline.so.7
     # remove obsolete files
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
     # setup opsiconfd

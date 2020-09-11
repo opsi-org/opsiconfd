@@ -107,7 +107,7 @@ def exit_worker():
 
 def init_worker():
 	global _metrics_collector
-	from .backend import get_backend
+	from .backend import get_backend, get_client_backend
 	from .statistics import MetricsCollector
 
 	if get_arbiter_pid() != os.getpid():
@@ -126,5 +126,6 @@ def init_worker():
 	# create and start MetricsCollector
 	_metrics_collector = MetricsCollector()
 	loop.create_task(_metrics_collector.main_loop())
-	# create BackendManager instance
+	# create BackendManager instances
 	get_backend()
+	get_client_backend()

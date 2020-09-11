@@ -47,7 +47,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .logging import logger
 from .worker import get_redis_client, get_metrics_collector, \
-	contextvar_request_id, contextvar_client_address, contextvar_server_address, contextvar_server_timing
+	contextvar_request_id, contextvar_client_address, contextvar_server_timing
 from .config import config
 from .utils import Singleton, get_worker_processes, get_node_name, get_worker_num
 from .grafana import GrafanaPanelConfig
@@ -499,6 +499,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace(f"StatisticsMiddleware {scope}")
+		loop = asyncio.get_event_loop()
 
 		if scope["type"] not in ("http", "websocket"):
 			await self.app(scope, receive, send)
@@ -511,36 +512,46 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 		scope['request_id'] = request_id
 		contextvar_request_id.set(request_id)
 		contextvar_client_address.set(scope["client"][0])
-		contextvar_server_address.set(scope["server"][0])
 		contextvar_server_timing.set({})
 
 		# logger.debug("Client Addr: %s", contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
-			await get_metrics_collector().add_value("worker:avg_http_request_number", 1, {"node_name": get_node_name(), "worker_num": get_worker_num()})
-			await get_metrics_collector().add_value("client:sum_http_request", 1, {"client_addr": contextvar_client_address.get()})
-
 			if message["type"] == "http.response.start":
+				# only on http.response.start not http.response.body
+				loop.create_task(
+					get_metrics_collector().add_value("worker:avg_http_request_number", 1, {"node_name": get_node_name(), "worker_num": get_worker_num()})
+				)
+				loop.create_task(
+					get_metrics_collector().add_value("client:sum_http_request", 1, {"client_addr": contextvar_client_address.get()})
+				)
 				headers = MutableHeaders(scope=message)
 				server_timing = contextvar_server_timing.get() or {}
 				if self._profiler_enabled:
 					server_timing.update(self.yappi(scope))
-				if server_timing:
-					server_timing = [f"{k};dur={v:.3f}"	for k, v in server_timing.items()]
-					headers.append("Server-Timing", ','.join(server_timing))
+				server_timing["request_processing"] = 1000 * (time.perf_counter() - start)
+				server_timing = [f"{k};dur={v:.3f}"	for k, v in server_timing.items()]
+				headers.append("Server-Timing", ','.join(server_timing))
+			
 			logger.trace(message)
 			await send(message)
-			end = time.perf_counter()
-			if scope["type"] == "http":
+			
+			if message["type"] == "http.response.start":
+				end = time.perf_counter()
 				if "body" in message:
-					await get_metrics_collector().add_value(
-						"worker:avg_http_response_bytes",
-						len(message['body']),
+					loop.create_task(
+						get_metrics_collector().add_value(
+							"worker:avg_http_response_bytes",
+							len(message['body']),
+							{"node_name": get_node_name(), "worker_num": get_worker_num()}
+						)
+					)
+				loop.create_task(
+					get_metrics_collector().add_value(
+						"worker:avg_http_request_duration",
+						end - start,
 						{"node_name": get_node_name(), "worker_num": get_worker_num()}
 					)
-				await get_metrics_collector().add_value(
-					"worker:avg_http_request_duration",
-					end - start,
-					{"node_name": get_node_name(), "worker_num": get_worker_num()}
 				)
-				
+				logger.info("HTTP %s request took %0.4f seconds", scope["method"], time.perf_counter() - start)
+		
 		await self.app(scope, receive, send_wrapper)

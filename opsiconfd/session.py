@@ -37,6 +37,7 @@ And also with every response before returning it.
     Then it returns the response.
 """
 
+import asyncio
 import typing
 import uuid
 import base64
@@ -61,7 +62,7 @@ from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
 from .logging import logger, secret_filter, set_context
-from .worker import get_redis_client, contextvar_client_session, run_in_threadpool
+from .worker import get_redis_client, contextvar_client_session, contextvar_server_timing, run_in_threadpool
 from .backend import get_client_backend
 from .config import config
 
@@ -127,6 +128,7 @@ class SessionMiddleware:
 						return cookie[1].strip().lower()
 	
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+		start = time.perf_counter()
 		connection = HTTPConnection(scope)
 		# TODO: Check client.host with reverse proxy and set it here to HTTP_X_FORWARDED_FOR if needed
 		# https://github.com/encode/starlette/issues/234
@@ -196,17 +198,21 @@ class SessionMiddleware:
 								config.admin_networks
 							)
 							session.user_store.isAdmin = False
-							session.store()
+							await session.store()
 				
 				# Check authorization
 				needs_admin = not scope["path"].startswith("/rpc")
 				if needs_admin and not session.user_store.isAdmin:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 			
+			server_timing = contextvar_server_timing.get()
+			server_timing["session_handling"] = 1000 * (time.perf_counter() - start)
+			contextvar_server_timing.set(server_timing)
+
 			async def send_wrapper(message: Message) -> None:
-				if session:
-					await session.store()
-					if message["type"] == "http.response.start":
+				if message["type"] == "http.response.start":
+					if session:
+						asyncio.get_event_loop().create_task(session.store())
 						headers = MutableHeaders(scope=message)
 						headers.append("Set-Cookie", self.get_set_cookie_string(session.session_id))
 				await send(message)
@@ -358,6 +364,9 @@ class OPSISession():
 	async def load(self) -> bool:
 		self._data = {}
 		redis_client = await get_redis_client()
+
+		"""
+		# This is to slow!
 		redis_session_keys = []
 		async for redis_key in redis_client.scan_iter(f"{self.redis_key_prefix}:*:{self.session_id}"):
 			redis_session_keys.append(redis_key.decode("utf8"))
@@ -369,7 +378,7 @@ class OPSISession():
 			logger.warning("More than one redis key with same session id!")
 		if redis_session_keys[0] != self.redis_key:
 			await redis_client.rename(redis_session_keys[0], self.redis_key)
-
+		"""
 		data = await redis_client.get(self.redis_key)
 		if not data:
 			return False

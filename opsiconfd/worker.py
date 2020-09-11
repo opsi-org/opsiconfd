@@ -40,7 +40,6 @@ from .utils import get_worker_num, get_node_name
 contextvar_request_id = contextvars.ContextVar("request_id", default=None)
 contextvar_client_session = contextvars.ContextVar("client_session", default=None)
 contextvar_client_address = contextvars.ContextVar("client_address", default=None)
-contextvar_server_address = contextvars.ContextVar("server_address", default=None)
 contextvar_server_timing = contextvars.ContextVar("server_timing", default=None)
 
 _redis_client = None

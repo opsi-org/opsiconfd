@@ -187,6 +187,14 @@ parser.add(
 	help="Location of the static files."
 )
 parser.add(
+	"--networks",
+	nargs="+",
+	env_var="OPSICONFD_NETWORKS",
+	default=["0.0.0.0/0"],
+	type=network_address,
+	help="Comma separated list of network addresses from which connections are allowed."
+)
+parser.add(
 	"--admin-networks",
 	nargs="+",
 	env_var="OPSICONFD_ADMIN_NETWORKS",

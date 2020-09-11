@@ -143,8 +143,8 @@ class SessionMiddleware:
 						break
 				
 				if not is_allowed_network:
-					raise BackendPermissionDeniedError(f"Host '{connection.client.host}' is not allowed to connect")
-				
+					raise ConnectionRefusedError(f"Host '{connection.client.host}' is not allowed to connect")
+			
 			redis_client = await get_redis_client()
 			if scope["type"] not in ("http", "websocket"):
 				await self.app(scope, receive, send)

@@ -370,7 +370,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):
 		if config.log_filter:
 			set_filter_from_string(config.log_filter)
 		
-		for ln in ("asyncio", "uvicorn.error"):
+		for ln in ("asyncio", "uvicorn.error", "uvicorn.access"):
 			al = pylogging.getLogger(ln)
 			al.setLevel(log_level)
 			al.handlers = [log_handler]
@@ -378,8 +378,6 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):
 		
 		if config.log_slow_async_callbacks > 0:
 			enable_slow_callback_logging(config.log_slow_async_callbacks)
-		
-		pylogging.captureWarnings(True)
 		
 		if not is_worker:
 			if log_mode == "redis" and (config.log_level_stderr != pylogging.NONE or config.log_level_file != pylogging.NONE):

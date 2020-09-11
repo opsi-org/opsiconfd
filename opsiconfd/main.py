@@ -119,6 +119,8 @@ class ArbiterAsyncMainThread(threading.Thread):
 			logger.error(exc, exc_info=True)
 	
 	async def main(self):
+		# Need to reinit logging after server is initialized
+		self._loop.call_later(3.0, init_logging, config.log_mode)
 		self._loop.create_task(update_worker_registry())
 		while True:
 			await asyncio.sleep(1)
@@ -268,6 +270,7 @@ def main():
 			run_gunicorn()
 		elif config.server_type == "uvicorn":
 			run_uvicorn()
+	
 	finally:
 		for t in threading.enumerate():
 			if hasattr(t, "stop"):

@@ -130,6 +130,7 @@ class SessionMiddleware:
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		start = time.perf_counter()
 		connection = HTTPConnection(scope)
+		session = None
 		# TODO: Check client.host with reverse proxy and set it here to HTTP_X_FORWARDED_FOR if needed
 		# https://github.com/encode/starlette/issues/234
 		set_context({"client_address": connection.client.host})
@@ -156,7 +157,6 @@ class SessionMiddleware:
 					is_public = True
 
 			session_id = self.get_session_id_from_headers(connection.headers)
-			session = None
 			if not is_public or session_id:
 				session = OPSISession(self, session_id, connection)
 				await session.init()

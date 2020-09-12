@@ -131,7 +131,7 @@ class SessionMiddleware:
 		start = time.perf_counter()
 		connection = HTTPConnection(scope)
 		session = None
-		# TODO: Check client.host with reverse proxy and set it here to HTTP_X_FORWARDED_FOR if needed
+		# TODO: Check client.host with trusted reverse proxy and set it here to HTTP_X_FORWARDED_FOR if needed
 		# https://github.com/encode/starlette/issues/234
 		set_context({"client_address": connection.client.host})
 		logger.trace("SessionMiddleware %s", scope)
@@ -211,7 +211,7 @@ class SessionMiddleware:
 							await session.store()
 				
 				# Check authorization
-				needs_admin = not scope["path"].startswith("/rpc")
+				needs_admin = not (scope["path"].startswith("/rpc") or scope["path"].startswith("/depot"))
 				if needs_admin and not session.user_store.isAdmin:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 			

@@ -38,6 +38,8 @@ import shutil
 import uvloop
 import signal
 import zlib
+import gzip
+import lz4.frame
 
 class Perftest:
 	def __init__(self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=[], write_results=None):
@@ -251,11 +253,13 @@ class Client:
 		return self._session
 
 	async def cleanup(self):
-		await self._session.close()
+		if self._session:
+			await self._session.close()
 	
 	async def random_data_generator(self, size=0, chunk_size=1*1000*1000):
 		import tempfile
 		tf = tempfile.TemporaryFile(mode="wb+")
+		# TODO: more randomized data
 		tf.write(b"o" * size)
 		tf.seek(0)
 		try:
@@ -304,6 +308,11 @@ class Client:
 			return (error, end - start, size, len(body or ''))
 	
 	async def jsonrpc(self, method, params=[]):
+		for i in range(len(params)):
+			if type(params[i]) is str and params[i].startswith("{random_data:"):
+				size = int(params[i].split(':')[1].strip('}'))
+				# TODO: more randomized data
+				params[i] = "o" * size
 		req = {
 			"jsonrpc": "2.0",
 			"id": 1,
@@ -315,19 +324,24 @@ class Client:
 		data = orjson.dumps(req)
 		start = time.perf_counter()
 		if self.test_case.compression:
-			if self.test_case.compression == "deflate":
+			if self.test_case.compression == "lz4":
+				data = await asyncio.get_event_loop().run_in_executor(None, lz4.frame.compress, data, 0)
+			elif self.test_case.compression == "deflate":
 				data = await asyncio.get_event_loop().run_in_executor(None, zlib.compress, data)
-				headers["content-encoding"] = "deflate"
-				headers["accept-encoding"] = "deflate"
+			elif self.test_case.compression == "gzip":
+				data = await asyncio.get_event_loop().run_in_executor(None, gzip.compress, data)
 			else:
 				raise ValueError(f"Invalid compression: {self.test_case.compression}")
+			headers["content-encoding"] = self.test_case.compression
+			headers["accept-encoding"] = self.test_case.compression
 		else:
 			headers["accept-encoding"] = ""
+		
 		async with self.session.post(url=f"{self.perftest.base_url}/rpc", data=data, headers=headers) as response:
 			end = time.perf_counter()
 			body = await response.read()
-			#if self.test_case.compression == "deflate":
-			#	body = await asyncio.get_event_loop().run_in_executor(None, zlib.decompress, body)
+			if "lz4" in response.headers.get("content-encoding", ""):
+				body = await asyncio.get_event_loop().run_in_executor(None, lz4.frame.decompress, body)
 			error = None
 			if response.status != 200:
 				error = f"{response.status} - {body}"

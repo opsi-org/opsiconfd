@@ -22,6 +22,7 @@
 """
 
 import time
+import lz4.frame
 import gzip
 import zlib
 import traceback
@@ -108,12 +109,29 @@ async def process_jsonrpc(request: Request, response: Response):
 			content_type = request.headers.get("content-type", "")
 			content_encoding = request.headers.get("content-encoding", "")
 			logger.debug("Content-Type: %s, Content-Encoding: %s", content_type, content_encoding)
-			if "gzip" in content_encoding:
-				logger.debug("decompress gzip data")
-				jsonrpc = await run_in_threadpool(gzip.decompress, jsonrpc)
+			
+			compression = None
+			if "lz4" in content_encoding:
+				compression = "lz4"
 			elif "deflate" in content_encoding:
-				logger.debug("decompress deflate data")
-				jsonrpc = await run_in_threadpool(zlib.decompress, jsonrpc)
+				compression = "deflate"
+			elif "gzip" in content_encoding:
+				compression = "gzip"
+			if compression:
+				data_len = len(jsonrpc)
+				decomp_start = time.perf_counter()
+				if "lz4" in content_encoding:
+					jsonrpc = await run_in_threadpool(lz4.frame.decompress, jsonrpc)
+				elif "deflate" in content_encoding:
+					jsonrpc = await run_in_threadpool(zlib.decompress, jsonrpc)
+				elif "gzip" in content_encoding:
+					jsonrpc = await run_in_threadpool(gzip.decompress, jsonrpc)
+				logger.debug(
+					"%s decompression ratio: %d => %d = %0.2f%%, time: %0.2fms",
+					compression, data_len, len(jsonrpc), 100 - 100 * (data_len / len(jsonrpc)),
+					1000 * (time.perf_counter() - decomp_start)
+				)
+			
 			# workaround for "JSONDecodeError: str is not valid UTF-8: surrogates not allowed".
 			# opsi-script produces invalid UTF-8.
 			# Therefore we do not pass bytes to orjson.loads but
@@ -174,17 +192,34 @@ async def process_jsonrpc(request: Request, response: Response):
 	
 	data = orjson.dumps(results[0] if len(results) == 1 else results)
 	response.headers["content-type"] = "application/json"
-	accept_encoding = request.headers.get("accept-encoding", "")
-	logger.debug("Accept-Encoding: %s", accept_encoding)
-	if "gzip" in accept_encoding:
-		logger.debug("gzip compress data")
-		response.headers["content-encoding"] = "gzip"
-		data = await run_in_threadpool(gzip.compress, data)
-	elif "deflate" in accept_encoding:
-		logger.debug("deflate compress data")
-		response.headers["content-encoding"] = "deflate"
-		data = await run_in_threadpool(zlib.compress, data)
 	
+	data_len = len(data)
+	# TODO: config
+	if data_len > 10000:
+		compression = None
+		accept_encoding = request.headers.get("accept-encoding", "")
+		logger.debug("Accept-Encoding: %s", accept_encoding)
+		if "lz4" in accept_encoding:
+			compression = "lz4"
+		elif "deflate" in accept_encoding:
+			compression = "deflate"
+		elif "gzip" in accept_encoding:
+			compression = "gzip"
+		if compression:
+			comp_start = time.perf_counter()
+			response.headers["content-encoding"] = compression
+			if compression == "lz4":
+				data = await run_in_threadpool(lz4.frame.compress, data, compression_level=0)
+			if compression == "gzip":
+				data = await run_in_threadpool(gzip.compress, data)
+			elif compression == "deflate":
+				data = await run_in_threadpool(zlib.compress, data)
+			logger.debug(
+				"%s compression ratio: %d => %d = %0.2f%%, time: %0.2fms",
+				compression, data_len, len(data), 100 - 100 * (len(data) / data_len),
+				1000 * (time.perf_counter() - comp_start)
+			)
+
 	response.body = data
 	return response
 

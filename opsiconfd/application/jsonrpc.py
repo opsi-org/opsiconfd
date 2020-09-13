@@ -89,9 +89,10 @@ def jsonrpc_setup(app):
 
 
 # Some clients are using /rpc/rpc
-@jsonrpc_router.get(".*", response_class=ORJSONResponse)
-@jsonrpc_router.post(".*", response_class=ORJSONResponse)
+@jsonrpc_router.get(".*")
+@jsonrpc_router.post(".*")
 async def process_jsonrpc(request: Request, response: Response):
+	results = []
 	try:
 		global xid
 		xid += 1
@@ -134,7 +135,6 @@ async def process_jsonrpc(request: Request, response: Response):
 
 		#context_jsonrpc_call_id.set(myid)
 		#print(f"start {myid}")
-		results = []
 		for result in await asyncio.gather(*tasks):
 			results.append(result[0])
 			await get_metrics_collector().add_value("worker:avg_rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
@@ -156,21 +156,37 @@ async def process_jsonrpc(request: Request, response: Response):
 				await pipe.hmset(redis_key, {"num_params": len(params), "date": date, "client": request.client.host, "error": error, "num_results": num_results, "duration": result[1]})
 				await pipe.expire(redis_key, 172800)
 				redis_returncode = await pipe.execute()
-
-		#print(f"done {myid}")
-		if len(results) == 1:
-			return results[0]
-		return results
+			response.status_code = 200
 	except HTTPException as e:
 		logger.error(e)
 		raise
 	except Exception as e:
 		logger.error(e, exc_info=True)
 		tb = traceback.format_exc()
-		error = {"message": str(e), "class": e.__class__.__name__}
-		if True:
-			error["details"] = str(tb)
-		return {"jsonrpc": "2.0", "id": None, "result": None, "error": error}
+		error = {
+			"message": str(e),
+			"class": e.__class__.__name__,
+			# TODO: config
+			"details": None # str(tb) 
+		}
+		response.status_code = 400
+		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]
+	
+	data = orjson.dumps(results[0] if len(results) == 1 else results)
+	response.headers["content-type"] = "application/json"
+	accept_encoding = request.headers.get("accept-encoding", "")
+	logger.debug("Accept-Encoding: %s", accept_encoding)
+	if "gzip" in accept_encoding:
+		logger.debug("gzip compress data")
+		response.headers["content-encoding"] = "gzip"
+		data = await run_in_threadpool(gzip.compress, data)
+	elif "deflate" in accept_encoding:
+		logger.debug("deflate compress data")
+		response.headers["content-encoding"] = "deflate"
+		data = await run_in_threadpool(zlib.compress, data)
+	
+	response.body = data
+	return response
 
 def process_rpc(request: Request, response: Response, rpc, backend):
 	rpc_id = None
@@ -224,9 +240,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
-		
-		
-		
+
 		return [response, end - start]
 	except Exception as e:
 		logger.error(e, exc_info=True)

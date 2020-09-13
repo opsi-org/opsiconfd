@@ -37,6 +37,7 @@ import aiofiles
 import shutil
 import uvloop
 import signal
+import zlib
 
 class Perftest:
 	def __init__(self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=[], write_results=None):
@@ -91,10 +92,11 @@ class Perftest:
 			await test_case.stop()
 
 class TestCase:
-	def __init__(self, perftest, name, requests):
+	def __init__(self, perftest, name, requests, compression = None):
 		self.perftest = perftest
 		self.name = name
 		self.requests = requests
+		self.compression = compression
 		self.clients = []
 		self.results = []
 		self.start = None
@@ -210,6 +212,7 @@ class TestCase:
 	def display_results(self):
 		r = self.calc_results()
 		print("Results:")
+		print(f" * Compression: {self.compression or 'none'}")
 		print(f" * Requests: {r['requests']}")
 		print(f" * Errors: {r['errors']}")
 		print(f" * Total seconds: {r['total_seconds']:0.3f}")
@@ -311,9 +314,20 @@ class Client:
 		headers = {"content-type": "application/json"}
 		data = orjson.dumps(req)
 		start = time.perf_counter()
+		if self.test_case.compression:
+			if self.test_case.compression == "deflate":
+				data = await asyncio.get_event_loop().run_in_executor(None, zlib.compress, data)
+				headers["content-encoding"] = "deflate"
+				headers["accept-encoding"] = "deflate"
+			else:
+				raise ValueError(f"Invalid compression: {self.test_case.compression}")
+		else:
+			headers["accept-encoding"] = ""
 		async with self.session.post(url=f"{self.perftest.base_url}/rpc", data=data, headers=headers) as response:
 			end = time.perf_counter()
-			body = await response.text()
+			body = await response.read()
+			#if self.test_case.compression == "deflate":
+			#	body = await asyncio.get_event_loop().run_in_executor(None, zlib.decompress, body)
 			error = None
 			if response.status != 200:
 				error = f"{response.status} - {body}"

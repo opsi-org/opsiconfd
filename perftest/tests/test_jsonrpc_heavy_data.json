@@ -12,6 +12,15 @@
 					["jsonrpc", "product_getObjects", [[],{}]]
 				]
 			}
+		},
+		{
+			"name": "JSONRPC",
+			"compression": "deflate",
+			"requests": {
+				"test": [
+					["jsonrpc", "product_getObjects", [[],{}]]
+				]
+			}
 		}
 	]
 }

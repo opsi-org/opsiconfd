@@ -322,6 +322,7 @@ class Client:
 
 		headers = {"content-type": "application/json"}
 		data = orjson.dumps(req)
+		data_len = len(data)
 		start = time.perf_counter()
 		if self.test_case.compression:
 			if self.test_case.compression == "lz4":
@@ -354,7 +355,7 @@ class Client:
 			elif error:
 				print(error)
 			
-			return (error, end - start, len(data or ''), len(body or ''))
+			return (error, end - start, data_len, len(body or ''))
 
 async def signal_handler(sig, loop, perftest):
 	await perftest.stop()

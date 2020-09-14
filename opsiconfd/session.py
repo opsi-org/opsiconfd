@@ -349,7 +349,7 @@ class OPSISession():
 		if not self.created:
 			self.created = self.utc_time_timestamp()
 		self._update_last_used()
-		asyncio.get_event_loop().create_task(self.store())
+		await self.store()
 
 	async def init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""

@@ -148,14 +148,16 @@ async def process_jsonrpc(request: Request, response: Response):
 		for rpc in jsonrpc:
 			task = run_in_threadpool(process_rpc, request, response, rpc, backend)
 			tasks.append(task)
-		
-		await get_metrics_collector().add_value("worker:avg_rpc_number", len(jsonrpc), {"node_name": get_node_name(), "worker_num": get_worker_num()})
-
+		asyncio.get_event_loop().create_task(
+			get_metrics_collector().add_value("worker:avg_rpc_number", len(jsonrpc), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		)
 		#context_jsonrpc_call_id.set(myid)
 		#print(f"start {myid}")
 		for result in await asyncio.gather(*tasks):
 			results.append(result[0])
-			await get_metrics_collector().add_value("worker:avg_rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
+			asyncio.get_event_loop().create_task(
+				get_metrics_collector().add_value("worker:avg_rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
+			)
 			redis_client = await get_redis_client()
 			rpc_count = await redis_client.incr("opsiconfd:stats:num_rpcs")
 			error = bool(result[0].get("error"))

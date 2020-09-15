@@ -208,7 +208,7 @@ class SessionMiddleware:
 								config.admin_networks
 							)
 							session.user_store.isAdmin = False
-							await session.store()
+							asyncio.get_event_loop().create_task(session.store())
 				
 				# Check authorization
 				needs_admin = not (scope["path"].startswith("/rpc") or scope["path"].startswith("/depot"))
@@ -244,7 +244,7 @@ class SessionMiddleware:
 				
 				cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
 				logger.debug(cmd)
-				await redis_client.execute_command(cmd)
+				asyncio.get_event_loop().create_task(redis_client.execute_command(cmd))
 			
 			elif isinstance(e, ConnectionRefusedError):
 				status_code = status.HTTP_403_FORBIDDEN

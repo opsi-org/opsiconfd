@@ -310,10 +310,19 @@ class MetricsCollector():
 	async def _fetch_values(self):
 		if not self._proc:
 			self._proc = psutil.Process()
-		await self.add_value("worker:avg_mem_allocated", self._proc.memory_info().rss, {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		await self.add_value("worker:avg_cpu_percent", self._proc.cpu_percent(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		await self.add_value("worker:avg_thread_number", self._proc.num_threads(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		await self.add_value("worker:avg_filehandle_number", self._proc.num_fds(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		loop = asyncio.get_event_loop()
+		loop.create_task(
+			self.add_value("worker:avg_mem_allocated", self._proc.memory_info().rss, {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		)
+		loop.create_task(
+			self.add_value("worker:avg_cpu_percent", self._proc.cpu_percent(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		)
+		loop.create_task(
+			self.add_value("worker:avg_thread_number", self._proc.num_threads(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		)
+		loop.create_task(
+			self.add_value("worker:avg_filehandle_number", self._proc.num_fds(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
+		)
 
 	async def main_loop(self):		
 		while True:

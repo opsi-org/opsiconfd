@@ -130,6 +130,17 @@ lxml = ["lxml"]
 
 [[package]]
 category = "dev"
+description = "Dummy package for Beautiful Soup"
+name = "bs4"
+optional = false
+python-versions = "*"
+version = "0.0.1"
+
+[package.dependencies]
+beautifulsoup4 = "*"
+
+[[package]]
+category = "dev"
 description = "Python package for providing Mozilla's CA Bundle."
 name = "certifi"
 optional = false
@@ -280,9 +291,8 @@ doc = ["mkdocs", "mkdocs-material", "markdown-include"]
 test = ["pytest (>=4.0.0)", "pytest-cov", "mypy", "black", "isort", "requests", "email-validator", "sqlalchemy", "peewee", "databases", "orjson", "async-exit-stack", "async-generator", "python-multipart", "aiofiles", "ujson", "flask"]
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Clean single-source support for Python 3 and 2"
-marker = "sys_platform == \"win32\""
 name = "future"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
@@ -515,16 +525,20 @@ description = "opsi development tools"
 name = "opsi-dev-tools"
 optional = false
 python-versions = ">=3.7,<4.0"
-version = "1.0.23"
+version = "1.0.31"
 
 [package.dependencies]
+bs4 = ">=0.0.1,<0.0.2"
 colorlog = ">=4.1.0,<5.0.0"
 configargparse = ">=1.2.3,<2.0.0"
+pefile = ">=2019.4.18,<2020.0.0"
 pypi-simple = ">=0.6.0,<0.7.0"
 python-gettext = ">=4.0,<5.0"
 pyyaml = ">=5.3.1,<6.0.0"
+rarfile = ">=4.0,<5.0"
 requests = ">=2.23.0,<3.0.0"
 toml = ">=0.10.0,<0.11.0"
+virustotal3 = ">=1.0.8,<2.0.0"
 
 [package.source]
 reference = "uibpypi"
@@ -551,9 +565,8 @@ pyparsing = ">=2.0.2"
 six = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Python PE parsing module"
-marker = "sys_platform == \"win32\""
 name = "pefile"
 optional = false
 python-versions = "*"
@@ -811,7 +824,7 @@ description = "The opsi python library"
 name = "python-opsi"
 optional = false
 python-versions = ">=3.7,<4.0"
-version = "4.2.0.70"
+version = "4.2.0.73"
 
 [package.dependencies]
 SQLAlchemy = ">=1.3.15,<2.0.0"
@@ -819,6 +832,7 @@ colorlog = ">=4.2.1,<5.0.0"
 distro = ">=1.5.0,<2.0.0"
 ldap3 = "2.7"
 mysqlclient = ">=1.4.6,<2.0.0"
+pefile = ">=2019.4.18,<2020.0.0"
 psutil = ">=5.7.0,<6.0.0"
 pyOpenSSL = ">=19.1.0,<20.0.0"
 pyasn1 = ">=0.4.8,<0.5.0"
@@ -869,6 +883,14 @@ name = "pyyaml"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 version = "5.3.1"
+
+[[package]]
+category = "dev"
+description = "RAR archive reader for Python"
+name = "rarfile"
+optional = false
+python-versions = "*"
+version = "4.0"
 
 [[package]]
 category = "main"
@@ -1075,6 +1097,17 @@ version = "0.14.0"
 
 [[package]]
 category = "dev"
+description = "Python 3 implementation of the VirusTotal v3 API"
+name = "virustotal3"
+optional = false
+python-versions = "*"
+version = "1.0.8"
+
+[package.dependencies]
+requests = "*"
+
+[[package]]
+category = "dev"
 description = "Measures the displayed width of unicode strings in a terminal"
 name = "wcwidth"
 optional = false
@@ -1241,6 +1274,9 @@ beautifulsoup4 = [
     {file = "beautifulsoup4-4.9.1-py2-none-any.whl", hash = "sha256:e718f2342e2e099b640a34ab782407b7b676f47ee272d6739e60b8ea23829f2c"},
     {file = "beautifulsoup4-4.9.1-py3-none-any.whl", hash = "sha256:a6237df3c32ccfaee4fd201c8f5f9d9df619b93121d01353a64a73ce8c6ef9a8"},
     {file = "beautifulsoup4-4.9.1.tar.gz", hash = "sha256:73cc4d115b96f79c7d77c1c7f7a0a8d4c57860d1041df407dd1aae7f07a77fd7"},
+]
+bs4 = [
+    {file = "bs4-0.0.1.tar.gz", hash = "sha256:36ecea1fd7cc5c0c6e4a1ff075df26d50da647b75376626cc186e2212886dd3a"},
 ]
 certifi = [
     {file = "certifi-2020.6.20-py2.py3-none-any.whl", hash = "sha256:8fc0819f1f30ba15bdb34cceffb9ef04d99f420f68eb75d901e9560b8749fc41"},
@@ -1587,8 +1623,8 @@ mysqlclient = [
     {file = "mysqlclient-1.4.6.tar.gz", hash = "sha256:f3fdaa9a38752a3b214a6fe79d7cae3653731a53e577821f9187e67cbecb2e16"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.0.23.tar.gz", hash = "md5:0c8df0a397ae2beb847437507d6c34d9"},
-    {file = "opsi_dev_tools-1.0.23-py3-none-any.whl", hash = "md5:ec7ab09abcede0f655f26b8ff5f054b7"},
+    {file = "opsi-dev-tools-1.0.31.tar.gz", hash = "md5:b8c9cfed5ec5993b415799482408da5d"},
+    {file = "opsi_dev_tools-1.0.31-py3-none-any.whl", hash = "md5:368b85c915fc6dcbc3185e439486a70a"},
 ]
 orjson = [
     {file = "orjson-2.6.8-cp36-cp36m-macosx_10_7_x86_64.whl", hash = "sha256:440acee918752157b578e489656776b17704089ab6f06d669409e1f1bfe431ac"},
@@ -1767,8 +1803,8 @@ python-magic = [
     {file = "python_magic-0.4.18-py2.py3-none-any.whl", hash = "sha256:356efa93c8899047d1eb7d3eb91e871ba2f5b1376edbaf4cc305e3c872207355"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.70.tar.gz", hash = "md5:459cdae14d6e75317e50c074879f8015"},
-    {file = "python_opsi-4.2.0.70-py3-none-any.whl", hash = "md5:49a1354827cd17d6405799810562b572"},
+    {file = "python-opsi-4.2.0.73.tar.gz", hash = "md5:5013fe51328a77895620d676d06786f2"},
+    {file = "python_opsi-4.2.0.73-py3-none-any.whl", hash = "md5:4c0add99730df064e41fa8bb8a419b3c"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},
@@ -1804,6 +1840,10 @@ pyyaml = [
     {file = "PyYAML-5.3.1-cp38-cp38-win32.whl", hash = "sha256:06a0d7ba600ce0b2d2fe2e78453a470b5a6e000a985dd4a4e54e436cc36b0e97"},
     {file = "PyYAML-5.3.1-cp38-cp38-win_amd64.whl", hash = "sha256:95f71d2af0ff4227885f7a6605c37fd53d3a106fcab511b8860ecca9fcf400ee"},
     {file = "PyYAML-5.3.1.tar.gz", hash = "sha256:b8eac752c5e14d3eca0e6dd9199cd627518cb5ec06add0de9d32baeee6fe645d"},
+]
+rarfile = [
+    {file = "rarfile-4.0-py3-none-any.whl", hash = "sha256:1094869119012f95c31a6f22cc3a9edbdca61861b805241116adbe2d737b68f8"},
+    {file = "rarfile-4.0.tar.gz", hash = "sha256:67548769229c5bda0827c1663dce3f54644f9dbfba4ae86d4da2b2afd3e602a1"},
 ]
 redis = [
     {file = "redis-3.5.3-py2.py3-none-any.whl", hash = "sha256:432b788c4530cfe16d8d943a09d40ca6c16149727e4afe8c2c9d5580c59d9f24"},
@@ -1934,6 +1974,9 @@ uvloop = [
     {file = "uvloop-0.14.0-cp38-cp38-macosx_10_11_x86_64.whl", hash = "sha256:bcac356d62edd330080aed082e78d4b580ff260a677508718f88016333e2c9c5"},
     {file = "uvloop-0.14.0-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:4315d2ec3ca393dd5bc0b0089d23101276778c304d42faff5dc4579cb6caef09"},
     {file = "uvloop-0.14.0.tar.gz", hash = "sha256:123ac9c0c7dd71464f58f1b4ee0bbd81285d96cdda8bc3519281b8973e3a461e"},
+]
+virustotal3 = [
+    {file = "virustotal3-1.0.8.tar.gz", hash = "sha256:84354b7ac806dcc15908baf57561a76a1bdf10973538e3ae233363a7ad6c41bb"},
 ]
 wcwidth = [
     {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},

@@ -379,14 +379,14 @@ parser.add(
 	"--max-auth-failures",
 	env_var="OPSICONFD_MAX_AUTH_FAILURES",
 	type=int,
-	default=5,
+	default=10,
 	help="The maximum number of authentication failures before a client ip is blocked."
 )
 parser.add(
 	"--auth-failures-interval",
 	env_var="OPSICONFD_AUTH_FAILURES_INTERVAL",
 	type=int,
-	default=60,
+	default=120,
 	help="The time window in seconds in which max auth failures are counted."
 )
 parser.add(

@@ -22,6 +22,7 @@
 """
 
 import time
+import socket
 import lz4.frame
 import gzip
 import zlib
@@ -30,7 +31,8 @@ import urllib.parse
 import orjson
 import asyncio
 import datetime
-from contextvars import ContextVar
+import contextvars
+contextvar_client_address = contextvars.ContextVar("client_address", default=None)
 
 from fastapi import HTTPException, APIRouter
 from fastapi.requests import Request
@@ -264,10 +266,19 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		result = None
 		method = getattr(backend, method_name)
 		if method_name != "backend_exit":
-			if keywords:
-				result = method(*params, **keywords)
-			else:
-				result = method(*params)
+			if method_name == "getDomain":
+				try:
+					client_address = contextvar_client_address.get()
+					if not client_address:
+						raise ValueError("Failed to get client address")
+					result = ".".join(socket.gethostbyaddr(client_address)[0].split(".")[1:])
+				except Exception as e:
+					logger.debug("Failed to get domain by client address: %s", e)
+			if result is None:
+				if keywords:
+					result = method(*params, **keywords)
+				else:
+					result = method(*params)
 		params.append(keywords)
 		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "date": rpc_call_time, "client": request.client.host, "error": None}
 		response = serialize(response)

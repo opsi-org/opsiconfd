@@ -79,7 +79,13 @@ def setup_metric_downsampling() -> None:
 			cmd = f"TS.INFO {orig_key}"
 			info = redis_client.execute_command(cmd)
 			existing_rules = {}
-			for rule in info[19]:
+			rules = []
+			for idx, val in enumerate(info):
+				if type(val) == bytes: 
+					if "rules" in val.decode("utf8"):
+						rules = info[idx+1]
+						break
+			for rule in rules:
 				rule_name = rule[0].decode("utf8").split(":")[-1] 
 				existing_rules[rule_name] = {"retention": rule[1], "aggregation": rule[2].decode("utf8")}
 			for rule in metric.downsampling:

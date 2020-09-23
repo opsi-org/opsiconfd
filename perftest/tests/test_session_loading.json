@@ -1,0 +1,17 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 1,
+	"iterations": 100,
+	"test_cases": [
+		{
+			"name": "JSONRPC",
+			"requests": {
+				"test": [
+					["jsonrpc", "authenticated", []]
+				]
+			}
+		}
+	]
+}

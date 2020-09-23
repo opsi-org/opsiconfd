@@ -8,7 +8,7 @@ stages:
 .install_tools: &install_tools |
   export DEBIAN_FRONTEND=noninteractive
   apt update
-  apt -y install debhelper osc
+  apt -y install debhelper osc bc
   pip3 install --trusted-host pypi.uib.gmbh --index-url http://pypi.uib.gmbh:8080/simple opsi-dev-tools
   pip3 install poetry
 
@@ -70,9 +70,11 @@ stages:
   echo "${OPSICONFD_MAX_SESSIONS_PER_IP}"
   poetry run opsiconfd &
   sleep 20
-  poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_jsonrpc_authenticated.json -w /tmp/perftest-result
-  [ $(grep errors= /tmp/perftest-result | cut -d '=' -f2) -gt 0 ] && ( echo 'Errors in perftest' >&2 && exit 1 )
-  [ $(grep avg_requests_per_second= /tmp/perftest-result | cut -d '=' -f2 | cut -d'.' -f 1) -ge 200 ] || ( echo 'Requests per second < 200' >&2 && exit 1 )
+  poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json -w /tmp/perftest-result
+  [ $(grep errors= /tmp/perftest-result | cut -d '=' -f2) -gt 0 ] && ( cat /tmp/perftest-result; echo 'Errors in perftest' >&2; exit 1 )
+  # Average request time has to be faster than 10 ms
+  echo "$(grep avg_seconds_per_request= /tmp/perftest-result | cut -d '=' -f2)<0.01" | bc > /tmp/bc-result
+  [ $(cat /tmp/bc-result) = "0" ] || ( cat /tmp/perftest-result; echo 'Average seconds per request >= 10 ms' >&2; exit 1 )
 
 .pytest: &pytest |
   poetry run opsiconfd --log-level-stderr=3 --max-auth-failures 3 &
@@ -83,7 +85,7 @@ stages:
   poetry run pytest --cov opsiconfd /builds/uib/opsiconfd/tests
 
 test:perftest:
-  when: manual
+  #when: manual
   image: ubuntu:focal
   services:
     - mysql:latest

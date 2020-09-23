@@ -61,11 +61,9 @@ def setup_metric_downsampling() -> None:
 	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
 
 	for metric in metrics_registry.get_metrics():
-		logger.devel("metric: %s", metric.id)
 		if not metric.downsampling or metric.subject != "worker":
 			continue
 		for worker in range(1, config.workers+1):
-			logger.devel("worker_num: %s", worker)
 			node_name = get_node_name()
 			worker_num = worker
 			logger.debug("worker: %s:%s", node_name, worker_num)
@@ -78,33 +76,19 @@ def setup_metric_downsampling() -> None:
 				if str(e) != "TSDB: key already exists":
 					raise RedisResponseError(e)
 
-			redis_info = redis_client.execute_command("INFO")
-			logger.devel(redis_info)
-			redis_info = redis_client.execute_command("MODULE LIST")
-			logger.devel(redis_info)
 			cmd = f"TS.INFO {orig_key}"
-			logger.devel("redis cmd: %s", cmd)
 			info = redis_client.execute_command(cmd)
-			logger.devel("redis key info: %s", info)
-			logger.devel("redis key info 18: %s", info[18])
-			logger.devel("redis key info 19: %s", info[19])
 			existing_rules = {}
 			rules = []
 			for idx, val in enumerate(info):
-				logger.devel(idx)
-				logger.devel("####################")
-				logger.devel(val)
-				logger.devel(type(val))
 				if type(val) == bytes: 
 					if "rules" in val.decode("utf8"):
 						rules = info[idx+1]
-						logger.devel("############ %s", rules)
 						break
 			for rule in rules:
 				rule_name = rule[0].decode("utf8").split(":")[-1] 
 				existing_rules[rule_name] = {"retention": rule[1], "aggregation": rule[2].decode("utf8")}
 			for rule in metric.downsampling:
-				logger.devel("rule: %s", rule)
 				key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
 				key = f"{key}:{rule[0]}"
 				retention_time = rule[1]

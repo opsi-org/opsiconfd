@@ -8,7 +8,7 @@ stages:
 .install_tools: &install_tools |
   export DEBIAN_FRONTEND=noninteractive
   apt update
-  apt -y install debhelper osc bc
+  apt -y install debhelper osc
   pip3 install --trusted-host pypi.uib.gmbh --index-url http://pypi.uib.gmbh:8080/simple opsi-dev-tools
   pip3 install poetry
 
@@ -16,7 +16,7 @@ stages:
   # Install debian packages
   export DEBIAN_FRONTEND=noninteractive
   apt update
-  apt -y install wget git python3-pip python3-venv libmysqlclient-dev mysql-client iproute2 net-tools iputils-ping librsync2
+  apt -y install bc wget git python3-pip python3-venv libmysqlclient-dev mysql-client iproute2 net-tools iputils-ping librsync2
   # Need redis-timeseries 1.2.8 which is not yet available, installing patched version from obs
   wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-server_6.0.4-1_amd64.deb
   wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-tools_6.0.4-1_amd64.deb

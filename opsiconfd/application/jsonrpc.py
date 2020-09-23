@@ -213,7 +213,11 @@ async def process_jsonrpc(request: Request, response: Response):
 			comp_start = time.perf_counter()
 			response.headers["content-encoding"] = compression
 			if compression == "lz4":
-				data = await run_in_threadpool(lz4.frame.compress, data, compression_level=0)
+				block_linked = True
+				if request.headers.get("user-agent", "").startswith("opsi config editor"):
+					# lz4-java - RuntimeException: Dependent block stream is unsupported (BLOCK_INDEPENDENCE must be set).
+					block_linked = False
+				data = await run_in_threadpool(lz4.frame.compress, data, compression_level=0, block_linked=block_linked)
 			if compression == "gzip":
 				data = await run_in_threadpool(gzip.compress, data)
 			elif compression == "deflate":

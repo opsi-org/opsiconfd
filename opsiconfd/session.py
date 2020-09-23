@@ -84,6 +84,8 @@ def get_basic_auth(headers: Headers):
 		)
 
 	encoded_auth = auth_header[6:] # Stripping "Basic "
+	secret_filter.add_secrets(encoded_auth)
+	
 	auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
 	(username, password) = auth.rsplit(':', 1)
 

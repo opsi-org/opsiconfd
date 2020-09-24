@@ -26,6 +26,17 @@ templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates
 def redis_interface_setup(app):
 	app.include_router(admin_interface_router, prefix="/redis-interface")
 
+def _decode_redis_result(_obj):
+	if type(_obj) is bytes:
+		_obj = _obj.decode("utf8")
+	elif type(_obj) == list:
+		for i in range(len(_obj)):
+			_obj[i] = _decode_redis_result(_obj[i])
+	elif type(_obj) == dict:
+		for (k, v) in _obj.items():
+			_obj[_decode_redis_result(k)] = _decode_redis_result(v)
+	return _obj
+
 @admin_interface_router.post("/?")
 async def redis_command(request: Request, response: Response):
 	redis_client = await get_redis_client()
@@ -33,15 +44,12 @@ async def redis_command(request: Request, response: Response):
 		request_body = await request.json()
 		redis_cmd = request_body.get("cmd")
 		redis_result = await redis_client.execute_command(redis_cmd)
-		
-		if type(redis_result) == list:
-			result = []
-			for value in redis_result:
-				result.append(value.decode("utf8"))
-		else:
-			result = redis_result.decode("utf8")
-		
-		response = JSONResponse({"status": 200, "error": None, "data": {"result": result}})
+				
+		response = JSONResponse({
+			"status": 200,
+			"error": None,
+			"data": {"result": _decode_redis_result(redis_result)}
+		})
 	except Exception as e:
 		logger.error(e, exc_info=True)
 		tb = traceback.format_exc()
@@ -96,54 +104,30 @@ async def get_redis_stats():
 		for key in misc_keys:
 			misc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
 			
-		redis_info =  await redis_client.execute_command("INFO")
-		
-		redis_version = redis_info.get("redis_version")
-		connected_clients = redis_info.get("connected_clients")
-		used_memory_human = redis_info.get("used_memory_human")
-		total_memory = redis_info.get("used_memory")
-		total_keys_info = redis_info.get("db0")
-
-		redis_module =  await redis_client.execute_command("MODULE LIST")
-		
-		modules = []
-		for module in redis_module:
-			modules.append({"name": module[1].decode("utf8"), "ver": module[3]})
-
-		redis_data = {
-			"redis_version": redis_version, 
-			"modules": modules,
-			"clients": connected_clients, 
-			"memory_human": used_memory_human, 
-			"memory": total_memory,
-			"keys": {
-				"count": total_keys_info.get("keys"),
-				"expires": total_keys_info.get("expires"),
-				"avg_ttl": total_keys_info.get("avg_ttl"),
-				"stats":{
-					"count":len(stats_keys),
-					"memory": stats_memory
-				},
-				"sessions":{
-					"count":len(sessions_keys),
-					"memory": sessions_memory
-				},
-				"logs":{
-					"count":len(log_keys),
-					"memory": logs_memory
-				},
-				"rpc":{
-					"count":len(rpc_keys),
-					"memory": rpc_memory
-				},
-				"misc":{
-					"count":len(misc_keys),
-					"memory": misc_memory
-				}
+		redis_info = _decode_redis_result(await redis_client.execute_command("INFO"))
+		redis_info["key_info"] = {
+			"stats":{
+				"count":len(stats_keys),
+				"memory": stats_memory
+			},
+			"sessions":{
+				"count":len(sessions_keys),
+				"memory": sessions_memory
+			},
+			"logs":{
+				"count":len(log_keys),
+				"memory": logs_memory
+			},
+			"rpc":{
+				"count":len(rpc_keys),
+				"memory": rpc_memory
+			},
+			"misc":{
+				"count":len(misc_keys),
+				"memory": misc_memory
 			}
-		}  		
-
-		response = JSONResponse({"status": 200, "error": None, "data": redis_data})
+		}
+		response = JSONResponse({"status": 200, "error": None, "data": redis_info})
 	except Exception as e:
 		logger.error("Error while reading redis data: %s", e)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(e)}})

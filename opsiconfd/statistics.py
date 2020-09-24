@@ -513,7 +513,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 		return server_timing
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-		logger.trace(f"StatisticsMiddleware {scope}")
+		logger.trace("StatisticsMiddleware scope=%s", scope)
 		loop = asyncio.get_event_loop()
 
 		if scope["type"] not in ("http", "websocket"):
@@ -544,13 +544,14 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 				if self._profiler_enabled:
 					server_timing.update(self.yappi(scope))
 				server_timing["request_processing"] = 1000 * (time.perf_counter() - start)
-				server_timing = [f"{k};dur={v:.3f}"	for k, v in server_timing.items()]
+				server_timing = [f"{k};dur={v:.3f}" for k, v in server_timing.items()]
 				headers.append("Server-Timing", ','.join(server_timing))
 			
 			logger.trace(message)
 			await send(message)
 			
-			if message["type"] == "http.response.start":
+			if message["type"] == "http.response.body" and not message.get("more_body"):
+				# Last body message
 				end = time.perf_counter()
 				if "body" in message:
 					loop.create_task(
@@ -567,6 +568,10 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 						{"node_name": get_node_name(), "worker_num": get_worker_num()}
 					)
 				)
-				logger.info("HTTP %s request took %0.4f seconds", scope["method"], time.perf_counter() - start)
+				server_timing = contextvar_server_timing.get() or {}
+				server_timing["total"] = 1000 * (time.perf_counter() - start)
+				logger.info("Server-Timing %s %s: %s", scope["method"], scope["path"],
+					', '.join([f"{k}={v:.1f}ms" for k, v in server_timing.items()])
+				)
 		
 		await self.app(scope, receive, send_wrapper)

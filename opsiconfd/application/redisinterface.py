@@ -50,3 +50,101 @@ async def redis_command(request: Request, response: Response):
 			error["details"] = str(tb)
 		response = JSONResponse({"status": 500, "error": error, "data": {"result": None} })
 	return response
+
+
+@admin_interface_router.get("/redis-stats")
+async def get_redis_stats():
+	redis_client = await get_redis_client()
+	try: 	
+		stats_keys = []
+		sessions_keys = []
+		log_keys = []
+		rpc_keys = []
+		misc_keys = []
+		redis_keys = redis_client.scan_iter("opsiconfd:*")
+		
+		async for key in redis_keys:
+			key = key.decode("utf8")
+			if key.startswith("opsiconfd:stats:rpc") or key.startswith("opsiconfd:stats:num_rpc"):
+				rpc_keys.append(key)
+			elif key.startswith("opsiconfd:stats"):
+				stats_keys.append(key)
+			elif key.startswith("opsiconfd:sessions"):
+				sessions_keys.append(key)
+			elif key.startswith("opsiconfd:log"):
+				log_keys.append(key)
+			else:
+				misc_keys.append(key)
+		
+		stats_memory = 0
+		for key in stats_keys:
+			stats_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+			
+		sessions_memory = 0
+		for key in sessions_keys:
+			sessions_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+
+		logs_memory = 0
+		for key in log_keys:
+			logs_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+
+		rpc_memory = 0
+		for key in rpc_keys:
+			rpc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+		
+		misc_memory = 0
+		for key in misc_keys:
+			misc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+			
+		redis_info =  await redis_client.execute_command("INFO")
+		
+		redis_version = redis_info.get("redis_version")
+		connected_clients = redis_info.get("connected_clients")
+		used_memory_human = redis_info.get("used_memory_human")
+		total_memory = redis_info.get("used_memory")
+		total_keys_info = redis_info.get("db0")
+
+		redis_module =  await redis_client.execute_command("MODULE LIST")
+		
+		modules = []
+		for module in redis_module:
+			modules.append({"name": module[1].decode("utf8"), "ver": module[3]})
+
+		redis_data = {
+			"redis_version": redis_version, 
+			"modules": modules,
+			"clients": connected_clients, 
+			"memory_human": used_memory_human, 
+			"memory": total_memory,
+			"keys": {
+				"count": total_keys_info.get("keys"),
+				"expires": total_keys_info.get("expires"),
+				"avg_ttl": total_keys_info.get("avg_ttl"),
+				"stats":{
+					"count":len(stats_keys),
+					"memory": stats_memory
+				},
+				"sessions":{
+					"count":len(sessions_keys),
+					"memory": sessions_memory
+				},
+				"logs":{
+					"count":len(log_keys),
+					"memory": logs_memory
+				},
+				"rpc":{
+					"count":len(rpc_keys),
+					"memory": rpc_memory
+				},
+				"misc":{
+					"count":len(misc_keys),
+					"memory": misc_memory
+				}
+			}
+		}  		
+
+		response = JSONResponse({"status": 200, "error": None, "data": redis_data})
+	except Exception as e:
+		logger.error("Error while reading redis data: %s", e)
+		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(e)}})
+	return response

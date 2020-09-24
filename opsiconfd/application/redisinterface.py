@@ -52,18 +52,15 @@ async def redis_command(request: Request, response: Response):
 	return response
 
 
-
 @admin_interface_router.get("/redis-stats")
 async def get_redis_stats():
 	redis_client = await get_redis_client()
-	try: 
-		
+	try: 	
 		stats_keys = []
 		sessions_keys = []
 		log_keys = []
 		rpc_keys = []
 		misc_keys = []
-
 		redis_keys = redis_client.scan_iter("opsiconfd:*")
 		
 		async for key in redis_keys:
@@ -99,8 +96,7 @@ async def get_redis_stats():
 		for key in misc_keys:
 			misc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
 			
-
-		redis_info =  await redis_client.execute_command(f"INFO")
+		redis_info =  await redis_client.execute_command("INFO")
 		
 		redis_version = redis_info.get("redis_version")
 		connected_clients = redis_info.get("connected_clients")
@@ -108,7 +104,7 @@ async def get_redis_stats():
 		total_memory = redis_info.get("used_memory")
 		total_keys_info = redis_info.get("db0")
 
-		redis_module =  await redis_client.execute_command(f"MODULE LIST")
+		redis_module =  await redis_client.execute_command("MODULE LIST")
 		
 		modules = []
 		for module in redis_module:

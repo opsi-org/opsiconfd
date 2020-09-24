@@ -158,9 +158,18 @@ async def get_rpc_list(limit: int = 250) -> list:
 			client = redis_result[5].decode("utf8")
 		else:
 			client = "0.0.0.0"
-		method_name = key.decode("utf8").split(":")[-1]			
+		method_name = key.decode("utf8").split(":")[-1]
 		
-		rpc = {"rpc_num": int(key.decode("utf8").split(":")[-2]), "method": method_name, "params": num_params, "results": num_results, "date": date, "client": client, "error": error, "duration": duration}
+		rpc = {
+			"rpc_num": int(key.decode("utf8").split(":")[-2]),
+			"method": method_name,
+			"params": num_params,
+			"results": num_results,
+			"date": date,
+			"client": client,
+			"error": error,
+			"duration": duration
+		}
 		rpc_list.append(rpc)
 	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
 	return rpc_list
@@ -177,13 +186,12 @@ async def get_rpc_count():
 
 async def _get_rpc_count() -> int: 
 	redis_client = await get_redis_client()
-
-	count = await redis_client.get("opsiconfd:stats:num_rpcs")
-	if count:
-		count = int(count.decode("utf8"))
-	else:
-		count = 0
-	return count
+	# TODO: This should be optimized
+	redis_keys = redis_client.scan_iter(f"opsiconfd:stats:rpc:*")
+	keys = 0
+	async for key in redis_keys:
+		keys += 1
+	return keys
 
 @admin_interface_router.get("/blocked-clients")
 async def get_blocked_clients() -> list:

@@ -55,7 +55,7 @@ async def get_redis_client():
 		# _redis_client.flushdb()
 	pool = _redis_client.connection_pool
 	if len(pool._in_use_connections) >= pool.max_connections:
-		logger.debug("No available connections in redis connection pool")
+		logger.warning("No available connections in redis connection pool")
 		while len(pool._in_use_connections) >= pool.max_connections:
 			await asyncio.sleep(0.01)
 	return _redis_client

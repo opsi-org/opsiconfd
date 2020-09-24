@@ -83,7 +83,7 @@ GRAFANA_DASHBOARD_TEMPLATE = {
 	"graphTooltip": 0,
 	"links": [],
 	"panels": [],
-	"refresh": "60s",
+	"refresh": "1m",
 	"schemaVersion": 22,
 	"version": 12,
 	"style": "dark",

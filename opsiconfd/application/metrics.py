@@ -83,7 +83,7 @@ async def grafana_dashboard(request: Request):
 			resp = await session.post(f"{base_url}/api/dashboards/db", json=json)
 		else:
 			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
-	return RedirectResponse(url=f"{config.grafana_external_url}/d/opsiconfd_main/opsiconfd-main-dashboard?refresh=5s&kiosk=tv")
+	return RedirectResponse(url=f"{config.grafana_external_url}/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv")
 
 @grafana_metrics_router.get('/dashboard/config')
 async def grafana_dashboard_config():

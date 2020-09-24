@@ -32,7 +32,7 @@ services:
       MYSQL_USER: opsi
       MYSQL_PASSWORD: opsi
   redis:
-    image: redislabs/redistimeseries:1.4.1
+    image: redislabs/redistimeseries:1.4.5
     ports:
       - "6380:6379"
   grafana:

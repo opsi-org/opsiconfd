@@ -93,28 +93,95 @@ async def get_redis_stats():
 		for key in misc_keys:
 			misc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
 		
-		keys = {
-			"stats":{
-				"count":len(stats_keys),
-				"memory": stats_memory
-			},
-			"sessions":{
-				"count":len(sessions_keys),
-				"memory": sessions_memory
-			},
-			"logs":{
-				"count":len(log_keys),
-				"memory": logs_memory
-			},
-			"misc":{
-				"count":len(misc_keys),
-				"memory": misc_memory
-			}
-		}
+		# keys = {
+		# 	"stats":{
+		# 		"count":len(stats_keys),
+		# 		"memory": stats_memory
+		# 	},
+		# 	"sessions":{
+		# 		"count":len(sessions_keys),
+		# 		"memory": sessions_memory
+		# 	},
+		# 	"logs":{
+		# 		"count":len(log_keys),
+		# 		"memory": logs_memory
+		# 	},
+		# 	"misc":{
+		# 		"count":len(misc_keys),
+		# 		"memory": misc_memory
+		# 	}
+		# }
 		#.format(len(stats_keys), len(sessions_keys),len(log_keys),len(misc_keys))
+		# logger.devel(keys)
+
+		# memory_stats = await redis_client.execute_command(f"MEMORY STATS")
+		# total_memory = 0
+		# key_count = 0
+		# for idx, val in enumerate(memory_stats):
+		# 	if type(val) == bytes:
+		# 		val = val.decode("utf8")
+		# 		if "total.allocated" in val:
+		# 			total_memory = memory_stats[idx+1]
+		# 		if "keys.count" in val:
+		# 			key_count = memory_stats[idx+1]
+
+		# logger.devel(memory_stats)
 		
-		logger.devel(keys)
-		response = JSONResponse({"status": 200, "error": None, "data": {"keys": keys}})
+
+		redis_info =  await redis_client.execute_command(f"INFO")
+		logger.devel(redis_info.get("module"))
+		logger.devel(redis_info.get("redis_version"))
+
+		
+
+		redis_version = redis_info.get("redis_version")
+		connected_clients = redis_info.get("connected_clients")
+		used_memory_human = redis_info.get("used_memory_human")
+		total_memory = redis_info.get("used_memory")
+		total_keys_info = redis_info.get("db0")
+
+		redis_module =  await redis_client.execute_command(f"MODULE LIST")
+		logger.devel(redis_module)
+
+		modules = []
+		for module in redis_module:
+			modules.append({"name": module[1].decode("utf8"), "ver": module[3]})
+
+		
+		
+		redis_data = {
+			"redis_version": redis_version, 
+			"modules": modules,
+			"clients": connected_clients, 
+			"memory_human": used_memory_human, 
+			"memory": total_memory,
+			"keys": {
+				"count": total_keys_info.get("keys"),
+				"expires": total_keys_info.get("expires"),
+				"avg_ttl": total_keys_info.get("avg_ttl"),
+				"stats":{
+					"count":len(stats_keys),
+					"memory": stats_memory
+				},
+				"sessions":{
+					"count":len(sessions_keys),
+					"memory": sessions_memory
+				},
+				"logs":{
+					"count":len(log_keys),
+					"memory": logs_memory
+				},
+				"misc":{
+					"count":len(misc_keys),
+					"memory": misc_memory
+				}
+			}
+		}  
+		logger.devel(redis_data)
+
+		
+
+		response = JSONResponse({"status": 200, "error": None, "data": redis_data})
 		logger.devel(response.__dict__)
 	except Exception as e:
 		logger.error("Error while reading redis data: %s", e)

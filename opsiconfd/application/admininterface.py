@@ -141,7 +141,7 @@ async def get_rpc_list(limit: int = 250) -> list:
 			"date": value.get("date", datetime.date(2020,1,1).strftime('%Y-%m-%dT%H:%M:%SZ')),
 			"client": value.get("client",  "0.0.0.0"),
 			"error": value.get("error"),
-			"duration": value.get("duration")
+			"duration": "%0.4f" % value.get("duration")
 		}
 		rpc_list.append(rpc)
 
@@ -152,6 +152,7 @@ async def get_rpc_list(limit: int = 250) -> list:
 @admin_interface_router.get("/rpc-count")
 async def get_rpc_count(): 
 	count = await _get_rpc_count()
+	# TODO: Fix date_first_rpc get from first elemet of "opsiconfd:stats:rpcs"
 	time = datetime.datetime.now() - datetime.timedelta(days=2)
 	date_first_rpc = time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
@@ -160,12 +161,8 @@ async def get_rpc_count():
 
 async def _get_rpc_count() -> int: 
 	redis_client = await get_redis_client()
-	# TODO: This should be optimized
-	redis_keys = redis_client.scan_iter(f"opsiconfd:stats:rpc:*")
-	keys = 0
-	async for key in redis_keys:
-		keys += 1
-	return keys
+	# LLEN will return 0 if key does not exist
+	return await redis_client.llen("opsiconfd:stats:rpcs")
 
 @admin_interface_router.get("/blocked-clients")
 async def get_blocked_clients() -> list:

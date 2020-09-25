@@ -28,7 +28,7 @@ import getpass
 import socket
 import configargparse
 from typing import Union
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentTypeError, SUPPRESS
+from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_OR_MORE
 
 from .utils import Singleton
 
@@ -120,8 +120,54 @@ def expert_help(help):
 		return help
 	return SUPPRESS
 
+class OpsiconfdHelpFormatter(HelpFormatter):
+	CN = ''
+	CB = ''
+	CC = ''
+	CW = ''
+	if sys.stdout.isatty():
+		CN = '\033[0;0;0m'
+		CB = '\033[1;34;40m'
+		CC = '\033[1;36;40m'
+		CW = '\033[1;37;40m'
+		CY = '\033[0;33;40m'
+
+	def format_help(self):
+		text = HelpFormatter.format_help(self)
+		text = re.sub("usage:\s+(\S+)\s+", f"Usage: {self.CW}\g<1>{self.CN} ", text)
+		#text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text)
+		return text
+	
+	def _format_actions_usage(self, actions, groups):
+		text = HelpFormatter._format_actions_usage(self, actions, groups)
+		text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text)
+		text = re.sub("([A-Z_]{2,})", f"{self.CC}\g<1>{self.CN}", text)
+		return text
+	
+	def _format_action_invocation(self, action):
+		text = HelpFormatter._format_action_invocation(self, action)
+		text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text)
+		text = re.sub("([A-Z_]{2,})", f"{self.CC}\g<1>{self.CN}", text)
+		return text
+	
+	def _format_args(self, action, default_metavar):
+		text = HelpFormatter._format_args(self, action, default_metavar)
+		return f"{self.CC}{text}{self.CN}"
+	
+	def _get_help_string(self, action):
+		text = action.help
+		#text = re.sub("(\[env var: )([^\]]+)(\])", f"\g<1>{self.CB}\g<2>{self.CN}\g<3>", text)
+		if '%(default)' not in action.help:
+			if action.default is not SUPPRESS:
+				defaulting_nargs = [OPTIONAL, ZERO_OR_MORE]
+				if action.option_strings or action.nargs in defaulting_nargs:
+					#text += f' (default: {self.CY}%(default)s{self.CN})'
+					text += f' (default: %(default)s)'
+		
+		return text
+		
 parser = configargparse.ArgParser(
-	formatter_class=lambda prog: ArgumentDefaultsHelpFormatter(
+	formatter_class=lambda prog: OpsiconfdHelpFormatter(
 		prog, max_help_position=30, width=100
 	)
 )

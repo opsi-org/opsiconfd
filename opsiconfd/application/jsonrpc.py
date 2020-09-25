@@ -187,7 +187,7 @@ async def process_jsonrpc(request: Request, response: Response):
 
 			async with await redis_client.pipeline(transaction=False) as pipe:
 				await pipe.lpush("opsiconfd:stats:rpcs", orjson.dumps(data))
-				await pipe.ltrim("opsiconfd:stats:rpcs", 0, 999)
+				await pipe.ltrim("opsiconfd:stats:rpcs", 0, 9999)
 				redis_returncode = await pipe.execute()
 			response.status_code = 200
 	except HTTPException as e:

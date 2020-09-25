@@ -308,7 +308,7 @@ class OPSISession():
 		self._data: typing.Dict[str, typing.Any] = {}
 
 	def __repr__(self):
-		return f"<{self.__class__.__name__} created={self.created} last_used={self.last_used}>"
+		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
 
 	@classmethod
 	def utc_time_timestamp(cls):

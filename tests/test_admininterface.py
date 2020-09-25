@@ -25,6 +25,7 @@ def create_failed_requests():
 	for i in range(0, 20):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
 		if i >= 18:
+			print("######", r.text)
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 

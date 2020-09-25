@@ -134,14 +134,14 @@ async def get_rpc_list(limit: int = 250) -> list:
 	for value in redis_result:
 		value = orjson.loads(value)
 		rpc = {
-			"rpc_num": value.get("rpc_num"),
+			"rpc_num": int(value.get("rpc_num")),
 			"method": value.get("method"),
-			"params": value.get("num_params"),
-			"results": value.get("num_results"),
+			"params": int(value.get("num_params")),
+			"results": int(value.get("num_results")),
 			"date": value.get("date", datetime.date(2020,1,1).strftime('%Y-%m-%dT%H:%M:%SZ')),
 			"client": value.get("client",  "0.0.0.0"),
-			"error": value.get("error"),
-			"duration": value.get("duration")
+			"error": bool(value.get("error")),
+			"duration": float(value.get("duration"))
 		}
 		rpc_list.append(rpc)
 

@@ -22,9 +22,9 @@ TEST_PW = "adminuser"
 OPSI_SESSION_KEY = "opsiconfd:sessions"
 
 def create_failed_requests():
-	for i in range(0, 15):
+	for i in range(0, 20):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
-		if i >= 12:
+		if i >= 18:
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 
@@ -34,6 +34,7 @@ def call_rpc(rpc_request_data: list, expect_error: list):
 		print(data)
 		rpc_request_data = json.dumps(data)
 		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+		print(r)
 		result_json = json.loads(r.text)
 		assert r.status_code == 200
 		if expect_error[idx]:
@@ -68,6 +69,7 @@ async def clean_redis():
 		await redis_client.delete(key)
 	await redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
 	await redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
+	await redis_client.delete("opsiconfd:stats:rpcs")
 	session_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
 	async for key in session_keys:
 		print(key)
@@ -111,7 +113,7 @@ def test_get_rpc_list_request():
 	for i in range(0,3):
 		assert result[i].get("rpc_num") == i+1
 		assert result[i].get("error") == False
-		assert result[i].get("params") == "0"
+		assert result[i].get("params") == 0
 
 
 def test_get_blocked_clients_request():
@@ -121,21 +123,6 @@ def test_get_blocked_clients_request():
 	assert admin_request.status_code == 200
 	print(admin_request.text)
 	assert admin_request.text ==  '["127.0.0.1"]'
-
-
-get_rpc_count_test_data = [
-	(0,0),
-	(20,20),
-	(3,3)
-]
-@pytest.mark.parametrize("num_rpcs, expexted_value", get_rpc_count_test_data)
-@pytest.mark.asyncio
-async def test_get_rpc_count(admininterface, num_rpcs, expexted_value):
-
-	for i in range(0, num_rpcs):
-		call_rpc([{"id": 1, "method": "host_getIdents","params": [None]}], [False])
-	count = await admininterface._get_rpc_count()
-	assert count == expexted_value
 
 
 get_rpc_list_test_data = [1,3,5]
@@ -151,7 +138,7 @@ async def test_get_rpc_list(admininterface, num_rpcs):
 	for i in range(0, num_rpcs):
 		assert rpc_list[i].get("rpc_num") == i+1
 		assert rpc_list[i].get("error") == False
-		assert rpc_list[i].get("params") == "0"
+		assert rpc_list[i].get("params") == 0
 
 
 @pytest.mark.asyncio
@@ -276,64 +263,5 @@ async def test_unblock_client(admininterface):
 	assert r.status_code == 200
 	
 
-index_test_data = [
-	(
-		[
-			{"id": 1, "method": "host_getIdents", "params": [None]},
-			{"id": 2, "method": "host_getIdents", "params": [None]},
-			{"id": 3, "method": "host_getIdents", "params": [None]}
-		], 
-		{
-			"rpc_count": 3, 
-			"method": ["host_getIdents", "host_getIdents", "host_getIdents"],
-			"params": [0,0,0],
-			"error": [False, False, False]
-		},
-	),
-	(
-		[
-			{"id": 1, "method": "false_method", "params": [None]},
-			{"id": 2, "method": "false_method", "params": ["test"]},
-			{"id": 3, "method": "host_getIdents", "params": [None]}
-		], 
-		{
-			"rpc_count": 3, 
-			"method": ["false_method", "false_method", "host_getIdents"],
-			"params": [0,1,0],
-			"error": [True, True, False]
-		},
-	),
-	(
-		[
-			{"id": 1, "method": "host_getObjects", "params": [["ipAddress","lastSeen"],{"ipAddress": "192.*"}]},
-			{"id": 2, "method": "host_getObjects", "params": [["ipAddress"],{"ipAddress": "192.*"}]},
-			{"id": 3, "method": "host_getObjects", "params": [[],{"ipAddress": "192.*"}]},
-			{"id": 4, "method": "host_getObjects", "params": [["ipAddress"],{"ipAddress": "192.*","type": "OpsiClient"}]}
-		], 
-		{
-			"rpc_count": 4, 
-			"method": ["host_getObjects", "host_getObjects", "host_getObjects", "host_getObjects"],
-			"params": [2,2,1,2],
-			"error": [False, False, False, False]
-		},
-	)
-]
-@pytest.mark.parametrize("rpc_request_data, expected_response", index_test_data)
-@pytest.mark.asyncio
-async def test_admin_interface_index(admininterface, rpc_request_data, expected_response):
 
-	call_rpc(rpc_request_data, expected_response.get("error"))
-	create_failed_requests()
-
-	headers = Headers()
-	scope = {
-			'method': 'GET',
-			'type': 'http',
-			'headers': headers
-		}
-	test_request = Request(scope=scope)
-	response = await admininterface.admin_interface_index(test_request)
-
-	assert response.context.get("rpc_count") == expected_response.get("rpc_count")
-
-
+# TODO test number of keys in rpc list

@@ -91,6 +91,12 @@ def jsonrpc_setup(app):
 	app.include_router(jsonrpc_router, prefix="/rpc")
 
 
+async def store_rpc(redis_client, data, max_rpcs=9999):
+	pipe = await redis_client.pipeline()
+	await pipe.lpush("opsiconfd:stats:rpcs", orjson.dumps(data))
+	await pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs)
+	await pipe.execute()
+
 # Some clients are using /rpc/rpc
 @jsonrpc_router.get(".*")
 @jsonrpc_router.post(".*")
@@ -185,10 +191,7 @@ async def process_jsonrpc(request: Request, response: Response):
 				"duration": result[1]
 			}
 
-			async with await redis_client.pipeline(transaction=False) as pipe:
-				await pipe.lpush("opsiconfd:stats:rpcs", orjson.dumps(data))
-				await pipe.ltrim("opsiconfd:stats:rpcs", 0, 9999)
-				redis_returncode = await pipe.execute()
+			asyncio.get_event_loop().create_task(store_rpc(redis_client, data))
 			response.status_code = 200
 	except HTTPException as e:
 		logger.error(e)

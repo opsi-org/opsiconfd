@@ -8,6 +8,7 @@ See LICENSES/README.md for more Information
 
 import os
 import datetime
+import orjson
 from operator import itemgetter
 
 from fastapi import APIRouter, Request, Response, HTTPException, status
@@ -127,51 +128,24 @@ async def delete_client_sessions(request: Request):
 async def get_rpc_list(limit: int = 250) -> list:
 
 	redis_client = await get_redis_client()
-	redis_keys = redis_client.scan_iter(f"opsiconfd:stats:rpc:*")
-
-	keys = []
-	async for key in redis_keys:
-		keys.append(key)
-	keys = sorted(keys, key=lambda key: get_num_from_key(key)) 
-	keys = keys[-limit:]
+	redis_result = await redis_client.lrange("opsiconfd:stats:rpcs", 0, -1)
 
 	rpc_list = []
-	for key in keys:
-		async with await redis_client.pipeline(transaction=False) as pipe:
-			await pipe.hget(key, "num_params")
-			await pipe.hget(key, "error")
-			await pipe.hget(key, "num_results")
-			await pipe.hget(key, "duration")
-			await pipe.hget(key, "date")
-			await pipe.hget(key, "client")
-			redis_result = await pipe.execute()
-
-		num_params = redis_result[0].decode("utf8")
-		error = (redis_result[1].decode("utf8") == "True")
-		num_results = redis_result[2].decode("utf8")
-		duration = "{:.3f}".format(float(redis_result[3].decode("utf8")))
-		if redis_result[4]:
-			date = redis_result[4].decode("utf8")
-		else:
-			date = datetime.date(2020,1,1).strftime('%Y-%m-%dT%H:%M:%SZ')
-		if redis_result[5]:
-			client = redis_result[5].decode("utf8")
-		else:
-			client = "0.0.0.0"
-		method_name = key.decode("utf8").split(":")[-1]
-		
+	for value in redis_result:
+		value = orjson.loads(value)
 		rpc = {
-			"rpc_num": int(key.decode("utf8").split(":")[-2]),
-			"method": method_name,
-			"params": num_params,
-			"results": num_results,
-			"date": date,
-			"client": client,
-			"error": error,
-			"duration": duration
+			"rpc_num": value.get("rpc_num"),
+			"method": value.get("method"),
+			"params": value.get("num_params"),
+			"results": value.get("num_results"),
+			"date": value.get("date", datetime.date(2020,1,1).strftime('%Y-%m-%dT%H:%M:%SZ')),
+			"client": value.get("client",  "0.0.0.0"),
+			"error": value.get("error"),
+			"duration": value.get("duration")
 		}
 		rpc_list.append(rpc)
-	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
+
+	# rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
 	return rpc_list
 
 

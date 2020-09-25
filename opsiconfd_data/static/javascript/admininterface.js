@@ -195,7 +195,7 @@ function loadRPCTable(sortKey, sort) {
 			result = request_count.responseText;
 			result = JSON.parse(result);
 			date = new Date(result["date_first_rpc"])
-			printRPCCount(result["rpc_count"], date)
+			// printRPCCount(result["rpc_count"], date)
 			return result;
 		} else {
 			console.warn(request_count.statusText, request_count.responseText);
@@ -205,11 +205,11 @@ function loadRPCTable(sortKey, sort) {
 	request_count.send();
 }
 
-function printRPCCount(rpcCount, date) {
-	p = document.getElementById("rpc-count");
-	htmlStr = "Number of RPCs since " + formateDate(date) + " (UTC): " + rpcCount;
-	p.innerHTML = htmlStr;
-}
+// function printRPCCount(rpcCount, date) {
+// 	p = document.getElementById("rpc-count");
+// 	htmlStr = "Number of RPCs since " + formateDate(date) + " (UTC): " + rpcCount;
+// 	p.innerHTML = htmlStr;
+// }
 
 function printClientTable(data, htmlId) {
 	if (data.length == 0) {

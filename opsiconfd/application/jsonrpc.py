@@ -173,10 +173,21 @@ async def process_jsonrpc(request: Request, response: Response):
 				if isinstance(result[0].get("result"), list):
 					num_results = len(result[0].get("result"))
 			logger.debug("num_results: %s", num_results)
-			redis_key = f"opsiconfd:stats:rpc:{rpc_count}:{result[0].get('method')}"
+
+			data = {
+				"rpc_num": rpc_count,
+				"method": result[0].get('method'),
+				"num_params": len(params),
+				"date": date,
+				"client": request.client.host,
+				"error": error,
+				"num_results": num_results,
+				"duration": result[1]
+			}
+
 			async with await redis_client.pipeline(transaction=False) as pipe:
-				await pipe.hmset(redis_key, {"num_params": len(params), "date": date, "client": request.client.host, "error": error, "num_results": num_results, "duration": result[1]})
-				await pipe.expire(redis_key, 172800)
+				await pipe.lpush("opsiconfd:stats:rpcs", orjson.dumps(data))
+				await pipe.ltrim("opsiconfd:stats:rpcs", 0, 999)
 				redis_returncode = await pipe.execute()
 			response.status_code = 200
 	except HTTPException as e:

@@ -111,6 +111,7 @@ def test_get_rpc_list_request():
 	for i in range(0,3):
 		assert result[i].get("rpc_num") == i+1
 		assert result[i].get("error") == False
+		assert result[i].get("params") == 0
 
 
 def test_get_blocked_clients_request():
@@ -120,21 +121,6 @@ def test_get_blocked_clients_request():
 	assert admin_request.status_code == 200
 	print(admin_request.text)
 	assert admin_request.text ==  '["127.0.0.1"]'
-
-
-get_rpc_count_test_data = [
-	(0,0),
-	(20,20),
-	(3,3)
-]
-@pytest.mark.parametrize("num_rpcs, expexted_value", get_rpc_count_test_data)
-@pytest.mark.asyncio
-async def test_get_rpc_count(admininterface, num_rpcs, expexted_value):
-
-	for i in range(0, num_rpcs):
-		call_rpc([{"id": 1, "method": "host_getIdents","params": [None]}], [False])
-	count = await admininterface._get_rpc_count()
-	assert count == expexted_value
 
 
 get_rpc_list_test_data = [1,3,5]
@@ -150,7 +136,7 @@ async def test_get_rpc_list(admininterface, num_rpcs):
 	for i in range(0, num_rpcs):
 		assert rpc_list[i].get("rpc_num") == i+1
 		assert rpc_list[i].get("error") == False
-		assert rpc_list[i].get("params") == "0"
+		assert rpc_list[i].get("params") == 0
 
 
 @pytest.mark.asyncio

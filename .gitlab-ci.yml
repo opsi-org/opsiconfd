@@ -82,7 +82,7 @@ stages:
   echo "---------------------------------------"
   echo "Run tests"
   echo "---------------------------------------"
-  poetry run pytest --cov opsiconfd /builds/uib/opsiconfd/tests
+  poetry run pytest --cov opsiconfd /builds/uib/opsiconfd/tests/test_admininterface.py
 
 test:perftest:
   #when: manual

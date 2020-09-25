@@ -208,7 +208,7 @@ async def process_jsonrpc(request: Request, response: Response):
 		response.status_code = 400
 		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]
 	
-	data = orjson.dumps(results[0] if len(results) == 1 else results)
+	data = await run_in_threadpool(orjson.dumps, results[0] if len(results) == 1 else results)
 	response.headers["content-type"] = "application/json"
 	
 	data_len = len(data)

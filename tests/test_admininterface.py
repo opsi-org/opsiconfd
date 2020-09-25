@@ -24,7 +24,8 @@ OPSI_SESSION_KEY = "opsiconfd:sessions"
 def create_failed_requests():
 	for i in range(0, 20):
 		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
-		if i >= 19:
+		if i >= 18:
+			print("######", r.text)
 			assert r.status_code == 403
 			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 
@@ -34,6 +35,7 @@ def call_rpc(rpc_request_data: list, expect_error: list):
 		print(data)
 		rpc_request_data = json.dumps(data)
 		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+		print(r)
 		result_json = json.loads(r.text)
 		assert r.status_code == 200
 		if expect_error[idx]:
@@ -68,6 +70,7 @@ async def clean_redis():
 		await redis_client.delete(key)
 	await redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
 	await redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
+	await redis_client.delete("opsiconfd:stats:rpcs")
 	session_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
 	async for key in session_keys:
 		print(key)
@@ -263,5 +266,4 @@ async def test_unblock_client(admininterface):
 	
 
 
-
-
+# TODO test number of keys in rpc list

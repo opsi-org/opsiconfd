@@ -91,6 +91,12 @@ def jsonrpc_setup(app):
 	app.include_router(jsonrpc_router, prefix="/rpc")
 
 
+async def store_rpc(redis_client, data, max_rpcs=9999):
+	pipe = await redis_client.pipeline()
+	await pipe.lpush("opsiconfd:stats:rpcs", orjson.dumps(data))
+	await pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs)
+	await pipe.execute()
+
 # Some clients are using /rpc/rpc
 @jsonrpc_router.get(".*")
 @jsonrpc_router.post(".*")
@@ -173,11 +179,19 @@ async def process_jsonrpc(request: Request, response: Response):
 				if isinstance(result[0].get("result"), list):
 					num_results = len(result[0].get("result"))
 			logger.debug("num_results: %s", num_results)
-			redis_key = f"opsiconfd:stats:rpc:{rpc_count}:{result[0].get('method')}"
-			async with await redis_client.pipeline(transaction=False) as pipe:
-				await pipe.hmset(redis_key, {"num_params": len(params), "date": date, "client": request.client.host, "error": error, "num_results": num_results, "duration": result[1]})
-				await pipe.expire(redis_key, 172800)
-				redis_returncode = await pipe.execute()
+
+			data = {
+				"rpc_num": rpc_count,
+				"method": result[0].get('method'),
+				"num_params": len(params),
+				"date": date,
+				"client": request.client.host,
+				"error": error,
+				"num_results": num_results,
+				"duration": result[1]
+			}
+
+			asyncio.get_event_loop().create_task(store_rpc(redis_client, data))
 			response.status_code = 200
 	except HTTPException as e:
 		logger.error(e)
@@ -194,7 +208,7 @@ async def process_jsonrpc(request: Request, response: Response):
 		response.status_code = 400
 		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]
 	
-	data = orjson.dumps(results[0] if len(results) == 1 else results)
+	data = await run_in_threadpool(orjson.dumps, results[0] if len(results) == 1 else results)
 	response.headers["content-type"] = "application/json"
 	
 	data_len = len(data)

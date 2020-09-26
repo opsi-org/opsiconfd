@@ -516,7 +516,7 @@ parser.add(
 	type=float,
 	default=0.0,
 	metavar="THRESHOLD",
-	help=expert_help("Log asyncio callbacks which takes THRESHOLD seconds ore more.")
+	help=expert_help("Log asyncio callbacks which takes THRESHOLD seconds or more.")
 )
 parser.add(
 	"action",

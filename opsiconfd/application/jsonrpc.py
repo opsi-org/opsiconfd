@@ -42,7 +42,7 @@ from OPSI.Util import serialize, deserialize
 
 from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface
-from ..worker import run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, contextvar_request_id, get_redis_client
+from ..worker import run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, contextvar_request_id, get_redis_client, sync_redis_client
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
 
 
@@ -91,11 +91,15 @@ def jsonrpc_setup(app):
 	app.include_router(jsonrpc_router, prefix="/rpc")
 
 
-async def store_rpc(redis_client, data, max_rpcs=9999):
-	pipe = await redis_client.pipeline()
-	await pipe.lpush("opsiconfd:stats:rpcs", orjson.dumps(data))
-	await pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs)
-	await pipe.execute()
+def _store_rpc(data, max_rpcs=9999):
+	try:
+		with sync_redis_client() as redis:
+			pipe = redis.pipeline()
+			pipe.lpush("opsiconfd:stats:rpcs", orjson.dumps(data))
+			pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs)
+			pipe.execute()
+	except Exception as e:
+		logger.error(e, exc_info=True)
 
 # Some clients are using /rpc/rpc
 @jsonrpc_router.get(".*")
@@ -191,7 +195,9 @@ async def process_jsonrpc(request: Request, response: Response):
 				"duration": result[1]
 			}
 
-			asyncio.get_event_loop().create_task(store_rpc(redis_client, data))
+			asyncio.get_event_loop().create_task(
+				run_in_threadpool(_store_rpc, data)
+			)
 			response.status_code = 200
 	except HTTPException as e:
 		logger.error(e)

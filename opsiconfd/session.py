@@ -62,7 +62,7 @@ from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
 from .logging import logger, secret_filter, set_context
-from .worker import get_redis_client, contextvar_client_session, contextvar_server_timing, run_in_threadpool
+from .worker import sync_redis_client, get_redis_client, contextvar_client_session, contextvar_server_timing, run_in_threadpool
 from .backend import get_client_backend
 from .config import config
 
@@ -164,7 +164,12 @@ class SessionMiddleware:
 				await session.init()
 			contextvar_client_session.set(session)
 			scope["session"] = session
+
+			#sht = (time.perf_counter() - start) * 1000
+			#if sht > 100:
+			#	logger.warning("Session init took %0.2fms", sht)
 			
+			auth_done = False
 			if not is_public:
 				if not session.user_store.username or not session.user_store.authenticated:
 					# Check if blocked
@@ -191,6 +196,7 @@ class SessionMiddleware:
 					# Authenticate
 					logger.info("Start authentication of client %s", connection.client.host)
 					await run_in_threadpool(authenticate, connection)
+					auth_done = True
 
 					if session.user_store.host:
 						logger.info("Host authenticated, updating host object")
@@ -218,7 +224,11 @@ class SessionMiddleware:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 			
 			server_timing = contextvar_server_timing.get()
-			server_timing["session_handling"] = 1000 * (time.perf_counter() - start)
+			sht = (time.perf_counter() - start) * 1000
+			if not auth_done and sht > 1000:
+				logger.warning("Session handling took %0.2fms", sht)
+			server_timing["session_handling"] = sht
+			
 			contextvar_server_timing.set(server_timing)
 
 			async def send_wrapper(message: Message) -> None:
@@ -306,7 +316,8 @@ class OPSISession():
 		self.user_store = UserStore()
 		self.option_store = {}
 		self._data: typing.Dict[str, typing.Any] = {}
-
+		self.is_new_session = True
+	
 	def __repr__(self):
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
 
@@ -353,13 +364,16 @@ class OPSISession():
 		self._update_last_used()
 		await self.store()
 
-	async def init_new_session(self) -> None:
+	def _init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
 		redis_session_keys = []
 		try:
-			redis_client = await get_redis_client()
-			async for key in redis_client.scan_iter(f"{self.redis_key_prefix}:{self.client_addr}:*"):
-				redis_session_keys.append(key.decode("utf8"))
+			with sync_redis_client() as redis:
+				for key in redis.scan_iter(f"{self.redis_key_prefix}:{self.client_addr}:*"):
+					redis_session_keys.append(key.decode("utf8"))
+			#redis_client = await get_redis_client()
+			#async for key in redis_client.scan_iter(f"{self.redis_key_prefix}:{self.client_addr}:*"):
+			#	redis_session_keys.append(key.decode("utf8"))
 			if config.max_session_per_ip > 0 and len(redis_session_keys) > config.max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {config.max_session_per_ip}"
 				logger.warning(error)
@@ -373,10 +387,11 @@ class OPSISession():
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
-	async def load(self) -> bool:
+	async def init_new_session(self) -> None:
+		await run_in_threadpool(self._init_new_session)
+ 
+	def _load(self) -> bool:
 		self._data = {}
-		redis_client = await get_redis_client()
-
 		"""
 		# This is to slow!
 		redis_session_keys = []
@@ -391,7 +406,12 @@ class OPSISession():
 		if redis_session_keys[0] != self.redis_key:
 			await redis_client.rename(redis_session_keys[0], self.redis_key)
 		"""
-		data = await redis_client.get(self.redis_key)
+		with sync_redis_client() as redis:
+			#start = time.perf_counter()
+			data = redis.get(self.redis_key)
+			#ms = (time.perf_counter() - start) * 1000
+			#if ms > 100:
+			#	logger.warning("Session loading from redis took %0.2fms", ms)
 		if not data:
 			return False
 		data = orjson.loads(data)
@@ -401,9 +421,14 @@ class OPSISession():
 			setattr(self.user_store, k, deserialize(v))
 		self.option_store = data.get("option_store", self.option_store)
 		self._data = data.get("data", self._data)
+		self.is_new_session = False
 		return True
+	
+	async def load(self) -> bool:
+		# aredis is sometimes slow ~300ms load, using redis for now
+		return await run_in_threadpool(self._load)
 
-	async def store(self) -> None:
+	def _store(self) -> None:
 		data = {
 			"created": self.created,
 			"last_used": self.last_used,
@@ -417,8 +442,18 @@ class OPSISession():
 		# Do not store password
 		if "password" in data["user_store"]:
 			del data["user_store"]["password"]
-		redis_client = await get_redis_client()
-		await redis_client.set(self.redis_key, orjson.dumps(data), ex=self.max_age)
+		with sync_redis_client() as redis:
+			#start = time.perf_counter()
+			redis.set(self.redis_key, orjson.dumps(data), ex=self.max_age)
+			#ms = (time.perf_counter() - start) * 1000
+			#if ms > 100:
+			#	logger.warning("Session storing to redis took %0.2fms", ms)
+		#redis_client = await get_redis_client()
+		#await redis_client.set(self.redis_key, orjson.dumps(data), ex=self.max_age)
+	
+	async def store(self) -> None:
+		# aredis is sometimes slow ~300ms load, using redis for now
+		await run_in_threadpool(self._store)
 
 	def _update_last_used(self):
 		self.last_used = self.utc_time_timestamp()

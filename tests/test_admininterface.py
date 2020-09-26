@@ -21,13 +21,16 @@ TEST_USER = "adminuser"
 TEST_PW = "adminuser"
 OPSI_SESSION_KEY = "opsiconfd:sessions"
 
-def create_failed_requests():
-	for i in range(0, 20):
-		r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
-		if i >= 18:
-			print("######", r.text)
-			assert r.status_code == 403
-			assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
+async def create_failed_requests():
+	
+	redis_client = aredis.StrictRedis.from_url("redis://redis")
+	await redis_client.execute_command("ts.create opsiconfd:stats:client:failed_auth:127.0.0.1 RETENTION 86400000 LABELS client_addr 127.0.0.1")
+
+	await redis_client.execute_command("ts.add opsiconfd:stats:client:failed_auth:127.0.0.1 * 11 RETENTION 86400000 LABELS client_addr 127.0.0.1")
+	await redis_client.set("opsiconfd:stats:client:blocked:127.0.0.1", True)
+	r = requests.get(OPSI_URL, auth=("false_user","false_pw"), verify=False)
+	assert r.status_code == 403
+	assert r.text == "Client '127.0.0.1' is blocked for 2.00 minutes!"
 
 
 def call_rpc(rpc_request_data: list, expect_error: list):
@@ -82,19 +85,20 @@ async def clean_redis():
 def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-@pytest.mark.skip(reason="test does not work in gitlab ci")
-def test_unblock_all_request():
+@pytest.mark.asyncio
+async def test_unblock_all_request():
 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
-	create_failed_requests()
+	await create_failed_requests()
 	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-all", auth=(TEST_USER, TEST_PW), cookies=admin_request.cookies, verify=False)
 	assert admin_request.status_code == 200
 	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 200
 
 @pytest.mark.skip(reason="test does not work in gitlab ci")
-def test_unblock_client_request():
+@pytest.mark.asyncio
+async def test_unblock_client_request():
 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
-	create_failed_requests()	
+	await create_failed_requests()	
 	admin_request = requests.post(f"{OPSI_URL}/admin/unblock-client", auth=(TEST_USER, TEST_PW), data="{\"client_addr\": \"127.0.0.1\"}", cookies=admin_request.cookies, verify=False)
 	assert admin_request.status_code == 200
 
@@ -116,10 +120,10 @@ def test_get_rpc_list_request():
 		assert result[i].get("error") == False
 		assert result[i].get("params") == 0
 
-
-def test_get_blocked_clients_request():
+@pytest.mark.asyncio
+async def test_get_blocked_clients_request():
 	admin_request = requests.get(f"{OPSI_URL}/admin", auth=(TEST_USER, TEST_PW), verify=False)
-	create_failed_requests()
+	await create_failed_requests()
 	admin_request = requests.get(f"{OPSI_URL}/admin/blocked-clients", auth=(TEST_USER, TEST_PW), cookies=admin_request.cookies, verify=False)
 	assert admin_request.status_code == 200
 	print(admin_request.text)
@@ -145,7 +149,7 @@ async def test_get_rpc_list(admininterface, num_rpcs):
 
 @pytest.mark.asyncio
 async def test_get_blocked_clients(admininterface):
-	create_failed_requests()
+	await create_failed_requests()
 	blocked_clients = await admininterface.get_blocked_clients()
 	assert blocked_clients == ['127.0.0.1']
 
@@ -218,7 +222,7 @@ async def test_unblock_all(admininterface):
 	test_request = Request(scope=scope)
 	test_response = Response()
 	
-	create_failed_requests()
+	await create_failed_requests()
 
 	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 403
@@ -239,7 +243,7 @@ async def test_unblock_all(admininterface):
 @pytest.mark.asyncio
 async def test_unblock_client(admininterface):
 
-	create_failed_requests()
+	await create_failed_requests()
 
 	r = requests.get(OPSI_URL, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 403

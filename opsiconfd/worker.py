@@ -28,8 +28,10 @@ import signal
 import threading
 import functools
 import asyncio
+import redis
 import aredis
 import contextvars
+from contextlib import contextmanager, asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from starlette.concurrency import run_in_threadpool as starlette_run_in_threadpool
 
@@ -47,19 +49,38 @@ _pool_executor = None
 _metrics_collector = None
 _arbiter_pid = None
 
+_redis_pool = None
+@contextmanager
+def sync_redis_client():
+	global _redis_pool
+	if not _redis_pool:
+		_redis_pool = redis.BlockingConnectionPool.from_url(
+			url=config.redis_internal_url
+		)
+	try:
+		con = redis.Redis(connection_pool=_redis_pool)
+		yield con
+	finally:
+		if con:
+			con.close()
+
 async def get_redis_client():
 	global _redis_client
 	if not _redis_client:
 		# The client automatically uses a connection from a connection pool for every command 
-		_redis_client = aredis.StrictRedis.from_url(config.redis_internal_url, max_connections=config.executor_workers + 10)
+		#max_connections = int(config.executor_workers * 2)
+		_redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)#, max_connections=max_connections)
 		# _redis_client.flushdb()
-	pool = _redis_client.connection_pool
-	if len(pool._in_use_connections) >= pool.max_connections:
-		logger.warning("No available connections in redis connection pool")
-		while len(pool._in_use_connections) >= pool.max_connections:
-			await asyncio.sleep(0.01)
-	return _redis_client
-
+	try:
+		pool = _redis_client.connection_pool
+		#logger.devel(len(pool._in_use_connections))
+		if len(pool._in_use_connections) >= pool.max_connections:
+			logger.warning("No available connections in redis connection pool")
+			while len(pool._in_use_connections) >= pool.max_connections:
+				await asyncio.sleep(0.01)
+		return _redis_client
+	except Exception as e:
+		logger.error(e, exc_info=True)
 
 def get_pool_executor():
 	global _pool_executor
@@ -87,8 +108,8 @@ def get_arbiter_pid() -> int:
 
 def handle_asyncio_exception(loop, context):
 	# context["message"] will always be there but context["exception"] may not
-	msg = context.get("exception", context["message"])
-	logger.error("Unhandled exception in asyncio loop '%s': %s", loop, msg)
+	#msg = context.get("exception", context["message"])
+	logger.error("Unhandled exception in asyncio loop '%s': %s", loop, context)
 
 def signal_handler(signum, frame):
 	logger.info("Worker %s got signal %d", os.getpid(), signum)

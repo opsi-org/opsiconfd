@@ -127,10 +127,10 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 	CW = ''
 	if sys.stdout.isatty():
 		CN = '\033[0;0;0m'
-		CB = '\033[1;34;40m'
-		CC = '\033[1;36;40m'
-		CW = '\033[1;37;40m'
-		CY = '\033[0;33;40m'
+		CB = '\033[1;34;49m'
+		CC = '\033[1;36;49m'
+		CW = '\033[1;37;49m'
+		CY = '\033[0;33;49m'
 
 	def format_help(self):
 		text = HelpFormatter.format_help(self)

@@ -214,7 +214,7 @@ function loadReadisInfo() {
 			result = request.responseText;
 			result = JSON.parse(result);
 			console.log(result);
-			outputToHTML(result, "redis-info-result");
+			outputToHTML(result, "redis-result");
 			return result;
 		} else {
 			console.warn(request.statusText, request.responseText);

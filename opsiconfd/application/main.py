@@ -45,6 +45,7 @@ from .webdav import webdav_setup
 from .jsonrpcinterface import jsonrpc_interface_setup
 from .admininterface import admin_interface_setup
 from .redisinterface import redis_interface_setup
+from .monitoring import monitoring_setup
 
 app = FastAPI()
 
@@ -156,7 +157,7 @@ def application_setup():
 	#    ExceptionMiddleware
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana", "/ws/test"])
+	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana", "/ws/test", "/monitoring"])
 	#app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	if os.path.isdir(config.static_dir):
@@ -170,6 +171,7 @@ def application_setup():
 	jsonrpc_interface_setup(app)
 	admin_interface_setup(app)
 	redis_interface_setup(app)
+	monitoring_setup(app)
 	webdav_setup(app)
 	metrics_setup(app)
 

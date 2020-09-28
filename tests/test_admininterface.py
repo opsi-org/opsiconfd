@@ -107,6 +107,7 @@ async def test_unblock_client_request():
 def test_get_rpc_list_request():
 	for i in range(0, 3):
 		call_rpc([{"id": 1, "method": "host_getIdents","params": [None]}], [False])
+	time.sleep(5)
 
 	r = requests.get(f"{OPSI_URL}/admin/rpc-list", auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 200
@@ -135,7 +136,7 @@ async def test_get_rpc_list(admininterface, num_rpcs):
 
 	for i in range(0, num_rpcs):
 		call_rpc([{"id": 1, "method": "host_getIdents","params": [None]}], [False])
-
+	await asyncio.sleep(5)
 	rpc_list = await admininterface.get_rpc_list()
 	print(rpc_list)
 	for i in range(0, num_rpcs):

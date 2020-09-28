@@ -32,16 +32,9 @@ def admin_interface_setup(app):
 @admin_interface_router.get("/?")
 async def admin_interface_index(request: Request):
 
-	time = datetime.datetime.now() - datetime.timedelta(days=2)
-	date_first_rpc = time.strftime("%m/%d/%Y, %H:%M:%S")
-
-	rpc_count = await _get_rpc_count()
-	
 	context = {
 		"request": request,
 		"interface": get_backend_interface(),
-		"rpc_count": rpc_count,
-		"date_first_rpc": date_first_rpc,
 	}
 	return templates.TemplateResponse("admininterface.html", context)
 
@@ -141,7 +134,7 @@ async def get_rpc_list(limit: int = 250) -> list:
 			"date": value.get("date", datetime.date(2020,1,1).strftime('%Y-%m-%dT%H:%M:%SZ')),
 			"client": value.get("client",  "0.0.0.0"),
 			"error": value.get("error"),
-			"duration": "%0.4f" % value.get("duration")
+			"duration": value.get("duration")
 		}
 		rpc_list.append(rpc)
 
@@ -151,18 +144,12 @@ async def get_rpc_list(limit: int = 250) -> list:
 
 @admin_interface_router.get("/rpc-count")
 async def get_rpc_count(): 
-	count = await _get_rpc_count()
-	# TODO: Fix date_first_rpc get from first elemet of "opsiconfd:stats:rpcs"
-	time = datetime.datetime.now() - datetime.timedelta(days=2)
-	date_first_rpc = time.strftime('%Y-%m-%dT%H:%M:%SZ')
+	redis_client = await get_redis_client()
+	count = await redis_client.llen("opsiconfd:stats:rpcs")
 
-	response = JSONResponse({"rpc_count": count, "date_first_rpc": date_first_rpc})
+	response = JSONResponse({"rpc_count": count})
 	return response
 
-async def _get_rpc_count() -> int: 
-	redis_client = await get_redis_client()
-	# LLEN will return 0 if key does not exist
-	return await redis_client.llen("opsiconfd:stats:rpcs")
 
 @admin_interface_router.get("/blocked-clients")
 async def get_blocked_clients() -> list:

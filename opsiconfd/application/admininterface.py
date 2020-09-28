@@ -15,6 +15,9 @@ from fastapi import APIRouter, Request, Response, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
+from OPSI import __version__ as python_opsi_version
+from .. import __version__
+
 from ..session import OPSISession
 from ..logging import logger
 from ..config import config
@@ -34,6 +37,7 @@ async def admin_interface_index(request: Request):
 
 	context = {
 		"request": request,
+		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
 		"interface": get_backend_interface(),
 	}
 	return templates.TemplateResponse("admininterface.html", context)
@@ -149,7 +153,6 @@ async def get_rpc_count():
 
 	response = JSONResponse({"rpc_count": count})
 	return response
-
 
 @admin_interface_router.get("/blocked-clients")
 async def get_blocked_clients() -> list:

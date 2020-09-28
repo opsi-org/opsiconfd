@@ -205,10 +205,32 @@ function loadRPCTable(sortKey, sort) {
 	request_count.send();
 }
 
+
+function loadReadisInfo() {
+	let request = new XMLHttpRequest();
+	request.open("GET", "/redis-interface/redis-stats");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			console.log(result);
+			outputToHTML(result, "redis-info-result");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
 // function printRPCCount(rpcCount, date) {
 // 	p = document.getElementById("rpc-count");
 // 	htmlStr = "Number of RPCs since " + formateDate(date) + " (UTC): " + rpcCount;
 // 	p.innerHTML = htmlStr;
+// }
+
+// printRedisInfo(data, htmlId){
+// 	htmlStr = 
 // }
 
 function printClientTable(data, htmlId) {
@@ -436,6 +458,8 @@ function callJSONRPC() {
 function outputToHTML(json, id) {
 	jsonStr = JSON.stringify(json, undefined, 2);
 	jsonStr = syntaxHighlight(jsonStr);
+	console.log(json);
+	console.log(id);
 	document.getElementById(id).style.visibility = 'visible'
 	document.getElementById(id).innerHTML = jsonStr;
 }

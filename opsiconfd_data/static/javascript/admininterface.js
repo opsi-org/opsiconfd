@@ -213,7 +213,6 @@ function loadReadisInfo() {
 		if (request.status >= 200 && request.status < 300) {
 			result = request.responseText;
 			result = JSON.parse(result);
-			console.log(result);
 			outputToHTML(result, "redis-result");
 			return result;
 		} else {
@@ -223,15 +222,6 @@ function loadReadisInfo() {
 	});
 	request.send()
 }
-// function printRPCCount(rpcCount, date) {
-// 	p = document.getElementById("rpc-count");
-// 	htmlStr = "Number of RPCs since " + formateDate(date) + " (UTC): " + rpcCount;
-// 	p.innerHTML = htmlStr;
-// }
-
-// printRedisInfo(data, htmlId){
-// 	htmlStr = 
-// }
 
 function printClientTable(data, htmlId) {
 	if (data.length == 0) {
@@ -458,8 +448,6 @@ function callJSONRPC() {
 function outputToHTML(json, id) {
 	jsonStr = JSON.stringify(json, undefined, 2);
 	jsonStr = syntaxHighlight(jsonStr);
-	console.log(json);
-	console.log(id);
 	document.getElementById(id).style.visibility = 'visible'
 	document.getElementById(id).innerHTML = jsonStr;
 }

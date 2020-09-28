@@ -129,7 +129,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		CN = '\033[0;0;0m'
 		CB = '\033[1;34;49m'
 		CC = '\033[1;36;49m'
-		CW = '\033[1;37;49m'
+		CW = '\033[1;39;49m'
 		CY = '\033[0;33;49m'
 
 	def format_help(self):

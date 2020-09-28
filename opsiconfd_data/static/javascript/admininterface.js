@@ -279,7 +279,7 @@ function printRPCTable(data, htmlId) {
 					date = formateDate(new Date(element[key]))
 					htmlStr += "<td class=\"rpc-td\">" + date + "</td>";
 				}
-				else if(key = "duration"){
+				else if(key == "duration"){
 					duration = element[key].toFixed(4)
 					htmlStr += "<td class=\"rpc-td\">" + duration + "</td>";
 				}

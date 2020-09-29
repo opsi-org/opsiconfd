@@ -118,3 +118,15 @@ def get_worker_processes():
 			del _worker_processes_cache[pid]
 
 	return sorted(_worker_processes_cache.values(), key=lambda p: p.pid)
+
+
+def decode_redis_result(_obj):
+	if type(_obj) is bytes:
+		_obj = _obj.decode("utf8")
+	elif type(_obj) == list:
+		for i in range(len(_obj)):
+			_obj[i] = decode_redis_result(_obj[i])
+	elif type(_obj) == dict:
+		for (k, v) in _obj.items():
+			_obj[decode_redis_result(k)] = decode_redis_result(v)
+	return _obj

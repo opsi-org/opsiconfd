@@ -23,10 +23,8 @@
 				<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
 				<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
 				<button class="tablinks" onclick="window.open('/metrics/grafana/dashboard','_blank')">Grafana</button>
-				<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>
-				
+				<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>		
 			</div>
-
 
 			<div id="clients" class="tabcontent">
 
@@ -71,8 +69,6 @@
 
 				<div class="adminpage-box">
 					<h4>RPCs:</h4>
-
-					<p id=rpc-count>Last RPCs:</p>
 					<br>
 					<div id="rpc-table-div">
 
@@ -114,6 +110,7 @@
 					<h4>Redis</h4>
 					<input type="text" id="redis-cmd" name="redis-cmd" size=50 />
 					<button id="redis-button" onclick="callRedis()">Execute</button>
+					<button id="redis-button" onclick="loadReadisInfo()">Info+</button>
 				</div>
 				<div id="resultRedis">
 					<pre class="redis-result" id="redis-result"></pre>
@@ -140,6 +137,7 @@
 			</div>
 
 		</div>
+		<h6 id="opsi-version">Version: {{opsi_version}}</h6>
 </body>
 
 </html>
@@ -165,7 +163,6 @@
 
 		document.getElementById("jsonrpc-result").style.visibility = 'hidden';
 		document.getElementById("jsonrpc-request").style.visibility = 'hidden';
-
 	}
 
 	function createParamInputs() {
@@ -202,19 +199,22 @@
 		var i, tabcontent, tablinks;
 
 		if (tabName == "rpcInfos") {
-			loadRPCTable("rpc_num", false)
+			loadRPCTable("rpc_num", false);
 		}
 		if (tabName == "clients") {
-			loadClientTable()
+			loadClientTable();
 		}
 		if (tabName == "rpcInterface") {
 			createParamInputs();
 		}
+		if(tabName == "redisInfo"){
+			loadReadisInfo();
+		}
 		if(tabName == "log-viewer"){
-			startLog()
+			startLog();
 		}
 		else{
-			stopLog()
+			stopLog();
 		}
 
 		// Get all elements with class="tabcontent" and hide them

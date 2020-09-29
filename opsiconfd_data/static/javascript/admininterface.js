@@ -205,11 +205,23 @@ function loadRPCTable(sortKey, sort) {
 	request_count.send();
 }
 
-// function printRPCCount(rpcCount, date) {
-// 	p = document.getElementById("rpc-count");
-// 	htmlStr = "Number of RPCs since " + formateDate(date) + " (UTC): " + rpcCount;
-// 	p.innerHTML = htmlStr;
-// }
+
+function loadReadisInfo() {
+	let request = new XMLHttpRequest();
+	request.open("GET", "/redis-interface/redis-stats");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result, "redis-result");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
 
 function printClientTable(data, htmlId) {
 	if (data.length == 0) {
@@ -256,6 +268,10 @@ function printRPCTable(data, htmlId) {
 				if(key == "date"){
 					date = formateDate(new Date(element[key]))
 					htmlStr += "<td class=\"rpc-td\">" + date + "</td>";
+				}
+				else if(key == "duration"){
+					duration = element[key].toFixed(4)
+					htmlStr += "<td class=\"rpc-td\">" + duration + "</td>";
 				}
 				else {
 					htmlStr += "<td class=\"rpc-td\">" + element[key] + "</td>";

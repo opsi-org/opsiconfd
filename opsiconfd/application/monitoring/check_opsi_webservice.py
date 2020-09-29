@@ -7,7 +7,6 @@ See LICENSES/README.md for more Information
 """
 import orjson
 
-from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
 from OPSI.Types import forceProductIdList
@@ -20,7 +19,7 @@ from .utils import State, generateResponse
 from .utils import get_workers, get_request_avg, get_session_count, get_thread_count, get_mem_allocated
 
 
-async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perfdata=True):
+async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perfdata=True) -> JSONResponse:
 	logger.devel("checkOpsiWebservice")
 	state = State.OK
 	message = []

@@ -24,6 +24,7 @@ from .check_product_status import check_product_status
 from .check_depot_sync_status import check_depot_sync_status
 from .check_plugin_on_client import check_plugin_on_client
 from .check_opsi_webservice import check_opsi_webservice
+from .check_locked_products import check_locked_products
 
 monitoring_router = APIRouter()
 
@@ -93,6 +94,12 @@ async def monitoring(request: Request):
 				statebefore=params.get("state", None),
 				output=params.get("output", None), 
 				encoding=params.get("encoding", None),
+			)
+		elif task == "checkProductLocks":
+			response = check_locked_products(
+				backend=backend,
+				depotIds=params.get("depotIds", []),
+				productIds=params.get("productIds", []),
 			)
 		elif task == "checkOpsiWebservice":
 			

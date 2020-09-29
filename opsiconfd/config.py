@@ -389,13 +389,23 @@ parser.add(
 	"--ssl-server-key",
 	env_var="OPSICONFD_SSL_SERVER_KEY",
 	default="/etc/opsi/opsiconfd.pem",
-	help="TThe location of the ssl server key."
+	help="The location of the ssl server key."
 )
 parser.add(
 	"--ssl-server-cert",
 	env_var="OPSICONFD_SSL_SERVER_CERT",
 	default="/etc/opsi/opsiconfd.pem",
-	help="TThe location of the ssl server certificate."
+	help="The location of the ssl server certificate."
+)
+# Cipher Strings from https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
+# iPXE 1.20.1 support these TLS v1.2 cipher suites:
+# AES128-SHA256 (TLS_RSA_WITH_AES_128_CBC_SHA256, 0x003c)
+# AES256-SHA256 (TLS_RSA_WITH_AES_256_CBC_SHA256, 0x003d)
+parser.add(
+	"--ssl-ciphers",
+	env_var="OPSICONFD_SSL_CIPHERS",
+	default="TLSv1.2",
+	help="TLS cipher suites to enable."
 )
 parser.add(
 	"--verify-ip",

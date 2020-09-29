@@ -14,65 +14,13 @@ from fastapi.responses import JSONResponse
 
 from OPSI.Types import forceProductIdList
 
-from ..config import config
-from ..logging import logger
-from ..backend import get_client_backend, get_backend
+from opsiconfd.config import config
+from opsiconfd.logging import logger
+from opsiconfd.backend import get_client_backend, get_backend
 
-class State:
-	OK = 0
-	WARNING = 1
-	CRITICAL = 2
-	UNKNOWN = 3
+from .utils import State, generateResponse
 
-	_stateText = [u"OK", u"WARNING", u"CRITICAL", u"UNKNOWN"]
-
-	@classmethod
-	def text(cls, state):
-		return cls._stateText[state]
-
-
-monitoring_router = APIRouter()
-
-
-def monitoring_setup(app):
-	app.include_router(monitoring_router, prefix="/monitoring")
-
-
-
-@monitoring_router.post("/?")
-async def monitoring(request: Request):
-
-	backend = get_backend()
-
-	logger.devel("Request: %s", await request.json())
-	request_data = await request.json()
-	
-	try:
-		task = request_data["task"]
-	except KeyError :
-		logger.error("No task set, nothing to do")
-		response = JSONResponse({"state":  State.UNKNOWN, "message": "No task set, nothing to do"})
-
-	params = request_data.get("param", {})
-	logger.devel("task: %s", task)
-	try:
-		if task == "checkClientStatus":
-			response = checkClientStatus(
-				backend=backend,
-				clientId=params.get("clientId", None),
-				excludeProductList=params.get("exclude", None)
-			)
-		else:
-			response = JSONResponse({"state": State.UNKNOWN})
-	except Exception as e:
-		logger.error(e)
-		response = JSONResponse({"state": State.UNKNOWN, "message": str(e)})
-
-
-	logger.devel(response)
-	return response
-
-def checkClientStatus(backend, clientId, excludeProductList=None) -> JSONResponse:
+def check_client_status(backend, clientId, excludeProductList=None) -> JSONResponse:
 	logger.devel("checkClientStatus")
 	
 	state = State.OK	
@@ -85,7 +33,7 @@ def checkClientStatus(backend, clientId, excludeProductList=None) -> JSONRespons
 	logger.devel("clientObj: %s", clientObj)
 	if not clientObj:
 		state = State.UNKNOWN
-		return _generateResponse(state, f"opsi-client: '{clientId}' not found")
+		return generateResponse(state, f"opsi-client: '{clientId}' not found")
 	else:
 		clientObj = clientObj[0]
 	
@@ -169,10 +117,4 @@ def checkClientStatus(backend, clientId, excludeProductList=None) -> JSONRespons
 		message += "No failed products and no actions set for client"
 
 	
-	return  _generateResponse(state, message)
-
-
-
-def _generateResponse(state: State, message: str) -> JSONResponse:
-	message = f"{State.text(state)}: {message}"
-	return JSONResponse({"state": state, "message": message})
+	return  generateResponse(state, message)

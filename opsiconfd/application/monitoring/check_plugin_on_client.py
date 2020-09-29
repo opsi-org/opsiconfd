@@ -19,6 +19,7 @@ from opsiconfd.logging import logger
 from .utils import State, generateResponse, ERRORCODE_PATTERN
 
 def check_plugin_on_client(backend, hostId, command, timeout=30, waitForEnding=True, captureStderr=True, statebefore=None, output=None, encoding=None) -> JSONResponse:
+
 	state = State.OK
 	message = ""
 	hostId = forceList(hostId)

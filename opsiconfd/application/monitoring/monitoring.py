@@ -21,6 +21,7 @@ from .utils import State
 from .check_client_status import check_client_status
 from .check_short_product_status import check_short_product_status
 from .check_product_status import check_product_status
+from .check_depot_sync_status import check_depot_sync_status
 
 monitoring_router = APIRouter()
 
@@ -53,14 +54,15 @@ async def monitoring(request: Request):
 				clientId=params.get("clientId", None),
 				excludeProductList=params.get("exclude", None)
 			)
-		if task == "checkShortProductStatus":
+		elif task == "checkShortProductStatus":
 			response = check_short_product_status(
 				backend=backend,
 				productId=params.get("productId", None),
 				thresholds=params.get("thresholds", {})
 
 			)
-		if task == "checkProductStatus":
+			
+		elif task == "checkProductStatus":
 			response =  check_product_status(
 				backend=backend,
 				productIds=params.get("productIds", []), 
@@ -70,14 +72,23 @@ async def monitoring(request: Request):
 				exclude=params.get("exclude", []),
 				verbose=params.get("verbose", False)
 			)
+		elif task == "checkDepotSyncStatus":
+			response = check_depot_sync_status(
+				backend=backend,
+				depotIds=params.get("depotIds", None), 
+				productIds=params.get("productIds", [None]), 
+				exclude=params.get("exclude", []), 
+				strict=params.get("strict", False), 
+				verbose=params.get("verbose", False)
+			)
 		else:
-			response = JSONResponse({"state": State.UNKNOWN})
+			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})
 	except Exception as e:
 		logger.error(e)
 		response = JSONResponse({"state": State.UNKNOWN, "message": str(e)})
 
 
-	logger.devel(response)
+	logger.devel(response.body)
 	return response
 
 

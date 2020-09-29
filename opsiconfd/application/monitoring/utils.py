@@ -26,6 +26,7 @@ class State:
 
 def generateResponse(state: State, message: str) -> JSONResponse:
 	message = f"{State.text(state)}: {message}"
+	logger.devel(message)
 	return JSONResponse({"state": state, "message": message})
 
 def removePercent(string):

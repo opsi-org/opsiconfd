@@ -14,9 +14,7 @@ from fastapi.responses import JSONResponse
 
 from OPSI.Types import forceProductIdList
 
-from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.backend import get_client_backend, get_backend
 
 from .utils import State, generateResponse, removePercent
 
@@ -88,5 +86,5 @@ def check_short_product_status(backend, productId=None, thresholds={}) -> JSONRe
 	problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
 	if problemClientsCount * 100 / len(productOnClients) > critical:
 		state = State.CRITICAL
-
+	logger.devel("state: %s message: %s", state, "; ".join(message))
 	return generateResponse(state, "; ".join(message))

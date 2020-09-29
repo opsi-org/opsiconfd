@@ -23,6 +23,7 @@ from .check_short_product_status import check_short_product_status
 from .check_product_status import check_product_status
 from .check_depot_sync_status import check_depot_sync_status
 from .check_plugin_on_client import check_plugin_on_client
+from .check_opsi_webservice import check_opsi_webservice
 
 monitoring_router = APIRouter()
 
@@ -92,6 +93,13 @@ async def monitoring(request: Request):
 				statebefore=params.get("state", None),
 				output=params.get("output", None), 
 				encoding=params.get("encoding", None),
+			)
+		elif task == "checkOpsiWebservice":
+			
+			response = await check_opsi_webservice(
+				cpu_thresholds=params.get("cpu", {}),
+				error_thresholds=params.get("errors", {}),
+				perfdata=params.get("perfdata", True)
 			)
 		else:
 			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})

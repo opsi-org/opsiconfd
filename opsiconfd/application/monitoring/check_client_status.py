@@ -6,18 +6,12 @@ This file is part of opsi - https://www.opsi.org
 See LICENSES/README.md for more Information
 """
 
-import orjson
 import datetime
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
-
 from OPSI.Types import forceProductIdList
-
-from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.backend import get_client_backend, get_backend
-
 from .utils import State, generateResponse
 
 def check_client_status(backend, clientId, excludeProductList=None) -> JSONResponse:

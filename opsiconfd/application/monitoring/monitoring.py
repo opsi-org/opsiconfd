@@ -20,6 +20,7 @@ from opsiconfd.backend import get_client_backend, get_backend
 from .utils import State
 from .check_client_status import check_client_status
 from .check_short_product_status import check_short_product_status
+from .check_product_status import check_product_status
 
 monitoring_router = APIRouter()
 
@@ -58,6 +59,16 @@ async def monitoring(request: Request):
 				productId=params.get("productId", None),
 				thresholds=params.get("thresholds", {})
 
+			)
+		if task == "checkProductStatus":
+			response =  check_product_status(
+				backend=backend,
+				productIds=params.get("productIds", []), 
+				productGroups=params.get("productGroups", []), 
+				hostGroupIds=params.get("hostGroupIds", []), 
+				depotIds=params.get("depotIds", []), 
+				exclude=params.get("exclude", []),
+				verbose=params.get("verbose", False)
 			)
 		else:
 			response = JSONResponse({"state": State.UNKNOWN})

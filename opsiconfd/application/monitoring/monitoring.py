@@ -22,6 +22,7 @@ from .check_client_status import check_client_status
 from .check_short_product_status import check_short_product_status
 from .check_product_status import check_product_status
 from .check_depot_sync_status import check_depot_sync_status
+from .check_plugin_on_client import check_plugin_on_client
 
 monitoring_router = APIRouter()
 
@@ -61,7 +62,6 @@ async def monitoring(request: Request):
 				thresholds=params.get("thresholds", {})
 
 			)
-			
 		elif task == "checkProductStatus":
 			response =  check_product_status(
 				backend=backend,
@@ -75,11 +75,23 @@ async def monitoring(request: Request):
 		elif task == "checkDepotSyncStatus":
 			response = check_depot_sync_status(
 				backend=backend,
-				depotIds=params.get("depotIds", None), 
-				productIds=params.get("productIds", [None]), 
+				depotIds=params.get("depotIds", []), 
+				productIds=params.get("productIds", []), 
 				exclude=params.get("exclude", []), 
 				strict=params.get("strict", False), 
 				verbose=params.get("verbose", False)
+			)
+		elif task == "checkPluginOnClient":
+			response = check_plugin_on_client(
+				backend=backend,
+				hostId=params.get("clientId", []), 
+				command=params.get("plugin", ""), 
+				timeout=params.get("timeout", 30),
+				waitForEnding=params.get("waitForEnding", True),
+				captureStderr=params.get("captureStdErr", True),
+				statebefore=params.get("state", None),
+				output=params.get("output", None), 
+				encoding=params.get("encoding", None),
 			)
 		else:
 			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})

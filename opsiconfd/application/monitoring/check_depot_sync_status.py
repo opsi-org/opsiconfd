@@ -14,9 +14,7 @@ from fastapi.responses import JSONResponse
 from OPSI.Types import forceProductIdList
 from OPSI.Backend.Backend import temporaryBackendOptions
 
-from opsiconfd.config import config
 from opsiconfd.logging import logger
-
 
 from .utils import State, generateResponse
 

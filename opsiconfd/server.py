@@ -103,6 +103,7 @@ def run_gunicorn():
 		options["ssl_version"] = "TLS"
 		options["keyfile"] = config.ssl_server_key
 		options["certfile"] = config.ssl_server_cert
+		options["ciphers"] = config.ssl_ciphers
 
 	logger.notice("gunicorn server starting")
 	GunicornApplication(app, options).run()
@@ -124,9 +125,8 @@ def run_uvicorn():
 	if config.ssl_server_key and config.ssl_server_cert:
 		options["ssl_keyfile"] = config.ssl_server_key
 		options["ssl_certfile"] = config.ssl_server_cert
+		options["ssl_ciphers"] = config.ssl_ciphers
 	
-	gunicorn.SERVER_SOFTWARE = f"opsiconfd {__version__} (gunicorn)"
-
 	logger.notice("uvicorn server starting")
 	uvicorn.run("opsiconfd.application:app", **options)
 	logger.notice("uvicorn server exited")

@@ -27,3 +27,9 @@ class State:
 def generateResponse(state: State, message: str) -> JSONResponse:
 	message = f"{State.text(state)}: {message}"
 	return JSONResponse({"state": state, "message": message})
+
+def removePercent(string):
+	if string.endswith("%"):
+		return string[:-1]
+	else:
+		return string

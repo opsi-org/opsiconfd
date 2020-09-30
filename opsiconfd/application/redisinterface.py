@@ -19,6 +19,7 @@ from ..logging import logger
 from ..config import config
 from ..backend import get_client_backend, get_backend_interface
 from ..worker import get_redis_client
+from ..utils import decode_redis_result
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
@@ -26,16 +27,6 @@ templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates
 def redis_interface_setup(app):
 	app.include_router(admin_interface_router, prefix="/redis-interface")
 
-def _decode_redis_result(_obj):
-	if type(_obj) is bytes:
-		_obj = _obj.decode("utf8")
-	elif type(_obj) == list:
-		for i in range(len(_obj)):
-			_obj[i] = _decode_redis_result(_obj[i])
-	elif type(_obj) == dict:
-		for (k, v) in _obj.items():
-			_obj[_decode_redis_result(k)] = _decode_redis_result(v)
-	return _obj
 
 @admin_interface_router.post("/?")
 async def redis_command(request: Request, response: Response):
@@ -48,7 +39,7 @@ async def redis_command(request: Request, response: Response):
 		response = JSONResponse({
 			"status": 200,
 			"error": None,
-			"data": {"result": _decode_redis_result(redis_result)}
+			"data": {"result": decode_redis_result(redis_result)}
 		})
 	except Exception as e:
 		logger.error(e, exc_info=True)
@@ -104,7 +95,7 @@ async def get_redis_stats():
 		for key in misc_keys:
 			misc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
 			
-		redis_info = _decode_redis_result(await redis_client.execute_command("INFO"))
+		redis_info = decode_redis_result(await redis_client.execute_command("INFO"))
 		redis_info["key_info"] = {
 			"stats":{
 				"count":len(stats_keys),

@@ -5,7 +5,6 @@ This file is part of opsi - https://www.opsi.org
 :license: GNU Affero General Public License version 3
 See LICENSES/README.md for more Information
 """
-import orjson
 import os
 
 from fastapi.responses import JSONResponse
@@ -29,8 +28,6 @@ def check_opsi_disk_usage(thresholds={}, opsiresource=None):
 		resources = []
 		resources.append(config.static_dir)
 		resources.sort()
-
-	logger.devel("resources: %s", resources)
 
 	if warning.lower().endswith("g"):
 		unit = "GB"
@@ -58,21 +55,15 @@ def check_opsi_disk_usage(thresholds={}, opsiresource=None):
 
 				info = getDiskSpaceUsage(path)
 				results[resource] = info
-				logger.devel(results[resource])
 	except Exception as e:
 		message.append("Not able to check DiskUsage. Error: '{}'".format(e))
 		return generateResponse(State.UNKNOWN, message)
 
-
-	
 	if results:
 		state = State.OK
 		for result, info in results.items():
-			logger.devel("info available: %s", info["available"])
 			available = float(info['available']) / 1073741824 # Byte to GB
 			usage = info["usage"] * 100
-			logger.devel("usage %s", info["usage"] )
-			logger.devel("available: %s", available)
 			if unit == "GB":
 				if available <= critical:
 					state = State.CRITICAL
@@ -96,14 +87,8 @@ def check_opsi_disk_usage(thresholds={}, opsiresource=None):
 
 				else:
 					message.append(f"DiskUsage from ressource: '{result}' is ok. (available: {freeSpace:.2f}%).")
-
 	else:
 		state = State.UNKNOWN
 		message.append("No results get. Nothing to check.")
-
-
 	message = " ".join(message)
-
-
-
 	return generateResponse(state, message)

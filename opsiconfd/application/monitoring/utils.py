@@ -34,7 +34,6 @@ def generateResponse(state: State, message: str, perfdata=None) -> JSONResponse:
 		message = f"{State.text(state)}: {message} | {perfdata}"
 	else: 
 		message = f"{State.text(state)}: {message}"
-	logger.devel(message)
 	return JSONResponse({"state": state, "message": message})
 
 def removePercent(string):
@@ -47,8 +46,6 @@ async def get_workers(redis_client) -> list:
 	worker_registry = redis_client.scan_iter("opsiconfd:worker_registry:*")
 	workers = []
 	async for key in worker_registry:
-		logger.devel("worker %s", key.decode("utf8").split(":")[-1])
-		logger.devel("node %s", key.decode("utf8").split(":")[-2])
 		workers.append(f"{key.decode('utf8').split(':')[-2]}:{key.decode('utf8').split(':')[-1]}")
 	return workers
 
@@ -67,8 +64,6 @@ async def get_session_count(redis_client):
 	session_keys = redis_client.scan_iter("opsiconfd:sessions:*")
 	async for session in session_keys:
 		count += 1
-		logger.devel(session)
-	logger.devel(count)
 	return count
 
 async def get_thread_count(redis_client):

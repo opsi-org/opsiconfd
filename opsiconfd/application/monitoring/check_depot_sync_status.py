@@ -7,19 +7,12 @@ See LICENSES/README.md for more Information
 """
 
 from collections import defaultdict
-
-from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
-from OPSI.Types import forceProductIdList
-from OPSI.Backend.Backend import temporaryBackendOptions
-
 from opsiconfd.logging import logger
-
 from .utils import State, generateResponse
 
 def check_depot_sync_status(backend, depotIds, productIds=[], exclude=[], strict=False, verbose=False) -> JSONResponse: 
-	logger.devel("checkDepotSyncStatus")
 	if not depotIds or 'all' in depotIds:
 		depots = backend.host_getObjects(type="OpsiDepotserver")
 		depotIds = [depot.id for depot in depots]

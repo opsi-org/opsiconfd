@@ -5,17 +5,11 @@ This file is part of opsi - https://www.opsi.org
 :license: GNU Affero General Public License version 3
 See LICENSES/README.md for more Information
 """
-
-from collections import defaultdict
-
-from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
-from OPSI.Types import forceList, forceProductIdList
-from OPSI.Backend.Backend import temporaryBackendOptions
+from OPSI.Types import forceList
 
 from opsiconfd.logging import logger
-
 from .utils import State, generateResponse, ERRORCODE_PATTERN
 
 def check_plugin_on_client(backend, hostId, command, timeout=30, waitForEnding=True, captureStderr=True, statebefore=None, output=None, encoding=None) -> JSONResponse:
@@ -24,10 +18,8 @@ def check_plugin_on_client(backend, hostId, command, timeout=30, waitForEnding=T
 	message = ""
 	hostId = forceList(hostId)
 
-	logger.devel("hostIds: %s", hostId)
 	try:
 		result = backend._executeMethod(methodName="hostControl_reachable", hostIds=hostId)
-		logger.devel("hostControl_reachable: %s", result)
 		if result.get(hostId[0], False):
 			checkresult = backend._executeMethod(
 					methodName="hostControl_execute", 
@@ -39,7 +31,6 @@ def check_plugin_on_client(backend, hostId, command, timeout=30, waitForEnding=T
 					timeout=timeout
 				)
 			checkresult = checkresult.get(hostId[0], None)
-			logger.devel("checkresult: %s", checkresult)
 			if checkresult:
 				if checkresult.get("result", None):
 					message = checkresult.get("result")[0]
@@ -76,10 +67,8 @@ def check_plugin_on_client(backend, hostId, command, timeout=30, waitForEnding=T
 				message = f"Can't check host '{hostId[0]}' is not reachable."
 				state = State.UNKNOWN
 	except Exception as erro:
-		logger.devel("EXCEPTION")
 		state = State.UNKNOWN
 		message = str(erro)
-
 
 	return generateResponse(state, message)
 

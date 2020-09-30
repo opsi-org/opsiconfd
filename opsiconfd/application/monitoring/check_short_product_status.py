@@ -20,7 +20,6 @@ from .utils import State, generateResponse, removePercent
 
 
 def check_short_product_status(backend, productId=None, thresholds={}) -> JSONResponse:
-	logger.devel("checkShortProductStatus")
 	actionRequestOnClients = []
 	productProblemsOnClients = []
 	productVersionProblemsOnClients = []
@@ -39,8 +38,6 @@ def check_short_product_status(backend, productId=None, thresholds={}) -> JSONRe
 
 	logger.debug("Checking shortly the productStates on Clients")
 	configServer = backend._executeMethod(methodName="host_getObjects", type="OpsiConfigserver")[0]
-
-	logger.devel("configServer: %s", configServer)
 
 	for pod in backend._executeMethod(methodName="productOnDepot_getObjects", depotId=configServer.id, productId=productId):
 		targetProductVersion = pod.productVersion
@@ -86,5 +83,5 @@ def check_short_product_status(backend, productId=None, thresholds={}) -> JSONRe
 	problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
 	if problemClientsCount * 100 / len(productOnClients) > critical:
 		state = State.CRITICAL
-	logger.devel("state: %s message: %s", state, "; ".join(message))
+		
 	return generateResponse(state, "; ".join(message))

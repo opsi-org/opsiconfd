@@ -9,8 +9,6 @@ import orjson
 
 from fastapi.responses import JSONResponse
 
-from OPSI.Types import forceProductIdList
-
 from opsiconfd.logging import logger
 from opsiconfd.worker import get_redis_client
 from opsiconfd.utils import decode_redis_result
@@ -20,7 +18,6 @@ from .utils import get_workers, get_request_avg, get_session_count, get_thread_c
 
 
 async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perfdata=True) -> JSONResponse:
-	logger.devel("checkOpsiWebservice")
 	state = State.OK
 	message = []
 	logger.debug("Generating Defaults for checkOpsiWebservice if not given")
@@ -33,18 +30,15 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 
 	try:
 		rpc_list = decode_redis_result(await redis_client.lrange("opsiconfd:stats:rpcs", 0, 9999))
-		logger.devel("RPC List: %s", rpc_list)
 		error_count = 0
 		for rpc in rpc_list:
 			rpc = orjson.loads(rpc)
 			if rpc["error"]:
 				error_count += 1
-				logger.devel(rpc)
 		if error_count == 0:
 			error_rate = 0
 		else:
 			error_rate = error_count / len(rpc_list) * 100
-		logger.devel(error_rate)
 
 		if error_rate > error_thresholds.get("critical"):
 			message.append(f'RPC errors over {error_thresholds.get("critical")}%')
@@ -54,19 +48,14 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 			state = State.WARNING
 
 		workers = await get_workers(redis_client)
-		
-		logger.devel("workers: %s", workers)
 		cpu = 0
 		for worker in workers:
 			redis_result = decode_redis_result(await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_cpu_percent:{worker}:minute"))
-			logger.devel("redis_result %s", redis_result)
 			if len(redis_result) == 0:
 				redis_result = 0.0
 			cpu += float(redis_result[1])
 
 		cpu_avg = cpu/len(workers)*100
-		logger.devel("cpu_avg: %s", cpu_avg)
-
 
 		if cpu_avg > cpu_thresholds.get("critical"):
 			state = State.CRITICAL
@@ -91,7 +80,6 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 				f"virtmem={await get_mem_allocated(redis_client)};;;0; ",
 				f"cpu={cpu_avg};;;0;100 " 
 			]
-
 			return generateResponse(state, message, "".join(performance))
 		else:
 			return generateResponse(state, message)

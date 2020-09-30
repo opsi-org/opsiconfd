@@ -32,14 +32,9 @@ monitoring_router = APIRouter()
 def monitoring_setup(app):
 	app.include_router(monitoring_router, prefix="/monitoring")
 
-
-
 @monitoring_router.post("/?")
 async def monitoring(request: Request):
-
 	backend = get_backend()
-
-	logger.devel("Request: %s", await request.json())
 	request_data = await request.json()
 	
 	try:
@@ -49,7 +44,6 @@ async def monitoring(request: Request):
 		response = JSONResponse({"state":  State.UNKNOWN, "message": "No task set, nothing to do"})
 
 	params = request_data.get("param", {})
-	logger.devel("task: %s", task)
 	try:
 		if task == "checkClientStatus":
 			response = check_client_status(
@@ -117,8 +111,6 @@ async def monitoring(request: Request):
 		logger.error(e)
 		response = JSONResponse({"state": State.UNKNOWN, "message": str(e)})
 
-
-	logger.devel(response.body)
 	return response
 
 

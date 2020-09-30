@@ -9,14 +9,10 @@ import orjson
 
 from fastapi.responses import JSONResponse
 
-from OPSI.Types import forceProductIdList
-
 from opsiconfd.logging import logger
-
 from .utils import State, generateResponse 
 
 def check_locked_products(backend, depotIds=None, productIds=[]):
-	logger.devel("checkProductLocks")
 	if not depotIds or 'all' in depotIds:
 		depots = backend._executeMethod(methodName="host_getObjects", type="OpsiDepotserver")
 		depotIds = [depot.id for depot in depots]

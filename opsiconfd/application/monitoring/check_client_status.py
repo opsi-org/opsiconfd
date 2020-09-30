@@ -8,15 +8,12 @@ See LICENSES/README.md for more Information
 
 import datetime
 
-from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from OPSI.Types import forceProductIdList
 from opsiconfd.logging import logger
 from .utils import State, generateResponse
 
 def check_client_status(backend, clientId, excludeProductList=None) -> JSONResponse:
-	logger.devel("checkClientStatus")
-	
 	state = State.OK	
 
 	if not clientId:
@@ -24,13 +21,11 @@ def check_client_status(backend, clientId, excludeProductList=None) -> JSONRespo
 
 	clientObj = backend._executeMethod("host_getObjects", id=clientId) 
 
-	logger.devel("clientObj: %s", clientObj)
 	if not clientObj:
 		state = State.UNKNOWN
 		return generateResponse(state, f"opsi-client: '{clientId}' not found")
 	else:
 		clientObj = clientObj[0]
-	
 	
 	message = ''
 	if not clientObj.lastSeen:
@@ -65,23 +60,16 @@ def check_client_status(backend, clientId, excludeProductList=None) -> JSONRespo
 			clientId=clientId,
 			actionResult='failed'
 		)
-	logger.devel("failedProducts: %s", failedProducts)
-
-	logger.devel("excludeProductList %s", excludeProductList)
 
 	if excludeProductList:
 			productsToExclude = set(forceProductIdList(excludeProductList))
 	else:
 		productsToExclude = []
 
-	logger.devel("productsToExclude: %s", productsToExclude)
-
 	failedProducts = [
 		product for product in failedProducts
 		if product.productId not in productsToExclude
 	]
-
-	logger.devel(failedProducts)
 
 	if failedProducts:
 		state = State.CRITICAL
@@ -98,17 +86,13 @@ def check_client_status(backend, clientId, excludeProductList=None) -> JSONRespo
 		product for product in actionProducts
 		if product.productId not in productsToExclude
 	]
-	
-	logger.devel("actionProducts: %s", actionProducts)
 
 	if actionProducts:
 		if state != State.CRITICAL:
 			state = State.WARNING
 		products = ["%s (%s)" % (product.productId, product.actionRequest) for product in actionProducts]
 		message += f"Actions set for products: '{', '.join(products)}'."
-
 	if state == State.OK:
 		message += "No failed products and no actions set for client"
 
-	
 	return  generateResponse(state, message)

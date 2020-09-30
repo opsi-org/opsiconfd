@@ -12,7 +12,6 @@ import datetime
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
-
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.backend import get_client_backend, get_backend
@@ -25,6 +24,7 @@ from .check_depot_sync_status import check_depot_sync_status
 from .check_plugin_on_client import check_plugin_on_client
 from .check_opsi_webservice import check_opsi_webservice
 from .check_locked_products import check_locked_products
+from .check_opsi_disk_usage import check_opsi_disk_usage
 
 monitoring_router = APIRouter()
 
@@ -101,12 +101,15 @@ async def monitoring(request: Request):
 				depotIds=params.get("depotIds", []),
 				productIds=params.get("productIds", []),
 			)
-		elif task == "checkOpsiWebservice":
-			
+		elif task == "checkOpsiWebservice":		
 			response = await check_opsi_webservice(
 				cpu_thresholds=params.get("cpu", {}),
 				error_thresholds=params.get("errors", {}),
 				perfdata=params.get("perfdata", True)
+			)
+		elif task == "checkOpsiDiskUsage":
+			response = check_opsi_disk_usage(
+				opsiresource=params.get("resource", None)
 			)
 		else:
 			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})

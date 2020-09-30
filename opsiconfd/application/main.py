@@ -157,7 +157,7 @@ def application_setup():
 	#    ExceptionMiddleware
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana", "/ws/test", "/monitoring"])
+	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana", "/ws/test"])
 	#app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	if os.path.isdir(config.static_dir):

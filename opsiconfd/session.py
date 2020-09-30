@@ -69,6 +69,7 @@ from .config import config
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 def get_basic_auth(headers: Headers):
 	auth_header = headers.get("authorization")
+	logger.devel("auth_header: %s", auth_header)
 	if not auth_header:
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
@@ -84,18 +85,25 @@ def get_basic_auth(headers: Headers):
 		)
 
 	encoded_auth = auth_header[6:] # Stripping "Basic "
+	logger.devel(encoded_auth)
+	
+
 	secret_filter.add_secrets(encoded_auth)
 	
 	auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
+	logger.devel("auth decode: %s", base64.decodebytes(encoded_auth.encode("ascii")))
 	(username, password) = auth.rsplit(':', 1)
-
+	logger.error(auth)
 	secret_filter.add_secrets(password)
 
 	return BasicAuth(username, password)
 
 def authenticate(connection: HTTPConnection) -> None:
 	auth = get_basic_auth(connection.headers)
-	get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
+	auth_type = "auth-module"
+	if auth.username == "monitoring":
+		auth_type = "opsi-passwd"
+	get_client_backend().backendAccessControl.authenticate(auth.username, auth.password, auth_type=auth_type)
 
 def get_session_from_context():
 	try:
@@ -132,6 +140,7 @@ class SessionMiddleware:
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		start = time.perf_counter()
 		connection = HTTPConnection(scope)
+		logger.devel("__call_ connection: %s", connection.__dict__)
 		session = None
 		# TODO: Check client.host with trusted reverse proxy and set it here to HTTP_X_FORWARDED_FOR if needed
 		# https://github.com/encode/starlette/issues/234
@@ -195,6 +204,7 @@ class SessionMiddleware:
 					
 					# Authenticate
 					logger.info("Start authentication of client %s", connection.client.host)
+					logger.devel("Start authentication of client %s", connection.client.host)
 					await run_in_threadpool(authenticate, connection)
 					auth_done = True
 
@@ -219,7 +229,7 @@ class SessionMiddleware:
 							asyncio.get_event_loop().create_task(session.store())
 				
 				# Check authorization
-				needs_admin = not (scope["path"].startswith("/rpc") or scope["path"].startswith("/depot"))
+				needs_admin = not (scope["path"].startswith("/rpc") or scope["path"].startswith("/depot")  or scope["path"].startswith("/monitoring"))
 				if needs_admin and not session.user_store.isAdmin:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 			

@@ -45,6 +45,7 @@ from .webdav import webdav_setup
 from .jsonrpcinterface import jsonrpc_interface_setup
 from .admininterface import admin_interface_setup
 from .redisinterface import redis_interface_setup
+from .monitoring.monitoring import monitoring_setup
 
 app = FastAPI()
 
@@ -170,5 +171,6 @@ def application_setup():
 	jsonrpc_interface_setup(app)
 	admin_interface_setup(app)
 	redis_interface_setup(app)
+	monitoring_setup(app)
 	webdav_setup(app)
 	metrics_setup(app)

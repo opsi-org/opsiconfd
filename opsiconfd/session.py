@@ -83,19 +83,21 @@ def get_basic_auth(headers: Headers):
 			headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 		)
 
-	encoded_auth = auth_header[6:] # Stripping "Basic "
+	encoded_auth = auth_header[6:] # Stripping "Basic "	
 	secret_filter.add_secrets(encoded_auth)
-	
 	auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
-	(username, password) = auth.rsplit(':', 1)
 
+	(username, password) = auth.rsplit(':', 1)
 	secret_filter.add_secrets(password)
 
 	return BasicAuth(username, password)
 
 def authenticate(connection: HTTPConnection) -> None:
 	auth = get_basic_auth(connection.headers)
-	get_client_backend().backendAccessControl.authenticate(auth.username, auth.password)
+	auth_type = "auth-module"
+	if auth.username == "monitoring":
+		auth_type = "opsi-passwd"
+	get_client_backend().backendAccessControl.authenticate(auth.username, auth.password, auth_type=auth_type)
 
 def get_session_from_context():
 	try:
@@ -219,7 +221,7 @@ class SessionMiddleware:
 							asyncio.get_event_loop().create_task(session.store())
 				
 				# Check authorization
-				needs_admin = not (scope["path"].startswith("/rpc") or scope["path"].startswith("/depot"))
+				needs_admin = not (scope["path"].startswith("/rpc") or scope["path"].startswith("/depot")  or scope["path"].startswith("/monitoring"))
 				if needs_admin and not session.user_store.isAdmin:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 			

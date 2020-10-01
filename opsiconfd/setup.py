@@ -176,33 +176,46 @@ def setup_backend():
 	initializeBackends()
 
 def setup(full: bool = True):
+	skip_setup = config.skip_setup or []
+	if "all" in skip_setup:
+		return
 	logger.notice("Running opsiconfd setup")
 	if not config.run_as_user:
 		config.run_as_user = getpass.getuser()
-	setup_limits()
+	if not "limits" in skip_setup:
+		setup_limits()
 	if full:
-		po_setup_users_and_groups()
-		setup_users_and_groups()
-		try:
-			setup_backend()
-		except Exception as e:
-			# This can happen during package installation
-			# where backend config files are missing
-			logger.warning("Failed to setup backend: %s", e)
-		setup_files()
+		if not "users" in skip_setup and not "groups" in skip_setup:
+			po_setup_users_and_groups()
+			setup_users_and_groups()
+		if not "backend" in skip_setup:
+			try:
+				setup_backend()
+			except Exception as e:
+				# This can happen during package installation
+				# where backend config files are missing
+				logger.warning("Failed to setup backend: %s", e)
+		if not "files" in skip_setup:
+			setup_files()
 		#po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
-		setup_ssl()
-		setup_systemd()
+		if not "ssl" in skip_setup:
+			setup_ssl()
+		if not "systemd" in skip_setup:
+			setup_systemd()
 	else:
-		setup_users_and_groups()
-	# Always correct file permissions (run_as_user could be changed)
-	setup_file_permissions()
-	try:
-		setup_grafana()
-	except Exception as e:
-		logger.warning("Failed to setup grafana: %s", e)
+		if not "users" in skip_setup and not "groups" in skip_setup:
+			setup_users_and_groups()
+	if not "file_permissions" in skip_setup:
+		# Always correct file permissions (run_as_user could be changed)
+		setup_file_permissions()
+	if not "grafana" in skip_setup:
+		try:
+			setup_grafana()
+		except Exception as e:
+			logger.warning("Failed to setup grafana: %s", e)
 
-	try:
-		setup_metric_downsampling()
-	except Exception as e:
-		logger.warn("Faild to setup redis downsampling: %s", e)
+	if not "metric_downsampling" in skip_setup:
+		try:
+			setup_metric_downsampling()
+		except Exception as e:
+			logger.warn("Faild to setup redis downsampling: %s", e)

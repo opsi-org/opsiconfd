@@ -420,7 +420,7 @@ parser.add(
 	"--update-ip",
 	env_var="OPSICONFD_UPDATE_IP",
 	action="store_true",
-        default=True,
+	default=True,
 	help="If enabled, a client's ip address will be updated in the opsi database,"
 		" when the client connects to the service and authentication is successful."
 )
@@ -458,6 +458,14 @@ parser.add(
 	type=int,
 	default=25,
 	help="The maximum number of sessions that can be opened through one ip address."
+)
+parser.add(
+	"--skip-setup",
+	nargs="+",
+	env_var="OPSICONFD_SKIP_SETUP",
+	default=None,
+	help="A list of setup tasks to skip "
+		" (tasks: all, users, groups, grafana, backend, ssl, systemd, file_permissions, limits)."
 )
 parser.add(
 	"--redis-internal-url",

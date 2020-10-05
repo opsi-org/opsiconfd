@@ -113,7 +113,7 @@ def setup_ssl():
 		cmd = ["openssl", "req", "-nodes", "-newkey", "rsa:2048", "-keyout", srv_key, "-out", srv_csr, "-subj", subject]
 		subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
 
-		cmd = ["openssl", "x509", "-req", "-in", srv_csr, "-CA", ca_crt, "-CAkey", ca_key, "-CAcreateserial", "-out", srv_crt, "-days", "365"]
+		cmd = ["openssl", "x509", "-req", "-in", srv_csr, "-CA", ca_crt, "-CAkey", ca_key, "-CAcreateserial", "-out", srv_crt, "-days", str(config.ssl_server_cert_expiration)]
 		subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
 
 		logger.devel("CRT:")
@@ -141,7 +141,7 @@ def setup_ssl():
 				out.write(_in.read())
 		
 		with open(ca_crt, "r") as _in:
-			with open(os.path.join(os.path.dirname(config.ssl_server_key),"opsiconfd-ca.pem"), "a") as out:
+			with open(config.ssl_server_ca, "a") as out:
 				out.write(_in.read())
 	finally:
 		shutil.rmtree(tmp_dir)

@@ -92,11 +92,11 @@ def setup_users_and_groups():
 
 def setup_ssl():
 	logger.info("Setup ssl")
-	logger.devel("Setup ssl")
 	if os.path.exists(config.ssl_server_key) and os.path.exists(config.ssl_server_cert):
 		return
 	
 	fqdn = getfqdn()
+
 	tmp_dir = tempfile.mkdtemp()
 	try:
 		ca_key = os.path.join(tmp_dir, "ca.key")
@@ -106,31 +106,22 @@ def setup_ssl():
 		srv_csr = os.path.join(tmp_dir, "srv.csr")
 
 		subject = f"/C=DE/ST=RP/L=Mainz/O=uib/OU=root/CN={fqdn}/emailAddress=root@{fqdn}"
-		cmd = ["openssl", "req", "-nodes", "-x509", "-newkey", "rsa:2048", "-keyout", ca_key, "-out", ca_crt, "-subj", subject]
+		cmd = ["openssl", "req", "-nodes", "-x509", "-newkey", "rsa:2048", "-days", "730" ,"-keyout", ca_key, "-out", ca_crt, "-subj", subject]
 		subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
 
 		subject = f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsiconfd/CN={fqdn}/emailAddress=root@{fqdn}"
 		cmd = ["openssl", "req", "-nodes", "-newkey", "rsa:2048", "-keyout", srv_key, "-out", srv_csr, "-subj", subject]
 		subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
 
-		cmd = ["openssl", "x509", "-req", "-in", srv_csr, "-CA", ca_crt, "-CAkey", ca_key, "-CAcreateserial", "-out", srv_crt, "-days", str(config.ssl_server_cert_expiration)]
+		cmd = ["openssl", "x509", "-req", "-in", srv_csr, "-CA", ca_crt, "-CAkey", ca_key, "-CAcreateserial", "-out", srv_crt, "-days", "365"]
 		subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
-
-		logger.devel("CRT:")
-		logger.devel(ca_crt)
-		with open(ca_crt, "r") as _in:
-			for line in _in:
-				logger.devel(line)
-		logger.devel("KEY:")
-		logger.devel(ca_key)
-		with open(ca_key, "r") as _in:
-			for line in _in:
-				logger.devel(line)
 
 		if os.path.exists(config.ssl_server_key):
 			os.unlink(config.ssl_server_key)
 		if os.path.exists(config.ssl_server_cert):
 			os.unlink(config.ssl_server_cert)
+		if os.path.exists(config.ssl_server_ca):
+			os.unlink(config.ssl_server_ca)
 		
 		with open(srv_key, "r") as _in:
 			with open(config.ssl_server_key, "a") as out:
@@ -143,6 +134,7 @@ def setup_ssl():
 		with open(ca_crt, "r") as _in:
 			with open(config.ssl_server_ca, "a") as out:
 				out.write(_in.read())
+		
 	finally:
 		shutil.rmtree(tmp_dir)
 

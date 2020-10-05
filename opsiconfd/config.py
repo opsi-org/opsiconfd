@@ -403,12 +403,6 @@ parser.add(
 	default="/etc/opsi/opsiconfd-ca.pem",
 	help="The location of the ssl server ca."
 )
-parser.add(
-	"--ssl-server-cert-expiration",
-	env_var="OPSICONFD_SSL_CERT_EXPIRATION",
-	default=365,
-	help="The ssl server certificate expriration time."
-)
 # Cipher Strings from https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
 # iPXE 1.20.1 support these TLS v1.2 cipher suites:
 # AES128-SHA256 (TLS_RSA_WITH_AES_128_CBC_SHA256, 0x003c)

@@ -11,7 +11,7 @@ stages:
   apt -y install debhelper osc
   apt -y install python3-dev 
   pip3 install --trusted-host pypi.uib.gmbh --index-url http://pypi.uib.gmbh:8080/simple opsi-dev-tools
-  pip3 install poetry
+  pip3 install poetry==1.0.10
 
 .prepare_tests: &prepare_tests |
   # Install debian packages
@@ -50,8 +50,8 @@ stages:
   echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
   # TODO: restore some backend
   # Install poetry
-  pip3 install poetry
-  poetry install
+  pip3 install poetry==1.0.10
+  poetry install 
   poetry run opsiconfd --setup --log-level-stderr=5
   # Create adminuser used with opsiconfd-perftest.py
   useradd adminuser

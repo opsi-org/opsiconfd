@@ -88,7 +88,7 @@ def setup_users_and_groups():
 		try:
 			group = grp.getgrnam(groupname)
 			if group.gr_gid not in gids:
-				add_user_to_group(config.run_as_user, "shadow")
+				add_user_to_group(config.run_as_user, groupname)
 			if groupname == FILE_ADMIN_GROUP and user.pw_gid != group.gr_gid:
 				try:
 					set_primary_group(user.pw_name, FILE_ADMIN_GROUP)

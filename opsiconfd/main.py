@@ -183,11 +183,8 @@ def main():
 			try:
 				user = pwd.getpwnam(config.run_as_user)
 				gids = os.getgrouplist(user.pw_name, user.pw_gid)
-				for g in grp.getgrall():
-					if user.pw_name in g.gr_mem and not g.gr_gid in gids:
-						gids.append(g.gr_gid)
-				logger.debug("Set uid=%s, gid=%s, groups=%s", user.pw_uid, gids[0], gids)
-				os.setgid(gids[0])
+				logger.debug("Set uid=%s, gid=%s, groups=%s", user.pw_uid, user.pw_gid, gids)
+				os.setgid(user.pw_gid)
 				os.setgroups(gids)
 				os.setuid(user.pw_uid)
 				os.environ["HOME"] = user.pw_dir

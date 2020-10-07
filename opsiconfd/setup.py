@@ -64,31 +64,40 @@ def setup_limits():
 
 def setup_users_and_groups():
 	logger.info("Setup users and groups")
-	groups = get_groups()
-	users = get_users()
 	
-	if config.run_as_user != "root":
-		if config.run_as_user not in users:
-			create_user(
-				username=config.run_as_user,
-				primary_groupname=FILE_ADMIN_GROUP,
-				home="/var/lib/opsi",
-				shell="/bin/bash",
-				system=True
-			)
-			users = get_users()
-		if "shadow" in groups and config.run_as_user not in groups["shadow"].gr_mem:
-			add_user_to_group(config.run_as_user, "shadow")
-		if OPSI_ADMIN_GROUP in groups and config.run_as_user not in groups[OPSI_ADMIN_GROUP].gr_mem:
-			add_user_to_group(config.run_as_user, OPSI_ADMIN_GROUP)
-		if FILE_ADMIN_GROUP in groups and config.run_as_user not in groups[FILE_ADMIN_GROUP].gr_mem:
-			add_user_to_group(config.run_as_user, FILE_ADMIN_GROUP)
-		if FILE_ADMIN_GROUP in groups and users[config.run_as_user].pw_gid != groups[FILE_ADMIN_GROUP].gr_gid:
-			try:
-				set_primary_group(config.run_as_user, FILE_ADMIN_GROUP)
-			except Exception as e:
-				# Could be a user in active directory / ldap 
-				logger.debug("Failed to set primary group of %s to %s: %s", config.run_as_user, FILE_ADMIN_GROUP, e)
+	if config.run_as_user == "root":
+		return
+	
+	user = None
+	try:
+		user = pwd.getpwnam(config.run_as_user)
+	except KeyError as e:
+		# User not found
+		create_user(
+			username=config.run_as_user,
+			primary_groupname=FILE_ADMIN_GROUP,
+			home="/var/lib/opsi",
+			shell="/bin/bash",
+			system=True
+		)
+		user = pwd.getpwnam(config.run_as_user)
+	
+	gids = os.getgrouplist(user.pw_name, user.pw_gid)
+	for groupname in ("shadow", OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP):
+		logger.debug("Processing group %s", groupname)
+		try:
+			group = grp.getgrnam(groupname)
+			if group.gr_gid not in gids:
+				add_user_to_group(config.run_as_user, "shadow")
+			if groupname == FILE_ADMIN_GROUP and user.pw_gid != group.gr_gid:
+				try:
+					set_primary_group(user.pw_name, FILE_ADMIN_GROUP)
+				except Exception as e2:
+					# Could be a user in active directory / ldap 
+					logger.debug("Failed to set primary group of %s to %s: %s", user.pw_name, FILE_ADMIN_GROUP, e)
+		except KeyError as e:
+			logger.debug("Group not found: %s", groupname)
+			pass
 
 def setup_ssl():
 	logger.info("Setup ssl")
@@ -184,10 +193,15 @@ def setup_backend():
 	initializeBackends()
 
 def setup(full: bool = True):
+	logger.notice("Running opsiconfd setup")
+	
 	skip_setup = config.skip_setup or []
+	if skip_setup:
+		logger.notice("Skipping setup tasks: %s", ", ".join(skip_setup))
+	
 	if "all" in skip_setup:
 		return
-	logger.notice("Running opsiconfd setup")
+	
 	if not config.run_as_user:
 		config.run_as_user = getpass.getuser()
 	if not "limits" in skip_setup:

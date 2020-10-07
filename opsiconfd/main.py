@@ -182,7 +182,7 @@ def main():
 			logger.essential("Switching to user %s", config.run_as_user)
 			try:
 				user = pwd.getpwnam(config.run_as_user)
-				gids = [user.pw_gid]
+				gids = os.getgrouplist(user.pw_name, user.pw_gid)
 				for g in grp.getgrall():
 					if user.pw_name in g.gr_mem and not g.gr_gid in gids:
 						gids.append(g.gr_gid)

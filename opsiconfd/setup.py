@@ -94,7 +94,7 @@ def setup_users_and_groups():
 					set_primary_group(user.pw_name, FILE_ADMIN_GROUP)
 				except Exception as e2:
 					# Could be a user in active directory / ldap 
-					logger.debug("Failed to set primary group of %s to %s: %s", user.pw_name, FILE_ADMIN_GROUP, e)
+					logger.debug("Failed to set primary group of %s to %s: %s", user.pw_name, FILE_ADMIN_GROUP, e2)
 		except KeyError as e:
 			logger.debug("Group not found: %s", groupname)
 			pass

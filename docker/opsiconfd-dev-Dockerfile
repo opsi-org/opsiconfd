@@ -13,9 +13,9 @@ ENV DOCKER_ENV=${DOCKER_ENV} \
   PIP_DISABLE_PIP_VERSION_CHECK=on \
   PIP_DEFAULT_TIMEOUT=100 \
   # dockerize:
-  DOCKERIZE_VERSION=v0.6.1
+  DOCKERIZE_VERSION=v0.6.1 \
   # poetry:
-  #POETRY_VERSION=1.0.3
+  POETRY_VERSION=1.1.2
 
 # System deps:
 RUN apt-get update \
@@ -30,8 +30,7 @@ RUN apt-get update \
 		tini \
 		psmisc \
 		librsync1 \
-	#&& pip install "poetry==$POETRY_VERSION" \
-	&& pip install "poetry"
+	&& pip install "poetry==$POETRY_VERSION"
 
 RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
 	&& tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \

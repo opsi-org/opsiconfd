@@ -81,6 +81,12 @@ package:
     [ -e /usr/lib/opsiconfd/libreadline.so.7 -a -e /lib64/libreadline.so.7 ] && cp /lib64/libreadline.so.7 /usr/lib/opsiconfd/libreadline.so.7
     # remove obsolete files
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
+    rm /etc/rc*/*opsiconfd 2>/dev/null || true
+    [ -e /etc/init.d/opsiconfd ] && rm /etc/init.d/opsiconfd
+    [ -e /etc/opsi/systemdTemplates ] && rm -r /etc/opsi/systemdTemplates
+    [ -e /etc/systemd/system/opsiconfd.service.simple ] && rm /etc/systemd/system/opsiconfd.service.simple
+    [ -e /etc/systemd/system/opsiconfd.service ] && rm /etc/systemd/system/opsiconfd.service
+    systemctl daemon-reload
     # setup opsiconfd
     /usr/bin/opsiconfd setup --log-level-stderr=5 --log-level-file=0 --run-as-user=opsiconfd || true
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf

@@ -343,7 +343,7 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 		retval = _run_orig(self)
 		dt = time.perf_counter() - start
 		if dt >= slow_callback_duration:
-			logger.warning("Executing %s took %.3f seconds", asyncio.base_events._format_handle(self), dt)
+			logger.warning("Slow asyncio callback: %s took %.3f seconds", asyncio.base_events._format_handle(self), dt)
 		return retval
 
 	asyncio.events.Handle._run = _run

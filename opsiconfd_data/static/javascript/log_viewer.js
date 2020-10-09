@@ -34,7 +34,7 @@ function addRecordToLog(record) {
 
 	div.appendChild(colorSpan);
 
-	var msg = record.msg;
+	var msg = record.msg + "\n";
 	if (record.exc_text) {
 		msg += "\n" + record.exc_text;
 	}

@@ -226,7 +226,11 @@ def setup(full: bool = True):
 			setup_files()
 		#po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
 		if not "ssl" in skip_setup:
-			setup_ssl()
+			try:
+				setup_ssl()
+			except Exception as e:
+				# This can fail if fqdn is not valid
+				logger.error("Failed to setup ssl: %s", e)
 		if not "systemd" in skip_setup:
 			setup_systemd()
 	else:
@@ -245,4 +249,4 @@ def setup(full: bool = True):
 		try:
 			setup_metric_downsampling()
 		except Exception as e:
-			logger.warn("Faild to setup redis downsampling: %s", e)
+			logger.warning("Faild to setup redis downsampling: %s", e)

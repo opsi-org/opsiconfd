@@ -159,6 +159,11 @@ def setup_file_permissions():
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
 	
+	for fn in ("/var/log/opsi/opsiconfd/opsiconfd.log", ):
+		if os.path.exists(fn):
+			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+			os.chmod(path=fn, mode=0o644)
+	
 	for d in (
 		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
 		"/var/log/opsi/opsiconfd", "/var/log/opsi/userlogin", "/var/lib/opsi/depot",

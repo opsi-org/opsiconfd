@@ -33,6 +33,7 @@ import asyncio
 import datetime
 import contextvars
 contextvar_client_address = contextvars.ContextVar("client_address", default=None)
+contextvar_client_session = contextvars.ContextVar("client_session", default=None)
 
 from fastapi import HTTPException, APIRouter
 from fastapi.requests import Request
@@ -204,12 +205,17 @@ async def process_jsonrpc(request: Request, response: Response):
 		raise
 	except Exception as e:
 		logger.error(e, exc_info=True)
-		tb = traceback.format_exc()
+		details = None
+		try:
+			session = contextvar_client_session.get()
+			if session and session.user_store.isAdmin:
+				details = str(traceback.format_exc())
+		except Exception as se:
+			logger.warning(se, exc_info=True)
 		error = {
 			"message": str(e),
 			"class": e.__class__.__name__,
-			# TODO: config
-			"details": None # str(tb) 
+			"details": None 
 		}
 		response.status_code = 400
 		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]

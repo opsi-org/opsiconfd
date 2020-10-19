@@ -45,6 +45,7 @@ from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface
 from ..worker import run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, contextvar_request_id, get_redis_client, sync_redis_client
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
+from ..utils import decode_redis_result
 
 
 # https://fastapi.tiangolo.com/tutorial/bigger-applications/
@@ -99,6 +100,18 @@ def _store_rpc(data, max_rpcs=9999):
 			pipe.lpush("opsiconfd:stats:rpcs", orjson.dumps(data))
 			pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs)
 			pipe.execute()
+	except Exception as e:
+		logger.error(e, exc_info=True)
+
+def _store_product_ordering(result, params):
+	logger.devel("_store_product_ordering")
+	try:
+		with sync_redis_client() as redis:
+			for val in result.get("not_sorted"):
+				redis.zadd(f"opsiconfd:{params[0]}:products:algorithm1", {val: 1})
+			for val in result.get("sorted"):
+				redis.zadd(f"opsiconfd:{params[0]}:products", {val: 1})
+			redis.set(f"opsiconfd:{params[0]}:products:uptodate", "True")
 	except Exception as e:
 		logger.error(e, exc_info=True)
 
@@ -159,14 +172,31 @@ async def process_jsonrpc(request: Request, response: Response):
 			jsonrpc = [jsonrpc]
 		tasks = []
 		for rpc in jsonrpc:
-			task = run_in_threadpool(process_rpc, request, response, rpc, backend)
-			tasks.append(task)
+			logger.devel("rpc: %s", rpc)
+			if rpc.get('method') == "getProductOrdering":
+				redis_client = await get_redis_client()
+				uptodate = await redis_client.get(f"opsiconfd:{rpc.get('params')[0]}:products:uptodate")
+				logger.devel("uptodate: %s ", uptodate)
+				if uptodate:
+					products = await redis_client.zrange(f"opsiconfd:{rpc.get('params')[0]}:products", 0, -1)
+					products_ordered = (await redis_client.zrange(f"opsiconfd:{rpc.get('params')[0]}:products:algorithm1", 0, -1))
+					result = {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}	
+					# logger.devel(result)
+					results.append(result)
+					response.status_code = 200
+				else:
+					task = run_in_threadpool(process_rpc, request, response, rpc, backend)
+					tasks.append(task)
+			else:
+				task = run_in_threadpool(process_rpc, request, response, rpc, backend)
+				tasks.append(task)
 		asyncio.get_event_loop().create_task(
 			get_metrics_collector().add_value("worker:avg_rpc_number", len(jsonrpc), {"node_name": get_node_name(), "worker_num": get_worker_num()})
 		)
 		#context_jsonrpc_call_id.set(myid)
 		#print(f"start {myid}")
 		for result in await asyncio.gather(*tasks):
+			# logger.devel("################# %s", result)
 			results.append(result[0])
 			asyncio.get_event_loop().create_task(
 				get_metrics_collector().add_value("worker:avg_rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
@@ -199,6 +229,11 @@ async def process_jsonrpc(request: Request, response: Response):
 			asyncio.get_event_loop().create_task(
 				run_in_threadpool(_store_rpc, data)
 			)
+			if  result[0].get('method') == "getProductOrdering" and not uptodate:
+				asyncio.get_event_loop().create_task(
+					run_in_threadpool(_store_product_ordering, result[0].get("result"), params)
+				)
+
 			response.status_code = 200
 	except HTTPException as e:
 		logger.error(e)
@@ -220,6 +255,11 @@ async def process_jsonrpc(request: Request, response: Response):
 		response.status_code = 400
 		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]
 	
+	# for result in results:
+	# 	logger.devel
+		# if  results == "getProductOrdering" and not uptodate:
+		# 	_store_product_ordering(result)
+
 	data = await run_in_threadpool(orjson.dumps, results[0] if len(results) == 1 else results)
 	response.headers["content-type"] = "application/json"
 	
@@ -253,7 +293,7 @@ async def process_jsonrpc(request: Request, response: Response):
 				compression, data_len, len(data), 100 - 100 * (len(data) / data_len),
 				1000 * (time.perf_counter() - comp_start)
 			)
-
+	# logger.devel("DATA: %s", data)
 	response.body = data
 	return response
 
@@ -265,10 +305,29 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		rpc_call_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 		user_agent = request.headers.get('user-agent')
 		method_name = rpc.get('method')
+
+		logger.devel("Method: %s", method_name)
+		
 		params = rpc.get('params', [])
 		rpc_id = rpc.get('id')
 		logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, method_name)
 		logger.trace("Retrieved parameters %s for %s", params, method_name)
+
+		logger.devel("Retrieved parameters %s for %s", params, method_name)
+
+		# isuptodate = True
+		# if method_name == "getProductOrdering":
+		# 	with sync_redis_client() as redis:
+		# 		isuptodate = redis.get(f"opsiconfd:{params[0]}:products:uptodate")
+		# logger.devel("REDIS %s", isuptodate.decode("utf8"))
+		# if not isuptodate.decode("utf8"):
+		# 	logger.devel("Product Ordering in redis is not up to date")
+		# if bool(isuptodate.decode("utf8")) == True:
+		# 	with sync_redis_client() as redis:
+		# 		products = redis.zrange(f"opsiconfd:{params[0]}:products", 0, -1)	
+		# 		products_ordered = redis.zrange(f"opsiconfd:{params[0]}:products:algorithm1", 0, -1)
+		# 		logger.devel(products)
+		# 		logger.devel(products_ordered)
 		for method in get_backend_interface():
 			if method_name == method['name']:
 				method_description = method
@@ -310,12 +369,24 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 				else:
 					result = method(*params)
 		params.append(keywords)
+		# logger.devel(result)
+		# logger.devel(type(result))
+		# logger.devel(result.get("not_sorted"))
+		# if method_name == "getProductOrdering":
+		# 	logger.devel("get new productOrdering")
+		# 	with sync_redis_client() as redis:
+		# 		for val in result.get("not_sorted"):
+		# 			redis.zadd(f"opsiconfd:{params[0]}:products:algorithm1", {val: 1})
+		# 		for val in result.get("sorted"):
+		# 			redis.zadd(f"opsiconfd:{params[0]}:products", {val: 1})
+		# 		redis.set(f"opsiconfd:{params[0]}:products:uptodate", "True")
 		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "date": rpc_call_time, "client": request.client.host, "error": None}
 		response = serialize(response)
 
 		end = time.perf_counter()
 
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
+		logger.devel("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
 

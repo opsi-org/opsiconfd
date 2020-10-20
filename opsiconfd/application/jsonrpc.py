@@ -112,6 +112,7 @@ def _get_sort_algorithm(name):
 
 def _store_product_ordering(result, params):
 	logger.devel("_store_product_ordering")
+	# TODO set retention time
 	try:
 		algorithm = _get_sort_algorithm(params[1])
 		with sync_redis_client() as redis:
@@ -131,6 +132,7 @@ def _store_product_ordering(result, params):
 async def process_jsonrpc(request: Request, response: Response):
 	results = []
 	try:
+		jsonrpc_start = time.perf_counter()
 		global xid
 		xid += 1
 		myid = xid
@@ -181,9 +183,31 @@ async def process_jsonrpc(request: Request, response: Response):
 		if not type(jsonrpc) is list:
 			jsonrpc = [jsonrpc]
 		tasks = []
+		product_methods = [
+			"createProduct",
+			"createNetBootProduct",
+			"createLocalBootProduct",
+			"createProductDependency",
+			"deleteProductDependency"
+		]
 		for rpc in jsonrpc:
 			logger.devel("rpc: %s", rpc)
+			if rpc.get('method') in product_methods:
+				logger.devel("product_methods %s", product_methods)
+				logger.devel("PARAMS: %s", rpc.get('params'))
+				depots = rpc.get('params')[-1]
+				redis_client = await get_redis_client()
+				logger.devel("del redis keys")
+				async with await redis_client.pipeline() as pipe:
+					for depot in depots:
+						logger.devel("DEPOT: %s", depot)
+						await pipe.delete(f"opsiconfd:{depot}:products:uptodate")
+						await pipe.delete(f"opsiconfd:{depot}:products:algorithm1:uptodate")
+						await pipe.delete(f"opsiconfd:{depot}:products:algorithm2:uptodate")
+					await pipe.execute()
+
 			if rpc.get('method') == "getProductOrdering":
+				# TODO restore retention time for keys
 				depot = rpc.get('params')[0]
 				algorithm = _get_sort_algorithm(rpc.get('params')[1])
 				redis_client = await get_redis_client()
@@ -260,10 +284,11 @@ async def process_jsonrpc(request: Request, response: Response):
 			asyncio.get_event_loop().create_task(
 				run_in_threadpool(_store_rpc, data)
 			)
-			if  result[0].get('method') == "getProductOrdering" and not products_uptodate or not sorted_uptodate:
-				asyncio.get_event_loop().create_task(
-					run_in_threadpool(_store_product_ordering, result[0].get("result"), params)
-				)
+			if  result[0].get('method') == "getProductOrdering": 
+				if not products_uptodate or not sorted_uptodate:
+					asyncio.get_event_loop().create_task(
+						run_in_threadpool(_store_product_ordering, result[0].get("result"), params)
+					)
 
 			response.status_code = 200
 	except HTTPException as e:
@@ -326,6 +351,7 @@ async def process_jsonrpc(request: Request, response: Response):
 			)
 	# logger.devel("DATA: %s", data)
 	response.body = data
+	logger.devel("TIME: %s", 1000 * (time.perf_counter() - jsonrpc_start))
 	return response
 
 def process_rpc(request: Request, response: Response, rpc, backend):
@@ -346,19 +372,6 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 
 		logger.devel("Retrieved parameters %s for %s", params, method_name)
 
-		# isuptodate = True
-		# if method_name == "getProductOrdering":
-		# 	with sync_redis_client() as redis:
-		# 		isuptodate = redis.get(f"opsiconfd:{params[0]}:products:uptodate")
-		# logger.devel("REDIS %s", isuptodate.decode("utf8"))
-		# if not isuptodate.decode("utf8"):
-		# 	logger.devel("Product Ordering in redis is not up to date")
-		# if bool(isuptodate.decode("utf8")) == True:
-		# 	with sync_redis_client() as redis:
-		# 		products = redis.zrange(f"opsiconfd:{params[0]}:products", 0, -1)	
-		# 		products_ordered = redis.zrange(f"opsiconfd:{params[0]}:products:algorithm1", 0, -1)
-		# 		logger.devel(products)
-		# 		logger.devel(products_ordered)
 		for method in get_backend_interface():
 			if method_name == method['name']:
 				method_description = method
@@ -400,17 +413,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 				else:
 					result = method(*params)
 		params.append(keywords)
-		# logger.devel(result)
-		# logger.devel(type(result))
-		# logger.devel(result.get("not_sorted"))
-		# if method_name == "getProductOrdering":
-		# 	logger.devel("get new productOrdering")
-		# 	with sync_redis_client() as redis:
-		# 		for val in result.get("not_sorted"):
-		# 			redis.zadd(f"opsiconfd:{params[0]}:products:algorithm1", {val: 1})
-		# 		for val in result.get("sorted"):
-		# 			redis.zadd(f"opsiconfd:{params[0]}:products", {val: 1})
-		# 		redis.set(f"opsiconfd:{params[0]}:products:uptodate", "True")
+
 		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "date": rpc_call_time, "client": request.client.host, "error": None}
 		response = serialize(response)
 

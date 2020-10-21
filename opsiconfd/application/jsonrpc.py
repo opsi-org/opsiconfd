@@ -123,9 +123,15 @@ def _store_product_ordering(result, params):
 			now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 			redis.set(f"opsiconfd:{params[0]}:products:uptodate", now)
 			redis.set(f"opsiconfd:{params[0]}:products:{algorithm}:uptodate", now)
+			redis.sadd("opsiconfd:depots", params[0])
 	except Exception as e:
 		logger.error(e, exc_info=True)
 
+def _rm_depot_from_redis(depotId):
+	with sync_redis_client() as redis:
+		redis.srem("opsiconfd:depots", depotId)
+	logger.devel("depot removed!")
+	
 # Some clients are using /rpc/rpc
 @jsonrpc_router.get(".*")
 @jsonrpc_router.post(".*")
@@ -195,17 +201,39 @@ async def process_jsonrpc(request: Request, response: Response):
 			if rpc.get('method') in product_methods:
 				logger.devel("product_methods %s", product_methods)
 				logger.devel("PARAMS: %s", rpc.get('params'))
-				depots = rpc.get('params')[-1]
+
+				param_string = str(rpc.get('params'))
+				logger.devel("param_string!!! %s", param_string)
+				
 				redis_client = await get_redis_client()
+
+				saved_depots = decode_redis_result(await redis_client.smembers("opsiconfd:depots"))
+				logger.devel("saved_depots %s",  saved_depots)
+				param_depots = []
+				for depot in saved_depots:
+					logger.devel(param_string.find(depot))
+					if  param_string.find(depot) != -1:
+						logger.devel("##########")
+						param_depots.append(depot)
+
+				
+				logger.devel("param_depots %s", param_depots)
+
+				
 				logger.devel("del redis keys")
 				async with await redis_client.pipeline() as pipe:
-					for depot in depots:
+					for depot in param_depots:
 						logger.devel("DEPOT: %s", depot)
 						await pipe.delete(f"opsiconfd:{depot}:products:uptodate")
 						await pipe.delete(f"opsiconfd:{depot}:products:algorithm1:uptodate")
 						await pipe.delete(f"opsiconfd:{depot}:products:algorithm2:uptodate")
 					await pipe.execute()
 
+			if rpc.get('method') == "deleteDepot" or rpc.get('method') == "host_delete":
+				logger.devel("rm depot from redis list")
+				asyncio.get_event_loop().create_task(
+					run_in_threadpool(_rm_depot_from_redis, rpc.get('params')[0])
+				)
 			if rpc.get('method') == "getProductOrdering":
 				# TODO restore retention time for keys
 				depot = rpc.get('params')[0]
@@ -310,11 +338,6 @@ async def process_jsonrpc(request: Request, response: Response):
 		}
 		response.status_code = 400
 		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]
-	
-	# for result in results:
-	# 	logger.devel
-		# if  results == "getProductOrdering" and not products_uptodate:
-		# 	_store_product_ordering(result)
 
 	data = await run_in_threadpool(orjson.dumps, results[0] if len(results) == 1 else results)
 	response.headers["content-type"] = "application/json"

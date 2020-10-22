@@ -127,9 +127,69 @@ def _store_product_ordering(result, params):
 	except Exception as e:
 		logger.error(e, exc_info=True)
 
+async def _get_product_ordering(depotId, algorithm):
+	# TODO restore retention time for keys
+	redis_client = await get_redis_client()
+	products = await redis_client.zrange(f"opsiconfd:{depotId}:products", 0, -1)		
+	redis_key = f"opsiconfd:{depotId}:products:{algorithm}"
+	products_ordered = await redis_client.zrange(redis_key, 0, -1)
+	# TODO raise error if products_ordered is empty
+	result = {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}	
+	now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+	data = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "getProductOrdering",
+		"params": [
+			depotId,
+			algorithm,
+			{}
+		],
+		"result": result,
+		"date": now,
+		"client": "",
+		"error": None
+		}
+	return data
+
+def _set_outdated(params):
+	param_string = str(params)
+	logger.devel("param_string!!! %s", param_string)
+	
+	with sync_redis_client() as redis:
+
+		saved_depots = decode_redis_result(redis.smembers("opsiconfd:depots"))
+		logger.devel("saved_depots %s",  saved_depots)
+		param_depots = []
+		for depot in saved_depots:
+			logger.devel(str(params).find(depot))
+			if  str(params).find(depot) != -1:
+				logger.devel("##########")
+				param_depots.append(depot)
+
+		logger.devel("param_depots %s", param_depots)
+
+		logger.devel("del redis keys")
+		with redis.pipeline() as pipe:
+			for depot in param_depots:
+				logger.devel("DEPOT: %s", depot)
+				pipe.delete(f"opsiconfd:{depot}:products:uptodate")
+				pipe.delete(f"opsiconfd:{depot}:products:algorithm1:uptodate")
+				pipe.delete(f"opsiconfd:{depot}:products:algorithm2:uptodate")
+			pipe.execute()
+
+
 def _rm_depot_from_redis(depotId):
 	with sync_redis_client() as redis:
-		redis.srem("opsiconfd:depots", depotId)
+		with redis.pipeline() as pipe:
+			pipe.delete(f"opsiconfd:{depotId}:products")
+			pipe.delete(f"opsiconfd:{depotId}:products:uptodate")
+			pipe.delete(f"opsiconfd:{depotId}:products:algorithm1")
+			pipe.delete(f"opsiconfd:{depotId}:products:algorithm1:uptodate")
+			pipe.delete(f"opsiconfd:{depotId}:products:algorithm2")
+			pipe.delete(f"opsiconfd:{depotId}:products:algorithm2:uptodate")
+			pipe.srem("opsiconfd:depots", depotId)
+			pipe.execute()
 	logger.devel("depot removed!")
 	
 # Some clients are using /rpc/rpc
@@ -202,69 +262,24 @@ async def process_jsonrpc(request: Request, response: Response):
 				logger.devel("product_methods %s", product_methods)
 				logger.devel("PARAMS: %s", rpc.get('params'))
 
-				param_string = str(rpc.get('params'))
-				logger.devel("param_string!!! %s", param_string)
-				
-				redis_client = await get_redis_client()
-
-				saved_depots = decode_redis_result(await redis_client.smembers("opsiconfd:depots"))
-				logger.devel("saved_depots %s",  saved_depots)
-				param_depots = []
-				for depot in saved_depots:
-					logger.devel(param_string.find(depot))
-					if  param_string.find(depot) != -1:
-						logger.devel("##########")
-						param_depots.append(depot)
-
-				
-				logger.devel("param_depots %s", param_depots)
-
-				
-				logger.devel("del redis keys")
-				async with await redis_client.pipeline() as pipe:
-					for depot in param_depots:
-						logger.devel("DEPOT: %s", depot)
-						await pipe.delete(f"opsiconfd:{depot}:products:uptodate")
-						await pipe.delete(f"opsiconfd:{depot}:products:algorithm1:uptodate")
-						await pipe.delete(f"opsiconfd:{depot}:products:algorithm2:uptodate")
-					await pipe.execute()
-
+				asyncio.get_event_loop().create_task(
+					run_in_threadpool(_set_outdated, rpc.get('params'))
+				)
 			if rpc.get('method') == "deleteDepot" or rpc.get('method') == "host_delete":
 				logger.devel("rm depot from redis list")
 				asyncio.get_event_loop().create_task(
 					run_in_threadpool(_rm_depot_from_redis, rpc.get('params')[0])
 				)
 			if rpc.get('method') == "getProductOrdering":
-				# TODO restore retention time for keys
+				
 				depot = rpc.get('params')[0]
 				algorithm = _get_sort_algorithm(rpc.get('params')[1])
 				redis_client = await get_redis_client()
 				products_uptodate = await redis_client.get(f"opsiconfd:{depot}:products:uptodate")
 				sorted_uptodate = await redis_client.get(f"opsiconfd:{depot}:products:{algorithm}:uptodate")
-				logger.devel("products_uptodate: %s ", products_uptodate)
-				logger.devel("sorted_uptodate: %s ", sorted_uptodate)
 				if products_uptodate and sorted_uptodate:
-					products = await redis_client.zrange(f"opsiconfd:{depot}:products", 0, -1)		
-					redis_key = f"opsiconfd:{depot}:products:{algorithm}"
-					products_ordered = await redis_client.zrange(redis_key, 0, -1)
-					# TODO raise error if products_ordered is empty
-					result = {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}	
-					# logger.devel(result)
-					now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
-					data = {
-						"jsonrpc": "2.0",
-						"id": 1,
-						"method": "getProductOrdering",
-						"params": [
-							depot,
-							algorithm,
-							{}
-						],
-						"result": result,
-						"date": now,
-						"client": request.client.host,
-						"error": None
-						}
+					data = await _get_product_ordering(depot, algorithm)
+					data["client"] = request.client.host					
 					results.append(data)
 					response.status_code = 200
 				if not products_uptodate or not sorted_uptodate:
@@ -312,8 +327,12 @@ async def process_jsonrpc(request: Request, response: Response):
 			asyncio.get_event_loop().create_task(
 				run_in_threadpool(_store_rpc, data)
 			)
+			logger.devel("RESULT[0]: %s", result[0])
 			if  result[0].get('method') == "getProductOrdering": 
-				if not products_uptodate or not sorted_uptodate:
+				logger.devel(result[0].get("result"))
+				logger.devel(result[0].get("result").get("sorted"))
+				if (not products_uptodate or not sorted_uptodate) and len(result[0].get("result").get("sorted")) > 0:
+					logger.devel("SAVE")
 					asyncio.get_event_loop().create_task(
 						run_in_threadpool(_store_product_ordering, result[0].get("result"), params)
 					)

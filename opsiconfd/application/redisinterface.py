@@ -18,7 +18,7 @@ from ..session import OPSISession
 from ..logging import logger
 from ..config import config
 from ..backend import get_client_backend, get_backend_interface
-from ..worker import get_redis_client
+from ..worker import get_redis_client, sync_redis_client
 from ..utils import decode_redis_result
 
 admin_interface_router = APIRouter()
@@ -119,6 +119,70 @@ async def get_redis_stats():
 			}
 		}
 		response = JSONResponse({"status": 200, "error": None, "data": redis_info})
+	except Exception as e:
+		logger.error("Error while reading redis data: %s", e)
+		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(e)}})
+	return response
+
+@admin_interface_router.get("/depot-cache")
+def get_depot_cache():
+	try:
+		depots = _get_depots()
+		response = JSONResponse({"status": 200, "error": None, "data": {"depots": list(depots)}})
+	except Exception as e:
+		logger.error("Error while reading redis data: %s", e)
+		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(e)}})
+	return response
+
+def _get_depots():
+	depots = {}
+	with sync_redis_client() as redis:
+		depots = decode_redis_result(redis.smembers("opsiconfd:depots"))
+	logger.devel(depots)
+	return depots
+
+@admin_interface_router.get("/products")
+def get_products(depot: str = None):
+	try:
+		data = []
+		if depot:
+			with sync_redis_client() as redis:
+				products = decode_redis_result(redis.zrange(f"opsiconfd:{depot}:products", 0, -1))
+				data.append({depot: products})
+		else:
+			with sync_redis_client() as redis:
+				depots = decode_redis_result(redis.smembers("opsiconfd:depots"))
+				for depot in depots:
+					products = decode_redis_result(redis.zrange(f"opsiconfd:{depot}:products", 0, -1))
+					data.append({depot: products})
+		response = JSONResponse({"status": 200, "error": None, "data": data})
+	except Exception as e:
+		logger.error("Error while reading redis data: %s", e)
+		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(e)}})
+	return response
+
+@admin_interface_router.get("/clear-product-cache")
+def clear_product_cache(depot: str = None):
+	try:
+		if depot:
+			depots = {depot}
+		else:
+			depots = _get_depots()
+		logger.devel(depots)
+		with sync_redis_client() as redis:
+			with redis.pipeline() as pipe:
+				for depot in depots:
+					logger.devel(depot)			
+					pipe.delete(f"opsiconfd:{depot}:products")
+					pipe.delete(f"opsiconfd:{depot}:products:algorithm1")
+					pipe.delete(f"opsiconfd:{depot}:products:algorithm2")
+					pipe.delete(f"opsiconfd:{depot}:products:uptodate")
+					pipe.delete(f"opsiconfd:{depot}:products:algorithm1:uptodate")
+					pipe.delete(f"opsiconfd:{depot}:products:algorithm2:uptodate")
+					pipe.delete("opsiconfd:dummy12x86.uib.local:products:uptodate")
+				data = pipe.execute()
+		logger.devel(data)
+		response = JSONResponse({"status": 200, "error": None, "data": data})
 	except Exception as e:
 		logger.error("Error while reading redis data: %s", e)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(e)}})

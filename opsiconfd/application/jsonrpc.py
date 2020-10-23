@@ -139,51 +139,16 @@ def _store_product_ordering(result, params):
 	except Exception as e:
 		logger.error(e, exc_info=True)
 
-async def _get_product_ordering(depotId, algorithm):
-	# TODO restore retention time for keys
-	redis_client = await get_redis_client()
-	async with await redis_client.pipeline() as pipe:
-		await pipe.zrange(f"opsiconfd:{depotId}:products", 0, -1)
-		await pipe.zrange(f"opsiconfd:{depotId}:products:{algorithm}", 0, -1)
-		await pipe.expire(f"opsiconfd:{depotId}:products", REDIS_EXPIRE)
-		await pipe.expire(f"opsiconfd:{depotId}:products:{algorithm}",REDIS_EXPIRE)
-		await pipe.expire(f"opsiconfd:{depotId}:products:uptodate", REDIS_EXPIRE)
-		await pipe.expire(f"opsiconfd:{depotId}:products:{algorithm}:uptodate", REDIS_EXPIRE)
-		pipe_results = await pipe.execute()
-	products = pipe_results[0]			
-	products_ordered = pipe_results[1]
-	# TODO raise error if products_ordered is empty
-	result = {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}	
-	now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
-	data = {
-		"jsonrpc": "2.0",
-		"id": 1,
-		"method": "getProductOrdering",
-		"params": [
-			depotId,
-			algorithm,
-			{}
-		],
-		"result": result,
-		"date": now,
-		"client": "",
-		"error": None
-		}
-	return data
-
 def _set_outdated(params):
 	param_string = str(params)
 	logger.devel("param_string!!! %s", param_string)
-	
 	with sync_redis_client() as redis:
-
 		saved_depots = decode_redis_result(redis.smembers("opsiconfd:depots"))
 		logger.devel("saved_depots %s",  saved_depots)
 		param_depots = []
 		for depot in saved_depots:
 			logger.devel(str(params).find(depot))
 			if  str(params).find(depot) != -1:
-				logger.devel("##########")
 				param_depots.append(depot)
 
 		logger.devel("param_depots %s", param_depots)
@@ -298,17 +263,7 @@ async def process_jsonrpc(request: Request, response: Response):
 				sorted_uptodate = await redis_client.get(f"opsiconfd:{depot}:products:{algorithm}:uptodate")
 				if products_uptodate and sorted_uptodate:
 					use_redis_cache = True
-					# data = await _get_product_ordering(depot, algorithm)
-					# data["client"] = request.client.host					
-					# results.append(data)
-					# response.status_code = 200
 					task = run_in_threadpool(read_redis_cache, request, response, rpc)
-			# 	else:
-			# 		task = run_in_threadpool(process_rpc, request, response, rpc, backend)
-			# 		tasks.append(task)
-			# else: 
-			# 	task = run_in_threadpool(process_rpc, request, response, rpc, backend)
-			# 	tasks.append(task)
 			if not use_redis_cache:
 				task = run_in_threadpool(process_rpc, request, response, rpc, backend)
 			tasks.append(task)
@@ -319,8 +274,6 @@ async def process_jsonrpc(request: Request, response: Response):
 		#context_jsonrpc_call_id.set(myid)
 		#print(f"start {myid}")
 		for result in await asyncio.gather(*tasks):
-			# logger.devel("################# %s", result)
-			logger.devel("??????????????")
 			results.append(result[0])
 			asyncio.get_event_loop().create_task(
 				get_metrics_collector().add_value("worker:avg_rpc_duration", result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()})
@@ -353,12 +306,9 @@ async def process_jsonrpc(request: Request, response: Response):
 			asyncio.get_event_loop().create_task(
 				run_in_threadpool(_store_rpc, data)
 			)
-			# logger.devel("RESULT[0]: %s", result[0])
+
 			if  result[0].get('method') == "getProductOrdering": 
-				# logger.devel(result[0].get("result"))
-				# logger.devel(result[0].get("result").get("sorted"))
 				logger.devel("!!!getProductOrdering!!!")
-				# if (not products_uptodate or not sorted_uptodate) and len(result[0].get("result").get("sorted")) > 0:
 				if not use_redis_cache and len(result[0].get("result").get("sorted")) > 0:
 					logger.devel("SAVE")
 					asyncio.get_event_loop().create_task(

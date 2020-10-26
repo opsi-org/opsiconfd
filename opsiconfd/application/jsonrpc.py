@@ -108,17 +108,13 @@ def _store_rpc(data, max_rpcs=9999):
 		logger.error(e, exc_info=True)
 
 def _get_sort_algorithm(params):
-	logger.devel("PARAMS: %s", params)
-	logger.devel("LEN: %s", len(params))
 	if len(params) > 1:
 		algorithm = params[1]
 	if not algorithm:
 		algorithm = "algorithm1"
-	logger.devel(algorithm)
 	return algorithm
 
 def _store_product_ordering(result, params):
-	logger.devel("_store_product_ordering")
 	try:
 		if len(params) > 1:
 			algorithm = _get_sort_algorithm(params)
@@ -145,30 +141,21 @@ def _store_product_ordering(result, params):
 
 def _set_outdated(params):
 	param_string = str(params)
-	logger.devel("param_string!!! %s", param_string)
 	with sync_redis_client() as redis:
 		saved_depots = decode_redis_result(redis.smembers("opsiconfd:depots"))
-		logger.devel("saved_depots %s",  saved_depots)
 		depots = []
 		for depot in saved_depots:
-			logger.devel(str(params).find(depot))
 			if  str(params).find(depot) != -1:
 				depots.append(depot)
-
 		if len(depots) == 0:
 			depots = saved_depots
 
-		logger.devel("depots %s", depots)
-
-		logger.devel("del redis keys")
 		with redis.pipeline() as pipe:
 			for depot in depots:
-				logger.devel("DEPOT: %s", depot)
 				pipe.delete(f"opsiconfd:{depot}:products:uptodate")
 				pipe.delete(f"opsiconfd:{depot}:products:algorithm1:uptodate")
 				pipe.delete(f"opsiconfd:{depot}:products:algorithm2:uptodate")
 			pipe.execute()
-
 
 def _rm_depot_from_redis(depotId):
 	with sync_redis_client() as redis:
@@ -181,7 +168,6 @@ def _rm_depot_from_redis(depotId):
 			pipe.delete(f"opsiconfd:{depotId}:products:algorithm2:uptodate")
 			pipe.srem("opsiconfd:depots", depotId)
 			pipe.execute()
-	logger.devel("depot removed!")
 	
 # Some clients are using /rpc/rpc
 @jsonrpc_router.get(".*")
@@ -189,7 +175,6 @@ def _rm_depot_from_redis(depotId):
 async def process_jsonrpc(request: Request, response: Response):
 	results = []
 	try:
-		jsonrpc_start = time.perf_counter()
 		global xid
 		xid += 1
 		myid = xid
@@ -267,16 +252,11 @@ async def process_jsonrpc(request: Request, response: Response):
 		
 		for rpc in jsonrpc:
 			use_redis_cache = False
-			logger.devel("rpc: %s", rpc)
 			if rpc.get('method') in product_methods:
-				logger.devel("product_methods %s", product_methods)
-				logger.devel("PARAMS: %s", rpc.get('params'))
-
 				asyncio.get_event_loop().create_task(
 					run_in_threadpool(_set_outdated, rpc.get('params'))
 				)
 			if rpc.get('method') == "deleteDepot" or rpc.get('method') == "host_delete":
-				logger.devel("rm depot from redis list")
 				asyncio.get_event_loop().create_task(
 					run_in_threadpool(_rm_depot_from_redis, rpc.get('params')[0])
 				)
@@ -285,10 +265,7 @@ async def process_jsonrpc(request: Request, response: Response):
 				algorithm = _get_sort_algorithm(rpc.get('params'))
 				redis_client = await get_redis_client()
 				products_uptodate = await redis_client.get(f"opsiconfd:{depot}:products:uptodate")
-				logger.devel(f"opsiconfd:{depot}:products:{algorithm}:uptodate")
 				sorted_uptodate = await redis_client.get(f"opsiconfd:{depot}:products:{algorithm}:uptodate")
-				logger.devel("products_uptodate: %s", products_uptodate)
-				logger.devel("sorted_uptodate: %s", sorted_uptodate)
 				if products_uptodate and sorted_uptodate:
 					use_redis_cache = True
 					task = run_in_threadpool(read_redis_cache, request, response, rpc)
@@ -336,9 +313,7 @@ async def process_jsonrpc(request: Request, response: Response):
 			)
 
 			if  result[0].get('method') == "getProductOrdering": 
-				logger.devel("!!!getProductOrdering!!!")
 				if result[2] == "rpc" and len(result[0].get("result").get("sorted")) > 0:
-					logger.devel("SAVE")
 					asyncio.get_event_loop().create_task(
 						run_in_threadpool(_store_product_ordering, result[0].get("result"), params)
 					)
@@ -397,28 +372,20 @@ async def process_jsonrpc(request: Request, response: Response):
 				compression, data_len, len(data), 100 - 100 * (len(data) / data_len),
 				1000 * (time.perf_counter() - comp_start)
 			)
-	# logger.devel("DATA: %s", data)
 	response.body = data
-	logger.devel("TIME: %s", (time.perf_counter() - jsonrpc_start))
 	return response
 
 def process_rpc(request: Request, response: Response, rpc, backend):
 	rpc_id = None
 	try:
-		
 		start = time.perf_counter()
 		rpc_call_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 		user_agent = request.headers.get('user-agent')
 		method_name = rpc.get('method')
-
-		logger.devel("Method: %s", method_name)
-		
 		params = rpc.get('params', [])
 		rpc_id = rpc.get('id')
 		logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, method_name)
 		logger.trace("Retrieved parameters %s for %s", params, method_name)
-
-		logger.devel("Retrieved parameters %s for %s", params, method_name)
 
 		for method in get_backend_interface():
 			if method_name == method['name']:
@@ -468,7 +435,6 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		end = time.perf_counter()
 
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
-		logger.devel("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
 
@@ -486,7 +452,6 @@ def read_redis_cache(request: Request, response: Response, rpc):
 	try:
 		start = time.perf_counter()
 		depotId = rpc.get('params')[0]
-		logger.devel("PARAMS: %s", rpc.get('params')[1])
 		algorithm = _get_sort_algorithm(rpc.get('params'))
 		with sync_redis_client() as redis:
 			with redis.pipeline() as pipe:

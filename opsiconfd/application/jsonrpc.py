@@ -108,14 +108,13 @@ def _store_rpc(data, max_rpcs=9999):
 		logger.error(e, exc_info=True)
 
 def _get_sort_algorithm(params):
-
+	logger.devel("PARAMS: %s", params)
+	logger.devel("LEN: %s", len(params))
 	if len(params) > 1:
-			algorithm = params[1]
-	else:
+		algorithm = params[1]
+	if not algorithm:
 		algorithm = "algorithm1"
-	if not algorithm == "algorithm1" or not algorithm == "algorithm2":
-		algorithm = "algorithm1"
-
+	logger.devel(algorithm)
 	return algorithm
 
 def _store_product_ordering(result, params):
@@ -286,7 +285,10 @@ async def process_jsonrpc(request: Request, response: Response):
 				algorithm = _get_sort_algorithm(rpc.get('params'))
 				redis_client = await get_redis_client()
 				products_uptodate = await redis_client.get(f"opsiconfd:{depot}:products:uptodate")
+				logger.devel(f"opsiconfd:{depot}:products:{algorithm}:uptodate")
 				sorted_uptodate = await redis_client.get(f"opsiconfd:{depot}:products:{algorithm}:uptodate")
+				logger.devel("products_uptodate: %s", products_uptodate)
+				logger.devel("sorted_uptodate: %s", sorted_uptodate)
 				if products_uptodate and sorted_uptodate:
 					use_redis_cache = True
 					task = run_in_threadpool(read_redis_cache, request, response, rpc)

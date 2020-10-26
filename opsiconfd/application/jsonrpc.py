@@ -48,7 +48,9 @@ from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
 from ..utils import decode_redis_result
 
 
-REDIS_EXPIRE = (60*5)
+# time in seconds
+EXPIRE = (60*5)
+EXPIRE_UPTODATE = (60*5)
 
 # https://fastapi.tiangolo.com/tutorial/bigger-applications/
 jsonrpc_router = APIRouter()
@@ -105,34 +107,37 @@ def _store_rpc(data, max_rpcs=9999):
 	except Exception as e:
 		logger.error(e, exc_info=True)
 
-def _get_sort_algorithm(name):
-	if name == "algorithm1" or name == "algorithm2":
-		algorithm = name
+def _get_sort_algorithm(params):
+
+	if len(params) > 1:
+			algorithm = params[1]
 	else:
 		algorithm = "algorithm1"
+	if not algorithm == "algorithm1" or not algorithm == "algorithm2":
+		algorithm = "algorithm1"
+
 	return algorithm
 
 def _store_product_ordering(result, params):
 	logger.devel("_store_product_ordering")
-	# TODO set retention time
 	try:
 		if len(params) > 1:
-			algorithm = _get_sort_algorithm(params[1])
+			algorithm = _get_sort_algorithm(params)
 		else:
 			algorithm = "algorithm1"
 		with sync_redis_client() as redis:
 			with redis.pipeline() as pipe:
 				for val in result.get("not_sorted"):
 					pipe.zadd(f"opsiconfd:{params[0]}:products", {val: 1})
-				pipe.expire(f"opsiconfd:{params[0]}:products", REDIS_EXPIRE)
-				for val in result.get("sorted"):
-					pipe.zadd(f"opsiconfd:{params[0]}:products:{algorithm}", {val: 1})
-				pipe.expire(f"opsiconfd:{params[0]}:products:{algorithm}", REDIS_EXPIRE)
+				pipe.expire(f"opsiconfd:{params[0]}:products", EXPIRE)
+				for idx, val in enumerate(result.get("sorted")):
+					pipe.zadd(f"opsiconfd:{params[0]}:products:{algorithm}", {val: idx})
+				pipe.expire(f"opsiconfd:{params[0]}:products:{algorithm}", EXPIRE)
 				now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 				pipe.set(f"opsiconfd:{params[0]}:products:uptodate", now)
 				pipe.set(f"opsiconfd:{params[0]}:products:{algorithm}:uptodate", now)
-				pipe.expire(f"opsiconfd:{params[0]}:products:uptodate", REDIS_EXPIRE)
-				pipe.expire(f"opsiconfd:{params[0]}:products:{algorithm}:uptodate", REDIS_EXPIRE)
+				pipe.expire(f"opsiconfd:{params[0]}:products:uptodate", EXPIRE_UPTODATE)
+				pipe.expire(f"opsiconfd:{params[0]}:products:{algorithm}:uptodate", EXPIRE_UPTODATE)
 				pipe.sadd("opsiconfd:depots", params[0])
 
 				pipe.execute()
@@ -145,17 +150,20 @@ def _set_outdated(params):
 	with sync_redis_client() as redis:
 		saved_depots = decode_redis_result(redis.smembers("opsiconfd:depots"))
 		logger.devel("saved_depots %s",  saved_depots)
-		param_depots = []
+		depots = []
 		for depot in saved_depots:
 			logger.devel(str(params).find(depot))
 			if  str(params).find(depot) != -1:
-				param_depots.append(depot)
+				depots.append(depot)
 
-		logger.devel("param_depots %s", param_depots)
+		if len(depots) == 0:
+			depots = saved_depots
+
+		logger.devel("depots %s", depots)
 
 		logger.devel("del redis keys")
 		with redis.pipeline() as pipe:
-			for depot in param_depots:
+			for depot in depots:
 				logger.devel("DEPOT: %s", depot)
 				pipe.delete(f"opsiconfd:{depot}:products:uptodate")
 				pipe.delete(f"opsiconfd:{depot}:products:algorithm1:uptodate")
@@ -238,8 +246,26 @@ async def process_jsonrpc(request: Request, response: Response):
 			"createNetBootProduct",
 			"createLocalBootProduct",
 			"createProductDependency",
-			"deleteProductDependency"
+			"deleteProductDependency",
+			"product_delete",
+			"product_deleteObjects",
+			"product_createObjects",
+			"product_insertObject",
+			"product_updateObject",
+			"product_updateObjects",
+			"productDependency_create",
+			"productDependency_createObjects",
+			"productDependency_delete",
+			"productDependency_deleteObjects",
+			"productOnDepot_delete",
+			"productOnDepot_create",
+			"productOnDepot_deleteObjects",
+			"productOnDepot_createObjects",
+			"productOnDepot_insertObject",
+			"productOnDepot_updateObject",
+			"productOnDepot_updateObjects"
 		] 
+		
 		for rpc in jsonrpc:
 			use_redis_cache = False
 			logger.devel("rpc: %s", rpc)
@@ -257,7 +283,7 @@ async def process_jsonrpc(request: Request, response: Response):
 				)
 			if rpc.get('method') == "getProductOrdering":				
 				depot = rpc.get('params')[0]
-				algorithm = _get_sort_algorithm(rpc.get('params')[1])
+				algorithm = _get_sort_algorithm(rpc.get('params'))
 				redis_client = await get_redis_client()
 				products_uptodate = await redis_client.get(f"opsiconfd:{depot}:products:uptodate")
 				sorted_uptodate = await redis_client.get(f"opsiconfd:{depot}:products:{algorithm}:uptodate")
@@ -309,7 +335,7 @@ async def process_jsonrpc(request: Request, response: Response):
 
 			if  result[0].get('method') == "getProductOrdering": 
 				logger.devel("!!!getProductOrdering!!!")
-				if not use_redis_cache and len(result[0].get("result").get("sorted")) > 0:
+				if result[2] == "rpc" and len(result[0].get("result").get("sorted")) > 0:
 					logger.devel("SAVE")
 					asyncio.get_event_loop().create_task(
 						run_in_threadpool(_store_product_ordering, result[0].get("result"), params)
@@ -444,7 +470,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
 
-		return [response, end - start]
+		return [response, end - start, "rpc"]
 	except Exception as e:
 		logger.error(e, exc_info=True)
 		tb = traceback.format_exc()
@@ -452,22 +478,22 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		# TODO: config
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "date": rpc_call_time, "client": request.client.host,  "error": error}, 0]
+		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "date": rpc_call_time, "client": request.client.host,  "error": error}, 0, "rpc"]
 		
 def read_redis_cache(request: Request, response: Response, rpc):
 	try:
 		start = time.perf_counter()
 		depotId = rpc.get('params')[0]
 		logger.devel("PARAMS: %s", rpc.get('params')[1])
-		algorithm = _get_sort_algorithm(rpc.get('params')[1])
+		algorithm = _get_sort_algorithm(rpc.get('params'))
 		with sync_redis_client() as redis:
 			with redis.pipeline() as pipe:
 				pipe.zrange(f"opsiconfd:{depotId}:products", 0, -1)
 				pipe.zrange(f"opsiconfd:{depotId}:products:{algorithm}", 0, -1)
-				pipe.expire(f"opsiconfd:{depotId}:products", REDIS_EXPIRE)
-				pipe.expire(f"opsiconfd:{depotId}:products:{algorithm}",REDIS_EXPIRE)
-				pipe.expire(f"opsiconfd:{depotId}:products:uptodate", REDIS_EXPIRE)
-				pipe.expire(f"opsiconfd:{depotId}:products:{algorithm}:uptodate", REDIS_EXPIRE)
+				pipe.expire(f"opsiconfd:{depotId}:products", EXPIRE)
+				pipe.expire(f"opsiconfd:{depotId}:products:{algorithm}",EXPIRE)
+				# pipe.expire(f"opsiconfd:{depotId}:products:uptodate", EXPIRE)
+				# pipe.expire(f"opsiconfd:{depotId}:products:{algorithm}:uptodate", EXPIRE)
 				pipe_results = pipe.execute()
 		products = pipe_results[0]			
 		products_ordered = pipe_results[1]
@@ -476,7 +502,7 @@ def read_redis_cache(request: Request, response: Response, rpc):
 		now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 		response = {
 			"jsonrpc": "2.0",
-			"id": 1,
+			"id": rpc.get('id'),
 			"method": "getProductOrdering (redis)",
 			"params": [
 				depotId,
@@ -490,7 +516,7 @@ def read_redis_cache(request: Request, response: Response, rpc):
 			}
 		end = time.perf_counter()
 		response = serialize(response)
-		return [response, end - start]
+		return [response, end - start, "redis"]
 	except Exception as e:
 		logger.error(e, exc_info=True)
 		tb = traceback.format_exc()
@@ -498,5 +524,5 @@ def read_redis_cache(request: Request, response: Response, rpc):
 		# TODO: config
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "date": rpc_call_time, "client": request.client.host,  "error": error}, 0]
+		return [{"jsonrpc": "2.0", "id": rpc.get('id'), "method": f"{rpc.get('method')} (redis)", "params": rpc.get('params'), "result": None, "date": now, "client": request.client.host,  "error": error}, 0, "redis"]
 		

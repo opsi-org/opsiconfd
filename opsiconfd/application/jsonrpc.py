@@ -49,8 +49,8 @@ from ..utils import decode_redis_result
 
 
 # time in seconds
-EXPIRE = (60*5)
-EXPIRE_UPTODATE = (60*5)
+EXPIRE = (60*60*24)
+EXPIRE_UPTODATE = (60*60*24)
 
 # https://fastapi.tiangolo.com/tutorial/bigger-applications/
 jsonrpc_router = APIRouter()

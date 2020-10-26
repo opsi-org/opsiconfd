@@ -87,7 +87,7 @@ def get_basic_auth(headers: Headers):
 	secret_filter.add_secrets(encoded_auth)
 	auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
 
-	(username, password) = auth.rsplit(':', 1)
+	(username, password) = auth.split(':', 1)
 	secret_filter.add_secrets(password)
 
 	return BasicAuth(username, password)

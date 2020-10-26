@@ -116,6 +116,30 @@ function outputResult(json, id) {
 	document.getElementById(id).innerHTML = text;
 }
 
+function clearRedisCache(depots =  []) {
+	let request = new XMLHttpRequest();
+	console.log("depots: ", depots);
+	request.open("POST", "/redis-interface/clear-product-cache");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText
+			result = JSON.parse(result);
+			console.log(result);
+			outputToHTML(result, "redis-result");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	body = {
+		"depots": depots
+	};
+	
+	request.send(JSON.stringify(body));
+	
+}
+
 // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
 function syntaxHighlight(json) {
 	if (typeof json != 'string') {

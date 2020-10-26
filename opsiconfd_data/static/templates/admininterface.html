@@ -112,6 +112,21 @@
 					<button id="redis-button" onclick="callRedis()">Execute</button>
 					<button id="redis-button" onclick="loadReadisInfo()">Info+</button>
 				</div>
+				<div class="adminpage-box">
+					<h4>Redis Cache</h4>
+					<table>
+						<tr>
+							<td align=left><label>Clear cache:</label></td>
+							<td></td>
+							<td><button id="clear-cache-button" onclick="clearRedisCache()">Execute</button> </td>
+						</tr>
+						<tr>
+							<td align=left>Clear depot cache:</td>
+							<td><input id="depotId" type="text" name="depotId" placeholder="myhost.example.com"></td>
+							<td><input type="button" onclick="clearRedisCache([depotId.value])" value="Execute"></td>
+						</tr>
+					</table>
+				</div>
 				<div id="resultRedis">
 					<pre class="redis-result" id="redis-result"></pre>
 				</div>

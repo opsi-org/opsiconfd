@@ -161,12 +161,13 @@ def get_products(depot: str = None):
 		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(e)}})
 	return response
 
-@admin_interface_router.get("/clear-product-cache")
-def clear_product_cache(depot: str = None):
+
+@admin_interface_router.post("/clear-product-cache")
+async def clear_product_cache(request: Request, response: Response):
 	try:
-		if depot:
-			depots = {depot}
-		else:
+		request_body = await request.json()
+		depots = request_body.get("depots")
+		if not depots:
 			depots = _get_depots()
 		logger.devel(depots)
 		with sync_redis_client() as redis:
@@ -179,7 +180,6 @@ def clear_product_cache(depot: str = None):
 					pipe.delete(f"opsiconfd:{depot}:products:uptodate")
 					pipe.delete(f"opsiconfd:{depot}:products:algorithm1:uptodate")
 					pipe.delete(f"opsiconfd:{depot}:products:algorithm2:uptodate")
-					pipe.delete("opsiconfd:dummy12x86.uib.local:products:uptodate")
 				data = pipe.execute()
 		logger.devel(data)
 		response = JSONResponse({"status": 200, "error": None, "data": data})

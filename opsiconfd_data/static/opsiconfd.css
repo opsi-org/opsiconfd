@@ -151,15 +151,15 @@ li {
 	border-top: none; */
   } 
 
-.LEVEL_SECRET { color: #795b00; }
-.LEVEL_TRACE { color: #636d6e; }
-.LEVEL_DEBUG { color: #94a3a5; }
-.LEVEL_INFO { color: #eeeeee; }
-.LEVEL_NOTICE { color: #859900; }
-.LEVEL_WARNING { color: #b58900; }
-.LEVEL_ERROR { color: #dc322b; }
-.LEVEL_CRITICAL { color: #c74b16; }
-.LEVEL_ESSENTIAL { color: #2aa198; }
+.LEVEL_SECRET { color: #6e5a00; }
+.LEVEL_TRACE { color: #8b8f8a; }
+.LEVEL_DEBUG { color: #d0d7cf; }
+.LEVEL_INFO { color: #eeeeec; }
+.LEVEL_NOTICE { color: #8ae234; }
+.LEVEL_WARNING { color: #f6b925; }
+.LEVEL_ERROR { color: #c90000; }
+.LEVEL_CRITICAL { color: #ff0000; }
+.LEVEL_ESSENTIAL { color: #34e2e2; }
 
 .json_string { color: green; }
 .json_number { color: darkorange; }

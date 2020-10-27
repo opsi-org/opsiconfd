@@ -78,23 +78,23 @@
 
 			<div id="rpcInterface" class="tabcontent">
 				<div class="adminpage-box">
-					<form>
-						<div>
-							<table id="jsonrpc-request-table">
-								<tr>
-									<td align=left><label>Method:</label></td>
-									<td>
-										<select id="method-select" onchange="createParamInputs()">
-											{% for method in interface %}
-											<option>{{	method.get("name") }}</option>
-											{% endfor %}
-										</select>
-									</td>
-								</tr>
-							</table>
-						</div>
+					<div>
+						<table id="jsonrpc-request-table">
+							<tr>
+								<td align=left><label>Method:</label></td>
+								<td>
+									<select id="method-select" onchange="createParamInputs()">
+										{% for method in interface %}
+										<option>{{	method.get("name") }}</option>
+										{% endfor %}
+									</select>
+								</td>
+							</tr>
+						</table>
+					</div>
+					<div id="jsonrpc-request-error">
+					</div>
 				</div>
-				</form>
 				<div>
 					<pre class="jsonrpc-request" id="jsonrpc-request"></pre>
 				</div>

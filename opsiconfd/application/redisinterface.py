@@ -138,7 +138,6 @@ def _get_depots():
 	depots = {}
 	with sync_redis_client() as redis:
 		depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
-	logger.devel(depots)
 	return depots
 
 @admin_interface_router.get("/products")
@@ -169,11 +168,9 @@ async def clear_product_cache(request: Request, response: Response):
 		depots = request_body.get("depots")
 		if not depots:
 			depots = _get_depots()
-		logger.devel(depots)
 		with sync_redis_client() as redis:
 			with redis.pipeline() as pipe:
-				for depot in depots:
-					logger.devel(depot)			
+				for depot in depots:		
 					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products")
 					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1")
 					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2")
@@ -181,7 +178,6 @@ async def clear_product_cache(request: Request, response: Response):
 					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
 					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
 				data = pipe.execute()
-		logger.devel(data)
 		response = JSONResponse({"status": 200, "error": None, "data": data})
 	except Exception as e:
 		logger.error("Error while reading redis data: %s", e)

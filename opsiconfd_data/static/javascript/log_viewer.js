@@ -29,7 +29,7 @@ function addRecordToLog(record) {
 			context = context + record.context[key];
 		}
 	}
-	var colorText = document.createTextNode("[" + record.opsilevel + "] [" + time + "] [" + context.padEnd(16, ' ') + "]");
+	var colorText = document.createTextNode("[" + record.opsilevel + "] [" + time + "]");
 	colorSpan.appendChild(colorText);
 
 	div.appendChild(colorSpan);
@@ -38,8 +38,8 @@ function addRecordToLog(record) {
 	if (record.exc_text) {
 		msg += "\n" + record.exc_text;
 	}
-	div.appendChild(document.createTextNode(" " + msg));
-
+	div.appendChild(document.createTextNode(" [" + context.padEnd(16, ' ') + "] " + msg));
+	
 	var container = document.getElementById("log-container");
 	if (container.childElementCount >= MAX_LOG_LINES) {
 		container.removeChild(container.childNodes[0]); 

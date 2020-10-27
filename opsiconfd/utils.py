@@ -129,4 +129,8 @@ def decode_redis_result(_obj):
 	elif type(_obj) == dict:
 		for (k, v) in _obj.items():
 			_obj[decode_redis_result(k)] = decode_redis_result(v)
+	elif type(_obj) == set:
+		for v in _obj:
+			_obj.remove(v)
+			_obj.add(decode_redis_result(v))
 	return _obj

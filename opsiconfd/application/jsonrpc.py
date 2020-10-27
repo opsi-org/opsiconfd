@@ -45,7 +45,37 @@ from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface
 from ..worker import run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, contextvar_request_id, get_redis_client, sync_redis_client
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
+from ..utils import decode_redis_result
 
+
+# time in seconds
+EXPIRE = (60*60*24)
+EXPIRE_UPTODATE = (60*60*24)
+
+PRODUCT_METHODS = [
+	"createProduct",
+	"createNetBootProduct",
+	"createLocalBootProduct",
+	"createProductDependency",
+	"deleteProductDependency",
+	"product_delete",
+	"product_deleteObjects",
+	"product_createObjects",
+	"product_insertObject",
+	"product_updateObject",
+	"product_updateObjects",
+	"productDependency_create",
+	"productDependency_createObjects",
+	"productDependency_delete",
+	"productDependency_deleteObjects",
+	"productOnDepot_delete",
+	"productOnDepot_create",
+	"productOnDepot_deleteObjects",
+	"productOnDepot_createObjects",
+	"productOnDepot_insertObject",
+	"productOnDepot_updateObject",
+	"productOnDepot_updateObjects"
+] 
 
 # https://fastapi.tiangolo.com/tutorial/bigger-applications/
 jsonrpc_router = APIRouter()
@@ -102,6 +132,74 @@ def _store_rpc(data, max_rpcs=9999):
 	except Exception as e:
 		logger.error(e, exc_info=True)
 
+def _get_sort_algorithm(params):
+	if len(params) > 1:
+		algorithm = params[1]
+	if not algorithm or (algorithm != "algorithm1" and algorithm != "algorithm2"):
+		algorithm = "algorithm1"
+		try:
+			backend = get_client_backend()
+			default = backend._executeMethod("config_getObjects", id="product_sort_algorithm")[0].getDefaultValues()
+			if "algorithm2" in default:
+					algorithm = "algorithm2"
+		except IndexError:
+			pass
+	return algorithm
+
+def _store_product_ordering(result, params):
+	try:
+		if len(params) > 1:
+			algorithm = _get_sort_algorithm(params)
+		else:
+			algorithm = "algorithm1"
+		with sync_redis_client() as redis:
+			with redis.pipeline() as pipe:
+				for val in result.get("not_sorted"):
+					pipe.zadd(f"opsiconfd:jsonrpccache:{params[0]}:products", {val: 1})
+				pipe.expire(f"opsiconfd:jsonrpccache:{params[0]}:products", EXPIRE)
+				for idx, val in enumerate(result.get("sorted")):
+					pipe.zadd(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}", {val: idx})
+				pipe.expire(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}", EXPIRE)
+				now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+				pipe.set(f"opsiconfd:jsonrpccache:{params[0]}:products:uptodate", now)
+				pipe.set(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}:uptodate", now)
+				pipe.expire(f"opsiconfd:jsonrpccache:{params[0]}:products:uptodate", EXPIRE_UPTODATE)
+				pipe.expire(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}:uptodate", EXPIRE_UPTODATE)
+				pipe.sadd("opsiconfd:jsonrpccache:depots", params[0])
+
+				pipe.execute()
+	except Exception as e:
+		logger.error(e, exc_info=True)
+
+def _set_outdated(params):
+	with sync_redis_client() as redis:
+		saved_depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
+		depots = []
+		for depot in saved_depots:
+			if  str(params).find(depot) != -1:
+				depots.append(depot)
+		if len(depots) == 0:
+			depots = saved_depots
+
+		with redis.pipeline() as pipe:
+			for depot in depots:
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
+			pipe.execute()
+
+def _rm_depot_from_redis(depotId):
+	with sync_redis_client() as redis:
+		with redis.pipeline() as pipe:
+			pipe.delete(f"opsiconfd:jsonrpccache:{depotId}:products")
+			pipe.delete(f"opsiconfd:jsonrpccache:{depotId}:products:uptodate")
+			pipe.delete(f"opsiconfd:jsonrpccache:{depotId}:products:algorithm1")
+			pipe.delete(f"opsiconfd:jsonrpccache:{depotId}:products:algorithm1:uptodate")
+			pipe.delete(f"opsiconfd:jsonrpccache:{depotId}:products:algorithm2")
+			pipe.delete(f"opsiconfd:jsonrpccache:{depotId}:products:algorithm2:uptodate")
+			pipe.srem("opsiconfd:jsonrpccache:depots", depotId)
+			pipe.execute()
+	
 # Some clients are using /rpc/rpc
 @jsonrpc_router.get(".*")
 @jsonrpc_router.post(".*")
@@ -158,9 +256,30 @@ async def process_jsonrpc(request: Request, response: Response):
 		if not type(jsonrpc) is list:
 			jsonrpc = [jsonrpc]
 		tasks = []
+
 		for rpc in jsonrpc:
-			task = run_in_threadpool(process_rpc, request, response, rpc, backend)
+			use_redis_cache = False
+			if rpc.get('method') in PRODUCT_METHODS:
+				asyncio.get_event_loop().create_task(
+					run_in_threadpool(_set_outdated, rpc.get('params'))
+				)
+			if rpc.get('method') == "deleteDepot" or rpc.get('method') == "host_delete":
+				asyncio.get_event_loop().create_task(
+					run_in_threadpool(_rm_depot_from_redis, rpc.get('params')[0])
+				)
+			if rpc.get('method') == "getProductOrdering":				
+				depot = rpc.get('params')[0]
+				algorithm = _get_sort_algorithm(rpc.get('params'))
+				redis_client = await get_redis_client()
+				products_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+				sorted_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
+				if products_uptodate and sorted_uptodate:
+					use_redis_cache = True
+					task = run_in_threadpool(read_redis_cache, request, response, rpc)
+			if not use_redis_cache:
+				task = run_in_threadpool(process_rpc, request, response, rpc, backend)
 			tasks.append(task)
+
 		asyncio.get_event_loop().create_task(
 			get_metrics_collector().add_value("worker:avg_rpc_number", len(jsonrpc), {"node_name": get_node_name(), "worker_num": get_worker_num()})
 		)
@@ -174,8 +293,8 @@ async def process_jsonrpc(request: Request, response: Response):
 			redis_client = await get_redis_client()
 			rpc_count = await redis_client.incr("opsiconfd:stats:num_rpcs")
 			error = bool(result[0].get("error"))
-			date = result[0].get("date")
-			params = [param for param in result[0].get("params", []) if param]
+			date = result[2].get("date")
+			params = [param for param in result[2].get("params", []) if param]
 			logger.trace("RPC Count: %s", rpc_count)			
 			logger.trace("params: %s", params)
 			num_results = 0
@@ -187,10 +306,10 @@ async def process_jsonrpc(request: Request, response: Response):
 
 			data = {
 				"rpc_num": rpc_count,
-				"method": result[0].get('method'),
+				"method": result[2].get("method"),
 				"num_params": len(params),
 				"date": date,
-				"client": request.client.host,
+				"client": result[2].get("client"),
 				"error": error,
 				"num_results": num_results,
 				"duration": result[1]
@@ -199,6 +318,13 @@ async def process_jsonrpc(request: Request, response: Response):
 			asyncio.get_event_loop().create_task(
 				run_in_threadpool(_store_rpc, data)
 			)
+
+			if  result[2].get('method') == "getProductOrdering": 
+				if result[3] == "rpc" and len(result[0].get("result").get("sorted")) > 0:
+					asyncio.get_event_loop().create_task(
+						run_in_threadpool(_store_product_ordering, result[0].get("result"), params)
+					)
+
 			response.status_code = 200
 	except HTTPException as e:
 		logger.error(e)
@@ -219,7 +345,7 @@ async def process_jsonrpc(request: Request, response: Response):
 		}
 		response.status_code = 400
 		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]
-	
+
 	data = await run_in_threadpool(orjson.dumps, results[0] if len(results) == 1 else results)
 	response.headers["content-type"] = "application/json"
 	
@@ -253,14 +379,12 @@ async def process_jsonrpc(request: Request, response: Response):
 				compression, data_len, len(data), 100 - 100 * (len(data) / data_len),
 				1000 * (time.perf_counter() - comp_start)
 			)
-
 	response.body = data
 	return response
 
 def process_rpc(request: Request, response: Response, rpc, backend):
 	rpc_id = None
 	try:
-		
 		start = time.perf_counter()
 		rpc_call_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 		user_agent = request.headers.get('user-agent')
@@ -269,6 +393,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		rpc_id = rpc.get('id')
 		logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, method_name)
 		logger.trace("Retrieved parameters %s for %s", params, method_name)
+
 		for method in get_backend_interface():
 			if method_name == method['name']:
 				method_description = method
@@ -310,22 +435,66 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 				else:
 					result = method(*params)
 		params.append(keywords)
-		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "date": rpc_call_time, "client": request.client.host, "error": None}
-		response = serialize(response)
 
+		response = {"jsonrpc": "2.0", "id": rpc_id, "result": result, "error": None}
+		response = serialize(response)
+		rpc["date"] = rpc_call_time
+		rpc["client"] = request.client.host
 		end = time.perf_counter()
 
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
 
-		return [response, end - start]
+		return [response, end - start, rpc, "rpc"]
+	except Exception as e:
+		logger.error(e, exc_info=True)
+		tb = traceback.format_exc()
+		error = {"message": str(e), "class": e.__class__.__name__}
+		rpc["date"] = rpc_call_time
+		rpc["client"] = request.client.host
+		# TODO: config
+		if True:
+			error["details"] = str(tb)
+		return [{"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}, 0, rpc, "rpc"]
+		
+def read_redis_cache(request: Request, response: Response, rpc):
+	try:
+		start = time.perf_counter()
+		depotId = rpc.get('params')[0]
+		algorithm = _get_sort_algorithm(rpc.get('params'))
+		with sync_redis_client() as redis:
+			with redis.pipeline() as pipe:
+				pipe.zrange(f"opsiconfd:jsonrpccache:{depotId}:products", 0, -1)
+				pipe.zrange(f"opsiconfd:jsonrpccache:{depotId}:products:{algorithm}", 0, -1)
+				pipe.expire(f"opsiconfd:jsonrpccache:{depotId}:products", EXPIRE)
+				pipe.expire(f"opsiconfd:jsonrpccache:{depotId}:products:{algorithm}",EXPIRE)
+				# pipe.expire(f"opsiconfd:jsonrpccache:{depotId}:products:uptodate", EXPIRE)
+				# pipe.expire(f"opsiconfd:jsonrpccache:{depotId}:products:{algorithm}:uptodate", EXPIRE)
+				pipe_results = pipe.execute()
+		products = pipe_results[0]			
+		products_ordered = pipe_results[1]
+		result = {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}	
+		now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+		response = {
+			"jsonrpc": "2.0",
+			"id": rpc.get('id'),	
+			"result": result,
+			"error": None
+			}
+		rpc["date"] = now
+		rpc["client"] = request.client.host
+		end = time.perf_counter()
+		response = serialize(response)
+		return [response, end - start, rpc, "redis"]
 	except Exception as e:
 		logger.error(e, exc_info=True)
 		tb = traceback.format_exc()
 		error = {"message": str(e), "class": e.__class__.__name__}
 		# TODO: config
+		rpc["date"] = now
+		rpc["client"] = request.client.host
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "date": rpc_call_time, "client": request.client.host,  "error": error}, 0]
+		return [{"jsonrpc": "2.0", "id": rpc.get('id'), "result": None, "error": error}, 0, rpc, "redis"]
 		

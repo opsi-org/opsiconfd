@@ -306,10 +306,10 @@ async def process_jsonrpc(request: Request, response: Response):
 
 			data = {
 				"rpc_num": rpc_count,
-				"method": result[2].get('method'),
+				"method": result[2].get("method"),
 				"num_params": len(params),
 				"date": date,
-				"client": request.client.host,
+				"client": result[2].get("client"),
 				"error": error,
 				"num_results": num_results,
 				"duration": result[1]
@@ -438,29 +438,21 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 
 		response = {"jsonrpc": "2.0", "id": rpc_id, "result": result, "error": None}
 		response = serialize(response)
-		request_data = {
-			"method": method_name,
-			"params": params,
-			"date": rpc_call_time,
-			"client": request.client.host,
-		}
+		rpc["date"] = rpc_call_time
+		rpc["client"] = request.client.host
 		end = time.perf_counter()
 
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
 
-		return [response, end - start, request_data, "rpc"]
+		return [response, end - start, rpc, "rpc"]
 	except Exception as e:
 		logger.error(e, exc_info=True)
 		tb = traceback.format_exc()
 		error = {"message": str(e), "class": e.__class__.__name__}
-		request_data = {
-			"method": method_name,
-			"params": params,
-			"date": rpc_call_time,
-			"client": request.client.host,
-		}
+		rpc["date"] = rpc_call_time
+		rpc["client"] = request.client.host
 		# TODO: config
 		if True:
 			error["details"] = str(tb)
@@ -490,35 +482,19 @@ def read_redis_cache(request: Request, response: Response, rpc):
 			"result": result,
 			"error": None
 			}
-		request_data = {
-			"method": rpc.get("method"),
-			"params": [
-				depotId,
-				algorithm,
-				{}
-			],
-			"date": now,
-			"client": request.client.host,
-		}
+		rpc["date"] = now
+		rpc["client"] = request.client.host
 		end = time.perf_counter()
 		response = serialize(response)
-		return [response, end - start, request_data, "redis"]
+		return [response, end - start, rpc, "redis"]
 	except Exception as e:
 		logger.error(e, exc_info=True)
 		tb = traceback.format_exc()
 		error = {"message": str(e), "class": e.__class__.__name__}
 		# TODO: config
-		request_data = {
-			"method": rpc.get("method"),
-			"params": [
-				depotId,
-				algorithm,
-				{}
-			],
-			"date": now,
-			"client": request.client.host,
-		}
+		rpc["date"] = now
+		rpc["client"] = request.client.host
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc.get('id'), "result": None, "error": error}, 0, request_data, "redis"]
+		return [{"jsonrpc": "2.0", "id": rpc.get('id'), "result": None, "error": error}, 0, rpc, "redis"]
 		

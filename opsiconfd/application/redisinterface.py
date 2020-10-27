@@ -137,7 +137,7 @@ def get_depot_cache():
 def _get_depots():
 	depots = {}
 	with sync_redis_client() as redis:
-		depots = decode_redis_result(redis.smembers("opsiconfd:depots"))
+		depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
 	logger.devel(depots)
 	return depots
 
@@ -147,13 +147,13 @@ def get_products(depot: str = None):
 		data = []
 		if depot:
 			with sync_redis_client() as redis:
-				products = decode_redis_result(redis.zrange(f"opsiconfd:{depot}:products", 0, -1))
+				products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{depot}:products", 0, -1))
 				data.append({depot: products})
 		else:
 			with sync_redis_client() as redis:
-				depots = decode_redis_result(redis.smembers("opsiconfd:depots"))
+				depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
 				for depot in depots:
-					products = decode_redis_result(redis.zrange(f"opsiconfd:{depot}:products", 0, -1))
+					products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{depot}:products", 0, -1))
 					data.append({depot: products})
 		response = JSONResponse({"status": 200, "error": None, "data": data})
 	except Exception as e:
@@ -174,12 +174,12 @@ async def clear_product_cache(request: Request, response: Response):
 			with redis.pipeline() as pipe:
 				for depot in depots:
 					logger.devel(depot)			
-					pipe.delete(f"opsiconfd:{depot}:products")
-					pipe.delete(f"opsiconfd:{depot}:products:algorithm1")
-					pipe.delete(f"opsiconfd:{depot}:products:algorithm2")
-					pipe.delete(f"opsiconfd:{depot}:products:uptodate")
-					pipe.delete(f"opsiconfd:{depot}:products:algorithm1:uptodate")
-					pipe.delete(f"opsiconfd:{depot}:products:algorithm2:uptodate")
+					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products")
+					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1")
+					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2")
+					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
+					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
 				data = pipe.execute()
 		logger.devel(data)
 		response = JSONResponse({"status": 200, "error": None, "data": data})

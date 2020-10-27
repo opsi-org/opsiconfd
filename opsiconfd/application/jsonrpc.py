@@ -140,12 +140,10 @@ def _get_sort_algorithm(params):
 		try:
 			backend = get_client_backend()
 			default = backend._executeMethod("config_getObjects", id="product_sort_algorithm")[0].getDefaultValues()
-			logger.devel("DEFAULT: %s", default)
 			if "algorithm2" in default:
 					algorithm = "algorithm2"
 		except IndexError:
 			pass
-	logger.devel(algorithm)
 	return algorithm
 
 def _store_product_ordering(result, params):
@@ -296,8 +294,8 @@ async def process_jsonrpc(request: Request, response: Response):
 			redis_client = await get_redis_client()
 			rpc_count = await redis_client.incr("opsiconfd:stats:num_rpcs")
 			error = bool(result[0].get("error"))
-			date = result[0].get("date")
-			params = [param for param in result[0].get("params", []) if param]
+			date = result[2].get("date")
+			params = [param for param in result[2].get("params", []) if param]
 			logger.trace("RPC Count: %s", rpc_count)			
 			logger.trace("params: %s", params)
 			num_results = 0
@@ -309,7 +307,7 @@ async def process_jsonrpc(request: Request, response: Response):
 
 			data = {
 				"rpc_num": rpc_count,
-				"method": result[0].get('method'),
+				"method": result[2].get('method'),
 				"num_params": len(params),
 				"date": date,
 				"client": request.client.host,
@@ -322,8 +320,8 @@ async def process_jsonrpc(request: Request, response: Response):
 				run_in_threadpool(_store_rpc, data)
 			)
 
-			if  result[0].get('method') == "getProductOrdering": 
-				if result[2] == "rpc" and len(result[0].get("result").get("sorted")) > 0:
+			if  result[2].get('method') == "getProductOrdering": 
+				if result[3] == "rpc" and len(result[0].get("result").get("sorted")) > 0:
 					asyncio.get_event_loop().create_task(
 						run_in_threadpool(_store_product_ordering, result[0].get("result"), params)
 					)
@@ -439,24 +437,35 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 					result = method(*params)
 		params.append(keywords)
 
-		response = {"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": result, "date": rpc_call_time, "client": request.client.host, "error": None}
+		response = {"jsonrpc": "2.0", "id": rpc_id, "result": result, "error": None}
 		response = serialize(response)
-
+		request_data = {
+			"method": method_name,
+			"params": params,
+			"date": rpc_call_time,
+			"client": request.client.host,
+		}
 		end = time.perf_counter()
 
 		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
 
-		return [response, end - start, "rpc"]
+		return [response, end - start, request_data, "rpc"]
 	except Exception as e:
 		logger.error(e, exc_info=True)
 		tb = traceback.format_exc()
 		error = {"message": str(e), "class": e.__class__.__name__}
+		request_data = {
+			"method": method_name,
+			"params": params,
+			"date": rpc_call_time,
+			"client": request.client.host,
+		}
 		# TODO: config
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc_id, "method": method_name, "params": params, "result": None, "date": rpc_call_time, "client": request.client.host,  "error": error}, 0, "rpc"]
+		return [{"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}, 0, request_data, "rpc"]
 		
 def read_redis_cache(request: Request, response: Response, rpc):
 	try:
@@ -479,27 +488,39 @@ def read_redis_cache(request: Request, response: Response, rpc):
 		now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 		response = {
 			"jsonrpc": "2.0",
-			"id": rpc.get('id'),
-			"method": "getProductOrdering",
+			"id": rpc.get('id'),	
+			"result": result,
+			"error": None
+			}
+		request_data = {
+			"method": rpc.get("method"),
 			"params": [
 				depotId,
 				algorithm,
 				{}
 			],
-			"result": result,
 			"date": now,
 			"client": request.client.host,
-			"error": None
-			}
+		}
 		end = time.perf_counter()
 		response = serialize(response)
-		return [response, end - start, "redis"]
+		return [response, end - start, request_data, "redis"]
 	except Exception as e:
 		logger.error(e, exc_info=True)
 		tb = traceback.format_exc()
 		error = {"message": str(e), "class": e.__class__.__name__}
 		# TODO: config
+		request_data = {
+			"method": rpc.get("method"),
+			"params": [
+				depotId,
+				algorithm,
+				{}
+			],
+			"date": now,
+			"client": request.client.host,
+		}
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc.get('id'), "method": f"{rpc.get('method')} (redis)", "params": rpc.get('params'), "result": None, "date": now, "client": request.client.host,  "error": error}, 0, "redis"]
+		return [{"jsonrpc": "2.0", "id": rpc.get('id'), "result": None, "error": error}, 0, request_data, "redis"]
 		

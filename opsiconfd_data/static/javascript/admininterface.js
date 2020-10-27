@@ -397,11 +397,13 @@ function createRequestJSON() {
 
 	apiJSON.method = method;
 
-	try {
-		for (i = 0; i < inputs.length; i++) {
-			let name = inputs[i].name.trim();
-			let value = inputs[i].value.trim();
-
+	document.getElementById("jsonrpc-request-error").innerHTML = "";
+	for (i = 0; i < inputs.length; i++) {
+		let name = null;
+		let value = null;
+		try {
+			name = inputs[i].name.trim();
+			value = inputs[i].value.trim();
 			if (value) {
 				parameter.push(JSON.parse(value));
 			} else {
@@ -409,12 +411,9 @@ function createRequestJSON() {
 					parameter.push(null);
 				}
 			}
-		}
-	} catch (e) {
-		if (e instanceof SyntaxError) {
-			console.log("JSON not valid... " + e);
-		} else {
-			console.log(e);
+		} catch (e) {
+			console.warn(`${name}: ${e}`);
+			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e}`;
 		}
 	}
 

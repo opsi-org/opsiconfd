@@ -118,13 +118,11 @@ function outputResult(json, id) {
 
 function clearRedisCache(depots =  []) {
 	let request = new XMLHttpRequest();
-	console.log("depots: ", depots);
 	request.open("POST", "/redis-interface/clear-product-cache");
 	request.addEventListener('load', function (event) {
 		if (request.status >= 200 && request.status < 300) {
 			result = request.responseText
 			result = JSON.parse(result);
-			console.log(result);
 			outputToHTML(result, "redis-result");
 			return result;
 		} else {

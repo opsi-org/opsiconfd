@@ -66,12 +66,40 @@ def test_getHosts(request_data, expected_result):
 
 
 def test_getProductOrdering():
-	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["test.uib.gmbh", "algorithm1"]})
+	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 	print(result_json)
 
-	num_results = len(result_json.get("result"))
+	num_results = len(result_json.get("result").get("sorted"))
+
+
+	params= [
+		"testdepot.uib.gmbh",
+		None,
+		"file:///var/lib/opsi/depot",
+		"smb://172.17.0.9/opsi_depot",
+		None,
+		"file:///var/lib/opsi/repository",
+		"webdavs://172.17.0.9:4447/repository",
+		None,
+		None,
+		None,
+		None,
+		None,
+		None,
+		None,
+		None,
+		None,
+		None,
+		None
+	]
+
+
+	rpc_request_data = json.dumps({"id": 1, "method": "host_createOpsiDepotserver", "params": params})
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+	print(result_json)
 
 	params = [
 		"localboot",
@@ -98,10 +126,10 @@ def test_getProductOrdering():
 	result_json = json.loads(r.text)
 	print(result_json)
 
-	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["test.uib.gmbh", "algorithm1"]})
+	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 	print(result_json)
 
-	assert len(result_json.get("result")) > num_results
+	assert len(result_json.get("result").get("sorted")) > num_results
 

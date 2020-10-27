@@ -46,7 +46,6 @@ def call_rpc(rpc_request_data: list, expect_error: list):
 		else:
 			assert result_json.get("result") != None
 			assert result_json.get("error") == None
-		assert result_json.get("method") == data.get("method")
 	
 
 @pytest.fixture

@@ -66,6 +66,9 @@ def test_getHosts(request_data, expected_result):
 
 
 def test_getProductOrdering():
+
+	create_depot()
+
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
@@ -73,8 +76,12 @@ def test_getProductOrdering():
 
 	num_results = len(result_json.get("result").get("sorted"))
 
-	create_depot()
-	
+	redis_client = redis.StrictRedis.from_url("redis://redis")
+	products = redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products", 0, -1)
+	print(products)
+	uptodate = redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
+	print(uptodate)
+
 	create_products()
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
@@ -84,11 +91,18 @@ def test_getProductOrdering():
 
 	assert len(result_json.get("result").get("sorted")) > num_results
 
+	delete_products()
 
+	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+	print(result_json)
+
+	assert len(result_json.get("result").get("sorted")) == num_results
 
 def create_depot():
 
-	params= ["testdepot.uib.gmbh",None,"file:///var/lib/opsi/depot","smb://172.17.0.9/opsi_depot",None,"file:///var/lib/opsi/repository","webdavs://172.17.0.9:4447/repository"]
+	params= ["testdepot.uib.gmbh",None,"file:///var/lib/opsi/depot","smb://172.17.0.101/opsi_depot",None,"file:///var/lib/opsi/repository","webdavs://172.17.0.101:4447/repository"]
 
 
 	rpc_request_data = json.dumps({"id": 1, "method": "host_createOpsiDepotserver", "params": params})
@@ -112,8 +126,19 @@ def create_products():
 	print(result_json)
 
 	# p3 prio 90
-	params = ["localboot","test_product2","Test Product 2","1.0","1",None,None,None,None,None,None,80,None,None,None,None,None,None]
+	params = ["localboot","test_product3","Test Product 3","1.0","1",None,None,None,None,None,None,80,None,None,None,None,None,None]
 	rpc_request_data = json.dumps({"id": 1, "method": "createProduct", "params": params})
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 	print(result_json)
+
+def delete_products():
+
+	products = ["test_product1", "test_product2", "test_product3"]
+
+	for product in products:
+		params = [product, "1.0", "1"]
+		rpc_request_data = json.dumps({"id": 1, "method": "product_delete", "params": params})
+		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+		result_json = json.loads(r.text)
+		print(result_json)

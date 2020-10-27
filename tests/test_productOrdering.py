@@ -71,6 +71,8 @@ def test_getProductOrdering():
 	result_json = json.loads(r.text)
 	print(result_json)
 
+	num_results = len(result_json.get("result"))
+
 	params = [
 		"localboot",
 		"test_product1",
@@ -101,5 +103,5 @@ def test_getProductOrdering():
 	result_json = json.loads(r.text)
 	print(result_json)
 
-	#  logger.devel()
-	
+	assert len(result_json.get("result")) > num_results
+

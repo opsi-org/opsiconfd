@@ -172,7 +172,6 @@ def _store_product_ordering(result, params):
 		logger.error(e, exc_info=True)
 
 def _set_outdated(params):
-	param_string = str(params)
 	with sync_redis_client() as redis:
 		saved_depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
 		depots = []
@@ -483,7 +482,6 @@ def read_redis_cache(request: Request, response: Response, rpc):
 				pipe_results = pipe.execute()
 		products = pipe_results[0]			
 		products_ordered = pipe_results[1]
-		# TODO raise error if products_ordered is empty
 		result = {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}	
 		now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
 		response = {

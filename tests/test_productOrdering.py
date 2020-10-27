@@ -54,7 +54,7 @@ jsonrpc_test_data = [
 ]
 
 @pytest.mark.parametrize("request_data, expected_result", jsonrpc_test_data)
-def test_getProductOrdering(request_data, expected_result):
+def test_getHosts(request_data, expected_result):
 	rpc_request_data = json.dumps(request_data)
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
@@ -64,4 +64,42 @@ def test_getProductOrdering(request_data, expected_result):
 		print(host.get("id"))
 		print(host.get("type"))
 
+
+def test_getProductOrdering():
+	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["test.uib.gmbh", "algorithm1"]})
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+	print(result_json)
+
+	params = [
+		"localboot",
+		"test_product1",
+		"asdadasd",
+		"1.0",
+		"1",
+		None,
+		None,
+		None,
+		None,
+		None,
+		None,
+		95,
+		None,
+		None,
+		None,
+		None,
+		None,
+		None
+	]
+	rpc_request_data = json.dumps({"id": 1, "method": "createProduct", "params": params})
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+	print(result_json)
+
+	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["test.uib.gmbh", "algorithm1"]})
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+	print(result_json)
+
+	#  logger.devel()
 	

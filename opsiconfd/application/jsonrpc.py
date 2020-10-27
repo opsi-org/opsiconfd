@@ -456,7 +456,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		# TODO: config
 		if True:
 			error["details"] = str(tb)
-		return [{"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}, 0, request_data, "rpc"]
+		return [{"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}, 0, rpc, "rpc"]
 		
 def read_redis_cache(request: Request, response: Response, rpc):
 	try:

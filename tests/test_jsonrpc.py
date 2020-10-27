@@ -213,7 +213,6 @@ def test_process_jsonrpc_request(fill_db, request_data, expected_result):
 	print(result_json)
 
 	assert r.status_code == expected_result.get("status_code")
-	assert result_json.get("method") == expected_result.get("method")
 	
 	if result_json.get("error") == None:
 		assert len(result_json.get("result")) == expected_result.get("num_results")
@@ -247,8 +246,6 @@ def test_create_OPSI_Client():
 	print(result_json)
 	# {"jsonrpc":"2.0","id":1,"method":"host_createOpsiClient","params":["test.fabian.uib.local",null,null,null,null,null,null,null,null,null,{}],"result":[],"error":null}
 	assert result_json.get("error") == None
-	assert result_json.get("method") == "host_createOpsiClient"
-	assert result_json.get("params")[0] == "test.fabian.uib.local"
 	assert r.status_code == 200
 
 
@@ -321,8 +318,6 @@ def test_delete_OPSI_Client(fill_db):
 	print("Del result: ", result_json)
 	
 	assert result_json.get("error") == None
-	assert result_json.get("method") == "host_delete"
-	assert result_json.get("params")[0] == "pytest4.uib.gmbh"
 	assert result_json.get("ressult") == None
 
 

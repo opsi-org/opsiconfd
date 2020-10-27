@@ -72,6 +72,7 @@ def test_getProductOrdering():
 		{"id": "test_product2", "name": "Test Product 2", "product_version": "1.0", "package_version": "1", "priority": 80}, 
 		{"id": "test_product3", "name": "Test Product 3", "product_version": "1.0", "package_version": "1", "priority": 90}
 	]
+	test_product_sorted = ["test_product1", "test_product3", "test_product2"]
 
 	create_depot()
 
@@ -96,6 +97,7 @@ def test_getProductOrdering():
 	print(result_json)
 
 	assert len(result_json.get("result").get("sorted")) > num_results
+	assert result_json.get("result").get("sorted") == test_product_sorted
 
 	delete_products(test_products)
 

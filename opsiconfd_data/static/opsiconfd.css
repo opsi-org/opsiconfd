@@ -41,26 +41,6 @@ li {
 	margin-right: auto;
 }
 
-#log-settings {
-	margin: 15px 0px 0px 10px;
-}
-
-#log-container {
-	width: 100%;
-	height: calc(100% - 50px);
-	margin: 10px;
-	overflow: scroll;
-	/*line-height: 0.9;*/
-	background-color: black;
-	color:white;
-}
-.log-line {
-	display: inline-table;
-	font-family: monospace;
-	white-space: pre;
-	clear: both;
-	float: left;
-}
 
 /* css for interfacesite */
 .interface-container {
@@ -151,6 +131,13 @@ li {
 	border-top: none; */
   } 
 
+.json_string { color: green; }
+.json_number { color: darkorange; }
+.json_boolean { color: blue; }
+.json_null { color: magenta; }
+.json_key { color: red; }
+
+//* Log viewer */
 .LEVEL_SECRET { color: #6e5a00; }
 .LEVEL_TRACE { color: #8b8f8a; }
 .LEVEL_DEBUG { color: #d0d7cf; }
@@ -161,8 +148,29 @@ li {
 .LEVEL_CRITICAL { color: #ff0000; }
 .LEVEL_ESSENTIAL { color: #34e2e2; }
 
-.json_string { color: green; }
-.json_number { color: darkorange; }
-.json_boolean { color: blue; }
-.json_null { color: magenta; }
-.json_key { color: red; }
+#log-settings {
+	margin: 15px 0px 0px 10px;
+}
+
+#log-container {
+	width: 100%;
+	height: calc(100% - 50px);
+	margin: 10px;
+	overflow: scroll;
+	/*line-height: 0.9;*/
+	background-color: black;
+	color:white;
+}
+.log-line {
+	display: inline-table;
+	white-space: nowrap;
+	clear: both;
+	float: left;
+}
+.log-line-hidden {
+	display: none;
+}
+.log-line > span {
+	white-space: pre;
+	font-family: monospace;
+}

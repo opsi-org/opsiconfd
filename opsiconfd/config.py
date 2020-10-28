@@ -386,22 +386,28 @@ parser.add(
 	help="The port where opsiconfd will listen for https requests."
 )
 parser.add(
+	"--ssl-ca-key",
+	env_var="OPSICONFD_SSL_CA_KEY",
+	default="/etc/opsi/ssl/opsi-ca-key.pem",
+	help="The location of the opsi ssl ca key."
+)
+parser.add(
+	"--ssl-ca-cert",
+	env_var="OPSICONFD_SSL_CA_CERT",
+	default="/etc/opsi/ssl/opsi-ca-cert.pem",
+	help="The location of the opsi ssl ca certificate."
+)
+parser.add(
 	"--ssl-server-key",
 	env_var="OPSICONFD_SSL_SERVER_KEY",
-	default="/etc/opsi/opsiconfd.pem",
+	default="/etc/opsi/ssl/opsiconfd.pem",
 	help="The location of the ssl server key."
 )
 parser.add(
 	"--ssl-server-cert",
 	env_var="OPSICONFD_SSL_SERVER_CERT",
-	default="/etc/opsi/opsiconfd.pem",
+	default="/etc/opsi/ssl/opsiconfd.pem",
 	help="The location of the ssl server certificate."
-)
-parser.add(
-	"--ssl-server-ca",
-	env_var="OPSICONFD_SSL_SERVER_CA",
-	default="/etc/opsi/opsiconfd-ca.pem",
-	help="The location of the ssl server ca."
 )
 # Cipher Strings from https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
 # iPXE 1.20.1 supports these TLS v1.2 cipher suites:

@@ -29,6 +29,7 @@ import getpass
 import resource
 import tempfile
 import subprocess
+import datetime
 
 from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP, DEFAULT_DEPOT_USER
 from OPSI.setup import (
@@ -99,13 +100,32 @@ def setup_users_and_groups():
 			logger.debug("Group not found: %s", groupname)
 			pass
 
+def check_ssl_expiry():
+	for cert in (config.ssl_ca_cert, config.ssl_server_cert):
+		if os.path.exists(cert):
+			logger.info("Checking expiry of certificate: %s", cert)
+			cmd = ["openssl", "x509", "-enddate", "-noout", "-in", cert]
+			out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
+			enddate = out.decode().split('=')[1].strip()
+			enddate = datetime.datetime.strptime(enddate, "%b %d %H:%M:%S %Y %Z")
+			diff = (enddate - datetime.datetime.now()).days
+			if (diff <= 0):
+				logger.error("Certificate '%s' expired on %s", cert, enddate)
+			elif (diff < 30):
+				logger.warning("Certificate '%s' will expire in %d days", cert, diff)
+			
 def setup_ssl():
 	logger.info("Setup ssl")
-	if os.path.exists(config.ssl_server_key) and os.path.exists(config.ssl_server_cert):
+	if (
+		os.path.exists(config.ssl_ca_key) and os.path.exists(config.ssl_ca_cert) and
+		os.path.exists(config.ssl_server_key) and os.path.exists(config.ssl_server_cert)
+	):
 		return
 	
+	ca_days = 730
+	cert_days = 365
 	fqdn = getfqdn()
-
+	domain = '.'.join(fqdn.split('.')[1:])
 	tmp_dir = tempfile.mkdtemp()
 	try:
 		ca_key = os.path.join(tmp_dir, "ca.key")
@@ -114,36 +134,72 @@ def setup_ssl():
 		srv_crt = os.path.join(tmp_dir, "srv.crt")
 		srv_csr = os.path.join(tmp_dir, "srv.csr")
 
-		subject = f"/C=DE/ST=RP/L=Mainz/O=uib/OU=root/CN={fqdn}/emailAddress=root@{fqdn}"
-		cmd = ["openssl", "req", "-nodes", "-x509", "-newkey", "rsa:2048", "-days", "730" ,"-keyout", ca_key, "-out", ca_crt, "-subj", subject]
-		subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
-
-		subject = f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsiconfd/CN={fqdn}/emailAddress=root@{fqdn}"
-		cmd = ["openssl", "req", "-nodes", "-newkey", "rsa:2048", "-keyout", srv_key, "-out", srv_csr, "-subj", subject]
-		subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
-
-		cmd = ["openssl", "x509", "-req", "-in", srv_csr, "-CA", ca_crt, "-CAkey", ca_key, "-CAcreateserial", "-out", srv_crt, "-days", "365"]
-		subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
-
-		if os.path.exists(config.ssl_server_key):
-			os.unlink(config.ssl_server_key)
-		if os.path.exists(config.ssl_server_cert):
-			os.unlink(config.ssl_server_cert)
-		if os.path.exists(config.ssl_server_ca):
-			os.unlink(config.ssl_server_ca)
+		new_ca = False
+		if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
+			logger.info("Creating opsi CA")
+			cmd = [
+				"openssl", "req", "-nodes", "-x509", "-newkey", "rsa:4096", "-days", str(ca_days),
+				"-keyout", ca_key, "-out", ca_crt,
+				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN=opsi CA/emailAddress=opsi@{domain}"
+			]
+			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
+			
+			if os.path.exists(config.ssl_ca_key):
+				os.unlink(config.ssl_ca_key)
+			if not os.path.exists(os.path.dirname(config.ssl_ca_key)):
+				os.makedirs(os.path.dirname(config.ssl_ca_key))
+				os.chmod(path=os.path.dirname(config.ssl_ca_key), mode=0o700)
+			with open(ca_key, "r") as _in:
+				with open(config.ssl_ca_key, "a") as out:
+					out.write(_in.read())
+			
+			if os.path.exists(config.ssl_ca_cert):
+				os.unlink(config.ssl_ca_cert)
+			if not os.path.exists(os.path.dirname(config.ssl_ca_cert)):
+				os.makedirs(os.path.dirname(config.ssl_ca_cert))
+				os.chmod(path=os.path.dirname(config.ssl_ca_cert), mode=0o700)
+			with open(ca_crt, "r") as _in:
+				with open(config.ssl_ca_cert, "a") as out:
+					out.write(_in.read())
+			
+			setup_ssl_file_permissions()
+			new_ca = True
 		
-		with open(srv_key, "r") as _in:
-			with open(config.ssl_server_key, "a") as out:
-				out.write(_in.read())
+		if new_ca or not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
+			logger.info("Creating opsiconfd cert")
+			cmd = [
+				"openssl", "req", "-nodes", "-newkey", "rsa:4096",
+				"-keyout", srv_key, "-out", srv_csr,
+				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN={fqdn}/emailAddress=opsi@{domain}"
+			]
+			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
 
-		with open(srv_crt, "r") as _in:
-			with open(config.ssl_server_cert, "a") as out:
-				out.write(_in.read())
-		
-		with open(ca_crt, "r") as _in:
-			with open(config.ssl_server_ca, "a") as out:
-				out.write(_in.read())
-		
+			cmd = [
+				"openssl", "x509", "-req",
+				"-CA", config.ssl_ca_cert, "-CAkey", config.ssl_ca_key, "-CAcreateserial",
+				"-in", srv_csr, "-out", srv_crt, "-days", str(cert_days)
+			]
+			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
+
+			if os.path.exists(config.ssl_server_key):
+				os.unlink(config.ssl_server_key)
+			if os.path.exists(config.ssl_server_cert):
+				os.unlink(config.ssl_server_cert)
+			
+			if not os.path.exists(os.path.dirname(config.ssl_server_key)):
+				os.makedirs(os.path.dirname(config.ssl_server_key))
+				os.chmod(path=os.path.dirname(config.ssl_server_key), mode=0o700)
+			with open(srv_key, "r") as _in:
+				with open(config.ssl_server_key, "a") as out:
+					out.write(_in.read())
+			if not os.path.exists(os.path.dirname(config.ssl_server_cert)):
+				os.makedirs(os.path.dirname(config.ssl_server_cert))
+				os.chmod(path=os.path.dirname(config.ssl_server_cert), mode=0o700)
+			with open(srv_crt, "r") as _in:
+				with open(config.ssl_server_cert, "a") as out:
+					out.write(_in.read())
+			
+			setup_ssl_file_permissions()
 	finally:
 		shutil.rmtree(tmp_dir)
 
@@ -152,13 +208,22 @@ def setup_files():
 	if not os.path.isdir(log_dir):
 		os.makedirs(log_dir)
 
-def setup_file_permissions():
-	logger.info("Setup file permissions")
+def setup_ssl_file_permissions():
+	for fn in (config.ssl_ca_key, config.ssl_ca_cert):
+		if os.path.exists(fn):
+			shutil.chown(path=fn, user='root', group=OPSI_ADMIN_GROUP)
+			os.chmod(path=fn, mode=0o600)
+	
 	for fn in (config.ssl_server_key, config.ssl_server_cert):
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
+
+def setup_file_permissions():
+	logger.info("Setup file permissions")
 	
+	setup_ssl_file_permissions()
+
 	for fn in ("/var/log/opsi/opsiconfd/opsiconfd.log", ):
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
@@ -250,3 +315,6 @@ def setup(full: bool = True):
 			setup_metric_downsampling()
 		except Exception as e:
 			logger.warning("Faild to setup redis downsampling: %s", e)
+	
+	check_ssl_expiry()
+

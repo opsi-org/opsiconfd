@@ -134,6 +134,7 @@ def _store_rpc(data, max_rpcs=9999):
 		logger.error(e, exc_info=True)
 
 def _get_sort_algorithm(params):
+	algorithm = None
 	if len(params) > 1:
 		algorithm = params[1]
 	if not algorithm or (algorithm != "algorithm1" and algorithm != "algorithm2"):
@@ -142,7 +143,7 @@ def _get_sort_algorithm(params):
 			backend = get_client_backend()
 			default = backend._executeMethod("config_getObjects", id="product_sort_algorithm")[0].getDefaultValues()
 			if "algorithm2" in default:
-					algorithm = "algorithm2"
+				algorithm = "algorithm2"
 		except IndexError:
 			pass
 	return algorithm

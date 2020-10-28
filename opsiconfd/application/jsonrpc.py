@@ -51,6 +51,7 @@ from ..utils import decode_redis_result
 # time in seconds
 EXPIRE = (60*60*24)
 EXPIRE_UPTODATE = (60*60*24)
+CALL_TIME_TO_CACHE = 0.5
 
 PRODUCT_METHODS = [
 	"createProduct",
@@ -318,8 +319,8 @@ async def process_jsonrpc(request: Request, response: Response):
 			asyncio.get_event_loop().create_task(
 				run_in_threadpool(_store_rpc, data)
 			)
-
-			if  result[2].get('method') == "getProductOrdering": 
+			
+			if result[2].get('method') == "getProductOrdering" and result[1] > CALL_TIME_TO_CACHE:
 				if result[3] == "rpc" and len(result[0].get("result").get("sorted")) > 0:
 					asyncio.get_event_loop().create_task(
 						run_in_threadpool(_store_product_ordering, result[0].get("result"), params)

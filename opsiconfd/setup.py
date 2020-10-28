@@ -134,7 +134,6 @@ def setup_ssl():
 		srv_crt = os.path.join(tmp_dir, "srv.crt")
 		srv_csr = os.path.join(tmp_dir, "srv.csr")
 
-		new_ca = False
 		if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
 			logger.info("Creating opsi CA")
 			cmd = [
@@ -163,9 +162,8 @@ def setup_ssl():
 					out.write(_in.read())
 			
 			setup_ssl_file_permissions()
-			new_ca = True
-		
-		if new_ca or not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
+			
+		if os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
 			logger.info("Creating opsiconfd cert")
 			cmd = [
 				"openssl", "req", "-nodes", "-newkey", "rsa:4096",

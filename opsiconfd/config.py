@@ -404,7 +404,7 @@ parser.add(
 	help="The location of the ssl server ca."
 )
 # Cipher Strings from https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
-# iPXE 1.20.1 support these TLS v1.2 cipher suites:
+# iPXE 1.20.1 supports these TLS v1.2 cipher suites:
 # AES128-SHA256 (TLS_RSA_WITH_AES_128_CBC_SHA256, 0x003c)
 # AES256-SHA256 (TLS_RSA_WITH_AES_256_CBC_SHA256, 0x003d)
 parser.add(

@@ -240,7 +240,10 @@ def setup_file_permissions():
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o644)
 	
-	for d in ( suspenden/lib/opsi/repository", "/var/lib/opsi/workbench"
+	for d in (
+		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
+		"/var/log/opsi/opsiconfd", "/var/log/opsi/userlogin", "/var/lib/opsi/depot",
+		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository", "/var/lib/opsi/workbench"
 	):
 		if os.path.isdir(d) and not os.access(d, os.R_OK | os.W_OK | os.X_OK):
 			po_setup_file_permissions(d)

@@ -206,16 +206,24 @@ def setup_files():
 	if not os.path.isdir(log_dir):
 		os.makedirs(log_dir)
 
-def setup_ssl_file_permissions():
+def setup_ssl_file_permissions():	
 	for fn in (config.ssl_ca_key, config.ssl_ca_cert):
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user='root', group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
+			dn = os.path.dirname(fn)
+			if dn.count('/') >= 3:
+				shutil.chown(path=dn, user='root', group=OPSI_ADMIN_GROUP)
+				os.chmod(path=dn, mode=0o770)
 	
 	for fn in (config.ssl_server_key, config.ssl_server_cert):
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o600)
+			dn = os.path.dirname(fn)
+			if dn.count('/') >= 3:
+				shutil.chown(path=dn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+				os.chmod(path=dn, mode=0o770)
 
 def setup_file_permissions():
 	logger.info("Setup file permissions")

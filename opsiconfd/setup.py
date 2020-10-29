@@ -206,20 +206,25 @@ def setup_files():
 	if not os.path.isdir(log_dir):
 		os.makedirs(log_dir)
 
-def setup_ssl_file_permissions():	
-	for fn in (config.ssl_ca_key, config.ssl_ca_cert):
-		if os.path.exists(fn):
-			shutil.chown(path=fn, user='root', group=OPSI_ADMIN_GROUP)
-			os.chmod(path=fn, mode=0o600)
-			dn = os.path.dirname(fn)
-			if dn.count('/') >= 3:
-				shutil.chown(path=dn, user='root', group=OPSI_ADMIN_GROUP)
-				os.chmod(path=dn, mode=0o770)
-	
-	for fn in (config.ssl_server_key, config.ssl_server_cert):
+def setup_ssl_file_permissions():
+	# Key and cert can be the same file.
+	# Order is important!
+	# Set permission of cert first, key afterwards.
+	for fn in (config.ssl_ca_cert, config.ssl_ca_key):
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			os.chmod(path=fn, mode=0o600)
+			mode = 0o644 if fn == config.ssl_ca_cert else 0o600
+			os.chmod(path=fn, mode=mode)
+			dn = os.path.dirname(fn)
+			if dn.count('/') >= 3:
+				shutil.chown(path=dn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+				os.chmod(path=dn, mode=0o770)
+	
+	for fn in (config.ssl_server_cert, config.ssl_server_key):
+		if os.path.exists(fn):
+			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+			mode = 0o644 if fn == config.ssl_server_cert else 0o600
+			os.chmod(path=fn, mode=mode)
 			dn = os.path.dirname(fn)
 			if dn.count('/') >= 3:
 				shutil.chown(path=dn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
@@ -235,10 +240,7 @@ def setup_file_permissions():
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o644)
 	
-	for d in (
-		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
-		"/var/log/opsi/opsiconfd", "/var/log/opsi/userlogin", "/var/lib/opsi/depot",
-		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository", "/var/lib/opsi/workbench"
+	for d in ( suspenden/lib/opsi/repository", "/var/lib/opsi/workbench"
 	):
 		if os.path.isdir(d) and not os.access(d, os.R_OK | os.W_OK | os.X_OK):
 			po_setup_file_permissions(d)

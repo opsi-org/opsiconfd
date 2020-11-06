@@ -4,7 +4,6 @@ import pytest
 import asyncio
 import time
 import urllib3
-import redis
 import aredis
 import requests
 import json
@@ -42,35 +41,6 @@ def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-
-jsonrpc_test_data = [
-	(
-		{"id": 1, "method": "host_getObjects", "params": []},
-		{
-			"num_results": 3, 
-			"status_code": 200, 
-			"method": "host_getObjects", 
-			"id": "pytest2.uib.gmbh", 
-			"ipAddress": "192.168.0.111", 
-			"notes": None, 
-			"type": "OpsiClient",
-			"error": None
-		}
-	)
-
-]
-
-@pytest.mark.parametrize("request_data, expected_result", jsonrpc_test_data)
-def test_getHosts(request_data, expected_result):
-	rpc_request_data = json.dumps(request_data)
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
-	result_json = json.loads(r.text)
-
-	print(result_json)
-	for host in result_json.get("result"):
-		print(host.get("id"))
-		print(host.get("type"))
-
 @pytest.mark.asyncio
 async def test_renew_cache():
 	db_remove_dummy_products()
@@ -81,8 +51,8 @@ async def test_renew_cache():
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
-	test_product_sorted = read_sorted_products()
-	assert result_json.get("result").get("sorted") == test_product_sorted
+	test_products_sorted = read_sorted_products()
+	assert result_json.get("result").get("sorted") == test_products_sorted
 
 	print("wait 3s")
 	await asyncio.sleep(3)
@@ -90,7 +60,7 @@ async def test_renew_cache():
 
 	redis_client = aredis.StrictRedis.from_url("redis://redis")
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
-	assert decode_redis_result(cached_sorted_products) == test_product_sorted
+	assert decode_redis_result(cached_sorted_products) == test_products_sorted
 
 	test_products = [
 		{"id": "test_product01", "name": "Test Product 01", "product_version": "1.0", "package_version": "1", "priority": 80}, 
@@ -104,19 +74,37 @@ async def test_renew_cache():
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
-	test_product_sorted.insert(0,"test_product01")
-	test_product_sorted.insert(0,"test_product02")
-	assert result_json.get("result").get("sorted") == test_product_sorted
+	test_products_sorted.insert(0,"test_product01")
+	test_products_sorted.insert(0,"test_product02")
+	assert result_json.get("result").get("sorted") == test_products_sorted
 
 	print("wait 3s")
 	await asyncio.sleep(3)
 	print("READ REDIS CACHE")
 
-	redis_client = aredis.StrictRedis.from_url("redis://redis")
+	
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
-	assert decode_redis_result(cached_sorted_products) == test_product_sorted
+	assert decode_redis_result(cached_sorted_products) == test_products_sorted
 
 	db_remove_dummy_products()
+	delete_products(test_products)
+
+	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+
+	assert result_json.get("result").get("sorted") == []
+
+	print("wait 3s")
+	await asyncio.sleep(3)
+	print("READ REDIS CACHE")
+
+	uptodate = await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
+	uptodate_algorithm1= await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1:uptodate")
+
+	assert uptodate == None
+	assert uptodate_algorithm1 == None
+
 
 
 @pytest.mark.asyncio
@@ -129,7 +117,7 @@ async def test_getProductOrdering():
 		{"id": "test_product2", "name": "Test Product 2", "product_version": "1.0", "package_version": "1", "priority": 81}, 
 		{"id": "test_product3", "name": "Test Product 3", "product_version": "1.0", "package_version": "1", "priority": 90}
 	]
-	test_product_sorted = ["test_product1", "test_product3", "test_product2"]
+	test_products_sorted = ["test_product1", "test_product3", "test_product2"]
 
 	create_depot()
 	create_products(test_products)
@@ -140,7 +128,7 @@ async def test_getProductOrdering():
 	print("1: ", result_json)
 
 	num_results = len(result_json.get("result").get("sorted"))
-	assert result_json.get("result").get("sorted") == test_product_sorted
+	assert result_json.get("result").get("sorted") == test_products_sorted
 
 	redis_client = aredis.StrictRedis.from_url("redis://redis")
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
@@ -156,25 +144,24 @@ async def test_getProductOrdering():
 	result_json = json.loads(r.text)
 
 	
-	test_product_sorted = read_sorted_products()
-	test_product_sorted.insert(0, "test_product2")
-	test_product_sorted.insert(0, "test_product3")
-	test_product_sorted.insert(0, "test_product1")
+	test_products_sorted = read_sorted_products()
+	test_products_sorted.insert(0, "test_product2")
+	test_products_sorted.insert(0, "test_product3")
+	test_products_sorted.insert(0, "test_product1")
 	assert len(result_json.get("result").get("sorted")) > num_results
-	assert result_json.get("result").get("sorted") == test_product_sorted
+	assert result_json.get("result").get("sorted") == test_products_sorted
 
 	print("READ REDIS CACHE")
 
 	await asyncio.sleep(3)
 
-	redis_client = aredis.StrictRedis.from_url("redis://redis")
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
 	print(cached_sorted_products[0].decode("utf8"))
-	print(test_product_sorted[0])
-	assert cached_sorted_products[0].decode("utf8") == test_product_sorted[0]
-	assert cached_sorted_products[1].decode("utf8") == test_product_sorted[1]
-	assert cached_sorted_products[2].decode("utf8") == test_product_sorted[2]
-	assert len(cached_sorted_products) == len(test_product_sorted)
+	print(test_products_sorted[0])
+	assert cached_sorted_products[0].decode("utf8") == test_products_sorted[0]
+	assert cached_sorted_products[1].decode("utf8") == test_products_sorted[1]
+	assert cached_sorted_products[2].decode("utf8") == test_products_sorted[2]
+	assert len(cached_sorted_products) == len(test_products_sorted)
 	uptodate = await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
 	print(uptodate)
 

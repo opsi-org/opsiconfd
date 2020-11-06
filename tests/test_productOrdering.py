@@ -54,9 +54,7 @@ async def test_renew_cache():
 	test_products_sorted = read_sorted_products()
 	assert result_json.get("result").get("sorted") == test_products_sorted
 
-	print("wait 3s")
 	await asyncio.sleep(3)
-	print("READ REDIS CACHE")
 
 	redis_client = aredis.StrictRedis.from_url("redis://redis")
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
@@ -78,10 +76,7 @@ async def test_renew_cache():
 	test_products_sorted.insert(0,"test_product02")
 	assert result_json.get("result").get("sorted") == test_products_sorted
 
-	print("wait 3s")
 	await asyncio.sleep(3)
-	print("READ REDIS CACHE")
-
 	
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
 	assert decode_redis_result(cached_sorted_products) == test_products_sorted
@@ -95,9 +90,7 @@ async def test_renew_cache():
 
 	assert result_json.get("result").get("sorted") == []
 
-	print("wait 3s")
 	await asyncio.sleep(3)
-	print("READ REDIS CACHE")
 
 	uptodate = await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
 	uptodate_algorithm1= await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1:uptodate")
@@ -133,9 +126,6 @@ async def test_getProductOrdering():
 	redis_client = aredis.StrictRedis.from_url("redis://redis")
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
 	assert cached_sorted_products == []
-	uptodate = await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
-	print(uptodate)
-
 
 	fill_db()
 
@@ -143,15 +133,12 @@ async def test_getProductOrdering():
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
-	
 	test_products_sorted = read_sorted_products()
 	test_products_sorted.insert(0, "test_product2")
 	test_products_sorted.insert(0, "test_product3")
 	test_products_sorted.insert(0, "test_product1")
 	assert len(result_json.get("result").get("sorted")) > num_results
 	assert result_json.get("result").get("sorted") == test_products_sorted
-
-	print("READ REDIS CACHE")
 
 	await asyncio.sleep(3)
 
@@ -167,7 +154,6 @@ async def test_getProductOrdering():
 
 	delete_products(test_products)
 	db_remove_dummy_products()
-	
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
@@ -189,9 +175,7 @@ def read_sorted_products():
 	
 
 def create_depot():
-
 	params= ["testdepot.uib.gmbh",None,"file:///var/lib/opsi/depot","smb://172.17.0.101/opsi_depot",None,"file:///var/lib/opsi/repository","webdavs://172.17.0.101:4447/repository"]
-
 
 	rpc_request_data = json.dumps({"id": 1, "method": "host_createOpsiDepotserver", "params": params})
 	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
@@ -199,7 +183,6 @@ def create_depot():
 	print(result_json)
 
 def create_products(products):
-
 	for product in products:
 		
 		params = [
@@ -220,7 +203,6 @@ def create_products(products):
 def create_dummy_products(n):
 	r = requests.get("https://localhost:4447/admin", auth=(TEST_USER, TEST_PW), verify=False)
 	
-	
 	for i in range(0,n):
 		params = [
 			"localboot",
@@ -237,11 +219,8 @@ def create_dummy_products(n):
 		rpc_request_data = json.dumps({"id": 1, "method": "createProduct", "params": params})
 		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, cookies=r.cookies, verify=False)
 		result_json = json.loads(r.text)
-		# print(result_json)
 
-
-def delete_products(products):
-	
+def delete_products(products):	
 	for product in products:
 		params = [product.get("id"), product.get("product_version"), product.get("package_version")]
 		rpc_request_data = json.dumps({"id": 1, "method": "product_delete", "params": params})
@@ -261,7 +240,6 @@ def delete_dummy_products(n):
 	print(f"deleted {n} dummy products")
 
 def fill_db():
-
 	n = 8000
 	for i in range(0, n):
 

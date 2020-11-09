@@ -38,7 +38,7 @@ from OPSI.setup import (
 	get_users, get_groups, add_user_to_group, create_user, set_primary_group
 )
 from OPSI.Util import getfqdn
-from OPSI.System.Posix import getLocalFqdn
+from OPSI.System.Posix import getLocalFqdn, locateDHCPDConfig
 from OPSI.Util.Task.InitializeBackend import initializeBackends
 from OPSI.System import get_subprocess_environment
 
@@ -235,7 +235,8 @@ def setup_file_permissions():
 	
 	setup_ssl_file_permissions()
 
-	for fn in ("/var/log/opsi/opsiconfd/opsiconfd.log", ):
+	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
+	for fn in ("/var/log/opsi/opsiconfd/opsiconfd.log", dhcpd_config_file):
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=fn, mode=0o644)

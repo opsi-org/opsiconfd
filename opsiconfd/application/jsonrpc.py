@@ -156,8 +156,8 @@ def _store_product_ordering(result, params):
 			algorithm = "algorithm1"
 		with sync_redis_client() as redis:
 			with redis.pipeline() as pipe:
-				pipe.delete(f"opsiconfd:jsonrpccache:{params[0]}:products")
-				pipe.delete(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}")
+				pipe.unlink(f"opsiconfd:jsonrpccache:{params[0]}:products")
+				pipe.unlink(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}")
 				for val in result.get("not_sorted"):
 					pipe.zadd(f"opsiconfd:jsonrpccache:{params[0]}:products", {val: 1})
 				pipe.expire(f"opsiconfd:jsonrpccache:{params[0]}:products", EXPIRE)

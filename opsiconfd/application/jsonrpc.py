@@ -51,7 +51,7 @@ from ..utils import decode_redis_result
 # time in seconds
 EXPIRE = (60*60*24)
 EXPIRE_UPTODATE = (60*60*24)
-CALL_TIME_TO_CACHE = 0.5
+CALL_TIME_TO_CACHE = 0
 
 PRODUCT_METHODS = [
 	"createProduct",
@@ -156,6 +156,8 @@ def _store_product_ordering(result, params):
 			algorithm = "algorithm1"
 		with sync_redis_client() as redis:
 			with redis.pipeline() as pipe:
+				pipe.delete(f"opsiconfd:jsonrpccache:{params[0]}:products")
+				pipe.delete(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}")
 				for val in result.get("not_sorted"):
 					pipe.zadd(f"opsiconfd:jsonrpccache:{params[0]}:products", {val: 1})
 				pipe.expire(f"opsiconfd:jsonrpccache:{params[0]}:products", EXPIRE)
@@ -300,6 +302,8 @@ async def process_jsonrpc(request: Request, response: Response):
 			logger.trace("RPC Count: %s", rpc_count)			
 			logger.trace("params: %s", params)
 			num_results = 0
+			if result[2].get("method") == "getProductOrdering":	
+				logger.devel("######## TIME %s", result[1])
 			if result[0].get("result"):
 				num_results = 1
 				if isinstance(result[0].get("result"), list):

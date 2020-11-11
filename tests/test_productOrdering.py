@@ -42,7 +42,6 @@ def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def delete_product(product):
-	print("TEST")
 	print("delete: ", product)
 	delete_products([product])
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
@@ -79,13 +78,6 @@ async def test_delete_product():
 	thread_three.join()
 	thread_four.join()
 	thread_five.join()
-
-	# rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	# r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
-	# result_json = json.loads(r.text)
-
-	# test_products_sorted = read_sorted_products()
-	# assert result_json.get("result").get("sorted") == test_products_sorted
 
 	await asyncio.sleep(3)
 

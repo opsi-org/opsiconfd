@@ -7,6 +7,7 @@ import urllib3
 import aredis
 import requests
 import json
+import threading
 
 from MySQLdb import _mysql
 from opsiconfd.utils import decode_redis_result
@@ -40,6 +41,64 @@ async def clean_redis():
 def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+def delete_product(product):
+	print("TEST")
+	print("delete: ", product)
+	delete_products([product])
+	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
+	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(r.text)
+
+
+@pytest.mark.asyncio
+async def test_delete_product():
+	db_remove_dummy_products()
+	create_depot()
+	fill_db()
+
+	test_products_sorted = read_sorted_products()
+	
+	thread_one = threading.Thread(name="1", target=delete_product, args=({"id": "dummy-prod-1039", "product_version": "1.0", "package_version": "1"},)) 
+	thread_two = threading.Thread(name="2", target=delete_product, args=({"id": "dummy-prod-1119", "product_version": "1.0", "package_version": "1"},)) 
+	thread_three = threading.Thread(name="3", target=delete_product, args=({"id": "dummy-prod-1199", "product_version": "1.0", "package_version": "1"},)) 
+	thread_four = threading.Thread(name="4", target=delete_product, args=({"id": "dummy-prod-2559", "product_version": "1.0", "package_version": "1"},)) 
+	thread_five = threading.Thread(name="5", target=delete_product, args=({"id": "dummy-prod-1359", "product_version": "1.0", "package_version": "1"},)) 
+
+	thread_one.start()
+	thread_two.start()
+	thread_three.start()
+	thread_four.start()
+	thread_five.start()
+
+	print(thread_one.is_alive())
+
+	print("Threads running")
+
+	thread_one.join()
+	thread_two.join()
+	thread_three.join()
+	thread_four.join()
+	thread_five.join()
+
+	# rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
+	# r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	# result_json = json.loads(r.text)
+
+	# test_products_sorted = read_sorted_products()
+	# assert result_json.get("result").get("sorted") == test_products_sorted
+
+	await asyncio.sleep(3)
+
+	test_products_sorted.remove("dummy-prod-1039")
+	test_products_sorted.remove("dummy-prod-1119")
+	test_products_sorted.remove("dummy-prod-1199")
+	test_products_sorted.remove("dummy-prod-2559")
+	test_products_sorted.remove("dummy-prod-1359")
+
+	redis_client = aredis.StrictRedis.from_url("redis://redis")
+	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
+
+	assert decode_redis_result(cached_sorted_products) == test_products_sorted
 
 @pytest.mark.asyncio
 async def test_renew_cache():

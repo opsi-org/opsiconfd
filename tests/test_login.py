@@ -36,12 +36,11 @@ def disable_request_warning():
 
 login_test_data = [
 	(None, 401, ""),
-	# ((None, None), 401, "Backend authentication error: <BackendAuthenticationError(\"Authentication failed for user 'None': Backend authentication error: PAM authentication failed for user 'None': Authentication failure\")>"),
-	(("", ""), 401, "Backend authentication error: No username specified"),
-	((TEST_USER, ""), 401, "Backend authentication error: No password specified"),
-	((TEST_USER, "123"), 401, "Backend authentication error: <BackendAuthenticationError(\"Authentication failed for user 'adminuser': Backend authentication error: PAM authentication failed for user 'adminuser': Authentication failure\")>"),
-	(("", TEST_PW), 401, "Backend authentication error: No username specified"),
-	(("123", TEST_PW), 401, "Backend authentication error: <BackendAuthenticationError(\"Authentication failed for user '123': Backend authentication error: PAM authentication failed for user '123': Authentication failure\")>")
+	(("", ""), 401, "Authentication error"),
+	((TEST_USER, ""), 401, "Authentication error"),
+	((TEST_USER, "123"), 401, "Authentication error"),
+	(("", TEST_PW), 401, "Authentication error"),
+	(("123", TEST_PW), 401, "Authentication error")
 ]
 
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)

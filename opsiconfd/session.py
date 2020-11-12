@@ -254,8 +254,9 @@ class SessionMiddleware:
 				
 				status_code = status.HTTP_401_UNAUTHORIZED
 				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
-				error = str(e)
-				
+				error = "Authentication error"
+				if isinstance(e, BackendPermissionDeniedError):
+					error = "Permission denied"
 				cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
 				logger.debug(cmd)
 				asyncio.get_event_loop().create_task(redis_client.execute_command(cmd))

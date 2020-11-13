@@ -165,10 +165,12 @@ def setup_ssl():
 			
 		if os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
 			logger.info("Creating opsiconfd cert")
+			# Chrome requires Subject Alt Name
 			cmd = [
 				"openssl", "req", "-nodes", "-newkey", "rsa:4096",
 				"-keyout", srv_key, "-out", srv_csr,
-				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN={fqdn}/emailAddress=opsi@{domain}"
+				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN={fqdn}/emailAddress=opsi@{domain}",
+				"-addext", f"subjectAltName=DNS:{fqdn},DNS:localhost"
 			]
 			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
 

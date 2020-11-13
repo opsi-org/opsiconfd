@@ -382,10 +382,7 @@ function createRequestJSON() {
 	let apiJSON = {
 		"id": 1,
 		"method": "",
-		"params": [
-			[],
-			{}
-		]
+		"params": []
 	}
 
 	let option = document.getElementById("method-select");
@@ -404,10 +401,8 @@ function createRequestJSON() {
 			value = inputs[i].value.trim();
 			if (value) {
 				parameter.push(JSON.parse(value));
-			} else {
-				if (name.indexOf("*", 1) == -1) {
-					parameter.push(null);
-				}
+			} else if (!name.startsWith("*")) {
+				parameter.push(null);
 			}
 		} catch (e) {
 			console.warn(`${name}: ${e}`);

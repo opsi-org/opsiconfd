@@ -1,0 +1,33 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name":"opsiconfd default",
+			"type":"python",
+			"request":"launch",
+			"module":"opsiconfd", 
+			"args": ["--workers=1","--log-level-stderr=5"], 
+		},
+		{
+			"name":"opsiconfd",
+			"type":"python",
+			"request":"launch",
+			"module":"opsiconfd", 
+			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}"]
+		},	
+	],
+	"inputs": [
+		{
+		"id": "loglevel",
+		"type": "promptString",
+		"description": "Set LogLevel Stderr.",
+		"default": "5"
+		},
+		{
+			"id": "worker",
+			"type": "promptString",
+			"description": "Number of opsiconfd worker to start",
+			"default": "1"
+		}
+	  ]
+}

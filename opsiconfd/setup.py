@@ -23,8 +23,10 @@
 import os
 import pwd
 import grp
+import socket
 import shutil
 import psutil
+import codecs
 import getpass
 import resource
 import tempfile
@@ -44,6 +46,7 @@ from OPSI.System import get_subprocess_environment
 
 from .logging import logger
 from .config import config
+from .utils import get_ip_addresses
 from .backend import get_backend
 from .grafana import setup_grafana
 from .statistics import setup_metric_downsampling
@@ -128,6 +131,7 @@ def setup_ssl():
 	domain = '.'.join(fqdn.split('.')[1:])
 	tmp_dir = tempfile.mkdtemp()
 	try:
+		cnf_file = os.path.join(tmp_dir, "openssl.cnf")
 		ca_key = os.path.join(tmp_dir, "ca.key")
 		ca_crt = os.path.join(tmp_dir, "ca.crt")
 		srv_key = os.path.join(tmp_dir, "srv.key")
@@ -165,13 +169,28 @@ def setup_ssl():
 			setup_ssl_file_permissions()
 			
 		if os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
-			logger.info("Creating opsiconfd cert")
 			# Chrome requires Subject Alt Name
+			ips = ["127.0.0.1", "::1"]
+			for a in get_ip_addresses():
+				if a["family"] == "ipv4" and a["address"] not in ips:
+					ips.append(a["address"])
+			ips = ", ".join([f"IP:{ip}" for ip in ips])
+
+			alt_names = f"DNS:{fqdn}, DNS:localhost, {ips}"
+			
+			with codecs.open(cnf_file, "w", "utf-8") as cnf:
+				cnf.write("[san]\n")
+				cnf.write("basicConstraints = CA:FALSE\n")
+				cnf.write("keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n")
+				cnf.write("extendedKeyUsage = serverAuth, clientAuth, codeSigning, emailProtection\n")
+				cnf.write(f"subjectAltName = {alt_names}\n")
+			
+			logger.info("Creating opsiconfd cert")
 			cmd = [
 				"openssl", "req", "-nodes", "-newkey", "rsa:4096",
 				"-keyout", srv_key, "-out", srv_csr,
 				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN={fqdn}/emailAddress=opsi@{domain}",
-				"-addext", f"subjectAltName=DNS:{fqdn},DNS:localhost"
+				"-addext", f"subjectAltName = {alt_names}"
 			]
 			logger.info("Executing command: %s", cmd)
 			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
@@ -179,7 +198,8 @@ def setup_ssl():
 			cmd = [
 				"openssl", "x509", "-req",
 				"-CA", config.ssl_ca_cert, "-CAkey", config.ssl_ca_key, "-CAcreateserial",
-				"-in", srv_csr, "-out", srv_crt, "-days", str(cert_days)
+				"-in", srv_csr, "-out", srv_crt, "-days", str(cert_days),
+				"-extfile", cnf_file, "-extensions", "san" # section name in conf file
 			]
 			logger.info("Executing command: %s", cmd)
 			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())

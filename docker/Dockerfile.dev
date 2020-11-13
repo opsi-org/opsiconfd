@@ -1,0 +1,78 @@
+# https://github.com/wemake-services/wemake-django-template/blob/master/%7B%7Bcookiecutter.project_name%7D%7D/docker/django/Dockerfile
+FROM python:3.7-buster as opsiconfd_development_build
+
+ARG DOCKER_ENV
+
+ENV DOCKER_ENV=${DOCKER_ENV} \
+# python:
+  PYTHONFAULTHANDLER=1 \
+  PYTHONUNBUFFERED=1 \
+  PYTHONHASHSEED=random \
+  # pip:
+  PIP_NO_CACHE_DIR=off \
+  PIP_DISABLE_PIP_VERSION_CHECK=on \
+  PIP_DEFAULT_TIMEOUT=100 \
+  # dockerize:
+  DOCKERIZE_VERSION=v0.6.1 \
+  # poetry:
+  POETRY_VERSION=1.1.2
+
+# System deps:
+RUN apt-get update \
+	&& apt-get --yes dist-upgrade \
+	&& apt-get --yes install \
+		cpio \
+		vim \
+		wget \
+		gettext \
+		mariadb-client \
+		libmariadb-dev \
+		tini \
+		psmisc \
+		librsync1 \
+	&& pip install "poetry==$POETRY_VERSION"
+
+RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+	&& tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+	&& rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+
+COPY docker/files/ /
+
+# Setup poetry
+WORKDIR /workspace
+COPY poetry.lock pyproject.toml /workspace/
+RUN poetry config --local virtualenvs.in-project true
+
+RUN groupadd pcpatch \
+	&& groupadd opsiadmin \
+	&& useradd --system -g pcpatch -d /var/lib/opsi -s /bin/bash opsiconfd \
+	&& useradd --create-home --home-dir /home/adminuser -s /bin/bash adminuser \
+	&& echo "adminuser:adminuser" | chpasswd \
+	&& adduser adminuser pcpatch \
+	&& adduser adminuser opsiadmin \
+	&& cp -r /root/.bash* /home/adminuser/
+
+RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "/C=DE/ST=RP/L=Mainz/O=uib/OU=root/CN=bonifax.uib.local/emailAddress=info@uib.de" \
+	&& openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj "/C=DE/ST=RP/L=Mainz/O=uib/OU=opsiconfd/CN=bonifax.uib.local/emailAddress=info@uib.de" \
+	&& openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt \
+	&& mv server.key /etc/opsi/ssl/opsiconfd.pem \
+	&& cat server.crt >> /etc/opsi/ssl/opsiconfd.pem \
+	&& rm server.crt
+
+RUN chmod +x "/docker-entrypoint.sh" \
+	&& poetry install --no-interaction --no-ansi \
+	&& ln -s /src \
+	&& mkdir tftpboot
+	# && ln -s /src/opsiconfd opsiconfd \
+	# && ln -s /src/opsiconfd_data/static static \
+	# && ln -s /src/run-opsiconfd run-opsiconfd \
+	# && mkdir tftpboot
+
+# RUN ln -s /src/python-opsi python-opsi \
+# 	&& rm poetry.lock && ln -s /src/poetry.lock poetry.lock \
+# 	&& rm pyproject.toml && ln -s /src/pyproject.toml pyproject.toml
+# && sed -i s'/^python-opsi = .*/python-opsi = {path = "python-opsi"}/' pyproject.toml
+
+WORKDIR /workspaces
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/docker-entrypoint.sh"]

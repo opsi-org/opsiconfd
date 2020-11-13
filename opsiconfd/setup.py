@@ -141,6 +141,7 @@ def setup_ssl():
 				"-keyout", ca_key, "-out", ca_crt,
 				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN=opsi CA/emailAddress=opsi@{domain}"
 			]
+			logger.info("Executing command: %s", cmd)
 			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
 			
 			if os.path.exists(config.ssl_ca_key):
@@ -172,6 +173,7 @@ def setup_ssl():
 				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN={fqdn}/emailAddress=opsi@{domain}",
 				"-addext", f"subjectAltName=DNS:{fqdn},DNS:localhost"
 			]
+			logger.info("Executing command: %s", cmd)
 			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
 
 			cmd = [
@@ -179,6 +181,7 @@ def setup_ssl():
 				"-CA", config.ssl_ca_cert, "-CAkey", config.ssl_ca_key, "-CAcreateserial",
 				"-in", srv_csr, "-out", srv_crt, "-days", str(cert_days)
 			]
+			logger.info("Executing command: %s", cmd)
 			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
 
 			if os.path.exists(config.ssl_server_key):

@@ -5,3 +5,6 @@
 /python-opsi
 __pycache__
 *.egg-info
+
+# Visual Studio Code
+.vscode/*

@@ -24,6 +24,7 @@
 import os
 import psutil
 import socket
+import psutil
 from dns import resolver, reversename
 
 logger = None
@@ -134,3 +135,20 @@ def decode_redis_result(_obj):
 			_obj.remove(v)
 			_obj.add(decode_redis_result(v))
 	return _obj
+
+def get_ip_addresses():
+	for interface, snics in psutil.net_if_addrs().items():
+		for snic in snics:
+			family = None
+			if snic.family == socket.AF_INET:
+				family = "ipv4"
+			elif snic.family == socket.AF_INET6:
+				family = "ipv6"
+			else:
+				continue
+			yield {
+				"family": family,
+				"interface": interface,
+				"address": snic.address
+			}
+

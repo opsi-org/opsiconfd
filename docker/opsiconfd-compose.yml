@@ -12,7 +12,7 @@ services:
       - "4447:4447"
     #restart: always
     volumes:
-      - ..:/workspace:cached
+      - ..:/src:cached
     environment:
       OPSICONFD_EXTERNAL_URL: https://localhost:4447
       OPSICONFD_INTERNAL_URL: https://opsiconfd:4447

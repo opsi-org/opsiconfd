@@ -4,12 +4,13 @@
 	"service": "opsiconfd",
 	"context": "..",
 	"workspaceFolder": "/workspace",
+	"postCreateCommand": "poetry install --no-interaction --no-ansi",
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},
 	"settings": { 
 		"terminal.integrated.shell.linux": "/bin/bash",
-		"python.pythonPath": "./venv/bin/python",
+		"python.pythonPath": ".venv/bin/python"
 	},
 	"extensions": [
 		"ms-azuretools.vscode-docker",

@@ -4,7 +4,7 @@
 	"service": "opsiconfd",
 	"context": "..",
 	"workspaceFolder": "/workspace",
-	"postCreateCommand": "poetry install --no-interaction --no-ansi",
+	"postCreateCommand": "poetry config --local virtualenvs.in-project true && poetry install --no-interaction --no-ansi",
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},

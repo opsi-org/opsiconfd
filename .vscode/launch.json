@@ -6,14 +6,14 @@
 			"type":"python",
 			"request":"launch",
 			"module":"opsiconfd", 
-			"args": ["--workers=1","--log-level-stderr=5"], 
+			"args": ["--workers=1","--log-level-stderr=5", "--static-dir=/workspace/opsiconfd_data/static"], 
 		},
 		{
 			"name":"opsiconfd",
 			"type":"python",
 			"request":"launch",
 			"module":"opsiconfd", 
-			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}"]
+			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=/workspace/opsiconfd_data/static"]
 		},	
 	],
 	"inputs": [

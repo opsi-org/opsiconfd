@@ -1,0 +1,21 @@
+{
+	"name": "opsiconfd",
+	"dockerComposeFile": "../docker/opsiconfd-compose.yml",
+	"service": "opsiconfd",
+	"context": "..",
+	"workspaceFolder": "/workspace",
+	"postCreateCommand": "poetry config --local virtualenvs.in-project true && poetry install --no-interaction --no-ansi",
+	"remoteEnv": {
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+	},
+	"settings": { 
+		"terminal.integrated.shell.linux": "/bin/bash",
+		"python.pythonPath": ".venv/bin/python"
+	},
+	"extensions": [
+		"ms-azuretools.vscode-docker",
+		"ms-python.python"
+	],
+	// "forwardPorts": [4447],
+	"remoteUser": "root"
+}

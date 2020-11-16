@@ -23,3 +23,12 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * Run a bash in the opsiconfd docker container: `docker exec -it docker_opsiconfd_1 bash`
 * Start opsiconfd in the opsiconfd container: `poetry run opsiconfd`
 * Run local tests: `./tests/run_tests.sh`. Starts tests in docker container docker_opsiconfd_1.
+
+## DevContainer
+
+* Install Remote-Containers: https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers
+* Open project in container:
+	* \<F1\> -> Remote-Containers: Reopen in Container
+	* or remote button in bottom left corner -> Reopen in Container
+* In the container \<F5\> starts opsiconfd in debug mode (opsiconfd default)
+* You can use the default debug settings or you can set the number of worker and the log level by selecting opsiconfd in the debug/run tab.

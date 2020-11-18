@@ -1,7 +1,7 @@
 version: '3.3'
 
 services:
-  opsiconfd:
+  opsiconfd-dev:
     depends_on:
       - mysql
       - redis
@@ -23,7 +23,7 @@ services:
     #entrypoint: ["poetry", "run", "opsiconfd"]
   mysql:
     image: mysql:8
-    command: --max_allowed_packet=256M --sort_buffer_size=4M
+    command: --max_allowed_packet=256M --sort_buffer_size=4M --default-authentication-plugin=mysql_native_password 
     ports:
       - "3307:3306"
     environment:

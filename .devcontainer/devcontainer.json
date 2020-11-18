@@ -1,7 +1,7 @@
 {
 	"name": "opsiconfd",
 	"dockerComposeFile": "../docker/opsiconfd-compose.yml",
-	"service": "opsiconfd",
+	"service": "opsiconfd-dev",
 	"context": "..",
 	"workspaceFolder": "/workspace",
 	"postCreateCommand": "poetry config --local virtualenvs.in-project true && poetry install --no-interaction --no-ansi",

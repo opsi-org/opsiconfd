@@ -33,7 +33,7 @@ RUN apt-get update \
 		librsync1 \	
 	&& pip install "poetry==$POETRY_VERSION"
 
-# grafana repos
+# grafana 
 RUN wget -q -O - https://packages.grafana.com/gpg.key |  apt-key add - \
 	&& echo "deb https://packages.grafana.com/oss/deb stable main" | tee -a /etc/apt/sources.list.d/grafana.list	
 
@@ -42,6 +42,12 @@ RUN apt-get update \
 		apt-transport-https \
 		software-properties-common \
 		grafana 
+
+# mysql
+
+RUN apt-get update \
+	&& apt-get --yes install \
+		mariadb-server
 
 RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
 	&& tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
@@ -69,6 +75,8 @@ RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "
 	&& rm server.crt
 
 RUN chmod +x "/docker-entrypoint.sh" \
+	&& chmod +x "/setup-grafana.sh" \
+	&& chmod +x "/setup-mysql.sh" \
 	&& mkdir tftpboot
 	
 

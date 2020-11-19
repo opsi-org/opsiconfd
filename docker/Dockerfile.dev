@@ -15,7 +15,9 @@ ENV DOCKER_ENV=${DOCKER_ENV} \
   # dockerize:
   DOCKERIZE_VERSION=v0.6.1 \
   # poetry:
-  POETRY_VERSION=1.1.2
+  POETRY_VERSION=1.1.2\
+  # redis
+  REDIS_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/
 
 
 # System deps:
@@ -44,11 +46,22 @@ RUN apt-get update \
 		grafana 
 
 # mysql
-
 RUN apt-get update \
 	&& apt-get --yes install \
 		mariadb-server
 
+# redis
+RUN  echo "deb $REDIS_REPO /" > /etc/apt/sources.list.d/opsi.list
+
+RUN wget -nv ${REDIS_REPO}Release.key -O Release.key \
+	&& apt-key add - < Release.key
+
+RUN apt-get update \
+	&& apt-get --yes install \
+		redis-tools \
+		redis-server \
+		redis-timeseries
+		
 RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
 	&& tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
 	&& rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
@@ -75,9 +88,10 @@ RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "
 	&& rm server.crt
 
 RUN chmod +x "/docker-entrypoint.sh" \
+	&& chmod +x "/setup.sh" \
 	&& chmod +x "/setup-grafana.sh" \
 	&& chmod +x "/setup-mysql.sh" \
 	&& mkdir tftpboot
 	
-
+# ENTRYPOINT sleep infinity
 ENTRYPOINT ["/usr/bin/tini", "--", "/docker-entrypoint.sh"]

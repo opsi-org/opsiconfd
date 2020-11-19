@@ -14,7 +14,14 @@
 			"request":"launch",
 			"module":"opsiconfd", 
 			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=/workspace/opsiconfd_data/static"]
-		},	
+		},
+		{
+			"name":"opsiconfd setup",
+			"type":"python",
+			"request":"launch",
+			"module":"opsiconfd", 
+			"args": ["setup", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=/workspace/opsiconfd_data/static"]
+		}	
 	],
 	"inputs": [
 		{

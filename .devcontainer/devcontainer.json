@@ -4,7 +4,8 @@
 	"service": "opsiconfd-dev",
 	"context": "..",
 	"workspaceFolder": "/workspace",
-	"postCreateCommand": "poetry config --local virtualenvs.in-project true && poetry install --no-interaction --no-ansi",
+	"postCreateCommand": "poetry config --local virtualenvs.in-project true && poetry install --no-interaction --no-ansi && /bin/sh -c /setup-grafana.sh",
+	"postStartCommand": "echo $GF_SECURITY_ADMIN_USER && service grafana-server restart",
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},
@@ -16,6 +17,6 @@
 		"ms-azuretools.vscode-docker",
 		"ms-python.python"
 	],
-	// "forwardPorts": [4447],
+	"forwardPorts": [4447, 3000],
 	"remoteUser": "root"
 }

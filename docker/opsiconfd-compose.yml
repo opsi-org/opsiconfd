@@ -8,16 +8,21 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
-    ports:
-      - "4447:4447"
+    # ports:
+    #   - "4447:4447"
+    #   - "3000:3000"
     #restart: always
     volumes:
       - ..:/workspace:cached
     environment:
+      GF_INSTALL_PLUGINS: grafana-simple-json-datasource
+      GF_SECURITY_ADMIN_USER: adminuser
+      GF_SECURITY_ADMIN_PASSWORD: adminuser
       OPSICONFD_EXTERNAL_URL: https://localhost:4447
-      OPSICONFD_INTERNAL_URL: https://opsiconfd:4447
-      OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@grafana:3000
+      OPSICONFD_INTERNAL_URL: https://opsiconfd-dev:4447
+      OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@localhost:3000
       OPSICONFD_GRAFANA_EXTERNAL_URL: http://localhost:3000
+      
     #working_dir: /poetry
     entrypoint: ["/docker-entrypoint.sh"]
     #entrypoint: ["poetry", "run", "opsiconfd"]
@@ -35,11 +40,11 @@ services:
     image: redislabs/redistimeseries:1.4.5
     ports:
       - "6380:6379"
-  grafana:
-    image: grafana/grafana:6.7.1
-    environment:
-      GF_INSTALL_PLUGINS: grafana-simple-json-datasource
-      GF_SECURITY_ADMIN_USER: adminuser
-      GF_SECURITY_ADMIN_PASSWORD: adminuser
-    ports:
-      - "3000:3000"
+  # grafana:
+  #   image: grafana/grafana:6.7.1
+  #   environment:
+  #     GF_INSTALL_PLUGINS: grafana-simple-json-datasource
+  #     GF_SECURITY_ADMIN_USER: adminuser
+  #     GF_SECURITY_ADMIN_PASSWORD: adminuser
+  #   ports:
+  #     - "3000:3000"

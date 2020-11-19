@@ -3,7 +3,6 @@ version: '3.3'
 services:
   opsiconfd-dev:
     depends_on:
-      - mysql
       - redis
     build:
       context: ..
@@ -18,6 +17,10 @@ services:
       GF_INSTALL_PLUGINS: grafana-simple-json-datasource
       GF_SECURITY_ADMIN_USER: adminuser
       GF_SECURITY_ADMIN_PASSWORD: adminuser
+      MYSQL_ROOT_PASSWORD: opsi
+      MYSQL_DATABASE: opsi
+      MYSQL_USER: opsi
+      MYSQL_PASSWORD: opsi
       OPSICONFD_EXTERNAL_URL: https://localhost:4447
       OPSICONFD_INTERNAL_URL: https://opsiconfd-dev:4447
       OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@localhost:3000
@@ -26,16 +29,16 @@ services:
     #working_dir: /poetry
     entrypoint: ["/docker-entrypoint.sh"]
     #entrypoint: ["poetry", "run", "opsiconfd"]
-  mysql:
-    image: mysql:8
-    command: --max_allowed_packet=256M --sort_buffer_size=4M --default-authentication-plugin=mysql_native_password 
-    ports:
-      - "3307:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: opsi
-      MYSQL_DATABASE: opsi
-      MYSQL_USER: opsi
-      MYSQL_PASSWORD: opsi
+  # mysql:
+  #   image: mysql:8
+  #   command: --max_allowed_packet=256M --sort_buffer_size=4M --default-authentication-plugin=mysql_native_password 
+  #   ports:
+  #     - "3307:3306"
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: opsi
+  #     MYSQL_DATABASE: opsi
+  #     MYSQL_USER: opsi
+  #     MYSQL_PASSWORD: opsi
   redis:
     image: redislabs/redistimeseries:1.4.5
     ports:

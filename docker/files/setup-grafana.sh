@@ -7,8 +7,6 @@ echo $GF_INSTALL_PLUGINS
 ORG_ID=1
 USER_ID=2
 
-# service grafana-server start
-
 # grafana-cli --homepath "/usr/share/grafana" admin reset-admin-password $GF_SECURITY_ADMIN_PASSWORD
 service grafana-server start
 curl -XPOST -H "Content-Type: application/json" -d '{

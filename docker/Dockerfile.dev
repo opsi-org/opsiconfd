@@ -4,20 +4,20 @@ FROM python:3.7-buster as opsiconfd_development_build
 ARG DOCKER_ENV
 
 ENV DOCKER_ENV=${DOCKER_ENV} \
-# python:
-  PYTHONFAULTHANDLER=1 \
-  PYTHONUNBUFFERED=1 \
-  PYTHONHASHSEED=random \
-  # pip:
-  PIP_NO_CACHE_DIR=off \
-  PIP_DISABLE_PIP_VERSION_CHECK=on \
-  PIP_DEFAULT_TIMEOUT=100 \
-  # dockerize:
-  DOCKERIZE_VERSION=v0.6.1 \
-  # poetry:
-  POETRY_VERSION=1.1.2\
-  # redis
-  REDIS_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/
+	# python:
+	PYTHONFAULTHANDLER=1 \
+	PYTHONUNBUFFERED=1 \
+	PYTHONHASHSEED=random \
+	# pip:
+	PIP_NO_CACHE_DIR=off \
+	PIP_DISABLE_PIP_VERSION_CHECK=on \
+	PIP_DEFAULT_TIMEOUT=100 \
+	# dockerize:
+	DOCKERIZE_VERSION=v0.6.1 \
+	# poetry:
+	POETRY_VERSION=1.1.2\
+	# redis
+	REDIS_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/
 
 
 # System deps:
@@ -50,7 +50,7 @@ RUN apt-get update \
 	&& apt-get --yes install \
 		mariadb-server
 
-# redis
+# redis:
 RUN  echo "deb $REDIS_REPO /" > /etc/apt/sources.list.d/opsi.list
 
 RUN wget -nv ${REDIS_REPO}Release.key -O Release.key \
@@ -92,6 +92,3 @@ RUN chmod +x "/docker-entrypoint.sh" \
 	&& chmod +x "/setup-grafana.sh" \
 	&& chmod +x "/setup-mysql.sh" \
 	&& mkdir tftpboot
-	
-# ENTRYPOINT sleep infinity
-ENTRYPOINT ["/usr/bin/tini", "--", "/docker-entrypoint.sh"]

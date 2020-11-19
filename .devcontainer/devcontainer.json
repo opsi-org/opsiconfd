@@ -4,7 +4,7 @@
 	"service": "opsiconfd-dev",
 	"context": "..",
 	"workspaceFolder": "/workspace",
-	"postCreateCommand": "poetry config --local virtualenvs.in-project true && poetry install --no-interaction --no-ansi && /bin/sh -c /setup-grafana.sh && /bin/sh -c /setup-mysql.sh",
+	"postCreateCommand": "poetry config --local virtualenvs.in-project true && poetry install --no-interaction --no-ansi && /bin/sh -c /setup.sh",
 	"postStartCommand": "service redis-server restart && service mysql restart && service grafana-server restart",
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"

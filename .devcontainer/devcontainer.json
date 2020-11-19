@@ -1,6 +1,6 @@
 {
 	"name": "opsiconfd",
-	"dockerComposeFile": "../docker/opsiconfd-compose.yml",
+	"dockerComposeFile": "../docker/dev-opsiconfd-compose.yml",
 	"service": "opsiconfd-dev",
 	"context": "..",
 	"workspaceFolder": "/workspace",

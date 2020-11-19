@@ -21,9 +21,7 @@ subprocess.call([
 	"docker_opsiconfd41_1", "docker_opsiconfd42_1"
 ])
 
-if args.type == "dev":
-	subprocess.call(["docker-compose", "-f", f"{args.type}-docker-compose.yml", "up", "--build"])
-elif args.type == "load-balance":
+if args.type == "load-balance":
 	subprocess.call(["docker-compose", "-f", f"{args.type}-docker-compose.yml", "up", "--build", "--scale", "opsiconfd=2"])
 elif args.type == "compare41":
 	subprocess.call(["docker-compose", "-f", f"{args.type}-docker-compose.yml", "up", "--build"])

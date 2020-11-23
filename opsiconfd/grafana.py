@@ -24,14 +24,11 @@ import os
 import json
 import copy
 import aiohttp
-import random
-import string
 import base64
 import sqlite3
 import hashlib
 import datetime
 import subprocess
-import requests
 from urllib.parse import urlparse
 
 from .logging import logger

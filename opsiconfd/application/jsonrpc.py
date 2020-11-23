@@ -299,7 +299,7 @@ async def process_jsonrpc(request: Request, response: Response):
 			error = bool(result[0].get("error"))
 			date = result[2].get("date")
 			params = [param for param in result[2].get("params", []) if param]
-			logger.trace("RPC Count: %s", rpc_count)			
+			logger.trace("RPC Count: %s", rpc_count)
 			logger.trace("params: %s", params)
 			num_results = 0
 			if result[0].get("result"):
@@ -318,7 +318,10 @@ async def process_jsonrpc(request: Request, response: Response):
 				"num_results": num_results,
 				"duration": result[1]
 			}
-
+			logger.notice(
+				"JSONRPC request: method=%s, num_params=%d, duration=%0.4f, error=%s, num_results=%d",
+				data["method"], data["num_params"], data["duration"], data["error"], data["num_results"]
+			)
 			asyncio.get_event_loop().create_task(
 				run_in_threadpool(_store_rpc, data)
 			)
@@ -446,7 +449,6 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		rpc["client"] = request.client.host
 		end = time.perf_counter()
 
-		logger.info("Backend execution of method '%s' took %0.4f seconds", method_name, end - start)
 		logger.debug("Sending result (len: %d)", len(str(response)))
 		logger.trace(response)
 

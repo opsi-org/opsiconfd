@@ -24,10 +24,10 @@ import os
 import json
 import copy
 import aiohttp
-import random
-import string
 import base64
 import sqlite3
+import random
+import string
 import hashlib
 import datetime
 import subprocess
@@ -35,6 +35,7 @@ from urllib.parse import urlparse
 
 from .logging import logger
 from .config import config, set_config_in_config_file
+from .utils import get_random_string
 
 API_KEY_NAME = "opsiconfd"
 
@@ -308,7 +309,6 @@ def setup_grafana():
 	for f in (grafana_plugin_dir, grafana_db):
 		if not os.path.exists(f):
 			raise FileNotFoundError(f"'{f}' not found")
-	
 	if not os.path.exists(os.path.join(grafana_plugin_dir, plugin_id)):
 		logger.notice("Setup grafana plugin %s", plugin_id)
 		for cmd in (
@@ -321,11 +321,8 @@ def setup_grafana():
 	if url.username is not None:
 		return
 	
-	logger.notice("Setup grafana api key")
-	api_key = create_or_update_api_key_in_grafana_db(grafana_db)
+	create_opsiconfd_user(grafana_db)
 
-	grafana_internal_url = f"{url.scheme}://{api_key}@{url.netloc}{url.path}"
-	set_config_in_config_file("grafana-internal-url", grafana_internal_url)
 
 async def create_or_update_api_key_by_api(admin_username: str, admin_password: str):
 	auth = aiohttp.BasicAuth(admin_username, admin_password)
@@ -365,6 +362,8 @@ def create_or_update_api_key_in_grafana_db(db_file: str):
 			"INSERT INTO api_key(org_id, name, key, role, created, updated, expires) VALUES (?, ?, ?, ?, ?, ?, ?)",
 			[org_id, API_KEY_NAME, db_key.hex(), "Admin", now, now, None]
 		)
+
+		
 	conn.commit()
 	conn.close()
 	
@@ -374,3 +373,38 @@ def create_or_update_api_key_in_grafana_db(db_file: str):
 		"k": key
 	}
 	return(base64.b64encode(json.dumps(api_key).encode("utf-8")).decode("utf-8"))
+
+def create_opsiconfd_user(db_file: str):
+	logger.notice("Setup grafana opsiconfd user")
+
+	conn = sqlite3.connect(db_file)
+	cur = conn.cursor()
+
+	cur.execute(
+		"SELECT id FROM user WHERE user.login='opsiconfd';"
+	)
+	user_id = cur.fetchone()
+
+	if not user_id:
+		pw = get_random_string(8)
+		pw_hash = hashlib.pbkdf2_hmac("sha256", pw.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
+		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+		cur.execute(
+			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			[0,"opsiconfd", pw_hash, "opsiconfd@opsi", 1, 1, API_KEY_NAME, now, now]
+		)
+		cur.execute(
+			"SELECT id FROM user WHERE user.login='opsiconfd';"
+		)
+		user_id = cur.fetchone()
+		cur.execute(
+			"INSERT INTO org_user(org_id, user_id, role, created, updated) VALUES (?, ?, ?, ?, ?)",
+			[1, user_id[0], "Admin", now, now]
+		)
+		conn.commit()
+		conn.close()
+
+		url = urlparse(config.grafana_internal_url)
+		grafana_internal_url = f"{url.scheme}://opsiconfd:{pw}@{url.hostname}:{url.port}{url.path}"
+		set_config_in_config_file("grafana-internal-url", grafana_internal_url)
+		config.reload()

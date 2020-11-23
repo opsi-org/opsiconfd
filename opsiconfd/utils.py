@@ -25,6 +25,8 @@ import os
 import psutil
 import socket
 import psutil
+import string
+import random
 from dns import resolver, reversename
 
 logger = None
@@ -152,3 +154,7 @@ def get_ip_addresses():
 				"address": snic.address
 			}
 
+def get_random_string(length):
+	letters = string.ascii_letters
+	result_str = ''.join(random.choice(letters) for i in range(length))
+	return result_str

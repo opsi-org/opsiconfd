@@ -9,20 +9,24 @@ See LICENSES/README.md for more Information
 import os
 import datetime
 import orjson
+import requests
+from urllib.parse import urlparse
 from operator import itemgetter
 
 from fastapi import APIRouter, Request, Response, HTTPException, status
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from OPSI import __version__ as python_opsi_version
 from .. import __version__
 
+from OPSI.Util import getfqdn
 from ..session import OPSISession
 from ..logging import logger
 from ..config import config
 from ..backend import get_client_backend, get_backend_interface
 from ..worker import get_redis_client
+from ..utils import get_random_string
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
@@ -154,6 +158,7 @@ async def get_rpc_count():
 	response = JSONResponse({"rpc_count": count})
 	return response
 
+
 @admin_interface_router.get("/blocked-clients")
 async def get_blocked_clients() -> list:
 	redis_client = await get_redis_client()
@@ -165,6 +170,65 @@ async def get_blocked_clients() -> list:
 		blocked_clients.append(key.decode("utf8").split(":")[-1])
 	return blocked_clients
 
+
+@admin_interface_router.get("/grafana")
+def open_grafana(request: Request):
+
+	fqdn = getfqdn()
+	if request.base_url.hostname != fqdn:
+		url = f"https://{fqdn}:{request.url.port}/admin/grafana"
+		response = RedirectResponse(url=url)
+		return response
+	
+	auth = None
+	headers = None
+	url = urlparse(config.grafana_internal_url)
+	if url.username is not None:
+		if url.password is None:
+			# Username only, assuming this is an api key
+			logger.debug("Using api key for grafana authorization")
+			headers = {"Authorization": f"Bearer {url.username}"}
+		else:
+			logger.debug("Using username %s and password grafana authorization", url.username)
+			auth = (url.username, url.password)
+
+	session = requests.Session()
+	response = session.get(f"{url.scheme}://{url.hostname}:{url.port}/api/users/lookup?loginOrEmail=opsidashboard", headers=headers, auth=auth)
+
+	pw = get_random_string(8)
+	if response.status_code == 404:
+		logger.debug("create new user opsidashboard")
+
+		data = {
+			"name":"opsidashboard",
+			"email":"opsidashboard@admin",
+			"login":"opsidashboard",
+			"password":pw,
+			"OrgId": 1
+		}
+		response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/api/admin/users", headers=headers, auth=auth, data=data)
+	else:
+		logger.debug("change opsidashboard password")
+		data = {
+			"password": pw
+		}
+		user_id = response.json().get("id")
+		response = session.put(f"{config.grafana_internal_url}/api/admin/users/{user_id}/password", headers=headers, auth=auth, data=data)
+
+	data = {
+		"password": pw,
+		"user": "opsidashboard"
+	}
+	response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/login", data=data)
+
+	url = "/metrics/grafana/dashboard"
+	response = RedirectResponse(url=url)
+	response.set_cookie(key="grafana_session",value=session.cookies.get_dict().get("grafana_session"))
+	return response
+	
+
 def get_num_from_key(key):
 	num = key.decode("utf8").split(":")[-2]
 	return int(num)
+
+

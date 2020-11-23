@@ -33,6 +33,7 @@ RUN apt-get update \
 		tini \
 		psmisc \
 		librsync1 \	
+		sqlite3 \
 	&& pip install "poetry==$POETRY_VERSION"
 
 # grafana 
@@ -92,3 +93,4 @@ RUN chmod +x "/docker-entrypoint.sh" \
 	&& chmod +x "/setup-grafana.sh" \
 	&& chmod +x "/setup-mysql.sh" \
 	&& mkdir tftpboot
+

@@ -42,6 +42,7 @@ mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "FLUSH PRIVILEGES"
 mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE $MYSQL_DATABASE;"
 
 echo 'Restore opsi database' 
-zcat /opsi.sql.gz | mariadb -h localhost -u opsi --password=opsi opsi
+echo $OPSI_HOSTNAME
+zcat /opsi.sql.gz | sed 's/bonifax.uib.local/'$OPSI_HOSTNAME'/g'  | mariadb -h localhost -u opsi --password=opsi opsi
 
 service mysql stop

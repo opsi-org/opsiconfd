@@ -2,6 +2,8 @@ version: '3.3'
 
 services:
   opsiconfd-dev:
+    env_file:
+      dev.env
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev
@@ -17,6 +19,6 @@ services:
       MYSQL_PASSWORD: opsi
       OPSICONFD_EXTERNAL_URL: https://localhost:4447
       OPSICONFD_INTERNAL_URL: https://opsiconfd-dev:4447
-      OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@localhost:3000
-      OPSICONFD_GRAFANA_EXTERNAL_URL: http://localhost:3000
+      # OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@localhost:3000
+      # OPSICONFD_GRAFANA_EXTERNAL_URL: "http://localhost:3000"
     entrypoint: ["/docker-entrypoint.sh"]

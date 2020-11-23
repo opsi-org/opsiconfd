@@ -31,10 +31,12 @@ import sqlite3
 import hashlib
 import datetime
 import subprocess
+import requests
 from urllib.parse import urlparse
 
 from .logging import logger
 from .config import config, set_config_in_config_file
+from .utils import get_random_string
 
 API_KEY_NAME = "opsiconfd"
 
@@ -308,7 +310,7 @@ def setup_grafana():
 	for f in (grafana_plugin_dir, grafana_db):
 		if not os.path.exists(f):
 			raise FileNotFoundError(f"'{f}' not found")
-	
+	logger.devel("!!!")
 	if not os.path.exists(os.path.join(grafana_plugin_dir, plugin_id)):
 		logger.notice("Setup grafana plugin %s", plugin_id)
 		for cmd in (
@@ -318,14 +320,17 @@ def setup_grafana():
 			out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=15)
 			logger.debug("output of command %s: %s", cmd, out)
 	
-	if url.username is not None:
-		return
+	# if url.username is not None:
+	# 	return
 	
-	logger.notice("Setup grafana api key")
-	api_key = create_or_update_api_key_in_grafana_db(grafana_db)
+	create_opsiconfd_user(grafana_db)
 
-	grafana_internal_url = f"{url.scheme}://{api_key}@{url.netloc}{url.path}"
-	set_config_in_config_file("grafana-internal-url", grafana_internal_url)
+	# logger.notice("Setup grafana api key")
+	# api_key = create_or_update_api_key_in_grafana_db(grafana_db)
+
+	# grafana_internal_url = f"{url.scheme}://{api_key}@{url.netloc}{url.path}"
+	# set_config_in_config_file("grafana-internal-url", grafana_internal_url)
+
 
 async def create_or_update_api_key_by_api(admin_username: str, admin_password: str):
 	auth = aiohttp.BasicAuth(admin_username, admin_password)
@@ -365,6 +370,8 @@ def create_or_update_api_key_in_grafana_db(db_file: str):
 			"INSERT INTO api_key(org_id, name, key, role, created, updated, expires) VALUES (?, ?, ?, ?, ?, ?, ?)",
 			[org_id, API_KEY_NAME, db_key.hex(), "Admin", now, now, None]
 		)
+
+		
 	conn.commit()
 	conn.close()
 	
@@ -374,3 +381,79 @@ def create_or_update_api_key_in_grafana_db(db_file: str):
 		"k": key
 	}
 	return(base64.b64encode(json.dumps(api_key).encode("utf-8")).decode("utf-8"))
+
+def create_opsiconfd_user(db_file: str):
+	conn = sqlite3.connect(db_file)
+	cur = conn.cursor()
+	# cur.execute("SELECT * FROM user")
+	# res = cur.fetchall()
+	# logger.devel(res)
+
+	# cur.execute("SELECT sql FROM sqlite_master WHERE name = 'user';")
+	# res = cur.fetchall()
+	# logger.devel(res)
+
+	
+	# cur.execute(
+	# 	"DELETE FROM user WHERE login='opsiconfd'"
+	# )
+	cur.execute(
+		"SELECT id FROM user WHERE user.login='opsiconfd';"
+	)
+
+	user_id = cur.fetchone()
+	logger.devel(user_id)
+
+	if not user_id:
+		# conn.commit()
+		# pw = hashlib.md5(b"test").hexdigest()
+		# hashlib.pbkdf2_hmac("sha256", key.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50)
+		pw = get_random_string(8)
+		pw_hash = hashlib.pbkdf2_hmac("sha256", pw.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
+		logger.devel(pw_hash)
+		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+		cur.execute(
+			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			[0,"opsiconfd", pw_hash, "opsiconfd@opsi", 1, 1, API_KEY_NAME, now, now]
+		)
+		
+		cur.execute(
+			"SELECT id FROM user WHERE user.login='opsiconfd';"
+		)
+
+		user_id = cur.fetchone()
+		logger.devel(user_id[0])
+
+		# data = {"isGrafanaAdmin": True}
+
+		#  http://admin:admin@localhost:3000
+		# r = requests.put(f"http://localhost:3000/api/orgs/1/users/{user_id[0]}",auth=("opsiconfd",pw_hash),data=data)
+		# logger.devel(r.status_code)
+		# curl -XPUT -H "Content-Type: application/json" -d '{"isGrafanaAdmin": true}' http://admin:admin@localhost:3000/api/admin/users/$USER_ID/permissions
+
+		# cur.execute(
+		# 	"UPDATE org_user SET role=?, updated=? WHERE org_user.user_id = ?;",
+		# 	["Admin", now, user_id[0]]
+		# )
+
+		cur.execute(
+			"INSERT INTO org_user(org_id, user_id, role, created, updated) VALUES (?, ?, ?, ?, ?)",
+			[1, user_id[0], "Admin", now, now]
+		)
+		
+	# UPDATE table_name
+	# 		SET column1 = value1, column2 = value2, ...
+	# 		WHERE condition;
+
+		res = cur.fetchall()
+		logger.devel(res)
+		conn.commit()
+
+		conn.close()
+		url = urlparse(config.grafana_internal_url)
+		grafana_internal_url = f"{url.scheme}://opsiconfd:{pw}@{url.hostname}:{url.port}{url.path}"
+		logger.devel(grafana_internal_url)
+		set_config_in_config_file("grafana-internal-url", grafana_internal_url)
+		# os.environ["OPSICONFD_GRAFANA_INTERNAL_URL"] = grafana_internal_url
+		config.reload()
+		logger.devel(config.grafana_internal_url)

@@ -9,10 +9,14 @@ See LICENSES/README.md for more Information
 import os
 import datetime
 import orjson
+import requests
+import random
+import string
+from urllib.parse import urlparse
 from operator import itemgetter
 
 from fastapi import APIRouter, Request, Response, HTTPException, status
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from OPSI import __version__ as python_opsi_version
@@ -165,6 +169,84 @@ async def get_blocked_clients() -> list:
 		blocked_clients.append(key.decode("utf8").split(":")[-1])
 	return blocked_clients
 
+@admin_interface_router.get("/grafana")
+def open_grafana(request: Request):
+	config.reload()
+	auth = None
+	headers = None
+	logger.devel(config.grafana_internal_url)
+	url = urlparse(config.grafana_internal_url)
+	if url.username is not None:
+		if url.password is None:
+			# Username only, assuming this is an api key
+			logger.debug("Using api key for grafana authorization")
+			headers = {"Authorization": f"Bearer {url.username}"}
+		else:
+			logger.debug("Using username %s and password grafana authorization", url.username)
+			auth = (url.username, url.password)
+	logger.devel(headers)
+	logger.devel(auth)
+
+
+	session = requests.Session()
+	logger.devel(f"{url.scheme}://{url.hostname}:{url.port}/api/users/lookup?loginOrEmail=opsidashboard")
+	response = session.get(f"{url.scheme}://{url.hostname}:{url.port}/api/users/lookup?loginOrEmail=opsidashboard", headers=headers, auth=auth)
+	logger.devel(response.status_code)
+	logger.devel(response.json())
+	pw = get_random_string(8)
+	if response.status_code == 404:
+		logger.devel("create new user")
+		
+		logger.devel(pw)
+		data = {
+			"name":"opsidashboard",
+			"email":"opsidashboard@admin",
+			"login":"opsidashboard",
+			"password":pw,
+			"OrgId": 1
+			}
+		
+		response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/api/admin/users", headers=headers, auth=auth, data=data)
+		logger.devel(response.text)
+	else:
+		logger.devel("change opsidashboard password")
+		data = {
+			"password": pw
+		}
+		user_id = response.json().get("id")
+		logger.devel("userid: %s", user_id)
+		logger.devel(f"http://grafana:3000/api/admin/users/{user_id}/password")
+		response = session.put(f"{config.grafana_internal_url}/api/admin/users/{user_id}/password", headers=headers, auth=auth, data=data)
+		logger.devel(response.status_code)
+
+	logger.devel(config.grafana_internal_url)
+	logger.devel(config.grafana_external_url)
+
+
+	data = {
+		"password": pw,
+		"user": "opsidashboard"
+	}
+	logger.devel(data)
+	response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/login", data=data)
+	logger.devel(response.status_code)
+
+	logger.devel(session.cookies.get_dict())
+
+	url = "/metrics/grafana/dashboard"
+	response = RedirectResponse(url=url)
+	response.set_cookie(key="grafana_session",value=session.cookies.get_dict().get("grafana_session"))
+	return response
+	
+
+
+def get_random_string(length):
+	letters = string.ascii_letters
+	result_str = ''.join(random.choice(letters) for i in range(length))
+	return result_str
+
 def get_num_from_key(key):
 	num = key.decode("utf8").split(":")[-2]
 	return int(num)
+
+

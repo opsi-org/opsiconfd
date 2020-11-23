@@ -306,8 +306,7 @@ async def process_jsonrpc(request: Request, response: Response):
 				num_results = 1
 				if isinstance(result[0].get("result"), list):
 					num_results = len(result[0].get("result"))
-			logger.debug("num_results: %s", num_results)
-
+			
 			data = {
 				"rpc_num": rpc_count,
 				"method": result[2].get("method"),

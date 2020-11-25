@@ -8,6 +8,11 @@ import time
 
 from opsiconfd.statistics import MetricsCollector
 
+@pytest.fixture
+def config(monkeypatch):
+	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
+	from opsiconfd.config import config
+	return config
 
 @pytest.fixture
 def metrics_collector(monkeypatch):
@@ -35,8 +40,8 @@ def metrics_registry(monkeypatch):
 
 @pytest.fixture()
 @pytest.mark.asyncio
-async def redis_client():
-	redis_client = redis.StrictRedis.from_url("redis://redis")
+async def redis_client(config):
+	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
 	redis_client.set("opsiconfd:stats:num_rpcs", 5)
 	await asyncio.sleep(2)
 	yield redis_client

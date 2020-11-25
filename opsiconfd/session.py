@@ -49,14 +49,14 @@ from collections import namedtuple
 from typing import List
 
 from fastapi import HTTPException, status
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
 from starlette.datastructures import MutableHeaders, Headers
-from starlette.requests import HTTPConnection
+from starlette.requests import HTTPConnection, Request
 #from starlette.sessions import CookieBackend, Session, SessionBackend
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from aredis.exceptions import ResponseError
-
+from OPSI.Util import getfqdn
 from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
@@ -159,7 +159,17 @@ class SessionMiddleware:
 			for p in self._public_path:
 				if scope["path"].startswith(f"{p}"):
 					is_public = True
-
+			
+			if scope["path"] == "/admin" or scope["path"] == "/":
+				request = Request(scope, receive)
+				fqdn = getfqdn()
+				if request.base_url.hostname != fqdn:
+					url = f"https://{fqdn}:{request.url.port}/admin"
+					logger.info("Redirecting to %s ...", url)
+					response = RedirectResponse(url, status_code=308)
+					await response(scope, receive, send)
+					return
+			
 			session_id = self.get_session_id_from_headers(connection.headers)
 			if not is_public or session_id:
 				session = OPSISession(self, session_id, connection)

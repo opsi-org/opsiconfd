@@ -150,6 +150,9 @@ def _get_sort_algorithm(params):
 
 def _store_product_ordering(result, params):
 	try:
+		if len(params) < 1:
+			logger.warning("Could not store product ordering in redis cache. No 'depotId' given.")
+			return
 		if len(params) > 1:
 			algorithm = _get_sort_algorithm(params)
 		else:

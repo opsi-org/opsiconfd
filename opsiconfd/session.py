@@ -163,7 +163,8 @@ class SessionMiddleware:
 			if scope["path"] == "/admin" or scope["path"] == "/":
 				request = Request(scope, receive)
 				fqdn = getfqdn()
-				if request.base_url.hostname != fqdn:
+				hostname = request.base_url.hostname
+				if ("localhost" in hostname or "127.0.0.1" in hostname) and request.base_url.hostname != fqdn:
 					url = f"https://{fqdn}:{request.url.port}/admin"
 					logger.info("Redirecting to %s ...", url)
 					response = RedirectResponse(url, status_code=308)

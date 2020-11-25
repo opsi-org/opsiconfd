@@ -8,60 +8,79 @@ import aredis
 import requests
 import json
 import threading
+import socket 
 
 from MySQLdb import _mysql
 from opsiconfd.utils import decode_redis_result
 
-OPSI_URL = "https://localhost:4447" 
+
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"
 OPSI_SESSION_KEY = "opsiconfd:sessions"
+HOSTNAME = socket.gethostname()
+LOCAL_IP = socket.gethostbyname(HOSTNAME)
+
+
+@pytest.fixture
+def config(monkeypatch):
+	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
+	from opsiconfd.config import config
+	return config
+
 
 @pytest.fixture(autouse=True)
 @pytest.mark.asyncio
-async def clean_redis():
+async def clean_redis(config):
 	yield None
-	redis_client = aredis.StrictRedis.from_url("redis://redis")
-	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:127.0.0.1:*")
+	print(config.redis_internal_url)
+	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:*")
 	async for key in session_keys:
 		await redis_client.delete(key)
-	await redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
-	await redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
-	session_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
-	async for key in session_keys:
+	await redis_client.delete(f"opsiconfd:stats:client:failed_auth:{LOCAL_IP}")
+	await redis_client.delete(f"opsiconfd:stats:client:blocked:{LOCAL_IP}")
+	client_keys = redis_client.scan_iter("opsiconfd:stats:client*")
+	async for key in client_keys:
 		print(key)
 		await redis_client.delete(key)
+	await redis_client.delete("opsiconfd:stats:rpcs")
 	await redis_client.delete("opsiconfd:stats:num_rpcs")
+	rpc_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
+	async for key in rpc_keys:
+		print(key)
+		await redis_client.delete(key)
 	product_keys = redis_client.scan_iter("*products*")
 	async for key in product_keys:
 		print(key)
 		await redis_client.delete(key)
+	await asyncio.sleep(10)
+
 
 @pytest.fixture(autouse=True)
 def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def delete_product(product):
+def delete_product(product, opsi_url):
 	print("delete: ", product)
-	delete_products([product])
+	delete_products([product], opsi_url)
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{opsi_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 
 @pytest.mark.asyncio
-async def test_delete_product():
+async def test_delete_product(config):
 	db_remove_dummy_products()
-	create_depot()
+	create_depot(config.internal_url)
 	fill_db()
 
 	test_products_sorted = read_sorted_products()
 	
-	thread_one = threading.Thread(name="1", target=delete_product, args=({"id": "dummy-prod-1039", "product_version": "1.0", "package_version": "1"},)) 
-	thread_two = threading.Thread(name="2", target=delete_product, args=({"id": "dummy-prod-1119", "product_version": "1.0", "package_version": "1"},)) 
-	thread_three = threading.Thread(name="3", target=delete_product, args=({"id": "dummy-prod-1199", "product_version": "1.0", "package_version": "1"},)) 
-	thread_four = threading.Thread(name="4", target=delete_product, args=({"id": "dummy-prod-2559", "product_version": "1.0", "package_version": "1"},)) 
-	thread_five = threading.Thread(name="5", target=delete_product, args=({"id": "dummy-prod-1359", "product_version": "1.0", "package_version": "1"},)) 
+	thread_one = threading.Thread(name="1", target=delete_product, args=({"id": "dummy-prod-1039", "product_version": "1.0", "package_version": "1"},config.internal_url)) 
+	thread_two = threading.Thread(name="2", target=delete_product, args=({"id": "dummy-prod-1119", "product_version": "1.0", "package_version": "1"},config.internal_url)) 
+	thread_three = threading.Thread(name="3", target=delete_product, args=({"id": "dummy-prod-1199", "product_version": "1.0", "package_version": "1"},config.internal_url)) 
+	thread_four = threading.Thread(name="4", target=delete_product, args=({"id": "dummy-prod-2559", "product_version": "1.0", "package_version": "1"},config.internal_url)) 
+	thread_five = threading.Thread(name="5", target=delete_product, args=({"id": "dummy-prod-1359", "product_version": "1.0", "package_version": "1"},config.internal_url)) 
 
 	thread_one.start()
 	thread_two.start()
@@ -87,19 +106,19 @@ async def test_delete_product():
 	test_products_sorted.remove("dummy-prod-2559")
 	test_products_sorted.remove("dummy-prod-1359")
 
-	redis_client = aredis.StrictRedis.from_url("redis://redis")
+	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
 
 	assert decode_redis_result(cached_sorted_products) == test_products_sorted
 
 @pytest.mark.asyncio
-async def test_renew_cache():
+async def test_renew_cache(config):
 	db_remove_dummy_products()
-	create_depot()
+	create_depot(config.internal_url)
 	fill_db()
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	test_products_sorted = read_sorted_products()
@@ -107,7 +126,7 @@ async def test_renew_cache():
 
 	await asyncio.sleep(3)
 
-	redis_client = aredis.StrictRedis.from_url("redis://redis")
+	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
 	assert decode_redis_result(cached_sorted_products) == test_products_sorted
 
@@ -115,12 +134,12 @@ async def test_renew_cache():
 		{"id": "test_product01", "name": "Test Product 01", "product_version": "1.0", "package_version": "1", "priority": 80}, 
 		{"id": "test_product02", "name": "Test Product 02", "product_version": "1.0", "package_version": "1", "priority": 81}, 
 	]
-	create_products(test_products)
+	create_products(test_products, config.internal_url)
 
 	
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	test_products_sorted.insert(0,"test_product01")
@@ -133,10 +152,10 @@ async def test_renew_cache():
 	assert decode_redis_result(cached_sorted_products) == test_products_sorted
 
 	db_remove_dummy_products()
-	delete_products(test_products)
+	delete_products(test_products, config.internal_url)
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	assert result_json.get("result").get("sorted") == []
@@ -152,7 +171,7 @@ async def test_renew_cache():
 
 
 @pytest.mark.asyncio
-async def test_getProductOrdering():
+async def test_getProductOrdering(config):
 	
 	db_remove_dummy_products()
 
@@ -163,25 +182,25 @@ async def test_getProductOrdering():
 	]
 	test_products_sorted = ["test_product1", "test_product3", "test_product2"]
 
-	create_depot()
-	create_products(test_products)
+	create_depot(config.internal_url)
+	create_products(test_products, config.internal_url)
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 	print("1: ", result_json)
 
 	num_results = len(result_json.get("result").get("sorted"))
 	assert result_json.get("result").get("sorted") == test_products_sorted
 
-	redis_client = aredis.StrictRedis.from_url("redis://redis")
+	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
 	assert cached_sorted_products == []
 
 	fill_db()
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	test_products_sorted = read_sorted_products()
@@ -203,11 +222,11 @@ async def test_getProductOrdering():
 	uptodate = await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
 	print(uptodate)
 
-	delete_products(test_products)
+	delete_products(test_products, config.internal_url)
 	db_remove_dummy_products()
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 	print(result_json)
 
@@ -225,15 +244,15 @@ def read_sorted_products():
 		return sorted_products
 	
 
-def create_depot():
+def create_depot(opsi_url):
 	params= ["testdepot.uib.gmbh",None,"file:///var/lib/opsi/depot","smb://172.17.0.101/opsi_depot",None,"file:///var/lib/opsi/repository","webdavs://172.17.0.101:4447/repository"]
 
 	rpc_request_data = json.dumps({"id": 1, "method": "host_createOpsiDepotserver", "params": params})
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{opsi_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 	print(result_json)
 
-def create_products(products):
+def create_products(products, opsi_url):
 	for product in products:
 		
 		params = [
@@ -247,12 +266,12 @@ def create_products(products):
 			None,None,None,None,None,None
 			]
 		rpc_request_data = json.dumps({"id": 1, "method": "createProduct", "params": params})
-		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+		r = requests.post(f"{opsi_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 		result_json = json.loads(r.text)
 		print(result_json)
 	
-def create_dummy_products(n):
-	r = requests.get("https://localhost:4447/admin", auth=(TEST_USER, TEST_PW), verify=False)
+def create_dummy_products(n, opsi_url):
+	r = requests.get(opsi_url, auth=(TEST_USER, TEST_PW), verify=False)
 	
 	for i in range(0,n):
 		params = [
@@ -268,33 +287,35 @@ def create_dummy_products(n):
 		print(f"dummy-prod-{i}")
 		print(f"PRIO: {(i%80)}")
 		rpc_request_data = json.dumps({"id": 1, "method": "createProduct", "params": params})
-		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, cookies=r.cookies, verify=False)
+		r = requests.post(f"{opsi_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, cookies=r.cookies, verify=False)
 		result_json = json.loads(r.text)
 
-def delete_products(products):	
+def delete_products(products, opsi_url):	
 	for product in products:
 		params = [product.get("id"), product.get("product_version"), product.get("package_version")]
 		rpc_request_data = json.dumps({"id": 1, "method": "product_delete", "params": params})
-		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+		r = requests.post(f"{opsi_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 		result_json = json.loads(r.text)
 		print(result_json)
 
-def delete_dummy_products(n):
-	r = requests.get("https://localhost:4447/admin", auth=(TEST_USER, TEST_PW), verify=False)
+def delete_dummy_products(n, opsi_url):
+	r = requests.get(f"{opsi_url}/admin", auth=(TEST_USER, TEST_PW), verify=False)
 	
 	for i in range(0, n):
 		params = [f"dummy-prod-{i}", "1.0", "1"]
 		rpc_request_data = json.dumps({"id": 1, "method": "product_delete", "params": params})
-		r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, cookies=r.cookies, verify=False)
-		result_json = json.loads(r.text)
+		r = requests.post(f"{opsi_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, cookies=r.cookies, verify=False)
+		# result_json = json.loads(r.text)
 		# print(result_json)
 	print(f"deleted {n} dummy products")
 
 def fill_db():
 	n = 8000
 	for i in range(0, n):
-
-		db=_mysql.connect(host="mysql",user="opsi",passwd="opsi",db="opsi")
+		mysql_host = os.environ.get("MYSQL_HOST")
+		if not mysql_host:
+			mysql_host = "127.0.0.1"
+		db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi")
 		sql_string = f'INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) VALUES ("dummy-prod-{i}", "1.0", "1", "LocalbootProduct", "Dummy PRODUCT {i}", {i%80});'
 		# print(sql_string)
 		db.query(sql_string)
@@ -305,7 +326,10 @@ def fill_db():
 		# print(r.fetch_row(maxrows=0))
 
 def db_remove_dummy_products():
-	db = _mysql.connect(host="mysql",user="opsi",passwd="opsi",db="opsi")
+	mysql_host = os.environ.get("MYSQL_HOST")
+	if not mysql_host:
+		mysql_host = "127.0.0.1"
+	db = _mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi")
 	db.query(f'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "dummy-prod%";')
 	db.query(f'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "test_product%";')
 	

@@ -8,6 +8,7 @@ import redis
 import aredis
 import requests
 import json
+import socket
 
 from MySQLdb import _mysql
 
@@ -15,23 +16,41 @@ OPSI_URL = "https://localhost:4447"
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"
 OPSI_SESSION_KEY = "opsiconfd:sessions"
+HOSTNAME = socket.gethostname()
+LOCAL_IP = socket.gethostbyname(HOSTNAME)
+
+@pytest.fixture
+def config(monkeypatch):
+	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
+	from opsiconfd.config import config
+	return config
 
 
 @pytest.fixture(autouse=True)
 @pytest.mark.asyncio
-async def clean_redis():
+async def clean_redis(config):
 	yield None
-	redis_client = aredis.StrictRedis.from_url("redis://redis")
-	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:127.0.0.1:*")
-	async for key in session_keys:
-		await redis_client.delete(key)
-	await redis_client.delete("opsiconfd:stats:client:failed_auth:127.0.0.1")
-	await redis_client.delete("opsiconfd:stats:client:blocked:127.0.0.1")
-	session_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
+	print(config.redis_internal_url)
+	print(f"opsiconfd:stats:client:failed_auth:{LOCAL_IP}")
+	print(f"opsiconfd:stats:client:blocked:{LOCAL_IP}")
+	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:*")
 	async for key in session_keys:
 		print(key)
 		await redis_client.delete(key)
+	await redis_client.delete(f"opsiconfd:stats:client:failed_auth:{LOCAL_IP}")
+	await redis_client.delete(f"opsiconfd:stats:client:blocked:{LOCAL_IP}")
+	client_keys = redis_client.scan_iter("opsiconfd:stats:client*")
+	async for key in client_keys:
+		print(key)
+		await redis_client.delete(key)
+	await redis_client.delete("opsiconfd:stats:rpcs")
 	await redis_client.delete("opsiconfd:stats:num_rpcs")
+	rpc_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
+	async for key in rpc_keys:
+		print(key)
+		await redis_client.delete(key)
+	await asyncio.sleep(10)
 
 
 @pytest.fixture(autouse=True)
@@ -94,7 +113,10 @@ def fill_db():
 	# TODO assert mysql results
 	# TODO insert more Data
 	for data in mysql_data:
-		db=_mysql.connect(host="mysql",user="opsi",passwd="opsi",db="opsi")
+		mysql_host = os.environ.get("MYSQL_HOST")
+		if not mysql_host:
+			mysql_host = "127.0.0.1"
+		db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi")
 		sql_string = f'INSERT INTO HOST (hostId, type, description, notes,  hardwareAddress, ipAddress, inventoryNumber, created, lastSeen) VALUES (\"{data["hostId"]}\", \"{data["type"]}\", \"{data["description"]}\", \"{data["notes"]}\", \"{data["hardwareAddress"]}\", \"{data["ipAddress"]}\", \"{data["inventoryNumber"]}\", \"{data["created"]}\",  \"{data["lastSeen"]}\");'
 		print(sql_string)
 		db.query(sql_string)
@@ -205,9 +227,9 @@ jsonrpc_test_data = [
 ]
 
 @pytest.mark.parametrize("request_data, expected_result", jsonrpc_test_data)
-def test_process_jsonrpc_request(fill_db, request_data, expected_result):
+def test_process_jsonrpc_request(config, fill_db, request_data, expected_result):
 	rpc_request_data = json.dumps(request_data)
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	print(result_json)
@@ -228,7 +250,7 @@ def test_process_jsonrpc_request(fill_db, request_data, expected_result):
 		assert error.get("class") == expected_error.get("class")
 
 
-def test_create_OPSI_Client():
+def test_create_OPSI_Client(config):
 
 	request_data = {
 		"id": 1,
@@ -240,7 +262,7 @@ def test_create_OPSI_Client():
 
 	rpc_request_data = json.dumps(request_data)
 
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	print(result_json)
@@ -261,21 +283,23 @@ def test_create_OPSI_Client():
 	}
 
 	rpc_request_data = json.dumps(request_data)
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	print("RESULT1: ", result_json)
 	assert len(result_json.get("result")) == 1
 	assert result_json.get("result")[0].get("id") == "test.fabian.uib.local"
 	assert result_json.get("error") == None
-
-	db=_mysql.connect(host="mysql",user="opsi",passwd="opsi",db="opsi")
+	mysql_host = os.environ.get("MYSQL_HOST")
+	if not mysql_host:
+		mysql_host = "127.0.0.1"
+	db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi")
 	db.query('DELETE FROM HOST WHERE hostId like "test.fabian.uib.local";')
 
 
 
 	rpc_request_data = json.dumps(request_data)
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	print("RESULT2: ", result_json)
@@ -283,7 +307,7 @@ def test_create_OPSI_Client():
 	assert result_json.get("error") == None
 
 
-def test_delete_OPSI_Client(fill_db):
+def test_delete_OPSI_Client(config, fill_db):
 
 	request_data = {
 		"id": 1,
@@ -297,7 +321,7 @@ def test_delete_OPSI_Client(fill_db):
 	}
 
 	rpc_request_data = json.dumps(request_data)
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	print("RESULT1: ", result_json)
@@ -312,16 +336,16 @@ def test_delete_OPSI_Client(fill_db):
 		"params": ["pytest4.uib.gmbh"]
 	}
 	rpc_delete_request = json.dumps(delete_request)
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_delete_request, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_delete_request, verify=False)
 	assert r.status_code == 200
 	result_json = json.loads(r.text)
 	print("Del result: ", result_json)
 	
 	assert result_json.get("error") == None
-	assert result_json.get("ressult") == None
+	assert result_json.get("result") == None
 
 
-	r = requests.post(f"{OPSI_URL}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	r = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
 	result_json = json.loads(r.text)
 
 	print("RESULT2: ", result_json)

@@ -17,6 +17,7 @@ services:
       MYSQL_DATABASE: opsi
       MYSQL_USER: opsi
       MYSQL_PASSWORD: opsi
+      MYSQL_HOST: localhost
       OPSICONFD_EXTERNAL_URL: https://localhost:4447
       OPSICONFD_INTERNAL_URL: https://opsiconfd-dev:4447
       # OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@localhost:3000

@@ -349,20 +349,28 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 	asyncio.events.Handle._run = _run
 
 def init_logging(log_mode: str = "redis", is_worker: bool = False):
+	redis_error = None
 	try:
+		if log_mode not in ("redis", "local"):
+			raise ValueError(f"Invalid log mode '{log_mode}'")
+		
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
 		if log_mode == "local":
 			log_level = config.log_level_stderr
 		log_level = pylogging._opsiLevelToLevel[log_level]
 		log_handler = None
+		
 		if log_mode == "redis":
-			log_handler = RedisLogHandler(max_msg_len=int(config.log_max_msg_len))
-		elif log_mode == "local":
+			try:
+				log_handler = RedisLogHandler(max_msg_len=int(config.log_max_msg_len))
+			except Exception as err:
+				redis_error = err
+				log_mode = "local"
+		
+		if log_mode == "local":
 			log_handler = StreamHandler(stream=sys.stderr)
-		else:
-			raise ValueError(f"Invalid log mode '{log_mode}'")
+		
 		log_handler.setLevel(log_level)
-
 		logger.handlers = [log_handler]
 		logger.setLevel(log_level)
 		set_format(stderr_format=config.log_format_stderr, file_format=config.log_format_file)
@@ -385,6 +393,8 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):
 			else:
 				stop_redis_log_adapter_thread()
 		
+		if redis_error:
+			logger.critical("Failed to initalize redis logging: %s", redis_error, exc_info=True)
 		#print_logger_info()
 
 	except Exception as exc:

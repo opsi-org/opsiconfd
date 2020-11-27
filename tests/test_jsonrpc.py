@@ -196,7 +196,7 @@ jsonrpc_test_data = [
 			"notes": "pytest test data notes", 
 			"type": "OpsiClient",
 			"error": {
-				"message": "(1054, \"Unknown column 'bla' in 'field list'\")",
+				"message": "(1054, \"Invalid attribute 'bla'\")",
 				"class": "OperationalError",
 			}
 		}

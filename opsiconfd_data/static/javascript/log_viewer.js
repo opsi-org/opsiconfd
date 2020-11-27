@@ -84,7 +84,7 @@ function applyContextFilter(filter=null) {
 		contextFilterRegex = new RegExp(filter, 'i');
 	}
 	else {
-		contextFilterRegex = null;	startLog();
+		contextFilterRegex = null;
 	}
 	applyFilter();
 }

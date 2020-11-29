@@ -8,255 +8,236 @@
 	<script src="/static/javascript/msgpack.js"></script>
 	<script src="/static/javascript/log_viewer.js"></script>
 	<script src="/static/javascript/downloadconfiged.js"></script>
+
+	<script>
+		let input = document.getElementById("redis-cmd");
+	
+		input.addEventListener("keyup", function (event) {
+			// Number 13 is the "Enter" key on the keyboard
+			if (event.keyCode === 13) {
+				document.getElementById("redis-button").click();
+			}
+		});
+		
+		function onLoad() {
+			document.getElementById("startTab-button").click()
+	
+			document.getElementById("json-result").style.visibility = 'hidden';
+			document.getElementById("text-result").style.visibility = 'hidden';
+			document.getElementById("redis-result").style.visibility = 'hidden';
+	
+			document.getElementById("jsonrpc-result").style.visibility = 'hidden';
+			document.getElementById("jsonrpc-request").style.visibility = 'hidden';
+		}
+	
+		function createParamInputs() {
+			let value = document.getElementById("method-select").value;
+			// !!! use '' because json uses "" !!! 
+			let interface = '{{interface|tojson}}';
+	
+			interface = JSON.parse(interface);
+			// console.log("get_method: " + value);
+	
+			let table = document.getElementById("jsonrpc-request-table");
+			var elements = table.getElementsByClassName("param");
+			while (elements.length > 0) {
+				table.removeChild(elements[0]);
+			}
+			interface.forEach(method => {
+				if (method.name == value) {
+					method.params.forEach(param => {
+						let tr = document.createElement("tr");
+						tr.className = "param";
+						tr.innerHTML = "\
+							<td align=left><label>" + param + ": </label></td> \
+							<td><input type=\"text\" id=\"" + param + "\" name=\"" + param + "\" oninput=\"changeRequestJSON(this.name,this.value)\" /></td> \
+						";
+						table.appendChild(tr);
+					});
+				}
+			});
+			changeRequestJSON();
+		}
+	
+		function openTab(evt, tabName) {
+			// Declare all variables
+			var i, tabcontent, tablinks;
+	
+			if (tabName == "rpcInfos") {
+				loadRPCTable("rpc_num", false);
+			}
+			if (tabName == "clients") {
+				loadClientTable();
+			}
+			if (tabName == "rpcInterface") {
+				createParamInputs();
+			}
+			if (tabName == "redisInfo") {
+				loadReadisInfo();
+			}
+			if (tabName == "log-viewer") {
+				startLog();
+			}
+			else{
+				stopLog();
+			}
+	
+			// Get all elements with class="tabcontent" and hide them
+			tabcontent = document.getElementsByClassName("tabcontent");
+			for (i = 0; i < tabcontent.length; i++) {
+				tabcontent[i].style.display = "none";
+			}
+	
+			// Get all elements with class="tablinks" and remove the class "active"
+			tablinks = document.getElementsByClassName("tablinks");
+			for (i = 0; i < tablinks.length; i++) {
+				tablinks[i].className = tablinks[i].className.replace(" active", "");
+			}
+	
+			// Show the current tab, and add an "active" class to the button that opened the tab
+			document.getElementById(tabName).style.display = "block";
+			evt.currentTarget.className += " active";
+		}
+	
+	</script>
 </head>
 
 <body onload="onLoad();">
-	<div class="content">
+	<div class="header">
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
-		<div class="interface-container">
-			<h2>Admin Interface</h2>
-
-			<div class="tab">
-				<button class="tablinks" id="startTab-button" onclick="openTab(event, 'clients')">Blocked Clients</button>
-				<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
-				<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
-				<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
-				<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
-				<!-- <button class="tablinks" onclick="window.open('/metrics/grafana/dashboard','_blank')">Grafana</button> -->
-				<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
-				<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>		
-			</div>
-
-			<div id="clients" class="tabcontent">
-
-
-				<div class="adminpage-box" id="blocked-clients">
-					<h4>Blocked Clients:</h4>
-					<div id="blocked-clients-div">
-
-					</div>
-				</div>
-
-				<div class="adminpage-box">
-					<h4>Unblock Clients:</h4>
-					<table>
-						<tr>
-							<td align=left><label>Unblock all clients:</label></td>
-							<td></td>
-							<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button> </td>
-						</tr>
-						<tr>
-							<td align=left>Unblock address:</td>
-							<td><input id="clientAddr" type="text" name="clientAddr" placeholder="127.0.0.1"></td>
-							<td><input type="button" onclick="unblockClient(clientAddr.value)" value="Execute"></td>
-						</tr>
-						<tr>
-							<td align=left>Delete client sessions:</td>
-							<td><input id="sessionAddr" type="text" name="sessionAddr" placeholder="127.0.0.1"></td>
-							<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
-						</tr>
-					</table>
-				</div>
-				<div id="result">
-					<p class="json-result" id="text-result"></p>
-				</div>
-				<div id="result">
-					<pre class="json-result" id="json-result"></pre>
-				</div>
-			</div>
-
-			<div id="rpcInfos" class="tabcontent">
-
-
-				<div class="adminpage-box">
-					<h4>RPCs:</h4>
-					<br>
-					<div id="rpc-table-div">
-
-					</div>
-				</div>
-			</div>
-
-			<div id="rpcInterface" class="tabcontent">
-				<div class="adminpage-box">
-					<div>
-						<table id="jsonrpc-request-table">
-							<tr>
-								<td align=left><label>Method:</label></td>
-								<td>
-									<select id="method-select" onchange="createParamInputs()">
-										{% for method in interface %}
-										<option>{{	method.get("name") }}</option>
-										{% endfor %}
-									</select>
-								</td>
-							</tr>
-						</table>
-					</div>
-					<div id="jsonrpc-request-error">
-					</div>
-				</div>
-				<div>
-					<pre class="jsonrpc-request" id="jsonrpc-request"></pre>
-				</div>
-				<button id="jsonrpc-execute-button" onclick="callJSONRPC()">Execute</button>
-
-
-				<div id="result">
-					<pre class="jsonrpc-result" id="jsonrpc-result"></pre>
-				</div>
-			</div>
-			<div id="redisInterface" class="tabcontent">
-				<div class="adminpage-box">
-					<h4>Redis</h4>
-					<input type="text" id="redis-cmd" name="redis-cmd" size=50 />
-					<button id="redis-button" onclick="callRedis()">Execute</button>
-					<button id="redis-button" onclick="loadReadisInfo()">Info+</button>
-				</div>
-				<div class="adminpage-box">
-					<h4>Redis Cache</h4>
-					<table>
-						<tr>
-							<td align=left><label>Clear cache:</label></td>
-							<td></td>
-							<td><button id="clear-cache-button" onclick="clearRedisCache()">Execute</button> </td>
-						</tr>
-						<tr>
-							<td align=left>Clear depot cache:</td>
-							<td><input id="depotId" type="text" name="depotId" placeholder="myhost.example.com"></td>
-							<td><input type="button" onclick="clearRedisCache([depotId.value])" value="Execute"></td>
-						</tr>
-					</table>
-				</div>
-				<div id="resultRedis">
-					<pre class="redis-result" id="redis-result"></pre>
-				</div>
-			</div>
-			<div id="log-viewer" class="tabcontent">
-				<!-- <div class="adminpage-box"> -->
-					<!-- <script>
-						startLog();
-					</script> -->
-					<!--
-					<label for="log-channel">Log channel:</label>
-					<select id="log-channel">
-						<option value="">*all</option>
-					</select>
-					-->
-					<div id="log-settings">
-						<label for="log-level-filter">Filter by level:</label>
-						<input id="log-level-filter" type="number" min="1" max="9" value="9" onchange="applyLevelFilter(this.value);">
-						
-						<label for="log-context-filter">Filter by context:</label>
-						<input id="log-context-filter" type="text" onchange="applyContextFilter(this.value);"/>
-				
-						<label for="log-message-filter">Filter by message:</label>
-						<input id="log-message-filter" type="text" onchange="applyMessageFilter(this.value);"/>
-				
-						<label>Font size:</label>
-						<button id="decrease-font-size" onclick="change_font_size(-1);">-</button>
-						<button id="increase-font-size" onclick="change_font_size(+1);">+</button>
-					</div>
-					<div id="log-container" style="font-size: 14px;" />
-				<!-- </div> -->
-			</div>
-
+		<h1>opsiconfd - admin interface - {{opsi_version}}</h1>
+	</div>
+	<div class="content">
+	
+		<div class="tab">
+			<button class="tablinks" id="startTab-button" onclick="openTab(event, 'clients')">Blocked Clients</button>
+			<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
+			<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
+			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
+			<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
+			<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
+			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>		
 		</div>
-		<h6 id="opsi-version">Version: {{opsi_version}}</h6>
+
+		<div id="clients" class="tabcontent">
+			<div class="adminpage-box" id="blocked-clients">
+				<h4>Blocked Clients:</h4>
+				<div id="blocked-clients-div">
+
+				</div>
+			</div>
+
+			<div class="adminpage-box">
+				<h4>Unblock Clients:</h4>
+				<table>
+					<tr>
+						<td align=left><label>Unblock all clients:</label></td>
+						<td></td>
+						<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button> </td>
+					</tr>
+					<tr>
+						<td align=left>Unblock address:</td>
+						<td><input id="clientAddr" type="text" name="clientAddr" placeholder="127.0.0.1"></td>
+						<td><input type="button" onclick="unblockClient(clientAddr.value)" value="Execute"></td>
+					</tr>
+					<tr>
+						<td align=left>Delete client sessions:</td>
+						<td><input id="sessionAddr" type="text" name="sessionAddr" placeholder="127.0.0.1"></td>
+						<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
+					</tr>
+				</table>
+			</div>
+			<div id="result">
+				<p class="json-result" id="text-result"></p>
+			</div>
+			<div id="result">
+				<pre class="json-result" id="json-result"></pre>
+			</div>
+		</div>
+
+		<div id="rpcInfos" class="tabcontent">
+
+
+			<div class="adminpage-box">
+				<div id="rpc-table-div">
+					loading...
+				</div>
+			</div>
+		</div>
+
+		<div id="rpcInterface" class="tabcontent">
+			<div class="adminpage-box">
+				<div>
+					<table id="jsonrpc-request-table">
+						<tr>
+							<td align=left><label>Method:</label></td>
+							<td>
+								<select id="method-select" onchange="createParamInputs()">
+									{% for method in interface %}
+									<option>{{	method.get("name") }}</option>
+									{% endfor %}
+								</select>
+							</td>
+						</tr>
+					</table>
+				</div>
+				<div id="jsonrpc-request-error">
+				</div>
+			</div>
+			<div>
+				<pre class="jsonrpc-request" id="jsonrpc-request"></pre>
+			</div>
+			<button id="jsonrpc-execute-button" onclick="callJSONRPC()">Execute</button>
+
+
+			<div id="result">
+				<pre class="jsonrpc-result" id="jsonrpc-result"></pre>
+			</div>
+		</div>
+
+		<div id="redisInterface" class="tabcontent">
+			<div class="adminpage-box">
+				<h4>Redis</h4>
+				<input type="text" id="redis-cmd" name="redis-cmd" size=50 />
+				<button id="redis-button" onclick="callRedis()">Execute</button>
+				<button id="redis-button" onclick="loadReadisInfo()">Info+</button>
+			</div>
+			<div class="adminpage-box">
+				<h4>Redis Cache</h4>
+				<table>
+					<tr>
+						<td align=left><label>Clear cache:</label></td>
+						<td></td>
+						<td><button id="clear-cache-button" onclick="clearRedisCache()">Execute</button> </td>
+					</tr>
+					<tr>
+						<td align=left>Clear depot cache:</td>
+						<td><input id="depotId" type="text" name="depotId" placeholder="myhost.example.com"></td>
+						<td><input type="button" onclick="clearRedisCache([depotId.value])" value="Execute"></td>
+					</tr>
+				</table>
+			</div>
+			<div id="resultRedis">
+				<pre class="redis-result" id="redis-result"></pre>
+			</div>
+		</div>
+
+		<div id="log-viewer" class="tabcontent">
+			<div id="log-settings">
+				<label for="log-level-filter">Filter by level:</label>
+				<input id="log-level-filter" type="number" min="1" max="9" value="9" onchange="applyLevelFilter(this.value);">
+				
+				<label for="log-context-filter">Filter by context:</label>
+				<input id="log-context-filter" type="text" onchange="applyContextFilter(this.value);"/>
+		
+				<label for="log-message-filter">Filter by message:</label>
+				<input id="log-message-filter" type="text" onchange="applyMessageFilter(this.value);"/>
+		
+				<label>Font size:</label>
+				<button id="decrease-font-size" onclick="change_font_size(-1);">-</button>
+				<button id="increase-font-size" onclick="change_font_size(+1);">+</button>
+			</div>
+			<div id="log-container" style="font-size: 14px;">Loading...</div>
+		</div>
 </body>
-
 </html>
-<script>
-	let input = document.getElementById("redis-cmd");
-
-	input.addEventListener("keyup", function (event) {
-		// Number 13 is the "Enter" key on the keyboard
-		if (event.keyCode === 13) {
-			// event.preventDefault();
-			document.getElementById("redis-button").click();
-		}
-	});
-
-
-
-	function onLoad() {
-		document.getElementById("startTab-button").click()
-
-		document.getElementById("json-result").style.visibility = 'hidden';
-		document.getElementById("text-result").style.visibility = 'hidden';
-		document.getElementById("redis-result").style.visibility = 'hidden';
-
-		document.getElementById("jsonrpc-result").style.visibility = 'hidden';
-		document.getElementById("jsonrpc-request").style.visibility = 'hidden';
-	}
-
-	function createParamInputs() {
-		let value = document.getElementById("method-select").value;
-		// !!! use '' because json uses "" !!! 
-		let interface = '{{interface|tojson}}';
-
-		interface = JSON.parse(interface);
-		// console.log("get_method: " + value);
-
-		let table = document.getElementById("jsonrpc-request-table");
-		var elements = table.getElementsByClassName("param");
-		while (elements.length > 0) {
-			table.removeChild(elements[0]);
-		}
-		interface.forEach(method => {
-			if (method.name == value) {
-				method.params.forEach(param => {
-					let tr = document.createElement("tr");
-					tr.className = "param";
-					tr.innerHTML = "\
-						<td align=left><label>" + param + ": </label></td> \
-						<td><input type=\"text\" id=\"" + param + "\" name=\"" + param + "\" oninput=\"changeRequestJSON(this.name,this.value)\" /></td> \
-					";
-					table.appendChild(tr);
-				});
-			}
-		});
-		changeRequestJSON();
-	}
-
-	function openTab(evt, tabName) {
-		// Declare all variables
-		var i, tabcontent, tablinks;
-
-		if (tabName == "rpcInfos") {
-			loadRPCTable("rpc_num", false);
-		}
-		if (tabName == "clients") {
-			loadClientTable();
-		}
-		if (tabName == "rpcInterface") {
-			createParamInputs();
-		}
-		if (tabName == "redisInfo") {
-			loadReadisInfo();
-		}
-		if (tabName == "log-viewer") {
-			startLog();
-		}
-		else{
-			stopLog();
-		}
-
-		// Get all elements with class="tabcontent" and hide them
-		tabcontent = document.getElementsByClassName("tabcontent");
-		for (i = 0; i < tabcontent.length; i++) {
-			tabcontent[i].style.display = "none";
-		}
-
-		// Get all elements with class="tablinks" and remove the class "active"
-		tablinks = document.getElementsByClassName("tablinks");
-		for (i = 0; i < tablinks.length; i++) {
-			tablinks[i].className = tablinks[i].className.replace(" active", "");
-		}
-
-		// Show the current tab, and add an "active" class to the button that opened the tab
-		document.getElementById(tabName).style.display = "block";
-		evt.currentTarget.className += " active";
-	}
-
-</script>

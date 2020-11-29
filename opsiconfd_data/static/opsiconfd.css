@@ -87,25 +87,25 @@ li {
 }
 .rpc-td {
 	font-size: 12px; 
-	border: 1px #6276a0 solid; 
+	border: 1px #0068aa solid; 
 	text-align: left; 
 	padding: 2px 10px 2px 10px; 
 	color: #000000
 }
 .rpc-error-td {
 	font-size: 12px; 
-	border: 1px #6276a0 solid; 
+	border: 1px #0068aa solid; 
 	text-align: left; 
 	padding: 2px 10px 2px 10px;
 	color: #dc322b
 }
 .rpc-th{
 	font-size: 12px; 
-	border: 1px #6276a0 solid; 
+	border: 1px #0068aa solid; 
 	text-align: left; 
 	padding: 2px 10px 2px 10px; 
 	color: #eeeeee; 
-	background-color: #6276a0;
+	background-color: #0068aa;
 }
 
 /* Style the tab */

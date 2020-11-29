@@ -185,7 +185,7 @@ function startLog() {
 				element = addRecordToLog(records[i]);
 			}
 			if (scrollToBottom && element) {
-				element.scrollIntoView({block: "end", behavior: "auto"});
+				element.scrollIntoView({block: "nearest", behavior: "auto", inline: 'start'});
 			}
 		});
 		

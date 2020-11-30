@@ -228,7 +228,7 @@ function loadRPCTable(sortKey, sort) {
 }
 
 
-function loadReadisInfo() {
+function loadRedisInfo() {
 	let request = new XMLHttpRequest();
 	request.open("GET", "/redis-interface/redis-stats");
 	request.addEventListener('load', function (event) {

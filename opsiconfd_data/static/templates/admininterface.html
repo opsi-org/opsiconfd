@@ -10,16 +10,16 @@
 	<script src="/static/javascript/downloadconfiged.js"></script>
 
 	<script>
-		let input = document.getElementById("redis-cmd");
-	
-		input.addEventListener("keyup", function (event) {
-			// Number 13 is the "Enter" key on the keyboard
-			if (event.keyCode === 13) {
-				document.getElementById("redis-button").click();
-			}
-		});
-		
 		function onLoad() {
+			let input = document.getElementById("redis-cmd");
+	
+			input.addEventListener("keyup", function (event) {
+				// Number 13 is the "Enter" key on the keyboard
+				if (event.keyCode === 13) {
+					document.getElementById("redis-button").click();
+				}
+			});
+			
 			document.getElementById("startTab-button").click()
 	
 			document.getElementById("json-result").style.visibility = 'hidden';
@@ -73,7 +73,7 @@
 				createParamInputs();
 			}
 			if (tabName == "redisInfo") {
-				loadReadisInfo();
+				loadRedisInfo();
 			}
 			if (tabName == "log-viewer") {
 				startLog();
@@ -200,7 +200,7 @@
 				<h4>Redis</h4>
 				<input type="text" id="redis-cmd" name="redis-cmd" size=50 />
 				<button id="redis-button" onclick="callRedis()">Execute</button>
-				<button id="redis-button" onclick="loadReadisInfo()">Info+</button>
+				<button id="redis-button" onclick="loadRedisInfo()">Info+</button>
 			</div>
 			<div class="adminpage-box">
 				<h4>Redis Cache</h4>

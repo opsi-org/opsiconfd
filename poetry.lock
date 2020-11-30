@@ -1163,29 +1163,29 @@ version = "4.2.0.100"
 description = "The opsi python library"
 category = "main"
 optional = false
-python-versions = ">=3.7,<4.0"
+python-versions = "^3.7"
+develop = false
 
 [package.dependencies]
-colorlog = ">=4.2.1,<5.0.0"
-distro = {version = ">=1.5.0,<2.0.0", markers = "sys_platform == \"linux\""}
-ldap3 = ">=2.8.1,<3.0.0"
-mysqlclient = {version = ">=1.4.6,<2.0.0", markers = "sys_platform == \"linux\""}
-pefile = ">=2019.4.18,<2020.0.0"
-psutil = ">=5.7.0,<6.0.0"
-pyasn1 = ">=0.4.8,<0.5.0"
-pycryptodome = ">=3.9.7,<4.0.0"
-pyOpenSSL = ">=19.1.0,<20.0.0"
-python-pam = ">=1.8.4,<2.0.0"
-pywin32 = {version = ">=227,<228", markers = "sys_platform == \"win32\""}
-ruyaml = ">=0.19.2,<0.20.0"
-SQLAlchemy = ">=1.3.15,<2.0.0"
-twisted = {version = ">=20.3.0,<21.0.0", extras = ["tls"]}
-wmi = {version = ">=1.5.1,<2.0.0", markers = "sys_platform == \"win32\""}
+colorlog = "^4.2.1"
+distro = {version = "^1.5.0", markers = "sys_platform == \"linux\""}
+ldap3 = "^2.8.1"
+mysqlclient = {version = "^1.4.6", markers = "sys_platform == \"linux\""}
+pefile = "^2019.4.18"
+psutil = "^5.7.0"
+pyasn1 = "^0.4.8"
+pycryptodome = "^3.9.7"
+pyOpenSSL = "^19.1.0"
+python-pam = "^1.8.4"
+pywin32 = {version = "^227", markers = "sys_platform == \"win32\""}
+ruyaml = "^0.19.2"
+SQLAlchemy = "^1.3.15"
+twisted = {version = "^20.3.0", extras = ["tls"]}
+wmi = {version = "^1.5.1", markers = "sys_platform == \"win32\""}
 
 [package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
+type = "directory"
+url = "python-opsi"
 
 [[package]]
 name = "python-pam"
@@ -1702,7 +1702,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "be918b20f7c4e48051c49b1b83abccf40340e0cf88263279674cae5290b25b9b"
+content-hash = "b488f33d2ecbc61421a61968d95b6eca45ae4bfb3fc113f22db49a7dfe4a558d"
 
 [metadata.files]
 aiofiles = [
@@ -2320,10 +2320,7 @@ python-magic = [
     {file = "python-magic-0.4.18.tar.gz", hash = "sha256:b757db2a5289ea3f1ced9e60f072965243ea43a2221430048fd8cacab17be0ce"},
     {file = "python_magic-0.4.18-py2.py3-none-any.whl", hash = "sha256:356efa93c8899047d1eb7d3eb91e871ba2f5b1376edbaf4cc305e3c872207355"},
 ]
-python-opsi = [
-    {file = "python-opsi-4.2.0.100.tar.gz", hash = "md5:a19cccc1008cb7338350af97caf110cc"},
-    {file = "python_opsi-4.2.0.100-py3-none-any.whl", hash = "md5:36b4e8f242155decbe679178c540ade5"},
-]
+python-opsi = []
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},
     {file = "python_pam-1.8.4-py2.py3-none-any.whl", hash = "sha256:8439b470b564ac558585b5a3ffce0fce48d1eeebdff19add48279c33de7da0e0"},

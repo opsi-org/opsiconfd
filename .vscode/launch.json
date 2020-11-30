@@ -6,21 +6,21 @@
 			"type":"python",
 			"request":"launch",
 			"module":"opsiconfd", 
-			"args": ["--workers=1","--log-level-stderr=5", "--static-dir=/workspace/opsiconfd_data/static"], 
+			"args": ["--workers=1","--log-level-stderr=5", "--static-dir=${workspaceFolder}/opsiconfd_data/static"], 
 		},
 		{
 			"name":"opsiconfd",
 			"type":"python",
 			"request":"launch",
 			"module":"opsiconfd", 
-			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=/workspace/opsiconfd_data/static"]
+			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"]
 		},
 		{
 			"name":"opsiconfd setup",
 			"type":"python",
 			"request":"launch",
 			"module":"opsiconfd", 
-			"args": ["setup", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=/workspace/opsiconfd_data/static"]
+			"args": ["setup", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"]
 		}	
 	],
 	"inputs": [

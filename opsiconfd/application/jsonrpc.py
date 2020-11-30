@@ -350,7 +350,7 @@ async def process_jsonrpc(request: Request, response: Response):
 		error = {
 			"message": str(e),
 			"class": e.__class__.__name__,
-			"details": None 
+			"details": details 
 		}
 		response.status_code = 400
 		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]
@@ -457,13 +457,17 @@ def process_rpc(request: Request, response: Response, rpc, backend):
 		return [response, end - start, rpc, "rpc"]
 	except Exception as e:
 		logger.error(e, exc_info=True)
-		tb = traceback.format_exc()
 		error = {"message": str(e), "class": e.__class__.__name__}
 		rpc["date"] = rpc_call_time
 		rpc["client"] = request.client.host
-		# TODO: config
-		if True:
-			error["details"] = str(tb)
+		details = None
+		try:
+			session = contextvar_client_session.get()
+			if session and session.user_store.isAdmin:
+				details = str(traceback.format_exc())
+		except Exception as se:
+			logger.warning(se, exc_info=True)
+		error["details"] = details
 		return [{"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}, 0, rpc, "rpc"]
 		
 def read_redis_cache(request: Request, response: Response, rpc):
@@ -497,12 +501,15 @@ def read_redis_cache(request: Request, response: Response, rpc):
 		return [response, end - start, rpc, "redis"]
 	except Exception as e:
 		logger.error(e, exc_info=True)
-		tb = traceback.format_exc()
 		error = {"message": str(e), "class": e.__class__.__name__}
-		# TODO: config
 		rpc["date"] = now
 		rpc["client"] = request.client.host
-		if True:
-			error["details"] = str(tb)
+		details = None
+		try:
+			session = contextvar_client_session.get()
+			if session and session.user_store.isAdmin:
+				details = str(traceback.format_exc())
+		except Exception as se:
+			logger.warning(se, exc_info=True)
+		error["details"] = details
 		return [{"jsonrpc": "2.0", "id": rpc.get('id'), "result": None, "error": error}, 0, rpc, "redis"]
-		

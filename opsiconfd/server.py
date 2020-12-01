@@ -21,9 +21,12 @@
 :license: GNU Affero General Public License version 3
 """
 
+import sys
+import socket
 import gunicorn
 import gunicorn.app.base
 import uvicorn
+import uvicorn.config
 
 from . import __version__
 from .logging import GunicornLoggerSetup, logger
@@ -109,6 +112,22 @@ def run_gunicorn():
 	GunicornApplication(app, options).run()
 	logger.notice("gunicorn server exited")
 
+
+uvicorn.config.Config.bind_socket_orig = uvicorn.config.Config.bind_socket
+def bind_socket(self):
+	# This is only used for multi worker configs
+	ipv6 = ":" in self.host
+	sock = socket.socket(family=socket.AF_INET6 if ipv6 else socket.AF_INET)
+	sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	try:
+		sock.bind((self.host, self.port))
+	except OSError as exc:
+		logger.error(exc)
+		sys.exit(1)
+	sock.set_inheritable(True)
+	return sock
+uvicorn.config.Config.bind_socket = bind_socket
+
 def run_uvicorn():
 	options = {
 		"interface": "asgi3",
@@ -122,6 +141,8 @@ def run_uvicorn():
 			["Server", f"opsiconfd {__version__} (uvicorn)"]
 		]
 	}
+	if config.workers == 1 and config.interface == "::":
+		options["host"] = ["::", "0.0.0.0"]
 	if config.ssl_server_key and config.ssl_server_cert:
 		options["ssl_keyfile"] = config.ssl_server_key
 		options["ssl_certfile"] = config.ssl_server_cert

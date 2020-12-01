@@ -27,6 +27,7 @@ import socket
 import psutil
 import string
 import random
+import ipaddress
 from dns import resolver, reversename
 
 logger = None
@@ -137,6 +138,14 @@ def decode_redis_result(_obj):
 			_obj.remove(v)
 			_obj.add(decode_redis_result(v))
 	return _obj
+
+def normalize_ip_address(address, exploded=False):
+	address = ipaddress.ip_address(address)
+	if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+		address = address.ipv4_mapped
+	if exploded:
+		return address.exploded
+	return address.compressed
 
 def get_ip_addresses():
 	for interface, snics in psutil.net_if_addrs().items():

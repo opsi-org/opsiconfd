@@ -26,6 +26,7 @@ import sys
 import codecs
 import getpass
 import socket
+import ipaddress
 import configargparse
 from typing import Union
 from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_OR_MORE
@@ -113,9 +114,17 @@ def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 	config.reload()
 
 def network_address(value):
-	if not re.search(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/\d\d?$", value):
+	try:
+		ipaddress.ip_network(value)
+	except ValueError as e:
 		raise ArgumentTypeError(f"Invalid network address: {value}")
 	return value
+
+def ip_address(value):
+	try:
+		return ipaddress.ip_address(value).compressed
+	except ValueError as e:
+		raise ArgumentTypeError(f"Invalid ip address: {value}")
 
 def expert_help(help):
 	if "--ex-help" in sys.argv:
@@ -375,6 +384,7 @@ parser.add(
 )
 parser.add(
 	"--interface",
+	type=ip_address,
 	env_var="OPSICONFD_INTERFACE",
 	default="0.0.0.0",
 	help="The network interface to bind to (ip address of an network interface)."

@@ -62,7 +62,10 @@ from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
 from .logging import logger, secret_filter, set_context
-from .worker import sync_redis_client, get_redis_client, contextvar_client_session, contextvar_server_timing, run_in_threadpool
+from .worker import (
+	sync_redis_client, get_redis_client, run_in_threadpool,
+	contextvar_client_address, contextvar_client_session, contextvar_server_timing
+)
 from .backend import get_client_backend
 from .config import config
 
@@ -137,18 +140,19 @@ class SessionMiddleware:
 		session = None
 		# TODO: Check client.host with trusted reverse proxy and set it here to HTTP_X_FORWARDED_FOR if needed
 		# https://github.com/encode/starlette/issues/234
-		set_context({"client_address": connection.client.host})
+		client_address = connection.client.host
+		set_context({"client_address": client_address})
 		logger.trace("SessionMiddleware %s", scope)
 		try:
 			if config.networks:
 				is_allowed_network = False
 				for network in config.networks:
-					if ipAddressInNetwork(connection.client.host, network):
+					if ipAddressInNetwork(client_address, network):
 						is_allowed_network = True
 						break
 				
 				if not is_allowed_network:
-					raise ConnectionRefusedError(f"Host '{connection.client.host}' is not allowed to connect")
+					raise ConnectionRefusedError(f"Host '{client_address}' is not allowed to connect")
 			
 			redis_client = await get_redis_client()
 			if scope["type"] not in ("http", "websocket"):

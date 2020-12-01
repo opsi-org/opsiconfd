@@ -31,9 +31,6 @@ import urllib.parse
 import orjson
 import asyncio
 import datetime
-import contextvars
-contextvar_client_address = contextvars.ContextVar("client_address", default=None)
-contextvar_client_session = contextvars.ContextVar("client_session", default=None)
 
 from fastapi import HTTPException, APIRouter
 from fastapi.requests import Request
@@ -43,7 +40,10 @@ from OPSI.Util import serialize, deserialize
 
 from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface
-from ..worker import run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, contextvar_request_id, get_redis_client, sync_redis_client
+from ..worker import (
+	run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, get_redis_client, sync_redis_client,
+	contextvar_client_address, contextvar_client_session, contextvar_request_id
+)
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
 from ..utils import decode_redis_result
 

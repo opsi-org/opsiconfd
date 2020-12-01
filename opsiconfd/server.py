@@ -84,7 +84,7 @@ def run_gunicorn():
 	from .application import app
 	# https://docs.gunicorn.org/en/stable/settings.html
 	options = {
-		"bind": [f"{iface}:{config.port}" for iface in config.interfaces],
+		"bind": f"{config.interface}:{config.port}",
 		"reuse_port": True,
 		"workers": config.workers,
 		#"worker_class": "uvicorn.workers.UvicornWorker",
@@ -113,7 +113,7 @@ def run_uvicorn():
 	options = {
 		"interface": "asgi3",
 		"http": "h11",#"httptools"
-		"host": config.interfaces,
+		"host": config.interface,
 		"port": config.port,
 		"workers": config.workers,
 		"log_config": None,

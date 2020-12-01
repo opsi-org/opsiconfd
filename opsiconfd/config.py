@@ -50,7 +50,7 @@ def upgrade_config_files():
 		"log level": "log-level",
 		"monitoring user": "monitoring-user",
 		"monitoring debug": "monitoring-debug",
-		"interface": "interfaces",
+		"interface": "interface",
 		"https port": "port",
 		"ssl server cert": "ssl-server-cert",
 		"ssl server key": "ssl-server-key",
@@ -374,11 +374,10 @@ parser.add(
 	help="The external base url."
 )
 parser.add(
-	"--interfaces",
-	nargs="+",
-	env_var="OPSICONFD_INTERFACES",
-	default=["0.0.0.0"],
-	help="A list of network interfaces to bind to (ip address of an network interface)."
+	"--interface",
+	env_var="OPSICONFD_INTERFACE",
+	default="0.0.0.0",
+	help="The network interface to bind to (ip address of an network interface)."
 		+ "Use 0.0.0.0 to listen on all ipv4 interfaces"
 )
 parser.add(

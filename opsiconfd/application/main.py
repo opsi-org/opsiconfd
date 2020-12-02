@@ -26,6 +26,7 @@ import asyncio
 import urllib
 import datetime
 from ctypes import c_long
+from OpenSSL import crypto
 
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
@@ -125,6 +126,19 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
 	app.is_shutting_down = True
+
+
+@app.get("/ssl/opsi-cacert.pem")
+def get_ssl_ca_cert(request: Request):
+	with open(config.ssl_ca_cert) as f:
+		cacert = crypto.load_certificate(crypto.FILETYPE_PEM, f.read())
+		return Response(
+			content=crypto.dump_certificate(crypto.FILETYPE_PEM, cacert),
+			headers={
+				"Content-Type": "application/x-pem-file",
+				"Content-Disposition": 'attachment; filename="opsi-cacert.pem"'
+			}
+		)
 
 
 class BaseMiddleware:

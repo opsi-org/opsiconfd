@@ -33,7 +33,6 @@ import copy
 import redis
 from contextvars import ContextVar
 from typing import Dict, List
-from ctypes import c_long
 import yappi
 from yappi import YFuncStats
 from redis import ResponseError as RedisResponseError
@@ -52,8 +51,7 @@ from .worker import (
 )
 from .config import config
 from .utils import (
-	Singleton, normalize_ip_address,
-	get_worker_processes, get_node_name, get_worker_num
+	Singleton, get_worker_processes, get_node_name, get_worker_num
 )
 from .grafana import GrafanaPanelConfig
 
@@ -526,16 +524,6 @@ class StatisticsMiddleware(BaseHTTPMiddleware):
 			return
 		
 		start = time.perf_counter()
-		request_id = id(scope)
-		# Longs on Windows are only 32 bits, but memory adresses on 64 bit python are 64 bits
-		request_id = abs(c_long(request_id).value) # Ensure it fits inside a long, truncating if necessary
-		scope['request_id'] = request_id
-		scope["client"] = (
-			normalize_ip_address(scope["client"][0]),
-			scope["client"][1]
-		)
-		contextvar_request_id.set(request_id)
-		contextvar_client_address.set(scope["client"][0])
 		contextvar_server_timing.set({})
 
 		# logger.debug("Client Addr: %s", contextvar_client_address.get())

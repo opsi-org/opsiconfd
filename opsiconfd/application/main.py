@@ -25,9 +25,11 @@ import os
 import asyncio
 import urllib
 import datetime
+from ctypes import c_long
 
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
@@ -36,9 +38,13 @@ from websockets.exceptions import ConnectionClosedOK
 
 from ..logging import logger
 from ..config import config
-from ..worker import get_redis_client, init_worker
+from ..worker import (
+	get_redis_client, init_worker,
+	contextvar_request_id, contextvar_client_address
+)
 from ..session import SessionMiddleware
 from ..statistics import StatisticsMiddleware
+from ..utils import normalize_ip_address
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
 from .webdav import webdav_setup
@@ -120,29 +126,55 @@ async def startup_event():
 async def shutdown_event():
 	app.is_shutting_down = True
 
-#@app.exception_handler(StarletteHTTPException)
-#async def http_exception_handler(request, exc):
-#    return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
-"""
-@app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exception: Exception):
-	print("==============================exception_handler=====================================")
-	return PlainTextResponse(str(exception.detail), status_code=exception.status_code)
-	#return Response(content=str(exception), status_code=500, media_type='application/json')
-	#return JSONResponse(content={'error': str(exception)}, status_code=500)
-	#return JSONResponse(content={'error': str(exception)}, status_code=200)
 
-def http_exception(self, request: Request, exc: HTTPException) -> Response:
-	print("==============================http_exception=====================================")
-	if exc.status_code in {204, 304}:
-		return Response(b"", status_code=exc.status_code)
-	return PlainTextResponse(exc.detail, status_code=exc.status_code)
+class BaseMiddleware:
+	def __init__(self, app: ASGIApp) -> None:
+		self.app = app
+	
+	async def __call__(self, scope, receive, send):
+		if scope["type"] in ("http", "websocket"):
+			# Generate request id and store in contextvar
+			request_id = id(scope)
+			# Longs on Windows are only 32 bits, but memory adresses on 64 bit python are 64 bits
+			# Ensure it fits inside a long, truncating if necessary
+			request_id = abs(c_long(request_id).value)
+			scope["request_id"] = request_id
+			contextvar_request_id.set(request_id)
+			
+			# Sanitize client address
+			client_addr = scope.get("client")
+			client_host = client_addr[0] if client_addr else None
+			client_port = client_addr[1] if client_addr else 0
 
-def error_response(self, request: Request, exc: Exception) -> Response:
-	print("==============================error_response=====================================")
-	return PlainTextResponse("Internal Server Error", status_code=500)
-"""
+			if client_host in config.trusted_proxies:
+				proxy_host = normalize_ip_address(client_host)
+				# from uvicorn/middleware/proxy_headers.py
+				headers = dict(scope["headers"])
+				#if b"x-forwarded-proto" in headers:
+				#	# Determine if the incoming request was http or https based on
+				#	# the X-Forwarded-Proto header.
+				#	x_forwarded_proto = headers[b"x-forwarded-proto"].decode("ascii")
+				#	scope["scheme"] = x_forwarded_proto.strip()
 
+				if b"x-forwarded-for" in headers:
+					# Determine the client address from the last trusted IP in the
+					# X-Forwarded-For header. We've lost the connecting client's port
+					# information by now, so only include the host.
+					x_forwarded_for = headers[b"x-forwarded-for"].decode("ascii")
+					client_host = x_forwarded_for.split(",")[-1].strip()
+					client_port = 0
+					logger.debug(
+						"Accepting x-forwarded-for header (host=%s) from trusted proxy %s",
+						client_host, proxy_host
+					)
+			
+			if client_host:
+				# Normalize ip address
+				client_host = normalize_ip_address(client_host)
+			scope["client"] = (client_host, client_port)
+			contextvar_client_address.set(client_host)
+
+		return await self.app(scope, receive, send)
 
 def application_setup():
 	FileResponse.chunk_size = 32*1024 # speeds up transfer of big files massively, original value is 4*1024
@@ -160,6 +192,7 @@ def application_setup():
 	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana", "/ws/test"])
 	#app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
+	app.add_middleware(BaseMiddleware)
 	if os.path.isdir(config.static_dir):
 		app.mount("/static", StaticFiles(directory=config.static_dir), name="static")
 	else:

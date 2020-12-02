@@ -30,6 +30,8 @@ import random
 import ipaddress
 from dns import resolver, reversename
 
+from OPSI.Types import forceFqdn
+
 logger = None
 def get_logger():
 	global logger
@@ -162,6 +164,15 @@ def get_ip_addresses():
 				"interface": interface,
 				"address": snic.address
 			}
+
+def get_fqdn(name=''):
+	if not name:
+		try:
+			return forceFqdn(os.environ["OPSI_HOSTNAME"])
+		except KeyError:
+			# not set in environment.
+			pass
+	return forceFqdn(socket.getfqdn(name))
 
 def get_random_string(length):
 	letters = string.ascii_letters

@@ -56,7 +56,6 @@ from starlette.requests import HTTPConnection, Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from aredis.exceptions import ResponseError
-from OPSI.Util import getfqdn
 from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
@@ -68,6 +67,7 @@ from .worker import (
 )
 from .backend import get_client_backend
 from .config import config
+from .utils import get_fqdn
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 def get_basic_auth(headers: Headers):
@@ -164,7 +164,7 @@ class SessionMiddleware:
 			
 			if scope["path"] == "/admin" or scope["path"] == "/":
 				request = Request(scope, receive)
-				fqdn = getfqdn()
+				fqdn = get_fqdn()
 				hostname = request.base_url.hostname
 				if ("localhost" in hostname or "127.0.0.1" in hostname) and request.base_url.hostname != fqdn:
 					url = f"https://{fqdn}:{request.url.port}/admin"

@@ -20,13 +20,12 @@ from fastapi.templating import Jinja2Templates
 from OPSI import __version__ as python_opsi_version
 from .. import __version__
 
-from OPSI.Util import getfqdn
 from ..session import OPSISession
 from ..logging import logger
 from ..config import config
 from ..backend import get_client_backend, get_backend_interface
 from ..worker import get_redis_client
-from ..utils import get_random_string
+from ..utils import get_random_string, get_fqdn
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
@@ -174,7 +173,7 @@ async def get_blocked_clients() -> list:
 @admin_interface_router.get("/grafana")
 def open_grafana(request: Request):
 
-	fqdn = getfqdn()
+	fqdn = get_fqdn()
 	if request.base_url.hostname != fqdn:
 		url = f"https://{fqdn}:{request.url.port}/admin/grafana"
 		response = RedirectResponse(url=url)

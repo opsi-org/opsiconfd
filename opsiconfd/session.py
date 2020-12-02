@@ -138,8 +138,6 @@ class SessionMiddleware:
 		start = time.perf_counter()
 		connection = HTTPConnection(scope)
 		session = None
-		# TODO: Check client.host with trusted reverse proxy and set it here to HTTP_X_FORWARDED_FOR if needed
-		# https://github.com/encode/starlette/issues/234
 		client_address = connection.client.host
 		set_context({"client_address": client_address})
 		logger.trace("SessionMiddleware %s", scope)

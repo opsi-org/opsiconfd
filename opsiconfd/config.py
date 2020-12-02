@@ -247,7 +247,7 @@ parser.add(
 	"--networks",
 	nargs="+",
 	env_var="OPSICONFD_NETWORKS",
-	default=["0.0.0.0/0"],
+	default=["0.0.0.0/0", "::/0"],
 	type=network_address,
 	help="A list of network addresses from which connections are allowed."
 )
@@ -255,9 +255,17 @@ parser.add(
 	"--admin-networks",
 	nargs="+",
 	env_var="OPSICONFD_ADMIN_NETWORKS",
-	default=["0.0.0.0/0"],
+	default=["0.0.0.0/0", "::/0"],
 	type=network_address,
 	help="A list of network addresses from which administrative connections are allowed."
+)
+parser.add(
+	"--trusted-proxies",
+	nargs="+",
+	env_var="OPSICONFD_TRUSTED_PROXIES",
+	default=["127.0.0.1", "::1"],
+	type=ip_address,
+	help="A list of trusted reverse proxy addresses."
 )
 parser.add(
 	"--log-mode",

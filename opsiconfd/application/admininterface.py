@@ -224,10 +224,3 @@ def open_grafana(request: Request):
 	response = RedirectResponse(url=url)
 	response.set_cookie(key="grafana_session",value=session.cookies.get_dict().get("grafana_session"))
 	return response
-	
-
-def get_num_from_key(key):
-	num = key.decode("utf8").split(":")[-2]
-	return int(num)
-
-

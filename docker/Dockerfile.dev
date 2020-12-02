@@ -2,6 +2,7 @@
 FROM python:3.7-buster as opsiconfd_development_build
 
 ARG DOCKER_ENV
+ARG USER
 
 ENV DOCKER_ENV=${DOCKER_ENV} \
 	# python:
@@ -17,8 +18,8 @@ ENV DOCKER_ENV=${DOCKER_ENV} \
 	# poetry:
 	POETRY_VERSION=1.1.2\
 	# redis
-	REDIS_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/
-
+	REDIS_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/ \
+	DEV_USER=${USER}
 
 # System deps:
 RUN apt-get update \
@@ -34,6 +35,7 @@ RUN apt-get update \
 		psmisc \
 		librsync1 \	
 		sqlite3 \
+		sudo \
 	&& pip install "poetry==$POETRY_VERSION"
 
 # grafana 
@@ -68,6 +70,7 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 	&& rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
 COPY docker/files/ /
+COPY docker/files/root/.bashrc /home/{DEV_USER}
 
 # Setup poetry
 WORKDIR /workspace
@@ -79,6 +82,13 @@ RUN groupadd pcpatch \
 	&& echo "adminuser:adminuser" | chpasswd \
 	&& adduser adminuser pcpatch \
 	&& adduser adminuser opsiadmin \
+	&& useradd --create-home ${DEV_USER}\
+	&& echo "${DEV_USER}:adminuser" | chpasswd \
+	&& adduser ${DEV_USER} pcpatch \
+	&& adduser ${DEV_USER} opsiadmin \
+	&& adduser ${DEV_USER} sudo \
+	&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
+	&& usermod --shell /bin/bash ${DEV_USER} \
 	&& cp -r /root/.bash* /home/adminuser/
 
 RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "/C=DE/ST=RP/L=Mainz/O=uib/OU=root/CN=bonifax.uib.local/emailAddress=info@uib.de" \
@@ -94,3 +104,9 @@ RUN chmod +x "/docker-entrypoint.sh" \
 	&& chmod +x "/setup-mysql.sh" \
 	&& mkdir tftpboot
 
+RUN echo "###################"
+RUN echo USER
+RUN echo ${USER}
+RUN echo DEV_USER
+RUN echo ${DEV_USER}
+RUN echo "###################"

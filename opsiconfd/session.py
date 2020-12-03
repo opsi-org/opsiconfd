@@ -206,7 +206,7 @@ class SessionMiddleware:
 							logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
 							await redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
 					if is_blocked:
-						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked for {(config.client_block_time/60):.2f} minutes!")
+						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
 					
 					# Authenticate
 					logger.info("Start authentication of client %s", connection.client.host)

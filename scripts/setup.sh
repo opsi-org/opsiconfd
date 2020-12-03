@@ -7,5 +7,6 @@ grep -v "127.0.0.1" /etc/hosts >>/tmp/hosts
 cp /tmp/hosts /etc/hosts
 rm /tmp/hosts
 
-/setup-grafana.sh
-/setup-mysql.sh
+
+/workspace/scripts/setup-grafana.sh
+/workspace/scripts/setup-mysql.sh

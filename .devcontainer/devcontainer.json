@@ -11,7 +11,8 @@
 	},
 	"settings": { 
 		"terminal.integrated.shell.linux": "/bin/bash",
-		"python.pythonPath": ".venv/bin/python"
+		"python.pythonPath": ".venv/bin/python",
+		"python.terminal.activateEnvironment": false
 	},
 	"extensions": [
 		"ms-azuretools.vscode-docker",

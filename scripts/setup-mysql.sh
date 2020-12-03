@@ -8,9 +8,13 @@ echo $MYSQL_PASSWORD
 
 service mysql start
 
+
+awk -v var="password" -v new_val=$MYSQL_ROOT_PASSWORD 'BEGIN{FS=OFS="="}match($1, "^\\s*" var "\\s*") {$2=" " new_val}1' /etc/mysql/debian.cnf | sudo tee /etc/mysql/debian.cnf
+
 echo "set mysql root pw"
 sudo mysqladmin -u root --password=$MYSQL_OLD_ROOT_PASSWORD password $MYSQL_ROOT_PASSWORD
-mysql -u root --password=$MYSQL_ROOT_PASSWORD -e "DELETE FROM mysql.user WHERE User=''"
+# mysql -u root --password=$MYSQL_ROOT_PASSWORD  -e "UPDATE mysql.user SET Password=PASSWORD('$MYSQL_ROOT_PASSWORD') WHERE User='root'"
+# mysql -u root --password=$MYSQL_ROOT_PASSWORD -e "DELETE FROM mysql.user WHERE User=''"
 echo "remove test db"
 mysql -u root --password=$MYSQL_ROOT_PASSWORD -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'"
 echo "FLUSH"
@@ -25,6 +29,6 @@ mysql -u root --password=$MYSQL_ROOT_PASSWORD -e "CREATE DATABASE $MYSQL_DATABAS
 
 echo 'Restore opsi database' 
 echo $OPSI_HOSTNAME
-zcat /opsi.sql.gz | sed 's/bonifax.uib.local/'$OPSI_HOSTNAME'/g'  | mariadb -h localhost -u opsi --password=opsi opsi
+zcat /opsi.sql.gz | sed 's/bonifax.uib.local/'$OPSI_HOSTNAME'/g'  | mariadb -h localhost -u $MYSQL_USER --password=$MYSQL_PASSWORD $MYSQL_DATABASE
 
 service mysql stop

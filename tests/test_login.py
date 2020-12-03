@@ -111,7 +111,7 @@ def test_max_auth(config):
 		print(r.status_code)
 		if i >= 12:
 			assert r.status_code == 403
-			assert r.text == f"Client '{LOCAL_IP}' is blocked for 2.00 minutes!"
+			assert r.text == f"Client '{LOCAL_IP}' is blocked"
 	time.sleep(120)
 	r = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
 	assert r.status_code == 200

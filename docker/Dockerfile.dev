@@ -1,4 +1,3 @@
-# https://github.com/wemake-services/wemake-django-template/blob/master/%7B%7Bcookiecutter.project_name%7D%7D/docker/django/Dockerfile
 FROM python:3.7-buster as opsiconfd_development_build
 
 ARG DOCKER_ENV
@@ -20,6 +19,7 @@ ENV DOCKER_ENV=${DOCKER_ENV} \
 	# redis
 	REDIS_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/ \
 	DEV_USER=${USER}
+
 
 # System deps:
 RUN apt-get update \
@@ -65,31 +65,34 @@ RUN apt-get update \
 		redis-server \
 		redis-timeseries
 		
-RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
-	&& tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
-	&& rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+# RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+# 	&& tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+# 	&& rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
 COPY docker/files/ /
-COPY docker/files/root/.bashrc /home/{DEV_USER}
+# COPY docker/files/root/.bashrc /home/{DEV_USER}
 
 # Setup poetry
 WORKDIR /workspace
 
-RUN groupadd pcpatch \
+RUN useradd --create-home -s /bin/bash ${DEV_USER} \
+	&& groupadd pcpatch \
 	&& groupadd opsiadmin \
 	&& useradd --system -g pcpatch -d /var/lib/opsi -s /bin/bash opsiconfd \
 	&& useradd --create-home --home-dir /home/adminuser -s /bin/bash adminuser \
 	&& echo "adminuser:adminuser" | chpasswd \
 	&& adduser adminuser pcpatch \
 	&& adduser adminuser opsiadmin \
-	&& useradd --create-home ${DEV_USER}\
 	&& echo "${DEV_USER}:adminuser" | chpasswd \
 	&& adduser ${DEV_USER} pcpatch \
 	&& adduser ${DEV_USER} opsiadmin \
 	&& adduser ${DEV_USER} sudo \
 	&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
-	&& usermod --shell /bin/bash ${DEV_USER} \
-	&& cp -r /root/.bash* /home/adminuser/
+	&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+	&& cp -r /root/.bash* /home/adminuser/ \
+	&& cp -r /root/.bash* /home/${DEV_USER}/
+
+RUN chmod g+rw -R .
 
 RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "/C=DE/ST=RP/L=Mainz/O=uib/OU=root/CN=bonifax.uib.local/emailAddress=info@uib.de" \
 	&& openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj "/C=DE/ST=RP/L=Mainz/O=uib/OU=opsiconfd/CN=bonifax.uib.local/emailAddress=info@uib.de" \

@@ -36,6 +36,7 @@ RUN apt-get update \
 		librsync1 \	
 		sqlite3 \
 		sudo \
+		nano \
 	&& pip install "poetry==$POETRY_VERSION"
 
 # grafana 
@@ -64,13 +65,8 @@ RUN apt-get update \
 		redis-tools \
 		redis-server \
 		redis-timeseries
-		
-# RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
-# 	&& tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
-# 	&& rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
 COPY docker/files/ /
-# COPY docker/files/root/.bashrc /home/{DEV_USER}
 
 # Setup poetry
 WORKDIR /workspace
@@ -106,10 +102,3 @@ RUN chmod +x "/docker-entrypoint.sh" \
 	&& chmod +x "/setup-grafana.sh" \
 	&& chmod +x "/setup-mysql.sh" \
 	&& mkdir tftpboot
-
-RUN echo "###################"
-RUN echo USER
-RUN echo ${USER}
-RUN echo DEV_USER
-RUN echo ${DEV_USER}
-RUN echo "###################"

@@ -36,10 +36,20 @@ from .utils import Singleton
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
 fqdn = socket.getfqdn()
 
+CONFIG_FILE_HEADER = """
+# This file was automatically migrated from an older opsiconfd version
+# For available options see: opsiconfd --help
+# config examples:
+# log-level-file = 5
+# networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
+# update-ip = true
+"""
+
 def upgrade_config_files():
 	defaults = {}
 	for action in parser._actions:
 		defaults[action.dest] = action.default
+	# Do not migrate ssl key/cert
 	mapping = {
 		"backend config dir": "backend-config-dir",
 		"dispatch config file": "dispatch-config-file",
@@ -53,8 +63,6 @@ def upgrade_config_files():
 		"monitoring debug": "monitoring-debug",
 		"interface": "interface",
 		"https port": "port",
-		"ssl server cert": "ssl-server-cert",
-		"ssl server key": "ssl-server-key",
 		"verify ip": "verify-ip",
 		"update ip": "update-ip",
 		"max inactive interval": "session-lifetime",
@@ -70,6 +78,7 @@ def upgrade_config_files():
 		
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 		with codecs.open(config_file.name, "w", "utf-8") as f:
+			f.write(CONFIG_FILE_HEADER.lstrip())
 			for line in data.split('\n'):
 				match = re_opt.match(line)
 				if match:
@@ -87,6 +96,7 @@ def upgrade_config_files():
 					if ',' in val:
 						val = f"[{val}]"
 					f.write(f"{mapping[opt]} = {val}\n")
+			f.write("\n")
 
 def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 	arg = arg.lstrip("-").replace("_", "-")
@@ -396,7 +406,8 @@ parser.add(
 	env_var="OPSICONFD_INTERFACE",
 	default="0.0.0.0",
 	help="The network interface to bind to (ip address of an network interface)."
-		+ "Use 0.0.0.0 to listen on all ipv4 interfaces"
+		+ " Use 0.0.0.0 to listen on all ipv4 interfaces."
+		+ " Use :: to listen on all ipv6 (and ipv4) interfaces."
 )
 parser.add(
 	"--port",

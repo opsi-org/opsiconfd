@@ -36,7 +36,7 @@ async def create_failed_requests(opsi_url, redis_url):
 	r = requests.get(opsi_url, auth=(TEST_USER, TEST_PW), verify=False)
 	print(r.__dict__)
 	assert r.status_code == 403
-	assert r.text == f"Client '{LOCAL_IP}' is blocked for 2.00 minutes!"
+	assert r.text == f"Client '{LOCAL_IP}' is blocked"
 
 
 def call_rpc(rpc_request_data: list, expect_error: list, url):

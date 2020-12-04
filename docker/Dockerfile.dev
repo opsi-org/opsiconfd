@@ -1,7 +1,7 @@
-# https://github.com/wemake-services/wemake-django-template/blob/master/%7B%7Bcookiecutter.project_name%7D%7D/docker/django/Dockerfile
 FROM python:3.7-buster as opsiconfd_development_build
 
 ARG DOCKER_ENV
+ARG USER
 
 ENV DOCKER_ENV=${DOCKER_ENV} \
 	# python:
@@ -17,7 +17,8 @@ ENV DOCKER_ENV=${DOCKER_ENV} \
 	# poetry:
 	POETRY_VERSION=1.1.2\
 	# redis
-	REDIS_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/
+	REDIS_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/ \
+	DEV_USER=${USER}
 
 
 # System deps:
@@ -34,6 +35,8 @@ RUN apt-get update \
 		psmisc \
 		librsync1 \	
 		sqlite3 \
+		sudo \
+		nano \
 	&& pip install "poetry==$POETRY_VERSION"
 
 # grafana 
@@ -62,24 +65,30 @@ RUN apt-get update \
 		redis-tools \
 		redis-server \
 		redis-timeseries
-		
-RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
-	&& tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
-	&& rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
 
 COPY docker/files/ /
 
 # Setup poetry
 WORKDIR /workspace
 
-RUN groupadd pcpatch \
+RUN useradd --create-home -s /bin/bash ${DEV_USER} \
+	&& groupadd pcpatch \
 	&& groupadd opsiadmin \
 	&& useradd --system -g pcpatch -d /var/lib/opsi -s /bin/bash opsiconfd \
 	&& useradd --create-home --home-dir /home/adminuser -s /bin/bash adminuser \
 	&& echo "adminuser:adminuser" | chpasswd \
 	&& adduser adminuser pcpatch \
 	&& adduser adminuser opsiadmin \
-	&& cp -r /root/.bash* /home/adminuser/
+	&& echo "${DEV_USER}:adminuser" | chpasswd \
+	&& adduser ${DEV_USER} pcpatch \
+	&& adduser ${DEV_USER} opsiadmin \
+	&& adduser ${DEV_USER} sudo \
+	&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
+	&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+	&& cp -r /root/.bash* /home/adminuser/ \
+	&& cp -r /root/.bash* /home/${DEV_USER}/
+
+RUN chmod g+rw -R .
 
 RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "/C=DE/ST=RP/L=Mainz/O=uib/OU=root/CN=bonifax.uib.local/emailAddress=info@uib.de" \
 	&& openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj "/C=DE/ST=RP/L=Mainz/O=uib/OU=opsiconfd/CN=bonifax.uib.local/emailAddress=info@uib.de" \
@@ -89,8 +98,5 @@ RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "
 	&& rm server.crt
 
 RUN chmod +x "/docker-entrypoint.sh" \
-	&& chmod +x "/setup.sh" \
-	&& chmod +x "/setup-grafana.sh" \
-	&& chmod +x "/setup-mysql.sh" \
 	&& mkdir tftpboot
 

@@ -1,0 +1,25 @@
+{
+	// See https://go.microsoft.com/fwlink/?LinkId=733558
+	// for the documentation about the tasks.json format
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "DB clean",
+			"type": "shell",
+			"command": "zcat /opsi.sql.gz | sed 's/bonifax.uib.local/'$OPSI_HOSTNAME'/g'  | mariadb -h localhost -u $MYSQL_USER --password=$MYSQL_PASSWORD $MYSQL_DATABASE",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			  }
+		},
+		{
+			"label": "Redis clean",
+			"type": "shell",
+			"command": "source ${workspaceFolder}/.venv/bin/activate; python ${workspaceFolder}/scripts/clean-redis.py",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			  }
+		}
+	]
+}

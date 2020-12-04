@@ -4,19 +4,20 @@
 	"service": "opsiconfd-dev",
 	"context": "..",
 	"workspaceFolder": "/workspace",
-	"postCreateCommand": "poetry config --local virtualenvs.in-project true && poetry install --no-interaction --no-ansi && /bin/sh -c /setup.sh",
-	"postStartCommand": "service redis-server restart && service mysql restart && service grafana-server restart",
+	"postCreateCommand": "sudo --preserve-env /bin/sh -c /workspace/scripts/setup.sh && poetry config --local virtualenvs.in-project true",
+	"postStartCommand": "poetry install --no-interaction --no-ansi && sudo service redis-server restart && sudo service mysql restart && sudo service grafana-server restart",
 	"remoteEnv": {
-		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"		
 	},
 	"settings": { 
 		"terminal.integrated.shell.linux": "/bin/bash",
-		"python.pythonPath": ".venv/bin/python"
+		"python.pythonPath": ".venv/bin/python",
+		"python.terminal.activateEnvironment": false
 	},
 	"extensions": [
 		"ms-azuretools.vscode-docker",
 		"ms-python.python"
 	],
 	"forwardPorts": [4447, 3000],
-	"remoteUser": "root"
+	"remoteUser": "${localEnv:USER}"
 }

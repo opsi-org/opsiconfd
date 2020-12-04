@@ -1,2 +1,2 @@
-poetry run opsiconfd --workers=1 --log-level-stderr=5
+sudo -E poetry run opsiconfd --workers=1 --log-level-stderr=5
 

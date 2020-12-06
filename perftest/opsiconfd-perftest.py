@@ -319,6 +319,10 @@ class Client:
 				size = int(params[i].split(':')[1].strip('}'))
 				# TODO: more randomized data
 				params[i] = "o" * size
+			if type(params[i]) is str and params[i].startswith("{file:"):
+				filename = params[i].split(':')[1].strip('}')
+				with codecs.open(filename, "r", "utf-8") as f:
+					params[i] = f.read()
 		req = {
 			"jsonrpc": "2.0",
 			"id": 1,

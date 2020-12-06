@@ -17,7 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 :copyright: uib GmbH <info@uib.de>
-:author: Jan Schneider <j.schneider@uib.de>
 :license: GNU Affero General Public License version 3
 """
 
@@ -31,6 +30,7 @@ import urllib.parse
 import orjson
 import asyncio
 import datetime
+import msgpack
 
 from fastapi import HTTPException, APIRouter
 from fastapi.requests import Request
@@ -222,9 +222,9 @@ async def process_jsonrpc(request: Request, response: Response):
 		backend = get_client_backend()
 		body = await request.body()
 		jsonrpc = None
+		content_type = request.headers.get("content-type")
 		if body:
 			jsonrpc = body
-			content_type = request.headers.get("content-type", "")
 			content_encoding = request.headers.get("content-encoding", "")
 			logger.debug("Content-Type: %s, Content-Encoding: %s", content_type, content_encoding)
 			
@@ -250,16 +250,26 @@ async def process_jsonrpc(request: Request, response: Response):
 					1000 * (time.perf_counter() - decomp_start)
 				)
 			
-			# workaround for "JSONDecodeError: str is not valid UTF-8: surrogates not allowed".
-			# opsi-script produces invalid UTF-8.
-			# Therefore we do not pass bytes to orjson.loads but
-			# decoding with "replace" first and passing unicode to orjson.loads.
-			# See orjson documentation for details.
-			jsonrpc = await run_in_threadpool(jsonrpc.decode, "utf-8", "replace")
+			if content_type != "application/msgpack":
+				# workaround for "JSONDecodeError: str is not valid UTF-8: surrogates not allowed".
+				# opsi-script produces invalid UTF-8.
+				# Therefore we do not pass bytes to orjson.loads but
+				# decoding with "replace" first and passing unicode to orjson.loads.
+				# See orjson documentation for details.
+				jsonrpc = await run_in_threadpool(jsonrpc.decode, "utf-8", "replace")
 		else:
 			jsonrpc = urllib.parse.unquote(request.url.query)
+		
 		logger.trace("jsonrpc: %s", jsonrpc)
-		jsonrpc = await run_in_threadpool(orjson.loads, jsonrpc)
+		
+		decode_start = time.perf_counter()
+		if content_type == "application/msgpack":
+			jsonrpc = await run_in_threadpool(msgpack.loads, jsonrpc)
+			logger.debug("Decode msgpack time: %0.2fms", 1000 * (time.perf_counter() - decode_start))
+		else:
+			jsonrpc = await run_in_threadpool(orjson.loads, jsonrpc)
+			logger.debug("Decode json time: %0.2fms", 1000 * (time.perf_counter() - decode_start))
+		
 		if not type(jsonrpc) is list:
 			jsonrpc = [jsonrpc]
 		tasks = []
@@ -355,8 +365,14 @@ async def process_jsonrpc(request: Request, response: Response):
 		response.status_code = 400
 		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]
 
-	data = await run_in_threadpool(orjson.dumps, results[0] if len(results) == 1 else results)
-	response.headers["content-type"] = "application/json"
+	_dumps = None
+	if content_type == "application/msgpack":
+		response.headers["content-type"] = "application/msgpack"
+		_dumps = msgpack.dumps
+	else:
+		response.headers["content-type"] = "application/json"
+		_dumps = orjson.dumps
+	data = await run_in_threadpool(_dumps, results[0] if len(results) == 1 else results)
 	
 	data_len = len(data)
 	# TODO: config

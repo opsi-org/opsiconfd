@@ -40,6 +40,10 @@ import signal
 import zlib
 import gzip
 import lz4.frame
+import msgpack
+from concurrent.futures import ProcessPoolExecutor
+
+executor = ProcessPoolExecutor(max_workers=25)
 
 class Perftest:
 	def __init__(self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=[], write_results=None):
@@ -94,11 +98,12 @@ class Perftest:
 			await test_case.stop()
 
 class TestCase:
-	def __init__(self, perftest, name, requests, compression = None):
+	def __init__(self, perftest, name, requests, compression = None, encoding = "json"):
 		self.perftest = perftest
 		self.name = name
 		self.requests = requests
 		self.compression = compression
+		self.encoding = encoding
 		self.clients = []
 		self.results = []
 		self.start = None
@@ -215,6 +220,7 @@ class TestCase:
 		r = self.calc_results()
 		print("Results:")
 		print(f" * Compression: {self.compression or 'none'}")
+		print(f" * Encoding: {self.encoding}")
 		print(f" * Requests: {r['requests']}")
 		print(f" * Errors: {r['errors']}")
 		print(f" * Total seconds: {r['total_seconds']:0.3f}")
@@ -319,18 +325,25 @@ class Client:
 			"method": method,
 			"params": params
 		}
-
-		headers = {"content-type": "application/json"}
-		data = orjson.dumps(req)
+		headers = {}
+		if self.test_case.encoding == "json":
+			headers["content-type"] = "application/json"
+			data = await asyncio.get_event_loop().run_in_executor(executor, orjson.dumps, req)
+		elif self.test_case.encoding == "msgpack":
+			headers["content-type"] = "application/msgpack"
+			data = await asyncio.get_event_loop().run_in_executor(executor, msgpack.dumps, req)
+		else:
+			raise ValueError(f"Invalid encoding: {self.test_case.encoding}")
+		
 		data_len = len(data)
 		start = time.perf_counter()
 		if self.test_case.compression:
 			if self.test_case.compression == "lz4":
-				data = await asyncio.get_event_loop().run_in_executor(None, lz4.frame.compress, data, 0)
+				data = await asyncio.get_event_loop().run_in_executor(executor, lz4.frame.compress, data, 0)
 			elif self.test_case.compression == "deflate":
-				data = await asyncio.get_event_loop().run_in_executor(None, zlib.compress, data)
+				data = await asyncio.get_event_loop().run_in_executor(executor, zlib.compress, data)
 			elif self.test_case.compression == "gzip":
-				data = await asyncio.get_event_loop().run_in_executor(None, gzip.compress, data)
+				data = await asyncio.get_event_loop().run_in_executor(executor, gzip.compress, data)
 			else:
 				raise ValueError(f"Invalid compression: {self.test_case.compression}")
 			headers["content-encoding"] = self.test_case.compression
@@ -342,12 +355,17 @@ class Client:
 			end = time.perf_counter()
 			body = await response.read()
 			if "lz4" in response.headers.get("content-encoding", ""):
-				body = await asyncio.get_event_loop().run_in_executor(None, lz4.frame.decompress, body)
+				body = await asyncio.get_event_loop().run_in_executor(executor, lz4.frame.decompress, body)
 			error = None
 			if response.status != 200:
 				error = f"{response.status} - {body}"
 			else:
-				res = orjson.loads(body)
+				res = None
+				if response.headers.get("content-type") == "application/msgpack":
+					res = await asyncio.get_event_loop().run_in_executor(executor, msgpack.loads, body)
+				else:
+					res = await asyncio.get_event_loop().run_in_executor(executor, orjson.loads, body)
+				
 				if res.get('error'):
 					error = res['error']
 			if self.perftest.print_responses:

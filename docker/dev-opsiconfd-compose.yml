@@ -1,9 +1,10 @@
-version: '3.3'
+version: '3.8'
 
 services:
   opsiconfd-dev:
+    hostname: ${OPSI_HOSTNAME}
     env_file:
-      dev.env
+      ../.env
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev

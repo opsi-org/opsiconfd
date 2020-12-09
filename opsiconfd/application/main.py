@@ -26,7 +26,6 @@ import asyncio
 import urllib
 import datetime
 from ctypes import c_long
-from OpenSSL import crypto
 
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
@@ -45,7 +44,7 @@ from ..worker import (
 )
 from ..session import SessionMiddleware
 from ..statistics import StatisticsMiddleware
-from ..utils import normalize_ip_address
+from ..utils import normalize_ip_address, read_ssl_ca_cert_file
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
 from .webdav import webdav_setup
@@ -127,18 +126,15 @@ async def startup_event():
 async def shutdown_event():
 	app.is_shutting_down = True
 
-
 @app.get("/ssl/opsi-cacert.pem")
 def get_ssl_ca_cert(request: Request):
-	with open(config.ssl_ca_cert) as f:
-		cacert = crypto.load_certificate(crypto.FILETYPE_PEM, f.read())
-		return Response(
-			content=crypto.dump_certificate(crypto.FILETYPE_PEM, cacert),
-			headers={
-				"Content-Type": "application/x-pem-file",
-				"Content-Disposition": 'attachment; filename="opsi-cacert.pem"'
-			}
-		)
+	return Response(
+		content=read_ssl_ca_cert_file(),
+		headers={
+			"Content-Type": "application/x-pem-file",
+			"Content-Disposition": 'attachment; filename="opsi-cacert.pem"'
+		}
+	)
 
 
 class BaseMiddleware:
@@ -203,7 +199,7 @@ def application_setup():
 	#    ExceptionMiddleware
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana", "/ws/test"])
+	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana", "/ws/test", "/ssl/opsi-cacert.pem"])
 	#app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	app.add_middleware(BaseMiddleware)

@@ -27,9 +27,13 @@ Thus, long runinng JSON-RPC requests could block other requests.
 ## DevContainer
 
 * Install Remote-Containers: https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers
-* run `./docker/devenv.sh` or create dev.env file with `OPSICONFD_GRAFANA_EXTERNAL_URL` and `OPSI_HOSTNAME`
+* run Task "Create .env file" or run `./scripts/devenv.sh`
 * Open project in container:
 	* \<F1\> -> Remote-Containers: Reopen in Container
 	* or remote button in bottom left corner -> Reopen in Container
 * In the container \<F5\> starts opsiconfd in debug mode (opsiconfd default)
 * You can use the default debug settings or you can set the number of worker and the log level by selecting opsiconfd in the debug/run tab.
+
+### Run Tests
+* start opsiconfd 
+* select "Run Tests" on the Status Bar or use the Test Explorer 

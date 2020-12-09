@@ -12,7 +12,15 @@
 	"settings": { 
 		"terminal.integrated.shell.linux": "/bin/bash",
 		"python.pythonPath": ".venv/bin/python",
-		"python.terminal.activateEnvironment": false
+		"python.terminal.activateEnvironment": false,
+		"python.linting.enabled": true,
+		"python.testing.pytestArgs": [
+			"tests"
+		],
+		"python.testing.unittestEnabled": false,
+		"python.testing.nosetestsEnabled": false,
+		"python.testing.pytestEnabled": true,
+		"python.testing.pytestPath": ".venv/bin/pytest"
 	},
 	"extensions": [
 		"ms-azuretools.vscode-docker",

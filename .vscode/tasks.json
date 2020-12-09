@@ -4,9 +4,9 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "DB clean",
+			"label": "DB load sql file",
 			"type": "shell",
-			"command": "zcat /opsi.sql.gz | sed 's/bonifax.uib.local/'$OPSI_HOSTNAME'/g'  | mariadb -h localhost -u $MYSQL_USER --password=$MYSQL_PASSWORD $MYSQL_DATABASE",
+			"command": "cat ${input:sql-file} | sed 's/${input:sql-old-hostname}/'$OPSI_HOSTNAME'/g'  | mariadb -h localhost -u $MYSQL_USER --password=$MYSQL_PASSWORD $MYSQL_DATABASE",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
@@ -20,6 +20,50 @@
 				"reveal": "always",
 				"panel": "dedicated"
 			  }
+		},
+		{
+			"label": "Restore Backup",
+			"type": "shell",
+			"command": "sudo opsi-backup restore --force --backends=${input:opsi-backends} --new-server-id=${OPSI_HOSTNAME} ${input:opsi-backup}",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "Create .env file",
+			"type": "shell",
+			"command": "${workspaceFolder}/scripts/devenv.sh",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		}
+	],
+	"inputs": [
+		{
+			"id": "opsi-backup",
+			"description": "opsi backup file to use.",
+			"default": "opsibackups/dev-backup.tar.bz2",
+			"type": "promptString"
+		},
+		{
+			"id": "opsi-backends",
+			"description": "opsi backend to use.",
+			"default": "mysql",
+			"type": "promptString"
+		},
+		{
+			"id": "sql-file",
+			"description": "sql file to use.",
+			"default": "opsibackups/opsiconfd.sql",
+			"type": "promptString"
+		},
+		{
+			"id": "sql-old-hostname",
+			"description": "hostname of configserver in sql file.",
+			"default": "$OPSI_HOSTNAME",
+			"type": "promptString"
 		}
 	]
 }

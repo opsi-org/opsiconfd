@@ -10,3 +10,6 @@ rm /tmp/hosts
 
 /workspace/scripts/setup-grafana.sh
 /workspace/scripts/setup-mysql.sh
+
+mkdir /var/log/opsi
+# sudo opsi-backup restore /workspace/opsi_dev_backup.tar.bz2

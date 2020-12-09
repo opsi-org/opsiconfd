@@ -45,8 +45,7 @@ from ..worker import (
 	contextvar_client_address, contextvar_client_session, contextvar_request_id
 )
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
-from ..utils import decode_redis_result
-
+from ..utils import decode_redis_result, read_ssl_ca_cert_file
 
 # time in seconds
 EXPIRE = (60*60*24)

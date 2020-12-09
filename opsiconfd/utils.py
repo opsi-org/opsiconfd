@@ -29,6 +29,7 @@ import string
 import random
 import ipaddress
 from dns import resolver, reversename
+from OpenSSL import crypto
 
 from OPSI.Types import forceFqdn
 
@@ -178,3 +179,9 @@ def get_random_string(length):
 	letters = string.ascii_letters
 	result_str = ''.join(random.choice(letters) for i in range(length))
 	return result_str
+
+def read_ssl_ca_cert_file():
+	get_config()
+	with open(config.ssl_ca_cert) as f:
+		cacert = crypto.load_certificate(crypto.FILETYPE_PEM, f.read())
+		return crypto.dump_certificate(crypto.FILETYPE_PEM, cacert)

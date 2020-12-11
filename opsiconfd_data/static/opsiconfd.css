@@ -162,28 +162,70 @@ li {
 .LEVEL_ESSENTIAL { color: #34e2e2; }
 
 #log-settings {
-	margin: 15px 0px 0px 0px;
+	margin: 15px 0px 0px 10px;
 }
 
 #log-container {
 	width: 100%;
 	height: calc(100% - 50px);
-	margin: 10px 0px 0px 0px;
+	margin: 10px;
 	overflow: scroll;
 	/*line-height: 0.9;*/
 	background-color: black;
 	color:white;
 }
+
 .log-line {
 	display: inline-table;
 	white-space: nowrap;
 	clear: both;
 	float: left;
+	font-family: monospace;
+	height: 1.2em;
 }
+
 .log-line-hidden {
 	display: none;
 }
-.log-line > span {
+
+.log-record {
+	display: flow-root;
 	white-space: pre;
-	font-family: monospace;
+}
+
+.log-record-control {
+	display: inline-flex;
+	float: left;
+	width: 5em;
+	user-select: none;
+	overflow: hidden;
+	max-height: 1.0em;
+}
+
+.log-record-collapse {
+	display: inline-block;
+	margin-top: -0.2em;
+	padding-left: 5px;
+	width: 1em;
+}
+
+.log-line-multiline > * > .log-record-collapse::after {
+	content: "⯆";
+}
+
+.log-line-multiline-collapsed > * > .log-record-collapse::after {
+	content: "⯈";
+}
+
+.log-record-line-id {
+	display: inline-block;
+	width: 3em;
+	text-align: right;
+	color: #666666;
+}
+
+.log-line-multiline-collapsed > * > .log-record-message {
+	display: inline-flex;
+	height: 1.1em;
+	overflow: hidden;
 }

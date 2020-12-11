@@ -7,6 +7,7 @@ var contextFilterRegex = null;
 var messageFilterRegex = null;
 var levelFilter = 9;
 var logLineId = 0;
+var collapsed = true;
 
 function addRecordToLog(record) {
 	logLineId++;
@@ -38,6 +39,35 @@ function addRecordToLog(record) {
 	if (record.exc_text) {
 		msg += "\n" + record.exc_text;
 	}
+	let idx = msg.indexOf('\n');
+	if (idx > -1) {
+		idx = msg.indexOf('\n', idx + 1);
+		if (idx > -1) {
+			if (collapsed) {
+				div.classList.add("log-line-multiline-collapsed");
+			}
+			else {
+				div.classList.add("log-line-multiline");
+			}
+		}
+	}
+
+	let elControl = document.createElement('div');
+	elControl.classList.add("log-record-control");
+	
+	let elCollapse = document.createElement('span');
+	elCollapse.classList.add("log-record-collapse");
+	elCollapse.onclick = toggleCollapse;
+
+	let elLineId = document.createElement('span');
+	elLineId.classList.add("log-record-line-id");
+	elLineId.appendChild(document.createTextNode(logLineId));
+	
+	elControl.appendChild(elCollapse);
+	elControl.appendChild(elLineId);
+
+	let elRecord = document.createElement('div');
+	elRecord.classList.add("log-record");
 
 	let elOpsiLevel = document.createElement('span');
 	elOpsiLevel.classList.add("log-record-opsilevel");
@@ -57,10 +87,14 @@ function addRecordToLog(record) {
 	elMessage.classList.add("log-record-message");
 	elMessage.appendChild(document.createTextNode(msg));
 	
-	div.appendChild(elOpsiLevel);
-	div.appendChild(elDate);
-	div.appendChild(elContext);
-	div.appendChild(elMessage);
+	elRecord.appendChild(elOpsiLevel);
+	elRecord.appendChild(elDate);
+	elRecord.appendChild(elContext);
+	elRecord.appendChild(elMessage);
+
+	div.appendChild(elControl);
+	div.appendChild(elRecord);
+	
 	if (levelFilter && record.opsilevel > levelFilter) {
 		div.classList.add("log-line-hidden");
 	}
@@ -77,6 +111,35 @@ function addRecordToLog(record) {
 	}
 	container.appendChild(div);
 	return div;
+}
+
+function toggleCollapse() {
+	let el = this.parentElement.parentElement;
+	if (el.classList.contains("log-line-multiline")) {
+		el.classList.remove("log-line-multiline");
+		el.classList.add("log-line-multiline-collapsed");
+	}
+	else {
+		el.classList.remove("log-line-multiline-collapsed");
+		el.classList.add("log-line-multiline");
+	}
+}
+
+function collapseAll(col) {
+	collapsed = col;
+	let container = document.getElementById("log-container");
+	if (collapsed) {
+		container.querySelectorAll(".log-line-multiline").forEach(function(el) {
+			el.classList.remove("log-line-multiline");
+			el.classList.add("log-line-multiline-collapsed");
+		});
+	}
+	else {
+		container.querySelectorAll(".log-line-multiline-collapsed").forEach(function(el) {
+			el.classList.remove("log-line-multiline-collapsed");
+			el.classList.add("log-line-multiline");
+		});
+	}
 }
 
 function applyContextFilter(filter=null) {
@@ -185,7 +248,7 @@ function startLog() {
 				element = addRecordToLog(records[i]);
 			}
 			if (scrollToBottom && element) {
-				element.scrollIntoView({block: "nearest", behavior: "auto", inline: 'start'});
+				element.scrollIntoView({block: "end", behavior: "auto"});
 			}
 		});
 		

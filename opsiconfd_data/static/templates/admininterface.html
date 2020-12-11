@@ -232,7 +232,10 @@
 		
 				<label for="log-message-filter">Filter by message:</label>
 				<input id="log-message-filter" type="text" onchange="applyMessageFilter(this.value);"/>
-		
+				
+				<label for="collapse-all">Collapse multi-line:</label>
+				<input type="checkbox" id="collapse-all" onclick="collapseAll(this.checked);" checked>
+				
 				<label>Font size:</label>
 				<button id="decrease-font-size" onclick="change_font_size(-1);">-</button>
 				<button id="increase-font-size" onclick="change_font_size(+1);">+</button>

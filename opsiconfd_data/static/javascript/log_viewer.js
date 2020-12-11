@@ -179,22 +179,22 @@ function applyFilter() {
 	let filteredIds = [];
 	if (levelFilter && levelFilter < 9) {
 		container.querySelectorAll(".log-record-opsilevel").forEach(function(el) {
-			if (parseInt(el.innerText.replace(/\D/g, '')) > levelFilter && !filteredIds.includes(el.parentElement.id)) {
-				filteredIds.push(el.parentElement.id);
+			if (parseInt(el.innerText.replace(/\D/g, '')) > levelFilter && !filteredIds.includes(el.parentElement.parentElement.id)) {
+				filteredIds.push(el.parentElement.parentElement.id);
 			}
 		});
 	}
 	if (contextFilterRegex) {
 		container.querySelectorAll(".log-record-context").forEach(function(el) {
-			if (!el.innerText.match(contextFilterRegex) && !filteredIds.includes(el.parentElement.id)) {
-				filteredIds.push(el.parentElement.id);
+			if (!el.innerText.match(contextFilterRegex) && !filteredIds.includes(el.parentElement.parentElement.id)) {
+				filteredIds.push(el.parentElement.parentElement.id);
 			}
 		});
 	}
 	if (messageFilterRegex) {
 		container.querySelectorAll(".log-record-message").forEach(function(el) {
-			if (!el.innerText.match(messageFilterRegex) && !filteredIds.includes(el.parentElement.id)) {
-				filteredIds.push(el.parentElement.id);
+			if (!el.innerText.match(messageFilterRegex) && !filteredIds.includes(el.parentElement.parentElement.id)) {
+				filteredIds.push(el.parentElement.parentElement.id);
 			}		
 		});
 	}

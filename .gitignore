@@ -9,3 +9,7 @@ __pycache__
 # Visual Studio Code
 .vscode/*
 docker/dev.env
+.env
+
+opsibackups/
+opsi-utils/

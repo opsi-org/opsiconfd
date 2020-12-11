@@ -1159,7 +1159,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.102"
+version = "4.2.0.107"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -1169,6 +1169,7 @@ python-versions = ">=3.7,<4.0"
 colorlog = ">=4.2.1,<5.0.0"
 distro = {version = ">=1.5.0,<2.0.0", markers = "sys_platform == \"linux\""}
 ldap3 = ">=2.8.1,<3.0.0"
+lz4 = ">=3.1.1,<4.0.0"
 mysqlclient = {version = ">=1.4.6,<2.0.0", markers = "sys_platform == \"linux\""}
 pefile = ">=2019.4.18,<2020.0.0"
 psutil = ">=5.7.0,<6.0.0"
@@ -2321,8 +2322,8 @@ python-magic = [
     {file = "python_magic-0.4.18-py2.py3-none-any.whl", hash = "sha256:356efa93c8899047d1eb7d3eb91e871ba2f5b1376edbaf4cc305e3c872207355"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.102.tar.gz", hash = "md5:d04c4fc3e2b2f564fbb7fe4e5d40657b"},
-    {file = "python_opsi-4.2.0.102-py3-none-any.whl", hash = "md5:6dc023d154551ba8daacaaefebc94431"},
+    {file = "python-opsi-4.2.0.107.tar.gz", hash = "md5:a6efe9d908078ce11195bc5b332de4ee"},
+    {file = "python_opsi-4.2.0.107-py3-none-any.whl", hash = "md5:0434d837765f6577c771e64f93fe70aa"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

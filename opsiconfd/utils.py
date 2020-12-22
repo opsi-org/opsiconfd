@@ -200,14 +200,16 @@ def read_ssl_ca_cert_file():
 def retry_redis_call(func):
 	@functools.wraps(func)
 	def wrapper_retry(*args, **kwargs):
-		try:
-			value = func(*args, **kwargs)
-			return value
-		except (
-			aredis.exceptions.BusyLoadingError, redis.exceptions.BusyLoadingError, 
-			aredis.exceptions.ConnectionError,  redis.exceptions.ConnectionError):
-			time.sleep(3)
-			value = func(*args, **kwargs)
+		for i in range(0,4):
+			try:
+				value = func(*args, **kwargs)
+				return value
+			except (
+				aredis.exceptions.BusyLoadingError, redis.exceptions.BusyLoadingError, 
+				aredis.exceptions.ConnectionError,  redis.exceptions.ConnectionError):
+				if i > 2:
+					raise
+				time.sleep(1)			
 	return wrapper_retry
 
 

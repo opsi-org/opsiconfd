@@ -214,6 +214,7 @@ class AsyncRedisLogAdapter:
 		except Exception as exc:
 			handle_log_exception(exc)
 
+	@retry_redis_call
 	async def _reader(self, stream_name):
 		if self._running_event:
 			self._running_event.set()

@@ -37,7 +37,7 @@ from starlette.concurrency import run_in_threadpool as starlette_run_in_threadpo
 
 from .logging import logger, init_logging
 from .config import config
-from .utils import get_worker_num, get_node_name
+from .utils import get_worker_num, get_node_name, get_aredis_connection
 
 contextvar_request_id = contextvars.ContextVar("request_id", default=None)
 contextvar_client_session = contextvars.ContextVar("client_session", default=None)
@@ -68,8 +68,8 @@ async def get_redis_client():
 	global _redis_client
 	if not _redis_client:
 		# The client automatically uses a connection from a connection pool for every command 
-		#max_connections = int(config.executor_workers * 2)
-		_redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)#, max_connections=max_connections)
+		#max_connections = int(config.executor_workers * 2)	
+		_redis_client = await get_aredis_connection(config.redis_internal_url)#, max_connections=max_connections)		
 		# _redis_client.flushdb()
 	try:
 		pool = _redis_client.connection_pool

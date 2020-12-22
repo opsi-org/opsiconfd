@@ -50,14 +50,14 @@ from . import __version__
 from .logging import logger, init_logging
 from .config import config
 from .server import run_gunicorn, run_uvicorn
-from .utils import get_node_name, get_worker_processes
+from .utils import get_node_name, get_worker_processes, get_aredis_connection
 from .setup import setup
 from .patch import apply_patches
 from .backend import get_backend
 from .worker import set_arbiter_pid
 
 async def update_worker_registry():
-	redis = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis = await get_aredis_connection(config.redis_internal_url)
 	node_name = get_node_name()
 	num_workers = 0
 	while True:

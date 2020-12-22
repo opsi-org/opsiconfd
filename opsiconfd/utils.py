@@ -28,8 +28,18 @@ import psutil
 import string
 import random
 import ipaddress
+import functools
+import time
+import redis
+import aredis
+import asyncio
+
 from dns import resolver, reversename
 from OpenSSL import crypto
+
+from opsicommon.logging import handle_log_exception
+
+REDIS_CONNECTION_RETRIES = 15
 
 from OPSI.Types import forceFqdn
 
@@ -185,3 +195,49 @@ def read_ssl_ca_cert_file():
 	with open(config.ssl_ca_cert) as f:
 		cacert = crypto.load_certificate(crypto.FILETYPE_PEM, f.read())
 		return crypto.dump_certificate(crypto.FILETYPE_PEM, cacert)
+
+
+def retry_redis_call(func):
+	@functools.wraps(func)
+	def wrapper_retry(*args, **kwargs):
+		try:
+			value = func(*args, **kwargs)
+			return value
+		except (
+			aredis.exceptions.BusyLoadingError, redis.exceptions.BusyLoadingError, 
+			aredis.exceptions.ConnectionError,  redis.exceptions.ConnectionError):
+			time.sleep(3)
+			value = func(*args, **kwargs)
+	return wrapper_retry
+
+
+def get_redis_connection(url, db=None, **kwargs):
+	count = 0
+	while True:
+		try:
+			redis_client = redis.StrictRedis.from_url(url, db, **kwargs)
+			redis_client.ping()
+			break
+		except (redis.exceptions.ConnectionError, redis.BusyLoadingError) as e:
+			count += 1
+			time.sleep(1)
+			if count >= REDIS_CONNECTION_RETRIES:
+				handle_log_exception(e)
+				raise
+	return redis_client
+	
+
+async def get_aredis_connection(url, db=None, **kwargs):
+	count = 0
+	while True:
+		try:
+			redis_client = aredis.StrictRedis.from_url(url, db, **kwargs)
+			await redis_client.ping()
+			break
+		except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as e:
+			count += 1
+			asyncio.sleep(1)
+			if count >= REDIS_CONNECTION_RETRIES:
+				handle_log_exception(e)
+				raise
+	return redis_client

@@ -47,7 +47,7 @@ from opsicommon.logging import (
 	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT, DEFAULT_COLORED_FORMAT
 )
 
-from .utils import Singleton
+from .utils import Singleton, retry_redis_call, get_aredis_connection, get_redis_connection
 from .config import config
 
 # Set default log level to ERROR early
@@ -207,7 +207,7 @@ class AsyncRedisLogAdapter:
 	
 	async def _start(self):
 		try:
-			self._redis = aredis.StrictRedis.from_url(config.redis_internal_url)
+			self._redis = await get_aredis_connection(config.redis_internal_url)
 			stream_name = "opsiconfd:log"
 			await self._redis.xtrim(name=stream_name, max_len=10000, approximate=True)
 			await asyncio.gather(self._reader(stream_name=stream_name), self._watch_log_files())
@@ -263,7 +263,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		threading.Thread.__init__(self)
 		self._max_msg_len = max_msg_len
 		self._max_delay = max_delay
-		self._redis = redis.Redis.from_url(config.redis_internal_url)
+		self._redis = get_redis_connection(config.redis_internal_url)
 		self._redis_lock = threading.Lock()
 		self._pipeline = self._redis.pipeline()
 		self._should_stop = False

@@ -179,6 +179,17 @@ def setup_ssl():
 			alt_names = f"DNS:{fqdn}, DNS:localhost, {ips}"
 			
 			with codecs.open(cnf_file, "w", "utf-8") as cnf:
+				cnf.write("[req]\n")
+				cnf.write("req_extensions = san\n")
+				cnf.write("distinguished_name = req_distinguished_name\n")
+				cnf.write("[req_distinguished_name]\n")
+				cnf.write("C = DE\n")
+				cnf.write("ST = RP\n")
+				cnf.write("L = Mainz\n")
+				cnf.write("O = uib\n")
+				cnf.write(f"OU = opsi@{domain}\n")
+				cnf.write(f"CN = {fqdn}\n")
+				cnf.write(f"emailAddress = opsi@{domain}\n")
 				cnf.write("[san]\n")
 				cnf.write("basicConstraints = CA:FALSE\n")
 				cnf.write("keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n")
@@ -190,7 +201,7 @@ def setup_ssl():
 				"openssl", "req", "-nodes", "-newkey", "rsa:4096",
 				"-keyout", srv_key, "-out", srv_csr,
 				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN={fqdn}/emailAddress=opsi@{domain}",
-				"-addext", f"subjectAltName = {alt_names}"
+				"-config", cnf_file
 			]
 			logger.info("Executing command: %s", cmd)
 			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
@@ -203,6 +214,7 @@ def setup_ssl():
 			]
 			logger.info("Executing command: %s", cmd)
 			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
+			# Check SAN with: openssl req -text -noout -verify -in srv.csr
 
 			if os.path.exists(config.ssl_server_key):
 				os.unlink(config.ssl_server_key)

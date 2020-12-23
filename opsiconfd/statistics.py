@@ -51,7 +51,7 @@ from .worker import (
 )
 from .config import config
 from .utils import (
-	Singleton, get_worker_processes, get_node_name, get_worker_num
+	Singleton, get_worker_processes, get_node_name, get_worker_num, get_redis_connection
 )
 from .grafana import GrafanaPanelConfig
 
@@ -61,7 +61,7 @@ def get_yappi_tag() -> int:
 
 def setup_metric_downsampling() -> None:
 
-	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = get_redis_connection(config.redis_internal_url)
 
 	for metric in metrics_registry.get_metrics():
 		if not metric.downsampling or metric.subject != "worker":

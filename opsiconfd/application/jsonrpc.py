@@ -289,7 +289,7 @@ async def process_jsonrpc(request: Request, response: Response):
 				redis_client = await get_redis_client()
 				products_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
 				sorted_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
-				cache_outdated = backend._executeMethod("config_getIdents", id=f"opsiconfd.{depot}.product.cache.outdated")
+				cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")
 				if products_uptodate and sorted_uptodate and not cache_outdated:
 					use_redis_cache = True
 					task = run_in_threadpool(read_redis_cache, request, response, rpc)

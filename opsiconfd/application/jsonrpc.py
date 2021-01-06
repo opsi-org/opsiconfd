@@ -289,13 +289,18 @@ async def process_jsonrpc(request: Request, response: Response):
 				redis_client = await get_redis_client()
 				products_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
 				sorted_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
-				if products_uptodate and sorted_uptodate:
+				cache_outdated = backend._executeMethod("config_getIdents", id=f"opsiconfd.{depot}.product.cache.outdated")
+				if products_uptodate and sorted_uptodate and not cache_outdated:
 					use_redis_cache = True
 					task = run_in_threadpool(read_redis_cache, request, response, rpc)
+				if cache_outdated:
+					backend._executeMethod("config_delete", id=f"opsiconfd.{depot}.product.cache.outdated")
+					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
+					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
 			if not use_redis_cache:
 				task = run_in_threadpool(process_rpc, request, response, rpc, backend)
 			tasks.append(task)
-
 		asyncio.get_event_loop().create_task(
 			get_metrics_collector().add_value("worker:avg_rpc_number", len(jsonrpc), {"node_name": get_node_name(), "worker_num": get_worker_num()})
 		)

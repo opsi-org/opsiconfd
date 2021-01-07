@@ -75,6 +75,9 @@
 			if (tabName == "redisInfo") {
 				loadRedisInfo();
 			}
+			if (tabName == "confdConfig") {
+				loadConfdConfig();
+			}
 			if (tabName == "log-viewer") {
 				startLog();
 			}
@@ -115,6 +118,7 @@
 			<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
 			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
 			<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
+			<button class="tablinks" onclick="openTab(event, 'confdConfig')">Config</button>
 			<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
 			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>		
 		</div>
@@ -219,6 +223,15 @@
 			</div>
 			<div id="resultRedis">
 				<pre class="redis-result" id="redis-result"></pre>
+			</div>
+		</div>
+
+		<div id="confdConfig" class="tabcontent">
+			<div class="adminpage-box">
+				<h4>Opsiconfd Config</h4>
+				<div id="config">
+					<pre class="config-values" id="config-values"></pre>
+				</div>
 			</div>
 		</div>
 

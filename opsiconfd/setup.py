@@ -32,6 +32,8 @@ import resource
 import tempfile
 import subprocess
 import datetime
+import random
+from OpenSSL import crypto
 
 from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP, DEFAULT_DEPOT_USER
 from OPSI.setup import (
@@ -107,16 +109,27 @@ def check_ssl_expiry():
 	for cert in (config.ssl_ca_cert, config.ssl_server_cert):
 		if os.path.exists(cert):
 			logger.info("Checking expiry of certificate: %s", cert)
-			cmd = ["openssl", "x509", "-enddate", "-noout", "-in", cert]
-			out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
-			enddate = out.decode().split('=')[1].strip()
-			enddate = datetime.datetime.strptime(enddate, "%b %d %H:%M:%S %Y %Z")
+			# cmd = ["openssl", "x509", "-enddate", "-noout", "-in", cert]
+			# out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
+			# enddate = out.decode().split('=')[1].strip()
+			# enddate = datetime.datetime.strptime(enddate, "%b %d %H:%M:%S %Y %Z")
+			# diff = (enddate - datetime.datetime.now()).days
+
+			with open(cert, "r") as file:
+				cert = crypto.load_certificate(crypto.FILETYPE_PEM,  file.read())
+
+			logger.devel("cert: %s", cert)
+			logger.devel("not after: %s", cert.get_notAfter())
+			logger.devel(datetime.datetime.now())
+			enddate = datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
 			diff = (enddate - datetime.datetime.now()).days
+			logger.devel("diff: %s", diff)
+
 			if (diff <= 0):
 				logger.error("Certificate '%s' expired on %s", cert, enddate)
 			elif (diff < 30):
 				logger.warning("Certificate '%s' will expire in %d days", cert, diff)
-			
+
 def setup_ssl():
 	logger.info("Setup ssl")
 	if (
@@ -130,113 +143,131 @@ def setup_ssl():
 	fqdn = getfqdn()
 	domain = '.'.join(fqdn.split('.')[1:])
 	tmp_dir = tempfile.mkdtemp()
-	try:
-		cnf_file = os.path.join(tmp_dir, "openssl.cnf")
-		ca_key = os.path.join(tmp_dir, "ca.key")
-		ca_crt = os.path.join(tmp_dir, "ca.crt")
-		srv_key = os.path.join(tmp_dir, "srv.key")
-		srv_crt = os.path.join(tmp_dir, "srv.crt")
-		srv_csr = os.path.join(tmp_dir, "srv.csr")
+	# try:
+		
+	if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
+		logger.info("Creating opsi CA")
 
-		if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
-			logger.info("Creating opsi CA")
-			cmd = [
-				"openssl", "req", "-nodes", "-x509", "-newkey", "rsa:4096", "-days", str(ca_days),
-				"-keyout", ca_key, "-out", ca_crt,
-				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN=opsi CA/emailAddress=opsi@{domain}"
-			]
-			logger.info("Executing command: %s", cmd)
-			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
-			
-			if os.path.exists(config.ssl_ca_key):
-				os.unlink(config.ssl_ca_key)
-			if not os.path.exists(os.path.dirname(config.ssl_ca_key)):
-				os.makedirs(os.path.dirname(config.ssl_ca_key))
-				os.chmod(path=os.path.dirname(config.ssl_ca_key), mode=0o700)
-			with open(ca_key, "r") as _in:
-				with open(config.ssl_ca_key, "a") as out:
-					out.write(_in.read())
-			
-			if os.path.exists(config.ssl_ca_cert):
-				os.unlink(config.ssl_ca_cert)
-			if not os.path.exists(os.path.dirname(config.ssl_ca_cert)):
-				os.makedirs(os.path.dirname(config.ssl_ca_cert))
-				os.chmod(path=os.path.dirname(config.ssl_ca_cert), mode=0o700)
-			with open(ca_crt, "r") as _in:
-				with open(config.ssl_ca_cert, "a") as out:
-					out.write(_in.read())
-			
-			setup_ssl_file_permissions()
-			
-		if os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
-			# Chrome requires Subject Alt Name
-			ips = ["127.0.0.1", "::1"]
-			for a in get_ip_addresses():
-				if a["family"] == "ipv4" and a["address"] not in ips:
-					ips.append(a["address"])
-			ips = ", ".join([f"IP:{ip}" for ip in ips])
+		ca_key = crypto.PKey()
+		ca_key.generate_key(crypto.TYPE_RSA, 4096)
 
-			alt_names = f"DNS:{fqdn}, DNS:localhost, {ips}"
-			
-			with codecs.open(cnf_file, "w", "utf-8") as cnf:
-				cnf.write("[req]\n")
-				cnf.write("req_extensions = san\n")
-				cnf.write("distinguished_name = req_distinguished_name\n")
-				cnf.write("[req_distinguished_name]\n")
-				cnf.write("C = DE\n")
-				cnf.write("ST = RP\n")
-				cnf.write("L = Mainz\n")
-				cnf.write("O = uib\n")
-				cnf.write(f"OU = opsi@{domain}\n")
-				cnf.write(f"CN = {fqdn}\n")
-				cnf.write(f"emailAddress = opsi@{domain}\n")
-				cnf.write("[san]\n")
-				cnf.write("basicConstraints = CA:FALSE\n")
-				cnf.write("keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n")
-				cnf.write("extendedKeyUsage = serverAuth, clientAuth, codeSigning, emailProtection\n")
-				cnf.write(f"subjectAltName = {alt_names}\n")
-			
-			logger.info("Creating opsiconfd cert")
-			cmd = [
-				"openssl", "req", "-nodes", "-newkey", "rsa:4096",
-				"-keyout", srv_key, "-out", srv_csr,
-				"-subj", f"/C=DE/ST=RP/L=Mainz/O=uib/OU=opsi@{domain}/CN={fqdn}/emailAddress=opsi@{domain}",
-				"-config", cnf_file
-			]
-			logger.info("Executing command: %s", cmd)
-			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
+		ca_crt = crypto.X509()
+		ca_serialnumber = random.getrandbits(64)
+		ca_crt.set_serial_number(ca_serialnumber)
+		ca_crt.gmtime_adj_notBefore(0)
+		ca_crt.gmtime_adj_notAfter(ca_days * 60 * 60 * 24)
 
-			cmd = [
-				"openssl", "x509", "-req",
-				"-CA", config.ssl_ca_cert, "-CAkey", config.ssl_ca_key, "-CAcreateserial",
-				"-in", srv_csr, "-out", srv_crt, "-days", str(cert_days),
-				"-extfile", cnf_file, "-extensions", "san" # section name in conf file
-			]
-			logger.info("Executing command: %s", cmd)
-			subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
-			# Check SAN with: openssl req -text -noout -verify -in srv.csr
+		ca_crt.set_version(2)
+		ca_crt.set_pubkey(ca_key)
 
-			if os.path.exists(config.ssl_server_key):
-				os.unlink(config.ssl_server_key)
-			if os.path.exists(config.ssl_server_cert):
-				os.unlink(config.ssl_server_cert)
-			
-			if not os.path.exists(os.path.dirname(config.ssl_server_key)):
-				os.makedirs(os.path.dirname(config.ssl_server_key))
-				os.chmod(path=os.path.dirname(config.ssl_server_key), mode=0o700)
-			with open(srv_key, "r") as _in:
-				with open(config.ssl_server_key, "a") as out:
-					out.write(_in.read())
-			if not os.path.exists(os.path.dirname(config.ssl_server_cert)):
-				os.makedirs(os.path.dirname(config.ssl_server_cert))
-				os.chmod(path=os.path.dirname(config.ssl_server_cert), mode=0o700)
-			with open(srv_crt, "r") as _in:
-				with open(config.ssl_server_cert, "a") as out:
-					out.write(_in.read())
-			
-			setup_ssl_file_permissions()
-	finally:
-		shutil.rmtree(tmp_dir)
+		ca_subject= ca_crt.get_subject()
+		ca_subject.C = "DE"
+		ca_subject.ST = "RP"
+		ca_subject.L = "MAINZ"
+		ca_subject.O = "uib"
+		ca_subject.OU = f"opsi@{domain}"
+		ca_subject.CN = "opsi CA"
+		ca_subject.emailAddress = f"opsi@{domain}"
+
+		logger.devel("ca_subject: %s", ca_subject)
+
+		ca_crt.set_issuer(ca_subject)
+
+		ca_crt.add_extensions([
+			crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
+			crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE")
+		])
+
+		ca_crt.sign(ca_key, 'sha256')
+
+		if os.path.exists(config.ssl_ca_key):
+			os.unlink(config.ssl_ca_key)
+		if not os.path.exists(os.path.dirname(config.ssl_ca_key)):
+			os.makedirs(os.path.dirname(config.ssl_ca_key))
+			os.chmod(path=os.path.dirname(config.ssl_ca_key), mode=0o700)
+		with open(config.ssl_ca_key, "ab") as out:
+			out.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, ca_key))
+		
+		if os.path.exists(config.ssl_ca_cert):
+			os.unlink(config.ssl_ca_cert)
+		if not os.path.exists(os.path.dirname(config.ssl_ca_cert)):
+			os.makedirs(os.path.dirname(config.ssl_ca_cert))
+			os.chmod(path=os.path.dirname(config.ssl_ca_cert), mode=0o700)
+		with open(config.ssl_ca_cert, "ab") as out:
+			out.write(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_crt))
+		
+		setup_ssl_file_permissions()
+		
+	if os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
+		# Chrome requires Subject Alt Name
+		ips = ["127.0.0.1", "::1"]
+		for a in get_ip_addresses():
+			if a["family"] == "ipv4" and a["address"] not in ips:
+				ips.append(a["address"])
+		ips = ", ".join([f"IP:{ip}" for ip in ips])
+
+		alt_names = f"DNS:{fqdn}, DNS:localhost, {ips}"
+
+		srv_key = crypto.PKey()
+		srv_key.generate_key(crypto.TYPE_RSA, 4096)
+
+		srv_crt = crypto.X509()
+		srv_crt.set_version(2)
+
+		srv_subject= srv_crt.get_subject()
+		srv_subject.C = "DE"
+		srv_subject.ST = "RP"
+		srv_subject.L = "MAINZ"
+		srv_subject.O = "uib"
+		srv_subject.OU = f"opsi@{domain}"
+		srv_subject.CN = f"{fqdn}"
+		srv_subject.emailAddress = f"opsi@{domain}"
+
+		srv_serialnumber = random.getrandbits(64)
+		srv_crt.set_serial_number(srv_serialnumber)
+		srv_crt.gmtime_adj_notBefore(0)
+		srv_crt.gmtime_adj_notAfter(cert_days * 60 * 60 * 24)
+		srv_crt.set_issuer(ca_crt.get_subject())
+		srv_crt.set_subject(srv_subject)
+
+		srv_crt.add_extensions([
+			crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
+			crypto.X509Extension(b"basicConstraints", True, b"CA:FALSE"),
+			crypto.X509Extension(b"keyUsage", True, b"nonRepudiation, digitalSignature, keyEncipherment"),
+			crypto.X509Extension(b"extendedKeyUsage", False, b"serverAuth, clientAuth, codeSigning, emailProtection"),
+			crypto.X509Extension(b"subjectAltName", False, alt_names.encode())
+		])
+
+		srv_crt.set_pubkey(srv_key)
+		srv_crt.sign(ca_key, "sha256")
+		
+		logger.info("Creating opsiconfd cert")
+
+		if os.path.exists(config.ssl_server_key):
+			os.unlink(config.ssl_server_key)
+		if os.path.exists(config.ssl_server_cert):
+			os.unlink(config.ssl_server_cert)
+		
+		if not os.path.exists(os.path.dirname(config.ssl_server_key)):
+			os.makedirs(os.path.dirname(config.ssl_server_key))
+			os.chmod(path=os.path.dirname(config.ssl_server_key), mode=0o700)
+
+		ca_srl = os.path.splitext(config.ssl_ca_key)[0] + ".srl"
+		with open(ca_srl, "a") as out:
+			out.write(str(srv_serialnumber))
+
+		with open(config.ssl_server_key, "ab") as out:
+			out.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, srv_key))
+		if not os.path.exists(os.path.dirname(config.ssl_server_cert)):
+			os.makedirs(os.path.dirname(config.ssl_server_cert))
+			os.chmod(path=os.path.dirname(config.ssl_server_cert), mode=0o700)
+
+		with open(config.ssl_server_cert, "ab") as out:
+			out.write(crypto.dump_certificate(crypto.FILETYPE_PEM, srv_crt))
+		
+		setup_ssl_file_permissions()
+	# finally:
+	# 	shutil.rmtree(tmp_dir)
 
 def setup_files():
 	log_dir = os.path.dirname(config.log_file)

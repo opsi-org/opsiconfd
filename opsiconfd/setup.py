@@ -133,7 +133,6 @@ def setup_ssl():
 	cert_days = 365
 	fqdn = getfqdn()
 	domain = '.'.join(fqdn.split('.')[1:])
-	tmp_dir = tempfile.mkdtemp()
 	
 	ca_key = None
 	ca_crt = None
@@ -145,7 +144,8 @@ def setup_ssl():
 		ca_key.generate_key(crypto.TYPE_RSA, 4096)
 
 		ca_crt = crypto.X509()
-		ca_serial_number = random.getrandbits(64)
+		random_number = random.getrandbits(32)
+		ca_serial_number = int.from_bytes(f"opsica-{random_number}".encode(), byteorder="big")
 		ca_crt.set_serial_number(ca_serial_number)
 		ca_crt.gmtime_adj_notBefore(0)
 		ca_crt.gmtime_adj_notAfter(ca_days * 60 * 60 * 24)
@@ -228,9 +228,10 @@ def setup_ssl():
 				used_serial_numbers = [serial_number.rstrip() for serial_number in file]
 		srv_serial_number = None
 		count = 0
-		while not srv_serial_number or srv_serial_number in used_serial_numbers:
+		while not srv_serial_number or hex(srv_serial_number)[2:] in used_serial_numbers:
 			count += 1
-			srv_serial_number = random.getrandbits(64)
+			random_number = random.getrandbits(32)
+			srv_serial_number = int.from_bytes(f"opsiconfd-{random_number}".encode(), byteorder="big") 
 			if count > 10:
 				logger.warning("No new serial number for ssl cert found!")
 				break
@@ -264,7 +265,7 @@ def setup_ssl():
 			os.chmod(path=os.path.dirname(config.ssl_server_key), mode=0o700)
 
 		with open(ca_srl, "a") as out:
-			out.write(str(srv_serial_number))
+			out.write(hex(srv_serial_number)[2:])
 			out.write("\n")
 
 		with open(config.ssl_server_key, "ab") as out:

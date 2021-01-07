@@ -143,7 +143,9 @@ def setup_ssl():
 	fqdn = getfqdn()
 	domain = '.'.join(fqdn.split('.')[1:])
 	tmp_dir = tempfile.mkdtemp()
-	# try:
+	
+	ca_key = None
+	ca_crt = None
 		
 	if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
 		logger.info("Creating opsi CA")
@@ -152,8 +154,8 @@ def setup_ssl():
 		ca_key.generate_key(crypto.TYPE_RSA, 4096)
 
 		ca_crt = crypto.X509()
-		ca_serialnumber = random.getrandbits(64)
-		ca_crt.set_serial_number(ca_serialnumber)
+		ca_serial_number = random.getrandbits(64)
+		ca_crt.set_serial_number(ca_serial_number)
 		ca_crt.gmtime_adj_notBefore(0)
 		ca_crt.gmtime_adj_notAfter(ca_days * 60 * 60 * 24)
 
@@ -199,6 +201,18 @@ def setup_ssl():
 		setup_ssl_file_permissions()
 		
 	if os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
+
+		if not ca_key:
+			with open(config.ssl_ca_key, "r") as file:
+				ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM,  file.read())
+		if not ca_crt:
+			with open(config.ssl_ca_cert, "r") as file:
+				ca_crt = crypto.load_certificate(crypto.FILETYPE_PEM,  file.read())
+
+		logger.devel(ca_crt)
+		logger.devel(ca_crt.get_subject())
+		logger.devel(ca_key)
+
 		# Chrome requires Subject Alt Name
 		ips = ["127.0.0.1", "::1"]
 		for a in get_ip_addresses():
@@ -223,8 +237,24 @@ def setup_ssl():
 		srv_subject.CN = f"{fqdn}"
 		srv_subject.emailAddress = f"opsi@{domain}"
 
-		srv_serialnumber = random.getrandbits(64)
-		srv_crt.set_serial_number(srv_serialnumber)
+		ca_srl = os.path.splitext(config.ssl_ca_key)[0] + ".srl"
+		used_serial_numbers = []
+		if os.path.exists(ca_srl):
+			with open(ca_srl, "r") as file:
+				used_serial_numbers = [serial_number.rstrip() for serial_number in file]
+
+		logger.devel("used_serial_numbers: %s", used_serial_numbers)
+
+		srv_serial_number = None
+		count = 0
+		while not srv_serial_number or srv_serial_number in used_serial_numbers:
+			count += 1
+			srv_serial_number = random.getrandbits(64)
+			if count > 10:
+				logger.warning("No new serial number for ssl cert found!")
+				break
+		logger.devel(srv_serial_number)
+		srv_crt.set_serial_number(srv_serial_number)
 		srv_crt.gmtime_adj_notBefore(0)
 		srv_crt.gmtime_adj_notAfter(cert_days * 60 * 60 * 24)
 		srv_crt.set_issuer(ca_crt.get_subject())
@@ -252,9 +282,9 @@ def setup_ssl():
 			os.makedirs(os.path.dirname(config.ssl_server_key))
 			os.chmod(path=os.path.dirname(config.ssl_server_key), mode=0o700)
 
-		ca_srl = os.path.splitext(config.ssl_ca_key)[0] + ".srl"
 		with open(ca_srl, "a") as out:
-			out.write(str(srv_serialnumber))
+			out.write(str(srv_serial_number))
+			out.write("\n")
 
 		with open(config.ssl_server_key, "ab") as out:
 			out.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, srv_key))

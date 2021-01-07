@@ -224,3 +224,29 @@ def open_grafana(request: Request):
 	response = RedirectResponse(url=url)
 	response.set_cookie(key="grafana_session",value=session.cookies.get_dict().get("grafana_session"))
 	return response
+
+@admin_interface_router.get("/config")
+def get_confd_conf(all: bool = False) -> JSONResponse:
+
+	keys_to_remove = [
+		"version", 
+		"setup", 
+		"action", 
+		"ex_help",
+		"log_max_msg_len",
+		"debug",
+		"profiler",
+		"server_type",
+		"node_name",
+		"executor_type",
+		"executor_workers",
+		"log_slow_async_callbacks"
+	]
+
+	current_config = config.items().copy()
+	if not all:
+		for key in keys_to_remove:
+			del current_config[key]
+	
+	response = JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
+	return response

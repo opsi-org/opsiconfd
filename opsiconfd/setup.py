@@ -109,21 +109,12 @@ def check_ssl_expiry():
 	for cert in (config.ssl_ca_cert, config.ssl_server_cert):
 		if os.path.exists(cert):
 			logger.info("Checking expiry of certificate: %s", cert)
-			# cmd = ["openssl", "x509", "-enddate", "-noout", "-in", cert]
-			# out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=get_subprocess_environment())
-			# enddate = out.decode().split('=')[1].strip()
-			# enddate = datetime.datetime.strptime(enddate, "%b %d %H:%M:%S %Y %Z")
-			# diff = (enddate - datetime.datetime.now()).days
 
 			with open(cert, "r") as file:
 				cert = crypto.load_certificate(crypto.FILETYPE_PEM,  file.read())
 
-			logger.devel("cert: %s", cert)
-			logger.devel("not after: %s", cert.get_notAfter())
-			logger.devel(datetime.datetime.now())
 			enddate = datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
 			diff = (enddate - datetime.datetime.now()).days
-			logger.devel("diff: %s", diff)
 
 			if (diff <= 0):
 				logger.error("Certificate '%s' expired on %s", cert, enddate)
@@ -170,9 +161,6 @@ def setup_ssl():
 		ca_subject.OU = f"opsi@{domain}"
 		ca_subject.CN = "opsi CA"
 		ca_subject.emailAddress = f"opsi@{domain}"
-
-		logger.devel("ca_subject: %s", ca_subject)
-
 		ca_crt.set_issuer(ca_subject)
 
 		ca_crt.add_extensions([
@@ -209,10 +197,6 @@ def setup_ssl():
 			with open(config.ssl_ca_cert, "r") as file:
 				ca_crt = crypto.load_certificate(crypto.FILETYPE_PEM,  file.read())
 
-		logger.devel(ca_crt)
-		logger.devel(ca_crt.get_subject())
-		logger.devel(ca_key)
-
 		# Chrome requires Subject Alt Name
 		ips = ["127.0.0.1", "::1"]
 		for a in get_ip_addresses():
@@ -242,9 +226,6 @@ def setup_ssl():
 		if os.path.exists(ca_srl):
 			with open(ca_srl, "r") as file:
 				used_serial_numbers = [serial_number.rstrip() for serial_number in file]
-
-		logger.devel("used_serial_numbers: %s", used_serial_numbers)
-
 		srv_serial_number = None
 		count = 0
 		while not srv_serial_number or srv_serial_number in used_serial_numbers:
@@ -253,7 +234,7 @@ def setup_ssl():
 			if count > 10:
 				logger.warning("No new serial number for ssl cert found!")
 				break
-		logger.devel(srv_serial_number)
+
 		srv_crt.set_serial_number(srv_serial_number)
 		srv_crt.gmtime_adj_notBefore(0)
 		srv_crt.gmtime_adj_notAfter(cert_days * 60 * 60 * 24)
@@ -296,8 +277,6 @@ def setup_ssl():
 			out.write(crypto.dump_certificate(crypto.FILETYPE_PEM, srv_crt))
 		
 		setup_ssl_file_permissions()
-	# finally:
-	# 	shutil.rmtree(tmp_dir)
 
 def setup_files():
 	log_dir = os.path.dirname(config.log_file)

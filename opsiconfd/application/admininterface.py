@@ -49,7 +49,7 @@ async def admin_interface_index(request: Request):
 @admin_interface_router.post("/unblock-all")
 async def unblock_all_clients(request: Request, response: Response):
 	redis_client = await get_redis_client()
-	
+
 	try:
 		clients = []
 		deleted_keys = []
@@ -62,7 +62,7 @@ async def unblock_all_clients(request: Request, response: Response):
 				logger.debug("redis key to delete: %s", key)
 				await pipe.delete(key)
 
-			keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")		
+			keys = redis_client.scan_iter("opsiconfd:stats:client:blocked:*")
 			async for key in keys:
 				logger.debug("redis key to delete: %s", key)
 				deleted_keys.append(key.decode("utf8"))
@@ -83,7 +83,7 @@ async def unblock_client(request: Request):
 	try:
 		request_body = await request.json()
 		client_addr = request_body.get("client_addr")
-		
+
 		logger.debug("unblock client addr: %s ", client_addr)
 		redis_client = await get_redis_client()
 		deleted_keys = []
@@ -145,12 +145,12 @@ async def get_rpc_list(limit: int = 250) -> list:
 		}
 		rpc_list.append(rpc)
 
-	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num')) 
+	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num'))
 	return rpc_list
 
 
 @admin_interface_router.get("/rpc-count")
-async def get_rpc_count(): 
+async def get_rpc_count():
 	redis_client = await get_redis_client()
 	count = await redis_client.llen("opsiconfd:stats:rpcs")
 
@@ -178,7 +178,7 @@ def open_grafana(request: Request):
 		url = f"https://{fqdn}:{request.url.port}/admin/grafana"
 		response = RedirectResponse(url=url)
 		return response
-	
+
 	auth = None
 	headers = None
 	url = urlparse(config.grafana_internal_url)
@@ -228,10 +228,10 @@ def open_grafana(request: Request):
 @admin_interface_router.get("/config")
 def get_confd_conf(all: bool = False) -> JSONResponse:
 
-	keys_to_remove = [
-		"version", 
-		"setup", 
-		"action", 
+	KEYS_TO_REMOVE = [
+		"version",
+		"setup",
+		"action",
 		"ex_help",
 		"log_max_msg_len",
 		"debug",
@@ -245,8 +245,9 @@ def get_confd_conf(all: bool = False) -> JSONResponse:
 
 	current_config = config.items().copy()
 	if not all:
-		for key in keys_to_remove:
+		for key in KEYS_TO_REMOVE:
 			del current_config[key]
-	
+	current_config = dict(sorted(current_config.items()))
+
 	response = JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
 	return response

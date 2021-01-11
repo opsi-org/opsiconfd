@@ -1,10 +1,35 @@
+# -*- coding: utf-8 -*-
 
+# This file is part of opsi.
+# Copyright (C) 2020 uib GmbH <info@uib.de>
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+:copyright: uib GmbH <info@uib.de>
+:license: GNU Affero General Public License version 3
+"""
 import os
 import datetime
 import random
 import shutil
 
-from OpenSSL import crypto
+# from OpenSSL import crypto
+from OpenSSL.crypto import (
+	FILETYPE_PEM, TYPE_RSA,
+	dump_privatekey, dump_certificate, load_privatekey, load_certificate,
+	X509, PKey, X509Name, X509Extension
+)
 from typing import Tuple
 
 from OPSI.Util import getfqdn
@@ -40,7 +65,7 @@ def setup_ssl():
 			os.makedirs(os.path.dirname(config.ssl_ca_key))
 			os.chmod(path=os.path.dirname(config.ssl_ca_key), mode=0o700)
 		with open(config.ssl_ca_key, "wb") as out:
-			out.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, ca_key))
+			out.write(dump_privatekey(FILETYPE_PEM, ca_key))
 		
 		if os.path.exists(config.ssl_ca_cert):
 			os.unlink(config.ssl_ca_cert)
@@ -48,7 +73,7 @@ def setup_ssl():
 			os.makedirs(os.path.dirname(config.ssl_ca_cert))
 			os.chmod(path=os.path.dirname(config.ssl_ca_cert), mode=0o700)
 		with open(config.ssl_ca_cert, "wb") as out:
-			out.write(crypto.dump_certificate(crypto.FILETYPE_PEM, ca_crt))
+			out.write(dump_certificate(FILETYPE_PEM, ca_crt))
 		
 		setup_ssl_file_permissions()
 		
@@ -56,10 +81,10 @@ def setup_ssl():
 
 		if not ca_key:
 			with open(config.ssl_ca_key, "r") as file:
-				ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM,  file.read())
+				ca_key = load_privatekey(FILETYPE_PEM,  file.read())
 		if not ca_crt:
 			with open(config.ssl_ca_cert, "r") as file:
-				ca_crt = crypto.load_certificate(crypto.FILETYPE_PEM,  file.read())
+				ca_crt = load_certificate(FILETYPE_PEM,  file.read())
 
 		srv_crt, srv_key = create_crt(ca_crt, ca_key)
 
@@ -73,10 +98,10 @@ def setup_ssl():
 			os.chmod(path=os.path.dirname(config.ssl_server_key), mode=0o700)
 		
 		with open(config.ssl_server_cert, "ab") as out:
-			out.write(crypto.dump_certificate(crypto.FILETYPE_PEM, srv_crt))
+			out.write(dump_certificate(FILETYPE_PEM, srv_crt))
 
 		with open(config.ssl_server_key, "ab") as out:
-			out.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, srv_key))
+			out.write(dump_privatekey(FILETYPE_PEM, srv_key))
 		if not os.path.exists(os.path.dirname(config.ssl_server_cert)):
 			os.makedirs(os.path.dirname(config.ssl_server_cert))
 			os.chmod(path=os.path.dirname(config.ssl_server_cert), mode=0o700)
@@ -113,7 +138,7 @@ def check_ssl_expiry():
 			logger.info("Checking expiry of certificate: %s", cert)
 
 			with open(cert, "r") as file:
-				cert = crypto.load_certificate(crypto.FILETYPE_PEM,  file.read())
+				cert = load_certificate(FILETYPE_PEM,  file.read())
 
 			enddate = datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
 			diff = (enddate - datetime.datetime.now()).days
@@ -123,7 +148,7 @@ def check_ssl_expiry():
 			elif (diff < 30):
 				logger.warning("Certificate '%s' will expire in %d days", cert, diff)
 
-def renew_ca() -> Tuple[crypto.X509, crypto.PKey]:
+def renew_ca() -> Tuple[X509, PKey]:
 
 	if os.path.exists(config.ssl_ca_cert):
 		logger.debug("Rename old ca.")
@@ -133,24 +158,23 @@ def renew_ca() -> Tuple[crypto.X509, crypto.PKey]:
 	if os.path.exists(config.ssl_ca_key):
 		logger.info("Using existing key to create new ca.")
 		with open(config.ssl_ca_key, "r") as file:
-			ca_key = crypto.load_privatekey(crypto.FILETYPE_PEM,  file.read())
+			ca_key = load_privatekey(FILETYPE_PEM,  file.read())
 	else:
 		logger.info("Key not found. Create new ca with new key.")
-		ca_key = crypto.PKey()
-		ca_key.generate_key(crypto.TYPE_RSA, 4096)
+		ca_key = PKey()
+		ca_key.generate_key(TYPE_RSA, 4096)
 
 	return create_ca(ca_key)
 	
 
-def create_ca(ca_key: crypto.PKey = None, ca_subject: crypto.X509Name = None) -> Tuple[crypto.X509, crypto.PKey]:
-	
+def create_ca(ca_key: PKey = None, ca_subject: X509Name = None) -> Tuple[X509, PKey]:
 	logger.info("Creating opsi CA")
 
 	if not ca_key:
-		ca_key = crypto.PKey()
-		ca_key.generate_key(crypto.TYPE_RSA, 4096)
+		ca_key = PKey()
+		ca_key.generate_key(TYPE_RSA, 4096)
 
-	ca_crt = crypto.X509()
+	ca_crt = X509()
 	ca_crt.set_version(2)
 	random_number = random.getrandbits(32)
 	ca_serial_number = int.from_bytes(f"opsica-{random_number}".encode(), byteorder="big")
@@ -166,17 +190,16 @@ def create_ca(ca_key: crypto.PKey = None, ca_subject: crypto.X509Name = None) ->
 	
 	ca_crt.set_issuer(ca_subject)
 	ca_crt.set_subject(ca_subject)
-	logger.devel("ca_crt: %s", ca_crt.get_subject())
 	ca_crt.add_extensions([
-		crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
-		crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE")
+		X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
+		X509Extension(b"basicConstraints", True, b"CA:TRUE")
 	])
 	ca_crt.sign(ca_key, 'sha256')
 
 	return (ca_crt, ca_key)
 
 
-def create_crt(ca_crt: crypto.X509, ca_key: crypto.PKey, srv_subject: crypto.X509Name = None) -> Tuple[crypto.X509, crypto.PKey]:
+def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tuple[X509, PKey]:
 	logger.info("Creating opsiconfd cert")
 	fqdn = getfqdn()
 	domain = '.'.join(fqdn.split('.')[1:])	
@@ -190,16 +213,15 @@ def create_crt(ca_crt: crypto.X509, ca_key: crypto.PKey, srv_subject: crypto.X50
 
 	alt_names = f"DNS:{fqdn}, DNS:localhost, {ips}"
 
-	srv_key = crypto.PKey()
-	srv_key.generate_key(crypto.TYPE_RSA, 4096)
+	srv_key = PKey()
+	srv_key.generate_key(TYPE_RSA, 4096)
 
-	srv_crt = crypto.X509()
+	srv_crt = X509()
 	srv_crt.set_version(2)
 
 	if not srv_subject:
 		srv_subject = create_x590Name({"CN": f"{domain}"})
 	srv_crt.set_subject(srv_subject)
-	logger.devel("srv_crt: %s", srv_crt.get_subject())
 
 	ca_srl = os.path.splitext(config.ssl_ca_key)[0] + ".srl"
 	used_serial_numbers = []
@@ -223,11 +245,11 @@ def create_crt(ca_crt: crypto.X509, ca_key: crypto.PKey, srv_subject: crypto.X50
 	srv_crt.set_subject(srv_subject)
 
 	srv_crt.add_extensions([
-		crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
-		crypto.X509Extension(b"basicConstraints", True, b"CA:FALSE"),
-		crypto.X509Extension(b"keyUsage", True, b"nonRepudiation, digitalSignature, keyEncipherment"),
-		crypto.X509Extension(b"extendedKeyUsage", False, b"serverAuth, clientAuth, codeSigning, emailProtection"),
-		crypto.X509Extension(b"subjectAltName", False, alt_names.encode())
+		X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
+		X509Extension(b"basicConstraints", True, b"CA:FALSE"),
+		X509Extension(b"keyUsage", True, b"nonRepudiation, digitalSignature, keyEncipherment"),
+		X509Extension(b"extendedKeyUsage", False, b"serverAuth, clientAuth, codeSigning, emailProtection"),
+		X509Extension(b"subjectAltName", False, alt_names.encode())
 	])
 
 	srv_crt.set_pubkey(srv_key)
@@ -240,7 +262,7 @@ def create_crt(ca_crt: crypto.X509, ca_key: crypto.PKey, srv_subject: crypto.X50
 	return (srv_crt, srv_key)
 
 
-def create_x590Name(subj: dict = None) -> crypto.X509Name:
+def create_x590Name(subj: dict = None) -> X509Name:
 
 	fqdn = getfqdn()
 	domain = '.'.join(fqdn.split('.')[1:])
@@ -255,9 +277,8 @@ def create_x590Name(subj: dict = None) -> crypto.X509Name:
 		"emailAddress": f"opsi@{domain}"
 	}
 	subject.update(subj)
-	logger.devel(subject)
 
-	x509_name = crypto.X509Name(crypto.X509().get_subject())
+	x509_name = X509Name(X509().get_subject())
 	if subject.get("countryName"):
 		x509_name.countryName = subject.get("countryName")
 	if subject.get("C"):

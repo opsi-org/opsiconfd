@@ -121,6 +121,51 @@ def check_ssl_expiry():
 			elif (diff < 30):
 				logger.warning("Certificate '%s' will expire in %d days", cert, diff)
 
+
+def create_ca(ca_key: crypto.PKey = None, ca_subject: crypto.X509Name = None) -> crypto.X509:
+	ca_days = 730
+	fqdn = getfqdn()
+	domain = '.'.join(fqdn.split('.')[1:])
+
+	logger.info("Creating opsi CA")
+
+	if not ca_key:
+		ca_key = crypto.PKey()
+		ca_key.generate_key(crypto.TYPE_RSA, 4096)
+
+	ca_crt = crypto.X509()
+	random_number = random.getrandbits(32)
+	ca_serial_number = int.from_bytes(f"opsica-{random_number}".encode(), byteorder="big")
+	ca_crt.set_serial_number(ca_serial_number)
+	ca_crt.gmtime_adj_notBefore(0)
+	ca_crt.gmtime_adj_notAfter(ca_days * 60 * 60 * 24)
+
+	ca_crt.set_version(2)
+	ca_crt.set_pubkey(ca_key)
+
+	logger.devel("SUBJECT: %s", ca_crt.get_subject())
+	if not ca_subject:
+		ca_subject = ca_crt.get_subject()
+		ca_subject.C = "DE"
+		ca_subject.ST = "RP"
+		ca_subject.L = "MAINZ"
+		ca_subject.O = "uib"
+		ca_subject.OU = f"opsi@{domain}"
+		ca_subject.CN = "opsi CA"
+		ca_subject.emailAddress = f"opsi@{domain}"
+		
+
+	ca_crt.set_issuer(ca_subject)
+	logger.devel("SUBJECT: %s", ca_crt.get_subject())
+
+	ca_crt.add_extensions([
+		crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
+		crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE")
+	])
+	ca_crt.sign(ca_key, 'sha256')
+
+	return ca_crt
+
 def setup_ssl():
 	logger.info("Setup ssl")
 	if (
@@ -143,32 +188,38 @@ def setup_ssl():
 		ca_key = crypto.PKey()
 		ca_key.generate_key(crypto.TYPE_RSA, 4096)
 
-		ca_crt = crypto.X509()
-		random_number = random.getrandbits(32)
-		ca_serial_number = int.from_bytes(f"opsica-{random_number}".encode(), byteorder="big")
-		ca_crt.set_serial_number(ca_serial_number)
-		ca_crt.gmtime_adj_notBefore(0)
-		ca_crt.gmtime_adj_notAfter(ca_days * 60 * 60 * 24)
+		# ca_crt = crypto.X509()
+		# random_number = random.getrandbits(32)
+		# ca_serial_number = int.from_bytes(f"opsica-{random_number}".encode(), byteorder="big")
+		# ca_crt.set_serial_number(ca_serial_number)
+		# ca_crt.gmtime_adj_notBefore(0)
+		# ca_crt.gmtime_adj_notAfter(ca_days * 60 * 60 * 24)
 
-		ca_crt.set_version(2)
-		ca_crt.set_pubkey(ca_key)
+		# ca_crt.set_version(2)
+		# ca_crt.set_pubkey(ca_key)
 
-		ca_subject= ca_crt.get_subject()
-		ca_subject.C = "DE"
-		ca_subject.ST = "RP"
-		ca_subject.L = "MAINZ"
-		ca_subject.O = "uib"
-		ca_subject.OU = f"opsi@{domain}"
-		ca_subject.CN = "opsi CA"
-		ca_subject.emailAddress = f"opsi@{domain}"
-		ca_crt.set_issuer(ca_subject)
+		# ca_subject= ca_crt.get_subject()
+		# ca_subject.C = "DE"
+		# ca_subject.ST = "RP"
+		# ca_subject.L = "MAINZ"
+		# ca_subject.O = "uib"
+		# ca_subject.OU = f"opsi@{domain}"
+		# ca_subject.CN = "opsi CA"
+		# ca_subject.emailAddress = f"opsi@{domain}"
+		# ca_crt.set_issuer(ca_subject)
 
-		ca_crt.add_extensions([
-			crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
-			crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE")
-		])
+		
 
-		ca_crt.sign(ca_key, 'sha256')
+		# ca_crt.add_extensions([
+		# 	crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
+		# 	crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE")
+		# ])
+
+		# ca_crt.sign(ca_key, 'sha256')
+
+		logger.devel("create ca crt")
+		ca_crt = create_ca(ca_key)
+		logger.devel(ca_crt)
 
 		if os.path.exists(config.ssl_ca_key):
 			os.unlink(config.ssl_ca_key)

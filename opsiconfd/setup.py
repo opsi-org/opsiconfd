@@ -122,7 +122,7 @@ def check_ssl_expiry():
 			elif (diff < 30):
 				logger.warning("Certificate '%s' will expire in %d days", cert, diff)
 
-def renew_ca() -> None:
+def renew_ca() -> Tuple[crypto.X509, crypto.PKey]:
 
 	ca_key = None
 	if os.path.exists(config.ssl_ca_key):
@@ -138,8 +138,7 @@ def renew_ca() -> None:
 
 def create_ca(ca_key: crypto.PKey = None, ca_subject: crypto.X509Name = None) -> Tuple[crypto.X509, crypto.PKey]:
 	ca_days = 730
-	fqdn = getfqdn()
-	domain = '.'.join(fqdn.split('.')[1:])
+	
 
 	logger.info("Creating opsi CA")
 
@@ -159,17 +158,10 @@ def create_ca(ca_key: crypto.PKey = None, ca_subject: crypto.X509Name = None) ->
 
 	logger.devel("SUBJECT: %s", ca_crt.get_subject())
 	if not ca_subject:
-		ca_subject = ca_crt.get_subject()
-		ca_subject.C = "DE"
-		ca_subject.ST = "RP"
-		ca_subject.L = "MAINZ"
-		ca_subject.O = "uib"
-		ca_subject.OU = f"opsi@{domain}"
-		ca_subject.CN = "opsi CA"
-		ca_subject.emailAddress = f"opsi@{domain}"
-		
-
+		ca_subject = create_x590Name()
+	
 	ca_crt.set_issuer(ca_subject)
+	ca_crt.set_subject(ca_subject)
 	logger.devel("SUBJECT: %s", ca_crt.get_subject())
 
 	ca_crt.add_extensions([
@@ -180,6 +172,54 @@ def create_ca(ca_key: crypto.PKey = None, ca_subject: crypto.X509Name = None) ->
 
 	return (ca_crt, ca_key)
 
+def create_x590Name(subject: dict = None) -> crypto.X509Name:
+
+	fqdn = getfqdn()
+	domain = '.'.join(fqdn.split('.')[1:])
+
+	if not subject:
+		subject = {
+			"C": "DE",
+			"ST": "RP",
+			"L": "MAINZ",
+			"O": "uib",
+			"OU": f"opsi@{domain}",
+			"CN": "opsi CA",
+			"emailAddress": f"opsi@{domain}"
+		}
+
+	x509_name = crypto.X509Name(crypto.X509().get_subject())
+	if subject.get("countryName"):
+		x509_name.countryName = subject.get("countryName")
+	if subject.get("C"):
+		x509_name.C = subject.get("C")
+	if subject.get("stateOrProvinceName"):
+		x509_name.stateOrProvinceName = subject.get("stateOrProvinceName")
+	if subject.get("ST"):
+		x509_name.ST = subject.get("ST")
+	if subject.get("localityName"):
+		x509_name.localityName = subject.get("localityName")
+	if subject.get("L"):
+		x509_name.L = subject.get("L")
+	if subject.get("organizationName"):
+		x509_name.organizationName = subject.get("organizationName")
+	if subject.get("O"):
+		x509_name.O = subject.get("O")
+	if subject.get("organizationalUnitName"):
+		x509_name.organizationalUnitName = subject.get("organizationalUnitName")
+	if subject.get("OU"):
+		x509_name.OU = subject.get("OU")
+	if subject.get("commonName"):
+		x509_name.commonName = subject.get("commonName")
+	if subject.get("CN"):
+		x509_name.CN = subject.get("CN")
+	if subject.get("emailAddress"):
+		x509_name.emailAddress = subject.get("emailAddress")
+
+	logger.devel(x509_name)
+
+	return x509_name
+
 def setup_ssl():
 	logger.info("Setup ssl")
 	if (
@@ -188,7 +228,6 @@ def setup_ssl():
 	):
 		return
 	
-	ca_days = 730
 	cert_days = 365
 	fqdn = getfqdn()
 	domain = '.'.join(fqdn.split('.')[1:])
@@ -199,11 +238,7 @@ def setup_ssl():
 	if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
 		logger.info("Creating opsi CA")
 
-		logger.devel(ca_key)
-		logger.devel("create ca crt")
 		ca_crt, ca_key = create_ca()
-		logger.devel(ca_crt)
-		logger.devel(ca_key)
 
 		if os.path.exists(config.ssl_ca_key):
 			os.unlink(config.ssl_ca_key)

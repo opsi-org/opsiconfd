@@ -93,7 +93,6 @@ stages:
   poetry run pytest -s opsiconfd /builds/uib/opsiconfd/tests/test_config.py 
 
 test:perftest:
-  when: manual
   image: ubuntu:focal
   services:
     - mysql:latest
@@ -110,7 +109,6 @@ test:perftest:
     - *perftest
 
 test:pytest:
-  when: manual
   image: ubuntu:focal
   services:
     - mysql:latest

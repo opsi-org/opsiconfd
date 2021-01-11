@@ -162,11 +162,11 @@ def create_ca(ca_key: crypto.PKey = None, ca_subject: crypto.X509Name = None) ->
 	ca_crt.set_pubkey(ca_key)
 
 	if not ca_subject:
-		ca_subject = create_x590Name()
+		ca_subject = create_x590Name({"CN": "opsi CA"})
 	
 	ca_crt.set_issuer(ca_subject)
 	ca_crt.set_subject(ca_subject)
-
+	logger.devel("ca_crt: %s", ca_crt.get_subject())
 	ca_crt.add_extensions([
 		crypto.X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
 		crypto.X509Extension(b"basicConstraints", True, b"CA:TRUE")
@@ -175,55 +175,11 @@ def create_ca(ca_key: crypto.PKey = None, ca_subject: crypto.X509Name = None) ->
 
 	return (ca_crt, ca_key)
 
-def create_x590Name(subject: dict = None) -> crypto.X509Name:
-
-	fqdn = getfqdn()
-	domain = '.'.join(fqdn.split('.')[1:])
-
-	if not subject:
-		subject = {
-			"C": "DE",
-			"ST": "RP",
-			"L": "MAINZ",
-			"O": "uib",
-			"OU": f"opsi@{domain}",
-			"CN": "opsi CA",
-			"emailAddress": f"opsi@{domain}"
-		}
-
-	x509_name = crypto.X509Name(crypto.X509().get_subject())
-	if subject.get("countryName"):
-		x509_name.countryName = subject.get("countryName")
-	if subject.get("C"):
-		x509_name.C = subject.get("C")
-	if subject.get("stateOrProvinceName"):
-		x509_name.stateOrProvinceName = subject.get("stateOrProvinceName")
-	if subject.get("ST"):
-		x509_name.ST = subject.get("ST")
-	if subject.get("localityName"):
-		x509_name.localityName = subject.get("localityName")
-	if subject.get("L"):
-		x509_name.L = subject.get("L")
-	if subject.get("organizationName"):
-		x509_name.organizationName = subject.get("organizationName")
-	if subject.get("O"):
-		x509_name.O = subject.get("O")
-	if subject.get("organizationalUnitName"):
-		x509_name.organizationalUnitName = subject.get("organizationalUnitName")
-	if subject.get("OU"):
-		x509_name.OU = subject.get("OU")
-	if subject.get("commonName"):
-		x509_name.commonName = subject.get("commonName")
-	if subject.get("CN"):
-		x509_name.CN = subject.get("CN")
-	if subject.get("emailAddress"):
-		x509_name.emailAddress = subject.get("emailAddress")
-
-	return x509_name
 
 def create_crt(ca_crt: crypto.X509, ca_key: crypto.PKey, srv_subject: crypto.X509Name = None) -> Tuple[crypto.X509, crypto.PKey]:
 	logger.info("Creating opsiconfd cert")
-	fqdn = getfqdn()	
+	fqdn = getfqdn()
+	domain = '.'.join(fqdn.split('.')[1:])	
 
 	# Chrome requires Subject Alt Name
 	ips = ["127.0.0.1", "::1"]
@@ -241,8 +197,9 @@ def create_crt(ca_crt: crypto.X509, ca_key: crypto.PKey, srv_subject: crypto.X50
 	srv_crt.set_version(2)
 
 	if not srv_subject:
-		srv_subject = create_x590Name()
+		srv_subject = create_x590Name({"CN": f"{domain}"})
 	srv_crt.set_subject(srv_subject)
+	logger.devel("srv_crt: %s", srv_crt.get_subject())
 
 	ca_srl = os.path.splitext(config.ssl_ca_key)[0] + ".srl"
 	used_serial_numbers = []
@@ -281,3 +238,51 @@ def create_crt(ca_crt: crypto.X509, ca_key: crypto.PKey, srv_subject: crypto.X50
 		out.write("\n")
 
 	return (srv_crt, srv_key)
+
+
+def create_x590Name(subj: dict = None) -> crypto.X509Name:
+
+	fqdn = getfqdn()
+	domain = '.'.join(fqdn.split('.')[1:])
+
+	subject = {
+		"C": "DE",
+		"ST": "RP",
+		"L": "MAINZ",
+		"O": "uib",
+		"OU": f"opsi@{domain}",
+		"CN": "opsi",
+		"emailAddress": f"opsi@{domain}"
+	}
+	subject.update(subj)
+	logger.devel(subject)
+
+	x509_name = crypto.X509Name(crypto.X509().get_subject())
+	if subject.get("countryName"):
+		x509_name.countryName = subject.get("countryName")
+	if subject.get("C"):
+		x509_name.C = subject.get("C")
+	if subject.get("stateOrProvinceName"):
+		x509_name.stateOrProvinceName = subject.get("stateOrProvinceName")
+	if subject.get("ST"):
+		x509_name.ST = subject.get("ST")
+	if subject.get("localityName"):
+		x509_name.localityName = subject.get("localityName")
+	if subject.get("L"):
+		x509_name.L = subject.get("L")
+	if subject.get("organizationName"):
+		x509_name.organizationName = subject.get("organizationName")
+	if subject.get("O"):
+		x509_name.O = subject.get("O")
+	if subject.get("organizationalUnitName"):
+		x509_name.organizationalUnitName = subject.get("organizationalUnitName")
+	if subject.get("OU"):
+		x509_name.OU = subject.get("OU")
+	if subject.get("commonName"):
+		x509_name.commonName = subject.get("commonName")
+	if subject.get("CN"):
+		x509_name.CN = subject.get("CN")
+	if subject.get("emailAddress"):
+		x509_name.emailAddress = subject.get("emailAddress")
+
+	return x509_name

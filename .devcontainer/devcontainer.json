@@ -20,11 +20,13 @@
 		"python.testing.unittestEnabled": false,
 		"python.testing.nosetestsEnabled": false,
 		"python.testing.pytestEnabled": true,
-		"python.testing.pytestPath": ".venv/bin/pytest"
+		"python.testing.pytestPath": ".venv/bin/pytest",
+		"python.languageServer": "Pylance"
 	},
 	"extensions": [
 		"ms-azuretools.vscode-docker",
-		"ms-python.python"
+		"ms-python.python",
+		"ms-python.vscode-pylance"
 	],
 	"forwardPorts": [4447, 3000],
 	"remoteUser": "${localEnv:USER}"

@@ -23,18 +23,11 @@
 import os
 import pwd
 import grp
-import socket
 import shutil
 import psutil
-import codecs
 import getpass
 import resource
-import tempfile
 import subprocess
-import datetime
-import random
-from OpenSSL import crypto
-
 
 from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP, DEFAULT_DEPOT_USER
 from OPSI.setup import (
@@ -49,7 +42,6 @@ from OPSI.System import get_subprocess_environment
 
 from .logging import logger
 from .config import config
-from .utils import get_ip_addresses
 from .backend import get_backend
 from .grafana import setup_grafana
 from .statistics import setup_metric_downsampling

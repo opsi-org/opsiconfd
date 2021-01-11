@@ -39,7 +39,7 @@ from fastapi.responses import Response, ORJSONResponse
 from OPSI.Util import serialize, deserialize
 
 from ..logging import logger
-from ..backend import get_client_backend, get_backend_interface
+from ..backend import get_client_backend, get_backend_interface, get_backend
 from ..worker import (
 	run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, get_redis_client, sync_redis_client,
 	contextvar_client_address, contextvar_client_session, contextvar_request_id
@@ -294,7 +294,8 @@ async def process_jsonrpc(request: Request, response: Response):
 					use_redis_cache = True
 					task = run_in_threadpool(read_redis_cache, request, response, rpc)
 				if cache_outdated:
-					backend.config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")
+					confd_backend = get_backend()
+					confd_backend.config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")
 					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
 					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
 					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")

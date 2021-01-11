@@ -294,8 +294,7 @@ async def process_jsonrpc(request: Request, response: Response):
 					use_redis_cache = True
 					task = run_in_threadpool(read_redis_cache, request, response, rpc)
 				if cache_outdated:
-					confd_backend = get_backend()
-					confd_backend.config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")
+					get_backend().config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")
 					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
 					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
 					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")

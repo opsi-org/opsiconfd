@@ -29,7 +29,7 @@ from ctypes import c_long
 
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import ASGIApp
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
@@ -78,19 +78,19 @@ class LoggerWebsocket(WebSocketEndpoint):
 						continue
 					buf += dat[1][b"record"]
 				await self._websocket.send_text(buf)
-			except Exception as exc:
-				if not app.is_shutting_down and not isinstance(exc, ConnectionClosedOK):
-					logger.error(exc, exc_info=True)
+			except Exception as err:  # pylint: disable=broad-except
+				if not app.is_shutting_down and not isinstance(err, ConnectionClosedOK):
+					logger.error(err, exc_info=True)
 				break
 
 	async def on_connect(self, websocket: WebSocket):
-		self._websocket = websocket
+		self._websocket = websocket  # pylint: disable=attribute-defined-outside-init
 		params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
 		client = params.get("client", [None])[0]
 		start_id = params.get("start_time", ["$"])[0]
 		await self._websocket.accept()
 		await asyncio.get_event_loop().create_task(self._reader(start_id, client))
-	
+
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		pass
 
@@ -103,17 +103,17 @@ class TestWebsocket(WebSocketEndpoint):
 		#client = params.get("client", [None])[0]
 		await websocket.accept()
 		while True:
-			ts = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-			text = f"current utc time: {ts}"
+			current_time = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+			text = f"current utc time: {current_time}"
 			logger.info("Sending '%s'", text)
 			await websocket.send_text(text)
 			await asyncio.sleep(10)
-	
+
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		pass
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, response: Response):
+async def index(request: Request, response: Response):  # pylint: disable=unused-argument
 	return RedirectResponse("/admin", status_code=301)
 
 @app.on_event("startup")
@@ -127,7 +127,7 @@ async def shutdown_event():
 	app.is_shutting_down = True
 
 @app.get("/ssl/opsi-cacert.pem")
-def get_ssl_ca_cert(request: Request):
+def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument
 	return Response(
 		content=read_ssl_ca_cert_file(),
 		headers={
@@ -137,10 +137,10 @@ def get_ssl_ca_cert(request: Request):
 	)
 
 
-class BaseMiddleware:
-	def __init__(self, app: ASGIApp) -> None:
+class BaseMiddleware:  # pylint: disable=too-few-public-methods
+	def __init__(self, app: ASGIApp) -> None:  # pylint: disable=redefined-outer-name
 		self.app = app
-	
+
 	async def __call__(self, scope, receive, send):
 		if scope["type"] in ("http", "websocket"):
 			# Generate request id and store in contextvar
@@ -150,7 +150,7 @@ class BaseMiddleware:
 			request_id = abs(c_long(request_id).value)
 			scope["request_id"] = request_id
 			contextvar_request_id.set(request_id)
-			
+
 			# Sanitize client address
 			client_addr = scope.get("client")
 			client_host = client_addr[0] if client_addr else None
@@ -177,7 +177,7 @@ class BaseMiddleware:
 						"Accepting x-forwarded-for header (host=%s) from trusted proxy %s",
 						client_host, proxy_host
 					)
-			
+
 			if client_host:
 				# Normalize ip address
 				client_host = normalize_ip_address(client_host)
@@ -190,11 +190,17 @@ def application_setup():
 	FileResponse.chunk_size = 32*1024 # speeds up transfer of big files massively, original value is 4*1024
 
 	# Every Starlette application automatically includes two pieces of middleware by default:
-	#    ServerErrorMiddleware - Ensures that application exceptions may return a custom 500 page, or display an application traceback in DEBUG mode. This is always the outermost middleware layer.
-	#    ExceptionMiddleware - Adds exception handlers, so that particular types of expected exception cases can be associated with handler functions. For example raising HTTPException(status_code=404) within an endpoint will end up rendering a custom 404 page.
+	#    ServerErrorMiddleware: Ensures that application exceptions may return a custom 500 page,
+	#                           or display an application traceback in DEBUG mode.
+	#                           This is always the outermost middleware layer.
+	#      ExceptionMiddleware: Adds exception handlers, so that particular types of expected
+	#                           exception cases can be associated with handler functions.
+	#                           For example raising HTTPException(status_code=404) within an endpoint
+	#                           will end up rendering a custom 404 page.
+	#
 	# Last added middleware will be executed first
 	# middleware stack:
-	#    ServerErrorMiddleware 
+	#    ServerErrorMiddleware
 	#    user added middlewares
 	#    ExceptionMiddleware
 	#

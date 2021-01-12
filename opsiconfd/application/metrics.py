@@ -22,21 +22,22 @@
 
 import copy
 import time
-import aredis
-import aiohttp
 from datetime import datetime
-from fastapi import APIRouter, Request
-from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
-from typing import Dict, List
+from typing import List
 from operator import itemgetter
 from urllib.parse import urlparse
+import aredis
+import aiohttp
+
+from pydantic import BaseModel
+from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse
 
 from ..logging import logger
 from ..config import config
 from ..server import get_internal_url
 from ..worker import get_redis_client
-from ..statistics import metrics_registry, get_time_bucket_name, get_time_bucket
+from ..statistics import metrics_registry, get_time_bucket
 from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE
 
 grafana_metrics_router = APIRouter()
@@ -50,7 +51,7 @@ async def grafana_index():
 	return None
 
 @grafana_metrics_router.get("/dashboard")
-async def grafana_dashboard(request: Request):
+async def grafana_dashboard(request: Request):  # pylint: disable=unused-argument
 	auth = None
 	headers = None
 	url = urlparse(config.grafana_internal_url)
@@ -62,7 +63,7 @@ async def grafana_dashboard(request: Request):
 		else:
 			logger.debug("Using username %s and password grafana authorization", url.username)
 			auth = aiohttp.BasicAuth(url.username, url.password)
-	
+
 	base_url = f"{url.scheme}://{url.netloc.split('@', 1)[-1]}"
 	async with aiohttp.ClientSession(auth=auth, headers=headers) as session:
 		json = GRAFANA_DATASOURCE_TEMPLATE
@@ -73,7 +74,7 @@ async def grafana_dashboard(request: Request):
 			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json)
 		else:
 			resp = await session.post(f"{base_url}/api/datasources", json=json)
-		
+
 		if resp.status == 200:
 			json = {
 				"folderId": 0,
@@ -89,26 +90,26 @@ async def grafana_dashboard(request: Request):
 async def grafana_dashboard_config():
 	redis = await get_redis_client()
 	workers = []
-	async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:*"):
+	async for redis_key in redis.scan_iter("opsiconfd:worker_registry:*"):
 		redis_key = redis_key.decode("utf-8")
 		workers.append({"node_name": redis_key.split(':')[-2], "worker_num": int(redis_key.split(':')[-1])})
 	workers.sort(key=itemgetter("node_name", "worker_num"))
 
 	clients = []
-	async for redis_key in redis.scan_iter(f"opsiconfd:stats:client:num_http_request:*"):
+	async for redis_key in redis.scan_iter("opsiconfd:stats:client:num_http_request:*"):
 		redis_key = redis_key.decode("utf-8")
 		clients.append({"client_addr": redis_key.split(':')[-1]})
 	clients.sort(key=itemgetter("client_addr"))
 
 	dashboard = copy.deepcopy(GRAFANA_DASHBOARD_TEMPLATE)
 	panels = []
-	x = 0
-	y = 0
+	pos_x = 0
+	pos_y = 0
 	for panel_id, metric in enumerate(metrics_registry.get_metrics()):
 		if not metric.grafana_config:
 			continue
 		panel_id += 1
-		panel = metric.grafana_config.get_panel(id=panel_id, x=x, y=y)
+		panel = metric.grafana_config.get_panel(id=panel_id, x=pos_x, y=pos_y)
 		if metric.subject == "worker":
 			for i, worker in enumerate(workers):
 				panel["targets"].append({
@@ -124,11 +125,11 @@ async def grafana_dashboard_config():
 					"type": "timeserie"
 				})
 		panels.append(panel)
-		x += panel["gridPos"]["w"]
-		if x >= 24:
-			x = 0
-			y += panel["gridPos"]["h"]
-	
+		pos_x += panel["gridPos"]["w"]
+		if pos_x >= 24:
+			pos_x = 0
+			pos_y += panel["gridPos"]["h"]
+
 	dashboard["panels"] = panels
 	return dashboard
 
@@ -136,12 +137,12 @@ async def grafana_dashboard_config():
 @grafana_metrics_router.post('/search')
 async def grafana_search():
 	redis = await get_redis_client()
-	
+
 	names = []
 	for metric in metrics_registry.get_metrics():
 		if metric.subject == "worker":
 			workers = []
-			async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:*"):
+			async for redis_key in redis.scan_iter("opsiconfd:worker_registry:*"):
 				redis_key = redis_key.decode("utf-8")
 				workers.append({"node_name": redis_key.split(':')[-2], "worker_num": int(redis_key.split(':')[-1])})
 			workers.sort(key=itemgetter("node_name", "worker_num"))
@@ -149,7 +150,7 @@ async def grafana_search():
 				names.append(metric.get_name(**worker))
 		elif metric.subject == "client":
 			clients = []
-			async for redis_key in redis.scan_iter(f"opsiconfd:stats:client:num_http_request:*"):
+			async for redis_key in redis.scan_iter("opsiconfd:stats:client:num_http_request:*"):
 				redis_key = redis_key.decode("utf-8")
 				clients.append({"client_addr": redis_key.split(':')[-1]})
 			for client in clients:
@@ -162,7 +163,7 @@ class GrafanaQueryTargetRange(BaseModel):
 	from_: str
 	to: str
 	raw: dict
-	class Config:
+	class Config: #  pylint: disable=too-few-public-methods
 		fields = {
 			'from_': 'from'
 		}
@@ -181,16 +182,16 @@ class GrafanaQuery(BaseModel):
 
 @grafana_metrics_router.get('/query')
 @grafana_metrics_router.post('/query')
-async def grafana_query(query: GrafanaQuery):
+async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	logger.trace("Grafana query: %s", query)
 	results = []
 	redis = await get_redis_client()
 	for target in query.targets:
 		# UTC time values
-		from_ = int((datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
-		to = int((datetime.strptime(query.range.to, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
+		from_time = int((datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
+		to_time = int((datetime.strptime(query.range.to, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
 		time_bucket = int(query.intervalMs/1000)
-		if (time_bucket <= 0):
+		if time_bucket <= 0:
 			time_bucket = 1
 		if target.type == "timeserie":
 			res = {
@@ -199,45 +200,44 @@ async def grafana_query(query: GrafanaQuery):
 			}
 			try:
 				metric = metrics_registry.get_metric_by_name(target.target)
-				vars = metric.get_vars_by_name(target.target)
-			except Exception:
+				metric_vars = metric.get_vars_by_name(target.target)
+			except Exception: #  pylint: disable=broad-except
 				try:
 					metric = metrics_registry.get_metric_by_redis_key(target.target)
-					vars = metric.get_vars_by_redis_key(target.target)
-				except Exception as exc:
-					logger.debug(exc)
-					#results.append(res)
+					metric_vars = metric.get_vars_by_redis_key(target.target)
+				except Exception as err: #  pylint: disable=broad-except
+					logger.debug(err)
 					continue
 
-			redis_key =  metric.get_redis_key(**vars)
+			redis_key =  metric.get_redis_key(**metric_vars)
 			retention_time = metric.retention
 			redis_key_extension = None
-			
+
 			if metric.downsampling:
 				downsampling = sorted(metric.downsampling, key = lambda x: x[1])
-				if not (to - from_) <= retention_time:			
-					for time_frame in downsampling:			
-						if (to - from_) <= time_frame[1]:	
+				if not (to_time - from_time) <= retention_time:
+					for time_frame in downsampling:
+						if (to_time - from_time) <= time_frame[1]:
 							redis_key_extension = time_frame[0]
 							retention_time = time_frame[1]
 							time_bucket = get_time_bucket(redis_key_extension)
 							break
 
 				time_min = round(time.time() * 1000) - retention_time
-				if (from_ - time_min + 5000)  < 0:
-					for time_frame in downsampling:	
+				if (from_time - time_min + 5000)  < 0:
+					for time_frame in downsampling:
 						redis_key_extension = time_frame[0]
 						retention_time = time_frame[1]
 						time_bucket = get_time_bucket(redis_key_extension)
 						time_min = round(time.time() * 1000) - retention_time
-						if (from_ - time_min + 5000)  >= 0:
+						if (from_time - time_min + 5000)  >= 0:
 							break
 					logger.warning("Data out of range. Using next higher time bucket (%s).", redis_key_extension)
-						
-			if redis_key_extension:			
+
+			if redis_key_extension:
 				redis_key = f"{redis_key}:{redis_key_extension}"
 
-			cmd = ["TS.RANGE", redis_key, from_, to, "AGGREGATION", metric.aggregation, time_bucket]	
+			cmd = ["TS.RANGE", redis_key, from_time, to_time, "AGGREGATION", metric.aggregation, time_bucket]
 			try:
 				#rows = await redis.execute_command(" ".join([ str(x) for x in cmd ]))
 				rows = await redis.execute_command(*cmd)

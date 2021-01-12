@@ -23,12 +23,10 @@
 import os
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from ..logging import logger
 from ..config import config
-from ..backend import get_client_backend, get_backend_interface
+from ..backend import get_backend_interface
 
 jsonrpc_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))

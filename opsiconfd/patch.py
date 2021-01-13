@@ -41,8 +41,8 @@ def assert_function_unchanged(function_to_patch: callable, function_hash: str):
 def patch_websockets_protocol():
 	if not getattr(sys, 'frozen', False):
 		# Assert that functions to patch are unchanged
-		assert_function_unchanged(protocol.WebSocketCommonProtocol.read_frame, "5de6c28d279813fda6499ea980f578c10d7eedef38effb89152d0a93154923891f12f256b63ceb8a9b6611593e777325a593a1e9438f53bf17dd16985632f519")
-		assert_function_unchanged(protocol.WebSocketCommonProtocol.write_frame, "805f88a9201ae53fb09b9c96b6fab1d6b8e3063ff6e3c02362a56e081bf96b1e9a02766662e01c8928fc07c3066215ac383ec45037416b651506a90462214ed5")
+		assert_function_unchanged(protocol.WebSocketCommonProtocol.read_frame, "5de6c28d279813fda6499ea980f578c10d7eedef38effb89152d0a93154923891f12f256b63ceb8a9b6611593e777325a593a1e9438f53bf17dd16985632f519") # pylint: disable=line-too-long
+		assert_function_unchanged(protocol.WebSocketCommonProtocol.write_frame, "805f88a9201ae53fb09b9c96b6fab1d6b8e3063ff6e3c02362a56e081bf96b1e9a02766662e01c8928fc07c3066215ac383ec45037416b651506a90462214ed5") # pylint: disable=line-too-long
 
 	async def read_frame(self, max_size: int) -> Frame:
 		"""
@@ -80,7 +80,7 @@ def patch_websockets_protocol():
 			# version of Python where this bugs exists is supported anymore.
 			async with self._drain_lock: # pylint: disable=protected-access
 				# Handle flow control automatically.
-				await self._drain()
+				await self._drain() # pylint: disable=protected-access
 		except ConnectionError:
 			# Terminate the connection if the socket died.
 			self.fail_connection()

@@ -33,9 +33,9 @@ from .logging import GunicornLoggerSetup, logger
 from .config import config
 from .utils import running_in_docker, get_node_name
 
-internal_url = None
+internal_url = None # pylint: disable=invalid-name
 def get_internal_url():
-	global internal_url
+	global internal_url # pylint: disable=invalid-name, global-statement
 	if not internal_url:
 		if config.internal_url:
 			internal_url = config.internal_url
@@ -49,9 +49,9 @@ def get_internal_url():
 			internal_url = f"{scheme}://{addr}:{config.port}"
 	return internal_url
 
-external_url = None
+external_url = None # pylint: disable=invalid-name
 def get_external_url():
-	global external_url
+	global external_url # pylint: disable=invalid-name, global-statement
 	if not external_url:
 		if config.external_url:
 			external_url = config.external_url
@@ -64,7 +64,7 @@ def get_external_url():
 	return external_url
 
 
-class GunicornApplication(gunicorn.app.base.BaseApplication):
+class GunicornApplication(gunicorn.app.base.BaseApplication): # pylint: disable=abstract-method
 
 	def __init__(self, app, options=None):
 		self.options = options or {}
@@ -72,7 +72,7 @@ class GunicornApplication(gunicorn.app.base.BaseApplication):
 		super().__init__()
 
 	def load_config(self):
-		config = {
+		config = { # pylint: disable=redefined-outer-name
 			key: value for key, value in self.options.items()
 			if key in self.cfg.settings and value is not None
 		}
@@ -84,7 +84,7 @@ class GunicornApplication(gunicorn.app.base.BaseApplication):
 
 def run_gunicorn():
 	gunicorn.SERVER_SOFTWARE = f"opsiconfd {__version__} (gunicorn)"
-	from .application import app
+	from .application import app # pylint: disable=import-outside-toplevel
 	# https://docs.gunicorn.org/en/stable/settings.html
 	options = {
 		"bind": f"{config.interface}:{config.port}",
@@ -94,7 +94,7 @@ def run_gunicorn():
 		# Not using UvicornWorker because of:
 		#  1) https://github.com/encode/uvicorn/issues/441
 		#     Invalid HTTP request received. data received after completed connection: close message
-		#  2) configed produces: httptools_impl.py: 161   Invalid HTTP request received. 
+		#  2) configed produces: httptools_impl.py: 161   Invalid HTTP request received.
 		"worker_class": "uvicorn.workers.UvicornH11Worker",
 		"logger_class": GunicornLoggerSetup,
 		"timeout": 120,
@@ -147,7 +147,7 @@ def run_uvicorn():
 		options["ssl_keyfile"] = config.ssl_server_key
 		options["ssl_certfile"] = config.ssl_server_cert
 		options["ssl_ciphers"] = config.ssl_ciphers
-	
+
 	logger.notice("uvicorn server starting")
 	uvicorn.run("opsiconfd.application:app", **options)
 	logger.notice("uvicorn server exited")

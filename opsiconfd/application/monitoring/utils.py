@@ -7,17 +7,13 @@ See LICENSES/README.md for more Information
 """
 import re
 
-from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
-from opsiconfd.config import config
-from opsiconfd.logging import logger
-from opsiconfd.worker import get_redis_client
 from opsiconfd.utils import decode_redis_result
 
-ERRORCODE_PATTERN = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')
+ERRORCODE_PATTERN = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)') # pylint: disable=anomalous-backslash-in-string
 
-class State:
+class State: # pylint: disable=too-few-public-methods
 	OK = 0
 	WARNING = 1
 	CRITICAL = 2
@@ -29,18 +25,17 @@ class State:
 	def text(cls, state):
 		return cls._stateText[state]
 
-def generateResponse(state: State, message: str, perfdata=None) -> JSONResponse:
+def generate_response(state: State, message: str, perfdata=None) -> JSONResponse:
 	if perfdata:
 		message = f"{State.text(state)}: {message} | {perfdata}"
-	else: 
+	else:
 		message = f"{State.text(state)}: {message}"
 	return JSONResponse({"state": state, "message": message})
 
-def removePercent(string):
+def remove_percent(string):
 	if string.endswith("%"):
 		return string[:-1]
-	else:
-		return string
+	return string
 
 async def get_workers(redis_client) -> list:
 	worker_registry = redis_client.scan_iter("opsiconfd:worker_registry:*")
@@ -53,7 +48,7 @@ async def get_request_avg(redis_client):
 	workers = await get_workers(redis_client)
 	requests = 0.0
 	for worker in workers:
-		redis_result = decode_redis_result(await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_http_request_number:{worker}:minute"))
+		redis_result = decode_redis_result(await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_http_request_number:{worker}:minute")) # pylint: disable=line-too-long
 		if len(redis_result) == 0:
 			redis_result = 0
 		requests += float(redis_result[1])

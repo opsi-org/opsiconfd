@@ -10,27 +10,27 @@ from fastapi.responses import JSONResponse
 from OPSI.Types import forceList
 
 from opsiconfd.logging import logger
-from .utils import State, generateResponse, ERRORCODE_PATTERN
+from .utils import State, generate_response, ERRORCODE_PATTERN
 
-def check_plugin_on_client(backend, hostId, command, timeout=30, waitForEnding=True, captureStderr=True, statebefore=None, output=None, encoding=None) -> JSONResponse:
+def check_plugin_on_client(backend, host_id, command, timeout=30, wait_for_ending=True, capture_stderr=True, statebefore=None, output=None, encoding=None) -> JSONResponse: #  pylint: disable=line-too-long, too-many-arguments, too-many-branches, too-many-locals, too-many-statements
 
 	state = State.OK
 	message = ""
-	hostId = forceList(hostId)
+	host_id = forceList(host_id)
 
-	try:
-		result = backend._executeMethod(methodName="hostControl_reachable", hostIds=hostId)
-		if result.get(hostId[0], False):
-			checkresult = backend._executeMethod(
-					methodName="hostControl_execute", 
-					command=command, 
-					hostIds=hostId, 
-					waitForEnding=waitForEnding, 
-					captureStderr=captureStderr, 
-					encoding=encoding, 
+	try: # pylint: disable=too-many-nested-blocks
+		result = backend._executeMethod(methodName="hostControl_reachable", hostIds=host_id) # pylint: disable=protected-access
+		if result.get(host_id[0], False):
+			checkresult = backend._executeMethod( # pylint: disable=protected-access
+					methodName="hostControl_execute",
+					command=command,
+					hostIds=host_id,
+					waitForEnding=wait_for_ending,
+					captureStderr=capture_stderr,
+					encoding=encoding,
 					timeout=timeout
 				)
-			checkresult = checkresult.get(hostId[0], None)
+			checkresult = checkresult.get(host_id[0], None)
 			if checkresult:
 				if checkresult.get("result", None):
 					message = checkresult.get("result")[0]
@@ -46,7 +46,7 @@ def check_plugin_on_client(backend, hostId, command, timeout=30, waitForEnding=T
 							errorcode = int(match.group(1))
 							command = match.group(2)
 							message = match.group(3)
-							if not errorcode > 3:
+							if errorcode <= 3:
 								state = errorcode
 							else:
 								state = State.UNKNOWN
@@ -62,13 +62,12 @@ def check_plugin_on_client(backend, hostId, command, timeout=30, waitForEnding=T
 				message = result.get("error").get("message", "")
 				state = State.UNKNOWN
 			elif statebefore and output:
-				return generateResponse(int(statebefore), output)
+				return generate_response(int(statebefore), output)
 			else:
-				message = f"Can't check host '{hostId[0]}' is not reachable."
+				message = f"Can't check host '{host_id[0]}' is not reachable."
 				state = State.UNKNOWN
-	except Exception as erro:
+	except Exception as err: # pylint: disable=broad-except
 		state = State.UNKNOWN
-		message = str(erro)
+		message = str(err)
 
-	return generateResponse(state, message)
-
+	return generate_response(state, message)

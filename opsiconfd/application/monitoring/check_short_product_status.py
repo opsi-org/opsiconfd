@@ -6,26 +6,20 @@ This file is part of opsi - https://www.opsi.org
 See LICENSES/README.md for more Information
 """
 
-import orjson
-import datetime
-
-from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
-
-from OPSI.Types import forceProductIdList
 
 from opsiconfd.logging import logger
 
-from .utils import State, generateResponse, removePercent
+from .utils import State, generate_response, remove_percent
 
 
-def check_short_product_status(backend, productId=None, thresholds={}) -> JSONResponse:
-	actionRequestOnClients = []
-	productProblemsOnClients = []
-	productVersionProblemsOnClients = []
-	uptodateClients = []
-	targetProductVersion = None
-	targetPackackeVersion = None
+def check_short_product_status(backend, product_id=None, thresholds={}) -> JSONResponse: # pylint: disable=dangerous-default-value, too-many-locals, too-many-branches
+	action_request_on_clients = []
+	product_problems_on_clients = []
+	product_version_problems_on_clients = []
+	uptodate_clients = []
+	target_product_version = None
+	target_packacke_version = None
 
 	state = State.OK
 
@@ -33,55 +27,55 @@ def check_short_product_status(backend, productId=None, thresholds={}) -> JSONRe
 
 	warning = thresholds.get("warning", "20")
 	critical = thresholds.get("critical", "20")
-	warning = float(removePercent(warning))
-	critical = float(removePercent(critical))
+	warning = float(remove_percent(warning))
+	critical = float(remove_percent(critical))
 
 	logger.debug("Checking shortly the productStates on Clients")
-	configServer = backend._executeMethod(methodName="host_getObjects", type="OpsiConfigserver")[0]
+	config_server = backend._executeMethod(methodName="host_getObjects", type="OpsiConfigserver")[0] # pylint: disable=protected-access
 
-	for pod in backend._executeMethod(methodName="productOnDepot_getObjects", depotId=configServer.id, productId=productId):
-		targetProductVersion = pod.productVersion
-		targetPackackeVersion = pod.packageVersion
+	for pod in backend._executeMethod(methodName="productOnDepot_getObjects", depotId=config_server.id, productId=product_id): # pylint: disable=protected-access
+		target_product_version = pod.productVersion
+		target_packacke_version = pod.packageVersion
 
-	productOnClients = backend._executeMethod(methodName="productOnClient_getObjects", productId=productId)
+	product_on_clients = backend._executeMethod(methodName="productOnClient_getObjects", productId=product_id) # pylint: disable=protected-access
 
-	if not productOnClients:
-		return generateResponse(State.UNKNOWN, f"No ProductStates found for product '{productId}'")
+	if not product_on_clients:
+		return generate_response(State.UNKNOWN, f"No ProductStates found for product '{product_id}'")
 
-	for poc in productOnClients:
+	for poc in product_on_clients:
 		if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
-			if poc.clientId not in productProblemsOnClients:
-				productProblemsOnClients.append(poc.clientId)
+			if poc.clientId not in product_problems_on_clients:
+				product_problems_on_clients.append(poc.clientId)
 				continue
 
 		if poc.actionRequest != 'none':
-			if poc.clientId not in actionRequestOnClients:
-				actionRequestOnClients.append(poc.clientId)
+			if poc.clientId not in action_request_on_clients:
+				action_request_on_clients.append(poc.clientId)
 				continue
 
 		if not poc.productVersion or not poc.packageVersion:
 			continue
 
-		if poc.productVersion != targetProductVersion or poc.packageVersion != targetPackackeVersion:
-			productVersionProblemsOnClients.append(poc.clientId)
+		if poc.productVersion != target_product_version or poc.packageVersion != target_packacke_version:
+			product_version_problems_on_clients.append(poc.clientId)
 			continue
 
 		if poc.actionResult == "successful":
-			uptodateClients.append(poc.clientId)
+			uptodate_clients.append(poc.clientId)
 
-	message.append(f"{len(productOnClients)} ProductStates for product: '{productId}' found; checking for Version: '{targetProductVersion}' and Package: '{targetPackackeVersion}'")
-	if uptodateClients:
-		message.append(f"{len(uptodateClients)} Clients are up to date")
-	if actionRequestOnClients and len(actionRequestOnClients) * 100 / len(productOnClients) > warning:
+	message.append(f"{len(product_on_clients)} ProductStates for product: '{product_id}' found; checking for Version: '{target_product_version}' and Package: '{target_packacke_version}'") # pylint: disable=line-too-long
+	if uptodate_clients:
+		message.append(f"{len(uptodate_clients)} Clients are up to date")
+	if action_request_on_clients and len(action_request_on_clients) * 100 / len(product_on_clients) > warning:
 		state = State.WARNING
-		message.append(f"ActionRequest set on {len(actionRequestOnClients)} clients")
-	if productProblemsOnClients:
-		message.append(f"Problems found on {len(productProblemsOnClients)} clients")
-	if productVersionProblemsOnClients:
-		message.append(f"Version difference found on {len(productVersionProblemsOnClients)} clients")
+		message.append(f"ActionRequest set on {len(action_request_on_clients)} clients")
+	if product_problems_on_clients:
+		message.append(f"Problems found on {len(product_problems_on_clients)} clients")
+	if product_version_problems_on_clients:
+		message.append(f"Version difference found on {len(product_version_problems_on_clients)} clients")
 
-	problemClientsCount = len(productProblemsOnClients) + len(productVersionProblemsOnClients)
-	if problemClientsCount * 100 / len(productOnClients) > critical:
+	problem_clients_count = len(product_problems_on_clients) + len(product_version_problems_on_clients)
+	if problem_clients_count * 100 / len(product_on_clients) > critical:
 		state = State.CRITICAL
-		
-	return generateResponse(state, "; ".join(message))
+
+	return generate_response(state, "; ".join(message))

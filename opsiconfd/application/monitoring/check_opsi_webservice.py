@@ -13,11 +13,11 @@ from opsiconfd.logging import logger
 from opsiconfd.worker import get_redis_client
 from opsiconfd.utils import decode_redis_result
 
-from .utils import State, generateResponse 
+from .utils import State, generate_response
 from .utils import get_workers, get_request_avg, get_session_count, get_thread_count, get_mem_allocated
 
 
-async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perfdata=True) -> JSONResponse:
+async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perfdata=True) -> JSONResponse: # pylint: disable=too-many-branches, too-many-locals, too-many-statements
 	state = State.OK
 	message = []
 	logger.debug("Generating Defaults for checkOpsiWebservice if not given")
@@ -32,7 +32,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 		rpc_list = decode_redis_result(await redis_client.lrange("opsiconfd:stats:rpcs", 0, 9999))
 		error_count = 0
 		for rpc in rpc_list:
-			rpc = orjson.loads(rpc)
+			rpc = orjson.loads(rpc) # pylint: disable=c-extension-no-member
 			if rpc["error"]:
 				error_count += 1
 		if error_count == 0:
@@ -61,7 +61,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 			state = State.CRITICAL
 			message.append(f'CPU-Usage over {cpu_thresholds.get("critical")}%')
 		elif cpu_avg > cpu_thresholds.get("warning"):
-			if not state == State.CRITICAL:
+			if state != State.CRITICAL:
 				state = State.WARNING
 			message.append(f'CPU-Usage over {cpu_thresholds.get("warning")}%')
 
@@ -69,7 +69,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 			message.append("Opsi Webservice has no Problem :)")
 
 		message = " ".join(message)
-		
+
 		if perfdata:
 			performance = [
 				f"requests={await get_request_avg(redis_client)};;;0; ",
@@ -78,13 +78,13 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 				f"sessions={await get_session_count(redis_client)};;;0; ",
 				f"threads={await get_thread_count(redis_client)};;;0; ",
 				f"virtmem={await get_mem_allocated(redis_client)};;;0; ",
-				f"cpu={cpu_avg};;;0;100 " 
+				f"cpu={cpu_avg};;;0;100 "
 			]
-			return generateResponse(state, message, "".join(performance))
-		else:
-			return generateResponse(state, message)
+			return generate_response(state, message, "".join(performance))
 
-	except Exception as e:
+		return generate_response(state, message)
+
+	except Exception as err: # pylint: disable=broad-except
 		state = State.UNKNOWN
-		message = f"cannot check webservice state: '{str(e)}'."
-		return generateResponse(state, message)
+		message = f"cannot check webservice state: '{str(err)}'."
+		return generate_response(state, message)

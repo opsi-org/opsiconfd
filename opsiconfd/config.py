@@ -27,9 +27,11 @@ import codecs
 import getpass
 import socket
 import ipaddress
-import configargparse
+
 from typing import Union
 from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_OR_MORE
+
+import configargparse
 
 from .utils import Singleton
 
@@ -47,7 +49,7 @@ CONFIG_FILE_HEADER = """
 
 def upgrade_config_files():
 	defaults = {}
-	for action in parser._actions:
+	for action in parser._actions: # pylint: disable=protected-access
 		defaults[action.dest] = action.default
 	# Do not migrate ssl key/cert
 	mapping = {
@@ -70,14 +72,14 @@ def upgrade_config_files():
 		"max sessions per ip": "max-session-per-ip",
 	}
 
-	for config_file in parser._open_config_files(sys.argv[1:]):
+	for config_file in parser._open_config_files(sys.argv[1:]): # pylint: disable=protected-access
 		data = config_file.read()
 		config_file.close()
 		if data.find("[global]") == -1:
 			continue
-		
+
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-		with codecs.open(config_file.name, "w", "utf-8") as f:
+		with codecs.open(config_file.name, "w", "utf-8") as f: # pylint: disable=invalid-name
 			f.write(CONFIG_FILE_HEADER.lstrip())
 			for line in data.split('\n'):
 				match = re_opt.match(line)
@@ -91,7 +93,7 @@ def upgrade_config_files():
 					default = defaults.get(mapping[opt].replace('-', '_'))
 					if str(default) == str(val):
 						continue
-					if type(val) is bool:
+					if isinstance(val, bool):
 						val = str(val).lower()
 					if ',' in val:
 						val = f"[{val}]"
@@ -100,10 +102,10 @@ def upgrade_config_files():
 
 def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 	arg = arg.lstrip("-").replace("_", "-")
-	config_file = parser._open_config_files(sys.argv[1:])[0]
+	config_file = parser._open_config_files(sys.argv[1:])[0] # pylint: disable=protected-access
 	data = config_file.read()
 	config_file.close()
-	
+
 	conf_line = f"{arg} = {value}"
 	re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 	lines = []
@@ -118,25 +120,25 @@ def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 		if lines[-1] == "":
 			lines.pop()
 		lines.append(conf_line)
-	with codecs.open(config_file.name, "w", "utf-8") as f:
+	with codecs.open(config_file.name, "w", "utf-8") as f: # pylint: disable=invalid-name
 		f.write("\n".join(lines))
-	
+
 	config.reload()
 
 def network_address(value):
 	try:
 		ipaddress.ip_network(value)
-	except ValueError as e:
-		raise ArgumentTypeError(f"Invalid network address: {value}")
+	except ValueError as err:
+		raise ArgumentTypeError(f"Invalid network address: {value}") from err
 	return value
 
 def ip_address(value):
 	try:
 		return ipaddress.ip_address(value).compressed
-	except ValueError as e:
-		raise ArgumentTypeError(f"Invalid ip address: {value}")
+	except ValueError as err:
+		raise ArgumentTypeError(f"Invalid ip address: {value}") from err
 
-def expert_help(help):
+def expert_help(help): # pylint: disable=redefined-builtin
 	if "--ex-help" in sys.argv:
 		return help
 	return SUPPRESS
@@ -155,26 +157,26 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 	def format_help(self):
 		text = HelpFormatter.format_help(self)
-		text = re.sub("usage:\s+(\S+)\s+", f"Usage: {self.CW}\g<1>{self.CN} ", text)
+		text = re.sub("usage:\s+(\S+)\s+", f"Usage: {self.CW}\g<1>{self.CN} ", text) # pylint: disable=anomalous-backslash-in-string
 		#text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text)
 		return text
-	
+
 	def _format_actions_usage(self, actions, groups):
 		text = HelpFormatter._format_actions_usage(self, actions, groups)
-		text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text)
-		text = re.sub("([A-Z_]{2,})", f"{self.CC}\g<1>{self.CN}", text)
+		text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text) # pylint: disable=anomalous-backslash-in-string
+		text = re.sub("([A-Z_]{2,})", f"{self.CC}\g<1>{self.CN}", text) # pylint: disable=anomalous-backslash-in-string
 		return text
-	
+
 	def _format_action_invocation(self, action):
 		text = HelpFormatter._format_action_invocation(self, action)
-		text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text)
-		text = re.sub("([A-Z_]{2,})", f"{self.CC}\g<1>{self.CN}", text)
+		text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text) # pylint: disable=anomalous-backslash-in-string
+		text = re.sub("([A-Z_]{2,})", f"{self.CC}\g<1>{self.CN}", text) # pylint: disable=anomalous-backslash-in-string
 		return text
-	
+
 	def _format_args(self, action, default_metavar):
 		text = HelpFormatter._format_args(self, action, default_metavar)
 		return f"{self.CC}{text}{self.CN}"
-	
+
 	def _get_help_string(self, action):
 		text = action.help
 		#text = re.sub("(\[env var: )([^\]]+)(\])", f"\g<1>{self.CB}\g<2>{self.CN}\g<3>", text)
@@ -184,9 +186,9 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 				if action.option_strings or action.nargs in defaulting_nargs:
 					#text += f' (default: {self.CY}%(default)s{self.CN})'
 					text += f' (default: %(default)s)'
-		
+
 		return text
-		
+
 parser = configargparse.ArgParser(
 	formatter_class=lambda prog: OpsiconfdHelpFormatter(
 		prog, max_help_position=30, width=100
@@ -593,23 +595,23 @@ class Config(metaclass=Singleton):
 		upgrade_config_files()
 		if "--ex-help" in sys.argv:
 			args = sys.argv
-			if not "--help" in args:
+			if "--help" not in args:
 				args.append("--help")
 			self._parse_args(args)
 
 	def _parse_args(self, args=None):
 		self._config = parser.parse_args(args)
-	
+
 	def __getattr__(self, attr):
 		if attr.startswith("_"):
 			raise AttributeError()
 		if not self._config:
 			self._parse_args()
 		return getattr(self._config, attr)
-	
+
 	def reload(self):
 		self._parse_args()
-	
+
 	def items(self):
 		return self._config.__dict__
 

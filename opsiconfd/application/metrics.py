@@ -29,7 +29,7 @@ from urllib.parse import urlparse
 import aredis
 import aiohttp
 
-from pydantic import BaseModel
+from pydantic import BaseModel # pylint: disable=no-name-in-module
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 

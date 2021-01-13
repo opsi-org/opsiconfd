@@ -7,18 +7,15 @@ See LICENSES/README.md for more Information
 """
 import os
 
-from fastapi.responses import JSONResponse
-
 from OPSI.Types import forceList
 from OPSI.System import getDiskSpaceUsage
 
-from opsiconfd.logging import logger
 from opsiconfd.config import config
 
-from .utils import State, generateResponse 
+from .utils import State, generate_response
 
 
-def check_opsi_disk_usage(thresholds={}, opsiresource=None):
+def check_opsi_disk_usage(thresholds={}, opsiresource=None): # pylint: disable=dangerous-default-value, too-many-branches, too-many-locals, too-many-statements
 	warning = thresholds.get("warning", "5G")
 	critical = thresholds.get("critical", "1G")
 
@@ -55,9 +52,9 @@ def check_opsi_disk_usage(thresholds={}, opsiresource=None):
 
 				info = getDiskSpaceUsage(path)
 				results[resource] = info
-	except Exception as e:
-		message.append("Not able to check DiskUsage. Error: '{}'".format(e))
-		return generateResponse(State.UNKNOWN, message)
+	except Exception as err: # pylint: disable=broad-except
+		message.append("Not able to check DiskUsage. Error: '{}'".format(err))
+		return generate_response(State.UNKNOWN, message)
 
 	if results:
 		state = State.OK
@@ -75,20 +72,20 @@ def check_opsi_disk_usage(thresholds={}, opsiresource=None):
 				else:
 					message.append(f"DiskUsage from ressource '{result}' is ok. (available:  {available:.2f}GB).")
 			elif unit == "%":
-				freeSpace = 100 - usage
-				if freeSpace <= critical:
+				free_space = 100 - usage
+				if free_space <= critical:
 					state = State.CRITICAL
-					message.append(f"DiskUsage from ressource: '{result}' is critical (available: {freeSpace:.2f}%).")
+					message.append(f"DiskUsage from ressource: '{result}' is critical (available: {free_space:.2f}%).")
 
-				elif freeSpace <= warning:
+				elif free_space <= warning:
 					if state != State.CRITICAL:
 						state = State.WARNING
-					message.append(f"DiskUsage warning from ressource: '{result}' (available: {freeSpace:.2f}%).")
+					message.append(f"DiskUsage warning from ressource: '{result}' (available: {free_space:.2f}%).")
 
 				else:
-					message.append(f"DiskUsage from ressource: '{result}' is ok. (available: {freeSpace:.2f}%).")
+					message.append(f"DiskUsage from ressource: '{result}' is ok. (available: {free_space:.2f}%).")
 	else:
 		state = State.UNKNOWN
 		message.append("No results get. Nothing to check.")
 	message = " ".join(message)
-	return generateResponse(state, message)
+	return generate_response(state, message)

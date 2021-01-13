@@ -6,15 +6,12 @@ This file is part of opsi - https://www.opsi.org
 See LICENSES/README.md for more Information
 """
 
-import orjson
-import datetime
-
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from opsiconfd.config import config
+
 from opsiconfd.logging import logger
-from opsiconfd.backend import get_client_backend, get_backend
+from opsiconfd.backend import get_backend
 
 from .utils import State
 from .check_client_status import check_client_status
@@ -36,7 +33,7 @@ def monitoring_setup(app):
 async def monitoring(request: Request):
 	backend = get_backend()
 	request_data = await request.json()
-	
+
 	try:
 		task = request_data["task"]
 	except KeyError :
@@ -48,54 +45,53 @@ async def monitoring(request: Request):
 		if task == "checkClientStatus":
 			response = check_client_status(
 				backend=backend,
-				clientId=params.get("clientId", None),
-				excludeProductList=params.get("exclude", None)
+				client_id=params.get("clientId", None),
+				exclude_product_list=params.get("exclude", None)
 			)
 		elif task == "checkShortProductStatus":
 			response = check_short_product_status(
 				backend=backend,
-				productId=params.get("productId", None),
+				product_id=params.get("productId", None),
 				thresholds=params.get("thresholds", {})
-
 			)
 		elif task == "checkProductStatus":
 			response =  check_product_status(
 				backend=backend,
-				productIds=params.get("productIds", []), 
-				productGroups=params.get("productGroups", []), 
-				hostGroupIds=params.get("hostGroupIds", []), 
-				depotIds=params.get("depotIds", []), 
+				product_ids=params.get("productIds", []),
+				product_groups=params.get("productGroups", []),
+				host_group_ids=params.get("hostGroupIds", []),
+				depot_ids=params.get("depotIds", []),
 				exclude=params.get("exclude", []),
 				verbose=params.get("verbose", False)
 			)
 		elif task == "checkDepotSyncStatus":
 			response = check_depot_sync_status(
 				backend=backend,
-				depotIds=params.get("depotIds", []), 
-				productIds=params.get("productIds", []), 
-				exclude=params.get("exclude", []), 
-				strict=params.get("strict", False), 
+				depot_ids=params.get("depotIds", []),
+				product_ids=params.get("productIds", []),
+				exclude=params.get("exclude", []),
+				strict=params.get("strict", False),
 				verbose=params.get("verbose", False)
 			)
 		elif task == "checkPluginOnClient":
 			response = check_plugin_on_client(
 				backend=backend,
-				hostId=params.get("clientId", []), 
-				command=params.get("plugin", ""), 
+				host_id=params.get("clientId", []),
+				command=params.get("plugin", ""),
 				timeout=params.get("timeout", 30),
-				waitForEnding=params.get("waitForEnding", True),
-				captureStderr=params.get("captureStdErr", True),
+				wait_for_ending=params.get("waitForEnding", True),
+				capture_stderr=params.get("captureStdErr", True),
 				statebefore=params.get("state", None),
-				output=params.get("output", None), 
+				output=params.get("output", None),
 				encoding=params.get("encoding", None),
 			)
 		elif task == "checkProductLocks":
 			response = check_locked_products(
 				backend=backend,
-				depotIds=params.get("depotIds", []),
-				productIds=params.get("productIds", []),
+				depot_ids=params.get("depotIds", []),
+				product_ids=params.get("productIds", []),
 			)
-		elif task == "checkOpsiWebservice":		
+		elif task == "checkOpsiWebservice":
 			response = await check_opsi_webservice(
 				cpu_thresholds=params.get("cpu", {}),
 				error_thresholds=params.get("errors", {}),
@@ -107,13 +103,8 @@ async def monitoring(request: Request):
 			)
 		else:
 			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})
-	except Exception as e:
-		logger.error(e)
-		response = JSONResponse({"state": State.UNKNOWN, "message": str(e)})
+	except Exception as err: # pylint: disable=broad-except
+		logger.error(err)
+		response = JSONResponse({"state": State.UNKNOWN, "message": str(err)})
 
 	return response
-
-
-
-
-

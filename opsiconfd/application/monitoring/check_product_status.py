@@ -8,157 +8,155 @@ See LICENSES/README.md for more Information
 
 from collections import defaultdict
 
-from fastapi.responses import JSONResponse
-
 from OPSI.Backend.Backend import temporaryBackendOptions
 from opsiconfd.logging import logger
-from .utils import State, generateResponse
+from .utils import State, generate_response
 
-def check_product_status(backend, productIds=[], productGroups=[], hostGroupIds=[], depotIds=[], exclude=[], verbose=False):
-	if not productIds:
-		productIds = set()
-		for product in backend._executeMethod(methodName="objectToGroup_getIdents", groupType='ProductGroup', groupId=productGroups):
+def check_product_status(backend, product_ids=[], product_groups=[], host_group_ids=[], depot_ids=[], exclude=[], verbose=False): # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+	if not product_ids:
+		product_ids = set()
+		for product in backend._executeMethod(methodName="objectToGroup_getIdents", groupType='ProductGroup', groupId=product_groups): # pylint: disable=protected-access
 			product = product.split(";")[2]
 			if product not in exclude:
-				productIds.add(product)
+				product_ids.add(product)
 
-	if not productIds:
-		return generateResponse(State.UNKNOWN, "Neither productId nor productGroup given, nothing to check!")
+	if not product_ids:
+		return generate_response(State.UNKNOWN, "Neither productId nor productGroup given, nothing to check!")
 
-	serverType = None
-	if not depotIds:
-		serverType = "OpsiConfigserver"
-	elif 'all' in depotIds:
-		serverType = "OpsiDepotserver"
+	server_type = None
+	if not depot_ids:
+		server_type = "OpsiConfigserver"
+	elif 'all' in depot_ids:
+		server_type = "OpsiDepotserver"
 
-	if serverType:
-		depots = backend._executeMethod(methodName="host_getObjects", attributes=['id'], type=serverType)
-		depotIds = set(depot.id for depot in depots)
+	if server_type:
+		depots = backend._executeMethod(methodName="host_getObjects", attributes=['id'], type=server_type) # pylint: disable=protected-access
+		depot_ids = set(depot.id for depot in depots)
 		del depots
 
-	if hostGroupIds:
-		objectToGroups = backend._executeMethod(methodName="objectToGroup_getObjects", groupId=hostGroupIds, groupType="HostGroup")
-		if objectToGroups:
-			clientIds = [objectToGroup.objectId for objectToGroup in objectToGroups]
+	if host_group_ids:
+		object_to_groups = backend._executeMethod(methodName="objectToGroup_getObjects", groupId=host_group_ids, groupType="HostGroup") # pylint: disable=protected-access
+		if object_to_groups:
+			client_ids = [object_to_group.objectId for object_to_group in object_to_groups]
 		else:
-			clientIds = []
+			client_ids = []
 	else:
-		clientIds = backend._executeMethod(methodName="host_getIdents", type="OpsiClient")
+		client_ids = backend._executeMethod(methodName="host_getIdents", type="OpsiClient") # pylint: disable=protected-access
 
-	clientsOnDepot = defaultdict(list)
+	clients_on_depot = defaultdict(list)
 	with temporaryBackendOptions(backend, addConfigStateDefaults=True):
-		for configState in backend._executeMethod(methodName="configState_getObjects", configId=u'clientconfig.depot.id', objectId=clientIds):
-			if not configState.values or not configState.values[0]:
-				logger.error("No depot server configured for client '%s'", configState.objectId)
+		for config_state in backend._executeMethod(methodName="configState_getObjects", configId=u'clientconfig.depot.id', objectId=client_ids): # pylint: disable=protected-access
+			if not config_state.values or not config_state.values[0]:
+				logger.error("No depot server configured for client '%s'", config_state.objectId)
 				continue
 
-			depotId = configState.values[0]
-			if depotId not in depotIds:
+			depot_id = config_state.values[0]
+			if depot_id not in depot_ids:
 				continue
 
-			clientsOnDepot[depotId].append(configState.objectId)
+			clients_on_depot[depot_id].append(config_state.objectId)
 
-	productOnDepotInfo = defaultdict(dict)
-	for pod in backend._executeMethod(methodName="productOnDepot_getObjects", depotId=depotIds, productId=productIds):
-		productOnDepotInfo[pod.depotId][pod.productId] = {
+	product_on_depot_info = defaultdict(dict)
+	for pod in backend._executeMethod(methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids): # pylint: disable=protected-access
+		product_on_depot_info[pod.depotId][pod.productId] = {
 			"productVersion": pod.productVersion,
 			"packageVersion": pod.packageVersion
 		}
 
 	state = State.OK
-	productVersionProblemsOnClient = defaultdict(lambda: defaultdict(list))
-	productProblemsOnClient = defaultdict(lambda: defaultdict(list))
-	actionRequestOnClient = defaultdict(lambda: defaultdict(list))
+	product_version_problems_on_client = defaultdict(lambda: defaultdict(list))
+	product_problems_on_client = defaultdict(lambda: defaultdict(list))
+	action_request_on_client = defaultdict(lambda: defaultdict(list))
 
-	actionRequestsToIgnore = set([None, 'none', 'always'])
+	action_requests_to_ignore = set([None, 'none', 'always'])
 
-	for depotId in depotIds:
-		for poc in backend._executeMethod(methodName="productOnClient_getObjects", productId=productIds, clientId=clientsOnDepot.get(depotId, None)):
-			if poc.actionRequest not in actionRequestsToIgnore:
+	for depot_id in depot_ids:
+		for poc in backend._executeMethod(methodName="productOnClient_getObjects", productId=product_ids, clientId=clients_on_depot.get(depot_id, None)): # pylint: disable=protected-access, line-too-long
+			if poc.actionRequest not in action_requests_to_ignore:
 				if state != State.CRITICAL:
 					state = State.WARNING
 
-				actionRequestOnClient[depotId][poc.productId].append(f"{poc.clientId} ({ poc.actionRequest})")
+				action_request_on_client[depot_id][poc.productId].append(f"{poc.clientId} ({ poc.actionRequest})")
 
 			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
 				if state != State.CRITICAL:
 					state = State.CRITICAL
 
-				productProblemsOnClient[depotId][poc.productId].append(f"{poc.clientId} ({poc.actionResult} lastAction: [{poc.lastAction}])")
+				product_problems_on_client[depot_id][poc.productId].append(f"{poc.clientId} ({poc.actionResult} lastAction: [{poc.lastAction}])")
 
 			if not poc.productVersion or not poc.packageVersion:
 				continue
 
-			if depotId not in productOnDepotInfo:
+			if depot_id not in product_on_depot_info:
 				continue
 
 			try:
-				productOnDepot = productOnDepotInfo[depotId][poc.productId]
+				product_on_depot = product_on_depot_info[depot_id][poc.productId]
 			except KeyError:
-				logger.debug("Product %s not found on depot %s", poc.productId, depotId)
+				logger.debug("Product %s not found on depot %s", poc.productId, depot_id)
 				continue
 
-			if (poc.productVersion != productOnDepot["productVersion"] or
-				poc.packageVersion != productOnDepot["packageVersion"]):
+			if (poc.productVersion != product_on_depot["productVersion"] or
+				poc.packageVersion != product_on_depot["packageVersion"]):
 
 				if state != State.CRITICAL:
 					state = State.WARNING
 
-				productVersionProblemsOnClient[depotId][poc.productId].append(f"{poc.clientId} ({poc.productVersion}-{poc.packageVersion})")
+				product_version_problems_on_client[depot_id][poc.productId].append(f"{poc.clientId} ({poc.productVersion}-{poc.packageVersion})")
 
 	message = ""
-	for depotId in depotIds:
-		if depotId in actionRequestOnClient or depotId in productProblemsOnClient or depotId in productVersionProblemsOnClient:
-			message += f"\nResult for Depot: '{depotId}':\n" 
+	for depot_id in depot_ids:
+		if depot_id in action_request_on_client or depot_id in product_problems_on_client or depot_id in product_version_problems_on_client:
+			message += f"\nResult for Depot: '{depot_id}':\n"
 		else:
 			continue
 
-		if depotId in actionRequestOnClient:
-			for product, clients in actionRequestOnClient[depotId].items():
+		if depot_id in action_request_on_client:
+			for product, clients in action_request_on_client[depot_id].items():
 				message += f"For product '{product}' action set on {len(clients)} clients!\n"
-		if depotId in productProblemsOnClient:
-			for product, clients in productProblemsOnClient[depotId].items():
+		if depot_id in product_problems_on_client:
+			for product, clients in product_problems_on_client[depot_id].items():
 				message += f"For product '{product}' problems found on {len(clients)} clients!\n"
-		if depotId in productVersionProblemsOnClient:
-			for product, clients in productVersionProblemsOnClient[depotId].items():
+		if depot_id in product_version_problems_on_client:
+			for product, clients in product_version_problems_on_client[depot_id].items():
 				message += f"For product '{product}' version difference problems found on {len(clients)} clients!\n"
 
 	if not verbose:
 		if state == State.OK:
-			products = ",".join(productIds)
+			products = ",".join(product_ids)
 			message = f"No Problem found for productIds: '{products}'"
-		return generateResponse(state, message)
+		return generate_response(state, message)
 
-	for depotId in depotIds:
-		if depotId in actionRequestOnClient or depotId in productProblemsOnClient or depotId in productVersionProblemsOnClient:
-			message += f"\nResult for Depot: '{depotId}':\n"
+	for depot_id in depot_ids:
+		if depot_id in action_request_on_client or depot_id in product_problems_on_client or depot_id in product_version_problems_on_client:
+			message += f"\nResult for Depot: '{depot_id}':\n"
 		else:
 			continue
 
-		if depotId in actionRequestOnClient:
-			for product, clients in actionRequestOnClient[depotId].items():
+		if depot_id in action_request_on_client:
+			for product, clients in action_request_on_client[depot_id].items():
 				message += f"\n  Action Request set for product '{product}':\n"
 				for client in clients:
 					message += f"    {client}\n"
 
-		if depotId in productProblemsOnClient:
-			for product, clients in productProblemsOnClient[depotId].items():
+		if depot_id in product_problems_on_client:
+			for product, clients in product_problems_on_client[depot_id].items():
 				message += f"\n  Product Problems for product '{product}':\n"
 				for client in clients:
 					message += f"    {client}\n"
 
-		if depotId in productVersionProblemsOnClient:
-			for product, clients in productVersionProblemsOnClient[depotId].items():
+		if depot_id in product_version_problems_on_client:
+			for product, clients in product_version_problems_on_client[depot_id].items():
 				message += f"\n  Product Version difference found for product '{product}': \n"
 				for client in clients:
 					message += f"    {client}\n"
 
 	if state == State.OK:
-		if productGroups:
-			product_groups = ",".join(productGroups)
-			message = f"No Problem found for product groups '{product_groups}'" 
+		if product_groups:
+			product_groups = ",".join(product_groups)
+			message = f"No Problem found for product groups '{product_groups}'"
 		else:
-			products = ",".join(productIds)
+			products = ",".join(product_ids)
 			message = f"No Problem found for productIds '{products}'"
 
-	return generateResponse(state, message)
+	return generate_response(state, message)

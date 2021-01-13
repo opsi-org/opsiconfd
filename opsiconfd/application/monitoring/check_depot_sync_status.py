@@ -9,74 +9,73 @@ See LICENSES/README.md for more Information
 from collections import defaultdict
 from fastapi.responses import JSONResponse
 
-from opsiconfd.logging import logger
-from .utils import State, generateResponse
+from .utils import State, generate_response
 
-def check_depot_sync_status(backend, depotIds, productIds=[], exclude=[], strict=False, verbose=False) -> JSONResponse: 
-	if not depotIds or 'all' in depotIds:
+def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], strict=False, verbose=False) -> JSONResponse: # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+	if not depot_ids or 'all' in depot_ids:
 		depots = backend.host_getObjects(type="OpsiDepotserver")
-		depotIds = [depot.id for depot in depots]
+		depot_ids = [depot.id for depot in depots]
 
-	productOnDepots = backend._executeMethod(methodName="productOnDepot_getObjects", depotId=depotIds, productId=productIds)
-	productIds = set()
-	productOnDepotInfo = defaultdict(dict)
-	for pod in productOnDepots:
-		productIds.add(pod.productId)
-		productOnDepotInfo[pod.depotId][pod.productId] = pod
+	product_on_depots = backend._executeMethod(methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids) # pylint: disable=protected-access
+	product_ids = set()
+	product_on_depot_info = defaultdict(dict)
+	for pod in product_on_depots:
+		product_ids.add(pod.productId)
+		product_on_depot_info[pod.depotId][pod.productId] = pod
 
-	differenceProducts = defaultdict(dict)
-	for productId in productIds:
-		if productId in exclude:
+	difference_products = defaultdict(dict)
+	for product_id in product_ids:
+		if product_ids in exclude:
 			continue
 		differs = False
-		productVersion = ""
-		packageVersion = ""
-		for depotId in depotIds:
-			productOnDepot = productOnDepotInfo[depotId].get(productId)
-			if not productOnDepot:
+		product_version = ""
+		package_version = ""
+		for depot_id in depot_ids:
+			product_on_depot = product_on_depot_info[depot_id].get(product_id)
+			if not product_on_depot:
 				if not strict:
 					continue
 
-				differenceProducts[productId][depotId] = "not installed"
+				difference_products[product_id][depot_id] = "not installed"
 				continue
 
-			if not productVersion:
-				productVersion = productOnDepot.productVersion
-			elif productVersion != productOnDepot.productVersion:
+			if not product_version:
+				product_version = product_on_depot.productVersion
+			elif product_version != product_on_depot.productVersion:
 				differs = True
 
-			if not packageVersion:
-				packageVersion = productOnDepot.packageVersion
-			elif packageVersion != productOnDepot.packageVersion:
+			if not package_version:
+				package_version = product_on_depot.packageVersion
+			elif package_version != product_on_depot.packageVersion:
 				differs = True
 
 			if differs:
-				differenceProducts[productId][depotId] = "different"
+				difference_products[product_id][depot_id] = "different"
 
 	state = State.OK
 	message = ""
-	if differenceProducts:
+	if difference_products: # pylint: disable=too-many-nested-blocks
 		state = State.WARNING
-		message += f"Differences found for {len(differenceProducts)} products"
+		message += f"Differences found for {len(difference_products)} products"
 
 		if verbose:
 			message += u":\n"
-			for productId in sorted(differenceProducts):
-				message += f"product '{productId}': "
-				for depotId in depotIds:
+			for product_id in sorted(difference_products):
+				message += f"product '{product_id}': "
+				for depot_id in depot_ids:
 					try:
-						product_version = productOnDepotInfo[depotId][productId].productVersion
-						package_version = productOnDepotInfo[depotId][productId].packageVersion
-						if differenceProducts[productId][depotId] == "not installed":
-							message += f"{depotId} (not installed) \n"
+						product_version = product_on_depot_info[depot_id][product_id].productVersion
+						package_version = product_on_depot_info[depot_id][product_id].packageVersion
+						if difference_products[product_id][depot_id] == "not installed":
+							message += f"{depot_id} (not installed) \n"
 						else:
-							
-							message += f"{depotId} ({product_version}-{package_version}) \n"
-					except KeyError:
-						if not productOnDepotInfo.get(depotId, {}).get(productId, None):
-							continue
-						message += f"{depotId} ({product_version}-{package_version}) "
-	else:
-		message += "Syncstate ok for depots %s" % ", ".join(depotIds)
 
-	return generateResponse(state, message)
+							message += f"{depot_id} ({product_version}-{package_version}) \n"
+					except KeyError:
+						if not product_on_depot_info.get(depot_id, {}).get(product_id, None):
+							continue
+						message += f"{depot_id} ({product_version}-{package_version}) "
+	else:
+		message += "Syncstate ok for depots %s" % ", ".join(depot_ids)
+
+	return generate_response(state, message)

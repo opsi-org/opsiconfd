@@ -22,39 +22,40 @@
 """
 
 import os
-import psutil
 import socket
-import psutil
 import string
 import random
 import ipaddress
 import functools
 import time
+import asyncio
+import psutil
 import redis
 import aredis
-import asyncio
+
 
 from dns import resolver, reversename
 from OpenSSL import crypto
 
+from OPSI.Types import forceFqdn
 from opsicommon.logging import handle_log_exception
 
 REDIS_CONNECTION_RETRIES = 15
 
-from OPSI.Types import forceFqdn
 
-logger = None
+
+logger = None # pylint: disable=invalid-name
 def get_logger():
-	global logger
+	global logger # pylint: disable=global-statement, invalid-name
 	if not logger:
-		from .logging import logger
+		from .logging import logger # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return logger
 
-config = None
+config = None # pylint: disable=invalid-name
 def get_config():
-	global config
+	global config # pylint: disable=global-statement, invalid-name
 	if not config:
-		from .config import config
+		from .config import config # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return config
 
 
@@ -66,18 +67,18 @@ class Singleton(type):
 		return cls._instances[cls]
 
 def running_in_docker():
-	with open("/proc/self/cgroup") as f:
+	with open("/proc/self/cgroup") as f: # pylint: disable=invalid-name
 		return f.readline().split(':')[2].startswith("/docker/")
 
-node_name = None
+node_name = None # pylint: disable=invalid-name
 def get_node_name():
-	global node_name
+	global node_name # pylint: disable=global-statement, invalid-name
 	if not node_name:
 		node_name = get_config().node_name
 		if not node_name:
 			if running_in_docker():
 				try:
-					ip = socket.gethostbyname(socket.getfqdn())
+					ip = socket.gethostbyname(socket.getfqdn()) # pylint: disable=invalid-name
 					rev = reversename.from_address(ip)
 					node_name = str(resolver.query(rev, "PTR")[0]).split('.')[0].replace("docker_", "")
 				except resolver.NXDOMAIN as exc:
@@ -87,9 +88,9 @@ def get_node_name():
 				node_name = socket.gethostname()
 	return node_name
 
-worker_num = 0
+worker_num = 0 # pylint: disable=invalid-name
 def get_worker_num():
-	global worker_num
+	global worker_num # pylint: disable=global-statement, invalid-name
 	if not worker_num:
 		for (num, proc) in enumerate(get_worker_processes()):
 			if proc.pid == os.getpid():
@@ -101,22 +102,22 @@ _worker_processes_cache = {}
 def get_worker_processes():
 	# We need to always return the same objects
 	# if not, cpu_percent(interval=None) will always return 0.0
-	global _worker_processes_cache
+	global _worker_processes_cache # pylint: disable=global-statement, invalid-name
 	get_config()
-	
+
 	workers = []
 	# process can be a worker with no children or an arbiter with children
 	main_process = psutil.Process()
 	if not main_process:
 		return []
-	
+
 	children = main_process.children()
 	if not children and (config.server_type != "uvicorn" or config.workers > 1):
 		parent = main_process.parent()
 		if parent:
 			main_process = parent
 			children = main_process.children()
-	
+
 	for proc in [main_process] + children:
 		if config.server_type == "gunicorn" and not proc.children():  #proc.parent() and proc.parent().pid == main_process.pid:
 			workers.append(proc)
@@ -138,16 +139,16 @@ def get_worker_processes():
 
 
 def decode_redis_result(_obj):
-	if type(_obj) is bytes:
+	if isinstance(_obj, bytes):
 		_obj = _obj.decode("utf8")
-	elif type(_obj) == list:
+	elif isinstance(_obj, list):
 		for i in range(len(_obj)):
 			_obj[i] = decode_redis_result(_obj[i])
-	elif type(_obj) == dict:
-		for (k, v) in _obj.items():
+	elif isinstance(_obj, dict):
+		for (k, v) in _obj.items(): # pylint: disable=invalid-name
 			_obj[decode_redis_result(k)] = decode_redis_result(v)
-	elif type(_obj) == set:
-		for v in _obj:
+	elif isinstance(_obj, set):
+		for v in _obj: # pylint: disable=invalid-name
 			_obj.remove(v)
 			_obj.add(decode_redis_result(v))
 	return _obj
@@ -192,7 +193,7 @@ def get_random_string(length):
 
 def read_ssl_ca_cert_file():
 	get_config()
-	with open(config.ssl_ca_cert) as f:
+	with open(config.ssl_ca_cert) as f: # pylint: disable=invalid-name
 		cacert = crypto.load_certificate(crypto.FILETYPE_PEM, f.read())
 		return crypto.dump_certificate(crypto.FILETYPE_PEM, cacert)
 
@@ -205,41 +206,41 @@ def retry_redis_call(func):
 				value = func(*args, **kwargs)
 				return value
 			except (
-				aredis.exceptions.BusyLoadingError, redis.exceptions.BusyLoadingError, 
+				aredis.exceptions.BusyLoadingError, redis.exceptions.BusyLoadingError,
 				aredis.exceptions.ConnectionError,  redis.exceptions.ConnectionError):
 				if i > 2:
 					raise
-				time.sleep(1)			
+				time.sleep(1)
 	return wrapper_retry
 
 
-def get_redis_connection(url, db=None, **kwargs):
+def get_redis_connection(url, db=None, **kwargs): # pylint: disable=invalid-name
 	count = 0
 	while True:
 		try:
 			redis_client = redis.StrictRedis.from_url(url, db, **kwargs)
 			redis_client.ping()
 			break
-		except (redis.exceptions.ConnectionError, redis.BusyLoadingError) as e:
+		except (redis.exceptions.ConnectionError, redis.BusyLoadingError) as err:
 			count += 1
 			time.sleep(1)
 			if count >= REDIS_CONNECTION_RETRIES:
-				handle_log_exception(e)
+				handle_log_exception(err)
 				raise
 	return redis_client
-	
 
-async def get_aredis_connection(url, db=None, **kwargs):
+
+async def get_aredis_connection(url, db=None, **kwargs): # pylint: disable=invalid-name
 	count = 0
 	while True:
 		try:
 			redis_client = aredis.StrictRedis.from_url(url, db, **kwargs)
 			await redis_client.ping()
 			break
-		except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as e:
+		except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as err:
 			count += 1
 			asyncio.sleep(1)
 			if count >= REDIS_CONNECTION_RETRIES:
-				handle_log_exception(e)
+				handle_log_exception(err)
 				raise
 	return redis_client

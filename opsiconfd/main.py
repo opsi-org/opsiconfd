@@ -23,17 +23,17 @@
 
 import os
 import pwd
-import grp
 import threading
+import time
+import signal
+import base64
 import pprint
+
 import asyncio
 import getpass
 import uvloop
-import aredis
-import time
-import base64
 import psutil
-import signal
+
 try:
 	# python3-pycryptodome installs into Cryptodome
 	from Cryptodome.Hash import MD5
@@ -71,31 +71,31 @@ async def update_worker_registry():
 				"worker_num": worker_num
 			})
 			await redis.expire(redis_key, 60)
-		
+
 		if worker_num == 0:
 			# No worker, assuming we are in startup
 			await asyncio.sleep(1)
 			continue
-		
+
 		if worker_num > num_workers:
 			# New worker started
-			pass	
+			pass
 		elif worker_num < num_workers:
 			# Worker crashed / killed
 			logger.warning("Number of workers decreased from %d to %d", num_workers, worker_num)
-		
+
 		num_workers = worker_num
 
 		async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:{node_name}:*"):
 			redis_key = redis_key.decode("utf-8")
 			try:
-				wn = int(redis_key.split(':')[-1])
+				wn = int(redis_key.split(':')[-1]) # pylint: disable=invalid-name
 			except IndexError:
-				wn = -1
+				wn = -1 # pylint: disable=invalid-name
 			if wn == -1 or wn > num_workers:
 				# Delete obsolete worker entry
 				await redis.delete(redis_key)
-		
+
 		for _ in range(10):
 			await asyncio.sleep(1)
 
@@ -103,7 +103,7 @@ class ArbiterAsyncMainThread(threading.Thread):
 	def __init__(self):
 		super().__init__()
 		self._loop = None
-	
+
 	def stop(self):
 		if self._loop:
 			self._loop.stop()
@@ -117,7 +117,7 @@ class ArbiterAsyncMainThread(threading.Thread):
 			self._loop.run_forever()
 		except Exception as exc: # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
-	
+
 	async def main(self):
 		# Need to reinit logging after server is initialized
 		self._loop.call_later(3.0, init_logging, config.log_mode)
@@ -126,8 +126,8 @@ class ArbiterAsyncMainThread(threading.Thread):
 			await asyncio.sleep(1)
 
 last_reload_time = time.time()
-def signal_handler(signum, frame):
-	global last_reload_time
+def signal_handler(signum, frame): # pylint: disable=unused-argument
+	global last_reload_time # pylint: disable=global-statement, invalid-name
 	logger.info("Arbiter %s got signal %d", os.getpid(), signum)
 	if signum == signal.SIGHUP and time.time() - last_reload_time > 2:
 		last_reload_time = time.time()
@@ -135,11 +135,11 @@ def signal_handler(signum, frame):
 		config.reload()
 		init_logging(log_mode=config.log_mode)
 
-def main():
+def main(): # pylint: disable=too-many-statements, too-many-branches too-many-locals
 	if config.version:
 		print(f"{__version__} [python-opsi={python_opsi_version}]")
 		return
-	
+
 	if config.action == "setup" or config.setup:
 		init_logging(log_mode="local")
 		setup(full=True)
@@ -172,12 +172,12 @@ def main():
 	set_arbiter_pid(os.getpid())
 	signal.signal(signal.SIGHUP, signal_handler)
 	apply_patches()
-	
-	try:
+
+	try: # pylint: disable=too-many-nested-blocks
 		init_logging(log_mode=config.log_mode)
-		
+
 		setup(full=False)
-		
+
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)
 			try:
@@ -188,9 +188,9 @@ def main():
 				os.setgroups(gids)
 				os.setuid(user.pw_uid)
 				os.environ["HOME"] = user.pw_dir
-			except Exception as e:
-				raise Exception(f"Failed to run as user '{config.run_as_user}': {e}")
-		
+			except Exception as err:
+				raise Exception(f"Failed to run as user '{config.run_as_user}': {err}") from err
+
 		# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
 		# https://github.com/b2wdigital/aiologger/issues/38
 		uvloop.install()
@@ -201,7 +201,7 @@ def main():
 		main_async_thread = ArbiterAsyncMainThread()
 		main_async_thread.daemon = True
 		main_async_thread.start()
-		
+
 		if config.workers != 1:
 			num_workers = 1
 			backend_info = get_backend().backend_info()
@@ -214,11 +214,11 @@ def main():
 				logger.error("No customer in modules file. Limiting to %d workers.", num_workers)
 			elif not modules.get('valid'):
 				logger.error("Modules file invalid. Limiting to %d workers.", num_workers)
-			elif (modules.get('expires', '') != 'never') and (time.mktime(time.strptime(modules.get('expires', '2000-01-01'), "%Y-%m-%d")) - time.time() <= 0):
+			elif (modules.get('expires', '') != 'never') and (time.mktime(time.strptime(modules.get('expires', '2000-01-01'), "%Y-%m-%d")) - time.time() <= 0): # pylint: disable=line-too-long
 				logger.error("Modules file expired. Limiting to %d workers.", num_workers)
 			else:
 				logger.info("Verifying modules file signature")
-				publicKey = getPublicKey(data=base64.decodebytes(b"AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDojY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDUlk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP"))
+				publicKey = getPublicKey(data=base64.decodebytes(b"AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDojY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDUlk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP")) # pylint: disable=invalid-name, line-too-long
 				data = ""
 				mks = list(modules.keys())
 				mks.sort()
@@ -248,9 +248,9 @@ def main():
 						pass
 				else:
 					h_int = int.from_bytes(MD5.new(data.encode()).digest(), "big")
-					s_int = publicKey._encrypt(int(modules["signature"]))
+					s_int = publicKey._encrypt(int(modules["signature"])) # pylint: disable=protected-access
 					verified = h_int == s_int
-				
+
 				if not verified:
 					logger.error("Modules file invalid. Limiting to %d workers.", num_workers)
 				else:
@@ -260,17 +260,16 @@ def main():
 						num_workers = config.workers
 					else:
 						logger.error("scalability1 missing in modules file. Limiting to %d workers.", num_workers)
-			
+
 			config.workers = num_workers
-		
+
 		if config.server_type == "gunicorn":
 			run_gunicorn()
 		elif config.server_type == "uvicorn":
 			run_uvicorn()
-	
+
 	finally:
-		for t in threading.enumerate():
+		for t in threading.enumerate(): # pylint: disable=invalid-name
 			if hasattr(t, "stop"):
 				t.stop()
 				t.join()
-	

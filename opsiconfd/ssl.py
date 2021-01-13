@@ -24,13 +24,14 @@ import datetime
 import random
 import shutil
 
+from typing import Tuple
+
 # from OpenSSL import crypto
 from OpenSSL.crypto import (
 	FILETYPE_PEM, TYPE_RSA,
 	dump_privatekey, dump_certificate, load_privatekey, load_certificate,
 	X509, PKey, X509Name, X509Extension
 )
-from typing import Tuple
 
 from OPSI.Util import getfqdn
 from OPSI.Config import OPSI_ADMIN_GROUP
@@ -43,17 +44,17 @@ CA_DAYS = 730
 CERT_DAYS = 365
 
 
-def setup_ssl():
+def setup_ssl(): # pylint: disable=too-many-branches
 	logger.info("Setup ssl")
 	if (
 		os.path.exists(config.ssl_ca_key) and os.path.exists(config.ssl_ca_cert) and
 		os.path.exists(config.ssl_server_key) and os.path.exists(config.ssl_server_cert)
 	):
 		return
-	
+
 	ca_key = None
 	ca_crt = None
-		
+
 	if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
 		logger.info("Creating opsi CA")
 
@@ -66,7 +67,7 @@ def setup_ssl():
 			os.chmod(path=os.path.dirname(config.ssl_ca_key), mode=0o700)
 		with open(config.ssl_ca_key, "wb") as out:
 			out.write(dump_privatekey(FILETYPE_PEM, ca_key))
-		
+
 		if os.path.exists(config.ssl_ca_cert):
 			os.unlink(config.ssl_ca_cert)
 		if not os.path.exists(os.path.dirname(config.ssl_ca_cert)):
@@ -74,9 +75,9 @@ def setup_ssl():
 			os.chmod(path=os.path.dirname(config.ssl_ca_cert), mode=0o700)
 		with open(config.ssl_ca_cert, "wb") as out:
 			out.write(dump_certificate(FILETYPE_PEM, ca_crt))
-		
+
 		setup_ssl_file_permissions()
-		
+
 	if os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
 
 		if not ca_key:
@@ -92,11 +93,11 @@ def setup_ssl():
 			os.unlink(config.ssl_server_key)
 		if os.path.exists(config.ssl_server_cert):
 			os.unlink(config.ssl_server_cert)
-		
+
 		if not os.path.exists(os.path.dirname(config.ssl_server_key)):
 			os.makedirs(os.path.dirname(config.ssl_server_key))
 			os.chmod(path=os.path.dirname(config.ssl_server_key), mode=0o700)
-		
+
 		with open(config.ssl_server_cert, "ab") as out:
 			out.write(dump_certificate(FILETYPE_PEM, srv_crt))
 
@@ -105,29 +106,29 @@ def setup_ssl():
 		if not os.path.exists(os.path.dirname(config.ssl_server_cert)):
 			os.makedirs(os.path.dirname(config.ssl_server_cert))
 			os.chmod(path=os.path.dirname(config.ssl_server_cert), mode=0o700)
-		
+
 		setup_ssl_file_permissions()
 
 def setup_ssl_file_permissions():
 	# Key and cert can be the same file.
 	# Order is important!
 	# Set permission of cert first, key afterwards.
-	for fn in (config.ssl_ca_cert, config.ssl_ca_key):
+	for fn in (config.ssl_ca_cert, config.ssl_ca_key): # pylint: disable=invalid-name
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			mode = 0o644 if fn == config.ssl_ca_cert else 0o600
 			os.chmod(path=fn, mode=mode)
-			dn = os.path.dirname(fn)
+			dn = os.path.dirname(fn) # pylint: disable=invalid-name
 			if dn.count('/') >= 3:
 				shutil.chown(path=dn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 				os.chmod(path=dn, mode=0o770)
-	
-	for fn in (config.ssl_server_cert, config.ssl_server_key):
+
+	for fn in (config.ssl_server_cert, config.ssl_server_key): # pylint: disable=invalid-name
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			mode = 0o644 if fn == config.ssl_server_cert else 0o600
 			os.chmod(path=fn, mode=mode)
-			dn = os.path.dirname(fn)
+			dn = os.path.dirname(fn) # pylint: disable=invalid-name
 			if dn.count('/') >= 3:
 				shutil.chown(path=dn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 				os.chmod(path=dn, mode=0o770)
@@ -143,9 +144,9 @@ def check_ssl_expiry():
 			enddate = datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
 			diff = (enddate - datetime.datetime.now()).days
 
-			if (diff <= 0):
+			if diff <= 0:
 				logger.error("Certificate '%s' expired on %s", cert, enddate)
-			elif (diff < 30):
+			elif diff < 30:
 				logger.warning("Certificate '%s' will expire in %d days", cert, diff)
 
 def renew_ca() -> Tuple[X509, PKey]:
@@ -165,7 +166,7 @@ def renew_ca() -> Tuple[X509, PKey]:
 		ca_key.generate_key(TYPE_RSA, 4096)
 
 	return create_ca(ca_key)
-	
+
 
 def create_ca(ca_key: PKey = None, ca_subject: X509Name = None) -> Tuple[X509, PKey]:
 	logger.info("Creating opsi CA")
@@ -187,7 +188,7 @@ def create_ca(ca_key: PKey = None, ca_subject: X509Name = None) -> Tuple[X509, P
 
 	if not ca_subject:
 		ca_subject = create_x590Name({"CN": "opsi CA"})
-	
+
 	ca_crt.set_issuer(ca_subject)
 	ca_crt.set_subject(ca_subject)
 	ca_crt.add_extensions([
@@ -199,14 +200,14 @@ def create_ca(ca_key: PKey = None, ca_subject: X509Name = None) -> Tuple[X509, P
 	return (ca_crt, ca_key)
 
 
-def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tuple[X509, PKey]:
+def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tuple[X509, PKey]: # pylint: disable=too-many-locals
 	logger.info("Creating opsiconfd cert")
 	fqdn = getfqdn()
-	domain = '.'.join(fqdn.split('.')[1:])	
+	domain = '.'.join(fqdn.split('.')[1:])
 
 	# Chrome requires Subject Alt Name
 	ips = ["127.0.0.1", "::1"]
-	for a in get_ip_addresses():
+	for a in get_ip_addresses(): # pylint: disable=invalid-name
 		if a["family"] == "ipv4" and a["address"] not in ips:
 			ips.append(a["address"])
 	ips = ", ".join([f"IP:{ip}" for ip in ips])
@@ -233,7 +234,7 @@ def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tupl
 	while not srv_serial_number or hex(srv_serial_number)[2:] in used_serial_numbers:
 		count += 1
 		random_number = random.getrandbits(32)
-		srv_serial_number = int.from_bytes(f"opsiconfd-{random_number}".encode(), byteorder="big") 
+		srv_serial_number = int.from_bytes(f"opsiconfd-{random_number}".encode(), byteorder="big")
 		if count > 10:
 			logger.warning("No new serial number for ssl cert found!")
 			break
@@ -262,7 +263,7 @@ def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tupl
 	return (srv_crt, srv_key)
 
 
-def create_x590Name(subj: dict = None) -> X509Name:
+def create_x590Name(subj: dict = None) -> X509Name: # pylint: disable=invalid-name, too-many-branches
 
 	fqdn = getfqdn()
 	domain = '.'.join(fqdn.split('.')[1:])

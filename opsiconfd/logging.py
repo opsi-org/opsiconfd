@@ -36,9 +36,9 @@ from gunicorn import glogging
 from aiologger.handlers.streams import AsyncStreamHandler
 from aiologger.handlers.files import AsyncFileHandler
 
-from opsicommon.logging import (
-	logger, secret_filter, handle_log_exception, set_format,
-	set_filter_from_string, ContextSecretFormatter,
+from opsicommon.logging import ( # pylint: disable=unused-import
+	logger, secret_filter, context_filter, handle_log_exception, set_context, set_format,
+	set_filter_from_string, ContextSecretFormatter, print_logger_info,
 	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT, DEFAULT_COLORED_FORMAT
 )
 

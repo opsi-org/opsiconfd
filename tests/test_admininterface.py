@@ -51,7 +51,7 @@ def call_rpc(rpc_request_data: list, expect_error: list, url):
 		else:
 			assert result_json.get("result") != None
 			assert result_json.get("error") == None
-	
+
 
 @pytest.fixture
 def admininterface(monkeypatch):
@@ -114,7 +114,7 @@ async def test_unblock_all_request(config):
 async def test_unblock_client_request(config):
 
 	admin_request = requests.get(f"{config.internal_url}/admin", auth=(TEST_USER, TEST_PW), verify=False)
-	await create_failed_requests(config.internal_url, config.redis_internal_url)	
+	await create_failed_requests(config.internal_url, config.redis_internal_url)
 	admin_request = requests.post(f"{config.internal_url}/admin/unblock-client", auth=(TEST_USER, TEST_PW), data=f'{{"client_addr": "{LOCAL_IP}"}}', cookies=admin_request.cookies, verify=False)
 	assert admin_request.status_code == 200
 
@@ -237,24 +237,24 @@ async def test_unblock_all(config, admininterface):
 	}
 	test_request = Request(scope=scope)
 	test_response = Response()
-	
+
 	await create_failed_requests(config.internal_url, config.redis_internal_url)
 
 	r = requests.get(config.internal_url, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 403
 
-	response = await admininterface.unblock_all_clients(test_request, test_response)
+	response = await admininterface.unblock_all_clients(test_response)
 	print(response.__dict__)
 
 	assert response.status_code == 200
 	response_body =  json.loads(response.body)
 	assert response_body.get("error") == None
 	assert response_body.get("status") == 200
-	assert len(response_body.get("data")) != 0 
+	assert len(response_body.get("data")) != 0
 
 	r = requests.get(config.internal_url, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 200
-	
+
 
 @pytest.mark.asyncio
 async def test_unblock_client(config, admininterface):
@@ -279,11 +279,11 @@ async def test_unblock_client(config, admininterface):
 	response = await admininterface.unblock_client(test_request)
 	response_dict = json.loads(response.body)
 	assert response_dict.get("status") == 200
-	assert response_dict.get("error") == None 
+	assert response_dict.get("error") == None
 
 	r = requests.get(config.internal_url, auth=(TEST_USER, TEST_PW), verify=False)
 	assert r.status_code == 200
-	
+
 
 
 # TODO test number of keys in rpc list

@@ -43,11 +43,11 @@ backend_config =  {
 	'connectionpoolsize': config.executor_workers
 }
 
-get_session_from_context = None
+get_session_from_context = None # pylint: disable=invalid-name
 def get_session():
-	global get_session_from_context
+	global get_session_from_context # pylint: disable=invalid-name, global-statement
 	if not get_session_from_context:
-		from .session import get_session_from_context
+		from .session import get_session_from_context # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return get_session_from_context()
 
 def get_user_store():
@@ -57,9 +57,9 @@ def get_option_store():
 	return get_session().option_store
 
 client_backend_manager_lock = threading.Lock()
-client_backend_manager = None
+client_backend_manager = None # pylint: disable=invalid-name
 def get_client_backend():
-	global client_backend_manager
+	global client_backend_manager # pylint: disable=invalid-name, global-statement
 	with client_backend_manager_lock:
 		if not client_backend_manager:
 			backend_config["user_store"] = get_user_store
@@ -68,9 +68,9 @@ def get_client_backend():
 	return client_backend_manager
 
 backend_manager_lock = threading.Lock()
-backend_manager = None
+backend_manager = None # pylint: disable=invalid-name
 def get_backend():
-	global backend_manager
+	global backend_manager # pylint: disable=invalid-name, global-statement
 	with backend_manager_lock:
 		if not backend_manager:
 			bc = dict(backend_config)
@@ -79,9 +79,9 @@ def get_backend():
 			backend_manager = BackendManager(**bc)
 	return backend_manager
 
-backend_interface = None
+backend_interface = None # pylint: disable=invalid-name
 def get_backend_interface():
-	global backend_interface
+	global backend_interface # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
 		backend_interface = get_client_backend().backend_getInterface()
 	return backend_interface

@@ -20,7 +20,6 @@
 :author: Jan Schneider <j.schneider@uib.de>
 :license: GNU Affero General Public License version 3
 """
-
 """
 https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 
@@ -37,16 +36,15 @@ And also with every response before returning it.
     Then it returns the response.
 """
 
-import asyncio
+import time
 import typing
+import asyncio
+from typing import List
+from collections import namedtuple
 import uuid
 import base64
 import datetime
-import contextvars
 import orjson
-import time
-from collections import namedtuple
-from typing import List
 
 from fastapi import HTTPException, status
 from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
@@ -60,7 +58,7 @@ from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
-from .logging import logger, secret_filter, set_context
+from .logging import logger, secret_filter, set_context # pylint: disable=no-name-in-module
 from .worker import (
 	sync_redis_client, get_redis_client, run_in_threadpool,
 	contextvar_client_address, contextvar_client_session, contextvar_server_timing
@@ -86,7 +84,7 @@ def get_basic_auth(headers: Headers):
 			headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 		)
 
-	encoded_auth = auth_header[6:] # Stripping "Basic "	
+	encoded_auth = auth_header[6:] # Stripping "Basic "
 	secret_filter.add_secrets(encoded_auth)
 	auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
 
@@ -110,7 +108,7 @@ def get_session_from_context():
 
 
 class SessionMiddleware:
-	def __init__(self, app: ASGIApp, public_path: List[str] = []) -> None:
+	def __init__(self, app: ASGIApp, public_path: List[str] = []) -> None: # pylint: disable=dangerous-default-value
 		self.app = app
 		self.session_cookie_name = 'opsiconfd-session'
 		self.max_age = 120  # in seconds
@@ -120,9 +118,9 @@ class SessionMiddleware:
 
 	def get_set_cookie_string(self, session_id) -> dict:
 		return f"{self.session_cookie_name}={session_id}; path=/; Max-Age={self.max_age}"
-	
-	def get_session_id_from_headers(self, headers: Headers) -> str:
-		#connection.cookies.get(self.session_cookie_name, None)
+
+	def get_session_id_from_headers(self, headers: Headers) -> str: # pylint: disable=inconsistent-return-statements
+		#connection.cookies.get(self.session_cookie_name, None) # pylint: disable=inconsistent-return-statements
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
 		# Workaround:
@@ -133,8 +131,8 @@ class SessionMiddleware:
 				if len(cookie) == 2:
 					if cookie[0].strip().lower() == self.session_cookie_name:
 						return cookie[1].strip().lower()
-	
-	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 		start = time.perf_counter()
 		connection = HTTPConnection(scope)
 		session = None
@@ -148,20 +146,20 @@ class SessionMiddleware:
 					if ipAddressInNetwork(client_address, network):
 						is_allowed_network = True
 						break
-				
+
 				if not is_allowed_network:
 					raise ConnectionRefusedError(f"Host '{client_address}' is not allowed to connect")
-			
+
 			redis_client = await get_redis_client()
 			if scope["type"] not in ("http", "websocket"):
 				await self.app(scope, receive, send)
 				return
 
 			is_public = False
-			for p in self._public_path:
+			for p in self._public_path: # pylint: disable=invalid-name
 				if scope["path"].startswith(f"{p}"):
 					is_public = True
-			
+
 			if scope["path"] == "/admin" or scope["path"] == "/":
 				request = Request(scope, receive)
 				fqdn = get_fqdn()
@@ -172,7 +170,7 @@ class SessionMiddleware:
 					response = RedirectResponse(url, status_code=308)
 					await response(scope, receive, send)
 					return
-			
+
 			session_id = self.get_session_id_from_headers(connection.headers)
 			if not is_public or session_id:
 				session = OPSISession(self, session_id, connection)
@@ -183,7 +181,7 @@ class SessionMiddleware:
 			#sht = (time.perf_counter() - start) * 1000
 			#if sht > 100:
 			#	logger.warning("Session init took %0.2fms", sht)
-			
+
 			auth_done = False
 			if not is_public:
 				if not session.user_store.username or not session.user_store.authenticated:
@@ -191,15 +189,15 @@ class SessionMiddleware:
 					is_blocked = bool(await redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}"))
 					if not is_blocked:
 						now = round(time.time())*1000
-						cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
+						cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}" # pylint: disable=line-too-long
 						logger.debug(cmd)
 						try:
 							num_failed_auth = await redis_client.execute_command(cmd)
 							num_failed_auth =  int(num_failed_auth[-1][1])
-							logger.debug("num_failed_auth: %s", num_failed_auth)						
-						except ResponseError as e:
+							logger.debug("num_failed_auth: %s", num_failed_auth)
+						except ResponseError as err:
 							num_failed_auth = 0
-							if str(e).find("key does not exist") == -1:
+							if str(err).find("key does not exist") == -1:
 								raise
 						if num_failed_auth > config.max_auth_failures:
 							is_blocked = True
@@ -207,7 +205,7 @@ class SessionMiddleware:
 							await redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
 					if is_blocked:
 						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
-					
+
 					# Authenticate
 					logger.info("Start authentication of client %s", connection.client.host)
 					await run_in_threadpool(authenticate, connection)
@@ -216,14 +214,14 @@ class SessionMiddleware:
 					if session.user_store.host:
 						logger.info("Host authenticated, updating host object")
 						await run_in_threadpool(update_host_object, connection, session)
-					
+
 					if session.user_store.isAdmin and config.admin_networks:
 						is_admin_network = False
 						for network in config.admin_networks:
 							if ipAddressInNetwork(connection.client.host, network):
 								is_admin_network = True
 								break
-						
+
 						if not is_admin_network:
 							logger.warning("User '%s' from '%s' not in admin network '%s'",
 								session.user_store.username,
@@ -232,18 +230,18 @@ class SessionMiddleware:
 							)
 							session.user_store.isAdmin = False
 							asyncio.get_event_loop().create_task(session.store())
-				
+
 				# Check authorization
 				needs_admin = not (scope["path"].startswith("/rpc") or scope["path"].startswith("/depot")  or scope["path"].startswith("/monitoring"))
 				if needs_admin and not session.user_store.isAdmin:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
-			
+
 			server_timing = contextvar_server_timing.get()
 			sht = (time.perf_counter() - start) * 1000
 			if not auth_done and sht > 1000:
 				logger.warning("Session handling took %0.2fms", sht)
 			server_timing["session_handling"] = sht
-			
+
 			contextvar_server_timing.set(server_timing)
 
 			async def send_wrapper(message: Message) -> None:
@@ -255,37 +253,37 @@ class SessionMiddleware:
 				await send(message)
 
 			await self.app(scope, receive, send_wrapper)
-		
-		except Exception as e:
+
+		except Exception as err: # pylint: disable=broad-except
 			status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 			headers = None
 			error = None
 
-			if isinstance(e, BackendAuthenticationError) or isinstance(e, BackendPermissionDeniedError):
-				logger.debug(e, exc_info=True)
-				logger.warning(e)
-				
+			if isinstance(err, BackendAuthenticationError) or isinstance(err, BackendPermissionDeniedError): # pylint: disable=consider-merging-isinstance
+				logger.debug(err, exc_info=True)
+				logger.warning(err)
+
 				status_code = status.HTTP_401_UNAUTHORIZED
 				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 				error = "Authentication error"
-				if isinstance(e, BackendPermissionDeniedError):
+				if isinstance(err, BackendPermissionDeniedError):
 					error = "Permission denied"
-				cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+				cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}" # pylint: disable=line-too-long
 				logger.debug(cmd)
 				asyncio.get_event_loop().create_task(redis_client.execute_command(cmd))
-			
-			elif isinstance(e, ConnectionRefusedError):
-				status_code = status.HTTP_403_FORBIDDEN
-				error = str(e)
 
-			elif isinstance(e, HTTPException):
-				status_code = e.status_code
-				headers = e.headers
-				error = str(e)
-			
+			elif isinstance(err, ConnectionRefusedError):
+				status_code = status.HTTP_403_FORBIDDEN
+				error = str(err)
+
+			elif isinstance(err, HTTPException):
+				status_code = err.status_code # pylint: disable=no-member
+				headers = err.headers # pylint: disable=no-member
+				error = str(err)
+
 			else:
-				logger.error(e, exc_info=True)
-				error = str(e)
+				logger.error(err, exc_info=True)
+				error = str(err)
 
 			if scope["type"] == "websocket":
 				await send({"type": "websocket.close", "code": status_code})
@@ -294,7 +292,7 @@ class SessionMiddleware:
 				headers = headers or {}
 				if session and session.session_id:
 					headers.update({"Set-Cookie": self.get_set_cookie_string(session.session_id)})
-				
+
 				if scope["path"].startswith("/rpc"):
 					logger.debug("Returning jsonrpc response because path startswith /rpc")
 					response = JSONResponse(
@@ -319,7 +317,7 @@ class SessionMiddleware:
 					)
 				await response(scope, receive, send)
 
-class OPSISession():
+class OPSISession(): # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
 	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection) -> None:
@@ -333,14 +331,14 @@ class OPSISession():
 		self.option_store = {}
 		self._data: typing.Dict[str, typing.Any] = {}
 		self.is_new_session = True
-	
+
 	def __repr__(self):
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
 
 	@classmethod
 	def utc_time_timestamp(cls):
-		dt = datetime.datetime.now()
-		utc_time = dt.replace(tzinfo=datetime.timezone.utc) 
+		dt = datetime.datetime.now() # pylint: disable=invalid-name
+		utc_time = dt.replace(tzinfo=datetime.timezone.utc)
 		return utc_time.timestamp()
 
 	@property
@@ -394,18 +392,18 @@ class OPSISession():
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {config.max_session_per_ip}"
 				logger.warning(error)
 				raise ConnectionRefusedError(error)
-		except ConnectionRefusedError as e:
+		except ConnectionRefusedError as err:
 			raise HTTPException(
 				status_code=status.HTTP_403_FORBIDDEN,
-				detail=str(e)
-			)
+				detail=str(err)
+			) from err
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init_new_session(self) -> None:
 		await run_in_threadpool(self._init_new_session)
- 
+
 	def _load(self) -> bool:
 		self._data = {}
 		"""
@@ -430,16 +428,16 @@ class OPSISession():
 			#	logger.warning("Session loading from redis took %0.2fms", ms)
 		if not data:
 			return False
-		data = orjson.loads(data)
+		data = orjson.loads(data) # pylint: disable=c-extension-no-member
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
-		for k, v in data.get("user_store", {}).items():
+		for k, v in data.get("user_store", {}).items(): # pylint: disable=invalid-name
 			setattr(self.user_store, k, deserialize(v))
 		self.option_store = data.get("option_store", self.option_store)
 		self._data = data.get("data", self._data)
 		self.is_new_session = False
 		return True
-	
+
 	async def load(self) -> bool:
 		# aredis is sometimes slow ~300ms load, using redis for now
 		return await run_in_threadpool(self._load)
@@ -460,13 +458,13 @@ class OPSISession():
 			del data["user_store"]["password"]
 		with sync_redis_client() as redis:
 			#start = time.perf_counter()
-			redis.set(self.redis_key, orjson.dumps(data), ex=self.max_age)
+			redis.set(self.redis_key, orjson.dumps(data), ex=self.max_age) # pylint: disable=c-extension-no-member
 			#ms = (time.perf_counter() - start) * 1000
 			#if ms > 100:
 			#	logger.warning("Session storing to redis took %0.2fms", ms)
 		#redis_client = await get_redis_client()
 		#await redis_client.set(self.redis_key, orjson.dumps(data), ex=self.max_age)
-	
+
 	async def store(self) -> None:
 		# aredis is sometimes slow ~300ms load, using redis for now
 		await run_in_threadpool(self._store)
@@ -482,7 +480,7 @@ class OPSISession():
 
 
 def update_host_object(connection: HTTPConnection, session: OPSISession) -> None:
-	hosts = get_client_backend().host_getObjects(['ipAddress', 'lastSeen'], id=session.user_store.host.id)
+	hosts = get_client_backend().host_getObjects(['ipAddress', 'lastSeen'], id=session.user_store.host.id) # pylint: disable=no-member
 	if not hosts:
 		logger.error("Host %s not found in backend while trying to update ip address and lastseen", session.user_store.host.id)
 		return
@@ -495,4 +493,4 @@ def update_host_object(connection: HTTPConnection, session: OPSISession) -> None
 	else:
 		# Value None on update means no change!
 		host.ipAddress = None
-	get_client_backend().host_updateObjects(host)
+	get_client_backend().host_updateObjects(host) # pylint: disable=no-member

@@ -21,6 +21,9 @@
 		"python.testing.nosetestsEnabled": false,
 		"python.testing.pytestEnabled": true,
 		"python.testing.pytestPath": ".venv/bin/pytest",
+		"python.linting.pylintEnabled": true,
+		"python.linting.pylintCategorySeverity.refactor": "Information",
+		"files.trimTrailingWhitespace": true,
 		"python.languageServer": "Pylance"
 	},
 	"extensions": [

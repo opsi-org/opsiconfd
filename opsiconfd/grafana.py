@@ -23,7 +23,6 @@
 import os
 import json
 import copy
-import aiohttp
 import base64
 import sqlite3
 import random
@@ -32,6 +31,8 @@ import hashlib
 import datetime
 import subprocess
 from urllib.parse import urlparse
+
+import aiohttp
 
 from .logging import logger
 from .config import config, set_config_in_config_file
@@ -261,8 +262,8 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 	"tooltipDecimals": 0
 }
 
-class GrafanaPanelConfig:
-	def __init__(self, type="graph", title="", units=["short", "short"], decimals=0, stack=False, yaxis_min = "auto"):
+class GrafanaPanelConfig: # pylint: disable=too-few-public-methods
+	def __init__(self, type="graph", title="", units=["short", "short"], decimals=0, stack=False, yaxis_min = "auto"): # pylint: disable=dangerous-default-value, too-many-arguments, redefined-builtin
 		self.type = type
 		self.title = title
 		self.units = units
@@ -274,8 +275,8 @@ class GrafanaPanelConfig:
 			self._template = GRAFANA_GRAPH_PANEL_TEMPLATE
 		elif self.type == "heatmap":
 			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE
-	
-	def get_panel(self, id=1, x=0, y=0):
+
+	def get_panel(self, id=1, x=0, y=0): # pylint: disable=redefined-builtin, invalid-name
 		panel = copy.deepcopy(self._template)
 		panel["id"] = id
 		panel["gridPos"]["x"] = x
@@ -306,7 +307,7 @@ def setup_grafana():
 		return
 	if not os.path.exists(grafana_cli):
 		return
-	for f in (grafana_plugin_dir, grafana_db):
+	for f in (grafana_plugin_dir, grafana_db): # pylint: disable=invalid-name
 		if not os.path.exists(f):
 			raise FileNotFoundError(f"'{f}' not found")
 	if not os.path.exists(os.path.join(grafana_plugin_dir, plugin_id)):
@@ -317,10 +318,10 @@ def setup_grafana():
 		):
 			out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=15)
 			logger.debug("output of command %s: %s", cmd, out)
-	
+
 	if url.username is not None:
 		return
-	
+
 	create_opsiconfd_user(grafana_db)
 
 
@@ -331,14 +332,14 @@ async def create_or_update_api_key_by_api(admin_username: str, admin_password: s
 		for key in await resp.json():
 			if key["name"] == API_KEY_NAME:
 				await session.delete(f"{config.grafana_internal_url}/api/auth/keys/{key['id']}")
-		json = {"name": API_KEY_NAME, "role":"Admin", "secondsToLive": None}
+		json = {"name": API_KEY_NAME, "role":"Admin", "secondsToLive": None} # pylint: disable=redefined-outer-name
 		resp = await session.post(f"{config.grafana_internal_url}/api/auth/keys", json=json)
 		api_key = (await resp.json())["key"]
 		return api_key
 
 def create_or_update_api_key_in_grafana_db(db_file: str):
 	key = "".join(random.choices(string.ascii_letters + string.digits, k=32))
-	
+
 	conn = sqlite3.connect(db_file)
 	cur = conn.cursor()
 	cur.execute("SELECT id FROM org")
@@ -346,7 +347,7 @@ def create_or_update_api_key_in_grafana_db(db_file: str):
 	if not res:
 		raise RuntimeError(f"Failed to get org_id from {db_file}")
 	org_id = res[0]
-	
+
 	db_key = hashlib.pbkdf2_hmac("sha256", key.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50)
 	now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -363,16 +364,16 @@ def create_or_update_api_key_in_grafana_db(db_file: str):
 			[org_id, API_KEY_NAME, db_key.hex(), "Admin", now, now, None]
 		)
 
-		
+
 	conn.commit()
 	conn.close()
-	
+
 	api_key = {
 		"id": org_id,
 		"n": API_KEY_NAME,
 		"k": key
 	}
-	return(base64.b64encode(json.dumps(api_key).encode("utf-8")).decode("utf-8"))
+	return base64.b64encode(json.dumps(api_key).encode("utf-8")).decode("utf-8")
 
 def create_opsiconfd_user(db_file: str):
 	logger.notice("Setup grafana opsiconfd user")
@@ -386,7 +387,7 @@ def create_opsiconfd_user(db_file: str):
 	user_id = cur.fetchone()
 
 	if not user_id:
-		pw = get_random_string(8)
+		pw = get_random_string(8) # pylint: disable=invalid-name
 		pw_hash = hashlib.pbkdf2_hmac("sha256", pw.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
 		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 		cur.execute(

@@ -6,15 +6,15 @@ This file is part of opsi - https://www.opsi.org
 See LICENSES/README.md for more Information
 """
 
+from urllib.parse import urlparse
+from operator import itemgetter
 import os
 import datetime
 import orjson
 import requests
-from urllib.parse import urlparse
-from operator import itemgetter
 
-from fastapi import APIRouter, Request, Response, HTTPException, status
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import APIRouter, Request, Response
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from OPSI import __version__ as python_opsi_version
@@ -23,7 +23,7 @@ from .. import __version__
 from ..session import OPSISession
 from ..logging import logger
 from ..config import config
-from ..backend import get_client_backend, get_backend_interface
+from ..backend import get_backend_interface
 from ..worker import get_redis_client
 from ..utils import get_random_string, get_fqdn
 
@@ -47,7 +47,7 @@ async def admin_interface_index(request: Request):
 
 
 @admin_interface_router.post("/unblock-all")
-async def unblock_all_clients(request: Request, response: Response):
+async def unblock_all_clients(response: Response):
 	redis_client = await get_redis_client()
 
 	try:
@@ -69,12 +69,12 @@ async def unblock_all_clients(request: Request, response: Response):
 				if key.decode("utf8").split(":")[-1] not in clients:
 					clients.append(key.decode("utf8").split(":")[-1])
 				await pipe.delete(key)
-			redis_result = await pipe.execute()
+			await pipe.execute()
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"clients": clients, "redis-keys": deleted_keys}})
-	except Exception as e:
-		logger.error("Error while removing redis client keys: %s", e)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
+	except Exception as err: # pylint: disable=broad-except
+		logger.error("Error while removing redis client keys: %s", err)
+		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(err)}})
 	return response
 
 
@@ -95,9 +95,9 @@ async def unblock_client(request: Request):
 			deleted_keys.append(f"opsiconfd:stats:client:blocked:{client_addr}")
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "redis-keys": deleted_keys}})
-	except Exception as e:
-		logger.error("Error while removing redis client keys: %s", e)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
+	except Exception as err: # pylint: disable=broad-except
+		logger.error("Error while removing redis client keys: %s", err)
+		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(err)}})
 	return response
 
 
@@ -115,24 +115,24 @@ async def delete_client_sessions(request: Request):
 				sessions.append(key.decode("utf8").split(":")[-1])
 				deleted_keys.append(key.decode("utf8"))
 				await pipe.delete(key)
-			redis_result = await pipe.execute()
+			await pipe.execute()
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}})
-	except Exception as e:
-		logger.error("Error while removing redis session keys: %s", e)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(e)}})
+	except Exception as err: # pylint: disable=broad-except
+		logger.error("Error while removing redis session keys: %s", err)
+		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(err)}})
 	return response
 
 
 @admin_interface_router.get("/rpc-list")
-async def get_rpc_list(limit: int = 250) -> list:
+async def get_rpc_list() -> list:
 
 	redis_client = await get_redis_client()
 	redis_result = await redis_client.lrange("opsiconfd:stats:rpcs", 0, -1)
 
 	rpc_list = []
 	for value in redis_result:
-		value = orjson.loads(value)
+		value = orjson.loads(value)  # pylint: disable=c-extension-no-member
 		rpc = {
 			"rpc_num": value.get("rpc_num"),
 			"method": value.get("method"),
@@ -194,7 +194,7 @@ def open_grafana(request: Request):
 	session = requests.Session()
 	response = session.get(f"{url.scheme}://{url.hostname}:{url.port}/api/users/lookup?loginOrEmail=opsidashboard", headers=headers, auth=auth)
 
-	pw = get_random_string(8)
+	password = get_random_string(8)
 	if response.status_code == 404:
 		logger.debug("create new user opsidashboard")
 
@@ -202,20 +202,20 @@ def open_grafana(request: Request):
 			"name":"opsidashboard",
 			"email":"opsidashboard@admin",
 			"login":"opsidashboard",
-			"password":pw,
+			"password":password,
 			"OrgId": 1
 		}
 		response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/api/admin/users", headers=headers, auth=auth, data=data)
 	else:
 		logger.debug("change opsidashboard password")
 		data = {
-			"password": pw
+			"password": password
 		}
 		user_id = response.json().get("id")
 		response = session.put(f"{config.grafana_internal_url}/api/admin/users/{user_id}/password", headers=headers, auth=auth, data=data)
 
 	data = {
-		"password": pw,
+		"password": password,
 		"user": "opsidashboard"
 	}
 	response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/login", data=data)
@@ -226,9 +226,9 @@ def open_grafana(request: Request):
 	return response
 
 @admin_interface_router.get("/config")
-def get_confd_conf(all: bool = False) -> JSONResponse:
+def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefined-builtin
 
-	KEYS_TO_REMOVE = [
+	KEYS_TO_REMOVE = [ # pylint: disable=invalid-name
 		"version",
 		"setup",
 		"action",

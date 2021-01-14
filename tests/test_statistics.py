@@ -1,29 +1,46 @@
-import os
-import sys
-import pytest
-import redis
-import json
-import asyncio
-import time
+# -*- coding: utf-8 -*-
 
-from opsiconfd.statistics import MetricsCollector
+# This file is part of opsi.
+# Copyright (C) 2020 uib GmbH <info@uib.de>
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+:copyright: uib GmbH <info@uib.de>
+:license: GNU Affero General Public License version 3
+"""
+
+import sys
+import asyncio
+import redis
+import pytest
 
 @pytest.fixture
-def config(monkeypatch):
+def fixture_config(monkeypatch, name="config"): # pylint: disable=unused-argument
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.config import config
+	from opsiconfd.config import config # pylint: disable=import-outside-toplevel
 	return config
 
 @pytest.fixture
-def metrics_collector(monkeypatch):
+def fixture_metrics_collector(monkeypatch, name="metrics_collector"): # pylint: disable=unused-argument
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.statistics import MetricsCollector
+	from opsiconfd.statistics import MetricsCollector # pylint: disable=import-outside-toplevel
 	return MetricsCollector()
 
 @pytest.fixture
-def metrics_registry(monkeypatch):
+def fixture_metrics_registry(monkeypatch, name="metrics_registry"): # pylint: disable=unused-argument
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.statistics import MetricsRegistry, Metric
+	from opsiconfd.statistics import MetricsRegistry, Metric # pylint: disable=import-outside-toplevel
 	metrics_registry = MetricsRegistry()
 	metrics_registry.register(
 		Metric(
@@ -41,7 +58,7 @@ def metrics_registry(monkeypatch):
 @pytest.fixture()
 @pytest.mark.asyncio
 async def redis_client(config):
-	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = redis.StrictRedis.from_url(config.redis_internal_url) # pylint: disable=redefined-outer-name
 	redis_client.set("opsiconfd:stats:num_rpcs", 5)
 	await asyncio.sleep(2)
 	yield redis_client
@@ -74,19 +91,19 @@ redis_test_data = [
 			b"OK",
 			1,
 			0
-		]	
+		]
 	)
 ]
 
 @pytest.mark.parametrize("cmds, expected_results", redis_test_data)
 @pytest.mark.asyncio
-async def test_execute_redis_command(metrics_collector, redis_client, cmds, expected_results):
+async def test_execute_redis_command(metrics_collector, cmds, expected_results): # pylint: disable=redefined-outer-name
 
 	for idx, cmd in enumerate(cmds):
-		result = await metrics_collector._execute_redis_command(cmd)
+		result = await metrics_collector._execute_redis_command(cmd) # pylint: disable=protected-access
 		print(result)
 		assert result == expected_results[idx]
-		
+
 
 test_data = [
 	("ADD", 4711, "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 LABELS"),
@@ -95,19 +112,19 @@ test_data = [
 @pytest.mark.parametrize("cmd, value, expected_result", test_data)
 def test_redis_ts_cmd(metrics_registry, metrics_collector, cmd, value, expected_result):
 
-	metrics = list(metrics_registry.get_metrics()) 
+	metrics = list(metrics_registry.get_metrics())
 
-	result = metrics_collector._redis_ts_cmd(metrics[-1], cmd, value)
+	result = metrics_collector._redis_ts_cmd(metrics[-1], cmd, value) # pylint: disable=protected-access
 	print(result)
 	assert result == expected_result
-	
+
 def test_redis_ts_cmd_error(metrics_registry, metrics_collector):
 
-	metrics = list(metrics_registry.get_metrics()) 
+	metrics = list(metrics_registry.get_metrics())
 
 	with pytest.raises(ValueError) as excinfo:
-		result = metrics_collector._redis_ts_cmd(metrics[-1], "unknown CMD", 42)
-	
+		metrics_collector._redis_ts_cmd(metrics[-1], "unknown CMD", 42) # pylint: disable=protected-access
+
 	print(excinfo)
 	assert excinfo.type == ValueError
 	assert excinfo.value.__str__() == ValueError("Invalid command unknown CMD").__str__()
@@ -131,4 +148,3 @@ def test_metric_by_redis_key_error(metrics_registry):
 	# print(excinfo.value.__eq__(ValueError("Metric with redis key 'opsiconfd:stats:opsiconfd:notinredis:metric' not found")))
 	# print(type(excinfo.value))
 	# print(type(ValueError("Metric with redis key 'opsiconfd:stats:opsiconfd:notinredis:metric' not found")))
-

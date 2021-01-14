@@ -155,6 +155,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			handle_log_exception(exc)
 
 	def get_file_handler(self, client=None):
+		filename = None
 		if not self._log_file_template:
 			return None
 		try:

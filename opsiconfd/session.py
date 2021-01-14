@@ -259,7 +259,6 @@ class SessionMiddleware:
 			status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 			headers = None
 			error = None
-			redis_client = None
 
 			if isinstance(err, BackendAuthenticationError) or isinstance(err, BackendPermissionDeniedError): # pylint: disable=consider-merging-isinstance
 				logger.debug(err, exc_info=True)
@@ -272,7 +271,7 @@ class SessionMiddleware:
 					error = "Permission denied"
 				cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}" # pylint: disable=line-too-long
 				logger.debug(cmd)
-				asyncio.get_event_loop().create_task(redis_client.execute_command(cmd))
+				asyncio.get_event_loop().create_task(redis_client.execute_command(cmd)) # type: ignore
 
 			elif isinstance(err, ConnectionRefusedError):
 				status_code = status.HTTP_403_FORBIDDEN

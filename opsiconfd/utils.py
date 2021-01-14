@@ -142,7 +142,7 @@ def decode_redis_result(_obj):
 	if isinstance(_obj, bytes):
 		_obj = _obj.decode("utf8")
 	elif isinstance(_obj, list):
-		for i in range(len(_obj)):
+		for i in range(len(_obj)): # pylint: disable=consider-using-enumerate
 			_obj[i] = decode_redis_result(_obj[i])
 	elif isinstance(_obj, dict):
 		for (k, v) in _obj.items(): # pylint: disable=invalid-name

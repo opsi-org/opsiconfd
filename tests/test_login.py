@@ -1,16 +1,36 @@
-import os
+# -*- coding: utf-8 -*-
+
+# This file is part of opsi.
+# Copyright (C) 2020 uib GmbH <info@uib.de>
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+:copyright: uib GmbH <info@uib.de>
+:license: GNU Affero General Public License version 3
+"""
+
 import sys
-import pytest
 import time
 import uuid
+import socket
+import asyncio
+import pytest
 import urllib3
 import redis
 import aredis
-import asyncio
-import requests
-import socket
-from OPSI.Util import ipAddressInNetwork
 
+import requests
 
 # from opsiconfd.config import config
 
@@ -21,9 +41,9 @@ HOSTNAME = socket.gethostname()
 LOCAL_IP = socket.gethostbyname(HOSTNAME)
 
 @pytest.fixture
-def config(monkeypatch):
+def fixture_config(monkeypatch, name="config"): # pylint: disable=unused-argument
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.config import config
+	from opsiconfd.config import config # pylint: disable=import-outside-toplevel
 	return config
 
 
@@ -69,13 +89,13 @@ login_test_data = [
 
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
 def test_false_login(config, auth_data, expected_status_code, expected_text):
-	
-	r = requests.get(config.internal_url, auth=(auth_data), verify=False)
+
+	res = requests.get(config.internal_url, auth=(auth_data), verify=False)
 	print(auth_data)
-	print(r.status_code)
-	assert r.status_code == expected_status_code
-	assert r.text == expected_text
-	assert r.headers.get("set-cookie", None) != None 
+	print(res.status_code)
+	assert res.status_code == expected_status_code
+	assert res.text == expected_text
+	assert res.headers.get("set-cookie", None) is not None
 	time.sleep(10)
 
 def test_proper_login(config):
@@ -83,9 +103,9 @@ def test_proper_login(config):
 	print(config.internal_url)
 	print(TEST_USER)
 	print(TEST_PW)
-	r = requests.get(config.internal_url, auth=(TEST_USER, TEST_PW), verify=False)
-	assert r.status_code == 200
-	assert r.url == f"{config.internal_url}/admin"
+	res = requests.get(config.internal_url, auth=(TEST_USER, TEST_PW), verify=False)
+	assert res.status_code == 200
+	assert res.url == f"{config.internal_url}/admin"
 	time.sleep(10)
 
 @pytest.mark.skip(reason="test does not work in gitlab ci")
@@ -96,23 +116,23 @@ def test_max_sessions_client(config):
 		session_id = str(uuid.uuid4()).replace("-", "")
 		print(f"{OPSI_SESSION_KEY}:{LOCAL_IP}:{session_id}", value=f"empty test session {i}", time=120)
 	print(redis_client.keys(f"{OPSI_SESSION_KEY}:*"))
-	r = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
-	assert r.status_code == 403
-	assert r.text == f"Too many sessions on '{LOCAL_IP}'. Max is 25."
-	print(r.text)
+	res = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
+	assert res.status_code == 403
+	assert res.text == f"Too many sessions on '{LOCAL_IP}'. Max is 25."
+	print(res.text)
 	time.sleep(130)
-	r = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
-	assert r.status_code == 200
-	assert r.url == f"{config.internal_url}/admin"
+	res = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
+	assert res.status_code == 200
+	assert res.url == f"{config.internal_url}/admin"
 
 def test_max_auth(config):
 	for i in range(0,15):
-		r = requests.get(config.internal_url, auth=("false_user","false_pw"), verify=False)
-		print(r.status_code)
+		res = requests.get(config.internal_url, auth=("false_user","false_pw"), verify=False)
+		print(res.status_code)
 		if i >= 12:
-			assert r.status_code == 403
-			assert r.text == f"Client '{LOCAL_IP}' is blocked"
+			assert res.status_code == 403
+			assert res.text == f"Client '{LOCAL_IP}' is blocked"
 	time.sleep(120)
-	r = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
-	assert r.status_code == 200
-	assert r.url == f"{config.internal_url}/admin"
+	res = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
+	assert res.status_code == 200
+	assert res.url == f"{config.internal_url}/admin"

@@ -361,6 +361,7 @@ class MetricsCollector():
 					else:
 						value = 0
 						count = 0
+						values = None
 						async with self._values_lock:
 							for key in self._values.get(metric.id, {}):
 								values = self._values[metric.id].get(key, {})

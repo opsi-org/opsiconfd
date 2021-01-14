@@ -22,37 +22,35 @@
 """
 
 import os
-import socket
 import typing
 import signal
 import threading
-import functools
 import asyncio
-import redis
-import aredis
 import contextvars
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+
+import redis
 from starlette.concurrency import run_in_threadpool as starlette_run_in_threadpool
 
 from .logging import logger, init_logging
 from .config import config
-from .utils import get_worker_num, get_node_name, get_aredis_connection
+from .utils import get_aredis_connection
 
 contextvar_request_id = contextvars.ContextVar("request_id", default=None)
 contextvar_client_session = contextvars.ContextVar("client_session", default=None)
 contextvar_client_address = contextvars.ContextVar("client_address", default=None)
 contextvar_server_timing = contextvars.ContextVar("server_timing", default=None)
 
-_redis_client = None
-_pool_executor = None
-_metrics_collector = None
-_arbiter_pid = None
+_redis_client = None # pylint: disable=invalid-name
+_pool_executor = None # pylint: disable=invalid-name
+_metrics_collector = None # pylint: disable=invalid-name
+_arbiter_pid = None # pylint: disable=invalid-name
 
-_redis_pool = None
+_redis_pool = None # pylint: disable=invalid-name
 @contextmanager
 def sync_redis_client():
-	global _redis_pool
+	global _redis_pool # pylint: disable=global-statement, invalid-name
 	if not _redis_pool:
 		_redis_pool = redis.BlockingConnectionPool.from_url(
 			url=config.redis_internal_url
@@ -65,25 +63,25 @@ def sync_redis_client():
 			con.close()
 
 async def get_redis_client():
-	global _redis_client
+	global _redis_client # pylint: disable=global-statement, invalid-name
 	if not _redis_client:
-		# The client automatically uses a connection from a connection pool for every command 
-		#max_connections = int(config.executor_workers * 2)	
-		_redis_client = await get_aredis_connection(config.redis_internal_url)#, max_connections=max_connections)		
+		# The client automatically uses a connection from a connection pool for every command
+		#max_connections = int(config.executor_workers * 2)
+		_redis_client = await get_aredis_connection(config.redis_internal_url)#, max_connections=max_connections)
 		# _redis_client.flushdb()
 	try:
 		pool = _redis_client.connection_pool
 		#logger.devel(len(pool._in_use_connections))
-		if len(pool._in_use_connections) >= pool.max_connections:
+		if len(pool._in_use_connections) >= pool.max_connections: # pylint: disable=protected-access
 			logger.warning("No available connections in redis connection pool")
-			while len(pool._in_use_connections) >= pool.max_connections:
+			while len(pool._in_use_connections) >= pool.max_connections: # pylint: disable=protected-access
 				await asyncio.sleep(0.01)
 		return _redis_client
-	except Exception as e:
-		logger.error(e, exc_info=True)
+	except Exception as err: # pylint: disable=broad-except
+		logger.error(err, exc_info=True)
 
 def get_pool_executor():
-	global _pool_executor
+	global _pool_executor # pylint: disable=global-statement, invalid-name
 	if not _pool_executor:
 		if config.executor_type == 'process':
 			# process pool needs to pickle function arguments
@@ -92,7 +90,7 @@ def get_pool_executor():
 			_pool_executor = ThreadPoolExecutor(max_workers=config.executor_workers)
 	return _pool_executor
 
-T = typing.TypeVar("T")
+T = typing.TypeVar("T") # pylint: disable=invalid-name
 async def run_in_threadpool(func: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any) -> T:
 	return await starlette_run_in_threadpool(func, *args, **kwargs)
 
@@ -100,7 +98,7 @@ def get_metrics_collector():
 	return _metrics_collector
 
 def set_arbiter_pid(pid: int) -> None:
-	global _arbiter_pid
+	global _arbiter_pid # pylint: disable=global-statement, invalid-name
 	_arbiter_pid = pid
 
 def get_arbiter_pid() -> int:
@@ -111,7 +109,7 @@ def handle_asyncio_exception(loop, context):
 	#msg = context.get("exception", context["message"])
 	logger.error("Unhandled exception in asyncio loop '%s': %s", loop, context)
 
-def signal_handler(signum, frame):
+def signal_handler(signum, frame): # pylint: disable=unused-argument
 	logger.info("Worker %s got signal %d", os.getpid(), signum)
 	if signum == signal.SIGHUP:
 		logger.notice("Worker %s reloading", os.getpid())
@@ -121,22 +119,22 @@ def signal_handler(signum, frame):
 		exit_worker()
 
 def exit_worker():
-	for t in threading.enumerate():
+	for t in threading.enumerate(): # pylint: disable=invalid-name
 		if hasattr(t, "stop"):
 			t.stop()
 			t.join()
 
 def init_worker():
-	global _metrics_collector
-	from .backend import get_backend, get_client_backend
-	from .statistics import MetricsCollector
+	global _metrics_collector # pylint: disable=global-statement, invalid-name
+	from .backend import get_backend, get_client_backend # pylint: disable=import-outside-toplevel
+	from .statistics import MetricsCollector # pylint: disable=import-outside-toplevel
 
 	if get_arbiter_pid() != os.getpid():
 		# Only if this process is a worker process (multiprocessing)
 		signal.signal(signal.SIGINT, signal_handler)
 		signal.signal(signal.SIGHUP, signal_handler)
 		init_logging(log_mode=config.log_mode, is_worker=True)
-	
+
 	logger.notice("Init worker (pid %s)", os.getpid())
 	loop = asyncio.get_event_loop()
 	loop.set_debug(config.debug)

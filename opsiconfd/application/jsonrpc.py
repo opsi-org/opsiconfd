@@ -41,11 +41,11 @@ from OPSI.Util import serialize, deserialize
 from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface, get_backend
 from ..worker import (
-	run_in_threadpool, get_node_name, get_worker_num, get_metrics_collector, get_redis_client, sync_redis_client,
+	run_in_threadpool, get_metrics_collector, get_redis_client, sync_redis_client,
 	contextvar_client_address, contextvar_client_session
 )
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
-from ..utils import decode_redis_result
+from ..utils import decode_redis_result, get_node_name, get_worker_num
 
 # time in seconds
 EXPIRE = (60*60*24)

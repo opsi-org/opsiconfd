@@ -73,7 +73,7 @@ def get_backend():
 	global backend_manager # pylint: disable=invalid-name, global-statement
 	with backend_manager_lock:
 		if not backend_manager:
-			bc = dict(backend_config)
+			bc = dict(backend_config) # pylint: disable=invalid-name
 			if "aclFile" in bc:
 				del bc["aclFile"]
 			backend_manager = BackendManager(**bc)

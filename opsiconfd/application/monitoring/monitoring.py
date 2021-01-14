@@ -41,6 +41,7 @@ async def monitoring(request: Request):
 		response = JSONResponse({"state":  State.UNKNOWN, "message": "No task set, nothing to do"})
 
 	params = request_data.get("param", {})
+	task = None
 	try:
 		if task == "checkClientStatus":
 			response = check_client_status(

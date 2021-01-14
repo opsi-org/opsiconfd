@@ -122,7 +122,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
-		if self._log_level_stderr != pylogging.NONE:
+		if self._log_level_stderr != pylogging.NONE: # pylint: disable=no-member
 			if sys.stderr.isatty():
 				# colorize
 				console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS, datefmt=DATETIME_FORMAT)
@@ -130,7 +130,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 				console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
 			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=ContextSecretFormatter(console_formatter))
 
-		if self._log_level_file != pylogging.NONE:
+		if self._log_level_file != pylogging.NONE: # pylint: disable=no-member
 			if self._log_file_template:
 				self.get_file_handler()
 
@@ -385,7 +385,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 			enable_slow_callback_logging(config.log_slow_async_callbacks)
 
 		if not is_worker:
-			if log_mode == "redis" and (config.log_level_stderr != pylogging.NONE or config.log_level_file != pylogging.NONE):
+			if log_mode == "redis" and (config.log_level_stderr != pylogging.NONE or config.log_level_file != pylogging.NONE): # pylint: disable=no-member
 				start_redis_log_adapter_thread()
 			else:
 				stop_redis_log_adapter_thread()
@@ -426,8 +426,8 @@ class RedisLogAdapterThread(threading.Thread):
 				max_log_file_size=round(config.max_log_size * 1000 * 1000),
 				keep_rotated_log_files=config.keep_rotated_logs,
 				symlink_client_log_files=config.symlink_logs,
-				log_level_stderr=pylogging._opsiLevelToLevel[config.log_level_stderr], # pylint: disable=protected-access
-				log_level_file=pylogging._opsiLevelToLevel[config.log_level_file] # pylint: disable=protected-access
+				log_level_stderr=pylogging._opsiLevelToLevel[config.log_level_stderr], # pylint: disable=protected-access, no-member
+				log_level_file=pylogging._opsiLevelToLevel[config.log_level_file] # pylint: disable=protected-access, no-member
 			)
 			self._loop.run_forever()
 		except Exception as exc: # pylint: disable=broad-except

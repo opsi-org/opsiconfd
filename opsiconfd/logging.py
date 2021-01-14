@@ -354,7 +354,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
 		if log_mode == "local":
 			log_level = config.log_level_stderr
-		log_level = pylogging._opsiLevelToLevel[log_level] # pylint: disable=protected-access
+		log_level = pylogging._opsiLevelToLevel[log_level] # pylint: disable=protected-access, no-member
 		log_handler = None
 
 		if log_mode == "redis":

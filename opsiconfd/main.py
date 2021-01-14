@@ -36,8 +36,8 @@ import psutil
 
 try:
 	# python3-pycryptodome installs into Cryptodome
-	from Cryptodome.Hash import MD5
-	from Cryptodome.Signature import pkcs1_15
+	from Cryptodome.Hash import MD5 # type: ignore
+	from Cryptodome.Signature import pkcs1_15 # type: ignore
 except ImportError:
 	# PyCryptodome from pypi installs into Crypto
 	from Crypto.Hash import MD5

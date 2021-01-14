@@ -143,7 +143,7 @@ def setup_backend():
 	fqdn = getLocalFqdn()
 	try:
 		backend = get_backend()
-		depot = backend.host_getObjects(type='OpsiDepotserver', id=fqdn) # pylint: disable=no-member
+		backend.host_getObjects(type='OpsiDepotserver', id=fqdn) # pylint: disable=no-member
 	except Exception as err: # pylint: disable=broad-except
 		logger.debug(err)
 

@@ -63,6 +63,8 @@ def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], stri
 			for product_id in sorted(difference_products):
 				message += f"product '{product_id}': "
 				for depot_id in depot_ids:
+					product_version = None
+					package_version = None
 					try:
 						product_version = product_on_depot_info[depot_id][product_id].productVersion
 						package_version = product_on_depot_info[depot_id][product_id].packageVersion

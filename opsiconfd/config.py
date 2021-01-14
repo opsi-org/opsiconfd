@@ -185,7 +185,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 				defaulting_nargs = [OPTIONAL, ZERO_OR_MORE]
 				if action.option_strings or action.nargs in defaulting_nargs:
 					#text += f' (default: {self.CY}%(default)s{self.CN})'
-					text += f' (default: %(default)s)'
+					text += f' (default: %(default)s)' # pylint: disable=f-string-without-interpolation
 
 		return text
 

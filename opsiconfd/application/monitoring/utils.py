@@ -57,7 +57,7 @@ async def get_request_avg(redis_client):
 async def get_session_count(redis_client):
 	count = 0
 	session_keys = redis_client.scan_iter("opsiconfd:sessions:*")
-	async for session in session_keys:
+	async for session in session_keys: # pylint: disable=unused-variable
 		count += 1
 	return count
 

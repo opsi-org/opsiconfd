@@ -42,8 +42,8 @@ HOSTNAME = socket.gethostname()
 LOCAL_IP = socket.gethostbyname(HOSTNAME)
 
 
-@pytest.fixture
-def fixture_config(monkeypatch, name="config"): # pylint: disable=unused-argument
+@pytest.fixture(name="config")
+def fixture_config(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
 	from opsiconfd.config import config # pylint: disable=import-outside-toplevel
 	return config

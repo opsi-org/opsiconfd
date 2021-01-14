@@ -25,20 +25,20 @@ import asyncio
 import redis
 import pytest
 
-@pytest.fixture
-def fixture_config(monkeypatch, name="config"): # pylint: disable=unused-argument
+@pytest.fixture(name="config")
+def fixture_config(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
 	from opsiconfd.config import config # pylint: disable=import-outside-toplevel
 	return config
 
-@pytest.fixture
-def fixture_metrics_collector(monkeypatch, name="metrics_collector"): # pylint: disable=unused-argument
+@pytest.fixture(name="metrics_collector")
+def fixture_metrics_collector(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
 	from opsiconfd.statistics import MetricsCollector # pylint: disable=import-outside-toplevel
 	return MetricsCollector()
 
-@pytest.fixture
-def fixture_metrics_registry(monkeypatch, name="metrics_registry"): # pylint: disable=unused-argument
+@pytest.fixture(name="metrics_registry")
+def fixture_metrics_registry(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
 	from opsiconfd.statistics import MetricsRegistry, Metric # pylint: disable=import-outside-toplevel
 	metrics_registry = MetricsRegistry()

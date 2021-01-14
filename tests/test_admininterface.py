@@ -71,15 +71,15 @@ def call_rpc(rpc_request_data: list, expect_error: list, url):
 			assert result_json.get("error") is None
 
 
-@pytest.fixture
-def fixture_admininterface(monkeypatch, name="adminiterface"): # pylint: disable=unused-argument
+@pytest.fixture(name="adminiterface")
+def fixture_admininterface(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
 	from opsiconfd.application import admininterface # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return admininterface
 
 
-@pytest.fixture
-def fixture_config(monkeypatch, name="config"): # pylint: disable=unused-argument
+@pytest.fixture( name="config")
+def fixture_config(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
 	from opsiconfd.config import config # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return config

@@ -1,3 +1,26 @@
+# -*- coding: utf-8 -*-
+
+# This file is part of opsi.
+# Copyright (C) 2020 uib GmbH <info@uib.de>
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+:copyright: uib GmbH <info@uib.de>
+:author: Jan Schneider <j.schneider@uib.de>
+:license: GNU Affero General Public License version 3
+"""
+
 import asyncio
 import io
 import sys
@@ -5,7 +28,7 @@ import typing
 import tempfile
 
 from starlette.concurrency import run_in_threadpool
-from starlette.types import Message, Receive, Scope, Send
+from starlette.types import Message, Receive, Scope, Send # pylint: disable= unused-import
 
 MAX_BODY_MEM_SIZE = 10 * 1000 * 1000
 
@@ -51,19 +74,19 @@ def build_environ(scope: Scope) -> dict:
 		if corrected_name in environ:
 			value = environ[corrected_name] + "," + value
 		environ[corrected_name] = value
-	
+
 	if environ.get("CONTENT_LENGTH") is not None and int(environ["CONTENT_LENGTH"]) <= MAX_BODY_MEM_SIZE:
 		# io.BytesIO is faster than tempfile.SpooledTemporaryFile
 		environ["wsgi.input"] = io.BytesIO()
 	else:
 		#environ["wsgi.input"] = tempfile.SpooledTemporaryFile(max_size=MAX_BODY_MEM_SIZE)
 		environ["wsgi.input"] = tempfile.TemporaryFile()
-	
+
 	return environ
 
 
-class WSGIMiddleware:
-	def __init__(self, app: typing.Callable, workers: int = 10) -> None:
+class WSGIMiddleware: # pylint: disable=too-few-public-methods
+	def __init__(self, app: typing.Callable, workers: int = 10) -> None: # pylint: disable= unused-argument
 		self.app = app
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -72,7 +95,7 @@ class WSGIMiddleware:
 		await responder(receive, send)
 
 
-class WSGIResponder:
+class WSGIResponder: # pylint: disable=too-many-instance-attributes
 	def __init__(self, app: typing.Callable, scope: Scope) -> None:
 		self.app = app
 		self.scope = scope
@@ -111,7 +134,7 @@ class WSGIResponder:
 			message = await receive()
 			wsgi_input.write(message.get("body", b""))
 			more_body = message.get("more_body", False)
-	
+
 	async def sender(self, send: Send) -> None:
 		while True:
 			if self.send_queue:

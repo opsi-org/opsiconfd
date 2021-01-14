@@ -26,14 +26,14 @@ import os
 from wsgidav.fs_dav_provider import FilesystemProvider
 from wsgidav.wsgidav_app import WsgiDAVApp
 #from starlette.middleware.wsgi import WSGIMiddleware
-from ..wsgi import WSGIMiddleware
 
 from OPSI.Util import getfqdn
 
+from ..wsgi import WSGIMiddleware
 from ..logging import logger
 from ..backend import get_backend
 
-def webdav_setup(app):
+def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 	config_template = {
 		#	"accept_basic": True,  # Allow basic authentication, True or False
 		#	"accept_digest": False,  # Allow digest authentication, True or False
@@ -48,11 +48,11 @@ def webdav_setup(app):
 	}
 
 	fqdn = getfqdn()
-	hosts = get_backend().host_getObjects(type='OpsiDepotserver', id=fqdn)
+	hosts = get_backend().host_getObjects(type='OpsiDepotserver', id=fqdn) # pylint: disable=no-member
 	if not hosts:
-		logger.warning(f"Running on host {fqdn} which is not a depot server, webdav disabled.")
+		logger.warning("Running on host %s which is not a depot server, webdav disabled.", fqdn)
 		return
-	
+
 	depot = hosts[0]
 	depot_id = depot.getId()
 	#self.config['depotId'] = depot.getId()
@@ -75,7 +75,7 @@ def webdav_setup(app):
 		config["mount_path"] = "/repository"
 		repository = WsgiDAVApp(config)
 		app.mount("/repository", WSGIMiddleware(repository))
-	except Exception as exc:
+	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
 	try:
@@ -96,7 +96,7 @@ def webdav_setup(app):
 		config["mount_path"] = "/depot"
 		depot = WsgiDAVApp(config)
 		app.mount("/depot", WSGIMiddleware(depot))
-	except Exception as exc:
+	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
 	if os.path.isdir("/tftpboot"):
@@ -111,6 +111,5 @@ def webdav_setup(app):
 			config["mount_path"] = "/boot"
 			boot = WsgiDAVApp(config)
 			app.mount("/boot", WSGIMiddleware(boot))
-		except Exception as exc:
+		except Exception as exc: # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
-	

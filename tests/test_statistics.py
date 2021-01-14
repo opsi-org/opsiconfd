@@ -55,9 +55,9 @@ def fixture_metrics_registry(monkeypatch):
 	return MetricsRegistry()
 
 
-@pytest.fixture()
+@pytest.fixture(name="redis_client")
 @pytest.mark.asyncio
-async def redis_client(config):
+async def fixture_redis_client(config):
 	redis_client = redis.StrictRedis.from_url(config.redis_internal_url) # pylint: disable=redefined-outer-name
 	redis_client.set("opsiconfd:stats:num_rpcs", 5)
 	await asyncio.sleep(2)
@@ -97,7 +97,7 @@ redis_test_data = [
 
 @pytest.mark.parametrize("cmds, expected_results", redis_test_data)
 @pytest.mark.asyncio
-async def test_execute_redis_command(metrics_collector, cmds, expected_results): # pylint: disable=redefined-outer-name
+async def test_execute_redis_command(metrics_collector, redis_client, cmds, expected_results): # pylint: disable=redefined-outer-name
 
 	for idx, cmd in enumerate(cmds):
 		result = await metrics_collector._execute_redis_command(cmd) # pylint: disable=protected-access

@@ -80,8 +80,8 @@ async def clean_redis(config):
 def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-@pytest.fixture()
-def fixture_fill_db(name="fill_db"): # pylint: disable=unused-argument
+@pytest.fixture(name="fill_db")
+def fixture_fill_db(): # pylint: disable=unused-argument
 	mysql_data = [
 		{
 			"hostId": "pytest.uib.gmbh",

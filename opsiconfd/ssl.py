@@ -145,9 +145,9 @@ def check_ssl_expiry():
 			diff = (enddate - datetime.datetime.now()).days
 
 			if diff <= 0:
-				logger.error("Certificate '%s' expired on %s", cert, enddate)
+				logger.error("Certificate '%s' expired on %s", cert.get_subject().CN, enddate)
 			elif diff < 30:
-				logger.warning("Certificate '%s' will expire in %d days", cert, diff)
+				logger.warning("Certificate '%s' will expire in %d days", cert.get_subject().CN, diff)
 
 def renew_ca() -> Tuple[X509, PKey]:
 

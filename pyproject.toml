@@ -44,6 +44,7 @@ distro = "^1.5.0"
 ldap3 = "^2.8.1"
 lz4 = "^3.1.0"
 wsgidav = "^3.0.3"
+aiozeroconf = "^0.1.8"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

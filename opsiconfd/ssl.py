@@ -224,7 +224,7 @@ def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tupl
 		srv_subject = create_x590Name({"CN": f"{domain}"})
 	srv_crt.set_subject(srv_subject)
 
-	ca_srl = os.path.splitext(config.ssl_ca_key)[0] + ".srl"
+	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
 	used_serial_numbers = []
 	if os.path.exists(ca_srl):
 		with open(ca_srl, "r") as file:

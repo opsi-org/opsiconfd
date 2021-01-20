@@ -56,8 +56,6 @@ def setup_ssl(): # pylint: disable=too-many-branches
 	ca_crt = None
 
 	if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
-		logger.info("Creating opsi CA")
-
 		ca_crt, ca_key = create_ca()
 
 		if os.path.exists(config.ssl_ca_key):
@@ -113,10 +111,11 @@ def setup_ssl_file_permissions():
 	# Key and cert can be the same file.
 	# Order is important!
 	# Set permission of cert first, key afterwards.
-	for fn in (config.ssl_ca_cert, config.ssl_ca_key): # pylint: disable=invalid-name
+	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
+	for fn in (config.ssl_ca_cert, ca_srl, config.ssl_ca_key): # pylint: disable=invalid-name
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			mode = 0o644 if fn == config.ssl_ca_cert else 0o600
+			mode = 0o600 if fn == config.ssl_ca_key else 0o644
 			os.chmod(path=fn, mode=mode)
 			dn = os.path.dirname(fn) # pylint: disable=invalid-name
 			if dn.count('/') >= 3:
@@ -150,18 +149,19 @@ def check_ssl_expiry():
 				logger.warning("Certificate '%s' will expire in %d days", cert.get_subject().CN, diff)
 
 def renew_ca() -> Tuple[X509, PKey]:
+	logger.notice("Renewing opsi CA")
 
 	if os.path.exists(config.ssl_ca_cert):
-		logger.debug("Rename old ca.")
+		logger.debug("Rename old CA")
 		shutil.move(config.ssl_ca_cert, f"{config.ssl_ca_cert}.old")
 
 	ca_key = None
 	if os.path.exists(config.ssl_ca_key):
-		logger.info("Using existing key to create new ca.")
+		logger.info("Using existing key to create new CA")
 		with open(config.ssl_ca_key, "r") as file:
 			ca_key = load_privatekey(FILETYPE_PEM,  file.read())
 	else:
-		logger.info("Key not found. Create new ca with new key.")
+		logger.info("Key not found, create new CA with new key")
 		ca_key = PKey()
 		ca_key.generate_key(TYPE_RSA, 4096)
 
@@ -169,7 +169,7 @@ def renew_ca() -> Tuple[X509, PKey]:
 
 
 def create_ca(ca_key: PKey = None, ca_subject: X509Name = None) -> Tuple[X509, PKey]:
-	logger.info("Creating opsi CA")
+	logger.notice("Creating opsi CA")
 
 	if not ca_key:
 		ca_key = PKey()
@@ -201,7 +201,7 @@ def create_ca(ca_key: PKey = None, ca_subject: X509Name = None) -> Tuple[X509, P
 
 
 def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tuple[X509, PKey]: # pylint: disable=too-many-locals
-	logger.info("Creating opsiconfd cert")
+	logger.notice("Creating opsiconfd cert")
 	fqdn = getfqdn()
 
 	# Chrome requires CN from Subject also as Subject Alt Name

@@ -126,13 +126,13 @@ async def startup_event():
 async def shutdown_event():
 	app.is_shutting_down = True
 
-@app.get("/ssl/opsi-cacert.pem")
+@app.get("/ssl/opsi-ca-cert.pem")
 def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument
 	return Response(
 		content=read_ssl_ca_cert_file(),
 		headers={
 			"Content-Type": "application/x-pem-file",
-			"Content-Disposition": 'attachment; filename="opsi-cacert.pem"'
+			"Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'
 		}
 	)
 

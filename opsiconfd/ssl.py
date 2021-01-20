@@ -203,9 +203,8 @@ def create_ca(ca_key: PKey = None, ca_subject: X509Name = None) -> Tuple[X509, P
 def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tuple[X509, PKey]: # pylint: disable=too-many-locals
 	logger.info("Creating opsiconfd cert")
 	fqdn = getfqdn()
-	domain = '.'.join(fqdn.split('.')[1:])
 
-	# Chrome requires Subject Alt Name
+	# Chrome requires CN from Subject also as Subject Alt Name
 	ips = ["127.0.0.1", "::1"]
 	for a in get_ip_addresses(): # pylint: disable=invalid-name
 		if a["family"] == "ipv4" and a["address"] not in ips:

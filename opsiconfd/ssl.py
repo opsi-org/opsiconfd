@@ -221,7 +221,7 @@ def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tupl
 	srv_crt.set_version(2)
 
 	if not srv_subject:
-		srv_subject = create_x590Name({"CN": f"{domain}"})
+		srv_subject = create_x590Name({"CN": f"{fqdn}"})
 	srv_crt.set_subject(srv_subject)
 
 	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")

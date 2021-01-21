@@ -237,6 +237,8 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 				jsonrpc = await run_in_threadpool(jsonrpc.decode, "utf-8", "replace")
 		else:
 			jsonrpc = urllib.parse.unquote(request.url.query)
+			if content_type == "application/msgpack":
+				jsonrpc = await run_in_threadpool(jsonrpc.encode, "ascii")
 
 		logger.trace("jsonrpc: %s", jsonrpc)
 
@@ -398,6 +400,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 				compression, data_len, len(data), 100 - 100 * (len(data) / data_len),
 				1000 * (time.perf_counter() - comp_start)
 			)
+	response.headers["content-length"] = str(len(data))
 	response.body = data
 	return response
 

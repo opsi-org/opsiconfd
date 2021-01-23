@@ -25,11 +25,12 @@ import io
 import sys
 import typing
 import tempfile
+import concurrent
 
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Message, Receive, Scope, Send # pylint: disable= unused-import
 
-MAX_BODY_MEM_SIZE = 10 * 1000 * 1000
+MAX_INPUT_MEM_SIZE = 10 * 1000 * 1000 # Max bytes to hold in memory while receiving body
 
 def build_environ(scope: Scope) -> dict:
 	"""
@@ -74,19 +75,21 @@ def build_environ(scope: Scope) -> dict:
 			value = environ[corrected_name] + "," + value
 		environ[corrected_name] = value
 
-	if environ.get("CONTENT_LENGTH") is not None and int(environ["CONTENT_LENGTH"]) <= MAX_BODY_MEM_SIZE:
+	if environ.get("CONTENT_LENGTH") is not None and int(environ["CONTENT_LENGTH"]) <= MAX_INPUT_MEM_SIZE:
 		# io.BytesIO is faster than tempfile.SpooledTemporaryFile
 		environ["wsgi.input"] = io.BytesIO()
 	else:
-		#environ["wsgi.input"] = tempfile.SpooledTemporaryFile(max_size=MAX_BODY_MEM_SIZE)
+		#environ["wsgi.input"] = tempfile.SpooledTemporaryFile(max_size=MAX_INPUT_MEM_SIZE)
 		environ["wsgi.input"] = tempfile.TemporaryFile()
 
 	return environ
 
 
 class WSGIMiddleware: # pylint: disable=too-few-public-methods
-	def __init__(self, app: typing.Callable, workers: int = 10) -> None: # pylint: disable= unused-argument
+	def __init__(self, app: typing.Callable, workers: int = 10) -> None:
 		self.app = app
+		# https://github.com/encode/starlette/issues/1061
+		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		assert scope["type"] == "http"

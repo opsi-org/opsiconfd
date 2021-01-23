@@ -23,18 +23,21 @@
 
 import os
 
+import wsgidav.fs_dav_provider
 from wsgidav.fs_dav_provider import FilesystemProvider
 from wsgidav.wsgidav_app import WsgiDAVApp
 #from starlette.middleware.wsgi import WSGIMiddleware
 
 from OPSI.Util import getfqdn
 
-from ..wsgi import WSGIMiddleware
+from ..config import config
 from ..logging import logger
 from ..backend import get_backend
+from ..wsgi import WSGIMiddleware
 
 def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
-	config_template = {
+	block_size = 64*1024
+	app_config_template = {
 		#	"accept_basic": True,  # Allow basic authentication, True or False
 		#	"accept_digest": False,  # Allow digest authentication, True or False
 		#	"default_to_digest": False,  # True (default digest) or False (default basic)
@@ -44,8 +47,9 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		"enable_loggers": [],
 		"property_manager": True,  # True: use property_manager.PropertyManager
 		"lock_manager": True,  # True: use lock_manager.LockManager
-		"block_size": 32 * 1024, # default = 8192
+		"block_size": block_size, # default = 8192
 	}
+	wsgidav.fs_dav_provider.BUFFER_SIZE = block_size
 
 	fqdn = getfqdn()
 	hosts = get_backend().host_getObjects(type='OpsiDepotserver', id=fqdn) # pylint: disable=no-member
@@ -55,7 +59,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 
 	depot = hosts[0]
 	depot_id = depot.getId()
-	#self.config['depotId'] = depot.getId()
+	#self.app_config['depotId'] = depot.getId()
 
 	try:
 		logger.notice(f"Running on depot server '{depot_id}', exporting repository directory")
@@ -70,11 +74,11 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
 			raise Exception(f"Cannot add webdav content 'repository': permissions on directory '{path}' not sufficient.")
 
-		config = dict(config_template)
-		config["provider_mapping"] = {"/": FilesystemProvider(path)}
-		config["mount_path"] = "/repository"
-		repository = WsgiDAVApp(config)
-		app.mount("/repository", WSGIMiddleware(repository))
+		app_config = dict(app_config_template)
+		app_config["provider_mapping"] = {"/": FilesystemProvider(path)}
+		app_config["mount_path"] = "/repository"
+		repository = WsgiDAVApp(app_config)
+		app.mount("/repository", WSGIMiddleware(repository, workers=config.executor_workers))
 	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -91,11 +95,11 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		if not os.access(path, os.R_OK | os.X_OK):
 			raise Exception(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
 
-		config = dict(config_template)
-		config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=True)}
-		config["mount_path"] = "/depot"
-		depot = WsgiDAVApp(config)
-		app.mount("/depot", WSGIMiddleware(depot))
+		app_config = dict(app_config_template)
+		app_config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=True)}
+		app_config["mount_path"] = "/depot"
+		depot = WsgiDAVApp(app_config)
+		app.mount("/depot", WSGIMiddleware(depot, workers=config.executor_workers))
 	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -106,10 +110,10 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 			raise Exception(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
 
 		try:
-			config = dict(config_template)
-			config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=True)}
-			config["mount_path"] = "/boot"
-			boot = WsgiDAVApp(config)
-			app.mount("/boot", WSGIMiddleware(boot))
+			app_config = dict(app_config_template)
+			app_config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=True)}
+			app_config["mount_path"] = "/boot"
+			boot = WsgiDAVApp(app_config)
+			app.mount("/boot", WSGIMiddleware(boot, workers=config.executor_workers))
 		except Exception as exc: # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)

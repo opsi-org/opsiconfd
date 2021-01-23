@@ -29,26 +29,27 @@ import copy
 import codecs
 import getpass
 import argparse
+import tempfile
 import asyncio
 from urllib.parse import urlparse
-import orjson
-import aiohttp
-import aiofiles
 import shutil
-import uvloop
 import signal
 import zlib
 import gzip
+from concurrent.futures import ProcessPoolExecutor
+
+import uvloop
+import orjson
+import aiohttp
 import lz4.frame
 import msgpack
-from concurrent.futures import ProcessPoolExecutor
 
 executor = ProcessPoolExecutor(max_workers=25)
 
-class Perftest:
-	def __init__(self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=[], write_results=None):
-		u = urlparse(server)
-		self.base_url = "%s://%s:%d" % (u.scheme or 'https', u.hostname or u.path, u.port or 4447)
+class Perftest:  # pylint: disable=too-many-instance-attributes
+	def __init__(self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=None, write_results=None):  # pylint: disable=too-many-arguments
+		url = urlparse(server)
+		self.base_url = "%s://%s:%d" % (url.scheme or 'https', url.hostname or url.path, url.port or 4447)
 		self.username = username
 		self.password = password
 		self.num_clients = clients if clients and clients > 0 else 1
@@ -61,44 +62,44 @@ class Perftest:
 
 		if jsonrpc_methods:
 			requests = []
-			for m in jsonrpc_methods:
-				m = m.split('[', 1)
-				method = m[0]
+			for meth in jsonrpc_methods:
+				meth = meth.split('[', 1)
+				method = meth[0]
 				params = []
-				if len(m) > 1:
-					params = orjson.loads('[' + m[1])
+				if len(meth) > 1:
+					params = orjson.loads('[' + meth[1])  # pylint: disable=c-extension-no-member
 				requests.append(["jsonrpc", method, params])
 			self.test_cases = [ TestCase(self, "JSONRPC", {"test": requests}) ]
 
 	@classmethod
 	def from_file(cls, filename, **kwargs):
-		with codecs.open(filename, 'r', 'utf-8') as f:
-			perftest = orjson.loads(f.read())
-			for k, v in kwargs.items():
-				if v is None or k == "load":
+		with codecs.open(filename, 'r', 'utf-8') as file:
+			perftest = orjson.loads(file.read())  # pylint: disable=c-extension-no-member
+			for key, var in kwargs.items():
+				if var is None or key == "load":
 					continue
-				perftest[k] = v
+				perftest[key] = var
 			test_cases = []
 			if perftest.get("test_cases"):
 				test_cases = copy.deepcopy(perftest["test_cases"])
 				del perftest["test_cases"]
-			pt = Perftest(**perftest)
+			perft = Perftest(**perftest)
 			for test_case in test_cases:
-				test_case["perftest"] = pt
-				tc = TestCase(**test_case)
-				pt.test_cases.append(tc)
-			return pt
+				test_case["perftest"] = perft
+				testc = TestCase(**test_case)
+				perft.test_cases.append(testc)
+			return perft
 
 	async def run(self):
 		for test_case in self.test_cases:
 			await test_case.run()
-	
+
 	async def stop(self):
 		for test_case in self.test_cases:
 			await test_case.stop()
 
-class TestCase:
-	def __init__(self, perftest, name, requests, compression = None, encoding = "json"):
+class TestCase:  # pylint: disable=too-many-instance-attributes
+	def __init__(self, perftest, name, requests, compression = None, encoding = "json"):  # pylint: disable=too-many-arguments
 		self.perftest = perftest
 		self.name = name
 		self.requests = requests
@@ -123,17 +124,17 @@ class TestCase:
 		if self.start:
 			while not self.end:
 				await asyncio.sleep(0.1)
-	
+
 	async def run(self):
 		width = shutil.get_terminal_size((80, 20))[0] # fallback: 100, 40
-		if (width > 100):
+		if width > 100:
 			width = 100
 		print("")
 		print(f"===[ Running test '{self.name}' on '{self.perftest.base_url}' ]".ljust(width, '='))
 		print(f" * {self.num_clients} concurrent clients")
 		print(f" * {self.iterations} iterations")
 
-		for i in range(self.num_clients):
+		for _i in range(self.num_clients):
 			self.clients.append(Client(self))
 
 		try:
@@ -145,20 +146,20 @@ class TestCase:
 
 			self.start = time.perf_counter()
 			if self.requests.get("test"):
-				for i in range(self.iterations):
+				for _i in range(self.iterations):
 					tasks = [ client.execute_requests(self.requests["test"]) for client in self.clients ]
 					await asyncio.gather(*tasks, return_exceptions=False)
 					if self._should_stop:
 						break
 			self.end = time.perf_counter()
-			
+
 			if self.requests.get("teardown"):
 				tasks = [ client.execute_requests(self.requests["teardown"], add_results=False) for client in self.clients ]
 				await asyncio.gather(*tasks)
 		finally:
 			tasks = [ client.cleanup() for client in self.clients ]
 			await asyncio.gather(*tasks)
-		
+
 		print("")
 		self.display_results()
 		if self.perftest.write_results:
@@ -166,8 +167,12 @@ class TestCase:
 		print("")
 
 	def add_result(self, error: None, seconds: float, bytes_sent: int, bytes_received: int):
-		res = locals()
-		del res["self"]
+		res = {
+			"error": error,
+			"seconds": seconds,
+			"bytes_sent": bytes_sent,
+			"bytes_received": bytes_received
+		}
 		#print(res)
 		self.results.append(res)
 		if len(self.results) % 10 == 0:
@@ -178,12 +183,12 @@ class TestCase:
 			sys.stdout.flush()
 
 	def calc_results(self):
-		r = {
+		result = {
 			"total_seconds": self.end - self.start,
 			"requests": 0,
 			"errors": 0,
-			"total_request_seconds": 0.0, 
-			"bytes_sent": 0, 
+			"total_request_seconds": 0.0,
+			"bytes_sent": 0,
 			"bytes_received": 0,
 			"avg_requests_per_second": 0,
 			"min_seconds_per_request": 0,
@@ -192,42 +197,42 @@ class TestCase:
 		}
 
 		for res in self.results:
-			r["requests"] += 1
+			result["requests"] += 1
 			if res["error"]:
-				r["errors"] += 1
-			r["total_request_seconds"] += res["seconds"]
-			r["bytes_sent"] += res["bytes_sent"]
-			r["bytes_received"] += res["bytes_received"]
-			if r["min_seconds_per_request"] == 0 or r["min_seconds_per_request"] > res["seconds"]:
-				r["min_seconds_per_request"] = res["seconds"]
-			if r["max_seconds_per_request"] == 0 or r["max_seconds_per_request"] < res["seconds"]:
-				r["max_seconds_per_request"] = res["seconds"]
-		
-		r["avg_seconds_per_request"] = r["total_request_seconds"] / r["requests"]
-		r["avg_requests_per_second"] = r["requests"] / r["total_seconds"]
-		r["avg_bytes_received_per_second"] = r["bytes_received"] / r["total_seconds"]
-		r["avg_bytes_send_per_second"] = r["bytes_sent"] / r["total_seconds"]
-		return r
-	
+				result["errors"] += 1
+			result["total_request_seconds"] += res["seconds"]
+			result["bytes_sent"] += res["bytes_sent"]
+			result["bytes_received"] += res["bytes_received"]
+			if result["min_seconds_per_request"] == 0 or result["min_seconds_per_request"] > res["seconds"]:
+				result["min_seconds_per_request"] = res["seconds"]
+			if result["max_seconds_per_request"] == 0 or result["max_seconds_per_request"] < res["seconds"]:
+				result["max_seconds_per_request"] = res["seconds"]
+
+		result["avg_seconds_per_request"] = result["total_request_seconds"] / result["requests"]
+		result["avg_requests_per_second"] = result["requests"] / result["total_seconds"]
+		result["avg_bytes_received_per_second"] = result["bytes_received"] / result["total_seconds"]
+		result["avg_bytes_send_per_second"] = result["bytes_sent"] / result["total_seconds"]
+		return result
+
 	def write_results(self):
-		with codecs.open(self.perftest.write_results, "a", "utf-8") as f:
-			f.write(f"[{self.name}]\n")
-			for k, v in self.calc_results().items():
-				f.write(f"{k}={v}\n")
-			f.write(f"\n")
-	
+		with codecs.open(self.perftest.write_results, "a", "utf-8") as file:
+			file.write(f"[{self.name}]\n")
+			for key, val in self.calc_results().items():
+				file.write(f"{key}={val}\n")
+			file.write("\n")
+
 	def display_results(self):
-		r = self.calc_results()
+		res = self.calc_results()
 		print("Results:")
 		print(f" * Compression: {self.compression or 'none'}")
 		print(f" * Encoding: {self.encoding}")
-		print(f" * Requests: {r['requests']}")
-		print(f" * Errors: {r['errors']}")
-		print(f" * Total seconds: {r['total_seconds']:0.3f}")
-		print(f" * Requests/second: {r['avg_requests_per_second']:0.3f}")
-		print(f" * Request duration: min/avg/max {r['min_seconds_per_request']:0.3f}s/{r['avg_seconds_per_request']:0.3f}s/{r['max_seconds_per_request']:0.3f}s")
-		print(f" * Bytes sent: {r['bytes_sent']/1000/1000:0.2f}MB ({r['avg_bytes_send_per_second']/1000/1000:0.2f}MB/s)")
-		print(f" * Bytes received: {r['bytes_received']/1000/1000:0.2f}MB ({r['avg_bytes_received_per_second']/1000/1000:0.2f}MB/s)")
+		print(f" * Requests: {res['requests']}")
+		print(f" * Errors: {res['errors']}")
+		print(f" * Total seconds: {res['total_seconds']:0.3f}")
+		print(f" * Requests/second: {res['avg_requests_per_second']:0.3f}")
+		print(f" * Request duration: min/avg/max {res['min_seconds_per_request']:0.3f}s/{res['avg_seconds_per_request']:0.3f}s/{res['max_seconds_per_request']:0.3f}s")  # pylint: disable=line-too-long
+		print(f" * Bytes sent: {res['bytes_sent']/1000/1000:0.2f}MB ({res['avg_bytes_send_per_second']/1000/1000:0.2f}MB/s)")
+		print(f" * Bytes received: {res['bytes_received']/1000/1000:0.2f}MB ({res['avg_bytes_received_per_second']/1000/1000:0.2f}MB/s)")
 		print("")
 
 class Client:
@@ -241,11 +246,11 @@ class Client:
 		return self.test_case.perftest
 
 	def _fill_placeholders(self, obj):
-		if type(obj) is bytes:
+		if isinstance(obj, bytes):
 			return obj
-		if type(obj) is str:
+		if isinstance(obj, str):
 			return obj.replace("{http_client_id}", self.http_client_id)
-		if type(obj) is list:
+		if isinstance(obj, list):
 			return  [self._fill_placeholders(o) for o in obj]
 		return obj
 
@@ -261,23 +266,22 @@ class Client:
 	async def cleanup(self):
 		if self._session:
 			await self._session.close()
-	
+
 	async def random_data_generator(self, size=0, chunk_size=1*1000*1000):
-		import tempfile
-		tf = tempfile.TemporaryFile(mode="wb+")
+		tempf = tempfile.TemporaryFile(mode="wb+")
 		# TODO: more randomized data
-		tf.write(b"o" * size)
-		tf.seek(0)
+		tempf.write(b"o" * size)
+		tempf.seek(0)
 		try:
 			sent = 0
 			while sent < size:
-				data = tf.read(chunk_size)
+				data = tempf.read(chunk_size)
 				if not data:
 					break
 				yield data
 				sent += len(data)
 		finally:
-			tf.close()
+			tempf.close()
 
 	async def execute_requests(self, requests, add_results=True):
 		for request in requests:
@@ -292,18 +296,18 @@ class Client:
 		start = time.perf_counter()
 		size = 0
 		if data:
-			if type(data) is str:
+			if isinstance(data, str):
 				data = data.encode("utf-8")
 			if data.startswith(b"{random_data:"):
 				size = int(data.split(b':')[1].strip(b'}'))
 				data = self.random_data_generator(size)
 			else:
 				size = len(data)
-		
+
 		headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 		async with self.session.request(method, url=url, allow_redirects=False, data=data, headers=headers) as response:
 			end = time.perf_counter()
-			body = await response.text()
+			body = await response.read()
 			error = None
 			if response.status not in (200, 201, 204):
 				error = f"{response.status} - {body}"
@@ -312,17 +316,18 @@ class Client:
 			elif error:
 				print(error)
 			return (error, end - start, size, len(body or ''))
-	
-	async def jsonrpc(self, method, params=[]):
-		for i in range(len(params)):
-			if type(params[i]) is str and params[i].startswith("{random_data:"):
-				size = int(params[i].split(':')[1].strip('}'))
+
+	async def jsonrpc(self, method, params=None):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+		params = params or []
+		for param, idx in enumerate(params):
+			if isinstance(param, str) and param.startswith("{random_data:"):
+				size = int(param.split(':')[1].strip('}'))
 				# TODO: more randomized data
-				params[i] = "o" * size
-			if type(params[i]) is str and params[i].startswith("{file:"):
-				filename = params[i].split(':')[1].strip('}')
-				with codecs.open(filename, "r", "utf-8") as f:
-					params[i] = f.read()
+				params[idx] = "o" * size
+			if isinstance(param, str) and param.startswith("{file:"):
+				filename = param.split(':')[1].strip('}')
+				with codecs.open(filename, "r", "utf-8") as file:
+					params[idx] = file.read()
 		req = {
 			"jsonrpc": "2.0",
 			"id": 1,
@@ -332,13 +337,13 @@ class Client:
 		headers = {}
 		if self.test_case.encoding == "json":
 			headers["content-type"] = "application/json"
-			data = await asyncio.get_event_loop().run_in_executor(executor, orjson.dumps, req)
+			data = await asyncio.get_event_loop().run_in_executor(executor, orjson.dumps, req)  # pylint: disable=c-extension-no-member
 		elif self.test_case.encoding == "msgpack":
 			headers["content-type"] = "application/msgpack"
 			data = await asyncio.get_event_loop().run_in_executor(executor, msgpack.dumps, req)
 		else:
 			raise ValueError(f"Invalid encoding: {self.test_case.encoding}")
-		
+
 		data_len = len(data)
 		start = time.perf_counter()
 		if self.test_case.compression:
@@ -354,7 +359,7 @@ class Client:
 			headers["accept-encoding"] = self.test_case.compression
 		else:
 			headers["accept-encoding"] = ""
-		
+
 		async with self.session.post(url=f"{self.perftest.base_url}/rpc", data=data, headers=headers) as response:
 			end = time.perf_counter()
 			body = await response.read()
@@ -368,18 +373,18 @@ class Client:
 				if response.headers.get("content-type") == "application/msgpack":
 					res = await asyncio.get_event_loop().run_in_executor(executor, msgpack.loads, body)
 				else:
-					res = await asyncio.get_event_loop().run_in_executor(executor, orjson.loads, body)
-				
+					res = await asyncio.get_event_loop().run_in_executor(executor, orjson.loads, body)  # pylint: disable=c-extension-no-member
+
 				if res.get('error'):
 					error = res['error']
 			if self.perftest.print_responses:
 				print(f"{response.status} - {body}")
 			elif error:
 				print(error)
-			
+
 			return (error, end - start, data_len, len(body or ''))
 
-async def signal_handler(sig, loop, perftest):
+async def signal_handler(_sig, loop, perftest):
 	await perftest.stop()
 	loop.stop()
 
@@ -396,7 +401,7 @@ def main():
 	arg_parser.add_argument("-w", "--write-results", action="store", metavar="FILE", help="Write results to FILE")
 	args = arg_parser.parse_args()
 	kwargs = args.__dict__
-	
+
 	uvloop.install()
 	loop = asyncio.get_event_loop()
 	perftest = None
@@ -416,12 +421,7 @@ def main():
 	for sig in signals:
 		loop.add_signal_handler(sig, lambda sig=sig: loop.create_task(signal_handler(sig, loop, perftest)))
 	loop.run_until_complete(perftest.run())
-	
+
 if __name__ == '__main__':
-	try:
-		main()
-	except Exception as e:
-		raise
-		#print(e, file=sys.stderr)
-		#sys.exit(1)
-sys.exit(0)
+	main()
+	sys.exit(0)

@@ -24,13 +24,47 @@ import asyncio
 import io
 import sys
 import typing
-import tempfile
 import concurrent
+from queue import Queue
 
 from starlette.concurrency import run_in_threadpool
-from starlette.types import Message, Receive, Scope, Send # pylint: disable= unused-import
+from starlette.types import Receive, Scope, Send
 
-MAX_INPUT_MEM_SIZE = 10 * 1000 * 1000 # Max bytes to hold in memory while receiving body
+class InputBuffer:
+	""" Input buffer """
+	def __init__(self):
+		self._queue = Queue(5)
+		self._buffer = None
+		self._read_pos = 0
+		self._end_of_data = False
+
+	def end_of_data(self):
+		self._end_of_data = True
+
+	def write(self, data: bytes) -> int:
+		if len(data) > 0:
+			self._queue.put(data)
+		return len(data)
+
+	def read(self, size: int) -> bytes:
+		if self._read_pos == 0:
+			if self._end_of_data and self._queue.empty():
+				return b""
+			self._buffer = self._queue.get()
+
+		start = self._read_pos
+		end = start + size
+		if end >= len(self._buffer):
+			end = len(self._buffer)
+			self._read_pos = 0
+		else:
+			self._read_pos += size
+
+		view = memoryview(self._buffer)[start:end]
+		return view
+
+	def close(self):
+		pass
 
 def build_environ(scope: Scope) -> dict:
 	"""
@@ -75,12 +109,7 @@ def build_environ(scope: Scope) -> dict:
 			value = environ[corrected_name] + "," + value
 		environ[corrected_name] = value
 
-	if environ.get("CONTENT_LENGTH") is not None and int(environ["CONTENT_LENGTH"]) <= MAX_INPUT_MEM_SIZE:
-		# io.BytesIO is faster than tempfile.SpooledTemporaryFile
-		environ["wsgi.input"] = io.BytesIO()
-	else:
-		#environ["wsgi.input"] = tempfile.SpooledTemporaryFile(max_size=MAX_INPUT_MEM_SIZE)
-		environ["wsgi.input"] = tempfile.TemporaryFile()
+	environ["wsgi.input"] = InputBuffer()
 
 	return environ
 
@@ -114,12 +143,11 @@ class WSGIResponder: # pylint: disable=too-many-instance-attributes
 		receiver = self.loop.create_task(self.receiver(receive, environ["wsgi.input"]))
 		sender = None
 		try:
-			await asyncio.wait_for(receiver, None)
-			environ["wsgi.input"].seek(0)
 			sender = self.loop.create_task(self.sender(send))
 			await run_in_threadpool(self.wsgi, environ, self.start_response)
 			self.send_queue.append(None)
 			self.send_event.set()
+			await asyncio.wait_for(receiver, None)
 			await asyncio.wait_for(sender, None)
 			if self.exc_info is not None:
 				raise self.exc_info[0].with_traceback(
@@ -136,6 +164,7 @@ class WSGIResponder: # pylint: disable=too-many-instance-attributes
 			message = await receive()
 			wsgi_input.write(message.get("body", b""))
 			more_body = message.get("more_body", False)
+		wsgi_input.end_of_data()
 
 	async def sender(self, send: Send) -> None:
 		while True:

@@ -77,8 +77,8 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		app_config = dict(app_config_template)
 		app_config["provider_mapping"] = {"/": FilesystemProvider(path)}
 		app_config["mount_path"] = "/repository"
-		repository = WsgiDAVApp(app_config)
-		app.mount("/repository", WSGIMiddleware(repository, workers=config.executor_workers))
+		repository_dav = WsgiDAVApp(app_config)
+		app.mount("/repository", WSGIMiddleware(repository_dav, workers=config.executor_workers))
 	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -92,14 +92,35 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		logger.debug("Depot local path is '%s'", path)
 		if not os.path.isdir(path):
 			raise Exception(f"Cannot add webdav content 'depot': directory '{path}' does not exist.")
-		if not os.access(path, os.R_OK | os.X_OK):
+		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
 			raise Exception(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
 
 		app_config = dict(app_config_template)
-		app_config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=True)}
+		app_config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=False)}
 		app_config["mount_path"] = "/depot"
-		depot = WsgiDAVApp(app_config)
-		app.mount("/depot", WSGIMiddleware(depot, workers=config.executor_workers))
+		depot_dav = WsgiDAVApp(app_config)
+		app.mount("/depot", WSGIMiddleware(depot_dav, workers=config.executor_workers))
+	except Exception as exc: # pylint: disable=broad-except
+		logger.error(exc, exc_info=True)
+
+	try:
+		logger.notice(f"Running on depot server '{depot_id}', exporting workbench directory")
+		if not depot.getWorkbenchLocalUrl():
+			raise Exception(f"Workbench local url for depot '{depot_id}' not found")
+		if not depot.getWorkbenchLocalUrl().startswith('file:///'):
+			raise Exception(f"Invalid workbench local url '{depot.getWorkbenchLocalUrl()}' not allowed")
+		path = depot.getWorkbenchLocalUrl()[7:]
+		logger.debug("Workbench local path is '%s'", path)
+		if not os.path.isdir(path):
+			raise Exception(f"Cannot add webdav content 'workbench': directory '{path}' does not exist.")
+		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
+			raise Exception(f"Cannot add webdav content 'workbench': permissions on directory '{path}' not sufficient.")
+
+		app_config = dict(app_config_template)
+		app_config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=False)}
+		app_config["mount_path"] = "/workbench"
+		workbench_dav = WsgiDAVApp(app_config)
+		app.mount("/workbench", WSGIMiddleware(workbench_dav, workers=config.executor_workers))
 	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 

@@ -55,6 +55,8 @@ def test_webdav_auth():
 	assert res.status_code == 401
 
 def test_client_permission():
+	urllib3.disable_warnings()
+
 	client_id = "webdavtest.uib.local"
 	client_key = "af521906af3c4666bed30a1774639ff8"
 	rpc = {
@@ -70,40 +72,24 @@ def test_client_permission():
 	res = res.json()
 	assert res.get("error") is None
 
-	rpc = {
-		"id": 1,
-		"method": "configState_getClientToDepotserver",
-		"params": [
-			[],
-			[client_id]
-		]
-	}
-	res = requests.post(f"{BASE_URL}/rpc", verify=False, auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
-	assert res.status_code == 200
-	res = res.json()
-	assert res.get("error") is None
-	print(res.get("result"))
+	size = 1024
+	data = bytearray(random.getrandbits(8) for _ in range(size))
+	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
+	for path in ("workbench", "repository", "depot"):
+		url = f"{BASE_URL}/{path}/test_file_client.bin"
 
-	url = f"{BASE_URL}/repository/test_file_client.bin"
-	res = requests.put(url=url, verify=False, auth=(client_id, client_key))
-	assert res.status_code == 401
+		res = requests.put(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS), data=data, headers=headers)
+		assert res.status_code in (201, 204)
 
-	res = requests.get(url=url, verify=False, auth=(client_id, client_key))
-	assert res.status_code == 401
+		res = requests.put(url=url, verify=False, auth=(client_id, client_key))
+		assert res.status_code == 401
 
-	res = requests.delete(url=url, verify=False, auth=(client_id, client_key))
-	assert res.status_code == 401
+		res = requests.get(url=url, verify=False, auth=(client_id, client_key))
+		assert res.status_code == 200 if path == "depot" else 401
 
-	url = f"{BASE_URL}/depot/test_file_client.bin"
-	res = requests.put(url=url, verify=False, auth=(client_id, client_key))
-	assert res.status_code == 405
+		res = requests.delete(url=url, verify=False, auth=(client_id, client_key))
+		assert res.status_code == 401
 
-	res = requests.put(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
-
-	res = requests.get(url=url, verify=False, auth=(client_id, client_key))
-	assert res.status_code == 401
-
-	res = requests.delete(url=url, verify=False, auth=(client_id, client_key))
-	assert res.status_code == 405
+		res = requests.delete(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
+		assert res.status_code == 204
 

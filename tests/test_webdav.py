@@ -26,8 +26,8 @@ import requests
 import urllib3
 
 BASE_URL = "https://localhost:4447"
-USERNAME = "adminuser"
-PASSWORD = "adminuser"
+ADMIN_USER = "adminuser"
+ADMIN_PASS = "adminuser"
 
 def test_webdav_upload_download_delete():
 	urllib3.disable_warnings()
@@ -37,16 +37,14 @@ def test_webdav_upload_download_delete():
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 
 	url = f"{BASE_URL}/repository/test_file.bin"
-	res = requests.put(url=url, verify=False, auth=(USERNAME, PASSWORD), headers=headers, data=rand_bytes)
+	res = requests.put(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS), headers=headers, data=rand_bytes)
 	res.raise_for_status()
 
-	url = f"{BASE_URL}/repository/test_file.bin"
-	res = requests.get(url=url, verify=False, auth=(USERNAME, PASSWORD))
+	res = requests.get(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
 	res.raise_for_status()
 	assert rand_bytes == res.content
 
-	url = f"{BASE_URL}/repository/test_file.bin"
-	res = requests.delete(url=url, verify=False, auth=(USERNAME, PASSWORD))
+	res = requests.delete(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
 	res.raise_for_status()
 
 def test_webdav_auth():
@@ -54,6 +52,58 @@ def test_webdav_auth():
 
 	url = f"{BASE_URL}/repository/test_file.bin"
 	res = requests.get(url=url, verify=False)
-
 	assert res.status_code == 401
+
+def test_client_permission():
+	client_id = "webdavtest.uib.local"
+	client_key = "af521906af3c4666bed30a1774639ff8"
+	rpc = {
+		"id": 1,
+		"method": "host_createOpsiClient",
+		"params": [
+			client_id,
+			client_key
+		]
+	}
+	res = requests.post(f"{BASE_URL}/rpc", verify=False, auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+	res = res.json()
+	assert res.get("error") is None
+
+	rpc = {
+		"id": 1,
+		"method": "configState_getClientToDepotserver",
+		"params": [
+			[],
+			[client_id]
+		]
+	}
+	res = requests.post(f"{BASE_URL}/rpc", verify=False, auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	assert res.status_code == 200
+	res = res.json()
+	assert res.get("error") is None
+	print(res.get("result"))
+
+	url = f"{BASE_URL}/repository/test_file_client.bin"
+	res = requests.put(url=url, verify=False, auth=(client_id, client_key))
+	assert res.status_code == 401
+
+	res = requests.get(url=url, verify=False, auth=(client_id, client_key))
+	assert res.status_code == 401
+
+	res = requests.delete(url=url, verify=False, auth=(client_id, client_key))
+	assert res.status_code == 401
+
+	url = f"{BASE_URL}/depot/test_file_client.bin"
+	res = requests.put(url=url, verify=False, auth=(client_id, client_key))
+	assert res.status_code == 405
+
+	res = requests.put(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+
+	res = requests.get(url=url, verify=False, auth=(client_id, client_key))
+	assert res.status_code == 401
+
+	res = requests.delete(url=url, verify=False, auth=(client_id, client_key))
+	assert res.status_code == 405
 

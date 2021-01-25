@@ -29,7 +29,7 @@ BASE_URL = "https://localhost:4447"
 USERNAME = "adminuser"
 PASSWORD = "adminuser"
 
-def test_webdav_upload():
+def test_webdav_upload_download_delete():
 	urllib3.disable_warnings()
 
 	size = 1*1024*1024
@@ -48,3 +48,12 @@ def test_webdav_upload():
 	url = f"{BASE_URL}/repository/test_file.bin"
 	res = requests.delete(url=url, verify=False, auth=(USERNAME, PASSWORD))
 	res.raise_for_status()
+
+def test_webdav_auth():
+	urllib3.disable_warnings()
+
+	url = f"{BASE_URL}/repository/test_file.bin"
+	res = requests.get(url=url, verify=False)
+
+	assert res.status_code == 401
+

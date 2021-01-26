@@ -30,6 +30,8 @@ from queue import Queue
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
 
+from .logging import logger
+
 class InputBuffer:
 	""" Input buffer """
 	def __init__(self):
@@ -133,7 +135,10 @@ class WSGIResponder: # pylint: disable=too-many-instance-attributes
 		self.status = None
 		self.response_headers = None
 		self.send_event = asyncio.Event()
-		self.send_queue = []  # type: typing.List[typing.Optional[Message]]
+		# The reason for using a queue is that if the reader is faster than the sender,
+		# which should be the case most of the time, the send queue will not fill up endlessly.
+		# The original implementation from uvicorn uses a list, which eats up a lot of memory.
+		self.send_queue = Queue(5)
 		self.loop = asyncio.get_event_loop()
 		self.response_started = False
 		self.exc_info = None  # type: typing.Any
@@ -145,8 +150,6 @@ class WSGIResponder: # pylint: disable=too-many-instance-attributes
 		try:
 			sender = self.loop.create_task(self.sender(send))
 			await run_in_threadpool(self.wsgi, environ, self.start_response)
-			self.send_queue.append(None)
-			self.send_event.set()
 			await asyncio.wait_for(receiver, None)
 			await asyncio.wait_for(sender, None)
 			if self.exc_info is not None:
@@ -168,14 +171,14 @@ class WSGIResponder: # pylint: disable=too-many-instance-attributes
 
 	async def sender(self, send: Send) -> None:
 		while True:
-			if self.send_queue:
-				message = self.send_queue.pop(0)
+			while not self.send_queue.empty():
+				message = self.send_queue.get()
 				if message is None:
+					# Done
 					return
 				await send(message)
-			else:
-				await self.send_event.wait()
-				self.send_event.clear()
+			await self.send_event.wait()
+			self.send_event.clear()
 
 	def start_response(
 		self,
@@ -192,7 +195,7 @@ class WSGIResponder: # pylint: disable=too-many-instance-attributes
 				(name.strip().encode("ascii").lower(), value.strip().encode("ascii"))
 				for name, value in response_headers
 			]
-			self.send_queue.append(
+			self.send_queue.put(
 				{
 					"type": "http.response.start",
 					"status": status_code,
@@ -203,10 +206,11 @@ class WSGIResponder: # pylint: disable=too-many-instance-attributes
 
 	def wsgi(self, environ: dict, start_response: typing.Callable) -> None:
 		for chunk in self.app(environ, start_response):
-			self.send_queue.append(
+			self.send_queue.put(
 				{"type": "http.response.body", "body": chunk, "more_body": True}
 			)
 			self.loop.call_soon_threadsafe(self.send_event.set)
 
-		self.send_queue.append({"type": "http.response.body", "body": b""})
+		self.send_queue.put({"type": "http.response.body", "body": b""})
+		self.send_queue.put(None)
 		self.loop.call_soon_threadsafe(self.send_event.set)

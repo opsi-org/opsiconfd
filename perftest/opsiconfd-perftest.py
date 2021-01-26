@@ -224,8 +224,8 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 	def display_results(self):
 		res = self.calc_results()
 		print("Results:")
-		print(f" * Compression: {self.compression or 'none'}")
-		print(f" * Encoding: {self.encoding}")
+		print(f" * RPC compression: {self.compression or 'none'}")
+		print(f" * RPC encoding: {self.encoding}")
 		print(f" * Requests: {res['requests']}")
 		print(f" * Errors: {res['errors']}")
 		print(f" * Total seconds: {res['total_seconds']:0.3f}")
@@ -294,28 +294,31 @@ class Client:
 	async def webdav(self, method, filename, data=None):
 		url = f"{self.perftest.base_url}/repository/{filename}"
 		start = time.perf_counter()
-		size = 0
+		bytes_sent = 0
 		if data:
 			if isinstance(data, str):
 				data = data.encode("utf-8")
 			if data.startswith(b"{random_data:"):
-				size = int(data.split(b':')[1].strip(b'}'))
-				data = self.random_data_generator(size)
+				bytes_sent = int(data.split(b':')[1].strip(b'}'))
+				data = self.random_data_generator(bytes_sent)
 			else:
-				size = len(data)
+				bytes_sent = len(data)
 
-		headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
+		headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(bytes_sent)}
 		async with self.session.request(method, url=url, allow_redirects=False, data=data, headers=headers) as response:
+			data = None
+			bytes_received = 0
+			async for data in response.content.iter_chunked(64*1024):
+				bytes_received += len(data)
 			end = time.perf_counter()
-			body = await response.read()
 			error = None
 			if response.status not in (200, 201, 204):
-				error = f"{response.status} - {body}"
+				error = f"{response.status} - {data}"
 			if self.perftest.print_responses:
-				print(f"{response.status} - {len(body or '')} bytes body")
+				print(f"{response.status} - {bytes_received} bytes body")
 			elif error:
 				print(error)
-			return (error, end - start, size, len(body or ''))
+			return (error, end - start, bytes_sent, bytes_received)
 
 	async def jsonrpc(self, method, params=None):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		params = params or []

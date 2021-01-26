@@ -240,10 +240,11 @@ class SessionMiddleware:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
 
 			server_timing = contextvar_server_timing.get()
-			sht = (time.perf_counter() - start) * 1000
-			if not auth_done and sht > 1000:
-				logger.warning("Session handling took %0.2fms", sht)
-			server_timing["session_handling"] = sht
+			if server_timing:
+				sht = (time.perf_counter() - start) * 1000
+				if not auth_done and sht > 1000:
+					logger.warning("Session handling took %0.2fms", sht)
+				server_timing["session_handling"] = sht
 
 			contextvar_server_timing.set(server_timing)
 

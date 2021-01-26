@@ -49,6 +49,8 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		"lock_manager": True,  # True: use lock_manager.LockManager
 		"block_size": block_size, # default = 8192
 	}
+	# Set file buffer size for reading and writing.
+	# Sent message chunks will have the same body size.
 	wsgidav.fs_dav_provider.BUFFER_SIZE = block_size
 
 	fqdn = getfqdn()

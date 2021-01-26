@@ -22,6 +22,7 @@
 """
 
 import random
+from aiohttp.client import request
 import requests
 import urllib3
 
@@ -57,6 +58,9 @@ def test_webdav_auth():
 def test_client_permission():
 	urllib3.disable_warnings()
 
+	admin_session = requests.Session()
+	admin_session.auth = (ADMIN_USER, ADMIN_PASS)
+
 	client_id = "webdavtest.uib.local"
 	client_key = "af521906af3c4666bed30a1774639ff8"
 	rpc = {
@@ -67,13 +71,13 @@ def test_client_permission():
 			client_key
 		]
 	}
-	res = requests.post(f"{BASE_URL}/rpc", verify=False, auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res = admin_session.post(f"{BASE_URL}/rpc", verify=False, json=rpc)
 	assert res.status_code == 200
 	res = res.json()
 	assert res.get("error") is None
 
-	def _unblock_all():
-		requests.post(url=f"{BASE_URL}/admin/unblock-all", verify=False, auth=(ADMIN_USER, ADMIN_PASS))
+	client_session = requests.Session()
+	client_session.auth = (client_id, client_key)
 
 	size = 1024
 	data = bytearray(random.getrandbits(8) for _ in range(size))
@@ -81,29 +85,19 @@ def test_client_permission():
 	for path in ("workbench", "repository", "depot"):
 		url = f"{BASE_URL}/{path}/test_file_client.bin"
 
-		res = requests.put(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS), data=data, headers=headers)
+		res = admin_session.put(url=url, verify=False, data=data, headers=headers)
 		assert res.status_code in (201, 204)
-		res.close()
-		_unblock_all()
 
-		res = requests.put(url=url, verify=False, auth=(client_id, client_key))
+		res = client_session.put(url=url, verify=False)
 		assert res.status_code == 401
-		res.close()
-		_unblock_all()
 
-		res = requests.get(url=url, verify=False, auth=(client_id, client_key))
+		res = client_session.get(url=url, verify=False)
 		assert res.status_code == 200 if path == "depot" else 401
-		res.close()
-		_unblock_all()
 
-		res = requests.delete(url=url, verify=False, auth=(client_id, client_key))
+		res = client_session.delete(url=url, verify=False)
 		assert res.status_code == 401
-		res.close()
-		_unblock_all()
 
-		res = requests.delete(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
+		res = admin_session.delete(url=url, verify=False)
 		assert res.status_code == 204
-		res.close()
-		_unblock_all()
 
-
+		admin_session.post(url=f"{BASE_URL}/admin/unblock-all", verify=False)

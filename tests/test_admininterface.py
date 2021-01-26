@@ -296,5 +296,4 @@ async def test_unblock_client(config, admininterface):
 	assert res.status_code == 200
 
 
-
 # TODO test number of keys in rpc list

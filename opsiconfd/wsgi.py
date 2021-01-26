@@ -30,7 +30,6 @@ from queue import Queue
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
 
-from .logging import logger
 
 class InputBuffer:
 	""" Input buffer """

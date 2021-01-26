@@ -174,7 +174,7 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 			except Exception as err: # pylint: disable=broad-except
 				# This can happen during package installation
 				# where backend config files are missing
-				logger.warning("Failed to setup backend: %s", err)
+				logger.warning("Failed to setup backend: %s", err, exc_info=True)
 		if not "files" in skip_setup:
 			setup_files()
 		#po_setup_file_permissions() # takes very long with many files in /var/lib/opsi

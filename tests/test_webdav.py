@@ -72,6 +72,9 @@ def test_client_permission():
 	res = res.json()
 	assert res.get("error") is None
 
+	def _unblock_all():
+		requests.post(url=f"{BASE_URL}/admin/unblock-all", verify=False, auth=(ADMIN_USER, ADMIN_PASS))
+
 	size = 1024
 	data = bytearray(random.getrandbits(8) for _ in range(size))
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
@@ -81,22 +84,26 @@ def test_client_permission():
 		res = requests.put(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS), data=data, headers=headers)
 		assert res.status_code in (201, 204)
 		res.close()
+		_unblock_all()
 
 		res = requests.put(url=url, verify=False, auth=(client_id, client_key))
 		assert res.status_code == 401
 		res.close()
+		_unblock_all()
 
 		res = requests.get(url=url, verify=False, auth=(client_id, client_key))
 		assert res.status_code == 200 if path == "depot" else 401
 		res.close()
+		_unblock_all()
 
 		res = requests.delete(url=url, verify=False, auth=(client_id, client_key))
 		assert res.status_code == 401
 		res.close()
+		_unblock_all()
 
 		res = requests.delete(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 204
 		res.close()
+		_unblock_all()
 
-		requests.post(url=f"{BASE_URL}/admin/unblock-all", verify=False, auth=(ADMIN_USER, ADMIN_PASS))
 

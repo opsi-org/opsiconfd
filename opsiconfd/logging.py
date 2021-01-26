@@ -354,7 +354,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
 		if log_mode == "local":
 			log_level = config.log_level_stderr
-		log_level = pylogging._opsiLevelToLevel[log_level] # pylint: disable=protected-access, no-member
+		log_level = pylogging.opsi_level_to_level[log_level] # pylint: disable=protected-access, no-member
 		log_handler = None
 
 		if log_mode == "redis":
@@ -426,8 +426,8 @@ class RedisLogAdapterThread(threading.Thread):
 				max_log_file_size=round(config.max_log_size * 1000 * 1000),
 				keep_rotated_log_files=config.keep_rotated_logs,
 				symlink_client_log_files=config.symlink_logs,
-				log_level_stderr=pylogging._opsiLevelToLevel[config.log_level_stderr], # pylint: disable=protected-access, no-member
-				log_level_file=pylogging._opsiLevelToLevel[config.log_level_file] # pylint: disable=protected-access, no-member
+				log_level_stderr=pylogging.opsi_level_to_level[config.log_level_stderr], # pylint: disable=protected-access, no-member
+				log_level_file=pylogging.opsi_level_to_level[config.log_level_file] # pylint: disable=protected-access, no-member
 			)
 			self._loop.run_forever()
 		except Exception as exc: # pylint: disable=broad-except

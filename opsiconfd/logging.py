@@ -51,8 +51,15 @@ logger.setLevel(pylogging.ERROR)
 class AsyncRotatingFileHandler(AsyncFileHandler):
 	rollover_check_interval = 10
 
-	def __init__(self, filename: str, formatter: Formatter, # pylint: disable=too-many-arguments
-				active_lifetime: int = 0, mode: str = "a", encoding: str = 'utf-8', max_bytes: int = 0, keep_rotated: int = 0) -> None:
+	def __init__( # pylint: disable=too-many-arguments
+		self, filename: str,
+		formatter: Formatter,
+		active_lifetime: int = 0,
+		mode: str = "a",
+		encoding: str = 'utf-8',
+		max_bytes: int = 0,
+		keep_rotated: int = 0
+	) -> None:
 		super().__init__(filename, mode, encoding)
 		self.active_lifetime = active_lifetime
 		self._max_bytes = max_bytes
@@ -190,15 +197,19 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		if not self._log_file_template:
 			return
 		while True:
-			for filename in list(self._file_logs):
-				if not self._file_logs[filename] or self._file_logs[filename].active_lifetime == 0:
-					continue
-				dt = time.time() - self._file_logs[filename].last_used # pylint: disable=invalid-name
-				if dt > self._file_logs[filename].active_lifetime:
-					with self._file_log_lock:
-						logger.info("Closing inactive file log '%s', file logs remaining active: %d", filename, len(self._file_logs) - 1)
-						del self._file_logs[filename]
-			for i in range(60): #pylint: disable=unused-variable
+			try:
+				for filename in list(self._file_logs):
+					if not self._file_logs[filename] or self._file_logs[filename].active_lifetime == 0:
+						continue
+					dt = time.time() - self._file_logs[filename].last_used # pylint: disable=invalid-name
+					if dt > self._file_logs[filename].active_lifetime:
+						with self._file_log_lock:
+							logger.info("Closing inactive file log '%s', file logs remaining active: %d", filename, len(self._file_logs) - 1)
+							self._file_logs[filename].close()
+							del self._file_logs[filename]
+			except Exception as err: # pylint: disable=broad-except
+				logger.error(err, exc_info=True)
+			for _i in range(60):
 				await asyncio.sleep(1)
 
 	async def _start(self):
@@ -207,8 +218,8 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			stream_name = "opsiconfd:log"
 			await self._redis.xtrim(name=stream_name, max_len=10000, approximate=True)
 			await asyncio.gather(self._reader(stream_name=stream_name), self._watch_log_files())
-		except Exception as exc: # pylint: disable=broad-except
-			handle_log_exception(exc)
+		except Exception as err: # pylint: disable=broad-except
+			handle_log_exception(err)
 
 	@retry_redis_call
 	async def _reader(self, stream_name):

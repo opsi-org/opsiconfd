@@ -205,7 +205,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 					if dt > self._file_logs[filename].active_lifetime:
 						with self._file_log_lock:
 							logger.info("Closing inactive file log '%s', file logs remaining active: %d", filename, len(self._file_logs) - 1)
-							self._file_logs[filename].close()
+							await self._file_logs[filename].close()
 							del self._file_logs[filename]
 			except Exception as err: # pylint: disable=broad-except
 				logger.error(err, exc_info=True)

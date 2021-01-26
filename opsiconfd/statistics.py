@@ -522,14 +522,36 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 		# logger.debug("Client Addr: %s", contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
-				# only on http.response.start not http.response.body
+				# Start of response (first message / package)
 				loop.create_task(
-					get_metrics_collector().add_value("worker:avg_http_request_number", 1, {"node_name": get_node_name(), "worker_num": get_worker_num()})
+					get_metrics_collector().add_value(
+						"worker:avg_http_request_number",
+						1,
+						{"node_name": get_node_name(), "worker_num": get_worker_num()}
+					)
 				)
 				loop.create_task(
-					get_metrics_collector().add_value("client:sum_http_request", 1, {"client_addr": contextvar_client_address.get()})
+					get_metrics_collector().add_value(
+						"client:sum_http_request",
+						1,
+						{"client_addr": contextvar_client_address.get()}
+					)
 				)
+
 				headers = MutableHeaders(scope=message)
+
+				content_length = headers.get("Content-Length", None)
+				if content_length is None:
+					logger.warning("Header 'Content-Length' missing: %s", message)
+				else:
+					loop.create_task(
+						get_metrics_collector().add_value(
+							"worker:avg_http_response_bytes",
+							int(content_length),
+							{"node_name": get_node_name(), "worker_num": get_worker_num()}
+						)
+					)
+
 				server_timing = contextvar_server_timing.get() or {}
 				if self._profiler_enabled:
 					server_timing.update(self.yappi(scope))
@@ -541,16 +563,8 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 			await send(message)
 
 			if message["type"] == "http.response.body" and not message.get("more_body"):
-				# Last body message
+				# End of response (last message / package)
 				end = time.perf_counter()
-				if "body" in message:
-					loop.create_task(
-						get_metrics_collector().add_value(
-							"worker:avg_http_response_bytes",
-							len(message['body']),
-							{"node_name": get_node_name(), "worker_num": get_worker_num()}
-						)
-					)
 				loop.create_task(
 					get_metrics_collector().add_value(
 						"worker:avg_http_request_duration",

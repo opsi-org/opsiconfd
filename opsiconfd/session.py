@@ -231,10 +231,12 @@ class SessionMiddleware:
 							asyncio.get_event_loop().create_task(session.store())
 
 				# Check authorization
-				needs_admin = not (
-					scope["path"].startswith(("/rpc", "/depot", "/monitoring")) and
-					scope.get("method") in ("GET", "HEAD")
-				)
+				needs_admin = True
+				if (
+					scope["path"].startswith(("/rpc", "/monitoring")) or
+					(scope["path"].startswith("/depot") and scope.get("method") in ("GET", "HEAD"))
+				):
+					needs_admin = False
 
 				if needs_admin and not session.user_store.isAdmin:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")

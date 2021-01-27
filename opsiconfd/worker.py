@@ -87,7 +87,14 @@ def get_pool_executor():
 			# process pool needs to pickle function arguments
 			_pool_executor = ProcessPoolExecutor(max_workers=config.executor_workers)
 		else:
-			_pool_executor = ThreadPoolExecutor(max_workers=config.executor_workers)
+			_pool_executor = ThreadPoolExecutor(
+				max_workers=config.executor_workers,
+				thread_name_prefix="worker-ThreadPoolExecutor"
+			)
+			# Start all worker threads in pool.
+			# This will speed up calls to run_in_threadpool().
+			for _ in range(config.executor_workers):
+				_pool_executor._adjust_thread_count() # pylint: disable=protected-access
 	return _pool_executor
 
 T = typing.TypeVar("T") # pylint: disable=invalid-name
@@ -112,6 +119,8 @@ def signal_handler(signum, frame): # pylint: disable=unused-argument
 		exit_worker()
 
 def exit_worker():
+	if _pool_executor:
+		_pool_executor.shutdown()
 	for t in threading.enumerate(): # pylint: disable=invalid-name
 		if hasattr(t, "stop"):
 			t.stop()

@@ -24,12 +24,12 @@ import asyncio
 import io
 import sys
 import typing
-import concurrent
 from queue import Queue
 
-from starlette.concurrency import run_in_threadpool
+#from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
 
+from .worker import run_in_threadpool
 
 class InputBuffer:
 	""" Input buffer """
@@ -116,10 +116,8 @@ def build_environ(scope: Scope) -> dict:
 
 
 class WSGIMiddleware: # pylint: disable=too-few-public-methods
-	def __init__(self, app: typing.Callable, workers: int = 10) -> None:
+	def __init__(self, app: typing.Callable) -> None:
 		self.app = app
-		# https://github.com/encode/starlette/issues/1061
-		self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=workers)
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		assert scope["type"] == "http"

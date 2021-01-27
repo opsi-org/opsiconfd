@@ -10,7 +10,7 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 #subprocess.call(['poetry', 'run', 'podman-compose', 'up'])
 
 parser = argparse.ArgumentParser(description="Build and run docker compose environment.")
-parser.add_argument("--type", choices=("dev", "load-balance", "compare41"), default="dev", help="Which type of environment to build and run")
+parser.add_argument("--type", choices=("dev", "load-balance", "compare41", "webdav"), default="dev", help="Which type of environment to build and run")
 args = parser.parse_args()
 
 subprocess.call([
@@ -22,6 +22,8 @@ subprocess.call([
 ])
 
 if args.type == "load-balance":
-	subprocess.call(["docker-compose", "-f", f"{args.type}-docker-compose.yml", "up", "--build", "--scale", "opsiconfd=2"])
+	subprocess.call(["docker-compose", "-f", f"{args.type}-docker-compose.yml", "up", "--remove-orphans", "--build", "--scale", "opsiconfd=2"])
 elif args.type == "compare41":
-	subprocess.call(["docker-compose", "-f", f"{args.type}-docker-compose.yml", "up", "--build"])
+	subprocess.call(["docker-compose", "-f", f"{args.type}-docker-compose.yml", "up", "--remove-orphans", "--build"])
+elif args.type == "webdav":
+	subprocess.call(["docker-compose", "-f", f"{args.type}-docker-compose.yml", "up", "--remove-orphans", "--build"])

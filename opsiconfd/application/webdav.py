@@ -80,7 +80,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		app_config["provider_mapping"] = {"/": FilesystemProvider(path)}
 		app_config["mount_path"] = "/repository"
 		repository_dav = WsgiDAVApp(app_config)
-		app.mount("/repository", WSGIMiddleware(repository_dav, workers=config.executor_workers))
+		app.mount("/repository", WSGIMiddleware(repository_dav))
 	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -101,7 +101,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		app_config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=False)}
 		app_config["mount_path"] = "/depot"
 		depot_dav = WsgiDAVApp(app_config)
-		app.mount("/depot", WSGIMiddleware(depot_dav, workers=config.executor_workers))
+		app.mount("/depot", WSGIMiddleware(depot_dav))
 	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -122,7 +122,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		app_config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=False)}
 		app_config["mount_path"] = "/workbench"
 		workbench_dav = WsgiDAVApp(app_config)
-		app.mount("/workbench", WSGIMiddleware(workbench_dav, workers=config.executor_workers))
+		app.mount("/workbench", WSGIMiddleware(workbench_dav))
 	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -137,6 +137,6 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 			app_config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=True)}
 			app_config["mount_path"] = "/boot"
 			boot = WsgiDAVApp(app_config)
-			app.mount("/boot", WSGIMiddleware(boot, workers=config.executor_workers))
+			app.mount("/boot", WSGIMiddleware(boot))
 		except Exception as exc: # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)

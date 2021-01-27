@@ -259,7 +259,8 @@ class Client:
 		if not self._session:
 			self._session = aiohttp.ClientSession(
 				connector=aiohttp.TCPConnector(ssl=False),
-				auth=aiohttp.BasicAuth(login=self.perftest.username, password=self.perftest.password)
+				auth=aiohttp.BasicAuth(login=self.perftest.username, password=self.perftest.password),
+				cookie_jar=aiohttp.CookieJar(unsafe=True)
 			)
 		return self._session
 

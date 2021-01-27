@@ -33,21 +33,21 @@ RUN apt-get update \
 		libmariadb-dev \
 		tini \
 		psmisc \
-		librsync1 \	
+		librsync1 \
 		sqlite3 \
 		sudo \
 		nano \
 	&& pip install "poetry==$POETRY_VERSION"
 
-# grafana 
+# grafana
 RUN wget -q -O - https://packages.grafana.com/gpg.key |  apt-key add - \
-	&& echo "deb https://packages.grafana.com/oss/deb stable main" | tee -a /etc/apt/sources.list.d/grafana.list	
+	&& echo "deb https://packages.grafana.com/oss/deb stable main" | tee -a /etc/apt/sources.list.d/grafana.list
 
 RUN apt-get update \
 	&& apt-get --yes install \
 		apt-transport-https \
 		software-properties-common \
-		grafana 
+		grafana
 
 # mysql
 RUN apt-get update \

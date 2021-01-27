@@ -234,12 +234,12 @@ class SessionMiddleware:
 				needs_admin = True
 				if (
 					scope["path"].startswith(("/rpc", "/monitoring")) or
-					(scope["path"].startswith("/depot") and scope.get("method") in ("GET", "HEAD"))
+					(scope["path"].startswith("/depot") and scope["method"] in ("GET", "HEAD", "PROPFIND"))
 				):
 					needs_admin = False
 
 				if needs_admin and not session.user_store.isAdmin:
-					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}'")
+					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope['method']} {scope['path']}")
 
 			server_timing = contextvar_server_timing.get()
 			if server_timing:

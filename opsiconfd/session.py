@@ -365,6 +365,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		return self.utc_time_timestamp() - self.last_used > self.max_age
 
 	async def init(self) -> None:
+		wait_for_store = True
 		if self.session_id is None:
 			logger.debug("Session id missing (%s / %s)", self.client_addr, self.user_agent)
 			await self.init_new_session()
@@ -375,14 +376,19 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 					await self.init_new_session()
 				else:
 					logger.debug("Reusing session: %s (%s / %s)", self, self.client_addr, self.user_agent)
+					wait_for_store = False
 			else:
 				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
 				await self.init_new_session()
 
-		if not self.created:
-			self.created = self.utc_time_timestamp()
 		self._update_last_used()
-		await self.store()
+		if wait_for_store:
+			# Session not yet stored in redis.
+			# Wait for store to complete to ensure that the
+			# session can be loaded at the next request.
+			await self.store()
+		else:
+			asyncio.get_event_loop().create_task(self.store())
 
 	def _init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
@@ -405,6 +411,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			) from err
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
+		self.created = self.utc_time_timestamp()
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init_new_session(self) -> None:

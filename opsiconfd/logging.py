@@ -37,9 +37,10 @@ from aiologger.handlers.streams import AsyncStreamHandler
 from aiologger.handlers.files import AsyncFileHandler
 
 from opsicommon.logging import ( # pylint: disable=unused-import
-	logger, secret_filter, context_filter, handle_log_exception, set_context, set_format,
-	set_filter_from_string, ContextSecretFormatter, print_logger_info,
-	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT, DEFAULT_COLORED_FORMAT
+	logger, secret_filter, handle_log_exception, set_format,
+	set_filter_from_string, ContextSecretFormatter,
+	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT,
+	DEFAULT_COLORED_FORMAT, OPSI_LEVEL_TO_LEVEL
 )
 
 from .utils import retry_redis_call, get_aredis_connection, get_redis_connection
@@ -365,7 +366,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
 		if log_mode == "local":
 			log_level = config.log_level_stderr
-		log_level = pylogging.opsi_level_to_level[log_level] # pylint: disable=protected-access, no-member
+		log_level = OPSI_LEVEL_TO_LEVEL[log_level]
 		log_handler = None
 
 		if log_mode == "redis":
@@ -403,7 +404,6 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 
 		if redis_error:
 			logger.critical("Failed to initalize redis logging: %s", redis_error, exc_info=True)
-		#print_logger_info()
 
 	except Exception as exc: # pylint: disable=broad-except
 		handle_log_exception(exc)

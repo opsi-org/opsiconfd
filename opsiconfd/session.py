@@ -43,7 +43,8 @@ from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
-from .logging import logger, secret_filter, set_context # pylint: disable=no-name-in-module
+from opsicommon.logging import logger, secret_filter, set_context
+
 from .worker import (
 	sync_redis_client, get_redis_client, run_in_threadpool,
 	contextvar_client_session, contextvar_server_timing

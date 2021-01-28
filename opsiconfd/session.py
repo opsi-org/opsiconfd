@@ -118,8 +118,8 @@ class SessionMiddleware:
 	def get_set_cookie_string(self, session_id) -> dict:
 		return f"{self.session_cookie_name}={session_id}; path=/; Max-Age={self.max_age}"
 
-	def get_session_id_from_headers(self, headers: Headers) -> str: # pylint: disable=inconsistent-return-statements
-		#connection.cookies.get(self.session_cookie_name, None) # pylint: disable=inconsistent-return-statements
+	def get_session_id_from_headers(self, headers: Headers) -> str:
+		#connection.cookies.get(self.session_cookie_name, None)
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
 		# Workaround:
@@ -130,6 +130,7 @@ class SessionMiddleware:
 				if len(cookie) == 2:
 					if cookie[0].strip().lower() == self.session_cookie_name:
 						return cookie[1].strip().lower()
+		return None
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 		start = time.perf_counter()
@@ -138,6 +139,13 @@ class SessionMiddleware:
 		client_address = connection.client.host
 		set_context({"client_address": client_address})
 		logger.trace("SessionMiddleware %s", scope)
+
+		if scope.get("http_version") != "1.1":
+			logger.warning(
+				"Client %s (%s) is using http version %s",
+				client_address, connection.headers.get("user-agent"), scope.get("http_version")
+			)
+
 		try:
 			if config.networks:
 				is_allowed_network = False

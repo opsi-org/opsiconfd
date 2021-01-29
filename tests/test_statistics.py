@@ -34,8 +34,8 @@ def fixture_config(monkeypatch):
 @pytest.fixture(name="metrics_collector")
 def fixture_metrics_collector(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.statistics import MetricsCollector # pylint: disable=import-outside-toplevel
-	return MetricsCollector()
+	from opsiconfd.statistics import WorkerMetricsCollector # pylint: disable=import-outside-toplevel
+	return WorkerMetricsCollector()
 
 @pytest.fixture(name="metrics_registry")
 def fixture_metrics_registry(monkeypatch):

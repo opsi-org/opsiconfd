@@ -45,6 +45,28 @@ grafana_metrics_router = APIRouter()
 def metrics_setup(app):
 	app.include_router(grafana_metrics_router, prefix="/metrics/grafana")
 
+async def get_workers():
+	redis = await get_redis_client()
+	workers = []
+	async for redis_key in redis.scan_iter("opsiconfd:worker_registry:*"):
+		redis_key = redis_key.decode("utf-8")
+		workers.append({"node_name": redis_key.split(':')[-2], "worker_num": int(redis_key.split(':')[-1])})
+	workers.sort(key=itemgetter("node_name", "worker_num"))
+	return workers
+
+async def get_nodes():
+	return { worker["node_name"] for worker in await get_workers() }
+
+async def get_clients(metric_id):
+	redis = await get_redis_client()
+	clients = []
+	# TODO: IPv6 ?
+	async for redis_key in redis.scan_iter(f"opsiconfd:stats:{metric_id}:*"):
+		redis_key = redis_key.decode("utf-8")
+		clients.append({"client_addr": redis_key.split(':')[-1]})
+	clients.sort(key=itemgetter("client_addr"))
+	return clients
+
 @grafana_metrics_router.get('/?')
 async def grafana_index():
 	# should return 200 ok. Used for "Test connection" on the datasource config page.
@@ -86,20 +108,12 @@ async def grafana_dashboard(request: Request):  # pylint: disable=unused-argumen
 			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
 	return RedirectResponse(url=f"{config.grafana_external_url}/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv")
 
-@grafana_metrics_router.get('/dashboard/config')
-async def grafana_dashboard_config():
-	redis = await get_redis_client()
-	workers = []
-	async for redis_key in redis.scan_iter("opsiconfd:worker_registry:*"):
-		redis_key = redis_key.decode("utf-8")
-		workers.append({"node_name": redis_key.split(':')[-2], "worker_num": int(redis_key.split(':')[-1])})
-	workers.sort(key=itemgetter("node_name", "worker_num"))
 
-	clients = []
-	async for redis_key in redis.scan_iter("opsiconfd:stats:client:num_http_request:*"):
-		redis_key = redis_key.decode("utf-8")
-		clients.append({"client_addr": redis_key.split(':')[-1]})
-	clients.sort(key=itemgetter("client_addr"))
+@grafana_metrics_router.get('/dashboard/config')
+async def grafana_dashboard_config(): #  pylint: disable=too-many-locals
+	workers = await get_workers()
+	nodes = await get_nodes()
+	clients = await get_clients("client:sum_http_request_number")
 
 	dashboard = copy.deepcopy(GRAFANA_DASHBOARD_TEMPLATE)
 	panels = []
@@ -115,6 +129,13 @@ async def grafana_dashboard_config():
 				panel["targets"].append({
 					"refId": chr(65+i),
 					"target": metric.get_name(node_name=worker["node_name"], worker_num=worker["worker_num"]),
+					"type": "timeserie"
+				})
+		elif metric.subject == "node":
+			for i, node_name in enumerate(nodes):
+				panel["targets"].append({
+					"refId": chr(65+i),
+					"target": metric.get_name(node_name=node_name),
 					"type": "timeserie"
 				})
 		elif metric.subject == "client":
@@ -136,30 +157,26 @@ async def grafana_dashboard_config():
 @grafana_metrics_router.get('/search')
 @grafana_metrics_router.post('/search')
 async def grafana_search():
-	redis = await get_redis_client()
+	workers = await get_workers()
+	nodes = await get_nodes()
+	clients = await get_clients("client:sum_http_request_number")
 
 	names = []
 	for metric in metrics_registry.get_metrics():
 		if metric.subject == "worker":
-			workers = []
-			async for redis_key in redis.scan_iter("opsiconfd:worker_registry:*"):
-				redis_key = redis_key.decode("utf-8")
-				workers.append({"node_name": redis_key.split(':')[-2], "worker_num": int(redis_key.split(':')[-1])})
-			workers.sort(key=itemgetter("node_name", "worker_num"))
 			for worker in workers:
 				names.append(metric.get_name(**worker))
+		elif metric.subject == "node":
+			for node_name in nodes:
+				names.append(metric.get_name(node_name=node_name))
 		elif metric.subject == "client":
-			clients = []
-			async for redis_key in redis.scan_iter("opsiconfd:stats:client:num_http_request:*"):
-				redis_key = redis_key.decode("utf-8")
-				clients.append({"client_addr": redis_key.split(':')[-1]})
 			for client in clients:
 				names.append(metric.get_name(**client))
 		else:
 			names.append(metric.get_name())
 	return sorted(names)
 
-class GrafanaQueryTargetRange(BaseModel):
+class GrafanaQueryTargetRange(BaseModel): #  pylint: disable=too-few-public-methods
 	from_: str
 	to: str
 	raw: dict
@@ -168,12 +185,12 @@ class GrafanaQueryTargetRange(BaseModel):
 			'from_': 'from'
 		}
 
-class GrafanaQueryTarget(BaseModel):
+class GrafanaQueryTarget(BaseModel): #  pylint: disable=too-few-public-methods
 	type: str
 	target: str
 	refId: str
 
-class GrafanaQuery(BaseModel):
+class GrafanaQuery(BaseModel): #  pylint: disable=too-few-public-methods
 	app: str
 	range: GrafanaQueryTargetRange
 	intervalMs: int
@@ -237,15 +254,17 @@ async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals
 			if redis_key_extension:
 				redis_key = f"{redis_key}:{redis_key_extension}"
 
-			cmd = ["TS.RANGE", redis_key, from_time, to_time, "AGGREGATION", metric.aggregation, time_bucket]
+			cmd = ["TS.RANGE", redis_key, from_time, to_time, "AGGREGATION", "avg", time_bucket]
 			try:
-				#rows = await redis.execute_command(" ".join([ str(x) for x in cmd ]))
 				rows = await redis.execute_command(*cmd)
 			except aredis.exceptions.ResponseError as exc:
 				logger.debug("%s %s", cmd, exc)
 				rows = []
-			# [ [value1, timestamp1], [value2, timestamp2] ] # Metric value, unixtimestamp (milliseconds since Jan 01 1970 UTC)
-			res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), int(r[0])] for r in rows ]
+			if metric.time_related and metric.aggregation == "sum":
+				# Time series data is stored aggregated in 5 second intervals
+				res["datapoints"] = [ [float(r[1])/5.0, int(r[0])] for r in rows ]
+			else:
+				res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), int(r[0])] for r in rows ]
 			logger.trace("Grafana query result: %s", res)
 			results.append(res)
 	return results

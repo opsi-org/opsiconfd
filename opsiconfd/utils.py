@@ -137,7 +137,6 @@ def get_worker_processes():
 
 	return sorted(_worker_processes_cache.values(), key=lambda p: p.pid)
 
-
 def decode_redis_result(_obj):
 	if isinstance(_obj, bytes):
 		_obj = _obj.decode("utf8")

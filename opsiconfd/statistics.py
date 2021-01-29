@@ -46,7 +46,7 @@ from .arbiter import get_redis_client as get_arbiter_redis_client
 
 from .config import config
 from .utils import (
-	Singleton, get_node_name, get_worker_num, get_redis_connection, get_aredis_connection
+	Singleton, get_node_name, get_worker_num, get_redis_connection
 )
 from .grafana import GrafanaPanelConfig
 
@@ -218,6 +218,9 @@ class Metric: # pylint: disable=too-many-instance-attributes
 			name_regex = name_regex.replace('{' + var + '}', f"(?P<{var}>\S+)") # pylint: disable=anomalous-backslash-in-string
 		self.name_regex = re.compile(name_regex)
 
+	def __str__(self):
+		return f"<{self.__class__.__name__} id='{self.id}'>"
+
 	def get_redis_key(self, **kwargs):
 		if not kwargs:
 			return self.redis_key_prefix
@@ -252,9 +255,9 @@ class MetricsRegistry(metaclass=Singleton):
 	def get_metric_ids(self):
 		return list(self._metrics_by_id)
 
-	def get_metrics(self, subject: str = None):
+	def get_metrics(self, *subject) -> List[Metric]:
 		for metric in self._metrics_by_id.values():
-			if not subject or subject == metric.subject:
+			if not subject or metric.subject in subject:
 				yield metric
 
 	def get_metric_by_id(self, id): # pylint: disable=redefined-builtin, invalid-name
@@ -382,6 +385,8 @@ metrics_registry.register(
 
 
 class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
+	_metric_subjects = []
+
 	def __init__(self):
 		self._loop = asyncio.get_event_loop()
 		self._interval = 5
@@ -401,7 +406,36 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
 		)
 
-	async def main_loop(self):
+	def _init_vars(self):
+		for metric in metrics_registry.get_metrics(*self._metric_subjects):
+			if not metric.zero_if_missing:
+				continue
+
+			key_string = []
+			for var in metric.vars:
+				if hasattr(self, var):
+					key_string.append(str(getattr(self, var)))
+				elif hasattr(self, f"_{var}"):
+					key_string.append(str(getattr(self, f"_{var}")))
+				else:
+					key_string = None
+					break
+
+			if key_string is None:
+				continue
+
+			key_string = ":".join(key_string)
+			if not metric.id in self._values:
+				self._values[metric.id] = {}
+			if not key_string in self._values[metric.id]:
+				self._values[metric.id][key_string] = {}
+
+	async def main_loop(self): # pylint: disable=too-many-branches
+		try:
+			self._init_vars()
+		except Exception as err: # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
+
 		while True:
 			cmd = None
 
@@ -409,7 +443,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 				await self._fetch_values()
 				timestamp = self._get_timestamp()
 
-				for metric in metrics_registry.get_metrics():
+				for metric in metrics_registry.get_metrics(*self._metric_subjects):
 					if not metric.id in self._values:
 						continue
 
@@ -513,6 +547,8 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 			# logger.debug("VALUES end add_value: %s", self._values)
 
 class ArbiterMetricsCollector(MetricsCollector):
+	_metric_subjects = ["node"]
+
 	async def _fetch_values(self):
 		self._loop.create_task(
 			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
@@ -522,6 +558,8 @@ class ArbiterMetricsCollector(MetricsCollector):
 		return await get_arbiter_redis_client()
 
 class WorkerMetricsCollector(MetricsCollector):
+	_metric_subjects = ["worker", "client"]
+
 	def __init__(self):
 		super().__init__()
 		self._worker_num = get_worker_num()

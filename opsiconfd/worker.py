@@ -129,7 +129,7 @@ def exit_worker():
 def init_worker():
 	global _metrics_collector # pylint: disable=global-statement, invalid-name
 	from .backend import get_backend, get_client_backend # pylint: disable=import-outside-toplevel
-	from .statistics import MetricsCollector # pylint: disable=import-outside-toplevel
+	from .statistics import WorkerMetricsCollector # pylint: disable=import-outside-toplevel
 	is_arbiter = get_arbiter_pid() == os.getpid()
 
 	if not is_arbiter:
@@ -146,7 +146,7 @@ def init_worker():
 	# create redis pool
 	loop.create_task(get_redis_client())
 	# create and start MetricsCollector
-	_metrics_collector = MetricsCollector(arbiter=is_arbiter)
+	_metrics_collector = WorkerMetricsCollector()
 	loop.create_task(_metrics_collector.main_loop())
 	# create BackendManager instances
 	get_backend()

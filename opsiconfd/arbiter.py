@@ -54,6 +54,9 @@ def set_arbiter_pid(pid: int) -> None:
 def get_arbiter_pid() -> int:
 	return _arbiter_pid
 
+async def get_redis_client():
+	return await get_aredis_connection(config.redis_internal_url)
+
 last_reload_time = time.time()
 def signal_handler(signum, frame): # pylint: disable=unused-argument
 	global last_reload_time # pylint: disable=global-statement, invalid-name
@@ -131,6 +134,12 @@ class ArbiterAsyncMainThread(threading.Thread):
 		# Need to reinit logging after server is initialized
 		self._loop.call_later(3.0, init_logging, config.log_mode)
 		self._loop.create_task(update_worker_registry())
+
+		# Create and start MetricsCollector
+		from .statistics import ArbiterMetricsCollector # pylint: disable=import-outside-toplevel
+		metrics_collector = ArbiterMetricsCollector()
+		self._loop.create_task(metrics_collector.main_loop())
+
 		register_opsi_services()
 		while True:
 			await asyncio.sleep(1)

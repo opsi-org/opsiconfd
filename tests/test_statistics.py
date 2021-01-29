@@ -97,7 +97,7 @@ redis_test_data = [
 
 @pytest.mark.parametrize("cmds, expected_results", redis_test_data)
 @pytest.mark.asyncio
-async def test_execute_redis_command(metrics_collector, redis_client, cmds, expected_results): # pylint: disable=redefined-outer-name
+async def test_execute_redis_command(metrics_collector, redis_client, cmds, expected_results): # pylint: disable=redefined-outer-name,unused-argument
 
 	for idx, cmd in enumerate(cmds):
 		result = await metrics_collector._execute_redis_command(cmd) # pylint: disable=protected-access

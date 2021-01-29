@@ -130,9 +130,10 @@ def init_worker():
 	global _metrics_collector # pylint: disable=global-statement, invalid-name
 	from .backend import get_backend, get_client_backend # pylint: disable=import-outside-toplevel
 	from .statistics import MetricsCollector # pylint: disable=import-outside-toplevel
+	is_arbiter = get_arbiter_pid() == os.getpid()
 
-	if get_arbiter_pid() != os.getpid():
-		# Only if this process is a worker process (multiprocessing)
+	if not is_arbiter:
+		# Only if this process is a worker only process (multiprocessing)
 		signal.signal(signal.SIGINT, signal_handler)
 		signal.signal(signal.SIGHUP, signal_handler)
 		init_logging(log_mode=config.log_mode, is_worker=True)
@@ -145,7 +146,7 @@ def init_worker():
 	# create redis pool
 	loop.create_task(get_redis_client())
 	# create and start MetricsCollector
-	_metrics_collector = MetricsCollector()
+	_metrics_collector = MetricsCollector(arbiter=is_arbiter)
 	loop.create_task(_metrics_collector.main_loop())
 	# create BackendManager instances
 	get_backend()

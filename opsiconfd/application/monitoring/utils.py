@@ -48,7 +48,11 @@ async def get_request_avg(redis_client):
 	workers = await get_workers(redis_client)
 	requests = 0.0
 	for worker in workers:
-		redis_result = decode_redis_result(await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_http_request_number:{worker}:minute")) # pylint: disable=line-too-long
+		redis_result = decode_redis_result(
+			await redis_client.execute_command(
+				f"TS.GET opsiconfd:stats:worker:sum_http_request_number:{worker}:minute"
+			)
+		)
 		if len(redis_result) == 0:
 			redis_result = 0
 		requests += float(redis_result[1])
@@ -57,7 +61,7 @@ async def get_request_avg(redis_client):
 async def get_session_count(redis_client):
 	count = 0
 	session_keys = redis_client.scan_iter("opsiconfd:sessions:*")
-	async for session in session_keys: # pylint: disable=unused-variable
+	async for _session in session_keys:
 		count += 1
 	return count
 
@@ -65,7 +69,11 @@ async def get_thread_count(redis_client):
 	workers = await get_workers(redis_client)
 	threads = 0
 	for worker in workers:
-		redis_result = decode_redis_result(await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"))
+		redis_result = decode_redis_result(
+			await redis_client.execute_command(
+				f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"
+			)
+		)
 		if len(redis_result) == 0:
 			redis_result = 0
 		threads += float(redis_result[1])
@@ -75,7 +83,11 @@ async def get_mem_allocated(redis_client):
 	workers = await get_workers(redis_client)
 	mem_allocated = 0
 	for worker in workers:
-		redis_result = decode_redis_result(await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"))
+		redis_result = decode_redis_result(
+			await redis_client.execute_command(
+				f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"
+			)
+		)
 		if len(redis_result) == 0:
 			redis_result = 0
 		mem_allocated += float(redis_result[1])

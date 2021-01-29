@@ -17,7 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 :copyright: uib GmbH <info@uib.de>
-:author: Jan Schneider <j.schneider@uib.de>
 :license: GNU Affero General Public License version 3
 """
 
@@ -51,20 +50,39 @@ def get_yappi_tag() -> int:
 	return int(contextvar_request_id.get() or -1)
 
 
-def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-many-branches
+def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 
 	redis_client = get_redis_connection(config.redis_internal_url)
 
 	for metric in metrics_registry.get_metrics():
-		if not metric.downsampling or metric.subject != "worker":
+		if not metric.downsampling:
 			continue
-		for worker in range(1, config.workers+1):
+
+		iterations = 1
+		if metric.subject == "worker":
+			iterations = config.workers
+
+		for iteration in range(iterations):
 			node_name = get_node_name()
-			worker_num = worker
-			logger.debug("worker: %s:%s", node_name, worker_num)
-			orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
-			cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
-			logger.debug("REDIS CMD: %s", cmd)
+			worker_num = None
+			if metric.subject == "worker":
+				worker_num = iteration + 1
+
+			logger.debug("Iteration=%s, node_name=%s, worker_num=%s", iteration, node_name, worker_num)
+
+			orig_key = None
+			cmd = None
+			if metric.subject == "worker":
+				orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
+			elif metric.subject == "node":
+				orig_key = metric.redis_key.format(node_name=node_name)
+				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
+			else:
+				orig_key = metric.redis_key
+				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
+
+			logger.debug("redis command: %s", cmd)
 			try:
 				redis_client.execute_command(cmd)
 			except RedisResponseError as err:
@@ -80,12 +98,13 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 					if "rules" in val.decode("utf8"):
 						rules = info[idx+1]
 						break
+
 			for rule in rules:
 				rule_name = rule[0].decode("utf8").split(":")[-1]
 				existing_rules[rule_name] = {"retention": rule[1], "aggregation": rule[2].decode("utf8")}
+
 			for rule in metric.downsampling:
-				key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
-				key = f"{key}:{rule[0]}"
+				key = f"{orig_key}:{rule[0]}"
 				retention_time = rule[1]
 				cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
 				try:
@@ -110,7 +129,8 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 						raise RedisResponseError(err) # pylint: disable=raise-missing-from
 
 
-time_buckets = {
+TIME_BUCKETS = {
+	"second": 1000,
 	"minute": 60 * 1000,
 	"hour": 3600 * 1000,
 	"day": 24 * 3600 * 1000,
@@ -119,8 +139,8 @@ time_buckets = {
 	"year": 365 * 24 * 3600 * 1000
 }
 
-def get_time_bucket(interval: str ) -> int:
-	time_bucket = time_buckets.get(interval)
+def get_time_bucket(interval: str) -> int:
+	time_bucket = TIME_BUCKETS.get(interval)
 	if time_bucket is None:
 		raise ValueError(f"Invalid interval: {interval}")
 	return time_bucket
@@ -128,22 +148,60 @@ def get_time_bucket(interval: str ) -> int:
 
 def get_time_bucket_name(time: int) -> str: # pylint: disable=redefined-outer-name
 	time_bucket_name = None
-	for name, t in time_buckets.items(): # pylint: disable=invalid-name
+	for name, t in TIME_BUCKETS.items(): # pylint: disable=invalid-name
 		if time >= t:
 			time_bucket_name = name
 	return time_bucket_name
 
 class Metric: # pylint: disable=too-many-instance-attributes
-	def __init__(self, id: str, name: str, vars: List[str] = [], aggregation: str = "avg", retention: int = 0, zero_if_missing: bool = True, # pylint: disable=too-many-arguments, redefined-builtin, dangerous-default-value
-				subject: str = "worker", server_timing_header_factor: int = None, grafana_config: GrafanaPanelConfig = None, downsampling: List = None):
+	def __init__( # pylint: disable=too-many-arguments, redefined-builtin, dangerous-default-value
+			self,
+			id: str,
+			name: str,
+			vars: List[str] = [],
+			aggregation: str = "avg",
+			retention: int = 0,
+			zero_if_missing: bool = True,
+			time_related: bool = False,
+			subject: str = "worker",
+			server_timing_header_factor: int = None,
+			grafana_config: GrafanaPanelConfig = None,
+			downsampling: List = None
+	):
+		"""
+		Metric constructor
+
+		:param id: A unique id for the metric which will be part of the redis key (i.e. "worker:avg_cpu_percent").
+		:type id: str
+		:param name: The human readable name of the metric (i.e "Average CPU usage of worker {worker_num} on {node_name}").
+		:type id: str
+		:param vars: Variables used for redis key and labels (i.e. ["node_name", "worker_num"]). \
+		             Values for these vars has to pe passed to param "labels" as dict when calling MetricsCollector.add_value().
+		:type vars: List[str]
+		:param retention: Redis retention time in milliseconds.
+		:type retention: int
+		:param aggregation: Aggregation to use before adding values to the time series database (`sum` or `avg`).
+		:type aggregation: str
+		:param zero_if_missing: If a value of 0 is inserted if no values exist in a measuring interval.
+		:type zero_if_missing: bool
+		:param time_related: If the metric is time related, like requests per second.
+		:type time_related: bool
+		:param subject: Metric subject (`node`, `worker` or `client`). Should be the first part of the `id` also.
+		:type subject: str
+		:param subject: A GrafanaPanelConfig object.
+		:type subject: GrafanaPanelConfig
+		:param downsampling: Downsampling configuration as list of [<time_bucket>, <retention_time>] pairs.
+		:type downsampling: List
+		"""
 		assert aggregation in ("sum", "avg")
-		assert subject in ("worker", "client")
+		assert subject in ("node", "worker", "client")
 		self.id = id # pylint: disable=invalid-name
 		self.name = name
 		self.vars = vars
 		self.aggregation = aggregation
 		self.retention = retention
 		self.zero_if_missing = zero_if_missing
+		self.time_related = time_related
 		self.subject = subject
 		self.server_timing_header_factor = server_timing_header_factor
 		self.grafana_config = grafana_config
@@ -217,12 +275,25 @@ metrics_registry = MetricsRegistry()
 
 metrics_registry.register(
 	Metric(
+		id="node:avg_load",
+		name="Average system load on {node_name}",
+		vars=["node_name"],
+		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=False,
+		subject="node",
+		grafana_config=GrafanaPanelConfig(title="System load", units=["short"], decimals=2, stack=False),
+		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+	),
+	Metric(
 		id="worker:avg_mem_allocated",
 		name="Average memory usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=False,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Memory usage", units=["decbytes"], stack=True),
+		grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
@@ -230,8 +301,10 @@ metrics_registry.register(
 		name="Average CPU usage of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=False,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="CPU usage", units=["percent"], decimals=1, stack=True),
+		grafana_config=GrafanaPanelConfig(title="Worker CPU usage", units=["percent"], decimals=1, stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
@@ -239,8 +312,10 @@ metrics_registry.register(
 		name="Average threads of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=False,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Threads", units=["short"], decimals=0, stack=True),
+		grafana_config=GrafanaPanelConfig(title="Worker threads", units=["short"], decimals=0, stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
@@ -248,17 +323,21 @@ metrics_registry.register(
 		name="Average filehandles of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=False,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Filehandles", units=["short"], decimals=0, stack=True),
+		grafana_config=GrafanaPanelConfig(title="Worker filehandles", units=["short"], decimals=0, stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="worker:avg_http_request_number",
+		id="worker:sum_http_request_number",
 		name="Average HTTP requests of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
+		aggregation="sum",
+		time_related=True,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="HTTP requests", units=["short"], decimals=0, stack=True),
+		grafana_config=GrafanaPanelConfig(title="HTTP requests/s", units=["short"], decimals=0, stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
@@ -266,6 +345,8 @@ metrics_registry.register(
 		name="Average HTTP response size of worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=False,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
@@ -275,26 +356,31 @@ metrics_registry.register(
 		name="Average duration of HTTP requests processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
+		aggregation="avg",
 		zero_if_missing=False,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(type="heatmap", title="Duration of HTTP requests", units=["s"], decimals=0),
+		grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", units=["s"], decimals=0),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="client:sum_http_request",
+		id="client:sum_http_request_number",
 		name="HTTP requests of Client {client_addr}",
 		vars=["client_addr"],
-		aggregation="sum",
 		retention=24 * 3600 * 1000,
+		aggregation="sum",
+		zero_if_missing=False,
+		time_related=True,
 		subject="client",
-		grafana_config=GrafanaPanelConfig(title="Client requests", units=["short"], decimals=0, stack=False)
+		grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
 	)
 )
 
 
-class MetricsCollector():
-	def __init__(self, interval: int = 5):
+class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
+	def __init__(self, interval: int = 5, arbiter=False):
+		self._loop = asyncio.get_event_loop()
 		self._interval = interval
+		self._arbiter = arbiter
 		self._node_name = get_node_name()
 		self._worker_num = get_worker_num()
 		self._proc = None
@@ -309,23 +395,28 @@ class MetricsCollector():
 		#return int(round(datetime.datetime.utcnow().timestamp())*1000)
 
 	async def _fetch_values(self):
+		if self._arbiter:
+			self._loop.create_task(
+				self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
+			)
+
 		if not self._proc:
 			self._proc = psutil.Process()
-		loop = asyncio.get_event_loop()
-		loop.create_task(
-			self.add_value("worker:avg_mem_allocated", self._proc.memory_info().rss, {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		)
-		loop.create_task(
-			self.add_value("worker:avg_cpu_percent", self._proc.cpu_percent(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		)
-		loop.create_task(
-			self.add_value("worker:avg_thread_number", self._proc.num_threads(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		)
-		loop.create_task(
-			self.add_value("worker:avg_filehandle_number", self._proc.num_fds(), {"node_name": get_node_name(), "worker_num": get_worker_num()})
-		)
 
-	async def main_loop(self): # pylint: disable=too-many-statements, too-many-branches, too-many-locals
+		for metric_id, value in (
+			("worker:avg_mem_allocated", self._proc.memory_info().rss),
+			("worker:avg_cpu_percent", self._proc.cpu_percent()),
+			("worker:avg_thread_number", self._proc.num_threads()),
+			("worker:avg_filehandle_number", self._proc.num_fds())
+		):
+			# Do not add 0-values
+			if value:
+				self._loop.create_task(
+					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self._worker_num})
+				)
+
+
+	async def main_loop(self):
 		while True:
 			cmd = None
 
@@ -336,65 +427,40 @@ class MetricsCollector():
 				for metric in metrics_registry.get_metrics():
 					if not metric.id in self._values:
 						continue
-					if metric.subject == "client":
-						labels = {}
-						for addr in list(self._values[metric.id]):
+
+					async with self._values_lock:
+						for key_string in self._values.get(metric.id, {}):
 							value = 0
 							count = 0
-							async with self._values_lock:
-								values = self._values[metric.id].get(addr, {})
-								logger.debug("MetricsCollector values: %s ", values)
-								if not values and not metric.zero_if_missing:
-									continue
-								for ts in list(values): # pylint: disable=invalid-name
-									if ts <= timestamp:
-										count += 1
-										value += values[ts]
-										del values[ts]
+							for tsp in list(self._values[metric.id].get(key_string, {})):
+								if tsp <= timestamp:
+									count += 1
+									value += self._values[metric.id][key_string].pop(tsp)
+
+							if count == 0 and not metric.zero_if_missing:
+								continue
+
 							if metric.aggregation == "avg" and count > 0:
 								value /= count
 
-							labels["client_addr"] = addr
-							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
-							logger.debug(cmd)
-							await self._execute_redis_command(cmd)
-					else:
-						value = 0
-						count = 0
-						values = None
-						async with self._values_lock:
-							for key in self._values.get(metric.id, {}):
-								values = self._values[metric.id].get(key, {})
-							if not values and not metric.zero_if_missing:
-								continue
-							for ts in list(values): # pylint: disable=invalid-name
-								if ts <= timestamp:
-									count += 1
-									value += values[ts]
-									del values[ts]
-						if metric.aggregation == "avg" and count > 0:
-							value /= count
-						labels = {}
-						label_values = None
-						for key in self._values[metric.id]:
-							if label_values is None:
-								label_values = (key.split(":"))
-							else:
-								label_values.append(key.split(":"))
-						for idx, var in enumerate(metric.vars):
-							labels[var] = label_values[idx]
-						cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
-						logger.debug("CMD: %s", cmd)
-						await self._execute_redis_command(cmd)
+							labels = {}
+							label_values = key_string.split(":")
+							for idx, var in enumerate(metric.vars):
+								labels[var] = label_values[idx]
 
-			except Exception as exc: # pylint: disable=broad-except
-				err = str(exc)
-				if cmd:
-					err += f" while executing redis command: {cmd}"
+							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
+							logger.debug("Redis ts cmd %s", cmd)
+
+							try:
+								await self._execute_redis_command(cmd)
+							except Exception as err: # pylint: disable=broad-except
+								if str(err).lower().startswith("unknown command"):
+									logger.error("RedisTimeSeries module missing, metrics collector ending")
+									return
+								logger.error("%s while executing redis command: %s", err, cmd, exc_info=True)
+
+			except Exception as err: # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
-				if err.lower().startswith("unknown command"):
-					logger.error("RedisTimeSeries module missing, metrics collector ending")
-					break
 			await asyncio.sleep(self._interval)
 
 	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels): # pylint: disable=no-self-use
@@ -427,17 +493,18 @@ class MetricsCollector():
 				cmd[2] = timestamp = self._get_timestamp() + 1 # pylint: disable=unused-variable
 				cmd = " ".join([ str(x) for x in cmd ])
 
-	#def add_value(self, metric: Metric, value: float, timestamp: int = None, **kwargs):
-	async def add_value(self, metric_id: str, value: float, labels: dict = {}, timestamp: int = None): # pylint: disable=unused-variable, dangerous-default-value
+	async def add_value(self, metric_id: str, value: float, labels: dict = None, timestamp: int = None):
+		if labels is None:
+			labels = {}
 		metric = metrics_registry.get_metric_by_id(metric_id)
-		# logger.debug("add_value metric_id: %s, labels: %s ", metric_id, labels)
+		logger.debug("add_value metric_id: %s, labels: %s ", metric_id, labels)
 		key_string = ""
 		for var in metric.vars:
 			if not key_string:
 				key_string = labels[var]
 			else:
 				key_string = f"{key_string}:{labels[var]}"
-		# logger.debug(f"KEYSTRING: {key_string}")
+
 		if metric.server_timing_header_factor:
 			server_timing = contextvar_server_timing.get()
 			if isinstance(server_timing, dict):
@@ -456,6 +523,7 @@ class MetricsCollector():
 				self._values[metric_id][key_string][timestamp] = 0
 			self._values[metric_id][key_string][timestamp] += value
 			# logger.debug("VALUES end add_value: %s", self._values)
+
 
 class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-method
 	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
@@ -525,14 +593,14 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 				# Start of response (first message / package)
 				loop.create_task(
 					get_metrics_collector().add_value(
-						"worker:avg_http_request_number",
+						"worker:sum_http_request_number",
 						1,
 						{"node_name": get_node_name(), "worker_num": get_worker_num()}
 					)
 				)
 				loop.create_task(
 					get_metrics_collector().add_value(
-						"client:sum_http_request",
+						"client:sum_http_request_number",
 						1,
 						{"client_addr": contextvar_client_address.get()}
 					)
@@ -542,7 +610,8 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 
 				content_length = headers.get("Content-Length", None)
 				if content_length is None:
-					logger.warning("Header 'Content-Length' missing: %s", message)
+					if message.get("status") < 300 or message.get("status") >= 400:
+						logger.warning("Header 'Content-Length' missing: %s", message)
 				else:
 					loop.create_task(
 						get_metrics_collector().add_value(

@@ -81,23 +81,27 @@ jsonrpc_router = APIRouter()
 
 metrics_registry.register(
 	Metric(
-		id="worker:avg_rpc_number",
+		id="worker:sum_jsonrpc_number",
 		name="Average RPCs processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
+		aggregation="sum",
+		zero_if_missing=False,
+		time_related=True,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Remote procedure calls", units=["short"], decimals=0, stack=True, yaxis_min = 0),
+		grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", units=["short"], decimals=0, stack=True, yaxis_min=0),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(
-		id="worker:avg_rpc_duration",
+		id="worker:avg_jsonrpc_duration",
 		name="Average duration of RPCs processed by worker {worker_num} on {node_name}",
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
+		aggregation="avg",
 		zero_if_missing=False,
 		subject="worker",
 		server_timing_header_factor=1000,
-		grafana_config=GrafanaPanelConfig(type="heatmap", title="Duration of remote procedure calls", units=["s"], decimals=0),
+		grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", units=["s"], decimals=0),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	)
 )
@@ -287,7 +291,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 
 		asyncio.get_event_loop().create_task(
 			get_metrics_collector().add_value(
-				"worker:avg_rpc_number",
+				"worker:sum_jsonrpc_number",
 				len(jsonrpc),
 				{"node_name": get_node_name(), "worker_num": get_worker_num()}
 			)
@@ -297,7 +301,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			results.append(result[0])
 			asyncio.get_event_loop().create_task(
 				get_metrics_collector().add_value(
-					"worker:avg_rpc_duration",
+					"worker:avg_jsonrpc_duration",
 					result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()}
 				)
 			)
@@ -457,7 +461,6 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 					result = method(*params, **keywords)
 				else:
 					result = method(*params)
-		params.append(keywords)
 
 		response = {"jsonrpc": "2.0", "id": rpc_id, "result": result, "error": None}
 		response = serialize(response)

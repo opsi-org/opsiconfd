@@ -37,12 +37,16 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .logging import logger
 from .worker import (
-	get_redis_client, get_metrics_collector,
 	contextvar_request_id, contextvar_client_address, contextvar_server_timing
 )
+from .worker import get_redis_client as get_worker_redis_client
+from .worker import get_metrics_collector as get_worker_metrics_collector
+
+from .arbiter import get_redis_client as get_arbiter_redis_client
+
 from .config import config
 from .utils import (
-	Singleton, get_node_name, get_worker_num, get_redis_connection
+	Singleton, get_node_name, get_worker_num, get_redis_connection, get_aredis_connection
 )
 from .grafana import GrafanaPanelConfig
 
@@ -335,6 +339,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="sum",
+		zero_if_missing=True,
 		time_related=True,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP requests/s", units=["short"], decimals=0, stack=True),
@@ -377,13 +382,10 @@ metrics_registry.register(
 
 
 class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
-	def __init__(self, interval: int = 5, arbiter=False):
+	def __init__(self):
 		self._loop = asyncio.get_event_loop()
-		self._interval = interval
-		self._arbiter = arbiter
+		self._interval = 5
 		self._node_name = get_node_name()
-		self._worker_num = get_worker_num()
-		self._proc = None
 		self._values = {}
 		self._values_lock = asyncio.Lock()
 		self._last_timestamp = 0
@@ -395,26 +397,9 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 		#return int(round(datetime.datetime.utcnow().timestamp())*1000)
 
 	async def _fetch_values(self):
-		if self._arbiter:
-			self._loop.create_task(
-				self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
-			)
-
-		if not self._proc:
-			self._proc = psutil.Process()
-
-		for metric_id, value in (
-			("worker:avg_mem_allocated", self._proc.memory_info().rss),
-			("worker:avg_cpu_percent", self._proc.cpu_percent()),
-			("worker:avg_thread_number", self._proc.num_threads()),
-			("worker:avg_filehandle_number", self._proc.num_fds())
-		):
-			# Do not add 0-values
-			if value:
-				self._loop.create_task(
-					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self._worker_num})
-				)
-
+		self._loop.create_task(
+			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
+		)
 
 	async def main_loop(self):
 		while True:
@@ -477,13 +462,16 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 			raise ValueError(f"Invalid command {cmd}")
 		return " ".join([ str(x) for x in cmd ])
 
+	async def _get_redis_client(self):
+		raise NotImplementedError("Not implemented")
+
 	async def _execute_redis_command(self, cmd, max_tries=2):
 		if isinstance(cmd, list):
 			cmd = " ".join([ str(x) for x in cmd ])
 		logger.debug("Executing redis command: %s", cmd)
 		for trynum in range(1, max_tries + 1):
 			try:
-				redis = await get_redis_client()
+				redis = await self._get_redis_client()
 				return await redis.execute_command(cmd)
 			except ResponseError:
 				if trynum >= max_tries:
@@ -523,6 +511,40 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 				self._values[metric_id][key_string][timestamp] = 0
 			self._values[metric_id][key_string][timestamp] += value
 			# logger.debug("VALUES end add_value: %s", self._values)
+
+class ArbiterMetricsCollector(MetricsCollector):
+	async def _fetch_values(self):
+		self._loop.create_task(
+			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
+		)
+
+	async def _get_redis_client(self):
+		return await get_arbiter_redis_client()
+
+class WorkerMetricsCollector(MetricsCollector):
+	def __init__(self):
+		super().__init__()
+		self._worker_num = get_worker_num()
+		self._proc = None
+
+	async def _get_redis_client(self):
+		return await get_worker_redis_client()
+
+	async def _fetch_values(self):
+		if not self._proc:
+			self._proc = psutil.Process()
+
+		for metric_id, value in (
+			("worker:avg_mem_allocated", self._proc.memory_info().rss),
+			("worker:avg_cpu_percent", self._proc.cpu_percent()),
+			("worker:avg_thread_number", self._proc.num_threads()),
+			("worker:avg_filehandle_number", self._proc.num_fds())
+		):
+			# Do not add 0-values
+			if value:
+				self._loop.create_task(
+					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self._worker_num})
+				)
 
 
 class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-method
@@ -592,14 +614,14 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 			if message["type"] == "http.response.start":
 				# Start of response (first message / package)
 				loop.create_task(
-					get_metrics_collector().add_value(
+					get_worker_metrics_collector().add_value(
 						"worker:sum_http_request_number",
 						1,
 						{"node_name": get_node_name(), "worker_num": get_worker_num()}
 					)
 				)
 				loop.create_task(
-					get_metrics_collector().add_value(
+					get_worker_metrics_collector().add_value(
 						"client:sum_http_request_number",
 						1,
 						{"client_addr": contextvar_client_address.get()}
@@ -614,7 +636,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 						logger.warning("Header 'Content-Length' missing: %s", message)
 				else:
 					loop.create_task(
-						get_metrics_collector().add_value(
+						get_worker_metrics_collector().add_value(
 							"worker:avg_http_response_bytes",
 							int(content_length),
 							{"node_name": get_node_name(), "worker_num": get_worker_num()}
@@ -635,7 +657,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 				# End of response (last message / package)
 				end = time.perf_counter()
 				loop.create_task(
-					get_metrics_collector().add_value(
+					get_worker_metrics_collector().add_value(
 						"worker:avg_http_request_duration",
 						end - start,
 						{"node_name": get_node_name(), "worker_num": get_worker_num()}

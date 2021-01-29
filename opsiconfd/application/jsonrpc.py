@@ -86,7 +86,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
 		aggregation="sum",
-		zero_if_missing=False,
+		zero_if_missing=True,
 		time_related=True,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", units=["short"], decimals=0, stack=True, yaxis_min=0),

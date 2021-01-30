@@ -165,7 +165,7 @@ class Metric: # pylint: disable=too-many-instance-attributes
 			vars: List[str] = [],
 			aggregation: str = "avg",
 			retention: int = 0,
-			zero_if_missing: bool = True,
+			zero_if_missing: str = None,
 			time_related: bool = False,
 			subject: str = "worker",
 			server_timing_header_factor: int = None,
@@ -186,8 +186,10 @@ class Metric: # pylint: disable=too-many-instance-attributes
 		:type retention: int
 		:param aggregation: Aggregation to use before adding values to the time series database (`sum` or `avg`).
 		:type aggregation: str
-		:param zero_if_missing: If a value of 0 is inserted if no values exist in a measuring interval.
-		:type zero_if_missing: bool
+		:param zero_if_missing: Behaviour if no values exist in a measuring interval. `one`, `continuous` or None. \
+		                        Zero values are sometime helpful because gaps between values get connected \
+                                by a straight line in diagrams. But zero values need storage space.
+		:type zero_if_missing: str
 		:param time_related: If the metric is time related, like requests per second.
 		:type time_related: bool
 		:param subject: Metric subject (`node`, `worker` or `client`). Should be the first part of the `id` also.
@@ -199,6 +201,7 @@ class Metric: # pylint: disable=too-many-instance-attributes
 		"""
 		assert aggregation in ("sum", "avg")
 		assert subject in ("node", "worker", "client")
+		assert zero_if_missing in (None, "one", "continuous")
 		self.id = id # pylint: disable=invalid-name
 		self.name = name
 		self.vars = vars
@@ -287,7 +290,7 @@ metrics_registry.register(
 		vars=["node_name"],
 		retention=2 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=False,
+		zero_if_missing=None,
 		subject="node",
 		grafana_config=GrafanaPanelConfig(title="System load", units=["short"], decimals=2, stack=False),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
@@ -298,7 +301,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=False,
+		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
@@ -309,7 +312,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=False,
+		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker CPU usage", units=["percent"], decimals=1, stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
@@ -320,7 +323,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=False,
+		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker threads", units=["short"], decimals=0, stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
@@ -331,7 +334,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=False,
+		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker filehandles", units=["short"], decimals=0, stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
@@ -342,7 +345,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="sum",
-		zero_if_missing=True,
+		zero_if_missing="continuous",
 		time_related=True,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP requests/s", units=["short"], decimals=0, stack=True),
@@ -354,7 +357,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=False,
+		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
@@ -365,7 +368,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=False,
+		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", units=["s"], decimals=0),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
@@ -376,7 +379,7 @@ metrics_registry.register(
 		vars=["client_addr"],
 		retention=24 * 3600 * 1000,
 		aggregation="sum",
-		zero_if_missing=False,
+		zero_if_missing="one",
 		time_related=True,
 		subject="client",
 		grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
@@ -408,7 +411,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 	def _init_vars(self):
 		for metric in metrics_registry.get_metrics(*self._metric_subjects):
-			if not metric.zero_if_missing:
+			if metric.zero_if_missing != "continuous":
 				continue
 
 			key_string = []
@@ -442,13 +445,13 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 			try:
 				await self._fetch_values()
 				timestamp = self._get_timestamp()
+				cmds = []
+				async with self._values_lock:
+					for metric in metrics_registry.get_metrics(*self._metric_subjects):
+						if not metric.id in self._values:
+							continue
 
-				for metric in metrics_registry.get_metrics(*self._metric_subjects):
-					if not metric.id in self._values:
-						continue
-
-					async with self._values_lock:
-						for key_string in self._values.get(metric.id, {}):
+						for key_string in list(self._values.get(metric.id, {})):
 							value = 0
 							count = 0
 							for tsp in list(self._values[metric.id].get(key_string, {})):
@@ -456,8 +459,11 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 									count += 1
 									value += self._values[metric.id][key_string].pop(tsp)
 
-							if count == 0 and not metric.zero_if_missing:
-								continue
+							if count == 0:
+								if not metric.zero_if_missing:
+									continue
+								if metric.zero_if_missing == "one":
+									del self._values[metric.id][key_string]
 
 							if metric.aggregation == "avg" and count > 0:
 								value /= count
@@ -469,14 +475,17 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
 							logger.debug("Redis ts cmd %s", cmd)
+							cmds.append(cmd)
 
-							try:
-								await self._execute_redis_command(cmd)
-							except Exception as err: # pylint: disable=broad-except
-								if str(err).lower().startswith("unknown command"):
-									logger.error("RedisTimeSeries module missing, metrics collector ending")
-									return
-								logger.error("%s while executing redis command: %s", err, cmd, exc_info=True)
+				# TODO: redis pipe?
+				for cmd in cmds:
+					try:
+						await self._execute_redis_command(cmd)
+					except Exception as err: # pylint: disable=broad-except
+						if str(err).lower().startswith("unknown command"):
+							logger.error("RedisTimeSeries module missing, metrics collector ending")
+							return
+						logger.error("%s while executing redis command: %s", err, cmd, exc_info=True)
 
 			except Exception as err: # pylint: disable=broad-except
 				logger.error(err, exc_info=True)

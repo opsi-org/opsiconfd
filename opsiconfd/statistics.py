@@ -454,7 +454,13 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 						for key_string in list(self._values.get(metric.id, {})):
 							value = 0
 							count = 0
+							insert_one_zero = False
 							for tsp in list(self._values[metric.id].get(key_string, {})):
+								if self._values[metric.id][key_string][tsp] is None:
+									# Marker, insert a zero before adding new values
+									insert_one_zero = True
+									self._values[metric.id][key_string].pop(tsp)
+									continue
 								if tsp <= timestamp:
 									count += 1
 									value += self._values[metric.id][key_string].pop(tsp)
@@ -462,7 +468,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 							if count == 0:
 								if not metric.zero_if_missing:
 									continue
-								if metric.zero_if_missing == "one":
+								if not insert_one_zero and metric.zero_if_missing == "one":
 									del self._values[metric.id][key_string]
 
 							if metric.aggregation == "avg" and count > 0:
@@ -472,6 +478,11 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 							label_values = key_string.split(":")
 							for idx, var in enumerate(metric.vars):
 								labels[var] = label_values[idx]
+
+							if insert_one_zero:
+								cmds.append(
+									self._redis_ts_cmd(metric, "ADD", value, timestamp-1000, **labels)
+								)
 
 							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
 							logger.debug("Redis ts cmd %s", cmd)
@@ -550,6 +561,11 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 				self._values[metric_id] = {}
 			if not key_string in self._values[metric_id]:
 				self._values[metric_id][key_string] = {}
+				if metric.zero_if_missing == "one":
+					# Insert a zero before new adding new values because
+					# gaps in diagrams will be conneced with straight lines.
+					# Marking with None
+					self._values[metric_id][key_string][timestamp-1000] = None
 			if not timestamp in self._values[metric_id][key_string]:
 				self._values[metric_id][key_string][timestamp] = 0
 			self._values[metric_id][key_string][timestamp] += value

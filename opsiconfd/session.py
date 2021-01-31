@@ -243,7 +243,7 @@ class SessionMiddleware:
 				needs_admin = True
 				if (
 					scope["path"].startswith(("/rpc", "/monitoring")) or
-					(scope["path"].startswith("/depot") and scope["method"] in ("GET", "HEAD", "PROPFIND"))
+					(scope["path"].startswith("/depot") and scope["method"] in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
 				):
 					needs_admin = False
 

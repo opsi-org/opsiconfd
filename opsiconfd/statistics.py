@@ -28,7 +28,8 @@ import psutil
 
 import yappi
 from yappi import YFuncStats
-from aredis.exceptions import ResponseError
+from aredis.exceptions import ResponseError as ARedisResponseError
+from redis import ResponseError as RedisResponseError
 
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -88,7 +89,7 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 			logger.debug("redis command: %s", cmd)
 			try:
 				redis_client.execute_command(cmd)
-			except ResponseError as err:
+			except RedisResponseError as err:
 				if str(err) != "TSDB: key already exists":
 					raise
 
@@ -112,7 +113,7 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 				cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
 				try:
 					redis_client.execute_command(cmd)
-				except ResponseError as err:
+				except RedisResponseError as err:
 					if str(err) != "TSDB: key already exists":
 						raise
 
@@ -127,7 +128,7 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 				logger.debug("REDIS CMD: %s", cmd)
 				try:
 					redis_client.execute_command(cmd)
-				except ResponseError as err:
+				except RedisResponseError as err:
 					if str(err) != "TSDB: the destination key already has a rule":
 						raise
 
@@ -489,7 +490,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 				try:
 					await self._execute_redis_command(*cmds)
-				except ResponseError as err: # pylint: disable=broad-except
+				except ARedisResponseError as err: # pylint: disable=broad-except
 					if str(err).lower().startswith("unknown command"):
 						logger.error("RedisTimeSeries module missing, metrics collector ending")
 						return

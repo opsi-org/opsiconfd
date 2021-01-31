@@ -481,22 +481,20 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 							if insert_one_zero:
 								cmds.append(
-									self._redis_ts_cmd(metric, "ADD", value, timestamp-1000, **labels)
+									self._redis_ts_cmd(metric, "ADD", value, timestamp-1001, **labels)
 								)
 
 							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
 							logger.debug("Redis ts cmd %s", cmd)
 							cmds.append(cmd)
 
-				# TODO: redis pipe?
-				for cmd in cmds:
-					try:
-						await self._execute_redis_command(cmd)
-					except Exception as err: # pylint: disable=broad-except
-						if str(err).lower().startswith("unknown command"):
-							logger.error("RedisTimeSeries module missing, metrics collector ending")
-							return
-						logger.error("%s while executing redis command: %s", err, cmd, exc_info=True)
+				try:
+					await self._execute_redis_command(*cmds)
+				except Exception as err: # pylint: disable=broad-except
+					if str(err).lower().startswith("unknown command"):
+						logger.error("RedisTimeSeries module missing, metrics collector ending")
+						return
+					logger.error("%s while executing redis commands: %s", err, cmds, exc_info=True)
 
 			except Exception as err: # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
@@ -508,10 +506,18 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 		for key in labels:
 			l_labels.extend([key, labels[key]])
+
+		# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6
 		if cmd == "ADD":
-			cmd = ["TS.ADD", metric.get_redis_key(**labels), timestamp, value, "RETENTION", metric.retention, "LABELS"] + l_labels
+			cmd = [
+				"TS.ADD", metric.get_redis_key(**labels), timestamp, value,
+				"RETENTION", metric.retention, "ON_DUPLICATE", "SUM", "LABELS"
+			] + l_labels
 		elif cmd == "INCRBY":
-			cmd = ["TS.INCRBY", metric.get_redis_key(**labels), value, timestamp, "RETENTION", metric.retention, "LABELS"] + l_labels
+			cmd = [
+				"TS.INCRBY", metric.get_redis_key(**labels), value, timestamp,
+				"RETENTION", metric.retention, "ON_DUPLICATE", "SUM", "LABELS"
+			] + l_labels
 		else:
 			raise ValueError(f"Invalid command {cmd}")
 		return " ".join([ str(x) for x in cmd ])
@@ -519,21 +525,16 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 	async def _get_redis_client(self):
 		raise NotImplementedError("Not implemented")
 
-	async def _execute_redis_command(self, cmd, max_tries=2):
-		if isinstance(cmd, list):
-			cmd = " ".join([ str(x) for x in cmd ])
-		logger.debug("Executing redis command: %s", cmd)
-		for trynum in range(1, max_tries + 1):
-			try:
-				redis = await self._get_redis_client()
-				return await redis.execute_command(cmd)
-			except ResponseError:
-				if trynum >= max_tries:
-					raise
-				# TODO: Remove or refactor, timestamp is not always cmd[2]
-				cmd = cmd.split(" ")
-				cmd[2] = timestamp = self._get_timestamp() + 1 # pylint: disable=unused-variable
-				cmd = " ".join([ str(x) for x in cmd ])
+	async def _execute_redis_command(self, *cmd):
+		redis = await self._get_redis_client()
+		async with await redis.pipeline(transaction=False) as pipe:
+			for a_cmd in cmd:
+				if isinstance(a_cmd, list):
+					a_cmd = " ".join([ str(x) for x in a_cmd ])
+				logger.debug("Adding redis command to pipe: %s", cmd)
+				await pipe.execute_command(a_cmd)
+			logger.debug("Executing redis pipe (%d commands)", len(cmd))
+			return await pipe.execute()
 
 	async def add_value(self, metric_id: str, value: float, labels: dict = None, timestamp: int = None):
 		if labels is None:
@@ -565,7 +566,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 					# Insert a zero before new adding new values because
 					# gaps in diagrams will be conneced with straight lines.
 					# Marking with None
-					self._values[metric_id][key_string][timestamp-1000] = None
+					self._values[metric_id][key_string][timestamp-1001] = None
 			if not timestamp in self._values[metric_id][key_string]:
 				self._values[metric_id][key_string][timestamp] = 0
 			self._values[metric_id][key_string][timestamp] += value

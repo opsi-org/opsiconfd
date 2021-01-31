@@ -115,7 +115,7 @@ def setup_file_permissions():
 	for fn in ("/var/log/opsi/opsiconfd/opsiconfd.log", dhcpd_config_file): # pylint: disable=invalid-name
 		if os.path.exists(fn):
 			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			os.chmod(path=fn, mode=0o644)
+			os.chmod(path=fn, mode=0o644 if fn == dhcpd_config_file else 0o660)
 
 	for d in ( # pylint: disable=invalid-name
 		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",

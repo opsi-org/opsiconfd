@@ -46,7 +46,7 @@ def main(): # pylint: disable=too-many-statements, too-many-branches too-many-lo
 		print(f"{__version__} [python-opsi={python_opsi_version}]")
 		return
 
-	if config.action == "setup" or config.setup:
+	if config.action == "setup":
 		init_logging(log_mode="local")
 		setup(full=True)
 		return
@@ -80,7 +80,7 @@ def main(): # pylint: disable=too-many-statements, too-many-branches too-many-lo
 	try: # pylint: disable=too-many-nested-blocks
 		init_logging(log_mode=config.log_mode)
 
-		setup(full=False)
+		setup(full=bool(config.setup))
 
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)

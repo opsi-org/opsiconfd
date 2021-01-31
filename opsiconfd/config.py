@@ -209,7 +209,7 @@ parser.add(
 parser.add(
 	"--setup",
 	action="store_true",
-	help="Setup opsiconfd installation."
+	help="Run full setup tasks on start."
 )
 parser.add(
 	"--run-as-user",

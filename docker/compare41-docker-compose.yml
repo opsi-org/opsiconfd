@@ -7,27 +7,27 @@ services:
       - redis
     build:
       context: ..
-      dockerfile: docker/opsiconfd-dev-Dockerfile
+      dockerfile: docker/Dockerfile.opsiconfd42
+    extra_hosts:
+      - "opsiconfd.opsi.test:127.0.0.1"
     ports:
       - "44472:4447"
-    volumes:
-      - ..:/src
     environment:
+      OPSI_HOSTNAME: opsiconfd.opsi.test
       OPSICONFD_EXTERNAL_URL: https://localhost:4447
       OPSICONFD_INTERNAL_URL: https://opsiconfd42:4447
       OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@grafana:3000
       OPSICONFD_GRAFANA_EXTERNAL_URL: http://localhost:3000
+      OPSICONFD_REDIS_INTERNAL_URL: redis://redis:6379
       OPSICONFD_MAX_SESSIONS_PER_IP: 0
       OPSICONFD_WORKERS: 1
       OPSICONFD_LOG_LEVEL_STDERR: 4
-    #restart: always
-    working_dir: /poetry
-    entrypoint: ["poetry", "run", "opsiconfd"]
-    #entrypoint: ["sleep", "infinity"] 
+    entrypoint: ["/bin/bash", "-c", "/usr/bin/opsiconfd setup && /usr/bin/opsiconfd"]
+    #entrypoint: ["sleep", "infinity"]
 
   mysql:
     image: mysql:8
-    command: --max_allowed_packet=256M --sort_buffer_size=4M
+    command: --max_allowed_packet=256M --sort_buffer_size=4M --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: opsi
       MYSQL_DATABASE: opsi
@@ -35,16 +35,19 @@ services:
       MYSQL_PASSWORD: opsi
 
   redis:
-    image: redislabs/redistimeseries:1.4.1
+    image: redislabs/redistimeseries:1.4.7
 
   opsiconfd41:
     depends_on:
       - mysql
     build:
       context: ..
-      dockerfile: docker/opsiconfd41-Dockerfile
+      dockerfile: docker/Dockerfile.opsiconfd41
+    extra_hosts:
+      - "opsiconfd.opsi.test:127.0.0.1"
     ports:
       - "44471:4447"
-    #restart: always
-    #entrypoint: ["sleep", "infinity"]
+    environment:
+      OPSI_HOSTNAME: opsiconfd.opsi.test
     entrypoint: ["/usr/bin/opsiconfd"]
+    #entrypoint: ["sleep", "infinity"]

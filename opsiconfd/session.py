@@ -141,7 +141,7 @@ class SessionMiddleware:
 		set_context({"client_address": client_address})
 		logger.trace("SessionMiddleware %s", scope)
 
-		if scope.get("http_version") != "1.1":
+		if scope.get("http_version") and scope["http_version"] != "1.1":
 			logger.warning(
 				"Client %s (%s) is using http version %s",
 				client_address, connection.headers.get("user-agent"), scope.get("http_version")

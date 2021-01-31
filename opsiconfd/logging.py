@@ -20,6 +20,7 @@
 :license: GNU Affero General Public License version 3
 """
 
+import shutil
 import time
 import sys
 import os
@@ -35,6 +36,8 @@ from gunicorn import glogging
 
 from aiologger.handlers.streams import AsyncStreamHandler
 from aiologger.handlers.files import AsyncFileHandler
+
+from OPSI.Config import OPSI_ADMIN_GROUP
 
 from opsicommon.logging import ( # pylint: disable=unused-import
 	logger, secret_filter, handle_log_exception, set_format,
@@ -98,8 +101,12 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 				dst_file_path = f"{self.absolute_file_path}.{n}"
 				if await self.loop.run_in_executor(None, lambda: os.path.exists(src_file_path)): # pylint: disable=cell-var-from-loop
 					await self.loop.run_in_executor(None, lambda: os.rename(src_file_path, dst_file_path)) # pylint: disable=cell-var-from-loop
+					shutil.chown(path=dst_file_path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+					os.chmod(path=dst_file_path, mode=0o644)
 		self.stream = None
 		await self._init_writer()
+		shutil.chown(path=self.absolute_file_path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+		os.chmod(path=self.absolute_file_path, mode=0o644)
 
 	async def emit(self, record: LogRecord):
 		async with self._rollover_lock:
@@ -289,22 +296,6 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		self._should_stop = True
 
 	def log_record_to_dict(self, record):
-		"""
-		if hasattr(record, 'args'):
-			if record.args:
-				errors = []
-				try:
-					record.msg = record.msg.format(*record.args)
-				except (TypeError, ValueError) as e:
-					errors.append(e)
-				try:
-					record.msg = record.msg % record.args
-				except (TypeError, ValueError) as e:
-					errors.append(e)
-				if len(errors) == 2:
-					handle_log_exception(errors[0], log=False)
-		else:
-		"""
 		msg = record.getMessage()
 		for secret in secret_filter.secrets:
 			msg = msg.replace(secret, SECRET_REPLACEMENT_STRING)

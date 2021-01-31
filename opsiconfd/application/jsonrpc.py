@@ -98,7 +98,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=24 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=None,
+		zero_if_missing="one",
 		subject="worker",
 		server_timing_header_factor=1000,
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", units=["s"], decimals=0),

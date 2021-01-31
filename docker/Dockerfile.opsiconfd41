@@ -37,7 +37,8 @@ RUN echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/
 
 COPY docker/files/ /
 
-RUN echo "[session]" > /etc/opsi/opsiconfd.conf \
+RUN sed -i s'/"address":.*/"address": "mysql",/' /etc/opsi/backends/mysql.conf \
+	&& echo "[session]" > /etc/opsi/opsiconfd.conf \
 	&& echo "max sessions per ip = 2500" >> /etc/opsi/opsiconfd.conf \
 	&& echo "[directories]" >> /etc/opsi/opsiconfd.conf \
 	&& echo "/ = /usr/share/opsiconfd/static (noauth)" >> /etc/opsi/opsiconfd.conf \

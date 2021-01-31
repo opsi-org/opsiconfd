@@ -356,7 +356,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=None,
+		zero_if_missing="one",
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
@@ -367,7 +367,7 @@ metrics_registry.register(
 		vars=["node_name", "worker_num"],
 		retention=2 * 3600 * 1000,
 		aggregation="avg",
-		zero_if_missing=None,
+		zero_if_missing="one",
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", units=["s"], decimals=0),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]

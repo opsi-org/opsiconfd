@@ -106,8 +106,8 @@ async def test_execute_redis_command(metrics_collector, redis_client, cmds, expe
 
 
 test_data = [
-	("ADD", 4711, "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 LABELS"),
-	("INCRBY", 4711,"TS.INCRBY opsiconfd:stats:opsiconfd:pytest:metric 4711 * RETENTION 86400000 LABELS"),
+	("ADD", 4711, "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
+	("INCRBY", 4711,"TS.INCRBY opsiconfd:stats:opsiconfd:pytest:metric 4711 * RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
 ]
 @pytest.mark.parametrize("cmd, value, expected_result", test_data)
 def test_redis_ts_cmd(metrics_registry, metrics_collector, cmd, value, expected_result):

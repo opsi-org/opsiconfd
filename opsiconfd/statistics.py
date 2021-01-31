@@ -525,12 +525,19 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 		raise NotImplementedError("Not implemented")
 
 	async def _execute_redis_command(self, *cmd):
+		def str_cmd(cmd_obj):
+			if isinstance(cmd_obj, list):
+				return " ".join([ str(x) for x in cmd_obj ])
+			return cmd_obj
+
 		redis = await self._get_redis_client()
+		if len(cmd) == 1:
+			return await redis.execute_command(str_cmd(cmd[0]))
+
 		async with await redis.pipeline(transaction=False) as pipe:
 			for a_cmd in cmd:
-				if isinstance(a_cmd, list):
-					a_cmd = " ".join([ str(x) for x in a_cmd ])
-				logger.debug("Adding redis command to pipe: %s", cmd)
+				a_cmd = str_cmd(a_cmd)
+				logger.debug("Adding redis command to pipe: %s", a_cmd)
 				await pipe.execute_command(a_cmd)
 			logger.debug("Executing redis pipe (%d commands)", len(cmd))
 			return await pipe.execute()

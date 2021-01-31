@@ -28,7 +28,6 @@ import psutil
 
 import yappi
 from yappi import YFuncStats
-from redis import ResponseError as RedisResponseError
 from aredis.exceptions import ResponseError
 
 from starlette.datastructures import MutableHeaders
@@ -89,9 +88,9 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 			logger.debug("redis command: %s", cmd)
 			try:
 				redis_client.execute_command(cmd)
-			except RedisResponseError as err:
+			except ResponseError as err:
 				if str(err) != "TSDB: key already exists":
-					raise RedisResponseError(err) # pylint: disable=raise-missing-from
+					raise
 
 			cmd = f"TS.INFO {orig_key}"
 			info = redis_client.execute_command(cmd)
@@ -113,9 +112,9 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 				cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
 				try:
 					redis_client.execute_command(cmd)
-				except RedisResponseError as err:
+				except ResponseError as err:
 					if str(err) != "TSDB: key already exists":
-						raise RedisResponseError(err) # pylint: disable=raise-missing-from
+						raise
 
 				if rule[0] in existing_rules.keys():
 					old_rule = existing_rules.get(rule[0])
@@ -128,9 +127,9 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 				logger.debug("REDIS CMD: %s", cmd)
 				try:
 					redis_client.execute_command(cmd)
-				except RedisResponseError as err:
+				except ResponseError as err:
 					if str(err) != "TSDB: the destination key already has a rule":
-						raise RedisResponseError(err) # pylint: disable=raise-missing-from
+						raise
 
 
 TIME_BUCKETS = {
@@ -490,7 +489,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 				try:
 					await self._execute_redis_command(*cmds)
-				except Exception as err: # pylint: disable=broad-except
+				except ResponseError as err: # pylint: disable=broad-except
 					if str(err).lower().startswith("unknown command"):
 						logger.error("RedisTimeSeries module missing, metrics collector ending")
 						return

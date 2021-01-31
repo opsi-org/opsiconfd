@@ -45,6 +45,7 @@ from opsicommon.logging import ( # pylint: disable=unused-import
 	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT,
 	DEFAULT_COLORED_FORMAT, OPSI_LEVEL_TO_LEVEL
 )
+from opsicommon.logging.logging import add_context_filter_to_loggers
 
 from .utils import retry_redis_call, get_aredis_connection, get_redis_connection
 from .config import config
@@ -383,6 +384,8 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 			al.setLevel(log_level)
 			al.handlers = [log_handler]
 			al.propagate = False
+
+		add_context_filter_to_loggers()
 
 		if config.log_slow_async_callbacks > 0:
 			enable_slow_callback_logging(config.log_slow_async_callbacks)

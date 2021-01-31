@@ -481,7 +481,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 							if insert_one_zero:
 								cmds.append(
-									self._redis_ts_cmd(metric, "ADD", value, timestamp-1001, **labels)
+									self._redis_ts_cmd(metric, "ADD", 0, timestamp-1001, **labels)
 								)
 
 							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)

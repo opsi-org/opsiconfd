@@ -23,6 +23,7 @@
 import os
 import pwd
 import grp
+import time
 import shutil
 import getpass
 import resource
@@ -97,14 +98,10 @@ def setup_users_and_groups():
 		except KeyError:
 			logger.debug("Group not found: %s", groupname)
 
-
-
 def setup_files():
 	log_dir = os.path.dirname(config.log_file)
 	if not os.path.isdir(log_dir):
 		os.makedirs(log_dir)
-
-
 
 def setup_file_permissions():
 	logger.info("Setup file permissions")
@@ -150,6 +147,33 @@ def setup_backend():
 	logger.info("Setup backend")
 	initializeBackends()
 
+def cleanup_log_files():
+	logger.info("Cleanup log files")
+	now = time.time()
+	min_mtime = now - 3600 * 24 * 30 # 30 days
+	log_dir = os.path.dirname(config.log_file)
+	if not os.path.isdir(log_dir):
+		return
+	links = []
+	for filename in os.listdir(log_dir):
+		try:
+			file = os.path.join(log_dir, filename)
+			if os.path.islink(file):
+				links.append(file)
+			elif os.path.isfile(file) and os.path.getmtime(file) < min_mtime:
+				logger.info("Deleting old log file: %s", file)
+				os.remove(file)
+		except Exception as err: # pylint: disable=broad-except
+			logger.warning(err)
+
+	for link in links:
+		try:
+			dst = os.path.realpath(link)
+			if not os.path.exists(dst):
+				os.unlink(link)
+		except Exception as err: # pylint: disable=broad-except
+			logger.warning(err)
+
 def setup(full: bool = True): # pylint: disable=too-many-branches
 	logger.notice("Running opsiconfd setup")
 
@@ -193,6 +217,8 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 	if not "file_permissions" in skip_setup:
 		# Always correct file permissions (run_as_user could be changed)
 		setup_file_permissions()
+	if not "log_files" in skip_setup:
+		cleanup_log_files()
 	if not "grafana" in skip_setup:
 		try:
 			setup_grafana()

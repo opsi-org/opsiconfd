@@ -82,7 +82,7 @@ function outputResult(json, id) {
 					blockedCount += 1;
 				}
 			});
-		}		
+		}
 		if (data["clients"] != undefined && data["clients"].length != 0) {
 			if (blockedCount == 0){
 				text = "No blocked clients found."
@@ -97,7 +97,7 @@ function outputResult(json, id) {
 			} else {
 				text = text + " Failed logins for "+ failedCount +" clients deleted.";
 			}
-			
+
 		} else if (data["sessions"] != undefined) {
 			if (data["sessions"] != 0) {
 				text = "All sessions from client " + data["client"] + " deleted.";
@@ -133,9 +133,9 @@ function clearRedisCache(depots =  []) {
 	body = {
 		"depots": depots
 	};
-	
+
 	request.send(JSON.stringify(body));
-	
+
 }
 
 // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
@@ -246,6 +246,7 @@ function loadRedisInfo() {
 }
 
 function loadConfdConfig() {
+	console.log("loadConfdConfig");
 	let request = new XMLHttpRequest();
 	request.open("GET", "/admin/config");
 	request.addEventListener('load', function (event) {
@@ -253,6 +254,85 @@ function loadConfdConfig() {
 			result = request.responseText;
 			result = JSON.parse(result);
 			outputToHTML(result.data, "config-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function loadMemoryInfo() {
+	let request = new XMLHttpRequest();
+	console.log("get memory info");
+	request.open("GET", "/admin/memory-summary");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			console.log("memory");
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function takeMemorySnapshot() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	console.log("get memory info");
+	request.open("POST", "/admin/memory/snapshot");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			console.log("take memory snapshot");
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function diffMemorySnapshots() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	console.log("get memory info");
+	request.open("GET", "/admin/memory/diff");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			console.log("show memory diff");
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function deleteMemorySnapshots() {
+	console.log("deleteMemorySnapshots");
+	let request = new XMLHttpRequest();
+	request.open("DELETE", "/admin/memory/snapshot");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
 			return result;
 		} else {
 			console.warn(request.statusText, request.responseText);

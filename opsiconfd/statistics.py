@@ -703,7 +703,10 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 
 				content_length = headers.get("Content-Length", None)
 				if content_length is None:
-					if message.get("status") < 300 or message.get("status") >= 400:
+					if (
+						scope["method"] != "OPTIONS" and
+						(message.get("status") < 300 or message.get("status") >= 400)
+					):
 						logger.warning("Header 'Content-Length' missing: %s", message)
 				else:
 					loop.create_task(

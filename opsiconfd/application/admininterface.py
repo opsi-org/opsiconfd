@@ -6,6 +6,7 @@ This file is part of opsi - https://www.opsi.org
 See LICENSES/README.md for more Information
 """
 
+import time
 from urllib.parse import urlparse
 from operator import itemgetter
 import os
@@ -17,6 +18,8 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from pympler import tracker
+
 from OPSI import __version__ as python_opsi_version
 from .. import __version__
 
@@ -25,10 +28,12 @@ from ..logging import logger
 from ..config import config
 from ..backend import get_backend_interface
 from ..worker import get_redis_client
-from ..utils import get_random_string, get_fqdn
+from ..utils import get_random_string, get_fqdn, get_node_name, decode_redis_result
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
+
+MEMORY_TRACKER = None
 
 
 def admin_interface_setup(app):
@@ -250,4 +255,88 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 	current_config = dict(sorted(current_config.items()))
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
+	return response
+
+
+@admin_interface_router.get("/memory-summary")
+def pympler_info() -> JSONResponse:
+
+	global MEMORY_TRACKER # pylint: disable=global-statement
+	logger.devel(MEMORY_TRACKER)
+	if not MEMORY_TRACKER:
+		MEMORY_TRACKER = tracker.SummaryTracker()
+
+	memory_summary = MEMORY_TRACKER.create_summary()
+	memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
+
+	response = JSONResponse({"status": 200, "error": None, "data": {"memory_summary": memory_summary}})
+	return response
+
+@admin_interface_router.post("/memory/snapshot")
+async def memory_info() -> JSONResponse:
+
+	global MEMORY_TRACKER # pylint: disable=global-statement
+	logger.devel(MEMORY_TRACKER)
+	if not MEMORY_TRACKER:
+
+		MEMORY_TRACKER = tracker.SummaryTracker()
+
+	memory_summary = MEMORY_TRACKER.create_summary()
+	memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
+
+	redis_client = await get_redis_client()
+	timestamp = int(time.time() * 1000)
+	node = get_node_name()
+
+	# cmd = f"TS.ADD opsiconfd:stats:memory:summary:{node} {timestamp} "
+	value = orjson.dumps({"memory_summary": memory_summary, "timestamp": timestamp}) # pylint: disable=c-extension-no-member
+	redis_result = await redis_client.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
+	logger.devel(redis_result)
+
+	logger.devel(MEMORY_TRACKER.summaries)
+	logger.devel("MEMORY_TRACKER: %s", len(MEMORY_TRACKER.summaries))
+
+	response = JSONResponse({"status": 200, "error": None, "data": {"memory_summary": memory_summary}})
+	return response
+
+@admin_interface_router.delete("/memory/snapshot")
+async def delte_memory_snapshot() -> JSONResponse:
+
+	redis_client = await get_redis_client()
+	node = get_node_name()
+
+	redis_result = await redis_client.delete(f"opsiconfd:stats:memory:summary:{node}")
+	logger.devel(decode_redis_result(redis_result))
+
+
+	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted all memory snapshots."}})
+	return response
+
+@admin_interface_router.get("/memory/diff")
+async def get_memory_diff() -> JSONResponse:
+
+	global MEMORY_TRACKER # pylint: disable=global-statement
+	logger.devel(MEMORY_TRACKER)
+	if not MEMORY_TRACKER:
+
+		MEMORY_TRACKER = tracker.SummaryTracker()
+
+
+	redis_client = await get_redis_client()
+	node = get_node_name()
+	# cmd = f"TS.ADD opsiconfd:stats:memory:summary:{node} {timestamp} "
+
+	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", 0)
+	snapshot1 = orjson.loads(decode_redis_result(redis_result)).get("memory_summary") # pylint: disable=c-extension-no-member
+	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", 1)
+	snapshot2 = orjson.loads(decode_redis_result(redis_result)).get("memory_summary") # pylint: disable=c-extension-no-member
+	logger.devel(decode_redis_result(redis_result))
+
+	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
+
+	logger.devel(MEMORY_TRACKER.summaries)
+	logger.devel("MEMORY_TRACKER: %s", len(MEMORY_TRACKER.summaries))
+
+
+	response = JSONResponse({"status": 200, "error": None, "data": {"memory_summary": memory_summary}})
 	return response

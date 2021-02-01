@@ -12,32 +12,33 @@
 	<script>
 		function onLoad() {
 			let input = document.getElementById("redis-cmd");
-	
+
 			input.addEventListener("keyup", function (event) {
 				// Number 13 is the "Enter" key on the keyboard
 				if (event.keyCode === 13) {
 					document.getElementById("redis-button").click();
 				}
 			});
-			
+
 			document.getElementById("startTab-button").click()
-	
+
 			document.getElementById("json-result").style.visibility = 'hidden';
 			document.getElementById("text-result").style.visibility = 'hidden';
 			document.getElementById("redis-result").style.visibility = 'hidden';
-	
+
 			document.getElementById("jsonrpc-result").style.visibility = 'hidden';
 			document.getElementById("jsonrpc-request").style.visibility = 'hidden';
+			document.getElementById("memory-info").style.visibility = 'hidden';
 		}
-	
+
 		function createParamInputs() {
 			let value = document.getElementById("method-select").value;
-			// !!! use '' because json uses "" !!! 
+			// !!! use '' because json uses "" !!!
 			let interface = '{{interface|tojson}}';
-	
+
 			interface = JSON.parse(interface);
 			// console.log("get_method: " + value);
-	
+
 			let table = document.getElementById("jsonrpc-request-table");
 			var elements = table.getElementsByClassName("param");
 			while (elements.length > 0) {
@@ -58,11 +59,16 @@
 			});
 			changeRequestJSON();
 		}
-	
+
 		function openTab(evt, tabName) {
 			// Declare all variables
 			var i, tabcontent, tablinks;
-	
+
+			console.log(i);
+			console.log(tabcontent);
+			console.log(tablinks);
+			console.log(tabName);
+
 			if (tabName == "rpcInfos") {
 				loadRPCTable("rpc_num", false);
 			}
@@ -78,30 +84,34 @@
 			if (tabName == "confdConfig") {
 				loadConfdConfig();
 			}
+			if (tabName == "memory") {
+				// loadMemoryInfo();
+				console.log("MEMORY");
+			}
 			if (tabName == "log-viewer") {
 				startLog();
 			}
 			else{
 				stopLog();
 			}
-	
+
 			// Get all elements with class="tabcontent" and hide them
 			tabcontent = document.getElementsByClassName("tabcontent");
 			for (i = 0; i < tabcontent.length; i++) {
 				tabcontent[i].style.display = "none";
 			}
-	
+
 			// Get all elements with class="tablinks" and remove the class "active"
 			tablinks = document.getElementsByClassName("tablinks");
 			for (i = 0; i < tablinks.length; i++) {
 				tablinks[i].className = tablinks[i].className.replace(" active", "");
 			}
-	
+
 			// Show the current tab, and add an "active" class to the button that opened the tab
 			document.getElementById(tabName).style.display = "block";
 			evt.currentTarget.className += " active";
 		}
-	
+
 	</script>
 </head>
 
@@ -111,7 +121,7 @@
 		<h1>opsiconfd {{opsi_version}}</h1>
 	</div>
 	<div class="content">
-	
+
 		<div class="tab">
 			<button class="tablinks" id="startTab-button" onclick="openTab(event, 'clients')">Blocked Clients</button>
 			<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
@@ -119,8 +129,9 @@
 			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
 			<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
 			<button class="tablinks" onclick="openTab(event, 'confdConfig')">Config</button>
+			<button class="tablinks" onclick="openTab(event, 'memory')">Memory Usage</button>
 			<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
-			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>		
+			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>
 		</div>
 
 		<div id="clients" class="tabcontent">
@@ -235,20 +246,39 @@
 			</div>
 		</div>
 
+		<div id="memory" class="tabcontent">
+			<div class="adminpage-box">
+				<h4>Memory Usage</h4>
+				<table>
+					<tr>
+						<td><button id="take-snapshot-button" onclick="takeMemorySnapshot()">Take Snapshot</button> </td>
+						<td><input type="button" onclick="deleteMemorySnapshots()" value="Delete Snapshots"></td>
+					</tr>
+					<tr>
+						<td><input type="button" onclick="diffMemorySnapshots()" value="Diff Snapshots"></td>
+						<td><input type="button" onclick="deleteMemoryTracker()" value="Delete Tracker"></td>
+					</tr>
+				</table>
+			</div>
+			<div class="adminpage-box" id="memory-info">
+					<pre class="memory-values" id="memory-values"></pre>
+			</div>
+		</div>
+
 		<div id="log-viewer" class="tabcontent">
 			<div id="log-settings">
 				<label for="log-level-filter">Filter by level:</label>
 				<input id="log-level-filter" type="number" min="1" max="9" value="9" onchange="applyLevelFilter(this.value);">
-				
+
 				<label for="log-context-filter">Filter by context:</label>
 				<input id="log-context-filter" type="text" onchange="applyContextFilter(this.value);"/>
-		
+
 				<label for="log-message-filter">Filter by message:</label>
 				<input id="log-message-filter" type="text" onchange="applyMessageFilter(this.value);"/>
-				
+
 				<label for="collapse-all">Collapse multi-line:</label>
 				<input type="checkbox" id="collapse-all" onclick="collapseAll(this.checked);" checked>
-				
+
 				<label>Font size:</label>
 				<button id="decrease-font-size" onclick="change_font_size(-1);">-</button>
 				<button id="increase-font-size" onclick="change_font_size(+1);">+</button>

@@ -53,7 +53,7 @@ stages:
   pip3 install poetry
   poetry config experimental.new-installer false
   poetry install
-  poetry run opsiconfd --setup --log-level-stderr=5
+  poetry run opsiconfd -l5 setup
   # Create adminuser used with opsiconfd-perftest.py
   useradd adminuser
   echo "adminuser:adminuser" | chpasswd

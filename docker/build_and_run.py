@@ -10,7 +10,12 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 #subprocess.call(['poetry', 'run', 'podman-compose', 'up'])
 
 parser = argparse.ArgumentParser(description="Build and run docker compose environment.")
-parser.add_argument("--type", choices=("dev", "load-balance", "compare41", "webdav"), default="dev", help="Which type of environment to build and run")
+parser.add_argument(
+	"--type",
+	choices=("dev", "load-balance", "compare41", "webdav"),
+	default="dev",
+	help="Which type of environment to build and run"
+)
 args = parser.parse_args()
 
 subprocess.call([

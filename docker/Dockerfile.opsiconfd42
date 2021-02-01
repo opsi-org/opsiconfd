@@ -40,4 +40,4 @@ RUN sed -i s'/"address":.*/"address": "mysql",/' /etc/opsi/backends/mysql.conf \
 	&& adduser adminuser opsiadmin \
 	&& cp -r /root/.bash* /home/adminuser/
 
-#RUN opsiconfd --setup
+#RUN opsiconfd setup

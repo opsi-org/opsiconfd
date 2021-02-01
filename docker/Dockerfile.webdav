@@ -137,8 +137,7 @@ redis-server /etc/redis/redis.conf &\n\
 apachectl -f /etc/apache2/apache2.conf\n\
 sleep 5\n\
 zcat /confd-dev-data.sql.gz | sed "s/dev-server.uib.local/$OPSI_HOSTNAME/g" | mariadb -h localhost -u $MYSQL_USER --password=$MYSQL_PASSWORD $MYSQL_DATABASE\n\
-opsiconfd --setup\n\
-opsiconfd --log-level-stderr=5 --max-session-per-ip=0 --workers=2 &\n\
+opsiconfd --setup --log-level-stderr=5 --max-session-per-ip=0 --workers=2 &\n\
 sleep infinity\n\
 ' > /docker-entrypoint.sh \
 	&& chmod +x "/docker-entrypoint.sh" \

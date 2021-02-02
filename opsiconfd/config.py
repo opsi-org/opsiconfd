@@ -425,6 +425,11 @@ parser.add(
 	help="The location of the opsi ssl ca key."
 )
 parser.add(
+	"--ssl-ca-key-passphrase",
+	env_var="OPSICONFD_SSL_CA_PASSPHRASE",
+	help="Passphrase to use to encrypt CA key."
+)
+parser.add(
 	"--ssl-ca-cert",
 	env_var="OPSICONFD_SSL_CA_CERT",
 	default="/etc/opsi/ssl/opsi-ca-cert.pem",

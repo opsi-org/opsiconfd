@@ -26,12 +26,12 @@ import shutil
 
 from typing import Tuple
 
-# from OpenSSL import crypto
 from OpenSSL.crypto import (
 	FILETYPE_PEM, TYPE_RSA,
 	dump_privatekey, dump_certificate, load_privatekey, load_certificate,
 	X509, PKey, X509Name, X509Extension
 )
+from OpenSSL.crypto import Error as CryptoError
 
 from OPSI.Util import getfqdn
 from OPSI.Config import OPSI_ADMIN_GROUP
@@ -42,7 +42,7 @@ from .utils import get_ip_addresses
 
 CA_DAYS = 730
 CERT_DAYS = 365
-
+DEFAULT_CA_KEY_PASSPHRASE = "Co8Reevahfeing6w"
 
 def setup_ssl(): # pylint: disable=too-many-branches
 	logger.info("Setup ssl")
@@ -64,7 +64,8 @@ def setup_ssl(): # pylint: disable=too-many-branches
 			os.makedirs(os.path.dirname(config.ssl_ca_key))
 			os.chmod(path=os.path.dirname(config.ssl_ca_key), mode=0o700)
 		with open(config.ssl_ca_key, "wb") as out:
-			out.write(dump_privatekey(FILETYPE_PEM, ca_key))
+			passphrase = (config.ssl_ca_key_passphrase or "Co8Reevahfeing6w").encode("utf-8")
+			out.write(dump_privatekey(FILETYPE_PEM, ca_key, cipher="DES3", passphrase=passphrase))
 
 		if os.path.exists(config.ssl_ca_cert):
 			os.unlink(config.ssl_ca_cert)
@@ -76,14 +77,20 @@ def setup_ssl(): # pylint: disable=too-many-branches
 
 		setup_ssl_file_permissions()
 
-	if os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
+	if not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
 
 		if not ca_key:
 			with open(config.ssl_ca_key, "r") as file:
-				ca_key = load_privatekey(FILETYPE_PEM,  file.read())
+				passphrase = (config.ssl_ca_key_passphrase or DEFAULT_CA_KEY_PASSPHRASE).encode("utf-8")
+				try:
+					ca_key = load_privatekey(FILETYPE_PEM, file.read(), passphrase=passphrase)
+				except CryptoError as err:
+					raise RuntimeError(
+						f"Failed to load CA private key from '{config.ssl_ca_key}': {err}"
+					) from err
 		if not ca_crt:
 			with open(config.ssl_ca_cert, "r") as file:
-				ca_crt = load_certificate(FILETYPE_PEM,  file.read())
+				ca_crt = load_certificate(FILETYPE_PEM, file.read())
 
 		srv_crt, srv_key = create_crt(ca_crt, ca_key)
 
@@ -112,25 +119,25 @@ def setup_ssl_file_permissions():
 	# Order is important!
 	# Set permission of cert first, key afterwards.
 	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
-	for fn in (config.ssl_ca_cert, ca_srl, config.ssl_ca_key): # pylint: disable=invalid-name
-		if os.path.exists(fn):
-			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			mode = 0o600 if fn == config.ssl_ca_key else 0o644
-			os.chmod(path=fn, mode=mode)
-			dn = os.path.dirname(fn) # pylint: disable=invalid-name
-			if dn.count('/') >= 3:
-				shutil.chown(path=dn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-				os.chmod(path=dn, mode=0o770)
+	for path in (config.ssl_ca_cert, f"{config.ssl_ca_cert}.old", ca_srl, config.ssl_ca_key):
+		if os.path.exists(path):
+			shutil.chown(path=path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+			mode = 0o600 if path == config.ssl_ca_key else 0o644
+			os.chmod(path=path, mode=mode)
+			dirname = os.path.dirname(path)
+			if dirname.count('/') >= 3:
+				shutil.chown(path=dirname, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+				os.chmod(path=dirname, mode=0o770)
 
-	for fn in (config.ssl_server_cert, config.ssl_server_key): # pylint: disable=invalid-name
-		if os.path.exists(fn):
-			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			mode = 0o644 if fn == config.ssl_server_cert else 0o600
-			os.chmod(path=fn, mode=mode)
-			dn = os.path.dirname(fn) # pylint: disable=invalid-name
-			if dn.count('/') >= 3:
-				shutil.chown(path=dn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-				os.chmod(path=dn, mode=0o770)
+	for path in (config.ssl_server_cert, config.ssl_server_key):
+		if os.path.exists(path):
+			shutil.chown(path=path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+			mode = 0o644 if path == config.ssl_server_cert else 0o600
+			os.chmod(path=path, mode=mode)
+			dirname = os.path.dirname(path)
+			if dirname.count('/') >= 3:
+				shutil.chown(path=dirname, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+				os.chmod(path=dirname, mode=0o770)
 
 def check_ssl_expiry():
 	for cert in (config.ssl_ca_cert, config.ssl_server_cert):
@@ -159,7 +166,8 @@ def renew_ca() -> Tuple[X509, PKey]:
 	if os.path.exists(config.ssl_ca_key):
 		logger.info("Using existing key to create new CA")
 		with open(config.ssl_ca_key, "r") as file:
-			ca_key = load_privatekey(FILETYPE_PEM,  file.read())
+			passphrase = (config.ssl_ca_key_passphrase or DEFAULT_CA_KEY_PASSPHRASE).encode("utf-8")
+			ca_key = load_privatekey(FILETYPE_PEM, file.read(), passphrase=passphrase)
 	else:
 		logger.info("Key not found, create new CA with new key")
 		ca_key = PKey()

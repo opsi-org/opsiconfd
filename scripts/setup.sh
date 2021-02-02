@@ -12,4 +12,5 @@ rm /tmp/hosts
 /workspace/scripts/setup-mysql.sh
 
 mkdir /var/log/opsi
+mkdir /var/lib/opsi/workbench
 # sudo opsi-backup restore /workspace/opsi_dev_backup.tar.bz2

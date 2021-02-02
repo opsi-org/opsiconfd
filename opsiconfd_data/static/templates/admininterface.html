@@ -252,11 +252,26 @@
 				<table>
 					<tr>
 						<td><button id="take-snapshot-button" onclick="takeMemorySnapshot()">Take Snapshot</button> </td>
+						<td><input type="button" onclick="diffMemorySnapshots()" value="Diff Snapshots"></td>
 						<td><input type="button" onclick="deleteMemorySnapshots()" value="Delete Snapshots"></td>
+						<!-- <td><input type="button" onclick="deleteMemoryTracker()" value="Delete Tracker"></td> -->
+					</tr>
+				</table>
+				<hr>
+				<h4>Class Tracker</h4>
+				<table>
+					<tr>
+						<td><input id="module-name" type="text" name="module-name" placeholder="module"></td>
 					</tr>
 					<tr>
-						<td><input type="button" onclick="diffMemorySnapshots()" value="Diff Snapshots"></td>
-						<td><input type="button" onclick="deleteMemoryTracker()" value="Delete Tracker"></td>
+						<td><input id="class-name" type="text" name="class-name" placeholder="class"></td>
+					</tr>
+					<tr>
+						<td><input id="description" type="text" name="description" placeholder="description"></td>
+						<td><input type="button" onclick="takeClassSnapshot()" value="Take Class Snapshot"></td>
+					</tr>
+					<tr>
+						<td><input type="button" onclick="classSummary()" value="Summary"></td>
 					</tr>
 				</table>
 			</div>

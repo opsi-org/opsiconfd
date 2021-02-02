@@ -324,6 +324,56 @@ function diffMemorySnapshots() {
 	request.send()
 }
 
+function takeClassSnapshot() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	console.log("get memory info");
+	request.open("POST", "/admin/memory/classtracker");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			console.log("take class snapshot");
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	className = document.getElementById("class-name").value;
+	moduleName = document.getElementById("module-name").value;
+	description = document.getElementById("description").value;
+	body = {
+		"module": moduleName,
+		"class": className,
+		"description": description
+	}
+	request.send(JSON.stringify(body));
+}
+
+function classSummary() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	console.log("get class info");
+	request.open("GET", "/admin/memory/classtracker/summary");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			console.log("show class summary");
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
 function deleteMemorySnapshots() {
 	console.log("deleteMemorySnapshots");
 	let request = new XMLHttpRequest();

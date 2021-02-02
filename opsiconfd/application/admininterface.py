@@ -37,7 +37,6 @@ templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates
 MEMORY_TRACKER = None
 CLASS_TRACKER = None
 
-
 def admin_interface_setup(app):
 	app.include_router(admin_interface_router, prefix="/admin")
 
@@ -318,7 +317,10 @@ async def delte_memory_snapshot() -> JSONResponse:
 	return response
 
 @admin_interface_router.get("/memory/diff")
-async def get_memory_diff() -> JSONResponse:
+async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
+
+	logger.devel("snapshot1 %s", snapshot1)
+	logger.devel("snapshot2 %s", snapshot2)
 
 	global MEMORY_TRACKER # pylint: disable=global-statement
 	if not MEMORY_TRACKER:
@@ -328,11 +330,33 @@ async def get_memory_diff() -> JSONResponse:
 	node = get_node_name()
 	# cmd = f"TS.ADD opsiconfd:stats:memory:summary:{node} {timestamp} "
 
-	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", 1)
+	snapshot_count = await redis_client.llen(f"opsiconfd:stats:memory:summary:{node}")
+
+	logger.devel("snapshot1 %s", type(snapshot1))
+	logger.devel("snapshot2 %s", type(snapshot2))
+
+	logger.devel("snapshot_count %s", snapshot_count)
+
+	if snapshot1 < 0:
+		start = abs(snapshot1) - 1
+	else:
+		start = snapshot_count - snapshot1
+
+	if snapshot2 < 0:
+		end = abs(snapshot2) - 1
+	else:
+		end = snapshot_count - snapshot2
+
+	logger.devel("start: %s", start)
+	logger.devel("end: %s", end)
+
+
+	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", start)
 	snapshot1 = orjson.loads(decode_redis_result(redis_result)).get("memory_summary") # pylint: disable=c-extension-no-member
-	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", 0)
+	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", end)
+	logger.devel(orjson.loads(decode_redis_result(redis_result)).get("timestamp")) # pylint: disable=c-extension-no-member
 	snapshot2 = orjson.loads(decode_redis_result(redis_result)).get("memory_summary") # pylint: disable=c-extension-no-member
-	logger.devel(decode_redis_result(redis_result))
+	logger.devel(orjson.loads(decode_redis_result(redis_result)).get("timestamp")) # pylint: disable=c-extension-no-member
 
 	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
 
@@ -378,7 +402,7 @@ async def classtracker_snapshot(request: Request) -> JSONResponse:
 	return response
 
 @admin_interface_router.get("/memory/classtracker/summary")
-def classtracker_summary() -> JSONResponse:
+async def classtracker_summary() -> JSONResponse:
 
 	global CLASS_TRACKER # pylint: disable=global-statement
 
@@ -428,3 +452,4 @@ def convert_bytes(bytes): # pylint: disable=redefined-builtin
 			break
 		bytes = bytes/1024.0
 	return f"{bytes:.2f} {unit}"
+

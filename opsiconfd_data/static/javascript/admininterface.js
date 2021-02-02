@@ -308,7 +308,21 @@ function diffMemorySnapshots() {
 	document.getElementById("memory-values").innerHTML = "loading...";
 	let request = new XMLHttpRequest();
 	console.log("get memory info");
-	request.open("GET", "/admin/memory/diff");
+
+	snapshotNumber1 = document.getElementById("snapshot1").value;
+	snapshotNumber2 = document.getElementById("snapshot2").value;
+	console.log(snapshotNumber1);
+	console.log(snapshotNumber2);
+	if (snapshotNumber1 == ""){
+		snapshotNumber1 = 1
+	}
+	if (snapshotNumber2 == ""){
+		snapshotNumber2 = -1
+	}
+	console.log(snapshotNumber1);
+	console.log(snapshotNumber2);
+	url = "/admin/memory/diff?snapshot1="+snapshotNumber1+"&snapshot2="+snapshotNumber2
+	request.open("GET", url);
 	request.addEventListener('load', function (event) {
 		if (request.status >= 200 && request.status < 300) {
 			console.log("show memory diff");
@@ -321,6 +335,9 @@ function diffMemorySnapshots() {
 			return request.statusText;
 		}
 	});
+
+
+
 	request.send()
 }
 

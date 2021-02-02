@@ -252,9 +252,14 @@
 				<table>
 					<tr>
 						<td><button id="take-snapshot-button" onclick="takeMemorySnapshot()">Take Snapshot</button> </td>
-						<td><input type="button" onclick="diffMemorySnapshots()" value="Diff Snapshots"></td>
 						<td><input type="button" onclick="deleteMemorySnapshots()" value="Delete Snapshots"></td>
+
 						<!-- <td><input type="button" onclick="deleteMemoryTracker()" value="Delete Tracker"></td> -->
+					</tr>
+					<tr>
+						<td>s1: <input id="snapshot1" type="number" name="snapshot1" placeholder=1></td>
+						<td>s2: <input id="snapshot2" type="number" name="snapshot2" placeholder=-1></td>
+						<td><input type="button" onclick="diffMemorySnapshots()" value="Diff Snapshots"></td>
 					</tr>
 				</table>
 				<hr>
@@ -271,6 +276,7 @@
 						<td><input type="button" onclick="takeClassSnapshot()" value="Take Class Snapshot"></td>
 					</tr>
 					<tr>
+
 						<td><input type="button" onclick="classSummary()" value="Summary"></td>
 					</tr>
 				</table>

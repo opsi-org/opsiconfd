@@ -42,6 +42,7 @@ from aredis.exceptions import ResponseError
 from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
+from OPSI.Config import OPSI_ADMIN_GROUP
 
 from opsicommon.logging import logger, secret_filter, set_context
 
@@ -237,6 +238,9 @@ class SessionMiddleware:
 								config.admin_networks
 							)
 							session.user_store.isAdmin = False
+							if OPSI_ADMIN_GROUP in session.user_store.userGroups:
+								# Remove admin group from groups because acl.conf currently does not support isAdmin
+								session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
 							asyncio.get_event_loop().create_task(session.store())
 
 				# Check authorization

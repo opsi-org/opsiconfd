@@ -42,7 +42,7 @@ from .utils import get_ip_addresses
 
 CA_DAYS = 730
 CERT_DAYS = 365
-DEFAULT_CA_KEY_PASSPHRASE = "Co8Reevahfeing6w"
+PRIVATE_KEY_CIPHER = "DES3"
 
 def setup_ssl(): # pylint: disable=too-many-branches
 	logger.info("Setup ssl")
@@ -64,8 +64,14 @@ def setup_ssl(): # pylint: disable=too-many-branches
 			os.makedirs(os.path.dirname(config.ssl_ca_key))
 			os.chmod(path=os.path.dirname(config.ssl_ca_key), mode=0o700)
 		with open(config.ssl_ca_key, "wb") as out:
-			passphrase = (config.ssl_ca_key_passphrase or "Co8Reevahfeing6w").encode("utf-8")
-			out.write(dump_privatekey(FILETYPE_PEM, ca_key, cipher="DES3", passphrase=passphrase))
+			out.write(
+				dump_privatekey(
+					FILETYPE_PEM,
+					ca_key,
+					cipher=PRIVATE_KEY_CIPHER,
+					passphrase=config.ssl_ca_key_passphrase.encode("utf-8")
+				)
+			)
 
 		if os.path.exists(config.ssl_ca_cert):
 			os.unlink(config.ssl_ca_cert)
@@ -78,12 +84,14 @@ def setup_ssl(): # pylint: disable=too-many-branches
 		setup_ssl_file_permissions()
 
 	if not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
-
 		if not ca_key:
 			with open(config.ssl_ca_key, "r") as file:
-				passphrase = (config.ssl_ca_key_passphrase or DEFAULT_CA_KEY_PASSPHRASE).encode("utf-8")
 				try:
-					ca_key = load_privatekey(FILETYPE_PEM, file.read(), passphrase=passphrase)
+					ca_key = load_privatekey(
+						FILETYPE_PEM,
+						file.read(),
+						passphrase=config.ssl_ca_key_passphrase.encode("utf-8")
+					)
 				except CryptoError as err:
 					raise RuntimeError(
 						f"Failed to load CA private key from '{config.ssl_ca_key}': {err}"
@@ -107,7 +115,14 @@ def setup_ssl(): # pylint: disable=too-many-branches
 			out.write(dump_certificate(FILETYPE_PEM, srv_crt))
 
 		with open(config.ssl_server_key, "ab") as out:
-			out.write(dump_privatekey(FILETYPE_PEM, srv_key))
+			out.write(
+				dump_privatekey(
+					FILETYPE_PEM,
+					srv_key,
+					cipher=PRIVATE_KEY_CIPHER,
+					passphrase=config.ssl_server_key_passphrase.encode("utf-8")
+				)
+			)
 		if not os.path.exists(os.path.dirname(config.ssl_server_cert)):
 			os.makedirs(os.path.dirname(config.ssl_server_cert))
 			os.chmod(path=os.path.dirname(config.ssl_server_cert), mode=0o700)
@@ -166,8 +181,16 @@ def renew_ca() -> Tuple[X509, PKey]:
 	if os.path.exists(config.ssl_ca_key):
 		logger.info("Using existing key to create new CA")
 		with open(config.ssl_ca_key, "r") as file:
-			passphrase = (config.ssl_ca_key_passphrase or DEFAULT_CA_KEY_PASSPHRASE).encode("utf-8")
-			ca_key = load_privatekey(FILETYPE_PEM, file.read(), passphrase=passphrase)
+			try:
+				ca_key = load_privatekey(
+					FILETYPE_PEM,
+					file.read(),
+					passphrase=config.ssl_ca_key_passphrase.encode("utf-8")
+				)
+			except CryptoError as err:
+				raise RuntimeError(
+					f"Failed to load CA private key from '{config.ssl_ca_key}': {err}"
+				) from err
 	else:
 		logger.info("Key not found, create new CA with new key")
 		ca_key = PKey()

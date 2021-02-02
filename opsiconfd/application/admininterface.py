@@ -246,7 +246,9 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 		"node_name",
 		"executor_type",
 		"executor_workers",
-		"log_slow_async_callbacks"
+		"log_slow_async_callbacks",
+		"ssl_ca_key_passphrase",
+		"ssl_server_key_passphrase"
 	]
 
 	current_config = config.items().copy()

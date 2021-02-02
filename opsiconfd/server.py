@@ -145,6 +145,7 @@ def run_uvicorn():
 		options["host"] = ["::", "0.0.0.0"]
 	if config.ssl_server_key and config.ssl_server_cert:
 		options["ssl_keyfile"] = config.ssl_server_key
+		options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
 		options["ssl_certfile"] = config.ssl_server_cert
 		options["ssl_ciphers"] = config.ssl_ciphers
 

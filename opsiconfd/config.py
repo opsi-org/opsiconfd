@@ -36,6 +36,7 @@ import configargparse
 from .utils import Singleton
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
+
 fqdn = socket.getfqdn()
 
 CONFIG_FILE_HEADER = """
@@ -179,14 +180,11 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 	def _get_help_string(self, action):
 		text = action.help
-		#text = re.sub("(\[env var: )([^\]]+)(\])", f"\g<1>{self.CB}\g<2>{self.CN}\g<3>", text)
-		if '%(default)' not in action.help:
+		if "passphrase" not in action.dest and "%(default)" not in action.help:
 			if action.default is not SUPPRESS:
 				defaulting_nargs = [OPTIONAL, ZERO_OR_MORE]
 				if action.option_strings or action.nargs in defaulting_nargs:
-					#text += f' (default: {self.CY}%(default)s{self.CN})'
-					text += f' (default: %(default)s)' # pylint: disable=f-string-without-interpolation
-
+					text += " (default: %(default)s)"
 		return text
 
 parser = configargparse.ArgParser(
@@ -426,7 +424,8 @@ parser.add(
 )
 parser.add(
 	"--ssl-ca-key-passphrase",
-	env_var="OPSICONFD_SSL_CA_PASSPHRASE",
+	env_var="OPSICONFD_SSL_CA_KEY_PASSPHRASE",
+	default="Toohoerohpiep8yo",
 	help="Passphrase to use to encrypt CA key."
 )
 parser.add(
@@ -440,6 +439,12 @@ parser.add(
 	env_var="OPSICONFD_SSL_SERVER_KEY",
 	default="/etc/opsi/ssl/opsiconfd.pem",
 	help="The location of the ssl server key."
+)
+parser.add(
+	"--ssl-server-key-passphrase",
+	env_var="OPSICONFD_SSL_SERVER_KEY_PASSPHRASE",
+	default="ye3heiwaiLu9pama",
+	help="Passphrase to use to encrypt server key."
 )
 parser.add(
 	"--ssl-server-cert",

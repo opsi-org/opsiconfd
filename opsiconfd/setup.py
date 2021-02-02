@@ -34,7 +34,7 @@ from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP
 from OPSI.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,
 	setup_file_permissions as po_setup_file_permissions,
-	add_user_to_group, create_user, set_primary_group
+	add_user_to_group, create_user, set_primary_group, create_group
 )
 from OPSI.System.Posix import getLocalFqdn, locateDHCPDConfig
 from OPSI.Util.Task.InitializeBackend import initializeBackends
@@ -82,6 +82,14 @@ def setup_users_and_groups():
 		)
 		user = pwd.getpwnam(config.run_as_user)
 
+	try:
+		grp.getgrnam("shadow")
+	except KeyError:
+		create_group(
+			groupname="shadow",
+			system=True
+		)
+
 	gids = os.getgrouplist(user.pw_name, user.pw_gid)
 	for groupname in ("shadow", OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP):
 		logger.debug("Processing group %s", groupname)
@@ -108,19 +116,22 @@ def setup_file_permissions():
 
 	setup_ssl_file_permissions()
 
-	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
-	for fn in ("/var/log/opsi/opsiconfd/opsiconfd.log", dhcpd_config_file): # pylint: disable=invalid-name
-		if os.path.exists(fn):
-			shutil.chown(path=fn, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			os.chmod(path=fn, mode=0o644 if fn == dhcpd_config_file else 0o660)
+	shutil.chown(path="/etc/shadow", group="shadow")
+	os.chmod(path="/etc/shadow", mode=0o640)
 
-	for d in ( # pylint: disable=invalid-name
+	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
+	for path in ("/var/log/opsi/opsiconfd/opsiconfd.log", dhcpd_config_file):
+		if os.path.exists(path):
+			shutil.chown(path=path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
+			os.chmod(path=path, mode=0o644 if path == dhcpd_config_file else 0o660)
+
+	for path in (
 		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
 		"/var/log/opsi/opsiconfd", "/var/log/opsi/userlogin", "/var/lib/opsi/depot",
 		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository", "/var/lib/opsi/workbench"
 	):
-		if os.path.isdir(d) and not os.access(d, os.R_OK | os.W_OK | os.X_OK):
-			po_setup_file_permissions(d)
+		if os.path.isdir(path) and not os.access(path, os.R_OK | os.W_OK | os.X_OK):
+			po_setup_file_permissions(path)
 
 def setup_systemd():
 	systemd_running = False

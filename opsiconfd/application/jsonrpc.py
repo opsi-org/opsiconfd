@@ -165,12 +165,12 @@ def _store_product_ordering(result, params):
 	except Exception as err: # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 
-def _set_outdated(params):
+def _set_jsonrpc_cache_outdated(params):
 	with sync_redis_client() as redis:
 		saved_depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
 		depots = []
 		for depot in saved_depots:
-			if  str(params).find(depot) != -1:
+			if str(params).find(depot) != -1:
 				depots.append(depot)
 		if len(depots) == 0:
 			depots = saved_depots
@@ -182,7 +182,7 @@ def _set_outdated(params):
 				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
 			pipe.execute()
 
-def _rm_depot_from_redis(depot_id):
+def _remove_depot_from_jsonrpc_cache(depot_id):
 	with sync_redis_client() as redis:
 		with redis.pipeline() as pipe:
 			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products")
@@ -260,34 +260,33 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 
 		for rpc in jsonrpc:
 			task = None
-			use_redis_cache = False
 			if rpc.get('method') in PRODUCT_METHODS:
 				asyncio.get_event_loop().create_task(
-					run_in_threadpool(_set_outdated, rpc.get('params'))
+					run_in_threadpool(_set_jsonrpc_cache_outdated, rpc.get('params'))
 				)
-			if rpc.get('method') == "deleteDepot" or rpc.get('method') == "host_delete":
+			elif rpc.get('method') in ("deleteDepot", "host_delete"):
 				asyncio.get_event_loop().create_task(
-					run_in_threadpool(_rm_depot_from_redis, rpc.get('params')[0])
+					run_in_threadpool(_remove_depot_from_jsonrpc_cache, rpc.get('params')[0])
 				)
-			if rpc.get('method') == "getProductOrdering":
+			elif rpc.get('method') == "getProductOrdering":
 				depot = rpc.get('params')[0]
+				cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
 				algorithm = _get_sort_algorithm(rpc.get('params'))
 				redis_client = await get_redis_client()
-				products_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
-				sorted_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
-				cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
-				if products_uptodate and sorted_uptodate and not cache_outdated:
-					use_redis_cache = True
-					task = run_in_threadpool(read_redis_cache, request, response, rpc)
 				if cache_outdated:
 					get_backend().config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
 					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
 					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
 					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
-			if not use_redis_cache:
+				else:
+					products_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+					sorted_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
+					if products_uptodate and sorted_uptodate:
+						task = run_in_threadpool(read_redis_cache, request, response, rpc)
+
+			if not task:
 				task = run_in_threadpool(process_rpc, request, response, rpc, backend)
-			if task:
-				tasks.append(task)
+			tasks.append(task)
 
 		asyncio.get_event_loop().create_task(
 			get_metrics_collector().add_value(

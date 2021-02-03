@@ -28,6 +28,7 @@ import shutil
 import getpass
 import resource
 import subprocess
+from pathlib import Path
 import psutil
 
 from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP
@@ -120,7 +121,7 @@ def setup_file_permissions():
 	os.chmod(path="/etc/shadow", mode=0o640)
 
 	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
-	for path in ("/var/log/opsi/opsiconfd/opsiconfd.log", dhcpd_config_file):
+	for path in ("/var/log/opsi/opsiconfd/opsiconfd.log", "/etc/opsi/modules", dhcpd_config_file):
 		if os.path.exists(path):
 			shutil.chown(path=path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 			os.chmod(path=path, mode=0o644 if path == dhcpd_config_file else 0o660)
@@ -128,10 +129,14 @@ def setup_file_permissions():
 	for path in (
 		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
 		"/var/log/opsi/opsiconfd", "/var/log/opsi/userlogin", "/var/lib/opsi/depot",
-		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository", "/var/lib/opsi/workbench"
+		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository"
 	):
-		if os.path.isdir(path) and not os.access(path, os.R_OK | os.W_OK | os.X_OK):
-			po_setup_file_permissions(path)
+		try:
+			path = Path(path)
+			if path.is_dir() and path.owner() != config.run_as_user:
+				po_setup_file_permissions(str(path))
+		except KeyError as err:
+			logger.warning("Failed to set permissions on '%s': %s", str(path), err)
 
 def setup_systemd():
 	systemd_running = False

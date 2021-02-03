@@ -37,6 +37,7 @@ templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates
 MEMORY_TRACKER = None
 CLASS_TRACKER = None
 
+
 def admin_interface_setup(app):
 	app.include_router(admin_interface_router, prefix="/admin")
 
@@ -409,22 +410,17 @@ async def classtracker_summary() -> JSONResponse:
 	if not CLASS_TRACKER:
 		CLASS_TRACKER = classtracker.ClassTracker()
 
-	class_tracker_summary = []
-	logger.essential("---- SUMMARY ------------------------------------------------------------------")
+	class_summary = []
+
+	annotate_snapshots(CLASS_TRACKER.stats)
+
 	for snapshot in CLASS_TRACKER.snapshots:
 		classes = []
-		logger.essential(snapshot.desc)
 		for cls in snapshot.classes:
 			cls_values = snapshot.classes.get(cls)
-			logger.essential("  %s", cls)
-
 			active = cls_values.get("active")
 			mem_sum = convert_bytes(cls_values.get("sum"))
 			mem_avg = convert_bytes(cls_values.get("avg"))
-
-			logger.essential("    %5s %15s %15s", "active", "sum", "average")
-			logger.essential("    %5s %15s %15s",  active, mem_sum, mem_avg)
-
 			cls_dict = {
 				"class": cls,
 				"active": active,
@@ -432,16 +428,13 @@ async def classtracker_summary() -> JSONResponse:
 				"avg": mem_avg
 			}
 			classes.append(cls_dict)
-		snapshot_dict = {
-			"description": snapshot.desc,
-			"classes": classes
-		}
-		class_tracker_summary.append(snapshot_dict)
-	logger.essential("-------------------------------------------------------------------------------")
+		class_summary.append({"description": snapshot.desc, "classes": classes})
 
 	# CLASS_TRACKER.close() # TODO close class Tracker
 
-	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Class Tracker Summary.", "summary": class_tracker_summary}})
+	print_class_summary(class_summary)
+
+	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Class Tracker Summary.", "summary": class_summary}})
 	return response
 
 # TODO: maybe do this in JS
@@ -453,3 +446,61 @@ def convert_bytes(bytes): # pylint: disable=redefined-builtin
 		bytes = bytes/1024.0
 	return f"{bytes:.2f} {unit}"
 
+@admin_interface_router.delete("/memory/classtracker")
+async def delte_class_tracker() -> JSONResponse:
+
+	logger.devel("delte_class_tracker")
+
+	global CLASS_TRACKER # pylint: disable=global-statement
+	CLASS_TRACKER.close()
+	CLASS_TRACKER = None
+	logger.devel(CLASS_TRACKER)
+
+	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted class tracker."}})
+	return response
+
+
+def print_class_summary(summary: list) -> None:
+
+	logger.essential("---- SUMMARY " + "-" * 66)
+	for snapshot in summary:
+		logger.essential("%-35s %11s %12s %12s", snapshot.get("description"), "active", "sum", 'average')
+		for cls in snapshot.get("classes"):
+			name = cls.get("class")
+			active = cls.get("active")
+			mem_sum = cls.get("sum")
+			mem_avg = cls.get("avg")
+			logger.essential("  %-33s %11d %12s %12s", name, active, mem_sum, mem_avg)
+	logger.essential("-" * 79)
+
+
+def annotate_snapshots(stats):
+	"""
+	Annotate all snapshots with class-based summaries.
+	"""
+	for snapshot in stats.snapshots:
+		annotate_snapshot(stats, snapshot)
+
+def annotate_snapshot(stats, snapshot):
+	"""
+	Store additional statistical data in snapshot.
+	"""
+
+	snapshot.classes = {}
+
+	for classname in list(stats.index.keys()):
+		total = 0
+		active = 0
+
+		for tobj in stats.index[classname]:
+			total += tobj.get_size_at_time(snapshot.timestamp)
+			if (tobj.birth < snapshot.timestamp and
+					(tobj.death is None or
+						tobj.death > snapshot.timestamp)):
+				active += 1
+		try:
+			avg = total / active
+		except ZeroDivisionError:
+			avg = 0
+
+		snapshot.classes[classname] = dict(sum=total, avg=avg, active=active)

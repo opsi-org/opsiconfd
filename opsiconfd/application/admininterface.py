@@ -25,7 +25,7 @@ from ..logging import logger
 from ..config import config
 from ..backend import get_backend_interface
 from ..worker import get_redis_client
-from ..utils import get_random_string, get_fqdn
+from ..utils import get_random_string, get_fqdn, get_node_name
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
@@ -41,6 +41,7 @@ async def admin_interface_index(request: Request):
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
+		"node_name": get_node_name(),
 		"interface": get_backend_interface(),
 	}
 	return templates.TemplateResponse("admininterface.html", context)

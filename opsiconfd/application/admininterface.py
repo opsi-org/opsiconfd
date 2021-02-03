@@ -6,8 +6,6 @@ This file is part of opsi - https://www.opsi.org
 See LICENSES/README.md for more Information
 """
 
-import sys
-import time
 from urllib.parse import urlparse
 from operator import itemgetter
 import os
@@ -19,8 +17,6 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from pympler import tracker, classtracker
-
 from OPSI import __version__ as python_opsi_version
 from .. import __version__
 
@@ -29,13 +25,11 @@ from ..logging import logger
 from ..config import config
 from ..backend import get_backend_interface
 from ..worker import get_redis_client
-from ..utils import get_random_string, get_fqdn, get_node_name, decode_redis_result
+from ..utils import get_random_string, get_fqdn, get_node_name
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
 
-MEMORY_TRACKER = None
-CLASS_TRACKER = None
 
 def admin_interface_setup(app):
 	app.include_router(admin_interface_router, prefix="/admin")
@@ -47,6 +41,7 @@ async def admin_interface_index(request: Request):
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
+		"node_name": get_node_name(),
 		"interface": get_backend_interface(),
 	}
 	return templates.TemplateResponse("admininterface.html", context)
@@ -259,199 +254,3 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
 	return response
-
-
-@admin_interface_router.get("/memory-summary")
-def pympler_info() -> JSONResponse:
-
-	global MEMORY_TRACKER # pylint: disable=global-statement
-	if not MEMORY_TRACKER:
-		MEMORY_TRACKER = tracker.SummaryTracker()
-
-	memory_summary = MEMORY_TRACKER.create_summary()
-	memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
-
-	response = JSONResponse({"status": 200, "error": None, "data": {"memory_summary": memory_summary}})
-	return response
-
-@admin_interface_router.post("/memory/snapshot")
-async def memory_info() -> JSONResponse:
-
-	global MEMORY_TRACKER # pylint: disable=global-statement
-	if not MEMORY_TRACKER:
-		MEMORY_TRACKER = tracker.SummaryTracker()
-
-	memory_summary = MEMORY_TRACKER.create_summary()
-	memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
-
-	redis_client = await get_redis_client()
-	timestamp = int(time.time() * 1000)
-	node = get_node_name()
-
-	# TODO: redis pipeline
-	value = orjson.dumps({"memory_summary": memory_summary, "timestamp": timestamp}) # pylint: disable=c-extension-no-member
-	redis_result = await redis_client.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
-	logger.debug("redis lpush memory summary: %s", redis_result)
-	redis_result = await redis_client.ltrim(f"opsiconfd:stats:memory:summary:{node}", 0, 9)
-	logger.debug("redis ltrim memory summary: %s", redis_result)
-
-	logger.devel("MEMORY_TRACKER.summaries: %s", MEMORY_TRACKER.summaries)
-	logger.devel("MEMORY_TRACKER: %s", len(MEMORY_TRACKER.summaries))
-
-	for idx in range(0, len(memory_summary)-1):
-		memory_summary[idx][2] = convert_bytes(memory_summary[idx][2])
-
-	response = JSONResponse({"status": 200, "error": None, "data": {"memory_summary": memory_summary}})
-	return response
-
-@admin_interface_router.delete("/memory/snapshot")
-async def delte_memory_snapshot() -> JSONResponse:
-
-	redis_client = await get_redis_client()
-	node = get_node_name()
-
-	await redis_client.delete(f"opsiconfd:stats:memory:summary:{node}")
-
-	global MEMORY_TRACKER # pylint: disable=global-statement
-	MEMORY_TRACKER = None
-
-	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted all memory snapshots."}})
-	return response
-
-@admin_interface_router.get("/memory/diff")
-async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
-
-	logger.devel("snapshot1 %s", snapshot1)
-	logger.devel("snapshot2 %s", snapshot2)
-
-	global MEMORY_TRACKER # pylint: disable=global-statement
-	if not MEMORY_TRACKER:
-		MEMORY_TRACKER = tracker.SummaryTracker()
-
-	redis_client = await get_redis_client()
-	node = get_node_name()
-	# cmd = f"TS.ADD opsiconfd:stats:memory:summary:{node} {timestamp} "
-
-	snapshot_count = await redis_client.llen(f"opsiconfd:stats:memory:summary:{node}")
-
-	logger.devel("snapshot1 %s", type(snapshot1))
-	logger.devel("snapshot2 %s", type(snapshot2))
-
-	logger.devel("snapshot_count %s", snapshot_count)
-
-	if snapshot1 < 0:
-		start = abs(snapshot1) - 1
-	else:
-		start = snapshot_count - snapshot1
-
-	if snapshot2 < 0:
-		end = abs(snapshot2) - 1
-	else:
-		end = snapshot_count - snapshot2
-
-	logger.devel("start: %s", start)
-	logger.devel("end: %s", end)
-
-
-	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", start)
-	snapshot1 = orjson.loads(decode_redis_result(redis_result)).get("memory_summary") # pylint: disable=c-extension-no-member
-	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", end)
-	logger.devel(orjson.loads(decode_redis_result(redis_result)).get("timestamp")) # pylint: disable=c-extension-no-member
-	snapshot2 = orjson.loads(decode_redis_result(redis_result)).get("memory_summary") # pylint: disable=c-extension-no-member
-	logger.devel(orjson.loads(decode_redis_result(redis_result)).get("timestamp")) # pylint: disable=c-extension-no-member
-
-	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
-
-	for idx in range(0, len(memory_summary)-1):
-		memory_summary[idx][2] = convert_bytes(memory_summary[idx][2])
-
-	response = JSONResponse({"status": 200, "error": None, "data": {"memory_diff": memory_summary}})
-	return response
-
-@admin_interface_router.post("/memory/classtracker")
-async def classtracker_snapshot(request: Request) -> JSONResponse:
-
-	request_body = await request.json()
-	class_name = request_body.get("class")
-	module_name = request_body.get("module")
-	description = request_body.get("description")
-
-	def get_class(modulename,classname):
-		return getattr(sys.modules.get(modulename), classname)
-
-	global CLASS_TRACKER # pylint: disable=global-statement
-	if not CLASS_TRACKER:
-		CLASS_TRACKER = classtracker.ClassTracker()
-
-	logger.debug("class name: %s", class_name)
-	logger.debug("module_name: %s", module_name)
-	logger.debug("description: %s", description)
-
-	logger.debug("get class: %s", get_class(module_name, class_name))
-	CLASS_TRACKER.track_class(get_class(module_name, class_name), name=class_name)
-	CLASS_TRACKER.create_snapshot(description)
-
-	response = JSONResponse({
-		"status": 200,
-		"error": None,
-		"data": {
-			"msg": "class snapshot created.",
-			"class": class_name,
-			"description": description,
-			"module": module_name
-			}
-		})
-	return response
-
-@admin_interface_router.get("/memory/classtracker/summary")
-async def classtracker_summary() -> JSONResponse:
-
-	global CLASS_TRACKER # pylint: disable=global-statement
-
-	if not CLASS_TRACKER:
-		CLASS_TRACKER = classtracker.ClassTracker()
-
-	class_tracker_summary = []
-	logger.essential("---- SUMMARY ------------------------------------------------------------------")
-	for snapshot in CLASS_TRACKER.snapshots:
-		classes = []
-		logger.essential(snapshot.desc)
-		for cls in snapshot.classes:
-			cls_values = snapshot.classes.get(cls)
-			logger.essential("  %s", cls)
-
-			active = cls_values.get("active")
-			mem_sum = convert_bytes(cls_values.get("sum"))
-			mem_avg = convert_bytes(cls_values.get("avg"))
-
-			logger.essential("    %5s %15s %15s", "active", "sum", "average")
-			logger.essential("    %5s %15s %15s",  active, mem_sum, mem_avg)
-
-			cls_dict = {
-				"class": cls,
-				"active": active,
-				"sum": mem_sum,
-				"avg": mem_avg
-			}
-			classes.append(cls_dict)
-		snapshot_dict = {
-			"description": snapshot.desc,
-			"classes": classes
-		}
-		class_tracker_summary.append(snapshot_dict)
-	logger.essential("-------------------------------------------------------------------------------")
-
-	# CLASS_TRACKER.close() # TODO close class Tracker
-
-	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Class Tracker Summary.", "summary": class_tracker_summary}})
-	return response
-
-# TODO: maybe do this in JS
-def convert_bytes(bytes): # pylint: disable=redefined-builtin
-	unit = "B"
-	for unit in ["B", "KB", "MB", "GB"]:
-		if bytes < 1024.0 or unit == "GB":
-			break
-		bytes = bytes/1024.0
-	return f"{bytes:.2f} {unit}"
-

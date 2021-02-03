@@ -28,7 +28,6 @@
 
 			document.getElementById("jsonrpc-result").style.visibility = 'hidden';
 			document.getElementById("jsonrpc-request").style.visibility = 'hidden';
-			document.getElementById("memory-info").style.visibility = 'hidden';
 		}
 
 		function createParamInputs() {
@@ -64,11 +63,6 @@
 			// Declare all variables
 			var i, tabcontent, tablinks;
 
-			console.log(i);
-			console.log(tabcontent);
-			console.log(tablinks);
-			console.log(tabName);
-
 			if (tabName == "rpcInfos") {
 				loadRPCTable("rpc_num", false);
 			}
@@ -83,10 +77,6 @@
 			}
 			if (tabName == "confdConfig") {
 				loadConfdConfig();
-			}
-			if (tabName == "memory") {
-				// loadMemoryInfo();
-				console.log("MEMORY");
 			}
 			if (tabName == "log-viewer") {
 				startLog();
@@ -118,7 +108,7 @@
 <body onload="onLoad();">
 	<div class="header">
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
-		<h1>opsiconfd {{opsi_version}}</h1>
+		<h1>opsiconfd {{opsi_version}} running on {{node_name}}</h1>
 	</div>
 	<div class="content">
 
@@ -129,7 +119,6 @@
 			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
 			<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
 			<button class="tablinks" onclick="openTab(event, 'confdConfig')">Config</button>
-			<button class="tablinks" onclick="openTab(event, 'memory')">Memory Usage</button>
 			<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
 			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>
 		</div>
@@ -243,46 +232,6 @@
 				<div id="config">
 					<pre class="config-values" id="config-values"></pre>
 				</div>
-			</div>
-		</div>
-
-		<div id="memory" class="tabcontent">
-			<div class="adminpage-box">
-				<h4>Memory Usage</h4>
-				<table>
-					<tr>
-						<td><button id="take-snapshot-button" onclick="takeMemorySnapshot()">Take Snapshot</button> </td>
-						<td><input type="button" onclick="deleteMemorySnapshots()" value="Delete Snapshots"></td>
-
-						<!-- <td><input type="button" onclick="deleteMemoryTracker()" value="Delete Tracker"></td> -->
-					</tr>
-					<tr>
-						<td>s1: <input id="snapshot1" type="number" name="snapshot1" placeholder=1></td>
-						<td>s2: <input id="snapshot2" type="number" name="snapshot2" placeholder=-1></td>
-						<td><input type="button" onclick="diffMemorySnapshots()" value="Diff Snapshots"></td>
-					</tr>
-				</table>
-				<hr>
-				<h4>Class Tracker</h4>
-				<table>
-					<tr>
-						<td><input id="module-name" type="text" name="module-name" placeholder="module"></td>
-					</tr>
-					<tr>
-						<td><input id="class-name" type="text" name="class-name" placeholder="class"></td>
-					</tr>
-					<tr>
-						<td><input id="description" type="text" name="description" placeholder="description"></td>
-						<td><input type="button" onclick="takeClassSnapshot()" value="Take Class Snapshot"></td>
-					</tr>
-					<tr>
-
-						<td><input type="button" onclick="classSummary()" value="Summary"></td>
-					</tr>
-				</table>
-			</div>
-			<div class="adminpage-box" id="memory-info">
-					<pre class="memory-values" id="memory-values"></pre>
 			</div>
 		</div>
 

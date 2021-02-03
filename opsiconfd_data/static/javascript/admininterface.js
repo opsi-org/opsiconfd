@@ -409,6 +409,24 @@ function deleteMemorySnapshots() {
 	request.send()
 }
 
+function deleteClassTracker() {
+	console.log("deleteMemorySnapshots");
+	let request = new XMLHttpRequest();
+	request.open("DELETE", "/admin/memory/classtracker");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
 function printClientTable(data, htmlId) {
 	if (data.length == 0) {
 		htmlStr = "<p>No clients are blocked by the server.</p>";

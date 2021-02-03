@@ -8,11 +8,16 @@ html {
 
 body {
 	width: 100%;
-	height: calc(100% - 10px);
+	height: calc(100vh - 10px);
 	margin: 0px;
 	padding: 0px;
 	background-color: #eeeeee;
 	color: #3a3a3a;
+}
+
+#logo, #interface-logo {
+	width: 120px;
+	display: inline-block;
 }
 
 a:link, a:visited, a:active {
@@ -25,17 +30,27 @@ a:hover {
 	text-decoration: none;
 }
 
+input {
+	appearance: none;
+	border: 1px solid #cccccc;
+}
+
+button {
+	appearance: none;
+	border: 1px solid #cccccc;
+	padding-bottom: 2px;
+}
+
+li {
+	list-style-type: none;
+}
+
 .header {
 	width: 80%;
 	margin-left: auto;
 	margin-right: auto;
 	margin-top: 10px;
 	margin-bottom: 10px;
-}
-
-#logo, #interface-logo {
-	width: 120px;
-	display: inline-block;
 }
 
 .header > h1 {
@@ -56,10 +71,6 @@ a:hover {
 	width: 250px;
 	margin: 50px auto 0px auto;
 	font-size: 20px;
-}
-
-li {
-	list-style-type: none;
 }
 
 #jsonrpc-request-table > tr > td {
@@ -140,7 +151,7 @@ li {
 /* Style the tab content */
 .tabcontent {
 	display: none;
-	height: calc(100% - 170px);
+	height: calc(100vh - 170px);
 	margin: 1px;
 }
 
@@ -160,6 +171,10 @@ li {
 .LEVEL_ERROR { color: #c90000; }
 .LEVEL_CRITICAL { color: #ff0000; }
 .LEVEL_ESSENTIAL { color: #34e2e2; }
+
+#log-level-filter {
+	max-width: 60px;
+}
 
 #log-settings {
 	margin: 15px 0px 0px 10px;

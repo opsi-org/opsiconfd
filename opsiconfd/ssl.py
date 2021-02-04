@@ -137,7 +137,11 @@ def setup_ssl_file_permissions():
 	for path in (config.ssl_ca_cert, f"{config.ssl_ca_cert}.old", ca_srl, config.ssl_ca_key):
 		if os.path.exists(path):
 			shutil.chown(path=path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			mode = 0o600 if path == config.ssl_ca_key else 0o644
+			mode = 0o644
+			if path == config.ssl_ca_key:
+				mode = 0o600
+			elif path == ca_srl:
+				mode = 0o640
 			os.chmod(path=path, mode=mode)
 			dirname = os.path.dirname(path)
 			if dirname.count('/') >= 3:
@@ -147,7 +151,9 @@ def setup_ssl_file_permissions():
 	for path in (config.ssl_server_cert, config.ssl_server_key):
 		if os.path.exists(path):
 			shutil.chown(path=path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			mode = 0o644 if path == config.ssl_server_cert else 0o600
+			mode = 0o600
+			if config.ssl_server_cert != config.ssl_server_key and path == config.ssl_server_cert:
+				mode = 0o640
 			os.chmod(path=path, mode=mode)
 			dirname = os.path.dirname(path)
 			if dirname.count('/') >= 3:

@@ -564,7 +564,6 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 		if not timestamp:
 			timestamp = self._get_timestamp()
 		async with self._values_lock:
-			# key = json.dumps(kwargs, sort_keys=True)
 			if not metric_id in self._values:
 				self._values[metric_id] = {}
 			if not key_string in self._values[metric_id]:
@@ -577,7 +576,6 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 			if not timestamp in self._values[metric_id][key_string]:
 				self._values[metric_id][key_string][timestamp] = 0
 			self._values[metric_id][key_string][timestamp] += value
-			# logger.debug("VALUES end add_value: %s", self._values)
 
 class ArbiterMetricsCollector(MetricsCollector):
 	_metric_subjects = ["node"]

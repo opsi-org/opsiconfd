@@ -5,7 +5,7 @@ This file is part of opsi - https://www.opsi.org
 :license: GNU Affero General Public License version 3
 See LICENSES/README.md for more Information
 """
-import orjson
+import msgpack
 
 from fastapi.responses import JSONResponse
 
@@ -32,7 +32,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 		rpc_list = decode_redis_result(await redis_client.lrange("opsiconfd:stats:rpcs", 0, 9999))
 		error_count = 0
 		for rpc in rpc_list:
-			rpc = orjson.loads(rpc) # pylint: disable=c-extension-no-member
+			rpc = msgpack.loads(rpc)
 			if rpc["error"]:
 				error_count += 1
 		if error_count == 0:

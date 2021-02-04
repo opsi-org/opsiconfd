@@ -219,12 +219,6 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 		if not "files" in skip_setup:
 			setup_files()
 		#po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
-		if not "ssl" in skip_setup:
-			try:
-				setup_ssl()
-			except Exception as err: # pylint: disable=broad-except
-				# This can fail if fqdn is not valid
-				logger.error("Failed to setup ssl: %s", err)
 		if not "systemd" in skip_setup:
 			setup_systemd()
 	else:
@@ -247,4 +241,10 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 		except Exception as err: # pylint: disable=broad-except
 			logger.warning("Faild to setup redis downsampling: %s", err)
 
+	if not "ssl" in skip_setup:
+		try:
+			setup_ssl()
+		except Exception as err: # pylint: disable=broad-except
+			# This can fail if fqdn is not valid
+			logger.error("Failed to setup ssl: %s", err)
 	check_ssl_expiry()

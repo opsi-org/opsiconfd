@@ -81,8 +81,6 @@ def setup_ssl(): # pylint: disable=too-many-branches
 		with open(config.ssl_ca_cert, "wb") as out:
 			out.write(dump_certificate(FILETYPE_PEM, ca_crt))
 
-		setup_ssl_file_permissions()
-
 	if not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
 		if not ca_key:
 			with open(config.ssl_ca_key, "r") as file:
@@ -127,7 +125,7 @@ def setup_ssl(): # pylint: disable=too-many-branches
 			os.makedirs(os.path.dirname(config.ssl_server_cert))
 			os.chmod(path=os.path.dirname(config.ssl_server_cert), mode=0o700)
 
-		setup_ssl_file_permissions()
+	setup_ssl_file_permissions()
 
 def setup_ssl_file_permissions():
 	# Key and cert can be the same file.

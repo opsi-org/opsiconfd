@@ -114,7 +114,7 @@ def _store_rpc(data, max_rpcs=9999):
 	try:
 		with sync_redis_client() as redis:
 			pipe = redis.pipeline()
-			pipe.lpush("opsiconfd:stats:rpcs", orjson.dumps(data))  # pylint: disable=c-extension-no-member
+			pipe.lpush("opsiconfd:stats:rpcs", msgpack.dumps(data))  # pylint: disable=c-extension-no-member
 			pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs)
 			pipe.execute()
 	except Exception as err:  # pylint: disable=broad-except

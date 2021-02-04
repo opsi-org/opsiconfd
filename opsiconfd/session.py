@@ -30,6 +30,7 @@ import uuid
 import base64
 import datetime
 import orjson
+import msgpack
 
 from fastapi import HTTPException, status
 from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
@@ -436,7 +437,11 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			data = redis.get(self.redis_key)
 		if not data:
 			return False
-		data = orjson.loads(data) # pylint: disable=c-extension-no-member
+		try:
+			data = msgpack.loads(data)
+		except msgpack.exceptions.ExtraData:
+			# Was json encoded before, can be removed in the future
+			data = orjson.loads(data)  # pylint: disable=c-extension-no-member
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
 		for k, v in data.get("user_store", {}).items(): # pylint: disable=invalid-name
@@ -466,12 +471,12 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			del data["user_store"]["password"]
 		with sync_redis_client() as redis:
 			#start = time.perf_counter()
-			redis.set(self.redis_key, orjson.dumps(data), ex=self.max_age) # pylint: disable=c-extension-no-member
+			redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
 			#ms = (time.perf_counter() - start) * 1000
 			#if ms > 100:
 			#	logger.warning("Session storing to redis took %0.2fms", ms)
 		#redis_client = await get_redis_client()
-		#await redis_client.set(self.redis_key, orjson.dumps(data), ex=self.max_age)
+		#await redis_client.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
 
 	async def store(self) -> None:
 		# aredis is sometimes slow ~300ms load, using redis for now

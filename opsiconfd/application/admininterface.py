@@ -12,6 +12,7 @@ from operator import itemgetter
 import os
 import datetime
 import orjson
+import msgpack
 import requests
 
 from fastapi import APIRouter, Request, Response
@@ -136,7 +137,11 @@ async def get_rpc_list() -> list:
 
 	rpc_list = []
 	for value in redis_result:
-		value = orjson.loads(value)  # pylint: disable=c-extension-no-member
+		try:
+			value = msgpack.loads(value)
+		except msgpack.exceptions.ExtraData:
+			# Was json encoded before, can be removed in the future
+			value = orjson.loads(value)  # pylint: disable=c-extension-no-member
 		rpc = {
 			"rpc_num": value.get("rpc_num"),
 			"method": value.get("method"),

@@ -226,7 +226,7 @@ async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals
 					logger.debug(err)
 					continue
 
-			redis_key =  metric.get_redis_key(**metric_vars)
+			redis_key = metric.get_redis_key(**metric_vars)
 			retention_time = metric.retention
 			redis_key_extension = None
 
@@ -260,11 +260,16 @@ async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals
 			except aredis.exceptions.ResponseError as exc:
 				logger.debug("%s %s", cmd, exc)
 				rows = []
+
+			def align_timestamp(timestamp):
+				"""Align timestamp to 5 second intervals, needed for stacking in grafana"""
+				return 5000*round(int(timestamp)/5000)
+
 			if metric.time_related and metric.aggregation == "sum":
 				# Time series data is stored aggregated in 5 second intervals
-				res["datapoints"] = [ [float(r[1])/5.0, int(r[0])] for r in rows ]
+				res["datapoints"] = [ [float(r[1])/5.0, align_timestamp(r[0])] for r in rows ]
 			else:
-				res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), int(r[0])] for r in rows ]
+				res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), align_timestamp(r[0])] for r in rows ]
 			logger.trace("Grafana query result: %s", res)
 			results.append(res)
 	return results

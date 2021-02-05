@@ -335,9 +335,62 @@ function diffMemorySnapshots() {
 			return request.statusText;
 		}
 	});
+	request.send()
+}
 
+function takeHeapSnapshot() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	console.log("get memory info");
+	request.open("POST", "/admin/memory/guppy");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			console.log("take memory snapshot");
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
 
+function diffHeapSnapshots() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	console.log("get guppy info");
 
+	snapshotNumber1 = document.getElementById("snapshot1").value;
+	snapshotNumber2 = document.getElementById("snapshot2").value;
+	console.log(snapshotNumber1);
+	console.log(snapshotNumber2);
+	if (snapshotNumber1 == ""){
+		snapshotNumber1 = 1
+	}
+	if (snapshotNumber2 == ""){
+		snapshotNumber2 = -1
+	}
+	console.log(snapshotNumber1);
+	console.log(snapshotNumber2);
+	url = "/admin/memory/guppy/diff?snapshot1="+snapshotNumber1+"&snapshot2="+snapshotNumber2
+	request.open("GET", url);
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			console.log("show memory diff");
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
 	request.send()
 }
 
@@ -395,6 +448,24 @@ function deleteMemorySnapshots() {
 	console.log("deleteMemorySnapshots");
 	let request = new XMLHttpRequest();
 	request.open("DELETE", "/admin/memory/snapshot");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function deleteHeapSnapshots() {
+	console.log("deleteMemorySnapshots");
+	let request = new XMLHttpRequest();
+	request.open("DELETE", "/admin/memory/guppy");
 	request.addEventListener('load', function (event) {
 		if (request.status >= 200 && request.status < 300) {
 			result = request.responseText;

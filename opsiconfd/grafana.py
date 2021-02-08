@@ -123,6 +123,7 @@ GRAFANA_GRAPH_PANEL_TEMPLATE = {
 	"dashLength": 10,
 	"dashes": False,
 	"datasource": "opsiconfd",
+	"decimals": 2,
 	"description": "",
 	"fill": 1,
 	"fillGradient": 0,

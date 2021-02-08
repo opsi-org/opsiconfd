@@ -28,41 +28,6 @@ MEMORY_TRACKER = None
 CLASS_TRACKER = None
 HEAP = None
 
-from ..main import mytracker
-
-@memory_profiler_router.get("/memory-summary")
-def pympler_info() -> JSONResponse:
-
-	# global MEMORY_TRACKER # pylint: disable=global-statement
-	# if not MEMORY_TRACKER:
-	# 	MEMORY_TRACKER = tracker.SummaryTracker()
-
-	# memory_summary = MEMORY_TRACKER.create_summary()
-	# memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
-
-	# objs = muppy.get_objects()
-	# logger.devel("Number of Objects : ", len(objs))
-	# sum_full = summary.summarize(objs)
-	# summary.print_(sum_full)
-
-	# mytracker.print_diff()
-	# sum_full = mytracker.diff()
-	# mytracker.store_summary("mem")
-	# mydiff = mytracker.diff(mytracker.summaries.get("main"),mytracker.summaries.get("mem"))
-
-	mysum = mytracker.create_summary()
-
-	count = 0
-	total_size = 0
-	for idx in range(0, len(mysum)-1):
-		count += mysum[idx][1]
-		total_size += mysum[idx][2]
-		mysum[idx][2] = convert_bytes(mysum[idx][2])
-
-
-
-	response = JSONResponse({"status": 200, "error": None, "data": {"count": count,"total_size": convert_bytes(total_size),"memory_summary": mysum}})
-	return response
 
 @memory_profiler_router.post("/memory/snapshot")
 async def memory_info() -> JSONResponse:
@@ -97,7 +62,16 @@ async def memory_info() -> JSONResponse:
 
 	objs_size = convert_bytes(sys.getsizeof(gc.get_objects()))
 
-	response = JSONResponse({"status": 200, "error": None, "data": {"objs_size": objs_size,"count": count,"total_size": convert_bytes(total_size), "memory_summary": memory_summary}})
+	response = JSONResponse({
+		"status": 200,
+		"error": None,
+		"data": {
+			"objs_size": objs_size,
+			"count": count,
+			"total_size": convert_bytes(total_size),
+			"memory_summary": memory_summary
+		}
+	})
 	return response
 
 @memory_profiler_router.delete("/memory/snapshot")
@@ -165,7 +139,15 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 		total_size += memory_summary[idx][2]
 		memory_summary[idx][2] = convert_bytes(memory_summary[idx][2])
 
-	response = JSONResponse({"status": 200, "error": None, "data": {"count": count,"total_size": convert_bytes(total_size), "memory_diff": memory_summary}})
+	response = JSONResponse({
+		"status": 200,
+		"error": None,
+		"data": {
+			"count": count,
+			"total_size": convert_bytes(total_size),
+			"memory_diff": memory_summary
+		}
+	})
 	return response
 
 @memory_profiler_router.post("/memory/classtracker")
@@ -288,10 +270,15 @@ async def guppy_snapshot() -> JSONResponse:
 			}
 		)
 
-
-
-
-	response = JSONResponse({"status": 200, "error": None, "data": {"objects": heap_status.stat.count, "total_size": convert_bytes(heap_status.stat.size), "heap_status": heap_objects}})
+	response = JSONResponse({
+		"status": 200,
+		"error": None,
+		"data": {
+			"objects": heap_status.stat.count,
+			"total_size": convert_bytes(heap_status.stat.size),
+			"heap_status": heap_objects
+		}
+	})
 	return response
 
 
@@ -369,15 +356,23 @@ async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 			}
 		)
 
-	response = JSONResponse({"status": 200, "error": None, "data": {"objects": heap_diff.count, "total_size": convert_bytes(heap_diff.size), "heap_diff": heap_objects}})
+	response = JSONResponse({
+		"status": 200,
+		"error": None,
+		"data": {
+			"objects": heap_diff.count,
+			"total_size": convert_bytes(heap_diff.size),
+			"heap_diff": heap_objects
+		}
+	})
 	return response
 
 
 
-def print_class_summary(summary: list) -> None:
+def print_class_summary(cls_summary: list) -> None:
 
 	logger.essential("---- SUMMARY " + "-" * 66)
-	for snapshot in summary:
+	for snapshot in cls_summary:
 		logger.essential("%-35s %11s %12s %12s", snapshot.get("description"), "active", "sum", 'average')
 		for cls in snapshot.get("classes"):
 			name = cls.get("class")

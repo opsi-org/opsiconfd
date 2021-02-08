@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "opsiconfd"
-version = "4.2.0.119"
+version = "4.2.0.113"
 description = "opsi configuration service"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
@@ -23,7 +23,7 @@ python = "^3.7"
 #python-opsi = {path = "python-opsi"}
 python-opsi = "^4.2.0.80"
 gunicorn = "^20.0.4"
-uvicorn = "^0.13.3"
+uvicorn = "^0.11.3"
 fastapi = "^0.52.0"
 orjson = "^2.5.1"
 itsdangerous = "^1.1.0"
@@ -45,8 +45,8 @@ ldap3 = "^2.8.1"
 lz4 = "^3.1.0"
 wsgidav = "^3.0.3"
 aiozeroconf = "^0.1.8"
-uvloop = "^0.14.0"
-websockets = "^8.1"
+Pympler = "^0.9"
+guppy3 = "^3.1.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

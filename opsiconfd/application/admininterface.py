@@ -26,23 +26,23 @@ from ..session import OPSISession
 from ..logging import logger
 from ..config import config
 from ..backend import get_backend_interface
-from ..worker import get_redis_client
+from ..worker import get_redis_client, run_in_threadpool
 from ..utils import get_random_string, get_fqdn
 
 from .memoryprofiler import memory_profiler_router
 
 admin_interface_router = APIRouter()
+logger.devel("CONFIG DIR: %s", )
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
 
 
 def admin_interface_setup(app):
-	app.include_router(admin_interface_router, prefix="/admin")
-	app.include_router(memory_profiler_router, prefix="/admin")
+	app.include_router(router=admin_interface_router, prefix="/admin")
+	app.include_router(router=memory_profiler_router, prefix="/admin")
 
 
-@admin_interface_router.get("/?")
+@admin_interface_router.get("/")
 async def admin_interface_index(request: Request):
-
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
@@ -260,3 +260,9 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
 	return response
+
+@admin_interface_router.get("/test")
+def mem_leak_test():
+	data = [0] * 1000000
+	data2 = [0] * 1000000
+	return {"message": "Hello World"}

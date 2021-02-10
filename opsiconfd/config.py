@@ -139,6 +139,11 @@ def ip_address(value):
 	except ValueError as err:
 		raise ArgumentTypeError(f"Invalid ip address: {value}") from err
 
+def str2bool(value):
+	if isinstance(value, bool):
+		return value
+	return str(value).lower() in ('yes', 'true', 'y', '1')
+
 def expert_help(help): # pylint: disable=redefined-builtin
 	if "--ex-help" in sys.argv:
 		return help
@@ -304,7 +309,10 @@ parser.add(
 parser.add(
 	"--symlink-logs",
 	env_var="OPSICONFD_SYMLINK_LOGS",
-	action="store_true",
+	type=str2bool,
+	nargs='?',
+	const=True,
+	default=False,
 	help="If separate log files are used and this option is enabled"
 		+ " opsiconfd will create a symlink in the log dir which points"
 		+ " to the clients log file. The name of the symlink will be the same"
@@ -387,7 +395,10 @@ parser.add(
 parser.add(
 	"--monitoring-debug",
 	env_var="OPSICONFD_MONITORING_DEBUG",
-	action="store_true",
+	type=str2bool,
+	nargs='?',
+	const=True,
+	default=False,
 	help="If enabled monitoring will be logged using the main log-level."
 )
 parser.add(
@@ -465,7 +476,10 @@ parser.add(
 parser.add(
 	"--verify-ip",
 	env_var="OPSICONFD_VERIFY_IP",
-	action="store_true",
+	type=str2bool,
+	nargs='?',
+	const=True,
+	default=False,
 	help="If a client uses its fqdn and opsi-host-key for authentication,"
 		+ " opsiconfd will try to resolve the fqdn (username) by a system call."
 		+ " If there is no result or the resulting IP address does not match"
@@ -474,7 +488,9 @@ parser.add(
 parser.add(
 	"--update-ip",
 	env_var="OPSICONFD_UPDATE_IP",
-	action="store_true",
+	type=str2bool,
+	nargs='?',
+	const=True,
 	default=True,
 	help="If enabled, a client's ip address will be updated in the opsi database,"
 		" when the client connects to the service and authentication is successful."
@@ -548,13 +564,19 @@ parser.add(
 parser.add(
 	"--debug",
 	env_var="OPSICONFD_DEBUG",
-	action="store_true",
+	type=str2bool,
+	nargs='?',
+	const=True,
+	default=False,
 	help=expert_help("Turn debug mode on, never use in production.")
 )
 parser.add(
 	"--profiler",
 	env_var="OPSICONFD_PROFILER",
-	action="store_true",
+	type=str2bool,
+	nargs='?',
+	const=True,
+	default=False,
 	help=expert_help("Turn profiler on. This will slow down requests, never use in production.")
 )
 parser.add(
@@ -590,6 +612,15 @@ parser.add(
 	default=0.0,
 	metavar="THRESHOLD",
 	help=expert_help("Log asyncio callbacks which takes THRESHOLD seconds or more.")
+)
+parser.add(
+	"--use-jemalloc",
+	env_var="OPSICONFD_USE_JEMALLOC",
+	type=str2bool,
+	nargs='?',
+	const=True,
+	default=False,
+	help=expert_help("Use jemalloc if available.")
 )
 parser.add(
 	"action",

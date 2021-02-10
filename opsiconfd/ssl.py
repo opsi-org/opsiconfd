@@ -130,7 +130,7 @@ def setup_ssl(): # pylint: disable=too-many-branches
 
 def setup_ssl_file_permissions():
 	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
-	PermissionRegistry().register_permission(
+	permissions = (
 		FilePermission(config.ssl_ca_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
 		FilePermission(f"{config.ssl_ca_cert}.old", config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
 		FilePermission(ca_srl, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
@@ -138,7 +138,9 @@ def setup_ssl_file_permissions():
 		FilePermission(config.ssl_server_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
 		FilePermission(config.ssl_server_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600)
 	)
-	set_rights()
+	PermissionRegistry().register_permission(*permissions)
+	for permission in permissions:
+		set_rights(permission.path)
 
 def check_ssl_expiry():
 	for cert in (config.ssl_ca_cert, config.ssl_server_cert):

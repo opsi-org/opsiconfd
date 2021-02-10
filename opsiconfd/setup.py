@@ -115,17 +115,14 @@ def setup_file_permissions():
 	logger.info("Setup file permissions")
 
 	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
-
-	PermissionRegistry().register_permission(
-		FilePermission("/etc/shadow", None, "shadow", 0o640)
+	permissions = (
+		FilePermission("/etc/shadow", None, "shadow", 0o640),
+		FilePermission("/var/log/opsi/opsiconfd/opsiconfd.log", config.run_as_user, OPSI_ADMIN_GROUP, 0o660),
+		FilePermission(dhcpd_config_file, config.run_as_user, OPSI_ADMIN_GROUP, 0o660)
 	)
-	set_rights("/etc/shadow")
-
-	for path in ("/var/log/opsi/opsiconfd/opsiconfd.log", "/etc/opsi/modules", dhcpd_config_file):
-		PermissionRegistry().register_permission(
-			FilePermission(path, config.run_as_user, OPSI_ADMIN_GROUP, 0o660)
-		)
-		set_rights(path)
+	PermissionRegistry().register_permission(*permissions)
+	for permission in permissions:
+		set_rights(permission.path)
 
 	set_rights("/etc/opsi")
 	setup_ssl_file_permissions()

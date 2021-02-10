@@ -22,11 +22,13 @@
 """
 
 import os
+import re
+import sys
 import pwd
 import threading
 import signal
 import pprint
-
+import subprocess
 import getpass
 import uvloop
 import psutil
@@ -36,12 +38,32 @@ from OPSI import __version__ as python_opsi_version
 from . import __version__
 from .logging import logger, init_logging
 from .config import config
-
 from .setup import setup
 from .patch import apply_patches
 from .arbiter import main as arbiter_main
 
-def main(): # pylint: disable=too-many-statements, too-many-branches too-many-locals
+def run_with_jemlalloc():
+	try:
+		if sys.argv[0].endswith(".py"):
+			return
+
+		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
+			return
+
+		out = subprocess.check_output(["ldconfig", "-p"]).decode()
+		match = re.search(r".*=>\s*(.*libjemalloc.*)\s*", out)
+		if not match:
+			raise RuntimeError("libjemalloc not found")
+
+		new_env = os.environ.copy()
+		new_env["LD_PRELOAD"] = match.group(1)
+		#print(f"Restarting with LD_PRELOAD={new_env['LD_PRELOAD']}")
+
+		os.execve(sys.argv[0], sys.argv, new_env)
+	except Exception as err:  # pylint: disable=broad-except
+		print(err, file=sys.stderr)
+
+def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals
 	if config.version:
 		print(f"{__version__} [python-opsi={python_opsi_version}]")
 		return
@@ -75,10 +97,16 @@ def main(): # pylint: disable=too-many-statements, too-many-branches too-many-lo
 			os.kill(pid, send_signal)
 		return
 
+	if config.use_jemalloc:
+		run_with_jemlalloc()
+
 	apply_patches()
 
 	try: # pylint: disable=too-many-nested-blocks
 		init_logging(log_mode=config.log_mode)
+
+		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
+			logger.notice("Running with %s", os.getenv("LD_PRELOAD"))
 
 		setup(full=bool(config.setup))
 

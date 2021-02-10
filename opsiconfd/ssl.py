@@ -34,6 +34,7 @@ from OpenSSL.crypto import (
 from OpenSSL.crypto import Error as CryptoError
 
 from OPSI.Util import getfqdn
+from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.Config import OPSI_ADMIN_GROUP
 
 from .config import config
@@ -128,35 +129,16 @@ def setup_ssl(): # pylint: disable=too-many-branches
 	setup_ssl_file_permissions()
 
 def setup_ssl_file_permissions():
-	# Key and cert can be the same file.
-	# Order is important!
-	# Set permission of cert first, key afterwards.
 	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
-	for path in (config.ssl_ca_cert, f"{config.ssl_ca_cert}.old", ca_srl, config.ssl_ca_key):
-		if os.path.exists(path):
-			shutil.chown(path=path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			mode = 0o644
-			if path == config.ssl_ca_key:
-				mode = 0o600
-			elif path == ca_srl:
-				mode = 0o640
-			os.chmod(path=path, mode=mode)
-			dirname = os.path.dirname(path)
-			if dirname.count('/') >= 3:
-				shutil.chown(path=dirname, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-				os.chmod(path=dirname, mode=0o770)
-
-	for path in (config.ssl_server_cert, config.ssl_server_key):
-		if os.path.exists(path):
-			shutil.chown(path=path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			mode = 0o600
-			if config.ssl_server_cert != config.ssl_server_key and path == config.ssl_server_cert:
-				mode = 0o640
-			os.chmod(path=path, mode=mode)
-			dirname = os.path.dirname(path)
-			if dirname.count('/') >= 3:
-				shutil.chown(path=dirname, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-				os.chmod(path=dirname, mode=0o770)
+	PermissionRegistry().register_permission(
+		FilePermission(config.ssl_ca_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
+		FilePermission(f"{config.ssl_ca_cert}.old", config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
+		FilePermission(ca_srl, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		FilePermission(config.ssl_server_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		FilePermission(config.ssl_server_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600)
+	)
+	set_rights()
 
 def check_ssl_expiry():
 	for cert in (config.ssl_ca_cert, config.ssl_server_cert):

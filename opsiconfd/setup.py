@@ -24,7 +24,6 @@ import os
 import pwd
 import grp
 import time
-import shutil
 import getpass
 import resource
 import subprocess
@@ -34,11 +33,11 @@ import psutil
 from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP
 from OPSI.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,
-	setup_file_permissions as po_setup_file_permissions,
 	add_user_to_group, create_user, set_primary_group, create_group
 )
 from OPSI.System.Posix import getLocalFqdn, locateDHCPDConfig
 from OPSI.Util.Task.InitializeBackend import initializeBackends
+from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.System import get_subprocess_environment
 
 from .logging import logger
@@ -115,16 +114,21 @@ def setup_files():
 def setup_file_permissions():
 	logger.info("Setup file permissions")
 
-	setup_ssl_file_permissions()
-
-	shutil.chown(path="/etc/shadow", group="shadow")
-	os.chmod(path="/etc/shadow", mode=0o640)
-
 	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
+
+	PermissionRegistry().register_permission(
+		FilePermission("/etc/shadow", None, "shadow", 0o640)
+	)
+	set_rights("/etc/shadow")
+
 	for path in ("/var/log/opsi/opsiconfd/opsiconfd.log", "/etc/opsi/modules", dhcpd_config_file):
-		if os.path.exists(path):
-			shutil.chown(path=path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-			os.chmod(path=path, mode=0o644 if path == dhcpd_config_file else 0o660)
+		PermissionRegistry().register_permission(
+			FilePermission(path, config.run_as_user, OPSI_ADMIN_GROUP, 0o660)
+		)
+		set_rights(path)
+
+	set_rights("/etc/opsi")
+	setup_ssl_file_permissions()
 
 	for path in (
 		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
@@ -134,9 +138,10 @@ def setup_file_permissions():
 		try:
 			path = Path(path)
 			if path.is_dir() and path.owner() != config.run_as_user:
-				po_setup_file_permissions(str(path))
+				set_rights(str(path))
 		except KeyError as err:
 			logger.warning("Failed to set permissions on '%s': %s", str(path), err)
+
 
 def setup_systemd():
 	systemd_running = False

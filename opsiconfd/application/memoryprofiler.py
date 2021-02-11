@@ -15,7 +15,7 @@ import orjson
 from fastapi import Request, APIRouter
 from fastapi.responses import JSONResponse
 
-from pympler import muppy, summary, tracker, classtracker
+from pympler import tracker, classtracker
 from guppy import hpy
 
 from ..logging import logger
@@ -43,12 +43,13 @@ async def memory_info() -> JSONResponse:
 	timestamp = int(time.time() * 1000)
 	node = get_node_name()
 
-	# TODO: redis pipeline
-	value = orjson.dumps({"memory_summary": memory_summary, "timestamp": timestamp}) # pylint: disable=c-extension-no-member
-	redis_result = await redis_client.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
-	logger.debug("redis lpush memory summary: %s", redis_result)
-	redis_result = await redis_client.ltrim(f"opsiconfd:stats:memory:summary:{node}", 0, 9)
-	logger.debug("redis ltrim memory summary: %s", redis_result)
+	async with await redis_client.pipeline() as pipe:
+		value = orjson.dumps({"memory_summary": memory_summary, "timestamp": timestamp}) # pylint: disable=c-extension-no-member
+		await pipe.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
+		await pipe.ltrim(f"opsiconfd:stats:memory:summary:{node}", 0, 9)
+		redis_result = await pipe.execute()
+
+	logger.devel("redis lpush memory summary: %s", redis_result)
 
 	logger.devel("MEMORY_TRACKER.summaries: %s", MEMORY_TRACKER.summaries)
 	logger.devel("MEMORY_TRACKER: %s", len(MEMORY_TRACKER.summaries))
@@ -213,8 +214,6 @@ async def classtracker_summary() -> JSONResponse:
 			classes.append(cls_dict)
 		class_summary.append({"description": snapshot.desc, "classes": classes})
 
-	# CLASS_TRACKER.close() # TODO close class Tracker
-
 	print_class_summary(class_summary)
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Class Tracker Summary.", "summary": class_summary}})
@@ -246,14 +245,18 @@ async def guppy_snapshot() -> JSONResponse:
 	heap_status = HEAP.heap()
 	logger.devel(dir(heap_status))
 	logger.devel("SIZE: %s", convert_bytes(heap_status.size))
-	fn = io.StringIO()
+	fn = io.StringIO() # pylint: disable=invalid-name
 	heap_status.dump(fn)
 
 	redis_client = await get_redis_client()
 	node = get_node_name()
 
-	redis_result = await redis_client.lpush(f"opsiconfd:stats:memory:heap:{node}", fn.getvalue())
-	redis_result = await redis_client.ltrim(f"opsiconfd:stats:memory:heap:{node}", 0, 9)
+	async with await redis_client.pipeline() as pipe:
+		await pipe.lpush(f"opsiconfd:stats:memory:heap:{node}", fn.getvalue())
+		await pipe.ltrim(f"opsiconfd:stats:memory:heap:{node}", 0, 9)
+		redis_result = await pipe.execute()
+
+	logger.devel("redis lpush memory summary: %s", redis_result)
 
 	logger.devel(heap_status)
 	logger.devel(heap_status.byclodo.stat)
@@ -279,6 +282,21 @@ async def guppy_snapshot() -> JSONResponse:
 			"heap_status": heap_objects
 		}
 	})
+	return response
+
+
+@memory_profiler_router.delete("/memory/guppy")
+async def delte_guppy_snapshot() -> JSONResponse:
+
+	redis_client = await get_redis_client()
+	node = get_node_name()
+
+	await redis_client.delete(f"opsiconfd:stats:memory:heap:{node}")
+
+	global HEAP # pylint: disable=global-statement
+	HEAP = None
+
+	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted all guppy heap snapshots."}})
 	return response
 
 
@@ -339,7 +357,6 @@ async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 	logger.devel(dir(snapshot2))
 	heap_diff = snapshot2 - snapshot1
 
-	# print("Whether Two Heap Status Are Disjoint : ", snapshot1.disjoint(snapshot2))
 	logger.devel("Total Objects : %s", heap_diff.count)
 	logger.devel("Total Size : %s Bytes", heap_diff.size)
 	logger.devel("Number of Entries : %s", heap_diff.numrows)

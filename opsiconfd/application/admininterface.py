@@ -26,7 +26,7 @@ from ..session import OPSISession
 from ..logging import logger
 from ..config import config
 from ..backend import get_backend_interface
-from ..worker import get_redis_client, run_in_threadpool
+from ..worker import get_redis_client
 from ..utils import get_random_string, get_fqdn, get_node_name
 
 from .memoryprofiler import memory_profiler_router
@@ -263,9 +263,3 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
 	return response
-
-@admin_interface_router.get("/test")
-def mem_leak_test():
-	data = [0] * 1000000
-	data2 = [0] * 1000000
-	return {"message": "Hello World"}

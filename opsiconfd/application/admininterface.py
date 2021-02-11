@@ -40,7 +40,7 @@ def admin_interface_setup(app):
 	app.include_router(router=memory_profiler_router, prefix="/admin")
 
 
-@admin_interface_router.get("/")
+@admin_interface_router.get("/?")
 async def admin_interface_index(request: Request):
 	context = {
 		"request": request,

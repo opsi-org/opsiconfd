@@ -36,6 +36,8 @@ RUN apt-get update \
 		librsync1 \
 		sqlite3 \
 		sudo \
+		git \
+		bash-completion \
 		nano \
 	&& pip install "poetry==$POETRY_VERSION"
 

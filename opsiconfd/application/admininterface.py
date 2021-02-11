@@ -32,7 +32,6 @@ from ..utils import get_random_string, get_fqdn, get_node_name
 from .memoryprofiler import memory_profiler_router
 
 admin_interface_router = APIRouter()
-logger.devel("CONFIG DIR: %s", )
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
 
 

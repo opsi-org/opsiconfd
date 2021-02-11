@@ -26,8 +26,8 @@ from ..session import OPSISession
 from ..logging import logger
 from ..config import config
 from ..backend import get_backend_interface
-from ..worker import get_redis_client, run_in_threadpool
-from ..utils import get_random_string, get_fqdn
+from ..worker import get_redis_client
+from ..utils import get_random_string, get_fqdn, get_node_name
 
 from .memoryprofiler import memory_profiler_router
 
@@ -46,6 +46,7 @@ async def admin_interface_index(request: Request):
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
+		"node_name": get_node_name(),
 		"interface": get_backend_interface(),
 	}
 	return templates.TemplateResponse("admininterface.html", context)
@@ -249,7 +250,9 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 		"node_name",
 		"executor_type",
 		"executor_workers",
-		"log_slow_async_callbacks"
+		"log_slow_async_callbacks",
+		"ssl_ca_key_passphrase",
+		"ssl_server_key_passphrase"
 	]
 
 	current_config = config.items().copy()
@@ -260,9 +263,3 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
 	return response
-
-@admin_interface_router.get("/test")
-def mem_leak_test():
-	data = [0] * 1000000
-	data2 = [0] * 1000000
-	return {"message": "Hello World"}

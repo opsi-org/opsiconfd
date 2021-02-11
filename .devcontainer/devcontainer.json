@@ -7,9 +7,10 @@
 	"postCreateCommand": "sudo --preserve-env /bin/sh -c /workspace/scripts/setup.sh && poetry config --local virtualenvs.in-project true",
 	"postStartCommand": "poetry install --no-interaction --no-ansi && sudo service redis-server restart && sudo service mysql restart && sudo service grafana-server restart",
 	"remoteEnv": {
-		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"		
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
+		"DEV_USER": "${localEnv:USER}"
 	},
-	"settings": { 
+	"settings": {
 		"terminal.integrated.shell.linux": "/bin/bash",
 		"python.pythonPath": ".venv/bin/python",
 		"python.terminal.activateEnvironment": false,

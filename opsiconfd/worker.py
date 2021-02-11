@@ -55,6 +55,7 @@ def sync_redis_client():
 		_redis_pool = redis.BlockingConnectionPool.from_url(
 			url=config.redis_internal_url
 		)
+	con = None
 	try:
 		con = redis.Redis(connection_pool=_redis_pool)
 		yield con

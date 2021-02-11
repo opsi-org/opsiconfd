@@ -25,11 +25,13 @@ import os
 import re
 import sys
 import pwd
+import asyncio
 import threading
 import signal
 import pprint
 import subprocess
 import getpass
+from concurrent.futures import ThreadPoolExecutor
 import uvloop
 import psutil
 
@@ -103,6 +105,13 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 	apply_patches()
 
 	try: # pylint: disable=too-many-nested-blocks
+		asyncio.get_event_loop().set_default_executor(
+			ThreadPoolExecutor(
+				max_workers=5,
+				thread_name_prefix="main-ThreadPoolExecutor"
+			)
+		)
+
 		init_logging(log_mode=config.log_mode)
 
 		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):

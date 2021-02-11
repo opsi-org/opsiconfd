@@ -87,9 +87,11 @@ class LoggerWebsocket(WebSocketEndpoint):
 		self._websocket = websocket  # pylint: disable=attribute-defined-outside-init
 		params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
 		client = params.get("client", [None])[0]
-		start_id = params.get("start_time", ["$"])[0]
+		start_id = int(params.get("start_time", [0])[0]) * 1000 # Seconds to millis
+		if start_id <= 0:
+			start_id = "$"
 		await self._websocket.accept()
-		await asyncio.get_event_loop().create_task(self._reader(start_id, client))
+		await asyncio.get_event_loop().create_task(self._reader(str(start_id), client))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		pass

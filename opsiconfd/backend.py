@@ -56,15 +56,18 @@ def get_user_store():
 def get_option_store():
 	return get_session().option_store
 
+CLIENT_BACKEND_MAX_USAGE_COUNT = 25
 client_backend_manager_lock = threading.Lock()
 client_backend_manager = None # pylint: disable=invalid-name
 def get_client_backend():
 	global client_backend_manager # pylint: disable=invalid-name, global-statement
 	with client_backend_manager_lock:
-		if not client_backend_manager:
+		if not client_backend_manager or client_backend_manager.usage_count >= CLIENT_BACKEND_MAX_USAGE_COUNT:
 			backend_config["user_store"] = get_user_store
 			backend_config["option_store"] = get_option_store
 			client_backend_manager = BackendManager(**backend_config)
+			client_backend_manager.usage_count = 0
+		client_backend_manager.usage_count += 1
 	return client_backend_manager
 
 backend_manager_lock = threading.Lock()

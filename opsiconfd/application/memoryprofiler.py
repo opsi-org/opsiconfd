@@ -10,7 +10,7 @@ import gc
 import io
 import sys
 import time
-import orjson
+import msgpack
 
 from fastapi import Request, APIRouter
 from fastapi.responses import JSONResponse
@@ -20,7 +20,7 @@ from guppy import hpy
 
 from ..logging import logger
 from ..worker import get_redis_client
-from ..utils import get_node_name, decode_redis_result
+from ..utils import get_node_name
 
 memory_profiler_router = APIRouter()
 
@@ -44,7 +44,7 @@ async def memory_info() -> JSONResponse:
 	node = get_node_name()
 
 	async with await redis_client.pipeline() as pipe:
-		value = orjson.dumps({"memory_summary": memory_summary, "timestamp": timestamp}) # pylint: disable=c-extension-no-member
+		value = msgpack.dumps({"memory_summary": memory_summary, "timestamp": timestamp}) # pylint: disable=c-extension-no-member
 		await pipe.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
 		await pipe.ltrim(f"opsiconfd:stats:memory:summary:{node}", 0, 9)
 		redis_result = await pipe.execute()
@@ -107,9 +107,9 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 		end = snapshot_count - snapshot2
 
 	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", start)
-	snapshot1 = orjson.loads(decode_redis_result(redis_result)).get("memory_summary") # pylint: disable=c-extension-no-member
+	snapshot1 = msgpack.loads(redis_result).get("memory_summary") # pylint: disable=c-extension-no-member
 	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", end)
-	snapshot2 = orjson.loads(decode_redis_result(redis_result)).get("memory_summary") # pylint: disable=c-extension-no-member
+	snapshot2 = msgpack.loads(redis_result).get("memory_summary") # pylint: disable=c-extension-no-member
 	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
 
 	count = 0
@@ -225,7 +225,7 @@ async def guppy_snapshot() -> JSONResponse:
 	node = get_node_name()
 
 	async with await redis_client.pipeline() as pipe:
-		await pipe.lpush(f"opsiconfd:stats:memory:heap:{node}", fn.getvalue())
+		await pipe.lpush(f"opsiconfd:stats:memory:heap:{node}", msgpack.dumps(fn.getvalue()))
 		await pipe.ltrim(f"opsiconfd:stats:memory:heap:{node}", 0, 9)
 		redis_result = await pipe.execute()
 	logger.debug("redis lpush memory summary: %s", redis_result)
@@ -302,10 +302,10 @@ async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 		end = snapshot_count - snapshot2
 
 	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:heap:{node}", start)
-	fn1 = io.StringIO(decode_redis_result(redis_result))
+	fn1 = io.StringIO(msgpack.loads(redis_result))
 	snapshot1 = HEAP.load(fn1)
 	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:heap:{node}", end)
-	fn2 = io.StringIO(decode_redis_result(redis_result))
+	fn2 = io.StringIO(msgpack.loads(redis_result))
 	snapshot2 = HEAP.load(fn2)
 
 	heap_diff = snapshot2 - snapshot1

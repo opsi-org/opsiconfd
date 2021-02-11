@@ -27,11 +27,11 @@ import signal
 import threading
 import asyncio
 import contextvars
+import functools
 from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-
 import redis
-from starlette.concurrency import run_in_threadpool as starlette_run_in_threadpool
+#from starlette.concurrency import run_in_threadpool as starlette_run_in_threadpool
 
 from .logging import logger, init_logging
 from .config import config
@@ -100,7 +100,16 @@ def get_pool_executor():
 
 T = typing.TypeVar("T") # pylint: disable=invalid-name
 async def run_in_threadpool(func: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any) -> T:
-	return await starlette_run_in_threadpool(func, *args, **kwargs)
+	#return await starlette_run_in_threadpool(func, *args, **kwargs)
+	loop = asyncio.get_event_loop()
+	context = contextvars.copy_context()
+	future = loop.run_in_executor(
+		None, context.run, functools.partial(func, *args, **kwargs)
+	)
+	res = await future
+	del context
+	del future
+	return res
 
 def get_metrics_collector():
 	return _metrics_collector

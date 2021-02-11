@@ -39,6 +39,4 @@ else
 fi
 unset color_prompt force_color_prompt
 
-
-
-
+source /usr/share/bash-completion/completions/git

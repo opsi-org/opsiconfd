@@ -82,7 +82,7 @@ function outputResult(json, id) {
 					blockedCount += 1;
 				}
 			});
-		}		
+		}
 		if (data["clients"] != undefined && data["clients"].length != 0) {
 			if (blockedCount == 0){
 				text = "No blocked clients found."
@@ -97,7 +97,7 @@ function outputResult(json, id) {
 			} else {
 				text = text + " Failed logins for "+ failedCount +" clients deleted.";
 			}
-			
+
 		} else if (data["sessions"] != undefined) {
 			if (data["sessions"] != 0) {
 				text = "All sessions from client " + data["client"] + " deleted.";
@@ -133,9 +133,9 @@ function clearRedisCache(depots =  []) {
 	body = {
 		"depots": depots
 	};
-	
+
 	request.send(JSON.stringify(body));
-	
+
 }
 
 // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
@@ -253,6 +253,216 @@ function loadConfdConfig() {
 			result = request.responseText;
 			result = JSON.parse(result);
 			outputToHTML(result.data, "config-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function loadMemoryInfo() {
+	let request = new XMLHttpRequest();
+	request.open("GET", "/admin/memory-summary");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function takeMemorySnapshot() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	request.open("POST", "/admin/memory/snapshot");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function diffMemorySnapshots() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+
+	snapshotNumber1 = document.getElementById("snapshot1").value;
+	snapshotNumber2 = document.getElementById("snapshot2").value;
+	if (snapshotNumber1 == ""){
+		snapshotNumber1 = 1
+	}
+	if (snapshotNumber2 == ""){
+		snapshotNumber2 = -1
+	}
+	url = "/admin/memory/diff?snapshot1="+snapshotNumber1+"&snapshot2="+snapshotNumber2
+	request.open("GET", url);
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function takeHeapSnapshot() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	request.open("POST", "/admin/memory/guppy");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function diffHeapSnapshots() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+
+	snapshotNumber1 = document.getElementById("snapshot1").value;
+	snapshotNumber2 = document.getElementById("snapshot2").value;
+	if (snapshotNumber1 == ""){
+		snapshotNumber1 = 1
+	}
+	if (snapshotNumber2 == ""){
+		snapshotNumber2 = -1
+	}
+	url = "/admin/memory/guppy/diff?snapshot1="+snapshotNumber1+"&snapshot2="+snapshotNumber2
+	request.open("GET", url);
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function takeClassSnapshot() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	request.open("POST", "/admin/memory/classtracker");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	className = document.getElementById("class-name").value;
+	moduleName = document.getElementById("module-name").value;
+	description = document.getElementById("description").value;
+	body = {
+		"module": moduleName,
+		"class": className,
+		"description": description
+	}
+	request.send(JSON.stringify(body));
+}
+
+function classSummary() {
+	document.getElementById("memory-info").style.visibility = 'visible';
+	document.getElementById("memory-values").innerHTML = "loading...";
+	let request = new XMLHttpRequest();
+	request.open("GET", "/admin/memory/classtracker/summary");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function deleteMemorySnapshots() {
+	let request = new XMLHttpRequest();
+	request.open("DELETE", "/admin/memory/snapshot");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function deleteHeapSnapshots() {
+	let request = new XMLHttpRequest();
+	request.open("DELETE", "/admin/memory/guppy");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function deleteClassTracker() {
+	let request = new XMLHttpRequest();
+	request.open("DELETE", "/admin/memory/classtracker");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
 			return result;
 		} else {
 			console.warn(request.statusText, request.responseText);

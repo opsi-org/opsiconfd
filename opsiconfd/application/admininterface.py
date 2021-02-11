@@ -6,6 +6,7 @@ This file is part of opsi - https://www.opsi.org
 See LICENSES/README.md for more Information
 """
 
+
 from urllib.parse import urlparse
 from operator import itemgetter
 import os
@@ -28,17 +29,19 @@ from ..backend import get_backend_interface
 from ..worker import get_redis_client
 from ..utils import get_random_string, get_fqdn, get_node_name
 
+from .memoryprofiler import memory_profiler_router
+
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
 
 
 def admin_interface_setup(app):
-	app.include_router(admin_interface_router, prefix="/admin")
+	app.include_router(router=admin_interface_router, prefix="/admin")
+	app.include_router(router=memory_profiler_router, prefix="/admin")
 
 
 @admin_interface_router.get("/?")
 async def admin_interface_index(request: Request):
-
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",

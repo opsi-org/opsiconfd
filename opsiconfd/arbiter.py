@@ -26,6 +26,7 @@ import time
 import threading
 import asyncio
 import base64
+from concurrent.futures import ThreadPoolExecutor
 
 try:
 	# python3-pycryptodome installs into Cryptodome
@@ -113,6 +114,7 @@ async def update_worker_registry():
 class ArbiterAsyncMainThread(threading.Thread):
 	def __init__(self):
 		super().__init__()
+		self.name = "ArbiterAsyncMainThread"
 		self._loop = None
 
 	def stop(self):
@@ -123,6 +125,12 @@ class ArbiterAsyncMainThread(threading.Thread):
 	def run(self):
 		try:
 			self._loop = asyncio.new_event_loop()
+			self._loop.set_default_executor(
+				ThreadPoolExecutor(
+					max_workers=10,
+					thread_name_prefix="arbiter-ThreadPoolExecutor"
+				)
+			)
 			self._loop.set_debug(config.debug)
 			asyncio.set_event_loop(self._loop)
 			self._loop.create_task(self.main())

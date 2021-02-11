@@ -27,6 +27,7 @@ import os
 import socket
 import threading
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import logging as pylogging
 from logging import LogRecord, Formatter, StreamHandler
 
@@ -278,6 +279,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 	def __init__(self, max_msg_len: int = 0, max_delay: float = 0.1):
 		pylogging.Handler.__init__(self)
 		threading.Thread.__init__(self)
+		self.name = "RedisLogHandlerThread"
 		self._max_msg_len = max_msg_len
 		self._max_delay = max_delay
 		self._redis = get_redis_connection(config.redis_internal_url)
@@ -328,6 +330,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		except Exception as exc: # pylint: disable=broad-except
 			handle_log_exception(exc, record, log=False)
 
+
 class GunicornLoggerSetup(glogging.Logger):
 	def setup(self, cfg):
 		self.error_log.handlers = logger.handlers
@@ -347,7 +350,10 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 			logger.warning("Slow asyncio callback: %s took %.3f seconds", asyncio.base_events._format_handle(self), dt) # pylint: disable=protected-access
 		return retval
 
-	asyncio.events.Handle._run = _run # pylint: disable=protected-access
+	asyncio.events.Handle._run = _run  # pylint: disable=protected-access
+
+
+redis_log_handler = None  # pylint: disable=invalid-name
 
 def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: disable=too-many-branches
 	redis_error = None
@@ -363,7 +369,10 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 
 		if log_mode == "redis":
 			try:
-				log_handler = RedisLogHandler(max_msg_len=int(config.log_max_msg_len))
+				global redis_log_handler  # pylint: disable=global-statement,invalid-name
+				if not redis_log_handler:
+					redis_log_handler = RedisLogHandler(max_msg_len=int(config.log_max_msg_len))
+				log_handler = redis_log_handler
 			except Exception as err: # pylint: disable=broad-except
 				redis_error = err
 				log_mode = "local"
@@ -406,6 +415,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 class RedisLogAdapterThread(threading.Thread):
 	def __init__(self, running_event=None):
 		threading.Thread.__init__(self)
+		self.name = "RedisLogAdapterThread"
 		self._running_event = running_event
 		self._redis_log_adapter = None
 
@@ -416,6 +426,12 @@ class RedisLogAdapterThread(threading.Thread):
 	def run(self):
 		try:
 			self._loop = asyncio.new_event_loop() # pylint: disable=attribute-defined-outside-init
+			self._loop.set_default_executor(
+				ThreadPoolExecutor(
+					max_workers=5,
+					thread_name_prefix="RedisLogAdapterThread-ThreadPoolExecutor"
+				)
+			)
 			self._loop.set_debug(config.debug)
 			asyncio.set_event_loop(self._loop)
 			def handle_asyncio_exception(loop, context):

@@ -23,6 +23,16 @@ if [ -n "$JEMALLOC_VERSION" ]; then
 	sudo make install
 fi
 
+echo "install opsi-dev-tools"
+pip3 install --trusted-host pypi.uib.gmbh --index-url http://pypi.uib.gmbh:8080/simple opsi-dev-tools
+
+echo "install git hooks"
+cd $HOME
+git clone https://oauth2:UqZXUJsgG4dBGLBbTjDM@gitlab.uib.gmbh/uib/opsi-git-hooks.git .opsi-git-hooks
+cd /workspace
+opsi-dev-tool --git-install-hooks
+
+
 mkdir /var/log/opsi
 mkdir /var/lib/opsi/workbench
 # sudo opsi-backup restore /workspace/opsi_dev_backup.tar.bz2

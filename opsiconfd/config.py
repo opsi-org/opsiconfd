@@ -592,13 +592,6 @@ parser.add(
 	help=expert_help("Node name to use.")
 )
 parser.add(
-	"--executor-type",
-	env_var="OPSICONFD_EXECUTOR_TYPE",
-	choices=("thread", "process"),
-	default="thread",
-	help=expert_help("Asyncio executor type.")
-)
-parser.add(
 	"--executor-workers",
 	env_var="OPSICONFD_EXECUTOR_WORKERS",
 	type=int,

@@ -118,7 +118,9 @@ def setup_file_permissions():
 	permissions = (
 		FilePermission("/etc/shadow", None, "shadow", 0o640),
 		FilePermission("/var/log/opsi/opsiconfd/opsiconfd.log", config.run_as_user, OPSI_ADMIN_GROUP, 0o660),
-		FilePermission(dhcpd_config_file, config.run_as_user, OPSI_ADMIN_GROUP, 0o660)
+		# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)
+		# This user needs read permission
+		FilePermission(dhcpd_config_file, config.run_as_user, OPSI_ADMIN_GROUP, 0o664)
 	)
 	PermissionRegistry().register_permission(*permissions)
 	for permission in permissions:

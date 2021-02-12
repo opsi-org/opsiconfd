@@ -622,6 +622,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 
 		self._profiler_enabled = profiler_enabled
 		self._log_func_stats = log_func_stats
+		self._write_callgrind_file = True
 		self._profile_methods: Dict[str, str] = {
 			"BackendManager._executeMethod": "backend",
 			"MySQL.execute": "mysql",
@@ -642,18 +643,22 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 		if tag == -1:
 			return
 
-		#yappi.get_func_stats(filter={"tag": tag}).sort('ttot', sort_order="asc").debug_print()
-		max_stats = 500
+		func_stats = yappi.get_func_stats(filter={"tag": tag})
+		#func_stats.sort("ttot", sort_order="desc").debug_print()
+
+		if self._write_callgrind_file:
+			# Use i.e. kcachegrind to visualize
+			func_stats.save(f"/tmp/callgrind.out.opsiconfd-yappi-{tag}", type="callgrind")  # pylint: disable=no-member
+
 		if self._log_func_stats:
 			logger.essential("---------------------------------------------------------------------------------------------------------------------------------") # pylint: disable=line-too-long
 			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope['method']} {scope['path']}")
 			logger.essential(f"{'module':<45} | {'function':<60} | {'calls':>5} | {'total time':>10}")
 			logger.essential("---------------------------------------------------------------------------------------------------------------------------------") # pylint: disable=line-too-long
-			func_stats = yappi.get_func_stats(filter={"tag": tag}).sort("ttot", sort_order="desc")
-			for stat_num, stat in enumerate(func_stats):
+			for stat_num, stat in enumerate(func_stats.sort("ttot", sort_order="desc")):
 				module = re.sub(r".*(site-packages|python3\.\d|python-opsi)/", "", stat.module)
 				logger.essential(f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}")
-				if stat_num >= max_stats:
+				if stat_num >= 500:
 					break
 			logger.essential("---------------------------------------------------------------------------------------------------------------------------------") # pylint: disable=line-too-long
 

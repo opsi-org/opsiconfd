@@ -247,7 +247,6 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 		"profiler",
 		"server_type",
 		"node_name",
-		"executor_type",
 		"executor_workers",
 		"log_slow_async_callbacks",
 		"ssl_ca_key_passphrase",
@@ -257,8 +256,8 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 	current_config = config.items().copy()
 	if not all:
 		for key in KEYS_TO_REMOVE:
-			del current_config[key]
+			if key in current_config:
+				del current_config[key]
 	current_config = dict(sorted(current_config.items()))
 
-	response = JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
-	return response
+	return JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})

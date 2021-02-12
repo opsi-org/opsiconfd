@@ -44,7 +44,6 @@ contextvar_client_address = contextvars.ContextVar("client_address", default=Non
 contextvar_server_timing = contextvars.ContextVar("server_timing", default=None)
 
 _redis_client = None # pylint: disable=invalid-name
-_pool_executor = None # pylint: disable=invalid-name
 _metrics_collector = None # pylint: disable=invalid-name
 _redis_pool = None # pylint: disable=invalid-name
 
@@ -81,29 +80,23 @@ async def get_redis_client():
 	except Exception as err: # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 
-def get_pool_executor():
-	global _pool_executor # pylint: disable=global-statement, invalid-name
-	if not _pool_executor:
-		if config.executor_type == 'process':
-			# process pool needs to pickle function arguments
-			_pool_executor = ProcessPoolExecutor(max_workers=config.executor_workers)
-		else:
-			_pool_executor = ThreadPoolExecutor(
-				max_workers=config.executor_workers,
-				thread_name_prefix="worker-ThreadPoolExecutor"
-			)
-			# Start all worker threads in pool.
-			# This will speed up calls to run_in_threadpool().
-			for _ in range(config.executor_workers):
-				_pool_executor._adjust_thread_count() # pylint: disable=protected-access
-	return _pool_executor
+def init_pool_executor(loop):
+	# https://bugs.python.org/issue41699
+	pool_executor = ThreadPoolExecutor(
+		max_workers=config.executor_workers,
+		thread_name_prefix="worker-ThreadPoolExecutor"
+	)
+	# Start all worker threads in pool.
+	# This will speed up calls to run_in_threadpool().
+	for _ in range(config.executor_workers):
+		pool_executor._adjust_thread_count() # pylint: disable=protected-access
+	loop.set_default_executor(pool_executor)
 
 T = typing.TypeVar("T") # pylint: disable=invalid-name
 async def run_in_threadpool(func: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any) -> T:
 	#return await starlette_run_in_threadpool(func, *args, **kwargs)
-	loop = asyncio.get_event_loop()
 	context = contextvars.copy_context()
-	future = loop.run_in_executor(
+	future = asyncio.get_event_loop().run_in_executor(
 		None, context.run, functools.partial(func, *args, **kwargs)
 	)
 	res = await future
@@ -129,8 +122,6 @@ def signal_handler(signum, frame): # pylint: disable=unused-argument
 		exit_worker()
 
 def exit_worker():
-	if _pool_executor:
-		_pool_executor.shutdown()
 	for t in threading.enumerate(): # pylint: disable=invalid-name
 		if hasattr(t, "stop"):
 			t.stop()
@@ -151,7 +142,7 @@ def init_worker():
 	logger.notice("Init worker (pid %s)", os.getpid())
 	loop = asyncio.get_event_loop()
 	loop.set_debug(config.debug)
-	loop.set_default_executor(get_pool_executor())
+	init_pool_executor(loop)
 	loop.set_exception_handler(handle_asyncio_exception)
 	# create redis pool
 	loop.create_task(get_redis_client())

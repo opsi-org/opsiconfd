@@ -303,7 +303,7 @@ metrics_registry.register(
 		aggregation="avg",
 		zero_if_missing=None,
 		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], stack=True),
+		grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], decimals=2, stack=True),
 		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
 	),
 	Metric(

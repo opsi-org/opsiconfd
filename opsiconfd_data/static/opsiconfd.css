@@ -245,10 +245,8 @@ li {
 	overflow: hidden;
 }
 
-
 @media screen and (max-width: 1050px) {
 
-	/* Style the tab */
 	.tab {
 		height: 90px;
 	}
@@ -257,13 +255,9 @@ li {
 
 @media screen and (max-width: 650px) {
 
-	/* Style the tab */
 	.tab {
 		overflow: auto;
 		height: 140px;
 	}
 
 }
-
-
-

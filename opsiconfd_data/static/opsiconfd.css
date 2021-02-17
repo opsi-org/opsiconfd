@@ -244,3 +244,20 @@ li {
 	height: 1.1em;
 	overflow: hidden;
 }
+
+@media screen and (max-width: 1050px) {
+
+	.tab {
+		height: 90px;
+	}
+
+}
+
+@media screen and (max-width: 650px) {
+
+	.tab {
+		overflow: auto;
+		height: 140px;
+	}
+
+}

@@ -27,6 +27,7 @@ import os
 import socket
 import threading
 import asyncio
+from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor
 import logging as pylogging
 from logging import LogRecord, Formatter, StreamHandler
@@ -264,6 +265,10 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 						if file_handler:
 							await file_handler.emit(record)
 
+					del record
+					del record_dict
+				del data
+
 			except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise
 				raise
 			except EOFError:
@@ -283,17 +288,21 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		self._max_msg_len = max_msg_len
 		self._max_delay = max_delay
 		self._redis = get_redis_connection(config.redis_internal_url)
-		self._redis_lock = threading.Lock()
-		self._pipeline = self._redis.pipeline()
+		self._queue = Queue()
 		self._should_stop = False
 		self.start()
 
 	def run(self):
 		while not self._should_stop:
 			time.sleep(self._max_delay)
-			if len(self._pipeline) > 0:
-				with self._redis_lock:
-					self._pipeline.execute()
+			if self._queue.qsize() > 0:
+				pipeline = self._redis.pipeline()
+				while True:
+					try:
+						pipeline.xadd("opsiconfd:log", self._queue.get_nowait())
+					except Empty:
+						break
+				pipeline.execute()
 
 	def stop(self):
 		self._should_stop = True
@@ -323,8 +332,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 			client = ""
 			if hasattr(record, "context") and "client_address" in record.context and record.context["client_address"]:
 				client = record.context["client_address"]
-			with self._redis_lock:
-				self._pipeline.xadd("opsiconfd:log", {"client": client, "record": str_record})
+			self._queue.put({"client": client, "record": str_record})
 		except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise
 			raise
 		except Exception as exc: # pylint: disable=broad-except

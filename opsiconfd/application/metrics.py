@@ -35,7 +35,6 @@ from fastapi.responses import RedirectResponse
 
 from ..logging import logger
 from ..config import config
-from ..server import get_internal_url
 from ..worker import get_redis_client
 from ..statistics import metrics_registry, get_time_bucket
 from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE, get_grafana_data_source_url

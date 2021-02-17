@@ -38,7 +38,7 @@ from ..config import config
 from ..server import get_internal_url
 from ..worker import get_redis_client
 from ..statistics import metrics_registry, get_time_bucket
-from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE
+from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE, get_grafana_data_source_url
 
 grafana_metrics_router = APIRouter()
 
@@ -89,7 +89,7 @@ async def grafana_dashboard(request: Request):  # pylint: disable=unused-argumen
 	base_url = f"{url.scheme}://{url.netloc.split('@', 1)[-1]}"
 	async with aiohttp.ClientSession(auth=auth, headers=headers) as session:
 		json = GRAFANA_DATASOURCE_TEMPLATE
-		json["url"] = f"{get_internal_url()}/metrics/grafana/"
+		json["url"] = f"{get_grafana_data_source_url()}/metrics/grafana/"
 		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}")
 		if resp.status == 200:
 			_id = (await resp.json())["id"]

@@ -557,6 +557,11 @@ parser.add(
 	help="External grafana base url."
 )
 parser.add(
+	"--grafana-data-source-url",
+	env_var="OPSICONFD_GRAFANA_DATA_SOURCE_URL",
+	help="Grafana data source base url."
+)
+parser.add(
 	"--ex-help",
 	action="store_true",
 	help=expert_help("Show expert help message and exit.")

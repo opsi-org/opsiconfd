@@ -36,7 +36,7 @@ import aiohttp
 
 from .logging import logger
 from .config import config, set_config_in_config_file
-from .utils import get_random_string
+from .utils import get_node_name, get_random_string
 
 API_KEY_NAME = "opsiconfd"
 
@@ -410,3 +410,17 @@ def create_opsiconfd_user(db_file: str):
 		grafana_internal_url = f"{url.scheme}://opsiconfd:{pw}@{url.hostname}:{url.port}{url.path}"
 		set_config_in_config_file("grafana-internal-url", grafana_internal_url)
 		config.reload()
+
+grafana_data_source_url = None # pylint: disable=invalid-name
+def get_grafana_data_source_url():
+	global grafana_data_source_url # pylint: disable=invalid-name, global-statement
+	if not grafana_data_source_url:
+		if config.grafana_data_source_url:
+			grafana_data_source_url = config.grafana_data_source_url
+		else:
+			scheme = "http"
+			if config.ssl_server_key and config.ssl_server_cert:
+				scheme = "https"
+			addr = get_node_name()
+			grafana_data_source_url = f"{scheme}://{addr}:{config.port}"
+	return grafana_data_source_url

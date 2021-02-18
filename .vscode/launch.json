@@ -6,7 +6,7 @@
 			"type":"python",
 			"request":"launch",
 			"module":"opsiconfd",
-			"args": ["--workers=1","--log-level-stderr=5", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"args": ["--workers=1","--log-level=5","--log-level-stderr=5","--log-mode=redis", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
 			"sudo": true,
 			"justMyCode": false
 		},

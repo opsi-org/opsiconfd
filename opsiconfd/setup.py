@@ -210,7 +210,6 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 		setup_limits()
 	if full:
 		if not "users" in skip_setup and not "groups" in skip_setup:
-			logger.devel("UCS?: %s", isUCS())
 			if isUCS():
 				logger.info("Skip user and group creation on UCS.")
 			else:

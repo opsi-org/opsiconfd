@@ -38,7 +38,7 @@ from OPSI.setup import (
 from OPSI.System.Posix import getLocalFqdn, locateDHCPDConfig
 from OPSI.Util.Task.InitializeBackend import initializeBackends
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
-from OPSI.System import get_subprocess_environment
+from OPSI.System import get_subprocess_environment, isUCS
 
 from .logging import logger
 from .config import config
@@ -210,8 +210,12 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 		setup_limits()
 	if full:
 		if not "users" in skip_setup and not "groups" in skip_setup:
-			po_setup_users_and_groups()
-			setup_users_and_groups()
+			logger.devel("UCS?: %s", isUCS())
+			if isUCS():
+				logger.info("Skip user and group creation on UCS.")
+			else:
+				po_setup_users_and_groups()
+				setup_users_and_groups()
 		if not "backend" in skip_setup:
 			try:
 				setup_backend()

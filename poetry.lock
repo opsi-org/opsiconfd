@@ -1234,7 +1234,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.141"
+version = "4.2.0.142"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -1254,6 +1254,7 @@ pyOpenSSL = ">=19.1.0,<20.0.0"
 python-pam = ">=1.8.4,<2.0.0"
 pywin32 = {version = ">=227,<228", markers = "sys_platform == \"win32\""}
 ruyaml = ">=0.19.2,<0.20.0"
+service-identity = ">=18.1.0,<19.0.0"
 SQLAlchemy = ">=1.3.15,<2.0.0"
 twisted = {version = ">=20.3.0,<21.0.0", extras = ["tls"]}
 wmi = {version = ">=1.5.1,<2.0.0", markers = "sys_platform == \"win32\""}
@@ -2484,8 +2485,8 @@ python-magic = [
     {file = "python_magic-0.4.22-py2.py3-none-any.whl", hash = "sha256:8551e804c09a3398790bd9e392acb26554ae2609f29c72abb0b9dee9a5571eae"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.141.tar.gz", hash = "md5:e183b8530923a792ea5e9412f606b80e"},
-    {file = "python_opsi-4.2.0.141-py3-none-any.whl", hash = "md5:72b5bb4e14a6c1cc20a679dc8faa305f"},
+    {file = "python-opsi-4.2.0.142.tar.gz", hash = "md5:0835d4bc2fa2c24c572a633c5e38cb8c"},
+    {file = "python_opsi-4.2.0.142-py3-none-any.whl", hash = "md5:984ee5ff14d49fac87640b8acc054ca6"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

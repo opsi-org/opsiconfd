@@ -154,7 +154,7 @@ def _store_product_ordering(result, params):
 				for idx, val in enumerate(result.get("sorted")):
 					pipe.zadd(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}", {val: idx})
 				pipe.expire(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}", EXPIRE)
-				now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+				now = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
 				pipe.set(f"opsiconfd:jsonrpccache:{params[0]}:products:uptodate", now)
 				pipe.set(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}:uptodate", now)
 				pipe.expire(f"opsiconfd:jsonrpccache:{params[0]}:products:uptodate", EXPIRE_UPTODATE)
@@ -412,7 +412,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 	rpc_call_time = None
 	try:
 		start = time.perf_counter()
-		rpc_call_time = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+		rpc_call_time = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
 		user_agent = request.headers.get('user-agent')
 		method_name = rpc.get('method')
 		params = rpc.get('params', [])
@@ -487,7 +487,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 		return [{"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}, 0, rpc, "rpc"]
 
 def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disable=too-many-locals
-	now = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+	now = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
 	try:
 		start = time.perf_counter()
 		depot_id = rpc.get('params')[0]

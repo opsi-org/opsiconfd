@@ -20,7 +20,11 @@ pyinstaller-poetry:
       - pydantic.color
       - pydantic.validators
       - pydantic.datetime_parse
-        #- pkg_resources.py2_warn
+      # UserWarning: You do not have a working installation of the service_identity module: 'No module named 'service_identity''.
+      # Please install it from <https://pypi.python.org/pypi/service_identity> and make sure all of its dependencies are satisfied.
+      # Without the service_identity module, Twisted can perform only rudimentary TLS client hostname verification.
+      # Many valid certificate/hostname mappings may be rejected.
+      - service_identity
       - OPSI.Backend.Depotserver
       - OPSI.Backend.DHCPD
       - OPSI.Backend.File

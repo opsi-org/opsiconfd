@@ -36,11 +36,7 @@ import configargparse
 from .utils import Singleton
 
 
-PYTEST = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
-
-fqdn = socket.getfqdn()
-
 CONFIG_FILE_HEADER = """
 # This file was automatically migrated from an older opsiconfd version
 # For available options see: opsiconfd --help
@@ -49,7 +45,6 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
 # update-ip = true
 """
-
 CA_DAYS = 365
 CA_RENEW_DAYS = 335
 CERT_DAYS = 90
@@ -58,6 +53,9 @@ PRIVATE_KEY_CIPHER = "DES3"
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
 
+PYTEST = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
+
+fqdn = socket.getfqdn()
 
 def upgrade_config_files():
 	defaults = {}
@@ -631,14 +629,20 @@ parser.add(
 	default=False,
 	help=expert_help("Use jemalloc if available.")
 )
-parser.add(
-	"action",
-	nargs="?",
-	choices=("start", "stop", "reload", "setup"),
-	default="start",
-	metavar="ACTION",
-	help="The ACTION to perform."
-)
+if PYTEST:
+	parser.add(
+		"args",
+		nargs="*"
+	)
+else:
+	parser.add(
+		"action",
+		nargs="?",
+		choices=("start", "stop", "reload", "setup"),
+		default="start",
+		metavar="ACTION",
+		help="The ACTION to perform."
+	)
 
 class Config(metaclass=Singleton):
 	def __init__(self):
@@ -652,8 +656,9 @@ class Config(metaclass=Singleton):
 
 	def _parse_args(self, args=None):
 		if PYTEST:
-			return
-		self._config = parser.parse_args(args)
+			self._config, _unknown = parser.parse_known_args(args)
+		else:
+			self._config = parser.parse_args(args)
 
 	def __getattr__(self, attr):
 		if attr.startswith("_"):

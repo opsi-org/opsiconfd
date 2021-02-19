@@ -45,7 +45,7 @@ from .config import config
 from .backend import get_backend
 from .grafana import setup_grafana
 from .statistics import setup_metric_downsampling
-from .ssl import setup_ssl, setup_ssl_file_permissions, check_ssl_expiry
+from .ssl import setup_ssl, setup_ssl_file_permissions
 
 def setup_limits():
 	logger.info("Setup system limits")
@@ -254,4 +254,4 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 		except Exception as err: # pylint: disable=broad-except
 			# This can fail if fqdn is not valid
 			logger.error("Failed to setup ssl: %s", err)
-	check_ssl_expiry()
+

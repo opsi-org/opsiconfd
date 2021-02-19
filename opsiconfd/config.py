@@ -35,6 +35,8 @@ import configargparse
 
 from .utils import Singleton
 
+
+PYTEST = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
 
 fqdn = socket.getfqdn()
@@ -47,6 +49,15 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
 # update-ip = true
 """
+
+CA_DAYS = 365
+CA_RENEW_DAYS = 335
+CERT_DAYS = 90
+CERT_RENEW_DAYS = 60
+PRIVATE_KEY_CIPHER = "DES3"
+CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
+SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
+
 
 def upgrade_config_files():
 	defaults = {}
@@ -436,7 +447,7 @@ parser.add(
 parser.add(
 	"--ssl-ca-key-passphrase",
 	env_var="OPSICONFD_SSL_CA_KEY_PASSPHRASE",
-	default="Toohoerohpiep8yo",
+	default=CA_KEY_DEFAULT_PASSPHRASE,
 	help="Passphrase to use to encrypt CA key."
 )
 parser.add(
@@ -448,19 +459,19 @@ parser.add(
 parser.add(
 	"--ssl-server-key",
 	env_var="OPSICONFD_SSL_SERVER_KEY",
-	default="/etc/opsi/ssl/opsiconfd.pem",
+	default="/etc/opsi/ssl/opsiconfd-key.pem",
 	help="The location of the ssl server key."
 )
 parser.add(
 	"--ssl-server-key-passphrase",
 	env_var="OPSICONFD_SSL_SERVER_KEY_PASSPHRASE",
-	default="ye3heiwaiLu9pama",
+	default=SERVER_KEY_DEFAULT_PASSPHRASE,
 	help="Passphrase to use to encrypt server key."
 )
 parser.add(
 	"--ssl-server-cert",
 	env_var="OPSICONFD_SSL_SERVER_CERT",
-	default="/etc/opsi/ssl/opsiconfd.pem",
+	default="/etc/opsi/ssl/opsiconfd-cert.pem",
 	help="The location of the ssl server certificate."
 )
 # Cipher Strings from https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
@@ -628,6 +639,7 @@ parser.add(
 	metavar="ACTION",
 	help="The ACTION to perform."
 )
+
 class Config(metaclass=Singleton):
 	def __init__(self):
 		self._config = None
@@ -639,6 +651,8 @@ class Config(metaclass=Singleton):
 			self._parse_args(args)
 
 	def _parse_args(self, args=None):
+		if PYTEST:
+			return
 		self._config = parser.parse_args(args)
 
 	def __getattr__(self, attr):

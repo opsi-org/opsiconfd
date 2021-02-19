@@ -200,7 +200,11 @@ def load_ca_key() -> PKey:
 	except RuntimeError:
 		if config.ssl_ca_key_passphrase == CA_KEY_DEFAULT_PASSPHRASE:
 			raise
-		return load_key(config.ssl_ca_key, CA_KEY_DEFAULT_PASSPHRASE)
+		# Wrong passphrase, try to load with default passphrase
+		key = load_key(config.ssl_ca_key, CA_KEY_DEFAULT_PASSPHRASE)
+		# Store with configured passphrase
+		store_ca_key(key)
+		return key
 
 def store_ca_cert(ca_cert: X509) -> None:
 	store_cert(config.ssl_ca_cert, ca_cert)
@@ -254,7 +258,11 @@ def load_server_key() -> PKey:
 	except RuntimeError:
 		if config.ssl_ca_key_passphrase == SERVER_KEY_DEFAULT_PASSPHRASE:
 			raise
-		return load_key(config.ssl_server_key, SERVER_KEY_DEFAULT_PASSPHRASE)
+		# Wrong passphrase, try to load with default passphrase
+		key = load_key(config.ssl_server_key, SERVER_KEY_DEFAULT_PASSPHRASE)
+		# Store with configured passphrase
+		store_server_key(key)
+		return key
 
 
 def store_server_cert(server_cert: X509) -> None:

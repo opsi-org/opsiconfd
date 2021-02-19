@@ -33,7 +33,7 @@ import requests
 
 from MySQLdb import _mysql
 from opsiconfd.utils import decode_redis_result
-
+from opsiconfd.ssl import get_ips
 
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"

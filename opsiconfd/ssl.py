@@ -22,7 +22,8 @@
 import os
 import datetime
 import random
-import shutil
+import socket
+import ipaddress
 
 from typing import Tuple
 
@@ -37,255 +38,50 @@ from OPSI.Util import getfqdn
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.Config import OPSI_ADMIN_GROUP
 
-from .config import config
+from .config import (
+	config,
+	CA_DAYS, CA_RENEW_DAYS, CERT_DAYS, CERT_RENEW_DAYS,
+	PRIVATE_KEY_CIPHER,
+	CA_KEY_DEFAULT_PASSPHRASE,
+	SERVER_KEY_DEFAULT_PASSPHRASE
+)
+
 from .logging import logger
 from .utils import get_ip_addresses
 
-CA_DAYS = 730
-CERT_DAYS = 365
-PRIVATE_KEY_CIPHER = "DES3"
 
-def setup_ssl(): # pylint: disable=too-many-branches
-	logger.info("Setup ssl")
-	if (
-		os.path.exists(config.ssl_ca_key) and os.path.exists(config.ssl_ca_cert) and
-		os.path.exists(config.ssl_server_key) and os.path.exists(config.ssl_server_cert)
-	):
-		return
-
-	ca_key = None
-	ca_crt = None
-
-	if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
-		ca_crt, ca_key = create_ca()
-
-		if os.path.exists(config.ssl_ca_key):
-			os.unlink(config.ssl_ca_key)
-		if not os.path.exists(os.path.dirname(config.ssl_ca_key)):
-			os.makedirs(os.path.dirname(config.ssl_ca_key))
-			os.chmod(path=os.path.dirname(config.ssl_ca_key), mode=0o700)
-		with open(config.ssl_ca_key, "wb") as out:
-			out.write(
-				dump_privatekey(
-					FILETYPE_PEM,
-					ca_key,
-					cipher=PRIVATE_KEY_CIPHER,
-					passphrase=config.ssl_ca_key_passphrase.encode("utf-8")
-				)
-			)
-
-		if os.path.exists(config.ssl_ca_cert):
-			os.unlink(config.ssl_ca_cert)
-		if not os.path.exists(os.path.dirname(config.ssl_ca_cert)):
-			os.makedirs(os.path.dirname(config.ssl_ca_cert))
-			os.chmod(path=os.path.dirname(config.ssl_ca_cert), mode=0o700)
-		with open(config.ssl_ca_cert, "wb") as out:
-			out.write(dump_certificate(FILETYPE_PEM, ca_crt))
-
-	if not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):
-		if not ca_key:
-			with open(config.ssl_ca_key, "r") as file:
-				try:
-					ca_key = load_privatekey(
-						FILETYPE_PEM,
-						file.read(),
-						passphrase=config.ssl_ca_key_passphrase.encode("utf-8")
-					)
-				except CryptoError as err:
-					raise RuntimeError(
-						f"Failed to load CA private key from '{config.ssl_ca_key}': {err}"
-					) from err
-		if not ca_crt:
-			with open(config.ssl_ca_cert, "r") as file:
-				ca_crt = load_certificate(FILETYPE_PEM, file.read())
-
-		srv_crt, srv_key = create_crt(ca_crt, ca_key)
-
-		if os.path.exists(config.ssl_server_key):
-			os.unlink(config.ssl_server_key)
-		if os.path.exists(config.ssl_server_cert):
-			os.unlink(config.ssl_server_cert)
-
-		if not os.path.exists(os.path.dirname(config.ssl_server_key)):
-			os.makedirs(os.path.dirname(config.ssl_server_key))
-			os.chmod(path=os.path.dirname(config.ssl_server_key), mode=0o700)
-
-		with open(config.ssl_server_cert, "ab") as out:
-			out.write(dump_certificate(FILETYPE_PEM, srv_crt))
-
-		with open(config.ssl_server_key, "ab") as out:
-			out.write(
-				dump_privatekey(
-					FILETYPE_PEM,
-					srv_key,
-					cipher=PRIVATE_KEY_CIPHER,
-					passphrase=config.ssl_server_key_passphrase.encode("utf-8")
-				)
-			)
-		if not os.path.exists(os.path.dirname(config.ssl_server_cert)):
-			os.makedirs(os.path.dirname(config.ssl_server_cert))
-			os.chmod(path=os.path.dirname(config.ssl_server_cert), mode=0o700)
-
-	setup_ssl_file_permissions()
-
-def setup_ssl_file_permissions():
-	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
-	permissions = (
-		FilePermission(config.ssl_ca_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
-		FilePermission(f"{config.ssl_ca_cert}.old", config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
-		FilePermission(ca_srl, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
-		FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
-		FilePermission(config.ssl_server_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
-		FilePermission(config.ssl_server_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600)
-	)
-	PermissionRegistry().register_permission(*permissions)
-	for permission in permissions:
-		set_rights(permission.path)
-
-def check_ssl_expiry():
-	for cert in (config.ssl_ca_cert, config.ssl_server_cert):
-		if os.path.exists(cert):
-			logger.info("Checking expiry of certificate: %s", cert)
-
-			with open(cert, "r") as file:
-				cert = load_certificate(FILETYPE_PEM,  file.read())
-
-			enddate = datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
-			diff = (enddate - datetime.datetime.now()).days
-
-			if diff <= 0:
-				logger.error("Certificate '%s' expired on %s", cert.get_subject().CN, enddate)
-			elif diff < 30:
-				logger.warning("Certificate '%s' will expire in %d days", cert.get_subject().CN, diff)
-
-def renew_ca() -> Tuple[X509, PKey]:
-	logger.notice("Renewing opsi CA")
-
-	if os.path.exists(config.ssl_ca_cert):
-		logger.debug("Rename old CA")
-		shutil.move(config.ssl_ca_cert, f"{config.ssl_ca_cert}.old")
-
-	ca_key = None
-	if os.path.exists(config.ssl_ca_key):
-		logger.info("Using existing key to create new CA")
-		with open(config.ssl_ca_key, "r") as file:
-			try:
-				ca_key = load_privatekey(
-					FILETYPE_PEM,
-					file.read(),
-					passphrase=config.ssl_ca_key_passphrase.encode("utf-8")
-				)
-			except CryptoError as err:
-				raise RuntimeError(
-					f"Failed to load CA private key from '{config.ssl_ca_key}': {err}"
-				) from err
-	else:
-		logger.info("Key not found, create new CA with new key")
-		ca_key = PKey()
-		ca_key.generate_key(TYPE_RSA, 4096)
-
-	return create_ca(ca_key)
+def get_ips():
+	ips = {"127.0.0.1", "::1"}
+	for addr in get_ip_addresses():
+		if addr["family"] == "ipv4" and addr["address"] not in ips:
+			ips.add(ipaddress.ip_address(addr["address"]).compressed)
+	return ips
 
 
-def create_ca(ca_key: PKey = None, ca_subject: X509Name = None) -> Tuple[X509, PKey]:
-	logger.notice("Creating opsi CA")
-
-	if not ca_key:
-		ca_key = PKey()
-		ca_key.generate_key(TYPE_RSA, 4096)
-
-	ca_crt = X509()
-	ca_crt.set_version(2)
-	random_number = random.getrandbits(32)
-	ca_serial_number = int.from_bytes(f"opsica-{random_number}".encode(), byteorder="big")
-	ca_crt.set_serial_number(ca_serial_number)
-	ca_crt.gmtime_adj_notBefore(0)
-	ca_crt.gmtime_adj_notAfter(CA_DAYS * 60 * 60 * 24)
-
-	ca_crt.set_version(2)
-	ca_crt.set_pubkey(ca_key)
-
-	if not ca_subject:
-		ca_subject = create_x590Name({"CN": "opsi CA"})
-
-	ca_crt.set_issuer(ca_subject)
-	ca_crt.set_subject(ca_subject)
-	ca_crt.add_extensions([
-		X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
-		X509Extension(b"basicConstraints", True, b"CA:TRUE")
-	])
-	ca_crt.sign(ca_key, 'sha256')
-
-	return (ca_crt, ca_key)
+def get_server_cn():
+	return getfqdn()
 
 
-def create_crt(ca_crt: X509, ca_key: PKey, srv_subject: X509Name = None) -> Tuple[X509, PKey]: # pylint: disable=too-many-locals
-	logger.notice("Creating opsiconfd cert")
-	fqdn = getfqdn()
+def get_hostnames():
+	names = {"localhost"}
+	names.add(get_server_cn())
+	for addr in get_ips():
+		try:
+			(hostname, aliases, _addr) = socket.gethostbyaddr(addr)
+			names.add(hostname)
+			for alias in aliases:
+				names.add(alias)
+		except socket.error as err:
+			logger.info("No hostname for %s: %s", addr, err)
+	return names
 
-	# Chrome requires CN from Subject also as Subject Alt Name
-	ips = ["127.0.0.1", "::1"]
-	for a in get_ip_addresses(): # pylint: disable=invalid-name
-		if a["family"] == "ipv4" and a["address"] not in ips:
-			ips.append(a["address"])
-	ips = ", ".join([f"IP:{ip}" for ip in ips])
 
-	alt_names = f"DNS:{fqdn}, DNS:localhost, {ips}"
-
-	srv_key = PKey()
-	srv_key.generate_key(TYPE_RSA, 4096)
-
-	srv_crt = X509()
-	srv_crt.set_version(2)
-
-	if not srv_subject:
-		srv_subject = create_x590Name({"CN": f"{fqdn}"})
-	srv_crt.set_subject(srv_subject)
-
-	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
-	used_serial_numbers = []
-	if os.path.exists(ca_srl):
-		with open(ca_srl, "r") as file:
-			used_serial_numbers = [serial_number.rstrip() for serial_number in file]
-	srv_serial_number = None
-	count = 0
-	while not srv_serial_number or hex(srv_serial_number)[2:] in used_serial_numbers:
-		count += 1
-		random_number = random.getrandbits(32)
-		srv_serial_number = int.from_bytes(f"opsiconfd-{random_number}".encode(), byteorder="big")
-		if count > 10:
-			logger.warning("No new serial number for ssl cert found!")
-			break
-
-	srv_crt.set_serial_number(srv_serial_number)
-	srv_crt.gmtime_adj_notBefore(0)
-	srv_crt.gmtime_adj_notAfter(CERT_DAYS * 60 * 60 * 24)
-	srv_crt.set_issuer(ca_crt.get_subject())
-	srv_crt.set_subject(srv_subject)
-
-	srv_crt.add_extensions([
-		X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
-		X509Extension(b"basicConstraints", True, b"CA:FALSE"),
-		X509Extension(b"keyUsage", True, b"nonRepudiation, digitalSignature, keyEncipherment"),
-		X509Extension(b"extendedKeyUsage", False, b"serverAuth, clientAuth, codeSigning, emailProtection"),
-		X509Extension(b"subjectAltName", False, alt_names.encode())
-	])
-
-	srv_crt.set_pubkey(srv_key)
-	srv_crt.sign(ca_key, "sha256")
-
-	with open(ca_srl, "a") as out:
-		out.write(hex(srv_serial_number)[2:])
-		out.write("\n")
-
-	return (srv_crt, srv_key)
+def get_domain():
+	return '.'.join(get_server_cn().split('.')[1:])
 
 
 def create_x590Name(subj: dict = None) -> X509Name: # pylint: disable=invalid-name, too-many-branches
-
-	fqdn = getfqdn()
-	domain = '.'.join(fqdn.split('.')[1:])
-
+	domain = get_domain()
 	subject = {
 		"C": "DE",
 		"ST": "RP",
@@ -326,3 +122,315 @@ def create_x590Name(subj: dict = None) -> X509Name: # pylint: disable=invalid-na
 		x509_name.emailAddress = subject.get("emailAddress")
 
 	return x509_name
+
+
+def setup_ssl_file_permissions() -> None:
+	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
+	permissions = (
+		FilePermission(config.ssl_ca_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
+		#FilePermission(f"{config.ssl_ca_cert}.old", config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
+		FilePermission(ca_srl, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		FilePermission(config.ssl_server_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		FilePermission(config.ssl_server_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600)
+	)
+	PermissionRegistry().register_permission(*permissions)
+	for permission in permissions:
+		set_rights(permission.path)
+
+
+def store_key(key_file: str, passphrase: str, key: PKey) -> None:
+	if os.path.exists(key_file):
+		os.unlink(key_file)
+	if not os.path.exists(os.path.dirname(key_file)):
+		os.makedirs(os.path.dirname(key_file))
+	with open(key_file, "wb") as out:
+		out.write(
+			dump_privatekey(
+				FILETYPE_PEM,
+				key,
+				cipher=PRIVATE_KEY_CIPHER,
+				passphrase=passphrase.encode("utf-8")
+			)
+		)
+	setup_ssl_file_permissions()
+
+
+def load_key(key_file: str, passphrase: str) -> PKey:
+	with open(key_file, "r") as file:
+		try:
+			return load_privatekey(
+				FILETYPE_PEM,
+				file.read(),
+				passphrase=passphrase.encode("utf-8")
+			)
+		except CryptoError as err:
+			raise RuntimeError(
+				f"Failed to load private key from '{key_file}': {err}"
+			) from err
+
+
+def store_cert(cert_file: str, cert: X509) -> None:
+	if os.path.exists(cert_file):
+		os.unlink(cert_file)
+	if not os.path.exists(os.path.dirname(cert_file)):
+		os.makedirs(os.path.dirname(cert_file))
+	with open(cert_file, "wb") as out:
+		out.write(dump_certificate(FILETYPE_PEM, cert))
+	setup_ssl_file_permissions()
+
+
+def load_cert(cert_file: str) -> X509:
+	with open(cert_file, "r") as file:
+		try:
+			return load_certificate(FILETYPE_PEM, file.read())
+		except CryptoError as err:
+			raise RuntimeError(
+				f"Failed to load CA cert from '{cert_file}': {err}"
+			) from err
+
+
+def store_ca_key(ca_key: PKey) -> None:
+	store_key(config.ssl_ca_key, config.ssl_ca_key_passphrase, ca_key)
+
+
+def load_ca_key() -> PKey:
+	try:
+		return load_key(config.ssl_ca_key, config.ssl_ca_key_passphrase)
+	except RuntimeError:
+		if config.ssl_ca_key_passphrase == CA_KEY_DEFAULT_PASSPHRASE:
+			raise
+		return load_key(config.ssl_ca_key, CA_KEY_DEFAULT_PASSPHRASE)
+
+def store_ca_cert(ca_cert: X509) -> None:
+	store_cert(config.ssl_ca_cert, ca_cert)
+
+
+def load_ca_cert() -> X509:
+	return load_cert(config.ssl_ca_cert)
+
+
+def create_ca(renew: bool = True) -> Tuple[X509, PKey]:
+	ca_key = None
+	if renew:
+		logger.notice("Renewing opsi CA")
+		ca_key = load_ca_key()
+	else:
+		logger.notice("Creating opsi CA")
+		ca_key = PKey()
+		ca_key.generate_key(TYPE_RSA, 4096)
+
+	ca_crt = X509()
+	ca_crt.set_version(2)
+	random_number = random.getrandbits(32)
+	ca_serial_number = int.from_bytes(f"opsi-ca-{random_number}".encode(), byteorder="big")
+	ca_crt.set_serial_number(ca_serial_number)
+	ca_crt.gmtime_adj_notBefore(0)
+	ca_crt.gmtime_adj_notAfter(CA_DAYS * 60 * 60 * 24)
+
+	ca_crt.set_version(2)
+	ca_crt.set_pubkey(ca_key)
+
+	ca_subject = create_x590Name({"CN": "opsi CA"})
+
+	ca_crt.set_issuer(ca_subject)
+	ca_crt.set_subject(ca_subject)
+	ca_crt.add_extensions([
+		X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
+		X509Extension(b"basicConstraints", True, b"CA:TRUE")
+	])
+	ca_crt.sign(ca_key, 'sha256')
+
+	return (ca_crt, ca_key)
+
+
+def store_server_key(srv_key: PKey) -> None:
+	store_key(config.ssl_server_key, config.ssl_server_key_passphrase, srv_key)
+
+
+def load_server_key() -> PKey:
+	try:
+		return load_key(config.ssl_server_key, config.ssl_server_key_passphrase)
+	except RuntimeError:
+		if config.ssl_ca_key_passphrase == SERVER_KEY_DEFAULT_PASSPHRASE:
+			raise
+		return load_key(config.ssl_server_key, SERVER_KEY_DEFAULT_PASSPHRASE)
+
+
+def store_server_cert(server_cert: X509) -> None:
+	store_cert(config.ssl_server_cert, server_cert)
+
+
+def load_server_cert() -> X509:
+	return load_cert(config.ssl_server_cert)
+
+
+def create_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint: disable=too-many-locals
+	srv_key = None
+	if renew:
+		logger.notice("Renewing server cert")
+		srv_key = load_server_key()
+	else:
+		logger.notice("Creating server cert")
+		srv_key = PKey()
+		srv_key.generate_key(TYPE_RSA, 4096)
+
+	ca_key = load_ca_key()
+	ca_crt = load_ca_cert()
+	server_cn = get_server_cn()
+
+	# Chrome requires CN from Subject also as Subject Alt Name
+	ips = ", ".join([f"IP:{ip}" for ip in get_ips()])
+	hns = ", ".join([f"DNS:{ip}" for ip in get_hostnames()])
+	alt_names = f"{hns}, {ips}"
+
+	srv_crt = X509()
+	srv_crt.set_version(2)
+
+	srv_subject = create_x590Name({"CN": f"{server_cn}"})
+	srv_crt.set_subject(srv_subject)
+
+	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
+	used_serial_numbers = []
+	if os.path.exists(ca_srl):
+		with open(ca_srl, "r") as file:
+			used_serial_numbers = [serial_number.rstrip() for serial_number in file]
+	srv_serial_number = None
+	count = 0
+	while not srv_serial_number or hex(srv_serial_number)[2:] in used_serial_numbers:
+		count += 1
+		random_number = random.getrandbits(32)
+		srv_serial_number = int.from_bytes(f"opsiconfd-{random_number}".encode(), byteorder="big")
+		if count > 10:
+			logger.warning("No new serial number for ssl cert found!")
+			break
+
+	srv_crt.set_serial_number(srv_serial_number)
+	srv_crt.gmtime_adj_notBefore(0)
+	srv_crt.gmtime_adj_notAfter(CERT_DAYS * 60 * 60 * 24)
+	srv_crt.set_issuer(ca_crt.get_subject())
+	srv_crt.set_subject(srv_subject)
+
+	srv_crt.add_extensions([
+		X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
+		X509Extension(b"basicConstraints", True, b"CA:FALSE"),
+		X509Extension(b"keyUsage", True, b"nonRepudiation, digitalSignature, keyEncipherment"),
+		X509Extension(b"extendedKeyUsage", False, b"serverAuth, clientAuth, codeSigning, emailProtection"),
+		X509Extension(b"subjectAltName", False, alt_names.encode("utf-8"))
+	])
+
+	srv_crt.set_pubkey(srv_key)
+	srv_crt.sign(ca_key, "sha256")
+
+	with open(ca_srl, "a") as out:
+		out.write(hex(srv_serial_number)[2:])
+		out.write("\n")
+
+	return (srv_crt, srv_key)
+
+
+def setup_ca():
+	logger.info("Checking CA")
+	if config.ssl_ca_key == config.ssl_ca_cert:
+		raise ValueError("CA key and cert cannot be stored in the same file")
+
+	create = False
+	renew = False
+
+	if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
+		create = True
+	else:
+		ca_crt = load_ca_cert()
+		enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
+		diff = (enddate - datetime.datetime.now()).days
+
+		logger.info("CA '%s' will expire in %d days", ca_crt.get_subject().CN, diff)
+		if diff <= CA_RENEW_DAYS:
+			logger.notice("CA '%s' will expire in %d days, renewing", ca_crt.get_subject().CN, diff)
+			renew = True
+
+	if create or renew:
+		(ca_crt, ca_key) = create_ca(renew=renew)
+		store_ca_key(ca_key)
+		store_ca_cert(ca_crt)
+	else:
+		logger.info("Server cert is up to date")
+
+def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statements
+	logger.info("Checking server cert")
+
+	if config.ssl_server_key == config.ssl_server_cert:
+		raise ValueError("SSL server key and cert cannot be stored in the same file")
+
+	create = False
+	renew = False
+
+	if (
+		os.path.exists(os.path.join(os.path.dirname(config.ssl_server_cert), "opsiconfd.pem")) and
+		os.path.basename(config.ssl_server_key) != "opsiconfd.pem" and
+		os.path.basename(config.ssl_server_cert) != "opsiconfd.pem"
+	):
+		# Remove old default file
+		os.remove(os.path.join(os.path.dirname(config.ssl_server_cert), "opsiconfd.pem"))
+
+	if not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):  # pylint: disable=too-many-nested-blocks
+		create = True
+	else:
+		srv_crt = load_server_cert()
+		enddate = datetime.datetime.strptime(srv_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
+		diff = (enddate - datetime.datetime.now()).days
+
+		logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, diff)
+		if diff <= CERT_RENEW_DAYS:
+			logger.notice("Server cert '%s' will expire in %d days, renewing", srv_crt.get_subject().CN, diff)
+			renew = True
+		else:
+			server_cn = get_server_cn()
+			if server_cn != srv_crt.get_subject().CN:
+				logger.notice(
+					"Server CN has changed from '%s' to '%s', renew server cert",
+					srv_crt.get_subject().CN, server_cn
+				)
+				renew = True
+			else:
+				cert_hns = set()
+				cert_ips = set()
+				for idx in range(srv_crt.get_extension_count()):
+					ext = srv_crt.get_extension(idx)
+					if ext.get_short_name() == b"subjectAltName":
+						for alt_name in str(ext).split(","):
+							alt_name = alt_name.strip()
+							if alt_name.startswith("DNS:"):
+								cert_hns.add(alt_name.split(":", 1)[-1].strip())
+							elif alt_name.startswith(("IP:", "IP Address:")):
+								addr = alt_name.split(":", 1)[-1].strip()
+								addr = ipaddress.ip_address(addr)
+								cert_ips.add(addr.compressed)
+						break
+				hns = get_hostnames()
+				if cert_hns != hns:
+					logger.notice(
+						"Server hostnames have changed from %s to %s, renew server cert",
+						cert_hns, hns
+					)
+					renew = True
+				else:
+					ips = get_ips()
+					if cert_ips != ips:
+						logger.notice(
+							"Server IPs have changed from %s to %s, renew server cert",
+							cert_ips, ips
+						)
+						renew = True
+
+	if create or renew:
+		(srv_crt, srv_key) = create_server_cert(renew=renew)
+		store_server_key(srv_key)
+		store_server_cert(srv_crt)
+	else:
+		logger.info("Server cert is up to date")
+
+def setup_ssl():
+	logger.info("Setup ssl")
+	setup_ca()
+	setup_server_cert()

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "opsiconfd"
-version = "4.2.0.127"
+version = "4.2.0.128"
 description = "opsi configuration service"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
@@ -59,6 +59,7 @@ opsi-dev-tools = "^1.0.4"
 pytest-cov = "^2.10.0"
 pytest-asyncio = "^0.14.0"
 pyinstaller = "^4.0"
+mock = "^4.0.3"
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"

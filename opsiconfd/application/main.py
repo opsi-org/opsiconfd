@@ -36,12 +36,10 @@ from fastapi.requests import Request
 from fastapi.responses import Response, HTMLResponse, FileResponse, RedirectResponse
 from websockets.exceptions import ConnectionClosedOK
 
+from .. import contextvar_request_id, contextvar_client_address
 from ..logging import logger
 from ..config import config
-from ..worker import (
-	get_redis_client, init_worker,
-	contextvar_request_id, contextvar_client_address
-)
+from ..worker import get_redis_client, init_worker
 from ..session import SessionMiddleware
 from ..statistics import StatisticsMiddleware
 from ..utils import normalize_ip_address

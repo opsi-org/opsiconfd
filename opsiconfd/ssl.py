@@ -143,15 +143,8 @@ def store_key(key_file: str, passphrase: str, key: PKey) -> None:
 		os.unlink(key_file)
 	if not os.path.exists(os.path.dirname(key_file)):
 		os.makedirs(os.path.dirname(key_file))
-	with open(key_file, "wb") as out:
-		out.write(
-			dump_privatekey(
-				FILETYPE_PEM,
-				key,
-				cipher=PRIVATE_KEY_CIPHER,
-				passphrase=passphrase.encode("utf-8")
-			)
-		)
+	with open(key_file, "w") as out:
+		out.write(as_pem(key, passphrase))
 	setup_ssl_file_permissions()
 
 
@@ -175,7 +168,7 @@ def store_cert(cert_file: str, cert: X509) -> None:
 	if not os.path.exists(os.path.dirname(cert_file)):
 		os.makedirs(os.path.dirname(cert_file))
 	with open(cert_file, "wb") as out:
-		out.write(dump_certificate(FILETYPE_PEM, cert))
+		out.write(as_pem(FILETYPE_PEM, cert))
 	setup_ssl_file_permissions()
 
 
@@ -214,8 +207,23 @@ def load_ca_cert() -> X509:
 	return load_cert(config.ssl_ca_cert)
 
 
+def as_pem(cert_or_key, passphrase=None):
+	if isinstance(cert_or_key, X509):
+		return dump_certificate(
+			FILETYPE_PEM,
+			cert_or_key
+		).decode("ascii")
+	if isinstance(cert_or_key, PKey):
+		return dump_privatekey(
+			FILETYPE_PEM,
+			cert_or_key,
+			cipher=None if passphrase is None else PRIVATE_KEY_CIPHER,
+			passphrase=None if passphrase is None else passphrase.encode("utf-8")
+		).decode("ascii")
+	raise TypeError(f"Invalid type: {cert_or_key}")
+
 def get_ca_cert_as_pem() -> str:
-	return dump_certificate(FILETYPE_PEM, load_ca_cert()).decode("ascii")
+	return as_pem(load_ca_cert())
 
 
 def create_ca(renew: bool = True) -> Tuple[X509, PKey]:
@@ -252,11 +260,11 @@ def create_ca(renew: bool = True) -> Tuple[X509, PKey]:
 	return (ca_crt, ca_key)
 
 
-def store_server_key(srv_key: PKey) -> None:
+def store_local_server_key(srv_key: PKey) -> None:
 	store_key(config.ssl_server_key, config.ssl_server_key_passphrase, srv_key)
 
 
-def load_server_key() -> PKey:
+def load_local_server_key() -> PKey:
 	try:
 		return load_key(config.ssl_server_key, config.ssl_server_key_passphrase)
 	except RuntimeError:
@@ -265,42 +273,44 @@ def load_server_key() -> PKey:
 		# Wrong passphrase, try to load with default passphrase
 		key = load_key(config.ssl_server_key, SERVER_KEY_DEFAULT_PASSPHRASE)
 		# Store with configured passphrase
-		store_server_key(key)
+		store_local_server_key(key)
 		return key
 
 
-def store_server_cert(server_cert: X509) -> None:
+def store_local_server_cert(server_cert: X509) -> None:
 	store_cert(config.ssl_server_cert, server_cert)
 
 
-def load_server_cert() -> X509:
+def load_local_server_cert() -> X509:
 	return load_cert(config.ssl_server_cert)
 
-
-def create_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint: disable=too-many-locals
-	srv_key = None
-	if renew:
-		logger.notice("Renewing server cert")
-		srv_key = load_server_key()
-	else:
-		logger.notice("Creating server cert")
-		srv_key = PKey()
-		srv_key.generate_key(TYPE_RSA, 4096)
+def create_server_cert(common_name, ip_addresses, hostnames, key=None) -> Tuple[X509, PKey]:  # pylint: disable=too-many-locals
+	if not key:
+		logger.notice("Creating server key pair")
+		key = PKey()
+		key.generate_key(TYPE_RSA, 4096)
 
 	ca_key = load_ca_key()
 	ca_crt = load_ca_cert()
-	server_cn = get_server_cn()
 
-	# Chrome requires CN from Subject also as Subject Alt Name
-	ips = ", ".join([f"IP:{ip}" for ip in get_ips()])
-	hns = ", ".join([f"DNS:{ip}" for ip in get_hostnames()])
-	alt_names = f"{hns}, {ips}"
+	# Chrome requires CN from Subject also as Subject Alt
+	if not common_name in hostnames:
+		hostnames.append(common_name)
+	hns = ", ".join([f"DNS:{ip}" for ip in hostnames])
+	ips = ", ".join([f"IP:{ip}" for ip in ip_addresses])
+	alt_names = ""
+	if hns:
+		alt_names += hns
+	if ips:
+		if alt_names:
+			alt_names +=", "
+		alt_names += hns
 
-	srv_crt = X509()
-	srv_crt.set_version(2)
+	crt = X509()
+	crt.set_version(2)
 
-	srv_subject = create_x590Name({"CN": f"{server_cn}"})
-	srv_crt.set_subject(srv_subject)
+	srv_subject = create_x590Name({"CN": f"{common_name}"})
+	crt.set_subject(srv_subject)
 
 	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
 	used_serial_numbers = []
@@ -317,28 +327,43 @@ def create_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint: disab
 			logger.warning("No new serial number for ssl cert found!")
 			break
 
-	srv_crt.set_serial_number(srv_serial_number)
-	srv_crt.gmtime_adj_notBefore(0)
-	srv_crt.gmtime_adj_notAfter(CERT_DAYS * 60 * 60 * 24)
-	srv_crt.set_issuer(ca_crt.get_subject())
-	srv_crt.set_subject(srv_subject)
+	crt.set_serial_number(srv_serial_number)
+	crt.gmtime_adj_notBefore(0)
+	crt.gmtime_adj_notAfter(CERT_DAYS * 60 * 60 * 24)
+	crt.set_issuer(ca_crt.get_subject())
+	crt.set_subject(srv_subject)
 
-	srv_crt.add_extensions([
+	crt.add_extensions([
 		X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
 		X509Extension(b"basicConstraints", True, b"CA:FALSE"),
 		X509Extension(b"keyUsage", True, b"nonRepudiation, digitalSignature, keyEncipherment"),
-		X509Extension(b"extendedKeyUsage", False, b"serverAuth, clientAuth, codeSigning, emailProtection"),
-		X509Extension(b"subjectAltName", False, alt_names.encode("utf-8"))
+		X509Extension(b"extendedKeyUsage", False, b"serverAuth, clientAuth, codeSigning, emailProtection")
 	])
-
-	srv_crt.set_pubkey(srv_key)
-	srv_crt.sign(ca_key, "sha256")
+	if alt_names:
+		crt.add_extensions([
+			X509Extension(b"subjectAltName", False, alt_names.encode("utf-8"))
+		])
+	crt.set_pubkey(key)
+	crt.sign(ca_key, "sha256")
 
 	with open(ca_srl, "a") as out:
 		out.write(hex(srv_serial_number)[2:])
 		out.write("\n")
 
-	return (srv_crt, srv_key)
+	return (crt, key)
+
+def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint: disable=too-many-locals
+	key = None
+	if renew:
+		logger.notice("Renewing server cert")
+		key = load_local_server_key()
+
+	return create_server_cert(
+		common_name=get_server_cn(),
+		ip_addresses=get_ips(),
+		hostnames=get_hostnames(),
+		key=key
+	)
 
 
 def setup_ca(server_role: str = "config"):
@@ -368,7 +393,7 @@ def setup_ca(server_role: str = "config"):
 	else:
 		logger.info("Server cert is up to date")
 
-def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-branches,too-many-statements
+def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
 
 	if config.ssl_server_key == config.ssl_server_cert:
@@ -388,7 +413,7 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 	if not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):  # pylint: disable=too-many-nested-blocks
 		create = True
 	else:
-		srv_crt = load_server_cert()
+		srv_crt = load_local_server_cert()
 		enddate = datetime.datetime.strptime(srv_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
 		diff = (enddate - datetime.datetime.now()).days
 
@@ -436,9 +461,9 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 						renew = True
 
 	if create or renew:
-		(srv_crt, srv_key) = create_server_cert(renew=renew)
-		store_server_key(srv_key)
-		store_server_cert(srv_crt)
+		(srv_crt, srv_key) = create_local_server_cert(renew=renew)
+		store_local_server_key(srv_key)
+		store_local_server_cert(srv_crt)
 	else:
 		logger.info("Server cert is up to date")
 

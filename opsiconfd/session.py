@@ -47,9 +47,9 @@ from OPSI.Config import OPSI_ADMIN_GROUP
 
 from opsicommon.logging import logger, secret_filter, set_context
 
+from . import contextvar_client_session, contextvar_server_timing
 from .worker import (
-	sync_redis_client, get_redis_client, run_in_threadpool,
-	contextvar_client_session, contextvar_server_timing
+	sync_redis_client, get_redis_client, run_in_threadpool
 )
 from .backend import get_client_backend
 from .config import config

@@ -17,18 +17,20 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 :copyright: uib GmbH <info@uib.de>
-:author: Jan Schneider <j.schneider@uib.de>
 :license: GNU Affero General Public License version 3
 """
 
 
 import threading
+import socket
 
+from OPSI.Exceptions import BackendPermissionDeniedError
 from OPSI.Backend import no_export
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig
 from OPSI.Backend.Base.Backend import describeInterface
 
+from . import contextvar_client_address, contextvar_client_session
 from .config import config
 from .utils import Singleton
 from .logging import logger
@@ -99,15 +101,48 @@ def get_server_role():
 
 
 class OpsiconfdBackend(metaclass=Singleton):
+	def __init__(self):
+		self._interface = describeInterface(self)
+		self.method_names = [meth['name'] for meth in self._interface]
+		self._backend = get_client_backend()
+
 	@no_export
 	def get_interface(self):
-		return describeInterface(self)
+		return self._interface
 
-	def backend_getOpsiCACert(self):  # pylint: disable=invalid-name,no-self-use
+	def backend_exit(self) -> None:  # pylint: disable=no-self-use
+		return
+
+	def getDomain(self) -> str:  # pylint: disable=invalid-name
+		try:
+			client_address = contextvar_client_address.get()
+			if not client_address:
+				raise ValueError("Failed to get client address")
+			return ".".join(socket.gethostbyaddr(client_address)[0].split(".")[1:])
+		except Exception as err:  # pylint: disable=broad-except
+			logger.debug("Failed to get domain by client address: %s", err)
+		return self._backend.getDomain()  # pylint: disable=no-member
+
+	def getOpsiCACert(self):  # pylint: disable=invalid-name,no-self-use
+		logger.devel(contextvar_client_address.get())
 		from .ssl import get_ca_cert_as_pem  # pylint: disable=import-outside-toplevel
 		return get_ca_cert_as_pem()
 
-	def host_getTLSCertificate(self, hostId):  # pylint: disable=invalid-name
-		pass
+	def host_getTLSCertificate(self, hostId: str) -> str:  # pylint: disable=invalid-name
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Invalid session")
+		host = self._backend.host_getObjects(type="OpsiDepotserver", id=hostId) # pylint: disable=no-member
+		if not host or not host[0] or host[0].getType() != "OpsiDepotserver":
+			raise BackendPermissionDeniedError(f"Not a depotserver: {hostId}")
+		host = host[0]
+		if not session.user_store.isAdmin and session.user_store.username != host.id:
+			raise BackendPermissionDeniedError("Insufficient permissions")
+		from .ssl import create_server_cert, as_pem
+		common_name = host.id
+		ip_addresses = []
+		hostnames = []
+		cert, key = create_server_cert(common_name, ip_addresses, hostnames)
+		return as_pem(key) + as_pem(cert)
 
 opsiconfd_backend = OpsiconfdBackend()

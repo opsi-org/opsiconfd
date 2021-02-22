@@ -26,8 +26,8 @@ import typing
 import signal
 import threading
 import asyncio
-import contextvars
 import functools
+import contextvars
 from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 import redis
@@ -37,11 +37,6 @@ from .logging import logger, init_logging
 from .config import config
 from .utils import get_aredis_connection
 from .arbiter import get_arbiter_pid
-
-contextvar_request_id = contextvars.ContextVar("request_id", default=None)
-contextvar_client_session = contextvars.ContextVar("client_session", default=None)
-contextvar_client_address = contextvars.ContextVar("client_address", default=None)
-contextvar_server_timing = contextvars.ContextVar("server_timing", default=None)
 
 _redis_client = None # pylint: disable=invalid-name
 _metrics_collector = None # pylint: disable=invalid-name

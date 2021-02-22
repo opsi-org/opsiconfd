@@ -198,13 +198,6 @@ def get_random_string(length):
 	result_str = ''.join(random.choice(letters) for i in range(length))
 	return result_str
 
-def read_ssl_ca_cert_file():
-	get_config()
-	with open(config.ssl_ca_cert) as f: # pylint: disable=invalid-name
-		cacert = crypto.load_certificate(crypto.FILETYPE_PEM, f.read())
-		return crypto.dump_certificate(crypto.FILETYPE_PEM, cacert)
-
-
 def retry_redis_call(func):
 	@functools.wraps(func)
 	def wrapper_retry(*args, **kwargs):

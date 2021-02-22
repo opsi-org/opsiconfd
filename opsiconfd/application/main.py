@@ -44,7 +44,8 @@ from ..worker import (
 )
 from ..session import SessionMiddleware
 from ..statistics import StatisticsMiddleware
-from ..utils import normalize_ip_address, read_ssl_ca_cert_file
+from ..utils import normalize_ip_address
+from ..ssl import get_ca_cert_as_pem
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
 from .webdav import webdav_setup
@@ -131,7 +132,7 @@ async def shutdown_event():
 @app.get("/ssl/opsi-ca-cert.pem")
 def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument
 	return Response(
-		content=read_ssl_ca_cert_file(),
+		content=get_ca_cert_as_pem(),
 		headers={
 			"Content-Type": "application/x-pem-file",
 			"Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'

@@ -24,18 +24,20 @@
 
 import threading
 
-#from OPSI.Backend.Base.Backend import BackendOptions
-#from OPSI.Backend.Manager.AccessControl import UserStore
+from OPSI.Backend import no_export
 from OPSI.Backend.BackendManager import BackendManager
+from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig
+from OPSI.Backend.Base.Backend import describeInterface
 
 from .config import config
+from .utils import Singleton
+from .logging import logger
 
 backend_config =  {
 	'dispatchConfigFile': config.dispatch_config_file,
 	'backendConfigDir': config.backend_config_dir,
 	'extensionConfigDir': config.extension_config_dir,
 	'aclFile': config.acl_file,
-	###########'adminNetworks': config.admin_networks,
 	'hostControlBackend': True,
 	'hostControlSafeBackend': True,
 	'depotBackend' : True,
@@ -86,4 +88,26 @@ def get_backend_interface():
 	global backend_interface # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
 		backend_interface = get_client_backend().backend_getInterface()
+		backend_interface.extend(opsiconfd_backend.get_interface())
 	return backend_interface
+
+def get_server_role():
+	for (_method, backends) in _loadDispatchConfig(config.dispatch_config_file):
+		if "jsonrpc" in backends:
+			return "depot"
+	return "config"
+
+
+class OpsiconfdBackend(metaclass=Singleton):
+	@no_export
+	def get_interface(self):
+		return describeInterface(self)
+
+	def backend_getOpsiCACert(self):  # pylint: disable=invalid-name,no-self-use
+		from .ssl import get_ca_cert_as_pem  # pylint: disable=import-outside-toplevel
+		return get_ca_cert_as_pem()
+
+	def host_getTLSCertificate(self, hostId):  # pylint: disable=invalid-name
+		pass
+
+opsiconfd_backend = OpsiconfdBackend()

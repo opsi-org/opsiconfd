@@ -188,7 +188,7 @@
 							<td align=left><label>Method:</label></td>
 							<td>
 								<select id="method-select" onchange="createParamInputs()">
-									{% for method in sorted(interface, key=lambda meth: meth['name']) %}
+									{% for method in interface %}
 									<option>{{	method.get("name") }}</option>
 									{% endfor %}
 								</select>

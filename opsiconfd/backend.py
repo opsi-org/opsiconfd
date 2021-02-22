@@ -23,6 +23,8 @@
 
 import threading
 import socket
+import ipaddress
+from urllib.parse import urlparse
 
 from OPSI.Exceptions import BackendPermissionDeniedError
 from OPSI.Backend import no_export
@@ -138,9 +140,30 @@ class OpsiconfdBackend(metaclass=Singleton):
 		host = host[0]
 		if not session.user_store.isAdmin and session.user_store.username != host.id:
 			raise BackendPermissionDeniedError("Insufficient permissions")
-		from .ssl import create_server_cert, as_pem  # pylint: disable=import-outside-toplevel
+
 		common_name = host.id
-		ip_addresses = []
-		hostnames = []
+		ip_addresses = set()
+		hostnames = set()
+		if host.ipAddress:
+			try:
+				ip_addresses.add(ipaddress.ip_address(host.ipAddress).compressed)
+			except ValueError as err:
+				logger.error("Invalid depot ip address '%s': %s", host.ipAddress, err)
+		try:
+			ip_addresses.add(socket.gethostbyname(host.id))
+		except socket.error as err:
+			logger.warning("Failed to get ip address of '%s': %s", host.id, err)
+
+		for url_type in ('depotRemoteUrl', 'depotWebdavUrl', 'repositoryRemoteUrl', 'workbenchRemoteUrl'):
+			if getattr(host, url_type):
+				address = urlparse(getattr(host, url_type)).hostname
+				if address:
+					try:
+						ip_addresses.add(ipaddress.ip_address(address).compressed)
+					except ValueError:
+						# Not an ip address
+						hostnames.add(address)
+
+		from .ssl import create_server_cert, as_pem  # pylint: disable=import-outside-toplevel
 		cert, key = create_server_cert(common_name, ip_addresses, hostnames)
 		return as_pem(key) + as_pem(cert)

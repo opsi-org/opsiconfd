@@ -284,7 +284,7 @@ def store_local_server_cert(server_cert: X509) -> None:
 def load_local_server_cert() -> X509:
 	return load_cert(config.ssl_server_cert)
 
-def create_server_cert(common_name, ip_addresses, hostnames, key=None) -> Tuple[X509, PKey]:  # pylint: disable=too-many-locals
+def create_server_cert(common_name: str, ip_addresses: set, hostnames: set, key: PKey = None) -> Tuple[X509, PKey]:  # pylint: disable=too-many-locals
 	if not key:
 		logger.notice("Creating server key pair")
 		key = PKey()
@@ -294,8 +294,7 @@ def create_server_cert(common_name, ip_addresses, hostnames, key=None) -> Tuple[
 	ca_crt = load_ca_cert()
 
 	# Chrome requires CN from Subject also as Subject Alt
-	if not common_name in hostnames:
-		hostnames.append(common_name)
+	hostnames.add(common_name)
 	hns = ", ".join([f"DNS:{ip}" for ip in hostnames])
 	ips = ", ".join([f"IP:{ip}" for ip in ip_addresses])
 	alt_names = ""
@@ -304,7 +303,7 @@ def create_server_cert(common_name, ip_addresses, hostnames, key=None) -> Tuple[
 	if ips:
 		if alt_names:
 			alt_names +=", "
-		alt_names += hns
+		alt_names += ips
 
 	crt = X509()
 	crt.set_version(2)

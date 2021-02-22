@@ -45,10 +45,9 @@ from .config import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	SERVER_KEY_DEFAULT_PASSPHRASE
 )
-
 from .logging import logger
 from .utils import get_ip_addresses
-
+from .backend import get_server_role
 
 def get_ips():
 	ips = {"127.0.0.1", "::1"}
@@ -206,12 +205,17 @@ def load_ca_key() -> PKey:
 		store_ca_key(key)
 		return key
 
+
 def store_ca_cert(ca_cert: X509) -> None:
 	store_cert(config.ssl_ca_cert, ca_cert)
 
 
 def load_ca_cert() -> X509:
 	return load_cert(config.ssl_ca_cert)
+
+
+def get_ca_cert_as_pem() -> str:
+	return dump_certificate(FILETYPE_PEM, load_ca_cert()).decode("ascii")
 
 
 def create_ca(renew: bool = True) -> Tuple[X509, PKey]:
@@ -337,7 +341,7 @@ def create_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint: disab
 	return (srv_crt, srv_key)
 
 
-def setup_ca():
+def setup_ca(server_role: str = "config"):
 	logger.info("Checking CA")
 	if config.ssl_ca_key == config.ssl_ca_cert:
 		raise ValueError("CA key and cert cannot be stored in the same file")
@@ -364,7 +368,7 @@ def setup_ca():
 	else:
 		logger.info("Server cert is up to date")
 
-def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statements
+def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-branches,too-many-statements
 	logger.info("Checking server cert")
 
 	if config.ssl_server_key == config.ssl_server_cert:
@@ -438,7 +442,9 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 	else:
 		logger.info("Server cert is up to date")
 
+
 def setup_ssl():
 	logger.info("Setup ssl")
-	setup_ca()
-	setup_server_cert()
+	server_role = get_server_role()
+	setup_ca(server_role)
+	setup_server_cert(server_role)

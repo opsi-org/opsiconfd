@@ -35,15 +35,13 @@ from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from .logging import logger
-from .worker import (
+from . import (
 	contextvar_request_id, contextvar_client_address, contextvar_server_timing
 )
+from .logging import logger
 from .worker import get_redis_client as get_worker_redis_client
 from .worker import get_metrics_collector as get_worker_metrics_collector
-
 from .arbiter import get_redis_client as get_arbiter_redis_client
-
 from .config import config
 from .utils import (
 	Singleton, get_node_name, get_worker_num, get_redis_connection

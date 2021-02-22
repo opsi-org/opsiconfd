@@ -23,3 +23,10 @@ The opsi configuration service.
 :license: GNU Affero General Public License version 3
 """
 __version__ = '4.2.0.128'
+
+import contextvars
+
+contextvar_request_id = contextvars.ContextVar("request_id", default=None)
+contextvar_client_session = contextvars.ContextVar("client_session", default=None)
+contextvar_client_address = contextvars.ContextVar("client_address", default=None)
+contextvar_server_timing = contextvars.ContextVar("server_timing", default=None)

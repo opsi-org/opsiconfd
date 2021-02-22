@@ -23,7 +23,6 @@
 import asyncio
 import datetime
 import time
-import socket
 import traceback
 import urllib.parse
 import gzip
@@ -38,11 +37,11 @@ from fastapi.responses import Response
 
 from OPSI.Util import serialize, deserialize
 
+from .. import contextvar_client_session
 from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface, get_backend, opsiconfd_backend
 from ..worker import (
-	run_in_threadpool, get_metrics_collector, get_redis_client, sync_redis_client,
-	contextvar_client_address, contextvar_client_session
+	run_in_threadpool, get_metrics_collector, get_redis_client, sync_redis_client
 )
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
 from ..utils import decode_redis_result, get_node_name, get_worker_num
@@ -445,25 +444,14 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 		params = deserialize(params)
 
 		result = None
-		if hasattr(opsiconfd_backend, method_name):
+		if method_name in opsiconfd_backend.method_names:
 			result = getattr(opsiconfd_backend, method_name)(*params, **keywords)
-			logger.devel(result)
 		else:
 			method = getattr(backend, method_name)
-			if method_name != "backend_exit":
-				if method_name == "getDomain":
-					try:
-						client_address = contextvar_client_address.get()
-						if not client_address:
-							raise ValueError("Failed to get client address")
-						result = ".".join(socket.gethostbyaddr(client_address)[0].split(".")[1:])
-					except Exception as err:  # pylint: disable=broad-except
-						logger.debug("Failed to get domain by client address: %s", err)
-				else:
-					if keywords:
-						result = method(*params, **keywords)
-					else:
-						result = method(*params)
+			if keywords:
+				result = method(*params, **keywords)
+			else:
+				result = method(*params)
 
 		response = {"jsonrpc": "2.0", "id": rpc_id, "result": result, "error": None}
 		response = serialize(response)

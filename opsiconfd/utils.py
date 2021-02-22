@@ -32,10 +32,7 @@ import asyncio
 import psutil
 import redis
 import aredis
-
-
 from dns import resolver, reversename
-from OpenSSL import crypto
 
 from OPSI.Types import forceFqdn
 from opsicommon.logging import handle_log_exception

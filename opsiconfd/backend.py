@@ -90,7 +90,7 @@ def get_backend_interface():
 	global backend_interface # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
 		backend_interface = get_client_backend().backend_getInterface()
-		backend_interface.extend(opsiconfd_backend.get_interface())
+		backend_interface.extend(OpsiconfdBackend().get_interface())
 	return backend_interface
 
 def get_server_role():
@@ -138,11 +138,9 @@ class OpsiconfdBackend(metaclass=Singleton):
 		host = host[0]
 		if not session.user_store.isAdmin and session.user_store.username != host.id:
 			raise BackendPermissionDeniedError("Insufficient permissions")
-		from .ssl import create_server_cert, as_pem
+		from .ssl import create_server_cert, as_pem  # pylint: disable=import-outside-toplevel
 		common_name = host.id
 		ip_addresses = []
 		hostnames = []
 		cert, key = create_server_cert(common_name, ip_addresses, hostnames)
 		return as_pem(key) + as_pem(cert)
-
-opsiconfd_backend = OpsiconfdBackend()

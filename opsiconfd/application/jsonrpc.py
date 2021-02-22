@@ -39,7 +39,7 @@ from OPSI.Util import serialize, deserialize
 
 from .. import contextvar_client_session
 from ..logging import logger
-from ..backend import get_client_backend, get_backend_interface, get_backend, opsiconfd_backend
+from ..backend import get_client_backend, get_backend_interface, get_backend, OpsiconfdBackend
 from ..worker import (
 	run_in_threadpool, get_metrics_collector, get_redis_client, sync_redis_client
 )
@@ -444,8 +444,8 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 		params = deserialize(params)
 
 		result = None
-		if method_name in opsiconfd_backend.method_names:
-			result = getattr(opsiconfd_backend, method_name)(*params, **keywords)
+		if method_name in OpsiconfdBackend().method_names:
+			result = getattr(OpsiconfdBackend(), method_name)(*params, **keywords)
 		else:
 			method = getattr(backend, method_name)
 			if keywords:

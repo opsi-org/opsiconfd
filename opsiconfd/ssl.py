@@ -47,7 +47,7 @@ from .config import (
 )
 from .logging import logger
 from .utils import get_ip_addresses
-from .backend import get_server_role
+from .backend import get_server_role, get_backend
 
 def get_ips():
 	ips = {"127.0.0.1", "::1"}
@@ -286,7 +286,7 @@ def load_local_server_cert() -> X509:
 
 def create_server_cert(common_name: str, ip_addresses: set, hostnames: set, key: PKey = None) -> Tuple[X509, PKey]:  # pylint: disable=too-many-locals
 	if not key:
-		logger.notice("Creating server key pair")
+		logger.info("Creating server key pair")
 		key = PKey()
 		key.generate_key(TYPE_RSA, 4096)
 
@@ -365,10 +365,15 @@ def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint:
 	)
 
 
-def setup_ca(server_role: str = "config"):
+def depotserver_setup_ca():
+	logger.info("Updating CA cert from configserver")
+	store_ca_cert(
+		load_certificate(FILETYPE_PEM, get_backend().getOpsiCACert())  # pylint: disable=no-member
+	)
+
+
+def configserver_setup_ca():
 	logger.info("Checking CA")
-	if config.ssl_ca_key == config.ssl_ca_cert:
-		raise ValueError("CA key and cert cannot be stored in the same file")
 
 	create = False
 	renew = False
@@ -392,8 +397,23 @@ def setup_ca(server_role: str = "config"):
 	else:
 		logger.info("Server cert is up to date")
 
+
+def setup_ca(server_role: str = "config"):
+	if config.ssl_ca_key == config.ssl_ca_cert:
+		raise ValueError("CA key and cert cannot be stored in the same file")
+
+	if server_role == "config":
+		configserver_setup_ca()
+	elif server_role == "depot":
+		depotserver_setup_ca()
+	else:
+		raise ValueError(f"Invalid server role: {server_role}")
+
+
 def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
+	if server_role not in ("config", "depot"):
+		raise ValueError(f"Invalid server role: {server_role}")
 
 	if config.ssl_server_key == config.ssl_server_cert:
 		raise ValueError("SSL server key and cert cannot be stored in the same file")
@@ -460,7 +480,14 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 						renew = True
 
 	if create or renew:
-		(srv_crt, srv_key) = create_local_server_cert(renew=renew)
+		(srv_crt, srv_key) = (None, None)
+		if server_role == "config":
+			(srv_crt, srv_key) = create_local_server_cert(renew=renew)
+		else:
+			pem = get_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member
+			srv_crt = load_certificate(FILETYPE_PEM, pem)
+			srv_key = load_key(FILETYPE_PEM, pem)
+
 		store_local_server_key(srv_key)
 		store_local_server_cert(srv_crt)
 	else:

@@ -91,8 +91,13 @@ backend_interface = None # pylint: disable=invalid-name
 def get_backend_interface():
 	global backend_interface # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
-		backend_interface = get_client_backend().backend_getInterface()
-		backend_interface.extend(OpsiconfdBackend().get_interface())
+		opsiconfd_backend = OpsiconfdBackend()
+		backend_interface = []
+		for method in get_client_backend().backend_getInterface():
+			if not method["name"] in opsiconfd_backend.method_names:
+				backend_interface.append(method)
+		backend_interface.extend(opsiconfd_backend.get_interface())
+		backend_interface = sorted(backend_interface, key=lambda meth: meth['name'])
 	return backend_interface
 
 def get_server_role():
@@ -120,7 +125,9 @@ class OpsiconfdBackend(metaclass=Singleton):
 			client_address = contextvar_client_address.get()
 			if not client_address:
 				raise ValueError("Failed to get client address")
-			return ".".join(socket.gethostbyaddr(client_address)[0].split(".")[1:])
+			names = socket.gethostbyaddr(client_address)
+			if names[0] and "." in names[0]:
+				return ".".join(names[0].split(".")[1:])
 		except Exception as err:  # pylint: disable=broad-except
 			logger.debug("Failed to get domain by client address: %s", err)
 		return self._backend.getDomain()  # pylint: disable=no-member

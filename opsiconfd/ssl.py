@@ -167,7 +167,7 @@ def store_cert(cert_file: str, cert: X509) -> None:
 		os.unlink(cert_file)
 	if not os.path.exists(os.path.dirname(cert_file)):
 		os.makedirs(os.path.dirname(cert_file))
-	with open(cert_file, "wb") as out:
+	with open(cert_file, "w") as out:
 		out.write(as_pem(cert))
 	setup_ssl_file_permissions()
 

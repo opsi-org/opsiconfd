@@ -46,7 +46,7 @@ async def admin_interface_index(request: Request):
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
 		"node_name": get_node_name(),
-		"interface": sorted(get_backend_interface(), key=lambda meth: meth['name']),
+		"interface": get_backend_interface(),
 	}
 	return templates.TemplateResponse("admininterface.html", context)
 

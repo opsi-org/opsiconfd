@@ -45,6 +45,7 @@ from .utils import get_node_name, get_worker_processes, get_aredis_connection
 from .zeroconf import register_opsi_services, unregister_opsi_services
 from .server import run_gunicorn, run_uvicorn
 from .backend import get_backend
+from . import ssl
 
 _arbiter_pid = None # pylint: disable=invalid-name
 
@@ -141,6 +142,7 @@ class ArbiterAsyncMainThread(threading.Thread):
 	async def main(self):
 		# Need to reinit logging after server is initialized
 		self._loop.call_later(3.0, init_logging, config.log_mode)
+		self._loop.call_later(10.0, cleanup_environment)
 		self._loop.create_task(update_worker_registry())
 
 		# Create and start MetricsCollector
@@ -151,6 +153,11 @@ class ArbiterAsyncMainThread(threading.Thread):
 		register_opsi_services()
 		while True:
 			await asyncio.sleep(1)
+
+
+def cleanup_environment():
+	os.unsetenv("OPSI_SSL_CA_KEY")
+
 
 def main(): # pylint: disable=too-many-branches,too-many-statements
 	set_arbiter_pid(os.getpid())
@@ -164,7 +171,7 @@ def main(): # pylint: disable=too-many-branches,too-many-statements
 		num_workers = 1
 		backend_info = get_backend().backend_info()
 		modules = backend_info['modules']
-		helper_modules = backend_info['realmodules']
+		helpermodules = backend_info['realmodules']
 
 		if not all(key in modules for key in ('expires', 'customer')):
 			logger.error(
@@ -184,12 +191,10 @@ def main(): # pylint: disable=too-many-branches,too-many-statements
 			logger.info("Verifying modules file signature")
 			public_key = getPublicKey(
 				data=base64.decodebytes(
-					b"AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5s"
-					b"uItJa18RrYip+d4P0ogzqoCfOoVWtDojY96FDYv+2d73LsoOckHCnuh55GA0mt"
-					b"uVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8"
-					b"S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81no"
-					b"Wl9IntllK1hySkR+LbulfTGALHgHkDUlk0OSu+zBPw/hcDSOMiDQvvHfmR4quG"
-					b"Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP2FOVm1TzE0bQPR+yLPbQ"
+					b"AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDo"
+					b"jY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8"
+					b"S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDU"
+					b"lk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP"
 				)
 			)
 			data = ""
@@ -198,16 +203,14 @@ def main(): # pylint: disable=too-many-branches,too-many-statements
 			for module in mks:
 				if module in ("valid", "signature"):
 					continue
-				if module in helper_modules:
-					val = helper_modules[module]
+				if module in helpermodules:
+					val = helpermodules[module]
 					if int(val) > 0:
 						modules[module] = True
 				else:
 					val = modules[module]
-					if val is False:
-						val = "no"
-					if val is True:
-						val = "yes"
+					if isinstance(val, bool):
+						val = "yes" if val else "no"
 				data += "%s = %s\r\n" % (module.lower().strip(), val)
 
 			verified = False
@@ -235,6 +238,10 @@ def main(): # pylint: disable=too-many-branches,too-many-statements
 					logger.error("scalability1 missing in modules file. Limiting to %d workers.", num_workers)
 
 		config.workers = num_workers
+
+	if config.workers != 1:
+		# Put CA key into environment for worker processes
+		os.putenv("OPSI_SSL_CA_KEY", ssl.KEY_CACHE[config.ssl_ca_key])
 
 	if config.server_type == "gunicorn":
 		run_gunicorn()

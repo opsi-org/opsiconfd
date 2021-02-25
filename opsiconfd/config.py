@@ -638,7 +638,7 @@ else:
 	parser.add(
 		"action",
 		nargs="?",
-		choices=("start", "stop", "reload", "setup"),
+		choices=("start", "stop", "reload", "setup", "log-viewer"),
 		default="start",
 		metavar="ACTION",
 		help="The ACTION to perform."

@@ -37,12 +37,17 @@ import psutil
 
 from OPSI import __version__ as python_opsi_version
 
+from opsicommon.logging import (
+	OPSI_LEVEL_TO_LEVEL, set_filter_from_string, print_logger_info, context_filter
+)
+
 from . import __version__
-from .logging import logger, init_logging
+from .logging import logger, init_logging, AsyncRedisLogAdapter
 from .config import config
 from .setup import setup
 from .patch import apply_patches
 from .arbiter import main as arbiter_main
+
 
 def run_with_jemlalloc():
 	try:
@@ -73,6 +78,27 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 	if config.action == "setup":
 		init_logging(log_mode="local")
 		setup(full=True)
+		return
+
+	if config.action == "log-viewer":
+		async def log_viewer():
+			AsyncRedisLogAdapter(
+				log_format_stderr=config.log_format_stderr,
+				log_level_stderr=OPSI_LEVEL_TO_LEVEL[config.log_level_stderr],
+				log_level_file=0
+			)
+		try:
+			set_filter_from_string(config.log_filter)
+			AsyncRedisLogAdapter(
+				log_format_stderr=config.log_format_stderr,
+				log_level_stderr=OPSI_LEVEL_TO_LEVEL[config.log_level_stderr],
+				log_level_file=0
+			)
+			loop = asyncio.get_event_loop()
+			#loop.create_task(log_viewer())
+			loop.run_forever()
+		except KeyboardInterrupt:
+			pass
 		return
 
 	if config.action in ("reload", "stop"):

@@ -38,7 +38,7 @@ from OPSI.setup import (
 from OPSI.System.Posix import getLocalFqdn, locateDHCPDConfig
 from OPSI.Util.Task.InitializeBackend import initializeBackends
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
-from OPSI.System import get_subprocess_environment, isUCS
+from OPSI.System import get_subprocess_environment
 
 from .logging import logger
 from .config import config

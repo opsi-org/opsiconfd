@@ -37,6 +37,7 @@ from .logging import logger, init_logging
 from .config import config
 from .utils import get_aredis_connection
 from .arbiter import get_arbiter_pid
+from . import ssl
 
 _redis_client = None # pylint: disable=invalid-name
 _metrics_collector = None # pylint: disable=invalid-name
@@ -117,10 +118,10 @@ def signal_handler(signum, frame): # pylint: disable=unused-argument
 		exit_worker()
 
 def exit_worker():
-	for t in threading.enumerate(): # pylint: disable=invalid-name
-		if hasattr(t, "stop"):
-			t.stop()
-			t.join()
+	for thread in threading.enumerate():
+		if hasattr(thread, "stop"):
+			thread.stop()
+			thread.join()
 
 def init_worker():
 	global _metrics_collector # pylint: disable=global-statement, invalid-name
@@ -133,6 +134,10 @@ def init_worker():
 		signal.signal(signal.SIGINT, signal_handler)
 		signal.signal(signal.SIGHUP, signal_handler)
 		init_logging(log_mode=config.log_mode, is_worker=True)
+		opsi_ca_key = os.getenv("OPSI_SSL_CA_KEY", None)
+		if opsi_ca_key:
+			ssl.KEY_CACHE[config.ssl_ca_key] = opsi_ca_key
+			del os.environ["OPSI_SSL_CA_KEY"]
 
 	logger.notice("Init worker (pid %s)", os.getpid())
 	loop = asyncio.get_event_loop()

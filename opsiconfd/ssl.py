@@ -129,7 +129,8 @@ def setup_ssl_file_permissions() -> None:
 		FilePermission(config.ssl_ca_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
 		#FilePermission(f"{config.ssl_ca_cert}.old", config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
 		FilePermission(ca_srl, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
-		FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		#FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		FilePermission(config.ssl_ca_key, "root", "root", 0o600),
 		FilePermission(config.ssl_server_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
 		FilePermission(config.ssl_server_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600)
 	)
@@ -138,28 +139,33 @@ def setup_ssl_file_permissions() -> None:
 		set_rights(permission.path)
 
 
+KEY_CACHE = {}
 def store_key(key_file: str, passphrase: str, key: PKey) -> None:
 	if os.path.exists(key_file):
 		os.unlink(key_file)
 	if not os.path.exists(os.path.dirname(key_file)):
 		os.makedirs(os.path.dirname(key_file))
+	KEY_CACHE[key_file] = as_pem(key, passphrase)
 	with open(key_file, "w") as out:
-		out.write(as_pem(key, passphrase))
+		out.write(KEY_CACHE[key_file])
 	setup_ssl_file_permissions()
 
 
-def load_key(key_file: str, passphrase: str) -> PKey:
-	with open(key_file, "r") as file:
-		try:
-			return load_privatekey(
-				FILETYPE_PEM,
-				file.read(),
-				passphrase=passphrase.encode("utf-8")
-			)
-		except CryptoError as err:
-			raise RuntimeError(
-				f"Failed to load private key from '{key_file}': {err}"
-			) from err
+def load_key(key_file: str, passphrase: str, use_cache: bool = True) -> PKey:
+	try:
+		if key_file not in KEY_CACHE or not use_cache:
+			with open(key_file, "r") as file:
+				KEY_CACHE[key_file] = file.read()
+
+		return load_privatekey(
+			FILETYPE_PEM,
+			KEY_CACHE[key_file],
+			passphrase=passphrase.encode("utf-8")
+		)
+	except CryptoError as err:
+		raise RuntimeError(
+			f"Failed to load private key from '{key_file}': {err}"
+		) from err
 
 
 def store_cert(cert_file: str, cert: X509) -> None:
@@ -186,9 +192,9 @@ def store_ca_key(ca_key: PKey) -> None:
 	store_key(config.ssl_ca_key, config.ssl_ca_key_passphrase, ca_key)
 
 
-def load_ca_key() -> PKey:
+def load_ca_key(use_cache: bool = True) -> PKey:
 	try:
-		return load_key(config.ssl_ca_key, config.ssl_ca_key_passphrase)
+		return load_key(config.ssl_ca_key, config.ssl_ca_key_passphrase, use_cache)
 	except RuntimeError:
 		if config.ssl_ca_key_passphrase == CA_KEY_DEFAULT_PASSPHRASE:
 			raise
@@ -221,6 +227,7 @@ def as_pem(cert_or_key, passphrase=None):
 			passphrase=None if passphrase is None else passphrase.encode("utf-8")
 		).decode("ascii")
 	raise TypeError(f"Invalid type: {cert_or_key}")
+
 
 def get_ca_cert_as_pem() -> str:
 	return as_pem(load_ca_cert())
@@ -264,9 +271,9 @@ def store_local_server_key(srv_key: PKey) -> None:
 	store_key(config.ssl_server_key, config.ssl_server_key_passphrase, srv_key)
 
 
-def load_local_server_key() -> PKey:
+def load_local_server_key(use_cache: bool = True) -> PKey:
 	try:
-		return load_key(config.ssl_server_key, config.ssl_server_key_passphrase)
+		return load_key(config.ssl_server_key, config.ssl_server_key_passphrase, use_cache)
 	except RuntimeError:
 		if config.ssl_ca_key_passphrase == SERVER_KEY_DEFAULT_PASSPHRASE:
 			raise
@@ -283,6 +290,7 @@ def store_local_server_cert(server_cert: X509) -> None:
 
 def load_local_server_cert() -> X509:
 	return load_cert(config.ssl_server_cert)
+
 
 def create_server_cert(common_name: str, ip_addresses: set, hostnames: set, key: PKey = None) -> Tuple[X509, PKey]:  # pylint: disable=too-many-locals
 	if not key:
@@ -499,3 +507,8 @@ def setup_ssl():
 	server_role = get_server_role()
 	setup_ca(server_role)
 	setup_server_cert(server_role)
+	if server_role == "config":
+		# Read CA key as root to fill key cache
+		# so run_as_user can use key from cache
+		load_ca_key()
+

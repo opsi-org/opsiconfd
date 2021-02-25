@@ -247,7 +247,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 					continue
 				for entry in data[b_stream_name]:
 					last_id = entry[0]
-					client = entry[1][b"client"].decode("utf-8")
+					client = entry[1].get(b"client_address", b"").decode("utf-8")
 					record_dict = msgpack.unpackb(entry[1][b"record"])
 					record_dict.update({
 						"scope": None,
@@ -329,10 +329,9 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 	def emit(self, record):
 		try:
 			str_record = msgpack.packb(self.log_record_to_dict(record))
-			client = ""
-			if hasattr(record, "context") and "client_address" in record.context and record.context["client_address"]:
-				client = record.context["client_address"]
-			self._queue.put({"client": client, "record": str_record})
+			entry = record.context or {}
+			entry["record"] = str_record
+			self._queue.put(entry)
 		except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise
 			raise
 		except Exception as exc: # pylint: disable=broad-except

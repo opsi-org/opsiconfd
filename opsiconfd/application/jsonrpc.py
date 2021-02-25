@@ -89,7 +89,7 @@ metrics_registry.register(
 		time_related=True,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", units=["short"], decimals=0, stack=True, yaxis_min=0),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	),
 	Metric(
 		id="worker:avg_jsonrpc_duration",
@@ -101,7 +101,7 @@ metrics_registry.register(
 		subject="worker",
 		server_timing_header_factor=1000,
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", units=["s"], decimals=0),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	)
 )
 

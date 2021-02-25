@@ -53,6 +53,8 @@ def get_yappi_tag() -> int:
 
 
 def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+	# Add metrics from jsonrpc to metrics_registry
+	from .application import jsonrpc  # pylint: disable=import-outside-toplevel,unused-import
 
 	redis_client = get_redis_connection(config.redis_internal_url)
 

@@ -43,7 +43,7 @@ from OPSI.Config import OPSI_ADMIN_GROUP
 
 from opsicommon.logging import ( # pylint: disable=unused-import
 	logger, secret_filter, handle_log_exception, set_format,
-	set_filter_from_string, ContextSecretFormatter,
+	set_filter_from_string, context_filter, ContextSecretFormatter,
 	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT,
 	DEFAULT_COLORED_FORMAT, OPSI_LEVEL_TO_LEVEL
 )
@@ -147,6 +147,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			else:
 				console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
 			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=ContextSecretFormatter(console_formatter))
+			self._stderr_handler.add_filter(context_filter.filter)
 
 		if self._log_level_file != pylogging.NONE: # pylint: disable=no-member
 			if self._log_file_template:
@@ -199,6 +200,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 					)
 					if client and self._symlink_client_log_files:
 						self._loop.create_task(self._create_client_log_file_symlink(client))
+				self._file_logs[filename].add_filter(context_filter.filter)
 				return self._file_logs[filename]
 		except Exception as exc: # pylint: disable=broad-except
 			self._file_logs[filename] = None
@@ -228,7 +230,9 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			self._redis = await get_aredis_connection(config.redis_internal_url)
 			stream_name = "opsiconfd:log"
 			await self._redis.xtrim(name=stream_name, max_len=10000, approximate=True)
-			await asyncio.gather(self._reader(stream_name=stream_name), self._watch_log_files())
+			self._loop.create_task(self._reader(stream_name=stream_name))
+			self._loop.create_task(self._watch_log_files())
+
 		except Exception as err: # pylint: disable=broad-except
 			handle_log_exception(err)
 
@@ -258,12 +262,12 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 					# workaround for problem in aiologger.formatters.base.Formatter.format
 					record.get_message = record.getMessage
 					if self._stderr_handler and record.levelno >= self._log_level_stderr:
-						await self._stderr_handler.emit(record)
+						await self._stderr_handler.handle(record)
 
 					if record.levelno >= self._log_level_file:
 						file_handler = self.get_file_handler(client)
 						if file_handler:
-							await file_handler.emit(record)
+							await file_handler.handle(record)
 
 					del record
 					del record_dict
@@ -319,17 +323,17 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 			self.format(record)
 			record.exc_info = None
 
-		d = record.__dict__.copy() # pylint: disable=invalid-name
-		d["msg"] = msg
+		rec_dict = record.__dict__.copy()
+		rec_dict["msg"] = msg
 		for attr in ('scope', 'exc_info', 'args', 'contextstring'):
-			if attr in d:
-				del d[attr]
-		return d
+			if attr in rec_dict:
+				del rec_dict[attr]
+		return rec_dict
 
 	def emit(self, record):
 		try:
 			str_record = msgpack.packb(self.log_record_to_dict(record))
-			entry = record.context or {}
+			entry = dict(record.context or {})
 			entry["record"] = str_record
 			self._queue.put(entry)
 		except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise
@@ -454,8 +458,8 @@ class RedisLogAdapterThread(threading.Thread):
 				max_log_file_size=round(config.max_log_size * 1000 * 1000),
 				keep_rotated_log_files=config.keep_rotated_logs,
 				symlink_client_log_files=config.symlink_logs,
-				log_level_stderr=pylogging.opsi_level_to_level[config.log_level_stderr], # pylint: disable=protected-access, no-member
-				log_level_file=pylogging.opsi_level_to_level[config.log_level_file] # pylint: disable=protected-access, no-member
+				log_level_stderr=OPSI_LEVEL_TO_LEVEL[config.log_level_stderr],
+				log_level_file=OPSI_LEVEL_TO_LEVEL[config.log_level_file]
 			)
 			self._loop.run_forever()
 		except Exception as exc: # pylint: disable=broad-except

@@ -94,20 +94,18 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 			cmd = f"TS.INFO {orig_key}"
 			info = redis_client.execute_command(cmd)
 			existing_rules = {}
-			rules = []
 			for idx, val in enumerate(info):
-				if isinstance(val, bytes):
-					if "rules" in val.decode("utf8"):
-						rules = info[idx+1]
-						break
-
-			for rule in rules:
-				rule_name = rule[0].decode("utf8").split(":")[-1]
-				existing_rules[rule_name] = {"retention": rule[1], "aggregation": rule[2].decode("utf8")}
+				if isinstance(val, bytes) and "rules" in val.decode("utf8"):
+					rules = info[idx+1]
+					for rule in rules:
+						key = rule[0].decode("utf8")
+						#retention = key.split(":")[-1]
+						existing_rules[key] = {"time_bucket": rule[1], "aggregation": rule[2].decode("utf8")}
 
 			for rule in metric.downsampling:
-				key = f"{orig_key}:{rule[0]}"
-				retention_time = rule[1]
+				retention, retention_time, aggregation = rule
+				time_bucket = get_time_bucket(retention)
+				key = f"{orig_key}:{retention}"
 				cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
 				try:
 					redis_client.execute_command(cmd)
@@ -115,21 +113,22 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 					if str(err) != "TSDB: key already exists":
 						raise
 
-				if rule[0] in existing_rules.keys():
-					old_rule = existing_rules.get(rule[0])
-					if get_time_bucket(rule[0]) != old_rule.get("retention") or metric.aggregation.lower() != old_rule.get("aggregation").lower():
+				create = True
+				if key in existing_rules:
+					cur_rule = existing_rules[key]
+					if (
+						time_bucket == cur_rule.get("time_bucket") and
+						aggregation.lower() == cur_rule.get("aggregation").lower()
+					):
+						create = False
+					else:
 						cmd = f"TS.DELETERULE {orig_key} {key}"
 						redis_client.execute_command(cmd)
 
-				time_bucket = get_time_bucket(rule[0])
-				cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {metric.aggregation} {time_bucket}"
-				logger.debug("REDIS CMD: %s", cmd)
-				try:
+				if create:
+					cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {aggregation} {time_bucket}"
+					logger.debug("Redis cmd: %s", cmd)
 					redis_client.execute_command(cmd)
-				except RedisResponseError as err:
-					if str(err) != "TSDB: the destination key already has a rule":
-						raise
-
 
 TIME_BUCKETS = {
 	"second": 1000,
@@ -194,7 +193,7 @@ class Metric: # pylint: disable=too-many-instance-attributes
 		:type subject: str
 		:param subject: A GrafanaPanelConfig object.
 		:type subject: GrafanaPanelConfig
-		:param downsampling: Downsampling configuration as list of [<time_bucket>, <retention_time>] pairs.
+		:param downsampling: Downsampling configuration as list of [<time_bucket>, <retention_time>, <aggregation>] pairs.
 		:type downsampling: List
 		"""
 		assert aggregation in ("sum", "avg")
@@ -291,7 +290,7 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="node",
 		grafana_config=GrafanaPanelConfig(title="System load", units=["short"], decimals=2, stack=False),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	),
 	Metric(
 		id="worker:avg_mem_allocated",
@@ -302,7 +301,7 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], decimals=2, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	),
 	Metric(
 		id="worker:avg_cpu_percent",
@@ -313,7 +312,7 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker CPU usage", units=["percent"], decimals=1, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	),
 	Metric(
 		id="worker:avg_thread_number",
@@ -324,7 +323,7 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker threads", units=["short"], decimals=0, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	),
 	Metric(
 		id="worker:avg_filehandle_number",
@@ -335,7 +334,7 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker filehandles", units=["short"], decimals=0, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	),
 	Metric(
 		id="worker:sum_http_request_number",
@@ -347,7 +346,7 @@ metrics_registry.register(
 		time_related=True,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP requests/s", units=["short"], decimals=0, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	),
 	Metric(
 		id="worker:avg_http_response_bytes",
@@ -358,7 +357,7 @@ metrics_registry.register(
 		zero_if_missing="one",
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	),
 	Metric(
 		id="worker:avg_http_request_duration",
@@ -369,7 +368,7 @@ metrics_registry.register(
 		zero_if_missing="one",
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", units=["s"], decimals=0),
-		downsampling=[["minute", 24 * 3600 * 1000], ["hour", 60 * 24 * 3600 * 1000], ["day", 4 * 365 * 24 * 3600 * 1000]]
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
 	),
 	Metric(
 		id="client:sum_http_request_number",

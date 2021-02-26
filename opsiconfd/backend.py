@@ -122,7 +122,6 @@ class OpsiconfdBackend(metaclass=Singleton):
 		return self._backend.getDomain()  # pylint: disable=no-member
 
 	def getOpsiCACert(self):  # pylint: disable=invalid-name,no-self-use
-		logger.devel(contextvar_client_address.get())
 		from .ssl import get_ca_cert_as_pem  # pylint: disable=import-outside-toplevel
 		return get_ca_cert_as_pem()
 

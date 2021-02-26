@@ -437,6 +437,7 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 		# Remove old default file
 		os.remove(os.path.join(os.path.dirname(config.ssl_server_cert), "opsiconfd.pem"))
 
+	server_cn = get_server_cn()
 	if not os.path.exists(config.ssl_server_key) or not os.path.exists(config.ssl_server_cert):  # pylint: disable=too-many-nested-blocks
 		create = True
 	else:
@@ -449,7 +450,6 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 			logger.notice("Server cert '%s' will expire in %d days, renewing", srv_crt.get_subject().CN, diff)
 			renew = True
 		else:
-			server_cn = get_server_cn()
 			if server_cn != srv_crt.get_subject().CN:
 				logger.notice(
 					"Server CN has changed from '%s' to '%s', renew server cert",

@@ -81,12 +81,6 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		return
 
 	if config.action == "log-viewer":
-		async def log_viewer():
-			AsyncRedisLogAdapter(
-				log_format_stderr=config.log_format_stderr,
-				log_level_stderr=OPSI_LEVEL_TO_LEVEL[config.log_level_stderr],
-				log_level_file=0
-			)
 		try:
 			set_filter_from_string(config.log_filter)
 			AsyncRedisLogAdapter(
@@ -95,7 +89,6 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 				log_level_file=0
 			)
 			loop = asyncio.get_event_loop()
-			#loop.create_task(log_viewer())
 			loop.run_forever()
 		except KeyboardInterrupt:
 			pass

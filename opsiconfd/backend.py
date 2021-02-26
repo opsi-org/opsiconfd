@@ -27,7 +27,6 @@ import ipaddress
 from urllib.parse import urlparse
 
 from OPSI.Exceptions import BackendPermissionDeniedError
-from OPSI.Backend import no_export
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig
 from OPSI.Backend.Base.Backend import describeInterface
@@ -91,13 +90,7 @@ backend_interface = None # pylint: disable=invalid-name
 def get_backend_interface():
 	global backend_interface # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
-		opsiconfd_backend = OpsiconfdBackend()
-		backend_interface = []
-		for method in get_client_backend().backend_getInterface():
-			if not method["name"] in opsiconfd_backend.method_names:
-				backend_interface.append(method)
-		backend_interface.extend(opsiconfd_backend.get_interface())
-		backend_interface = sorted(backend_interface, key=lambda meth: meth['name'])
+		backend_interface = get_client_backend().backend_getInterface()
 	return backend_interface
 
 def get_server_role():
@@ -110,12 +103,8 @@ def get_server_role():
 class OpsiconfdBackend(metaclass=Singleton):
 	def __init__(self):
 		self._interface = describeInterface(self)
-		self.method_names = [meth['name'] for meth in self._interface]
 		self._backend = get_client_backend()
-
-	@no_export
-	def get_interface(self):
-		return self._interface
+		self.method_names = [meth['name'] for meth in self._interface]
 
 	def backend_exit(self) -> None:  # pylint: disable=no-self-use
 		return

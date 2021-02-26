@@ -41,7 +41,7 @@ from aiologger.handlers.files import AsyncFileHandler
 
 from OPSI.Config import OPSI_ADMIN_GROUP
 
-from opsicommon.logging import ( # pylint: disable=unused-import
+from opsicommon.logging import (
 	logger, secret_filter, handle_log_exception, set_format,
 	set_filter_from_string, context_filter, ContextSecretFormatter,
 	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT,
@@ -84,7 +84,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 						await self.do_rollover()
 			except Exception as exc: # pylint: disable=broad-except
 				handle_log_exception(exc)
-			for i in range(self.rollover_check_interval): # pylint: disable=invalid-name, unused-variable
+			for _i in range(self.rollover_check_interval):
 				await asyncio.sleep(1)
 
 	def should_rollover(self, record: LogRecord = None) -> bool: # pylint: disable=unused-argument
@@ -97,13 +97,13 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 		if self.stream:
 			await self.stream.close()
 		if self._keep_rotated > 0:
-			for n in range(self._keep_rotated, 0, -1): # pylint: disable=invalid-name
+			for num in range(self._keep_rotated, 0, -1):
 				src_file_path = self.absolute_file_path
-				if n > 1:
-					src_file_path = f"{self.absolute_file_path}.{n-1}"
-				dst_file_path = f"{self.absolute_file_path}.{n}"
-				if await self.loop.run_in_executor(None, lambda: os.path.exists(src_file_path)): # pylint: disable=cell-var-from-loop
-					await self.loop.run_in_executor(None, lambda: os.rename(src_file_path, dst_file_path)) # pylint: disable=cell-var-from-loop
+				if num > 1:
+					src_file_path = f"{self.absolute_file_path}.{num-1}"
+				dst_file_path = f"{self.absolute_file_path}.{num}"
+				if await self.loop.run_in_executor(None, os.path.exists, src_file_path):
+					await self.loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)
 					shutil.chown(path=dst_file_path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 					os.chmod(path=dst_file_path, mode=0o644)
 		self.stream = None
@@ -121,10 +121,12 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 			handle_log_exception(exception, record)
 
 class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
-	def __init__(self, running_event=None, log_file_template=None, # pylint: disable=too-many-arguments
-				max_log_file_size=0, keep_rotated_log_files=0, symlink_client_log_files=False,
-				log_format_stderr=DEFAULT_COLORED_FORMAT, log_format_file=DEFAULT_COLORED_FORMAT,
-				log_level_stderr=pylogging.NOTSET, log_level_file=pylogging.NOTSET):
+	def __init__( # pylint: disable=too-many-arguments
+		self, running_event=None, log_file_template=None,
+			max_log_file_size=0, keep_rotated_log_files=0, symlink_client_log_files=False,
+			log_format_stderr=DEFAULT_COLORED_FORMAT, log_format_file=DEFAULT_COLORED_FORMAT,
+			log_level_stderr=pylogging.NOTSET, log_level_file=pylogging.NOTSET
+		):
 		self._running_event = running_event
 		self._log_file_template = log_file_template
 		self._max_log_file_size = max_log_file_size
@@ -140,7 +142,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
-		if self._log_level_stderr != pylogging.NONE: # pylint: disable=no-member
+		if self._log_level_stderr != pylogging.NONE:
 			if sys.stderr.isatty():
 				# colorize
 				console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS, datefmt=DATETIME_FORMAT)
@@ -149,7 +151,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=ContextSecretFormatter(console_formatter))
 			self._stderr_handler.add_filter(context_filter.filter)
 
-		if self._log_level_file != pylogging.NONE: # pylint: disable=no-member
+		if self._log_level_file != pylogging.NONE:
 			if self._log_file_template:
 				self.get_file_handler()
 
@@ -163,13 +165,13 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 
 	async def _create_client_log_file_symlink(self, ip_address):
 		try:
-			fqdn = await self._loop.run_in_executor(None, lambda: socket.getfqdn(ip_address))
+			fqdn = await self._loop.run_in_executor(None, socket.getfqdn, ip_address)
 			if fqdn != ip_address:
 				src = self._log_file_template.replace('%m', ip_address)
 				src = os.path.basename(src)
 				dst = self._log_file_template.replace('%m', fqdn)
 				if not os.path.exists(dst):
-					await self._loop.run_in_executor(None, lambda: os.symlink(src, dst))
+					await self._loop.run_in_executor(None, os.symlink, src, dst)
 		except Exception as exc: # pylint: disable=broad-except
 			handle_log_exception(exc)
 
@@ -214,10 +216,13 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 				for filename in list(self._file_logs):
 					if not self._file_logs[filename] or self._file_logs[filename].active_lifetime == 0:
 						continue
-					dt = time.time() - self._file_logs[filename].last_used # pylint: disable=invalid-name
-					if dt > self._file_logs[filename].active_lifetime:
+					time_diff = time.time() - self._file_logs[filename].last_used
+					if time_diff > self._file_logs[filename].active_lifetime:
 						with self._file_log_lock:
-							logger.info("Closing inactive file log '%s', file logs remaining active: %d", filename, len(self._file_logs) - 1)
+							logger.info(
+								"Closing inactive file log '%s', file logs remaining active: %d",
+								filename, len(self._file_logs) - 1
+							)
 							await self._file_logs[filename].close()
 							del self._file_logs[filename]
 			except Exception as err: # pylint: disable=broad-except
@@ -356,9 +361,12 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 	def _run(self):
 		start = time.perf_counter()
 		retval = _run_orig(self)
-		dt = time.perf_counter() - start # pylint: disable=invalid-name
-		if dt >= slow_callback_duration:
-			logger.warning("Slow asyncio callback: %s took %.3f seconds", asyncio.base_events._format_handle(self), dt) # pylint: disable=protected-access
+		time_diff = time.perf_counter() - start
+		if time_diff >= slow_callback_duration:
+			logger.warning(
+				"Slow asyncio callback: %s took %.3f seconds",
+				asyncio.base_events._format_handle(self), time_diff # pylint: disable=protected-access
+			)
 		return retval
 
 	asyncio.events.Handle._run = _run  # pylint: disable=protected-access
@@ -399,11 +407,11 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 		if config.log_filter:
 			set_filter_from_string(config.log_filter)
 
-		for ln in ("asyncio", "uvicorn.error", "uvicorn.access"): # pylint: disable=invalid-name
-			al = pylogging.getLogger(ln) # pylint: disable=invalid-name
-			al.setLevel(log_level)
-			al.handlers = [log_handler]
-			al.propagate = False
+		for logger_name in ("asyncio", "uvicorn.error", "uvicorn.access"):
+			_logger = pylogging.getLogger(logger_name)
+			_logger.setLevel(log_level)
+			_logger.handlers = [log_handler]
+			_logger.propagate = False
 
 		add_context_filter_to_loggers()
 
@@ -411,7 +419,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 			enable_slow_callback_logging(config.log_slow_async_callbacks)
 
 		if not is_worker:
-			if log_mode == "redis" and (config.log_level_stderr != pylogging.NONE or config.log_level_file != pylogging.NONE): # pylint: disable=no-member
+			if log_mode == "redis" and (config.log_level_stderr != pylogging.NONE or config.log_level_file != pylogging.NONE):
 				start_redis_log_adapter_thread()
 			else:
 				stop_redis_log_adapter_thread()
@@ -429,6 +437,7 @@ class RedisLogAdapterThread(threading.Thread):
 		self.name = "RedisLogAdapterThread"
 		self._running_event = running_event
 		self._redis_log_adapter = None
+		self._loop = None
 
 	def stop(self):
 		if self._redis_log_adapter:
@@ -436,7 +445,7 @@ class RedisLogAdapterThread(threading.Thread):
 
 	def run(self):
 		try:
-			self._loop = asyncio.new_event_loop() # pylint: disable=attribute-defined-outside-init
+			self._loop = asyncio.new_event_loop()
 			self._loop.set_default_executor(
 				ThreadPoolExecutor(
 					max_workers=5,

@@ -79,7 +79,7 @@ def get_domain():
 	return '.'.join(get_server_cn().split('.')[1:])
 
 
-def create_x590Name(subj: dict = None) -> X509Name: # pylint: disable=invalid-name, too-many-branches
+def create_x590_name(subj: dict = None) -> X509Name: # pylint: disable=too-many-branches
 	domain = get_domain()
 	subject = {
 		"C": "DE",
@@ -254,7 +254,7 @@ def create_ca(renew: bool = True) -> Tuple[X509, PKey]:
 	ca_crt.set_version(2)
 	ca_crt.set_pubkey(ca_key)
 
-	ca_subject = create_x590Name({"CN": "opsi CA"})
+	ca_subject = create_x590_name({"CN": "opsi CA"})
 
 	ca_crt.set_issuer(ca_subject)
 	ca_crt.set_subject(ca_subject)
@@ -316,7 +316,7 @@ def create_server_cert(common_name: str, ip_addresses: set, hostnames: set, key:
 	crt = X509()
 	crt.set_version(2)
 
-	srv_subject = create_x590Name({"CN": f"{common_name}"})
+	srv_subject = create_x590_name({"CN": f"{common_name}"})
 	crt.set_subject(srv_subject)
 
 	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
@@ -511,4 +511,3 @@ def setup_ssl():
 		# Read CA key as root to fill key cache
 		# so run_as_user can use key from cache
 		load_ca_key()
-

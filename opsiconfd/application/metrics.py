@@ -122,7 +122,7 @@ async def grafana_dashboard_config(): #  pylint: disable=too-many-locals
 		if not metric.grafana_config:
 			continue
 		panel_id += 1
-		panel = metric.grafana_config.get_panel(id=panel_id, x=pos_x, y=pos_y)
+		panel = metric.grafana_config.get_panel(panel_id=panel_id, pos_x=pos_x, pos_y=pos_y)
 		if metric.subject == "worker":
 			for i, worker in enumerate(workers):
 				panel["targets"].append({

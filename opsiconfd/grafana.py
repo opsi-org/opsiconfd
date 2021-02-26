@@ -264,10 +264,10 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 }
 
 class GrafanaPanelConfig: # pylint: disable=too-few-public-methods
-	def __init__(self, type="graph", title="", units=["short", "short"], decimals=0, stack=False, yaxis_min = "auto"): # pylint: disable=dangerous-default-value, too-many-arguments, redefined-builtin
+	def __init__(self, type="graph", title="", units=None, decimals=0, stack=False, yaxis_min = "auto"): # pylint: disable=too-many-arguments, redefined-builtin
 		self.type = type
 		self.title = title
-		self.units = units
+		self.units = units or ["short", "short"]
 		self.decimals = decimals
 		self.stack = stack
 		self._template = ""
@@ -277,11 +277,11 @@ class GrafanaPanelConfig: # pylint: disable=too-few-public-methods
 		elif self.type == "heatmap":
 			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE
 
-	def get_panel(self, id=1, x=0, y=0): # pylint: disable=redefined-builtin, invalid-name
+	def get_panel(self, panel_id=1, pos_x=0, pos_y=0):
 		panel = copy.deepcopy(self._template)
-		panel["id"] = id
-		panel["gridPos"]["x"] = x
-		panel["gridPos"]["y"] = y
+		panel["id"] = panel_id
+		panel["gridPos"]["x"] = pos_x
+		panel["gridPos"]["y"] = pos_y
 		panel["title"] = self.title
 		if self.type == "graph":
 			panel["stack"] = self.stack
@@ -306,11 +306,14 @@ def setup_grafana():
 	url = urlparse(config.grafana_internal_url)
 	if url.hostname not in ("localhost", "127.0.0.1", "::1"):
 		return
+
 	if not os.path.exists(grafana_cli):
 		return
-	for f in (grafana_plugin_dir, grafana_db): # pylint: disable=invalid-name
-		if not os.path.exists(f):
-			raise FileNotFoundError(f"'{f}' not found")
+
+	for file in (grafana_plugin_dir, grafana_db):
+		if not os.path.exists(file):
+			raise FileNotFoundError(f"'{file}' not found")
+
 	if not os.path.exists(os.path.join(grafana_plugin_dir, plugin_id)):
 		logger.notice("Setup grafana plugin %s", plugin_id)
 		for cmd in (
@@ -333,8 +336,8 @@ async def create_or_update_api_key_by_api(admin_username: str, admin_password: s
 		for key in await resp.json():
 			if key["name"] == API_KEY_NAME:
 				await session.delete(f"{config.grafana_internal_url}/api/auth/keys/{key['id']}")
-		json = {"name": API_KEY_NAME, "role":"Admin", "secondsToLive": None} # pylint: disable=redefined-outer-name
-		resp = await session.post(f"{config.grafana_internal_url}/api/auth/keys", json=json)
+		data = {"name": API_KEY_NAME, "role":"Admin", "secondsToLive": None}
+		resp = await session.post(f"{config.grafana_internal_url}/api/auth/keys", json=data)
 		api_key = (await resp.json())["key"]
 		return api_key
 
@@ -388,8 +391,8 @@ def create_opsiconfd_user(db_file: str):
 	user_id = cur.fetchone()
 
 	if not user_id:
-		pw = get_random_string(8) # pylint: disable=invalid-name
-		pw_hash = hashlib.pbkdf2_hmac("sha256", pw.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
+		password = get_random_string(8)
+		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
 		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 		cur.execute(
 			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -407,7 +410,7 @@ def create_opsiconfd_user(db_file: str):
 		conn.close()
 
 		url = urlparse(config.grafana_internal_url)
-		grafana_internal_url = f"{url.scheme}://opsiconfd:{pw}@{url.hostname}:{url.port}{url.path}"
+		grafana_internal_url = f"{url.scheme}://opsiconfd:{password}@{url.hostname}:{url.port}{url.path}"
 		set_config_in_config_file("grafana-internal-url", grafana_internal_url)
 		config.reload()
 

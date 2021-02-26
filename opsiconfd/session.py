@@ -110,13 +110,13 @@ def get_session_from_context():
 
 
 class SessionMiddleware:
-	def __init__(self, app: ASGIApp, public_path: List[str] = []) -> None: # pylint: disable=dangerous-default-value
+	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
 		self.session_cookie_name = 'opsiconfd-session'
 		self.max_age = 120  # in seconds
 		#self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
-		self._public_path = public_path
+		self._public_path = public_path or []
 
 	def get_set_cookie_string(self, session_id) -> dict:
 		return f"{self.session_cookie_name}={session_id}; path=/; Max-Age={self.max_age}"
@@ -166,9 +166,10 @@ class SessionMiddleware:
 				return
 
 			is_public = False
-			for p in self._public_path: # pylint: disable=invalid-name
-				if scope["path"].startswith(f"{p}"):
+			for pub_path in self._public_path:
+				if scope["path"].startswith(pub_path):
 					is_public = True
+					break
 
 			if scope["path"] == "/admin" or scope["path"] == "/":
 				request = Request(scope, receive)
@@ -279,7 +280,7 @@ class SessionMiddleware:
 			headers = None
 			error = None
 
-			if isinstance(err, BackendAuthenticationError) or isinstance(err, BackendPermissionDeniedError): # pylint: disable=consider-merging-isinstance
+			if isinstance(err, (BackendAuthenticationError, BackendPermissionDeniedError)):
 				logger.debug(err, exc_info=True)
 				logger.warning(err)
 
@@ -357,8 +358,8 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 	@classmethod
 	def utc_time_timestamp(cls):
-		dt = datetime.datetime.now() # pylint: disable=invalid-name
-		utc_time = dt.replace(tzinfo=datetime.timezone.utc)
+		now = datetime.datetime.now()
+		utc_time = now.replace(tzinfo=datetime.timezone.utc)
 		return utc_time.timestamp()
 
 	@property
@@ -444,8 +445,8 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			data = orjson.loads(data)  # pylint: disable=c-extension-no-member
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
-		for k, v in data.get("user_store", {}).items(): # pylint: disable=invalid-name
-			setattr(self.user_store, k, deserialize(v))
+		for key, val in data.get("user_store", {}).items():
+			setattr(self.user_store, key, deserialize(val))
 		self.option_store = data.get("option_store", self.option_store)
 		self._data = data.get("data", self._data)
 		self.is_new_session = False

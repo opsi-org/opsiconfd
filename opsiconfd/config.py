@@ -59,7 +59,7 @@ fqdn = socket.getfqdn()
 
 def upgrade_config_files():
 	defaults = {}
-	for action in parser._actions: # pylint: disable=protected-access
+	for action in parser._actions:  # pylint: disable=protected-access
 		defaults[action.dest] = action.default
 	# Do not migrate ssl key/cert
 	mapping = {
@@ -82,15 +82,15 @@ def upgrade_config_files():
 		"max sessions per ip": "max-session-per-ip",
 	}
 
-	for config_file in parser._open_config_files(sys.argv[1:]): # pylint: disable=protected-access
+	for config_file in parser._open_config_files(sys.argv[1:]):  # pylint: disable=protected-access
 		data = config_file.read()
 		config_file.close()
 		if data.find("[global]") == -1:
 			continue
 
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-		with codecs.open(config_file.name, "w", "utf-8") as f: # pylint: disable=invalid-name
-			f.write(CONFIG_FILE_HEADER.lstrip())
+		with codecs.open(config_file.name, "w", "utf-8") as file:
+			file.write(CONFIG_FILE_HEADER.lstrip())
 			for line in data.split('\n'):
 				match = re_opt.match(line)
 				if match:
@@ -107,12 +107,12 @@ def upgrade_config_files():
 						val = str(val).lower()
 					if ',' in val:
 						val = f"[{val}]"
-					f.write(f"{mapping[opt]} = {val}\n")
-			f.write("\n")
+					file.write(f"{mapping[opt]} = {val}\n")
+			file.write("\n")
 
 def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 	arg = arg.lstrip("-").replace("_", "-")
-	config_file = parser._open_config_files(sys.argv[1:])[0] # pylint: disable=protected-access
+	config_file = parser._open_config_files(sys.argv[1:])[0]  # pylint: disable=protected-access
 	data = config_file.read()
 	config_file.close()
 
@@ -130,8 +130,8 @@ def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 		if lines[-1] == "":
 			lines.pop()
 		lines.append(conf_line)
-	with codecs.open(config_file.name, "w", "utf-8") as f: # pylint: disable=invalid-name
-		f.write("\n".join(lines))
+	with codecs.open(config_file.name, "w", "utf-8") as file:
+		file.write("\n".join(lines))
 
 	config.reload()
 
@@ -153,7 +153,7 @@ def str2bool(value):
 		return value
 	return str(value).lower() in ('yes', 'true', 'y', '1')
 
-def expert_help(help): # pylint: disable=redefined-builtin
+def expert_help(help):  # pylint: disable=redefined-builtin
 	if "--ex-help" in sys.argv:
 		return help
 	return SUPPRESS

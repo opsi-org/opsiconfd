@@ -493,9 +493,8 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 			(srv_crt, srv_key) = create_local_server_cert(renew=renew)
 		else:
 			pem = get_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member
-			logger.devel(pem)
 			srv_crt = load_certificate(FILETYPE_PEM, pem)
-			srv_key = load_key(FILETYPE_PEM, pem)
+			srv_key = load_privatekey(FILETYPE_PEM, pem)
 
 		store_local_server_key(srv_key)
 		store_local_server_cert(srv_crt)

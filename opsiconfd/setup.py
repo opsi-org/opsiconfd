@@ -53,7 +53,7 @@ def setup_limits():
 	# The soft limit is the value that Linux uses to limit the system resources for running processes.
 	# The soft limit cannot be greater than the hard limit.
 	(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
-	if (soft_limit > 0 and soft_limit < 10000): # pylint: disable=chained-comparison
+	if 0 < soft_limit < 10000:
 		try:
 			# ulimit -n 10000
 			resource.setrlimit(resource.RLIMIT_NOFILE, (10000, hard_limit))

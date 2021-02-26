@@ -141,7 +141,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
-		host = self._backend.host_getObjects(type="OpsiDepotserver", id=hostId) # pylint: disable=no-member
+		host = self._backend.host_getObjects(type="OpsiDepotserver", id=hostId)  # pylint: disable=no-member
 		if not host or not host[0] or host[0].getType() != "OpsiDepotserver":
 			raise BackendPermissionDeniedError(f"Not a depotserver: {hostId}")
 		host = host[0]

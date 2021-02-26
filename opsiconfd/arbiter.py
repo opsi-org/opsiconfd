@@ -102,10 +102,10 @@ async def update_worker_registry():
 		async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:{node_name}:*"):
 			redis_key = redis_key.decode("utf-8")
 			try:
-				wn = int(redis_key.split(':')[-1]) # pylint: disable=invalid-name
+				worker_num = int(redis_key.split(':')[-1])
 			except IndexError:
-				wn = -1 # pylint: disable=invalid-name
-			if wn == -1 or wn > num_workers:
+				worker_num = -1
+			if worker_num == -1 or worker_num > num_workers:
 				# Delete obsolete worker entry
 				await redis.delete(redis_key)
 

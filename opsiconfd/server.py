@@ -72,11 +72,11 @@ class GunicornApplication(gunicorn.app.base.BaseApplication): # pylint: disable=
 		super().__init__()
 
 	def load_config(self):
-		config = { # pylint: disable=redefined-outer-name
+		conf = {
 			key: value for key, value in self.options.items()
 			if key in self.cfg.settings and value is not None
 		}
-		for (key, value) in config.items():
+		for (key, value) in conf.items():
 			self.cfg.set(key.lower(), value)
 
 	def load(self):

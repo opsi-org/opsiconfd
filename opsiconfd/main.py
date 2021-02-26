@@ -37,9 +37,7 @@ import psutil
 
 from OPSI import __version__ as python_opsi_version
 
-from opsicommon.logging import (
-	OPSI_LEVEL_TO_LEVEL, set_filter_from_string, print_logger_info, context_filter
-)
+from opsicommon.logging import OPSI_LEVEL_TO_LEVEL, set_filter_from_string
 
 from . import __version__
 from .logging import logger, init_logging, AsyncRedisLogAdapter
@@ -161,7 +159,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		arbiter_main()
 
 	finally:
-		for t in threading.enumerate(): # pylint: disable=invalid-name
-			if hasattr(t, "stop"):
-				t.stop()
-				t.join()
+		for thread in threading.enumerate():
+			if hasattr(thread, "stop"):
+				thread.stop()
+				thread.join()

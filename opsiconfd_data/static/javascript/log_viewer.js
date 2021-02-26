@@ -280,10 +280,6 @@ function startLog(numRecords=0, startTime=0) {
 			msg = msg + ": " + event.reason;
 		}
 		setMessage(msg, "LEVEL_ERROR");
-		//if (event.code == 4401) {
-		//	document.getElementById("log-line-container").innerHTML =
-		//		`<div class="LEVEL_ERROR" style="margin: 10px; font-size: 20px">${event.reason}</div>`;
-		//}
 	};
 }
 

@@ -315,10 +315,13 @@
 				<input type="checkbox" id="collapse-all" onclick="collapseAll(this.checked);" checked>
 
 				<label>Font size:</label>
-				<button id="decrease-font-size" onclick="change_font_size(-1);">-</button>
-				<button id="increase-font-size" onclick="change_font_size(+1);">+</button>
+				<button id="decrease-font-size" onclick="changeFontSize(-1);">-</button>
+				<button id="increase-font-size" onclick="changeFontSize(+1);">+</button>
 			</div>
-			<div id="log-container" style="font-size: 14px;">Loading...</div>
+			<div id="log-container">
+				<div id="log-line-container" style="font-size: 14px"></div>
+				<div id="log-msg-container"></div>
+			</div>
 		</div>
 </body>
 </html>

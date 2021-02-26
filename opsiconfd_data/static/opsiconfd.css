@@ -190,6 +190,22 @@ li {
 	color:white;
 }
 
+#log-msg-container {
+	position: absolute;
+	width: 400px;
+	height: 50px;
+	top: 50%;
+	left: calc(50% - 200px);
+	font-size: 24px;
+	font-weight: bold;
+	background-color: #000000aa;
+	display: flex;
+	align-items: center;
+	text-align: center;
+	justify-content: center;
+	visibility: hidden;
+}
+
 .log-line {
 	display: inline-table;
 	white-space: nowrap;

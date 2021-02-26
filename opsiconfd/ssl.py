@@ -456,7 +456,7 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 					srv_crt.get_subject().CN, server_cn
 				)
 				renew = True
-			else:
+			elif server_role == "config":
 				cert_hns = set()
 				cert_ips = set()
 				for idx in range(srv_crt.get_extension_count()):

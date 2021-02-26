@@ -105,7 +105,7 @@ function addRecordToLog(record) {
 		div.classList.add("log-line-hidden");
 	}
 
-	let container = document.getElementById("log-container");
+	let container = document.getElementById("log-line-container");
 	if (container.childElementCount >= MAX_LOG_LINES) {
 		container.removeChild(container.childNodes[0]);
 	}
@@ -175,7 +175,7 @@ function applyLevelFilter(filter=null) {
 }
 
 function applyFilter() {
-	let container = document.getElementById("log-container");
+	let container = document.getElementById("log-line-container");
 	let filteredIds = [];
 	if (levelFilter && levelFilter < 9) {
 		container.querySelectorAll(".log-record-opsilevel").forEach(function(el) {
@@ -209,7 +209,21 @@ function applyFilter() {
 	});
 }
 
+function setMessage(text = "", className = "LEVEL_INFO") {
+	let con = document.getElementById("log-msg-container");
+	if (text) {
+		con.innerHTML = text;
+		con.style.visibility = "visible";
+	}
+	else {
+		con.innerHTML = "";
+		con.style.visibility = "hidden";
+	}
+	con.className = className;
+}
+
 function startLog(numRecords=0, startTime=0) {
+	setMessage("Loading...");
 	logLineId = 0;
 	var client = null;
 	var params = []
@@ -235,14 +249,15 @@ function startLog(numRecords=0, startTime=0) {
 
 	ws.onopen = function() {
 		// websocket is connected
-		document.getElementById("log-container").innerHTML = '';
+		document.getElementById("log-line-container").innerHTML = "";
+		setMessage("");
 		//ws.send(msg);
 	};
 
 	ws.onmessage = function (message) {
 		//console.log(message.data);
 		message.data.arrayBuffer().then(function(buffer) {
-			let container = document.getElementById("log-container");
+			let container = document.getElementById("log-line-container");
 			let scrollToBottom = (container.scrollHeight - container.scrollTop === container.clientHeight);
 			buffer = new Uint8Array(buffer, 0);
 			var records = msgpack.deserialize(buffer, true);
@@ -260,15 +275,20 @@ function startLog(numRecords=0, startTime=0) {
 	ws.onclose = function(event) {
 		// websocket is closed.
 		console.log("Websocket conection closed");
-		if (event.code == 4401) {
-			document.getElementById("log-container").innerHTML =
-				`<div class="LEVEL_ERROR" style="margin: 10px; font-size: 20px">${event.reason}</div>`;
+		let msg = "Connection lost";
+		if (event.reason) {
+			msg = msg + ": " + event.reason;
 		}
+		setMessage(msg, "LEVEL_ERROR");
+		//if (event.code == 4401) {
+		//	document.getElementById("log-line-container").innerHTML =
+		//		`<div class="LEVEL_ERROR" style="margin: 10px; font-size: 20px">${event.reason}</div>`;
+		//}
 	};
 }
 
-function change_font_size(val) {
-	var cont = document.getElementById("log-container");
+function changeFontSize(val) {
+	var cont = document.getElementById("log-line-container");
 	var size = parseInt(cont.style.fontSize.replace(/\D/g, ''));
 	size += val;
 	if (size < 1) { size = 1; }

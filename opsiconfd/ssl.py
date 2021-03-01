@@ -427,7 +427,6 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 		raise ValueError("SSL server key and cert cannot be stored in the same file")
 
 	create = False
-	renew = False
 
 	if (
 		os.path.exists(os.path.join(os.path.dirname(config.ssl_server_cert), "opsiconfd.pem")) and
@@ -447,15 +446,15 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 
 		logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, diff)
 		if diff <= CERT_RENEW_DAYS:
-			logger.notice("Server cert '%s' will expire in %d days, renewing", srv_crt.get_subject().CN, diff)
-			renew = True
+			logger.notice("Server cert '%s' will expire in %d days, recreating", srv_crt.get_subject().CN, diff)
+			create = True
 		else:
 			if server_cn != srv_crt.get_subject().CN:
 				logger.notice(
-					"Server CN has changed from '%s' to '%s', renew server cert",
+					"Server CN has changed from '%s' to '%s', creating new server cert",
 					srv_crt.get_subject().CN, server_cn
 				)
-				renew = True
+				create = True
 			elif server_role == "config":
 				cert_hns = set()
 				cert_ips = set()
@@ -474,23 +473,25 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 				hns = get_hostnames()
 				if cert_hns != hns:
 					logger.notice(
-						"Server hostnames have changed from %s to %s, renew server cert",
+						"Server hostnames have changed from %s to %s, creating new server cert",
 						cert_hns, hns
 					)
-					renew = True
+					create = True
 				else:
 					ips = get_ips()
 					if cert_ips != ips:
 						logger.notice(
-							"Server IPs have changed from %s to %s, renew server cert",
+							"Server IPs have changed from %s to %s, creating new server cert",
 							cert_ips, ips
 						)
-						renew = True
+						create = True
 
-	if create or renew:
+	if create:
 		(srv_crt, srv_key) = (None, None)
 		if server_role == "config":
-			(srv_crt, srv_key) = create_local_server_cert(renew=renew)
+			# It is safer to create a new server cert with a new key pair
+			# For cases where the server key got compromised
+			(srv_crt, srv_key) = create_local_server_cert(renew=False)
 		else:
 			pem = get_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member
 			srv_crt = load_certificate(FILETYPE_PEM, pem)

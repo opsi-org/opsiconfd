@@ -45,10 +45,10 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
 # update-ip = true
 """
-CA_DAYS = 365
-CA_RENEW_DAYS = 335
+CA_DAYS = 360
+CA_RENEW_DAYS = 300 # If only CA_RENEW_DAYS days left, The CA will be renewed
 CERT_DAYS = 90
-CERT_RENEW_DAYS = 60
+CERT_RENEW_DAYS = 30 # If only CERT_RENEW_DAYS days left, a new cert will be created
 PRIVATE_KEY_CIPHER = "DES3"
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"

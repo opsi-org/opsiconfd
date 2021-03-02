@@ -162,7 +162,10 @@ def _store_product_ordering(result, params):
 
 				pipe.execute()
 	except Exception as err: # pylint: disable=broad-except
-		logger.error(err, exc_info=True)
+		logger.error(
+			"Failed to store product ordering cache result=%s params=%s: %s",
+			result, params, err, exc_info=True
+		)
 
 def _set_jsonrpc_cache_outdated(params):
 	with sync_redis_client() as redis:

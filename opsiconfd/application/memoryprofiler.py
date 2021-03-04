@@ -38,7 +38,7 @@ HEAP = None
 LAST_OBJGRAPH_SNAPSHOT = {}
 @memory_profiler_router.get("/memory/objgraph-snapshot-new")
 def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> JSONResponse:
-	global LAST_OBJGRAPH_SNAPSHOT
+	global LAST_OBJGRAPH_SNAPSHOT  # pylint: disable=global-statement
 	gc.collect()
 	mem_info = psutil.Process().memory_info()
 	data = {

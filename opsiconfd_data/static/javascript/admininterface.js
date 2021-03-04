@@ -262,6 +262,43 @@ function loadConfdConfig() {
 	request.send()
 }
 
+function objgraphSnapshot(update=false) {
+	let max_obj_types = parseInt(document.getElementById("input-objgraph-max-obj-types").value);
+	let max_obj = parseInt(document.getElementById("input-objgraph-max-obj").value);
+
+	document.getElementById("button-objgraph-snapshot-new").disabled = true;
+	document.getElementById("button-objgraph-snapshot-update").disabled = true;
+	let request = new XMLHttpRequest();
+	if (update) {
+		request.open("GET", "/admin/memory/objgraph-snapshot-update");
+	}
+	else {
+		request.open("GET", `/admin/memory/objgraph-snapshot-new?max_obj_types=${max_obj_types}&max_obj=${max_obj}`);
+	}
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			document.getElementById("button-objgraph-snapshot-new").disabled = false;
+			document.getElementById("button-objgraph-snapshot-update").disabled = false;
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			document.getElementById("button-objgraph-snapshot-new").disabled = false;
+			document.getElementById("button-objgraph-snapshot-update").disabled = false;
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
+function objgraphShowBackrefs() {
+	let obj_id = document.getElementById("input-objgraph-obj-id").value;
+	let win = window.open("/admin/memory/objgraph-show-backrefs?obj_id=" + obj_id, '_blank');
+	win.focus();
+}
+
 function loadMemoryInfo() {
 	let request = new XMLHttpRequest();
 	request.open("GET", "/admin/memory-summary");

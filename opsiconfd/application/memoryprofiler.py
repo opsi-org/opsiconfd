@@ -8,15 +8,21 @@ See LICENSES/README.md for more Information
 
 import gc
 import io
+import os
 import sys
 import time
+import tempfile
+
+import psutil
 import msgpack
 
 from fastapi import Request, APIRouter
 from fastapi.responses import JSONResponse
 
+import objgraph
 from pympler import tracker, classtracker
 from guppy import hpy
+from starlette.responses import Response
 
 from ..logging import logger
 from ..worker import get_redis_client
@@ -27,6 +33,99 @@ memory_profiler_router = APIRouter()
 MEMORY_TRACKER = None
 CLASS_TRACKER = None
 HEAP = None
+
+
+LAST_OBJGRAPH_SNAPSHOT = {}
+@memory_profiler_router.get("/memory/objgraph-snapshot-new")
+def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> JSONResponse:
+	global LAST_OBJGRAPH_SNAPSHOT
+	gc.collect()
+	mem_info = psutil.Process().memory_info()
+	data = {
+		"time": time.time(),
+		"memory_info_rss": mem_info.rss,
+		"memory_info_rss_diff": mem_info.rss - LAST_OBJGRAPH_SNAPSHOT.get("memory_info_rss", 0),
+		"new_ids": {}
+	}
+	if LAST_OBJGRAPH_SNAPSHOT:
+		new_ids = objgraph.get_new_ids(limit=max_obj_types)
+		obj_types = sorted(new_ids.items(), key=lambda item: len(item[1]), reverse=True)
+
+		for obj_type, ids in obj_types:
+			if len(data["new_ids"]) >= max_obj_types:
+				break
+			if len(ids) == 0:
+				continue
+			logger.debug("obj_type: %s", obj_type)
+			data["new_ids"][obj_type] = {
+				"count": len(ids),
+				"objects": {}
+			}
+			for num, addr in enumerate(ids):
+				if num >= max_obj:
+					break
+				obj = objgraph.at(addr)
+				repr_obj = repr(obj)
+				if len(repr_obj) > 250:
+					repr_obj = repr_obj[:249] + "…"
+				data["new_ids"][obj_type]["objects"][addr] = {
+					"size": sys.getsizeof(obj),
+					"repr": repr_obj
+				}
+
+	LAST_OBJGRAPH_SNAPSHOT = data
+
+	return JSONResponse({
+		"status": 200,
+		"error": None,
+		"data": data
+	})
+
+@memory_profiler_router.get("/memory/objgraph-snapshot-update")
+def memory_objgraph_snapshot_update() -> JSONResponse:
+	if not LAST_OBJGRAPH_SNAPSHOT:
+		return memory_objgraph_snapshot_new()
+	gc.collect()
+
+	data = LAST_OBJGRAPH_SNAPSHOT
+
+	for obj_type in data["new_ids"]:
+		for addr in list(data["new_ids"][obj_type]["objects"]):
+			if objgraph.at(addr) is None:
+				logger.info("Removing id: %s", addr)
+				del data["new_ids"][obj_type]["objects"][addr]
+				data["new_ids"][obj_type]["count"] -= 1
+
+	return JSONResponse({
+		"status": 200,
+		"error": None,
+		"data": data
+	})
+
+@memory_profiler_router.get("/memory/objgraph-show-backrefs")
+def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Response:
+	assert output_format in ("png", "dot")
+	obj_id = int(obj_id)
+	obj = objgraph.at(obj_id)
+	if obj is None:
+		data = f"Object at address {obj_id} not found"
+		return Response(
+			status_code=404,
+			media_type="text/plain",
+			headers={"Content-Length": str(len(data))},
+			content=data
+		)
+	file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{output_format}")
+	objgraph.show_backrefs([obj], filename=file.name, shortnames=False)
+	data = file.read()
+	file.close()
+	os.remove(file.name)
+	return Response(
+		status_code=200,
+		media_type=f"image/{output_format}",
+		headers={"Content-Length": str(len(data))},
+		content=data
+	)
 
 
 @memory_profiler_router.post("/memory/snapshot")

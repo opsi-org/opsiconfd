@@ -84,9 +84,8 @@
 			if (tabName == "confdConfig") {
 				loadConfdConfig();
 			}
-			if (tabName == "memory") {
-				// loadMemoryInfo();
-				console.log("MEMORY");
+			if (tabName == "memoryProfiler") {
+				loadMemoryInfo();
 			}
 			if (tabName == "log-viewer") {
 				startLog(0, Math.round(Date.now()/1000)-300); // last 5 minutes
@@ -129,7 +128,7 @@
 			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
 			<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
 			<button class="tablinks" onclick="openTab(event, 'confdConfig')">Config</button>
-			<!-- <button class="tablinks" onclick="openTab(event, 'memory')">Memory Usage</button> -->
+			<button class="tablinks" onclick="openTab(event, 'memoryProfiler')">Memory Profiler</button>
 			<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
 			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>
 		</div>
@@ -246,15 +245,16 @@
 			</div>
 		</div>
 
-		<div id="memory" class="tabcontent">
+		<div id="memoryProfiler" class="tabcontent">
 			<div class="adminpage-box">
+
+				<!--
 				<h4>Memory Usage (pympler)</h4>
 				<table>
 					<tr>
 						<td><button id="take-snapshot-button" onclick="takeMemorySnapshot()">Take Snapshot</button> </td>
 						<td><input type="button" onclick="deleteMemorySnapshots()" value="Delete Snapshots"></td>
-
-						<!-- <td><input type="button" onclick="deleteMemoryTracker()" value="Delete Tracker"></td> -->
+						<td><input type="button" onclick="deleteMemoryTracker()" value="Delete Tracker"></td>
 					</tr>
 					<tr>
 						<td>s1: <input id="snapshot1" type="number" name="snapshot1" placeholder=1></td>
@@ -294,9 +294,21 @@
 						<td><input type="button" onclick="deleteClassTracker()" value="Delete Class Tracker"></td>
 					</tr>
 				</table>
+				-->
+				<h4>Memory Profile</h4>
+				<label>Max object types: </label>
+				<input id="input-objgraph-max-obj-types" type="number" value="25" style="width: 50px" />
+				<label>Max objects per type: </label>
+				<input id="input-objgraph-max-obj" type="number" value="50" style="width: 50px" />
+				<button id="button-objgraph-snapshot-new" onclick="objgraphSnapshot(false)">Take snapshot</button>
+				<button id="button-objgraph-snapshot-update" onclick="objgraphSnapshot(true)">Update snapshot</button>
+				<br />
+				<label>Object id: </label>
+				<input id="input-objgraph-obj-id" type="text" />
+				<button id="button-objgraph-show-backrefs" onclick="objgraphShowBackrefs()">Show backrefs</button>
 			</div>
 			<div class="adminpage-box" id="memory-info">
-					<pre class="memory-values" id="memory-values"></pre>
+					<pre class="memory-values" id="memory-values" style="overflow: auto"></pre>
 			</div>
 		</div>
 

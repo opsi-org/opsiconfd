@@ -276,6 +276,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 
 					del record
 					del record_dict
+					del entry
 				del data
 
 			except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise

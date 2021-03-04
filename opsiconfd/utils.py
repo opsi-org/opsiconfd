@@ -210,34 +210,44 @@ def retry_redis_call(func):
 				time.sleep(1)
 	return wrapper_retry
 
-
-def get_redis_connection(url, db=None, **kwargs): # pylint: disable=invalid-name
+REDIS_CONNECTION_POOL = {}
+def get_redis_connection(url, db=None): # pylint: disable=invalid-name
 	count = 0
 	while True:
 		try:
-			redis_client = redis.StrictRedis.from_url(url, db, **kwargs)
-			redis_client.ping()
-			break
+			con_id = f"{url}/{db}"
+			new_pool = False
+			if not con_id in REDIS_CONNECTION_POOL:
+				new_pool = True
+				REDIS_CONNECTION_POOL[con_id] = redis.ConnectionPool.from_url(url, db)
+			redis_client = redis.StrictRedis(connection_pool=REDIS_CONNECTION_POOL[con_id])
+			if new_pool:
+				redis_client.ping()
+			return redis_client
 		except (redis.exceptions.ConnectionError, redis.BusyLoadingError) as err:
 			count += 1
 			time.sleep(1)
 			if count >= REDIS_CONNECTION_RETRIES:
 				handle_log_exception(err)
 				raise
-	return redis_client
 
-
-async def get_aredis_connection(url, db=None, **kwargs): # pylint: disable=invalid-name
+AREDIS_CONNECTION_POOL = {}
+async def get_aredis_connection(url, db=None): # pylint: disable=invalid-name
 	count = 0
 	while True:
 		try:
-			redis_client = aredis.StrictRedis.from_url(url, db, **kwargs)
-			await redis_client.ping()
-			break
+			con_id = f"{id(asyncio.get_event_loop())}/{url}/{db}"
+			new_pool = False
+			if not con_id in AREDIS_CONNECTION_POOL:
+				new_pool = True
+				AREDIS_CONNECTION_POOL[con_id] = aredis.ConnectionPool.from_url(url, db)
+			redis_client = aredis.StrictRedis(connection_pool=AREDIS_CONNECTION_POOL[con_id])
+			if new_pool:
+				await redis_client.ping()
+			return redis_client
 		except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as err:
 			count += 1
 			asyncio.sleep(1)
 			if count >= REDIS_CONNECTION_RETRIES:
 				handle_log_exception(err)
 				raise
-	return redis_client

@@ -39,12 +39,15 @@ from . import (
 	contextvar_request_id, contextvar_client_address, contextvar_server_timing
 )
 from .logging import logger
-from .worker import get_redis_client as get_worker_redis_client
-from .worker import get_metrics_collector as get_worker_metrics_collector
+from .worker import (
+	get_redis_client as get_worker_redis_client,
+	get_metrics_collector as get_worker_metrics_collector,
+	get_worker_num
+)
 from .arbiter import get_redis_client as get_arbiter_redis_client
 from .config import config
 from .utils import (
-	Singleton, get_node_name, get_worker_num, get_redis_connection
+	Singleton, get_node_name, get_redis_connection
 )
 from .grafana import GrafanaPanelConfig
 

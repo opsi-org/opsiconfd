@@ -25,225 +25,96 @@ import signal
 import time
 import threading
 import asyncio
-import base64
 from concurrent.futures import ThreadPoolExecutor
-
-try:
-	# python3-pycryptodome installs into Cryptodome
-	from Cryptodome.Hash import MD5 # type: ignore
-	from Cryptodome.Signature import pkcs1_15 # type: ignore
-except ImportError:
-	# PyCryptodome from pypi installs into Crypto
-	from Crypto.Hash import MD5
-	from Crypto.Signature import pkcs1_15
-
-from OPSI.Util import getPublicKey
 
 from .config import config
 from .logging import logger, init_logging
-from .utils import get_node_name, get_worker_processes, get_aredis_connection
+from .utils import get_aredis_connection, Singleton
 from .zeroconf import register_opsi_services, unregister_opsi_services
-from .server import run_gunicorn, run_uvicorn
-from .backend import get_backend
-from . import ssl
-
-_arbiter_pid = None # pylint: disable=invalid-name
-
-def set_arbiter_pid(pid: int) -> None:
-	global _arbiter_pid # pylint: disable=global-statement, invalid-name
-	_arbiter_pid = pid
+from .server import Server
 
 def get_arbiter_pid() -> int:
-	return _arbiter_pid
+	return Arbiter().pid
 
 async def get_redis_client():
 	return await get_aredis_connection(config.redis_internal_url)
 
-last_reload_time = time.time()
-def signal_handler(signum, frame): # pylint: disable=unused-argument
-	global last_reload_time # pylint: disable=global-statement, invalid-name
-	logger.info("Arbiter %s got signal %d", os.getpid(), signum)
-	if signum == signal.SIGHUP and time.time() - last_reload_time > 2:
-		last_reload_time = time.time()
-		logger.notice("Arbiter %s reloading", os.getpid())
-		config.reload()
-		init_logging(log_mode=config.log_mode)
-
-async def update_worker_registry():
-	redis = await get_aredis_connection(config.redis_internal_url)
-	node_name = get_node_name()
-	num_workers = 0
-	while True:
-		worker_num = 0
-		for worker_num, proc in enumerate(get_worker_processes()):
-			worker_num += 1
-			redis_key = f"opsiconfd:worker_registry:{node_name}:{worker_num}"
-			await redis.hmset(redis_key, {
-				"worker_pid": proc.pid,
-				"node_name": node_name,
-				"worker_num": worker_num
-			})
-			await redis.expire(redis_key, 60)
-
-		if worker_num == 0:
-			# No worker, assuming we are in startup
-			await asyncio.sleep(1)
-			continue
-
-		if worker_num > num_workers:
-			# New worker started
-			pass
-		elif worker_num < num_workers:
-			# Worker crashed / killed
-			logger.warning("Number of workers decreased from %d to %d", num_workers, worker_num)
-
-		num_workers = worker_num
-
-		async for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:{node_name}:*"):
-			redis_key = redis_key.decode("utf-8")
-			try:
-				worker_num = int(redis_key.split(':')[-1])
-			except IndexError:
-				worker_num = -1
-			if worker_num == -1 or worker_num > num_workers:
-				# Delete obsolete worker entry
-				await redis.delete(redis_key)
-
-		for _ in range(10):
-			await asyncio.sleep(1)
-
-class ArbiterAsyncMainThread(threading.Thread):
+class Arbiter(metaclass=Singleton):
 	def __init__(self):
-		super().__init__()
-		self.name = "ArbiterAsyncMainThread"
+		self.pid = None
 		self._loop = None
+		self._last_reload = 0
+		self._server = None
+		self._should_stop = False
 
-	def stop(self):
-		unregister_opsi_services()
+	def stop(self, force=False):
+		logger.notice("Arbiter stopping force=%s", force)
+		if self._server:
+			self._server.stop(force)
+		self._should_stop = True
 		if self._loop:
 			self._loop.stop()
 
+	def reload(self):
+		self._last_reload = time.time()
+		logger.notice("Arbiter %s reloading", self.pid)
+		config.reload()
+		init_logging(log_mode=config.log_mode)
+		if self._server:
+			self._server.reload()
+
+	def signal_handler(self, signum, frame): # pylint: disable=unused-argument
+		# <CTRL>+<C> will send SIGINT to the entire process group on linux.
+		# So child processes will receive the SIGINT too.
+		logger.info("Arbiter %s got signal %d", self.pid, signum)
+		if signum == signal.SIGHUP and time.time() - self._last_reload > 2:
+			self.reload()
+		else:
+			# Force on repetition
+			self.stop(force=self._should_stop)
+
 	def run(self):
+		logger.info("Arbiter starting")
+		self.pid = os.getpid()
+		self._last_reload = time.time()
+		signal.signal(signal.SIGINT, self.signal_handler)  # Unix signal 2. Sent by Ctrl+C. Terminate service.
+		signal.signal(signal.SIGTERM, self.signal_handler) # Unix signal 15. Sent by `kill <pid>`. Terminate service.
+		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 		try:
-			self._loop = asyncio.new_event_loop()
-			self._loop.set_default_executor(
-				ThreadPoolExecutor(
-					max_workers=10,
-					thread_name_prefix="arbiter-ThreadPoolExecutor"
-				)
+			loop_thread = threading.Thread(
+				name="ArbiterAsyncLoop",
+				daemon=True,
+				target=self.run_loop
 			)
-			self._loop.set_debug(config.debug)
-			asyncio.set_event_loop(self._loop)
-			self._loop.create_task(self.main())
-			self._loop.run_forever()
+			loop_thread.start()
+
+			register_opsi_services()
+
+			self._server = Server()
+			self._server.run()
+
+			unregister_opsi_services()
 		except Exception as exc: # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 
-	async def main(self):
-		# Need to reinit logging after server is initialized
-		self._loop.call_later(3.0, init_logging, config.log_mode)
-		self._loop.call_later(10.0, cleanup_environment)
-		self._loop.create_task(update_worker_registry())
+	def run_loop(self):
+		self._loop = asyncio.new_event_loop()
+		self._loop.set_default_executor(
+			ThreadPoolExecutor(
+				max_workers=10,
+				thread_name_prefix="arbiter-ThreadPoolExecutor"
+			)
+		)
+		self._loop.set_debug(config.debug)
+		asyncio.set_event_loop(self._loop)
+		self._loop.create_task(self.async_main())
+		self._loop.run_forever()
 
+	async def async_main(self):
 		# Create and start MetricsCollector
 		from .statistics import ArbiterMetricsCollector # pylint: disable=import-outside-toplevel
 		metrics_collector = ArbiterMetricsCollector()
 		self._loop.create_task(metrics_collector.main_loop())
 
-		register_opsi_services()
-		while True:
+		while not self._should_stop:
 			await asyncio.sleep(1)
-
-
-def cleanup_environment():
-	os.unsetenv("OPSI_SSL_CA_KEY")
-
-
-def main(): # pylint: disable=too-many-branches,too-many-statements
-	set_arbiter_pid(os.getpid())
-	signal.signal(signal.SIGHUP, signal_handler)
-
-	main_async_thread = ArbiterAsyncMainThread()
-	main_async_thread.daemon = True
-	main_async_thread.start()
-
-	if config.workers != 1:
-		num_workers = 1
-		backend_info = get_backend().backend_info()
-		modules = backend_info['modules']
-		helpermodules = backend_info['realmodules']
-
-		if not all(key in modules for key in ('expires', 'customer')):
-			logger.error(
-				"Missing important information about modules. Probably no modules file installed. Limiting to %d workers.",
-				num_workers
-			)
-		elif not modules.get('customer'):
-			logger.error("No customer in modules file. Limiting to %d workers.", num_workers)
-		elif not modules.get('valid'):
-			logger.error("Modules file invalid. Limiting to %d workers.", num_workers)
-		elif (
-			modules.get('expires', '') != 'never' and
-			time.mktime(time.strptime(modules.get('expires', '2000-01-01'), "%Y-%m-%d")) - time.time() <= 0
-		):
-			logger.error("Modules file expired. Limiting to %d workers.", num_workers)
-		else:
-			logger.info("Verifying modules file signature")
-			public_key = getPublicKey(
-				data=base64.decodebytes(
-					b"AAAAB3NzaC1yc2EAAAADAQABAAABAQCAD/I79Jd0eKwwfuVwh5B2z+S8aV0C5suItJa18RrYip+d4P0ogzqoCfOoVWtDo"
-					b"jY96FDYv+2d73LsoOckHCnuh55GA0mtuVMWdXNZIE8Avt/RzbEoYGo/H0weuga7I8PuQNC/nyS8w3W8TH4pt+ZCjZZoX8"
-					b"S+IizWCYwfqYoYTMLgB0i+6TCAfJj3mNgCrDZkQ24+rOFS4a8RrjamEz/b81noWl9IntllK1hySkR+LbulfTGALHgHkDU"
-					b"lk0OSu+zBPw/hcDSOMiDQvvHfmR4quGyLPbQ2FOVm1TzE0bQPR+Bhx4V8Eo2kNYstG2eJELrz7J1TJI0rCjpB+FQjYPsP"
-				)
-			)
-			data = ""
-			mks = list(modules.keys())
-			mks.sort()
-			for module in mks:
-				if module in ("valid", "signature"):
-					continue
-				if module in helpermodules:
-					val = helpermodules[module]
-					if int(val) > 0:
-						modules[module] = True
-				else:
-					val = modules[module]
-					if isinstance(val, bool):
-						val = "yes" if val else "no"
-				data += "%s = %s\r\n" % (module.lower().strip(), val)
-
-			verified = False
-			if modules["signature"].startswith("{"):
-				s_bytes = int(modules['signature'].split("}", 1)[-1]).to_bytes(256, "big")
-				try:
-					pkcs1_15.new(public_key).verify(MD5.new(data.encode()), s_bytes)
-					verified = True
-				except ValueError:
-					# Invalid signature
-					pass
-			else:
-				h_int = int.from_bytes(MD5.new(data.encode()).digest(), "big")
-				s_int = public_key._encrypt(int(modules["signature"])) # pylint: disable=protected-access
-				verified = h_int == s_int
-
-			if not verified:
-				logger.error("Modules file invalid. Limiting to %d workers.", num_workers)
-			else:
-				logger.debug("Modules file signature verified (customer: %s)", modules.get('customer'))
-
-				if modules.get("scalability1"):
-					num_workers = config.workers
-				else:
-					logger.error("scalability1 missing in modules file. Limiting to %d workers.", num_workers)
-
-		config.workers = num_workers
-
-	if config.workers != 1:
-		# Put CA key into environment for worker processes
-		os.putenv("OPSI_SSL_CA_KEY", ssl.KEY_CACHE[config.ssl_ca_key])
-
-	if config.server_type == "gunicorn":
-		run_gunicorn()
-	elif config.server_type == "uvicorn":
-		run_uvicorn()

@@ -85,15 +85,6 @@ def get_node_name():
 				node_name = socket.gethostname()
 	return node_name
 
-worker_num = 0 # pylint: disable=invalid-name
-def get_worker_num():
-	global worker_num # pylint: disable=global-statement, invalid-name
-	if not worker_num:
-		for (num, proc) in enumerate(get_worker_processes()):
-			if proc.pid == os.getpid():
-				worker_num = num + 1
-				break
-	return worker_num
 
 _worker_processes_cache = {}
 def get_worker_processes():
@@ -133,6 +124,7 @@ def get_worker_processes():
 			del _worker_processes_cache[pid]
 
 	return sorted(_worker_processes_cache.values(), key=lambda p: p.pid)
+
 
 def decode_redis_result(_obj):
 	if isinstance(_obj, bytes):
@@ -197,7 +189,7 @@ def get_random_string(length):
 
 def retry_redis_call(func):
 	@functools.wraps(func)
-	def wrapper_retry(*args, **kwargs):
+	def wrapper_retry(*args, **kwargs):  # pylint: disable=inconsistent-return-statements
 		for i in range(0,4):
 			try:
 				value = func(*args, **kwargs)
@@ -211,7 +203,7 @@ def retry_redis_call(func):
 	return wrapper_retry
 
 REDIS_CONNECTION_POOL = {}
-def get_redis_connection(url, db=None): # pylint: disable=invalid-name
+def get_redis_connection(url, db=None):  # pylint: disable=invalid-name
 	count = 0
 	while True:
 		try:

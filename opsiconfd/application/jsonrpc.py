@@ -41,10 +41,11 @@ from .. import contextvar_client_session
 from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface, get_backend, OpsiconfdBackend
 from ..worker import (
-	run_in_threadpool, get_metrics_collector, get_redis_client, sync_redis_client
+	run_in_threadpool, get_metrics_collector,
+	get_redis_client, sync_redis_client, get_worker_num
 )
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
-from ..utils import decode_redis_result, get_node_name, get_worker_num
+from ..utils import decode_redis_result, get_node_name
 
 # time in seconds
 EXPIRE = (60*60*24)

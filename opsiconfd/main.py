@@ -25,6 +25,7 @@ import os
 import re
 import sys
 import pwd
+import time
 import asyncio
 import threading
 import signal
@@ -44,7 +45,7 @@ from .logging import logger, init_logging, AsyncRedisLogAdapter
 from .config import config
 from .setup import setup
 from .patch import apply_patches
-from .arbiter import main as arbiter_main
+from .arbiter import Arbiter
 
 
 def run_with_jemlalloc():
@@ -93,6 +94,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		return
 
 	if config.action in ("reload", "stop"):
+		# TODO signal only to arbiter
 		send_signal = signal.SIGINT if config.action == "stop" else signal.SIGHUP
 		our_pid = os.getpid()
 		our_proc = psutil.Process(our_pid)
@@ -155,10 +157,11 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 
 		logger.essential("opsiconfd is starting")
 		logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
-
-		arbiter_main()
+		arbiter = Arbiter()
+		arbiter.run()
 
 	finally:
+		time.sleep(1)
 		for thread in threading.enumerate():
 			if hasattr(thread, "stop"):
 				thread.stop()

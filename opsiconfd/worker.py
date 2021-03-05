@@ -42,10 +42,18 @@ from . import ssl
 _redis_client = None # pylint: disable=invalid-name
 _metrics_collector = None # pylint: disable=invalid-name
 _redis_pool = None # pylint: disable=invalid-name
+_worker_num = 1 # pylint: disable=invalid-name
+
+def set_worker_num(num):
+	global _worker_num # pylint: disable=global-statement,invalid-name
+	_worker_num = num
+
+def get_worker_num():
+	return _worker_num
 
 @contextmanager
 def sync_redis_client():
-	global _redis_pool # pylint: disable=global-statement, invalid-name
+	global _redis_pool # pylint: disable=global-statement,invalid-name
 	if not _redis_pool:
 		_redis_pool = redis.BlockingConnectionPool.from_url(
 			url=config.redis_internal_url
@@ -61,13 +69,10 @@ def sync_redis_client():
 async def get_redis_client():
 	global _redis_client # pylint: disable=global-statement, invalid-name
 	if not _redis_client:
-		# The client automatically uses a connection from a connection pool for every command
-		#max_connections = int(config.executor_workers * 2)
-		_redis_client = await get_aredis_connection(config.redis_internal_url)#, max_connections=max_connections)
+		_redis_client = await get_aredis_connection(config.redis_internal_url)
 		# _redis_client.flushdb()
 	try:
 		pool = _redis_client.connection_pool
-		#logger.devel(len(pool._in_use_connections))
 		if len(pool._in_use_connections) >= pool.max_connections: # pylint: disable=protected-access
 			logger.warning("No available connections in redis connection pool")
 			while len(pool._in_use_connections) >= pool.max_connections: # pylint: disable=protected-access
@@ -114,8 +119,9 @@ def signal_handler(signum, frame): # pylint: disable=unused-argument
 		logger.notice("Worker %s reloading", os.getpid())
 		config.reload()
 		init_logging(log_mode=config.log_mode, is_worker=True)
-	else:
-		exit_worker()
+	#else:
+	#	# SIGTERM (15) => process.terminate() from supervisor
+	#	exit_worker()
 
 def exit_worker():
 	for thread in threading.enumerate():
@@ -130,16 +136,21 @@ def init_worker():
 	is_arbiter = get_arbiter_pid() == os.getpid()
 
 	if not is_arbiter:
+		try:
+			set_worker_num(int(os.getenv("OPSICONFD_WORKER_WORKER_NUM")))
+		except Exception as err: # pylint: disable=broad-except
+			logger.error("Failed to get worker number from env: %s", err)
 		# Only if this process is a worker only process (multiprocessing)
-		signal.signal(signal.SIGINT, signal_handler)
+		#signal.signal(signal.SIGINT, signal_handler)
 		signal.signal(signal.SIGHUP, signal_handler)
+		#signal.signal(signal.SIGTERM, signal_handler)
 		init_logging(log_mode=config.log_mode, is_worker=True)
-		opsi_ca_key = os.getenv("OPSI_SSL_CA_KEY", None)
+		opsi_ca_key = os.getenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", None)
 		if opsi_ca_key:
 			ssl.KEY_CACHE[config.ssl_ca_key] = opsi_ca_key
-			del os.environ["OPSI_SSL_CA_KEY"]
+			del os.environ["OPSICONFD_WORKER_OPSI_SSL_CA_KEY"]
 
-	logger.notice("Init worker (pid %s)", os.getpid())
+	logger.notice("Init worker %d (pid %s)", get_worker_num(), os.getpid())
 	loop = asyncio.get_event_loop()
 	loop.set_debug(config.debug)
 	init_pool_executor(loop)

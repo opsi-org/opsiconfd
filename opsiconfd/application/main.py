@@ -33,7 +33,7 @@ from starlette.types import ASGIApp
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
-from fastapi.responses import Response, HTMLResponse, FileResponse, RedirectResponse
+from fastapi.responses import Response, HTMLResponse, FileResponse, RedirectResponse, StreamingResponse
 from websockets.exceptions import ConnectionClosedOK
 
 from .. import contextvar_request_id, contextvar_client_address
@@ -95,7 +95,7 @@ class LoggerWebsocket(WebSocketEndpoint):
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		pass
 
-@app.websocket_route("/ws/test")
+@app.websocket_route("/test/ws")
 class TestWebsocket(WebSocketEndpoint):
 	encoding = 'bytes'
 
@@ -112,6 +112,11 @@ class TestWebsocket(WebSocketEndpoint):
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		pass
+
+@app.get("/test/random-data")
+async def get_test_random(request: Request):  # pylint: disable=unused-argument
+	random = open("/dev/urandom", mode="rb")
+	return StreamingResponse(random, media_type="application/binary")
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument

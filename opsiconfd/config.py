@@ -660,12 +660,17 @@ class Config(metaclass=Singleton):
 		else:
 			self._config = parser.parse_args(args)
 
-	def __getattr__(self, attr):
-		if attr.startswith("_"):
+	def __getattr__(self, name):
+		if name.startswith("_"):
 			raise AttributeError()
 		if not self._config:
 			self._parse_args()
-		return getattr(self._config, attr)
+		return getattr(self._config, name)
+
+	def __setattr__(self, name, value):
+		if not name.startswith("_") and hasattr(self._config, name):
+			return setattr(self._config, name, value)
+		return super().__setattr__(name, value)
 
 	def reload(self):
 		self._parse_args()

@@ -204,9 +204,10 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 						self._loop.create_task(self._create_client_log_file_symlink(client))
 				self._file_logs[filename].add_filter(context_filter.filter)
 				return self._file_logs[filename]
-		except Exception as exc: # pylint: disable=broad-except
+		except Exception as exc:  # pylint: disable=broad-except
 			self._file_logs[filename] = None
 			handle_log_exception(exc)
+		return None
 
 	async def _watch_log_files(self):
 		if not self._log_file_template:
@@ -295,6 +296,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		pylogging.Handler.__init__(self)
 		threading.Thread.__init__(self)
 		self.name = "RedisLogHandlerThread"
+		self.daemon = True
 		self._max_msg_len = max_msg_len
 		self._max_delay = max_delay
 		self._redis = get_redis_connection(config.redis_internal_url)

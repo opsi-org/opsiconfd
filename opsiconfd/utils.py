@@ -40,7 +40,6 @@ from opsicommon.logging import handle_log_exception
 REDIS_CONNECTION_RETRIES = 15
 
 
-
 logger = None # pylint: disable=invalid-name
 def get_logger():
 	global logger # pylint: disable=global-statement, invalid-name
@@ -84,47 +83,6 @@ def get_node_name():
 			else:
 				node_name = socket.gethostname()
 	return node_name
-
-
-_worker_processes_cache = {}
-def get_worker_processes():
-	# We need to always return the same objects
-	# if not, cpu_percent(interval=None) will always return 0.0
-	global _worker_processes_cache # pylint: disable=global-statement, invalid-name
-	get_config()
-
-	workers = []
-	# process can be a worker with no children or an arbiter with children
-	main_process = psutil.Process()
-	if not main_process:
-		return []
-
-	children = main_process.children()
-	if not children and (config.server_type != "uvicorn" or config.workers > 1):
-		parent = main_process.parent()
-		if parent:
-			main_process = parent
-			children = main_process.children()
-
-	for proc in [main_process] + children:
-		if config.server_type == "gunicorn" and not proc.children():  #proc.parent() and proc.parent().pid == main_process.pid:
-			workers.append(proc)
-		elif config.server_type == "uvicorn":
-			if config.workers == 1 or "--multiprocessing-fork" in proc.cmdline():
-				workers.append(proc)
-
-	pids = []
-	for worker in workers:
-		pids.append(worker.pid)
-		if not worker.pid in _worker_processes_cache:
-			_worker_processes_cache[worker.pid] = worker
-
-	for pid in list(_worker_processes_cache):
-		if not pid in pids:
-			del _worker_processes_cache[pid]
-
-	return sorted(_worker_processes_cache.values(), key=lambda p: p.pid)
-
 
 def decode_redis_result(_obj):
 	if isinstance(_obj, bytes):

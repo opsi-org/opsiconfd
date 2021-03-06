@@ -258,7 +258,6 @@ class Server:
 		logger.notice("Starting server")
 		self.uvicorn_server = UvicornServer(config=self.uvicorn_config)
 
-		# TODO: Check if init_logging has to be called later (when uvicorn server is running)
 		init_logging(config.log_mode)
 
 		if config.workers > 1:
@@ -273,7 +272,11 @@ class Server:
 		self.check_modules()
 		self.create_uvicorn_config()
 		if self.uvicorn_server:
-			self.uvicorn_server.config = self.uvicorn_config
+			for key, value in self.uvicorn_config.__dict__.items():
+				# Do not replace the whole config object, because uvicorn
+				# server adds additional keys like "encoded_headers" on start
+				if value is not None:
+					setattr(self.uvicorn_server.config, key, value)
 		if self.supervisor:
 			self.supervisor.reload()
 

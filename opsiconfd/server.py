@@ -23,10 +23,11 @@
 import os
 import time
 import threading
-import base64
 import socket
+import base64
 from typing import List
 from multiprocessing import Process
+import psutil
 
 try:
 	# python3-pycryptodome installs into Cryptodome
@@ -59,6 +60,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.workers = []
 		self.worker_stop_timeout = 60
 		self.worker_restart_time = 0
+		self.worker_restart_mem = config.restart_worker_mem * 1000000
 		self.restart_vanished_workers = True
 		self.worker_update_lock = threading.Lock()
 		self.should_stop = False
@@ -93,21 +95,32 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				for worker_num, worker in enumerate(self.workers):
 					worker_num += 1
 
-					if not worker.is_alive() and not getattr(worker, "marked_as_vanished", False):
+					if worker.is_alive():
+						if self.worker_restart_time > 0:
+							alive = time.time() - worker.create_time
+							if alive >= self.worker_restart_time:
+								logger.notice(
+									"Worker %d (pid %d) has been running for %s seconds",
+									worker_num, worker.pid, alive
+								)
+								auto_restart.append(worker_num)
+
+						if self.worker_restart_mem > 0:
+							mem = psutil.Process(worker.pid).memory_info().rss
+							if mem >= self.worker_restart_mem:
+								logger.notice(
+									"Worker %d (pid %d) is using %0.2f MB of memory",
+									worker_num, worker.pid, mem/1000000
+								)
+								auto_restart.append(worker_num)
+
+					elif not getattr(worker, "marked_as_vanished", False):
 						# Worker crashed / killed
 						logger.warning("Worker %d (pid %d) vanished", worker_num, worker.pid)
 						worker.marked_as_vanished = True
 						if self.restart_vanished_workers:
 							auto_restart.append(worker_num)
 
-					elif worker.is_alive() and self.worker_restart_time > 0:
-						alive = time.time() - worker.create_time
-						if alive >= self.worker_restart_time:
-							logger.notice(
-								"Worker %d (pid %d) has been running for %s seconds",
-								worker_num, worker.pid, alive
-							)
-							auto_restart.append(worker_num)
 
 			for worker_num in auto_restart:
 				logger.notice("Auto restarting worker %s", worker_num)

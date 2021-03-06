@@ -571,6 +571,14 @@ parser.add(
 	help="Grafana data source base url."
 )
 parser.add(
+	"--restart-worker-mem",
+	env_var="OPSICONFD_RESTART_WORKER_MEM",
+	type=int,
+	help="Restart worker if allocated process memory (rss) exceeds this value (in MB).",
+	default=1000
+)
+
+parser.add(
 	"--ex-help",
 	action="store_true",
 	help=expert_help("Show expert help message and exit.")

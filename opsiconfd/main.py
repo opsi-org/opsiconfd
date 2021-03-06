@@ -94,28 +94,38 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		return
 
 	if config.action in ("reload", "stop"):
-		# TODO signal only to arbiter
+		# Send signal to arbiter process only, not to workers!
 		send_signal = signal.SIGINT if config.action == "stop" else signal.SIGHUP
 		our_pid = os.getpid()
 		our_proc = psutil.Process(our_pid)
 		ignore_pids = [our_pid]
 		ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
 		ignore_pids += [p.pid for p in our_proc.parents()]
-		pids = []
+		arbiter_pid = None
 		for proc in psutil.process_iter():
 			if proc.pid in ignore_pids:
 				continue
+
 			if proc.name() == "opsiconfd":
-				pids.append(proc.pid)
-				pids.extend([p.pid for p in proc.children(recursive=True)])
+				for arg in proc.cmdline():
+					if not "multiprocessing" in arg:
+						arbiter_pid = proc.pid
+						break
+
 			elif proc.name() in ("python", "python3"):
 				for arg in proc.cmdline():
-					if arg.find("opsiconfd.__main__") != -1:
-						pids.append(proc.pid)
-						pids.extend([p.pid for p in proc.children(recursive=True)])
+					if "opsiconfd.__main__" in arg:
+						arbiter_pid = proc.pid
 						break
-		for pid in sorted(set(pids), reverse=True):
-			os.kill(pid, send_signal)
+
+			if arbiter_pid:
+				break
+
+		if arbiter_pid:
+			os.kill(arbiter_pid, send_signal)
+		else:
+			print("No running opsiconfd arbiter process found", file=sys.stderr)
+			sys.exit(1)
 		return
 
 	if config.use_jemalloc:

@@ -181,13 +181,18 @@ li {
 }
 
 #log-settings {
-	margin: 15px 0px 0px 10px;
+	display: flex;
+	margin: 15px 0px 0px 0px;
+}
+
+.log-setting {
+	margin: 0px 25px 0px 0px;
 }
 
 #log-container {
 	width: 100%;
 	height: calc(100% - 50px);
-	margin: 10px;
+	margin-top: 10px;
 	overflow: scroll;
 	/*line-height: 0.9;*/
 	background-color: black;

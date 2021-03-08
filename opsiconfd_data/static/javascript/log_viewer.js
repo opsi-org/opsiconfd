@@ -8,6 +8,9 @@ var messageFilterRegex = null;
 var levelFilter = 9;
 var logLineId = 0;
 var collapsed = true;
+var autoScroll = true;
+var autoReconnect = true;
+var reconnectTimer = null;
 
 function addRecordToLog(record) {
 	logLineId++;
@@ -142,6 +145,18 @@ function collapseAll(col) {
 	}
 }
 
+function setAutoScroll(auto) {
+	if (auto != autoScroll) {
+		autoScroll = auto;
+		document.getElementById("auto-scroll").checked = autoScroll;
+		let container = document.getElementById("log-line-container");
+		let element = container.lastChild;
+		if (element) {
+			element.scrollIntoView({block: "end", behavior: "smooth"});
+		}
+	}
+}
+
 function applyContextFilter(filter=null) {
 	if (filter) {
 		contextFilterRegex = new RegExp(filter, 'i');
@@ -223,7 +238,11 @@ function setMessage(text = "", className = "LEVEL_INFO") {
 }
 
 function startLog(numRecords=0, startTime=0) {
-	setMessage("Loading...");
+	setMessage("Connecting...");
+	if (reconnectTimer) {
+		clearTimeout(reconnectTimer);
+		reconnectTimer = null;
+	}
 	logLineId = 0;
 	var client = null;
 	var params = []
@@ -258,15 +277,14 @@ function startLog(numRecords=0, startTime=0) {
 		//console.log(message.data);
 		message.data.arrayBuffer().then(function(buffer) {
 			let container = document.getElementById("log-line-container");
-			let scrollToBottom = (container.scrollHeight - container.scrollTop === container.clientHeight);
 			buffer = new Uint8Array(buffer, 0);
 			var records = msgpack.deserialize(buffer, true);
 			var element;
 			for (let i=0; i<records.length; i++) {
 				element = addRecordToLog(records[i]);
 			}
-			if (scrollToBottom && element) {
-				element.scrollIntoView({block: "end", behavior: "auto"});
+			if (autoScroll && element) {
+				element.scrollIntoView({block: "end", behavior: "smooth"});
 			}
 		});
 
@@ -280,6 +298,9 @@ function startLog(numRecords=0, startTime=0) {
 			msg = msg + ": " + event.reason;
 		}
 		setMessage(msg, "LEVEL_ERROR");
+		if (autoReconnect) {
+			reconnectTimer = setTimeout(startLog, 5000);
+		}
 	};
 }
 

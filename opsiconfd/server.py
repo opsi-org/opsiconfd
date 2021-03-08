@@ -157,7 +157,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		process.start()
 		process.create_time = time.time()
 
-		logger.notice("New worker process started: %s", process.pid)
+		logger.notice("New worker (%d) process started: %s", worker_num, process.pid)
 		while len(self.workers) < worker_num:
 			self.workers.append(None)
 		self.workers[worker_num - 1] = process
@@ -172,7 +172,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			if worker:
 				workers.append(worker)
 				if worker.is_alive():
-					logger.notice("Stopping worker: %s", worker.pid)
+					logger.notice("Stopping worker: %s (force=%s)", worker.pid, force)
 					worker.terminate()
 					if force:
 						# Send twice, uvicorn worker will not wait for connectons to close.

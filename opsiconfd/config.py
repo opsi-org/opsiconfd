@@ -617,8 +617,8 @@ parser.add(
 	"--executor-workers",
 	env_var="OPSICONFD_EXECUTOR_WORKERS",
 	type=int,
-	default=8,
-	help=expert_help("Number of thread / process pool workers for asyncio.")
+	default=10,
+	help=expert_help("Number of thread pool workers for asyncio.")
 )
 parser.add(
 	"--log-slow-async-callbacks",

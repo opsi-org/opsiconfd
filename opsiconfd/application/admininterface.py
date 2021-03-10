@@ -37,7 +37,7 @@ templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates
 
 def admin_interface_setup(app):
 	app.include_router(router=admin_interface_router, prefix="/admin")
-	app.include_router(router=memory_profiler_router, prefix="/admin")
+	app.include_router(router=memory_profiler_router, prefix="/admin/memory")
 
 
 @admin_interface_router.get("/?")

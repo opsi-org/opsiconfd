@@ -262,6 +262,29 @@ function loadConfdConfig() {
 	request.send()
 }
 
+function tracemallocSnapshot() {
+	//let max_obj_types = parseInt(document.getElementById("input-objgraph-max-obj-types").value);
+	//let max_obj = parseInt(document.getElementById("input-objgraph-max-obj").value);
+	let max = 25;
+	document.getElementById("button-tracemalloc-snapshot").disabled = true;
+	let request = new XMLHttpRequest();
+	request.open("GET", `/admin/memory/tracemalloc-snapshot-new?max=${max}`);
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "memory-values");
+			document.getElementById("button-tracemalloc-snapshot").disabled = false;
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			document.getElementById("button-tracemalloc-snapshot").disabled = false;
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
 function objgraphSnapshot(update=false) {
 	let max_obj_types = parseInt(document.getElementById("input-objgraph-max-obj-types").value);
 	let max_obj = parseInt(document.getElementById("input-objgraph-max-obj").value);

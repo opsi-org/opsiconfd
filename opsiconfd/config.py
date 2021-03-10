@@ -617,7 +617,7 @@ parser.add(
 	"--executor-workers",
 	env_var="OPSICONFD_EXECUTOR_WORKERS",
 	type=int,
-	default=15,
+	default=8,
 	help=expert_help("Number of thread / process pool workers for asyncio.")
 )
 parser.add(

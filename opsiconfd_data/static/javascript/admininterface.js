@@ -263,12 +263,10 @@ function loadConfdConfig() {
 }
 
 function tracemallocSnapshot() {
-	//let max_obj_types = parseInt(document.getElementById("input-objgraph-max-obj-types").value);
-	//let max_obj = parseInt(document.getElementById("input-objgraph-max-obj").value);
-	let max = 25;
+	let limit = 25;
 	document.getElementById("button-tracemalloc-snapshot").disabled = true;
 	let request = new XMLHttpRequest();
-	request.open("GET", `/admin/memory/tracemalloc-snapshot-new?max=${max}`);
+	request.open("GET", `/admin/memory/tracemalloc-snapshot-new?limit=${limit}`);
 	request.addEventListener('load', function (event) {
 		if (request.status >= 200 && request.status < 300) {
 			result = request.responseText;

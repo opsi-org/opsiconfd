@@ -260,11 +260,11 @@ class Server:
 
 		init_logging(config.log_mode)
 
-		if config.workers > 1:
-			self.supervisor = Supervisor(server=self.uvicorn_server)
-			self.supervisor.run()
-		else:
-			self.uvicorn_server.run()
+		#if config.workers > 1:
+		self.supervisor = Supervisor(server=self.uvicorn_server)
+		self.supervisor.run()
+		#else:
+		#	self.uvicorn_server.run()
 
 		logger.notice("Server exited")
 

@@ -40,7 +40,7 @@ TRACEMALLOC_PREV_SNAPSHOT = None
 TRACEMALLOC_RSS_START = 0
 TRACEMALLOC_RSS_PREV = 0
 @memory_profiler_router.get("/tracemalloc-snapshot-new")
-def memory_tracemalloc_snapshot_new(max: int = 10) -> JSONResponse:
+def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
 	global TRACEMALLOC_PREV_SNAPSHOT, TRACEMALLOC_RSS_PREV, TRACEMALLOC_RSS_START  # pylint: disable=global-statement
 	gc.collect()
 	mem_info = psutil.Process().memory_info()
@@ -67,11 +67,11 @@ def memory_tracemalloc_snapshot_new(max: int = 10) -> JSONResponse:
 	}
 	for num, stat in enumerate(current.statistics("filename"), 1):
 		data["start"]["size"] += stat.size
-		if num <= max:
+		if num <= limit:
 			data["start"]["stats"].append(str(stat))
 	for num, stat in enumerate(current.compare_to(TRACEMALLOC_PREV_SNAPSHOT, "filename"), 1):
 		data["prev"]["size"] += stat.size_diff
-		if num <= max:
+		if num <= limit:
 			data["prev"]["stats"].append(str(stat))
 
 	TRACEMALLOC_PREV_SNAPSHOT = current

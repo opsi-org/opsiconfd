@@ -19,6 +19,7 @@ import msgpack
 from fastapi import Request, APIRouter
 from fastapi.responses import JSONResponse
 
+import tracemalloc
 import objgraph
 from pympler import tracker, classtracker
 from guppy import hpy
@@ -35,8 +36,56 @@ CLASS_TRACKER = None
 HEAP = None
 
 
+TRACEMALLOC_PREV_SNAPSHOT = None
+TRACEMALLOC_RSS_START = 0
+TRACEMALLOC_RSS_PREV = 0
+@memory_profiler_router.get("/tracemalloc-snapshot-new")
+def memory_tracemalloc_snapshot_new(max: int = 10) -> JSONResponse:
+	global TRACEMALLOC_PREV_SNAPSHOT, TRACEMALLOC_RSS_PREV, TRACEMALLOC_RSS_START  # pylint: disable=global-statement
+	gc.collect()
+	mem_info = psutil.Process().memory_info()
+
+	if not tracemalloc.is_tracing():
+		tracemalloc.start(25)
+		TRACEMALLOC_PREV_SNAPSHOT = tracemalloc.take_snapshot()
+		TRACEMALLOC_RSS_START = mem_info.rss
+
+	current = tracemalloc.take_snapshot()
+	data = {
+		"time": time.time(),
+		"memory_info_rss": mem_info.rss,
+		"memory_info_rss_diff_prev": mem_info.rss - TRACEMALLOC_RSS_PREV,
+		"memory_info_rss_diff_start": mem_info.rss - TRACEMALLOC_RSS_START,
+		"start": {
+			"size": 0,
+			"stats": []
+		},
+		"prev": {
+			"size": 0,
+			"stats": []
+		}
+	}
+	for num, stat in enumerate(current.statistics("filename"), 1):
+		data["start"]["size"] += stat.size
+		if num <= max:
+			data["start"]["stats"].append(str(stat))
+	for num, stat in enumerate(current.compare_to(TRACEMALLOC_PREV_SNAPSHOT, "filename"), 1):
+		data["prev"]["size"] += stat.size_diff
+		if num <= max:
+			data["prev"]["stats"].append(str(stat))
+
+	TRACEMALLOC_PREV_SNAPSHOT = current
+	TRACEMALLOC_RSS_PREV = mem_info.rss
+
+	return JSONResponse({
+		"status": 200,
+		"error": None,
+		"data": data
+	})
+
+
 LAST_OBJGRAPH_SNAPSHOT = {}
-@memory_profiler_router.get("/memory/objgraph-snapshot-new")
+@memory_profiler_router.get("/objgraph-snapshot-new")
 def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> JSONResponse:
 	global LAST_OBJGRAPH_SNAPSHOT  # pylint: disable=global-statement
 	gc.collect()
@@ -81,7 +130,7 @@ def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> 
 		"data": data
 	})
 
-@memory_profiler_router.get("/memory/objgraph-snapshot-update")
+@memory_profiler_router.get("/objgraph-snapshot-update")
 def memory_objgraph_snapshot_update() -> JSONResponse:
 	if not LAST_OBJGRAPH_SNAPSHOT:
 		return memory_objgraph_snapshot_new()
@@ -102,7 +151,7 @@ def memory_objgraph_snapshot_update() -> JSONResponse:
 		"data": data
 	})
 
-@memory_profiler_router.get("/memory/objgraph-show-backrefs")
+@memory_profiler_router.get("/objgraph-show-backrefs")
 def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Response:
 	assert output_format in ("png", "dot")
 	obj_id = int(obj_id)
@@ -128,7 +177,7 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 	)
 
 
-@memory_profiler_router.post("/memory/snapshot")
+@memory_profiler_router.post("/snapshot")
 async def memory_info() -> JSONResponse:
 
 	global MEMORY_TRACKER # pylint: disable=global-statement
@@ -170,7 +219,7 @@ async def memory_info() -> JSONResponse:
 	})
 	return response
 
-@memory_profiler_router.delete("/memory/snapshot")
+@memory_profiler_router.delete("/snapshot")
 async def delte_memory_snapshot() -> JSONResponse:
 
 	redis_client = await get_redis_client()
@@ -184,7 +233,7 @@ async def delte_memory_snapshot() -> JSONResponse:
 	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted all memory snapshots."}})
 	return response
 
-@memory_profiler_router.get("/memory/diff")
+@memory_profiler_router.get("/diff")
 async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 
 	global MEMORY_TRACKER # pylint: disable=global-statement
@@ -229,7 +278,7 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 	})
 	return response
 
-@memory_profiler_router.post("/memory/classtracker")
+@memory_profiler_router.post("/classtracker")
 async def classtracker_snapshot(request: Request) -> JSONResponse:
 
 	request_body = await request.json()
@@ -264,7 +313,7 @@ async def classtracker_snapshot(request: Request) -> JSONResponse:
 		})
 	return response
 
-@memory_profiler_router.get("/memory/classtracker/summary")
+@memory_profiler_router.get("/classtracker/summary")
 async def classtracker_summary() -> JSONResponse:
 
 	global CLASS_TRACKER # pylint: disable=global-statement
@@ -298,7 +347,7 @@ async def classtracker_summary() -> JSONResponse:
 	return response
 
 
-@memory_profiler_router.delete("/memory/classtracker")
+@memory_profiler_router.delete("/classtracker")
 async def delte_class_tracker() -> JSONResponse:
 
 	global CLASS_TRACKER # pylint: disable=global-statement
@@ -309,7 +358,7 @@ async def delte_class_tracker() -> JSONResponse:
 	return response
 
 
-@memory_profiler_router.post("/memory/guppy")
+@memory_profiler_router.post("/guppy")
 async def guppy_snapshot() -> JSONResponse:
 
 	global HEAP # pylint: disable=global-statement
@@ -353,7 +402,7 @@ async def guppy_snapshot() -> JSONResponse:
 	return response
 
 
-@memory_profiler_router.delete("/memory/guppy")
+@memory_profiler_router.delete("/guppy")
 async def delte_guppy_snapshot() -> JSONResponse:
 
 	redis_client = await get_redis_client()
@@ -368,7 +417,7 @@ async def delte_guppy_snapshot() -> JSONResponse:
 	return response
 
 
-@memory_profiler_router.get("/memory/guppy/setref")
+@memory_profiler_router.get("/guppy/setref")
 async def guppy_set_ref() -> JSONResponse:
 
 	global HEAP # pylint: disable=global-statement
@@ -379,7 +428,7 @@ async def guppy_set_ref() -> JSONResponse:
 	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Set new ref point"}})
 	return response
 
-@memory_profiler_router.get("/memory/guppy/diff")
+@memory_profiler_router.get("/guppy/diff")
 async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 
 	global HEAP # pylint: disable=global-statement

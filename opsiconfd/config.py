@@ -634,7 +634,7 @@ parser.add(
 	type=str2bool,
 	nargs='?',
 	const=True,
-	default=False,
+	default=True,
 	help=expert_help("Use jemalloc if available.")
 )
 if PYTEST:

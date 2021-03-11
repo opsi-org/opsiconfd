@@ -60,7 +60,8 @@ package:
   architecture: amd64
   systemd: yes
   depends:
-    - librsync | librsync2 | librsync1
+    - librsync2 | librsync1 | librsync
+    - libjemalloc2 | libjemalloc1 | libjemalloc
   source_script: |
     pyi_src="${SRC}"
     if [ -e "${SRC}/dist/opsiconfd/opsiconfd" ]; then pyi_src="${SRC}/dist"; fi

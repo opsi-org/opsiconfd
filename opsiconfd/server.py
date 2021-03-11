@@ -158,7 +158,8 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 
 	def start_worker(self, worker_num: int):
 		# Put CA key into environment for worker processes
-		os.putenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", ssl.KEY_CACHE[config.ssl_ca_key])
+		if config.ssl_ca_key in ssl.KEY_CACHE:
+			os.putenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", ssl.KEY_CACHE[config.ssl_ca_key])
 		os.putenv("OPSICONFD_WORKER_WORKER_NUM", str(worker_num))
 
 		process = get_subprocess(
@@ -172,7 +173,8 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			self.workers.append(None)
 		self.workers[worker_num - 1] = process
 
-		os.unsetenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY")
+		if config.ssl_ca_key in ssl.KEY_CACHE:
+			os.unsetenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY")
 		os.unsetenv("OPSICONFD_WORKER_WORKER_NUM")
 
 	def stop_worker(self, pids: List[int], force: bool = False, wait: bool = True, remove_worker: bool = True):

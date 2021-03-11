@@ -61,6 +61,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.worker_stop_timeout = 60
 		self.worker_restart_time = 0
 		self.worker_restart_mem = config.restart_worker_mem * 1000000
+		self.worker_restart_mem_interval = 3600
 		self.restart_vanished_workers = True
 		self.worker_update_lock = threading.Lock()
 		self.should_stop = False
@@ -106,13 +107,22 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 								auto_restart.append(worker_num)
 
 						if self.worker_restart_mem > 0:
+							now = time.time()
 							mem = psutil.Process(worker.pid).memory_info().rss
 							if mem >= self.worker_restart_mem:
-								logger.notice(
-									"Worker %d (pid %d) is using %0.2f MB of memory",
-									worker_num, worker.pid, mem/1000000
-								)
-								auto_restart.append(worker_num)
+								if not hasattr(worker, 'max_mem_exceeded_since'):
+									worker.max_mem_exceeded_since = now
+								if now - worker.max_mem_exceeded_since >= self.worker_restart_mem_interval:
+									logger.notice(
+										"Worker %d (pid %d) is using more than %0.2f MB of memory "
+										"(currently %0.2f MB) since %d seconds",
+										worker_num, worker.pid,
+										self.worker_restart_mem/1000000, mem/1000000,
+										now - worker.max_mem_exceeded_since
+									)
+									auto_restart.append(worker_num)
+							elif hasattr(worker, 'max_mem_exceeded_since'):
+								delattr(worker, 'max_mem_exceeded_since')
 
 					elif not getattr(worker, "marked_as_vanished", False):
 						# Worker crashed / killed

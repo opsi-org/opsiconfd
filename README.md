@@ -38,6 +38,9 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * start opsiconfd
 * select "Run Tests" on the Status Bar or use the Test Explorer
 
+## Memory usage / profiling
+* https://bugs.python.org/issue41699
+
 ### valgrind
 ```
 PYTHONMALLOC=malloc sudo -E valgrind --tool=memcheck --trace-children=yes --dsymutil=yes --leak-check=full --show-leak-kinds=all --log-file=/tmp/valgrind-out poetry run opsiconfd --workers=1 --log-level-stderr=5

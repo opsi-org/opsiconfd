@@ -575,7 +575,7 @@ parser.add(
 	env_var="OPSICONFD_RESTART_WORKER_MEM",
 	type=int,
 	help="Restart worker if allocated process memory (rss) exceeds this value (in MB).",
-	default=1000
+	default=1500
 )
 
 parser.add(

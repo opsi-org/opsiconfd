@@ -53,7 +53,7 @@ def run_with_jemlalloc():
 		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
 			return
 
-		out = subprocess.check_output(["ldconfig", "-p"]).decode()
+		out = subprocess.check_output(["ldconfig", "-p"]).decode("utf-8", "replace")
 		match = re.search(r".*=>\s*(.*libjemalloc.*)\s*", out)
 		if not match:
 			raise RuntimeError("libjemalloc not found")

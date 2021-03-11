@@ -50,9 +50,6 @@ from .arbiter import Arbiter
 
 def run_with_jemlalloc():
 	try:
-		if sys.argv[0].endswith(".py"):
-			return
-
 		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
 			return
 
@@ -128,7 +125,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			sys.exit(1)
 		return
 
-	if config.use_jemalloc:
+	if config.use_jemalloc and getattr(sys, 'frozen', False):
 		try:
 			run_with_jemlalloc()
 		except Exception as err:  # pylint: disable=broad-except
@@ -149,7 +146,10 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
 			logger.notice("Running with %s", os.getenv("LD_PRELOAD"))
 		elif config.use_jemalloc:
-			logger.error("Failed to use jemalloc, please make sure it is installed")
+			if getattr(sys, 'frozen', False):
+				logger.error("Failed to use jemalloc, please make sure it is installed")
+			else:
+				logger.warning("Not running from binary, not using jemalloc, use LD_PRELOAD if needed")
 
 		setup(full=bool(config.setup))
 

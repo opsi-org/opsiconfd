@@ -29,7 +29,8 @@ import asyncio
 import functools
 import contextvars
 from contextlib import contextmanager
-from concurrent.futures import ThreadPoolExecutor
+#from concurrent.futures import ThreadPoolExecutor
+from .thread import ThreadPoolExecutor
 import redis
 #from starlette.concurrency import run_in_threadpool as starlette_run_in_threadpool
 
@@ -87,10 +88,6 @@ def init_pool_executor(loop):
 		max_workers=config.executor_workers,
 		thread_name_prefix="worker-ThreadPoolExecutor"
 	)
-	# Start all worker threads in pool.
-	# This will speed up calls to run_in_threadpool().
-	for _ in range(config.executor_workers):
-		pool_executor._adjust_thread_count() # pylint: disable=protected-access
 	loop.set_default_executor(pool_executor)
 
 T = typing.TypeVar("T") # pylint: disable=invalid-name

@@ -323,7 +323,7 @@ class Client:
 
 	async def jsonrpc(self, method, params=None):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		params = params or []
-		for param, idx in enumerate(params):
+		for idx, param in enumerate(params):
 			if isinstance(param, str) and param.startswith("{random_data:"):
 				size = int(param.split(':')[1].strip('}'))
 				# TODO: more randomized data

@@ -617,7 +617,7 @@ parser.add(
 	"--executor-workers",
 	env_var="OPSICONFD_EXECUTOR_WORKERS",
 	type=int,
-	default=10,
+	default=16,
 	help=expert_help("Number of thread pool workers for asyncio.")
 )
 parser.add(
@@ -634,7 +634,7 @@ parser.add(
 	type=str2bool,
 	nargs='?',
 	const=True,
-	default=True,
+	default=False,
 	help=expert_help("Use jemalloc if available.")
 )
 if PYTEST:

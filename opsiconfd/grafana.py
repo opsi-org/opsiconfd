@@ -36,7 +36,7 @@ import aiohttp
 
 from .logging import logger
 from .config import config, set_config_in_config_file
-from .utils import get_node_name, get_random_string, running_in_docker
+from .utils import get_random_string
 
 API_KEY_NAME = "opsiconfd"
 
@@ -425,7 +425,5 @@ def get_grafana_data_source_url():
 			if config.ssl_server_key and config.ssl_server_cert:
 				scheme = "https"
 			addr = "localhost"
-			#if running_in_docker():
-			#	addr = get_node_name()
 			grafana_data_source_url = f"{scheme}://{addr}:{config.port}"
 	return grafana_data_source_url

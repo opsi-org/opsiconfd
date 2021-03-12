@@ -36,8 +36,8 @@ from fastapi import HTTPException, status
 from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
 from starlette.datastructures import MutableHeaders, Headers
 from starlette.requests import HTTPConnection, Request
-#from starlette.sessions import CookieBackend, Session, SessionBackend
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.concurrency import run_in_threadpool
 
 from aredis.exceptions import ResponseError
 from OPSI.Backend.Manager.AccessControl import UserStore
@@ -48,9 +48,7 @@ from OPSI.Config import OPSI_ADMIN_GROUP
 from opsicommon.logging import logger, secret_filter, set_context
 
 from . import contextvar_client_session, contextvar_server_timing
-from .worker import (
-	sync_redis_client, get_redis_client, run_in_threadpool
-)
+from .worker import sync_redis_client, get_redis_client
 from .backend import get_client_backend
 from .config import config
 from .utils import get_fqdn
@@ -107,6 +105,7 @@ def get_session_from_context():
 		return contextvar_client_session.get()
 	except LookupError as exc:
 		logger.debug("Failed to get session from context: %s", exc)
+	return None
 
 
 class SessionMiddleware:

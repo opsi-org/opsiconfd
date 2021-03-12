@@ -28,9 +28,9 @@ import socket
 import threading
 import asyncio
 from queue import Queue, Empty
-from concurrent.futures import ThreadPoolExecutor
 import logging as pylogging
 from logging import LogRecord, Formatter, StreamHandler
+from concurrent.futures import ThreadPoolExecutor
 
 import msgpack
 import colorlog

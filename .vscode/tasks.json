@@ -19,7 +19,7 @@
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
-			  }
+			}
 		},
 		{
 			"label": "Restore Backup",
@@ -34,6 +34,15 @@
 			"label": "Create .env file",
 			"type": "shell",
 			"command": "${workspaceFolder}/scripts/devenv.sh",
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "PyInstaller build",
+			"type": "shell",
+			"command": "sudo poetry run opsi-dev-tool --pyinstaller-poetry-build -l debug",
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"

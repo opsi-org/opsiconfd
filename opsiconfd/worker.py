@@ -22,17 +22,14 @@
 """
 
 import os
-import typing
+import gc
+import ctypes
 import signal
 import threading
 import asyncio
-import functools
-import contextvars
 from contextlib import contextmanager
-#from concurrent.futures import ThreadPoolExecutor
-from .thread import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 import redis
-#from starlette.concurrency import run_in_threadpool as starlette_run_in_threadpool
 
 from .logging import logger, init_logging
 from .config import config
@@ -90,18 +87,6 @@ def init_pool_executor(loop):
 	)
 	loop.set_default_executor(pool_executor)
 
-T = typing.TypeVar("T") # pylint: disable=invalid-name
-async def run_in_threadpool(func: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any) -> T:
-	#return await starlette_run_in_threadpool(func, *args, **kwargs)
-	context = contextvars.copy_context()
-	future = asyncio.get_event_loop().run_in_executor(
-		None, context.run, functools.partial(func, *args, **kwargs)
-	)
-	res = await future
-	del context
-	del future
-	return res
-
 def get_metrics_collector():
 	return _metrics_collector
 
@@ -110,15 +95,22 @@ def handle_asyncio_exception(loop, context):
 	#msg = context.get("exception", context["message"])
 	logger.error("Unhandled exception in asyncio loop '%s': %s", loop, context)
 
+def memory_cleanup():
+	gc.collect()
+	ctypes.CDLL("libc.so.6").malloc_trim(0)
+
 def signal_handler(signum, frame): # pylint: disable=unused-argument
 	logger.info("Worker %s got signal %d", os.getpid(), signum)
 	if signum == signal.SIGHUP:
 		logger.notice("Worker %s reloading", os.getpid())
 		config.reload()
 		init_logging(log_mode=config.log_mode, is_worker=True)
-	#else:
-	#	# SIGTERM (15) => process.terminate() from supervisor
-	#	exit_worker()
+		memory_cleanup()
+
+async def main_loop():
+	while True:
+		await asyncio.sleep(120)
+		memory_cleanup()
 
 def exit_worker():
 	for thread in threading.enumerate():
@@ -138,9 +130,7 @@ def init_worker():
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Failed to get worker number from env: %s", err)
 		# Only if this process is a worker only process (multiprocessing)
-		#signal.signal(signal.SIGINT, signal_handler)
 		signal.signal(signal.SIGHUP, signal_handler)
-		#signal.signal(signal.SIGTERM, signal_handler)
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		opsi_ca_key = os.getenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", None)
 		if opsi_ca_key:
@@ -154,6 +144,7 @@ def init_worker():
 	loop.set_exception_handler(handle_asyncio_exception)
 	# create redis pool
 	loop.create_task(get_redis_client())
+	loop.create_task(main_loop())
 	# create and start MetricsCollector
 	_metrics_collector = WorkerMetricsCollector()
 	loop.create_task(_metrics_collector.main_loop())

@@ -26,10 +26,9 @@ import sys
 import typing
 from queue import Queue
 
-#from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
+from starlette.concurrency import run_in_threadpool
 
-from .worker import run_in_threadpool
 
 class InputBuffer:
 	""" Input buffer """

@@ -34,6 +34,7 @@ import msgpack
 from fastapi import HTTPException, APIRouter
 from fastapi.requests import Request
 from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 
 from OPSI.Util import serialize, deserialize
 
@@ -41,7 +42,7 @@ from .. import contextvar_client_session
 from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface, get_backend, OpsiconfdBackend
 from ..worker import (
-	run_in_threadpool, get_metrics_collector,
+	get_metrics_collector,
 	get_redis_client, sync_redis_client, get_worker_num
 )
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig

@@ -425,7 +425,7 @@ def get_grafana_data_source_url():
 			if config.ssl_server_key and config.ssl_server_cert:
 				scheme = "https"
 			addr = "localhost"
-			if running_in_docker():
-				addr = get_node_name()
+			#if running_in_docker():
+			#	addr = get_node_name()
 			grafana_data_source_url = f"{scheme}://{addr}:{config.port}"
 	return grafana_data_source_url

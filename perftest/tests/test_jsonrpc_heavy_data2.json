@@ -1,0 +1,18 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 20,
+	"iterations": 20,
+	"test_cases": [
+		{
+			"name": "JSONRPC",
+			"requests": {
+				"test": [
+					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]],
+					["jsonrpc", "log_read", ["instlog", "example.uib.local"]]
+				]
+			}
+		}
+	]
+}

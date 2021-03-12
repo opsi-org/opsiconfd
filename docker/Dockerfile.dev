@@ -34,6 +34,7 @@ RUN apt-get update \
 		tini \
 		psmisc \
 		librsync1 \
+		libjemalloc2 \
 		sqlite3 \
 		sudo \
 		git \

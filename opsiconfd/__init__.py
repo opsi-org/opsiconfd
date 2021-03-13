@@ -22,7 +22,7 @@ The opsi configuration service.
 :author: Jan Schneider <j.schneider@uib.de>
 :license: GNU Affero General Public License version 3
 """
-__version__ = '4.2.0.135'
+__version__ = '4.2.0.136'
 
 import contextvars
 

@@ -46,7 +46,7 @@ from OPSI.Util import getPublicKey
 
 from .config import config
 from .logging import logger, init_logging
-from .utils import get_node_name, get_redis_connection
+from .utils import get_node_name, get_redis_connection, retry_redis_call
 from .backend import get_backend
 from . import ssl
 from . import __version__
@@ -233,6 +233,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			while len(self.workers) > self.uvicorn_config.workers:
 				self.stop_worker([self.workers[-1].pid])
 
+	@retry_redis_call
 	def update_worker_registry(self):
 		redis = get_redis_connection(config.redis_internal_url)
 		with self.worker_update_lock:

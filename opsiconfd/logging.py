@@ -32,6 +32,7 @@ import logging as pylogging
 from logging import LogRecord, Formatter, StreamHandler
 from concurrent.futures import ThreadPoolExecutor
 
+import aredis
 import msgpack
 import colorlog
 from gunicorn import glogging
@@ -242,7 +243,6 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		except Exception as err: # pylint: disable=broad-except
 			handle_log_exception(err)
 
-	@retry_redis_call
 	async def _reader(self, stream_name):
 		if self._running_event:
 			self._running_event.set()
@@ -251,6 +251,8 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		last_id = '$'
 		while True:
 			try:
+				if not self._redis:
+					self._redis = await get_aredis_connection(config.redis_internal_url)
 				# It is also possible to specify multiple streams
 				data = await self._redis.xread(block=1000, **{stream_name: last_id})
 				if not data:
@@ -284,8 +286,10 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 				raise
 			except EOFError:
 				break
-			except Exception as exc: # pylint: disable=broad-except
-				handle_log_exception(exc, log=False)
+			except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as err:
+				self._redis = None
+			except Exception as err: # pylint: disable=broad-except
+				handle_log_exception(err, log=False)
 
 class RedisLogHandler(threading.Thread, pylogging.Handler):
 	"""
@@ -305,6 +309,13 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		self.start()
 
 	def run(self):
+		try:
+			self._process_queue()
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
+
+	@retry_redis_call
+	def _process_queue(self):
 		while not self._should_stop:
 			time.sleep(self._max_delay)
 			if self._queue.qsize() > 0:

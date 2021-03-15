@@ -35,9 +35,6 @@ import aredis
 from dns import resolver, reversename
 
 from OPSI.Types import forceFqdn
-from opsicommon.logging import handle_log_exception
-
-REDIS_CONNECTION_RETRIES = 15
 
 
 logger = None # pylint: disable=invalid-name
@@ -148,21 +145,18 @@ def get_random_string(length):
 def retry_redis_call(func):
 	@functools.wraps(func)
 	def wrapper_retry(*args, **kwargs):  # pylint: disable=inconsistent-return-statements
-		for i in range(0,4):
+		while True:
 			try:
-				value = func(*args, **kwargs)
-				return value
+				return func(*args, **kwargs)
 			except (
 				aredis.exceptions.BusyLoadingError, redis.exceptions.BusyLoadingError,
-				aredis.exceptions.ConnectionError,  redis.exceptions.ConnectionError):
-				if i > 2:
-					raise
+				aredis.exceptions.ConnectionError, redis.exceptions.ConnectionError
+			):
 				time.sleep(1)
 	return wrapper_retry
 
 REDIS_CONNECTION_POOL = {}
 def get_redis_connection(url, db=None):  # pylint: disable=invalid-name
-	count = 0
 	while True:
 		try:
 			con_id = f"{url}/{db}"
@@ -174,30 +168,21 @@ def get_redis_connection(url, db=None):  # pylint: disable=invalid-name
 			if new_pool:
 				redis_client.ping()
 			return redis_client
-		except (redis.exceptions.ConnectionError, redis.BusyLoadingError) as err:
-			count += 1
-			time.sleep(1)
-			if count >= REDIS_CONNECTION_RETRIES:
-				handle_log_exception(err)
-				raise
+		except (redis.exceptions.ConnectionError, redis.BusyLoadingError):
+			time.sleep(2)
 
 AREDIS_CONNECTION_POOL = {}
 async def get_aredis_connection(url, db=None): # pylint: disable=invalid-name
-	count = 0
 	while True:
 		try:
 			con_id = f"{id(asyncio.get_event_loop())}/{url}/{db}"
 			new_pool = False
-			if not con_id in AREDIS_CONNECTION_POOL:
+			if con_id not in AREDIS_CONNECTION_POOL:
 				new_pool = True
 				AREDIS_CONNECTION_POOL[con_id] = aredis.ConnectionPool.from_url(url, db)
 			redis_client = aredis.StrictRedis(connection_pool=AREDIS_CONNECTION_POOL[con_id])
 			if new_pool:
 				await redis_client.ping()
 			return redis_client
-		except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as err:
-			count += 1
-			asyncio.sleep(1)
-			if count >= REDIS_CONNECTION_RETRIES:
-				handle_log_exception(err)
-				raise
+		except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError):
+			await asyncio.sleep(2)

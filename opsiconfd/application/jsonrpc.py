@@ -49,8 +49,8 @@ from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
 from ..utils import decode_redis_result, get_node_name
 
 # time in seconds
-EXPIRE = (60*60*24)
-EXPIRE_UPTODATE = (60*60*24)
+EXPIRE = 24 * 3600
+EXPIRE_UPTODATE = 24 * 3600
 CALL_TIME_TO_CACHE = 0.5
 
 PRODUCT_METHODS = [
@@ -448,15 +448,23 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 					keywords[str(key)] = deserialize(value)
 		params = deserialize(params)
 
-		result = None
+		method = None
 		if method_name in OpsiconfdBackend().method_names:
-			result = getattr(OpsiconfdBackend(), method_name)(*params, **keywords)
+			method = getattr(OpsiconfdBackend(), method_name)
 		else:
 			method = getattr(backend, method_name)
-			if keywords:
-				result = method(*params, **keywords)
-			else:
-				result = method(*params)
+
+		if getattr(method, "deprecated", False):
+			logger.warning(
+				"Client %s (%s) is calling deprecated method '%s'",
+				request.client.host, request.headers.get("user-agent", ""), method_name
+			)
+
+		result = None
+		if keywords:
+			result = method(*params, **keywords)
+		else:
+			result = method(*params)
 
 		response = {"jsonrpc": "2.0", "id": rpc_id, "result": result, "error": None}
 		response = serialize(response)

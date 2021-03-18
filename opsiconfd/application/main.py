@@ -125,8 +125,12 @@ async def index(request: Request, response: Response):  # pylint: disable=unused
 @app.on_event("startup")
 async def startup_event():
 	app.is_shutting_down = False
-	init_worker()
-	application_setup()
+	try:
+		init_worker()
+		application_setup()
+	except Exception as error:
+		logger.critical("Error during worker startup (%s).", error)
+		raise error
 
 @app.on_event("shutdown")
 async def shutdown_event():

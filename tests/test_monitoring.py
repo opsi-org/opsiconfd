@@ -21,33 +21,16 @@
 """
 
 import sys
-import asyncio
-import time
 import json
 import socket
 import pytest
-import aredis
 import urllib3
 import requests
 
-from fastapi import Response
-from starlette.requests import Request
-from starlette.datastructures import Headers
-
-
-
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"
-OPSI_SESSION_KEY = "opsiconfd:sessions"
 HOSTNAME = socket.gethostname()
 LOCAL_IP = socket.gethostbyname(HOSTNAME)
-
-
-@pytest.fixture(name="admininterface")
-def fixture_admininterface(monkeypatch):
-	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.application import admininterface # pylint: disable=import-outside-toplevel, redefined-outer-name
-	return admininterface
 
 
 @pytest.fixture(name="config")
@@ -60,8 +43,6 @@ def fixture_config(monkeypatch):
 @pytest.fixture(autouse=True)
 def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-
 
 @pytest.mark.asyncio
 async def test_check_product_status(config):

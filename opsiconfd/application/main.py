@@ -129,7 +129,7 @@ async def startup_event():
 		init_worker()
 		application_setup()
 	except Exception as error:
-		logger.critical("Error during worker startup (%s).", error)
+		logger.critical("Error during worker startup: %s", error, exc_info=True)
 		raise error
 
 @app.on_event("shutdown")

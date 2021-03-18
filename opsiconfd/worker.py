@@ -137,7 +137,6 @@ def init_worker():
 			ssl.KEY_CACHE[config.ssl_ca_key] = opsi_ca_key
 			del os.environ["OPSICONFD_WORKER_OPSI_SSL_CA_KEY"]
 
-
 	logger.notice("Init worker %d (pid %s)", get_worker_num(), os.getpid())
 	loop = asyncio.get_event_loop()
 	loop.set_debug(config.debug)

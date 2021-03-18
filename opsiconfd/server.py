@@ -66,6 +66,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.worker_update_lock = threading.Lock()
 		self.should_stop = False
 		self.pid = os.getpid()
+		self.startup = True
 
 	@property
 	def uvicorn_config(self):
@@ -86,7 +87,8 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 	def run(self):
 		self.bind_socket()
 		self.adjust_worker_count()
-
+		startup = True
+		retry_count = 0
 		while not self.should_stop:
 			for _num in range(10):
 				time.sleep(1)
@@ -126,10 +128,19 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 
 					elif not getattr(worker, "marked_as_vanished", False):
 						# Worker crashed / killed
-						logger.warning("Worker %d (pid %d) vanished", worker_num, worker.pid)
-						worker.marked_as_vanished = True
-						if self.restart_vanished_workers:
-							auto_restart.append(worker_num)
+						if startup:
+							retry_count += 1
+							logger.error("Could not initalize worker %d (pid %d)", worker_num, worker.pid)
+							if retry_count >= 2:
+								logger.notice("Stopping ...")
+								self.should_stop = True
+								self.stop_worker([worker.pid])
+							logger.notice("Retry worker startup...")
+						else:
+							logger.warning("Worker %d (pid %d) vanished", worker_num, worker.pid)
+							worker.marked_as_vanished = True
+							if self.restart_vanished_workers:
+								auto_restart.append(worker_num)
 
 
 			for worker_num in auto_restart:

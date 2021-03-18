@@ -304,16 +304,20 @@ parser.add(
 	type=int,
 	default=5,
 	choices=range(0, 10),
-	help="Set the general log level."
-		+ "0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices"
-		+ " 6: infos, 7: debug messages, 8: trace messages, 9: secrets"
+	help=(
+		"Set the general log level. "
+		"0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices, "
+		"6: infos, 7: debug messages, 8: trace messages, 9: secrets"
+	)
 )
 parser.add(
 	"--log-file",
 	env_var="OPSICONFD_LOG_FILE",
 	default="/var/log/opsi/opsiconfd/%m.log",
-	help="The macro %%m can be used to create use a separate log file for each client."
-		+ " %%m will be replaced by <client-ip>"
+	help=(
+		"The macro %%m can be used to create use a separate log file for each client. "
+		"%%m will be replaced by <client-ip>"
+	)
 )
 parser.add(
 	"--symlink-logs",
@@ -322,20 +326,24 @@ parser.add(
 	nargs='?',
 	const=True,
 	default=False,
-	help="If separate log files are used and this option is enabled"
-		+ " opsiconfd will create a symlink in the log dir which points"
-		+ " to the clients log file. The name of the symlink will be the same"
-		+ " as the log files but %%m will be replaced by <client-fqdn>."
+	help=(
+		"If separate log files are used and this option is enabled "
+		"opsiconfd will create a symlink in the log dir which points "
+		"to the clients log file. The name of the symlink will be the same "
+		"as the log files but %%m will be replaced by <client-fqdn>."
+	)
 )
 parser.add(
 	"--max-log-size",
 	env_var="OPSICONFD_MAX_LOG_SIZE",
 	type=float,
 	default=5.0,
-	help="Limit the size of logfiles to SIZE megabytes."
-		+ "Setting this to 0 will disable any limiting."
-		+ "If you set this to 0 we recommend using a proper logrotate configuration"
-		+ "so that your disk does not get filled by the logs."
+	help=(
+		"Limit the size of logfiles to SIZE megabytes. "
+		"Setting this to 0 will disable any limiting. "
+		"If you set this to 0 we recommend using a proper logrotate configuration "
+		"so that your disk does not get filled by the logs."
+	)
 )
 parser.add(
 	"--keep-rotated-logs",
@@ -350,9 +358,11 @@ parser.add(
 	type=int,
 	default=4,
 	choices=range(0, 10),
-	help="Set the log level for logfiles."
-		+ "0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices"
-		+ " 6: infos, 7: debug messages, 8: trace messages, 9: secrets"
+	help=(
+		"Set the log level for logfiles. "
+		"0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices, "
+		"6: infos, 7: debug messages, 8: trace messages, 9: secrets"
+	)
 )
 parser.add(
 	"--log-format-file",
@@ -366,9 +376,11 @@ parser.add(
 	type=int,
 	default=4,
 	choices=range(0, 10),
-	help="Set the log level for stderr."
-		+ "0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices"
-		+ " 6: infos, 7: debug messages, 8: trace messages, 9: secrets"
+	help=(
+		"Set the log level for stderr. "
+		"0: nothing, 1: essential, 2: critical, 3: errors, 4: warnings, 5: notices "
+		"6: infos, 7: debug messages, 8: trace messages, 9: secrets"
+	)
 )
 parser.add(
 	"--log-format-stderr",
@@ -387,7 +399,6 @@ parser.add(
 	env_var="OPSICONFD_LOG_FILTER",
 	help="Filter log records contexts (<ctx-name-1>=<val1>[,val2][;ctx-name-2=val3])"
 )
-
 #parser.add(
 #	"--max-execution-statistics",
 #	env_var="OPSICONFD_MAX_EXECUTION_STATISTICS",
@@ -425,9 +436,11 @@ parser.add(
 	type=ip_address,
 	env_var="OPSICONFD_INTERFACE",
 	default="0.0.0.0",
-	help="The network interface to bind to (ip address of an network interface)."
-		+ " Use 0.0.0.0 to listen on all ipv4 interfaces."
-		+ " Use :: to listen on all ipv6 (and ipv4) interfaces."
+	help=(
+		"The network interface to bind to (ip address of an network interface). "
+		"Use 0.0.0.0 to listen on all ipv4 interfaces. "
+		"Use :: to listen on all ipv6 (and ipv4) interfaces."
+	)
 )
 parser.add(
 	"--port",
@@ -480,7 +493,10 @@ parser.add(
 	"--ssl-ciphers",
 	env_var="OPSICONFD_SSL_CIPHERS",
 	default="TLSv1.2",
-	help="TLS cipher suites to enable (OpenSSL cipher list format https://www.openssl.org/docs/man1.0.2/man1/ciphers.html)."
+	help=(
+		"TLS cipher suites to enable "
+		"(OpenSSL cipher list format https://www.openssl.org/docs/man1.0.2/man1/ciphers.html)."
+	)
 )
 parser.add(
 	"--verify-ip",
@@ -489,10 +505,12 @@ parser.add(
 	nargs='?',
 	const=True,
 	default=False,
-	help="If a client uses its fqdn and opsi-host-key for authentication,"
-		+ " opsiconfd will try to resolve the fqdn (username) by a system call."
-		+ " If there is no result or the resulting IP address does not match"
-		+ " the client's address, the access will be denied."
+	help=(
+		"If a client uses its fqdn and opsi-host-key for authentication, "
+		"opsiconfd will try to resolve the fqdn (username) by a system call. "
+		"If there is no result or the resulting IP address does not match "
+		"the client's address, the access will be denied."
+	)
 )
 parser.add(
 	"--update-ip",
@@ -501,8 +519,10 @@ parser.add(
 	nargs='?',
 	const=True,
 	default=True,
-	help="If enabled, a client's ip address will be updated in the opsi database,"
-		" when the client connects to the service and authentication is successful."
+	help=(
+		"If enabled, a client's ip address will be updated in the opsi database, "
+		"when the client connects to the service and authentication is successful."
+	)
 )
 parser.add(
 	"--session-lifetime",
@@ -544,8 +564,11 @@ parser.add(
 	nargs="+",
 	env_var="OPSICONFD_SKIP_SETUP",
 	default=None,
-	help="A list of setup tasks to skip "
-		" (tasks: all, users, groups, grafana, backend, ssl, systemd, file_permissions, limits)."
+	help=(
+		"A list of setup tasks to skip "
+		"(tasks: all, limits, users, groups, grafana, backend, ssl, systemd, "
+		"files, file_permissions, log_files, metric_downsampling)."
+	)
 )
 parser.add(
 	"--redis-internal-url",

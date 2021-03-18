@@ -480,7 +480,7 @@ parser.add(
 	"--ssl-ciphers",
 	env_var="OPSICONFD_SSL_CIPHERS",
 	default="TLSv1.2",
-	help="TLS cipher suites to enable."
+	help="TLS cipher suites to enable (OpenSSL cipher list format https://www.openssl.org/docs/man1.0.2/man1/ciphers.html)."
 )
 parser.add(
 	"--verify-ip",

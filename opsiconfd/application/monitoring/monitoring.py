@@ -33,7 +33,7 @@ def monitoring_setup(app):
 async def monitoring(request: Request):
 	backend = get_backend()
 	request_data = await request.json()
-
+	task = None
 	try:
 		task = request_data["task"]
 	except KeyError :
@@ -41,7 +41,6 @@ async def monitoring(request: Request):
 		response = JSONResponse({"state":  State.UNKNOWN, "message": "No task set, nothing to do"})
 
 	params = request_data.get("param", {})
-	task = None
 	try:
 		if task == "checkClientStatus":
 			response = check_client_status(

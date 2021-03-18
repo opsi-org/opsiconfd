@@ -85,7 +85,6 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.socket.set_inheritable(True)
 
 	def run(self):
-		self.startup = True
 		self.bind_socket()
 		self.adjust_worker_count()
 		while not self.should_stop:

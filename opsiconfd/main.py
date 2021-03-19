@@ -103,20 +103,14 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			if proc.pid in ignore_pids:
 				continue
 
-			if proc.name() == "opsiconfd":
+			if (
+				proc.name() == "opsiconfd" or
+				(proc.name() in ("python", "python3") and "opsiconfd" in proc.cmdline())
+			):
 				for arg in proc.cmdline():
-					if not "multiprocessing" in arg:
+					if not "multiprocessing" in arg and not arbiter_pid or proc.pid > arbiter_pid:
 						arbiter_pid = proc.pid
 						break
-
-			elif proc.name() in ("python", "python3"):
-				for arg in proc.cmdline():
-					if "opsiconfd.__main__" in arg:
-						arbiter_pid = proc.pid
-						break
-
-			if arbiter_pid:
-				break
 
 		if arbiter_pid:
 			os.kill(arbiter_pid, send_signal)

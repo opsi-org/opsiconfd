@@ -38,6 +38,8 @@ from OPSI.Util import getfqdn
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.Config import OPSI_ADMIN_GROUP
 
+from opsicommon.ssl import install_ca
+
 from .config import (
 	config,
 	CA_DAYS, CA_RENEW_DAYS, CERT_DAYS, CERT_RENEW_DAYS,
@@ -375,9 +377,9 @@ def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint:
 
 def depotserver_setup_ca():
 	logger.info("Updating CA cert from configserver")
-	store_ca_cert(
-		load_certificate(FILETYPE_PEM, get_backend().getOpsiCACert())  # pylint: disable=no-member
-	)
+	ca_crt = load_certificate(FILETYPE_PEM, get_backend().getOpsiCACert())  # pylint: disable=no-member
+	store_ca_cert(ca_crt)
+	install_ca(ca_crt)
 
 
 def configserver_setup_ca():
@@ -402,6 +404,7 @@ def configserver_setup_ca():
 		(ca_crt, ca_key) = create_ca(renew=renew)
 		store_ca_key(ca_key)
 		store_ca_cert(ca_crt)
+		install_ca(ca_crt)
 	else:
 		logger.info("Server cert is up to date")
 

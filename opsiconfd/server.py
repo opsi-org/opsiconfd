@@ -23,6 +23,7 @@
 import os
 import time
 import threading
+import signal
 import socket
 import base64
 from typing import List
@@ -148,6 +149,9 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			time.sleep(1)
 
 	def reload(self):
+		for worker in self.workers:
+			os.kill(worker.pid, signal.SIGHUP)
+
 		self.adjust_worker_count()
 
 	def stop(self, force=False):

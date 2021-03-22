@@ -515,3 +515,29 @@ def setup_ssl():
 		# Read CA key as root to fill key cache
 		# so run_as_user can use key from cache
 		load_ca_key()
+
+
+def get_ca_info():
+
+	ca = load_ca_cert()
+	key_id = ""
+	for i in range(0,ca.get_extension_count()):
+		if ca.get_extension(i).get_short_name() == b'subjectKeyIdentifier':
+			key_id = ca.get_extension(i)
+
+	expiration = (datetime.datetime.strptime(ca.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") - datetime.datetime.now()).days
+	return {"issuer": ca.get_issuer(), "subject": ca.get_subject(), "expiration": expiration, "key_id": key_id}
+
+def get_cert_info():
+
+	cert = load_local_server_cert()
+	alt_names = ""
+	key_id = ""
+	for i in range(0,cert.get_extension_count()):
+		if cert.get_extension(i).get_short_name() == b'subjectAltName':
+			alt_names = cert.get_extension(i)
+		elif cert.get_extension(i).get_short_name() == b'subjectKeyIdentifier':
+			key_id = cert.get_extension(i)
+
+	expiration = (datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") - datetime.datetime.now()).days
+	return {"issuer": cert.get_issuer(), "subject": cert.get_subject(), "expiration": expiration, "key_id": key_id, "alt_names": alt_names}

@@ -28,6 +28,7 @@ from ..config import config
 from ..backend import get_backend_interface
 from ..worker import get_redis_client
 from ..utils import get_random_string, get_fqdn, get_node_name
+from ..ssl import get_ca_info, get_cert_info
 
 from .memoryprofiler import memory_profiler_router
 
@@ -47,6 +48,8 @@ async def admin_interface_index(request: Request):
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
 		"node_name": get_node_name(),
 		"interface": get_backend_interface(),
+		"ca_info": get_ca_info(),
+		"cert_info": get_cert_info()
 	}
 	return templates.TemplateResponse("admininterface.html", context)
 

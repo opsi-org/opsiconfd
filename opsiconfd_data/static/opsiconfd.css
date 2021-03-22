@@ -270,6 +270,10 @@ li {
 	overflow: hidden;
 }
 
+table tbody tr td {
+	font-size: 15px;
+  }
+
 @media screen and (max-width: 1050px) {
 	.tab {
 		height: 90px;

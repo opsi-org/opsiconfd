@@ -66,6 +66,27 @@ def run_with_jemlalloc():
 	except Exception as err:  # pylint: disable=broad-except
 		print(err, file=sys.stderr)
 
+def get_arbiter_pid():
+	our_pid = os.getpid()
+	our_proc = psutil.Process(our_pid)
+	ignore_pids = [our_pid]
+	ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
+	ignore_pids += [p.pid for p in our_proc.parents()]
+	arbiter_pid = None
+	for proc in psutil.process_iter():
+		if proc.pid in ignore_pids:
+			continue
+
+		if (
+			proc.name() == "opsiconfd" or
+			(proc.name() in ("python", "python3") and "opsiconfd" in proc.cmdline())
+		):
+			for arg in proc.cmdline():
+				if not "multiprocessing" in arg and (not arbiter_pid or proc.pid > arbiter_pid):
+					arbiter_pid = proc.pid  # Do not return, prefer higher pids
+					break
+	return arbiter_pid
+
 def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals
 	if config.version:
 		print(f"{__version__} [python-opsi={python_opsi_version}]")
@@ -90,27 +111,11 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			pass
 		return
 
+	arbiter_pid = get_arbiter_pid()
+
 	if config.action in ("reload", "stop"):
 		# Send signal to arbiter process only, not to workers!
 		send_signal = signal.SIGINT if config.action == "stop" else signal.SIGHUP
-		our_pid = os.getpid()
-		our_proc = psutil.Process(our_pid)
-		ignore_pids = [our_pid]
-		ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
-		ignore_pids += [p.pid for p in our_proc.parents()]
-		arbiter_pid = None
-		for proc in psutil.process_iter():
-			if proc.pid in ignore_pids:
-				continue
-
-			if (
-				proc.name() == "opsiconfd" or
-				(proc.name() in ("python", "python3") and "opsiconfd" in proc.cmdline())
-			):
-				for arg in proc.cmdline():
-					if not "multiprocessing" in arg and not arbiter_pid or proc.pid > arbiter_pid:
-						arbiter_pid = proc.pid
-						break
 
 		if arbiter_pid:
 			os.kill(arbiter_pid, send_signal)
@@ -118,6 +123,10 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			print("No running opsiconfd arbiter process found", file=sys.stderr)
 			sys.exit(1)
 		return
+
+	if arbiter_pid:
+		print(f"Another opsiconfd arbiter process is already running (pid {arbiter_pid})", file=sys.stderr)
+		sys.exit(1)
 
 	if config.use_jemalloc and getattr(sys, 'frozen', False):
 		try:

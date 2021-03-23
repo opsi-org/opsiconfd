@@ -51,7 +51,6 @@ def disable_request_warning():
 @pytest.fixture(autouse=True)
 def create_data():
 
-
 	mysql_host = os.environ.get("MYSQL_HOST")
 	if not mysql_host:
 		mysql_host = "127.0.0.1"
@@ -71,6 +70,10 @@ def create_data():
 
 	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) \
 	 	VALUES ("pytest-prod-2", "pytest-client-2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
+	db.query(sql_string)
+
+	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) \
+	 	VALUES ("pytest-prod-3", "pytest-client-3.uib.local", "LocalbootProduct", "installed", "none", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
 	db.query(sql_string)
 
 	db.store_result()
@@ -103,6 +106,8 @@ test_data = [
 	(["pytest-prod-1"], {'message': f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n", 'state': 1}),
 	(["pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
 	(["pytest-prod-1","pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
+	(["pytest-prod-3"], {'message': "OK: No Problem found for productIds: 'pytest-prod-3'", 'state': 0}),
+	(["pytest-prod-1","pytest-prod-2","pytest-prod-3"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
 ]
 
 @pytest.mark.asyncio

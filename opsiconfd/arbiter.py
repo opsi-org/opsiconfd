@@ -57,7 +57,7 @@ class Arbiter(metaclass=Singleton):
 
 	def reload(self):
 		self._last_reload = time.time()
-		logger.notice("Arbiter %s reloading", self.pid)
+		logger.notice("Arbiter process %s reloading", self.pid)
 		config.reload()
 		init_logging(log_mode=config.log_mode)
 		if self._server:
@@ -66,7 +66,7 @@ class Arbiter(metaclass=Singleton):
 	def signal_handler(self, signum, frame): # pylint: disable=unused-argument
 		# <CTRL>+<C> will send SIGINT to the entire process group on linux.
 		# So child processes will receive the SIGINT too.
-		logger.info("Arbiter %s got signal %d", self.pid, signum)
+		logger.info("Arbiter process %s received signal %d", self.pid, signum)
 		if signum == signal.SIGHUP and time.time() - self._last_reload > 2:
 			self.reload()
 		else:

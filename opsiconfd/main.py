@@ -81,10 +81,14 @@ def get_arbiter_pid():
 			proc.name() == "opsiconfd" or
 			(proc.name() in ("python", "python3") and "opsiconfd" in proc.cmdline())
 		):
+			is_worker = False
 			for arg in proc.cmdline():
-				if not "multiprocessing" in arg and (not arbiter_pid or proc.pid > arbiter_pid):
-					arbiter_pid = proc.pid  # Do not return, prefer higher pids
+				if "multiprocessing" in arg:
+					is_worker = True
 					break
+			if not is_worker and (not arbiter_pid or proc.pid > arbiter_pid):
+				# Do not return, prefer higher pids
+				arbiter_pid = proc.pid
 	return arbiter_pid
 
 def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals

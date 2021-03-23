@@ -100,9 +100,9 @@ def memory_cleanup():
 	ctypes.CDLL("libc.so.6").malloc_trim(0)
 
 def signal_handler(signum, frame): # pylint: disable=unused-argument
-	logger.info("Worker %s got signal %d", os.getpid(), signum)
+	logger.info("Worker process %s received signal %d", os.getpid(), signum)
 	if signum == signal.SIGHUP:
-		logger.notice("Worker %s reloading", os.getpid())
+		logger.notice("Worker process %s reloading", os.getpid())
 		config.reload()
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()

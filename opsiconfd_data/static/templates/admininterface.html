@@ -240,10 +240,10 @@
 		</div>
 
 		<div id="confdInfo" class="tabcontent">
+			<h3>opsiconfd info</h3>
 			<div class="adminpage-box">
-				<h3>Opsiconfd Info</h3>
-				<div id="general-info-values">
-					<h4 style="margin-bottom: 0px;">CA certificate:</h4>
+				<h4 style="margin: 10px">opsi CA:</h4>
+				<div id="general-info-opsi-ca">
 					<table style="margin-left: 20px;margin-bottom: 0px;">
 						<tr>
 							<td>issuer:</td>
@@ -261,8 +261,15 @@
 							<td>key identifier:</td>
 							<td>{{cert_info.key_id}}</td>
 						</tr>
+						<tr>
+							<td colspan="2"><a href="/ssl/opsi-ca-cert.pem">Download as PEM</a></td>
+						</tr>
 					</table>
-					<h4 style="margin-bottom: 0px; margin-top: 0px;">Server certificate:</h4>
+				</div>
+			</div>
+			<div class="adminpage-box">
+				<h4 style="margin: 10px">server certificate:</h4>
+				<div id="general-info-server-cert">
 					<table style="margin-left: 20px;">
 						<tr>
 							<td>issuer:</td>
@@ -285,11 +292,10 @@
 							<td>{{cert_info.alt_names}}</td>
 						</tr>
 					</table>
-
 				</div>
 			</div>
+			<h3>opsiconfd config</h3>
 			<div class="adminpage-box">
-				<h3>Opsiconfd Config</h3>
 				<div id="config">
 					<pre class="config-values" id="config-values"></pre>
 				</div>

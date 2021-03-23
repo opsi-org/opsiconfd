@@ -305,14 +305,14 @@ def create_server_cert(common_name: str, ip_addresses: set, hostnames: set, key:
 
 	# Chrome requires CN from Subject also as Subject Alt
 	hostnames.add(common_name)
-	hns = ", ".join([f"DNS:{ip}" for ip in hostnames])
-	ips = ", ".join([f"IP:{ip}" for ip in ip_addresses])
+	hns = ", ".join([f"DNS:{str(hn).strip()}" for hn in hostnames])
+	ips = ", ".join([f"IP:{str(ip).strip()}" for ip in ip_addresses])
 	alt_names = ""
 	if hns:
 		alt_names += hns
 	if ips:
 		if alt_names:
-			alt_names +=", "
+			alt_names += ", "
 		alt_names += ips
 
 	crt = X509()
@@ -525,8 +525,16 @@ def get_ca_info():
 		if ca.get_extension(i).get_short_name() == b'subjectKeyIdentifier':
 			key_id = ca.get_extension(i)
 
-	expiration = (datetime.datetime.strptime(ca.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") - datetime.datetime.now()).days
-	return {"issuer": ca.get_issuer(), "subject": ca.get_subject(), "expiration": expiration, "key_id": key_id}
+	expiration = (
+		datetime.datetime.strptime(ca.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") -
+		datetime.datetime.now()
+	).days
+	return {
+		"issuer": ca.get_issuer(),
+		"subject": ca.get_subject(),
+		"expiration": expiration,
+		"key_id": key_id
+	}
 
 def get_cert_info():
 
@@ -539,5 +547,14 @@ def get_cert_info():
 		elif cert.get_extension(i).get_short_name() == b'subjectKeyIdentifier':
 			key_id = cert.get_extension(i)
 
-	expiration = (datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") - datetime.datetime.now()).days
-	return {"issuer": cert.get_issuer(), "subject": cert.get_subject(), "expiration": expiration, "key_id": key_id, "alt_names": alt_names}
+	expiration = (
+		datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") -
+		datetime.datetime.now()
+	).days
+	return {
+		"issuer": cert.get_issuer(),
+		"subject": cert.get_subject(),
+		"expiration": expiration,
+		"key_id": key_id,
+		"alt_names": alt_names
+	}

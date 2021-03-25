@@ -63,6 +63,9 @@ class InputBuffer:
 		view = memoryview(self._buffer)[start:end]
 		return view
 
+	def readline(self) -> bytes:
+		return self.read(16*1024)
+
 	def close(self):
 		pass
 

@@ -421,7 +421,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 		if config.log_filter:
 			set_filter_from_string(config.log_filter)
 
-		for logger_name in ("asyncio", "uvicorn.error", "uvicorn.access"):
+		for logger_name in ("asyncio", "uvicorn.error", "uvicorn.access", "wsgidav"):
 			_logger = pylogging.getLogger(logger_name)
 			_logger.setLevel(log_level)
 			_logger.handlers = [log_handler]

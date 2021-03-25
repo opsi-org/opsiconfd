@@ -32,6 +32,13 @@ from ..logging import logger
 from ..backend import get_backend
 from ..wsgi import WSGIMiddleware
 
+
+# Prevent warning in log
+def is_share_anonymous(self, path_info):  # pylint: disable=unused-argument
+	return False
+wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
+
+
 def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 	block_size = 64*1024
 	app_config_template = {
@@ -45,13 +52,14 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		"property_manager": True,  # True: use property_manager.PropertyManager
 		"lock_manager": True,  # True: use lock_manager.LockManager
 		"block_size": block_size, # default = 8192
+		"ssl_certificate": True  # Prevent warning in log
 	}
 	# Set file buffer size for reading and writing.
 	# Sent message chunks will have the same body size.
 	wsgidav.fs_dav_provider.BUFFER_SIZE = block_size
 
 	fqdn = getfqdn()
-	hosts = get_backend().host_getObjects(type='OpsiDepotserver', id=fqdn) # pylint: disable=no-member
+	hosts = get_backend().host_getObjects(type='OpsiDepotserver', id=fqdn)  # pylint: disable=no-member
 	if not hosts:
 		logger.warning("Running on host %s which is not a depot server, webdav disabled.", fqdn)
 		return

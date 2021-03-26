@@ -129,13 +129,14 @@ def test_max_sessions_client(config):
 	assert res.url == f"{CONFD_URL}/admin"
 
 def test_max_auth(config):
-	for i in range(0,15):
-		res = requests.get(CONFD_URL, auth=("false_user","false_pw"), verify=False)
+	session = requests.Session()
+	for i in range(0,30):
+		res = session.get(CONFD_URL, auth=("false_user","false_pw"), verify=False)
 		print(res.status_code)
-		if i >= 12:
+		if i >= 26:
 			assert res.status_code == 403
 			assert res.text == f"Client '{LOCAL_IP}' is blocked"
 	time.sleep(120)
-	res = requests.get(CONFD_URL, auth=(TEST_USER,TEST_PW), verify=False)
+	res = session.get(CONFD_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert res.status_code == 200
 	assert res.url == f"{CONFD_URL}/admin"

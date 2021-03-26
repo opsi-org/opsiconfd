@@ -66,13 +66,13 @@ def run_with_jemlalloc():
 	except Exception as err:  # pylint: disable=broad-except
 		print(err, file=sys.stderr)
 
-def get_arbiter_pid():
+def get_manager_pid():
 	our_pid = os.getpid()
 	our_proc = psutil.Process(our_pid)
 	ignore_pids = [our_pid]
 	ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
 	ignore_pids += [p.pid for p in our_proc.parents()]
-	arbiter_pid = None
+	manager_pid = None
 	for proc in psutil.process_iter():
 		if proc.pid in ignore_pids:
 			continue
@@ -81,15 +81,15 @@ def get_arbiter_pid():
 			proc.name() == "opsiconfd" or
 			(proc.name() in ("python", "python3") and "opsiconfd" in proc.cmdline())
 		):
-			is_worker = False
+			is_manager = True
 			for arg in proc.cmdline():
-				if "multiprocessing" in arg:
-					is_worker = True
+				if "multiprocessing" in arg or "log-viewer" in arg:
+					is_manager = False
 					break
-			if not is_worker and (not arbiter_pid or proc.pid > arbiter_pid):
+			if is_manager and (not manager_pid or proc.pid > manager_pid):
 				# Do not return, prefer higher pids
-				arbiter_pid = proc.pid
-	return arbiter_pid
+				manager_pid = proc.pid
+	return manager_pid
 
 def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals
 	if config.version:
@@ -115,7 +115,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			pass
 		return
 
-	arbiter_pid = get_arbiter_pid()
+	arbiter_pid = get_manager_pid()
 
 	if config.action in ("reload", "stop"):
 		# Send signal to arbiter process only, not to workers!

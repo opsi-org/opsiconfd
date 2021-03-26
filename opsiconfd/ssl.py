@@ -55,7 +55,12 @@ def get_ips():
 	ips = {"127.0.0.1", "::1"}
 	for addr in get_ip_addresses():
 		if addr["family"] in ("ipv4", "ipv6") and addr["address"] not in ips:
-			ips.add(ipaddress.ip_address(addr["address"]).compressed)
+			if addr["address"].startswith("fe80"):
+				continue
+			try:
+				ips.add(ipaddress.ip_address(addr["address"]).compressed)
+			except ValueError as err:
+				logger.warning(err)
 	return ips
 
 

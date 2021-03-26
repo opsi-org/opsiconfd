@@ -54,7 +54,7 @@ from .backend import get_server_role, get_backend
 def get_ips():
 	ips = {"127.0.0.1", "::1"}
 	for addr in get_ip_addresses():
-		if addr["family"] == "ipv4" and addr["address"] not in ips:
+		if addr["family"] in ("ipv4", "ipv6") and addr["address"] not in ips:
 			ips.add(ipaddress.ip_address(addr["address"]).compressed)
 	return ips
 

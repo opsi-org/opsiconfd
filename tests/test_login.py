@@ -32,6 +32,9 @@ import aredis
 
 import requests
 
+FQDN = socket.getfqdn()
+CONFD_URL = f"https://{FQDN}:4447"
+
 # from opsiconfd.config import config
 
 TEST_USER = "adminuser"
@@ -90,7 +93,7 @@ login_test_data = [
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
 def test_false_login(config, auth_data, expected_status_code, expected_text):
 
-	res = requests.get(config.internal_url, auth=(auth_data), verify=False)
+	res = requests.get(CONFD_URL, auth=(auth_data), verify=False)
 	print(auth_data)
 	print(res.status_code)
 	assert res.status_code == expected_status_code
@@ -100,12 +103,12 @@ def test_false_login(config, auth_data, expected_status_code, expected_text):
 
 def test_proper_login(config):
 
-	print(config.internal_url)
+	print(CONFD_URL)
 	print(TEST_USER)
 	print(TEST_PW)
-	res = requests.get(config.internal_url, auth=(TEST_USER, TEST_PW), verify=False)
+	res = requests.get(CONFD_URL, auth=(TEST_USER, TEST_PW), verify=False)
 	assert res.status_code == 200
-	assert res.url == f"{config.internal_url}/admin"
+	assert res.url == f"{CONFD_URL}/admin"
 	time.sleep(10)
 
 @pytest.mark.skip(reason="test does not work in gitlab ci")
@@ -116,23 +119,23 @@ def test_max_sessions_client(config):
 		session_id = str(uuid.uuid4()).replace("-", "")
 		print(f"{OPSI_SESSION_KEY}:{LOCAL_IP}:{session_id}", value=f"empty test session {i}", time=120)
 	print(redis_client.keys(f"{OPSI_SESSION_KEY}:*"))
-	res = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
+	res = requests.get(CONFD_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert res.status_code == 403
 	assert res.text == f"Too many sessions on '{LOCAL_IP}'. Max is 25."
 	print(res.text)
 	time.sleep(130)
-	res = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
+	res = requests.get(CONFD_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert res.status_code == 200
-	assert res.url == f"{config.internal_url}/admin"
+	assert res.url == f"{CONFD_URL}/admin"
 
 def test_max_auth(config):
 	for i in range(0,15):
-		res = requests.get(config.internal_url, auth=("false_user","false_pw"), verify=False)
+		res = requests.get(CONFD_URL, auth=("false_user","false_pw"), verify=False)
 		print(res.status_code)
 		if i >= 12:
 			assert res.status_code == 403
 			assert res.text == f"Client '{LOCAL_IP}' is blocked"
 	time.sleep(120)
-	res = requests.get(config.internal_url, auth=(TEST_USER,TEST_PW), verify=False)
+	res = requests.get(CONFD_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert res.status_code == 200
-	assert res.url == f"{config.internal_url}/admin"
+	assert res.url == f"{CONFD_URL}/admin"

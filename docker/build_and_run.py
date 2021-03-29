@@ -1,4 +1,9 @@
-#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
+# opsiconfd is part of the desktop management solution opsi http://www.opsi.org
+# Copyright (c) 2020-2021 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0
 
 import os
 import argparse
@@ -6,16 +11,15 @@ import subprocess
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-#subprocess.call(['podman', 'build', '-t', 'opsiconfd:dev', '-f', './Dockerfile'])
-#subprocess.call(['poetry', 'run', 'podman-compose', 'up'])
-
 parser = argparse.ArgumentParser(description="Build and run docker compose environment.")
+
 parser.add_argument(
 	"--type",
 	choices=("dev", "load-balance", "compare41", "webdav"),
 	default="dev",
 	help="Which type of environment to build and run"
 )
+
 args = parser.parse_args()
 
 subprocess.call([

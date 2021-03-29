@@ -18,7 +18,7 @@ import redis
 from .logging import logger, init_logging
 from .config import config
 from .utils import get_aredis_connection
-from .arbiter import get_arbiter_pid
+from .manager import get_manager_pid
 from . import ssl
 
 _redis_client = None # pylint: disable=invalid-name
@@ -106,9 +106,9 @@ def init_worker():
 	global _metrics_collector # pylint: disable=global-statement, invalid-name
 	from .backend import get_backend, get_client_backend # pylint: disable=import-outside-toplevel
 	from .statistics import WorkerMetricsCollector # pylint: disable=import-outside-toplevel
-	is_arbiter = get_arbiter_pid() == os.getpid()
+	is_manager = get_manager_pid() == os.getpid()
 
-	if not is_arbiter:
+	if not is_manager:
 		try:
 			set_worker_num(int(os.getenv("OPSICONFD_WORKER_WORKER_NUM")))
 		except Exception as err: # pylint: disable=broad-except

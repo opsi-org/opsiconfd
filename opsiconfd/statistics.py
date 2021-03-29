@@ -564,7 +564,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 				self._values[metric_id][key_string][timestamp] = 0
 			self._values[metric_id][key_string][timestamp] += value
 
-class ArbiterMetricsCollector(MetricsCollector):
+class ManagerMetricsCollector(MetricsCollector):
 	_metric_subjects = ["node"]
 
 	async def _fetch_values(self):

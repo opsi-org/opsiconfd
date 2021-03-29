@@ -1,11 +1,9 @@
-"""
-:copyright: uib GmbH <info@uib.de>
-This file is part of opsi - https://www.opsi.org
+# -*- coding: utf-8 -*-
 
-:license: GNU Affero General Public License version 3
-See LICENSES/README.md for more Information
-"""
-
+# opsiconfd is part of the desktop management solution opsi http://www.opsi.org
+# Copyright (c) 2020-2021 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0
 
 from urllib.parse import urlparse
 from operator import itemgetter

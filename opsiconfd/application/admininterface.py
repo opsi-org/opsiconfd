@@ -25,12 +25,13 @@ from .. import __version__
 from ..session import OPSISession
 from ..logging import logger
 from ..config import config
-from ..backend import get_backend_interface
+from ..backend import get_backend_interface, get_backend
 from ..worker import get_redis_client
 from ..utils import get_random_string, get_fqdn, get_node_name
 from ..ssl import get_ca_info, get_cert_info
 
 from .memoryprofiler import memory_profiler_router
+
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
@@ -43,13 +44,16 @@ def admin_interface_setup(app):
 
 @admin_interface_router.get("/?")
 async def admin_interface_index(request: Request):
+	backend = get_backend()
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
 		"node_name": get_node_name(),
 		"interface": get_backend_interface(),
 		"ca_info": get_ca_info(),
-		"cert_info": get_cert_info()
+		"cert_info": get_cert_info(),
+		"num_servers": get_num_servers(backend),
+		"num_clients": get_num_clients(backend)
 	}
 	return templates.TemplateResponse("admininterface.html", context)
 
@@ -264,3 +268,11 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 	current_config = dict(sorted(current_config.items()))
 
 	return JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
+
+def get_num_servers(backend):
+	servers = len(backend.host_getIdents(type="OpsiDepotserver"))
+	return servers
+
+def get_num_clients(backend):
+	clients = len(backend.host_getIdents(type="OpsiClient"))
+	return clients

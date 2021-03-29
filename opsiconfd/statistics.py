@@ -29,7 +29,7 @@ from .worker import (
 	get_metrics_collector as get_worker_metrics_collector,
 	get_worker_num
 )
-from .arbiter import get_redis_client as get_arbiter_redis_client
+from .manager import get_redis_client as get_manager_redis_client
 from .config import config
 from .utils import (
 	Singleton, get_node_name, get_redis_connection
@@ -573,7 +573,7 @@ class ArbiterMetricsCollector(MetricsCollector):
 		)
 
 	async def _get_redis_client(self):
-		return await get_arbiter_redis_client()
+		return await get_manager_redis_client()
 
 class WorkerMetricsCollector(MetricsCollector):
 	_metric_subjects = ["worker", "client"]

@@ -29,7 +29,7 @@ from .logging import logger, init_logging, AsyncRedisLogAdapter
 from .config import config
 from .setup import setup
 from .patch import apply_patches
-from .arbiter import Arbiter
+from .manager import Manager
 
 
 def run_with_jemlalloc():
@@ -99,21 +99,21 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			pass
 		return
 
-	arbiter_pid = get_manager_pid()
+	manager_pid = get_manager_pid()
 
 	if config.action in ("reload", "stop"):
-		# Send signal to arbiter process only, not to workers!
+		# Send signal to manager process only, not to workers!
 		send_signal = signal.SIGINT if config.action == "stop" else signal.SIGHUP
 
-		if arbiter_pid:
-			os.kill(arbiter_pid, send_signal)
+		if manager_pid:
+			os.kill(manager_pid, send_signal)
 		else:
-			print("No running opsiconfd arbiter process found", file=sys.stderr)
+			print("No running opsiconfd manager process found", file=sys.stderr)
 			sys.exit(1)
 		return
 
-	if arbiter_pid:
-		print(f"Another opsiconfd arbiter process is already running (pid {arbiter_pid})", file=sys.stderr)
+	if manager_pid:
+		print(f"Another opsiconfd manager process is already running (pid {manager_pid})", file=sys.stderr)
 		sys.exit(1)
 
 	if config.use_jemalloc and getattr(sys, 'frozen', False):
@@ -163,8 +163,8 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 
 		logger.essential("opsiconfd is starting")
 		logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
-		arbiter = Arbiter()
-		arbiter.run()
+		manager = Manager()
+		manager.run()
 
 	finally:
 		time.sleep(1)

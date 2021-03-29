@@ -18,13 +18,13 @@ from .utils import get_aredis_connection, Singleton
 from .zeroconf import register_opsi_services, unregister_opsi_services
 from .server import Server
 
-def get_arbiter_pid() -> int:
-	return Arbiter().pid
+def get_manager_pid() -> int:
+	return Manager().pid
 
 async def get_redis_client():
 	return await get_aredis_connection(config.redis_internal_url)
 
-class Arbiter(metaclass=Singleton):
+class Manager(metaclass=Singleton):
 	def __init__(self):
 		self.pid = None
 		self._loop = None
@@ -33,7 +33,7 @@ class Arbiter(metaclass=Singleton):
 		self._should_stop = False
 
 	def stop(self, force=False):
-		logger.notice("Arbiter stopping force=%s", force)
+		logger.notice("Manager stopping force=%s", force)
 		if self._server:
 			self._server.stop(force)
 		self._should_stop = True
@@ -42,7 +42,7 @@ class Arbiter(metaclass=Singleton):
 
 	def reload(self):
 		self._last_reload = time.time()
-		logger.notice("Arbiter process %s reloading", self.pid)
+		logger.notice("Manager process %s reloading", self.pid)
 		config.reload()
 		init_logging(log_mode=config.log_mode)
 		if self._server:
@@ -51,7 +51,7 @@ class Arbiter(metaclass=Singleton):
 	def signal_handler(self, signum, frame): # pylint: disable=unused-argument
 		# <CTRL>+<C> will send SIGINT to the entire process group on linux.
 		# So child processes will receive the SIGINT too.
-		logger.info("Arbiter process %s received signal %d", self.pid, signum)
+		logger.info("Manager process %s received signal %d", self.pid, signum)
 		if signum == signal.SIGHUP and time.time() - self._last_reload > 2:
 			self.reload()
 		else:
@@ -59,7 +59,7 @@ class Arbiter(metaclass=Singleton):
 			self.stop(force=self._should_stop)
 
 	def run(self):
-		logger.info("Arbiter starting")
+		logger.info("Manager starting")
 		self.pid = os.getpid()
 		self._last_reload = time.time()
 		signal.signal(signal.SIGINT, self.signal_handler)  # Unix signal 2. Sent by Ctrl+C. Terminate service.
@@ -67,7 +67,7 @@ class Arbiter(metaclass=Singleton):
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 		try:
 			loop_thread = threading.Thread(
-				name="ArbiterAsyncLoop",
+				name="ManagerAsyncLoop",
 				daemon=True,
 				target=self.run_loop
 			)
@@ -87,7 +87,7 @@ class Arbiter(metaclass=Singleton):
 		self._loop.set_default_executor(
 			ThreadPoolExecutor(
 				max_workers=10,
-				thread_name_prefix="arbiter-ThreadPoolExecutor"
+				thread_name_prefix="manager-ThreadPoolExecutor"
 			)
 		)
 		self._loop.set_debug(config.debug)
@@ -97,8 +97,8 @@ class Arbiter(metaclass=Singleton):
 
 	async def async_main(self):
 		# Create and start MetricsCollector
-		from .statistics import ArbiterMetricsCollector # pylint: disable=import-outside-toplevel
-		metrics_collector = ArbiterMetricsCollector()
+		from .statistics import ManagerMetricsCollector # pylint: disable=import-outside-toplevel
+		metrics_collector = ManagerMetricsCollector()
 		self._loop.create_task(metrics_collector.main_loop())
 
 		while not self._should_stop:

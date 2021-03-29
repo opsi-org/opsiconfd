@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/python3
+# # -*- coding: utf-8 -*-
 
 # opsiconfd is part of the desktop management solution opsi http://www.opsi.org
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>

@@ -258,12 +258,12 @@
 							<td>{{ca_info.subject.C}}, {{ca_info.subject.ST}}, {{ca_info.subject.L}}, {{ca_info.subject.OU}}, {{ca_info.subject.CN}}</td>
 						</tr>
 						<tr>
-							<td>expiration:</td>
-							<td>{{ca_info.expiration}} days left</td>
+							<td>serial number:</td>
+							<td>{{ca_info.serial_number}}</td>
 						</tr>
 						<tr>
-							<td>key identifier:</td>
-							<td>{{ca_info.key_id}}</td>
+							<td>expiration:</td>
+							<td>{{ca_info.expiration}} days left</td>
 						</tr>
 						<tr>
 							<td colspan="2"><a href="/ssl/opsi-ca-cert.pem">Download as PEM</a></td>
@@ -284,16 +284,16 @@
 							<td>{{cert_info.subject.C}}, {{cert_info.subject.ST}}, {{cert_info.subject.L}}, {{cert_info.subject.OU}}, {{cert_info.subject.CN}}</td>
 						</tr>
 						<tr>
-							<td>expiration:</td>
-							<td>{{cert_info.expiration}} days left</td>
-						</tr>
-						<tr>
-							<td>key identifier:</td>
-							<td>{{cert_info.key_id}}</td>
-						</tr>
-						<tr>
 							<td>subjectAltName:</td>
 							<td>{{cert_info.alt_names}}</td>
+						</tr>
+						<tr>
+							<td>serial number:</td>
+							<td>{{cert_info.serial_number}}</td>
+						</tr>
+						<tr>
+							<td>expiration:</td>
+							<td>{{cert_info.expiration}} days left</td>
 						</tr>
 					</table>
 				</div>

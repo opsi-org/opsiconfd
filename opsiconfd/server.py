@@ -82,9 +82,9 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 
 			auto_restart = []
 			with self.worker_update_lock:
-				for worker_num, worker in enumerate(self.workers, start=1):
+				for worker in self.workers:
 					if self.should_restart_workers:
-						auto_restart.append(worker_num)
+						auto_restart.append(worker.worker_num)
 
 					elif worker.is_alive():
 						if self.worker_restart_time > 0:
@@ -92,9 +92,9 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 							if alive >= self.worker_restart_time:
 								logger.notice(
 									"Worker %d (pid %d) has been running for %s seconds",
-									worker_num, worker.pid, alive
+									worker.worker_num, worker.pid, alive
 								)
-								auto_restart.append(worker_num)
+								auto_restart.append(worker.worker_num)
 
 						if self.worker_restart_mem > 0:
 							now = time.time()
@@ -106,25 +106,25 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 									logger.notice(
 										"Worker %d (pid %d) is using more than %0.2f MB of memory "
 										"(currently %0.2f MB) since %d seconds",
-										worker_num, worker.pid,
+										worker.worker_num, worker.pid,
 										self.worker_restart_mem/1000000, mem/1000000,
 										now - worker.max_mem_exceeded_since
 									)
-									auto_restart.append(worker_num)
+									auto_restart.append(worker.worker_num)
 							elif hasattr(worker, 'max_mem_exceeded_since'):
 								delattr(worker, 'max_mem_exceeded_since')
 
 					elif not getattr(worker, "marked_as_vanished", False):
 						# Worker crashed / killed
 						if self.startup:
-							logger.critical("Failed to start worker %d (pid %d)", worker_num, worker.pid)
+							logger.critical("Failed to start worker %d (pid %d)", worker.worker_num, worker.pid)
 							self.stop(force=True)
 							break
 
-						logger.warning("Worker %d (pid %d) vanished", worker_num, worker.pid)
+						logger.warning("Worker %d (pid %d) vanished", worker.worker_num, worker.pid)
 						worker.marked_as_vanished = True
 						if self.restart_vanished_workers:
-							auto_restart.append(worker_num)
+							auto_restart.append(worker.worker_num)
 
 			for worker_num in auto_restart:
 				if self.should_stop:
@@ -172,6 +172,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		)
 		process.start()
 		process.create_time = time.time()
+		process.worker_num = worker_num
 
 		logger.notice("New worker %d (pid %d) started", worker_num, process.pid)
 		while len(self.workers) < worker_num:
@@ -189,7 +190,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			if worker:
 				workers.append(worker)
 				if worker.is_alive():
-					logger.notice("Stopping worker: %s (force=%s)", worker.pid, force)
+					logger.notice("Stopping worker %d (pid %d) (force=%s)", worker.worker_num, worker.pid, force)
 					worker.terminate()
 					if force:
 						# Send twice, uvicorn worker will not wait for connectons to close.
@@ -243,12 +244,12 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 	def update_worker_registry(self):
 		redis = get_redis_connection(config.redis_internal_url)
 		with self.worker_update_lock:
-			for worker_num, worker in enumerate(self.workers, start=1):
-				redis_key = f"opsiconfd:worker_registry:{self.node_name}:{worker_num}"
+			for worker in self.workers:
+				redis_key = f"opsiconfd:worker_registry:{self.node_name}:{worker.worker_num}"
 				redis.hmset(redis_key, {
 					"worker_pid": worker.pid,
 					"node_name": self.node_name,
-					"worker_num": worker_num
+					"worker_num": worker.worker_num
 				})
 				redis.expire(redis_key, 60)
 

@@ -8,7 +8,7 @@
 import sys
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import socket
 import pytest
 import urllib3
@@ -61,6 +61,9 @@ def create_data():
 	 	VALUES ("pytest-prod-3", "pytest-client-3.uib.local", "LocalbootProduct", "installed", "none", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
 	db.query(sql_string)
 
+	sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=31)}");'
+	db.query(sql_string)
+
 	db.store_result()
 
 
@@ -77,8 +80,8 @@ def create_data():
 
 
 
-@pytest.mark.asyncio
-async def test_check_product_status_none(config):
+
+def test_check_product_status_none(config):
 
 	data = json.dumps({'task': 'checkProductStatus', 'param': {'task': 'checkProductStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'productIds': ['firefox'], 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
 
@@ -95,12 +98,22 @@ test_data = [
 	(["pytest-prod-1","pytest-prod-2","pytest-prod-3"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
 ]
 
-@pytest.mark.asyncio
+
 @pytest.mark.parametrize("products, expected_result", test_data)
-async def test_check_product_status_action(config, create_data, products, expected_result):
+def test_check_product_status_action(config, create_data, products, expected_result):
 
 	data = json.dumps({'task': 'checkProductStatus', 'param': {'task': 'checkProductStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'productIds': products, 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
 
 	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
 	assert request.status_code == 200
 	assert request.json() == expected_result
+
+
+def test_check_client_status(config, create_data):
+
+	data = json.dumps({'task': 'checkClientStatus', 'param': {'task': 'checkClientStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'clientId': 'pytest-lost-client.uib.local', 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
+
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	assert request.status_code == 200
+	message = "WARNING: opsi-client pytest-lost-client.uib.local has not been seen, since 31 days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
+	assert request.json() == {'message': f"{message}", 'state': 1}

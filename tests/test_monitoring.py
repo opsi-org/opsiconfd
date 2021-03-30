@@ -42,17 +42,13 @@ def create_data():
 	db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
 	now = datetime.now()
 
-	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";')
-	db.query('DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";')
-	db.query('DELETE FROM PRODUCT WHERE productId like "pytest%";')
-	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
-
-	db.store_result()
 
 	for i in range(0,5):
-		sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-client-{i}.uib.local", "OpsiClient", "{now}", "{now}");'
+		sql_string = (f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-client-{i}.uib.local", '
+			f'"OpsiClient", "{now}", "{now}");')
 		db.query(sql_string)
-		sql_string = f'INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) VALUES ("pytest-prod-{i}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {i}", 60+{i});'  # pylint: disable=line-too-long
+		sql_string = ('INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
+			f'VALUES ("pytest-prod-{i}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {i}", 60+{i});')  # pylint: disable=line-too-long
 		db.query(sql_string)
 		sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-{i}", "1.0", "1", "{socket.getfqdn()}", "LocalbootProduct");' # pylint: disable=line-too-long
 		db.query(sql_string)
@@ -110,11 +106,11 @@ def test_check_product_status_none(config):
 
 
 test_data = [
-	(["pytest-prod-1"], {'message': f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n", 'state': 1}),
-	(["pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
-	(["pytest-prod-1","pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
+	(["pytest-prod-1"], {'message': f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\n", 'state': 1}),
+	(["pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-2' problems found on 3 clients!\n", 'state': 2}),
+	(["pytest-prod-1","pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\nFor product 'pytest-prod-2' problems found on 3 clients!\n", 'state': 2}),
 	(["pytest-prod-3"], {'message': "OK: No Problem found for productIds: 'pytest-prod-3'", 'state': 0}),
-	(["pytest-prod-1","pytest-prod-2","pytest-prod-3"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
+	(["pytest-prod-1","pytest-prod-2","pytest-prod-3"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\nFor product 'pytest-prod-2' problems found on 3 clients!\n", 'state': 2}),
 ]
 
 

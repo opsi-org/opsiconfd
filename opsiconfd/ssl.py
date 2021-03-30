@@ -515,42 +515,36 @@ def setup_ssl():
 
 
 def get_ca_info():
-	ca_cert = load_ca_cert()
-	key_id = ""
-	for i in range(0,ca_cert.get_extension_count()):
-		if ca_cert.get_extension(i).get_short_name() == b'subjectKeyIdentifier':
-			key_id = ca_cert.get_extension(i)
-
+	cert = load_ca_cert()
 	expiration = (
-		datetime.datetime.strptime(ca_cert.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") -
+		datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") -
 		datetime.datetime.now()
 	).days
+
 	return {
-		"issuer": ca_cert.get_issuer(),
-		"subject": ca_cert.get_subject(),
-		"expiration": expiration,
-		"key_id": key_id
+		"issuer": cert.get_issuer(),
+		"subject": cert.get_subject(),
+		"serial_number": ':'.join(('%X' % cert.get_serial_number()).zfill(36)[i:i+2] for i in range(0, 36, 2)),
+		"expiration": expiration
 	}
 
 
 def get_cert_info():
 	cert = load_local_server_cert()
 	alt_names = ""
-	key_id = ""
-	for i in range(0,cert.get_extension_count()):
+	for i in range(0, cert.get_extension_count()):
 		if cert.get_extension(i).get_short_name() == b'subjectAltName':
 			alt_names = cert.get_extension(i)
-		elif cert.get_extension(i).get_short_name() == b'subjectKeyIdentifier':
-			key_id = cert.get_extension(i)
 
 	expiration = (
 		datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") -
 		datetime.datetime.now()
 	).days
+
 	return {
 		"issuer": cert.get_issuer(),
 		"subject": cert.get_subject(),
-		"expiration": expiration,
-		"key_id": key_id,
-		"alt_names": alt_names
+		"serial_number": ':'.join(('%X' % cert.get_serial_number()).zfill(36)[i:i+2] for i in range(0, 36, 2)),
+		"alt_names": alt_names,
+		"expiration": expiration
 	}

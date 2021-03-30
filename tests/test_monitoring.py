@@ -42,6 +42,13 @@ def create_data():
 	db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
 	now = datetime.now()
 
+	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";')
+	db.query('DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";')
+	db.query('DELETE FROM PRODUCT WHERE productId like "pytest%";')
+	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
+
+	db.store_result()
+
 	for i in range(0,5):
 		sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-client-{i}.uib.local", "OpsiClient", "{now}", "{now}");'
 		db.query(sql_string)
@@ -62,6 +69,18 @@ def create_data():
 	db.query(sql_string)
 
 	sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
+	db.query(sql_string)
+
+	# lost client with failed Products
+	sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-lost-client-fp.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
+	db.query(sql_string)
+	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) VALUES ("pytest-prod-2", "pytest-lost-client-fp.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
+	db.query(sql_string)
+	sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-lost-client-fp2.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
+	db.query(sql_string)
+	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) VALUES ("pytest-prod-2", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
+	db.query(sql_string)
+	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) VALUES ("pytest-prod-1", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
 	db.query(sql_string)
 
 	db.store_result()
@@ -116,6 +135,19 @@ test_data = [
 			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "),
 		'state': 1
 	}),
+	("pytest-lost-client-fp.uib.local", {
+		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp.uib.local has not been seen, since {DAYS} days. "
+			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
+			"Products: 'pytest-prod-2' are in failed state. "),
+		'state': 2
+	}),
+	("pytest-lost-client-fp2.uib.local", {
+		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp2.uib.local has not been seen, since {DAYS} days. "
+			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
+			"Products: 'pytest-prod-2' are in failed state. "
+			"Actions set for products: 'pytest-prod-1 (setup)'."),
+		'state': 2
+	}),
 	("pytest-client-1.uib.local", {
 		'message': ("WARNING: opsi-client pytest-client-1.uib.local has been seen today. "
 			"Actions set for products: 'pytest-prod-1 (setup)'."),
@@ -125,6 +157,15 @@ test_data = [
 		'message': ("CRITICAL: opsi-client pytest-client-2.uib.local has been seen today. "
 			"Products: 'pytest-prod-2' are in failed state. "),
 		'state': 2
+	}),
+	("pytest-client-3.uib.local", {
+		'message': ("OK: opsi-client pytest-client-3.uib.local has been seen today. "
+			"No failed products and no actions set for client"),
+		'state': 0
+	}),
+	("this-is-not-a-client.uib.local", {
+		'message': "UNKNOWN: opsi-client: 'this-is-not-a-client.uib.local' not found",
+		'state': 3
 	}),
 
 ]

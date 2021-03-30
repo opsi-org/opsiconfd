@@ -44,12 +44,13 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.socket = None
 		self.node_name = get_node_name()
 		self.workers = []
-		self.worker_stop_timeout = 60
+		self.worker_stop_timeout = 120
 		self.worker_restart_time = 0
 		self.worker_restart_mem = config.restart_worker_mem * 1000000
 		self.worker_restart_mem_interval = 3600
 		self.restart_vanished_workers = True
 		self.worker_update_lock = threading.Lock()
+		self.should_restart_workers = False
 		self.should_stop = False
 		self.pid = os.getpid()
 		self.startup = True
@@ -75,14 +76,17 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.adjust_worker_count()
 		while not self.should_stop:
 			for _num in range(10):
+				if self.should_stop:
+					break
 				time.sleep(1)
 
 			auto_restart = []
 			with self.worker_update_lock:
-				for worker_num, worker in enumerate(self.workers):
-					worker_num += 1
+				for worker_num, worker in enumerate(self.workers, start=1):
+					if self.should_restart_workers:
+						auto_restart.append(worker_num)
 
-					if worker.is_alive():
+					elif worker.is_alive():
 						if self.worker_restart_time > 0:
 							alive = time.time() - worker.create_time
 							if alive >= self.worker_restart_time:
@@ -123,12 +127,18 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 							auto_restart.append(worker_num)
 
 			for worker_num in auto_restart:
-				logger.notice("Auto restarting worker %s", worker_num)
+				if self.should_stop:
+					break
 				self.restart_worker(worker_num)
+				for _snum in range(5):
+					if self.should_stop:
+						break
+					time.sleep(1)
 
 			self.update_worker_registry()
 
 			self.startup = False
+			self.should_restart_workers = False
 
 		while self.workers:
 			time.sleep(1)
@@ -163,7 +173,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		process.start()
 		process.create_time = time.time()
 
-		logger.notice("New worker (%d) process started: %s", worker_num, process.pid)
+		logger.notice("New worker %d (pid %d) started", worker_num, process.pid)
 		while len(self.workers) < worker_num:
 			self.workers.append(None)
 		self.workers[worker_num - 1] = process
@@ -217,6 +227,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 	def restart_worker(self, worker_num: int):
 		with self.worker_update_lock:
 			worker = self.workers[worker_num - 1]
+			logger.notice("Restarting worker %d (pid %d)", worker_num, worker.pid)
 			if worker.is_alive():
 				self.stop_worker([worker.pid], remove_worker=False)
 			self.start_worker(worker_num=worker_num)
@@ -232,8 +243,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 	def update_worker_registry(self):
 		redis = get_redis_connection(config.redis_internal_url)
 		with self.worker_update_lock:
-			for worker_num, worker in enumerate(self.workers):
-				worker_num += 1
+			for worker_num, worker in enumerate(self.workers, start=1):
 				redis_key = f"opsiconfd:worker_registry:{self.node_name}:{worker_num}"
 				redis.hmset(redis_key, {
 					"worker_pid": worker.pid,
@@ -267,11 +277,8 @@ class Server:
 
 		init_logging(config.log_mode)
 
-		#if config.workers > 1:
 		self.supervisor = Supervisor(server=self.uvicorn_server)
 		self.supervisor.run()
-		#else:
-		#	self.uvicorn_server.run()
 
 		logger.notice("Server exited")
 
@@ -297,6 +304,10 @@ class Server:
 			self.uvicorn_server.should_exit = True
 			if force:
 				self.uvicorn_server.force_exit = True
+
+	def restart_workers(self):
+		if self.supervisor:
+			self.supervisor.should_restart_workers = True
 
 	def create_uvicorn_config(self):
 		options = {

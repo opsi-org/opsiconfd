@@ -17,6 +17,7 @@ from .logging import logger, init_logging
 from .utils import get_aredis_connection, Singleton
 from .zeroconf import register_opsi_services, unregister_opsi_services
 from .server import Server
+from .ssl import setup_server_cert
 
 def get_manager_pid() -> int:
 	return Manager().pid
@@ -31,6 +32,8 @@ class Manager(metaclass=Singleton):
 		self._last_reload = 0
 		self._server = None
 		self._should_stop = False
+		self._server_cert_check_time = time.time()
+		self._server_cert_check_interval = 24*3600
 
 	def stop(self, force=False):
 		logger.notice("Manager stopping force=%s", force)
@@ -95,6 +98,13 @@ class Manager(metaclass=Singleton):
 		self._loop.create_task(self.async_main())
 		self._loop.run_forever()
 
+	async def check_server_cert(self):
+		if setup_server_cert():
+			logger.notice("Server certificate changed, restarting all workers")
+			if self._server:
+				self._server.restart_workers()
+		self._server_cert_check_time = time.time()
+
 	async def async_main(self):
 		# Create and start MetricsCollector
 		from .statistics import ManagerMetricsCollector # pylint: disable=import-outside-toplevel
@@ -102,4 +112,7 @@ class Manager(metaclass=Singleton):
 		self._loop.create_task(metrics_collector.main_loop())
 
 		while not self._should_stop:
+			now = time.time()
+			if now - self._server_cert_check_time > self._server_cert_check_interval:
+				await self.check_server_cert()
 			await asyncio.sleep(1)

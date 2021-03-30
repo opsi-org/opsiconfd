@@ -366,14 +366,14 @@ def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint:
 	)
 
 
-def depotserver_setup_ca():
+def depotserver_setup_ca() -> bool:
 	logger.info("Updating CA cert from configserver")
 	ca_crt = load_certificate(FILETYPE_PEM, get_backend().getOpsiCACert())  # pylint: disable=no-member
 	store_ca_cert(ca_crt)
 	install_ca(ca_crt)
+	return False
 
-
-def configserver_setup_ca():
+def configserver_setup_ca() -> bool:
 	logger.info("Checking CA")
 
 	create = False
@@ -396,24 +396,28 @@ def configserver_setup_ca():
 		store_ca_key(ca_key)
 		store_ca_cert(ca_crt)
 		install_ca(ca_crt)
-	else:
-		logger.info("Server cert is up to date")
+		return True
+
+	logger.info("Server cert is up to date")
+	return False
 
 
-def setup_ca(server_role: str = "config"):
+def setup_ca() -> bool:
+	server_role = get_server_role()
 	if config.ssl_ca_key == config.ssl_ca_cert:
 		raise ValueError("CA key and cert cannot be stored in the same file")
 
 	if server_role == "config":
-		configserver_setup_ca()
-	elif server_role == "depot":
-		depotserver_setup_ca()
-	else:
-		raise ValueError(f"Invalid server role: {server_role}")
+		return configserver_setup_ca()
+	if server_role == "depot":
+		return depotserver_setup_ca()
+
+	raise ValueError(f"Invalid server role: {server_role}")
 
 
-def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
+	server_role = get_server_role()
 	if server_role not in ("config", "depot"):
 		raise ValueError(f"Invalid server role: {server_role}")
 
@@ -493,15 +497,17 @@ def setup_server_cert(server_role: str = "config"):  # pylint: disable=too-many-
 
 		store_local_server_key(srv_key)
 		store_local_server_cert(srv_crt)
-	else:
-		logger.info("Server cert is up to date")
+		return True
+
+	logger.info("Server cert is up to date")
+	return False
 
 
 def setup_ssl():
 	logger.info("Setup ssl")
 	server_role = get_server_role()
-	setup_ca(server_role)
-	setup_server_cert(server_role)
+	setup_ca()
+	setup_server_cert()
 	if server_role == "config":
 		# Read CA key as root to fill key cache
 		# so run_as_user can use key from cache
@@ -509,26 +515,25 @@ def setup_ssl():
 
 
 def get_ca_info():
-
-	ca = load_ca_cert()
+	ca_cert = load_ca_cert()
 	key_id = ""
-	for i in range(0,ca.get_extension_count()):
-		if ca.get_extension(i).get_short_name() == b'subjectKeyIdentifier':
-			key_id = ca.get_extension(i)
+	for i in range(0,ca_cert.get_extension_count()):
+		if ca_cert.get_extension(i).get_short_name() == b'subjectKeyIdentifier':
+			key_id = ca_cert.get_extension(i)
 
 	expiration = (
-		datetime.datetime.strptime(ca.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") -
+		datetime.datetime.strptime(ca_cert.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") -
 		datetime.datetime.now()
 	).days
 	return {
-		"issuer": ca.get_issuer(),
-		"subject": ca.get_subject(),
+		"issuer": ca_cert.get_issuer(),
+		"subject": ca_cert.get_subject(),
 		"expiration": expiration,
 		"key_id": key_id
 	}
 
-def get_cert_info():
 
+def get_cert_info():
 	cert = load_local_server_cert()
 	alt_names = ""
 	key_id = ""

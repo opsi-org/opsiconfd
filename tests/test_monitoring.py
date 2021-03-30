@@ -20,7 +20,7 @@ TEST_USER = "adminuser"
 TEST_PW = "adminuser"
 HOSTNAME = socket.gethostname()
 LOCAL_IP = socket.gethostbyname(HOSTNAME)
-
+DAYS = 31
 
 @pytest.fixture(name="config")
 def fixture_config(monkeypatch):
@@ -61,7 +61,7 @@ def create_data():
 	 	VALUES ("pytest-prod-3", "pytest-client-3.uib.local", "LocalbootProduct", "installed", "none", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
 	db.query(sql_string)
 
-	sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=31)}");'
+	sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
 	db.query(sql_string)
 
 	db.store_result()
@@ -109,11 +109,41 @@ def test_check_product_status_action(config, create_data, products, expected_res
 	assert request.json() == expected_result
 
 
-def test_check_client_status(config, create_data):
 
-	data = json.dumps({'task': 'checkClientStatus', 'param': {'task': 'checkClientStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'clientId': 'pytest-lost-client.uib.local', 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
+test_data = [
+	("pytest-lost-client.uib.local", {
+		'message': (f"WARNING: opsi-client pytest-lost-client.uib.local has not been seen, since {DAYS} days. "
+			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "),
+		'state': 1
+	}),
+	("pytest-client-1.uib.local", {
+		'message': ("WARNING: opsi-client pytest-client-1.uib.local has been seen today. "
+			"Actions set for products: 'pytest-prod-1 (setup)'."),
+		'state': 1
+	}),
+	("pytest-client-2.uib.local", {
+		'message': ("CRITICAL: opsi-client pytest-client-2.uib.local has been seen today. "
+			"Products: 'pytest-prod-2' are in failed state. "),
+		'state': 2
+	}),
+
+]
+@pytest.mark.parametrize("client, expected_result", test_data)
+def test_check_client_status(config, create_data, client, expected_result):
+
+	data = json.dumps({
+		'task': 'checkClientStatus',
+		'param': {
+			'task': 'checkClientStatus',
+			'http': False,
+			'opsiHost': 'localhost',
+			'user': TEST_USER,
+			'clientId': client,
+			'password': TEST_PW,
+			'port': 4447
+			}
+	})
 
 	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
 	assert request.status_code == 200
-	message = "WARNING: opsi-client pytest-lost-client.uib.local has not been seen, since 31 days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
-	assert request.json() == {'message': f"{message}", 'state': 1}
+	assert request.json() == expected_result

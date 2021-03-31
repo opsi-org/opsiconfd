@@ -85,3 +85,13 @@ def test_client_permission():
 		assert res.status_code == 204
 
 		admin_session.post(url=f"{BASE_URL}/admin/unblock-all", verify=False)
+
+	rpc = {
+		"id": 1,
+		"method": "host_delete",
+		"params": [
+			client_id
+		]
+	}
+	res = admin_session.post(f"{BASE_URL}/rpc", verify=False, json=rpc)
+	assert res.status_code == 200

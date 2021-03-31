@@ -16,6 +16,8 @@ import requests
 
 from MySQLdb import _mysql
 
+from .utils import clean_redis
+
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"
 HOSTNAME = socket.gethostname()
@@ -33,14 +35,35 @@ def fixture_config(monkeypatch):
 def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+
+def create_depot(opsi_url, depot_name):
+	params= [depot_name,None,"file:///var/lib/opsi/depot","smb://172.17.0.101/opsi_depot",None,"file:///var/lib/opsi/repository","webdavs://172.17.0.101:4447/repository"] # pylint: disable=line-too-long
+
+	rpc_request_data = json.dumps({"id": 1, "method": "host_createOpsiDepotserver", "params": params})
+	res = requests.post(f"{opsi_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	result_json = json.loads(res.text)
+	print(result_json)
+
 @pytest.fixture(autouse=True)
-def create_data():
+def create_data(config):
+
 
 	mysql_host = os.environ.get("MYSQL_HOST")
 	if not mysql_host:
 		mysql_host = "127.0.0.1"
 	db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
 	now = datetime.now()
+
+
+	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";')
+	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "test%";')
+	db.query('DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";')
+	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
+	db.query('DELETE FROM PRODUCT WHERE productId like "pytest%";')
+	db.query('DELETE FROM PRODUCT WHERE productId like "test%";')
+
+
+	db.store_result()
 
 
 	for i in range(0,5):
@@ -79,6 +102,22 @@ def create_data():
 	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) VALUES ("pytest-prod-1", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
 	db.query(sql_string)
 
+
+	create_depot(config.internal_url, "pytest-test-depot.uib.gmbh")
+	sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-1", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
+	db.query(sql_string)
+	sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
+	db.query(sql_string)
+
+	create_depot(config.internal_url, "pytest-test-depot2.uib.gmbh")
+	sql_string = ('INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
+			f'VALUES ("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60+{i});')  # pylint: disable=line-too-long
+	db.query(sql_string)
+	sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
+	db.query(sql_string)
+	sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
+	db.query(sql_string)
+
 	db.store_result()
 
 
@@ -86,8 +125,9 @@ def create_data():
 
 	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";')
 	db.query('DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";')
-	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
 	db.query('DELETE FROM PRODUCT WHERE productId like "pytest%";')
+	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
+
 
 
 	db.store_result()
@@ -115,7 +155,7 @@ test_data = [
 
 
 @pytest.mark.parametrize("products, expected_result", test_data)
-def test_check_product_status_action(config, create_data, products, expected_result):
+def test_check_product_status_action(config, products, expected_result):
 
 	data = json.dumps({'task': 'checkProductStatus', 'param': {'task': 'checkProductStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'productIds': products, 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
 
@@ -166,7 +206,7 @@ test_data = [
 
 ]
 @pytest.mark.parametrize("client, expected_result", test_data)
-def test_check_client_status(config, create_data, client, expected_result):
+def test_check_client_status(config, client, expected_result):
 
 	data = json.dumps({
 		'task': 'checkClientStatus',
@@ -176,6 +216,55 @@ def test_check_client_status(config, create_data, client, expected_result):
 			'opsiHost': 'localhost',
 			'user': TEST_USER,
 			'clientId': client,
+			'password': TEST_PW,
+			'port': 4447
+			}
+	})
+
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	assert request.status_code == 200
+	assert request.json() == expected_result
+
+
+test_data = [
+	(
+		[socket.getfqdn(), "pytest-test-depot.uib.gmbh" ],
+		["pytest-prod-1","pytest-prod-2"],
+		[],
+		False,
+		False,
+		{
+			'message': 'OK: Syncstate ok for depots marvin-t590.uib.local, pytest-test-depot.uib.gmbh',
+			'state': 0
+		}
+	),
+	(
+		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh" ],
+		["pytest-prod-1","pytest-prod-2"],
+		[],
+		False,
+		False,
+		{
+			'message': 'WARNING: Differences found for 1 products',
+			'state': 1
+		}
+	)
+]
+@pytest.mark.parametrize("depot_ids, product_ids, exclude, strict, verbose, expected_result", test_data)
+def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict, verbose, expected_result):
+
+	data = json.dumps({
+		'task': 'checkDepotSyncStatus',
+		'param': {
+			'task': 'checkDepotSyncStatus',
+			'http': False,
+			'opsiHost': 'localhost',
+			'user': TEST_USER,
+			'depotIds': depot_ids,
+			'productIds': product_ids,
+			'exclude': exclude,
+			'strict': strict,
+			'verbose': verbose,
 			'password': TEST_PW,
 			'port': 4447
 			}

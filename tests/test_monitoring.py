@@ -15,6 +15,7 @@ import urllib3
 import requests
 
 from MySQLdb import _mysql
+# import MySQLdb
 
 from .utils import clean_redis
 
@@ -54,17 +55,12 @@ def create_data(config):
 	db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
 	now = datetime.now()
 
-
 	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";')
-	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "test%";')
 	db.query('DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";')
-	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
 	db.query('DELETE FROM PRODUCT WHERE productId like "pytest%";')
-	db.query('DELETE FROM PRODUCT WHERE productId like "test%";')
-
+	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
 
 	db.store_result()
-
 
 	for i in range(0,5):
 		sql_string = (f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-client-{i}.uib.local", '
@@ -109,13 +105,15 @@ def create_data(config):
 	sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
 	db.query(sql_string)
 
+
 	create_depot(config.internal_url, "pytest-test-depot2.uib.gmbh")
 	sql_string = ('INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
 			f'VALUES ("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60+{i});')  # pylint: disable=line-too-long
 	db.query(sql_string)
-	sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
+	sql_string = 'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"); ' # pylint: disable=line-too-long
 	db.query(sql_string)
-	sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
+	sql_string = 'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
+	# print(sql_string)
 	db.query(sql_string)
 
 	db.store_result()
@@ -128,9 +126,12 @@ def create_data(config):
 	db.query('DELETE FROM PRODUCT WHERE productId like "pytest%";')
 	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
 
-
-
 	db.store_result()
+
+
+	# db.commit()   # commit the changes
+
+	# cursor.close()
 
 
 
@@ -138,7 +139,18 @@ def create_data(config):
 
 def test_check_product_status_none(config):
 
-	data = json.dumps({'task': 'checkProductStatus', 'param': {'task': 'checkProductStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'productIds': ['firefox'], 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
+	data = json.dumps({
+		'task': 'checkProductStatus',
+		'param': {
+			'task': 'checkProductStatus',
+			'http': False,
+			'opsiHost': 'localhost',
+			'user': TEST_USER,
+			'productIds': ['firefox'],
+			'password': TEST_PW,
+			'port': 4447
+		}
+	})
 
 	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
 	assert request.status_code == 200
@@ -146,23 +158,106 @@ def test_check_product_status_none(config):
 
 
 test_data = [
-	(["pytest-prod-1"], {'message': f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\n", 'state': 1}),
-	(["pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-2' problems found on 3 clients!\n", 'state': 2}),
-	(["pytest-prod-1","pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\nFor product 'pytest-prod-2' problems found on 3 clients!\n", 'state': 2}),
-	(["pytest-prod-3"], {'message': "OK: No Problem found for productIds: 'pytest-prod-3'", 'state': 0}),
-	(["pytest-prod-1","pytest-prod-2","pytest-prod-3"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\nFor product 'pytest-prod-2' problems found on 3 clients!\n", 'state': 2}),
+	(
+		["pytest-prod-1"],
+		{
+			'message': (f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\n"
+				"For product 'pytest-prod-1' action set on 2 clients!\n"),
+			'state': 1
+		}
+	),
+	(
+		["pytest-prod-2"],
+		{
+			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
+				"For product 'pytest-prod-2' problems found on 3 clients!\n"),
+			'state': 2
+		}
+	),
+	(
+		["pytest-prod-1","pytest-prod-2"],
+		{
+			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
+				"For product 'pytest-prod-1' action set on 2 clients!\n"
+				"For product 'pytest-prod-2' problems found on 3 clients!\n"),
+			'state': 2
+		}
+	),
+	(
+		["pytest-prod-3"],
+		{
+			'message': "OK: No Problem found for productIds: 'pytest-prod-3'",
+			'state': 0
+		}
+	),
+	(
+		["pytest-prod-1","pytest-prod-2","pytest-prod-3"],
+		{
+			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
+				"For product 'pytest-prod-1' action set on 2 clients!\n"
+				"For product 'pytest-prod-2' problems found on 3 clients!\n"),
+			'state': 2
+		}
+	)
 ]
 
 
 @pytest.mark.parametrize("products, expected_result", test_data)
 def test_check_product_status_action(config, products, expected_result):
 
-	data = json.dumps({'task': 'checkProductStatus', 'param': {'task': 'checkProductStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'productIds': products, 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
-
+	data = json.dumps({
+		'task': 'checkProductStatus',
+		'param': {
+			'task': 'checkProductStatus',
+			'http': False,
+			'opsiHost': 'localhost',
+			'user': TEST_USER,
+			'productIds': products,
+			'password': TEST_PW,
+			'port': 4447
+		}
+	})
 	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
+
+test_data = [
+	(
+		"pytest-prod-1",
+		{
+			'message': ("WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"),
+			'state': 1
+		}
+	),
+	(
+		"pytest-prod-2",
+		{
+			'message': ("CRITICAL: 3 ProductStates for product: 'pytest-prod-2' found; "
+				"checking for Version: '1.0' and Package: '1'; Problems found on 3 clients"),
+			'state': 2
+		}
+	),
+	(
+		"pytest-prod-3",
+		{
+			'message':  ("OK: 1 ProductStates for product: 'pytest-prod-3' found; "
+				"checking for Version: '1.0' and Package: '1'"),
+			'state': 0
+		}
+	)
+]
+
+
+@pytest.mark.parametrize("product, expected_result", test_data)
+def test_check_product_status_short(config, product, expected_result):
+
+	data = json.dumps({'task': 'checkShortProductStatus', 'param': {'task': 'checkShortProductStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'productId': product, 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
+
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	assert request.status_code == 200
+	assert request.json() == expected_result
 
 
 test_data = [
@@ -239,6 +334,39 @@ test_data = [
 		}
 	),
 	(
+		[socket.getfqdn(), "pytest-test-depot.uib.gmbh" ],
+		["pytest-prod-1","pytest-prod-2"],
+		[],
+		True,
+		False,
+		{
+			"message": f"OK: Syncstate ok for depots {socket.getfqdn()}, pytest-test-depot.uib.gmbh",
+			"state": 0
+		}
+	),
+	(
+		[socket.getfqdn(), "pytest-test-depot.uib.gmbh" ],
+		["pytest-prod-1","pytest-prod-2"],
+		[],
+		False,
+		True,
+		{
+			"message": f"OK: Syncstate ok for depots {socket.getfqdn()}, pytest-test-depot.uib.gmbh",
+			"state": 0
+		}
+	),
+	(
+		[socket.getfqdn(), "pytest-test-depot.uib.gmbh" ],
+		["pytest-prod-1","pytest-prod-2"],
+		[],
+		True,
+		True,
+		{
+			"message": f"OK: Syncstate ok for depots {socket.getfqdn()}, pytest-test-depot.uib.gmbh",
+			"state": 0
+		}
+	),
+	(
 		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh" ],
 		["pytest-prod-1","pytest-prod-2"],
 		[],
@@ -288,6 +416,20 @@ test_data = [
 			"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
 			f"{socket.getfqdn()} (1.0-1) \n"
 			"product 'pytest-prod-3': pytest-test-depot2.uib.gmbh (not installed) \n"
+			f"{socket.getfqdn()} (1.0-1) \n"),
+			'state': 1
+		}
+	)
+	,
+	(
+		["pytest-test-depot2.uib.gmbh", socket.getfqdn()],
+		["pytest-prod-1","pytest-prod-2","pytest-prod-3"],
+		["pytest-prod-3"],
+		True,
+		True,
+		{
+			'message': ("WARNING: Differences found for 1 products:\n"
+			"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
 			f"{socket.getfqdn()} (1.0-1) \n"),
 			'state': 1
 		}

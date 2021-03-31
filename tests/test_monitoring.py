@@ -234,8 +234,8 @@ test_data = [
 		False,
 		False,
 		{
-			'message': 'OK: Syncstate ok for depots marvin-t590.uib.local, pytest-test-depot.uib.gmbh',
-			'state': 0
+			"message": f"OK: Syncstate ok for depots {socket.getfqdn()}, pytest-test-depot.uib.gmbh",
+			"state": 0
 		}
 	),
 	(
@@ -246,6 +246,49 @@ test_data = [
 		False,
 		{
 			'message': 'WARNING: Differences found for 1 products',
+			'state': 1
+		}
+	),
+	(
+		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh" ],
+		["pytest-prod-1","pytest-prod-2"],
+		[],
+		False,
+		True,
+		{
+			'message': ("WARNING: Differences found for 1 products:\n"
+			f"product 'pytest-prod-1': {socket.getfqdn()} (1.0-1) \n"
+			"pytest-test-depot2.uib.gmbh (2.0-1) \n"),
+			'state': 1
+		}
+	),
+	(
+		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh" ],
+		["pytest-prod-1","pytest-prod-2","pytest-prod-3"],
+		[],
+		True,
+		True,
+		{
+			'message': ("WARNING: Differences found for 2 products:\n"
+			f"product 'pytest-prod-1': {socket.getfqdn()} (1.0-1) \n"
+			"pytest-test-depot2.uib.gmbh (2.0-1) \n"
+			f"product 'pytest-prod-3': {socket.getfqdn()} (1.0-1) \n"
+			"pytest-test-depot2.uib.gmbh (not installed) \n"),
+			'state': 1
+		}
+	),
+	(
+		["pytest-test-depot2.uib.gmbh", socket.getfqdn()],
+		["pytest-prod-1","pytest-prod-2","pytest-prod-3"],
+		[],
+		True,
+		True,
+		{
+			'message': ("WARNING: Differences found for 2 products:\n"
+			"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
+			f"{socket.getfqdn()} (1.0-1) \n"
+			"product 'pytest-prod-3': pytest-test-depot2.uib.gmbh (not installed) \n"
+			f"{socket.getfqdn()} (1.0-1) \n"),
 			'state': 1
 		}
 	)

@@ -8,6 +8,7 @@
 from collections import defaultdict
 from fastapi.responses import JSONResponse
 
+from opsiconfd.logging import logger
 from .utils import State, generate_response
 
 def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], strict=False, verbose=False) -> JSONResponse: # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
@@ -24,7 +25,7 @@ def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], stri
 
 	difference_products = defaultdict(dict)
 	for product_id in product_ids:
-		if product_ids in exclude:
+		if product_id in exclude:
 			continue
 		differs = False
 		product_version = ""

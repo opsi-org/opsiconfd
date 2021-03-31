@@ -34,7 +34,6 @@ def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], stri
 			if not product_on_depot:
 				if not strict:
 					continue
-
 				difference_products[product_id][depot_id] = "not installed"
 				continue
 
@@ -65,12 +64,11 @@ def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], stri
 					product_version = None
 					package_version = None
 					try:
-						product_version = product_on_depot_info[depot_id][product_id].productVersion
-						package_version = product_on_depot_info[depot_id][product_id].packageVersion
-						if difference_products[product_id][depot_id] == "not installed":
+						if difference_products.get(product_id,{}).get(depot_id) == "not installed":
 							message += f"{depot_id} (not installed) \n"
 						else:
-
+							product_version = product_on_depot_info[depot_id][product_id].productVersion
+							package_version = product_on_depot_info[depot_id][product_id].packageVersion
 							message += f"{depot_id} ({product_version}-{package_version}) \n"
 					except KeyError:
 						if not product_on_depot_info.get(depot_id, {}).get(product_id, None):
@@ -78,5 +76,4 @@ def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], stri
 						message += f"{depot_id} ({product_version}-{package_version}) "
 	else:
 		message += "Syncstate ok for depots %s" % ", ".join(depot_ids)
-
 	return generate_response(state, message)

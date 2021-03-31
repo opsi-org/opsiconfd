@@ -14,8 +14,8 @@ import pytest
 import urllib3
 import requests
 
-from MySQLdb import _mysql
-# import MySQLdb
+# from MySQLdb import _mysql
+import MySQLdb
 
 from .utils import clean_redis
 
@@ -48,93 +48,108 @@ def create_depot(opsi_url, depot_name):
 @pytest.fixture(autouse=True)
 def create_data(config):
 
-
 	mysql_host = os.environ.get("MYSQL_HOST")
 	if not mysql_host:
 		mysql_host = "127.0.0.1"
-	db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
+
+	db=MySQLdb.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
 	now = datetime.now()
 
-	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";')
-	db.query('DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";')
-	db.query('DELETE FROM PRODUCT WHERE productId like "pytest%";')
-	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
+	db.autocommit(True)
+	cursor = db.cursor()
 
-	db.store_result()
+	cursor.execute(
+		('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
+		'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
+		'DELETE FROM PRODUCT WHERE productId like "pytest%";'
+		'DELETE FROM HOST WHERE hostId like "pytest%";')
+	)
 
+
+	# Product
 	for i in range(0,5):
 		sql_string = (f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-client-{i}.uib.local", '
 			f'"OpsiClient", "{now}", "{now}");')
-		db.query(sql_string)
+		cursor.execute(sql_string)
 		sql_string = ('INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
 			f'VALUES ("pytest-prod-{i}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {i}", 60+{i});')  # pylint: disable=line-too-long
-		db.query(sql_string)
+		cursor.execute(sql_string)
 		sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-{i}", "1.0", "1", "{socket.getfqdn()}", "LocalbootProduct");' # pylint: disable=line-too-long
-		db.query(sql_string)
-	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) \
-	 	VALUES ("pytest-prod-1", "pytest-client-1.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
-	db.query(sql_string)
+		cursor.execute(sql_string)
 
-	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) \
-	 	VALUES ("pytest-prod-2", "pytest-client-2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
-	db.query(sql_string)
+	cursor.execute(
+		(
+			'INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
+			f'VALUES ("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60);'
+		)
+	)
 
-	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) \
-	 	VALUES ("pytest-prod-3", "pytest-client-3.uib.local", "LocalbootProduct", "installed", "none", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
-	db.query(sql_string)
 
-	sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
-	db.query(sql_string)
-
-	# lost client with failed Products
-	sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-lost-client-fp.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
-	db.query(sql_string)
-	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) VALUES ("pytest-prod-2", "pytest-lost-client-fp.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
-	db.query(sql_string)
-	sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-lost-client-fp2.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
-	db.query(sql_string)
-	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) VALUES ("pytest-prod-2", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
-	db.query(sql_string)
-	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) VALUES ("pytest-prod-1", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
-	db.query(sql_string)
-
+	# Host
+	cursor.execute(
+		(
+			'INSERT INTO HOST (hostId, type, created, lastSeen)'
+			f'VALUES ("pytest-lost-client.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
+			'INSERT INTO HOST (hostId, type, created, lastSeen) '
+			f'VALUES ("pytest-lost-client-fp.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
+			'INSERT INTO HOST (hostId, type, created, lastSeen) '
+			f'VALUES ("pytest-lost-client-fp2.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=DAYS)}");'
+		)
+	)
 
 	create_depot(config.internal_url, "pytest-test-depot.uib.gmbh")
-	sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-1", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
-	db.query(sql_string)
-	sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
-	db.query(sql_string)
-
-
 	create_depot(config.internal_url, "pytest-test-depot2.uib.gmbh")
-	sql_string = ('INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
-			f'VALUES ("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60+{i});')  # pylint: disable=line-too-long
-	db.query(sql_string)
-	sql_string = 'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"); ' # pylint: disable=line-too-long
-	db.query(sql_string)
-	sql_string = 'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");' # pylint: disable=line-too-long
-	# print(sql_string)
-	db.query(sql_string)
 
-	db.store_result()
+	# Product on client
+	cursor.execute(
+		(
+			'INSERT INTO PRODUCT_ON_CLIENT '
+			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
+			f'VALUES ("pytest-prod-1", "pytest-client-1.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'
+			'INSERT INTO PRODUCT_ON_CLIENT '
+			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
+	 		f'VALUES ("pytest-prod-2", "pytest-client-2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'
+			'INSERT INTO PRODUCT_ON_CLIENT '
+			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
+	 		f'VALUES ("pytest-prod-3", "pytest-client-3.uib.local", "LocalbootProduct", "installed", "none", "none", "1.0", 1, "{now}");'
+			'INSERT INTO PRODUCT_ON_CLIENT '
+			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
+			f'VALUES ("pytest-prod-2", "pytest-lost-client-fp.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'
+			'INSERT INTO PRODUCT_ON_CLIENT '
+			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
+			f'VALUES ("pytest-prod-2", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'
+			'INSERT INTO PRODUCT_ON_CLIENT '
+			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
+			f'VALUES ("pytest-prod-1", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'
+		)
+	)
 
+	# Product on depot
+	cursor.execute((
+			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
+			f'VALUES ("pytest-prod-1", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");'
+			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
+			f'VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");'
+			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
+			'VALUES ("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"); '
+			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
+			'VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");'
+		)
+	)
+	cursor.close()
 
 	yield
 
-	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";')
-	db.query('DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";')
-	db.query('DELETE FROM PRODUCT WHERE productId like "pytest%";')
-	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
-
-	db.store_result()
-
-
-	# db.commit()   # commit the changes
-
-	# cursor.close()
-
-
-
+	cursor = db.cursor()
+	cursor.execute(
+		(
+			'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
+			'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
+			'DELETE FROM PRODUCT WHERE productId like "pytest%";'
+			'DELETE FROM HOST WHERE hostId like "pytest%";'
+		)
+	)
+	cursor.close()
 
 
 def test_check_product_status_none(config):

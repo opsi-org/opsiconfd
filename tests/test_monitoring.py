@@ -59,12 +59,13 @@ def create_data(config):
 	cursor = db.cursor()
 
 	cursor.execute(
-		('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
-		'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
-		'DELETE FROM PRODUCT WHERE productId like "pytest%";'
-		'DELETE FROM HOST WHERE hostId like "pytest%";')
+		(
+			'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
+			'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
+			'DELETE FROM PRODUCT WHERE productId like "pytest%";'
+			'DELETE FROM HOST WHERE hostId like "pytest%";'
+		)
 	)
-
 
 	# Product
 	for i in range(0,5):
@@ -80,10 +81,9 @@ def create_data(config):
 	cursor.execute(
 		(
 			'INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
-			f'VALUES ("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60);'
+			'VALUES ("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60);'
 		)
 	)
-
 
 	# Host
 	cursor.execute(
@@ -127,9 +127,9 @@ def create_data(config):
 	# Product on depot
 	cursor.execute((
 			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
-			f'VALUES ("pytest-prod-1", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");'
+			'VALUES ("pytest-prod-1", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");'
 			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
-			f'VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");'
+			'VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");'
 			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
 			'VALUES ("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"); '
 			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
@@ -218,7 +218,7 @@ test_data = [
 
 
 @pytest.mark.parametrize("products, expected_result", test_data)
-def test_check_product_status_action(config, products, expected_result):
+def test_check_product_status(config, products, expected_result):
 
 	data = json.dumps({
 		'task': 'checkProductStatus',
@@ -451,7 +451,7 @@ test_data = [
 	)
 ]
 @pytest.mark.parametrize("depot_ids, product_ids, exclude, strict, verbose, expected_result", test_data)
-def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict, verbose, expected_result):
+def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict, verbose, expected_result): # pylint: disable=too-many-arguments
 
 	data = json.dumps({
 		'task': 'checkDepotSyncStatus',

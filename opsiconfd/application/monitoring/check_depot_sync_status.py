@@ -8,7 +8,6 @@
 from collections import defaultdict
 from fastapi.responses import JSONResponse
 
-from opsiconfd.logging import logger
 from .utils import State, generate_response
 
 def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], strict=False, verbose=False) -> JSONResponse: # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements

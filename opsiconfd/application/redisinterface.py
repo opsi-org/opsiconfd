@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+redisinterface
+"""
 
 import os
 import traceback

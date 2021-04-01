@@ -4,10 +4,12 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+monitoring
+"""
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-
 
 from opsiconfd.logging import logger
 from opsiconfd.backend import get_backend

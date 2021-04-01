@@ -169,8 +169,9 @@ test_data = [
 		False,
 		True,
 		{
-			'message': ("CRITICAL: \nResult for Depot: 'marvin-t590.uib.local':\n"
-				"Product 'unknown-product' not found on any client assigned to depot marvin-t590.uib.local."),
+			'message': ("CRITICAL: \n"
+				f"Result for Depot: '{socket.getfqdn()}':\n"
+				f"Product 'unknown-product' not found on any client assigned to depot {socket.getfqdn()}."),
 			'state': 2
 		}
 	),
@@ -185,8 +186,9 @@ test_data = [
 		True,
 		True,
 		{
-			'message': ("CRITICAL: \nResult for Depot: 'marvin-t590.uib.local':\n"
-				"Product 'unknown-product' not found on any client assigned to depot marvin-t590.uib.local."),
+			'message': ("CRITICAL: \n"
+				f"Result for Depot: '{socket.getfqdn()}':\n"
+				f"Product 'unknown-product' not found on any client assigned to depot {socket.getfqdn()}."),
 			'state': 2
 		}
 	)
@@ -231,7 +233,8 @@ test_data = [
 		False,
 		False,
 		{
-			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
+			'message': ("CRITICAL: \n"
+				f"Result for Depot: '{socket.getfqdn()}':\n"
 				"For product 'pytest-prod-2' problems found on 3 clients!\n"),
 			'state': 2
 		}

@@ -531,3 +531,37 @@ def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict
 	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
 	assert request.status_code == 200
 	assert request.json() == expected_result
+
+
+test_data = [
+	(
+		None,
+		None,
+		False,
+		{
+			"message": 'OK: Opsi Webservice has no Problem.',
+			"state": 0
+		}
+	)
+]
+@pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata, expected_result", test_data)
+def test_check_opsi_webservice(config, cpu_thresholds, error_thresholds, perfdata, expected_result): # pylint: disable=too-many-arguments
+
+	data = json.dumps({
+		'task': 'checkOpsiWebservice',
+		'param': {
+			'task': 'checkOpsiWebservice',
+			'http': False,
+			'opsiHost': 'localhost',
+			'user': TEST_USER,
+			'cpu_thresholds': cpu_thresholds,
+			'error_thresholds': error_thresholds,
+			'perfdata': perfdata,
+			'password': TEST_PW,
+			'port': 4447
+			}
+	})
+
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	assert request.status_code == 200
+	assert request.json() == expected_result

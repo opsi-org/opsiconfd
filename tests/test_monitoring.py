@@ -151,8 +151,49 @@ def create_data(config):
 	)
 	cursor.close()
 
+test_data = [
+	(
+		["unknown-product"],
+		False,
+		False,
+		{'message': "OK: No Problem found for productIds: 'unknown-product'", 'state': 0}
+	),
+	(
+		["unknown-product", "pytest-prod-3"],
+		False,
+		False,
+		{'message': "OK: No Problem found for productIds: 'unknown-product,pytest-prod-3'", 'state': 0}
+	),
+	(
+		["unknown-product", "pytest-prod-3"],
+		False,
+		True,
+		{
+			'message': ("CRITICAL: \nResult for Depot: 'marvin-t590.uib.local':\n"
+				"Product 'unknown-product' not found on any client assigned to depot marvin-t590.uib.local."),
+			'state': 2
+		}
+	),
+	(
+		["unknown-product", "pytest-prod-3"],
+		True,
+		False,
+		{'message': "OK: No Problem found for productIds 'unknown-product,pytest-prod-3'", 'state': 0}
+	),
+	(
+		["unknown-product", "pytest-prod-3"],
+		True,
+		True,
+		{
+			'message': ("CRITICAL: \nResult for Depot: 'marvin-t590.uib.local':\n"
+				"Product 'unknown-product' not found on any client assigned to depot marvin-t590.uib.local."),
+			'state': 2
+		}
+	)
+]
 
-def test_check_product_status_none(config):
+@pytest.mark.parametrize("product_ids, verbose, strict, expected_result", test_data)
+def test_check_product_status_none(config, product_ids, verbose, strict, expected_result):
 
 	data = json.dumps({
 		'task': 'checkProductStatus',
@@ -161,7 +202,9 @@ def test_check_product_status_none(config):
 			'http': False,
 			'opsiHost': 'localhost',
 			'user': TEST_USER,
-			'productIds': ['firefox'],
+			'productIds': product_ids,
+			'verbose': verbose,
+			'strict': strict,
 			'password': TEST_PW,
 			'port': 4447
 		}
@@ -169,12 +212,14 @@ def test_check_product_status_none(config):
 
 	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
 	assert request.status_code == 200
-	assert request.json() == {'message': "OK: No Problem found for productIds: 'firefox'", 'state': 0}
+	assert request.json() == expected_result
 
 
 test_data = [
 	(
 		["pytest-prod-1"],
+		False,
+		False,
 		{
 			'message': (f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\n"
 				"For product 'pytest-prod-1' action set on 2 clients!\n"),
@@ -183,6 +228,8 @@ test_data = [
 	),
 	(
 		["pytest-prod-2"],
+		False,
+		False,
 		{
 			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
 				"For product 'pytest-prod-2' problems found on 3 clients!\n"),
@@ -191,6 +238,8 @@ test_data = [
 	),
 	(
 		["pytest-prod-1","pytest-prod-2"],
+		False,
+		False,
 		{
 			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
 				"For product 'pytest-prod-1' action set on 2 clients!\n"
@@ -200,6 +249,8 @@ test_data = [
 	),
 	(
 		["pytest-prod-3"],
+		False,
+		False,
 		{
 			'message': "OK: No Problem found for productIds: 'pytest-prod-3'",
 			'state': 0
@@ -207,6 +258,8 @@ test_data = [
 	),
 	(
 		["pytest-prod-1","pytest-prod-2","pytest-prod-3"],
+		False,
+		False,
 		{
 			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
 				"For product 'pytest-prod-1' action set on 2 clients!\n"
@@ -217,8 +270,8 @@ test_data = [
 ]
 
 
-@pytest.mark.parametrize("products, expected_result", test_data)
-def test_check_product_status(config, products, expected_result):
+@pytest.mark.parametrize("products, verbose, strict, expected_result", test_data)
+def test_check_product_status(config, products, verbose, strict, expected_result):
 
 	data = json.dumps({
 		'task': 'checkProductStatus',
@@ -228,6 +281,8 @@ def test_check_product_status(config, products, expected_result):
 			'opsiHost': 'localhost',
 			'user': TEST_USER,
 			'productIds': products,
+			'verbose': verbose,
+			'strict': strict,
 			'password': TEST_PW,
 			'port': 4447
 		}

@@ -11,7 +11,7 @@ from OPSI.Backend.Backend import temporaryBackendOptions
 from opsiconfd.logging import logger
 from .utils import State, generate_response
 
-def check_product_status(backend, product_ids=[], product_groups=[], host_group_ids=[], depot_ids=[], exclude=[], verbose=False): # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+def check_product_status(backend, product_ids=[], product_groups=[], host_group_ids=[], depot_ids=[], exclude=[], verbose=False, strict=False): # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
 	if not product_ids:
 		product_ids = set()
 		for product in backend._executeMethod(methodName="objectToGroup_getIdents", groupType='ProductGroup', groupId=product_groups): # pylint: disable=protected-access
@@ -66,11 +66,23 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 	product_version_problems_on_client = defaultdict(lambda: defaultdict(list))
 	product_problems_on_client = defaultdict(lambda: defaultdict(list))
 	action_request_on_client = defaultdict(lambda: defaultdict(list))
-
+	missing_products = {}
 	action_requests_to_ignore = set([None, 'none', 'always'])
 
 	for depot_id in depot_ids:
-		for poc in backend._executeMethod(methodName="productOnClient_getObjects", productId=product_ids, clientId=clients_on_depot.get(depot_id, None)): # pylint: disable=protected-access, line-too-long
+
+		poducts_on_client = backend._executeMethod(
+			methodName="productOnClient_getObjects",
+			productId=product_ids,
+			clientId=clients_on_depot.get(depot_id, None)
+		)
+
+		not_installed = product_ids.copy()
+		for poc in poducts_on_client: # pylint: disable=protected-access, line-too-long
+			try:
+				not_installed.remove(poc.productId)
+			except ValueError:
+				pass
 			if poc.actionRequest not in action_requests_to_ignore:
 				if state != State.CRITICAL:
 					state = State.WARNING
@@ -103,9 +115,16 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 
 				product_version_problems_on_client[depot_id][poc.productId].append(f"{poc.clientId} ({poc.productVersion}-{poc.packageVersion})")
 
+		if strict and not_installed:
+			missing_products[depot_id] = not_installed
+			state = State.CRITICAL
+
 	message = ""
 	for depot_id in depot_ids:
-		if depot_id in action_request_on_client or depot_id in product_problems_on_client or depot_id in product_version_problems_on_client:
+		if (depot_id in action_request_on_client
+			or depot_id in product_problems_on_client
+			or depot_id in product_version_problems_on_client
+			or missing_products.get(depot_id)):
 			message += f"\nResult for Depot: '{depot_id}':\n"
 		else:
 			continue
@@ -119,6 +138,9 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 		if depot_id in product_version_problems_on_client:
 			for product, clients in product_version_problems_on_client[depot_id].items():
 				message += f"For product '{product}' version difference problems found on {len(clients)} clients!\n"
+		if missing_products.get(depot_id):
+			for product in missing_products[depot_id]:
+				message += f"Product '{product}' not found on any client assigned to depot {depot_id}."
 
 	if not verbose:
 		if state == State.OK:
@@ -157,5 +179,4 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 		else:
 			products = ",".join(product_ids)
 			message = f"No Problem found for productIds '{products}'"
-
 	return generate_response(state, message)

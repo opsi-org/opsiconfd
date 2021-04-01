@@ -63,7 +63,8 @@ async def monitoring(request: Request):
 				host_group_ids=params.get("hostGroupIds", []),
 				depot_ids=params.get("depotIds", []),
 				exclude=params.get("exclude", []),
-				verbose=params.get("verbose", False)
+				verbose=params.get("verbose", False),
+				strict=params.get("strict", False)
 			)
 		elif task == "checkDepotSyncStatus":
 			response = check_depot_sync_status(

@@ -11,7 +11,7 @@ from OPSI.Backend.Backend import temporaryBackendOptions
 from opsiconfd.logging import logger
 from .utils import State, generate_response
 
-def check_product_status(backend, product_ids=[], product_groups=[], host_group_ids=[], depot_ids=[], exclude=[], verbose=False, strict=False): # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+def check_product_status(backend, product_ids=[], product_groups=[], host_group_ids=[], depot_ids=[], exclude=[], verbose=False, strict=False): # pylint: disable=line-too-long, dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
 	if not product_ids:
 		product_ids = set()
 		for product in backend._executeMethod(methodName="objectToGroup_getIdents", groupType='ProductGroup', groupId=product_groups): # pylint: disable=protected-access
@@ -71,7 +71,7 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 
 	for depot_id in depot_ids:
 
-		poducts_on_client = backend._executeMethod(
+		poducts_on_client = backend._executeMethod( # pylint: disable=protected-access
 			methodName="productOnClient_getObjects",
 			productId=product_ids,
 			clientId=clients_on_depot.get(depot_id, None)

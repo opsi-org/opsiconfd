@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+application main
+"""
 
 import os
 import asyncio
@@ -35,6 +38,7 @@ from .jsonrpcinterface import jsonrpc_interface_setup
 from .admininterface import admin_interface_setup
 from .redisinterface import redis_interface_setup
 from .monitoring.monitoring import monitoring_setup
+from .status import status_setup
 
 app = FastAPI()
 
@@ -199,7 +203,9 @@ def application_setup():
 	#    ExceptionMiddleware
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-	app.add_middleware(SessionMiddleware, public_path=["/boot", "/metrics/grafana", "/ws/test", "/ssl/opsi-ca-cert.pem"])
+	app.add_middleware(SessionMiddleware, public_path=[
+		"/boot", "/metrics/grafana", "/ws/test", "/ssl/opsi-ca-cert.pem", "/status"
+	])
 	#app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	app.add_middleware(BaseMiddleware)
@@ -217,4 +223,4 @@ def application_setup():
 	monitoring_setup(app)
 	webdav_setup(app)
 	metrics_setup(app)
-
+	status_setup(app)

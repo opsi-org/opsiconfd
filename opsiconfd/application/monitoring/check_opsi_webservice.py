@@ -6,7 +6,7 @@
 # License: AGPL-3.0
 
 import msgpack
-
+import orjson
 from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
@@ -29,10 +29,14 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 	redis_client = await get_redis_client()
 
 	try:
-		rpc_list = decode_redis_result(await redis_client.lrange("opsiconfd:stats:rpcs", 0, 9999))
+		rpc_list = await redis_client.lrange("opsiconfd:stats:rpcs", 0, 9999)
 		error_count = 0
 		for rpc in rpc_list:
-			rpc = msgpack.loads(rpc)
+			try:
+				rpc = msgpack.loads(rpc)
+			except msgpack.exceptions.ExtraData:
+				# Was json encoded before, can be removed in the future
+				rpc = orjson.loads(rpc)  # pylint: disable=c-extension-no-member
 			if rpc["error"]:
 				error_count += 1
 		if error_count == 0:
@@ -55,7 +59,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 				redis_result = 0.0
 			cpu += float(redis_result[1])
 
-		cpu_avg = cpu/len(workers)*100
+		cpu_avg = cpu/len(workers)
 
 		if cpu_avg > cpu_thresholds.get("critical"):
 			state = State.CRITICAL
@@ -66,7 +70,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 			message.append(f'CPU-Usage over {cpu_thresholds.get("warning")}%')
 
 		if state == State.OK:
-			message.append("Opsi Webservice has no Problem :)")
+			message.append("Opsi Webservice has no Problem.")
 
 		message = " ".join(message)
 
@@ -81,7 +85,6 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 				f"cpu={cpu_avg};;;0;100 "
 			]
 			return generate_response(state, message, "".join(performance))
-
 		return generate_response(state, message)
 
 	except Exception as err: # pylint: disable=broad-except

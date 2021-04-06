@@ -343,47 +343,57 @@ def test_check_product_status_short(config, product, expected_result):
 
 
 test_data = [
-	("pytest-lost-client.uib.local", {
+	("pytest-lost-client.uib.local", None, {
 		'message': (f"WARNING: opsi-client pytest-lost-client.uib.local has not been seen, since {DAYS} days. "
 			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "),
 		'state': 1
 	}),
-	("pytest-lost-client-fp.uib.local", {
+	("pytest-lost-client-fp.uib.local", None, {
 		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp.uib.local has not been seen, since {DAYS} days. "
 			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
 			"Products: 'pytest-prod-2' are in failed state. "),
 		'state': 2
 	}),
-	("pytest-lost-client-fp2.uib.local", {
+	("pytest-lost-client-fp2.uib.local", None, {
 		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp2.uib.local has not been seen, since {DAYS} days. "
 			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
 			"Products: 'pytest-prod-2' are in failed state. "
 			"Actions set for products: 'pytest-prod-1 (setup)'."),
 		'state': 2
 	}),
-	("pytest-client-1.uib.local", {
+	("pytest-client-1.uib.local", None, {
 		'message': ("WARNING: opsi-client pytest-client-1.uib.local has been seen today. "
 			"Actions set for products: 'pytest-prod-1 (setup)'."),
 		'state': 1
 	}),
-	("pytest-client-2.uib.local", {
+	("pytest-client-2.uib.local", None, {
 		'message': ("CRITICAL: opsi-client pytest-client-2.uib.local has been seen today. "
 			"Products: 'pytest-prod-2' are in failed state. "),
 		'state': 2
 	}),
-	("pytest-client-3.uib.local", {
+	("pytest-client-3.uib.local", None, {
 		'message': ("OK: opsi-client pytest-client-3.uib.local has been seen today. "
 			"No failed products and no actions set for client"),
 		'state': 0
 	}),
-	("this-is-not-a-client.uib.local", {
+	("this-is-not-a-client.uib.local", None, {
 		'message': "UNKNOWN: opsi-client: 'this-is-not-a-client.uib.local' not found",
 		'state': 3
 	}),
+	("pytest-client-1.uib.local", ["pytest-prod-1"], {
+		'message': ("OK: opsi-client pytest-client-1.uib.local has been seen today. "
+			"No failed products and no actions set for client"),
+		'state': 0
+	}),
+	("pytest-client-2.uib.local", ["pytest-prod-2"], {
+		'message': ("OK: opsi-client pytest-client-2.uib.local has been seen today. "
+			"No failed products and no actions set for client"),
+		'state': 0
+	})
 
 ]
-@pytest.mark.parametrize("client, expected_result", test_data)
-def test_check_client_status(config, client, expected_result):
+@pytest.mark.parametrize("client, exclude, expected_result", test_data)
+def test_check_client_status(config, client, exclude, expected_result):
 
 	data = json.dumps({
 		'task': 'checkClientStatus',
@@ -393,6 +403,7 @@ def test_check_client_status(config, client, expected_result):
 			'opsiHost': 'localhost',
 			'user': TEST_USER,
 			'clientId': client,
+			'exclude': exclude,
 			'password': TEST_PW,
 			'port': 4447
 			}

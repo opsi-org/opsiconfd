@@ -104,6 +104,9 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 
 	manager_pid = get_manager_pid()
 
+	if config.action in ("restart", "status"):
+		os.execvp("systemctl", ["systemctl", "--no-pager", "--lines", "0", config.action, "opsiconfd"])
+
 	if config.action in ("reload", "stop"):
 		# Send signal to manager process only, not to workers!
 		send_signal = signal.SIGINT if config.action == "stop" else signal.SIGHUP

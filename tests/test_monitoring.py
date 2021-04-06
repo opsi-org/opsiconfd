@@ -5,23 +5,27 @@
 # All rights reserved.
 # License: AGPL-3.0
 
-from opsiconfd.application.monitoring.utils import get_workers
-from opsiconfd.utils import decode_redis_result
+'''
+Tests for the opsiconfd monitoring module
+using https requests
+'''
+
 import sys
 import json
 import os
-from datetime import datetime, timedelta
 import socket
+import asyncio
+from datetime import datetime, timedelta
+
 import pytest
 import urllib3
 import requests
-
-import asyncio
 import aredis
 
-# from MySQLdb import _mysql
 import MySQLdb
 
+from opsiconfd.application.monitoring.utils import get_workers
+from opsiconfd.utils import decode_redis_result
 from .utils import clean_redis
 
 TEST_USER = "adminuser"
@@ -576,6 +580,41 @@ test_data = [
 	(
 		None,
 		None,
+		True,
+		{
+			"message": 'OK: Opsi Webservice has no Problem. | requests=0.0;;;0; rpcs=4;;;0; rpcerror=0;;;0; sessions=3;;;0; threads=21.0;;;0; virtmem=21.0;;;0; cpu=0.983333333333333;;;0;100 ',
+			"state": 0
+		}
+	)
+]
+@pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata, expected_result", test_data)
+def test_check_opsi_webservice_perfdata(config, cpu_thresholds, error_thresholds, perfdata, expected_result): # pylint: disable=too-many-arguments
+
+	data = json.dumps({
+		'task': 'checkOpsiWebservice',
+		'param': {
+			'task': 'checkOpsiWebservice',
+			'http': False,
+			'opsiHost': 'localhost',
+			'user': TEST_USER,
+			'cpu_thresholds': cpu_thresholds,
+			'error_thresholds': error_thresholds,
+			'perfdata': perfdata,
+			'password': TEST_PW,
+			'port': 4447
+			}
+	})
+
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	assert request.status_code == 200
+	assert request.json().get("state") ==  0
+	assert request.json().get("message").startswith('OK: Opsi Webservice has no Problem. |')
+
+
+test_data = [
+	(
+		None,
+		None,
 		False,
 		100,
 		{
@@ -644,5 +683,3 @@ async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_threshold
 	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
 	assert request.status_code == 200
 	assert request.json() == expected_result
-
-

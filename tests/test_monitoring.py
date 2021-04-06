@@ -5,6 +5,8 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+from opsiconfd.application.monitoring.utils import get_workers
+from opsiconfd.utils import decode_redis_result
 import sys
 import json
 import os
@@ -13,6 +15,9 @@ import socket
 import pytest
 import urllib3
 import requests
+
+import asyncio
+import aredis
 
 # from MySQLdb import _mysql
 import MySQLdb
@@ -565,3 +570,79 @@ def test_check_opsi_webservice(config, cpu_thresholds, error_thresholds, perfdat
 	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
 	assert request.status_code == 200
 	assert request.json() == expected_result
+
+
+test_data = [
+	(
+		None,
+		None,
+		False,
+		100,
+		{
+			"message": 'CRITICAL: CPU-Usage over 80%',
+			"state": 2
+		}
+	),
+	(
+		{"critical": 60, "warning": 50},
+		None,
+		False,
+		100,
+		{
+			"message": 'CRITICAL: CPU-Usage over 60%',
+			"state": 2
+		}
+	),
+	(
+		{"critical": 99, "warning": 55},
+		None,
+		False,
+		100,
+		{
+			"message": 'WARNING: CPU-Usage over 55%',
+			"state": 1
+		}
+	)
+]
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result", test_data)
+async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_thresholds, perfdata, cpu_value,expected_result): # pylint: disable=too-many-arguments
+
+	data = json.dumps({
+		'task': 'checkOpsiWebservice',
+		'param': {
+			'task': 'checkOpsiWebservice',
+			'http': False,
+			'opsiHost': 'localhost',
+			'user': TEST_USER,
+			'cpu': cpu_thresholds,
+			'errors': error_thresholds,
+			'perfdata': perfdata,
+			'password': TEST_PW,
+			'port': 4447
+			}
+	})
+
+	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+
+	workers = await get_workers(redis_client)
+	count = 0
+	while True:
+		count += 1
+		await asyncio.sleep(0.1)
+		for worker in workers:
+			await redis_client.execute_command(f"TS.ADD opsiconfd:stats:worker:avg_cpu_percent:{worker} * {cpu_value} ON_DUPLICATE SUM")
+		if count > 650:
+			break
+
+	await asyncio.sleep(0.5)
+
+	# for worker in workers:
+	value = await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_cpu_percent:{workers[0]}:minute")
+	print(decode_redis_result(value)[1])
+
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	assert request.status_code == 200
+	assert request.json() == expected_result
+
+

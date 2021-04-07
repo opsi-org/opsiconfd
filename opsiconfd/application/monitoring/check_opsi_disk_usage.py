@@ -5,13 +5,16 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+"""
+check opsi disk usage
+"""
+
 import os
 
 from OPSI.Types import forceList
 from OPSI.System import getDiskSpaceUsage
 
 from opsiconfd.config import config
-
 from .utils import State, generate_response
 
 
@@ -51,7 +54,8 @@ def check_opsi_disk_usage(thresholds={}, opsiresource=None): # pylint: disable=d
 					resource = u'/' + resource
 
 				info = getDiskSpaceUsage(path)
-				results[resource] = info
+				if info:
+					results[resource] = info
 	except Exception as err: # pylint: disable=broad-except
 		message.append("Not able to check DiskUsage. Error: '{}'".format(err))
 		return generate_response(State.UNKNOWN, message)

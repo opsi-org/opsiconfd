@@ -48,12 +48,8 @@ def check_opsi_disk_usage(thresholds={}, opsiresource=None): # pylint: disable=d
 
 	try:
 		for resource in resources:
-			path = config.static_dir
-			if os.path.isdir(path):
-				if not resource.startswith('/'):
-					resource = u'/' + resource
-
-				info = getDiskSpaceUsage(path)
+			if os.path.isdir(resource):
+				info = getDiskSpaceUsage(resource)
 				if info:
 					results[resource] = info
 	except Exception as err: # pylint: disable=broad-except

@@ -10,6 +10,7 @@ import pytest
 import socket
 import aredis
 
+import sys
 
 
 TEST_USER = "adminuser"
@@ -17,6 +18,12 @@ TEST_PW = "adminuser"
 HOSTNAME = socket.gethostname()
 LOCAL_IP = socket.gethostbyname(HOSTNAME)
 OPSI_SESSION_KEY = "opsiconfd:sessions"
+
+@pytest.fixture(name="config")
+def config(monkeypatch):
+	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
+	from opsiconfd.config import config # pylint: disable=import-outside-toplevel, redefined-outer-name
+	return config
 
 @pytest.fixture(autouse=True)
 @pytest.mark.asyncio

@@ -6,11 +6,6 @@ category = "main"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "aiohttp"
 version = "3.7.4.post0"
@@ -20,20 +15,15 @@ optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-async_timeout = ">=3.0,<4.0"
+async-timeout = ">=3.0,<4.0"
 attrs = ">=17.3.0"
 chardet = ">=2.0,<5.0"
 multidict = ">=4.5,<7.0"
-typing_extensions = ">=3.6.5"
+typing-extensions = ">=3.6.5"
 yarl = ">=1.0,<2.0"
 
 [package.extras]
 speedups = ["aiodns", "brotlipy", "cchardet"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "aiologger"
@@ -46,11 +36,6 @@ python-versions = ">=3.6"
 [package.extras]
 aiofiles = ["aiofiles (==0.4.0)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "aiozeroconf"
 version = "0.1.8"
@@ -62,11 +47,6 @@ python-versions = "*"
 [package.dependencies]
 netifaces = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "altgraph"
 version = "0.17"
@@ -75,11 +55,6 @@ category = "dev"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "aredis"
 version = "1.1.8"
@@ -87,11 +62,6 @@ description = "Python async client for Redis key-value store"
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "astroid"
@@ -106,11 +76,6 @@ lazy-object-proxy = ">=1.4.0"
 typed-ast = {version = ">=1.4.0,<1.5", markers = "implementation_name == \"cpython\" and python_version < \"3.8\""}
 wrapt = ">=1.11,<1.13"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "async-timeout"
 version = "3.0.1"
@@ -119,11 +84,6 @@ category = "main"
 optional = false
 python-versions = ">=3.5.3"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "atomicwrites"
 version = "1.4.0"
@@ -131,11 +91,6 @@ description = "Atomic file writes."
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "attrs"
@@ -150,11 +105,6 @@ dev = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", 
 docs = ["furo", "sphinx", "zope.interface"]
 tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.interface"]
 tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "automat"
@@ -171,11 +121,6 @@ six = "*"
 [package.extras]
 visualize = ["graphviz (>0.5.1)", "Twisted (>=16.1.1)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "beautifulsoup4"
 version = "4.9.3"
@@ -191,26 +136,16 @@ soupsieve = {version = ">1.2", markers = "python_version >= \"3.0\""}
 html5lib = ["html5lib"]
 lxml = ["lxml"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "bs4"
 version = "0.0.1"
-description = "Screen-scraping library"
+description = "Dummy package for Beautiful Soup"
 category = "dev"
 optional = false
 python-versions = "*"
 
 [package.dependencies]
 beautifulsoup4 = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "certifi"
@@ -219,11 +154,6 @@ description = "Python package for providing Mozilla's CA Bundle."
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "cffi"
@@ -236,11 +166,6 @@ python-versions = "*"
 [package.dependencies]
 pycparser = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "chardet"
 version = "4.0.0"
@@ -248,11 +173,6 @@ description = "Universal encoding detector for Python 2 and 3"
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "click"
@@ -262,11 +182,6 @@ category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "colorama"
 version = "0.4.4"
@@ -274,11 +189,6 @@ description = "Cross-platform colored terminal text."
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "colorlog"
@@ -291,11 +201,6 @@ python-versions = "*"
 [package.dependencies]
 colorama = {version = "*", markers = "sys_platform == \"win32\""}
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "configargparse"
 version = "1.4"
@@ -307,11 +212,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 [package.extras]
 yaml = ["pyyaml"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "constantly"
 version = "15.1.0"
@@ -319,11 +219,6 @@ description = "Symbolic constants in Python"
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "coverage"
@@ -335,11 +230,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 
 [package.extras]
 toml = ["toml"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "cryptography"
@@ -360,11 +250,6 @@ sdist = ["setuptools-rust (>=0.11.4)"]
 ssh = ["bcrypt (>=3.1.5)"]
 test = ["pytest (>=6.0)", "pytest-cov", "pytest-subtests", "pytest-xdist", "pretend", "iso8601", "pytz", "hypothesis (>=1.11.4,!=3.79.2)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "defusedxml"
 version = "0.7.1"
@@ -373,11 +258,6 @@ category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "distro"
 version = "1.5.0"
@@ -385,11 +265,6 @@ description = "Distro - an OS platform information API"
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "dnspython"
@@ -402,11 +277,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 [package.extras]
 DNSSEC = ["pycryptodome", "ecdsa (>=0.13)"]
 IDNA = ["idna (>=2.1)"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "fastapi"
@@ -426,11 +296,6 @@ dev = ["pyjwt", "passlib", "autoflake", "flake8", "uvicorn", "graphene"]
 doc = ["mkdocs", "mkdocs-material", "markdown-include"]
 test = ["pytest (>=4.0.0)", "pytest-cov", "mypy", "black", "isort", "requests", "email-validator", "sqlalchemy", "peewee", "databases", "orjson", "async-exit-stack", "async-generator", "python-multipart", "aiofiles", "ujson", "flask"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "future"
 version = "0.18.2"
@@ -438,11 +303,6 @@ description = "Clean single-source support for Python 3 and 2"
 category = "main"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "graphviz"
@@ -456,11 +316,6 @@ python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*"
 dev = ["tox (>=3)", "flake8", "pep8-naming", "wheel", "twine"]
 docs = ["sphinx (>=1.8)", "sphinx-rtd-theme"]
 test = ["mock (>=3)", "pytest (>=4)", "pytest-mock (>=2)", "pytest-cov"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "gunicorn"
@@ -476,11 +331,6 @@ gevent = ["gevent (>=1.4.0)"]
 setproctitle = ["setproctitle"]
 tornado = ["tornado (>=0.2)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "guppy3"
 version = "3.1.0"
@@ -489,11 +339,6 @@ category = "main"
 optional = false
 python-versions = ">=3.5"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "h11"
 version = "0.12.0"
@@ -501,11 +346,6 @@ description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
 category = "main"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "hyperlink"
@@ -518,11 +358,6 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 [package.dependencies]
 idna = ">=2.5"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "idna"
 version = "2.10"
@@ -530,11 +365,6 @@ description = "Internationalized Domain Names in Applications (IDNA)"
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "importlib-metadata"
@@ -552,11 +382,6 @@ zipp = ">=0.5"
 docs = ["sphinx", "jaraco.packaging (>=8.2)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "packaging", "pep517", "pyfakefs", "flufl.flake8", "pytest-black (>=0.3.7)", "pytest-mypy", "importlib-resources (>=1.3)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "incremental"
 version = "21.3.0"
@@ -568,11 +393,6 @@ python-versions = "*"
 [package.extras]
 scripts = ["click (>=6.0)", "twisted (>=16.4.0)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "isort"
 version = "5.8.0"
@@ -582,14 +402,9 @@ optional = false
 python-versions = ">=3.6,<4.0"
 
 [package.extras]
-colors = ["colorama (>=0.4.3,<0.5.0)"]
-requirements_deprecated_finder = ["pip-api", "pipreqs"]
 pipfile_deprecated_finder = ["pipreqs", "requirementslib"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
+requirements_deprecated_finder = ["pipreqs", "pip-api"]
+colors = ["colorama (>=0.4.3,<0.5.0)"]
 
 [[package]]
 name = "itsdangerous"
@@ -598,11 +413,6 @@ description = "Various helpers to pass data to untrusted environments and back."
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "jinja2"
@@ -618,11 +428,6 @@ MarkupSafe = ">=0.23"
 [package.extras]
 i18n = ["Babel (>=0.8)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "json5"
 version = "0.9.5"
@@ -634,11 +439,6 @@ python-versions = "*"
 [package.extras]
 dev = ["hypothesis"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "lazy-object-proxy"
 version = "1.6.0"
@@ -646,11 +446,6 @@ description = "A fast and thorough lazy object proxy."
 category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "ldap3"
@@ -662,11 +457,6 @@ python-versions = "*"
 
 [package.dependencies]
 pyasn1 = ">=0.4.6"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "lz4"
@@ -681,11 +471,6 @@ docs = ["sphinx (>=1.6.0)", "sphinx-bootstrap-theme"]
 flake8 = ["flake8"]
 tests = ["pytest (!=3.3.0)", "psutil", "pytest-cov"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "macholib"
 version = "1.14"
@@ -697,11 +482,6 @@ python-versions = "*"
 [package.dependencies]
 altgraph = ">=0.15"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "markupsafe"
 version = "1.1.1"
@@ -710,11 +490,6 @@ category = "main"
 optional = false
 python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "mccabe"
 version = "0.6.1"
@@ -722,11 +497,6 @@ description = "McCabe checker, plugin for flake8"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "mock"
@@ -741,11 +511,6 @@ build = ["twine", "wheel", "blurb"]
 docs = ["sphinx"]
 test = ["pytest (<5.4)", "pytest-cov"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "more-itertools"
 version = "8.7.0"
@@ -753,11 +518,6 @@ description = "More routines for operating on iterables, beyond itertools"
 category = "dev"
 optional = false
 python-versions = ">=3.5"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "msgpack"
@@ -767,11 +527,6 @@ category = "main"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "multidict"
 version = "5.1.0"
@@ -779,11 +534,6 @@ description = "multidict implementation"
 category = "main"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "mysqlclient"
@@ -793,11 +543,6 @@ category = "main"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "netifaces"
 version = "0.10.9"
@@ -805,11 +550,6 @@ description = "Portable network interface information."
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "objgraph"
@@ -821,11 +561,6 @@ python-versions = "*"
 
 [package.dependencies]
 graphviz = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "opsi-dev-tools"
@@ -861,11 +596,6 @@ category = "main"
 optional = false
 python-versions = ">=3.6"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "packaging"
 version = "20.9"
@@ -877,11 +607,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 [package.dependencies]
 pyparsing = ">=2.0.2"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pefile"
 version = "2019.4.18"
@@ -892,11 +617,6 @@ python-versions = "*"
 
 [package.dependencies]
 future = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pluggy"
@@ -912,11 +632,6 @@ importlib-metadata = {version = ">=0.12", markers = "python_version < \"3.8\""}
 [package.extras]
 dev = ["pre-commit", "tox"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "psutil"
 version = "5.8.0"
@@ -928,11 +643,6 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 [package.extras]
 test = ["ipaddress", "mock", "unittest2", "enum34", "pywin32", "wmi"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "py"
 version = "1.10.0"
@@ -941,11 +651,6 @@ category = "dev"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pyasn1"
 version = "0.4.8"
@@ -953,11 +658,6 @@ description = "ASN.1 types and codecs"
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pyasn1-modules"
@@ -970,11 +670,6 @@ python-versions = "*"
 [package.dependencies]
 pyasn1 = ">=0.4.6,<0.5.0"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pycparser"
 version = "2.20"
@@ -983,11 +678,6 @@ category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pycryptodome"
 version = "3.10.1"
@@ -995,11 +685,6 @@ description = "Cryptographic library for Python"
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pydantic"
@@ -1016,11 +701,6 @@ typing-extensions = ">=3.7.4.3"
 dotenv = ["python-dotenv (>=0.10.4)"]
 email = ["email-validator (>=1.0.3)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pyhamcrest"
 version = "2.0.2"
@@ -1028,11 +708,6 @@ description = "Hamcrest framework for matcher objects"
 category = "main"
 optional = false
 python-versions = ">=3.5"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pyinstaller"
@@ -1054,11 +729,6 @@ pywin32-ctypes = {version = ">=0.2.0", markers = "sys_platform == \"win32\""}
 encryption = ["tinyaes (>=1.0.0)"]
 hook_testing = ["pytest (>=2.7.3)", "execnet (>=1.5.0)", "psutil"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pyinstaller-hooks-contrib"
 version = "2021.1"
@@ -1066,11 +736,6 @@ description = "Community maintained hooks for PyInstaller"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pylint"
@@ -1090,11 +755,6 @@ toml = ">=0.7.1"
 [package.extras]
 docs = ["sphinx (==3.5.1)", "python-docs-theme (==2020.12)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pympler"
 version = "0.9"
@@ -1102,11 +762,6 @@ description = "A development tool to measure, monitor and analyze the memory beh
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pyopenssl"
@@ -1124,11 +779,6 @@ six = ">=1.5.2"
 docs = ["sphinx", "sphinx-rtd-theme"]
 test = ["flaky", "pretend", "pytest (>=3.0.1)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pyparsing"
 version = "2.4.7"
@@ -1136,11 +786,6 @@ description = "Python parsing module"
 category = "dev"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pypi-simple"
@@ -1155,11 +800,6 @@ beautifulsoup4 = ">=4.5,<5.0"
 packaging = ">=16"
 requests = ">=2.5,<3.0"
 six = ">=1.4,<2.0"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pytest"
@@ -1184,11 +824,6 @@ wcwidth = "*"
 checkqa-mypy = ["mypy (==v0.761)"]
 testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xmlschema"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pytest-asyncio"
 version = "0.14.0"
@@ -1202,11 +837,6 @@ pytest = ">=5.4.0"
 
 [package.extras]
 testing = ["async-generator (>=1.3)", "coverage", "hypothesis (>=5.7.1)"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pytest-cov"
@@ -1223,11 +853,6 @@ pytest = ">=4.6"
 [package.extras]
 testing = ["fields", "hunter", "process-tests (==2.0.2)", "six", "pytest-xdist", "virtualenv"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "python-gettext"
 version = "4.0"
@@ -1235,11 +860,6 @@ description = "Python Gettext po to mo file compiler."
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "python-magic"
@@ -1249,14 +869,9 @@ category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "python-opsi"
-version = "4.2.0.175"
+version = "4.2.0.176"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -1295,11 +910,6 @@ category = "main"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pywin32"
 version = "227"
@@ -1307,11 +917,6 @@ description = "Python for Window Extensions"
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "pywin32-ctypes"
@@ -1321,11 +926,6 @@ category = "dev"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "pyyaml"
 version = "5.4.1"
@@ -1334,11 +934,6 @@ category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "rarfile"
 version = "4.0"
@@ -1346,11 +941,6 @@ description = "RAR archive reader for Python"
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "redis"
@@ -1362,11 +952,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [package.extras]
 hiredis = ["hiredis (>=0.1.3)"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "requests"
@@ -1386,11 +971,6 @@ urllib3 = ">=1.21.1,<1.27"
 security = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)"]
 socks = ["PySocks (>=1.5.6,!=1.5.7)", "win-inet-pton"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "ruyaml"
 version = "0.19.2"
@@ -1404,11 +984,6 @@ distro = ">=1.3.0"
 
 [package.extras]
 docs = ["ryd", "sphinx"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "service-identity"
@@ -1430,11 +1005,6 @@ docs = ["sphinx"]
 idna = ["idna"]
 tests = ["coverage (>=4.2.0)", "pytest"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "six"
 version = "1.15.0"
@@ -1443,11 +1013,6 @@ category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "soupsieve"
 version = "2.2.1"
@@ -1455,11 +1020,6 @@ description = "A modern CSS selector implementation for Beautiful Soup."
 category = "dev"
 optional = false
 python-versions = ">=3.6"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "sqlalchemy"
@@ -1481,11 +1041,6 @@ postgresql_psycopg2binary = ["psycopg2-binary"]
 postgresql_psycopg2cffi = ["psycopg2cffi"]
 pymysql = ["pymysql (<1)", "pymysql"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "starlette"
 version = "0.13.2"
@@ -1497,11 +1052,6 @@ python-versions = ">=3.6"
 [package.extras]
 full = ["aiofiles", "graphene", "itsdangerous", "jinja2", "python-multipart", "pyyaml", "requests", "ujson"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "toml"
 version = "0.10.2"
@@ -1509,11 +1059,6 @@ description = "Python Library for Tom's Obvious, Minimal Language"
 category = "dev"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "twisted"
@@ -1528,11 +1073,8 @@ attrs = ">=19.2.0"
 Automat = ">=0.3.0"
 constantly = ">=15.1"
 hyperlink = ">=17.1.1"
-idna = {version = ">=0.6,<2.3 || >2.3", optional = true, markers = "extra == \"tls\""}
 incremental = ">=16.10.1"
 PyHamcrest = ">=1.9.0,<1.10.0 || >1.10.0"
-pyopenssl = {version = ">=16.0.0", optional = true, markers = "extra == \"tls\""}
-service_identity = {version = ">=18.1.0", optional = true, markers = "extra == \"tls\""}
 "zope.interface" = ">=4.4.2"
 
 [package.extras]
@@ -1547,11 +1089,6 @@ soap = ["soappy"]
 tls = ["pyopenssl (>=16.0.0)", "service_identity (>=18.1.0)", "idna (>=0.6,!=2.3)"]
 windows_platform = ["pywin32 (!=226)", "pyopenssl (>=16.0.0)", "service_identity (>=18.1.0)", "idna (>=0.6,!=2.3)", "pyasn1", "cryptography (>=2.5)", "appdirs (>=1.4.0)", "bcrypt (>=3.0.0)", "soappy", "pyserial (>=3.0)", "h2 (>=3.0,<4.0)", "priority (>=1.1.0,<2.0)", "pywin32 (!=226)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "typed-ast"
 version = "1.4.2"
@@ -1560,11 +1097,6 @@ category = "dev"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "typing-extensions"
 version = "3.7.4.3"
@@ -1572,11 +1104,6 @@ description = "Backported and Experimental Type Hints for Python 3.5+"
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "urllib3"
@@ -1590,11 +1117,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "ipaddress"]
 socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 brotli = ["brotlipy (>=0.6.0)"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "uvicorn"
@@ -1612,11 +1134,6 @@ typing-extensions = {version = "*", markers = "python_version < \"3.8\""}
 [package.extras]
 standard = ["websockets (>=8.0.0,<9.0.0)", "watchgod (>=0.6)", "python-dotenv (>=0.13)", "PyYAML (>=5.1)", "httptools (>=0.1.0,<0.2.0)", "uvloop (>=0.14.0,!=0.15.0,!=0.15.1)", "colorama (>=0.4)"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "uvloop"
 version = "0.14.0"
@@ -1624,11 +1141,6 @@ description = "Fast implementation of asyncio event loop on top of libuv"
 category = "main"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "virustotal3"
@@ -1641,11 +1153,6 @@ python-versions = "*"
 [package.dependencies]
 requests = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "wcwidth"
 version = "0.2.5"
@@ -1654,11 +1161,6 @@ category = "dev"
 optional = false
 python-versions = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "websockets"
 version = "8.1"
@@ -1666,11 +1168,6 @@ description = "An implementation of the WebSocket Protocol (RFC 6455 & 7692)"
 category = "main"
 optional = false
 python-versions = ">=3.6.1"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "wmi"
@@ -1690,11 +1187,6 @@ docs = ["sphinx"]
 package = ["wheel", "twine"]
 tests = ["pytest"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "wrapt"
 version = "1.12.1"
@@ -1702,11 +1194,6 @@ description = "Module for decorators, wrappers and monkey patching."
 category = "dev"
 optional = false
 python-versions = "*"
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "wsgidav"
@@ -1723,11 +1210,6 @@ json5 = "*"
 PyYAML = "*"
 six = "*"
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "yappi"
 version = "1.3.2"
@@ -1738,11 +1220,6 @@ python-versions = "*"
 
 [package.extras]
 test = ["gevent (>=20.6.2)"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [[package]]
 name = "yarl"
@@ -1755,12 +1232,7 @@ python-versions = ">=3.6"
 [package.dependencies]
 idna = ">=2.0"
 multidict = ">=4.0"
-typing_extensions = {version = ">=3.7.4", markers = "python_version < \"3.8\""}
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
+typing-extensions = {version = ">=3.7.4", markers = "python_version < \"3.8\""}
 
 [[package]]
 name = "zipp"
@@ -1774,11 +1246,6 @@ python-versions = ">=3.6"
 docs = ["sphinx", "jaraco.packaging (>=8.2)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pytest-cov", "pytest-enabler", "jaraco.itertools", "func-timeout", "pytest-black (>=0.3.7)", "pytest-mypy"]
 
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
-
 [[package]]
 name = "zope.interface"
 version = "5.3.0"
@@ -1791,11 +1258,6 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 docs = ["sphinx", "repoze.sphinx.autointerface"]
 test = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
-
-[package.source]
-type = "legacy"
-url = "http://pypi.uib.gmbh:8080/simple"
-reference = "uibpypi"
 
 [metadata]
 lock-version = "1.1"
@@ -2146,7 +1608,10 @@ lazy-object-proxy = [
     {file = "lazy_object_proxy-1.6.0-cp39-cp39-win_amd64.whl", hash = "sha256:f5144c75445ae3ca2057faac03fda5a902eff196702b0a24daf1d6ce0650514b"},
 ]
 ldap3 = [
+    {file = "ldap3-2.9-py2.6.egg", hash = "sha256:4139c91f0eef9782df7b77c8cbc6243086affcb6a8a249b768a9658438e5da59"},
+    {file = "ldap3-2.9-py2.7.egg", hash = "sha256:afc6fc0d01f02af82cd7bfabd3bbfd5dc96a6ae91e97db0a2dab8a0f1b436056"},
     {file = "ldap3-2.9-py2.py3-none-any.whl", hash = "sha256:c1df41d89459be6f304e0ceec4b00fdea533dbbcd83c802b1272dcdb94620b57"},
+    {file = "ldap3-2.9-py3.9.egg", hash = "sha256:8c949edbad2be8a03e719ba48bd6779f327ec156929562814b3e84ab56889c8c"},
     {file = "ldap3-2.9.tar.gz", hash = "sha256:18c3ee656a6775b9b0d60f7c6c5b094d878d1d90fc03d56731039f0a4b546a91"},
 ]
 lz4 = [
@@ -2356,7 +1821,7 @@ objgraph = [
     {file = "objgraph-3.5.0.tar.gz", hash = "sha256:4752ca5bcc0e0512e41b8cc4d2780ac2fd3b3eabd03b7e950a5594c06203dfc4"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.0.62.tar.gz", hash = "md5:a3544f21e6f4f5dca75a38c1755f2183"},
+    {file = "opsi-dev-tools-1.0.62.tar.gz", hash = "md5:7dac9674397a5fdb7dfdb2bc0c651d75"},
     {file = "opsi_dev_tools-1.0.62-py3-none-any.whl", hash = "md5:b5b0016b639dd44d163eca6175315036"},
 ]
 orjson = [
@@ -2422,12 +1887,34 @@ py = [
     {file = "py-1.10.0.tar.gz", hash = "sha256:21b81bda15b66ef5e1a777a21c4dcd9c20ad3efd0b3f817e7a809035269e1bd3"},
 ]
 pyasn1 = [
+    {file = "pyasn1-0.4.8-py2.4.egg", hash = "sha256:fec3e9d8e36808a28efb59b489e4528c10ad0f480e57dcc32b4de5c9d8c9fdf3"},
+    {file = "pyasn1-0.4.8-py2.5.egg", hash = "sha256:0458773cfe65b153891ac249bcf1b5f8f320b7c2ce462151f8fa74de8934becf"},
+    {file = "pyasn1-0.4.8-py2.6.egg", hash = "sha256:5c9414dcfede6e441f7e8f81b43b34e834731003427e5b09e4e00e3172a10f00"},
+    {file = "pyasn1-0.4.8-py2.7.egg", hash = "sha256:6e7545f1a61025a4e58bb336952c5061697da694db1cae97b116e9c46abcf7c8"},
     {file = "pyasn1-0.4.8-py2.py3-none-any.whl", hash = "sha256:39c7e2ec30515947ff4e87fb6f456dfc6e84857d34be479c9d4a4ba4bf46aa5d"},
+    {file = "pyasn1-0.4.8-py3.1.egg", hash = "sha256:78fa6da68ed2727915c4767bb386ab32cdba863caa7dbe473eaae45f9959da86"},
+    {file = "pyasn1-0.4.8-py3.2.egg", hash = "sha256:08c3c53b75eaa48d71cf8c710312316392ed40899cb34710d092e96745a358b7"},
+    {file = "pyasn1-0.4.8-py3.3.egg", hash = "sha256:03840c999ba71680a131cfaee6fab142e1ed9bbd9c693e285cc6aca0d555e576"},
+    {file = "pyasn1-0.4.8-py3.4.egg", hash = "sha256:7ab8a544af125fb704feadb008c99a88805126fb525280b2270bb25cc1d78a12"},
+    {file = "pyasn1-0.4.8-py3.5.egg", hash = "sha256:e89bf84b5437b532b0803ba5c9a5e054d21fec423a89952a74f87fa2c9b7bce2"},
+    {file = "pyasn1-0.4.8-py3.6.egg", hash = "sha256:014c0e9976956a08139dc0712ae195324a75e142284d5f87f1a87ee1b068a359"},
+    {file = "pyasn1-0.4.8-py3.7.egg", hash = "sha256:99fcc3c8d804d1bc6d9a099921e39d827026409a58f2a720dcdb89374ea0c776"},
     {file = "pyasn1-0.4.8.tar.gz", hash = "sha256:aef77c9fb94a3ac588e87841208bdec464471d9871bd5050a287cc9a475cd0ba"},
 ]
 pyasn1-modules = [
     {file = "pyasn1-modules-0.2.8.tar.gz", hash = "sha256:905f84c712230b2c592c19470d3ca8d552de726050d1d1716282a1f6146be65e"},
+    {file = "pyasn1_modules-0.2.8-py2.4.egg", hash = "sha256:0fe1b68d1e486a1ed5473f1302bd991c1611d319bba158e98b106ff86e1d7199"},
+    {file = "pyasn1_modules-0.2.8-py2.5.egg", hash = "sha256:fe0644d9ab041506b62782e92b06b8c68cca799e1a9636ec398675459e031405"},
+    {file = "pyasn1_modules-0.2.8-py2.6.egg", hash = "sha256:a99324196732f53093a84c4369c996713eb8c89d360a496b599fb1a9c47fc3eb"},
+    {file = "pyasn1_modules-0.2.8-py2.7.egg", hash = "sha256:0845a5582f6a02bb3e1bde9ecfc4bfcae6ec3210dd270522fee602365430c3f8"},
     {file = "pyasn1_modules-0.2.8-py2.py3-none-any.whl", hash = "sha256:a50b808ffeb97cb3601dd25981f6b016cbb3d31fbf57a8b8a87428e6158d0c74"},
+    {file = "pyasn1_modules-0.2.8-py3.1.egg", hash = "sha256:f39edd8c4ecaa4556e989147ebf219227e2cd2e8a43c7e7fcb1f1c18c5fd6a3d"},
+    {file = "pyasn1_modules-0.2.8-py3.2.egg", hash = "sha256:b80486a6c77252ea3a3e9b1e360bc9cf28eaac41263d173c032581ad2f20fe45"},
+    {file = "pyasn1_modules-0.2.8-py3.3.egg", hash = "sha256:65cebbaffc913f4fe9e4808735c95ea22d7a7775646ab690518c056784bc21b4"},
+    {file = "pyasn1_modules-0.2.8-py3.4.egg", hash = "sha256:15b7c67fabc7fc240d87fb9aabf999cf82311a6d6fb2c70d00d3d0604878c811"},
+    {file = "pyasn1_modules-0.2.8-py3.5.egg", hash = "sha256:426edb7a5e8879f1ec54a1864f16b882c2837bfd06eee62f2c982315ee2473ed"},
+    {file = "pyasn1_modules-0.2.8-py3.6.egg", hash = "sha256:cbac4bc38d117f2a49aeedec4407d23e8866ea4ac27ff2cf7fb3e5b570df19e0"},
+    {file = "pyasn1_modules-0.2.8-py3.7.egg", hash = "sha256:c29a5e5cc7a3f05926aff34e097e84f8589cd790ce0ed41b67aed6857b26aafd"},
 ]
 pycparser = [
     {file = "pycparser-2.20-py2.py3-none-any.whl", hash = "sha256:7582ad22678f0fcd81102833f60ef8d0e57288b6b5fb00323d101be910e35705"},
@@ -2539,8 +2026,8 @@ python-magic = [
     {file = "python_magic-0.4.22-py2.py3-none-any.whl", hash = "sha256:8551e804c09a3398790bd9e392acb26554ae2609f29c72abb0b9dee9a5571eae"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.175.tar.gz", hash = "md5:eb9f6e187d966812b5f30068417ddd4b"},
-    {file = "python_opsi-4.2.0.175-py3-none-any.whl", hash = "md5:d3ffa50e900e87ae7ddf1c8c7c836d2d"},
+    {file = "python-opsi-4.2.0.176.tar.gz", hash = "md5:608c99765082022fb4f88c7b1877bd12"},
+    {file = "python_opsi-4.2.0.176-py3-none-any.whl", hash = "md5:ed6673556a976e4798a8d5ba96743846"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

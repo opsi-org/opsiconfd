@@ -190,7 +190,11 @@ def test_check_locked_products():
 	assert json.loads(result.body) == {'message': 'OK: No products locked on depots: pytest-test-depot.uib.gmbh', 'state': 0}
 
 	result = check_locked_products(backend, depot_ids=[])
-	assert json.loads(result.body) == {'message': f'OK: No products locked on depots: {socket.getfqdn()},pytest-test-depot.uib.gmbh,pytest-test-depot2.uib.gmbh', 'state': 0}
+	assert json.loads(result.body) == {
+		'message': (f'OK: No products locked on depots: {socket.getfqdn()},'
+			'pytest-test-depot.uib.gmbh,pytest-test-depot2.uib.gmbh'),
+		'state': 0
+	}
 
 
 	mysql_host = os.environ.get("MYSQL_HOST")
@@ -212,19 +216,46 @@ def test_check_locked_products():
 	time.sleep(2)
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
-	assert json.loads(result.body) == {'message': 'WARNING: 2 products are in locked state.\nProduct pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\nProduct pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh', 'state': 1}
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 2 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n'
+			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", socket.getfqdn()])
-	assert json.loads(result.body) == {'message': 'WARNING: 2 products are in locked state.\nProduct pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\nProduct pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh', 'state': 1}
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 2 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n'
+			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", socket.getfqdn()], product_ids=["pytest-prod-2"])
-	assert json.loads(result.body) == {'message': 'WARNING: 1 products are in locked state.\nProduct pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh', 'state': 1}
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 1 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
 	result = check_locked_products(backend, depot_ids=[], product_ids=None)
-	assert json.loads(result.body) == {'message': 'WARNING: 2 products are in locked state.\nProduct pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\nProduct pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh', 'state': 1}
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 2 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n'
+			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
 	result = check_locked_products(backend, depot_ids=None, product_ids=["pytest-prod-2"])
-	assert json.loads(result.body) == {'message': 'WARNING: 1 products are in locked state.\nProduct pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh', 'state': 1}
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 1 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
 	result = check_locked_products(backend, depot_ids="all", product_ids=["pytest-prod-2"])
-	assert json.loads(result.body) == {'message': 'WARNING: 1 products are in locked state.\nProduct pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh', 'state': 1}
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 1 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}

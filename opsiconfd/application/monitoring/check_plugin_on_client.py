@@ -19,10 +19,9 @@ def check_plugin_on_client(backend, host_id, command, timeout=30, wait_for_endin
 	host_id = forceList(host_id)
 
 	try: # pylint: disable=too-many-nested-blocks
-		result = backend._executeMethod(methodName="hostControl_reachable", hostIds=host_id) # pylint: disable=protected-access
+		result = backend.hostControlSafe_reachable(hostIds=host_id)
 		if result.get(host_id[0], False):
-			checkresult = backend._executeMethod( # pylint: disable=protected-access
-					methodName="hostControl_execute",
+			checkresult = backend.hostControlSafe_execute(
 					command=command,
 					hostIds=host_id,
 					waitForEnding=wait_for_ending,

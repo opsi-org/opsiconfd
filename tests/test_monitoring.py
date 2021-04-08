@@ -23,6 +23,7 @@ import MySQLdb
 from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
 from opsiconfd.application.monitoring.check_locked_products import check_locked_products
 from opsiconfd.application.monitoring.check_short_product_status import check_short_product_status
+from opsiconfd.application.monitoring.check_plugin_on_client import check_plugin_on_client
 from opsiconfd.backend import get_backend
 from .utils import clean_redis, config, create_check_data, TEST_USER, TEST_PW, HOSTNAME, LOCAL_IP, DAYS # pylint: disable=unused-import
 
@@ -352,4 +353,69 @@ def test_check_short_product_status(product_id, thresholds, expected_result): # 
 
 	backend = get_backend()
 	result = check_short_product_status(backend, product_id=product_id, thresholds=thresholds)
+	assert json.loads(result.body) == expected_result
+
+test_data = [
+	(
+		{
+			"host_id": "pytest-client-4.uib.local",
+			"command": "echo 'this is a test'",
+		},
+		True,
+		{
+				"result": ["this is a test"],
+				"error": None
+		},
+		{'message': 'OK: this is a test', 'state': 0}
+	),
+	(
+		{
+			"host_id": "pytest-client-4.uib.local",
+			"command": "blabla",
+		},
+		True,
+		{
+			"result": None,
+			"error": {
+				"class": "RuntimeError",
+        		"message": "RuntimeError(\"Command 'blabla' failed (127):\\n/bin/sh: 1: lsblka: not found\\n\")"}
+    	},
+		{'message': 'UNKNOWN: Unable to parse Errorcode from plugin', 'state': 3}
+	),
+	(
+		{
+			"host_id": "pytest-client-4.uib.local",
+			"command": "blabla",
+		},
+		False,
+		{},
+		{"message": "UNKNOWN: Can't check host 'pytest-client-4.uib.local' is not reachable.", "state": 3}
+	)
+]
+@pytest.mark.parametrize("params, reachable, command_result, expected_result", test_data)
+def test_check_client_plugin(params, reachable, command_result, expected_result): # pylint: disable=too-many-arguments
+
+	# class Backend:
+
+	def hostControlSafe_reachable(hostIds):
+		return {params.get("host_id"): reachable}
+
+	def hostControlSafe_execute(command,hostIds,waitForEnding,captureStderr,encoding,timeout):
+		return {
+			params.get("host_id"): command_result
+		}
+
+	backend = get_backend()
+
+	mock_backend = mock.Mock(backend)
+	mock_backend.hostControlSafe_reachable = hostControlSafe_reachable
+	mock_backend.hostControlSafe_execute = hostControlSafe_execute
+
+	result = check_plugin_on_client(
+		mock_backend,
+		host_id=params.get("host_id"),
+		command=params.get("command"),
+		timeout=params.get("timeout"),
+	)
+
 	assert json.loads(result.body) == expected_result

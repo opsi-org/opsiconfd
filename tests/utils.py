@@ -139,6 +139,16 @@ def create_check_data(config):
 			'INSERT INTO PRODUCT_ON_CLIENT '
 			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
 			f'VALUES ("pytest-prod-1", "pytest-lost-client-fp2.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'
+			'INSERT INTO PRODUCT_ON_CLIENT '
+			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
+			f'VALUES ("pytest-prod-4", "pytest-client-0.uib.local", "LocalbootProduct", "not_installed", "none", "none", "1.0", 1, "{now}");'
+			'INSERT INTO PRODUCT_ON_CLIENT '
+			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
+			f'VALUES ("pytest-prod-4", "pytest-client-1.uib.local", "LocalbootProduct", "not_installed", "none", "none", "1.0", 1, "{now}");'
+			'INSERT INTO PRODUCT_ON_CLIENT '
+			'(productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) '
+			f'VALUES ("pytest-prod-4", "pytest-client-4.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'
+
 		)
 	)
 

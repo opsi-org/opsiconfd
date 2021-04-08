@@ -101,6 +101,7 @@ async def monitoring(request: Request):
 			)
 		elif task == "checkOpsiDiskUsage":
 			response = check_opsi_disk_usage(
+				backend=backend,
 				opsiresource=params.get("resource", None)
 			)
 		else:

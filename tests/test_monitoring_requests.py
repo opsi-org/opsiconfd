@@ -467,15 +467,11 @@ test_data = [
 	(
 		None,
 		None,
-		True,
-		{
-			"message": 'OK: Opsi Webservice has no Problem. | requests=0.0;;;0; rpcs=4;;;0; rpcerror=0;;;0; sessions=3;;;0; threads=21.0;;;0; virtmem=21.0;;;0; cpu=0.983333333333333;;;0;100 ',
-			"state": 0
-		}
+		True
 	)
 ]
-@pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata, expected_result", test_data)
-def test_check_opsi_webservice_perfdata(config, cpu_thresholds, error_thresholds, perfdata, expected_result): # pylint: disable=too-many-arguments
+@pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata", test_data)
+def test_check_opsi_webservice_perfdata(config, cpu_thresholds, error_thresholds, perfdata): # pylint: disable=too-many-arguments
 
 	data = json.dumps({
 		'task': 'checkOpsiWebservice',

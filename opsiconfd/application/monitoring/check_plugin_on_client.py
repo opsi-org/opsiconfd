@@ -5,6 +5,10 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+"""
+check plugin on client
+"""
+
 from fastapi.responses import JSONResponse
 
 from OPSI.Types import forceList

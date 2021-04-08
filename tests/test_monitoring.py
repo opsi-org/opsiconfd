@@ -13,7 +13,6 @@ import errno
 import os
 import socket
 import time
-import tempfile
 import unittest.mock as mock
 import json
 import pytest
@@ -192,6 +191,7 @@ test_data = [
 def test_check_disk_usage_no_result(return_value): # pylint: disable=too-many-arguments
 
 	def get_info(path):
+		print(path)
 		return return_value
 
 	backend = get_backend()
@@ -395,21 +395,19 @@ test_data = [
 @pytest.mark.parametrize("params, reachable, command_result, expected_result", test_data)
 def test_check_client_plugin(params, reachable, command_result, expected_result): # pylint: disable=too-many-arguments
 
-	# class Backend:
+	def host_control_safe_reachable(hostIds): # pylint: disable=invalid-name
+		return {hostIds[0]: reachable}
 
-	def hostControlSafe_reachable(hostIds):
-		return {params.get("host_id"): reachable}
-
-	def hostControlSafe_execute(command,hostIds,waitForEnding,captureStderr,encoding,timeout):
+	def host_control_safe_execute(command,hostIds,waitForEnding,captureStderr,encoding,timeout): # pylint: disable=unused-argument, invalid-name, too-many-arguments
 		return {
-			params.get("host_id"): command_result
+			hostIds[0]: command_result
 		}
 
 	backend = get_backend()
 
 	mock_backend = mock.Mock(backend)
-	mock_backend.hostControlSafe_reachable = hostControlSafe_reachable
-	mock_backend.hostControlSafe_execute = hostControlSafe_execute
+	mock_backend.hostControlSafe_reachable = host_control_safe_reachable
+	mock_backend.hostControlSafe_execute = host_control_safe_execute
 
 	result = check_plugin_on_client(
 		mock_backend,

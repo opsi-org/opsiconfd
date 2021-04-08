@@ -15,8 +15,6 @@ import socket
 from OPSI.Types import forceList
 from OPSI.System import getDiskSpaceUsage
 
-from opsiconfd.config import config
-from opsiconfd.logging import logger
 from .utils import State, generate_response
 
 

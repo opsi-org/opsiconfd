@@ -5,6 +5,10 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+"""
+check depot sync status
+"""
+
 from collections import defaultdict
 from fastapi.responses import JSONResponse
 

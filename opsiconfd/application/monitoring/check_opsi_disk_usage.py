@@ -5,25 +5,39 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+"""
+check opsi disk usage
+"""
+
 import os
+import socket
 
 from OPSI.Types import forceList
 from OPSI.System import getDiskSpaceUsage
 
-from opsiconfd.config import config
-
 from .utils import State, generate_response
 
 
-def check_opsi_disk_usage(thresholds={}, opsiresource=None): # pylint: disable=dangerous-default-value, too-many-branches, too-many-locals, too-many-statements
+def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None): # pylint: disable=dangerous-default-value, too-many-branches, too-many-locals, too-many-statements
 	warning = thresholds.get("warning", "5G")
 	critical = thresholds.get("critical", "1G")
+
+	config_server = backend.host_getObjects(id=socket.getfqdn())[0]
+
+	workbench_path = config_server.workbenchLocalUrl
+	depot_path = config_server.depotLocalUrl
+	repository_path = config_server.repositoryLocalUrl
+
+	dirs = {
+		"workbench": workbench_path,
+		"depot": depot_path,
+		"repository": repository_path
+	}
 
 	if opsiresource:
 		resources = forceList(opsiresource)
 	else:
-		resources = []
-		resources.append(config.static_dir)
+		resources = ["workbench", "depot", "repository"]
 		resources.sort()
 
 	if warning.lower().endswith("g"):
@@ -45,13 +59,15 @@ def check_opsi_disk_usage(thresholds={}, opsiresource=None): # pylint: disable=d
 
 	try:
 		for resource in resources:
-			path = config.static_dir
+			path = dirs.get(resource, "")
+			if path.startswith("file://"):
+				path = path.replace('file://', '')
 			if os.path.isdir(path):
 				if not resource.startswith('/'):
-					resource = u'/' + resource
-
+					resource = '/' + resource
 				info = getDiskSpaceUsage(path)
-				results[resource] = info
+				if info:
+					results[resource] = info
 	except Exception as err: # pylint: disable=broad-except
 		message.append("Not able to check DiskUsage. Error: '{}'".format(err))
 		return generate_response(State.UNKNOWN, message)

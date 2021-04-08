@@ -22,6 +22,7 @@ import MySQLdb
 
 from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
 from opsiconfd.application.monitoring.check_locked_products import check_locked_products
+from opsiconfd.application.monitoring.check_short_product_status import check_short_product_status
 from opsiconfd.backend import get_backend
 from .utils import clean_redis, config, create_check_data, TEST_USER, TEST_PW, HOSTNAME, LOCAL_IP, DAYS # pylint: disable=unused-import
 
@@ -33,9 +34,9 @@ test_data = [
 			'used': 85899345920,
 			'usage': 0.80
 		},
-		"/var/log/opsi",
+		"workbench",
 		{},
-		{"state": 0, "message": "OK: DiskUsage from ressource '/var/log/opsi' is ok. (available:  20.00GB)."}
+		{"state": 0, "message": "OK: DiskUsage from ressource '/workbench' is ok. (available:  20.00GB)."}
 	),
 	(
 		{
@@ -44,9 +45,9 @@ test_data = [
 			'used': 106300440576,
 			'usage': 0.99
 		},
-		"/var/log/opsi",
+		"workbench",
 		{},
-		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: '/var/log/opsi' is critical (available: 1.00GB)."}
+		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: '/workbench' is critical (available: 1.00GB)."}
 	),
 	(
 		{
@@ -55,9 +56,9 @@ test_data = [
 			'used': 102005473280,
 			'usage': 0.95
 		},
-		"/var/log/opsi",
+		"workbench",
 		{},
-		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: '/var/log/opsi' (available: 5.00GB)."}
+		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: '/workbench' (available: 5.00GB)."}
 	),
 	(
 		{
@@ -66,9 +67,9 @@ test_data = [
 			'used': 85899345920,
 			'usage': 0.80
 		},
-		"/var/log/opsi",
+		"workbench",
 		{"warning": "30G", "critical": "10G"},
-		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: '/var/log/opsi' (available: 20.00GB)."}
+		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: '/workbench' (available: 20.00GB)."}
 	),
 	(
 		{
@@ -77,9 +78,9 @@ test_data = [
 			'used': 85899345920,
 			'usage': 0.80
 		},
-		"/var/log/opsi",
+		"workbench",
 		{"warning": "30G", "critical": "20G"},
-		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: '/var/log/opsi' is critical (available: 20.00GB)."}
+		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: '/workbench' is critical (available: 20.00GB)."}
 	),
 	(
 		{
@@ -88,10 +89,10 @@ test_data = [
 			'used': 85899345920,
 			'usage': 0.80
 		},
-		["/var/log/opsi", "/etc/opsi"],
+		["depot", "workbench"],
 		{"warning": "30G", "critical": "20G"},
-		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: '/var/log/opsi' is critical (available: 20.00GB). "
-		"DiskUsage from ressource: '/etc/opsi' is critical (available: 20.00GB).")}
+		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: '/depot' is critical (available: 20.00GB). "
+		"DiskUsage from ressource: '/workbench' is critical (available: 20.00GB).")}
 	),
 	(
 		{
@@ -100,10 +101,10 @@ test_data = [
 			'used': 85899345920,
 			'usage': 0.80
 		},
-		["/var/log/opsi", "/etc/opsi"],
+		["depot", "workbench"],
 		{"warning": "30%", "critical": "20%"},
-		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: '/var/log/opsi' is critical (available: 20.00%). "
-		"DiskUsage from ressource: '/etc/opsi' is critical (available: 20.00%).")}
+		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: '/depot' is critical (available: 20.00%). "
+		"DiskUsage from ressource: '/workbench' is critical (available: 20.00%).")}
 	),
 	(
 		{
@@ -112,9 +113,9 @@ test_data = [
 			'used': 85899345920,
 			'usage': 0.80
 		},
-		"/var/log/opsi",
+		"depot",
 		{"warning": "10%", "critical": "5%"},
-		{"state": 0, "message": "OK: DiskUsage from ressource: '/var/log/opsi' is ok. (available: 20.00%)."}
+		{"state": 0, "message": "OK: DiskUsage from ressource: '/depot' is ok. (available: 20.00%)."}
 	),
 	(
 		{
@@ -123,9 +124,27 @@ test_data = [
 			'used': 85899345920,
 			'usage': 0.80
 		},
-		"var/log/opsi",
+		"not-a-resource",
 		{"warning": "10%", "critical": "5%"},
 		{"state": 3, "message": "UNKNOWN: No results get. Nothing to check."}
+	)
+	,
+	(
+		{
+			'capacity': 107374182400,
+			'available': 21474836480,
+			'used': 85899345920,
+			'usage': 0.80
+		},
+		None,
+		{"warning": "10%", "critical": "5%"},
+		{
+			"state": 0,
+			"message": ("OK: DiskUsage from ressource: '/depot' is ok. (available: 20.00%). "
+				"DiskUsage from ressource: '/repository' is ok. (available: 20.00%). "
+				"DiskUsage from ressource: '/workbench' is ok. (available: 20.00%)."
+			)
+		}
 	)
 
 ]
@@ -137,11 +156,10 @@ def test_check_disk_usage(info, opsiresource, thresholds, expected_result): # py
 		print(path)
 		return info
 
-
-	# with tempfile.mkdtemp(dir = "c:/python36"):
+	backend = get_backend()
 
 	with mock.patch('opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage', get_info):
-		result = check_opsi_disk_usage(thresholds=thresholds, opsiresource=opsiresource)
+		result = check_opsi_disk_usage(backend, thresholds=thresholds, opsiresource=opsiresource)
 
 	assert json.loads(result.body) == expected_result
 
@@ -151,12 +169,14 @@ def test_check_disk_usage_error(): # pylint: disable=too-many-arguments
 	def get_info(path):
 		raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
+	backend = get_backend()
+
 	with mock.patch('opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage', get_info):
-		result = check_opsi_disk_usage(thresholds={}, opsiresource="/etc/opsi")
+		result = check_opsi_disk_usage(backend, thresholds={}, opsiresource="workbench")
 
 	assert json.loads(result.body) == {
 		'message': ('UNKNOWN: ["Not able to check DiskUsage. Error: \'[Errno 2] '
-			'No such file or directory: \'/etc/opsi\'\'"]'),
+			'No such file or directory: \'/var/lib/opsi/workbench\'\'"]'),
 		'state': 3
 		}
 
@@ -173,8 +193,10 @@ def test_check_disk_usage_no_result(return_value): # pylint: disable=too-many-ar
 	def get_info(path):
 		return return_value
 
+	backend = get_backend()
+
 	with mock.patch('opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage', get_info):
-		result = check_opsi_disk_usage(opsiresource="/file/not/found")
+		result = check_opsi_disk_usage(backend, opsiresource="not-a-resource")
 
 	assert json.loads(result.body) == {
 		'message': ('UNKNOWN: No results get. Nothing to check.'),
@@ -259,3 +281,75 @@ def test_check_locked_products():
 			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
 		'state': 1
 	}
+
+test_data = [
+	(
+		"pytest-prod-1",
+		{},
+		{
+			'message': ("WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"),
+			'state': 1
+		}
+	),
+	(
+		"pytest-prod-2",
+		{},
+		{
+			'message': ("CRITICAL: 3 ProductStates for product: 'pytest-prod-2' found; "
+				"checking for Version: '1.0' and Package: '1'; Problems found on 3 clients"),
+			'state': 2
+		}
+	),
+	(
+		"pytest-prod-1",
+		{"warning": "50", "critical": "70"},
+		{
+			'message': ("WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"),
+			'state': 1
+		}
+	),
+	(
+		"pytest-prod-4",
+		{"warning": "50", "critical": "60"},
+		{
+			'message': ("OK: 3 ProductStates for product: 'pytest-prod-4' found; checking for Version: '1.0' and Package: '1'"),
+			'state': 0
+		}
+	),
+	(
+		"pytest-prod-4",
+		{"warning": "20", "critical": "30"},
+		{
+			'message': ("WARNING: 3 ProductStates for product: 'pytest-prod-4' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 1 clients"),
+			'state': 1
+		}
+	),
+	(
+		"pytest-prod-4",
+		{"warning": "5", "critical": "10"},
+		{
+			'message': ("WARNING: 3 ProductStates for product: 'pytest-prod-4' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 1 clients"),
+			'state': 1
+		}
+	),
+	(
+		"pytest-prod-3",
+		{},
+		{
+			'message':  ("OK: 1 ProductStates for product: 'pytest-prod-3' found; "
+				"checking for Version: '1.0' and Package: '1'"),
+			'state': 0
+		}
+	)
+]
+
+@pytest.mark.parametrize("product_id, thresholds, expected_result", test_data)
+def test_check_short_product_status(product_id, thresholds, expected_result): # pylint: disable=too-many-arguments
+
+	backend = get_backend()
+	result = check_short_product_status(backend, product_id=product_id, thresholds=thresholds)
+	assert json.loads(result.body) == expected_result

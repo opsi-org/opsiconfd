@@ -36,7 +36,7 @@ test_data = [
 		},
 		"workbench",
 		{},
-		{"state": 0, "message": "OK: DiskUsage from ressource '/workbench' is ok. (available:  20.00GB)."}
+		{"state": 0, "message": "OK: DiskUsage from ressource 'workbench' is ok. (available:  20.00GB)."}
 	),
 	(
 		{
@@ -47,7 +47,7 @@ test_data = [
 		},
 		"workbench",
 		{},
-		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: '/workbench' is critical (available: 1.00GB)."}
+		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: 'workbench' is critical (available: 1.00GB)."}
 	),
 	(
 		{
@@ -58,7 +58,7 @@ test_data = [
 		},
 		"workbench",
 		{},
-		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: '/workbench' (available: 5.00GB)."}
+		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: 'workbench' (available: 5.00GB)."}
 	),
 	(
 		{
@@ -69,7 +69,7 @@ test_data = [
 		},
 		"workbench",
 		{"warning": "30G", "critical": "10G"},
-		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: '/workbench' (available: 20.00GB)."}
+		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: 'workbench' (available: 20.00GB)."}
 	),
 	(
 		{
@@ -80,7 +80,7 @@ test_data = [
 		},
 		"workbench",
 		{"warning": "30G", "critical": "20G"},
-		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: '/workbench' is critical (available: 20.00GB)."}
+		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: 'workbench' is critical (available: 20.00GB)."}
 	),
 	(
 		{
@@ -91,7 +91,7 @@ test_data = [
 		},
 		["depot", "workbench"],
 		{"warning": "30G", "critical": "20G"},
-		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: '/depot' is critical (available: 20.00GB). "
+		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00GB). "
 		"DiskUsage from ressource: '/workbench' is critical (available: 20.00GB).")}
 	),
 	(
@@ -103,7 +103,7 @@ test_data = [
 		},
 		["depot", "workbench"],
 		{"warning": "30%", "critical": "20%"},
-		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: '/depot' is critical (available: 20.00%). "
+		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00%). "
 		"DiskUsage from ressource: '/workbench' is critical (available: 20.00%).")}
 	),
 	(
@@ -115,7 +115,7 @@ test_data = [
 		},
 		"depot",
 		{"warning": "10%", "critical": "5%"},
-		{"state": 0, "message": "OK: DiskUsage from ressource: '/depot' is ok. (available: 20.00%)."}
+		{"state": 0, "message": "OK: DiskUsage from ressource: 'depot' is ok. (available: 20.00%)."}
 	),
 	(
 		{
@@ -140,9 +140,9 @@ test_data = [
 		{"warning": "10%", "critical": "5%"},
 		{
 			"state": 0,
-			"message": ("OK: DiskUsage from ressource: '/depot' is ok. (available: 20.00%). "
-				"DiskUsage from ressource: '/repository' is ok. (available: 20.00%). "
-				"DiskUsage from ressource: '/workbench' is ok. (available: 20.00%)."
+			"message": ("OK: DiskUsage from ressource: 'depot' is ok. (available: 20.00%). "
+				"DiskUsage from ressource: 'repository' is ok. (available: 20.00%). "
+				"DiskUsage from ressource: 'workbench' is ok. (available: 20.00%)."
 			)
 		}
 	)

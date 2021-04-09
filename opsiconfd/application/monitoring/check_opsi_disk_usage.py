@@ -10,11 +10,11 @@ check opsi disk usage
 """
 
 import os
-import socket
 
 from OPSI.Types import forceList
 from OPSI.System import getDiskSpaceUsage
 
+from opsiconfd.utils import get_fqdn
 from .utils import State, generate_response
 
 
@@ -22,7 +22,13 @@ def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None): # pylint: 
 	warning = thresholds.get("warning", "5G")
 	critical = thresholds.get("critical", "1G")
 
-	config_server = backend.host_getObjects(id=socket.getfqdn())[0]
+	fqdn = get_fqdn()
+	try:
+		config_server = backend.host_getObjects(id=fqdn)[0]
+	except IndexError:
+		state = State.UNKNOWN
+		message = f"Could not get opsiconfd server object with id: {fqdn}."
+		return generate_response(state, message)
 
 	workbench_path = config_server.workbenchLocalUrl
 	depot_path = config_server.depotLocalUrl
@@ -63,8 +69,6 @@ def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None): # pylint: 
 			if path.startswith("file://"):
 				path = path.replace('file://', '')
 			if os.path.isdir(path):
-				if not resource.startswith('/'):
-					resource = '/' + resource
 				info = getDiskSpaceUsage(path)
 				if info:
 					results[resource] = info

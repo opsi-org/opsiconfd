@@ -14,20 +14,17 @@ import os
 from OPSI.Types import forceList
 from OPSI.System import getDiskSpaceUsage
 
-from opsiconfd.utils import get_fqdn
 from .utils import State, generate_response
-
 
 def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None): # pylint: disable=dangerous-default-value, too-many-branches, too-many-locals, too-many-statements
 	warning = thresholds.get("warning", "5G")
 	critical = thresholds.get("critical", "1G")
 
-	fqdn = get_fqdn()
 	try:
-		config_server = backend.host_getObjects(id=fqdn)[0]
+		config_server = backend.host_getObjects(type="OpsiConfigserver")[0]
 	except IndexError:
 		state = State.UNKNOWN
-		message = f"Could not get opsiconfd server object with id: {fqdn}."
+		message = "Could not get OpsiConfigserver object."
 		return generate_response(state, message)
 
 	workbench_path = config_server.workbenchLocalUrl

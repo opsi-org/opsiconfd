@@ -50,9 +50,13 @@ async def monitoring(request: Request):
 				exclude_product_list=params.get("exclude", None)
 			)
 		elif task == "checkShortProductStatus":
+			if params.get("productIds", None):
+				product_id = params.get("productIds", None)
+			else:
+				product_id = params.get("productId", None)
 			response = check_short_product_status(
 				backend=backend,
-				product_id=params.get("productId", None),
+				product_id=product_id,
 				thresholds=params.get("thresholds", {})
 			)
 		elif task == "checkProductStatus":

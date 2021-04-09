@@ -92,7 +92,7 @@ test_data = [
 		["depot", "workbench"],
 		{"warning": "30G", "critical": "20G"},
 		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00GB). "
-		"DiskUsage from ressource: '/workbench' is critical (available: 20.00GB).")}
+		"DiskUsage from ressource: 'workbench' is critical (available: 20.00GB).")}
 	),
 	(
 		{
@@ -104,7 +104,7 @@ test_data = [
 		["depot", "workbench"],
 		{"warning": "30%", "critical": "20%"},
 		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00%). "
-		"DiskUsage from ressource: '/workbench' is critical (available: 20.00%).")}
+		"DiskUsage from ressource: 'workbench' is critical (available: 20.00%).")}
 	),
 	(
 		{

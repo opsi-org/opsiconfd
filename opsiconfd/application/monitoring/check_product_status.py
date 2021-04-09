@@ -77,12 +77,9 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 			clientId=clients_on_depot.get(depot_id, None)
 		)
 
-		not_installed = product_ids.copy()
+		not_installed = set(product_ids.copy())
 		for poc in poducts_on_client: # pylint: disable=protected-access, line-too-long
-			try:
-				not_installed.remove(poc.productId)
-			except ValueError:
-				pass
+			not_installed.discard(poc.productId)
 			if poc.actionRequest not in action_requests_to_ignore:
 				if state != State.CRITICAL:
 					state = State.WARNING

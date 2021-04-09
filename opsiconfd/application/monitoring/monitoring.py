@@ -63,7 +63,7 @@ async def monitoring(request: Request):
 			response =  check_product_status(
 				backend=backend,
 				product_ids=params.get("productIds", []),
-				product_groups=params.get("productGroups", []),
+				product_groups=params.get("groupIds", []),
 				host_group_ids=params.get("hostGroupIds", []),
 				depot_ids=params.get("depotIds", []),
 				exclude=params.get("exclude", []),

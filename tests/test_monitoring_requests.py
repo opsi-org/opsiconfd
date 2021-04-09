@@ -182,6 +182,81 @@ def test_check_product_status(config, products, verbose, strict, expected_result
 
 test_data = [
 	(
+		[],
+		None,
+		False,
+		False,
+		{
+			'message': (
+				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\n"
+				"For product 'pytest-prod-4' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 3 clients!\n"
+			),
+			'state': 2
+		}
+	),
+	(
+		[],
+		[],
+		False,
+		False,
+		{
+			'message': (
+				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\n"
+				"For product 'pytest-prod-4' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 3 clients!\n"
+			),
+			'state': 2
+		}
+	),
+	(
+		[],
+		["pytest-group-1"],
+		False,
+		False,
+		{
+			'message': (
+				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\n"
+				"For product 'pytest-prod-2' problems found on 3 clients!\n"
+			),
+			'state': 2
+		}
+	),
+	(
+		[],
+		["pytest-group-2"],
+		False,
+		False,
+		{
+			'message': (f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-4' action set on 1 clients!\n"),
+			'state': 1
+		}
+	)
+]
+@pytest.mark.parametrize("products, group, verbose, strict, expected_result", test_data)
+def test_check_product_status_groupids(config, products, group,verbose, strict, expected_result):
+
+
+	data = json.dumps({
+		'task': 'checkProductStatus',
+		'param': {
+			'task': 'checkProductStatus',
+			'http': False,
+			'opsiHost': 'localhost',
+			'user': TEST_USER,
+			'productIds': products,
+			'groupIds': group,
+			'verbose': verbose,
+			'strict': strict,
+			'password': TEST_PW,
+			'port': 4447
+		}
+	})
+	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	assert request.status_code == 200
+	assert request.json() == expected_result
+
+
+test_data = [
+	(
 		"pytest-prod-1",
 		{
 			'message': ("WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "

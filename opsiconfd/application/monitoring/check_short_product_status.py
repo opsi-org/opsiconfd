@@ -5,6 +5,10 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+"""
+check short product status
+"""
+
 from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
@@ -12,7 +16,17 @@ from opsiconfd.logging import logger
 from .utils import State, generate_response, remove_percent
 
 
-def check_short_product_status(backend, product_id=None, thresholds={}) -> JSONResponse: # pylint: disable=dangerous-default-value, too-many-locals, too-many-branches
+def check_short_product_status(backend, product_id=None, thresholds={}) -> JSONResponse: # pylint: disable=too-many-statements, dangerous-default-value, too-many-locals, too-many-branches
+
+	if isinstance(product_id, list):
+		try:
+			product_id = product_id[0]
+		except IndexError as err:
+			logger.debug("Error while reading product_id: %s. Setting product_id to None.", err)
+			product_id = None
+	if not product_id:
+		return generate_response(State.UNKNOWN, "No ProductId given.")
+
 	action_request_on_clients = []
 	product_problems_on_clients = []
 	product_version_problems_on_clients = []

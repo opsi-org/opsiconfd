@@ -80,8 +80,10 @@ def create_check_data(config):
 		(
 			'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
 			'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
+			'DELETE FROM OBJECT_TO_GROUP WHERE groupId like "pytest%";'
 			'DELETE FROM PRODUCT WHERE productId like "pytest%";'
 			'DELETE FROM HOST WHERE hostId like "pytest%";'
+			'DELETE FROM opsi.GROUP WHERE groupId like "pytest%";'
 		)
 	)
 
@@ -164,6 +166,26 @@ def create_check_data(config):
 			'VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");'
 		)
 	)
+
+	# Product Group
+	cursor.execute((
+			'INSERT INTO opsi.GROUP (type, groupId) '
+			'VALUES ("ProductGroup", "pytest-group-1");'
+			'INSERT INTO opsi.GROUP (type, groupId) '
+			'VALUES ("ProductGroup", "pytest-group-2");'
+			'INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) '
+			'VALUES ("ProductGroup", "pytest-group-1", "pytest-prod-0");'
+			'INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) '
+			'VALUES ("ProductGroup", "pytest-group-1", "pytest-prod-1");'
+			'INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) '
+			'VALUES ("ProductGroup", "pytest-group-1", "pytest-prod-2");'
+			'INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) '
+			'VALUES ("ProductGroup", "pytest-group-2", "pytest-prod-3");'
+			'INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) '
+			'VALUES ("ProductGroup", "pytest-group-2", "pytest-prod-4");'
+		)
+	)
+
 	cursor.close()
 
 	yield
@@ -173,8 +195,10 @@ def create_check_data(config):
 		(
 			'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
 			'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
+			'DELETE FROM OBJECT_TO_GROUP WHERE groupId like "pytest%";'
 			'DELETE FROM PRODUCT WHERE productId like "pytest%";'
 			'DELETE FROM HOST WHERE hostId like "pytest%";'
+			'DELETE FROM opsi.GROUP WHERE groupId like "pytest%";'
 		)
 	)
 	cursor.close()

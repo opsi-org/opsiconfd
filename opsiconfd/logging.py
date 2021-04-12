@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+opsiconfd - logging
+"""
 
 import shutil
 import time
@@ -65,7 +68,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 	async def _periodically_test_rollover(self):
 		while True:
 			try:
-				if await self.loop.run_in_executor(None, self.should_rollover):
+				if await asyncio.get_event_loop().run_in_executor(None, self.should_rollover):
 					async with self._rollover_lock:
 						await self.do_rollover()
 			except Exception as exc: # pylint: disable=broad-except
@@ -88,8 +91,9 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 				if num > 1:
 					src_file_path = f"{self.absolute_file_path}.{num-1}"
 				dst_file_path = f"{self.absolute_file_path}.{num}"
-				if await self.loop.run_in_executor(None, os.path.exists, src_file_path):
-					await self.loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)
+				loop = asyncio.get_event_loop()
+				if await loop.run_in_executor(None, os.path.exists, src_file_path):
+					await loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)
 					shutil.chown(path=dst_file_path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
 					os.chmod(path=dst_file_path, mode=0o644)
 		self.stream = None

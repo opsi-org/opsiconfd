@@ -5,102 +5,415 @@
 # All rights reserved.
 # License: AGPL-3.0
 
-import sys
-import json
+'''
+Tests for the opsiconfd monitoring module
+'''
+
+import errno
 import os
-from datetime import datetime
 import socket
+import time
+import unittest.mock as mock
+import json
 import pytest
-import urllib3
-import requests
 
-from MySQLdb import _mysql
+import MySQLdb
 
-TEST_USER = "adminuser"
-TEST_PW = "adminuser"
-HOSTNAME = socket.gethostname()
-LOCAL_IP = socket.gethostbyname(HOSTNAME)
+from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
+from opsiconfd.application.monitoring.check_locked_products import check_locked_products
+from opsiconfd.application.monitoring.check_short_product_status import check_short_product_status
+from opsiconfd.application.monitoring.check_plugin_on_client import check_plugin_on_client
+from opsiconfd.backend import get_backend
+from .utils import clean_redis, config, create_check_data, TEST_USER, TEST_PW, HOSTNAME, LOCAL_IP, DAYS # pylint: disable=unused-import
+
+test_data = [
+	(
+		{
+			'capacity': 107374182400,
+			'available': 21474836480,
+			'used': 85899345920,
+			'usage': 0.80
+		},
+		"workbench",
+		{},
+		{"state": 0, "message": "OK: DiskUsage from ressource 'workbench' is ok. (available:  20.00GB)."}
+	),
+	(
+		{
+			'capacity': 107374182400,
+			'available': 1073741824,
+			'used': 106300440576,
+			'usage': 0.99
+		},
+		"workbench",
+		{},
+		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: 'workbench' is critical (available: 1.00GB)."}
+	),
+	(
+		{
+			'capacity': 107374182400,
+			'available': 5368709120,
+			'used': 102005473280,
+			'usage': 0.95
+		},
+		"workbench",
+		{},
+		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: 'workbench' (available: 5.00GB)."}
+	),
+	(
+		{
+			'capacity': 107374182400,
+			'available': 21474836480,
+			'used': 85899345920,
+			'usage': 0.80
+		},
+		"workbench",
+		{"warning": "30G", "critical": "10G"},
+		{"state": 1, "message": "WARNING: DiskUsage warning from ressource: 'workbench' (available: 20.00GB)."}
+	),
+	(
+		{
+			'capacity': 107374182400,
+			'available': 21474836480,
+			'used': 85899345920,
+			'usage': 0.80
+		},
+		"workbench",
+		{"warning": "30G", "critical": "20G"},
+		{"state": 2, "message": "CRITICAL: DiskUsage from ressource: 'workbench' is critical (available: 20.00GB)."}
+	),
+	(
+		{
+			'capacity': 107374182400,
+			'available': 21474836480,
+			'used': 85899345920,
+			'usage': 0.80
+		},
+		["depot", "workbench"],
+		{"warning": "30G", "critical": "20G"},
+		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00GB). "
+		"DiskUsage from ressource: 'workbench' is critical (available: 20.00GB).")}
+	),
+	(
+		{
+			'capacity': 107374182400,
+			'available': 21474836480,
+			'used': 85899345920,
+			'usage': 0.80
+		},
+		["depot", "workbench"],
+		{"warning": "30%", "critical": "20%"},
+		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00%). "
+		"DiskUsage from ressource: 'workbench' is critical (available: 20.00%).")}
+	),
+	(
+		{
+			'capacity': 107374182400,
+			'available': 21474836480,
+			'used': 85899345920,
+			'usage': 0.80
+		},
+		"depot",
+		{"warning": "10%", "critical": "5%"},
+		{"state": 0, "message": "OK: DiskUsage from ressource: 'depot' is ok. (available: 20.00%)."}
+	),
+	(
+		{
+			'capacity': 107374182400,
+			'available': 21474836480,
+			'used': 85899345920,
+			'usage': 0.80
+		},
+		"not-a-resource",
+		{"warning": "10%", "critical": "5%"},
+		{"state": 3, "message": "UNKNOWN: No results get. Nothing to check."}
+	)
+	,
+	(
+		{
+			'capacity': 107374182400,
+			'available': 21474836480,
+			'used': 85899345920,
+			'usage': 0.80
+		},
+		None,
+		{"warning": "10%", "critical": "5%"},
+		{
+			"state": 0,
+			"message": ("OK: DiskUsage from ressource: 'depot' is ok. (available: 20.00%). "
+				"DiskUsage from ressource: 'repository' is ok. (available: 20.00%). "
+				"DiskUsage from ressource: 'workbench' is ok. (available: 20.00%)."
+			)
+		}
+	)
+
+]
+
+@pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)
+def test_check_disk_usage(info, opsiresource, thresholds, expected_result): # pylint: disable=too-many-arguments
+
+	def get_info(path):
+		print(path)
+		return info
+
+	backend = get_backend()
+
+	with mock.patch('opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage', get_info):
+		result = check_opsi_disk_usage(backend, thresholds=thresholds, opsiresource=opsiresource)
+
+	assert json.loads(result.body) == expected_result
 
 
-@pytest.fixture(name="config")
-def fixture_config(monkeypatch):
-	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.config import config # pylint: disable=import-outside-toplevel, redefined-outer-name
-	return config
+def test_check_disk_usage_error(): # pylint: disable=too-many-arguments
+
+	def get_info(path):
+		raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
+
+	backend = get_backend()
+
+	with mock.patch('opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage', get_info):
+		result = check_opsi_disk_usage(backend, thresholds={}, opsiresource="workbench")
+
+	assert json.loads(result.body) == {
+		'message': ('UNKNOWN: ["Not able to check DiskUsage. Error: \'[Errno 2] '
+			'No such file or directory: \'/var/lib/opsi/workbench\'\'"]'),
+		'state': 3
+		}
+
+test_data = [
+	(None),
+	({}),
+	([])
+
+]
+
+@pytest.mark.parametrize("return_value", test_data)
+def test_check_disk_usage_no_result(return_value): # pylint: disable=too-many-arguments
+
+	def get_info(path):
+		print(path)
+		return return_value
+
+	backend = get_backend()
+
+	with mock.patch('opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage', get_info):
+		result = check_opsi_disk_usage(backend, opsiresource="not-a-resource")
+
+	assert json.loads(result.body) == {
+		'message': ('UNKNOWN: No results get. Nothing to check.'),
+		'state': 3
+		}
 
 
-@pytest.fixture(autouse=True)
-def disable_request_warning():
-	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+def test_check_locked_products():
 
-@pytest.fixture(autouse=True)
-def create_data():
+	backend = get_backend()
+
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
+	assert json.loads(result.body) == {'message': 'OK: No products locked on depots: pytest-test-depot.uib.gmbh', 'state': 0}
+
+	result = check_locked_products(backend, depot_ids=[])
+	assert json.loads(result.body) == {
+		'message': (f'OK: No products locked on depots: {socket.getfqdn()},'
+			'pytest-test-depot.uib.gmbh,pytest-test-depot2.uib.gmbh'),
+		'state': 0
+	}
+
 
 	mysql_host = os.environ.get("MYSQL_HOST")
 	if not mysql_host:
 		mysql_host = "127.0.0.1"
-	db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
-	now = datetime.now()
 
-	for i in range(0,5):
-		sql_string = f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-client-{i}.uib.local", "OpsiClient", "{now}", "{now}");'
-		db.query(sql_string)
-		sql_string = f'INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) VALUES ("pytest-prod-{i}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {i}", 60+{i});'  # pylint: disable=line-too-long
-		db.query(sql_string)
-		sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-{i}", "1.0", "1", "{socket.getfqdn()}", "LocalbootProduct");' # pylint: disable=line-too-long
-		db.query(sql_string)
-	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) \
-	 	VALUES ("pytest-prod-1", "pytest-client-1.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
-	db.query(sql_string)
+	db=MySQLdb.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
+	db.autocommit(True)
+	cursor = db.cursor()
+	cursor.execute((
+			'REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) '
+			'VALUES ("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
+			'REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) '
+			'VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
+		)
+	)
+	cursor.close()
 
-	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) \
-	 	VALUES ("pytest-prod-2", "pytest-client-2.uib.local", "LocalbootProduct", "unknown", "none", "failed", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
-	db.query(sql_string)
+	time.sleep(2)
 
-	sql_string = f'INSERT INTO PRODUCT_ON_CLIENT (productId, clientId, productType, installationStatus, actionRequest, actionResult, productVersion, packageVersion, modificationTime) \
-	 	VALUES ("pytest-prod-3", "pytest-client-3.uib.local", "LocalbootProduct", "installed", "none", "none", "1.0", 1, "{now}");'  # pylint: disable=line-too-long
-	db.query(sql_string)
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 2 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n'
+			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
-	db.store_result()
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", socket.getfqdn()])
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 2 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n'
+			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
+	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", socket.getfqdn()], product_ids=["pytest-prod-2"])
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 1 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
-	yield
+	result = check_locked_products(backend, depot_ids=[], product_ids=None)
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 2 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n'
+			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
-	db.query('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";')
-	db.query('DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";')
-	db.query('DELETE FROM HOST WHERE hostId like "pytest%";')
-	db.query('DELETE FROM PRODUCT WHERE productId like "pytest%";')
+	result = check_locked_products(backend, depot_ids=None, product_ids=["pytest-prod-2"])
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 1 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
-
-	db.store_result()
-
-
-
-
-@pytest.mark.asyncio
-async def test_check_product_status_none(config):
-
-	data = json.dumps({'task': 'checkProductStatus', 'param': {'task': 'checkProductStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'productIds': ['firefox'], 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
-
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
-	assert request.status_code == 200
-	assert request.json() == {'message': "OK: No Problem found for productIds: 'firefox'", 'state': 0}
-
+	result = check_locked_products(backend, depot_ids="all", product_ids=["pytest-prod-2"])
+	assert json.loads(result.body) == {
+		'message': ('WARNING: 1 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
+		'state': 1
+	}
 
 test_data = [
-	(["pytest-prod-1"], {'message': f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n", 'state': 1}),
-	(["pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
-	(["pytest-prod-1","pytest-prod-2"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
-	(["pytest-prod-3"], {'message': "OK: No Problem found for productIds: 'pytest-prod-3'", 'state': 0}),
-	(["pytest-prod-1","pytest-prod-2","pytest-prod-3"], {'message': f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 1 clients!\n", 'state': 2}),
+	(
+		"pytest-prod-1",
+		{},
+		{
+			'message': ("WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"),
+			'state': 1
+		}
+	),
+	(
+		"pytest-prod-2",
+		{},
+		{
+			'message': ("CRITICAL: 3 ProductStates for product: 'pytest-prod-2' found; "
+				"checking for Version: '1.0' and Package: '1'; Problems found on 3 clients"),
+			'state': 2
+		}
+	),
+	(
+		"pytest-prod-1",
+		{"warning": "50", "critical": "70"},
+		{
+			'message': ("WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"),
+			'state': 1
+		}
+	),
+	(
+		"pytest-prod-4",
+		{"warning": "50", "critical": "60"},
+		{
+			'message': ("OK: 3 ProductStates for product: 'pytest-prod-4' found; checking for Version: '1.0' and Package: '1'"),
+			'state': 0
+		}
+	),
+	(
+		"pytest-prod-4",
+		{"warning": "20", "critical": "30"},
+		{
+			'message': ("WARNING: 3 ProductStates for product: 'pytest-prod-4' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 1 clients"),
+			'state': 1
+		}
+	),
+	(
+		"pytest-prod-4",
+		{"warning": "5", "critical": "10"},
+		{
+			'message': ("WARNING: 3 ProductStates for product: 'pytest-prod-4' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 1 clients"),
+			'state': 1
+		}
+	),
+	(
+		"pytest-prod-3",
+		{},
+		{
+			'message':  ("OK: 1 ProductStates for product: 'pytest-prod-3' found; "
+				"checking for Version: '1.0' and Package: '1'"),
+			'state': 0
+		}
+	)
 ]
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("products, expected_result", test_data)
-async def test_check_product_status_action(config, create_data, products, expected_result):
+@pytest.mark.parametrize("product_id, thresholds, expected_result", test_data)
+def test_check_short_product_status(product_id, thresholds, expected_result): # pylint: disable=too-many-arguments
 
-	data = json.dumps({'task': 'checkProductStatus', 'param': {'task': 'checkProductStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'productIds': products, 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
+	backend = get_backend()
+	result = check_short_product_status(backend, product_id=product_id, thresholds=thresholds)
+	assert json.loads(result.body) == expected_result
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
-	assert request.status_code == 200
-	assert request.json() == expected_result
+test_data = [
+	(
+		{
+			"host_id": "pytest-client-4.uib.local",
+			"command": "echo 'this is a test'",
+		},
+		True,
+		{
+				"result": ["this is a test"],
+				"error": None
+		},
+		{'message': 'OK: this is a test', 'state': 0}
+	),
+	(
+		{
+			"host_id": "pytest-client-4.uib.local",
+			"command": "blabla",
+		},
+		True,
+		{
+			"result": None,
+			"error": {
+				"class": "RuntimeError",
+        		"message": "RuntimeError(\"Command 'blabla' failed (127):\\n/bin/sh: 1: lsblka: not found\\n\")"}
+    	},
+		{'message': 'UNKNOWN: Unable to parse Errorcode from plugin', 'state': 3}
+	),
+	(
+		{
+			"host_id": "pytest-client-4.uib.local",
+			"command": "blabla",
+		},
+		False,
+		{},
+		{"message": "UNKNOWN: Can't check host 'pytest-client-4.uib.local' is not reachable.", "state": 3}
+	)
+]
+@pytest.mark.parametrize("params, reachable, command_result, expected_result", test_data)
+def test_check_client_plugin(params, reachable, command_result, expected_result): # pylint: disable=too-many-arguments
+
+	def host_control_safe_reachable(hostIds): # pylint: disable=invalid-name
+		return {hostIds[0]: reachable}
+
+	def host_control_safe_execute(command,hostIds,waitForEnding,captureStderr,encoding,timeout): # pylint: disable=unused-argument, invalid-name, too-many-arguments
+		return {
+			hostIds[0]: command_result
+		}
+
+	backend = get_backend()
+
+	mock_backend = mock.Mock(backend)
+	mock_backend.hostControlSafe_reachable = host_control_safe_reachable
+	mock_backend.hostControlSafe_execute = host_control_safe_execute
+
+	result = check_plugin_on_client(
+		mock_backend,
+		host_id=params.get("host_id"),
+		command=params.get("command"),
+		timeout=params.get("timeout"),
+	)
+
+	assert json.loads(result.body) == expected_result

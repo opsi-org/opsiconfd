@@ -58,9 +58,9 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 		self._max_bytes = max_bytes
 		self._keep_rotated = keep_rotated
 		self.formatter = formatter
-		self._rollover_lock = asyncio.Lock(loop=self.loop)
+		self._rollover_lock = asyncio.Lock()
 		self.last_used = time.time()
-		self.loop.create_task(self._periodically_test_rollover())
+		asyncio.get_event_loop().create_task(self._periodically_test_rollover())
 
 	async def _periodically_test_rollover(self):
 		while True:

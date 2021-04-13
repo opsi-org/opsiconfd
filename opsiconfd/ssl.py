@@ -24,7 +24,7 @@ from OPSI.Util import getfqdn
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.Config import OPSI_ADMIN_GROUP
 
-from opsicommon.ssl import install_ca
+from opsicommon.ssl import install_ca, create_x590_name
 
 from .config import (
 	config,
@@ -70,50 +70,6 @@ def get_hostnames():
 
 def get_domain():
 	return '.'.join(get_server_cn().split('.')[1:])
-
-
-def create_x590_name(subj: dict = None) -> X509Name: # pylint: disable=too-many-branches
-	domain = get_domain()
-	subject = {
-		"C": "DE",
-		"ST": "RP",
-		"L": "MAINZ",
-		"O": "uib",
-		"OU": f"opsi@{domain}",
-		"CN": "opsi",
-		"emailAddress": f"opsi@{domain}"
-	}
-	subject.update(subj)
-
-	x509_name = X509Name(X509().get_subject())
-	if subject.get("countryName"):
-		x509_name.countryName = subject.get("countryName")
-	if subject.get("C"):
-		x509_name.C = subject.get("C")
-	if subject.get("stateOrProvinceName"):
-		x509_name.stateOrProvinceName = subject.get("stateOrProvinceName")
-	if subject.get("ST"):
-		x509_name.ST = subject.get("ST")
-	if subject.get("localityName"):
-		x509_name.localityName = subject.get("localityName")
-	if subject.get("L"):
-		x509_name.L = subject.get("L")
-	if subject.get("organizationName"):
-		x509_name.organizationName = subject.get("organizationName")
-	if subject.get("O"):
-		x509_name.O = subject.get("O")
-	if subject.get("organizationalUnitName"):
-		x509_name.organizationalUnitName = subject.get("organizationalUnitName")
-	if subject.get("OU"):
-		x509_name.OU = subject.get("OU")
-	if subject.get("commonName"):
-		x509_name.commonName = subject.get("commonName")
-	if subject.get("CN"):
-		x509_name.CN = subject.get("CN")
-	if subject.get("emailAddress"):
-		x509_name.emailAddress = subject.get("emailAddress")
-
-	return x509_name
 
 
 def setup_ssl_file_permissions() -> None:
@@ -247,7 +203,12 @@ def create_ca(renew: bool = True) -> Tuple[X509, PKey]:
 	ca_crt.set_version(2)
 	ca_crt.set_pubkey(ca_key)
 
-	ca_subject = create_x590_name({"CN": "opsi CA"})
+	domain = get_domain()
+	ca_subject = create_x590_name({
+		"CN": "opsi CA",
+		"OU": f"opsi@{domain}",
+		"emailAddress": f"opsi@{domain}"
+	})
 
 	ca_crt.set_issuer(ca_subject)
 	ca_crt.set_subject(ca_subject)
@@ -309,7 +270,12 @@ def create_server_cert(common_name: str, ip_addresses: set, hostnames: set, key:
 	crt = X509()
 	crt.set_version(2)
 
-	srv_subject = create_x590_name({"CN": f"{common_name}"})
+	domain = get_domain()
+	srv_subject = create_x590_name({
+		"CN": f"{common_name}",
+		"OU": f"opsi@{domain}",
+		"emailAddress": f"opsi@{domain}"
+	})
 	crt.set_subject(srv_subject)
 
 	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")

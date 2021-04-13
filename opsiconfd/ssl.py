@@ -24,7 +24,7 @@ from OPSI.Util import getfqdn
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.Config import OPSI_ADMIN_GROUP
 
-from opsicommon.ssl import install_ca, create_x590_name, create_server_cert
+from opsicommon.ssl import install_ca, create_ca, create_server_cert
 
 from .config import (
 	config,
@@ -182,45 +182,6 @@ def get_ca_cert_as_pem() -> str:
 	return as_pem(load_ca_cert())
 
 
-def create_ca(renew: bool = True) -> Tuple[X509, PKey]:
-	ca_key = None
-	if renew:
-		logger.notice("Renewing opsi CA")
-		ca_key = load_ca_key()
-	else:
-		logger.notice("Creating opsi CA")
-		ca_key = PKey()
-		ca_key.generate_key(TYPE_RSA, 4096)
-
-	ca_crt = X509()
-	ca_crt.set_version(2)
-	random_number = random.getrandbits(32)
-	ca_serial_number = int.from_bytes(f"opsi-ca-{random_number}".encode(), byteorder="big")
-	ca_crt.set_serial_number(ca_serial_number)
-	ca_crt.gmtime_adj_notBefore(0)
-	ca_crt.gmtime_adj_notAfter(CA_DAYS * 60 * 60 * 24)
-
-	ca_crt.set_version(2)
-	ca_crt.set_pubkey(ca_key)
-
-	domain = get_domain()
-	ca_subject = create_x590_name({
-		"CN": "opsi CA",
-		"OU": f"opsi@{domain}",
-		"emailAddress": f"opsi@{domain}"
-	})
-
-	ca_crt.set_issuer(ca_subject)
-	ca_crt.set_subject(ca_subject)
-	ca_crt.add_extensions([
-		X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
-		X509Extension(b"basicConstraints", True, b"CA:TRUE")
-	])
-	ca_crt.sign(ca_key, 'sha256')
-
-	return (ca_crt, ca_key)
-
-
 def store_local_server_key(srv_key: PKey) -> None:
 	store_key(config.ssl_server_key, config.ssl_server_key_passphrase, srv_key)
 
@@ -297,7 +258,23 @@ def configserver_setup_ca() -> bool:
 			renew = True
 
 	if create or renew:
-		(ca_crt, ca_key) = create_ca(renew=renew)
+		domain = get_domain()
+		ca_key = None
+		if renew:
+			logger.notice("Renewing opsi CA")
+			ca_key = load_ca_key()
+		else:
+			logger.notice("Creating opsi CA")
+
+		(ca_crt, ca_key) = create_ca(
+			subject={
+				"CN": "opsi CA",
+				"OU": f"opsi@{domain}",
+				"emailAddress": f"opsi@{domain}"
+			},
+			valid_days=CA_DAYS,
+			key=ca_key
+		)
 		store_ca_key(ca_key)
 		store_ca_cert(ca_crt)
 		install_ca(ca_crt)

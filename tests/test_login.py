@@ -124,4 +124,5 @@ def test_max_auth(config):
 	time.sleep(120)
 	res = session.get(CONFD_URL, auth=(TEST_USER,TEST_PW), verify=False)
 	assert res.status_code == 200
-	assert res.url == f"{CONFD_URL}/admin"
+	assert res.url.rstrip("/") == f"{CONFD_URL}/admin"
+

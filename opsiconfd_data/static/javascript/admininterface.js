@@ -197,6 +197,7 @@ function loadRPCTable(sortKey, sort) {
 			result = request.responseText;
 			result = JSON.parse(result);
 			if (result.length == 0) {
+				document.getElementById("rpc-table-div").innerHTML = "No rpcs found.";
 				return null
 			}
 			if (sort) {

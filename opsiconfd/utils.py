@@ -45,7 +45,10 @@ class Singleton(type):
 
 def running_in_docker():
 	with open("/proc/self/cgroup") as f: # pylint: disable=invalid-name
-		return f.readline().split(':')[2].startswith("/docker/")
+		for line in f.readlines():
+			if line.split(':')[2].startswith("/docker/"):
+				return True
+	return False
 
 node_name = None # pylint: disable=invalid-name
 def get_node_name():

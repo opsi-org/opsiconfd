@@ -91,8 +91,8 @@ stages:
   cat /etc/hosts
   echo OPSICONFD_INTERNAL_URL
 
-  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v opsiconfd /builds/uib/opsiconfd/tests/ --ignore=tests/test_config.py
-  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v opsiconfd /builds/uib/opsiconfd/tests/test_config.py
+  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_config.py
+  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/test_config.py
 
 .pylint: &pylint |
   echo "---------------------------------------"

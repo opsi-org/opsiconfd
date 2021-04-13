@@ -414,5 +414,5 @@ def test_change_ip(tmpdir):
 			assert "IP Address:2.2.2.2" in alt_names
 			assert "IP Address:1.1.1.1" not in alt_names
 
-			assert dump_privatekey(FILETYPE_PEM, key2) == dump_privatekey(FILETYPE_PEM, key1)
+			assert dump_privatekey(FILETYPE_PEM, key2) != dump_privatekey(FILETYPE_PEM, key1)
 

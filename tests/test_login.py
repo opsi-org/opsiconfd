@@ -93,7 +93,7 @@ def test_proper_login(config):
 	print(TEST_PW)
 	res = requests.get(CONFD_URL, auth=(TEST_USER, TEST_PW), verify=False)
 	assert res.status_code == 200
-	assert res.url == f"{CONFD_URL}/admin"
+	assert res.url.rstrip("/") == f"{CONFD_URL}/admin"
 	time.sleep(10)
 
 @pytest.mark.skip(reason="test does not work in gitlab ci")

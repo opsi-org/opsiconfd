@@ -4,7 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
-
+"""
+backend
+"""
 import threading
 import socket
 import ipaddress
@@ -16,7 +18,7 @@ from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig
 from OPSI.Backend.Base.Backend import describeInterface
 
 from . import contextvar_client_address, contextvar_client_session
-from .config import config
+from .config import config, CERT_DAYS
 from .utils import Singleton
 from .logging import logger
 
@@ -109,7 +111,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 		from .ssl import get_ca_cert_as_pem  # pylint: disable=import-outside-toplevel
 		return get_ca_cert_as_pem()
 
-	def host_getTLSCertificate(self, hostId: str) -> str:  # pylint: disable=invalid-name
+	def host_getTLSCertificate(self, hostId: str) -> str:  # pylint: disable=invalid-name,too-many-locals
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
@@ -143,6 +145,20 @@ class OpsiconfdBackend(metaclass=Singleton):
 						# Not an ip address
 						hostnames.add(address)
 
-		from .ssl import create_server_cert, as_pem  # pylint: disable=import-outside-toplevel
-		cert, key = create_server_cert(common_name, ip_addresses, hostnames)
+		from .ssl import (  # pylint: disable=import-outside-toplevel
+			create_server_cert, as_pem, load_ca_key, load_ca_cert, get_domain
+		)
+		domain = get_domain()
+		cert, key = create_server_cert(
+			subject = {
+				"CN": common_name,
+				"OU": f"opsi@{domain}",
+				"emailAddress": f"opsi@{domain}"
+			},
+			valid_days=CERT_DAYS,
+			ip_addresses=ip_addresses,
+			hostnames=hostnames,
+			ca_key=load_ca_key(),
+			ca_cert=load_ca_cert()
+		)
 		return as_pem(key) + as_pem(cert)

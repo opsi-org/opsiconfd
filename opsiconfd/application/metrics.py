@@ -51,7 +51,7 @@ async def get_clients(metric_id):
 	clients.sort(key=itemgetter("client_addr"))
 	return clients
 
-@grafana_metrics_router.get('/?')
+@grafana_metrics_router.get('/')
 async def grafana_index():
 	# should return 200 ok. Used for "Test connection" on the datasource config page.
 	return None

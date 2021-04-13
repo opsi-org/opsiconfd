@@ -21,6 +21,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
 from fastapi.responses import Response, HTMLResponse, FileResponse, RedirectResponse, StreamingResponse
+from fastapi.routing import APIRoute
 from websockets.exceptions import ConnectionClosedOK
 
 from .. import contextvar_request_id, contextvar_client_address
@@ -224,3 +225,11 @@ def application_setup():
 	webdav_setup(app)
 	metrics_setup(app)
 	status_setup(app)
+
+	logger.debug("Routing:")
+	endpoints = {}
+	for route in app.routes:
+		if isinstance(route, APIRoute):
+			endpoints[route.path] = route.endpoint
+	for path in sorted(endpoints):
+		logger.debug("%s: %s", path, endpoints[path])

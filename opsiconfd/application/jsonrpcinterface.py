@@ -19,7 +19,7 @@ templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates
 def jsonrpc_interface_setup(app):
 	app.include_router(jsonrpc_interface_router, prefix="/interface")
 
-@jsonrpc_interface_router.get("/?")
+@jsonrpc_interface_router.get("/")
 async def jsonrpc_interface_index(request: Request):
 	context = {
 		"request": request,

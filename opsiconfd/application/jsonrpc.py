@@ -184,8 +184,8 @@ def _remove_depot_from_jsonrpc_cache(depot_id):
 			pipe.execute()
 
 # Some clients are using /rpc/rpc
-@jsonrpc_router.get(".*")
-@jsonrpc_router.post(".*")
+@jsonrpc_router.get("{any:path}")
+@jsonrpc_router.post("{any:path}")
 async def process_jsonrpc(request: Request, response: Response):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	results = []
 	content_type = None

@@ -24,7 +24,7 @@ from OPSI.Util import getfqdn
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.Config import OPSI_ADMIN_GROUP
 
-from opsicommon.ssl import install_ca, create_x590_name
+from opsicommon.ssl import install_ca, create_x590_name, create_server_cert
 
 from .config import (
 	config,
@@ -246,88 +246,27 @@ def load_local_server_cert() -> X509:
 	return load_cert(config.ssl_server_cert)
 
 
-def create_server_cert(common_name: str, ip_addresses: set, hostnames: set, key: PKey = None) -> Tuple[X509, PKey]:  # pylint: disable=too-many-locals
-	if not key:
-		logger.info("Creating server key pair")
-		key = PKey()
-		key.generate_key(TYPE_RSA, 4096)
-
-	ca_key = load_ca_key()
-	ca_crt = load_ca_cert()
-
-	# Chrome requires CN from Subject also as Subject Alt
-	hostnames.add(common_name)
-	hns = ", ".join([f"DNS:{str(hn).strip()}" for hn in hostnames])
-	ips = ", ".join([f"IP:{str(ip).strip()}" for ip in ip_addresses])
-	alt_names = ""
-	if hns:
-		alt_names += hns
-	if ips:
-		if alt_names:
-			alt_names += ", "
-		alt_names += ips
-
-	crt = X509()
-	crt.set_version(2)
-
-	domain = get_domain()
-	srv_subject = create_x590_name({
-		"CN": f"{common_name}",
-		"OU": f"opsi@{domain}",
-		"emailAddress": f"opsi@{domain}"
-	})
-	crt.set_subject(srv_subject)
-
-	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
-	used_serial_numbers = []
-	if os.path.exists(ca_srl):
-		with open(ca_srl, "r") as file:
-			used_serial_numbers = [serial_number.rstrip() for serial_number in file]
-	srv_serial_number = None
-	count = 0
-	while not srv_serial_number or hex(srv_serial_number)[2:] in used_serial_numbers:
-		count += 1
-		random_number = random.getrandbits(32)
-		srv_serial_number = int.from_bytes(f"opsiconfd-{random_number}".encode(), byteorder="big")
-		if count > 10:
-			logger.warning("No new serial number for ssl cert found!")
-			break
-
-	crt.set_serial_number(srv_serial_number)
-	crt.gmtime_adj_notBefore(0)
-	crt.gmtime_adj_notAfter(CERT_DAYS * 60 * 60 * 24)
-	crt.set_issuer(ca_crt.get_subject())
-	crt.set_subject(srv_subject)
-
-	crt.add_extensions([
-		X509Extension(b"subjectKeyIdentifier", False, b"hash", subject=ca_crt),
-		X509Extension(b"basicConstraints", True, b"CA:FALSE"),
-		X509Extension(b"keyUsage", True, b"nonRepudiation, digitalSignature, keyEncipherment"),
-		X509Extension(b"extendedKeyUsage", False, b"serverAuth, clientAuth, codeSigning, emailProtection")
-	])
-	if alt_names:
-		crt.add_extensions([
-			X509Extension(b"subjectAltName", False, alt_names.encode("utf-8"))
-		])
-	crt.set_pubkey(key)
-	crt.sign(ca_key, "sha256")
-
-	with open(ca_srl, "a") as out:
-		out.write(hex(srv_serial_number)[2:])
-		out.write("\n")
-
-	return (crt, key)
-
 def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint: disable=too-many-locals
+	ca_key = load_ca_key()
+	ca_cert = load_ca_cert()
+	domain = get_domain()
+
 	key = None
 	if renew:
 		logger.notice("Renewing server cert")
 		key = load_local_server_key()
 
 	return create_server_cert(
-		common_name=get_server_cn(),
+		subject = {
+			"CN": get_server_cn(),
+			"OU": f"opsi@{domain}",
+			"emailAddress": f"opsi@{domain}"
+		},
+		valid_days=CERT_DAYS,
 		ip_addresses=get_ips(),
 		hostnames=get_hostnames(),
+		ca_key=ca_key,
+		ca_cert=ca_cert,
 		key=key
 	)
 

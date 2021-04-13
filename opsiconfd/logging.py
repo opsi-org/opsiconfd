@@ -23,7 +23,6 @@ from concurrent.futures import ThreadPoolExecutor
 import aredis
 import msgpack
 import colorlog
-from gunicorn import glogging
 
 from aiologger.handlers.streams import AsyncStreamHandler
 from aiologger.handlers.files import AsyncFileHandler
@@ -349,12 +348,6 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		except Exception as exc: # pylint: disable=broad-except
 			handle_log_exception(exc, record, log=False)
 
-
-class GunicornLoggerSetup(glogging.Logger):
-	def setup(self, cfg):
-		self.error_log.handlers = logger.handlers
-		self.access_log.handlers = []
-		self.access_log.setLevel(0)
 
 def enable_slow_callback_logging(slow_callback_duration = None):
 	_run_orig = asyncio.events.Handle._run # pylint: disable=protected-access

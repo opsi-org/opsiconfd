@@ -27,7 +27,7 @@ def redis_interface_setup(app):
 	app.include_router(admin_interface_router, prefix="/redis-interface")
 
 
-@admin_interface_router.post("/?")
+@admin_interface_router.post("/")
 async def redis_command(request: Request, response: Response):
 	redis_client = await get_redis_client()
 	try:

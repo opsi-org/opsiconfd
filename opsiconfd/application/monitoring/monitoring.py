@@ -30,7 +30,7 @@ monitoring_router = APIRouter()
 def monitoring_setup(app):
 	app.include_router(monitoring_router, prefix="/monitoring")
 
-@monitoring_router.post("/?")
+@monitoring_router.post("/")
 async def monitoring(request: Request):
 	backend = get_backend()
 	request_data = await request.json()

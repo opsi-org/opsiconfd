@@ -158,20 +158,19 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 	def format_help(self):
 		text = HelpFormatter.format_help(self)
-		text = re.sub("usage:\s+(\S+)\s+", f"Usage: {self.CW}\g<1>{self.CN} ", text) # pylint: disable=anomalous-backslash-in-string
-		#text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text)
+		text = re.sub(r"usage:\s+(\S+)\s+", rf"Usage: {self.CW}\g<1>{self.CN} ", text)
 		return text
 
 	def _format_actions_usage(self, actions, groups):
 		text = HelpFormatter._format_actions_usage(self, actions, groups)
-		text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text) # pylint: disable=anomalous-backslash-in-string
-		text = re.sub("([A-Z_]{2,})", f"{self.CC}\g<1>{self.CN}", text) # pylint: disable=anomalous-backslash-in-string
+		text = re.sub(r"(--?\S+)", rf"{self.CW}\g<1>{self.CN}", text)
+		text = re.sub(r"([A-Z_]{2,})", rf"{self.CC}\g<1>{self.CN}", text)
 		return text
 
 	def _format_action_invocation(self, action):
 		text = HelpFormatter._format_action_invocation(self, action)
-		text = re.sub("(--?\S+)", f"{self.CW}\g<1>{self.CN}", text) # pylint: disable=anomalous-backslash-in-string
-		text = re.sub("([A-Z_]{2,})", f"{self.CC}\g<1>{self.CN}", text) # pylint: disable=anomalous-backslash-in-string
+		text = re.sub(r"(--?\S+)", rf"{self.CW}\g<1>{self.CN}", text)
+		text = re.sub(r"([A-Z_]{2,})", rf"{self.CC}\g<1>{self.CN}", text)
 		return text
 
 	def _format_args(self, action, default_metavar):

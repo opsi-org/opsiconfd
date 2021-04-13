@@ -610,13 +610,6 @@ parser.add(
 	help=expert_help("Turn profiler on. This will slow down requests, never use in production.")
 )
 parser.add(
-	"--server-type",
-	env_var="OPSICONFD_SERVER_TYPE",
-	default="uvicorn",
-	choices=("uvicorn", "gunicorn"),
-	help=expert_help("Server type to use.")
-)
-parser.add(
 	"--node-name",
 	env_var="OPSICONFD_NODE_NAME",
 	help=expert_help("Node name to use.")

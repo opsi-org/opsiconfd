@@ -4,19 +4,19 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+ssl
+"""
 
 import os
 import datetime
-import random
 import socket
 import ipaddress
 
 from typing import Tuple
 
 from OpenSSL.crypto import (
-	FILETYPE_PEM, TYPE_RSA,
-	dump_privatekey, dump_certificate, load_privatekey, load_certificate,
-	X509, PKey, X509Name, X509Extension
+	FILETYPE_PEM, load_privatekey, load_certificate, X509, PKey
 )
 from OpenSSL.crypto import Error as CryptoError
 
@@ -24,12 +24,11 @@ from OPSI.Util import getfqdn
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.Config import OPSI_ADMIN_GROUP
 
-from opsicommon.ssl import install_ca, create_ca, create_server_cert
+from opsicommon.ssl import install_ca, create_ca, create_server_cert, as_pem
 
 from .config import (
 	config,
 	CA_DAYS, CA_RENEW_DAYS, CERT_DAYS, CERT_RENEW_DAYS,
-	PRIVATE_KEY_CIPHER,
 	CA_KEY_DEFAULT_PASSPHRASE,
 	SERVER_KEY_DEFAULT_PASSPHRASE
 )
@@ -160,22 +159,6 @@ def store_ca_cert(ca_cert: X509) -> None:
 
 def load_ca_cert() -> X509:
 	return load_cert(config.ssl_ca_cert)
-
-
-def as_pem(cert_or_key, passphrase=None):
-	if isinstance(cert_or_key, X509):
-		return dump_certificate(
-			FILETYPE_PEM,
-			cert_or_key
-		).decode("ascii")
-	if isinstance(cert_or_key, PKey):
-		return dump_privatekey(
-			FILETYPE_PEM,
-			cert_or_key,
-			cipher=None if passphrase is None else PRIVATE_KEY_CIPHER,
-			passphrase=None if passphrase is None else passphrase.encode("utf-8")
-		).decode("ascii")
-	raise TypeError(f"Invalid type: {cert_or_key}")
 
 
 def get_ca_cert_as_pem() -> str:

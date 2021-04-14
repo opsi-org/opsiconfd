@@ -112,7 +112,8 @@ class Manager(metaclass=Singleton):
 		self._loop.create_task(metrics_collector.main_loop())
 
 		while not self._should_stop:
-			now = time.time()
-			if now - self._server_cert_check_time > self._server_cert_check_interval:
-				await self.check_server_cert()
+			if "ssl" not in (config.skip_setup or []):
+				now = time.time()
+				if now - self._server_cert_check_time > self._server_cert_check_interval:
+					await self.check_server_cert()
 			await asyncio.sleep(1)

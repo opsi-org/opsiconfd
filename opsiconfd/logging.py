@@ -19,7 +19,6 @@ from queue import Queue, Empty
 import logging as pylogging
 from logging import LogRecord, Formatter, StreamHandler
 from concurrent.futures import ThreadPoolExecutor
-from aiologger.levels import check_level
 
 import aredis
 import msgpack

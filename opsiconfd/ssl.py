@@ -72,11 +72,8 @@ def get_domain():
 
 
 def setup_ssl_file_permissions() -> None:
-	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
 	permissions = (
 		FilePermission(config.ssl_ca_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
-		#FilePermission(f"{config.ssl_ca_cert}.old", config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
-		FilePermission(ca_srl, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
 		#FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
 		FilePermission(config.ssl_ca_key, "root", "root", 0o600),
 		FilePermission(config.ssl_server_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
@@ -271,6 +268,11 @@ def setup_ca() -> bool:
 	server_role = get_server_role()
 	if config.ssl_ca_key == config.ssl_ca_cert:
 		raise ValueError("CA key and cert cannot be stored in the same file")
+
+	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
+	if os.path.exists(ca_srl):
+		# Remove obsolete file
+		os.remove(ca_srl)
 
 	if server_role == "config":
 		return configserver_setup_ca()

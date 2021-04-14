@@ -7,7 +7,6 @@
 
 import os
 import signal
-from sys import exc_info
 import time
 import threading
 import asyncio

@@ -44,10 +44,10 @@ from .config import config
 # Set default log level to ERROR early
 logger.setLevel(pylogging.ERROR)
 
-class AsyncRotatingFileHandler(AsyncFileHandler):
+class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-instance-attributes
 	rollover_check_interval = 60
 
-	def __init__( # pylint: disable=too-many-arguments
+	def __init__(  # pylint: disable=too-many-arguments
 		self, filename: str,
 		formatter: Formatter,
 		active_lifetime: int = 0,

@@ -195,7 +195,7 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 		setup_limits()
 	if full:
 		if not "users" in skip_setup and not "groups" in skip_setup:
-			po_setup_users_and_groups()
+			po_setup_users_and_groups(ignore_errors=True)
 			setup_users_and_groups()
 		if not "backend" in skip_setup:
 			try:

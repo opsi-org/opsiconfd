@@ -173,3 +173,69 @@ async def get_aredis_connection(url, db=None): # pylint: disable=invalid-name
 			return redis_client
 		except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError):
 			await asyncio.sleep(2)
+
+async def get_aredis_info(redis_client: aredis.StrictRedis):	# pylint: disable=too-many-locals
+	stats_keys = []
+	sessions_keys = []
+	log_keys = []
+	rpc_keys = []
+	misc_keys = []
+	redis_keys = redis_client.scan_iter("opsiconfd:*")
+
+	async for key in redis_keys:
+		key = key.decode("utf8")
+		if key.startswith("opsiconfd:stats:rpc") or key.startswith("opsiconfd:stats:num_rpc"):
+			rpc_keys.append(key)
+		elif key.startswith("opsiconfd:stats"):
+			stats_keys.append(key)
+		elif key.startswith("opsiconfd:sessions"):
+			sessions_keys.append(key)
+		elif key.startswith("opsiconfd:log"):
+			log_keys.append(key)
+		else:
+			misc_keys.append(key)
+
+	stats_memory = 0
+	for key in stats_keys:
+		stats_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+
+	sessions_memory = 0
+	for key in sessions_keys:
+		sessions_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+
+	logs_memory = 0
+	for key in log_keys:
+		logs_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+
+	rpc_memory = 0
+	for key in rpc_keys:
+		rpc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+
+	misc_memory = 0
+	for key in misc_keys:
+		misc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+
+	redis_info = decode_redis_result(await redis_client.execute_command("INFO"))
+	redis_info["key_info"] = {
+		"stats": {
+			"count": len(stats_keys),
+			"memory": stats_memory
+		},
+		"sessions": {
+			"count": len(sessions_keys),
+			"memory": sessions_memory
+		},
+		"logs": {
+			"count": len(log_keys),
+			"memory": logs_memory
+		},
+		"rpc": {
+			"count": len(rpc_keys),
+			"memory": rpc_memory
+		},
+		"misc": {
+			"count": len(misc_keys),
+			"memory": misc_memory
+		}
+	}
+	return redis_info

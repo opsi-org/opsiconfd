@@ -18,10 +18,11 @@ from fastapi.templating import Jinja2Templates
 from ..logging import logger
 from ..config import config
 from ..worker import get_redis_client, sync_redis_client
-from ..utils import decode_redis_result
+from ..utils import decode_redis_result, get_aredis_info
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
+
 
 def redis_interface_setup(app):
 	app.include_router(admin_interface_router, prefix="/redis-interface")
@@ -40,7 +41,7 @@ async def redis_command(request: Request, response: Response):
 			"error": None,
 			"data": {"result": decode_redis_result(redis_result)}
 		})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		trace_back = traceback.format_exc()
 		error = {"message": str(err), "class": err.__class__.__name__}
@@ -50,77 +51,16 @@ async def redis_command(request: Request, response: Response):
 
 
 @admin_interface_router.get("/redis-stats")
-async def get_redis_stats():	# pylint: disable=too-many-locals
+async def get_redis_stats():  # pylint: disable=too-many-locals
 	redis_client = await get_redis_client()
 	try:
-		stats_keys = []
-		sessions_keys = []
-		log_keys = []
-		rpc_keys = []
-		misc_keys = []
-		redis_keys = redis_client.scan_iter("opsiconfd:*")
-
-		async for key in redis_keys:
-			key = key.decode("utf8")
-			if key.startswith("opsiconfd:stats:rpc") or key.startswith("opsiconfd:stats:num_rpc"):
-				rpc_keys.append(key)
-			elif key.startswith("opsiconfd:stats"):
-				stats_keys.append(key)
-			elif key.startswith("opsiconfd:sessions"):
-				sessions_keys.append(key)
-			elif key.startswith("opsiconfd:log"):
-				log_keys.append(key)
-			else:
-				misc_keys.append(key)
-
-		stats_memory = 0
-		for key in stats_keys:
-			stats_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
-
-		sessions_memory = 0
-		for key in sessions_keys:
-			sessions_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
-
-		logs_memory = 0
-		for key in log_keys:
-			logs_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
-
-		rpc_memory = 0
-		for key in rpc_keys:
-			rpc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
-
-		misc_memory = 0
-		for key in misc_keys:
-			misc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
-
-		redis_info = decode_redis_result(await redis_client.execute_command("INFO"))
-		redis_info["key_info"] = {
-			"stats":{
-				"count":len(stats_keys),
-				"memory": stats_memory
-			},
-			"sessions":{
-				"count":len(sessions_keys),
-				"memory": sessions_memory
-			},
-			"logs":{
-				"count":len(log_keys),
-				"memory": logs_memory
-			},
-			"rpc":{
-				"count":len(rpc_keys),
-				"memory": rpc_memory
-			},
-			"misc":{
-				"count":len(misc_keys),
-				"memory": misc_memory
-			}
-		}
+		redis_info = await get_aredis_info(redis_client)
 		response = JSONResponse({"status": 200, "error": None, "data": redis_info})
 	except Exception as err: # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(err)}})
 	return response
+
 
 @admin_interface_router.get("/depot-cache")
 def get_depot_cache():
@@ -137,6 +77,7 @@ def _get_depots():
 	with sync_redis_client() as redis:
 		depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
 	return depots
+
 
 @admin_interface_router.get("/products")
 def get_products(depot: str = None):

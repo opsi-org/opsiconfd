@@ -19,6 +19,7 @@ from queue import Queue, Empty
 import logging as pylogging
 from logging import LogRecord, Formatter, StreamHandler
 from concurrent.futures import ThreadPoolExecutor
+from aiologger.levels import check_level
 
 import aredis
 import msgpack
@@ -44,7 +45,7 @@ from .config import config
 logger.setLevel(pylogging.ERROR)
 
 class AsyncRotatingFileHandler(AsyncFileHandler):
-	rollover_check_interval = 10
+	rollover_check_interval = 60
 
 	def __init__( # pylint: disable=too-many-arguments
 		self, filename: str,
@@ -61,6 +62,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 		self._keep_rotated = keep_rotated
 		self.formatter = formatter
 		self._rollover_lock = asyncio.Lock()
+		self._rollover_error = None
 		self.last_used = time.time()
 		asyncio.get_event_loop().create_task(self._periodically_test_rollover())
 
@@ -70,9 +72,12 @@ class AsyncRotatingFileHandler(AsyncFileHandler):
 				if await asyncio.get_event_loop().run_in_executor(None, self.should_rollover):
 					async with self._rollover_lock:
 						await self.do_rollover()
-			except Exception as exc: # pylint: disable=broad-except
-				handle_log_exception(exc)
-			for _i in range(self.rollover_check_interval):
+						self._rollover_error = None
+			except Exception as err: # pylint: disable=broad-except
+				self._rollover_error = err
+				logger.error(err)
+			check_interval = 300 if self._rollover_error else self.rollover_check_interval
+			for _sec in range(check_interval):
 				await asyncio.sleep(1)
 
 	def should_rollover(self, record: LogRecord = None) -> bool: # pylint: disable=unused-argument
@@ -277,7 +282,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as err:
 				self._redis = None
 			except Exception as err: # pylint: disable=broad-except
-				handle_log_exception(err, log=False)
+				handle_log_exception(err)
 
 class RedisLogHandler(threading.Thread, pylogging.Handler):
 	"""
@@ -346,7 +351,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise
 			raise
 		except Exception as exc: # pylint: disable=broad-except
-			handle_log_exception(exc, record, log=False)
+			handle_log_exception(exc, record)
 
 
 def enable_slow_callback_logging(slow_callback_duration = None):

@@ -25,7 +25,7 @@ def get_manager_pid() -> int:
 async def get_redis_client():
 	return await get_aredis_connection(config.redis_internal_url)
 
-class Manager(metaclass=Singleton):
+class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
 	def __init__(self):
 		self.pid = None
 		self._loop = None

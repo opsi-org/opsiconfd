@@ -190,16 +190,12 @@ async def test_delete_client_sessions(config, admininterface, rpc_request_data, 
 	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
 
 	session = res.cookies.get_dict().get("opsiconfd-session")
-	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:{LOCAL_IP}:*")
 	keys = []
-	async for key in session_keys:
-		keys.append(key)
-		print("!")
-		print(key)
-		assert key.decode("utf8") == f"{OPSI_SESSION_KEY}:{LOCAL_IP}:{session}"
+	async for key in redis_client.scan_iter(f"{OPSI_SESSION_KEY}:{LOCAL_IP}:*"):
+		keys.append(key.decode("utf8"))
 
 	assert len(keys) != 0
-	print(len(keys))
+	assert f"{OPSI_SESSION_KEY}:{LOCAL_IP}:{session}" in keys
 
 	headers = Headers()
 	scope = {

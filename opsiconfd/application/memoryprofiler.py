@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+memoryprofiler
+"""
 
 import gc
 import io
@@ -11,6 +14,7 @@ import os
 import sys
 import time
 import tempfile
+import tracemalloc
 
 import psutil
 import msgpack
@@ -18,15 +22,13 @@ import msgpack
 from fastapi import Request, APIRouter
 from fastapi.responses import JSONResponse
 
-import tracemalloc
 import objgraph
 from pympler import tracker, classtracker
 from guppy import hpy
 from starlette.responses import Response
 
 from ..logging import logger
-from ..worker import get_redis_client
-from ..utils import get_node_name
+from ..utils import get_node_name, aredis_client
 
 memory_profiler_router = APIRouter()
 
@@ -186,11 +188,11 @@ async def memory_info() -> JSONResponse:
 	memory_summary = MEMORY_TRACKER.create_summary()
 	memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
 
-	redis_client = await get_redis_client()
+	redis = await aredis_client()
 	timestamp = int(time.time() * 1000)
 	node = get_node_name()
 
-	async with await redis_client.pipeline() as pipe:
+	async with await redis.pipeline() as pipe:
 		value = msgpack.dumps({"memory_summary": memory_summary, "timestamp": timestamp}) # pylint: disable=c-extension-no-member
 		await pipe.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
 		await pipe.ltrim(f"opsiconfd:stats:memory:summary:{node}", 0, 9)
@@ -221,10 +223,10 @@ async def memory_info() -> JSONResponse:
 @memory_profiler_router.delete("/snapshot")
 async def delte_memory_snapshot() -> JSONResponse:
 
-	redis_client = await get_redis_client()
+	redis = await aredis_client()
 	node = get_node_name()
 
-	await redis_client.delete(f"opsiconfd:stats:memory:summary:{node}")
+	await redis.delete(f"opsiconfd:stats:memory:summary:{node}")
 
 	global MEMORY_TRACKER # pylint: disable=global-statement
 	MEMORY_TRACKER = None
@@ -239,9 +241,9 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 	if not MEMORY_TRACKER:
 		MEMORY_TRACKER = tracker.SummaryTracker()
 
-	redis_client = await get_redis_client()
+	redis = await aredis_client()
 	node = get_node_name()
-	snapshot_count = await redis_client.llen(f"opsiconfd:stats:memory:summary:{node}")
+	snapshot_count = await redis.llen(f"opsiconfd:stats:memory:summary:{node}")
 
 	if snapshot1 < 0:
 		start = abs(snapshot1) - 1
@@ -253,9 +255,9 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 	else:
 		end = snapshot_count - snapshot2
 
-	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", start)
+	redis_result = await redis.lindex(f"opsiconfd:stats:memory:summary:{node}", start)
 	snapshot1 = msgpack.loads(redis_result).get("memory_summary") # pylint: disable=c-extension-no-member
-	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:summary:{node}", end)
+	redis_result = await redis.lindex(f"opsiconfd:stats:memory:summary:{node}", end)
 	snapshot2 = msgpack.loads(redis_result).get("memory_summary") # pylint: disable=c-extension-no-member
 	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
 
@@ -368,10 +370,10 @@ async def guppy_snapshot() -> JSONResponse:
 	fn = io.StringIO() # pylint: disable=invalid-name
 	heap_status.dump(fn)
 
-	redis_client = await get_redis_client()
+	redis = await aredis_client()
 	node = get_node_name()
 
-	async with await redis_client.pipeline() as pipe:
+	async with await redis.pipeline() as pipe:
 		await pipe.lpush(f"opsiconfd:stats:memory:heap:{node}", msgpack.dumps(fn.getvalue()))
 		await pipe.ltrim(f"opsiconfd:stats:memory:heap:{node}", 0, 9)
 		redis_result = await pipe.execute()
@@ -404,10 +406,10 @@ async def guppy_snapshot() -> JSONResponse:
 @memory_profiler_router.delete("/guppy")
 async def delte_guppy_snapshot() -> JSONResponse:
 
-	redis_client = await get_redis_client()
+	redis = await aredis_client()
 	node = get_node_name()
 
-	await redis_client.delete(f"opsiconfd:stats:memory:heap:{node}")
+	await redis.delete(f"opsiconfd:stats:memory:heap:{node}")
 
 	global HEAP # pylint: disable=global-statement
 	HEAP = None
@@ -434,9 +436,9 @@ async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 	if not HEAP:
 		HEAP = hpy()
 
-	redis_client = await get_redis_client()
+	redis = await aredis_client()
 	node = get_node_name()
-	snapshot_count = await redis_client.llen(f"opsiconfd:stats:memory:heap:{node}")
+	snapshot_count = await redis.llen(f"opsiconfd:stats:memory:heap:{node}")
 
 	if snapshot1 < 0:
 		start = abs(snapshot1) - 1
@@ -448,10 +450,10 @@ async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 	else:
 		end = snapshot_count - snapshot2
 
-	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:heap:{node}", start)
+	redis_result = await redis.lindex(f"opsiconfd:stats:memory:heap:{node}", start)
 	fn1 = io.StringIO(msgpack.loads(redis_result))
 	snapshot1 = HEAP.load(fn1)
-	redis_result = await redis_client.lindex(f"opsiconfd:stats:memory:heap:{node}", end)
+	redis_result = await redis.lindex(f"opsiconfd:stats:memory:heap:{node}", end)
 	fn2 = io.StringIO(msgpack.loads(redis_result))
 	snapshot2 = HEAP.load(fn2)
 

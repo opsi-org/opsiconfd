@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+manager
+"""
 
 import os
 import signal
@@ -14,16 +17,15 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .config import config
 from .logging import logger, init_logging
-from .utils import get_aredis_connection, get_aredis_info, Singleton
+from .utils import aredis_client, get_aredis_info, Singleton
 from .zeroconf import register_opsi_services, unregister_opsi_services
 from .server import Server
 from .ssl import setup_server_cert
 
+
 def get_manager_pid() -> int:
 	return Manager().pid
 
-async def get_redis_client():
-	return await get_aredis_connection(config.redis_internal_url)
 
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
 	def __init__(self):
@@ -109,7 +111,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._server_cert_check_time = time.time()
 
 	async def check_redis(self):
-		redis_info = await get_aredis_info(await get_redis_client())
+		redis_info = await get_aredis_info(await aredis_client())
 		for key_type in redis_info["key_info"]:
 			if redis_info["key_info"][key_type]["memory"] > 100*1000*1000:
 				logger.warning(

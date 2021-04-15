@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+statistics
+"""
 
 import re
 import time
@@ -25,16 +28,15 @@ from . import (
 )
 from .logging import logger
 from .worker import (
-	get_redis_client as get_worker_redis_client,
 	get_metrics_collector as get_worker_metrics_collector,
 	get_worker_num
 )
-from .manager import get_redis_client as get_manager_redis_client
 from .config import config
 from .utils import (
-	Singleton, get_node_name, get_redis_connection
+	Singleton, get_node_name, redis_client, aredis_client
 )
 from .grafana import GrafanaPanelConfig
+
 
 def get_yappi_tag() -> int:
 	return int(contextvar_request_id.get() or -1)
@@ -44,81 +46,81 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 	# Add metrics from jsonrpc to metrics_registry
 	from .application import jsonrpc  # pylint: disable=import-outside-toplevel,unused-import
 
-	redis_client = get_redis_connection(config.redis_internal_url)
+	with redis_client() as client:
 
-	for metric in metrics_registry.get_metrics():
-		if not metric.downsampling:
-			continue
+		for metric in metrics_registry.get_metrics():
+			if not metric.downsampling:
+				continue
 
-		iterations = 1
-		if metric.subject == "worker":
-			iterations = config.workers
-
-		for iteration in range(iterations):
-			node_name = get_node_name()
-			worker_num = None
+			iterations = 1
 			if metric.subject == "worker":
-				worker_num = iteration + 1
+				iterations = config.workers
 
-			logger.debug("Iteration=%s, node_name=%s, worker_num=%s", iteration, node_name, worker_num)
+			for iteration in range(iterations):
+				node_name = get_node_name()
+				worker_num = None
+				if metric.subject == "worker":
+					worker_num = iteration + 1
 
-			orig_key = None
-			cmd = None
-			if metric.subject == "worker":
-				orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
-				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
-			elif metric.subject == "node":
-				orig_key = metric.redis_key.format(node_name=node_name)
-				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
-			else:
-				orig_key = metric.redis_key
-				cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
+				logger.debug("Iteration=%s, node_name=%s, worker_num=%s", iteration, node_name, worker_num)
 
-			logger.debug("redis command: %s", cmd)
-			try:
-				redis_client.execute_command(cmd)
-			except RedisResponseError as err:
-				if str(err) != "TSDB: key already exists":
-					raise
+				orig_key = None
+				cmd = None
+				if metric.subject == "worker":
+					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
+				elif metric.subject == "node":
+					orig_key = metric.redis_key.format(node_name=node_name)
+					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
+				else:
+					orig_key = metric.redis_key
+					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
 
-			cmd = f"TS.INFO {orig_key}"
-			info = redis_client.execute_command(cmd)
-			existing_rules = {}
-			for idx, val in enumerate(info):
-				if isinstance(val, bytes) and "rules" in val.decode("utf8"):
-					rules = info[idx+1]
-					for rule in rules:
-						key = rule[0].decode("utf8")
-						#retention = key.split(":")[-1]
-						existing_rules[key] = {"time_bucket": rule[1], "aggregation": rule[2].decode("utf8")}
-
-			for rule in metric.downsampling:
-				retention, retention_time, aggregation = rule
-				time_bucket = get_time_bucket(retention)
-				key = f"{orig_key}:{retention}"
-				cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
+				logger.debug("redis command: %s", cmd)
 				try:
-					redis_client.execute_command(cmd)
+					client.execute_command(cmd)
 				except RedisResponseError as err:
 					if str(err) != "TSDB: key already exists":
 						raise
 
-				create = True
-				if key in existing_rules:
-					cur_rule = existing_rules[key]
-					if (
-						time_bucket == cur_rule.get("time_bucket") and
-						aggregation.lower() == cur_rule.get("aggregation").lower()
-					):
-						create = False
-					else:
-						cmd = f"TS.DELETERULE {orig_key} {key}"
-						redis_client.execute_command(cmd)
+				cmd = f"TS.INFO {orig_key}"
+				info = client.execute_command(cmd)
+				existing_rules = {}
+				for idx, val in enumerate(info):
+					if isinstance(val, bytes) and "rules" in val.decode("utf8"):
+						rules = info[idx+1]
+						for rule in rules:
+							key = rule[0].decode("utf8")
+							#retention = key.split(":")[-1]
+							existing_rules[key] = {"time_bucket": rule[1], "aggregation": rule[2].decode("utf8")}
 
-				if create:
-					cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {aggregation} {time_bucket}"
-					logger.debug("Redis cmd: %s", cmd)
-					redis_client.execute_command(cmd)
+				for rule in metric.downsampling:
+					retention, retention_time, aggregation = rule
+					time_bucket = get_time_bucket(retention)
+					key = f"{orig_key}:{retention}"
+					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
+					try:
+						client.execute_command(cmd)
+					except RedisResponseError as err:
+						if str(err) != "TSDB: key already exists":
+							raise
+
+					create = True
+					if key in existing_rules:
+						cur_rule = existing_rules[key]
+						if (
+							time_bucket == cur_rule.get("time_bucket") and
+							aggregation.lower() == cur_rule.get("aggregation").lower()
+						):
+							create = False
+						else:
+							cmd = f"TS.DELETERULE {orig_key} {key}"
+							client.execute_command(cmd)
+
+					if create:
+						cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {aggregation} {time_bucket}"
+						logger.debug("Redis cmd: %s", cmd)
+						client.execute_command(cmd)
 
 TIME_BUCKETS = {
 	"second": 1000,
@@ -509,16 +511,13 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 			raise ValueError(f"Invalid command {cmd}")
 		return " ".join([ str(x) for x in cmd ])
 
-	async def _get_redis_client(self):
-		raise NotImplementedError("Not implemented")
-
 	async def _execute_redis_command(self, *cmd):
 		def str_cmd(cmd_obj):
 			if isinstance(cmd_obj, list):
 				return " ".join([ str(x) for x in cmd_obj ])
 			return cmd_obj
 
-		redis = await self._get_redis_client()
+		redis = await aredis_client()
 		if len(cmd) == 1:
 			return await redis.execute_command(str_cmd(cmd[0]))
 
@@ -572,8 +571,6 @@ class ManagerMetricsCollector(MetricsCollector):
 			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
 		)
 
-	async def _get_redis_client(self):
-		return await get_manager_redis_client()
 
 class WorkerMetricsCollector(MetricsCollector):
 	_metric_subjects = ["worker", "client"]
@@ -582,9 +579,6 @@ class WorkerMetricsCollector(MetricsCollector):
 		super().__init__()
 		self._worker_num = get_worker_num()
 		self._proc = None
-
-	async def _get_redis_client(self):
-		return await get_worker_redis_client()
 
 	async def _fetch_values(self):
 		if not self._proc:

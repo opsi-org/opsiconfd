@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+jsonrpc
+"""
 
 import asyncio
 import datetime
@@ -26,12 +29,9 @@ from OPSI.Util import serialize, deserialize
 from .. import contextvar_client_session
 from ..logging import logger
 from ..backend import get_client_backend, get_backend_interface, get_backend, OpsiconfdBackend
-from ..worker import (
-	get_metrics_collector,
-	get_redis_client, sync_redis_client, get_worker_num
-)
+from ..worker import get_metrics_collector, get_worker_num
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
-from ..utils import decode_redis_result, get_node_name
+from ..utils import decode_redis_result, get_node_name, redis_client, aredis_client
 
 # time in seconds
 EXPIRE = 24 * 3600
@@ -99,7 +99,7 @@ def jsonrpc_setup(app):
 
 def _store_rpc(data, max_rpcs=9999):
 	try:
-		with sync_redis_client() as redis:
+		with redis_client() as redis:
 			pipe = redis.pipeline()
 			pipe.lpush("opsiconfd:stats:rpcs", msgpack.dumps(data))  # pylint: disable=c-extension-no-member
 			pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs)
@@ -131,7 +131,7 @@ def _store_product_ordering(result, params):
 			algorithm = _get_sort_algorithm(params)
 		else:
 			algorithm = "algorithm1"
-		with sync_redis_client() as redis:
+		with redis_client() as redis:
 			with redis.pipeline() as pipe:
 				pipe.unlink(f"opsiconfd:jsonrpccache:{params[0]}:products")
 				pipe.unlink(f"opsiconfd:jsonrpccache:{params[0]}:products:{algorithm}")
@@ -156,7 +156,7 @@ def _store_product_ordering(result, params):
 		)
 
 def _set_jsonrpc_cache_outdated(params):
-	with sync_redis_client() as redis:
+	with redis_client() as redis:
 		saved_depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
 		depots = []
 		for depot in saved_depots:
@@ -173,7 +173,7 @@ def _set_jsonrpc_cache_outdated(params):
 			pipe.execute()
 
 def _remove_depot_from_jsonrpc_cache(depot_id):
-	with sync_redis_client() as redis:
+	with redis_client() as redis:
 		with redis.pipeline() as pipe:
 			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products")
 			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
@@ -262,15 +262,15 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 				depot = rpc.get('params')[0]
 				cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
 				algorithm = _get_sort_algorithm(rpc.get('params'))
-				redis_client = await get_redis_client()
+				redis = await aredis_client()
 				if cache_outdated:
 					get_backend().config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
-					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
-					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
-					await redis_client.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
+					await redis.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+					await redis.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
+					await redis.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
 				else:
-					products_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
-					sorted_uptodate = await redis_client.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
+					products_uptodate = await redis.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+					sorted_uptodate = await redis.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
 					if products_uptodate and sorted_uptodate:
 						task = run_in_threadpool(read_redis_cache, request, response, rpc)
 
@@ -294,8 +294,8 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 					result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()}
 				)
 			)
-			redis_client = await get_redis_client()
-			rpc_count = await redis_client.incr("opsiconfd:stats:num_rpcs")
+			redis = await aredis_client()
+			rpc_count = await redis.incr("opsiconfd:stats:num_rpcs")
 			error = bool(result[0].get("error"))
 			date = result[2].get("date")
 			params = [param for param in result[2].get("params", []) if param]
@@ -482,7 +482,7 @@ def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disa
 		start = time.perf_counter()
 		depot_id = rpc.get('params')[0]
 		algorithm = _get_sort_algorithm(rpc.get('params'))
-		with sync_redis_client() as redis:
+		with redis_client() as redis:
 			with redis.pipeline() as pipe:
 				pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1)
 				pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", 0, -1)

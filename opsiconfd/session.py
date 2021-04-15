@@ -35,10 +35,9 @@ from OPSI.Config import OPSI_ADMIN_GROUP
 from opsicommon.logging import logger, secret_filter, set_context
 
 from . import contextvar_client_session, contextvar_server_timing
-from .worker import sync_redis_client, get_redis_client
 from .backend import get_client_backend
 from .config import config
-from .utils import get_fqdn
+from .utils import get_fqdn, redis_client, aredis_client
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -146,7 +145,7 @@ class SessionMiddleware:
 				if not is_allowed_network:
 					raise ConnectionRefusedError(f"Host '{client_address}' is not allowed to connect")
 
-			redis_client = await get_redis_client()
+			redis = await aredis_client()
 			if scope["type"] not in ("http", "websocket"):
 				await self.app(scope, receive, send)
 				return
@@ -182,13 +181,13 @@ class SessionMiddleware:
 			if not is_public:
 				if not session.user_store.username or not session.user_store.authenticated:
 					# Check if blocked
-					is_blocked = bool(await redis_client.get(f"opsiconfd:stats:client:blocked:{connection.client.host}"))
+					is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{connection.client.host}"))
 					if not is_blocked:
 						now = round(time.time())*1000
 						cmd = f"ts.range opsiconfd:stats:client:failed_auth:{connection.client.host} {(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}" # pylint: disable=line-too-long
 						logger.debug(cmd)
 						try:
-							num_failed_auth = await redis_client.execute_command(cmd)
+							num_failed_auth = await redis.execute_command(cmd)
 							num_failed_auth =  int(num_failed_auth[-1][1])
 							logger.debug("num_failed_auth: %s", num_failed_auth)
 						except ResponseError as err:
@@ -198,7 +197,7 @@ class SessionMiddleware:
 						if num_failed_auth > config.max_auth_failures:
 							is_blocked = True
 							logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
-							await redis_client.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
+							await redis.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
 					if is_blocked:
 						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
 
@@ -276,7 +275,7 @@ class SessionMiddleware:
 					error = "Permission denied"
 				cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}" # pylint: disable=line-too-long
 				logger.debug(cmd)
-				asyncio.get_event_loop().create_task(redis_client.execute_command(cmd)) # type: ignore
+				asyncio.get_event_loop().create_task(redis.execute_command(cmd)) # type: ignore
 
 			elif isinstance(err, ConnectionRefusedError):
 				status_code = status.HTTP_403_FORBIDDEN
@@ -394,11 +393,11 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
 		redis_session_keys = []
 		try:
-			with sync_redis_client() as redis:
+			with redis_client() as redis:
 				for key in redis.scan_iter(f"{self.redis_key_prefix}:{self.client_addr}:*"):
 					redis_session_keys.append(key.decode("utf8"))
-			#redis_client = await get_redis_client()
-			#async for key in redis_client.scan_iter(f"{self.redis_key_prefix}:{self.client_addr}:*"):
+			#redis = await aredis_client()
+			#async for key in redis.scan_iter(f"{self.redis_key_prefix}:{self.client_addr}:*"):
 			#	redis_session_keys.append(key.decode("utf8"))
 			if config.max_session_per_ip > 0 and len(redis_session_keys) > config.max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {config.max_session_per_ip}"
@@ -419,7 +418,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 	def _load(self) -> bool:
 		self._data = {}
-		with sync_redis_client() as redis:
+		with redis_client() as redis:
 			data = redis.get(self.redis_key)
 		if not data:
 			return False
@@ -455,14 +454,14 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		# Do not store password
 		if "password" in data["user_store"]:
 			del data["user_store"]["password"]
-		with sync_redis_client() as redis:
+		with redis_client() as redis:
 			#start = time.perf_counter()
 			redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
 			#ms = (time.perf_counter() - start) * 1000
 			#if ms > 100:
 			#	logger.warning("Session storing to redis took %0.2fms", ms)
-		#redis_client = await get_redis_client()
-		#await redis_client.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
+		#redis = await aredis_client()
+		#await redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
 
 	async def store(self) -> None:
 		# aredis is sometimes slow ~300ms load, using redis for now

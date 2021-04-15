@@ -37,6 +37,7 @@ from ..utils import decode_redis_result, get_node_name
 EXPIRE = 24 * 3600
 EXPIRE_UPTODATE = 24 * 3600
 CALL_TIME_TO_CACHE = 0.5
+COMPRESS_MIN_SIZE = 10000
 
 PRODUCT_METHODS = [
 	"createProduct",
@@ -363,8 +364,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 	data = await run_in_threadpool(_dumps, results[0] if len(results) == 1 else results)
 
 	data_len = len(data)
-	# TODO: config
-	if data_len > 10000:
+	if data_len > COMPRESS_MIN_SIZE:
 		compression = None
 		accept_encoding = request.headers.get("accept-encoding", "")
 		logger.debug("Accept-Encoding: %s", accept_encoding)

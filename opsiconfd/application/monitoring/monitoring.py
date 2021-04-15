@@ -30,8 +30,8 @@ monitoring_router = APIRouter()
 def monitoring_setup(app):
 	app.include_router(monitoring_router, prefix="/monitoring")
 
-@monitoring_router.post("/")
-async def monitoring(request: Request):
+@monitoring_router.post("{any:path}")
+async def monitoring(request: Request):  # pylint: disable=too-many-branches
 	backend = get_backend()
 	request_data = await request.json()
 	task = None

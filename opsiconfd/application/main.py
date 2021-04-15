@@ -17,6 +17,7 @@ from ctypes import c_long
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
 from starlette.types import ASGIApp
+from starlette.concurrency import run_in_threadpool
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
@@ -52,19 +53,24 @@ class LoggerWebsocket(WebSocketEndpoint):
 		logger.info("Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client)
 		b_stream_name = stream_name.encode("utf-8")
 		last_id = start_id
+
+		def read_data(data):
+			buf = bytearray()
+			for dat in data[b_stream_name]:
+				last_id = dat[0]
+				if client and client !=	dat[1].get("client", b'').decode("utf-8"):
+					continue
+				buf += dat[1][b"record"]
+			return (last_id, buf)
+
 		while True:
 			try:
-				# It is also possible to specify multiple streams
 				redis = await aredis_client()
+				# It is also possible to specify multiple streams
 				data = await redis.xread(block=1000, **{stream_name: last_id})
 				if not data:
 					continue
-				buf = b""
-				for dat in data[b_stream_name]:
-					last_id = dat[0]
-					if client and client !=	dat[1].get("client", b'').decode("utf-8"):
-						continue
-					buf += dat[1][b"record"]
+				last_id, buf = await run_in_threadpool(read_data, data)
 				await self._websocket.send_text(buf)
 			except Exception as err:  # pylint: disable=broad-except
 				if not app.is_shutting_down and not isinstance(err, ConnectionClosedOK):

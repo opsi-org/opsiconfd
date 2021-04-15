@@ -111,7 +111,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 
 	async def handle_error(self, record, exception):
 		if not isinstance(exception, RuntimeError):
-			handle_log_exception(exception, record)
+			handle_log_exception(exception, record, stderr=True, temp_file=True)
 
 class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 	def __init__( # pylint: disable=too-many-arguments
@@ -199,7 +199,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 				return self._file_logs[filename]
 		except Exception as exc:  # pylint: disable=broad-except
 			self._file_logs[filename] = None
-			handle_log_exception(exc)
+			handle_log_exception(exc, stderr=True, temp_file=True)
 		return None
 
 	async def _watch_log_files(self):
@@ -233,7 +233,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			self._loop.create_task(self._watch_log_files())
 
 		except Exception as err: # pylint: disable=broad-except
-			handle_log_exception(err)
+			handle_log_exception(err, stderr=True, temp_file=True)
 
 	async def _reader(self, stream_name):
 		if self._running_event:
@@ -281,7 +281,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as err:
 				self._redis = None
 			except Exception as err: # pylint: disable=broad-except
-				handle_log_exception(err)
+				handle_log_exception(err, stderr=True, temp_file=True)
 
 class RedisLogHandler(threading.Thread, pylogging.Handler):
 	"""
@@ -350,7 +350,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 		except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise
 			raise
 		except Exception as exc: # pylint: disable=broad-except
-			handle_log_exception(exc, record)
+			handle_log_exception(exc, record, stderr=True, temp_file=True)
 
 
 def enable_slow_callback_logging(slow_callback_duration = None):
@@ -428,7 +428,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 			logger.critical("Failed to initalize redis logging: %s", redis_error, exc_info=True)
 
 	except Exception as exc: # pylint: disable=broad-except
-		handle_log_exception(exc)
+		handle_log_exception(exc, stderr=True, temp_file=True)
 
 
 class RedisLogAdapterThread(threading.Thread):

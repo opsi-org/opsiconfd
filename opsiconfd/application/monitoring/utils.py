@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+monitoring
+"""
 
 import re
 
@@ -37,19 +40,19 @@ def remove_percent(string):
 		return string[:-1]
 	return string
 
-async def get_workers(redis_client) -> list:
-	worker_registry = redis_client.scan_iter("opsiconfd:worker_registry:*")
+async def get_workers(redis) -> list:
+	worker_registry = redis.scan_iter("opsiconfd:worker_registry:*")
 	workers = []
 	async for key in worker_registry:
 		workers.append(f"{key.decode('utf8').split(':')[-2]}:{key.decode('utf8').split(':')[-1]}")
 	return workers
 
-async def get_request_avg(redis_client):
-	workers = await get_workers(redis_client)
+async def get_request_avg(redis):
+	workers = await get_workers(redis)
 	requests = 0.0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis_client.execute_command(
+			await redis.execute_command(
 				f"TS.GET opsiconfd:stats:worker:sum_http_request_number:{worker}:minute"
 			)
 		)
@@ -58,19 +61,19 @@ async def get_request_avg(redis_client):
 		requests += float(redis_result[1])
 	return requests / len(workers) * 100
 
-async def get_session_count(redis_client):
+async def get_session_count(redis):
 	count = 0
-	session_keys = redis_client.scan_iter("opsiconfd:sessions:*")
+	session_keys = redis.scan_iter("opsiconfd:sessions:*")
 	async for _session in session_keys:
 		count += 1
 	return count
 
-async def get_thread_count(redis_client):
-	workers = await get_workers(redis_client)
+async def get_thread_count(redis):
+	workers = await get_workers(redis)
 	threads = 0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis_client.execute_command(
+			await redis.execute_command(
 				f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"
 			)
 		)
@@ -79,12 +82,12 @@ async def get_thread_count(redis_client):
 		threads += float(redis_result[1])
 	return threads
 
-async def get_mem_allocated(redis_client):
-	workers = await get_workers(redis_client)
+async def get_mem_allocated(redis):
+	workers = await get_workers(redis)
 	mem_allocated = 0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis_client.execute_command(
+			await redis.execute_command(
 				f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"
 			)
 		)

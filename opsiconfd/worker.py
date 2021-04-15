@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+worker
+"""
 
 import os
 import gc
@@ -11,19 +14,15 @@ import ctypes
 import signal
 import threading
 import asyncio
-from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
-import redis
 
 from .logging import logger, init_logging
 from .config import config
-from .utils import get_aredis_connection
+from .utils import aredis_client
 from .manager import get_manager_pid
 from . import ssl
 
-_redis_client = None # pylint: disable=invalid-name
 _metrics_collector = None # pylint: disable=invalid-name
-_redis_pool = None # pylint: disable=invalid-name
 _worker_num = 1 # pylint: disable=invalid-name
 
 def set_worker_num(num):
@@ -32,36 +31,6 @@ def set_worker_num(num):
 
 def get_worker_num():
 	return _worker_num
-
-@contextmanager
-def sync_redis_client():
-	global _redis_pool # pylint: disable=global-statement,invalid-name
-	if not _redis_pool:
-		_redis_pool = redis.BlockingConnectionPool.from_url(
-			url=config.redis_internal_url
-		)
-	con = None
-	try:
-		con = redis.Redis(connection_pool=_redis_pool)
-		yield con
-	finally:
-		if con:
-			con.close()
-
-async def get_redis_client():
-	global _redis_client # pylint: disable=global-statement, invalid-name
-	if not _redis_client:
-		_redis_client = await get_aredis_connection(config.redis_internal_url)
-		# _redis_client.flushdb()
-	try:
-		pool = _redis_client.connection_pool
-		if len(pool._in_use_connections) >= pool.max_connections: # pylint: disable=protected-access
-			logger.warning("No available connections in redis connection pool")
-			while len(pool._in_use_connections) >= pool.max_connections: # pylint: disable=protected-access
-				await asyncio.sleep(0.01)
-		return _redis_client
-	except Exception as err: # pylint: disable=broad-except
-		logger.error(err, exc_info=True)
 
 def init_pool_executor(loop):
 	# https://bugs.python.org/issue41699
@@ -127,7 +96,7 @@ def init_worker():
 	init_pool_executor(loop)
 	loop.set_exception_handler(handle_asyncio_exception)
 	# create redis pool
-	loop.create_task(get_redis_client())
+	loop.create_task(aredis_client())
 	loop.create_task(main_loop())
 	# create and start MetricsCollector
 	_metrics_collector = WorkerMetricsCollector()

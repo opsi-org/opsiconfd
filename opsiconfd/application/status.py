@@ -16,7 +16,7 @@ from fastapi.responses import PlainTextResponse
 from OPSI import __version__ as python_opsi_version
 from .. import __version__
 
-from ..utils import get_fqdn, get_node_name
+from ..utils import get_fqdn, get_node_name, get_aredis_info, aredis_client
 
 status_router = APIRouter()
 
@@ -24,12 +24,34 @@ def status_setup(app):
 	app.include_router(status_router, prefix="/status")
 
 @status_router.get("/")
-def status_overview() -> PlainTextResponse:
+async def status_overview() -> PlainTextResponse:
+	status = "ok"
+	redis_status = "ok"
+	redis_error = ""
+	redis_mem = -1
+	redis_mem_total = -1
+	try:
+		redis = await aredis_client(timeout=3)
+		await redis.ping()
+		redis_info = await get_aredis_info(redis)
+		redis_mem_total = redis_info['used_memory']
+		for key_type in redis_info["key_info"]:
+			redis_mem += redis_info["key_info"][key_type]["memory"]
+		redis_status = "ok"
+	except Exception as err:  # pylint: disable=broad-except
+		redis_status = "error"
+		status = "error"
+		redis_error = str(err) or "connection error"
+
 	data = (
-		"status: ok\n"
+		f"status: {status}\n"
 		f"version: {__version__} [python-opsi={python_opsi_version}]\n"
 		f"date: {datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()}\n"
 		f"node: {get_node_name()}\n"
 		f"fqdn: {get_fqdn()}\n"
+		f"redis-status: {redis_status}\n"
+		f"redis-error: {redis_error}\n"
+		f"redis-mem: {redis_mem}\n"
+		f"redis-mem-total: {redis_mem_total}\n"
 	)
 	return PlainTextResponse(data)

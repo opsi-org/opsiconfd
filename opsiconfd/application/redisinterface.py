@@ -17,8 +17,7 @@ from fastapi.templating import Jinja2Templates
 
 from ..logging import logger
 from ..config import config
-from ..worker import get_redis_client, sync_redis_client
-from ..utils import decode_redis_result, get_aredis_info
+from ..utils import decode_redis_result, get_aredis_info, redis_client, aredis_client
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
@@ -30,11 +29,11 @@ def redis_interface_setup(app):
 
 @admin_interface_router.post("/")
 async def redis_command(request: Request, response: Response):
-	redis_client = await get_redis_client()
+	redis = await aredis_client()
 	try:
 		request_body = await request.json()
 		redis_cmd = request_body.get("cmd")
-		redis_result = await redis_client.execute_command(redis_cmd)
+		redis_result = await redis.execute_command(redis_cmd)
 
 		response = JSONResponse({
 			"status": 200,
@@ -52,9 +51,9 @@ async def redis_command(request: Request, response: Response):
 
 @admin_interface_router.get("/redis-stats")
 async def get_redis_stats():  # pylint: disable=too-many-locals
-	redis_client = await get_redis_client()
+	redis = await aredis_client()
 	try:
-		redis_info = await get_aredis_info(redis_client)
+		redis_info = await get_aredis_info(redis)
 		response = JSONResponse({"status": 200, "error": None, "data": redis_info})
 	except Exception as err: # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
@@ -72,9 +71,10 @@ def get_depot_cache():
 		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(err)}})
 	return response
 
+
 def _get_depots():
 	depots = {}
-	with sync_redis_client() as redis:
+	with redis_client() as redis:
 		depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
 	return depots
 
@@ -84,11 +84,11 @@ def get_products(depot: str = None):
 	try:
 		data = []
 		if depot:
-			with sync_redis_client() as redis:
+			with redis_client() as redis:
 				products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{depot}:products", 0, -1))
 				data.append({depot: products})
 		else:
-			with sync_redis_client() as redis:
+			with redis_client() as redis:
 				depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
 				for depot in depots: # pylint: disable=redefined-argument-from-local
 					products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{depot}:products", 0, -1))
@@ -107,7 +107,7 @@ async def clear_product_cache(request: Request, response: Response):
 		depots = request_body.get("depots")
 		if not depots:
 			depots = _get_depots()
-		with sync_redis_client() as redis:
+		with redis_client() as redis:
 			with redis.pipeline() as pipe:
 				for depot in depots:
 					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products")

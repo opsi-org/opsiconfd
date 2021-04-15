@@ -27,10 +27,10 @@ from websockets.exceptions import ConnectionClosedOK
 from .. import contextvar_request_id, contextvar_client_address
 from ..logging import logger
 from ..config import config
-from ..worker import get_redis_client, init_worker
+from ..worker import init_worker
 from ..session import SessionMiddleware
 from ..statistics import StatisticsMiddleware
-from ..utils import normalize_ip_address
+from ..utils import normalize_ip_address, aredis_client
 from ..ssl import get_ca_cert_as_pem
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
@@ -55,8 +55,8 @@ class LoggerWebsocket(WebSocketEndpoint):
 		while True:
 			try:
 				# It is also possible to specify multiple streams
-				redis_client = await get_redis_client()
-				data = await redis_client.xread(block=1000, **{stream_name: last_id})
+				redis = await aredis_client()
+				data = await redis.xread(block=1000, **{stream_name: last_id})
 				if not data:
 					continue
 				buf = b""

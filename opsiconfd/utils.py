@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+utils
+"""
 
 import os
 import socket
@@ -13,6 +16,7 @@ import ipaddress
 import functools
 import time
 import asyncio
+from contextlib import contextmanager
 import psutil
 import redis
 import aredis
@@ -27,6 +31,7 @@ def get_logger():
 	if not logger:
 		from .logging import logger # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return logger
+
 
 config = None # pylint: disable=invalid-name
 def get_config():
@@ -43,12 +48,14 @@ class Singleton(type):
 			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
 		return cls._instances[cls]
 
+
 def running_in_docker():
 	with open("/proc/self/cgroup") as f: # pylint: disable=invalid-name
 		for line in f.readlines():
 			if line.split(':')[2].startswith("/docker/"):
 				return True
 	return False
+
 
 node_name = None # pylint: disable=invalid-name
 def get_node_name():
@@ -68,6 +75,7 @@ def get_node_name():
 				node_name = socket.gethostname()
 	return node_name
 
+
 def decode_redis_result(_obj):
 	if isinstance(_obj, bytes):
 		_obj = _obj.decode("utf8")
@@ -83,6 +91,7 @@ def decode_redis_result(_obj):
 			_obj.add(decode_redis_result(v))
 	return _obj
 
+
 def normalize_ip_address(address, exploded=False):
 	address = ipaddress.ip_address(address)
 	if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
@@ -90,6 +99,7 @@ def normalize_ip_address(address, exploded=False):
 	if exploded:
 		return address.exploded
 	return address.compressed
+
 
 def get_ip_addresses():
 	for interface, snics in psutil.net_if_addrs().items():
@@ -115,6 +125,7 @@ def get_ip_addresses():
 				"ip_address": ip_address
 			}
 
+
 def get_fqdn(name=''):
 	if not name:
 		try:
@@ -124,10 +135,12 @@ def get_fqdn(name=''):
 			pass
 	return forceFqdn(socket.getfqdn(name))
 
+
 def get_random_string(length):
 	letters = string.ascii_letters
 	result_str = ''.join(random.choice(letters) for i in range(length))
 	return result_str
+
 
 def retry_redis_call(func):
 	@functools.wraps(func)
@@ -142,8 +155,10 @@ def retry_redis_call(func):
 				time.sleep(1)
 	return wrapper_retry
 
+
 REDIS_CONNECTION_POOL = {}
-def get_redis_connection(url, db=None):  # pylint: disable=invalid-name
+def get_redis_connection(url: str, db: str = None, timeout: int = 0):  # pylint: disable=invalid-name
+	start = time.time()
 	while True:
 		try:
 			con_id = f"{url}/{db}"
@@ -151,15 +166,30 @@ def get_redis_connection(url, db=None):  # pylint: disable=invalid-name
 			if not con_id in REDIS_CONNECTION_POOL:
 				new_pool = True
 				REDIS_CONNECTION_POOL[con_id] = redis.ConnectionPool.from_url(url, db)
-			redis_client = redis.StrictRedis(connection_pool=REDIS_CONNECTION_POOL[con_id])
+			client = redis.StrictRedis(connection_pool=REDIS_CONNECTION_POOL[con_id])
 			if new_pool:
-				redis_client.ping()
-			return redis_client
+				client.ping()
+			return client
 		except (redis.exceptions.ConnectionError, redis.BusyLoadingError):
+			if timeout and timeout >= time.time() - start:
+				raise
 			time.sleep(2)
 
+
+@contextmanager
+def redis_client(timeout: int = 0):
+	con = None
+	try:
+		con = get_redis_connection(url=get_config().redis_internal_url, timeout=timeout)
+		yield con
+	finally:
+		if con:
+			con.close()
+
+
 AREDIS_CONNECTION_POOL = {}
-async def get_aredis_connection(url, db=None): # pylint: disable=invalid-name
+async def get_aredis_connection(url: str, db: str = None, timeout: int = 0): # pylint: disable=invalid-name
+	start = time.time()
 	while True:
 		try:
 			con_id = f"{id(asyncio.get_event_loop())}/{url}/{db}"
@@ -167,20 +197,29 @@ async def get_aredis_connection(url, db=None): # pylint: disable=invalid-name
 			if con_id not in AREDIS_CONNECTION_POOL:
 				new_pool = True
 				AREDIS_CONNECTION_POOL[con_id] = aredis.ConnectionPool.from_url(url, db)
-			redis_client = aredis.StrictRedis(connection_pool=AREDIS_CONNECTION_POOL[con_id])
+			# This will return a client (no Exception) even if connection is currently lost
+			client = aredis.StrictRedis(connection_pool=AREDIS_CONNECTION_POOL[con_id])
 			if new_pool:
-				await redis_client.ping()
-			return redis_client
-		except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError):
+				await client.ping()
+			return client
+		except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as err:
+			print("ERROR", err)
+			if timeout and timeout >= time.time() - start:
+				raise
 			await asyncio.sleep(2)
 
-async def get_aredis_info(redis_client: aredis.StrictRedis):	# pylint: disable=too-many-locals
+
+async def aredis_client(timeout: int = 0):
+	return await get_aredis_connection(url=get_config().redis_internal_url, timeout=timeout)
+
+
+async def get_aredis_info(client: aredis.StrictRedis):	# pylint: disable=too-many-locals
 	stats_keys = []
 	sessions_keys = []
 	log_keys = []
 	rpc_keys = []
 	misc_keys = []
-	redis_keys = redis_client.scan_iter("opsiconfd:*")
+	redis_keys = client.scan_iter("opsiconfd:*")
 
 	async for key in redis_keys:
 		key = key.decode("utf8")
@@ -197,25 +236,25 @@ async def get_aredis_info(redis_client: aredis.StrictRedis):	# pylint: disable=t
 
 	stats_memory = 0
 	for key in stats_keys:
-		stats_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+		stats_memory += await client.execute_command(f"MEMORY USAGE {key}")
 
 	sessions_memory = 0
 	for key in sessions_keys:
-		sessions_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+		sessions_memory += await client.execute_command(f"MEMORY USAGE {key}")
 
 	logs_memory = 0
 	for key in log_keys:
-		logs_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+		logs_memory += await client.execute_command(f"MEMORY USAGE {key}")
 
 	rpc_memory = 0
 	for key in rpc_keys:
-		rpc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+		rpc_memory += await client.execute_command(f"MEMORY USAGE {key}")
 
 	misc_memory = 0
 	for key in misc_keys:
-		misc_memory += await redis_client.execute_command(f"MEMORY USAGE {key}")
+		misc_memory += await client.execute_command(f"MEMORY USAGE {key}")
 
-	redis_info = decode_redis_result(await redis_client.execute_command("INFO"))
+	redis_info = decode_redis_result(await client.execute_command("INFO"))
 	redis_info["key_info"] = {
 		"stats": {
 			"count": len(stats_keys),

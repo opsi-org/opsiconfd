@@ -83,7 +83,7 @@ def get_basic_auth(headers: Headers):
 def authenticate(connection: HTTPConnection) -> None:
 	auth = get_basic_auth(connection.headers)
 	auth_type = None
-	if auth.username == "monitoring":
+	if auth.username == config.monitoring_user:
 		auth_type = "opsi-passwd"
 	get_client_backend().backendAccessControl.authenticate(auth.username, auth.password, auth_type=auth_type)
 

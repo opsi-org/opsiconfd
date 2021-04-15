@@ -166,7 +166,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 				if not os.path.exists(dst):
 					await self._loop.run_in_executor(None, os.symlink, src, dst)
 		except Exception as exc: # pylint: disable=broad-except
-			handle_log_exception(exc)
+			logger.error(exc, exc_info=True)
 
 	def get_file_handler(self, client=None):
 		filename = None

@@ -27,7 +27,7 @@ from OPSI.System import get_subprocess_environment
 
 from .logging import logger
 from .config import config
-from .backend import get_backend
+from .backend import get_backend, backend_config
 from .grafana import setup_grafana
 from .statistics import setup_metric_downsampling
 from .ssl import setup_ssl, setup_ssl_file_permissions
@@ -152,6 +152,19 @@ def setup_backend():
 	logger.info("Setup backend")
 	initializeBackends()
 
+	mysql_used = False
+	for entry in backend.dispatcher_getConfig(): # pylint: disable=no-member
+		if 'mysql' in entry[1]:
+			mysql_used = True
+			break
+
+	if mysql_used:
+		logger.info("Update mysql backend")
+		from OPSI.Util.Task.UpdateBackend.MySQL import updateMySQLBackend # pylint: disable=import-outside-toplevel
+		updateMySQLBackend(
+			backendConfigFile=os.path.join(backend_config["backendConfigDir"], "mysql.conf")
+		)
+
 def cleanup_log_files():
 	logger.info("Cleanup log files")
 	now = time.time()
@@ -193,18 +206,18 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 		config.run_as_user = getpass.getuser()
 	if not "limits" in skip_setup:
 		setup_limits()
+	if not "backend" in skip_setup:
+		try:
+			setup_backend()
+		except Exception as err: # pylint: disable=broad-except
+			# This can happen during package installation
+			# where backend config files are missing
+			logger.debug("Failed to setup backend: %s", err, exc_info=True)
+			logger.warning("Failed to setup backend: %s", err)
 	if full:
 		if not "users" in skip_setup and not "groups" in skip_setup:
 			po_setup_users_and_groups(ignore_errors=True)
 			setup_users_and_groups()
-		if not "backend" in skip_setup:
-			try:
-				setup_backend()
-			except Exception as err: # pylint: disable=broad-except
-				# This can happen during package installation
-				# where backend config files are missing
-				logger.debug("Failed to setup backend: %s", err, exc_info=True)
-				logger.warning("Failed to setup backend: %s", err)
 		if not "files" in skip_setup:
 			setup_files()
 		#po_setup_file_permissions() # takes very long with many files in /var/lib/opsi

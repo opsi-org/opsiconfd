@@ -20,7 +20,7 @@ from OPSI.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,
 	add_user_to_group, create_user, set_primary_group, create_group
 )
-from OPSI.System.Posix import getLocalFqdn, locateDHCPDConfig
+from OPSI.System.Posix import locateDHCPDConfig
 from OPSI.Util.Task.InitializeBackend import initializeBackends
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.System import get_subprocess_environment

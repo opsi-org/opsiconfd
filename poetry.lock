@@ -852,7 +852,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.180"
+version = "4.2.0.181"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -2024,8 +2024,8 @@ python-magic = [
     {file = "python_magic-0.4.22-py2.py3-none-any.whl", hash = "sha256:8551e804c09a3398790bd9e392acb26554ae2609f29c72abb0b9dee9a5571eae"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.180.tar.gz", hash = "md5:aad79bc5d34d0fe2c9aea2b02bc5a269"},
-    {file = "python_opsi-4.2.0.180-py3-none-any.whl", hash = "md5:a816f165449064b1f68dd60eff3fb89c"},
+    {file = "python-opsi-4.2.0.181.tar.gz", hash = "md5:daec6a4eff81b6c738d92dc9da0d97fa"},
+    {file = "python_opsi-4.2.0.181-py3-none-any.whl", hash = "md5:9ba23479e521df6b3a95801cea1d32bb"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

@@ -80,12 +80,9 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			)
 			loop_thread.start()
 
-			register_opsi_services()
-
 			self._server = Server()
 			self._server.run()
 
-			unregister_opsi_services()
 		except Exception as exc: # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 
@@ -126,6 +123,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		metrics_collector = ManagerMetricsCollector()
 		self._loop.create_task(metrics_collector.main_loop())
 
+		await register_opsi_services()
+
 		while not self._should_stop:
 			try:
 				now = time.time()
@@ -137,3 +136,5 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 				logger.error(err, exc_info=True)
 			for _num in range(60):
 				await asyncio.sleep(1)
+
+		await unregister_opsi_services()

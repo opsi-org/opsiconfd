@@ -142,16 +142,10 @@ def setup_systemd():
 	subprocess.run(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment(), capture_output=True) # pylint: disable=subprocess-run-check
 
 def setup_backend():
-	fqdn = getLocalFqdn()
-	try:
-		backend = get_backend()
-		backend.host_getObjects(type='OpsiDepotserver', id=fqdn) # pylint: disable=no-member
-	except Exception as err: # pylint: disable=broad-except
-		logger.debug(err)
-
 	logger.info("Setup backend")
 	initializeBackends()
 
+	backend = get_backend()
 	mysql_used = False
 	for entry in backend.dispatcher_getConfig(): # pylint: disable=no-member
 		if 'mysql' in entry[1]:

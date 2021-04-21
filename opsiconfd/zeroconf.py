@@ -18,9 +18,35 @@ from .backend import get_backend
 _zeroconf = None  # pylint: disable=invalid-name
 _info = None  # pylint: disable=invalid-name
 
-async def async_register_opsi_service():
+def _is_config_server():
+	try:
+		dispatch_backend = get_backend()
+		while not hasattr(dispatch_backend, "_dispatchConfig"):
+			dispatch_backend = dispatch_backend._backend  # pylint: disable=protected-access
+
+		for _entry in dispatch_backend._dispatchConfig:  # pylint: disable=protected-access
+			if "jsonrpc" in _entry[1]:
+				return False
+		return True
+	except Exception as err:  # pylint: disable=broad-except
+		logger.warning(err)
+	return False
+
+async def register_opsi_services():
 	global _zeroconf, _info # pylint: disable=invalid-name,global-statement
-	logger.notice("Register zeroconf service")
+	if not _is_config_server():
+		return
+
+	logger.devel("Register zeroconf service")
+
+	if not _zeroconf:
+		iface = None
+		if str(config.interface) not in ("0.0.0.0", "::"):
+			iface = config.interface
+		address_family = [netifaces.AF_INET]  # pylint: disable=c-extension-no-member
+		if str(config.interface) == "::":
+			address_family.append(netifaces.AF_INET6)  # pylint: disable=c-extension-no-member
+		_zeroconf = Zeroconf(asyncio.get_event_loop(), address_family=address_family, iface=iface)
 
 	address = None
 	address6 = None
@@ -43,7 +69,7 @@ async def async_register_opsi_service():
 	)
 	await _zeroconf.register_service(_info)
 
-async def async_unregister_opsi_service():
+async def unregister_opsi_services():
 	global _zeroconf, _info # pylint: disable=invalid-name,global-statement
 	if not _zeroconf or not _info:
 		return
@@ -51,35 +77,4 @@ async def async_unregister_opsi_service():
 	await _zeroconf.unregister_service(_info)
 	await _zeroconf.close()
 
-def _is_config_server():
-	try:
-		dispatch_backend = get_backend()
-		while not hasattr(dispatch_backend, "_dispatchConfig"):
-			dispatch_backend = dispatch_backend._backend  # pylint: disable=protected-access
 
-		for _entry in dispatch_backend._dispatchConfig:  # pylint: disable=protected-access
-			if "jsonrpc" in _entry[1]:
-				return False
-		return True
-	except Exception as err:  # pylint: disable=broad-except
-		logger.warning(err)
-	return False
-
-def register_opsi_services():
-	if not _is_config_server():
-		return
-	global _zeroconf  # pylint: disable=invalid-name,global-statement
-	loop = asyncio.get_event_loop()
-	if not _zeroconf:
-		iface = None
-		if str(config.interface) not in ("0.0.0.0", "::"):
-			iface = config.interface
-		address_family = [netifaces.AF_INET]  # pylint: disable=c-extension-no-member
-		if str(config.interface) == "::":
-			address_family.append(netifaces.AF_INET6)  # pylint: disable=c-extension-no-member
-		_zeroconf = Zeroconf(loop, address_family=address_family, iface=iface)
-	loop.create_task(async_register_opsi_service())
-
-def unregister_opsi_services():
-	loop = asyncio.get_event_loop()
-	loop.create_task(async_unregister_opsi_service())

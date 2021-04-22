@@ -236,23 +236,23 @@ async def get_aredis_info(client: aredis.StrictRedis):	# pylint: disable=too-man
 
 	stats_memory = 0
 	for key in stats_keys:
-		stats_memory += await client.execute_command(f"MEMORY USAGE {key}")
+		stats_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0
 
 	sessions_memory = 0
 	for key in sessions_keys:
-		sessions_memory += await client.execute_command(f"MEMORY USAGE {key}")
+		sessions_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0
 
 	logs_memory = 0
 	for key in log_keys:
-		logs_memory += await client.execute_command(f"MEMORY USAGE {key}")
+		logs_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0
 
 	rpc_memory = 0
 	for key in rpc_keys:
-		rpc_memory += await client.execute_command(f"MEMORY USAGE {key}")
+		rpc_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0
 
 	misc_memory = 0
 	for key in misc_keys:
-		misc_memory += await client.execute_command(f"MEMORY USAGE {key}")
+		misc_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0
 
 	redis_info = decode_redis_result(await client.execute_command("INFO"))
 	redis_info["key_info"] = {

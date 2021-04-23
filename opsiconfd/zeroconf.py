@@ -5,6 +5,8 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+import ipaddress
+import socket
 import asyncio
 import netifaces
 from aiozeroconf import ServiceInfo, Zeroconf
@@ -48,24 +50,46 @@ async def register_opsi_services():
 			address_family.append(netifaces.AF_INET6)  # pylint: disable=c-extension-no-member
 		_zeroconf = Zeroconf(asyncio.get_event_loop(), address_family=address_family, iface=iface)
 
+	fqdn = get_fqdn()
 	address = None
 	address6 = None
-	for addr in get_ip_addresses():
-		if addr["family"] == "ipv4":
-			address = addr["ip_address"].packed
-		elif addr["family"] == "ipv6":
-			address6 = addr["ip_address"].packed
+	try:
+		address = socket.getaddrinfo(fqdn, None, socket.AF_INET)[0][-1][0]
+	except socket.error as err:
+		logger.warning("Failed to get ipv4 address for '%s': %s", fqdn, err)
+		for addr in get_ip_addresses():
+			if (
+				addr["family"] == "ipv4" and
+				not addr["ip_address"].is_loopback
+			):
+				address = str(addr["ip_address"])
+				break
+	try:
+		address6 = socket.getaddrinfo(fqdn, None, socket.AF_INET6)[0][-1][0]
+
+	except socket.error as err:
+		logger.debug("Failed to get ipv6 address for '%s': %s", fqdn, err)
+		for addr in get_ip_addresses():
+			if (
+				addr["family"] == "ipv6" and
+				not addr["ip_address"].is_loopback and
+				not addr["ip_address"].is_link_local
+			):
+				address6 = str(addr["ip_address"])
+				break
+
+	logger.info("Using the following ip addresses for zeroconf: ipv4=%s, ipv6=%s", address, address6)
 
 	_info = ServiceInfo(
 		"_opsics._tcp.local.",
 		"opsi config service._opsics._tcp.local.",
-		address=address,
-		address6=address6,
+		address=ipaddress.ip_address(address).packed if address else None,
+		address6=ipaddress.ip_address(address6).packed if address6 else None,
 		port=config.port,
 		weight=0,
 		priority=0,
 		properties={'version': __version__},
-		server=get_fqdn() + "."
+		server=fqdn + "."
 	)
 	await _zeroconf.register_service(_info)
 

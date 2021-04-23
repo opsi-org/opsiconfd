@@ -40,6 +40,8 @@ from opsicommon.logging.logging import add_context_filter_to_loggers
 from .utils import retry_redis_call, get_aredis_connection, get_redis_connection
 from .config import config
 
+LOG_STREAM_MAX_RECORDS = 50000
+
 # Set default log level to ERROR early
 logger.setLevel(pylogging.ERROR)
 
@@ -314,7 +316,11 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 				pipeline = self._redis.pipeline()
 				while True:
 					try:
-						pipeline.xadd("opsiconfd:log", self._queue.get_nowait())
+						pipeline.xadd(
+							"opsiconfd:log",
+							self._queue.get_nowait(),
+							approximate=LOG_STREAM_MAX_RECORDS
+						)
 					except Empty:
 						break
 				pipeline.execute()

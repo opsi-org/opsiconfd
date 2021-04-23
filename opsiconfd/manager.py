@@ -125,7 +125,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 
 		try:
 			await register_opsi_services()
-		except Exception as err:
+		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
 
 		while not self._should_stop:
@@ -142,6 +142,5 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 
 		try:
 			await unregister_opsi_services()
-		except Exception as err:
+		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
-

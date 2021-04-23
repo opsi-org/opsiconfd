@@ -123,7 +123,10 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		metrics_collector = ManagerMetricsCollector()
 		self._loop.create_task(metrics_collector.main_loop())
 
-		await register_opsi_services()
+		try:
+			await register_opsi_services()
+		except Exception as err:
+			logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
 
 		while not self._should_stop:
 			try:
@@ -137,4 +140,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			for _num in range(60):
 				await asyncio.sleep(1)
 
-		await unregister_opsi_services()
+		try:
+			await unregister_opsi_services()
+		except Exception as err:
+			logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
+

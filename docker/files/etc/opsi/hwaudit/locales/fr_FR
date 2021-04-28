@@ -124,4 +124,8 @@ PRINTER.capabilities = Possibilités
 PRINTER.paperSizesSupported = Taille de papier supportées
 PRINTER.driverName = Nom du driver
 PRINTER.port = Port
-
+TPM = Trusted Platform Module
+TPM.manufacturer = Fabricant
+TPM.version = Version
+TPM.manufacturerversion =  Version du fabricant
+TPM.enabled = Activée

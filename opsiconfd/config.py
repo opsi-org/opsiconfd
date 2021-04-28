@@ -223,6 +223,17 @@ parser.add(
 	help="Number of workers to fork."
 )
 parser.add(
+	"--worker-stop-timeout",
+	env_var="OPSICONFD_WORKER_STOP_TIMEOUT",
+	type=int,
+	default=120,
+	help=(
+		"A worker terminates only when all open client connections have been closed."
+		"How log, in seconds, to wait for a worker to stop."
+		"After the timeout expires the worker will be forced to stop."
+	)
+)
+parser.add(
 	"--backend-config-dir",
 	env_var="OPSICONFD_BACKEND_CONFIG_DIR",
 	default="/etc/opsi/backends",

@@ -10,9 +10,10 @@ Wants=network-online.target
 
 [Service]
 ExecStart=/usr/bin/opsiconfd start --log-level-stderr=0
+ExecStop=/usr/bin/opsiconfd stop --log-level-stderr=0 --worker-stop-timeout 10
 ExecReload=/usr/bin/opsiconfd reload --log-level-stderr=0
-RestartSec=10
-TimeoutStopSec=15
+RestartSec=1
+TimeoutStopSec=20
 
 [Install]
 WantedBy=multi-user.target

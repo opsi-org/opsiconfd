@@ -66,7 +66,10 @@ def get_manager_pid():
 
 		if (
 			proc.name() == "opsiconfd" or
-			(proc.name() in ("python", "python3") and "opsiconfd" in proc.cmdline())
+			(proc.name() in ("python", "python3") and (
+				"opsiconfd" in proc.cmdline() or
+				"opsiconfd.__main__" in " ".join(proc.cmdline())
+			))
 		):
 			is_manager = True
 			for arg in proc.cmdline():
@@ -107,12 +110,19 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 	if config.action in ("restart", "status"):
 		os.execvp("systemctl", ["systemctl", "--no-pager", "--lines", "0", config.action, "opsiconfd"])
 
-	if config.action in ("reload", "stop"):
+	if config.action in ("reload", "stop", "force-stop"):
 		# Send signal to manager process only, not to workers!
-		send_signal = signal.SIGINT if config.action == "stop" else signal.SIGHUP
+		send_signal = signal.SIGINT if config.action in ("stop", "force-stop") else signal.SIGHUP
 
 		if manager_pid:
 			os.kill(manager_pid, send_signal)
+			if config.action == "force-stop":
+				# Wait 5 seconds for processes to terminate or resend signal to force stop
+				for _num in range(5):
+					time.sleep(1)
+					if not get_manager_pid():
+						return
+				os.kill(manager_pid, send_signal)
 		else:
 			print("No running opsiconfd manager process found", file=sys.stderr)
 			sys.exit(1)

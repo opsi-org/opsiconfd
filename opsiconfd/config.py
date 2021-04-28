@@ -658,10 +658,10 @@ else:
 	parser.add(
 		"action",
 		nargs="?",
-		choices=("start", "stop", "status", "restart", "reload", "setup", "log-viewer"),
+		choices=("start", "stop", "force-stop", "status", "restart", "reload", "setup", "log-viewer"),
 		default="start",
 		metavar="ACTION",
-		help="The ACTION to perform (start / stop / status / restart / reload / setup / log-viewer)."
+		help="The ACTION to perform (start / force-stop / stop / status / restart / reload / setup / log-viewer)."
 	)
 
 class Config(metaclass=Singleton):

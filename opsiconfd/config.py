@@ -446,6 +446,12 @@ parser.add(
 	help="The port where opsiconfd will listen for https requests."
 )
 parser.add(
+	"--ssl-ca-subject-cn",
+	env_var="OPSICONFD_SSL_CA_SUBJECT_CN",
+	default="opsi CA",
+	help="The common name to use in the opsi CA subject."
+)
+parser.add(
 	"--ssl-ca-key",
 	env_var="OPSICONFD_SSL_CA_KEY",
 	default="/etc/opsi/ssl/opsi-ca-key.pem",

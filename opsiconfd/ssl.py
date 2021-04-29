@@ -248,7 +248,7 @@ def configserver_setup_ca() -> bool:
 
 		(ca_crt, ca_key) = create_ca(
 			subject={
-				"CN": "opsi CA",
+				"CN": config.ssl_ca_subject_cn,
 				"OU": f"opsi@{domain}",
 				"emailAddress": f"opsi@{domain}"
 			},

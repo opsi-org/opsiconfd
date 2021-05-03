@@ -200,7 +200,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 					headers.append("Access-Control-Allow-Credentials", "true")
 				await send(message)
 
-			await self.app(scope, receive, send_wrapper)
+			return await self.app(scope, receive, send_wrapper)
 
 		return await self.app(scope, receive, send)
 

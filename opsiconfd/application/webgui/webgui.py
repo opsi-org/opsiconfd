@@ -8,11 +8,16 @@
 webgui
 """
 
+import orjson as json
+from orjson import JSONDecodeError
 from sqlalchemy import select, text, and_, asc, desc, column
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
+from OPSI.Util import getfqdn
+
+from opsiconfd import contextvar_client_session
 from opsiconfd.logging import logger
 from opsiconfd.backend import get_backend
 
@@ -46,6 +51,56 @@ def pagination(query, params):
 		query = query.offset(params["pageNumber"] * params["perPage"])
 	return query
 
+def get_configserver_id():
+	return getfqdn()
+
+def get_user_privileges():
+	username = "adminuser"
+	#client_session = contextvar_client_session.get()
+	#if not client_session:
+	#	raise RuntimeError("Session invalid")
+	#username = client_session.user_store.username
+
+	privileges = {}
+	with mysql.session() as session:
+		for row in session.execute(
+			"""
+			SELECT
+				cs.configId,
+				cs.values
+			FROM
+				CONFIG_STATE AS cs
+			WHERE
+				cs.configId LIKE :config_id_filter
+			GROUP BY
+				cs.configId
+			ORDER BY
+				cs.configId
+			""",
+			{"config_id_filter": f"user.{{{username}}}.privilege.%"}
+		).fetchall():
+			try:
+				priv = ".".join(row["configId"].split(".")[3:])
+				vals = [ val for val in json.loads(row["values"]) if val != "" ]  # pylint: disable=c-extension-no-member
+				privileges[priv] = vals
+			except JSONDecodeError as err:
+				logger.error("Failed to parse privilege %s: %s", row, err)
+
+		return privileges
+
+
+def get_allowed_objects():
+	allowed = {
+		"product_groups": ...,
+		"host_groups": ...
+	}
+	privileges = get_user_privileges()
+	if True in privileges.get("product.groupaccess.configured", [False]):
+		allowed["product_groups"] = privileges.get("product.groupaccess.productgroups", [])
+	if True in privileges.get("host.groupaccess.configured", [False]):
+		allowed["host_groups"] = privileges.get("host.groupaccess.productgroups", [])
+	return allowed
+
 
 @webgui_router.options("/api/{any:path}")
 async def options():
@@ -60,6 +115,106 @@ async def options():
 async def auth_login():
 	return JSONResponse({
 		"result": "Login success"
+	})
+
+
+@webgui_router.get("/api/user/opsiserver")
+@webgui_router.post("/api/user/opsiserver")
+async def user_opsiserver():
+	return JSONResponse({
+		"result": get_configserver_id()
+	})
+
+
+@webgui_router.get("/api/opsidata/modulesContent")
+@webgui_router.post("/api/opsidata/modulesContent")
+async def modules_content():
+	return JSONResponse({
+		"result": get_backend().backend_info()["modules"]
+	})
+
+
+@webgui_router.get("/api/opsidata/home")
+@webgui_router.post("/api/opsidata/home")
+async def home():
+	allowed = get_allowed_objects()
+
+	all_groups = {}
+	with mysql.session() as session:
+		for row in session.execute(
+			"""
+			SELECT
+				g.parentGroupId AS parent_id,
+				g.groupId AS group_id,
+				og.objectId AS product_id
+			FROM
+				`GROUP` AS g
+			LEFT JOIN
+				OBJECT_TO_GROUP AS og ON og.groupType = g.`type` AND og.groupId = g.groupId
+			WHERE
+				g.`type` = "ProductGroup"
+			ORDER BY
+				parent_id,
+				group_id,
+				product_id
+			"""
+		).fetchall():
+			if not row["group_id"] in all_groups:
+				all_groups[row["group_id"]] = {
+					"id": row["group_id"],
+					"type": "ProductGroup",
+					"text": row["group_id"],
+					"parent": row["parent_id"],
+					"allowed": True
+				}
+			if row["product_id"]:
+				if not "children" in all_groups[row["group_id"]]:
+					all_groups[row["group_id"]]["children"] = {}
+				all_groups[row["group_id"]]["children"][row["product_id"]] = {
+					"id": row["product_id"],
+					"type": "ObjectToGroup",
+					"text": row["product_id"],
+					"parent": row["group_id"],
+					"inDepot": "configserver" ############ TODO
+				}
+
+		def build_tree(group, groups):
+			is_root_group = group["parent"] == "#"
+
+			if not is_root_group and group["parent"] and group["parent"] not in all_groups:
+				logger.error("Parent group '%s' of group '%s' not found", group["parent"], group["text"])
+
+			children = {}
+			for grp in groups:
+				if (
+					grp["parent"] == group["id"] or
+					(grp["parent"] is None and is_root_group)
+				):
+					children[grp["id"]] = build_tree(grp, groups)
+			if children:
+				if not "children" in group:
+					group["children"] = {}
+				group["children"].update(children)
+
+			if not is_root_group and "children" in group:
+				# Correct ids for webgui
+				for child in group["children"].values():
+					child["id"] = f'{child["id"]};{group["id"]}'
+			return group
+
+		base_group = {
+			"id": "productgroups",
+			"type": "ProductGroup",
+			"text": "productgroups",
+			"parent": "#",
+			"allowed": True
+		}
+		product_groups = build_tree(base_group, all_groups.values())
+
+	return JSONResponse({
+		"groups":{
+			"productgroups": product_groups
+		}
 	})
 
 
@@ -92,10 +247,6 @@ async def depots(request: Request):
 	logger.devel(request_data)
 
 	with mysql.session() as session:
-		configserver_id = session.execute(
-			"SELECT hostId FROM HOST WHERE `type` = 'OpsiConfigserver'"
-		).fetchone()[0]
-
 		where = text("h.type IN ('OpsiConfigserver', 'OpsiDepotserver')")
 		query = select(text(
 				"h.hostId AS depotId, "
@@ -124,7 +275,7 @@ async def depots(request: Request):
 				"depots": [ dict(row) for row in result if row is not None ],
 				"total": total
 			},
-			"configserver": configserver_id
+			"configserver": get_configserver_id()
 		}
 		return JSONResponse(response_data)
 
@@ -132,7 +283,6 @@ async def depots(request: Request):
 @webgui_router.get("/api/opsidata/clients")
 @webgui_router.post("/api/opsidata/clients")
 async def clients(request: Request):  # pylint: disable=too-many-branches
-	# {"pageNumber":1,"perPage":10,"sortBy":"clientId","sortDesc":false,"filterQuery":"","selectedDepot":["anna-vm-24001.uib.local"]}
 	request_data = {}
 	try:
 		request_data = await request.json()
@@ -140,10 +290,6 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 		pass
 
 	with mysql.session() as session:
-		configserver_id = session.execute(
-			"SELECT hostId FROM HOST WHERE `type` = 'OpsiConfigserver'"
-		).fetchone()[0]
-
 		where = text("h.type = 'OpsiClient'")
 		params = {}
 		if request_data.get("filterQuery"):
@@ -213,6 +359,6 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 				"clients": [ dict(row) for row in result if row is not None ],
 				"total": total
 			},
-			"configserver": configserver_id
+			"configserver": get_configserver_id()
 		}
 		return JSONResponse(response_data)

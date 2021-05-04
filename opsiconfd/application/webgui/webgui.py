@@ -55,9 +55,10 @@ def get_configserver_id():
 	return getfqdn()
 
 def get_user_privileges():
-	username = "adminuser"
+	username = None
 	client_session = contextvar_client_session.get()
-	#if not client_session:
+	if not client_session:
+		username = "adminuser"
 	#	raise RuntimeError("Session invalid")
 	#username = client_session.user_store.username
 
@@ -134,88 +135,116 @@ async def modules_content():
 	})
 
 
+def build_tree(group, groups, allowed, processed=None):
+	if not processed:
+		processed = []
+	processed.append(group["id"])
+
+	is_root_group = group["parent"] == "#"
+	group["allowed"] = is_root_group or allowed == ... or group["id"] in allowed
+
+	children = {}
+	for grp in groups:
+		if grp["id"] == group["id"]:
+			continue
+		if grp["parent"] == group["id"]:
+			if grp["id"] in processed:
+				logger.error("Loop: %s %s", grp["id"], processed)
+			else:
+				children[grp["id"]] = build_tree(grp, groups, allowed, processed)
+	if children:
+		if not "children" in group:
+			group["children"] = {}
+		group["children"].update(children)
+
+	if not is_root_group and "children" in group:
+		for child in group["children"].values():
+			# Correct id for webgui
+			child["id"] = f'{child["id"]};{group["id"]}'
+			if child.get("allowed"):
+				# Allow parent if child is allowed
+				group["allowed"] = True
+
+	return group
+
 @webgui_router.get("/api/opsidata/home")
 @webgui_router.post("/api/opsidata/home")
 async def home():
-	#allowed = get_allowed_objects()
+	allowed = get_allowed_objects()
 
-	all_groups = {}
 	with mysql.session() as session:
-		for row in session.execute(
-			"""
-			SELECT
-				g.parentGroupId AS parent_id,
-				g.groupId AS group_id,
-				og.objectId AS product_id
-			FROM
-				`GROUP` AS g
-			LEFT JOIN
-				OBJECT_TO_GROUP AS og ON og.groupType = g.`type` AND og.groupId = g.groupId
-			WHERE
-				g.`type` = "ProductGroup"
-			ORDER BY
-				parent_id,
-				group_id,
-				product_id
-			"""
-		).fetchall():
-			if not row["group_id"] in all_groups:
-				all_groups[row["group_id"]] = {
-					"id": row["group_id"],
-					"type": "ProductGroup",
-					"text": row["group_id"],
-					"parent": row["parent_id"],
+		product_groups = {}
+		host_groups = {}
+
+		for group_type in ("ProductGroup", "HostGroup"):
+			all_groups = {}
+			root_group = None
+			if group_type == "ProductGroup":
+				root_group = {
+					"id": "productgroups",
+					"type": group_type,
+					"text": "productgroups",
+					"parent": "#",
 					"allowed": True
 				}
-			if row["product_id"]:
-				if not "children" in all_groups[row["group_id"]]:
-					all_groups[row["group_id"]]["children"] = {}
-				all_groups[row["group_id"]]["children"][row["product_id"]] = {
-					"id": row["product_id"],
-					"type": "ObjectToGroup",
-					"text": row["product_id"],
-					"parent": row["group_id"],
-					"inDepot": "configserver" ############ TODO
+			elif group_type == "HostGroup":
+				root_group = {
+					"id": "clientdirectory",
+					"type": group_type,
+					"text": "clientdirectory",
+					"parent": "#",
+					"allowed": True
 				}
 
-		def build_tree(group, groups):
-			is_root_group = group["parent"] == "#"
+			for row in session.execute(
+				"""
+				SELECT
+					g.parentGroupId AS parent_id,
+					g.groupId AS group_id,
+					og.objectId AS object_id
+				FROM
+					`GROUP` AS g
+				LEFT JOIN
+					OBJECT_TO_GROUP AS og ON og.groupType = g.`type` AND og.groupId = g.groupId
+				WHERE
+					g.`type` = :group_type
+				ORDER BY
+					parent_id,
+					group_id,
+					object_id
+				""",
+				{"group_type": group_type}
+			).fetchall():
+				if not row["group_id"] in all_groups:
+					all_groups[row["group_id"]] = {
+						"id": row["group_id"],
+						"type": group_type,
+						"text": row["group_id"],
+						"parent": row["parent_id"] or root_group["id"],
+						"allowed": True
+					}
+				if row["object_id"]:
+					if not "children" in all_groups[row["group_id"]]:
+						all_groups[row["group_id"]]["children"] = {}
+					all_groups[row["group_id"]]["children"][row["object_id"]] = {
+						"id": row["object_id"],
+						"type": "ObjectToGroup",
+						"text": row["object_id"],
+						"parent": row["group_id"],
+						"inDepot": "configserver" # TODO
+					}
 
-			if not is_root_group and group["parent"] and group["parent"] not in all_groups:
-				logger.error("Parent group '%s' of group '%s' not found", group["parent"], group["text"])
+			if group_type == "ProductGroup":
+				product_groups = build_tree(root_group, all_groups.values(), allowed["product_groups"])
+			elif group_type == "HostGroup":
+				host_groups = build_tree(root_group, list(all_groups.values()), allowed["host_groups"])
 
-			children = {}
-			for grp in groups:
-				if (
-					grp["parent"] == group["id"] or
-					(grp["parent"] is None and is_root_group)
-				):
-					children[grp["id"]] = build_tree(grp, groups)
-			if children:
-				if not "children" in group:
-					group["children"] = {}
-				group["children"].update(children)
-
-			if not is_root_group and "children" in group:
-				# Correct ids for webgui
-				for child in group["children"].values():
-					child["id"] = f'{child["id"]};{group["id"]}'
-			return group
-
-		base_group = {
-			"id": "productgroups",
-			"type": "ProductGroup",
-			"text": "productgroups",
-			"parent": "#",
-			"allowed": True
-		}
-		product_groups = build_tree(base_group, all_groups.values())
-
-	return JSONResponse({
-		"groups":{
-			"productgroups": product_groups
-		}
-	})
+		return JSONResponse({
+			"groups":{
+				"productgroups": product_groups,
+				"clientdirectory": host_groups
+			}
+		})
 
 
 @webgui_router.get("/api/opsidata/depotIds")

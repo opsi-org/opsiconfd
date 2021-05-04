@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+zeroconf
+"""
 
 import ipaddress
 import socket
@@ -100,5 +103,3 @@ async def unregister_opsi_services():
 	logger.notice("Unregister zeroconf service")
 	await _zeroconf.unregister_service(_info)
 	await _zeroconf.close()
-
-

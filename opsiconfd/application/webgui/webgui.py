@@ -54,6 +54,15 @@ async def options():
 	)
 
 
+
+@webgui_router.get("/api/auth/login")
+@webgui_router.post("/api/auth/login")
+async def auth_login():
+	return JSONResponse({
+		"result": "Login success"
+	})
+
+
 @webgui_router.get("/api/opsidata/depotIds")
 @webgui_router.post("/api/opsidata/depotIds")
 @webgui_router.post("/api/opsidata/depotsIds")

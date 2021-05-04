@@ -234,9 +234,7 @@ def application_setup():
 		app.mount("/static", StaticFiles(directory=config.static_dir), name="static")
 	else:
 		logger.warning("Static dir '%s' not found", config.static_dir)
-	# Exporting /tftpboot via webdav currently
-	#if os.path.isdir("/tftpboot"):
-	#	app.mount("/boot", StaticFiles(directory="/tftpboot"), name="boot")
+
 	jsonrpc_setup(app)
 	jsonrpc_interface_setup(app)
 	admin_interface_setup(app)

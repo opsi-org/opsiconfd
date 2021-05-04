@@ -9,7 +9,7 @@ webgui
 """
 
 import orjson as json
-from orjson import JSONDecodeError
+from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, asc, desc, column
 
 from fastapi import APIRouter, Request
@@ -56,7 +56,7 @@ def get_configserver_id():
 
 def get_user_privileges():
 	username = "adminuser"
-	#client_session = contextvar_client_session.get()
+	client_session = contextvar_client_session.get()
 	#if not client_session:
 	#	raise RuntimeError("Session invalid")
 	#username = client_session.user_store.username
@@ -137,7 +137,7 @@ async def modules_content():
 @webgui_router.get("/api/opsidata/home")
 @webgui_router.post("/api/opsidata/home")
 async def home():
-	allowed = get_allowed_objects()
+	#allowed = get_allowed_objects()
 
 	all_groups = {}
 	with mysql.session() as session:

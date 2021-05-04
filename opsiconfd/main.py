@@ -28,7 +28,7 @@ from OPSI import __version__ as python_opsi_version
 from opsicommon.logging import OPSI_LEVEL_TO_LEVEL, set_filter_from_string
 
 from . import __version__
-from .logging import logger, init_logging, AsyncRedisLogAdapter
+from .logging import logger, init_logging, secret_filter, AsyncRedisLogAdapter
 from .config import config
 from .setup import setup
 from .patch import apply_patches
@@ -82,6 +82,11 @@ def get_manager_pid():
 	return manager_pid
 
 def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals
+	secret_filter.add_secrets(
+		config.ssl_ca_key_passphrase,
+		config.ssl_server_key_passphrase
+	)
+
 	if config.version:
 		print(f"{__version__} [python-opsi={python_opsi_version}]")
 		return

@@ -8,6 +8,7 @@
 webgui
 """
 
+from OPSI.Exceptions import BackendMissingDataError
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, asc, desc, column
@@ -43,6 +44,7 @@ def order_by(query, params):
 		func = desc
 	return query.order_by(func(column(params["sortBy"])))
 
+
 def pagination(query, params):
 	if not params.get("perPage"):
 		return query
@@ -51,17 +53,21 @@ def pagination(query, params):
 		query = query.offset(params["pageNumber"] * params["perPage"])
 	return query
 
+
 def get_configserver_id():
 	return getfqdn()
 
-def get_user_privileges():
-	username = None
+
+def get_username():
 	client_session = contextvar_client_session.get()
 	if not client_session:
-		username = "adminuser"
-	#	raise RuntimeError("Session invalid")
-	#username = client_session.user_store.username
+		return "adminuser" ###########################
+		raise RuntimeError("Session invalid")
+	return client_session.user_store.username
 
+
+def get_user_privileges():
+	username = get_username()
 	privileges = {}
 	with mysql.session() as session:
 		for row in session.execute(
@@ -110,13 +116,34 @@ async def options():
 	)
 
 
-
 @webgui_router.get("/api/auth/login")
 @webgui_router.post("/api/auth/login")
 async def auth_login():
 	return JSONResponse({
 		"result": "Login success"
 	})
+
+
+@webgui_router.get("/api/user/getsettings")
+@webgui_router.post("/api/user/getsettings")
+async def user_getsettings():
+	return JSONResponse({
+		"username": get_username(),
+		"expertmode": False,
+		"recentactivityexpiry": "3m"
+	})
+
+
+@webgui_router.get("/api/user/createactivity")
+@webgui_router.post("/api/user/createactivity")
+async def user_create_activity(request: Request):
+	# {"username":"adminuser","type":"Login","status":"ok"}
+	# request_data = {}
+	# try:
+	# 	request_data = await request.json()
+	# except ValueError:
+	# 	pass
+	return JSONResponse({"result":{}})
 
 
 @webgui_router.get("/api/user/opsiserver")
@@ -132,6 +159,31 @@ async def user_opsiserver():
 async def modules_content():
 	return JSONResponse({
 		"result": get_backend().backend_info()["modules"]
+	})
+
+
+@webgui_router.get("/api/opsidata/log")
+@webgui_router.post("/api/opsidata/log")
+async def opsidata_log(request: Request):
+	request_data = {}
+	try:
+		request_data = await request.json()
+	except ValueError:
+		pass
+
+	return JSONResponse({
+		"result": get_backend().readLog(  # pylint: disable=no-member
+			type=request_data.get('selectedLogType'),
+			objectId=request_data.get("selectedClient")
+		).split("\n")
+	})
+
+
+@webgui_router.get("/api/opsidata/producticons")
+@webgui_router.post("/api/opsidata/producticons")
+async def product_icons():
+	return JSONResponse({
+		"result": {"opsi-client-agent": "assets/images/product_icons/opsi-logo.png"}
 	})
 
 
@@ -273,8 +325,6 @@ async def depots(request: Request):
 	except ValueError:
 		pass
 
-	logger.devel(request_data)
-
 	with mysql.session() as session:
 		where = text("h.type IN ('OpsiConfigserver', 'OpsiDepotserver')")
 		query = select(text(
@@ -289,7 +339,6 @@ async def depots(request: Request):
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)
 
-		logger.devel(query)
 		result = session.execute(query)
 		result = result.fetchall()
 

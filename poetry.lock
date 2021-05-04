@@ -859,6 +859,17 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
+name = "python-multipart"
+version = "0.0.5"
+description = "A streaming multipart parser for Python"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+six = ">=1.4.0"
+
+[[package]]
 name = "python-opsi"
 version = "4.2.0.187"
 description = "The opsi python library"
@@ -1278,7 +1289,7 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "c064b5eb95d818d0ffbbbf01e66e6d26a70fe38222db176ac4f197617e1a8c9b"
+content-hash = "4838048b5806f7eee310eab4ce8c82b8c84831a0011308a9f41bbbc0816c0fba"
 
 [metadata.files]
 aiofiles = [
@@ -2087,6 +2098,9 @@ python-gettext = [
 python-magic = [
     {file = "python-magic-0.4.22.tar.gz", hash = "sha256:ca884349f2c92ce830e3f498c5b7c7051fe2942c3ee4332f65213b8ebff15a62"},
     {file = "python_magic-0.4.22-py2.py3-none-any.whl", hash = "sha256:8551e804c09a3398790bd9e392acb26554ae2609f29c72abb0b9dee9a5571eae"},
+]
+python-multipart = [
+    {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
     {file = "python-opsi-4.2.0.187.tar.gz", hash = "md5:8fbf1ec3bf14ff35cca8bedd6a61fd34"},

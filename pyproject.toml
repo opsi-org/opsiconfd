@@ -44,6 +44,7 @@ websockets = "^8.1"
 pympler = "^0.9"
 guppy3 = "^3.1.0"
 objgraph = "^3.5.0"
+python-multipart = "^0.0.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

@@ -240,7 +240,7 @@ def configserver_setup_ca() -> bool:
 		if config.ssl_ca_subject_cn != ca_crt.get_subject().CN:
 			logger.warning(
 				"The common name of the CA has changed from '%s' to '%s'."
-				"If this change is intended, please delete"
+				" If this change is intended, please delete"
 				" the current CA '%s' and restart opsiconfd.",
 				ca_crt.get_subject().CN, config.ssl_ca_subject_cn,
 				config.ssl_ca_cert

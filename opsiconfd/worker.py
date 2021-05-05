@@ -34,7 +34,7 @@ def get_worker_num():
 
 def init_pool_executor(loop):
 	# https://bugs.python.org/issue41699
-	pool_executor = ThreadPoolExecutor(
+	pool_executor = ThreadPoolExecutor(  # pylint: disable=consider-using-with
 		max_workers=config.executor_workers,
 		thread_name_prefix="worker-ThreadPoolExecutor"
 	)

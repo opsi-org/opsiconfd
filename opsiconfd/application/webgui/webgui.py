@@ -8,7 +8,6 @@
 webgui
 """
 
-from OPSI.Exceptions import BackendMissingDataError
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, asc, desc, column
@@ -62,7 +61,7 @@ def get_username():
 	client_session = contextvar_client_session.get()
 	if not client_session:
 		return "adminuser" ###########################
-		raise RuntimeError("Session invalid")
+		#raise RuntimeError("Session invalid")
 	return client_session.user_store.username
 
 
@@ -138,11 +137,13 @@ async def user_getsettings():
 @webgui_router.post("/api/user/createactivity")
 async def user_create_activity(request: Request):
 	# {"username":"adminuser","type":"Login","status":"ok"}
-	# request_data = {}
-	# try:
-	# 	request_data = await request.json()
-	# except ValueError:
-	# 	pass
+	request_data = {}
+	try:
+		request_data = await request.json()
+	except ValueError:
+		pass
+	if request_data.get("type").lower() == "login":
+		pass
 	return JSONResponse({"result":{}})
 
 

@@ -112,8 +112,8 @@ class TestWebsocket(WebSocketEndpoint):
 
 @app.get("/test/random-data")
 async def get_test_random(request: Request):  # pylint: disable=unused-argument
-	random = open("/dev/urandom", mode="rb")
-	return StreamingResponse(random, media_type="application/binary")
+	with open("/dev/urandom", mode="rb") as random:
+		return StreamingResponse(random, media_type="application/binary")
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument

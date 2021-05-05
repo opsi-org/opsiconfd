@@ -79,12 +79,26 @@ def get_basic_auth(headers: Headers):
 
 	return BasicAuth(username, password)
 
-def authenticate(connection: HTTPConnection) -> None:
-	auth = get_basic_auth(connection.headers)
+async def authenticate(connection: HTTPConnection, receive: Receive) -> None:
+	username = None
+	password = None
+	if connection.scope.get("path", "") == "/webgui/api/auth/login":
+		req = Request(connection.scope, receive)
+		form = await req.form()
+		username = form.get("username")
+		password = form.get("password")
+	else:
+		auth = get_basic_auth(connection.headers)
+		username = auth.username
+		password = auth.password
+
 	auth_type = None
-	if auth.username == config.monitoring_user:
+	if username == config.monitoring_user:
 		auth_type = "opsi-passwd"
-	get_client_backend().backendAccessControl.authenticate(auth.username, auth.password, auth_type=auth_type)
+
+	def sync_auth(username, password, auth_type):
+		get_client_backend().backendAccessControl.authenticate(username, password, auth_type)
+	await run_in_threadpool(sync_auth, username, password, auth_type)
 
 def get_session_from_context():
 	try:
@@ -203,7 +217,7 @@ class SessionMiddleware:
 
 					# Authenticate
 					logger.info("Start authentication of client %s", connection.client.host)
-					await run_in_threadpool(authenticate, connection)
+					await authenticate(connection, receive)
 					auth_done = True
 
 					if session.user_store.host:

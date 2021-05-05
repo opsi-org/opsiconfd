@@ -16,7 +16,8 @@ from ctypes import c_long
 
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
-from starlette.types import ASGIApp
+from starlette.types import ASGIApp, Message
+from starlette.datastructures import MutableHeaders
 from starlette.concurrency import run_in_threadpool
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -40,6 +41,7 @@ from .jsonrpcinterface import jsonrpc_interface_setup
 from .admininterface import admin_interface_setup
 from .redisinterface import redis_interface_setup
 from .monitoring.monitoring import monitoring_setup
+from .webgui.webgui import webgui_setup
 from .status import status_setup
 
 app = FastAPI()
@@ -110,8 +112,8 @@ class TestWebsocket(WebSocketEndpoint):
 
 @app.get("/test/random-data")
 async def get_test_random(request: Request):  # pylint: disable=unused-argument
-	random = open("/dev/urandom", mode="rb")
-	return StreamingResponse(random, media_type="application/binary")
+	with open("/dev/urandom", mode="rb") as random:
+		return StreamingResponse(random, media_type="application/binary")
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument
@@ -189,6 +191,17 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 			scope["client"] = (client_host, client_port)
 			contextvar_client_address.set(client_host)
 
+			async def send_wrapper(message: Message) -> None:
+				if message["type"] == "http.response.start":
+					headers = MutableHeaders(scope=message)
+					headers.append("Access-Control-Allow-Origin", "*")
+					headers.append("Access-Control-Allow-Methods", "*")
+					headers.append("Access-Control-Allow-Headers", "*")
+					headers.append("Access-Control-Allow-Credentials", "true")
+				await send(message)
+
+			return await self.app(scope, receive, send_wrapper)
+
 		return await self.app(scope, receive, send)
 
 def application_setup():
@@ -211,7 +224,9 @@ def application_setup():
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
 	app.add_middleware(SessionMiddleware, public_path=[
-		"/boot", "/metrics/grafana", "/ws/test", "/ssl/opsi-ca-cert.pem", "/status"
+		"/boot", "/metrics/grafana", "/ws/test", "/ssl/opsi-ca-cert.pem", "/status",
+		"/webgui/api/user/opsiserver"
+		,"/webgui" ##############################################################################
 	])
 	#app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
@@ -220,9 +235,7 @@ def application_setup():
 		app.mount("/static", StaticFiles(directory=config.static_dir), name="static")
 	else:
 		logger.warning("Static dir '%s' not found", config.static_dir)
-	# Exporting /tftpboot via webdav currently
-	#if os.path.isdir("/tftpboot"):
-	#	app.mount("/boot", StaticFiles(directory="/tftpboot"), name="boot")
+
 	jsonrpc_setup(app)
 	jsonrpc_interface_setup(app)
 	admin_interface_setup(app)
@@ -231,6 +244,7 @@ def application_setup():
 	webdav_setup(app)
 	metrics_setup(app)
 	status_setup(app)
+	webgui_setup(app)
 
 	logger.debug("Routing:")
 	endpoints = {}

@@ -17,7 +17,7 @@ from OPSI import __version__ as python_opsi_version
 from .. import __version__
 
 from ..utils import get_fqdn, get_node_name, get_aredis_info, aredis_client
-
+from ..ssl import get_ca_info, get_cert_info
 status_router = APIRouter()
 
 def status_setup(app):
@@ -53,5 +53,7 @@ async def status_overview() -> PlainTextResponse:
 		f"redis-error: {redis_error}\n"
 		f"redis-mem: {redis_mem}\n"
 		f"redis-mem-total: {redis_mem_total}\n"
+		f"ssl-ca-valid-days: {get_ca_info()['expiration']}\n"
+		f"ssl-cert-valid-days: {get_cert_info()['expiration']}\n"
 	)
 	return PlainTextResponse(data)

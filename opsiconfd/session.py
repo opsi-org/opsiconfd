@@ -170,12 +170,14 @@ class SessionMiddleware:
 					is_public = True
 					break
 
-			if scope["path"] == "/admin" or scope["path"] == "/":
-				request = Request(scope, receive)
+			if (
+				scope["path"] in ("/admin", "/") and
+				connection.base_url.hostname not in ("127.0.0.1", "::1", "0.0.0.0", "localhost")
+			):
 				fqdn = get_fqdn()
-				if request.base_url.hostname != fqdn:
-					url = f"https://{fqdn}:{request.url.port}/admin"
-					logger.info("Redirecting %s to %s (%s)", request.base_url.hostname, fqdn, url)
+				if connection.base_url.hostname != fqdn:
+					url = f"https://{fqdn}:{connection.base_url.port}/admin"
+					logger.info("Redirecting %s to %s (%s)", connection.base_url.hostname, fqdn, url)
 					response = RedirectResponse(url, status_code=308)
 					await response(scope, receive, send)
 					return

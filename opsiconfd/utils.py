@@ -19,7 +19,6 @@ from contextlib import contextmanager
 import psutil
 import redis
 import aredis
-from dns import resolver, reversename
 
 
 logger = None # pylint: disable=invalid-name
@@ -52,26 +51,6 @@ def running_in_docker():
 			if line.split(':')[2].startswith("/docker/"):
 				return True
 	return False
-
-
-node_name = None # pylint: disable=invalid-name
-def get_node_name():
-	global node_name # pylint: disable=global-statement, invalid-name
-	if not node_name:
-		node_name = get_config().node_name
-		if not node_name:
-			if running_in_docker():
-				try:
-					from .config import FQDN # pylint: disable=import-outside-toplevel
-					ip = socket.gethostbyname(FQDN) # pylint: disable=invalid-name
-					rev = reversename.from_address(ip)
-					node_name = str(resolver.query(rev, "PTR")[0]).split('.')[0].replace("docker_", "")
-				except resolver.NXDOMAIN as exc:
-					get_logger().debug(exc)
-					node_name = socket.gethostname()
-			else:
-				node_name = socket.gethostname()
-	return node_name
 
 
 def decode_redis_result(_obj):

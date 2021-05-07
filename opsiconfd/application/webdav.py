@@ -14,9 +14,8 @@ import wsgidav.fs_dav_provider
 from wsgidav.fs_dav_provider import FilesystemProvider
 from wsgidav.wsgidav_app import WsgiDAVApp
 
-from OPSI.Util import getfqdn
-
 from ..logging import logger
+from ..config import FQDN
 from ..backend import get_backend
 from ..wsgi import WSGIMiddleware
 
@@ -46,10 +45,9 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 	# Sent message chunks will have the same body size.
 	wsgidav.fs_dav_provider.BUFFER_SIZE = block_size
 
-	fqdn = getfqdn()
-	hosts = get_backend().host_getObjects(type='OpsiDepotserver', id=fqdn)  # pylint: disable=no-member
+	hosts = get_backend().host_getObjects(type='OpsiDepotserver', id=FQDN)  # pylint: disable=no-member
 	if not hosts:
-		logger.warning("Running on host %s which is not a depot server, webdav disabled.", fqdn)
+		logger.warning("Running on host %s which is not a depot server, webdav disabled.", FQDN)
 		return
 
 	depot = hosts[0]

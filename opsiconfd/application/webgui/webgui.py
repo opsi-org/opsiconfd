@@ -32,7 +32,11 @@ def webgui_setup(app):
 	while getattr(backend, "_backend", None):
 		backend = backend._backend  # pylint: disable=protected-access
 		if backend.__class__.__name__ == "BackendDispatcher":
-			mysql = backend._backends["mysql"]["instance"]._sql  # pylint: disable=protected-access
+			try:
+				mysql = backend._backends["mysql"]["instance"]._sql  # pylint: disable=protected-access
+			except KeyError:
+				# No mysql backend
+				pass
 
 
 def order_by(query, params):

@@ -8,7 +8,6 @@
 utils
 """
 
-import os
 import socket
 import string
 import random
@@ -21,8 +20,6 @@ import psutil
 import redis
 import aredis
 from dns import resolver, reversename
-
-from OPSI.Types import forceFqdn
 
 
 logger = None # pylint: disable=invalid-name
@@ -65,7 +62,8 @@ def get_node_name():
 		if not node_name:
 			if running_in_docker():
 				try:
-					ip = socket.gethostbyname(socket.getfqdn()) # pylint: disable=invalid-name
+					from .config import FQDN # pylint: disable=import-outside-toplevel
+					ip = socket.gethostbyname(FQDN) # pylint: disable=invalid-name
 					rev = reversename.from_address(ip)
 					node_name = str(resolver.query(rev, "PTR")[0]).split('.')[0].replace("docker_", "")
 				except resolver.NXDOMAIN as exc:
@@ -124,16 +122,6 @@ def get_ip_addresses():
 				"address": snic.address,
 				"ip_address": ip_address
 			}
-
-
-def get_fqdn(name=''):
-	if not name:
-		try:
-			return forceFqdn(os.environ["OPSI_HOSTNAME"])
-		except KeyError:
-			# not set in environment.
-			pass
-	return forceFqdn(socket.getfqdn(name))
 
 
 def get_random_string(length):

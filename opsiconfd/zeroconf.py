@@ -16,8 +16,8 @@ from aiozeroconf import ServiceInfo, Zeroconf
 
 from . import __version__
 from .logging import logger
-from .config import config
-from .utils import get_ip_addresses, get_fqdn
+from .config import config, FQDN
+from .utils import get_ip_addresses
 from .backend import get_backend
 
 _zeroconf = None  # pylint: disable=invalid-name
@@ -53,13 +53,12 @@ async def register_opsi_services():
 			address_family.append(netifaces.AF_INET6)  # pylint: disable=c-extension-no-member
 		_zeroconf = Zeroconf(asyncio.get_event_loop(), address_family=address_family, iface=iface)
 
-	fqdn = get_fqdn()
 	address = None
 	address6 = None
 	try:
-		address = socket.getaddrinfo(fqdn, None, socket.AF_INET)[0][-1][0]
+		address = socket.getaddrinfo(FQDN, None, socket.AF_INET)[0][-1][0]
 	except socket.error as err:
-		logger.warning("Failed to get ipv4 address for '%s': %s", fqdn, err)
+		logger.warning("Failed to get ipv4 address for '%s': %s", FQDN, err)
 		for addr in get_ip_addresses():
 			if (
 				addr["family"] == "ipv4" and
@@ -68,10 +67,10 @@ async def register_opsi_services():
 				address = str(addr["ip_address"])
 				break
 	try:
-		address6 = socket.getaddrinfo(fqdn, None, socket.AF_INET6)[0][-1][0]
+		address6 = socket.getaddrinfo(FQDN, None, socket.AF_INET6)[0][-1][0]
 
 	except socket.error as err:
-		logger.debug("Failed to get ipv6 address for '%s': %s", fqdn, err)
+		logger.debug("Failed to get ipv6 address for '%s': %s", FQDN, err)
 		for addr in get_ip_addresses():
 			if (
 				addr["family"] == "ipv6" and
@@ -92,7 +91,7 @@ async def register_opsi_services():
 		weight=0,
 		priority=0,
 		properties={'version': __version__},
-		server=fqdn + "."
+		server=FQDN + "."
 	)
 	await _zeroconf.register_service(_info)
 

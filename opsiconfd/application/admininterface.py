@@ -25,9 +25,9 @@ from .. import __version__
 
 from ..session import OPSISession
 from ..logging import logger
-from ..config import config
+from ..config import config, FQDN
 from ..backend import get_backend_interface, get_backend
-from ..utils import get_random_string, get_fqdn, get_node_name, aredis_client
+from ..utils import get_random_string, get_node_name, aredis_client
 from ..ssl import get_ca_info, get_cert_info
 
 from .memoryprofiler import memory_profiler_router
@@ -190,9 +190,8 @@ async def get_blocked_clients() -> list:
 @admin_interface_router.get("/grafana")
 def open_grafana(request: Request):
 
-	fqdn = get_fqdn()
-	if request.base_url.hostname != fqdn:
-		url = f"https://{fqdn}:{request.url.port}/admin/grafana"
+	if request.base_url.hostname != FQDN:
+		url = f"https://{FQDN}:{request.url.port}/admin/grafana"
 		response = RedirectResponse(url=url)
 		return response
 

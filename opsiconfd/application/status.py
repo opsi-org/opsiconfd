@@ -16,7 +16,8 @@ from fastapi.responses import PlainTextResponse
 from OPSI import __version__ as python_opsi_version
 from .. import __version__
 
-from ..utils import get_fqdn, get_node_name, get_aredis_info, aredis_client
+from ..config import FQDN
+from ..utils import get_node_name, get_aredis_info, aredis_client
 from ..ssl import get_ca_info, get_cert_info
 status_router = APIRouter()
 
@@ -48,7 +49,7 @@ async def status_overview() -> PlainTextResponse:
 		f"version: {__version__} [python-opsi={python_opsi_version}]\n"
 		f"date: {datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()}\n"
 		f"node: {get_node_name()}\n"
-		f"fqdn: {get_fqdn()}\n"
+		f"fqdn: {FQDN}\n"
 		f"redis-status: {redis_status}\n"
 		f"redis-error: {redis_error}\n"
 		f"redis-mem: {redis_mem}\n"

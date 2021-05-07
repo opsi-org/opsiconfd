@@ -36,8 +36,8 @@ from opsicommon.logging import logger, secret_filter, set_context
 
 from . import contextvar_client_session, contextvar_server_timing
 from .backend import get_client_backend
-from .config import config
-from .utils import get_fqdn, redis_client, aredis_client
+from .config import config, FQDN
+from .utils import redis_client, aredis_client
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -174,10 +174,9 @@ class SessionMiddleware:
 				scope["path"] in ("/admin", "/") and
 				connection.base_url.hostname not in ("127.0.0.1", "::1", "0.0.0.0", "localhost")
 			):
-				fqdn = get_fqdn()
-				if connection.base_url.hostname != fqdn:
-					url = f"https://{fqdn}:{connection.base_url.port}/admin"
-					logger.info("Redirecting %s to %s (%s)", connection.base_url.hostname, fqdn, url)
+				if connection.base_url.hostname != FQDN:
+					url = f"https://{FQDN}:{connection.base_url.port}/admin"
+					logger.info("Redirecting %s to %s (%s)", connection.base_url.hostname, FQDN, url)
 					response = RedirectResponse(url, status_code=308)
 					await response(scope, receive, send)
 					return

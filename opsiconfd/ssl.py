@@ -20,14 +20,13 @@ from OpenSSL.crypto import (
 )
 from OpenSSL.crypto import Error as CryptoError
 
-from OPSI.Util import getfqdn
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.Config import OPSI_ADMIN_GROUP
 
 from opsicommon.ssl import install_ca, create_ca, create_server_cert, as_pem
 
 from .config import (
-	config,
+	config, FQDN,
 	CA_DAYS, CA_RENEW_DAYS, CERT_DAYS, CERT_RENEW_DAYS,
 	CA_KEY_DEFAULT_PASSPHRASE,
 	SERVER_KEY_DEFAULT_PASSPHRASE
@@ -50,7 +49,7 @@ def get_ips():
 
 
 def get_server_cn():
-	return getfqdn()
+	return FQDN
 
 
 def get_hostnames():

@@ -15,9 +15,8 @@ from sqlalchemy import select, text, and_, asc, desc, column
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
-from OPSI.Util import getfqdn
-
 from opsiconfd import contextvar_client_session
+from opsiconfd.config import FQDN
 from opsiconfd.logging import logger
 from opsiconfd.backend import get_backend
 
@@ -58,7 +57,7 @@ def pagination(query, params):
 
 
 def get_configserver_id():
-	return getfqdn()
+	return FQDN
 
 
 def get_username():

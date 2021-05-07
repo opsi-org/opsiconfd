@@ -20,6 +20,8 @@ from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_
 
 import configargparse
 
+from OPSI.Util import getfqdn
+
 from .utils import Singleton
 
 
@@ -41,7 +43,7 @@ SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
 
 PYTEST = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
 
-fqdn = socket.getfqdn()
+FQDN = getfqdn()
 
 def upgrade_config_files():
 	defaults = {}
@@ -587,7 +589,7 @@ parser.add(
 parser.add(
 	"--grafana-external-url",
 	env_var="OPSICONFD_GRAFANA_EXTERNAL_URL",
-	default=f"http://{fqdn}:3000",
+	default=f"http://{FQDN}:3000",
 	help="External grafana base url."
 )
 parser.add(

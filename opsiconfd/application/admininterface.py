@@ -27,7 +27,7 @@ from ..session import OPSISession
 from ..logging import logger
 from ..config import config, FQDN
 from ..backend import get_backend_interface, get_backend
-from ..utils import get_random_string, get_node_name, aredis_client
+from ..utils import get_random_string, aredis_client
 from ..ssl import get_ca_info, get_cert_info
 
 from .memoryprofiler import memory_profiler_router
@@ -48,7 +48,7 @@ async def admin_interface_index(request: Request):
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
-		"node_name": get_node_name(),
+		"node_name": config.node_name,
 		"interface": get_backend_interface(),
 		"ca_info": get_ca_info(),
 		"cert_info": get_cert_info(),

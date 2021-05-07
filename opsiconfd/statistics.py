@@ -33,7 +33,7 @@ from .worker import (
 )
 from .config import config
 from .utils import (
-	Singleton, get_node_name, redis_client, aredis_client
+	Singleton, redis_client, aredis_client
 )
 from .grafana import GrafanaPanelConfig
 
@@ -57,7 +57,7 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 				iterations = config.workers
 
 			for iteration in range(iterations):
-				node_name = get_node_name()
+				node_name = config.node_name
 				worker_num = None
 				if metric.subject == "worker":
 					worker_num = iteration + 1
@@ -382,7 +382,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 	def __init__(self):
 		self._loop = asyncio.get_event_loop()
 		self._interval = 5
-		self._node_name = get_node_name()
+		self._node_name = config.node_name
 		self._values = {}
 		self._values_lock = asyncio.Lock()
 		self._last_timestamp = 0
@@ -672,7 +672,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 					get_worker_metrics_collector().add_value(
 						"worker:sum_http_request_number",
 						1,
-						{"node_name": get_node_name(), "worker_num": get_worker_num()}
+						{"node_name": config.node_name, "worker_num": get_worker_num()}
 					)
 				)
 				loop.create_task(
@@ -697,7 +697,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 						get_worker_metrics_collector().add_value(
 							"worker:avg_http_response_bytes",
 							int(content_length),
-							{"node_name": get_node_name(), "worker_num": get_worker_num()}
+							{"node_name": config.node_name, "worker_num": get_worker_num()}
 						)
 					)
 
@@ -718,7 +718,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 					get_worker_metrics_collector().add_value(
 						"worker:avg_http_request_duration",
 						end - start,
-						{"node_name": get_node_name(), "worker_num": get_worker_num()}
+						{"node_name": config.node_name, "worker_num": get_worker_num()}
 					)
 				)
 				server_timing = contextvar_server_timing.get() or {}

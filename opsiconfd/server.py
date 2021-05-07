@@ -32,7 +32,7 @@ from OPSI.Util import getPublicKey
 
 from .config import config
 from .logging import logger, init_logging
-from .utils import get_node_name, get_redis_connection, retry_redis_call
+from .utils import get_redis_connection, retry_redis_call
 from .backend import get_backend
 from . import ssl
 from . import __version__
@@ -42,7 +42,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 	def __init__(self, server: UvicornServer):
 		self.server = server
 		self.socket = None
-		self.node_name = get_node_name()
+		self.node_name = config.node_name
 		self.workers = []
 		self.worker_stop_timeout = config.worker_stop_timeout
 		self.worker_restart_time = 0

@@ -28,10 +28,11 @@ from OPSI.Util import serialize, deserialize
 
 from .. import contextvar_client_session
 from ..logging import logger
+from ..config import config
 from ..backend import get_client_backend, get_backend_interface, get_backend, OpsiconfdBackend
 from ..worker import get_metrics_collector, get_worker_num
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
-from ..utils import decode_redis_result, get_node_name, redis_client, aredis_client
+from ..utils import decode_redis_result, redis_client, aredis_client
 
 # time in seconds
 EXPIRE = 24 * 3600
@@ -282,7 +283,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			get_metrics_collector().add_value(
 				"worker:sum_jsonrpc_number",
 				len(jsonrpc),
-				{"node_name": get_node_name(), "worker_num": get_worker_num()}
+				{"node_name": config.node_name, "worker_num": get_worker_num()}
 			)
 		)
 
@@ -291,7 +292,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			asyncio.get_event_loop().create_task(
 				get_metrics_collector().add_value(
 					"worker:avg_jsonrpc_duration",
-					result[1], {"node_name": get_node_name(), "worker_num": get_worker_num()}
+					result[1], {"node_name": config.node_name, "worker_num": get_worker_num()}
 				)
 			)
 			redis = await aredis_client()

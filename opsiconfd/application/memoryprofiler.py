@@ -28,7 +28,8 @@ from guppy import hpy
 from starlette.responses import Response
 
 from ..logging import logger
-from ..utils import get_node_name, aredis_client
+from ..config import config
+from ..utils import aredis_client
 
 memory_profiler_router = APIRouter()
 
@@ -190,7 +191,7 @@ async def memory_info() -> JSONResponse:
 
 	redis = await aredis_client()
 	timestamp = int(time.time() * 1000)
-	node = get_node_name()
+	node = config.node_name
 
 	async with await redis.pipeline() as pipe:
 		value = msgpack.dumps({"memory_summary": memory_summary, "timestamp": timestamp}) # pylint: disable=c-extension-no-member
@@ -224,7 +225,7 @@ async def memory_info() -> JSONResponse:
 async def delte_memory_snapshot() -> JSONResponse:
 
 	redis = await aredis_client()
-	node = get_node_name()
+	node = config.node_name
 
 	await redis.delete(f"opsiconfd:stats:memory:summary:{node}")
 
@@ -242,7 +243,7 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 		MEMORY_TRACKER = tracker.SummaryTracker()
 
 	redis = await aredis_client()
-	node = get_node_name()
+	node = config.node_name
 	snapshot_count = await redis.llen(f"opsiconfd:stats:memory:summary:{node}")
 
 	if snapshot1 < 0:
@@ -371,7 +372,7 @@ async def guppy_snapshot() -> JSONResponse:
 	heap_status.dump(fn)
 
 	redis = await aredis_client()
-	node = get_node_name()
+	node = config.node_name
 
 	async with await redis.pipeline() as pipe:
 		await pipe.lpush(f"opsiconfd:stats:memory:heap:{node}", msgpack.dumps(fn.getvalue()))
@@ -407,7 +408,7 @@ async def guppy_snapshot() -> JSONResponse:
 async def delte_guppy_snapshot() -> JSONResponse:
 
 	redis = await aredis_client()
-	node = get_node_name()
+	node = config.node_name
 
 	await redis.delete(f"opsiconfd:stats:memory:heap:{node}")
 
@@ -437,7 +438,7 @@ async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 		HEAP = hpy()
 
 	redis = await aredis_client()
-	node = get_node_name()
+	node = config.node_name
 	snapshot_count = await redis.llen(f"opsiconfd:stats:memory:heap:{node}")
 
 	if snapshot1 < 0:

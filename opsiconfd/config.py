@@ -18,11 +18,12 @@ import ipaddress
 from typing import Union
 from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_OR_MORE
 
+from dns import resolver, reversename
 import configargparse
 
 from OPSI.Util import getfqdn
 
-from .utils import Singleton
+from .utils import Singleton, running_in_docker
 
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
@@ -44,6 +45,15 @@ SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
 PYTEST = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
 
 FQDN = getfqdn()
+DEFAULT_NODE_NAME = socket.gethostname()
+
+if running_in_docker():
+	try:
+		ip = socket.gethostbyname(socket.getfqdn()) # pylint: disable=invalid-name
+		rev = reversename.from_address(ip)
+		DEFAULT_NODE_NAME = str(resolver.query(rev, "PTR")[0]).split('.')[0].replace("docker_", "")
+	except resolver.NXDOMAIN as exc:
+		pass
 
 def upgrade_config_files():
 	defaults = {}
@@ -631,7 +641,8 @@ parser.add(
 parser.add(
 	"--node-name",
 	env_var="OPSICONFD_NODE_NAME",
-	help=expert_help("Node name to use.")
+	help=expert_help("Node name to use."),
+	default=DEFAULT_NODE_NAME
 )
 parser.add(
 	"--executor-workers",

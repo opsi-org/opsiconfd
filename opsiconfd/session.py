@@ -80,6 +80,7 @@ def get_basic_auth(headers: Headers):
 	return BasicAuth(username, password)
 
 async def authenticate(connection: HTTPConnection, receive: Receive) -> None:
+	logger.info("Start authentication of client %s", connection.client.host)
 	username = None
 	password = None
 	if connection.scope.get("path", "") == "/webgui/api/auth/login":
@@ -193,6 +194,14 @@ class SessionMiddleware:
 			#	logger.warning("Session init took %0.2fms", sht)
 
 			auth_done = False
+			if connection.scope.get("path", "") == "/webgui/api/auth/login":
+				if connection.scope.get("method") == "OPTIONS":
+					is_public = True
+				else:
+					# Authenticate
+					await authenticate(connection, receive)
+					auth_done = True
+
 			if not is_public:
 				if not session.user_store.username or not session.user_store.authenticated:
 					# Check if blocked
@@ -217,7 +226,6 @@ class SessionMiddleware:
 						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
 
 					# Authenticate
-					logger.info("Start authentication of client %s", connection.client.host)
 					await authenticate(connection, receive)
 					auth_done = True
 

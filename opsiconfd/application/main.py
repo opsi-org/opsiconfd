@@ -198,7 +198,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 					origin_port = 4447
 					try:
 						origin_port = int(headers[b"origin"].decode().split(":")[2].split("/")[0])
-					except:
+					except:  # pylint: disable=bare-except
 						pass
 					headers = MutableHeaders(scope=message)
 					headers.append("Access-Control-Allow-Origin", f"https://{host}:{origin_port}")

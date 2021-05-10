@@ -193,8 +193,9 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 
 			async def send_wrapper(message: Message) -> None:
 				if message["type"] == "http.response.start":
+					allow_origin = dict(scope["headers"]).get(b"origin", b"*").decode()
 					headers = MutableHeaders(scope=message)
-					headers.append("Access-Control-Allow-Origin", "*")
+					headers.append("Access-Control-Allow-Origin", allow_origin)
 					headers.append("Access-Control-Allow-Methods", "*")
 					headers.append("Access-Control-Allow-Headers", "*")
 					headers.append("Access-Control-Allow-Credentials", "true")

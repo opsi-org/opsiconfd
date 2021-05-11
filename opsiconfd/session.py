@@ -495,7 +495,8 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 	def _delete(self) -> bool:
 		with redis_client() as redis:
-			data = redis.delete(self.redis_key)
+			redis.delete(self.redis_key)
+		self.session_id = None
 
 	async def delete(self) -> bool:
 		return await run_in_threadpool(self._delete)

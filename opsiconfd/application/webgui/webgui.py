@@ -63,8 +63,7 @@ def get_configserver_id():
 def get_username():
 	client_session = contextvar_client_session.get()
 	if not client_session:
-		return "adminuser" ###########################
-		#raise RuntimeError("Session invalid")
+		raise RuntimeError("Session invalid")
 	return client_session.user_store.username
 
 
@@ -123,6 +122,17 @@ async def options():
 async def auth_login():
 	return JSONResponse({
 		"result": "Login success"
+	})
+
+
+@webgui_router.get("/api/auth/logout")
+@webgui_router.post("/api/auth/logout")
+async def auth_logout():
+	client_session = contextvar_client_session.get()
+	if client_session:
+		client_session.delete()
+	return JSONResponse({
+		"result": "logout success"
 	})
 
 

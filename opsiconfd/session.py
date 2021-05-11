@@ -293,6 +293,9 @@ class SessionMiddleware:
 
 				status_code = status.HTTP_401_UNAUTHORIZED
 				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+				if connection.scope.get("path", "").startswith("/webgui/"):
+					# Do not send WWW-Authenticate to webgui / axios
+					headers = {}
 				error = "Authentication error"
 				if isinstance(err, BackendPermissionDeniedError):
 					error = "Permission denied"
@@ -489,6 +492,13 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 	async def store(self) -> None:
 		# aredis is sometimes slow ~300ms load, using redis for now
 		await run_in_threadpool(self._store)
+
+	def _delete(self) -> bool:
+		with redis_client() as redis:
+			data = redis.delete(self.redis_key)
+
+	async def delete(self) -> bool:
+		return await run_in_threadpool(self._delete)
 
 	def _update_last_used(self):
 		self.last_used = self.utc_time_timestamp()

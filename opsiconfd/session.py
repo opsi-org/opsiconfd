@@ -79,27 +79,6 @@ def get_basic_auth(headers: Headers):
 
 	return BasicAuth(username, password)
 
-async def authenticate(connection: HTTPConnection, receive: Receive) -> None:
-	logger.info("Start authentication of client %s", connection.client.host)
-	username = None
-	password = None
-	if connection.scope.get("path", "") == "/webgui/api/auth/login":
-		req = Request(connection.scope, receive)
-		form = await req.form()
-		username = form.get("username")
-		password = form.get("password")
-	else:
-		auth = get_basic_auth(connection.headers)
-		username = auth.username
-		password = auth.password
-
-	auth_type = None
-	if username == config.monitoring_user:
-		auth_type = "opsi-passwd"
-
-	def sync_auth(username, password, auth_type):
-		get_client_backend().backendAccessControl.authenticate(username, password, auth_type)
-	await run_in_threadpool(sync_auth, username, password, auth_type)
 
 def get_session_from_context():
 	try:
@@ -199,7 +178,7 @@ class SessionMiddleware:
 					is_public = True
 				else:
 					# Authenticate
-					await authenticate(connection, receive)
+					await authenticate(connection, receive, session)
 					auth_done = True
 
 			if not is_public:
@@ -226,7 +205,7 @@ class SessionMiddleware:
 						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
 
 					# Authenticate
-					await authenticate(connection, receive)
+					await authenticate(connection, receive, session)
 					auth_done = True
 
 					if session.user_store.host:
@@ -526,3 +505,31 @@ def update_host_object(connection: HTTPConnection, session: OPSISession) -> None
 		# Value None on update means no change!
 		host.ipAddress = None
 	get_client_backend().host_updateObjects(host) # pylint: disable=no-member
+
+
+async def authenticate(connection: HTTPConnection, receive: Receive, session: OPSISession) -> None:
+	logger.info("Start authentication of client %s", connection.client.host)
+	username = None
+	password = None
+	if connection.scope.get("path", "") == "/webgui/api/auth/login":
+		req = Request(connection.scope, receive)
+		form = await req.form()
+		username = form.get("username")
+		password = form.get("password")
+	else:
+		auth = get_basic_auth(connection.headers)
+		username = auth.username
+		password = auth.password
+
+	auth_type = None
+	if username == config.monitoring_user:
+		auth_type = "opsi-passwd"
+
+	def sync_auth(username, password, auth_type):
+		get_client_backend().backendAccessControl.authenticate(username, password, auth_type)
+
+	await run_in_threadpool(sync_auth, username, password, auth_type)
+
+	if username == config.monitoring_user:
+		session.user_store.isAdmin = False
+		session.user_store.isReadOnly = True

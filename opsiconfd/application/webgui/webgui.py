@@ -8,17 +8,21 @@
 webgui
 """
 
+import os
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, asc, desc, column
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
 from opsiconfd.logging import logger
 from opsiconfd.backend import get_backend
+
+WEBGUI_APP_PATH = "/tmp/opsi-webgui"
 
 webgui_router = APIRouter()
 mysql = None  # pylint: disable=invalid-name
@@ -37,6 +41,8 @@ def webgui_setup(app):
 				# No mysql backend
 				pass
 
+	if os.path.isdir(WEBGUI_APP_PATH):
+		app.mount("/webgui/app", StaticFiles(directory=WEBGUI_APP_PATH), name="app")
 
 def order_by(query, params):
 	if not params.get("sortBy"):

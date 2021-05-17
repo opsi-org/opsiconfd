@@ -92,7 +92,7 @@ class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
 		self.session_cookie_name = 'opsiconfd-session'
-		self.max_age = 120  # in seconds
+		self.max_age = config.session_lifetime  # in seconds
 		#self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
 		self._public_path = public_path or []

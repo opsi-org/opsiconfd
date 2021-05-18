@@ -526,7 +526,7 @@ async def authenticate(connection: HTTPConnection, receive: Receive, session: OP
 		auth_type = "opsi-passwd"
 
 	def sync_auth(username, password, auth_type):
-		get_client_backend().backendAccessControl.authenticate(username, password, auth_type)
+		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)
 

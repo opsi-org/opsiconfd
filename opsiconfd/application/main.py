@@ -51,7 +51,7 @@ class LoggerWebsocket(WebSocketEndpoint):
 	encoding = 'bytes'
 
 	async def _reader(self, start_id='$', client=None):
-		stream_name = "opsiconfd:log"
+		stream_name = f"opsiconfd:log:{config.node_name}"
 		logger.info("Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client)
 		b_stream_name = stream_name.encode("utf-8")
 		last_id = start_id

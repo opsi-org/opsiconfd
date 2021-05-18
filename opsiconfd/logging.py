@@ -229,7 +229,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 	async def _start(self):
 		try:
 			self._redis = await get_aredis_connection(config.redis_internal_url)
-			stream_name = "opsiconfd:log"
+			stream_name = f"opsiconfd:log:{config.node_name}"
 			await self._redis.xtrim(name=stream_name, max_len=10000, approximate=True)
 			self._loop.create_task(self._reader(stream_name=stream_name))
 			self._loop.create_task(self._watch_log_files())
@@ -317,7 +317,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 				while True:
 					try:
 						pipeline.xadd(
-							"opsiconfd:log",
+							f"opsiconfd:log:{config.node_name}",
 							self._queue.get_nowait(),
 							approximate=LOG_STREAM_MAX_RECORDS
 						)

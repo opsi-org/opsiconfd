@@ -5,6 +5,10 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+"""
+grafana
+"""
+
 import os
 import json
 import copy
@@ -299,14 +303,18 @@ def setup_grafana():
 		if not os.path.exists(file):
 			raise FileNotFoundError(f"'{file}' not found")
 
+
 	if not os.path.exists(os.path.join(grafana_plugin_dir, plugin_id)):
-		logger.notice("Setup grafana plugin %s", plugin_id)
-		for cmd in (
-			["grafana-cli", "plugins", "install", plugin_id],
-			["service", "grafana-server", "restart"]
-		):
-			out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=15)
-			logger.debug("output of command %s: %s", cmd, out)
+		try:
+			logger.notice("Setup grafana plugin %s", plugin_id)
+			for cmd in (
+				["grafana-cli", "plugins", "install", plugin_id],
+				["service", "grafana-server", "restart"]
+			):
+				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)
+				logger.debug("output of command %s: %s", cmd, out)
+		except subprocess.CalledProcessError as err:
+			logger.warning("Could not install grafana plugin via grafana-cli: %s", err)
 
 	if url.username is not None:
 		return

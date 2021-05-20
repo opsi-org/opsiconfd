@@ -691,6 +691,7 @@ class Config(metaclass=Singleton):
 			args = sys.argv
 			if "--help" not in args:
 				args.append("--help")
+			args.pop(0)
 			self._parse_args(args)
 
 	def _parse_args(self, args=None):

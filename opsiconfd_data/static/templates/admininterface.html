@@ -64,11 +64,6 @@
 			// Declare all variables
 			var i, tabcontent, tablinks;
 
-			console.log(i);
-			console.log(tabcontent);
-			console.log(tablinks);
-			console.log(tabName);
-
 			if (tabName == "rpcInfos") {
 				loadRPCTable("rpc_num", false);
 			}
@@ -117,7 +112,7 @@
 <body onload="onLoad();">
 	<div class="header">
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
-		<h1>opsiconfd {{opsi_version}}</h1>
+		<h1>opsiconfd {{opsi_version}} running on {{node_name}}</h1>
 	</div>
 	<div class="content">
 

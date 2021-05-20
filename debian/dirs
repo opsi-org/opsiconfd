@@ -1,5 +1,0 @@
-etc/opsi
-usr/bin
-usr/share/opsiconfd/static
-var/lib/opsiconfd/rrd
-var/log/opsi/opsiconfd

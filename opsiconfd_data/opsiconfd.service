@@ -1,0 +1,19 @@
+[Unit]
+Description=opsi server daemon
+After=local-fs.target
+After=network-online.target
+After=redis-server.service
+After=mysql.service
+After=mariadb.service
+Requires=local-fs.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/opsiconfd start --log-level-stderr=0
+ExecStop=/usr/bin/opsiconfd force-stop --log-level-stderr=0
+ExecReload=/usr/bin/opsiconfd reload --log-level-stderr=0
+RestartSec=1
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

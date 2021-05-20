@@ -1,7 +1,15 @@
-.project
-.pydevproject
-.settings
-.idea
-*.pyc
-*.pyo
+/.venv
+/build
+/debian
+/dist
+/python-opsi
+__pycache__
 *.egg-info
+
+# Visual Studio Code
+.vscode/*
+docker/dev.env
+.env
+
+opsibackups/
+opsi-utils/

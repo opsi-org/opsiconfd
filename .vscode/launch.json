@@ -1,0 +1,60 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name":"opsiconfd default",
+			"type":"python",
+			"request":"launch",
+			"module":"opsiconfd",
+			"args": ["--workers=1","--log-level=5","--log-level-stderr=5","--log-mode=redis", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"sudo": true,
+			"justMyCode": false
+		},
+		{
+			"name":"opsiconfd",
+			"type":"python",
+			"request":"launch",
+			"module":"opsiconfd",
+			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"sudo": true,
+		},
+		{
+			"name":"opsiconfd jemalloc",
+			"type":"python",
+			"request":"launch",
+			"module":"opsiconfd",
+			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"sudo": true,
+			"env": {"LD_PRELOAD":"/usr/lib/x86_64-linux-gnu/libjemalloc.so.2"}
+		},
+		{
+			"name":"opsiconfd setup",
+			"type":"python",
+			"request":"launch",
+			"module":"opsiconfd",
+			"args": ["setup", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"sudo": true
+		}
+	],
+	"inputs": [
+		{
+		"id": "loglevel",
+		"type": "promptString",
+		"description": "Set LogLevel Stderr.",
+		"default": "5"
+		},
+		{
+			"id": "worker",
+			"type": "promptString",
+			"description": "Number of opsiconfd worker to start",
+			"default": "1"
+		}
+		,
+		{
+			"id": "options",
+			"type": "promptString",
+			"description": "other options",
+			"default": "start"
+		}
+	  ]
+}

@@ -1,454 +1,730 @@
 # -*- coding: utf-8 -*-
 
-# opsiconfd is part of the desktop management solution opsi
-# (open pc server integration) http://www.opsi.org
-# Copyright (C) 2010-2019 uib GmbH <info@uib.de>
-
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# opsiconfd is part of the desktop management solution opsi http://www.opsi.org
+# Copyright (c) 2020-2021 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0
 """
-Statistics about an running opsiconfd.
-
-These classes provide the data that is shown on the info page.
-
-:author: Jan Schneider <j.schneider@uib.de>
-:author: Niko Wenselowski <n.wenselowski@uib.de>
-:license: GNU Affero General Public License version 3
+statistics
 """
 
-import collections
-import datetime
-import os
+import re
 import time
-import threading
-from twisted.internet.task import LoopingCall
-import resource as pyresource
+import asyncio
+from typing import Dict, List
+import psutil
 
-try:
-	import rrdtool
-except ImportError:
-	rrdtool = None
+import yappi
+from yappi import YFuncStats
+from aredis.exceptions import ResponseError as ARedisResponseError
+from redis import ResponseError as RedisResponseError
 
-try:
-	import objgraph
-except ImportError:
-	objgraph = None
+from starlette.datastructures import MutableHeaders
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from OPSI.web2 import http, resource
-from OPSI.Logger import Logger
-from OPSI.Types import forceUnicode
+from . import (
+	contextvar_request_id, contextvar_client_address, contextvar_server_timing
+)
+from .logging import logger
+from .worker import (
+	get_metrics_collector as get_worker_metrics_collector,
+	get_worker_num
+)
+from .config import config
+from .utils import (
+	Singleton, redis_client, aredis_client
+)
+from .grafana import GrafanaPanelConfig
 
-logger = Logger()
 
-CallStatistics = collections.namedtuple('CallStatistics', ['count', 'average'])
+def get_yappi_tag() -> int:
+	return int(contextvar_request_id.get() or -1)
 
 
-class ResourceOpsiconfdStatistics(resource.Resource):
-	def __init__(self, opsiconfd):
-		self._opsiconfd = opsiconfd
+def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+	# Add metrics from jsonrpc to metrics_registry
+	from .application import jsonrpc  # pylint: disable=import-outside-toplevel,unused-import
 
-	def renderHTTP(self, request):
-		''' Process request. '''
-		return http.Response(
-			stream='\n'.join(
-				'{0}:{1}'.format(k, v) for (k, v) in
-				self._opsiconfd.statistics().getStatistics().items()
-			)
+	with redis_client() as client:
+
+		for metric in metrics_registry.get_metrics():
+			if not metric.downsampling:
+				continue
+
+			iterations = 1
+			if metric.subject == "worker":
+				iterations = config.workers
+
+			for iteration in range(iterations):
+				node_name = config.node_name
+				worker_num = None
+				if metric.subject == "worker":
+					worker_num = iteration + 1
+
+				logger.debug("Iteration=%s, node_name=%s, worker_num=%s", iteration, node_name, worker_num)
+
+				orig_key = None
+				cmd = None
+				if metric.subject == "worker":
+					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
+					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
+				elif metric.subject == "node":
+					orig_key = metric.redis_key.format(node_name=node_name)
+					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
+				else:
+					orig_key = metric.redis_key
+					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
+
+				logger.debug("redis command: %s", cmd)
+				try:
+					client.execute_command(cmd)
+				except RedisResponseError as err:
+					if str(err) != "TSDB: key already exists":
+						raise
+
+				cmd = f"TS.INFO {orig_key}"
+				info = client.execute_command(cmd)
+				existing_rules = {}
+				for idx, val in enumerate(info):
+					if isinstance(val, bytes) and "rules" in val.decode("utf8"):
+						rules = info[idx+1]
+						for rule in rules:
+							key = rule[0].decode("utf8")
+							#retention = key.split(":")[-1]
+							existing_rules[key] = {"time_bucket": rule[1], "aggregation": rule[2].decode("utf8")}
+
+				for rule in metric.downsampling:
+					retention, retention_time, aggregation = rule
+					time_bucket = get_time_bucket(retention)
+					key = f"{orig_key}:{retention}"
+					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
+					try:
+						client.execute_command(cmd)
+					except RedisResponseError as err:
+						if str(err) != "TSDB: key already exists":
+							raise
+
+					create = True
+					if key in existing_rules:
+						cur_rule = existing_rules[key]
+						if (
+							time_bucket == cur_rule.get("time_bucket") and
+							aggregation.lower() == cur_rule.get("aggregation").lower()
+						):
+							create = False
+						else:
+							cmd = f"TS.DELETERULE {orig_key} {key}"
+							client.execute_command(cmd)
+
+					if create:
+						cmd = f"TS.CREATERULE {orig_key} {key} AGGREGATION {aggregation} {time_bucket}"
+						logger.debug("Redis cmd: %s", cmd)
+						client.execute_command(cmd)
+
+TIME_BUCKETS = {
+	"second": 1000,
+	"minute": 60 * 1000,
+	"hour": 3600 * 1000,
+	"day": 24 * 3600 * 1000,
+	"week": 7 * 24 * 3600 * 1000,
+	"month": 30 * 24 * 3600 * 1000,
+	"year": 365 * 24 * 3600 * 1000
+}
+
+def get_time_bucket(interval: str) -> int:
+	time_bucket = TIME_BUCKETS.get(interval)
+	if time_bucket is None:
+		raise ValueError(f"Invalid interval: {interval}")
+	return time_bucket
+
+
+def get_time_bucket_name(time: int) -> str: # pylint: disable=redefined-outer-name
+	time_bucket_name = None
+	for name, t in TIME_BUCKETS.items(): # pylint: disable=invalid-name
+		if time >= t:
+			time_bucket_name = name
+	return time_bucket_name
+
+class Metric: # pylint: disable=too-many-instance-attributes
+	def __init__( # pylint: disable=too-many-arguments, redefined-builtin, dangerous-default-value
+			self,
+			id: str,
+			name: str,
+			vars: List[str] = [],
+			aggregation: str = "avg",
+			retention: int = 0,
+			zero_if_missing: str = None,
+			time_related: bool = False,
+			subject: str = "worker",
+			server_timing_header_factor: int = None,
+			grafana_config: GrafanaPanelConfig = None,
+			downsampling: List = None
+	):
+		"""
+		Metric constructor
+
+		:param id: A unique id for the metric which will be part of the redis key (i.e. "worker:avg_cpu_percent").
+		:type id: str
+		:param name: The human readable name of the metric (i.e "Average CPU usage of worker {worker_num} on {node_name}").
+		:type id: str
+		:param vars: Variables used for redis key and labels (i.e. ["node_name", "worker_num"]). \
+		             Values for these vars has to pe passed to param "labels" as dict when calling MetricsCollector.add_value().
+		:type vars: List[str]
+		:param retention: Redis retention time in milliseconds.
+		:type retention: int
+		:param aggregation: Aggregation to use before adding values to the time series database (`sum` or `avg`).
+		:type aggregation: str
+		:param zero_if_missing: Behaviour if no values exist in a measuring interval. `one`, `continuous` or None. \
+		                        Zero values are sometime helpful because gaps between values get connected \
+                                by a straight line in diagrams. But zero values need storage space.
+		:type zero_if_missing: str
+		:param time_related: If the metric is time related, like requests per second.
+		:type time_related: bool
+		:param subject: Metric subject (`node`, `worker` or `client`). Should be the first part of the `id` also.
+		:type subject: str
+		:param subject: A GrafanaPanelConfig object.
+		:type subject: GrafanaPanelConfig
+		:param downsampling: Downsampling configuration as list of [<time_bucket>, <retention_time>, <aggregation>] pairs.
+		:type downsampling: List
+		"""
+		assert aggregation in ("sum", "avg")
+		assert subject in ("node", "worker", "client")
+		assert zero_if_missing in (None, "one", "continuous")
+		self.id = id # pylint: disable=invalid-name
+		self.name = name
+		self.vars = vars
+		self.aggregation = aggregation
+		self.retention = retention
+		self.zero_if_missing = zero_if_missing
+		self.time_related = time_related
+		self.subject = subject
+		self.server_timing_header_factor = server_timing_header_factor
+		self.grafana_config = grafana_config
+		self.redis_key = self.redis_key_prefix = f"opsiconfd:stats:{id}"
+		self.downsampling = downsampling
+		for var in self.vars:
+			self.redis_key += ":{" + var + "}"
+		name_regex = self.name
+		for var in vars:
+			name_regex = name_regex.replace('{' + var + '}', f"(?P<{var}>\S+)") # pylint: disable=anomalous-backslash-in-string
+		self.name_regex = re.compile(name_regex)
+
+	def __str__(self):
+		return f"<{self.__class__.__name__} id='{self.id}'>"
+
+	def get_redis_key(self, **kwargs):
+		if not kwargs:
+			return self.redis_key_prefix
+		return self.redis_key.format(**kwargs)
+
+	def get_name(self, **kwargs):
+		return self.name.format(**kwargs)
+
+	def get_vars_by_redis_key(self, redis_key):
+		vars = {} # pylint: disable=redefined-builtin
+		if self.vars:
+			values = redis_key[len(self.redis_key_prefix)+1:].split(':')
+			for i, value in enumerate(values):
+				vars[self.vars[i]] = value
+		return vars
+
+	def get_name_by_redis_key(self, redis_key):
+		vars = self.get_vars_by_redis_key(redis_key) # pylint: disable=redefined-builtin
+		return self.get_name(**vars)
+
+	def get_vars_by_name(self, name):
+		return self.name_regex.fullmatch(name).groupdict()
+
+class MetricsRegistry(metaclass=Singleton):
+	def __init__(self):
+		self._metrics_by_id = {}
+
+	def register(self, *metric):
+		for m in metric: # pylint: disable=invalid-name
+			self._metrics_by_id[m.id] = m
+
+	def get_metric_ids(self):
+		return list(self._metrics_by_id)
+
+	def get_metrics(self, *subject) -> List[Metric]:
+		for metric in self._metrics_by_id.values():
+			if not subject or metric.subject in subject:
+				yield metric
+
+	def get_metric_by_id(self, id): # pylint: disable=redefined-builtin, invalid-name
+		if id in self._metrics_by_id:
+			return self._metrics_by_id[id]
+		raise ValueError(f"Metric with id '{id}' not found")
+
+	def get_metric_by_name(self, name):
+		for metric in self._metrics_by_id.values():
+			match = metric.name_regex.fullmatch(name)
+			if match:
+				return metric
+		raise ValueError(f"Metric with name '{name}' not found")
+
+	def get_metric_by_redis_key(self, redis_key):
+		for metric in self._metrics_by_id.values():
+			if redis_key == metric.redis_key_prefix or redis_key.startswith(metric.redis_key_prefix + ':'):
+				return metric
+		raise ValueError(f"Metric with redis key '{redis_key}' not found")
+
+metrics_registry = MetricsRegistry()
+
+metrics_registry.register(
+	Metric(
+		id="node:avg_load",
+		name="Average system load on {node_name}",
+		vars=["node_name"],
+		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=None,
+		subject="node",
+		grafana_config=GrafanaPanelConfig(title="System load", units=["short"], decimals=2, stack=False),
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+	),
+	Metric(
+		id="worker:avg_mem_allocated",
+		name="Average memory usage of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=None,
+		subject="worker",
+		grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], decimals=2, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+	),
+	Metric(
+		id="worker:avg_cpu_percent",
+		name="Average CPU usage of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=None,
+		subject="worker",
+		grafana_config=GrafanaPanelConfig(title="Worker CPU usage", units=["percent"], decimals=1, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+	),
+	Metric(
+		id="worker:avg_thread_number",
+		name="Average threads of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=None,
+		subject="worker",
+		grafana_config=GrafanaPanelConfig(title="Worker threads", units=["short"], decimals=0, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+	),
+	Metric(
+		id="worker:avg_filehandle_number",
+		name="Average filehandles of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing=None,
+		subject="worker",
+		grafana_config=GrafanaPanelConfig(title="Worker filehandles", units=["short"], decimals=0, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+	),
+	Metric(
+		id="worker:sum_http_request_number",
+		name="Average HTTP requests of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=2 * 3600 * 1000,
+		aggregation="sum",
+		zero_if_missing="continuous",
+		time_related=True,
+		subject="worker",
+		grafana_config=GrafanaPanelConfig(title="HTTP requests/s", units=["short"], decimals=0, stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+	),
+	Metric(
+		id="worker:avg_http_response_bytes",
+		name="Average HTTP response size of worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing="one",
+		subject="worker",
+		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+	),
+	Metric(
+		id="worker:avg_http_request_duration",
+		name="Average duration of HTTP requests processed by worker {worker_num} on {node_name}",
+		vars=["node_name", "worker_num"],
+		retention=2 * 3600 * 1000,
+		aggregation="avg",
+		zero_if_missing="one",
+		subject="worker",
+		grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", units=["s"], decimals=0),
+		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+	),
+	Metric(
+		id="client:sum_http_request_number",
+		name="HTTP requests of Client {client_addr}",
+		vars=["client_addr"],
+		retention=24 * 3600 * 1000,
+		aggregation="sum",
+		zero_if_missing="one",
+		time_related=True,
+		subject="client",
+		grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
+	)
+)
+
+
+class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
+	_metric_subjects = []
+
+	def __init__(self):
+		self._loop = asyncio.get_event_loop()
+		self._interval = 5
+		self._node_name = config.node_name
+		self._values = {}
+		self._values_lock = asyncio.Lock()
+		self._last_timestamp = 0
+
+	def _get_timestamp(self) -> int: # pylint: disable=no-self-use
+		# return unix timestamp in millis
+		# milliseconds since Jan 01 1970. (UTC)
+		return int(time.time() * 1000)
+		#return int(round(datetime.datetime.utcnow().timestamp())*1000)
+
+	async def _fetch_values(self):
+		self._loop.create_task(
+			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
 		)
 
+	def _init_vars(self):
+		for metric in metrics_registry.get_metrics(*self._metric_subjects):
+			if metric.zero_if_missing != "continuous":
+				continue
 
-class Statistics(object):
-	"""
-	Statistics about the opsiconfd.
+			key_string = []
+			for var in metric.vars:
+				if hasattr(self, var):
+					key_string.append(str(getattr(self, var)))
+				elif hasattr(self, f"_{var}"):
+					key_string.append(str(getattr(self, f"_{var}")))
+				else:
+					key_string = None
+					break
 
-	These are mainly data about the executed rpcs, possibly encountered
-	encoding errors and the expired sessions.
-	This class is also used for creating graphics via rrdtool.
+			if key_string is None:
+				continue
 
-	.. versionchanged:: 4.0.6
+			key_string = ":".join(key_string)
+			if not metric.id in self._values:
+				self._values[metric.id] = {}
+			if not key_string in self._values[metric.id]:
+				self._values[metric.id][key_string] = {}
 
-		Storing RPCs and expired sessions in a length-limited deque.
-	"""
+	async def main_loop(self): # pylint: disable=too-many-branches
+		try:
+			self._init_vars()
+		except Exception as err: # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
 
-	def __init__(self, opsiconfd):
-		self.opsiconfd = opsiconfd
-		self._rpcs = collections.deque(maxlen=self.opsiconfd.config['maxExecutionStatisticValues'])
-		self._rpcStatistics = collections.defaultdict(lambda: CallStatistics(0, 0.0))
-		self._encodingErrors = []
-		self._maxExpiredSessionInfos = 300
-		self._expiredSessionInfo = collections.deque(maxlen=self._maxExpiredSessionInfos)
-		self._utime = 0.0
-		self._stime = 0.0
-		self._last = time.time()
-		self._rrdConfig = {
-			'step': 60,  # in seconds
-			'heartbeat': 120,
-			'xPoints': 800,
-			'yPoints': 160,
-			'rrdFile': os.path.join(self.opsiconfd.config['rrdDir'], 'opsiconfd.rrd')
-		}
-		self._rrdCache = {
-			'requests': 0,
-			'sessions': 0,
-			'davrequests': 0,
-			'rpcs': 0,
-			'rpcerrors': 0
-		}
-		self._userAgents = collections.defaultdict(int)
+		while True:
+			cmd = None
 
-		if not os.path.exists(self._rrdConfig['rrdFile']):
-			self.createRrd()
-		loop = LoopingCall(self.updateRrd)
-		loop.start(int(self._rrdConfig['step']), now=False)
-
-	@staticmethod
-	def rrdsAvailable():
-		return bool(rrdtool)
-
-	def createObjectGraph(self, maxDepth):
-		if objgraph is not None:
-			path = os.getcwd()
 			try:
-				os.chdir('/tmp')
-				objgraph.show_backrefs([self.opsiconfd], max_depth=maxDepth)
-			finally:
-				os.chdir(path)
+				await self._fetch_values()
+				timestamp = self._get_timestamp()
+				cmds = []
+				async with self._values_lock:
+					for metric in metrics_registry.get_metrics(*self._metric_subjects):
+						if not metric.id in self._values:
+							continue
 
-	def createRrd(self):
-		if rrdtool is None:
-			return
+						for key_string in list(self._values.get(metric.id, {})):
+							value = 0
+							count = 0
+							insert_zero_timestamp = 0
+							for tsp in list(self._values[metric.id].get(key_string, {})):
+								if self._values[metric.id][key_string][tsp] is None:
+									# Marker, insert a zero before adding new values
+									insert_zero_timestamp = tsp
+									self._values[metric.id][key_string].pop(tsp)
+									continue
+								if tsp <= timestamp:
+									count += 1
+									value += self._values[metric.id][key_string].pop(tsp)
 
-		if os.path.exists(self._rrdConfig['rrdFile']):
-			os.unlink(self._rrdConfig['rrdFile'])
+							if count == 0:
+								if not metric.zero_if_missing:
+									continue
+								if not insert_zero_timestamp and metric.zero_if_missing == "one":
+									del self._values[metric.id][key_string]
 
-		start = int(time.time())
-		logger.notice(u"Creating rrd '{rrdFile}', start: {0}", start, rrdFile=self._rrdConfig['rrdFile'])
+							if metric.aggregation == "avg" and count > 0:
+								value /= count
 
-		step = 3600 / self._rrdConfig['step']
-		stepForDay = step * 24
-		heartbeat = self._rrdConfig['heartbeat']
+							labels = {}
+							label_values = key_string.split(":")
+							for idx, var in enumerate(metric.vars):
+								labels[var] = label_values[idx]
 
-		rrdtool.create(
-			str(self._rrdConfig['rrdFile']),
-			'--start', str(start),
-			'--step', str(self._rrdConfig['step']),
-			'DS:requests:ABSOLUTE:%d:0:U' % heartbeat,
-			'DS:sessions:DERIVE:%d:0:U' % heartbeat,
-			'DS:davrequests:ABSOLUTE:%d:0:U' % heartbeat,
-			'DS:rpcs:ABSOLUTE:%d:0:U' % heartbeat,
-			'DS:rpcerrors:ABSOLUTE:%d:0:U' % heartbeat,
-			'DS:cpu:GAUGE:%d:0:U' % heartbeat,
-			'DS:mem:GAUGE:%d:0:U' % heartbeat,
-			'DS:threads:GAUGE:%d:0:U' % heartbeat,
-			'RRA:AVERAGE:0.5:1:%d' % step,  # hour
-			'RRA:AVERAGE:0.5:1:%d' % stepForDay,  # day
-			'RRA:AVERAGE:0.5:7:%d' % stepForDay,  # week
-			'RRA:AVERAGE:0.5:31:%d' % stepForDay,  # month
-			'RRA:AVERAGE:0.5:365:%d' % stepForDay,  # year
-			'RRA:MAX:0.5:1:%d' % step,  # hour
-			'RRA:MAX:0.5:1:%d' % stepForDay,  # day
-			'RRA:MAX:0.5:7:%d' % stepForDay,  # week
-			'RRA:MAX:0.5:31:%d' % stepForDay,  # month
-			'RRA:MAX:0.5:365:%d' % stepForDay,  # year
+							if insert_zero_timestamp:
+								cmds.append(
+									self._redis_ts_cmd(metric, "ADD", 0, insert_zero_timestamp, **labels)
+								)
+
+							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
+							logger.debug("Redis ts cmd %s", cmd)
+							cmds.append(cmd)
+
+				try:
+					await self._execute_redis_command(*cmds)
+				except ARedisResponseError as err: # pylint: disable=broad-except
+					if str(err).lower().startswith("unknown command"):
+						logger.error("RedisTimeSeries module missing, metrics collector ending")
+						return
+					logger.error("%s while executing redis commands: %s", err, cmds, exc_info=True)
+
+			except Exception as err: # pylint: disable=broad-except
+				logger.error(err, exc_info=True)
+			await asyncio.sleep(self._interval)
+
+	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels): # pylint: disable=no-self-use
+		timestamp = timestamp or "*"
+		l_labels = []
+
+		for key in labels:
+			l_labels.extend([key, labels[key]])
+
+		# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6
+		if cmd == "ADD":
+			cmd = [
+				"TS.ADD", metric.get_redis_key(**labels), timestamp, value,
+				"RETENTION", metric.retention, "ON_DUPLICATE", "SUM", "LABELS"
+			] + l_labels
+		elif cmd == "INCRBY":
+			cmd = [
+				"TS.INCRBY", metric.get_redis_key(**labels), value, timestamp,
+				"RETENTION", metric.retention, "ON_DUPLICATE", "SUM", "LABELS"
+			] + l_labels
+		else:
+			raise ValueError(f"Invalid command {cmd}")
+		return " ".join([ str(x) for x in cmd ])
+
+	async def _execute_redis_command(self, *cmd):
+		def str_cmd(cmd_obj):
+			if isinstance(cmd_obj, list):
+				return " ".join([ str(x) for x in cmd_obj ])
+			return cmd_obj
+
+		redis = await aredis_client()
+		if len(cmd) == 1:
+			return await redis.execute_command(str_cmd(cmd[0]))
+
+		async with await redis.pipeline(transaction=False) as pipe:
+			for a_cmd in cmd:
+				a_cmd = str_cmd(a_cmd)
+				logger.debug("Adding redis command to pipe: %s", a_cmd)
+				await pipe.execute_command(a_cmd)
+			logger.debug("Executing redis pipe (%d commands)", len(cmd))
+			return await pipe.execute()
+
+	async def add_value(self, metric_id: str, value: float, labels: dict = None, timestamp: int = None):
+		if labels is None:
+			labels = {}
+		metric = metrics_registry.get_metric_by_id(metric_id)
+		logger.debug("add_value metric_id: %s, labels: %s ", metric_id, labels)
+		key_string = ""
+		for var in metric.vars:
+			if not key_string:
+				key_string = labels[var]
+			else:
+				key_string = f"{key_string}:{labels[var]}"
+
+		if metric.server_timing_header_factor:
+			server_timing = contextvar_server_timing.get()
+			if isinstance(server_timing, dict):
+				# Only if dict (initialized)
+				server_timing[metric_id.split(':')[-1]] = value * metric.server_timing_header_factor
+				contextvar_server_timing.set(server_timing)
+		if not timestamp:
+			timestamp = self._get_timestamp()
+		async with self._values_lock:
+			if not metric_id in self._values:
+				self._values[metric_id] = {}
+			if not key_string in self._values[metric_id]:
+				self._values[metric_id][key_string] = {}
+				if metric.zero_if_missing == "one":
+					# Insert a zero before new adding new values because
+					# gaps in diagrams will be conneced with straight lines.
+					# Marking with None
+					self._values[metric_id][key_string][timestamp-self._interval*1000] = None
+			if not timestamp in self._values[metric_id][key_string]:
+				self._values[metric_id][key_string][timestamp] = 0
+			self._values[metric_id][key_string][timestamp] += value
+
+class ManagerMetricsCollector(MetricsCollector):
+	_metric_subjects = ["node"]
+
+	async def _fetch_values(self):
+		self._loop.create_task(
+			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
 		)
 
-	def getStatistics(self):
-		now = int(time.time())
 
-		try:
-			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
-			self._last = now
+class WorkerMetricsCollector(MetricsCollector):
+	_metric_subjects = ["worker", "client"]
 
-			return {
-				"requests": self._rrdCache['requests'],
-				"sessions": self._rrdCache['sessions'],
-				"davrequests": self._rrdCache['davrequests'],
-				"rpcs": self._rrdCache['rpcs'],
-				"rpcerrors": self._rrdCache['rpcerrors'],
-				"cpu": cpu,
-				"virtmem": virtMem,
-				"threads": len([t for t in threading.enumerate()])
-			}
-		except Exception as error:
-			logger.logException(error)
-			logger.error(u"Failed to get Statistics: {0}", error)
-			return {}
+	def __init__(self):
+		super().__init__()
+		self._worker_num = get_worker_num()
+		self._proc = None
 
-	def _getOwnResourceUsage(self, currentTime, unixtimeOfLastCall):
-		utime, stime, _ = pyresource.getrusage(pyresource.RUSAGE_SELF)[0:3]
-		if int(utime - self._utime) == 0:
-			usr = 0.0
-		else:
-			usr = (utime - self._utime) / (currentTime - unixtimeOfLastCall)
+	async def _fetch_values(self):
+		if not self._proc:
+			self._proc = psutil.Process()
 
-		if int(stime - self._stime) == 0:
-			sys = 0.0
-		else:
-			sys = (stime - self._stime) / (currentTime - unixtimeOfLastCall)
+		for metric_id, value in (
+			("worker:avg_mem_allocated", self._proc.memory_info().rss),
+			("worker:avg_cpu_percent", self._proc.cpu_percent()),
+			("worker:avg_thread_number", self._proc.num_threads()),
+			("worker:avg_filehandle_number", self._proc.num_fds())
+		):
+			# Do not add 0-values
+			if value:
+				self._loop.create_task(
+					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self._worker_num})
+				)
 
-		cpu = int("%0.0f" % ((usr + sys) * 100))
-		if cpu > 100:
-			cpu = 100
 
-		with open('/proc/%s/stat' % os.getpid()) as f:
-			data = f.read().split()
-		virtMem = int("%0.0f" % (float(data[22]) / (1024 * 1024)))
+class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-method
+	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
+		super().__init__(app)
 
-		return (utime, stime, cpu, virtMem)
+		self._profiler_enabled = profiler_enabled
+		self._log_func_stats = log_func_stats
+		self._write_callgrind_file = True
+		self._profile_methods: Dict[str, str] = {
+			"BackendManager._executeMethod": "backend",
+			"MySQL.execute": "mysql",
+			"Response.render": "render",
+			#"serialize": "opsi_serialize",
+			#"deserialize": "opsi_deserialize",
+		}
+		if self._profiler_enabled:
+			yappi.set_tag_callback(get_yappi_tag)
+			yappi.set_clock_type("wall")
+			# TODO: Schedule some kind of periodic profiler cleanup with clear_stats()
+			yappi.start()
 
-	def updateRrd(self):
-		if rrdtool is None:
+	def yappi(self, scope): # pylint: disable=inconsistent-return-statements
+		# https://github.com/sumerc/yappi/blob/master/doc/api.md
+
+		tag = get_yappi_tag()
+		if tag == -1:
 			return
 
-		now = int(time.time())
-		try:
-			self._utime, self._stime, cpu, virtMem = self._getOwnResourceUsage(now, self._last)
-			self._last = now
+		func_stats = yappi.get_func_stats(filter={"tag": tag})
+		#func_stats.sort("ttot", sort_order="desc").debug_print()
 
-			threadCount = len([thread for thread in threading.enumerate()])
-			rrdValues = '{0:d}:{requests:d}:{sessions:d}:{davrequests:d}:{rpcs:d}:{rpcerrors:d}:{1:d}:{2:d}:{3:d}'.format(
-				now, cpu, virtMem, threadCount, **self._rrdCache
-			)
-			logger.debug2(u'Updating rrd: {0}', rrdValues)
-			rrdtool.update(str(self._rrdConfig['rrdFile']), rrdValues)
-			self._rrdCache['requests'] = 0
-			self._rrdCache['davrequests'] = 0
-			self._rrdCache['rpcs'] = 0
-			self._rrdCache['rpcerrors'] = 0
-		except Exception as error:
-			logger.error(u"Failed to update rrd: {0}", error)
+		if self._write_callgrind_file:
+			# Use i.e. kcachegrind to visualize
+			func_stats.save(f"/tmp/callgrind.out.opsiconfd-yappi-{tag}", type="callgrind")  # pylint: disable=no-member
 
-	def getRrdGraphImage(self, imageType, range):
-		"""
-		Create an graph image with rrdtool.
+		if self._log_func_stats:
+			logger.essential("---------------------------------------------------------------------------------------------------------------------------------") # pylint: disable=line-too-long
+			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope['method']} {scope['path']}")
+			logger.essential(f"{'module':<45} | {'function':<60} | {'calls':>5} | {'total time':>10}")
+			logger.essential("---------------------------------------------------------------------------------------------------------------------------------") # pylint: disable=line-too-long
+			for stat_num, stat in enumerate(func_stats.sort("ttot", sort_order="desc")):
+				module = re.sub(r".*(site-packages|python3\.\d|python-opsi)/", "", stat.module)
+				logger.essential(f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}")
+				if stat_num >= 500:
+					break
+			logger.essential("---------------------------------------------------------------------------------------------------------------------------------") # pylint: disable=line-too-long
 
-		:param imageType: Type of the Image. 1 is webservice data, 2 is \
-information about the host.
-		"""
-		if rrdtool is None:
-			return None
+		func_stats: Dict[str, YFuncStats] = {
+			stat_name: yappi.get_func_stats(filter={"name": function, "tag": tag})
+			for function, stat_name in self._profile_methods.items()
+		}
+		server_timing = {}
+		for stat_name, stats in func_stats.items():
+			if not stats.empty():
+				server_timing[stat_name] = stats.pop().ttot * 1000
+		return server_timing
 
-		if imageType == 1:
-			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '1_%s.png' % range)
-		else:
-			graphImage = os.path.join(self.opsiconfd.config['rrdDir'], '2_%s.png' % range)
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+		logger.trace("StatisticsMiddleware scope=%s", scope)
+		loop = asyncio.get_event_loop()
 
-		date = time.strftime("%a, %d %b %Y %H\:%M\:%S", time.localtime())
-		end = int(time.time())
-		start = end - range
-
-		logger.debug(u"Creating rrd graph image '{0}', start: {1}, end: {2}", graphImage, start, end)
-
-		if os.path.exists(graphImage):
-			os.unlink(graphImage)
-		# TODO: for the imageType use some kind of constant
-
-		if imageType == 1:
-			rrdtool.graph(
-				str(graphImage),
-				'--imgformat', 'PNG',
-				'--width', str(self._rrdConfig['xPoints']),
-				'--height', str(self._rrdConfig['yPoints']),
-				'--start', str(start),
-				'--end', str(end),
-				'--vertical-label', 'avg per minute',
-				'--lower-limit', str(0),
-				'--units-exponent', str(0),  # don't show milli-messages/s
-				'--slope-mode',
-				'--color', 'SHADEA#ffffff',
-				'--color', 'SHADEB#ffffff',
-				'--color', 'BACK#ffffff',
-
-				'DEF:avg_requ=%s:requests:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_requ=%s:requests:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_requ_permin=avg_requ,60,*',
-				'CDEF:max_requ_permin=max_requ,60,*',
-				'VDEF:total_requ=avg_requ,TOTAL',
-				'LINE2:avg_requ_permin#0000dd:Requests     ',
-				'GPRINT:total_requ:total\: %8.0lf requests     ',
-				'GPRINT:avg_requ_permin:AVERAGE:avg\: %5.2lf requests/min     ',
-				'GPRINT:max_requ_permin:MAX:max\: %4.0lf requests/min\\l',
-
-				'DEF:avg_davrequ=%s:davrequests:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_davrequ=%s:davrequests:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_davrequ_permin=avg_davrequ,60,*',
-				'CDEF:max_davrequ_permin=max_davrequ,60,*',
-				'VDEF:total_davrequ=avg_davrequ,TOTAL',
-				'LINE2:avg_davrequ_permin#ff8000:DAV requests ',
-				'GPRINT:total_davrequ:total\: %8.0lf dav requests ',
-				'GPRINT:avg_davrequ_permin:AVERAGE:avg\: %5.2lf dav requests/min ',
-				'GPRINT:max_davrequ_permin:MAX:max\: %4.0lf dav requests/min\\l',
-
-				'DEF:avg_rpc=%s:rpcs:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_rpc=%s:rpcs:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_rpc_permin=avg_rpc,60,*',
-				'CDEF:max_rpc_permin=max_rpc,60,*',
-				'VDEF:total_rpc=avg_rpc,TOTAL',
-				'LINE2:avg_rpc_permin#00dd00:RPCs         ',
-				'GPRINT:total_rpc:total\: %8.0lf rpcs         ',
-				'GPRINT:avg_rpc_permin:AVERAGE:avg\: %5.2lf rpcs/min         ',
-				'GPRINT:max_rpc_permin:MAX:max\: %4.0lf rpcs/min\\l',
-
-				'DEF:avg_rpcerror=%s:rpcerrors:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_rpcerror=%s:rpcerrors:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_rpcerror_permin=avg_rpcerror,60,*',
-				'CDEF:max_rpcerror_permin=max_rpcerror,60,*',
-				'VDEF:total_rpcerror=avg_rpcerror,TOTAL',
-				'LINE2:avg_rpcerror_permin#dd0000:RPC errors   ',
-				'GPRINT:total_rpcerror:total\: %8.0lf rpc errors   ',
-				'GPRINT:avg_rpcerror_permin:AVERAGE:avg\: %5.2lf rpc errors/min   ',
-				'GPRINT:max_rpcerror_permin:MAX:max\: %4.0lf rpc errors/min\\l',
-
-				'COMMENT:[%s]\\r' % date,
-			)
-		else:
-			rrdtool.graph(
-				str(graphImage),
-				'--imgformat', 'PNG',
-				'--width', str(self._rrdConfig['xPoints']),
-				'--height', str(self._rrdConfig['yPoints']),
-				'--start', str(start),
-				'--end', str(end),
-				'--vertical-label', '% / num / MByte*0.1',
-				'--lower-limit', str(0),
-				'--units-exponent', str(0),  # don't show milli-messages/s
-				'--slope-mode',
-				'--color', 'SHADEA#ffffff',
-				'--color', 'SHADEB#ffffff',
-				'--color', 'BACK#ffffff',
-
-				'DEF:avg_threads=%s:threads:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_threads=%s:threads:MAX' % str(self._rrdConfig['rrdFile']),
-				'LINE2:avg_threads#00dd00:Threads      ',
-				'GPRINT:max_threads:LAST:cur\: %8.0lf threads      ',
-				'GPRINT:avg_threads:AVERAGE:avg\: %8.2lf threads          ',
-				'GPRINT:max_threads:MAX:max\: %8.0lf threads\\l',
-
-				'DEF:avg_sess=%s:sessions:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_sess=%s:sessions:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_sess_permin=avg_sess,60,*',
-				'CDEF:max_sess_permin=max_sess,60,*',
-				'VDEF:total_sess=avg_sess,TOTAL',
-				'LINE2:avg_sess_permin#ff8000:Sessions     ',
-				'GPRINT:max_sess:LAST:cur\: %8.0lf sessions     ',
-				'GPRINT:avg_sess_permin:AVERAGE:avg\: %8.2lf sessions/min     ',
-				'GPRINT:max_sess_permin:MAX:max\: %8.0lf sessions/min\\l',
-
-				'DEF:avg_cpu=%s:cpu:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_cpu=%s:cpu:MAX' % str(self._rrdConfig['rrdFile']),
-				'LINE2:avg_cpu#dd0000:CPU usage    ',
-				'GPRINT:max_cpu:LAST:cur\: %8.2lf %%            ',
-				'GPRINT:avg_cpu:AVERAGE:avg\: %8.2lf %%                ',
-				'GPRINT:max_cpu:MAX:max\: %8.2lf %%\\l',
-
-				'DEF:avg_mem=%s:mem:AVERAGE' % str(self._rrdConfig['rrdFile']),
-				'DEF:max_mem=%s:mem:MAX' % str(self._rrdConfig['rrdFile']),
-				'CDEF:avg_mem_scaled=avg_mem,10,/',
-				'LINE2:avg_mem_scaled#0000dd:MEM usage    ',
-				'GPRINT:max_mem:LAST:cur\: %8.2lf MByte        ',
-				'GPRINT:avg_mem:AVERAGE:avg\: %8.2lf MByte            ',
-				'GPRINT:max_mem:MAX:max\: %8.2lf MByte\\l',
-
-				'COMMENT:[%s]\\r' % date,
-			)
-
-		return graphImage
-
-	def addSession(self, session):
-		if not session:
+		if scope["type"] not in ("http", "websocket"):
+			await self.app(scope, receive, send)
 			return
 
-		self._rrdCache['sessions'] += 1
+		start = time.perf_counter()
+		contextvar_server_timing.set({})
 
-	def removeSession(self, session):
-		if not session:
-			return
+		# logger.debug("Client Addr: %s", contextvar_client_address.get())
+		async def send_wrapper(message: Message) -> None:
+			if message["type"] == "http.response.start":
+				# Start of response (first message / package)
+				loop.create_task(
+					get_worker_metrics_collector().add_value(
+						"worker:sum_http_request_number",
+						1,
+						{"node_name": config.node_name, "worker_num": get_worker_num()}
+					)
+				)
+				loop.create_task(
+					get_worker_metrics_collector().add_value(
+						"client:sum_http_request_number",
+						1,
+						{"client_addr": contextvar_client_address.get()}
+					)
+				)
 
-		if self._rrdCache['sessions'] > 0:
-			self._rrdCache['sessions'] -= 1
+				headers = MutableHeaders(scope=message)
 
-	def sessionExpired(self, session):
-		now = time.time()
-		self._expiredSessionInfo.append({
-			"creationTime": session.created,
-			"expirationTime": now,
-			"exipredAfterSeconds": int(now - session.lastModified),
-			"userAgent": session.userAgent,
-			"lastRpcMethod": session.lastRpcMethod,
-			"ip": session.ip,
-			"user": session.user
-		})
+				content_length = headers.get("Content-Length", None)
+				if content_length is None:
+					if (
+						scope["method"] != "OPTIONS" and
+						200 <= message.get("status") < 300
+					):
+						logger.warning("Header 'Content-Length' missing: %s", message)
+				else:
+					loop.create_task(
+						get_worker_metrics_collector().add_value(
+							"worker:avg_http_response_bytes",
+							int(content_length),
+							{"node_name": config.node_name, "worker_num": get_worker_num()}
+						)
+					)
 
-	def getExpiredSessionInfo(self):
-		return self._expiredSessionInfo
+				server_timing = contextvar_server_timing.get() or {}
+				if self._profiler_enabled:
+					server_timing.update(self.yappi(scope))
+				server_timing["request_processing"] = 1000 * (time.perf_counter() - start)
+				server_timing = [f"{k};dur={v:.3f}" for k, v in server_timing.items()]
+				headers.append("Server-Timing", ','.join(server_timing))
 
-	def addRequest(self, request):
-		self._rrdCache['requests'] += 1
+			logger.trace(message)
+			await send(message)
 
-	def addWebDAVRequest(self, request):
-		self._rrdCache['davrequests'] += 1
+			if message["type"] == "http.response.body" and not message.get("more_body"):
+				# End of response (last message / package)
+				end = time.perf_counter()
+				loop.create_task(
+					get_worker_metrics_collector().add_value(
+						"worker:avg_http_request_duration",
+						end - start,
+						{"node_name": config.node_name, "worker_num": get_worker_num()}
+					)
+				)
+				server_timing = contextvar_server_timing.get() or {}
+				server_timing["total"] = 1000 * (time.perf_counter() - start)
+				logger.info("Server-Timing %s %s: %s", scope["method"], scope["path"],
+					', '.join([f"{k}={v:.1f}ms" for k, v in server_timing.items()])
+				)
 
-	def addRpc(self, jsonrpc):
-		results = 0
-		if not jsonrpc.exception:
-			if isinstance(jsonrpc.result, (list, tuple, dict)):
-				results = len(jsonrpc.result)
-
-		methodName = jsonrpc.getMethodName()
-		duration = jsonrpc.ended - jsonrpc.started
-
-		self._rpcs.append({
-			'started': jsonrpc.started,
-			'duration': duration,
-			'method': methodName,
-			'failed': bool(jsonrpc.exception),
-			'params': len(jsonrpc.params),
-			'results': results,
-		})
-
-		current = self._rpcStatistics[methodName]
-		newCount = current.count + 1
-		average = ((current.average * current.count) + duration) / newCount
-		self._rpcStatistics[methodName] = CallStatistics(newCount, average)
-
-		self._rrdCache['rpcs'] += 1
-		if jsonrpc.exception:
-			self._rrdCache['rpcerrors'] += 1
-			logger.warning("Failed RPC on {name!r} with params {params!r}: {error}".format(name=methodName, params=jsonrpc.params, error=jsonrpc.exception))
-
-	def getRpcs(self):
-		return self._rpcs
-
-	def getRPCCallCounts(self):
-		return dict((name, rpcStat.count) for name, rpcStat in self._rpcStatistics.items())
-
-	def getRPCAverageDurations(self):
-		return dict((name, rpcStat.average) for name, rpcStat in self._rpcStatistics.items())
-
-	def addEncodingError(self, what, client, application, error):
-		self._encodingErrors.append({
-			'what': forceUnicode(what),
-			'client': forceUnicode(client),
-			'application': forceUnicode(application),
-			'error': forceUnicode(error),
-			'when': datetime.datetime.now(),
-		})
-
-	def getEncodingErrors(self):
-		return self._encodingErrors
-
-	def addUserAgent(self, useragent):
-		self._userAgents[useragent] += 1
-
-	def getUserAgents(self):
-		return self._userAgents
+		await self.app(scope, receive, send_wrapper)

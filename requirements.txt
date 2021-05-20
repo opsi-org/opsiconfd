@@ -1,2 +1,0 @@
-# python-rrdtool  # Disabled for local builds because a lot of dependencies.
-twisted[tls]<18.4

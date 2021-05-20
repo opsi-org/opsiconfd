@@ -1,0 +1,409 @@
+<html>
+
+<head>
+	<title>Admin page</title>
+	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
+
+	<script src="/static/javascript/admininterface.js"></script>
+	<script src="/static/javascript/msgpack.js"></script>
+	<script src="/static/javascript/log_viewer.js"></script>
+	<script src="/static/javascript/downloadconfiged.js"></script>
+
+	<script>
+		function onLoad() {
+			let input = document.getElementById("redis-cmd");
+
+			input.addEventListener("keyup", function (event) {
+				// Number 13 is the "Enter" key on the keyboard
+				if (event.keyCode === 13) {
+					document.getElementById("redis-button").click();
+				}
+			});
+
+			document.getElementById("startTab-button").click()
+
+			document.getElementById("json-result").style.visibility = 'hidden';
+			document.getElementById("text-result").style.visibility = 'hidden';
+			document.getElementById("redis-result").style.visibility = 'hidden';
+
+			document.getElementById("jsonrpc-result").style.visibility = 'hidden';
+			document.getElementById("jsonrpc-request").style.visibility = 'hidden';
+			document.getElementById("memory-info").style.visibility = 'hidden';
+		}
+
+		function createParamInputs() {
+			let value = document.getElementById("method-select").value;
+			// !!! use '' because json uses "" !!!
+			let interface = '{{interface|tojson}}';
+
+			interface = JSON.parse(interface);
+			// console.log("get_method: " + value);
+
+			let table = document.getElementById("jsonrpc-request-table");
+			var elements = table.getElementsByClassName("param");
+			while (elements.length > 0) {
+				table.removeChild(elements[0]);
+			}
+			interface.forEach(method => {
+				if (method.name == value) {
+					method.params.forEach(param => {
+						let tr = document.createElement("tr");
+						tr.className = "param";
+						tr.innerHTML = "\
+							<td align=left><label>" + param + ": </label></td> \
+							<td><input type=\"text\" id=\"" + param + "\" name=\"" + param + "\" oninput=\"changeRequestJSON(this.name,this.value)\" /></td> \
+						";
+						table.appendChild(tr);
+					});
+				}
+			});
+			changeRequestJSON();
+		}
+
+		function openTab(evt, tabName) {
+			// Declare all variables
+			var i, tabcontent, tablinks;
+
+			if (tabName == "rpcInfos") {
+				loadRPCTable("rpc_num", false);
+			}
+			if (tabName == "clients") {
+				loadClientTable();
+			}
+			if (tabName == "rpcInterface") {
+				createParamInputs();
+			}
+			if (tabName == "redisInfo") {
+				loadRedisInfo();
+			}
+			if (tabName == "confdInfo") {
+				loadConfdConfig();
+			}
+			if (tabName == "memoryProfiler") {
+				loadMemoryInfo();
+			}
+			if (tabName == "log-viewer") {
+				startLog(0, Math.round(Date.now()/1000)-300); // last 5 minutes
+			}
+			else{
+				stopLog();
+			}
+
+			// Get all elements with class="tabcontent" and hide them
+			tabcontent = document.getElementsByClassName("tabcontent");
+			for (i = 0; i < tabcontent.length; i++) {
+				tabcontent[i].style.display = "none";
+			}
+
+			// Get all elements with class="tablinks" and remove the class "active"
+			tablinks = document.getElementsByClassName("tablinks");
+			for (i = 0; i < tablinks.length; i++) {
+				tablinks[i].className = tablinks[i].className.replace(" active", "");
+			}
+
+			// Show the current tab, and add an "active" class to the button that opened the tab
+			document.getElementById(tabName).style.display = "block";
+			evt.currentTarget.className += " active";
+		}
+
+	</script>
+</head>
+
+<body onload="onLoad();">
+	<div class="header">
+		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
+		<h1>opsiconfd {{opsi_version}} running on {{node_name}}</h1>
+	</div>
+	<div class="content">
+
+		<div class="tab">
+			<button class="tablinks" id="startTab-button" onclick="openTab(event, 'confdInfo')">Info</button>
+			<button class="tablinks" onclick="openTab(event, 'clients')">Blocked Clients</button>
+			<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
+			<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
+			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
+			<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
+
+			<!--
+			<button class="tablinks" onclick="openTab(event, 'memoryProfiler')">Memory Profiler</button>
+			-->
+			<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
+			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>
+		</div>
+
+		<div id="clients" class="tabcontent">
+			<div class="adminpage-box" id="blocked-clients">
+				<h4>Blocked Clients:</h4>
+				<div id="blocked-clients-div">
+
+				</div>
+			</div>
+
+			<div class="adminpage-box">
+				<h4>Unblock Clients:</h4>
+				<table>
+					<tr>
+						<td align=left><label>Unblock all clients:</label></td>
+						<td></td>
+						<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button> </td>
+					</tr>
+					<tr>
+						<td align=left>Unblock address:</td>
+						<td><input id="clientAddr" type="text" name="clientAddr" placeholder="127.0.0.1"></td>
+						<td><input type="button" onclick="unblockClient(clientAddr.value)" value="Execute"></td>
+					</tr>
+					<tr>
+						<td align=left>Delete client sessions:</td>
+						<td><input id="sessionAddr" type="text" name="sessionAddr" placeholder="127.0.0.1"></td>
+						<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
+					</tr>
+				</table>
+			</div>
+			<div id="result">
+				<p class="json-result" id="text-result"></p>
+			</div>
+			<div id="result">
+				<pre class="json-result" id="json-result"></pre>
+			</div>
+		</div>
+
+		<div id="rpcInfos" class="tabcontent">
+
+
+			<div class="adminpage-box">
+				<div id="rpc-table-div">
+					loading...
+				</div>
+			</div>
+		</div>
+
+		<div id="rpcInterface" class="tabcontent">
+			<div class="adminpage-box">
+				<div>
+					<table id="jsonrpc-request-table">
+						<tr>
+							<td align=left><label>Method:</label></td>
+							<td>
+								<select id="method-select" onchange="createParamInputs()">
+									{% for method in interface %}
+									<option>{{	method.get("name") }}</option>
+									{% endfor %}
+								</select>
+							</td>
+						</tr>
+					</table>
+				</div>
+				<div id="jsonrpc-request-error">
+				</div>
+			</div>
+			<div>
+				<pre class="jsonrpc-request" id="jsonrpc-request"></pre>
+			</div>
+			<button id="jsonrpc-execute-button" onclick="callJSONRPC()">Execute</button>
+
+
+			<div id="result">
+				<pre class="jsonrpc-result" id="jsonrpc-result"></pre>
+			</div>
+		</div>
+
+		<div id="redisInterface" class="tabcontent">
+			<div class="adminpage-box">
+				<h4>Redis</h4>
+				<input type="text" id="redis-cmd" name="redis-cmd" size=50 />
+				<button id="redis-button" onclick="callRedis()">Execute</button>
+				<button id="redis-button" onclick="loadRedisInfo()">Info+</button>
+			</div>
+			<div class="adminpage-box">
+				<h4>Redis Cache</h4>
+				<table>
+					<tr>
+						<td align=left><label>Clear cache:</label></td>
+						<td></td>
+						<td><button id="clear-cache-button" onclick="clearRedisCache()">Execute</button> </td>
+					</tr>
+					<tr>
+						<td align=left>Clear depot cache:</td>
+						<td><input id="depotId" type="text" name="depotId" placeholder="myhost.example.com"></td>
+						<td><input type="button" onclick="clearRedisCache([depotId.value])" value="Execute"></td>
+					</tr>
+				</table>
+			</div>
+			<div id="resultRedis">
+				<pre class="redis-result" id="redis-result"></pre>
+			</div>
+		</div>
+
+		<div id="confdInfo" class="tabcontent">
+			<h3>opsiconfd info</h3>
+			<div class="adminpage-box">
+				<h5 style="margin: 10px">Number of depot servers: {{num_servers}}</h4>
+				<h5 style="margin: 10px">Number of clients: {{num_clients}}</h4>
+			</div>
+			<div class="adminpage-box">
+				<h4 style="margin: 10px">opsi CA:</h4>
+				<div id="general-info-opsi-ca">
+					<table style="margin-left: 20px;margin-bottom: 0px;">
+						<tr>
+							<td>issuer:</td>
+							<td>{{ca_info.issuer.C}}, {{ca_info.issuer.ST}}, {{ca_info.issuer.L}}, {{ca_info.issuer.OU}}, {{ca_info.issuer.CN}}</td>
+						</tr>
+						<tr>
+							<td>subject:</td>
+							<td>{{ca_info.subject.C}}, {{ca_info.subject.ST}}, {{ca_info.subject.L}}, {{ca_info.subject.OU}}, {{ca_info.subject.CN}}</td>
+						</tr>
+						<tr>
+							<td>serial number:</td>
+							<td>{{ca_info.serial_number}}</td>
+						</tr>
+						<tr>
+							<td>expiration:</td>
+							<td>{{ca_info.expiration}} days left</td>
+						</tr>
+						<tr>
+							<td colspan="2"><a href="/ssl/opsi-ca-cert.pem">Download as PEM</a></td>
+						</tr>
+					</table>
+				</div>
+			</div>
+			<div class="adminpage-box">
+				<h4 style="margin: 10px">server certificate:</h4>
+				<div id="general-info-server-cert">
+					<table style="margin-left: 20px;">
+						<tr>
+							<td>issuer:</td>
+							<td>{{cert_info.issuer.C}}, {{cert_info.issuer.ST}}, {{cert_info.issuer.L}}, {{cert_info.issuer.OU}}, {{cert_info.issuer.CN}}</td>
+						</tr>
+						<tr>
+							<td>subject:</td>
+							<td>{{cert_info.subject.C}}, {{cert_info.subject.ST}}, {{cert_info.subject.L}}, {{cert_info.subject.OU}}, {{cert_info.subject.CN}}</td>
+						</tr>
+						<tr>
+							<td>subjectAltName:</td>
+							<td>{{cert_info.alt_names}}</td>
+						</tr>
+						<tr>
+							<td>serial number:</td>
+							<td>{{cert_info.serial_number}}</td>
+						</tr>
+						<tr>
+							<td>expiration:</td>
+							<td>{{cert_info.expiration}} days left</td>
+						</tr>
+					</table>
+				</div>
+			</div>
+
+			<h3>opsiconfd config</h3>
+			<div class="adminpage-box">
+				<div id="config">
+					<pre class="config-values" id="config-values"></pre>
+				</div>
+			</div>
+		</div>
+
+		<div id="memoryProfiler" class="tabcontent">
+			<div class="adminpage-box">
+
+				<!--
+				<h4>Memory Usage (pympler)</h4>
+				<table>
+					<tr>
+						<td><button id="take-snapshot-button" onclick="takeMemorySnapshot()">Take Snapshot</button> </td>
+						<td><input type="button" onclick="deleteMemorySnapshots()" value="Delete Snapshots"></td>
+						<td><input type="button" onclick="deleteMemoryTracker()" value="Delete Tracker"></td>
+					</tr>
+					<tr>
+						<td>s1: <input id="snapshot1" type="number" name="snapshot1" placeholder=1></td>
+						<td>s2: <input id="snapshot2" type="number" name="snapshot2" placeholder=-1></td>
+						<td><input type="button" onclick="diffMemorySnapshots()" value="Diff Snapshots"></td>
+					</tr>
+				</table>
+				<hr>
+				<h4>Memory Usage (guppy3)</h4>
+				<table>
+					<tr>
+						<td><button id="take-snapshot-button" onclick="takeHeapSnapshot()">Take Snapshot</button> </td>
+						<td><input type="button" onclick="deleteHeapSnapshots()" value="Delete Snapshots"></td>
+					</tr>
+					<tr>
+						<td>s1: <input id="snapshot1" type="number" name="snapshot1" placeholder=1></td>
+						<td>s2: <input id="snapshot2" type="number" name="snapshot2" placeholder=-1></td>
+						<td><input type="button" onclick="diffHeapSnapshots()" value="Diff Snapshots"></td>
+					</tr>
+				</table>
+				<hr>
+				<h4>Class Tracker</h4>
+				<table>
+					<tr>
+						<td><input id="module-name" type="text" name="module-name" placeholder="module"></td>
+					</tr>
+					<tr>
+						<td><input id="class-name" type="text" name="class-name" placeholder="class"></td>
+					</tr>
+					<tr>
+						<td><input id="description" type="text" name="description" placeholder="description"></td>
+						<td><input type="button" onclick="takeClassSnapshot()" value="Take Class Snapshot"></td>
+					</tr>
+					<tr>
+
+						<td><input type="button" onclick="classSummary()" value="Summary"></td>
+						<td><input type="button" onclick="deleteClassTracker()" value="Delete Class Tracker"></td>
+					</tr>
+				</table>
+				-->
+				<h4>Memory Profile</h4>
+				<label>Max object types: </label>
+				<input id="input-objgraph-max-obj-types" type="number" value="25" style="width: 50px" />
+				<label>Max objects per type: </label>
+				<input id="input-objgraph-max-obj" type="number" value="50" style="width: 50px" />
+				<button id="button-objgraph-snapshot-new" onclick="objgraphSnapshot(false)">Take snapshot</button>
+				<button id="button-objgraph-snapshot-update" onclick="objgraphSnapshot(true)">Update snapshot</button>
+				<br />
+				<label>Object id: </label>
+				<input id="input-objgraph-obj-id" type="text" />
+				<button id="button-objgraph-show-backrefs" onclick="objgraphShowBackrefs()">Show backrefs</button>
+
+				<br /><br />
+				<button id="button-tracemalloc-snapshot" onclick="tracemallocSnapshot()">Tracemalloc snapshot</button>
+			</div>
+			<div class="adminpage-box" id="memory-info">
+					<pre class="memory-values" id="memory-values" style="overflow: auto"></pre>
+			</div>
+		</div>
+
+		<div id="log-viewer" class="tabcontent">
+			<div id="log-settings">
+				<div class="log-setting">
+					<label for="log-level-filter">Filter by level:</label>
+					<input id="log-level-filter" type="number" min="1" max="9" value="9" onchange="applyLevelFilter(this.value);">
+				</div>
+				<div class="log-setting">
+					<label for="log-context-filter">Filter by context:</label>
+					<input id="log-context-filter" type="text" onchange="applyContextFilter(this.value);"/>
+				</div>
+				<div class="log-setting">
+					<label for="log-message-filter">Filter by message:</label>
+					<input id="log-message-filter" type="text" onchange="applyMessageFilter(this.value);"/>
+				</div>
+				<div class="log-setting">
+					<label for="collapse-all">Collapse multi-line:</label>
+					<input type="checkbox" id="collapse-all" onclick="collapseAll(this.checked);" checked>
+				</div>
+				<div class="log-setting">
+					<label for="collapse-all">Auto scroll:</label>
+					<input type="checkbox" id="auto-scroll" onclick="setAutoScroll(this.checked);" checked>
+				</div>
+				<div class="log-setting">
+					<label>Font size:</label>
+					<button id="decrease-font-size" onclick="changeFontSize(-1);">-</button>
+					<button id="increase-font-size" onclick="changeFontSize(+1);">+</button>
+				</div>
+			</div>
+			<div id="log-container" onwheel="if (window.event.deltaY < 0) setAutoScroll(false);">
+				<div id="log-line-container" style="font-size: 14px"></div>
+				<div id="log-msg-container"></div>
+			</div>
+		</div>
+</body>
+</html>

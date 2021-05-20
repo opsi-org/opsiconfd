@@ -1,0 +1,110 @@
+FROM python:3.7-buster as opsiconfd_development_build
+
+ARG DOCKER_ENV
+ARG USER
+
+ENV DOCKER_ENV=${DOCKER_ENV} \
+	# python:
+	PYTHONFAULTHANDLER=1 \
+	PYTHONUNBUFFERED=1 \
+	PYTHONHASHSEED=random \
+	# pip:
+	PIP_NO_CACHE_DIR=off \
+	PIP_DISABLE_PIP_VERSION_CHECK=on \
+	PIP_DEFAULT_TIMEOUT=100 \
+	# dockerize:
+	DOCKERIZE_VERSION=v0.6.1 \
+	# poetry:
+	POETRY_VERSION=1.1.2\
+	# redis
+	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/ \
+	DEV_USER=${USER}
+
+
+# System deps:
+RUN apt-get update \
+	&& apt-get --yes dist-upgrade \
+	&& apt-get --yes install \
+		cpio \
+		vim \
+		wget \
+		gettext \
+		mariadb-client \
+		libmariadb-dev \
+		tini \
+		psmisc \
+		librsync1 \
+		libjemalloc2 \
+		sqlite3 \
+		sudo \
+		git \
+		bash-completion \
+		nano \
+	&& pip install "poetry==$POETRY_VERSION"
+
+# grafana
+RUN wget -q -O - https://packages.grafana.com/gpg.key |  apt-key add - \
+	&& echo "deb https://packages.grafana.com/oss/deb stable main" | tee -a /etc/apt/sources.list.d/grafana.list
+
+RUN apt-get update \
+	&& apt-get --yes install \
+		apt-transport-https \
+		software-properties-common \
+		grafana
+
+# mysql
+RUN apt-get update \
+	&& apt-get --yes install \
+		mariadb-server
+
+# redis:
+RUN  echo "deb $OPSI_REPO /" > /etc/apt/sources.list.d/opsi.list
+
+RUN wget -nv ${OPSI_REPO}Release.key -O Release.key \
+	&& apt-key add - < Release.key
+
+RUN apt-get update \
+	&& apt-get --yes install \
+		redis-tools \
+		redis-server \
+		redis-timeseries
+
+# opsi-utils
+RUN apt-get update \
+	&& apt-get --yes install \
+		opsi-utils
+
+COPY docker/files/ /
+
+# Setup poetry
+WORKDIR /workspace
+
+RUN useradd --create-home -s /bin/bash ${DEV_USER} \
+	&& groupadd pcpatch \
+	&& groupadd opsiadmin \
+	&& useradd --system -g pcpatch -d /var/lib/opsi -s /bin/bash opsiconfd \
+	&& useradd --create-home --home-dir /home/adminuser -s /bin/bash adminuser \
+	&& echo "adminuser:adminuser" | chpasswd \
+	&& adduser adminuser pcpatch \
+	&& adduser adminuser opsiadmin \
+	&& echo "${DEV_USER}:adminuser" | chpasswd \
+	&& adduser ${DEV_USER} pcpatch \
+	&& adduser ${DEV_USER} opsiadmin \
+	&& adduser ${DEV_USER} sudo \
+	&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
+	&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
+	&& cp -r /root/.bash* /home/adminuser/ \
+	&& cp -r /root/.bash* /home/${DEV_USER}/
+
+RUN chmod g+rw -R .
+
+RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "/C=DE/ST=RP/L=Mainz/O=uib/OU=root/CN=bonifax.uib.local/emailAddress=info@uib.de" \
+	&& openssl req -nodes -newkey rsa:2048 -keyout server.key -out server.csr -subj "/C=DE/ST=RP/L=Mainz/O=uib/OU=opsiconfd/CN=bonifax.uib.local/emailAddress=info@uib.de" \
+	&& openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt \
+	&& mv server.key /etc/opsi/ssl/opsiconfd.pem \
+	&& cat server.crt >> /etc/opsi/ssl/opsiconfd.pem \
+	&& rm server.crt
+
+RUN chmod +x "/docker-entrypoint.sh" \
+	&& mkdir tftpboot
+

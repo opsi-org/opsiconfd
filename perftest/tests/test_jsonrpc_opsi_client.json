@@ -1,0 +1,21 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 50,
+	"iterations": 1,
+	"test_cases": [
+		{
+			"name": "JSONRPC",
+			"compression": "deflate",
+			"requests": {
+				"test": [
+					["jsonrpc", "authenticated", []],
+					["jsonrpc", "productOnClient_getObjects", [[],{"clientId":"pctest.uib.local"}]],
+					["jsonrpc", "productOnDepot_getObjects", [[],{}]],
+					["jsonrpc", "product_getObjects", [[],{"id":"opsi-client-agent"}]]
+				]
+			}
+		}
+	]
+}

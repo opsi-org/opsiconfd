@@ -1,0 +1,288 @@
+html {
+	width: 100%;
+	height: 100%;
+	margin: 0px;
+	padding: 0px;
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+	width: 100%;
+	height: calc(100vh - 10px);
+	margin: 0px;
+	padding: 0px;
+	background-color: #eeeeee;
+	color: #3a3a3a;
+}
+
+#logo, #interface-logo {
+	width: 120px;
+	display: inline-block;
+}
+
+a:link, a:visited, a:active {
+	color: #0068aa;
+	text-decoration: none;
+}
+
+a:hover {
+	color: #02456e;
+	text-decoration: none;
+}
+
+input {
+	border: 1px solid #cccccc;
+}
+
+button {
+	appearance: none;
+	border: 1px solid #cccccc;
+	padding-bottom: 2px;
+}
+
+li {
+	list-style-type: none;
+}
+
+.header {
+	width: 80%;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+.header > h1 {
+	display: inline-block;
+	vertical-align: bottom;
+	margin-left: 25px;
+	font-size: 18px;
+	color: #0068aa;
+}
+
+.content {
+	width: 80%;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+#link-list {
+	width: 250px;
+	margin: 50px auto 0px auto;
+	font-size: 20px;
+}
+
+#jsonrpc-request-table > tr > td {
+	padding-right: 5px;
+}
+
+#jsonrpc-request-table > tr > td > input, select {
+	width: 500px;
+}
+
+.jsonrpc-request, .jsonrpc-result, .json-result, .redis-result, .adminpage-box {
+	outline: 1px solid #ccc;
+	padding: 5px;
+	margin: 15px 0px 15px 0px;
+	overflow: auto;
+}
+
+#jsonrpc-request-error {
+	font-size: 14px;
+	color: #dc322b;
+	margin: 5px 0px 0px 5px;
+}
+
+.rpc-table {
+	table-layout: auto;
+	background-color:#eeeeee;
+}
+
+.rpc-td {
+	font-size: 12px;
+	border: 1px #0068aa solid;
+	text-align: left;
+	padding: 2px 10px 2px 10px;
+	color: #000000
+}
+
+.rpc-error-td {
+	font-size: 12px;
+	border: 1px #0068aa solid;
+	text-align: left;
+	padding: 2px 10px 2px 10px;
+	color: #dc322b
+}
+
+.rpc-th{
+	font-size: 12px;
+	border: 1px #0068aa solid;
+	text-align: left;
+	padding: 2px 10px 2px 10px;
+	color: #eeeeee;
+	background-color: #0068aa;
+}
+
+/* Style the tab */
+.tab {
+	overflow: hidden;
+	border: 1px solid #cccccc;
+	background-color: #f1f1f1;
+	height: 40px;
+}
+
+/* Style the buttons that are used to open the tab content */
+.tab button {
+	background-color: inherit;
+	float: left;
+	border: none;
+	outline: none;
+	cursor: pointer;
+	padding: 14px 16px;
+	transition: 0.3s;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+	background-color: #dddddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+	background-color: #cccccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+	display: none;
+	height: calc(100vh - 170px);
+	margin: 1px;
+}
+
+.json_string { color: green; }
+.json_number { color: darkorange; }
+.json_boolean { color: blue; }
+.json_null { color: magenta; }
+.json_key { color: red; }
+
+/* Log viewer */
+.LEVEL_SECRET { color: #6e5a00; }
+.LEVEL_TRACE { color: #8b8f8a; }
+.LEVEL_DEBUG { color: #d0d7cf; }
+.LEVEL_INFO { color: #eeeeec; }
+.LEVEL_NOTICE { color: #8ae234; }
+.LEVEL_WARNING { color: #f6b925; }
+.LEVEL_ERROR { color: #c90000; }
+.LEVEL_CRITICAL { color: #ff0000; }
+.LEVEL_ESSENTIAL { color: #34e2e2; }
+
+#log-level-filter {
+	max-width: 60px;
+}
+
+#log-settings {
+	display: flex;
+	margin: 15px 0px 0px 0px;
+}
+
+.log-setting {
+	margin: 0px 25px 0px 0px;
+}
+
+#log-container {
+	width: 100%;
+	height: calc(100% - 50px);
+	margin-top: 10px;
+	overflow: scroll;
+	/*line-height: 0.9;*/
+	background-color: black;
+	color:white;
+}
+
+#log-msg-container {
+	position: absolute;
+	width: 400px;
+	height: 50px;
+	top: 50%;
+	left: calc(50% - 200px);
+	font-size: 24px;
+	font-weight: bold;
+	background-color: #000000aa;
+	display: flex;
+	align-items: center;
+	text-align: center;
+	justify-content: center;
+	visibility: hidden;
+}
+
+.log-line {
+	display: inline-table;
+	white-space: nowrap;
+	clear: both;
+	float: left;
+	font-family: monospace;
+	height: 1.2em;
+}
+
+.log-line-hidden {
+	display: none;
+}
+
+.log-record {
+	display: flow-root;
+	white-space: pre;
+}
+
+.log-record-control {
+	display: inline-flex;
+	float: left;
+	width: 5em;
+	user-select: none;
+	overflow: hidden;
+	max-height: 1.0em;
+}
+
+.log-record-collapse {
+	display: inline-block;
+	margin-top: -0.2em;
+	padding-left: 5px;
+	width: 1em;
+}
+
+.log-line-multiline > * > .log-record-collapse::after {
+	content: "⯆";
+}
+
+.log-line-multiline-collapsed > * > .log-record-collapse::after {
+	content: "⯈";
+}
+
+.log-record-line-id {
+	display: inline-block;
+	width: 3em;
+	text-align: right;
+	color: #666666;
+}
+
+.log-line-multiline-collapsed > * > .log-record-message {
+	display: inline-flex;
+	height: 1.1em;
+	overflow: hidden;
+}
+
+table tbody tr td {
+	font-size: 15px;
+  }
+
+@media screen and (max-width: 1050px) {
+	.tab {
+		height: 90px;
+	}
+}
+
+@media screen and (max-width: 650px) {
+	.tab {
+		overflow: auto;
+		height: 140px;
+	}
+}

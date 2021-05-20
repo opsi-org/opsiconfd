@@ -1,0 +1,29 @@
+version: '3.3'
+
+services:
+  opsiconfd-dev:
+    hostname: ${OPSI_HOSTNAME}
+    env_file:
+      ../.env
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+      args: 
+        - USER
+    volumes:
+      - ..:/workspace:cached
+    environment:
+      GF_INSTALL_PLUGINS: grafana-simple-json-datasource
+      GF_SECURITY_ADMIN_USER: adminuser
+      GF_SECURITY_ADMIN_PASSWORD: adminuser
+      MYSQL_ROOT_PASSWORD: opsi
+      MYSQL_DATABASE: opsi
+      MYSQL_USER: opsi
+      MYSQL_PASSWORD: opsi
+      MYSQL_HOST: localhost
+      OPSICONFD_EXTERNAL_URL: https://localhost:4447
+      OPSICONFD_INTERNAL_URL: https://opsiconfd-dev:4447
+      OPSICONFD_STATIC_DIR: /workspace/opsiconfd_data/static
+      # OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@localhost:3000
+      # OPSICONFD_GRAFANA_EXTERNAL_URL: "http://localhost:3000"
+    entrypoint: ["/docker-entrypoint.sh"]

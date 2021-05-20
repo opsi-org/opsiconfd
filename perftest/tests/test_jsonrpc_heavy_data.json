@@ -1,0 +1,70 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 100,
+	"iterations": 1,
+	"test_cases": [
+		{
+			"name": "JSONRPC",
+			"requests": {
+				"test": [
+					["jsonrpc", "product_getObjects", [[],{}]],
+					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+				]
+			}
+		},
+		{
+			"name": "JSONRPC deflate",
+			"compression": "deflate",
+			"requests": {
+				"test": [
+					["jsonrpc", "product_getObjects", [[],{}]],
+					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+				]
+			}
+		},
+		{
+			"name": "JSONRPC lz4",
+			"compression": "lz4",
+			"requests": {
+				"test": [
+					["jsonrpc", "product_getObjects", [[],{}]],
+					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+				]
+			}
+		},
+		{
+			"name": "msgpack-rpc",
+			"encoding": "msgpack",
+			"requests": {
+				"test": [
+					["jsonrpc", "product_getObjects", [[],{}]],
+					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+				]
+			}
+		},
+		{
+			"name": "msgpack-rpc deflate",
+			"encoding": "msgpack",
+			"compression": "deflate",
+			"requests": {
+				"test": [
+					["jsonrpc", "product_getObjects", [[],{}]],
+					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+				]
+			}
+		},
+		{
+			"name": "msgpack-rpc lz4",
+			"encoding": "msgpack",
+			"compression": "lz4",
+			"requests": {
+				"test": [
+					["jsonrpc", "product_getObjects", [[],{}]],
+					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+				]
+			}
+		}
+	]
+}

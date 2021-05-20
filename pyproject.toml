@@ -1,0 +1,65 @@
+[tool.poetry]
+name = "opsiconfd"
+version = "4.2.0.170"
+description = "opsi configuration service"
+homepage = "https://www.opsi.org"
+license = "AGPL-3.0"
+maintainers = ["uib GmbH <info@uib.de>"]
+authors = ["uib GmbH <info@uib.de>"]
+include = [
+    "run-opsiconfd",
+    "opsiconfd_data/**/*"
+]
+
+[[tool.poetry.source]]
+name = "uibpypi"
+url = "http://pypi.uib.gmbh:8080/simple"
+
+[tool.poetry.dependencies]
+# We need python 3.7 for contextvars in combination with asyncio
+python = "^3.7"
+# Get the latest python-opsi from branch 4.2
+#python-opsi = { git = "git@gitlab.uib.local:uib/python-opsi.git", branch = "v4.2" }
+#python-opsi = {path = "python-opsi"}
+python-opsi = "^4.2.0.80"
+uvicorn = "^0.13.4"
+fastapi = "^0.63.0"
+orjson = "^3.5.1"
+itsdangerous = "^1.1.0"
+redis = "^3.5.3"
+aiofiles = "^0.6.0"
+configargparse = "^1.4"
+yappi = "^1.3.2"
+aiologger = "^0.6.0"
+aredis = "^1.1.8"
+aiohttp = "^3.7.4"
+dnspython = "^2.1.0"
+python-magic = "^0.4.22"
+mysqlclient = "^2.0.3"
+distro = "^1.5.0"
+wsgidav = "^3.1.0"
+aiozeroconf = "^0.1.8"
+uvloop = "^0.15.2"
+websockets = "^8.1"
+pympler = "^0.9"
+guppy3 = "^3.1.0"
+objgraph = "^3.5.0"
+python-multipart = "^0.0.5"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+idna = "^2.9"
+pylint = "^2.7.4"
+opsi-dev-tools = "^1.0.62"
+pytest-cov = "^2.10.0"
+pytest-asyncio = "^0.14.0"
+pyinstaller = "^4.2"
+mock = "^4.0.3"
+
+[tool.poetry.scripts]
+opsiconfd = "opsiconfd.__main__:main"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+

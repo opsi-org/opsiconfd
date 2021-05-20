@@ -1,0 +1,180 @@
+image: python:3.7-stretch
+#image: docker.uib.gmbh/jan/python:3.10-stretch
+
+stages:
+  - test
+  - build
+  - publish
+
+.install_tools: &install_tools |
+  export DEBIAN_FRONTEND=noninteractive
+  apt update
+  apt -y install debhelper osc
+  apt -y install python3-dev
+  pip3 install --trusted-host pypi.uib.gmbh --index-url http://pypi.uib.gmbh:8080/simple opsi-dev-tools
+  pip3 install poetry
+
+.prepare_tests: &prepare_tests |
+  # Install debian packages
+  export DEBIAN_FRONTEND=noninteractive
+  apt update
+  apt -y install bc wget git python3-pip python3-dev python3-venv libmysqlclient-dev mysql-client iproute2 net-tools iputils-ping librsync2
+  # Need redis-timeseries 1.2.8 which is not yet available, installing patched version from obs
+  wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-server_6.0.4-1_amd64.deb
+  wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-tools_6.0.4-1_amd64.deb
+  wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-timeseries_1.4.9.1-1_amd64.deb
+  wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/liblzf1_3.6-2_amd64.deb
+  dpkg -i *.deb || apt -y -f install
+  # Deactivate mysql strict mode
+  mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "SET GLOBAL sql_mode = 'NO_ENGINE_SUBSTITUTION';"
+  #mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "CREATE USER 'opsi'@'%' IDENTIFIED BY 'opsi';"
+  mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON *.* TO 'opsi'@'%';"
+  # Get config files from opsi-server package
+  [ -e /etc/opsi ] && rm -r /etc/opsi
+  [ -e ../opsi-server ] && rm -r ../opsi-server
+  url=$(git remote -v | grep fetch | cut -f2 | sed s'#/opsiconfd.git.*#/opsi-server.git#')
+  #branch=$(git rev-parse --abbrev-ref HEAD)
+  branch=master
+  GIT_TERMINAL_PROMPT=0 git clone --branch $branch $url ../opsi-server
+  cp -a ../opsi-server/opsi-server_data/etc /etc/opsi
+  # Set mysql address in config
+  sed -i "s/127.0.0.1/mysql/" /etc/opsi/backends/mysql.conf
+  # Use mysql backend only
+  echo ".* : mysql" > /etc/opsi/backendManager/dispatch.conf
+  # Configure opsiconfd
+  mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot
+  echo "redis-internal-url = redis://redis" > /etc/opsi/opsiconfd.conf
+  echo "log-level-stderr = 4" >> /etc/opsi/opsiconfd.conf
+  echo "log-level-file = 0" >> /etc/opsi/opsiconfd.conf
+  echo "max-session-per-ip = 20" >> /etc/opsi/opsiconfd.conf
+  # Installing opsi test modules file
+  echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
+  # TODO: restore some backend
+  # Install poetry
+  pip3 install poetry
+  poetry config experimental.new-installer false
+  poetry install
+  poetry run opsiconfd -l5 setup
+  # Create adminuser used with opsiconfd-perftest.py
+  useradd adminuser
+  echo "adminuser:adminuser" | chpasswd
+  adduser adminuser opsiadmin
+  # redis-server /etc/redis/redis.conf --maxclients 150000 --loglevel verbose &
+  redis-server /etc/redis/redis.conf &
+  sleep 20
+  echo "Set OPSI STATIC DIR"
+  export OPSICONFD_STATIC_DIR="opsiconfd_data/static"
+  echo "${OPSICONFD_STATIC_DIR}"
+  echo "Set OPSICONFD_MAX_SESSIONS_PER_IP"
+  export OPSICONFD_INTERNAL_URL="https://test.uib.gmbh:4447"
+  export MYSQL_HOST="mysql"
+
+
+.perftest: &perftest |
+  export OPSICONFD_MAX_SESSIONS_PER_IP=20000
+  echo "${OPSICONFD_MAX_SESSIONS_PER_IP}"
+  poetry run opsiconfd &
+  sleep 20
+  poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json -w /tmp/perftest-result
+  [ $(grep errors= /tmp/perftest-result | cut -d '=' -f2) -gt 0 ] && ( cat /tmp/perftest-result; echo 'Errors in perftest' >&2; exit 1 )
+  # Average request time has to be faster than 10 ms
+  echo "$(grep avg_seconds_per_request= /tmp/perftest-result | cut -d '=' -f2)<0.01" | bc > /tmp/bc-result
+  [ $(cat /tmp/bc-result) = "1" ] || ( cat /tmp/perftest-result; echo 'Average seconds per request >= 10 ms' >&2; exit 1 )
+
+.pytest: &pytest |
+  poetry run opsiconfd --log-level-stderr=3 --max-auth-failures 3 &
+  sleep 20
+  echo "---------------------------------------"
+  echo "Run tests"
+  echo "---------------------------------------"
+  hostname
+  hostname -f
+  cat /etc/hosts
+  echo OPSICONFD_INTERNAL_URL
+
+  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_config.py
+  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/test_config.py
+
+.pylint: &pylint |
+  echo "---------------------------------------"
+  echo "Run pylint"
+  echo "---------------------------------------"
+  poetry run pylint --disable=R,C,fixme opsiconfd
+
+test:perftest:
+  image: ubuntu:focal
+  services:
+    - mysql:latest
+    - name: redislabs/redistimeseries:latest
+      alias: redis
+  variables:
+    MYSQL_ROOT_PASSWORD: "opsi"
+    MYSQL_DATABASE: "opsi"
+    MYSQL_USER: "opsi"
+    MYSQL_PASSWORD: "opsi"
+  stage: test
+  script:
+    - *prepare_tests
+    - *perftest
+
+test:pylint-pytest:
+  image: ubuntu:focal
+  services:
+    - mysql:latest
+    - name: redislabs/redistimeseries:latest
+      alias: redis
+  variables:
+    MYSQL_ROOT_PASSWORD: "opsi"
+    MYSQL_DATABASE: "opsi"
+    MYSQL_USER: "opsi"
+    MYSQL_PASSWORD: "opsi"
+  stage: test
+  script:
+    - *prepare_tests
+    - *pylint
+    - *pytest
+
+
+  # poetry run pytest --junit-xml=pytestreport.xml junit_family=xunit2 --quiet /builds/uib/opsiconfd/tests
+  # artifacts:
+  #   name: 'opsiconfd-tests'
+  #   reports:
+  #     junit: pytestreport.xml
+  #   expire_in: 1 day
+
+build:linux-pyinstaller:
+  stage: build
+  script:
+    - *install_tools
+    - poetry install
+    #- find .venv -iname "*linux-gnu.so"
+    - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
+    - mv opsiconfd opsiconfd.src
+    - mv dist/opsiconfd .
+    # Check if binary is working
+    - ./opsiconfd/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
+  artifacts:
+    name: 'opsiconfd-linux-pyinstaller'
+    paths:
+      - opsiconfd
+    expire_in: 2 day
+
+publish:obs_int:
+  stage: publish
+  dependencies:
+    - build:linux-pyinstaller
+  script:
+    - *install_tools
+    - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
+  only:
+    - tags
+
+publish:obs_ext:
+  stage: publish
+  dependencies:
+    - build:linux-pyinstaller
+  script:
+    - *install_tools
+    - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
+  only:
+    - tags

@@ -1,0 +1,21 @@
+#!/usr/bin/python3
+
+import sys
+import traceback
+from multiprocessing import freeze_support
+
+freeze_support()
+
+try:
+	from opsiconfd.__main__ import main
+	main()
+except SystemExit:
+	pass
+except KeyboardInterrupt:
+	print("Interrupted", file=sys.stderr)
+	sys.exit(1)
+except Exception as e:
+	# Do not let pyinstaller handle exceptions and print:
+	# "Failed to execute script run-opsiconfd"
+	traceback.print_exc()
+	sys.exit(1)

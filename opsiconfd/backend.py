@@ -100,9 +100,10 @@ class OpsiconfdBackend(metaclass=Singleton):
 			client_address = contextvar_client_address.get()
 			if not client_address:
 				raise ValueError("Failed to get client address")
-			names = socket.gethostbyaddr(client_address)
-			if names[0] and "." in names[0]:
-				return ".".join(names[0].split(".")[1:])
+			if client_address not in ("127.0.0.1", "::1"):
+				names = socket.gethostbyaddr(client_address)
+				if names[0] and names[0].count(".") >= 2:
+					return ".".join(names[0].split(".")[1:])
 		except Exception as err:  # pylint: disable=broad-except
 			logger.debug("Failed to get domain by client address: %s", err)
 		return self._backend.getDomain()  # pylint: disable=no-member

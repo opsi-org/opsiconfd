@@ -564,7 +564,7 @@ graphviz = "*"
 
 [[package]]
 name = "opsi-dev-tools"
-version = "1.0.67"
+version = "1.0.69"
 description = "opsi development tools"
 category = "dev"
 optional = false
@@ -1891,8 +1891,8 @@ objgraph = [
     {file = "objgraph-3.5.0.tar.gz", hash = "sha256:4752ca5bcc0e0512e41b8cc4d2780ac2fd3b3eabd03b7e950a5594c06203dfc4"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.0.67.tar.gz", hash = "md5:c224bd15fdd5f597ab6cac2f378ed31e"},
-    {file = "opsi_dev_tools-1.0.67-py3-none-any.whl", hash = "md5:0d31e47f5c0f77ed1dc2bfa8b7621c84"},
+    {file = "opsi-dev-tools-1.0.69.tar.gz", hash = "md5:c7f5d62f7190219ab1574d0de77b68be"},
+    {file = "opsi_dev_tools-1.0.69-py3-none-any.whl", hash = "md5:fe6f1fbaa67b6b9ae8951475e715e774"},
 ]
 orjson = [
     {file = "orjson-3.5.2-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:2ba4165883fbef0985bce60bddbf91bc5cea77cc22b1c12fe7a716c6323ab1e7"},

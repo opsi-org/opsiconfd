@@ -371,7 +371,8 @@ metrics_registry.register(
 		zero_if_missing="one",
 		time_related=True,
 		subject="client",
-		grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
+		# Deactivating for now because it slows down grafana a lot in big environments.
+		#grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
 	)
 )
 

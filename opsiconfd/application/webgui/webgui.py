@@ -11,7 +11,7 @@ webgui
 import os
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
-from sqlalchemy import select, text, and_, asc, desc, column
+from sqlalchemy import select, text, and_, asc, desc, column, alias
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
@@ -395,51 +395,78 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 				where,
 				text("(h.hostId LIKE :search OR h.description LIKE :search)")
 			)
-			params = {"search": f"%{request_data['filterQuery']}%"}
-		query = select(text("""
+			params["search"] = f"%{request_data['filterQuery']}%"
+		if request_data.get("selectedDepots"):
+			where = and_(
+				where,
+				text("""
+				COALESCE(
+					(
+						SELECT TRIM(TRAILING '"]' FROM TRIM(LEADING '["' FROM cs.`values`)) FROM CONFIG_STATE AS cs
+						WHERE cs.objectId = h.hostId AND cs.configId = 'clientconfig.depot.id'
+					),
+					(SELECT cv.value FROM CONFIG_VALUE AS cv WHERE cv.configId = 'clientconfig.depot.id' AND cv.isDefault = 1)
+				) IN :depot_ids
+				""")
+			)
+			params["depot_ids"] = request_data['selectedDepots']
+
+		client_with_depot = alias(
+			select(text("""
 				h.hostId AS clientId,
 				h.hostId AS ident,
 				h.hardwareAddress AS macAddress,
 				h.description,
 				h.notes,
-				(
-					SELECT
-						COUNT(*)
-					FROM
-						PRODUCT_ON_DEPOT AS pod
-					JOIN
-						PRODUCT_ON_CLIENT AS poc ON
-							pod.productId = poc.productId AND
-							(pod.productVersion != poc.productVersion OR pod.packageVersion != poc.packageVersion)
-					WHERE
-						poc.clientId = h.hostId AND
-						pod.depotId = COALESCE(
-							(
-								SELECT TRIM(TRAILING '"]' FROM TRIM(LEADING '["' FROM cs.`values`)) FROM CONFIG_STATE AS cs
-								WHERE cs.objectId = h.hostId AND cs.configId = 'clientconfig.depot.id'
-							),
-							(SELECT cv.value FROM CONFIG_VALUE AS cv WHERE cv.configId = 'clientconfig.depot.id' AND cv.isDefault = 1)
-						)
-				) AS version_outdated,
-				(
-					SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
-					WHERE poc.clientId = h.hostId AND poc.installationStatus = 'unknown'
-				) AS installationStatus_unknown,
-				(
-					SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
-					WHERE poc.clientId = h.hostId AND poc.installationStatus = 'installed'
-				) AS installationStatus_installed,
-				(
-					SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
-					WHERE poc.clientId = h.hostId AND poc.actionResult = 'failed'
-				) AS actionResult_failed,
-				(
-					SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
-					WHERE poc.clientId = h.hostId AND poc.actionResult = 'successful'
-				) AS actionResult_successful
-			"""))\
-			.select_from(text("HOST AS h"))\
-			.where(where)
+				COALESCE(
+					(
+						SELECT TRIM(TRAILING '"]' FROM TRIM(LEADING '["' FROM cs.`values`)) FROM CONFIG_STATE AS cs
+						WHERE cs.objectId = h.hostId AND cs.configId = 'clientconfig.depot.id'
+					),
+					(SELECT cv.value FROM CONFIG_VALUE AS cv WHERE cv.configId = 'clientconfig.depot.id' AND cv.isDefault = 1)
+				) AS depotId
+			""")) \
+				.select_from(text("HOST AS h")) \
+				.where(where)
+			, name="hd"
+		)
+		query = select(text("""
+			hd.clientId,
+			hd.ident,
+			hd.macAddress,
+			hd.description,
+			hd.notes,
+			(
+				SELECT
+					COUNT(*)
+				FROM
+					PRODUCT_ON_DEPOT AS pod
+				JOIN
+					PRODUCT_ON_CLIENT AS poc ON
+						pod.productId = poc.productId AND
+						(pod.productVersion != poc.productVersion OR pod.packageVersion != poc.packageVersion)
+				WHERE
+					poc.clientId = hd.clientId AND
+					pod.depotId = hd.depotId
+			) AS version_outdated,
+			(
+				SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
+				WHERE poc.clientId = hd.clientId AND poc.installationStatus = 'unknown'
+			) AS installationStatus_unknown,
+			(
+				SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
+				WHERE poc.clientId = hd.clientId AND poc.installationStatus = 'installed'
+			) AS installationStatus_installed,
+			(
+				SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
+				WHERE poc.clientId = hd.clientId AND poc.actionResult = 'failed'
+			) AS actionResult_failed,
+			(
+				SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
+				WHERE poc.clientId = hd.clientId AND poc.actionResult = 'successful'
+			) AS actionResult_successful
+		""")) \
+		.select_from(client_with_depot)
 
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)
@@ -448,7 +475,7 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 		result = result.fetchall()
 
 		total = session.execute(
-			select(text("COUNT(*)")).select_from(text("HOST AS h")).where(where),
+			select(text("COUNT(*)")).select_from(client_with_depot),
 			params
 		).fetchone()[0]
 

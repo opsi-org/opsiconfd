@@ -105,4 +105,4 @@ package:
     systemctl daemon-reload || true
     # setup opsiconfd
     /usr/bin/opsiconfd setup --log-level-stderr=5 --log-level-file=0 --run-as-user=opsiconfd || true
-    grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf
+    grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf

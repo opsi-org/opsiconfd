@@ -64,29 +64,28 @@
 			// Declare all variables
 			var i, tabcontent, tablinks;
 
+			stopLog();
+
 			if (tabName == "rpcInfos") {
 				loadRPCTable("rpc_num", false);
 			}
-			if (tabName == "clients") {
+			else if (tabName == "clients") {
 				loadClientTable();
 			}
-			if (tabName == "rpcInterface") {
+			else if (tabName == "rpcInterface") {
 				createParamInputs();
 			}
-			if (tabName == "redisInfo") {
+			else if (tabName == "redisInfo") {
 				loadRedisInfo();
 			}
-			if (tabName == "confdInfo") {
+			else if (tabName == "confdInfo") {
 				loadConfdConfig();
 			}
-			if (tabName == "memoryProfiler") {
+			else if (tabName == "memoryProfiler") {
 				loadMemoryInfo();
 			}
-			if (tabName == "log-viewer") {
+			else if (tabName == "log-viewer") {
 				startLog(0, Math.round(Date.now()/1000)-300); // last 5 minutes
-			}
-			else{
-				stopLog();
 			}
 
 			// Get all elements with class="tabcontent" and hide them

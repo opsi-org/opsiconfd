@@ -238,6 +238,8 @@ function setMessage(text = "", className = "LEVEL_INFO") {
 }
 
 function startLog(numRecords=0, startTime=0) {
+	stopLog();
+
 	setMessage("Connecting...");
 	if (reconnectTimer) {
 		clearTimeout(reconnectTimer);
@@ -313,7 +315,7 @@ function changeFontSize(val) {
 }
 
 function stopLog(){
-	if(ws != undefined){
+	if (ws != undefined){
 		ws.close(1000, "LogViewer closed.")
 	}
 }

@@ -40,6 +40,7 @@ from opsicommon.logging.logging import add_context_filter_to_loggers
 from .utils import retry_redis_call, get_aredis_connection, get_redis_connection
 from .config import config
 
+# 1 log record ~= 550 bytes
 LOG_STREAM_MAX_RECORDS = 50000
 
 # Set default log level to ERROR early

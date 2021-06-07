@@ -319,7 +319,8 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 						pipeline.xadd(
 							f"opsiconfd:log:{config.node_name}",
 							self._queue.get_nowait(),
-							approximate=LOG_STREAM_MAX_RECORDS
+							maxlen=LOG_STREAM_MAX_RECORDS,
+							approximate=True
 						)
 					except Empty:
 						break

@@ -210,8 +210,10 @@ async def get_aredis_info(client: aredis.StrictRedis):	# pylint: disable=too-man
 		sessions_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0
 
 	logs_memory = 0
+	log_records = 0
 	for key in log_keys:
 		logs_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0
+		log_records += (await client.execute_command(f"XLEN {key}")) or 0
 
 	rpc_memory = 0
 	for key in rpc_keys:
@@ -233,7 +235,8 @@ async def get_aredis_info(client: aredis.StrictRedis):	# pylint: disable=too-man
 		},
 		"logs": {
 			"count": len(log_keys),
-			"memory": logs_memory
+			"memory": logs_memory,
+			"records": log_records
 		},
 		"rpc": {
 			"count": len(rpc_keys),

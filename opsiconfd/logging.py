@@ -304,6 +304,18 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 
 	def run(self):
 		try:
+			# Trim legacy stream to zero
+			self._redis.xtrim(
+				"opsiconfd:log",
+				maxlen=0,
+				approximate=False
+			)
+			# Trim redis log stream to max size
+			self._redis.xtrim(
+				f"opsiconfd:log:{config.node_name}",
+				maxlen=LOG_STREAM_MAX_RECORDS,
+				approximate=True
+			)
 			self._process_queue()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)

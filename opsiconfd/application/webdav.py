@@ -21,6 +21,8 @@ from ..backend import get_backend
 from ..wsgi import WSGIMiddleware
 
 
+PUBLIC_FOLDER = "/var/lib/opsi/public"
+
 # Prevent warning in log
 def is_share_anonymous(self, path_info):  # pylint: disable=unused-argument
 	return False
@@ -125,6 +127,22 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		app_config["mount_path"] = "/workbench"
 		workbench_dav = WsgiDAVApp(app_config)
 		app.mount("/workbench", WSGIMiddleware(workbench_dav))
+	except Exception as exc: # pylint: disable=broad-except
+		logger.error(exc, exc_info=True)
+
+	try:
+		logger.notice(f"Running on depot server '{depot_id}', exporting public directory")
+		logger.debug("Public path is '%s'", PUBLIC_FOLDER)
+		if not os.path.isdir(PUBLIC_FOLDER):
+			raise Exception(f"Cannot add webdav content 'public': directory '{PUBLIC_FOLDER}' does not exist.")
+		if not os.access(PUBLIC_FOLDER, os.R_OK | os.W_OK | os.X_OK):
+			raise Exception(f"Cannot add webdav content 'public': permissions on directory '{PUBLIC_FOLDER}' not sufficient.")
+
+		app_config = dict(app_config_template)
+		app_config["provider_mapping"] = {"/": FilesystemProvider(PUBLIC_FOLDER, readonly=False)}
+		app_config["mount_path"] = "/public"
+		public_dav = WsgiDAVApp(app_config)
+		app.mount("/public", WSGIMiddleware(public_dav))
 	except Exception as exc: # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 

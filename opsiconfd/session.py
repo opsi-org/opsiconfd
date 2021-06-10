@@ -151,11 +151,11 @@ class SessionMiddleware:
 					break
 
 			if (
-				scope["path"] in ("/admin", "/") and
+				scope["path"].startswith("/admin/grafana") and
 				connection.base_url.hostname not in ("127.0.0.1", "::1", "0.0.0.0", "localhost")
 			):
 				if connection.base_url.hostname != FQDN:
-					url = f"https://{FQDN}:{connection.base_url.port}/admin"
+					url = f'https://{FQDN}:{connection.base_url.port}{scope["path"]}'
 					logger.info("Redirecting %s to %s (%s)", connection.base_url.hostname, FQDN, url)
 					response = RedirectResponse(url, status_code=308)
 					await response(scope, receive, send)

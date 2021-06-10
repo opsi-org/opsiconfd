@@ -115,9 +115,14 @@ async def get_test_random(request: Request):  # pylint: disable=unused-argument
 	with open("/dev/urandom", mode="rb") as random:
 		return StreamingResponse(random, media_type="application/binary")
 
-@app.get("/", response_class=HTMLResponse)
+
+@app.get("/")
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument
 	return RedirectResponse("/admin", status_code=301)
+
+@app.get("/favicon.ico")
+async def favicon(request: Request, response: Response):  # pylint: disable=unused-argument
+	return RedirectResponse("/static/favicon.ico", status_code=301)
 
 @app.on_event("startup")
 async def startup_event():

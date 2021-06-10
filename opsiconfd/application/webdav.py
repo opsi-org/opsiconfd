@@ -14,6 +14,7 @@ import wsgidav.fs_dav_provider
 from wsgidav.fs_dav_provider import FilesystemProvider
 from wsgidav.wsgidav_app import WsgiDAVApp
 
+from .. import __version__
 from ..logging import logger
 from ..config import FQDN
 from ..backend import get_backend
@@ -29,17 +30,27 @@ wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
 def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 	block_size = 64*1024
 	app_config_template = {
-		#	"accept_basic": True,  # Allow basic authentication, True or False
-		#	"accept_digest": False,  # Allow digest authentication, True or False
-		#	"default_to_digest": False,  # True (default digest) or False (default basic)
-		#},
-		"simple_dc": {"user_mapping": {"*": True}},  # anonymous access
+		"simple_dc": {
+			"user_mapping": {"*": True}  # anonymous access
+		},
+		"http_authenticator": {
+			# None: dc.simple_dc.SimpleDomainController(user_mapping)
+			"domain_controller": None,
+			"accept_basic": False,  # Allow basic authentication, True or False
+			"accept_digest": False,  # Allow digest authentication, True or False
+			"trusted_auth_header": None,
+		},
 		"verbose": 1,
 		"enable_loggers": [],
 		"property_manager": True,  # True: use property_manager.PropertyManager
 		"lock_manager": True,  # True: use lock_manager.LockManager
 		"block_size": block_size, # default = 8192
-		"ssl_certificate": True  # Prevent warning in log
+		"ssl_certificate": True,  # Prevent warning in log
+		"dir_browser": {
+			"show_user": False,
+			"icon": False,
+			"response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)"
+		}
 	}
 	# Set file buffer size for reading and writing.
 	# Sent message chunks will have the same body size.

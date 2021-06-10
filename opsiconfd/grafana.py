@@ -10,6 +10,8 @@ grafana
 """
 
 import os
+import re
+import codecs
 import json
 import copy
 import base64
@@ -20,6 +22,7 @@ import hashlib
 import datetime
 import subprocess
 from urllib.parse import urlparse
+from packaging.version import Version
 
 import aiohttp
 
@@ -291,6 +294,7 @@ def setup_grafana():
 	grafana_cli = "/usr/sbin/grafana-cli"
 	grafana_db = "/var/lib/grafana/grafana.db"
 	plugin_id = "grafana-simple-json-datasource"
+	plugin_min_version = "1.4.2"
 
 	url = urlparse(config.grafana_internal_url)
 	if url.hostname not in ("localhost", "127.0.0.1", "::1"):
@@ -304,17 +308,30 @@ def setup_grafana():
 			raise FileNotFoundError(f"'{file}' not found")
 
 
-	if not os.path.exists(os.path.join(grafana_plugin_dir, plugin_id)):
+	plugin_action = None
+	manifest = os.path.join(grafana_plugin_dir, plugin_id, "MANIFEST.txt")
+	if os.path.exists(manifest):
+		with codecs.open(manifest, "r", "utf-8") as f:
+			match = re.search(r'"version"\s*:\s*"([^"]+)"', f.read())
+			plugin_version = match.group(1)
+			logger.debug("Grafana plugin %s version: %s", plugin_id, plugin_version)
+			if Version(plugin_version) < Version(plugin_min_version):
+				logger.notice("Grafana plugin %s version %s to old", plugin_id, plugin_version)
+				plugin_action = "upgrade"
+	else:
+		plugin_action = "install"
+
+	if plugin_action:
 		try:
-			logger.notice("Setup grafana plugin %s", plugin_id)
+			logger.notice("Setup grafana plugin %s (%s)", plugin_id, plugin_action)
 			for cmd in (
-				["grafana-cli", "plugins", "install", plugin_id],
+				["grafana-cli", "plugins", plugin_action, plugin_id],
 				["service", "grafana-server", "restart"]
 			):
 				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)
 				logger.debug("output of command %s: %s", cmd, out)
 		except subprocess.CalledProcessError as err:
-			logger.warning("Could not install grafana plugin via grafana-cli: %s", err)
+			logger.warning("Could not %s grafana plugin via grafana-cli: %s", plugin_action, err)
 
 	if url.username is not None:
 		return

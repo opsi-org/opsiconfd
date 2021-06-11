@@ -117,7 +117,7 @@ def setup_file_permissions():
 	for path in (
 		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
 		"/var/log/opsi/opsiconfd", "/var/log/opsi/userlogin", "/var/lib/opsi/depot",
-		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository"
+		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository", "/var/lib/opsi/public"
 	):
 		try:
 			path = Path(path)

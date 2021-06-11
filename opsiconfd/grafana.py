@@ -311,8 +311,8 @@ def setup_grafana():
 	plugin_action = None
 	manifest = os.path.join(grafana_plugin_dir, plugin_id, "MANIFEST.txt")
 	if os.path.exists(manifest):
-		with codecs.open(manifest, "r", "utf-8") as f:
-			match = re.search(r'"version"\s*:\s*"([^"]+)"', f.read())
+		with codecs.open(manifest, "r", "utf-8") as file:
+			match = re.search(r'"version"\s*:\s*"([^"]+)"', file.read())
 			plugin_version = match.group(1)
 			logger.debug("Grafana plugin %s version: %s", plugin_id, plugin_version)
 			if Version(plugin_version) < Version(plugin_min_version):

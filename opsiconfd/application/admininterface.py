@@ -208,6 +208,10 @@ def open_grafana(request: Request):
 			auth = (url.username, url.password)
 
 	session = requests.Session()
+	session.verify = config.ssl_trusted_certs
+	if not config.grafana_verify_cert:
+		session.verify = False
+
 	response = session.get(f"{url.scheme}://{url.hostname}:{url.port}/api/users/lookup?loginOrEmail=opsidashboard", headers=headers, auth=auth)
 
 	password = get_random_string(8)
@@ -238,7 +242,7 @@ def open_grafana(request: Request):
 
 	url = "/metrics/grafana/dashboard"
 	response = RedirectResponse(url=url)
-	response.set_cookie(key="grafana_session",value=session.cookies.get_dict().get("grafana_session"))
+	response.set_cookie(key="grafana_session", value=session.cookies.get_dict().get("grafana_session"))
 	return response
 
 @admin_interface_router.get("/config")

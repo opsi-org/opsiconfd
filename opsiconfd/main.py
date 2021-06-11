@@ -12,7 +12,6 @@ import os
 import re
 import sys
 import pwd
-import ssl
 import time
 import asyncio
 import threading
@@ -155,8 +154,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		)
 
 		init_logging(log_mode=config.log_mode)
-
-		logger.debug("SSL default verify paths: %s", ssl.get_default_verify_paths())
+		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)
 
 		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
 			logger.notice("Running with %s", os.getenv("LD_PRELOAD"))

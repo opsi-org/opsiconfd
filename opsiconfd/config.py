@@ -8,16 +8,16 @@
 global config
 """
 
+import os
 import re
 import sys
 import codecs
 import getpass
 import socket
 import ipaddress
-
 from typing import Union
 from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_OR_MORE
-
+import certifi
 from dns import resolver, reversename
 import configargparse
 
@@ -458,6 +458,12 @@ parser.add(
 	help="The port where opsiconfd will listen for https requests."
 )
 parser.add(
+	"--ssl-trusted-certs",
+	env_var="OPSICONFD_SSL_TRUSTED_CERTS",
+	default=certifi.where(),
+	help="Path to the database of trusted certificates"
+)
+parser.add(
 	"--ssl-ca-subject-cn",
 	env_var="OPSICONFD_SSL_CA_SUBJECT_CN",
 	default="opsi CA",
@@ -710,6 +716,7 @@ class Config(metaclass=Singleton):
 			self._config, _unknown = parser.parse_known_args(args)
 		else:
 			self._config = parser.parse_args(args)
+		os.putenv("SSL_CERT_FILE", self._config.ssl_trusted_certs)
 
 	def __getattr__(self, name):
 		if name.startswith("_"):

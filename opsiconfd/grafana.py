@@ -11,6 +11,7 @@ grafana
 
 import os
 import re
+import ssl
 import codecs
 import json
 import copy
@@ -23,7 +24,6 @@ import datetime
 import subprocess
 from urllib.parse import urlparse
 from packaging.version import Version
-
 import aiohttp
 
 from .logging import logger
@@ -341,13 +341,16 @@ def setup_grafana():
 
 async def create_or_update_api_key_by_api(admin_username: str, admin_password: str):
 	auth = aiohttp.BasicAuth(admin_username, admin_password)
+	ssl_context = ssl.create_default_context(cafile=config.ssl_trusted_certs)
+	if not config.grafana_verify_cert:
+		ssl_context = False
 	async with aiohttp.ClientSession(auth=auth) as session:
-		resp = await session.get(f"{config.grafana_internal_url}/api/auth/keys")
+		resp = await session.get(f"{config.grafana_internal_url}/api/auth/keys", ssl=ssl_context)
 		for key in await resp.json():
 			if key["name"] == API_KEY_NAME:
-				await session.delete(f"{config.grafana_internal_url}/api/auth/keys/{key['id']}")
+				await session.delete(f"{config.grafana_internal_url}/api/auth/keys/{key['id']}", ssl=ssl_context)
 		data = {"name": API_KEY_NAME, "role":"Admin", "secondsToLive": None}
-		resp = await session.post(f"{config.grafana_internal_url}/api/auth/keys", json=data)
+		resp = await session.post(f"{config.grafana_internal_url}/api/auth/keys", json=data, ssl=ssl_context)
 		api_key = (await resp.json())["key"]
 		return api_key
 

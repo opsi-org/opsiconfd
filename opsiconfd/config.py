@@ -603,6 +603,17 @@ parser.add(
 	help="External grafana base url."
 )
 parser.add(
+	"--grafana-verify-cert",
+	env_var="OPSICONFD_GRAFANA_VERIFY_CERT",
+	type=str2bool,
+	nargs='?',
+	const=True,
+	default=True,
+	help=(
+		"If enabled, opsiconfd will check the tls certificate when connecting to grafana."
+	)
+)
+parser.add(
 	"--grafana-data-source-url",
 	env_var="OPSICONFD_GRAFANA_DATA_SOURCE_URL",
 	help="Grafana data source base url."

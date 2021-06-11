@@ -74,15 +74,16 @@ async def grafana_dashboard(request: Request):  # pylint: disable=unused-argumen
 			auth = aiohttp.BasicAuth(url.username, url.password)
 
 	base_url = f"{url.scheme}://{url.netloc.split('@', 1)[-1]}"
+	verify_ssl = False
 	async with aiohttp.ClientSession(auth=auth, headers=headers) as session:
 		json = GRAFANA_DATASOURCE_TEMPLATE
 		json["url"] = f"{get_grafana_data_source_url()}/metrics/grafana/"
-		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}")
+		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}", ssl=verify_ssl)
 		if resp.status == 200:
 			_id = (await resp.json())["id"]
-			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json)
+			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json, ssl=verify_ssl)
 		else:
-			resp = await session.post(f"{base_url}/api/datasources", json=json)
+			resp = await session.post(f"{base_url}/api/datasources", json=json, ssl=verify_ssl)
 
 		if resp.status == 200:
 			json = {
@@ -90,7 +91,7 @@ async def grafana_dashboard(request: Request):  # pylint: disable=unused-argumen
 				"overwrite": True,
 				"dashboard": await grafana_dashboard_config()
 			}
-			resp = await session.post(f"{base_url}/api/dashboards/db", json=json)
+			resp = await session.post(f"{base_url}/api/dashboards/db", json=json, ssl=verify_ssl)
 		else:
 			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
 	return RedirectResponse(url=f"{config.grafana_external_url}/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv")

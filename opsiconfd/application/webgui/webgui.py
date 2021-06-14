@@ -8,7 +8,6 @@
 webgui
 """
 
-from itertools import product
 import os
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
@@ -501,7 +500,7 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 
 @webgui_router.post("/api/opsidata/localbootproducts")
 @webgui_router.post("/api/opsidata/products")
-async def products(request: Request):
+async def products(request: Request): # pylint: disable=too-many-locals
 	request_data = {}
 	try:
 		request_data = await request.json()
@@ -512,13 +511,13 @@ async def products(request: Request):
 	client_list = request_data.get("clients", [""])
 	depots_list = request_data.get("depots", [get_configserver_id()])
 
-	clients = ""
+	clients = "" # pylint: disable=redefined-outer-name
 	for idx, client in enumerate(client_list):
 		clients += f"'{client}'"
 		if idx < (len(client_list) - 1) and len(client_list) > 1:
 			clients += ","
 
-	depots = ""
+	depots = "" # pylint: disable=redefined-outer-name
 	for idx, depot in enumerate(depots_list):
 		depots += f"'{depot}'"
 		if idx < (len(depots_list) - 1) and len(depots_list) > 1:
@@ -547,7 +546,7 @@ async def products(request: Request):
 					"NULL AS actionResult"
 				))\
 				.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
-				.where(text(f"pod.productId NOT IN (SELECT poc.productId FROM PRODUCT_ON_CLIENT AS poc WHERE poc.clientId in ({clients})) AND pod.depotId in ({depots})")
+				.where(text(f"pod.productId NOT IN (SELECT poc.productId FROM PRODUCT_ON_CLIENT AS poc WHERE poc.clientId in ({clients})) AND pod.depotId in ({depots})") # pylint: disable=line-too-long
 			))
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)
@@ -555,7 +554,7 @@ async def products(request: Request):
 		result = session.execute(query)
 		result = result.fetchall()
 
-		products = [ dict(row) for row in result if row is not None ]
+		products = [ dict(row) for row in result if row is not None ] # pylint: disable=redefined-outer-name
 
 		total = len(products)
 

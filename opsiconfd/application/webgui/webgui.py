@@ -348,6 +348,14 @@ async def depots(request: Request):
 
 	with mysql.session() as session:
 		where = text("h.type IN ('OpsiConfigserver', 'OpsiDepotserver')")
+		params = {}
+		if request_data.get("filterQuery"):
+			where = and_(
+				where,
+				text("(h.hostId LIKE :search OR h.description LIKE :search)")
+			)
+			params["search"] = f"%{request_data['filterQuery']}%"
+
 		query = select(text(
 				"h.hostId AS depotId, "
 				"h.hostId AS ident, "
@@ -360,13 +368,14 @@ async def depots(request: Request):
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)
 
-		result = session.execute(query)
+		result = session.execute(query, params)
 		result = result.fetchall()
 
 		total = session.execute(
 			select(text("COUNT(*)"))\
 			.select_from(text("HOST AS h"))\
-			.where(where)
+			.where(where),
+			params
 		).fetchone()[0]
 
 		response_data = {
@@ -490,6 +499,7 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 		return JSONResponse(response_data)
 
 
+@webgui_router.post("/api/opsidata/localbootproducts")
 @webgui_router.post("/api/opsidata/products")
 async def products(request: Request):
 	request_data = {}
@@ -500,11 +510,7 @@ async def products(request: Request):
 
 	product_type = request_data.get("type", "LocalbootProduct")
 	client_list = request_data.get("clients", [""])
-	depots_list = request_data.get("depots", [""])
-
-	logger.devel(product_type)
-	logger.devel(client_list)
-	logger.devel(depots_list)
+	depots_list = request_data.get("depots", [get_configserver_id()])
 
 	clients = ""
 	for idx, client in enumerate(client_list):
@@ -520,7 +526,7 @@ async def products(request: Request):
 
 	with mysql.session() as session:
 		where = text(f"poc.productType='{product_type}' AND poc.clientId IN ({clients})")
-		logger.devel(where)
+
 		query = select(text(
 				"poc.productId AS productId,"
 				"poc.clientId AS clientId,"

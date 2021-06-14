@@ -59,7 +59,7 @@ def pagination(query, params):
 		return query
 	query = query.limit(params["perPage"])
 	if params.get("pageNumber") and params["pageNumber"] > 1:
-		query = query.offset(params["pageNumber"] * params["perPage"])
+		query = query.offset((params["pageNumber"] - 1) * params["perPage"])
 	return query
 
 

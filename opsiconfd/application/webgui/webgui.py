@@ -8,6 +8,7 @@
 webgui
 """
 
+from itertools import product
 import os
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
@@ -482,6 +483,79 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 		response_data = {
 			"result": {
 				"clients": [ dict(row) for row in result if row is not None ],
+				"total": total
+			},
+			"configserver": get_configserver_id()
+		}
+		return JSONResponse(response_data)
+
+
+@webgui_router.post("/api/opsidata/products")
+async def products(request: Request):
+	request_data = {}
+	try:
+		request_data = await request.json()
+	except ValueError:
+		pass
+
+	product_type = request_data.get("type", "LocalbootProduct")
+	client_list = request_data.get("clients", [""])
+	depots_list = request_data.get("depots", [""])
+
+	logger.devel(product_type)
+	logger.devel(client_list)
+	logger.devel(depots_list)
+
+	clients = ""
+	for idx, client in enumerate(client_list):
+		clients += f"'{client}'"
+		if idx < (len(client_list) - 1) and len(client_list) > 1:
+			clients += ","
+
+	depots = ""
+	for idx, depot in enumerate(depots_list):
+		depots += f"'{depot}'"
+		if idx < (len(depots_list) - 1) and len(depots_list) > 1:
+			depots += ","
+
+	with mysql.session() as session:
+		where = text(f"poc.productType='{product_type}' AND poc.clientId IN ({clients})")
+		logger.devel(where)
+		query = select(text(
+				"poc.productId AS productId,"
+				"poc.clientId AS clientId,"
+				"poc.installationStatus AS installationStatus,"
+				"poc.actionRequest AS actionRequest,"
+				"poc.actionProgress AS actionProgress,"
+				"poc.actionResult AS actionResult"
+			))\
+			.select_from(text("PRODUCT_ON_CLIENT AS poc"))\
+			.where(where)\
+			.union(
+				select(text(
+					"pod.productId AS productId,"
+					"NULL AS clientId,"
+					"NULL AS installationStatus,"
+					"NULL AS actionRequest,"
+					"NULL AS actionProgress,"
+					"NULL AS actionResult"
+				))\
+				.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
+				.where(text(f"pod.productId NOT IN (SELECT poc.productId FROM PRODUCT_ON_CLIENT AS poc WHERE poc.clientId in ({clients})) AND pod.depotId in ({depots})")
+			))
+		query = order_by(query, request_data)
+		query = pagination(query, request_data)
+
+		result = session.execute(query)
+		result = result.fetchall()
+
+		products = [ dict(row) for row in result if row is not None ]
+
+		total = len(products)
+
+		response_data = {
+			"result": {
+				"products": products,
 				"total": total
 			},
 			"configserver": get_configserver_id()

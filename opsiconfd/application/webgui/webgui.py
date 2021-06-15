@@ -507,51 +507,63 @@ async def products(request: Request): # pylint: disable=too-many-locals
 	except ValueError:
 		pass
 
-	product_type = request_data.get("type", "LocalbootProduct")
-	client_list = request_data.get("clients", [""])
-	depots_list = request_data.get("depots", [get_configserver_id()])
-
-	clients = "" # pylint: disable=redefined-outer-name
-	for idx, client in enumerate(client_list):
-		clients += f"'{client}'"
-		if idx < (len(client_list) - 1) and len(client_list) > 1:
-			clients += ","
-
-	depots = "" # pylint: disable=redefined-outer-name
-	for idx, depot in enumerate(depots_list):
-		depots += f"'{depot}'"
-		if idx < (len(depots_list) - 1) and len(depots_list) > 1:
-			depots += ","
+	params = {}
+	params["product_type"] = request_data.get("type", "LocalbootProduct")
+	params["clients"] = request_data.get("clients", [""])
+	params["depots"] = request_data.get("depots", [get_configserver_id()])
 
 	with mysql.session() as session:
-		where = text(f"poc.productType='{product_type}' AND poc.clientId IN ({clients})")
+		where = text("poc.productType= :product_type AND poc.clientId IN (:clients)")
+		if request_data.get("filterQuery"):
+			where = and_(
+				where,
+				text("(poc.productId LIKE :search)")
+			)
+			params["search"] = f"%{request_data['filterQuery']}%"
 
-		query = select(text(
-				"poc.productId AS productId,"
-				"poc.clientId AS clientId,"
-				"poc.installationStatus AS installationStatus,"
-				"poc.actionRequest AS actionRequest,"
-				"poc.actionProgress AS actionProgress,"
-				"poc.actionResult AS actionResult"
-			))\
-			.select_from(text("PRODUCT_ON_CLIENT AS poc"))\
-			.where(where)\
-			.union(
-				select(text(
-					"pod.productId AS productId,"
-					"NULL AS clientId,"
-					"NULL AS installationStatus,"
-					"NULL AS actionRequest,"
-					"NULL AS actionProgress,"
-					"NULL AS actionResult"
+		query = select(text("""
+					pod.productId AS productId,
+					(
+						SELECT GROUP_CONCAT(h.hostId SEPARATOR ', ')
+						FROM HOST AS h WHERE h.hostId IN :depots
+					) AS depotIds,
+					(
+						SELECT GROUP_CONCAT(h.hostId SEPARATOR ', ')
+						FROM HOST AS h WHERE h.hostId IN :clients
+					) AS clientIds,
+					(
+						SELECT GROUP_CONCAT(poc.installationStatus SEPARATOR ', ')
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+					) AS installationStatus,
+					(
+						SELECT GROUP_CONCAT(poc.actionRequest SEPARATOR ', ')
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+					) AS actionRequest,
+					(
+						SELECT GROUP_CONCAT(poc.actionProgress SEPARATOR ', ')
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+					) AS actionProgress,
+					(
+						SELECT GROUP_CONCAT(poc.actionResult SEPARATOR ', ')
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+					) AS actionResult,
+					(
+						SELECT GROUP_CONCAT(CONCAT(poc.productVersion,'-',poc.packageVersion) SEPARATOR ', ')
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+					) AS clientVersions,
+					GROUP_CONCAT(
+						CONCAT(pod.productVersion,'-',pod.packageVersion) SEPARATOR ', ') AS depotVersions,
+					pod.productType AS productType
+				"""
 				))\
+				.group_by(text("pod.productId"))\
 				.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
-				.where(text(f"pod.productId NOT IN (SELECT poc.productId FROM PRODUCT_ON_CLIENT AS poc WHERE poc.clientId in ({clients})) AND pod.depotId in ({depots})") # pylint: disable=line-too-long
-			))
+				.where(text("pod.depotId IN :depots AND pod.producttype = :product_type") # pylint: disable=line-too-long
+			)
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)
 
-		result = session.execute(query)
+		result = session.execute(query, params)
 		result = result.fetchall()
 
 		products = [ dict(row) for row in result if row is not None ] # pylint: disable=redefined-outer-name

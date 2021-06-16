@@ -523,36 +523,43 @@ async def products(request: Request): # pylint: disable=too-many-locals
 
 		query = select(text("""
 					pod.productId AS productId,
+					GROUP_CONCAT(pod.depotId SEPARATOR ',') AS depotIds,
 					(
-						SELECT GROUP_CONCAT(h.hostId SEPARATOR ', ')
-						FROM HOST AS h WHERE h.hostId IN :depots
-					) AS depotIds,
-					(
-						SELECT GROUP_CONCAT(h.hostId SEPARATOR ', ')
-						FROM HOST AS h WHERE h.hostId IN :clients
+						SELECT GROUP_CONCAT(poc.clientId SEPARATOR ',')
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.clientId IN :clients AND poc.productId=pod.productId
 					) AS clientIds,
 					(
-						SELECT GROUP_CONCAT(poc.installationStatus SEPARATOR ', ')
+						SELECT GROUP_CONCAT(poc.installationStatus SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
 					) AS installationStatus,
 					(
-						SELECT GROUP_CONCAT(poc.actionRequest SEPARATOR ', ')
+						SELECT GROUP_CONCAT(poc.actionRequest SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
 					) AS actionRequest,
 					(
-						SELECT GROUP_CONCAT(poc.actionProgress SEPARATOR ', ')
+						SELECT GROUP_CONCAT(poc.actionProgress SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
 					) AS actionProgress,
 					(
-						SELECT GROUP_CONCAT(poc.actionResult SEPARATOR ', ')
+						SELECT GROUP_CONCAT(poc.actionResult SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
 					) AS actionResult,
 					(
-						SELECT GROUP_CONCAT(CONCAT(poc.productVersion,'-',poc.packageVersion) SEPARATOR ', ')
+						SELECT GROUP_CONCAT(CONCAT(poc.productVersion,'-',poc.packageVersion) SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
 					) AS clientVersions,
-					GROUP_CONCAT(
-						CONCAT(pod.productVersion,'-',pod.packageVersion) SEPARATOR ', ') AS depotVersions,
+					(
+						SELECT CONCAT_WS(', ',
+							IF(setupScript <> '','setup', NULL),
+							IF(uninstallScript <> '','uninstall',NULL),
+							IF(updateScript <> '','update',NULL),
+							IF(alwaysScript <> '','always',NULL),
+							IF(customScript <> '','customScript',NULL),
+							IF(onceScript <> '','once',NULL)
+						)
+						FROM PRODUCT AS p WHERE p.productId=pod.productId AND p.productVersion=pod.productVERSION AND p.packageVersion=pod.packageVersion
+					) AS actions,
+					GROUP_CONCAT(CONCAT(pod.productVersion,'-',pod.packageVersion) SEPARATOR ',') AS depotVersions,
 					pod.productType AS productType
 				"""
 				))\
@@ -566,7 +573,29 @@ async def products(request: Request): # pylint: disable=too-many-locals
 		result = session.execute(query, params)
 		result = result.fetchall()
 
-		products = [ dict(row) for row in result if row is not None ] # pylint: disable=redefined-outer-name
+		products = []
+		for row in result:
+			if row is not None:
+				product = dict(row)
+				if product.get("depotIds"):
+					product["depotIds"] = product.get("depotIds").split(",")
+				if product.get("clientIds"):
+					product["clientIds"] = product.get("clientIds").split(",")
+				if product.get("installationStatus"):
+					product["installationStatus"] = product.get("installationStatus").split(",")
+				if product.get("actionRequest"):
+					product["actionRequest"] = product.get("actionRequest").split(",")
+				if product.get("actionProgress"):
+					product["actionProgress"] = product.get("actionProgress").split(",")
+				if product.get("actionResult"):
+					product["actionResult"] = product.get("actionResult").split(",")
+				if product.get("clientVersions"):
+					product["clientVersions"] = product.get("clientVersions").split(",")
+				if product.get("actions"):
+					product["actions"] = product.get("actions").split(",")
+				if product.get("depotVersions"):
+					product["depotVersions"] = product.get("depotVersions").split(",")
+			products.append(product)
 
 		total = len(products)
 

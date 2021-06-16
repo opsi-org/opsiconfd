@@ -500,7 +500,7 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 
 @webgui_router.post("/api/opsidata/localbootproducts")
 @webgui_router.post("/api/opsidata/products")
-async def products(request: Request): # pylint: disable=too-many-locals
+async def products(request: Request): # pylint: disable=too-many-locals, too-many-branches
 	request_data = {}
 	try:
 		request_data = await request.json()
@@ -557,7 +557,9 @@ async def products(request: Request): # pylint: disable=too-many-locals
 							IF(customScript <> '','customScript',NULL),
 							IF(onceScript <> '','once',NULL)
 						)
-						FROM PRODUCT AS p WHERE p.productId=pod.productId AND p.productVersion=pod.productVERSION AND p.packageVersion=pod.packageVersion
+						FROM PRODUCT AS p
+						WHERE p.productId=pod.productId AND
+							p.productVersion=pod.productVERSION AND p.packageVersion=pod.packageVersion
 					) AS actions,
 					GROUP_CONCAT(CONCAT(pod.productVersion,'-',pod.packageVersion) SEPARATOR ',') AS depotVersions,
 					pod.productType AS productType
@@ -573,7 +575,7 @@ async def products(request: Request): # pylint: disable=too-many-locals
 		result = session.execute(query, params)
 		result = result.fetchall()
 
-		products = []
+		products = [] # pylint: disable=redefined-outer-name
 		for row in result:
 			if row is not None:
 				product = dict(row)

@@ -43,14 +43,10 @@ GRAFANA_DATASOURCE_TEMPLATE = {
 	"user": "",
 	"database": "",
 	"basicAuth": True,
-	"isDefault": True,
+	"isDefault": False,
 	"jsonData": {
 		"tlsSkipVerify": True
 	},
-	#"basicAuthUser": "user",
-	#"secureJsonData": {
-	#	"basicAuthPassword": "pass"
-	#},
 	"readOnly": False
 }
 

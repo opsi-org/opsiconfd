@@ -500,7 +500,7 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 
 @webgui_router.post("/api/opsidata/localbootproducts")
 @webgui_router.post("/api/opsidata/products")
-async def products(request: Request): # pylint: disable=too-many-locals, too-many-branches
+async def products(request: Request): # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 	request_data = {}
 	try:
 		request_data = await request.json()
@@ -518,14 +518,18 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 	else:
 		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
 
+
+
 	with mysql.session() as session:
-		where = text("poc.productType= :product_type AND poc.clientId IN (:clients)")
+		where = text("pod.depotId IN :depots AND pod.producttype = :product_type")
 		if request_data.get("filterQuery"):
 			where = and_(
 				where,
-				text("(poc.productId LIKE :search)")
+				text("(pod.productId LIKE :search)")
 			)
 			params["search"] = f"%{request_data['filterQuery']}%"
+
+
 
 		query = select(text("""
 					pod.productId AS productId,
@@ -573,8 +577,8 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 				))\
 				.group_by(text("pod.productId"))\
 				.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
-				.where(text("pod.depotId IN :depots AND pod.producttype = :product_type") # pylint: disable=line-too-long
-			)
+				.where(where)
+
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)
 
@@ -608,7 +612,7 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 
 		products_on_depots = alias(select(text("*"))\
 			.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
-			.where(text("pod.depotId IN :depots AND pod.producttype = :product_type"))\
+			.where(where)\
 			.group_by(text("pod.productId"))
 		)
 		total = session.execute(

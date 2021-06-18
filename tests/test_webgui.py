@@ -36,7 +36,7 @@ test_data = [
 			"perPage": 90,
 			"sortBy": "productId",
 			"sortDesc": False,
-			"filterQuery":"",
+			"filterQuery":""
 		},
 		{
 			"result": {
@@ -423,7 +423,7 @@ test_data = [
 	(
 		{
 			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-			"selectedDepots": [FQDN, "pytest-test-depot.uib.gmbh", "pytest-test-depot2.uib.gmbh"],
+			"selectedDepots": [FQDN, "pytest-test-depot.uib.gmbh","pytest-test-depot2.uib.gmbh"],
 			"type": "LocalbootProduct",
 			"pageNumber":1,
 			"perPage":3,

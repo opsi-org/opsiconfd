@@ -54,7 +54,6 @@ def order_by(query, params):
 
 
 def pagination(query, params):
-	logger.devel(params)
 	if not params.get("perPage"):
 		return query
 	query = query.limit(params["perPage"])
@@ -510,8 +509,12 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 
 	params = {}
 	params["product_type"] = request_data.get("type", "LocalbootProduct")
-	params["clients"] = request_data.get("clients", [""])
-	params["depots"] = request_data.get("depots", [get_configserver_id()])
+	if request_data.get("selectedClients") == []:
+		params["clients"] = [""]
+	else:
+		params["clients"] = request_data.get("selectedClients", [""])
+
+	params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
 
 	with mysql.session() as session:
 		where = text("poc.productType= :product_type AND poc.clientId IN (:clients)")
@@ -524,11 +527,11 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 
 		query = select(text("""
 					pod.productId AS productId,
-					GROUP_CONCAT(pod.depotId SEPARATOR ',') AS depotIds,
+					GROUP_CONCAT(pod.depotId SEPARATOR ',') AS selectedDepots,
 					(
 						SELECT GROUP_CONCAT(poc.clientId SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.clientId IN :clients AND poc.productId=pod.productId
-					) AS clientIds,
+					) AS selectedClients,
 					(
 						SELECT GROUP_CONCAT(poc.installationStatus SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
@@ -580,12 +583,10 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 		for row in result:
 			if row is not None:
 				product = dict(row)
-				logger.devel(product)
-				if product.get("depotIds"):
-					product["depotIds"] = product.get("depotIds").split(",")
-				if product.get("clientIds"):
-					logger.devel(product.get("clientIds"))
-					product["clientIds"] = product.get("clientIds").split(",")
+				if product.get("selectedDepots"):
+					product["selectedDepots"] = product.get("selectedDepots").split(",")
+				if product.get("selectedClients"):
+					product["selectedClients"] = product.get("selectedClients").split(",")
 				if product.get("installationStatus"):
 					product["installationStatus"] = product.get("installationStatus").split(",")
 				if product.get("actionRequest"):
@@ -602,7 +603,15 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					product["depotVersions"] = product.get("depotVersions").split(",")
 			products.append(product)
 
-		total = len(products)
+
+		total = session.execute(
+			select(text("COUNT(*)"))\
+				.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
+				.where(text("pod.depotId IN :depots AND pod.producttype = :product_type")),
+			params
+		).fetchone()[0]
+
+		# total = len(products)
 
 		response_data = {
 			"result": {

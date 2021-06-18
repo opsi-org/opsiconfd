@@ -43,10 +43,10 @@ test_data = [
 				"products": [
 					{
 						"productId": "pytest-prod-0",
-						"depotIds": [
+						"selectedDepots": [
 							FQDN
 						],
-						"clientIds": None,
+						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
 						"actionProgress": None,
@@ -63,10 +63,10 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-1",
-						"depotIds": [
+						"selectedDepots": [
 							FQDN
 						],
-						"clientIds": [
+						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
 						"installationStatus": [
@@ -93,10 +93,10 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-2",
-						"depotIds": [
+						"selectedDepots": [
 							FQDN
 						],
-						"clientIds": None,
+						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
 						"actionProgress": None,
@@ -113,10 +113,10 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-3",
-						"depotIds": [
-							"marvin-t590.uib.local"
+						"selectedDepots": [
+							FQDN
 						],
-						"clientIds": None,
+						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
 						"actionProgress": None,
@@ -133,10 +133,10 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-4",
-						"depotIds": [
+						"selectedDepots": [
 							FQDN
 						],
-						"clientIds": [
+						"selectedClients": [
 							"pytest-client-1.uib.local",
 							"pytest-client-4.uib.local"
 						],
@@ -186,10 +186,10 @@ test_data = [
 				"products": [
 					{
 						"productId": "pytest-prod-0",
-						"depotIds": [
-							"marvin-t590.uib.local"
+						"selectedDepots": [
+							FQDN
 						],
-						"clientIds": None,
+						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
 						"actionProgress": None,
@@ -206,10 +206,10 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-1",
-						"depotIds": [
-							"marvin-t590.uib.local"
+						"selectedDepots": [
+							FQDN
 						],
-						"clientIds": None,
+						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
 						"actionProgress": None,
@@ -226,10 +226,10 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-2",
-						"depotIds": [
-							"marvin-t590.uib.local"
+						"selectedDepots": [
+							FQDN
 						],
-						"clientIds": None,
+						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
 						"actionProgress": None,
@@ -246,10 +246,10 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-3",
-						"depotIds": [
-							"marvin-t590.uib.local"
+						"selectedDepots": [
+							FQDN
 						],
-						"clientIds": None,
+						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
 						"actionProgress": None,
@@ -266,10 +266,10 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-4",
-						"depotIds": [
-							"marvin-t590.uib.local"
+						"selectedDepots": [
+							FQDN
 						],
-						"clientIds": None,
+						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
 						"actionProgress": None,
@@ -287,13 +287,13 @@ test_data = [
 				],
 				"total": 5
 			},
-			"configserver": "marvin-t590.uib.local"
+			"configserver": FQDN
 		}
 	),
 	(
 		{
 			"clients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-    		"depots": ["marvin-t590.uib.local", "test-depot.uib.gmbh"],
+    		"depots": [FQDN, "test-depot.uib.gmbh"],
 			"type": "LocalbootProduct",
 			"pageNumber": 1,
 			"perPage": 2,
@@ -306,10 +306,10 @@ test_data = [
 				"products": [
 					{
 						"productId": "pytest-prod-0",
-						"depotIds": [
-							"marvin-t590.uib.local"
+						"selectedDepots": [
+							FQDN
 						],
-						"clientIds": None,
+						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
 						"actionProgress": None,
@@ -326,10 +326,10 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-1",
-						"depotIds": [
-							"marvin-t590.uib.local"
+						"selectedDepots": [
+							FQDN
 						],
-						"clientIds": [
+						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
 						"installationStatus": [
@@ -355,9 +355,167 @@ test_data = [
 						"productType": "LocalbootProduct"
 					}
 				],
-				"total": 2
+				"total": 5
 			},
-			"configserver": "marvin-t590.uib.local"
+			"configserver": FQDN
+		}
+	),
+	(
+		{
+			"clients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
+    		"depots": [FQDN, "test-depot.uib.gmbh"],
+			"type": "LocalbootProduct",
+			"pageNumber": 2,
+			"perPage": 2,
+			"sortBy": "productId",
+			"sortDesc": False,
+			"filterQuery":"",
+		},
+		{
+			"result": {
+				"products": [
+					{
+						"productId": "pytest-prod-2",
+						"selectedDepots": [
+							FQDN
+						],
+						"selectedClients": None,
+						"installationStatus": None,
+						"actionRequest": None,
+						"actionProgress": None,
+						"actionResult": None,
+						"clientVersions": None,
+						"actions": [
+							"setup",
+							"uninstall"
+						],
+						"depotVersions": [
+							"1.0-1"
+						],
+						"productType": "LocalbootProduct"
+					},
+					{
+						"productId": "pytest-prod-3",
+						"selectedDepots": [
+							FQDN
+						],
+						"selectedClients": None,
+						"installationStatus": None,
+						"actionRequest": None,
+						"actionProgress": None,
+						"actionResult": None,
+						"clientVersions": None,
+						"actions": [
+							"setup",
+							"uninstall"
+						],
+						"depotVersions": [
+							"1.0-1"
+						],
+						"productType": "LocalbootProduct"
+					}
+				],
+				"total": 5
+			},
+			"configserver": FQDN
+		}
+	),
+	(
+		{
+			"clients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
+			"depots": [FQDN, "pytest-test-depot.uib.gmbh", "pytest-test-depot2.uib.gmbh"],
+			"type": "LocalbootProduct",
+			"pageNumber":1,
+			"perPage":3,
+			"sortBy":"productId",
+			"sortDesc":False,
+			"filterQuery":""
+		},
+		{
+			"result": {
+				"products": [
+					{
+						"productId": "pytest-prod-0",
+						"selectedDepots": [
+							FQDN
+						],
+						"selectedClients": None,
+						"installationStatus": None,
+						"actionRequest": None,
+						"actionProgress": None,
+						"actionResult": None,
+						"clientVersions": None,
+						"actions": [
+							"setup",
+							"uninstall"
+						],
+						"depotVersions": [
+							"1.0-1"
+						],
+						"productType": "LocalbootProduct"
+					},
+					{
+						"productId": "pytest-prod-1",
+						"selectedDepots": [
+							FQDN,
+							"pytest-test-depot.uib.gmbh",
+							"pytest-test-depot2.uib.gmbh"
+						],
+						"selectedClients": [
+							"pytest-client-1.uib.local"
+						],
+						"installationStatus": [
+							"not_installed"
+						],
+						"actionRequest": [
+							"setup"
+						],
+						"actionProgress": None,
+						"actionResult": [
+							"none"
+						],
+						"clientVersions": [
+							"1.0-1"
+						],
+						"actions": [
+							"setup",
+							"uninstall"
+						],
+						"depotVersions": [
+							"1.0-1",
+							"1.0-1",
+							"2.0-1"
+						],
+						"productType": "LocalbootProduct"
+					},
+					{
+						"productId": "pytest-prod-2",
+						"selectedDepots": [
+							FQDN,
+							"pytest-test-depot.uib.gmbh",
+							"pytest-test-depot2.uib.gmbh"
+						],
+						"selectedClients": None,
+						"installationStatus": None,
+						"actionRequest": None,
+						"actionProgress": None,
+						"actionResult": None,
+						"clientVersions": None,
+						"actions": [
+							"setup",
+							"uninstall"
+						],
+						"depotVersions": [
+							"1.0-1",
+							"1.0-1",
+							"1.0-1"
+						],
+						"productType": "LocalbootProduct"
+					}
+				],
+				"total": 9
+			},
+			"configserver": FQDN
 		}
 	)
 ]

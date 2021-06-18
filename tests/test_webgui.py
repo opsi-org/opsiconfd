@@ -29,8 +29,8 @@ CONFD_URL = f"https://{FQDN}:4447"
 test_data = [
 	(
 		{
-			"clients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-    		"depots": [FQDN],
+			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
+    		"selectedDepots": [FQDN],
 			"type": "LocalbootProduct",
 			"pageNumber": 1,
 			"perPage": 90,
@@ -292,8 +292,8 @@ test_data = [
 	),
 	(
 		{
-			"clients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-    		"depots": [FQDN, "test-depot.uib.gmbh"],
+			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
+    		"selectedDepots": [FQDN, "test-depot.uib.gmbh"],
 			"type": "LocalbootProduct",
 			"pageNumber": 1,
 			"perPage": 2,
@@ -362,8 +362,8 @@ test_data = [
 	),
 	(
 		{
-			"clients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-    		"depots": [FQDN, "test-depot.uib.gmbh"],
+			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
+    		"selectedDepots": [FQDN, "test-depot.uib.gmbh"],
 			"type": "LocalbootProduct",
 			"pageNumber": 2,
 			"perPage": 2,
@@ -422,8 +422,8 @@ test_data = [
 	),
 	(
 		{
-			"clients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-			"depots": [FQDN, "pytest-test-depot.uib.gmbh", "pytest-test-depot2.uib.gmbh"],
+			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
+			"selectedDepots": [FQDN, "pytest-test-depot.uib.gmbh", "pytest-test-depot2.uib.gmbh"],
 			"type": "LocalbootProduct",
 			"pageNumber":1,
 			"perPage":3,
@@ -513,7 +513,7 @@ test_data = [
 						"productType": "LocalbootProduct"
 					}
 				],
-				"total": 9
+				"total": 5
 			},
 			"configserver": FQDN
 		}

@@ -533,6 +533,8 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 
 		query = select(text("""
 					pod.productId AS productId,
+					p.name AS name,
+					p.description AS description,
 					GROUP_CONCAT(pod.depotId SEPARATOR ',') AS selectedDepots,
 					(
 						SELECT GROUP_CONCAT(poc.clientId SEPARATOR ',')
@@ -575,9 +577,17 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					pod.productType AS productType
 				"""
 				))\
-				.group_by(text("pod.productId"))\
 				.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
-				.where(where)
+				.join(text("PRODUCT AS p"),
+					text("""
+						p.productId=pod.productId
+						 AND p.productVersion=pod.productVersion
+						 AND p.packageVersion=pod.packageVersion
+					"""
+					)
+				)\
+				.where(where)\
+				.group_by(text("pod.productId"))
 
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)

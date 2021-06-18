@@ -6,7 +6,6 @@
 # License: AGPL-3.0
 
 import random
-from aiohttp.client import request
 import requests
 import urllib3
 

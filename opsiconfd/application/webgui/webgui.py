@@ -54,6 +54,7 @@ def order_by(query, params):
 
 
 def pagination(query, params):
+	logger.devel(params)
 	if not params.get("perPage"):
 		return query
 	query = query.limit(params["perPage"])
@@ -530,26 +531,26 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					) AS clientIds,
 					(
 						SELECT GROUP_CONCAT(poc.installationStatus SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 					) AS installationStatus,
 					(
 						SELECT GROUP_CONCAT(poc.actionRequest SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 					) AS actionRequest,
 					(
 						SELECT GROUP_CONCAT(poc.actionProgress SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 					) AS actionProgress,
 					(
 						SELECT GROUP_CONCAT(poc.actionResult SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 					) AS actionResult,
 					(
 						SELECT GROUP_CONCAT(CONCAT(poc.productVersion,'-',poc.packageVersion) SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 					) AS clientVersions,
 					(
-						SELECT CONCAT_WS(', ',
+						SELECT CONCAT_WS(',',
 							IF(setupScript <> '','setup', NULL),
 							IF(uninstallScript <> '','uninstall',NULL),
 							IF(updateScript <> '','update',NULL),
@@ -579,9 +580,11 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 		for row in result:
 			if row is not None:
 				product = dict(row)
+				logger.devel(product)
 				if product.get("depotIds"):
 					product["depotIds"] = product.get("depotIds").split(",")
 				if product.get("clientIds"):
+					logger.devel(product.get("clientIds"))
 					product["clientIds"] = product.get("clientIds").split(",")
 				if product.get("installationStatus"):
 					product["installationStatus"] = product.get("installationStatus").split(",")

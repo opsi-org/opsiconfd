@@ -66,6 +66,8 @@ def create_depot(opsi_url, depot_name):
 @pytest.fixture(autouse=True)
 def create_check_data(config):
 
+	print("create_check_data")
+
 	mysql_host = os.environ.get("MYSQL_HOST")
 	if not mysql_host:
 		mysql_host = "127.0.0.1"
@@ -76,14 +78,28 @@ def create_check_data(config):
 	db.autocommit(True)
 	cursor = db.cursor()
 
+	# cursor.execute(
+	# 	(
+	# 		'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
+	# 		'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
+	# 		'DELETE FROM OBJECT_TO_GROUP WHERE groupId like "pytest%";'
+	# 		'DELETE FROM PRODUCT WHERE productId like "pytest%";'
+	# 		'DELETE FROM HOST WHERE hostId like "pytest%";'
+	# 		'DELETE FROM opsi.GROUP WHERE groupId like "pytest%";'
+	# 	)
+	# )
+
 	cursor.execute(
 		(
-			'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
-			'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
-			'DELETE FROM OBJECT_TO_GROUP WHERE groupId like "pytest%";'
-			'DELETE FROM PRODUCT WHERE productId like "pytest%";'
-			'DELETE FROM HOST WHERE hostId like "pytest%";'
-			'DELETE FROM opsi.GROUP WHERE groupId like "pytest%";'
+			'DELETE FROM PRODUCT_ON_DEPOT;'
+			'DELETE FROM PRODUCT_ON_CLIENT;'
+			'DELETE FROM PRODUCT_PROPERTY_VALUE;'
+			'DELETE FROM PRODUCT_PROPERTY;'
+			'DELETE FROM PRODUCT_DEPENDENCY;'
+			'DELETE FROM OBJECT_TO_GROUP;'
+			'DELETE FROM PRODUCT;'
+			'DELETE FROM HOST WHERE type!="OpsiConfigserver";'
+			'DELETE FROM opsi.GROUP;'
 		)
 	)
 
@@ -92,8 +108,8 @@ def create_check_data(config):
 		sql_string = (f'INSERT INTO HOST (hostId, type, created, lastSeen) VALUES ("pytest-client-{i}.uib.local", '
 			f'"OpsiClient", "{now}", "{now}");')
 		cursor.execute(sql_string)
-		sql_string = ('INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
-			f'VALUES ("pytest-prod-{i}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {i}", 60+{i});')  # pylint: disable=line-too-long
+		sql_string = ('INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority, setupScript, uninstallScript) '
+			f'VALUES ("pytest-prod-{i}", "1.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT {i}", 60+{i}, "setup.opsiscript", "uninstall.opsiscript");')  # pylint: disable=line-too-long
 		cursor.execute(sql_string)
 		sql_string = f'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES ("pytest-prod-{i}", "1.0", "1", "{socket.getfqdn()}", "LocalbootProduct");' # pylint: disable=line-too-long
 		cursor.execute(sql_string)
@@ -191,16 +207,16 @@ def create_check_data(config):
 	yield
 
 	cursor = db.cursor()
-	cursor.execute(
-		(
-			'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
-			'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
-			'DELETE FROM OBJECT_TO_GROUP WHERE groupId like "pytest%";'
-			'DELETE FROM PRODUCT WHERE productId like "pytest%";'
-			'DELETE FROM HOST WHERE hostId like "pytest%";'
-			'DELETE FROM opsi.GROUP WHERE groupId like "pytest%";'
-		)
-	)
+	# cursor.execute(
+	# 	(
+	# 		'DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "pytest%";'
+	# 		'DELETE FROM PRODUCT_ON_CLIENT WHERE productId like "pytest%";'
+	# 		'DELETE FROM OBJECT_TO_GROUP WHERE groupId like "pytest%";'
+	# 		'DELETE FROM PRODUCT WHERE productId like "pytest%";'
+	# 		'DELETE FROM HOST WHERE hostId like "pytest%";'
+	# 		'DELETE FROM opsi.GROUP WHERE groupId like "pytest%";'
+	# 	)
+	# )
 	cursor.close()
 
 @pytest.fixture(autouse=True)

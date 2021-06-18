@@ -116,9 +116,9 @@ class OpsiconfdBackend(metaclass=Singleton):
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
-		host = self._backend.host_getObjects(type="OpsiDepotserver", id=hostId)  # pylint: disable=no-member
-		if not host or not host[0] or host[0].getType() != "OpsiDepotserver":
-			raise BackendPermissionDeniedError(f"Not a depotserver: {hostId}")
+		host = self._backend.host_getObjects(id=hostId)  # pylint: disable=no-member
+		if not host or not host[0] or host[0].getType() in ("OpsiDepotserver", "OpsiClient"):
+			raise BackendPermissionDeniedError(f"Invalid host: {hostId}")
 		host = host[0]
 		if not session.user_store.isAdmin and session.user_store.username != host.id:
 			raise BackendPermissionDeniedError("Insufficient permissions")
@@ -130,21 +130,22 @@ class OpsiconfdBackend(metaclass=Singleton):
 			try:
 				ip_addresses.add(ipaddress.ip_address(host.ipAddress).compressed)
 			except ValueError as err:
-				logger.error("Invalid depot ip address '%s': %s", host.ipAddress, err)
+				logger.error("Invalid host ip address '%s': %s", host.ipAddress, err)
 		try:
 			ip_addresses.add(socket.gethostbyname(host.id))
 		except socket.error as err:
-			logger.warning("Failed to get ip address of '%s': %s", host.id, err)
+			logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
 
-		for url_type in ('depotRemoteUrl', 'depotWebdavUrl', 'repositoryRemoteUrl', 'workbenchRemoteUrl'):
-			if getattr(host, url_type):
-				address = urlparse(getattr(host, url_type)).hostname
-				if address:
-					try:
-						ip_addresses.add(ipaddress.ip_address(address).compressed)
-					except ValueError:
-						# Not an ip address
-						hostnames.add(address)
+		if host.getType() == "OpsiDepotserver":
+			for url_type in ('depotRemoteUrl', 'depotWebdavUrl', 'repositoryRemoteUrl', 'workbenchRemoteUrl'):
+				if getattr(host, url_type):
+					address = urlparse(getattr(host, url_type)).hostname
+					if address:
+						try:
+							ip_addresses.add(ipaddress.ip_address(address).compressed)
+						except ValueError:
+							# Not an ip address
+							hostnames.add(address)
 
 		from .ssl import (  # pylint: disable=import-outside-toplevel
 			create_server_cert, as_pem, load_ca_key, load_ca_cert, get_domain

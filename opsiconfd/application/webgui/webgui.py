@@ -604,14 +604,15 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 			products.append(product)
 
 
+		products_on_depots = alias(select(text("*"))\
+			.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
+			.where(text("pod.depotId IN :depots AND pod.producttype = :product_type"))\
+			.group_by(text("pod.productId"))
+		)
 		total = session.execute(
-			select(text("COUNT(*)"))\
-				.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
-				.where(text("pod.depotId IN :depots AND pod.producttype = :product_type")),
+			select(text("COUNT(*)")).select_from(products_on_depots),
 			params
 		).fetchone()[0]
-
-		# total = len(products)
 
 		response_data = {
 			"result": {

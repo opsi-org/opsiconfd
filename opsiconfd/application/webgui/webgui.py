@@ -513,8 +513,10 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 		params["clients"] = [""]
 	else:
 		params["clients"] = request_data.get("selectedClients", [""])
-
-	params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
+	if request_data.get("selectedDepots") == []:
+		params["depots"] = [get_configserver_id()]
+	else:
+		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
 
 	with mysql.session() as session:
 		where = text("poc.productType= :product_type AND poc.clientId IN (:clients)")

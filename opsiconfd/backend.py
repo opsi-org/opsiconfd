@@ -124,17 +124,13 @@ class OpsiconfdBackend(metaclass=Singleton):
 			raise BackendPermissionDeniedError("Insufficient permissions")
 
 		common_name = host.id
-		ip_addresses = set()
-		hostnames = set()
+		ip_addresses = {"127.0.0.1", "::1"}
+		hostnames = {"localhost", common_name}
 		if host.ipAddress:
 			try:
 				ip_addresses.add(ipaddress.ip_address(host.ipAddress).compressed)
 			except ValueError as err:
 				logger.error("Invalid host ip address '%s': %s", host.ipAddress, err)
-		try:
-			ip_addresses.add(socket.gethostbyname(host.id))
-		except socket.error as err:
-			logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
 
 		if host.getType() == "OpsiDepotserver":
 			for url_type in ('depotRemoteUrl', 'depotWebdavUrl', 'repositoryRemoteUrl', 'workbenchRemoteUrl'):
@@ -146,6 +142,10 @@ class OpsiconfdBackend(metaclass=Singleton):
 						except ValueError:
 							# Not an ip address
 							hostnames.add(address)
+			try:
+				ip_addresses.add(socket.gethostbyname(host.id))
+			except socket.error as err:
+				logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
 
 		from .ssl import (  # pylint: disable=import-outside-toplevel
 			create_server_cert, as_pem, load_ca_key, load_ca_cert, get_domain

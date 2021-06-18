@@ -517,6 +517,79 @@ test_data = [
 			},
 			"configserver": FQDN
 		}
+	),
+	(
+		{
+			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
+			"selectedDepots": [FQDN, "pytest-test-depot.uib.gmbh","pytest-test-depot2.uib.gmbh"],
+			"type": "LocalbootProduct",
+			"pageNumber":1,
+			"perPage":3,
+			"sortBy":"productId",
+			"sortDesc":False,
+			"filterQuery":"prod-1"
+		},
+		{
+			"result": {
+				"products": [
+					{
+						"productId": "pytest-prod-1",
+						"selectedDepots": [
+							"marvin-t590.uib.local",
+							"pytest-test-depot.uib.gmbh",
+							"pytest-test-depot2.uib.gmbh"
+						],
+						"selectedClients": [
+							"pytest-client-1.uib.local"
+						],
+						"installationStatus": [
+							"not_installed"
+						],
+						"actionRequest": [
+							"setup"
+						],
+						"actionProgress": None,
+						"actionResult": [
+							"none"
+						],
+						"clientVersions": [
+							"1.0-1"
+						],
+						"actions": [
+							"setup",
+							"uninstall"
+						],
+						"depotVersions": [
+							"1.0-1",
+							"1.0-1",
+							"2.0-1"
+						],
+						"productType": "LocalbootProduct"
+					}
+				],
+				"total": 1
+			},
+			"configserver": "marvin-t590.uib.local"
+		}
+	),
+	(
+		{
+			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
+			"selectedDepots": [FQDN, "pytest-test-depot.uib.gmbh","pytest-test-depot2.uib.gmbh"],
+			"type": "LocalbootProduct",
+			"pageNumber":1,
+			"perPage":3,
+			"sortBy":"productId",
+			"sortDesc":False,
+			"filterQuery":"ffff"
+		},
+		{
+			"result": {
+				"products": [],
+				"total": 0
+			},
+			"configserver": "marvin-t590.uib.local"
+		}
 	)
 ]
 

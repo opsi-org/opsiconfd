@@ -11,7 +11,7 @@ webgui
 import os
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
-from sqlalchemy import select, text, and_, asc, desc, column, alias
+from sqlalchemy import select, text, and_, or_, asc, desc, column, alias
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
@@ -387,6 +387,65 @@ async def depots(request: Request):
 		return JSONResponse(response_data)
 
 
+@webgui_router.post("/api/opsidata/depots/clients")
+async def clients_on_depots(request: Request):
+	request_data = {}
+	try:
+		request_data = await request.json()
+	except ValueError:
+		pass
+
+
+	params = {}
+	if request_data.get("selectedDepots") == []:
+			params["depots"] = [get_configserver_id()]
+	else:
+		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
+
+	with mysql.session() as session:
+		where = text("cs.configId='clientconfig.depot.id'")
+		for idx, depot in enumerate(params["depots"]):
+			if idx > 0:
+				where_depots = or_(where_depots,text(f"cs.values LIKE '%{depot}%'"))#
+			else:
+				 where_depots = text(f"cs.values LIKE '%{depot}%'")
+
+		where = and_(where, where_depots)
+
+		query = select(text("cs.objectId AS client"))\
+			.select_from(text("CONFIG_STATE AS cs"))\
+			.where(where)
+
+		result = session.execute(query, params)
+		result = result.fetchall()
+
+		clients_on_depots = alias(select(text("*"))\
+			.select_from(text("CONFIG_STATE AS cs"))\
+			.where(where)
+		)
+
+		total = session.execute(
+			select(text("COUNT(*)")).select_from(clients_on_depots),
+			params
+		).fetchone()[0]
+
+		clients = []
+
+		for row in result:
+			if row is not None:
+				if dict(row).get("client"):
+					clients.append( dict(row).get("client"))
+
+		response_data = {
+			"result": {
+				"clients": clients,
+				"total": total
+			},
+			"configserver": get_configserver_id()
+		}
+		return JSONResponse(response_data)
+
+
 @webgui_router.get("/api/opsidata/clients")
 @webgui_router.post("/api/opsidata/clients")
 async def clients(request: Request):  # pylint: disable=too-many-branches
@@ -577,7 +636,7 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					pod.productType AS productType
 				"""
 				))\
-				.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
+				.select_from(text("PRODUCT_ON_DEPOT AS pod")).where(where).group_by(text("pod.productId"))\
 				.join(text("PRODUCT AS p"),
 					text("""
 						p.productId=pod.productId
@@ -585,9 +644,7 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 						 AND p.packageVersion=pod.packageVersion
 					"""
 					)
-				)\
-				.where(where)\
-				.group_by(text("pod.productId"))
+				)
 
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)

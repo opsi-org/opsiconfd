@@ -571,6 +571,11 @@ async def depots_of_clients(request: Request):
 		for row in result:
 			tmp_dict = dict(row)
 			response[tmp_dict.get("client")] = tmp_dict.get("values")[2:-2]
+			params["clients"].remove(tmp_dict.get("client"))
+
+		for client in params["clients"]:
+			response[client] = get_configserver_id()
+
 
 		response_data = {
 			"result": response

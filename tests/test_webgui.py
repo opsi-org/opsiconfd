@@ -293,7 +293,7 @@ test_data = [
 	(
 		{
 			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-    		"selectedDepots": [FQDN, "test-depot.uib.gmbh"],
+    		"selectedDepots": [FQDN, "test-depot.uib.gmbh"].sort(),
 			"type": "LocalbootProduct",
 			"pageNumber": 1,
 			"perPage": 2,
@@ -363,7 +363,7 @@ test_data = [
 	(
 		{
 			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-    		"selectedDepots": [FQDN, "test-depot.uib.gmbh"],
+    		"selectedDepots": [FQDN, "test-depot.uib.gmbh"].sort(),
 			"type": "LocalbootProduct",
 			"pageNumber": 2,
 			"perPage": 2,
@@ -460,7 +460,7 @@ test_data = [
 							FQDN,
 							"pytest-test-depot.uib.gmbh",
 							"pytest-test-depot2.uib.gmbh"
-						],
+						].sort(),
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
@@ -494,7 +494,7 @@ test_data = [
 							FQDN,
 							"pytest-test-depot.uib.gmbh",
 							"pytest-test-depot2.uib.gmbh"
-						],
+						].sort(),
 						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
@@ -538,7 +538,7 @@ test_data = [
 							"marvin-t590.uib.local",
 							"pytest-test-depot.uib.gmbh",
 							"pytest-test-depot2.uib.gmbh"
-						],
+						].sort(),
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],

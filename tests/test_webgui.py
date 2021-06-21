@@ -43,6 +43,7 @@ test_data = [
 				"products": [
 					{
 						"productId": "pytest-prod-0",
+						'name': 'Pytest dummy PRODUCT 0', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -63,6 +64,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-1",
+						'name': 'Pytest dummy PRODUCT 1', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -93,6 +95,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-2",
+						'name': 'Pytest dummy PRODUCT 2', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -113,6 +116,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-3",
+						'name': 'Pytest dummy PRODUCT 3', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -133,6 +137,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-4",
+						'name': 'Pytest dummy PRODUCT 4', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -186,6 +191,7 @@ test_data = [
 				"products": [
 					{
 						"productId": "pytest-prod-0",
+						'name': 'Pytest dummy PRODUCT 0', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -206,6 +212,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-1",
+						'name': 'Pytest dummy PRODUCT 1', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -226,6 +233,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-2",
+						'name': 'Pytest dummy PRODUCT 2', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -246,6 +254,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-3",
+						'name': 'Pytest dummy PRODUCT 3', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -266,6 +275,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-4",
+						'name': 'Pytest dummy PRODUCT 4', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -293,7 +303,7 @@ test_data = [
 	(
 		{
 			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-    		"selectedDepots": [FQDN, "test-depot.uib.gmbh"].sort(),
+    		"selectedDepots": sorted([FQDN, "test-depot.uib.gmbh"]),
 			"type": "LocalbootProduct",
 			"pageNumber": 1,
 			"perPage": 2,
@@ -306,6 +316,7 @@ test_data = [
 				"products": [
 					{
 						"productId": "pytest-prod-0",
+						'name': 'Pytest dummy PRODUCT 0', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -326,6 +337,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-1",
+						'name': 'Pytest dummy PRODUCT 1', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -363,7 +375,7 @@ test_data = [
 	(
 		{
 			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-    		"selectedDepots": [FQDN, "test-depot.uib.gmbh"].sort(),
+    		"selectedDepots": sorted([FQDN, "test-depot.uib.gmbh"]),
 			"type": "LocalbootProduct",
 			"pageNumber": 2,
 			"perPage": 2,
@@ -376,6 +388,7 @@ test_data = [
 				"products": [
 					{
 						"productId": "pytest-prod-2",
+						'name': 'Pytest dummy PRODUCT 2', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -396,6 +409,7 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-3",
+						'name': 'Pytest dummy PRODUCT 3', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -436,6 +450,7 @@ test_data = [
 				"products": [
 					{
 						"productId": "pytest-prod-0",
+						'name': 'Pytest dummy PRODUCT 0', 'description': None,
 						"selectedDepots": [
 							FQDN
 						],
@@ -456,11 +471,12 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-1",
-						"selectedDepots": [
+						'name': 'Pytest dummy PRODUCT 1', 'description': None,
+						"selectedDepots": sorted([
 							FQDN,
 							"pytest-test-depot.uib.gmbh",
 							"pytest-test-depot2.uib.gmbh"
-						].sort(),
+						]),
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
@@ -490,11 +506,12 @@ test_data = [
 					},
 					{
 						"productId": "pytest-prod-2",
-						"selectedDepots": [
+						'name': 'Pytest dummy PRODUCT 2', 'description': None,
+						"selectedDepots": sorted([
 							FQDN,
 							"pytest-test-depot.uib.gmbh",
 							"pytest-test-depot2.uib.gmbh"
-						].sort(),
+						]),
 						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
@@ -534,11 +551,12 @@ test_data = [
 				"products": [
 					{
 						"productId": "pytest-prod-1",
-						"selectedDepots": [
-							"marvin-t590.uib.local",
+						'name': 'Pytest dummy PRODUCT 1', 'description': None,
+						"selectedDepots": sorted([
+							FQDN,
 							"pytest-test-depot.uib.gmbh",
 							"pytest-test-depot2.uib.gmbh"
-						].sort(),
+						]),
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
@@ -569,7 +587,7 @@ test_data = [
 				],
 				"total": 1
 			},
-			"configserver": "marvin-t590.uib.local"
+			"configserver": FQDN
 		}
 	),
 	(
@@ -588,7 +606,7 @@ test_data = [
 				"products": [],
 				"total": 0
 			},
-			"configserver": "marvin-t590.uib.local"
+			"configserver": FQDN
 		}
 	)
 ]
@@ -602,5 +620,6 @@ async def test_products(input_data, expected_result, create_check_data): # pylin
 	res = requests.post(f"{CONFD_URL}/webgui/api/opsidata/products", auth=(TEST_USER, TEST_PW), verify=False, data=data)
 	print(res.json())
 	print(expected_result)
+
 	assert res.status_code == 200
 	assert res.json() == expected_result

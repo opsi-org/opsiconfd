@@ -58,7 +58,7 @@ pyinstaller-poetry:
   dirname: opsiconfd
   after_script: |
     cp dist/opsiconfd/opsiconfd_data/static/favicon.ico dist/opsiconfd/wsgidav/dir_browser/htdocs/favicon.ico
-    sed s'#<title>WsgiDAV - Index of#<title>opsiconfd - Index of#' dist/opsiconfd/wsgidav/dir_browser/htdocs/template.html
+    sed -i s'#<title>WsgiDAV - Index of#<title>opsiconfd - Index of#' dist/opsiconfd/wsgidav/dir_browser/htdocs/template.html
     find dist/opsiconfd -iname "*.c" -delete
     find dist/opsiconfd -iname "*.h" -delete
     find dist/opsiconfd -iname "*.so" -exec chmod -x "{}" \;

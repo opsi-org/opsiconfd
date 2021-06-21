@@ -16,7 +16,6 @@ from sqlalchemy import select, text, and_, or_, asc, desc, column, alias
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from starlette import responses
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
@@ -408,7 +407,7 @@ async def clients_on_depots(request: Request):
 			if idx > 0:
 				where_depots = or_(where_depots,text(f"cs.values LIKE '%{depot}%'"))#
 			else:
-				 where_depots = text(f"cs.values LIKE '%{depot}%'")
+				where_depots = text(f"cs.values LIKE '%{depot}%'")
 
 		where = and_(where, where_depots)
 
@@ -419,7 +418,7 @@ async def clients_on_depots(request: Request):
 		result = session.execute(query, params)
 		result = result.fetchall()
 
-		clients = []
+		clients = [] # pylint: disable=redefined-outer-name
 		for row in result:
 			if row is not None:
 				if dict(row).get("client"):
@@ -545,7 +544,7 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 
 
 @webgui_router.post("/api/opsidata/clients/depots")
-async def clients_on_depots(request: Request):
+async def depots_of_clients(request: Request):
 	request_data = {}
 	try:
 		request_data = await request.json()
@@ -669,6 +668,7 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)
+
 
 		result = session.execute(query, params)
 		result = result.fetchall()

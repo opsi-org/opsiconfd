@@ -16,6 +16,7 @@ from sqlalchemy import select, text, and_, or_, asc, desc, column, alias
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette import responses
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
@@ -542,6 +543,40 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 		}
 		return JSONResponse(response_data)
 
+
+@webgui_router.post("/api/opsidata/clients/depots")
+async def clients_on_depots(request: Request):
+	request_data = {}
+	try:
+		request_data = await request.json()
+	except ValueError:
+		pass
+
+	params = {}
+	if request_data.get("selectedClients") == []:
+		params["clients"] = [""]
+	else:
+		params["clients"] = request_data.get("selectedClients", [""])
+
+	with mysql.session() as session:
+		where = text("cs.configId='clientconfig.depot.id' AND cs.objectId IN :clients")
+
+		query = select(text("cs.objectId AS client, cs.values"))\
+			.select_from(text("CONFIG_STATE AS cs"))\
+			.where(where)
+
+		result = session.execute(query, params)
+		result = result.fetchall()
+
+		response = {}
+		for row in result:
+			tmp_dict = dict(row)
+			response[tmp_dict.get("client")] = tmp_dict.get("values")[2:-2]
+
+		response_data = {
+			"result": response
+		}
+		return JSONResponse(response_data)
 
 @webgui_router.post("/api/opsidata/localbootproducts")
 @webgui_router.post("/api/opsidata/products")

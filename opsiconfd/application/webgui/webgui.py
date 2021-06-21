@@ -395,10 +395,9 @@ async def clients_on_depots(request: Request):
 	except ValueError:
 		pass
 
-
 	params = {}
 	if request_data.get("selectedDepots") == []:
-			params["depots"] = [get_configserver_id()]
+		params["depots"] = [get_configserver_id()]
 	else:
 		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
 
@@ -419,18 +418,7 @@ async def clients_on_depots(request: Request):
 		result = session.execute(query, params)
 		result = result.fetchall()
 
-		clients_on_depots = alias(select(text("*"))\
-			.select_from(text("CONFIG_STATE AS cs"))\
-			.where(where)
-		)
-
-		total = session.execute(
-			select(text("COUNT(*)")).select_from(clients_on_depots),
-			params
-		).fetchone()[0]
-
 		clients = []
-
 		for row in result:
 			if row is not None:
 				if dict(row).get("client"):
@@ -439,9 +427,7 @@ async def clients_on_depots(request: Request):
 		response_data = {
 			"result": {
 				"clients": clients,
-				"total": total
-			},
-			"configserver": get_configserver_id()
+			}
 		}
 		return JSONResponse(response_data)
 

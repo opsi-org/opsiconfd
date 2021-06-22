@@ -26,6 +26,18 @@ LOCAL_IP = socket.gethostbyname(HOSTNAME)
 FQDN = socket.getfqdn()
 CONFD_URL = f"https://{FQDN}:4447"
 
+
+depots = sorted([
+	FQDN,
+	"pytest-test-depot.uib.gmbh",
+	"pytest-test-depot2.uib.gmbh"
+])
+depot_versions = {
+	FQDN: "1.0-1",
+	"pytest-test-depot.uib.gmbh": "1.0-1",
+	"pytest-test-depot2.uib.gmbh": "2.0-1"
+}
+
 test_data = [
 	(
 		{
@@ -498,20 +510,16 @@ test_data = [
 							"uninstall"
 						],
 						"depotVersions": [
-							"1.0-1",
-							"1.0-1",
-							"2.0-1"
+							depot_versions.get(depots[0]),
+							depot_versions.get(depots[1]),
+							depot_versions.get(depots[2])
 						],
 						"productType": "LocalbootProduct"
 					},
 					{
 						"productId": "pytest-prod-2",
 						'name': 'Pytest dummy PRODUCT 2', 'description': None,
-						"selectedDepots": sorted([
-							FQDN,
-							"pytest-test-depot.uib.gmbh",
-							"pytest-test-depot2.uib.gmbh"
-						]),
+						"selectedDepots": depots,
 						"selectedClients": None,
 						"installationStatus": None,
 						"actionRequest": None,
@@ -552,11 +560,7 @@ test_data = [
 					{
 						"productId": "pytest-prod-1",
 						'name': 'Pytest dummy PRODUCT 1', 'description': None,
-						"selectedDepots": sorted([
-							FQDN,
-							"pytest-test-depot.uib.gmbh",
-							"pytest-test-depot2.uib.gmbh"
-						]),
+						"selectedDepots": depots,
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
@@ -578,9 +582,9 @@ test_data = [
 							"uninstall"
 						],
 						"depotVersions": [
-							"1.0-1",
-							"1.0-1",
-							"2.0-1"
+							depot_versions.get(depots[0]),
+							depot_versions.get(depots[1]),
+							depot_versions.get(depots[2])
 						],
 						"productType": "LocalbootProduct"
 					}

@@ -170,6 +170,17 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		CW = '\033[1;39;49m'
 		CY = '\033[0;33;49m'
 
+	def _split_lines(self, text, width):
+		# The textwrap module is used only for formatting help.
+		# Delay its import for speeding up the common usage of argparse.
+		text = text.replace("[env var: ", "\n[env var: ")
+		text = text.replace("(default: ", "\n(default: ")
+		lines = []
+		import textwrap  # pylint: disable=import-outside-toplevel
+		for line in text.split("\n"):
+			lines += textwrap.wrap(line, width)
+		return lines
+
 	def format_help(self):
 		text = HelpFormatter.format_help(self)
 		text = re.sub(r"usage:\s+(\S+)\s+", rf"Usage: {self.CW}\g<1>{self.CN} ", text)
@@ -596,7 +607,11 @@ parser.add(
 	"--redis-internal-url",
 	env_var="OPSICONFD_REDIS_INTERNAL_URL",
 	default="redis://localhost",
-	help="Redis connection url."
+	help=(
+		"Redis connection url. Examples:\n"
+		"rediss://<username>:<password>@redis-server:6379/0\n"
+		"unix:///var/run/redis/redis-server.sock"
+	)
 )
 parser.add(
 	"--grafana-internal-url",

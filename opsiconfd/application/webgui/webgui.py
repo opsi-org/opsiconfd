@@ -9,6 +9,7 @@ webgui
 """
 
 import os
+from _pytest.mark import param
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, or_, asc, desc, column, alias
@@ -401,6 +402,7 @@ async def clients_on_depots(request: Request):
 	else:
 		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
 
+	logger.devel(params)
 	with mysql.session() as session:
 		where = text("cs.configId='clientconfig.depot.id'")
 		for idx, depot in enumerate(params["depots"]):
@@ -417,6 +419,8 @@ async def clients_on_depots(request: Request):
 
 		result = session.execute(query, params)
 		result = result.fetchall()
+
+		logger.devel(result)
 
 		clients = [] # pylint: disable=redefined-outer-name
 		for row in result:
@@ -627,19 +631,19 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					(
 						SELECT GROUP_CONCAT(poc.installationStatus SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
-					) AS installationStatus,
+					) AS installationStatusDetails,
 					(
 						SELECT GROUP_CONCAT(poc.actionRequest SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
-					) AS actionRequest,
+					) AS actionRequestDetails,
 					(
 						SELECT GROUP_CONCAT(poc.actionProgress SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
-					) AS actionProgress,
+					) AS actionProgressDetails,
 					(
 						SELECT GROUP_CONCAT(poc.actionResult SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
-					) AS actionResult,
+					) AS actionResultDetails,
 					(
 						SELECT GROUP_CONCAT(CONCAT(poc.productVersion,'-',poc.packageVersion) SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
@@ -684,22 +688,39 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 				product = dict(row)
 				if product.get("selectedDepots"):
 					product["selectedDepots"] = product.get("selectedDepots").split(",")
-				if product.get("selectedClients"):
-					product["selectedClients"] = product.get("selectedClients").split(",")
-				if product.get("installationStatus"):
-					product["installationStatus"] = product.get("installationStatus").split(",")
-				if product.get("actionRequest"):
-					product["actionRequest"] = product.get("actionRequest").split(",")
-				if product.get("actionProgress"):
-					product["actionProgress"] = product.get("actionProgress").split(",")
-				if product.get("actionResult"):
-					product["actionResult"] = product.get("actionResult").split(",")
-				if product.get("clientVersions"):
-					product["clientVersions"] = product.get("clientVersions").split(",")
 				if product.get("actions"):
 					product["actions"] = product.get("actions").split(",")
 				if product.get("depotVersions"):
 					product["depotVersions"] = product.get("depotVersions").split(",")
+				if product.get("selectedClients"):
+					product["selectedClients"] = product.get("selectedClients").split(",")
+				if product.get("installationStatusDetails"):
+					product["installationStatusDetails"] = product.get("installationStatusDetails").split(",")
+					if all(value == product.get("installationStatusDetails")[0]  for value in product.get("installationStatusDetails")):
+						product["installationStatus"] = product.get("installationStatusDetails")[0]
+					else:
+						product["installationStatus"] = "mixed"
+				if product.get("actionRequestDetails"):
+					product["actionRequestDetails"] = product.get("actionRequestDetails").split(",")
+					if all(value == product.get("actionRequestDetails")[0]  for value in product.get("actionRequestDetails")):
+						product["actionRequest"] = product.get("actionRequestDetails")[0]
+					else:
+						product["actionRequest"] = "mixed"
+				if product.get("actionProgressDetails"):
+					product["actionProgressDetails"] = product.get("actionProgressDetails").split(",")
+					if all(value == product.get("actionProgressDetails")[0]  for value in product.get("actionProgressDetails")):
+						product["actionProgress"] = product.get("actionProgressDetails")[0]
+					else:
+						product["actionProgress"] = "mixed"
+				if product.get("actionResultDetails"):
+					product["actionResultDetails"] = product.get("actionResultDetails").split(",")
+					if all(value == product.get("actionResultDetails")[0]  for value in product.get("actionResultDetails")):
+						product["actionResult"] = product.get("actionResultDetails")[0]
+					else:
+						product["actionResult"] = "mixed"
+				if product.get("clientVersions"):
+					product["clientVersions"] = product.get("clientVersions").split(",")
+
 			products.append(product)
 
 

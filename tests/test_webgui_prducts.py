@@ -63,7 +63,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -86,16 +86,19 @@ test_data = [
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
-						"installationStatus": [
+						"installationStatusDetails": [
 							"not_installed"
 						],
-						"actionRequest": [
+						"installationStatus": "not_installed",
+						"actionRequestDetails": [
 							"setup"
 						],
+						"actionRequest": "setup",
 						"actionProgress": None,
-						"actionResult": [
+						"actionResultDetails": [
 							"none"
 						],
+						"actionResult": "none",
 						"clientVersions": [
 							"1.0-1"
 						],
@@ -115,7 +118,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -136,7 +139,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -160,19 +163,22 @@ test_data = [
 							"pytest-client-1.uib.local",
 							"pytest-client-4.uib.local"
 						],
-						"installationStatus": [
+						"installationStatusDetails": [
 							"not_installed",
 							"not_installed"
 						],
-						"actionRequest": [
+						"installationStatus": "not_installed",
+						"actionRequestDetails": [
 							"none",
 							"setup"
 						],
+						"actionRequest": "mixed",
 						"actionProgress": None,
-						"actionResult": [
+						"actionResultDetails": [
 							"none",
 							"none"
 						],
+						"actionResult": "none",
 						"clientVersions": [
 							"1.0-1",
 							"1.0-1"
@@ -211,7 +217,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -232,7 +238,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -253,7 +259,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -274,7 +280,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -295,7 +301,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -336,7 +342,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -359,16 +365,19 @@ test_data = [
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
-						"installationStatus": [
+						"installationStatusDetails": [
 							"not_installed"
 						],
-						"actionRequest": [
+						"installationStatus": "not_installed",
+						"actionRequestDetails": [
 							"setup"
 						],
+						"actionRequest": "setup",
 						"actionProgress": None,
-						"actionResult": [
+						"actionResultDetails": [
 							"none"
 						],
+						"actionResult": "none",
 						"clientVersions": [
 							"1.0-1"
 						],
@@ -408,7 +417,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -429,7 +438,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -470,7 +479,7 @@ test_data = [
 							FQDN
 						],
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -495,16 +504,19 @@ test_data = [
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
-						"installationStatus": [
+						"installationStatusDetails": [
 							"not_installed"
 						],
-						"actionRequest": [
+						"installationStatus": "not_installed",
+						"actionRequestDetails": [
 							"setup"
 						],
+						"actionRequest": "setup",
 						"actionProgress": None,
-						"actionResult": [
+						"actionResultDetails": [
 							"none"
 						],
+						"actionResult": "none",
 						"clientVersions": [
 							"1.0-1"
 						],
@@ -524,7 +536,7 @@ test_data = [
 						'name': 'Pytest dummy PRODUCT 2', 'description': None,
 						"selectedDepots": depots,
 						"selectedClients": None,
-						"installationStatus": None,
+						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
 						"actionResult": None,
@@ -567,16 +579,19 @@ test_data = [
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
-						"installationStatus": [
+						"installationStatusDetails": [
 							"not_installed"
 						],
-						"actionRequest": [
+						"installationStatus": "not_installed",
+						"actionRequestDetails": [
 							"setup"
 						],
+						"actionRequest": "setup",
 						"actionProgress": None,
-						"actionResult": [
+						"actionResultDetails": [
 							"none"
 						],
+						"actionResult": "none",
 						"clientVersions": [
 							"1.0-1"
 						],

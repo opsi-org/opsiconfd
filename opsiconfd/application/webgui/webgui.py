@@ -9,7 +9,6 @@ webgui
 """
 
 import os
-from _pytest.mark import param
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, or_, asc, desc, column, alias
@@ -700,24 +699,36 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 						product["installationStatus"] = product.get("installationStatusDetails")[0]
 					else:
 						product["installationStatus"] = "mixed"
+				else:
+					product["installationStatus"] = "not_installed"
+					del product["installationStatusDetails"]
 				if product.get("actionRequestDetails"):
 					product["actionRequestDetails"] = product.get("actionRequestDetails").split(",")
 					if all(value == product.get("actionRequestDetails")[0]  for value in product.get("actionRequestDetails")):
 						product["actionRequest"] = product.get("actionRequestDetails")[0]
 					else:
 						product["actionRequest"] = "mixed"
+				else:
+					product["actionRequest"] = None
+					del product["actionRequestDetails"]
 				if product.get("actionProgressDetails"):
 					product["actionProgressDetails"] = product.get("actionProgressDetails").split(",")
 					if all(value == product.get("actionProgressDetails")[0]  for value in product.get("actionProgressDetails")):
 						product["actionProgress"] = product.get("actionProgressDetails")[0]
 					else:
 						product["actionProgress"] = "mixed"
+				else:
+					product["actionProgress"] = None
+					del product["actionProgressDetails"]
 				if product.get("actionResultDetails"):
 					product["actionResultDetails"] = product.get("actionResultDetails").split(",")
 					if all(value == product.get("actionResultDetails")[0]  for value in product.get("actionResultDetails")):
 						product["actionResult"] = product.get("actionResultDetails")[0]
 					else:
 						product["actionResult"] = "mixed"
+				else:
+					product["actionResult"] = None
+					del product["actionResultDetails"]
 				if product.get("clientVersions"):
 					product["clientVersions"] = product.get("clientVersions").split(",")
 

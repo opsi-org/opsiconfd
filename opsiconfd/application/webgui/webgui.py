@@ -249,24 +249,43 @@ async def get_host_groups(request: Request):
 	except ValueError:
 		pass
 	params = {}
+	if request_data.get("selectedDepots") == []:
+		params["depots"] = [get_configserver_id()]
+	else:
+		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
 
 
 	where = text("g.`type` = 'HostGroup'")
 
+	for idx, depot in enumerate(params["depots"]):
+		if idx > 0:
+			where_depots = or_(where_depots,text(f"cs.values LIKE '%{depot}%'"))#
+		else:
+			where_depots = text(f"cs.values LIKE '%{depot}%'")
+
 	with mysql.session() as session:
+
+
 
 		query = select(text("""
 			g.parentGroupId AS parent_id,
 			g.groupId AS group_id,
-			og.objectId AS object_id
+			og.objectId AS object_id,
+			TRIM(TRAILING '"]' FROM TRIM(LEADING '["' FROM cs.`values`)) AS depot_id
 		"""))\
 		.select_from(text("`GROUP` AS g"))\
 		.join(text("OBJECT_TO_GROUP AS og"), text("og.groupType = g.`type` AND og.groupId = g.groupId"), isouter=True)\
+		.join(
+			text("CONFIG_STATE AS cs"),
+			and_(text("og.objectId = cs.objectId"), or_(text("cs.configId = 'clientconfig.depot.id'"),text("cs.values IS NULL")), where_depots),
+			isouter=True)\
 		.where(where)
 
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)
 
+
+		logger.devel(query)
 
 		result = session.execute(query, params)
 		result = result.fetchall()
@@ -280,7 +299,6 @@ async def get_host_groups(request: Request):
 		}
 		all_groups = {}
 		for row in result:
-			logger.devel(row["group_id"])
 			if not row["group_id"] in all_groups:
 				all_groups[row["group_id"]] = {
 					"id": row["group_id"],
@@ -297,7 +315,7 @@ async def get_host_groups(request: Request):
 					"type": "ObjectToGroup",
 					"text": row["object_id"],
 					"parent": row["group_id"],
-					"inDepot": "configserver" # TODO
+					"inDepot": row["depot_id"] or get_configserver_id()
 				}
 
 		host_groups = build_tree(root_group, list(all_groups.values()), allowed["host_groups"])
@@ -492,8 +510,6 @@ async def clients_on_depots(request: Request):
 
 		result = session.execute(query, params)
 		result = result.fetchall()
-
-		logger.devel(result)
 
 		clients = [] # pylint: disable=redefined-outer-name
 		for row in result:

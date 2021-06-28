@@ -17,6 +17,7 @@ from sqlalchemy import select, text, and_, or_, asc, desc, column, alias
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.sql.expression import outerjoin
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
@@ -404,17 +405,19 @@ async def clients_on_depots(request: Request):
 
 	logger.devel(params)
 	with mysql.session() as session:
-		where = text("cs.configId='clientconfig.depot.id'")
+		where = text("h.type='OpsiClient'")
 		for idx, depot in enumerate(params["depots"]):
 			if idx > 0:
 				where_depots = or_(where_depots,text(f"cs.values LIKE '%{depot}%'"))#
 			else:
 				where_depots = text(f"cs.values LIKE '%{depot}%'")
+		if get_configserver_id() in params["depots"]:
+			where_depots = or_(where_depots, text("cs.values IS NULL"))
 
 		where = and_(where, where_depots)
-
-		query = select(text("cs.objectId AS client"))\
-			.select_from(text("CONFIG_STATE AS cs"))\
+		query = select(text("h.hostId AS client"))\
+			.select_from(text("HOST AS h"))\
+			.join(text("CONFIG_STATE AS cs"), text("h.hostId = cs.objectId AND cs.configId = 'clientconfig.depot.id'"), isouter=True)\
 			.where(where)
 
 		result = session.execute(query, params)

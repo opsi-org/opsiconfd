@@ -240,6 +240,77 @@ def build_tree(group, groups, allowed, processed=None):
 
 	return group
 
+@webgui_router.post("/api/opsidata/hosts/groups")
+async def get_host_groups(request: Request):
+	allowed = get_allowed_objects()
+	request_data = {}
+	try:
+		request_data = await request.json()
+	except ValueError:
+		pass
+	params = {}
+
+
+	where = text("g.`type` = 'HostGroup'")
+
+	with mysql.session() as session:
+
+		query = select(text("""
+			g.parentGroupId AS parent_id,
+			g.groupId AS group_id,
+			og.objectId AS object_id
+		"""))\
+		.select_from(text("`GROUP` AS g"))\
+		.join(text("OBJECT_TO_GROUP AS og"), text("og.groupType = g.`type` AND og.groupId = g.groupId"), isouter=True)\
+		.where(where)
+
+		query = order_by(query, request_data)
+		query = pagination(query, request_data)
+
+
+		result = session.execute(query, params)
+		result = result.fetchall()
+
+		root_group = {
+			"id": "root",
+			"type": "HostGroup",
+			"text": "root",
+			"parent": None,
+			"allowed": True
+		}
+		all_groups = {}
+		for row in result:
+			logger.devel(row["group_id"])
+			if not row["group_id"] in all_groups:
+				all_groups[row["group_id"]] = {
+					"id": row["group_id"],
+					"type": "HostGroup",
+					"text": row["group_id"],
+					"parent": row["parent_id"] or root_group["id"],
+					"allowed": True
+				}
+			if row["object_id"]:
+				if not "children" in all_groups[row["group_id"]]:
+					all_groups[row["group_id"]]["children"] = {}
+				all_groups[row["group_id"]]["children"][row["object_id"]] = {
+					"id": row["object_id"],
+					"type": "ObjectToGroup",
+					"text": row["object_id"],
+					"parent": row["group_id"],
+					"inDepot": "configserver" # TODO
+				}
+
+		host_groups = build_tree(root_group, list(all_groups.values()), allowed["host_groups"])
+
+
+		response_data = {
+			"result": {
+				"groups": host_groups,
+			}
+		}
+		return JSONResponse(response_data)
+
+
 @webgui_router.get("/api/opsidata/home")
 @webgui_router.post("/api/opsidata/home")
 async def home():

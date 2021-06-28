@@ -17,7 +17,6 @@ from sqlalchemy import select, text, and_, or_, asc, desc, column, alias
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.sql.expression import outerjoin
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN

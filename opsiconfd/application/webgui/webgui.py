@@ -9,6 +9,7 @@ webgui
 """
 
 import os
+import datetime
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, or_, asc, desc, column, alias
@@ -212,7 +213,7 @@ def build_tree(group, groups, allowed, processed=None):
 		processed = []
 	processed.append(group["id"])
 
-	is_root_group = group["parent"] == "#"
+	is_root_group = group["parent"] == "#" #or group["id"] == "clientdirectory"
 	group["allowed"] = is_root_group or allowed == ... or group["id"] in allowed
 
 	children = {}
@@ -583,6 +584,66 @@ async def depots_of_clients(request: Request):
 		response_data = {
 			"result": response
 		}
+		return JSONResponse(response_data)
+
+@webgui_router.post("/api/opsidata/hosts")
+async def get_host_data(request: Request):
+	request_data = {}
+	try:
+		request_data = await request.json()
+	except ValueError:
+		pass
+
+
+
+	params = {}
+	params["hosts"] = request_data.get("hosts")
+
+
+	with mysql.session() as session:
+		where = text("h.hostId IN :hosts")
+		if request_data.get("type"):
+			params["type"] = request_data.get("type")
+			where = and_(where, text("h.type = :type"))
+		query = select(text("""
+			h.hostId AS hostId,
+			h.type AS type,
+			h.description AS description,
+			h.notes AS notes,
+			h.hardwareAddress AS hardwareAddress,
+			h.ipAddress AS ipAddress,
+			h.inventoryNumber AS inventoryNumber,
+			h.created AS created,
+			h.lastSeen AS lastSeen,
+			h.opsiHostKey AS opsiHostKey,
+			h.oneTimePassword AS oneTimePassword
+		"""))\
+		.select_from(text("`HOST` AS h"))\
+		.where(where) # pylint: disable=redefined-outer-name
+
+		query = order_by(query, request_data)
+		query = pagination(query, request_data)
+
+		result = session.execute(query, params)
+		result = result.fetchall()
+
+		host_data = []
+		for row in result:
+			if row is not None:
+				row_dict = dict(row)
+				for key in row_dict.keys():
+					if isinstance(row_dict.get(key), (datetime.date, datetime.datetime)):
+						row_dict[key] = row_dict.get(key).isoformat()
+				host_data.append(row_dict)
+
+		if len(host_data) == 1:
+			response_data = {
+				"result": host_data[0]
+			}
+		else:
+			response_data = {
+				"result": host_data
+			}
 		return JSONResponse(response_data)
 
 @webgui_router.post("/api/opsidata/localbootproducts")

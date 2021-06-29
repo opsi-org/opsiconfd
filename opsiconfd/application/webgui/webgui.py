@@ -241,7 +241,7 @@ def build_tree(group, groups, allowed, processed=None):
 	return group
 
 @webgui_router.post("/api/opsidata/hosts/groups")
-async def get_host_groups(request: Request):
+async def get_host_groups(request: Request): # pylint: disable=too-many-locals
 	allowed = get_allowed_objects()
 	request_data = {}
 	try:
@@ -253,7 +253,6 @@ async def get_host_groups(request: Request):
 		params["depots"] = [get_configserver_id()]
 	else:
 		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
-
 
 	where = text("g.`type` = 'HostGroup'")
 
@@ -307,7 +306,7 @@ async def get_host_groups(request: Request):
 					"type": "ObjectToGroup",
 					"text": row["object_id"],
 					"parent": row["group_id"],
-					"inDepot": row["depot_id"] or get_configserver_id()
+					"depot": row["depot_id"] or get_configserver_id()
 				}
 
 		host_groups = build_tree(root_group, list(all_groups.values()), allowed["host_groups"])
@@ -674,11 +673,8 @@ async def get_host_data(request: Request):
 	except ValueError:
 		pass
 
-
-
 	params = {}
 	params["hosts"] = request_data.get("hosts")
-
 
 	with mysql.session() as session:
 		where = text("h.hostId IN :hosts")
@@ -757,8 +753,6 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 			)
 			params["search"] = f"%{request_data['filterQuery']}%"
 
-
-
 		query = select(text("""
 					pod.productId AS productId,
 					p.name AS name,
@@ -818,7 +812,6 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 		query = order_by(query, request_data)
 		query = pagination(query, request_data)
 
-
 		result = session.execute(query, params)
 		result = result.fetchall()
 
@@ -832,6 +825,13 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					product["actions"] = product.get("actions").split(",")
 				if product.get("depotVersions"):
 					product["depotVersions"] = product.get("depotVersions").split(",")
+					logger.devel("DEPOT VERSION: %s , %s",product["productId"], product.get("depotVersions")[0] )
+					logger.devel(product.get("depotVersions"))
+					logger.devel(any(version != product.get("depotVersions")[0] for version in product.get("depotVersions")))
+					if any(version != product.get("depotVersions")[0] for version in product.get("depotVersions")):
+						product["depot_version_diff"] = True
+					else:
+						product["depot_version_diff"] = False
 				if product.get("selectedClients"):
 					product["selectedClients"] = product.get("selectedClients").split(",")
 				if product.get("installationStatusDetails"):
@@ -872,9 +872,13 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					del product["actionResultDetails"]
 				if product.get("clientVersions"):
 					product["clientVersions"] = product.get("clientVersions").split(",")
+					if any(version != product.get("depotVersions")[idx] for idx, version in enumerate(product.get("clientVersions"))):
+						product["client_version_outdated"] = True
+					else:
+						product["client_version_outdated"] = False
+
 
 			products.append(product)
-
 
 		products_on_depots = alias(select(text("*"))\
 			.select_from(text("PRODUCT_ON_DEPOT AS pod"))\

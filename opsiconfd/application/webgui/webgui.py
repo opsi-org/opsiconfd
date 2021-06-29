@@ -265,8 +265,6 @@ async def get_host_groups(request: Request):
 
 	with mysql.session() as session:
 
-
-
 		query = select(text("""
 			g.parentGroupId AS parent_id,
 			g.groupId AS group_id,
@@ -280,12 +278,6 @@ async def get_host_groups(request: Request):
 			and_(text("og.objectId = cs.objectId"), or_(text("cs.configId = 'clientconfig.depot.id'"),text("cs.values IS NULL")), where_depots),
 			isouter=True)\
 		.where(where)
-
-		query = order_by(query, request_data)
-		query = pagination(query, request_data)
-
-
-		logger.devel(query)
 
 		result = session.execute(query, params)
 		result = result.fetchall()
@@ -319,7 +311,6 @@ async def get_host_groups(request: Request):
 				}
 
 		host_groups = build_tree(root_group, list(all_groups.values()), allowed["host_groups"])
-
 
 		response_data = {
 			"result": {

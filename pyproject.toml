@@ -13,7 +13,7 @@ include = [
 
 [[tool.poetry.source]]
 name = "uibpypi"
-url = "http://pypi.uib.gmbh:8080/simple"
+url = "https://pypi.uib.gmbh/simple"
 
 [tool.poetry.dependencies]
 # We need python 3.7 for contextvars in combination with asyncio

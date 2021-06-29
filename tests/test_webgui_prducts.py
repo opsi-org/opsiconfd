@@ -75,6 +75,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -102,6 +103,7 @@ test_data = [
 						"clientVersions": [
 							"1.0-1"
 						],
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall"
@@ -109,6 +111,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -130,6 +133,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -151,6 +155,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -183,6 +188,7 @@ test_data = [
 							"1.0-1",
 							"1.0-1"
 						],
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall"
@@ -190,6 +196,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					}
 				],
@@ -229,6 +236,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -250,6 +258,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -271,6 +280,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -292,6 +302,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -313,6 +324,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					}
 				],
@@ -381,6 +393,7 @@ test_data = [
 						"clientVersions": [
 							"1.0-1"
 						],
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall"
@@ -388,6 +401,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					}
 				],
@@ -429,6 +443,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -450,6 +465,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					}
 				],
@@ -491,6 +507,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -520,6 +537,7 @@ test_data = [
 						"clientVersions": [
 							"1.0-1"
 						],
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall"
@@ -529,6 +547,7 @@ test_data = [
 							depot_versions.get(depots[1]),
 							depot_versions.get(depots[2])
 						],
+						"depot_version_diff": True,
 						"productType": "LocalbootProduct"
 					},
 					{
@@ -550,6 +569,7 @@ test_data = [
 							"1.0-1",
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					}
 				],
@@ -595,6 +615,7 @@ test_data = [
 						"clientVersions": [
 							"1.0-1"
 						],
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall"
@@ -604,6 +625,7 @@ test_data = [
 							depot_versions.get(depots[1]),
 							depot_versions.get(depots[2])
 						],
+						"depot_version_diff": True,
 						"productType": "LocalbootProduct"
 					}
 				],

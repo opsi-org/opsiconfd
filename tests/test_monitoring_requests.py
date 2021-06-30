@@ -56,7 +56,9 @@ test_data = [
 		{
 			'message': ("CRITICAL: \n"
 				f"Result for Depot: '{socket.getfqdn()}':\n"
-				f"Product 'unknown-product' not found on any client assigned to depot {socket.getfqdn()}."),
+				f"Product 'unknown-product' not found on any client assigned to depot {socket.getfqdn()}."
+				f"Product 'pytest-prod-3' not found on any client assigned to depot {socket.getfqdn()}."
+			),
 			'state': 2
 		}
 	),
@@ -73,7 +75,9 @@ test_data = [
 		{
 			'message': ("CRITICAL: \n"
 				f"Result for Depot: '{socket.getfqdn()}':\n"
-				f"Product 'unknown-product' not found on any client assigned to depot {socket.getfqdn()}."),
+				f"Product 'unknown-product' not found on any client assigned to depot {socket.getfqdn()}."
+				f"Product 'pytest-prod-3' not found on any client assigned to depot {socket.getfqdn()}."
+			),
 			'state': 2
 		}
 	)
@@ -109,7 +113,7 @@ test_data = [
 		False,
 		{
 			'message': (f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\n"
-				"For product 'pytest-prod-1' action set on 2 clients!\n"),
+				"For product 'pytest-prod-1' action set on 1 clients!\n"),
 			'state': 1
 		}
 	),
@@ -120,7 +124,7 @@ test_data = [
 		{
 			'message': ("CRITICAL: \n"
 				f"Result for Depot: '{socket.getfqdn()}':\n"
-				"For product 'pytest-prod-2' problems found on 3 clients!\n"),
+				"For product 'pytest-prod-2' problems found on 2 clients!\n"),
 			'state': 2
 		}
 	),
@@ -130,8 +134,8 @@ test_data = [
 		False,
 		{
 			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
-				"For product 'pytest-prod-1' action set on 2 clients!\n"
-				"For product 'pytest-prod-2' problems found on 3 clients!\n"),
+				"For product 'pytest-prod-1' action set on 1 clients!\n"
+				"For product 'pytest-prod-2' problems found on 2 clients!\n"),
 			'state': 2
 		}
 	),
@@ -150,8 +154,8 @@ test_data = [
 		False,
 		{
 			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
-				"For product 'pytest-prod-1' action set on 2 clients!\n"
-				"For product 'pytest-prod-2' problems found on 3 clients!\n"),
+				"For product 'pytest-prod-1' action set on 1 clients!\n"
+				"For product 'pytest-prod-2' problems found on 2 clients!\n"),
 			'state': 2
 		}
 	)
@@ -188,8 +192,8 @@ test_data = [
 		False,
 		{
 			'message': (
-				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\n"
-				"For product 'pytest-prod-4' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 3 clients!\n"
+				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
+				"For product 'pytest-prod-2' problems found on 2 clients!\n"
 			),
 			'state': 2
 		}
@@ -201,8 +205,8 @@ test_data = [
 		False,
 		{
 			'message': (
-				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\n"
-				"For product 'pytest-prod-4' action set on 1 clients!\nFor product 'pytest-prod-2' problems found on 3 clients!\n"
+				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
+				"For product 'pytest-prod-2' problems found on 2 clients!\n"
 			),
 			'state': 2
 		}
@@ -214,8 +218,8 @@ test_data = [
 		False,
 		{
 			'message': (
-				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 2 clients!\n"
-				"For product 'pytest-prod-2' problems found on 3 clients!\n"
+				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
+				"For product 'pytest-prod-2' problems found on 2 clients!\n"
 			),
 			'state': 2
 		}
@@ -226,8 +230,8 @@ test_data = [
 		False,
 		False,
 		{
-			'message': (f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-4' action set on 1 clients!\n"),
-			'state': 1
+			'message': ("OK: No Problem found for productIds: 'pytest-prod-3,pytest-prod-4'"),
+			'state': 0
 		}
 	)
 ]
@@ -441,11 +445,9 @@ test_data = [
 		True,
 		True,
 		{
-			'message': ("WARNING: Differences found for 2 products:\n"
+			'message': ("WARNING: Differences found for 1 products:\n"
 			f"product 'pytest-prod-1': {socket.getfqdn()} (1.0-1) \n"
-			"pytest-test-depot2.uib.gmbh (2.0-1) \n"
-			f"product 'pytest-prod-3': {socket.getfqdn()} (1.0-1) \n"
-			"pytest-test-depot2.uib.gmbh (not installed) \n"),
+			"pytest-test-depot2.uib.gmbh (2.0-1) \n"),
 			'state': 1
 		}
 	),
@@ -456,10 +458,8 @@ test_data = [
 		True,
 		True,
 		{
-			'message': ("WARNING: Differences found for 2 products:\n"
+			'message': ("WARNING: Differences found for 1 products:\n"
 			"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
-			f"{socket.getfqdn()} (1.0-1) \n"
-			"product 'pytest-prod-3': pytest-test-depot2.uib.gmbh (not installed) \n"
 			f"{socket.getfqdn()} (1.0-1) \n"),
 			'state': 1
 		}

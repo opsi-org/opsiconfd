@@ -216,13 +216,13 @@ def create_check_data(config):
 	# Clients to Depots
 	cursor.execute((
 			'INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) '
-			'VALUES ("clientconfig.depot.id", "pytest-client-1.uib.local", "[\'pytest-test-depot.uib.gmbh\']");'
+			'VALUES ("clientconfig.depot.id", "pytest-client-1.uib.local", \'["pytest-test-depot.uib.gmbh"]\');'
 			'INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) '
-			'VALUES ("clientconfig.depot.id", "pytest-client-2.uib.local", "[\'pytest-test-depot.uib.gmbh\']");'
+			'VALUES ("clientconfig.depot.id", "pytest-client-2.uib.local", \'["pytest-test-depot.uib.gmbh"]\');'
 			'INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) '
-			'VALUES ("clientconfig.depot.id", "pytest-client-3.uib.local", "[\'pytest-test-depot2.uib.gmbh\']");'
+			'VALUES ("clientconfig.depot.id", "pytest-client-3.uib.local",	\'["pytest-test-depot2.uib.gmbh"]\');'
 			'INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) '
-			'VALUES ("clientconfig.depot.id", "pytest-client-4.uib.local", "[\'pytest-test-depot2.uib.gmbh\']");'
+			'VALUES ("clientconfig.depot.id", "pytest-client-4.uib.local", \'["pytest-test-depot2.uib.gmbh"]\');'
 		)
 	)
 
@@ -242,20 +242,20 @@ def create_check_data(config):
 	# 		'DELETE FROM CONFIG_STATE WHERE objectId like "pytest%";'
 	# 	)
 	# )
-	# cursor.execute(
-	# 	(
-	# 		'DELETE FROM PRODUCT_ON_DEPOT;'
-	# 		'DELETE FROM PRODUCT_ON_CLIENT;'
-	# 		'DELETE FROM PRODUCT_PROPERTY_VALUE;'
-	# 		'DELETE FROM PRODUCT_PROPERTY;'
-	# 		'DELETE FROM PRODUCT_DEPENDENCY;'
-	# 		'DELETE FROM OBJECT_TO_GROUP;'
-	# 		'DELETE FROM PRODUCT;'
-	# 		'DELETE FROM HOST WHERE type!="OpsiConfigserver";'
-	# 		'DELETE FROM opsi.GROUP;'
-	# 		'DELETE FROM CONFIG_STATE WHERE objectId like "pytest%";'
-	# 	)
-	# )
+	cursor.execute(
+		(
+			'DELETE FROM PRODUCT_ON_DEPOT;'
+			'DELETE FROM PRODUCT_ON_CLIENT;'
+			'DELETE FROM PRODUCT_PROPERTY_VALUE;'
+			'DELETE FROM PRODUCT_PROPERTY;'
+			'DELETE FROM PRODUCT_DEPENDENCY;'
+			'DELETE FROM OBJECT_TO_GROUP;'
+			'DELETE FROM PRODUCT;'
+			'DELETE FROM HOST WHERE type!="OpsiConfigserver";'
+			'DELETE FROM opsi.GROUP;'
+			'DELETE FROM CONFIG_STATE;'
+		)
+	)
 	cursor.close()
 
 @pytest.fixture(autouse=True)

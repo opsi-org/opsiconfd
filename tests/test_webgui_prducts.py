@@ -188,7 +188,7 @@ test_data = [
 							"1.0-1",
 							"1.0-1"
 						],
-						"client_version_outdated": False,
+						"client_version_outdated": True,
 						"actions": [
 							"setup",
 							"uninstall"
@@ -366,6 +366,7 @@ test_data = [
 						"depotVersions": [
 							"1.0-1"
 						],
+						"depot_version_diff": False,
 						"productType": "LocalbootProduct"
 					},
 					{

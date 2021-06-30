@@ -481,7 +481,6 @@ async def clients_on_depots(request: Request):
 	else:
 		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
 
-	logger.devel(params)
 	with mysql.session() as session:
 		where = text("h.type='OpsiClient'")
 		for idx, depot in enumerate(params["depots"]):
@@ -665,6 +664,27 @@ async def depots_of_clients(request: Request):
 		}
 		return JSONResponse(response_data)
 
+def get_depot_of_client(client):
+	params = {}
+	with mysql.session() as session:
+
+		params["client"] = client
+		where = text("cs.configId='clientconfig.depot.id' AND cs.objectId = :client")
+
+		query = select(text("cs.objectId AS client, cs.values"))\
+			.select_from(text("CONFIG_STATE AS cs"))\
+			.where(where)
+
+		result = session.execute(query, params)
+		result = result.fetchone()
+
+		if result:
+			depot = dict(result).get("values")[2:-2]
+		else:
+			depot = get_configserver_id()
+		return depot
+
+
 @webgui_router.post("/api/opsidata/hosts")
 async def get_host_data(request: Request):
 	request_data = {}
@@ -825,9 +845,6 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					product["actions"] = product.get("actions").split(",")
 				if product.get("depotVersions"):
 					product["depotVersions"] = product.get("depotVersions").split(",")
-					logger.devel("DEPOT VERSION: %s , %s",product["productId"], product.get("depotVersions")[0] )
-					logger.devel(product.get("depotVersions"))
-					logger.devel(any(version != product.get("depotVersions")[0] for version in product.get("depotVersions")))
 					if any(version != product.get("depotVersions")[0] for version in product.get("depotVersions")):
 						product["depot_version_diff"] = True
 					else:
@@ -872,11 +889,19 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					del product["actionResultDetails"]
 				if product.get("clientVersions"):
 					product["clientVersions"] = product.get("clientVersions").split(",")
-					if any(version != product.get("depotVersions")[idx] for idx, version in enumerate(product.get("clientVersions"))):
-						product["client_version_outdated"] = True
-					else:
-						product["client_version_outdated"] = False
 
+					product["client_version_outdated"] = False
+					for idx, client in enumerate(product.get("selectedClients")):
+						depot = get_depot_of_client(client)
+						client_version = product.get("clientVersions")[idx]
+						product.get("depotVersions")
+						if depot not in product.get("selectedDepots"):
+							depot_version = depot_get_product_version(depot, product.get("productId"))
+						else:
+							depot_version = product.get("depotVersions")[product.get("selectedDepots").index(depot)]
+						if client_version != depot_version:
+							product["client_version_outdated"] = True
+							break
 
 			products.append(product)
 
@@ -898,3 +923,25 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 			"configserver": get_configserver_id()
 		}
 		return JSONResponse(response_data)
+
+
+def depot_get_product_version(depot, product):
+	version = None
+	params = {}
+	with mysql.session() as session:
+
+		params["depot"] = depot
+		params["product"] = product
+		where = text("pod.depotId = :depot AND pod.productId = :product")
+
+		query = select(text("CONCAT(pod.productVersion,'-',pod.packageVersion) AS version"))\
+			.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
+			.where(where)
+
+		result = session.execute(query, params)
+		result = result.fetchone()
+
+		if result:
+			version = dict(result).get("version")
+
+		return version

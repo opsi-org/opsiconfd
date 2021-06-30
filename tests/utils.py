@@ -100,6 +100,7 @@ def create_check_data(config):
 			'DELETE FROM PRODUCT;'
 			'DELETE FROM HOST WHERE type!="OpsiConfigserver";'
 			'DELETE FROM opsi.GROUP;'
+			'DELETE FROM CONFIG_STATE WHERE objectId like "pytest%";'
 		)
 	)
 
@@ -118,6 +119,8 @@ def create_check_data(config):
 		(
 			'INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
 			'VALUES ("pytest-prod-1", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 1 version 2", 60);'
+			'INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) '
+			'VALUES ("pytest-prod-4", "2.0", "1", "LocalbootProduct", "Pytest dummy PRODUCT 4 version 2", 60);'
 		)
 	)
 
@@ -180,6 +183,14 @@ def create_check_data(config):
 			'VALUES ("pytest-prod-1", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct"); '
 			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
 			'VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");'
+			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
+			'VALUES ("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");'
+			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
+			'VALUES ("pytest-prod-4", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct");'
+			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
+			'VALUES ("pytest-prod-3", "1.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");'
+			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) '
+			'VALUES ("pytest-prod-4", "2.0", "1", "pytest-test-depot2.uib.gmbh", "LocalbootProduct");'
 		)
 	)
 
@@ -202,6 +213,19 @@ def create_check_data(config):
 		)
 	)
 
+	# Clients to Depots
+	cursor.execute((
+			'INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) '
+			'VALUES ("clientconfig.depot.id", "pytest-client-1.uib.local", "[\'pytest-test-depot.uib.gmbh\']");'
+			'INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) '
+			'VALUES ("clientconfig.depot.id", "pytest-client-2.uib.local", "[\'pytest-test-depot.uib.gmbh\']");'
+			'INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) '
+			'VALUES ("clientconfig.depot.id", "pytest-client-3.uib.local", "[\'pytest-test-depot2.uib.gmbh\']");'
+			'INSERT INTO CONFIG_STATE (configId, objectId, CONFIG_STATE.values) '
+			'VALUES ("clientconfig.depot.id", "pytest-client-4.uib.local", "[\'pytest-test-depot2.uib.gmbh\']");'
+		)
+	)
+
 	cursor.close()
 
 	yield
@@ -215,6 +239,21 @@ def create_check_data(config):
 	# 		'DELETE FROM PRODUCT WHERE productId like "pytest%";'
 	# 		'DELETE FROM HOST WHERE hostId like "pytest%";'
 	# 		'DELETE FROM opsi.GROUP WHERE groupId like "pytest%";'
+	# 		'DELETE FROM CONFIG_STATE WHERE objectId like "pytest%";'
+	# 	)
+	# )
+	# cursor.execute(
+	# 	(
+	# 		'DELETE FROM PRODUCT_ON_DEPOT;'
+	# 		'DELETE FROM PRODUCT_ON_CLIENT;'
+	# 		'DELETE FROM PRODUCT_PROPERTY_VALUE;'
+	# 		'DELETE FROM PRODUCT_PROPERTY;'
+	# 		'DELETE FROM PRODUCT_DEPENDENCY;'
+	# 		'DELETE FROM OBJECT_TO_GROUP;'
+	# 		'DELETE FROM PRODUCT;'
+	# 		'DELETE FROM HOST WHERE type!="OpsiConfigserver";'
+	# 		'DELETE FROM opsi.GROUP;'
+	# 		'DELETE FROM CONFIG_STATE WHERE objectId like "pytest%";'
 	# 	)
 	# )
 	cursor.close()

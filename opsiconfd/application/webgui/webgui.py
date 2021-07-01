@@ -781,6 +781,7 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					(
 						SELECT GROUP_CONCAT(poc.clientId SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.clientId IN :clients AND poc.productId=pod.productId
+						ORDER BY poc.clientId
 					) AS selectedClients,
 					(
 						SELECT GROUP_CONCAT(poc.installationStatus SEPARATOR ',')
@@ -801,6 +802,7 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 					(
 						SELECT GROUP_CONCAT(CONCAT(poc.productVersion,'-',poc.packageVersion) SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+						ORDER BY poc.clientId
 					) AS clientVersions,
 					(
 						SELECT CONCAT_WS(',',

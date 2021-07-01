@@ -230,7 +230,7 @@ test_data = [
 		False,
 		False,
 		{
-			'message': ("OK: No Problem found for productIds: 'pytest-prod-3,pytest-prod-4'"),
+			'message': ("OK: No Problem found for productIds: 'pytest-prod-4,pytest-prod-3'"),
 			'state': 0
 		}
 	)

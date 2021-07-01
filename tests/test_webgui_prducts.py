@@ -514,11 +514,7 @@ test_data = [
 					{
 						"productId": "pytest-prod-1",
 						'name': 'Pytest dummy PRODUCT 1', 'description': None,
-						"selectedDepots": sorted([
-							FQDN,
-							"pytest-test-depot.uib.gmbh",
-							"pytest-test-depot2.uib.gmbh"
-						]),
+						"selectedDepots": depots,
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],

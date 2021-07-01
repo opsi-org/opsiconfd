@@ -13,10 +13,13 @@ import datetime
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, or_, asc, desc, column, alias
+from sqlalchemy.dialects.mysql import insert # pylint: disable=too-many-lines
+from sqlalchemy.sql.expression import table
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
@@ -241,6 +244,7 @@ def build_tree(group, groups, allowed, processed=None):
 	return group
 
 @webgui_router.post("/api/opsidata/hosts/groups")
+@webgui_router.get("/api/opsidata/hosts/groups")
 async def get_host_groups(request: Request): # pylint: disable=too-many-locals
 	allowed = get_allowed_objects()
 	request_data = {}
@@ -468,6 +472,7 @@ async def depots(request: Request):
 
 
 @webgui_router.post("/api/opsidata/depots/clients")
+@webgui_router.get("/api/opsidata/depots/clients")
 async def clients_on_depots(request: Request):
 	request_data = {}
 	try:
@@ -626,6 +631,7 @@ async def clients(request: Request):  # pylint: disable=too-many-branches
 
 
 @webgui_router.post("/api/opsidata/clients/depots")
+@webgui_router.get("/api/opsidata/clients/depots")
 async def depots_of_clients(request: Request):
 	request_data = {}
 	try:
@@ -686,6 +692,7 @@ def get_depot_of_client(client):
 
 
 @webgui_router.post("/api/opsidata/hosts")
+@webgui_router.get("/api/opsidata/hosts")
 async def get_host_data(request: Request):
 	request_data = {}
 	try:
@@ -743,6 +750,7 @@ async def get_host_data(request: Request):
 		return JSONResponse(response_data)
 
 @webgui_router.post("/api/opsidata/localbootproducts")
+@webgui_router.get("/api/opsidata/products")
 @webgui_router.post("/api/opsidata/products")
 async def products(request: Request): # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 	request_data = {}
@@ -810,7 +818,7 @@ async def products(request: Request): # pylint: disable=too-many-locals, too-man
 							IF(uninstallScript <> '','uninstall',NULL),
 							IF(updateScript <> '','update',NULL),
 							IF(alwaysScript <> '','always',NULL),
-							IF(customScript <> '','customScript',NULL),
+							IF(customScript <> '','custom',NULL),
 							IF(onceScript <> '','once',NULL)
 						)
 						FROM PRODUCT AS p
@@ -947,3 +955,126 @@ def depot_get_product_version(depot, product):
 			version = dict(result).get("version")
 
 		return version
+
+def get_product_actions(product, version, package_version):
+
+	params = {}
+	params["product"] = product
+	params["version"] = version
+	params["package_version"] = package_version
+	where = text("productId = :product AND productVersion = :version AND packageVersion = :package_version")
+
+	with mysql.session() as session:
+		actions = []
+		query = select(text("""
+			CONCAT_WS(',',
+				IF(setupScript <> '','setup', NULL),
+				IF(uninstallScript <> '','uninstall',NULL),
+				IF(updateScript <> '','update',NULL),
+				IF(alwaysScript <> '','always',NULL),
+				IF(customScript <> '','custom',NULL),
+				IF(onceScript <> '','once',NULL)
+			) as actions
+		"""))\
+			.select_from(text("PRODUCT"))\
+			.where(where)
+
+		result = session.execute(query, params)
+		result = result.fetchone()
+
+		if result:
+			actions = dict(result).get("actions").split(",")
+		return actions
+
+def is_product_on_depot(product, version, package_version, depot):
+
+	params = {}
+	params["product"] = product
+	params["version"] = version
+	params["package_version"] = package_version
+	params["depot"] = depot
+
+	with mysql.session() as session:
+		query = select(text("productId"))\
+			.select_from(text("PRODUCT_ON_DEPOT"))\
+			.where(text("""
+				productId = :product AND
+				productVersion = :version AND
+				packageVersion = :package_version AND
+				depotId = :depot
+			"""))
+
+	result = session.execute(query, params)
+	result = result.fetchone()
+
+	if result:
+		return True
+	return False
+
+@webgui_router.patch("/api/opsidata/clients/products")
+async def save_poduct_on_client(request: Request): # pylint: disable=too-many-locals
+	status = 200
+	error = ""
+	data = {}
+	request_data = {}
+	try:
+		request_data = await request.json()
+	except ValueError:
+		pass
+
+
+	for poc in request_data.get("data"):
+		client = poc.get("clientId")
+		product = poc.get("productId")
+		version = poc.get("productVersion")
+		package_version = poc.get("packageVersion")
+		action_request = poc.get("actionRequest")
+
+		try:
+			data[client]
+		except KeyError:
+			data[client] = {}
+
+		if not is_product_on_depot(product, version, package_version, get_depot_of_client(client)):
+			status = 400
+			error += f"Product '{product}' Version {version}-{package_version} not on Depot.\n "
+			data[client][product] = f"Product '{product}' Version {version}-{package_version} not on Depot."
+			continue
+
+		actions = get_product_actions(product, version, package_version)
+
+		if action_request not in actions:
+			status = 400
+			error += f"Action request '{action_request}' not supported by Product {product} Version {version}-{package_version}.\n "
+			data[client][product] = f"Action request '{action_request}' not supported by Product '{product}' Version {version}-{package_version}."
+			continue
+
+		params = {}
+		params["clientId"] = client
+		params["productId"] = product
+		values = {}
+
+		for key in poc:
+			if poc.get(key):
+				values[key] =  poc.get(key)
+
+		try:
+			with mysql.session() as session:
+				query = insert(table(
+						"PRODUCT_ON_CLIENT",
+						*[column(key) for key in values.keys()] # pylint: disable=consider-iterating-dictionary
+
+					))\
+					.values(values)\
+					.on_duplicate_key_update(values)
+
+				session.execute(query, params)
+
+			data[client][product] = values
+		except Exception as err: # pylint: disable=broad-except
+			logger.error("Could not create product_on_client Object.")
+			logger.error(err)
+			error += err
+			status = max(status, 500)
+
+	return JSONResponse({"status": status, "error": error, "data": data})

@@ -51,35 +51,9 @@ test_data = [
 	),
 	(
 		["unknown-product", "pytest-prod-3"],
-		False,
-		True,
-		{
-			'message': ("CRITICAL: \n"
-				f"Result for Depot: '{socket.getfqdn()}':\n"
-				f"Product 'unknown-product' not found on any client assigned to depot {socket.getfqdn()}."
-				f"Product 'pytest-prod-3' not found on any client assigned to depot {socket.getfqdn()}."
-			),
-			'state': 2
-		}
-	),
-	(
-		["unknown-product", "pytest-prod-3"],
 		True,
 		False,
 		{'message': "OK: No Problem found for productIds 'unknown-product,pytest-prod-3'", 'state': 0}
-	),
-	(
-		["unknown-product", "pytest-prod-3"],
-		True,
-		True,
-		{
-			'message': ("CRITICAL: \n"
-				f"Result for Depot: '{socket.getfqdn()}':\n"
-				f"Product 'unknown-product' not found on any client assigned to depot {socket.getfqdn()}."
-				f"Product 'pytest-prod-3' not found on any client assigned to depot {socket.getfqdn()}."
-			),
-			'state': 2
-		}
 	)
 ]
 
@@ -230,7 +204,7 @@ test_data = [
 		False,
 		False,
 		{
-			'message': ("OK: No Problem found for productIds: 'pytest-prod-4,pytest-prod-3'"),
+			'message': ("OK: No Problem found for productIds: 'pytest-prod-3,pytest-prod-4'"),
 			'state': 0
 		}
 	)

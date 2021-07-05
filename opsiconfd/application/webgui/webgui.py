@@ -323,6 +323,69 @@ async def get_host_groups(request: Request): # pylint: disable=too-many-locals
 		return JSONResponse(response_data)
 
 
+@webgui_router.post("/api/opsidata/products/groups")
+@webgui_router.get("/api/opsidata/products/groups")
+async def get_product_groups(request: Request): # pylint: disable=too-many-locals
+	allowed = get_allowed_objects()
+	request_data = {}
+	try:
+		request_data = await request.json()
+	except ValueError:
+		pass
+	params = {}
+
+	where = text("g.`type` = 'ProductGroup'")
+
+	with mysql.session() as session:
+
+		query = select(text("""
+			g.parentGroupId AS parent_id,
+			g.groupId AS group_id,
+			og.objectId AS object_id
+		"""))\
+		.select_from(text("`GROUP` AS g"))\
+		.join(text("OBJECT_TO_GROUP AS og"), text("og.groupType = g.`type` AND og.groupId = g.groupId"), isouter=True)\
+		.where(where)
+
+		result = session.execute(query, params)
+		result = result.fetchall()
+		root_group = {
+					"id": "productgroups",
+					"type": "ProductGroup",
+					"text": "productgroups",
+					"parent": "#",
+					"allowed": True
+				}
+		all_groups = {}
+		for row in result:
+			if not row["group_id"] in all_groups:
+				all_groups[row["group_id"]] = {
+					"id": row["group_id"],
+					"type": "HostGroup",
+					"text": row["group_id"],
+					"parent": row["parent_id"] or root_group["id"],
+					"allowed": True
+				}
+			if row["object_id"]:
+				if not "children" in all_groups[row["group_id"]]:
+					all_groups[row["group_id"]]["children"] = {}
+				all_groups[row["group_id"]]["children"][row["object_id"]] = {
+					"id": row["object_id"],
+					"type": "ObjectToGroup",
+					"text": row["object_id"],
+					"parent": row["group_id"],
+				}
+
+		product_groups = build_tree(root_group, list(all_groups.values()), allowed["host_groups"])
+
+		response_data = {
+			"result": {
+				"groups": product_groups,
+			}
+		}
+		return JSONResponse(response_data)
+
+
 @webgui_router.get("/api/opsidata/home")
 @webgui_router.post("/api/opsidata/home")
 async def home():

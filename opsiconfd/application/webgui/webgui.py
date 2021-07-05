@@ -258,7 +258,33 @@ async def get_host_groups(request: Request): # pylint: disable=too-many-locals
 	else:
 		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
 
+
+
+	root_group = {
+		"id": "root",
+		"type": "HostGroup",
+		"text": "root",
+		"parent": None,
+		"allowed": True
+	}
+
 	where = text("g.`type` = 'HostGroup'")
+
+	if request_data.get("parentGroup"):
+		if request_data.get("parentGroup") == "root":
+			where = and_(where, text("g.parentGroupId IS NULL"))
+		else:
+			params["parent"] = request_data.get("parentGroup")
+			where = and_(where, text("g.parentGroupId = :parent"))
+			root_group = {
+				"id": request_data.get("parentGroup"),
+				"type": "HostGroup",
+				"text": request_data.get("parentGroup"),
+				"parent": None,
+				"allowed": True
+			}
+
+
 
 	for idx, depot in enumerate(params["depots"]):
 		if idx > 0:
@@ -282,16 +308,10 @@ async def get_host_groups(request: Request): # pylint: disable=too-many-locals
 			isouter=True)\
 		.where(where)
 
+
 		result = session.execute(query, params)
 		result = result.fetchall()
 
-		root_group = {
-			"id": "root",
-			"type": "HostGroup",
-			"text": "root",
-			"parent": None,
-			"allowed": True
-		}
 		all_groups = {}
 		for row in result:
 			if not row["group_id"] in all_groups:

@@ -872,7 +872,7 @@ six = ">=1.4.0"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.213"
+version = "4.2.0.214"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -2113,8 +2113,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.213.tar.gz", hash = "md5:c793267e2bd0b14766f500cc394a10ae"},
-    {file = "python_opsi-4.2.0.213-py3-none-any.whl", hash = "md5:e7baa59136af890d8892fad1053c70a2"},
+    {file = "python-opsi-4.2.0.214.tar.gz", hash = "md5:82b612b121e51b2fa6abfe37cb403b67"},
+    {file = "python_opsi-4.2.0.214-py3-none-any.whl", hash = "md5:b0b12a58d8c381a323181bc216ca0d98"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

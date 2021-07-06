@@ -20,7 +20,6 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
 from opsiconfd.logging import logger
@@ -46,7 +45,7 @@ def webgui_setup(app):
 				pass
 
 	if os.path.isdir(WEBGUI_APP_PATH):
-		app.mount("/webgui/app", StaticFiles(directory=WEBGUI_APP_PATH), name="app")
+		app.mount("/webgui/app", StaticFiles(directory=WEBGUI_APP_PATH, html=True), name="app")
 
 def order_by(query, params):
 	if not params.get("sortBy"):
@@ -245,7 +244,7 @@ def build_tree(group, groups, allowed, processed=None):
 
 @webgui_router.post("/api/opsidata/hosts/groups")
 @webgui_router.get("/api/opsidata/hosts/groups")
-async def get_host_groups(request: Request): # pylint: disable=too-many-locals
+async def get_host_groups(request: Request): # pylint: disable=too-many-locals, too-many-branches
 	allowed = get_allowed_objects()
 	request_data = {}
 	try:
@@ -257,8 +256,6 @@ async def get_host_groups(request: Request): # pylint: disable=too-many-locals
 		params["depots"] = [get_configserver_id()]
 	else:
 		params["depots"] = request_data.get("selectedDepots", [get_configserver_id()])
-
-
 
 	root_group = {
 		"id": "root",
@@ -283,8 +280,6 @@ async def get_host_groups(request: Request): # pylint: disable=too-many-locals
 				"parent": None,
 				"allowed": True
 			}
-
-
 
 	for idx, depot in enumerate(params["depots"]):
 		if idx > 0:
@@ -353,6 +348,8 @@ async def get_product_groups(request: Request): # pylint: disable=too-many-local
 	except ValueError:
 		pass
 	params = {}
+
+	logger.devel(request_data)
 
 	where = text("g.`type` = 'ProductGroup'")
 

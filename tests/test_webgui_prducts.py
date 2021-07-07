@@ -15,7 +15,7 @@ import pytest
 import requests
 from starlette.requests import Request
 from starlette.datastructures import Headers
-from opsiconfd.application.webgui.webgui import products
+
 from opsiconfd.backend import get_backend
 from .utils import clean_redis, config, create_check_data, disable_request_warning, TEST_USER, TEST_PW, HOSTNAME, LOCAL_IP, DAYS # pylint: disable=unused-import
 

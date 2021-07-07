@@ -16,6 +16,7 @@
 		"python.terminal.activateEnvironment": false,
 		"python.linting.enabled": true,
 		"python.testing.pytestArgs": [
+			"-vv",
 			"tests"
 		],
 		"python.testing.unittestEnabled": false,

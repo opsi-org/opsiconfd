@@ -197,16 +197,6 @@ test_data = [
 			),
 			'state': 2
 		}
-	),
-	(
-		[],
-		["pytest-group-2"],
-		False,
-		False,
-		{
-			'message': ("OK: No Problem found for productIds: 'pytest-prod-3,pytest-prod-4'"),
-			'state': 0
-		}
 	)
 ]
 @pytest.mark.parametrize("products, group, verbose, strict, expected_result", test_data)

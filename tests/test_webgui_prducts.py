@@ -478,7 +478,7 @@ test_data = [
 	(
 		{
 			"selectedClients": ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-			"selectedDepots": [FQDN, "pytest-test-depot.uib.gmbh","pytest-test-depot2.uib.gmbh"],
+			"selectedDepots": ["pytest-test-depot.uib.gmbh", "pytest-test-depot2.uib.gmbh"],
 			"type": "LocalbootProduct",
 			"pageNumber":1,
 			"perPage":3,
@@ -490,72 +490,53 @@ test_data = [
 			"result": {
 				"products": [
 					{
-						"productId": "pytest-prod-0",
-						'name': 'Pytest dummy PRODUCT 0', 'description': None,
-						"selectedDepots": [
-							FQDN
-						],
-						"selectedClients": None,
-						"installationStatus": "not_installed",
-						"actionRequest": None,
-						"actionProgress": None,
-						"actionResult": None,
-						"clientVersions": None,
-						"actions": [
-							"setup",
-							"uninstall"
-						],
-						"depotVersions": [
-							"1.0-1"
-						],
-						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
-					},
-					{
 						"productId": "pytest-prod-1",
-						'name': 'Pytest dummy PRODUCT 1', 'description': None,
-						"selectedDepots": depots,
+						"name": "Pytest dummy PRODUCT 1",
+						"description": None,
+						"selectedDepots": [
+							"pytest-test-depot.uib.gmbh",
+							"pytest-test-depot2.uib.gmbh"
+						],
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
 						"installationStatusDetails": [
 							"not_installed"
 						],
-						"installationStatus": "not_installed",
 						"actionRequestDetails": [
 							"setup"
 						],
-						"actionRequest": "setup",
-						"actionProgress": None,
 						"actionResultDetails": [
 							"none"
 						],
-						"actionResult": "none",
 						"clientVersions": [
 							"1.0-1"
 						],
-						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall"
 						],
 						"depotVersions": [
-							depot_versions.get(depots[0]),
-							depot_versions.get(depots[1]),
-							depot_versions.get(depots[2])
+							"1.0-1",
+							"2.0-1"
 						],
+						"productType": "LocalbootProduct",
 						"depot_version_diff": True,
-						"productType": "LocalbootProduct"
+						"installationStatus": "not_installed",
+						"actionRequest": "setup",
+						"actionProgress": None,
+						"actionResult": "none",
+						"client_version_outdated": False
 					},
 					{
 						"productId": "pytest-prod-2",
-						'name': 'Pytest dummy PRODUCT 2', 'description': None,
-						"selectedDepots": depots,
+						"name": "Pytest dummy PRODUCT 2",
+						"description": None,
+						"selectedDepots": [
+							"pytest-test-depot.uib.gmbh",
+							"pytest-test-depot2.uib.gmbh"
+						],
 						"selectedClients": None,
-						"installationStatus": "not_installed",
-						"actionRequest": None,
-						"actionProgress": None,
-						"actionResult": None,
 						"clientVersions": None,
 						"actions": [
 							"setup",
@@ -563,14 +544,42 @@ test_data = [
 						],
 						"depotVersions": [
 							"1.0-1",
+							"1.0-1"
+						],
+						"productType": "LocalbootProduct",
+						"depot_version_diff": False,
+						"installationStatus": "not_installed",
+						"actionRequest": None,
+						"actionProgress": None,
+						"actionResult": None
+					},
+					{
+						"productId": "pytest-prod-3",
+						"name": "Pytest dummy PRODUCT 3",
+						"description": None,
+						"selectedDepots": [
+							"pytest-test-depot.uib.gmbh",
+							"pytest-test-depot2.uib.gmbh"
+						],
+						"selectedClients": None,
+						"clientVersions": None,
+						"actions": [
+							"setup",
+							"uninstall"
+						],
+						"depotVersions": [
 							"1.0-1",
 							"1.0-1"
 						],
+						"productType": "LocalbootProduct",
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"installationStatus": "not_installed",
+						"actionRequest": None,
+						"actionProgress": None,
+						"actionResult": None
 					}
 				],
-				"total": 5
+				"total": 4
 			},
 			"configserver": FQDN
 		}

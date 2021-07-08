@@ -34,7 +34,17 @@
 			"module":"opsiconfd",
 			"args": ["setup", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
 			"sudo": true
-		}
+		},
+		{
+			"name": "Python: Attach",
+			"type": "python",
+			"request": "attach",
+			"connect": {
+			  "host": "localhost",
+			  "port": 5678
+			}
+		  }
+
 	],
 	"inputs": [
 		{

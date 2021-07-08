@@ -150,11 +150,6 @@ def products(
 	Get products from selected depots and clients.
 	"""
 
-	logger.devel(commons)
-	logger.devel(type)
-	logger.devel(selectedClients)
-	logger.devel(selectedDepots)
-
 	params = {}
 	params["product_type"] = type
 	if selectedClients == [] or selectedClients is None:

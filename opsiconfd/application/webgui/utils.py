@@ -169,7 +169,7 @@ def common_parameters(
 		pageNumber: Optional[int] = Body(default=1 , embed=True),
 		perPage:  Optional[int] = Body(default=20 , embed=True),
 		sortBy:  Optional[str] = Body(default=None , embed=True),
-		sortDesc: Optional[str] = Body(default=True , embed=True)
+		sortDesc: Optional[bool] = Body(default=True , embed=True)
 	): # pylint: disable=invalid-name
 	return {
 		"filterQuery": filterQuery,

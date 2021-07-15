@@ -8,13 +8,21 @@
 webgui client methods
 """
 
-from typing import Dict, List
-from pydantic import BaseModel # pylint: disable=no-name-in-module
-from sqlalchemy import select, text, and_, alias
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Body, Depends
+import datetime
+from ipaddress import IPv4Address, IPv6Address
+
+from pydantic import BaseModel # pylint: disable=no-name-in-module
+from sqlalchemy import select, text, and_, alias, column
+from sqlalchemy.dialects.mysql import insert
+from sqlalchemy.sql.expression import table
+from sqlalchemy.exc import IntegrityError
+
+from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import JSONResponse
 
+from opsiconfd.logging import logger
 
 from .utils import get_mysql, order_by, pagination, get_configserver_id, common_parameters
 
@@ -44,7 +52,6 @@ class ClientsResponse(BaseModel): # pylint: disable=too-few-public-methods
 
 
 @client_router.get("/api/opsidata/clients", response_model=ClientsResponse)
-@client_router.post("/api/opsidata/clients", response_model=ClientsResponse)
 def clients(commons: dict = Depends(common_parameters), selectedDepots: List[str] = []):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
 	"""
 	Get Clients on selected depots with infos on the client.
@@ -191,3 +198,103 @@ def depots_of_clients(selectedClients: List[str] = Body(default=[] , embed=True)
 			"result": response
 		}
 		return JSONResponse(response_data)
+
+class Client(BaseModel): # pylint: disable=too-few-public-methods
+	hostId: str
+	opsiHostKey: Optional[str]
+	description: Optional[str]
+	notes: Optional[str]
+	hardwareAddress: Optional[str]
+	ipAddress: Optional[IPv4Address or IPv6Address]
+	inventoryNumber: Optional[str]
+	oneTimePassword: Optional[str]
+	created: Optional[datetime.datetime]
+	lastSeen: Optional[datetime.datetime]
+
+@client_router.post("/api/opsidata/clients")
+def create_client(request: Request, client: Client): # pylint: disable=too-many-locals
+	"""
+	Create OPSI-Client.
+	"""
+
+	status = 201
+	error = None
+	data = {}
+	headers = None
+
+	values = vars(client)
+	values["type"] = "OpsiClient"
+
+	with mysql.session() as session:
+		try:
+			with mysql.session() as session:
+				query = insert(table(
+						"HOST",
+						column("type"),
+						*[column(key) for key in vars(client).keys()] # pylint: disable=consider-iterating-dictionary
+					))\
+					.values(values)
+
+				session.execute(query)
+
+			headers = {"Location": f"{request.url}/{client.hostId}"}
+
+		except IntegrityError as err:
+			logger.error("Could not create client object.")
+			logger.error(err)
+			error = {"message": str(err), "class": err.__class__.__name__}
+			status = max(status, 409)
+
+		except Exception as err: # pylint: disable=broad-except
+			logger.error("Could not create client object.")
+			logger.error(err)
+			error = {"message": str(err), "class": err.__class__.__name__}
+			status = max(status, 500)
+
+
+	return JSONResponse({"status": status, "error": error, "data": data}, headers=headers)
+
+
+@client_router.get("/api/opsidata/clients/{clientid}", response_model=ClientsResponse)
+def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
+	"""
+	Get Clients on selected depots with infos on the client.
+	"""
+
+	status = 200
+	error = ""
+	data = None
+
+	with mysql.session() as session:
+
+		try:
+			query = select(text("""
+				h.hostId AS hostId,
+				h.type AS type,
+				h.description AS description,
+				h.notes AS notes,
+				h.hardwareAddress AS hardwareAddress,
+				h.ipAddress AS ipAddress,
+				h.inventoryNumber AS inventoryNumber,
+				h.created AS created,
+				h.lastSeen AS lastSeen,
+				h.opsiHostKey AS opsiHostKey,
+				h.oneTimePassword AS oneTimePassword
+			"""))\
+			.select_from(text("`HOST` AS h"))\
+			.where(text(f"h.hostId = '{clientid}' and h.type = 'OpsiClient'")) # pylint: disable=redefined-outer-name
+
+			result = session.execute(query)
+			result = result.fetchone()
+			if result:
+				data = dict(result)
+				for key in data.keys():
+					if isinstance(data.get(key), (datetime.date, datetime.datetime)):
+						data[key] = data.get(key).isoformat()
+		except Exception as err: # pylint: disable=broad-except
+			logger.error("Could not create client object.")
+			logger.error(err)
+			error = {"message": str(err), "class": err.__class__.__name__}
+			status = max(status, 500)
+
+		return JSONResponse({"status": status, "error": error, "data": data})

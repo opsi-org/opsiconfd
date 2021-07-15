@@ -132,6 +132,9 @@ async def startup_event():
 		application_setup()
 	except Exception as error:
 		logger.critical("Error during worker startup: %s", error, exc_info=True)
+		# Wait a second before raising error (which will terminate the worker process)
+		# to give the logger time to send log messages to redis
+		await asyncio.sleep(1)
 		raise error
 
 @app.on_event("shutdown")

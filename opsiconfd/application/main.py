@@ -26,6 +26,9 @@ from fastapi.responses import Response, FileResponse, RedirectResponse, Streamin
 from fastapi.routing import APIRoute
 from websockets.exceptions import ConnectionClosedOK
 
+from OPSI import __version__ as python_opsi_version
+from .. import __version__
+
 from .. import contextvar_request_id, contextvar_client_address
 from ..logging import logger
 from ..config import config
@@ -44,7 +47,12 @@ from .monitoring.monitoring import monitoring_setup
 from .webgui.webgui import webgui_setup
 from .status import status_setup
 
-app = FastAPI()
+
+app = FastAPI(
+	title = "OPSIconfd",
+	description = "",
+	version = f"{__version__} [python-opsi={python_opsi_version}]",
+)
 
 @app.websocket_route("/ws/log_viewer")
 class LoggerWebsocket(WebSocketEndpoint):

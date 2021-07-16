@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.backend import get_backend
+from opsiconfd.config import config
 
 from .hosts import host_router
 from .clients import client_router
@@ -23,7 +24,7 @@ from .products import product_router
 from .depots import depot_router
 from .utils import get_mysql, get_allowed_objects, build_tree, get_username, get_configserver_id
 
-WEBGUI_APP_PATH = "/tmp/opsi-webgui"
+WEBGUI_APP_PATH = config.webgui_folder
 
 
 mysql = get_mysql()

@@ -95,8 +95,11 @@ package:
     #  /bin/sh: /usr/lib/opsiconfd/libreadline.so.7: no version information available (required by /bin/sh)
     [ -e /usr/lib/opsiconfd/libreadline.so.7 -a -e /lib64/libreadline.so.7 ] && cp /lib64/libreadline.so.7 /usr/lib/opsiconfd/libreadline.so.7
     # workaround for error on Red Hat 8
-    # PAM unable to dlopen(/usr/lib64/security/pam_unix.so): /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1b' not found (required by /lib64/libk5crypto.so.3)
+    #  PAM unable to dlopen(/usr/lib64/security/pam_unix.so): /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1b' not found (required by /lib64/libk5crypto.so.3)
     [ -e /usr/lib/opsiconfd/libcrypto.so.1.1 -a -e /usr/lib64/libcrypto.so.1.1 ] && cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/libcrypto.so.1.1
+    # workaround for debian 11
+    #  PAM unable to dlopen(pam_unix.so): /lib/security/pam_unix.so: cannot open shared object file: No such file or directory
+    [ -e /usr/lib/opsiconfd/libpam.so.0 -a -e /usr/lib/x86_64-linux-gnu/libpam.so.0 ] && cp /usr/lib/x86_64-linux-gnu/libpam.so.0 /usr/lib/opsiconfd/libpam.so.0
     # remove obsolete files
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
     rm /etc/rc*/*opsiconfd 2>/dev/null || true

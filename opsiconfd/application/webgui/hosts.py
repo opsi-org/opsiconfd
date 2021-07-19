@@ -12,11 +12,13 @@ import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
-from sqlalchemy import select, text, and_, or_
+from sqlalchemy import select, union, text, and_, or_
 
 from fastapi.param_functions import Body
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+
+from opsiconfd.logging import logger
 
 from .utils import get_mysql, order_by, pagination, get_allowed_objects, get_configserver_id, build_tree, common_parameters
 
@@ -117,8 +119,7 @@ def get_host_groups(selectedDepots: List[str] = Body(default=[]), parentGroup: O
 		"id": "root",
 		"type": "HostGroup",
 		"text": "root",
-		"parent": None,
-		"allowed": True
+		"parent": None
 	}
 
 	where = text("g.`type` = 'HostGroup'")
@@ -126,15 +127,16 @@ def get_host_groups(selectedDepots: List[str] = Body(default=[]), parentGroup: O
 	if parentGroup:
 		if parentGroup == "root":
 			where = and_(where, text("g.parentGroupId IS NULL"))
+			where_hosts = text("og.groupId IS NULL")
 		else:
 			params["parent"] = parentGroup
 			where = and_(where, text("g.parentGroupId = :parent"))
+			where_hosts = text("og.groupId = :parent")
 			root_group = {
 				"id": parentGroup,
 				"type": "HostGroup",
 				"text": parentGroup,
-				"parent": None,
-				"allowed": True
+				"parent": None
 			}
 
 	for idx, depot in enumerate(params["depots"]):
@@ -145,19 +147,36 @@ def get_host_groups(selectedDepots: List[str] = Body(default=[]), parentGroup: O
 
 	with mysql.session() as session:
 
-		query = select(text("""
-			g.parentGroupId AS parent_id,
-			g.groupId AS group_id,
-			og.objectId AS object_id,
-			TRIM(TRAILING '"]' FROM TRIM(LEADING '["' FROM cs.`values`)) AS depot_id
-		"""))\
-		.select_from(text("`GROUP` AS g"))\
-		.join(text("OBJECT_TO_GROUP AS og"), text("og.groupType = g.`type` AND og.groupId = g.groupId"), isouter=True)\
-		.join(
-			text("CONFIG_STATE AS cs"),
-			and_(text("og.objectId = cs.objectId"), or_(text("cs.configId = 'clientconfig.depot.id'"),text("cs.values IS NULL")), where_depots),
-			isouter=True)\
-		.where(where)
+		if parentGroup:
+			query = union(select(text("""
+				g.parentGroupId AS parent_id,
+				g.groupId AS group_id,
+				NULL AS object_id
+			"""))\
+			.select_from(text("`GROUP` AS g"))\
+			.where(where),
+			select(text("""
+				og.groupId AS group_id,
+				og.groupId AS parent_Id,
+				og.objectId AS object_id
+			"""))\
+			.select_from(text("OBJECT_TO_GROUP AS og"))\
+			.where(where_hosts)
+			)
+		else:
+			query = select(text("""
+				g.parentGroupId AS parent_id,
+				g.groupId AS group_id,
+				og.objectId AS object_id,
+				TRIM(TRAILING '"]' FROM TRIM(LEADING '["' FROM cs.`values`)) AS depot_id
+			"""))\
+			.select_from(text("`GROUP` AS g"))\
+			.join(text("OBJECT_TO_GROUP AS og"), text("og.groupType = g.`type` AND og.groupId = g.groupId"), isouter=True)\
+			.join(
+				text("CONFIG_STATE AS cs"),
+				and_(text("og.objectId = cs.objectId"), or_(text("cs.configId = 'clientconfig.depot.id'"),text("cs.values IS NULL")), where_depots),
+				isouter=True)\
+			.where(where)
 
 
 		result = session.execute(query, params)
@@ -170,19 +189,27 @@ def get_host_groups(selectedDepots: List[str] = Body(default=[]), parentGroup: O
 					"id": row["group_id"],
 					"type": "HostGroup",
 					"text": row["group_id"],
-					"parent": row["parent_id"] or root_group["id"],
-					"allowed": True
+					"parent": row["parent_id"] or root_group["id"]
 				}
 			if row["object_id"]:
 				if not "children" in all_groups[row["group_id"]]:
 					all_groups[row["group_id"]]["children"] = {}
-				all_groups[row["group_id"]]["children"][row["object_id"]] = {
-					"id": row["object_id"],
-					"type": "ObjectToGroup",
-					"text": row["object_id"],
-					"parent": row["group_id"],
-					"depot": row["depot_id"] or get_configserver_id()
-				}
+				if row.group_id == row.parent_id:
+					if not row["object_id"] in all_groups:
+						all_groups[row["object_id"]] = {
+							"id": row["object_id"],
+							"type": "HostGroup",
+							"text": row["object_id"],
+							"parent": row["parent_id"] or root_group["id"]
+						}
+				else:
+					all_groups[row["group_id"]]["children"][row["object_id"]] = {
+						"id": row["object_id"],
+						"type": "ObjectToGroup",
+						"text": row["object_id"],
+						"parent": row["group_id"]
+					}
+
 
 		host_groups = build_tree(root_group, list(all_groups.values()), allowed["host_groups"])
 

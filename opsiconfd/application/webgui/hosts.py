@@ -18,8 +18,6 @@ from fastapi.param_functions import Body
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from opsiconfd.logging import logger
-
 from .utils import get_mysql, order_by, pagination, get_allowed_objects, get_configserver_id, build_tree, common_parameters
 
 mysql = get_mysql()

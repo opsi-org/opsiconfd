@@ -897,7 +897,7 @@ six = ">=1.4.0"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.216"
+version = "4.2.0.217"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -2093,6 +2093,7 @@ pyelftools = [
 ]
 pyinstaller = [
     {file = "pyinstaller-4.4-py3-none-macosx_10_13_universal2.whl", hash = "sha256:0e802c082487719aab6b2a93575819944c008e6e1ba44c7836fc45660a9586c0"},
+    {file = "pyinstaller-4.4-py3-none-manylinux2014_aarch64.whl", hash = "sha256:2ef691eeb360073075b6c355535a15dcdedac28d2ecc8448d34bce671ec2dff4"},
     {file = "pyinstaller-4.4-py3-none-manylinux2014_i686.whl", hash = "sha256:2cfef29a878fc54040e2287c19ea4bdc667f473b59918fcb51a1e68366ecb814"},
     {file = "pyinstaller-4.4-py3-none-manylinux2014_x86_64.whl", hash = "sha256:b0f13d0a33b9a21659967db65b475c14645b456dc70ba68fa9cebf4bc29ef58e"},
     {file = "pyinstaller-4.4-py3-none-win32.whl", hash = "sha256:d0b35f885650b9dc69072adf948b608bcb506c5256dd7f0d0967c1f177bb41b1"},
@@ -2145,8 +2146,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.216.tar.gz", hash = "md5:2120d44a5fbe2eeaa0709ea65ac71308"},
-    {file = "python_opsi-4.2.0.216-py3-none-any.whl", hash = "md5:ed6abc8ffe95fb51636f18332f85aa69"},
+    {file = "python-opsi-4.2.0.217.tar.gz", hash = "md5:3b3b830b8354265a03862a35c1fe15a6"},
+    {file = "python_opsi-4.2.0.217-py3-none-any.whl", hash = "md5:e11087908cc06a78e10d78860e489eb3"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

@@ -90,18 +90,18 @@ package:
     mv ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
     rm -r ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data
   postinst_script: |
-    # workaround for error on openSUSE Leap 15.2:
+    # Workaround for error on openSUSE Leap 15.2:
     #  /bin/sh: /usr/lib/opsiconfd/libreadline.so.7: no version information available (required by /bin/sh)
     [ -e /usr/lib/opsiconfd/libreadline.so.7 -a -e /lib64/libreadline.so.7 ] && cp /lib64/libreadline.so.7 /usr/lib/opsiconfd/libreadline.so.7
-    # workaround for error on Red Hat 8
+    # Workaround for error on Red Hat 8
     #  PAM unable to dlopen(/usr/lib64/security/pam_unix.so): /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1b' not found (required by /lib64/libk5crypto.so.3)
     [ -e /usr/lib/opsiconfd/libcrypto.so.1.1 -a -e /usr/lib64/libcrypto.so.1.1 ] && cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/libcrypto.so.1.1
-    # workaround for debian 11
+    # Workaround for debian 11
     #  PAM unable to dlopen(pam_unix.so): /lib/security/pam_unix.so: cannot open shared object file: No such file or directory
     [ -e /usr/lib/opsiconfd/libpam.so.0 -a -e /usr/lib/x86_64-linux-gnu/libpam.so.0 ] && cp /usr/lib/x86_64-linux-gnu/libpam.so.0 /usr/lib/opsiconfd/libpam.so.0
     # Workaround for opsi-admin authentification error on SLES15 SP3
-    [ -e /usr/lib/opsi-utils/libpam.so.0 -a -e /lib64/libpam.so.0 ] && cp /lib64/libpam.so.0 /usr/lib/opsi-utils/libpam.so.0
-    # remove obsolete files
+    [ -e /usr/lib/opsiconfd/libpam.so.0 -a -e /lib64/libpam.so.0 ] && cp /lib64/libpam.so.0 /usr/lib/opsiconfd/libpam.so.0
+    # Remove obsolete files
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
     rm /etc/rc*/*opsiconfd 2>/dev/null || true
     [ -e /etc/init.d/opsiconfd ] && rm /etc/init.d/opsiconfd
@@ -109,6 +109,6 @@ package:
     [ -e /etc/systemd/system/opsiconfd.service.simple ] && rm /etc/systemd/system/opsiconfd.service.simple
     [ -e /etc/systemd/system/opsiconfd.service ] && rm /etc/systemd/system/opsiconfd.service
     systemctl daemon-reload || true
-    # setup opsiconfd
+    # Setup opsiconfd
     /usr/bin/opsiconfd setup --log-level-stderr=5 --log-level-file=0 --run-as-user=opsiconfd || true
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf

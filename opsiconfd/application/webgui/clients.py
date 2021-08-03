@@ -14,12 +14,12 @@ import datetime
 from ipaddress import IPv4Address, IPv6Address
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
-from sqlalchemy import select, text, and_, alias, column
+from sqlalchemy import select, text, and_, alias, column, delete
 from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.sql.expression import table
 from sqlalchemy.exc import IntegrityError
 
-from fastapi import APIRouter, Body, Depends, Request
+from fastapi import APIRouter, Body, Depends, Request, status
 from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
@@ -168,7 +168,6 @@ def depots_of_clients(selectedClients: List[str] = Body(default=[] , embed=True)
 	"""
 
 #TODO check if clients of config server always work
-
 	params = {}
 	if selectedClients != [""] and selectedClients is not None:
 		params["clients"] = selectedClients
@@ -200,7 +199,7 @@ def depots_of_clients(selectedClients: List[str] = Body(default=[] , embed=True)
 		return JSONResponse(response_data)
 
 class Client(BaseModel): # pylint: disable=too-few-public-methods
-	hostId: str
+	hostId: Optional[str]
 	opsiHostKey: Optional[str]
 	description: Optional[str]
 	notes: Optional[str]
@@ -211,13 +210,18 @@ class Client(BaseModel): # pylint: disable=too-few-public-methods
 	created: Optional[datetime.datetime]
 	lastSeen: Optional[datetime.datetime]
 
+class ClientResponse(BaseModel):
+	status: int
+	error: dict
+	data: Client
+
 @client_router.post("/api/opsidata/clients")
-def create_client(request: Request, client: Client): # pylint: disable=too-many-locals
+def create_client(request: Request, client: ClientResponse): # pylint: disable=too-many-locals
 	"""
 	Create OPSI-Client.
 	"""
 
-	status = 201
+	status_code = 201
 	error = None
 	data = {}
 	headers = None
@@ -243,25 +247,25 @@ def create_client(request: Request, client: Client): # pylint: disable=too-many-
 			logger.error("Could not create client object.")
 			logger.error(err)
 			error = {"message": str(err), "class": err.__class__.__name__}
-			status = max(status, 409)
+			status_code = max(status_code, 409)
 
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Could not create client object.")
 			logger.error(err)
 			error = {"message": str(err), "class": err.__class__.__name__}
-			status = max(status, 500)
+			status_code = max(status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-	return JSONResponse({"status": status, "error": error, "data": data}, headers=headers)
+	return JSONResponse({"status": status_code, "error": error, "data": data}, headers=headers)
 
 
-@client_router.get("/api/opsidata/clients/{clientid}", response_model=ClientsResponse)
+@client_router.get("/api/opsidata/clients/{clientid}", response_model=ClientResponse)
 def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
 	"""
 	Get Clients on selected depots with infos on the client.
 	"""
 
-	status = 200
+	status_code = 200
 	error = ""
 	data = None
 
@@ -292,9 +296,109 @@ def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-d
 					if isinstance(data.get(key), (datetime.date, datetime.datetime)):
 						data[key] = data.get(key).isoformat()
 		except Exception as err: # pylint: disable=broad-except
-			logger.error("Could not create client object.")
+			logger.error("Could not get client object.")
 			logger.error(err)
 			error = {"message": str(err), "class": err.__class__.__name__}
-			status = max(status, 500)
+			status_code = max(status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-		return JSONResponse({"status": status, "error": error, "data": data})
+		return JSONResponse({"status": status_code, "error": error, "data": data})
+
+@client_router.delete("/api/opsidata/clients/{clientid}", response_model=ClientResponse)
+def delete_client(clientid: str):
+	"""
+	Delete Client with ID.
+	"""
+
+	status_code = 200
+	error = ""
+	data = None
+
+	with mysql.session() as session:
+
+		try:
+			query = select(text("""
+				h.hostId AS hostId
+			"""))\
+			.select_from(text("`HOST` AS h"))\
+			.where(text(f"h.hostId = '{clientid}' and h.type = 'OpsiClient'")) # pylint: disable=redefined-outer-name
+
+			result = session.execute(query)
+			result = result.fetchone()
+
+			if not result:
+				logger.devel("Client does not exist")
+				return JSONResponse({"status": status.HTTP_404_NOT_FOUND, "error": {"message": f"Client with id '{clientid}' not found"}, "data": data})
+
+			tables = [
+				"OBJECT_TO_GROUP",
+				"CONFIG_STATE",
+				"PRODUCT_PROPERTY_STATE"
+			]
+
+			for table_name in tables:
+				query = delete(table(table_name))\
+				.where(text(f"objectId = '{clientid}'"))
+				session.execute(query)
+
+			tables = [
+				"PRODUCT_ON_CLIENT",
+				"LICENSE_ON_CLIENT",
+				"SOFTWARE_CONFIG"
+			]
+
+			for table_name in tables:
+				query = delete(table(table_name))\
+				.where(text(f"clientId = '{clientid}'"))
+				session.execute(query)
+
+			tables = [
+				"HARDWARE_CONFIG_1394_CONTROLLER",
+				"HARDWARE_CONFIG_AUDIO_CONTROLLER",
+				"HARDWARE_CONFIG_BASE_BOARD",
+				"HARDWARE_CONFIG_BIOS",
+				"HARDWARE_CONFIG_CACHE_MEMORY",
+				"HARDWARE_CONFIG_CHASSIS",
+				"HARDWARE_CONFIG_COMPUTER_SYSTEM",
+				"HARDWARE_CONFIG_DISK_PARTITION",
+				"HARDWARE_CONFIG_FLOPPY_CONTROLLER",
+				"HARDWARE_CONFIG_FLOPPY_DRIVE",
+				"HARDWARE_CONFIG_HARDDISK_DRIVE",
+				"HARDWARE_CONFIG_HDAUDIO_DEVICE",
+				"HARDWARE_CONFIG_IDE_CONTROLLER",
+				"HARDWARE_CONFIG_KEYBOARD",
+				"HARDWARE_CONFIG_MEMORY_BANK",
+				"HARDWARE_CONFIG_MEMORY_MODULE",
+				"HARDWARE_CONFIG_MONITOR",
+				"HARDWARE_CONFIG_NETWORK_CONTROLLER",
+				"HARDWARE_CONFIG_OPTICAL_DRIVE",
+				"HARDWARE_CONFIG_PCI_DEVICE",
+				"HARDWARE_CONFIG_PCMCIA_CONTROLLER",
+				"HARDWARE_CONFIG_POINTING_DEVICE",
+				"HARDWARE_CONFIG_PORT_CONNECTOR",
+				"HARDWARE_CONFIG_PRINTER",
+				"HARDWARE_CONFIG_PROCESSOR",
+				"HARDWARE_CONFIG_SCSI_CONTROLLER",
+				"HARDWARE_CONFIG_SYSTEM_SLOT",
+				"HARDWARE_CONFIG_TAPE_DRIVE",
+				"HARDWARE_CONFIG_TPM",
+				"HARDWARE_CONFIG_USB_CONTROLLER",
+				"HARDWARE_CONFIG_USB_DEVICE",
+				"HARDWARE_CONFIG_VIDEO_CONTROLLER"
+			]
+
+			for table_name in tables:
+				query = delete(table(table_name))\
+				.where(text(f"hostId = '{clientid}'"))
+				session.execute(query)
+
+			query = delete(table("HOST"))\
+			.where(text(f"HOST.hostId = '{clientid}' and HOST.type = 'OpsiClient'"))
+			session.execute(query)
+
+		except Exception as err: # pylint: disable=broad-except
+			logger.error("Could not delete client object.")
+			logger.error(err)
+			error = {"message": str(err), "class": err.__class__.__name__}
+			status_code = max(status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+		return JSONResponse({"status": status_code, "error": error, "data": data})

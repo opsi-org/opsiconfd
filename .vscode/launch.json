@@ -15,7 +15,7 @@
 			"type":"python",
 			"request":"launch",
 			"module":"opsiconfd",
-			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--log-level-file=${input:loglevelfile}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
 			"sudo": true,
 		},
 		{
@@ -53,6 +53,12 @@
 		"description": "Set LogLevel Stderr.",
 		"default": "5"
 		},
+		{
+			"id": "loglevelfile",
+			"type": "promptString",
+			"description": "Set LogLevel File.",
+			"default": "5"
+			},
 		{
 			"id": "worker",
 			"type": "promptString",

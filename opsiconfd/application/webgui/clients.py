@@ -168,7 +168,6 @@ def depots_of_clients(selectedClients: List[str] = Body(default=[] , embed=True)
 	"""
 
 #TODO check if clients of config server always work
-
 	params = {}
 	if selectedClients != [""] and selectedClients is not None:
 		params["clients"] = selectedClients
@@ -200,7 +199,7 @@ def depots_of_clients(selectedClients: List[str] = Body(default=[] , embed=True)
 		return JSONResponse(response_data)
 
 class Client(BaseModel): # pylint: disable=too-few-public-methods
-	hostId: str
+	hostId: Optional[str]
 	opsiHostKey: Optional[str]
 	description: Optional[str]
 	notes: Optional[str]
@@ -307,19 +306,16 @@ def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-d
 @client_router.delete("/api/opsidata/clients/{clientid}", response_model=ClientResponse)
 def delete_client(clientid: str):
 	"""
-	Delete Clients with ID.
+	Delete Client with ID.
 	"""
 
 	status_code = 200
 	error = ""
 	data = None
 
-
-
 	with mysql.session() as session:
 
 		try:
-
 			query = select(text("""
 				h.hostId AS hostId
 			"""))\
@@ -333,25 +329,70 @@ def delete_client(clientid: str):
 				logger.devel("Client does not exist")
 				return JSONResponse({"status": status.HTTP_404_NOT_FOUND, "error": {"message": f"Client with id '{clientid}' not found"}, "data": data})
 
+			tables = [
+				"OBJECT_TO_GROUP",
+				"CONFIG_STATE",
+				"PRODUCT_PROPERTY_STATE"
+			]
 
-			query = delete(table("PRODUCT_ON_CLIENT"))\
-			.where(text(f"clientId = '{clientid}'"))
+			for table_name in tables:
+				query = delete(table(table_name))\
+				.where(text(f"objectId = '{clientid}'"))
+				session.execute(query)
 
-			session.execute(query)
+			tables = [
+				"PRODUCT_ON_CLIENT",
+				"LICENSE_ON_CLIENT",
+				"SOFTWARE_CONFIG"
+			]
 
-			query = delete(table("OBJECT_TO_GROUP"))\
-			.where(text(f"objectId = '{clientid}'"))
+			for table_name in tables:
+				query = delete(table(table_name))\
+				.where(text(f"clientId = '{clientid}'"))
+				session.execute(query)
 
-			session.execute(query)
+			tables = [
+				"HARDWARE_CONFIG_1394_CONTROLLER",
+				"HARDWARE_CONFIG_AUDIO_CONTROLLER",
+				"HARDWARE_CONFIG_BASE_BOARD",
+				"HARDWARE_CONFIG_BIOS",
+				"HARDWARE_CONFIG_CACHE_MEMORY",
+				"HARDWARE_CONFIG_CHASSIS",
+				"HARDWARE_CONFIG_COMPUTER_SYSTEM",
+				"HARDWARE_CONFIG_DISK_PARTITION",
+				"HARDWARE_CONFIG_FLOPPY_CONTROLLER",
+				"HARDWARE_CONFIG_FLOPPY_DRIVE",
+				"HARDWARE_CONFIG_HARDDISK_DRIVE",
+				"HARDWARE_CONFIG_HDAUDIO_DEVICE",
+				"HARDWARE_CONFIG_IDE_CONTROLLER",
+				"HARDWARE_CONFIG_KEYBOARD",
+				"HARDWARE_CONFIG_MEMORY_BANK",
+				"HARDWARE_CONFIG_MEMORY_MODULE",
+				"HARDWARE_CONFIG_MONITOR",
+				"HARDWARE_CONFIG_NETWORK_CONTROLLER",
+				"HARDWARE_CONFIG_OPTICAL_DRIVE",
+				"HARDWARE_CONFIG_PCI_DEVICE",
+				"HARDWARE_CONFIG_PCMCIA_CONTROLLER",
+				"HARDWARE_CONFIG_POINTING_DEVICE",
+				"HARDWARE_CONFIG_PORT_CONNECTOR",
+				"HARDWARE_CONFIG_PRINTER",
+				"HARDWARE_CONFIG_PROCESSOR",
+				"HARDWARE_CONFIG_SCSI_CONTROLLER",
+				"HARDWARE_CONFIG_SYSTEM_SLOT",
+				"HARDWARE_CONFIG_TAPE_DRIVE",
+				"HARDWARE_CONFIG_TPM",
+				"HARDWARE_CONFIG_USB_CONTROLLER",
+				"HARDWARE_CONFIG_USB_DEVICE",
+				"HARDWARE_CONFIG_VIDEO_CONTROLLER"
+			]
 
-			query = delete(table("CONFIG_STATE"))\
-			.where(text(f"objectId = '{clientid}'"))
-
-			session.execute(query)
+			for table_name in tables:
+				query = delete(table(table_name))\
+				.where(text(f"hostId = '{clientid}'"))
+				session.execute(query)
 
 			query = delete(table("HOST"))\
-			.where(text(f"HOST.hostId = '{clientid}' and HOST.type = 'OpsiClient'"))\
-
+			.where(text(f"HOST.hostId = '{clientid}' and HOST.type = 'OpsiClient'"))
 			session.execute(query)
 
 		except Exception as err: # pylint: disable=broad-except

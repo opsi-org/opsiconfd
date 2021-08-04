@@ -56,6 +56,22 @@ def depot_get_product_version(depot, product):
 
 		return version
 
+def get_latest_version_on_depot(depot_id, product_id):
+
+	with mysql.session() as session:
+		query = select(text("CONCAT(pod.productVersion,'-',pod.packageVersion) AS version"))\
+			.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
+			.where(text(f"pod.productId='{product_id}' and pod.depotId='{depot_id}'"))\
+			.group_by(text("version"))
+
+		result = session.execute(query)
+		result = result.fetchone()
+		if result:
+			result = dict(result).get("version")
+
+
+	return result
+
 def get_product_actions(product, version, package_version):
 
 	params = {}
@@ -331,12 +347,14 @@ def products(
 class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	clientId: str
 	productId: str
-	productVersion: str
-	packageVersion: str
+	productType: str
+	version: Optional[str]
 	actionRequest: Optional[str] = None
 	actionProgress: Optional[str] = None
 	actionResult: Optional[str] = None
 	installationStatus: Optional[str] = None
+
+
 
 @product_router.patch("/api/opsidata/clients/products")
 def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint: disable=too-many-locals
@@ -344,43 +362,65 @@ def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint
 	Save a Product On Client object.
 	"""
 	status = 200
-	error = ""
-	data = {}
+	error = {}
+	result_data = {}
 
 	for poc in data:
-		client = poc.get("clientId")
-		product = poc.get("productId")
-		version = poc.get("productVersion")
-		package_version = poc.get("packageVersion")
-		action_request = poc.get("actionRequest")
+		client = poc.clientId
+		product = poc.productId
+		version = poc.version
+		action_request = poc.actionRequest
 
 		try:
-			data[client]
+			result_data[client]
 		except KeyError:
-			data[client] = {}
+			result_data[client] = {}
 
-		if not is_product_on_depot(product, version, package_version, get_depot_of_client(client)):
+		depot = get_depot_of_client(client)
+
+		if not version:
+			version = depot_get_product_version(depot, product)
+
+		if not version:
 			status = 400
-			error += f"Product '{product}' Version {version}-{package_version} not on Depot.\n "
-			data[client][product] = f"Product '{product}' Version {version}-{package_version} not on Depot."
+			error[client] = f"Product '{product}' not on Depot.\n "
+			result_data[client][product] = f"Product '{product}' not on Depot."
 			continue
 
-		actions = get_product_actions(product, version, package_version)
+		product_version = version.split("-")[0]
+		package_version = version.split("-")[1]
+
+
+		if not is_product_on_depot(product, product_version, package_version, depot):
+			status = 400
+			error[client] = f"Product '{product}' Version {product_version}-{package_version} not on Depot.\n "
+			result_data[client][product] = f"Product '{product}' Version {product_version}-{package_version} not on Depot."
+			continue
+
+		actions = get_product_actions(product, product_version, package_version)
 
 		if action_request not in actions:
 			status = 400
-			error += f"Action request '{action_request}' not supported by Product {product} Version {version}-{package_version}.\n "
-			data[client][product] = f"Action request '{action_request}' not supported by Product '{product}' Version {version}-{package_version}."
+			error[client] = f"Action request '{action_request}' not supported by Product {product} Version {product_version}-{package_version}.\n "
+			result_data[client][product] = f"Action request '{action_request}' not supported by Product '{product}' Version {product_version}-{package_version}."
 			continue
 
 		params = {}
 		params["clientId"] = client
 		params["productId"] = product
+		params["productType"] = poc.productType
+		params["productVersion"] = product_version
+		params["packageVersion"] = package_version
+		params["actionRequest"] = poc.actionRequest
+		params["actionProgress"] = poc.actionProgress
+		params["actionResult"] = poc.actionResult
+		params["installationStatus"] = poc.installationStatus
+
 		values = {}
 
-		for key in poc:
-			if poc.get(key):
-				values[key] =  poc.get(key)
+		for key in params.keys():
+			if params.get(key):
+				values[key] =  params.get(key)
 
 		try:
 			with mysql.session() as session:
@@ -394,14 +434,14 @@ def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint
 
 				session.execute(query, params)
 
-			data[client][product] = values
+			result_data[client][product] = values
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Could not create product_on_client Object.")
 			logger.error(err)
-			error += err
+			error["Error"] = str(err)
 			status = max(status, 500)
 
-	return JSONResponse({"status": status, "error": error, "data": data})
+	return JSONResponse({"status": status, "error": error, "data": result_data})
 
 
 
@@ -473,3 +513,5 @@ async def product_icons():
 	return JSONResponse({
 		"result": {"opsi-client-agent": "assets/images/product_icons/opsi-logo.png"}
 	})
+
+

@@ -56,21 +56,6 @@ def depot_get_product_version(depot, product):
 
 		return version
 
-def get_latest_version_on_depot(depot_id, product_id):
-
-	with mysql.session() as session:
-		query = select(text("CONCAT(pod.productVersion,'-',pod.packageVersion) AS version"))\
-			.select_from(text("PRODUCT_ON_DEPOT AS pod"))\
-			.where(text(f"pod.productId='{product_id}' and pod.depotId='{depot_id}'"))\
-			.group_by(text("version"))
-
-		result = session.execute(query)
-		result = result.fetchone()
-		if result:
-			result = dict(result).get("version")
-
-
-	return result
 
 def get_product_actions(product, version, package_version):
 

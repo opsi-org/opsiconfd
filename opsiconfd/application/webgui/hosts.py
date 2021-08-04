@@ -205,7 +205,8 @@ def get_host_groups(selectedDepots: List[str] = Body(default=[]), parentGroup: O
 						"id": row["object_id"],
 						"type": "ObjectToGroup",
 						"text": row["object_id"],
-						"parent": row["group_id"]
+						"parent": row["group_id"],
+						"children": None
 					}
 
 

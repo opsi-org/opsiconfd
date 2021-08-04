@@ -130,8 +130,10 @@ def build_tree(group, groups, allowed, processed=None):
 		if not "children" in group:
 			group["children"] = {}
 		group["children"].update(children)
+	else:
+		group["children"] = None
 
-	if not is_root_group and "children" in group:
+	if not is_root_group and group.get("children"):
 		for child in group["children"].values():
 			# Correct id for webgui
 			child["id"] = f'{child["id"]};{group["id"]}'

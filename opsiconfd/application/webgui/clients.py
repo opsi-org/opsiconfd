@@ -199,7 +199,7 @@ def depots_of_clients(selectedClients: List[str] = Body(default=[] , embed=True)
 		return JSONResponse(response_data)
 
 class Client(BaseModel): # pylint: disable=too-few-public-methods
-	hostId: Optional[str]
+	hostId: str
 	opsiHostKey: Optional[str]
 	description: Optional[str]
 	notes: Optional[str]
@@ -216,7 +216,7 @@ class ClientResponse(BaseModel):
 	data: Client
 
 @client_router.post("/api/opsidata/clients")
-def create_client(request: Request, client: ClientResponse): # pylint: disable=too-many-locals
+def create_client(request: Request, client: Client): # pylint: disable=too-many-locals
 	"""
 	Create OPSI-Client.
 	"""

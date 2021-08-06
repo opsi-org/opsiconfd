@@ -99,6 +99,9 @@ package:
     # Workaround for debian 11
     #  PAM unable to dlopen(pam_unix.so): /lib/security/pam_unix.so: cannot open shared object file: No such file or directory
     [ -e /usr/lib/opsiconfd/libpam.so.0 -a -e /usr/lib/x86_64-linux-gnu/libpam.so.0 ] && cp /usr/lib/x86_64-linux-gnu/libpam.so.0 /usr/lib/opsiconfd/libpam.so.0
+    # Workaround for Ubuntu 20.04
+    #  PAM unable to dlopen(pam_unix.so): /lib/security/pam_unix.so: cannot open shared object file: No such file or directory
+    [ -e /usr/lib/opsiconfd/libpam.so.0 -a -e /lib/x86_64-linux-gnu/libpam.so.0 ] && cp /lib/x86_64-linux-gnu/libpam.so.0 /usr/lib/opsiconfd/libpam.so.0
     # Workaround for opsi-admin authentification error on SLES15 SP3
     [ -e /usr/lib/opsiconfd/libpam.so.0 -a -e /lib64/libpam.so.0 ] && cp /lib64/libpam.so.0 /usr/lib/opsiconfd/libpam.so.0
     # Remove obsolete files

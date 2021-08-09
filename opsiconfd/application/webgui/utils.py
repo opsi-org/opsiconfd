@@ -13,7 +13,7 @@ import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, asc, desc, column
 
-from fastapi import Body
+from fastapi import Body, Query
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
@@ -172,6 +172,21 @@ def common_parameters(
 		perPage:  Optional[int] = Body(default=20 , embed=True),
 		sortBy:  Optional[str] = Body(default=None , embed=True),
 		sortDesc: Optional[bool] = Body(default=True , embed=True)
+	): # pylint: disable=invalid-name
+	return {
+		"filterQuery": filterQuery,
+		"pageNumber": pageNumber,
+		"perPage": perPage,
+		"sortBy": sortBy,
+		"sortDesc": sortDesc
+	}
+
+def common_query_parameters(
+		filterQuery: Optional[str] = Query(default=None , embed=True),
+		pageNumber: Optional[int] = Query(default=1 , embed=True),
+		perPage:  Optional[int] = Query(default=20 , embed=True),
+		sortBy:  Optional[str] = Query(default=None , embed=True),
+		sortDesc: Optional[bool] = Query(default=True , embed=True)
 	): # pylint: disable=invalid-name
 	return {
 		"filterQuery": filterQuery,

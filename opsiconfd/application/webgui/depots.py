@@ -15,7 +15,7 @@ from sqlalchemy import select, text, and_, or_
 from fastapi import APIRouter, Depends, Body
 from fastapi.responses import JSONResponse
 
-from .utils import get_mysql, order_by, pagination, get_configserver_id, common_parameters
+from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list
 
 mysql = get_mysql()
 
@@ -25,8 +25,6 @@ class DepotIdsResponse(BaseModel): # pylint: disable=too-few-public-methods
 	result: List[str]
 
 @depot_router.get("/api/opsidata/depotIds", response_model=DepotIdsResponse)
-@depot_router.post("/api/opsidata/depotIds", response_model=DepotIdsResponse)
-@depot_router.post("/api/opsidata/depotsIds", response_model=DepotIdsResponse)
 def depot_ids():
 	"""
 	Get all depotIds.
@@ -58,8 +56,7 @@ class DepotResponse(BaseModel):  # pylint: disable=too-few-public-methods
 	configserver: str
 
 @depot_router.get("/api/opsidata/depots", response_model=DepotResponse)
-@depot_router.post("/api/opsidata/depots", response_model=DepotResponse)
-def depots(commons: dict = Depends(common_parameters)):
+def depots(commons: dict = Depends(common_query_parameters)):
 	"""
 	Get all depots with depotId, ident, type, ip and description.
 	"""
@@ -110,9 +107,9 @@ class ClientsOnDepotResponse(BaseModel): # pylint: disable=too-few-public-method
 		clients: List[str]
 	result: Clients
 
-@depot_router.post("/api/opsidata/depots/clients", response_model=ClientsOnDepotResponse)
+
 @depot_router.get("/api/opsidata/depots/clients", response_model=ClientsOnDepotResponse)
-def clients_on_depots(selectedDepots: List[str] = Body(default=[], embed=True)): # pylint: disable=invalid-name
+def clients_on_depots(selectedDepots: List[str] = Depends(parse_depot_list)): # pylint: disable=invalid-name
 	"""
 	Get all client ids on selected depots.
 	"""

@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
 
-from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list
+from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list, parse_client_list
 
 mysql = get_mysql()
 
@@ -160,9 +160,9 @@ def clients(commons: dict = Depends(common_query_parameters), selectedDepots: Li
 class DepotOfClientsResponse(BaseModel): # pylint: disable=too-few-public-methods
 	result: Dict[str, str]
 
-@client_router.post("/api/opsidata/clients/depots", response_model=DepotOfClientsResponse)
+
 @client_router.get("/api/opsidata/clients/depots", response_model=DepotOfClientsResponse)
-def depots_of_clients(selectedClients: List[str] = Body(default=[] , embed=True)): # pylint: disable=too-many-branches, redefined-builtin, dangerous-default-value, invalid-name
+def depots_of_clients(selectedClients: List[str] = Depents(parse_client_list)): # pylint: disable=too-many-branches, redefined-builtin, dangerous-default-value, invalid-name
 	"""
 	Get a mapping of clients to depots.
 	"""

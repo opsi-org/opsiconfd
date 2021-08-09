@@ -8,7 +8,7 @@
 webgui utils
 """
 
-from typing import Optional
+from typing import Optional, List
 import orjson as json
 from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, asc, desc, column
@@ -195,3 +195,35 @@ def common_query_parameters(
 		"sortBy": sortBy,
 		"sortDesc": sortDesc
 	}
+
+
+def parse_depot_list(selectedDepots: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
+
+	def remove_prefix(value: str, prefix: str):
+		return value[value.startswith(prefix) and len(prefix):]
+
+	def remove_postfix(value: str, postfix: str):
+		if value.endswith(postfix):
+			value = value[:-len(postfix)]
+		return value
+
+	if selectedDepots is None:
+		return None
+
+	# we already have a list, we can return
+	if len(selectedDepots) > 1:
+		return selectedDepots
+
+	# if we don't start with a "[" and end with "]" it's just a normal entry
+	flat_depots = selectedDepots[0]
+	if not flat_depots.startswith("[") and not flat_depots.endswith("]"):
+		return selectedDepots
+
+	flat_depots = remove_prefix(flat_depots, "[")
+	flat_depots = remove_postfix(flat_depots, "]")
+
+	depot_list = flat_depots.split(",")
+	depot_list = [remove_prefix(n.strip(), "\"") for n in depot_list]
+	depot_list = [remove_postfix(n.strip(), "\"") for n in depot_list]
+
+	return depot_list

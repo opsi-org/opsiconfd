@@ -19,12 +19,12 @@ from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.sql.expression import table
 from sqlalchemy.exc import IntegrityError
 
-from fastapi import APIRouter, Body, Depends, Request, status, Query
+from fastapi import APIRouter, Body, Depends, Request, status
 from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
 
-from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters
+from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list
 
 mysql = get_mysql()
 
@@ -52,7 +52,7 @@ class ClientsResponse(BaseModel): # pylint: disable=too-few-public-methods
 
 
 @client_router.get("/api/opsidata/clients", response_model=ClientsResponse)
-def clients(commons: dict = Depends(common_query_parameters), selectedDepots:  List[str] = Query([])):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
+def clients(commons: dict = Depends(common_query_parameters), selectedDepots: List[str] = Depends(parse_depot_list)):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
 	"""
 	Get Clients on selected depots with infos on the client.
 	"""

@@ -14,7 +14,6 @@ from typing import List, Optional
 from pydantic import BaseModel # pylint: disable=no-name-in-module
 from sqlalchemy import select, union, text, and_, or_
 
-from fastapi.param_functions import Body
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 

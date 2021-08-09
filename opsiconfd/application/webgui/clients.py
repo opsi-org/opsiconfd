@@ -19,7 +19,7 @@ from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.sql.expression import table
 from sqlalchemy.exc import IntegrityError
 
-from fastapi import APIRouter, Body, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
@@ -162,7 +162,7 @@ class DepotOfClientsResponse(BaseModel): # pylint: disable=too-few-public-method
 
 
 @client_router.get("/api/opsidata/clients/depots", response_model=DepotOfClientsResponse)
-def depots_of_clients(selectedClients: List[str] = Depents(parse_client_list)): # pylint: disable=too-many-branches, redefined-builtin, dangerous-default-value, invalid-name
+def depots_of_clients(selectedClients: List[str] = Depends(parse_client_list)): # pylint: disable=too-many-branches, redefined-builtin, dangerous-default-value, invalid-name
 	"""
 	Get a mapping of clients to depots.
 	"""

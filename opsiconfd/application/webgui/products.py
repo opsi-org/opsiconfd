@@ -339,7 +339,7 @@ class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 
 
 @product_router.patch("/api/opsidata/clients/products")
-def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint: disable=too-many-locals
+def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements
 	"""
 	Save a Product On Client object.
 	"""
@@ -384,7 +384,7 @@ def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint
 		if action_request not in actions:
 			status = 400
 			error[client] = f"Action request '{action_request}' not supported by Product {product} Version {product_version}-{package_version}.\n "
-			result_data[client][product] = f"Action request '{action_request}' not supported by Product '{product}' Version {product_version}-{package_version}."
+			result_data[client][product] = f"Action request '{action_request}' not supported by Product '{product}' Version {product_version}-{package_version}." # pylint: disable=line-too-long
 			continue
 
 		params = {}
@@ -400,7 +400,7 @@ def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint
 
 		values = {}
 
-		for key in params.keys():
+		for key in params.keys(): # pylint: disable=consider-iterating-dictionary
 			if params.get(key):
 				values[key] =  params.get(key)
 
@@ -492,5 +492,3 @@ async def product_icons():
 	return JSONResponse({
 		"result": {"opsi-client-agent": "assets/images/product_icons/opsi-logo.png"}
 	})
-
-

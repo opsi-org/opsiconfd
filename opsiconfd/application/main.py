@@ -49,7 +49,7 @@ from .status import status_setup
 
 
 app = FastAPI(
-	title = "OPSIconfd",
+	title = "opsiconfd",
 	description = "",
 	version = f"{__version__} [python-opsi={python_opsi_version}]",
 )

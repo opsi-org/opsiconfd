@@ -68,6 +68,16 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		self.last_used = time.time()
 		asyncio.get_event_loop().create_task(self._periodically_test_rollover())
 
+	async def close(self):
+		if not self.initialized:
+			return
+		loop = asyncio.get_event_loop()
+		loop.create_task(self.stream.flush())
+		loop.create_task(self.stream.close())
+		self.stream = None
+		self._initialization_lock = None
+
+
 	async def _periodically_test_rollover(self):
 		while True:
 			try:

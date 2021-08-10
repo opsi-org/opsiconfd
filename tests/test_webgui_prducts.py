@@ -667,7 +667,7 @@ async def test_products(input_data, expected_result, create_check_data): # pylin
 
 	data = json.dumps(input_data)
 
-	res = requests.post(f"{CONFD_URL}/webgui/api/opsidata/products", auth=(TEST_USER, TEST_PW), verify=False, data=data)
+	res = requests.get(f"{CONFD_URL}/webgui/api/opsidata/products", auth=(TEST_USER, TEST_PW), verify=False, data=data)
 	print(res.json())
 	print(expected_result)
 

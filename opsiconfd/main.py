@@ -116,10 +116,10 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		os.execvp("systemctl", ["systemctl", "--no-pager", "--lines", "0", config.action, "opsiconfd"])
 
 	if config.action in ("reload", "stop", "force-stop"):
-		# Send signal to manager process only, not to workers!
-		send_signal = signal.SIGINT if config.action in ("stop", "force-stop") else signal.SIGHUP
-
 		if manager_pid:
+			# Send signal to manager process only, not to workers!
+			send_signal = signal.SIGINT if config.action in ("stop", "force-stop") else signal.SIGHUP
+
 			os.kill(manager_pid, send_signal)
 			if config.action == "force-stop":
 				# Wait 5 seconds for processes to terminate or resend signal to force stop

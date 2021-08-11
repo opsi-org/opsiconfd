@@ -26,8 +26,6 @@ from .utils import (
 	order_by,
 	pagination,
 	get_depot_of_client,
-	get_allowed_objects,
-	build_tree,
 	common_query_parameters,
 	parse_depot_list,
 	parse_client_list
@@ -431,10 +429,8 @@ def get_product_groups(): # pylint: disable=too-many-locals
 	"""
 	Get all product groups as a tree of groups.
 	"""
-	allowed = get_allowed_objects()
 
 	params = {}
-
 	where = text("g.`type` = 'ProductGroup'")
 
 	with mysql.session() as session:
@@ -451,37 +447,42 @@ def get_product_groups(): # pylint: disable=too-many-locals
 		result = session.execute(query, params)
 		result = result.fetchall()
 		root_group = {
-					"id": "productgroups",
+					"id": "root",
 					"type": "ProductGroup",
-					"text": "productgroups",
-					"parent": "#",
-					"allowed": True
+					"text": "root",
+					"parent": None
 				}
 		all_groups = {}
 		for row in result:
 			if not row["group_id"] in all_groups:
 				all_groups[row["group_id"]] = {
 					"id": row["group_id"],
-					"type": "HostGroup",
+					"type": "ProductGroup",
 					"text": row["group_id"],
-					"parent": row["parent_id"] or root_group["id"],
-					"allowed": True
+					"parent": row["parent_id"] or root_group["id"]
 				}
 			if row["object_id"]:
 				if not "children" in all_groups[row["group_id"]]:
 					all_groups[row["group_id"]]["children"] = {}
-				all_groups[row["group_id"]]["children"][row["object_id"]] = {
-					"id": row["object_id"],
-					"type": "ObjectToGroup",
-					"text": row["object_id"],
-					"parent": row["group_id"],
-				}
-
-		product_groups = build_tree(root_group, list(all_groups.values()), allowed["host_groups"])
+				if row.group_id == row.parent_id:
+					if not row["object_id"] in all_groups:
+						all_groups[row["object_id"]] = {
+							"id": row["object_id"],
+							"type": "ProductGroup",
+							"text": row["object_id"],
+							"parent": row["parent_id"] or root_group["id"]
+						}
+				else:
+					all_groups[row["group_id"]]["children"][row["object_id"]] = {
+						"id": row["object_id"],
+						"type": "ObjectToGroup",
+						"text": row["object_id"],
+						"parent": row["group_id"],
+					}
 
 		response_data = {
 			"result": {
-				"groups": product_groups,
+				"groups": all_groups,
 			}
 		}
 		return JSONResponse(response_data)

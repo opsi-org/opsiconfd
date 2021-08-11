@@ -26,8 +26,6 @@ from .utils import (
 	order_by,
 	pagination,
 	get_depot_of_client,
-	get_allowed_objects,
-	build_tree,
 	common_query_parameters,
 	parse_depot_list,
 	parse_client_list

@@ -501,3 +501,85 @@ async def product_icons():
 	return JSONResponse({
 		"result": {"opsi-client-agent": "assets/images/product_icons/opsi-logo.png"}
 	})
+
+
+class Property(BaseModel): # pylint: disable=too-few-public-methods
+	propertyId: str
+	type: Optional[str] = "UnicodeProductProperty"
+	version: Optional[str]
+	possibleValues: Optional[List[str]]
+	editable: Optional[bool]
+	multiValue: Optional[bool]
+	description: Optional[str]
+
+class ProductProperiesResponse(BaseModel):
+	status: int
+	error: dict
+	data: Property
+
+@product_router.get("/api/opsidata/products/{productId}/properties", response_model=ProductProperiesResponse)
+def product_properties(
+	productId: str,
+	selectedClients: List[str] = Depends(parse_client_list),
+): # pylint: disable=too-many-locals, too-many-branches, too-many-statements, redefined-builtin, invalid-name
+	"""
+	Get products propertiers.
+	"""
+
+	logger.devel(productId)
+	logger.devel(selectedClients)
+
+	status_code = 200
+	error = None
+	data = {}
+	params = {}
+	data["properties"] = []
+	params["productId"] = productId
+	where = text("pp.productId = :productId")
+	depots = []
+	for client in selectedClients:
+		depots.append(get_depot_of_client(client))
+	if depots:
+		params["depots"] = depots
+		where = and_(
+			where,
+			text("(pod.depotId IN :depots)")
+		)
+
+
+	with mysql.session() as session:
+
+		try:
+			query = select(text("""
+				pp.productId,
+				pp.propertyId,
+				CONCAT(pp.productVersion,'-',pp.packageVersion) AS version,
+				pp.type,
+				pp.description,
+				pp.multiValue,
+				pp.editable
+			"""))\
+			.select_from(text("PRODUCT_PROPERTY AS pp"))\
+			.join(text("PRODUCT_ON_DEPOT AS pod"), text("pod.productId = pp.productId"))\
+			.where(where) # pylint: disable=redefined-outer-name
+
+			logger.devel(query)
+
+			result = session.execute(query, params)
+			result = result.fetchall()
+
+
+			for row in result:
+				if row is not None:
+					property = dict(row)
+					data["properties"].append(property)
+
+		except Exception as err: # pylint: disable=broad-except
+			logger.error("Could not get properties.")
+			logger.error(err)
+			error = {"message": str(err), "class": err.__class__.__name__}
+			status_code = max(status_code, 500)
+
+
+
+	return JSONResponse({"status": status_code, "error": error, "data": data})

@@ -28,7 +28,9 @@ from .utils import (
 	get_depot_of_client,
 	get_allowed_objects,
 	build_tree,
-	common_parameters
+	common_query_parameters,
+	parse_depot_list,
+	parse_client_list
 )
 
 mysql = get_mysql()
@@ -137,15 +139,13 @@ class ProductsResponse(BaseModel): # pylint: disable=too-few-public-methods
 	result: Result
 	configserver: str
 
-@product_router.post("/api/opsidata/localbootproducts", response_model=ProductsResponse)
-@product_router.get("/api/opsidata/products", response_model=ProductsResponse)
-@product_router.post("/api/opsidata/products", response_model=ProductsResponse)
-def products(
-	commons: dict = Depends(common_parameters),
-	type: str = Body(default="LocalbootProduct"),
-	selectedClients: List[str] = Body(default=[]),
-	selectedDepots: List[str] = Body(default=[])
 
+@product_router.get("/api/opsidata/products", response_model=ProductsResponse)
+def products(
+	commons: dict = Depends(common_query_parameters),
+	type: str = "LocalbootProduct",
+	selectedClients: List[str] = Depends(parse_client_list),
+	selectedDepots: List[str] = Depends(parse_depot_list),
 ): # pylint: disable=too-many-locals, too-many-branches, too-many-statements, redefined-builtin, invalid-name
 	"""
 	Get products from selected depots and clients.
@@ -327,8 +327,6 @@ def products(
 		return JSONResponse(response_data)
 
 
-
-
 class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	clientId: str
 	productId: str
@@ -340,9 +338,8 @@ class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	installationStatus: Optional[str] = None
 
 
-
 @product_router.patch("/api/opsidata/clients/products")
-def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint: disable=too-many-locals
+def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements
 	"""
 	Save a Product On Client object.
 	"""
@@ -387,7 +384,7 @@ def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint
 		if action_request not in actions:
 			status = 400
 			error[client] = f"Action request '{action_request}' not supported by Product {product} Version {product_version}-{package_version}.\n "
-			result_data[client][product] = f"Action request '{action_request}' not supported by Product '{product}' Version {product_version}-{package_version}."
+			result_data[client][product] = f"Action request '{action_request}' not supported by Product '{product}' Version {product_version}-{package_version}." # pylint: disable=line-too-long
 			continue
 
 		params = {}
@@ -403,7 +400,7 @@ def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint
 
 		values = {}
 
-		for key in params.keys():
+		for key in params.keys(): # pylint: disable=consider-iterating-dictionary
 			if params.get(key):
 				values[key] =  params.get(key)
 
@@ -429,8 +426,6 @@ def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint
 	return JSONResponse({"status": status, "error": error, "data": result_data})
 
 
-
-@product_router.post("/api/opsidata/products/groups")
 @product_router.get("/api/opsidata/products/groups")
 def get_product_groups(): # pylint: disable=too-many-locals
 	"""
@@ -493,10 +488,7 @@ def get_product_groups(): # pylint: disable=too-many-locals
 
 
 @product_router.get("/api/opsidata/producticons")
-@product_router.post("/api/opsidata/producticons")
 async def product_icons():
 	return JSONResponse({
 		"result": {"opsi-client-agent": "assets/images/product_icons/opsi-logo.png"}
 	})
-
-

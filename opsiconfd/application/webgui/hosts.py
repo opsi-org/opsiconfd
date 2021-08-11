@@ -14,11 +14,20 @@ from typing import List, Optional
 from pydantic import BaseModel # pylint: disable=no-name-in-module
 from sqlalchemy import select, union, text, and_, or_
 
-from fastapi.param_functions import Body
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from .utils import get_mysql, order_by, pagination, get_allowed_objects, get_configserver_id, build_tree, common_parameters
+from .utils import (
+	get_mysql, order_by,
+	pagination,
+	get_allowed_objects,
+	get_configserver_id,
+	build_tree,
+	common_query_parameters,
+	parse_depot_list,
+	parse_hosts_list
+)
+
 
 mysql = get_mysql()
 
@@ -39,12 +48,11 @@ class HostDataResponse(BaseModel):  # pylint: disable=too-few-public-methods
 		oneTimePassword: str
 	result: List[HostData]
 
-@host_router.post("/api/opsidata/hosts", response_model=HostDataResponse)
 @host_router.get("/api/opsidata/hosts", response_model=HostDataResponse)
 def get_host_data(
-	commons: dict = Depends(common_parameters),
-	hosts: List[str] = Body(default = [], embed=True),
-	type: Optional[str] = Body(default=None, embed=True),
+	commons: dict = Depends(common_query_parameters),
+	hosts: List[str] = Depends(parse_hosts_list),
+	type: Optional[str] = None,
 ): # pylint: disable=redefined-builtin
 	"""
 	Get host data.
@@ -98,9 +106,9 @@ def get_host_data(
 			}
 		return JSONResponse(response_data)
 
-@host_router.post("/api/opsidata/hosts/groups")
+
 @host_router.get("/api/opsidata/hosts/groups")
-def get_host_groups(selectedDepots: List[str] = Body(default=[]), parentGroup: Optional[str] = Body(...)): # pylint: disable=too-many-locals, too-many-branches, invalid-name
+def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), parentGroup: Optional[str] = []): # pylint: disable=too-many-locals, too-many-branches, invalid-name, dangerous-default-value
 	"""
 	Get host groups as tree.
 	If a parent group (parentGroupId) is given only child groups will be returned.

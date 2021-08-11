@@ -197,8 +197,16 @@ def common_query_parameters(
 	}
 
 
-def parse_depot_list(selectedDepots: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
+def parse_hosts_list(hosts: List[str] = Query(None)) -> Optional[List]:
+	return parse_list(hosts)
 
+def parse_depot_list(selectedDepots: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
+	return parse_list(selectedDepots)
+
+def parse_client_list(selectedClients: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
+	return parse_list(selectedClients)
+
+def parse_list(query_list):
 	def remove_prefix(value: str, prefix: str):
 		return value[value.startswith(prefix) and len(prefix):]
 
@@ -207,17 +215,17 @@ def parse_depot_list(selectedDepots: List[str] = Query(None)) -> Optional[List]:
 			value = value[:-len(postfix)]
 		return value
 
-	if selectedDepots is None:
+	if query_list is None:
 		return None
 
 	# we already have a list, we can return
-	if len(selectedDepots) > 1:
-		return selectedDepots
+	if len(query_list) > 1:
+		return query_list
 
 	# if we don't start with a "[" and end with "]" it's just a normal entry
-	flat_depots = selectedDepots[0]
+	flat_depots = query_list[0]
 	if not flat_depots.startswith("[") and not flat_depots.endswith("]"):
-		return selectedDepots
+		return query_list
 
 	flat_depots = remove_prefix(flat_depots, "[")
 	flat_depots = remove_postfix(flat_depots, "]")
@@ -225,5 +233,7 @@ def parse_depot_list(selectedDepots: List[str] = Query(None)) -> Optional[List]:
 	depot_list = flat_depots.split(",")
 	depot_list = [remove_prefix(n.strip(), "\"") for n in depot_list]
 	depot_list = [remove_postfix(n.strip(), "\"") for n in depot_list]
+
+	logger.devel(depot_list)
 
 	return depot_list

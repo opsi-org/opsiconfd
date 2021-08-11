@@ -11,7 +11,7 @@ webgui
 import os
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from opsiconfd import contextvar_client_session
@@ -45,9 +45,7 @@ def webgui_setup(app):
 
 @webgui_router.options("/api/{any:path}")
 async def options():
-	return Response(
-		status_code=200
-	)
+	return PlainTextResponse("OK", status_code=200)
 
 
 @webgui_router.get("/api/auth/login")

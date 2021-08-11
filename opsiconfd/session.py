@@ -173,6 +173,12 @@ class SessionMiddleware:
 			#	logger.warning("Session init took %0.2fms", sht)
 
 			auth_done = False
+			if (
+				connection.scope.get("path", "").startswith("/webgui/api/opsidata") and
+				connection.base_url.hostname in  ("127.0.0.1", "::1", "0.0.0.0", "localhost")
+			):
+				if connection.scope.get("method") == "OPTIONS":
+					is_public = True
 			if connection.scope.get("path", "") == "/webgui/api/auth/login":
 				if connection.scope.get("method") == "OPTIONS":
 					is_public = True

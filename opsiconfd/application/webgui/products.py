@@ -546,7 +546,6 @@ def product_properties(
 			text("(pod.depotId IN :depots)")
 		)
 
-
 	with mysql.session() as session:
 
 		try:
@@ -560,14 +559,17 @@ def product_properties(
 				pp.editable
 			"""))\
 			.select_from(text("PRODUCT_PROPERTY AS pp"))\
-			.join(text("PRODUCT_ON_DEPOT AS pod"), text("pod.productId = pp.productId"))\
+			.join(text("PRODUCT_ON_DEPOT AS pod"), text("""
+				pod.productId = pp.productId AND
+				pod.productVersion = pp.productVersion AND
+				pod.packageVersion = pp.packageVersion
+			"""))\
 			.where(where) # pylint: disable=redefined-outer-name
 
 			logger.devel(query)
 
 			result = session.execute(query, params)
 			result = result.fetchall()
-
 
 			for row in result:
 				if row is not None:

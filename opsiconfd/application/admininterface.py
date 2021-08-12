@@ -149,7 +149,7 @@ async def get_rpc_list() -> list:
 			value = msgpack.loads(value)
 		except msgpack.exceptions.ExtraData:
 			# Was json encoded before, can be removed in the future
-			value = orjson.loads(value)  # pylint: disable=c-extension-no-member
+			value = orjson.loads(value)  # pylint: disable=no-member
 		rpc = {
 			"rpc_num": value.get("rpc_num"),
 			"method": value.get("method"),

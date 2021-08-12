@@ -437,7 +437,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			data = msgpack.loads(data)
 		except msgpack.exceptions.ExtraData:
 			# Was json encoded before, can be removed in the future
-			data = orjson.loads(data)  # pylint: disable=c-extension-no-member
+			data = orjson.loads(data)  # pylint: disable=no-member
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
 		for key, val in data.get("user_store", {}).items():

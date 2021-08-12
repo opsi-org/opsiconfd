@@ -242,7 +242,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			jsonrpc = await run_in_threadpool(msgpack.loads, jsonrpc)
 			logger.debug("Decode msgpack time: %0.2fms", 1000 * (time.perf_counter() - decode_start))
 		else:
-			jsonrpc = await run_in_threadpool(orjson.loads, jsonrpc)  # pylint: disable=c-extension-no-member
+			jsonrpc = await run_in_threadpool(orjson.loads, jsonrpc)  # pylint: disable=no-member
 			logger.debug("Decode json time: %0.2fms", 1000 * (time.perf_counter() - decode_start))
 
 		if not isinstance(jsonrpc, list):
@@ -361,7 +361,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 		_dumps = msgpack.dumps
 	else:
 		response.headers["content-type"] = "application/json"
-		_dumps = orjson.dumps  # pylint: disable=c-extension-no-member
+		_dumps = orjson.dumps  # pylint: disable=no-member
 	data = await run_in_threadpool(_dumps, results[0] if len(results) == 1 else results)
 
 	data_len = len(data)

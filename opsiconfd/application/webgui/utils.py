@@ -9,8 +9,7 @@ webgui utils
 """
 
 from typing import Optional, List
-import orjson as json
-from orjson import JSONDecodeError  # pylint: disable=no-name-in-module
+import orjson
 from sqlalchemy import select, text, asc, desc, column
 
 from fastapi import Body, Query
@@ -87,9 +86,9 @@ def get_user_privileges():
 		).fetchall():
 			try:
 				priv = ".".join(row["configId"].split(".")[3:])
-				vals = [ val for val in json.loads(row["values"]) if val != "" ]  # pylint: disable=c-extension-no-member
+				vals = [ val for val in orjson.loads(row["values"]) if val != "" ]  # pylint: disable=no-member
 				privileges[priv] = vals
-			except JSONDecodeError as err:
+			except orjson.JSONDecodeError as err:  # pylint: disable=no-member
 				logger.error("Failed to parse privilege %s: %s", row, err)
 
 		return privileges

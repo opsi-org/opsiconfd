@@ -41,7 +41,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 				rpc = msgpack.loads(rpc)
 			except msgpack.exceptions.ExtraData:
 				# Was json encoded before, can be removed in the future
-				rpc = orjson.loads(rpc)  # pylint: disable=c-extension-no-member
+				rpc = orjson.loads(rpc)  # pylint: disable=no-member
 			if rpc["error"]:
 				error_count += 1
 		if error_count == 0:

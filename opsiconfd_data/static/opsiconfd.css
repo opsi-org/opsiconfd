@@ -15,6 +15,10 @@ body {
 	color: #3a3a3a;
 }
 
+p {
+	font-size: 15px;
+}
+
 #logo, #interface-logo {
 	width: 120px;
 	display: inline-block;
@@ -272,7 +276,7 @@ li {
 
 table tbody tr td {
 	font-size: 15px;
-  }
+}
 
 @media screen and (max-width: 1050px) {
 	.tab {

@@ -732,6 +732,7 @@ function callJSONRPC() {
 
 	request.addEventListener('load', function (event) {
 		document.getElementById("jsonrpc-execute-button").disabled = false;
+		document.getElementById("jsonrpc-response-info").innerHTML = "Server-Timing: " + request.getResponseHeader("server-timing");
 		if (request.status >= 200 && request.status < 300) {
 			result = request.responseText
 			result = JSON.parse(result);

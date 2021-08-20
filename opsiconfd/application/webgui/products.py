@@ -9,7 +9,8 @@ webgui product methods
 """
 
 from typing import List, Optional
-from sqlalchemy import select, text, and_, column, alias
+from functools import lru_cache
+from sqlalchemy import select, text, and_, alias, column
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.sql.expression import table
@@ -56,6 +57,22 @@ def depot_get_product_version(depot, product):
 
 		return version
 
+@lru_cache(maxsize=1000)
+def get_product_type(product_id, product_version, package_version):
+	with mysql.session() as session:
+		query = select(text("type"))\
+			.select_from(text("PRODUCT"))\
+			.where(text("productId = :product_id AND productVersion = :product_version AND packageVersion = :package_version"))
+
+		result = session.execute(query, {
+			"product_id": product_id,
+			"product_version": product_version,
+			"package_version": package_version
+		})
+		res = result.fetchone()
+		if not res:
+			return None
+		return res[0]
 
 def get_product_actions(product, version, package_version):
 
@@ -326,100 +343,91 @@ def products(
 
 
 class PocItem(BaseModel): # pylint: disable=too-few-public-methods
-	clientId: str
-	productId: str
-	productType: str
-	version: Optional[str]
+	clientIds: List[str]
+	productIds: List[str]
 	actionRequest: Optional[str] = None
 	actionProgress: Optional[str] = None
 	actionResult: Optional[str] = None
 	installationStatus: Optional[str] = None
 
-
 @product_router.patch("/api/opsidata/clients/products")
-def save_poduct_on_client(data: List[PocItem] = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements
+def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements
 	"""
 	Save a Product On Client object.
 	"""
 	status = 200
 	error = {}
 	result_data = {}
+	depot_product_version = {}
+	product_actions = {}
 
-	for poc in data:
-		client = poc.clientId
-		product = poc.productId
-		version = poc.version
-		action_request = poc.actionRequest
+	get_product_type.cache_clear()
 
-		try:
-			result_data[client]
-		except KeyError:
-			result_data[client] = {}
+	for client_id in data.clientIds:
+		if not client_id in result_data:
+			result_data[client_id] = {}
 
-		depot = get_depot_of_client(client)
+		depot_id = get_depot_of_client(client_id)
 
-		if not version:
-			version = depot_get_product_version(depot, product)
+		for product_id in data.productIds:
+			if not depot_id in depot_product_version:
+				depot_product_version[depot_id] = {}
+			if not product_id in depot_product_version[depot_id]:
+				depot_product_version[depot_id][product_id] = depot_get_product_version(depot_id, product_id)
+			if not depot_product_version[depot_id][product_id]:
+				status = 400
+				result_data[client_id][product_id] = f"Product '{product_id}' not available on depot '{depot_id}'."
+				error[client_id] = result_data[client_id][product_id] + "\n "
+				continue
 
-		if not version:
-			status = 400
-			error[client] = f"Product '{product}' not on Depot.\n "
-			result_data[client][product] = f"Product '{product}' not on Depot."
-			continue
+			version = depot_product_version[depot_id][product_id]
+			product_version, package_version = version.split("-", 1)
 
-		product_version = version.split("-")[0]
-		package_version = version.split("-")[1]
+			if not product_id in product_actions:
+				product_actions[product_id] = {}
+			if not product_version in product_actions[product_id]:
+				product_actions[product_id][product_version] = {}
+			if not package_version in product_actions[product_id][product_version]:
+				product_actions[product_id][product_version][package_version] = get_product_actions(
+					product_id, product_version, package_version
+				)
+			actions = product_actions[product_id][product_version][package_version]
 
+			if data.actionRequest not in actions:
+				status = 400
+				result_data[client_id][product_id] = (
+					f"Action request '{data.actionRequest}' not supported by product '{product_id}' version '{version}'."
+				)
+				error[client_id] = result_data[client_id][product_id] + "\n "
+				continue
 
-		if not is_product_on_depot(product, product_version, package_version, depot):
-			status = 400
-			error[client] = f"Product '{product}' Version {product_version}-{package_version} not on Depot.\n "
-			result_data[client][product] = f"Product '{product}' Version {product_version}-{package_version} not on Depot."
-			continue
+			values = {
+				"clientId": client_id,
+				"productId": product_id,
+				"productType": get_product_type(product_id, product_version, package_version),
+				"productVersion": product_version,
+				"packageVersion": package_version
+			}
+			for attr in ("actionRequest", "actionProgress", "actionResult", "installationStatus"):
+				if getattr(data, attr) is not None:
+					values[attr] = getattr(data, attr)
 
-		actions = get_product_actions(product, product_version, package_version)
+			try:
+				with mysql.session() as session:
+					stmt = insert(
+						table("PRODUCT_ON_CLIENT", *[column(name) for name in values.keys()])
+					).values(**values).on_duplicate_key_update(**values)
+					session.execute(stmt)
 
-		if action_request not in actions:
-			status = 400
-			error[client] = f"Action request '{action_request}' not supported by Product {product} Version {product_version}-{package_version}.\n "
-			result_data[client][product] = f"Action request '{action_request}' not supported by Product '{product}' Version {product_version}-{package_version}." # pylint: disable=line-too-long
-			continue
-
-		params = {}
-		params["clientId"] = client
-		params["productId"] = product
-		params["productType"] = poc.productType
-		params["productVersion"] = product_version
-		params["packageVersion"] = package_version
-		params["actionRequest"] = poc.actionRequest
-		params["actionProgress"] = poc.actionProgress
-		params["actionResult"] = poc.actionResult
-		params["installationStatus"] = poc.installationStatus
-
-		values = {}
-
-		for key in params.keys(): # pylint: disable=consider-iterating-dictionary
-			if params.get(key):
-				values[key] =  params.get(key)
-
-		try:
-			with mysql.session() as session:
-				query = insert(table(
-						"PRODUCT_ON_CLIENT",
-						*[column(key) for key in values.keys()] # pylint: disable=consider-iterating-dictionary
-
-					))\
-					.values(values)\
-					.on_duplicate_key_update(values)
-
-				session.execute(query, params)
-
-			result_data[client][product] = values
-		except Exception as err: # pylint: disable=broad-except
-			logger.error("Could not create product_on_client Object.")
-			logger.error(err)
-			error["Error"] = str(err)
-			status = max(status, 500)
+				result_data[client_id][product_id] = values
+			except Exception as err: # pylint: disable=broad-except
+				logger.error("Could not create ProductOnClient: %s", err)
+				#error["Error"] = str(err)
+				#status = max(status, 500)
+				status = 400
+				result_data[client_id][product_id] = "Failed to create ProductOnClient."
+				error[client_id] = result_data[client_id][product_id] + "\n "
+				continue
 
 	return JSONResponse({"status": status, "error": error, "data": result_data})
 

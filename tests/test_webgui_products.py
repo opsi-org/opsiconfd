@@ -17,7 +17,10 @@ from starlette.requests import Request
 from starlette.datastructures import Headers
 
 from opsiconfd.backend import get_backend
-from .utils import clean_redis, config, create_check_data, disable_request_warning, TEST_USER, TEST_PW, HOSTNAME, LOCAL_IP, DAYS # pylint: disable=unused-import
+from .utils import ( # pylint: disable=unused-import
+	clean_redis, config, create_check_data, disable_request_warning,
+	TEST_USER, TEST_PW, HOSTNAME, LOCAL_IP, DAYS
+)
 
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"

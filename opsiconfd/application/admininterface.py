@@ -22,7 +22,6 @@ from fastapi.templating import Jinja2Templates
 
 from OPSI import __version__ as python_opsi_version
 from OPSI.Exceptions import BackendPermissionDeniedError
-from requests.sessions import session
 
 from .. import __version__, contextvar_client_session
 from ..session import OPSISession
@@ -71,7 +70,7 @@ async def logout(request: Request):
 	try:
 		request_body = await request.json()
 		return_401 = request_body["return_401"]
-	except:
+	except Exception:  # pylint: disable=broad-except
 		pass
 	client_session = contextvar_client_session.get()
 	if client_session:

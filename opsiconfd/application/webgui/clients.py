@@ -167,7 +167,7 @@ def depots_of_clients(selectedClients: List[str] = Depends(parse_client_list)): 
 	Get a mapping of clients to depots.
 	"""
 
-#TODO check if clients of config server always work
+	#TODO check if clients of config server always work
 	params = {}
 	if selectedClients != [""] and selectedClients is not None:
 		params["clients"] = selectedClients

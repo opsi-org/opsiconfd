@@ -30,7 +30,7 @@ from aredis.exceptions import ResponseError
 from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
-from OPSI.Config import OPSI_ADMIN_GROUP
+from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP
 
 from opsicommon.logging import logger, secret_filter, set_context
 
@@ -217,6 +217,13 @@ class SessionMiddleware:
 					if session.user_store.host:
 						logger.info("Host authenticated, updating host object")
 						await run_in_threadpool(update_host_object, connection, session)
+
+					if (
+						not session.user_store.host and
+						scope["path"].startswith("/depot") and
+						FILE_ADMIN_GROUP not in session.user_store.userGroups
+					):
+						raise BackendPermissionDeniedError(f"Not a file admin user '{session.user_store.username}'")
 
 					if session.user_store.isAdmin and config.admin_networks:
 						is_admin_network = False

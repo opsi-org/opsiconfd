@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 
 from OPSI import __version__ as python_opsi_version
 from OPSI.Exceptions import BackendPermissionDeniedError
+from requests.sessions import session
 
 from .. import __version__, contextvar_client_session
 from ..session import OPSISession
@@ -46,10 +47,15 @@ def admin_interface_setup(app):
 @admin_interface_router.get("/")
 async def admin_interface_index(request: Request):
 	backend = get_backend()
+	username = ""
+	session = contextvar_client_session.get()
+	if session and session.user_store:
+		username = session.user_store.username
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
 		"node_name": config.node_name,
+		"username": username,
 		"interface": get_backend_interface(),
 		"ca_info": get_ca_info(),
 		"cert_info": get_cert_info(),

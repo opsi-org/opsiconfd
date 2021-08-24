@@ -242,7 +242,8 @@ class SessionMiddleware:
 							if OPSI_ADMIN_GROUP in session.user_store.userGroups:
 								# Remove admin group from groups because acl.conf currently does not support isAdmin
 								session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
-							asyncio.get_event_loop().create_task(session.store())
+							if session and not session.deleted:
+								asyncio.get_event_loop().create_task(session.store())
 
 				# Check authorization
 				needs_admin = True
@@ -266,7 +267,7 @@ class SessionMiddleware:
 
 			async def send_wrapper(message: Message) -> None:
 				if message["type"] == "http.response.start":
-					if session:
+					if session and not session.deleted:
 						asyncio.get_event_loop().create_task(session.store())
 						headers = MutableHeaders(scope=message)
 						headers.append("Set-Cookie", self.get_set_cookie_string(session.session_id))
@@ -349,6 +350,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		self.client_addr = connection.client.host
 		self.user_agent = connection.headers.get("user-agent")
 		self.created = 0
+		self.deleted = False
 		self.last_used = 0
 		self.user_store = UserStore()
 		self.option_store = {}
@@ -489,6 +491,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		with redis_client() as redis:
 			redis.delete(self.redis_key)
 		self.session_id = None
+		self.deleted = True
 
 	async def delete(self) -> bool:
 		return await run_in_threadpool(self._delete)

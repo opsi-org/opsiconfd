@@ -61,7 +61,7 @@ async def auth_login():
 async def auth_logout():
 	client_session = contextvar_client_session.get()
 	if client_session:
-		client_session.delete()
+		await client_session.delete()
 	return JSONResponse({
 		"result": "logout success"
 	})

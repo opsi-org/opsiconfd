@@ -21,8 +21,9 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from OPSI import __version__ as python_opsi_version
-from .. import __version__
+from OPSI.Exceptions import BackendPermissionDeniedError
 
+from .. import __version__, contextvar_client_session
 from ..session import OPSISession
 from ..logging import logger
 from ..config import config, FQDN
@@ -56,6 +57,22 @@ async def admin_interface_index(request: Request):
 		"num_clients": get_num_clients(backend)
 	}
 	return templates.TemplateResponse("admininterface.html", context)
+
+
+@admin_interface_router.post("/logout")
+async def logout(request: Request):
+	return_401 = False
+	try:
+		request_body = await request.json()
+		return_401 = request_body["return_401"]
+	except:
+		pass
+	client_session = contextvar_client_session.get()
+	if client_session:
+		await client_session.delete()
+	if return_401:
+		raise BackendPermissionDeniedError("Session deleted")
+	return JSONResponse({"status": 200, "error": None, "data": "session deleted"})
 
 
 @admin_interface_router.post("/unblock-all")

@@ -104,7 +104,6 @@
 			document.getElementById(tabName).style.display = "block";
 			evt.currentTarget.className += " active";
 		}
-
 	</script>
 </head>
 
@@ -129,6 +128,7 @@
 			<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
 			<button class="tablinks" onclick="window.open('/public','_blank')">Public</button>
 			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>
+			<button class="tablinks" onclick="logout()">Logout</button>
 		</div>
 
 		<div id="clients" class="tabcontent">

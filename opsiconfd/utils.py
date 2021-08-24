@@ -14,6 +14,7 @@ import random
 import ipaddress
 import functools
 import time
+import codecs
 import asyncio
 from contextlib import contextmanager
 import psutil
@@ -46,8 +47,8 @@ class Singleton(type):
 
 
 def running_in_docker():
-	with open("/proc/self/cgroup") as f: # pylint: disable=invalid-name
-		for line in f.readlines():
+	with codecs.open("/proc/self/cgroup", "r", "utf-8") as file:
+		for line in file.readlines():
 			if line.split(':')[2].startswith("/docker/"):
 				return True
 	return False

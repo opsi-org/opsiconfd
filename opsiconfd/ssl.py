@@ -11,6 +11,7 @@ ssl
 import os
 import datetime
 import socket
+import codecs
 import ipaddress
 
 from typing import Tuple
@@ -90,15 +91,15 @@ def store_key(key_file: str, passphrase: str, key: PKey) -> None:
 	if not os.path.exists(os.path.dirname(key_file)):
 		os.makedirs(os.path.dirname(key_file))
 	KEY_CACHE[key_file] = as_pem(key, passphrase)
-	with open(key_file, "w") as out:
-		out.write(KEY_CACHE[key_file])
+	with codecs.open(key_file, "w", "utf-8") as file:
+		file.write(KEY_CACHE[key_file])
 	setup_ssl_file_permissions()
 
 
 def load_key(key_file: str, passphrase: str, use_cache: bool = True) -> PKey:
 	try:
 		if key_file not in KEY_CACHE or not use_cache:
-			with open(key_file, "r") as file:
+			with codecs.open(key_file, "r", "utf-8") as file:
 				KEY_CACHE[key_file] = file.read()
 
 		return load_privatekey(
@@ -117,13 +118,13 @@ def store_cert(cert_file: str, cert: X509) -> None:
 		os.unlink(cert_file)
 	if not os.path.exists(os.path.dirname(cert_file)):
 		os.makedirs(os.path.dirname(cert_file))
-	with open(cert_file, "w") as out:
-		out.write(as_pem(cert))
+	with codecs.open(cert_file, "w", "utf-8") as file:
+		file.write(as_pem(cert))
 	setup_ssl_file_permissions()
 
 
 def load_cert(cert_file: str) -> X509:
-	with open(cert_file, "r") as file:
+	with codecs.open(cert_file, "r", "utf-8") as file:
 		try:
 			return load_certificate(FILETYPE_PEM, file.read())
 		except CryptoError as err:

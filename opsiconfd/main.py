@@ -140,7 +140,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 	if config.use_jemalloc and getattr(sys, 'frozen', False):
 		try:
 			run_with_jemlalloc()
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception:  # pylint: disable=broad-except
 			pass
 
 	apply_patches()

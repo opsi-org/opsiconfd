@@ -61,7 +61,7 @@ def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], stri
 		message += f"Differences found for {len(difference_products)} products"
 
 		if verbose:
-			message += u":\n"
+			message += ":\n"
 			for product_id in sorted(difference_products):
 				message += f"product '{product_id}': "
 				for depot_id in depot_ids:

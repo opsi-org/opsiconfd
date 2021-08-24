@@ -291,7 +291,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 				raise
 			except EOFError:
 				break
-			except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError) as err:
+			except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError):
 				self._redis = None
 			except Exception as err: # pylint: disable=broad-except
 				handle_log_exception(err, stderr=True, temp_file=True)

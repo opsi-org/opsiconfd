@@ -44,7 +44,9 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 
 	clients_on_depot = defaultdict(list)
 	with temporaryBackendOptions(backend, addConfigStateDefaults=True):
-		for config_state in backend._executeMethod(methodName="configState_getObjects", configId=u'clientconfig.depot.id', objectId=client_ids): # pylint: disable=protected-access
+		for config_state in backend._executeMethod( # pylint: disable=protected-access
+			methodName="configState_getObjects", configId='clientconfig.depot.id', objectId=client_ids
+		):
 			if not config_state.values or not config_state.values[0]:
 				logger.error("No depot server configured for client '%s'", config_state.objectId)
 				continue

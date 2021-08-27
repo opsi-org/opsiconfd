@@ -10,6 +10,7 @@ webdav
 
 import os
 
+from wsgidav import compat, util
 import wsgidav.fs_dav_provider
 from wsgidav.fs_dav_provider import FilesystemProvider
 from wsgidav.wsgidav_app import WsgiDAVApp
@@ -27,6 +28,51 @@ PUBLIC_FOLDER = "/var/lib/opsi/public"
 def is_share_anonymous(self, path_info):  # pylint: disable=unused-argument
 	return False
 wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
+
+
+class IgnoreCaseFilesystemProvider(FilesystemProvider):
+
+	def _loc_to_file_path(self, path, environ=None):
+		"""Convert resource path to a unicode absolute file path.
+		Optional environ argument may be useful e.g. in relation to per-user
+		sub-folder chrooting inside root_folder_path.
+		"""
+		root_path = self.root_folder_path
+		assert root_path is not None
+		assert compat.is_native(root_path)
+		assert compat.is_native(path)
+
+		path_parts = path.strip("/").split("/")
+		file_path = os.path.abspath(os.path.join(root_path, *path_parts))
+		if not os.path.exists(file_path):
+			cur_path = root_path
+			name_found = None
+			for part in path_parts:
+				cur_path = os.path.join(cur_path, part)
+				if not os.path.exists(cur_path):
+					part_lower = part.lower()
+					name_found = None
+					for name in os.listdir(os.path.dirname(cur_path)):
+						if name.lower() == part_lower:
+							name_found = name
+							break
+					if not name_found:
+						# Give up
+						break
+					cur_path = os.path.join(os.path.dirname(cur_path), name_found)
+			if name_found and cur_path.lower() == file_path.lower():
+				file_path = cur_path
+
+		if not file_path.startswith(root_path):
+			raise RuntimeError(
+				"Security exception: tried to access file outside root: {}".format(
+					file_path
+				)
+			)
+
+		# Convert to unicode
+		file_path = util.to_unicode_safe(file_path)
+		return file_path
 
 
 def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
@@ -102,7 +148,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 			raise Exception(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
 
 		app_config = dict(app_config_template)
-		app_config["provider_mapping"] = {"/": FilesystemProvider(path, readonly=False)}
+		app_config["provider_mapping"] = {"/": IgnoreCaseFilesystemProvider(path, readonly=False)}
 		app_config["mount_path"] = "/depot"
 		depot_dav = WsgiDAVApp(app_config)
 		app.mount("/depot", WSGIMiddleware(depot_dav))

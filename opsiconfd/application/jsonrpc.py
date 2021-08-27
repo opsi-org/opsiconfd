@@ -28,7 +28,7 @@ from OPSI.Util import serialize, deserialize
 
 from .. import contextvar_client_session
 from ..logging import logger
-from ..config import config
+from ..config import config, JSONRPC20
 from ..backend import get_client_backend, get_backend_interface, get_backend, OpsiconfdBackend
 from ..worker import get_metrics_collector, get_worker_num
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
@@ -353,7 +353,11 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			"details": details
 		}
 		response.status_code = 400
-		results = [{"jsonrpc": "2.0", "id": None, "result": None, "error": error}]
+		result = {"id": None, "result": None, "error": error}
+		if JSONRPC20:
+			result["jsonrpc"] = "2.0"
+			del result["result"]
+		results = [result]
 
 	_dumps = None
 	if content_type == "application/msgpack":
@@ -452,7 +456,11 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 		else:
 			result = method(*params)
 
-		response = {"jsonrpc": "2.0", "id": rpc_id, "result": result, "error": None}
+		response = {"id": rpc_id, "result": result, "error": None}
+		if JSONRPC20:
+			response["jsonrpc"] = "2.0"
+			del response["error"]
+
 		response = serialize(response)
 		rpc["date"] = rpc_call_time
 		rpc["client"] = request.client.host
@@ -475,7 +483,11 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 		except Exception as session_err:  # pylint: disable=broad-except
 			logger.warning(session_err, exc_info=True)
 		error["details"] = details
-		return [{"jsonrpc": "2.0", "id": rpc_id, "result": None, "error": error}, 0, rpc, "rpc"]
+		result = {"id": rpc_id, "result": None, "error": error}
+		if JSONRPC20:
+			result["jsonrpc"] = "2.0"
+			del result["result"]
+		return [result, 0, rpc, "rpc"]
 
 def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disable=too-many-locals
 	now = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -494,11 +506,13 @@ def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disa
 		products_ordered = pipe_results[1]
 		result = {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}
 		response = {
-			"jsonrpc": "2.0",
 			"id": rpc.get('id'),
 			"result": result,
 			"error": None
 		}
+		if JSONRPC20:
+			response["jsonrpc"] = "2.0"
+			del response["error"]
 		rpc["date"] = now
 		rpc["client"] = request.client.host
 		end = time.perf_counter()
@@ -517,4 +531,8 @@ def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disa
 		except Exception as session_err:  # pylint: disable=broad-except
 			logger.warning(session_err, exc_info=True)
 		error["details"] = details
-		return [{"jsonrpc": "2.0", "id": rpc.get('id'), "result": None, "error": error}, 0, rpc, "redis"]
+		result = {"id": rpc.get('id'), "result": None, "error": error}
+		if JSONRPC20:
+			result["jsonrpc"] = "2.0"
+			del result["result"]
+		return [result, 0, rpc, "redis"]

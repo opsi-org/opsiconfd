@@ -36,7 +36,7 @@ from opsicommon.logging import logger, secret_filter, set_context
 
 from . import contextvar_client_session, contextvar_server_timing
 from .backend import get_client_backend
-from .config import config, FQDN
+from .config import config, FQDN, JSONRPC20
 from .utils import redis_client, aredis_client
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
@@ -319,9 +319,13 @@ class SessionMiddleware:
 
 				if scope["path"].startswith("/rpc"):
 					logger.debug("Returning jsonrpc response because path startswith /rpc")
+					content = {"id": None, "result": None, "error": error}
+					if JSONRPC20:
+						content["jsonrpc"] = "2.0"
+						del content["result"]
 					response = JSONResponse(
 						status_code=status_code,
-						content={"jsonrpc": "2.0", "id": None, "result": None, "error": error},
+						content=content,
 						headers=headers
 					)
 				if not response:

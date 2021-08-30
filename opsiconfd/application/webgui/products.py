@@ -504,6 +504,7 @@ async def product_icons():
 
 
 class Property(BaseModel): # pylint: disable=too-few-public-methods
+	productId: str
 	propertyId: str
 	type: Optional[str] = "UnicodeProductProperty"
 	version: Optional[str]
@@ -515,7 +516,7 @@ class Property(BaseModel): # pylint: disable=too-few-public-methods
 class ProductProperiesResponse(BaseModel):
 	status: int
 	error: dict
-	data: Property
+	data: List[Property]
 
 @product_router.get("/api/opsidata/products/{productId}/properties", response_model=ProductProperiesResponse)
 def product_properties(
@@ -584,7 +585,23 @@ def product_properties(
 	return JSONResponse({"status": status_code, "error": error, "data": data})
 
 
-@product_router.get("/api/opsidata/products/{productId}/dependencies", response_model=ProductProperiesResponse)
+class Dependency(BaseModel): # pylint: disable=too-few-public-methods
+	productId: str
+	productAction: str
+	version: str
+	requiredProductId: str
+	requiredVersion: str
+	requiredAction: str
+	requiredInstallationStatus: str
+	requirementType: str
+
+
+class ProductDependenciesResponse(BaseModel):
+	status: int
+	error: dict
+	data: List[Dependency]
+
+@product_router.get("/api/opsidata/products/{productId}/dependencies", response_model=ProductDependenciesResponse)
 def product_dependencies(
 	productId: str,
 	selectedClients: List[str] = Depends(parse_client_list),

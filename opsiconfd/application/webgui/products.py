@@ -564,8 +564,6 @@ def product_properties(
 			"""))\
 			.where(where) # pylint: disable=redefined-outer-name
 
-			logger.devel(query)
-
 			result = session.execute(query, params)
 			result = result.fetchall()
 
@@ -647,8 +645,6 @@ def product_dependencies(
 				pod.packageVersion = pd.packageVersion
 			"""))\
 			.where(where) # pylint: disable=redefined-outer-name
-
-			logger.devel(query)
 
 			result = session.execute(query, params)
 			result = result.fetchall()

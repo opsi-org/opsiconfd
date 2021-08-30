@@ -351,7 +351,7 @@ class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	installationStatus: Optional[str] = None
 
 @product_router.patch("/api/opsidata/clients/products")
-def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements
+def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements, too-many-branches
 	"""
 	Save a Product On Client object.
 	"""
@@ -415,7 +415,7 @@ def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disa
 			try:
 				with mysql.session() as session:
 					stmt = insert(
-						table("PRODUCT_ON_CLIENT", *[column(name) for name in values.keys()])
+						table("PRODUCT_ON_CLIENT", *[column(name) for name in values.keys()]) # pylint: disable=consider-iterating-dictionary
 					).values(**values).on_duplicate_key_update(**values)
 					session.execute(stmt)
 
@@ -501,3 +501,163 @@ async def product_icons():
 	return JSONResponse({
 		"result": {"opsi-client-agent": "assets/images/product_icons/opsi-logo.png"}
 	})
+
+
+class Property(BaseModel): # pylint: disable=too-few-public-methods
+	productId: str
+	propertyId: str
+	type: Optional[str] = "UnicodeProductProperty"
+	version: Optional[str]
+	possibleValues: Optional[List[str]]
+	editable: Optional[bool]
+	multiValue: Optional[bool]
+	description: Optional[str]
+
+class ProductProperiesResponse(BaseModel):
+	status: int
+	error: dict
+	data: List[Property]
+
+@product_router.get("/api/opsidata/products/{productId}/properties", response_model=ProductProperiesResponse)
+def product_properties(
+	productId: str,
+	selectedClients: List[str] = Depends(parse_client_list),
+): # pylint: disable=too-many-locals, too-many-branches, too-many-statements, redefined-builtin, invalid-name
+	"""
+	Get products propertiers.
+	"""
+
+	status_code = 200
+	error = None
+	data = {}
+	params = {}
+	data["properties"] = []
+	params["productId"] = productId
+	where = text("pp.productId = :productId")
+	depots = set()
+	for client in selectedClients:
+		depots.add(get_depot_of_client(client))
+	if depots:
+		params["depots"] = list(depots)
+		where = and_(
+			where,
+			text("(pod.depotId IN :depots)")
+		)
+
+	with mysql.session() as session:
+
+		try:
+			query = select(text("""
+				pp.productId,
+				pp.propertyId,
+				CONCAT(pp.productVersion,'-',pp.packageVersion) AS version,
+				pp.type,
+				pp.description,
+				pp.multiValue,
+				pp.editable
+			"""))\
+			.select_from(text("PRODUCT_PROPERTY AS pp"))\
+			.join(text("PRODUCT_ON_DEPOT AS pod"), text("""
+				pod.productId = pp.productId AND
+				pod.productVersion = pp.productVersion AND
+				pod.packageVersion = pp.packageVersion
+			"""))\
+			.where(where) # pylint: disable=redefined-outer-name
+
+			result = session.execute(query, params)
+			result = result.fetchall()
+
+			for row in result:
+				if row is not None:
+					property = dict(row)
+					data["properties"].append(property)
+
+		except Exception as err: # pylint: disable=broad-except
+			logger.error("Could not get properties.")
+			logger.error(err)
+			error = {"message": str(err), "class": err.__class__.__name__}
+			status_code = max(status_code, 500)
+
+
+
+	return JSONResponse({"status": status_code, "error": error, "data": data})
+
+
+class Dependency(BaseModel): # pylint: disable=too-few-public-methods
+	productId: str
+	productAction: str
+	version: str
+	requiredProductId: str
+	requiredVersion: str
+	requiredAction: str
+	requiredInstallationStatus: str
+	requirementType: str
+
+
+class ProductDependenciesResponse(BaseModel):
+	status: int
+	error: dict
+	data: List[Dependency]
+
+@product_router.get("/api/opsidata/products/{productId}/dependencies", response_model=ProductDependenciesResponse)
+def product_dependencies(
+	productId: str,
+	selectedClients: List[str] = Depends(parse_client_list),
+): # pylint: disable=too-many-locals, too-many-branches, too-many-statements, redefined-builtin, invalid-name
+	"""
+	Get products dependencies.
+	"""
+
+	status_code = 200
+	error = None
+	data = {}
+	params = {}
+	data["dependencies"] = []
+	params["productId"] = productId
+	where = text("pd.productId = :productId")
+	depots = set()
+	for client in selectedClients:
+		depots.add(get_depot_of_client(client))
+	if depots:
+		params["depots"] = list(depots)
+		where = and_(
+			where,
+			text("(pod.depotId IN :depots)")
+		)
+
+	with mysql.session() as session:
+
+		try:
+			query = select(text("""
+				pd.productId,
+				pd.productAction,
+				CONCAT(pd.productVersion,'-',pd.packageVersion) AS version,
+				pd.requiredProductId,
+				CONCAT(pd.requiredProductVersion,'-',pd.requiredPackageVersion) AS requiredVersion,
+				pd.requiredAction,
+				pd.requiredInstallationStatus,
+				pd.requirementType
+			"""))\
+			.select_from(text("PRODUCT_DEPENDENCY AS pd"))\
+			.join(text("PRODUCT_ON_DEPOT AS pod"), text("""
+				pod.productId = pd.productId AND
+				pod.productVersion = pd.productVersion AND
+				pod.packageVersion = pd.packageVersion
+			"""))\
+			.where(where) # pylint: disable=redefined-outer-name
+
+			result = session.execute(query, params)
+			result = result.fetchall()
+
+			for row in result:
+				if row is not None:
+					dependency = dict(row)
+					data["dependencies"].append(dependency)
+
+		except Exception as err: # pylint: disable=broad-except
+			logger.error("Could not get dependencies.")
+			logger.error(err)
+			error = {"message": str(err), "class": err.__class__.__name__}
+			status_code = max(status_code, 500)
+
+	return JSONResponse({"status": status_code, "error": error, "data": data})

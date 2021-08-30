@@ -233,6 +233,4 @@ def parse_list(query_list):
 	depot_list = [remove_prefix(n.strip(), "\"") for n in depot_list]
 	depot_list = [remove_postfix(n.strip(), "\"") for n in depot_list]
 
-	logger.devel(depot_list)
-
 	return depot_list

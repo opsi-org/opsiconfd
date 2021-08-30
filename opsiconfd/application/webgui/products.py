@@ -526,9 +526,6 @@ def product_properties(
 	Get products propertiers.
 	"""
 
-	logger.devel(productId)
-	logger.devel(selectedClients)
-
 	status_code = 200
 	error = None
 	data = {}
@@ -575,6 +572,79 @@ def product_properties(
 				if row is not None:
 					property = dict(row)
 					data["properties"].append(property)
+
+		except Exception as err: # pylint: disable=broad-except
+			logger.error("Could not get properties.")
+			logger.error(err)
+			error = {"message": str(err), "class": err.__class__.__name__}
+			status_code = max(status_code, 500)
+
+
+
+	return JSONResponse({"status": status_code, "error": error, "data": data})
+
+
+@product_router.get("/api/opsidata/products/{productId}/dependencies", response_model=ProductProperiesResponse)
+def product_dependencies(
+	productId: str,
+	selectedClients: List[str] = Depends(parse_client_list),
+): # pylint: disable=too-many-locals, too-many-branches, too-many-statements, redefined-builtin, invalid-name
+	"""
+	Get products dependencies.
+	"""
+
+	logger.devel(productId)
+	logger.devel(selectedClients)
+
+	status_code = 200
+	error = None
+	data = {}
+	params = {}
+	data["dependencies"] = []
+	params["productId"] = productId
+	where = text("pd.productId = :productId")
+	depots = []
+	for client in selectedClients:
+		depots.append(get_depot_of_client(client))
+	if depots:
+		params["depots"] = depots
+		where = and_(
+			where,
+			text("(pod.depotId IN :depots)")
+		)
+
+	logger.devel(depots)
+
+	with mysql.session() as session:
+
+		try:
+			query = select(text("""
+				pd.productId,
+				pd.productAction,
+				CONCAT(pd.productVersion,'-',pd.packageVersion) AS version,
+				pd.requiredProductId,
+				CONCAT(pd.requiredProductVersion,'-',pd.requiredPackageVersion) AS requiredVersion,
+				pd.requiredAction,
+				pd.requiredInstallationStatus,
+				pd.requirementType
+			"""))\
+			.select_from(text("PRODUCT_DEPENDENCY AS pd"))\
+			.join(text("PRODUCT_ON_DEPOT AS pod"), text("""
+				pod.productId = pd.productId AND
+				pod.productVersion = pd.productVersion AND
+				pod.packageVersion = pd.packageVersion
+			"""))\
+			.where(where) # pylint: disable=redefined-outer-name
+
+			logger.devel(query)
+
+			result = session.execute(query, params)
+			result = result.fetchall()
+
+			for row in result:
+				if row is not None:
+					dependency = dict(row)
+					data["dependencies"].append(dependency)
 
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Could not get properties.")

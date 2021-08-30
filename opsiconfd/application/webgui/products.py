@@ -351,7 +351,7 @@ class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	installationStatus: Optional[str] = None
 
 @product_router.patch("/api/opsidata/clients/products")
-def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements
+def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements, too-many-branches
 	"""
 	Save a Product On Client object.
 	"""
@@ -415,7 +415,7 @@ def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disa
 			try:
 				with mysql.session() as session:
 					stmt = insert(
-						table("PRODUCT_ON_CLIENT", *[column(name) for name in values.keys()])
+						table("PRODUCT_ON_CLIENT", *[column(name) for name in values.keys()]) # pylint: disable=consider-iterating-dictionary
 					).values(**values).on_duplicate_key_update(**values)
 					session.execute(stmt)
 
@@ -533,11 +533,11 @@ def product_properties(
 	data["properties"] = []
 	params["productId"] = productId
 	where = text("pp.productId = :productId")
-	depots = []
+	depots = set()
 	for client in selectedClients:
-		depots.append(get_depot_of_client(client))
+		depots.add(get_depot_of_client(client))
 	if depots:
-		params["depots"] = depots
+		params["depots"] = list(depots)
 		where = and_(
 			where,
 			text("(pod.depotId IN :depots)")
@@ -593,9 +593,6 @@ def product_dependencies(
 	Get products dependencies.
 	"""
 
-	logger.devel(productId)
-	logger.devel(selectedClients)
-
 	status_code = 200
 	error = None
 	data = {}
@@ -603,17 +600,15 @@ def product_dependencies(
 	data["dependencies"] = []
 	params["productId"] = productId
 	where = text("pd.productId = :productId")
-	depots = []
+	depots = set()
 	for client in selectedClients:
-		depots.append(get_depot_of_client(client))
+		depots.add(get_depot_of_client(client))
 	if depots:
-		params["depots"] = depots
+		params["depots"] = list(depots)
 		where = and_(
 			where,
 			text("(pod.depotId IN :depots)")
 		)
-
-	logger.devel(depots)
 
 	with mysql.session() as session:
 
@@ -647,11 +642,9 @@ def product_dependencies(
 					data["dependencies"].append(dependency)
 
 		except Exception as err: # pylint: disable=broad-except
-			logger.error("Could not get properties.")
+			logger.error("Could not get dependencies.")
 			logger.error(err)
 			error = {"message": str(err), "class": err.__class__.__name__}
 			status_code = max(status_code, 500)
-
-
 
 	return JSONResponse({"status": status_code, "error": error, "data": data})

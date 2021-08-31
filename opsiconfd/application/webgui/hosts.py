@@ -204,7 +204,7 @@ def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), paren
 					if not row["object_id"] in all_groups:
 						all_groups[row["object_id"]] = {
 							"id": row["object_id"],
-							"type": "HostGroup",
+							"type": "ObjectToGroup",
 							"text": row["object_id"],
 							"parent": row["parent_id"] or root_group["id"]
 						}

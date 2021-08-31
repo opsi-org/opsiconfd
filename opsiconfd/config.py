@@ -49,7 +49,6 @@ PYTEST = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
 FQDN = getfqdn()
 DEFAULT_NODE_NAME = socket.gethostname()
 
-JSONRPC20 = False
 
 if running_in_docker():
 	try:

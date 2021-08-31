@@ -28,7 +28,7 @@ from OPSI.Util import serialize, deserialize
 
 from .. import contextvar_client_session
 from ..logging import logger
-from ..config import config, JSONRPC20
+from ..config import config
 from ..backend import get_client_backend, get_backend_interface, get_backend, OpsiconfdBackend
 from ..worker import get_metrics_collector, get_worker_num
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
@@ -189,6 +189,7 @@ def _remove_depot_from_jsonrpc_cache(depot_id):
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
 async def process_jsonrpc(request: Request, response: Response):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	request.scope["jsonrpc20"] = False
 	results = []
 	content_type = None
 	try:
@@ -250,6 +251,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 		tasks = []
 
 		for rpc in jsonrpc:
+			request.scope["jsonrpc20"] = rpc.get("jsonrpc") == "2.0"
 			task = None
 			if rpc.get('method') in PRODUCT_METHODS:
 				asyncio.get_event_loop().create_task(
@@ -354,7 +356,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 		}
 		response.status_code = 400
 		result = {"id": None, "result": None, "error": error}
-		if JSONRPC20:
+		if request.scope.get("jsonrpc20"):
 			result["jsonrpc"] = "2.0"
 			del result["result"]
 		results = [result]
@@ -457,7 +459,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 			result = method(*params)
 
 		response = {"id": rpc_id, "result": result, "error": None}
-		if JSONRPC20:
+		if request.scope.get("jsonrpc20"):
 			response["jsonrpc"] = "2.0"
 			del response["error"]
 
@@ -484,7 +486,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 			logger.warning(session_err, exc_info=True)
 		error["details"] = details
 		result = {"id": rpc_id, "result": None, "error": error}
-		if JSONRPC20:
+		if request.scope.get("jsonrpc20"):
 			result["jsonrpc"] = "2.0"
 			del result["result"]
 		return [result, 0, rpc, "rpc"]
@@ -510,7 +512,7 @@ def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disa
 			"result": result,
 			"error": None
 		}
-		if JSONRPC20:
+		if request.scope.get("jsonrpc20"):
 			response["jsonrpc"] = "2.0"
 			del response["error"]
 		rpc["date"] = now
@@ -532,7 +534,7 @@ def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disa
 			logger.warning(session_err, exc_info=True)
 		error["details"] = details
 		result = {"id": rpc.get('id'), "result": None, "error": error}
-		if JSONRPC20:
+		if request.scope.get("jsonrpc20"):
 			result["jsonrpc"] = "2.0"
 			del result["result"]
 		return [result, 0, rpc, "redis"]

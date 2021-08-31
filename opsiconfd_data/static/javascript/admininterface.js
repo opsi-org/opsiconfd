@@ -680,6 +680,7 @@ function callRedis() {
 function createRequestJSON() {
 	let apiJSON = {
 		"id": 1,
+		"jsonrpc": "2.0",
 		"method": "",
 		"params": []
 	}

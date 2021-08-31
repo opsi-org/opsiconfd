@@ -91,7 +91,8 @@ def get_product_actions(product, version, package_version):
 				IF(updateScript <> '','update',NULL),
 				IF(alwaysScript <> '','always',NULL),
 				IF(customScript <> '','custom',NULL),
-				IF(onceScript <> '','once',NULL)
+				IF(onceScript <> '','once',NULL),
+				"none"
 			) as actions
 		"""))\
 			.select_from(text("PRODUCT"))\

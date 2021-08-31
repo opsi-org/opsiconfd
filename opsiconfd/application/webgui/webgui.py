@@ -9,6 +9,7 @@ webgui
 """
 
 import os
+from typing import Optional
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -107,18 +108,11 @@ async def modules_content():
 	})
 
 @webgui_router.get("/api/opsidata/log")
-@webgui_router.post("/api/opsidata/log")
-async def opsidata_log(request: Request):
-	request_data = {}
-	try:
-		request_data = await request.json()
-	except ValueError:
-		pass
-
+async def opsidata_log(selectedClient: Optional[str], selectedLogType: Optional[str]): # pylint: disable=invalid-name
 	return JSONResponse({
 		"result": get_backend().readLog(  # pylint: disable=no-member
-			type=request_data.get('selectedLogType'),
-			objectId=request_data.get("selectedClient")
+			type=selectedLogType,
+			objectId=selectedClient
 		).split("\n")
 	})
 

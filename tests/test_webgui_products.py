@@ -70,7 +70,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -106,7 +107,8 @@ test_data = [
 						],
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -130,7 +132,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -153,7 +156,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -194,7 +198,8 @@ test_data = [
 						],
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -239,7 +244,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -261,7 +267,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -283,7 +290,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -305,7 +313,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -327,7 +336,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -369,7 +379,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -405,7 +416,8 @@ test_data = [
 						"client_version_outdated": False,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -447,7 +459,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -469,7 +482,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1"
@@ -522,7 +536,8 @@ test_data = [
 						],
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1",
@@ -548,7 +563,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1",
@@ -573,7 +589,8 @@ test_data = [
 						"clientVersions": None,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							"1.0-1",
@@ -632,7 +649,8 @@ test_data = [
 						"client_version_outdated": False,
 						"actions": [
 							"setup",
-							"uninstall"
+							"uninstall",
+							"none"
 						],
 						"depotVersions": [
 							depot_versions.get(depots[0]),

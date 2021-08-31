@@ -226,7 +226,8 @@ def products(
 							IF(updateScript <> '','update',NULL),
 							IF(alwaysScript <> '','always',NULL),
 							IF(customScript <> '','custom',NULL),
-							IF(onceScript <> '','once',NULL)
+							IF(onceScript <> '','once',NULL),
+							"none"
 						)
 						FROM PRODUCT AS p
 						WHERE p.productId=pod.productId AND

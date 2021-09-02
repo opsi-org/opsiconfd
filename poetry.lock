@@ -1310,7 +1310,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.229"
+version = "4.2.0.231"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -2722,8 +2722,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.229.tar.gz", hash = "md5:3ae3eec45ea479b016bf1c83e38cb5d2"},
-    {file = "python_opsi-4.2.0.229-py3-none-any.whl", hash = "md5:2f6a1dbff19817dd84e6a7cdbf9bacb2"},
+    {file = "python-opsi-4.2.0.231.tar.gz", hash = "md5:95d8165c58423fab4c00e76ddd3cb230"},
+    {file = "python_opsi-4.2.0.231-py3-none-any.whl", hash = "md5:9846f69c0c4def572fcb97f9915a511d"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

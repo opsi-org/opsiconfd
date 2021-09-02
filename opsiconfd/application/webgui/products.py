@@ -91,7 +91,8 @@ def get_product_actions(product, version, package_version):
 				IF(updateScript <> '','update',NULL),
 				IF(alwaysScript <> '','always',NULL),
 				IF(customScript <> '','custom',NULL),
-				IF(onceScript <> '','once',NULL)
+				IF(onceScript <> '','once',NULL),
+				"none"
 			) as actions
 		"""))\
 			.select_from(text("PRODUCT"))\
@@ -226,7 +227,8 @@ def products(
 							IF(updateScript <> '','update',NULL),
 							IF(alwaysScript <> '','always',NULL),
 							IF(customScript <> '','custom',NULL),
-							IF(onceScript <> '','once',NULL)
+							IF(onceScript <> '','once',NULL),
+							"none"
 						)
 						FROM PRODUCT AS p
 						WHERE p.productId=pod.productId AND
@@ -464,7 +466,7 @@ def get_product_groups(): # pylint: disable=too-many-locals
 		for row in result:
 			if not row["group_id"] in all_groups:
 				all_groups[row["group_id"]] = {
-					"id": row["group_id"],
+					"id":row["group_id"],
 					"type": "ProductGroup",
 					"text": row["group_id"],
 					"parent": row["parent_id"] or root_group["id"]
@@ -475,14 +477,14 @@ def get_product_groups(): # pylint: disable=too-many-locals
 				if row.group_id == row.parent_id:
 					if not row["object_id"] in all_groups:
 						all_groups[row["object_id"]] = {
-							"id": row["object_id"],
+							"id": f'{row["object_id"]};{row["parent_id"]}',
 							"type": "ProductGroup",
 							"text": row["object_id"],
 							"parent": row["parent_id"] or root_group["id"]
 						}
 				else:
 					all_groups[row["group_id"]]["children"][row["object_id"]] = {
-						"id": row["object_id"],
+						"id": f'{row["object_id"]};{row["group_id"]}',
 						"type": "ObjectToGroup",
 						"text": row["object_id"],
 						"parent": row["group_id"],

@@ -102,12 +102,14 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		if self.stream:
 			await self.stream.close()
 		if self._keep_rotated > 0:
+			loop = asyncio.get_event_loop()
 			for num in range(self._keep_rotated, 0, -1):
 				src_file_path = self.absolute_file_path
 				if num > 1:
 					src_file_path = f"{self.absolute_file_path}.{num-1}"
+				if not os.path.exists(src_file_path):
+					continue
 				dst_file_path = f"{self.absolute_file_path}.{num}"
-				loop = asyncio.get_event_loop()
 				if await loop.run_in_executor(None, os.path.exists, src_file_path):
 					await loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)
 					shutil.chown(path=dst_file_path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)

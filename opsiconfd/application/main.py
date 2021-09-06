@@ -247,7 +247,7 @@ def application_setup():
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
 	app.add_middleware(SessionMiddleware, public_path=[
-		"/boot", "/metrics/grafana", "/ws/test", "/ssl/opsi-ca-cert.pem", "/status",
+		"/metrics/grafana", "/ws/test", "/ssl/opsi-ca-cert.pem", "/status",
 		"/webgui/app", "/webgui/api/user/opsiserver", "/public"
 	])
 	#app.add_middleware(GZipMiddleware, minimum_size=1000)

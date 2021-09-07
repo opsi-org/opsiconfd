@@ -122,16 +122,16 @@ def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), paren
 		params["depots"] = selectedDepots
 
 	root_group = {
-		"id": "root",
+		"id": "groups",
 		"type": "HostGroup",
-		"text": "root",
+		"text": "groups",
 		"parent": None
 	}
 
 	where = text("g.`type` = 'HostGroup'")
 
 	if parentGroup:
-		if parentGroup == "root":
+		if parentGroup in ("groups", "root") :
 			where = and_(where, text("g.parentGroupId IS NULL"))
 			where_hosts = text("og.groupId IS NULL")
 		else:
@@ -213,8 +213,7 @@ def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), paren
 						"id": row["object_id"],
 						"type": "ObjectToGroup",
 						"text": row["object_id"],
-						"parent": row["group_id"],
-						"children": None
+						"parent": row["group_id"]
 					}
 
 

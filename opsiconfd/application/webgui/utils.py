@@ -130,7 +130,9 @@ def build_tree(group, groups, allowed, processed=None):
 			group["children"] = {}
 		group["children"].update(children)
 	else:
-		group["children"] = None
+		if group["type"] == "HostGroup":
+			group["children"] = None
+
 
 	if not is_root_group and group.get("children"):
 		for child in group["children"].values():

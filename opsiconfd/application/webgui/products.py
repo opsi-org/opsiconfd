@@ -29,7 +29,8 @@ from .utils import (
 	get_depot_of_client,
 	common_query_parameters,
 	parse_depot_list,
-	parse_client_list
+	parse_client_list,
+	bool_product_property
 )
 
 mysql = get_mysql()
@@ -535,16 +536,23 @@ def product_properties(
 	params = {}
 	data["properties"] = []
 	params["productId"] = productId
-	where = text("pp.productId = :productId")
-	depots = set()
+	where = text("pp.productId = :productId AND (ppv.isDefault = 1 OR ppv.isDefault is NULL)")
+	clients_to_depots = {}
 	for client in selectedClients:
-		depots.add(get_depot_of_client(client))
-	if depots:
-		params["depots"] = list(depots)
+		logger.devel(client)
+		depot = get_depot_of_client(client)
+		if not clients_to_depots.get(depot):
+			clients_to_depots[depot] = []
+		clients_to_depots[depot].append(client)
+
+	if clients_to_depots:
+		params["depots"] = list(clients_to_depots.keys())
 		where = and_(
 			where,
 			text("(pod.depotId IN :depots)")
 		)
+
+	logger.devel(clients_to_depots)
 
 	with mysql.session() as session:
 
@@ -556,7 +564,9 @@ def product_properties(
 				pp.type,
 				pp.description,
 				pp.multiValue,
-				pp.editable
+				pp.editable,
+				ppv.value AS `default`,
+				GROUP_CONCAT(pod.depotId SEPARATOR ',') AS depots
 			"""))\
 			.select_from(text("PRODUCT_PROPERTY AS pp"))\
 			.join(text("PRODUCT_ON_DEPOT AS pod"), text("""
@@ -564,7 +574,16 @@ def product_properties(
 				pod.productVersion = pp.productVersion AND
 				pod.packageVersion = pp.packageVersion
 			"""))\
-			.where(where) # pylint: disable=redefined-outer-name
+			.join(text("PRODUCT_PROPERTY_VALUE AS ppv"), text("""
+				pp.propertyId = ppv.propertyId AND
+				pp.productId = ppv.productId AND
+				ppv.productVersion = pp.productVersion AND
+				ppv.packageVersion = pp.packageVersion
+			"""), isouter=True)\
+			.where(where)\
+			.group_by(text("pp.productId, pp.propertyId, version")) # pylint: disable=redefined-outer-name
+
+			logger.devel(query)
 
 			result = session.execute(query, params)
 			result = result.fetchall()
@@ -572,6 +591,58 @@ def product_properties(
 			for row in result:
 				if row is not None:
 					property = dict(row)
+					depots = property["depots"].split(",")
+					logger.devel(depots)
+					property["depots"] = {}
+					property["clients"] = {}
+					# query = select(text("""
+					# 		ppv.value
+					# 	"""))\
+					# 	.select_from(text("PRODUCT_PROPERTY_VALUE AS ppv"))\
+					# 	.where(text("ppv.productId = :product AND ppv.propertyId = :property AND ppv.isDefault = 1"))
+					# values = session.execute(query, {"product": productId, "property": property["propertyId"], "client": client})
+					# values = values.fetchone()
+					# if values is not None:
+					# 	property["default"] = dict(values).get("value")
+					# else:
+					# 	property["default"] = None
+					# # property["clientIds"] = depots.get(property.get("depotId"))
+					if property["type"] == "BoolProductProperty":
+						property["default"] == bool_product_property(property["default"])
+
+					for depot in depots:
+						query = select(text("""
+							pps.values
+						"""))\
+						.select_from(text("PRODUCT_PROPERTY_STATE AS pps"))\
+						.where(text("pps.productId = :product AND pps.propertyId = :property AND pps.objectId = :depot"))
+						logger.devel(query)
+						values = session.execute(query, {"product": productId, "property": property["propertyId"], "depot": depot})
+						values = values.fetchone()
+						logger.devel(values)
+
+						if values is not None:
+							property["depots"][depot] = dict(values).get("values")
+						else:
+							property["depots"][depot] = property["default"]
+						for client in clients_to_depots.get(depot):
+							query = select(text("""
+								pps.values
+							"""))\
+							.select_from(text("PRODUCT_PROPERTY_STATE AS pps"))\
+							.where(text("pps.productId = :product AND pps.propertyId = :property AND pps.objectId = :client"))
+							logger.devel(query)
+							values = session.execute(query, {"product": productId, "property": property["propertyId"], "client": client})
+							values = values.fetchone()
+							logger.devel(values)
+
+							if values is not None:
+								property["clients"][client] = dict(values).get("values")
+							elif property["depots"][depot] is not None:
+								property["clients"][client] = property["depots"][depot]
+							else:
+								property["clients"][client] = property["default"]
+
 					data["properties"].append(property)
 
 		except Exception as err: # pylint: disable=broad-except

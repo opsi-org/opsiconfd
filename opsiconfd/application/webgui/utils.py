@@ -158,12 +158,17 @@ def get_depot_of_client(client):
 			.select_from(text("CONFIG_STATE AS cs"))\
 			.where(where)
 
+		logger.devel(query)
+
+
 		result = session.execute(query, params)
 		result = result.fetchone()
 
 		if result:
+			logger.devel(result)
 			depot = dict(result).get("values")[2:-2]
 		else:
+			logger.devel("no config state")
 			depot = get_configserver_id()
 		return depot
 
@@ -236,3 +241,10 @@ def parse_list(query_list):
 	depot_list = [remove_postfix(n.strip(), "\"") for n in depot_list]
 
 	return depot_list
+
+
+def bool_product_property(value: str):
+	if value.lower() == "[true]" or value == "1":
+		return [True]
+	else:
+		return [False]

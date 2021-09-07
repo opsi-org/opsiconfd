@@ -124,7 +124,7 @@ def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), paren
 	root_group = {
 		"id": "root",
 		"type": "HostGroup",
-		"text": "root",
+		"text": "groups",
 		"parent": None
 	}
 
@@ -213,8 +213,7 @@ def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), paren
 						"id": row["object_id"],
 						"type": "ObjectToGroup",
 						"text": row["object_id"],
-						"parent": row["group_id"],
-						"children": None
+						"parent": row["group_id"]
 					}
 
 

@@ -8,6 +8,7 @@
 webgui product methods
 """
 
+import json
 from typing import List, Optional
 from functools import lru_cache
 from sqlalchemy import select, text, and_, alias, column
@@ -30,7 +31,8 @@ from .utils import (
 	common_query_parameters,
 	parse_depot_list,
 	parse_client_list,
-	bool_product_property
+	bool_product_property,
+	merge_dicts
 )
 
 mysql = get_mysql()
@@ -534,12 +536,12 @@ def product_properties(
 	error = None
 	data = {}
 	params = {}
-	data["properties"] = []
+	data["properties"] = {}
 	params["productId"] = productId
 	where = text("pp.productId = :productId AND (ppv.isDefault = 1 OR ppv.isDefault is NULL)")
 	clients_to_depots = {}
 	for client in selectedClients:
-		logger.devel(client)
+		# logger.devel(client)
 		depot = get_depot_of_client(client)
 		if not clients_to_depots.get(depot):
 			clients_to_depots[depot] = []
@@ -552,7 +554,7 @@ def product_properties(
 			text("(pod.depotId IN :depots)")
 		)
 
-	logger.devel(clients_to_depots)
+	# logger.devel(clients_to_depots)
 
 	with mysql.session() as session:
 
@@ -560,12 +562,12 @@ def product_properties(
 			query = select(text("""
 				pp.productId,
 				pp.propertyId,
-				CONCAT(pp.productVersion,'-',pp.packageVersion) AS version,
+				CONCAT(pp.productVersion,'-',pp.packageVersion) AS versionDetails,
 				pp.type,
-				pp.description,
-				pp.multiValue,
-				pp.editable,
-				ppv.value AS `default`,
+				pp.description AS descriptionDetails,
+				pp.multiValue as multiValueDetails,
+				pp.editable AS editableDetails,
+				ppv.value AS `defaultDetails`,
 				GROUP_CONCAT(pod.depotId SEPARATOR ',') AS depots
 			"""))\
 			.select_from(text("PRODUCT_PROPERTY AS pp"))\
@@ -581,18 +583,22 @@ def product_properties(
 				ppv.packageVersion = pp.packageVersion
 			"""), isouter=True)\
 			.where(where)\
-			.group_by(text("pp.productId, pp.propertyId, version")) # pylint: disable=redefined-outer-name
+			.group_by(text("pp.productId, pp.propertyId, versionDetails")) # pylint: disable=redefined-outer-name
 
-			logger.devel(query)
+			# logger.devel(query)
 
 			result = session.execute(query, params)
 			result = result.fetchall()
 
 			for row in result:
 				if row is not None:
+
 					property = dict(row)
+					if not data["properties"].get(property["propertyId"]):
+						data["properties"][property["propertyId"]] = {}
 					depots = property["depots"].split(",")
-					logger.devel(depots)
+					# logger.devel(depots)
+
 					property["depots"] = {}
 					property["clients"] = {}
 					# query = select(text("""
@@ -607,43 +613,106 @@ def product_properties(
 					# else:
 					# 	property["default"] = None
 					# # property["clientIds"] = depots.get(property.get("depotId"))
-					if property["type"] == "BoolProductProperty":
-						property["default"] == bool_product_property(property["default"])
+
 
 					for depot in depots:
+						property["versionDetails"] = {depot: property["versionDetails"]}
+						property["descriptionDetails"] ={depot: property["descriptionDetails"]}
+						property["multiValueDetails"] ={depot: bool(property["multiValueDetails"])}
+						property["editableDetails"] ={depot: bool(property["editableDetails"])}
+
+						if property["type"] == "BoolProductProperty":
+							# logger.devel("BoolProductProperty")
+							property["defaultDetails"] = {depot: bool_product_property(property["defaultDetails"])}
+						else:
+							property["defaultDetails"] = {depot: property["defaultDetails"]}
 						query = select(text("""
 							pps.values
 						"""))\
 						.select_from(text("PRODUCT_PROPERTY_STATE AS pps"))\
 						.where(text("pps.productId = :product AND pps.propertyId = :property AND pps.objectId = :depot"))
-						logger.devel(query)
+						# logger.devel(query)
 						values = session.execute(query, {"product": productId, "property": property["propertyId"], "depot": depot})
 						values = values.fetchone()
-						logger.devel(values)
+						# logger.devel(values)
 
 						if values is not None:
-							property["depots"][depot] = dict(values).get("values")
+							if property["type"] == "BoolProductProperty":
+								property["depots"][depot] = bool_product_property(dict(values).get("values"))
+							else:
+								property["depots"][depot] = dict(values).get("values")
+							if property["depots"][depot] != property["defaultDetails"][depot]:
+								property["anyDepotDifferentFromDefault"] = True
+
 						else:
-							property["depots"][depot] = property["default"]
+							property["depots"][depot] = property["defaultDetails"][depot]
 						for client in clients_to_depots.get(depot):
 							query = select(text("""
 								pps.values
 							"""))\
 							.select_from(text("PRODUCT_PROPERTY_STATE AS pps"))\
 							.where(text("pps.productId = :product AND pps.propertyId = :property AND pps.objectId = :client"))
-							logger.devel(query)
+							# logger.devel(query)
 							values = session.execute(query, {"product": productId, "property": property["propertyId"], "client": client})
 							values = values.fetchone()
-							logger.devel(values)
+							# logger.devel(values)
 
 							if values is not None:
-								property["clients"][client] = dict(values).get("values")
+								if property["type"] == "BoolProductProperty":
+									property["clients"][client] = bool_product_property(dict(values).get("values"))
+								else:
+									property["clients"][client] = dict(values).get("values")
 							elif property["depots"][depot] is not None:
 								property["clients"][client] = property["depots"][depot]
 							else:
-								property["clients"][client] = property["default"]
+								property["clients"][client] = property["defaultDetails"][depot]
 
-					data["properties"].append(property)
+						# if property.get("actionProgressDetails"):
+						# 	product["actionProgressDetails"] = product.get("actionProgressDetails").split(",")
+						# 	if all(value == product.get("actionProgressDetails")[0]  for value in product.get("actionProgressDetails")):
+						# 		product["actionProgress"] = product.get("actionProgressDetails")[0]
+						# 	else:
+						# 		product["actionProgress"] = "mixed"
+
+					data["properties"][property["propertyId"]] = merge_dicts(property, data["properties"][property["propertyId"]])
+					# data["properties"].append(property)
+
+			for id in data["properties"]:
+				property = data["properties"][id]
+
+				for key in ("version", "description", "multiValue", "editable", "default"):
+					values = property.get(f"{key}Details").values()
+					first_value = list(values)[0]
+					if all(value == first_value  for value in values):
+						property[key] = first_value
+					else:
+						property[key] = "mixed"
+
+
+				client_values = property["clients"].values()
+				logger.devel(property.get("propertyId"))
+				logger.devel(client_values)
+
+				if all(value == list(client_values)[0]  for value in client_values):
+					property["allClientValuesEqual"] = True
+				else:
+					property["allClientValuesEqual"] = False
+
+				if property["editable"] is True or property["editable"] == "mixed":
+					property["newValue"] = str()
+					property["newValues"] = []
+
+				for client in  property["clients"]:
+					logger.devel(property["clients"][client])
+					logger.devel(property["depots"][get_depot_of_client(client)])
+
+				if all(property["clients"][client] == property["depots"][get_depot_of_client(client)] for client in  property["clients"]):
+					property["anyClientDifferentFromDepot"] = False
+				else:
+					property["anyClientDifferentFromDepot"] = True
+
+				if not property.get("anyDepotDifferentFromDefault"):
+					property["anyDepotDifferentFromDefault"] = False
 
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Could not get properties.")
@@ -654,6 +723,7 @@ def product_properties(
 
 
 	return JSONResponse({"status": status_code, "error": error, "data": data})
+
 
 
 class Dependency(BaseModel): # pylint: disable=too-few-public-methods

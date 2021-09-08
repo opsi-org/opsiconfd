@@ -158,17 +158,17 @@ def get_depot_of_client(client):
 			.select_from(text("CONFIG_STATE AS cs"))\
 			.where(where)
 
-		logger.devel(query)
+		# logger.devel(query)
 
 
 		result = session.execute(query, params)
 		result = result.fetchone()
 
 		if result:
-			logger.devel(result)
+			# logger.devel(result)
 			depot = dict(result).get("values")[2:-2]
 		else:
-			logger.devel("no config state")
+			# logger.devel("no config state")
 			depot = get_configserver_id()
 		return depot
 
@@ -244,7 +244,26 @@ def parse_list(query_list):
 
 
 def bool_product_property(value: str):
-	if value.lower() == "[true]" or value == "1":
-		return [True]
-	else:
-		return [False]
+	# logger.devel("bool_product_property: %s", value)
+	if value:
+		if value.lower() == "[true]" or str(value) == "1":
+			# logger.devel("return True")
+			return [True]
+	# logger.devel("return False")
+	return [False]
+
+
+def merge_dicts(a, b, path=None):
+
+	if path is None: path = []
+	for key in b:
+		if key in a:
+			if isinstance(a[key], dict) and isinstance(b[key], dict):
+				merge_dicts(a[key], b[key], path + [str(key)])
+			elif a[key] == b[key]:
+				pass # same leaf value
+			else:
+				raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
+		else:
+			a[key] = b[key]
+	return a

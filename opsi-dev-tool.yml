@@ -67,6 +67,7 @@ pyinstaller-poetry:
 package:
   name: opsiconfd
   type: binary
+  architecture: all
   systemd: yes
   depends:
     - librsync | librsync2 | librsync1

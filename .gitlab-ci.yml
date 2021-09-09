@@ -181,22 +181,25 @@ build:arm64-pyinstaller:
     expire_in: 2 day
 
 
-publish:obs_int:
-  stage: publish
-  dependencies:
-    - build:linux-pyinstaller
-  script:
-    - *install_tools
-    - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
-  only:
-    - tags
+# publish:obs_int:
+#   stage: publish
+#   dependencies:
+#     - build:linux-pyinstaller
+#     - build:arm64-pyinstaller
+#   script:
+#     - *install_tools
+#     - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
+#   only:
+#     - tags
 
 publish:obs_ext:
   stage: publish
   dependencies:
     - build:linux-pyinstaller
+    - build:arm64-pyinstaller
   script:
     - *install_tools
     - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
-  only:
-    - tags
+  when: manual
+  # only:
+  #   - tags

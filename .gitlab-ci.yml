@@ -103,38 +103,38 @@ stages:
   echo "---------------------------------------"
   poetry run pylint --disable=R,C,fixme opsiconfd
 
-test:perftest:
-  image: ubuntu:focal
-  services:
-    - mysql:latest
-    - name: redislabs/redistimeseries:latest
-      alias: redis
-  variables:
-    MYSQL_ROOT_PASSWORD: "opsi"
-    MYSQL_DATABASE: "opsi"
-    MYSQL_USER: "opsi"
-    MYSQL_PASSWORD: "opsi"
-  stage: test
-  script:
-    - *prepare_tests
-    - *perftest
+# test:perftest:
+#   image: ubuntu:focal
+#   services:
+#     - mysql:latest
+#     - name: redislabs/redistimeseries:latest
+#       alias: redis
+#   variables:
+#     MYSQL_ROOT_PASSWORD: "opsi"
+#     MYSQL_DATABASE: "opsi"
+#     MYSQL_USER: "opsi"
+#     MYSQL_PASSWORD: "opsi"
+#   stage: test
+#   script:
+#     - *prepare_tests
+#     - *perftest
 
-test:pylint-pytest:
-  image: ubuntu:focal
-  services:
-    - mysql:latest
-    - name: redislabs/redistimeseries:latest
-      alias: redis
-  variables:
-    MYSQL_ROOT_PASSWORD: "opsi"
-    MYSQL_DATABASE: "opsi"
-    MYSQL_USER: "opsi"
-    MYSQL_PASSWORD: "opsi"
-  stage: test
-  script:
-    - *prepare_tests
-    - *pylint
-    - *pytest
+# test:pylint-pytest:
+#   image: ubuntu:focal
+#   services:
+#     - mysql:latest
+#     - name: redislabs/redistimeseries:latest
+#       alias: redis
+#   variables:
+#     MYSQL_ROOT_PASSWORD: "opsi"
+#     MYSQL_DATABASE: "opsi"
+#     MYSQL_USER: "opsi"
+#     MYSQL_PASSWORD: "opsi"
+#   stage: test
+#   script:
+#     - *prepare_tests
+#     - *pylint
+#     - *pytest
 
 
   # poetry run pytest --junit-xml=pytestreport.xml junit_family=xunit2 --quiet /builds/uib/opsiconfd/tests

@@ -538,7 +538,7 @@ def product_properties(
 	params = {}
 	data["properties"] = {}
 	params["productId"] = productId
-	where = text("pp.productId = :productId AND (ppv.isDefault = 1 OR ppv.isDefault is NULL)")
+	where = text("pp.productId = :productId")
 	clients_to_depots = {}
 	for client in selectedClients:
 		# logger.devel(client)
@@ -567,7 +567,8 @@ def product_properties(
 				pp.description AS descriptionDetails,
 				pp.multiValue as multiValueDetails,
 				pp.editable AS editableDetails,
-				ppv.value AS `defaultDetails`,
+				GROUP_CONCAT(ppv.value SEPARATOR ',') AS possibleValues,
+				(SELECT `value` FROM PRODUCT_PROPERTY_VALUE WHERE propertyId = pp.propertyId AND productId = pp.productId AND productVersion = pp.productVersion AND packageVersion = pp.packageVersion AND (isDefault = 1 OR ppv.isDefault is NULL)) AS `defaultDetails`,
 				GROUP_CONCAT(pod.depotId SEPARATOR ',') AS depots
 			"""))\
 			.select_from(text("PRODUCT_PROPERTY AS pp"))\
@@ -596,7 +597,7 @@ def product_properties(
 					property = dict(row)
 					if not data["properties"].get(property["propertyId"]):
 						data["properties"][property["propertyId"]] = {}
-					depots = property["depots"].split(",")
+					depots = list(set(property["depots"].split(",")))
 					# logger.devel(depots)
 
 					property["depots"] = {}
@@ -614,18 +615,43 @@ def product_properties(
 					# 	property["default"] = None
 					# # property["clientIds"] = depots.get(property.get("depotId"))
 
+					logger.devel(depots)
 
 					for depot in depots:
+						# logger.devel("DEPOT %s", depot)
+						# property["versionDetails"] = {depot: property["versionDetails"]}
+						# property["descriptionDetails"] ={depot: property["descriptionDetails"]}
+						# property["multiValueDetails"] ={depot: bool(property["multiValueDetails"])}
+						# property["editableDetails"] ={depot: bool(property["editableDetails"])}
+
+						# logger.devel(property["defaultDetails"])
+
+						# if property["type"] == "BoolProductProperty":
+						# 	# logger.devel("BoolProductProperty")
+						# 	property["defaultDetails"] = {depot: bool_product_property(property["defaultDetails"])}
+						# else:
+						# 	property["defaultDetails"] = {depot: property["defaultDetails"]}
 						property["versionDetails"] = {depot: property["versionDetails"]}
-						property["descriptionDetails"] ={depot: property["descriptionDetails"]}
-						property["multiValueDetails"] ={depot: bool(property["multiValueDetails"])}
-						property["editableDetails"] ={depot: bool(property["editableDetails"])}
+						property["descriptionDetails"] = {depot: property["descriptionDetails"]}
+						property["multiValueDetails"] = {depot: bool(property["multiValueDetails"])}
+						property["editableDetails"] = {depot: bool(property["editableDetails"])}
+						logger.devel(property["possibleValues"])
+						logger.devel(property["defaultDetails"])
+						property["possibleValues"] = {depot: property["possibleValues"]}
+						property["defaultDetails"] = {depot: property["defaultDetails"]}
+
+						logger.devel(property)
+						logger.devel(property["possibleValues"][depot])
+						logger.devel(property["defaultDetails"][depot])
 
 						if property["type"] == "BoolProductProperty":
 							# logger.devel("BoolProductProperty")
-							property["defaultDetails"] = {depot: bool_product_property(property["defaultDetails"])}
+							property["defaultDetails"][depot] = bool_product_property(property["defaultDetails"][depot])
+							property["possibleValues"][depot] = [bool_product_property(value) for value in property["possibleValues"][depot].split(",")]
 						else:
-							property["defaultDetails"] = {depot: property["defaultDetails"]}
+							property["possibleValues"][depot] = property["defaultDetails"][depot].split(",")
+
+
 						query = select(text("""
 							pps.values
 						"""))\
@@ -713,6 +739,15 @@ def product_properties(
 
 				if not property.get("anyDepotDifferentFromDefault"):
 					property["anyDepotDifferentFromDefault"] = False
+
+				# query = select(text("""
+				# 		ppv.values
+				# 	"""))\
+				# 	.select_from(text("PRODUCT_PROPERTY_VALUE AS ppv"))\
+				# 	.where(text("ppv.productId = :product AND ppv.propertyId = :property"))
+				# 	# logger.devel(query)
+				# 	values = session.execute(query, {"product": productId, "property": property["propertyId"], "depot": depot})
+				# 	values = values.fetchone(
 
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Could not get properties.")

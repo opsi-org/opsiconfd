@@ -243,8 +243,10 @@ def parse_list(query_list):
 	return depot_list
 
 
-def bool_product_property(value: str):
+def bool_product_property(value):
 	# logger.devel("bool_product_property: %s", value)
+	if isinstance(value, dict):
+		return value
 	if value:
 		if value.lower() == "[true]" or str(value) == "1":
 			# logger.devel("return True")

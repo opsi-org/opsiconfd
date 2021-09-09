@@ -244,28 +244,23 @@ def parse_list(query_list):
 
 
 def bool_product_property(value):
-	# logger.devel("bool_product_property: %s", value)
-	if isinstance(value, dict):
-		return value
 	if value:
 		if value.lower() == "[true]" or str(value) == "1":
-			# logger.devel("return True")
 			return [True]
-	# logger.devel("return False")
 	return [False]
 
 
-def merge_dicts(a, b, path=None):
-
-	if path is None: path = []
-	for key in b:
-		if key in a:
-			if isinstance(a[key], dict) and isinstance(b[key], dict):
-				merge_dicts(a[key], b[key], path + [str(key)])
-			elif a[key] == b[key]:
+def merge_dicts(dict_a, dict_b, path=None):
+	if path is None:
+		path = []
+	for key in dict_b:
+		if key in dict_a:
+			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
+				merge_dicts(dict_a[key], dict_b[key], path + [str(key)])
+			elif dict_a[key] == dict_b[key]:
 				pass # same leaf value
 			else:
 				raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
 		else:
-			a[key] = b[key]
-	return a
+			dict_a[key] = dict_b[key]
+	return dict_a

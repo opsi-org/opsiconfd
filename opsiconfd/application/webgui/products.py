@@ -8,7 +8,6 @@
 webgui product methods
 """
 
-import json
 from typing import List, Optional
 from functools import lru_cache
 from sqlalchemy import select, text, and_, alias, column
@@ -541,7 +540,6 @@ def product_properties(
 	where = text("pp.productId = :productId")
 	clients_to_depots = {}
 	for client in selectedClients:
-		# logger.devel(client)
 		depot = get_depot_of_client(client)
 		if not clients_to_depots.get(depot):
 			clients_to_depots[depot] = []
@@ -554,11 +552,9 @@ def product_properties(
 			text("(pod.depotId IN :depots)")
 		)
 
-	# logger.devel(clients_to_depots)
-
 	with mysql.session() as session:
 
-		try:
+		try: # pylint: disable=too-many-nested-blocks
 			query = select(text("""
 				pp.productId,
 				pp.propertyId,
@@ -586,81 +582,38 @@ def product_properties(
 			.where(where)\
 			.group_by(text("pp.productId, pp.propertyId, versionDetails")) # pylint: disable=redefined-outer-name
 
-			# logger.devel(query)
-
 			result = session.execute(query, params)
 			result = result.fetchall()
 
 			for row in result:
 				if row is not None:
-
 					property = dict(row)
 					if not data["properties"].get(property["propertyId"]):
 						data["properties"][property["propertyId"]] = {}
 					depots = list(set(property["depots"].split(",")))
-					# logger.devel(depots)
-
 					property["depots"] = {}
 					property["clients"] = {}
-					# query = select(text("""
-					# 		ppv.value
-					# 	"""))\
-					# 	.select_from(text("PRODUCT_PROPERTY_VALUE AS ppv"))\
-					# 	.where(text("ppv.productId = :product AND ppv.propertyId = :property AND ppv.isDefault = 1"))
-					# values = session.execute(query, {"product": productId, "property": property["propertyId"], "client": client})
-					# values = values.fetchone()
-					# if values is not None:
-					# 	property["default"] = dict(values).get("value")
-					# else:
-					# 	property["default"] = None
-					# # property["clientIds"] = depots.get(property.get("depotId"))
-
-					logger.devel(depots)
 
 					for depot in depots:
-						# logger.devel("DEPOT %s", depot)
-						# property["versionDetails"] = {depot: property["versionDetails"]}
-						# property["descriptionDetails"] ={depot: property["descriptionDetails"]}
-						# property["multiValueDetails"] ={depot: bool(property["multiValueDetails"])}
-						# property["editableDetails"] ={depot: bool(property["editableDetails"])}
-
-						# logger.devel(property["defaultDetails"])
-
-						# if property["type"] == "BoolProductProperty":
-						# 	# logger.devel("BoolProductProperty")
-						# 	property["defaultDetails"] = {depot: bool_product_property(property["defaultDetails"])}
-						# else:
-						# 	property["defaultDetails"] = {depot: property["defaultDetails"]}
 						property["versionDetails"] = {depot: property["versionDetails"]}
 						property["descriptionDetails"] = {depot: property["descriptionDetails"]}
 						property["multiValueDetails"] = {depot: bool(property["multiValueDetails"])}
 						property["editableDetails"] = {depot: bool(property["editableDetails"])}
-						logger.devel(property["possibleValues"])
-						logger.devel(property["defaultDetails"])
-						property["possibleValues"] = {depot: property["possibleValues"]}
-						property["defaultDetails"] = {depot: property["defaultDetails"]}
-
-						logger.devel(property)
-						logger.devel(property["possibleValues"][depot])
-						logger.devel(property["defaultDetails"][depot])
 
 						if property["type"] == "BoolProductProperty":
-							# logger.devel("BoolProductProperty")
-							property["defaultDetails"][depot] = bool_product_property(property["defaultDetails"][depot])
-							property["possibleValues"][depot] = [bool_product_property(value) for value in property["possibleValues"][depot].split(",")]
+							property["defaultDetails"] = {depot: bool_product_property(property["defaultDetails"])}
+							property["possibleValues"]= {depot: [bool_product_property(value) for value in property["possibleValues"].split(",")]}
 						else:
-							property["possibleValues"][depot] = property["defaultDetails"][depot].split(",")
-
+							property["defaultDetails"] = {depot: property["defaultDetails"].split(",")}
+							property["possibleValues"] = {depot: property["possibleValues"].split(",")}
 
 						query = select(text("""
 							pps.values
 						"""))\
 						.select_from(text("PRODUCT_PROPERTY_STATE AS pps"))\
 						.where(text("pps.productId = :product AND pps.propertyId = :property AND pps.objectId = :depot"))
-						# logger.devel(query)
 						values = session.execute(query, {"product": productId, "property": property["propertyId"], "depot": depot})
 						values = values.fetchone()
-						# logger.devel(values)
 
 						if values is not None:
 							if property["type"] == "BoolProductProperty":
@@ -678,30 +631,22 @@ def product_properties(
 							"""))\
 							.select_from(text("PRODUCT_PROPERTY_STATE AS pps"))\
 							.where(text("pps.productId = :product AND pps.propertyId = :property AND pps.objectId = :client"))
-							# logger.devel(query)
 							values = session.execute(query, {"product": productId, "property": property["propertyId"], "client": client})
 							values = values.fetchone()
-							# logger.devel(values)
 
 							if values is not None:
 								if property["type"] == "BoolProductProperty":
 									property["clients"][client] = bool_product_property(dict(values).get("values"))
 								else:
 									property["clients"][client] = dict(values).get("values")
+								if property["clients"][client] != property["depots"][depot]:
+									property["anyClientDifferentFromDepot"] = True
 							elif property["depots"][depot] is not None:
 								property["clients"][client] = property["depots"][depot]
 							else:
 								property["clients"][client] = property["defaultDetails"][depot]
 
-						# if property.get("actionProgressDetails"):
-						# 	product["actionProgressDetails"] = product.get("actionProgressDetails").split(",")
-						# 	if all(value == product.get("actionProgressDetails")[0]  for value in product.get("actionProgressDetails")):
-						# 		product["actionProgress"] = product.get("actionProgressDetails")[0]
-						# 	else:
-						# 		product["actionProgress"] = "mixed"
-
 					data["properties"][property["propertyId"]] = merge_dicts(property, data["properties"][property["propertyId"]])
-					# data["properties"].append(property)
 
 			for id in data["properties"]:
 				property = data["properties"][id]
@@ -714,11 +659,7 @@ def product_properties(
 					else:
 						property[key] = "mixed"
 
-
 				client_values = property["clients"].values()
-				logger.devel(property.get("propertyId"))
-				logger.devel(client_values)
-
 				if all(value == list(client_values)[0]  for value in client_values):
 					property["allClientValuesEqual"] = True
 				else:
@@ -728,34 +669,16 @@ def product_properties(
 					property["newValue"] = str()
 					property["newValues"] = []
 
-				for client in  property["clients"]:
-					logger.devel(property["clients"][client])
-					logger.devel(property["depots"][get_depot_of_client(client)])
-
-				if all(property["clients"][client] == property["depots"][get_depot_of_client(client)] for client in  property["clients"]):
-					property["anyClientDifferentFromDepot"] = False
-				else:
-					property["anyClientDifferentFromDepot"] = True
-
 				if not property.get("anyDepotDifferentFromDefault"):
 					property["anyDepotDifferentFromDefault"] = False
-
-				# query = select(text("""
-				# 		ppv.values
-				# 	"""))\
-				# 	.select_from(text("PRODUCT_PROPERTY_VALUE AS ppv"))\
-				# 	.where(text("ppv.productId = :product AND ppv.propertyId = :property"))
-				# 	# logger.devel(query)
-				# 	values = session.execute(query, {"product": productId, "property": property["propertyId"], "depot": depot})
-				# 	values = values.fetchone(
+				if not property.get("anyClientDifferentFromDepot"):
+					property["anyClientDifferentFromDepot"] = False
 
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Could not get properties.")
 			logger.error(err)
 			error = {"message": str(err), "class": err.__class__.__name__}
 			status_code = max(status_code, 500)
-
-
 
 	return JSONResponse({"status": status_code, "error": error, "data": data})
 

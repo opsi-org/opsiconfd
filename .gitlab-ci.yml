@@ -161,6 +161,26 @@ build:linux-pyinstaller:
       - opsiconfd
     expire_in: 2 day
 
+build:arm64-pyinstaller:
+  stage: build
+  tags:
+    - arm64
+  script:
+    - *install_tools
+    - poetry install
+    #- find .venv -iname "*linux-gnu.so"
+    - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
+    - mv opsiconfd opsiconfd.src
+    - mv dist/opsiconfd .
+    # Check if binary is working
+    - OPSI_HOSTNAME=test.uib.local ./opsiconfd/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
+  artifacts:
+    name: 'opsiconfd-linux-pyinstaller'
+    paths:
+      - opsiconfd
+    expire_in: 2 day
+
+
 publish:obs_int:
   stage: publish
   dependencies:

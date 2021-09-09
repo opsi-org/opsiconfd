@@ -82,7 +82,11 @@ package:
     mkdir -p ${DST}/rootfs/usr/share/opsiconfd
     mkdir -p ${DST}/rootfs/var/log/opsi/opsiconfd
     mkdir -p ${DST}/systemd_units
-    cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/
+    if [ $(arch) = "aarch64" ]; then
+      cp -a ${pyi_src}/opsiconfd-arm64 ${DST}/rootfs/usr/lib/
+    else
+      cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/
+    fi
     echo "#!/bin/sh"                 > ${DST}/rootfs/usr/bin/opsiconfd
     echo "cd /usr/lib/opsiconfd"    >> ${DST}/rootfs/usr/bin/opsiconfd
     echo "exec ./opsiconfd \"\$@\"" >> ${DST}/rootfs/usr/bin/opsiconfd

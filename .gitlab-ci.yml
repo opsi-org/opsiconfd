@@ -152,9 +152,9 @@ build:linux-pyinstaller:
     #- find .venv -iname "*linux-gnu.so"
     - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
-    - mv dist/opsiconfd .
+    - mv dist/opsiconfd ./opsiconfd-amd64
     # Check if binary is working
-    - ./opsiconfd/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
+    - ./opsiconfd-amd64/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
   artifacts:
     name: 'opsiconfd-linux-pyinstaller'
     paths:

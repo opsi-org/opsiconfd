@@ -158,7 +158,7 @@ build:linux-pyinstaller:
   artifacts:
     name: 'opsiconfd-linux-pyinstaller'
     paths:
-      - opsiconfd
+      - opsiconfd-amd64
     expire_in: 2 day
 
 build:arm64-pyinstaller:
@@ -177,7 +177,7 @@ build:arm64-pyinstaller:
   artifacts:
     name: 'opsiconfd-linux-pyinstaller'
     paths:
-      - opsiconfd
+      - opsiconfd-arm64
     expire_in: 2 day
 
 

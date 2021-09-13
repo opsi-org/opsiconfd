@@ -199,6 +199,10 @@ publish:obs_ext:
     - build:arm64-pyinstaller
   script:
     - *install_tools
+    - ls -la
+    - ls -la opsiconfd
+    - ls -la opsiconfd-arm64
+    - ls -la opsiconfd-amd64
     - python3 -m opsidevtools --version
     - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
   when: manual

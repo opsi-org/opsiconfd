@@ -156,7 +156,7 @@ build:linux-pyinstaller:
     # Check if binary is working
     - ./opsiconfd-amd64/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
   artifacts:
-    name: 'opsiconfd-linux-pyinstaller'
+    name: 'opsiconfd-amd64-pyinstaller'
     paths:
       - opsiconfd-amd64
     expire_in: 2 day
@@ -175,7 +175,7 @@ build:arm64-pyinstaller:
     # Check if binary is working
     - OPSI_HOSTNAME=test.uib.local ./opsiconfd-arm64/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
   artifacts:
-    name: 'opsiconfd-linux-pyinstaller'
+    name: 'opsiconfd-arm64-pyinstaller'
     paths:
       - opsiconfd-arm64
     expire_in: 2 day
@@ -203,6 +203,7 @@ publish:obs_ext:
     - ls -la opsiconfd
     - ls -la opsiconfd-arm64
     - ls -la opsiconfd-amd64
+    - ls -la /builds/uib/opsiconfd
     - python3 -m opsidevtools --version
     - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
   when: manual

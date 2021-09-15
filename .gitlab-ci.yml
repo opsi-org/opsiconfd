@@ -156,7 +156,7 @@ build:linux-pyinstaller:
     # Check if binary is working
     - ./opsiconfd-amd64/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
   artifacts:
-    name: 'opsiconfd-amd64-pyinstaller'
+    name: 'opsiconfd-linux-pyinstaller'
     paths:
       - opsiconfd-amd64
     expire_in: 2 day

@@ -86,26 +86,12 @@ package:
       cp -a ${pyi_src}/opsiconfd ${DST}/rootfs/usr/lib/
     fi;
     if [ -d ${pyi_src}/opsiconfd-amd64 ]; then
-      mkdir -p ${DST}/rootfs-amd64/etc/opsi
-      mkdir -p ${DST}/rootfs-amd64/usr/bin
       mkdir -p ${DST}/rootfs-amd64/usr/lib
-      mkdir -p ${DST}/rootfs-amd64/usr/share/opsiconfd
-      mkdir -p ${DST}/rootfs-amd64/var/log/opsi/opsiconfd
       cp -a ${pyi_src}/opsiconfd-amd64 ${DST}/rootfs-amd64/usr/lib/
-      # mv ${DST}/rootfs-amd64/usr/lib/opsiconfd/opsiconfd_data/static ${DST}/rootfs-amd64/usr/share/opsiconfd/
-      # mv ${DST}/rootfs-amd64/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.conf ${DST}/rootfs-amd64/etc/opsi/
-      # rm -r ${DST}/rootfs-amd64/usr/lib/opsiconfd/opsiconfd_data
     fi;
     if [ -d ${pyi_src}/opsiconfd-arm64 ]; then
-      mkdir -p ${DST}/rootfs-arm64/etc/opsi
-      mkdir -p ${DST}/rootfs-arm64/usr/bin
       mkdir -p ${DST}/rootfs-arm64/usr/lib
-      mkdir -p ${DST}/rootfs-arm64/usr/share/opsiconfd
-      mkdir -p ${DST}/rootfs-arm64/var/log/opsi/opsiconfd
       cp -a ${pyi_src}/opsiconfd-arm64 ${DST}/rootfs-arm64/usr/lib/
-      # mv ${DST}/rootfs-arm64/usr/lib/opsiconfd/opsiconfd_data/static ${DST}/rootfs-arm64/usr/share/opsiconfd/
-      # mv ${DST}/rootfs-arm64/usr/lib/opsiconfd/opsiconfd_data/opsiconfd.conf ${DST}/rootfs-arm64/etc/opsi/
-      rm -r ${DST}/rootfs-arm64/usr/lib/opsiconfd/opsiconfd_data
     fi;
     echo "#!/bin/sh"                 > ${DST}/rootfs/usr/bin/opsiconfd
     echo "cd /usr/lib/opsiconfd"    >> ${DST}/rootfs/usr/bin/opsiconfd

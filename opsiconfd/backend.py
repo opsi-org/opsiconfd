@@ -93,7 +93,9 @@ class OpsiconfdBackend(metaclass=Singleton):
 		self.method_names = [meth['name'] for meth in self._interface]
 
 	def backend_exit(self) -> None:  # pylint: disable=no-self-use
-		return
+		session = contextvar_client_session.get()
+		if session:
+			session.sync_delete()
 
 	def getDomain(self) -> str:  # pylint: disable=invalid-name
 		try:

@@ -491,14 +491,14 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		# aredis is sometimes slow ~300ms load, using redis for now
 		await run_in_threadpool(self._store)
 
-	def _delete(self) -> bool:
+	def sync_delete(self) -> bool:
 		with redis_client() as redis:
 			redis.delete(self.redis_key)
 		self.session_id = None
 		self.deleted = True
 
 	async def delete(self) -> bool:
-		return await run_in_threadpool(self._delete)
+		return await run_in_threadpool(self.sync_delete)
 
 	def _update_last_used(self):
 		self.last_used = self.utc_time_timestamp()

@@ -14,6 +14,7 @@ import urllib
 import datetime
 from ctypes import c_long
 
+from starlette import status
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
 from starlette.types import ASGIApp, Message
@@ -29,7 +30,7 @@ from websockets.exceptions import ConnectionClosedOK
 from OPSI import __version__ as python_opsi_version
 from .. import __version__
 
-from .. import contextvar_request_id, contextvar_client_address
+from .. import contextvar_request_id, contextvar_client_address, contextvar_client_session
 from ..logging import logger
 from ..config import config
 from ..worker import init_worker
@@ -88,6 +89,12 @@ class LoggerWebsocket(WebSocketEndpoint):
 				break
 
 	async def on_connect(self, websocket: WebSocket):
+		session = contextvar_client_session.get()
+		if not session.user_store.isAdmin:
+			logger.warning("Access to %s denied for user '%s'", self, session.user_store.username)
+			await websocket.close(code=4403)
+			return
+
 		self._websocket = websocket  # pylint: disable=attribute-defined-outside-init
 		params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
 		client = params.get("client", [None])[0]
@@ -105,6 +112,11 @@ class TestWebsocket(WebSocketEndpoint):
 	encoding = 'bytes'
 
 	async def on_connect(self, websocket: WebSocket):
+		session = contextvar_client_session.get()
+		if not session.user_store.isAdmin:
+			logger.warning("Access to %s denied for user '%s'", self, session.user_store.username)
+			await websocket.close(code=4403)
+			return
 		#params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
 		#client = params.get("client", [None])[0]
 		await websocket.accept()
@@ -120,17 +132,19 @@ class TestWebsocket(WebSocketEndpoint):
 
 @app.get("/test/random-data")
 async def get_test_random(request: Request):  # pylint: disable=unused-argument
+	if not contextvar_client_session.get().user_store.isAdmin:
+		return Response(status_code=status.HTTP_403_FORBIDDEN)
 	with open("/dev/urandom", mode="rb") as random:
 		return StreamingResponse(random, media_type="application/binary")
 
 
 @app.get("/")
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument
-	return RedirectResponse("/admin", status_code=301)
+	return RedirectResponse("/admin", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 @app.get("/favicon.ico")
 async def favicon(request: Request, response: Response):  # pylint: disable=unused-argument
-	return RedirectResponse("/static/favicon.ico", status_code=301)
+	return RedirectResponse("/static/favicon.ico", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 @app.on_event("startup")
 async def startup_event():

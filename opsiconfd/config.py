@@ -562,7 +562,7 @@ parser.add(
 	"--session-lifetime",
 	env_var="OPSICONFD_SESSION_LIFETIME",
 	type=int,
-	default=120,
+	default=60,
 	help="The interval in seconds after an inactive session expires."
 )
 parser.add(
@@ -590,7 +590,7 @@ parser.add(
 	"--max-session-per-ip",
 	env_var="OPSICONFD_MAX_SESSIONS_PER_IP",
 	type=int,
-	default=25,
+	default=30,
 	help="The maximum number of sessions that can be opened through one ip address."
 )
 parser.add(

@@ -103,38 +103,38 @@ stages:
   echo "---------------------------------------"
   poetry run pylint --disable=R,C,fixme opsiconfd
 
-# test:perftest:
-#   image: ubuntu:focal
-#   services:
-#     - mysql:latest
-#     - name: redislabs/redistimeseries:latest
-#       alias: redis
-#   variables:
-#     MYSQL_ROOT_PASSWORD: "opsi"
-#     MYSQL_DATABASE: "opsi"
-#     MYSQL_USER: "opsi"
-#     MYSQL_PASSWORD: "opsi"
-#   stage: test
-#   script:
-#     - *prepare_tests
-#     - *perftest
+test:perftest:
+  image: ubuntu:focal
+  services:
+    - mysql:latest
+    - name: redislabs/redistimeseries:latest
+      alias: redis
+  variables:
+    MYSQL_ROOT_PASSWORD: "opsi"
+    MYSQL_DATABASE: "opsi"
+    MYSQL_USER: "opsi"
+    MYSQL_PASSWORD: "opsi"
+  stage: test
+  script:
+    - *prepare_tests
+    - *perftest
 
-# test:pylint-pytest:
-#   image: ubuntu:focal
-#   services:
-#     - mysql:latest
-#     - name: redislabs/redistimeseries:latest
-#       alias: redis
-#   variables:
-#     MYSQL_ROOT_PASSWORD: "opsi"
-#     MYSQL_DATABASE: "opsi"
-#     MYSQL_USER: "opsi"
-#     MYSQL_PASSWORD: "opsi"
-#   stage: test
-#   script:
-#     - *prepare_tests
-#     - *pylint
-#     - *pytest
+test:pylint-pytest:
+  image: ubuntu:focal
+  services:
+    - mysql:latest
+    - name: redislabs/redistimeseries:latest
+      alias: redis
+  variables:
+    MYSQL_ROOT_PASSWORD: "opsi"
+    MYSQL_DATABASE: "opsi"
+    MYSQL_USER: "opsi"
+    MYSQL_PASSWORD: "opsi"
+  stage: test
+  script:
+    - *prepare_tests
+    - *pylint
+    - *pytest
 
 
   # poetry run pytest --junit-xml=pytestreport.xml junit_family=xunit2 --quiet /builds/uib/opsiconfd/tests
@@ -181,16 +181,17 @@ build:arm64-pyinstaller:
     expire_in: 2 day
 
 
-# publish:obs_int:
-#   stage: publish
-#   dependencies:
-#     - build:linux-pyinstaller
-#     - build:arm64-pyinstaller
-#   script:
-#     - *install_tools
-#     - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
-#   only:
-#     - tags
+publish:obs_int:
+  stage: publish
+  dependencies:
+    - build:linux-pyinstaller
+    - build:arm64-pyinstaller
+  script:
+    - *install_tools
+    - python3 -m opsidevtools --version
+    - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
+  only:
+    - tags
 
 publish:obs_ext:
   stage: publish
@@ -199,11 +200,6 @@ publish:obs_ext:
     - build:arm64-pyinstaller
   script:
     - *install_tools
-    - ls -la
-    - ls -la opsiconfd
-    - ls -la opsiconfd-arm64
-    - ls -la opsiconfd-amd64
-    - ls -la /builds/uib/opsiconfd
     - python3 -m opsidevtools --version
     - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
   when: manual

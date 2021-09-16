@@ -99,7 +99,6 @@ package:
     cp -a ${SRC}/opsiconfd_data/static ${DST}/rootfs/usr/share/opsiconfd/
     cp -a ${SRC}/opsiconfd_data/opsiconfd.conf ${DST}/rootfs/etc/opsi/
     cp -a ${SRC}/opsiconfd_data/opsiconfd.service ${DST}/systemd_units/
-    # rm -r ${DST}/rootfs/usr/lib/opsiconfd/opsiconfd_data
 
 
   postinst_script: |

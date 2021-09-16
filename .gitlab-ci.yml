@@ -202,6 +202,5 @@ publish:obs_ext:
     - *install_tools
     - python3 -m opsidevtools --version
     - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
-  when: manual
-  # only:
-  #   - tags
+  only:
+    - tags

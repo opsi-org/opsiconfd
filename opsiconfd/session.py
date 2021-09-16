@@ -122,6 +122,17 @@ class SessionMiddleware:
 		set_context({"client_address": client_address})
 		logger.trace("SessionMiddleware %s", scope)
 
+		keep_session = True
+		if connection.headers.get("user-agent", "").startswith("curl/"):
+			# Zsync2 will send "curl/<curl-version>" as User-Agent.
+			# Do not keep zsync2 sessions because zsync2 will never send a session id.
+			# If we keep the session, we may reach the maximum number of sessions per ip.
+			keep_session = False
+			logger.debug(
+				"Not keeping session for client %s (%s)",
+				client_address, connection.headers.get("user-agent")
+			)
+
 		if scope.get("http_version") and scope["http_version"] != "1.1":
 			logger.warning(
 				"Client %s (%s) is using http version %s",
@@ -242,7 +253,7 @@ class SessionMiddleware:
 							if OPSI_ADMIN_GROUP in session.user_store.userGroups:
 								# Remove admin group from groups because acl.conf currently does not support isAdmin
 								session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
-							if session and not session.deleted:
+							if session and not session.deleted and keep_session:
 								asyncio.get_event_loop().create_task(session.store())
 
 				# Check authorization
@@ -267,7 +278,7 @@ class SessionMiddleware:
 
 			async def send_wrapper(message: Message) -> None:
 				if message["type"] == "http.response.start":
-					if session and not session.deleted:
+					if session and not session.deleted and keep_session:
 						asyncio.get_event_loop().create_task(session.store())
 						headers = MutableHeaders(scope=message)
 						headers.append("Set-Cookie", self.get_set_cookie_string(session.session_id))

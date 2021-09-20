@@ -2551,8 +2551,8 @@ objgraph = [
     {file = "objgraph-3.5.0.tar.gz", hash = "sha256:4752ca5bcc0e0512e41b8cc4d2780ac2fd3b3eabd03b7e950a5594c06203dfc4"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.0.78.tar.gz", hash = "sha256:ad399cac1c51eaf1d28704e86afa74c050421a4c429b7c21d1694858fac5385f"},
-    {file = "opsi_dev_tools-1.0.78-py3-none-any.whl", hash = "sha256:e7e010c6fa8f24a274d274c87b9b224b4177cd0483e527f4ed3bebdb1d8a8879"},
+    {file = "opsi-dev-tools-1.0.78.tar.gz", hash = "sha256:28df87f0d05d4f106cd978dee9989fb565ee79fefc43465fe9d991a94efa3a2d"},
+    {file = "opsi_dev_tools-1.0.78-py3-none-any.whl", hash = "sha256:65e9dab121f6f56ea48ae0e05286dba7bcfc6e45b18a6af1401f1c5bdfdf0312"},
 ]
 orjson = [
     {file = "orjson-3.6.3-cp310-cp310-manylinux_2_24_aarch64.whl", hash = "sha256:5f78ed46b179585272a5670537f2203dbb7b3e2f8e4db1be72839cc423e2daef"},

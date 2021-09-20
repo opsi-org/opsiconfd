@@ -96,7 +96,7 @@ async def register_opsi_services():
 	await _zeroconf.register_service(_info)
 
 async def unregister_opsi_services():
-	global _zeroconf, _info # pylint: disable=invalid-name,global-statement
+	global _zeroconf, _info # pylint: disable=invalid-name,global-statement,global-variable-not-assigned
 	if not _zeroconf or not _info:
 		return
 	logger.notice("Unregister zeroconf service")

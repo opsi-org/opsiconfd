@@ -518,7 +518,7 @@ def start_redis_log_adapter_thread():
 	running_event.wait()
 
 def stop_redis_log_adapter_thread():
-	global redis_log_adapter_thread # pylint: disable=global-statement, invalid-name
+	global redis_log_adapter_thread # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not redis_log_adapter_thread:
 		return
 	redis_log_adapter_thread.stop()

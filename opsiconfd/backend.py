@@ -36,7 +36,7 @@ backend_config =  {
 
 get_session_from_context = None # pylint: disable=invalid-name
 def get_session():
-	global get_session_from_context # pylint: disable=invalid-name, global-statement
+	global get_session_from_context # pylint: disable=invalid-name, global-statement,global-variable-not-assigned
 	if not get_session_from_context:
 		from .session import get_session_from_context # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return get_session_from_context()

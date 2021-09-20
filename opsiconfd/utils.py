@@ -24,7 +24,7 @@ import aredis
 
 logger = None # pylint: disable=invalid-name
 def get_logger():
-	global logger # pylint: disable=global-statement, invalid-name
+	global logger # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not logger:
 		from .logging import logger # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return logger
@@ -32,7 +32,7 @@ def get_logger():
 
 config = None # pylint: disable=invalid-name
 def get_config():
-	global config # pylint: disable=global-statement, invalid-name
+	global config # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not config:
 		from .config import config # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return config

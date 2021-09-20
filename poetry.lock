@@ -2551,8 +2551,8 @@ objgraph = [
     {file = "objgraph-3.5.0.tar.gz", hash = "sha256:4752ca5bcc0e0512e41b8cc4d2780ac2fd3b3eabd03b7e950a5594c06203dfc4"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.0.78.tar.gz", hash = "md5:e3228a5a150dc045e5793b7777f57f17"},
-    {file = "opsi_dev_tools-1.0.78-py3-none-any.whl", hash = "md5:780ada2e3fc2e3968c4cdd14814f11d4"},
+    {file = "opsi-dev-tools-1.0.78.tar.gz", hash = "sha256:ad399cac1c51eaf1d28704e86afa74c050421a4c429b7c21d1694858fac5385f"},
+    {file = "opsi_dev_tools-1.0.78-py3-none-any.whl", hash = "sha256:e7e010c6fa8f24a274d274c87b9b224b4177cd0483e527f4ed3bebdb1d8a8879"},
 ]
 orjson = [
     {file = "orjson-3.6.3-cp310-cp310-manylinux_2_24_aarch64.whl", hash = "sha256:5f78ed46b179585272a5670537f2203dbb7b3e2f8e4db1be72839cc423e2daef"},
@@ -2761,8 +2761,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.242.tar.gz", hash = "md5:9e2b4b76183f38b6240d2b364b20b430"},
-    {file = "python_opsi-4.2.0.242-py3-none-any.whl", hash = "md5:68716c58b23ddbb98c4e5c20079c66b9"},
+    {file = "python-opsi-4.2.0.242.tar.gz", hash = "sha256:7231fea8a796e02c9adbbd08b91a9b6214f784401a07ee002061b2eab88e047a"},
+    {file = "python_opsi-4.2.0.242-py3-none-any.whl", hash = "sha256:7e492d2506b3bc3e3198e13ac209ff1247250a0d11c0a5324957c19219170df2"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

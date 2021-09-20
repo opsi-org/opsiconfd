@@ -152,21 +152,43 @@ build:linux-pyinstaller:
     #- find .venv -iname "*linux-gnu.so"
     - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
-    - mv dist/opsiconfd .
+    - mv dist/opsiconfd ./opsiconfd-amd64
     # Check if binary is working
-    - ./opsiconfd/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
+    - ./opsiconfd-amd64/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
   artifacts:
     name: 'opsiconfd-linux-pyinstaller'
     paths:
-      - opsiconfd
+      - opsiconfd-amd64
     expire_in: 2 day
+
+build:arm64-pyinstaller:
+  stage: build
+  tags:
+    - arm64
+  script:
+    - *install_tools
+    - poetry install
+    #- find .venv -iname "*linux-gnu.so"
+    - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
+    - mv opsiconfd opsiconfd.src
+    - mv dist/opsiconfd ./opsiconfd-arm64
+    # Check if binary is working
+    - OPSI_HOSTNAME=test.uib.local ./opsiconfd-arm64/opsiconfd -c opsiconfd_data/opsiconfd.conf --version
+  artifacts:
+    name: 'opsiconfd-arm64-pyinstaller'
+    paths:
+      - opsiconfd-arm64
+    expire_in: 2 day
+
 
 publish:obs_int:
   stage: publish
   dependencies:
     - build:linux-pyinstaller
+    - build:arm64-pyinstaller
   script:
     - *install_tools
+    - python3 -m opsidevtools --version
     - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
   only:
     - tags
@@ -175,8 +197,10 @@ publish:obs_ext:
   stage: publish
   dependencies:
     - build:linux-pyinstaller
+    - build:arm64-pyinstaller
   script:
     - *install_tools
+    - python3 -m opsidevtools --version
     - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
   only:
     - tags

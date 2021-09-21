@@ -33,7 +33,7 @@ from opsicommon.logging import (
 	logger, secret_filter, handle_log_exception, set_format,
 	set_filter_from_string, context_filter, ContextSecretFormatter,
 	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT,
-	DEFAULT_COLORED_FORMAT, OPSI_LEVEL_TO_LEVEL
+	OPSI_LEVEL_TO_LEVEL
 )
 from opsicommon.logging.logging import add_context_filter_to_loggers
 

@@ -25,7 +25,7 @@ import psutil
 
 from OPSI import __version__ as python_opsi_version
 
-from opsicommon.logging import OPSI_LEVEL_TO_LEVEL, set_filter_from_string
+from opsicommon.logging import set_filter_from_string
 
 from . import __version__
 from .logging import logger, init_logging, secret_filter, AsyncRedisLogAdapter

@@ -138,7 +138,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
-		self._set_log_format_sdterr()
+		self._set_log_format_stderr()
 
 		if self._log_level_file != pylogging.NONE:
 			if self._log_file_template:
@@ -153,7 +153,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 
 	def reload(self):
 		self._read_config()
-		self._set_log_format_sdterr()
+		self._set_log_format_stderr()
 
 		for file_handler in self._file_logs.values():
 			file_handler.formatter = ContextSecretFormatter(Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT))
@@ -172,18 +172,20 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		self._log_format_file = config.log_format_file
 
 
-	def _set_log_format_sdterr(self):
-		if self._log_level_stderr != pylogging.NONE:
-			if sys.stderr.isatty():
-				# colorize
-				console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS, datefmt=DATETIME_FORMAT)
-			else:
-				console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
-			if self._stderr_handler:
-				self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)
-			else:
-				self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=ContextSecretFormatter(console_formatter))
-			self._stderr_handler.add_filter(context_filter.filter)
+	def _set_log_format_stderr(self):
+		if self._log_level_stderr == pylogging.NONE:
+			self._stderr_handler = None
+			return
+		if sys.stderr.isatty():
+			# colorize
+			console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS, datefmt=DATETIME_FORMAT)
+		else:
+			console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
+		if self._stderr_handler:
+			self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)
+		else:
+			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=ContextSecretFormatter(console_formatter))
+		self._stderr_handler.add_filter(context_filter.filter)
 
 
 	def _log_format_no_color(self, log_format): # pylint: disable=no-self-use
@@ -510,7 +512,7 @@ class RedisLogAdapterThread(threading.Thread):
 			def handle_asyncio_exception(loop, context):
 				if loop.is_running():
 					msg = context.get("exception", context["message"])
-					print("Unhandled exception in RedisLogAdapterThread asyncio loop: %s" % msg, file=sys.stderr)
+					print(f"Unhandled exception in RedisLogAdapterThread asyncio loop: {msg}", file=sys.stderr)
 			self._loop.set_exception_handler(handle_asyncio_exception)
 			self._redis_log_adapter = AsyncRedisLogAdapter(running_event=self._running_event)
 			self._loop.run_forever()

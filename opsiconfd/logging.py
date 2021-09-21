@@ -129,35 +129,16 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 			handle_log_exception(exception, record, stderr=True, temp_file=True)
 
 class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
-	def __init__( # pylint: disable=too-many-arguments
-		self, running_event=None, log_file_template=None,
-			max_log_file_size=0, keep_rotated_log_files=0, symlink_client_log_files=False,
-			log_format_stderr=DEFAULT_COLORED_FORMAT, log_format_file=DEFAULT_COLORED_FORMAT,
-			log_level_stderr=pylogging.NOTSET, log_level_file=pylogging.NOTSET
-		):
+	def __init__(self, running_event=None):
 		self._running_event = running_event
-		self._log_file_template = log_file_template
-		self._max_log_file_size = max_log_file_size
-		self._keep_rotated_log_files = keep_rotated_log_files
-		self._symlink_client_log_files = symlink_client_log_files
-		self._log_level_stderr = log_level_stderr
-		self._log_level_file = log_level_file
-		self._log_format_stderr = log_format_stderr
-		self._log_format_file = log_format_file
+		self._read_config()
 		self._loop = asyncio.get_event_loop()
 		self._redis = None
 		self._file_logs = {}
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
-		if self._log_level_stderr != pylogging.NONE:
-			if sys.stderr.isatty():
-				# colorize
-				console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS, datefmt=DATETIME_FORMAT)
-			else:
-				console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
-			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=ContextSecretFormatter(console_formatter))
-			self._stderr_handler.add_filter(context_filter.filter)
+		self._set_log_format_sdterr()
 
 		if self._log_level_file != pylogging.NONE:
 			if self._log_file_template:
@@ -165,8 +146,45 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 
 		self._loop.create_task(self._start())
 
+
 	async def stop(self):
 		self._loop.stop()
+
+
+	def reload(self):
+		self._read_config()
+		self._set_log_format_sdterr()
+
+		for file_handler in self._file_logs.values():
+			file_handler.formatter = ContextSecretFormatter(Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT))
+			file_handler.max_bytes = self._max_log_file_size
+			file_handler.keep_rotated = self._keep_rotated_log_files
+
+
+	def _read_config(self):
+		self._log_file_template = config.log_file
+		self._max_log_file_size = round(config.max_log_size * 1000 * 1000)
+		self._keep_rotated_log_files = config.keep_rotated_logs
+		self._symlink_client_log_files = config.symlink_logs
+		self._log_level_stderr = OPSI_LEVEL_TO_LEVEL[config.log_level_stderr]
+		self._log_level_file = OPSI_LEVEL_TO_LEVEL[config.log_level_file]
+		self._log_format_stderr = config.log_format_stderr
+		self._log_format_file = config.log_format_file
+
+
+	def _set_log_format_sdterr(self):
+		if self._log_level_stderr != pylogging.NONE:
+			if sys.stderr.isatty():
+				# colorize
+				console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS, datefmt=DATETIME_FORMAT)
+			else:
+				console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
+			if self._stderr_handler:
+				self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)
+			else:
+				self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=ContextSecretFormatter(console_formatter))
+			self._stderr_handler.add_filter(context_filter.filter)
+
 
 	def _log_format_no_color(self, log_format): # pylint: disable=no-self-use
 		return log_format.replace('%(log_color)s', '').replace('%(reset)s', '')
@@ -475,6 +493,9 @@ class RedisLogAdapterThread(threading.Thread):
 		if self._redis_log_adapter:
 			self._loop.create_task(self._redis_log_adapter.stop())
 
+	def reload(self):
+		self._redis_log_adapter.reload()
+
 	def run(self):
 		try:
 			self._loop = asyncio.new_event_loop()
@@ -491,17 +512,7 @@ class RedisLogAdapterThread(threading.Thread):
 					msg = context.get("exception", context["message"])
 					print("Unhandled exception in RedisLogAdapterThread asyncio loop: %s" % msg, file=sys.stderr)
 			self._loop.set_exception_handler(handle_asyncio_exception)
-			self._redis_log_adapter = AsyncRedisLogAdapter(
-				running_event=self._running_event,
-				log_file_template=config.log_file,
-				log_format_stderr=config.log_format_stderr,
-				log_format_file=config.log_format_file,
-				max_log_file_size=round(config.max_log_size * 1000 * 1000),
-				keep_rotated_log_files=config.keep_rotated_logs,
-				symlink_client_log_files=config.symlink_logs,
-				log_level_stderr=OPSI_LEVEL_TO_LEVEL[config.log_level_stderr],
-				log_level_file=OPSI_LEVEL_TO_LEVEL[config.log_level_file]
-			)
+			self._redis_log_adapter = AsyncRedisLogAdapter(running_event=self._running_event)
 			self._loop.run_forever()
 		except Exception as exc: # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
@@ -510,6 +521,7 @@ redis_log_adapter_thread = None # pylint: disable=invalid-name
 def start_redis_log_adapter_thread():
 	global redis_log_adapter_thread # pylint: disable=global-statement, invalid-name
 	if redis_log_adapter_thread:
+		redis_log_adapter_thread.reload()
 		return
 	running_event = threading.Event()
 	redis_log_adapter_thread = RedisLogAdapterThread(running_event)

@@ -55,6 +55,7 @@ stages:
   # Install poetry
   pip3 install poetry
   poetry config experimental.new-installer false
+  poetry lock --no-update
   poetry install
   poetry run opsiconfd -l5 setup
   # Create adminuser used with opsiconfd-perftest.py
@@ -148,6 +149,7 @@ build:linux-pyinstaller:
   stage: build
   script:
     - *install_tools
+    - poetry lock --no-update
     - poetry install
     #- find .venv -iname "*linux-gnu.so"
     - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
@@ -167,6 +169,7 @@ build:arm64-pyinstaller:
     - arm64
   script:
     - *install_tools
+    - poetry lock --no-update
     - poetry install
     #- find .venv -iname "*linux-gnu.so"
     - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build

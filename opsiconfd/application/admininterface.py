@@ -291,7 +291,7 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 		for key in KEYS_TO_REMOVE:
 			if key in current_config:
 				del current_config[key]
-	current_config = dict(sorted(current_config.items()))
+	current_config = { key.replace("_","-"):value for key, value in sorted(current_config.items()) }
 
 	return JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
 

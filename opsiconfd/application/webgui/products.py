@@ -609,7 +609,6 @@ def product_properties(
 							property["possibleValues"]= {depot: [bool_product_property(value) for value in property["possibleValues"].split(",")]}
 						else:
 							if property["possibleValues"]:
-								logger.devel(unicode_product_property(property["possibleValues"]))
 								property["allValues"].update(unicode_product_property(property["possibleValues"]))
 							property["defaultDetails"] = {depot: unicode_product_property(property["defaultDetails"])}
 							property["possibleValues"] = {depot: unicode_product_property(property["possibleValues"])}
@@ -622,8 +621,6 @@ def product_properties(
 						.where(text("pps.productId = :product AND pps.propertyId = :property AND pps.objectId = :depot"))
 						values = session.execute(query, {"product": productId, "property": property["propertyId"], "depot": depot})
 						values = values.fetchone()
-
-						logger.devel("propertyId %s", property["propertyId"])
 
 						if values is not None:
 							if property["type"] == "BoolProductProperty":

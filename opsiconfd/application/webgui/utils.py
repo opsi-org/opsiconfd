@@ -158,17 +158,12 @@ def get_depot_of_client(client):
 			.select_from(text("CONFIG_STATE AS cs"))\
 			.where(where)
 
-		# logger.devel(query)
-
-
 		result = session.execute(query, params)
 		result = result.fetchone()
 
 		if result:
-			# logger.devel(result)
 			depot = dict(result).get("values")[2:-2]
 		else:
-			# logger.devel("no config state")
 			depot = get_configserver_id()
 		return depot
 
@@ -250,8 +245,6 @@ def bool_product_property(value):
 	return False
 
 def unicode_product_property(value):
-	logger.devel(value)
-	logger.devel(type(value))
 	if value and isinstance(value, str):
 		if value.startswith('["'):
 			return value[2:-2].replace('\\"', '"').split(",")

@@ -224,18 +224,18 @@ def parse_list(query_list):
 		return query_list
 
 	# if we don't start with a "[" and end with "]" it's just a normal entry
-	flat_depots = query_list[0]
-	if not flat_depots.startswith("[") and not flat_depots.endswith("]"):
+	flat_list = query_list[0]
+	if not flat_list.startswith("[") and not flat_list.endswith("]"):
 		return query_list
 
-	flat_depots = remove_prefix(flat_depots, "[")
-	flat_depots = remove_postfix(flat_depots, "]")
+	flat_list = remove_prefix(flat_list, "[")
+	flat_list = remove_postfix(flat_list, "]")
 
-	depot_list = flat_depots.split(",")
-	depot_list = [remove_prefix(n.strip(), "\"") for n in depot_list]
-	depot_list = [remove_postfix(n.strip(), "\"") for n in depot_list]
+	result_list = flat_list.split(",")
+	result_list = [remove_prefix(n.strip(), "\"") for n in result_list]
+	result_list = [remove_postfix(n.strip(), "\"") for n in result_list]
 
-	return depot_list
+	return list(filter(None, result_list))
 
 
 def bool_product_property(value):

@@ -527,6 +527,7 @@ class ProductProperiesResponse(BaseModel):
 def product_properties(
 	productId: str,
 	selectedClients: List[str] = Depends(parse_client_list),
+	selectedDepots: List[str] = Depends(parse_depot_list)
 ): # pylint: disable=too-many-locals, too-many-branches, too-many-statements, redefined-builtin, invalid-name
 	"""
 	Get products propertiers.
@@ -540,18 +541,31 @@ def product_properties(
 	params["productId"] = productId
 	where = text("pp.productId = :productId")
 	clients_to_depots = {}
-	for client in selectedClients:
-		depot = get_depot_of_client(client)
-		if not clients_to_depots.get(depot):
-			clients_to_depots[depot] = []
-		clients_to_depots[depot].append(client)
+	if selectedClients:
+		for client in selectedClients:
+			depot = get_depot_of_client(client)
+			if not clients_to_depots.get(depot):
+				clients_to_depots[depot] = []
+			clients_to_depots[depot].append(client)
 
-	if clients_to_depots:
-		params["depots"] = list(clients_to_depots.keys())
+		if clients_to_depots:
+			params["depots"] = list(clients_to_depots.keys())
+			where = and_(
+				where,
+				text("(pod.depotId IN :depots)")
+		)
+
+	elif selectedDepots:
+		params["depots"] = selectedDepots
 		where = and_(
 			where,
 			text("(pod.depotId IN :depots)")
-		)
+	)
+	else:
+		error = {"message": "No clients and no depots were selected."}
+		return JSONResponse({"status": 400, "error": error, "data": data})
+
+
 
 	with mysql.session() as session:
 
@@ -634,6 +648,9 @@ def product_properties(
 
 						else:
 							property["depots"][depot] = property["defaultDetails"][depot]
+
+						if not selectedClients:
+							continue
 						for client in clients_to_depots.get(depot):
 							query = select(text("""
 								pps.values

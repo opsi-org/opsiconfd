@@ -244,10 +244,13 @@ def bool_product_property(value):
 			return True
 	return False
 
+
 def unicode_product_property(value):
 	if value and isinstance(value, str):
 		if value.startswith('["'):
-			return value[2:-2].replace('\\"', '"').split(",")
+			return orjson.loads(value)  # pylint: disable=no-member
+		if value == "[]":
+			return [""]
 		return value.replace('\\"', '"').split(",")
 	return value
 
@@ -262,7 +265,7 @@ def merge_dicts(dict_a, dict_b, path=None):
 			elif dict_a[key] == dict_b[key]:
 				pass # same leaf value
 			else:
-				raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
+				raise Exception(f"Conflict at { '.'.join(path + [str(key)])}")
 		else:
 			dict_a[key] = dict_b[key]
 	return dict_a

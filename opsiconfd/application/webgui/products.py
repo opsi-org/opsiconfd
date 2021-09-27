@@ -518,7 +518,7 @@ class Property(BaseModel): # pylint: disable=too-few-public-methods
 	multiValue: Optional[bool]
 	description: Optional[str]
 
-class ProductProperiesResponse(BaseModel):
+class ProductProperiesResponse(BaseModel): # pylint: disable=too-few-public-methods
 	status: int
 	error: dict
 	data: List[Property]
@@ -547,25 +547,18 @@ def product_properties(
 			if not clients_to_depots.get(depot):
 				clients_to_depots[depot] = []
 			clients_to_depots[depot].append(client)
-
 		if clients_to_depots:
 			params["depots"] = list(clients_to_depots.keys())
-			where = and_(
-				where,
-				text("(pod.depotId IN :depots)")
-		)
-
 	elif selectedDepots:
 		params["depots"] = selectedDepots
-		where = and_(
-			where,
-			text("(pod.depotId IN :depots)")
-	)
 	else:
 		error = {"message": "No clients and no depots were selected."}
 		return JSONResponse({"status": 400, "error": error, "data": data})
 
-
+	where = and_(
+			where,
+			text("(pod.depotId IN :depots)")
+		)
 
 	with mysql.session() as session:
 
@@ -724,7 +717,7 @@ class Dependency(BaseModel): # pylint: disable=too-few-public-methods
 	requirementType: str
 
 
-class ProductDependenciesResponse(BaseModel):
+class ProductDependenciesResponse(BaseModel): # pylint: disable=too-few-public-methods
 	status: int
 	error: dict
 	data: List[Dependency]

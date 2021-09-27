@@ -252,7 +252,7 @@ def unicode_product_property(value):
 		if value == "[]":
 			return [""]
 		return value.replace('\\"', '"').split(",")
-	return value
+	return [""]
 
 
 def merge_dicts(dict_a, dict_b, path=None):

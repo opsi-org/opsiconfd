@@ -31,6 +31,7 @@ from .utils import (
 	parse_depot_list,
 	parse_client_list,
 	bool_product_property,
+	unicode_product_property,
 	merge_dicts
 )
 
@@ -593,6 +594,7 @@ def product_properties(
 					depots = list(set(property["depots"].split(",")))
 					property["depots"] = {}
 					property["clients"] = {}
+					property["allValues"] = set()
 
 					for depot in depots:
 						property["versionDetails"] = {depot: property["versionDetails"]}
@@ -601,11 +603,17 @@ def product_properties(
 						property["editableDetails"] = {depot: bool(property["editableDetails"])}
 
 						if property["type"] == "BoolProductProperty":
-							property["defaultDetails"] = {depot: bool_product_property(property["defaultDetails"])}
+							if property["possibleValues"]:
+								property["allValues"].update([bool_product_property(value) for value in property["possibleValues"].split(",")])
+							property["defaultDetails"] = {depot: [bool_product_property(property["defaultDetails"])]}
 							property["possibleValues"]= {depot: [bool_product_property(value) for value in property["possibleValues"].split(",")]}
 						else:
-							property["defaultDetails"] = {depot: property["defaultDetails"].split(",")}
-							property["possibleValues"] = {depot: property["possibleValues"].split(",")}
+							if property["possibleValues"]:
+								logger.devel(unicode_product_property(property["possibleValues"]))
+								property["allValues"].update(unicode_product_property(property["possibleValues"]))
+							property["defaultDetails"] = {depot: unicode_product_property(property["defaultDetails"])}
+							property["possibleValues"] = {depot: unicode_product_property(property["possibleValues"])}
+
 
 						query = select(text("""
 							pps.values
@@ -615,11 +623,15 @@ def product_properties(
 						values = session.execute(query, {"product": productId, "property": property["propertyId"], "depot": depot})
 						values = values.fetchone()
 
+						logger.devel("propertyId %s", property["propertyId"])
+
 						if values is not None:
 							if property["type"] == "BoolProductProperty":
-								property["depots"][depot] = bool_product_property(dict(values).get("values"))
+								property["depots"][depot] = [bool_product_property(dict(values).get("values"))]
+								property["allValues"].update([bool_product_property(dict(values).get("values"))])
 							else:
-								property["depots"][depot] = dict(values).get("values")
+								property["depots"][depot] = unicode_product_property(dict(values).get("values"))
+								property["allValues"].update(unicode_product_property(dict(values).get("values")))
 							if property["depots"][depot] != property["defaultDetails"][depot]:
 								property["anyDepotDifferentFromDefault"] = True
 
@@ -636,9 +648,11 @@ def product_properties(
 
 							if values is not None:
 								if property["type"] == "BoolProductProperty":
-									property["clients"][client] = bool_product_property(dict(values).get("values"))
+									property["clients"][client] = [bool_product_property(dict(values).get("values"))]
+									property["allValues"].update([bool_product_property(dict(values).get("values"))])
 								else:
-									property["clients"][client] = dict(values).get("values")
+									property["clients"][client] = unicode_product_property(dict(values).get("values"))
+									property["allValues"].update(unicode_product_property(dict(values).get("values")))
 								if property["clients"][client] != property["depots"][depot]:
 									property["anyClientDifferentFromDepot"] = True
 							elif property["depots"][depot] is not None:
@@ -646,6 +660,7 @@ def product_properties(
 							else:
 								property["clients"][client] = property["defaultDetails"][depot]
 
+					property["allValues"] = list(property.get("allValues"))
 					data["properties"][property["propertyId"]] = merge_dicts(property, data["properties"][property["propertyId"]])
 
 			for id in data["properties"]:

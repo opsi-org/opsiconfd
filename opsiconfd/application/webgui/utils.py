@@ -246,8 +246,17 @@ def parse_list(query_list):
 def bool_product_property(value):
 	if value:
 		if value.lower() == "[true]" or str(value) == "1":
-			return [True]
-	return [False]
+			return True
+	return False
+
+def unicode_product_property(value):
+	logger.devel(value)
+	logger.devel(type(value))
+	if value and isinstance(value, str):
+		if value.startswith('["'):
+			return value[2:-2].replace('\\"', '"').split(",")
+		return value.replace('\\"', '"').split(",")
+	return value
 
 
 def merge_dicts(dict_a, dict_b, path=None):

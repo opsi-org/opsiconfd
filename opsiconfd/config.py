@@ -665,6 +665,16 @@ parser.add(
 	help=expert_help("Turn debug mode on, never use in production.")
 )
 parser.add(
+	"--debug-options",
+	nargs="+",
+	env_var="OPSICONFD_DEBUG_OPTIONS",
+	default=None,
+	help=expert_help(
+		"A list of debug options"
+		"(options: rpc-error-log)"
+	)
+)
+parser.add(
 	"--profiler",
 	env_var="OPSICONFD_PROFILER",
 	type=str2bool,

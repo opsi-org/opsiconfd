@@ -14,7 +14,6 @@ from os import makedirs
 import time
 import traceback
 import tempfile
-import threading
 import urllib.parse
 import gzip
 import zlib
@@ -494,13 +493,10 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 		if request.scope.get("jsonrpc20"):
 			result["jsonrpc"] = "2.0"
 			del result["result"]
-
 		if config.debug_options and "rpc-error-log" in config.debug_options:
-			logger.notice("Writing rpc error log to: /tmp/opsiconfd-rpc-error.log")
-			now = time.time()
+			now = int(time.time() * 1_000_000)
 			directory = "/tmp/opsiconfd-rpc-debug"
 			makedirs(directory, exist_ok=True)
-			logger.notice("Writing to %s", directory)
 			msg = {
 					"client": request.client.host,
 					"description": f"Processing request from {request.client.host} ({user_agent}) for {method_name}",
@@ -512,11 +508,11 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 			with tempfile.NamedTemporaryFile(
 				delete=False,
 				dir=directory,
-				prefix=f"{request.client.host}-{now}-{threading.currentThread().getName()}-",
+				prefix=f"{request.client.host}-{now}-",
 				suffix=".log"
 			) as log_file:
+				logger.notice("Writing rpc error log to: %s", log_file.name)
 				log_file.write(orjson.dumps(msg)) # pylint: disable=no-member
-
 		return [result, 0, rpc, "rpc"]
 
 def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disable=too-many-locals

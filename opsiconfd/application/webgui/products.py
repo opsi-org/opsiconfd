@@ -60,6 +60,28 @@ def depot_get_product_version(depot, product):
 
 		return version
 
+def get_product_description(product, product_version, package_version):
+	version = None
+	params = {}
+	with mysql.session() as session:
+
+		params["product"] = product
+		params["product_version"] = product_version
+		params["package_version"] = package_version
+		where = text("p.productId = :product AND p.productVersion = :product_version AND p.packageVersion = :package_version")
+
+		query = select(text("description"))\
+			.select_from(text("PRODUCT AS p"))\
+			.where(where)
+
+		result = session.execute(query, params)
+		result = result.fetchone()
+
+		if result:
+			description = dict(result).get("description")
+
+		return description
+
 @lru_cache(maxsize=1000)
 def get_product_type(product_id, product_version, package_version):
 	with mysql.session() as session:
@@ -564,7 +586,7 @@ def product_properties(
 				clients_to_depots[depot] = []
 			clients_to_depots[depot].append(client)
 		if clients_to_depots:
-			params["depots"] = list(clients_to_depots.keys())
+			params["depots"] = list(clients_to_depots.keys()) + selectedDepots
 	elif selectedDepots:
 		params["depots"] = selectedDepots
 	else:
@@ -685,6 +707,18 @@ def product_properties(
 
 					property["allValues"] = list(property.get("allValues"))
 					data["properties"][property["propertyId"]] = merge_dicts(property, data["properties"][property["propertyId"]])
+
+			data["productVersions"] = {}
+			data["productDescriptionDetails"] = {}
+			for depot in list(clients_to_depots.keys()) + selectedDepots:
+				data["productVersions"][depot] = depot_get_product_version(depot, productId)
+				if data["productVersions"][depot]:
+					data["productDescriptionDetails"][depot] = get_product_description(productId, *data["productVersions"][depot].split("-"))
+
+			if all(description == list(data["productDescriptionDetails"].values())[0] for description in data["productDescriptionDetails"].values()):
+				data["productDescription"] = list(data["productDescriptionDetails"].values())[0]
+			else:
+				data["productDescription"] = "mixed"
 
 			for id in data["properties"]:
 				property = data["properties"][id]

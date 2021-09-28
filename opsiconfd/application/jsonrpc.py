@@ -10,14 +10,17 @@ jsonrpc
 
 import asyncio
 import datetime
+from os import makedirs
 import time
 import traceback
+import tempfile
 import urllib.parse
 import gzip
 import zlib
 import lz4.frame
 import orjson
 import msgpack
+
 
 from fastapi import HTTPException, APIRouter
 from fastapi.requests import Request
@@ -473,6 +476,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 
 		return [response, end - start, rpc, "rpc"]
 	except Exception as err:  # pylint: disable=broad-except
+
 		logger.error(err, exc_info=True)
 		error = {"message": str(err), "class": err.__class__.__name__}
 		rpc["date"] = rpc_call_time
@@ -489,6 +493,26 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 		if request.scope.get("jsonrpc20"):
 			result["jsonrpc"] = "2.0"
 			del result["result"]
+		if config.debug_options and "rpc-error-log" in config.debug_options:
+			now = int(time.time() * 1_000_000)
+			directory = "/tmp/opsiconfd-rpc-debug"
+			makedirs(directory, exist_ok=True)
+			msg = {
+					"client": request.client.host,
+					"description": f"Processing request from {request.client.host} ({user_agent}) for {method_name}",
+					"method": method_name,
+					"params": params,
+					"filter": keywords,
+					"error": error
+				}
+			with tempfile.NamedTemporaryFile(
+				delete=False,
+				dir=directory,
+				prefix=f"{request.client.host}-{now}-",
+				suffix=".log"
+			) as log_file:
+				logger.notice("Writing rpc error log to: %s", log_file.name)
+				log_file.write(orjson.dumps(msg)) # pylint: disable=no-member
 		return [result, 0, rpc, "rpc"]
 
 def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disable=too-many-locals

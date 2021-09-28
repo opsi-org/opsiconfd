@@ -262,8 +262,10 @@ def merge_dicts(dict_a, dict_b, path=None):
 		if key in dict_a:
 			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
 				merge_dicts(dict_a[key], dict_b[key], path + [str(key)])
+			elif isinstance(dict_a[key], list) and isinstance(dict_b[key], list):
+				pass
 			elif dict_a[key] == dict_b[key]:
-				pass # same leaf value
+				pass
 			else:
 				raise Exception(f"Conflict at { '.'.join(path + [str(key)])}")
 		else:

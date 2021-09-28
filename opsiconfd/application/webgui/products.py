@@ -61,7 +61,7 @@ def depot_get_product_version(depot, product):
 		return version
 
 def get_product_description(product, product_version, package_version):
-	version = None
+	description = None
 	params = {}
 	with mysql.session() as session:
 
@@ -585,8 +585,10 @@ def product_properties(
 			if not clients_to_depots.get(depot):
 				clients_to_depots[depot] = []
 			clients_to_depots[depot].append(client)
-		if clients_to_depots:
+		if clients_to_depots and selectedDepots:
 			params["depots"] = list(clients_to_depots.keys()) + selectedDepots
+		elif clients_to_depots:
+			params["depots"] = list(clients_to_depots.keys())
 	elif selectedDepots:
 		params["depots"] = selectedDepots
 	else:
@@ -610,7 +612,7 @@ def product_properties(
 				pp.multiValue as multiValueDetails,
 				pp.editable AS editableDetails,
 				GROUP_CONCAT(ppv.value SEPARATOR ',') AS possibleValues,
-				(SELECT `value` FROM PRODUCT_PROPERTY_VALUE WHERE propertyId = pp.propertyId AND productId = pp.productId AND productVersion = pp.productVersion AND packageVersion = pp.packageVersion AND (isDefault = 1 OR ppv.isDefault is NULL)) AS `defaultDetails`,
+				(SELECT GROUP_CONCAT(`value` SEPARATOR ',') FROM PRODUCT_PROPERTY_VALUE WHERE propertyId = pp.propertyId AND productId = pp.productId AND productVersion = pp.productVersion AND packageVersion = pp.packageVersion AND (isDefault = 1 OR ppv.isDefault is NULL)) AS `defaultDetails`,
 				GROUP_CONCAT(pod.depotId SEPARATOR ',') AS depots
 			"""))\
 			.select_from(text("PRODUCT_PROPERTY AS pp"))\
@@ -710,7 +712,11 @@ def product_properties(
 
 			data["productVersions"] = {}
 			data["productDescriptionDetails"] = {}
-			for depot in list(clients_to_depots.keys()) + selectedDepots:
+			if selectedDepots:
+				depots = list(clients_to_depots.keys()) + selectedDepots
+			else:
+				depots = list(clients_to_depots.keys())
+			for depot in depots:
 				data["productVersions"][depot] = depot_get_product_version(depot, productId)
 				if data["productVersions"][depot]:
 					data["productDescriptionDetails"][depot] = get_product_description(productId, *data["productVersions"][depot].split("-"))

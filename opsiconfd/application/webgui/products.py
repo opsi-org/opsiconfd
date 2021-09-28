@@ -8,7 +8,7 @@
 webgui product methods
 """
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 from functools import lru_cache
 from sqlalchemy import select, text, and_, alias, column
 from sqlalchemy.dialects import mysql
@@ -513,15 +513,31 @@ class Property(BaseModel): # pylint: disable=too-few-public-methods
 	propertyId: str
 	type: Optional[str] = "UnicodeProductProperty"
 	version: Optional[str]
-	possibleValues: Optional[List[str]]
-	editable: Optional[bool]
+	versionDetails: Optional[dict]
+	allValues: Optional[List[str]] = ["value1"]
+	possibleValues: Optional[List[str]] = ["value1"]
+	editable: Optional[bool] = True
+	editableDetails: Optional[dict] = True
 	multiValue: Optional[bool]
+	multiValueDetails: Optional[dict]
 	description: Optional[str]
+	descriptionDetails: Optional[dict]
+	default: Optional[List[str]] = ["value1"]
+	depots: Optional[dict] = {"depot1": ["value1"]}
+	clients: Optional[dict] = {"client1": ["value1"]}
+	allClientValuesEqual: Optional[bool] = True
+	anyDepotDifferentFromDefault: Optional[bool] = False
+	anyClientDifferentFromDepot: Optional[bool] = False
+	newValue: Optional[str] = ""
+	newValues: Optional[str] = [""]
+
+class Properties(BaseModel): # pylint: disable=too-few-public-methods
+	properties: Dict[str, Property]
 
 class ProductProperiesResponse(BaseModel): # pylint: disable=too-few-public-methods
 	status: int
 	error: dict
-	data: List[Property]
+	data: Properties
 
 @product_router.get("/api/opsidata/products/{productId}/properties", response_model=ProductProperiesResponse)
 def product_properties(

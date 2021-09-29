@@ -18,13 +18,13 @@ import ipaddress
 from typing import Union
 from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_OR_MORE
 import certifi
+import psutil
 from dns import resolver, reversename
 import configargparse
 
 from OPSI.Util import getfqdn
 
-from .utils import Singleton, running_in_docker
-
+from .utils import Singleton, running_in_docker, is_manager
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
 CONFIG_FILE_HEADER = """
@@ -125,7 +125,6 @@ def update_config_files():
 			if idx < len(data.split('\n')) - 1:
 				new_data += "\n"
 		if data != new_data:
-			print("write to file")
 			with codecs.open(config_file.name, "w", "utf-8") as file:
 				file.write(new_data)
 
@@ -747,8 +746,12 @@ else:
 class Config(metaclass=Singleton):
 	def __init__(self):
 		self._config = None
-		upgrade_config_files()
-		update_config_files()
+		pid = os.getpid()
+		proc = psutil.Process(pid)
+		if is_manager(proc):
+			upgrade_config_files()
+			update_config_files()
+
 		if "--ex-help" in sys.argv:
 			args = sys.argv
 			if "--help" not in args:

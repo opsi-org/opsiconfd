@@ -116,14 +116,18 @@ def update_config_files():
 		data = config_file.read()
 		config_file.close()
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=")
-		with codecs.open(config_file.name, "w", "utf-8") as file:
-			for idx, line in enumerate(data.split('\n')):
-				match = re_opt.match(line)
-				if match and match.group(1).strip().lower() in DEPRECATED:
-					continue
-				file.write(line)
-				if idx < len(data.split('\n')) - 1:
-					file.write("\n")
+		new_data = ""
+		for idx, line in enumerate(data.split('\n')):
+			match = re_opt.match(line)
+			if match and match.group(1).strip().lower() in DEPRECATED:
+				continue
+			new_data += line
+			if idx < len(data.split('\n')) - 1:
+				new_data += "\n"
+		if data != new_data:
+			print("write to file")
+			with codecs.open(config_file.name, "w", "utf-8") as file:
+				file.write(new_data)
 
 
 def set_config_in_config_file(arg: str, value: Union[str,int,float]):

@@ -682,7 +682,7 @@ def product_properties(
 						else:
 							property["depots"][depot] = property["defaultDetails"][depot]
 
-						if not selectedClients:
+						if not clients_to_depots.get(depot):
 							continue
 						for client in clients_to_depots.get(depot):
 							query = select(text("""

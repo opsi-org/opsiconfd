@@ -599,7 +599,6 @@ def product_properties(
 			where,
 			text("(pod.depotId IN :depots)")
 		)
-
 	with mysql.session() as session:
 
 		try: # pylint: disable=too-many-nested-blocks
@@ -611,7 +610,7 @@ def product_properties(
 				pp.description AS description,
 				pp.multiValue as multiValue,
 				pp.editable AS editable,
-				GROUP_CONCAT(ppv.value SEPARATOR ',') AS possibleValues,
+				GROUP_CONCAT(ppv.value SEPARATOR ',') AS `values`,
 				(SELECT GROUP_CONCAT(`value` SEPARATOR ',') FROM PRODUCT_PROPERTY_VALUE WHERE propertyId = pp.propertyId AND productId = pp.productId AND productVersion = pp.productVersion AND packageVersion = pp.packageVersion AND (isDefault = 1 OR ppv.isDefault is NULL)) AS `defaultDetails`,
 				GROUP_CONCAT(pod.depotId SEPARATOR ',') AS depots
 			"""))\
@@ -642,23 +641,28 @@ def product_properties(
 					property["depots"] = {}
 					property["clients"] = {}
 					property["allValues"] = set()
-
+					property["versionDetails"] = {}
+					property["descriptionDetails"] = {}
+					property["multiValueDetails"] = {}
+					property["editableDetails"] = {}
+					property["defaultDetails"] = {}
+					property["possibleValues"] = {}
 					for depot in _depots:
-						property["versionDetails"] = {depot: property["version"]}
-						property["descriptionDetails"] = {depot: property["description"]}
-						property["multiValueDetails"] = {depot: bool(property["multiValue"])}
-						property["editableDetails"] = {depot: bool(property["editable"])}
+						property["versionDetails"][depot] = property["version"]
+						property["descriptionDetails"][depot] = property["description"]
+						property["multiValueDetails"][depot] = bool(property["multiValue"])
+						property["editableDetails"][depot] = bool(property["editable"])
 
 						if property["type"] == "BoolProductProperty":
-							if property["possibleValues"]:
-								property["allValues"].update([bool_product_property(value) for value in property["possibleValues"].split(",")])
-							property["defaultDetails"] = {depot: [bool_product_property(property["defaultDetails"])]}
-							property["possibleValues"]= {depot: [bool_product_property(value) for value in property["possibleValues"].split(",")]}
+							if property["values"]:
+								property["allValues"].update([bool_product_property(value) for value in property["values"].split(",")])
+							property["defaultDetails"][depot] = [bool_product_property(property["defaultDetails"])]
+							property["possibleValues"][depot] = [bool_product_property(value) for value in property["values"].split(",")]
 						else:
 							if property["possibleValues"]:
-								property["allValues"].update(unicode_product_property(property["possibleValues"]))
-							property["defaultDetails"] = {depot: unicode_product_property(property["defaultDetails"])}
-							property["possibleValues"] = {depot: unicode_product_property(property["possibleValues"])}
+								property["allValues"].update(unicode_product_property(property["values"]))
+							property["defaultDetails"][depot] = unicode_product_property(property["defaultDetails"])
+							property["possibleValues"][depot] = unicode_product_property(property["values"])
 
 
 						query = select(text("""
@@ -710,6 +714,7 @@ def product_properties(
 					del property["description"]
 					del property["multiValue"]
 					del property["editable"]
+					del property["values"]
 					property["allValues"] = list(property.get("allValues"))
 					data["properties"][property["propertyId"]] = merge_dicts(property, data["properties"][property["propertyId"]])
 

@@ -18,13 +18,13 @@ import ipaddress
 from typing import Union
 from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_OR_MORE
 import certifi
+import psutil
 from dns import resolver, reversename
 import configargparse
 
 from OPSI.Util import getfqdn
 
-from .utils import Singleton, running_in_docker
-
+from .utils import Singleton, running_in_docker, is_manager
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
 CONFIG_FILE_HEADER = """
@@ -35,6 +35,7 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
 # update-ip = true
 """
+DEPRECATED = ["monitoring-debug"]
 CA_DAYS = 360
 CA_RENEW_DAYS = 300 # If only CA_RENEW_DAYS days left, The CA will be renewed
 CERT_DAYS = 90
@@ -73,7 +74,6 @@ def upgrade_config_files():
 		"symlink logs": "symlink-logs",
 		"log level": "log-level",
 		"monitoring user": "monitoring-user",
-		"monitoring debug": "monitoring-debug",
 		"interface": "interface",
 		"https port": "port",
 		"verify ip": "verify-ip",
@@ -110,6 +110,24 @@ def upgrade_config_files():
 						val = f"[{val}]"
 					file.write(f"{mapping[opt]} = {val}\n")
 			file.write("\n")
+
+def update_config_files():
+	for config_file in parser._open_config_files(sys.argv[1:]): # pylint: disable=protected-access
+		data = config_file.read()
+		config_file.close()
+		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=")
+		new_data = ""
+		for idx, line in enumerate(data.split('\n')):
+			match = re_opt.match(line)
+			if match and match.group(1).strip().lower() in DEPRECATED:
+				continue
+			new_data += line
+			if idx < len(data.split('\n')) - 1:
+				new_data += "\n"
+		if data != new_data:
+			with codecs.open(config_file.name, "w", "utf-8") as file:
+				file.write(new_data)
+
 
 def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 	arg = arg.lstrip("-").replace("_", "-")
@@ -435,15 +453,6 @@ parser.add(
 	help="The User for opsi-Nagios-Connetor."
 )
 parser.add(
-	"--monitoring-debug",
-	env_var="OPSICONFD_MONITORING_DEBUG",
-	type=str2bool,
-	nargs='?',
-	const=True,
-	default=False,
-	help="If enabled monitoring will be logged using the main log-level."
-)
-parser.add(
 	"--internal-url",
 	env_var="OPSICONFD_INTERNAL_URL",
 	help="The internal base url."
@@ -737,7 +746,12 @@ else:
 class Config(metaclass=Singleton):
 	def __init__(self):
 		self._config = None
-		upgrade_config_files()
+		pid = os.getpid()
+		proc = psutil.Process(pid)
+		if is_manager(proc):
+			upgrade_config_files()
+			update_config_files()
+
 		if "--ex-help" in sys.argv:
 			args = sys.argv
 			if "--help" not in args:

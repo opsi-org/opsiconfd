@@ -577,24 +577,24 @@ def product_properties(
 	params = {}
 	data["properties"] = {}
 	params["productId"] = productId
+	params["depots"] = []
 	where = text("pp.productId = :productId")
-	clients_to_depots = {}
+	clients_on_depot = {}
+	if not selectedClients and not selectedDepots:
+		error = {"message": "No clients and no depots were selected."}
+		return JSONResponse({"status": 400, "error": error, "data": data})
 	if selectedClients:
 		for client in selectedClients:
 			depot = get_depot_of_client(client)
-			if not clients_to_depots.get(depot):
-				clients_to_depots[depot] = []
-			clients_to_depots[depot].append(client)
-		if clients_to_depots and selectedDepots:
-			params["depots"] = list(clients_to_depots.keys()) + selectedDepots
-		elif clients_to_depots:
-			params["depots"] = list(clients_to_depots.keys())
-	elif selectedDepots:
-		params["depots"] = selectedDepots
-	else:
-		error = {"message": "No clients and no depots were selected."}
-		return JSONResponse({"status": 400, "error": error, "data": data})
-
+			if depot not in clients_on_depot:
+				clients_on_depot[depot] = []
+				params["depots"].append(depot)
+			clients_on_depot[depot].append(client)
+	if selectedDepots:
+		for depot in selectedDepots:
+			if depot not in clients_on_depot:
+				clients_on_depot[depot] = []
+				params["depots"].append(depot)
 	where = and_(
 			where,
 			text("(pod.depotId IN :depots)")
@@ -606,11 +606,11 @@ def product_properties(
 			query = select(text("""
 				pp.productId,
 				pp.propertyId,
-				CONCAT(pp.productVersion,'-',pp.packageVersion) AS versionDetails,
+				CONCAT(pp.productVersion,'-',pp.packageVersion) AS version,
 				pp.type,
-				pp.description AS descriptionDetails,
-				pp.multiValue as multiValueDetails,
-				pp.editable AS editableDetails,
+				pp.description AS description,
+				pp.multiValue as multiValue,
+				pp.editable AS editable,
 				GROUP_CONCAT(ppv.value SEPARATOR ',') AS possibleValues,
 				(SELECT GROUP_CONCAT(`value` SEPARATOR ',') FROM PRODUCT_PROPERTY_VALUE WHERE propertyId = pp.propertyId AND productId = pp.productId AND productVersion = pp.productVersion AND packageVersion = pp.packageVersion AND (isDefault = 1 OR ppv.isDefault is NULL)) AS `defaultDetails`,
 				GROUP_CONCAT(pod.depotId SEPARATOR ',') AS depots
@@ -628,7 +628,7 @@ def product_properties(
 				ppv.packageVersion = pp.packageVersion
 			"""), isouter=True)\
 			.where(where)\
-			.group_by(text("pp.productId, pp.propertyId, versionDetails")) # pylint: disable=redefined-outer-name
+			.group_by(text("pp.productId, pp.propertyId, version")) # pylint: disable=redefined-outer-name
 
 			result = session.execute(query, params)
 			result = result.fetchall()
@@ -638,16 +638,16 @@ def product_properties(
 					property = dict(row)
 					if not data["properties"].get(property["propertyId"]):
 						data["properties"][property["propertyId"]] = {}
-					depots = list(set(property["depots"].split(",")))
+					_depots = list(set(property["depots"].split(",")))
 					property["depots"] = {}
 					property["clients"] = {}
 					property["allValues"] = set()
 
-					for depot in depots:
-						property["versionDetails"] = {depot: property["versionDetails"]}
-						property["descriptionDetails"] = {depot: property["descriptionDetails"]}
-						property["multiValueDetails"] = {depot: bool(property["multiValueDetails"])}
-						property["editableDetails"] = {depot: bool(property["editableDetails"])}
+					for depot in _depots:
+						property["versionDetails"] = {depot: property["version"]}
+						property["descriptionDetails"] = {depot: property["description"]}
+						property["multiValueDetails"] = {depot: bool(property["multiValue"])}
+						property["editableDetails"] = {depot: bool(property["editable"])}
 
 						if property["type"] == "BoolProductProperty":
 							if property["possibleValues"]:
@@ -682,9 +682,9 @@ def product_properties(
 						else:
 							property["depots"][depot] = property["defaultDetails"][depot]
 
-						if not clients_to_depots.get(depot):
-							continue
-						for client in clients_to_depots.get(depot):
+						# if not clients_on_depot.get(depot):
+						# 	continue
+						for client in clients_on_depot.get(depot):
 							query = select(text("""
 								pps.values
 							"""))\
@@ -706,17 +706,17 @@ def product_properties(
 								property["clients"][client] = property["depots"][depot]
 							else:
 								property["clients"][client] = property["defaultDetails"][depot]
-
+					del property["version"]
+					del property["description"]
+					del property["multiValue"]
+					del property["editable"]
 					property["allValues"] = list(property.get("allValues"))
 					data["properties"][property["propertyId"]] = merge_dicts(property, data["properties"][property["propertyId"]])
 
 			data["productVersions"] = {}
 			data["productDescriptionDetails"] = {}
-			if selectedDepots:
-				depots = list(clients_to_depots.keys()) + selectedDepots
-			else:
-				depots = list(clients_to_depots.keys())
-			for depot in depots:
+
+			for depot in clients_on_depot:
 				data["productVersions"][depot] = depot_get_product_version(depot, productId)
 				if data["productVersions"][depot]:
 					data["productDescriptionDetails"][depot] = get_product_description(productId, *data["productVersions"][depot].split("-"))

@@ -9,6 +9,7 @@ utils
 """
 
 import socket
+import os
 import string
 import random
 import ipaddress
@@ -53,6 +54,37 @@ def running_in_docker():
 				return True
 	return False
 
+def is_manager(proc) -> bool:
+	manager = False
+	if (
+		proc.name() == "opsiconfd" or
+		(proc.name() in ("python", "python3") and (
+			"opsiconfd" in proc.cmdline() or
+			"opsiconfd.__main__" in " ".join(proc.cmdline())
+		))
+	):
+		manager = True
+		for arg in proc.cmdline():
+			if "multiprocessing" in arg or "log-viewer" in arg:
+				manager = False
+				break
+	return manager
+
+def get_manager_pid():
+	our_pid = os.getpid()
+	our_proc = psutil.Process(our_pid)
+	ignore_pids = [our_pid]
+	ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
+	ignore_pids += [p.pid for p in our_proc.parents()]
+	manager_pid = None
+	for proc in psutil.process_iter():
+		if proc.pid in ignore_pids:
+			continue
+		if is_manager(proc) and (not manager_pid or proc.pid > manager_pid):
+			# Do not return, prefer higher pids
+			manager_pid = proc.pid
+
+	return manager_pid
 
 def decode_redis_result(_obj):
 	if isinstance(_obj, bytes):

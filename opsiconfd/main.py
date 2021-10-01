@@ -21,7 +21,6 @@ import subprocess
 import getpass
 from concurrent.futures import ThreadPoolExecutor
 import uvloop
-import psutil
 
 from OPSI import __version__ as python_opsi_version
 
@@ -32,6 +31,7 @@ from .logging import logger, init_logging, secret_filter, AsyncRedisLogAdapter
 from .config import config
 from .setup import setup
 from .patch import apply_patches
+from .utils import get_manager_pid
 from .manager import Manager
 
 
@@ -53,33 +53,6 @@ def run_with_jemlalloc():
 	except Exception as err:  # pylint: disable=broad-except
 		print(err, file=sys.stderr)
 
-def get_manager_pid():
-	our_pid = os.getpid()
-	our_proc = psutil.Process(our_pid)
-	ignore_pids = [our_pid]
-	ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
-	ignore_pids += [p.pid for p in our_proc.parents()]
-	manager_pid = None
-	for proc in psutil.process_iter():
-		if proc.pid in ignore_pids:
-			continue
-
-		if (
-			proc.name() == "opsiconfd" or
-			(proc.name() in ("python", "python3") and (
-				"opsiconfd" in proc.cmdline() or
-				"opsiconfd.__main__" in " ".join(proc.cmdline())
-			))
-		):
-			is_manager = True
-			for arg in proc.cmdline():
-				if "multiprocessing" in arg or "log-viewer" in arg:
-					is_manager = False
-					break
-			if is_manager and (not manager_pid or proc.pid > manager_pid):
-				# Do not return, prefer higher pids
-				manager_pid = proc.pid
-	return manager_pid
 
 def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals
 	secret_filter.add_secrets(

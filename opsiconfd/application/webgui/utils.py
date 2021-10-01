@@ -263,7 +263,7 @@ def merge_dicts(dict_a, dict_b, path=None):
 			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
 				merge_dicts(dict_a[key], dict_b[key], path + [str(key)])
 			elif isinstance(dict_a[key], list) and isinstance(dict_b[key], list):
-				pass
+				dict_a[key] = list(set(dict_a[key]))
 			elif dict_a[key] == dict_b[key]:
 				pass
 			else:

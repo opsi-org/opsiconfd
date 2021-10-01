@@ -647,6 +647,7 @@ def product_properties(
 					property["editableDetails"] = {}
 					property["defaultDetails"] = {}
 					property["possibleValues"] = {}
+
 					for depot in _depots:
 						property["versionDetails"][depot] = property["version"]
 						property["descriptionDetails"][depot] = property["description"]
@@ -654,13 +655,11 @@ def product_properties(
 						property["editableDetails"][depot] = bool(property["editable"])
 
 						if property["type"] == "BoolProductProperty":
-							if property["values"]:
-								property["allValues"].update([bool_product_property(value) for value in property["values"].split(",")])
+							property["allValues"].update([bool_product_property(value) for value in property["values"].split(",")])
 							property["defaultDetails"][depot] = [bool_product_property(property["defaultDetails"])]
 							property["possibleValues"][depot] = [bool_product_property(value) for value in property["values"].split(",")]
 						else:
-							if property["possibleValues"]:
-								property["allValues"].update(unicode_product_property(property["values"]))
+							property["allValues"].update(unicode_product_property(property["values"]))
 							property["defaultDetails"][depot] = unicode_product_property(property["defaultDetails"])
 							property["possibleValues"][depot] = unicode_product_property(property["values"])
 

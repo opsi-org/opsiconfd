@@ -158,17 +158,12 @@ def get_depot_of_client(client):
 			.select_from(text("CONFIG_STATE AS cs"))\
 			.where(where)
 
-		# logger.devel(query)
-
-
 		result = session.execute(query, params)
 		result = result.fetchone()
 
 		if result:
-			# logger.devel(result)
 			depot = dict(result).get("values")[2:-2]
 		else:
-			# logger.devel("no config state")
 			depot = get_configserver_id()
 		return depot
 
@@ -229,25 +224,35 @@ def parse_list(query_list):
 		return query_list
 
 	# if we don't start with a "[" and end with "]" it's just a normal entry
-	flat_depots = query_list[0]
-	if not flat_depots.startswith("[") and not flat_depots.endswith("]"):
+	flat_list = query_list[0]
+	if not flat_list.startswith("[") and not flat_list.endswith("]"):
 		return query_list
 
-	flat_depots = remove_prefix(flat_depots, "[")
-	flat_depots = remove_postfix(flat_depots, "]")
+	flat_list = remove_prefix(flat_list, "[")
+	flat_list = remove_postfix(flat_list, "]")
 
-	depot_list = flat_depots.split(",")
-	depot_list = [remove_prefix(n.strip(), "\"") for n in depot_list]
-	depot_list = [remove_postfix(n.strip(), "\"") for n in depot_list]
+	result_list = flat_list.split(",")
+	result_list = [remove_prefix(n.strip(), "\"") for n in result_list]
+	result_list = [remove_postfix(n.strip(), "\"") for n in result_list]
 
-	return depot_list
+	return list(filter(None, result_list))
 
 
 def bool_product_property(value):
 	if value:
 		if value.lower() == "[true]" or str(value) == "1":
-			return [True]
-	return [False]
+			return True
+	return False
+
+
+def unicode_product_property(value):
+	if value and isinstance(value, str):
+		if value.startswith('["'):
+			return orjson.loads(value)  # pylint: disable=no-member
+		if value == "[]":
+			return [""]
+		return value.replace('\\"', '"').split(",")
+	return [""]
 
 
 def merge_dicts(dict_a, dict_b, path=None):
@@ -257,10 +262,12 @@ def merge_dicts(dict_a, dict_b, path=None):
 		if key in dict_a:
 			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
 				merge_dicts(dict_a[key], dict_b[key], path + [str(key)])
+			elif isinstance(dict_a[key], list) and isinstance(dict_b[key], list):
+				dict_a[key] = list(set(dict_a[key]))
 			elif dict_a[key] == dict_b[key]:
-				pass # same leaf value
+				pass
 			else:
-				raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
+				raise Exception(f"Conflict at { '.'.join(path + [str(key)])}")
 		else:
 			dict_a[key] = dict_b[key]
 	return dict_a

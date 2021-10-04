@@ -132,7 +132,7 @@ def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), paren
 
 	if parentGroup:
 		if parentGroup in ("groups", "root") :
-			where = and_(where, text("g.parentGroupId IS NULL"))
+			where = and_(where, text("g.parentGroupId IS NULL AND g.groupId != 'clientdirectory'"))
 			where_hosts = text("og.groupId IS NULL")
 		else:
 			params["parent"] = parentGroup

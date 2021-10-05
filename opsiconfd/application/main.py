@@ -47,6 +47,7 @@ from .redisinterface import redis_interface_setup
 from .monitoring.monitoring import monitoring_setup
 from .webgui.webgui import webgui_setup
 from .status import status_setup
+from .messagebroker import messagebroker_setup
 
 
 app = FastAPI(
@@ -281,6 +282,7 @@ def application_setup():
 	metrics_setup(app)
 	status_setup(app)
 	webgui_setup(app)
+	messagebroker_setup(app)
 
 	logger.debug("Routing:")
 	endpoints = {}

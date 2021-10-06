@@ -31,6 +31,7 @@ stages:
   #mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "SET GLOBAL sql_mode = 'NO_ENGINE_SUBSTITUTION';"
   #mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "CREATE USER 'opsi'@'%' IDENTIFIED BY 'opsi';"
   mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
+
   # Get config files from opsi-server package
   [ -e /etc/opsi ] && rm -r /etc/opsi
   [ -e ../opsi-server ] && rm -r ../opsi-server
@@ -52,24 +53,30 @@ stages:
   # Installing opsi test modules file
   echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
   # TODO: restore some backend
+
   # Install poetry
   pip3 install poetry
   poetry config experimental.new-installer false
   poetry lock --no-update
   poetry install
   poetry run opsiconfd -l5 setup
+
   # Create adminuser used with opsiconfd-perftest.py
   useradd adminuser
   echo "adminuser:adminuser" | chpasswd
   adduser adminuser opsiadmin
+
   # redis-server /etc/redis/redis.conf --maxclients 150000 --loglevel verbose &
   redis-server /etc/redis/redis.conf &
+
   sleep 20
+
   echo "Set OPSI STATIC DIR"
   export OPSICONFD_STATIC_DIR="opsiconfd_data/static"
   echo "${OPSICONFD_STATIC_DIR}"
-  echo "Set OPSICONFD_MAX_SESSIONS_PER_IP"
-  export OPSICONFD_INTERNAL_URL="https://test.uib.gmbh:4447"
+
+  ###export OPSICONFD_EXTERNAL_URL="https://test.uib.gmbh:4447"
+  ##export OPSICONFD_INTERNAL_URL="https://test.uib.gmbh:4447"
   ##export MYSQL_HOST="mysql"
 
 

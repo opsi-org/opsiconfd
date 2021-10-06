@@ -26,7 +26,7 @@ from fastapi.responses import RedirectResponse
 from ..logging import logger
 from ..config import config
 from ..statistics import metrics_registry, get_time_bucket
-from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE, get_grafana_data_source_url
+from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE
 from ..utils import aredis_client
 
 grafana_metrics_router = APIRouter()
@@ -81,7 +81,7 @@ async def grafana_dashboard(request: Request):  # pylint: disable=unused-argumen
 		ssl_context = False
 	async with aiohttp.ClientSession(auth=auth, headers=headers) as session:
 		json = GRAFANA_DATASOURCE_TEMPLATE
-		json["url"] = f"{get_grafana_data_source_url()}/metrics/grafana/"
+		json["url"] = f"{config.grafana_data_source_url}/metrics/grafana/"
 		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}", ssl=ssl_context)
 		if resp.status == 200:
 			_id = (await resp.json())["id"]

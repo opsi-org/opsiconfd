@@ -764,6 +764,18 @@ class Config(metaclass=Singleton):
 			self._config, _unknown = parser.parse_known_args(args)
 		else:
 			self._config = parser.parse_args(args)
+
+		scheme = "http"
+		if self._config.ssl_server_key and self._config.ssl_server_cert:
+			scheme = "https"
+
+		if not self._config.internal_url:
+			self._config.internal_url = f"{scheme}://{FQDN}:{self._config.port}"
+		if not self._config.external_url:
+			self._config.external_url = f"{scheme}://{FQDN}:{self._config.port}"
+		if not self._config.grafana_data_source_url:
+			self._config.grafana_data_source_url = f"{scheme}://{FQDN}:{self._config.port}"
+
 		os.putenv("SSL_CERT_FILE", self._config.ssl_trusted_certs)
 
 	def __getattr__(self, name):

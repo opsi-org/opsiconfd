@@ -4,59 +4,20 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+jsonrpc tests
+"""
 
-import os
-import sys
 import json
-import asyncio
-import urllib3
-import aredis
 import requests
 import pytest
-from MySQLdb import _mysql
 
-from .utils import ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY, LOCAL_IP
-
-@pytest.fixture(name="config")
-def fixture_config(monkeypatch): # pylint: disable=unused-argument
-	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.config import config # pylint: disable=import-outside-toplevel
-	return config
-
-
-@pytest.fixture(autouse=True)
-@pytest.mark.asyncio
-async def clean_redis(config):
-	yield None
-	print(config.redis_internal_url)
-	print(f"opsiconfd:stats:client:failed_auth:{LOCAL_IP}")
-	print(f"opsiconfd:stats:client:blocked:{LOCAL_IP}")
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
-	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:*")
-	async for key in session_keys:
-		print(key)
-		await redis_client.delete(key)
-	await redis_client.delete(f"opsiconfd:stats:client:failed_auth:{LOCAL_IP}")
-	await redis_client.delete(f"opsiconfd:stats:client:blocked:{LOCAL_IP}")
-	client_keys = redis_client.scan_iter("opsiconfd:stats:client*")
-	async for key in client_keys:
-		print(key)
-		await redis_client.delete(key)
-	await redis_client.delete("opsiconfd:stats:rpcs")
-	await redis_client.delete("opsiconfd:stats:num_rpcs")
-	rpc_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
-	async for key in rpc_keys:
-		print(key)
-		await redis_client.delete(key)
-	await asyncio.sleep(10)
-
-
-@pytest.fixture(autouse=True)
-def disable_request_warning():
-	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from .utils import ( # pylint: disable=unused-import
+	config, clean_redis, database_connection, ADMIN_USER, ADMIN_PASS
+)
 
 @pytest.fixture(name="fill_db")
-def fixture_fill_db(): # pylint: disable=unused-argument
+def fixture_fill_db(database_connection):  # pylint: disable=unused-argument,redefined-outer-name
 	mysql_data = [
 		{
 			"hostId": "pytest.uib.gmbh",
@@ -110,25 +71,18 @@ def fixture_fill_db(): # pylint: disable=unused-argument
 
 	# TODO assert mysql results
 	# TODO insert more Data
-	db = None # pylint: disable=invalid-name
 	for data in mysql_data:
-		mysql_host = os.environ.get("MYSQL_HOST")
-		if not mysql_host:
-			mysql_host = "127.0.0.1"
-		db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
 		sql_string = f'INSERT INTO HOST (hostId, type, description, notes,  hardwareAddress, ipAddress, inventoryNumber, created, lastSeen) VALUES (\"{data["hostId"]}\", \"{data["type"]}\", \"{data["description"]}\", \"{data["notes"]}\", \"{data["hardwareAddress"]}\", \"{data["ipAddress"]}\", \"{data["inventoryNumber"]}\", \"{data["created"]}\",  \"{data["lastSeen"]}\");' # pylint: disable=line-too-long
-		print(sql_string)
-		db.query(sql_string)
-		db.query(f'SELECT * FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
-		res=db.store_result()
-		print(res.fetch_row(maxrows=0))
+		database_connection.query(sql_string)
+		database_connection.query(f'SELECT * FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
+		database_connection.store_result()
+	database_connection.commit()
 
 	yield None
 
 	for data in mysql_data:
-		db.query(f'DELETE FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
-
-
+		database_connection.query(f'DELETE FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
+	database_connection.commit()
 
 
 jsonrpc_test_data = [
@@ -226,12 +180,10 @@ jsonrpc_test_data = [
 ]
 
 @pytest.mark.parametrize("request_data, expected_result", jsonrpc_test_data)
-def test_process_jsonrpc_request(config, fill_db, request_data, expected_result): # pylint: disable=unused-argument
+def test_process_jsonrpc_request(config, fill_db, request_data, expected_result): # pylint: disable=unused-argument,redefined-outer-name
 	rpc_request_data = json.dumps(request_data)
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
-
-	print(result_json)
 
 	assert res.status_code == expected_result.get("status_code")
 
@@ -249,8 +201,7 @@ def test_process_jsonrpc_request(config, fill_db, request_data, expected_result)
 		assert error.get("class") == expected_error.get("class")
 
 
-def test_create_OPSI_Client(config): # pylint: disable=invalid-name
-
+def test_create_opsi_Client(config, database_connection): # pylint: disable=invalid-name,redefined-outer-name
 	request_data = {
 		"id": 1,
 		"method": "host_createOpsiClient",
@@ -264,11 +215,8 @@ def test_create_OPSI_Client(config): # pylint: disable=invalid-name
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
-	print(result_json)
-	# {"jsonrpc":"2.0","id":1,"method":"host_createOpsiClient","params":["test.fabian.uib.local",null,null,null,null,null,null,null,null,null,{}],"result":[],"error":null} # pylint: disable=line-too-long
 	assert result_json.get("error") is None
 	assert res.status_code == 200
-
 
 	request_data = {
 		"id": 1,
@@ -285,28 +233,21 @@ def test_create_OPSI_Client(config): # pylint: disable=invalid-name
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
-	print("RESULT1: ", result_json)
 	assert len(result_json.get("result")) == 1
 	assert result_json.get("result")[0].get("id") == "test.fabian.uib.local"
 	assert result_json.get("error") is None
-	mysql_host = os.environ.get("MYSQL_HOST")
-	if not mysql_host:
-		mysql_host = "127.0.0.1"
-	db=_mysql.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
-	db.query('DELETE FROM HOST WHERE hostId like "test.fabian.uib.local";')
-
-
+	database_connection.query('DELETE FROM HOST WHERE hostId like "test.fabian.uib.local"')
+	database_connection.commit()
 
 	rpc_request_data = json.dumps(request_data)
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
-	print("RESULT2: ", result_json)
 	assert len(result_json.get("result")) == 0
 	assert result_json.get("error") is None
 
 
-def test_delete_OPSI_Client(config, fill_db): # pylint: disable=unused-argument, invalid-name
+def test_delete_opsi_client(config, fill_db): # pylint: disable=unused-argument,invalid-name,redefined-outer-name
 
 	request_data = {
 		"id": 1,
@@ -323,11 +264,9 @@ def test_delete_OPSI_Client(config, fill_db): # pylint: disable=unused-argument,
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
-	print("RESULT1: ", result_json)
 	assert len(result_json.get("result")) == 1
 	assert result_json.get("result")[0].get("id") == "pytest4.uib.gmbh"
 	assert result_json.get("error") is None
-
 
 	delete_request = {
 		"id": 1,
@@ -338,7 +277,6 @@ def test_delete_OPSI_Client(config, fill_db): # pylint: disable=unused-argument,
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_delete_request, verify=False)
 	assert res.status_code == 200
 	result_json = json.loads(res.text)
-	print("Del result: ", result_json)
 
 	assert result_json.get("error") is None
 	assert result_json.get("result") is None
@@ -347,6 +285,5 @@ def test_delete_OPSI_Client(config, fill_db): # pylint: disable=unused-argument,
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
-	print("RESULT2: ", result_json)
 	assert len(result_json.get("result")) == 0
 	assert result_json.get("error") is None

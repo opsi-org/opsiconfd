@@ -11,6 +11,7 @@ opsiconfd - setup
 import os
 import pwd
 import grp
+from sys import exc_info
 import time
 import getpass
 import resource
@@ -144,10 +145,16 @@ def setup_systemd():
 	subprocess.run(["systemctl", "daemon-reload"], env=get_subprocess_environment(), capture_output=True) # pylint: disable=subprocess-run-check
 	subprocess.run(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment(), capture_output=True) # pylint: disable=subprocess-run-check
 
+
 def setup_backend():
 	logger.info("Setup backend")
-	initializeBackends()
-
+	initializeBackends(
+		backendManagerConfig={
+			"dispatchConfigFile": backend_config["dispatchConfigFile"],
+			"backendConfigDir": backend_config["backendConfigDir"],
+			"extensionConfigDir": backend_config["extensionConfigDir"],
+		}
+	)
 	backend = get_backend()
 	mysql_used = False
 	for entry in backend.dispatcher_getConfig(): # pylint: disable=no-member
@@ -161,6 +168,7 @@ def setup_backend():
 		updateMySQLBackend(
 			backendConfigFile=os.path.join(backend_config["backendConfigDir"], "mysql.conf")
 		)
+
 
 def cleanup_log_files():
 	logger.info("Cleanup log files")
@@ -188,6 +196,7 @@ def cleanup_log_files():
 				os.unlink(link)
 		except Exception as err: # pylint: disable=broad-except
 			logger.warning(err)
+
 
 def setup(full: bool = True): # pylint: disable=too-many-branches
 	logger.notice("Running opsiconfd setup")

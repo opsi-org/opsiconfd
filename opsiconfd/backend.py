@@ -31,7 +31,7 @@ backend_config =  {
 	'hostControlSafeBackend': True,
 	'depotBackend' : True,
 	# every worker needs a database connection for full performance
-	'connectionpoolsize': config.executor_workers
+	'connectionPoolSize': config.executor_workers
 }
 
 get_session_from_context = None # pylint: disable=invalid-name

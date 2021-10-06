@@ -10,30 +10,19 @@ Tests for the opsiconfd monitoring module
 using https requests
 '''
 
-import sys
 import json
-
 import socket
 import asyncio
-
 import pytest
 import requests
 import aredis
 
 from opsiconfd.application.monitoring.utils import get_workers
 from opsiconfd.utils import decode_redis_result
-from .utils import clean_redis, config, create_check_data, TEST_USER, TEST_PW, HOSTNAME, LOCAL_IP, DAYS # pylint: disable=unused-import
-
-
-
-@pytest.fixture(name="config")
-def fixture_config(monkeypatch):
-	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.config import config # pylint: disable=import-outside-toplevel, redefined-outer-name
-	return config
-
-
-
+from .utils import ( # pylint: disable=unused-import
+	clean_redis, config, create_check_data, database_connection, disable_request_warning,
+	ADMIN_USER, ADMIN_PASS, MONITORING_CHECK_DAYS
+)
 
 
 test_data = [
@@ -56,9 +45,8 @@ test_data = [
 		{'message': "OK: No Problem found for productIds 'unknown-product,pytest-prod-3'", 'state': 0}
 	)
 ]
-
 @pytest.mark.parametrize("product_ids, verbose, strict, expected_result", test_data)
-def test_check_product_status_none(config, product_ids, verbose, strict, expected_result):
+def test_check_product_status_none(config, product_ids, verbose, strict, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps({
 		'task': 'checkProductStatus',
@@ -66,16 +54,18 @@ def test_check_product_status_none(config, product_ids, verbose, strict, expecte
 			'task': 'checkProductStatus',
 			'http': False,
 			'opsiHost': 'localhost',
-			'user': TEST_USER,
+			'user': ADMIN_USER,
 			'productIds': product_ids,
 			'verbose': verbose,
 			'strict': strict,
-			'password': TEST_PW,
+			'password': ADMIN_PASS,
 			'port': 4447
 		}
 	})
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	request = requests.post(
+		f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False
+	)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -134,10 +124,8 @@ test_data = [
 		}
 	)
 ]
-
-
 @pytest.mark.parametrize("products, verbose, strict, expected_result", test_data)
-def test_check_product_status(config, products, verbose, strict, expected_result):
+def test_check_product_status(config, products, verbose, strict, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps({
 		'task': 'checkProductStatus',
@@ -145,15 +133,17 @@ def test_check_product_status(config, products, verbose, strict, expected_result
 			'task': 'checkProductStatus',
 			'http': False,
 			'opsiHost': 'localhost',
-			'user': TEST_USER,
+			'user': ADMIN_USER,
 			'productIds': products,
 			'verbose': verbose,
 			'strict': strict,
-			'password': TEST_PW,
+			'password': ADMIN_PASS,
 			'port': 4447
 		}
 	})
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	request = requests.post(
+		f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False
+	)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -200,25 +190,25 @@ test_data = [
 	)
 ]
 @pytest.mark.parametrize("products, group, verbose, strict, expected_result", test_data)
-def test_check_product_status_groupids(config, products, group,verbose, strict, expected_result):
-
-
+def test_check_product_status_groupids(config, products, group,verbose, strict, expected_result):  # pylint: disable=redefined-outer-name,too-many-arguments
 	data = json.dumps({
 		'task': 'checkProductStatus',
 		'param': {
 			'task': 'checkProductStatus',
 			'http': False,
 			'opsiHost': 'localhost',
-			'user': TEST_USER,
+			'user': ADMIN_USER,
 			'productIds': products,
 			'groupIds': group,
 			'verbose': verbose,
 			'strict': strict,
-			'password': TEST_PW,
+			'password': ADMIN_PASS,
 			'port': 4447
 		}
 	})
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	request = requests.post(
+		f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False
+	)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -252,29 +242,42 @@ test_data = [
 
 
 @pytest.mark.parametrize("product, expected_result", test_data)
-def test_check_product_status_short(config, product, expected_result):
+def test_check_product_status_short(config, product, expected_result):  # pylint: disable=redefined-outer-name
 
-	data = json.dumps({'task': 'checkShortProductStatus', 'param': {'task': 'checkShortProductStatus', 'http': False, 'opsiHost': 'localhost', 'user': TEST_USER, 'productId': product, 'password': TEST_PW, 'port': 4447}}) # pylint: disable=line-too-long
+	data = json.dumps({
+		'task': 'checkShortProductStatus',
+		'param': {
+			'task': 'checkShortProductStatus',
+			'http': False,
+			'opsiHost': 'localhost',
+			'user': ADMIN_USER,
+			'productId': product,
+			'password': ADMIN_PASS,
+			'port': 4447
+		}
+	})
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	request = requests.post(
+		f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False
+	)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
 
 test_data = [
 	("pytest-lost-client.uib.local", None, {
-		'message': (f"WARNING: opsi-client pytest-lost-client.uib.local has not been seen, since {DAYS} days. "
+		'message': (f"WARNING: opsi-client pytest-lost-client.uib.local has not been seen, since {MONITORING_CHECK_DAYS} days. "
 			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "),
 		'state': 1
 	}),
 	("pytest-lost-client-fp.uib.local", None, {
-		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp.uib.local has not been seen, since {DAYS} days. "
+		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp.uib.local has not been seen, since {MONITORING_CHECK_DAYS} days. "
 			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
 			"Products: 'pytest-prod-2' are in failed state. "),
 		'state': 2
 	}),
 	("pytest-lost-client-fp2.uib.local", None, {
-		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp2.uib.local has not been seen, since {DAYS} days. "
+		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp2.uib.local has not been seen, since {MONITORING_CHECK_DAYS} days. "
 			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
 			"Products: 'pytest-prod-2' are in failed state. "
 			"Actions set for products: 'pytest-prod-1 (setup)'."),
@@ -312,7 +315,7 @@ test_data = [
 
 ]
 @pytest.mark.parametrize("client, exclude, expected_result", test_data)
-def test_check_client_status(config, client, exclude, expected_result):
+def test_check_client_status(config, client, exclude, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps({
 		'task': 'checkClientStatus',
@@ -320,15 +323,17 @@ def test_check_client_status(config, client, exclude, expected_result):
 			'task': 'checkClientStatus',
 			'http': False,
 			'opsiHost': 'localhost',
-			'user': TEST_USER,
+			'user': ADMIN_USER,
 			'clientId': client,
 			'exclude': exclude,
-			'password': TEST_PW,
+			'password': ADMIN_PASS,
 			'port': 4447
 			}
 	})
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	request = requests.post(
+		f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False
+	)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
@@ -444,7 +449,7 @@ test_data = [
 	)
 ]
 @pytest.mark.parametrize("depot_ids, product_ids, exclude, strict, verbose, expected_result", test_data)
-def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict, verbose, expected_result): # pylint: disable=too-many-arguments
+def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict, verbose, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
 
 	data = json.dumps({
 		'task': 'checkDepotSyncStatus',
@@ -452,122 +457,60 @@ def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict
 			'task': 'checkDepotSyncStatus',
 			'http': False,
 			'opsiHost': 'localhost',
-			'user': TEST_USER,
+			'user': ADMIN_USER,
 			'depotIds': depot_ids,
 			'productIds': product_ids,
 			'exclude': exclude,
 			'strict': strict,
 			'verbose': verbose,
-			'password': TEST_PW,
+			'password': ADMIN_PASS,
 			'port': 4447
 			}
 	})
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	request = requests.post(
+		f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False
+	)
 	assert request.status_code == 200
 	assert request.json() == expected_result
 
 
+
 test_data = [
 	(
-		None,
+		{"critical": 100, "warning": 100},
 		None,
 		False,
+		100,
 		{
 			"message": 'OK: Opsi Webservice has no Problem.',
 			"state": 0
 		}
-	)
-]
-@pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata, expected_result", test_data)
-def test_check_opsi_webservice(config, cpu_thresholds, error_thresholds, perfdata, expected_result): # pylint: disable=too-many-arguments
-
-	data = json.dumps({
-		'task': 'checkOpsiWebservice',
-		'param': {
-			'task': 'checkOpsiWebservice',
-			'http': False,
-			'opsiHost': 'localhost',
-			'user': TEST_USER,
-			'cpu_thresholds': cpu_thresholds,
-			'error_thresholds': error_thresholds,
-			'perfdata': perfdata,
-			'password': TEST_PW,
-			'port': 4447
-			}
-	})
-
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
-	assert request.status_code == 200
-	assert request.json() == expected_result
-
-
-test_data = [
+	),
 	(
-		None,
-		None,
-		True
-	)
-]
-@pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata", test_data)
-def test_check_opsi_webservice_perfdata(config, cpu_thresholds, error_thresholds, perfdata): # pylint: disable=too-many-arguments
-
-	data = json.dumps({
-		'task': 'checkOpsiWebservice',
-		'param': {
-			'task': 'checkOpsiWebservice',
-			'http': False,
-			'opsiHost': 'localhost',
-			'user': TEST_USER,
-			'cpu_thresholds': cpu_thresholds,
-			'error_thresholds': error_thresholds,
-			'perfdata': perfdata,
-			'password': TEST_PW,
-			'port': 4447
-			}
-	})
-
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
-	assert request.status_code == 200
-	assert request.json().get("state") ==  0
-	assert request.json().get("message").startswith('OK: Opsi Webservice has no Problem. |')
-
-
-test_data = [
-	(
-		None,
+		{"critical": 40, "warning": 10},
 		None,
 		False,
 		100,
 		{
-			"message": 'CRITICAL: CPU-Usage over 80%',
+			"message": 'CRITICAL: CPU-Usage over 40%',
 			"state": 2
 		}
 	),
 	(
-		{"critical": 60, "warning": 50},
+		{"critical": 99, "warning": 25},
 		None,
 		False,
 		100,
 		{
-			"message": 'CRITICAL: CPU-Usage over 60%',
-			"state": 2
-		}
-	),
-	(
-		{"critical": 99, "warning": 55},
-		None,
-		False,
-		100,
-		{
-			"message": 'WARNING: CPU-Usage over 55%',
+			"message": 'WARNING: CPU-Usage over 25%',
 			"state": 1
 		}
 	)
 ]
 @pytest.mark.asyncio
 @pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result", test_data)
-async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_thresholds, perfdata, cpu_value,expected_result): # pylint: disable=too-many-arguments
+async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
 
 	data = json.dumps({
 		'task': 'checkOpsiWebservice',
@@ -575,11 +518,11 @@ async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_threshold
 			'task': 'checkOpsiWebservice',
 			'http': False,
 			'opsiHost': 'localhost',
-			'user': TEST_USER,
+			'user': ADMIN_USER,
 			'cpu': cpu_thresholds,
 			'errors': error_thresholds,
 			'perfdata': perfdata,
-			'password': TEST_PW,
+			'password': ADMIN_PASS,
 			'port': 4447
 			}
 	})
@@ -587,21 +530,19 @@ async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_threshold
 	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
 
 	workers = await get_workers(redis_client)
-	count = 0
-	while True:
-		count += 1
+	for _ in range(30):
 		await asyncio.sleep(0.1)
 		for worker in workers:
-			await redis_client.execute_command(f"TS.ADD opsiconfd:stats:worker:avg_cpu_percent:{worker} * {cpu_value} ON_DUPLICATE SUM")
-		if count > 650:
-			break
+			await redis_client.execute_command(f"TS.ADD opsiconfd:stats:worker:avg_cpu_percent:{worker} * {cpu_value} ON_DUPLICATE LAST")
 
 	await asyncio.sleep(0.5)
 
-	# for worker in workers:
-	value = await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_cpu_percent:{workers[0]}:minute")
-	print(decode_redis_result(value)[1])
+	#for worker in workers:
+	#	value = await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_cpu_percent:{worker}:minute")
+	#	print(decode_redis_result(value)[1])
 
-	request = requests.post(f"{config.internal_url}/monitoring", auth=(TEST_USER, TEST_PW), data=data, verify=False) # pylint: disable=line-too-long
+	request = requests.post(
+		f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False
+	)
 	assert request.status_code == 200
 	assert request.json() == expected_result

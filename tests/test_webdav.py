@@ -4,23 +4,24 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+webdav tests
+"""
 
 import random
 import requests
-import urllib3
 
-BASE_URL = "https://localhost:4447"
-ADMIN_USER = "adminuser"
-ADMIN_PASS = "adminuser"
+from .utils import (  # pylint: disable=unused-import
+	disable_request_warning, config, ADMIN_USER, ADMIN_PASS
+)
 
-def test_webdav_upload_download_delete():
-	urllib3.disable_warnings()
 
+def test_webdav_upload_download_delete(config):  # pylint: disable=redefined-outer-name
 	size = 1*1024*1024
 	rand_bytes = bytearray(random.getrandbits(8) for _ in range(size))
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 
-	url = f"{BASE_URL}/repository/test_file.bin"
+	url = f"{config.external_url}/repository/test_file.bin"
 	res = requests.put(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS), headers=headers, data=rand_bytes)
 	res.raise_for_status()
 
@@ -31,16 +32,12 @@ def test_webdav_upload_download_delete():
 	res = requests.delete(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
 	res.raise_for_status()
 
-def test_webdav_auth():
-	urllib3.disable_warnings()
-
-	url = f"{BASE_URL}/repository/test_file.bin"
+def test_webdav_auth(config):  # pylint: disable=redefined-outer-name
+	url = f"{config.external_url}/repository/test_file.bin"
 	res = requests.get(url=url, verify=False)
 	assert res.status_code == 401
 
-def test_client_permission():
-	urllib3.disable_warnings()
-
+def test_client_permission(config):  # pylint: disable=redefined-outer-name
 	admin_session = requests.Session()
 	admin_session.auth = (ADMIN_USER, ADMIN_PASS)
 
@@ -54,7 +51,7 @@ def test_client_permission():
 			client_key
 		]
 	}
-	res = admin_session.post(f"{BASE_URL}/rpc", verify=False, json=rpc)
+	res = admin_session.post(f"{config.external_url}/rpc", verify=False, json=rpc)
 	assert res.status_code == 200
 	res = res.json()
 	assert res.get("error") is None
@@ -66,7 +63,7 @@ def test_client_permission():
 	data = bytearray(random.getrandbits(8) for _ in range(size))
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 	for path in ("workbench", "repository", "depot"):
-		url = f"{BASE_URL}/{path}/test_file_client.bin"
+		url = f"{config.external_url}/{path}/test_file_client.bin"
 
 		res = admin_session.put(url=url, verify=False, data=data, headers=headers)
 		assert res.status_code in (201, 204)
@@ -83,7 +80,7 @@ def test_client_permission():
 		res = admin_session.delete(url=url, verify=False)
 		assert res.status_code == 204
 
-		admin_session.post(url=f"{BASE_URL}/admin/unblock-all", verify=False)
+		admin_session.post(url=f"{config.external_url}/admin/unblock-all", verify=False)
 
 	rpc = {
 		"id": 1,
@@ -92,5 +89,5 @@ def test_client_permission():
 			client_id
 		]
 	}
-	res = admin_session.post(f"{BASE_URL}/rpc", verify=False, json=rpc)
+	res = admin_session.post(f"{config.external_url}/rpc", verify=False, json=rpc)
 	assert res.status_code == 200

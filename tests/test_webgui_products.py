@@ -9,29 +9,16 @@
 test opsiconfd webgui products
 """
 
-import json
 import socket
 import pytest
 import requests
-from starlette.requests import Request
-from starlette.datastructures import Headers
 
-from opsiconfd.backend import get_backend
 from .utils import ( # pylint: disable=unused-import
-	clean_redis, config, create_check_data, disable_request_warning,
-	TEST_USER, TEST_PW, HOSTNAME, LOCAL_IP, DAYS
+	clean_redis, config, database_connection, create_check_data, disable_request_warning,
+	ADMIN_USER, ADMIN_PASS
 )
 
-TEST_USER = "adminuser"
-TEST_PW = "adminuser"
-OPSI_SESSION_KEY = "opsiconfd:sessions"
-HOSTNAME = socket.gethostname()
-LOCAL_IP = socket.gethostbyname(HOSTNAME)
-
-
 FQDN = socket.getfqdn()
-CONFD_URL = f"https://{FQDN}:4447"
-
 
 depots = sorted([
 	FQDN,
@@ -48,7 +35,7 @@ test_data = [
 	(
 		{
 			'selectedClients': ["pytest-client-1.uib.local", "pytest-client-4.uib.local"],
-    		'selectedDepots': [FQDN],
+			'selectedDepots': [FQDN],
 			'type': 'LocalbootProduct',
 			'pageNumber': 1,
 			'perPage': 90,
@@ -689,12 +676,9 @@ test_data = [
 
 @pytest.mark.parametrize("input_data, expected_result", test_data)
 @pytest.mark.asyncio
-async def test_products(input_data, expected_result, create_check_data): # pylint: disable=too-many-arguments
-
-	res = requests.get(f"{CONFD_URL}/webgui/api/opsidata/products", auth=(TEST_USER, TEST_PW), verify=False, params=input_data)
-	print(res.url)
-	print(res.json())
-	print(expected_result)
-
+async def test_products(config, input_data, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
+	res = requests.get(
+		f"{config.external_url}/webgui/api/opsidata/products", auth=(ADMIN_USER, ADMIN_PASS), verify=False, params=input_data
+	)
 	assert res.status_code == 200
 	assert res.json() == expected_result

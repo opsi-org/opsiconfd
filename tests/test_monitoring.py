@@ -9,22 +9,20 @@
 Tests for the opsiconfd monitoring module
 '''
 
-import errno
-import os
 import socket
 import time
-import unittest.mock as mock
+from unittest import mock
 import json
 import pytest
-
-import MySQLdb
 
 from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
 from opsiconfd.application.monitoring.check_locked_products import check_locked_products
 from opsiconfd.application.monitoring.check_short_product_status import check_short_product_status
 from opsiconfd.application.monitoring.check_plugin_on_client import check_plugin_on_client
-from opsiconfd.backend import get_backend
-from .utils import clean_redis, config, create_check_data, TEST_USER, TEST_PW, HOSTNAME, LOCAL_IP, DAYS # pylint: disable=unused-import
+
+from .utils import ( # pylint: disable=unused-import
+	config, clean_redis, create_check_data, database_connection, backend
+)
 
 test_data = [
 	(
@@ -150,35 +148,16 @@ test_data = [
 ]
 
 @pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)
-def test_check_disk_usage(info, opsiresource, thresholds, expected_result): # pylint: disable=too-many-arguments
+def test_check_disk_usage(backend, info, opsiresource, thresholds, expected_result):  # pylint: disable=too-many-arguments,redefined-outer-name
 
-	def get_info(path):
-		print(path)
+	def get_info(path):  # pylint: disable=unused-argument
 		return info
-
-	backend = get_backend()
 
 	with mock.patch('opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage', get_info):
 		result = check_opsi_disk_usage(backend, thresholds=thresholds, opsiresource=opsiresource)
 
-	assert json.loads(result.body) == expected_result
+	assert expected_result == json.loads(result.body)
 
-
-def test_check_disk_usage_error(): # pylint: disable=too-many-arguments
-
-	def get_info(path):
-		raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
-
-	backend = get_backend()
-
-	with mock.patch('opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage', get_info):
-		result = check_opsi_disk_usage(backend, thresholds={}, opsiresource="workbench")
-
-	assert json.loads(result.body) == {
-		'message': ('UNKNOWN: ["Not able to check DiskUsage. Error: \'[Errno 2] '
-			'No such file or directory: \'/var/lib/opsi/workbench\'\'"]'),
-		'state': 3
-		}
 
 test_data = [
 	(None),
@@ -186,15 +165,12 @@ test_data = [
 	([])
 
 ]
-
 @pytest.mark.parametrize("return_value", test_data)
-def test_check_disk_usage_no_result(return_value): # pylint: disable=too-many-arguments
+def test_check_disk_usage_no_result(backend, return_value): # pylint: disable=too-many-arguments,redefined-outer-name
 
 	def get_info(path):
 		print(path)
 		return return_value
-
-	backend = get_backend()
 
 	with mock.patch('opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage', get_info):
 		result = check_opsi_disk_usage(backend, opsiresource="not-a-resource")
@@ -205,35 +181,28 @@ def test_check_disk_usage_no_result(return_value): # pylint: disable=too-many-ar
 		}
 
 
-def test_check_locked_products():
-
-	backend = get_backend()
+def test_check_locked_products(backend, database_connection):  # pylint: disable=redefined-outer-name
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
 	assert json.loads(result.body) == {'message': 'OK: No products locked on depots: pytest-test-depot.uib.gmbh', 'state': 0}
 
 	result = check_locked_products(backend, depot_ids=[])
 	assert json.loads(result.body) == {
-		'message': (f'OK: No products locked on depots: {socket.getfqdn()},'
-			'pytest-test-depot.uib.gmbh,pytest-test-depot2.uib.gmbh'),
+		'message': (
+			f'OK: No products locked on depots: {socket.getfqdn()},'
+			'pytest-test-depot.uib.gmbh,pytest-test-depot2.uib.gmbh'
+		),
 		'state': 0
 	}
 
-
-	mysql_host = os.environ.get("MYSQL_HOST")
-	if not mysql_host:
-		mysql_host = "127.0.0.1"
-
-	db=MySQLdb.connect(host=mysql_host,user="opsi",passwd="opsi",db="opsi") # pylint: disable=invalid-name, c-extension-no-member
-	db.autocommit(True)
-	cursor = db.cursor()
+	cursor = database_connection.cursor()
 	cursor.execute((
-			'REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) '
-			'VALUES ("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
-			'REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) '
-			'VALUES ("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
+			'REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES '
+			'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true),'
+			'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
 		)
 	)
+	database_connection.commit()
 	cursor.close()
 
 	time.sleep(2)
@@ -349,9 +318,7 @@ test_data = [
 ]
 
 @pytest.mark.parametrize("product_id, thresholds, expected_result", test_data)
-def test_check_short_product_status(product_id, thresholds, expected_result): # pylint: disable=too-many-arguments
-
-	backend = get_backend()
+def test_check_short_product_status(backend, product_id, thresholds, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
 	result = check_short_product_status(backend, product_id=product_id, thresholds=thresholds)
 	assert json.loads(result.body) == expected_result
 
@@ -378,8 +345,8 @@ test_data = [
 			"result": None,
 			"error": {
 				"class": "RuntimeError",
-        		"message": "RuntimeError(\"Command 'blabla' failed (127):\\n/bin/sh: 1: lsblka: not found\\n\")"}
-    	},
+				"message": "RuntimeError(\"Command 'blabla' failed (127):\\n/bin/sh: 1: lsblka: not found\\n\")"}
+		},
 		{'message': 'UNKNOWN: Unable to parse Errorcode from plugin', 'state': 3}
 	),
 	(
@@ -393,17 +360,15 @@ test_data = [
 	)
 ]
 @pytest.mark.parametrize("params, reachable, command_result, expected_result", test_data)
-def test_check_client_plugin(params, reachable, command_result, expected_result): # pylint: disable=too-many-arguments
+def test_check_client_plugin(backend, params, reachable, command_result, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
 
 	def host_control_safe_reachable(hostIds): # pylint: disable=invalid-name
 		return {hostIds[0]: reachable}
 
-	def host_control_safe_execute(command,hostIds,waitForEnding,captureStderr,encoding,timeout): # pylint: disable=unused-argument, invalid-name, too-many-arguments
+	def host_control_safe_execute(command, hostIds, waitForEnding, captureStderr, encoding, timeout): # pylint: disable=unused-argument, invalid-name, too-many-arguments
 		return {
 			hostIds[0]: command_result
 		}
-
-	backend = get_backend()
 
 	mock_backend = mock.Mock(backend)
 	mock_backend.hostControlSafe_reachable = host_control_safe_reachable

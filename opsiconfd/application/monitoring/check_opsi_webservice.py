@@ -52,21 +52,21 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 		if error_rate > error_thresholds.get("critical"):
 			message.append(f'RPC errors over {error_thresholds.get("critical")}%')
 			state = State.CRITICAL
-		elif error_rate >error_thresholds.get("warning"):
+		elif error_rate > error_thresholds.get("warning"):
 			message.append(f'RPC errors over {error_thresholds.get("warning")}%')
 			state = State.WARNING
 
 		workers = await get_workers(redis)
-		cpu = 0
+		cpu = []
 		for worker in workers:
 			redis_result = decode_redis_result(
 				await redis.execute_command(f"TS.GET opsiconfd:stats:worker:avg_cpu_percent:{worker}:minute")
 			)
-			if len(redis_result) == 0:
-				redis_result = 0.0
-			cpu += float(redis_result[1])
-
-		cpu_avg = cpu/len(workers)
+			if not redis_result:
+				cpu.append(0.0)
+			else:
+				cpu.append(float(redis_result[1]))
+		cpu_avg = sum(cpu) / len(cpu) if cpu else 0.0
 
 		if cpu_avg > cpu_thresholds.get("critical"):
 			state = State.CRITICAL

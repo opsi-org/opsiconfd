@@ -67,7 +67,6 @@ async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str =
 async def mq_websocket_reader(websocket: WebSocket):
 	try:
 		data = await websocket.receive_bytes()
-		logger.devel(data)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 
@@ -77,7 +76,7 @@ async def mq_websocket_reader(websocket: WebSocket):
 async def messagebroker_index():
 	return HTMLResponse("<h1>messagebroker</h1>")
 
-@messagebroker_router.websocket("/")
+@messagebroker_router.websocket("")
 async def mq_websocket_endpoint(
 	websocket: WebSocket,
 	params: dict = Depends(mq_websocket_parameters)

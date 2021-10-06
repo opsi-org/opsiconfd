@@ -9,12 +9,11 @@
 check opsi disk usage
 """
 
-import os
-
 from OPSI.Types import forceList
 from OPSI.System import getDiskSpaceUsage
 
 from .utils import State, generate_response
+
 
 def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None): # pylint: disable=dangerous-default-value, too-many-branches, too-many-locals, too-many-statements
 	warning = thresholds.get("warning", "5G")
@@ -62,15 +61,12 @@ def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None): # pylint: 
 
 	try:
 		for resource in resources:
-			path = dirs.get(resource, "")
-			if path.startswith("file://"):
-				path = path.replace('file://', '')
-			if os.path.isdir(path):
-				info = getDiskSpaceUsage(path)
-				if info:
-					results[resource] = info
+			path = dirs.get(resource)
+			if path and path.startswith("file://"):
+				path.replace("file://", '')
+				results[resource] = getDiskSpaceUsage(path)
 	except Exception as err: # pylint: disable=broad-except
-		message.append("Not able to check DiskUsage. Error: '{}'".format(err))
+		message = f"Not able to check DiskUsage: {err}"
 		return generate_response(State.UNKNOWN, message)
 
 	if results:
@@ -104,5 +100,4 @@ def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None): # pylint: 
 	else:
 		state = State.UNKNOWN
 		message.append("No results get. Nothing to check.")
-	message = " ".join(message)
-	return generate_response(state, message)
+	return generate_response(state, " ".join(message))

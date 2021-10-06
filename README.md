@@ -35,7 +35,7 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * You can use the default debug settings or you can set the number of worker and the log level by selecting opsiconfd in the debug/run tab.
 
 ### Run Tests
-* start opsiconfd
+* start opsiconfd with `--backend-config-dir tests/opsi-config/backends --dispatch-config-file tests/opsi-config/backendManager/dispatch.conf`
 * select "Run Tests" on the Status Bar or use the Test Explorer
 
 ## Memory usage / profiling

@@ -70,7 +70,7 @@ stages:
   echo "${OPSICONFD_STATIC_DIR}"
   echo "Set OPSICONFD_MAX_SESSIONS_PER_IP"
   export OPSICONFD_INTERNAL_URL="https://test.uib.gmbh:4447"
-  export MYSQL_HOST="mysql"
+  ##export MYSQL_HOST="mysql"
 
 
 .perftest: &perftest |

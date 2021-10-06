@@ -136,18 +136,21 @@ async def unblock_client(request: Request):
 @admin_interface_router.post("/delete-client-sessions")
 async def delete_client_sessions(request: Request):
 	try:
-		request_body = await request.json()
+		request_body = await request.json() or {}
 		client_addr = request_body.get("client_addr")
+		if not request_body:
+			raise ValueError("client_addr missing")
 		redis = await aredis_client()
-		keys = redis.scan_iter(f"{OPSISession.redis_key_prefix}:{client_addr}:*")
 		sessions = []
 		deleted_keys = []
-		async with await redis.pipeline(transaction=False) as pipe:
-			async for key in keys:
-				sessions.append(key.decode("utf8").split(":")[-1])
-				deleted_keys.append(key.decode("utf8"))
-				await pipe.delete(key)
-			await pipe.execute()
+		keys = redis.scan_iter(f"{OPSISession.redis_key_prefix}:{client_addr}:*")
+		if keys:
+			async with await redis.pipeline(transaction=False) as pipe:
+				async for key in keys:
+					sessions.append(key.decode("utf8").split(":")[-1])
+					deleted_keys.append(key.decode("utf8"))
+					await pipe.delete(key)
+				await pipe.execute()
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}})
 	except Exception as err: # pylint: disable=broad-except

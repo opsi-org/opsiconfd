@@ -15,10 +15,12 @@ import pytest
 import urllib3
 import aredis
 import requests
-
 from MySQLdb import _mysql
+
 from opsiconfd.utils import decode_redis_result
 from opsiconfd.ssl import get_ips
+
+from .utils import create_depot_rpc
 
 TEST_USER = "adminuser"
 TEST_PW = "adminuser"
@@ -78,7 +80,7 @@ def delete_product(product, opsi_url):
 @pytest.mark.asyncio
 async def test_delete_product(config):
 	db_remove_dummy_products()
-	create_depot(config.internal_url)
+	create_depot_rpc(config.internal_url, "testdepot.uib.gmbh")
 	fill_db()
 
 	test_products_sorted = read_sorted_products()
@@ -121,7 +123,7 @@ async def test_delete_product(config):
 @pytest.mark.asyncio
 async def test_renew_cache(config):
 	db_remove_dummy_products()
-	create_depot(config.internal_url)
+	create_depot_rpc(config.internal_url, "testdepot.uib.gmbh")
 	fill_db()
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
@@ -189,7 +191,7 @@ async def test_getProductOrdering(config): # pylint: disable=invalid-name
 	]
 	test_products_sorted = ["test_product1", "test_product3", "test_product2"]
 
-	create_depot(config.internal_url)
+	create_depot_rpc(config.internal_url, "testdepot.uib.gmbh")
 	create_products(test_products, config.internal_url)
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
@@ -251,14 +253,6 @@ def read_sorted_products():
 	finally:
 		return sorted_products # pylint: disable=lost-exception
 
-
-def create_depot(opsi_url):
-	params= ["testdepot.uib.gmbh",None,"file:///var/lib/opsi/depot","smb://172.17.0.101/opsi_depot",None,"file:///var/lib/opsi/repository","webdavs://172.17.0.101:4447/repository"] # pylint: disable=line-too-long
-
-	rpc_request_data = json.dumps({"id": 1, "method": "host_createOpsiDepotserver", "params": params})
-	res = requests.post(f"{opsi_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
-	result_json = json.loads(res.text)
-	print(result_json)
 
 def create_products(products, opsi_url):
 	for product in products:

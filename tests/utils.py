@@ -18,10 +18,11 @@ import sys
 
 import MySQLdb
 
-TEST_USER = "adminuser"
-TEST_PW = "adminuser"
+ADMIN_USER = "adminuser"
+ADMIN_PASS = "adminuser"
 HOSTNAME = socket.gethostname()
 LOCAL_IP = socket.gethostbyname(HOSTNAME)
+BASE_URL = "https://localhost:4447"
 OPSI_SESSION_KEY = "opsiconfd:sessions"
 DAYS = 31
 
@@ -31,41 +32,45 @@ def config(monkeypatch):
 	from opsiconfd.config import config # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return config
 
+
 @pytest.fixture(autouse=True)
 @pytest.mark.asyncio
-async def clean_redis(config): # pylint: disable=redefined-outer-name
-	yield None
+async def clean_redis(config):  # pylint: disable=redefined-outer-name
 	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
-	session_keys = redis_client.scan_iter(f"{OPSI_SESSION_KEY}:*")
-	async for key in session_keys:
-		await redis_client.delete(key)
-	await redis_client.delete(f"opsiconfd:stats:client:failed_auth:{LOCAL_IP}")
-	await redis_client.delete(f"opsiconfd:stats:client:blocked:{LOCAL_IP}")
-	client_keys = redis_client.scan_iter("opsiconfd:stats:client*")
-	async for key in client_keys:
-		await redis_client.delete(key)
-	await redis_client.delete("opsiconfd:stats:rpcs")
-	await redis_client.delete("opsiconfd:stats:num_rpcs")
-	rpc_keys = redis_client.scan_iter("opsiconfd:stats:rpc:*")
-	async for key in rpc_keys:
-		await redis_client.delete(key)
-	await asyncio.sleep(5)
+
+	for redis_key in (
+		OPSI_SESSION_KEY,
+		"opsiconfd:stats:client:failed_auth",
+		"opsiconfd:stats:client:blocked",
+		"opsiconfd:stats:client",
+		"opsiconfd:stats:rpcs",
+		"opsiconfd:stats:num_rpcs",
+		"opsiconfd:stats:rpc"
+	):
+		async for key in redis_client.scan_iter(f"{redis_key}:*"):
+			await redis_client.delete(key)
+	yield None
 
 
-
-def create_depot(opsi_url, depot_name):
-	params= [depot_name,None,"file:///var/lib/opsi/depot","smb://172.17.0.101/opsi_depot",None,"file:///var/lib/opsi/repository","webdavs://172.17.0.101:4447/repository"] # pylint: disable=line-too-long
-
+def create_depot_rpc(opsi_url: str, host_id: str, host_key: str = None):
+	params= [
+		host_id,
+		host_key,
+		"file:///var/lib/opsi/depot",
+		"smb://172.17.0.101/opsi_depot",
+		None,
+		"file:///var/lib/opsi/repository",
+		"webdavs://172.17.0.101:4447/repository"
+	]
 	rpc_request_data = json.dumps({"id": 1, "method": "host_createOpsiDepotserver", "params": params})
-	res = requests.post(f"{opsi_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
-	print(result_json)
+	return result_json
 
 
 
 @pytest.fixture(autouse=True)
 def create_check_data(config):
-
 	print("create_check_data")
 
 	mysql_host = os.environ.get("MYSQL_HOST")
@@ -136,8 +141,8 @@ def create_check_data(config):
 		)
 	)
 
-	create_depot(config.internal_url, "pytest-test-depot.uib.gmbh")
-	create_depot(config.internal_url, "pytest-test-depot2.uib.gmbh")
+	create_depot_rpc(config.internal_url, "pytest-test-depot.uib.gmbh")
+	create_depot_rpc(config.internal_url, "pytest-test-depot2.uib.gmbh")
 
 	# Product on client
 	cursor.execute(

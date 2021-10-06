@@ -7,22 +7,15 @@
 
 import os
 import sys
-import socket
 import json
 import asyncio
 import urllib3
 import aredis
 import requests
 import pytest
-
 from MySQLdb import _mysql
 
-OPSI_URL = "https://localhost:4447"
-TEST_USER = "adminuser"
-TEST_PW = "adminuser"
-OPSI_SESSION_KEY = "opsiconfd:sessions"
-HOSTNAME = socket.gethostname()
-LOCAL_IP = socket.gethostbyname(HOSTNAME)
+from .utils import ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY, LOCAL_IP
 
 @pytest.fixture(name="config")
 def fixture_config(monkeypatch): # pylint: disable=unused-argument
@@ -235,7 +228,7 @@ jsonrpc_test_data = [
 @pytest.mark.parametrize("request_data, expected_result", jsonrpc_test_data)
 def test_process_jsonrpc_request(config, fill_db, request_data, expected_result): # pylint: disable=unused-argument
 	rpc_request_data = json.dumps(request_data)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
 	print(result_json)
@@ -268,7 +261,7 @@ def test_create_OPSI_Client(config): # pylint: disable=invalid-name
 
 	rpc_request_data = json.dumps(request_data)
 
-	res = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
 	print(result_json)
@@ -289,7 +282,7 @@ def test_create_OPSI_Client(config): # pylint: disable=invalid-name
 	}
 
 	rpc_request_data = json.dumps(request_data)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
 	print("RESULT1: ", result_json)
@@ -305,7 +298,7 @@ def test_create_OPSI_Client(config): # pylint: disable=invalid-name
 
 
 	rpc_request_data = json.dumps(request_data)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
 	print("RESULT2: ", result_json)
@@ -327,7 +320,7 @@ def test_delete_OPSI_Client(config, fill_db): # pylint: disable=unused-argument,
 	}
 
 	rpc_request_data = json.dumps(request_data)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
 	print("RESULT1: ", result_json)
@@ -342,7 +335,7 @@ def test_delete_OPSI_Client(config, fill_db): # pylint: disable=unused-argument,
 		"params": ["pytest4.uib.gmbh"]
 	}
 	rpc_delete_request = json.dumps(delete_request)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_delete_request, verify=False)
+	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_delete_request, verify=False)
 	assert res.status_code == 200
 	result_json = json.loads(res.text)
 	print("Del result: ", result_json)
@@ -351,7 +344,7 @@ def test_delete_OPSI_Client(config, fill_db): # pylint: disable=unused-argument,
 	assert result_json.get("result") is None
 
 
-	res = requests.post(f"{config.internal_url}/rpc", auth=(TEST_USER, TEST_PW), data=rpc_request_data, verify=False)
+	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
 
 	print("RESULT2: ", result_json)

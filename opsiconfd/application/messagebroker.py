@@ -66,7 +66,7 @@ async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str =
 
 async def mq_websocket_reader(websocket: WebSocket):
 	try:
-		data = await websocket.receive_bytes()
+		await websocket.receive_bytes()
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 

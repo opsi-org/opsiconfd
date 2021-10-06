@@ -28,7 +28,7 @@ from ..session import OPSISession
 from ..logging import logger
 from ..config import config, FQDN
 from ..backend import get_backend_interface, get_backend
-from ..utils import get_random_string, aredis_client
+from ..utils import get_random_string, aredis_client, ip_address_to_redis_key, ip_address_from_redis_key
 from ..ssl import get_ca_info, get_cert_info
 
 from .memoryprofiler import memory_profiler_router
@@ -120,14 +120,15 @@ async def unblock_client(request: Request):
 		client_addr = request_body.get("client_addr")
 
 		logger.debug("unblock client addr: %s ", client_addr)
+		client_addr_redis = ip_address_to_redis_key(client_addr)
 		redis = await aredis_client()
 		deleted_keys = []
-		redis_code = await redis.delete(f"opsiconfd:stats:client:failed_auth:{client_addr}")
+		redis_code = await redis.delete(f"opsiconfd:stats:client:failed_auth:{client_addr_redis}")
 		if redis_code == 1:
-			deleted_keys.append(f"opsiconfd:stats:client:failed_auth:{client_addr}")
-		redis_code = await redis.delete(f"opsiconfd:stats:client:blocked:{client_addr}")
+			deleted_keys.append(f"opsiconfd:stats:client:failed_auth:{client_addr_redis}")
+		redis_code = await redis.delete(f"opsiconfd:stats:client:blocked:{client_addr_redis}")
 		if redis_code == 1:
-			deleted_keys.append(f"opsiconfd:stats:client:blocked:{client_addr}")
+			deleted_keys.append(f"opsiconfd:stats:client:blocked:{client_addr_redis}")
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "redis-keys": deleted_keys}})
 	except Exception as err: # pylint: disable=broad-except
@@ -205,7 +206,7 @@ async def get_blocked_clients() -> list:
 	blocked_clients = []
 	async for key in redis_keys:
 		logger.debug("redis key to delete: %s", key)
-		blocked_clients.append(key.decode("utf8").split(":")[-1])
+		blocked_clients.append(ip_address_from_redis_key(key.decode("utf8").split(":")[-1]))
 	return blocked_clients
 
 

@@ -110,6 +110,17 @@ def normalize_ip_address(address, exploded=False):
 		return address.exploded
 	return address.compressed
 
+def ip_address_to_redis_key(address):
+	if ":" in address:
+		# ipv6
+		return normalize_ip_address(address, exploded=True).replace(":", ".")
+	return address
+
+def ip_address_from_redis_key(key):
+	if key.count(".") > 3:
+		# ipv6
+		return key.replace(".", ":")
+	return key
 
 def get_ip_addresses():
 	for interface, snics in psutil.net_if_addrs().items():

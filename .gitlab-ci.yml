@@ -8,7 +8,7 @@ stages:
 
 .install_tools: &install_tools |
   export DEBIAN_FRONTEND=noninteractive
-  apt update
+  apt update# Deactivate mysql strict mode
   apt -y install debhelper osc
   apt -y install python3-dev
   pip3 install --trusted-host pypi.uib.gmbh --index-url http://pypi.uib.gmbh:8080/simple opsi-dev-tools
@@ -28,9 +28,9 @@ stages:
   wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/liblzf1_3.6-2_amd64.deb
   dpkg -i *.deb || apt -y -f install
   # Deactivate mysql strict mode
-  mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "SET GLOBAL sql_mode = 'NO_ENGINE_SUBSTITUTION';"
+  #mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "SET GLOBAL sql_mode = 'NO_ENGINE_SUBSTITUTION';"
   #mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "CREATE USER 'opsi'@'%' IDENTIFIED BY 'opsi';"
-  mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON *.* TO 'opsi'@'%';"
+  mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
   # Get config files from opsi-server package
   [ -e /etc/opsi ] && rm -r /etc/opsi
   [ -e ../opsi-server ] && rm -r ../opsi-server
@@ -39,16 +39,16 @@ stages:
   branch=master
   GIT_TERMINAL_PROMPT=0 git clone --branch $branch $url ../opsi-server
   cp -a ../opsi-server/opsi-server_data/etc /etc/opsi
-  # Set mysql address in config
-  sed -i "s/127.0.0.1/mysql/" /etc/opsi/backends/mysql.conf
-  # Use mysql backend only
-  echo ".* : mysql" > /etc/opsi/backendManager/dispatch.conf
+
   # Configure opsiconfd
   mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot
   echo "redis-internal-url = redis://redis" > /etc/opsi/opsiconfd.conf
   echo "log-level-stderr = 4" >> /etc/opsi/opsiconfd.conf
   echo "log-level-file = 0" >> /etc/opsi/opsiconfd.conf
   echo "max-session-per-ip = 20" >> /etc/opsi/opsiconfd.conf
+  echo "backend-config-dir = tests/opsi-config/backends" >> /etc/opsi/opsiconfd.conf
+  echo "dispatch-config-file = tests/opsi-config/backendManager/dispatch.conf" >> /etc/opsi/opsiconfd.conf
+
   # Installing opsi test modules file
   echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
   # TODO: restore some backend
@@ -112,7 +112,7 @@ test:perftest:
       alias: redis
   variables:
     MYSQL_ROOT_PASSWORD: "opsi"
-    MYSQL_DATABASE: "opsi"
+    MYSQL_DATABASE: "opsitest"
     MYSQL_USER: "opsi"
     MYSQL_PASSWORD: "opsi"
   stage: test
@@ -128,7 +128,7 @@ test:pylint-pytest:
       alias: redis
   variables:
     MYSQL_ROOT_PASSWORD: "opsi"
-    MYSQL_DATABASE: "opsi"
+    MYSQL_DATABASE: "opsitest"
     MYSQL_USER: "opsi"
     MYSQL_PASSWORD: "opsi"
   stage: test
@@ -136,7 +136,6 @@ test:pylint-pytest:
     - *prepare_tests
     - *pylint
     - *pytest
-
 
   # poetry run pytest --junit-xml=pytestreport.xml junit_family=xunit2 --quiet /builds/uib/opsiconfd/tests
   # artifacts:

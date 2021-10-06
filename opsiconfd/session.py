@@ -212,9 +212,9 @@ class SessionMiddleware:
 							logger.debug("num_failed_auth: %s", num_failed_auth)
 						except ResponseError as err:
 							num_failed_auth = 0
-							if str(err).find("key does not exist") == -1:
+							if "key does not exist" in str(err):
 								raise
-						if num_failed_auth > config.max_auth_failures:
+						if num_failed_auth >= config.max_auth_failures:
 							is_blocked = True
 							logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
 							await redis.setex(f"opsiconfd:stats:client:blocked:{connection.client.host}", config.client_block_time, True)
@@ -306,6 +306,7 @@ class SessionMiddleware:
 				cmd = f"ts.add opsiconfd:stats:client:failed_auth:{connection.client.host} * 1 RETENTION 86400000 LABELS client_addr {connection.client.host}" # pylint: disable=line-too-long
 				logger.debug(cmd)
 				asyncio.get_event_loop().create_task(redis.execute_command(cmd)) # type: ignore
+				await asyncio.sleep(0.2)
 
 			elif isinstance(err, ConnectionRefusedError):
 				status_code = status.HTTP_403_FORBIDDEN
@@ -314,7 +315,7 @@ class SessionMiddleware:
 			elif isinstance(err, HTTPException):
 				status_code = err.status_code # pylint: disable=no-member
 				headers = err.headers # pylint: disable=no-member
-				error = str(err)
+				error = err.detail
 
 			else:
 				logger.error(err, exc_info=True)
@@ -377,9 +378,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 	@classmethod
 	def utc_time_timestamp(cls):
-		now = datetime.datetime.now()
-		utc_time = now.replace(tzinfo=datetime.timezone.utc)
-		return utc_time.timestamp()
+		return datetime.datetime.utcnow().timestamp()
 
 	@property
 	def max_age(self):
@@ -434,7 +433,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			#redis = await aredis_client()
 			#async for key in redis.scan_iter(f"{self.redis_key_prefix}:{self.client_addr}:*"):
 			#	redis_session_keys.append(key.decode("utf8"))
-			if config.max_session_per_ip > 0 and len(redis_session_keys) > config.max_session_per_ip:
+			if config.max_session_per_ip > 0 and len(redis_session_keys) + 1 > config.max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {config.max_session_per_ip}"
 				logger.warning(error)
 				raise ConnectionRefusedError(error)

@@ -208,7 +208,7 @@ class SessionMiddleware:
 							f"ts.range opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
 							f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
 						)
-						logger.devel(cmd)
+						logger.debug(cmd)
 						try:
 							num_failed_auth = await redis.execute_command(cmd)
 							num_failed_auth =  int(num_failed_auth[-1][1])

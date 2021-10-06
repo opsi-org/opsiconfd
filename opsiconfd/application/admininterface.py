@@ -85,27 +85,23 @@ async def unblock_all_clients(response: Response):
 	redis = await aredis_client()
 
 	try:
-		clients = []
-		deleted_keys = []
-		keys = redis.scan_iter("opsiconfd:stats:client:failed_auth:*")
+		clients = set()
+		deleted_keys = set()
 		async with await redis.pipeline(transaction=False) as pipe:
-			async for key in keys:
-				deleted_keys.append(key.decode("utf8"))
-				if key.decode("utf8").split(":")[-1] not in clients:
-					clients.append(key.decode("utf8").split(":")[-1])
-				logger.debug("redis key to delete: %s", key)
-				await pipe.delete(key)
+			for base_key in (
+				"opsiconfd:stats:client:failed_auth",
+				"opsiconfd:stats:client:blocked"
+			):
 
-			keys = redis.scan_iter("opsiconfd:stats:client:blocked:*")
-			async for key in keys:
-				logger.debug("redis key to delete: %s", key)
-				deleted_keys.append(key.decode("utf8"))
-				if key.decode("utf8").split(":")[-1] not in clients:
-					clients.append(key.decode("utf8").split(":")[-1])
-				await pipe.delete(key)
+				async for key in redis.scan_iter(f"{base_key}:*"):
+					key_str = key.decode("utf8")
+					deleted_keys.add(key_str)
+					client = ip_address_from_redis_key(key_str.split(":")[-1])
+					clients.add(client)
+					logger.debug("redis key to delete: %s", key_str)
+					await pipe.delete(key)
 			await pipe.execute()
-
-		response = JSONResponse({"status": 200, "error": None, "data": {"clients": clients, "redis-keys": deleted_keys}})
+		response = JSONResponse({"status": 200, "error": None, "data": {"clients": list(clients), "redis-keys": list(deleted_keys)}})
 	except Exception as err: # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(err)}})

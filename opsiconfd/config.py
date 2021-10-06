@@ -55,7 +55,7 @@ if running_in_docker():
 	try:
 		ip = socket.gethostbyname(socket.getfqdn()) # pylint: disable=invalid-name
 		rev = reversename.from_address(ip)
-		DEFAULT_NODE_NAME = str(resolver.query(rev, "PTR")[0]).split('.', 1)[0].replace("docker_", "")
+		DEFAULT_NODE_NAME = str(resolver.resolve(rev, "PTR")[0]).split('.', 1)[0].replace("docker_", "")
 	except resolver.NXDOMAIN as exc:
 		pass
 

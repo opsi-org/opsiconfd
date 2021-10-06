@@ -11,7 +11,6 @@ opsiconfd - setup
 import os
 import pwd
 import grp
-from sys import exc_info
 import time
 import getpass
 import resource

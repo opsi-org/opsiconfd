@@ -33,10 +33,10 @@ RUN apt-get update \
 COPY docker/files/ /
 
 RUN sed -i s'/"address":.*/"address": "mysql",/' /etc/opsi/backends/mysql.conf \
-	&& groupadd pcpatch \
+	&& groupadd opsifileadmins \
 	&& useradd --create-home --home-dir /home/adminuser -s /bin/bash adminuser \
 	&& echo "adminuser:adminuser" | chpasswd \
-	&& adduser adminuser pcpatch \
+	&& adduser adminuser opsifileadmins \
 	&& adduser adminuser opsiadmin \
 	&& cp -r /root/.bash* /home/adminuser/
 

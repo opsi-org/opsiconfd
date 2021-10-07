@@ -80,15 +80,15 @@ COPY docker/files/ /
 WORKDIR /workspace
 
 RUN useradd --create-home -s /bin/bash ${DEV_USER} \
-	&& groupadd pcpatch \
+	&& groupadd opsifileadmins \
 	&& groupadd opsiadmin \
-	&& useradd --system -g pcpatch -d /var/lib/opsi -s /bin/bash opsiconfd \
+	&& useradd --system -g opsifileadmins -d /var/lib/opsi -s /bin/bash opsiconfd \
 	&& useradd --create-home --home-dir /home/adminuser -s /bin/bash adminuser \
 	&& echo "adminuser:adminuser" | chpasswd \
-	&& adduser adminuser pcpatch \
+	&& adduser adminuser opsifileadmins \
 	&& adduser adminuser opsiadmin \
 	&& echo "${DEV_USER}:adminuser" | chpasswd \
-	&& adduser ${DEV_USER} pcpatch \
+	&& adduser ${DEV_USER} opsifileadmins \
 	&& adduser ${DEV_USER} opsiadmin \
 	&& adduser ${DEV_USER} sudo \
 	&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \

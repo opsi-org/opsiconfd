@@ -43,13 +43,13 @@ stages:
   # Configure opsiconfd
   mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot
   echo "redis-internal-url = redis://redis" > /etc/opsi/opsiconfd.conf
-  echo "log-level-stderr = 4" >> /etc/opsi/opsiconfd.conf
+  echo "log-level-stderr = 0" >> /etc/opsi/opsiconfd.conf
   echo "log-level-file = 6" >> /etc/opsi/opsiconfd.conf
   echo "log-file = /tmp/opsiconfd.log" >> /etc/opsi/opsiconfd.conf
-  echo "max-session-per-ip = 20" >> /etc/opsi/opsiconfd.conf
+  echo "max-session-per-ip = 50" >> /etc/opsi/opsiconfd.conf
   echo "backend-config-dir = tests/opsi-config/backends" >> /etc/opsi/opsiconfd.conf
   echo "dispatch-config-file = tests/opsi-config/backendManager/dispatch.conf" >> /etc/opsi/opsiconfd.conf
-  echo "static-dir = opsiconfd_data/static"
+  echo "static-dir = opsiconfd_data/static" >> /etc/opsi/opsiconfd.conf
 
   # Installing opsi test modules file
   echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
@@ -92,7 +92,12 @@ stages:
   echo "---------------------------------------"
   exit_code=0
   poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests || exit_code=$?
-  [ $exit_code -eq 0 ] || cat /tmp/opsiconfd.log
+  if [ $exit_code -ne 0 ]; then
+    echo "---------------------------------------"
+    echo "opsiconfd log"
+    echo "---------------------------------------"
+    cat /tmp/opsiconfd.log
+  fi
   exit $exit_code
 
 .pylint: &pylint |

@@ -26,8 +26,10 @@ mysql -u root --password=$MYSQL_ROOT_PASSWORD -e "GRANT ALL PRIVILEGES ON *.* TO
 mysql -u root --password=$MYSQL_ROOT_PASSWORD -e "FLUSH PRIVILEGES"
 echo "create opsi db"
 mysql -u root --password=$MYSQL_ROOT_PASSWORD -e "CREATE DATABASE $MYSQL_DATABASE;"
+echo "create opsi test db"
+mysql -u root --password=$MYSQL_ROOT_PASSWORD -e "CREATE DATABASE opsitest;"
 
-# echo 'Restore opsi database' 
+# echo 'Restore opsi database'
 echo $OPSI_HOSTNAME
 zcat /confd-dev-data.sql.gz | sed 's/dev-server.uib.local/'$OPSI_HOSTNAME'/g'  | mariadb -h localhost -u $MYSQL_USER --password=$MYSQL_PASSWORD $MYSQL_DATABASE
 # zcat /opsi-schema.sql | mariadb -h localhost -u $MYSQL_USER --password=$MYSQL_PASSWORD $MYSQL_DATABASE

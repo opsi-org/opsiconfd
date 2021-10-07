@@ -31,11 +31,6 @@ stages:
   # Grant full database access to opsi user
   mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
 
-  # Create adminuser used in tests
-  useradd adminuser
-  echo "adminuser:adminuser" | chpasswd
-  adduser adminuser opsiadmin
-
   # Get config files from opsi-server package
   [ -e /etc/opsi ] && rm -r /etc/opsi
   [ -e ../opsi-server ] && rm -r ../opsi-server
@@ -64,6 +59,11 @@ stages:
   poetry lock --no-update
   poetry install
   poetry run opsiconfd -l5 setup
+
+  # Create adminuser used in tests
+  useradd adminuser
+  echo "adminuser:adminuser" | chpasswd
+  adduser adminuser opsiadmin
 
   # Start and wait for redis server
   redis-server /etc/redis/redis.conf &

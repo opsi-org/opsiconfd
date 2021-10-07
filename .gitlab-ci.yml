@@ -47,6 +47,7 @@ stages:
   echo "log-level-file = 6" >> /etc/opsi/opsiconfd.conf
   echo "log-file = /tmp/opsiconfd.log" >> /etc/opsi/opsiconfd.conf
   echo "max-session-per-ip = 30" >> /etc/opsi/opsiconfd.conf
+  echo "max-auth-failures = 3" >> /etc/opsi/opsiconfd.conf
   echo "backend-config-dir = tests/opsi-config/backends" >> /etc/opsi/opsiconfd.conf
   echo "dispatch-config-file = tests/opsi-config/backendManager/dispatch.conf" >> /etc/opsi/opsiconfd.conf
   echo "static-dir = opsiconfd_data/static" >> /etc/opsi/opsiconfd.conf
@@ -91,14 +92,15 @@ stages:
   echo "Run tests"
   echo "---------------------------------------"
   exit_code=0
-  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests || exit_code=$?
+  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_config.py || exit_code=$?
   if [ $exit_code -ne 0 ]; then
     echo "---------------------------------------"
     echo "opsiconfd log"
     echo "---------------------------------------"
     cat /tmp/opsiconfd.log
+    exit $exit_code
   fi
-  exit $exit_code
+  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/test_config.py
 
 .pylint: &pylint |
   echo "---------------------------------------"

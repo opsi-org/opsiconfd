@@ -74,6 +74,8 @@ def test_max_auth_failures(config):  # pylint: disable=redefined-outer-name,unus
 		try:
 			redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
 			now = round(time.time())*1000
+			for key in redis_client.scan_iter(f"opsiconfd:stats:client:failed_auth:*"):
+				print("=== key ==>>>", key)
 			cmd = (
 				f"ts.range opsiconfd:stats:client:failed_auth:127.0.0.1 "
 				f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"

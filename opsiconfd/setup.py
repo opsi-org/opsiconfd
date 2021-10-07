@@ -246,7 +246,7 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 		try:
 			setup_metric_downsampling()
 		except Exception as err: # pylint: disable=broad-except
-			logger.warning("Faild to setup redis downsampling: %s", err)
+			logger.warning("Failed to setup redis downsampling: %s", err)
 
 	if not "ssl" in skip_setup:
 		try:

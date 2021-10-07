@@ -27,10 +27,14 @@ stages:
   wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-timeseries_1.4.10.1-1_amd64.deb
   wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/liblzf1_3.6-2_amd64.deb
   dpkg -i *.deb || apt -y -f install
-  # Deactivate mysql strict mode
-  #mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "SET GLOBAL sql_mode = 'NO_ENGINE_SUBSTITUTION';"
-  #mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "CREATE USER 'opsi'@'%' IDENTIFIED BY 'opsi';"
+
+  # Grant full database access to opsi user
   mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
+
+  # Create adminuser used in tests
+  useradd adminuser
+  echo "adminuser:adminuser" | chpasswd
+  adduser adminuser opsiadmin
 
   # Get config files from opsi-server package
   [ -e /etc/opsi ] && rm -r /etc/opsi
@@ -49,10 +53,10 @@ stages:
   echo "max-session-per-ip = 20" >> /etc/opsi/opsiconfd.conf
   echo "backend-config-dir = tests/opsi-config/backends" >> /etc/opsi/opsiconfd.conf
   echo "dispatch-config-file = tests/opsi-config/backendManager/dispatch.conf" >> /etc/opsi/opsiconfd.conf
+  echo "static-dir = opsiconfd_data/static"
 
   # Installing opsi test modules file
   echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
-  # TODO: restore some backend
 
   # Install poetry
   pip3 install poetry
@@ -61,30 +65,17 @@ stages:
   poetry install
   poetry run opsiconfd -l5 setup
 
-  # Create adminuser used with opsiconfd-perftest.py
-  useradd adminuser
-  echo "adminuser:adminuser" | chpasswd
-  adduser adminuser opsiadmin
-
-  # redis-server /etc/redis/redis.conf --maxclients 150000 --loglevel verbose &
+  # Start and wait for redis server
   redis-server /etc/redis/redis.conf &
-
-  sleep 20
-
-  echo "Set OPSI STATIC DIR"
-  export OPSICONFD_STATIC_DIR="opsiconfd_data/static"
-  echo "${OPSICONFD_STATIC_DIR}"
-
-  ###export OPSICONFD_EXTERNAL_URL="https://test.uib.gmbh:4447"
-  ##export OPSICONFD_INTERNAL_URL="https://test.uib.gmbh:4447"
-  ##export MYSQL_HOST="mysql"
-
+  sleep 10
 
 .perftest: &perftest |
   export OPSICONFD_MAX_SESSIONS_PER_IP=20000
-  echo "${OPSICONFD_MAX_SESSIONS_PER_IP}"
   poetry run opsiconfd &
-  sleep 20
+  sleep 10
+  echo "---------------------------------------"
+  echo "Run perftest"
+  echo "---------------------------------------"
   poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json -w /tmp/perftest-result
   [ $(grep errors= /tmp/perftest-result | cut -d '=' -f2) -gt 0 ] && ( cat /tmp/perftest-result; echo 'Errors in perftest' >&2; exit 1 )
   # Average request time has to be faster than 10 ms
@@ -92,16 +83,11 @@ stages:
   [ $(cat /tmp/bc-result) = "1" ] || ( cat /tmp/perftest-result; echo 'Average seconds per request >= 10 ms' >&2; exit 1 )
 
 .pytest: &pytest |
-  poetry run opsiconfd --log-level-stderr=3 --max-auth-failures 3 &
-  sleep 20
+  poetry run opsiconfd &
+  sleep 10
   echo "---------------------------------------"
   echo "Run tests"
   echo "---------------------------------------"
-  hostname
-  hostname -f
-  cat /etc/hosts
-  echo OPSICONFD_INTERNAL_URL
-
   poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_config.py
   poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/test_config.py
 

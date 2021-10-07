@@ -57,16 +57,14 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 			state = State.WARNING
 
 		workers = await get_workers(redis)
-		cpu = []
+		cpu = 0.0
 		for worker in workers:
 			redis_result = decode_redis_result(
 				await redis.execute_command(f"TS.GET opsiconfd:stats:worker:avg_cpu_percent:{worker}:minute")
 			)
-			if not redis_result:
-				cpu.append(0.0)
-			else:
-				cpu.append(float(redis_result[1]))
-		cpu_avg = sum(cpu) / len(cpu) if cpu else 0.0
+			cpu += float(redis_result[1]) if redis_result else 0.0
+		cpu_avg = cpu / len(workers)
+		cpu_avg = min(cpu_avg, 100.0)
 
 		if cpu_avg > cpu_thresholds.get("critical"):
 			state = State.CRITICAL

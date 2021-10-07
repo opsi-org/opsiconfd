@@ -77,4 +77,4 @@ def test_max_auth_failures(config):  # pylint: disable=redefined-outer-name,unus
 		else:
 			assert res.status_code == 401
 			assert res.text == "Authentication error"
-		time.sleep(0.1)
+		time.sleep(0.5)

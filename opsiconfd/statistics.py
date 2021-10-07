@@ -492,10 +492,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels): # pylint: disable=no-self-use
 		timestamp = timestamp or "*"
-		l_labels = []
-
-		for key in labels:
-			l_labels.extend([key, labels[key]])
+		l_labels = [list(pair) for pair in labels.items()]
 
 		# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6
 		if cmd == "ADD":
@@ -512,7 +509,8 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 			raise ValueError(f"Invalid command {cmd}")
 		return " ".join([ str(x) for x in cmd ])
 
-	async def _execute_redis_command(self, *cmd):
+	@staticmethod
+	async def _execute_redis_command(*cmd):
 		def str_cmd(cmd_obj):
 			if isinstance(cmd_obj, list):
 				return " ".join([ str(x) for x in cmd_obj ])

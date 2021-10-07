@@ -10,6 +10,7 @@ Tests for the opsiconfd monitoring module
 using https requests
 '''
 
+import time
 import json
 import socket
 import asyncio
@@ -18,7 +19,6 @@ import requests
 import aredis
 
 from opsiconfd.application.monitoring.utils import get_workers
-#from opsiconfd.utils import decode_redis_result
 from .utils import ( # pylint: disable=unused-import
 	clean_redis, config, create_check_data, database_connection, disable_request_warning,
 	ADMIN_USER, ADMIN_PASS, MONITORING_CHECK_DAYS
@@ -488,23 +488,23 @@ test_data = [
 		}
 	),
 	(
-		{"critical": 40, "warning": 10},
+		{"critical": 99, "warning": 50},
 		None,
 		False,
 		100,
 		{
-			"message": 'CRITICAL: CPU-Usage over 40%',
-			"state": 2
+			"message": 'WARNING: CPU-Usage over 50%',
+			"state": 1
 		}
 	),
 	(
-		{"critical": 99, "warning": 25},
+		{"critical": 70, "warning": 50},
 		None,
 		False,
 		100,
 		{
-			"message": 'WARNING: CPU-Usage over 25%',
-			"state": 1
+			"message": 'CRITICAL: CPU-Usage over 70%',
+			"state": 2
 		}
 	)
 ]
@@ -530,13 +530,16 @@ async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_threshold
 	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
 
 	workers = await get_workers(redis_client)
-	for _ in range(30):
-		await asyncio.sleep(0.1)
+	timestamp = int(time.time() - 100)
+	for _ in range(200):
+		timestamp += 1
 		for worker in workers:
-			await redis_client.execute_command(f"TS.ADD opsiconfd:stats:worker:avg_cpu_percent:{worker} * {cpu_value} ON_DUPLICATE LAST")
+			await redis_client.execute_command(
+				f"TS.ADD opsiconfd:stats:worker:avg_cpu_percent:{worker} {timestamp*1000} {cpu_value} ON_DUPLICATE LAST"
+			)
 
-	await asyncio.sleep(0.5)
-
+	await asyncio.sleep(1)
+	#from opsiconfd.utils import decode_redis_result
 	#for worker in workers:
 	#	value = await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_cpu_percent:{worker}:minute")
 	#	print(decode_redis_result(value)[1])

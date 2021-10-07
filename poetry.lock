@@ -2764,8 +2764,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.246.tar.gz", hash = "sha256:338fbb3a302ac930263fab2d0b41b806e1fb8b3be2ada4a4d3d34f87af45e68c"},
-    {file = "python_opsi-4.2.0.246-py3-none-any.whl", hash = "sha256:51d325e135ee4a76f4528105f884cd2bf94310f226240d25e07c0a9f67aaca9d"},
+    {file = "python-opsi-4.2.0.246.tar.gz", hash = "sha256:e5e38816002fa3b355529cc71bf5eb0750393d807e2caa66ffabf2d360d89783"},
+    {file = "python_opsi-4.2.0.246-py3-none-any.whl", hash = "sha256:bab00975712a68bde79c877c119566d00aeec653778fe8324833182191e004f7"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

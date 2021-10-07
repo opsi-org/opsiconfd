@@ -116,12 +116,12 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 					continue
 				dst_file_path = f"{self.absolute_file_path}.{num}"
 				await loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)
-				await loop.run_in_executor(None, shutil.chown(dst_file_path, config.run_as_user, OPSI_ADMIN_GROUP))
-				await loop.run_in_executor(None, os.chmod(dst_file_path, 0o644))
+				await loop.run_in_executor(None, shutil.chown, dst_file_path, config.run_as_user, OPSI_ADMIN_GROUP)
+				await loop.run_in_executor(None, os.chmod, dst_file_path, 0o644)
 		self.stream = None
 		await self._init_writer()
-		await loop.run_in_executor(None, shutil.chown(self.absolute_file_path, config.run_as_user, OPSI_ADMIN_GROUP))
-		await loop.run_in_executor(None, os.chmod(self.absolute_file_path, 0o644))
+		await loop.run_in_executor(None, shutil.chown, self.absolute_file_path, config.run_as_user, OPSI_ADMIN_GROUP)
+		await loop.run_in_executor(None, os.chmod, self.absolute_file_path, 0o644)
 
 	async def emit(self, record: LogRecord):
 		async with self._rollover_lock:

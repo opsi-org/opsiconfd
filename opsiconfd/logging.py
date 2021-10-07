@@ -50,7 +50,9 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 	rollover_check_interval = 60
 
 	def __init__(  # pylint: disable=too-many-arguments
-		self, filename: str,
+		self,
+		log_adapter: "AsyncRedisLogAdapter",
+		filename: str,
 		formatter: Formatter,
 		active_lifetime: int = 0,
 		mode: str = "a",
@@ -59,6 +61,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		keep_rotated: int = 0
 	) -> None:
 		super().__init__(filename, mode, encoding)
+		self._log_adapter = log_adapter
 		self.active_lifetime = active_lifetime
 		self._max_bytes = max_bytes
 		self._keep_rotated = keep_rotated
@@ -69,6 +72,9 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		asyncio.get_event_loop().create_task(self._periodically_test_rollover())
 
 	async def close(self):
+		"""
+		flush / close blocks sometimes, processing as task
+		"""
 		if not self.initialized:
 			return
 		loop = asyncio.get_event_loop()
@@ -76,7 +82,6 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		loop.create_task(self.stream.close())
 		self.stream = None
 		self._initialization_lock = None
-
 
 	async def _periodically_test_rollover(self):
 		while True:
@@ -87,7 +92,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 						self._rollover_error = None
 			except Exception as err: # pylint: disable=broad-except
 				self._rollover_error = err
-				logger.error(err)
+				logger.error(err, exc_info=True)
 			check_interval = 300 if self._rollover_error else self.rollover_check_interval
 			for _sec in range(check_interval):
 				await asyncio.sleep(1)
@@ -107,17 +112,16 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 				src_file_path = self.absolute_file_path
 				if num > 1:
 					src_file_path = f"{self.absolute_file_path}.{num-1}"
-				if not os.path.exists(src_file_path):
+				if not await loop.run_in_executor(None, os.path.exists, src_file_path):
 					continue
 				dst_file_path = f"{self.absolute_file_path}.{num}"
-				if await loop.run_in_executor(None, os.path.exists, src_file_path):
-					await loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)
-					shutil.chown(path=dst_file_path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-					os.chmod(path=dst_file_path, mode=0o644)
+				await loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)
+				await loop.run_in_executor(None, shutil.chown(dst_file_path, config.run_as_user, OPSI_ADMIN_GROUP))
+				await loop.run_in_executor(None, os.chmod(dst_file_path, 0o644))
 		self.stream = None
 		await self._init_writer()
-		shutil.chown(path=self.absolute_file_path, user=config.run_as_user, group=OPSI_ADMIN_GROUP)
-		os.chmod(path=self.absolute_file_path, mode=0o644)
+		await loop.run_in_executor(None, shutil.chown(self.absolute_file_path, config.run_as_user, OPSI_ADMIN_GROUP))
+		await loop.run_in_executor(None, os.chmod(self.absolute_file_path, 0o644))
 
 	async def emit(self, record: LogRecord):
 		async with self._rollover_lock:
@@ -127,6 +131,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 	async def handle_error(self, record, exception):
 		if not isinstance(exception, RuntimeError):
 			handle_log_exception(exception, record, stderr=True, temp_file=True)
+		await self._log_adapter.handle_file_handler_error(self)
 
 class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 	def __init__(self, running_event=None):
@@ -160,7 +165,6 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			file_handler.max_bytes = self._max_log_file_size
 			file_handler.keep_rotated = self._keep_rotated_log_files
 
-
 	def _read_config(self):
 		self._log_file_template = config.log_file
 		self._max_log_file_size = round(config.max_log_size * 1000 * 1000)
@@ -170,7 +174,6 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		self._log_level_file = OPSI_LEVEL_TO_LEVEL[config.log_level_file]
 		self._log_format_stderr = config.log_format_stderr
 		self._log_format_file = config.log_format_file
-
 
 	def _set_log_format_stderr(self):
 		if self._log_level_stderr == pylogging.NONE:
@@ -203,15 +206,19 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		except Exception as exc: # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 
+	async def handle_file_handler_error(self, file_handler: AsyncFileHandler):
+		if file_handler.absolute_file_path in self._file_logs:
+			del self._file_logs[file_handler.absolute_file_path]
+
 	def get_file_handler(self, client=None):
 		filename = None
 		if not self._log_file_template:
 			return None
 		try:
 			name = client or 'opsiconfd'
-			filename = self._log_file_template.replace('%m', name)
+			filename = os.path.abspath(self._log_file_template.replace('%m', name))
 			with self._file_log_lock:
-				if not filename in self._file_logs:
+				if not self._file_logs.get(filename):
 					logger.info("Creating new file log '%s'", filename)
 					log_dir = os.path.dirname(filename)
 					if not os.path.isdir(log_dir):
@@ -220,6 +227,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 					# Do not close main opsiconfd log file
 					active_lifetime = 0 if name == 'opsiconfd' else self._file_log_active_lifetime
 					self._file_logs[filename] = AsyncRotatingFileHandler(
+						log_adapter=self,
 						filename=filename,
 						formatter=ContextSecretFormatter(Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT)),
 						active_lifetime=active_lifetime,
@@ -233,7 +241,8 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 				self._file_logs[filename].add_filter(context_filter.filter)
 				return self._file_logs[filename]
 		except Exception as exc:  # pylint: disable=broad-except
-			self._file_logs[filename] = None
+			if filename in self._file_logs:
+				del self._file_logs[filename]
 			handle_log_exception(exc, stderr=True, temp_file=True)
 		return None
 

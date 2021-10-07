@@ -106,5 +106,4 @@ RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "
 	&& rm server.crt
 
 RUN chmod +x "/docker-entrypoint.sh" \
-	&& mkdir tftpboot \
-	&& sed -i s'/127.0.0.1.*/127.0.0.1   localhost mysql redis grafana/' /etc/hosts
+	&& mkdir tftpboot

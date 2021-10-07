@@ -44,7 +44,8 @@ stages:
   mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot
   echo "redis-internal-url = redis://redis" > /etc/opsi/opsiconfd.conf
   echo "log-level-stderr = 4" >> /etc/opsi/opsiconfd.conf
-  echo "log-level-file = 0" >> /etc/opsi/opsiconfd.conf
+  echo "log-level-file = 6" >> /etc/opsi/opsiconfd.conf
+  echo "log-file = /tmp/opsiconfd.log" >> /etc/opsi/opsiconfd.conf
   echo "max-session-per-ip = 20" >> /etc/opsi/opsiconfd.conf
   echo "backend-config-dir = tests/opsi-config/backends" >> /etc/opsi/opsiconfd.conf
   echo "dispatch-config-file = tests/opsi-config/backendManager/dispatch.conf" >> /etc/opsi/opsiconfd.conf
@@ -70,6 +71,7 @@ stages:
   sleep 10
 
 .perftest: &perftest |
+  [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log
   export OPSICONFD_MAX_SESSIONS_PER_IP=20000
   poetry run opsiconfd &
   sleep 10
@@ -81,8 +83,10 @@ stages:
   # Average request time has to be faster than 10 ms
   echo "$(grep avg_seconds_per_request= /tmp/perftest-result | cut -d '=' -f2)<0.01" | bc > /tmp/bc-result
   [ $(cat /tmp/bc-result) = "1" ] || ( cat /tmp/perftest-result; echo 'Average seconds per request >= 10 ms' >&2; exit 1 )
+  cat /tmp/opsiconfd.log
 
 .pytest: &pytest |
+  [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log
   poetry run opsiconfd &
   sleep 10
   echo "---------------------------------------"
@@ -90,6 +94,7 @@ stages:
   echo "---------------------------------------"
   poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_config.py
   poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/test_config.py
+  cat /tmp/opsiconfd.log
 
 .pylint: &pylint |
   echo "---------------------------------------"

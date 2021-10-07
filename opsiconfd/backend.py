@@ -29,7 +29,7 @@ BackendManager.default_config =  {
 	'aclFile': None, # No access control by default
 	'hostControlBackend': True,
 	'hostControlSafeBackend': True,
-	'depotBackend' : True,
+	'depotBackend' : False,
 	# every worker needs a database connection for full performance
 	'connectionPoolSize': config.executor_workers
 }
@@ -56,7 +56,8 @@ def get_client_backend():
 			client_backend_manager = BackendManager(
 				user_store=get_user_store,
 				option_store=get_option_store,
-				aclFile=config.acl_file
+				aclFile=config.acl_file,
+				depotBackend=True
 			)
 			client_backend_manager.usage_count = 0
 		client_backend_manager.usage_count += 1
@@ -68,7 +69,9 @@ def get_backend():
 	global backend_manager # pylint: disable=invalid-name, global-statement
 	with backend_manager_lock:
 		if not backend_manager:
-			backend_manager = BackendManager()
+			backend_manager = BackendManager(
+				depotBackend=True
+			)
 	return backend_manager
 
 backend_interface = None # pylint: disable=invalid-name

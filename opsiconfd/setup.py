@@ -27,10 +27,10 @@ from OPSI.System.Posix import locateDHCPDConfig
 from OPSI.Util.Task.InitializeBackend import initializeBackends
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
 from OPSI.System import get_subprocess_environment
+from OPSI.Backend.BackendManager import BackendManager
 
 from .logging import logger
 from .config import config
-from .backend import get_backend
 from .grafana import setup_grafana
 from .statistics import setup_metric_downsampling
 from .ssl import setup_ssl, setup_ssl_file_permissions
@@ -148,7 +148,7 @@ def setup_systemd():
 def setup_backend():
 	logger.info("Setup backend")
 	initializeBackends()
-	backend = get_backend()
+	backend = BackendManager()
 	mysql_used = False
 	for entry in backend.dispatcher_getConfig(): # pylint: disable=no-member
 		if 'mysql' in entry[1]:

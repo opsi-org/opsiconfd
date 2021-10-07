@@ -30,7 +30,7 @@ from OPSI.System import get_subprocess_environment
 
 from .logging import logger
 from .config import config
-from .backend import get_backend, backend_config
+from .backend import get_backend
 from .grafana import setup_grafana
 from .statistics import setup_metric_downsampling
 from .ssl import setup_ssl, setup_ssl_file_permissions
@@ -147,13 +147,7 @@ def setup_systemd():
 
 def setup_backend():
 	logger.info("Setup backend")
-	initializeBackends(
-		backendManagerConfig={
-			"dispatchConfigFile": backend_config["dispatchConfigFile"],
-			"backendConfigDir": backend_config["backendConfigDir"],
-			"extensionConfigDir": backend_config["extensionConfigDir"],
-		}
-	)
+	initializeBackends()
 	backend = get_backend()
 	mysql_used = False
 	for entry in backend.dispatcher_getConfig(): # pylint: disable=no-member
@@ -165,7 +159,7 @@ def setup_backend():
 		logger.info("Update mysql backend")
 		from OPSI.Util.Task.UpdateBackend.MySQL import updateMySQLBackend # pylint: disable=import-outside-toplevel
 		updateMySQLBackend(
-			backendConfigFile=os.path.join(backend_config["backendConfigDir"], "mysql.conf")
+			backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf")
 		)
 
 

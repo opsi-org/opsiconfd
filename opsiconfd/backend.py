@@ -22,11 +22,11 @@ from .config import config, CERT_DAYS, CLIENT_CERT_DAYS
 from .utils import Singleton
 from .logging import logger
 
-backend_config =  {
+BackendManager.default_config =  {
 	'dispatchConfigFile': config.dispatch_config_file,
 	'backendConfigDir': config.backend_config_dir,
 	'extensionConfigDir': config.extension_config_dir,
-	'aclFile': config.acl_file,
+	'aclFile': None, # No access control by default
 	'hostControlBackend': True,
 	'hostControlSafeBackend': True,
 	'depotBackend' : True,
@@ -53,9 +53,11 @@ def get_client_backend():
 	global client_backend_manager # pylint: disable=invalid-name, global-statement
 	with client_backend_manager_lock:
 		if not client_backend_manager:
-			backend_config["user_store"] = get_user_store
-			backend_config["option_store"] = get_option_store
-			client_backend_manager = BackendManager(**backend_config)
+			client_backend_manager = BackendManager(
+				user_store=get_user_store,
+				option_store=get_option_store,
+				aclFile=config.acl_file
+			)
 			client_backend_manager.usage_count = 0
 		client_backend_manager.usage_count += 1
 	return client_backend_manager
@@ -66,10 +68,7 @@ def get_backend():
 	global backend_manager # pylint: disable=invalid-name, global-statement
 	with backend_manager_lock:
 		if not backend_manager:
-			bc = dict(backend_config) # pylint: disable=invalid-name
-			if "aclFile" in bc:
-				del bc["aclFile"]
-			backend_manager = BackendManager(**bc)
+			backend_manager = BackendManager()
 	return backend_manager
 
 backend_interface = None # pylint: disable=invalid-name

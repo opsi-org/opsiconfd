@@ -164,7 +164,7 @@ async def test_get_blocked_clients_request(config): # pylint: disable=redefined-
 		verify=False
 	)
 	assert res.status_code == 200
-	assert res.json() == addresses
+	assert sorted(res.json()) == sorted(addresses)
 
 
 @pytest.mark.asyncio
@@ -174,7 +174,7 @@ async def test_get_blocked_clients(admininterface, config): # pylint: disable=re
 		await set_failed_auth_and_blocked(config, test_ip)
 
 	blocked_clients = await admininterface.get_blocked_clients()
-	assert blocked_clients == addresses
+	assert sorted(blocked_clients) == sorted(addresses)
 
 
 get_rpc_list_test_data = [1,3,5]

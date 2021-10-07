@@ -19,7 +19,7 @@ import requests
 from opsiconfd.utils import decode_redis_result
 
 from .utils import (  # pylint: disable=unused-import
-	create_depot_rpc, clean_redis, disable_request_warning, config, database_connection,
+	config, clean_redis, create_depot_rpc, disable_request_warning, database_connection,
 	ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY
 )
 

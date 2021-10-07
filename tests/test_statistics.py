@@ -13,6 +13,8 @@ import asyncio
 import redis
 import pytest
 
+from .utils import clean_redis  # pylint: disable=unused-import
+
 @pytest.fixture(name="config")
 def fixture_config(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])

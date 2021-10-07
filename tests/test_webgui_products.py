@@ -14,7 +14,7 @@ import pytest
 import requests
 
 from .utils import ( # pylint: disable=unused-import
-	clean_redis, config, database_connection, create_check_data, disable_request_warning,
+	config, clean_redis, database_connection, create_check_data, disable_request_warning,
 	ADMIN_USER, ADMIN_PASS
 )
 

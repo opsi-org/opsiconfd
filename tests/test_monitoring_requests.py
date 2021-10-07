@@ -20,7 +20,7 @@ import aredis
 
 from opsiconfd.application.monitoring.utils import get_workers
 from .utils import ( # pylint: disable=unused-import
-	clean_redis, config, create_check_data, database_connection, disable_request_warning,
+	config, clean_redis, create_check_data, database_connection, disable_request_warning,
 	ADMIN_USER, ADMIN_PASS, MONITORING_CHECK_DAYS
 )
 

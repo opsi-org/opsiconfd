@@ -12,7 +12,8 @@ import random
 import requests
 
 from .utils import (  # pylint: disable=unused-import
-	disable_request_warning, config, ADMIN_USER, ADMIN_PASS
+	config, clean_redis, disable_request_warning,
+	ADMIN_USER, ADMIN_PASS
 )
 
 

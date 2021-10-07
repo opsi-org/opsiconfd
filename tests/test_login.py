@@ -70,6 +70,20 @@ def test_max_auth_failures(config):  # pylint: disable=redefined-outer-name,unus
 	over_limit = 3
 	session = requests.Session()
 	for num in range(1, config.max_auth_failures + 1 + over_limit):
+
+		try:
+			redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
+			now = round(time.time())*1000
+			cmd = (
+				f"ts.range opsiconfd:stats:client:failed_auth:127.0.0.1 "
+				f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
+			)
+			num_failed_auth = redis_client.execute_command(cmd)
+			num_failed_auth =  int(num_failed_auth[-1][1])
+			print("=== num_failed_auth ==>>>", num_failed_auth)
+		except Exception as err:
+			print("===============", err)
+
 		res = session.get(f"{config.external_url}/admin/", auth=("client.domain.tld", "hostkey"), verify=False)
 		if num >= config.max_auth_failures + 1:
 			assert res.status_code == 403

@@ -481,17 +481,17 @@ test_data = [
 		{"critical": 100, "warning": 100},
 		None,
 		False,
-		100,
+		99,
 		{
 			"message": 'OK: Opsi Webservice has no Problem.',
 			"state": 0
 		}
 	),
 	(
-		{"critical": 99, "warning": 50},
+		{"critical": 100, "warning": 50},
 		None,
 		False,
-		100,
+		99,
 		{
 			"message": 'WARNING: CPU-Usage over 50%',
 			"state": 1
@@ -501,7 +501,7 @@ test_data = [
 		{"critical": 70, "warning": 50},
 		None,
 		False,
-		100,
+		99,
 		{
 			"message": 'CRITICAL: CPU-Usage over 70%',
 			"state": 2

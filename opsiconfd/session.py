@@ -315,7 +315,7 @@ class SessionMiddleware:
 					f"* 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
 				)
 				logger.debug(cmd)
-				asyncio.get_event_loop().create_task(redis.execute_command(cmd)) # type: ignore
+				asyncio.get_event_loop().create_task(redis.execute_command(cmd))
 				await asyncio.sleep(0.2)
 
 			elif isinstance(err, ConnectionRefusedError):

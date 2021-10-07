@@ -11,6 +11,7 @@ test admininterface
 import sys
 import json
 import pytest
+import asyncio
 import aredis
 import requests
 
@@ -184,6 +185,8 @@ async def test_get_rpc_list(config, admininterface, num_rpcs): # pylint: disable
 
 	for _idx in range(num_rpcs):
 		call_rpc([{"id": 1, "method": "host_getIdents","params": [None]}], [False], config.external_url)
+
+	await asyncio.sleep(1)
 
 	rpc_list = await admininterface.get_rpc_list()
 	for idx in range(0, num_rpcs):

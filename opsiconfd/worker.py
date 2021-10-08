@@ -60,6 +60,9 @@ def signal_handler(signum, frame): # pylint: disable=unused-argument
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()
 		AddonManager().reload_addons()
+	else:
+		from .application import app  # pylint: disable=import-outside-toplevel
+		app.is_shutting_down = True
 
 async def main_loop():
 	while True:
@@ -84,7 +87,8 @@ def init_worker():
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Failed to get worker number from env: %s", err)
 		# Only if this process is a worker only process (multiprocessing)
-		signal.signal(signal.SIGHUP, signal_handler)
+		for sig in signal.SIGHUP, signal.SIGINT, signal.SIGTERM:
+			signal.signal(sig, signal_handler)
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		opsi_ca_key = os.getenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", None)
 		if opsi_ca_key:

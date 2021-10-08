@@ -101,7 +101,7 @@
 			}
 
 			// Show the current tab, and add an "active" class to the button that opened the tab
-			document.getElementById(tabName).style.display = "block";
+			document.getElementById(tabName).style.display = "inherit";
 			evt.currentTarget.className += " active";
 		}
 	</script>
@@ -299,7 +299,7 @@
 					<pre class="config-values" id="config-values"></pre>
 				</div>
 			</div>
-			<button id="reload-button" onclick="reload()">Reload</button>
+			<button id="reload-button" onclick="reload()">Service reload</button>
 		</div>
 
 		<div id="memoryProfiler" class="tabcontent">

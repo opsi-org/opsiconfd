@@ -161,9 +161,9 @@ async def startup_event():
 		await asyncio.sleep(1)
 		raise error
 
-@app.on_event("shutdown")
-async def shutdown_event():
-	app.is_shutting_down = True
+#@app.on_event("shutdown")
+#async def shutdown_event():
+#	app.is_shutting_down = True
 
 @app.get("/ssl/opsi-ca-cert.pem")
 def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument

@@ -643,6 +643,19 @@ function sortRPCTable(data, sortKey) {
 
 }
 
+function reload() {
+	let request = new XMLHttpRequest();
+	request.open("POST", "/admin/reload");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			console.debug(request.statusText, request.responseText);
+		} else {
+			console.warn(request.statusText, request.responseText);
+		}
+	});
+	request.send();
+}
+
 function logout() {
 	let request = new XMLHttpRequest();
 	request.open("POST", "/admin/logout");

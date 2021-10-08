@@ -11,6 +11,7 @@ admininterface
 from urllib.parse import urlparse
 from operator import itemgetter
 import os
+import signal
 import datetime
 import orjson
 import msgpack
@@ -28,7 +29,10 @@ from ..session import OPSISession
 from ..logging import logger
 from ..config import config, FQDN
 from ..backend import get_backend_interface, get_backend
-from ..utils import get_random_string, aredis_client, ip_address_to_redis_key, ip_address_from_redis_key
+from ..utils import (
+	get_random_string, get_manager_pid,
+	aredis_client, ip_address_to_redis_key, ip_address_from_redis_key
+)
 from ..ssl import get_ca_info, get_cert_info
 
 from .memoryprofiler import memory_profiler_router
@@ -79,6 +83,10 @@ async def logout(request: Request):
 		raise BackendPermissionDeniedError("Session deleted")
 	return JSONResponse({"status": 200, "error": None, "data": "session deleted"})
 
+@admin_interface_router.post("/reload")
+async def reload():
+	os.kill(get_manager_pid(), signal.SIGHUP)
+	return JSONResponse({"status": 200, "error": None, "data": "reload sent"})
 
 @admin_interface_router.post("/unblock-all")
 async def unblock_all_clients(response: Response):

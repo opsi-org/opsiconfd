@@ -78,7 +78,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			pass
 		return
 
-	manager_pid = get_manager_pid()
+	manager_pid = get_manager_pid(ignore_self=True)
 
 	if config.action in ("restart", "status"):
 		os.execvp("systemctl", ["systemctl", "--no-pager", "--lines", "0", config.action, "opsiconfd"])

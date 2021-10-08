@@ -18,8 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .logging import logger, init_logging
 from .config import config
-from .utils import aredis_client
-from .manager import get_manager_pid
+from .utils import aredis_client, get_manager_pid
 from . import ssl
 from .addon import AddonManager
 

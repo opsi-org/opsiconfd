@@ -71,13 +71,16 @@ def is_manager(proc) -> bool:
 				break
 	return manager
 
-def get_manager_pid():
-	our_pid = os.getpid()
-	our_proc = psutil.Process(our_pid)
-	ignore_pids = [our_pid]
-	ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
-	ignore_pids += [p.pid for p in our_proc.parents()]
+def get_manager_pid(ignore_self: bool = False) -> int:
 	manager_pid = None
+	ignore_pids = []
+	if ignore_self:
+		our_pid = os.getpid()
+		our_proc = psutil.Process(our_pid)
+		ignore_pids = [our_pid]
+		ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
+		ignore_pids += [p.pid for p in our_proc.parents()]
+
 	for proc in psutil.process_iter():
 		if proc.pid in ignore_pids:
 			continue

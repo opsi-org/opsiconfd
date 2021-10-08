@@ -23,10 +23,6 @@ from .server import Server
 from .ssl import setup_server_cert
 
 
-def get_manager_pid() -> int:
-	return Manager().pid
-
-
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
 	def __init__(self):
 		self.pid = None

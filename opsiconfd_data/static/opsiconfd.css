@@ -159,7 +159,7 @@ li {
 /* Style the tab content */
 .tabcontent {
 	display: none;
-	/*height: calc(100vh - 170px);*/
+	height: calc(100vh - 170px);
 	margin: 1px;
 	padding-bottom: 25px;
 }

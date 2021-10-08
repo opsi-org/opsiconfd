@@ -1,11 +1,6 @@
 #!/bin/sh
 
-echo 'Set depotserver name in /etc/hosts' 1>&2
-echo "127.0.0.1       $OPSI_HOSTNAME $(hostname) mysql redis grafana localhost" > /tmp/hosts
-grep -v "127.0.0.1" /etc/hosts | grep -v $OPSI_HOSTNAME >> /tmp/hosts
-cp /tmp/hosts /etc/hosts
-rm /tmp/hosts
-
+/workspace/scripts/setup-hosts.sh
 /workspace/scripts/setup-grafana.sh
 /workspace/scripts/setup-mysql.sh
 

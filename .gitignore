@@ -6,10 +6,16 @@
 __pycache__
 *.egg-info
 
+.coverage
+coverage.xml
+testreport.xml
+
 # Visual Studio Code
 .vscode/*
 docker/dev.env
 .env
+
+.~*
 
 opsibackups/
 opsi-utils/

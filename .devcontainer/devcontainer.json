@@ -5,7 +5,7 @@
 	"context": "..",
 	"workspaceFolder": "/workspace",
 	"postCreateCommand": "sudo --preserve-env /bin/sh -c /workspace/scripts/setup.sh && poetry config --local virtualenvs.in-project true",
-	"postStartCommand": "/workspace/scripts/setup-hosts.sh; poetry install --no-interaction --no-ansi && sudo service redis-server restart && sudo service mysql restart && sudo service grafana-server restart",
+	"postStartCommand": "sudo --preserve-env /bin/sh -c /workspace/scripts/setup-hosts.sh; poetry install --no-interaction --no-ansi && sudo service redis-server restart && sudo service mysql restart && sudo service grafana-server restart",
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
 		"DEV_USER": "${localEnv:USER}"
@@ -29,7 +29,6 @@
 		"python.languageServer": "Pylance"
 	},
 	"extensions": [
-		"ms-azuretools.vscode-docker",
 		"ms-python.python",
 		"ms-python.vscode-pylance"
 	],

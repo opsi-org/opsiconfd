@@ -172,6 +172,11 @@ def str2bool(value):
 		return value
 	return str(value).lower() in ('yes', 'true', 'y', '1')
 
+def string_list(value):
+	if isinstance(value, list):
+		return value
+	return [value]
+
 def expert_help(help):  # pylint: disable=redefined-builtin
 	if "--ex-help" in sys.argv:
 		return help
@@ -727,6 +732,13 @@ parser.add(
 	env_var="OPSI_WEBGUI_FOLDER",
 	default="/usr/lib/opsi-webgui",
 	help=expert_help("Webgui static app folder.")
+)
+parser.add(
+	"--addon-dirs",
+	env_var="OPSI_ADDON_DIRS",
+	default=["/usr/lib/opsiconfd/addons", "/var/lib/opsiconfd/addons"],
+	type=string_list,
+	help=expert_help("A list of addon directories")
 )
 if PYTEST:
 	parser.add(

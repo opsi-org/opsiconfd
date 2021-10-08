@@ -21,6 +21,7 @@ from .config import config
 from .utils import aredis_client
 from .manager import get_manager_pid
 from . import ssl
+from .addon import AddonManager
 
 _metrics_collector = None # pylint: disable=invalid-name
 _worker_num = 1 # pylint: disable=invalid-name
@@ -59,6 +60,7 @@ def signal_handler(signum, frame): # pylint: disable=unused-argument
 		config.reload()
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()
+		AddonManager().reload_addons()
 
 async def main_loop():
 	while True:

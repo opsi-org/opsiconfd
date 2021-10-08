@@ -18,6 +18,7 @@ import time
 import codecs
 import asyncio
 from contextlib import contextmanager
+from fastapi import FastAPI, APIRouter
 import psutil
 import redis
 import aredis
@@ -292,3 +293,9 @@ async def get_aredis_info(client: aredis.StrictRedis):	# pylint: disable=too-man
 		}
 	}
 	return redis_info
+
+def remove_router(app: FastAPI, router: APIRouter, router_prefix: str):
+	paths = [f"{router_prefix}{route.path}" for route in router.routes]
+	for route in app.routes:
+		if route.path in paths:
+			app.routes.remove(route)

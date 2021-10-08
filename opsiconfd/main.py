@@ -34,7 +34,6 @@ from .patch import apply_patches
 from .utils import get_manager_pid
 from .manager import Manager
 
-
 def run_with_jemlalloc():
 	try:
 		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
@@ -154,6 +153,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 
 		logger.essential("opsiconfd is starting")
 		logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
+
 		manager = Manager()
 		manager.run()
 

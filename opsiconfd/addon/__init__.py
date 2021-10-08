@@ -5,7 +5,8 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-The opsi configuration service.
+opsiconfd - addon
 """
 
-from .main import app
+from .addon import Addon
+from .manager import AddonManager

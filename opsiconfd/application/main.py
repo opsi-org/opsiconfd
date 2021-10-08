@@ -38,6 +38,7 @@ from ..session import SessionMiddleware
 from ..statistics import StatisticsMiddleware
 from ..utils import normalize_ip_address, aredis_client
 from ..ssl import get_ca_cert_as_pem
+from ..addon import AddonManager
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
 from .webdav import webdav_setup
@@ -283,6 +284,8 @@ def application_setup():
 	status_setup(app)
 	webgui_setup(app)
 	messagebroker_setup(app)
+
+	AddonManager().load_addons()
 
 	logger.debug("Routing:")
 	endpoints = {}

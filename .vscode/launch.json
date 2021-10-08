@@ -19,6 +19,14 @@
 			"sudo": true,
 		},
 		{
+			"name":"opsiconfd test",
+			"type":"python",
+			"request": "launch",
+			"module":"opsiconfd",
+			"args": ["--backend-config-dir=tests/opsi-config/backends", "--dispatch-config-file=tests/opsi-config/backendManager/dispatch.conf", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--log-level-file=${input:loglevelfile}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"sudo": true,
+		},
+		{
 			"name":"opsiconfd jemalloc",
 			"type":"python",
 			"request":"launch",

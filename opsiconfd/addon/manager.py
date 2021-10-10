@@ -54,6 +54,9 @@ class AddonManager(metaclass=Singleton):
 		module_name = self.module_name(addon_path)
 		module = None
 		if module_name in sys.modules:
+			for sys_module in list(sys.modules):
+				if sys_module != module_name and sys_module.startswith(module_name):
+					importlib.reload(sys.modules[sys_module])
 			importlib.reload(sys.modules[module_name])
 			module = sys.modules[module_name]
 		else:

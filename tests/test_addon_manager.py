@@ -78,7 +78,7 @@ def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
 	addon_manager.load_addons()
 	assert len(addon_manager.addons) == 1
 	assert addon_manager.addons[0].name == "Test-Addon #1"
-	with open(os.path.join(addon_dir, "__init__.py"), mode="r+", encoding="utf-8") as file:
+	with open(os.path.join(addon_dir, "const.py"), mode="r+", encoding="utf-8") as file:
 		data = file.read()
 		data = data.replace(addon_manager.addons[0].name, "NEW NAME")
 		file.seek(0)

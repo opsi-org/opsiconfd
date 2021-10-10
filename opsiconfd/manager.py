@@ -55,8 +55,9 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		# <CTRL>+<C> will send SIGINT to the entire process group on linux.
 		# So child processes will receive the SIGINT too.
 		logger.info("Manager process %s received signal %d", self.pid, signum)
-		if signum == signal.SIGHUP and time.time() - self._last_reload > 2:
-			self.reload()
+		if signum == signal.SIGHUP:
+			if time.time() - self._last_reload > 2:
+				self.reload()
 		else:
 			# Force on repetition
 			self.stop(force=self._should_stop)

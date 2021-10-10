@@ -19,6 +19,8 @@ from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
 from opsiconfd.utils import remove_router
 
+from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
+
 router = APIRouter()
 
 @router.get("")
@@ -26,9 +28,9 @@ def index():
 	return PlainTextResponse("Hello from addon test1")
 
 class AddonTest1(Addon):
-	id = "test1"
-	name = "Test-Addon #1"
-	version = "1.0"
+	id = ADDON_ID
+	name = ADDON_NAME
+	version = ADDON_VERSION
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""

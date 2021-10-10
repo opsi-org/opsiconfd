@@ -5,14 +5,9 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-addon test1
+addon test1 - const
 """
 
-from opsiconfd.addon import Addon
-
-from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
-
-class AddonTest1(Addon):
-	id = ADDON_ID
-	name = ADDON_NAME
-	version = ADDON_VERSION
+ADDON_ID = "test1"
+ADDON_NAME = "Test-Addon #1"
+ADDON_VERSION = "1.0"

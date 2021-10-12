@@ -192,7 +192,6 @@ def products(
 	Get products from selected depots and clients.
 	"""
 
-
 	params = {}
 	params["product_type"] = type
 	if selectedClients == [] or selectedClients is None:
@@ -203,10 +202,6 @@ def products(
 		params["depots"] = [get_configserver_id()]
 	else:
 		params["depots"] = selectedDepots
-
-
-
-	logger.devel(params)
 
 	with mysql.session() as session:
 		where = text("pod.depotId IN :depots AND pod.producttype = :product_type")
@@ -277,21 +272,7 @@ def products(
 							p.productVersion=pod.productVERSION AND p.packageVersion=pod.packageVersion
 					) AS actions,
 					IF (
-						JSON_LENGTH(
-							CONCAT(
-								'[',
-								GROUP_CONCAT(
-									DISTINCT CONCAT(
-										'"',
-										pod.productVersion,
-										'-',
-										pod.packageVersion,
-										'"'
-									) SEPARATOR ','
-								),
-								']'
-							)
-						) > 1,
+						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"',pod.productVersion,'-',pod.packageVersion,'"') SEPARATOR ','),']')) > 1,
 						TRUE,
 						FALSE
 					) AS depot_version_diff,
@@ -325,10 +306,6 @@ def products(
 					product["actions"] = product.get("actions").split(",")
 				if product.get("depotVersions"):
 					product["depotVersions"] = product.get("depotVersions").split(",")
-					# if any(version != product.get("depotVersions")[0] for version in product.get("depotVersions")):
-					# 	product["depot_version_diff"] = True
-					# else:
-					# 	product["depot_version_diff"] = False
 				if product.get("selectedClients"):
 					product["selectedClients"] = product.get("selectedClients").split(",")
 				if product.get("installationStatusDetails"):
@@ -370,19 +347,8 @@ def products(
 				if product.get("clientVersions"):
 					product["clientVersions"] = product.get("clientVersions").split(",")
 
-					# product["client_version_outdated"] = False
-					# for idx, client in enumerate(product.get("selectedClients")):
-					# 	depot = get_depot_of_client(client)
-					# 	client_version = product.get("clientVersions")[idx]
-					# 	product.get("depotVersions")
-					# 	if depot not in product.get("selectedDepots"):
-					# 		depot_version = depot_get_product_version(depot, product.get("productId"))
-					# 	else:
-					# 		depot_version = product.get("depotVersions")[product.get("selectedDepots").index(depot)]
-					# 	if client_version != depot_version:
-					# 		product["client_version_outdated"] = True
-					# 		break
-
+			product["depot_version_diff"] = bool(product.get("depot_version_diff", False))
+			product["client_version_outdated"] = bool(product.get("client_version_outdated", False))
 			products.append(product)
 
 

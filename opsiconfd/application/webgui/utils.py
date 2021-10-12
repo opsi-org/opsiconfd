@@ -36,7 +36,6 @@ def get_mysql():
 	return mysql
 
 def order_by(query, params):
-	logger.devel(params)
 	if not params.get("sortBy"):
 		return query
 	func = asc
@@ -45,7 +44,6 @@ def order_by(query, params):
 	sort_list = []
 	for col in params["sortBy"].split(","):
 		sort_list.append(func(column(col)))
-	logger.devel(sort_list)
 	return query.order_by(*sort_list)
 
 

@@ -55,6 +55,7 @@ test_data = [
 						],
 						"selectedClients": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -79,15 +80,6 @@ test_data = [
 						],
 						"selectedClients": [
 							"pytest-client-1.uib.local"
-						],
-						"installationStatusDetails": [
-							"not_installed"
-						],
-						"actionRequestDetails": [
-							"setup"
-						],
-						"actionResultDetails": [
-							"none"
 						],
 						"clientVersions": [
 							"1.0-1"
@@ -117,6 +109,7 @@ test_data = [
 						],
 						"selectedClients": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -141,6 +134,7 @@ test_data = [
 						],
 						"selectedClients": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -167,22 +161,15 @@ test_data = [
 							"pytest-client-1.uib.local",
 							"pytest-client-4.uib.local"
 						],
-						"installationStatusDetails": [
-							"not_installed",
-							"not_installed"
-						],
 						"actionRequestDetails": [
 							"none",
 							"setup"
-						],
-						"actionResultDetails": [
-							"none",
-							"none"
 						],
 						"clientVersions": [
 							"1.0-1",
 							"1.0-1"
 						],
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -229,6 +216,7 @@ test_data = [
 						"actionProgress": None,
 						"actionResult": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -252,6 +240,7 @@ test_data = [
 						"actionProgress": None,
 						"actionResult": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -275,6 +264,7 @@ test_data = [
 						"actionProgress": None,
 						"actionResult": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -298,6 +288,7 @@ test_data = [
 						"actionProgress": None,
 						"actionResult": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -321,6 +312,7 @@ test_data = [
 						"actionProgress": None,
 						"actionResult": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -364,6 +356,7 @@ test_data = [
 						"actionProgress": None,
 						"actionResult": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -384,18 +377,9 @@ test_data = [
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
-						"installationStatusDetails": [
-							"not_installed"
-						],
 						"installationStatus": "not_installed",
-						"actionRequestDetails": [
-							"setup"
-						],
 						"actionRequest": "setup",
 						"actionProgress": None,
-						"actionResultDetails": [
-							"none"
-						],
 						"actionResult": "none",
 						"clientVersions": [
 							"1.0-1"
@@ -444,6 +428,7 @@ test_data = [
 						"actionProgress": None,
 						"actionResult": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -467,6 +452,7 @@ test_data = [
 						"actionProgress": None,
 						"actionResult": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -509,15 +495,6 @@ test_data = [
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
-						"installationStatusDetails": [
-							"not_installed"
-						],
-						"actionRequestDetails": [
-							"setup"
-						],
-						"actionResultDetails": [
-							"none"
-						],
 						"clientVersions": [
 							"1.0-1"
 						],
@@ -548,6 +525,7 @@ test_data = [
 						],
 						"selectedClients": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -574,6 +552,7 @@ test_data = [
 						],
 						"selectedClients": None,
 						"clientVersions": None,
+						"client_version_outdated": False,
 						"actions": [
 							"setup",
 							"uninstall",
@@ -617,18 +596,9 @@ test_data = [
 						"selectedClients": [
 							"pytest-client-1.uib.local"
 						],
-						"installationStatusDetails": [
-							"not_installed"
-						],
 						"installationStatus": "not_installed",
-						"actionRequestDetails": [
-							"setup"
-						],
 						"actionRequest": "setup",
 						"actionProgress": None,
-						"actionResultDetails": [
-							"none"
-						],
 						"actionResult": "none",
 						"clientVersions": [
 							"1.0-1"

@@ -203,8 +203,6 @@ def products(
 	else:
 		params["depots"] = selectedDepots
 
-
-
 	with mysql.session() as session:
 		where = text("pod.depotId IN :depots AND pod.producttype = :product_type")
 		if commons.get("filterQuery"):
@@ -215,63 +213,119 @@ def products(
 			params["search"] = f"%{commons['filterQuery']}%"
 
 		query = select(text("""
-					pod.productId AS productId,
-					p.name AS name,
-					p.description AS description,
-					GROUP_CONCAT(pod.depotId SEPARATOR ',') AS selectedDepots,
-					(
-						SELECT GROUP_CONCAT(poc.clientId SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.clientId IN :clients AND poc.productId=pod.productId
-						ORDER BY poc.clientId
-					) AS selectedClients,
-					(
-						SELECT GROUP_CONCAT(poc.installationStatus SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
-					) AS installationStatusDetails,
-					(
-						SELECT GROUP_CONCAT(poc.actionRequest SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
-					) AS actionRequestDetails,
-					(
-						SELECT GROUP_CONCAT(poc.actionProgress SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
-					) AS actionProgressDetails,
-					(
-						SELECT GROUP_CONCAT(poc.actionResult SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
-					) AS actionResultDetails,
-					(
-						SELECT GROUP_CONCAT(CONCAT(poc.productVersion,'-',poc.packageVersion) SEPARATOR ',')
-						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
-						ORDER BY poc.clientId
-					) AS clientVersions,
-					(
-						SELECT CONCAT_WS(',',
-							IF(setupScript <> '','setup', NULL),
-							IF(uninstallScript <> '','uninstall',NULL),
-							IF(updateScript <> '','update',NULL),
-							IF(alwaysScript <> '','always',NULL),
-							IF(customScript <> '','custom',NULL),
-							IF(onceScript <> '','once',NULL),
-							"none"
-						)
-						FROM PRODUCT AS p
-						WHERE p.productId=pod.productId AND
-							p.productVersion=pod.productVERSION AND p.packageVersion=pod.packageVersion
-					) AS actions,
-					GROUP_CONCAT(CONCAT(pod.productVersion,'-',pod.packageVersion) SEPARATOR ',') AS depotVersions,
-					pod.productType AS productType
-				"""
-				))\
-				.select_from(text("PRODUCT_ON_DEPOT AS pod")).where(where).group_by(text("pod.productId"))\
-				.join(text("PRODUCT AS p"),
-					text("""
-						p.productId=pod.productId
-						 AND p.productVersion=pod.productVersion
-						 AND p.packageVersion=pod.packageVersion
-					"""
+			pod.productId AS productId,
+			p.name AS name,
+			p.description AS description,
+			GROUP_CONCAT(pod.depotId SEPARATOR ',') AS selectedDepots,
+			(
+				SELECT GROUP_CONCAT(poc.clientId SEPARATOR ',')
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.clientId IN :clients AND poc.productId=pod.productId
+				ORDER BY poc.clientId
+			) AS selectedClients,
+			(
+				SELECT GROUP_CONCAT(IFNULL(poc.installationStatus, "not_installed") SEPARATOR ',')
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+				ORDER BY poc.clientId
+			) AS installationStatusDetails,
+			(	SELECT
+					IF(
+						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.installationStatus, '"') SEPARATOR ','),']')) > 1,
+						"mixed",
+						IFNULL(poc.installationStatus, "not_installed")
 					)
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+			) AS installationStatus,
+			(
+				SELECT GROUP_CONCAT(IFNULL(poc.actionRequest, "none") SEPARATOR ',')
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+				ORDER BY poc.clientId
+			) AS actionRequestDetails,
+			(	SELECT
+					IF(
+						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionRequest, '"') SEPARATOR ','),']')) > 1,
+						"mixed",
+						poc.actionRequest
+					)
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+			) AS actionRequest,
+			(
+				SELECT GROUP_CONCAT(IFNULL(poc.actionProgress, "none") SEPARATOR ',')
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+				ORDER BY poc.clientId
+			) AS actionProgressDetails,
+			(	SELECT
+					IF(
+						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionProgress, '"') SEPARATOR ','),']')) > 1,
+						"mixed",
+						poc.actionProgress
+					)
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+			) AS actionProgress,
+			(
+				SELECT GROUP_CONCAT(IFNULL(poc.actionResult, "none") SEPARATOR ',')
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+				ORDER BY poc.clientId
+			) AS actionResultDetails,
+			(	SELECT
+					IF(
+						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionResult, '"') SEPARATOR ','),']')) > 1,
+						"mixed",
+						poc.actionResult
+					)
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+			) AS actionResult,
+			(
+				SELECT GROUP_CONCAT(CONCAT(poc.productVersion,'-',poc.packageVersion) SEPARATOR ',')
+				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+				ORDER BY poc.clientId
+			) AS clientVersions,
+			0 IN (
+				SELECT if(
+						CONCAT(poc.productVersion, '-', poc.packageVersion) = CONCAT(p.productVersion, '-', p.packageVersion) OR poc.productVersion IS NULL,
+						TRUE,
+						FALSE
+					)
+				FROM PRODUCT_ON_DEPOT as p
+					JOIN CONFIG_STATE AS cs ON cs.configId = 'clientconfig.depot.id'
+					AND cs.objectId IN :clients
+					AND p.depotId = JSON_UNQUOTE(JSON_EXTRACT(cs.values, "$[0]"))
+					JOIN PRODUCT_ON_CLIENT AS poc ON poc.clientId = cs.objectId
+					AND poc.productId = p.productId
+				WHERE p.productId = pod.productId
+			) AS client_version_outdated,
+			(
+				SELECT CONCAT_WS(',',
+					IF(setupScript <> '','setup', NULL),
+					IF(uninstallScript <> '','uninstall',NULL),
+					IF(updateScript <> '','update',NULL),
+					IF(alwaysScript <> '','always',NULL),
+					IF(customScript <> '','custom',NULL),
+					IF(onceScript <> '','once',NULL),
+					"none"
 				)
+				FROM PRODUCT AS p
+				WHERE p.productId=pod.productId AND
+					p.productVersion=pod.productVERSION AND p.packageVersion=pod.packageVersion
+			) AS actions,
+			IF(
+				JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"',pod.productVersion,'-',pod.packageVersion,'"') SEPARATOR ','),']')) > 1,
+				TRUE,
+				FALSE
+			) AS depot_version_diff,
+			GROUP_CONCAT(CONCAT(pod.productVersion,'-',pod.packageVersion) SEPARATOR ',') AS depotVersions,
+			pod.productType AS productType
+
+		"""
+		))\
+		.select_from(text("PRODUCT_ON_DEPOT AS pod")).where(where).group_by(text("pod.productId"))\
+		.join(text("PRODUCT AS p"),
+			text("""
+				p.productId=pod.productId
+					AND p.productVersion=pod.productVersion
+					AND p.packageVersion=pod.packageVersion
+			"""
+			)
+		)
 
 		query = order_by(query, commons)
 		query = pagination(query, commons)
@@ -283,70 +337,27 @@ def products(
 		for row in result:
 			if row is not None:
 				product = dict(row)
-				if product.get("selectedDepots"):
-					product["selectedDepots"] = product.get("selectedDepots").split(",")
-				if product.get("actions"):
-					product["actions"] = product.get("actions").split(",")
-				if product.get("depotVersions"):
-					product["depotVersions"] = product.get("depotVersions").split(",")
-					if any(version != product.get("depotVersions")[0] for version in product.get("depotVersions")):
-						product["depot_version_diff"] = True
-					else:
-						product["depot_version_diff"] = False
-				if product.get("selectedClients"):
-					product["selectedClients"] = product.get("selectedClients").split(",")
-				if product.get("installationStatusDetails"):
-					product["installationStatusDetails"] = product.get("installationStatusDetails").split(",")
-					if all(value == product.get("installationStatusDetails")[0]  for value in product.get("installationStatusDetails")):
-						product["installationStatus"] = product.get("installationStatusDetails")[0]
-					else:
-						product["installationStatus"] = "mixed"
-				else:
-					product["installationStatus"] = "not_installed"
-					del product["installationStatusDetails"]
-				if product.get("actionRequestDetails"):
-					product["actionRequestDetails"] = product.get("actionRequestDetails").split(",")
-					if all(value == product.get("actionRequestDetails")[0]  for value in product.get("actionRequestDetails")):
-						product["actionRequest"] = product.get("actionRequestDetails")[0]
-					else:
-						product["actionRequest"] = "mixed"
-				else:
-					product["actionRequest"] = None
-					del product["actionRequestDetails"]
-				if product.get("actionProgressDetails"):
-					product["actionProgressDetails"] = product.get("actionProgressDetails").split(",")
-					if all(value == product.get("actionProgressDetails")[0]  for value in product.get("actionProgressDetails")):
-						product["actionProgress"] = product.get("actionProgressDetails")[0]
-					else:
-						product["actionProgress"] = "mixed"
-				else:
-					product["actionProgress"] = None
-					del product["actionProgressDetails"]
-				if product.get("actionResultDetails"):
-					product["actionResultDetails"] = product.get("actionResultDetails").split(",")
-					if all(value == product.get("actionResultDetails")[0]  for value in product.get("actionResultDetails")):
-						product["actionResult"] = product.get("actionResultDetails")[0]
-					else:
-						product["actionResult"] = "mixed"
-				else:
-					product["actionResult"] = None
-					del product["actionResultDetails"]
-				if product.get("clientVersions"):
-					product["clientVersions"] = product.get("clientVersions").split(",")
 
-					product["client_version_outdated"] = False
-					for idx, client in enumerate(product.get("selectedClients")):
-						depot = get_depot_of_client(client)
-						client_version = product.get("clientVersions")[idx]
-						product.get("depotVersions")
-						if depot not in product.get("selectedDepots"):
-							depot_version = depot_get_product_version(depot, product.get("productId"))
-						else:
-							depot_version = product.get("depotVersions")[product.get("selectedDepots").index(depot)]
-						if client_version != depot_version:
-							product["client_version_outdated"] = True
-							break
+				for value in ["installationStatus", "actionRequest", "actionProgress", "actionResult"]:
+					if product[value] != "mixed":
+						del product[f"{value}Details"]
 
+				for value in [
+					"selectedDepots",
+					"actions",
+					"depotVersions",
+					"selectedClients",
+					"installationStatusDetails",
+					"actionRequestDetails",
+					"actionProgressDetails",
+					"actionResultDetails",
+					"clientVersions"
+				]:
+					if product.get(value):
+						product[value] = product.get(value).split(",")
+
+			product["depot_version_diff"] = bool(product.get("depot_version_diff", False))
+			product["client_version_outdated"] = bool(product.get("client_version_outdated", False))
 			products.append(product)
 
 		products_on_depots = alias(select(text("*"))\

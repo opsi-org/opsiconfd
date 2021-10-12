@@ -41,7 +41,10 @@ def order_by(query, params):
 	func = asc
 	if params.get("sortDesc", False):
 		func = desc
-	return query.order_by(func(column(params["sortBy"])))
+	sort_list = []
+	for col in params["sortBy"].split(","):
+		sort_list.append(func(column(col)))
+	return query.order_by(*sort_list)
 
 
 def pagination(query, params):

@@ -223,21 +223,57 @@ def products(
 						ORDER BY poc.clientId
 					) AS selectedClients,
 					(
-						SELECT GROUP_CONCAT(poc.installationStatus SEPARATOR ',')
+						SELECT GROUP_CONCAT(IFNULL(poc.installationStatus, "not_installed") SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+						ORDER BY poc.clientId
 					) AS installationStatusDetails,
-					(
-						SELECT GROUP_CONCAT(poc.actionRequest SEPARATOR ',')
+					(	SELECT
+							IF(
+								JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.installationStatus, '"') SEPARATOR ','),']')) > 1,
+								"mixed",
+								JSON_UNQUOTE(JSON_EXTRACT(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.installationStatus, '"') SEPARATOR ','),']'), "$[0]"))
+							)
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+					) AS installationStatus,
+					(
+						SELECT GROUP_CONCAT(IFNULL(poc.actionRequest, "none") SEPARATOR ',')
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+						ORDER BY poc.clientId
 					) AS actionRequestDetails,
-					(
-						SELECT GROUP_CONCAT(poc.actionProgress SEPARATOR ',')
+					(	SELECT
+							IF(
+								JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionRequest, '"') SEPARATOR ','),']')) > 1,
+								"mixed",
+								JSON_UNQUOTE(JSON_EXTRACT(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionRequest, '"') SEPARATOR ','),']'), "$[0]"))
+							)
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+					) AS actionRequest,
+					(
+						SELECT GROUP_CONCAT(IFNULL(poc.actionProgress, "none") SEPARATOR ',')
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+						ORDER BY poc.clientId
 					) AS actionProgressDetails,
-					(
-						SELECT GROUP_CONCAT(poc.actionResult SEPARATOR ',')
+					(	SELECT
+							IF(
+								JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionProgress, '"') SEPARATOR ','),']')) > 1,
+								"mixed",
+								JSON_UNQUOTE(JSON_EXTRACT(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionProgress, '"') SEPARATOR ','),']'), "$[0]"))
+							)
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+					) AS actionProgress,
+					(
+						SELECT GROUP_CONCAT(IFNULL(poc.actionResult, "none") SEPARATOR ',')
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+						ORDER BY poc.clientId
 					) AS actionResultDetails,
+					(	SELECT
+							IF(
+								JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionResult, '"') SEPARATOR ','),']')) > 1,
+								"mixed",
+								JSON_UNQUOTE(JSON_EXTRACT(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionResult, '"') SEPARATOR ','),']'), "$[0]"))
+							)
+						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
+					) AS actionResult,
 					(
 						SELECT GROUP_CONCAT(CONCAT(poc.productVersion,'-',poc.packageVersion) SEPARATOR ',')
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
@@ -271,13 +307,14 @@ def products(
 						WHERE p.productId=pod.productId AND
 							p.productVersion=pod.productVERSION AND p.packageVersion=pod.packageVersion
 					) AS actions,
-					IF (
+					IF(
 						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"',pod.productVersion,'-',pod.packageVersion,'"') SEPARATOR ','),']')) > 1,
 						TRUE,
 						FALSE
 					) AS depot_version_diff,
 					GROUP_CONCAT(CONCAT(pod.productVersion,'-',pod.packageVersion) SEPARATOR ',') AS depotVersions,
 					pod.productType AS productType
+
 				"""
 				))\
 				.select_from(text("PRODUCT_ON_DEPOT AS pod")).where(where).group_by(text("pod.productId"))\
@@ -300,52 +337,71 @@ def products(
 		for row in result:
 			if row is not None:
 				product = dict(row)
-				if product.get("selectedDepots"):
-					product["selectedDepots"] = product.get("selectedDepots").split(",")
-				if product.get("actions"):
-					product["actions"] = product.get("actions").split(",")
-				if product.get("depotVersions"):
-					product["depotVersions"] = product.get("depotVersions").split(",")
-				if product.get("selectedClients"):
-					product["selectedClients"] = product.get("selectedClients").split(",")
-				if product.get("installationStatusDetails"):
-					product["installationStatusDetails"] = product.get("installationStatusDetails").split(",")
-					if all(value == product.get("installationStatusDetails")[0]  for value in product.get("installationStatusDetails")):
-						product["installationStatus"] = product.get("installationStatusDetails")[0]
-					else:
-						product["installationStatus"] = "mixed"
-				else:
-					product["installationStatus"] = "not_installed"
-					del product["installationStatusDetails"]
-				if product.get("actionRequestDetails"):
-					product["actionRequestDetails"] = product.get("actionRequestDetails").split(",")
-					if all(value == product.get("actionRequestDetails")[0]  for value in product.get("actionRequestDetails")):
-						product["actionRequest"] = product.get("actionRequestDetails")[0]
-					else:
-						product["actionRequest"] = "mixed"
-				else:
-					product["actionRequest"] = None
-					del product["actionRequestDetails"]
-				if product.get("actionProgressDetails"):
-					product["actionProgressDetails"] = product.get("actionProgressDetails").split(",")
-					if all(value == product.get("actionProgressDetails")[0]  for value in product.get("actionProgressDetails")):
-						product["actionProgress"] = product.get("actionProgressDetails")[0]
-					else:
-						product["actionProgress"] = "mixed"
-				else:
-					product["actionProgress"] = None
-					del product["actionProgressDetails"]
-				if product.get("actionResultDetails"):
-					product["actionResultDetails"] = product.get("actionResultDetails").split(",")
-					if all(value == product.get("actionResultDetails")[0]  for value in product.get("actionResultDetails")):
-						product["actionResult"] = product.get("actionResultDetails")[0]
-					else:
-						product["actionResult"] = "mixed"
-				else:
-					product["actionResult"] = None
-					del product["actionResultDetails"]
-				if product.get("clientVersions"):
-					product["clientVersions"] = product.get("clientVersions").split(",")
+				# if product.get("selectedDepots"):
+				# 	product["selectedDepots"] = product.get("selectedDepots").split(",")
+				# if product.get("actions"):
+				# 	product["actions"] = product.get("actions").split(",")
+				# if product.get("depotVersions"):
+				# 	product["depotVersions"] = product.get("depotVersions").split(",")
+				# if product.get("selectedClients"):
+				# 	product["selectedClients"] = product.get("selectedClients").split(",")
+
+				for value in ["installationStatus", "actionRequest", "actionProgress", "actionResult"]:
+					if product[value] != "mixed":
+						del product[f"{value}Details"]
+
+				for value in [
+					"selectedDepots",
+					"actions",
+					"depotVersions",
+					"selectedClients",
+					"installationStatusDetails",
+					"actionRequestDetails",
+					"actionProgressDetails",
+					"actionResultDetails",
+					"clientVersions"
+				]:
+					if product.get(value):
+						product[value] = product.get(value).split(",")
+
+				# if product.get("installationStatusDetails"):
+				# 	product["installationStatusDetails"] = product.get("installationStatusDetails").split(",")
+				# 	if all(value == product.get("installationStatusDetails")[0]  for value in product.get("installationStatusDetails")):
+				# 		product["installationStatus"] = product.get("installationStatusDetails")[0]
+				# 	else:
+				# 		product["installationStatus"] = "mixed"
+				# else:
+				# 	product["installationStatus"] = "not_installed"
+				# 	del product["installationStatusDetails"]
+				# if product.get("actionRequestDetails"):
+				# 	product["actionRequestDetails"] = product.get("actionRequestDetails").split(",")
+				# 	if all(value == product.get("actionRequestDetails")[0]  for value in product.get("actionRequestDetails")):
+				# 		product["actionRequest"] = product.get("actionRequestDetails")[0]
+				# 	else:
+				# 		product["actionRequest"] = "mixed"
+				# else:
+				# 	product["actionRequest"] = None
+				# 	del product["actionRequestDetails"]
+				# if product.get("actionProgressDetails"):
+				# 	product["actionProgressDetails"] = product.get("actionProgressDetails").split(",")
+				# 	if all(value == product.get("actionProgressDetails")[0]  for value in product.get("actionProgressDetails")):
+				# 		product["actionProgress"] = product.get("actionProgressDetails")[0]
+				# 	else:
+				# 		product["actionProgress"] = "mixed"
+				# else:
+				# 	product["actionProgress"] = None
+				# 	del product["actionProgressDetails"]
+				# if product.get("actionResultDetails"):
+				# 	product["actionResultDetails"] = product.get("actionResultDetails").split(",")
+				# 	if all(value == product.get("actionResultDetails")[0]  for value in product.get("actionResultDetails")):
+				# 		product["actionResult"] = product.get("actionResultDetails")[0]
+				# 	else:
+				# 		product["actionResult"] = "mixed"
+				# else:
+				# 	product["actionResult"] = None
+				# 	del product["actionResultDetails"]
+				# if product.get("clientVersions"):
+				# 	product["clientVersions"] = product.get("clientVersions").split(",")
 
 			product["depot_version_diff"] = bool(product.get("depot_version_diff", False))
 			product["client_version_outdated"] = bool(product.get("client_version_outdated", False))

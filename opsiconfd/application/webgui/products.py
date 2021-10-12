@@ -231,7 +231,7 @@ def products(
 					IF(
 						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.installationStatus, '"') SEPARATOR ','),']')) > 1,
 						"mixed",
-						JSON_UNQUOTE(JSON_EXTRACT(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.installationStatus, '"') SEPARATOR ','),']'), "$[0]"))
+						IFNULL(poc.installationStatus, "not_installed")
 					)
 				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 			) AS installationStatus,
@@ -244,7 +244,7 @@ def products(
 					IF(
 						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionRequest, '"') SEPARATOR ','),']')) > 1,
 						"mixed",
-						JSON_UNQUOTE(JSON_EXTRACT(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionRequest, '"') SEPARATOR ','),']'), "$[0]"))
+						poc.actionRequest
 					)
 				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 			) AS actionRequest,
@@ -257,7 +257,7 @@ def products(
 					IF(
 						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionProgress, '"') SEPARATOR ','),']')) > 1,
 						"mixed",
-						JSON_UNQUOTE(JSON_EXTRACT(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionProgress, '"') SEPARATOR ','),']'), "$[0]"))
+						poc.actionProgress
 					)
 				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 			) AS actionProgress,
@@ -270,7 +270,7 @@ def products(
 					IF(
 						JSON_LENGTH(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionResult, '"') SEPARATOR ','),']')) > 1,
 						"mixed",
-						JSON_UNQUOTE(JSON_EXTRACT(CONCAT('[',GROUP_CONCAT(DISTINCT CONCAT('"', poc.actionResult, '"') SEPARATOR ','),']'), "$[0]"))
+						poc.actionResult
 					)
 				FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 			) AS actionResult,

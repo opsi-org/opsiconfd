@@ -13,7 +13,7 @@ from functools import lru_cache
 from sqlalchemy import select, text, and_, alias, column
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.mysql import insert
-from sqlalchemy.sql.expression import table
+from sqlalchemy.sql.expression import desc, table
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
 from fastapi import Body, APIRouter, Depends
@@ -192,6 +192,7 @@ def products(
 	Get products from selected depots and clients.
 	"""
 
+
 	params = {}
 	params["product_type"] = type
 	if selectedClients == [] or selectedClients is None:
@@ -204,6 +205,8 @@ def products(
 		params["depots"] = selectedDepots
 
 
+
+	logger.devel(params)
 
 	with mysql.session() as session:
 		where = text("pod.depotId IN :depots AND pod.producttype = :product_type")
@@ -245,6 +248,20 @@ def products(
 						FROM PRODUCT_ON_CLIENT AS poc WHERE poc.productId=pod.productId AND poc.clientId IN :clients
 						ORDER BY poc.clientId
 					) AS clientVersions,
+					0 IN (
+						SELECT if(
+								CONCAT(poc.productVersion, '-', poc.packageVersion) = CONCAT(p.productVersion, '-', p.packageVersion) OR poc.productVersion IS NULL,
+								TRUE,
+								FALSE
+							)
+						FROM PRODUCT_ON_DEPOT as p
+							JOIN CONFIG_STATE AS cs ON cs.configId = 'clientconfig.depot.id'
+							AND cs.objectId IN :clients
+							AND p.depotId = JSON_UNQUOTE(JSON_EXTRACT(cs.values, "$[0]"))
+							JOIN PRODUCT_ON_CLIENT AS poc ON poc.clientId = cs.objectId
+							AND poc.productId = p.productId
+						WHERE p.productId = pod.productId
+					) AS client_version_outdated,
 					(
 						SELECT CONCAT_WS(',',
 							IF(setupScript <> '','setup', NULL),
@@ -259,6 +276,25 @@ def products(
 						WHERE p.productId=pod.productId AND
 							p.productVersion=pod.productVERSION AND p.packageVersion=pod.packageVersion
 					) AS actions,
+					IF (
+						JSON_LENGTH(
+							CONCAT(
+								'[',
+								GROUP_CONCAT(
+									DISTINCT CONCAT(
+										'"',
+										pod.productVersion,
+										'-',
+										pod.packageVersion,
+										'"'
+									) SEPARATOR ','
+								),
+								']'
+							)
+						) > 1,
+						TRUE,
+						FALSE
+					) AS depot_version_diff,
 					GROUP_CONCAT(CONCAT(pod.productVersion,'-',pod.packageVersion) SEPARATOR ',') AS depotVersions,
 					pod.productType AS productType
 				"""
@@ -289,10 +325,10 @@ def products(
 					product["actions"] = product.get("actions").split(",")
 				if product.get("depotVersions"):
 					product["depotVersions"] = product.get("depotVersions").split(",")
-					if any(version != product.get("depotVersions")[0] for version in product.get("depotVersions")):
-						product["depot_version_diff"] = True
-					else:
-						product["depot_version_diff"] = False
+					# if any(version != product.get("depotVersions")[0] for version in product.get("depotVersions")):
+					# 	product["depot_version_diff"] = True
+					# else:
+					# 	product["depot_version_diff"] = False
 				if product.get("selectedClients"):
 					product["selectedClients"] = product.get("selectedClients").split(",")
 				if product.get("installationStatusDetails"):
@@ -334,20 +370,21 @@ def products(
 				if product.get("clientVersions"):
 					product["clientVersions"] = product.get("clientVersions").split(",")
 
-					product["client_version_outdated"] = False
-					for idx, client in enumerate(product.get("selectedClients")):
-						depot = get_depot_of_client(client)
-						client_version = product.get("clientVersions")[idx]
-						product.get("depotVersions")
-						if depot not in product.get("selectedDepots"):
-							depot_version = depot_get_product_version(depot, product.get("productId"))
-						else:
-							depot_version = product.get("depotVersions")[product.get("selectedDepots").index(depot)]
-						if client_version != depot_version:
-							product["client_version_outdated"] = True
-							break
+					# product["client_version_outdated"] = False
+					# for idx, client in enumerate(product.get("selectedClients")):
+					# 	depot = get_depot_of_client(client)
+					# 	client_version = product.get("clientVersions")[idx]
+					# 	product.get("depotVersions")
+					# 	if depot not in product.get("selectedDepots"):
+					# 		depot_version = depot_get_product_version(depot, product.get("productId"))
+					# 	else:
+					# 		depot_version = product.get("depotVersions")[product.get("selectedDepots").index(depot)]
+					# 	if client_version != depot_version:
+					# 		product["client_version_outdated"] = True
+					# 		break
 
 			products.append(product)
+
 
 		products_on_depots = alias(select(text("*"))\
 			.select_from(text("PRODUCT_ON_DEPOT AS pod"))\

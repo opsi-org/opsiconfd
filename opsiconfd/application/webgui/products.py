@@ -13,7 +13,7 @@ from functools import lru_cache
 from sqlalchemy import select, text, and_, alias, column
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.mysql import insert
-from sqlalchemy.sql.expression import desc, table
+from sqlalchemy.sql.expression import table
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
 from fastapi import Body, APIRouter, Depends

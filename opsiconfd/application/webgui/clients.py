@@ -24,12 +24,11 @@ from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
 
-from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list, parse_client_list
+from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list, parse_client_list, parse_selected_list
 
 mysql = get_mysql()
 
 client_router = APIRouter()
-
 
 
 class ClientsResponse(BaseModel): # pylint: disable=too-few-public-methods
@@ -52,7 +51,10 @@ class ClientsResponse(BaseModel): # pylint: disable=too-few-public-methods
 
 
 @client_router.get("/api/opsidata/clients", response_model=ClientsResponse)
-def clients(commons: dict = Depends(common_query_parameters), selectedDepots: List[str] = Depends(parse_depot_list)):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
+def clients(commons: dict = Depends(common_query_parameters), #
+			selectedDepots: List[str] = Depends(parse_depot_list),
+			selected: Optional[List[str]] = Depends(parse_selected_list)
+		):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
 	"""
 	Get Clients on selected depots with infos on the client.
 	"""
@@ -79,6 +81,11 @@ def clients(commons: dict = Depends(common_query_parameters), selectedDepots: Li
 				""")
 			)
 			params["depot_ids"] = selectedDepots
+
+		if selected:
+			params["selected"] = selected
+		else:
+			params["selected"] = [""]
 
 		client_with_depot = alias(
 			select(text("""
@@ -133,7 +140,12 @@ def clients(commons: dict = Depends(common_query_parameters), selectedDepots: Li
 			(
 				SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
 				WHERE poc.clientId = hd.clientId AND poc.actionResult = 'successful'
-			) AS actionResult_successful
+			) AS actionResult_successful,
+			IF(
+				hd.clientId IN :selected,
+				TRUE,
+				FALSE
+			) AS selected
 		""")) \
 		.select_from(client_with_depot)
 
@@ -210,7 +222,7 @@ class Client(BaseModel): # pylint: disable=too-few-public-methods
 	created: Optional[datetime.datetime]
 	lastSeen: Optional[datetime.datetime]
 
-class ClientResponse(BaseModel):
+class ClientResponse(BaseModel): # pylint: disable=too-few-public-methods
 	status: int
 	error: dict
 	data: Client

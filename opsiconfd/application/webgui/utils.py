@@ -210,6 +210,9 @@ def parse_depot_list(selectedDepots: List[str] = Query(None)) -> Optional[List]:
 def parse_client_list(selectedClients: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
 	return parse_list(selectedClients)
 
+def parse_selected_list(selected: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
+	return parse_list(selected)
+
 def parse_list(query_list):
 	def remove_prefix(value: str, prefix: str):
 		return value[value.startswith(prefix) and len(prefix):]

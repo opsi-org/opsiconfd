@@ -8,7 +8,7 @@
 webgui product methods
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 from functools import lru_cache
 from sqlalchemy import select, text, and_, alias, column
 from sqlalchemy.dialects import mysql
@@ -154,7 +154,6 @@ def is_product_on_depot(product, version, package_version, depot):
 	if result:
 		return True
 	return False
-
 
 class ProductsResponse(BaseModel): # pylint: disable=too-few-public-methods
 	class Result(BaseModel): # pylint: disable=too-few-public-methods
@@ -379,7 +378,6 @@ def products(
 		}
 		return JSONResponse(response_data)
 
-
 class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	clientIds: List[str]
 	productIds: List[str]
@@ -540,7 +538,6 @@ async def product_icons():
 	return JSONResponse({
 		"result": {"opsi-client-agent": "assets/images/product_icons/opsi-logo.png"}
 	})
-
 
 class Property(BaseModel): # pylint: disable=too-few-public-methods
 	productId: str
@@ -830,7 +827,7 @@ class ProductProperty(BaseModel): # pylint: disable=too-few-public-methods
 	properties: dict
 
 @product_router.post("/api/opsidata/products/{productId}/properties")
-def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements, too-many-branches
+def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed=True)): # pylint: disable=invalid-name, too-many-locals, too-many-statements, too-many-branches
 	"""
 	Save Product Properties.
 	"""
@@ -848,7 +845,7 @@ def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed
 		status = 400
 		error = "Clients and depots set. Only one is allowed."
 		return JSONResponse({"status": status, "error": error, "data": result_data})
-	elif data.clientIds:
+	if data.clientIds:
 		objects =  objects + data.clientIds
 	elif data.depotIds:
 		objects = objects + data.depotIds
@@ -884,7 +881,7 @@ def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed
 			if isinstance(data.properties[property_id], bool):
 				pp_values = (f'[{data.properties[property_id]}]'.lower())
 			elif isinstance(data.properties[property_id], list):
-				pp_values = data.properties[property_id]
+				pp_values = f"{data.properties[property_id]}"
 			else:
 				pp_values = (f'["{data.properties[property_id]}"]')
 

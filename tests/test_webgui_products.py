@@ -69,7 +69,8 @@ test_data = [
 						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
-						"actionResult": None
+						"actionResult": None,
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-1",
@@ -98,7 +99,8 @@ test_data = [
 						"actionRequest": "setup",
 						"actionProgress": None,
 						"actionResult": "none",
-						"client_version_outdated": False
+						"client_version_outdated": False,
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-2",
@@ -123,7 +125,8 @@ test_data = [
 						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
-						"actionResult": None
+						"actionResult": None,
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-3",
@@ -148,7 +151,8 @@ test_data = [
 						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
-						"actionResult": None
+						"actionResult": None,
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-4",
@@ -184,7 +188,8 @@ test_data = [
 						"actionRequest": "mixed",
 						"actionProgress": None,
 						"actionResult": "none",
-						"client_version_outdated": True
+						"client_version_outdated": True,
+						"selected": 0
 					}
 				],
 				"total": 5
@@ -226,7 +231,8 @@ test_data = [
 							"1.0-1"
 						],
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-1",
@@ -250,7 +256,8 @@ test_data = [
 							"1.0-1"
 						],
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-2",
@@ -274,7 +281,8 @@ test_data = [
 							"1.0-1"
 						],
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-3",
@@ -298,7 +306,8 @@ test_data = [
 							"1.0-1"
 						],
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-4",
@@ -322,7 +331,8 @@ test_data = [
 							"1.0-1"
 						],
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					}
 				],
 				"total": 5
@@ -366,7 +376,8 @@ test_data = [
 							"1.0-1"
 						],
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-1",
@@ -394,7 +405,8 @@ test_data = [
 							"1.0-1"
 						],
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					}
 				],
 				"total": 5
@@ -438,7 +450,8 @@ test_data = [
 							"1.0-1"
 						],
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-3",
@@ -462,7 +475,8 @@ test_data = [
 							"1.0-1"
 						],
 						"depot_version_diff": False,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					}
 				],
 				"total": 5
@@ -513,7 +527,8 @@ test_data = [
 						"actionRequest": "setup",
 						"actionProgress": None,
 						"actionResult": "none",
-						"client_version_outdated": False
+						"client_version_outdated": False,
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-2",
@@ -540,7 +555,8 @@ test_data = [
 						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
-						"actionResult": None
+						"actionResult": None,
+						"selected": 0
 					},
 					{
 						"productId": "pytest-prod-3",
@@ -567,7 +583,8 @@ test_data = [
 						"installationStatus": "not_installed",
 						"actionRequest": None,
 						"actionProgress": None,
-						"actionResult": None
+						"actionResult": None,
+						"selected": 0
 					}
 				],
 				"total": 4
@@ -615,7 +632,8 @@ test_data = [
 							depot_versions.get(depots[2])
 						],
 						"depot_version_diff": True,
-						"productType": "LocalbootProduct"
+						"productType": "LocalbootProduct",
+						"selected": 0
 					}
 				],
 				"total": 1

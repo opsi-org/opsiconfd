@@ -24,7 +24,16 @@ from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
 
-from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list, parse_client_list, parse_selected_list
+from .utils import (
+	get_mysql,
+	order_by,
+	pagination,
+	get_configserver_id,
+	common_query_parameters,
+	parse_depot_list,
+	parse_client_list,
+	parse_selected_list
+)
 
 mysql = get_mysql()
 
@@ -58,6 +67,7 @@ def clients(commons: dict = Depends(common_query_parameters), #
 	"""
 	Get Clients on selected depots with infos on the client.
 	"""
+
 	with mysql.session() as session:
 		where = text("h.type = 'OpsiClient'")
 		params = {}

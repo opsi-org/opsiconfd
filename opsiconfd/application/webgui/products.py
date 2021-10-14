@@ -330,8 +330,6 @@ def products(
 		query = order_by(query, commons)
 		query = pagination(query, commons)
 
-		logger.devel(params)
-
 		result = session.execute(query, params)
 		result = result.fetchall()
 
@@ -786,8 +784,6 @@ def product_properties(
 def get_product_properties(product, version):
 
 	product_version, package_version = version.split("-", 1)
-	logger.devel(product)
-	logger.devel(version)
 	with mysql.session() as session:
 		query = select(text("propertyId"))\
 			.select_from(text("PRODUCT_PROPERTY"))\
@@ -802,14 +798,10 @@ def get_product_properties(product, version):
 		properties = []
 		for row in result:
 			if row is not None:
-				logger.devel(dict(row))
 				properties.append(dict(row).get("propertyId"))
 	return properties
 
 def get_product_product_property_state(object_id, product_id, property_id):
-	logger.devel(object_id)
-	logger.devel(product_id)
-	logger.devel(property_id)
 
 	with mysql.session() as session:
 		query = select(text("""
@@ -827,7 +819,6 @@ def get_product_product_property_state(object_id, product_id, property_id):
 			"object_id": object_id
 		})
 		res = result.fetchone()
-		logger.devel(res)
 		if not res:
 			return None
 		return res[0]
@@ -837,8 +828,6 @@ class ProductProperty(BaseModel): # pylint: disable=too-few-public-methods
 	clientIds: Optional[List[str]] = []
 	depotIds: Optional[List[str]] = []
 	properties: dict
-	# propertyIds: List[str]
-	# values:  Union[bool, str, list]
 
 @product_router.post("/api/opsidata/products/{productId}/properties")
 def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements, too-many-branches
@@ -855,8 +844,18 @@ def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed
 	depot_product_version = {}
 
 	objects = []
-	objects =  objects + data.clientIds
-	objects = objects + data.depotIds
+	if data.clientIds and data.depotIds:
+		status = 400
+		error = "Clients and depots set. Only one is allowed."
+		return JSONResponse({"status": status, "error": error, "data": result_data})
+	elif data.clientIds:
+		objects =  objects + data.clientIds
+	elif data.depotIds:
+		objects = objects + data.depotIds
+	else:
+		status = 400
+		error = "No clients or depots set."
+		return JSONResponse({"status": status, "error": error, "data": result_data})
 
 
 	for object_id in objects:
@@ -872,42 +871,38 @@ def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed
 		version = depot_product_version[depot_id][productId]
 
 		available_properties = get_product_properties(productId, version)
-		logger.devel(available_properties)
 
-		for property in data.properties:
+		for property_id in data.properties:
 
-			if property not in available_properties:
-				logger.error("Propertiy %s does not exist on %s.", property, depot_id)
+			if property_id not in available_properties:
+				logger.error("Propertiy %s does not exist on %s.", property_id, depot_id)
 				status = 400
-				result_data[object_id][property] = f"Failed to set Property: {property} for {productId} on {object_id}. Propertie does not exist."
-				error[object_id] = result_data[object_id][property] + "\n "
+				result_data[object_id][property_id] = f"Failed to set Property: {property_id} for {productId} on {object_id}. Propertie does not exist."
+				error[object_id] = result_data[object_id][property_id] + "\n "
 				continue
 
-			logger.devel(type(data.properties[property]))
-			if isinstance(data.properties[property], bool):
-				pp_values = (f'[{data.properties[property]}]'.lower())
-			elif isinstance(data.properties[property], list):
-				pp_values = data.properties[property]
+			if isinstance(data.properties[property_id], bool):
+				pp_values = (f'[{data.properties[property_id]}]'.lower())
+			elif isinstance(data.properties[property_id], list):
+				pp_values = data.properties[property_id]
 			else:
-				pp_values = (f'["{data.properties[property]}"]')
+				pp_values = (f'["{data.properties[property_id]}"]')
 
 			values = {
 				"objectId": object_id,
 				"productId": productId,
-				"propertyId": property,
+				"propertyId": property_id,
 				"values": pp_values
 			}
 
 			try:
 				with mysql.session() as session:
-					if get_product_product_property_state(object_id, productId, property):
-						logger.devel("update")
+					if get_product_product_property_state(object_id, productId, property_id):
 						stmt = update(
 							table("PRODUCT_PROPERTY_STATE", *[column(name) for name in values.keys()]) # pylint: disable=consider-iterating-dictionary
 						)\
-						.where(text(f"productId = '{productId}' AND objectId = '{object_id}' AND propertyId = '{property}'"))\
+						.where(text(f"productId = '{productId}' AND objectId = '{object_id}' AND propertyId = '{property_id}'"))\
 						.values(**values)
-						logger.devel(stmt)
 						session.execute(stmt, values)
 					else:
 						stmt = insert(
@@ -915,14 +910,14 @@ def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed
 						).values(**values).on_duplicate_key_update(**values)
 						session.execute(stmt)
 
-				result_data[object_id][property] = values
+				result_data[object_id][property_id] = values
 			except Exception as err: # pylint: disable=broad-except
 				logger.error("Could not save product property state: %s", err)
 				#error["Error"] = str(err)
 				#status = max(status, 500)
 				status = 400
-				result_data[object_id][property] = f"Failed to set Property: {property} for {productId} on {object_id}."
-				error[object_id] = result_data[object_id][property] + "\n "
+				result_data[object_id][property_id] = f"Failed to set Property: {property_id} for {productId} on {object_id}."
+				error[object_id] = result_data[object_id][property_id] + "\n "
 				continue
 
 	return JSONResponse({"status": status, "error": error, "data": result_data})

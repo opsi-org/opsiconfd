@@ -13,7 +13,7 @@ from functools import lru_cache
 from sqlalchemy import select, text, and_, alias, column
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.mysql import insert
-from sqlalchemy.sql.expression import table
+from sqlalchemy.sql.expression import table, update
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
 from fastapi import Body, APIRouter, Depends
@@ -38,7 +38,7 @@ from .utils import (
 mysql = get_mysql()
 product_router = APIRouter()
 
-
+@lru_cache(maxsize=1000)
 def depot_get_product_version(depot, product):
 	version = None
 	params = {}
@@ -154,7 +154,6 @@ def is_product_on_depot(product, version, package_version, depot):
 	if result:
 		return True
 	return False
-
 
 class ProductsResponse(BaseModel): # pylint: disable=too-few-public-methods
 	class Result(BaseModel): # pylint: disable=too-few-public-methods
@@ -379,7 +378,6 @@ def products(
 		}
 		return JSONResponse(response_data)
 
-
 class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	clientIds: List[str]
 	productIds: List[str]
@@ -400,6 +398,7 @@ def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disa
 	product_actions = {}
 
 	get_product_type.cache_clear()
+	depot_get_product_version.cache_clear()
 
 	for client_id in data.clientIds:
 		if not client_id in result_data:
@@ -540,7 +539,6 @@ async def product_icons():
 		"result": {"opsi-client-agent": "assets/images/product_icons/opsi-logo.png"}
 	})
 
-
 class Property(BaseModel): # pylint: disable=too-few-public-methods
 	productId: str
 	propertyId: str
@@ -591,6 +589,9 @@ def product_properties(
 	params["depots"] = []
 	where = text("pp.productId = :productId")
 	clients_on_depot = {}
+
+	depot_get_product_version.cache_clear()
+
 	if not selectedClients and not selectedDepots:
 		error = {"message": "No clients and no depots were selected."}
 		return JSONResponse({"status": 400, "error": error, "data": data})
@@ -775,6 +776,148 @@ def product_properties(
 
 	return JSONResponse({"status": status_code, "error": error, "data": data})
 
+
+@lru_cache(maxsize=1000)
+def get_product_properties(product, version):
+
+	product_version, package_version = version.split("-", 1)
+	with mysql.session() as session:
+		query = select(text("propertyId"))\
+			.select_from(text("PRODUCT_PROPERTY"))\
+			.where(text("productId = :product_id AND productVersion = :product_version AND packageVersion = :package_version"))
+
+		result = session.execute(query, {
+			"product_id": product,
+			"product_version": product_version,
+			"package_version": package_version
+		})
+		result = result.fetchall()
+		properties = []
+		for row in result:
+			if row is not None:
+				properties.append(dict(row).get("propertyId"))
+	return properties
+
+def get_product_product_property_state(object_id, product_id, property_id):
+
+	with mysql.session() as session:
+		query = select(text("""
+			pps.objectId AS objectId,
+			pps.productId AS productId,
+			pps.propertyId AS propertyId,
+			pps.`values` AS `values`
+		"""))\
+			.select_from(text("PRODUCT_PROPERTY_STATE AS pps"))\
+			.where(text("productId = :product_id AND objectId = :object_id AND propertyId = :property_id"))
+
+		result = session.execute(query, {
+			"product_id": product_id,
+			"property_id": property_id,
+			"object_id": object_id
+		})
+		res = result.fetchone()
+		if not res:
+			return None
+		return res[0]
+
+
+class ProductProperty(BaseModel): # pylint: disable=too-few-public-methods
+	clientIds: Optional[List[str]] = []
+	depotIds: Optional[List[str]] = []
+	properties: dict
+
+@product_router.post("/api/opsidata/products/{productId}/properties")
+def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed=True)): # pylint: disable=invalid-name, too-many-locals, too-many-statements, too-many-branches
+	"""
+	Save Product Properties.
+	"""
+
+	get_product_properties.cache_clear()
+	depot_get_product_version.cache_clear()
+
+	status = 200
+	error = {}
+	result_data = {}
+	depot_product_version = {}
+
+	objects = []
+	if data.clientIds and data.depotIds:
+		status = 400
+		error = "Clients and depots set. Only one is allowed."
+		return JSONResponse({"status": status, "error": error, "data": result_data})
+	if data.clientIds:
+		objects =  objects + data.clientIds
+	elif data.depotIds:
+		objects = objects + data.depotIds
+	else:
+		status = 400
+		error = "No clients or depots set."
+		return JSONResponse({"status": status, "error": error, "data": result_data})
+
+
+	for object_id in objects:
+		if not object_id in result_data:
+			result_data[object_id] = {}
+
+		depot_id = get_depot_of_client(object_id)
+
+		if not depot_id in depot_product_version:
+			depot_product_version[depot_id] = {}
+			depot_product_version[depot_id][productId] = depot_get_product_version(depot_id, productId)
+
+		version = depot_product_version[depot_id][productId]
+
+		available_properties = get_product_properties(productId, version)
+
+		for property_id in data.properties:
+
+			if property_id not in available_properties:
+				logger.error("Propertiy %s does not exist on %s.", property_id, depot_id)
+				status = 400
+				result_data[object_id][property_id] = f"Failed to set Property: {property_id} for {productId} on {object_id}. Propertie does not exist."
+				error[object_id] = result_data[object_id][property_id] + "\n "
+				continue
+
+			if isinstance(data.properties[property_id], bool):
+				pp_values = (f'[{data.properties[property_id]}]'.lower())
+			elif isinstance(data.properties[property_id], list):
+				pp_values = f"{data.properties[property_id]}"
+			else:
+				pp_values = (f'["{data.properties[property_id]}"]')
+
+			values = {
+				"objectId": object_id,
+				"productId": productId,
+				"propertyId": property_id,
+				"values": pp_values
+			}
+
+			try:
+				with mysql.session() as session:
+					if get_product_product_property_state(object_id, productId, property_id):
+						stmt = update(
+							table("PRODUCT_PROPERTY_STATE", *[column(name) for name in values.keys()]) # pylint: disable=consider-iterating-dictionary
+						)\
+						.where(text(f"productId = '{productId}' AND objectId = '{object_id}' AND propertyId = '{property_id}'"))\
+						.values(**values)
+						session.execute(stmt, values)
+					else:
+						stmt = insert(
+							table("PRODUCT_PROPERTY_STATE", *[column(name) for name in values.keys()]) # pylint: disable=consider-iterating-dictionary
+						).values(**values).on_duplicate_key_update(**values)
+						session.execute(stmt)
+
+				result_data[object_id][property_id] = values
+			except Exception as err: # pylint: disable=broad-except
+				logger.error("Could not save product property state: %s", err)
+				#error["Error"] = str(err)
+				#status = max(status, 500)
+				status = 400
+				result_data[object_id][property_id] = f"Failed to set Property: {property_id} for {productId} on {object_id}."
+				error[object_id] = result_data[object_id][property_id] + "\n "
+				continue
+
+	return JSONResponse({"status": status, "error": error, "data": result_data})
 
 
 class Dependency(BaseModel): # pylint: disable=too-few-public-methods

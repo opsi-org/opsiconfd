@@ -42,8 +42,12 @@ def order_by(query, params):
 	if params.get("sortDesc", False):
 		func = desc
 	sort_list = []
-	for col in params["sortBy"].split(","):
-		sort_list.append(func(column(col)))
+	if isinstance(params["sortBy"], list):
+		for col in params["sortBy"]:
+			sort_list.append(func(column(col)))
+	else:
+		for col in params["sortBy"].split(","):
+			sort_list.append(func(column(col)))
 	return query.order_by(*sort_list)
 
 
@@ -189,14 +193,14 @@ def common_query_parameters(
 		filterQuery: Optional[str] = Query(default=None , embed=True),
 		pageNumber: Optional[int] = Query(default=1 , embed=True),
 		perPage:  Optional[int] = Query(default=20 , embed=True),
-		sortBy:  Optional[str] = Query(default=None , embed=True),
+		sortBy:  Optional[List[str] ] = Query(default=None , embed=True),
 		sortDesc: Optional[bool] = Query(default=True , embed=True)
 	): # pylint: disable=invalid-name
 	return {
 		"filterQuery": filterQuery,
 		"pageNumber": pageNumber,
 		"perPage": perPage,
-		"sortBy": sortBy,
+		"sortBy": parse_list(sortBy),
 		"sortDesc": sortDesc
 	}
 
@@ -209,6 +213,9 @@ def parse_depot_list(selectedDepots: List[str] = Query(None)) -> Optional[List]:
 
 def parse_client_list(selectedClients: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
 	return parse_list(selectedClients)
+
+def parse_selected_list(selected: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
+	return parse_list(selected)
 
 def parse_list(query_list):
 	def remove_prefix(value: str, prefix: str):

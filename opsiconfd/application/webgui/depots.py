@@ -8,14 +8,14 @@
 webgui depot methods
 """
 
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, or_
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list
+from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list, parse_selected_list
 
 mysql = get_mysql()
 
@@ -56,14 +56,19 @@ class DepotResponse(BaseModel):  # pylint: disable=too-few-public-methods
 	configserver: str
 
 @depot_router.get("/api/opsidata/depots", response_model=DepotResponse)
-def depots(commons: dict = Depends(common_query_parameters)):
+def depots(commons: dict = Depends(common_query_parameters), selected: Optional[List[str]] = Depends(parse_selected_list)):
 	"""
 	Get all depots with depotId, ident, type, ip and description.
 	"""
+	params = {}
+	if selected:
+		params["selected"] = selected
+	else:
+		params["selected"] = [""]
 
 	with mysql.session() as session:
 		where = text("h.type IN ('OpsiConfigserver', 'OpsiDepotserver')")
-		params = {}
+
 		if commons.get("filterQuery"):
 			where = and_(
 				where,
@@ -71,13 +76,18 @@ def depots(commons: dict = Depends(common_query_parameters)):
 			)
 			params["search"] = f"%{commons['filterQuery']}%"
 
-		query = select(text(
-				"h.hostId AS depotId, "
-				"h.hostId AS ident, "
-				"h.type, "
-				"h.ipAddress AS ip, "
-				"h.description "
-			))\
+		query = select(text("""
+				h.hostId AS depotId,
+				h.hostId AS ident,
+				h.type,
+				h.ipAddress AS ip,
+				h.description,
+				IF(
+					h.hostId IN :selected,
+					TRUE,
+					FALSE
+				) AS selected
+			"""))\
 			.select_from(text("HOST AS h"))\
 			.where(where)
 		query = order_by(query, commons)

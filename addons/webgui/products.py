@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
 
-from .utils import (
+from opsiconfd.application.utils import (
 	get_mysql,
 	get_configserver_id,
 	order_by,

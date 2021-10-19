@@ -15,7 +15,7 @@ from sqlalchemy import select, text, and_, or_
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list
+from opsiconfd.application.utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list
 
 mysql = get_mysql()
 

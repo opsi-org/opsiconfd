@@ -282,7 +282,6 @@ def application_setup():
 	webdav_setup(app)
 	metrics_setup(app)
 	status_setup(app)
-	webgui_setup(app)
 	messagebroker_setup(app)
 
 	AddonManager().load_addons()

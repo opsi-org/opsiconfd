@@ -18,12 +18,14 @@ from fastapi.staticfiles import StaticFiles
 from opsiconfd import contextvar_client_session
 from opsiconfd.backend import get_backend
 from opsiconfd.config import config
+from opsiconfd.logging import logger
+from opsiconfd.application.utils import get_mysql, get_allowed_objects, build_tree, get_username, get_configserver_id
 
 from .hosts import host_router
 from .clients import client_router
 from .products import product_router
 from .depots import depot_router
-from .utils import get_mysql, get_allowed_objects, build_tree, get_username, get_configserver_id
+
 
 WEBGUI_APP_PATH = config.webgui_folder
 
@@ -38,6 +40,10 @@ def webgui_setup(app):
 	app.include_router(host_router, prefix="/webgui")
 	app.include_router(client_router, prefix="/webgui")
 	app.include_router(depot_router, prefix="/webgui")
+
+	if not mysql:
+		logger.warning("No mysql backend! Webgui only works with mysql backend.")
+
 
 	if os.path.isdir(WEBGUI_APP_PATH):
 		app.mount("/webgui/app", StaticFiles(directory=WEBGUI_APP_PATH, html=True), name="app")

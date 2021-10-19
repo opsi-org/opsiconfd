@@ -17,7 +17,7 @@ from sqlalchemy import select, union, text, and_, or_
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from .utils import (
+from opsiconfd.application.utils import (
 	get_mysql, order_by,
 	pagination,
 	get_allowed_objects,

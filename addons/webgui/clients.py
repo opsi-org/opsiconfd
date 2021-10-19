@@ -22,8 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import APIRouter, Depends, Request, status
 
 from opsiconfd.logging import logger
-
-from .utils import (
+from opsiconfd.application.utils import (
 	get_mysql,
 	order_by,
 	pagination,
@@ -71,6 +70,7 @@ def clients(request: Request, commons: dict = Depends(common_query_parameters), 
 	"""
 	Get Clients on selected depots with infos on the client.
 	"""
+	logger.devel("!!!clients!!!")
 	with mysql.session() as session:
 		where = text("h.type = 'OpsiClient'")
 		params = {}

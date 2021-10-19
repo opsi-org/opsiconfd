@@ -1,5 +1,6 @@
 /.venv
 /build
+/BUILD
 /debian
 /dist
 /python-opsi
@@ -19,3 +20,6 @@ docker/dev.env
 
 opsibackups/
 opsi-utils/
+
+sql/
+changelogs/

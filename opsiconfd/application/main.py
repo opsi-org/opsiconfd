@@ -46,7 +46,6 @@ from .jsonrpcinterface import jsonrpc_interface_setup
 from .admininterface import admin_interface_setup
 from .redisinterface import redis_interface_setup
 from .monitoring.monitoring import monitoring_setup
-from .webgui.webgui import webgui_setup
 from .status import status_setup
 from .messagebroker import messagebroker_setup
 

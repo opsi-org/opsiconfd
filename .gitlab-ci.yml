@@ -42,6 +42,8 @@ stages:
 
   # Configure opsiconfd
   mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot
+  mkdir -p /var/lib/opsiconfd
+  ln -s addons /var/lib/opsiconfd/addons
   echo "redis-internal-url = redis://redis" > /etc/opsi/opsiconfd.conf
   echo "log-level-stderr = 0" >> /etc/opsi/opsiconfd.conf
   echo "log-level-file = 6" >> /etc/opsi/opsiconfd.conf

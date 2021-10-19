@@ -9,10 +9,14 @@ webgui utils
 """
 
 from typing import Optional, List
+from functools import  wraps
+import math
+import traceback
 import orjson
 from sqlalchemy import select, text, asc, desc, column
 
-from fastapi import Body, Query
+from fastapi import Body, Query, status
+from fastapi.responses import JSONResponse
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
@@ -274,3 +278,69 @@ def merge_dicts(dict_a, dict_b, path=None):
 		else:
 			dict_a[key] = dict_b[key]
 	return dict_a
+
+
+def opsi_api(func):
+	name = func.__qualname__
+
+	@wraps(func)
+	def create_response(*args, **kwargs): # pylint: disable=too-many-branches
+		logger.devel("create_response")
+		logger.devel(name)
+		content = {}
+		try: # pylint: disable=too-many-branches,too-many-nested-blocks
+			func_result = func(*args, **kwargs)
+			headers = func_result.get("headers", {})
+			http_status = func_result.get("http_status", status.HTTP_200_OK)
+
+			if func_result.get("error"):
+				if func_result.get("error_code"):
+					content["code"] = func_result.get("error_code")
+				if traceback.format_exc():
+					content["traceback"] = str(traceback.format_exc())
+				error = func_result.get("error")
+				if isinstance(error, Exception):
+					content["class"] = error.__class__.__name__
+					content["details"] = str(error)
+					logger.error(str(error.__traceback__))
+					logger.error(error.__traceback__.__repr__())
+					logger.error(str(traceback.format_exc()))
+				else:
+					content["class"] = error.get("class")
+					content["details"] = error.get("details")
+			if func_result.get("message"):
+				content["message"] = func_result.get("message")
+			if func_result.get("data"):
+				content = func_result.get("data")
+
+			# add header with total amount of Objects
+			if func_result.get("total"):
+				total = func_result.get("total")
+				headers["X-Total-Count"] = str(total)
+				# add link header next and last
+				if kwargs.get("commons") and kwargs.get("request"):
+					per_page = kwargs.get("commons",{}).get("perPage", 1)
+					if total/per_page > 1:
+						page_number = kwargs.get("commons",{}).get("pageNumber", 1)
+						req = kwargs.get("request")
+						url = req.url
+						link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
+						for param in url.query.split("&"):
+							if param.startswith("pageNumber"):
+								continue
+							link += param + "&"
+						headers["Link"] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+
+			return JSONResponse(content=content if content else None, status_code=http_status, headers=headers)
+
+		except Exception as err: # pylint: disable=broad-except
+			return JSONResponse(
+				content={
+					"class": err.__class__.__name__,
+					"message": str(err),
+					"details": str(traceback.format_exc())
+				},
+				status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+			)
+
+	return create_response

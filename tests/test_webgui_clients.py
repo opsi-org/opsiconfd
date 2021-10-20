@@ -193,3 +193,30 @@ async def test_client_get(config, client_id, expected_result, http_status): # py
 	assert res.status_code == http_status
 	assert res_data == json_data
 
+
+test_data = [
+	(
+		"pytest-client-1.uib.local",
+		None,
+		status.HTTP_200_OK
+	),
+	(
+		"no-client.uib.local",
+		{
+			"message": "Client with id 'no-client.uib.local' not found."
+		},
+		status.HTTP_404_NOT_FOUND
+	)
+
+]
+
+@pytest.mark.parametrize("client_id, expected_result, http_status", test_data)
+@pytest.mark.asyncio
+async def test_clients_delete(config, client_id, expected_result, http_status): # pylint: disable=too-many-arguments,redefined-outer-name
+	res = requests.delete(
+		f"{config.external_url}/webgui/api/opsidata/clients/{client_id}", auth=(ADMIN_USER, ADMIN_PASS), verify=False,
+	)
+
+
+	assert res.status_code == http_status
+	assert res.json() == expected_result

@@ -10,7 +10,7 @@ webgui client methods
 
 from typing import Dict, List, Optional
 
-import datetime
+from datetime import date, datetime
 from ipaddress import IPv4Address, IPv6Address
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
@@ -60,8 +60,8 @@ class Client(BaseModel): # pylint: disable=too-few-public-methods
 	ipAddress: Optional[IPv4Address or IPv6Address]
 	inventoryNumber: Optional[str]
 	oneTimePassword: Optional[str]
-	created: Optional[datetime.datetime]
-	lastSeen: Optional[datetime.datetime]
+	created: Optional[datetime]
+	lastSeen: Optional[datetime]
 
 
 @client_router.get("/api/opsidata/clients", response_model=List[ClientList])
@@ -216,6 +216,9 @@ def create_client(request: Request, client: Client): # pylint: disable=too-many-
 
 	values = vars(client)
 	values["type"] = "OpsiClient"
+	if not values.get("created"):
+		values["created"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+		values["lastSeen"] = values["created"]
 
 	try:
 		with mysql.session() as session:
@@ -277,8 +280,8 @@ def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-d
 			if result:
 				data = dict(result)
 				for key in data.keys():
-					if isinstance(data.get(key), (datetime.date, datetime.datetime)):
-						data[key] = data.get(key).isoformat()
+					if isinstance(data.get(key), (date, datetime)):
+						data[key] = data.get(key).strftime("%Y-%m-%d %H:%M:%S")
 				return { "data": data }
 			return { "http_status": status.HTTP_404_NOT_FOUND,  "message": f"Client with id '{clientid}' not found." }
 		except Exception as err: # pylint: disable=broad-except
@@ -308,7 +311,7 @@ def delete_client(clientid: str):
 
 			if not result:
 				logger.devel("Client does not exist")
-				return {"status": status.HTTP_404_NOT_FOUND, "message": f"Client with id '{clientid}' not found."}
+				return {"http_status": status.HTTP_404_NOT_FOUND, "message": f"Client with id '{clientid}' not found."}
 
 			tables = [
 				"OBJECT_TO_GROUP",
@@ -376,9 +379,9 @@ def delete_client(clientid: str):
 			.where(text(f"HOST.hostId = '{clientid}' and HOST.type = 'OpsiClient'"))
 			session.execute(query)
 
-			return {"status": status.HTTP_200_OK}
+			return {"http_status": status.HTTP_200_OK}
 
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Could not delete client object.")
 			logger.error(err)
-			return {"status": status.HTTP_500_INTERNAL_SERVER_ERROR, "message": "Could not delete client object.", "error": err}
+			return {"http_status": status.HTTP_500_INTERNAL_SERVER_ERROR, "message": "Could not delete client object.", "error": err}

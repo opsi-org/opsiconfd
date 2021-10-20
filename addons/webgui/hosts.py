@@ -17,6 +17,7 @@ from sqlalchemy import select, union, text, and_, or_
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from opsiconfd.logging import logger
 from opsiconfd.application.utils import (
 	get_mysql, order_by,
 	pagination,
@@ -25,7 +26,8 @@ from opsiconfd.application.utils import (
 	build_tree,
 	common_query_parameters,
 	parse_depot_list,
-	parse_hosts_list
+	parse_hosts_list,
+	opsi_api
 )
 
 
@@ -33,22 +35,23 @@ mysql = get_mysql()
 
 host_router = APIRouter()
 
-class HostDataResponse(BaseModel):  # pylint: disable=too-few-public-methods
-	class HostData(BaseModel):  # pylint: disable=too-few-public-methods
-		hostId: str
-		type: str
-		description: str
-		notes: str
-		hardwareAddress: str
-		ipAddress: str
-		inventoryNumber: str
-		created: str
-		lastSeen: str
-		opsiHostKey: str
-		oneTimePassword: str
-	result: List[HostData]
 
-@host_router.get("/api/opsidata/hosts", response_model=HostDataResponse)
+class Host(BaseModel):  # pylint: disable=too-few-public-methods
+	hostId: str
+	type: str
+	description: str
+	notes: str
+	hardwareAddress: str
+	ipAddress: str
+	inventoryNumber: str
+	created: str
+	lastSeen: str
+	opsiHostKey: str
+	oneTimePassword: str
+
+
+@host_router.get("/api/opsidata/hosts", response_model=List[Host])
+@opsi_api
 def get_host_data(
 	commons: dict = Depends(common_query_parameters),
 	hosts: List[str] = Depends(parse_hosts_list),
@@ -58,13 +61,18 @@ def get_host_data(
 	Get host data.
 	"""
 	params = {}
-	params["hosts"] = hosts
+	where = text("")
+	if commons.get("filterQuery"):
+		params["search"] = f"%{commons.get('filterQuery')}%"
+		where = text("h.hostId LIKE :search OR h.description LIKE :search")
+	if hosts:
+		params["hosts"] = hosts
+		where = and_(text("h.hostId in :hosts"))
+	if type:
+		params["type"] = type
+		where = and_(where, text("h.type = :type"))
 
 	with mysql.session() as session:
-		where = text("h.hostId IN :hosts")
-		if type:
-			params["type"] = type
-			where = and_(where, text("h.type = :type"))
 		query = select(text("""
 			h.hostId AS hostId,
 			h.type AS type,
@@ -97,17 +105,12 @@ def get_host_data(
 				host_data.append(row_dict)
 
 		if len(host_data) == 1:
-			response_data = {
-				"result": host_data[0]
-			}
-		else:
-			response_data = {
-				"result": host_data
-			}
-		return JSONResponse(response_data)
+			return { "data": host_data[0] }
+		return { "data": host_data }
 
 
 @host_router.get("/api/opsidata/hosts/groups")
+@opsi_api
 def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), parentGroup: Optional[str] = []): # pylint: disable=too-many-locals, too-many-branches, invalid-name, dangerous-default-value
 	"""
 	Get host groups as tree.
@@ -219,9 +222,4 @@ def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), paren
 
 		host_groups = build_tree(root_group, list(all_groups.values()), allowed["host_groups"])
 
-		response_data = {
-			"result": {
-				"groups": host_groups,
-			}
-		}
-		return JSONResponse(response_data)
+		return {"data": {"groups": host_groups}}

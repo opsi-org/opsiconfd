@@ -154,7 +154,6 @@ async def test_clients_create_integrity_error(config): # pylint: disable=too-man
 	assert res.status_code == status.HTTP_409_CONFLICT
 	assert res.json().get("class") == "IntegrityError"
 	assert res.json().get("message") == "Could not create client object. Client 'myclient.test.local'' already exists"
-	assert res.json().get("details") == f'(MySQLdb._exceptions.IntegrityError) (1062, \"Duplicate entry \'myclient.test.local\' for key \'PRIMARY\'\")\n[SQL: INSERT INTO `HOST` (type, `hostId`, `opsiHostKey`, description, notes, `hardwareAddress`, `ipAddress`, `inventoryNumber`, `oneTimePassword`, created, `lastSeen`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)]\n[parameters: (\'OpsiClient\', \'myclient.test.local\', None, \'test client\', None, None, None, \'120\', None, \'{json_data["created"]}\', \'{json_data["created"]}\')]\n(Background on this error at: https://sqlalche.me/e/14/gkpj)'
 
 
 test_data = [

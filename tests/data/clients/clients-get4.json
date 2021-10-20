@@ -1,0 +1,98 @@
+[
+    {
+        "clientId": "pytest-lost-client.uib.local",
+        "ident": "pytest-lost-client.uib.local",
+        "macAddress": null,
+        "description": null,
+        "notes": null,
+        "version_outdated": 0,
+        "installationStatus_unknown": 0,
+        "installationStatus_installed": 0,
+        "actionResult_failed": 0,
+        "actionResult_successful": 0
+    },
+    {
+        "clientId": "pytest-lost-client-fp2.uib.local",
+        "ident": "pytest-lost-client-fp2.uib.local",
+        "macAddress": null,
+        "description": null,
+        "notes": null,
+        "version_outdated": 0,
+        "installationStatus_unknown": 1,
+        "installationStatus_installed": 0,
+        "actionResult_failed": 1,
+        "actionResult_successful": 0
+    },
+    {
+        "clientId": "pytest-lost-client-fp.uib.local",
+        "ident": "pytest-lost-client-fp.uib.local",
+        "macAddress": null,
+        "description": null,
+        "notes": null,
+        "version_outdated": 0,
+        "installationStatus_unknown": 1,
+        "installationStatus_installed": 0,
+        "actionResult_failed": 1,
+        "actionResult_successful": 0
+    },
+    {
+        "clientId": "pytest-client-4.uib.local",
+        "ident": "pytest-client-4.uib.local",
+        "macAddress": "af:fe:af:fe:af:f4",
+        "description": "description client4",
+        "notes": "notes client4",
+        "version_outdated": 1,
+        "installationStatus_unknown": 0,
+        "installationStatus_installed": 0,
+        "actionResult_failed": 0,
+        "actionResult_successful": 0
+    },
+    {
+        "clientId": "pytest-client-3.uib.local",
+        "ident": "pytest-client-3.uib.local",
+        "macAddress": "af:fe:af:fe:af:f3",
+        "description": "description client3",
+        "notes": "notes client3",
+        "version_outdated": 0,
+        "installationStatus_unknown": 0,
+        "installationStatus_installed": 1,
+        "actionResult_failed": 0,
+        "actionResult_successful": 0
+    },
+    {
+        "clientId": "pytest-client-2.uib.local",
+        "ident": "pytest-client-2.uib.local",
+        "macAddress": "af:fe:af:fe:af:f2",
+        "description": "description client2",
+        "notes": "notes client2",
+        "version_outdated": 0,
+        "installationStatus_unknown": 1,
+        "installationStatus_installed": 0,
+        "actionResult_failed": 1,
+        "actionResult_successful": 0
+    },
+    {
+        "clientId": "pytest-client-1.uib.local",
+        "ident": "pytest-client-1.uib.local",
+        "macAddress": "af:fe:af:fe:af:f1",
+        "description": "description client1",
+        "notes": "notes client1",
+        "version_outdated": 0,
+        "installationStatus_unknown": 0,
+        "installationStatus_installed": 0,
+        "actionResult_failed": 0,
+        "actionResult_successful": 0
+    },
+    {
+        "clientId": "pytest-client-0.uib.local",
+        "ident": "pytest-client-0.uib.local",
+        "macAddress": "af:fe:af:fe:af:f0",
+        "description": "description client0",
+        "notes": "notes client0",
+        "version_outdated": 0,
+        "installationStatus_unknown": 0,
+        "installationStatus_installed": 0,
+        "actionResult_failed": 0,
+        "actionResult_successful": 0
+    }
+]

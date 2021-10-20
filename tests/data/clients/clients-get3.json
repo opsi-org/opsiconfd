@@ -1,0 +1,15 @@
+
+[
+    {
+        "clientId": "pytest-lost-client.uib.local",
+        "ident": "pytest-lost-client.uib.local",
+        "macAddress": null,
+        "description": null,
+        "notes": null,
+        "version_outdated": 0,
+        "installationStatus_unknown": 0,
+        "installationStatus_installed": 0,
+        "actionResult_failed": 0,
+        "actionResult_successful": 0
+    }
+]

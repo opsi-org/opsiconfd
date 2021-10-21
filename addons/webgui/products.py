@@ -16,7 +16,7 @@ from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.sql.expression import table, update
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
-from fastapi import Body, APIRouter, Depends
+from fastapi import Body, APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
@@ -32,7 +32,8 @@ from opsiconfd.application.utils import (
 	parse_client_list,
 	bool_product_property,
 	unicode_product_property,
-	merge_dicts
+	merge_dicts,
+	opsi_api
 )
 
 mysql = get_mysql()
@@ -155,32 +156,28 @@ def is_product_on_depot(product, version, package_version, depot):
 		return True
 	return False
 
-class ProductsResponse(BaseModel): # pylint: disable=too-few-public-methods
-	class Result(BaseModel): # pylint: disable=too-few-public-methods
-		class Product(BaseModel): # pylint: disable=too-few-public-methods
-			productId: str
-			name: str
-			description: str
-			selectedDepots: List[str]
-			depotVersions: List[str]
-			depot_version_diff: bool
-			selctedClients: List[str]
-			clientVersions: List[str]
-			client_version_outdated: bool
-			actions: List[str]
-			productType: str
-			installationStatus: str
-			actionRequest: str
-			actionProgress: str
-			actionResult: str
 
-		products: List[Product]
-		total: int
-	result: Result
-	configserver: str
+class Product(BaseModel): # pylint: disable=too-few-public-methods
+	productId: str
+	name: str
+	description: str
+	selectedDepots: List[str]
+	depotVersions: List[str]
+	depot_version_diff: bool
+	selctedClients: List[str]
+	clientVersions: List[str]
+	client_version_outdated: bool
+	actions: List[str]
+	productType: str
+	installationStatus: str
+	actionRequest: str
+	actionProgress: str
+	actionResult: str
 
 
-@product_router.get("/api/opsidata/products", response_model=ProductsResponse)
+
+@product_router.get("/api/opsidata/products", response_model=List[Product])
+@opsi_api
 def products(
 	commons: dict = Depends(common_query_parameters),
 	type: str = "LocalbootProduct",
@@ -369,14 +366,10 @@ def products(
 			params
 		).fetchone()[0]
 
-		response_data = {
-			"result": {
-				"products": products,
-				"total": total
-			},
-			"configserver": get_configserver_id()
+		return {
+			"data": products,
+			"total": total
 		}
-		return JSONResponse(response_data)
 
 class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	clientIds: List[str]
@@ -386,12 +379,13 @@ class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	actionResult: Optional[str] = None
 	installationStatus: Optional[str] = None
 
-@product_router.patch("/api/opsidata/clients/products")
-def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disable=too-many-locals, too-many-statements, too-many-branches
+@product_router.post("/api/opsidata/clients/products")
+@opsi_api
+def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too-many-statements, too-many-branches
 	"""
 	Save a Product On Client object.
 	"""
-	status = 200
+	http_status = status.HTTP_200_OK
 	error = {}
 	result_data = {}
 	depot_product_version = {}
@@ -412,7 +406,7 @@ def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disa
 			if not product_id in depot_product_version[depot_id]:
 				depot_product_version[depot_id][product_id] = depot_get_product_version(depot_id, product_id)
 			if not depot_product_version[depot_id][product_id]:
-				status = 400
+				http_status = status.HTTP_400_BAD_REQUEST
 				result_data[client_id][product_id] = f"Product '{product_id}' not available on depot '{depot_id}'."
 				error[client_id] = result_data[client_id][product_id] + "\n "
 				continue
@@ -431,7 +425,7 @@ def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disa
 			actions = product_actions[product_id][product_version][package_version]
 
 			if data.actionRequest not in actions:
-				status = 400
+				http_status = status.HTTP_400_BAD_REQUEST
 				result_data[client_id][product_id] = (
 					f"Action request '{data.actionRequest}' not supported by product '{product_id}' version '{version}'."
 				)
@@ -461,15 +455,16 @@ def save_poduct_on_client(data: PocItem = Body(..., embed=True)): # pylint: disa
 				logger.error("Could not create ProductOnClient: %s", err)
 				#error["Error"] = str(err)
 				#status = max(status, 500)
-				status = 400
+				http_status = 400
 				result_data[client_id][product_id] = "Failed to create ProductOnClient."
 				error[client_id] = result_data[client_id][product_id] + "\n "
 				continue
 
-	return JSONResponse({"status": status, "error": error, "data": result_data})
+	return {"http_status": http_status, "error": error, "data": result_data}
 
 
 @product_router.get("/api/opsidata/products/groups")
+@opsi_api
 def get_product_groups(): # pylint: disable=too-many-locals
 	"""
 	Get all product groups as a tree of groups.
@@ -525,12 +520,7 @@ def get_product_groups(): # pylint: disable=too-many-locals
 						"parent": row["group_id"],
 					}
 
-		response_data = {
-			"result": {
-				"groups": all_groups,
-			}
-		}
-		return JSONResponse(response_data)
+		return {"data":{"groups": all_groups}}
 
 
 @product_router.get("/api/opsidata/producticons")
@@ -562,15 +552,8 @@ class Property(BaseModel): # pylint: disable=too-few-public-methods
 	newValue: Optional[str] = ""
 	newValues: Optional[str] = [""]
 
-class Properties(BaseModel): # pylint: disable=too-few-public-methods
-	properties: Dict[str, Property]
-
-class ProductProperiesResponse(BaseModel): # pylint: disable=too-few-public-methods
-	status: int
-	error: dict
-	data: Properties
-
-@product_router.get("/api/opsidata/products/{productId}/properties", response_model=ProductProperiesResponse)
+@product_router.get("/api/opsidata/products/{productId}/properties", response_model=Dict[str, Property])
+@opsi_api
 def product_properties(
 	productId: str,
 	selectedClients: List[str] = Depends(parse_client_list),
@@ -580,8 +563,6 @@ def product_properties(
 	Get products propertiers.
 	"""
 
-	status_code = 200
-	error = None
 	data = {}
 	params = {}
 	data["properties"] = {}
@@ -593,8 +574,7 @@ def product_properties(
 	depot_get_product_version.cache_clear()
 
 	if not selectedClients and not selectedDepots:
-		error = {"message": "No clients and no depots were selected."}
-		return JSONResponse({"status": 400, "error": error, "data": data})
+		return {"http_status": status.HTTP_400_BAD_REQUEST, "message": "No clients and no depots were selected."}
 	if selectedClients:
 		for client in selectedClients:
 			depot = get_depot_of_client(client)
@@ -768,13 +748,12 @@ def product_properties(
 				if not property.get("anyClientDifferentFromDepot"):
 					property["anyClientDifferentFromDepot"] = False
 
+			return {"data": data}
+
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Could not get properties.")
 			logger.error(err)
-			error = {"message": str(err), "class": err.__class__.__name__}
-			status_code = max(status_code, 500)
-
-	return JSONResponse({"status": status_code, "error": error, "data": data})
+			return {"http_status": status.HTTP_500_INTERNAL_SERVER_ERROR, "error": err, "message": "Could not get properties."}
 
 
 @lru_cache(maxsize=1000)
@@ -827,7 +806,8 @@ class ProductProperty(BaseModel): # pylint: disable=too-few-public-methods
 	properties: dict
 
 @product_router.post("/api/opsidata/products/{productId}/properties")
-def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed=True)): # pylint: disable=invalid-name, too-many-locals, too-many-statements, too-many-branches
+@opsi_api
+def save_poduct_property(productId: str, data: ProductProperty): # pylint: disable=invalid-name, too-many-locals, too-many-statements, too-many-branches
 	"""
 	Save Product Properties.
 	"""
@@ -835,24 +815,19 @@ def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed
 	get_product_properties.cache_clear()
 	depot_get_product_version.cache_clear()
 
-	status = 200
 	error = {}
 	result_data = {}
 	depot_product_version = {}
 
 	objects = []
 	if data.clientIds and data.depotIds:
-		status = 400
-		error = "Clients and depots set. Only one is allowed."
-		return JSONResponse({"status": status, "error": error, "data": result_data})
+		return {"http_status": status.HTTP_400_BAD_REQUEST, "message": "Clients and depots set. Only one is allowed."}
 	if data.clientIds:
 		objects =  objects + data.clientIds
 	elif data.depotIds:
 		objects = objects + data.depotIds
 	else:
-		status = 400
-		error = "No clients or depots set."
-		return JSONResponse({"status": status, "error": error, "data": result_data})
+		return {"http_status": status.HTTP_400_BAD_REQUEST, "message": "No clients or depots set."}
 
 
 	for object_id in objects:
@@ -873,9 +848,11 @@ def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed
 
 			if property_id not in available_properties:
 				logger.error("Propertiy %s does not exist on %s.", property_id, depot_id)
-				status = 400
-				result_data[object_id][property_id] = f"Failed to set Property: {property_id} for {productId} on {object_id}. Propertie does not exist."
-				error[object_id] = result_data[object_id][property_id] + "\n "
+				http_status = status.HTTP_400_BAD_REQUEST
+				result_data[object_id][property_id] = f"Failed to set Property: {property_id} for {productId} on {object_id}. Property does not exist."
+				if not object_id in error:
+					error[object_id] = ""
+				error[object_id] = error[object_id] + result_data[object_id][property_id] + "\n "
 				continue
 
 			if isinstance(data.properties[property_id], bool):
@@ -910,14 +887,12 @@ def save_poduct_property(productId: str, data: ProductProperty = Body(..., embed
 				result_data[object_id][property_id] = values
 			except Exception as err: # pylint: disable=broad-except
 				logger.error("Could not save product property state: %s", err)
-				#error["Error"] = str(err)
-				#status = max(status, 500)
-				status = 400
+				http_status = status.HTTP_400_BAD_REQUEST
 				result_data[object_id][property_id] = f"Failed to set Property: {property_id} for {productId} on {object_id}."
 				error[object_id] = result_data[object_id][property_id] + "\n "
 				continue
 
-	return JSONResponse({"status": status, "error": error, "data": result_data})
+	return {"http_status": http_status, "message": error, "data": result_data}
 
 
 class Dependency(BaseModel): # pylint: disable=too-few-public-methods

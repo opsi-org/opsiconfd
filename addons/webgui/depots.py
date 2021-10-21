@@ -13,7 +13,6 @@ from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, or_
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
 
 from opsiconfd.application.utils import (
 	get_mysql,

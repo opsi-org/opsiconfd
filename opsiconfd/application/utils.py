@@ -308,10 +308,10 @@ def opsi_api(func):
 				else:
 					content["class"] = error.get("class")
 					content["details"] = error.get("details")
-			if func_result.get("message"):
-				content["message"] = func_result.get("message")
 			if func_result.get("data"):
 				content = func_result.get("data")
+			if func_result.get("message"):
+				content["message"] = func_result.get("message")
 
 			# add header with total amount of Objects
 			if func_result.get("total"):

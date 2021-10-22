@@ -15,9 +15,8 @@ from pydantic import BaseModel # pylint: disable=no-name-in-module
 from sqlalchemy import select, union, text, and_, or_
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
 
-from opsiconfd.logging import logger
+# from opsiconfd.logging import logger
 from opsiconfd.application.utils import (
 	get_mysql, order_by,
 	pagination,
@@ -104,8 +103,6 @@ def get_host_data(
 						row_dict[key] = row_dict.get(key).isoformat()
 				host_data.append(row_dict)
 
-		if len(host_data) == 1:
-			return { "data": host_data[0] }
 		return { "data": host_data }
 
 

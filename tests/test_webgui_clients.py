@@ -27,17 +27,6 @@ from .utils import ( # pylint: disable=unused-import
 FQDN = socket.getfqdn()
 FILE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-depots = sorted([
-	FQDN,
-	"pytest-test-depot.uib.gmbh",
-	"pytest-test-depot2.uib.gmbh"
-])
-depot_versions = {
-	FQDN: "1.0-1",
-	"pytest-test-depot.uib.gmbh": "1.0-1",
-	"pytest-test-depot2.uib.gmbh": "2.0-1"
-}
-
 test_data = [
 	(
 		{},

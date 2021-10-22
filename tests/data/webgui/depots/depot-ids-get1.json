@@ -1,0 +1,5 @@
+[
+    "${FQDN}",
+    "pytest-test-depot.uib.gmbh",
+    "pytest-test-depot2.uib.gmbh"
+]

@@ -1,0 +1,28 @@
+[
+    {
+        "hostId": "pytest-client-0.uib.local",
+        "type": "OpsiClient",
+        "description": "description client0",
+        "notes": "notes client0",
+        "hardwareAddress": "af:fe:af:fe:af:f0",
+        "ipAddress": null,
+        "inventoryNumber": "0",
+        "created": "2021-10-22T12:03:51",
+        "lastSeen": "2021-10-22T12:03:51",
+        "opsiHostKey": null,
+        "oneTimePassword": null
+    },
+    {
+        "hostId": "pytest-client-1.uib.local",
+        "type": "OpsiClient",
+        "description": "description client1",
+        "notes": "notes client1",
+        "hardwareAddress": "af:fe:af:fe:af:f1",
+        "ipAddress": null,
+        "inventoryNumber": "1",
+        "created": "2021-10-22T12:03:51",
+        "lastSeen": "2021-10-22T12:03:51",
+        "opsiHostKey": null,
+        "oneTimePassword": null
+    }
+]

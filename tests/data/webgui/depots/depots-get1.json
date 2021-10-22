@@ -1,0 +1,23 @@
+[
+    {
+        "depotId": "${FQDN}",
+        "ident": "${FQDN}",
+        "type": "OpsiConfigserver",
+        "ip": "172.18.0.2",
+        "description": ""
+    },
+    {
+        "depotId": "pytest-test-depot.uib.gmbh",
+        "ident": "pytest-test-depot.uib.gmbh",
+        "type": "OpsiDepotserver",
+        "ip": null,
+        "description": ""
+    },
+    {
+        "depotId": "pytest-test-depot2.uib.gmbh",
+        "ident": "pytest-test-depot2.uib.gmbh",
+        "type": "OpsiDepotserver",
+        "ip": null,
+        "description": ""
+    }
+]

@@ -31,7 +31,7 @@ FILE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),"data","webgu
 test_data = [
 	(
 		"hosts",
-		{},
+		{"sortBy": "type,hostId","perPage":2, "pageNumber": 1, "sortDesc": False},
 		f"{FILE_DIR}/hosts-get1.json"
 	),
 	(
@@ -43,11 +43,6 @@ test_data = [
 		"hosts",
 		{"sortBy": "type,hostId","perPage":2, "pageNumber": 1, "sortDesc": True},
 		f"{FILE_DIR}/hosts-get3.json"
-	),
-	(
-		"hosts",
-		{"sortBy": "type,hostId","perPage":2, "pageNumber": 1, "sortDesc": False},
-		f"{FILE_DIR}/hosts-get4.json"
 	)
 ]
 

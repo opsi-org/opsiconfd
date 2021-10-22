@@ -72,11 +72,8 @@ async def test_hosts_get(config, path, query_params, expected_result): # pylint:
 			del data["lastSeen"]
 			del data["opsiHostKey"]
 
-	print(json_data)
-	print(res_data)
-
 	assert res.status_code == status.HTTP_200_OK
-	assert res_data == json_data
+	assert sorted(res_data, key=lambda item: item["hostId"]) == sorted(json_data, key=lambda item: item["hostId"])
 
 
 

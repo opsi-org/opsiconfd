@@ -135,7 +135,7 @@ async def test_products(config, input_data, expected_result): # pylint: disable=
 	)
 
 	with open(expected_result, "r", encoding="utf-8") as f:
-		json_string = Template(f.read()).substitute(FQDN=FQDN, depots=depots, depot_versions=list(depot_versions.values())).replace("'",'"')
+		json_string = Template(f.read()).substitute(FQDN=FQDN, depots=depots, depot_versions=[x[1] for x in sorted(depot_versions.items())]).replace("'",'"')
 		print(json_string)
 		json_data = json.loads(json_string)
 

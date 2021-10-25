@@ -200,33 +200,8 @@ class SessionMiddleware:
 
 			if not is_public:
 				if not session.user_store.username or not session.user_store.authenticated:
-					# Check if blocked
-					is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}"))
-					if not is_blocked:
-						now = round(time.time())*1000
-						cmd = (
-							f"ts.range opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
-							f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
-						)
-						logger.debug(cmd)
-						try:
-							num_failed_auth = await redis.execute_command(cmd)
-							num_failed_auth =  int(num_failed_auth[-1][1])
-							logger.debug("num_failed_auth: %s", num_failed_auth)
-						except ResponseError as err:
-							num_failed_auth = 0
-							if "key does not exist" not in str(err):
-								raise
-						if num_failed_auth >= config.max_auth_failures:
-							is_blocked = True
-							logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
-							await redis.setex(
-								f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}",
-								config.client_block_time,
-								True
-							)
-					if is_blocked:
-						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
+					# Check if host address is blocked
+					await check_blocked(connection)
 
 					# Authenticate
 					await authenticate(connection, receive, session)
@@ -573,3 +548,33 @@ async def authenticate(connection: HTTPConnection, receive: Receive, session: OP
 	if username == config.monitoring_user:
 		session.user_store.isAdmin = False
 		session.user_store.isReadOnly = True
+
+async def check_blocked(connection: HTTPConnection):
+	logger.info("Checking if client %s is blocked", connection.client.host)
+	redis = await aredis_client()
+	is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}"))
+	if is_blocked:
+		raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
+
+	now = round(time.time())*1000
+	cmd = (
+		f"ts.range opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
+		f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
+	)
+	logger.debug(cmd)
+	try:
+		num_failed_auth = await redis.execute_command(cmd)
+		num_failed_auth =  int(num_failed_auth[-1][1])
+		logger.debug("num_failed_auth: %s", num_failed_auth)
+	except ResponseError as err:
+		num_failed_auth = 0
+		if "key does not exist" not in str(err):
+			raise
+	if num_failed_auth >= config.max_auth_failures:
+		is_blocked = True
+		logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
+		await redis.setex(
+			f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}",
+			config.client_block_time,
+			True
+		)

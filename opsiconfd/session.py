@@ -178,12 +178,12 @@ class SessionMiddleware:
 				await session.init()
 			contextvar_client_session.set(session)
 			scope["session"] = session
+			started_authenticated = session.user_store.authenticated
 
 			#sht = (time.perf_counter() - start) * 1000
 			#if sht > 100:
 			#	logger.warning("Session init took %0.2fms", sht)
 
-			auth_done = False
 			if (
 				connection.scope.get("path", "").startswith("/webgui/api/opsidata") and
 				connection.base_url.hostname in  ("127.0.0.1", "::1", "0.0.0.0", "localhost")
@@ -196,16 +196,13 @@ class SessionMiddleware:
 				else:
 					# Authenticate
 					await authenticate(connection, receive, session)
-					auth_done = True
 
 			if not is_public:
 				if not session.user_store.username or not session.user_store.authenticated:
 					# Check if host address is blocked
 					await check_blocked(connection)
-
 					# Authenticate
 					await authenticate(connection, receive, session)
-					auth_done = True
 
 					if session.user_store.host:
 						logger.info("Host authenticated, updating host object")
@@ -252,7 +249,7 @@ class SessionMiddleware:
 			server_timing = contextvar_server_timing.get()
 			if server_timing:
 				sht = (time.perf_counter() - start) * 1000
-				if not auth_done and sht > 1000:
+				if started_authenticated and sht > 1000:
 					logger.warning("Session handling took %0.2fms", sht)
 				server_timing["session_handling"] = sht
 

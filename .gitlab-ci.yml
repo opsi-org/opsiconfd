@@ -51,7 +51,7 @@ stages:
   echo "backend-config-dir = tests/opsi-config/backends" >> /etc/opsi/opsiconfd.conf
   echo "dispatch-config-file = tests/opsi-config/backendManager/dispatch.conf" >> /etc/opsi/opsiconfd.conf
   echo "static-dir = opsiconfd_data/static" >> /etc/opsi/opsiconfd.conf
-  echo "addon-dirs = /builds/uib/opsiconfd/addons" >> /etc/opsi/opsiconfd.conf
+  echo "addon-dirs = tests/data/addons,addons" >> /etc/opsi/opsiconfd.conf
 
   # Installing opsi test modules file
   echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules

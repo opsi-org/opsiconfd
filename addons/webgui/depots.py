@@ -8,7 +8,7 @@
 webgui depot methods
 """
 
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, or_
 
@@ -21,6 +21,7 @@ from opsiconfd.application.utils import (
 	get_configserver_id,
 	common_query_parameters,
 	parse_depot_list,
+	parse_selected_list,
 	opsi_api
 )
 
@@ -55,14 +56,19 @@ def depot_ids():
 
 @depot_router.get("/api/opsidata/depots", response_model=List[Depot])
 @opsi_api
-def depots(commons: dict = Depends(common_query_parameters)):
+def depots(commons: dict = Depends(common_query_parameters), selected: Optional[List[str]] = Depends(parse_selected_list)):
 	"""
 	Get all depots with depotId, ident, type, ip and description.
 	"""
+	params = {}
+	if selected:
+		params["selected"] = selected
+	else:
+		params["selected"] = [""]
 
 	with mysql.session() as session:
 		where = text("h.type IN ('OpsiConfigserver', 'OpsiDepotserver')")
-		params = {}
+
 		if commons.get("filterQuery"):
 			where = and_(
 				where,
@@ -70,13 +76,18 @@ def depots(commons: dict = Depends(common_query_parameters)):
 			)
 			params["search"] = f"%{commons['filterQuery']}%"
 
-		query = select(text(
-				"h.hostId AS depotId, "
-				"h.hostId AS ident, "
-				"h.type, "
-				"h.ipAddress AS ip, "
-				"h.description "
-			))\
+		query = select(text("""
+				h.hostId AS depotId,
+				h.hostId AS ident,
+				h.type,
+				h.ipAddress AS ip,
+				h.description,
+				IF(
+					h.hostId IN :selected,
+					TRUE,
+					FALSE
+				) AS selected
+			"""))\
 			.select_from(text("HOST AS h"))\
 			.where(where)
 		query = order_by(query, commons)

@@ -12,10 +12,11 @@ import os
 import shutil
 import tempfile
 import pytest
+import requests
 
 from opsiconfd.addon import AddonManager
 
-from .utils import config  # pylint: disable=unused-import
+from .utils import config, clean_redis  # pylint: disable=unused-import
 
 @pytest.fixture(autouse=True)
 def cleanup():
@@ -88,3 +89,27 @@ def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
 	addon_manager.reload_addon("test1")
 	assert len(addon_manager.addons) == 1
 	assert addon_manager.addons[0].name == "NEW NAME"
+
+def tests_addon_public_path(config):  # pylint: disable=redefined-outer-name
+	res = requests.get(f"{config.internal_url}/addons/test1", verify=False)
+	assert res.status_code == 401
+
+	res = requests.get(f"{config.internal_url}/addons/test1/public", verify=False)
+	assert res.status_code == 200
+
+def tests_addon_auth(config):  # pylint: disable=redefined-outer-name
+	session = requests.Session()
+	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
+	assert res.status_code == 401
+
+	res = session.get(f"{config.internal_url}/addons/test1/login", verify=False)
+	assert res.status_code == 200
+
+	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
+	assert res.status_code == 200
+
+	res = session.get(f"{config.internal_url}/addons/test1/logout", verify=False)
+	assert res.status_code == 200
+
+	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
+	assert res.status_code == 401

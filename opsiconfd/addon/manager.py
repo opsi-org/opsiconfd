@@ -109,3 +109,10 @@ class AddonManager(metaclass=Singleton):
 	def reload_addons(self):
 		self.unload_addons()
 		self.load_addons()
+
+	def get_addon_by_path(self, path: str) -> Addon:
+		path = path or ""
+		for addon in self.addons:
+			if path.lower().startswith(addon.router_prefix.lower()):
+				return addon
+		return None

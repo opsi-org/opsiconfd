@@ -30,12 +30,12 @@ from opsiconfd.application.utils import (
 	common_query_parameters,
 	parse_depot_list,
 	parse_client_list,
+	parse_selected_list,
 	opsi_api
 )
 
 mysql = get_mysql()
 client_router = APIRouter()
-
 
 
 class ClientList(BaseModel): # pylint: disable=too-few-public-methods
@@ -95,6 +95,11 @@ def clients(request: Request, commons: dict = Depends(common_query_parameters), 
 			)
 			params["depot_ids"] = selectedDepots
 
+		if selected:
+			params["selected"] = selected
+		else:
+			params["selected"] = [""]
+
 		client_with_depot = alias(
 			select(text("""
 				h.hostId AS clientId,
@@ -148,7 +153,12 @@ def clients(request: Request, commons: dict = Depends(common_query_parameters), 
 			(
 				SELECT COUNT(*) FROM PRODUCT_ON_CLIENT AS poc
 				WHERE poc.clientId = hd.clientId AND poc.actionResult = 'successful'
-			) AS actionResult_successful
+			) AS actionResult_successful,
+			IF(
+				hd.clientId IN :selected,
+				TRUE,
+				FALSE
+			) AS selected
 		""")) \
 		.select_from(client_with_depot)
 

@@ -10,9 +10,10 @@ addon test1
 
 import os
 import tempfile
+import asyncio
 
 from fastapi import FastAPI, APIRouter
-from fastapi.routing import APIRoute
+from fastapi.requests import HTTPConnection
 from fastapi.responses import PlainTextResponse
 
 from opsiconfd.addon import Addon
@@ -26,6 +27,18 @@ router = APIRouter()
 @router.get("")
 def index():
 	return PlainTextResponse("Hello from addon test1")
+
+@router.get("/public")
+def public():
+	return PlainTextResponse("Public addon test1")
+
+@router.get("/login")
+def login():
+	return PlainTextResponse("login")
+
+@router.get("/logout")
+def logout():
+	return PlainTextResponse("logout")
 
 class AddonTest1(Addon):
 	id = ADDON_ID
@@ -43,3 +56,16 @@ class AddonTest1(Addon):
 		with open(os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon_test1_on_unload"), mode="w", encoding="utf8"):
 			pass
 		remove_router(app, router, self.router_prefix)
+
+	async def on_request(self, connection: HTTPConnection):  # pylint: disable=no-self-use,unused-argument
+		"""Called on every request which matches the addons router prefix"""
+		connection.scope["access_needs_admin"] = False
+		if connection.scope["path"] == f"{self.router_prefix}/public":
+			connection.scope["access_is_public"] = True
+		elif connection.scope["path"] == f"{self.router_prefix}/login":
+			connection.scope["session"].user_store.username = "fakeuser"
+			connection.scope["session"].user_store.authenticated = True
+			connection.scope["session"].user_store.isAdmin = False
+			await connection.scope["session"].store()
+		elif connection.scope["path"] == f"{self.router_prefix}/logout":
+			await connection.scope["session"].delete()

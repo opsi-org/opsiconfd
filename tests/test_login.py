@@ -69,25 +69,23 @@ def test_max_sessions(config):  # pylint: disable=redefined-outer-name,unused-ar
 def test_max_auth_failures(config):  # pylint: disable=redefined-outer-name,unused-argument
 	over_limit = 3
 	session = requests.Session()
-	for num in range(1, config.max_auth_failures + 1 + over_limit):
+	for num in range(config.max_auth_failures + over_limit):
 
-		try:
-			redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
-			now = round(time.time())*1000
-			for key in redis_client.scan_iter(f"opsiconfd:stats:client:failed_auth:*"):
-				print("=== key ==>>>", key)
-				cmd = (
-					f"ts.range {key.decode()} "
-					f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
-				)
-				num_failed_auth = redis_client.execute_command(cmd)
-				num_failed_auth =  int(num_failed_auth[-1][1])
-				print("=== num_failed_auth ==>>>", num_failed_auth)
-		except Exception as err:
-			print("===============", err)
+		redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
+		now = round(time.time())*1000
+		for key in redis_client.scan_iter("opsiconfd:stats:client:failed_auth:*"):
+			#print("=== key ==>>>", key)
+			cmd = (
+				f"ts.range {key.decode()} "
+				f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
+			)
+			num_failed_auth = redis_client.execute_command(cmd)
+			num_failed_auth =  int(num_failed_auth[-1][1])
+			#print("=== num_failed_auth ==>>>", num_failed_auth)
 
 		res = session.get(f"{config.external_url}/admin/", auth=("client.domain.tld", "hostkey"), verify=False)
-		if num >= config.max_auth_failures + 1:
+		#print("===>>>", num, config.max_auth_failures, res.status_code)
+		if num > config.max_auth_failures:
 			assert res.status_code == 403
 			assert "blocked" in res.text
 		else:

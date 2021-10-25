@@ -18,11 +18,12 @@ import base64
 import datetime
 import orjson
 import msgpack
+from aredis import StrictRedis
 
 from fastapi import HTTPException, status
+from fastapi.requests import HTTPConnection, Request
 from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
 from starlette.datastructures import MutableHeaders, Headers
-from starlette.requests import HTTPConnection, Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
 
@@ -38,6 +39,7 @@ from . import contextvar_client_session, contextvar_server_timing
 from .backend import get_client_backend
 from .config import config, FQDN
 from .utils import redis_client, aredis_client, ip_address_to_redis_key
+from .addon import AddonManager
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -155,11 +157,18 @@ class SessionMiddleware:
 				await self.app(scope, receive, send)
 				return
 
-			is_public = False
+			scope["access_is_public"] = False
+			scope["access_needs_admin"] = True
 			for pub_path in self._public_path:
 				if scope["path"].startswith(pub_path):
-					is_public = True
+					scope["access_is_public"] = True
 					break
+
+			if (
+				scope["path"].startswith(("/rpc", "/monitoring")) or
+				(scope["path"].startswith("/depot") and scope["method"] in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
+			):
+				scope["access_needs_admin"] = False
 
 			if (
 				scope["path"].startswith("/admin/grafana") and
@@ -173,64 +182,42 @@ class SessionMiddleware:
 					return
 
 			session_id = self.get_session_id_from_headers(connection.headers)
-			if not is_public or session_id:
+			if not scope["access_is_public"] or session_id:
 				session = OPSISession(self, session_id, connection)
 				await session.init()
 			contextvar_client_session.set(session)
 			scope["session"] = session
+			started_authenticated = session.user_store.authenticated
 
 			#sht = (time.perf_counter() - start) * 1000
 			#if sht > 100:
 			#	logger.warning("Session init took %0.2fms", sht)
 
-			auth_done = False
+			if scope["path"].startswith("/addons"):
+				addon = AddonManager().get_addon_by_path(scope["path"])
+				if addon:
+					logger.debug("Calling %s.on_request for path '%s'", addon, scope["path"])
+					await addon.on_request(connection)
+
 			if (
-				connection.scope.get("path", "").startswith("/webgui/api/opsidata") and
+				scope["path"].startswith("/webgui/api/opsidata") and
 				connection.base_url.hostname in  ("127.0.0.1", "::1", "0.0.0.0", "localhost")
 			):
-				if connection.scope.get("method") == "OPTIONS":
-					is_public = True
-			if connection.scope.get("path", "") == "/webgui/api/auth/login":
-				if connection.scope.get("method") == "OPTIONS":
-					is_public = True
+				if scope.get("method") == "OPTIONS":
+					scope["access_is_public"] = True
+			if scope["path"] == "/webgui/api/auth/login":
+				if scope.get("method") == "OPTIONS":
+					scope["access_is_public"] = True
 				else:
 					# Authenticate
 					await authenticate(connection, receive, session)
-					auth_done = True
 
-			if not is_public:
+			if not scope["access_is_public"]:
 				if not session.user_store.username or not session.user_store.authenticated:
-					# Check if blocked
-					is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}"))
-					if not is_blocked:
-						now = round(time.time())*1000
-						cmd = (
-							f"ts.range opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
-							f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
-						)
-						logger.debug(cmd)
-						try:
-							num_failed_auth = await redis.execute_command(cmd)
-							num_failed_auth =  int(num_failed_auth[-1][1])
-							logger.debug("num_failed_auth: %s", num_failed_auth)
-						except ResponseError as err:
-							num_failed_auth = 0
-							if "key does not exist" not in str(err):
-								raise
-						if num_failed_auth >= config.max_auth_failures:
-							is_blocked = True
-							logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
-							await redis.setex(
-								f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}",
-								config.client_block_time,
-								True
-							)
-					if is_blocked:
-						raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
-
+					# Check if host address is blocked
+					await check_blocked(connection, redis)
 					# Authenticate
 					await authenticate(connection, receive, session)
-					auth_done = True
 
 					if session.user_store.host:
 						logger.info("Host authenticated, updating host object")
@@ -264,20 +251,13 @@ class SessionMiddleware:
 								asyncio.get_event_loop().create_task(session.store())
 
 				# Check authorization
-				needs_admin = True
-				if (
-					scope["path"].startswith(("/rpc", "/monitoring")) or
-					(scope["path"].startswith("/depot") and scope["method"] in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
-				):
-					needs_admin = False
-
-				if needs_admin and not session.user_store.isAdmin:
+				if scope["access_needs_admin"] and not session.user_store.isAdmin:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope['method']} {scope['path']}")
 
 			server_timing = contextvar_server_timing.get()
 			if server_timing:
 				sht = (time.perf_counter() - start) * 1000
-				if not auth_done and sht > 1000:
+				if started_authenticated and sht > 1000:
 					logger.warning("Session handling took %0.2fms", sht)
 				server_timing["session_handling"] = sht
 
@@ -304,7 +284,7 @@ class SessionMiddleware:
 
 				status_code = status.HTTP_401_UNAUTHORIZED
 				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
-				if connection.scope.get("path", "").startswith("/webgui/"):
+				if scope["path"].startswith("/webgui/"):
 					# Do not send WWW-Authenticate to webgui / axios
 					headers = {}
 				error = "Authentication error"
@@ -511,13 +491,18 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		# aredis is sometimes slow ~300ms load, using redis for now
 		await run_in_threadpool(self._store)
 
-	def sync_delete(self) -> bool:
+	def sync_delete(self) -> None:
 		with redis_client() as redis:
-			redis.delete(self.redis_key)
+			for _ in range(10):
+				redis.delete(self.redis_key)
+				time.sleep(0.01)
+				# Be sure to delete key
+				if not redis.exists(self.redis_key):
+					break
 		self.session_id = None
 		self.deleted = True
 
-	async def delete(self) -> bool:
+	async def delete(self) -> None:
 		return await run_in_threadpool(self.sync_delete)
 
 	def _update_last_used(self):
@@ -551,7 +536,7 @@ async def authenticate(connection: HTTPConnection, receive: Receive, session: OP
 	logger.info("Start authentication of client %s", connection.client.host)
 	username = None
 	password = None
-	if connection.scope.get("path", "") == "/webgui/api/auth/login":
+	if connection.scope["path"] == "/webgui/api/auth/login":
 		req = Request(connection.scope, receive)
 		form = await req.form()
 		username = form.get("username")
@@ -573,3 +558,34 @@ async def authenticate(connection: HTTPConnection, receive: Receive, session: OP
 	if username == config.monitoring_user:
 		session.user_store.isAdmin = False
 		session.user_store.isReadOnly = True
+
+async def check_blocked(connection: HTTPConnection, redis: StrictRedis = None) -> None:
+	logger.info("Checking if client %s is blocked", connection.client.host)
+	if not redis:
+		redis = await aredis_client()
+	is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}"))
+	if is_blocked:
+		raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
+
+	now = round(time.time())*1000
+	cmd = (
+		f"ts.range opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
+		f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
+	)
+	logger.debug(cmd)
+	try:
+		num_failed_auth = await redis.execute_command(cmd)
+		num_failed_auth =  int(num_failed_auth[-1][1])
+		logger.debug("num_failed_auth: %s", num_failed_auth)
+	except ResponseError as err:
+		num_failed_auth = 0
+		if "key does not exist" not in str(err):
+			raise
+	if num_failed_auth >= config.max_auth_failures:
+		is_blocked = True
+		logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
+		await redis.setex(
+			f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}",
+			config.client_block_time,
+			True
+		)

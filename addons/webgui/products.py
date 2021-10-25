@@ -33,6 +33,7 @@ from opsiconfd.application.utils import (
 	bool_product_property,
 	unicode_product_property,
 	merge_dicts,
+	parse_selected_list,
 	opsi_api
 )
 
@@ -183,6 +184,7 @@ def products(
 	type: str = "LocalbootProduct",
 	selectedClients: List[str] = Depends(parse_client_list),
 	selectedDepots: List[str] = Depends(parse_depot_list),
+	selected: Optional[List[str]] = Depends(parse_selected_list)
 ): # pylint: disable=too-many-locals, too-many-branches, too-many-statements, redefined-builtin, invalid-name
 	"""
 	Get products from selected depots and clients.
@@ -198,6 +200,10 @@ def products(
 		params["depots"] = [get_configserver_id()]
 	else:
 		params["depots"] = selectedDepots
+	if selected:
+		params["selected"] = selected
+	else:
+		params["selected"] = [""]
 
 	with mysql.session() as session:
 		where = text("pod.depotId IN :depots AND pod.producttype = :product_type")
@@ -309,8 +315,12 @@ def products(
 				FALSE
 			) AS depot_version_diff,
 			GROUP_CONCAT(CONCAT(pod.productVersion,'-',pod.packageVersion) SEPARATOR ',') AS depotVersions,
-			pod.productType AS productType
-
+			pod.productType AS productType,
+			IF(
+				pod.productId IN :selected,
+				TRUE,
+				FALSE
+			) AS selected
 		"""
 		))\
 		.select_from(text("PRODUCT_ON_DEPOT AS pod")).where(where).group_by(text("pod.productId"))\

@@ -20,9 +20,9 @@ import orjson
 import msgpack
 
 from fastapi import HTTPException, status
+from fastapi.requests import HTTPConnection, Request
 from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
 from starlette.datastructures import MutableHeaders, Headers
-from starlette.requests import HTTPConnection, Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
 
@@ -38,6 +38,7 @@ from . import contextvar_client_session, contextvar_server_timing
 from .backend import get_client_backend
 from .config import config, FQDN
 from .utils import redis_client, aredis_client, ip_address_to_redis_key
+from .addon import AddonManager
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -155,11 +156,18 @@ class SessionMiddleware:
 				await self.app(scope, receive, send)
 				return
 
-			is_public = False
+			scope["access_is_public"] = False
+			scope["access_needs_admin"] = True
 			for pub_path in self._public_path:
 				if scope["path"].startswith(pub_path):
-					is_public = True
+					scope["access_is_public"] = True
 					break
+
+			if (
+				scope["path"].startswith(("/rpc", "/monitoring")) or
+				(scope["path"].startswith("/depot") and scope["method"] in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
+			):
+				scope["access_needs_admin"] = False
 
 			if (
 				scope["path"].startswith("/admin/grafana") and
@@ -173,7 +181,7 @@ class SessionMiddleware:
 					return
 
 			session_id = self.get_session_id_from_headers(connection.headers)
-			if not is_public or session_id:
+			if not scope["access_is_public"] or session_id:
 				session = OPSISession(self, session_id, connection)
 				await session.init()
 			contextvar_client_session.set(session)
@@ -184,20 +192,26 @@ class SessionMiddleware:
 			#if sht > 100:
 			#	logger.warning("Session init took %0.2fms", sht)
 
+			if scope["path"].startswith("/addons"):
+				addon = AddonManager().get_addon_by_path(scope["path"])
+				if addon:
+					logger.debug("Calling %s.on_request for path '%s'", addon, scope["path"])
+					await addon.on_request(connection)
+
 			if (
-				connection.scope.get("path", "").startswith("/webgui/api/opsidata") and
+				scope["path"].startswith("/webgui/api/opsidata") and
 				connection.base_url.hostname in  ("127.0.0.1", "::1", "0.0.0.0", "localhost")
 			):
-				if connection.scope.get("method") == "OPTIONS":
-					is_public = True
-			if connection.scope.get("path", "") == "/webgui/api/auth/login":
-				if connection.scope.get("method") == "OPTIONS":
-					is_public = True
+				if scope.get("method") == "OPTIONS":
+					scope["access_is_public"] = True
+			if scope["path"] == "/webgui/api/auth/login":
+				if scope.get("method") == "OPTIONS":
+					scope["access_is_public"] = True
 				else:
 					# Authenticate
 					await authenticate(connection, receive, session)
 
-			if not is_public:
+			if not scope["access_is_public"]:
 				if not session.user_store.username or not session.user_store.authenticated:
 					# Check if host address is blocked
 					await check_blocked(connection)
@@ -236,14 +250,7 @@ class SessionMiddleware:
 								asyncio.get_event_loop().create_task(session.store())
 
 				# Check authorization
-				needs_admin = True
-				if (
-					scope["path"].startswith(("/rpc", "/monitoring")) or
-					(scope["path"].startswith("/depot") and scope["method"] in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
-				):
-					needs_admin = False
-
-				if needs_admin and not session.user_store.isAdmin:
+				if scope["access_needs_admin"] and not session.user_store.isAdmin:
 					raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope['method']} {scope['path']}")
 
 			server_timing = contextvar_server_timing.get()
@@ -276,7 +283,7 @@ class SessionMiddleware:
 
 				status_code = status.HTTP_401_UNAUTHORIZED
 				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
-				if connection.scope.get("path", "").startswith("/webgui/"):
+				if scope["path"].startswith("/webgui/"):
 					# Do not send WWW-Authenticate to webgui / axios
 					headers = {}
 				error = "Authentication error"
@@ -483,13 +490,18 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		# aredis is sometimes slow ~300ms load, using redis for now
 		await run_in_threadpool(self._store)
 
-	def sync_delete(self) -> bool:
+	def sync_delete(self) -> None:
 		with redis_client() as redis:
-			redis.delete(self.redis_key)
+			for _ in range(10):
+				redis.delete(self.redis_key)
+				time.sleep(0.01)
+				# Be sure to delete key
+				if not redis.exists(self.redis_key):
+					break
 		self.session_id = None
 		self.deleted = True
 
-	async def delete(self) -> bool:
+	async def delete(self) -> None:
 		return await run_in_threadpool(self.sync_delete)
 
 	def _update_last_used(self):
@@ -523,7 +535,7 @@ async def authenticate(connection: HTTPConnection, receive: Receive, session: OP
 	logger.info("Start authentication of client %s", connection.client.host)
 	username = None
 	password = None
-	if connection.scope.get("path", "") == "/webgui/api/auth/login":
+	if connection.scope["path"] == "/webgui/api/auth/login":
 		req = Request(connection.scope, receive)
 		form = await req.form()
 		username = form.get("username")

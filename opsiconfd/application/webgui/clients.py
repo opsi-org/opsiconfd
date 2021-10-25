@@ -348,7 +348,7 @@ def delete_client(clientid: str):
 			result = result.fetchone()
 
 			if not result:
-				logger.devel("Client does not exist")
+				logger.info("Client does not exist")
 				return JSONResponse({"status": status.HTTP_404_NOT_FOUND, "error": {"message": f"Client with id '{clientid}' not found"}, "data": data})
 
 			tables = [

@@ -11,10 +11,12 @@ addon test1
 import os
 import tempfile
 
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, status, HTTPException
 from fastapi.requests import HTTPConnection
 from fastapi.responses import PlainTextResponse
 from starlette.types import Receive, Send
+
+from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
 from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
@@ -57,8 +59,9 @@ class AddonTest1(Addon):
 			pass
 		remove_router(app, router, self.router_prefix)
 
-	async def on_request(self, connection: HTTPConnection, receive: Receive, send: Send):  # pylint: disable=no-self-use,unused-argument
-		"""Called on every request which matches the addons router prefix"""
+	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
+		"""Called on every request where the path matches the addons router prefix.
+		Return true to skip further request processing."""
 		connection.scope["access_needs_admin"] = False
 		if connection.scope["path"] == f"{self.router_prefix}/public":
 			connection.scope["access_is_public"] = True
@@ -69,3 +72,19 @@ class AddonTest1(Addon):
 			await connection.scope["session"].store()
 		elif connection.scope["path"] == f"{self.router_prefix}/logout":
 			await connection.scope["session"].delete()
+		return False
+
+	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
+		"""Called on every request exception where the path matches the addons router prefix.
+		Return true to skip further request processing."""
+
+		if isinstance(err, (HTTPException, BackendAuthenticationError, BackendPermissionDeniedError)):
+			response = PlainTextResponse(
+				status_code=status.HTTP_401_UNAUTHORIZED,
+				content="addon_test1_error",
+				headers={"X-Addon": "test1"}
+			)
+			await response(connection.scope, receive, send)
+			return True
+
+		return False

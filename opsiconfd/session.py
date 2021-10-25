@@ -124,6 +124,10 @@ class SessionMiddleware:
 		set_context({"client_address": client_address})
 		logger.trace("SessionMiddleware %s", scope)
 
+		addon = None
+		if scope["path"].startswith("/addons"):
+			addon = AddonManager().get_addon_by_path(scope["path"])
+
 		keep_session = True
 		if connection.headers.get("user-agent", "").startswith("curl/"):
 			# Zsync2 will send "curl/<curl-version>" as User-Agent.
@@ -193,11 +197,10 @@ class SessionMiddleware:
 			#if sht > 100:
 			#	logger.warning("Session init took %0.2fms", sht)
 
-			if scope["path"].startswith("/addons"):
-				addon = AddonManager().get_addon_by_path(scope["path"])
-				if addon:
-					logger.debug("Calling %s.on_request for path '%s'", addon, scope["path"])
-					await addon.on_request(connection, receive, send)
+			if addon:
+				logger.debug("Calling %s.handle_request for path '%s'", addon, scope["path"])
+				if await addon.handle_request(connection, receive, send):
+					return
 
 			if (
 				scope["path"].startswith("/webgui/api/opsidata") and
@@ -274,6 +277,11 @@ class SessionMiddleware:
 			await self.app(scope, receive, send_wrapper)
 
 		except Exception as err: # pylint: disable=broad-except
+			if addon:
+				logger.debug("Calling %s.handle_request_exception for path '%s'", addon, scope["path"])
+				if await addon.handle_request_exception(err, connection, receive, send):
+					return
+
 			status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 			headers = None
 			error = None

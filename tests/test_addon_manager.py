@@ -113,3 +113,9 @@ def tests_addon_auth(config):  # pylint: disable=redefined-outer-name
 
 	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
 	assert res.status_code == 401
+
+def tests_addon_exception_handling(config):  # pylint: disable=redefined-outer-name
+	res = requests.get(f"{config.internal_url}/addons/test1", verify=False)
+	assert res.status_code == 401
+	assert res.text == "addon_test1_error"
+	assert res.headers.get("x-addon") == "test1"

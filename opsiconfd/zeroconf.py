@@ -42,7 +42,7 @@ async def register_opsi_services():
 	if not _is_config_server():
 		return
 
-	logger.devel("Register zeroconf service")
+	logger.info("Register zeroconf service")
 
 	if not _zeroconf:
 		iface = None

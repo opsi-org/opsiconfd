@@ -19,6 +19,7 @@ import datetime
 import orjson
 import msgpack
 from aredis import StrictRedis
+from aredis.exceptions import ResponseError
 
 from fastapi import HTTPException, status
 from fastapi.requests import HTTPConnection, Request
@@ -27,7 +28,6 @@ from starlette.datastructures import MutableHeaders, Headers
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
 
-from aredis.exceptions import ResponseError
 from OPSI.Backend.Manager.AccessControl import UserStore
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
@@ -197,7 +197,7 @@ class SessionMiddleware:
 				addon = AddonManager().get_addon_by_path(scope["path"])
 				if addon:
 					logger.debug("Calling %s.on_request for path '%s'", addon, scope["path"])
-					await addon.on_request(connection)
+					await addon.on_request(connection, receive, send)
 
 			if (
 				scope["path"].startswith("/webgui/api/opsidata") and

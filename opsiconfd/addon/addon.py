@@ -10,6 +10,7 @@ opsiconfd - addon
 
 from fastapi import FastAPI
 from fastapi.requests import HTTPConnection
+from starlette.types import Receive, Send
 
 class Addon:
 	id = None  # pylint: disable=invalid-name
@@ -31,7 +32,7 @@ class Addon:
 		"""Called before unloading the addon"""
 		return
 
-	async def on_request(self, connection: HTTPConnection):  # pylint: disable=no-self-use,unused-argument
+	async def on_request(self, connection: HTTPConnection, receive: Receive, send: Send):  # pylint: disable=no-self-use,unused-argument
 		"""Called on every request which matches the addons router prefix"""
 		return
 

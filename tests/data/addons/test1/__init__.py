@@ -10,11 +10,11 @@ addon test1
 
 import os
 import tempfile
-import asyncio
 
 from fastapi import FastAPI, APIRouter
 from fastapi.requests import HTTPConnection
 from fastapi.responses import PlainTextResponse
+from starlette.types import Receive, Send
 
 from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
@@ -57,7 +57,7 @@ class AddonTest1(Addon):
 			pass
 		remove_router(app, router, self.router_prefix)
 
-	async def on_request(self, connection: HTTPConnection):  # pylint: disable=no-self-use,unused-argument
+	async def on_request(self, connection: HTTPConnection, receive: Receive, send: Send):  # pylint: disable=no-self-use,unused-argument
 		"""Called on every request which matches the addons router prefix"""
 		connection.scope["access_needs_admin"] = False
 		if connection.scope["path"] == f"{self.router_prefix}/public":

@@ -18,6 +18,7 @@ import base64
 import datetime
 import orjson
 import msgpack
+from aredis import StrictRedis
 
 from fastapi import HTTPException, status
 from fastapi.requests import HTTPConnection, Request
@@ -214,7 +215,7 @@ class SessionMiddleware:
 			if not scope["access_is_public"]:
 				if not session.user_store.username or not session.user_store.authenticated:
 					# Check if host address is blocked
-					await check_blocked(connection)
+					await check_blocked(connection, redis)
 					# Authenticate
 					await authenticate(connection, receive, session)
 
@@ -558,9 +559,10 @@ async def authenticate(connection: HTTPConnection, receive: Receive, session: OP
 		session.user_store.isAdmin = False
 		session.user_store.isReadOnly = True
 
-async def check_blocked(connection: HTTPConnection):
+async def check_blocked(connection: HTTPConnection, redis: StrictRedis = None) -> None:
 	logger.info("Checking if client %s is blocked", connection.client.host)
-	redis = await aredis_client()
+	if not redis:
+		redis = await aredis_client()
 	is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}"))
 	if is_blocked:
 		raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")

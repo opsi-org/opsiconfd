@@ -203,7 +203,7 @@ def redis_client(timeout: int = 0):
 
 
 AREDIS_CONNECTION_POOL = {}
-async def get_aredis_connection(url: str, db: str = None, timeout: int = 0): # pylint: disable=invalid-name
+async def get_aredis_connection(url: str, db: str = None, timeout: int = 0) -> aredis.StrictRedis: # pylint: disable=invalid-name
 	start = time.time()
 	while True:
 		try:
@@ -224,7 +224,7 @@ async def get_aredis_connection(url: str, db: str = None, timeout: int = 0): # p
 			await asyncio.sleep(2)
 
 
-async def aredis_client(timeout: int = 0):
+async def aredis_client(timeout: int = 0) -> aredis.StrictRedis:
 	return await get_aredis_connection(url=get_config().redis_internal_url, timeout=timeout)
 
 

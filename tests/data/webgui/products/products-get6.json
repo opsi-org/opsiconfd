@@ -22,6 +22,7 @@
         ],
         "depotVersions": $depot_versions,
         "depot_version_diff": true,
-        "productType": "LocalbootProduct"
+        "productType": "LocalbootProduct",
+        "selected": 0
     }
 ]

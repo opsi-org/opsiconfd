@@ -34,7 +34,7 @@ from opsiconfd.application.utils import (
 	unicode_product_property,
 	merge_dicts,
 	parse_selected_list,
-	opsi_api
+	rest_api
 )
 
 mysql = get_mysql()
@@ -178,7 +178,7 @@ class Product(BaseModel): # pylint: disable=too-few-public-methods
 
 
 @product_router.get("/api/opsidata/products", response_model=List[Product])
-@opsi_api
+@rest_api
 def products(
 	commons: dict = Depends(common_query_parameters),
 	type: str = "LocalbootProduct",
@@ -390,7 +390,7 @@ class PocItem(BaseModel): # pylint: disable=too-few-public-methods
 	installationStatus: Optional[str] = None
 
 @product_router.post("/api/opsidata/clients/products")
-@opsi_api
+@rest_api
 def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too-many-statements, too-many-branches
 	"""
 	Save a Product On Client object.
@@ -474,7 +474,7 @@ def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too
 
 
 @product_router.get("/api/opsidata/products/groups")
-@opsi_api
+@rest_api
 def get_product_groups(): # pylint: disable=too-many-locals
 	"""
 	Get all product groups as a tree of groups.
@@ -563,7 +563,7 @@ class Property(BaseModel): # pylint: disable=too-few-public-methods
 	newValues: Optional[str] = [""]
 
 @product_router.get("/api/opsidata/products/{productId}/properties", response_model=Dict[str, Property])
-@opsi_api
+@rest_api
 def product_properties(
 	productId: str,
 	selectedClients: List[str] = Depends(parse_client_list),
@@ -816,7 +816,7 @@ class ProductProperty(BaseModel): # pylint: disable=too-few-public-methods
 	properties: dict
 
 @product_router.post("/api/opsidata/products/{productId}/properties")
-@opsi_api
+@rest_api
 def save_poduct_property(productId: str, data: ProductProperty): # pylint: disable=invalid-name, too-many-locals, too-many-statements, too-many-branches
 	"""
 	Save Product Properties.

@@ -22,7 +22,7 @@ from opsiconfd.application.utils import (
 	common_query_parameters,
 	parse_depot_list,
 	parse_selected_list,
-	opsi_api
+	rest_api
 )
 
 mysql = get_mysql()
@@ -38,7 +38,7 @@ class Depot(BaseModel):  # pylint: disable=too-few-public-methods
 
 
 @depot_router.get("/api/opsidata/depot_ids", response_model=List[str])
-@opsi_api
+@rest_api
 def depot_ids():
 	"""
 	Get all depotIds.
@@ -55,7 +55,7 @@ def depot_ids():
 
 
 @depot_router.get("/api/opsidata/depots", response_model=List[Depot])
-@opsi_api
+@rest_api
 def depots(commons: dict = Depends(common_query_parameters), selected: Optional[List[str]] = Depends(parse_selected_list)):
 	"""
 	Get all depots with depotId, ident, type, ip and description.
@@ -110,7 +110,7 @@ def depots(commons: dict = Depends(common_query_parameters), selected: Optional[
 
 
 @depot_router.get("/api/opsidata/depots/clients", response_model=List[str])
-@opsi_api
+@rest_api
 def clients_on_depots(selectedDepots: List[str] = Depends(parse_depot_list)): # pylint: disable=invalid-name
 	"""
 	Get all client ids on selected depots.

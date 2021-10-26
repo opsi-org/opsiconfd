@@ -25,6 +25,7 @@ from .utils import ( # pylint: disable=unused-import
 	ADMIN_USER, ADMIN_PASS
 )
 
+API_ROOT = "/addons/webgui/api/opsidata"
 FQDN = socket.getfqdn()
 FILE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),"data","webgui","depots")
 
@@ -33,7 +34,7 @@ FILE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),"data","webgu
 test_data = [
 	(
 		"depots",
-		{"filterQuery": "depot2", "perPage": 1, "pageNumber": 1, "sortBy": "depotId,ip", "sortDesc": False},
+		{"filterQuery": "depot2", "perPage": 1, "pageNumber": 1, "sortBy": "[depotId,ip]", "sortDesc": False},
 		f"{FILE_DIR}/depots-get1.json"
 	),
 	(
@@ -59,7 +60,7 @@ test_data = [
 async def test_depots_get(config, path, query_params, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
 	print(query_params)
 	res = requests.get(
-		f"{config.external_url}/webgui/api/opsidata/{path}", auth=(ADMIN_USER, ADMIN_PASS), verify=False, params=query_params,
+		f"{config.external_url}{API_ROOT}/{path}", auth=(ADMIN_USER, ADMIN_PASS), verify=False, params=query_params,
 	)
 
 	with open(expected_result, "r", encoding="utf-8") as f:

@@ -1,3 +1,5 @@
 {
-    "message": "Client with id 'no-client.uib.local' not found."
+    "code": null,
+    "message": "Client with id 'no-client.uib.local' not found.",
+    "status": 404
 }

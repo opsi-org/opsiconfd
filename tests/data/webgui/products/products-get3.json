@@ -21,7 +21,8 @@
             "1.0-1"
         ],
         "depot_version_diff": false,
-        "productType": "LocalbootProduct"
+        "productType": "LocalbootProduct",
+        "selected": 0
     },
     {
         "productId": "pytest-prod-1",
@@ -49,6 +50,7 @@
             "1.0-1"
         ],
         "depot_version_diff": false,
-        "productType": "LocalbootProduct"
+        "productType": "LocalbootProduct",
+        "selected": 0
     }
 ]

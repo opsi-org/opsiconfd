@@ -26,7 +26,7 @@ from opsiconfd.application.utils import (
 	common_query_parameters,
 	parse_depot_list,
 	parse_hosts_list,
-	opsi_api
+	rest_api
 )
 
 
@@ -50,7 +50,7 @@ class Host(BaseModel):  # pylint: disable=too-few-public-methods
 
 
 @host_router.get("/api/opsidata/hosts", response_model=List[Host])
-@opsi_api
+@rest_api
 def get_host_data(
 	commons: dict = Depends(common_query_parameters),
 	hosts: List[str] = Depends(parse_hosts_list),
@@ -107,7 +107,7 @@ def get_host_data(
 
 
 @host_router.get("/api/opsidata/hosts/groups")
-@opsi_api
+@rest_api
 def get_host_groups(selectedDepots: List[str] = Depends(parse_depot_list), parentGroup: Optional[str] = []): # pylint: disable=too-many-locals, too-many-branches, invalid-name, dangerous-default-value
 	"""
 	Get host groups as tree.

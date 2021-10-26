@@ -10,6 +10,7 @@
         "installationStatus_unknown": 0,
         "installationStatus_installed": 0,
         "actionResult_failed": 0,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     }
 ]

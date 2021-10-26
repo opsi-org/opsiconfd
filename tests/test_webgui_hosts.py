@@ -17,7 +17,7 @@ import json
 import os
 from fastapi import status
 
-
+API_ROOT = "/addons/webgui/api/opsidata"
 
 from .utils import ( # pylint: disable=unused-import
 	config, clean_redis, database_connection, create_check_data, disable_request_warning,
@@ -31,17 +31,17 @@ FILE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),"data","webgu
 test_data = [
 	(
 		"hosts",
-		{"sortBy": "type,hostId","perPage":2, "pageNumber": 1, "sortDesc": False},
+		{"sortBy": "[type,hostId]","perPage":2, "pageNumber": 1, "sortDesc": False},
 		f"{FILE_DIR}/hosts-get1.json"
 	),
 	(
 		"hosts",
-		{"sortBy": "type,hostId","perPage":2, "pageNumber": 6, "sortDesc": True},
+		{"sortBy": "[type,hostId]","perPage":2, "pageNumber": 6, "sortDesc": True},
 		f"{FILE_DIR}/hosts-get2.json"
 	),
 	(
 		"hosts",
-		{"sortBy": "type,hostId","perPage":2, "pageNumber": 1, "sortDesc": True},
+		{"sortBy": "[type,hostId]","perPage":2, "pageNumber": 1, "sortDesc": True},
 		f"{FILE_DIR}/hosts-get3.json"
 	)
 ]
@@ -51,7 +51,7 @@ test_data = [
 async def test_hosts_get(config, path, query_params, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
 	print(query_params)
 	res = requests.get(
-		f"{config.external_url}/webgui/api/opsidata/{path}", auth=(ADMIN_USER, ADMIN_PASS), verify=False, params=query_params,
+		f"{config.external_url}{API_ROOT}/{path}", auth=(ADMIN_USER, ADMIN_PASS), verify=False, params=query_params,
 	)
 	res_data = res.json()
 	with open(expected_result, "r", encoding="utf-8") as f:

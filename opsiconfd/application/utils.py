@@ -10,6 +10,8 @@ application/api utils
 
 from typing import Optional, List
 from functools import  wraps
+from typing import Dict, Optional
+from pydantic import BaseModel
 import math
 import traceback
 import orjson
@@ -23,7 +25,15 @@ from opsiconfd.config import FQDN
 from opsiconfd.logging import logger
 from opsiconfd.backend import get_backend
 
+from fastapi.openapi.utils import get_openapi
+from fastapi.exceptions import RequestValidationError
+from fastapi.exceptions import RequestValidationError
+from OPSI import __version__ as python_opsi_version
+from .. import __version__
+
 mysql = None  # pylint: disable=invalid-name
+
+
 
 def get_mysql():
 	global mysql  # pylint: disable=invalid-name,global-statement
@@ -289,7 +299,10 @@ def merge_dicts(dict_a, dict_b, path=None):
 	return dict_a
 
 
-def opsi_api(func):
+
+
+
+def rest_api(func):
 	name = func.__qualname__
 
 	@wraps(func)
@@ -302,25 +315,21 @@ def opsi_api(func):
 			headers = func_result.get("headers", {})
 			http_status = func_result.get("http_status", status.HTTP_200_OK)
 
+			if http_status >= 400:
+				content["message"] = func_result.get("message", "An unknown error occurred.")
+				content["status"] = http_status
+				content["code"] = func_result.get("error_code")
+			# test if admin
 			if func_result.get("error"):
-				if func_result.get("error_code"):
-					content["code"] = func_result.get("error_code")
-				if traceback.format_exc():
-					content["traceback"] = str(traceback.format_exc())
 				error = func_result.get("error")
 				if isinstance(error, Exception):
 					content["class"] = error.__class__.__name__
 					content["details"] = str(error)
-					logger.error(str(error.__traceback__))
-					logger.error(error.__traceback__.__repr__())
-					logger.error(str(traceback.format_exc()))
 				else:
 					content["class"] = error.get("class")
 					content["details"] = error.get("details")
 			if func_result.get("data"):
 				content = func_result.get("data")
-			if func_result.get("message"):
-				content["message"] = func_result.get("message")
 
 			# add header with total amount of Objects
 			if func_result.get("total"):

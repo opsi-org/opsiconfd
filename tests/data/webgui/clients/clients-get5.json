@@ -9,7 +9,8 @@
         "installationStatus_unknown": 0,
         "installationStatus_installed": 1,
         "actionResult_failed": 0,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     },
     {
         "clientId": "pytest-client-2.uib.local",
@@ -21,7 +22,8 @@
         "installationStatus_unknown": 1,
         "installationStatus_installed": 0,
         "actionResult_failed": 1,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     },
     {
         "clientId": "pytest-lost-client-fp.uib.local",
@@ -33,7 +35,8 @@
         "installationStatus_unknown": 1,
         "installationStatus_installed": 0,
         "actionResult_failed": 1,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     },
     {
         "clientId": "pytest-lost-client-fp2.uib.local",
@@ -45,7 +48,8 @@
         "installationStatus_unknown": 1,
         "installationStatus_installed": 0,
         "actionResult_failed": 1,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     },
     {
         "clientId": "pytest-client-0.uib.local",
@@ -57,7 +61,8 @@
         "installationStatus_unknown": 0,
         "installationStatus_installed": 0,
         "actionResult_failed": 0,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     },
     {
         "clientId": "pytest-client-1.uib.local",
@@ -69,7 +74,8 @@
         "installationStatus_unknown": 0,
         "installationStatus_installed": 0,
         "actionResult_failed": 0,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     },
     {
         "clientId": "pytest-client-4.uib.local",
@@ -81,7 +87,8 @@
         "installationStatus_unknown": 0,
         "installationStatus_installed": 0,
         "actionResult_failed": 0,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     },
     {
         "clientId": "pytest-lost-client.uib.local",
@@ -93,6 +100,7 @@
         "installationStatus_unknown": 0,
         "installationStatus_installed": 0,
         "actionResult_failed": 0,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     }
 ]

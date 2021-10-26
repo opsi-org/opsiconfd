@@ -24,6 +24,7 @@ from .utils import ( # pylint: disable=unused-import
 	ADMIN_USER, ADMIN_PASS
 )
 
+API_ROOT = "/addons/webgui/api/opsidata"
 FQDN = socket.getfqdn()
 FILE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -45,7 +46,7 @@ test_data = [
 		f"{FILE_DIR}/data/webgui/clients/clients-get4.json"
 	),
 	(
-		{"sortBy": "installationStatus_installed,actionResult_failed"},
+		{"sortBy": "[installationStatus_installed,actionResult_failed]"},
 		f"{FILE_DIR}/data/webgui/clients/clients-get5.json"
 	)
 ]
@@ -54,7 +55,7 @@ test_data = [
 @pytest.mark.asyncio
 async def test_clients_get(config, query_params, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
 	res = requests.get(
-		f"{config.external_url}/webgui/api/opsidata/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, params=query_params,
+		f"{config.external_url}{API_ROOT}/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, params=query_params,
 	)
 
 	with open(expected_result, "r", encoding="utf-8") as f:
@@ -87,7 +88,7 @@ test_data = [
 @pytest.mark.asyncio
 async def test_clients_create(config, data, expected_result, http_status): # pylint: disable=too-many-arguments,redefined-outer-name
 	res = requests.post(
-		f"{config.external_url}/webgui/api/opsidata/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=json.dumps(data),
+		f"{config.external_url}{API_ROOT}/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=json.dumps(data),
 	)
 
 	if expected_result:
@@ -102,7 +103,7 @@ async def test_clients_create(config, data, expected_result, http_status): # pyl
 
 	if http_status == 201:
 		res = requests.get(
-			f"{config.external_url}/webgui/api/opsidata/clients/{data['hostId']}", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=data,
+			f"{config.external_url}{API_ROOT}/clients/{data['hostId']}", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=data,
 		)
 
 		assert res.status_code == status.HTTP_200_OK
@@ -118,7 +119,7 @@ async def test_clients_create_integrity_error(config): # pylint: disable=too-man
 			"description": "test client"
 	}
 	res = requests.post(
-		f"{config.external_url}/webgui/api/opsidata/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=json.dumps(data),
+		f"{config.external_url}{API_ROOT}/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=json.dumps(data),
 	)
 
 	with open(f"{FILE_DIR}/data/webgui/clients/clients-create2.json", "r", encoding="utf-8") as f:
@@ -130,7 +131,7 @@ async def test_clients_create_integrity_error(config): # pylint: disable=too-man
 	assert res.json() == json_data
 
 	res = requests.get(
-		f"{config.external_url}/webgui/api/opsidata/clients/{data['hostId']}", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=data,
+		f"{config.external_url}{API_ROOT}/clients/{data['hostId']}", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=data,
 	)
 
 	assert res.status_code == status.HTTP_200_OK
@@ -138,7 +139,7 @@ async def test_clients_create_integrity_error(config): # pylint: disable=too-man
 
 	# second create should give IntegrityError
 	res = requests.post(
-		f"{config.external_url}/webgui/api/opsidata/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=json.dumps(data),
+		f"{config.external_url}{API_ROOT}/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=json.dumps(data),
 	)
 	assert res.status_code == status.HTTP_409_CONFLICT
 	assert res.json().get("class") == "IntegrityError"
@@ -163,7 +164,7 @@ test_data = [
 @pytest.mark.asyncio
 async def test_client_get(config, client_id, expected_result, http_status): # pylint: disable=too-many-arguments,redefined-outer-name
 	res = requests.get(
-		f"{config.external_url}/webgui/api/opsidata/clients/{client_id}", auth=(ADMIN_USER, ADMIN_PASS), verify=False,
+		f"{config.external_url}{API_ROOT}/clients/{client_id}", auth=(ADMIN_USER, ADMIN_PASS), verify=False,
 	)
 
 
@@ -191,7 +192,9 @@ test_data = [
 	(
 		"no-client.uib.local",
 		{
-			"message": "Client with id 'no-client.uib.local' not found."
+			"code": None,
+			"message": "Client with id 'no-client.uib.local' not found.",
+			"status": 404
 		},
 		status.HTTP_404_NOT_FOUND
 	)
@@ -202,7 +205,7 @@ test_data = [
 @pytest.mark.asyncio
 async def test_clients_delete(config, client_id, expected_result, http_status): # pylint: disable=too-many-arguments,redefined-outer-name
 	res = requests.delete(
-		f"{config.external_url}/webgui/api/opsidata/clients/{client_id}", auth=(ADMIN_USER, ADMIN_PASS), verify=False,
+		f"{config.external_url}{API_ROOT}/clients/{client_id}", auth=(ADMIN_USER, ADMIN_PASS), verify=False,
 	)
 
 

@@ -21,32 +21,13 @@ from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.application.utils import get_mysql, get_allowed_objects, build_tree, get_username, get_configserver_id
 
+from .__init__ import webgui_router, mysql
 from .hosts import host_router
 from .clients import client_router
 from .products import product_router
 from .depots import depot_router
 
 
-WEBGUI_APP_PATH = config.webgui_folder
-
-
-mysql = get_mysql()
-
-webgui_router = APIRouter()
-
-def webgui_setup(app):
-	app.include_router(webgui_router, prefix="/webgui")
-	app.include_router(product_router, prefix="/webgui")
-	app.include_router(host_router, prefix="/webgui")
-	app.include_router(client_router, prefix="/webgui")
-	app.include_router(depot_router, prefix="/webgui")
-
-	if not mysql:
-		logger.warning("No mysql backend! Webgui only works with mysql backend.")
-
-
-	if os.path.isdir(WEBGUI_APP_PATH):
-		app.mount("/webgui/app", StaticFiles(directory=WEBGUI_APP_PATH, html=True), name="app")
 
 
 

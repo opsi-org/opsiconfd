@@ -10,7 +10,8 @@
         "installationStatus_unknown": 1,
         "installationStatus_installed": 0,
         "actionResult_failed": 1,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     },
     {
         "clientId": "pytest-client-3.uib.local",
@@ -22,6 +23,7 @@
         "installationStatus_unknown": 0,
         "installationStatus_installed": 1,
         "actionResult_failed": 0,
-        "actionResult_successful": 0
+        "actionResult_successful": 0,
+        "selected": 0
     }
 ]

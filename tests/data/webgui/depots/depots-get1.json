@@ -4,6 +4,7 @@
         "ident": "pytest-test-depot2.uib.gmbh",
         "type": "OpsiDepotserver",
         "ip": null,
-        "description": ""
+        "description": "",
+        "selected": 0
     }
 ]

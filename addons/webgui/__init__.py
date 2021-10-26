@@ -8,35 +8,60 @@
 addon webgui
 """
 
-from fastapi import FastAPI
+import os
+
+from fastapi import FastAPI, APIRouter
+from fastapi.staticfiles import StaticFiles
 
 from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
+from opsiconfd.config import config
 from opsiconfd.utils import remove_router
+from opsiconfd.application.utils import get_mysql
 
-from .webgui import webgui_setup, webgui_router
+from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
 from .hosts import host_router
 from .clients import client_router
 from .products import product_router
 from .depots import depot_router
 
+WEBGUI_APP_PATH = config.webgui_folder
+
+mysql = get_mysql()
+
+webgui_router = APIRouter()
+
 class Webgui(Addon):
-	id = "webgui"
-	name = "webgui"
-	version = "1.0"
+	id = ADDON_ID
+	name = ADDON_NAME
+	version = ADDON_VERSION
+
+
+	def setup(self, app):
+		app.include_router(webgui_router, prefix=self.router_prefix)
+		app.include_router(product_router, prefix=self.router_prefix)
+		app.include_router(host_router, prefix=self.router_prefix)
+		app.include_router(client_router, prefix=self.router_prefix)
+		app.include_router(depot_router, prefix=self.router_prefix)
+
+		if not mysql:
+			logger.warning("No mysql backend! Webgui only works with mysql backend.")
+
+		if os.path.isdir(WEBGUI_APP_PATH):
+			app.mount(f"{ADDON_ID}/app", StaticFiles(directory=WEBGUI_APP_PATH, html=True), name="app")
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""
 		logger.devel("on_load")
-		webgui_setup(app)
+		self.setup(app)
 
 	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called before unloading the addon"""
 
-		remove_router(app, webgui_router,"/webgui")
-		remove_router(app, host_router,"/webgui")
-		remove_router(app, client_router,"/webgui")
-		remove_router(app, product_router,"/webgui")
-		remove_router(app, depot_router,"/webgui")
+		remove_router(app, webgui_router, self.router_prefix)
+		remove_router(app, host_router, self.router_prefix)
+		remove_router(app, client_router, self.router_prefix)
+		remove_router(app, product_router, self.router_prefix)
+		remove_router(app, depot_router, self.router_prefix)
 
 		#TODO unmount webui

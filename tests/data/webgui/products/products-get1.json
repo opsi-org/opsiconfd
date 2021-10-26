@@ -22,7 +22,8 @@
         "installationStatus": "not_installed",
         "actionRequest": null,
         "actionProgress": null,
-        "actionResult": null
+        "actionResult": null,
+        "selected": 0
     },
     {
         "productId": "pytest-prod-1",
@@ -51,7 +52,8 @@
         "actionRequest": "setup",
         "actionProgress": null,
         "actionResult": "none",
-        "client_version_outdated": false
+        "client_version_outdated": false,
+        "selected": 0
     },
     {
         "productId": "pytest-prod-2",
@@ -76,7 +78,8 @@
         "installationStatus": "not_installed",
         "actionRequest": null,
         "actionProgress": null,
-        "actionResult": null
+        "actionResult": null,
+        "selected": 0
     },
     {
         "productId": "pytest-prod-3",
@@ -101,7 +104,8 @@
         "installationStatus": "not_installed",
         "actionRequest": null,
         "actionProgress": null,
-        "actionResult": null
+        "actionResult": null,
+        "selected": 0
     },
     {
         "productId": "pytest-prod-4",
@@ -137,6 +141,7 @@
         "actionRequest": "mixed",
         "actionProgress": null,
         "actionResult": "none",
-        "client_version_outdated": true
+        "client_version_outdated": true,
+        "selected": 0
     }
 ]

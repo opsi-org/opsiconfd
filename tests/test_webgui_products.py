@@ -21,6 +21,7 @@ from .utils import ( # pylint: disable=unused-import
 	ADMIN_USER, ADMIN_PASS
 )
 
+API_ROOT = "/addons/webgui/api/opsidata"
 FQDN = socket.getfqdn()
 FILE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)),"data","webgui","products")
 
@@ -131,7 +132,7 @@ test_data = [
 @pytest.mark.asyncio
 async def test_products(config, input_data, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
 	res = requests.get(
-		f"{config.external_url}/webgui/api/opsidata/products", auth=(ADMIN_USER, ADMIN_PASS), verify=False, params=input_data
+		f"{config.external_url}{API_ROOT}/products", auth=(ADMIN_USER, ADMIN_PASS), verify=False, params=input_data
 	)
 
 	with open(expected_result, "r", encoding="utf-8") as f:

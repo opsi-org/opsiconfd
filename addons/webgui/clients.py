@@ -31,7 +31,7 @@ from opsiconfd.application.utils import (
 	parse_depot_list,
 	parse_client_list,
 	parse_selected_list,
-	opsi_api
+	rest_api
 )
 
 mysql = get_mysql()
@@ -65,8 +65,14 @@ class Client(BaseModel): # pylint: disable=too-few-public-methods
 
 
 @client_router.get("/api/opsidata/clients", response_model=List[ClientList])
-@opsi_api
-def clients(request: Request, commons: dict = Depends(common_query_parameters), selectedDepots: List[str] = Depends(parse_depot_list)):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name, unused-argument
+@rest_api
+def clients(
+	request: Request,
+	commons: dict = Depends(common_query_parameters),
+	selectedDepots: List[str] = Depends(parse_depot_list),
+	selected: Optional[List[str]] = Depends(parse_selected_list)
+
+):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name, unused-argument
 	"""
 	Get Clients on selected depots with infos on the client.
 	"""
@@ -99,6 +105,8 @@ def clients(request: Request, commons: dict = Depends(common_query_parameters), 
 			params["selected"] = selected
 		else:
 			params["selected"] = [""]
+
+		logger.devel(params["selected"])
 
 		client_with_depot = alias(
 			select(text("""
@@ -183,7 +191,7 @@ def clients(request: Request, commons: dict = Depends(common_query_parameters), 
 
 
 @client_router.get("/api/opsidata/clients/depots", response_model=Dict[str, str])
-@opsi_api
+@rest_api
 def depots_of_clients(selectedClients: List[str] = Depends(parse_client_list)): # pylint: disable=too-many-branches, redefined-builtin, dangerous-default-value, invalid-name
 	"""
 	Get a mapping of clients to depots.
@@ -218,7 +226,7 @@ def depots_of_clients(selectedClients: List[str] = Depends(parse_client_list)): 
 
 
 @client_router.post("/api/opsidata/clients")
-@opsi_api
+@rest_api
 def create_client(request: Request, client: Client): # pylint: disable=too-many-locals
 	"""
 	Create OPSI-Client.
@@ -261,7 +269,7 @@ def create_client(request: Request, client: Client): # pylint: disable=too-many-
 
 
 @client_router.get("/api/opsidata/clients/{clientid}", response_model=Client)
-@opsi_api
+@rest_api
 def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
 	"""
 	Get Clients on selected depots with infos on the client.
@@ -302,7 +310,7 @@ def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-d
 
 
 @client_router.delete("/api/opsidata/clients/{clientid}")
-@opsi_api
+@rest_api
 def delete_client(clientid: str):
 	"""
 	Delete Client with ID.

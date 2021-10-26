@@ -49,14 +49,16 @@ class AddonTest1(Addon):
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""
-		with open(os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon_test1_on_load"), mode="w", encoding="utf8"):
-			pass
+		marker = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon_test1_on_load")
+		with open(marker, mode="w", encoding="utf8"):
+			os.chmod(marker, 0o666)
 		app.include_router(router, prefix=self.router_prefix)
 
 	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called before unloading the addon"""
-		with open(os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon_test1_on_unload"), mode="w", encoding="utf8"):
-			pass
+		marker = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon_test1_on_unload")
+		with open(marker, mode="w", encoding="utf8"):
+			os.chmod(marker, 0o666)
 		remove_router(app, router, self.router_prefix)
 
 	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument

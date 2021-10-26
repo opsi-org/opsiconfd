@@ -79,7 +79,7 @@ def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
 	addon_manager.load_addons()
 	assert len(addon_manager.addons) == 1
 	assert addon_manager.addons[0].name == "Test-Addon #1"
-	with open(os.path.join(addon_dir, "const.py"), mode="r+", encoding="utf-8") as file:
+	with open(os.path.join(addon_dir, "python", "const.py"), mode="r+", encoding="utf-8") as file:
 		data = file.read()
 		data = data.replace(addon_manager.addons[0].name, "NEW NAME")
 		file.seek(0)
@@ -89,6 +89,10 @@ def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
 	addon_manager.reload_addon("test1")
 	assert len(addon_manager.addons) == 1
 	assert addon_manager.addons[0].name == "NEW NAME"
+
+def tests_addon_static_dir(config):  # pylint: disable=redefined-outer-name
+	res = requests.get(f"{config.internal_url}/addons/test1/static/index.html", verify=False)
+	assert res.status_code == 200
 
 def tests_addon_public_path(config):  # pylint: disable=redefined-outer-name
 	res = requests.get(f"{config.internal_url}/addons/test1", verify=False)

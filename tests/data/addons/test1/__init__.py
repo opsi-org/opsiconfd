@@ -10,15 +10,18 @@ addon test1
 
 import os
 import tempfile
-import asyncio
 
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, status, HTTPException
 from fastapi.requests import HTTPConnection
 from fastapi.responses import PlainTextResponse
+from starlette.types import Receive, Send
+
+from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
 from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
 from opsiconfd.utils import remove_router
+from opsiconfd.session import ACCESS_ROLE_PUBLIC, ACCESS_ROLE_AUTHENTICATED
 
 from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
 
@@ -47,21 +50,30 @@ class AddonTest1(Addon):
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""
-		with open(os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon_test1_on_load"), mode="w", encoding="utf8"):
-			pass
+		marker = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", "test1_on_load")
+		if not os.path.isdir(os.path.dirname(marker)):
+			os.makedirs(os.path.dirname(marker))
+			os.chmod(os.path.dirname(marker), 0o777)
+		with open(marker, mode="w", encoding="utf8"):
+			os.chmod(marker, 0o666)
 		app.include_router(router, prefix=self.router_prefix)
 
 	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called before unloading the addon"""
-		with open(os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon_test1_on_unload"), mode="w", encoding="utf8"):
-			pass
+		marker = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", "test1_on_unload")
+		if not os.path.isdir(os.path.dirname(marker)):
+			os.makedirs(os.path.dirname(marker))
+			os.chmod(os.path.dirname(marker), 0o777)
+		with open(marker, mode="w", encoding="utf8"):
+			os.chmod(marker, 0o666)
 		remove_router(app, router, self.router_prefix)
 
-	async def on_request(self, connection: HTTPConnection):  # pylint: disable=no-self-use,unused-argument
-		"""Called on every request which matches the addons router prefix"""
-		connection.scope["access_needs_admin"] = False
+	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
+		"""Called on every request where the path matches the addons router prefix.
+		Return true to skip further request processing."""
+		connection.scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 		if connection.scope["path"] == f"{self.router_prefix}/public":
-			connection.scope["access_is_public"] = True
+			connection.scope["required_access_role"] = ACCESS_ROLE_PUBLIC
 		elif connection.scope["path"] == f"{self.router_prefix}/login":
 			connection.scope["session"].user_store.username = "fakeuser"
 			connection.scope["session"].user_store.authenticated = True
@@ -69,3 +81,19 @@ class AddonTest1(Addon):
 			await connection.scope["session"].store()
 		elif connection.scope["path"] == f"{self.router_prefix}/logout":
 			await connection.scope["session"].delete()
+		return False
+
+	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
+		"""Called on every request exception where the path matches the addons router prefix.
+		Return true to skip further request processing."""
+
+		if isinstance(err, (HTTPException, BackendAuthenticationError, BackendPermissionDeniedError)):
+			response = PlainTextResponse(
+				status_code=status.HTTP_401_UNAUTHORIZED,
+				content="addon_test1_error",
+				headers={"X-Addon": "test1"}
+			)
+			await response(connection.scope, receive, send)
+			return True
+
+		return False

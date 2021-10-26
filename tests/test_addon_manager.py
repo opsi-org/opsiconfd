@@ -22,8 +22,8 @@ from .utils import config, clean_redis  # pylint: disable=unused-import
 def cleanup():
 	def _cleanup():
 		AddonManager().unload_addons()
-		for name in ("opsiconfd_test_addon_test1_on_load", "opsiconfd_test_addon_test1_on_unload"):
-			name = os.path.join(tempfile.gettempdir(), name)
+		for name in ("test1_on_load", "test1_on_unload"):
+			name = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", name)
 			if os.path.exists(name):
 				os.remove(name)
 	_cleanup()
@@ -33,7 +33,7 @@ def cleanup():
 
 def test_load_addon(config):  # pylint: disable=redefined-outer-name
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
-	marker_file = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon_test1_on_load")
+	marker_file = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", "test1_on_load")
 
 	addon_manager = AddonManager()
 	addon_manager.load_addons()
@@ -54,7 +54,7 @@ def test_load_addon(config):  # pylint: disable=redefined-outer-name
 
 def test_unload_addon(config):  # pylint: disable=redefined-outer-name
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
-	marker_file = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon_test1_on_unload")
+	marker_file = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", "test1_on_unload")
 
 	addon_manager = AddonManager()
 	addon_manager.load_addons()

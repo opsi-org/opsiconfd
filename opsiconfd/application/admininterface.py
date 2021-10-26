@@ -8,7 +8,6 @@
 admininterface
 """
 
-from posixpath import splitext
 from urllib.parse import urlparse
 from operator import itemgetter
 import os

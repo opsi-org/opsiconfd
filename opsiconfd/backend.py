@@ -87,6 +87,36 @@ def get_server_role():
 			return "depot"
 	return "config"
 
+def get_mysql():
+	backend = get_backend()
+	while getattr(backend, "_backend", None):
+		backend = backend._backend  # pylint: disable=protected-access
+		if backend.__class__.__name__ == "BackendDispatcher":
+			try:
+				return backend._backends["mysql"]["instance"]._sql  # pylint: disable=protected-access
+			except KeyError:
+				# No mysql backend
+				pass
+	raise RuntimeError("MySQL backend not active")
+
+
+def execute_on_secondary_backends(method: str, **kwargs) -> dict:
+	result = {}
+	backend = get_client_backend()
+	while getattr(backend, "_backend", None):
+		backend = backend._backend  # pylint: disable=protected-access
+		if backend.__class__.__name__ == "BackendDispatcher":
+			for backend_id in ("opsipxeconfd", "dhcpd"):
+				if backend_id not in backend._backends:  # pylint: disable=protected-access
+					continue
+				result[backend_id] = {"data": None, "error": None}
+				meth = getattr(backend._backends[backend_id]["instance"], method)  # pylint: disable=protected-access
+				try:
+					result[backend_id]["data"] = meth(**kwargs)
+				except Exception as err:  # pylint: disable=broad-except
+					result[backend_id]["error"] = err
+	return result
+
 
 class OpsiconfdBackend(metaclass=Singleton):
 	def __init__(self):

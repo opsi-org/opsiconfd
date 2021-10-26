@@ -291,6 +291,9 @@ def application_setup():
 	endpoints = {}
 	for route in app.routes:
 		if isinstance(route, APIRoute):
-			endpoints[route.path] = route.endpoint
+			module = route.endpoint.__module__
+			if module.startswith("opsiconfd.addon_"):
+				module = f"opsiconfd.addon.{module.split('/')[-1]}"
+			endpoints[route.path] = f"{module}.{route.endpoint.__qualname__}"
 	for path in sorted(endpoints):
 		logger.debug("%s: %s", path, endpoints[path])

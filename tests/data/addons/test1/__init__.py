@@ -21,6 +21,7 @@ from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedE
 from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
 from opsiconfd.utils import remove_router
+from opsiconfd.session import ACCESS_ROLE_PUBLIC, ACCESS_ROLE_AUTHENTICATED
 
 from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
 
@@ -70,9 +71,9 @@ class AddonTest1(Addon):
 	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
 		"""Called on every request where the path matches the addons router prefix.
 		Return true to skip further request processing."""
-		connection.scope["access_needs_admin"] = False
+		connection.scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 		if connection.scope["path"] == f"{self.router_prefix}/public":
-			connection.scope["access_is_public"] = True
+			connection.scope["required_access_role"] = ACCESS_ROLE_PUBLIC
 		elif connection.scope["path"] == f"{self.router_prefix}/login":
 			connection.scope["session"].user_store.username = "fakeuser"
 			connection.scope["session"].user_store.authenticated = True

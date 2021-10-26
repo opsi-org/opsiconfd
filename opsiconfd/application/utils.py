@@ -10,8 +10,6 @@ application/api utils
 
 from typing import Optional, List
 from functools import  wraps
-from typing import Dict, Optional
-from pydantic import BaseModel
 import math
 import traceback
 import orjson
@@ -25,14 +23,8 @@ from opsiconfd.config import FQDN
 from opsiconfd.logging import logger
 from opsiconfd.backend import get_backend
 
-from fastapi.openapi.utils import get_openapi
-from fastapi.exceptions import RequestValidationError
-from fastapi.exceptions import RequestValidationError
-from OPSI import __version__ as python_opsi_version
-from .. import __version__
 
 mysql = None  # pylint: disable=invalid-name
-
 
 
 def get_mysql():

@@ -8,6 +8,8 @@
 opsiconfd - addon
 """
 
+import os
+
 from fastapi import FastAPI
 from fastapi.requests import HTTPConnection
 from starlette.types import Receive, Send
@@ -19,6 +21,7 @@ class Addon:
 
 	def __init__(self, path: str) -> None:  # pylint: disable=redefined-builtin
 		self.path = path
+		self.data_path = os.path.join(self.path, "data")
 
 	@property
 	def router_prefix(self):

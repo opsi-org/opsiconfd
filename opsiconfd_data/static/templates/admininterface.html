@@ -79,7 +79,7 @@
 				loadRedisInfo();
 			}
 			else if (tabName == "confdInfo") {
-				loadConfdConfig();
+				loadConfdInfo();
 			}
 			else if (tabName == "memoryProfiler") {
 				loadMemoryInfo();
@@ -300,6 +300,13 @@
 				</div>
 			</div>
 			<button style="margin-bottom: 25px" id="reload-button" onclick="reload()">Service reload</button>
+
+			<h3>routes</h3>
+			<div class="adminpage-box">
+				<div id="routes">
+					<pre class="route-values" id="route-values"></pre>
+				</div>
+			</div>
 		</div>
 
 		<div id="memoryProfiler" class="tabcontent">

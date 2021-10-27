@@ -98,13 +98,9 @@ class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
 		self.session_cookie_name = 'opsiconfd-session'
-		self.max_age = config.session_lifetime  # in seconds
 		#self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
 		self._public_path = public_path or []
-
-	def get_set_cookie_string(self, session_id) -> dict:
-		return f"{self.session_cookie_name}={session_id}; path=/; Max-Age={self.max_age}"
 
 	def get_session_id_from_headers(self, headers: Headers) -> str:
 		#connection.cookies.get(self.session_cookie_name, None)
@@ -221,13 +217,14 @@ class SessionMiddleware:
 				if session and not session.deleted and session.persistent:
 					asyncio.get_event_loop().create_task(session.store())
 					headers = MutableHeaders(scope=message)
-					headers.append("Set-Cookie", self.get_set_cookie_string(session.session_id))
+					for key, val in session.get_headers().items():
+						headers.append(key, val)
 			await send(message)
 
 		await self.app(scope, receive, send_wrapper)
 
 
-	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,no-self-use
 		scope = connection.scope
 		if scope["path"].startswith("/addons"):
 			addon = AddonManager().get_addon_by_path(scope["path"])
@@ -279,8 +276,8 @@ class SessionMiddleware:
 
 		response = None
 		headers = headers or {}
-		if scope.get("session") and scope["session"].session_id:
-			headers.update({"Set-Cookie": self.get_set_cookie_string(scope["session"].session_id)})
+		if scope.get("session"):
+			headers.update(scope["session"].get_headers())
 
 		if scope["path"].startswith("/rpc"):
 			logger.debug("Returning jsonrpc response because path startswith /rpc")
@@ -322,10 +319,13 @@ class SessionMiddleware:
 class OPSISession(): # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
-	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection) -> None:
+	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection, max_age: int = None) -> None:
 		self._session_middelware = session_middelware
 		self.session_id = session_id
 		self.client_addr = connection.client.host
+		self.max_age = max_age
+		if self.max_age is None:
+			self.max_age = config.session_lifetime
 		self.user_agent = connection.headers.get("user-agent")
 		self.created = 0
 		self.deleted = False
@@ -344,10 +344,6 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		return datetime.datetime.utcnow().timestamp()
 
 	@property
-	def max_age(self):
-		return self._session_middelware.max_age
-
-	@property
 	def session_cookie_name(self):
 		return self._session_middelware.session_cookie_name
 
@@ -359,6 +355,13 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 	@property
 	def expired(self) -> bool:
 		return self.utc_time_timestamp() - self.last_used > self.max_age
+
+	def get_headers(self):
+		if not self.session_id or self.deleted or not self.persistent:
+			return {}
+		return {
+			"Set-Cookie": f"{self.session_cookie_name}={self.session_id}; path=/; Max-Age={self.max_age}"
+		}
 
 	async def init(self) -> None:
 		wait_for_store = True

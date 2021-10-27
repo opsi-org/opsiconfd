@@ -246,21 +246,36 @@ function loadRedisInfo() {
 	request.send()
 }
 
-function loadConfdConfig() {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/admin/config");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
+function loadConfdInfo() {
+	let request1 = new XMLHttpRequest();
+	request1.open("GET", "/admin/config");
+	request1.addEventListener('load', function (event) {
+		if (request1.status >= 200 && request1.status < 300) {
+			result = request1.responseText;
 			result = JSON.parse(result);
 			outputToHTML(result.data, "config-values");
 			return result;
 		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
+			console.warn(request1.statusText, request1.responseText);
+			return request1.statusText;
 		}
 	});
-	request.send()
+	request1.send()
+
+	request2 = new XMLHttpRequest();
+	request2.open("GET", "/admin/routes");
+	request2.addEventListener('load', function (event) {
+		if (request2.status >= 200 && request2.status < 300) {
+			result = request2.responseText;
+			result = JSON.parse(result);
+			outputToHTML(result.data, "route-values");
+			return result;
+		} else {
+			console.warn(request2.statusText, request2.responseText);
+			return request2.statusText;
+		}
+	});
+	request2.send()
 }
 
 function tracemallocSnapshot() {

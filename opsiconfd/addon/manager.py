@@ -28,7 +28,7 @@ class AddonImporter(BuiltinImporter):
 		if not fullname.startswith("opsiconfd.addon"):
 			return None
 		addon_path = unquote(fullname.split("_", 1)[1])
-		init_path = os.path.join(addon_path, "__init__.py")
+		init_path = os.path.join(addon_path, "python", "__init__.py")
 		if not os.path.exists(init_path):
 			return None
 		return importlib.util.spec_from_file_location(fullname, init_path)
@@ -80,7 +80,7 @@ class AddonManager(metaclass=Singleton):
 			logger.info("Loading addons from dir '%s'", addon_dir)
 			for entry in os.listdir(addon_dir):
 				addon_path = os.path.abspath(os.path.join(addon_dir, entry))
-				if not os.path.exists(os.path.join(addon_path, "__init__.py")):
+				if not os.path.exists(os.path.join(addon_path, "python", "__init__.py")):
 					continue
 				try:
 					self.load_addon(addon_path=addon_path)

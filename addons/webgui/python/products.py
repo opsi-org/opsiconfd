@@ -11,7 +11,6 @@ webgui product methods
 from typing import Dict, List, Optional
 from functools import lru_cache
 from sqlalchemy import select, text, and_, alias, column
-from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.sql.expression import table, update
 

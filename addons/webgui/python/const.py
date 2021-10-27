@@ -8,6 +8,10 @@
 addon webgui - const
 """
 
+from fastapi import APIRouter
+
 ADDON_ID = "webgui"
 ADDON_NAME = "Webgui"
 ADDON_VERSION = "0.1"
+
+test_router = APIRouter()

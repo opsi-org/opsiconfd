@@ -37,9 +37,9 @@ from .utils import (
 	parse_selected_list
 )
 
-mysql = get_mysql()
-client_router = APIRouter()
 
+client_router = APIRouter()
+mysql = get_mysql()
 
 class ClientList(BaseModel): # pylint: disable=too-few-public-methods
 	clientId: str

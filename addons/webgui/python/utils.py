@@ -13,8 +13,9 @@ from sqlalchemy import select, text
 from fastapi import Query
 
 from opsiconfd.application.utils import get_configserver_id, parse_list
+from opsiconfd.backend import get_mysql
 
-from .__init__ import mysql
+mysql = get_mysql()
 
 def get_depot_of_client(client):
 	params = {}

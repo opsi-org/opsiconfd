@@ -17,17 +17,16 @@ from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
 from opsiconfd.config import config
 from opsiconfd.utils import remove_router
-from opsiconfd.application.utils import get_mysql
+from opsiconfd.backend import get_mysql
 
 from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
-from .hosts import host_router
 from .clients import client_router
 from .products import product_router
 from .depots import depot_router
+from .hosts import host_router
 
 WEBGUI_APP_PATH = config.webgui_folder
 
-mysql = get_mysql()
 
 webgui_router = APIRouter()
 
@@ -38,14 +37,18 @@ class Webgui(Addon):
 
 
 	def setup(self, app):
+
+		try:
+			get_mysql()
+		except RuntimeError as err:
+			logger.warning("No mysql backend! Webgui only works with mysql backend.")
+			raise RuntimeError("No mysql backend! Webgui only works with mysql backend.") from err
+
 		app.include_router(webgui_router, prefix=self.router_prefix)
 		app.include_router(product_router, prefix=self.router_prefix)
 		app.include_router(host_router, prefix=self.router_prefix)
 		app.include_router(client_router, prefix=self.router_prefix)
 		app.include_router(depot_router, prefix=self.router_prefix)
-
-		if not mysql:
-			logger.warning("No mysql backend! Webgui only works with mysql backend.")
 
 		if os.path.isdir(WEBGUI_APP_PATH):
 			app.mount(f"{ADDON_ID}/app", StaticFiles(directory=WEBGUI_APP_PATH, html=True), name="app")

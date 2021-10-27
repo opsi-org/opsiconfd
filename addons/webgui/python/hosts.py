@@ -33,9 +33,9 @@ from .utils import (
 )
 
 
+host_router = APIRouter()
 mysql = get_mysql()
 
-host_router = APIRouter()
 
 
 class Host(BaseModel):  # pylint: disable=too-few-public-methods

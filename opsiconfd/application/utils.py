@@ -13,8 +13,7 @@ from functools import  wraps
 import math
 import traceback
 import orjson
-from sqlalchemy import select, text, asc, desc, column
-
+from sqlalchemy import asc, desc, column
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
 
@@ -159,28 +158,6 @@ def build_tree(group, groups, allowed, processed=None):
 	return group
 
 
-
-
-def get_depot_of_client(client):
-	params = {}
-	with mysql.session() as session:
-
-		params["client"] = client
-		where = text("cs.configId='clientconfig.depot.id' AND cs.objectId = :client")
-
-		query = select(text("cs.objectId AS client, cs.values"))\
-			.select_from(text("CONFIG_STATE AS cs"))\
-			.where(where)
-
-		result = session.execute(query, params)
-		result = result.fetchone()
-
-		if result:
-			depot = dict(result).get("values")[2:-2]
-		else:
-			depot = get_configserver_id()
-		return depot
-
 def common_parameters(
 		filterQuery: Optional[str] = Body(default=None , embed=True),
 		pageNumber: Optional[int] = Body(default=1 , embed=True),
@@ -210,19 +187,6 @@ def common_query_parameters(
 		"sortBy": parse_list(sortBy),
 		"sortDesc": sortDesc
 	}
-
-
-def parse_hosts_list(hosts: List[str] = Query(None)) -> Optional[List]:
-	return parse_list(hosts)
-
-def parse_depot_list(selectedDepots: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
-	return parse_list(selectedDepots)
-
-def parse_client_list(selectedClients: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
-	return parse_list(selectedClients)
-
-def parse_selected_list(selected: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
-	return parse_list(selected)
 
 
 def parse_list(query_list):
@@ -289,9 +253,6 @@ def merge_dicts(dict_a, dict_b, path=None):
 		else:
 			dict_a[key] = dict_b[key]
 	return dict_a
-
-
-
 
 
 def rest_api(func):

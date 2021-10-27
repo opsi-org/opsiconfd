@@ -24,9 +24,12 @@ from opsiconfd.application.utils import (
 	get_configserver_id,
 	build_tree,
 	common_query_parameters,
-	parse_depot_list,
-	parse_hosts_list,
 	rest_api
+)
+
+from .utils import (
+	parse_depot_list,
+	parse_hosts_list
 )
 
 

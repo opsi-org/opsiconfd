@@ -20,9 +20,12 @@ from opsiconfd.application.utils import (
 	pagination,
 	get_configserver_id,
 	common_query_parameters,
-	parse_depot_list,
-	parse_selected_list,
 	rest_api
+)
+
+from .utils import (
+	parse_depot_list,
+	parse_selected_list
 )
 
 mysql = get_mysql()

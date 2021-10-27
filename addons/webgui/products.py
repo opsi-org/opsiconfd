@@ -16,7 +16,7 @@ from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.sql.expression import table, update
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
-from fastapi import Body, APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
@@ -26,15 +26,18 @@ from opsiconfd.application.utils import (
 	get_configserver_id,
 	order_by,
 	pagination,
-	get_depot_of_client,
 	common_query_parameters,
-	parse_depot_list,
-	parse_client_list,
 	bool_product_property,
 	unicode_product_property,
 	merge_dicts,
-	parse_selected_list,
 	rest_api
+)
+
+from .utils import (
+	get_depot_of_client,
+	parse_depot_list,
+	parse_client_list,
+	parse_selected_list
 )
 
 mysql = get_mysql()

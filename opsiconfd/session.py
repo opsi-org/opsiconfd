@@ -164,9 +164,10 @@ class SessionMiddleware:
 		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 			session = OPSISession(self, session_id, connection)
 			await session.init()
-		contextvar_client_session.set(session)
-		scope["session"] = session
-		started_authenticated = session.user_store.authenticated
+		if session:
+			contextvar_client_session.set(session)
+			scope["session"] = session
+			started_authenticated = session.user_store.authenticated
 
 		if connection.headers.get("user-agent", "").startswith("curl/"):
 			# Zsync2 will send "curl/<curl-version>" as User-Agent.

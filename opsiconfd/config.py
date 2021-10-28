@@ -49,7 +49,7 @@ PYTEST = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
 
 FQDN = getfqdn()
 DEFAULT_NODE_NAME = socket.gethostname()
-
+VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 
 if running_in_docker():
 	try:
@@ -737,7 +737,7 @@ parser.add(
 parser.add(
 	"--addon-dirs",
 	env_var="OPSI_ADDON_DIRS",
-	default=["/usr/lib/opsiconfd/addons", "/var/lib/opsiconfd/addons"],
+	default=["/usr/lib/opsiconfd/addons", VAR_ADDON_DIR],
 	type=string_list,
 	help=expert_help("A list of addon directories")
 )

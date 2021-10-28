@@ -82,7 +82,7 @@ def get_manager_pid(ignore_self: bool = False) -> int:
 		ignore_pids += [p.pid for p in our_proc.parents()]
 
 	for proc in psutil.process_iter():
-		if proc.pid in ignore_pids:
+		if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:
 			continue
 		if is_manager(proc) and (not manager_pid or proc.pid > manager_pid):
 			# Do not return, prefer higher pids

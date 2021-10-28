@@ -149,6 +149,7 @@ def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 		if lines[-1] == "":
 			lines.pop()
 		lines.append(conf_line)
+		lines.append("")
 	with codecs.open(config_file.name, "w", "utf-8") as file:
 		file.write("\n".join(lines))
 

@@ -10,7 +10,7 @@ addon webgui
 
 import os
 
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from opsiconfd.addon import Addon
@@ -24,11 +24,10 @@ from .clients import client_router
 from .products import product_router
 from .depots import depot_router
 from .hosts import host_router
+from .webgui import webgui_router
 
 WEBGUI_APP_PATH = config.webgui_folder
 
-
-webgui_router = APIRouter()
 
 class Webgui(Addon):
 	id = ADDON_ID

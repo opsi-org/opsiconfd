@@ -10,7 +10,6 @@ application/api utils
 
 from typing import Optional, List
 from functools import  wraps
-import math
 import traceback
 import orjson
 from sqlalchemy import asc, desc, column
@@ -266,20 +265,21 @@ def rest_api(func):
 		try: # pylint: disable=too-many-branches,too-many-nested-blocks
 			func_result = func(*args, **kwargs)
 			headers = func_result.get("headers", {})
+			headers["Access-Control-Expose-Headers"] = 'x-total-count'
 			http_status = func_result.get("http_status", status.HTTP_200_OK)
 
 			if http_status >= 400:
 				content["message"] = func_result.get("message", "An unknown error occurred.")
 				content["status"] = http_status
 				content["code"] = func_result.get("error_code")
-			# test if admin
+			# TODO test if admin
 			if func_result.get("error"):
 				error = func_result.get("error")
 				if isinstance(error, Exception):
 					content["class"] = error.__class__.__name__
 					content["details"] = str(error)
 				else:
-					content["class"] = error.get("class")
+					content["class"] = error.get("class", "")
 					content["details"] = error.get("details")
 			if func_result.get("data"):
 				content = func_result.get("data")
@@ -288,7 +288,7 @@ def rest_api(func):
 			if func_result.get("total"):
 				total = func_result.get("total")
 				headers["X-Total-Count"] = str(total)
-				# add link header next and last
+								# add link header next and last
 				if kwargs.get("commons") and kwargs.get("request"):
 					per_page = kwargs.get("commons",{}).get("perPage", 1)
 					if total/per_page > 1:

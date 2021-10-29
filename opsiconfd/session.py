@@ -160,6 +160,9 @@ class SessionMiddleware:
 			scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
 		# Get session
+		session = None
+		started_authenticated = False
+
 		session_id = self.get_session_id_from_headers(connection.headers)
 		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 			session = OPSISession(self, session_id, connection)
@@ -189,12 +192,12 @@ class SessionMiddleware:
 					return
 
 		if (
-			scope["path"].startswith("/webgui/api/opsidata") and
+			scope["path"].startswith("/addons/webgui/api/opsidata") and
 			connection.base_url.hostname in  ("127.0.0.1", "::1", "0.0.0.0", "localhost")
 		):
 			if scope.get("method") == "OPTIONS":
 				scope["required_access_role"] = ACCESS_ROLE_PUBLIC
-		if scope["path"] == "/webgui/api/auth/login":
+		if scope["path"] == "/addons/webgui/api/auth/login":
 			if scope.get("method") == "OPTIONS":
 				scope["required_access_role"] = ACCESS_ROLE_PUBLIC
 			else:

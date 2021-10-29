@@ -398,7 +398,6 @@ def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too
 	Save a Product On Client object.
 	"""
 	http_status = status.HTTP_200_OK
-	error = {}
 	result_data = {}
 	depot_product_version = {}
 	product_actions = {}
@@ -420,7 +419,6 @@ def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too
 			if not depot_product_version[depot_id][product_id]:
 				http_status = status.HTTP_400_BAD_REQUEST
 				result_data[client_id][product_id] = f"Product '{product_id}' not available on depot '{depot_id}'."
-				error[client_id] = result_data[client_id][product_id] + "\n "
 				continue
 
 			version = depot_product_version[depot_id][product_id]
@@ -438,11 +436,12 @@ def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too
 
 			if data.actionRequest not in actions:
 				http_status = status.HTTP_400_BAD_REQUEST
-				result_data[client_id][product_id] = (
-					f"Action request '{data.actionRequest}' not supported by product '{product_id}' version '{version}'."
-				)
-				error[client_id] = result_data[client_id][product_id] + "\n "
-				continue
+				logger.warning("Action request '%s' not supported by product '%s' version '%s'.", data.actionRequest, product_id, version)
+				return {
+					"http_status": status.HTTP_400_BAD_REQUEST,
+					"message": f"Action request '{data.actionRequest}' not supported by product '{product_id}' version '{version}'.",
+					"error": ""
+				}
 
 			values = {
 				"clientId": client_id,
@@ -465,14 +464,10 @@ def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too
 				result_data[client_id][product_id] = values
 			except Exception as err: # pylint: disable=broad-except
 				logger.error("Could not create ProductOnClient: %s", err)
-				#error["Error"] = str(err)
-				#status = max(status, 500)
-				http_status = 400
-				result_data[client_id][product_id] = "Failed to create ProductOnClient."
-				error[client_id] = result_data[client_id][product_id] + "\n "
-				continue
+				session.rollback()
+				return {"http_status": status.HTTP_400_BAD_REQUEST, "message": "Could not create ProductOnClient: %s", "error": err}
 
-	return {"http_status": http_status, "error": error, "data": result_data}
+	return {"http_status": http_status, "data": result_data}
 
 
 @product_router.get("/api/opsidata/products/groups")
@@ -824,10 +819,11 @@ def save_poduct_property(productId: str, data: ProductProperty): # pylint: disab
 	Save Product Properties.
 	"""
 
+	logger.devel(data)
+
 	get_product_properties.cache_clear()
 	depot_get_product_version.cache_clear()
 
-	error = {}
 	result_data = {}
 	depot_product_version = {}
 
@@ -841,48 +837,46 @@ def save_poduct_property(productId: str, data: ProductProperty): # pylint: disab
 	else:
 		return {"http_status": status.HTTP_400_BAD_REQUEST, "message": "No clients or depots set."}
 
+	with mysql.session() as session:
+		for object_id in objects:
+			if not object_id in result_data:
+				result_data[object_id] = {}
 
-	for object_id in objects:
-		if not object_id in result_data:
-			result_data[object_id] = {}
+			depot_id = get_depot_of_client(object_id)
 
-		depot_id = get_depot_of_client(object_id)
+			if not depot_id in depot_product_version:
+				depot_product_version[depot_id] = {}
+				depot_product_version[depot_id][productId] = depot_get_product_version(depot_id, productId)
 
-		if not depot_id in depot_product_version:
-			depot_product_version[depot_id] = {}
-			depot_product_version[depot_id][productId] = depot_get_product_version(depot_id, productId)
+			version = depot_product_version[depot_id][productId]
 
-		version = depot_product_version[depot_id][productId]
+			available_properties = get_product_properties(productId, version)
 
-		available_properties = get_product_properties(productId, version)
+			for property_id in data.properties:
 
-		for property_id in data.properties:
+				if property_id not in available_properties:
+					logger.error("Propertiy %s does not exist on %s.", property_id, depot_id)
+					return {
+							"http_status": status.HTTP_400_BAD_REQUEST,
+							"message": f"Failed to set Property: {property_id} for {productId} on {object_id}. Property does not exist.",
+							"error": ""
+						}
 
-			if property_id not in available_properties:
-				logger.error("Propertiy %s does not exist on %s.", property_id, depot_id)
-				http_status = status.HTTP_400_BAD_REQUEST
-				result_data[object_id][property_id] = f"Failed to set Property: {property_id} for {productId} on {object_id}. Property does not exist."
-				if not object_id in error:
-					error[object_id] = ""
-				error[object_id] = error[object_id] + result_data[object_id][property_id] + "\n "
-				continue
+				if isinstance(data.properties[property_id], bool):
+					pp_values = (f'[{data.properties[property_id]}]'.lower())
+				elif isinstance(data.properties[property_id], list):
+					pp_values = f"{data.properties[property_id]}"
+				else:
+					pp_values = (f'["{data.properties[property_id]}"]')
 
-			if isinstance(data.properties[property_id], bool):
-				pp_values = (f'[{data.properties[property_id]}]'.lower())
-			elif isinstance(data.properties[property_id], list):
-				pp_values = f"{data.properties[property_id]}"
-			else:
-				pp_values = (f'["{data.properties[property_id]}"]')
+				values = {
+					"objectId": object_id,
+					"productId": productId,
+					"propertyId": property_id,
+					"values": pp_values
+				}
 
-			values = {
-				"objectId": object_id,
-				"productId": productId,
-				"propertyId": property_id,
-				"values": pp_values
-			}
-
-			try:
-				with mysql.session() as session:
+				try:
 					if get_product_product_property_state(object_id, productId, property_id):
 						stmt = update(
 							table("PRODUCT_PROPERTY_STATE", *[column(name) for name in values.keys()]) # pylint: disable=consider-iterating-dictionary
@@ -896,15 +890,17 @@ def save_poduct_property(productId: str, data: ProductProperty): # pylint: disab
 						).values(**values).on_duplicate_key_update(**values)
 						session.execute(stmt)
 
-				result_data[object_id][property_id] = values
-			except Exception as err: # pylint: disable=broad-except
-				logger.error("Could not save product property state: %s", err)
-				http_status = status.HTTP_400_BAD_REQUEST
-				result_data[object_id][property_id] = f"Failed to set Property: {property_id} for {productId} on {object_id}."
-				error[object_id] = result_data[object_id][property_id] + "\n "
-				continue
+					result_data[object_id][property_id] = values
+				except Exception as err: # pylint: disable=broad-except
+					logger.error("Could not save product property state: %s", err)
+					session.rollback()
+					return {
+						"http_status": status.HTTP_500_BAD_REQUEST,
+						"message": f"Failed to set Property: {property_id} for {productId} on {object_id}.",
+						"error": err
+					}
 
-	return {"http_status": http_status, "message": error, "data": result_data}
+	return {"http_status": status.HTTP_200_OK, "data": result_data}
 
 
 class Dependency(BaseModel): # pylint: disable=too-few-public-methods
@@ -924,6 +920,7 @@ class ProductDependenciesResponse(BaseModel): # pylint: disable=too-few-public-m
 	data: List[Dependency]
 
 @product_router.get("/api/opsidata/products/{productId}/dependencies", response_model=ProductDependenciesResponse)
+@rest_api
 def product_dependencies(
 	productId: str,
 	selectedClients: List[str] = Depends(parse_client_list),
@@ -932,8 +929,7 @@ def product_dependencies(
 	Get products dependencies.
 	"""
 
-	status_code = 200
-	error = None
+	status_code = status.HTTP_200_OK
 	data = {}
 	params = {}
 	data["dependencies"] = []
@@ -978,10 +974,23 @@ def product_dependencies(
 					dependency = dict(row)
 					data["dependencies"].append(dependency)
 
+			data["productVersions"] = {}
+			data["productDescriptionDetails"] = {}
+
+
+			for depot in depots:
+				data["productVersions"][depot] = depot_get_product_version(depot, productId)
+				if data["productVersions"][depot]:
+					data["productDescriptionDetails"][depot] = get_product_description(productId, *data["productVersions"][depot].split("-"))
+
+			if all(description == list(data["productDescriptionDetails"].values())[0] for description in data["productDescriptionDetails"].values()):
+				data["productDescription"] = list(data["productDescriptionDetails"].values())[0]
+			else:
+				data["productDescription"] = "mixed"
+
 		except Exception as err: # pylint: disable=broad-except
 			logger.error("Could not get dependencies.")
 			logger.error(err)
-			error = {"message": str(err), "class": err.__class__.__name__}
-			status_code = max(status_code, 500)
+			return {"http_status": status.HTTP_500_INTERNAL_SERVER_ERROR, "message": "Could not get dependencies.", "error": err}
 
-	return JSONResponse({"status": status_code, "error": error, "data": data})
+	return {"http_status": status_code, "data": data}

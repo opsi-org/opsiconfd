@@ -21,7 +21,7 @@ import requests
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, Mount
 
 from OPSI import __version__ as python_opsi_version
 from OPSI.Exceptions import BackendPermissionDeniedError
@@ -307,13 +307,18 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 
 @admin_interface_router.get("/routes")
 def get_routes(request: Request) -> JSONResponse: # pylint: disable=redefined-builtin
+	app = request.app
 	routes = {}
-	for route in request.app.routes:
-		if isinstance(route, APIRoute):
+	for route in app.routes:
+		if isinstance(route, Mount):
+			routes[route.path] = str(route.app.__module__)
+		elif isinstance(route, APIRoute):
 			module = route.endpoint.__module__
 			if module.startswith("opsiconfd.addon_"):
 				module = f"opsiconfd.addon.{module.split('/')[-1]}"
 			routes[route.path] = f"{module}.{route.endpoint.__qualname__}"
+		else:
+			routes[route.path] = route.__class__.__name__
 
 	return JSONResponse({
 		"status": 200, "error": None, "data": collections.OrderedDict(sorted(routes.items()))

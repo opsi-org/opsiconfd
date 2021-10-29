@@ -500,7 +500,7 @@ def update_host_object(connection: HTTPConnection, session: OPSISession) -> None
 	get_client_backend().host_updateObjects(host) # pylint: disable=no-member
 
 
-async def authenticate(connection: HTTPConnection, receive: Receive) -> None: # pylint: disable: unused-argument
+async def authenticate(connection: HTTPConnection, receive: Receive) -> None: # pylint: disable=unused-argument
 	logger.info("Start authentication of client %s", connection.client.host)
 	session = connection.scope["session"]
 	username = None

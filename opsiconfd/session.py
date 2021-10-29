@@ -326,15 +326,11 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		self.client_addr = connection.client.host
 		self.user_agent = connection.headers.get("user-agent")
 		self.max_age = config.session_lifetime
-		if self.user_agent and "Microsoft-WebDAV-MiniRedir" in self.user_agent:
-			# If session expires windows WebDAV mount will stop working with error:
-			# Mutual Authentication failed: The server's password is out of date at the domain controller.
-			self.max_age = 1800
 		client_max_age = connection.headers.get("x-opsi-session-lifetime")
 		if client_max_age:
 			try:
 				client_max_age = int(client_max_age)
-				if client_max_age > 0 and client_max_age <= 3600 * 24:
+				if 0 < client_max_age <= 3600 * 24:
 					logger.info("Accepting session lifetime %d from client", client_max_age)
 					self.max_age = client_max_age
 				else:

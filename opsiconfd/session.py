@@ -37,7 +37,7 @@ from opsicommon.logging import logger, secret_filter, set_context
 from . import contextvar_client_session, contextvar_server_timing
 from .backend import get_client_backend
 from .config import config, FQDN
-from .utils import redis_client, aredis_client, ip_address_to_redis_key
+from .utils import redis_client, aredis_client, ip_address_to_redis_key, utc_time_timestamp
 from .addon import AddonManager
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
@@ -350,10 +350,6 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 	def __repr__(self):
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
 
-	@classmethod
-	def utc_time_timestamp(cls):
-		return datetime.datetime.utcnow().timestamp()
-
 	@property
 	def session_cookie_name(self):
 		return self._session_middelware.session_cookie_name
@@ -365,7 +361,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 	@property
 	def expired(self) -> bool:
-		return self.utc_time_timestamp() - self.last_used > self.max_age
+		return utc_time_timestamp() - self.last_used > self.max_age
 
 	def get_headers(self):
 		if not self.session_id or self.deleted or not self.persistent:
@@ -421,7 +417,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			) from err
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
-		self.created = self.utc_time_timestamp()
+		self.created = utc_time_timestamp()
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init_new_session(self) -> None:
@@ -499,7 +495,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		return await run_in_threadpool(self.sync_delete)
 
 	def _update_last_used(self):
-		self.last_used = self.utc_time_timestamp()
+		self.last_used = utc_time_timestamp()
 
 	def get(self, name: str, default: typing.Any = None) -> typing.Any:
 		return self._data.get(name, default)

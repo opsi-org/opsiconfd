@@ -14,6 +14,7 @@ import string
 import random
 import ipaddress
 import functools
+import datetime
 import time
 import codecs
 import asyncio
@@ -46,6 +47,10 @@ class Singleton(type):
 		if cls not in cls._instances:
 			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
 		return cls._instances[cls]
+
+
+def utc_time_timestamp():
+		return datetime.datetime.utcnow().timestamp()
 
 
 def running_in_docker():

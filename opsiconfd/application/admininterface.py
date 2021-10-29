@@ -33,7 +33,7 @@ from ..logging import logger
 from ..config import config, FQDN
 from ..backend import get_backend_interface, get_backend
 from ..utils import (
-	get_random_string, get_manager_pid,
+	utc_time_timestamp, get_random_string, get_manager_pid,
 	aredis_client, ip_address_to_redis_key, ip_address_from_redis_key
 )
 from ..ssl import get_ca_info, get_cert_info
@@ -219,7 +219,7 @@ async def get_session_list() -> list:
 		session_list.append({
 			"created": session["created"],
 			"last_used": session["last_used"],
-			"validity": session["max_age"] - (time.time() - session["last_used"]),
+			"validity": session["max_age"] - (utc_time_timestamp() - session["last_used"]),
 			"max_age": session["max_age"],
 			"user_agent": session["user_agent"],
 			"authenticated": session["user_store"].get("authenticated"),

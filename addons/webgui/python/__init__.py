@@ -10,14 +10,18 @@ addon webgui
 
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.requests import HTTPConnection
+from starlette.types import Receive, Send
+from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
 from opsiconfd.config import config
 from opsiconfd.utils import remove_router
-from opsiconfd.backend import get_mysql
+from opsiconfd.backend import get_client_backend, get_mysql
+from opsiconfd.session import ACCESS_ROLE_AUTHENTICATED, ACCESS_ROLE_PUBLIC
 
 from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
 from .clients import client_router
@@ -27,7 +31,7 @@ from .hosts import host_router
 from .webgui import webgui_router
 
 WEBGUI_APP_PATH = config.webgui_folder
-
+SESSION_LIFETIME = 60*30
 
 class Webgui(Addon):
 	id = ADDON_ID
@@ -54,7 +58,6 @@ class Webgui(Addon):
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""
-		logger.devel("on_load")
 		self.setup(app)
 
 	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
@@ -67,3 +70,56 @@ class Webgui(Addon):
 		remove_router(app, depot_router, self.router_prefix)
 
 		#TODO unmount webui
+
+
+	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
+		"""Called on every request where the path matches the addons router prefix.
+		Return true to skip further request processing."""
+		connection.scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
+
+		if (
+			connection.scope["path"].startswith("/addons/webgui/api/opsidata") and
+			connection.base_url.hostname in  ("127.0.0.1", "::1", "0.0.0.0", "localhost")
+		):
+			if connection.scope.get("method") == "OPTIONS":
+				connection.scope["required_access_role"] = ACCESS_ROLE_PUBLIC
+		if (connection.scope["path"].rstrip("/") == self.router_prefix
+			or connection.scope["path"].startswith(f"{self.router_prefix}/app")
+			or connection.scope["path"].startswith(f"{self.router_prefix}/api/user/opsiserver")
+		):
+			connection.scope["required_access_role"] = ACCESS_ROLE_PUBLIC
+		elif connection.scope["path"] == f"{self.router_prefix}/api/auth/login":
+			if connection.scope.get("method") == "OPTIONS":
+				connection.scope["required_access_role"] = ACCESS_ROLE_PUBLIC
+			else:
+				try:
+					await authenticate(connection, receive)
+					connection.scope["session"].max_age = SESSION_LIFETIME
+				except Exception as err:
+					raise HTTPException(
+						status_code=status.HTTP_403_FORBIDDEN,
+						detail=str(err)
+					) from err
+
+		return False
+
+async def authenticate(connection: HTTPConnection, receive: Receive) -> None:
+	logger.info("Start authentication of client %s", connection.client.host)
+	session = connection.scope["session"]
+	username = None
+	password = None
+	if connection.scope["path"] == "/addons/webgui/api/auth/login":
+		req = Request(connection.scope, receive)
+		form = await req.form()
+		username = form.get("username")
+		password = form.get("password")
+
+	auth_type = None
+	def sync_auth(username, password, auth_type):
+		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
+
+	await run_in_threadpool(sync_auth, username, password, auth_type)
+
+	if username == config.monitoring_user:
+		session.user_store.isAdmin = False
+		session.user_store.isReadOnly = True

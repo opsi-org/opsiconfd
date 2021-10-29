@@ -21,7 +21,7 @@ import msgpack
 from aredis.exceptions import ResponseError
 
 from fastapi import HTTPException, status
-from fastapi.requests import HTTPConnection, Request
+from fastapi.requests import HTTPConnection
 from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
 from starlette.datastructures import MutableHeaders, Headers
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -191,19 +191,6 @@ class SessionMiddleware:
 				if await addon.handle_request(connection, receive, send):
 					return
 
-		if (
-			scope["path"].startswith("/addons/webgui/api/opsidata") and
-			connection.base_url.hostname in  ("127.0.0.1", "::1", "0.0.0.0", "localhost")
-		):
-			if scope.get("method") == "OPTIONS":
-				scope["required_access_role"] = ACCESS_ROLE_PUBLIC
-		if scope["path"] == "/addons/webgui/api/auth/login":
-			if scope.get("method") == "OPTIONS":
-				scope["required_access_role"] = ACCESS_ROLE_PUBLIC
-			else:
-				# Authenticate
-				await authenticate(connection, receive)
-
 		await check_access(connection, receive)
 
 		# Session handling time
@@ -247,9 +234,7 @@ class SessionMiddleware:
 
 			status_code = status.HTTP_401_UNAUTHORIZED
 			headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
-			if scope["path"].startswith("/webgui/"):
-				# Do not send WWW-Authenticate to webgui / axios
-				headers = {}
+
 			error = "Authentication error"
 			if isinstance(err, BackendPermissionDeniedError):
 				error = "Permission denied"
@@ -515,20 +500,15 @@ def update_host_object(connection: HTTPConnection, session: OPSISession) -> None
 	get_client_backend().host_updateObjects(host) # pylint: disable=no-member
 
 
-async def authenticate(connection: HTTPConnection, receive: Receive) -> None:
+async def authenticate(connection: HTTPConnection, receive: Receive) -> None: # pylint: disable: unused-argument
 	logger.info("Start authentication of client %s", connection.client.host)
 	session = connection.scope["session"]
 	username = None
 	password = None
-	if connection.scope["path"] == "/webgui/api/auth/login":
-		req = Request(connection.scope, receive)
-		form = await req.form()
-		username = form.get("username")
-		password = form.get("password")
-	else:
-		auth = get_basic_auth(connection.headers)
-		username = auth.username
-		password = auth.password
+
+	auth = get_basic_auth(connection.headers)
+	username = auth.username
+	password = auth.password
 
 	auth_type = None
 	if username == config.monitoring_user:

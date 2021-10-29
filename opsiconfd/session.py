@@ -320,14 +320,16 @@ class SessionMiddleware:
 class OPSISession(): # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
-	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection, max_age: int = None) -> None:
+	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection) -> None:
 		self._session_middelware = session_middelware
 		self.session_id = session_id
 		self.client_addr = connection.client.host
-		self.max_age = max_age
-		if self.max_age is None:
-			self.max_age = config.session_lifetime
 		self.user_agent = connection.headers.get("user-agent")
+		self.max_age = config.session_lifetime
+		if self.user_agent and "Microsoft-WebDAV-MiniRedir" in self.user_agent:
+			# If session expires windows WebDAV mount will stop working with error:
+			# Mutual Authentication failed: The server's password is out of date at the domain controller.
+			self.max_age = 1800
 		self.created = 0
 		self.deleted = False
 		self.persistent = True

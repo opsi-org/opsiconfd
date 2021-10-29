@@ -102,6 +102,15 @@ li {
 	background-color:#eeeeee;
 }
 
+.rpc-th{
+	font-size: 12px;
+	border: 1px #0068aa solid;
+	text-align: left;
+	padding: 2px 10px 2px 10px;
+	color: #eeeeee;
+	background-color: #0068aa;
+}
+
 .rpc-td {
 	font-size: 12px;
 	border: 1px #0068aa solid;
@@ -118,13 +127,27 @@ li {
 	color: #dc322b
 }
 
-.rpc-th{
+
+.session-table {
+	table-layout: auto;
+	background-color:#eeeeee;
+}
+
+.session-th{
 	font-size: 12px;
 	border: 1px #0068aa solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
 	color: #eeeeee;
 	background-color: #0068aa;
+}
+
+.session-td {
+	font-size: 12px;
+	border: 1px #0068aa solid;
+	text-align: left;
+	padding: 2px 10px 2px 10px;
+	color: #000000
 }
 
 /* Style the tab */

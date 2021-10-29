@@ -460,6 +460,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			"created": self.created,
 			"last_used": self.last_used,
 			"max_age": self.max_age,
+			"user_agent": self.user_agent,
 			"user_store": serialize(self.user_store.__dict__),
 			"option_store": self.option_store,
 			"data": self._data

@@ -11,6 +11,7 @@ admininterface
 from urllib.parse import urlparse
 from operator import itemgetter
 import os
+import time
 import signal
 import datetime
 import collections
@@ -205,6 +206,29 @@ async def get_rpc_count():
 
 	response = JSONResponse({"rpc_count": count})
 	return response
+
+
+@admin_interface_router.get("/session-list")
+async def get_session_list() -> list:
+	redis = await aredis_client()
+	session_list = []
+	async for redis_key in redis.scan_iter("opsiconfd:sessions:*"):
+		data = await redis.get(redis_key)
+		session = msgpack.loads(data)
+		tmp = redis_key.decode().split(":")
+		session_list.append({
+			"created": session["created"],
+			"last_used": session["last_used"],
+			"validity": session["max_age"] - (time.time() - session["last_used"]),
+			"max_age": session["max_age"],
+			"user_agent": session["user_agent"],
+			"authenticated": session["user_store"].get("authenticated"),
+			"username": session["user_store"].get("username"),
+			"address": ip_address_from_redis_key(tmp[-2]),
+			"session_id": tmp[-1][:6] + "..."
+		})
+	session_list = sorted(session_list, key=itemgetter("address", "validity"))
+	return session_list
 
 
 @admin_interface_router.get("/blocked-clients")

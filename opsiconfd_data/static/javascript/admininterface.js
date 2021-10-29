@@ -189,6 +189,21 @@ function loadClientTable() {
 	request.send()
 }
 
+function loadSessionTable(sortKey, sort) {
+	let request = new XMLHttpRequest();
+	request.open("GET", "/admin/session-list");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			printSessionTable(result, "session-table-div");
+		} else {
+			console.warn(request.statusText, request.responseText);
+		}
+	});
+	request.send();
+}
+
 function loadRPCTable(sortKey, sort) {
 	let request = new XMLHttpRequest();
 	request.open("GET", "/admin/rpc-list");
@@ -544,6 +559,35 @@ function deleteClassTracker() {
 		}
 	});
 	request.send()
+}
+
+function printSessionTable(data, htmlId) {
+	if (data.length == 0) {
+		htmlStr = "<p>No sessions found.</p>";
+	} else {
+		htmlStr = "<table class=\"session-table\" id=\"session-table\">" +
+			"<tr>" +
+			"<th class='session-th'>Address</th>" +
+			"<th class='session-th'>Session ID</th>" +
+			"<th class='session-th'>User-Agent</th>" +
+			"<th class='session-th'>Username</th>" +
+			"<th class='session-th'>Validity</th>" +
+			"</tr>";
+		data.forEach(element => {
+			htmlStr += "<tr>" +
+				"<td class=\"session-td\">" + element.address + "</td>" +
+				"<td class=\"session-td\">" + element.session_id + "</td>" +
+				"<td class=\"session-td\">" + element.user_agent + "</td>" +
+				"<td class=\"session-td\">" + element.username + "</td>" +
+				"<td class=\"session-td\">" + Math.round(element.validity) + "</td>" +
+				"</tr>";
+		});
+		htmlStr += "</table>";
+	}
+	div = document.getElementById(htmlId);
+	div.innerHTML = htmlStr;
+	return htmlStr;
+
 }
 
 function printClientTable(data, htmlId) {

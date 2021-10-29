@@ -70,6 +70,7 @@
 				loadRPCTable("rpc_num", false);
 			}
 			else if (tabName == "clients") {
+				loadSessionTable();
 				loadClientTable();
 			}
 			else if (tabName == "rpcInterface") {
@@ -116,7 +117,7 @@
 
 		<div class="tab">
 			<button class="tablinks" id="startTab-button" onclick="openTab(event, 'confdInfo')">Info</button>
-			<button class="tablinks" onclick="openTab(event, 'clients')">Blocked Clients</button>
+			<button class="tablinks" onclick="openTab(event, 'clients')">Clients</button>
 			<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
 			<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
 			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
@@ -132,6 +133,13 @@
 		</div>
 
 		<div id="clients" class="tabcontent">
+			<div class="adminpage-box" id="sessions">
+				<h4>Sessions:</h4>
+				<div id="session-table-div">
+					loading...
+				</div>
+			</div>
+
 			<div class="adminpage-box" id="blocked-clients">
 				<h4>Blocked Clients:</h4>
 				<div id="blocked-clients-div">
@@ -168,8 +176,6 @@
 		</div>
 
 		<div id="rpcInfos" class="tabcontent">
-
-
 			<div class="adminpage-box">
 				<div id="rpc-table-div">
 					loading...

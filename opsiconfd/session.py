@@ -330,6 +330,18 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			# If session expires windows WebDAV mount will stop working with error:
 			# Mutual Authentication failed: The server's password is out of date at the domain controller.
 			self.max_age = 1800
+		client_max_age = connection.headers.get("x-opsi-session-lifetime")
+		if client_max_age:
+			try:
+				client_max_age = int(client_max_age)
+				if client_max_age > 0 and client_max_age <= 3600 * 24:
+					logger.info("Accepting session lifetime %d from client", client_max_age)
+					self.max_age = client_max_age
+				else:
+					logger.warning("Not accepting session lifetime %d from client", client_max_age)
+			except ValueError:
+				logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", client_max_age)
+
 		self.created = 0
 		self.deleted = False
 		self.persistent = True
@@ -432,6 +444,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			data = orjson.loads(data)  # pylint: disable=no-member
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
+		self.max_age = data.get("max_age", self.max_age)
 		for key, val in data.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))
 		self.option_store = data.get("option_store", self.option_store)
@@ -450,6 +463,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		data = {
 			"created": self.created,
 			"last_used": self.last_used,
+			"max_age": self.max_age,
 			"user_store": serialize(self.user_store.__dict__),
 			"option_store": self.option_store,
 			"data": self._data

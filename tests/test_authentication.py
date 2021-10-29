@@ -42,7 +42,6 @@ def test_login_success(config):  # pylint: disable=redefined-outer-name,unused-a
 	assert res.url.rstrip("/") == f"{config.external_url}/admin"
 
 
-#@pytest.mark.skip(reason="test does not work in gitlab ci")
 def test_max_sessions(config):  # pylint: disable=redefined-outer-name,unused-argument
 	over_limit = 3
 	for num in range(1, config.max_session_per_ip + 1 + over_limit):
@@ -92,3 +91,46 @@ def test_max_auth_failures(config):  # pylint: disable=redefined-outer-name,unus
 			assert res.status_code == 401
 			assert res.text == "Authentication error"
 		time.sleep(0.5)
+
+
+def test_session_expire(config):  # pylint: disable=redefined-outer-name,unused-argument
+	lifetime = 5 # 5 seconds
+	lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
+
+	session = requests.Session()
+	session.auth = (ADMIN_USER, ADMIN_PASS)
+	res = session.get(f"{config.external_url}/admin/", verify=False, headers=lt_headers)
+	cookie = list(session.cookies)[0]
+	session_id = cookie.value
+	assert res.status_code == 200
+	remain = cookie.expires - time.time()
+	assert remain <= lifetime
+	assert remain >= lifetime - 2
+
+	# Let session expire
+	time.sleep(lifetime + 1)
+
+	res = session.get(f"{config.external_url}/admin/", verify=False, headers=lt_headers)
+	cookie = list(session.cookies)[0]
+	# Assert new session
+	assert res.status_code == 200
+	assert session_id != cookie.value
+
+	remain = cookie.expires - time.time()
+	assert remain <= lifetime
+	assert remain >= lifetime - 2
+
+	session_id = cookie.value
+	session.auth = None
+	# Keep session alive
+	for _ in range(lifetime + 3):
+		time.sleep(1)
+		res = session.get(f"{config.external_url}/admin/", verify=False)
+		assert res.status_code == 200
+		cookie = list(session.cookies)[0]
+		assert session_id == cookie.value
+
+	# Let session expire
+	time.sleep(lifetime + 1)
+	res = session.get(f"{config.external_url}/admin/", verify=False)
+	assert res.status_code == 401

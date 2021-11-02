@@ -21,6 +21,22 @@ from sqlalchemy import asc, desc, column
 from opsiconfd.logging import logger
 from opsiconfd.application.utils import parse_list
 
+
+class OpsiApiException(Exception):
+	def __init__(self, message="An unknown error occurred.", http_status=status.HTTP_500_INTERNAL_SERVER_ERROR, code=None, error=None):
+		self.message = message
+		self.http_status = http_status
+		self.code = code
+		# TODO add details only if user is admin
+		if isinstance(error, Exception):
+			self.error_class = error.__class__.__name__
+			self.details = str(error)
+			# self.details = traceback.format_exc()
+		else:
+			self.error_class = self.__class__.__name__
+			self.details = error
+		super().__init__(self.message)
+
 def order_by(query, params):
 	if not params.get("sortBy"):
 		return query
@@ -90,22 +106,6 @@ def rest_api(func):
 			headers["Access-Control-Expose-Headers"] = 'x-total-count'
 			http_status = func_result.get("http_status", status.HTTP_200_OK)
 
-			if http_status >= 400:
-				content["message"] = func_result.get("message", "An unknown error occurred.")
-				content["status"] = http_status
-				content["code"] = func_result.get("error_code")
-			# TODO test if admin
-			if func_result.get("error"):
-				error = func_result.get("error")
-				if isinstance(error, Exception):
-					content["class"] = error.__class__.__name__
-					content["details"] = str(error)
-				else:
-					content["class"] = error.get("class", "")
-					content["details"] = error.get("details")
-			if func_result.get("data"):
-				content = func_result.get("data")
-
 			# add header with total amount of Objects
 			if func_result.get("total"):
 				total = func_result.get("total")
@@ -126,10 +126,25 @@ def rest_api(func):
 
 			return JSONResponse(content=content if content else None, status_code=http_status, headers=headers)
 
+		except OpsiApiException as err:
+			return JSONResponse(
+				content={
+					"class": err.error_class,
+					"code": err.code,
+					"status": err.http_status,
+					"message": err.message,
+					"details": err.details
+
+				},
+				status_code=err.http_status,
+
+			)
 		except Exception as err: # pylint: disable=broad-except
 			return JSONResponse(
 				content={
 					"class": err.__class__.__name__,
+					"code": None,
+					"status": status.HTTP_500_INTERNAL_SERVER_ERROR,
 					"message": str(err),
 					"details": str(traceback.format_exc())
 				},

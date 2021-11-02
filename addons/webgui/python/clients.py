@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, Request, status
 
 from opsiconfd.logging import logger
 from opsiconfd.backend import get_mysql
-from opsiconfd.rest import order_by, pagination, common_query_parameters, rest_api
+from opsiconfd.rest import order_by, pagination, common_query_parameters, rest_api, OpsiApiException
 from opsiconfd.application.utils import get_configserver_id
 
 from .utils import (
@@ -254,16 +254,21 @@ def create_client(request: Request, client: Client): # pylint: disable=too-many-
 	except IntegrityError as err:
 		logger.error("Could not create client object.")
 		logger.error(err)
-		return {
-			"http_status": status.HTTP_409_CONFLICT,
-			"error": err,
-			"message": f"Could not create client object. Client '{client.hostId}'' already exists"
-		}
+		raise  OpsiApiException(
+			message = f"Could not create client object. Client '{client.hostId}'' already exists",
+			http_status = status.HTTP_409_CONFLICT,
+			error=err
+		) from err
 
 	except Exception as err: # pylint: disable=broad-except
 		logger.error("Could not create client object.")
 		logger.error(err)
-		return {"http_status": status.HTTP_500_INTERNAL_SERVER_ERROR, "error": err, "message": "Could not create client object."}
+		raise OpsiApiException(
+			message = "Could not create client object.",
+			http_status = status.HTTP_500_INTERNAL_SERVER_ERROR,
+			error=err
+		) from err
+
 
 
 @client_router.get("/api/opsidata/clients/{clientid}", response_model=Client)
@@ -299,12 +304,22 @@ def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-d
 					if isinstance(data.get(key), (date, datetime)):
 						data[key] = data.get(key).strftime("%Y-%m-%d %H:%M:%S")
 				return { "data": data }
-			return { "http_status": status.HTTP_404_NOT_FOUND,  "message": f"Client with id '{clientid}' not found." }
+			logger.error("Client with id '%s' not found.", clientid)
+			raise OpsiApiException(
+				message =f"Client with id '{clientid}' not found.",
+				http_status = status.HTTP_404_NOT_FOUND,
+			)
+
 		except Exception as err: # pylint: disable=broad-except
+			if isinstance(err, OpsiApiException):
+				raise err
 			logger.error("Could not get client object.")
 			logger.error(err)
-			status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-			return {"status": status_code, "message": "Could not get client object.", "error": err}
+			raise OpsiApiException(
+				message = "Could not get client object.",
+				http_status = status.HTTP_500_INTERNAL_SERVER_ERROR,
+				error=err
+			) from err
 
 
 @client_router.delete("/api/opsidata/clients/{clientid}")
@@ -327,7 +342,11 @@ def delete_client(clientid: str):
 
 			if not result:
 				logger.info("Client does not exist")
-				return {"http_status": status.HTTP_404_NOT_FOUND, "message": f"Client with id '{clientid}' not found."}
+				logger.error("Client with id '%s' not found.", clientid)
+				raise OpsiApiException(
+					message = f"Client with id '{clientid}' not found.",
+					http_status = status.HTTP_404_NOT_FOUND,
+				)
 
 			tables = [
 				"OBJECT_TO_GROUP",
@@ -398,6 +417,12 @@ def delete_client(clientid: str):
 			return {"http_status": status.HTTP_200_OK}
 
 		except Exception as err: # pylint: disable=broad-except
+			if isinstance(err, OpsiApiException):
+				raise err
 			logger.error("Could not delete client object.")
 			logger.error(err)
-			return {"http_status": status.HTTP_500_INTERNAL_SERVER_ERROR, "message": "Could not delete client object.", "error": err}
+			raise OpsiApiException(
+				message = "Could not delete client object.",
+				http_status = status.HTTP_500_INTERNAL_SERVER_ERROR,
+				error=err
+			) from err

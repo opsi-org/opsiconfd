@@ -16,16 +16,12 @@ from sqlalchemy import select, union, text, and_, or_
 
 from fastapi import APIRouter, Depends
 
+
 # from opsiconfd.logging import logger
-from opsiconfd.application.utils import (
-	get_mysql, order_by,
-	pagination,
-	get_allowed_objects,
-	get_configserver_id,
-	build_tree,
-	common_query_parameters,
-	rest_api
-)
+from opsiconfd.backend import get_mysql
+from opsiconfd.rest import order_by, pagination, common_query_parameters, rest_api
+from opsiconfd.application.utils import get_configserver_id, build_tree, get_allowed_objects
+
 
 from .utils import (
 	parse_depot_list,

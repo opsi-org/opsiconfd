@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*- # pylint: disable=too-many-lines
 
 # opsiconfd is part of the desktop management solution opsi http://www.opsi.org
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
 from opsiconfd.backend import get_mysql
-from opsiconfd.rest import order_by, pagination, common_query_parameters, rest_api
+from opsiconfd.rest import OpsiApiException, order_by, pagination, common_query_parameters, rest_api
 from opsiconfd.application.utils import (
 	get_configserver_id,
 	bool_product_property,
@@ -433,11 +433,10 @@ def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too
 			if data.actionRequest not in actions:
 				http_status = status.HTTP_400_BAD_REQUEST
 				logger.warning("Action request '%s' not supported by product '%s' version '%s'.", data.actionRequest, product_id, version)
-				return {
-					"http_status": status.HTTP_400_BAD_REQUEST,
-					"message": f"Action request '{data.actionRequest}' not supported by product '{product_id}' version '{version}'.",
-					"error": ""
-				}
+				raise OpsiApiException(
+					message =  f"Action request '{data.actionRequest}' not supported by product '{product_id}' version '{version}'.",
+					http_status = status.HTTP_400_BAD_REQUEST
+				)
 
 			values = {
 				"clientId": client_id,
@@ -459,9 +458,16 @@ def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too
 
 				result_data[client_id][product_id] = values
 			except Exception as err: # pylint: disable=broad-except
+				if isinstance(err, OpsiApiException):
+					raise err
 				logger.error("Could not create ProductOnClient: %s", err)
 				session.rollback()
-				return {"http_status": status.HTTP_400_BAD_REQUEST, "message": "Could not create ProductOnClient: %s", "error": err}
+				raise OpsiApiException(
+					message = "Could not create ProductOnClient.",
+					http_status = status.HTTP_400_BAD_REQUEST,
+					error=err
+				) from err
+
 
 	return {"http_status": http_status, "data": result_data}
 
@@ -577,7 +583,10 @@ def product_properties(
 	depot_get_product_version.cache_clear()
 
 	if not selectedClients and not selectedDepots:
-		return {"http_status": status.HTTP_400_BAD_REQUEST, "message": "No clients and no depots were selected."}
+		raise OpsiApiException(
+			message = "No clients and no depots were selected.",
+			http_status = status.HTTP_400_BAD_REQUEST,
+		)
 	if selectedClients:
 		for client in selectedClients:
 			depot = get_depot_of_client(client)
@@ -754,9 +763,15 @@ def product_properties(
 			return {"data": data}
 
 		except Exception as err: # pylint: disable=broad-except
+			if isinstance(err, OpsiApiException):
+				raise err
 			logger.error("Could not get properties.")
 			logger.error(err)
-			return {"http_status": status.HTTP_500_INTERNAL_SERVER_ERROR, "error": err, "message": "Could not get properties."}
+			raise OpsiApiException(
+				message = "Could not get properties.",
+				http_status = status.HTTP_500_INTERNAL_SERVER_ERROR,
+				error=err
+			) from err
 
 
 @lru_cache(maxsize=1000)
@@ -825,13 +840,19 @@ def save_poduct_property(productId: str, data: ProductProperty): # pylint: disab
 
 	objects = []
 	if data.clientIds and data.depotIds:
-		return {"http_status": status.HTTP_400_BAD_REQUEST, "message": "Clients and depots set. Only one is allowed."}
+		raise OpsiApiException(
+			message = "Clients and depots set. Only one is allowed.",
+			http_status = status.HTTP_400_BAD_REQUEST,
+		)
 	if data.clientIds:
 		objects =  objects + data.clientIds
 	elif data.depotIds:
 		objects = objects + data.depotIds
 	else:
-		return {"http_status": status.HTTP_400_BAD_REQUEST, "message": "No clients or depots set."}
+		raise OpsiApiException(
+			message = "No clients or depots set.",
+			http_status = status.HTTP_400_BAD_REQUEST,
+		)
 
 	with mysql.session() as session:
 		for object_id in objects:
@@ -852,12 +873,10 @@ def save_poduct_property(productId: str, data: ProductProperty): # pylint: disab
 
 				if property_id not in available_properties:
 					logger.error("Propertiy %s does not exist on %s.", property_id, depot_id)
-					return {
-							"http_status": status.HTTP_400_BAD_REQUEST,
-							"message": f"Failed to set Property: {property_id} for {productId} on {object_id}. Property does not exist.",
-							"error": ""
-						}
-
+					raise OpsiApiException(
+						message = f"Failed to set Property: {property_id} for {productId} on {object_id}. Property does not exist.",
+						http_status = status.HTTP_400_BAD_REQUEST,
+					)
 				if isinstance(data.properties[property_id], bool):
 					pp_values = (f'[{data.properties[property_id]}]'.lower())
 				elif isinstance(data.properties[property_id], list):
@@ -888,13 +907,16 @@ def save_poduct_property(productId: str, data: ProductProperty): # pylint: disab
 
 					result_data[object_id][property_id] = values
 				except Exception as err: # pylint: disable=broad-except
+					if isinstance(err, OpsiApiException):
+						raise err
 					logger.error("Could not save product property state: %s", err)
 					session.rollback()
-					return {
-						"http_status": status.HTTP_500_BAD_REQUEST,
-						"message": f"Failed to set Property: {property_id} for {productId} on {object_id}.",
-						"error": err
-					}
+					raise OpsiApiException(
+						message = f"Failed to set Property: {property_id} for {productId} on {object_id}.",
+						http_status = status.HTTP_400_BAD_REQUEST,
+						error=err
+					) from err
+
 
 	return {"http_status": status.HTTP_200_OK, "data": result_data}
 
@@ -985,8 +1007,14 @@ def product_dependencies(
 				data["productDescription"] = "mixed"
 
 		except Exception as err: # pylint: disable=broad-except
+			if isinstance(err, OpsiApiException):
+				raise err
 			logger.error("Could not get dependencies.")
 			logger.error(err)
-			return {"http_status": status.HTTP_500_INTERNAL_SERVER_ERROR, "message": "Could not get dependencies.", "error": err}
+			raise OpsiApiException(
+				message = "Could not get dependencies.",
+				http_status = status.HTTP_500_INTERNAL_SERVER_ERROR,
+				error=err
+			) from err
 
 	return {"http_status": status_code, "data": data}

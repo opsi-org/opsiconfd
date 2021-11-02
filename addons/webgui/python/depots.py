@@ -14,14 +14,9 @@ from sqlalchemy import select, text, and_, or_
 
 from fastapi import APIRouter, Depends
 
-from opsiconfd.application.utils import (
-	get_mysql,
-	order_by,
-	pagination,
-	get_configserver_id,
-	common_query_parameters,
-	rest_api
-)
+from opsiconfd.backend import get_mysql
+from opsiconfd.rest import order_by, pagination, common_query_parameters, rest_api
+from opsiconfd.application.utils import get_configserver_id
 
 from .utils import (
 	parse_depot_list,

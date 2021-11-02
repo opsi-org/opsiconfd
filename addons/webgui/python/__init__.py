@@ -97,7 +97,6 @@ class Webgui(Addon):
 
 async def authenticate(connection: HTTPConnection, receive: Receive) -> None:
 	logger.info("Start authentication of client %s", connection.client.host)
-	session = connection.scope["session"]
 	username = None
 	password = None
 	if connection.scope["path"] == "/addons/webgui/api/auth/login":

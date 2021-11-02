@@ -19,17 +19,13 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
-
+from opsiconfd.backend import get_mysql
+from opsiconfd.rest import order_by, pagination, common_query_parameters, rest_api
 from opsiconfd.application.utils import (
-	get_mysql,
 	get_configserver_id,
-	order_by,
-	pagination,
-	common_query_parameters,
 	bool_product_property,
 	unicode_product_property,
-	merge_dicts,
-	rest_api
+	merge_dicts
 )
 
 from .utils import (

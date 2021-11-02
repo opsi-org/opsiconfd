@@ -5,65 +5,15 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-application/api utils
+application utils
 """
 
-from typing import Optional, List
-from functools import  wraps
-import math
-import traceback
 import orjson
-from sqlalchemy import asc, desc, column
-from fastapi import Body, Query, status
-from fastapi.responses import JSONResponse
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
 from opsiconfd.logging import logger
-from opsiconfd.backend import get_backend
-
-
-mysql = None  # pylint: disable=invalid-name
-
-
-def get_mysql():
-	global mysql  # pylint: disable=invalid-name,global-statement
-	if not mysql:
-		backend = get_backend()
-		while getattr(backend, "_backend", None):
-			backend = backend._backend  # pylint: disable=protected-access
-			if backend.__class__.__name__ == "BackendDispatcher":
-				try:
-					mysql = backend._backends["mysql"]["instance"]._sql  # pylint: disable=protected-access
-				except KeyError:
-					# No mysql backend
-					pass
-	return mysql
-
-def order_by(query, params):
-	if not params.get("sortBy"):
-		return query
-	func = asc
-	if params.get("sortDesc", False):
-		func = desc
-	sort_list = []
-	if isinstance(params["sortBy"], list):
-		for col in params["sortBy"]:
-			sort_list.append(func(column(col)))
-	else:
-		for col in params["sortBy"].split(","):
-			sort_list.append(func(column(col)))
-	return query.order_by(*sort_list)
-
-
-
-def pagination(query, params):
-	if not params.get("perPage"):
-		return query
-	query = query.limit(params["perPage"])
-	if params.get("pageNumber") and params["pageNumber"] > 1:
-		query = query.offset((params["pageNumber"] - 1) * params["perPage"])
-	return query
+from opsiconfd.backend import get_mysql
 
 
 def get_configserver_id():
@@ -80,6 +30,7 @@ def get_username():
 def get_user_privileges():
 	username = get_username()
 	privileges = {}
+	mysql = get_mysql()   # pylint: disable=invalid-name
 	with mysql.session() as session:
 		for row in session.execute(
 			"""
@@ -120,7 +71,6 @@ def get_allowed_objects():
 	return allowed
 
 
-
 def build_tree(group, groups, allowed, processed=None):
 	if not processed:
 		processed = []
@@ -156,37 +106,6 @@ def build_tree(group, groups, allowed, processed=None):
 				group["allowed"] = True
 
 	return group
-
-
-def common_parameters(
-		filterQuery: Optional[str] = Body(default=None , embed=True),
-		pageNumber: Optional[int] = Body(default=1 , embed=True),
-		perPage:  Optional[int] = Body(default=20 , embed=True),
-		sortBy:  Optional[str] = Body(default=None , embed=True),
-		sortDesc: Optional[bool] = Body(default=True , embed=True)
-	): # pylint: disable=invalid-name
-	return {
-		"filterQuery": filterQuery,
-		"pageNumber": pageNumber,
-		"perPage": perPage,
-		"sortBy": sortBy,
-		"sortDesc": sortDesc
-	}
-
-def common_query_parameters(
-		filterQuery: Optional[str] = Query(default=None , embed=True),
-		pageNumber: Optional[int] = Query(default=1 , embed=True),
-		perPage:  Optional[int] = Query(default=20 , embed=True),
-		sortBy:  Optional[List[str] ] = Query(default=None , embed=True),
-		sortDesc: Optional[bool] = Query(default=True , embed=True)
-	): # pylint: disable=invalid-name
-	return {
-		"filterQuery": filterQuery,
-		"pageNumber": pageNumber,
-		"perPage": perPage,
-		"sortBy": parse_list(sortBy),
-		"sortDesc": sortDesc
-	}
 
 
 def parse_list(query_list):
@@ -253,66 +172,3 @@ def merge_dicts(dict_a, dict_b, path=None):
 		else:
 			dict_a[key] = dict_b[key]
 	return dict_a
-
-
-def rest_api(func):
-	name = func.__qualname__
-
-	@wraps(func)
-	def create_response(*args, **kwargs): # pylint: disable=too-many-branches
-		logger.devel("create_response")
-		logger.devel(name)
-		content = {}
-		try: # pylint: disable=too-many-branches,too-many-nested-blocks
-			func_result = func(*args, **kwargs)
-			headers = func_result.get("headers", {})
-			headers["Access-Control-Expose-Headers"] = 'x-total-count'
-			http_status = func_result.get("http_status", status.HTTP_200_OK)
-
-			if http_status >= 400:
-				content["message"] = func_result.get("message", "An unknown error occurred.")
-				content["status"] = http_status
-				content["code"] = func_result.get("error_code")
-			# TODO test if admin
-			if func_result.get("error"):
-				error = func_result.get("error")
-				if isinstance(error, Exception):
-					content["class"] = error.__class__.__name__
-					content["details"] = str(error)
-				else:
-					content["class"] = error.get("class", "")
-					content["details"] = error.get("details")
-			if func_result.get("data"):
-				content = func_result.get("data")
-
-			# add header with total amount of Objects
-			if func_result.get("total"):
-				total = func_result.get("total")
-				headers["X-Total-Count"] = str(total)
-								# add link header next and last
-				if kwargs.get("commons") and kwargs.get("request"):
-					per_page = kwargs.get("commons",{}).get("perPage", 1)
-					if total/per_page > 1:
-						page_number = kwargs.get("commons",{}).get("pageNumber", 1)
-						req = kwargs.get("request")
-						url = req.url
-						link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
-						for param in url.query.split("&"):
-							if param.startswith("pageNumber"):
-								continue
-							link += param + "&"
-						headers["Link"] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
-
-			return JSONResponse(content=content if content else None, status_code=http_status, headers=headers)
-
-		except Exception as err: # pylint: disable=broad-except
-			return JSONResponse(
-				content={
-					"class": err.__class__.__name__,
-					"message": str(err),
-					"details": str(traceback.format_exc())
-				},
-				status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-			)
-
-	return create_response

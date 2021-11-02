@@ -161,18 +161,17 @@ class SessionMiddleware:
 		# Get session
 		session_id = self.get_session_id_from_headers(connection.headers)
 		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
-			session = OPSISession(self, session_id, connection)
-			await session.init()
-		if session:
-			contextvar_client_session.set(session)
-			scope["session"] = session
-			started_authenticated = session.user_store.authenticated
+			scope["session"] = OPSISession(self, session_id, connection)
+			await scope["session"].init()
+		if scope["session"]:
+			contextvar_client_session.set(scope["session"])
+			started_authenticated = scope["session"].user_store.authenticated
 
 		if connection.headers.get("user-agent", "").startswith("curl/"):
 			# Zsync2 will send "curl/<curl-version>" as User-Agent.
 			# Do not keep zsync2 sessions because zsync2 will never send a session id.
 			# If we keep the session, we may reach the maximum number of sessions per ip.
-			session.persistent = False
+			scope["session"].persistent = False
 			logger.debug(
 				"Not keeping session for client %s (%s)",
 				connection.client.host, connection.headers.get("user-agent")
@@ -214,10 +213,10 @@ class SessionMiddleware:
 
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
-				if session and not session.deleted and session.persistent:
-					asyncio.get_event_loop().create_task(session.store())
+				if scope["session"] and not scope["session"].deleted and scope["session"].persistent:
+					asyncio.get_event_loop().create_task(scope["session"].store())
 					headers = MutableHeaders(scope=message)
-					for key, val in session.get_headers().items():
+					for key, val in scope["session"].get_headers().items():
 						headers.append(key, val)
 			await send(message)
 

@@ -159,6 +159,7 @@ class SessionMiddleware:
 			scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
 		# Get session
+		started_authenticated = False
 		session_id = self.get_session_id_from_headers(connection.headers)
 		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 			scope["session"] = OPSISession(self, session_id, connection)

@@ -21,7 +21,7 @@ import requests
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, Mount
 
 from OPSI import __version__ as python_opsi_version
 from OPSI.Exceptions import BackendPermissionDeniedError
@@ -32,7 +32,7 @@ from ..logging import logger
 from ..config import config, FQDN
 from ..backend import get_backend_interface, get_backend
 from ..utils import (
-	get_random_string, get_manager_pid,
+	utc_time_timestamp, get_random_string, get_manager_pid,
 	aredis_client, ip_address_to_redis_key, ip_address_from_redis_key
 )
 from ..ssl import get_ca_info, get_cert_info
@@ -207,6 +207,29 @@ async def get_rpc_count():
 	return response
 
 
+@admin_interface_router.get("/session-list")
+async def get_session_list() -> list:
+	redis = await aredis_client()
+	session_list = []
+	async for redis_key in redis.scan_iter("opsiconfd:sessions:*"):
+		data = await redis.get(redis_key)
+		session = msgpack.loads(data)
+		tmp = redis_key.decode().split(":")
+		session_list.append({
+			"created": session["created"],
+			"last_used": session["last_used"],
+			"validity": session["max_age"] - (utc_time_timestamp() - session["last_used"]),
+			"max_age": session["max_age"],
+			"user_agent": session["user_agent"],
+			"authenticated": session["user_store"].get("authenticated"),
+			"username": session["user_store"].get("username"),
+			"address": ip_address_from_redis_key(tmp[-2]),
+			"session_id": tmp[-1][:6] + "..."
+		})
+	session_list = sorted(session_list, key=itemgetter("address", "validity"))
+	return session_list
+
+
 @admin_interface_router.get("/blocked-clients")
 async def get_blocked_clients() -> list:
 	redis = await aredis_client()
@@ -307,13 +330,18 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 
 @admin_interface_router.get("/routes")
 def get_routes(request: Request) -> JSONResponse: # pylint: disable=redefined-builtin
+	app = request.app
 	routes = {}
-	for route in request.app.routes:
-		if isinstance(route, APIRoute):
+	for route in app.routes:
+		if isinstance(route, Mount):
+			routes[route.path] = str(route.app.__module__)
+		elif isinstance(route, APIRoute):
 			module = route.endpoint.__module__
 			if module.startswith("opsiconfd.addon_"):
 				module = f"opsiconfd.addon.{module.split('/')[-1]}"
 			routes[route.path] = f"{module}.{route.endpoint.__qualname__}"
+		else:
+			routes[route.path] = route.__class__.__name__
 
 	return JSONResponse({
 		"status": 200, "error": None, "data": collections.OrderedDict(sorted(routes.items()))

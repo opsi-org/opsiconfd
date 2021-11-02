@@ -390,9 +390,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 	def _get_timestamp(self) -> int: # pylint: disable=no-self-use
 		# return unix timestamp in millis
-		# milliseconds since Jan 01 1970. (UTC)
 		return int(time.time() * 1000)
-		#return int(round(datetime.datetime.utcnow().timestamp())*1000)
 
 	async def _fetch_values(self):
 		self._loop.create_task(

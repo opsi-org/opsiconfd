@@ -15,7 +15,6 @@ from typing import List
 from collections import namedtuple
 import uuid
 import base64
-import datetime
 import orjson
 import msgpack
 from aredis.exceptions import ResponseError
@@ -37,7 +36,7 @@ from opsicommon.logging import logger, secret_filter, set_context
 from . import contextvar_client_session, contextvar_server_timing
 from .backend import get_client_backend
 from .config import config, FQDN
-from .utils import redis_client, aredis_client, ip_address_to_redis_key
+from .utils import redis_client, aredis_client, ip_address_to_redis_key, utc_time_timestamp
 from .addon import AddonManager
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
@@ -160,23 +159,20 @@ class SessionMiddleware:
 			scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
 		# Get session
-		session = None
 		started_authenticated = False
-
 		session_id = self.get_session_id_from_headers(connection.headers)
 		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
-			session = OPSISession(self, session_id, connection)
-			await session.init()
-		if session:
-			contextvar_client_session.set(session)
-			scope["session"] = session
-			started_authenticated = session.user_store.authenticated
+			scope["session"] = OPSISession(self, session_id, connection)
+			await scope["session"].init()
+		if scope["session"]:
+			contextvar_client_session.set(scope["session"])
+			started_authenticated = scope["session"].user_store.authenticated
 
 		if connection.headers.get("user-agent", "").startswith("curl/"):
 			# Zsync2 will send "curl/<curl-version>" as User-Agent.
 			# Do not keep zsync2 sessions because zsync2 will never send a session id.
 			# If we keep the session, we may reach the maximum number of sessions per ip.
-			session.persistent = False
+			scope["session"].persistent = False
 			logger.debug(
 				"Not keeping session for client %s (%s)",
 				connection.client.host, connection.headers.get("user-agent")
@@ -205,10 +201,10 @@ class SessionMiddleware:
 
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
-				if session and not session.deleted and session.persistent:
-					asyncio.get_event_loop().create_task(session.store())
+				if scope["session"] and not scope["session"].deleted and scope["session"].persistent:
+					asyncio.get_event_loop().create_task(scope["session"].store())
 					headers = MutableHeaders(scope=message)
-					for key, val in session.get_headers().items():
+					for key, val in scope["session"].get_headers().items():
 						headers.append(key, val)
 			await send(message)
 
@@ -308,14 +304,24 @@ class SessionMiddleware:
 class OPSISession(): # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
-	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection, max_age: int = None) -> None:
+	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection) -> None:
 		self._session_middelware = session_middelware
 		self.session_id = session_id
 		self.client_addr = connection.client.host
-		self.max_age = max_age
-		if self.max_age is None:
-			self.max_age = config.session_lifetime
 		self.user_agent = connection.headers.get("user-agent")
+		self.max_age = config.session_lifetime
+		client_max_age = connection.headers.get("x-opsi-session-lifetime")
+		if client_max_age:
+			try:
+				client_max_age = int(client_max_age)
+				if 0 < client_max_age <= 3600 * 24:
+					logger.info("Accepting session lifetime %d from client", client_max_age)
+					self.max_age = client_max_age
+				else:
+					logger.warning("Not accepting session lifetime %d from client", client_max_age)
+			except ValueError:
+				logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", client_max_age)
+
 		self.created = 0
 		self.deleted = False
 		self.persistent = True
@@ -328,10 +334,6 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 	def __repr__(self):
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
 
-	@classmethod
-	def utc_time_timestamp(cls):
-		return datetime.datetime.utcnow().timestamp()
-
 	@property
 	def session_cookie_name(self):
 		return self._session_middelware.session_cookie_name
@@ -343,7 +345,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 	@property
 	def expired(self) -> bool:
-		return self.utc_time_timestamp() - self.last_used > self.max_age
+		return utc_time_timestamp() - self.last_used > self.max_age
 
 	def get_headers(self):
 		if not self.session_id or self.deleted or not self.persistent:
@@ -399,7 +401,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			) from err
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
-		self.created = self.utc_time_timestamp()
+		self.created = utc_time_timestamp()
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init_new_session(self) -> None:
@@ -418,6 +420,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			data = orjson.loads(data)  # pylint: disable=no-member
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
+		self.max_age = data.get("max_age", self.max_age)
 		for key, val in data.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))
 		self.option_store = data.get("option_store", self.option_store)
@@ -436,6 +439,8 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		data = {
 			"created": self.created,
 			"last_used": self.last_used,
+			"max_age": self.max_age,
+			"user_agent": self.user_agent,
 			"user_store": serialize(self.user_store.__dict__),
 			"option_store": self.option_store,
 			"data": self._data
@@ -474,7 +479,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		return await run_in_threadpool(self.sync_delete)
 
 	def _update_last_used(self):
-		self.last_used = self.utc_time_timestamp()
+		self.last_used = utc_time_timestamp()
 
 	def get(self, name: str, default: typing.Any = None) -> typing.Any:
 		return self._data.get(name, default)

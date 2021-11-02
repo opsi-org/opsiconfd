@@ -14,6 +14,7 @@ import string
 import random
 import ipaddress
 import functools
+import datetime
 import time
 import codecs
 import asyncio
@@ -46,6 +47,10 @@ class Singleton(type):
 		if cls not in cls._instances:
 			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
 		return cls._instances[cls]
+
+
+def utc_time_timestamp():
+	return datetime.datetime.utcnow().timestamp()
 
 
 def running_in_docker():
@@ -82,7 +87,7 @@ def get_manager_pid(ignore_self: bool = False) -> int:
 		ignore_pids += [p.pid for p in our_proc.parents()]
 
 	for proc in psutil.process_iter():
-		if proc.pid in ignore_pids:
+		if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:
 			continue
 		if is_manager(proc) and (not manager_pid or proc.pid > manager_pid):
 			# Do not return, prefer higher pids

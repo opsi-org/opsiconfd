@@ -30,7 +30,7 @@ from OPSI.System import get_subprocess_environment
 from OPSI.Backend.BackendManager import BackendManager
 
 from .logging import logger
-from .config import config
+from .config import config, VAR_ADDON_DIR
 from .grafana import setup_grafana
 from .statistics import setup_metric_downsampling
 from .ssl import setup_ssl, setup_ssl_file_permissions
@@ -94,10 +94,12 @@ def setup_users_and_groups():
 		except KeyError:
 			logger.debug("Group not found: %s", groupname)
 
+
 def setup_files():
-	log_dir = os.path.dirname(config.log_file)
-	if not os.path.isdir(log_dir):
-		os.makedirs(log_dir)
+	for _dir in (os.path.dirname(config.log_file), VAR_ADDON_DIR):
+		if not os.path.isdir(_dir):
+			os.makedirs(_dir)
+
 
 def setup_file_permissions():
 	logger.info("Setup file permissions")
@@ -120,7 +122,8 @@ def setup_file_permissions():
 	for path in (
 		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
 		"/var/log/opsi/opsiconfd", "/var/log/opsi/userlogin", "/var/lib/opsi/depot",
-		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository", "/var/lib/opsi/public"
+		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository", "/var/lib/opsi/public",
+		VAR_ADDON_DIR
 	):
 		try:
 			path = Path(path)

@@ -49,7 +49,7 @@ PYTEST = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
 
 FQDN = getfqdn()
 DEFAULT_NODE_NAME = socket.gethostname()
-
+VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 
 if running_in_docker():
 	try:
@@ -149,6 +149,7 @@ def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 		if lines[-1] == "":
 			lines.pop()
 		lines.append(conf_line)
+		lines.append("")
 	with codecs.open(config_file.name, "w", "utf-8") as file:
 		file.write("\n".join(lines))
 
@@ -736,7 +737,7 @@ parser.add(
 parser.add(
 	"--addon-dirs",
 	env_var="OPSI_ADDON_DIRS",
-	default=["/usr/lib/opsiconfd/addons", "/var/lib/opsiconfd/addons"],
+	default=["/usr/lib/opsiconfd/addons", VAR_ADDON_DIR],
 	type=string_list,
 	help=expert_help("A list of addon directories")
 )

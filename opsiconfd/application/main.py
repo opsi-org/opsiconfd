@@ -24,7 +24,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
 from fastapi.responses import Response, FileResponse, RedirectResponse, StreamingResponse
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, Mount
 from websockets.exceptions import ConnectionClosedOK
 
 from OPSI import __version__ as python_opsi_version
@@ -285,12 +285,16 @@ def application_setup():
 	AddonManager().load_addons()
 
 	logger.debug("Routing:")
-	endpoints = {}
+	routes = {}
 	for route in app.routes:
-		if isinstance(route, APIRoute):
+		if isinstance(route, Mount):
+			routes[route.path] = str(route.app.__module__)
+		elif isinstance(route, APIRoute):
 			module = route.endpoint.__module__
 			if module.startswith("opsiconfd.addon_"):
 				module = f"opsiconfd.addon.{module.split('/')[-1]}"
-			endpoints[route.path] = f"{module}.{route.endpoint.__qualname__}"
-	for path in sorted(endpoints):
-		logger.debug("%s: %s", path, endpoints[path])
+			routes[route.path] = f"{module}.{route.endpoint.__qualname__}"
+		else:
+			routes[route.path] = route.__class__.__name__
+	for path in sorted(routes):
+		logger.debug("%s: %s", path, routes[path])

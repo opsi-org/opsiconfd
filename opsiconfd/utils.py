@@ -50,7 +50,7 @@ class Singleton(type):
 
 
 def utc_time_timestamp():
-		return datetime.datetime.utcnow().timestamp()
+	return datetime.datetime.utcnow().timestamp()
 
 
 def running_in_docker():

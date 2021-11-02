@@ -11,7 +11,6 @@ admininterface
 from urllib.parse import urlparse
 from operator import itemgetter
 import os
-import time
 import signal
 import datetime
 import collections

@@ -15,7 +15,6 @@ from typing import List
 from collections import namedtuple
 import uuid
 import base64
-import datetime
 import orjson
 import msgpack
 from aredis.exceptions import ResponseError

@@ -19,7 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
 from opsiconfd.config import config
-from opsiconfd.utils import remove_router
+from opsiconfd.utils import remove_route_path
 from opsiconfd.backend import get_client_backend, get_mysql
 from opsiconfd.session import ACCESS_ROLE_AUTHENTICATED, ACCESS_ROLE_PUBLIC
 
@@ -62,14 +62,7 @@ class Webgui(Addon):
 
 	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called before unloading the addon"""
-
-		remove_router(app, webgui_router, self.router_prefix)
-		remove_router(app, host_router, self.router_prefix)
-		remove_router(app, client_router, self.router_prefix)
-		remove_router(app, product_router, self.router_prefix)
-		remove_router(app, depot_router, self.router_prefix)
-
-		#TODO unmount webui
+		remove_route_path(app, self.router_prefix)
 
 
 	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
@@ -78,14 +71,13 @@ class Webgui(Addon):
 		connection.scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
 		if (
-			connection.scope["path"].startswith("/addons/webgui/api/opsidata") and
+			connection.scope["path"].startswith(f"{self.router_prefix}/api/opsidata") and
 			connection.base_url.hostname in  ("127.0.0.1", "::1", "0.0.0.0", "localhost")
 		):
 			if connection.scope.get("method") == "OPTIONS":
 				connection.scope["required_access_role"] = ACCESS_ROLE_PUBLIC
 		if (connection.scope["path"].rstrip("/") == self.router_prefix
-			or connection.scope["path"].startswith(f"{self.router_prefix}/app")
-			or connection.scope["path"].startswith(f"{self.router_prefix}/api/user/opsiserver")
+			or connection.scope["path"].startswith((f"{self.router_prefix}/app",f"{self.router_prefix}/api/user/opsiserver"))
 		):
 			connection.scope["required_access_role"] = ACCESS_ROLE_PUBLIC
 		elif connection.scope["path"] == f"{self.router_prefix}/api/auth/login":
@@ -119,7 +111,3 @@ async def authenticate(connection: HTTPConnection, receive: Receive) -> None:
 		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)
-
-	if username == config.monitoring_user:
-		session.user_store.isAdmin = False
-		session.user_store.isReadOnly = True

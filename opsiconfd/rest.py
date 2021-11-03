@@ -106,6 +106,9 @@ def rest_api(func):
 			headers["Access-Control-Expose-Headers"] = 'x-total-count'
 			http_status = func_result.get("http_status", status.HTTP_200_OK)
 
+			if func_result.get("data"):
+				content = func_result.get("data")
+
 			# add header with total amount of Objects
 			if func_result.get("total"):
 				total = func_result.get("total")

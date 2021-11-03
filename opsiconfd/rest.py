@@ -97,8 +97,7 @@ def rest_api(func):
 
 	@wraps(func)
 	def create_response(*args, **kwargs): # pylint: disable=too-many-branches
-		logger.devel("create_response")
-		logger.devel(name)
+		logger.debug("rest_api method name: %s", name)
 		content = {}
 		try: # pylint: disable=too-many-branches,too-many-nested-blocks
 			func_result = func(*args, **kwargs)

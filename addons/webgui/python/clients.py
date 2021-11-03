@@ -74,7 +74,7 @@ def clients(
 	"""
 	Get Clients on selected depots with infos on the client.
 	"""
-	logger.devel("!!!clients!!!")
+
 	with mysql.session() as session:
 		where = text("h.type = 'OpsiClient'")
 		params = {}
@@ -103,8 +103,6 @@ def clients(
 			params["selected"] = selected
 		else:
 			params["selected"] = [""]
-
-		logger.devel(params["selected"])
 
 		client_with_depot = alias(
 			select(text("""
@@ -244,7 +242,6 @@ def create_client(request: Request, client: Client): # pylint: disable=too-many-
 					*[column(key) for key in vars(client).keys()] # pylint: disable=consider-iterating-dictionary
 				))\
 				.values(values)
-			logger.devel(query)
 			session.execute(query)
 
 		headers = {"Location": f"{request.url}/{client.hostId}"}

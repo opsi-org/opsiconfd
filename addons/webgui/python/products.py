@@ -830,8 +830,6 @@ def save_poduct_property(productId: str, data: ProductProperty): # pylint: disab
 	Save Product Properties.
 	"""
 
-	logger.devel(data)
-
 	get_product_properties.cache_clear()
 	depot_get_product_version.cache_clear()
 

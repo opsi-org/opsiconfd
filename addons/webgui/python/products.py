@@ -952,14 +952,16 @@ def product_dependencies(
 	params["productId"] = productId
 	where = text("pd.productId = :productId")
 	depots = set()
-	for client in selectedClients:
-		depots.add(get_depot_of_client(client))
-	if depots:
-		params["depots"] = list(depots)
-		where = and_(
-			where,
-			text("(pod.depotId IN :depots)")
-		)
+	depots.add(get_configserver_id())
+	if selectedClients:
+		for client in selectedClients:
+			depots.add(get_depot_of_client(client))
+
+	params["depots"] = list(depots)
+	where = and_(
+		where,
+		text("(pod.depotId IN :depots)")
+	)
 
 	with mysql.session() as session:
 

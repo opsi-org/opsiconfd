@@ -45,6 +45,7 @@ pyinstaller-poetry:
       - OPSI.Backend.SQLite
       - OPSI.Util.WIM
       - opsiconfd.application.utils
+      - opsiconfd.rest
   before_script: |
     find .venv -iname "*linux-gnu.so" | grep pydantic | xargs rm -v 2>/dev/null || true
   scripts:

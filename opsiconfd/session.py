@@ -202,7 +202,7 @@ class SessionMiddleware:
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
 				if scope["session"] and not scope["session"].deleted and scope["session"].persistent:
-					asyncio.get_event_loop().create_task(scope["session"].store())
+					await scope["session"].store()
 					headers = MutableHeaders(scope=message)
 					for key, val in scope["session"].get_headers().items():
 						headers.append(key, val)
@@ -344,7 +344,6 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		}
 
 	async def init(self) -> None:
-		wait_for_store = True
 		if self.session_id is None:
 			logger.debug("Session id missing (%s / %s)", self.client_addr, self.user_agent)
 			await self.init_new_session()
@@ -355,22 +354,15 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 					await self.init_new_session()
 				else:
 					logger.debug("Reusing session: %s (%s / %s)", self, self.client_addr, self.user_agent)
-					wait_for_store = False
 			else:
 				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
 				await self.init_new_session()
 
 		self._update_last_used()
-		if wait_for_store:
-			# Session not yet stored in redis.
-			# Wait for store to complete to ensure that the
-			# session can be loaded at the next request.
-			await self.store()
-		else:
-			asyncio.get_event_loop().create_task(self.store())
 
 	def _init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
+		self.is_new_session = True
 		redis_session_keys = []
 		try:
 			with redis_client() as redis:
@@ -451,7 +443,14 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 	async def store(self) -> None:
 		# aredis is sometimes slow ~300ms load, using redis for now
-		await run_in_threadpool(self._store)
+		task = run_in_threadpool(self._store)
+		if self.is_new_session:
+			# Session not yet stored in redis.
+			# Wait for store to complete to ensure that the
+			# session can be loaded at the next request.
+			await task
+		else:
+			asyncio.get_event_loop().create_task(task)
 
 	def sync_delete(self) -> None:
 		with redis_client() as redis:
@@ -481,6 +480,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			if 0 < client_max_age <= 3600 * 24:
 				if client_max_age != self.max_age:
 					logger.info("Accepting session lifetime %d from client", client_max_age)
+					logger.devel("Accepting session lifetime %d from client", client_max_age)
 					self.max_age = client_max_age
 			else:
 				logger.warning("Not accepting session lifetime %d from client", client_max_age)
@@ -616,7 +616,7 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 				if OPSI_ADMIN_GROUP in session.user_store.userGroups:
 					# Remove admin group from groups because acl.conf currently does not support isAdmin
 					session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
-				asyncio.get_event_loop().create_task(session.store())
+				await session.store()
 
 	if scope["required_access_role"] == ACCESS_ROLE_ADMIN and not session.user_store.isAdmin:
 		raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope['method']} {scope['path']}")

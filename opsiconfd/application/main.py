@@ -11,6 +11,7 @@ application main
 import os
 import asyncio
 import urllib
+from urllib.parse import urlparse
 import datetime
 from ctypes import c_long
 
@@ -227,13 +228,16 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 				if message["type"] == "http.response.start":
 					headers = dict(scope["headers"])
 					host = headers.get(b"host", b"localhost:4447").decode().split(":")[0]
+					origin_scheme = "https"
 					origin_port = 4447
 					try:
-						origin_port = int(headers[b"origin"].decode().split(":")[2].split("/")[0])
+						origin = urlparse(headers[b"origin"].decode())
+						origin_scheme = origin.scheme
+						origin_port = int(origin.port)
 					except:  # pylint: disable=bare-except
 						pass
 					headers = MutableHeaders(scope=message)
-					headers.append("Access-Control-Allow-Origin", f"https://{host}:{origin_port}")
+					headers.append("Access-Control-Allow-Origin", f"{origin_scheme}://{host}:{origin_port}")
 					headers.append("Access-Control-Allow-Methods", "*")
 					headers.append("Access-Control-Allow-Headers", "*")
 					headers.append("Access-Control-Allow-Credentials", "true")

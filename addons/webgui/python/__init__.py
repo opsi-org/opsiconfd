@@ -54,7 +54,7 @@ class Webgui(Addon):
 		app.include_router(depot_router, prefix=self.router_prefix)
 
 		if os.path.isdir(WEBGUI_APP_PATH):
-			app.mount(f"{ADDON_ID}/app", StaticFiles(directory=WEBGUI_APP_PATH, html=True), name="app")
+			app.mount(f"/{ADDON_ID}/app", StaticFiles(directory=WEBGUI_APP_PATH, html=True), name="app")
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""

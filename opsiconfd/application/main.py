@@ -181,70 +181,75 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		self.app = app
 
 	async def __call__(self, scope, receive, send):
-		if scope["type"] in ("http", "websocket"):
-			# Generate request id and store in contextvar
-			request_id = id(scope)
-			# Longs on Windows are only 32 bits, but memory adresses on 64 bit python are 64 bits
-			# Ensure it fits inside a long, truncating if necessary
-			request_id = abs(c_long(request_id).value)
-			scope["request_id"] = request_id
-			contextvar_request_id.set(request_id)
+		if not scope["type"] in ("http", "websocket"):
+			return await self.app(scope, receive, send)
 
-			# Sanitize client address
-			client_addr = scope.get("client")
-			client_host = client_addr[0] if client_addr else None
-			client_port = client_addr[1] if client_addr else 0
+		# Generate request id and store in contextvar
+		request_id = id(scope)
+		# Longs on Windows are only 32 bits, but memory adresses on 64 bit python are 64 bits
+		# Ensure it fits inside a long, truncating if necessary
+		request_id = abs(c_long(request_id).value)
+		scope["request_id"] = request_id
+		contextvar_request_id.set(request_id)
 
-			if client_host in config.trusted_proxies:
-				proxy_host = normalize_ip_address(client_host)
-				# from uvicorn/middleware/proxy_headers.py
+		# Sanitize client address
+		client_addr = scope.get("client")
+		client_host = client_addr[0] if client_addr else None
+		client_port = client_addr[1] if client_addr else 0
+
+		if client_host in config.trusted_proxies:
+			proxy_host = normalize_ip_address(client_host)
+			# from uvicorn/middleware/proxy_headers.py
+			headers = dict(scope["headers"])
+			#if b"x-forwarded-proto" in headers:
+			#	# Determine if the incoming request was http or https based on
+			#	# the X-Forwarded-Proto header.
+			#	x_forwarded_proto = headers[b"x-forwarded-proto"].decode("ascii")
+			#	scope["scheme"] = x_forwarded_proto.strip()
+
+			if b"x-forwarded-for" in headers:
+				# Determine the client address from the last trusted IP in the
+				# X-Forwarded-For header. We've lost the connecting client's port
+				# information by now, so only include the host.
+				x_forwarded_for = headers[b"x-forwarded-for"].decode("ascii")
+				client_host = x_forwarded_for.split(",")[-1].strip()
+				client_port = 0
+				logger.debug(
+					"Accepting x-forwarded-for header (host=%s) from trusted proxy %s",
+					client_host, proxy_host
+				)
+
+		if client_host:
+			# Normalize ip address
+			client_host = normalize_ip_address(client_host)
+		scope["client"] = (client_host, client_port)
+		contextvar_client_address.set(client_host)
+
+		async def send_wrapper(message: Message) -> None:
+			if message["type"] == "http.response.start":
 				headers = dict(scope["headers"])
-				#if b"x-forwarded-proto" in headers:
-				#	# Determine if the incoming request was http or https based on
-				#	# the X-Forwarded-Proto header.
-				#	x_forwarded_proto = headers[b"x-forwarded-proto"].decode("ascii")
-				#	scope["scheme"] = x_forwarded_proto.strip()
+				host = headers.get(b"host", b"localhost:4447").decode().split(":")[0]
+				origin_scheme = "https"
+				origin_port = 4447
+				try:
+					origin = urlparse(headers[b"origin"].decode())
+					origin_scheme = origin.scheme
+					origin_port = int(origin.port)
+				except:  # pylint: disable=bare-except
+					pass
+				headers = MutableHeaders(scope=message)
+				headers.append("Access-Control-Allow-Origin", f"{origin_scheme}://{host}:{origin_port}")
+				headers.append("Access-Control-Allow-Methods", "*")
+				headers.append(
+					"Access-Control-Allow-Headers",
+					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime"
+				)
+				headers.append("Access-Control-Allow-Credentials", "true")
 
-				if b"x-forwarded-for" in headers:
-					# Determine the client address from the last trusted IP in the
-					# X-Forwarded-For header. We've lost the connecting client's port
-					# information by now, so only include the host.
-					x_forwarded_for = headers[b"x-forwarded-for"].decode("ascii")
-					client_host = x_forwarded_for.split(",")[-1].strip()
-					client_port = 0
-					logger.debug(
-						"Accepting x-forwarded-for header (host=%s) from trusted proxy %s",
-						client_host, proxy_host
-					)
+			await send(message)
 
-			if client_host:
-				# Normalize ip address
-				client_host = normalize_ip_address(client_host)
-			scope["client"] = (client_host, client_port)
-			contextvar_client_address.set(client_host)
+		return await self.app(scope, receive, send_wrapper)
 
-			async def send_wrapper(message: Message) -> None:
-				if message["type"] == "http.response.start":
-					headers = dict(scope["headers"])
-					host = headers.get(b"host", b"localhost:4447").decode().split(":")[0]
-					origin_scheme = "https"
-					origin_port = 4447
-					try:
-						origin = urlparse(headers[b"origin"].decode())
-						origin_scheme = origin.scheme
-						origin_port = int(origin.port)
-					except:  # pylint: disable=bare-except
-						pass
-					headers = MutableHeaders(scope=message)
-					headers.append("Access-Control-Allow-Origin", f"{origin_scheme}://{host}:{origin_port}")
-					headers.append("Access-Control-Allow-Methods", "*")
-					headers.append("Access-Control-Allow-Headers", "*")
-					headers.append("Access-Control-Allow-Credentials", "true")
-				await send(message)
-
-			return await self.app(scope, receive, send_wrapper)
-
-		return await self.app(scope, receive, send)
 
 def application_setup():
 	FileResponse.chunk_size = 32*1024 # speeds up transfer of big files massively, original value is 4*1024

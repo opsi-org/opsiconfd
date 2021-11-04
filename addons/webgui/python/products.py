@@ -18,8 +18,10 @@ from pydantic import BaseModel # pylint: disable=no-name-in-module
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 
+from opsicommon.objects import ProductOnClient
+
 from opsiconfd.logging import logger
-from opsiconfd.backend import get_mysql
+from opsiconfd.backend import get_mysql, execute_on_secondary_backends
 from opsiconfd.rest import OpsiApiException, order_by, pagination, common_query_parameters, rest_api
 from opsiconfd.application.utils import (
 	get_configserver_id,
@@ -457,6 +459,18 @@ def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too
 					session.execute(stmt)
 
 				result_data[client_id][product_id] = values
+				poc = ProductOnClient(
+					clientId=values.get("clientId"),
+					productId=values.get("productId"),
+					productType=values.get("productType"),
+					productVersion=values.get("productVersion"),
+					packageVersion=values.get("packageVersion"),
+					actionRequest=values.get("actionRequest"),
+					actionProgress=values.get("actionProgress"),
+					actionResult=values.get("actionResult"),
+					installationStatus=values.get("installationStatus")
+				)
+				execute_on_secondary_backends("productOnClient_updateObject", productOnClient=poc)
 			except Exception as err: # pylint: disable=broad-except
 				if isinstance(err, OpsiApiException):
 					raise err
@@ -467,7 +481,6 @@ def save_poduct_on_client(data: PocItem): # pylint: disable=too-many-locals, too
 					http_status = status.HTTP_400_BAD_REQUEST,
 					error=err
 				) from err
-
 
 	return {"http_status": http_status, "data": result_data}
 

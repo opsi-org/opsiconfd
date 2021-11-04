@@ -306,22 +306,11 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection) -> None:
 		self._session_middelware = session_middelware
+		self._connection = connection
 		self.session_id = session_id
-		self.client_addr = connection.client.host
-		self.user_agent = connection.headers.get("user-agent")
+		self.client_addr = self._connection.client.host
+		self.user_agent = self._connection.headers.get("user-agent")
 		self.max_age = config.session_lifetime
-		client_max_age = connection.headers.get("x-opsi-session-lifetime")
-		if client_max_age:
-			try:
-				client_max_age = int(client_max_age)
-				if 0 < client_max_age <= 3600 * 24:
-					logger.info("Accepting session lifetime %d from client", client_max_age)
-					self.max_age = client_max_age
-				else:
-					logger.warning("Not accepting session lifetime %d from client", client_max_age)
-			except ValueError:
-				logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", client_max_age)
-
 		self.created = 0
 		self.deleted = False
 		self.persistent = True
@@ -435,7 +424,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 	def _store(self) -> None:
 		if self.deleted or not self.persistent:
 			return
-
+		self._update_max_age()
 		data = {
 			"created": self.created,
 			"last_used": self.last_used,
@@ -480,6 +469,23 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 	def _update_last_used(self):
 		self.last_used = utc_time_timestamp()
+
+	def _update_max_age(self):
+		if not self.user_store or not self.user_store.authenticated:
+			return
+		client_max_age = self._connection.headers.get("x-opsi-session-lifetime")
+		if not client_max_age:
+			return
+		try:
+			client_max_age = int(client_max_age)
+			if 0 < client_max_age <= 3600 * 24:
+				if client_max_age != self.max_age:
+					logger.info("Accepting session lifetime %d from client", client_max_age)
+					self.max_age = client_max_age
+			else:
+				logger.warning("Not accepting session lifetime %d from client", client_max_age)
+		except ValueError:
+			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", client_max_age)
 
 	def get(self, name: str, default: typing.Any = None) -> typing.Any:
 		return self._data.get(name, default)

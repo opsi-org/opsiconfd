@@ -1,0 +1,13 @@
+{
+    "hostId": "pytest-client-1.uib.local",
+    "type": "OpsiClient",
+    "description": "description client1",
+    "notes": "notes client1",
+    "hardwareAddress": "af:fe:af:fe:af:f1",
+    "ipAddress": null,
+    "inventoryNumber": "1",
+    "created": "2021-10-20 12:26:38",
+    "lastSeen": "2021-10-20 12:26:38",
+    "opsiHostKey": null,
+    "oneTimePassword": null
+}

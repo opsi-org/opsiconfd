@@ -1,0 +1,7 @@
+{
+    "class": "OpsiApiException",
+    "code": null,
+    "details": null,
+    "message": "Client with id 'no-client.uib.local' not found.",
+    "status": 404
+}

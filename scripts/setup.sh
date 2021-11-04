@@ -29,4 +29,6 @@ opsi-dev-tool --git-install-hooks
 mkdir /var/log/opsi
 mkdir /var/lib/opsi/workbench
 mkdir /var/lib/opsi/public
+mkdir -p /var/lib/opsiconfd
+ln -s /workspace/addons /var/lib/opsiconfd/addons
 # sudo opsi-backup restore /workspace/opsi_dev_backup.tar.bz2

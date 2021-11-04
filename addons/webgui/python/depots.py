@@ -13,18 +13,30 @@ from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import select, text, and_, or_
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
 
-from .utils import get_mysql, order_by, pagination, get_configserver_id, common_query_parameters, parse_depot_list, parse_selected_list
+from opsiconfd.backend import get_mysql
+from opsiconfd.rest import order_by, pagination, common_query_parameters, rest_api
+from opsiconfd.application.utils import get_configserver_id
+
+from .utils import (
+	parse_depot_list,
+	parse_selected_list
+)
 
 mysql = get_mysql()
 
 depot_router = APIRouter()
 
-class DepotIdsResponse(BaseModel): # pylint: disable=too-few-public-methods
-	result: List[str]
+class Depot(BaseModel):  # pylint: disable=too-few-public-methods
+	depotId: str
+	ident: str
+	type: str
+	ip: str
+	description: str
 
-@depot_router.get("/api/opsidata/depotIds", response_model=DepotIdsResponse)
+
+@depot_router.get("/api/opsidata/depot_ids", response_model=List[str])
+@rest_api
 def depot_ids():
 	"""
 	Get all depotIds.
@@ -37,25 +49,11 @@ def depot_ids():
 		)
 		result = session.execute(query).fetchall()
 		result = [ row[0] for row in result if row is not None ]
-		return JSONResponse({
-			"result": result
-		})
+		return {"data": result}
 
 
-class DepotResponse(BaseModel):  # pylint: disable=too-few-public-methods
-	class Result(BaseModel):	# pylint: disable=too-few-public-methods
-		class Depot(BaseModel):  # pylint: disable=too-few-public-methods
-			depotId: str
-			ident: str
-			type: str
-			ip: str
-			description: str
-		depots: List[Depot]
-		total: int
-	result: Result
-	configserver: str
-
-@depot_router.get("/api/opsidata/depots", response_model=DepotResponse)
+@depot_router.get("/api/opsidata/depots", response_model=List[Depot])
+@rest_api
 def depots(commons: dict = Depends(common_query_parameters), selected: Optional[List[str]] = Depends(parse_selected_list)):
 	"""
 	Get all depots with depotId, ident, type, ip and description.
@@ -103,22 +101,14 @@ def depots(commons: dict = Depends(common_query_parameters), selected: Optional[
 			params
 		).fetchone()[0]
 
-		response_data = {
-			"result": {
-				"depots": [ dict(row) for row in result if row is not None ],
+		return {
+				"data": [ dict(row) for row in result if row is not None ],
 				"total": total
-			},
-			"configserver": get_configserver_id()
-		}
-		return JSONResponse(response_data)
-
-class ClientsOnDepotResponse(BaseModel): # pylint: disable=too-few-public-methods
-	class Clients(BaseModel): # pylint: disable=too-few-public-methods
-		clients: List[str]
-	result: Clients
+			}
 
 
-@depot_router.get("/api/opsidata/depots/clients", response_model=ClientsOnDepotResponse)
+@depot_router.get("/api/opsidata/depots/clients", response_model=List[str])
+@rest_api
 def clients_on_depots(selectedDepots: List[str] = Depends(parse_depot_list)): # pylint: disable=invalid-name
 	"""
 	Get all client ids on selected depots.
@@ -155,9 +145,4 @@ def clients_on_depots(selectedDepots: List[str] = Depends(parse_depot_list)): # 
 				if dict(row).get("client"):
 					clients.append( dict(row).get("client"))
 
-		response_data = {
-			"result": {
-				"clients": clients,
-			}
-		}
-		return JSONResponse(response_data)
+		return { "data": clients }

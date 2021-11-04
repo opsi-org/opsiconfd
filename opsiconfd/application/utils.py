@@ -5,59 +5,15 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-webgui utils
+application utils
 """
 
-from typing import Optional, List
 import orjson
-from sqlalchemy import select, text, asc, desc, column
-
-from fastapi import Body, Query
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FQDN
 from opsiconfd.logging import logger
-from opsiconfd.backend import get_backend
-
-mysql = None  # pylint: disable=invalid-name
-
-def get_mysql():
-	global mysql  # pylint: disable=invalid-name,global-statement
-	if not mysql:
-		backend = get_backend()
-		while getattr(backend, "_backend", None):
-			backend = backend._backend  # pylint: disable=protected-access
-			if backend.__class__.__name__ == "BackendDispatcher":
-				try:
-					mysql = backend._backends["mysql"]["instance"]._sql  # pylint: disable=protected-access
-				except KeyError:
-					# No mysql backend
-					pass
-	return mysql
-
-def order_by(query, params):
-	if not params.get("sortBy"):
-		return query
-	func = asc
-	if params.get("sortDesc", False):
-		func = desc
-	sort_list = []
-	if isinstance(params["sortBy"], list):
-		for col in params["sortBy"]:
-			sort_list.append(func(column(col)))
-	else:
-		for col in params["sortBy"].split(","):
-			sort_list.append(func(column(col)))
-	return query.order_by(*sort_list)
-
-
-def pagination(query, params):
-	if not params.get("perPage"):
-		return query
-	query = query.limit(params["perPage"])
-	if params.get("pageNumber") and params["pageNumber"] > 1:
-		query = query.offset((params["pageNumber"] - 1) * params["perPage"])
-	return query
+from opsiconfd.backend import get_mysql
 
 
 def get_configserver_id():
@@ -74,6 +30,7 @@ def get_username():
 def get_user_privileges():
 	username = get_username()
 	privileges = {}
+	mysql = get_mysql()   # pylint: disable=invalid-name
 	with mysql.session() as session:
 		for row in session.execute(
 			"""
@@ -114,7 +71,6 @@ def get_allowed_objects():
 	return allowed
 
 
-
 def build_tree(group, groups, allowed, processed=None):
 	if not processed:
 		processed = []
@@ -151,71 +107,6 @@ def build_tree(group, groups, allowed, processed=None):
 
 	return group
 
-
-
-
-def get_depot_of_client(client):
-	params = {}
-	with mysql.session() as session:
-
-		params["client"] = client
-		where = text("cs.configId='clientconfig.depot.id' AND cs.objectId = :client")
-
-		query = select(text("cs.objectId AS client, cs.values"))\
-			.select_from(text("CONFIG_STATE AS cs"))\
-			.where(where)
-
-		result = session.execute(query, params)
-		result = result.fetchone()
-
-		if result:
-			depot = dict(result).get("values")[2:-2]
-		else:
-			depot = get_configserver_id()
-		return depot
-
-def common_parameters(
-		filterQuery: Optional[str] = Body(default=None , embed=True),
-		pageNumber: Optional[int] = Body(default=1 , embed=True),
-		perPage:  Optional[int] = Body(default=20 , embed=True),
-		sortBy:  Optional[str] = Body(default=None , embed=True),
-		sortDesc: Optional[bool] = Body(default=True , embed=True)
-	): # pylint: disable=invalid-name
-	return {
-		"filterQuery": filterQuery,
-		"pageNumber": pageNumber,
-		"perPage": perPage,
-		"sortBy": sortBy,
-		"sortDesc": sortDesc
-	}
-
-def common_query_parameters(
-		filterQuery: Optional[str] = Query(default=None , embed=True),
-		pageNumber: Optional[int] = Query(default=1 , embed=True),
-		perPage:  Optional[int] = Query(default=20 , embed=True),
-		sortBy:  Optional[List[str] ] = Query(default=None , embed=True),
-		sortDesc: Optional[bool] = Query(default=True , embed=True)
-	): # pylint: disable=invalid-name
-	return {
-		"filterQuery": filterQuery,
-		"pageNumber": pageNumber,
-		"perPage": perPage,
-		"sortBy": parse_list(sortBy),
-		"sortDesc": sortDesc
-	}
-
-
-def parse_hosts_list(hosts: List[str] = Query(None)) -> Optional[List]:
-	return parse_list(hosts)
-
-def parse_depot_list(selectedDepots: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
-	return parse_list(selectedDepots)
-
-def parse_client_list(selectedClients: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
-	return parse_list(selectedClients)
-
-def parse_selected_list(selected: List[str] = Query(None)) -> Optional[List]: # pylint: disable=invalid-name
-	return parse_list(selected)
 
 def parse_list(query_list):
 	def remove_prefix(value: str, prefix: str):

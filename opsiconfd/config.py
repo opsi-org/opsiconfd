@@ -176,7 +176,7 @@ def str2bool(value):
 def string_list(value):
 	if isinstance(value, list):
 		return value
-	return [value]
+	return value.split(",")
 
 def expert_help(help):  # pylint: disable=redefined-builtin
 	if "--ex-help" in sys.argv:

@@ -10,7 +10,7 @@ webgui client methods
 
 from typing import Dict, List, Optional
 
-import datetime
+from datetime import date, datetime
 from ipaddress import IPv4Address, IPv6Address
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
@@ -20,50 +20,57 @@ from sqlalchemy.sql.expression import table
 from sqlalchemy.exc import IntegrityError
 
 from fastapi import APIRouter, Depends, Request, status
-from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
+from opsiconfd.backend import get_mysql
+from opsiconfd.rest import order_by, pagination, common_query_parameters, rest_api, OpsiApiException
+from opsiconfd.application.utils import get_configserver_id
 
 from .utils import (
-	get_mysql,
-	order_by,
-	pagination,
-	get_configserver_id,
-	common_query_parameters,
 	parse_depot_list,
 	parse_client_list,
 	parse_selected_list
 )
 
-mysql = get_mysql()
 
 client_router = APIRouter()
+mysql = get_mysql()
+
+class ClientList(BaseModel): # pylint: disable=too-few-public-methods
+	clientId: str
+	ident: str
+	macAddress: str
+	description: str
+	notes: str
+	version_outdated: int
+	installationStatus_unknown: int
+	installationStatus_installed: int
+	actionResult_failed: int
+	actionResult_successful: int
 
 
-class ClientsResponse(BaseModel): # pylint: disable=too-few-public-methods
-	class Result(BaseModel): # pylint: disable=too-few-public-methods
-		class Client(BaseModel): # pylint: disable=too-few-public-methods
-			clientId: str
-			ident: str
-			macAddress: str
-			description: str
-			notes: str
-			version_outdated: int
-			installationStatus_unknown: int
-			installationStatus_installed: int
-			actionResult_failed: int
-			actionResult_successful: int
-		clients: List[Client]
-		total: int
-	result: Result
-	configserver: str
+class Client(BaseModel): # pylint: disable=too-few-public-methods
+	hostId: str
+	opsiHostKey: Optional[str]
+	description: Optional[str]
+	notes: Optional[str]
+	hardwareAddress: Optional[str]
+	ipAddress: Optional[IPv4Address or IPv6Address]
+	inventoryNumber: Optional[str]
+	oneTimePassword: Optional[str]
+	created: Optional[datetime]
+	lastSeen: Optional[datetime]
 
 
-@client_router.get("/api/opsidata/clients", response_model=ClientsResponse)
-def clients(commons: dict = Depends(common_query_parameters), #
-			selectedDepots: List[str] = Depends(parse_depot_list),
-			selected: Optional[List[str]] = Depends(parse_selected_list)
-		):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
+@client_router.get("/api/opsidata/clients", response_model=List[ClientList])
+@rest_api
+def clients(
+	request: Request,
+	commons: dict = Depends(common_query_parameters),
+	selectedDepots: List[str] = Depends(parse_depot_list),
+	selected: Optional[List[str]] = Depends(parse_selected_list)
+
+):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name, unused-argument
 	"""
 	Get Clients on selected depots with infos on the client.
 	"""
@@ -170,20 +177,17 @@ def clients(commons: dict = Depends(common_query_parameters), #
 			params
 		).fetchone()[0]
 
-		response_data = {
-			"result": {
-				"clients": [ dict(row) for row in result if row is not None ],
+
+		return {
+				"data": [ dict(row) for row in result if row is not None ],
 				"total": total
-			},
-			"configserver": get_configserver_id()
 		}
-		return JSONResponse(response_data)
-
-class DepotOfClientsResponse(BaseModel): # pylint: disable=too-few-public-methods
-	result: Dict[str, str]
 
 
-@client_router.get("/api/opsidata/clients/depots", response_model=DepotOfClientsResponse)
+
+
+@client_router.get("/api/opsidata/clients/depots", response_model=Dict[str, str])
+@rest_api
 def depots_of_clients(selectedClients: List[str] = Depends(parse_client_list)): # pylint: disable=too-many-branches, redefined-builtin, dangerous-default-value, invalid-name
 	"""
 	Get a mapping of clients to depots.
@@ -214,85 +218,64 @@ def depots_of_clients(selectedClients: List[str] = Depends(parse_client_list)): 
 		for client in params["clients"]:
 			response[client] = get_configserver_id()
 
+		return { "data": response }
 
-		response_data = {
-			"result": response
-		}
-		return JSONResponse(response_data)
-
-class Client(BaseModel): # pylint: disable=too-few-public-methods
-	hostId: str
-	opsiHostKey: Optional[str]
-	description: Optional[str]
-	notes: Optional[str]
-	hardwareAddress: Optional[str]
-	ipAddress: Optional[IPv4Address or IPv6Address]
-	inventoryNumber: Optional[str]
-	oneTimePassword: Optional[str]
-	created: Optional[datetime.datetime]
-	lastSeen: Optional[datetime.datetime]
-
-class ClientResponse(BaseModel): # pylint: disable=too-few-public-methods
-	status: int
-	error: dict
-	data: Client
 
 @client_router.post("/api/opsidata/clients")
+@rest_api
 def create_client(request: Request, client: Client): # pylint: disable=too-many-locals
 	"""
 	Create OPSI-Client.
 	"""
 
-	status_code = 201
-	error = None
-	data = {}
-	headers = None
-
 	values = vars(client)
 	values["type"] = "OpsiClient"
+	if not values.get("created"):
+		values["created"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+		values["lastSeen"] = values["created"]
 
-	with mysql.session() as session:
-		try:
-			with mysql.session() as session:
-				query = insert(table(
-						"HOST",
-						column("type"),
-						*[column(key) for key in vars(client).keys()] # pylint: disable=consider-iterating-dictionary
-					))\
-					.values(values)
+	try:
+		with mysql.session() as session:
+			query = insert(table(
+					"HOST",
+					column("type"),
+					*[column(key) for key in vars(client).keys()] # pylint: disable=consider-iterating-dictionary
+				))\
+				.values(values)
+			session.execute(query)
 
-				session.execute(query)
+		headers = {"Location": f"{request.url}/{client.hostId}"}
 
-			headers = {"Location": f"{request.url}/{client.hostId}"}
+		return {"http_status": status.HTTP_201_CREATED, "headers": headers, "data": values}
 
-		except IntegrityError as err:
-			logger.error("Could not create client object.")
-			logger.error(err)
-			error = {"message": str(err), "class": err.__class__.__name__}
-			status_code = max(status_code, 409)
+	except IntegrityError as err:
+		logger.error("Could not create client object.")
+		logger.error(err)
+		raise  OpsiApiException(
+			message = f"Could not create client object. Client '{client.hostId}'' already exists",
+			http_status = status.HTTP_409_CONFLICT,
+			error=err
+		) from err
 
-		except Exception as err: # pylint: disable=broad-except
-			logger.error("Could not create client object.")
-			logger.error(err)
-			error = {"message": str(err), "class": err.__class__.__name__}
-			status_code = max(status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+	except Exception as err: # pylint: disable=broad-except
+		logger.error("Could not create client object.")
+		logger.error(err)
+		raise OpsiApiException(
+			message = "Could not create client object.",
+			http_status = status.HTTP_500_INTERNAL_SERVER_ERROR,
+			error=err
+		) from err
 
 
-	return JSONResponse({"status": status_code, "error": error, "data": data}, headers=headers)
 
-
-@client_router.get("/api/opsidata/clients/{clientid}", response_model=ClientResponse)
+@client_router.get("/api/opsidata/clients/{clientid}", response_model=Client)
+@rest_api
 def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-default-value, invalid-name
 	"""
 	Get Clients on selected depots with infos on the client.
 	"""
 
-	status_code = 200
-	error = ""
-	data = None
-
 	with mysql.session() as session:
-
 		try:
 			query = select(text("""
 				h.hostId AS hostId,
@@ -315,28 +298,35 @@ def get_client(clientid: str):  # pylint: disable=too-many-branches, dangerous-d
 			if result:
 				data = dict(result)
 				for key in data.keys():
-					if isinstance(data.get(key), (datetime.date, datetime.datetime)):
-						data[key] = data.get(key).isoformat()
+					if isinstance(data.get(key), (date, datetime)):
+						data[key] = data.get(key).strftime("%Y-%m-%d %H:%M:%S")
+				return { "data": data }
+			logger.error("Client with id '%s' not found.", clientid)
+			raise OpsiApiException(
+				message =f"Client with id '{clientid}' not found.",
+				http_status = status.HTTP_404_NOT_FOUND,
+			)
+
 		except Exception as err: # pylint: disable=broad-except
+			if isinstance(err, OpsiApiException):
+				raise err
 			logger.error("Could not get client object.")
 			logger.error(err)
-			error = {"message": str(err), "class": err.__class__.__name__}
-			status_code = max(status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+			raise OpsiApiException(
+				message = "Could not get client object.",
+				http_status = status.HTTP_500_INTERNAL_SERVER_ERROR,
+				error=err
+			) from err
 
-		return JSONResponse({"status": status_code, "error": error, "data": data})
 
-@client_router.delete("/api/opsidata/clients/{clientid}", response_model=ClientResponse)
+@client_router.delete("/api/opsidata/clients/{clientid}")
+@rest_api
 def delete_client(clientid: str):
 	"""
 	Delete Client with ID.
 	"""
 
-	status_code = 200
-	error = ""
-	data = None
-
 	with mysql.session() as session:
-
 		try:
 			query = select(text("""
 				h.hostId AS hostId
@@ -349,7 +339,11 @@ def delete_client(clientid: str):
 
 			if not result:
 				logger.info("Client does not exist")
-				return JSONResponse({"status": status.HTTP_404_NOT_FOUND, "error": {"message": f"Client with id '{clientid}' not found"}, "data": data})
+				logger.error("Client with id '%s' not found.", clientid)
+				raise OpsiApiException(
+					message = f"Client with id '{clientid}' not found.",
+					http_status = status.HTTP_404_NOT_FOUND,
+				)
 
 			tables = [
 				"OBJECT_TO_GROUP",
@@ -417,10 +411,15 @@ def delete_client(clientid: str):
 			.where(text(f"HOST.hostId = '{clientid}' and HOST.type = 'OpsiClient'"))
 			session.execute(query)
 
+			return {"http_status": status.HTTP_200_OK}
+
 		except Exception as err: # pylint: disable=broad-except
+			if isinstance(err, OpsiApiException):
+				raise err
 			logger.error("Could not delete client object.")
 			logger.error(err)
-			error = {"message": str(err), "class": err.__class__.__name__}
-			status_code = max(status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-		return JSONResponse({"status": status_code, "error": error, "data": data})
+			raise OpsiApiException(
+				message = "Could not delete client object.",
+				http_status = status.HTTP_500_INTERNAL_SERVER_ERROR,
+				error=err
+			) from err

@@ -1,0 +1,13 @@
+{
+    "hostId": "myclient.test.local",
+    "opsiHostKey": null,
+    "description": "test client",
+    "notes": null,
+    "hardwareAddress": null,
+    "ipAddress": null,
+    "inventoryNumber": "120",
+    "oneTimePassword": null,
+    "created": null,
+    "lastSeen": null,
+    "type": "OpsiClient"
+}

@@ -1,0 +1,23 @@
+project:
+  name: opsi-webgui-backend
+  version: 0.0.4
+  description: backend for opsi webgui
+  homepage: http://www.opsi.org
+  licenses:
+    - license: AGPL-3.0
+  maintainer: uib GmbH <info@uib.de>
+
+package:
+  name: opsi-webgui-backend
+  type: binary
+  architecture: all
+  source_script: |
+    mkdir -p "${DST}/rootfs/var/lib/opsiconfd/addons/webgui"
+    for file in __init__.py clients.py depots.py hosts.py products.py webgui.py
+    do
+      cp -a "${SRC}/${file}" "${DST}/rootfs/var/lib/opsiconfd/addons/webgui/${file}"
+    done
+  postinst_script:
+    - opsiconfd reload
+    - echo "OPSI webgui addon folder '/var/lib/opsiconfd/addons/webgui'"
+    - exit 0

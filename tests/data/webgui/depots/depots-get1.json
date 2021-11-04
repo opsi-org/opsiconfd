@@ -1,0 +1,10 @@
+[
+    {
+        "depotId": "pytest-test-depot2.uib.gmbh",
+        "ident": "pytest-test-depot2.uib.gmbh",
+        "type": "OpsiDepotserver",
+        "ip": null,
+        "description": "",
+        "selected": 0
+    }
+]

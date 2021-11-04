@@ -1,0 +1,29 @@
+
+[
+    {
+        "clientId": "pytest-client-2.uib.local",
+        "ident": "pytest-client-2.uib.local",
+        "macAddress": "af:fe:af:fe:af:f2",
+        "description": "description client2",
+        "notes": "notes client2",
+        "version_outdated": 0,
+        "installationStatus_unknown": 1,
+        "installationStatus_installed": 0,
+        "actionResult_failed": 1,
+        "actionResult_successful": 0,
+        "selected": 0
+    },
+    {
+        "clientId": "pytest-client-3.uib.local",
+        "ident": "pytest-client-3.uib.local",
+        "macAddress": "af:fe:af:fe:af:f3",
+        "description": "description client3",
+        "notes": "notes client3",
+        "version_outdated": 0,
+        "installationStatus_unknown": 0,
+        "installationStatus_installed": 1,
+        "actionResult_failed": 0,
+        "actionResult_successful": 0,
+        "selected": 0
+    }
+]

@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import APIRouter, Depends, Request, status
 
 from opsiconfd.logging import logger
-from opsiconfd.backend import get_mysql
+from opsiconfd.backend import get_mysql, execute_on_secondary_backends
 from opsiconfd.rest import order_by, pagination, common_query_parameters, rest_api, OpsiApiException
 from opsiconfd.application.utils import get_configserver_id
 
@@ -245,7 +245,19 @@ def create_client(request: Request, client: Client): # pylint: disable=too-many-
 			session.execute(query)
 
 		headers = {"Location": f"{request.url}/{client.hostId}"}
-
+		execute_on_secondary_backends(
+			"host_createOpsiClient",
+			id=values.get("hostid"),
+			opsiHostKey=values.get("opsiHostKey"),
+			description=values.get("description"),
+			notes=values.get("notes"),
+			hardwareAddress=values.get("hardwareAddress"),
+			ipAddress=values.get("ipAddress"),
+			inventoryNumber=values.get("inventoryNumber"),
+			oneTimePassword=values.get("oneTimePassword"),
+			created=values.get("created"),
+			lastSeen=values.get("lastSeen"),
+		)
 		return {"http_status": status.HTTP_201_CREATED, "headers": headers, "data": values}
 
 	except IntegrityError as err:
@@ -410,6 +422,7 @@ def delete_client(clientid: str):
 			query = delete(table("HOST"))\
 			.where(text(f"HOST.hostId = '{clientid}' and HOST.type = 'OpsiClient'"))
 			session.execute(query)
+			execute_on_secondary_backends("host_delete", id=clientid)
 
 			return {"http_status": status.HTTP_200_OK}
 

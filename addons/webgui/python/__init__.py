@@ -10,7 +10,8 @@ addon webgui
 
 import os
 
-from fastapi import FastAPI, Request, status, HTTPException
+from fastapi import FastAPI, Request, status, HTTPException, APIRouter
+from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import HTTPConnection
 from starlette.types import Receive, Send
@@ -20,7 +21,8 @@ from opsiconfd.addon import Addon
 from opsiconfd.logging import logger
 from opsiconfd.config import config
 from opsiconfd.utils import remove_route_path
-from opsiconfd.backend import get_client_backend, get_mysql
+from opsiconfd.backend import get_client_backend
+
 from opsiconfd.session import ACCESS_ROLE_AUTHENTICATED, ACCESS_ROLE_PUBLIC
 
 from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
@@ -29,9 +31,12 @@ from .products import product_router
 from .depots import depot_router
 from .hosts import host_router
 from .webgui import webgui_router
+from .utils import mysql
 
 WEBGUI_APP_PATH = config.webgui_folder
 SESSION_LIFETIME = 60*30
+
+
 
 class Webgui(Addon):
 	id = ADDON_ID
@@ -41,11 +46,16 @@ class Webgui(Addon):
 
 	def setup(self, app):
 
-		try:
-			get_mysql()
-		except RuntimeError as err:
-			logger.warning("No mysql backend! Webgui only works with mysql backend.")
-			raise RuntimeError("No mysql backend! Webgui only works with mysql backend.") from err
+		if not mysql:
+			logger.warning("No mysql backend found! Webgui only works with mysql backend.")
+			error_router = APIRouter()
+			@error_router.get(f"/{ADDON_ID}/app")
+			def webgui_error():
+				return PlainTextResponse("No mysql backend found! Webgui only works with mysql backend.", status_code=501)
+			app.include_router(error_router)
+			logger.devel(app)
+
+			return
 
 		app.include_router(webgui_router, prefix=self.router_prefix)
 		app.include_router(product_router, prefix=self.router_prefix)

@@ -16,10 +16,11 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from opsiconfd import contextvar_client_session
 from opsiconfd.backend import get_backend, get_mysql
 from opsiconfd.application.utils import get_allowed_objects, build_tree, get_username, get_configserver_id
+from .utils import mysql
 
 webgui_router = APIRouter()
 
-mysql = get_mysql()
+
 
 @webgui_router.options("/api/{any:path}")
 async def options():

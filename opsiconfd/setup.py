@@ -25,7 +25,7 @@ from OPSI.setup import (
 )
 from OPSI.System.Posix import locateDHCPDConfig
 from OPSI.Util.Task.InitializeBackend import initializeBackends
-from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
+from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, DirPermission, set_rights
 from OPSI.System import get_subprocess_environment
 from OPSI.Backend.BackendManager import BackendManager
 
@@ -110,7 +110,8 @@ def setup_file_permissions():
 		FilePermission("/var/log/opsi/opsiconfd/opsiconfd.log", config.run_as_user, OPSI_ADMIN_GROUP, 0o660),
 		# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)
 		# This user needs read permission
-		FilePermission(dhcpd_config_file, config.run_as_user, OPSI_ADMIN_GROUP, 0o664)
+		FilePermission(dhcpd_config_file, config.run_as_user, OPSI_ADMIN_GROUP, 0o664),
+		DirPermission(VAR_ADDON_DIR, config.run_as_user, FILE_ADMIN_GROUP, 0o660, 0o770)
 	)
 	PermissionRegistry().register_permission(*permissions)
 	for permission in permissions:

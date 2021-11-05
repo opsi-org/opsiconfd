@@ -31,10 +31,10 @@ from .utils import (
 	parse_client_list,
 	parse_selected_list
 )
-
+from .utils import mysql
 
 client_router = APIRouter()
-mysql = get_mysql()
+
 
 class ClientList(BaseModel): # pylint: disable=too-few-public-methods
 	clientId: str

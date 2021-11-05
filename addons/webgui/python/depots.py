@@ -23,7 +23,7 @@ from .utils import (
 	parse_selected_list
 )
 
-mysql = get_mysql()
+from .utils import mysql
 
 depot_router = APIRouter()
 

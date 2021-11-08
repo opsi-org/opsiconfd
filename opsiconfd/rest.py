@@ -14,6 +14,7 @@ import traceback
 from typing import Optional, List
 from functools import  wraps
 
+from pydantic import BaseModel # pylint: disable=no-name-in-module
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import asc, desc, column
@@ -21,6 +22,17 @@ from sqlalchemy import asc, desc, column
 from . import contextvar_client_session
 from .logging import logger
 from .application.utils import parse_list
+
+class RestApiValidationError(BaseModel):
+	class_value: str = "RequestValidationError"
+	message: str
+	status: int = 422
+	code: Optional[str]
+	details: Optional[str]
+
+	class Config: # pylint: disable=too-few-public-methods
+		fields = {'class_value': 'class'}
+
 
 class OpsiApiException(Exception):
 	def __init__(
@@ -93,6 +105,7 @@ def common_query_parameters(
 		"sortBy": parse_list(sortBy),
 		"sortDesc": sortDesc
 	}
+
 
 
 def rest_api(func):

@@ -194,7 +194,7 @@ test_data = [
 		{
 			"class": "OpsiApiException",
 			"code": None,
-			"details": None,
+			"details": "None",
 			"message": "Client with id 'no-client.uib.local' not found.",
 			"status": 404
 		},

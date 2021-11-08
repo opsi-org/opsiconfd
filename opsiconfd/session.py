@@ -480,7 +480,6 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			if 0 < client_max_age <= 3600 * 24:
 				if client_max_age != self.max_age:
 					logger.info("Accepting session lifetime %d from client", client_max_age)
-					logger.devel("Accepting session lifetime %d from client", client_max_age)
 					self.max_age = client_max_age
 			else:
 				logger.warning("Not accepting session lifetime %d from client", client_max_age)

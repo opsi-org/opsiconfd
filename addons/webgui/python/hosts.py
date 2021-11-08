@@ -28,10 +28,9 @@ from .utils import (
 	parse_hosts_list
 )
 
+from .utils import mysql
 
 host_router = APIRouter()
-mysql = get_mysql()
-
 
 
 class Host(BaseModel):  # pylint: disable=too-few-public-methods

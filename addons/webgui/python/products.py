@@ -36,8 +36,8 @@ from .utils import (
 	parse_client_list,
 	parse_selected_list
 )
+from .utils import mysql
 
-mysql = get_mysql()
 product_router = APIRouter()
 
 @lru_cache(maxsize=1000)

@@ -13,7 +13,13 @@ from sqlalchemy import select, text
 from fastapi import Query
 
 from opsiconfd.application.utils import get_configserver_id, parse_list
-from opsiconfd.backend import get_mysql
+from opsiconfd.backend import get_mysql as backend_get_mysql
+
+def get_mysql():
+	try:
+		return backend_get_mysql()
+	except RuntimeError as err:
+		return None
 
 mysql = get_mysql()
 

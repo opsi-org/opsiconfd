@@ -261,6 +261,37 @@ function loadRedisInfo() {
 	request.send()
 }
 
+function loadAddons() {
+	let request = new XMLHttpRequest();
+	request.open("GET", "/admin/addons");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			printAddonTable(result, "addon-table-div");
+		} else {
+			console.warn(request.statusText, request.responseText);
+		}
+	});
+	request.send()
+}
+
+function installAddon() {
+	let formData = new FormData();
+	formData.append("addonfile", document.getElementById("addon-file").files[0]);
+	var request = new XMLHttpRequest();
+	request.open("POST", "/admin/addons/install");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			loadAddons();
+		} else {
+			console.warn(request.statusText, request.responseText);
+		}
+	});
+	request.send(formData);
+}
+
+
 function loadConfdInfo() {
 	let request1 = new XMLHttpRequest();
 	request1.open("GET", "/admin/config");
@@ -587,8 +618,35 @@ function printSessionTable(data, htmlId) {
 	div = document.getElementById(htmlId);
 	div.innerHTML = htmlStr;
 	return htmlStr;
-
 }
+
+
+function printAddonTable(data, htmlId) {
+	if (data.length == 0) {
+		htmlStr = "<p>No addons loaded.</p>";
+	} else {
+		htmlStr = "<table class=\"addon-table\" id=\"addon-table\">" +
+			"<tr>" +
+			"<th class='addon-th'>Addon ID</th>" +
+			"<th class='addon-th'>Name</th>" +
+			"<th class='addon-th'>Version</th>" +
+			"<th class='addon-th'>Path</th>" +
+			"</tr>";
+		data.forEach(element => {
+			htmlStr += "<tr>" +
+				"<td class=\"addon-td\">" + element.id + "</td>" +
+				"<td class=\"addon-td\">" + element.name + "</td>" +
+				"<td class=\"addon-td\">" + element.version + "</td>" +
+				"<td class=\"addon-td\">" + element.path + "</td>" +
+				"</tr>";
+		});
+		htmlStr += "</table>";
+	}
+	div = document.getElementById(htmlId);
+	div.innerHTML = htmlStr;
+	return htmlStr;
+}
+
 
 function printClientTable(data, htmlId) {
 	if (data.length == 0) {

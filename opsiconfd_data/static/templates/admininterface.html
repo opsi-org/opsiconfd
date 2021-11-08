@@ -82,6 +82,9 @@
 			else if (tabName == "confdInfo") {
 				loadConfdInfo();
 			}
+			else if (tabName == "addons") {
+				loadAddons();
+			}
 			else if (tabName == "memoryProfiler") {
 				loadMemoryInfo();
 			}
@@ -121,6 +124,7 @@
 			<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
 			<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
 			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
+			<button class="tablinks" onclick="openTab(event, 'addons')">Addons</button>
 			<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
 
 			<!--
@@ -236,6 +240,19 @@
 			</div>
 			<div id="resultRedis">
 				<pre class="redis-result" id="redis-result"></pre>
+			</div>
+		</div>
+
+		<div id="addons" class="tabcontent">
+			<div class="adminpage-box" id="addons">
+				<h4>Addons:</h4>
+				<div id="addon-table-div">
+					loading...
+				</div>
+				<div style="margin-top: 25px">
+					<input id="addon-file" type="file" name="addon-file" />
+					<button id="addon-upload" onclick="installAddon()">Install addon</button>
+				</div>
 			</div>
 		</div>
 

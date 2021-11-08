@@ -17,11 +17,14 @@ import collections
 import orjson
 import msgpack
 import requests
+import shutil
+import tempfile
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.routing import APIRoute, Mount
+from starlette.concurrency import run_in_threadpool
 
 from OPSI import __version__ as python_opsi_version
 from OPSI.Exceptions import BackendPermissionDeniedError
@@ -29,13 +32,14 @@ from OPSI.Exceptions import BackendPermissionDeniedError
 from .. import __version__, contextvar_client_session
 from ..session import OPSISession
 from ..logging import logger
-from ..config import config, FQDN
+from ..config import config, FQDN, VAR_ADDON_DIR
 from ..backend import get_backend_interface, get_backend
 from ..utils import (
 	utc_time_timestamp, get_random_string, get_manager_pid,
 	aredis_client, ip_address_to_redis_key, ip_address_from_redis_key
 )
 from ..ssl import get_ca_info, get_cert_info
+from ..addon import AddonManager
 
 from .memoryprofiler import memory_profiler_router
 
@@ -167,6 +171,55 @@ async def delete_client_sessions(request: Request):
 		logger.error("Error while removing redis session keys: %s", err)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(err)}})
 	return response
+
+
+@admin_interface_router.get("/addons")
+async def get_addon_list() -> list:
+	addon_list = []
+	for addon in AddonManager().addons:
+		addon_list.append({
+			"id": addon.id,
+			"name": addon.name,
+			"version": addon.version,
+			"path": addon.path
+		})
+	return sorted(addon_list, key=itemgetter('id'))
+
+
+def _install_addon(data: bytes):
+	addon_installed = None
+	with tempfile.TemporaryDirectory() as tmp_dir:
+		addon_file = os.path.join(tmp_dir, "addon.zip")
+		with open(addon_file, "wb") as file:
+			file.write(data)
+		content_dir = os.path.join(tmp_dir, "content")
+		shutil.unpack_archive(filename=addon_file, extract_dir=content_dir)
+		for addon_id in os.listdir(content_dir):
+			addon_dir = os.path.join(content_dir, addon_id)
+			if (
+				os.path.isdir(addon_dir) and
+				os.path.isdir(os.path.join(addon_dir, "python")) and
+				os.path.isfile(os.path.join(addon_dir, "python", "__init__.py"))
+			):
+				target = os.path.join(VAR_ADDON_DIR, addon_id)
+				if os.path.exists(target):
+					shutil.rmtree(target)
+				shutil.move(addon_dir, target)
+				addon_installed = addon_id
+
+	if not addon_installed:
+		raise RuntimeError("Invalid addon")
+
+	AddonManager().reload_addons()
+
+
+@admin_interface_router.post("/addons/install")
+async def install_addon(request: Request) -> list:
+	form = await request.form()
+	if isinstance(form["addonfile"], str):
+		raise RuntimeError("Invalid addon")
+	data = await form["addonfile"].read()
+	await run_in_threadpool(_install_addon, data)
 
 
 @admin_interface_router.get("/rpc-list")

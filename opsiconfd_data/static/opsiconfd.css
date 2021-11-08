@@ -150,6 +150,29 @@ li {
 	color: #000000
 }
 
+
+.addon-table {
+	table-layout: auto;
+	background-color:#eeeeee;
+}
+
+.addon-th{
+	font-size: 12px;
+	border: 1px #0068aa solid;
+	text-align: left;
+	padding: 2px 10px 2px 10px;
+	color: #eeeeee;
+	background-color: #0068aa;
+}
+
+.addon-td {
+	font-size: 12px;
+	border: 1px #0068aa solid;
+	text-align: left;
+	padding: 2px 10px 2px 10px;
+	color: #000000
+}
+
 /* Style the tab */
 .tab {
 	overflow: hidden;

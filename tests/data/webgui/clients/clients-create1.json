@@ -1,12 +1,7 @@
 {
-    "detail": [
-        {
-            "loc": [
-                "body",
-                "hostId"
-            ],
-            "msg": "field required",
-            "type": "value_error.missing"
-        }
-    ]
+    "class": "RequestValidationError",
+    "code": null,
+    "status": 422,
+    "message": "Validation error: 1 validation error for Request\nbody -> hostId\n  field required (type=value_error.missing)",
+    "details": "1 validation error for Request\nbody -> hostId\n  field required (type=value_error.missing)"
 }

@@ -25,6 +25,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
 from fastapi.responses import Response, FileResponse, RedirectResponse, StreamingResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute, Mount
 from websockets.exceptions import ConnectionClosedOK
 
@@ -40,6 +41,7 @@ from ..statistics import StatisticsMiddleware
 from ..utils import normalize_ip_address, aredis_client
 from ..ssl import get_ca_cert_as_pem
 from ..addon import AddonManager
+from ..rest import OpsiApiException, rest_api
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
 from .webdav import webdav_setup
@@ -250,6 +252,15 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 
 		return await self.app(scope, receive, send_wrapper)
 
+
+@app.exception_handler(RequestValidationError)
+@rest_api
+def validation_exception_handler(request, exc):
+	raise OpsiApiException(
+		message = f"Validation error: {exc}",
+		http_status = status.HTTP_422_UNPROCESSABLE_ENTITY,
+		error=exc
+	)
 
 def application_setup():
 	FileResponse.chunk_size = 32*1024 # speeds up transfer of big files massively, original value is 4*1024

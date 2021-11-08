@@ -32,8 +32,11 @@ class OpsiApiException(Exception):
 		self.message = message
 		self.http_status = http_status
 		self.code = code
-		self.error_class = self.__class__.__name__
-		self.details = error
+		if isinstance(error, Exception):
+			self.error_class = error.__class__.__name__
+		else:
+			self.error_class = self.__class__.__name__
+		self.details = str(error)
 		# self.details = traceback.format_exc()
 		super().__init__(self.message)
 

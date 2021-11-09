@@ -109,12 +109,14 @@ def execute_on_secondary_backends(method: str, **kwargs) -> dict:
 			for backend_id in ("opsipxeconfd", "dhcpd"):
 				if backend_id not in backend._backends:  # pylint: disable=protected-access
 					continue
+				logger.info("Executing '%s' on secondary backend '%s'", method, backend_id)
 				result[backend_id] = {"data": None, "error": None}
 				meth = getattr(backend._backends[backend_id]["instance"], method)  # pylint: disable=protected-access
 				try:
 					result[backend_id]["data"] = meth(**kwargs)
 				except Exception as err:  # pylint: disable=broad-except
 					result[backend_id]["error"] = err
+				backend._backends[backend_id]["instance"].backend_exit()  # pylint: disable=protected-access
 	return result
 
 

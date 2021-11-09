@@ -211,7 +211,7 @@ def _install_addon(data: bytes):
 	if not addon_installed:
 		raise RuntimeError("Invalid addon")
 
-	AddonManager().reload_addons()
+	os.kill(get_manager_pid(), signal.SIGHUP)
 
 
 @admin_interface_router.post("/addons/install")

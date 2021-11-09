@@ -630,14 +630,14 @@ function printAddonTable(data, htmlId) {
 			"<th class='addon-th'>Addon ID</th>" +
 			"<th class='addon-th'>Name</th>" +
 			"<th class='addon-th'>Version</th>" +
-			"<th class='addon-th'>Path</th>" +
+			"<th class='addon-th'>Install path</th>" +
 			"</tr>";
 		data.forEach(element => {
 			htmlStr += "<tr>" +
-				"<td class=\"addon-td\">" + element.id + "</td>" +
+				"<td class=\"addon-td\"><a href=\"" + element.path + "\">" + element.id + "</a></td>" +
 				"<td class=\"addon-td\">" + element.name + "</td>" +
 				"<td class=\"addon-td\">" + element.version + "</td>" +
-				"<td class=\"addon-td\">" + element.path + "</td>" +
+				"<td class=\"addon-td\">" + element.install_path + "</td>" +
 				"</tr>";
 		});
 		htmlStr += "</table>";

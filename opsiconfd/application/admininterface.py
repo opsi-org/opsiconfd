@@ -181,7 +181,8 @@ async def get_addon_list() -> list:
 			"id": addon.id,
 			"name": addon.name,
 			"version": addon.version,
-			"path": addon.path
+			"install_path": addon.path,
+			"path": addon.router_prefix
 		})
 	return sorted(addon_list, key=itemgetter('id'))
 

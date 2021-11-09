@@ -94,12 +94,16 @@ async def test_clients_create(config, data, expected_result, http_status): # pyl
 	if expected_result:
 		with open(expected_result, "r", encoding="utf-8") as f:
 			json_data = json.loads(f.read())
+			res_body = res.json()
 			if http_status == 201:
-				json_data["created"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+				res_body["created"] = res_body["created"][:-3]
+				res_body["lastSeen"] = res_body["lastSeen"][:-3]
+				json_data["created"] = datetime.now().strftime("%Y-%m-%d %H:%M")
 				json_data["lastSeen"] = json_data["created"]
 
+
 	assert res.status_code == http_status
-	assert res.json() == json_data
+	assert res_body == json_data
 
 	if http_status == 201:
 		res = requests.get(
@@ -107,7 +111,7 @@ async def test_clients_create(config, data, expected_result, http_status): # pyl
 		)
 
 		assert res.status_code == status.HTTP_200_OK
-		assert res.json() == json_data
+		assert res_body == json_data
 
 
 @pytest.mark.asyncio
@@ -121,29 +125,34 @@ async def test_clients_create_integrity_error(config): # pylint: disable=too-man
 	res = requests.post(
 		f"{config.external_url}{API_ROOT}/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=json.dumps(data),
 	)
-
+	res_body = res.json()
 	with open(f"{FILE_DIR}/data/webgui/clients/clients-create2.json", "r", encoding="utf-8") as f:
 		json_data = json.loads(f.read())
-		json_data["created"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+		res_body["created"] = res_body["created"][:-3]
+		res_body["lastSeen"] = res_body["lastSeen"][:-3]
+		json_data["created"] = datetime.now().strftime("%Y-%m-%d %H:%M")
 		json_data["lastSeen"] = json_data["created"]
 
 	assert res.status_code == status.HTTP_201_CREATED
-	assert res.json() == json_data
+	assert res_body == json_data
 
 	res = requests.get(
 		f"{config.external_url}{API_ROOT}/clients/{data['hostId']}", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=data,
 	)
-
+	res_body = res.json()
+	res_body["created"] = res_body["created"][:-3]
+	res_body["lastSeen"] = res_body["lastSeen"][:-3]
 	assert res.status_code == status.HTTP_200_OK
-	assert res.json() == json_data
+	assert res_body == json_data
 
 	# second create should give IntegrityError
 	res = requests.post(
 		f"{config.external_url}{API_ROOT}/clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False, data=json.dumps(data),
 	)
+	res_body = res.json()
 	assert res.status_code == status.HTTP_409_CONFLICT
-	assert res.json().get("class") == "IntegrityError"
-	assert res.json().get("message") == "Could not create client object. Client 'myclient.test.local'' already exists"
+	assert res_body.get("class") == "IntegrityError"
+	assert res_body.get("message") == "Could not create client object. Client 'myclient.test.local'' already exists"
 
 
 test_data = [

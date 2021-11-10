@@ -25,6 +25,7 @@ from opsiconfd.utils import remove_route_path
 from opsiconfd.session import ACCESS_ROLE_PUBLIC, ACCESS_ROLE_AUTHENTICATED
 
 from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
+from .rest import api_router
 
 router = APIRouter()
 
@@ -48,6 +49,7 @@ class AddonTest1(Addon):
 	id = ADDON_ID
 	name = ADDON_NAME
 	version = ADDON_VERSION
+	api_router = api_router
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""
@@ -57,6 +59,7 @@ class AddonTest1(Addon):
 			os.chmod(os.path.dirname(marker), 0o777)
 		with open(marker, mode="w", encoding="utf8"):
 			os.chmod(marker, 0o666)
+		router.include_router(api_router, prefix="/api")
 		app.include_router(router, prefix=self.router_prefix)
 		app.mount(
 			path=f"{self.router_prefix}/static",

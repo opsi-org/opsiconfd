@@ -20,7 +20,6 @@ from starlette.types import Receive, Send
 from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 
 from opsiconfd.addon import Addon
-from opsiconfd.logging import logger
 from opsiconfd.utils import remove_route_path
 from opsiconfd.session import ACCESS_ROLE_PUBLIC, ACCESS_ROLE_AUTHENTICATED
 
@@ -49,6 +48,7 @@ class AddonTest1(Addon):
 	id = ADDON_ID
 	name = ADDON_NAME
 	version = ADDON_VERSION
+	api_router = api_router
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""

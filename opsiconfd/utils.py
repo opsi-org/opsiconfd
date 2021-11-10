@@ -309,6 +309,8 @@ def remove_router(app: FastAPI, router: APIRouter, router_prefix: str):
 			app.routes.remove(route)
 
 def remove_route_path(app: FastAPI, path: str):
-	for route in app.routes:
-		if route.path.lower().startswith(path.lower()):
-			app.routes.remove(route)
+	# Needs to be done twice to work for unknown reason
+	for _ in range(2):
+		for route in app.routes:
+			if route.path.lower().startswith(path.lower()):
+				app.routes.remove(route)

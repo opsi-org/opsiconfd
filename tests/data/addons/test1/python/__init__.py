@@ -49,7 +49,6 @@ class AddonTest1(Addon):
 	id = ADDON_ID
 	name = ADDON_NAME
 	version = ADDON_VERSION
-	api_router = api_router
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""

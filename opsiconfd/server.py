@@ -380,7 +380,7 @@ class Server:
 					val = modules[module]
 					if isinstance(val, bool):
 						val = "yes" if val else "no"
-				data += "%s = %s\r\n" % (module.lower().strip(), val)
+				data += f"{module.lower().strip()} = {val}\r\n"
 
 			verified = False
 			if modules["signature"].startswith("{"):

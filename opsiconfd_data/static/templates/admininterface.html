@@ -50,7 +50,7 @@
 						let tr = document.createElement("tr");
 						tr.className = "param";
 						tr.innerHTML = "\
-							<td align=left><label>" + param + ": </label></td> \
+							<td align=\"left\"><label>" + param + ": </label></td> \
 							<td><input type=\"text\" id=\"" + param + "\" name=\"" + param + "\" oninput=\"changeRequestJSON(this.name,this.value)\" /></td> \
 						";
 						table.appendChild(tr);
@@ -101,12 +101,12 @@
 			// Get all elements with class="tablinks" and remove the class "active"
 			tablinks = document.getElementsByClassName("tablinks");
 			for (i = 0; i < tablinks.length; i++) {
-				tablinks[i].className = tablinks[i].className.replace(" active", "");
+				tablinks[i].classList.remove("active");
 			}
 
 			// Show the current tab, and add an "active" class to the button that opened the tab
 			document.getElementById(tabName).style.display = "inherit";
-			evt.currentTarget.className += " active";
+			evt.currentTarget.classList.add("active");
 		}
 	</script>
 </head>
@@ -155,17 +155,17 @@
 				<h4>Unblock Clients:</h4>
 				<table>
 					<tr>
-						<td align=left><label>Unblock all clients:</label></td>
+						<td align="left"><label>Unblock all clients:</label></td>
 						<td></td>
 					0	<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button></td>
 					</tr>
 					<tr>
-						<td align=left>Unblock address:</td>
+						<td align="left">Unblock address:</td>
 						<td><input id="clientAddr" type="text" name="clientAddr" placeholder="127.0.0.1"></td>
 						<td><input type="button" onclick="unblockClient(clientAddr.value)" value="Execute"></td>
 					</tr>
 					<tr>
-						<td align=left>Delete client sessions:</td>
+						<td align="left">Delete client sessions:</td>
 						<td><input id="sessionAddr" type="text" name="sessionAddr" placeholder="127.0.0.1"></td>
 						<td><input type="button" onclick="deleteClientSessions()" value="Execute"></td>
 					</tr>
@@ -192,7 +192,7 @@
 				<div>
 					<table id="jsonrpc-request-table">
 						<tr>
-							<td align=left><label>Method:</label></td>
+							<td align="left"><label>Method:</label></td>
 							<td>
 								<select id="method-select" onchange="createParamInputs()">
 									{% for method in interface %}
@@ -227,12 +227,12 @@
 				<h4>Redis Cache</h4>
 				<table>
 					<tr>
-						<td align=left><label>Clear cache:</label></td>
+						<td align="left"><label>Clear cache:</label></td>
 						<td></td>
 						<td><button id="clear-cache-button" onclick="clearRedisCache()">Execute</button> </td>
 					</tr>
 					<tr>
-						<td align=left>Clear depot cache:</td>
+						<td align="left">Clear depot cache:</td>
 						<td><input id="depotId" type="text" name="depotId" placeholder="myhost.example.com"></td>
 						<td><input type="button" onclick="clearRedisCache([depotId.value])" value="Execute"></td>
 					</tr>

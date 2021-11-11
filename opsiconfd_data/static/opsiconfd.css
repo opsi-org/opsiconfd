@@ -44,6 +44,14 @@ button {
 	padding-bottom: 2px;
 }
 
+button:hover {
+	background-color: #dddddd;
+}
+
+button:active {
+	background-color: #eeeeee !important;
+}
+
 li {
 	list-style-type: none;
 }
@@ -199,7 +207,7 @@ li {
 
 /* Create an active/current tablink class */
 .tab button.active {
-	background-color: #cccccc;
+	background-color: #dddddd;
 }
 
 /* Style the tab content */
@@ -323,6 +331,30 @@ li {
 
 table tbody tr td {
 	font-size: 15px;
+}
+
+button.loading {
+	background-image: linear-gradient(to right, transparent 50%, rgba(0, 0, 0, .05) 50%);
+	background-size: 200% 100%;
+	animation: loading 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+	opacity: .45;
+	pointer-events: none;
+}
+
+
+@keyframes loading {
+	0% {
+		background-position: 0;
+	}
+	50% {
+		background-position: -30%;
+	}
+	80% {
+		background-position: -100%;
+	}
+	100% {
+		background-position: -200%;
+	}
 }
 
 @media screen and (max-width: 1050px) {

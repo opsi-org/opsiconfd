@@ -277,11 +277,19 @@ function loadAddons() {
 }
 
 function installAddon() {
+	let button = null;
+	if (window.event.currentTarget && window.event.currentTarget.tagName.toLowerCase() == "button") {
+		button = window.event.currentTarget;
+		button.classList.add("loading");
+	}
 	let formData = new FormData();
 	formData.append("addonfile", document.getElementById("addon-file").files[0]);
 	var request = new XMLHttpRequest();
 	request.open("POST", "/admin/addons/install");
 	request.addEventListener('load', function (event) {
+		if (button) {
+			button.classList.remove("loading");
+		}
 		if (request.status >= 200 && request.status < 300) {
 			loadAddons();
 		} else {

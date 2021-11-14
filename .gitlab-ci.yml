@@ -1,5 +1,6 @@
-image: python:3.7-stretch
+#image: python:3.7-stretch
 #image: docker.uib.gmbh/opsi/dev/pybuilder:uib-python-3.10
+image: docker.uib.gmbh/opsi/dev/pybuilder:uib-python-3.9
 
 stages:
   - test

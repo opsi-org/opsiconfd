@@ -14,7 +14,7 @@ import redis
 import requests
 
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, disable_request_warning,
+	config, clean_redis, disable_request_warning, database_connection,
 	ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY
 )
 
@@ -134,3 +134,30 @@ def test_session_expire(config):  # pylint: disable=redefined-outer-name,unused-
 	time.sleep(lifetime + 1)
 	res = session.get(f"{config.external_url}/admin/", verify=False)
 	assert res.status_code == 401
+
+
+def test_onetime_password(config, database_connection):  # pylint: disable=redefined-outer-name,unused-argument
+	database_connection.query(f"""
+		INSERT INTO HOST
+			(hostId, type, opsiHostKey, oneTimePassword)
+		VALUES
+			("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1me");
+	""")
+	database_connection.commit()
+	try:
+		rpc = {"id": 1, "method": "backend_info", "params": []}
+		res = requests.get(
+			f"{config.external_url}/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"),
+			json=rpc, verify=False
+		)
+		assert res.status_code == 200
+		assert res.json()
+
+		res = requests.get(
+			f"{config.external_url}/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"),
+			json=rpc, verify=False
+		)
+		assert res.status_code == 401
+	finally:
+		database_connection.query('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
+		database_connection.commit()

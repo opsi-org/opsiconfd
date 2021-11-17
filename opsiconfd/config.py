@@ -724,12 +724,6 @@ parser.add(
 	help=expert_help("Use jemalloc if available.")
 )
 parser.add(
-	"--webgui-folder",
-	env_var="OPSI_WEBGUI_FOLDER",
-	default="/usr/lib/opsi-webgui",
-	help=expert_help("Webgui static app folder.")
-)
-parser.add(
 	"--addon-dirs",
 	nargs="+",
 	env_var="OPSI_ADDON_DIRS",

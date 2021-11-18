@@ -110,6 +110,8 @@ package:
     # Workaround for error on Red Hat 8
     #  PAM unable to dlopen(/usr/lib64/security/pam_unix.so): /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1b' not found (required by /lib64/libk5crypto.so.3)
     [ -e /usr/lib/opsiconfd/libcrypto.so.1.1 -a -e /usr/lib64/libcrypto.so.1.1 ] && cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/libcrypto.so.1.1
+    #  SLES15-2 similar issue: /usr/lib/opsi-utils/libssl.so.1.1: symbol EVP_idea_cbc, version OPENSSL_1_1_0 not defined in file libcrypto.so.1.1
+    [ -e /usr/lib/opsi-utils/libssl.so.1.1 -a -e /usr/lib64/libssl.so.1.1 ] && cp /usr/lib64/libssl.so.1.1 /usr/lib/opsi-utils/libssl.so.1.1
     # Use pam_unix.so from system
     # Authentication failure (auth_type=auth-module)...
     # ARM64: ubuntu: /usr/lib/aarch64-linux-gnu, debian: /lib/aarch64-linux-gnu

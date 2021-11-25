@@ -31,7 +31,9 @@ BackendManager.default_config =  {
 	'hostControlSafeBackend': True,
 	'depotBackend' : False,
 	# every worker needs a database connection for full performance
-	'connectionPoolSize': config.executor_workers
+	'connectionPoolSize': config.executor_workers,
+	'max_log_size': round(config.max_log_size * 1000 * 1000),
+	'keep_rotated_logs': config.keep_rotated_logs
 }
 
 get_session_from_context = None # pylint: disable=invalid-name

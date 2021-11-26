@@ -37,19 +37,29 @@ def _is_config_server():
 		logger.warning(err)
 	return False
 
-async def register_opsi_services():
+async def register_opsi_services(): # pylint: disable=too-many-branches
 	global _zeroconf, _info # pylint: disable=invalid-name,global-statement
 	if not _is_config_server():
 		return
 
 	logger.info("Register zeroconf service")
 
-	if not _zeroconf:
+	if not _zeroconf: # pylint: disable=too-many-nested-blocks
 		iface = None
 		if str(config.interface) not in ("0.0.0.0", "::"):
-			iface = config.interface
+			if_address = ipaddress.ip_address(config.interface)
+			iface = netifaces.interfaces()[0]  # pylint: disable=c-extension-no-member
+			for _iface in netifaces.interfaces():  # pylint: disable=c-extension-no-member
+				for addr_type in (netifaces.AF_INET, netifaces.AF_INET6):  # pylint: disable=c-extension-no-member
+					for addr in netifaces.ifaddresses(_iface).get(addr_type, []):  # pylint: disable=c-extension-no-member
+						try:
+							if if_address == ipaddress.ip_address(addr["addr"]):
+								iface = _iface
+						except ValueError:
+							continue
+
 		address_family = [netifaces.AF_INET]  # pylint: disable=c-extension-no-member
-		if str(config.interface) == "::":
+		if isinstance(config.interface, ipaddress.IPv6Address):
 			address_family.append(netifaces.AF_INET6)  # pylint: disable=c-extension-no-member
 		_zeroconf = Zeroconf(asyncio.get_event_loop(), address_family=address_family, iface=iface)
 
@@ -66,9 +76,9 @@ async def register_opsi_services():
 			):
 				address = str(addr["ip_address"])
 				break
+
 	try:
 		address6 = socket.getaddrinfo(FQDN, None, socket.AF_INET6)[0][-1][0]
-
 	except socket.error as err:
 		logger.debug("Failed to get ipv6 address for '%s': %s", FQDN, err)
 		for addr in get_ip_addresses():

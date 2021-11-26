@@ -13,7 +13,7 @@ import json
 import threading
 import asyncio
 import pytest
-import aredis
+import aioredis
 import requests
 
 from opsiconfd.utils import decode_redis_result
@@ -65,7 +65,7 @@ async def test_delete_product(config, database_connection):  # pylint: disable=r
 	test_products_sorted.remove("dummy-prod-2559")
 	test_products_sorted.remove("dummy-prod-1359")
 
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
 	assert decode_redis_result(cached_sorted_products) == test_products_sorted
 
@@ -86,7 +86,7 @@ async def test_renew_cache(config, database_connection):  # pylint: disable=rede
 
 	await asyncio.sleep(3)
 
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
 	assert decode_redis_result(cached_sorted_products) == test_products_sorted
 
@@ -155,7 +155,7 @@ async def test_getProductOrdering(config, database_connection): # pylint: disabl
 	num_results = len(result.get("result").get("sorted"))
 	assert result.get("result").get("sorted") == test_products_sorted
 
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
 	assert cached_sorted_products == []
 

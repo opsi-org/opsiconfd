@@ -13,7 +13,7 @@ import socket
 import json
 from datetime import datetime, timedelta
 import pytest
-import aredis
+import aioredis
 import requests
 import MySQLdb
 import urllib3
@@ -41,7 +41,7 @@ def config(monkeypatch):
 @pytest.fixture(autouse=True)
 @pytest.mark.asyncio
 async def clean_redis(config):  # pylint: disable=redefined-outer-name
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 
 	for redis_key in (
 		OPSI_SESSION_KEY,

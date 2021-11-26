@@ -13,7 +13,7 @@ import orjson
 from fastapi.responses import JSONResponse
 
 from opsiconfd.logging import logger
-from opsiconfd.utils import aredis_client, decode_redis_result
+from opsiconfd.utils import async_redis_client, decode_redis_result
 
 from .utils import (
 	State, generate_response,
@@ -31,7 +31,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 	if not error_thresholds:
 		error_thresholds = {"critical": 20, "warning": 10}
 
-	redis = await aredis_client()
+	redis = await async_redis_client()
 
 	try:
 		rpc_list = await redis.lrange("opsiconfd:stats:rpcs", 0, 9999)

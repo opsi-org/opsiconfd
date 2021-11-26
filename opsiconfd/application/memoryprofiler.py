@@ -29,7 +29,7 @@ from starlette.responses import Response
 
 from ..logging import logger
 from ..config import config
-from ..utils import aredis_client
+from ..utils import async_redis_client
 
 memory_profiler_router = APIRouter()
 
@@ -189,7 +189,7 @@ async def memory_info() -> JSONResponse:
 	memory_summary = MEMORY_TRACKER.create_summary()
 	memory_summary = sorted(memory_summary, key=lambda x: x[2], reverse=True)
 
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	timestamp = int(time.time() * 1000)
 	node = config.node_name
 
@@ -224,7 +224,7 @@ async def memory_info() -> JSONResponse:
 @memory_profiler_router.delete("/snapshot")
 async def delte_memory_snapshot() -> JSONResponse:
 
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	node = config.node_name
 
 	await redis.delete(f"opsiconfd:stats:memory:summary:{node}")
@@ -242,7 +242,7 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 	if not MEMORY_TRACKER:
 		MEMORY_TRACKER = tracker.SummaryTracker()
 
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	node = config.node_name
 	snapshot_count = await redis.llen(f"opsiconfd:stats:memory:summary:{node}")
 
@@ -371,7 +371,7 @@ async def guppy_snapshot() -> JSONResponse:
 	fn = io.StringIO() # pylint: disable=invalid-name
 	heap_status.dump(fn)
 
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	node = config.node_name
 
 	async with await redis.pipeline() as pipe:
@@ -407,7 +407,7 @@ async def guppy_snapshot() -> JSONResponse:
 @memory_profiler_router.delete("/guppy")
 async def delte_guppy_snapshot() -> JSONResponse:
 
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	node = config.node_name
 
 	await redis.delete(f"opsiconfd:stats:memory:heap:{node}")
@@ -437,7 +437,7 @@ async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 	if not HEAP:
 		HEAP = hpy()
 
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	node = config.node_name
 	snapshot_count = await redis.llen(f"opsiconfd:stats:memory:heap:{node}")
 

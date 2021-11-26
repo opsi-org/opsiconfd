@@ -17,7 +17,7 @@ import uuid
 import base64
 import orjson
 import msgpack
-from aredis.exceptions import ResponseError
+import aioredis
 
 from fastapi import HTTPException, status
 from fastapi.requests import HTTPConnection
@@ -36,7 +36,7 @@ from opsicommon.logging import logger, secret_filter, set_context
 from . import contextvar_client_session, contextvar_server_timing
 from .backend import get_client_backend
 from .config import config, FQDN
-from .utils import redis_client, aredis_client, ip_address_to_redis_key, utc_time_timestamp
+from .utils import redis_client, async_redis_client, ip_address_to_redis_key, utc_time_timestamp
 from .addon import AddonManager
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
@@ -212,6 +212,7 @@ class SessionMiddleware:
 
 
 	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,no-self-use
+		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err, exc_info=True)
 		scope = connection.scope
 		if scope["path"].startswith("/addons"):
 			addon = AddonManager().get_addon_by_path(scope["path"])
@@ -225,7 +226,6 @@ class SessionMiddleware:
 		error = None
 
 		if isinstance(err, (BackendAuthenticationError, BackendPermissionDeniedError)):
-			logger.debug(err, exc_info=True)
 			logger.warning(err)
 
 			status_code = status.HTTP_401_UNAUTHORIZED
@@ -239,7 +239,7 @@ class SessionMiddleware:
 				f"* 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
 			)
 			logger.debug(cmd)
-			redis = await aredis_client()
+			redis = await async_redis_client()
 			asyncio.get_event_loop().create_task(redis.execute_command(cmd))
 			await asyncio.sleep(0.2)
 
@@ -368,7 +368,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			with redis_client() as redis:
 				for key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
 					redis_session_keys.append(key.decode("utf8"))
-			#redis = await aredis_client()
+			#redis = await async_redis_client()
 			#async for key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
 			#	redis_session_keys.append(key.decode("utf8"))
 			if config.max_session_per_ip > 0 and len(redis_session_keys) + 1 > config.max_session_per_ip:
@@ -410,7 +410,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		return True
 
 	async def load(self) -> bool:
-		# aredis is sometimes slow ~300ms load, using redis for now
+		# aioredis is sometimes slow ~300ms load, using redis for now
 		return await run_in_threadpool(self._load)
 
 	def _store(self) -> None:
@@ -438,11 +438,11 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			#ms = (time.perf_counter() - start) * 1000
 			#if ms > 100:
 			#	logger.warning("Session storing to redis took %0.2fms", ms)
-		#redis = await aredis_client()
+		#redis = await async_redis_client()
 		#await redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
 
 	async def store(self) -> None:
-		# aredis is sometimes slow ~300ms load, using redis for now
+		# aioredis is sometimes slow ~300ms load, using redis for now
 		task = run_in_threadpool(self._store)
 		if self.is_new_session:
 			# Session not yet stored in redis.
@@ -528,6 +528,7 @@ async def authenticate(connection: HTTPConnection, receive: Receive) -> None: # 
 		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)
+	logger.debug("Client %s authenticated, username: %s", connection.client.host, session.user_store.username)
 
 	if username == config.monitoring_user:
 		session.user_store.isAdmin = False
@@ -536,7 +537,7 @@ async def authenticate(connection: HTTPConnection, receive: Receive) -> None: # 
 
 async def check_blocked(connection: HTTPConnection) -> None:
 	logger.info("Checking if client %s is blocked", connection.client.host)
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}"))
 	if is_blocked:
 		raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
@@ -551,7 +552,7 @@ async def check_blocked(connection: HTTPConnection) -> None:
 		num_failed_auth = await redis.execute_command(cmd)
 		num_failed_auth =  int(num_failed_auth[-1][1])
 		logger.debug("num_failed_auth: %s", num_failed_auth)
-	except ResponseError as err:
+	except aioredis.ResponseError as err:
 		num_failed_auth = 0
 		if "key does not exist" not in str(err):
 			raise
@@ -561,7 +562,7 @@ async def check_blocked(connection: HTTPConnection) -> None:
 		await redis.setex(
 			f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}",
 			config.client_block_time,
-			True
+			1
 		)
 
 

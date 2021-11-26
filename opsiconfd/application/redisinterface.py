@@ -17,7 +17,7 @@ from fastapi.templating import Jinja2Templates
 
 from ..logging import logger
 from ..config import config
-from ..utils import decode_redis_result, get_aredis_info, redis_client, aredis_client
+from ..utils import decode_redis_result, async_get_redis_info, redis_client, async_redis_client
 
 admin_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
@@ -29,7 +29,7 @@ def redis_interface_setup(app):
 
 @admin_interface_router.post("/")
 async def redis_command(request: Request, response: Response):
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	try:
 		request_body = await request.json()
 		redis_cmd = request_body.get("cmd")
@@ -51,9 +51,9 @@ async def redis_command(request: Request, response: Response):
 
 @admin_interface_router.get("/redis-stats")
 async def get_redis_stats():  # pylint: disable=too-many-locals
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	try:
-		redis_info = await get_aredis_info(redis)
+		redis_info = await async_get_redis_info(redis)
 		response = JSONResponse({"status": 200, "error": None, "data": redis_info})
 	except Exception as err: # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)

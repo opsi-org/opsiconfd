@@ -100,18 +100,18 @@ def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
 	assert response.body.decode() == '"TEST1 NEW"'
 
 
-def tests_addon_static_dir(config):  # pylint: disable=redefined-outer-name
+def test_addon_static_dir(config):  # pylint: disable=redefined-outer-name
 	res = requests.get(f"{config.internal_url}/addons/test1/static/index.html", verify=False)
 	assert res.status_code == 200
 
-def tests_addon_public_path(config):  # pylint: disable=redefined-outer-name
+def test_addon_public_path(config):  # pylint: disable=redefined-outer-name
 	res = requests.get(f"{config.internal_url}/addons/test1", verify=False)
 	assert res.status_code == 401
 
 	res = requests.get(f"{config.internal_url}/addons/test1/public", verify=False)
 	assert res.status_code == 200
 
-def tests_addon_auth(config):  # pylint: disable=redefined-outer-name
+def test_addon_auth(config):  # pylint: disable=redefined-outer-name
 	session = requests.Session()
 	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
 	assert res.status_code == 401
@@ -128,7 +128,7 @@ def tests_addon_auth(config):  # pylint: disable=redefined-outer-name
 	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
 	assert res.status_code == 401
 
-def tests_addon_exception_handling(config):  # pylint: disable=redefined-outer-name
+def test_addon_exception_handling(config):  # pylint: disable=redefined-outer-name
 	res = requests.get(f"{config.internal_url}/addons/test1", verify=False)
 	assert res.status_code == 401
 	assert res.text == "addon_test1_error"

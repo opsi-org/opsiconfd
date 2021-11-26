@@ -19,7 +19,7 @@ from websockets.exceptions import ConnectionClosedOK
 
 from .. import contextvar_client_session
 from ..logging import logger
-from ..utils import aredis_client
+from ..utils import async_redis_client
 
 
 messagebroker_router = APIRouter()
@@ -49,12 +49,12 @@ async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str =
 			buf += dat[1] #[b"record"]
 		return (last_id, buf)
 
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	while True:
 		try:
-			#redis = await aredis_client()
+			#redis = await async_redis_client()
 			# It is also possible to specify multiple streams
-			data = await redis.xread(block=1000, count=10, **{channel: last_id})
+			data = await redis.xread(streams={channel: last_id}, block=1000, count=10)
 			if not data:
 				continue
 			last_id, buf = await run_in_threadpool(read_data, data, channel)

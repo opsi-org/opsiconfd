@@ -16,7 +16,7 @@ import psutil
 
 import yappi
 from yappi import YFuncStats
-from aredis.exceptions import ResponseError as ARedisResponseError
+from aioredis import ResponseError as AioRedisResponseError
 from redis import ResponseError as RedisResponseError
 
 from starlette.datastructures import MutableHeaders
@@ -33,7 +33,7 @@ from .worker import (
 )
 from .config import config
 from .utils import (
-	Singleton, redis_client, aredis_client
+	Singleton, redis_client, async_redis_client
 )
 from .grafana import GrafanaPanelConfig
 
@@ -478,7 +478,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 				try:
 					await self._execute_redis_command(*cmds)
-				except ARedisResponseError as err: # pylint: disable=broad-except
+				except AioRedisResponseError as err: # pylint: disable=broad-except
 					if str(err).lower().startswith("unknown command"):
 						logger.error("RedisTimeSeries module missing, metrics collector ending")
 						return
@@ -514,7 +514,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 				return " ".join([ str(x) for x in cmd_obj ])
 			return cmd_obj
 
-		redis = await aredis_client()
+		redis = await async_redis_client()
 		if len(cmd) == 1:
 			return await redis.execute_command(str_cmd(cmd[0]))
 

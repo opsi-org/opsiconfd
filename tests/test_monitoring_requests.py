@@ -16,7 +16,7 @@ import socket
 import asyncio
 import pytest
 import requests
-import aredis
+import aioredis
 
 from opsiconfd.application.monitoring.utils import get_workers
 from .utils import ( # pylint: disable=unused-import
@@ -527,7 +527,7 @@ async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_threshold
 			}
 	})
 
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 
 	workers = await get_workers(redis_client)
 	timestamp = int(time.time() - 100)

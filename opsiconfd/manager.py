@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .config import config
 from .logging import logger, init_logging
-from .utils import aredis_client, get_aredis_info, Singleton
+from .utils import async_redis_client, async_get_redis_info, Singleton
 from .zeroconf import register_opsi_services, unregister_opsi_services
 from .server import Server
 from .ssl import setup_server_cert
@@ -105,7 +105,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._server_cert_check_time = time.time()
 
 	async def check_redis(self):
-		redis_info = await get_aredis_info(await aredis_client())
+		redis_info = await async_get_redis_info(await async_redis_client())
 		for key_type in redis_info["key_info"]:
 			if redis_info["key_info"][key_type]["memory"] > 100*1000*1000:
 				logger.warning(

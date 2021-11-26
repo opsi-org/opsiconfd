@@ -12,7 +12,7 @@ import sys
 import json
 import pytest
 import asyncio
-import aredis
+import aioredis
 import requests
 
 from fastapi import Response
@@ -27,7 +27,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 async def set_failed_auth_and_blocked(config, ip_address):  # pylint: disable=redefined-outer-name
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	ip_address_redis = ip_address_to_redis_key(ip_address)
 	await redis_client.execute_command(
 		f"ts.create opsiconfd:stats:client:failed_auth:{ip_address_redis} "
@@ -37,7 +37,7 @@ async def set_failed_auth_and_blocked(config, ip_address):  # pylint: disable=re
 		f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_redis} "
 		f"* 11 RETENTION 86400000 LABELS client_addr {ip_address}"
 	)
-	await redis_client.set(f"opsiconfd:stats:client:blocked:{ip_address_redis}", True)
+	await redis_client.set(f"opsiconfd:stats:client:blocked:{ip_address_redis}", 1)
 
 
 def call_rpc(rpc_request_data: list, expect_error: list, url):
@@ -62,7 +62,7 @@ def fixture_admininterface(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_unblock_all_request(config):  # pylint: disable=redefined-outer-name,unused-argument
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	addresses = ['10.10.1.1', '192.168.1.2', '2001:4860:4860:0000:0000:0000:0000:8888']
 	for test_ip in addresses:
 		await set_failed_auth_and_blocked(config, test_ip)
@@ -77,7 +77,7 @@ async def test_unblock_all_request(config):  # pylint: disable=redefined-outer-n
 
 @pytest.mark.asyncio
 async def test_unblock_all(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	test_response = Response()
 	addresses = ['10.10.1.1', '192.168.1.2', '2001:4860:4860:0000:0000:0000:0000:8888']
 
@@ -99,7 +99,7 @@ async def test_unblock_all(config, admininterface):  # pylint: disable=redefined
 
 @pytest.mark.asyncio
 async def test_unblock_client_request(config):  # pylint: disable=redefined-outer-name,unused-argument
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	test_ip = "192.168.1.2"
 	await set_failed_auth_and_blocked(config, test_ip)
 	res = requests.post(
@@ -116,7 +116,7 @@ async def test_unblock_client_request(config):  # pylint: disable=redefined-oute
 
 @pytest.mark.asyncio
 async def test_unblock_client(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	test_ip = "192.168.1.2"
 	await set_failed_auth_and_blocked(config, test_ip)
 
@@ -205,7 +205,7 @@ delete_client_test_data = [
 async def test_delete_client_sessions(config, admininterface, rpc_request_data, expected_response): # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
 	res = requests.get(config.external_url, auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	assert res.status_code == 200
-	redis_client = aredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 
 	session = res.cookies.get_dict().get("opsiconfd-session")
 	sessions = []

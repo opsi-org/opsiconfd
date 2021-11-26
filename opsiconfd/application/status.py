@@ -17,7 +17,7 @@ from OPSI import __version__ as python_opsi_version
 from .. import __version__
 
 from ..config import config, FQDN
-from ..utils import get_aredis_info, aredis_client
+from ..utils import async_get_redis_info, async_redis_client
 from ..ssl import get_ca_info, get_cert_info
 status_router = APIRouter()
 
@@ -32,9 +32,9 @@ async def status_overview() -> PlainTextResponse:
 	redis_mem = -1
 	redis_mem_total = -1
 	try:
-		redis = await aredis_client(timeout=3)
+		redis = await async_redis_client(timeout=3)
 		await redis.ping()
-		redis_info = await get_aredis_info(redis)
+		redis_info = await async_get_redis_info(redis)
 		redis_mem_total = redis_info['used_memory']
 		for key_type in redis_info["key_info"]:
 			redis_mem += redis_info["key_info"][key_type]["memory"]

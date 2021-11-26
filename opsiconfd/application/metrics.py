@@ -16,7 +16,7 @@ from typing import List
 from operator import itemgetter
 from urllib.parse import urlparse
 
-import aredis
+import aioredis
 import aiohttp
 
 from pydantic import BaseModel # pylint: disable=no-name-in-module
@@ -27,7 +27,7 @@ from ..logging import logger
 from ..config import config
 from ..statistics import metrics_registry, get_time_bucket
 from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE
-from ..utils import aredis_client
+from ..utils import async_redis_client
 
 grafana_metrics_router = APIRouter()
 
@@ -35,7 +35,7 @@ def metrics_setup(app):
 	app.include_router(grafana_metrics_router, prefix="/metrics/grafana")
 
 async def get_workers():
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	workers = []
 	async for redis_key in redis.scan_iter("opsiconfd:worker_registry:*"):
 		redis_key = redis_key.decode("utf-8")
@@ -47,7 +47,7 @@ async def get_nodes():
 	return { worker["node_name"] for worker in await get_workers() }
 
 async def get_clients(metric_id):
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	clients = []
 	# TODO: IPv6 ?
 	async for redis_key in redis.scan_iter(f"opsiconfd:stats:{metric_id}:*"):
@@ -194,7 +194,7 @@ class GrafanaQuery(BaseModel): #  pylint: disable=too-few-public-methods
 async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	logger.trace("Grafana query: %s", query)
 	results = []
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	for target in query.targets:
 		# UTC time values
 		from_time = int((datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
@@ -249,7 +249,7 @@ async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals
 			cmd = ["TS.RANGE", redis_key, from_time, to_time, "AGGREGATION", "avg", time_bucket]
 			try:
 				rows = await redis.execute_command(*cmd)
-			except aredis.exceptions.ResponseError as exc:
+			except aioredis.ResponseError as exc:
 				logger.debug("%s %s", cmd, exc)
 				rows = []
 

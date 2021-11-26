@@ -35,7 +35,7 @@ from ..config import config
 from ..backend import get_client_backend, get_backend_interface, get_backend, OpsiconfdBackend
 from ..worker import get_metrics_collector, get_worker_num
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
-from ..utils import decode_redis_result, redis_client, aredis_client
+from ..utils import decode_redis_result, redis_client, async_redis_client
 
 # time in seconds
 EXPIRE = 24 * 3600
@@ -268,7 +268,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 				depot = rpc.get('params')[0]
 				cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
 				algorithm = _get_sort_algorithm(rpc.get('params'))
-				redis = await aredis_client()
+				redis = await async_redis_client()
 				if cache_outdated:
 					get_backend().config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
 					await redis.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
@@ -300,7 +300,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 					result[1], {"node_name": config.node_name, "worker_num": get_worker_num()}
 				)
 			)
-			redis = await aredis_client()
+			redis = await async_redis_client()
 			rpc_count = await redis.incr("opsiconfd:stats:num_rpcs")
 			error = bool(result[0].get("error"))
 			date = result[2].get("date")

@@ -36,7 +36,7 @@ from ..config import config, FQDN, VAR_ADDON_DIR
 from ..backend import get_backend_interface, get_backend
 from ..utils import (
 	utc_time_timestamp, get_random_string, get_manager_pid,
-	aredis_client, ip_address_to_redis_key, ip_address_from_redis_key
+	async_redis_client, ip_address_to_redis_key, ip_address_from_redis_key
 )
 from ..ssl import get_ca_info, get_cert_info
 from ..addon import AddonManager
@@ -96,7 +96,7 @@ async def reload():
 
 @admin_interface_router.post("/unblock-all")
 async def unblock_all_clients(response: Response):
-	redis = await aredis_client()
+	redis = await async_redis_client()
 
 	try:
 		clients = set()
@@ -131,7 +131,7 @@ async def unblock_client(request: Request):
 
 		logger.debug("unblock client addr: %s ", client_addr)
 		client_addr_redis = ip_address_to_redis_key(client_addr)
-		redis = await aredis_client()
+		redis = await async_redis_client()
 		deleted_keys = []
 		redis_code = await redis.delete(f"opsiconfd:stats:client:failed_auth:{client_addr_redis}")
 		if redis_code == 1:
@@ -154,7 +154,7 @@ async def delete_client_sessions(request: Request):
 		client_addr = request_body.get("client_addr")
 		if not request_body:
 			raise ValueError("client_addr missing")
-		redis = await aredis_client()
+		redis = await async_redis_client()
 		sessions = []
 		deleted_keys = []
 		keys = redis.scan_iter(f"{OPSISession.redis_key_prefix}:{client_addr}:*")
@@ -226,7 +226,7 @@ async def install_addon(request: Request) -> list:
 @admin_interface_router.get("/rpc-list")
 async def get_rpc_list() -> list:
 
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	redis_result = await redis.lrange("opsiconfd:stats:rpcs", 0, -1)
 
 	rpc_list = []
@@ -254,7 +254,7 @@ async def get_rpc_list() -> list:
 
 @admin_interface_router.get("/rpc-count")
 async def get_rpc_count():
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	count = await redis.llen("opsiconfd:stats:rpcs")
 
 	response = JSONResponse({"rpc_count": count})
@@ -263,7 +263,7 @@ async def get_rpc_count():
 
 @admin_interface_router.get("/session-list")
 async def get_session_list() -> list:
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	session_list = []
 	async for redis_key in redis.scan_iter("opsiconfd:sessions:*"):
 		data = await redis.get(redis_key)
@@ -286,7 +286,7 @@ async def get_session_list() -> list:
 
 @admin_interface_router.get("/blocked-clients")
 async def get_blocked_clients() -> list:
-	redis = await aredis_client()
+	redis = await async_redis_client()
 	redis_keys = redis.scan_iter("opsiconfd:stats:client:blocked:*")
 
 	blocked_clients = []

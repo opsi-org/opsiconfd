@@ -38,7 +38,7 @@ from ..config import config
 from ..worker import init_worker
 from ..session import SessionMiddleware
 from ..statistics import StatisticsMiddleware
-from ..utils import normalize_ip_address, aredis_client
+from ..utils import normalize_ip_address, async_redis_client
 from ..ssl import get_ca_cert_as_pem
 from ..addon import AddonManager
 from ..rest import OpsiApiException, RestApiValidationError, rest_api
@@ -68,23 +68,23 @@ class LoggerWebsocket(WebSocketEndpoint):
 	async def _reader(self, start_id='$', client=None):
 		stream_name = f"opsiconfd:log:{config.node_name}"
 		logger.info("Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client)
-		b_stream_name = stream_name.encode("utf-8")
 		last_id = start_id
 
 		def read_data(data):
 			buf = bytearray()
-			for dat in data[b_stream_name]:
-				last_id = dat[0]
-				if client and client !=	dat[1].get("client", b'').decode("utf-8"):
-					continue
-				buf += dat[1][b"record"]
+			for stream in data:
+				for dat in stream[1]:
+					last_id = dat[0]
+					if client and client !=	dat[1].get("client", b'').decode("utf-8"):
+						continue
+					buf += dat[1][b"record"]
 			return (last_id, buf)
 
 		while True:
 			try:
-				redis = await aredis_client()
+				redis = await async_redis_client()
 				# It is also possible to specify multiple streams
-				data = await redis.xread(block=1000, **{stream_name: last_id})
+				data = await redis.xread(streams={stream_name: last_id}, block=1000)
 				if not data:
 					continue
 				last_id, buf = await run_in_threadpool(read_data, data)

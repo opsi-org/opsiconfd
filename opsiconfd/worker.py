@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .logging import logger, init_logging
 from .config import config
-from .utils import aredis_client, get_manager_pid
+from .utils import async_redis_client, get_manager_pid
 from . import ssl
 from .addon import AddonManager
 
@@ -101,7 +101,7 @@ def init_worker():
 	init_pool_executor(loop)
 	loop.set_exception_handler(handle_asyncio_exception)
 	# create redis pool
-	loop.create_task(aredis_client())
+	loop.create_task(async_redis_client())
 	loop.create_task(main_loop())
 	# create and start MetricsCollector
 	_metrics_collector = WorkerMetricsCollector()

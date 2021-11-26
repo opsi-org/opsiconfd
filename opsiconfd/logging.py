@@ -21,7 +21,7 @@ import logging as pylogging
 from logging import LogRecord, Formatter, StreamHandler
 from concurrent.futures import ThreadPoolExecutor
 
-import aredis
+import aioredis
 import msgpack
 import colorlog
 
@@ -38,7 +38,7 @@ from opsicommon.logging import (
 )
 from opsicommon.logging.logging import add_context_filter_to_loggers
 
-from .utils import retry_redis_call, get_aredis_connection, get_redis_connection
+from .utils import retry_redis_call, get_async_redis_connection, get_redis_connection
 from .config import config
 
 # 1 log record ~= 550 bytes
@@ -279,59 +279,54 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 
 	async def _start(self):
 		try:
-			self._redis = await get_aredis_connection(config.redis_internal_url)
+			self._redis = await get_async_redis_connection(config.redis_internal_url)
 			stream_name = f"opsiconfd:log:{config.node_name}"
-			await self._redis.xtrim(name=stream_name, max_len=10000, approximate=True)
+			await self._redis.xtrim(name=stream_name, maxlen=10000, approximate=True)
 			self._loop.create_task(self._reader(stream_name=stream_name))
 			self._loop.create_task(self._watch_log_files())
 
 		except Exception as err: # pylint: disable=broad-except
 			handle_log_exception(err, stderr=True, temp_file=True)
 
-	async def _reader(self, stream_name):
+	async def _reader(self, stream_name):  # pylint: disable=too-many-branches
 		if self._running_event:
 			self._running_event.set()
 
-		b_stream_name = stream_name.encode("utf-8")
 		last_id = '$'
-		while True:
+		while True:  # pylint: disable=too-many-nested-blocks
 			try:
 				if not self._redis:
-					self._redis = await get_aredis_connection(config.redis_internal_url)
+					self._redis = await get_async_redis_connection(config.redis_internal_url)
 				# It is also possible to specify multiple streams
-				data = await self._redis.xread(block=1000, **{stream_name: last_id})
+				data = await self._redis.xread(streams={stream_name: last_id}, block=1000)
 				if not data:
 					continue
-				for entry in data[b_stream_name]:
-					last_id = entry[0]
-					client = entry[1].get(b"client_address", b"").decode("utf-8")
-					record_dict = msgpack.unpackb(entry[1][b"record"])
-					record_dict.update({
-						"scope": None,
-						"exc_info": None,
-						"args": None
-					})
-					record = pylogging.makeLogRecord(record_dict)
-					# workaround for problem in aiologger.formatters.base.Formatter.format
-					record.get_message = record.getMessage
-					if self._stderr_handler and record.levelno >= self._log_level_stderr:
-						await self._stderr_handler.handle(record)
+				for stream in data:
+					for entry in stream[1]:
+						last_id = entry[0]
+						client = entry[1].get(b"client_address", b"").decode("utf-8")
+						record_dict = msgpack.unpackb(entry[1][b"record"])
+						record_dict.update({
+							"scope": None,
+							"exc_info": None,
+							"args": None
+						})
+						record = pylogging.makeLogRecord(record_dict)
+						# workaround for problem in aiologger.formatters.base.Formatter.format
+						record.get_message = record.getMessage
+						if self._stderr_handler and record.levelno >= self._log_level_stderr:
+							await self._stderr_handler.handle(record)
 
-					if record.levelno >= self._log_level_file:
-						file_handler = self.get_file_handler(client)
-						if file_handler:
-							await file_handler.handle(record)
-
-					del record
-					del record_dict
-					del entry
-				del data
+						if record.levelno >= self._log_level_file:
+							file_handler = self.get_file_handler(client)
+							if file_handler:
+								await file_handler.handle(record)
 
 			except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise
 				raise
 			except EOFError:
 				break
-			except (aredis.exceptions.ConnectionError, aredis.BusyLoadingError):
+			except (aioredis.ConnectionError, aioredis.BusyLoadingError):
 				self._redis = None
 			except Exception as err: # pylint: disable=broad-except
 				handle_log_exception(err, stderr=True, temp_file=True)

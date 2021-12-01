@@ -1398,7 +1398,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.256"
+version = "4.2.0.258"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -1741,7 +1741,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "typing-extensions"
-version = "4.0.0"
+version = "4.0.1"
 description = "Backported and Experimental Type Hints for Python 3.6+"
 category = "main"
 optional = false
@@ -3028,8 +3028,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.256.tar.gz", hash = "sha256:be21bec8debc7ddb9f0303e852dd02cf6ab99277ec48aab8856265905d866318"},
-    {file = "python_opsi-4.2.0.256-py3-none-any.whl", hash = "sha256:e6c4220f382d521fa19632e32a59f3328b65b69814545058ecd3d976f076c2fe"},
+    {file = "python-opsi-4.2.0.258.tar.gz", hash = "sha256:0b05946f22f0b505b228267fe843771a2bfebd3422879bedc3027feae6bf843d"},
+    {file = "python_opsi-4.2.0.258-py3-none-any.whl", hash = "sha256:736bbde2343effe36e108596113d534fb68fbb8cebf47750b997302fd1cf6109"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},
@@ -3198,8 +3198,8 @@ typed-ast = [
     {file = "typed_ast-1.5.0.tar.gz", hash = "sha256:ff4ad88271aa7a55f19b6a161ed44e088c393846d954729549e3cde8257747bb"},
 ]
 typing-extensions = [
-    {file = "typing_extensions-4.0.0-py3-none-any.whl", hash = "sha256:829704698b22e13ec9eaf959122315eabb370b0884400e9818334d8b677023d9"},
-    {file = "typing_extensions-4.0.0.tar.gz", hash = "sha256:2cdf80e4e04866a9b3689a51869016d36db0814d84b8d8a568d22781d45d27ed"},
+    {file = "typing_extensions-4.0.1-py3-none-any.whl", hash = "sha256:7f001e5ac290a0c0401508864c7ec868be4e701886d5b573a9528ed3973d9d3b"},
+    {file = "typing_extensions-4.0.1.tar.gz", hash = "sha256:4ca091dea149f945ec56afb48dae714f21e8692ef22a395223bcd328961b6a0e"},
 ]
 urllib3 = [
     {file = "urllib3-1.26.7-py2.py3-none-any.whl", hash = "sha256:c4fdf4019605b6e5423637e01bc9fe4daef873709a7973e195ceba0a62bbc844"},

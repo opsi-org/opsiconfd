@@ -325,7 +325,7 @@ def open_grafana(request: Request):
 
 	password = get_random_string(8)
 	if response.status_code == 404:
-		logger.debug("create new user opsidashboard")
+		logger.debug("Create new user opsidashboard")
 
 		data = {
 			"name":"opsidashboard",
@@ -335,6 +335,8 @@ def open_grafana(request: Request):
 			"OrgId": 1
 		}
 		response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/api/admin/users", headers=headers, auth=auth, data=data)
+		if response.status_code != 200:
+			logger.error("Failed to create user opsidashboard: %s - %s", response.status_code, response.text)
 	else:
 		logger.debug("change opsidashboard password")
 		data = {
@@ -342,17 +344,20 @@ def open_grafana(request: Request):
 		}
 		user_id = response.json().get("id")
 		response = session.put(f"{config.grafana_internal_url}/api/admin/users/{user_id}/password", headers=headers, auth=auth, data=data)
+		if response.status_code != 200:
+			logger.error("Failed to update password for user opsidashboard: %s - %s", response.status_code, response.text)
 
+	redirect_response = RedirectResponse("/metrics/grafana/dashboard")
 	data = {
 		"password": password,
 		"user": "opsidashboard"
 	}
-	response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/login", data=data)
-
-	url = "/metrics/grafana/dashboard"
-	response = RedirectResponse(url=url)
-	response.set_cookie(key="grafana_session", value=session.cookies.get_dict().get("grafana_session"))
-	return response
+	response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/login", json=data)
+	if response.status_code != 200:
+		logger.error("Grafana login failed: %s - %s", response.status_code, response.text)
+	else:
+		redirect_response.set_cookie(key="grafana_session", value=session.cookies.get_dict().get("grafana_session"))
+	return redirect_response
 
 @admin_interface_router.get("/config")
 def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefined-builtin

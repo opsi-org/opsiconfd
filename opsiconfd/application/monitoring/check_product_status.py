@@ -30,7 +30,7 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 	depots_objects = backend._executeMethod(methodName="host_getObjects", attributes=['id'], type=server_type) # pylint: disable=protected-access
 	depots = set(depot.id for depot in depots_objects)
 	del depots_objects
-	if not depot_ids or depot_ids == "all":
+	if not depot_ids or depot_ids[0] == "all":
 		depot_ids = depots
 	else:
 		for depot_id in depot_ids:

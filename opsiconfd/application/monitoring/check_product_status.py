@@ -22,17 +22,24 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 	if not product_ids:
 		return generate_response(State.UNKNOWN, "Neither productId nor productGroup given, nothing to check!")
 
-	server_type = None
+	server_type = "OpsiDepotserver"
 	if not depot_ids:
 		server_type = "OpsiConfigserver"
-	elif 'all' in depot_ids:
-		server_type = "OpsiDepotserver"
 
-	if server_type:
-		depots = backend._executeMethod(methodName="host_getObjects", attributes=['id'], type=server_type) # pylint: disable=protected-access
-		depot_ids = set(depot.id for depot in depots)
-		del depots
 
+	depots_objects = backend._executeMethod(methodName="host_getObjects", attributes=['id'], type=server_type) # pylint: disable=protected-access
+	depots = set(depot.id for depot in depots_objects)
+	del depots_objects
+	if not depot_ids or depot_ids == "all":
+		depot_ids = depots
+	else:
+		for depot_id in depot_ids:
+			if depot_id not in depots:
+				return generate_response(State.UNKNOWN, f"Depot '{depot_id}' not found")
+	del depots
+
+
+	logger.devel(host_group_ids)
 	if host_group_ids:
 		object_to_groups = backend._executeMethod(methodName="objectToGroup_getObjects", groupId=host_group_ids, groupType="HostGroup") # pylint: disable=protected-access
 		if object_to_groups:
@@ -42,6 +49,8 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 	else:
 		client_ids = backend._executeMethod(methodName="host_getIdents", type="OpsiClient") # pylint: disable=protected-access
 
+	logger.devel(client_ids)
+	logger.devel(len(client_ids))
 	clients_on_depot = defaultdict(list)
 	with temporaryBackendOptions(backend, addConfigStateDefaults=True):
 		for config_state in backend._executeMethod( # pylint: disable=protected-access
@@ -56,7 +65,9 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 				continue
 
 			clients_on_depot[depot_id].append(config_state.objectId)
-
+	logger.devel(clients_on_depot)
+	if not clients_on_depot:
+		return generate_response(State.UNKNOWN, f"Depots and clients dont match. Selected depots: {depot_ids}, selected clients: {client_ids}")
 	product_on_depot_info = defaultdict(dict)
 	for pod in backend._executeMethod(methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids): # pylint: disable=protected-access
 		product_on_depot_info[pod.depotId][pod.productId] = {
@@ -71,6 +82,7 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 	missing_products = {}
 	action_requests_to_ignore = set([None, 'none', 'always'])
 
+	logger.devel(depot_ids)
 	for depot_id in depot_ids:
 
 		poducts_on_client = backend._executeMethod( # pylint: disable=protected-access

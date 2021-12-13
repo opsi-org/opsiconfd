@@ -100,6 +100,8 @@ class SessionMiddleware:
 		#self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
 		self._public_path = public_path or []
+		# Store ip addresses of depots with last access time
+		self._depot_addresses = {}
 
 	def get_session_id_from_headers(self, headers: Headers) -> str:
 		#connection.cookies.get(self.session_cookie_name, None)
@@ -162,7 +164,17 @@ class SessionMiddleware:
 		started_authenticated = False
 		session_id = self.get_session_id_from_headers(connection.headers)
 		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
-			scope["session"] = OPSISession(self, session_id, connection)
+			max_session_per_ip = config.max_session_per_ip
+			if connection.client.host in self._depot_addresses:
+				# Connection from a known depot server address
+				if time.time() - self._depot_addresses[connection.client.host] <= config.session_lifetime:
+					logger.debug("Disable max_session_per_ip for depot server: %s", connection.client.host)
+					max_session_per_ip = 0
+				else:
+					# Address information is outdated
+					del self._depot_addresses[connection.client.host]
+
+			scope["session"] = OPSISession(self, session_id, connection, max_session_per_ip=max_session_per_ip)
 			await scope["session"].init()
 		if scope["session"]:
 			contextvar_client_session.set(scope["session"])
@@ -178,7 +190,6 @@ class SessionMiddleware:
 				connection.client.host, connection.headers.get("user-agent")
 			)
 
-
 		# Addon request processing
 		if scope["path"].startswith("/addons"):
 			addon = AddonManager().get_addon_by_path(scope["path"])
@@ -188,6 +199,13 @@ class SessionMiddleware:
 					return
 
 		await check_access(connection, receive)
+
+		if scope["session"].user_store.host:
+			if scope["session"].user_store.host.getType() == "OpsiClient":
+				logger.info("OpsiClient authenticated, updating host object")
+				await run_in_threadpool(update_host_object, connection, scope["session"])
+			elif scope["session"].user_store.host.getType() == "OpsiDepotserver":
+				self._depot_addresses[connection.client.host] = time.time()
 
 		# Session handling time
 		session_handling_millis = (time.perf_counter() - start) * 1000
@@ -304,9 +322,10 @@ class SessionMiddleware:
 class OPSISession(): # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
-	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection) -> None:
+	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection, max_session_per_ip: int = None) -> None:
 		self._session_middelware = session_middelware
 		self._connection = connection
+		self._max_session_per_ip = config.max_session_per_ip if max_session_per_ip is None else max_session_per_ip
 		self.session_id = session_id
 		self.client_addr = self._connection.client.host
 		self.user_agent = self._connection.headers.get("user-agent")
@@ -371,8 +390,8 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			#redis = await async_redis_client()
 			#async for key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
 			#	redis_session_keys.append(key.decode("utf8"))
-			if config.max_session_per_ip > 0 and len(redis_session_keys) + 1 > config.max_session_per_ip:
-				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {config.max_session_per_ip}"
+			if self._max_session_per_ip > 0 and len(redis_session_keys) + 1 > self._max_session_per_ip:
+				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {self._max_session_per_ip}"
 				logger.warning(error)
 				raise ConnectionRefusedError(error)
 		except ConnectionRefusedError as err:
@@ -587,10 +606,6 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 		await check_blocked(connection)
 		# Authenticate
 		await authenticate(connection, receive)
-
-		if session.user_store.host:
-			logger.info("Host authenticated, updating host object")
-			await run_in_threadpool(update_host_object, connection, session)
 
 		if (
 			not session.user_store.host and

@@ -137,7 +137,7 @@ def test_session_expire(config):  # pylint: disable=redefined-outer-name,unused-
 
 
 def test_onetime_password(config, database_connection):  # pylint: disable=redefined-outer-name,unused-argument
-	database_connection.query(f"""
+	database_connection.query("""
 		INSERT INTO HOST
 			(hostId, type, opsiHostKey, oneTimePassword)
 		VALUES

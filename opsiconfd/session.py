@@ -204,7 +204,8 @@ class SessionMiddleware:
 			if scope["session"].user_store.host.getType() == "OpsiClient":
 				logger.info("OpsiClient authenticated, updating host object")
 				await run_in_threadpool(update_host_object, connection, scope["session"])
-			elif scope["session"].user_store.host.getType() == "OpsiDepotserver":
+			elif scope["session"].user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+				logger.debug("Storing depot server address: %s", connection.client.host)
 				self._depot_addresses[connection.client.host] = time.time()
 
 		# Session handling time

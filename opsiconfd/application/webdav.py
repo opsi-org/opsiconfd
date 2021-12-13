@@ -77,6 +77,9 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		"simple_dc": {
 			"user_mapping": {"*": True}  # anonymous access
 		},
+		"hotfixes": {
+			"re_encode_path_info": False,  # Encoding is done in opsiconfd.wsgi
+		},
 		"http_authenticator": {
 			# None: dc.simple_dc.SimpleDomainController(user_mapping)
 			"domain_controller": None,

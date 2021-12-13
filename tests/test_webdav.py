@@ -8,6 +8,7 @@
 webdav tests
 """
 
+import os
 import random
 import requests
 
@@ -21,10 +22,13 @@ def test_webdav_upload_download_delete_with_special_chars(config):  # pylint: di
 	size = 1*1024*1024
 	rand_bytes = bytearray(random.getrandbits(8) for _ in range(size))
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
+	filename = "陰陽_üß.bin"
 
-	url = f"{config.external_url}/repository/陰陽_üß.bin"
+	url = f"{config.external_url}/repository/{filename}"
 	res = requests.put(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS), headers=headers, data=rand_bytes)
 	res.raise_for_status()
+
+	assert os.path.exists(os.path.join("/var/lib/opsi/repository", filename))
 
 	res = requests.get(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
 	res.raise_for_status()

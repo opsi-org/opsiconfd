@@ -17,12 +17,12 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_webdav_upload_download_delete(config):  # pylint: disable=redefined-outer-name
+def test_webdav_upload_download_delete_with_special_chars(config):  # pylint: disable=redefined-outer-name
 	size = 1*1024*1024
 	rand_bytes = bytearray(random.getrandbits(8) for _ in range(size))
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 
-	url = f"{config.external_url}/repository/test_file.bin"
+	url = f"{config.external_url}/repository/陰陽_üß.bin"
 	res = requests.put(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS), headers=headers, data=rand_bytes)
 	res.raise_for_status()
 
@@ -33,10 +33,12 @@ def test_webdav_upload_download_delete(config):  # pylint: disable=redefined-out
 	res = requests.delete(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS))
 	res.raise_for_status()
 
+
 def test_webdav_auth(config):  # pylint: disable=redefined-outer-name
 	url = f"{config.external_url}/repository/test_file.bin"
 	res = requests.get(url=url, verify=False)
 	assert res.status_code == 401
+
 
 def test_client_permission(config):  # pylint: disable=redefined-outer-name
 	admin_session = requests.Session()

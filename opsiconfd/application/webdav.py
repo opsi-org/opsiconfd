@@ -64,11 +64,7 @@ class IgnoreCaseFilesystemProvider(FilesystemProvider):
 				file_path = cur_path
 
 		if not file_path.startswith(root_path):
-			raise RuntimeError(
-				"Security exception: tried to access file outside root: {}".format(
-					file_path
-				)
-			)
+			raise RuntimeError(f"Security exception: tried to access file outside root: {file_path}")
 
 		# Convert to unicode
 		file_path = util.to_unicode_safe(file_path)

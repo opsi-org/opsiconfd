@@ -10,6 +10,7 @@ import io
 import sys
 import typing
 from queue import Queue
+from urllib.parse import quote
 
 from starlette.types import Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
@@ -61,7 +62,7 @@ def build_environ(scope: Scope) -> dict:
 	environ = {
 		"REQUEST_METHOD": scope["method"],
 		"SCRIPT_NAME": scope.get("root_path", ""),
-		"PATH_INFO": scope["path"],
+		"PATH_INFO": quote(scope["path"]),
 		"QUERY_STRING": scope["query_string"].decode("ascii"),
 		"SERVER_PROTOCOL": f"HTTP/{scope['http_version']}",
 		"wsgi.version": (1, 0),
@@ -145,7 +146,7 @@ class WSGIResponder: # pylint: disable=too-many-instance-attributes
 			if sender and not sender.done():
 				sender.cancel()  # pragma: no cover
 
-	async def receiver(self, receive: Receive, wsgi_input: io.BytesIO):
+	async def receiver(self, receive: Receive, wsgi_input: io.BytesIO):  # pylint: disable=no-self-use
 		more_body = True
 		while more_body:
 			message = await receive()

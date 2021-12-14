@@ -79,7 +79,11 @@ def get_basic_auth(headers: Headers):
 	secret_filter.add_secrets(encoded_auth)
 	auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
 
-	(username, password) = auth.split(':', 1)
+	if auth.count(":") == 6:
+		# Seems to be a mac address as username
+		username, password = auth.rsplit(':', 1)
+	else:
+		username, password = auth.split(':', 1)
 	secret_filter.add_secrets(password)
 
 	return BasicAuth(username, password)
@@ -323,7 +327,13 @@ class SessionMiddleware:
 class OPSISession(): # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
-	def __init__(self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection, max_session_per_ip: int = None) -> None:
+	def __init__(
+		self,
+		session_middelware: SessionMiddleware,
+		session_id: str,
+		connection: HTTPConnection,
+		max_session_per_ip: int = None
+	) -> None:
 		self._session_middelware = session_middelware
 		self._connection = connection
 		self._max_session_per_ip = config.max_session_per_ip if max_session_per_ip is None else max_session_per_ip

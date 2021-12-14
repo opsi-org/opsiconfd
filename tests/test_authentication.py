@@ -136,7 +136,7 @@ def test_session_expire(config):  # pylint: disable=redefined-outer-name,unused-
 	assert res.status_code == 401
 
 
-def test_onetime_password(config, database_connection):  # pylint: disable=redefined-outer-name,unused-argument
+def test_onetime_password_host_id(config, database_connection):  # pylint: disable=redefined-outer-name,unused-argument
 	database_connection.query("""
 		INSERT INTO HOST
 			(hostId, type, opsiHostKey, oneTimePassword)
@@ -155,6 +155,33 @@ def test_onetime_password(config, database_connection):  # pylint: disable=redef
 
 		res = requests.get(
 			f"{config.external_url}/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"),
+			json=rpc, verify=False
+		)
+		assert res.status_code == 401
+	finally:
+		database_connection.query('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
+		database_connection.commit()
+
+
+def test_onetime_password_hardware_address(config, database_connection):  # pylint: disable=redefined-outer-name,unused-argument
+	database_connection.query("""
+		INSERT INTO HOST
+			(hostId, type, opsiHostKey, oneTimePassword, hardwareAddress)
+		VALUES
+			("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1mac", "01:02:aa:bb:cc:dd");
+	""")
+	database_connection.commit()
+	try:
+		rpc = {"id": 1, "method": "backend_info", "params": []}
+		res = requests.get(
+			f"{config.external_url}/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"),
+			json=rpc, verify=False
+		)
+		assert res.status_code == 200
+		assert res.json()
+
+		res = requests.get(
+			f"{config.external_url}/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"),
 			json=rpc, verify=False
 		)
 		assert res.status_code == 401

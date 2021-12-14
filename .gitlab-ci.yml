@@ -57,6 +57,9 @@ stages:
   # Installing opsi test modules file
   echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
 
+  # Create dirs
+  mkdir /var/log/opsi/clientconnect
+
   # Install poetry
   pip3 install poetry
   poetry config experimental.new-installer false

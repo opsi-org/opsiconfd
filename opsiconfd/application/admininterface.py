@@ -286,20 +286,18 @@ async def get_session_list() -> list:
 @admin_interface_router.get("/locked-products-list")
 async def get_locked_products_list() -> list:
 	backend = get_backend()
-	depotIds = []
 	products = {}
-	for productOnDepot in backend.productOnDepot_getObjects(depotId=depotIds, locked=True):
-		if productOnDepot.productId not in products:
-			products[productOnDepot.productId] = []
-		products[productOnDepot.productId].append(productOnDepot.depotId)
-
+	for pod in backend.productOnDepot_getObjects(depotId=[], locked=True): # pylint: disable=no-member
+		if pod.productId not in products:
+			products[pod.productId] = []
+		products[pod.productId].append(pod.depotId)
 	return products
 
 @admin_interface_router.post("/products/{product}/unlock")
-def unlock_product(request: Request, product):
+def unlock_product(product):
 	backend = get_backend()
 	try:
-		backend.unlockProduct(product)
+		backend.unlockProduct(product) # pylint: disable=no-member
 		response = JSONResponse({"status": 200, "error": None, "data": {"product": product, "action": "unlock"}})
 	except Exception as err: # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)

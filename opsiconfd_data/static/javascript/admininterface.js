@@ -661,7 +661,6 @@ function printLockedProductsTable(data, htmlId) {
 				data[key].forEach(element => {
 					htmlStr += element + "<br>"
 				});
-			console.log(key);
 			htmlStr += "</td>"
 			htmlStr += "<td class=\"locked-products-td\"><input type=\"button\" onclick=\"unlockProduct('"+key+"')\" value=\"Unlock\"</td>"
 			htmlStr += "</tr>";

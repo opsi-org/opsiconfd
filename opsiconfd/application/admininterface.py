@@ -42,7 +42,6 @@ from ..ssl import get_ca_info, get_cert_info
 from ..addon import AddonManager
 
 from .memoryprofiler import memory_profiler_router
-from opsiconfd import backend
 
 
 admin_interface_router = APIRouter()

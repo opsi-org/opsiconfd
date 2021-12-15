@@ -204,7 +204,7 @@ class SessionMiddleware:
 
 		await check_access(connection, receive)
 
-		if scope["session"].user_store.host:
+		if scope["session"] and scope["session"].user_store.host:
 			if scope["session"].user_store.host.getType() == "OpsiClient":
 				logger.info("OpsiClient authenticated, updating host object")
 				await run_in_threadpool(update_host_object, connection, scope["session"])

@@ -42,6 +42,11 @@ def test_login_success(config):  # pylint: disable=redefined-outer-name,unused-a
 	assert res.url.rstrip("/") == f"{config.external_url}/admin"
 
 
+def test_public_access(config):  # pylint: disable=redefined-outer-name,unused-argument
+	res = requests.get(config.external_url + "/public", verify=False)
+	assert res.status_code == 200
+
+
 def test_max_sessions(config):  # pylint: disable=redefined-outer-name,unused-argument
 	over_limit = 3
 	for num in range(1, config.max_session_per_ip + 1 + over_limit):

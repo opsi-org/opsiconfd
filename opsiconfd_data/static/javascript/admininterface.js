@@ -189,6 +189,23 @@ function loadClientTable() {
 	request.send()
 }
 
+function loadLockedProductsTable() {
+	let request = new XMLHttpRequest();
+	request.open("GET", "/admin/locked-products-list");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText;
+			result = JSON.parse(result);
+			printLockedProductsTable(result, "locked-products-table-div");
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send()
+}
+
 function loadSessionTable(sortKey, sort) {
 	let request = new XMLHttpRequest();
 	request.open("GET", "/admin/session-list");
@@ -621,6 +638,43 @@ function printSessionTable(data, htmlId) {
 				"<td class=\"session-td\">" + Math.round(element.validity) + "</td>" +
 				"</tr>";
 		});
+		htmlStr += "</table>";
+	}
+	div = document.getElementById(htmlId);
+	div.innerHTML = htmlStr;
+	return htmlStr;
+}
+
+function printLockedProductsTable(data, htmlId) {
+	if (data.length == 0) {
+		htmlStr = "<p>No locked Products found.</p>";
+	} else {
+		htmlStr = "<table class=\"locked-products-table\" id=\"session-table\">" +
+			"<tr>" +
+			"<th class='locked-products-th'>Product</th>" +
+			"<th class='locked-products-th'>Depots</th>"
+			"</tr>";
+		for(var key in data) {
+			console.log(key);
+			console.log(data[key]);
+			htmlStr += "<tr>" +
+				"<td class=\"locked-products-td\" class=\"cell-breakWord \">" + key + "</td>" +
+				"<td class=\"locked-products-td\">"
+				data[key].forEach(element => {
+					htmlStr += element + "<br>"
+				});
+
+			htmlStr += "</td>" + "</tr>";
+		}
+		// console.log(data);
+		// data.forEach(element => {
+		// 	console.log(element);
+		// 	console.log(element);
+		// 	htmlStr += "<tr>" +
+		// 		"<td class=\"locked-products-td\">" + element + "</td>" +
+		// 		"<td class=\"locked-products-td\">" + element + "</td>"
+		// 		"</tr>";
+		// });
 		htmlStr += "</table>";
 	}
 	div = document.getElementById(htmlId);

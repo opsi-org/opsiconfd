@@ -42,6 +42,7 @@ from ..ssl import get_ca_info, get_cert_info
 from ..addon import AddonManager
 
 from .memoryprofiler import memory_profiler_router
+from opsiconfd import backend
 
 
 admin_interface_router = APIRouter()
@@ -283,6 +284,23 @@ async def get_session_list() -> list:
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))
 	return session_list
 
+@admin_interface_router.get("/locked-products-list")
+async def get_locked_products_list() -> list:
+	backend = get_backend()
+
+	depotIds = []
+
+	products = {}
+	for productOnDepot in backend.productOnDepot_getObjects(depotId=depotIds, locked=True):
+		if productOnDepot.productId not in products:
+			products[productOnDepot.productId] = []
+		products[productOnDepot.productId].append(productOnDepot.depotId)
+
+	logger.devel(products)
+
+
+	# product_list = sorted(product_list, key=itemgetter("address", "validity"))
+	return products
 
 @admin_interface_router.get("/blocked-clients")
 async def get_blocked_clients() -> list:

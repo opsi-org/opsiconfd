@@ -286,12 +286,7 @@ async def get_session_list() -> list:
 @admin_interface_router.get("/locked-products-list")
 async def get_locked_products_list() -> list:
 	backend = get_backend()
-	products = backend.getProductLocks_hash()
-	# products = {}
-	# for pod in backend.productOnDepot_getObjects(depotId=[], locked=True): # pylint: disable=no-member
-	# 	if pod.productId not in products:
-	# 		products[pod.productId] = []
-	# 	products[pod.productId].append(pod.depotId)
+	products = backend.getProductLocks_hash() # pylint: disable=no-member
 	return products
 
 @admin_interface_router.post("/products/{product}/unlock")

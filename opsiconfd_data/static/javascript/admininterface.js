@@ -646,7 +646,7 @@ function printSessionTable(data, htmlId) {
 }
 
 function printLockedProductsTable(data, htmlId) {
-	if (data.length == 0) {
+	if (Object.keys(data).length === 0) {
 		htmlStr = "<p>No locked Products found.</p>";
 	} else {
 		htmlStr = "<table class=\"locked-products-table\" id=\"session-table\">" +
@@ -661,18 +661,11 @@ function printLockedProductsTable(data, htmlId) {
 				data[key].forEach(element => {
 					htmlStr += element + "<br>"
 				});
-
-			htmlStr += "</td>" + "</tr>";
+			console.log(key);
+			htmlStr += "</td>"
+			htmlStr += "<td class=\"locked-products-td\"><input type=\"button\" onclick=\"unlockProduct('"+key+"')\" value=\"Unlock\"</td>"
+			htmlStr += "</tr>";
 		}
-		// console.log(data);
-		// data.forEach(element => {
-		// 	console.log(element);
-		// 	console.log(element);
-		// 	htmlStr += "<tr>" +
-		// 		"<td class=\"locked-products-td\">" + element + "</td>" +
-		// 		"<td class=\"locked-products-td\">" + element + "</td>"
-		// 		"</tr>";
-		// });
 		htmlStr += "</table>";
 	}
 	div = document.getElementById(htmlId);
@@ -680,6 +673,24 @@ function printLockedProductsTable(data, htmlId) {
 	return htmlStr;
 }
 
+
+function unlockProduct(product){
+	let request = new XMLHttpRequest();
+	request.open("POST", "/admin/products/" + product + "/unlock");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText
+			result = JSON.parse(result);
+			loadLockedProductsTable()
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send();
+
+}
 
 function printAddonTable(data, htmlId) {
 	if (data.length == 0) {

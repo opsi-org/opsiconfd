@@ -655,8 +655,6 @@ function printLockedProductsTable(data, htmlId) {
 			"<th class='locked-products-th'>Depots</th>"
 			"</tr>";
 		for(var key in data) {
-			console.log(key);
-			console.log(data[key]);
 			htmlStr += "<tr>" +
 				"<td class=\"locked-products-td\" class=\"cell-breakWord \">" + key + "</td>" +
 				"<td class=\"locked-products-td\">"

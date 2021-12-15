@@ -287,19 +287,13 @@ async def get_session_list() -> list:
 @admin_interface_router.get("/locked-products-list")
 async def get_locked_products_list() -> list:
 	backend = get_backend()
-
 	depotIds = []
-
 	products = {}
 	for productOnDepot in backend.productOnDepot_getObjects(depotId=depotIds, locked=True):
 		if productOnDepot.productId not in products:
 			products[productOnDepot.productId] = []
 		products[productOnDepot.productId].append(productOnDepot.depotId)
 
-	logger.devel(products)
-
-
-	# product_list = sorted(product_list, key=itemgetter("address", "validity"))
 	return products
 
 @admin_interface_router.get("/blocked-clients")

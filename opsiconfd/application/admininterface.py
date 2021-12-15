@@ -286,11 +286,12 @@ async def get_session_list() -> list:
 @admin_interface_router.get("/locked-products-list")
 async def get_locked_products_list() -> list:
 	backend = get_backend()
-	products = {}
-	for pod in backend.productOnDepot_getObjects(depotId=[], locked=True): # pylint: disable=no-member
-		if pod.productId not in products:
-			products[pod.productId] = []
-		products[pod.productId].append(pod.depotId)
+	products = backend.getProductLocks_hash()
+	# products = {}
+	# for pod in backend.productOnDepot_getObjects(depotId=[], locked=True): # pylint: disable=no-member
+	# 	if pod.productId not in products:
+	# 		products[pod.productId] = []
+	# 	products[pod.productId].append(pod.depotId)
 	return products
 
 @admin_interface_router.post("/products/{product}/unlock")
@@ -302,6 +303,22 @@ def unlock_product(product):
 	except Exception as err: # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
 		response = JSONResponse({"status": 500, "error": { "message": "Error while unlocking product", "detail": str(err)}})
+	return response
+
+@admin_interface_router.post("/products/unlock")
+def unlock_all_product():
+	backend = get_backend()
+	products = []
+	for pod in backend.productOnDepot_getObjects(depotId=[], locked=True): # pylint: disable=no-member
+		if pod.productId not in products:
+			products.append(pod.productId)
+	try:
+		for product in products:
+			backend.unlockProduct(product) # pylint: disable=no-member
+		response = JSONResponse({"status": 200, "error": None, "data": None})
+	except Exception as err: # pylint: disable=broad-except
+		logger.error("Error while removing redis session keys: %s", err)
+		response = JSONResponse({"status": 500, "error": { "message": "Error while unlocking products", "detail": str(err)}})
 	return response
 
 @admin_interface_router.get("/blocked-clients")

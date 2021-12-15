@@ -691,6 +691,24 @@ function unlockProduct(product){
 
 }
 
+function unlockAllProducts(){
+	let request = new XMLHttpRequest();
+	request.open("POST", "/admin/products/unlock");
+	request.addEventListener('load', function (event) {
+		if (request.status >= 200 && request.status < 300) {
+			result = request.responseText
+			result = JSON.parse(result);
+			loadLockedProductsTable()
+			return result;
+		} else {
+			console.warn(request.statusText, request.responseText);
+			return request.statusText;
+		}
+	});
+	request.send();
+
+}
+
 function printAddonTable(data, htmlId) {
 	if (data.length == 0) {
 		htmlStr = "<p>No addons loaded.</p>";

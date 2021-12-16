@@ -6,9 +6,18 @@
 # License: AGPL-3.0
 
 import asyncio
+import urllib3
 import pytest
+from _pytest.logging import LogCaptureHandler
 
 from opsiconfd.backend import BackendManager
+
+urllib3.disable_warnings()
+
+def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
+	pass
+LogCaptureHandler.emit = emit
+
 
 BackendManager.default_config = {
 	"backendConfigDir": "tests/opsi-config/backends",

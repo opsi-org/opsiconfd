@@ -73,6 +73,9 @@
 				loadSessionTable();
 				loadClientTable();
 			}
+			else if (tabName == "depots") {
+				loadLockedProductsTable();
+			}
 			else if (tabName == "rpcInterface") {
 				createParamInputs();
 			}
@@ -121,6 +124,7 @@
 		<div class="tab">
 			<button class="tablinks" id="startTab-button" onclick="openTab(event, 'confdInfo')">Info</button>
 			<button class="tablinks" onclick="openTab(event, 'clients')">Clients</button>
+			<button class="tablinks" onclick="openTab(event, 'depots')">Depots</button>
 			<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
 			<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
 			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
@@ -177,6 +181,17 @@
 			<div id="result">
 				<pre class="json-result" id="json-result"></pre>
 			</div>
+		</div>
+
+		<div id="depots" class="tabcontent">
+			<div class="adminpage-box" id="sessions">
+				<h4>Locked Products:</h4>
+				<div id="locked-products-table-div">
+					loading...
+				</div>
+				<input type="button" onclick="unlockAllProducts()" value="Unlock all">
+			</div>
+
 		</div>
 
 		<div id="rpcInfos" class="tabcontent">

@@ -81,6 +81,8 @@ def check_product_status(backend, product_ids=[], product_groups=[], host_group_
 
 
 	for depot_id in depot_ids:
+		if depot_id not in clients_on_depot.keys():
+			continue
 
 		poducts_on_client = backend._executeMethod( # pylint: disable=protected-access
 			methodName="productOnClient_getObjects",

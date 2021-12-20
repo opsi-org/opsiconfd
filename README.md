@@ -16,27 +16,19 @@ Therefore, the maximum of concurrent JSON-RPC requests is limited by the number 
 If this limit is exceeded, new JSON-RPC requests will have to wait for a free worker.
 Thus, long runinng JSON-RPC requests could block other requests.
 
-# Development
-* Install docker and docker compose on your linux machine
-* python-opsi has to be in the opsiconfd root directory (links dont work).
-* Build und run the docker environment: `./docker/build_and_run.py --type dev`
-* Run a bash in the opsiconfd docker container: `docker exec -it docker_opsiconfd_1 bash`
-* Start opsiconfd in the opsiconfd container: `poetry run opsiconfd`
-* Run local tests: `./tests/run_tests.sh`. Starts tests in docker container docker_opsiconfd_1.
-
-## DevContainer
-
+# Development in Dev Container
 * Install Remote-Containers: https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers
-* run Task "Create .env file" or run `./scripts/devenv.sh`
+* Run task "Create .env file" or run `./scripts/devenv.sh`
 * Open project in container:
 	* \<F1\> -> Remote-Containers: Reopen in Container
 	* or remote button in bottom left corner -> Reopen in Container
 * In the container \<F5\> starts opsiconfd in debug mode (opsiconfd default)
 * You can use the default debug settings or you can set the number of worker and the log level by selecting opsiconfd in the debug/run tab.
 
-### Run Tests
-* start opsiconfd with `--backend-config-dir tests/opsi-config/backends --dispatch-config-file tests/opsi-config/backendManager/dispatch.conf`
-* select "Run Tests" on the Status Bar or use the Test Explorer
+## Run Tests
+* Start opsiconfd with `sudo -E poetry run opsiconfd --backend-config-dir tests/opsi-config/backends --dispatch-config-file tests/opsi-config/backendManager/dispatch.conf --addon-dirs tests/data/addons addons --workers=1 --log-level-stderr=5`
+* Select "Run Tests" on the Status Bar, use the Test Explorer or run `poetry run pytest -vv tests` in a terminal
+
 
 ## Memory usage / profiling
 * https://bugs.python.org/issue41699

@@ -184,7 +184,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 			raise Exception(f"Cannot add webdav content 'public': permissions on directory '{PUBLIC_FOLDER}' not sufficient.")
 
 		app_config = dict(app_config_template)
-		app_config["provider_mapping"] = {"/": FilesystemProvider(PUBLIC_FOLDER, readonly=False)}
+		app_config["provider_mapping"] = {"/": FilesystemProvider(PUBLIC_FOLDER, readonly=True)}
 		app_config["mount_path"] = "/public"
 		public_dav = WsgiDAVApp(app_config)
 		app.mount("/public", WSGIMiddleware(public_dav))

@@ -42,9 +42,14 @@ def test_login_success(config):  # pylint: disable=redefined-outer-name,unused-a
 	assert res.url.rstrip("/") == f"{config.external_url}/admin"
 
 
-def test_public_access(config):  # pylint: disable=redefined-outer-name,unused-argument
+def test_public_access_get(config):  # pylint: disable=redefined-outer-name,unused-argument
 	res = requests.get(config.external_url + "/public", verify=False)
 	assert res.status_code == 200
+
+
+def test_public_access_put(config):  # pylint: disable=redefined-outer-name,unused-argument
+	res = requests.put(config.external_url + "/public/test.bin", data=b"test", verify=False)
+	assert res.status_code == 405
 
 
 def test_max_sessions(config):  # pylint: disable=redefined-outer-name,unused-argument

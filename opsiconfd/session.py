@@ -257,14 +257,15 @@ class SessionMiddleware:
 			error = "Authentication error"
 			if isinstance(err, BackendPermissionDeniedError):
 				error = "Permission denied"
-			cmd = (
-				f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
-				f"* 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
-			)
-			logger.debug(cmd)
-			redis = await async_redis_client()
-			asyncio.get_event_loop().create_task(redis.execute_command(cmd))
-			await asyncio.sleep(0.2)
+			else:
+				cmd = (
+					f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
+					f"* 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+				)
+				logger.debug(cmd)
+				redis = await async_redis_client()
+				asyncio.get_event_loop().create_task(redis.execute_command(cmd))
+				await asyncio.sleep(0.2)
 
 		elif isinstance(err, ConnectionRefusedError):
 			status_code = status.HTTP_403_FORBIDDEN
@@ -566,10 +567,11 @@ async def authenticate(connection: HTTPConnection, receive: Receive) -> None: # 
 
 
 async def check_blocked(connection: HTTPConnection) -> None:
-	logger.info("Checking if client %s is blocked", connection.client.host)
+	logger.info("Checking if client '%s' is blocked", connection.client.host)
 	redis = await async_redis_client()
 	is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}"))
 	if is_blocked:
+		logger.info("Client '%s' is blocked", connection.client.host)
 		raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
 
 	now = round(time.time())*1000

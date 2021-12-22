@@ -249,7 +249,11 @@ class SessionMiddleware:
 		error = None
 
 		if isinstance(err, (BackendAuthenticationError, BackendPermissionDeniedError)):
-			logger.warning(err)
+			log = logger.warning
+			if scope['method'] == "MKCOL" and scope["path"] and scope["path"].lower().endswith("/system volume information"):
+				# Windows WebDAV client is trying to create "System Volume Information"
+				log = logger.debug
+			log(err)
 
 			status_code = status.HTTP_401_UNAUTHORIZED
 			headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}

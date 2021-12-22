@@ -261,7 +261,8 @@ class SessionMiddleware:
 			error = "Authentication error"
 			if isinstance(err, BackendPermissionDeniedError):
 				error = "Permission denied"
-			else:
+
+			if isinstance(err, BackendAuthenticationError) or not scope["session"] or not scope["session"].user_store.authenticated:
 				cmd = (
 					f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
 					f"* 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"

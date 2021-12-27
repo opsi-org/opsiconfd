@@ -112,7 +112,13 @@ stages:
   echo "---------------------------------------"
   echo "Run pylint"
   echo "---------------------------------------"
-  poetry run pylint --disable=R,C,fixme opsiconfd
+  poetry run pylint --disable=R,fixme opsiconfd
+
+.schemathesis: &schemathesis |
+  echo "---------------------------------------"
+  echo "Run schemathesis"
+  echo "---------------------------------------"
+  poetry run schemathesis run --request-tls-verify false --auth adminuser:adminuser https://localhost:4447/openapi.json
 
 test:perftest:
   image: ubuntu:focal
@@ -146,6 +152,7 @@ test:pylint-pytest:
     - *prepare_tests
     - *pylint
     - *pytest
+    #- *schemathesis
 
   # poetry run pytest --junit-xml=pytestreport.xml junit_family=xunit2 --quiet /builds/uib/opsiconfd/tests
   # artifacts:

@@ -401,7 +401,7 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 
 		rec_dict = record.__dict__.copy()
 		rec_dict["msg"] = msg
-		for attr in ('scope', 'exc_info', 'args', 'contextstring'):
+		for attr in ('scope', 'exc_info', 'args', 'contextstring', 'websocket'):
 			if attr in rec_dict:
 				del rec_dict[attr]
 		return rec_dict

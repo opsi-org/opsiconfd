@@ -185,7 +185,7 @@ def get_redis_connection(url: str, db: str = None, timeout: int = 0):  # pylint:
 			new_pool = False
 			if not con_id in REDIS_CONNECTION_POOL:
 				new_pool = True
-				REDIS_CONNECTION_POOL[con_id] = redis.ConnectionPool.from_url(url, db)
+				REDIS_CONNECTION_POOL[con_id] = redis.ConnectionPool.from_url(url, db=db)
 			client = redis.StrictRedis(connection_pool=REDIS_CONNECTION_POOL[con_id])
 			if new_pool:
 				client.ping()

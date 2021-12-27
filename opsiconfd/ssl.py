@@ -5,7 +5,7 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-ssl
+opsiconfd.ssl
 """
 
 import os
@@ -400,7 +400,7 @@ def get_ca_info():
 	return {
 		"issuer": cert.get_issuer(),
 		"subject": cert.get_subject(),
-		"serial_number": ':'.join(('%X' % cert.get_serial_number()).zfill(36)[i:i+2] for i in range(0, 36, 2)),
+		"serial_number": ':'.join((f'{cert.get_serial_number()}:X').zfill(36)[i:i+2] for i in range(0, 36, 2)),
 		"expiration": expiration
 	}
 
@@ -420,7 +420,7 @@ def get_cert_info():
 	return {
 		"issuer": cert.get_issuer(),
 		"subject": cert.get_subject(),
-		"serial_number": ':'.join(('%X' % cert.get_serial_number()).zfill(36)[i:i+2] for i in range(0, 36, 2)),
+		"serial_number": ':'.join((f'{cert.get_serial_number():X}').zfill(36)[i:i+2] for i in range(0, 36, 2)),
 		"alt_names": alt_names,
 		"expiration": expiration
 	}

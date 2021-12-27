@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+opsiconfd.application.monitoring.check_product_status
+"""
 
 from collections import defaultdict
 

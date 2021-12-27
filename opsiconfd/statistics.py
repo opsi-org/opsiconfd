@@ -146,10 +146,10 @@ def get_time_bucket_name(time: int) -> str: # pylint: disable=redefined-outer-na
 			time_bucket_name = name
 	return time_bucket_name
 
-class Metric: # pylint: disable=too-many-instance-attributes
-	def __init__( # pylint: disable=too-many-arguments, redefined-builtin, dangerous-default-value
+class Metric:  # pylint: disable=too-many-instance-attributes
+	def __init__(  # pylint: disable=too-many-arguments, redefined-builtin, dangerous-default-value
 			self,
-			id: str,
+			id: str,  # pylint: disable=invalid-name
 			name: str,
 			vars: List[str] = [],
 			aggregation: str = "avg",

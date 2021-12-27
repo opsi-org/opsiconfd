@@ -79,5 +79,5 @@ def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], stri
 							continue
 						message += f"{depot_id} ({product_version}-{package_version}) "
 	else:
-		message += "Syncstate ok for depots %s" % ", ".join(depot_ids)
+		message += f"Syncstate ok for depots {', '.join(depot_ids)}"
 	return generate_response(state, message)

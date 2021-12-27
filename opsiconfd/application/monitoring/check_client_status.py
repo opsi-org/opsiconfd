@@ -4,6 +4,9 @@
 # Copyright (c) 2020-2021 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0
+"""
+opsiconfd.application.monitoring.check_client_status
+"""
 
 import datetime
 
@@ -90,7 +93,7 @@ def check_client_status(backend, client_id, exclude_product_list=None) -> JSONRe
 	if action_products:
 		if state != State.CRITICAL:
 			state = State.WARNING
-		products = ["%s (%s)" % (product.productId, product.actionRequest) for product in action_products]
+		products = [f"{product.productId} ({product.actionRequest})" for product in action_products]
 		message += f"Actions set for products: '{', '.join(products)}'."
 	if state == State.OK:
 		message += "No failed products and no actions set for client"

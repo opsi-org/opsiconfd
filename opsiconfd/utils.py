@@ -99,15 +99,15 @@ def decode_redis_result(_obj):
 	if isinstance(_obj, bytes):
 		_obj = _obj.decode("utf8")
 	elif isinstance(_obj, list):
-		for i in range(len(_obj)): # pylint: disable=consider-using-enumerate
-			_obj[i] = decode_redis_result(_obj[i])
+		for idx in range(len(_obj)): # pylint: disable=consider-using-enumerate
+			_obj[idx] = decode_redis_result(_obj[idx])
 	elif isinstance(_obj, dict):
-		for (k, v) in _obj.items(): # pylint: disable=invalid-name
-			_obj[decode_redis_result(k)] = decode_redis_result(v)
+		for (key, val) in _obj.items():
+			_obj[decode_redis_result(key)] = decode_redis_result(val)
 	elif isinstance(_obj, set):
-		for v in _obj: # pylint: disable=invalid-name
-			_obj.remove(v)
-			_obj.add(decode_redis_result(v))
+		for val in _obj:
+			_obj.remove(val)
+			_obj.add(decode_redis_result(val))
 	return _obj
 
 

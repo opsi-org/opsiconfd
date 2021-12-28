@@ -45,7 +45,6 @@ from ..rest import OpsiApiException, RestApiValidationError, rest_api
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
 from .webdav import webdav_setup
-from .jsonrpcinterface import jsonrpc_interface_setup
 from .admininterface import admin_interface_setup
 from .redisinterface import redis_interface_setup
 from .monitoring.monitoring import monitoring_setup
@@ -295,7 +294,6 @@ def application_setup():
 		logger.warning("Static dir '%s' not found", config.static_dir)
 
 	jsonrpc_setup(app)
-	jsonrpc_interface_setup(app)
 	admin_interface_setup(app)
 	redis_interface_setup(app)
 	monitoring_setup(app)

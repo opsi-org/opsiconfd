@@ -136,7 +136,8 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 	for i in range(5):
 		cursor.execute(
 			f'INSERT INTO HOST (hostId, `type`, created, lastSeen, hardwareAddress, `description`, notes, inventoryNumber) '
-			f'VALUES ("pytest-client-{i}.uib.local", "OpsiClient", "{now}", "{now}", "af:fe:af:fe:af:f{i}", "description client{i}", "notes client{i}", "{i}");'
+			f'VALUES ("pytest-client-{i}.uib.local", "OpsiClient", "{now}", "{now}", "af:fe:af:fe:af:f{i}", '
+			f'"description client{i}", "notes client{i}", "{i}");'
 		)
 		cursor.execute(
 			'INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority, setupScript, uninstallScript) VALUES '

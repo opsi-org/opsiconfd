@@ -129,7 +129,7 @@ def load_cert(cert_file: str) -> X509:
 			return load_certificate(FILETYPE_PEM, file.read())
 		except CryptoError as err:
 			raise RuntimeError(
-				f"Failed to load CA cert from '{cert_file}': {err}"
+				f"Failed to load cert from '{cert_file}': {err}"
 			) from err
 
 

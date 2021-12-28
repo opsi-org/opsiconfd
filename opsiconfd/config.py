@@ -767,6 +767,13 @@ class Config(metaclass=Singleton):
 		else:
 			self._config = parser.parse_args(args)
 
+		if not self._config.ssl_ca_key_passphrase:
+			# Use None if empty string
+			self._config.ssl_ca_key_passphrase = None
+		if not self._config.ssl_server_key_passphrase:
+			# Use None if empty string
+			self._config.ssl_server_key_passphrase = None
+
 		scheme = "http"
 		if self._config.ssl_server_key and self._config.ssl_server_cert:
 			scheme = "https"

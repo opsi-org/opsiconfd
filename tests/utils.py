@@ -13,6 +13,7 @@ import socket
 import json
 from datetime import datetime, timedelta
 import pytest
+import redis
 import aioredis
 import requests
 import MySQLdb
@@ -38,24 +39,36 @@ def config(monkeypatch):
 	return config
 
 
-@pytest.fixture(autouse=True)
-@pytest.mark.asyncio
-async def clean_redis(config):  # pylint: disable=redefined-outer-name
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-
-	for redis_key in (
-		OPSI_SESSION_KEY,
-		"opsiconfd:stats:client:failed_auth",
-		"opsiconfd:stats:client:blocked",
-		"opsiconfd:stats:client",
-		"opsiconfd:stats:rpcs",
-		"opsiconfd:stats:num_rpcs",
-		"opsiconfd:stats:rpc",
-		"opsiconfd:jsonrpccache:*:products"
-	):
+CLEAN_REDIS_KEYS = [
+	OPSI_SESSION_KEY,
+	"opsiconfd:stats:client:failed_auth",
+	"opsiconfd:stats:client:blocked",
+	"opsiconfd:stats:client",
+	"opsiconfd:stats:rpcs",
+	"opsiconfd:stats:num_rpcs",
+	"opsiconfd:stats:rpc",
+	"opsiconfd:jsonrpccache:*:products"
+]
+async def async_clean_redis(redis_url):
+	redis_client = aioredis.StrictRedis.from_url(redis_url)
+	for redis_key in CLEAN_REDIS_KEYS:
 		async for key in redis_client.scan_iter(f"{redis_key}:*"):
 			await redis_client.delete(key)
 		await redis_client.delete(redis_key)
+
+
+def sync_clean_redis(redis_url):
+	redis_client = redis.StrictRedis.from_url(redis_url)
+	for redis_key in CLEAN_REDIS_KEYS:
+		for key in redis_client.scan_iter(f"{redis_key}:*"):
+			redis_client.delete(key)
+		redis_client.delete(redis_key)
+
+
+@pytest.fixture(autouse=True)
+@pytest.mark.asyncio
+async def clean_redis(config):  # pylint: disable=redefined-outer-name
+	await async_clean_redis(config.redis_internal_url)
 	yield None
 
 

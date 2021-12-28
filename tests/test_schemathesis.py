@@ -44,8 +44,3 @@ def test_admin(config, case):  # pylint: disable=redefined-outer-name
 def test_ssl(config, case):  # pylint: disable=redefined-outer-name
 	sync_clean_redis(config.redis_internal_url)
 	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
-
-@schema.parametrize(endpoint="^/interface")
-def test_interface(config, case):  # pylint: disable=redefined-outer-name
-	sync_clean_redis(config.redis_internal_url)
-	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)

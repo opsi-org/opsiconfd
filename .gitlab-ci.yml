@@ -146,13 +146,14 @@ test:pylint-pytest:
     - *prepare_tests
     - *pylint
     - *pytest
-
-  # poetry run pytest --junit-xml=pytestreport.xml junit_family=xunit2 --quiet /builds/uib/opsiconfd/tests
-  # artifacts:
-  #   name: 'opsiconfd-tests'
-  #   reports:
-  #     junit: pytestreport.xml
-  #   expire_in: 1 day
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
+  artifacts:
+    name: 'opsiconfd_test'
+    paths:
+      - coverage.xml
+    expire_in: 3 days
+    reports:
+      cobertura: coverage.xml
 
 build:linux-pyinstaller:
   stage: build

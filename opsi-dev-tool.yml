@@ -104,20 +104,27 @@ package:
 
 
   postinst_script: |
-    # Workaround for error on openSUSE Leap 15.2:
-    #  /bin/sh: /usr/lib/opsiconfd/libreadline.so.7: no version information available (required by /bin/sh)
-    [ -e /usr/lib/opsiconfd/libreadline.so.7 -a -e /lib64/libreadline.so.7 ] && cp /lib64/libreadline.so.7 /usr/lib/opsiconfd/libreadline.so.7
-    # Workaround for error on Red Hat 8
-    #  PAM unable to dlopen(/usr/lib64/security/pam_unix.so): /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1b' not found (required by /lib64/libk5crypto.so.3)
-    [ -e /usr/lib/opsiconfd/libcrypto.so.1.1 -a -e /usr/lib64/libcrypto.so.1.1 ] && cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/libcrypto.so.1.1
-    #  SLES15-2 similar issue: /usr/lib/opsiconfd/libssl.so.1.1: symbol EVP_idea_cbc, version OPENSSL_1_1_0 not defined in file libcrypto.so.1.1
-    [ -e /usr/lib/opsiconfd/libssl.so.1.1 -a -e /usr/lib64/libssl.so.1.1 ] && cp /usr/lib64/libssl.so.1.1 /usr/lib/opsiconfd/libssl.so.1.1
+    dist=$(lsb_release -d | sed -e 's/Description:\s*//')
+
+    # Distribution specific workarounds
+    if [[ "$dist" =~ "openSUSE Leap 15.2" ]]; then
+      # /bin/sh: /usr/lib/opsiconfd/libreadline.so.7: no version information available (required by /bin/sh)
+      cp /lib64/libreadline.so.7 /usr/lib/opsiconfd/libreadline.so.7
+    elif [[ "$dist" =~ "Red Hat Enterprise Linux release 8" ]]; then
+      # PAM unable to dlopen(/usr/lib64/security/pam_unix.so): /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1b' not found (required by /lib64/libk5crypto.so.3)
+      cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/libcrypto.so.1.1
+    elif [[ "$dist" =~ "SUSE Linux Enterprise Server 15 SP2" ]]; then
+      # /usr/lib/opsiconfd/libssl.so.1.1: symbol EVP_idea_cbc, version OPENSSL_1_1_0 not defined in file libcrypto.so.1.1
+      cp /usr/lib64/libssl.so.1.1 /usr/lib/opsiconfd/libssl.so.1.1
+    fi
+
     # Use pam_unix.so from system
     # Authentication failure (auth_type=auth-module)...
     # ARM64: ubuntu: /usr/lib/aarch64-linux-gnu, debian: /lib/aarch64-linux-gnu
     for libdir in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /lib64  /usr/lib/aarch64-linux-gnu /lib/aarch64-linux-gnu; do
       [ -e ${libdir}/libpam.so.0 ] && cp ${libdir}/libpam.so.0 /usr/lib/opsiconfd/libpam.so.0
     done
+
     # Remove obsolete files
     [ -e /etc/logrotate.d/opsiconfd ] && rm /etc/logrotate.d/opsiconfd || true
     rm /etc/rc*/*opsiconfd 2>/dev/null || true
@@ -126,6 +133,7 @@ package:
     [ -e /etc/systemd/system/opsiconfd.service.simple ] && rm /etc/systemd/system/opsiconfd.service.simple
     [ -e /etc/systemd/system/opsiconfd.service ] && rm /etc/systemd/system/opsiconfd.service
     systemctl daemon-reload || true
+
     # Setup opsiconfd
     /usr/bin/opsiconfd setup --log-level-stderr=5 --log-level-file=0 --run-as-user=opsiconfd || true
     grep "run-as-user" /etc/opsi/opsiconfd.conf >/dev/null || echo -e "run-as-user = opsiconfd" >> /etc/opsi/opsiconfd.conf

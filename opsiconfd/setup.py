@@ -44,7 +44,8 @@ def setup_limits():
 	if 0 < soft_limit < 10000:
 		try:
 			# ulimit -n 10000
-			resource.setrlimit(resource.RLIMIT_NOFILE, (10000, hard_limit))
+			soft_limit = 10000
+			resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, max(hard_limit, soft_limit)))
 			(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
 		except Exception as exc: # pylint: disable=broad-except
 			logger.warning("Failed to set RLIMIT_NOFILE: %s", exc)

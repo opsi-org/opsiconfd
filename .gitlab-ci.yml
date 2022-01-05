@@ -55,7 +55,8 @@ stages:
   echo "addon-dirs = [tests/data/addons]" >> /etc/opsi/opsiconfd.conf
 
   # Installing opsi test modules file
-  echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
+  # echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
+  cp ./docker/files/etc/opsi/modules /etc/opsi/modules
 
   # Create dirs
   mkdir -p /var/log/opsi/clientconnect

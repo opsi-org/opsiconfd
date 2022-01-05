@@ -105,7 +105,7 @@ package:
 
 
   postinst_script: |
-    dist=$(lsb_release -d | sed -e 's/Description:\s*//')
+    dist=$(lsb_release -d || echo "Unknown" | sed -e 's/Description:\s*//')
 
     # Distribution specific workarounds
     if [[ "$dist" =~ "Red Hat Enterprise Linux release 8" ]] || [[ "$dist" =~ "CentOS Linux release 8" ]] || [[ "$dist" =~ "AlmaLinux release 8" ]] || [[ "$dist" =~ "Rocky Linux release 8" ]] ; then

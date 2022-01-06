@@ -105,10 +105,10 @@ package:
 
 
   postinst_script: |
-    dist=$(lsb_release -d || echo "Unknown" | sed -e 's/Description:\s*//')
+    dist=$(lsb_release -d | sed -e 's/Description:\s*//')
 
     # Distribution specific workarounds
-    if [[ "$dist" =~ "Red Hat Enterprise Linux release 8" ]] || [[ "$dist" =~ "CentOS Linux release 8" ]] || [[ "$dist" =~ "AlmaLinux release 8" ]] || [[ "$dist" =~ "Rocky Linux release 8" ]] ; then
+    if [[ "$dist" =~ "Red Hat Enterprise Linux release 8" ]] || [[ "$dist" =~ "CentOS Linux release 8" ]] || [[ "$dist" =~ "AlmaLinux release 8" ]] || [[ "$dist" =~ "Rocky Linux release 8" ]]; then
       # PAM unable to dlopen(/usr/lib64/security/pam_unix.so): /usr/lib/opsiconfd/libcrypto.so.1.1: version `OPENSSL_1_1_1b' not found (required by /lib64/libk5crypto.so.3)
       cp /usr/lib64/libcrypto.so.1.1 /usr/lib/opsiconfd/libcrypto.so.1.1
     elif [[ "$dist" =~ "SUSE Linux Enterprise Server 15 SP1" ]]; then

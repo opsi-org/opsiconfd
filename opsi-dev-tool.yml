@@ -73,7 +73,7 @@ package:
   depends:
     - librsync | librsync2 | librsync1
     - pigz
-    - lsb-release
+    - lsb-release | redhat-lsb-core
     #- libjemalloc | libjemalloc2 | libjemalloc1
   source_script: |
     pyi_src="${SRC}"

@@ -99,7 +99,7 @@ stages:
   echo "Run tests"
   echo "---------------------------------------"
   exit_code=0
-  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_config.py || exit_code=$?
+  poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests --ignore=tests/test_config.py || exit_code=$?
   if [ $exit_code -ne 0 ]; then
     echo "---------------------------------------"
     echo "opsiconfd log"
@@ -107,7 +107,7 @@ stages:
     cat /tmp/opsiconfd.log
     exit $exit_code
   fi
-  poetry run pytest -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/test_config.py
+  poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/test_config.py
 
 .pylint: &pylint |
   echo "---------------------------------------"

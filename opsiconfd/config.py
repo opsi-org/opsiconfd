@@ -438,7 +438,10 @@ parser.add(
 parser.add(
 	"--log-filter",
 	env_var="OPSICONFD_LOG_FILTER",
-	help="Filter log records contexts (<ctx-name-1>=<val1>[,val2][;ctx-name-2=val3])"
+	help=(
+		"Filter log records contexts (<ctx-name-1>=<val1>[,val2][;ctx-name-2=val3]).\n"
+		'Example: --log-filter="client_address=192.168.20.101"'
+	)
 )
 #parser.add(
 #	"--max-execution-statistics",

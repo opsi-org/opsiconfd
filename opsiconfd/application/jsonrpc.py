@@ -419,7 +419,8 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 		params = rpc.get('params', [])
 		rpc_id = rpc.get('id')
 		logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, method_name)
-		logger.trace("Retrieved parameters %s for %s", params, method_name)
+		logger.debug("Method '%s', params (short): %.250s", method_name, params)
+		logger.trace("Method '%s', params (full): %s", method_name, params)
 
 		for method in get_backend_interface():
 			if method_name == method['name']:

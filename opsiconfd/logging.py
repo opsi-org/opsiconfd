@@ -143,7 +143,10 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		await self._log_adapter.handle_file_handler_error(self)
 
 class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
-	def __init__(self, running_event=None):
+	def __init__(self, running_event=None, stderr_file=None):
+		self._stderr_file = stderr_file
+		if not self._stderr_file:
+			self._stderr_file = sys.stderr
 		self._running_event = running_event
 		self._read_config()
 		self._loop = asyncio.get_event_loop()
@@ -196,7 +199,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 		if self._stderr_handler:
 			self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)
 		else:
-			self._stderr_handler = AsyncStreamHandler(stream=sys.stderr, formatter=ContextSecretFormatter(console_formatter))
+			self._stderr_handler = AsyncStreamHandler(stream=self._stderr_file, formatter=ContextSecretFormatter(console_formatter))
 		self._stderr_handler.add_filter(context_filter.filter)
 
 

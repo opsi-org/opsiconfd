@@ -71,7 +71,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 	if config.action == "log-viewer":
 		try:
 			set_filter_from_string(config.log_filter)
-			AsyncRedisLogAdapter()
+			AsyncRedisLogAdapter(stderr_file=sys.stdout)
 			loop = asyncio.get_event_loop()
 			loop.run_forever()
 		except KeyboardInterrupt:

@@ -17,7 +17,7 @@ import ipaddress
 from typing import Tuple
 
 from OpenSSL.crypto import (
-	FILETYPE_PEM, load_privatekey, load_certificate, X509, PKey
+	FILETYPE_PEM, load_privatekey, load_certificate, X509, PKey, dump_publickey
 )
 from OpenSSL.crypto import Error as CryptoError
 
@@ -315,50 +315,55 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 		create = True
 	else:
 		srv_crt = load_local_server_cert()
-		enddate = datetime.datetime.strptime(srv_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
-		diff = (enddate - datetime.datetime.now()).days
-
-		logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, diff)
-		if diff <= CERT_RENEW_DAYS:
-			logger.notice("Server cert '%s' will expire in %d days, recreating", srv_crt.get_subject().CN, diff)
+		srv_key = load_local_server_key()
+		if dump_publickey(FILETYPE_PEM, srv_key) != dump_publickey(FILETYPE_PEM, srv_crt.get_pubkey()):
+			logger.warning("Server cert does not match server key, creating new server cert")
 			create = True
 		else:
-			if server_cn != srv_crt.get_subject().CN:
-				logger.notice(
-					"Server CN has changed from '%s' to '%s', creating new server cert",
-					srv_crt.get_subject().CN, server_cn
-				)
+			enddate = datetime.datetime.strptime(srv_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
+			diff = (enddate - datetime.datetime.now()).days
+
+			logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, diff)
+			if diff <= CERT_RENEW_DAYS:
+				logger.notice("Server cert '%s' will expire in %d days, recreating", srv_crt.get_subject().CN, diff)
 				create = True
-			elif server_role == "config":
-				cert_hns = set()
-				cert_ips = set()
-				for idx in range(srv_crt.get_extension_count()):
-					ext = srv_crt.get_extension(idx)
-					if ext.get_short_name() == b"subjectAltName":
-						for alt_name in str(ext).split(","):
-							alt_name = alt_name.strip()
-							if alt_name.startswith("DNS:"):
-								cert_hns.add(alt_name.split(":", 1)[-1].strip())
-							elif alt_name.startswith(("IP:", "IP Address:")):
-								addr = alt_name.split(":", 1)[-1].strip()
-								addr = ipaddress.ip_address(addr)
-								cert_ips.add(addr.compressed)
-						break
-				hns = get_hostnames()
-				if cert_hns != hns:
+			else:
+				if server_cn != srv_crt.get_subject().CN:
 					logger.notice(
-						"Server hostnames have changed from %s to %s, creating new server cert",
-						cert_hns, hns
+						"Server CN has changed from '%s' to '%s', creating new server cert",
+						srv_crt.get_subject().CN, server_cn
 					)
 					create = True
-				else:
-					ips = get_ips()
-					if cert_ips != ips:
+				elif server_role == "config":
+					cert_hns = set()
+					cert_ips = set()
+					for idx in range(srv_crt.get_extension_count()):
+						ext = srv_crt.get_extension(idx)
+						if ext.get_short_name() == b"subjectAltName":
+							for alt_name in str(ext).split(","):
+								alt_name = alt_name.strip()
+								if alt_name.startswith("DNS:"):
+									cert_hns.add(alt_name.split(":", 1)[-1].strip())
+								elif alt_name.startswith(("IP:", "IP Address:")):
+									addr = alt_name.split(":", 1)[-1].strip()
+									addr = ipaddress.ip_address(addr)
+									cert_ips.add(addr.compressed)
+							break
+					hns = get_hostnames()
+					if cert_hns != hns:
 						logger.notice(
-							"Server IPs have changed from %s to %s, creating new server cert",
-							cert_ips, ips
+							"Server hostnames have changed from %s to %s, creating new server cert",
+							cert_hns, hns
 						)
 						create = True
+					else:
+						ips = get_ips()
+						if cert_ips != ips:
+							logger.notice(
+								"Server IPs have changed from %s to %s, creating new server cert",
+								cert_ips, ips
+							)
+							create = True
 
 	if create:
 		(srv_crt, srv_key) = (None, None)

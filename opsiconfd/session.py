@@ -160,7 +160,7 @@ class SessionMiddleware:
 
 		if (
 			scope["path"].startswith(("/rpc", "/monitoring")) or
-			(scope["path"].startswith("/depot") and scope["method"] in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
+			(scope["path"].startswith("/depot") and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
 		):
 			scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
@@ -250,7 +250,7 @@ class SessionMiddleware:
 
 		if isinstance(err, (BackendAuthenticationError, BackendPermissionDeniedError)):
 			log = logger.warning
-			if scope['method'] == "MKCOL" and scope["path"] and scope["path"].lower().endswith("/system volume information"):
+			if scope.get("method") == "MKCOL" and scope["path"] and scope["path"].lower().endswith("/system volume information"):
 				# Windows WebDAV client is trying to create "System Volume Information"
 				log = logger.debug
 			log(err)
@@ -652,4 +652,4 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 				await session.store()
 
 	if scope["required_access_role"] == ACCESS_ROLE_ADMIN and not session.user_store.isAdmin:
-		raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope['method']} {scope['path']}")
+		raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope.get('method')} {scope['path']}")

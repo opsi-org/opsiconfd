@@ -10,7 +10,7 @@ webdav
 
 import os
 
-from wsgidav import compat, util
+from wsgidav import util
 import wsgidav.fs_dav_provider
 from wsgidav.fs_dav_provider import FilesystemProvider
 from wsgidav.wsgidav_app import WsgiDAVApp
@@ -39,8 +39,8 @@ class IgnoreCaseFilesystemProvider(FilesystemProvider):
 		"""
 		root_path = self.root_folder_path
 		assert root_path is not None
-		assert compat.is_native(root_path)
-		assert compat.is_native(path)
+		assert util.is_str(root_path)
+		assert util.is_str(path)
 
 		path_parts = path.strip("/").split("/")
 		file_path = os.path.abspath(os.path.join(root_path, *path_parts))
@@ -63,7 +63,8 @@ class IgnoreCaseFilesystemProvider(FilesystemProvider):
 			if name_found and cur_path.lower() == file_path.lower():
 				file_path = cur_path
 
-		if not file_path.startswith(root_path):
+		is_shadow, file_path = self._resolve_shadow_path(path, environ, file_path)
+		if not file_path.startswith(root_path) and not is_shadow:
 			raise RuntimeError(f"Security exception: tried to access file outside root: {file_path}")
 
 		# Convert to unicode
@@ -88,15 +89,20 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 			"trusted_auth_header": None,
 		},
 		"verbose": 1,
-		"enable_loggers": [],
+		"logging": {
+			"enable_loggers": []
+		},
 		"property_manager": True,  # True: use property_manager.PropertyManager
-		"lock_manager": True,  # True: use lock_manager.LockManager
+		"lock_storage": True,  # True: use lock_manager.LockManager
 		"block_size": block_size, # default = 8192
 		"ssl_certificate": True,  # Prevent warning in log
 		"dir_browser": {
 			"show_user": False,
 			"icon": False,
 			"response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)"
+		},
+		"cors": {
+			"allow_origin": "*"
 		}
 	}
 	# Set file buffer size for reading and writing.

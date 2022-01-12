@@ -607,6 +607,13 @@ parser.add(
 	help="The maximum number of sessions that can be opened through one ip address."
 )
 parser.add(
+	"--max-sessions-excludes",
+	nargs="+",
+	env_var="OPSICONFD_MAX_SESSIONS_EXCLUDES",
+	default=["127.0.0.1", "::1"],
+	help=expert_help("Allow unlimited sessions for these addresses.")
+)
+parser.add(
 	"--skip-setup",
 	nargs="+",
 	env_var="OPSICONFD_SKIP_SETUP",

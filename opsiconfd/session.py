@@ -169,8 +169,8 @@ class SessionMiddleware:
 		session_id = self.get_session_id_from_headers(connection.headers)
 		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 			max_session_per_ip = config.max_session_per_ip
-			if connection.client.host in ("127.0.0.1", "::1"):
-				logger.debug("Disable max_session_per_ip for local address: %s", connection.client.host)
+			if config.max_sessions_excludes and connection.client.host in config.max_sessions_excludes:
+				logger.debug("Disable max_session_per_ip for address: %s", connection.client.host)
 				max_session_per_ip = 0
 			elif connection.client.host in self._depot_addresses:
 				# Connection from a known depot server address

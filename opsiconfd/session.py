@@ -652,4 +652,4 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 				await session.store()
 
 	if scope["required_access_role"] == ACCESS_ROLE_ADMIN and not session.user_store.isAdmin:
-		raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope.get('method')} {scope['path']}")
+		raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope.get('method')} {scope.get('path')}")

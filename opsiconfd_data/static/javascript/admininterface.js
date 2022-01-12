@@ -870,6 +870,11 @@ function logout() {
 		} else {
 			console.warn(request.statusText, request.responseText);
 		}
+		cookieStore.getAll().then(cookies => cookies.forEach(cookie => {
+			if (cookie.name.toLowerCase().includes("opsi")) {
+				cookieStore.delete(cookie.name);
+			}
+		}));
 	});
 	request.send('{"return_401": true}');
 }

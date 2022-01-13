@@ -22,37 +22,45 @@ from .config import config, CERT_DAYS, CLIENT_CERT_DAYS
 from .utils import Singleton
 from .logging import logger
 
-BackendManager.default_config =  {
+
+BackendManager.default_config = {
 	'dispatchConfigFile': config.dispatch_config_file,
 	'backendConfigDir': config.backend_config_dir,
 	'extensionConfigDir': config.extension_config_dir,
-	'aclFile': None, # No access control by default
+	'aclFile': None,  # No access control by default
 	'hostControlBackend': True,
 	'hostControlSafeBackend': True,
-	'depotBackend' : False,
+	'depotBackend': False,
 	# every worker needs a database connection for full performance
 	'connectionPoolSize': config.executor_workers,
 	'max_log_size': round(config.max_log_size * 1000 * 1000),
 	'keep_rotated_logs': config.keep_rotated_logs
 }
 
-get_session_from_context = None # pylint: disable=invalid-name
+get_session_from_context = None  # pylint: disable=invalid-name
+
+
 def get_session():
-	global get_session_from_context # pylint: disable=invalid-name, global-statement,global-variable-not-assigned
+	global get_session_from_context  # pylint: disable=invalid-name, global-statement,global-variable-not-assigned
 	if not get_session_from_context:
-		from .session import get_session_from_context # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .session import get_session_from_context  # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return get_session_from_context()
+
 
 def get_user_store():
 	return get_session().user_store
 
+
 def get_option_store():
 	return get_session().option_store
 
+
 client_backend_manager_lock = threading.Lock()
-client_backend_manager = None # pylint: disable=invalid-name
+client_backend_manager = None  # pylint: disable=invalid-name
+
+
 def get_client_backend():
-	global client_backend_manager # pylint: disable=invalid-name, global-statement
+	global client_backend_manager  # pylint: disable=invalid-name, global-statement
 	with client_backend_manager_lock:
 		if not client_backend_manager:
 			client_backend_manager = BackendManager(
@@ -65,10 +73,13 @@ def get_client_backend():
 		client_backend_manager.usage_count += 1
 	return client_backend_manager
 
+
 backend_manager_lock = threading.Lock()
-backend_manager = None # pylint: disable=invalid-name
+backend_manager = None  # pylint: disable=invalid-name
+
+
 def get_backend():
-	global backend_manager # pylint: disable=invalid-name, global-statement
+	global backend_manager  # pylint: disable=invalid-name, global-statement
 	with backend_manager_lock:
 		if not backend_manager:
 			backend_manager = BackendManager(
@@ -76,18 +87,23 @@ def get_backend():
 			)
 	return backend_manager
 
-backend_interface = None # pylint: disable=invalid-name
+
+backend_interface = None  # pylint: disable=invalid-name
+
+
 def get_backend_interface():
-	global backend_interface # pylint: disable=invalid-name, global-statement
+	global backend_interface  # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
 		backend_interface = get_client_backend().backend_getInterface()
 	return backend_interface
+
 
 def get_server_role():
 	for (_method, backends) in _loadDispatchConfig(config.dispatch_config_file):
 		if "jsonrpc" in backends:
 			return "depot"
 	return "config"
+
 
 def get_mysql():
 	backend = get_backend()
@@ -190,7 +206,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 		)
 		domain = get_domain()
 		cert, key = create_server_cert(
-			subject = {
+			subject={
 				"CN": common_name,
 				"OU": f"opsi@{domain}",
 				"emailAddress": f"opsi@{domain}"

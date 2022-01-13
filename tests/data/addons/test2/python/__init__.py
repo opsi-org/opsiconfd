@@ -12,6 +12,7 @@ from opsiconfd.addon import Addon
 
 from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
 
+
 class AddonTest1(Addon):
 	id = ADDON_ID
 	name = ADDON_NAME

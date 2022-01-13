@@ -19,7 +19,7 @@ from .utils import (  # pylint: disable=unused-import
 
 
 def test_webdav_upload_download_delete_with_special_chars(config):  # pylint: disable=redefined-outer-name
-	size = 1*1024*1024
+	size = 1 * 1024 * 1024
 	rand_bytes = bytearray(random.getrandbits(8) for _ in range(size))
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 	filename = "陰陽_üß.bin"

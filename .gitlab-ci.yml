@@ -114,7 +114,8 @@ stages:
   echo "---------------------------------------"
   echo "Run pylint"
   echo "---------------------------------------"
-  poetry run pylint --disable=R,fixme opsiconfd
+  poetry run pylint --disable=R,fixme opsiconfd tests
+  poetry run flake8 opsiconfd tests
 
 test:perftest:
   image: ubuntu:focal

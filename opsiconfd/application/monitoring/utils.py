@@ -14,9 +14,11 @@ from fastapi.responses import JSONResponse
 
 from opsiconfd.utils import decode_redis_result
 
-ERRORCODE_PATTERN = re.compile('\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)') # pylint: disable=anomalous-backslash-in-string
 
-class State: # pylint: disable=too-few-public-methods
+ERRORCODE_PATTERN = re.compile(r'\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')  # pylint: disable=anomalous-backslash-in-string
+
+
+class State:  # pylint: disable=too-few-public-methods
 	OK = 0
 	WARNING = 1
 	CRITICAL = 2
@@ -28,6 +30,7 @@ class State: # pylint: disable=too-few-public-methods
 	def text(cls, state):
 		return cls._stateText[state]
 
+
 def generate_response(state: State, message: str, perfdata=None) -> JSONResponse:
 	if perfdata:
 		message = f"{State.text(state)}: {message} | {perfdata}"
@@ -35,10 +38,12 @@ def generate_response(state: State, message: str, perfdata=None) -> JSONResponse
 		message = f"{State.text(state)}: {message}"
 	return JSONResponse({"state": state, "message": message})
 
+
 def remove_percent(string):
 	if string.endswith("%"):
 		return string[:-1]
 	return string
+
 
 async def get_workers(redis) -> list:
 	worker_registry = redis.scan_iter("opsiconfd:worker_registry:*")
@@ -46,6 +51,7 @@ async def get_workers(redis) -> list:
 	async for key in worker_registry:
 		workers.append(f"{key.decode('utf8').split(':')[-2]}:{key.decode('utf8').split(':')[-1]}")
 	return workers
+
 
 async def get_request_avg(redis):
 	workers = await get_workers(redis)
@@ -61,12 +67,14 @@ async def get_request_avg(redis):
 		requests += float(redis_result[1])
 	return requests / len(workers) * 100
 
+
 async def get_session_count(redis):
 	count = 0
 	session_keys = redis.scan_iter("opsiconfd:sessions:*")
 	async for _session in session_keys:
 		count += 1
 	return count
+
 
 async def get_thread_count(redis):
 	workers = await get_workers(redis)
@@ -81,6 +89,7 @@ async def get_thread_count(redis):
 			redis_result = 0
 		threads += float(redis_result[1])
 	return threads
+
 
 async def get_mem_allocated(redis):
 	workers = await get_workers(redis)

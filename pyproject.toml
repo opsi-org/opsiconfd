@@ -49,6 +49,7 @@ wsgidav = "^4.0"
 yappi = "^1.3"
 
 [tool.poetry.dev-dependencies]
+flake8 = "^4.0"
 hypothesis = "^6.32"
 idna = "^3.3"
 mock = "^4.0"

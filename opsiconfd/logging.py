@@ -47,6 +47,7 @@ LOG_STREAM_MAX_RECORDS = 50000
 # Set default log level to ERROR early
 logger.setLevel(pylogging.ERROR)
 
+
 class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-instance-attributes
 	rollover_check_interval = 60
 
@@ -91,14 +92,14 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 					async with self._rollover_lock:
 						await self.do_rollover()
 						self._rollover_error = None
-			except Exception as err: # pylint: disable=broad-except
+			except Exception as err:  # pylint: disable=broad-except
 				self._rollover_error = err
 				logger.error(err, exc_info=True)
 			check_interval = 300 if self._rollover_error else self.rollover_check_interval
 			for _sec in range(check_interval):
 				await asyncio.sleep(1)
 
-	def should_rollover(self, record: LogRecord = None) -> bool: # pylint: disable=unused-argument
+	def should_rollover(self, record: LogRecord = None) -> bool:  # pylint: disable=unused-argument
 		if not os.path.exists(self.absolute_file_path):
 			# This will recreate a deleted log file
 			return True
@@ -142,7 +143,8 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 			handle_log_exception(exception, record, stderr=True, temp_file=True)
 		await self._log_adapter.handle_file_handler_error(self)
 
-class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
+
+class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 	def __init__(self, running_event=None, stderr_file=None):
 		self._stderr_file = stderr_file
 		if not self._stderr_file:
@@ -163,10 +165,8 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 
 		self._loop.create_task(self._start())
 
-
 	async def stop(self):
 		self._loop.stop()
-
 
 	def reload(self):
 		self._read_config()
@@ -202,8 +202,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			self._stderr_handler = AsyncStreamHandler(stream=self._stderr_file, formatter=ContextSecretFormatter(console_formatter))
 		self._stderr_handler.add_filter(context_filter.filter)
 
-
-	def _log_format_no_color(self, log_format): # pylint: disable=no-self-use
+	def _log_format_no_color(self, log_format):  # pylint: disable=no-self-use
 		return log_format.replace('%(log_color)s', '').replace('%(reset)s', '')
 
 	async def _create_client_log_file_symlink(self, ip_address):
@@ -215,7 +214,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 				dst = self._log_file_template.replace('%m', fqdn)
 				if not os.path.exists(dst):
 					await self._loop.run_in_executor(None, os.symlink, src, dst)
-		except Exception as exc: # pylint: disable=broad-except
+		except Exception as exc:  # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 
 	async def handle_file_handler_error(self, file_handler: AsyncFileHandler):
@@ -275,7 +274,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 							)
 							await self._file_logs[filename].close()
 							del self._file_logs[filename]
-			except Exception as err: # pylint: disable=broad-except
+			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
 			for _i in range(60):
 				await asyncio.sleep(1)
@@ -288,7 +287,7 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 			self._loop.create_task(self._reader(stream_name=stream_name))
 			self._loop.create_task(self._watch_log_files())
 
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			handle_log_exception(err, stderr=True, temp_file=True)
 
 	async def _reader(self, stream_name):  # pylint: disable=too-many-branches
@@ -325,14 +324,15 @@ class AsyncRedisLogAdapter: # pylint: disable=too-many-instance-attributes
 							if file_handler:
 								await file_handler.handle(record)
 
-			except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise
+			except (KeyboardInterrupt, SystemExit):  # pylint: disable=try-except-raise
 				raise
 			except EOFError:
 				break
 			except (aioredis.ConnectionError, aioredis.BusyLoadingError):
 				self._redis = None
-			except Exception as err: # pylint: disable=broad-except
+			except Exception as err:  # pylint: disable=broad-except
 				handle_log_exception(err, stderr=True, temp_file=True)
+
 
 class RedisLogHandler(threading.Thread, pylogging.Handler):
 	"""
@@ -415,14 +415,14 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 			entry = dict(record.context or {})
 			entry["record"] = str_record
 			self._queue.put(entry)
-		except (KeyboardInterrupt, SystemExit): # pylint: disable=try-except-raise
+		except (KeyboardInterrupt, SystemExit):  # pylint: disable=try-except-raise
 			raise
-		except Exception as exc: # pylint: disable=broad-except
+		except Exception as exc:  # pylint: disable=broad-except
 			handle_log_exception(exc, record, stderr=True, temp_file=True)
 
 
-def enable_slow_callback_logging(slow_callback_duration = None):
-	_run_orig = asyncio.events.Handle._run # pylint: disable=protected-access
+def enable_slow_callback_logging(slow_callback_duration=None):
+	_run_orig = asyncio.events.Handle._run  # pylint: disable=protected-access
 	if slow_callback_duration is None:
 		slow_callback_duration = asyncio.get_event_loop().slow_callback_duration
 
@@ -433,7 +433,7 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 		if time_diff >= slow_callback_duration:
 			logger.warning(
 				"Slow asyncio callback: %s took %.3f seconds",
-				asyncio.base_events._format_handle(self), time_diff # pylint: disable=protected-access
+				asyncio.base_events._format_handle(self), time_diff  # pylint: disable=protected-access
 			)
 		return retval
 
@@ -442,7 +442,8 @@ def enable_slow_callback_logging(slow_callback_duration = None):
 
 redis_log_handler = None  # pylint: disable=invalid-name
 
-def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: disable=too-many-branches
+
+def init_logging(log_mode: str = "redis", is_worker: bool = False):  # pylint: disable=too-many-branches
 	redis_error = None
 	try:
 		if log_mode not in ("redis", "local"):
@@ -460,7 +461,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 				if not redis_log_handler:
 					redis_log_handler = RedisLogHandler(max_msg_len=int(config.log_max_msg_len))
 				log_handler = redis_log_handler
-			except Exception as err: # pylint: disable=broad-except
+			except Exception as err:  # pylint: disable=broad-except
 				redis_error = err
 				log_mode = "local"
 
@@ -495,7 +496,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False): # pylint: di
 		if redis_error:
 			logger.critical("Failed to initalize redis logging: %s", redis_error, exc_info=True)
 
-	except Exception as exc: # pylint: disable=broad-except
+	except Exception as exc:  # pylint: disable=broad-except
 		handle_log_exception(exc, stderr=True, temp_file=True)
 
 
@@ -525,19 +526,24 @@ class RedisLogAdapterThread(threading.Thread):
 			)
 			self._loop.set_debug(config.debug)
 			asyncio.set_event_loop(self._loop)
+
 			def handle_asyncio_exception(loop, context):
 				if loop.is_running():
 					msg = context.get("exception", context["message"])
 					print(f"Unhandled exception in RedisLogAdapterThread asyncio loop: {msg}", file=sys.stderr)
+
 			self._loop.set_exception_handler(handle_asyncio_exception)
 			self._redis_log_adapter = AsyncRedisLogAdapter(running_event=self._running_event)
 			self._loop.run_forever()
-		except Exception as exc: # pylint: disable=broad-except
+		except Exception as exc:  # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 
-redis_log_adapter_thread = None # pylint: disable=invalid-name
+
+redis_log_adapter_thread = None  # pylint: disable=invalid-name
+
+
 def start_redis_log_adapter_thread():
-	global redis_log_adapter_thread # pylint: disable=global-statement, invalid-name
+	global redis_log_adapter_thread  # pylint: disable=global-statement, invalid-name
 	if redis_log_adapter_thread:
 		redis_log_adapter_thread.reload()
 		return
@@ -547,8 +553,9 @@ def start_redis_log_adapter_thread():
 	redis_log_adapter_thread.start()
 	running_event.wait()
 
+
 def stop_redis_log_adapter_thread():
-	global redis_log_adapter_thread # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
+	global redis_log_adapter_thread  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not redis_log_adapter_thread:
 		return
 	redis_log_adapter_thread.stop()

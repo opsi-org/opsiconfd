@@ -28,6 +28,7 @@ login_test_data = [
 	(("123", ADMIN_PASS), 401, "Authentication error")
 ]
 
+
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
 def test_login_error(config, auth_data, expected_status_code, expected_text):  # pylint: disable=redefined-outer-name,unused-argument
 	res = requests.get(config.external_url, auth=(auth_data), verify=False)
@@ -81,19 +82,19 @@ def test_max_auth_failures(config):  # pylint: disable=redefined-outer-name,unus
 	for num in range(config.max_auth_failures + over_limit):
 
 		redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
-		now = round(time.time())*1000
+		now = round(time.time()) * 1000
 		for key in redis_client.scan_iter("opsiconfd:stats:client:failed_auth:*"):
-			#print("=== key ==>>>", key)
+			# print("=== key ==>>>", key)
 			cmd = (
 				f"ts.range {key.decode()} "
 				f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
 			)
 			num_failed_auth = redis_client.execute_command(cmd)
-			num_failed_auth =  int(num_failed_auth[-1][1])
-			#print("=== num_failed_auth ==>>>", num_failed_auth)
+			num_failed_auth = int(num_failed_auth[-1][1])
+			# print("=== num_failed_auth ==>>>", num_failed_auth)
 
 		res = session.get(f"{config.external_url}/admin/", auth=("client.domain.tld", "hostkey"), verify=False)
-		#print("===>>>", num, config.max_auth_failures, res.status_code)
+		# print("===>>>", num, config.max_auth_failures, res.status_code)
 		if num > config.max_auth_failures:
 			assert res.status_code == 403
 			assert "blocked" in res.text
@@ -104,7 +105,7 @@ def test_max_auth_failures(config):  # pylint: disable=redefined-outer-name,unus
 
 
 def test_session_expire(config):  # pylint: disable=redefined-outer-name,unused-argument
-	lifetime = 5 # 5 seconds
+	lifetime = 5  # 5 seconds
 	lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
 
 	session = requests.Session()

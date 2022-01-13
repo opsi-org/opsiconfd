@@ -35,7 +35,7 @@ def disable_request_warning():
 @pytest.fixture
 def config(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.config import config # pylint: disable=import-outside-toplevel, redefined-outer-name
+	from opsiconfd.config import config  # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return config
 
 
@@ -49,6 +49,8 @@ CLEAN_REDIS_KEYS = [
 	"opsiconfd:stats:rpc",
 	"opsiconfd:jsonrpccache:*:products"
 ]
+
+
 async def async_clean_redis(redis_url):
 	redis_client = aioredis.StrictRedis.from_url(redis_url)
 	for redis_key in CLEAN_REDIS_KEYS:
@@ -73,7 +75,7 @@ async def clean_redis(config):  # pylint: disable=redefined-outer-name
 
 
 def create_depot_rpc(opsi_url: str, host_id: str, host_key: str = None):
-	params= [
+	params = [
 		host_id,
 		host_key,
 		"file:///var/lib/opsi/depot",
@@ -86,6 +88,7 @@ def create_depot_rpc(opsi_url: str, host_id: str, host_key: str = None):
 	res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	res.raise_for_status()
 	return res.json()
+
 
 @pytest.fixture
 def database_connection():
@@ -104,12 +107,14 @@ def database_connection():
 	yield mysql
 	mysql.close()
 
+
 @pytest.fixture
 def backend():
 	return BackendManager(
 		dispatchConfigFile="tests/opsi-config/backendManager/dispatch.conf",
 		backendConfigDir="tests/opsi-config/backends"
 	)
+
 
 @pytest.fixture(autouse=True)
 def create_check_data(config, database_connection):  # pylint: disable=redefined-outer-name
@@ -180,7 +185,6 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 		f'("pytest-prod-4", "pytest-client-1.uib.local", "LocalbootProduct", "not_installed", "none", "none", "1.0", 1, "{now}"),'
 		f'("pytest-prod-4", "pytest-client-4.uib.local", "LocalbootProduct", "not_installed", "setup", "none", "1.0", 1, "{now}");'
 	)
-
 
 	# Product on depot
 	cursor.execute(

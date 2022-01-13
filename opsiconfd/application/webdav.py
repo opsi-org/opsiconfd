@@ -24,9 +24,12 @@ from ..wsgi import WSGIMiddleware
 
 PUBLIC_FOLDER = "/var/lib/opsi/public"
 
+
 # Prevent warning in log
 def is_share_anonymous(self, path_info):  # pylint: disable=unused-argument
 	return False
+
+
 wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
 
 
@@ -72,8 +75,8 @@ class IgnoreCaseFilesystemProvider(FilesystemProvider):
 		return file_path
 
 
-def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
-	block_size = 64*1024
+def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
+	block_size = 64 * 1024
 	app_config_template = {
 		"simple_dc": {
 			"user_mapping": {"*": True}  # anonymous access
@@ -94,7 +97,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		},
 		"property_manager": True,  # True: use property_manager.PropertyManager
 		"lock_storage": True,  # True: use lock_manager.LockManager
-		"block_size": block_size, # default = 8192
+		"block_size": block_size,  # default = 8192
 		"ssl_certificate": True,  # Prevent warning in log
 		"dir_browser": {
 			"show_user": False,
@@ -116,7 +119,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 
 	depot = hosts[0]
 	depot_id = depot.getId()
-	#self.app_config['depotId'] = depot.getId()
+	# self.app_config['depotId'] = depot.getId()
 
 	try:
 		logger.notice(f"Running on depot server '{depot_id}', exporting repository directory")
@@ -136,7 +139,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		app_config["mount_path"] = "/repository"
 		repository_dav = WsgiDAVApp(app_config)
 		app.mount("/repository", WSGIMiddleware(repository_dav))
-	except Exception as exc: # pylint: disable=broad-except
+	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
 	try:
@@ -157,7 +160,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		app_config["mount_path"] = "/depot"
 		depot_dav = WsgiDAVApp(app_config)
 		app.mount("/depot", WSGIMiddleware(depot_dav))
-	except Exception as exc: # pylint: disable=broad-except
+	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
 	try:
@@ -178,7 +181,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		app_config["mount_path"] = "/workbench"
 		workbench_dav = WsgiDAVApp(app_config)
 		app.mount("/workbench", WSGIMiddleware(workbench_dav))
-	except Exception as exc: # pylint: disable=broad-except
+	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
 	try:
@@ -194,7 +197,7 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 		app_config["mount_path"] = "/public"
 		public_dav = WsgiDAVApp(app_config)
 		app.mount("/public", WSGIMiddleware(public_dav))
-	except Exception as exc: # pylint: disable=broad-except
+	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
 	if os.path.isdir("/tftpboot"):
@@ -209,5 +212,5 @@ def webdav_setup(app): # pylint: disable=too-many-statements, too-many-branches
 			app_config["mount_path"] = "/boot"
 			boot = WsgiDAVApp(app_config)
 			app.mount("/boot", WSGIMiddleware(boot))
-		except Exception as exc: # pylint: disable=broad-except
-			logger.error(exc, exc_info=True)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)

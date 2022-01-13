@@ -97,6 +97,7 @@ metrics_registry.register(
 	)
 )
 
+
 def jsonrpc_setup(app):
 	app.include_router(jsonrpc_router, prefix="/rpc")
 
@@ -110,6 +111,7 @@ def _store_rpc(data, max_rpcs=9999):
 			pipe.execute()
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
+
 
 def _get_sort_algorithm(params):
 	algorithm = None
@@ -125,6 +127,7 @@ def _get_sort_algorithm(params):
 		except IndexError:
 			pass
 	return algorithm
+
 
 def _store_product_ordering(result, params):
 	try:
@@ -153,11 +156,12 @@ def _store_product_ordering(result, params):
 				pipe.sadd("opsiconfd:jsonrpccache:depots", params[0])
 
 				pipe.execute()
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error(
 			"Failed to store product ordering cache result=%s params=%s: %s",
 			result, params, err, exc_info=True
 		)
+
 
 def _set_jsonrpc_cache_outdated(params):
 	with redis_client() as redis:
@@ -176,6 +180,7 @@ def _set_jsonrpc_cache_outdated(params):
 				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
 			pipe.execute()
 
+
 def _remove_depot_from_jsonrpc_cache(depot_id):
 	with redis_client() as redis:
 		with redis.pipeline() as pipe:
@@ -187,6 +192,7 @@ def _remove_depot_from_jsonrpc_cache(depot_id):
 			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm2:uptodate")
 			pipe.srem("opsiconfd:jsonrpccache:depots", depot_id)
 			pipe.execute()
+
 
 # Some clients are using /rpc/rpc
 @jsonrpc_router.get("")
@@ -340,10 +346,10 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 					)
 
 			response.status_code = 200
-	except HTTPException as err: # pylint: disable=broad-except
+	except HTTPException as err:  # pylint: disable=broad-except
 		logger.error(err)
 		raise
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 
 		details = None
@@ -351,7 +357,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			session = contextvar_client_session.get()
 			if session and session.user_store.isAdmin:
 				details = str(traceback.format_exc())
-		except Exception as session_err: # pylint: disable=broad-except
+		except Exception as session_err:  # pylint: disable=broad-except
 			logger.warning(session_err, exc_info=True)
 
 		error = {
@@ -407,6 +413,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 	response.headers["content-length"] = str(len(data))
 	response.body = data
 	return response
+
 
 def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	rpc_id = None
@@ -501,13 +508,13 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 			directory = "/tmp/opsiconfd-rpc-debug"
 			makedirs(directory, exist_ok=True)
 			msg = {
-					"client": request.client.host,
-					"description": f"Processing request from {request.client.host} ({user_agent}) for {method_name}",
-					"method": method_name,
-					"params": params,
-					"filter": keywords,
-					"error": error
-				}
+				"client": request.client.host,
+				"description": f"Processing request from {request.client.host} ({user_agent}) for {method_name}",
+				"method": method_name,
+				"params": params,
+				"filter": keywords,
+				"error": error
+			}
 			with tempfile.NamedTemporaryFile(
 				delete=False,
 				dir=directory,
@@ -515,8 +522,9 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 				suffix=".log"
 			) as log_file:
 				logger.notice("Writing rpc error log to: %s", log_file.name)
-				log_file.write(orjson.dumps(msg)) # pylint: disable=no-member
+				log_file.write(orjson.dumps(msg))  # pylint: disable=no-member
 		return [result, 0, rpc, "rpc"]
+
 
 def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disable=too-many-locals
 	now = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -529,7 +537,7 @@ def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disa
 				pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1)
 				pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", 0, -1)
 				pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products", EXPIRE)
-				pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}",EXPIRE)
+				pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", EXPIRE)
 				pipe_results = pipe.execute()
 		products = pipe_results[0]
 		products_ordered = pipe_results[1]

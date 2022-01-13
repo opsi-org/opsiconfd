@@ -28,21 +28,26 @@ from .rest import api_router
 
 router = APIRouter()
 
+
 @router.get("")
 def index():
 	return PlainTextResponse("Hello from addon test1")
+
 
 @router.get("/public")
 def public():
 	return PlainTextResponse("Public addon test1")
 
+
 @router.get("/login")
 def login():
 	return PlainTextResponse("login")
 
+
 @router.get("/logout")
 def logout():
 	return PlainTextResponse("logout")
+
 
 class AddonTest1(Addon):
 	id = ADDON_ID

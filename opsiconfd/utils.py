@@ -25,24 +25,29 @@ import redis
 import aioredis
 
 
-logger = None # pylint: disable=invalid-name
+logger = None  # pylint: disable=invalid-name
+config = None  # pylint: disable=invalid-name
+REDIS_CONNECTION_POOL = {}
+AIOREDIS_CONNECTION_POOL = {}
+
+
 def get_logger():
-	global logger # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
+	global logger  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not logger:
-		from .logging import logger # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .logging import logger  # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return logger
 
 
-config = None # pylint: disable=invalid-name
 def get_config():
-	global config # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
+	global config  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not config:
-		from .config import config # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .config import config  # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return config
 
 
 class Singleton(type):
 	_instances = {}
+
 	def __call__(cls, *args, **kwargs):
 		if cls not in cls._instances:
 			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
@@ -60,6 +65,7 @@ def running_in_docker():
 				return True
 	return False
 
+
 def is_manager(proc) -> bool:
 	manager = False
 	if (
@@ -75,6 +81,7 @@ def is_manager(proc) -> bool:
 				manager = False
 				break
 	return manager
+
 
 def get_manager_pid(ignore_self: bool = False) -> int:
 	manager_pid = None
@@ -95,11 +102,12 @@ def get_manager_pid(ignore_self: bool = False) -> int:
 
 	return manager_pid
 
+
 def decode_redis_result(_obj):
 	if isinstance(_obj, bytes):
 		_obj = _obj.decode("utf8")
 	elif isinstance(_obj, list):
-		for idx in range(len(_obj)): # pylint: disable=consider-using-enumerate
+		for idx in range(len(_obj)):  # pylint: disable=consider-using-enumerate
 			_obj[idx] = decode_redis_result(_obj[idx])
 	elif isinstance(_obj, dict):
 		for (key, val) in _obj.items():
@@ -119,17 +127,20 @@ def normalize_ip_address(address, exploded=False):
 		return address.exploded
 	return address.compressed
 
+
 def ip_address_to_redis_key(address):
 	if ":" in address:
 		# ipv6
 		return normalize_ip_address(address, exploded=True).replace(":", ".")
 	return address
 
+
 def ip_address_from_redis_key(key):
 	if key.count(".") > 3:
 		# ipv6
 		return key.replace(".", ":")
 	return key
+
 
 def get_ip_addresses():
 	for interface, snics in psutil.net_if_addrs().items():
@@ -176,14 +187,13 @@ def retry_redis_call(func):
 	return wrapper_retry
 
 
-REDIS_CONNECTION_POOL = {}
 def get_redis_connection(url: str, db: str = None, timeout: int = 0):  # pylint: disable=invalid-name
 	start = time.time()
 	while True:
 		try:
 			con_id = f"{url}/{db}"
 			new_pool = False
-			if not con_id in REDIS_CONNECTION_POOL:
+			if con_id not in REDIS_CONNECTION_POOL:
 				new_pool = True
 				REDIS_CONNECTION_POOL[con_id] = redis.ConnectionPool.from_url(url, db=db)
 			client = redis.StrictRedis(connection_pool=REDIS_CONNECTION_POOL[con_id])
@@ -207,8 +217,7 @@ def redis_client(timeout: int = 0):
 			con.close()
 
 
-AIOREDIS_CONNECTION_POOL = {}
-async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0) -> aioredis.StrictRedis: # pylint: disable=invalid-name
+async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0) -> aioredis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
 	while True:
 		try:
@@ -233,7 +242,7 @@ async def async_redis_client(timeout: int = 0) -> aioredis.StrictRedis:
 	return await get_async_redis_connection(url=get_config().redis_internal_url, timeout=timeout)
 
 
-async def async_get_redis_info(client: aioredis.StrictRedis):	# pylint: disable=too-many-locals
+async def async_get_redis_info(client: aioredis.StrictRedis):  # pylint: disable=too-many-locals
 	stats_keys = []
 	sessions_keys = []
 	log_keys = []
@@ -302,11 +311,13 @@ async def async_get_redis_info(client: aioredis.StrictRedis):	# pylint: disable=
 	}
 	return redis_info
 
+
 def remove_router(app: FastAPI, router: APIRouter, router_prefix: str):
 	paths = [f"{router_prefix}{route.path}" for route in router.routes]
 	for route in app.routes:
 		if route.path in paths:
 			app.routes.remove(route)
+
 
 def remove_route_path(app: FastAPI, path: str):
 	# Needs to be done twice to work for unknown reason

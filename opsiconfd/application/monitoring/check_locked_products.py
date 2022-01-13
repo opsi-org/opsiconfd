@@ -10,9 +10,10 @@ opsiconfd.application.monitoring.check_locked_products
 
 from .utils import State, generate_response
 
-def check_locked_products(backend, depot_ids=None, product_ids=[]): # pylint: disable=dangerous-default-value
+
+def check_locked_products(backend, depot_ids=None, product_ids=[]):  # pylint: disable=dangerous-default-value
 	if not depot_ids or 'all' in depot_ids:
-		depots = backend._executeMethod(methodName="host_getObjects", type="OpsiDepotserver") # pylint: disable=protected-access
+		depots = backend._executeMethod(methodName="host_getObjects", type="OpsiDepotserver")  # pylint: disable=protected-access
 		depot_ids = [depot.id for depot in depots]
 
 	locked_products = backend.productOnDepot_getObjects(depotId=depot_ids, productId=product_ids, locked=True)

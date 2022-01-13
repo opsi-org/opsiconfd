@@ -19,13 +19,13 @@ import requests
 import aioredis
 
 from opsiconfd.application.monitoring.utils import get_workers
-from .utils import ( # pylint: disable=unused-import
+from .utils import (  # pylint: disable=unused-import
 	config, clean_redis, create_check_data, database_connection, disable_request_warning,
 	ADMIN_USER, ADMIN_PASS, MONITORING_CHECK_DAYS
 )
 
 
-test_data = [
+@pytest.mark.parametrize("product_ids, verbose, strict, expected_result", [
 	(
 		["unknown-product"],
 		False,
@@ -44,8 +44,7 @@ test_data = [
 		False,
 		{'message': "OK: No Problem found for productIds 'unknown-product,pytest-prod-3'", 'state': 0}
 	)
-]
-@pytest.mark.parametrize("product_ids, verbose, strict, expected_result", test_data)
+])
 def test_check_product_status_none(config, product_ids, verbose, strict, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps({
@@ -70,14 +69,16 @@ def test_check_product_status_none(config, product_ids, verbose, strict, expecte
 	assert request.json() == expected_result
 
 
-test_data = [
+@pytest.mark.parametrize("products, verbose, strict, expected_result", [
 	(
 		["pytest-prod-1"],
 		False,
 		False,
 		{
-			'message': (f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\n"
-				"For product 'pytest-prod-1' action set on 1 clients!\n"),
+			'message': (
+				f"WARNING: \nResult for Depot: '{socket.getfqdn()}':\n"
+				"For product 'pytest-prod-1' action set on 1 clients!\n"
+			),
 			'state': 1
 		}
 	),
@@ -86,20 +87,24 @@ test_data = [
 		False,
 		False,
 		{
-			'message': ("CRITICAL: \n"
+			'message': (
+				"CRITICAL: \n"
 				f"Result for Depot: '{socket.getfqdn()}':\n"
-				"For product 'pytest-prod-2' problems found on 2 clients!\n"),
+				"For product 'pytest-prod-2' problems found on 2 clients!\n"
+			),
 			'state': 2
 		}
 	),
 	(
-		["pytest-prod-1","pytest-prod-2"],
+		["pytest-prod-1", "pytest-prod-2"],
 		False,
 		False,
 		{
-			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
+			'message': (
+				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
 				"For product 'pytest-prod-1' action set on 1 clients!\n"
-				"For product 'pytest-prod-2' problems found on 2 clients!\n"),
+				"For product 'pytest-prod-2' problems found on 2 clients!\n"
+			),
 			'state': 2
 		}
 	),
@@ -113,18 +118,19 @@ test_data = [
 		}
 	),
 	(
-		["pytest-prod-1","pytest-prod-2","pytest-prod-3"],
+		["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 		False,
 		False,
 		{
-			'message': (f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
+			'message': (
+				f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\n"
 				"For product 'pytest-prod-1' action set on 1 clients!\n"
-				"For product 'pytest-prod-2' problems found on 2 clients!\n"),
+				"For product 'pytest-prod-2' problems found on 2 clients!\n"
+			),
 			'state': 2
 		}
 	)
-]
-@pytest.mark.parametrize("products, verbose, strict, expected_result", test_data)
+])
 def test_check_product_status(config, products, verbose, strict, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps({
@@ -148,7 +154,7 @@ def test_check_product_status(config, products, verbose, strict, expected_result
 	assert request.json() == expected_result
 
 
-test_data = [
+@pytest.mark.parametrize("products, group, verbose, strict, expected_result", [
 	(
 		[],
 		None,
@@ -186,11 +192,10 @@ test_data = [
 				"For product 'pytest-prod-2' problems found on 2 clients!\n"
 			),
 			'state': 2
-		}
+		}  # pylint: disable=too-many-arguments
 	)
-]
-@pytest.mark.parametrize("products, group, verbose, strict, expected_result", test_data)
-def test_check_product_status_groupids(config, products, group,verbose, strict, expected_result):  # pylint: disable=redefined-outer-name,too-many-arguments
+])
+def test_check_product_status_groupids(config, products, group, verbose, strict, expected_result):  # pylint: disable=redefined-outer-name,too-many-arguments
 	data = json.dumps({
 		'task': 'checkProductStatus',
 		'param': {
@@ -213,35 +218,38 @@ def test_check_product_status_groupids(config, products, group,verbose, strict, 
 	assert request.json() == expected_result
 
 
-test_data = [
+@pytest.mark.parametrize("product, expected_result", [
 	(
 		"pytest-prod-1",
 		{
-			'message': ("WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
-				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"),
+			'message': (
+				"WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"
+			),
 			'state': 1
 		}
 	),
 	(
 		"pytest-prod-2",
 		{
-			'message': ("CRITICAL: 3 ProductStates for product: 'pytest-prod-2' found; "
-				"checking for Version: '1.0' and Package: '1'; Problems found on 3 clients"),
+			'message': (
+				"CRITICAL: 3 ProductStates for product: 'pytest-prod-2' found; "
+				"checking for Version: '1.0' and Package: '1'; Problems found on 3 clients"
+			),
 			'state': 2
 		}
 	),
 	(
 		"pytest-prod-3",
 		{
-			'message':  ("OK: 1 ProductStates for product: 'pytest-prod-3' found; "
-				"checking for Version: '1.0' and Package: '1'"),
+			'message': (
+				"OK: 1 ProductStates for product: 'pytest-prod-3' found; "
+				"checking for Version: '1.0' and Package: '1'"
+			),
 			'state': 0
 		}
 	)
-]
-
-
-@pytest.mark.parametrize("product, expected_result", test_data)
+])
 def test_check_product_status_short(config, product, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps({
@@ -264,38 +272,50 @@ def test_check_product_status_short(config, product, expected_result):  # pylint
 	assert request.json() == expected_result
 
 
-test_data = [
+@pytest.mark.parametrize("client, exclude, expected_result", [
 	("pytest-lost-client.uib.local", None, {
-		'message': (f"WARNING: opsi-client pytest-lost-client.uib.local has not been seen, since {MONITORING_CHECK_DAYS} days. "
-			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "),
+		'message': (
+			f"WARNING: opsi-client pytest-lost-client.uib.local has not been seen, since {MONITORING_CHECK_DAYS} days. "
+			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
+		),
 		'state': 1
 	}),
 	("pytest-lost-client-fp.uib.local", None, {
-		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp.uib.local has not been seen, since {MONITORING_CHECK_DAYS} days. "
+		'message': (
+			f"CRITICAL: opsi-client pytest-lost-client-fp.uib.local has not been seen, since {MONITORING_CHECK_DAYS} days. "
 			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
-			"Products: 'pytest-prod-2' are in failed state. "),
+			"Products: 'pytest-prod-2' are in failed state. "
+		),
 		'state': 2
 	}),
 	("pytest-lost-client-fp2.uib.local", None, {
-		'message': (f"CRITICAL: opsi-client pytest-lost-client-fp2.uib.local has not been seen, since {MONITORING_CHECK_DAYS} days. "
+		'message': (
+			f"CRITICAL: opsi-client pytest-lost-client-fp2.uib.local has not been seen, since {MONITORING_CHECK_DAYS} days. "
 			"Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "
 			"Products: 'pytest-prod-2' are in failed state. "
-			"Actions set for products: 'pytest-prod-1 (setup)'."),
+			"Actions set for products: 'pytest-prod-1 (setup)'."
+		),
 		'state': 2
 	}),
 	("pytest-client-1.uib.local", None, {
-		'message': ("WARNING: opsi-client pytest-client-1.uib.local has been seen today. "
-			"Actions set for products: 'pytest-prod-1 (setup)'."),
+		'message': (
+			"WARNING: opsi-client pytest-client-1.uib.local has been seen today. "
+			"Actions set for products: 'pytest-prod-1 (setup)'."
+		),
 		'state': 1
 	}),
 	("pytest-client-2.uib.local", None, {
-		'message': ("CRITICAL: opsi-client pytest-client-2.uib.local has been seen today. "
-			"Products: 'pytest-prod-2' are in failed state. "),
+		'message': (
+			"CRITICAL: opsi-client pytest-client-2.uib.local has been seen today. "
+			"Products: 'pytest-prod-2' are in failed state."
+		),
 		'state': 2
 	}),
 	("pytest-client-3.uib.local", None, {
-		'message': ("OK: opsi-client pytest-client-3.uib.local has been seen today. "
-			"No failed products and no actions set for client"),
+		'message': (
+			"OK: opsi-client pytest-client-3.uib.local has been seen today. "
+			"No failed products and no actions set for client"
+		),
 		'state': 0
 	}),
 	("this-is-not-a-client.uib.local", None, {
@@ -303,18 +323,20 @@ test_data = [
 		'state': 3
 	}),
 	("pytest-client-1.uib.local", ["pytest-prod-1"], {
-		'message': ("OK: opsi-client pytest-client-1.uib.local has been seen today. "
-			"No failed products and no actions set for client"),
+		'message': (
+			"OK: opsi-client pytest-client-1.uib.local has been seen today. "
+			"No failed products and no actions set for client"
+		),
 		'state': 0
 	}),
 	("pytest-client-2.uib.local", ["pytest-prod-2"], {
-		'message': ("OK: opsi-client pytest-client-2.uib.local has been seen today. "
-			"No failed products and no actions set for client"),
+		'message': (
+			"OK: opsi-client pytest-client-2.uib.local has been seen today. "
+			"No failed products and no actions set for client"
+		),
 		'state': 0
 	})
-
-]
-@pytest.mark.parametrize("client, exclude, expected_result", test_data)
+])
 def test_check_client_status(config, client, exclude, expected_result):  # pylint: disable=redefined-outer-name
 
 	data = json.dumps({
@@ -328,7 +350,7 @@ def test_check_client_status(config, client, exclude, expected_result):  # pylin
 			'exclude': exclude,
 			'password': ADMIN_PASS,
 			'port': 4447
-			}
+		}
 	})
 
 	request = requests.post(
@@ -338,10 +360,10 @@ def test_check_client_status(config, client, exclude, expected_result):  # pylin
 	assert request.json() == expected_result
 
 
-test_data = [
+@pytest.mark.parametrize("depot_ids, product_ids, exclude, strict, verbose, expected_result", [
 	(
-		[socket.getfqdn(), "pytest-test-depot.uib.gmbh" ],
-		["pytest-prod-1","pytest-prod-2"],
+		[socket.getfqdn(), "pytest-test-depot.uib.gmbh"],
+		["pytest-prod-1", "pytest-prod-2"],
 		[],
 		False,
 		False,
@@ -351,8 +373,8 @@ test_data = [
 		}
 	),
 	(
-		[socket.getfqdn(), "pytest-test-depot.uib.gmbh" ],
-		["pytest-prod-1","pytest-prod-2"],
+		[socket.getfqdn(), "pytest-test-depot.uib.gmbh"],
+		["pytest-prod-1", "pytest-prod-2"],
 		[],
 		True,
 		False,
@@ -362,8 +384,8 @@ test_data = [
 		}
 	),
 	(
-		[socket.getfqdn(), "pytest-test-depot.uib.gmbh" ],
-		["pytest-prod-1","pytest-prod-2"],
+		[socket.getfqdn(), "pytest-test-depot.uib.gmbh"],
+		["pytest-prod-1", "pytest-prod-2"],
 		[],
 		False,
 		True,
@@ -373,8 +395,8 @@ test_data = [
 		}
 	),
 	(
-		[socket.getfqdn(), "pytest-test-depot.uib.gmbh" ],
-		["pytest-prod-1","pytest-prod-2"],
+		[socket.getfqdn(), "pytest-test-depot.uib.gmbh"],
+		["pytest-prod-1", "pytest-prod-2"],
 		[],
 		True,
 		True,
@@ -384,8 +406,8 @@ test_data = [
 		}
 	),
 	(
-		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh" ],
-		["pytest-prod-1","pytest-prod-2"],
+		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh"],
+		["pytest-prod-1", "pytest-prod-2"],
 		[],
 		False,
 		False,
@@ -395,61 +417,67 @@ test_data = [
 		}
 	),
 	(
-		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh" ],
-		["pytest-prod-1","pytest-prod-2"],
+		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh"],
+		["pytest-prod-1", "pytest-prod-2"],
 		[],
 		False,
 		True,
 		{
-			'message': ("WARNING: Differences found for 1 products:\n"
-			f"product 'pytest-prod-1': {socket.getfqdn()} (1.0-1) \n"
-			"pytest-test-depot2.uib.gmbh (2.0-1) \n"),
+			'message': (
+				"WARNING: Differences found for 1 products:\n"
+				f"product 'pytest-prod-1': {socket.getfqdn()} (1.0-1) \n"
+				"pytest-test-depot2.uib.gmbh (2.0-1) \n"
+			),
 			'state': 1
 		}
 	),
 	(
-		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh" ],
-		["pytest-prod-1","pytest-prod-2","pytest-prod-3"],
+		[socket.getfqdn(), "pytest-test-depot2.uib.gmbh"],
+		["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 		[],
 		True,
 		True,
 		{
-			'message': ("WARNING: Differences found for 1 products:\n"
-			f"product 'pytest-prod-1': {socket.getfqdn()} (1.0-1) \n"
-			"pytest-test-depot2.uib.gmbh (2.0-1) \n"),
+			'message': (
+				"WARNING: Differences found for 1 products:\n"
+				f"product 'pytest-prod-1': {socket.getfqdn()} (1.0-1) \n"
+				"pytest-test-depot2.uib.gmbh (2.0-1) \n"
+			),
 			'state': 1
 		}
 	),
 	(
 		["pytest-test-depot2.uib.gmbh", socket.getfqdn()],
-		["pytest-prod-1","pytest-prod-2","pytest-prod-3"],
+		["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 		[],
 		True,
 		True,
 		{
-			'message': ("WARNING: Differences found for 1 products:\n"
-			"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
-			f"{socket.getfqdn()} (1.0-1) \n"),
+			'message': (
+				"WARNING: Differences found for 1 products:\n"
+				"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
+				f"{socket.getfqdn()} (1.0-1) \n"
+			),
 			'state': 1
 		}
-	)
-	,
+	),
 	(
 		["pytest-test-depot2.uib.gmbh", socket.getfqdn()],
-		["pytest-prod-1","pytest-prod-2","pytest-prod-3"],
+		["pytest-prod-1", "pytest-prod-2", "pytest-prod-3"],
 		["pytest-prod-3"],
 		True,
 		True,
 		{
-			'message': ("WARNING: Differences found for 1 products:\n"
-			"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
-			f"{socket.getfqdn()} (1.0-1) \n"),
+			'message': (
+				"WARNING: Differences found for 1 products:\n"
+				"product 'pytest-prod-1': pytest-test-depot2.uib.gmbh (2.0-1) \n"
+				f"{socket.getfqdn()} (1.0-1) \n"
+			),
 			'state': 1
-		}
+		}  # pylint: disable=too-many-arguments
 	)
-]
-@pytest.mark.parametrize("depot_ids, product_ids, exclude, strict, verbose, expected_result", test_data)
-def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict, verbose, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
+])
+def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict, verbose, expected_result):  # pylint: disable=too-many-arguments,redefined-outer-name
 
 	data = json.dumps({
 		'task': 'checkDepotSyncStatus',
@@ -465,7 +493,7 @@ def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict
 			'verbose': verbose,
 			'password': ADMIN_PASS,
 			'port': 4447
-			}
+		}
 	})
 
 	request = requests.post(
@@ -475,8 +503,8 @@ def test_check_depot_sync_status(config, depot_ids, product_ids, exclude, strict
 	assert request.json() == expected_result
 
 
-
-test_data = [
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result", [
 	(
 		{"critical": 100, "warning": 100},
 		None,
@@ -505,12 +533,10 @@ test_data = [
 		{
 			"message": 'CRITICAL: CPU-Usage over 70%',
 			"state": 2
-		}
+		}  # pylint: disable=too-many-arguments
 	)
-]
-@pytest.mark.asyncio
-@pytest.mark.parametrize("cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result", test_data)
-async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
+])
+async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_thresholds, perfdata, cpu_value, expected_result):  # pylint: disable=too-many-arguments,redefined-outer-name
 
 	data = json.dumps({
 		'task': 'checkOpsiWebservice',
@@ -524,7 +550,7 @@ async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_threshold
 			'perfdata': perfdata,
 			'password': ADMIN_PASS,
 			'port': 4447
-			}
+		}
 	})
 
 	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
@@ -539,10 +565,6 @@ async def test_check_opsi_webservice_cpu(config, cpu_thresholds, error_threshold
 			)
 
 	await asyncio.sleep(1)
-	#from opsiconfd.utils import decode_redis_result
-	#for worker in workers:
-	#	value = await redis_client.execute_command(f"TS.GET opsiconfd:stats:worker:avg_cpu_percent:{worker}:minute")
-	#	print(decode_redis_result(value)[1])
 
 	request = requests.post(
 		f"{config.internal_url}/monitoring", auth=(ADMIN_USER, ADMIN_PASS), data=data, verify=False

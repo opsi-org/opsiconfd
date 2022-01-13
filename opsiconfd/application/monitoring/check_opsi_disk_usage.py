@@ -15,7 +15,7 @@ from OPSI.System import getDiskSpaceUsage
 from .utils import State, generate_response
 
 
-def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None): # pylint: disable=dangerous-default-value, too-many-branches, too-many-locals, too-many-statements
+def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None):  # pylint: disable=dangerous-default-value, too-many-branches, too-many-locals, too-many-statements
 	warning = thresholds.get("warning", "5G")
 	critical = thresholds.get("critical", "1G")
 
@@ -65,14 +65,14 @@ def check_opsi_disk_usage(backend, thresholds={}, opsiresource=None): # pylint: 
 			if path and path.startswith("file://"):
 				path.replace("file://", '')
 				results[resource] = getDiskSpaceUsage(path)
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		message = f"Not able to check DiskUsage: {err}"
 		return generate_response(State.UNKNOWN, message)
 
 	if results:
 		state = State.OK
 		for result, info in results.items():
-			available = float(info['available']) / 1073741824 # Byte to GB
+			available = float(info['available']) / 1073741824  # Byte to GB
 			usage = info["usage"] * 100
 			if unit == "GB":
 				if available <= critical:

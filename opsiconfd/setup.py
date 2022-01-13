@@ -35,6 +35,7 @@ from .grafana import setup_grafana
 from .statistics import setup_metric_downsampling
 from .ssl import setup_ssl, setup_ssl_file_permissions
 
+
 def setup_limits():
 	logger.info("Setup system limits")
 	# The hard limit is the maximum value that is allowed for the soft limit. Any changes to the hard limit require root access.
@@ -47,9 +48,10 @@ def setup_limits():
 			soft_limit = 10000
 			resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, max(hard_limit, soft_limit)))
 			(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
-		except Exception as exc: # pylint: disable=broad-except
-			logger.warning("Failed to set RLIMIT_NOFILE: %s", exc)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.warning("Failed to set RLIMIT_NOFILE: %s", err)
 	logger.info("Maximum number of open file descriptors: %s", soft_limit)
+
 
 def setup_users_and_groups():
 	logger.info("Setup users and groups")
@@ -89,7 +91,7 @@ def setup_users_and_groups():
 			if groupname == FILE_ADMIN_GROUP and user.pw_gid != group.gr_gid:
 				try:
 					set_primary_group(user.pw_name, FILE_ADMIN_GROUP)
-				except Exception as err: # pylint: disable=broad-except
+				except Exception as err:  # pylint: disable=broad-except
 					# Could be a user in active directory / ldap
 					logger.debug("Failed to set primary group of %s to %s: %s", user.pw_name, FILE_ADMIN_GROUP, err)
 		except KeyError:
@@ -146,8 +148,8 @@ def setup_systemd():
 		return
 
 	logger.info("Setup systemd")
-	subprocess.run(["systemctl", "daemon-reload"], env=get_subprocess_environment(), capture_output=True) # pylint: disable=subprocess-run-check
-	subprocess.run(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment(), capture_output=True) # pylint: disable=subprocess-run-check
+	subprocess.run(["systemctl", "daemon-reload"], env=get_subprocess_environment(), capture_output=True)  # pylint: disable=subprocess-run-check
+	subprocess.run(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment(), capture_output=True)  # pylint: disable=subprocess-run-check
 
 
 def setup_backend():
@@ -155,14 +157,14 @@ def setup_backend():
 	initializeBackends()
 	backend = BackendManager()
 	mysql_used = False
-	for entry in backend.dispatcher_getConfig(): # pylint: disable=no-member
+	for entry in backend.dispatcher_getConfig():  # pylint: disable=no-member
 		if 'mysql' in entry[1]:
 			mysql_used = True
 			break
 
 	if mysql_used:
 		logger.info("Update mysql backend")
-		from OPSI.Util.Task.UpdateBackend.MySQL import updateMySQLBackend # pylint: disable=import-outside-toplevel
+		from OPSI.Util.Task.UpdateBackend.MySQL import updateMySQLBackend  # pylint: disable=import-outside-toplevel
 		updateMySQLBackend(
 			backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf")
 		)
@@ -171,7 +173,7 @@ def setup_backend():
 def cleanup_log_files():
 	logger.info("Cleanup log files")
 	now = time.time()
-	min_mtime = now - 3600 * 24 * 30 # 30 days
+	min_mtime = now - 3600 * 24 * 30  # 30 days
 	log_dir = os.path.dirname(config.log_file)
 	if not os.path.isdir(log_dir):
 		return
@@ -184,7 +186,7 @@ def cleanup_log_files():
 			elif os.path.isfile(file) and os.path.getmtime(file) < min_mtime:
 				logger.info("Deleting old log file: %s", file)
 				os.remove(file)
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err)
 
 	for link in links:
@@ -192,11 +194,11 @@ def cleanup_log_files():
 			dst = os.path.realpath(link)
 			if not os.path.exists(dst):
 				os.unlink(link)
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err)
 
 
-def setup(full: bool = True): # pylint: disable=too-many-branches
+def setup(full: bool = True):  # pylint: disable=too-many-branches
 	logger.notice("Running opsiconfd setup")
 
 	skip_setup = config.skip_setup or []
@@ -208,48 +210,48 @@ def setup(full: bool = True): # pylint: disable=too-many-branches
 
 	if not config.run_as_user:
 		config.run_as_user = getpass.getuser()
-	if not "limits" in skip_setup:
+	if "limits" not in skip_setup:
 		setup_limits()
-	if not "backend" in skip_setup:
+	if "backend" not in skip_setup:
 		try:
 			setup_backend()
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing
 			logger.debug("Failed to setup backend: %s", err, exc_info=True)
 			logger.warning("Failed to setup backend: %s", err)
 	if full:
-		if not "users" in skip_setup and not "groups" in skip_setup:
+		if "users" not in skip_setup and "groups" not in skip_setup:
 			po_setup_users_and_groups(ignore_errors=True)
 			setup_users_and_groups()
-		if not "files" in skip_setup:
+		if "files" not in skip_setup:
 			setup_files()
-		#po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
-		if not "systemd" in skip_setup:
+		# po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
+		if "systemd" not in skip_setup:
 			setup_systemd()
 	else:
-		if not "users" in skip_setup and not "groups" in skip_setup:
+		if "users" not in skip_setup and "groups" not in skip_setup:
 			setup_users_and_groups()
-	if not "file_permissions" in skip_setup:
+	if "file_permissions" not in skip_setup:
 		# Always correct file permissions (run_as_user could be changed)
 		setup_file_permissions()
-	if not "log_files" in skip_setup:
+	if "log_files" not in skip_setup:
 		cleanup_log_files()
-	if not "grafana" in skip_setup:
+	if "grafana" not in skip_setup:
 		try:
 			setup_grafana()
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			logger.warning("Failed to setup grafana: %s", err)
 
-	if not "metric_downsampling" in skip_setup:
+	if "metric_downsampling" not in skip_setup:
 		try:
 			setup_metric_downsampling()
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			logger.warning("Failed to setup redis downsampling: %s", err)
 
-	if not "ssl" in skip_setup:
+	if "ssl" not in skip_setup:
 		try:
 			setup_ssl()
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			# This can fail if fqdn is not valid
 			logger.error("Failed to setup ssl: %s", err)

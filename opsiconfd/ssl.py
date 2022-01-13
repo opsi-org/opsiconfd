@@ -36,6 +36,7 @@ from .logging import logger
 from .utils import get_ip_addresses
 from .backend import get_server_role, get_backend
 
+
 def get_ips():
 	ips = {"127.0.0.1", "::1"}
 	for addr in get_ip_addresses():
@@ -74,7 +75,7 @@ def get_domain():
 def setup_ssl_file_permissions() -> None:
 	permissions = (
 		FilePermission(config.ssl_ca_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
-		#FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		# FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
 		FilePermission(config.ssl_ca_key, "root", "root", 0o600),
 		FilePermission(config.ssl_server_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
 		FilePermission(config.ssl_server_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600)
@@ -85,6 +86,8 @@ def setup_ssl_file_permissions() -> None:
 
 
 KEY_CACHE = {}
+
+
 def store_key(key_file: str, passphrase: str, key: PKey) -> None:
 	if os.path.exists(key_file):
 		os.unlink(key_file)
@@ -187,7 +190,7 @@ def load_local_server_cert() -> X509:
 	return load_cert(config.ssl_server_cert)
 
 
-def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint: disable=too-many-locals
+def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]:  # pylint: disable=too-many-locals
 	ca_key = load_ca_key()
 	ca_cert = load_ca_cert()
 	domain = get_domain()
@@ -198,7 +201,7 @@ def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]: # pylint:
 		key = load_local_server_key()
 
 	return create_server_cert(
-		subject = {
+		subject={
 			"CN": get_server_cn(),
 			"OU": f"opsi@{domain}",
 			"emailAddress": f"opsi@{domain}"
@@ -218,6 +221,7 @@ def depotserver_setup_ca() -> bool:
 	store_ca_cert(ca_crt)
 	install_ca(ca_crt)
 	return False
+
 
 def configserver_setup_ca() -> bool:
 	logger.info("Checking CA")
@@ -416,14 +420,14 @@ def setup_ssl():
 def get_ca_info():
 	cert = load_ca_cert()
 	expiration = (
-		datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") -
+		datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ") -
 		datetime.datetime.now()
 	).days
 
 	return {
 		"issuer": cert.get_issuer(),
 		"subject": cert.get_subject(),
-		"serial_number": ':'.join((f'{cert.get_serial_number()}:X').zfill(36)[i:i+2] for i in range(0, 36, 2)),
+		"serial_number": ':'.join((f'{cert.get_serial_number()}:X').zfill(36)[i:i + 2] for i in range(0, 36, 2)),
 		"expiration": expiration
 	}
 
@@ -436,14 +440,14 @@ def get_cert_info():
 			alt_names = cert.get_extension(i)
 
 	expiration = (
-		datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"),"%Y%m%d%H%M%SZ") -
+		datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ") -
 		datetime.datetime.now()
 	).days
 
 	return {
 		"issuer": cert.get_issuer(),
 		"subject": cert.get_subject(),
-		"serial_number": ':'.join((f'{cert.get_serial_number():X}').zfill(36)[i:i+2] for i in range(0, 36, 2)),
+		"serial_number": ':'.join((f'{cert.get_serial_number():X}').zfill(36)[i:i + 2] for i in range(0, 36, 2)),
 		"alt_names": alt_names,
 		"expiration": expiration
 	}

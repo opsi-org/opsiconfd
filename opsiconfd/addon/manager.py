@@ -33,6 +33,7 @@ class AddonImporter(BuiltinImporter):
 			return None
 		return importlib.util.spec_from_file_location(fullname, init_path)
 
+
 sys.meta_path.append(AddonImporter)
 
 
@@ -58,7 +59,7 @@ class AddonManager(metaclass=Singleton):
 			for sys_module in list(sys.modules):
 				if sys_module.startswith(module_name):
 					reload.append(sys_module)
-					#del sys.modules[sys_module]
+					# del sys.modules[sys_module]
 			reload.sort(reverse=True)
 			for sys_module in reload:
 				importlib.reload(sys.modules[sys_module])
@@ -93,7 +94,7 @@ class AddonManager(metaclass=Singleton):
 
 	def unload_addon(self, addon_id: str) -> None:
 		from ..application import app  # pylint: disable=import-outside-toplevel
-		if not addon_id in self._addons:
+		if addon_id not in self._addons:
 			raise ValueError(f"Addon '{addon_id} not loaded")
 		self._addons[addon_id].on_unload(app)
 		del self._addons[addon_id]
@@ -103,7 +104,7 @@ class AddonManager(metaclass=Singleton):
 			self.unload_addon(addon.id)
 
 	def reload_addon(self, addon_id: str) -> None:
-		if not addon_id in self._addons:
+		if addon_id not in self._addons:
 			raise ValueError(f"Addon '{addon_id} not loaded")
 		addon = self._addons[addon_id]
 		path = addon.path

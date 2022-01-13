@@ -20,8 +20,8 @@ import psutil
 
 try:
 	# python3-pycryptodome installs into Cryptodome
-	from Cryptodome.Hash import MD5 # type: ignore
-	from Cryptodome.Signature import pkcs1_15 # type: ignore
+	from Cryptodome.Hash import MD5  # type: ignore
+	from Cryptodome.Signature import pkcs1_15  # type: ignore
 except ImportError:
 	# PyCryptodome from pypi installs into Crypto
 	from Crypto.Hash import MD5
@@ -110,7 +110,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 										"Worker %d (pid %d) is using more than %0.2f MB of memory "
 										"(currently %0.2f MB) since %d seconds",
 										worker.worker_num, worker.pid,
-										self.worker_restart_mem/1000000, mem/1000000,
+										self.worker_restart_mem / 1000000, mem / 1000000,
 										now - worker.max_mem_exceeded_since
 									)
 									auto_restart.append(worker.worker_num)
@@ -239,7 +239,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 	def adjust_worker_count(self):
 		with self.worker_update_lock:
 			while len(self.workers) < self.uvicorn_config.workers:
-				self.start_worker(worker_num = len(self.workers) + 1)
+				self.start_worker(worker_num=len(self.workers) + 1)
 			while len(self.workers) > self.uvicorn_config.workers:
 				self.stop_worker([self.workers[-1].pid])
 
@@ -265,6 +265,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				if worker_num == -1 or worker_num > len(self.workers):
 					# Delete obsolete worker entry
 					redis.delete(redis_key)
+
 
 class Server:
 	def __init__(self) -> None:
@@ -316,7 +317,7 @@ class Server:
 	def create_uvicorn_config(self):
 		options = {
 			"interface": "asgi3",
-			"http": "h11",#"httptools"
+			"http": "h11",  # "httptools"
 			"host": config.interface,
 			"port": config.port,
 			"workers": config.workers,
@@ -326,8 +327,8 @@ class Server:
 				["Server", f"opsiconfd {__version__} (uvicorn)"]
 			]
 		}
-		#if config.workers == 1 and config.interface == "::":
-		#	options["host"] = ["::", "0.0.0.0"]
+		# if config.workers == 1 and config.interface == "::":
+		#   options["host"] = ["::", "0.0.0.0"]
 		if config.ssl_server_key and config.ssl_server_cert:
 			options["ssl_keyfile"] = config.ssl_server_key
 			options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
@@ -335,7 +336,6 @@ class Server:
 			options["ssl_ciphers"] = config.ssl_ciphers
 
 		self.uvicorn_config = Config("opsiconfd.application:app", **options)
-
 
 	def check_modules(self):  # pylint: disable=no-self-use,too-many-statements,too-many-branches
 		if config.workers == 1:
@@ -396,7 +396,7 @@ class Server:
 					pass
 			else:
 				h_int = int.from_bytes(MD5.new(data.encode()).digest(), "big")
-				s_int = public_key._encrypt(int(modules["signature"])) # pylint: disable=protected-access
+				s_int = public_key._encrypt(int(modules["signature"]))  # pylint: disable=protected-access
 				verified = h_int == s_int
 
 			if not verified:

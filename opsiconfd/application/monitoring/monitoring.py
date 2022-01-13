@@ -30,6 +30,7 @@ monitoring_router = APIRouter()
 def monitoring_setup(app):
 	app.include_router(monitoring_router, prefix="/monitoring")
 
+
 @monitoring_router.post("{any:path}")
 async def monitoring(request: Request):  # pylint: disable=too-many-branches
 	backend = get_backend()
@@ -37,9 +38,9 @@ async def monitoring(request: Request):  # pylint: disable=too-many-branches
 	task = None
 	try:
 		task = request_data["task"]
-	except KeyError :
+	except KeyError:
 		logger.error("No task set, nothing to do")
-		response = JSONResponse({"state":  State.UNKNOWN, "message": "No task set, nothing to do"})
+		response = JSONResponse({"state": State.UNKNOWN, "message": "No task set, nothing to do"})
 
 	params = request_data.get("param", {})
 	try:
@@ -60,7 +61,7 @@ async def monitoring(request: Request):  # pylint: disable=too-many-branches
 				thresholds=params.get("thresholds", {})
 			)
 		elif task == "checkProductStatus":
-			response =  check_product_status(
+			response = check_product_status(
 				backend=backend,
 				product_ids=params.get("productIds", []),
 				product_groups=params.get("groupIds", []),
@@ -110,7 +111,7 @@ async def monitoring(request: Request):  # pylint: disable=too-many-branches
 			)
 		else:
 			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err)
 		response = JSONResponse({"state": State.UNKNOWN, "message": str(err)})
 

@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.requests import HTTPConnection
 from starlette.types import Receive, Send
 
+
 class Addon:
 	id = None  # pylint: disable=invalid-name
 	name = None

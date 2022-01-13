@@ -54,8 +54,7 @@ GRAFANA_DASHBOARD_TEMPLATE = {
 	"id": None,
 	"uid": "opsiconfd_main",
 	"annotations": {
-		"list": [
-			{
+		"list": [{
 			"builtIn": 1,
 			"datasource": "-- Grafana --",
 			"enable": True,
@@ -63,10 +62,9 @@ GRAFANA_DASHBOARD_TEMPLATE = {
 			"iconColor": "rgba(0, 211, 255, 1)",
 			"name": "Annotations & Alerts",
 			"type": "dashboard"
-			}
-		]
+		}]
 	},
-	"timezone": "browser", # "utc", "browser" or "" (default)
+	"timezone": "browser",  # "utc", "browser" or "" (default)
 	"title": "opsiconfd main dashboard",
 	"editable": True,
 	"gnetId": None,
@@ -217,10 +215,10 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 		"cardColor": "#73BF69",
 		"colorScale": "sqrt",
 		"exponent": 0.5,
-		#"colorScheme": "interpolateSpectral",
+		# "colorScheme": "interpolateSpectral",
 		"min": None
 	},
-		"legend": {
+	"legend": {
 		"show": False
 	},
 	"dataFormat": "timeseries",
@@ -251,8 +249,9 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 	"tooltipDecimals": 0
 }
 
-class GrafanaPanelConfig: # pylint: disable=too-few-public-methods
-	def __init__(self, type="graph", title="", units=None, decimals=0, stack=False, yaxis_min = "auto"): # pylint: disable=too-many-arguments, redefined-builtin
+
+class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
+	def __init__(self, type="graph", title="", units=None, decimals=0, stack=False, yaxis_min="auto"):  # pylint: disable=too-many-arguments, redefined-builtin
 		self.type = type
 		self.title = title
 		self.units = units or ["short", "short"]
@@ -303,7 +302,6 @@ def setup_grafana():
 		if not os.path.exists(file):
 			raise FileNotFoundError(f"'{file}' not found")
 
-
 	plugin_action = None
 	manifest = os.path.join(grafana_plugin_dir, plugin_id, "MANIFEST.txt")
 	if os.path.exists(manifest):
@@ -345,10 +343,11 @@ async def create_or_update_api_key_by_api(admin_username: str, admin_password: s
 		for key in await resp.json():
 			if key["name"] == API_KEY_NAME:
 				await session.delete(f"{config.grafana_internal_url}/api/auth/keys/{key['id']}", ssl=ssl_context)
-		data = {"name": API_KEY_NAME, "role":"Admin", "secondsToLive": None}
+		data = {"name": API_KEY_NAME, "role": "Admin", "secondsToLive": None}
 		resp = await session.post(f"{config.grafana_internal_url}/api/auth/keys", json=data, ssl=ssl_context)
 		api_key = (await resp.json())["key"]
 		return api_key
+
 
 def create_or_update_api_key_in_grafana_db(db_file: str):
 	key = "".join(random.choices(string.ascii_letters + string.digits, k=32))
@@ -377,7 +376,6 @@ def create_or_update_api_key_in_grafana_db(db_file: str):
 			[org_id, API_KEY_NAME, db_key.hex(), "Admin", now, now, None]
 		)
 
-
 	conn.commit()
 	conn.close()
 
@@ -387,6 +385,7 @@ def create_or_update_api_key_in_grafana_db(db_file: str):
 		"k": key
 	}
 	return base64.b64encode(json.dumps(api_key).encode("utf-8")).decode("utf-8")
+
 
 def create_opsiconfd_user(db_file: str):
 	logger.notice("Setup grafana opsiconfd user")
@@ -405,7 +404,7 @@ def create_opsiconfd_user(db_file: str):
 		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 		cur.execute(
 			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			[0,"opsiconfd", pw_hash, "opsiconfd@opsi", 1, 1, API_KEY_NAME, now, now]
+			[0, "opsiconfd", pw_hash, "opsiconfd@opsi", 1, 1, API_KEY_NAME, now, now]
 		)
 		cur.execute(
 			"SELECT id FROM user WHERE user.login='opsiconfd';"

@@ -30,32 +30,37 @@ from opsiconfd.ssl import (
 	setup_server_cert, setup_ca
 )
 
+
 def test_get_ips():
 	ips = get_ips()
 	assert "::1" in ips
 	assert "0:0:0:0:0:0:0:1" not in ips
 	assert "127.0.0.1" in ips
 
+
 def test_get_hostnames():
 	hns = get_hostnames()
 	assert "localhost" in hns
+
 
 def test_ssl_ca_cert_and_key_in_different_files():
 	config.ssl_ca_cert = config.ssl_ca_key = "opsi-ca.pem"
 	with pytest.raises(ValueError, match=r".*cannot be stored in the same file.*"):
 		setup_ca()
 
+
 def test_ssl_server_cert_and_key_in_different_files():
 	config.ssl_server_cert = config.ssl_server_key = "opsiconfd.pem"
 	with pytest.raises(ValueError, match=r".*cannot be stored in the same file.*"):
 		setup_server_cert()
+
 
 def test_create_ca(tmpdir):
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
 	config.ssl_ca_key = str(ssl_ca_key)
-	#config.run_as_user = getpass.getuser()
+	# config.run_as_user = getpass.getuser()
 	config.ssl_ca_key_passphrase = "secret"
 	with mock.patch('opsiconfd.ssl.setup_ssl_file_permissions', lambda: None):
 		with mock.patch('opsicommon.ssl.linux._get_cert_path_and_cmd', lambda: (str(tmpdir), "echo")):
@@ -219,6 +224,7 @@ def test_renew_expired_ca(tmpdir):
 					assert mtime != ssl_ca_cert.lstat().mtime
 					assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, key1)
 
+
 def test_create_local_server_cert(tmpdir):
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
@@ -329,6 +335,7 @@ def test_key_cache(tmpdir):
 			key2 = load_local_server_key(use_cache=True)
 			assert dump_privatekey(FILETYPE_PEM, srv_key) == dump_privatekey(FILETYPE_PEM, key2)
 
+
 def test_change_hostname(tmpdir):
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
@@ -377,6 +384,7 @@ def test_change_hostname(tmpdir):
 				assert "DNS:new-host.domain.tld" in alt_names
 
 				assert dump_privatekey(FILETYPE_PEM, key2) != dump_privatekey(FILETYPE_PEM, key1)
+
 
 def test_change_ip(tmpdir):
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"

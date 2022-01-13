@@ -16,6 +16,7 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_USER, ADMIN_PASS
 )
 
+
 @pytest.mark.asyncio
 async def test_connect_websocket(config):  # pylint: disable=redefined-outer-name
 	host_id = "testdepot.uib.gmbh"

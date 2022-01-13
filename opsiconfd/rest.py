@@ -12,9 +12,9 @@ opsiconfd rest utils
 import math
 import traceback
 from typing import Optional, List
-from functools import  wraps
+from functools import wraps
 
-from pydantic import BaseModel # pylint: disable=no-name-in-module
+from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import asc, desc, column
@@ -23,6 +23,7 @@ from . import contextvar_client_session
 from .logging import logger
 from .application.utils import parse_list
 
+
 class RestApiValidationError(BaseModel):
 	class_value: str = "RequestValidationError"
 	message: str
@@ -30,7 +31,7 @@ class RestApiValidationError(BaseModel):
 	code: Optional[str]
 	details: Optional[str]
 
-	class Config: # pylint: disable=too-few-public-methods
+	class Config:  # pylint: disable=too-few-public-methods
 		fields = {'class_value': 'class'}
 
 
@@ -38,7 +39,7 @@ class OpsiApiException(Exception):
 	def __init__(
 		self,
 		message="An unknown error occurred.",
-		http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,code=None,
+		http_status=status.HTTP_500_INTERNAL_SERVER_ERROR, code=None,
 		error=None
 	):
 		self.message = message
@@ -51,6 +52,7 @@ class OpsiApiException(Exception):
 		self.details = str(error)
 		# self.details = traceback.format_exc()
 		super().__init__(self.message)
+
 
 def order_by(query, params):
 	if not params.get("sortBy"):
@@ -76,13 +78,14 @@ def pagination(query, params):
 		query = query.offset((params["pageNumber"] - 1) * params["perPage"])
 	return query
 
+
 def common_parameters(
-	filterQuery: Optional[str] = Body(default=None , embed=True),
-	pageNumber: Optional[int] = Body(default=1 , embed=True),
-	perPage:  Optional[int] = Body(default=20 , embed=True),
-	sortBy:  Optional[List[str]] = Body(default=None , embed=True),
-	sortDesc: Optional[bool] = Body(default=True , embed=True)
-): # pylint: disable=invalid-name
+	filterQuery: Optional[str] = Body(default=None, embed=True),
+	pageNumber: Optional[int] = Body(default=1, embed=True),
+	perPage: Optional[int] = Body(default=20, embed=True),
+	sortBy: Optional[List[str]] = Body(default=None, embed=True),
+	sortDesc: Optional[bool] = Body(default=True, embed=True)
+):  # pylint: disable=invalid-name
 	return {
 		"filterQuery": filterQuery,
 		"pageNumber": pageNumber,
@@ -91,13 +94,14 @@ def common_parameters(
 		"sortDesc": sortDesc
 	}
 
+
 def common_query_parameters(
-	filterQuery: Optional[str] = Query(default=None , embed=True),
-	pageNumber: Optional[int] = Query(default=1 , embed=True),
-	perPage:  Optional[int] = Query(default=20 , embed=True),
-	sortBy:  Optional[List[str]] = Query(default=None , embed=True),
-	sortDesc: Optional[bool] = Query(default=True , embed=True)
-): # pylint: disable=invalid-name
+	filterQuery: Optional[str] = Query(default=None, embed=True),
+	pageNumber: Optional[int] = Query(default=1, embed=True),
+	perPage: Optional[int] = Query(default=20, embed=True),
+	sortBy: Optional[List[str]] = Query(default=None, embed=True),
+	sortDesc: Optional[bool] = Query(default=True, embed=True)
+):  # pylint: disable=invalid-name
 	return {
 		"filterQuery": filterQuery,
 		"pageNumber": pageNumber,
@@ -107,15 +111,14 @@ def common_query_parameters(
 	}
 
 
-
 def rest_api(func):
 	name = func.__qualname__
 
 	@wraps(func)
-	def create_response(*args, **kwargs): # pylint: disable=too-many-branches,too-many-locals
+	def create_response(*args, **kwargs):  # pylint: disable=too-many-branches,too-many-locals
 		logger.debug("rest_api method name: %s", name)
 		content = {}
-		try: # pylint: disable=too-many-branches,too-many-nested-blocks
+		try:  # pylint: disable=too-many-branches,too-many-nested-blocks
 			result = func(*args, **kwargs)
 			headers = result.get("headers", {})
 			headers["Access-Control-Expose-Headers"] = 'x-total-count'
@@ -128,11 +131,11 @@ def rest_api(func):
 			if result.get("total"):
 				total = result.get("total")
 				headers["X-Total-Count"] = str(total)
-								# add link header next and last
+				# add link header next and last
 				if kwargs.get("commons") and kwargs.get("request"):
-					per_page = kwargs.get("commons",{}).get("perPage", 1)
-					if total/per_page > 1:
-						page_number = kwargs.get("commons",{}).get("pageNumber", 1)
+					per_page = kwargs.get("commons", {}).get("perPage", 1)
+					if total / per_page > 1:
+						page_number = kwargs.get("commons", {}).get("pageNumber", 1)
 						req = kwargs.get("request")
 						url = req.url
 						link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
@@ -144,12 +147,12 @@ def rest_api(func):
 
 			return JSONResponse(content=content if content else None, status_code=http_status, headers=headers)
 
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			status_code = None
 			content = {}
 			if isinstance(err, OpsiApiException):
-				status_code=err.http_status
-				content={
+				status_code = err.http_status
+				content = {
 					"class": err.error_class,
 					"code": err.code,
 					"status": err.http_status,

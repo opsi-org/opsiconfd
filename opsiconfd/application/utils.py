@@ -50,7 +50,7 @@ def get_user_privileges():
 		).fetchall():
 			try:
 				priv = ".".join(row["configId"].split(".")[3:])
-				vals = [ val for val in orjson.loads(row["values"]) if val != "" ]  # pylint: disable=no-member
+				vals = [val for val in orjson.loads(row["values"]) if val != ""]  # pylint: disable=no-member
 				privileges[priv] = vals
 			except orjson.JSONDecodeError as err:  # pylint: disable=no-member
 				logger.error("Failed to parse privilege %s: %s", row, err)
@@ -76,7 +76,7 @@ def build_tree(group, groups, allowed, processed=None):
 		processed = []
 	processed.append(group["id"])
 
-	is_root_group = group["parent"] == "#" #or group["id"] == "clientdirectory"
+	is_root_group = group["parent"] == "#"  # or group["id"] == "clientdirectory"
 	group["allowed"] = is_root_group or allowed == ... or group["id"] in allowed
 
 	children = {}
@@ -89,13 +89,12 @@ def build_tree(group, groups, allowed, processed=None):
 			else:
 				children[grp["id"]] = build_tree(grp, groups, allowed, processed)
 	if children:
-		if not "children" in group:
+		if "children" not in group:
 			group["children"] = {}
 		group["children"].update(children)
 	else:
 		if group["type"] == "HostGroup":
 			group["children"] = None
-
 
 	if not is_root_group and group.get("children"):
 		for child in group["children"].values():

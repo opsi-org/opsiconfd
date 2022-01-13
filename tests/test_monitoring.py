@@ -20,7 +20,7 @@ from opsiconfd.application.monitoring.check_locked_products import check_locked_
 from opsiconfd.application.monitoring.check_short_product_status import check_short_product_status
 from opsiconfd.application.monitoring.check_plugin_on_client import check_plugin_on_client
 
-from .utils import ( # pylint: disable=unused-import
+from .utils import (  # pylint: disable=unused-import
 	config, clean_redis, create_check_data, database_connection, backend
 )
 
@@ -89,8 +89,10 @@ test_data = [
 		},
 		["depot", "workbench"],
 		{"warning": "30G", "critical": "20G"},
-		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00GB). "
-		"DiskUsage from ressource: 'workbench' is critical (available: 20.00GB).")}
+		{"state": 2, "message": (
+			"CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00GB). "
+			"DiskUsage from ressource: 'workbench' is critical (available: 20.00GB)."
+		)}
 	),
 	(
 		{
@@ -101,8 +103,10 @@ test_data = [
 		},
 		["depot", "workbench"],
 		{"warning": "30%", "critical": "20%"},
-		{"state": 2, "message": ("CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00%). "
-		"DiskUsage from ressource: 'workbench' is critical (available: 20.00%).")}
+		{"state": 2, "message": (
+			"CRITICAL: DiskUsage from ressource: 'depot' is critical (available: 20.00%). "
+			"DiskUsage from ressource: 'workbench' is critical (available: 20.00%)."
+		)}
 	),
 	(
 		{
@@ -125,8 +129,7 @@ test_data = [
 		"not-a-resource",
 		{"warning": "10%", "critical": "5%"},
 		{"state": 3, "message": "UNKNOWN: No results get. Nothing to check."}
-	)
-	,
+	),
 	(
 		{
 			'capacity': 107374182400,
@@ -138,7 +141,8 @@ test_data = [
 		{"warning": "10%", "critical": "5%"},
 		{
 			"state": 0,
-			"message": ("OK: DiskUsage from ressource: 'depot' is ok. (available: 20.00%). "
+			"message": (
+				"OK: DiskUsage from ressource: 'depot' is ok. (available: 20.00%). "
 				"DiskUsage from ressource: 'repository' is ok. (available: 20.00%). "
 				"DiskUsage from ressource: 'workbench' is ok. (available: 20.00%)."
 			)
@@ -146,6 +150,7 @@ test_data = [
 	)
 
 ]
+
 
 @pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)
 def test_check_disk_usage(backend, info, opsiresource, thresholds, expected_result):  # pylint: disable=too-many-arguments,redefined-outer-name
@@ -159,14 +164,13 @@ def test_check_disk_usage(backend, info, opsiresource, thresholds, expected_resu
 	assert expected_result == json.loads(result.body)
 
 
-test_data = [
+@pytest.mark.parametrize("return_value", [
 	(None),
 	({}),
 	([])
 
-]
-@pytest.mark.parametrize("return_value", test_data)
-def test_check_disk_usage_no_result(backend, return_value): # pylint: disable=too-many-arguments,redefined-outer-name
+])
+def test_check_disk_usage_no_result(backend, return_value):  # pylint: disable=too-many-arguments,redefined-outer-name
 
 	def get_info(path):
 		print(path)
@@ -178,7 +182,7 @@ def test_check_disk_usage_no_result(backend, return_value): # pylint: disable=to
 	assert json.loads(result.body) == {
 		'message': ('UNKNOWN: No results get. Nothing to check.'),
 		'state': 3
-		}
+	}
 
 
 def test_check_locked_products(backend, database_connection):  # pylint: disable=redefined-outer-name
@@ -197,11 +201,10 @@ def test_check_locked_products(backend, database_connection):  # pylint: disable
 
 	cursor = database_connection.cursor()
 	cursor.execute((
-			'REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES '
-			'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true),'
-			'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
-		)
-	)
+		'REPLACE INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType, locked) VALUES '
+		'("pytest-prod-3", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true),'
+		'("pytest-prod-2", "1.0", "1", "pytest-test-depot.uib.gmbh", "LocalbootProduct", true);'
+	))
 	database_connection.commit()
 	cursor.close()
 
@@ -209,56 +212,71 @@ def test_check_locked_products(backend, database_connection):  # pylint: disable
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
 	assert json.loads(result.body) == {
-		'message': ('WARNING: 2 products are in locked state.\n'
+		'message': (
+			'WARNING: 2 products are in locked state.\n'
 			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n'
-			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'),
+			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'
+		),
 		'state': 1
 	}
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", socket.getfqdn()])
 	assert json.loads(result.body) == {
-		'message': ('WARNING: 2 products are in locked state.\n'
+		'message': (
+			'WARNING: 2 products are in locked state.\n'
 			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n'
-			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'),
+			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'
+		),
 		'state': 1
 	}
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh", socket.getfqdn()], product_ids=["pytest-prod-2"])
 	assert json.loads(result.body) == {
-		'message': ('WARNING: 1 products are in locked state.\n'
-			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
+		'message': (
+			'WARNING: 1 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'
+		),
 		'state': 1
 	}
 
 	result = check_locked_products(backend, depot_ids=[], product_ids=None)
 	assert json.loads(result.body) == {
-		'message': ('WARNING: 2 products are in locked state.\n'
+		'message': (
+			'WARNING: 2 products are in locked state.\n'
 			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh\n'
-			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'),
+			'Product pytest-prod-3 locked on depot pytest-test-depot.uib.gmbh'
+		),
 		'state': 1
 	}
 
 	result = check_locked_products(backend, depot_ids=None, product_ids=["pytest-prod-2"])
 	assert json.loads(result.body) == {
-		'message': ('WARNING: 1 products are in locked state.\n'
-			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
+		'message': (
+			'WARNING: 1 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'
+		),
 		'state': 1
 	}
 
 	result = check_locked_products(backend, depot_ids="all", product_ids=["pytest-prod-2"])
 	assert json.loads(result.body) == {
-		'message': ('WARNING: 1 products are in locked state.\n'
-			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'),
+		'message': (
+			'WARNING: 1 products are in locked state.\n'
+			'Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh'
+		),
 		'state': 1
 	}
 
-test_data = [
+
+@pytest.mark.parametrize("product_id, thresholds, expected_result", [
 	(
 		"pytest-prod-1",
 		{},
 		{
-			'message': ("WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
-				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"),
+			'message': (
+				"WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"
+			),
 			'state': 1
 		}
 	),
@@ -266,8 +284,10 @@ test_data = [
 		"pytest-prod-2",
 		{},
 		{
-			'message': ("CRITICAL: 3 ProductStates for product: 'pytest-prod-2' found; "
-				"checking for Version: '1.0' and Package: '1'; Problems found on 3 clients"),
+			'message': (
+				"CRITICAL: 3 ProductStates for product: 'pytest-prod-2' found; "
+				"checking for Version: '1.0' and Package: '1'; Problems found on 3 clients"
+			),
 			'state': 2
 		}
 	),
@@ -275,8 +295,10 @@ test_data = [
 		"pytest-prod-1",
 		{"warning": "50", "critical": "70"},
 		{
-			'message': ("WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
-				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"),
+			'message': (
+				"WARNING: 2 ProductStates for product: 'pytest-prod-1' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 2 clients"
+			),
 			'state': 1
 		}
 	),
@@ -292,8 +314,10 @@ test_data = [
 		"pytest-prod-4",
 		{"warning": "20", "critical": "30"},
 		{
-			'message': ("WARNING: 3 ProductStates for product: 'pytest-prod-4' found; "
-				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 1 clients"),
+			'message': (
+				"WARNING: 3 ProductStates for product: 'pytest-prod-4' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 1 clients"
+			),
 			'state': 1
 		}
 	),
@@ -301,8 +325,10 @@ test_data = [
 		"pytest-prod-4",
 		{"warning": "5", "critical": "10"},
 		{
-			'message': ("WARNING: 3 ProductStates for product: 'pytest-prod-4' found; "
-				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 1 clients"),
+			'message': (
+				"WARNING: 3 ProductStates for product: 'pytest-prod-4' found; "
+				"checking for Version: '1.0' and Package: '1'; ActionRequest set on 1 clients"
+			),
 			'state': 1
 		}
 	),
@@ -310,19 +336,20 @@ test_data = [
 		"pytest-prod-3",
 		{},
 		{
-			'message':  ("OK: 1 ProductStates for product: 'pytest-prod-3' found; "
-				"checking for Version: '1.0' and Package: '1'"),
+			'message': (
+				"OK: 1 ProductStates for product: 'pytest-prod-3' found; "
+				"checking for Version: '1.0' and Package: '1'"
+			),
 			'state': 0
 		}
 	)
-]
-
-@pytest.mark.parametrize("product_id, thresholds, expected_result", test_data)
-def test_check_short_product_status(backend, product_id, thresholds, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
+])
+def test_check_short_product_status(backend, product_id, thresholds, expected_result):  # pylint: disable=too-many-arguments,redefined-outer-name
 	result = check_short_product_status(backend, product_id=product_id, thresholds=thresholds)
 	assert json.loads(result.body) == expected_result
 
-test_data = [
+
+@pytest.mark.parametrize("params, reachable, command_result, expected_result", [
 	(
 		{
 			"host_id": "pytest-client-4.uib.local",
@@ -330,8 +357,8 @@ test_data = [
 		},
 		True,
 		{
-				"result": ["this is a test"],
-				"error": None
+			"result": ["this is a test"],
+			"error": None
 		},
 		{'message': 'OK: this is a test', 'state': 0}
 	),
@@ -358,14 +385,13 @@ test_data = [
 		{},
 		{"message": "UNKNOWN: Can't check host 'pytest-client-4.uib.local' is not reachable.", "state": 3}
 	)
-]
-@pytest.mark.parametrize("params, reachable, command_result, expected_result", test_data)
-def test_check_client_plugin(backend, params, reachable, command_result, expected_result): # pylint: disable=too-many-arguments,redefined-outer-name
+])
+def test_check_client_plugin(backend, params, reachable, command_result, expected_result):  # pylint: disable=too-many-arguments,redefined-outer-name
 
-	def host_control_safe_reachable(hostIds): # pylint: disable=invalid-name
+	def host_control_safe_reachable(hostIds):  # pylint: disable=invalid-name
 		return {hostIds[0]: reachable}
 
-	def host_control_safe_execute(command, hostIds, waitForEnding, captureStderr, encoding, timeout): # pylint: disable=unused-argument, invalid-name, too-many-arguments
+	def host_control_safe_execute(command, hostIds, waitForEnding, captureStderr, encoding, timeout):  # pylint: disable=unused-argument, invalid-name, too-many-arguments
 		return {
 			hostIds[0]: command_result
 		}

@@ -34,6 +34,7 @@ from .patch import apply_patches
 from .utils import get_manager_pid
 from .manager import Manager
 
+
 def run_with_jemlalloc():
 	try:
 		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
@@ -46,7 +47,7 @@ def run_with_jemlalloc():
 
 		new_env = os.environ.copy()
 		new_env["LD_PRELOAD"] = match.group(1)
-		#print(f"Restarting with LD_PRELOAD={new_env['LD_PRELOAD']}")
+		# print(f"Restarting with LD_PRELOAD={new_env['LD_PRELOAD']}")
 
 		os.execve(sys.argv[0], sys.argv, new_env)
 	except Exception as err:  # pylint: disable=broad-except

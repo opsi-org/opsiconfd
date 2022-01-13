@@ -15,22 +15,25 @@ import pytest
 
 from .utils import clean_redis  # pylint: disable=unused-import
 
+
 @pytest.fixture(name="config")
 def fixture_config(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.config import config # pylint: disable=import-outside-toplevel
+	from opsiconfd.config import config  # pylint: disable=import-outside-toplevel
 	return config
+
 
 @pytest.fixture(name="metrics_collector")
 def fixture_metrics_collector(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.statistics import WorkerMetricsCollector # pylint: disable=import-outside-toplevel
+	from opsiconfd.statistics import WorkerMetricsCollector  # pylint: disable=import-outside-toplevel
 	return WorkerMetricsCollector()
+
 
 @pytest.fixture(name="metrics_registry")
 def fixture_metrics_registry(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.statistics import MetricsRegistry, Metric # pylint: disable=import-outside-toplevel
+	from opsiconfd.statistics import MetricsRegistry, Metric  # pylint: disable=import-outside-toplevel
 	metrics_registry = MetricsRegistry()
 	metrics_registry.register(
 		Metric(
@@ -48,15 +51,14 @@ def fixture_metrics_registry(monkeypatch):
 @pytest.fixture(name="redis_client")
 @pytest.mark.asyncio
 async def fixture_redis_client(config):
-	redis_client = redis.StrictRedis.from_url(config.redis_internal_url) # pylint: disable=redefined-outer-name
+	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)  # pylint: disable=redefined-outer-name
 	redis_client.set("opsiconfd:stats:num_rpcs", 5)
 	await asyncio.sleep(2)
 	yield redis_client
 	redis_client.delete("opsiconfd:stats:num_rpcs")
 
 
-
-redis_test_data = [
+@pytest.mark.parametrize("cmds, expected_results", [
 	(
 		[
 			"GET opsiconfd:stats:num_rpcs",
@@ -83,41 +85,39 @@ redis_test_data = [
 			0
 		]
 	)
-]
-
-@pytest.mark.parametrize("cmds, expected_results", redis_test_data)
+])
 @pytest.mark.asyncio
-async def test_execute_redis_command(metrics_collector, redis_client, cmds, expected_results): # pylint: disable=redefined-outer-name,unused-argument
+async def test_execute_redis_command(metrics_collector, redis_client, cmds, expected_results):  # pylint: disable=redefined-outer-name,unused-argument
 
 	for idx, cmd in enumerate(cmds):
-		result = await metrics_collector._execute_redis_command(cmd) # pylint: disable=protected-access
+		result = await metrics_collector._execute_redis_command(cmd)  # pylint: disable=protected-access
 		print(result)
 		assert result == expected_results[idx]
 
 
-test_data = [
+@pytest.mark.parametrize("cmd, value, expected_result", [
 	("ADD", 4711, "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
-	("INCRBY", 4711,"TS.INCRBY opsiconfd:stats:opsiconfd:pytest:metric 4711 * RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
-]
-@pytest.mark.parametrize("cmd, value, expected_result", test_data)
+	("INCRBY", 4711, "TS.INCRBY opsiconfd:stats:opsiconfd:pytest:metric 4711 * RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
+])
 def test_redis_ts_cmd(metrics_registry, metrics_collector, cmd, value, expected_result):
 
 	metrics = list(metrics_registry.get_metrics())
 
-	result = metrics_collector._redis_ts_cmd(metrics[-1], cmd, value) # pylint: disable=protected-access
+	result = metrics_collector._redis_ts_cmd(metrics[-1], cmd, value)  # pylint: disable=protected-access
 	print(result)
 	assert result == expected_result
 
-def test_redis_ts_cmd_error(metrics_registry, metrics_collector):
 
+def test_redis_ts_cmd_error(metrics_registry, metrics_collector):
 	metrics = list(metrics_registry.get_metrics())
 
 	with pytest.raises(ValueError) as excinfo:
-		metrics_collector._redis_ts_cmd(metrics[-1], "unknown CMD", 42) # pylint: disable=protected-access
+		metrics_collector._redis_ts_cmd(metrics[-1], "unknown CMD", 42)  # pylint: disable=protected-access
 
 	print(excinfo)
 	assert excinfo.type == ValueError
 	assert excinfo.value.__str__() == ValueError("Invalid command unknown CMD").__str__()
+
 
 def test_metric_by_redis_key(metrics_registry):
 
@@ -127,6 +127,7 @@ def test_metric_by_redis_key(metrics_registry):
 	assert metric.get_name() == "opsiconfd pytest metric"
 	assert metric.id == "opsiconfd:pytest:metric"
 	assert metric.get_redis_key() == "opsiconfd:stats:opsiconfd:pytest:metric"
+
 
 def test_metric_by_redis_key_error(metrics_registry):
 

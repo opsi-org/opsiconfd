@@ -22,7 +22,7 @@ from .utils import (
 )
 
 
-async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perfdata=True) -> JSONResponse: # pylint: disable=too-many-branches, too-many-locals, too-many-statements
+async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perfdata=True) -> JSONResponse:  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
 	state = State.OK
 	message = []
 	logger.debug("Generating Defaults for checkOpsiWebservice if not given")
@@ -92,7 +92,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 			return generate_response(state, message, "".join(performance))
 		return generate_response(state, message)
 
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		state = State.UNKNOWN
 		message = f"cannot check webservice state: '{str(err)}'."
 		return generate_response(state, message)

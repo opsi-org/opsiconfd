@@ -37,10 +37,11 @@ MEMORY_TRACKER = None
 CLASS_TRACKER = None
 HEAP = None
 
-
 TRACEMALLOC_PREV_SNAPSHOT = None
 TRACEMALLOC_RSS_START = 0
 TRACEMALLOC_RSS_PREV = 0
+
+
 @memory_profiler_router.get("/tracemalloc-snapshot-new")
 def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
 	global TRACEMALLOC_PREV_SNAPSHOT, TRACEMALLOC_RSS_PREV, TRACEMALLOC_RSS_START  # pylint: disable=global-statement
@@ -87,6 +88,8 @@ def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
 
 
 LAST_OBJGRAPH_SNAPSHOT = {}
+
+
 @memory_profiler_router.get("/objgraph-snapshot-new")
 def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> JSONResponse:
 	global LAST_OBJGRAPH_SNAPSHOT  # pylint: disable=global-statement
@@ -132,6 +135,7 @@ def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> 
 		"data": data
 	})
 
+
 @memory_profiler_router.get("/objgraph-snapshot-update")
 def memory_objgraph_snapshot_update() -> JSONResponse:
 	if not LAST_OBJGRAPH_SNAPSHOT:
@@ -152,6 +156,7 @@ def memory_objgraph_snapshot_update() -> JSONResponse:
 		"error": None,
 		"data": data
 	})
+
 
 @memory_profiler_router.get("/objgraph-show-backrefs")
 def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Response:
@@ -182,7 +187,7 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 @memory_profiler_router.post("/snapshot")
 async def memory_info() -> JSONResponse:
 
-	global MEMORY_TRACKER # pylint: disable=global-statement
+	global MEMORY_TRACKER  # pylint: disable=global-statement
 	if not MEMORY_TRACKER:
 		MEMORY_TRACKER = tracker.SummaryTracker()
 
@@ -194,7 +199,7 @@ async def memory_info() -> JSONResponse:
 	node = config.node_name
 
 	async with await redis.pipeline() as pipe:
-		value = msgpack.dumps({"memory_summary": memory_summary, "timestamp": timestamp}) # pylint: disable=c-extension-no-member
+		value = msgpack.dumps({"memory_summary": memory_summary, "timestamp": timestamp})  # pylint: disable=c-extension-no-member
 		await pipe.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
 		await pipe.ltrim(f"opsiconfd:stats:memory:summary:{node}", 0, 9)
 		redis_result = await pipe.execute()
@@ -202,7 +207,7 @@ async def memory_info() -> JSONResponse:
 
 	total_size = 0
 	count = 0
-	for idx in range(0, len(memory_summary)-1):
+	for idx in range(0, len(memory_summary) - 1):
 		count += memory_summary[idx][1]
 		total_size += memory_summary[idx][2]
 		memory_summary[idx][2] = convert_bytes(memory_summary[idx][2])
@@ -221,6 +226,7 @@ async def memory_info() -> JSONResponse:
 	})
 	return response
 
+
 @memory_profiler_router.delete("/snapshot")
 async def delte_memory_snapshot() -> JSONResponse:
 
@@ -229,16 +235,17 @@ async def delte_memory_snapshot() -> JSONResponse:
 
 	await redis.delete(f"opsiconfd:stats:memory:summary:{node}")
 
-	global MEMORY_TRACKER # pylint: disable=global-statement
+	global MEMORY_TRACKER  # pylint: disable=global-statement
 	MEMORY_TRACKER = None
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted all memory snapshots."}})
 	return response
 
+
 @memory_profiler_router.get("/diff")
 async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 
-	global MEMORY_TRACKER # pylint: disable=global-statement
+	global MEMORY_TRACKER  # pylint: disable=global-statement
 	if not MEMORY_TRACKER:
 		MEMORY_TRACKER = tracker.SummaryTracker()
 
@@ -257,14 +264,14 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 		end = snapshot_count - snapshot2
 
 	redis_result = await redis.lindex(f"opsiconfd:stats:memory:summary:{node}", start)
-	snapshot1 = msgpack.loads(redis_result).get("memory_summary") # pylint: disable=c-extension-no-member
+	snapshot1 = msgpack.loads(redis_result).get("memory_summary")  # pylint: disable=c-extension-no-member
 	redis_result = await redis.lindex(f"opsiconfd:stats:memory:summary:{node}", end)
-	snapshot2 = msgpack.loads(redis_result).get("memory_summary") # pylint: disable=c-extension-no-member
+	snapshot2 = msgpack.loads(redis_result).get("memory_summary")  # pylint: disable=c-extension-no-member
 	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
 
 	count = 0
 	total_size = 0
-	for idx in range(0, len(memory_summary)-1):
+	for idx in range(0, len(memory_summary) - 1):
 		count += memory_summary[idx][1]
 		total_size += memory_summary[idx][2]
 		memory_summary[idx][2] = convert_bytes(memory_summary[idx][2])
@@ -280,6 +287,7 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 	})
 	return response
 
+
 @memory_profiler_router.post("/classtracker")
 async def classtracker_snapshot(request: Request) -> JSONResponse:
 
@@ -288,10 +296,10 @@ async def classtracker_snapshot(request: Request) -> JSONResponse:
 	module_name = request_body.get("module")
 	description = request_body.get("description")
 
-	def get_class(modulename,classname):
+	def get_class(modulename, classname):
 		return getattr(sys.modules.get(modulename), classname)
 
-	global CLASS_TRACKER # pylint: disable=global-statement
+	global CLASS_TRACKER  # pylint: disable=global-statement
 	if not CLASS_TRACKER:
 		CLASS_TRACKER = classtracker.ClassTracker()
 
@@ -311,14 +319,15 @@ async def classtracker_snapshot(request: Request) -> JSONResponse:
 			"class": class_name,
 			"description": description,
 			"module": module_name
-			}
-		})
+		}
+	})
 	return response
+
 
 @memory_profiler_router.get("/classtracker/summary")
 async def classtracker_summary() -> JSONResponse:
 
-	global CLASS_TRACKER # pylint: disable=global-statement
+	global CLASS_TRACKER  # pylint: disable=global-statement
 
 	if not CLASS_TRACKER:
 		CLASS_TRACKER = classtracker.ClassTracker()
@@ -352,7 +361,7 @@ async def classtracker_summary() -> JSONResponse:
 @memory_profiler_router.delete("/classtracker")
 async def delte_class_tracker() -> JSONResponse:
 
-	global CLASS_TRACKER # pylint: disable=global-statement
+	global CLASS_TRACKER  # pylint: disable=global-statement
 	CLASS_TRACKER.close()
 	CLASS_TRACKER = None
 
@@ -363,12 +372,12 @@ async def delte_class_tracker() -> JSONResponse:
 @memory_profiler_router.post("/guppy")
 async def guppy_snapshot() -> JSONResponse:
 
-	global HEAP # pylint: disable=global-statement
+	global HEAP  # pylint: disable=global-statement
 	if not HEAP:
 		HEAP = hpy()
 
 	heap_status = HEAP.heap()
-	fn = io.StringIO() # pylint: disable=invalid-name
+	fn = io.StringIO()  # pylint: disable=invalid-name
 	heap_status.dump(fn)
 
 	redis = await async_redis_client()
@@ -412,7 +421,7 @@ async def delte_guppy_snapshot() -> JSONResponse:
 
 	await redis.delete(f"opsiconfd:stats:memory:heap:{node}")
 
-	global HEAP # pylint: disable=global-statement
+	global HEAP  # pylint: disable=global-statement
 	HEAP = None
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted all guppy heap snapshots."}})
@@ -422,7 +431,7 @@ async def delte_guppy_snapshot() -> JSONResponse:
 @memory_profiler_router.get("/guppy/setref")
 async def guppy_set_ref() -> JSONResponse:
 
-	global HEAP # pylint: disable=global-statement
+	global HEAP  # pylint: disable=global-statement
 	if not HEAP:
 		HEAP = hpy()
 	HEAP.setref()
@@ -430,10 +439,11 @@ async def guppy_set_ref() -> JSONResponse:
 	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Set new ref point"}})
 	return response
 
+
 @memory_profiler_router.get("/guppy/diff")
 async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 
-	global HEAP # pylint: disable=global-statement
+	global HEAP  # pylint: disable=global-statement
 	if not HEAP:
 		HEAP = hpy()
 
@@ -509,6 +519,7 @@ def annotate_snapshots(stats):
 	for snapshot in stats.snapshots:
 		annotate_snapshot(stats, snapshot)
 
+
 def annotate_snapshot(stats, snapshot):
 	"""
 	Store additional statistical data in snapshot.
@@ -522,9 +533,10 @@ def annotate_snapshot(stats, snapshot):
 
 		for tobj in stats.index[classname]:
 			total += tobj.get_size_at_time(snapshot.timestamp)
-			if (tobj.birth < snapshot.timestamp and
-					(tobj.death is None or
-						tobj.death > snapshot.timestamp)):
+			if (
+				tobj.birth < snapshot.timestamp and
+				(tobj.death is None or tobj.death > snapshot.timestamp)
+			):
 				active += 1
 		try:
 			avg = total / active
@@ -534,10 +546,10 @@ def annotate_snapshot(stats, snapshot):
 		snapshot.classes[classname] = dict(sum=total, avg=avg, active=active)
 
 
-def convert_bytes(bytes): # pylint: disable=redefined-builtin
+def convert_bytes(bytes):  # pylint: disable=redefined-builtin
 	unit = "B"
 	for unit in ["B", "KB", "MB", "GB"]:
 		if abs(bytes) < 1024.0 or unit == "GB":
 			break
-		bytes = bytes/1024.0
+		bytes = bytes / 1024.0
 	return f"{bytes:.2f} {unit}"

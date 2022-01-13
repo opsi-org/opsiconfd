@@ -42,7 +42,7 @@ def get_yappi_tag() -> int:
 	return int(contextvar_request_id.get() or -1)
 
 
-def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 	# Add metrics from jsonrpc to metrics_registry
 	from .application import jsonrpc  # pylint: disable=import-outside-toplevel,unused-import
 
@@ -88,10 +88,10 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 				existing_rules = {}
 				for idx, val in enumerate(info):
 					if isinstance(val, bytes) and "rules" in val.decode("utf8"):
-						rules = info[idx+1]
+						rules = info[idx + 1]
 						for rule in rules:
 							key = rule[0].decode("utf8")
-							#retention = key.split(":")[-1]
+							# retention = key.split(":")[-1]
 							existing_rules[key] = {"time_bucket": rule[1], "aggregation": rule[2].decode("utf8")}
 
 				for rule in metric.downsampling:
@@ -122,6 +122,7 @@ def setup_metric_downsampling() -> None: # pylint: disable=too-many-locals, too-
 						logger.debug("Redis cmd: %s", cmd)
 						client.execute_command(cmd)
 
+
 TIME_BUCKETS = {
 	"second": 1000,
 	"minute": 60 * 1000,
@@ -132,6 +133,7 @@ TIME_BUCKETS = {
 	"year": 365 * 24 * 3600 * 1000
 }
 
+
 def get_time_bucket(interval: str) -> int:
 	time_bucket = TIME_BUCKETS.get(interval)
 	if time_bucket is None:
@@ -139,27 +141,28 @@ def get_time_bucket(interval: str) -> int:
 	return time_bucket
 
 
-def get_time_bucket_name(time: int) -> str: # pylint: disable=redefined-outer-name
+def get_time_bucket_name(time: int) -> str:  # pylint: disable=redefined-outer-name
 	time_bucket_name = None
-	for name, t in TIME_BUCKETS.items(): # pylint: disable=invalid-name
+	for name, t in TIME_BUCKETS.items():  # pylint: disable=invalid-name
 		if time >= t:
 			time_bucket_name = name
 	return time_bucket_name
 
+
 class Metric:  # pylint: disable=too-many-instance-attributes
 	def __init__(  # pylint: disable=too-many-arguments, redefined-builtin, dangerous-default-value
-			self,
-			id: str,  # pylint: disable=invalid-name
-			name: str,
-			vars: List[str] = [],
-			aggregation: str = "avg",
-			retention: int = 0,
-			zero_if_missing: str = None,
-			time_related: bool = False,
-			subject: str = "worker",
-			server_timing_header_factor: int = None,
-			grafana_config: GrafanaPanelConfig = None,
-			downsampling: List = None
+		self,
+		id: str,  # pylint: disable=invalid-name
+		name: str,
+		vars: List[str] = [],
+		aggregation: str = "avg",
+		retention: int = 0,
+		zero_if_missing: str = None,
+		time_related: bool = False,
+		subject: str = "worker",
+		server_timing_header_factor: int = None,
+		grafana_config: GrafanaPanelConfig = None,
+		downsampling: List = None
 	):
 		"""
 		Metric constructor
@@ -168,16 +171,18 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		:type id: str
 		:param name: The human readable name of the metric (i.e "Average CPU usage of worker {worker_num} on {node_name}").
 		:type id: str
-		:param vars: Variables used for redis key and labels (i.e. ["node_name", "worker_num"]). \
-		             Values for these vars has to pe passed to param "labels" as dict when calling MetricsCollector.add_value().
+		:param vars:
+			Variables used for redis key and labels (i.e. ["node_name", "worker_num"]). \
+			Values for these vars has to pe passed to param "labels" as dict when calling MetricsCollector.add_value().
 		:type vars: List[str]
 		:param retention: Redis retention time in milliseconds.
 		:type retention: int
 		:param aggregation: Aggregation to use before adding values to the time series database (`sum` or `avg`).
 		:type aggregation: str
-		:param zero_if_missing: Behaviour if no values exist in a measuring interval. `one`, `continuous` or None. \
-		                        Zero values are sometime helpful because gaps between values get connected \
-                                by a straight line in diagrams. But zero values need storage space.
+		:param zero_if_missing:
+			Behaviour if no values exist in a measuring interval. `one`, `continuous` or None. \
+			Zero values are sometime helpful because gaps between values get connected \
+			by a straight line in diagrams. But zero values need storage space.
 		:type zero_if_missing: str
 		:param time_related: If the metric is time related, like requests per second.
 		:type time_related: bool
@@ -191,7 +196,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		assert aggregation in ("sum", "avg")
 		assert subject in ("node", "worker", "client")
 		assert zero_if_missing in (None, "one", "continuous")
-		self.id = id # pylint: disable=invalid-name
+		self.id = id  # pylint: disable=invalid-name
 		self.name = name
 		self.vars = vars
 		self.aggregation = aggregation
@@ -207,7 +212,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 			self.redis_key += ":{" + var + "}"
 		name_regex = self.name
 		for var in vars:
-			name_regex = name_regex.replace('{' + var + '}', f"(?P<{var}>\S+)") # pylint: disable=anomalous-backslash-in-string
+			name_regex = name_regex.replace('{' + var + '}', rf"(?P<{var}>\S+)")  # pylint: disable=anomalous-backslash-in-string
 		self.name_regex = re.compile(name_regex)
 
 	def __str__(self):
@@ -222,26 +227,27 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		return self.name.format(**kwargs)
 
 	def get_vars_by_redis_key(self, redis_key):
-		vars = {} # pylint: disable=redefined-builtin
+		vars = {}  # pylint: disable=redefined-builtin
 		if self.vars:
-			values = redis_key[len(self.redis_key_prefix)+1:].split(':')
+			values = redis_key[len(self.redis_key_prefix) + 1:].split(':')
 			for i, value in enumerate(values):
 				vars[self.vars[i]] = value
 		return vars
 
 	def get_name_by_redis_key(self, redis_key):
-		vars = self.get_vars_by_redis_key(redis_key) # pylint: disable=redefined-builtin
+		vars = self.get_vars_by_redis_key(redis_key)  # pylint: disable=redefined-builtin
 		return self.get_name(**vars)
 
 	def get_vars_by_name(self, name):
 		return self.name_regex.fullmatch(name).groupdict()
+
 
 class MetricsRegistry(metaclass=Singleton):
 	def __init__(self):
 		self._metrics_by_id = {}
 
 	def register(self, *metric):
-		for m in metric: # pylint: disable=invalid-name
+		for m in metric:  # pylint: disable=invalid-name
 			self._metrics_by_id[m.id] = m
 
 	def get_metric_ids(self):
@@ -252,7 +258,7 @@ class MetricsRegistry(metaclass=Singleton):
 			if not subject or metric.subject in subject:
 				yield metric
 
-	def get_metric_by_id(self, id): # pylint: disable=redefined-builtin, invalid-name
+	def get_metric_by_id(self, id):  # pylint: disable=redefined-builtin, invalid-name
 		if id in self._metrics_by_id:
 			return self._metrics_by_id[id]
 		raise ValueError(f"Metric with id '{id}' not found")
@@ -269,6 +275,7 @@ class MetricsRegistry(metaclass=Singleton):
 			if redis_key == metric.redis_key_prefix or redis_key.startswith(metric.redis_key_prefix + ':'):
 				return metric
 		raise ValueError(f"Metric with redis key '{redis_key}' not found")
+
 
 metrics_registry = MetricsRegistry()
 
@@ -372,12 +379,12 @@ metrics_registry.register(
 		time_related=True,
 		subject="client",
 		# Deactivating for now because it slows down grafana a lot in big environments.
-		#grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
+		# grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
 	)
 )
 
 
-class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
+class MetricsCollector():  # pylint: disable=too-many-instance-attributes
 	_metric_subjects = []
 
 	def __init__(self):
@@ -388,7 +395,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 		self._values_lock = asyncio.Lock()
 		self._last_timestamp = 0
 
-	def _get_timestamp(self) -> int: # pylint: disable=no-self-use
+	def _get_timestamp(self) -> int:  # pylint: disable=no-self-use
 		# return unix timestamp in millis
 		return int(time.time() * 1000)
 
@@ -416,15 +423,15 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 				continue
 
 			key_string = ":".join(key_string)
-			if not metric.id in self._values:
+			if metric.id not in self._values:
 				self._values[metric.id] = {}
-			if not key_string in self._values[metric.id]:
+			if key_string not in self._values[metric.id]:
 				self._values[metric.id][key_string] = {}
 
-	async def main_loop(self): # pylint: disable=too-many-branches
+	async def main_loop(self):  # pylint: disable=too-many-branches
 		try:
 			self._init_vars()
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
 		while True:
@@ -436,7 +443,7 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 				cmds = []
 				async with self._values_lock:
 					for metric in metrics_registry.get_metrics(*self._metric_subjects):
-						if not metric.id in self._values:
+						if metric.id not in self._values:
 							continue
 
 						for key_string in list(self._values.get(metric.id, {})):
@@ -478,17 +485,17 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 
 				try:
 					await self._execute_redis_command(*cmds)
-				except AioRedisResponseError as err: # pylint: disable=broad-except
+				except AioRedisResponseError as err:  # pylint: disable=broad-except
 					if str(err).lower().startswith("unknown command"):
 						logger.error("RedisTimeSeries module missing, metrics collector ending")
 						return
 					logger.error("%s while executing redis commands: %s", err, cmds, exc_info=True)
 
-			except Exception as err: # pylint: disable=broad-except
+			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
 			await asyncio.sleep(self._interval)
 
-	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels): # pylint: disable=no-self-use
+	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels):  # pylint: disable=no-self-use
 		timestamp = timestamp or "*"
 		l_labels = [list(pair) for pair in labels.items()]
 
@@ -505,13 +512,13 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 			] + l_labels
 		else:
 			raise ValueError(f"Invalid command {cmd}")
-		return " ".join([ str(x) for x in cmd ])
+		return " ".join([str(x) for x in cmd])
 
 	@staticmethod
 	async def _execute_redis_command(*cmd):
 		def str_cmd(cmd_obj):
 			if isinstance(cmd_obj, list):
-				return " ".join([ str(x) for x in cmd_obj ])
+				return " ".join([str(x) for x in cmd_obj])
 			return cmd_obj
 
 		redis = await async_redis_client()
@@ -547,18 +554,19 @@ class MetricsCollector(): #  pylint: disable=too-many-instance-attributes
 		if not timestamp:
 			timestamp = self._get_timestamp()
 		async with self._values_lock:
-			if not metric_id in self._values:
+			if metric_id not in self._values:
 				self._values[metric_id] = {}
-			if not key_string in self._values[metric_id]:
+			if key_string not in self._values[metric_id]:
 				self._values[metric_id][key_string] = {}
 				if metric.zero_if_missing == "one":
 					# Insert a zero before new adding new values because
 					# gaps in diagrams will be conneced with straight lines.
 					# Marking with None
-					self._values[metric_id][key_string][timestamp-self._interval*1000] = None
-			if not timestamp in self._values[metric_id][key_string]:
+					self._values[metric_id][key_string][timestamp - self._interval * 1000] = None
+			if timestamp not in self._values[metric_id][key_string]:
 				self._values[metric_id][key_string][timestamp] = 0
 			self._values[metric_id][key_string][timestamp] += value
+
 
 class ManagerMetricsCollector(MetricsCollector):
 	_metric_subjects = ["node"]
@@ -594,7 +602,7 @@ class WorkerMetricsCollector(MetricsCollector):
 				)
 
 
-class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-method
+class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-method
 	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
 		super().__init__(app)
 
@@ -605,8 +613,8 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 			"BackendManager._executeMethod": "backend",
 			"MySQL.execute": "mysql",
 			"Response.render": "render",
-			#"serialize": "opsi_serialize",
-			#"deserialize": "opsi_deserialize",
+			# "serialize": "opsi_serialize",
+			# "deserialize": "opsi_deserialize",
 		}
 		if self._profiler_enabled:
 			yappi.set_tag_callback(get_yappi_tag)
@@ -614,7 +622,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 			# TODO: Schedule some kind of periodic profiler cleanup with clear_stats()
 			yappi.start()
 
-	def yappi(self, scope): # pylint: disable=inconsistent-return-statements
+	def yappi(self, scope):  # pylint: disable=inconsistent-return-statements
 		# https://github.com/sumerc/yappi/blob/master/doc/api.md
 
 		tag = get_yappi_tag()
@@ -622,23 +630,23 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 			return
 
 		func_stats = yappi.get_func_stats(filter={"tag": tag})
-		#func_stats.sort("ttot", sort_order="desc").debug_print()
+		# func_stats.sort("ttot", sort_order="desc").debug_print()
 
 		if self._write_callgrind_file:
 			# Use i.e. kcachegrind to visualize
 			func_stats.save(f"/tmp/callgrind.out.opsiconfd-yappi-{tag}", type="callgrind")  # pylint: disable=no-member
 
 		if self._log_func_stats:
-			logger.essential("---------------------------------------------------------------------------------------------------------------------------------") # pylint: disable=line-too-long
+			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")  # pylint: disable=line-too-long
 			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope['method']} {scope['path']}")
 			logger.essential(f"{'module':<45} | {'function':<60} | {'calls':>5} | {'total time':>10}")
-			logger.essential("---------------------------------------------------------------------------------------------------------------------------------") # pylint: disable=line-too-long
+			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")  # pylint: disable=line-too-long
 			for stat_num, stat in enumerate(func_stats.sort("ttot", sort_order="desc")):
 				module = re.sub(r".*(site-packages|python3\.\d|python-opsi)/", "", stat.module)
 				logger.essential(f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}")
 				if stat_num >= 500:
 					break
-			logger.essential("---------------------------------------------------------------------------------------------------------------------------------") # pylint: disable=line-too-long
+			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")  # pylint: disable=line-too-long
 
 		func_stats: Dict[str, YFuncStats] = {
 			stat_name: yappi.get_func_stats(filter={"name": function, "tag": tag})
@@ -720,7 +728,8 @@ class StatisticsMiddleware(BaseHTTPMiddleware): # pylint: disable=abstract-metho
 				)
 				server_timing = contextvar_server_timing.get() or {}
 				server_timing["total"] = 1000 * (time.perf_counter() - start)
-				logger.info("Server-Timing %s %s: %s", scope["method"], scope["path"],
+				logger.info(
+					"Server-Timing %s %s: %s", scope["method"], scope["path"],
 					', '.join([f"{k}={v:.1f}ms" for k, v in server_timing.items()])
 				)
 

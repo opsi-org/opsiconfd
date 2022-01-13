@@ -16,23 +16,24 @@ from OPSI.Types import forceList
 from opsiconfd.logging import logger
 from .utils import State, generate_response, ERRORCODE_PATTERN
 
-def check_plugin_on_client(backend, host_id, command, timeout=30, wait_for_ending=True, capture_stderr=True, statebefore=None, output=None, encoding=None) -> JSONResponse: #  pylint: disable=line-too-long, too-many-arguments, too-many-branches, too-many-locals, too-many-statements
+
+def check_plugin_on_client(backend, host_id, command, timeout=30, wait_for_ending=True, capture_stderr=True, statebefore=None, output=None, encoding=None) -> JSONResponse:  # pylint: disable=line-too-long, too-many-arguments, too-many-branches, too-many-locals, too-many-statements
 
 	state = State.OK
 	message = ""
 	host_id = forceList(host_id)
 
-	try: # pylint: disable=too-many-nested-blocks
+	try:  # pylint: disable=too-many-nested-blocks
 		result = backend.hostControlSafe_reachable(hostIds=host_id)
 		if result.get(host_id[0], False):
 			checkresult = backend.hostControlSafe_execute(
-					command=command,
-					hostIds=host_id,
-					waitForEnding=wait_for_ending,
-					captureStderr=capture_stderr,
-					encoding=encoding,
-					timeout=timeout
-				)
+				command=command,
+				hostIds=host_id,
+				waitForEnding=wait_for_ending,
+				captureStderr=capture_stderr,
+				encoding=encoding,
+				timeout=timeout
+			)
 			checkresult = checkresult.get(host_id[0], None)
 			if checkresult:
 				if checkresult.get("result", None):
@@ -69,7 +70,7 @@ def check_plugin_on_client(backend, host_id, command, timeout=30, wait_for_endin
 			else:
 				message = f"Can't check host '{host_id[0]}' is not reachable."
 				state = State.UNKNOWN
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		state = State.UNKNOWN
 		message = str(err)
 

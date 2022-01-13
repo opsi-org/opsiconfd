@@ -10,8 +10,8 @@ test admininterface
 
 import sys
 import json
-import pytest
 import asyncio
+import pytest
 import aioredis
 import requests
 
@@ -25,6 +25,7 @@ from .utils import (  # pylint: disable=unused-import
 	config, clean_redis, disable_request_warning,
 	ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY
 )
+
 
 async def set_failed_auth_and_blocked(config, ip_address):  # pylint: disable=redefined-outer-name
 	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
@@ -56,7 +57,7 @@ def call_rpc(rpc_request_data: list, expect_error: list, url):
 @pytest.fixture(name="admininterface")
 def fixture_admininterface(monkeypatch):
 	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.application import admininterface # pylint: disable=import-outside-toplevel, redefined-outer-name
+	from opsiconfd.application import admininterface  # pylint: disable=import-outside-toplevel, redefined-outer-name
 	return admininterface
 
 
@@ -127,9 +128,9 @@ async def test_unblock_client(config, admininterface):  # pylint: disable=redefi
 		'headers': headers
 	}
 	test_request = Request(scope=scope)
-	test_request._json = {"client_addr": test_ip} # pylint: disable=protected-access
+	test_request._json = {"client_addr": test_ip}  # pylint: disable=protected-access
 	body = f'{{"client_addr":"{config.external_url}"}}'
-	test_request._body = body.encode() # pylint: disable=protected-access
+	test_request._body = body.encode()  # pylint: disable=protected-access
 
 	response = await admininterface.unblock_client(test_request)
 	response_dict = json.loads(response.body)
@@ -142,7 +143,7 @@ async def test_unblock_client(config, admininterface):  # pylint: disable=redefi
 
 def test_get_rpc_list_request(config):  # pylint: disable=redefined-outer-name,unused-argument
 	for _idx in range(3):
-		call_rpc([{"id": 1, "method": "host_getIdents","params": [None]}], [False], config.external_url)
+		call_rpc([{"id": 1, "method": "host_getIdents", "params": [None]}], [False], config.external_url)
 
 	response = requests.get(f"{config.external_url}/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	assert response.status_code == 200
@@ -154,7 +155,7 @@ def test_get_rpc_list_request(config):  # pylint: disable=redefined-outer-name,u
 
 
 @pytest.mark.asyncio
-async def test_get_blocked_clients_request(config): # pylint: disable=redefined-outer-name,unused-argument
+async def test_get_blocked_clients_request(config):  # pylint: disable=redefined-outer-name,unused-argument
 	addresses = ['10.10.1.1', '192.168.1.2', '2001:4860:4860:0000:0000:0000:0000:8888']
 	for test_ip in addresses:
 		await set_failed_auth_and_blocked(config, test_ip)
@@ -169,7 +170,7 @@ async def test_get_blocked_clients_request(config): # pylint: disable=redefined-
 
 
 @pytest.mark.asyncio
-async def test_get_blocked_clients(admininterface, config): # pylint: disable=redefined-outer-name,unused-argument
+async def test_get_blocked_clients(admininterface, config):  # pylint: disable=redefined-outer-name,unused-argument
 	addresses = ['10.10.1.1', '192.168.1.2', '2001:4860:4860:0000:0000:0000:0000:8888']
 	for test_ip in addresses:
 		await set_failed_auth_and_blocked(config, test_ip)
@@ -178,13 +179,12 @@ async def test_get_blocked_clients(admininterface, config): # pylint: disable=re
 	assert sorted(blocked_clients) == sorted(addresses)
 
 
-get_rpc_list_test_data = [1,3,5]
-@pytest.mark.parametrize("num_rpcs", get_rpc_list_test_data)
+@pytest.mark.parametrize("num_rpcs", [1, 3, 5])
 @pytest.mark.asyncio
-async def test_get_rpc_list(config, admininterface, num_rpcs): # pylint: disable=redefined-outer-name
+async def test_get_rpc_list(config, admininterface, num_rpcs):  # pylint: disable=redefined-outer-name
 
 	for _idx in range(num_rpcs):
-		call_rpc([{"id": 1, "method": "host_getIdents","params": [None]}], [False], config.external_url)
+		call_rpc([{"id": 1, "method": "host_getIdents", "params": [None]}], [False], config.external_url)
 
 	await asyncio.sleep(1)
 
@@ -195,14 +195,13 @@ async def test_get_rpc_list(config, admininterface, num_rpcs): # pylint: disable
 		assert rpc_list[idx].get("params") == 0
 
 
-delete_client_test_data = [
-		({"client_addr": "<local_ip>"}, [200, None, "<local_ip>", 1]),
-		({"client_addr": "192.168.2.1"}, [200, None, "192.168.2.1", 0]),
-		(None, [500, {'detail': "client_addr missing", 'message': 'Error while removing redis client keys'}, None, 1])
-	]
-@pytest.mark.parametrize("rpc_request_data, expected_response", delete_client_test_data)
 @pytest.mark.asyncio
-async def test_delete_client_sessions(config, admininterface, rpc_request_data, expected_response): # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
+@pytest.mark.parametrize("rpc_request_data, expected_response", [
+	({"client_addr": "<local_ip>"}, [200, None, "<local_ip>", 1]),
+	({"client_addr": "192.168.2.1"}, [200, None, "192.168.2.1", 0]),
+	(None, [500, {'detail': "client_addr missing", 'message': 'Error while removing redis client keys'}, None, 1])
+])  # pylint: disable=too-many-locals
+async def test_delete_client_sessions(config, admininterface, rpc_request_data, expected_response):  # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
 	res = requests.get(config.external_url, auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	assert res.status_code == 200
 	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
@@ -228,9 +227,9 @@ async def test_delete_client_sessions(config, admininterface, rpc_request_data, 
 		'headers': headers
 	}
 	test_request = Request(scope=scope)
-	test_request._json = rpc_request_data # pylint: disable=protected-access
+	test_request._json = rpc_request_data  # pylint: disable=protected-access
 	body = f'{rpc_request_data}'
-	test_request._body = body.encode() # pylint: disable=protected-access
+	test_request._body = body.encode()  # pylint: disable=protected-access
 
 	response = await admininterface.delete_client_sessions(test_request)
 

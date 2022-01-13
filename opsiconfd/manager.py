@@ -31,7 +31,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._server = None
 		self._should_stop = False
 		self._server_cert_check_time = time.time()
-		self._server_cert_check_interval = 24*3600
+		self._server_cert_check_interval = 24 * 3600
 		self._redis_check_time = time.time()
 		self._redis_check_interval = 300
 
@@ -51,7 +51,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		if self._server:
 			self._server.reload()
 
-	def signal_handler(self, signum, frame): # pylint: disable=unused-argument
+	def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
 		# <CTRL>+<C> will send SIGINT to the entire process group on linux.
 		# So child processes will receive the SIGINT too.
 		logger.info("Manager process %s received signal %d", self.pid, signum)
@@ -67,7 +67,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self.pid = os.getpid()
 		self._last_reload = time.time()
 		signal.signal(signal.SIGINT, self.signal_handler)  # Unix signal 2. Sent by Ctrl+C. Terminate service.
-		signal.signal(signal.SIGTERM, self.signal_handler) # Unix signal 15. Sent by `kill <pid>`. Terminate service.
+		signal.signal(signal.SIGTERM, self.signal_handler)  # Unix signal 15. Sent by `kill <pid>`. Terminate service.
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 		try:
 			loop_thread = threading.Thread(
@@ -80,7 +80,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			self._server = Server()
 			self._server.run()
 
-		except Exception as exc: # pylint: disable=broad-except
+		except Exception as exc:  # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 
 	def run_loop(self):
@@ -107,7 +107,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 	async def check_redis(self):
 		redis_info = await async_get_redis_info(await async_redis_client())
 		for key_type in redis_info["key_info"]:
-			if redis_info["key_info"][key_type]["memory"] > 100*1000*1000:
+			if redis_info["key_info"][key_type]["memory"] > 100_1000_1000:
 				logger.warning(
 					"High redis memory usage for '%s': %s",
 					key_type, redis_info["key_info"][key_type]

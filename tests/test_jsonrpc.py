@@ -12,9 +12,10 @@ import json
 import requests
 import pytest
 
-from .utils import ( # pylint: disable=unused-import
+from .utils import (  # pylint: disable=unused-import
 	config, clean_redis, database_connection, ADMIN_USER, ADMIN_PASS
 )
+
 
 @pytest.fixture(name="fill_db")
 def fixture_fill_db(database_connection):  # pylint: disable=unused-argument,redefined-outer-name
@@ -72,7 +73,7 @@ def fixture_fill_db(database_connection):  # pylint: disable=unused-argument,red
 	# TODO assert mysql results
 	# TODO insert more Data
 	for data in mysql_data:
-		sql_string = f'INSERT INTO HOST (hostId, type, description, notes,  hardwareAddress, ipAddress, inventoryNumber, created, lastSeen) VALUES (\"{data["hostId"]}\", \"{data["type"]}\", \"{data["description"]}\", \"{data["notes"]}\", \"{data["hardwareAddress"]}\", \"{data["ipAddress"]}\", \"{data["inventoryNumber"]}\", \"{data["created"]}\",  \"{data["lastSeen"]}\");' # pylint: disable=line-too-long
+		sql_string = f'INSERT INTO HOST (hostId, type, description, notes,  hardwareAddress, ipAddress, inventoryNumber, created, lastSeen) VALUES (\"{data["hostId"]}\", \"{data["type"]}\", \"{data["description"]}\", \"{data["notes"]}\", \"{data["hardwareAddress"]}\", \"{data["ipAddress"]}\", \"{data["inventoryNumber"]}\", \"{data["created"]}\",  \"{data["lastSeen"]}\");'  # pylint: disable=line-too-long
 		database_connection.query(sql_string)
 		database_connection.query(f'SELECT * FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
 		database_connection.store_result()
@@ -87,7 +88,7 @@ def fixture_fill_db(database_connection):  # pylint: disable=unused-argument,red
 
 jsonrpc_test_data = [
 	(
-		{"id": 1, "method": "host_getObjects", "params": [["ipAddress","id","notes"], {"ipAddress": "192.168.0.12"}]},
+		{"id": 1, "method": "host_getObjects", "params": [["ipAddress", "id", "notes"], {"ipAddress": "192.168.0.12"}]},
 		{
 			"num_results": 1,
 			"status_code": 200,
@@ -179,8 +180,9 @@ jsonrpc_test_data = [
 
 ]
 
+
 @pytest.mark.parametrize("request_data, expected_result", jsonrpc_test_data)
-def test_process_jsonrpc_request(config, fill_db, request_data, expected_result): # pylint: disable=unused-argument,redefined-outer-name
+def test_process_jsonrpc_request(config, fill_db, request_data, expected_result):  # pylint: disable=unused-argument,redefined-outer-name
 	rpc_request_data = json.dumps(request_data)
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)
@@ -201,7 +203,7 @@ def test_process_jsonrpc_request(config, fill_db, request_data, expected_result)
 		assert error.get("class") == expected_error.get("class")
 
 
-def test_create_opsi_Client(config, database_connection): # pylint: disable=invalid-name,redefined-outer-name
+def test_create_opsi_Client(config, database_connection):  # pylint: disable=invalid-name,redefined-outer-name
 	request_data = {
 		"id": 1,
 		"method": "host_createOpsiClient",
@@ -247,7 +249,7 @@ def test_create_opsi_Client(config, database_connection): # pylint: disable=inva
 	assert result_json.get("error") is None
 
 
-def test_delete_opsi_client(config, fill_db): # pylint: disable=unused-argument,invalid-name,redefined-outer-name
+def test_delete_opsi_client(config, fill_db):  # pylint: disable=unused-argument,invalid-name,redefined-outer-name
 
 	request_data = {
 		"id": 1,
@@ -280,7 +282,6 @@ def test_delete_opsi_client(config, fill_db): # pylint: disable=unused-argument,
 
 	assert result_json.get("error") is None
 	assert result_json.get("result") is None
-
 
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	result_json = json.loads(res.text)

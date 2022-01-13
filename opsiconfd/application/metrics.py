@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 import aioredis
 import aiohttp
 
-from pydantic import BaseModel # pylint: disable=no-name-in-module
+from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
 
@@ -31,8 +31,10 @@ from ..utils import async_redis_client
 
 grafana_metrics_router = APIRouter()
 
+
 def metrics_setup(app):
 	app.include_router(grafana_metrics_router, prefix="/metrics/grafana")
+
 
 async def get_workers():
 	redis = await async_redis_client()
@@ -43,8 +45,10 @@ async def get_workers():
 	workers.sort(key=itemgetter("node_name", "worker_num"))
 	return workers
 
+
 async def get_nodes():
-	return { worker["node_name"] for worker in await get_workers() }
+	return {worker["node_name"] for worker in await get_workers()}
+
 
 async def get_clients(metric_id):
 	redis = await async_redis_client()
@@ -56,10 +60,12 @@ async def get_clients(metric_id):
 	clients.sort(key=itemgetter("client_addr"))
 	return clients
 
+
 @grafana_metrics_router.get('/')
 async def grafana_index():
 	# should return 200 ok. Used for "Test connection" on the datasource config page.
 	return None
+
 
 @grafana_metrics_router.get("/dashboard")
 async def grafana_dashboard(request: Request):  # pylint: disable=unused-argument
@@ -102,7 +108,7 @@ async def grafana_dashboard(request: Request):  # pylint: disable=unused-argumen
 
 
 @grafana_metrics_router.get('/dashboard/config')
-async def grafana_dashboard_config(): #  pylint: disable=too-many-locals
+async def grafana_dashboard_config():  # pylint: disable=too-many-locals
 	workers = await get_workers()
 	nodes = await get_nodes()
 	clients = await get_clients("client:sum_http_request_number")
@@ -119,21 +125,21 @@ async def grafana_dashboard_config(): #  pylint: disable=too-many-locals
 		if metric.subject == "worker":
 			for i, worker in enumerate(workers):
 				panel["targets"].append({
-					"refId": chr(65+i),
+					"refId": chr(65 + i),
 					"target": metric.get_name(node_name=worker["node_name"], worker_num=worker["worker_num"]),
 					"type": "timeserie"
 				})
 		elif metric.subject == "node":
 			for i, node_name in enumerate(nodes):
 				panel["targets"].append({
-					"refId": chr(65+i),
+					"refId": chr(65 + i),
 					"target": metric.get_name(node_name=node_name),
 					"type": "timeserie"
 				})
 		elif metric.subject == "client":
 			for i, client in enumerate(clients):
 				panel["targets"].append({
-					"refId": chr(65+i),
+					"refId": chr(65 + i),
 					"target": metric.get_name(client_addr=client["client_addr"]),
 					"type": "timeserie"
 				})
@@ -145,6 +151,7 @@ async def grafana_dashboard_config(): #  pylint: disable=too-many-locals
 
 	dashboard["panels"] = panels
 	return dashboard
+
 
 @grafana_metrics_router.get('/search')
 @grafana_metrics_router.post('/search')
@@ -168,30 +175,35 @@ async def grafana_search():
 			names.append(metric.get_name())
 	return sorted(names)
 
-class GrafanaQueryTargetRange(BaseModel): #  pylint: disable=too-few-public-methods
+
+class GrafanaQueryTargetRange(BaseModel):  # pylint: disable=too-few-public-methods
 	from_: str
 	to: str
 	raw: dict
-	class Config: #  pylint: disable=too-few-public-methods
+
+	class Config:  # pylint: disable=too-few-public-methods
 		fields = {
 			'from_': 'from'
 		}
 
-class GrafanaQueryTarget(BaseModel): #  pylint: disable=too-few-public-methods
+
+class GrafanaQueryTarget(BaseModel):  # pylint: disable=too-few-public-methods
 	type: str
 	target: str
 	refId: str
 
-class GrafanaQuery(BaseModel): #  pylint: disable=too-few-public-methods
+
+class GrafanaQuery(BaseModel):  # pylint: disable=too-few-public-methods
 	app: str
 	range: GrafanaQueryTargetRange
 	intervalMs: int
 	timezone: str
 	targets: List[GrafanaQueryTarget]
 
+
 @grafana_metrics_router.get('/query')
 @grafana_metrics_router.post('/query')
-async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals,too-many-branches,too-many-statements
+async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	logger.trace("Grafana query: %s", query)
 	results = []
 	redis = await async_redis_client()
@@ -199,7 +211,7 @@ async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals
 		# UTC time values
 		from_time = int((datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
 		to_time = int((datetime.strptime(query.range.to, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
-		time_bucket = int(query.intervalMs/1000)
+		time_bucket = int(query.intervalMs / 1000)
 		if time_bucket <= 0:
 			time_bucket = 1
 		if target.type == "timeserie":
@@ -210,11 +222,11 @@ async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals
 			try:
 				metric = metrics_registry.get_metric_by_name(target.target)
 				metric_vars = metric.get_vars_by_name(target.target)
-			except Exception: #  pylint: disable=broad-except
+			except Exception:  # pylint: disable=broad-except
 				try:
 					metric = metrics_registry.get_metric_by_redis_key(target.target)
 					metric_vars = metric.get_vars_by_redis_key(target.target)
-				except Exception as err: #  pylint: disable=broad-except
+				except Exception as err:  # pylint: disable=broad-except
 					logger.debug(err)
 					continue
 
@@ -223,7 +235,7 @@ async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals
 			redis_key_extension = None
 
 			if metric.downsampling:
-				downsampling = sorted(metric.downsampling, key = lambda x: x[1])
+				downsampling = sorted(metric.downsampling, key=lambda x: x[1])
 				if not (to_time - from_time) <= retention_time:
 					for time_frame in downsampling:
 						if (to_time - from_time) <= time_frame[1]:
@@ -233,13 +245,13 @@ async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals
 							break
 
 				time_min = round(time.time() * 1000) - retention_time
-				if (from_time - time_min + 5000)  < 0:
+				if (from_time - time_min + 5000) < 0:
 					for time_frame in downsampling:
 						redis_key_extension = time_frame[0]
 						retention_time = time_frame[1]
 						time_bucket = get_time_bucket(redis_key_extension)
 						time_min = round(time.time() * 1000) - retention_time
-						if (from_time - time_min + 5000)  >= 0:
+						if (from_time - time_min + 5000) >= 0:
 							break
 					logger.warning("Data out of range. Using next higher time bucket (%s).", redis_key_extension)
 
@@ -255,13 +267,13 @@ async def grafana_query(query: GrafanaQuery): #  pylint: disable=too-many-locals
 
 			def align_timestamp(timestamp):
 				"""Align timestamp to 5 second intervals, needed for stacking in grafana"""
-				return 5000*round(int(timestamp)/5000)
+				return 5000 * round(int(timestamp) / 5000)
 
 			if metric.time_related and metric.aggregation == "sum":
 				# Time series data is stored aggregated in 5 second intervals
-				res["datapoints"] = [ [float(r[1])/5.0, align_timestamp(r[0])] for r in rows ]
+				res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]
 			else:
-				res["datapoints"] = [ [float(r[1]) if b'.' in r[1] else int(r[1]), align_timestamp(r[0])] for r in rows ]
+				res["datapoints"] = [[float(r[1]) if b'.' in r[1] else int(r[1]), align_timestamp(r[0])] for r in rows]
 			logger.trace("Grafana query result: %s", res)
 			results.append(res)
 	return results

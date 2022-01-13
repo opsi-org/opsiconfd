@@ -21,8 +21,10 @@ from ..utils import async_get_redis_info, async_redis_client
 from ..ssl import get_ca_info, get_cert_info
 status_router = APIRouter()
 
+
 def status_setup(app):
 	app.include_router(status_router, prefix="/status")
+
 
 @status_router.get("/")
 async def status_overview() -> PlainTextResponse:

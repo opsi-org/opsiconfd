@@ -59,6 +59,8 @@ ACCESS_ROLE_ADMIN = "admin"
 
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
+
+
 def get_basic_auth(headers: Headers):
 	auth_header = headers.get("authorization")
 	if not auth_header:
@@ -75,7 +77,7 @@ def get_basic_auth(headers: Headers):
 			headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 		)
 
-	encoded_auth = auth_header[6:] # Stripping "Basic "
+	encoded_auth = auth_header[6:]  # Stripping "Basic "
 	secret_filter.add_secrets(encoded_auth)
 	auth = base64.decodebytes(encoded_auth.encode("ascii")).decode("utf-8")
 
@@ -101,14 +103,14 @@ class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
 		self.session_cookie_name = 'opsiconfd-session'
-		#self.security_flags = "httponly; samesite=lax; secure"
+		# self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
 		self._public_path = public_path or []
 		# Store ip addresses of depots with last access time
 		self._depot_addresses = {}
 
 	def get_session_id_from_headers(self, headers: Headers) -> str:
-		#connection.cookies.get(self.session_cookie_name, None)
+		# connection.cookies.get(self.session_cookie_name, None)
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
 		# Workaround:
@@ -236,7 +238,6 @@ class SessionMiddleware:
 
 		await self.app(scope, receive, send_wrapper)
 
-
 	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,no-self-use
 		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err, exc_info=True)
 		scope = connection.scope
@@ -280,8 +281,8 @@ class SessionMiddleware:
 			error = str(err)
 
 		elif isinstance(err, HTTPException):
-			status_code = err.status_code # pylint: disable=no-member
-			headers = err.headers # pylint: disable=no-member
+			status_code = err.status_code  # pylint: disable=no-member
+			headers = err.headers  # pylint: disable=no-member
 			error = err.detail
 
 		else:
@@ -324,16 +325,16 @@ class SessionMiddleware:
 			)
 		await response(scope, receive, send)
 
-	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 		try:
 			connection = HTTPConnection(scope)
 			set_context({"client_address": connection.client.host})
 			await self.handle_request(connection, receive, send)
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			await self.handle_request_exception(err, connection, receive, send)
 
 
-class OPSISession(): # pylint: disable=too-many-instance-attributes
+class OPSISession():  # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
 	def __init__(
@@ -407,9 +408,9 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 			with redis_client() as redis:
 				for key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
 					redis_session_keys.append(key.decode("utf8"))
-			#redis = await async_redis_client()
-			#async for key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
-			#	redis_session_keys.append(key.decode("utf8"))
+			# redis = await async_redis_client()
+			# async for key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
+			#   redis_session_keys.append(key.decode("utf8"))
 			if self._max_session_per_ip > 0 and len(redis_session_keys) + 1 > self._max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {self._max_session_per_ip}"
 				logger.warning(error)
@@ -472,13 +473,13 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 		if "password" in data["user_store"]:
 			del data["user_store"]["password"]
 		with redis_client() as redis:
-			#start = time.perf_counter()
+			# start = time.perf_counter()
 			redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
-			#ms = (time.perf_counter() - start) * 1000
-			#if ms > 100:
-			#	logger.warning("Session storing to redis took %0.2fms", ms)
-		#redis = await async_redis_client()
-		#await redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
+			# ms = (time.perf_counter() - start) * 1000
+			# if ms > 100:
+			#   logger.warning("Session storing to redis took %0.2fms", ms)
+		# redis = await async_redis_client()
+		# await redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
 
 	async def store(self) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now
@@ -533,7 +534,7 @@ class OPSISession(): # pylint: disable=too-many-instance-attributes
 
 
 def update_host_object(connection: HTTPConnection, session: OPSISession) -> None:
-	hosts = get_client_backend().host_getObjects(['ipAddress', 'lastSeen'], id=session.user_store.host.id) # pylint: disable=no-member
+	hosts = get_client_backend().host_getObjects(['ipAddress', 'lastSeen'], id=session.user_store.host.id)  # pylint: disable=no-member
 	if not hosts:
 		logger.error("Host %s not found in backend while trying to update ip address and lastseen", session.user_store.host.id)
 		return
@@ -546,10 +547,10 @@ def update_host_object(connection: HTTPConnection, session: OPSISession) -> None
 	else:
 		# Value None on update means no change!
 		host.ipAddress = None
-	get_client_backend().host_updateObjects(host) # pylint: disable=no-member
+	get_client_backend().host_updateObjects(host)  # pylint: disable=no-member
 
 
-async def authenticate(connection: HTTPConnection, receive: Receive) -> None: # pylint: disable=unused-argument
+async def authenticate(connection: HTTPConnection, receive: Receive) -> None:  # pylint: disable=unused-argument
 	logger.info("Start authentication of client %s", connection.client.host)
 	session = connection.scope["session"]
 	username = None
@@ -582,7 +583,7 @@ async def check_blocked(connection: HTTPConnection) -> None:
 		logger.info("Client '%s' is blocked", connection.client.host)
 		raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
 
-	now = round(time.time())*1000
+	now = round(time.time()) * 1000
 	cmd = (
 		f"ts.range opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
 		f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
@@ -590,7 +591,7 @@ async def check_blocked(connection: HTTPConnection) -> None:
 	logger.debug(cmd)
 	try:
 		num_failed_auth = await redis.execute_command(cmd)
-		num_failed_auth =  int(num_failed_auth[-1][1])
+		num_failed_auth = int(num_failed_auth[-1][1])
 		logger.debug("num_failed_auth: %s", num_failed_auth)
 	except aioredis.ResponseError as err:
 		num_failed_auth = 0
@@ -598,7 +599,7 @@ async def check_blocked(connection: HTTPConnection) -> None:
 			raise
 	if num_failed_auth >= config.max_auth_failures:
 		is_blocked = True
-		logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time/60))
+		logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time / 60))
 		await redis.setex(
 			f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}",
 			config.client_block_time,
@@ -643,7 +644,8 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 					break
 
 			if not is_admin_network:
-				logger.warning("User '%s' from '%s' not in admin network '%s'",
+				logger.warning(
+					"User '%s' from '%s' not in admin network '%s'",
 					session.user_store.username,
 					connection.client.host,
 					config.admin_networks

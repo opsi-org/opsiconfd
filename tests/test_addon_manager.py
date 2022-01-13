@@ -18,6 +18,7 @@ from opsiconfd.addon import AddonManager
 
 from .utils import config, clean_redis  # pylint: disable=unused-import
 
+
 @pytest.fixture(autouse=True)
 def cleanup():
 	def _cleanup():
@@ -70,6 +71,7 @@ def test_unload_addon(config):  # pylint: disable=redefined-outer-name
 	assert os.path.exists(marker_file)
 	os.remove(marker_file)
 
+
 def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
 	addon_dir = os.path.join(tmpdir, "test1")
 	shutil.copytree(os.path.abspath("tests/data/addons/test1"), addon_dir)
@@ -104,12 +106,14 @@ def test_addon_static_dir(config):  # pylint: disable=redefined-outer-name
 	res = requests.get(f"{config.internal_url}/addons/test1/static/index.html", verify=False)
 	assert res.status_code == 200
 
+
 def test_addon_public_path(config):  # pylint: disable=redefined-outer-name
 	res = requests.get(f"{config.internal_url}/addons/test1", verify=False)
 	assert res.status_code == 401
 
 	res = requests.get(f"{config.internal_url}/addons/test1/public", verify=False)
 	assert res.status_code == 200
+
 
 def test_addon_auth(config):  # pylint: disable=redefined-outer-name
 	session = requests.Session()
@@ -127,6 +131,7 @@ def test_addon_auth(config):  # pylint: disable=redefined-outer-name
 
 	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
 	assert res.status_code == 401
+
 
 def test_addon_exception_handling(config):  # pylint: disable=redefined-outer-name
 	res = requests.get(f"{config.internal_url}/addons/test1", verify=False)

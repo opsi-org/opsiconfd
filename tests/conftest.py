@@ -14,8 +14,11 @@ from opsiconfd.backend import BackendManager
 
 urllib3.disable_warnings()
 
+
 def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
 	pass
+
+
 LogCaptureHandler.emit = emit
 
 
@@ -23,6 +26,7 @@ BackendManager.default_config = {
 	"backendConfigDir": "tests/opsi-config/backends",
 	"dispatchConfigFile": "tests/opsi-config/backendManager/dispatch.conf"
 }
+
 
 @pytest.fixture(scope='session')
 def event_loop():

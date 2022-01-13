@@ -16,6 +16,7 @@ from .utils import (  # pylint: disable=unused-import
 	config, clean_redis, ADMIN_USER, ADMIN_PASS
 )
 
+
 def test_log_hard_limit(config):  # pylint: disable=redefined-outer-name,unused-argument
 	session = requests.Session()
 	session.auth = (ADMIN_USER, ADMIN_PASS)

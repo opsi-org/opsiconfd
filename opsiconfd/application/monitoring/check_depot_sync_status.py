@@ -14,12 +14,13 @@ from fastapi.responses import JSONResponse
 
 from .utils import State, generate_response
 
-def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], strict=False, verbose=False) -> JSONResponse: # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+
+def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], strict=False, verbose=False) -> JSONResponse:  # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
 	if not depot_ids or 'all' in depot_ids:
 		depots = backend.host_getObjects(type="OpsiDepotserver")
 		depot_ids = [depot.id for depot in depots]
 
-	product_on_depots = backend._executeMethod(methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids) # pylint: disable=protected-access
+	product_on_depots = backend._executeMethod(methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids)  # pylint: disable=protected-access
 	product_ids = set()
 	product_on_depot_info = defaultdict(dict)
 	for pod in product_on_depots:
@@ -56,7 +57,7 @@ def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], stri
 
 	state = State.OK
 	message = ""
-	if difference_products: # pylint: disable=too-many-nested-blocks
+	if difference_products:  # pylint: disable=too-many-nested-blocks
 		state = State.WARNING
 		message += f"Differences found for {len(difference_products)} products"
 
@@ -68,7 +69,7 @@ def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], stri
 					product_version = None
 					package_version = None
 					try:
-						if difference_products.get(product_id,{}).get(depot_id) == "not installed":
+						if difference_products.get(product_id, {}).get(depot_id) == "not installed":
 							message += f"{depot_id} (not installed) \n"
 						else:
 							product_version = product_on_depot_info[depot_id][product_id].productVersion

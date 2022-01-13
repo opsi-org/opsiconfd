@@ -11,7 +11,9 @@ addon test1 - rest
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+
 api_router = APIRouter()
+
 
 @api_router.get("/{any:path}")
 def route_get():

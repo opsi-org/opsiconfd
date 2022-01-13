@@ -46,13 +46,13 @@ async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str =
 		buf = bytearray()
 		for dat in data[b_channel]:
 			last_id = dat[0]
-			buf += dat[1] #[b"record"]
+			buf += dat[1]  # [b"record"]
 		return (last_id, buf)
 
 	redis = await async_redis_client()
 	while True:
 		try:
-			#redis = await async_redis_client()
+			# redis = await async_redis_client()
 			# It is also possible to specify multiple streams
 			data = await redis.xread(streams={channel: last_id}, block=1000, count=10)
 			if not data:
@@ -64,6 +64,7 @@ async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str =
 				logger.error(err, exc_info=True)
 			break
 
+
 async def mq_websocket_reader(websocket: WebSocket):
 	try:
 		await websocket.receive_bytes()
@@ -71,10 +72,10 @@ async def mq_websocket_reader(websocket: WebSocket):
 		logger.error(err, exc_info=True)
 
 
-
 @messagebroker_router.get("/")
 async def messagebroker_index():
 	return HTMLResponse("<h1>messagebroker</h1>")
+
 
 @messagebroker_router.websocket("")
 async def mq_websocket_endpoint(

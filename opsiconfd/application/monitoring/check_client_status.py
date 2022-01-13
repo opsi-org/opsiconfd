@@ -16,13 +16,14 @@ from OPSI.Types import forceProductIdList
 
 from .utils import State, generate_response
 
-def check_client_status(backend, client_id, exclude_product_list=None) -> JSONResponse: # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+
+def check_client_status(backend, client_id, exclude_product_list=None) -> JSONResponse:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 	state = State.OK
 
 	if not client_id:
 		raise Exception("Failed to check: ClientId is needed for checkClientStatus")
 
-	client_obj = backend._executeMethod("host_getObjects", id=client_id) # pylint: disable=protected-access
+	client_obj = backend._executeMethod("host_getObjects", id=client_id)  # pylint: disable=protected-access
 
 	if not client_obj:
 		state = State.UNKNOWN
@@ -52,17 +53,17 @@ def check_client_status(backend, client_id, exclude_product_list=None) -> JSONRe
 
 		if delta.days >= 30:
 			state = State.WARNING
-			message += f"opsi-client {client_id} has not been seen, since {delta.days} days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. " # pylint: disable=line-too-long
+			message += f"opsi-client {client_id} has not been seen, since {delta.days} days. Please check opsi-client-agent installation on client or perhaps a client that can be deleted. "  # pylint: disable=line-too-long
 		elif delta.days == 0:
 			message += f"opsi-client {client_id} has been seen today. "
 		else:
 			message += f"opsi-client {client_id} has been seen {delta.days} days before. "
 
-	failed_products = backend._executeMethod( # pylint: disable=protected-access
-			methodName="productOnClient_getObjects",
-			clientId=client_id,
-			actionResult='failed'
-		)
+	failed_products = backend._executeMethod(  # pylint: disable=protected-access
+		methodName="productOnClient_getObjects",
+		clientId=client_id,
+		actionResult='failed'
+	)
 
 	if exclude_product_list:
 		products_to_exclude = set(forceProductIdList(exclude_product_list))
@@ -76,14 +77,14 @@ def check_client_status(backend, client_id, exclude_product_list=None) -> JSONRe
 
 	if failed_products:
 		state = State.CRITICAL
-		products =  [product.productId for product in failed_products]
+		products = [product.productId for product in failed_products]
 		message += f"Products: '{', '.join(products)}' are in failed state. "
 
-	action_products = backend._executeMethod( # pylint: disable=protected-access
-			methodName="productOnClient_getObjects",
-			clientId=client_id,
-			actionRequest=['setup', 'update', 'uninstall']
-		)
+	action_products = backend._executeMethod(  # pylint: disable=protected-access
+		methodName="productOnClient_getObjects",
+		clientId=client_id,
+		actionRequest=['setup', 'update', 'uninstall']
+	)
 
 	action_products = [
 		product for product in action_products
@@ -98,4 +99,4 @@ def check_client_status(backend, client_id, exclude_product_list=None) -> JSONRe
 	if state == State.OK:
 		message += "No failed products and no actions set for client"
 
-	return  generate_response(state, message)
+	return generate_response(state, message)

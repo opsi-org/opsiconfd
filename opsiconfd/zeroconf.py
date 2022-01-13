@@ -20,8 +20,10 @@ from .config import config, FQDN
 from .utils import get_ip_addresses
 from .backend import get_backend
 
+
 _zeroconf = None  # pylint: disable=invalid-name
 _info = None  # pylint: disable=invalid-name
+
 
 def _is_config_server():
 	try:
@@ -37,14 +39,15 @@ def _is_config_server():
 		logger.warning(err)
 	return False
 
-async def register_opsi_services(): # pylint: disable=too-many-branches
-	global _zeroconf, _info # pylint: disable=invalid-name,global-statement
+
+async def register_opsi_services():  # pylint: disable=too-many-branches
+	global _zeroconf, _info  # pylint: disable=invalid-name,global-statement
 	if not _is_config_server():
 		return
 
 	logger.info("Register zeroconf service")
 
-	if not _zeroconf: # pylint: disable=too-many-nested-blocks
+	if not _zeroconf:  # pylint: disable=too-many-nested-blocks
 		iface = None
 		if str(config.interface) not in ("0.0.0.0", "::"):
 			if_address = ipaddress.ip_address(config.interface)
@@ -105,8 +108,9 @@ async def register_opsi_services(): # pylint: disable=too-many-branches
 	)
 	await _zeroconf.register_service(_info)
 
+
 async def unregister_opsi_services():
-	global _zeroconf, _info # pylint: disable=invalid-name,global-statement,global-variable-not-assigned
+	global _zeroconf, _info  # pylint: disable=invalid-name,global-statement,global-variable-not-assigned
 	if not _zeroconf or not _info:
 		return
 	logger.notice("Unregister zeroconf service")

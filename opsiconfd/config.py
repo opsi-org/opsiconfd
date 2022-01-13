@@ -37,9 +37,9 @@ CONFIG_FILE_HEADER = """
 """
 DEPRECATED = ["monitoring-debug"]
 CA_DAYS = 360
-CA_RENEW_DAYS = 300 # If only CA_RENEW_DAYS days left, The CA will be renewed
+CA_RENEW_DAYS = 300  # If only CA_RENEW_DAYS days left, The CA will be renewed
 CERT_DAYS = 90
-CERT_RENEW_DAYS = 30 # If only CERT_RENEW_DAYS days left, a new cert will be created
+CERT_RENEW_DAYS = 30  # If only CERT_RENEW_DAYS days left, a new cert will be created
 CLIENT_CERT_DAYS = 360
 
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
@@ -53,11 +53,12 @@ VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 
 if running_in_docker():
 	try:
-		ip = socket.gethostbyname(socket.getfqdn()) # pylint: disable=invalid-name
+		ip = socket.gethostbyname(socket.getfqdn())  # pylint: disable=invalid-name
 		rev = reversename.from_address(ip)
 		DEFAULT_NODE_NAME = str(resolver.resolve(rev, "PTR")[0]).split('.', 1)[0].replace("docker_", "")
-	except resolver.NXDOMAIN as exc:
+	except resolver.NXDOMAIN:
 		pass
+
 
 def upgrade_config_files():
 	defaults = {}
@@ -97,7 +98,7 @@ def upgrade_config_files():
 				if match:
 					opt = match.group(1).strip().lower()
 					val = match.group(2).strip()
-					if not opt in mapping:
+					if opt not in mapping:
 						continue
 					if val.lower() in ("yes", "no", "true", "false"):
 						val = val.lower() in ("yes", "true")
@@ -111,8 +112,9 @@ def upgrade_config_files():
 					file.write(f"{mapping[opt]} = {val}\n")
 			file.write("\n")
 
+
 def update_config_files():
-	for config_file in parser._open_config_files(sys.argv[1:]): # pylint: disable=protected-access
+	for config_file in parser._open_config_files(sys.argv[1:]):  # pylint: disable=protected-access
 		data = config_file.read()
 		config_file.close()
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=")
@@ -129,7 +131,7 @@ def update_config_files():
 				file.write(new_data)
 
 
-def set_config_in_config_file(arg: str, value: Union[str,int,float]):
+def set_config_in_config_file(arg: str, value: Union[str, int, float]):
 	arg = arg.lstrip("-").replace("_", "-")
 	config_file = parser._open_config_files(sys.argv[1:])[0]  # pylint: disable=protected-access
 	data = config_file.read()
@@ -155,6 +157,7 @@ def set_config_in_config_file(arg: str, value: Union[str,int,float]):
 
 	config.reload()
 
+
 def network_address(value):
 	try:
 		ipaddress.ip_network(value)
@@ -162,21 +165,25 @@ def network_address(value):
 		raise ArgumentTypeError(f"Invalid network address: {value}") from err
 	return value
 
+
 def ip_address(value):
 	try:
 		return ipaddress.ip_address(value).compressed
 	except ValueError as err:
 		raise ArgumentTypeError(f"Invalid ip address: {value}") from err
 
+
 def str2bool(value):
 	if isinstance(value, bool):
 		return value
 	return str(value).lower() in ('yes', 'true', 'y', '1')
 
+
 def expert_help(help):  # pylint: disable=redefined-builtin
 	if "--ex-help" in sys.argv:
 		return help
 	return SUPPRESS
+
 
 class OpsiconfdHelpFormatter(HelpFormatter):
 	CN = ''
@@ -230,6 +237,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 				if action.option_strings or action.nargs in defaulting_nargs:
 					text += " (default: %(default)s)"
 		return text
+
 
 parser = configargparse.ArgParser(
 	formatter_class=lambda prog: OpsiconfdHelpFormatter(
@@ -443,13 +451,6 @@ parser.add(
 		'Example: --log-filter="client_address=192.168.20.101"'
 	)
 )
-#parser.add(
-#	"--max-execution-statistics",
-#	env_var="OPSICONFD_MAX_EXECUTION_STATISTICS",
-#	type=int,
-#	default=250,
-#	help="Maximum number of execution statistics to store."
-#)
 parser.add(
 	"--monitoring-user",
 	env_var="OPSICONFD_MONITORING_USER",
@@ -755,6 +756,7 @@ else:
 		help="The ACTION to perform (start / force-stop / stop / status / restart / reload / setup / log-viewer)."
 	)
 
+
 class Config(metaclass=Singleton):
 	def __init__(self):
 		self._config = None
@@ -814,5 +816,6 @@ class Config(metaclass=Singleton):
 
 	def items(self):
 		return self._config.__dict__
+
 
 config = Config()

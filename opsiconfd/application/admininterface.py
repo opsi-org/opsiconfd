@@ -89,10 +89,12 @@ async def logout(request: Request):
 		raise BackendPermissionDeniedError("Session deleted")
 	return JSONResponse({"status": 200, "error": None, "data": "session deleted"})
 
+
 @admin_interface_router.post("/reload")
 async def reload():
 	os.kill(get_manager_pid(), signal.SIGHUP)
 	return JSONResponse({"status": 200, "error": None, "data": "reload sent"})
+
 
 @admin_interface_router.post("/unblock-all")
 async def unblock_all_clients(response: Response):
@@ -116,11 +118,10 @@ async def unblock_all_clients(response: Response):
 					await pipe.delete(key)
 			await pipe.execute()
 		response = JSONResponse({"status": 200, "error": None, "data": {"clients": list(clients), "redis-keys": list(deleted_keys)}})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}})
 	return response
-
 
 
 @admin_interface_router.post("/unblock-client")
@@ -141,9 +142,9 @@ async def unblock_client(request: Request):
 			deleted_keys.append(f"opsiconfd:stats:client:blocked:{client_addr_redis}")
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "redis-keys": deleted_keys}})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}})
 	return response
 
 
@@ -167,9 +168,9 @@ async def delete_client_sessions(request: Request):
 				await pipe.execute()
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while removing redis client keys", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}})
 	return response
 
 
@@ -241,8 +242,8 @@ async def get_rpc_list() -> list:
 			"method": value.get("method"),
 			"params": value.get("num_params"),
 			"results": value.get("num_results"),
-			"date": value.get("date", datetime.date(2020,1,1).strftime('%Y-%m-%dT%H:%M:%SZ')),
-			"client": value.get("client",  "0.0.0.0"),
+			"date": value.get("date", datetime.date(2020, 1, 1).strftime('%Y-%m-%dT%H:%M:%SZ')),
+			"client": value.get("client", "0.0.0.0"),
 			"error": value.get("error"),
 			"duration": value.get("duration")
 		}
@@ -283,38 +284,42 @@ async def get_session_list() -> list:
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))
 	return session_list
 
+
 @admin_interface_router.get("/locked-products-list")
 async def get_locked_products_list() -> list:
 	backend = get_backend()
-	products = backend.getProductLocks_hash() # pylint: disable=no-member
+	products = backend.getProductLocks_hash()  # pylint: disable=no-member
 	return products
+
 
 @admin_interface_router.post("/products/{product}/unlock")
 def unlock_product(product):
 	backend = get_backend()
 	try:
-		backend.unlockProduct(product) # pylint: disable=no-member
+		backend.unlockProduct(product)  # pylint: disable=no-member
 		response = JSONResponse({"status": 200, "error": None, "data": {"product": product, "action": "unlock"}})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while unlocking product", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while unlocking product", "detail": str(err)}})
 	return response
+
 
 @admin_interface_router.post("/products/unlock")
 def unlock_all_product():
 	backend = get_backend()
 	products = []
-	for pod in backend.productOnDepot_getObjects(depotId=[], locked=True): # pylint: disable=no-member
+	for pod in backend.productOnDepot_getObjects(depotId=[], locked=True):  # pylint: disable=no-member
 		if pod.productId not in products:
 			products.append(pod.productId)
 	try:
 		for product in products:
-			backend.unlockProduct(product) # pylint: disable=no-member
+			backend.unlockProduct(product)  # pylint: disable=no-member
 		response = JSONResponse({"status": 200, "error": None, "data": None})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while unlocking products", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while unlocking products", "detail": str(err)}})
 	return response
+
 
 @admin_interface_router.get("/blocked-clients")
 async def get_blocked_clients() -> list:
@@ -360,10 +365,10 @@ def open_grafana(request: Request):
 		logger.debug("Create new user opsidashboard")
 
 		data = {
-			"name":"opsidashboard",
-			"email":"opsidashboard@admin",
-			"login":"opsidashboard",
-			"password":password,
+			"name": "opsidashboard",
+			"email": "opsidashboard@admin",
+			"login": "opsidashboard",
+			"password": password,
 			"OrgId": 1
 		}
 		response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/api/admin/users", headers=headers, auth=auth, data=data)
@@ -391,10 +396,11 @@ def open_grafana(request: Request):
 		redirect_response.set_cookie(key="grafana_session", value=session.cookies.get_dict().get("grafana_session"))
 	return redirect_response
 
-@admin_interface_router.get("/config")
-def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefined-builtin
 
-	KEYS_TO_REMOVE = [ # pylint: disable=invalid-name
+@admin_interface_router.get("/config")
+def get_confd_conf(all: bool = False) -> JSONResponse:  # pylint: disable=redefined-builtin
+
+	KEYS_TO_REMOVE = [  # pylint: disable=invalid-name
 		"version",
 		"setup",
 		"action",
@@ -415,12 +421,13 @@ def get_confd_conf(all: bool = False) -> JSONResponse: # pylint: disable=redefin
 		for key in KEYS_TO_REMOVE:
 			if key in current_config:
 				del current_config[key]
-	current_config = { key.replace("_","-"):value for key, value in sorted(current_config.items()) }
+	current_config = {key.replace("_", "-"): value for key, value in sorted(current_config.items())}
 
 	return JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
 
+
 @admin_interface_router.get("/routes")
-def get_routes(request: Request) -> JSONResponse: # pylint: disable=redefined-builtin
+def get_routes(request: Request) -> JSONResponse:  # pylint: disable=redefined-builtin
 	app = request.app
 	routes = {}
 	for route in app.routes:
@@ -438,9 +445,11 @@ def get_routes(request: Request) -> JSONResponse: # pylint: disable=redefined-bu
 		"status": 200, "error": None, "data": collections.OrderedDict(sorted(routes.items()))
 	})
 
+
 def get_num_servers(backend):
 	servers = len(backend.host_getIdents(type="OpsiDepotserver"))
 	return servers
+
 
 def get_num_clients(backend):
 	clients = len(backend.host_getIdents(type="OpsiClient"))

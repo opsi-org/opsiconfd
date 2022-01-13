@@ -53,12 +53,14 @@ from .messagebroker import messagebroker_setup
 
 
 app = FastAPI(
-	title = "opsiconfd",
-	description = "",
-	version = f"{__version__} [python-opsi={python_opsi_version}]",
-	responses={422: {'model': RestApiValidationError, 'description': 'Validation Error'
-		}}
+	title="opsiconfd",
+	description="",
+	version=f"{__version__} [python-opsi={python_opsi_version}]",
+	responses={
+		422: {'model': RestApiValidationError, 'description': 'Validation Error'}
+	}
 )
+
 
 @app.websocket_route("/ws/log_viewer")
 class LoggerWebsocket(WebSocketEndpoint):
@@ -74,7 +76,7 @@ class LoggerWebsocket(WebSocketEndpoint):
 			for stream in data:
 				for dat in stream[1]:
 					last_id = dat[0]
-					if client and client !=	dat[1].get("client", b'').decode("utf-8"):
+					if client and client != dat[1].get("client", b'').decode("utf-8"):
 						continue
 					buf += dat[1][b"record"]
 			return (last_id, buf)
@@ -103,7 +105,7 @@ class LoggerWebsocket(WebSocketEndpoint):
 		self._websocket = websocket  # pylint: disable=attribute-defined-outside-init
 		params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
 		client = params.get("client", [None])[0]
-		start_id = int(params.get("start_time", [0])[0]) * 1000 # Seconds to millis
+		start_id = int(params.get("start_time", [0])[0]) * 1000  # Seconds to millis
 		if start_id <= 0:
 			start_id = "$"
 		await self._websocket.accept()
@@ -111,6 +113,7 @@ class LoggerWebsocket(WebSocketEndpoint):
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		pass
+
 
 @app.websocket_route("/test/ws")
 class TestWebsocket(WebSocketEndpoint):
@@ -122,8 +125,8 @@ class TestWebsocket(WebSocketEndpoint):
 			logger.warning("Access to %s denied for user '%s'", self, session.user_store.username)
 			await websocket.close(code=4403)
 			return
-		#params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
-		#client = params.get("client", [None])[0]
+		# params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
+		# client = params.get("client", [None])[0]
 		await websocket.accept()
 		while True:
 			current_time = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -134,6 +137,7 @@ class TestWebsocket(WebSocketEndpoint):
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		pass
+
 
 @app.get("/test/random-data")
 async def get_test_random(request: Request):  # pylint: disable=unused-argument
@@ -147,9 +151,11 @@ async def get_test_random(request: Request):  # pylint: disable=unused-argument
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument
 	return RedirectResponse("/admin", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
+
 @app.get("/favicon.ico")
 async def favicon(request: Request, response: Response):  # pylint: disable=unused-argument
 	return RedirectResponse("/static/favicon.ico", status_code=status.HTTP_301_MOVED_PERMANENTLY)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -164,9 +170,6 @@ async def startup_event():
 		await asyncio.sleep(1)
 		raise error
 
-#@app.on_event("shutdown")
-#async def shutdown_event():
-#	app.is_shutting_down = True
 
 @app.get("/ssl/opsi-ca-cert.pem")
 def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument
@@ -204,11 +207,11 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 			proxy_host = normalize_ip_address(client_host)
 			# from uvicorn/middleware/proxy_headers.py
 			headers = dict(scope["headers"])
-			#if b"x-forwarded-proto" in headers:
-			#	# Determine if the incoming request was http or https based on
-			#	# the X-Forwarded-Proto header.
-			#	x_forwarded_proto = headers[b"x-forwarded-proto"].decode("ascii")
-			#	scope["scheme"] = x_forwarded_proto.strip()
+			# if b"x-forwarded-proto" in headers:
+			# # Determine if the incoming request was http or https based on
+			# # the X-Forwarded-Proto header.
+			# x_forwarded_proto = headers[b"x-forwarded-proto"].decode("ascii")
+			# scope["scheme"] = x_forwarded_proto.strip()
 
 			if b"x-forwarded-for" in headers:
 				# Determine the client address from the last trusted IP in the
@@ -238,7 +241,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 					origin = urlparse(headers[b"origin"].decode())
 					origin_scheme = origin.scheme
 					origin_port = int(origin.port)
-				except:  # pylint: disable=bare-except
+				except Exception:  # pylint: disable=broad-except
 					pass
 				headers = MutableHeaders(scope=message)
 				headers.append("Access-Control-Allow-Origin", f"{origin_scheme}://{host}:{origin_port}")
@@ -258,13 +261,14 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 @rest_api
 def validation_exception_handler(request, exc):
 	raise OpsiApiException(
-		message = f"Validation error: {exc}",
-		http_status = status.HTTP_422_UNPROCESSABLE_ENTITY,
+		message=f"Validation error: {exc}",
+		http_status=status.HTTP_422_UNPROCESSABLE_ENTITY,
 		error=exc
 	)
 
+
 def application_setup():
-	FileResponse.chunk_size = 32*1024 # speeds up transfer of big files massively, original value is 4*1024
+	FileResponse.chunk_size = 32 * 1024  # Speeds up transfer of big files massively, original value is 4*1024
 
 	# Every Starlette application automatically includes two pieces of middleware by default:
 	#    ServerErrorMiddleware: Ensures that application exceptions may return a custom 500 page,
@@ -285,7 +289,7 @@ def application_setup():
 	app.add_middleware(SessionMiddleware, public_path=[
 		"/metrics/grafana", "/ws/test", "/ssl/opsi-ca-cert.pem", "/status", "/public"
 	])
-	#app.add_middleware(GZipMiddleware, minimum_size=1000)
+	# app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	app.add_middleware(BaseMiddleware)
 	if os.path.isdir(config.static_dir):

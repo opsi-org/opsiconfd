@@ -45,7 +45,7 @@ async def redis_command(request: Request, response: Response):
 		trace_back = traceback.format_exc()
 		error = {"message": str(err), "class": err.__class__.__name__}
 		error["details"] = str(trace_back)
-		response = JSONResponse({"status": 500, "error": error, "data": {"result": None} })
+		response = JSONResponse({"status": 500, "error": error, "data": {"result": None}})
 	return response
 
 
@@ -55,9 +55,9 @@ async def get_redis_stats():  # pylint: disable=too-many-locals
 	try:
 		redis_info = await async_get_redis_info(redis)
 		response = JSONResponse({"status": 200, "error": None, "data": redis_info})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
 	return response
 
 
@@ -66,9 +66,9 @@ def get_depot_cache():
 	try:
 		depots = _get_depots()
 		response = JSONResponse({"status": 200, "error": None, "data": {"depots": list(depots)}})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
 	return response
 
 
@@ -90,13 +90,13 @@ def get_products(depot: str = None):
 		else:
 			with redis_client() as redis:
 				depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
-				for depot in depots: # pylint: disable=redefined-argument-from-local
+				for depot in depots:  # pylint: disable=redefined-argument-from-local
 					products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{depot}:products", 0, -1))
 					data.append({depot: products})
 		response = JSONResponse({"status": 200, "error": None, "data": data})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
 	return response
 
 
@@ -118,7 +118,7 @@ async def clear_product_cache(request: Request, response: Response):
 					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
 				data = pipe.execute()
 		response = JSONResponse({"status": 200, "error": None, "data": data})
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse({"status": 500, "error": { "message": "Error while reading redis data", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
 	return response

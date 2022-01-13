@@ -39,11 +39,11 @@ async def test_delete_product(config, database_connection):  # pylint: disable=r
 
 	test_products_sorted = read_sorted_products()
 
-	thread_one = threading.Thread(name="1", target=delete_product, args=({"id": "dummy-prod-1039", "product_version": "1.0", "package_version": "1"},config.internal_url)) # pylint: disable=line-too-long
-	thread_two = threading.Thread(name="2", target=delete_product, args=({"id": "dummy-prod-1119", "product_version": "1.0", "package_version": "1"},config.internal_url)) # pylint: disable=line-too-long
-	thread_three = threading.Thread(name="3", target=delete_product, args=({"id": "dummy-prod-1199", "product_version": "1.0", "package_version": "1"},config.internal_url)) # pylint: disable=line-too-long
-	thread_four = threading.Thread(name="4", target=delete_product, args=({"id": "dummy-prod-2559", "product_version": "1.0", "package_version": "1"},config.internal_url)) # pylint: disable=line-too-long
-	thread_five = threading.Thread(name="5", target=delete_product, args=({"id": "dummy-prod-1359", "product_version": "1.0", "package_version": "1"},config.internal_url)) # pylint: disable=line-too-long
+	thread_one = threading.Thread(name="1", target=delete_product, args=({"id": "dummy-prod-1039", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
+	thread_two = threading.Thread(name="2", target=delete_product, args=({"id": "dummy-prod-1119", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
+	thread_three = threading.Thread(name="3", target=delete_product, args=({"id": "dummy-prod-1199", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
+	thread_four = threading.Thread(name="4", target=delete_product, args=({"id": "dummy-prod-2559", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
+	thread_five = threading.Thread(name="5", target=delete_product, args=({"id": "dummy-prod-1359", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
 
 	thread_one.start()
 	thread_two.start()
@@ -96,15 +96,13 @@ async def test_renew_cache(config, database_connection):  # pylint: disable=rede
 	]
 	create_products(test_products, config.internal_url)
 
-
-
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	res.raise_for_status()
 	result = res.json()
 
-	test_products_sorted.insert(0,"test_product01")
-	test_products_sorted.insert(0,"test_product02")
+	test_products_sorted.insert(0, "test_product01")
+	test_products_sorted.insert(0, "test_product02")
 	assert result.get("result").get("sorted") == test_products_sorted
 
 	await asyncio.sleep(3)
@@ -125,15 +123,14 @@ async def test_renew_cache(config, database_connection):  # pylint: disable=rede
 	await asyncio.sleep(3)
 
 	uptodate = await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
-	uptodate_algorithm1= await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1:uptodate")
+	uptodate_algorithm1 = await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1:uptodate")
 
 	assert uptodate is None
 	assert uptodate_algorithm1 is None
 
 
-
 @pytest.mark.asyncio
-async def test_getProductOrdering(config, database_connection): # pylint: disable=invalid-name,redefined-outer-name
+async def test_getProductOrdering(config, database_connection):  # pylint: disable=invalid-name,redefined-outer-name
 
 	db_remove_dummy_products(database_connection)
 
@@ -196,14 +193,14 @@ async def test_getProductOrdering(config, database_connection): # pylint: disabl
 def read_sorted_products():
 	sorted_products = []
 	try:
-		with open(os.path.join(os.path.dirname(__file__),'data/sorted_products.json'), encoding="utf-8") as file:
+		with open(os.path.join(os.path.dirname(__file__), 'data/sorted_products.json'), encoding="utf-8") as file:
 			sorted_products = file.read()
 		sorted_products = json.loads(sorted_products)
-	except Exception as err: # pylint: disable=broad-except
+	except Exception as err:  # pylint: disable=broad-except
 		print("Error while reading sorted_products")
 		print(err)
 	finally:
-		return sorted_products # pylint: disable=lost-exception
+		return sorted_products  # pylint: disable=lost-exception
 
 
 def create_products(products, opsi_url):
@@ -215,30 +212,30 @@ def create_products(products, opsi_url):
 			product.get("name"),
 			product.get("product_version"),
 			product.get("package_version"),
-			None,None,None,None,None,None,
+			None, None, None, None, None, None,
 			product.get("priority"),
-			None,None,None,None,None,None
-			]
+			None, None, None, None, None, None
+		]
 		rpc_request_data = json.dumps({"id": 1, "method": "createProduct", "params": params})
 		res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 		res.raise_for_status()
 
 
-def create_dummy_products(n, opsi_url): # pylint: disable=invalid-name
+def create_dummy_products(n, opsi_url):  # pylint: disable=invalid-name
 	res = requests.get(opsi_url, auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	res.raise_for_status()
 
-	for i in range(0,n):
+	for i in range(0, n):
 		params = [
 			"localboot",
 			f"dummy-prod-{i}",
 			f"dummy PROD {i}",
 			"1.0",
 			"1",
-			None,None,None,None,None,None,
-			(i%80),
-			None,None,None,None,None,None
-			]
+			None, None, None, None, None, None,
+			(i % 80),
+			None, None, None, None, None, None
+		]
 		rpc_request_data = json.dumps({"id": 1, "method": "createProduct", "params": params})
 		res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, cookies=res.cookies, verify=False)
 		res.raise_for_status()
@@ -252,7 +249,7 @@ def delete_products(products, opsi_url):
 		res.raise_for_status()
 
 
-def delete_dummy_products(n, opsi_url): # pylint: disable=invalid-name
+def delete_dummy_products(n, opsi_url):  # pylint: disable=invalid-name
 	res = requests.get(f"{opsi_url}/admin", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	res.raise_for_status()
 

@@ -52,10 +52,11 @@ class InputBuffer:
 		return view
 
 	def readline(self) -> bytes:
-		return self.read(16*1024)
+		return self.read(16 * 1024)
 
 	def close(self):
 		pass
+
 
 def build_environ(scope: Scope) -> dict:
 	"""
@@ -105,7 +106,7 @@ def build_environ(scope: Scope) -> dict:
 	return environ
 
 
-class WSGIMiddleware: # pylint: disable=too-few-public-methods
+class WSGIMiddleware:  # pylint: disable=too-few-public-methods
 	def __init__(self, app: typing.Callable) -> None:
 		self.app = app
 
@@ -115,7 +116,7 @@ class WSGIMiddleware: # pylint: disable=too-few-public-methods
 		await responder(receive, send)
 
 
-class WSGIResponder: # pylint: disable=too-many-instance-attributes
+class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 	def __init__(self, app: typing.Callable, scope: Scope) -> None:
 		self.app = app
 		self.scope = scope

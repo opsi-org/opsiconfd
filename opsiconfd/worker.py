@@ -22,15 +22,19 @@ from .utils import async_redis_client, get_manager_pid
 from . import ssl
 from .addon import AddonManager
 
-_metrics_collector = None # pylint: disable=invalid-name
-_worker_num = 1 # pylint: disable=invalid-name
+
+_metrics_collector = None  # pylint: disable=invalid-name
+_worker_num = 1  # pylint: disable=invalid-name
+
 
 def set_worker_num(num):
-	global _worker_num # pylint: disable=global-statement,invalid-name
+	global _worker_num  # pylint: disable=global-statement,invalid-name
 	_worker_num = num
+
 
 def get_worker_num():
 	return _worker_num
+
 
 def init_pool_executor(loop):
 	# https://bugs.python.org/issue41699
@@ -40,19 +44,23 @@ def init_pool_executor(loop):
 	)
 	loop.set_default_executor(pool_executor)
 
+
 def get_metrics_collector():
 	return _metrics_collector
 
+
 def handle_asyncio_exception(loop, context):
 	# context["message"] will always be there but context["exception"] may not
-	#msg = context.get("exception", context["message"])
+	# msg = context.get("exception", context["message"])
 	logger.error("Unhandled exception in asyncio loop '%s': %s", loop, context)
+
 
 def memory_cleanup():
 	gc.collect()
 	ctypes.CDLL("libc.so.6").malloc_trim(0)
 
-def signal_handler(signum, frame): # pylint: disable=unused-argument
+
+def signal_handler(signum, frame):  # pylint: disable=unused-argument
 	logger.info("Worker process %s received signal %d", os.getpid(), signum)
 	if signum == signal.SIGHUP:
 		logger.notice("Worker process %s reloading", os.getpid())
@@ -64,10 +72,12 @@ def signal_handler(signum, frame): # pylint: disable=unused-argument
 		from .application import app  # pylint: disable=import-outside-toplevel
 		app.is_shutting_down = True
 
+
 async def main_loop():
 	while True:
 		await asyncio.sleep(120)
 		memory_cleanup()
+
 
 def exit_worker():
 	for thread in threading.enumerate():
@@ -75,16 +85,17 @@ def exit_worker():
 			thread.stop()
 			thread.join()
 
+
 def init_worker():
-	global _metrics_collector # pylint: disable=global-statement, invalid-name
-	from .backend import get_backend, get_client_backend # pylint: disable=import-outside-toplevel
-	from .statistics import WorkerMetricsCollector # pylint: disable=import-outside-toplevel
+	global _metrics_collector  # pylint: disable=global-statement, invalid-name
+	from .backend import get_backend, get_client_backend  # pylint: disable=import-outside-toplevel
+	from .statistics import WorkerMetricsCollector  # pylint: disable=import-outside-toplevel
 	is_manager = get_manager_pid() == os.getpid()
 
 	if not is_manager:
 		try:
 			set_worker_num(int(os.getenv("OPSICONFD_WORKER_WORKER_NUM")))
-		except Exception as err: # pylint: disable=broad-except
+		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to get worker number from env: %s", err)
 		# Only if this process is a worker only process (multiprocessing)
 		for sig in signal.SIGHUP, signal.SIGINT, signal.SIGTERM:

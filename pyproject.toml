@@ -57,7 +57,7 @@ opsi-dev-tools = "^1.0.78"
 pyinstaller = "^4.4"
 pylint = "^2.12"
 pytest = "^6.2"
-pytest-asyncio = "^0.16"
+pytest-asyncio = "^0.17"
 pytest-cov = "^3.0"
 schemathesis = "^3.11"
 

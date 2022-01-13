@@ -1432,7 +1432,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "pyinstaller"
-version = "4.7"
+version = "4.8"
 description = "PyInstaller bundles a Python application and all its dependencies into a single package."
 category = "dev"
 optional = false
@@ -1600,17 +1600,17 @@ reference = "uibpypi"
 
 [[package]]
 name = "pytest-asyncio"
-version = "0.16.0"
-description = "Pytest support for asyncio."
+version = "0.17.0"
+description = "Pytest support for asyncio"
 category = "dev"
 optional = false
-python-versions = ">= 3.6"
+python-versions = ">=3.7"
 
 [package.dependencies]
 pytest = ">=5.4.0"
 
 [package.extras]
-testing = ["coverage", "hypothesis (>=5.7.1)"]
+testing = ["coverage (==6.2)", "hypothesis (>=5.7.1)", "flaky (>=3.5.0)"]
 
 [package.source]
 type = "legacy"
@@ -1704,27 +1704,27 @@ optional = false
 python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
-attrs = ">=21.2.0,<22.0.0"
-colorlog = ">=6.6.0,<7.0.0"
-distro = {version = ">=1.5.0,<2.0.0", markers = "sys_platform == \"linux\""}
+attrs = ">=21.2,<22.0"
+colorlog = ">=6.6,<7.0"
+distro = {version = ">=1.5,<2.0", markers = "sys_platform == \"linux\""}
 ldap3 = ">=2.9,<3.0"
-lz4 = ">=3.1.3,<4.0.0"
-msgpack = ">=1.0.2,<2.0.0"
-mysqlclient = {version = ">=2.0.3,<3.0.0", markers = "sys_platform == \"linux\""}
-pefile = ">=2021.9.3,<2022.0.0"
-pexpect = ">=4.8.0,<5.0.0"
-psutil = ">=5.8.0,<6.0.0"
-pyasn1 = ">=0.4.8,<0.5.0"
-pycryptodome = ">=3.10.1,<4.0.0"
-pyOpenSSL = ">=21.0.0,<22.0.0"
-python-opsi-common = ">=4.2.0,<5.0.0"
-python-pam = ">=1.8.4,<2.0.0"
+lz4 = ">=3.1,<4.0"
+msgpack = ">=1.0,<2.0"
+mysqlclient = {version = ">=2.0,<3.0", markers = "sys_platform == \"linux\""}
+pefile = ">=2021.9,<2022.0"
+pexpect = ">=4.8,<5.0"
+psutil = ">=5.8,<6.0"
+pyasn1 = ">=0.4,<0.5"
+pycryptodome = ">=3.10,<4.0"
+pyOpenSSL = ">=21.0,<22.0"
+python-opsi-common = ">=4.2.0.266,<5.0.0.0"
+python-pam = ">=1.8,<2.0"
 pywin32 = {version = ">=227,<228", markers = "sys_platform == \"win32\""}
-ruyaml = ">=0.91.0,<0.92.0"
-service-identity = ">=21.1.0,<22.0.0"
+ruyaml = ">=0.91,<0.92"
+service-identity = ">=21.1,<22.0"
 sqlalchemy = ">=1.4,<2.0"
-twisted = {version = ">=21.2.0,<22.0.0", extras = ["tls"]}
-wmi = {version = ">=1.5.1,<2.0.0", markers = "sys_platform == \"win32\""}
+twisted = {version = ">=21.2,<22.0", extras = ["tls"]}
+wmi = {version = ">=1.5,<2.0", markers = "sys_platform == \"win32\""}
 
 [package.source]
 type = "legacy"
@@ -1733,7 +1733,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.2.0.265"
+version = "4.2.0.266"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -1886,7 +1886,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "schemathesis"
-version = "3.12.1"
+version = "3.12.3"
 description = "Property-based testing framework for Open API and GraphQL based apps"
 category = "dev"
 optional = false
@@ -2389,7 +2389,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<3.10"
-content-hash = "db1b3b6406f28f0a7993bb770c5aa4388bb7abb319c2cee4df1e58fb4cbe6295"
+content-hash = "8da2950747df41d0c35dbc845e2f0b6a7abe5497c46446b381fbd28227962a42"
 
 [metadata.files]
 aiofiles = [
@@ -3473,15 +3473,17 @@ pyflakes = [
     {file = "pyflakes-2.4.0.tar.gz", hash = "sha256:05a85c2872edf37a4ed30b0cce2f6093e1d0581f8c19d7393122da7e25b2b24c"},
 ]
 pyinstaller = [
-    {file = "pyinstaller-4.7-py3-none-macosx_10_13_universal2.whl", hash = "sha256:0f488407108dd4e0531576552514889b2d5620367c81a177dfbe1eb628ad7a8c"},
-    {file = "pyinstaller-4.7-py3-none-manylinux2014_aarch64.whl", hash = "sha256:5a130e2cf694975787026db1839b53c833b8d4922d850703c7076a06774cb6af"},
-    {file = "pyinstaller-4.7-py3-none-manylinux2014_i686.whl", hash = "sha256:fea70754a8cdca04763d0cdbbb9b8b07854355232c8f512bc7211e2c07361c06"},
-    {file = "pyinstaller-4.7-py3-none-manylinux2014_x86_64.whl", hash = "sha256:03636feec822de1d23d9753054f0b1229fb23d58723ae796f41b1127fc54f572"},
-    {file = "pyinstaller-4.7-py3-none-musllinux_1_1_aarch64.whl", hash = "sha256:c766e1d643f8820fe70d12c3690911bc43556ae97e12885e2925fa43bc1e7649"},
-    {file = "pyinstaller-4.7-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:ba410e9aadae61aa9172d56180ca381b3ad7abd721a31495db21cc82ede4003b"},
-    {file = "pyinstaller-4.7-py3-none-win32.whl", hash = "sha256:7942ac8043e538422fe9c6733fe201e4d765d31ad13ff40bcc7b9bf4c2d0ad64"},
-    {file = "pyinstaller-4.7-py3-none-win_amd64.whl", hash = "sha256:c8d3b4e64b0e6c1c837b5215077675796a7d95679245b40843343d647465fb69"},
-    {file = "pyinstaller-4.7.tar.gz", hash = "sha256:2c7f4810dc5272ec1b388a7f1ff6b56d38653c1b0c9ac2d9dd54fa06b590e372"},
+    {file = "pyinstaller-4.8-py3-none-macosx_10_13_universal2.whl", hash = "sha256:b0b3a31aa60292469f9595f298e2c147cba29c30edcd92a38fdce27727809625"},
+    {file = "pyinstaller-4.8-py3-none-manylinux2014_aarch64.whl", hash = "sha256:9fbb05f5f67862005234da8c7eac69ef87e086f90e345749260051b031774c52"},
+    {file = "pyinstaller-4.8-py3-none-manylinux2014_i686.whl", hash = "sha256:15d9266d78dc757c103962826e62bce1513825078160be580534ead2ef53087c"},
+    {file = "pyinstaller-4.8-py3-none-manylinux2014_ppc64le.whl", hash = "sha256:5c2fd5f18c0397f3d9160446035556afc7f6446fd88048887fdf46eadf85c5ec"},
+    {file = "pyinstaller-4.8-py3-none-manylinux2014_s390x.whl", hash = "sha256:6f5cdc39fbdec7b2e0c46cc0f5bd0071bb85e592e324bf4e15375c5ff19e55fc"},
+    {file = "pyinstaller-4.8-py3-none-manylinux2014_x86_64.whl", hash = "sha256:4c848720a65a5bd41249bc804d1bd3dd089bb56aef7f1c5e11f774f11e649443"},
+    {file = "pyinstaller-4.8-py3-none-musllinux_1_1_aarch64.whl", hash = "sha256:44783d58ac4cb0a74a4f2180da4dacbe6a7a013a62b3aa10be6082252e296954"},
+    {file = "pyinstaller-4.8-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:b720853a00bd9547b7d6403d85f23b7f7e451e41bc907673d9fc7f8d9d274594"},
+    {file = "pyinstaller-4.8-py3-none-win32.whl", hash = "sha256:53ed05214dd67624756fe4e82e861857921a79d0392debf8c9f5bb0ba5a479b6"},
+    {file = "pyinstaller-4.8-py3-none-win_amd64.whl", hash = "sha256:f00e1296abac71f3b5bb9fdc2e0d4c079201d62faeeeb894ccadd0616179fee3"},
+    {file = "pyinstaller-4.8.tar.gz", hash = "sha256:7ae868bbcc502832a2c802c84a1dbb9f48b44445c50144c29bfcd7b760140e13"},
 ]
 pyinstaller-hooks-contrib = [
     {file = "pyinstaller-hooks-contrib-2021.5.tar.gz", hash = "sha256:e47b382c209dd2f62ac2ef26cade49148e9a4702ec91958772b0270599f8c2a9"},
@@ -3535,8 +3537,8 @@ pytest = [
     {file = "pytest-6.2.5.tar.gz", hash = "sha256:131b36680866a76e6781d13f101efb86cf674ebb9762eb70d3082b6f29889e89"},
 ]
 pytest-asyncio = [
-    {file = "pytest-asyncio-0.16.0.tar.gz", hash = "sha256:7496c5977ce88c34379df64a66459fe395cd05543f0a2f837016e7144391fcfb"},
-    {file = "pytest_asyncio-0.16.0-py3-none-any.whl", hash = "sha256:5f2a21273c47b331ae6aa5b36087047b4899e40f03f18397c0e65fa5cca54e9b"},
+    {file = "pytest-asyncio-0.17.0.tar.gz", hash = "sha256:c98e0e04ae5910bbcc219f52bdf871bd1d392f624ef77c49c236613c0b6d8ee1"},
+    {file = "pytest_asyncio-0.17.0-py3-none-any.whl", hash = "sha256:b41c3ff0ec5b5b144459aa1c53a866f67278177f6d4f3ef6874bd864fc82834d"},
 ]
 pytest-cov = [
     {file = "pytest-cov-3.0.0.tar.gz", hash = "sha256:e7f0f5b1617d2210a2cabc266dfe2f4c75a8d32fb89eafb7ad9d06f6d076d470"},
@@ -3557,12 +3559,12 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.265.tar.gz", hash = "sha256:6f698e24753890231e1d27bd51d21d452218a287a9ae463f294e90d3322de6de"},
-    {file = "python_opsi-4.2.0.265-py3-none-any.whl", hash = "sha256:632c33b2e7179c1cd2bc8de0181428089923f65e14c6ab06694afe0d3cdf6353"},
+    {file = "python-opsi-4.2.0.265.tar.gz", hash = "sha256:3d064ed8ad526e1542981b449728b283258457d36887d02b0da804d4b7257317"},
+    {file = "python_opsi-4.2.0.265-py3-none-any.whl", hash = "sha256:3d4f4d49b36392cca9deb06da62a2343e5f16a740e5e16b90627e50128606125"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.265.tar.gz", hash = "sha256:cd39d94650b89e7bf73588b658d769cd900c1545750cf7c8b5f8748afbe5ba9e"},
-    {file = "python_opsi_common-4.2.0.265-py3-none-any.whl", hash = "sha256:48ab516fde31e04d025d3d8d2402e8ce4c4a28fef7d9bc1d00584899d52302a6"},
+    {file = "python-opsi-common-4.2.0.266.tar.gz", hash = "sha256:eea726cb1e333034dc3f822333bd5ce8a0c09f3dad9854a4f9c06d3a25b4ce17"},
+    {file = "python_opsi_common-4.2.0.266-py3-none-any.whl", hash = "sha256:9c1a9c05291d9bc419f8b713bea46136e25147da3e769a163e0a79df5b0162a2"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},
@@ -3638,8 +3640,8 @@ ruyaml = [
     {file = "ruyaml-0.91.0.tar.gz", hash = "sha256:6ce9de9f4d082d696d3bde264664d1bcdca8f5a9dff9d1a1f1a127969ab871ab"},
 ]
 schemathesis = [
-    {file = "schemathesis-3.12.1-py3-none-any.whl", hash = "sha256:ad63e011da36ff85ac945416842a8918f9d5a93706dd6b151903bd2397703867"},
-    {file = "schemathesis-3.12.1.tar.gz", hash = "sha256:b2a886023113375cc3a071c1894afb2616d825dcb6f2f890b3cfd18297229b7f"},
+    {file = "schemathesis-3.12.3-py3-none-any.whl", hash = "sha256:753e34a73060a0378582ec52d4183ac1f89185df7e00a8106e55f20d1595a921"},
+    {file = "schemathesis-3.12.3.tar.gz", hash = "sha256:252c0f0736e574cf9069a486b815a3f17cbda115e6a4c818ba050fe14f30899f"},
 ]
 service-identity = [
     {file = "service-identity-21.1.0.tar.gz", hash = "sha256:6e6c6086ca271dc11b033d17c3a8bea9f24ebff920c587da090afc9519419d34"},

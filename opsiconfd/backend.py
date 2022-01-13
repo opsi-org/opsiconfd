@@ -12,6 +12,8 @@ import socket
 import ipaddress
 from urllib.parse import urlparse
 
+from starlette.concurrency import run_in_threadpool
+
 from OPSI.Exceptions import BackendPermissionDeniedError
 from OPSI.Backend.BackendManager import BackendManager
 from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig
@@ -86,6 +88,13 @@ def get_backend():
 				depotBackend=True
 			)
 	return backend_manager
+
+
+async def async_backend_call(method, **kwargs):
+	def _backend_call(method, kwargs):
+		meth = getattr(get_backend(), method)
+		return meth(**kwargs)
+	return await run_in_threadpool(_backend_call, method, kwargs)
 
 
 backend_interface = None  # pylint: disable=invalid-name

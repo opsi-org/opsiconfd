@@ -9,11 +9,20 @@ jsonrpc tests
 """
 
 import json
+import datetime
 import requests
+import msgpack
 import pytest
 
+from opsiconfd.utils import decode_redis_result
+from opsiconfd.application.jsonrpc import (
+	store_rpc, get_sort_algorithm, store_product_ordering,
+	set_jsonrpc_cache_outdated, remove_depot_from_jsonrpc_cache
+)
+
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, database_connection, ADMIN_USER, ADMIN_PASS
+	config, clean_redis, async_redis_client, database_connection, backend,
+	ADMIN_USER, ADMIN_PASS
 )
 
 
@@ -288,3 +297,92 @@ def test_delete_opsi_client(config, fill_db):  # pylint: disable=unused-argument
 
 	assert len(result_json.get("result")) == 0
 	assert result_json.get("error") is None
+
+
+@pytest.mark.asyncio
+async def test_store_rpc(config):  # pylint: disable=redefined-outer-name
+	data = {
+		"rpc_num": 1,
+		"method": "test",
+		"num_params": 2,
+		"date": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+		"client": "127.0.0.1",
+		"error": None,
+		"num_results": 100,
+		"duration": 0.123
+	}
+	for rpc_num in range(7):
+		data["rpc_num"] = rpc_num
+		await store_rpc(data, max_rpcs=5)
+
+	async with async_redis_client(config.redis_internal_url) as redis:
+		redis_result = await redis.lrange("opsiconfd:stats:rpcs", 0, -1)
+		result = []
+		for value in redis_result:
+			result.append(msgpack.loads(value))
+		assert len(result) == 5
+		for rpc in result:
+			data["rpc_num"] = rpc["rpc_num"]
+			assert rpc == data
+
+
+@pytest.mark.asyncio
+async def test_get_sort_algorithm(backend):  # pylint: disable=redefined-outer-name
+	assert await get_sort_algorithm("algorithm1") == "algorithm1"
+	assert await get_sort_algorithm("algorithm2") == "algorithm2"
+	backend.config_create(
+		id='product_sort_algorithm',
+		description='Product sorting algorithm',
+		possibleValues=['algorithm1', 'algorithm2'],
+		defaultValues=['algorithm2'],
+		editable=False,
+		multiValue=False
+	)
+	assert await get_sort_algorithm("invalid") == "algorithm2"
+	backend.config_create(
+		id='product_sort_algorithm',
+		description='Product sorting algorithm',
+		possibleValues=['algorithm1', 'algorithm2'],
+		defaultValues=['algorithm1'],
+		editable=False,
+		multiValue=False
+	)
+	assert await get_sort_algorithm() == "algorithm1"
+
+
+@pytest.mark.asyncio
+async def test_store_product_ordering(config):  # pylint: disable=redefined-outer-name
+	result = {
+		"not_sorted": [
+			"7zip",
+			"anydesk",
+			"bitlocker"
+		],
+		"sorted": [
+			"bitlocker",
+			"7zip",
+			"anydesk"
+		]
+	}
+	depot_id = "some.depot.id"
+	algorithm = "algorithm1"
+
+	async with async_redis_client(config.redis_internal_url) as redis:
+		await store_product_ordering(result, depot_id, algorithm)
+
+		assert await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
+		assert await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}:uptodate")
+		products = await redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1)
+		products_ordered = await redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", 0, -1)
+		assert result == {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}
+
+		await set_jsonrpc_cache_outdated(depot_id)
+
+		assert not await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
+		assert not await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}:uptodate")
+
+		await store_product_ordering(result, depot_id, algorithm)
+		assert await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
+
+		await remove_depot_from_jsonrpc_cache(depot_id)
+		assert not await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")

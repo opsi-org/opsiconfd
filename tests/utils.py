@@ -12,6 +12,7 @@ import sys
 import socket
 import json
 from datetime import datetime, timedelta
+from contextlib import contextmanager, asynccontextmanager
 import pytest
 import redis
 import aioredis
@@ -51,20 +52,38 @@ CLEAN_REDIS_KEYS = [
 ]
 
 
-async def async_clean_redis(redis_url):
+@asynccontextmanager
+async def async_redis_client(redis_url):  # pylint: disable=redefined-outer-name
 	redis_client = aioredis.StrictRedis.from_url(redis_url)
-	for redis_key in CLEAN_REDIS_KEYS:
-		async for key in redis_client.scan_iter(f"{redis_key}:*"):
-			await redis_client.delete(key)
-		await redis_client.delete(redis_key)
+	try:
+		yield redis_client
+	finally:
+		await redis_client.close()
+
+
+@contextmanager
+def sync_redis_client(redis_url):  # pylint: disable=redefined-outer-name
+	redis_client = redis.StrictRedis.from_url(redis_url)
+	try:
+		yield redis_client
+	finally:
+		redis_client.close()
+
+
+async def async_clean_redis(redis_url):
+	async with async_redis_client(redis_url) as redis_client:
+		for redis_key in CLEAN_REDIS_KEYS:
+			async for key in redis_client.scan_iter(f"{redis_key}:*"):
+				await redis_client.delete(key)
+			await redis_client.delete(redis_key)
 
 
 def sync_clean_redis(redis_url):
-	redis_client = redis.StrictRedis.from_url(redis_url)
-	for redis_key in CLEAN_REDIS_KEYS:
-		for key in redis_client.scan_iter(f"{redis_key}:*"):
-			redis_client.delete(key)
-		redis_client.delete(redis_key)
+	with sync_redis_client(redis_url) as redis_client:
+		for redis_key in CLEAN_REDIS_KEYS:
+			for key in redis_client.scan_iter(f"{redis_key}:*"):
+				redis_client.delete(key)
+			redis_client.delete(redis_key)
 
 
 @pytest.fixture(autouse=True)
@@ -112,7 +131,8 @@ def database_connection():
 def backend():
 	return BackendManager(
 		dispatchConfigFile="tests/opsi-config/backendManager/dispatch.conf",
-		backendConfigDir="tests/opsi-config/backends"
+		backendConfigDir="tests/opsi-config/backends",
+		extend=True
 	)
 
 

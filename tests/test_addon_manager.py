@@ -51,6 +51,7 @@ def test_load_addon(config):  # pylint: disable=redefined-outer-name
 			assert addon.name == "Test-Addon #2"
 			assert addon.version == "1.1"
 			assert addon.path == os.path.join(config.addon_dirs[0], "test2")
+		assert addon_manager.get_addon_by_path(addon.router_prefix) == addon
 
 
 def test_unload_addon(config):  # pylint: disable=redefined-outer-name
@@ -100,6 +101,12 @@ def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
 	assert addon_manager.addons[0].name == "NEW NAME"
 	response = addon_manager.addons[0].api_router.routes[0].endpoint()
 	assert response.body.decode() == '"TEST1 NEW"'
+
+	with pytest.raises(ValueError):
+		addon_manager.reload_addon("notloaded")
+
+	addon_manager.reload_addons()
+	assert len(addon_manager.addons) == 1
 
 
 def test_addon_static_dir(config):  # pylint: disable=redefined-outer-name

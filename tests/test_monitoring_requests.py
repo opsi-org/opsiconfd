@@ -307,7 +307,7 @@ def test_check_product_status_short(config, product, expected_result):  # pylint
 	("pytest-client-2.uib.local", None, {
 		'message': (
 			"CRITICAL: opsi-client pytest-client-2.uib.local has been seen today. "
-			"Products: 'pytest-prod-2' are in failed state."
+			"Products: 'pytest-prod-2' are in failed state. "
 		),
 		'state': 2
 	}),

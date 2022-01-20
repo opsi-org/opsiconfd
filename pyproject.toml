@@ -59,7 +59,7 @@ pylint = "^2.12"
 pytest = "^6.2"
 pytest-asyncio = "^0.17"
 pytest-cov = "^3.0"
-schemathesis = "^3.11"
+schemathesis = "^3.12"
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"

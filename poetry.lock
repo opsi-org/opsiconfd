@@ -2394,7 +2394,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<3.10"
-content-hash = "f328f2277e13d3dd948631413bb4971a31d684ab80164d32e069c711ee21bd6d"
+content-hash = "3c7ad1183ccf0eeaecf0efd152725a1f678d36cbc900d7f2127966895997e4db"
 
 [metadata.files]
 aiofiles = [

@@ -256,11 +256,11 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			task = None
 			if rpc.get('method') in PRODUCT_METHODS:
 				asyncio.get_event_loop().create_task(
-					set_jsonrpc_cache_outdated, rpc.get('params')
+					set_jsonrpc_cache_outdated(rpc.get('params'))
 				)
 			elif rpc.get('method') in ("deleteDepot", "host_delete"):
 				asyncio.get_event_loop().create_task(
-					remove_depot_from_jsonrpc_cache, rpc.get('params')[0]
+					remove_depot_from_jsonrpc_cache(rpc.get('params')[0])
 				)
 			elif rpc.get('method') == "getProductOrdering":
 				depot = rpc.get('params')[0]
@@ -326,12 +326,12 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 				data["method"], data["num_params"], data["duration"], data["error"], data["num_results"]
 			)
 
-			asyncio.get_event_loop().create_task(store_rpc, data)
+			asyncio.get_event_loop().create_task(store_rpc(data))
 
 			if result[2].get('method') == "getProductOrdering" and result[1] > CALL_TIME_TO_CACHE:
 				if result[3] == "rpc" and len(result[0].get("result").get("sorted")) > 0 and 1 <= len(params) <= 2:
 					asyncio.get_event_loop().create_task(
-						store_product_ordering, result[0].get("result"), *params
+						store_product_ordering(result[0].get("result"), *params)
 					)
 
 			response.status_code = 200

@@ -12,6 +12,7 @@ import os
 import shutil
 import tempfile
 import pytest
+import pytest_asyncio
 import requests
 
 from opsiconfd.addon import AddonManager

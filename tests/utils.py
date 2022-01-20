@@ -14,6 +14,7 @@ import json
 from datetime import datetime, timedelta
 from contextlib import contextmanager, asynccontextmanager
 import pytest
+import pytest_asyncio
 import redis
 import aioredis
 import requests
@@ -86,7 +87,7 @@ def sync_clean_redis(redis_url):
 			redis_client.delete(redis_key)
 
 
-@pytest.fixture(autouse=True)
+@pytest_asyncio.fixture(autouse=True)
 @pytest.mark.asyncio
 async def clean_redis(config):  # pylint: disable=redefined-outer-name
 	await async_clean_redis(config.redis_internal_url)

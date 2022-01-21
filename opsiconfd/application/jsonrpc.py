@@ -527,7 +527,7 @@ async def read_redis_cache(request: Request, response: Response, rpc):  # pylint
 			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", 0, -1)
 			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products", EXPIRE)
 			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", EXPIRE)
-			pipe_results = pipe.execute()
+			pipe_results = await pipe.execute()
 		products = pipe_results[0]
 		products_ordered = pipe_results[1]
 		result = {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}

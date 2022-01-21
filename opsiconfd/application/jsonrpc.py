@@ -522,7 +522,7 @@ async def read_redis_cache(request: Request, response: Response, rpc):  # pylint
 		depot_id = rpc.get('params')[0]
 		algorithm = await get_sort_algorithm(rpc.get('params'))
 		redis = await async_redis_client()
-		with redis.pipeline() as pipe:
+		with await redis.pipeline() as pipe:
 			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1)
 			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", 0, -1)
 			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products", EXPIRE)

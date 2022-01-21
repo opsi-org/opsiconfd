@@ -108,7 +108,7 @@ def jsonrpc_setup(app):
 async def store_rpc(data, max_rpcs=9999):
 	try:
 		redis = await async_redis_client()
-		async with redis.pipeline() as pipe:
+		async with await redis.pipeline() as pipe:
 			pipe.lpush("opsiconfd:stats:rpcs", msgpack.dumps(data))  # pylint: disable=c-extension-no-member
 			pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs - 1)
 			await pipe.execute()
@@ -130,7 +130,7 @@ async def store_product_ordering(result, depot_id, sort_algorithm=None):
 	try:
 		sort_algorithm = await get_sort_algorithm(sort_algorithm)
 		redis = await async_redis_client()
-		async with redis.pipeline() as pipe:
+		async with await redis.pipeline() as pipe:
 			pipe.unlink(f"opsiconfd:jsonrpccache:{depot_id}:products")
 			pipe.unlink(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}")
 			for val in result.get("not_sorted"):
@@ -522,7 +522,7 @@ async def read_redis_cache(request: Request, response: Response, rpc):  # pylint
 		depot_id = rpc.get('params')[0]
 		algorithm = await get_sort_algorithm(rpc.get('params'))
 		redis = await async_redis_client()
-		with await redis.pipeline() as pipe:
+		async with await redis.pipeline() as pipe:
 			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1)
 			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", 0, -1)
 			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products", EXPIRE)

@@ -31,6 +31,14 @@ BackendManager.default_config = {
 }
 
 
+@pytest.hookimpl()
+def pytest_configure(config):
+	# https://pypi.org/project/pytest-asyncio
+	# When the mode is auto, all discovered async tests are considered
+	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
+	config.option.asyncio_mode = "auto"
+
+
 @pytest.fixture(scope='session')
 def event_loop():
 	"""Create an instance of the default event loop for each test case."""

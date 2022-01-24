@@ -43,7 +43,6 @@ from ..utils import decode_redis_result, async_redis_client
 # time in seconds
 EXPIRE = 24 * 3600
 EXPIRE_UPTODATE = 24 * 3600
-CALL_TIME_TO_CACHE = float(config.jsonrpc_time_to_cache)
 COMPRESS_MIN_SIZE = 10000
 
 PRODUCT_METHODS = [
@@ -328,7 +327,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 
 			asyncio.get_event_loop().create_task(store_rpc(data))
 
-			if result[2].get('method') == "getProductOrdering" and result[1] > CALL_TIME_TO_CACHE:
+			if result[2].get('method') == "getProductOrdering" and result[1] > config.jsonrpc_time_to_cache:
 				logger.debug("Using ProductOrdering Cache")
 				if result[3] == "rpc" and len(result[0].get("result").get("sorted")) > 0 and 1 <= len(params) <= 2:
 					asyncio.get_event_loop().create_task(

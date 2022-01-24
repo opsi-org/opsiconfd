@@ -23,7 +23,7 @@ async def test_connect_websocket(config):  # pylint: disable=redefined-outer-nam
 	host_key = "92aa768a259dec1856013c4e458507d5"
 	create_depot_rpc(config.internal_url, host_id=host_id, host_key=host_key)
 	async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(host_id, host_key)) as session:
-		websock = await session.ws_connect(f"{config.external_url}/mq")
+		websock = await session.ws_connect(f"{config.external_url}/mq", ssl=False)
 		await websock.send_bytes(b"test")
 		# while True:
 		# 	msg = await websock.receive()

@@ -287,7 +287,6 @@ def delete_dummy_products(n, opsi_url):  # pylint: disable=invalid-name
 
 
 def fill_db(database_connection):  # pylint: disable=redefined-outer-name
-	print("fill_db")
 	cursor = database_connection.cursor()
 	for num in range(8000):
 		cursor.execute(

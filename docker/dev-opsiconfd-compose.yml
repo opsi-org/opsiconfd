@@ -10,6 +10,7 @@ services:
       dockerfile: docker/Dockerfile.dev
       args:
         - USER
+        - UID
     volumes:
       - ..:/workspace:cached
     ports:

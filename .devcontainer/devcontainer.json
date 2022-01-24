@@ -2,13 +2,13 @@
 	"name": "opsiconfd",
 	"dockerComposeFile": "../docker/dev-opsiconfd-compose.yml",
 	"service": "opsiconfd-dev",
-	"context": "..",
 	"workspaceFolder": "/workspace",
-	"postCreateCommand": "sudo --preserve-env /bin/sh -c /workspace/scripts/setup.sh && poetry config --local virtualenvs.in-project true",
-	"postStartCommand": "sudo --preserve-env /bin/sh -c /workspace/scripts/setup-hosts.sh; poetry lock --no-update && poetry install --no-interaction --no-ansi && sudo service redis-server restart && sudo service mysql restart && sudo service grafana-server restart",
+	"postCreateCommand": ".devcontainer/post_create.sh",
+	"postStartCommand": ".devcontainer/post_start.sh",
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
-		"DEV_USER": "${localEnv:USER}"
+		"DEV_USER": "${localEnv:USER}",
+		"DEV_UID": "${localEnv:UID}"
 	},
 	"settings": {
 		"terminal.integrated.shell.linux": "/bin/bash",

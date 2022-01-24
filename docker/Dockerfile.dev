@@ -1,9 +1,14 @@
-FROM python:3.7-buster as opsiconfd_development_build
+# FROM python:3.7-buster as opsiconfd_development_build
+FROM docker.uib.gmbh/opsi/dev/pybuilder:uib-python-3.10 as opsiconfd_development_build
 
 ARG DOCKER_ENV
 ARG USER
+ARG UID
 
 ENV DOCKER_ENV=${DOCKER_ENV} \
+	DEV_USER=${USER} \
+	DEV_UID=${UID} \
+	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_9.0/ \
 	# python:
 	PYTHONFAULTHANDLER=1 \
 	PYTHONUNBUFFERED=1 \
@@ -11,15 +16,7 @@ ENV DOCKER_ENV=${DOCKER_ENV} \
 	# pip:
 	PIP_NO_CACHE_DIR=off \
 	PIP_DISABLE_PIP_VERSION_CHECK=on \
-	PIP_DEFAULT_TIMEOUT=100 \
-	# dockerize:
-	DOCKERIZE_VERSION=v0.6.1 \
-	# poetry:
-	POETRY_VERSION=1.1.9\
-	# redis
-	OPSI_REPO=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_10/ \
-	DEV_USER=${USER}
-
+	PIP_DEFAULT_TIMEOUT=100
 
 # System deps:
 RUN apt-get update \
@@ -31,16 +28,13 @@ RUN apt-get update \
 		gettext \
 		mariadb-client \
 		libmariadb-dev \
-		tini \
 		psmisc \
 		librsync1 \
-		libjemalloc2 \
 		sqlite3 \
 		sudo \
 		git \
 		bash-completion \
-		nano \
-	&& pip install "poetry==$POETRY_VERSION"
+		nano
 
 # grafana
 RUN wget -q -O - https://packages.grafana.com/gpg.key |  apt-key add - \
@@ -80,10 +74,10 @@ COPY docker/files/ /
 WORKDIR /workspace
 
 RUN useradd --create-home -s /bin/bash ${DEV_USER} \
-	&& groupadd opsifileadmins \
-	&& groupadd opsiadmin \
-	&& useradd --system -g opsifileadmins -d /var/lib/opsi -s /bin/bash opsiconfd \
-	&& useradd --create-home --home-dir /home/adminuser -s /bin/bash adminuser \
+	&& (getent group opsifileadmins || groupadd opsifileadmins) \
+	&& (getent group opsiadmin || groupadd opsiadmin) \
+	&& (getent passwd opsiconfd || useradd --system -g opsifileadmins -d /var/lib/opsi -s /bin/bash opsiconfd) \
+	&& (getent passwd adminuser || useradd --create-home --home-dir /home/adminuser -s /bin/bash adminuser) \
 	&& echo "adminuser:adminuser" | chpasswd \
 	&& adduser adminuser opsifileadmins \
 	&& adduser adminuser opsiadmin \
@@ -106,4 +100,6 @@ RUN openssl req -nodes -x509 -newkey rsa:2048 -keyout ca.key -out ca.crt -subj "
 	&& rm server.crt
 
 RUN chmod +x "/docker-entrypoint.sh" \
-	&& mkdir tftpboot
+	&& mkdir tftpboot \
+	&& chown -R $DEV_USER /workspace
+

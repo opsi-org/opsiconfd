@@ -107,16 +107,16 @@ async def clear_product_cache(request: Request, response: Response):
 		depots = request_body.get("depots")
 		if not depots:
 			depots = _get_depots()
-		with redis_client() as redis:
-			async with await redis.pipeline() as pipe:
-				for depot in depots:
-					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products")
-					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1")
-					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2")
-					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
-					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
-					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
-				data = pipe.execute()
+		redis = await async_redis_client()
+		async with await redis.pipeline() as pipe:
+			for depot in depots:
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products")
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1")
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2")
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
+			data = await pipe.execute()
 		response = JSONResponse({"status": 200, "error": None, "data": data})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)

@@ -53,6 +53,7 @@ stages:
   echo "static-dir = opsiconfd_data/static" >> /etc/opsi/opsiconfd.conf
   echo "addon-dirs = [tests/data/addons]" >> /etc/opsi/opsiconfd.conf
   echo "max-sessions-excludes = " >> /etc/opsi/opsiconfd.conf
+  echo "jsonrpc-time-to-cache = 0" >> /etc/opsi/opsiconfd.conf
 
   # Installing opsi test modules file
   # echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules

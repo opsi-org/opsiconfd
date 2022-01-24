@@ -108,7 +108,7 @@ async def clear_product_cache(request: Request, response: Response):
 		if not depots:
 			depots = _get_depots()
 		with redis_client() as redis:
-			with await redis.pipeline() as pipe:
+			async with await redis.pipeline() as pipe:
 				for depot in depots:
 					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products")
 					pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1")

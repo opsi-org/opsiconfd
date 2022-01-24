@@ -163,7 +163,7 @@ async def set_jsonrpc_cache_outdated(params):
 	if len(depots) == 0:
 		depots = saved_depots
 
-	async with redis.pipeline() as pipe:
+	async with await redis.pipeline() as pipe:
 		for depot_id in depots:
 			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
 			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1:uptodate")
@@ -173,7 +173,7 @@ async def set_jsonrpc_cache_outdated(params):
 
 async def remove_depot_from_jsonrpc_cache(depot_id):
 	redis = await async_redis_client()
-	async with redis.pipeline() as pipe:
+	async with await redis.pipeline() as pipe:
 		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products")
 		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
 		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1")

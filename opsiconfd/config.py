@@ -746,7 +746,7 @@ parser.add(
 	env_var="OPSICONFD_JSONRPC_TIME_TO_CACHE",
 	default=0.5,
 	type=float,
-	help=expert_help("Minimum time (s) a jsonrpc must run to store data in the cache.")
+	help=expert_help("Minimum time in seconds that a jsonrpc must take before the data is cached.")
 )
 if PYTEST:
 	parser.add(

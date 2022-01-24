@@ -11,11 +11,21 @@ schemathesis tests
 import schemathesis
 
 import pytest
+import pytest_asyncio.plugin
 
 from .utils import (  # pylint: disable=unused-import
 	config, sync_clean_redis, disable_request_warning,
 	ADMIN_USER, ADMIN_PASS
 )
+
+
+# Workaround for error:
+# AttributeError: 'function' object has no attribute 'hypothesis'
+def _hypothesis_test_wraps_coroutine(function) -> bool:  # pylint: disable=unused-argument
+	return False
+
+
+pytest_asyncio.plugin._hypothesis_test_wraps_coroutine = _hypothesis_test_wraps_coroutine  # pylint: disable=protected-access
 
 
 @pytest.fixture

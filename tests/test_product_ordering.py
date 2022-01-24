@@ -5,7 +5,7 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-productOrdering tests
+product ordering tests
 """
 
 import os
@@ -39,11 +39,30 @@ async def test_delete_product(config, database_connection):  # pylint: disable=r
 
 	test_products_sorted = read_sorted_products()
 
-	thread_one = threading.Thread(name="1", target=delete_product, args=({"id": "dummy-prod-1039", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
-	thread_two = threading.Thread(name="2", target=delete_product, args=({"id": "dummy-prod-1119", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
-	thread_three = threading.Thread(name="3", target=delete_product, args=({"id": "dummy-prod-1199", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
-	thread_four = threading.Thread(name="4", target=delete_product, args=({"id": "dummy-prod-2559", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
-	thread_five = threading.Thread(name="5", target=delete_product, args=({"id": "dummy-prod-1359", "product_version": "1.0", "package_version": "1"}, config.internal_url))  # pylint: disable=line-too-long
+	thread_one = threading.Thread(
+		name="1",
+		target=delete_product,
+		args=({"id": "dummy-prod-1039", "product_version": "1.0", "package_version": "1"}, config.internal_url)
+	)
+	thread_two = threading.Thread(
+		name="2",
+		target=delete_product,
+		args=({"id": "dummy-prod-1119", "product_version": "1.0", "package_version": "1"}, config.internal_url))
+	thread_three = threading.Thread(
+		name="3",
+		target=delete_product,
+		args=({"id": "dummy-prod-1199", "product_version": "1.0", "package_version": "1"}, config.internal_url)
+	)
+	thread_four = threading.Thread(
+		name="4",
+		target=delete_product,
+		args=({"id": "dummy-prod-2559", "product_version": "1.0", "package_version": "1"}, config.internal_url)
+	)
+	thread_five = threading.Thread(
+		name="5",
+		target=delete_product,
+		args=({"id": "dummy-prod-1359", "product_version": "1.0", "package_version": "1"}, config.internal_url)
+	)
 
 	thread_one.start()
 	thread_two.start()

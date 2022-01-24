@@ -9,13 +9,12 @@ conftest
 """
 
 import asyncio
+import warnings
 import urllib3
 import pytest
 from _pytest.logging import LogCaptureHandler
 
 from opsiconfd.backend import BackendManager
-
-urllib3.disable_warnings()
 
 
 def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
@@ -45,3 +44,8 @@ def event_loop():
 	loop = asyncio.get_event_loop_policy().new_event_loop()
 	yield loop
 	loop.close()
+
+
+@pytest.fixture(autouse=True)
+def disable_insecure_request_warning():
+	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)

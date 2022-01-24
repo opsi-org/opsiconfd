@@ -26,7 +26,7 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * You can use the default debug settings or you can set the number of worker and the log level by selecting opsiconfd in the debug/run tab.
 
 ## Run Tests
-* Start opsiconfd with `sudo -E poetry run opsiconfd --backend-config-dir tests/opsi-config/backends --dispatch-config-file tests/opsi-config/backendManager/dispatch.conf --addon-dirs tests/data/addons addons --workers=1 --log-level-stderr=5`
+* Start opsiconfd with `sudo -E poetry run opsiconfd --backend-config-dir tests/opsi-config/backends --dispatch-config-file tests/opsi-config/backendManager/dispatch.conf --addon-dirs tests/data/addons addons --workers=1 --log-level-stderr=5 --jsonrpc-time-to-cache=0`
 * Select "Run Tests" on the Status Bar, use the Test Explorer or run `poetry run pytest -vv tests` in a terminal
 
 

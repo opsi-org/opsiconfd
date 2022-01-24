@@ -163,6 +163,10 @@ async def test_getProductOrdering(config, database_connection):  # pylint: disab
 	create_depot_rpc(config.internal_url, "testdepot.uib.gmbh")
 	create_products(test_products, config.internal_url)
 
+	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
+	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
+	assert cached_sorted_products == []
+
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
 	res.raise_for_status()
@@ -171,11 +175,14 @@ async def test_getProductOrdering(config, database_connection):  # pylint: disab
 	num_results = len(result.get("result").get("sorted"))
 	assert result.get("result").get("sorted") == test_products_sorted
 
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
-	assert cached_sorted_products == []
-
 	fill_db(database_connection)
+
+	# mark cache as outdated
+	async with redis_client.pipeline() as pipe:
+		pipe.delete("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
+		pipe.delete("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1:uptodate")
+		pipe.delete("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm2:uptodate")
+		await pipe.execute()
 
 	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
@@ -280,6 +287,7 @@ def delete_dummy_products(n, opsi_url):  # pylint: disable=invalid-name
 
 
 def fill_db(database_connection):  # pylint: disable=redefined-outer-name
+	print("fill_db")
 	cursor = database_connection.cursor()
 	for num in range(8000):
 		cursor.execute(

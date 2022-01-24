@@ -741,6 +741,13 @@ parser.add(
 	default=["/usr/lib/opsiconfd/addons", VAR_ADDON_DIR],
 	help=expert_help("A list of addon directories")
 )
+parser.add(
+	"--jsonrpc-time-to-cache",
+	env_var="OPSICONFD_JSONRPC_TIME_TO_CACHE",
+	default=0.5,
+	type=float,
+	help=expert_help("Minimum time (s) a jsonrpc must run to store data in the cache.")
+)
 if PYTEST:
 	parser.add(
 		"args",

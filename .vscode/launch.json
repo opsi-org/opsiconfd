@@ -23,7 +23,7 @@
 			"type":"python",
 			"request": "launch",
 			"module":"opsiconfd",
-			"args": ["--backend-config-dir=tests/opsi-config/backends", "--dispatch-config-file=tests/opsi-config/backendManager/dispatch.conf", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--log-level-file=${input:loglevelfile}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"args": ["--backend-config-dir=tests/opsi-config/backends", "--dispatch-config-file=tests/opsi-config/backendManager/dispatch.conf", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--log-level-file=${input:loglevelfile}", "--static-dir=${workspaceFolder}/opsiconfd_data/static", "--jsonrpc-time-to-cache=0"],
 			"sudo": true,
 		},
 		{

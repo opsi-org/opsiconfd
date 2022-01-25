@@ -230,8 +230,10 @@ def configserver_setup_ca() -> bool:
 	create = False
 	renew = False
 
-	if not os.path.exists(config.ssl_ca_key) or not os.path.exists(config.ssl_ca_cert):
+	if not os.path.exists(config.ssl_ca_key):
 		create = True
+	elif not os.path.exists(config.ssl_ca_cert):
+		renew = True
 	else:
 		ca_crt = load_ca_cert()
 		enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")

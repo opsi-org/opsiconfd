@@ -17,7 +17,8 @@ import ipaddress
 from typing import Tuple
 
 from OpenSSL.crypto import (
-	FILETYPE_PEM, load_privatekey, load_certificate, X509, PKey, dump_publickey
+	FILETYPE_PEM, load_privatekey, load_certificate, X509, PKey, dump_publickey,
+	X509Store, X509StoreContext, X509StoreContextError
 )
 from OpenSSL.crypto import Error as CryptoError
 
@@ -273,7 +274,7 @@ def configserver_setup_ca() -> bool:
 		install_ca(ca_crt)
 		return True
 
-	logger.info("Server cert is up to date")
+	logger.info("CA is up to date")
 	return False
 
 
@@ -337,6 +338,17 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 	if not create:
 		if dump_publickey(FILETYPE_PEM, srv_key) != dump_publickey(FILETYPE_PEM, srv_crt.get_pubkey()):
 			logger.warning("Server cert does not match server key, creating new server cert")
+			create = True
+
+	if not create:
+		try:
+			ca_cert = load_ca_cert()
+			store = X509Store()
+			store.add_cert(ca_cert)
+			store_ctx = X509StoreContext(store, srv_crt)
+			store_ctx.verify_certificate()
+		except X509StoreContextError as err:
+			logger.warning("Failed to verify server cert with opsi CA %s, creating new server cert", err)
 			create = True
 
 	if not create:

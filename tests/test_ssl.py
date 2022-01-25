@@ -8,9 +8,11 @@
 ssl tests
 """
 import os
+import re
 import time
 import datetime
 import shutil
+import subprocess
 import mock
 import pytest
 
@@ -27,7 +29,7 @@ from opsiconfd.ssl import (
 	create_ca, store_ca_key, store_ca_cert, load_ca_key, load_ca_cert,
 	store_local_server_key, load_local_server_key,
 	create_local_server_cert, store_local_server_cert, load_local_server_cert,
-	setup_server_cert, setup_ca
+	setup_server_cert, setup_ca, get_ca_info
 )
 
 
@@ -80,6 +82,16 @@ def test_create_ca(tmpdir):
 			ca_crt = load_ca_cert()
 			enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
 			assert (enddate - datetime.datetime.now()).days == CA_DAYS - 1
+
+			out = subprocess.check_output(["openssl", "x509", "-noout", "-text", "-in", config.ssl_ca_cert]).decode("utf-8")
+			match = re.search(r'Serial Number:\s*\n\s*([a-f0-9:]+)', out)
+			openssl_serial = match.group(1)
+
+			info = get_ca_info()
+			assert info["serial_number"].replace(":", "").lstrip("0") == openssl_serial.replace(":", "").lstrip("0")
+
+			print(info["not_before"])
+			print(info["alt_names"])
 
 
 def test_ca_key_fallback(tmpdir):

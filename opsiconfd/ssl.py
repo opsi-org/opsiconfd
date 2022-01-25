@@ -417,37 +417,30 @@ def setup_ssl():
 		load_ca_key()
 
 
-def get_ca_info():
-	cert = load_ca_cert()
-	expiration = (
-		datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ") -
-		datetime.datetime.now()
-	).days
-
-	return {
-		"issuer": cert.get_issuer(),
-		"subject": cert.get_subject(),
-		"serial_number": ':'.join((f'{cert.get_serial_number()}:X').zfill(36)[i:i + 2] for i in range(0, 36, 2)),
-		"expiration": expiration
-	}
-
-
-def get_cert_info():
-	cert = load_local_server_cert()
+def _get_cert_info(cert):
 	alt_names = ""
 	for i in range(0, cert.get_extension_count()):
 		if cert.get_extension(i).get_short_name() == b'subjectAltName':
 			alt_names = cert.get_extension(i)
 
-	expiration = (
-		datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ") -
-		datetime.datetime.now()
-	).days
+	not_before = datetime.datetime.strptime(cert.get_notBefore().decode("utf-8"), "%Y%m%d%H%M%SZ")
+	not_after = datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
+	expiration = (not_after - datetime.datetime.now()).days
 
 	return {
 		"issuer": cert.get_issuer(),
 		"subject": cert.get_subject(),
-		"serial_number": ':'.join((f'{cert.get_serial_number():X}').zfill(36)[i:i + 2] for i in range(0, 36, 2)),
-		"alt_names": alt_names,
-		"expiration": expiration
+		"serial_number": ':'.join((f'{cert.get_serial_number():x}').zfill(36)[i:i + 2] for i in range(0, 36, 2)),
+		"not_before": not_before,
+		"not_after": not_after,
+		"expiration": expiration,
+		"alt_names": alt_names
 	}
+
+
+def get_ca_info():
+	return _get_cert_info(load_ca_cert())
+
+
+def get_cert_info():
+	return _get_cert_info(load_local_server_cert())

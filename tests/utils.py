@@ -29,6 +29,11 @@ OPSI_SESSION_KEY = "opsiconfd:sessions"
 MONITORING_CHECK_DAYS = 31
 
 
+def reset_singleton(cls):
+	if cls in cls._instances:  # pylint: disable=protected-access
+		del cls._instances[cls]  # pylint: disable=protected-access
+
+
 @pytest.fixture(autouse=True)
 def disable_request_warning():
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

@@ -388,7 +388,6 @@ class MetricsCollector():  # pylint: disable=too-many-instance-attributes
 	_metric_subjects = []
 
 	def __init__(self):
-		self._loop = asyncio.get_event_loop()
 		self._interval = 5
 		self._node_name = config.node_name
 		self._values = {}
@@ -400,7 +399,7 @@ class MetricsCollector():  # pylint: disable=too-many-instance-attributes
 		return int(time.time() * 1000)
 
 	async def _fetch_values(self):
-		self._loop.create_task(
+		asyncio.get_event_loop().create_task(
 			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
 		)
 
@@ -572,7 +571,7 @@ class ManagerMetricsCollector(MetricsCollector):
 	_metric_subjects = ["node"]
 
 	async def _fetch_values(self):
-		self._loop.create_task(
+		asyncio.get_event_loop().create_task(
 			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
 		)
 
@@ -597,7 +596,7 @@ class WorkerMetricsCollector(MetricsCollector):
 		):
 			# Do not add 0-values
 			if value:
-				self._loop.create_task(
+				asyncio.get_event_loop().create_task(
 					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self._worker_num})
 				)
 

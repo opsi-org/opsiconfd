@@ -2,6 +2,7 @@ echo "* Running as $(whoami)"
 
 /workspace/scripts/setup-hosts.sh
 
+echo "* Restarting services"
 sudo service redis-server restart
 sudo service mysql restart
 sudo service grafana-server restart

@@ -26,6 +26,8 @@ from .ssl import setup_server_cert
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
 	def __init__(self):
 		self.pid = None
+		self.running = False
+		self._async_main_running = False
 		self._loop = None
 		self._last_reload = 0
 		self._server = None
@@ -40,8 +42,17 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		if self._server:
 			self._server.stop(force)
 		self._should_stop = True
+		for _ in range(5):
+			if not self._async_main_running:
+				break
+			time.sleep(1)
 		if self._loop:
 			self._loop.stop()
+			for _ in range(5):
+				if not self._loop.is_running():
+					break
+				time.sleep(1)
+		self.running = False
 
 	def reload(self):
 		self._last_reload = time.time()
@@ -64,18 +75,19 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 
 	def run(self):
 		logger.info("Manager starting")
+		self.running = True
+		self._should_stop = False
 		self.pid = os.getpid()
 		self._last_reload = time.time()
 		signal.signal(signal.SIGINT, self.signal_handler)  # Unix signal 2. Sent by Ctrl+C. Terminate service.
 		signal.signal(signal.SIGTERM, self.signal_handler)  # Unix signal 15. Sent by `kill <pid>`. Terminate service.
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 		try:
-			loop_thread = threading.Thread(
+			threading.Thread(
 				name="ManagerAsyncLoop",
 				daemon=True,
 				target=self.run_loop
-			)
-			loop_thread.start()
+			).start()
 
 			self._server = Server()
 			self._server.run()
@@ -115,6 +127,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._redis_check_time = time.time()
 
 	async def async_main(self):
+		self._async_main_running = True
 		# Create and start MetricsCollector
 		from .statistics import ManagerMetricsCollector  # pylint: disable=import-outside-toplevel
 		metrics_collector = ManagerMetricsCollector()
@@ -135,9 +148,13 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
 			for _num in range(60):
+				if self._should_stop:
+					break
 				await asyncio.sleep(1)
 
 		try:
 			await unregister_opsi_services()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
+
+		self._async_main_running = False

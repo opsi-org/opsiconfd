@@ -75,6 +75,7 @@ stages:
   useradd adminuser
   echo "adminuser:adminuser" | chpasswd
   adduser adminuser opsiadmin
+  adduser adminuser opsifileadmins
 
   # Start and wait for redis server
   redis-server /etc/redis/redis.conf &

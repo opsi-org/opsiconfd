@@ -27,7 +27,7 @@ from packaging.version import Version
 import aiohttp
 
 from .logging import logger
-from .config import config, set_config_in_config_file
+from .config import config
 from .utils import get_random_string
 
 API_KEY_NAME = "opsiconfd"
@@ -419,5 +419,5 @@ def create_opsiconfd_user(db_file: str):
 
 		url = urlparse(config.grafana_internal_url)
 		grafana_internal_url = f"{url.scheme}://opsiconfd:{password}@{url.hostname}:{url.port}{url.path}"
-		set_config_in_config_file("grafana-internal-url", grafana_internal_url)
+		config.set_config_in_config_file("grafana-internal-url", grafana_internal_url)
 		config.reload()

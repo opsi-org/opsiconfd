@@ -9,12 +9,15 @@ config tests
 """
 
 import os
+import re
+from unittest.mock import patch
+
 import pytest
 
-from opsiconfd.config import config
+from .utils import get_config
 
 
-@pytest.mark.parametrize("arguments,config_name,expexted_value", [
+@pytest.mark.parametrize("arguments, config_name, expexted_value", [
 	(["--backend-config-dir", "/test"], "backend_config_dir", "/test"),
 	(["--dispatch-config-file", "/filename"], "dispatch_config_file", "/filename"),
 	(["--extension-config-dir", "/test"], "extension_config_dir", "/test"),
@@ -22,7 +25,7 @@ from opsiconfd.config import config
 	(["--symlink-logs"], "symlink_logs", True),
 ])
 def test_cmdline(arguments, config_name, expexted_value):
-	config._parse_args(arguments)  # pylint: disable=protected-access
+	config = get_config(arguments)
 	assert getattr(config, config_name) == expexted_value
 
 
@@ -35,7 +38,7 @@ def test_cmdline(arguments, config_name, expexted_value):
 ])
 def test_environment_vars(varname, value, config_name, expexted_value):
 	os.environ[varname] = value
-	config._parse_args([])  # pylint: disable=protected-access
+	config = get_config([])
 	try:
 		assert getattr(config, config_name) == expexted_value
 	finally:
@@ -54,5 +57,164 @@ def test_environment_vars(varname, value, config_name, expexted_value):
 def test_config_file(tmp_path, varname, value, config_name, expexted_value):
 	conf_file = tmp_path / "opsiconfd.conf"
 	conf_file.write_text(f"{varname} = {value}")
-	config._parse_args(["--config", str(conf_file)])  # pylint: disable=protected-access
+	config = get_config(["--config", str(conf_file)])
 	assert getattr(config, config_name) == expexted_value
+
+
+def test_help():
+	text = ""
+
+	def print_message(self, message, file=None):  # pylint: disable=unused-argument
+		nonlocal text
+		text = message
+
+	with patch("argparse.ArgumentParser._print_message", print_message):
+		config = get_config(["--help"])  # pylint: disable=protected-access
+		with pytest.raises(SystemExit):
+			config._parse_args()  # pylint: disable=protected-access
+		assert "Set maximum log message length" not in text
+
+		text = ""
+		config = get_config(["--ex-help"])  # pylint: disable=protected-access
+		with pytest.raises(SystemExit):
+			config._parse_args()  # pylint: disable=protected-access
+		assert "Set maximum log message length" in text
+
+
+def test_upgrade_config_files(tmp_path):
+	config_file = tmp_path / "opsiconfd.conf"
+	config_file.write_text((
+		"[global]\n"
+		"backend config dir = /backend/config/dir\n"
+		"; backend config dir = comment1\n"
+		"# backend config dir = comment2\n"
+		"dispatch config file = /dispatch/config/file\n"
+		"extension config dir = /extension/config/dir\n"
+		"acl file = /acl/file\n"
+		"admin networks = 10.10.0.0/16\n"
+		"pid file = /var/run/opsiconfd/opsiconfd.pid\n"
+		"log file = /log/file\n"
+		"symlink logs = no\n"
+		"log level = 1\n"
+		"log format = [%l] [%D] %M (%F|%N)\n"
+		"max log size = 5MB\n"
+		"max execution statistics = 250\n"
+		"monitoring user = mu\n"
+		"monitoring debug = false\n"
+		"[service]\n"
+		"interface = 10.10.1.1\n"
+		"http port = 0\n"
+		"https port = 1234\n"
+		"ssl server cert = /etc/opsi/opsiconfd.pem\n"
+		"ssl server key = /etc/opsi/opsiconfd.pem\n"
+		"accepted ciphers =\n"
+		"[session]\n"
+		"session name = OPSISID\n"
+		"verify ip = yes\n"
+		"update ip = no\n"
+		"max inactive interval = 111\n"
+		"max authentication failures = 222\n"
+		"max sessions per ip = 333\n"
+		"[directories]\n"
+		"/ = /usr/share/opsiconfd/static (noauth)\n"
+		"configed = /usr/lib/configed (noauth)\n"
+	), encoding="utf-8")
+
+	config = get_config(["--config-file", str(config_file)])
+	config._upgrade_config_files()  # pylint: disable=protected-access
+
+	data = config_file.read_text(encoding="utf-8")
+	data = re.sub(r"^#.*\n?", "", data, flags=re.MULTILINE)
+	assert data == (
+		"backend-config-dir = /backend/config/dir\n"
+		"dispatch-config-file = /dispatch/config/file\n"
+		"extension-config-dir = /extension/config/dir\n"
+		"acl-file = /acl/file\n"
+		"admin-networks = 10.10.0.0/16\n"
+		"log-file = /log/file\n"
+		"log-level = 1\n"
+		"monitoring-user = mu\n"
+		"interface = 10.10.1.1\n"
+		"port = 1234\n"
+		"verify-ip = true\n"
+		"update-ip = false\n"
+		"session-lifetime = 111\n"
+		"max-auth-failures = 222\n"
+		"max-session-per-ip = 333\n"
+		"\n"
+	)
+	assert config.backend_config_dir == "/backend/config/dir"
+	assert config.dispatch_config_file == "/dispatch/config/file"
+	assert config.extension_config_dir == "/extension/config/dir"
+	assert config.acl_file == "/acl/file"
+	assert config.admin_networks == ["10.10.0.0/16"]
+	assert config.log_file == "/log/file"
+	assert config.symlink_logs is False
+	assert config.log_level == 1
+	assert config.monitoring_user == "mu"
+	assert config.interface == "10.10.1.1"
+	assert config.port == 1234
+	assert config.verify_ip is True
+	assert config.update_ip is False
+	assert config.session_lifetime == 111
+	assert config.max_auth_failures == 222
+	assert config.max_session_per_ip == 333
+
+	config_file.write_text("xxx\nyyy\n")
+	config = get_config(["--config-file", str(config_file)])
+	config._upgrade_config_files()  # pylint: disable=protected-access
+	assert config_file.read_text(encoding="utf-8") == "xxx\nyyy\n"
+
+
+def test_update_config_files(tmp_path):
+	config_file = tmp_path / "opsiconfd.conf"
+	config_file.write_text((
+		"# comment\n"
+		"log-level = 1\n"
+		"monitoring-debug = yes\n"
+		"\n"
+	), encoding="utf-8")
+
+	config = get_config(["--config-file", str(config_file)])
+	config._update_config_files()  # pylint: disable=protected-access
+
+	data = config_file.read_text(encoding="utf-8")
+	assert data == (
+		"# comment\n"
+		"log-level = 1\n"
+		"\n"
+	)
+
+
+def test_set_config_in_config_file(tmp_path):
+	config_file = tmp_path / "opsiconfd.conf"
+	config_file.write_text((
+		"# comment\n"
+		"log-level = 1\n"
+		"\n"
+	), encoding="utf-8")
+
+	config = get_config(["--config-file", str(config_file)])
+	grafana_internal_url = "redis://username:password@hostname:123/path"
+	config.set_config_in_config_file("grafana-internal-url", grafana_internal_url)
+
+	data = config_file.read_text(encoding="utf-8")
+	assert data == (
+		"# comment\n"
+		"log-level = 1\n"
+		"\n"
+		f"grafana-internal-url = {grafana_internal_url}\n"
+	)
+
+	grafana_internal_url = "redis://username:password@hostname:123/new-path"
+	config.set_config_in_config_file("grafana-internal-url", grafana_internal_url)
+
+	data = config_file.read_text(encoding="utf-8")
+	assert data == (
+		"# comment\n"
+		"log-level = 1\n"
+		"\n"
+		f"grafana-internal-url = {grafana_internal_url}\n"
+	)
+	config.reload()
+	assert config.grafana_internal_url == grafana_internal_url

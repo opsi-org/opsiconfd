@@ -19,6 +19,7 @@ from .utils import (  # pylint: disable=unused-import
 
 def test_get_session(test_client):
 	test_client.get("/")
+	set_contextvars_from_contex(None)
 	set_contextvars_from_contex(test_client.context)
 	assert get_session()
 	assert get_user_store()

@@ -8,7 +8,6 @@
 admininterface tests
 """
 
-import sys
 import socket
 import json
 from datetime import datetime, timedelta
@@ -40,10 +39,16 @@ def disable_request_warning():
 
 
 @pytest.fixture
-def config(monkeypatch):
-	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
-	from opsiconfd.config import config  # pylint: disable=import-outside-toplevel, redefined-outer-name
-	return config
+def config():
+	from opsiconfd.config import Config  # pylint: disable=import-outside-toplevel, redefined-outer-name
+	reset_singleton(Config)
+	return Config(["opsiconfd"])
+
+
+def get_config(argv=None):
+	from opsiconfd.config import Config  # pylint: disable=import-outside-toplevel, redefined-outer-name
+	reset_singleton(Config)
+	return Config(["opsiconfd"] + argv or [])
 
 
 CLEAN_REDIS_KEYS = [

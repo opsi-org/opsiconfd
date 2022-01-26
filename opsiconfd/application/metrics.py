@@ -27,7 +27,7 @@ from ..logging import logger
 from ..config import config
 from ..statistics import metrics_registry, get_time_bucket
 from ..grafana import GRAFANA_DATASOURCE_TEMPLATE, GRAFANA_DASHBOARD_TEMPLATE
-from ..utils import async_redis_client
+from ..utils import async_redis_client, ip_address_from_redis_key
 
 grafana_metrics_router = APIRouter()
 
@@ -53,10 +53,9 @@ async def get_nodes():
 async def get_clients(metric_id):
 	redis = await async_redis_client()
 	clients = []
-	# TODO: IPv6 ?
 	async for redis_key in redis.scan_iter(f"opsiconfd:stats:{metric_id}:*"):
 		redis_key = redis_key.decode("utf-8")
-		clients.append({"client_addr": redis_key.split(':')[-1]})
+		clients.append({"client_addr": ip_address_from_redis_key(redis_key.split(':')[-1])})
 	clients.sort(key=itemgetter("client_addr"))
 	return clients
 

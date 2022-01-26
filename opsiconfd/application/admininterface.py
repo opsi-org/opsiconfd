@@ -158,7 +158,7 @@ async def delete_client_sessions(request: Request):
 		redis = await async_redis_client()
 		sessions = []
 		deleted_keys = []
-		keys = redis.scan_iter(f"{OPSISession.redis_key_prefix}:{client_addr}:*")
+		keys = redis.scan_iter(f"{OPSISession.redis_key_prefix}:{ip_address_to_redis_key(client_addr)}:*")
 		if keys:
 			async with await redis.pipeline(transaction=False) as pipe:
 				async for key in keys:

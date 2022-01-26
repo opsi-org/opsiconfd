@@ -33,7 +33,7 @@ from .worker import (
 )
 from .config import config
 from .utils import (
-	Singleton, redis_client, async_redis_client
+	Singleton, redis_client, async_redis_client, ip_address_to_redis_key
 )
 from .grafana import GrafanaPanelConfig
 
@@ -683,7 +683,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 					get_worker_metrics_collector().add_value(
 						"client:sum_http_request_number",
 						1,
-						{"client_addr": contextvar_client_address.get()}
+						{"client_addr": ip_address_to_redis_key(contextvar_client_address.get())}
 					)
 				)
 

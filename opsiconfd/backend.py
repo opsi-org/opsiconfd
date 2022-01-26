@@ -20,7 +20,7 @@ from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig
 from OPSI.Backend.Base.Backend import describeInterface
 
 from . import contextvar_client_address, contextvar_client_session
-from .config import config, CERT_DAYS, CLIENT_CERT_DAYS
+from .config import config
 from .utils import Singleton
 from .logging import logger
 
@@ -220,7 +220,11 @@ class OpsiconfdBackend(metaclass=Singleton):
 				"OU": f"opsi@{domain}",
 				"emailAddress": f"opsi@{domain}"
 			},
-			valid_days=CLIENT_CERT_DAYS if host.getType() == "OpsiClient" else CERT_DAYS,
+			valid_days=(
+				config.ssl_client_cert_valid_days
+				if host.getType() == "OpsiClient"
+				else config.ssl_server_cert_valid_days
+			),
 			ip_addresses=ip_addresses,
 			hostnames=hostnames,
 			ca_key=load_ca_key(),

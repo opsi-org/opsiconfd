@@ -28,10 +28,7 @@ from OPSI.Config import OPSI_ADMIN_GROUP
 from opsicommon.ssl import install_ca, create_ca, create_server_cert, as_pem
 
 from .config import (
-	config, FQDN,
-	CA_DAYS, CA_RENEW_DAYS, CERT_DAYS, CERT_RENEW_DAYS,
-	CA_KEY_DEFAULT_PASSPHRASE,
-	SERVER_KEY_DEFAULT_PASSPHRASE
+	config, FQDN, CA_KEY_DEFAULT_PASSPHRASE, SERVER_KEY_DEFAULT_PASSPHRASE
 )
 from .logging import logger
 from .utils import get_ip_addresses
@@ -207,7 +204,7 @@ def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]:  # pylint
 			"OU": f"opsi@{domain}",
 			"emailAddress": f"opsi@{domain}"
 		},
-		valid_days=CERT_DAYS,
+		valid_days=config.ssl_server_cert_valid_days,
 		ip_addresses=get_ips(),
 		hostnames=get_hostnames(),
 		ca_key=ca_key,
@@ -240,7 +237,7 @@ def configserver_setup_ca() -> bool:
 		diff = (enddate - datetime.datetime.now()).days
 
 		logger.info("CA '%s' will expire in %d days", ca_crt.get_subject().CN, diff)
-		if diff <= CA_RENEW_DAYS:
+		if diff <= config.ssl_ca_cert_renew_days:
 			logger.notice("CA '%s' will expire in %d days, renewing", ca_crt.get_subject().CN, diff)
 			renew = True
 
@@ -268,7 +265,7 @@ def configserver_setup_ca() -> bool:
 				"OU": f"opsi@{domain}",
 				"emailAddress": f"opsi@{domain}"
 			},
-			valid_days=CA_DAYS,
+			valid_days=config.ssl_ca_cert_valid_days,
 			key=ca_key
 		)
 		store_ca_key(ca_key)
@@ -358,7 +355,7 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 		diff = (enddate - datetime.datetime.now()).days
 
 		logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, diff)
-		if diff <= CERT_RENEW_DAYS:
+		if diff <= config.ssl_server_cert_renew_days:
 			logger.notice("Server cert '%s' will expire in %d days, recreating", srv_crt.get_subject().CN, diff)
 			create = True
 

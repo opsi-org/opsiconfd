@@ -23,7 +23,7 @@ from OpenSSL.crypto import (
 from opsiconfd.config import config
 import opsiconfd.ssl
 from opsiconfd.ssl import (
-	CA_DAYS, CERT_DAYS, CA_KEY_DEFAULT_PASSPHRASE, SERVER_KEY_DEFAULT_PASSPHRASE,
+	CA_KEY_DEFAULT_PASSPHRASE, SERVER_KEY_DEFAULT_PASSPHRASE,
 	get_ips, get_hostnames,
 	load_key, load_cert,
 	create_ca, store_ca_key, store_ca_cert, load_ca_key, load_ca_cert,
@@ -81,7 +81,7 @@ def test_create_ca(tmpdir):
 
 			ca_crt = load_ca_cert()
 			enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
-			assert (enddate - datetime.datetime.now()).days == CA_DAYS - 1
+			assert (enddate - datetime.datetime.now()).days == config.ssl_ca_cert_valid_days - 1
 
 			out = subprocess.check_output(["openssl", "x509", "-noout", "-text", "-in", config.ssl_ca_cert]).decode("utf-8")
 			match = re.search(r'Serial Number:\s*\n\s*([a-f0-9:]+)', out)
@@ -208,33 +208,33 @@ def test_renew_expired_ca(tmpdir):
 	config.ssl_ca_cert = str(ssl_ca_cert)
 	config.ssl_ca_key = str(ssl_ca_key)
 	config.ssl_ca_key_passphrase = "secret"
+	config.ssl_ca_cert_valid_days = 300
 
 	with mock.patch('opsiconfd.ssl.setup_ssl_file_permissions', lambda: None):
 		with mock.patch('opsicommon.ssl.linux._get_cert_path_and_cmd', lambda: (str(tmpdir), "echo")):
-			with mock.patch('opsiconfd.ssl.CA_DAYS', 300):
-				setup_ca()
-				ca_crt = load_ca_cert()
-				enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
-				assert (enddate - datetime.datetime.now()).days == 299
+			setup_ca()
+			ca_crt = load_ca_cert()
+			enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
+			assert (enddate - datetime.datetime.now()).days == 299
 
-				assert os.path.exists(config.ssl_ca_key)
-				assert os.path.exists(config.ssl_ca_cert)
-				mtime = ssl_ca_cert.lstat().mtime
-				key1 = load_ca_key()
+			assert os.path.exists(config.ssl_ca_key)
+			assert os.path.exists(config.ssl_ca_cert)
+			mtime = ssl_ca_cert.lstat().mtime
+			key1 = load_ca_key()
 
-				with mock.patch('opsiconfd.ssl.CA_RENEW_DAYS', 100):
-					# Recreation not needed
-					time.sleep(2)
-					setup_ca()
-					assert mtime == ssl_ca_cert.lstat().mtime
-					assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, key1)
+			config.ssl_ca_cert_renew_days = 100
+			# Recreation not needed
+			time.sleep(2)
+			setup_ca()
+			assert mtime == ssl_ca_cert.lstat().mtime
+			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, key1)
 
-				with mock.patch('opsiconfd.ssl.CA_RENEW_DAYS', 300):
-					# Recreation needed
-					time.sleep(2)
-					setup_ca()
-					assert mtime != ssl_ca_cert.lstat().mtime
-					assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, key1)
+			config.ssl_ca_cert_renew_days = 300
+			# Recreation needed
+			time.sleep(2)
+			setup_ca()
+			assert mtime != ssl_ca_cert.lstat().mtime
+			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, key1)
 
 
 def test_create_local_server_cert(tmpdir):
@@ -268,7 +268,7 @@ def test_create_local_server_cert(tmpdir):
 
 			srv_crt = load_local_server_cert()
 			enddate = datetime.datetime.strptime(srv_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
-			assert (enddate - datetime.datetime.now()).days == CERT_DAYS - 1
+			assert (enddate - datetime.datetime.now()).days == config.ssl_server_cert_valid_days - 1
 
 
 def test_recreate_server_key(tmpdir):

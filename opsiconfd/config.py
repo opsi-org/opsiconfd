@@ -36,11 +36,6 @@ CONFIG_FILE_HEADER = """
 # update-ip = true
 """
 DEPRECATED = ["monitoring-debug"]
-CA_DAYS = 360
-CA_RENEW_DAYS = 300  # If only CA_RENEW_DAYS days left, The CA will be renewed
-CERT_DAYS = 90
-CERT_RENEW_DAYS = 30  # If only CERT_RENEW_DAYS days left, a new cert will be created
-CLIENT_CERT_DAYS = 360
 
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
@@ -491,6 +486,19 @@ parser.add(
 	default=certifi.where(),
 	help="Path to the database of trusted certificates"
 )
+# Cipher Strings from https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
+# iPXE 1.20.1 supports these TLS v1.2 cipher suites:
+# AES128-SHA256 (TLS_RSA_WITH_AES_128_CBC_SHA256, 0x003c)
+# AES256-SHA256 (TLS_RSA_WITH_AES_256_CBC_SHA256, 0x003d)
+parser.add(
+	"--ssl-ciphers",
+	env_var="OPSICONFD_SSL_CIPHERS",
+	default="TLSv1.2",
+	help=(
+		"TLS cipher suites to enable "
+		"(OpenSSL cipher list format https://www.openssl.org/docs/man1.0.2/man1/ciphers.html)."
+	)
+)
 parser.add(
 	"--ssl-ca-subject-cn",
 	env_var="OPSICONFD_SSL_CA_SUBJECT_CN",
@@ -516,6 +524,18 @@ parser.add(
 	help="The location of the opsi ssl ca certificate."
 )
 parser.add(
+	"--ssl-ca-cert-valid-days",
+	env_var="OPSICONFD_SSL_CA_CERT_VALID_DAYS",
+	default=360,
+	help=expert_help("The period of validity of the opsi ssl ca certificate in days.")
+)
+parser.add(
+	"--ssl-ca-cert-renew-days",
+	env_var="OPSICONFD_SSL_CA_CERT_RENEW_DAYS",
+	default=300,
+	help=expert_help("The CA will be renewed if the validity falls below the specified number of days.")
+)
+parser.add(
 	"--ssl-server-key",
 	env_var="OPSICONFD_SSL_SERVER_KEY",
 	default="/etc/opsi/ssl/opsiconfd-key.pem",
@@ -533,18 +553,23 @@ parser.add(
 	default="/etc/opsi/ssl/opsiconfd-cert.pem",
 	help="The location of the ssl server certificate."
 )
-# Cipher Strings from https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
-# iPXE 1.20.1 supports these TLS v1.2 cipher suites:
-# AES128-SHA256 (TLS_RSA_WITH_AES_128_CBC_SHA256, 0x003c)
-# AES256-SHA256 (TLS_RSA_WITH_AES_256_CBC_SHA256, 0x003d)
 parser.add(
-	"--ssl-ciphers",
-	env_var="OPSICONFD_SSL_CIPHERS",
-	default="TLSv1.2",
-	help=(
-		"TLS cipher suites to enable "
-		"(OpenSSL cipher list format https://www.openssl.org/docs/man1.0.2/man1/ciphers.html)."
-	)
+	"--ssl-server-cert-valid-days",
+	env_var="OPSICONFD_SSL_SERVER_CERT_VALID_DAYS",
+	default=90,
+	help=expert_help("The period of validity of the server certificate in days.")
+)
+parser.add(
+	"--ssl-server-cert-renew-days",
+	env_var="OPSICONFD_SSL_SERVER_CERT_RENEW_DAYS",
+	default=30,
+	help=expert_help("The server certificate will be renewed if the validity falls below the specified number of days.")
+)
+parser.add(
+	"--ssl-client-cert-valid-days",
+	env_var="OPSICONFD_SSL_CLIENT_CERT_VALID_DAYS",
+	default=360,
+	help=expert_help("The period of validity of a client certificate in days.")
 )
 parser.add(
 	"--verify-ip",

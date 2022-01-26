@@ -13,6 +13,7 @@ import datetime
 import socket
 import codecs
 import ipaddress
+from typing import Dict, Any
 
 from typing import Tuple
 
@@ -295,6 +296,22 @@ def setup_ca() -> bool:
 	raise ValueError(f"Invalid server role: {server_role}")
 
 
+def validate_cert(cert: X509, ca_cert: X509) -> None:
+	"""Will throw a X509StoreContextError if cert is invalid"""
+	store = X509Store()
+	store.add_cert(ca_cert)
+	store_ctx = X509StoreContext(store, cert)
+	store_ctx.verify_certificate()
+
+	ca_cert_not_before = datetime.datetime.strptime(ca_cert.get_notBefore().decode("utf-8"), "%Y%m%d%H%M%SZ")
+	cert_not_before = datetime.datetime.strptime(cert.get_notBefore().decode("utf-8"), "%Y%m%d%H%M%SZ")
+	if ca_cert_not_before > cert_not_before:
+		raise X509StoreContextError(
+			f"CA is not valid before {ca_cert_not_before} but certificate is valid before {cert_not_before}",
+			ca_cert
+		)
+
+
 def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
 	server_role = get_server_role()
@@ -341,11 +358,7 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 
 	if not create:
 		try:
-			ca_cert = load_ca_cert()
-			store = X509Store()
-			store.add_cert(ca_cert)
-			store_ctx = X509StoreContext(store, srv_crt)
-			store_ctx.verify_certificate()
+			validate_cert(srv_crt, load_ca_cert())
 		except X509StoreContextError as err:
 			logger.warning("Failed to verify server cert with opsi CA %s, creating new server cert", err)
 			create = True
@@ -428,7 +441,7 @@ def setup_ssl():
 		load_ca_key()
 
 
-def _get_cert_info(cert):
+def get_cert_info(cert: X509) -> Dict[str, Any]:
 	alt_names = ""
 	for i in range(0, cert.get_extension_count()):
 		if cert.get_extension(i).get_short_name() == b'subjectAltName':
@@ -449,9 +462,9 @@ def _get_cert_info(cert):
 	}
 
 
-def get_ca_info():
-	return _get_cert_info(load_ca_cert())
+def get_ca_cert_info() -> Dict[str, Any]:
+	return get_cert_info(load_ca_cert())
 
 
-def get_cert_info():
-	return _get_cert_info(load_local_server_cert())
+def get_server_cert_info() -> Dict[str, Any]:
+	return get_cert_info(load_local_server_cert())

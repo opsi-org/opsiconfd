@@ -18,7 +18,7 @@ from .. import __version__
 
 from ..config import config, FQDN
 from ..utils import async_get_redis_info, async_redis_client
-from ..ssl import get_ca_info, get_cert_info
+from ..ssl import get_ca_cert_info, get_server_cert_info
 status_router = APIRouter()
 
 
@@ -56,7 +56,7 @@ async def status_overview() -> PlainTextResponse:
 		f"redis-error: {redis_error}\n"
 		f"redis-mem: {redis_mem}\n"
 		f"redis-mem-total: {redis_mem_total}\n"
-		f"ssl-ca-valid-days: {get_ca_info()['expiration']}\n"
-		f"ssl-cert-valid-days: {get_cert_info()['expiration']}\n"
+		f"ssl-ca-valid-days: {get_ca_cert_info()['expiration']}\n"
+		f"ssl-cert-valid-days: {get_server_cert_info()['expiration']}\n"
 	)
 	return PlainTextResponse(data)

@@ -17,7 +17,7 @@ import mock
 import pytest
 
 from OpenSSL.crypto import (
-	TYPE_RSA, FILETYPE_PEM, dump_privatekey, X509
+	TYPE_RSA, FILETYPE_PEM, dump_privatekey, X509, X509StoreContextError
 )
 
 from opsiconfd.config import config
@@ -29,7 +29,7 @@ from opsiconfd.ssl import (
 	create_ca, store_ca_key, store_ca_cert, load_ca_key, load_ca_cert,
 	store_local_server_key, load_local_server_key,
 	create_local_server_cert, store_local_server_cert, load_local_server_cert,
-	setup_server_cert, setup_ca, get_ca_info
+	setup_server_cert, setup_ca, get_ca_cert_info, get_server_cert_info, validate_cert
 )
 
 
@@ -87,7 +87,7 @@ def test_create_ca(tmpdir):
 			match = re.search(r'Serial Number:\s*\n\s*([a-f0-9:]+)', out)
 			openssl_serial = match.group(1)
 
-			info = get_ca_info()
+			info = get_ca_cert_info()
 			assert info["serial_number"].replace(":", "").lstrip("0") == openssl_serial.replace(":", "").lstrip("0")
 
 			print(info["not_before"])
@@ -205,14 +205,28 @@ def test_recreate_ca(tmpdir):
 def test_renew_expired_ca(tmpdir):
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
+	ssl_server_cert = tmpdir / "opsiconfd-cert.pem"
+	ssl_server_key = tmpdir / "opsiconfd-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
 	config.ssl_ca_key = str(ssl_ca_key)
 	config.ssl_ca_key_passphrase = "secret"
 	config.ssl_ca_cert_valid_days = 300
+	config.ssl_server_cert = str(ssl_server_cert)
+	config.ssl_server_key = str(ssl_server_key)
+
+	def mock_gmtime_adj_notBefore(self, amount):  # pylint: disable=invalid-name,unused-argument
+		from OpenSSL._util import lib  # pylint: disable=import-outside-toplevel
+		notBefore = lib.X509_getm_notBefore(self._x509)  # pylint: disable=invalid-name,protected-access
+		lib.X509_gmtime_adj(notBefore, -3600 * 24 * 10)  # 10 days in the past
 
 	with mock.patch('opsiconfd.ssl.setup_ssl_file_permissions', lambda: None):
 		with mock.patch('opsicommon.ssl.linux._get_cert_path_and_cmd', lambda: (str(tmpdir), "echo")):
-			setup_ca()
+			with mock.patch('OpenSSL.crypto.X509.gmtime_adj_notBefore', mock_gmtime_adj_notBefore):
+				setup_ca()
+				setup_server_cert()
+
+			# Check CA
+			assert (datetime.datetime.now() - get_ca_cert_info()["not_before"]).days >= 10
 			ca_crt = load_ca_cert()
 			enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
 			assert (enddate - datetime.datetime.now()).days == 299
@@ -220,21 +234,38 @@ def test_renew_expired_ca(tmpdir):
 			assert os.path.exists(config.ssl_ca_key)
 			assert os.path.exists(config.ssl_ca_cert)
 			mtime = ssl_ca_cert.lstat().mtime
-			key1 = load_ca_key()
+			ca_key = load_ca_key()
+
+			# Check server_cert
+			assert (datetime.datetime.now() - get_server_cert_info()["not_before"]).days >= 10
+			server_crt = load_local_server_cert()
+			validate_cert(server_crt, ca_crt)
 
 			config.ssl_ca_cert_renew_days = 100
 			# Recreation not needed
 			time.sleep(2)
 			setup_ca()
 			assert mtime == ssl_ca_cert.lstat().mtime
-			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, key1)
+			# Key must stay the same
+			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
 
 			config.ssl_ca_cert_renew_days = 300
 			# Recreation needed
 			time.sleep(2)
 			setup_ca()
+			assert (datetime.datetime.now() - get_ca_cert_info()["not_before"]).days == 0
+			ca_crt = load_ca_cert()
 			assert mtime != ssl_ca_cert.lstat().mtime
-			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, key1)
+			# Key must stay the same
+			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
+
+			# Check if server cert validity
+			with pytest.raises(X509StoreContextError, match="CA is not valid before.*but certificate is valid before"):
+				validate_cert(server_crt, ca_crt)
+
+			setup_server_cert()
+			server_crt = load_local_server_cert()
+			validate_cert(server_crt, ca_crt)
 
 
 def test_create_local_server_cert(tmpdir):

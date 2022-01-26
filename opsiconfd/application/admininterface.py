@@ -38,7 +38,7 @@ from ..utils import (
 	utc_time_timestamp, get_random_string, get_manager_pid,
 	async_redis_client, ip_address_to_redis_key, ip_address_from_redis_key
 )
-from ..ssl import get_ca_info, get_cert_info
+from ..ssl import get_ca_cert_info, get_server_cert_info
 from ..addon import AddonManager
 
 from .memoryprofiler import memory_profiler_router
@@ -66,8 +66,8 @@ async def admin_interface_index(request: Request):
 		"node_name": config.node_name,
 		"username": username,
 		"interface": get_backend_interface(),
-		"ca_info": get_ca_info(),
-		"cert_info": get_cert_info(),
+		"ca_info": get_ca_cert_info(),
+		"cert_info": get_server_cert_info(),
 		"num_servers": get_num_servers(backend),
 		"num_clients": get_num_clients(backend)
 	}

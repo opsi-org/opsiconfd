@@ -8,11 +8,12 @@
 opsiconfd.patch
 """
 
+from typing import Callable
 import inspect
 from hashlib import sha512
 
 
-def assert_function_unchanged(function_to_patch: callable, function_hash: str):
+def assert_function_unchanged(function_to_patch: Callable, function_hash: str) -> None:
 	source = inspect.getsource(function_to_patch)
 	source_hash = sha512(source.encode("utf-8")).hexdigest()
 	if source_hash != function_hash:
@@ -20,5 +21,5 @@ def assert_function_unchanged(function_to_patch: callable, function_hash: str):
 		raise ValueError(f"Function to patch '{function_to_patch}' has changed, expected '{function_hash}', got '{source_hash}'")
 
 
-def apply_patches():
+def apply_patches() -> None:
 	pass

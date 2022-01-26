@@ -260,7 +260,7 @@ def test_renew_expired_ca(tmpdir):
 			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
 
 			# Check if server cert validity
-			with pytest.raises(X509StoreContextError, match="CA is not valid before.*but certificate is valid before"):
+			with pytest.raises(X509StoreContextError, match=r"CA is not valid before.*but certificate is valid before"):
 				validate_cert(server_crt, ca_crt)
 
 			setup_server_cert()

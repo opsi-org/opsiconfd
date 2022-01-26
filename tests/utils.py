@@ -40,9 +40,8 @@ def disable_request_warning():
 
 @pytest.fixture
 def config():
-	from opsiconfd.config import Config  # pylint: disable=import-outside-toplevel, redefined-outer-name
-	reset_singleton(Config)
-	return Config(["opsiconfd"])
+	from opsiconfd.config import config  # pylint: disable=import-outside-toplevel, redefined-outer-name
+	return config
 
 
 def get_config(argv=None):

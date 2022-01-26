@@ -8,6 +8,7 @@ sudo service mysql restart
 sudo service grafana-server restart
 
 sudo chown -R $DEV_USER /workspace
+sudo opsi-set-rights
 
 echo "* Install git hooks"
 cd $HOME

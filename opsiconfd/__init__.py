@@ -16,3 +16,11 @@ contextvar_request_id = contextvars.ContextVar("request_id", default=None)
 contextvar_client_session = contextvars.ContextVar("client_session", default=None)
 contextvar_client_address = contextvars.ContextVar("client_address", default=None)
 contextvar_server_timing = contextvars.ContextVar("server_timing", default=None)
+
+
+def set_contextvars_from_contex(context: contextvars.Context) -> None:
+	if not context:
+		return
+	for var, val in context.items():
+		if var.name in ("request_id", "client_session", "client_address", "server_timing"):
+			globals()[f"contextvar_{var.name}"].set(val)

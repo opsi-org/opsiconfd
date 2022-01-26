@@ -18,7 +18,7 @@ from ctypes import c_long
 from starlette import status
 from starlette.endpoints import WebSocketEndpoint
 from starlette.websockets import WebSocket
-from starlette.types import ASGIApp, Message
+from starlette.types import ASGIApp, Message, Scope, Send, Receive
 from starlette.datastructures import MutableHeaders
 from starlette.concurrency import run_in_threadpool
 from fastapi import FastAPI
@@ -186,7 +186,19 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 	def __init__(self, app: ASGIApp) -> None:  # pylint: disable=redefined-outer-name
 		self.app = app
 
-	async def __call__(self, scope, receive, send):
+	@staticmethod
+	def get_client_address(scope: Scope):
+		""" Get sanitized client address"""
+		host, port = scope.get("client", (None, 0))
+		if host:
+			host = normalize_ip_address(host)
+		return host, port
+
+	@staticmethod
+	def before_send(scope: Scope, receive: Receive, send: Send):
+		pass
+
+	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		if not scope["type"] in ("http", "websocket"):
 			return await self.app(scope, receive, send)
 
@@ -198,13 +210,10 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		scope["request_id"] = request_id
 		contextvar_request_id.set(request_id)
 
-		# Sanitize client address
-		client_addr = scope.get("client")
-		client_host = client_addr[0] if client_addr else None
-		client_port = client_addr[1] if client_addr else 0
+		client_host, client_port = self.get_client_address(scope)
 
 		if client_host in config.trusted_proxies:
-			proxy_host = normalize_ip_address(client_host)
+			proxy_host = client_host
 			# from uvicorn/middleware/proxy_headers.py
 			headers = dict(scope["headers"])
 			# if b"x-forwarded-proto" in headers:
@@ -225,9 +234,6 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 					client_host, proxy_host
 				)
 
-		if client_host:
-			# Normalize ip address
-			client_host = normalize_ip_address(client_host)
 		scope["client"] = (client_host, client_port)
 		contextvar_client_address.set(client_host)
 
@@ -252,6 +258,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 				)
 				headers.append("Access-Control-Allow-Credentials", "true")
 
+			self.before_send(scope, receive, send)
 			await send(message)
 
 		return await self.app(scope, receive, send_wrapper)

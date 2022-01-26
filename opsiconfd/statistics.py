@@ -667,25 +667,27 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 
 		start = time.perf_counter()
 		contextvar_server_timing.set({})
+		metrics_collector = get_worker_metrics_collector()
 
 		# logger.debug("Client Addr: %s", contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
 				# Start of response (first message / package)
-				loop.create_task(
-					get_worker_metrics_collector().add_value(
-						"worker:sum_http_request_number",
-						1,
-						{"node_name": config.node_name, "worker_num": get_worker_num()}
+				if metrics_collector:
+					loop.create_task(
+						metrics_collector.add_value(
+							"worker:sum_http_request_number",
+							1,
+							{"node_name": config.node_name, "worker_num": get_worker_num()}
+						)
 					)
-				)
-				loop.create_task(
-					get_worker_metrics_collector().add_value(
-						"client:sum_http_request_number",
-						1,
-						{"client_addr": ip_address_to_redis_key(contextvar_client_address.get())}
+					loop.create_task(
+						metrics_collector.add_value(
+							"client:sum_http_request_number",
+							1,
+							{"client_addr": ip_address_to_redis_key(contextvar_client_address.get())}
+						)
 					)
-				)
 
 				headers = MutableHeaders(scope=message)
 
@@ -696,9 +698,9 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 						200 <= message.get("status") < 300
 					):
 						logger.warning("Header 'Content-Length' missing: %s", message)
-				else:
+				elif metrics_collector:
 					loop.create_task(
-						get_worker_metrics_collector().add_value(
+						metrics_collector.add_value(
 							"worker:avg_http_response_bytes",
 							int(content_length),
 							{"node_name": config.node_name, "worker_num": get_worker_num()}
@@ -718,13 +720,14 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 			if message["type"] == "http.response.body" and not message.get("more_body"):
 				# End of response (last message / package)
 				end = time.perf_counter()
-				loop.create_task(
-					get_worker_metrics_collector().add_value(
-						"worker:avg_http_request_duration",
-						end - start,
-						{"node_name": config.node_name, "worker_num": get_worker_num()}
+				if metrics_collector:
+					loop.create_task(
+						metrics_collector.add_value(
+							"worker:avg_http_request_duration",
+							end - start,
+							{"node_name": config.node_name, "worker_num": get_worker_num()}
+						)
 					)
-				)
 				server_timing = contextvar_server_timing.get() or {}
 				server_timing["total"] = 1000 * (time.perf_counter() - start)
 				logger.info(

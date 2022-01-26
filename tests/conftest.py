@@ -10,11 +10,16 @@ conftest
 
 import asyncio
 import warnings
+import contextvars
+from unittest.mock import patch
 import urllib3
+
+from fastapi.testclient import TestClient
 import pytest
 from _pytest.logging import LogCaptureHandler
 
 from opsiconfd.backend import BackendManager
+from opsiconfd.application.main import app, application_setup
 
 
 def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
@@ -49,3 +54,21 @@ def event_loop():
 @pytest.fixture(autouse=True)
 def disable_insecure_request_warning():
 	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+
+
+@pytest.fixture()
+def test_client():
+	application_setup()
+	client = TestClient(app)
+	client.context = None
+
+	def get_client_address(self, scope):  # pylint: disable=unused-argument
+		return ("127.0.0.1", 12345)
+
+	def before_send(self, scope, receive, send):  # pylint: disable=unused-argument
+		# Get the context out for later use
+		client.context = contextvars.copy_context()
+
+	with patch("opsiconfd.application.main.BaseMiddleware.get_client_address", get_client_address):
+		with patch("opsiconfd.application.main.BaseMiddleware.before_send", before_send):
+			yield client

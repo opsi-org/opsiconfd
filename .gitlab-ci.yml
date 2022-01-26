@@ -62,6 +62,7 @@ stages:
   # Create dirs
   mkdir -p /var/log/opsi/clientconnect
   mkdir -p /var/lib/opsi/public
+  mkdir -p /tftpboot
 
   # Install poetry
   pip3 install poetry

@@ -10,12 +10,22 @@ webdav tests
 
 import os
 import random
+import shutil
 import requests
+
+import pytest
+
+from opsiconfd.application.main import app
+from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
 
 from .utils import (  # pylint: disable=unused-import
 	config, clean_redis, disable_request_warning,
 	ADMIN_USER, ADMIN_PASS
 )
+
+
+def test_webdav_setup():
+	webdav_setup(app)
 
 
 def test_webdav_upload_download_delete_with_special_chars(config):  # pylint: disable=redefined-outer-name
@@ -98,3 +108,46 @@ def test_client_permission(config):  # pylint: disable=redefined-outer-name
 	}
 	res = admin_session.post(f"{config.external_url}/rpc", verify=False, json=rpc)
 	assert res.status_code == 200
+
+
+@pytest.mark.parametrize("filename, path, exception", (
+	("/filename.txt", "/filename.TXT", None),
+	("/outside.root", "../outside.root", RuntimeError),
+	("/tEsT/TesT2/fileNaME1.TXt", "/test/test2/filename1.txt", None),
+	("/Test/test/filename1.bin", "/test/test/filename1.bin", None),
+	("/tEßT/TäsT2/陰陽_Üß.TXt", "/tEßT/täsT2/陰陽_üß.txt", None)
+))
+def test_webdav_ignore_case_download(config, filename, path, exception):  # pylint: disable=redefined-outer-name
+	base_dir = "/var/lib/opsi/depot"
+	directory, filename = filename.rsplit("/", 1)
+	directory = directory.strip('/')
+	abs_dir = os.path.join(base_dir, directory)
+	abs_filename = os.path.join(abs_dir, filename)
+
+	prov = IgnoreCaseFilesystemProvider(base_dir)
+
+	if directory:
+		os.makedirs(abs_dir)
+	try:
+		with open(abs_filename, "w", encoding="utf-8") as file:
+			file.write(filename)
+
+		if exception:
+			with pytest.raises(exception):
+				prov._loc_to_file_path(path)  # pylint: disable=protected-access
+		else:
+			file_path = prov._loc_to_file_path(path)  # pylint: disable=protected-access
+			assert file_path == f"{base_dir}/{directory + '/' if directory else ''}{filename}"
+
+		url = f"{config.external_url}/depot/{path}"
+		res = requests.get(url=url, verify=False, auth=(ADMIN_USER, ADMIN_PASS), stream=True)
+		if exception:
+			assert res.status_code == 404
+		else:
+			res.raise_for_status()
+			assert res.raw.read().decode("utf-8") == filename
+	finally:
+		if directory:
+			shutil.rmtree(os.path.join(base_dir, directory.split('/')[0]))
+		else:
+			os.unlink(abs_filename)

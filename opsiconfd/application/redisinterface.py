@@ -19,15 +19,15 @@ from ..logging import logger
 from ..config import config
 from ..utils import decode_redis_result, async_get_redis_info, redis_client, async_redis_client
 
-admin_interface_router = APIRouter()
+redis_interface_router = APIRouter()
 templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
 
 
 def redis_interface_setup(app):
-	app.include_router(admin_interface_router, prefix="/redis-interface")
+	app.include_router(redis_interface_router, prefix="/redis-interface")
 
 
-@admin_interface_router.post("/")
+@redis_interface_router.post("/")
 async def redis_command(request: Request, response: Response):
 	redis = await async_redis_client()
 	try:
@@ -49,7 +49,7 @@ async def redis_command(request: Request, response: Response):
 	return response
 
 
-@admin_interface_router.get("/redis-stats")
+@redis_interface_router.get("/redis-stats")
 async def get_redis_stats():  # pylint: disable=too-many-locals
 	redis = await async_redis_client()
 	try:
@@ -61,7 +61,7 @@ async def get_redis_stats():  # pylint: disable=too-many-locals
 	return response
 
 
-@admin_interface_router.get("/depot-cache")
+@redis_interface_router.get("/depot-cache")
 def get_depot_cache():
 	try:
 		depots = _get_depots()
@@ -79,7 +79,7 @@ def _get_depots():
 	return depots
 
 
-@admin_interface_router.get("/products")
+@redis_interface_router.get("/products")
 def get_products(depot: str = None):
 	try:
 		data = []
@@ -100,7 +100,7 @@ def get_products(depot: str = None):
 	return response
 
 
-@admin_interface_router.post("/clear-product-cache")
+@redis_interface_router.post("/clear-product-cache")
 async def clear_product_cache(request: Request, response: Response):
 	try:
 		request_body = await request.json()

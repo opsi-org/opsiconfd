@@ -120,7 +120,6 @@ stages:
   poetry run flake8 opsiconfd tests
 
 test:perftest:
-  image: ubuntu:focal
   services:
     - mysql:latest
     - name: redislabs/redistimeseries:latest
@@ -136,7 +135,6 @@ test:perftest:
     - *perftest
 
 test:pylint-pytest:
-  image: ubuntu:focal
   services:
     - mysql:latest
     - name: redislabs/redistimeseries:latest

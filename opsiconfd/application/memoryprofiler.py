@@ -171,7 +171,7 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 			headers={"Content-Length": str(len(data))},
 			content=data
 		)
-	file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{output_format}")
+	file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{output_format}")  # pylint: disable=consider-using-with
 	objgraph.show_backrefs([obj], filename=file.name, shortnames=False)
 	data = file.read()
 	file.close()

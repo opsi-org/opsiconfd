@@ -56,17 +56,16 @@ if running_in_docker():
 
 def network_address(value):
 	try:
-		ipaddress.ip_network(value)
+		return ipaddress.ip_network(value).compressed
 	except ValueError as err:
-		raise ArgumentTypeError(f"Invalid network address: {value}") from err
-	return value
+		raise ArgumentTypeError(f"Invalid network address '{value}: {err}") from err
 
 
 def ip_address(value):
 	try:
 		return ipaddress.ip_address(value).compressed
 	except ValueError as err:
-		raise ArgumentTypeError(f"Invalid ip address: {value}") from err
+		raise ArgumentTypeError(f"Invalid ip address: {value}: {err}") from err
 
 
 def str2bool(value):

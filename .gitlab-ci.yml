@@ -22,11 +22,11 @@ stages:
   # linking python3 as python for compatibility
   ### ln -s /usr/bin/python3 /usr/bin/python
   # Install redis and redis-timeseries
-  wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-server_6.0.4-1_amd64.deb
-  wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-tools_6.0.4-1_amd64.deb
-  wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-timeseries_1.4.13.0-1_amd64.deb
-  wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/liblzf1_3.6-2_amd64.deb
-  dpkg -i *.deb || apt -y -f install
+  ##wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-server_6.0.4-1_amd64.deb
+  ##wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-tools_6.0.4-1_amd64.deb
+  ##wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-timeseries_1.4.13.0-1_amd64.deb
+  ##wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/liblzf1_3.6-2_amd64.deb
+  ##dpkg -i *.deb || apt -y -f install
 
   # Grant full database access to opsi user
   mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
@@ -121,7 +121,10 @@ stages:
 
 test:perftest:
   services:
-    - mysql:latest
+    - name: mysql:latest
+      command:
+        - --max_connections=1000
+        - --default-authentication-plugin=mysql_native_password
     - name: redislabs/redistimeseries:latest
       alias: redis
   variables:
@@ -136,7 +139,10 @@ test:perftest:
 
 test:pylint-pytest:
   services:
-    - mysql:latest
+    - name: mysql:latest
+      command:
+        - --max_connections=1000
+        - --default-authentication-plugin=mysql_native_password
     - name: redislabs/redistimeseries:latest
       alias: redis
   variables:

@@ -131,19 +131,11 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 class Config(metaclass=Singleton):
 	def __init__(self, args=None):
 		self._pytest = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
-		self._args = sys.argv[1:] if args is None else args
 		self._config = None
-		self._ex_help = "--ex-help" in self._args
-		if self._ex_help and "--help" not in self._args:
-			self._args.append("--help")
+		self._args = []
+		self._ex_help = False
 
-		self._init_parser()
-
-		pid = os.getpid()
-		proc = psutil.Process(pid)
-		if is_manager(proc):
-			self._upgrade_config_files()
-			self._update_config_files()
+		self._set_args(args)
 
 	def __getattr__(self, name):
 		if name.startswith("_") or name == "set_config_in_config_file":
@@ -156,6 +148,19 @@ class Config(metaclass=Singleton):
 		if not name.startswith("_") and hasattr(self._config, name):
 			return setattr(self._config, name, value)
 		return super().__setattr__(name, value)
+
+	def _set_args(self, args=None):
+		self._args = sys.argv[1:] if args is None else args
+		self._ex_help = "--ex-help" in self._args
+		if self._ex_help and "--help" not in self._args:
+			self._args.append("--help")
+		self._init_parser()
+
+		pid = os.getpid()
+		proc = psutil.Process(pid)
+		if is_manager(proc):
+			self._upgrade_config_files()
+			self._update_config_files()
 
 	def _expert_help(self, help_text: str) -> str:
 		return help_text if self._ex_help else SUPPRESS

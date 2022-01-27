@@ -8,11 +8,7 @@
 product ordering tests
 """
 
-import json
 import threading
-from typing import List, Dict
-
-import requests
 
 from opsiconfd.utils import decode_redis_result
 

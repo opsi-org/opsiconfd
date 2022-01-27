@@ -81,24 +81,22 @@ def _get_depots():
 
 
 @redis_interface_router.get("/products")
-def get_products(depot: str = None):
+def get_products(depot_id: str = None):
 	try:
-		data = []
-		if depot:
-			with redis_client() as redis:
-				products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{depot}:products", 0, -1))
-				data.append({depot: products})
-		else:
-			with redis_client() as redis:
-				depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
-				for depot in depots:  # pylint: disable=redefined-argument-from-local
-					products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{depot}:products", 0, -1))
-					data.append({depot: products})
-		response = JSONResponse({"status": 200, "error": None, "data": data})
+		data = {}
+		with redis_client() as redis:
+			depot_ids = []
+			if depot_id:
+				depot_ids.append(depot_id)
+			else:
+				depot_ids = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
+			for depot_id in depot_ids:
+				products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1))
+				data[depot_id] = products
+		return JSONResponse({"status": 200, "error": None, "data": data})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
-	return response
+		return JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
 
 
 @redis_interface_router.post("/clear-product-cache")

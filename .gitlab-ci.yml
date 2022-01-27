@@ -77,9 +77,9 @@ stages:
   adduser adminuser opsiadmin
   adduser adminuser opsifileadmins
 
-  # Start and wait for redis server
-  redis-server /etc/redis/redis.conf &
-  sleep 10
+  #### Start and wait for redis server
+  ###redis-server /etc/redis/redis.conf &
+  ###sleep 10
 
 .perftest: &perftest |
   export OPSICONFD_MAX_SESSIONS_PER_IP=20000

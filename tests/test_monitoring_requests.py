@@ -14,15 +14,17 @@ import time
 import json
 import socket
 import asyncio
+
 import pytest
 import requests
 import aioredis
 
 from opsiconfd.application.monitoring.utils import get_workers
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, create_check_data, database_connection, disable_request_warning,
-	ADMIN_USER, ADMIN_PASS, MONITORING_CHECK_DAYS
+	config, clean_redis, database_connection, disable_request_warning,
+	ADMIN_USER, ADMIN_PASS
 )
+from .test_monitoring import MONITORING_CHECK_DAYS, create_check_data  # pylint: disable=unused-import
 
 
 @pytest.mark.parametrize("product_ids, verbose, strict, expected_result", [

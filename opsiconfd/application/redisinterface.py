@@ -90,9 +90,9 @@ def get_products(depot_id: str = None):
 				depot_ids.append(depot_id)
 			else:
 				depot_ids = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
-			for depot_id in depot_ids:
-				products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1))
-				data[depot_id] = products
+			for dep_id in depot_ids:
+				products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{dep_id}:products", 0, -1))
+				data[dep_id] = products
 		return JSONResponse({"status": 200, "error": None, "data": data})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)

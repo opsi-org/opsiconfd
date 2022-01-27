@@ -524,7 +524,7 @@ class MetricsCollector():  # pylint: disable=too-many-instance-attributes
 		if len(cmd) == 1:
 			return await redis.execute_command(str_cmd(cmd[0]))
 
-		async with await redis.pipeline(transaction=False) as pipe:
+		async with redis.pipeline(transaction=False) as pipe:
 			for a_cmd in cmd:
 				a_cmd = str_cmd(a_cmd)
 				logger.debug("Adding redis command to pipe: %s", a_cmd)

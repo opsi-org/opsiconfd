@@ -10,11 +10,60 @@ config tests
 
 import os
 import re
+from argparse import ArgumentTypeError
 from unittest.mock import patch
 
 import pytest
 
+from opsiconfd.config import network_address, ip_address, str2bool
+
 from .utils import get_config
+
+
+@pytest.mark.parametrize("value, expexted_value, exception", [
+	("10.10.0.0/16", "10.10.0.0/16", None),
+	("10.10.0.0/255.255.255.0", "10.10.0.0/24", None),
+	("10.10.10.10/16", None, ArgumentTypeError),
+	("10.10.10.10", "10.10.10.10/32", None),
+	("fe80:0000::/10", "fe80::/10", None),
+	("2001:0db8:1234:0000:0000:0000:0000:0000/48", "2001:db8:1234::/48", None)
+])
+def test_network_address(value, expexted_value, exception):
+	if exception:
+		with pytest.raises(exception):
+			network_address(value)
+	else:
+		assert network_address(value) == expexted_value
+
+
+@pytest.mark.parametrize("value, expexted_value, exception", [
+	("10.10.0.1", "10.10.0.1", None),
+	("10.10.0.1/32", None, ArgumentTypeError),
+	("2001:0db8:1234:0000:0000:0000:0000:0001", "2001:db8:1234::1", None),
+	("::1", "::1", None),
+	("127.0.0.1", "127.0.0.1", None)
+])
+def test_ip_address(value, expexted_value, exception):
+	if exception:
+		with pytest.raises(exception):
+			ip_address(value)
+	else:
+		assert ip_address(value) == expexted_value
+
+
+@pytest.mark.parametrize("value, expexted_value", [
+	("yes", True),
+	("y", True),
+	("true", True),
+	("1", True),
+	(True, True),
+	("0", False),
+	("no", False),
+	("false", False),
+	(False, False)
+])
+def test_str2bool(value, expexted_value):
+	assert str2bool(value) is expexted_value
 
 
 @pytest.mark.parametrize("arguments, config_name, expexted_value", [
@@ -29,12 +78,14 @@ def test_cmdline(arguments, config_name, expexted_value):
 	assert getattr(config, config_name) == expexted_value
 
 
-@pytest.mark.parametrize("varname,value,config_name,expexted_value", [
+@pytest.mark.parametrize("varname, value, config_name, expexted_value", [
 	("OPSICONFD_BACKEND_CONFIG_DIR", "/test", "backend_config_dir", "/test"),
 	("OPSICONFD_DISPATCH_CONFIG_FILE", "/filename", "dispatch_config_file", "/filename"),
 	("OPSICONFD_EXTENSION_CONFIG_DIR", "/test", "extension_config_dir", "/test"),
 	("OPSICONFD_ADMIN_NETWORKS", "[10.10.10.0/24,10.10.20.0/24]", "admin_networks", ["10.10.10.0/24", "10.10.20.0/24"]),
 	("OPSICONFD_SYMLINK_LOGS", "yes", "symlink_logs", True),
+	("OPSICONFD_SSL_CA_KEY_PASSPHRASE", "", "ssl_ca_key_passphrase", None),
+	("OPSICONFD_SSL_SERVER_KEY_PASSPHRASE", "", "ssl_server_key_passphrase", None),
 ])
 def test_environment_vars(varname, value, config_name, expexted_value):
 	os.environ[varname] = value
@@ -45,7 +96,7 @@ def test_environment_vars(varname, value, config_name, expexted_value):
 		del os.environ[varname]
 
 
-@pytest.mark.parametrize("varname,value,config_name,expexted_value", [
+@pytest.mark.parametrize("varname, value, config_name, expexted_value", [
 	("backend-config-dir", "/test", "backend_config_dir", "/test"),
 	("dispatch-config-file", "/filename", "dispatch_config_file", "/filename"),
 	("extension-config-dir", "/test", "extension_config_dir", "/test"),
@@ -68,7 +119,10 @@ def test_help():
 		nonlocal text
 		text = message
 
-	with patch("argparse.ArgumentParser._print_message", print_message):
+	with (
+		patch("argparse.ArgumentParser._print_message", print_message),
+		patch("sys.stdout.isatty", lambda: True)
+	):
 		config = get_config(["--help"])  # pylint: disable=protected-access
 		with pytest.raises(SystemExit):
 			config._parse_args()  # pylint: disable=protected-access
@@ -120,8 +174,8 @@ def test_upgrade_config_files(tmp_path):
 		"configed = /usr/lib/configed (noauth)\n"
 	), encoding="utf-8")
 
-	config = get_config(["--config-file", str(config_file)])
-	config._upgrade_config_files()  # pylint: disable=protected-access
+	with patch("opsiconfd.config.is_manager", lambda x: True):
+		config = get_config(["--config-file", str(config_file)])
 
 	data = config_file.read_text(encoding="utf-8")
 	data = re.sub(r"^#.*\n?", "", data, flags=re.MULTILINE)

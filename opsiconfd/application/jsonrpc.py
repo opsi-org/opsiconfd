@@ -107,7 +107,7 @@ def jsonrpc_setup(app):
 async def store_rpc(data, max_rpcs=9999):
 	try:
 		redis = await async_redis_client()
-		async with await redis.pipeline() as pipe:
+		async with redis.pipeline() as pipe:
 			pipe.lpush("opsiconfd:stats:rpcs", msgpack.dumps(data))  # pylint: disable=c-extension-no-member
 			pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs - 1)
 			await pipe.execute()
@@ -129,7 +129,7 @@ async def store_product_ordering(result, depot_id, sort_algorithm=None):
 	try:
 		sort_algorithm = await get_sort_algorithm(sort_algorithm)
 		redis = await async_redis_client()
-		async with await redis.pipeline() as pipe:
+		async with redis.pipeline() as pipe:
 			pipe.unlink(f"opsiconfd:jsonrpccache:{depot_id}:products")
 			pipe.unlink(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}")
 			for val in result.get("not_sorted"):
@@ -162,7 +162,7 @@ async def set_jsonrpc_cache_outdated(params):
 	if len(depots) == 0:
 		depots = saved_depots
 
-	async with await redis.pipeline() as pipe:
+	async with redis.pipeline() as pipe:
 		for depot_id in depots:
 			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
 			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1:uptodate")
@@ -172,7 +172,7 @@ async def set_jsonrpc_cache_outdated(params):
 
 async def remove_depot_from_jsonrpc_cache(depot_id):
 	redis = await async_redis_client()
-	async with await redis.pipeline() as pipe:
+	async with redis.pipeline() as pipe:
 		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products")
 		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
 		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1")
@@ -254,13 +254,9 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			request.scope["jsonrpc20"] = rpc.get("jsonrpc") == "2.0"
 			task = None
 			if rpc.get('method') in PRODUCT_METHODS:
-				asyncio.get_event_loop().create_task(
-					set_jsonrpc_cache_outdated(rpc.get('params'))
-				)
+				await set_jsonrpc_cache_outdated(rpc.get('params'))
 			elif rpc.get('method') in ("deleteDepot", "host_delete"):
-				asyncio.get_event_loop().create_task(
-					remove_depot_from_jsonrpc_cache(rpc.get('params')[0])
-				)
+				await remove_depot_from_jsonrpc_cache(rpc.get('params')[0])
 			elif rpc.get('method') == "getProductOrdering":
 				depot = rpc.get('params')[0]
 				cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
@@ -281,22 +277,25 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 				task = run_in_threadpool(process_rpc, request, response, rpc, backend)
 			tasks.append(task)
 
-		asyncio.get_event_loop().create_task(
-			get_metrics_collector().add_value(
-				"worker:sum_jsonrpc_number",
-				len(jsonrpc),
-				{"node_name": config.node_name, "worker_num": get_worker_num()}
+		metrics_collector = get_metrics_collector()
+		if metrics_collector:
+			asyncio.get_event_loop().create_task(
+				metrics_collector.add_value(
+					"worker:sum_jsonrpc_number",
+					len(jsonrpc),
+					{"node_name": config.node_name, "worker_num": get_worker_num()}
+				)
 			)
-		)
 
 		for result in await asyncio.gather(*tasks):
 			results.append(result[0])
-			asyncio.get_event_loop().create_task(
-				get_metrics_collector().add_value(
-					"worker:avg_jsonrpc_duration",
-					result[1], {"node_name": config.node_name, "worker_num": get_worker_num()}
+			if metrics_collector:
+				asyncio.get_event_loop().create_task(
+					metrics_collector.add_value(
+						"worker:avg_jsonrpc_duration",
+						result[1], {"node_name": config.node_name, "worker_num": get_worker_num()}
+					)
 				)
-			)
 			redis = await async_redis_client()
 			rpc_count = await redis.incr("opsiconfd:stats:num_rpcs")
 			error = bool(result[0].get("error"))
@@ -328,11 +327,9 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			asyncio.get_event_loop().create_task(store_rpc(data))
 
 			if result[2].get('method') == "getProductOrdering" and result[1] > config.jsonrpc_time_to_cache:
-				logger.debug("Using ProductOrdering Cache")
 				if result[3] == "rpc" and len(result[0].get("result").get("sorted")) > 0 and 1 <= len(params) <= 2:
-					asyncio.get_event_loop().create_task(
-						store_product_ordering(result[0].get("result"), *params)
-					)
+					logger.debug("Storing product ordering in cache")
+					await store_product_ordering(result[0].get("result"), *params)
 
 			response.status_code = 200
 	except HTTPException as err:  # pylint: disable=broad-except
@@ -522,7 +519,7 @@ async def read_redis_cache(request: Request, response: Response, rpc):  # pylint
 		depot_id = rpc.get('params')[0]
 		algorithm = await get_sort_algorithm(rpc.get('params'))
 		redis = await async_redis_client()
-		async with await redis.pipeline() as pipe:
+		async with redis.pipeline() as pipe:
 			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1)
 			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", 0, -1)
 			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products", EXPIRE)

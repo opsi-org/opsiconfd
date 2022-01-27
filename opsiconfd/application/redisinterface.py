@@ -27,6 +27,7 @@ def redis_interface_setup(app):
 	app.include_router(redis_interface_router, prefix="/redis-interface")
 
 
+@redis_interface_router.post("")
 @redis_interface_router.post("/")
 async def redis_command(request: Request, response: Response):
 	redis = await async_redis_client()
@@ -108,7 +109,7 @@ async def clear_product_cache(request: Request, response: Response):
 		if not depots:
 			depots = _get_depots()
 		redis = await async_redis_client()
-		async with await redis.pipeline() as pipe:
+		async with redis.pipeline() as pipe:
 			for depot in depots:
 				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products")
 				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1")

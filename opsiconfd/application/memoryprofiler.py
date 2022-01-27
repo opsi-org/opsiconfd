@@ -198,7 +198,7 @@ async def memory_info() -> JSONResponse:
 	timestamp = int(time.time() * 1000)
 	node = config.node_name
 
-	async with await redis.pipeline() as pipe:
+	async with redis.pipeline() as pipe:
 		value = msgpack.dumps({"memory_summary": memory_summary, "timestamp": timestamp})  # pylint: disable=c-extension-no-member
 		await pipe.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
 		await pipe.ltrim(f"opsiconfd:stats:memory:summary:{node}", 0, 9)
@@ -383,7 +383,7 @@ async def guppy_snapshot() -> JSONResponse:
 	redis = await async_redis_client()
 	node = config.node_name
 
-	async with await redis.pipeline() as pipe:
+	async with redis.pipeline() as pipe:
 		await pipe.lpush(f"opsiconfd:stats:memory:heap:{node}", msgpack.dumps(fn.getvalue()))
 		await pipe.ltrim(f"opsiconfd:stats:memory:heap:{node}", 0, 9)
 		redis_result = await pipe.execute()

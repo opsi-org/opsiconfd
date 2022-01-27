@@ -85,6 +85,7 @@ RUN useradd --create-home -s /bin/bash ${DEV_USER} \
 	&& adduser ${DEV_USER} opsifileadmins \
 	&& adduser ${DEV_USER} opsiadmin \
 	&& adduser ${DEV_USER} sudo \
+	&& adduser ${DEV_USER} shadow \
 	&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
 	&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
 	&& cp -r /root/.bash* /home/adminuser/ \

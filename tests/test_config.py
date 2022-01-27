@@ -192,7 +192,6 @@ def test_upgrade_config_files(tmp_path):
 			"monitoring-user = mu\n"
 			"interface = 10.10.1.1\n"
 			"port = 1234\n"
-			"verify-ip = true\n"
 			"update-ip = false\n"
 			"session-lifetime = 111\n"
 			"max-auth-failures = 222\n"

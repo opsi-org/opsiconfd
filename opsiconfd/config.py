@@ -35,7 +35,7 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
 # update-ip = true
 """
-DEPRECATED = ["monitoring-debug"]
+DEPRECATED = ["monitoring-debug", "verify-ip"]
 
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
@@ -239,7 +239,6 @@ class Config(metaclass=Singleton):
 			"monitoring user": "monitoring-user",
 			"interface": "interface",
 			"https port": "port",
-			"verify ip": "verify-ip",
 			"update ip": "update-ip",
 			"max inactive interval": "session-lifetime",
 			"max authentication failures": "max-auth-failures",
@@ -628,20 +627,6 @@ class Config(metaclass=Singleton):
 			env_var="OPSICONFD_SSL_CLIENT_CERT_VALID_DAYS",
 			default=360,
 			help=self._expert_help("The period of validity of a client certificate in days.")
-		)
-		self._parser.add(
-			"--verify-ip",
-			env_var="OPSICONFD_VERIFY_IP",
-			type=str2bool,
-			nargs='?',
-			const=True,
-			default=False,
-			help=(
-				"If a client uses its fqdn and opsi-host-key for authentication, "
-				"opsiconfd will try to resolve the fqdn (username) by a system call. "
-				"If there is no result or the resulting IP address does not match "
-				"the client's address, the access will be denied."
-			)
 		)
 		self._parser.add(
 			"--update-ip",

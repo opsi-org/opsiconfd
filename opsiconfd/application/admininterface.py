@@ -103,7 +103,7 @@ async def unblock_all_clients(response: Response):
 	try:
 		clients = set()
 		deleted_keys = set()
-		async with await redis.pipeline(transaction=False) as pipe:
+		async with redis.pipeline(transaction=False) as pipe:
 			for base_key in (
 				"opsiconfd:stats:client:failed_auth",
 				"opsiconfd:stats:client:blocked"
@@ -160,7 +160,7 @@ async def delete_client_sessions(request: Request):
 		deleted_keys = []
 		keys = redis.scan_iter(f"{OPSISession.redis_key_prefix}:{ip_address_to_redis_key(client_addr)}:*")
 		if keys:
-			async with await redis.pipeline(transaction=False) as pipe:
+			async with redis.pipeline(transaction=False) as pipe:
 				async for key in keys:
 					sessions.append(key.decode("utf8").split(":")[-1])
 					deleted_keys.append(key.decode("utf8"))

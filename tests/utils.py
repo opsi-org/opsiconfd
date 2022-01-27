@@ -10,6 +10,7 @@ admininterface tests
 
 import socket
 import json
+from typing import Dict, Any, Union, List
 from datetime import datetime, timedelta
 from contextlib import contextmanager, asynccontextmanager
 import pytest
@@ -44,10 +45,21 @@ def config():
 	return config
 
 
-def get_config(argv=None):
-	from opsiconfd.config import Config  # pylint: disable=import-outside-toplevel, redefined-outer-name
-	reset_singleton(Config)
-	return Config(["opsiconfd"] + argv or [])
+@contextmanager
+def get_config(values: Union[Dict[str, Any], List[str]]):
+	from opsiconfd.config import config  # pylint: disable=import-outside-toplevel, redefined-outer-name
+	conf = config._config.__dict__.copy()  # pylint: disable=protected-access
+	args = config._args.copy()  # pylint: disable=protected-access
+	try:
+		if isinstance(values, dict):
+			config._config.__dict__.update(values)  # pylint: disable=protected-access
+		else:
+			config._set_args(values)  # pylint: disable=protected-access
+			config._parse_args()  # pylint: disable=protected-access
+		yield config
+	finally:
+		config._config.__dict__ = conf  # pylint: disable=protected-access
+		config._args = args  # pylint: disable=protected-access
 
 
 CLEAN_REDIS_KEYS = [

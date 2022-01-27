@@ -108,7 +108,7 @@ def get_backend_interface():
 
 
 def get_server_role():
-	for (_method, backends) in _loadDispatchConfig(config.dispatch_config_file):
+	for _method, backends in _loadDispatchConfig(config.dispatch_config_file):
 		if "jsonrpc" in backends:
 			return "depot"
 	return "config"

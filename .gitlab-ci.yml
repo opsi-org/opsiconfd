@@ -18,15 +18,6 @@ stages:
   export DEBIAN_FRONTEND=noninteractive
   apt update
   apt -y install mariadb-client bc
-  ### apt -y install bc wget git python3-pip python3-dev python3-venv libmariadb-dev mysql-client iproute2 net-tools iputils-ping
-  # linking python3 as python for compatibility
-  ### ln -s /usr/bin/python3 /usr/bin/python
-  # Install redis and redis-timeseries
-  ##wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-server_6.0.4-1_amd64.deb
-  ##wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-tools_6.0.4-1_amd64.deb
-  ##wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/redis-timeseries_1.4.13.0-1_amd64.deb
-  ##wget http://obs.uib.gmbh:82/home:/uibmz:/opsi:/4.2:/development/xUbuntu_20.04/amd64/liblzf1_3.6-2_amd64.deb
-  ##dpkg -i *.deb || apt -y -f install
 
   # Grant full database access to opsi user
   mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
@@ -76,10 +67,6 @@ stages:
   echo "adminuser:adminuser" | chpasswd
   adduser adminuser opsiadmin
   adduser adminuser opsifileadmins
-
-  #### Start and wait for redis server
-  ###redis-server /etc/redis/redis.conf &
-  ###sleep 10
 
 .perftest: &perftest |
   export OPSICONFD_MAX_SESSIONS_PER_IP=20000
@@ -170,7 +157,6 @@ build:linux-pyinstaller:
     - *install_tools
     - poetry lock --no-update
     - poetry install
-    #- find .venv -iname "*linux-gnu.so"
     - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-amd64
@@ -190,7 +176,6 @@ build:arm64-pyinstaller:
     - *install_tools
     - poetry lock --no-update
     - poetry install
-    #- find .venv -iname "*linux-gnu.so"
     - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-arm64
@@ -210,8 +195,7 @@ publish:obs_int:
     - build:arm64-pyinstaller
   script:
     - *install_tools
-    - python3 -m opsidevtools --version
-    - python3 -m opsidevtools -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
+    - ./opsi-dev-tool -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
   only:
     - tags
 
@@ -222,7 +206,6 @@ publish:obs_ext:
     - build:arm64-pyinstaller
   script:
     - *install_tools
-    - python3 -m opsidevtools --version
-    - python3 -m opsidevtools -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
+    - ./opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
   only:
     - tags

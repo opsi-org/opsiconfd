@@ -22,9 +22,6 @@ from opsiconfd.backend import BackendManager
 from opsiconfd.application.main import app, application_setup
 
 
-warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"aioredis/connection.py", message="There is no current event loop")
-
-
 def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
 	pass
 

@@ -209,7 +209,6 @@ def test_upgrade_config_files(tmp_path):
 		assert conf.monitoring_user == "mu"
 		assert conf.interface == "10.10.1.1"
 		assert conf.port == 1234
-		assert conf.verify_ip is True
 		assert conf.update_ip is False
 		assert conf.session_lifetime == 111
 		assert conf.max_auth_failures == 222

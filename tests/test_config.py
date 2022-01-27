@@ -17,7 +17,7 @@ import pytest
 
 from opsiconfd.config import network_address, ip_address, str2bool
 
-from .utils import config, get_config
+from .utils import get_config
 
 
 @pytest.mark.parametrize("value, expexted_value, exception", [

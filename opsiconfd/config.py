@@ -131,9 +131,10 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 class Config(metaclass=Singleton):
 	def __init__(self, args=None):
 		self._pytest = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
-		self._config = None
 		self._args = []
 		self._ex_help = False
+		self._parser = None
+		self._config = None
 
 		self._set_args(args)
 

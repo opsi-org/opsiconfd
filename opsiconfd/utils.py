@@ -231,7 +231,7 @@ async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0)
 			if new_pool:
 				await client.ping()
 			return client
-		except (aioredis.ConnectionError, aioredis.BusyLoadingError) as err:
+		except (aioredis.ConnectionError, aioredis.BusyLoadingError):
 			if timeout and timeout >= time.time() - start:
 				raise
 			await asyncio.sleep(2)

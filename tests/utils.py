@@ -9,7 +9,6 @@ admininterface tests
 """
 
 import socket
-import json
 from typing import Dict, Any, Union, List
 from datetime import datetime, timedelta
 from contextlib import contextmanager, asynccontextmanager
@@ -21,6 +20,7 @@ import requests
 import MySQLdb
 import urllib3
 
+from opsicommon.objects import LocalbootProduct, ProductOnDepot
 from OPSI.Backend.BackendManager import BackendManager
 
 ADMIN_USER = "adminuser"
@@ -115,20 +115,33 @@ async def clean_redis(config):  # pylint: disable=redefined-outer-name
 	yield None
 
 
-def create_depot_rpc(opsi_url: str, host_id: str, host_key: str = None):
-	params = [
-		host_id,
-		host_key,
-		"file:///var/lib/opsi/depot",
-		"smb://172.17.0.101/opsi_depot",
-		None,
-		"file:///var/lib/opsi/repository",
-		"webdavs://172.17.0.101:4447/repository"
-	]
-	rpc_request_data = json.dumps({"id": 1, "method": "host_createOpsiDepotserver", "params": params})
-	res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
+def create_depot_jsonrpc(client, base_url: str, host_id: str, host_key: str = None):
+	rpc = {
+		"id": 1,
+		"method": "host_createOpsiDepotserver",
+		"params": [
+			host_id,
+			host_key,
+			"file:///var/lib/opsi/depot",
+			"smb://172.17.0.101/opsi_depot",
+			None,
+			"file:///var/lib/opsi/repository",
+			"webdavs://172.17.0.101:4447/repository"
+		]
+	}
+	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
 	res.raise_for_status()
-	return res.json()
+	return res.json()["result"]
+
+
+@contextmanager
+def depot_jsonrpc(client, base_url: str, host_id: str, host_key: str = None):
+	depot = create_depot_jsonrpc(client, base_url, host_id, host_key)
+	try:
+		yield depot
+	finally:
+		rpc = {"id": 1, "method": "host_delete", "params": [host_id]}
+		client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
 
 
 @pytest.fixture
@@ -209,8 +222,8 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 		f'("pytest-lost-client-fp2.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}");'
 	)
 
-	create_depot_rpc(config.internal_url, "pytest-test-depot.uib.gmbh")
-	create_depot_rpc(config.internal_url, "pytest-test-depot2.uib.gmbh")
+	create_depot_jsonrpc(requests, config.internal_url, "pytest-test-depot.uib.gmbh")
+	create_depot_jsonrpc(requests, config.internal_url, "pytest-test-depot2.uib.gmbh")
 
 	# Product on client
 	cursor.execute(
@@ -293,3 +306,66 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 		'DELETE FROM `GROUP`;'
 		'DELETE FROM CONFIG_STATE;'
 	)
+
+
+def create_products_jsonrpc(client, base_url, products):
+	products = [LocalbootProduct(**product).to_hash() for product in products]
+	rpc = {"id": 1, "method": "product_createObjects", "params": [products]}
+	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res.raise_for_status()
+
+
+def delete_products_jsonrpc(client, base_url, products):
+	products = [LocalbootProduct(**product).to_hash() for product in products]
+	rpc = {"id": 1, "method": "product_deleteObjects", "params": [products]}
+	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res.raise_for_status()
+
+
+@contextmanager
+def products_jsonrpc(client, base_url, products, depots=None):
+	create_products_jsonrpc(client, base_url, products)
+	if depots:
+		product_on_depots = []
+		for depot_id in depots:
+			product_on_depots.extend([
+				ProductOnDepot(
+					productType="LocalbootProduct",
+					productId=product["id"],
+					productVersion=product["productVersion"],
+					packageVersion=product["packageVersion"],
+					depotId=depot_id
+				).to_hash()
+				for product in products
+			])
+		rpc = {"id": 1, "method": "productOnDepot_createObjects", "params": [product_on_depots]}
+		res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+		res.raise_for_status()
+	try:
+		yield
+	finally:
+		delete_products_jsonrpc(client, base_url, products)
+
+
+def get_one_depot_id_jsonrpc(client):
+	rpc = {"id": 1, "method": "host_getIdents", "params": ["str", {"type": "OpsiDepotserver"}]}
+	res = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	return res.json()["result"][0]
+
+
+def get_product_ordering_jsonrpc(client, depot_id):
+	rpc = {"id": 1, "method": "getProductOrdering", "params": [depot_id, "algorithm1"]}
+	res = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	return res.json()["result"]
+
+
+def get_dummy_products(count: int) -> List[Dict]:
+	products = []
+	for num in range(count):
+		products.append({
+			"id": f"dummy-prod-{num}", "productVersion": "1.0", "packageVersion": "1",
+			"name": "Dummy PRODUCT {num}", "priority": num % 8
+		})
+	return products

@@ -43,7 +43,7 @@ async def test_async_redis_pool():
 @pytest.mark.asyncio
 async def test_async_redis_pipeline():
 	redis = await async_redis_client()
-	async with await redis.pipeline() as pipe:
+	async with redis.pipeline() as pipe:
 		pipe.scan_iter("opsiconfd:*")
 		await pipe.execute()
 

@@ -8,303 +8,160 @@
 product ordering tests
 """
 
-import os
 import json
 import threading
-import asyncio
-import pytest
-import aioredis
+from typing import List, Dict
+
 import requests
 
 from opsiconfd.utils import decode_redis_result
 
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, create_depot_rpc, disable_request_warning, database_connection,
-	ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY
+	config, get_config, clean_redis,
+	sync_redis_client, products_jsonrpc, delete_products_jsonrpc, depot_jsonrpc,
+	get_dummy_products, get_product_ordering_jsonrpc,
+	ADMIN_USER, ADMIN_PASS
 )
 
 
-def delete_product(product, opsi_url):
-	delete_products([product], opsi_url)
-	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	res.raise_for_status()
+def test_renew_cache_on_delete_products(test_client):  # pylint: disable=redefined-outer-name
+	depot_id = "test-product-ordering-depot.uib.gmbh"
+	products = get_dummy_products(100)
+
+	with (
+		get_config({"jsonrpc_time_to_cache": 0}) as conf,
+		depot_jsonrpc(test_client, "", depot_id),
+		products_jsonrpc(test_client, "", products, [depot_id]),  # Create products
+		sync_redis_client(conf.redis_internal_url) as redis
+	):
+
+		# Execution of method getProductOrdering will fill the product ordering cache
+		get_product_ordering_jsonrpc(test_client, depot_id)
+
+		# Assert product ordering is cached
+		data = redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1", 0, -1)
+		cached_sorted_products = decode_redis_result(data)
+		for product in products:
+			assert product["id"] in cached_sorted_products
+
+		# Execution of method product_deleteObjects will invalidate the product ordering cache
+		threads = []
+		new_products = []
+		delete_products = []
+		for idx, product in enumerate(products):
+			if idx in (3, 23, 45, 77, 89):
+				delete_products.append(product)
+				threads.append(
+					threading.Thread(
+						target=delete_products_jsonrpc,
+						args=(test_client, "", [products[idx]])
+					)
+				)
+			else:
+				new_products.append(product)
+		products = new_products
+		for thread in threads:
+			thread.start()
+		for thread in threads:
+			thread.join()
+
+		get_product_ordering_jsonrpc(test_client, depot_id)
+
+		# Assert product ordering is cache was updated
+		data = redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1", 0, -1)
+		cached_sorted_products = decode_redis_result(data)
+		for product in products:
+			assert product["id"] in cached_sorted_products
+		for product in delete_products:
+			assert product["id"] not in cached_sorted_products
 
 
-@pytest.mark.asyncio
-async def test_delete_product(config, database_connection):  # pylint: disable=redefined-outer-name
-	db_remove_dummy_products(database_connection)
-	create_depot_rpc(config.internal_url, "testdepot.uib.gmbh")
-	fill_db(database_connection)
-
-	test_products_sorted = read_sorted_products()
-
-	thread_one = threading.Thread(
-		name="1",
-		target=delete_product,
-		args=({"id": "dummy-prod-1039", "product_version": "1.0", "package_version": "1"}, config.internal_url)
-	)
-	thread_two = threading.Thread(
-		name="2",
-		target=delete_product,
-		args=({"id": "dummy-prod-1119", "product_version": "1.0", "package_version": "1"}, config.internal_url))
-	thread_three = threading.Thread(
-		name="3",
-		target=delete_product,
-		args=({"id": "dummy-prod-1199", "product_version": "1.0", "package_version": "1"}, config.internal_url)
-	)
-	thread_four = threading.Thread(
-		name="4",
-		target=delete_product,
-		args=({"id": "dummy-prod-2559", "product_version": "1.0", "package_version": "1"}, config.internal_url)
-	)
-	thread_five = threading.Thread(
-		name="5",
-		target=delete_product,
-		args=({"id": "dummy-prod-1359", "product_version": "1.0", "package_version": "1"}, config.internal_url)
-	)
-
-	thread_one.start()
-	thread_two.start()
-	thread_three.start()
-	thread_four.start()
-	thread_five.start()
-
-	thread_one.join()
-	thread_two.join()
-	thread_three.join()
-	thread_four.join()
-	thread_five.join()
-
-	await asyncio.sleep(3)
-
-	test_products_sorted.remove("dummy-prod-1039")
-	test_products_sorted.remove("dummy-prod-1119")
-	test_products_sorted.remove("dummy-prod-1199")
-	test_products_sorted.remove("dummy-prod-2559")
-	test_products_sorted.remove("dummy-prod-1359")
-
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
-	assert decode_redis_result(cached_sorted_products) == test_products_sorted
-
-
-@pytest.mark.asyncio
-async def test_renew_cache(config, database_connection):  # pylint: disable=redefined-outer-name
-	db_remove_dummy_products(database_connection)
-	create_depot_rpc(config.internal_url, "testdepot.uib.gmbh")
-	fill_db(database_connection)
-
-	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	res.raise_for_status()
-	result = res.json()
-
-	test_products_sorted = read_sorted_products()
-	assert result.get("result").get("sorted") == test_products_sorted
-
-	await asyncio.sleep(3)
-
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
-	assert decode_redis_result(cached_sorted_products) == test_products_sorted
-
-	test_products = [
-		{"id": "test_product01", "name": "Test Product 01", "product_version": "1.0", "package_version": "1", "priority": 80},
-		{"id": "test_product02", "name": "Test Product 02", "product_version": "1.0", "package_version": "1", "priority": 81},
+def test_renew_cache_on_create_products(test_client):  # pylint: disable=redefined-outer-name
+	depot_id = "test-product-ordering-depot.uib.gmbh"
+	products = get_dummy_products(100)
+	additional_products = [
+		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
+		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 	]
-	create_products(test_products, config.internal_url)
 
-	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	res.raise_for_status()
-	result = res.json()
+	with (
+		get_config({"jsonrpc_time_to_cache": 0}) as conf,
+		depot_jsonrpc(test_client, "", depot_id),
+		sync_redis_client(conf.redis_internal_url) as redis
+	):
+		with products_jsonrpc(test_client, "", products, [depot_id]):  # Create products
+			# Execution of method getProductOrdering will fill the product ordering cache
+			get_product_ordering_jsonrpc(test_client, depot_id)
 
-	test_products_sorted.insert(0, "test_product01")
-	test_products_sorted.insert(0, "test_product02")
-	assert result.get("result").get("sorted") == test_products_sorted
+			# Assert product ordering is cached
+			data = redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1", 0, -1)
+			cached_sorted_products = decode_redis_result(data)
+			for product in products:
+				assert product["id"] in cached_sorted_products
 
-	await asyncio.sleep(3)
+			# Add new products
+			with products_jsonrpc(test_client, "", additional_products, [depot_id]):
+				get_product_ordering_jsonrpc(test_client, depot_id)
 
-	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
-	assert decode_redis_result(cached_sorted_products) == test_products_sorted
+				# Assert product ordering cache was updated
+				data = redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1", 0, -1)
+				cached_sorted_products = decode_redis_result(data)
+				for product in additional_products:
+					assert product["id"] in cached_sorted_products
 
-	db_remove_dummy_products(database_connection)
-	delete_products(test_products, config.internal_url)
+		# All created products are now deleted again, cache should be invalid
+		uptodate = redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
+		assert uptodate is None
 
-	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	res.raise_for_status()
-	result = res.json()
+		uptodate_algorithm1 = redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1:uptodate")
+		assert uptodate_algorithm1 is None
 
-	assert result.get("result").get("sorted") == []
-
-	await asyncio.sleep(3)
-
-	uptodate = await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
-	uptodate_algorithm1 = await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1:uptodate")
-
-	assert uptodate is None
-	assert uptodate_algorithm1 is None
+		# Execution of method getProductOrdering will fill the product ordering cache again
+		result = get_product_ordering_jsonrpc(test_client, depot_id)
+		for product in products + additional_products:
+			assert product["id"] not in result["sorted"]
+			assert product["id"] not in result["not_sorted"]
 
 
-@pytest.mark.asyncio
-async def test_getProductOrdering(config, database_connection):  # pylint: disable=invalid-name,redefined-outer-name
-
-	db_remove_dummy_products(database_connection)
-
-	test_products = [
-		{"id": "test_product1", "name": "Test Product 1", "product_version": "1.0", "package_version": "1", "priority": 95},
-		{"id": "test_product2", "name": "Test Product 2", "product_version": "1.0", "package_version": "1", "priority": 81},
-		{"id": "test_product3", "name": "Test Product 3", "product_version": "1.0", "package_version": "1", "priority": 90}
+def test_getProductOrdering(test_client):  # pylint: disable=invalid-name,redefined-outer-name
+	depot_id = "test-product-ordering-depot.uib.gmbh"
+	products = [
+		{"id": "test_product1", "name": "Test Product 1", "productVersion": "1.0", "packageVersion": "1", "priority": 95},
+		{"id": "test_product2", "name": "Test Product 2", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
+		{"id": "test_product3", "name": "Test Product 3", "productVersion": "1.0", "packageVersion": "1", "priority": 90}
 	]
-	test_products_sorted = ["test_product1", "test_product3", "test_product2"]
+	products_sorted = ["test_product1", "test_product3", "test_product2"]
+	with (
+		get_config({"jsonrpc_time_to_cache": 0}) as conf,
+		sync_redis_client(conf.redis_internal_url) as redis,
+		depot_jsonrpc(test_client, "", depot_id),  # Create depot
+	):
+		with products_jsonrpc(test_client, "", products, [depot_id]):  # Create products
+			data = redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1", 0, -1)
+			cached_sorted_products = decode_redis_result(data)
+			assert cached_sorted_products == []
 
-	create_depot_rpc(config.internal_url, "testdepot.uib.gmbh")
-	create_products(test_products, config.internal_url)
+			# Execution of method getProductOrdering will fill the product ordering cache
+			result = get_product_ordering_jsonrpc(test_client, depot_id)
+			for product in products:
+				assert product["id"] in result["sorted"]
+				assert product["id"] in result["not_sorted"]
+			assert products_sorted == result["sorted"]
 
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
-	assert cached_sorted_products == []
+			# Mark cache as outdated
+			with redis.pipeline() as pipe:
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1:uptodate")
+				pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm2:uptodate")
+				pipe.execute()
 
-	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	res.raise_for_status()
-	result = res.json()
+			# Execution of method getProductOrdering will fill the product ordering cache
+			result = get_product_ordering_jsonrpc(test_client, depot_id)
+			for product in products:
+				assert product["id"] in result["sorted"]
+				assert product["id"] in result["not_sorted"]
 
-	num_results = len(result.get("result").get("sorted"))
-	assert result.get("result").get("sorted") == test_products_sorted
-
-	fill_db(database_connection)
-
-	# mark cache as outdated
-	async with redis_client.pipeline() as pipe:
-		pipe.delete("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
-		pipe.delete("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1:uptodate")
-		pipe.delete("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm2:uptodate")
-		await pipe.execute()
-
-	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	res.raise_for_status()
-	result = res.json()
-
-	test_products_sorted = read_sorted_products()
-	test_products_sorted.insert(0, "test_product2")
-	test_products_sorted.insert(0, "test_product3")
-	test_products_sorted.insert(0, "test_product1")
-	assert len(result.get("result").get("sorted")) > num_results
-	assert result.get("result").get("sorted") == test_products_sorted
-
-	await asyncio.sleep(3)
-
-	cached_sorted_products = await redis_client.zrange("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:algorithm1", 0, -1)
-	assert cached_sorted_products[0].decode("utf8") == test_products_sorted[0]
-	assert cached_sorted_products[1].decode("utf8") == test_products_sorted[1]
-	assert cached_sorted_products[2].decode("utf8") == test_products_sorted[2]
-	assert len(cached_sorted_products) == len(test_products_sorted)
-	await redis_client.get("opsiconfd:jsonrpccache:testdepot.uib.gmbh:products:uptodate")
-
-	delete_products(test_products, config.internal_url)
-	db_remove_dummy_products(database_connection)
-
-	rpc_request_data = json.dumps({"id": 1, "method": "getProductOrdering", "params": ["testdepot.uib.gmbh", "algorithm1"]})
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	res.raise_for_status()
-	result = res.json()
-
-	assert len(result.get("result").get("sorted")) == 0
-
-
-def read_sorted_products():
-	sorted_products = []
-	try:
-		with open(os.path.join(os.path.dirname(__file__), 'data/sorted_products.json'), encoding="utf-8") as file:
-			sorted_products = file.read()
-		sorted_products = json.loads(sorted_products)
-	except Exception as err:  # pylint: disable=broad-except
-		print("Error while reading sorted_products")
-		print(err)
-	finally:
-		return sorted_products  # pylint: disable=lost-exception
-
-
-def create_products(products, opsi_url):
-	for product in products:
-
-		params = [
-			"localboot",
-			product.get("id"),
-			product.get("name"),
-			product.get("product_version"),
-			product.get("package_version"),
-			None, None, None, None, None, None,
-			product.get("priority"),
-			None, None, None, None, None, None
-		]
-		rpc_request_data = json.dumps({"id": 1, "method": "createProduct", "params": params})
-		res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-		res.raise_for_status()
-
-
-def create_dummy_products(n, opsi_url):  # pylint: disable=invalid-name
-	res = requests.get(opsi_url, auth=(ADMIN_USER, ADMIN_PASS), verify=False)
-	res.raise_for_status()
-
-	for i in range(0, n):
-		params = [
-			"localboot",
-			f"dummy-prod-{i}",
-			f"dummy PROD {i}",
-			"1.0",
-			"1",
-			None, None, None, None, None, None,
-			(i % 80),
-			None, None, None, None, None, None
-		]
-		rpc_request_data = json.dumps({"id": 1, "method": "createProduct", "params": params})
-		res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, cookies=res.cookies, verify=False)
-		res.raise_for_status()
-
-
-def delete_products(products, opsi_url):
-	for product in products:
-		params = [product.get("id"), product.get("product_version"), product.get("package_version")]
-		rpc_request_data = json.dumps({"id": 1, "method": "product_delete", "params": params})
-		res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-		res.raise_for_status()
-
-
-def delete_dummy_products(n, opsi_url):  # pylint: disable=invalid-name
-	res = requests.get(f"{opsi_url}/admin", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
-	res.raise_for_status()
-
-	for i in range(0, n):
-		params = [f"dummy-prod-{i}", "1.0", "1"]
-		rpc_request_data = json.dumps({"id": 1, "method": "product_delete", "params": params})
-		res = requests.post(f"{opsi_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, cookies=res.cookies, verify=False)
-		res.raise_for_status()
-
-
-def fill_db(database_connection):  # pylint: disable=redefined-outer-name
-	cursor = database_connection.cursor()
-	for num in range(8000):
-		cursor.execute(
-			'INSERT INTO PRODUCT (productId, productVersion, packageVersion, type,  name, priority) VALUES '
-			f'("dummy-prod-{num}", "1.0", "1", "LocalbootProduct", "Dummy PRODUCT {num}", {num%80});'
-		)
-		cursor.execute(
-			'INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES '
-			f'("dummy-prod-{num}", "1.0", "1", "testdepot.uib.gmbh", "LocalbootProduct");'
-		)
-	database_connection.commit()
-
-
-def db_remove_dummy_products(database_connection):  # pylint: disable=redefined-outer-name
-	cursor = database_connection.cursor()
-	cursor.execute('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "dummy-prod%";')
-	cursor.execute('DELETE FROM PRODUCT_ON_DEPOT WHERE productId like "test_product%";')
-
-	cursor.execute('DELETE FROM PRODUCT WHERE productId like "dummy-prod%";')
-	cursor.execute('DELETE FROM PRODUCT WHERE productId like "test_product%";')
-	database_connection.commit()
+		# Product are deleted
+		result = get_product_ordering_jsonrpc(test_client, depot_id)
+		assert len(result["sorted"]) == 0
+		assert len(result["not_sorted"]) == 0

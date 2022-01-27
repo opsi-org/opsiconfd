@@ -31,7 +31,9 @@ LogCaptureHandler.emit = emit
 
 BackendManager.default_config = {
 	"backendConfigDir": "tests/opsi-config/backends",
-	"dispatchConfigFile": "tests/opsi-config/backendManager/dispatch.conf"
+	"dispatchConfigFile": "tests/opsi-config/backendManager/dispatch.conf",
+	"extensionConfigDir": "tests/opsi-config/backendManager/extend.d",
+	"extend": True
 }
 
 

@@ -10,9 +10,10 @@ messagebroker tests
 
 import aiohttp
 import pytest
+import requests
 
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, disable_request_warning, create_depot_rpc,
+	config, clean_redis, disable_request_warning, create_depot_jsonrpc,
 	ADMIN_USER, ADMIN_PASS
 )
 
@@ -21,7 +22,7 @@ from .utils import (  # pylint: disable=unused-import
 async def test_connect_websocket(config):  # pylint: disable=redefined-outer-name
 	host_id = "testdepot.uib.gmbh"
 	host_key = "92aa768a259dec1856013c4e458507d5"
-	create_depot_rpc(config.internal_url, host_id=host_id, host_key=host_key)
+	create_depot_jsonrpc(requests, config.internal_url, host_id=host_id, host_key=host_key)
 	async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(host_id, host_key)) as session:
 		websock = await session.ws_connect(f"{config.external_url}/mq", ssl=False)
 		await websock.send_bytes(b"test")

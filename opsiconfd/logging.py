@@ -17,7 +17,6 @@ import socket
 import threading
 import asyncio
 from queue import Queue, Empty
-import logging as pylogging
 from logging import LogRecord, Formatter, StreamHandler
 from concurrent.futures import ThreadPoolExecutor
 
@@ -36,6 +35,7 @@ from opsicommon.logging import (
 	SECRET_REPLACEMENT_STRING, LOG_COLORS, DATETIME_FORMAT,
 	OPSI_LEVEL_TO_LEVEL
 )
+from opsicommon.logging.constants import logging as pylogging
 from opsicommon.logging.logging import add_context_filter_to_loggers
 
 from .utils import retry_redis_call, get_async_redis_connection, get_redis_connection
@@ -334,7 +334,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 				handle_log_exception(err, stderr=True, temp_file=True)
 
 
-class RedisLogHandler(threading.Thread, pylogging.Handler):
+class RedisLogHandler(pylogging.Handler, threading.Thread):
 	"""
 	Will collect log messages in pipeline and send collected
 	log messages at once to redis in regular intervals.
@@ -342,14 +342,18 @@ class RedisLogHandler(threading.Thread, pylogging.Handler):
 	def __init__(self, max_msg_len: int = 0, max_delay: float = 0.1):
 		pylogging.Handler.__init__(self)
 		threading.Thread.__init__(self)
-		self.name = "RedisLogHandlerThread"
+		self._name = "RedisLogHandlerThread"
 		self.daemon = True
 		self._max_msg_len = max_msg_len
 		self._max_delay = max_delay
 		self._redis = get_redis_connection(config.redis_internal_url)
-		self._queue = Queue()
+		self._queue: Queue = Queue()
 		self._should_stop = False
 		self.start()
+
+	@property
+	def name(self):
+		return self._name
 
 	def run(self):
 		try:
@@ -453,7 +457,7 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):  # pylint: d
 		if log_mode == "local":
 			log_level = config.log_level_stderr
 		log_level = OPSI_LEVEL_TO_LEVEL[log_level]
-		log_handler = None
+		log_handler: pylogging.Handler
 
 		if log_mode == "redis":
 			try:

@@ -14,7 +14,7 @@
 		"terminal.integrated.shell.linux": "/bin/bash",
 		"python.pythonPath": ".venv/bin/python",
 		"python.terminal.activateEnvironment": false,
-	"python.testing.pytestArgs": ["-vv", "tests"],
+		"python.testing.pytestArgs": ["-vv", "tests"],
 		"python.testing.unittestEnabled": false,
 		"python.testing.nosetestsEnabled": false,
 		"python.testing.pytestEnabled": true,
@@ -23,6 +23,7 @@
 		"python.linting.flake8Enabled": true,
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintCategorySeverity.refactor": "Information",
+		"python.linting.mypyEnabled": true,
 		"files.trimTrailingWhitespace": true,
 		"python.languageServer": "Pylance"
 	},

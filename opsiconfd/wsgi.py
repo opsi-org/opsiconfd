@@ -9,7 +9,6 @@ opsiconfd.wsgi
 """
 
 import asyncio
-import io
 import sys
 import typing
 from queue import Queue
@@ -126,7 +125,7 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 		# The reason for using a queue is that if the reader is faster than the sender,
 		# which should be the case most of the time, the send queue will not fill up endlessly.
 		# The original implementation from uvicorn uses a list, which eats up a lot of memory.
-		self.send_queue = Queue(5)
+		self.send_queue: Queue = Queue(5)
 		self.loop = asyncio.get_event_loop()
 		self.response_started = False
 		self.exc_info = None  # type: typing.Any
@@ -149,7 +148,7 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 			if sender and not sender.done():
 				sender.cancel()  # pragma: no cover
 
-	async def receiver(self, receive: Receive, wsgi_input: io.BytesIO):  # pylint: disable=no-self-use
+	async def receiver(self, receive: Receive, wsgi_input: InputBuffer):  # pylint: disable=no-self-use
 		more_body = True
 		while more_body:
 			message = await receive()

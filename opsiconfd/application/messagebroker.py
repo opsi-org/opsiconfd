@@ -11,7 +11,7 @@ messagebroker
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, FastAPI
 from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.websockets import WebSocket
@@ -23,7 +23,7 @@ from ..utils import async_redis_client
 
 
 messagebroker_router = APIRouter()
-_app = None  # pylint: disable=invalid-name
+_app: Optional[FastAPI] = None  # pylint: disable=invalid-name
 
 
 def messagebroker_setup(app):
@@ -60,7 +60,7 @@ async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str =
 			last_id, buf = await run_in_threadpool(read_data, data, channel)
 			await websocket.send_bytes(buf)
 		except Exception as err:  # pylint: disable=broad-except
-			if not _app.is_shutting_down and not isinstance(err, ConnectionClosedOK):
+			if isinstance(_app, FastAPI) and not _app.is_shutting_down and not isinstance(err, ConnectionClosedOK):
 				logger.error(err, exc_info=True)
 			break
 

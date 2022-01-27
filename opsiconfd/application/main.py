@@ -60,6 +60,7 @@ app = FastAPI(
 		422: {'model': RestApiValidationError, 'description': 'Validation Error'}
 	}
 )
+app.is_shutting_down = False
 
 
 @app.websocket_route("/ws/log_viewer")
@@ -159,7 +160,6 @@ async def favicon(request: Request, response: Response):  # pylint: disable=unus
 
 @app.on_event("startup")
 async def startup_event():
-	app.is_shutting_down = False
 	try:
 		init_worker()
 		application_setup()

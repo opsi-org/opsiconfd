@@ -18,8 +18,10 @@ import datetime
 import time
 import codecs
 import asyncio
+from typing import Dict, Optional
 from contextlib import contextmanager
 from fastapi import FastAPI, APIRouter
+from starlette.routing import Route
 import psutil
 import redis
 import aioredis
@@ -46,7 +48,7 @@ def get_config():
 
 
 class Singleton(type):
-	_instances = {}
+	_instances: Dict[type, type] = {}
 
 	def __call__(cls, *args, **kwargs):
 		if cls not in cls._instances:
@@ -83,7 +85,7 @@ def is_manager(proc) -> bool:
 	return manager
 
 
-def get_manager_pid(ignore_self: bool = False) -> int:
+def get_manager_pid(ignore_self: bool = False) -> Optional[int]:
 	manager_pid = None
 	ignore_pids = []
 	if ignore_self:
@@ -187,7 +189,7 @@ def retry_redis_call(func):
 	return wrapper_retry
 
 
-def get_redis_connection(url: str, db: str = None, timeout: int = 0):  # pylint: disable=invalid-name
+def get_redis_connection(url: str, db: int = 0, timeout: int = 0) -> redis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
 	while True:
 		try:
@@ -312,9 +314,9 @@ async def async_get_redis_info(client: aioredis.StrictRedis):  # pylint: disable
 
 
 def remove_router(app: FastAPI, router: APIRouter, router_prefix: str):
-	paths = [f"{router_prefix}{route.path}" for route in router.routes]
+	paths = [f"{router_prefix}{route.path}" for route in router.routes if isinstance(route, Route)]
 	for route in app.routes:
-		if route.path in paths:
+		if isinstance(route, Route) and route.path in paths:
 			app.routes.remove(route)
 
 
@@ -322,5 +324,5 @@ def remove_route_path(app: FastAPI, path: str):
 	# Needs to be done twice to work for unknown reason
 	for _ in range(2):
 		for route in app.routes:
-			if route.path.lower().startswith(path.lower()):
+			if isinstance(route, Route) and route.path.lower().startswith(path.lower()):
 				app.routes.remove(route)

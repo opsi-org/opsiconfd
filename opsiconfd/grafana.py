@@ -22,6 +22,7 @@ import string
 import hashlib
 import datetime
 import subprocess
+from typing import Dict, Any, Union
 from urllib.parse import urlparse
 from packaging.version import Version
 import aiohttp
@@ -50,7 +51,7 @@ GRAFANA_DATASOURCE_TEMPLATE = {
 	"readOnly": False
 }
 
-GRAFANA_DASHBOARD_TEMPLATE = {
+GRAFANA_DASHBOARD_TEMPLATE: Dict[str, Any] = {
 	"id": None,
 	"uid": "opsiconfd_main",
 	"annotations": {
@@ -335,7 +336,7 @@ def setup_grafana():
 
 async def create_or_update_api_key_by_api(admin_username: str, admin_password: str):
 	auth = aiohttp.BasicAuth(admin_username, admin_password)
-	ssl_context = ssl.create_default_context(cafile=config.ssl_trusted_certs)
+	ssl_context: Union[ssl.SSLContext, bool] = ssl.create_default_context(cafile=config.ssl_trusted_certs)
 	if not config.grafana_verify_cert:
 		ssl_context = False
 	async with aiohttp.ClientSession(auth=auth) as session:

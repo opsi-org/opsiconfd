@@ -2188,6 +2188,32 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
+name = "types-certifi"
+version = "2021.10.8.1"
+description = "Typing stubs for certifi"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
+name = "types-redis"
+version = "4.1.10"
+description = "Typing stubs for redis"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
 name = "typing-extensions"
 version = "4.0.1"
 description = "Backported and Experimental Type Hints for Python 3.6+"
@@ -2430,7 +2456,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<3.11"
-content-hash = "54888d145f4642554549775accaf22e1247cd91a61c6ca6ae4348ca4389228b5"
+content-hash = "2a4bd7eb76192bed9f264b1ed4e8af7f2a554eaedd28b5111e6605496a546313"
 
 [metadata.files]
 aiofiles = [
@@ -3794,6 +3820,14 @@ typed-ast = [
     {file = "typed_ast-1.5.2-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:f290617f74a610849bd8f5514e34ae3d09eafd521dceaa6cf68b3f4414266d4e"},
     {file = "typed_ast-1.5.2-cp39-cp39-win_amd64.whl", hash = "sha256:df05aa5b241e2e8045f5f4367a9f6187b09c4cdf8578bb219861c4e27c443db5"},
     {file = "typed_ast-1.5.2.tar.gz", hash = "sha256:525a2d4088e70a9f75b08b3f87a51acc9cde640e19cc523c7e41aa355564ae27"},
+]
+types-certifi = [
+    {file = "types-certifi-2021.10.8.1.tar.gz", hash = "sha256:546cd3ca4466855959fbc8868fd7139a50eb55a2d1fae497e13b60af439597a3"},
+    {file = "types_certifi-2021.10.8.1-py3-none-any.whl", hash = "sha256:2290008f32e6ac7c69e779d04fa1bc4c6bb4c7200aa3b3b072ad5475a8968aa5"},
+]
+types-redis = [
+    {file = "types-redis-4.1.10.tar.gz", hash = "sha256:cd9fe6689442315a453028b38ff2ba11eff7a46f22320335766508e956164dc6"},
+    {file = "types_redis-4.1.10-py3-none-any.whl", hash = "sha256:7b6b5ce5837cdebb9b36efd37a8587204f544956367a51a6cd29b8e62def756e"},
 ]
 typing-extensions = [
     {file = "typing_extensions-4.0.1-py3-none-any.whl", hash = "sha256:7f001e5ac290a0c0401508864c7ec868be4e701886d5b573a9528ed3973d9d3b"},

@@ -167,7 +167,7 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
 			raise Exception(f"Cannot add webdav content 'repository': permissions on directory '{path}' not sufficient.")
 
-		filesystems["repository"] = {"path": path, "ignore_case": False}
+		filesystems["repository"] = {"path": path, "ignore_case": False, "read_only": False}
 	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -184,7 +184,7 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
 			raise Exception(f"Cannot add webdav content 'depot': permissions on directory '{path}' not sufficient.")
 
-		filesystems["depot"] = {"path": path, "ignore_case": True}
+		filesystems["depot"] = {"path": path, "ignore_case": True, "read_only": False}
 	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -201,7 +201,7 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
 			raise Exception(f"Cannot add webdav content 'workbench': permissions on directory '{path}' not sufficient.")
 
-		filesystems["workbench"] = {"path": path, "ignore_case": False}
+		filesystems["workbench"] = {"path": path, "ignore_case": False, "read_only": False}
 	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -213,7 +213,7 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 		if not os.access(PUBLIC_FOLDER, os.R_OK | os.W_OK | os.X_OK):
 			raise Exception(f"Cannot add webdav content 'public': permissions on directory '{PUBLIC_FOLDER}' not sufficient.")
 
-		filesystems["public"] = {"path": PUBLIC_FOLDER, "ignore_case": False}
+		filesystems["public"] = {"path": PUBLIC_FOLDER, "ignore_case": False, "read_only": True}
 	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
@@ -224,14 +224,14 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 			if not os.access(path, os.R_OK | os.X_OK):
 				raise Exception(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
 
-			filesystems["boot"] = {"path": path, "ignore_case": True}
+			filesystems["boot"] = {"path": path, "ignore_case": True, "read_only": True}
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
 	for name, conf in filesystems.items():
 		app_config = APP_CONFIG_TEMPLATE.copy()
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
-		app_config["provider_mapping"]["/"] = prov_class(conf["path"], readonly=True)
+		app_config["provider_mapping"]["/"] = prov_class(conf["path"], readonly=conf["read_only"])
 		app_config["mount_path"] = f"/{name}"
 		app.mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config)))
 

@@ -42,19 +42,19 @@ schema = schemathesis.from_pytest_fixture("get_schemathesis")
 
 @schema.parametrize(endpoint="^/rpc$")
 def test_rpc(config, case):  # pylint: disable=redefined-outer-name
-	sync_clean_redis(config.redis_internal_url)
+	sync_clean_redis()
 	# case.call_and_validate(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 
 
 @schema.parametrize(endpoint="^/admin/(?!memory)")
 def test_admin(config, case):  # pylint: disable=redefined-outer-name
-	sync_clean_redis(config.redis_internal_url)
+	sync_clean_redis()
 	# case.call_and_validate(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 
 
 @schema.parametrize(endpoint="^/ssl")
 def test_ssl(config, case):  # pylint: disable=redefined-outer-name
-	sync_clean_redis(config.redis_internal_url)
+	sync_clean_redis()
 	case.call(auth=(ADMIN_USER, ADMIN_PASS), verify=False)

@@ -8,8 +8,6 @@
 login tests
 """
 
-import requests
-
 from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT
 
 from .utils import (  # pylint: disable=unused-import
@@ -17,9 +15,8 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_log_hard_limit(config):  # pylint: disable=redefined-outer-name,unused-argument
-	session = requests.Session()
-	session.auth = (ADMIN_USER, ADMIN_PASS)
+def test_log_hard_limit(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	client_id = "logtest.uib.local"
 	rpc = {
@@ -29,7 +26,7 @@ def test_log_hard_limit(config):  # pylint: disable=redefined-outer-name,unused-
 			client_id
 		]
 	}
-	res = session.post(f"{config.external_url}/rpc", verify=False, json=rpc)
+	res = test_client.post("/rpc", verify=False, json=rpc)
 	assert res.status_code == 200
 
 	log_line = "log_line_" * 100
@@ -41,13 +38,13 @@ def test_log_hard_limit(config):  # pylint: disable=redefined-outer-name,unused-
 		log_data += log_line + "\n"
 
 	rpc = {"id": 1, "method": "log_write", "params": ["clientconnect", log_data, client_id, False]}
-	res = session.post(f"{config.external_url}/rpc", verify=False, json=rpc)
+	res = test_client.post("/rpc", verify=False, json=rpc)
 	assert res.status_code == 200
 	res = res.json()
 	assert res.get("error") is None
 
 	rpc = {"id": 1, "method": "log_read", "params": ["clientconnect", client_id]}
-	res = session.post(f"{config.external_url}/rpc", verify=False, json=rpc)
+	res = test_client.post("/rpc", verify=False, json=rpc)
 	assert res.status_code == 200
 	res = res.json()
 	assert res.get("error") is None
@@ -64,5 +61,5 @@ def test_log_hard_limit(config):  # pylint: disable=redefined-outer-name,unused-
 			client_id
 		]
 	}
-	res = session.post(f"{config.external_url}/rpc", verify=False, json=rpc)
+	res = test_client.post("/rpc", verify=False, json=rpc)
 	assert res.status_code == 200

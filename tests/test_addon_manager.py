@@ -12,7 +12,6 @@ import os
 import shutil
 import tempfile
 import pytest
-import requests
 
 from opsiconfd.addon import AddonManager
 
@@ -109,39 +108,42 @@ def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
 	assert len(addon_manager.addons) == 1
 
 
-def test_addon_static_dir(config):  # pylint: disable=redefined-outer-name
-	res = requests.get(f"{config.internal_url}/addons/test1/static/index.html", verify=False)
+def test_addon_static_dir(test_client):  # pylint: disable=redefined-outer-name
+	AddonManager().load_addons()
+	res = test_client.get("/addons/test1/static/index.html", verify=False)
 	assert res.status_code == 200
 
 
-def test_addon_public_path(config):  # pylint: disable=redefined-outer-name
-	res = requests.get(f"{config.internal_url}/addons/test1", verify=False)
+def test_addon_public_path(test_client):  # pylint: disable=redefined-outer-name
+	AddonManager().load_addons()
+	res = test_client.get("/addons/test1", verify=False)
 	assert res.status_code == 401
 
-	res = requests.get(f"{config.internal_url}/addons/test1/public", verify=False)
+	res = test_client.get("/addons/test1/public", verify=False)
 	assert res.status_code == 200
 
 
-def test_addon_auth(config):  # pylint: disable=redefined-outer-name
-	session = requests.Session()
-	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
+def test_addon_auth(test_client):  # pylint: disable=redefined-outer-name
+	AddonManager().load_addons()
+	res = test_client.get("/addons/test1", verify=False)
 	assert res.status_code == 401
 
-	res = session.get(f"{config.internal_url}/addons/test1/login", verify=False)
+	res = test_client.get("/addons/test1/login", verify=False)
 	assert res.status_code == 200
 
-	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
+	res = test_client.get("/addons/test1", verify=False)
 	assert res.status_code == 200
 
-	res = session.get(f"{config.internal_url}/addons/test1/logout", verify=False)
+	res = test_client.get("/addons/test1/logout", verify=False)
 	assert res.status_code == 200
 
-	res = session.get(f"{config.internal_url}/addons/test1", verify=False)
+	res = test_client.get("/addons/test1", verify=False)
 	assert res.status_code == 401
 
 
-def test_addon_exception_handling(config):  # pylint: disable=redefined-outer-name
-	res = requests.get(f"{config.internal_url}/addons/test1", verify=False)
+def test_addon_exception_handling(test_client):  # pylint: disable=redefined-outer-name
+	AddonManager().load_addons()
+	res = test_client.get("/addons/test1", verify=False)
 	assert res.status_code == 401
 	assert res.text == "addon_test1_error"
 	assert res.headers.get("x-addon") == "test1"

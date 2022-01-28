@@ -8,9 +8,9 @@
 conftest
 """
 
+import sys
 import asyncio
 import warnings
-import typing
 import contextvars
 from unittest.mock import patch
 import urllib3
@@ -18,13 +18,28 @@ import urllib3
 from requests.cookies import cookiejar_from_dict
 
 from fastapi.testclient import TestClient
-from starlette.testclient import ASGI2App, ASGI3App
 import pytest
 from _pytest.logging import LogCaptureHandler
 
+from opsiconfd.config import config as _config
 from opsiconfd.backend import BackendManager
 from opsiconfd.application.main import app, application_setup
 
+
+def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
+	sys.exit(1)
+
+
+patch("manager.Manager.signal_hander", signal_handler)
+
+_config.addon_dirs = ["tests/data/addons"]
+
+BackendManager.default_config = {
+	"backendConfigDir": "tests/opsi-config/backends",
+	"dispatchConfigFile": "tests/opsi-config/backendManager/dispatch.conf",
+	"extensionConfigDir": "tests/opsi-config/backendManager/extend.d",
+	"extend": True
+}
 
 application_setup()
 
@@ -34,14 +49,6 @@ def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
 
 
 LogCaptureHandler.emit = emit
-
-
-BackendManager.default_config = {
-	"backendConfigDir": "tests/opsi-config/backends",
-	"dispatchConfigFile": "tests/opsi-config/backendManager/dispatch.conf",
-	"extensionConfigDir": "tests/opsi-config/backendManager/extend.d",
-	"extend": True
-}
 
 
 @pytest.hookimpl()

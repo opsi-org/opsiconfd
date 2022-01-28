@@ -300,7 +300,7 @@ def test_delete_opsi_client(config, fill_db):  # pylint: disable=unused-argument
 
 
 @pytest.mark.asyncio
-async def test_store_rpc(config):  # pylint: disable=redefined-outer-name
+async def test_store_rpc():  # pylint: disable=redefined-outer-name
 	data = {
 		"rpc_num": 1,
 		"method": "test",
@@ -315,7 +315,7 @@ async def test_store_rpc(config):  # pylint: disable=redefined-outer-name
 		data["rpc_num"] = rpc_num
 		await store_rpc(data, max_rpcs=5)
 
-	async with async_redis_client(config.redis_internal_url) as redis:
+	async with async_redis_client() as redis:
 		redis_result = await redis.lrange("opsiconfd:stats:rpcs", 0, -1)
 		result = []
 		for value in redis_result:
@@ -351,7 +351,7 @@ async def test_get_sort_algorithm(backend):  # pylint: disable=redefined-outer-n
 
 
 @pytest.mark.asyncio
-async def test_store_product_ordering(config):  # pylint: disable=redefined-outer-name
+async def test_store_product_ordering():  # pylint: disable=redefined-outer-name
 	result = {
 		"not_sorted": [
 			"7zip",
@@ -367,7 +367,7 @@ async def test_store_product_ordering(config):  # pylint: disable=redefined-oute
 	depot_id = "some.depot.id"
 	algorithm = "algorithm1"
 
-	async with async_redis_client(config.redis_internal_url) as redis:
+	async with async_redis_client() as redis:
 		await store_product_ordering(result, depot_id, algorithm)
 
 		assert await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")

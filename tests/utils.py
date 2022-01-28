@@ -21,6 +21,8 @@ import urllib3
 from opsicommon.objects import LocalbootProduct, ProductOnDepot
 from OPSI.Backend.BackendManager import BackendManager
 
+from opsiconfd.config import config as _config
+
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
 OPSI_SESSION_KEY = "opsiconfd:sessions"
@@ -39,25 +41,23 @@ def disable_request_warning():
 
 @pytest.fixture
 def config():
-	from opsiconfd.config import config  # pylint: disable=import-outside-toplevel, redefined-outer-name
-	return config
+	return _config
 
 
 @contextmanager
 def get_config(values: Union[Dict[str, Any], List[str]]):
-	from opsiconfd.config import config  # pylint: disable=import-outside-toplevel, redefined-outer-name
-	conf = config._config.__dict__.copy()  # pylint: disable=protected-access
-	args = config._args.copy()  # pylint: disable=protected-access
+	conf = _config._config.__dict__.copy()  # pylint: disable=protected-access
+	args = _config._args.copy()  # pylint: disable=protected-access
 	try:
 		if isinstance(values, dict):
-			config._config.__dict__.update(values)  # pylint: disable=protected-access
+			_config._config.__dict__.update(values)  # pylint: disable=protected-access
 		else:
-			config._set_args(values)  # pylint: disable=protected-access
-			config._parse_args()  # pylint: disable=protected-access
-		yield config
+			_config._set_args(values)  # pylint: disable=protected-access
+			_config._parse_args()  # pylint: disable=protected-access
+		yield _config
 	finally:
-		config._config.__dict__ = conf  # pylint: disable=protected-access
-		config._args = args  # pylint: disable=protected-access
+		_config._config.__dict__ = conf  # pylint: disable=protected-access
+		_config._args = args  # pylint: disable=protected-access
 
 
 CLEAN_REDIS_KEYS = [
@@ -73,8 +73,8 @@ CLEAN_REDIS_KEYS = [
 
 
 @asynccontextmanager
-async def async_redis_client(redis_url):  # pylint: disable=redefined-outer-name
-	redis_client = aioredis.StrictRedis.from_url(redis_url)
+async def async_redis_client():  # pylint: disable=redefined-outer-name
+	redis_client = aioredis.StrictRedis.from_url(_config.redis_internal_url)
 	try:
 		yield redis_client
 	finally:
@@ -82,24 +82,24 @@ async def async_redis_client(redis_url):  # pylint: disable=redefined-outer-name
 
 
 @contextmanager
-def sync_redis_client(redis_url):  # pylint: disable=redefined-outer-name
-	redis_client = redis.StrictRedis.from_url(redis_url)
+def sync_redis_client():  # pylint: disable=redefined-outer-name
+	redis_client = redis.StrictRedis.from_url(_config.redis_internal_url)
 	try:
 		yield redis_client
 	finally:
 		redis_client.close()
 
 
-async def async_clean_redis(redis_url):
-	async with async_redis_client(redis_url) as redis_client:
+async def async_clean_redis():
+	async with async_redis_client() as redis_client:
 		for redis_key in CLEAN_REDIS_KEYS:
 			async for key in redis_client.scan_iter(f"{redis_key}:*"):
 				await redis_client.delete(key)
 			await redis_client.delete(redis_key)
 
 
-def sync_clean_redis(redis_url):
-	with sync_redis_client(redis_url) as redis_client:
+def sync_clean_redis():
+	with sync_redis_client() as redis_client:
 		for redis_key in CLEAN_REDIS_KEYS:
 			for key in redis_client.scan_iter(f"{redis_key}:*"):
 				redis_client.delete(key)
@@ -108,8 +108,8 @@ def sync_clean_redis(redis_url):
 
 @pytest_asyncio.fixture(autouse=True)
 @pytest.mark.asyncio
-async def clean_redis(config):  # pylint: disable=redefined-outer-name
-	await async_clean_redis(config.redis_internal_url)
+async def clean_redis():  # pylint: disable=redefined-outer-name
+	await async_clean_redis()
 	yield None
 
 

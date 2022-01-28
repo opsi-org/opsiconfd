@@ -25,10 +25,10 @@ def test_renew_cache_on_delete_products(test_client):  # pylint: disable=redefin
 	products = get_dummy_products(100)
 
 	with (
-		get_config({"jsonrpc_time_to_cache": 0}) as conf,
+		get_config({"jsonrpc_time_to_cache": 0}),
 		depot_jsonrpc(test_client, "", depot_id),
 		products_jsonrpc(test_client, "", products, [depot_id]),  # Create products
-		sync_redis_client(conf.redis_internal_url) as redis
+		sync_redis_client() as redis
 	):
 
 		# Execution of method getProductOrdering will fill the product ordering cache
@@ -81,9 +81,9 @@ def test_renew_cache_on_create_products(test_client):  # pylint: disable=redefin
 	]
 
 	with (
-		get_config({"jsonrpc_time_to_cache": 0}) as conf,
+		get_config({"jsonrpc_time_to_cache": 0}),
 		depot_jsonrpc(test_client, "", depot_id),
-		sync_redis_client(conf.redis_internal_url) as redis
+		sync_redis_client() as redis
 	):
 		with products_jsonrpc(test_client, "", products, [depot_id]):  # Create products
 			# Execution of method getProductOrdering will fill the product ordering cache
@@ -128,8 +128,8 @@ def test_getProductOrdering(test_client):  # pylint: disable=invalid-name,redefi
 	]
 	products_sorted = ["test_product1", "test_product3", "test_product2"]
 	with (
-		get_config({"jsonrpc_time_to_cache": 0}) as conf,
-		sync_redis_client(conf.redis_internal_url) as redis,
+		get_config({"jsonrpc_time_to_cache": 0}),
+		sync_redis_client() as redis,
 		depot_jsonrpc(test_client, "", depot_id),  # Create depot
 	):
 		with products_jsonrpc(test_client, "", products, [depot_id]):  # Create products

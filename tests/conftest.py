@@ -10,16 +10,23 @@ conftest
 
 import asyncio
 import warnings
+import typing
 import contextvars
 from unittest.mock import patch
 import urllib3
 
+from requests.cookies import cookiejar_from_dict
+
 from fastapi.testclient import TestClient
+from starlette.testclient import ASGI2App, ASGI3App
 import pytest
 from _pytest.logging import LogCaptureHandler
 
 from opsiconfd.backend import BackendManager
 from opsiconfd.application.main import app, application_setup
+
+
+application_setup()
 
 
 def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
@@ -60,17 +67,33 @@ def disable_insecure_request_warning():
 
 @pytest.fixture()
 def test_client():
-	application_setup()
-	client = TestClient(app)
-	client.context = None
 
-	def get_client_address(self, scope):  # pylint: disable=unused-argument
-		return ("127.0.0.1", 12345)
+	class OpsiconfdTestClient(TestClient):
+		def __init__(self) -> None:
+			super().__init__(app, "https://opsiserver:4447")
+			self.context = None
+			self._address = ("127.0.0.1", 12345)
+
+		def reset_cookies(self):
+			self.cookies = cookiejar_from_dict({})
+
+		def set_client_address(self, host, port):
+			self._address = (host, port)
+
+		def get_client_address(self):
+			return self._address
+
+	client = OpsiconfdTestClient()
 
 	def before_send(self, scope, receive, send):  # pylint: disable=unused-argument
 		# Get the context out for later use
 		client.context = contextvars.copy_context()
 
-	with patch("opsiconfd.application.main.BaseMiddleware.get_client_address", get_client_address):
-		with patch("opsiconfd.application.main.BaseMiddleware.before_send", before_send):
-			yield client
+	def get_client_address(asgi_adapter, scope):  # pylint: disable=unused-argument
+		return client.get_client_address()
+
+	with (
+		patch("opsiconfd.application.main.BaseMiddleware.get_client_address", get_client_address),
+		patch("opsiconfd.application.main.BaseMiddleware.before_send", before_send)
+	):
+		yield client

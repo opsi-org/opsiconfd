@@ -30,6 +30,7 @@ import msgpack
 
 executor = ProcessPoolExecutor(max_workers=25)
 
+
 class Perftest:  # pylint: disable=too-many-instance-attributes
 	def __init__(self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=None, write_results=None):  # pylint: disable=too-many-arguments
 		url = urlparse(server)
@@ -51,14 +52,17 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 				method = meth[0]
 				params = []
 				if len(meth) > 1:
-					params = orjson.loads('[' + meth[1])  # pylint: disable=c-extension-no-member
+					params = orjson.loads('[' + meth[1])  # pylint: disable=no-member
 				requests.append(["jsonrpc", method, params])
-			self.test_cases = [ TestCase(self, "JSONRPC", {"test": requests}) ]
+			self.test_cases = [TestCase(self, "JSONRPC", {"test": requests})]
+
+	async def signal_handler(self, _sig):
+		await self.stop()
 
 	@classmethod
 	def from_file(cls, filename, **kwargs):
 		with codecs.open(filename, 'r', 'utf-8') as file:
-			perftest = orjson.loads(file.read())  # pylint: disable=c-extension-no-member
+			perftest = orjson.loads(file.read())  # pylint: disable=no-member
 			for key, var in kwargs.items():
 				if var is None or key == "load":
 					continue
@@ -75,6 +79,13 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 			return perft
 
 	async def run(self):
+		loop = asyncio.get_event_loop()
+		signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
+		for sig in signals:
+			loop.add_signal_handler(
+				sig, lambda sig=sig: loop.create_task(self.signal_handler(sig))
+			)
+
 		for test_case in self.test_cases:
 			await test_case.run()
 
@@ -82,8 +93,9 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		for test_case in self.test_cases:
 			await test_case.stop()
 
+
 class TestCase:  # pylint: disable=too-many-instance-attributes
-	def __init__(self, perftest, name, requests, compression = None, encoding = "json"):  # pylint: disable=too-many-arguments
+	def __init__(self, perftest, name, requests, compression=None, encoding="json"):  # pylint: disable=too-many-arguments
 		self.perftest = perftest
 		self.name = name
 		self.requests = requests
@@ -110,7 +122,7 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 				await asyncio.sleep(0.1)
 
 	async def run(self):
-		width = shutil.get_terminal_size((80, 20))[0] # fallback: 100, 40
+		width = shutil.get_terminal_size((80, 20))[0]  # fallback: 100, 40
 		if width > 100:
 			width = 100
 		print("")
@@ -123,7 +135,7 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 
 		try:
 			if self.requests.get("setup"):
-				tasks = [ client.execute_requests(self.requests["setup"], add_results=False) for client in self.clients ]
+				tasks = [client.execute_requests(self.requests["setup"], add_results=False) for client in self.clients]
 				await asyncio.gather(*tasks)
 
 			await asyncio.sleep(1)
@@ -131,17 +143,17 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			self.start = time.perf_counter()
 			if self.requests.get("test"):
 				for _i in range(self.iterations):
-					tasks = [ client.execute_requests(self.requests["test"]) for client in self.clients ]
+					tasks = [client.execute_requests(self.requests["test"]) for client in self.clients]
 					await asyncio.gather(*tasks, return_exceptions=False)
 					if self._should_stop:
 						break
 			self.end = time.perf_counter()
 
 			if self.requests.get("teardown"):
-				tasks = [ client.execute_requests(self.requests["teardown"], add_results=False) for client in self.clients ]
+				tasks = [client.execute_requests(self.requests["teardown"], add_results=False) for client in self.clients]
 				await asyncio.gather(*tasks)
 		finally:
-			tasks = [ client.cleanup() for client in self.clients ]
+			tasks = [client.cleanup() for client in self.clients]
 			await asyncio.gather(*tasks)
 
 		print("")
@@ -157,7 +169,6 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			"bytes_sent": bytes_sent,
 			"bytes_received": bytes_received
 		}
-		#print(res)
 		self.results.append(res)
 		if len(self.results) % 10 == 0:
 			sys.stdout.write('.')
@@ -219,6 +230,7 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 		print(f" * Bytes received: {res['bytes_received']/1000/1000:0.2f}MB ({res['avg_bytes_received_per_second']/1000/1000:0.2f}MB/s)")
 		print("")
 
+
 class Client:
 	def __init__(self, test_case):
 		self.test_case = test_case
@@ -235,7 +247,7 @@ class Client:
 		if isinstance(obj, str):
 			return obj.replace("{http_client_id}", self.http_client_id)
 		if isinstance(obj, list):
-			return  [self._fill_placeholders(o) for o in obj]
+			return [self._fill_placeholders(o) for o in obj]
 		return obj
 
 	@property
@@ -252,7 +264,7 @@ class Client:
 		if self._session:
 			await self._session.close()
 
-	async def random_data_generator(self, size=0, chunk_size=1*1000*1000):
+	async def random_data_generator(self, size=0, chunk_size=1000 * 1000):
 		tempf = tempfile.TemporaryFile(mode="wb+")
 		# TODO: more randomized data
 		tempf.write(b"o" * size)
@@ -293,7 +305,7 @@ class Client:
 		async with self.session.request(method, url=url, allow_redirects=False, data=data, headers=headers) as response:
 			data = None
 			bytes_received = 0
-			async for data in response.content.iter_chunked(64*1024):
+			async for data in response.content.iter_chunked(64 * 1024):
 				bytes_received += len(data)
 			end = time.perf_counter()
 			error = None
@@ -325,7 +337,7 @@ class Client:
 		headers = {}
 		if self.test_case.encoding == "json":
 			headers["content-type"] = "application/json"
-			data = await asyncio.get_event_loop().run_in_executor(executor, orjson.dumps, req)  # pylint: disable=c-extension-no-member
+			data = await asyncio.get_event_loop().run_in_executor(executor, orjson.dumps, req)  # pylint: disable=no-member
 		elif self.test_case.encoding == "msgpack":
 			headers["content-type"] = "application/msgpack"
 			data = await asyncio.get_event_loop().run_in_executor(executor, msgpack.dumps, req)
@@ -361,7 +373,7 @@ class Client:
 				if response.headers.get("content-type") == "application/msgpack":
 					res = await asyncio.get_event_loop().run_in_executor(executor, msgpack.loads, body)
 				else:
-					res = await asyncio.get_event_loop().run_in_executor(executor, orjson.loads, body)  # pylint: disable=c-extension-no-member
+					res = await asyncio.get_event_loop().run_in_executor(executor, orjson.loads, body)  # pylint: disable=no-member
 
 				if res.get('error'):
 					error = res['error']
@@ -372,9 +384,6 @@ class Client:
 
 			return (error, end - start, data_len, len(body or ''))
 
-async def signal_handler(_sig, loop, perftest):
-	await perftest.stop()
-	loop.stop()
 
 def main():
 	arg_parser = argparse.ArgumentParser()
@@ -390,8 +399,6 @@ def main():
 	args = arg_parser.parse_args()
 	kwargs = args.__dict__
 
-	uvloop.install()
-	loop = asyncio.get_event_loop()
 	perftest = None
 
 	if kwargs.get('password') == "":
@@ -404,11 +411,9 @@ def main():
 		del kwargs["load"]
 		perftest = Perftest(**kwargs)
 
-	#loop.create_task(perftest.run())
-	signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
-	for sig in signals:
-		loop.add_signal_handler(sig, lambda sig=sig: loop.create_task(signal_handler(sig, loop, perftest)))
-	loop.run_until_complete(perftest.run())
+	uvloop.install()
+	asyncio.run(perftest.run())
+
 
 if __name__ == '__main__':
 	main()

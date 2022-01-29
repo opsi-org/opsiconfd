@@ -33,8 +33,7 @@ stages:
 
   # Configure opsiconfd
   mkdir -p /var/lib/opsi/repository /var/lib/opsi/depot
-
-  cp tests/data/default-opsiconfd.conf /etc/opsi/opsiconfd.conf
+  cat tests/data/default-opsiconfd.conf > /etc/opsi/opsiconfd.conf
   echo "redis-internal-url = redis://redis" >> /etc/opsi/opsiconfd.conf
   echo "log-level-stderr = 0" >> /etc/opsi/opsiconfd.conf
   echo "log-level-file = 6" >> /etc/opsi/opsiconfd.conf
@@ -64,6 +63,7 @@ stages:
 
 .perftest: &perftest |
   export OPSICONFD_MAX_SESSIONS_PER_IP=20000
+  cat /etc/opsi/opsiconfd.conf
   poetry run opsiconfd &
   sleep 10
   echo "---------------------------------------"
@@ -77,6 +77,7 @@ stages:
 
 .pytest: &pytest |
   [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log
+  cat /etc/opsi/opsiconfd.conf
   poetry run opsiconfd &
   sleep 10
   echo "---------------------------------------"

@@ -123,7 +123,9 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		if "passphrase" not in action.dest and "%(default)" not in action.help:
 			if action.default is not SUPPRESS:
 				defaulting_nargs = [OPTIONAL, ZERO_OR_MORE]
-				if action.option_strings or action.nargs in defaulting_nargs:
+				if action.dest == "config_file":
+					text += f" (default: {DEFAULT_CONFIG_FILE})"
+				elif action.option_strings or action.nargs in defaulting_nargs:
 					text += " (default: %(default)s)"
 		return text
 
@@ -199,19 +201,23 @@ class Config(metaclass=Singleton):
 		return self._config.__dict__
 
 	def set_config_file(self, config_file):
-		position = -1
 		for idx, arg in enumerate(self._args):
 			if arg in ("-c", "--config-file"):
-				position = idx + 1
-				break
-		if position == -1:
-			self._args.extend(["--config-file", config_file])
-		else:
-			self._args[position] = config_file
+				if len(self._args) > idx + 1:
+					self._args[idx + 1] = config_file
+					return
+			elif arg.startswith("--config-file="):
+				self._args[idx] = f"--config-file={config_file}"
+				return
+		self._args.extend(["--config-file", config_file])
 
 	def set_config_in_config_file(self, arg: str, value: Union[str, int, float]):
+		config_files = self._parser._open_config_files(self._args)[0]  # pylint: disable=protected-access
+		if not config_files:
+			raise RuntimeError("No config file defined")
+		config_file = config_files[0]
+
 		arg = arg.lstrip("-").replace("_", "-")
-		config_file = self._parser._open_config_files(self._args)[0]  # pylint: disable=protected-access
 		data = config_file.read()
 		config_file.close()
 

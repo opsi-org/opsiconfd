@@ -18,8 +18,7 @@ from opsiconfd.application.main import app
 from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
 
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, disable_request_warning,
-	ADMIN_USER, ADMIN_PASS
+	config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS
 )
 
 
@@ -27,7 +26,7 @@ def test_webdav_setup():
 	webdav_setup(app)
 
 
-def test_webdav_upload_download_delete_with_special_chars(test_client):
+def test_webdav_upload_download_delete_with_special_chars(test_client):  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	size = 1 * 1024 * 1024
 	rand_bytes = bytearray(random.getrandbits(8) for _ in range(size))
@@ -48,13 +47,13 @@ def test_webdav_upload_download_delete_with_special_chars(test_client):
 	res.raise_for_status()
 
 
-def test_webdav_auth(test_client):
+def test_webdav_auth(test_client):  # pylint: disable=redefined-outer-name
 	url = "/repository/test_file.bin"
 	res = test_client.get(url=url)
 	assert res.status_code == 401
 
 
-def test_client_permission(test_client):
+def test_client_permission(test_client):  # pylint: disable=redefined-outer-name
 	client_id = "webdavtest.uib.local"
 	client_key = "af521906af3c4666bed30a1774639ff8"
 	rpc = {

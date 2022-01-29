@@ -14,8 +14,7 @@ import pytest
 import pytest_asyncio.plugin
 
 from .utils import (  # pylint: disable=unused-import
-	config, sync_clean_redis, disable_request_warning,
-	ADMIN_USER, ADMIN_PASS
+	config, sync_clean_redis, ADMIN_USER, ADMIN_PASS
 )
 
 

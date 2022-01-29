@@ -9,8 +9,8 @@ messagebroker tests
 """
 
 from .utils import (  # pylint: disable=unused-import
-	clean_redis, disable_request_warning, depot_jsonrpc,
-	ADMIN_USER, ADMIN_PASS
+	clean_redis, depot_jsonrpc,
+	test_client, ADMIN_USER, ADMIN_PASS
 )
 
 

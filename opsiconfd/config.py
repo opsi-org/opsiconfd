@@ -198,6 +198,17 @@ class Config(metaclass=Singleton):
 	def items(self):
 		return self._config.__dict__
 
+	def set_config_file(self, config_file):
+		position = -1
+		for idx, arg in enumerate(self._args):
+			if arg in ("-c", "--config-file"):
+				position = idx + 1
+				break
+		if position == -1:
+			self._args.extend(["--config-file", config_file])
+		else:
+			self._args[position] = config_file
+
 	def set_config_in_config_file(self, arg: str, value: Union[str, int, float]):
 		arg = arg.lstrip("-").replace("_", "-")
 		config_file = self._parser._open_config_files(self._args)[0]  # pylint: disable=protected-access

@@ -12,8 +12,8 @@ import time
 import pytest
 
 from .utils import (  # pylint: disable=unused-import
-	config, get_config, clean_redis, disable_request_warning, database_connection,
-	ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY, sync_redis_client
+	config, get_config, clean_redis, database_connection,
+	ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY, sync_redis_client, test_client
 )
 
 
@@ -41,7 +41,7 @@ def test_login_success(test_client):  # pylint: disable=redefined-outer-name,unu
 	assert res.url.rstrip("/") == f"{test_client.base_url}/admin"
 
 
-def test_networks(test_client):
+def test_networks(test_client):  # pylint: disable=redefined-outer-name
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
@@ -52,7 +52,7 @@ def test_networks(test_client):
 		assert res.status_code == 403
 
 
-def test_admin_networks(test_client):
+def test_admin_networks(test_client):  # pylint: disable=redefined-outer-name
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))

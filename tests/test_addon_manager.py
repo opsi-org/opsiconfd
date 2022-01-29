@@ -15,7 +15,7 @@ import pytest
 
 from opsiconfd.addon import AddonManager
 
-from .utils import config, clean_redis  # pylint: disable=unused-import
+from .utils import config, clean_redis, test_client  # pylint: disable=unused-import
 
 
 @pytest.fixture(autouse=True)

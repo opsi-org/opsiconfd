@@ -21,7 +21,7 @@ import aioredis
 
 from opsiconfd.application.monitoring.utils import get_workers
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, database_connection, disable_request_warning,
+	config, clean_redis, database_connection,
 	ADMIN_USER, ADMIN_PASS
 )
 from .test_monitoring import MONITORING_CHECK_DAYS, create_check_data  # pylint: disable=unused-import

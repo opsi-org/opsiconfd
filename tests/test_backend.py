@@ -14,11 +14,11 @@ from opsiconfd.backend import (
 	get_client_backend, get_backend_interface, get_server_role
 )
 from .utils import (  # pylint: disable=unused-import
-	clean_redis, config, get_config
+	clean_redis, config, get_config, test_client
 )
 
 
-def test_get_session(test_client):
+def test_get_session(test_client):  # pylint: disable=redefined-outer-name
 	test_client.get("/")
 	set_contextvars_from_contex(None)
 	set_contextvars_from_contex(test_client.context)
@@ -27,7 +27,7 @@ def test_get_session(test_client):
 	get_option_store()
 
 
-def test_get_client_backend(test_client):
+def test_get_client_backend(test_client):  # pylint: disable=redefined-outer-name
 	test_client.get("/")
 	set_contextvars_from_contex(test_client.context)
 	backend = get_client_backend()

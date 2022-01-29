@@ -8,40 +8,32 @@
 conftest
 """
 
+import os
+import shutil
 import sys
 import asyncio
 import warnings
-import contextvars
+from tempfile import mkdtemp
 from unittest.mock import patch
+
 import urllib3
-
-from requests.cookies import cookiejar_from_dict
-
-from fastapi.testclient import TestClient
 import pytest
 from _pytest.logging import LogCaptureHandler
 
+import opsicommon.ssl.linux
+
+import opsiconfd.ssl
 from opsiconfd.config import config as _config
 from opsiconfd.backend import BackendManager
-from opsiconfd.application.main import app, application_setup
-
+from opsiconfd.setup import setup_ssl
+from opsiconfd.application.main import application_setup
+import opsiconfd.manager
 
 def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
 	sys.exit(1)
 
 
-patch("manager.Manager.signal_hander", signal_handler)
-
-_config.addon_dirs = ["tests/data/addons"]
-
-BackendManager.default_config = {
-	"backendConfigDir": "tests/opsi-config/backends",
-	"dispatchConfigFile": "tests/opsi-config/backendManager/dispatch.conf",
-	"extensionConfigDir": "tests/opsi-config/backendManager/extend.d",
-	"extend": True
-}
-
-application_setup()
+opsiconfd.manager.Manager.signal_hander = signal_handler
 
 
 def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
@@ -49,6 +41,37 @@ def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
 
 
 LogCaptureHandler.emit = emit
+
+
+@pytest.hookimpl()
+def pytest_sessionstart(session):  # pylint: disable=unused-argument
+	_config.set_config_file("tests/data/default-opsiconfd.conf")
+	_config.reload()
+
+	ssl_dir = mkdtemp()
+	_config.ssl_ca_key = os.path.join(ssl_dir, "opsi-ca-key.pem")
+	_config.ssl_ca_cert = os.path.join(ssl_dir, "opsi-ca-cert.pem")
+	_config.ssl_server_key = os.path.join(ssl_dir, "opsiconfd-key.pem")
+	_config.ssl_server_cert = os.path.join(ssl_dir, "opsiconfd-cert.pem")
+
+	BackendManager.default_config = {
+		"backendConfigDir": _config.backend_config_dir,
+		"dispatchConfigFile": _config.dispatch_config_file,
+		"extensionConfigDir": _config.extension_config_dir,
+		"extend": True
+	}
+
+	with (
+		patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
+		patch("opsiconfd.ssl.install_ca", lambda x: None)
+	):
+		setup_ssl()
+	application_setup()
+
+
+@pytest.hookimpl()
+def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argument
+	shutil.rmtree(os.path.dirname(_config.ssl_ca_key))
 
 
 @pytest.hookimpl()
@@ -72,35 +95,7 @@ def disable_insecure_request_warning():
 	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
 
 
-@pytest.fixture()
-def test_client():
-
-	class OpsiconfdTestClient(TestClient):
-		def __init__(self) -> None:
-			super().__init__(app, "https://opsiserver:4447")
-			self.context = None
-			self._address = ("127.0.0.1", 12345)
-
-		def reset_cookies(self):
-			self.cookies = cookiejar_from_dict({})
-
-		def set_client_address(self, host, port):
-			self._address = (host, port)
-
-		def get_client_address(self):
-			return self._address
-
-	client = OpsiconfdTestClient()
-
-	def before_send(self, scope, receive, send):  # pylint: disable=unused-argument
-		# Get the context out for later use
-		client.context = contextvars.copy_context()
-
-	def get_client_address(asgi_adapter, scope):  # pylint: disable=unused-argument
-		return client.get_client_address()
-
-	with (
-		patch("opsiconfd.application.main.BaseMiddleware.get_client_address", get_client_address),
-		patch("opsiconfd.application.main.BaseMiddleware.before_send", before_send)
-	):
-		yield client
+@pytest.fixture(autouse=True)
+def disable_aioredis_deprecation_warning():
+	# aioredis/connection.py:668: DeprecationWarning: There is no current event loop
+	warnings.simplefilter("ignore", DeprecationWarning, 668)

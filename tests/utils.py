@@ -9,19 +9,24 @@ test utils
 """
 
 from typing import Dict, Any, Union, List
-
 from contextlib import contextmanager, asynccontextmanager
+import contextvars
+from unittest.mock import patch
+
 import pytest
 import pytest_asyncio
 import redis
 import aioredis
 import MySQLdb
-import urllib3
+from requests.cookies import cookiejar_from_dict
+from fastapi.testclient import TestClient
 
 from opsicommon.objects import LocalbootProduct, ProductOnDepot
-from OPSI.Backend.BackendManager import BackendManager
 
 from opsiconfd.config import config as _config
+from opsiconfd.application.main import app
+from opsiconfd.backend import BackendManager
+
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
@@ -32,11 +37,6 @@ def reset_singleton(cls: type) -> None:
 	"""Constructor will create a new instance afterwards"""
 	if cls in cls._instances:  # pylint: disable=protected-access
 		del cls._instances[cls]  # pylint: disable=protected-access
-
-
-@pytest.fixture(autouse=True)
-def disable_request_warning():
-	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 @pytest.fixture
@@ -207,7 +207,7 @@ def get_dummy_products(count: int) -> List[Dict]:
 
 @pytest.fixture
 def database_connection():
-	with open("tests/opsi-config/backends/mysql.conf", mode="r", encoding="utf-8") as conf:
+	with open("tests/data/opsi-config/backends/mysql.conf", mode="r", encoding="utf-8") as conf:
 		_globals = {}
 		exec(conf.read(), _globals)  # pylint: disable=exec-used
 		mysql_config = _globals["config"]
@@ -223,10 +223,40 @@ def database_connection():
 	mysql.close()
 
 
-@pytest.fixture
+@pytest.fixture()
 def backend():
-	return BackendManager(
-		dispatchConfigFile="tests/opsi-config/backendManager/dispatch.conf",
-		backendConfigDir="tests/opsi-config/backends",
-		extend=True
-	)
+	return BackendManager()
+
+
+@pytest.fixture()
+def test_client():
+
+	class OpsiconfdTestClient(TestClient):
+		def __init__(self) -> None:
+			super().__init__(app, "https://opsiserver:4447")
+			self.context = None
+			self._address = ("127.0.0.1", 12345)
+
+		def reset_cookies(self):
+			self.cookies = cookiejar_from_dict({})
+
+		def set_client_address(self, host, port):
+			self._address = (host, port)
+
+		def get_client_address(self):
+			return self._address
+
+	client = OpsiconfdTestClient()
+
+	def before_send(self, scope, receive, send):  # pylint: disable=unused-argument
+		# Get the context out for later use
+		client.context = contextvars.copy_context()
+
+	def get_client_address(asgi_adapter, scope):  # pylint: disable=unused-argument
+		return client.get_client_address()
+
+	with (
+		patch("opsiconfd.application.main.BaseMiddleware.get_client_address", get_client_address),
+		patch("opsiconfd.application.main.BaseMiddleware.before_send", before_send)
+	):
+		yield client

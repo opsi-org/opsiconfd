@@ -11,7 +11,7 @@ login tests
 from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT
 
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, ADMIN_USER, ADMIN_PASS
+	config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS
 )
 
 

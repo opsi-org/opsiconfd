@@ -9,18 +9,18 @@ test application.redisinterface
 """
 
 from .utils import (  # pylint: disable=unused-import
-	clean_redis, config, get_config, ADMIN_USER, ADMIN_PASS,
+	clean_redis, config, get_config, test_client, ADMIN_USER, ADMIN_PASS,
 	products_jsonrpc, depot_jsonrpc, get_product_ordering_jsonrpc
 )
 
 
-def test_redis_command(test_client):
+def test_redis_command(test_client):  # pylint: disable=redefined-outer-name
 	res = test_client.post("/redis-interface", auth=(ADMIN_USER, ADMIN_PASS), json={"cmd": "ping"})
 	res.raise_for_status()
 	assert res.json() == {"status": 200, "error": None, "data": {"result": True}}
 
 
-def test_redis_stats(test_client):
+def test_redis_stats(test_client):  # pylint: disable=redefined-outer-name
 	res = test_client.get("/redis-interface/redis-stats", auth=(ADMIN_USER, ADMIN_PASS))
 	res.raise_for_status()
 	res = res.json()

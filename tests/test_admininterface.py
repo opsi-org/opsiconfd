@@ -22,7 +22,7 @@ from starlette.datastructures import Headers
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, disable_request_warning,
+	config, clean_redis,
 	ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY
 )
 
@@ -43,8 +43,7 @@ async def set_failed_auth_and_blocked(config, ip_address):  # pylint: disable=re
 
 def call_rpc(rpc_request_data: list, expect_error: list, url):
 	for idx, data in enumerate(rpc_request_data):
-		rpc_request_data = json.dumps(data)
-		result = requests.post(f"{url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
+		result = requests.post(f"{url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=data, verify=False)
 		result_json = json.loads(result.text)
 		assert result.status_code == 200
 		if expect_error[idx]:

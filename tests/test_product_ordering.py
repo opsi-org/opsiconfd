@@ -13,7 +13,7 @@ import threading
 from opsiconfd.utils import decode_redis_result
 
 from .utils import (  # pylint: disable=unused-import
-	config, get_config, clean_redis,
+	config, get_config, clean_redis, test_client,
 	sync_redis_client, products_jsonrpc, delete_products_jsonrpc, depot_jsonrpc,
 	get_dummy_products, get_product_ordering_jsonrpc,
 	ADMIN_USER, ADMIN_PASS

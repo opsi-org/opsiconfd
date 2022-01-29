@@ -20,14 +20,12 @@ import urllib3
 import pytest
 from _pytest.logging import LogCaptureHandler
 
-import opsicommon.ssl.linux
-
-import opsiconfd.ssl
 from opsiconfd.config import config as _config
 from opsiconfd.backend import BackendManager
 from opsiconfd.setup import setup_ssl
 from opsiconfd.application.main import application_setup
 import opsiconfd.manager
+
 
 def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
 	sys.exit(1)

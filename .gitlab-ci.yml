@@ -38,7 +38,7 @@ stages:
   echo "redis-internal-url = redis://redis" >> /etc/opsi/opsiconfd.conf
   echo "log-level-stderr = 0" >> /etc/opsi/opsiconfd.conf
   echo "log-level-file = 6" >> /etc/opsi/opsiconfd.conf
-  echo "log-file = /etc/opsi/opsiconfd.log" >> /etc/opsi/opsiconfd.conf
+  echo "log-file = /tmp/opsiconfd.log" >> /etc/opsi/opsiconfd.conf
 
   # Installing opsi test modules file
   # echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules

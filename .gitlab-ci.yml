@@ -38,7 +38,6 @@ stages:
   echo "log-level-stderr = 0" >> tests/data/default-opsiconfd.conf
   echo "log-level-file = 6" >> tests/data/default-opsiconfd.conf
   echo "log-file = /tmp/opsiconfd.log" >> tests/data/default-opsiconfd.conf
-  ln -s tests/data/default-opsiconfd.conf /etc/opsi/opsiconfd.conf
 
   # Installing opsi test modules file
   # echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules

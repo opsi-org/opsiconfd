@@ -311,7 +311,7 @@ class Config(metaclass=Singleton):
 			"-c", "--config-file",
 			required=False,
 			is_config_file=True,
-			default=DEFAULT_CONFIG_FILE,
+			default=DEFAULT_CONFIG_FILE if os.path.exists(DEFAULT_CONFIG_FILE) else None,
 			help="Path to config file."
 		)
 		self._parser.add(

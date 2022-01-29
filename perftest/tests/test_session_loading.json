@@ -9,7 +9,7 @@
 			"name": "JSONRPC",
 			"requests": {
 				"test": [
-					["jsonrpc", "authenticated", []]
+					["jsonrpc", "backend_exit", []]
 				]
 			}
 		}

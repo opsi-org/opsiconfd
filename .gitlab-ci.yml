@@ -76,7 +76,6 @@ stages:
 
 .pytest: &pytest |
   [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log
-  cat /etc/opsi/opsiconfd.conf
   poetry run opsiconfd -c tests/data/default-opsiconfd.conf &
   sleep 10
   echo "---------------------------------------"

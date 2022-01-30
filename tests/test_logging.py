@@ -16,7 +16,10 @@ import pytest
 
 from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT
 
-from opsiconfd.logging import Formatter, AsyncFileHandler, AsyncRotatingFileHandler
+from opsiconfd.logging import (
+	Formatter, AsyncFileHandler, AsyncRotatingFileHandler, AsyncRedisLogAdapter, RedisLogHandler,
+	logger
+)
 
 from .utils import (  # pylint: disable=unused-import
 	config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS
@@ -138,3 +141,20 @@ async def test_async_rotating_file_handler_error_handler(tmp_path):
 
 	assert handled_record is record
 	assert str(handled_exception) == "I/O operation on closed file."
+
+
+@pytest.mark.asyncio
+async def test_async_redis_log_adapter():
+	redis_log_handler = RedisLogHandler()
+
+	logger.addHandler(redis_log_handler)
+	logger.setLevel(0)
+
+	adapter = AsyncRedisLogAdapter()
+
+	for num in range(5):
+		logger.error("message %d", num)
+
+	await asyncio.sleep(1)
+	await adapter.stop()
+	await asyncio.sleep(1)

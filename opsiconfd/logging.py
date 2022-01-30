@@ -170,6 +170,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
+		self._should_stop = False
 		self._set_log_format_stderr()
 
 		if self._log_level_file != pylogging.NONE:
@@ -179,7 +180,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		self._loop.create_task(self._start())
 
 	async def stop(self):
-		self._loop.stop()
+		self._should_stop = True
 
 	def reload(self):
 		self._read_config()
@@ -292,7 +293,9 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 							del self._file_logs[filename]
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
-			for _i in range(60):
+			for _ in range(60):
+				if self._should_stop:
+					return
 				await asyncio.sleep(1)
 
 	async def _start(self):

@@ -144,11 +144,9 @@ class Config(metaclass=Singleton):
 		self._set_args(args)
 
 	def __getattr__(self, name):
-		if name.startswith("_"):
-			raise AttributeError()
-		if not self._config:
-			self._parse_args()
-		return getattr(self._config, name)
+		if not name.startswith("_") and self._config:
+			return getattr(self._config, name)
+		raise AttributeError()
 
 	def __setattr__(self, name, value):
 		if not name.startswith("_") and hasattr(self._config, name):
@@ -167,6 +165,8 @@ class Config(metaclass=Singleton):
 		if is_manager(proc):
 			self._upgrade_config_files()
 			self._update_config_files()
+
+		self._parse_args()
 
 	def _expert_help(self, help_text: str) -> str:
 		return help_text if self._ex_help else SUPPRESS
@@ -219,7 +219,7 @@ class Config(metaclass=Singleton):
 		self._args.extend(["--config-file", config_file])
 
 	def set_config_in_config_file(self, arg: str, value: Union[str, int, float]):
-		config_files = self._parser._open_config_files(self._args)[0]  # pylint: disable=protected-access
+		config_files = self._parser._open_config_files(self._args)  # pylint: disable=protected-access
 		if not config_files:
 			raise RuntimeError("No config file defined")
 		config_file = config_files[0]

@@ -22,6 +22,8 @@ import psutil
 from dns import resolver, reversename
 import configargparse
 
+from fastapi.templating import Jinja2Templates
+
 from OPSI.Util import getfqdn
 
 from .utils import Singleton, running_in_docker, is_manager
@@ -137,11 +139,12 @@ class Config(metaclass=Singleton):
 		self._ex_help = False
 		self._parser = None
 		self._config = None
+		self.jinja_templates = None
 
 		self._set_args(args)
 
 	def __getattr__(self, name):
-		if name.startswith("_") or name == "set_config_in_config_file":
+		if name.startswith("_"):
 			raise AttributeError()
 		if not self._config:
 			self._parse_args()
@@ -173,6 +176,10 @@ class Config(metaclass=Singleton):
 			self._config, _unknown = self._parser.parse_known_args(self._args)
 		else:
 			self._config = self._parser.parse_args(self._args)
+
+		self.jinja_templates = Jinja2Templates(
+			directory=os.path.join(self.static_dir, "templates")
+		)
 
 		if not self._config.ssl_ca_key_passphrase:
 			# Use None if empty string

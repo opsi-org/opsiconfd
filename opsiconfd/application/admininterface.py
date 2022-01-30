@@ -22,7 +22,6 @@ import orjson
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.routing import APIRoute, Mount
 from starlette.concurrency import run_in_threadpool
 
@@ -45,7 +44,6 @@ from .memoryprofiler import memory_profiler_router
 
 
 admin_interface_router = APIRouter()
-templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
 
 
 def admin_interface_setup(app):
@@ -71,7 +69,7 @@ async def admin_interface_index(request: Request):
 		"num_servers": get_num_servers(backend),
 		"num_clients": get_num_clients(backend)
 	}
-	return templates.TemplateResponse("admininterface.html", context)
+	return config.jinja_templates.TemplateResponse("admininterface.html", context)
 
 
 @admin_interface_router.post("/logout")

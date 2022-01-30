@@ -8,19 +8,15 @@
 redisinterface
 """
 
-import os
 import traceback
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
-from fastapi.templating import Jinja2Templates
 
 from ..logging import logger
-from ..config import config
 from ..utils import decode_redis_result, async_get_redis_info, redis_client, async_redis_client
 
 redis_interface_router = APIRouter()
-templates = Jinja2Templates(directory=os.path.join(config.static_dir, "templates"))
 
 
 def redis_interface_setup(app):

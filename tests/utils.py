@@ -142,6 +142,22 @@ def depot_jsonrpc(client, base_url: str, host_id: str, host_key: str = None):
 		client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
 
 
+@contextmanager
+def client_jsonrpc(client, base_url: str, host_id: str, host_key: str = None, hardware_address: str = None, ip_address: str = None):
+	rpc = {
+		"id": 1,
+		"method": "host_createOpsiClient",
+		"params": [host_id, host_key, "", "", hardware_address, ip_address]
+	}
+	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res.raise_for_status()
+	try:
+		yield res.json()["result"]
+	finally:
+		rpc = {"id": 1, "method": "host_delete", "params": [host_id]}
+		client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+
+
 def create_products_jsonrpc(client, base_url, products):
 	products = [LocalbootProduct(**product).to_hash() for product in products]
 	rpc = {"id": 1, "method": "product_createObjects", "params": [products]}

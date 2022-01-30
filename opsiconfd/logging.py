@@ -16,6 +16,7 @@ import shutil
 import socket
 import threading
 import asyncio
+from typing import Callable, Dict
 from queue import Queue, Empty
 from logging import LogRecord, Formatter, StreamHandler
 from concurrent.futures import ThreadPoolExecutor
@@ -53,25 +54,37 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 
 	def __init__(  # pylint: disable=too-many-arguments
 		self,
-		log_adapter: "AsyncRedisLogAdapter",
 		filename: str,
 		formatter: Formatter,
 		active_lifetime: int = 0,
 		mode: str = "a",
 		encoding: str = 'utf-8',
 		max_bytes: int = 0,
-		keep_rotated: int = 0
+		keep_rotated: int = 0,
+		error_handler: Callable = None
 	) -> None:
 		super().__init__(filename, mode, encoding)
-		self._log_adapter = log_adapter
 		self.active_lifetime = active_lifetime
 		self._max_bytes = max_bytes
 		self._keep_rotated = keep_rotated
 		self.formatter = formatter
 		self._rollover_lock = asyncio.Lock()
 		self._rollover_error = None
+		self._error_handler = error_handler
 		self.last_used = time.time()
-		asyncio.get_event_loop().create_task(self._periodically_test_rollover())
+		self.should_stop = False
+
+		self._periodically_test_rollover_task = asyncio.get_event_loop().create_task(
+			self._periodically_test_rollover()
+		)
+
+	async def _close_stream(self):
+		try:
+			await self.stream.flush()
+			await self.stream.close()
+		except Exception:  # pylint: disable=broad-except
+			pass
+		self.stream = None
 
 	async def close(self):
 		"""
@@ -79,10 +92,9 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		"""
 		if not self.initialized:
 			return
+		self.should_stop = True
 		loop = asyncio.get_event_loop()
-		loop.create_task(self.stream.flush())
-		loop.create_task(self.stream.close())
-		self.stream = None
+		loop.create_task(self._close_stream())
 		self._initialization_lock = None
 
 	async def _periodically_test_rollover(self):
@@ -97,6 +109,8 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 				logger.error(err, exc_info=True)
 			check_interval = 300 if self._rollover_error else self.rollover_check_interval
 			for _sec in range(check_interval):
+				if self.should_stop:
+					return
 				await asyncio.sleep(1)
 
 	def should_rollover(self, record: LogRecord = None) -> bool:  # pylint: disable=unused-argument
@@ -106,10 +120,10 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		return os.path.getsize(self.absolute_file_path) >= self._max_bytes
 
 	async def do_rollover(self):
+		loop = asyncio.get_event_loop()
 		if self.stream:
 			await self.stream.close()
 		if self._keep_rotated > 0:
-			loop = asyncio.get_event_loop()
 			for num in range(self._keep_rotated, 0, -1):
 				src_file_path = self.absolute_file_path
 				if num > 1:
@@ -138,10 +152,9 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 			self.last_used = time.time()
 			return await super().emit(record)
 
-	async def handle_error(self, record, exception):
-		if not isinstance(exception, RuntimeError):
-			handle_log_exception(exception, record, stderr=True, temp_file=True)
-		await self._log_adapter.handle_file_handler_error(self)
+	async def handle_error(self, record: LogRecord, exception: Exception):
+		if self._error_handler:
+			await self._error_handler(self, record, exception)
 
 
 class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
@@ -153,7 +166,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		self._read_config()
 		self._loop = asyncio.get_event_loop()
 		self._redis = None
-		self._file_logs = {}
+		self._file_logs: Dict[str, AsyncFileHandler] = {}
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
@@ -217,8 +230,11 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		except Exception as exc:  # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 
-	async def handle_file_handler_error(self, file_handler: AsyncFileHandler):
+	async def handle_file_handler_error(self, file_handler: AsyncFileHandler, record: LogRecord, exception: Exception):
+		if not isinstance(exception, RuntimeError):
+			handle_log_exception(exception, record, stderr=True, temp_file=True)
 		if file_handler.absolute_file_path in self._file_logs:
+			await self._file_logs[file_handler.absolute_file_path].close()
 			del self._file_logs[file_handler.absolute_file_path]
 
 	def get_file_handler(self, client=None):
@@ -238,14 +254,14 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 					# Do not close main opsiconfd log file
 					active_lifetime = 0 if name == 'opsiconfd' else self._file_log_active_lifetime
 					self._file_logs[filename] = AsyncRotatingFileHandler(
-						log_adapter=self,
 						filename=filename,
 						formatter=ContextSecretFormatter(Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT)),
 						active_lifetime=active_lifetime,
 						mode='a',
 						encoding='utf-8',
 						max_bytes=self._max_log_file_size,
-						keep_rotated=self._keep_rotated_log_files
+						keep_rotated=self._keep_rotated_log_files,
+						error_handler=self.handle_file_handler_error
 					)
 					if client and self._symlink_client_log_files:
 						self._loop.create_task(self._create_client_log_file_symlink(client))

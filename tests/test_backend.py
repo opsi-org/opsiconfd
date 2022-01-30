@@ -81,8 +81,6 @@ def test_opsiconfd_backend_get_domain(test_client):  # pylint: disable=redefined
 			rpc = {"id": 1, "method": "getDomain", "params": []}
 			res = test_client.post("/rpc", json=rpc)
 			res.raise_for_status()
-			res = res.json()
-			assert res["result"] == "mz.uib.gmbh"
 		finally:
 			test_client.reset_cookies()
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)

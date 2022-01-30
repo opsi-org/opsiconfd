@@ -11,14 +11,17 @@ webdav tests
 import os
 import random
 import shutil
+from unittest.mock import patch
 
 import pytest
 
+from opsiconfd.config import FQDN
 from opsiconfd.application.main import app
 from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
 
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS
+	app, backend, config, clean_redis, test_client,
+	ADMIN_USER, ADMIN_PASS
 )
 
 
@@ -149,3 +152,32 @@ def test_webdav_ignore_case_download(test_client, filename, path, exception):  #
 			shutil.rmtree(os.path.join(base_dir, directory.split('/')[0]))
 		else:
 			os.unlink(abs_filename)
+
+
+def test_webdav_virtual_folder(test_client):  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	res = test_client.get(url="/webdav")
+	assert res.status_code == 200
+
+	assert "/webdav/boot" in res.text
+	assert "/webdav/depot" in res.text
+	assert "/webdav/public" in res.text
+	assert "/webdav/repository" in res.text
+	assert "/webdav/workbench" in res.text
+
+
+def test_webdav_setup_exception(backend):  # pylint: disable=redefined-outer-name
+	host = backend.host_getObjects(type='OpsiDepotserver', id=FQDN)[0]  # pylint: disable=no-member
+	repo_url = host.getRepositoryLocalUrl()
+	depot_url = host.getDepotLocalUrl()
+	workbench_url = host.getWorkbenchLocalUrl()
+	with patch('opsiconfd.application.webdav.PUBLIC_FOLDER', "/file/not/found"):
+		try:
+			host.setRepositoryLocalUrl("file:///not/found")
+			host.setDepotLocalUrl("file:///not/found")
+			host.setWorkbenchLocalUrl("file:///not/found")
+			webdav_setup(app)
+		finally:
+			host.setRepositoryLocalUrl(repo_url)
+			host.setDepotLocalUrl(depot_url)
+			host.setWorkbenchLocalUrl(workbench_url)

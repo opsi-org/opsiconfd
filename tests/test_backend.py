@@ -8,7 +8,6 @@
 webdav tests
 """
 
-from ipaddress import ip_address
 from OpenSSL.crypto import FILETYPE_PEM, load_privatekey, load_certificate
 
 from opsiconfd import set_contextvars_from_contex

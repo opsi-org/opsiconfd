@@ -143,7 +143,7 @@ def depot_jsonrpc(client, base_url: str, host_id: str, host_key: str = None):
 
 
 @contextmanager
-def client_jsonrpc(client, base_url: str, host_id: str, host_key: str = None, hardware_address: str = None, ip_address: str = None):
+def client_jsonrpc(client, base_url: str, host_id: str, host_key: str = None, hardware_address: str = None, ip_address: str = None):  # pylint: disable=too-many-arguments
 	rpc = {
 		"id": 1,
 		"method": "host_createOpsiClient",

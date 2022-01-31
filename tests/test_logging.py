@@ -22,7 +22,7 @@ from opsiconfd.logging import (
 )
 
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS
+	config, get_config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS
 )
 
 
@@ -144,17 +144,23 @@ async def test_async_rotating_file_handler_error_handler(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_async_redis_log_adapter():
-	redis_log_handler = RedisLogHandler()
+async def test_async_redis_log_adapter(tmp_path):
+	log_file = tmp_path / "log"
+	with get_config({"log_file": str(log_file)}):
+		redis_log_handler = RedisLogHandler()
+		logger.addHandler(redis_log_handler)
 
-	logger.addHandler(redis_log_handler)
-	logger.setLevel(0)
+		adapter = AsyncRedisLogAdapter()
 
-	adapter = AsyncRedisLogAdapter()
+		for num in range(5):
+			logger.error("message %d", num)
 
-	for num in range(5):
-		logger.error("message %d", num)
+		await asyncio.sleep(1)
+		await adapter.stop()
+		await asyncio.sleep(1)
 
-	await asyncio.sleep(1)
-	await adapter.stop()
-	await asyncio.sleep(1)
+		with open(log_file, "r", encoding="utf-8") as file:
+			lines = file.readlines()
+		assert len(lines) == 5
+		for idx, line in enumerate(lines):
+			assert f"message {idx}" in line

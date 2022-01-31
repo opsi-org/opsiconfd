@@ -15,6 +15,7 @@ from logging import LogRecord
 import pytest
 
 from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT
+from opsicommon.logging.constants import LOG_NONE, LOG_ERROR
 
 from opsiconfd.logging import (
 	Formatter, AsyncFileHandler, AsyncRotatingFileHandler, AsyncRedisLogAdapter, RedisLogHandler,
@@ -146,10 +147,9 @@ async def test_async_rotating_file_handler_error_handler(tmp_path):
 @pytest.mark.asyncio
 async def test_async_redis_log_adapter(tmp_path):
 	log_file = tmp_path / "log"
-	with get_config({"log_file": str(log_file)}):
+	with get_config({"log_file": str(log_file), "log_level_stderr": LOG_NONE, "log_level_file": LOG_ERROR}):
 		redis_log_handler = RedisLogHandler()
 		logger.addHandler(redis_log_handler)
-
 		adapter = AsyncRedisLogAdapter()
 
 		for num in range(5):

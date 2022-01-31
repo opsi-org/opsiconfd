@@ -17,7 +17,7 @@ from functools import wraps
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import asc, desc, column
+from sqlalchemy import asc, desc, column  # type: ignore[import]
 
 from . import contextvar_client_session
 from .logging import logger

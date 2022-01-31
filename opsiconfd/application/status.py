@@ -13,9 +13,9 @@ import datetime
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 
-from OPSI import __version__ as python_opsi_version
-from .. import __version__
+from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 
+from .. import __version__
 from ..config import config, FQDN
 from ..utils import async_get_redis_info, async_redis_client
 from ..ssl import get_ca_cert_info, get_server_cert_info

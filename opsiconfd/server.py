@@ -14,8 +14,8 @@ import threading
 import signal
 import socket
 import base64
-from typing import List
-from multiprocessing import Process
+from typing import List, Optional
+from multiprocessing.context import SpawnProcess
 import psutil
 
 try:
@@ -27,11 +27,11 @@ except ImportError:
 	from Crypto.Hash import MD5
 	from Crypto.Signature import pkcs1_15
 
-from uvicorn.subprocess import get_subprocess
-from uvicorn.config import Config
-from uvicorn.server import Server as UvicornServer
+from uvicorn.subprocess import get_subprocess  # type: ignore[import]
+from uvicorn.config import Config  # type: ignore[import]
+from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
-from OPSI.Util import getPublicKey
+from OPSI.Util import getPublicKey  # type: ignore[import]
 
 from .config import config
 from .logging import logger, init_logging
@@ -41,12 +41,23 @@ from . import ssl
 from . import __version__
 
 
+class WorkerProcess:  # pylint: disable=too-few-public-methods
+	def __init__(self, process: SpawnProcess, worker_num: int) -> None:
+		self.process = process
+		self.worker_num = worker_num
+		self.create_time = time.time()
+
+	@property
+	def pid(self):
+		return self.process.pid
+
+
 class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branches
 	def __init__(self, server: UvicornServer):
 		self.server = server
 		self.socket = None
 		self.node_name = config.node_name
-		self.workers = []
+		self.workers: List[WorkerProcess] = []
 		self.worker_stop_timeout = config.worker_stop_timeout
 		self.worker_restart_time = 0
 		self.worker_restart_mem = config.restart_worker_mem * 1000000
@@ -89,7 +100,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 					if self.should_restart_workers:
 						auto_restart.append(worker.worker_num)
 
-					elif worker.is_alive():
+					elif worker.process.is_alive():
 						if self.worker_restart_time > 0:
 							alive = time.time() - worker.create_time
 							if alive >= self.worker_restart_time:
@@ -118,7 +129,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 					elif not getattr(worker, "marked_as_vanished", False):
 						# Worker crashed / killed
 						if self.startup:
-							logger.critical("Failed to start worker %d (pid %d)", worker.worker_num, worker.pid)
+							logger.critical("Failed to start worker %d (pid %d)", worker.worker_num, worker.rocess.pid)
 							self.stop(force=True)
 							break
 
@@ -156,7 +167,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.stop_worker([worker.pid for worker in self.workers], force=force)
 		logger.info("All workers stopped")
 
-	def get_worker(self, pid: int) -> Process:
+	def get_worker(self, pid: int) -> Optional[WorkerProcess]:
 		for worker in self.workers:
 			if worker.pid == pid:
 				return worker
@@ -168,15 +179,13 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			os.putenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", ssl.KEY_CACHE[config.ssl_ca_key])
 		os.putenv("OPSICONFD_WORKER_WORKER_NUM", str(worker_num))
 
-		process = get_subprocess(config=self.uvicorn_config, target=self.server.run, sockets=[self.socket])
-		process.start()
-		process.create_time = time.time()
-		process.worker_num = worker_num
+		worker = WorkerProcess(get_subprocess(config=self.uvicorn_config, target=self.server.run, sockets=[self.socket]), worker_num)
+		worker.process.start()
 
-		logger.notice("New worker %d (pid %d) started", worker_num, process.pid)
+		logger.notice("New worker %d (pid %d) started", worker_num, worker.pid)
 		while len(self.workers) < worker_num:
-			self.workers.append(None)
-		self.workers[worker_num - 1] = process
+			self.workers.append(None)  # type: ignore[arg-type]
+		self.workers[worker_num - 1] = worker
 
 		if config.ssl_ca_key in ssl.KEY_CACHE:
 			os.unsetenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY")
@@ -188,13 +197,13 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			worker = self.get_worker(pid)
 			if worker:
 				workers.append(worker)
-				if worker.is_alive():
+				if worker.process.is_alive():
 					logger.notice("Stopping worker %d (pid %d) (force=%s)", worker.worker_num, worker.pid, force)
-					worker.terminate()
+					worker.process.terminate()
 					if force:
 						# Send twice, uvicorn worker will not wait for connectons to close.
 						time.sleep(1)
-						worker.terminate()
+						worker.process.terminate()
 
 		if wait:
 			start_time = time.time()
@@ -202,7 +211,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				any_alive = False
 				diff = time.time() - start_time
 				for worker in workers:
-					if not worker.is_alive():
+					if not worker.process.is_alive():
 						continue
 					any_alive = True
 					if diff < self.worker_stop_timeout:
@@ -211,9 +220,9 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 						"Timed out after %d seconds while waiting for worker %s to stop, forcing worker to stop", diff, worker.pid
 					)
 					if diff > self.worker_stop_timeout + 5:
-						worker.kill()
+						worker.process.kill()
 					else:
-						worker.terminate()
+						worker.process.terminate()
 				if not any_alive:
 					break
 				time.sleep(1)
@@ -227,7 +236,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		with self.worker_update_lock:
 			worker = self.workers[worker_num - 1]
 			logger.notice("Restarting worker %d (pid %d)", worker_num, worker.pid)
-			if worker.is_alive():
+			if worker.process.is_alive():
 				self.stop_worker([worker.pid], remove_worker=False)
 			self.start_worker(worker_num=worker_num)
 

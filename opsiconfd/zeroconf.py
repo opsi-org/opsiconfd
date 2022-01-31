@@ -11,8 +11,8 @@ zeroconf
 import ipaddress
 import socket
 import asyncio
-import netifaces
-from aiozeroconf import ServiceInfo, Zeroconf
+import netifaces  # type: ignore[import]
+from aiozeroconf import ServiceInfo, Zeroconf  # type: ignore[import]
 
 from . import __version__
 from .logging import logger

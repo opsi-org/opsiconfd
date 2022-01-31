@@ -11,7 +11,7 @@ check plugin on client
 
 from fastapi.responses import JSONResponse
 
-from OPSI.Types import forceList
+from OPSI.Types import forceList  # type: ignore[import]
 
 from opsiconfd.logging import logger
 from .utils import State, generate_response, ERRORCODE_PATTERN

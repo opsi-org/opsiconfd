@@ -10,7 +10,8 @@ opsiconfd.application.monitoring.check_product_status
 
 from collections import defaultdict
 
-from OPSI.Backend.Backend import temporaryBackendOptions
+from OPSI.Backend.Backend import temporaryBackendOptions  # type: ignore[import]
+
 from opsiconfd.logging import logger
 from .utils import State, generate_response
 

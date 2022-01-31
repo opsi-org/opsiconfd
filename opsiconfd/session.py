@@ -67,14 +67,14 @@ def get_basic_auth(headers: Headers):
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail="Authorization header missing",
-			headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+			headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'},
 		)
 
 	if not auth_header.startswith("Basic "):
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail="Authorization method unsupported",
-			headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+			headers={"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'},
 		)
 
 	encoded_auth = auth_header[6:]  # Stripping "Basic "
@@ -83,9 +83,9 @@ def get_basic_auth(headers: Headers):
 
 	if auth.count(":") == 6:
 		# Seems to be a mac address as username
-		username, password = auth.rsplit(':', 1)
+		username, password = auth.rsplit(":", 1)
 	else:
-		username, password = auth.split(':', 1)
+		username, password = auth.split(":", 1)
 	secret_filter.add_secrets(password)
 
 	return BasicAuth(username, password)
@@ -102,7 +102,7 @@ def get_session_from_context():
 class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
-		self.session_cookie_name = 'opsiconfd-session'
+		self.session_cookie_name = "opsiconfd-session"
 		# self.security_flags = "httponly; samesite=lax; secure"
 		self.security_flags = ""
 		self._public_path = public_path or []
@@ -116,14 +116,16 @@ class SessionMiddleware:
 		# Workaround:
 		cookies = headers.get("cookie")
 		if cookies:
-			for cookie in cookies.split(';'):
-				cookie = cookie.strip().split('=', 1)
+			for cookie in cookies.split(";"):
+				cookie = cookie.strip().split("=", 1)
 				if len(cookie) == 2:
 					if cookie[0].strip().lower() == self.session_cookie_name:
 						return cookie[1].strip().lower()
 		return None
 
-	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	async def handle_request(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+		self, connection: HTTPConnection, receive: Receive, send: Send
+	) -> None:
 		start = time.perf_counter()
 		scope = connection.scope
 		scope["session"] = None
@@ -132,7 +134,9 @@ class SessionMiddleware:
 		if scope.get("http_version") and scope["http_version"] != "1.1":
 			logger.warning(
 				"Client %s (%s) is using http version %s",
-				connection.client.host, connection.headers.get("user-agent"), scope.get("http_version")
+				connection.client.host,
+				connection.headers.get("user-agent"),
+				scope.get("http_version"),
 			)
 
 		await check_network(connection)
@@ -142,10 +146,7 @@ class SessionMiddleware:
 			return
 
 		# Process redirects
-		if (
-			scope["path"].startswith("/admin/grafana") and
-			connection.base_url.hostname not in ("127.0.0.1", "::1", "0.0.0.0", "localhost")
-		):
+		if scope["path"].startswith("/admin/grafana") and connection.base_url.hostname not in ("127.0.0.1", "::1", "0.0.0.0", "localhost"):
 			if connection.base_url.hostname != FQDN:
 				url = f'https://{FQDN}:{connection.base_url.port}{scope["path"]}'
 				logger.info("Redirecting %s to %s (%s)", connection.base_url.hostname, FQDN, url)
@@ -160,9 +161,8 @@ class SessionMiddleware:
 				scope["required_access_role"] = ACCESS_ROLE_PUBLIC
 				break
 
-		if (
-			scope["path"].startswith(("/rpc", "/monitoring")) or
-			(scope["path"].startswith("/depot") and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND"))
+		if scope["path"].startswith(("/rpc", "/monitoring")) or (
+			scope["path"].startswith("/depot") and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
 		):
 			scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
@@ -194,10 +194,7 @@ class SessionMiddleware:
 			# Do not keep zsync2 sessions because zsync2 will never send a session id.
 			# If we keep the session, we may reach the maximum number of sessions per ip.
 			scope["session"].persistent = False
-			logger.debug(
-				"Not keeping session for client %s (%s)",
-				connection.client.host, connection.headers.get("user-agent")
-			)
+			logger.debug("Not keeping session for client %s (%s)", connection.client.host, connection.headers.get("user-agent"))
 
 		# Addon request processing
 		if scope["path"].startswith("/addons"):
@@ -238,7 +235,9 @@ class SessionMiddleware:
 
 		await self.app(scope, receive, send_wrapper)
 
-	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,no-self-use
+	async def handle_request_exception(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,no-self-use
+		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
+	) -> None:
 		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err, exc_info=True)
 		scope = connection.scope
 		if scope["path"].startswith("/addons"):
@@ -303,29 +302,19 @@ class SessionMiddleware:
 			if scope.get("jsonrpc20"):
 				content["jsonrpc"] = "2.0"
 				del content["result"]
-			response = JSONResponse(
-				status_code=status_code,
-				content=content,
-				headers=headers
-			)
+			response = JSONResponse(status_code=status_code, content=content, headers=headers)
 		if not response:
 			if connection.headers.get("accept") and "application/json" in connection.headers.get("accept"):
 				logger.debug("Returning json response because of accept header")
-				response = JSONResponse(
-					status_code=status_code,
-					content={"error": error},
-					headers=headers
-				)
+				response = JSONResponse(status_code=status_code, content={"error": error}, headers=headers)
 		if not response:
 			logger.debug("Returning plaintext response")
-			response = PlainTextResponse(
-				status_code=status_code,
-				content=error,
-				headers=headers
-			)
+			response = PlainTextResponse(status_code=status_code, content=error, headers=headers)
 		await response(scope, receive, send)
 
-	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+	async def __call__(
+		self, scope: Scope, receive: Receive, send: Send
+	) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 		try:
 			connection = HTTPConnection(scope)
 			set_context({"client_address": connection.client.host})
@@ -334,15 +323,11 @@ class SessionMiddleware:
 			await self.handle_request_exception(err, connection, receive, send)
 
 
-class OPSISession():  # pylint: disable=too-many-instance-attributes
+class OPSISession:  # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
 	def __init__(
-		self,
-		session_middelware: SessionMiddleware,
-		session_id: str,
-		connection: HTTPConnection,
-		max_session_per_ip: int = None
+		self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection, max_session_per_ip: int = None
 	) -> None:
 		self._session_middelware = session_middelware
 		self._connection = connection
@@ -379,9 +364,7 @@ class OPSISession():  # pylint: disable=too-many-instance-attributes
 	def get_headers(self):
 		if not self.session_id or self.deleted or not self.persistent:
 			return {}
-		return {
-			"Set-Cookie": f"{self.session_cookie_name}={self.session_id}; path=/; Max-Age={self.max_age}"
-		}
+		return {"Set-Cookie": f"{self.session_cookie_name}={self.session_id}; path=/; Max-Age={self.max_age}"}
 
 	async def init(self) -> None:
 		if self.session_id is None:
@@ -416,10 +399,7 @@ class OPSISession():  # pylint: disable=too-many-instance-attributes
 				logger.warning(error)
 				raise ConnectionRefusedError(error)
 		except ConnectionRefusedError as err:
-			raise HTTPException(
-				status_code=status.HTTP_403_FORBIDDEN,
-				detail=str(err)
-			) from err
+			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(err)) from err
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
 		self.created = utc_time_timestamp()
@@ -464,7 +444,7 @@ class OPSISession():  # pylint: disable=too-many-instance-attributes
 			"user_agent": self.user_agent,
 			"user_store": serialize(self.user_store.__dict__),
 			"option_store": self.option_store,
-			"data": self._data
+			"data": self._data,
 		}
 		# Set is not serializable
 		if "userGroups" in data["user_store"]:
@@ -534,12 +514,12 @@ class OPSISession():  # pylint: disable=too-many-instance-attributes
 
 
 def update_host_object(connection: HTTPConnection, session: OPSISession) -> None:
-	hosts = get_client_backend().host_getObjects(['ipAddress', 'lastSeen'], id=session.user_store.host.id)  # pylint: disable=no-member
+	hosts = get_client_backend().host_getObjects(["ipAddress", "lastSeen"], id=session.user_store.host.id)  # pylint: disable=no-member
 	if not hosts:
 		logger.error("Host %s not found in backend while trying to update ip address and lastseen", session.user_store.host.id)
 		return
 	host = hosts[0]
-	if host.getType() != 'OpsiClient':
+	if host.getType() != "OpsiClient":
 		return
 	host.setLastSeen(timestamp())
 	if config.update_ip and connection.client.host not in (None, "127.0.0.1", "::1", host.ipAddress):
@@ -600,11 +580,7 @@ async def check_blocked(connection: HTTPConnection) -> None:
 	if num_failed_auth >= config.max_auth_failures:
 		is_blocked = True
 		logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time / 60))
-		await redis.setex(
-			f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}",
-			config.client_block_time,
-			1
-		)
+		await redis.setex(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}", config.client_block_time, 1)
 
 
 async def check_network(connection: HTTPConnection) -> None:
@@ -629,11 +605,7 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 		# Authenticate
 		await authenticate(connection, receive)
 
-		if (
-			not session.user_store.host and
-			scope["path"].startswith("/depot") and
-			FILE_ADMIN_GROUP not in session.user_store.userGroups
-		):
+		if not session.user_store.host and scope["path"].startswith("/depot") and FILE_ADMIN_GROUP not in session.user_store.userGroups:
 			raise BackendPermissionDeniedError(f"Not a file admin user '{session.user_store.username}'")
 
 		if session.user_store.isAdmin and config.admin_networks:
@@ -648,7 +620,7 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 					"User '%s' from '%s' not in admin network '%s'",
 					session.user_store.username,
 					connection.client.host,
-					config.admin_networks
+					config.admin_networks,
 				)
 				session.user_store.isAdmin = False
 				if OPSI_ADMIN_GROUP in session.user_store.userGroups:

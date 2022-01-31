@@ -18,22 +18,25 @@ from .utils import clean_redis  # pylint: disable=unused-import
 
 @pytest.fixture(name="config")
 def fixture_config(monkeypatch):
-	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
+	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
 	from opsiconfd.config import config  # pylint: disable=import-outside-toplevel
+
 	return config
 
 
 @pytest.fixture(name="metrics_collector")
 def fixture_metrics_collector(monkeypatch):
-	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
+	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
 	from opsiconfd.statistics import WorkerMetricsCollector  # pylint: disable=import-outside-toplevel
+
 	return WorkerMetricsCollector()
 
 
 @pytest.fixture(name="metrics_registry")
 def fixture_metrics_registry(monkeypatch):
-	monkeypatch.setattr(sys, 'argv', ["opsiconfd"])
+	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
 	from opsiconfd.statistics import MetricsRegistry, Metric  # pylint: disable=import-outside-toplevel
+
 	metrics_registry = MetricsRegistry()
 	metrics_registry.register(
 		Metric(
@@ -42,7 +45,7 @@ def fixture_metrics_registry(monkeypatch):
 			vars=["node_name", "worker_num"],
 			retention=24 * 3600 * 1000,
 			subject="worker",
-			grafana_config=None
+			grafana_config=None,
 		)
 	)
 	return MetricsRegistry()
@@ -58,36 +61,25 @@ async def fixture_redis_client(config):
 	redis_client.delete("opsiconfd:stats:num_rpcs")
 
 
-@pytest.mark.parametrize("cmds, expected_results", [
-	(
-		[
-			"GET opsiconfd:stats:num_rpcs",
-			"SET opsiconfd:stats:num_rpcs 10",
-			"GET opsiconfd:stats:num_rpcs"
-		],
-		[
-			b"5",
-			b"OK",
-			b"10"
-		]
-	),
-	(
-		[
-			"GET opsiconfd:stats:num_rpcs",
-			"SET opsiconfd:stats:num_rpcs 111",
-			"DEL opsiconfd:stats:num_rpcs",
-			"DEL opsiconfd:stats:num_rpcs"
-		],
-		[
-			b"5",
-			b"OK",
-			1,
-			0
-		]
-	)
-])
+@pytest.mark.parametrize(
+	"cmds, expected_results",
+	[
+		(["GET opsiconfd:stats:num_rpcs", "SET opsiconfd:stats:num_rpcs 10", "GET opsiconfd:stats:num_rpcs"], [b"5", b"OK", b"10"]),
+		(
+			[
+				"GET opsiconfd:stats:num_rpcs",
+				"SET opsiconfd:stats:num_rpcs 111",
+				"DEL opsiconfd:stats:num_rpcs",
+				"DEL opsiconfd:stats:num_rpcs",
+			],
+			[b"5", b"OK", 1, 0],
+		),
+	],
+)
 @pytest.mark.asyncio
-async def test_execute_redis_command(metrics_collector, redis_client, cmds, expected_results):  # pylint: disable=redefined-outer-name,unused-argument
+async def test_execute_redis_command(
+	metrics_collector, redis_client, cmds, expected_results
+):  # pylint: disable=redefined-outer-name,unused-argument
 
 	for idx, cmd in enumerate(cmds):
 		result = await metrics_collector._execute_redis_command(cmd)  # pylint: disable=protected-access
@@ -95,10 +87,13 @@ async def test_execute_redis_command(metrics_collector, redis_client, cmds, expe
 		assert result == expected_results[idx]
 
 
-@pytest.mark.parametrize("cmd, value, expected_result", [
-	("ADD", 4711, "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
-	("INCRBY", 4711, "TS.INCRBY opsiconfd:stats:opsiconfd:pytest:metric 4711 * RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
-])
+@pytest.mark.parametrize(
+	"cmd, value, expected_result",
+	[
+		("ADD", 4711, "TS.ADD opsiconfd:stats:opsiconfd:pytest:metric * 4711 RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
+		("INCRBY", 4711, "TS.INCRBY opsiconfd:stats:opsiconfd:pytest:metric 4711 * RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
+	],
+)
 def test_redis_ts_cmd(metrics_registry, metrics_collector, cmd, value, expected_result):
 
 	metrics = list(metrics_registry.get_metrics())

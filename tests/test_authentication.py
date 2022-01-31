@@ -12,8 +12,15 @@ import time
 import pytest
 
 from .utils import (  # pylint: disable=unused-import
-	config, get_config, clean_redis, database_connection,
-	ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY, sync_redis_client, test_client
+	config,
+	get_config,
+	clean_redis,
+	database_connection,
+	ADMIN_USER,
+	ADMIN_PASS,
+	OPSI_SESSION_KEY,
+	sync_redis_client,
+	test_client,
 )
 
 
@@ -23,7 +30,7 @@ login_test_data = [
 	((ADMIN_USER, ""), 401, "Authentication error"),
 	((ADMIN_USER, "123"), 401, "Authentication error"),
 	(("", ADMIN_PASS), 401, "Authentication error"),
-	(("123", ADMIN_PASS), 401, "Authentication error")
+	(("123", ADMIN_PASS), 401, "Authentication error"),
 ]
 
 
@@ -77,10 +84,7 @@ def test_max_sessions(test_client):  # pylint: disable=redefined-outer-name,unus
 	test_client.set_client_address("192.168.1.1", 12345)
 	max_session_per_ip = 10
 	over_limit = 3
-	with (
-		get_config({"max_session_per_ip": max_session_per_ip}),
-		sync_redis_client() as redis
-	):
+	with (get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis):
 		for num in range(1, max_session_per_ip + 1 + over_limit):
 			res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 			if num > max_session_per_ip:
@@ -105,10 +109,7 @@ def test_max_sessions(test_client):  # pylint: disable=redefined-outer-name,unus
 def test_max_auth_failures(test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	over_limit = 3
 	max_auth_failures = 10
-	with (
-		get_config({"max_auth_failures": max_auth_failures}) as conf,
-		sync_redis_client() as redis
-	):
+	with (get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis):
 		for num in range(max_auth_failures + over_limit):
 			now = round(time.time()) * 1000
 			for key in redis.scan_iter("opsiconfd:stats:client:failed_auth:*"):
@@ -175,27 +176,23 @@ def test_session_expire(test_client):  # pylint: disable=redefined-outer-name,un
 
 
 def test_onetime_password_host_id(test_client, database_connection):  # pylint: disable=redefined-outer-name,unused-argument
-	database_connection.query("""
+	database_connection.query(
+		"""
 		INSERT INTO HOST
 			(hostId, type, opsiHostKey, oneTimePassword)
 		VALUES
 			("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1me");
-	""")
+	"""
+	)
 	database_connection.commit()
 	try:
 		rpc = {"id": 1, "method": "backend_info", "params": []}
-		res = test_client.get(
-			"/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"),
-			json=rpc
-		)
+		res = test_client.get("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
 		assert res.status_code == 200
 		assert res.json()
 
 		test_client.reset_cookies()
-		res = test_client.get(
-			"/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"),
-			json=rpc
-		)
+		res = test_client.get("/rpc", auth=("onetimepasswd.uib.gmbh", "onet1me"), json=rpc)
 		assert res.status_code == 401
 	finally:
 		database_connection.query('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')
@@ -203,25 +200,23 @@ def test_onetime_password_host_id(test_client, database_connection):  # pylint: 
 
 
 def test_onetime_password_hardware_address(test_client, database_connection):  # pylint: disable=redefined-outer-name,unused-argument
-	database_connection.query("""
+	database_connection.query(
+		"""
 		INSERT INTO HOST
 			(hostId, type, opsiHostKey, oneTimePassword, hardwareAddress)
 		VALUES
 			("onetimepasswd.uib.gmbh", "OpsiClient", "f020dcde5108508cd947c5e229d9ec04", "onet1mac", "01:02:aa:bb:cc:dd");
-	""")
+	"""
+	)
 	database_connection.commit()
 	try:
 		rpc = {"id": 1, "method": "backend_info", "params": []}
-		res = test_client.get(
-			"/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc
-		)
+		res = test_client.get("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
 		assert res.status_code == 200
 		assert res.json()
 
 		test_client.reset_cookies()
-		res = test_client.get(
-			"/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc
-		)
+		res = test_client.get("/rpc", auth=("01:02:aa:bb:cc:dd", "onet1mac"), json=rpc)
 		assert res.status_code == 401
 	finally:
 		database_connection.query('DELETE FROM HOST WHERE hostId = "onetimepasswd.uib.gmbh"')

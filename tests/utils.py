@@ -68,7 +68,7 @@ CLEAN_REDIS_KEYS = [
 	"opsiconfd:stats:rpcs",
 	"opsiconfd:stats:num_rpcs",
 	"opsiconfd:stats:rpc",
-	"opsiconfd:jsonrpccache:*:products"
+	"opsiconfd:jsonrpccache:*:products",
 ]
 
 
@@ -124,8 +124,8 @@ def create_depot_jsonrpc(client, base_url: str, host_id: str, host_key: str = No
 			"smb://172.17.0.101/opsi_depot",
 			None,
 			"file:///var/lib/opsi/repository",
-			"webdavs://172.17.0.101:4447/repository"
-		]
+			"webdavs://172.17.0.101:4447/repository",
+		],
 	}
 	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
 	res.raise_for_status()
@@ -143,12 +143,10 @@ def depot_jsonrpc(client, base_url: str, host_id: str, host_key: str = None):
 
 
 @contextmanager
-def client_jsonrpc(client, base_url: str, host_id: str, host_key: str = None, hardware_address: str = None, ip_address: str = None):  # pylint: disable=too-many-arguments
-	rpc = {
-		"id": 1,
-		"method": "host_createOpsiClient",
-		"params": [host_id, host_key, "", "", hardware_address, ip_address]
-	}
+def client_jsonrpc(
+	client, base_url: str, host_id: str, host_key: str = None, hardware_address: str = None, ip_address: str = None
+):  # pylint: disable=too-many-arguments
+	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [host_id, host_key, "", "", hardware_address, ip_address]}
 	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
 	res.raise_for_status()
 	try:
@@ -178,16 +176,18 @@ def products_jsonrpc(client, base_url, products, depots=None):
 	if depots:
 		product_on_depots = []
 		for depot_id in depots:
-			product_on_depots.extend([
-				ProductOnDepot(
-					productType="LocalbootProduct",
-					productId=product["id"],
-					productVersion=product["productVersion"],
-					packageVersion=product["packageVersion"],
-					depotId=depot_id
-				).to_hash()
-				for product in products
-			])
+			product_on_depots.extend(
+				[
+					ProductOnDepot(
+						productType="LocalbootProduct",
+						productId=product["id"],
+						productVersion=product["productVersion"],
+						packageVersion=product["packageVersion"],
+						depotId=depot_id,
+					).to_hash()
+					for product in products
+				]
+			)
 		rpc = {"id": 1, "method": "productOnDepot_createObjects", "params": [product_on_depots]}
 		res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
 		res.raise_for_status()
@@ -214,10 +214,9 @@ def get_product_ordering_jsonrpc(client, depot_id):
 def get_dummy_products(count: int) -> List[Dict]:
 	products = []
 	for num in range(count):
-		products.append({
-			"id": f"dummy-prod-{num}", "productVersion": "1.0", "packageVersion": "1",
-			"name": "Dummy PRODUCT {num}", "priority": num % 8
-		})
+		products.append(
+			{"id": f"dummy-prod-{num}", "productVersion": "1.0", "packageVersion": "1", "name": "Dummy PRODUCT {num}", "priority": num % 8}
+		)
 	return products
 
 
@@ -233,7 +232,7 @@ def database_connection():
 		user=mysql_config["username"],
 		passwd=mysql_config["password"],
 		db=mysql_config["database"],
-		charset=mysql_config["databaseCharset"]
+		charset=mysql_config["databaseCharset"],
 	)
 	yield mysql
 	mysql.close()
@@ -246,7 +245,6 @@ def backend():
 
 @pytest.fixture()
 def test_client():
-
 	class OpsiconfdTestClient(TestClient):
 		def __init__(self) -> None:
 			super().__init__(app, "https://opsiserver:4447")
@@ -273,6 +271,6 @@ def test_client():
 
 	with (
 		patch("opsiconfd.application.main.BaseMiddleware.get_client_address", get_client_address),
-		patch("opsiconfd.application.main.BaseMiddleware.before_send", before_send)
+		patch("opsiconfd.application.main.BaseMiddleware.before_send", before_send),
 	):
 		yield client

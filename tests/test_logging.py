@@ -19,26 +19,23 @@ from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT
 from opsicommon.logging.constants import LOG_NONE, LOG_ERROR, LOG_WARNING, OPSI_LEVEL_TO_LEVEL
 
 from opsiconfd.logging import (
-	Formatter, AsyncFileHandler, AsyncRotatingFileHandler, AsyncRedisLogAdapter, RedisLogHandler,
-	logger, enable_slow_callback_logging
+	Formatter,
+	AsyncFileHandler,
+	AsyncRotatingFileHandler,
+	AsyncRedisLogAdapter,
+	RedisLogHandler,
+	logger,
+	enable_slow_callback_logging,
 )
 
-from .utils import (  # pylint: disable=unused-import
-	config, get_config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS
-)
+from .utils import config, get_config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
 
 
 def test_log_hard_limit(test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	client_id = "logtest.uib.local"
-	rpc = {
-		"id": 1,
-		"method": "host_createOpsiClient",
-		"params": [
-			client_id
-		]
-	}
+	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [client_id]}
 	res = test_client.post("/rpc", verify=False, json=rpc)
 	assert res.status_code == 200
 
@@ -67,13 +64,7 @@ def test_log_hard_limit(test_client):  # pylint: disable=redefined-outer-name,un
 	for line in res["result"][:-1].split("\n"):
 		assert line == log_line
 
-	rpc = {
-		"id": 1,
-		"method": "host_delete",
-		"params": [
-			client_id
-		]
-	}
+	rpc = {"id": 1, "method": "host_delete", "params": [client_id]}
 	res = test_client.post("/rpc", verify=False, json=rpc)
 	assert res.status_code == 200
 
@@ -89,10 +80,7 @@ async def test_async_rotating_file_handler_rotation(tmp_path):
 
 	AsyncRotatingFileHandler.rollover_check_interval = 1
 	handler = AsyncRotatingFileHandler(
-		filename=str(log_file),
-		formatter=Formatter("%(message)s"),
-		max_bytes=max_log_file_size,
-		keep_rotated=keep_rotated_log_files
+		filename=str(log_file), formatter=Formatter("%(message)s"), max_bytes=max_log_file_size, keep_rotated=keep_rotated_log_files
 	)
 	await asyncio.sleep(1)
 	for num in range(5):
@@ -116,18 +104,16 @@ async def test_async_rotating_file_handler_error_handler(tmp_path):
 	handled_exception = None
 	handled_record = None
 
-	async def handle_file_handler_error(file_handler: AsyncFileHandler, record: LogRecord, exception: Exception):  # pylint: disable=unused-argument
+	async def handle_file_handler_error(
+		file_handler: AsyncFileHandler, record: LogRecord, exception: Exception
+	):  # pylint: disable=unused-argument
 		nonlocal handled_exception
 		handled_exception = exception
 		nonlocal handled_record
 		handled_record = record
 
 	AsyncRotatingFileHandler.rollover_check_interval = 60
-	handler = AsyncRotatingFileHandler(
-		filename=str(log_file),
-		formatter=Formatter("%(message)s"),
-		error_handler=handle_file_handler_error
-	)
+	handler = AsyncRotatingFileHandler(filename=str(log_file), formatter=Formatter("%(message)s"), error_handler=handle_file_handler_error)
 	await asyncio.sleep(1)
 	await handler.emit(LogRecord("test", 3, "pathname", 1, "message 1", None, None))
 

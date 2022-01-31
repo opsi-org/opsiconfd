@@ -66,9 +66,7 @@ class AddonTest1(Addon):
 		router.include_router(api_router, prefix="/api")
 		app.include_router(router, prefix=self.router_prefix)
 		app.mount(
-			path=f"{self.router_prefix}/static",
-			app=StaticFiles(directory=os.path.join(self.data_path, "static"), html=True),
-			name="static"
+			path=f"{self.router_prefix}/static", app=StaticFiles(directory=os.path.join(self.data_path, "static"), html=True), name="static"
 		)
 
 	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
@@ -81,7 +79,9 @@ class AddonTest1(Addon):
 			os.chmod(marker, 0o666)
 		remove_route_path(app, self.router_prefix)
 
-	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
+	async def handle_request(
+		self, connection: HTTPConnection, receive: Receive, send: Send
+	) -> bool:  # pylint: disable=no-self-use,unused-argument
 		"""Called on every request where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 		connection.scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
@@ -96,15 +96,15 @@ class AddonTest1(Addon):
 			await connection.scope["session"].delete()
 		return False
 
-	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
+	async def handle_request_exception(
+		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
+	) -> bool:  # pylint: disable=no-self-use,unused-argument
 		"""Called on every request exception where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 
 		if isinstance(err, (HTTPException, BackendAuthenticationError, BackendPermissionDeniedError)):
 			response = PlainTextResponse(
-				status_code=status.HTTP_401_UNAUTHORIZED,
-				content="addon_test1_error",
-				headers={"X-Addon": "test1"}
+				status_code=status.HTTP_401_UNAUTHORIZED, content="addon_test1_error", headers={"X-Addon": "test1"}
 			)
 			await response(connection.scope, receive, send)
 			return True

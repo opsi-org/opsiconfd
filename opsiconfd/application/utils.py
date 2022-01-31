@@ -30,7 +30,7 @@ def get_username():
 def get_user_privileges():
 	username = get_username()
 	privileges = {}
-	mysql = get_mysql()   # pylint: disable=invalid-name
+	mysql = get_mysql()  # pylint: disable=invalid-name
 	with mysql.session() as session:
 		for row in session.execute(
 			"""
@@ -46,7 +46,7 @@ def get_user_privileges():
 			ORDER BY
 				cs.configId
 			""",
-			{"config_id_filter": f"user.{{{username}}}.privilege.%"}
+			{"config_id_filter": f"user.{{{username}}}.privilege.%"},
 		).fetchall():
 			try:
 				priv = ".".join(row["configId"].split(".")[3:])
@@ -59,10 +59,7 @@ def get_user_privileges():
 
 
 def get_allowed_objects():
-	allowed = {
-		"product_groups": ...,
-		"host_groups": ...
-	}
+	allowed = {"product_groups": ..., "host_groups": ...}
 	privileges = get_user_privileges()
 	if True in privileges.get("product.groupaccess.configured", [False]):
 		allowed["product_groups"] = privileges.get("product.groupaccess.productgroups", [])
@@ -109,11 +106,11 @@ def build_tree(group, groups, allowed, processed=None):
 
 def parse_list(query_list):
 	def remove_prefix(value: str, prefix: str):
-		return value[value.startswith(prefix) and len(prefix):]
+		return value[value.startswith(prefix) and len(prefix) :]
 
 	def remove_postfix(value: str, postfix: str):
 		if value.endswith(postfix):
-			value = value[:-len(postfix)]
+			value = value[: -len(postfix)]
 		return value
 
 	if query_list is None:
@@ -132,8 +129,8 @@ def parse_list(query_list):
 	flat_list = remove_postfix(flat_list, "]")
 
 	result_list = flat_list.split(",")
-	result_list = [remove_prefix(n.strip(), "\"") for n in result_list]
-	result_list = [remove_postfix(n.strip(), "\"") for n in result_list]
+	result_list = [remove_prefix(n.strip(), '"') for n in result_list]
+	result_list = [remove_postfix(n.strip(), '"') for n in result_list]
 
 	return list(filter(None, result_list))
 

@@ -29,9 +29,7 @@ from ..wsgi import WSGIMiddleware
 PUBLIC_FOLDER = "/var/lib/opsi/public"
 BLOCK_SIZE = 64 * 1024
 APP_CONFIG_TEMPLATE = {
-	"simple_dc": {
-		"user_mapping": {"*": True}  # anonymous access
-	},
+	"simple_dc": {"user_mapping": {"*": True}},  # anonymous access
 	"hotfixes": {
 		"re_encode_path_info": False,  # Encoding is done in opsiconfd.wsgi
 	},
@@ -43,23 +41,15 @@ APP_CONFIG_TEMPLATE = {
 		"trusted_auth_header": None,
 	},
 	"verbose": 1,
-	"logging": {
-		"enable_loggers": []
-	},
+	"logging": {"enable_loggers": []},
 	"property_manager": True,  # True: use property_manager.PropertyManager
 	"lock_storage": True,  # True: use lock_manager.LockManager
 	"block_size": BLOCK_SIZE,  # default = 8192
 	"ssl_certificate": True,  # Prevent warning in log
-	"dir_browser": {
-		"show_user": False,
-		"icon": False,
-		"response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)"
-	},
-	"cors": {
-		"allow_origin": "*"
-	},
+	"dir_browser": {"show_user": False, "icon": False, "response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)"},
+	"cors": {"allow_origin": "*"},
 	"provider_mapping": {},
-	"mount_path": None
+	"mount_path": None,
 }
 
 # Set file buffer size for reading and writing.
@@ -76,7 +66,6 @@ wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
 
 
 class IgnoreCaseFilesystemProvider(FilesystemProvider):
-
 	def _loc_to_file_path(self, path, environ=None):
 		"""Convert resource path to a unicode absolute file path.
 		Optional environ argument may be useful e.g. in relation to per-user
@@ -145,7 +134,7 @@ class VirtualRootFilesystemProvider(DAVProvider):
 
 
 def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches, too-many-locals
-	hosts = get_backend().host_getObjects(type='OpsiDepotserver', id=FQDN)  # pylint: disable=no-member
+	hosts = get_backend().host_getObjects(type="OpsiDepotserver", id=FQDN)  # pylint: disable=no-member
 	if not hosts:
 		logger.warning("Running on host %s which is not a depot server, webdav disabled.", FQDN)
 		return
@@ -158,7 +147,7 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 		logger.notice(f"Running on depot server '{depot_id}', exporting repository directory")
 		if not depot.getRepositoryLocalUrl():
 			raise Exception(f"Repository local url for depot '{depot_id}' not found")
-		if not depot.getRepositoryLocalUrl().startswith('file:///'):
+		if not depot.getRepositoryLocalUrl().startswith("file:///"):
 			raise Exception(f"Invalid repository local url '{depot.getRepositoryLocalUrl()}'")
 		path = depot.getRepositoryLocalUrl()[7:]
 		logger.debug("Repository local path is '%s'", path)
@@ -175,7 +164,7 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 		logger.notice(f"Running on depot server '{depot_id}', exporting depot directory")
 		if not depot.getDepotLocalUrl():
 			raise Exception(f"Repository local url for depot '{depot_id}' not found")
-		if not depot.getDepotLocalUrl().startswith('file:///'):
+		if not depot.getDepotLocalUrl().startswith("file:///"):
 			raise Exception(f"Invalid repository local url '{depot.getDepotLocalUrl()}' not allowed")
 		path = depot.getDepotLocalUrl()[7:]
 		logger.debug("Depot local path is '%s'", path)
@@ -192,7 +181,7 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 		logger.notice(f"Running on depot server '{depot_id}', exporting workbench directory")
 		if not depot.getWorkbenchLocalUrl():
 			raise Exception(f"Workbench local url for depot '{depot_id}' not found")
-		if not depot.getWorkbenchLocalUrl().startswith('file:///'):
+		if not depot.getWorkbenchLocalUrl().startswith("file:///"):
 			raise Exception(f"Invalid workbench local url '{depot.getWorkbenchLocalUrl()}' not allowed")
 		path = depot.getWorkbenchLocalUrl()[7:]
 		logger.debug("Workbench local path is '%s'", path)

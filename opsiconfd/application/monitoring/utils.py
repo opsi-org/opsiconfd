@@ -15,7 +15,9 @@ from fastapi.responses import JSONResponse
 from opsiconfd.utils import decode_redis_result
 
 
-ERRORCODE_PATTERN = re.compile(r'\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)')  # pylint: disable=anomalous-backslash-in-string
+ERRORCODE_PATTERN = re.compile(
+	r"\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)"
+)  # pylint: disable=anomalous-backslash-in-string
 
 
 class State:  # pylint: disable=too-few-public-methods
@@ -58,9 +60,7 @@ async def get_request_avg(redis):
 	requests = 0.0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis.execute_command(
-				f"TS.GET opsiconfd:stats:worker:sum_http_request_number:{worker}:minute"
-			)
+			await redis.execute_command(f"TS.GET opsiconfd:stats:worker:sum_http_request_number:{worker}:minute")
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
@@ -80,11 +80,7 @@ async def get_thread_count(redis):
 	workers = await get_workers(redis)
 	threads = 0
 	for worker in workers:
-		redis_result = decode_redis_result(
-			await redis.execute_command(
-				f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"
-			)
-		)
+		redis_result = decode_redis_result(await redis.execute_command(f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"))
 		if len(redis_result) == 0:
 			redis_result = 0
 		threads += float(redis_result[1])
@@ -95,11 +91,7 @@ async def get_mem_allocated(redis):
 	workers = await get_workers(redis)
 	mem_allocated = 0
 	for worker in workers:
-		redis_result = decode_redis_result(
-			await redis.execute_command(
-				f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"
-			)
-		)
+		redis_result = decode_redis_result(await redis.execute_command(f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"))
 		if len(redis_result) == 0:
 			redis_result = 0
 		mem_allocated += float(redis_result[1])

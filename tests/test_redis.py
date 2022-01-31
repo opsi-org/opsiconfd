@@ -11,10 +11,7 @@ redis tests
 import asyncio
 import pytest
 
-from opsiconfd.utils import (
-	async_redis_client, AIOREDIS_CONNECTION_POOL,
-	redis_client, REDIS_CONNECTION_POOL
-)
+from opsiconfd.utils import async_redis_client, AIOREDIS_CONNECTION_POOL, redis_client, REDIS_CONNECTION_POOL
 
 
 @pytest.mark.asyncio

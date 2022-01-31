@@ -41,7 +41,7 @@ async def get_workers():
 	workers = []
 	async for redis_key in redis.scan_iter("opsiconfd:worker_registry:*"):
 		redis_key = redis_key.decode("utf-8")
-		workers.append({"node_name": redis_key.split(':')[-2], "worker_num": int(redis_key.split(':')[-1])})
+		workers.append({"node_name": redis_key.split(":")[-2], "worker_num": int(redis_key.split(":")[-1])})
 	workers.sort(key=itemgetter("node_name", "worker_num"))
 	return workers
 
@@ -55,12 +55,12 @@ async def get_clients(metric_id):
 	clients = []
 	async for redis_key in redis.scan_iter(f"opsiconfd:stats:{metric_id}:*"):
 		redis_key = redis_key.decode("utf-8")
-		clients.append({"client_addr": ip_address_from_redis_key(redis_key.split(':')[-1])})
+		clients.append({"client_addr": ip_address_from_redis_key(redis_key.split(":")[-1])})
 	clients.sort(key=itemgetter("client_addr"))
 	return clients
 
 
-@grafana_metrics_router.get('/')
+@grafana_metrics_router.get("/")
 async def grafana_index():
 	# should return 200 ok. Used for "Test connection" on the datasource config page.
 	return None
@@ -95,18 +95,14 @@ async def grafana_dashboard(request: Request):  # pylint: disable=unused-argumen
 			resp = await session.post(f"{base_url}/api/datasources", json=json, ssl=ssl_context)
 
 		if resp.status == 200:
-			json = {
-				"folderId": 0,
-				"overwrite": True,
-				"dashboard": await grafana_dashboard_config()
-			}
+			json = {"folderId": 0, "overwrite": True, "dashboard": await grafana_dashboard_config()}
 			resp = await session.post(f"{base_url}/api/dashboards/db", json=json, ssl=ssl_context)
 		else:
 			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
 	return RedirectResponse(url=f"{config.grafana_external_url}/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv")
 
 
-@grafana_metrics_router.get('/dashboard/config')
+@grafana_metrics_router.get("/dashboard/config")
 async def grafana_dashboard_config():  # pylint: disable=too-many-locals
 	workers = await get_workers()
 	nodes = await get_nodes()
@@ -123,25 +119,21 @@ async def grafana_dashboard_config():  # pylint: disable=too-many-locals
 		panel = metric.grafana_config.get_panel(panel_id=panel_id, pos_x=pos_x, pos_y=pos_y)
 		if metric.subject == "worker":
 			for i, worker in enumerate(workers):
-				panel["targets"].append({
-					"refId": chr(65 + i),
-					"target": metric.get_name(node_name=worker["node_name"], worker_num=worker["worker_num"]),
-					"type": "timeserie"
-				})
+				panel["targets"].append(
+					{
+						"refId": chr(65 + i),
+						"target": metric.get_name(node_name=worker["node_name"], worker_num=worker["worker_num"]),
+						"type": "timeserie",
+					}
+				)
 		elif metric.subject == "node":
 			for i, node_name in enumerate(nodes):
-				panel["targets"].append({
-					"refId": chr(65 + i),
-					"target": metric.get_name(node_name=node_name),
-					"type": "timeserie"
-				})
+				panel["targets"].append({"refId": chr(65 + i), "target": metric.get_name(node_name=node_name), "type": "timeserie"})
 		elif metric.subject == "client":
 			for i, client in enumerate(clients):
-				panel["targets"].append({
-					"refId": chr(65 + i),
-					"target": metric.get_name(client_addr=client["client_addr"]),
-					"type": "timeserie"
-				})
+				panel["targets"].append(
+					{"refId": chr(65 + i), "target": metric.get_name(client_addr=client["client_addr"]), "type": "timeserie"}
+				)
 		panels.append(panel)
 		pos_x += panel["gridPos"]["w"]
 		if pos_x >= 24:
@@ -152,8 +144,8 @@ async def grafana_dashboard_config():  # pylint: disable=too-many-locals
 	return dashboard
 
 
-@grafana_metrics_router.get('/search')
-@grafana_metrics_router.post('/search')
+@grafana_metrics_router.get("/search")
+@grafana_metrics_router.post("/search")
 async def grafana_search():
 	workers = await get_workers()
 	nodes = await get_nodes()
@@ -181,9 +173,7 @@ class GrafanaQueryTargetRange(BaseModel):  # pylint: disable=too-few-public-meth
 	raw: dict
 
 	class Config:  # pylint: disable=too-few-public-methods
-		fields = {
-			'from_': 'from'
-		}
+		fields = {"from_": "from"}
 
 
 class GrafanaQueryTarget(BaseModel):  # pylint: disable=too-few-public-methods
@@ -200,8 +190,8 @@ class GrafanaQuery(BaseModel):  # pylint: disable=too-few-public-methods
 	targets: List[GrafanaQueryTarget]
 
 
-@grafana_metrics_router.get('/query')
-@grafana_metrics_router.post('/query')
+@grafana_metrics_router.get("/query")
+@grafana_metrics_router.post("/query")
 async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	logger.trace("Grafana query: %s", query)
 	results = []
@@ -214,10 +204,7 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 		if time_bucket <= 0:
 			time_bucket = 1
 		if target.type == "timeserie":
-			res = {
-				"target": target.target,
-				"datapoints": []
-			}
+			res = {"target": target.target, "datapoints": []}
 			try:
 				metric = metrics_registry.get_metric_by_name(target.target)
 				metric_vars = metric.get_vars_by_name(target.target)
@@ -272,7 +259,7 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 				# Time series data is stored aggregated in 5 second intervals
 				res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]
 			else:
-				res["datapoints"] = [[float(r[1]) if b'.' in r[1] else int(r[1]), align_timestamp(r[0])] for r in rows]
+				res["datapoints"] = [[float(r[1]) if b"." in r[1] else int(r[1]), align_timestamp(r[0])] for r in rows]
 			logger.trace("Grafana query result: %s", res)
 			results.append(res)
 	return results

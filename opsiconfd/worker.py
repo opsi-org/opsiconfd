@@ -39,8 +39,7 @@ def get_worker_num():
 def init_pool_executor(loop):
 	# https://bugs.python.org/issue41699
 	pool_executor = ThreadPoolExecutor(  # pylint: disable=consider-using-with
-		max_workers=config.executor_workers,
-		thread_name_prefix="worker-ThreadPoolExecutor"
+		max_workers=config.executor_workers, thread_name_prefix="worker-ThreadPoolExecutor"
 	)
 	loop.set_default_executor(pool_executor)
 
@@ -70,6 +69,7 @@ def signal_handler(signum, frame):  # pylint: disable=unused-argument
 		AddonManager().reload_addons()
 	else:
 		from .application import app  # pylint: disable=import-outside-toplevel
+
 		app.is_shutting_down = True
 
 
@@ -90,6 +90,7 @@ def init_worker():
 	global _metrics_collector  # pylint: disable=global-statement, invalid-name
 	from .backend import get_backend, get_client_backend  # pylint: disable=import-outside-toplevel
 	from .statistics import WorkerMetricsCollector  # pylint: disable=import-outside-toplevel
+
 	is_manager = get_manager_pid() == os.getpid()
 
 	if not is_manager:

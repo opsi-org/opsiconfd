@@ -18,8 +18,15 @@ from typing import Dict, Any
 from typing import Tuple
 
 from OpenSSL.crypto import (
-	FILETYPE_PEM, load_privatekey, load_certificate, X509, PKey, dump_publickey,
-	X509Store, X509StoreContext, X509StoreContextError
+	FILETYPE_PEM,
+	load_privatekey,
+	load_certificate,
+	X509,
+	PKey,
+	dump_publickey,
+	X509Store,
+	X509StoreContext,
+	X509StoreContextError,
 )
 from OpenSSL.crypto import Error as CryptoError
 
@@ -28,9 +35,7 @@ from OPSI.Config import OPSI_ADMIN_GROUP
 
 from opsicommon.ssl import install_ca, create_ca, create_server_cert, as_pem
 
-from .config import (
-	config, FQDN, CA_KEY_DEFAULT_PASSPHRASE, SERVER_KEY_DEFAULT_PASSPHRASE
-)
+from .config import config, FQDN, CA_KEY_DEFAULT_PASSPHRASE, SERVER_KEY_DEFAULT_PASSPHRASE
 from .logging import logger
 from .utils import get_ip_addresses
 from .backend import get_server_role, get_backend
@@ -68,7 +73,7 @@ def get_hostnames():
 
 
 def get_domain():
-	return '.'.join(get_server_cn().split('.')[1:])
+	return ".".join(get_server_cn().split(".")[1:])
 
 
 def setup_ssl_file_permissions() -> None:
@@ -77,7 +82,7 @@ def setup_ssl_file_permissions() -> None:
 		# FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
 		FilePermission(config.ssl_ca_key, "root", "root", 0o600),
 		FilePermission(config.ssl_server_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
-		FilePermission(config.ssl_server_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600)
+		FilePermission(config.ssl_server_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
 	)
 	PermissionRegistry().register_permission(*permissions)
 	for permission in permissions:
@@ -104,15 +109,9 @@ def load_key(key_file: str, passphrase: str, use_cache: bool = True) -> PKey:
 			with codecs.open(key_file, "r", "utf-8") as file:
 				KEY_CACHE[key_file] = file.read()
 
-		return load_privatekey(
-			FILETYPE_PEM,
-			KEY_CACHE[key_file],
-			passphrase=passphrase.encode("utf-8")
-		)
+		return load_privatekey(FILETYPE_PEM, KEY_CACHE[key_file], passphrase=passphrase.encode("utf-8"))
 	except CryptoError as err:
-		raise RuntimeError(
-			f"Failed to load private key from '{key_file}': {err}"
-		) from err
+		raise RuntimeError(f"Failed to load private key from '{key_file}': {err}") from err
 
 
 def store_cert(cert_file: str, cert: X509) -> None:
@@ -130,9 +129,7 @@ def load_cert(cert_file: str) -> X509:
 		try:
 			return load_certificate(FILETYPE_PEM, file.read())
 		except CryptoError as err:
-			raise RuntimeError(
-				f"Failed to load cert from '{cert_file}': {err}"
-			) from err
+			raise RuntimeError(f"Failed to load cert from '{cert_file}': {err}") from err
 
 
 def store_ca_key(ca_key: PKey) -> None:
@@ -200,17 +197,13 @@ def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]:  # pylint
 		key = load_local_server_key()
 
 	return create_server_cert(
-		subject={
-			"CN": get_server_cn(),
-			"OU": f"opsi@{domain}",
-			"emailAddress": f"opsi@{domain}"
-		},
+		subject={"CN": get_server_cn(), "OU": f"opsi@{domain}", "emailAddress": f"opsi@{domain}"},
 		valid_days=config.ssl_server_cert_valid_days,
 		ip_addresses=get_ips(),
 		hostnames=get_hostnames(),
 		ca_key=ca_key,
 		ca_cert=ca_cert,
-		key=key
+		key=key,
 	)
 
 
@@ -247,8 +240,9 @@ def configserver_setup_ca() -> bool:
 				"The common name of the CA has changed from '%s' to '%s'."
 				" If this change is intended, please delete"
 				" the current CA '%s' and restart opsiconfd.",
-				ca_crt.get_subject().CN, config.ssl_ca_subject_cn,
-				config.ssl_ca_cert
+				ca_crt.get_subject().CN,
+				config.ssl_ca_subject_cn,
+				config.ssl_ca_cert,
 			)
 
 	if create or renew:
@@ -261,13 +255,9 @@ def configserver_setup_ca() -> bool:
 			logger.notice("Creating opsi CA")
 
 		(ca_crt, ca_key) = create_ca(
-			subject={
-				"CN": config.ssl_ca_subject_cn,
-				"OU": f"opsi@{domain}",
-				"emailAddress": f"opsi@{domain}"
-			},
+			subject={"CN": config.ssl_ca_subject_cn, "OU": f"opsi@{domain}", "emailAddress": f"opsi@{domain}"},
 			valid_days=config.ssl_ca_cert_valid_days,
-			key=ca_key
+			key=ca_key,
 		)
 		store_ca_key(ca_key)
 		store_ca_cert(ca_crt)
@@ -307,8 +297,7 @@ def validate_cert(cert: X509, ca_cert: X509) -> None:
 	cert_not_before = datetime.datetime.strptime(cert.get_notBefore().decode("utf-8"), "%Y%m%d%H%M%SZ")
 	if ca_cert_not_before > cert_not_before:
 		raise X509StoreContextError(
-			f"CA is not valid before {ca_cert_not_before} but certificate is valid before {cert_not_before}",
-			ca_cert
+			f"CA is not valid before {ca_cert_not_before} but certificate is valid before {cert_not_before}", ca_cert
 		)
 
 
@@ -324,9 +313,9 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 	create = False
 
 	if (
-		os.path.exists(os.path.join(os.path.dirname(config.ssl_server_cert), "opsiconfd.pem")) and
-		os.path.basename(config.ssl_server_key) != "opsiconfd.pem" and
-		os.path.basename(config.ssl_server_cert) != "opsiconfd.pem"
+		os.path.exists(os.path.join(os.path.dirname(config.ssl_server_cert), "opsiconfd.pem"))
+		and os.path.basename(config.ssl_server_key) != "opsiconfd.pem"
+		and os.path.basename(config.ssl_server_cert) != "opsiconfd.pem"
 	):
 		# Remove old default file
 		os.remove(os.path.join(os.path.dirname(config.ssl_server_cert), "opsiconfd.pem"))
@@ -374,10 +363,7 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 
 	if not create:
 		if server_cn != srv_crt.get_subject().CN:
-			logger.notice(
-				"Server CN has changed from '%s' to '%s', creating new server cert",
-				srv_crt.get_subject().CN, server_cn
-			)
+			logger.notice("Server CN has changed from '%s' to '%s', creating new server cert", srv_crt.get_subject().CN, server_cn)
 			create = True
 
 	if not create and server_role == "config":
@@ -397,18 +383,12 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 				break
 		hns = get_hostnames()
 		if cert_hns != hns:
-			logger.notice(
-				"Server hostnames have changed from %s to %s, creating new server cert",
-				cert_hns, hns
-			)
+			logger.notice("Server hostnames have changed from %s to %s, creating new server cert", cert_hns, hns)
 			create = True
 		else:
 			ips = get_ips()
 			if cert_ips != ips:
-				logger.notice(
-					"Server IPs have changed from %s to %s, creating new server cert",
-					cert_ips, ips
-				)
+				logger.notice("Server IPs have changed from %s to %s, creating new server cert", cert_ips, ips)
 				create = True
 
 	if create:
@@ -444,7 +424,7 @@ def setup_ssl():
 def get_cert_info(cert: X509) -> Dict[str, Any]:
 	alt_names = ""
 	for i in range(0, cert.get_extension_count()):
-		if cert.get_extension(i).get_short_name() == b'subjectAltName':
+		if cert.get_extension(i).get_short_name() == b"subjectAltName":
 			alt_names = cert.get_extension(i)
 
 	not_before = datetime.datetime.strptime(cert.get_notBefore().decode("utf-8"), "%Y%m%d%H%M%SZ")
@@ -454,11 +434,11 @@ def get_cert_info(cert: X509) -> Dict[str, Any]:
 	return {
 		"issuer": cert.get_issuer(),
 		"subject": cert.get_subject(),
-		"serial_number": ':'.join((f'{cert.get_serial_number():x}').zfill(36)[i:i + 2] for i in range(0, 36, 2)),
+		"serial_number": ":".join((f"{cert.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2)),
 		"not_before": not_before,
 		"not_after": not_after,
 		"expiration": expiration,
-		"alt_names": alt_names
+		"alt_names": alt_names,
 	}
 
 

@@ -19,10 +19,7 @@ from opsiconfd.config import FQDN
 from opsiconfd.application.main import app
 from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
 
-from .utils import (  # pylint: disable=unused-import
-	app, backend, config, clean_redis, test_client,
-	ADMIN_USER, ADMIN_PASS
-)
+from .utils import app, backend, config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
 
 
 def test_webdav_setup():
@@ -59,14 +56,7 @@ def test_webdav_auth(test_client):  # pylint: disable=redefined-outer-name
 def test_client_permission(test_client):  # pylint: disable=redefined-outer-name
 	client_id = "webdavtest.uib.local"
 	client_key = "af521906af3c4666bed30a1774639ff8"
-	rpc = {
-		"id": 1,
-		"method": "host_createOpsiClient",
-		"params": [
-			client_id,
-			client_key
-		]
-	}
+	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [client_id, client_key]}
 	res = test_client.post("/rpc", json=rpc, auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	res = res.json()
@@ -99,29 +89,26 @@ def test_client_permission(test_client):  # pylint: disable=redefined-outer-name
 		test_client.post(url="/admin/unblock-all")
 		test_client.reset_cookies()
 
-	rpc = {
-		"id": 1,
-		"method": "host_delete",
-		"params": [
-			client_id
-		]
-	}
+	rpc = {"id": 1, "method": "host_delete", "params": [client_id]}
 	res = test_client.post("/rpc", json=rpc, auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 
 
-@pytest.mark.parametrize("filename, path, exception", (
-	("/filename.txt", "/filename.TXT", None),
-	("/outside.root", "../outside.root", RuntimeError),
-	("/tEsT/TesT2/fileNaME1.TXt", "/test/test2/filename1.txt", None),
-	("/Test/test/filename1.bin", "/test/test/filename1.bin", None),
-	("/tEßT/TäsT2/陰陽_Üß.TXt", "/tEßT/täsT2/陰陽_üß.txt", None)
-))
+@pytest.mark.parametrize(
+	"filename, path, exception",
+	(
+		("/filename.txt", "/filename.TXT", None),
+		("/outside.root", "../outside.root", RuntimeError),
+		("/tEsT/TesT2/fileNaME1.TXt", "/test/test2/filename1.txt", None),
+		("/Test/test/filename1.bin", "/test/test/filename1.bin", None),
+		("/tEßT/TäsT2/陰陽_Üß.TXt", "/tEßT/täsT2/陰陽_üß.txt", None),
+	),
+)
 def test_webdav_ignore_case_download(test_client, filename, path, exception):  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	base_dir = "/var/lib/opsi/depot"
 	directory, filename = filename.rsplit("/", 1)
-	directory = directory.strip('/')
+	directory = directory.strip("/")
 	abs_dir = os.path.join(base_dir, directory)
 	abs_filename = os.path.join(abs_dir, filename)
 
@@ -149,7 +136,7 @@ def test_webdav_ignore_case_download(test_client, filename, path, exception):  #
 			assert res.raw.read().decode("utf-8") == filename
 	finally:
 		if directory:
-			shutil.rmtree(os.path.join(base_dir, directory.split('/')[0]))
+			shutil.rmtree(os.path.join(base_dir, directory.split("/")[0]))
 		else:
 			os.unlink(abs_filename)
 
@@ -167,11 +154,11 @@ def test_webdav_virtual_folder(test_client):  # pylint: disable=redefined-outer-
 
 
 def test_webdav_setup_exception(backend):  # pylint: disable=redefined-outer-name
-	host = backend.host_getObjects(type='OpsiDepotserver', id=FQDN)[0]  # pylint: disable=no-member
+	host = backend.host_getObjects(type="OpsiDepotserver", id=FQDN)[0]  # pylint: disable=no-member
 	repo_url = host.getRepositoryLocalUrl()
 	depot_url = host.getDepotLocalUrl()
 	workbench_url = host.getWorkbenchLocalUrl()
-	with patch('opsiconfd.application.webdav.PUBLIC_FOLDER', "/file/not/found"):
+	with patch("opsiconfd.application.webdav.PUBLIC_FOLDER", "/file/not/found"):
 		try:
 			host.setRepositoryLocalUrl("file:///not/found")
 			host.setDepotLocalUrl("file:///not/found")

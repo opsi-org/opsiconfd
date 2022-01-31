@@ -12,13 +12,25 @@ from OpenSSL.crypto import FILETYPE_PEM, load_privatekey, load_certificate
 
 from opsiconfd import set_contextvars_from_contex
 from opsiconfd.backend import (
-	get_session, get_user_store, get_option_store,
-	get_backend, get_client_backend, get_backend_interface, get_server_role,
-	get_mysql, execute_on_secondary_backends
+	get_session,
+	get_user_store,
+	get_option_store,
+	get_backend,
+	get_client_backend,
+	get_backend_interface,
+	get_server_role,
+	get_mysql,
+	execute_on_secondary_backends,
 )
 from .utils import (  # pylint: disable=unused-import
-	clean_redis, config, get_config, test_client, depot_jsonrpc, client_jsonrpc,
-	ADMIN_USER, ADMIN_PASS
+	clean_redis,
+	config,
+	get_config,
+	test_client,
+	depot_jsonrpc,
+	client_jsonrpc,
+	ADMIN_USER,
+	ADMIN_PASS,
 )
 
 

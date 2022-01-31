@@ -32,12 +32,8 @@ def messagebroker_setup(app):
 	app.include_router(messagebroker_router, prefix="/mq")
 
 
-def mq_websocket_parameters(
-	last_id: Optional[str] = Query(default="0", embed=True)
-):
-	return {
-		"last_id": last_id
-	}
+def mq_websocket_parameters(last_id: Optional[str] = Query(default="0", embed=True)):
+	return {"last_id": last_id}
 
 
 async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str = "0"):
@@ -78,10 +74,7 @@ async def messagebroker_index():
 
 
 @messagebroker_router.websocket("")
-async def mq_websocket_endpoint(
-	websocket: WebSocket,
-	params: dict = Depends(mq_websocket_parameters)
-):
+async def mq_websocket_endpoint(websocket: WebSocket, params: dict = Depends(mq_websocket_parameters)):
 	session = contextvar_client_session.get()
 	if not session.user_store.host or not session.user_store.isAdmin:
 		logger.warning("Access to mq websocket denied for user '%s'", session.user_store.username)
@@ -94,7 +87,4 @@ async def mq_websocket_endpoint(
 	last_id = params["last_id"]
 
 	logger.info("Websocket client connected to mq stream: channel=%s, last_id=%s", channel, last_id)
-	await asyncio.gather(
-		mq_websocket_reader(websocket),
-		mq_websocket_writer(websocket, channel=channel, last_id=last_id)
-	)
+	await asyncio.gather(mq_websocket_reader(websocket), mq_websocket_writer(websocket, channel=channel, last_id=last_id))

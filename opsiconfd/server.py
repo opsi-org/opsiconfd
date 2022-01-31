@@ -93,29 +93,27 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 						if self.worker_restart_time > 0:
 							alive = time.time() - worker.create_time
 							if alive >= self.worker_restart_time:
-								logger.notice(
-									"Worker %d (pid %d) has been running for %s seconds",
-									worker.worker_num, worker.pid, alive
-								)
+								logger.notice("Worker %d (pid %d) has been running for %s seconds", worker.worker_num, worker.pid, alive)
 								auto_restart.append(worker.worker_num)
 
 						if self.worker_restart_mem > 0:
 							now = time.time()
 							mem = psutil.Process(worker.pid).memory_info().rss
 							if mem >= self.worker_restart_mem:
-								if not hasattr(worker, 'max_mem_exceeded_since'):
+								if not hasattr(worker, "max_mem_exceeded_since"):
 									worker.max_mem_exceeded_since = now
 								if now - worker.max_mem_exceeded_since >= self.worker_restart_mem_interval:
 									logger.notice(
-										"Worker %d (pid %d) is using more than %0.2f MB of memory "
-										"(currently %0.2f MB) since %d seconds",
-										worker.worker_num, worker.pid,
-										self.worker_restart_mem / 1000000, mem / 1000000,
-										now - worker.max_mem_exceeded_since
+										"Worker %d (pid %d) is using more than %0.2f MB of memory " "(currently %0.2f MB) since %d seconds",
+										worker.worker_num,
+										worker.pid,
+										self.worker_restart_mem / 1000000,
+										mem / 1000000,
+										now - worker.max_mem_exceeded_since,
 									)
 									auto_restart.append(worker.worker_num)
-							elif hasattr(worker, 'max_mem_exceeded_since'):
-								delattr(worker, 'max_mem_exceeded_since')
+							elif hasattr(worker, "max_mem_exceeded_since"):
+								delattr(worker, "max_mem_exceeded_since")
 
 					elif not getattr(worker, "marked_as_vanished", False):
 						# Worker crashed / killed
@@ -170,9 +168,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			os.putenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", ssl.KEY_CACHE[config.ssl_ca_key])
 		os.putenv("OPSICONFD_WORKER_WORKER_NUM", str(worker_num))
 
-		process = get_subprocess(
-			config=self.uvicorn_config, target=self.server.run, sockets=[self.socket]
-		)
+		process = get_subprocess(config=self.uvicorn_config, target=self.server.run, sockets=[self.socket])
 		process.start()
 		process.create_time = time.time()
 		process.worker_num = worker_num
@@ -212,8 +208,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 					if diff < self.worker_stop_timeout:
 						continue
 					logger.warning(
-						"Timed out after %d seconds while waiting for worker %s to stop, forcing worker to stop",
-						diff, worker.pid
+						"Timed out after %d seconds while waiting for worker %s to stop, forcing worker to stop", diff, worker.pid
 					)
 					if diff > self.worker_stop_timeout + 5:
 						worker.kill()
@@ -249,17 +244,13 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		with self.worker_update_lock:
 			for worker in self.workers:
 				redis_key = f"opsiconfd:worker_registry:{self.node_name}:{worker.worker_num}"
-				redis.hmset(redis_key, {
-					"worker_pid": worker.pid,
-					"node_name": self.node_name,
-					"worker_num": worker.worker_num
-				})
+				redis.hmset(redis_key, {"worker_pid": worker.pid, "node_name": self.node_name, "worker_num": worker.worker_num})
 				redis.expire(redis_key, 60)
 
 			for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:{self.node_name}:*"):
 				redis_key = redis_key.decode("utf-8")
 				try:
-					worker_num = int(redis_key.split(':')[-1])
+					worker_num = int(redis_key.split(":")[-1])
 				except IndexError:
 					worker_num = -1
 				if worker_num == -1 or worker_num > len(self.workers):
@@ -323,9 +314,7 @@ class Server:
 			"workers": config.workers,
 			"log_config": None,
 			"debug": config.debug,
-			"headers": [
-				["Server", f"opsiconfd {__version__} (uvicorn)"]
-			]
+			"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"]],
 		}
 		# if config.workers == 1 and config.interface == "::":
 		#   options["host"] = ["::", "0.0.0.0"]
@@ -342,21 +331,20 @@ class Server:
 			return
 		num_workers = 1
 		backend_info = get_backend().backend_info()
-		modules = backend_info['modules']
-		helpermodules = backend_info['realmodules']
+		modules = backend_info["modules"]
+		helpermodules = backend_info["realmodules"]
 
-		if not all(key in modules for key in ('expires', 'customer')):
+		if not all(key in modules for key in ("expires", "customer")):
 			logger.error(
-				"Missing important information about modules. Probably no modules file installed. Limiting to %d workers.",
-				num_workers
+				"Missing important information about modules. Probably no modules file installed. Limiting to %d workers.", num_workers
 			)
-		elif not modules.get('customer'):
+		elif not modules.get("customer"):
 			logger.error("No customer in modules file. Limiting to %d workers.", num_workers)
-		elif not modules.get('valid'):
+		elif not modules.get("valid"):
 			logger.error("Modules file invalid. Limiting to %d workers.", num_workers)
 		elif (
-			modules.get('expires', '') != 'never' and
-			time.mktime(time.strptime(modules.get('expires', '2000-01-01'), "%Y-%m-%d")) - time.time() <= 0
+			modules.get("expires", "") != "never"
+			and time.mktime(time.strptime(modules.get("expires", "2000-01-01"), "%Y-%m-%d")) - time.time() <= 0
 		):
 			logger.error("Modules file expired. Limiting to %d workers.", num_workers)
 		else:
@@ -387,7 +375,7 @@ class Server:
 
 			verified = False
 			if modules["signature"].startswith("{"):
-				s_bytes = int(modules['signature'].split("}", 1)[-1]).to_bytes(256, "big")
+				s_bytes = int(modules["signature"].split("}", 1)[-1]).to_bytes(256, "big")
 				try:
 					pkcs1_15.new(public_key).verify(MD5.new(data.encode()), s_bytes)
 					verified = True
@@ -402,7 +390,7 @@ class Server:
 			if not verified:
 				logger.error("Modules file invalid. Limiting to %d workers.", num_workers)
 			else:
-				logger.debug("Modules file signature verified (customer: %s)", modules.get('customer'))
+				logger.debug("Modules file signature verified (customer: %s)", modules.get("customer"))
 
 				if modules.get("scalability1"):
 					num_workers = config.workers

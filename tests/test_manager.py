@@ -5,9 +5,9 @@
 # All rights reserved.
 # License: AGPL-3.0
 
-'''
+"""
 Test opsiconfd.manager
-'''
+"""
 
 import os
 import time
@@ -28,7 +28,7 @@ def manager():  # pylint: disable=redefined-outer-name
 		patch("opsiconfd.server.Server.run", lambda *args, **kwargs: None),
 		patch("opsiconfd.manager.init_logging", lambda *args, **kwargs: None),
 		patch("opsiconfd.manager.register_opsi_services", lambda *args, **kwargs: asyncio.sleep(0.1)),
-		patch("opsiconfd.manager.unregister_opsi_services", lambda *args, **kwargs: asyncio.sleep(0.1))
+		patch("opsiconfd.manager.unregister_opsi_services", lambda *args, **kwargs: asyncio.sleep(0.1)),
 	):
 		reset_singleton(Manager)
 		man = Manager()
@@ -66,7 +66,7 @@ def test_check_server_cert(manager, cert_changed):  # pylint: disable=redefined-
 
 	with (
 		patch("opsiconfd.server.Server.restart_workers", restart_workers),
-		patch("opsiconfd.manager.setup_server_cert", lambda: cert_changed)
+		patch("opsiconfd.manager.setup_server_cert", lambda: cert_changed),
 	):
 		manager._server_cert_check_interval = 0.0000001  # pylint: disable=protected-access
 		time.sleep(2)

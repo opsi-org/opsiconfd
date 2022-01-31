@@ -12,7 +12,7 @@ from .utils import State, generate_response
 
 
 def check_locked_products(backend, depot_ids=None, product_ids=[]):  # pylint: disable=dangerous-default-value
-	if not depot_ids or 'all' in depot_ids:
+	if not depot_ids or "all" in depot_ids:
 		depots = backend._executeMethod(methodName="host_getObjects", type="OpsiDepotserver")  # pylint: disable=protected-access
 		depot_ids = [depot.id for depot in depots]
 
@@ -22,7 +22,7 @@ def check_locked_products(backend, depot_ids=None, product_ids=[]):  # pylint: d
 	if locked_products:
 		state = State.WARNING
 
-		message = f'{len(locked_products)} products are in locked state.'
+		message = f"{len(locked_products)} products are in locked state."
 		for prod_on_depot in locked_products:
 			message += f"\nProduct {prod_on_depot.productId} locked on depot {prod_on_depot.depotId}"
 	else:

@@ -46,20 +46,14 @@ async def monitoring(request: Request):  # pylint: disable=too-many-branches
 	try:
 		if task == "checkClientStatus":
 			response = check_client_status(
-				backend=backend,
-				client_id=params.get("clientId", None),
-				exclude_product_list=params.get("exclude", None)
+				backend=backend, client_id=params.get("clientId", None), exclude_product_list=params.get("exclude", None)
 			)
 		elif task == "checkShortProductStatus":
 			if params.get("productIds", None):
 				product_id = params.get("productIds", None)
 			else:
 				product_id = params.get("productId", None)
-			response = check_short_product_status(
-				backend=backend,
-				product_id=product_id,
-				thresholds=params.get("thresholds", {})
-			)
+			response = check_short_product_status(backend=backend, product_id=product_id, thresholds=params.get("thresholds", {}))
 		elif task == "checkProductStatus":
 			response = check_product_status(
 				backend=backend,
@@ -69,7 +63,7 @@ async def monitoring(request: Request):  # pylint: disable=too-many-branches
 				depot_ids=params.get("depotIds", []),
 				exclude=params.get("exclude", []),
 				verbose=params.get("verbose", False),
-				strict=params.get("strict", False)
+				strict=params.get("strict", False),
 			)
 		elif task == "checkDepotSyncStatus":
 			response = check_depot_sync_status(
@@ -78,7 +72,7 @@ async def monitoring(request: Request):  # pylint: disable=too-many-branches
 				product_ids=params.get("productIds", []),
 				exclude=params.get("exclude", []),
 				strict=params.get("strict", False),
-				verbose=params.get("verbose", False)
+				verbose=params.get("verbose", False),
 			)
 		elif task == "checkPluginOnClient":
 			response = check_plugin_on_client(
@@ -100,15 +94,10 @@ async def monitoring(request: Request):  # pylint: disable=too-many-branches
 			)
 		elif task == "checkOpsiWebservice":
 			response = await check_opsi_webservice(
-				cpu_thresholds=params.get("cpu", {}),
-				error_thresholds=params.get("errors", {}),
-				perfdata=params.get("perfdata", True)
+				cpu_thresholds=params.get("cpu", {}), error_thresholds=params.get("errors", {}), perfdata=params.get("perfdata", True)
 			)
 		elif task == "checkOpsiDiskUsage":
-			response = check_opsi_disk_usage(
-				backend=backend,
-				opsiresource=params.get("resource", None)
-			)
+			response = check_opsi_disk_usage(backend=backend, opsiresource=params.get("resource", None))
 		else:
 			response = JSONResponse({"state": State.UNKNOWN, "message": "No matching task found."})
 	except Exception as err:  # pylint: disable=broad-except

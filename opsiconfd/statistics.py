@@ -23,18 +23,11 @@ from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import (
-	contextvar_request_id, contextvar_client_address, contextvar_server_timing
-)
+from . import contextvar_request_id, contextvar_client_address, contextvar_server_timing
 from .logging import logger
-from .worker import (
-	get_metrics_collector as get_worker_metrics_collector,
-	get_worker_num
-)
+from .worker import get_metrics_collector as get_worker_metrics_collector, get_worker_num
 from .config import config
-from .utils import (
-	Singleton, redis_client, async_redis_client, ip_address_to_redis_key
-)
+from .utils import Singleton, redis_client, async_redis_client, ip_address_to_redis_key
 from .grafana import GrafanaPanelConfig
 
 
@@ -108,10 +101,7 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 					create = True
 					if key in existing_rules:
 						cur_rule = existing_rules[key]
-						if (
-							time_bucket == cur_rule.get("time_bucket") and
-							aggregation.lower() == cur_rule.get("aggregation").lower()
-						):
+						if time_bucket == cur_rule.get("time_bucket") and aggregation.lower() == cur_rule.get("aggregation").lower():
 							create = False
 						else:
 							cmd = f"TS.DELETERULE {orig_key} {key}"
@@ -130,7 +120,7 @@ TIME_BUCKETS = {
 	"day": 24 * 3600 * 1000,
 	"week": 7 * 24 * 3600 * 1000,
 	"month": 30 * 24 * 3600 * 1000,
-	"year": 365 * 24 * 3600 * 1000
+	"year": 365 * 24 * 3600 * 1000,
 }
 
 
@@ -162,7 +152,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		subject: str = "worker",
 		server_timing_header_factor: int = None,
 		grafana_config: GrafanaPanelConfig = None,
-		downsampling: List = None
+		downsampling: List = None,
 	):
 		"""
 		Metric constructor
@@ -212,7 +202,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 			self.redis_key += ":{" + var + "}"
 		name_regex = self.name
 		for var in vars:
-			name_regex = name_regex.replace('{' + var + '}', rf"(?P<{var}>\S+)")  # pylint: disable=anomalous-backslash-in-string
+			name_regex = name_regex.replace("{" + var + "}", rf"(?P<{var}>\S+)")  # pylint: disable=anomalous-backslash-in-string
 		self.name_regex = re.compile(name_regex)
 
 	def __str__(self):
@@ -229,7 +219,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 	def get_vars_by_redis_key(self, redis_key):
 		vars = {}  # pylint: disable=redefined-builtin
 		if self.vars:
-			values = redis_key[len(self.redis_key_prefix) + 1:].split(':')
+			values = redis_key[len(self.redis_key_prefix) + 1 :].split(":")
 			for i, value in enumerate(values):
 				vars[self.vars[i]] = value
 		return vars
@@ -272,7 +262,7 @@ class MetricsRegistry(metaclass=Singleton):
 
 	def get_metric_by_redis_key(self, redis_key):
 		for metric in self._metrics_by_id.values():
-			if redis_key == metric.redis_key_prefix or redis_key.startswith(metric.redis_key_prefix + ':'):
+			if redis_key == metric.redis_key_prefix or redis_key.startswith(metric.redis_key_prefix + ":"):
 				return metric
 		raise ValueError(f"Metric with redis key '{redis_key}' not found")
 
@@ -289,7 +279,11 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="node",
 		grafana_config=GrafanaPanelConfig(title="System load", units=["short"], decimals=2, stack=False),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
 	),
 	Metric(
 		id="worker:avg_mem_allocated",
@@ -300,7 +294,11 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], decimals=2, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
 	),
 	Metric(
 		id="worker:avg_cpu_percent",
@@ -311,7 +309,11 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker CPU usage", units=["percent"], decimals=1, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
 	),
 	Metric(
 		id="worker:avg_thread_number",
@@ -322,7 +324,11 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker threads", units=["short"], decimals=0, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
 	),
 	Metric(
 		id="worker:avg_filehandle_number",
@@ -333,7 +339,11 @@ metrics_registry.register(
 		zero_if_missing=None,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="Worker filehandles", units=["short"], decimals=0, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
 	),
 	Metric(
 		id="worker:sum_http_request_number",
@@ -345,7 +355,11 @@ metrics_registry.register(
 		time_related=True,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP requests/s", units=["short"], decimals=0, stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
 	),
 	Metric(
 		id="worker:avg_http_response_bytes",
@@ -356,7 +370,11 @@ metrics_registry.register(
 		zero_if_missing="one",
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
 	),
 	Metric(
 		id="worker:avg_http_request_duration",
@@ -367,7 +385,11 @@ metrics_registry.register(
 		zero_if_missing="one",
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", units=["s"], decimals=0),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
 	),
 	Metric(
 		id="client:sum_http_request_number",
@@ -380,11 +402,11 @@ metrics_registry.register(
 		subject="client",
 		# Deactivating for now because it slows down grafana a lot in big environments.
 		# grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
-	)
+	),
 )
 
 
-class MetricsCollector():  # pylint: disable=too-many-instance-attributes
+class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 	_metric_subjects = []
 
 	def __init__(self):
@@ -399,9 +421,7 @@ class MetricsCollector():  # pylint: disable=too-many-instance-attributes
 		return int(time.time() * 1000)
 
 	async def _fetch_values(self):
-		asyncio.get_event_loop().create_task(
-			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
-		)
+		asyncio.get_event_loop().create_task(self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name}))
 
 	def _init_vars(self):
 		for metric in metrics_registry.get_metrics(*self._metric_subjects):
@@ -474,9 +494,7 @@ class MetricsCollector():  # pylint: disable=too-many-instance-attributes
 								labels[var] = label_values[idx]
 
 							if insert_zero_timestamp:
-								cmds.append(
-									self._redis_ts_cmd(metric, "ADD", 0, insert_zero_timestamp, **labels)
-								)
+								cmds.append(self._redis_ts_cmd(metric, "ADD", 0, insert_zero_timestamp, **labels))
 
 							cmd = self._redis_ts_cmd(metric, "ADD", value, timestamp, **labels)
 							logger.debug("Redis ts cmd %s", cmd)
@@ -501,13 +519,27 @@ class MetricsCollector():  # pylint: disable=too-many-instance-attributes
 		# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6
 		if cmd == "ADD":
 			cmd = [
-				"TS.ADD", metric.get_redis_key(**labels), timestamp, value,
-				"RETENTION", metric.retention, "ON_DUPLICATE", "SUM", "LABELS"
+				"TS.ADD",
+				metric.get_redis_key(**labels),
+				timestamp,
+				value,
+				"RETENTION",
+				metric.retention,
+				"ON_DUPLICATE",
+				"SUM",
+				"LABELS",
 			] + l_labels
 		elif cmd == "INCRBY":
 			cmd = [
-				"TS.INCRBY", metric.get_redis_key(**labels), value, timestamp,
-				"RETENTION", metric.retention, "ON_DUPLICATE", "SUM", "LABELS"
+				"TS.INCRBY",
+				metric.get_redis_key(**labels),
+				value,
+				timestamp,
+				"RETENTION",
+				metric.retention,
+				"ON_DUPLICATE",
+				"SUM",
+				"LABELS",
 			] + l_labels
 		else:
 			raise ValueError(f"Invalid command {cmd}")
@@ -548,7 +580,7 @@ class MetricsCollector():  # pylint: disable=too-many-instance-attributes
 			server_timing = contextvar_server_timing.get()
 			if isinstance(server_timing, dict):
 				# Only if dict (initialized)
-				server_timing[metric_id.split(':')[-1]] = value * metric.server_timing_header_factor
+				server_timing[metric_id.split(":")[-1]] = value * metric.server_timing_header_factor
 				contextvar_server_timing.set(server_timing)
 		if not timestamp:
 			timestamp = self._get_timestamp()
@@ -571,9 +603,7 @@ class ManagerMetricsCollector(MetricsCollector):
 	_metric_subjects = ["node"]
 
 	async def _fetch_values(self):
-		asyncio.get_event_loop().create_task(
-			self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name})
-		)
+		asyncio.get_event_loop().create_task(self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name}))
 
 
 class WorkerMetricsCollector(MetricsCollector):
@@ -592,7 +622,7 @@ class WorkerMetricsCollector(MetricsCollector):
 			("worker:avg_mem_allocated", self._proc.memory_info().rss),
 			("worker:avg_cpu_percent", self._proc.cpu_percent()),
 			("worker:avg_thread_number", self._proc.num_threads()),
-			("worker:avg_filehandle_number", self._proc.num_fds())
+			("worker:avg_filehandle_number", self._proc.num_fds()),
 		):
 			# Do not add 0-values
 			if value:
@@ -636,20 +666,25 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 			func_stats.save(f"/tmp/callgrind.out.opsiconfd-yappi-{tag}", type="callgrind")  # pylint: disable=no-member
 
 		if self._log_func_stats:
-			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")  # pylint: disable=line-too-long
+			logger.essential(
+				"---------------------------------------------------------------------------------------------------------------------------------"
+			)  # pylint: disable=line-too-long
 			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope['method']} {scope['path']}")
 			logger.essential(f"{'module':<45} | {'function':<60} | {'calls':>5} | {'total time':>10}")
-			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")  # pylint: disable=line-too-long
+			logger.essential(
+				"---------------------------------------------------------------------------------------------------------------------------------"
+			)  # pylint: disable=line-too-long
 			for stat_num, stat in enumerate(func_stats.sort("ttot", sort_order="desc")):
 				module = re.sub(r".*(site-packages|python3\.\d|python-opsi)/", "", stat.module)
 				logger.essential(f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}")
 				if stat_num >= 500:
 					break
-			logger.essential("---------------------------------------------------------------------------------------------------------------------------------")  # pylint: disable=line-too-long
+			logger.essential(
+				"---------------------------------------------------------------------------------------------------------------------------------"
+			)  # pylint: disable=line-too-long
 
 		func_stats: Dict[str, YFuncStats] = {
-			stat_name: yappi.get_func_stats(filter={"name": function, "tag": tag})
-			for function, stat_name in self._profile_methods.items()
+			stat_name: yappi.get_func_stats(filter={"name": function, "tag": tag}) for function, stat_name in self._profile_methods.items()
 		}
 		server_timing = {}
 		for stat_name, stats in func_stats.items():
@@ -676,16 +711,12 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 				if metrics_collector:
 					loop.create_task(
 						metrics_collector.add_value(
-							"worker:sum_http_request_number",
-							1,
-							{"node_name": config.node_name, "worker_num": get_worker_num()}
+							"worker:sum_http_request_number", 1, {"node_name": config.node_name, "worker_num": get_worker_num()}
 						)
 					)
 					loop.create_task(
 						metrics_collector.add_value(
-							"client:sum_http_request_number",
-							1,
-							{"client_addr": ip_address_to_redis_key(contextvar_client_address.get())}
+							"client:sum_http_request_number", 1, {"client_addr": ip_address_to_redis_key(contextvar_client_address.get())}
 						)
 					)
 
@@ -693,17 +724,14 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 
 				content_length = headers.get("Content-Length", None)
 				if content_length is None:
-					if (
-						scope["method"] != "OPTIONS" and
-						200 <= message.get("status") < 300
-					):
+					if scope["method"] != "OPTIONS" and 200 <= message.get("status") < 300:
 						logger.warning("Header 'Content-Length' missing: %s", message)
 				elif metrics_collector:
 					loop.create_task(
 						metrics_collector.add_value(
 							"worker:avg_http_response_bytes",
 							int(content_length),
-							{"node_name": config.node_name, "worker_num": get_worker_num()}
+							{"node_name": config.node_name, "worker_num": get_worker_num()},
 						)
 					)
 
@@ -712,7 +740,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 					server_timing.update(self.yappi(scope))
 				server_timing["request_processing"] = 1000 * (time.perf_counter() - start)
 				server_timing = [f"{k};dur={v:.3f}" for k, v in server_timing.items()]
-				headers.append("Server-Timing", ','.join(server_timing))
+				headers.append("Server-Timing", ",".join(server_timing))
 
 			logger.trace(message)
 			await send(message)
@@ -723,16 +751,16 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 				if metrics_collector:
 					loop.create_task(
 						metrics_collector.add_value(
-							"worker:avg_http_request_duration",
-							end - start,
-							{"node_name": config.node_name, "worker_num": get_worker_num()}
+							"worker:avg_http_request_duration", end - start, {"node_name": config.node_name, "worker_num": get_worker_num()}
 						)
 					)
 				server_timing = contextvar_server_timing.get() or {}
 				server_timing["total"] = 1000 * (time.perf_counter() - start)
 				logger.info(
-					"Server-Timing %s %s: %s", scope["method"], scope["path"],
-					', '.join([f"{k}={v:.1f}ms" for k, v in server_timing.items()])
+					"Server-Timing %s %s: %s",
+					scope["method"],
+					scope["path"],
+					", ".join([f"{k}={v:.1f}ms" for k, v in server_timing.items()]),
 				)
 
 		await self.app(scope, receive, send_wrapper)

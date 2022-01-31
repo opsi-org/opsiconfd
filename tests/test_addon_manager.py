@@ -26,6 +26,7 @@ def cleanup():
 			name = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", name)
 			if os.path.exists(name):
 				os.remove(name)
+
 	_cleanup()
 	yield
 	_cleanup()

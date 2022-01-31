@@ -16,13 +16,21 @@ import pytest
 
 from opsiconfd.utils import decode_redis_result
 from opsiconfd.application.jsonrpc import (
-	store_rpc, get_sort_algorithm, store_product_ordering,
-	set_jsonrpc_cache_outdated, remove_depot_from_jsonrpc_cache
+	store_rpc,
+	get_sort_algorithm,
+	store_product_ordering,
+	set_jsonrpc_cache_outdated,
+	remove_depot_from_jsonrpc_cache,
 )
 
 from .utils import (  # pylint: disable=unused-import
-	config, clean_redis, async_redis_client, database_connection, backend,
-	ADMIN_USER, ADMIN_PASS
+	config,
+	clean_redis,
+	async_redis_client,
+	database_connection,
+	backend,
+	ADMIN_USER,
+	ADMIN_PASS,
 )
 
 
@@ -38,8 +46,7 @@ def fixture_fill_db(database_connection):  # pylint: disable=unused-argument,red
 			"ipAddress": "192.168.0.12",
 			"inventoryNumber": "0815",
 			"created": "2017-11-14 14:43:48",
-			"lastSeen": "2017-11-14 14:43:48"
-
+			"lastSeen": "2017-11-14 14:43:48",
 		},
 		{
 			"hostId": "pytest2.uib.gmbh",
@@ -50,8 +57,7 @@ def fixture_fill_db(database_connection):  # pylint: disable=unused-argument,red
 			"ipAddress": "192.168.0.111",
 			"inventoryNumber": "0815",
 			"created": "2017-11-14 14:43:48",
-			"lastSeen": "2017-11-14 14:43:48"
-
+			"lastSeen": "2017-11-14 14:43:48",
 		},
 		{
 			"hostId": "pytest3.uib.gmbh",
@@ -62,8 +68,7 @@ def fixture_fill_db(database_connection):  # pylint: disable=unused-argument,red
 			"ipAddress": "192.168.0.111",
 			"inventoryNumber": "0815",
 			"created": "2017-11-14 14:43:48",
-			"lastSeen": "2017-11-14 14:43:48"
-
+			"lastSeen": "2017-11-14 14:43:48",
 		},
 		{
 			"hostId": "pytest4.uib.gmbh",
@@ -74,24 +79,23 @@ def fixture_fill_db(database_connection):  # pylint: disable=unused-argument,red
 			"ipAddress": "192.168.0.111",
 			"inventoryNumber": "0815",
 			"created": "2017-11-14 14:43:48",
-			"lastSeen": "2017-11-14 14:43:48"
-
-		}
+			"lastSeen": "2017-11-14 14:43:48",
+		},
 	]
 
 	# TODO assert mysql results
 	# TODO insert more Data
 	for data in mysql_data:
-		sql_string = f'INSERT INTO HOST (hostId, type, description, notes,  hardwareAddress, ipAddress, inventoryNumber, created, lastSeen) VALUES (\"{data["hostId"]}\", \"{data["type"]}\", \"{data["description"]}\", \"{data["notes"]}\", \"{data["hardwareAddress"]}\", \"{data["ipAddress"]}\", \"{data["inventoryNumber"]}\", \"{data["created"]}\",  \"{data["lastSeen"]}\");'  # pylint: disable=line-too-long
+		sql_string = f'INSERT INTO HOST (hostId, type, description, notes,  hardwareAddress, ipAddress, inventoryNumber, created, lastSeen) VALUES ("{data["hostId"]}", "{data["type"]}", "{data["description"]}", "{data["notes"]}", "{data["hardwareAddress"]}", "{data["ipAddress"]}", "{data["inventoryNumber"]}", "{data["created"]}",  "{data["lastSeen"]}");'  # pylint: disable=line-too-long
 		database_connection.query(sql_string)
-		database_connection.query(f'SELECT * FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
+		database_connection.query(f'SELECT * FROM HOST WHERE ipAddress like "{data["ipAddress"]}";')
 		database_connection.store_result()
 	database_connection.commit()
 
 	yield None
 
 	for data in mysql_data:
-		database_connection.query(f'DELETE FROM HOST WHERE ipAddress like \"{data["ipAddress"]}\";')
+		database_connection.query(f'DELETE FROM HOST WHERE ipAddress like "{data["ipAddress"]}";')
 	database_connection.commit()
 
 
@@ -106,8 +110,8 @@ jsonrpc_test_data = [
 			"ipAddress": "192.168.0.12",
 			"notes": "pytest test data notes",
 			"type": "OpsiClient",
-			"error": None
-		}
+			"error": None,
+		},
 	),
 	(
 		{"id": 1, "method": "host_getObjects", "params": [["ipAddress"], {"ipAddress": "192.168.0.12"}]},
@@ -119,8 +123,8 @@ jsonrpc_test_data = [
 			"ipAddress": "192.168.0.12",
 			"notes": None,
 			"type": "OpsiClient",
-			"error": None
-		}
+			"error": None,
+		},
 	),
 	(
 		{"id": 1, "method": "host_getObjects", "params": [["id"], {"ipAddress": "192.168.0.12"}]},
@@ -132,8 +136,8 @@ jsonrpc_test_data = [
 			"ipAddress": None,
 			"notes": None,
 			"type": "OpsiClient",
-			"error": None
-		}
+			"error": None,
+		},
 	),
 	(
 		{"id": 1, "method": "host_getObjects", "params": [[], {"ipAddress": "192.168.0.12"}]},
@@ -145,8 +149,8 @@ jsonrpc_test_data = [
 			"ipAddress": "192.168.0.12",
 			"notes": "pytest test data notes",
 			"type": "OpsiClient",
-			"error": None
-		}
+			"error": None,
+		},
 	),
 	(
 		{"id": 1, "method": "host_getObjects", "params": [["bla"], {"ipAddress": "192.168.0.12"}]},
@@ -161,17 +165,12 @@ jsonrpc_test_data = [
 			"error": {
 				"message": "Invalid attribute 'bla'",
 				"class": "ValueError",
-			}
-		}
+			},
+		},
 	),
 	(
 		{"id": 1, "method": "host_getObjects", "params": [[], {"notes": "no results for this request"}]},
-		{
-			"num_results": 0,
-			"status_code": 200,
-			"method": "host_getObjects",
-			"error": None
-		}
+		{"num_results": 0, "status_code": 200, "method": "host_getObjects", "error": None},
 	),
 	(
 		{"id": 1, "method": "host_getObjects", "params": [["ipAddress"], {"ipAddress": "192.168.0.111"}]},
@@ -183,10 +182,9 @@ jsonrpc_test_data = [
 			"ipAddress": "192.168.0.111",
 			"notes": None,
 			"type": "OpsiClient",
-			"error": None
-		}
-	)
-
+			"error": None,
+		},
+	),
 ]
 
 
@@ -213,13 +211,7 @@ def test_process_jsonrpc_request(config, fill_db, request_data, expected_result)
 
 
 def test_create_opsi_Client(config, database_connection):  # pylint: disable=invalid-name,redefined-outer-name
-	request_data = {
-		"id": 1,
-		"method": "host_createOpsiClient",
-		"params": [
-			"test.fabian.uib.local"
-		]
-	}
+	request_data = {"id": 1, "method": "host_createOpsiClient", "params": ["test.fabian.uib.local"]}
 
 	rpc_request_data = json.dumps(request_data)
 
@@ -229,16 +221,7 @@ def test_create_opsi_Client(config, database_connection):  # pylint: disable=inv
 	assert result_json.get("error") is None
 	assert res.status_code == 200
 
-	request_data = {
-		"id": 1,
-		"method": "host_getObjects",
-		"params": [
-			[],
-			{
-				"id": "test.fabian.uib.local"
-			}
-		]
-	}
+	request_data = {"id": 1, "method": "host_getObjects", "params": [[], {"id": "test.fabian.uib.local"}]}
 
 	rpc_request_data = json.dumps(request_data)
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
@@ -260,16 +243,7 @@ def test_create_opsi_Client(config, database_connection):  # pylint: disable=inv
 
 def test_delete_opsi_client(config, fill_db):  # pylint: disable=unused-argument,invalid-name,redefined-outer-name
 
-	request_data = {
-		"id": 1,
-		"method": "host_getObjects",
-		"params": [
-			[],
-			{
-				"id": "pytest4.uib.gmbh"
-			}
-		]
-	}
+	request_data = {"id": 1, "method": "host_getObjects", "params": [[], {"id": "pytest4.uib.gmbh"}]}
 
 	rpc_request_data = json.dumps(request_data)
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
@@ -279,11 +253,7 @@ def test_delete_opsi_client(config, fill_db):  # pylint: disable=unused-argument
 	assert result_json.get("result")[0].get("id") == "pytest4.uib.gmbh"
 	assert result_json.get("error") is None
 
-	delete_request = {
-		"id": 1,
-		"method": "host_delete",
-		"params": ["pytest4.uib.gmbh"]
-	}
+	delete_request = {"id": 1, "method": "host_delete", "params": ["pytest4.uib.gmbh"]}
 	rpc_delete_request = json.dumps(delete_request)
 	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_delete_request, verify=False)
 	assert res.status_code == 200
@@ -305,11 +275,11 @@ async def test_store_rpc():  # pylint: disable=redefined-outer-name
 		"rpc_num": 1,
 		"method": "test",
 		"num_params": 2,
-		"date": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+		"date": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
 		"client": "127.0.0.1",
 		"error": None,
 		"num_results": 100,
-		"duration": 0.123
+		"duration": 0.123,
 	}
 	for rpc_num in range(7):
 		data["rpc_num"] = rpc_num
@@ -331,39 +301,28 @@ async def test_get_sort_algorithm(backend):  # pylint: disable=redefined-outer-n
 	assert await get_sort_algorithm("algorithm1") == "algorithm1"
 	assert await get_sort_algorithm("algorithm2") == "algorithm2"
 	backend.config_create(
-		id='product_sort_algorithm',
-		description='Product sorting algorithm',
-		possibleValues=['algorithm1', 'algorithm2'],
-		defaultValues=['algorithm2'],
+		id="product_sort_algorithm",
+		description="Product sorting algorithm",
+		possibleValues=["algorithm1", "algorithm2"],
+		defaultValues=["algorithm2"],
 		editable=False,
-		multiValue=False
+		multiValue=False,
 	)
 	assert await get_sort_algorithm("invalid") == "algorithm2"
 	backend.config_create(
-		id='product_sort_algorithm',
-		description='Product sorting algorithm',
-		possibleValues=['algorithm1', 'algorithm2'],
-		defaultValues=['algorithm1'],
+		id="product_sort_algorithm",
+		description="Product sorting algorithm",
+		possibleValues=["algorithm1", "algorithm2"],
+		defaultValues=["algorithm1"],
 		editable=False,
-		multiValue=False
+		multiValue=False,
 	)
 	assert await get_sort_algorithm() == "algorithm1"
 
 
 @pytest.mark.asyncio
 async def test_store_product_ordering():  # pylint: disable=redefined-outer-name
-	result = {
-		"not_sorted": [
-			"7zip",
-			"anydesk",
-			"bitlocker"
-		],
-		"sorted": [
-			"bitlocker",
-			"7zip",
-			"anydesk"
-		]
-	}
+	result = {"not_sorted": ["7zip", "anydesk", "bitlocker"], "sorted": ["bitlocker", "7zip", "anydesk"]}
 	depot_id = "some.depot.id"
 	algorithm = "algorithm1"
 

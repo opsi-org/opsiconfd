@@ -15,12 +15,16 @@ from fastapi.responses import JSONResponse
 from .utils import State, generate_response
 
 
-def check_depot_sync_status(backend, depot_ids, product_ids=[], exclude=[], strict=False, verbose=False) -> JSONResponse:  # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
-	if not depot_ids or 'all' in depot_ids:
+def check_depot_sync_status(  # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+	backend, depot_ids, product_ids=[], exclude=[], strict=False, verbose=False
+) -> JSONResponse:
+	if not depot_ids or "all" in depot_ids:
 		depots = backend.host_getObjects(type="OpsiDepotserver")
 		depot_ids = [depot.id for depot in depots]
 
-	product_on_depots = backend._executeMethod(methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids)  # pylint: disable=protected-access
+	product_on_depots = backend._executeMethod(  # pylint: disable=protected-access
+		methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids
+	)
 	product_ids = set()
 	product_on_depot_info = defaultdict(dict)
 	for pod in product_on_depots:

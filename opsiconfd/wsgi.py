@@ -18,7 +18,8 @@ from starlette.concurrency import run_in_threadpool
 
 
 class InputBuffer:
-	""" Input buffer """
+	"""Input buffer"""
+
 	def __init__(self):
 		self._queue = Queue(5)
 		self._buffer = None
@@ -140,9 +141,7 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 			await asyncio.wait_for(receiver, None)
 			await asyncio.wait_for(sender, None)
 			if self.exc_info is not None:
-				raise self.exc_info[0].with_traceback(
-					self.exc_info[1], self.exc_info[2]
-				)
+				raise self.exc_info[0].with_traceback(self.exc_info[1], self.exc_info[2])
 		finally:
 			environ["wsgi.input"].close()
 			if sender and not sender.done():
@@ -178,10 +177,7 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 			self.response_started = True
 			status_code_string, _ = status.split(" ", 1)
 			status_code = int(status_code_string)
-			headers = [
-				(name.strip().encode("ascii").lower(), value.strip().encode("ascii"))
-				for name, value in response_headers
-			]
+			headers = [(name.strip().encode("ascii").lower(), value.strip().encode("ascii")) for name, value in response_headers]
 			self.send_queue.put(
 				{
 					"type": "http.response.start",
@@ -193,9 +189,7 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 
 	def wsgi(self, environ: dict, start_response: typing.Callable) -> None:
 		for chunk in self.app(environ, start_response):
-			self.send_queue.put(
-				{"type": "http.response.body", "body": chunk, "more_body": True}
-			)
+			self.send_queue.put({"type": "http.response.body", "body": chunk, "more_body": True})
 			self.loop.call_soon_threadsafe(self.send_event.set)
 
 		self.send_queue.put({"type": "http.response.body", "body": b""})

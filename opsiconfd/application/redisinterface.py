@@ -32,11 +32,7 @@ async def redis_command(request: Request, response: Response):
 		redis_cmd = request_body.get("cmd")
 		redis_result = await redis.execute_command(redis_cmd)
 
-		response = JSONResponse({
-			"status": 200,
-			"error": None,
-			"data": {"result": decode_redis_result(redis_result)}
-		})
+		response = JSONResponse({"status": 200, "error": None, "data": {"result": decode_redis_result(redis_result)}})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		trace_back = traceback.format_exc()

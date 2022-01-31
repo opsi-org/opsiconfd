@@ -17,7 +17,9 @@ from opsiconfd.logging import logger
 from .utils import State, generate_response, ERRORCODE_PATTERN
 
 
-def check_plugin_on_client(backend, host_id, command, timeout=30, wait_for_ending=True, capture_stderr=True, statebefore=None, output=None, encoding=None) -> JSONResponse:  # pylint: disable=line-too-long, too-many-arguments, too-many-branches, too-many-locals, too-many-statements
+def check_plugin_on_client(  # pylint: disable=line-too-long, too-many-arguments, too-many-branches, too-many-locals, too-many-statements
+	backend, host_id, command, timeout=30, wait_for_ending=True, capture_stderr=True, statebefore=None, output=None, encoding=None
+) -> JSONResponse:
 
 	state = State.OK
 	message = ""
@@ -32,7 +34,7 @@ def check_plugin_on_client(backend, host_id, command, timeout=30, wait_for_endin
 				waitForEnding=wait_for_ending,
 				captureStderr=capture_stderr,
 				encoding=encoding,
-				timeout=timeout
+				timeout=timeout,
 			)
 			checkresult = checkresult.get(host_id[0], None)
 			if checkresult:

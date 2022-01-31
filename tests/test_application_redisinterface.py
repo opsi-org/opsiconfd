@@ -9,8 +9,15 @@ test application.redisinterface
 """
 
 from .utils import (  # pylint: disable=unused-import
-	clean_redis, config, get_config, test_client, ADMIN_USER, ADMIN_PASS,
-	products_jsonrpc, depot_jsonrpc, get_product_ordering_jsonrpc
+	clean_redis,
+	config,
+	get_config,
+	test_client,
+	ADMIN_USER,
+	ADMIN_PASS,
+	products_jsonrpc,
+	depot_jsonrpc,
+	get_product_ordering_jsonrpc,
 )
 
 
@@ -34,7 +41,7 @@ async def test_get_depot_cache(test_client):  # pylint: disable=redefined-outer-
 	products = [
 		{"id": "test_product1", "name": "Test Product 1", "productVersion": "1.0", "packageVersion": "1", "priority": 95},
 		{"id": "test_product2", "name": "Test Product 2", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
-		{"id": "test_product3", "name": "Test Product 3", "productVersion": "1.0", "packageVersion": "1", "priority": 90}
+		{"id": "test_product3", "name": "Test Product 3", "productVersion": "1.0", "packageVersion": "1", "priority": 90},
 	]
 	with (
 		get_config({"jsonrpc_time_to_cache": 0}),

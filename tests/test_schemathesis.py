@@ -13,9 +13,7 @@ import schemathesis
 import pytest
 import pytest_asyncio.plugin
 
-from .utils import (  # pylint: disable=unused-import
-	config, sync_clean_redis, ADMIN_USER, ADMIN_PASS
-)
+from .utils import config, sync_clean_redis, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
 
 
 # Workaround for error:
@@ -29,11 +27,7 @@ pytest_asyncio.plugin._hypothesis_test_wraps_coroutine = _hypothesis_test_wraps_
 
 @pytest.fixture
 def get_schemathesis(config):  # pylint: disable=redefined-outer-name
-	return schemathesis.from_uri(
-		f"{config.external_url}/openapi.json",
-		auth=(ADMIN_USER, ADMIN_PASS),
-		verify=False
-	)
+	return schemathesis.from_uri(f"{config.external_url}/openapi.json", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 
 
 schema = schemathesis.from_pytest_fixture("get_schemathesis")

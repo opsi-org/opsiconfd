@@ -56,13 +56,10 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 		"backendConfigDir": _config.backend_config_dir,
 		"dispatchConfigFile": _config.dispatch_config_file,
 		"extensionConfigDir": _config.extension_config_dir,
-		"extend": True
+		"extend": True,
 	}
 
-	with (
-		patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None),
-		patch("opsiconfd.ssl.install_ca", lambda x: None)
-	):
+	with (patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None)):
 		setup_ssl()
 	application_setup()
 
@@ -80,7 +77,7 @@ def pytest_configure(config):
 	config.option.asyncio_mode = "auto"
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def event_loop():
 	"""Create an instance of the default event loop for each test case."""
 	loop = asyncio.get_event_loop_policy().new_event_loop()

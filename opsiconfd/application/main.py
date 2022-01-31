@@ -56,20 +56,20 @@ app = FastAPI(
 	title="opsiconfd",
 	description="",
 	version=f"{__version__} [python-opsi={python_opsi_version}]",
-	responses={
-		422: {'model': RestApiValidationError, 'description': 'Validation Error'}
-	}
+	responses={422: {"model": RestApiValidationError, "description": "Validation Error"}},
 )
 app.is_shutting_down = False
 
 
 @app.websocket_route("/ws/log_viewer")
 class LoggerWebsocket(WebSocketEndpoint):
-	encoding = 'bytes'
+	encoding = "bytes"
 
-	async def _reader(self, start_id='$', client=None):
+	async def _reader(self, start_id="$", client=None):
 		stream_name = f"opsiconfd:log:{config.node_name}"
-		logger.info("Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client)
+		logger.info(
+			"Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client
+		)
 		last_id = start_id
 
 		def read_data(data):
@@ -77,7 +77,7 @@ class LoggerWebsocket(WebSocketEndpoint):
 			for stream in data:
 				for dat in stream[1]:
 					last_id = dat[0]
-					if client and client != dat[1].get("client", b'').decode("utf-8"):
+					if client and client != dat[1].get("client", b"").decode("utf-8"):
 						continue
 					buf += dat[1][b"record"]
 			return (last_id, buf)
@@ -104,7 +104,7 @@ class LoggerWebsocket(WebSocketEndpoint):
 			return
 
 		self._websocket = websocket  # pylint: disable=attribute-defined-outside-init
-		params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
+		params = urllib.parse.parse_qs(websocket.get("query_string", b"").decode("utf-8"))
 		client = params.get("client", [None])[0]
 		start_id = int(params.get("start_time", [0])[0]) * 1000  # Seconds to millis
 		if start_id <= 0:
@@ -118,7 +118,7 @@ class LoggerWebsocket(WebSocketEndpoint):
 
 @app.websocket_route("/test/ws")
 class TestWebsocket(WebSocketEndpoint):
-	encoding = 'bytes'
+	encoding = "bytes"
 
 	async def on_connect(self, websocket: WebSocket):
 		session = contextvar_client_session.get()
@@ -175,10 +175,7 @@ async def startup_event():
 def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument
 	return Response(
 		content=get_ca_cert_as_pem(),
-		headers={
-			"Content-Type": "application/x-pem-file",
-			"Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'
-		}
+		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'},
 	)
 
 
@@ -188,7 +185,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 
 	@staticmethod
 	def get_client_address(scope: Scope):
-		""" Get sanitized client address"""
+		"""Get sanitized client address"""
 		host, port = scope.get("client", (None, 0))
 		if host:
 			host = normalize_ip_address(host)
@@ -229,10 +226,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 				x_forwarded_for = headers[b"x-forwarded-for"].decode("ascii")
 				client_host = x_forwarded_for.split(",")[-1].strip()
 				client_port = 0
-				logger.debug(
-					"Accepting x-forwarded-for header (host=%s) from trusted proxy %s",
-					client_host, proxy_host
-				)
+				logger.debug("Accepting x-forwarded-for header (host=%s) from trusted proxy %s", client_host, proxy_host)
 
 		scope["client"] = (client_host, client_port)
 		contextvar_client_address.set(client_host)
@@ -254,7 +248,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 				headers.append("Access-Control-Allow-Methods", "*")
 				headers.append(
 					"Access-Control-Allow-Headers",
-					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime"
+					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime",
 				)
 				headers.append("Access-Control-Allow-Credentials", "true")
 
@@ -267,11 +261,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 @app.exception_handler(RequestValidationError)
 @rest_api
 def validation_exception_handler(request, exc):
-	raise OpsiApiException(
-		message=f"Validation error: {exc}",
-		http_status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-		error=exc
-	)
+	raise OpsiApiException(message=f"Validation error: {exc}", http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, error=exc)
 
 
 def application_setup():
@@ -293,9 +283,7 @@ def application_setup():
 	#    ExceptionMiddleware
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-	app.add_middleware(SessionMiddleware, public_path=[
-		"/metrics/grafana", "/ws/test", "/ssl/opsi-ca-cert.pem", "/status", "/public"
-	])
+	app.add_middleware(SessionMiddleware, public_path=["/metrics/grafana", "/ws/test", "/ssl/opsi-ca-cert.pem", "/status", "/public"])
 	# app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	app.add_middleware(BaseMiddleware)

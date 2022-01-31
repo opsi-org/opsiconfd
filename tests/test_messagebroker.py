@@ -8,10 +8,7 @@
 messagebroker tests
 """
 
-from .utils import (  # pylint: disable=unused-import
-	clean_redis, depot_jsonrpc,
-	test_client, ADMIN_USER, ADMIN_PASS
-)
+from .utils import clean_redis, depot_jsonrpc, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
 
 
 def test_connect_websocket(test_client):  # pylint: disable=redefined-outer-name

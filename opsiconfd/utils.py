@@ -63,19 +63,15 @@ def utc_time_timestamp():
 def running_in_docker():
 	with codecs.open("/proc/self/cgroup", "r", "utf-8") as file:
 		for line in file.readlines():
-			if line.split(':')[2].startswith("/docker/"):
+			if line.split(":")[2].startswith("/docker/"):
 				return True
 	return False
 
 
 def is_manager(proc) -> bool:
 	manager = False
-	if (
-		proc.name() == "opsiconfd" or
-		(proc.name() in ("python", "python3") and (
-			"opsiconfd" in proc.cmdline() or
-			"opsiconfd.__main__" in " ".join(proc.cmdline())
-		))
+	if proc.name() == "opsiconfd" or (
+		proc.name() in ("python", "python3") and ("opsiconfd" in proc.cmdline() or "opsiconfd.__main__" in " ".join(proc.cmdline()))
 	):
 		manager = True
 		for arg in proc.cmdline():
@@ -157,21 +153,16 @@ def get_ip_addresses():
 
 			ip_address = None
 			try:
-				ip_address = ipaddress.ip_address(snic.address.split('%')[0])
+				ip_address = ipaddress.ip_address(snic.address.split("%")[0])
 			except ValueError:
 				logger.warning("Unrecognised ip address: %r", snic.address)
 
-			yield {
-				"family": family,
-				"interface": interface,
-				"address": snic.address,
-				"ip_address": ip_address
-			}
+			yield {"family": family, "interface": interface, "address": snic.address, "ip_address": ip_address}
 
 
 def get_random_string(length):
 	letters = string.ascii_letters
-	result_str = ''.join(random.choice(letters) for i in range(length))
+	result_str = "".join(random.choice(letters) for i in range(length))
 	return result_str
 
 
@@ -182,10 +173,13 @@ def retry_redis_call(func):
 			try:
 				return func(*args, **kwargs)
 			except (
-				aioredis.BusyLoadingError, redis.exceptions.BusyLoadingError,
-				aioredis.ConnectionError, redis.exceptions.ConnectionError
+				aioredis.BusyLoadingError,
+				redis.exceptions.BusyLoadingError,
+				aioredis.ConnectionError,
+				redis.exceptions.ConnectionError,
 			):
 				time.sleep(1)
+
 	return wrapper_retry
 
 
@@ -288,27 +282,11 @@ async def async_get_redis_info(client: aioredis.StrictRedis):  # pylint: disable
 
 	redis_info = decode_redis_result(await client.execute_command("INFO"))
 	redis_info["key_info"] = {
-		"stats": {
-			"count": len(stats_keys),
-			"memory": stats_memory
-		},
-		"sessions": {
-			"count": len(sessions_keys),
-			"memory": sessions_memory
-		},
-		"logs": {
-			"count": len(log_keys),
-			"memory": logs_memory,
-			"records": log_records
-		},
-		"rpc": {
-			"count": len(rpc_keys),
-			"memory": rpc_memory
-		},
-		"misc": {
-			"count": len(misc_keys),
-			"memory": misc_memory
-		}
+		"stats": {"count": len(stats_keys), "memory": stats_memory},
+		"sessions": {"count": len(sessions_keys), "memory": sessions_memory},
+		"logs": {"count": len(log_keys), "memory": logs_memory, "records": log_records},
+		"rpc": {"count": len(rpc_keys), "memory": rpc_memory},
+		"misc": {"count": len(misc_keys), "memory": misc_memory},
 	}
 	return redis_info
 

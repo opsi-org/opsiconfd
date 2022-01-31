@@ -434,9 +434,10 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 
 	def emit(self, record):
 		try:
-			str_record = msgpack.packb(self.log_record_to_dict(record))
-			entry = dict(record.context or {})
-			entry["record"] = str_record
+			entry = {}
+			if hasattr(record, "context"):
+				entry = dict(record.context)
+			entry["record"] = msgpack.packb(self.log_record_to_dict(record))
 			self._queue.put(entry)
 		except (KeyboardInterrupt, SystemExit):  # pylint: disable=try-except-raise
 			raise

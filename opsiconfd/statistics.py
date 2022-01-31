@@ -513,7 +513,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 			await asyncio.sleep(self._interval)
 
 	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels):  # pylint: disable=no-self-use
-		timestamp_str: str = str(timestamp) or "*"
+		timestamp_str: str = str(timestamp or "*")
 		l_labels = [list(pair) for pair in labels.items()]
 
 		# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6

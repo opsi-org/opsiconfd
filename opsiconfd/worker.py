@@ -16,11 +16,12 @@ import threading
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
+from . import ssl
 from .logging import logger, init_logging
 from .config import config
 from .utils import async_redis_client, get_manager_pid
-from . import ssl
 from .addon import AddonManager
+from .application import app
 
 
 _metrics_collector = None  # pylint: disable=invalid-name
@@ -68,8 +69,6 @@ def signal_handler(signum, frame):  # pylint: disable=unused-argument
 		memory_cleanup()
 		AddonManager().reload_addons()
 	else:
-		from .application import app  # pylint: disable=import-outside-toplevel
-
 		app.is_shutting_down = True
 
 

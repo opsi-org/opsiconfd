@@ -18,6 +18,7 @@ from typing import Dict, List, Optional
 from ..config import config
 from ..logging import logger
 from ..utils import Singleton
+from ..application import app
 
 from .addon import Addon
 
@@ -50,8 +51,6 @@ class AddonManager(metaclass=Singleton):
 		return list(self._addons.values())
 
 	def load_addon(self, addon_path: str) -> None:
-		from ..application import app  # pylint: disable=import-outside-toplevel
-
 		logger.info("Loading addon from '%s'", addon_path)
 		module_name = self.module_name(addon_path)
 		if module_name in sys.modules:

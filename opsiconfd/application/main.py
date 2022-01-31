@@ -163,19 +163,6 @@ async def favicon(request: Request, response: Response):  # pylint: disable=unus
 	return RedirectResponse("/static/favicon.ico", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 
-@app.on_event("startup")
-async def startup_event():
-	try:
-		init_worker()
-		application_setup()
-	except Exception as error:
-		logger.critical("Error during worker startup: %s", error, exc_info=True)
-		# Wait a second before raising error (which will terminate the worker process)
-		# to give the logger time to send log messages to redis
-		await asyncio.sleep(1)
-		raise error
-
-
 @app.get("/ssl/opsi-ca-cert.pem")
 def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument
 	return Response(
@@ -323,3 +310,15 @@ def application_setup():
 			routes[route.path] = route.__class__.__name__
 	for path in sorted(routes):
 		logger.debug("%s: %s", path, routes[path])
+
+
+async def startup():
+	try:
+		init_worker()
+		application_setup()
+	except Exception as error:
+		logger.critical("Error during worker startup: %s", error, exc_info=True)
+		# Wait a second before raising error (which will terminate the worker process)
+		# to give the logger time to send log messages to redis
+		await asyncio.sleep(1)
+		raise error

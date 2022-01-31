@@ -28,3 +28,10 @@ class OpsiconfdApp(FastAPI):
 
 
 app = OpsiconfdApp()
+
+
+@app.on_event("startup")
+async def startup_event():
+	from .main import startup  # pylint: disable=import-outside-toplevel
+
+	await startup()

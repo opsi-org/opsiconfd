@@ -20,6 +20,7 @@ from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_
 import certifi
 import psutil
 from dns import resolver, reversename
+from dns.exception import DNSException
 import configargparse
 
 from fastapi.templating import Jinja2Templates
@@ -52,7 +53,7 @@ if running_in_docker():
 		ip = socket.gethostbyname(socket.getfqdn())  # pylint: disable=invalid-name
 		rev = reversename.from_address(ip)
 		DEFAULT_NODE_NAME = str(resolver.resolve(str(rev), "PTR")[0]).split('.', 1)[0].replace("docker_", "")
-	except resolver.NXDOMAIN:
+	except DNSException:
 		pass
 
 

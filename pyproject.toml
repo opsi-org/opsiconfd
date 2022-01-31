@@ -64,9 +64,15 @@ mypy = "^0.931"
 types-redis = "^4.1.10"
 types-certifi = "^2021.10.8"
 types-requests = "^2.27.7"
+tan = "^21.14"
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"
+
+[tool.black]
+line-length = 140
+target-version = ['py310']
+use-tabs = true
 
 [build-system]
 requires = ["poetry>=0.12"]

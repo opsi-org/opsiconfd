@@ -13,8 +13,15 @@
 	"settings": {
 		"terminal.integrated.shell.linux": "/bin/bash",
 		"python.pythonPath": ".venv/bin/python",
+		"editor.formatOnSave": true,
+		"editor.formatOnType": true,
+		"python.formatting.provider": "black",
+		"python.formatting.blackPath": ".venv/bin/tan",
 		"python.terminal.activateEnvironment": false,
-		"python.testing.pytestArgs": ["-vv", "tests"],
+		"python.testing.pytestArgs": [
+			"-vv",
+			"tests"
+		],
 		"python.testing.unittestEnabled": false,
 		"python.testing.nosetestsEnabled": false,
 		"python.testing.pytestEnabled": true,
@@ -32,6 +39,9 @@
 		"ms-python.vscode-pylance",
 		"ryanluker.vscode-coverage-gutters"
 	],
-	"forwardPorts": [4447, 3000],
+	"forwardPorts": [
+		4447,
+		3000
+	],
 	"remoteUser": "${localEnv:USER}"
 }

@@ -129,7 +129,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 					elif not getattr(worker, "marked_as_vanished", False):
 						# Worker crashed / killed
 						if self.startup:
-							logger.critical("Failed to start worker %d (pid %d)", worker.worker_num, worker.rocess.pid)
+							logger.critical("Failed to start worker %d (pid %d)", worker.worker_num, worker.pid)
 							self.stop(force=True)
 							break
 

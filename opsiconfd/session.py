@@ -295,7 +295,7 @@ class SessionMiddleware:
 		if scope.get("session"):
 			headers.update(scope["session"].get_headers())
 
-		response: Response
+		response: Optional[Response] = None
 		if scope["path"].startswith("/rpc"):
 			logger.debug("Returning jsonrpc response because path startswith /rpc")
 			content = {"id": None, "result": None, "error": error}

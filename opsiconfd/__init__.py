@@ -10,14 +10,16 @@ The opsi configuration service.
 
 __version__ = "4.2.0.230"
 
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
 
 from contextvars import Context, ContextVar
 
-from .session import OPSISession
+if TYPE_CHECKING:
+	# Prevent circular import error
+	from .session import OPSISession
 
 contextvar_request_id: ContextVar[Optional[int]] = ContextVar("request_id", default=None)
-contextvar_client_session: ContextVar[Optional[OPSISession]] = ContextVar("client_session", default=None)
+contextvar_client_session: ContextVar[Optional["OPSISession"]] = ContextVar("client_session", default=None)
 contextvar_client_address: ContextVar[Optional[str]] = ContextVar("client_address", default=None)
 contextvar_server_timing: ContextVar[Dict[str, int]] = ContextVar("server_timing", default={})
 

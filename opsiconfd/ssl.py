@@ -249,18 +249,20 @@ def configserver_setup_ca() -> bool:
 
 	if create or renew:
 		domain = get_domain()
+		cur_ca_key = None
 		if renew:
 			logger.notice("Renewing opsi CA")
-			ca_key = load_ca_key()
+			cur_ca_key = load_ca_key()
 		else:
 			logger.notice("Creating opsi CA")
 
 		(ca_crt, ca_key) = create_ca(
 			subject={"CN": config.ssl_ca_subject_cn, "OU": f"opsi@{domain}", "emailAddress": f"opsi@{domain}"},
 			valid_days=config.ssl_ca_cert_valid_days,
-			key=ca_key,
+			key=cur_ca_key,
 		)
-		store_ca_key(ca_key)
+		if not cur_ca_key:
+			store_ca_key(ca_key)
 		store_ca_cert(ca_crt)
 		install_ca(ca_crt)
 		return True

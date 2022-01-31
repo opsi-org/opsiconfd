@@ -27,7 +27,7 @@ from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 
 from . import __version__
-from .logging import logger, init_logging, secret_filter, AsyncRedisLogAdapter
+from .logging import logger, init_logging, shutdown_logging, secret_filter, AsyncRedisLogAdapter
 from .config import config
 from .setup import setup
 from .patch import apply_patches
@@ -149,10 +149,10 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 
 		manager = Manager()
 		manager.run()
+		shutdown_logging()
 
 	finally:
-		time.sleep(1)
 		for thread in threading.enumerate():
 			if hasattr(thread, "stop"):
 				thread.stop()
-				thread.join()
+				thread.join(1)

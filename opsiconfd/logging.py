@@ -52,6 +52,9 @@ from .config import config
 # 1 log record ~= 550 bytes
 LOG_STREAM_MAX_RECORDS = 50000
 
+redis_log_handler = None  # pylint: disable=invalid-name
+redis_log_adapter_thread = None  # pylint: disable=invalid-name
+
 # Set default log level to ERROR early
 logger.setLevel(pylogging.ERROR)
 
@@ -186,6 +189,8 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 
 	async def stop(self):
 		self._should_stop = True
+		await asyncio.sleep(0.5)
+		self._loop.stop()
 
 	def reload(self):
 		self._read_config()
@@ -322,7 +327,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 			self._running_event.set()
 
 		last_id = "$"
-		while True:  # pylint: disable=too-many-nested-blocks
+		while not self._should_stop:  # pylint: disable=too-many-nested-blocks
 			try:
 				if not self._redis:
 					self._redis = await get_async_redis_connection(config.redis_internal_url)
@@ -459,9 +464,6 @@ def enable_slow_callback_logging(slow_callback_duration=None):
 	asyncio.events.Handle._run = _run  # pylint: disable=protected-access
 
 
-redis_log_handler = None  # pylint: disable=invalid-name
-
-
 def init_logging(log_mode: str = "redis", is_worker: bool = False):  # pylint: disable=too-many-branches
 	redis_error = None
 	try:
@@ -519,6 +521,12 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):  # pylint: d
 		handle_log_exception(exc, stderr=True, temp_file=True)
 
 
+def shutdown_logging():
+	stop_redis_log_adapter_thread()
+	if redis_log_handler:
+		redis_log_handler.stop()
+
+
 class RedisLogAdapterThread(threading.Thread):
 	def __init__(self, running_event=None):
 		threading.Thread.__init__(self)
@@ -555,9 +563,6 @@ class RedisLogAdapterThread(threading.Thread):
 			logger.error(exc, exc_info=True)
 
 
-redis_log_adapter_thread = None  # pylint: disable=invalid-name
-
-
 def start_redis_log_adapter_thread():
 	global redis_log_adapter_thread  # pylint: disable=global-statement, invalid-name
 	if redis_log_adapter_thread:
@@ -571,7 +576,6 @@ def start_redis_log_adapter_thread():
 
 
 def stop_redis_log_adapter_thread():
-	global redis_log_adapter_thread  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not redis_log_adapter_thread:
 		return
 	redis_log_adapter_thread.stop()

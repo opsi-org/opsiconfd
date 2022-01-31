@@ -73,10 +73,7 @@ async def register_opsi_services():  # pylint: disable=too-many-branches
 	except socket.error as err:
 		logger.warning("Failed to get ipv4 address for '%s': %s", FQDN, err)
 		for addr in get_ip_addresses():
-			if (
-				addr["family"] == "ipv4" and
-				not addr["ip_address"].is_loopback
-			):
+			if addr["family"] == "ipv4" and not addr["ip_address"].is_loopback:
 				address = str(addr["ip_address"])
 				break
 
@@ -85,11 +82,7 @@ async def register_opsi_services():  # pylint: disable=too-many-branches
 	except socket.error as err:
 		logger.debug("Failed to get ipv6 address for '%s': %s", FQDN, err)
 		for addr in get_ip_addresses():
-			if (
-				addr["family"] == "ipv6" and
-				not addr["ip_address"].is_loopback and
-				not addr["ip_address"].is_link_local
-			):
+			if addr["family"] == "ipv6" and not addr["ip_address"].is_loopback and not addr["ip_address"].is_link_local:
 				address6 = str(addr["ip_address"])
 				break
 
@@ -103,8 +96,8 @@ async def register_opsi_services():  # pylint: disable=too-many-branches
 		port=config.port,
 		weight=0,
 		priority=0,
-		properties={'version': __version__},
-		server=FQDN + "."
+		properties={"version": __version__},
+		server=FQDN + ".",
 	)
 	await _zeroconf.register_service(_info)
 

@@ -83,11 +83,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		signal.signal(signal.SIGTERM, self.signal_handler)  # Unix signal 15. Sent by `kill <pid>`. Terminate service.
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 		try:
-			threading.Thread(
-				name="ManagerAsyncLoop",
-				daemon=True,
-				target=self.run_loop
-			).start()
+			threading.Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop).start()
 
 			self._server = Server()
 			self._server.run()
@@ -97,12 +93,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 
 	def run_loop(self):
 		self._loop = asyncio.new_event_loop()
-		self._loop.set_default_executor(
-			ThreadPoolExecutor(
-				max_workers=10,
-				thread_name_prefix="manager-ThreadPoolExecutor"
-			)
-		)
+		self._loop.set_default_executor(ThreadPoolExecutor(max_workers=10, thread_name_prefix="manager-ThreadPoolExecutor"))
 		self._loop.set_debug(config.debug)
 		asyncio.set_event_loop(self._loop)
 		self._loop.create_task(self.async_main())
@@ -120,16 +111,14 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		redis_info = await async_get_redis_info(await async_redis_client())
 		for key_type in redis_info["key_info"]:
 			if redis_info["key_info"][key_type]["memory"] > 100_1000_1000:
-				logger.warning(
-					"High redis memory usage for '%s': %s",
-					key_type, redis_info["key_info"][key_type]
-				)
+				logger.warning("High redis memory usage for '%s': %s", key_type, redis_info["key_info"][key_type])
 		self._redis_check_time = time.time()
 
 	async def async_main(self):
 		self._async_main_running = True
 		# Create and start MetricsCollector
 		from .statistics import ManagerMetricsCollector  # pylint: disable=import-outside-toplevel
+
 		metrics_collector = ManagerMetricsCollector()
 		self._loop.create_task(metrics_collector.main_loop())
 

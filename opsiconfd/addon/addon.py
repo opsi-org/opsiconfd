@@ -36,12 +36,16 @@ class Addon:
 		"""Called before unloading the addon"""
 		return
 
-	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
+	async def handle_request(  # pylint: disable=no-self-use
+		self, connection: HTTPConnection, receive: Receive, send: Send  # pylint: disable=unused-argument
+	) -> bool:
 		"""Called on every request where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 		return False
 
-	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=no-self-use,unused-argument
+	async def handle_request_exception(  # pylint: disable=no-self-use
+		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send  # pylint: disable=unused-argument
+	) -> bool:
 		"""Called on every request exception where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 		return False

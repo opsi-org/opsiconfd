@@ -26,17 +26,17 @@ from .logging import logger
 
 
 BackendManager.default_config = {
-	'dispatchConfigFile': config.dispatch_config_file,
-	'backendConfigDir': config.backend_config_dir,
-	'extensionConfigDir': config.extension_config_dir,
-	'aclFile': None,  # No access control by default
-	'hostControlBackend': True,
-	'hostControlSafeBackend': True,
-	'depotBackend': False,
+	"dispatchConfigFile": config.dispatch_config_file,
+	"backendConfigDir": config.backend_config_dir,
+	"extensionConfigDir": config.extension_config_dir,
+	"aclFile": None,  # No access control by default
+	"hostControlBackend": True,
+	"hostControlSafeBackend": True,
+	"depotBackend": False,
 	# every worker needs a database connection for full performance
-	'connectionPoolSize': config.executor_workers,
-	'max_log_size': round(config.max_log_size * 1000 * 1000),
-	'keep_rotated_logs': config.keep_rotated_logs
+	"connectionPoolSize": config.executor_workers,
+	"max_log_size": round(config.max_log_size * 1000 * 1000),
+	"keep_rotated_logs": config.keep_rotated_logs,
 }
 
 get_session_from_context = None  # pylint: disable=invalid-name
@@ -66,10 +66,7 @@ def get_client_backend():
 	with client_backend_manager_lock:
 		if not client_backend_manager:
 			client_backend_manager = BackendManager(
-				user_store=get_user_store,
-				option_store=get_option_store,
-				aclFile=config.acl_file,
-				depotBackend=True
+				user_store=get_user_store, option_store=get_option_store, aclFile=config.acl_file, depotBackend=True
 			)
 			client_backend_manager.usage_count = 0
 		client_backend_manager.usage_count += 1
@@ -84,9 +81,7 @@ def get_backend():
 	global backend_manager  # pylint: disable=invalid-name, global-statement
 	with backend_manager_lock:
 		if not backend_manager:
-			backend_manager = BackendManager(
-				depotBackend=True
-			)
+			backend_manager = BackendManager(depotBackend=True)
 	return backend_manager
 
 
@@ -94,6 +89,7 @@ async def async_backend_call(method, **kwargs):
 	def _backend_call(method, kwargs):
 		meth = getattr(get_backend(), method)
 		return meth(**kwargs)
+
 	return await run_in_threadpool(_backend_call, method, kwargs)
 
 
@@ -151,7 +147,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 	def __init__(self):
 		self._interface = describeInterface(self)
 		self._backend = get_client_backend()
-		self.method_names = [meth['name'] for meth in self._interface]
+		self.method_names = [meth["name"] for meth in self._interface]
 
 	def backend_exit(self) -> None:  # pylint: disable=no-self-use
 		session = contextvar_client_session.get()
@@ -173,6 +169,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 
 	def getOpsiCACert(self):  # pylint: disable=invalid-name,no-self-use
 		from .ssl import get_ca_cert_as_pem  # pylint: disable=import-outside-toplevel
+
 		return get_ca_cert_as_pem()
 
 	def host_getTLSCertificate(self, hostId: str) -> str:  # pylint: disable=invalid-name,too-many-locals
@@ -196,7 +193,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 				logger.error("Invalid host ip address '%s': %s", host.ipAddress, err)
 
 		if host.getType() == "OpsiDepotserver":
-			for url_type in ('depotRemoteUrl', 'depotWebdavUrl', 'repositoryRemoteUrl', 'workbenchRemoteUrl'):
+			for url_type in ("depotRemoteUrl", "depotWebdavUrl", "repositoryRemoteUrl", "workbenchRemoteUrl"):
 				if getattr(host, url_type):
 					address = urlparse(getattr(host, url_type)).hostname
 					if address:
@@ -210,24 +207,15 @@ class OpsiconfdBackend(metaclass=Singleton):
 			except socket.error as err:
 				logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
 
-		from .ssl import (  # pylint: disable=import-outside-toplevel
-			create_server_cert, as_pem, load_ca_key, load_ca_cert, get_domain
-		)
+		from .ssl import create_server_cert, as_pem, load_ca_key, load_ca_cert, get_domain  # pylint: disable=import-outside-toplevel
+
 		domain = get_domain()
 		cert, key = create_server_cert(
-			subject={
-				"CN": common_name,
-				"OU": f"opsi@{domain}",
-				"emailAddress": f"opsi@{domain}"
-			},
-			valid_days=(
-				config.ssl_client_cert_valid_days
-				if host.getType() == "OpsiClient"
-				else config.ssl_server_cert_valid_days
-			),
+			subject={"CN": common_name, "OU": f"opsi@{domain}", "emailAddress": f"opsi@{domain}"},
+			valid_days=(config.ssl_client_cert_valid_days if host.getType() == "OpsiClient" else config.ssl_server_cert_valid_days),
 			ip_addresses=ip_addresses,
 			hostnames=hostnames,
 			ca_key=load_ca_key(),
-			ca_cert=load_ca_cert()
+			ca_cert=load_ca_cert(),
 		)
 		return as_pem(key) + as_pem(cert)

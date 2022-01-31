@@ -45,25 +45,25 @@ GRAFANA_DATASOURCE_TEMPLATE = {
 	"database": "",
 	"basicAuth": True,
 	"isDefault": False,
-	"jsonData": {
-		"tlsSkipVerify": True
-	},
-	"readOnly": False
+	"jsonData": {"tlsSkipVerify": True},
+	"readOnly": False,
 }
 
 GRAFANA_DASHBOARD_TEMPLATE: Dict[str, Any] = {
 	"id": None,
 	"uid": "opsiconfd_main",
 	"annotations": {
-		"list": [{
-			"builtIn": 1,
-			"datasource": "-- Grafana --",
-			"enable": True,
-			"hide": True,
-			"iconColor": "rgba(0, 211, 255, 1)",
-			"name": "Annotations & Alerts",
-			"type": "dashboard"
-		}]
+		"list": [
+			{
+				"builtIn": 1,
+				"datasource": "-- Grafana --",
+				"enable": True,
+				"hide": True,
+				"iconColor": "rgba(0, 211, 255, 1)",
+				"name": "Annotations & Alerts",
+				"type": "dashboard",
+			}
+		]
 	},
 	"timezone": "browser",  # "utc", "browser" or "" (default)
 	"title": "opsiconfd main dashboard",
@@ -77,31 +77,10 @@ GRAFANA_DASHBOARD_TEMPLATE: Dict[str, Any] = {
 	"version": 12,
 	"style": "dark",
 	"tags": [],
-	"templating": {
-		"list": []
-	},
-	"time": {
-		"from": "now-5m",
-		"to": "now"
-	},
-	"timepicker": {
-		"refresh_intervals": [
-			"1s",
-			"5s",
-			"10s",
-			"30s",
-			"1m",
-			"5m",
-			"15m",
-			"30m",
-			"1h",
-			"2h",
-			"1d"
-		]
-	},
-	"variables": {
-		"list": []
-	}
+	"templating": {"list": []},
+	"time": {"from": "now-5m", "to": "now"},
+	"timepicker": {"refresh_intervals": ["1s", "5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]},
+	"variables": {"list": []},
 }
 
 GRAFANA_GRAPH_PANEL_TEMPLATE = {
@@ -114,12 +93,7 @@ GRAFANA_GRAPH_PANEL_TEMPLATE = {
 	"description": "",
 	"fill": 1,
 	"fillGradient": 0,
-	"gridPos": {
-		"h": 12,
-		"w": 8,
-		"x": 0,
-		"y": 0
-	},
+	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
 	"hiddenSeries": False,
 	"id": None,
 	"legend": {
@@ -132,14 +106,12 @@ GRAFANA_GRAPH_PANEL_TEMPLATE = {
 		"min": True,
 		"show": True,
 		"total": False,
-		"values": True
+		"values": True,
 	},
 	"lines": True,
 	"linewidth": 1,
 	"nullPointMode": "null",
-	"options": {
-		"dataLinks": []
-	},
+	"options": {"dataLinks": []},
 	"percentage": False,
 	"pointradius": 2,
 	"points": False,
@@ -154,52 +126,20 @@ GRAFANA_GRAPH_PANEL_TEMPLATE = {
 	"timeRegions": [],
 	"timeShift": None,
 	"title": "",
-	"tooltip": {
-		"shared": True,
-		"sort": 0,
-		"value_type": "individual"
-	},
+	"tooltip": {"shared": True, "sort": 0, "value_type": "individual"},
 	"type": "graph",
-	"xaxis": {
-		"buckets": None,
-		"mode": "time",
-		"name": None,
-		"show": True,
-		"values": []
-	},
+	"xaxis": {"buckets": None, "mode": "time", "name": None, "show": True, "values": []},
 	"yaxes": [
-		{
-			"format": "short",
-			"label": None,
-			"logBase": 1,
-			"max": None,
-			"min": None,
-			"show": True
-		},
-		{
-			"format": "short",
-			"label": None,
-			"logBase": 1,
-			"max": None,
-			"min": None,
-			"show": True
-		}
+		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
+		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
 	],
-	"yaxis": {
-		"align": False,
-		"alignLevel": None
-	}
+	"yaxis": {"align": False, "alignLevel": None},
 }
 
 GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 	"datasource": "opsiconfd",
 	"description": "",
-	"gridPos": {
-		"h": 12,
-		"w": 8,
-		"x": 0,
-		"y": 0
-	},
+	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
 	"id": None,
 	"targets": [],
 	"timeFrom": None,
@@ -207,52 +147,36 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 	"title": "Duration of remote procedure calls",
 	"type": "heatmap",
 	"heatmap": {},
-	"cards": {
-		"cardPadding": None,
-		"cardRound": None
-	},
+	"cards": {"cardPadding": None, "cardRound": None},
 	"color": {
 		"mode": "opacity",
 		"cardColor": "#73BF69",
 		"colorScale": "sqrt",
 		"exponent": 0.5,
 		# "colorScheme": "interpolateSpectral",
-		"min": None
+		"min": None,
 	},
-	"legend": {
-		"show": False
-	},
+	"legend": {"show": False},
 	"dataFormat": "timeseries",
 	"yBucketBound": "auto",
 	"reverseYBuckets": False,
-	"xAxis": {
-		"show": True
-	},
-	"yAxis": {
-		"show": True,
-		"format": "s",
-		"decimals": 2,
-		"logBase": 2,
-		"splitFactor": None,
-		"min": "0",
-		"max": None
-	},
+	"xAxis": {"show": True},
+	"yAxis": {"show": True, "format": "s", "decimals": 2, "logBase": 2, "splitFactor": None, "min": "0", "max": None},
 	"xBucketSize": None,
 	"xBucketNumber": None,
 	"yBucketSize": None,
 	"yBucketNumber": None,
-	"tooltip": {
-		"show": False,
-		"showHistogram": False
-	},
+	"tooltip": {"show": False, "showHistogram": False},
 	"highlightCards": True,
 	"hideZeroBuckets": False,
-	"tooltipDecimals": 0
+	"tooltipDecimals": 0,
 }
 
 
 class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
-	def __init__(self, type="graph", title="", units=None, decimals=0, stack=False, yaxis_min="auto"):  # pylint: disable=too-many-arguments, redefined-builtin
+	def __init__(
+		self, type="graph", title="", units=None, decimals=0, stack=False, yaxis_min="auto"
+	):  # pylint: disable=too-many-arguments, redefined-builtin
 		self.type = type
 		self.title = title
 		self.units = units or ["short", "short"]
@@ -319,10 +243,7 @@ def setup_grafana():
 	if plugin_action:
 		try:
 			logger.notice("Setup grafana plugin %s (%s)", plugin_id, plugin_action)
-			for cmd in (
-				["grafana-cli", "plugins", plugin_action, plugin_id],
-				["service", "grafana-server", "restart"]
-			):
+			for cmd in (["grafana-cli", "plugins", plugin_action, plugin_id], ["service", "grafana-server", "restart"]):
 				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)
 				logger.debug("output of command %s: %s", cmd, out)
 		except subprocess.CalledProcessError as err:
@@ -367,24 +288,17 @@ def create_or_update_api_key_in_grafana_db(db_file: str):
 	cur.execute("SELECT id FROM api_key WHERE org_id = ? AND name = ?", [org_id, API_KEY_NAME])
 	res = cur.fetchone()
 	if res:
-		cur.execute(
-			"UPDATE api_key SET key = ?, role = ?, updated = ? WHERE id = ?",
-			[db_key.hex(), "Admin", now, res[0]]
-		)
+		cur.execute("UPDATE api_key SET key = ?, role = ?, updated = ? WHERE id = ?", [db_key.hex(), "Admin", now, res[0]])
 	else:
 		cur.execute(
 			"INSERT INTO api_key(org_id, name, key, role, created, updated, expires) VALUES (?, ?, ?, ?, ?, ?, ?)",
-			[org_id, API_KEY_NAME, db_key.hex(), "Admin", now, now, None]
+			[org_id, API_KEY_NAME, db_key.hex(), "Admin", now, now, None],
 		)
 
 	conn.commit()
 	conn.close()
 
-	api_key = {
-		"id": org_id,
-		"n": API_KEY_NAME,
-		"k": key
-	}
+	api_key = {"id": org_id, "n": API_KEY_NAME, "k": key}
 	return base64.b64encode(json.dumps(api_key).encode("utf-8")).decode("utf-8")
 
 
@@ -394,9 +308,7 @@ def create_opsiconfd_user(db_file: str):
 	conn = sqlite3.connect(db_file)
 	cur = conn.cursor()
 
-	cur.execute(
-		"SELECT id FROM user WHERE user.login='opsiconfd';"
-	)
+	cur.execute("SELECT id FROM user WHERE user.login='opsiconfd';")
 	user_id = cur.fetchone()
 
 	if not user_id:
@@ -405,15 +317,12 @@ def create_opsiconfd_user(db_file: str):
 		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 		cur.execute(
 			"INSERT INTO user(version, login, password, email, org_id, is_admin, salt, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			[0, "opsiconfd", pw_hash, "opsiconfd@opsi", 1, 1, API_KEY_NAME, now, now]
+			[0, "opsiconfd", pw_hash, "opsiconfd@opsi", 1, 1, API_KEY_NAME, now, now],
 		)
-		cur.execute(
-			"SELECT id FROM user WHERE user.login='opsiconfd';"
-		)
+		cur.execute("SELECT id FROM user WHERE user.login='opsiconfd';")
 		user_id = cur.fetchone()
 		cur.execute(
-			"INSERT INTO org_user(org_id, user_id, role, created, updated) VALUES (?, ?, ?, ?, ?)",
-			[1, user_id[0], "Admin", now, now]
+			"INSERT INTO org_user(org_id, user_id, role, created, updated) VALUES (?, ?, ?, ?, ?)", [1, user_id[0], "Admin", now, now]
 		)
 		conn.commit()
 		conn.close()

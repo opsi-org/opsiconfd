@@ -32,10 +32,7 @@ from OPSI.Util import serialize, deserialize
 from .. import contextvar_client_session
 from ..logging import logger
 from ..config import config
-from ..backend import (
-	get_backend, async_backend_call, get_client_backend,
-	get_backend_interface, OpsiconfdBackend
-)
+from ..backend import get_backend, async_backend_call, get_client_backend, get_backend_interface, OpsiconfdBackend
 from ..worker import get_metrics_collector, get_worker_num
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
 from ..utils import decode_redis_result, async_redis_client
@@ -67,7 +64,7 @@ PRODUCT_METHODS = [
 	"productOnDepot_createObjects",
 	"productOnDepot_insertObject",
 	"productOnDepot_updateObject",
-	"productOnDepot_updateObjects"
+	"productOnDepot_updateObjects",
 ]
 
 jsonrpc_router = APIRouter()
@@ -83,7 +80,11 @@ metrics_registry.register(
 		time_related=True,
 		subject="worker",
 		grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", units=["short"], decimals=0, stack=True, yaxis_min=0),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
 	),
 	Metric(
 		id="worker:avg_jsonrpc_duration",
@@ -95,8 +96,12 @@ metrics_registry.register(
 		subject="worker",
 		server_timing_header_factor=1000,
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", units=["s"], decimals=0),
-		downsampling=[["minute", 24 * 3600 * 1000, "avg"], ["hour", 60 * 24 * 3600 * 1000, "avg"], ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]]
-	)
+		downsampling=[
+			["minute", 24 * 3600 * 1000, "avg"],
+			["hour", 60 * 24 * 3600 * 1000, "avg"],
+			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+		],
+	),
 )
 
 
@@ -138,7 +143,7 @@ async def store_product_ordering(result, depot_id, sort_algorithm=None):
 			for idx, val in enumerate(result.get("sorted")):
 				pipe.zadd(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}", {val: idx})
 			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}", EXPIRE)
-			now = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+			now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 			pipe.set(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate", now)
 			pipe.set(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}:uptodate", now)
 			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate", EXPIRE_UPTODATE)
@@ -147,8 +152,7 @@ async def store_product_ordering(result, depot_id, sort_algorithm=None):
 			await pipe.execute()
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(
-			"Failed to store product ordering cache depot_id=%s, sort_algorithm=%s: %s",
-			depot_id, sort_algorithm, err, exc_info=True
+			"Failed to store product ordering cache depot_id=%s, sort_algorithm=%s: %s", depot_id, sort_algorithm, err, exc_info=True
 		)
 
 
@@ -220,8 +224,11 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 					jsonrpc = await run_in_threadpool(gzip.decompress, jsonrpc)
 				logger.debug(
 					"%s decompression ratio: %d => %d = %0.2f%%, time: %0.2fms",
-					compression, data_len, len(jsonrpc), 100 - 100 * (data_len / len(jsonrpc)),
-					1000 * (time.perf_counter() - decomp_start)
+					compression,
+					data_len,
+					len(jsonrpc),
+					100 - 100 * (data_len / len(jsonrpc)),
+					1000 * (time.perf_counter() - decomp_start),
 				)
 
 			if content_type != "application/msgpack":
@@ -253,14 +260,14 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 		for rpc in jsonrpc:
 			request.scope["jsonrpc20"] = rpc.get("jsonrpc") == "2.0"
 			task = None
-			if rpc.get('method') in PRODUCT_METHODS:
-				await set_jsonrpc_cache_outdated(rpc.get('params'))
-			elif rpc.get('method') in ("deleteDepot", "host_delete"):
-				await remove_depot_from_jsonrpc_cache(rpc.get('params')[0])
-			elif rpc.get('method') == "getProductOrdering":
-				depot = rpc.get('params')[0]
+			if rpc.get("method") in PRODUCT_METHODS:
+				await set_jsonrpc_cache_outdated(rpc.get("params"))
+			elif rpc.get("method") in ("deleteDepot", "host_delete"):
+				await remove_depot_from_jsonrpc_cache(rpc.get("params")[0])
+			elif rpc.get("method") == "getProductOrdering":
+				depot = rpc.get("params")[0]
 				cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
-				algorithm = await get_sort_algorithm(rpc.get('params'))
+				algorithm = await get_sort_algorithm(rpc.get("params"))
 				redis = await async_redis_client()
 				if cache_outdated:
 					get_backend().config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
@@ -281,9 +288,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 		if metrics_collector:
 			asyncio.get_event_loop().create_task(
 				metrics_collector.add_value(
-					"worker:sum_jsonrpc_number",
-					len(jsonrpc),
-					{"node_name": config.node_name, "worker_num": get_worker_num()}
+					"worker:sum_jsonrpc_number", len(jsonrpc), {"node_name": config.node_name, "worker_num": get_worker_num()}
 				)
 			)
 
@@ -292,8 +297,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 			if metrics_collector:
 				asyncio.get_event_loop().create_task(
 					metrics_collector.add_value(
-						"worker:avg_jsonrpc_duration",
-						result[1], {"node_name": config.node_name, "worker_num": get_worker_num()}
+						"worker:avg_jsonrpc_duration", result[1], {"node_name": config.node_name, "worker_num": get_worker_num()}
 					)
 				)
 			redis = await async_redis_client()
@@ -317,16 +321,20 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 				"client": result[2].get("client"),
 				"error": error,
 				"num_results": num_results,
-				"duration": result[1]
+				"duration": result[1],
 			}
 			logger.notice(
 				"JSONRPC request: method=%s, num_params=%d, duration=%0.4f, error=%s, num_results=%d",
-				data["method"], data["num_params"], data["duration"], data["error"], data["num_results"]
+				data["method"],
+				data["num_params"],
+				data["duration"],
+				data["error"],
+				data["num_results"],
 			)
 
 			asyncio.get_event_loop().create_task(store_rpc(data))
 
-			if result[2].get('method') == "getProductOrdering" and result[1] > config.jsonrpc_time_to_cache:
+			if result[2].get("method") == "getProductOrdering" and result[1] > config.jsonrpc_time_to_cache:
 				if result[3] == "rpc" and len(result[0].get("result").get("sorted")) > 0 and 1 <= len(params) <= 2:
 					logger.debug("Storing product ordering in cache")
 					await store_product_ordering(result[0].get("result"), *params)
@@ -346,11 +354,7 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 		except Exception as session_err:  # pylint: disable=broad-except
 			logger.warning(session_err, exc_info=True)
 
-		error = {
-			"message": str(err),
-			"class": err.__class__.__name__,
-			"details": details
-		}
+		error = {"message": str(err), "class": err.__class__.__name__, "details": details}
 		response.status_code = 400
 		result = {"id": None, "result": None, "error": error}
 		if request.scope.get("jsonrpc20"):
@@ -393,42 +397,47 @@ async def process_jsonrpc(request: Request, response: Response):  # pylint: disa
 				data = await run_in_threadpool(zlib.compress, data)
 			logger.debug(
 				"%s compression ratio: %d => %d = %0.2f%%, time: %0.2fms",
-				compression, data_len, len(data), 100 - 100 * (len(data) / data_len),
-				1000 * (time.perf_counter() - comp_start)
+				compression,
+				data_len,
+				len(data),
+				100 - 100 * (len(data) / data_len),
+				1000 * (time.perf_counter() - comp_start),
 			)
 	response.headers["content-length"] = str(len(data))
 	response.body = data
 	return response
 
 
-def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+def process_rpc(
+	request: Request, response: Response, rpc, backend
+):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	rpc_id = None
 	rpc_call_time = None
 	try:
 		start = time.perf_counter()
-		rpc_call_time = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-		user_agent = request.headers.get('user-agent')
-		method_name = rpc.get('method')
-		params = rpc.get('params', [])
-		rpc_id = rpc.get('id')
+		rpc_call_time = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+		user_agent = request.headers.get("user-agent")
+		method_name = rpc.get("method")
+		params = rpc.get("params", [])
+		rpc_id = rpc.get("id")
 		logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, method_name)
 		logger.debug("Method '%s', params (short): %.250s", method_name, params)
 		logger.trace("Method '%s', params (full): %s", method_name, params)
 
 		for method in get_backend_interface():
-			if method_name == method['name']:
+			if method_name == method["name"]:
 				method_description = method
 				break
 		else:
 			raise Exception(f"Method {method_name} not found!")
 
 		keywords = {}
-		if method_description['keywords']:
+		if method_description["keywords"]:
 			parameter_count = 0
-			if method_description['args']:
-				parameter_count += len(method_description['args'])
-			if method_description['varargs']:
-				parameter_count += len(method_description['varargs'])
+			if method_description["args"]:
+				parameter_count += len(method_description["args"])
+			if method_description["varargs"]:
+				parameter_count += len(method_description["varargs"])
 
 			if len(params) >= parameter_count:
 				kwargs = params.pop(-1)
@@ -447,8 +456,7 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 
 		if getattr(method, "deprecated", False):
 			logger.warning(
-				"Client %s (%s) is calling deprecated method '%s'",
-				request.client.host, request.headers.get("user-agent", ""), method_name
+				"Client %s (%s) is calling deprecated method '%s'", request.client.host, request.headers.get("user-agent", ""), method_name
 			)
 
 		result = None
@@ -499,13 +507,10 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 				"method": method_name,
 				"params": params,
 				"filter": keywords,
-				"error": error
+				"error": error,
 			}
 			with tempfile.NamedTemporaryFile(
-				delete=False,
-				dir=directory,
-				prefix=f"{request.client.host}-{now}-",
-				suffix=".log"
+				delete=False, dir=directory, prefix=f"{request.client.host}-{now}-", suffix=".log"
 			) as log_file:
 				logger.notice("Writing rpc error log to: %s", log_file.name)
 				log_file.write(orjson.dumps(msg))  # pylint: disable=no-member
@@ -513,11 +518,11 @@ def process_rpc(request: Request, response: Response, rpc, backend):  # pylint: 
 
 
 async def read_redis_cache(request: Request, response: Response, rpc):  # pylint: disable=too-many-locals
-	now = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+	now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 	try:
 		start = time.perf_counter()
-		depot_id = rpc.get('params')[0]
-		algorithm = await get_sort_algorithm(rpc.get('params'))
+		depot_id = rpc.get("params")[0]
+		algorithm = await get_sort_algorithm(rpc.get("params"))
 		redis = await async_redis_client()
 		async with redis.pipeline() as pipe:
 			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1)
@@ -528,11 +533,7 @@ async def read_redis_cache(request: Request, response: Response, rpc):  # pylint
 		products = pipe_results[0]
 		products_ordered = pipe_results[1]
 		result = {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}
-		response = {
-			"id": rpc.get('id'),
-			"result": result,
-			"error": None
-		}
+		response = {"id": rpc.get("id"), "result": result, "error": None}
 		if request.scope.get("jsonrpc20"):
 			response["jsonrpc"] = "2.0"
 			del response["error"]
@@ -554,7 +555,7 @@ async def read_redis_cache(request: Request, response: Response, rpc):  # pylint
 		except Exception as session_err:  # pylint: disable=broad-except
 			logger.warning(session_err, exc_info=True)
 		error["details"] = details
-		result = {"id": rpc.get('id'), "result": None, "error": error}
+		result = {"id": rpc.get("id"), "result": None, "error": error}
 		if request.scope.get("jsonrpc20"):
 			result["jsonrpc"] = "2.0"
 			del result["result"]

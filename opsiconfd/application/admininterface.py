@@ -34,8 +34,12 @@ from ..logging import logger
 from ..config import config, FQDN, VAR_ADDON_DIR
 from ..backend import get_backend_interface, get_backend
 from ..utils import (
-	utc_time_timestamp, get_random_string, get_manager_pid,
-	async_redis_client, ip_address_to_redis_key, ip_address_from_redis_key
+	utc_time_timestamp,
+	get_random_string,
+	get_manager_pid,
+	async_redis_client,
+	ip_address_to_redis_key,
+	ip_address_from_redis_key,
 )
 from ..ssl import get_ca_cert_info, get_server_cert_info
 from ..addon import AddonManager
@@ -67,7 +71,7 @@ async def admin_interface_index(request: Request):
 		"ca_info": get_ca_cert_info(),
 		"cert_info": get_server_cert_info(),
 		"num_servers": get_num_servers(backend),
-		"num_clients": get_num_clients(backend)
+		"num_clients": get_num_clients(backend),
 	}
 	return config.jinja_templates.TemplateResponse("admininterface.html", context)
 
@@ -102,10 +106,7 @@ async def unblock_all_clients(response: Response):
 		clients = set()
 		deleted_keys = set()
 		async with redis.pipeline(transaction=False) as pipe:
-			for base_key in (
-				"opsiconfd:stats:client:failed_auth",
-				"opsiconfd:stats:client:blocked"
-			):
+			for base_key in ("opsiconfd:stats:client:failed_auth", "opsiconfd:stats:client:blocked"):
 
 				async for key in redis.scan_iter(f"{base_key}:*"):
 					key_str = key.decode("utf8")
@@ -165,7 +166,9 @@ async def delete_client_sessions(request: Request):
 					await pipe.delete(key)
 				await pipe.execute()
 
-		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}})
+		response = JSONResponse(
+			{"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}}
+		)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
 		response = JSONResponse({"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}})
@@ -176,14 +179,10 @@ async def delete_client_sessions(request: Request):
 async def get_addon_list() -> list:
 	addon_list = []
 	for addon in AddonManager().addons:
-		addon_list.append({
-			"id": addon.id,
-			"name": addon.name,
-			"version": addon.version,
-			"install_path": addon.path,
-			"path": addon.router_prefix
-		})
-	return sorted(addon_list, key=itemgetter('id'))
+		addon_list.append(
+			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
+		)
+	return sorted(addon_list, key=itemgetter("id"))
 
 
 def _install_addon(data: bytes):
@@ -197,9 +196,9 @@ def _install_addon(data: bytes):
 		for addon_id in os.listdir(content_dir):
 			addon_dir = os.path.join(content_dir, addon_id)
 			if (
-				os.path.isdir(addon_dir) and
-				os.path.isdir(os.path.join(addon_dir, "python")) and
-				os.path.isfile(os.path.join(addon_dir, "python", "__init__.py"))
+				os.path.isdir(addon_dir)
+				and os.path.isdir(os.path.join(addon_dir, "python"))
+				and os.path.isfile(os.path.join(addon_dir, "python", "__init__.py"))
 			):
 				target = os.path.join(VAR_ADDON_DIR, addon_id)
 				if os.path.exists(target):
@@ -240,14 +239,14 @@ async def get_rpc_list() -> list:
 			"method": value.get("method"),
 			"params": value.get("num_params"),
 			"results": value.get("num_results"),
-			"date": value.get("date", datetime.date(2020, 1, 1).strftime('%Y-%m-%dT%H:%M:%SZ')),
+			"date": value.get("date", datetime.date(2020, 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ")),
 			"client": value.get("client", "0.0.0.0"),
 			"error": value.get("error"),
-			"duration": value.get("duration")
+			"duration": value.get("duration"),
 		}
 		rpc_list.append(rpc)
 
-	rpc_list = sorted(rpc_list, key=itemgetter('rpc_num'))
+	rpc_list = sorted(rpc_list, key=itemgetter("rpc_num"))
 	return rpc_list
 
 
@@ -268,17 +267,19 @@ async def get_session_list() -> list:
 		data = await redis.get(redis_key)
 		session = msgpack.loads(data)
 		tmp = redis_key.decode().split(":")
-		session_list.append({
-			"created": session["created"],
-			"last_used": session["last_used"],
-			"validity": session["max_age"] - (utc_time_timestamp() - session["last_used"]),
-			"max_age": session["max_age"],
-			"user_agent": session["user_agent"],
-			"authenticated": session["user_store"].get("authenticated"),
-			"username": session["user_store"].get("username"),
-			"address": ip_address_from_redis_key(tmp[-2]),
-			"session_id": tmp[-1][:6] + "..."
-		})
+		session_list.append(
+			{
+				"created": session["created"],
+				"last_used": session["last_used"],
+				"validity": session["max_age"] - (utc_time_timestamp() - session["last_used"]),
+				"max_age": session["max_age"],
+				"user_agent": session["user_agent"],
+				"authenticated": session["user_store"].get("authenticated"),
+				"username": session["user_store"].get("username"),
+				"address": ip_address_from_redis_key(tmp[-2]),
+				"session_id": tmp[-1][:6] + "...",
+			}
+		)
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))
 	return session_list
 
@@ -356,37 +357,28 @@ def open_grafana(request: Request):
 	if not config.grafana_verify_cert:
 		session.verify = False
 
-	response = session.get(f"{url.scheme}://{url.hostname}:{url.port}/api/users/lookup?loginOrEmail=opsidashboard", headers=headers, auth=auth)
+	response = session.get(
+		f"{url.scheme}://{url.hostname}:{url.port}/api/users/lookup?loginOrEmail=opsidashboard", headers=headers, auth=auth
+	)
 
 	password = get_random_string(8)
 	if response.status_code == 404:
 		logger.debug("Create new user opsidashboard")
 
-		data = {
-			"name": "opsidashboard",
-			"email": "opsidashboard@admin",
-			"login": "opsidashboard",
-			"password": password,
-			"OrgId": 1
-		}
+		data = {"name": "opsidashboard", "email": "opsidashboard@admin", "login": "opsidashboard", "password": password, "OrgId": 1}
 		response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/api/admin/users", headers=headers, auth=auth, data=data)
 		if response.status_code != 200:
 			logger.error("Failed to create user opsidashboard: %s - %s", response.status_code, response.text)
 	else:
 		logger.debug("change opsidashboard password")
-		data = {
-			"password": password
-		}
+		data = {"password": password}
 		user_id = response.json().get("id")
 		response = session.put(f"{config.grafana_internal_url}/api/admin/users/{user_id}/password", headers=headers, auth=auth, data=data)
 		if response.status_code != 200:
 			logger.error("Failed to update password for user opsidashboard: %s - %s", response.status_code, response.text)
 
 	redirect_response = RedirectResponse("/metrics/grafana/dashboard")
-	data = {
-		"password": password,
-		"user": "opsidashboard"
-	}
+	data = {"password": password, "user": "opsidashboard"}
 	response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/login", json=data)
 	if response.status_code != 200:
 		logger.error("Grafana login failed: %s - %s", response.status_code, response.text)
@@ -411,7 +403,7 @@ def get_confd_conf(all: bool = False) -> JSONResponse:  # pylint: disable=redefi
 		"executor_workers",
 		"log_slow_async_callbacks",
 		"ssl_ca_key_passphrase",
-		"ssl_server_key_passphrase"
+		"ssl_server_key_passphrase",
 	]
 
 	current_config = config.items().copy()
@@ -439,9 +431,7 @@ def get_routes(request: Request) -> JSONResponse:  # pylint: disable=redefined-b
 		else:
 			routes[route.path] = route.__class__.__name__
 
-	return JSONResponse({
-		"status": 200, "error": None, "data": collections.OrderedDict(sorted(routes.items()))
-	})
+	return JSONResponse({"status": 200, "error": None, "data": collections.OrderedDict(sorted(routes.items()))})
 
 
 def get_num_servers(backend):

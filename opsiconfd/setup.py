@@ -19,10 +19,7 @@ from pathlib import Path
 import psutil
 
 from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP
-from OPSI.setup import (
-	setup_users_and_groups as po_setup_users_and_groups,
-	add_user_to_group, create_user, set_primary_group, create_group
-)
+from OPSI.setup import setup_users_and_groups as po_setup_users_and_groups, add_user_to_group, create_user, set_primary_group, create_group
 from OPSI.System.Posix import locateDHCPDConfig
 from OPSI.Util.Task.InitializeBackend import initializeBackends
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, DirPermission, set_rights
@@ -64,22 +61,13 @@ def setup_users_and_groups():
 		user = pwd.getpwnam(config.run_as_user)
 	except KeyError:
 		# User not found
-		create_user(
-			username=config.run_as_user,
-			primary_groupname=FILE_ADMIN_GROUP,
-			home="/var/lib/opsi",
-			shell="/bin/bash",
-			system=True
-		)
+		create_user(username=config.run_as_user, primary_groupname=FILE_ADMIN_GROUP, home="/var/lib/opsi", shell="/bin/bash", system=True)
 		user = pwd.getpwnam(config.run_as_user)
 
 	try:
 		grp.getgrnam("shadow")
 	except KeyError:
-		create_group(
-			groupname="shadow",
-			system=True
-		)
+		create_group(groupname="shadow", system=True)
 
 	gids = os.getgrouplist(user.pw_name, user.pw_gid)
 	for groupname in ("shadow", OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP):
@@ -114,7 +102,7 @@ def setup_file_permissions():
 		# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)
 		# This user needs read permission
 		FilePermission(dhcpd_config_file, config.run_as_user, OPSI_ADMIN_GROUP, 0o664),
-		DirPermission(VAR_ADDON_DIR, config.run_as_user, FILE_ADMIN_GROUP, 0o660, 0o770)
+		DirPermission(VAR_ADDON_DIR, config.run_as_user, FILE_ADMIN_GROUP, 0o660, 0o770),
 	)
 	PermissionRegistry().register_permission(*permissions)
 	for permission in permissions:
@@ -124,10 +112,16 @@ def setup_file_permissions():
 	setup_ssl_file_permissions()
 
 	for path in (
-		"/var/log/opsi/bootimage", "/var/log/opsi/clientconnect", "/var/log/opsi/instlog",
-		"/var/log/opsi/opsiconfd", "/var/log/opsi/userlogin", "/var/lib/opsi/depot",
-		"/var/lib/opsi/ntfs-images", "/var/lib/opsi/repository", "/var/lib/opsi/public",
-		VAR_ADDON_DIR
+		"/var/log/opsi/bootimage",
+		"/var/log/opsi/clientconnect",
+		"/var/log/opsi/instlog",
+		"/var/log/opsi/opsiconfd",
+		"/var/log/opsi/userlogin",
+		"/var/lib/opsi/depot",
+		"/var/lib/opsi/ntfs-images",
+		"/var/lib/opsi/repository",
+		"/var/lib/opsi/public",
+		VAR_ADDON_DIR,
 	):
 		try:
 			path = Path(path)
@@ -148,8 +142,8 @@ def setup_systemd():
 		return
 
 	logger.info("Setup systemd")
-	subprocess.run(["systemctl", "daemon-reload"], env=get_subprocess_environment(), capture_output=True)  # pylint: disable=subprocess-run-check
-	subprocess.run(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment(), capture_output=True)  # pylint: disable=subprocess-run-check
+	subprocess.check_output(["systemctl", "daemon-reload"], env=get_subprocess_environment())
+	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment())
 
 
 def setup_backend():
@@ -158,16 +152,15 @@ def setup_backend():
 	backend = BackendManager()
 	mysql_used = False
 	for entry in backend.dispatcher_getConfig():  # pylint: disable=no-member
-		if 'mysql' in entry[1]:
+		if "mysql" in entry[1]:
 			mysql_used = True
 			break
 
 	if mysql_used:
 		logger.info("Update mysql backend")
 		from OPSI.Util.Task.UpdateBackend.MySQL import updateMySQLBackend  # pylint: disable=import-outside-toplevel
-		updateMySQLBackend(
-			backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf")
-		)
+
+		updateMySQLBackend(backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf"))
 
 
 def cleanup_log_files():

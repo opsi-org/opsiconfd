@@ -17,7 +17,9 @@ from OPSI.Types import forceProductIdList
 from .utils import State, generate_response
 
 
-def check_client_status(backend, client_id, exclude_product_list=None) -> JSONResponse:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+	backend, client_id, exclude_product_list=None
+) -> JSONResponse:
 	state = State.OK
 
 	if not client_id:
@@ -31,7 +33,7 @@ def check_client_status(backend, client_id, exclude_product_list=None) -> JSONRe
 
 	client_obj = client_obj[0]
 
-	message = ''
+	message = ""
 	if not client_obj.lastSeen:
 		state = State.WARNING
 		message += f"opsi-client: '{client_id}' never seen, please check opsi-client-agent installation on client. "
@@ -60,9 +62,7 @@ def check_client_status(backend, client_id, exclude_product_list=None) -> JSONRe
 			message += f"opsi-client {client_id} has been seen {delta.days} days before. "
 
 	failed_products = backend._executeMethod(  # pylint: disable=protected-access
-		methodName="productOnClient_getObjects",
-		clientId=client_id,
-		actionResult='failed'
+		methodName="productOnClient_getObjects", clientId=client_id, actionResult="failed"
 	)
 
 	if exclude_product_list:
@@ -70,10 +70,7 @@ def check_client_status(backend, client_id, exclude_product_list=None) -> JSONRe
 	else:
 		products_to_exclude = []
 
-	failed_products = [
-		product for product in failed_products
-		if product.productId not in products_to_exclude
-	]
+	failed_products = [product for product in failed_products if product.productId not in products_to_exclude]
 
 	if failed_products:
 		state = State.CRITICAL
@@ -81,15 +78,10 @@ def check_client_status(backend, client_id, exclude_product_list=None) -> JSONRe
 		message += f"Products: '{', '.join(products)}' are in failed state. "
 
 	action_products = backend._executeMethod(  # pylint: disable=protected-access
-		methodName="productOnClient_getObjects",
-		clientId=client_id,
-		actionRequest=['setup', 'update', 'uninstall']
+		methodName="productOnClient_getObjects", clientId=client_id, actionRequest=["setup", "update", "uninstall"]
 	)
 
-	action_products = [
-		product for product in action_products
-		if product.productId not in products_to_exclude
-	]
+	action_products = [product for product in action_products if product.productId not in products_to_exclude]
 
 	if action_products:
 		if state != State.CRITICAL:

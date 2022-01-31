@@ -24,7 +24,7 @@ from .logging import logger
 from .application.utils import parse_list
 
 
-class RestApiValidationError(BaseModel):
+class RestApiValidationError(BaseModel):  # pylint: disable=too-few-public-methods
 	class_value: str = "RequestValidationError"
 	message: str
 	status: int = 422
@@ -32,16 +32,11 @@ class RestApiValidationError(BaseModel):
 	details: Optional[str]
 
 	class Config:  # pylint: disable=too-few-public-methods
-		fields = {'class_value': 'class'}
+		fields = {"class_value": "class"}
 
 
 class OpsiApiException(Exception):
-	def __init__(
-		self,
-		message="An unknown error occurred.",
-		http_status=status.HTTP_500_INTERNAL_SERVER_ERROR, code=None,
-		error=None
-	):
+	def __init__(self, message="An unknown error occurred.", http_status=status.HTTP_500_INTERNAL_SERVER_ERROR, code=None, error=None):
 		self.message = message
 		self.http_status = http_status
 		self.code = code
@@ -84,15 +79,9 @@ def common_parameters(
 	pageNumber: Optional[int] = Body(default=1, embed=True),
 	perPage: Optional[int] = Body(default=20, embed=True),
 	sortBy: Optional[List[str]] = Body(default=None, embed=True),
-	sortDesc: Optional[bool] = Body(default=True, embed=True)
+	sortDesc: Optional[bool] = Body(default=True, embed=True),
 ):  # pylint: disable=invalid-name
-	return {
-		"filterQuery": filterQuery,
-		"pageNumber": pageNumber,
-		"perPage": perPage,
-		"sortBy": sortBy,
-		"sortDesc": sortDesc
-	}
+	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": sortBy, "sortDesc": sortDesc}
 
 
 def common_query_parameters(
@@ -100,15 +89,9 @@ def common_query_parameters(
 	pageNumber: Optional[int] = Query(default=1, embed=True),
 	perPage: Optional[int] = Query(default=20, embed=True),
 	sortBy: Optional[List[str]] = Query(default=None, embed=True),
-	sortDesc: Optional[bool] = Query(default=True, embed=True)
+	sortDesc: Optional[bool] = Query(default=True, embed=True),
 ):  # pylint: disable=invalid-name
-	return {
-		"filterQuery": filterQuery,
-		"pageNumber": pageNumber,
-		"perPage": perPage,
-		"sortBy": parse_list(sortBy),
-		"sortDesc": sortDesc
-	}
+	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 
 
 def rest_api(func):
@@ -121,7 +104,7 @@ def rest_api(func):
 		try:  # pylint: disable=too-many-branches,too-many-nested-blocks
 			result = func(*args, **kwargs)
 			headers = result.get("headers", {})
-			headers["Access-Control-Expose-Headers"] = 'x-total-count'
+			headers["Access-Control-Expose-Headers"] = "x-total-count"
 			http_status = result.get("http_status", status.HTTP_200_OK)
 
 			if result.get("data"):
@@ -143,7 +126,9 @@ def rest_api(func):
 							if param.startswith("pageNumber"):
 								continue
 							link += param + "&"
-						headers["Link"] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+						headers[
+							"Link"
+						] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
 
 			return JSONResponse(content=content if content else None, status_code=http_status, headers=headers)
 
@@ -157,7 +142,7 @@ def rest_api(func):
 					"code": err.code,
 					"status": err.http_status,
 					"message": err.message,
-					"details": err.details
+					"details": err.details,
 				}
 			else:
 				content = {
@@ -165,7 +150,7 @@ def rest_api(func):
 					"code": None,
 					"status": status.HTTP_500_INTERNAL_SERVER_ERROR,
 					"message": str(err),
-					"details": str(traceback.format_exc())
+					"details": str(traceback.format_exc()),
 				}
 
 			is_admin = False

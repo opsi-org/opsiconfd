@@ -15,14 +15,12 @@ from fastapi.responses import JSONResponse
 from opsiconfd.logging import logger
 from opsiconfd.utils import async_redis_client, decode_redis_result
 
-from .utils import (
-	State, generate_response,
-	get_workers, get_request_avg, get_session_count,
-	get_thread_count, get_mem_allocated
-)
+from .utils import State, generate_response, get_workers, get_request_avg, get_session_count, get_thread_count, get_mem_allocated
 
 
-async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perfdata=True) -> JSONResponse:  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
+async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
+	cpu_thresholds=None, error_thresholds=None, perfdata=True
+) -> JSONResponse:
 	state = State.OK
 	message = []
 	logger.debug("Generating Defaults for checkOpsiWebservice if not given")
@@ -87,7 +85,7 @@ async def check_opsi_webservice(cpu_thresholds=None, error_thresholds=None, perf
 				f"sessions={await get_session_count(redis)};;;0; ",
 				f"threads={await get_thread_count(redis)};;;0; ",
 				f"virtmem={await get_mem_allocated(redis)};;;0; ",
-				f"cpu={cpu_avg};;;0;100 "
+				f"cpu={cpu_avg};;;0;100 ",
 			]
 			return generate_response(state, message, "".join(performance))
 		return generate_response(state, message)

@@ -43,7 +43,7 @@ class AddonManager(metaclass=Singleton):
 
 	@classmethod
 	def module_name(cls, addon_path: str) -> str:
-		return f'opsiconfd.addon_{quote(addon_path)}'
+		return f"opsiconfd.addon_{quote(addon_path)}"
 
 	@property
 	def addons(self) -> List[Addon]:
@@ -51,6 +51,7 @@ class AddonManager(metaclass=Singleton):
 
 	def load_addon(self, addon_path: str) -> None:
 		from ..application import app  # pylint: disable=import-outside-toplevel
+
 		logger.info("Loading addon from '%s'", addon_path)
 		module_name = self.module_name(addon_path)
 		module = None
@@ -94,6 +95,7 @@ class AddonManager(metaclass=Singleton):
 
 	def unload_addon(self, addon_id: str) -> None:
 		from ..application import app  # pylint: disable=import-outside-toplevel
+
 		if addon_id not in self._addons:
 			raise ValueError(f"Addon '{addon_id} not loaded")
 		self._addons[addon_id].on_unload(app)

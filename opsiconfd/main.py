@@ -55,10 +55,7 @@ def run_with_jemlalloc():
 
 
 def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals
-	secret_filter.add_secrets(
-		config.ssl_ca_key_passphrase,
-		config.ssl_server_key_passphrase
-	)
+	secret_filter.add_secrets(config.ssl_ca_key_passphrase, config.ssl_server_key_passphrase)
 
 	if config.version:
 		print(f"{__version__} [python-opsi={python_opsi_version}]")
@@ -106,7 +103,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		print(f"Another opsiconfd manager process is already running (pid {manager_pid})", file=sys.stderr)
 		sys.exit(1)
 
-	if config.use_jemalloc and getattr(sys, 'frozen', False):
+	if config.use_jemalloc and getattr(sys, "frozen", False):
 		try:
 			run_with_jemlalloc()
 		except Exception:  # pylint: disable=broad-except
@@ -115,12 +112,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 	apply_patches()
 
 	try:  # pylint: disable=too-many-nested-blocks
-		asyncio.get_event_loop().set_default_executor(
-			ThreadPoolExecutor(
-				max_workers=5,
-				thread_name_prefix="main-ThreadPoolExecutor"
-			)
-		)
+		asyncio.get_event_loop().set_default_executor(ThreadPoolExecutor(max_workers=5, thread_name_prefix="main-ThreadPoolExecutor"))
 
 		init_logging(log_mode=config.log_mode)
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)
@@ -128,7 +120,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
 			logger.notice("Running with %s", os.getenv("LD_PRELOAD"))
 		elif config.use_jemalloc:
-			if getattr(sys, 'frozen', False):
+			if getattr(sys, "frozen", False):
 				logger.error("Failed to use jemalloc, please make sure it is installed")
 			else:
 				logger.warning("Not running from binary, not using jemalloc, use LD_PRELOAD if needed")

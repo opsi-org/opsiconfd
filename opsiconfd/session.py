@@ -9,29 +9,28 @@ session handling
 """
 
 import time
-import typing
 import asyncio
-from typing import List
+from typing import List, Dict, Optional, Any
 from collections import namedtuple
 import uuid
 import base64
 import orjson
-import msgpack
+import msgpack  # type: ignore[import]
 import aioredis
 
 from fastapi import HTTPException, status
 from fastapi.requests import HTTPConnection
-from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
+from fastapi.responses import Response, PlainTextResponse, JSONResponse, RedirectResponse
 from starlette.datastructures import MutableHeaders, Headers
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
 
-from OPSI.Backend.Manager.AccessControl import UserStore
-from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp
-from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
-from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP
+from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
+from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp  # type: ignore[import]
+from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError  # type: ignore[import]
+from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP  # type: ignore[import]
 
-from opsicommon.logging import logger, secret_filter, set_context
+from opsicommon.logging import logger, secret_filter, set_context  # type: ignore[import]
 
 from . import contextvar_client_session, contextvar_server_timing
 from .backend import get_client_backend
@@ -107,9 +106,9 @@ class SessionMiddleware:
 		self.security_flags = ""
 		self._public_path = public_path or []
 		# Store ip addresses of depots with last access time
-		self._depot_addresses = {}
+		self._depot_addresses: Dict[str, float] = {}
 
-	def get_session_id_from_headers(self, headers: Headers) -> str:
+	def get_session_id_from_headers(self, headers: Headers) -> Optional[str]:
 		# connection.cookies.get(self.session_cookie_name, None)
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
@@ -185,6 +184,7 @@ class SessionMiddleware:
 
 			scope["session"] = OPSISession(self, session_id, connection, max_session_per_ip=max_session_per_ip)
 			await scope["session"].init()
+
 		if scope["session"]:
 			contextvar_client_session.set(scope["session"])
 			started_authenticated = scope["session"].user_store.authenticated
@@ -215,7 +215,7 @@ class SessionMiddleware:
 				self._depot_addresses[connection.client.host] = time.time()
 
 		# Session handling time
-		session_handling_millis = (time.perf_counter() - start) * 1000
+		session_handling_millis = int((time.perf_counter() - start) * 1000)
 		if started_authenticated and session_handling_millis > 1000:
 			logger.warning("Session handling took %0.2fms", session_handling_millis)
 
@@ -291,11 +291,11 @@ class SessionMiddleware:
 		if scope["type"] == "websocket":
 			return await send({"type": "websocket.close", "code": status_code})
 
-		response = None
 		headers = headers or {}
 		if scope.get("session"):
 			headers.update(scope["session"].get_headers())
 
+		response: Response
 		if scope["path"].startswith("/rpc"):
 			logger.debug("Returning jsonrpc response because path startswith /rpc")
 			content = {"id": None, "result": None, "error": error}
@@ -327,12 +327,12 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
 	def __init__(
-		self, session_middelware: SessionMiddleware, session_id: str, connection: HTTPConnection, max_session_per_ip: int = None
+		self, session_middelware: SessionMiddleware, session_id: Optional[str], connection: HTTPConnection, max_session_per_ip: int = None
 	) -> None:
 		self._session_middelware = session_middelware
 		self._connection = connection
 		self._max_session_per_ip = config.max_session_per_ip if max_session_per_ip is None else max_session_per_ip
-		self.session_id = session_id
+		self.session_id = session_id or None
 		self.client_addr = self._connection.client.host
 		self.user_agent = self._connection.headers.get("user-agent")
 		self.max_age = config.session_lifetime
@@ -341,8 +341,8 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.persistent = True
 		self.last_used = 0
 		self.user_store = UserStore()
-		self.option_store = {}
-		self._data: typing.Dict[str, typing.Any] = {}
+		self.option_store: Dict[str, Any] = {}
+		self._data: Dict[str, Any] = {}
 		self.is_new_session = True
 
 	def __repr__(self):
@@ -506,10 +506,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		except ValueError:
 			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", client_max_age)
 
-	def get(self, name: str, default: typing.Any = None) -> typing.Any:
+	def get(self, name: str, default: Any = None) -> Any:
 		return self._data.get(name, default)
 
-	def set(self, key: str, value: typing.Any) -> None:
+	def set(self, key: str, value: Any) -> None:
 		self._data[key] = value
 
 

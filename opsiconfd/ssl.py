@@ -30,10 +30,10 @@ from OpenSSL.crypto import (
 )
 from OpenSSL.crypto import Error as CryptoError
 
-from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights
-from OPSI.Config import OPSI_ADMIN_GROUP
+from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights  # type: ignore[import]
+from OPSI.Config import OPSI_ADMIN_GROUP  # type: ignore[import]
 
-from opsicommon.ssl import install_ca, create_ca, create_server_cert, as_pem
+from opsicommon.ssl import install_ca, create_ca, create_server_cert, as_pem  # type: ignore[import]
 
 from .config import config, FQDN, CA_KEY_DEFAULT_PASSPHRASE, SERVER_KEY_DEFAULT_PASSPHRASE
 from .logging import logger
@@ -127,7 +127,7 @@ def store_cert(cert_file: str, cert: X509) -> None:
 def load_cert(cert_file: str) -> X509:
 	with codecs.open(cert_file, "r", "utf-8") as file:
 		try:
-			return load_certificate(FILETYPE_PEM, file.read())
+			return load_certificate(FILETYPE_PEM, file.read().encode("ascii"))
 		except CryptoError as err:
 			raise RuntimeError(f"Failed to load cert from '{cert_file}': {err}") from err
 
@@ -227,13 +227,15 @@ def configserver_setup_ca() -> bool:
 		renew = True
 	else:
 		ca_crt = load_ca_cert()
-		enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
-		diff = (enddate - datetime.datetime.now()).days
+		not_after = ca_crt.get_notAfter()
+		if not_after:
+			enddate = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
+			diff = (enddate - datetime.datetime.now()).days
 
-		logger.info("CA '%s' will expire in %d days", ca_crt.get_subject().CN, diff)
-		if diff <= config.ssl_ca_cert_renew_days:
-			logger.notice("CA '%s' will expire in %d days, renewing", ca_crt.get_subject().CN, diff)
-			renew = True
+			logger.info("CA '%s' will expire in %d days", ca_crt.get_subject().CN, diff)
+			if diff <= config.ssl_ca_cert_renew_days:
+				logger.notice("CA '%s' will expire in %d days, renewing", ca_crt.get_subject().CN, diff)
+				renew = True
 
 		if config.ssl_ca_subject_cn != ca_crt.get_subject().CN:
 			logger.warning(
@@ -247,7 +249,6 @@ def configserver_setup_ca() -> bool:
 
 	if create or renew:
 		domain = get_domain()
-		ca_key = None
 		if renew:
 			logger.notice("Renewing opsi CA")
 			ca_key = load_ca_key()
@@ -293,12 +294,15 @@ def validate_cert(cert: X509, ca_cert: X509) -> None:
 	store_ctx = X509StoreContext(store, cert)
 	store_ctx.verify_certificate()
 
-	ca_cert_not_before = datetime.datetime.strptime(ca_cert.get_notBefore().decode("utf-8"), "%Y%m%d%H%M%SZ")
-	cert_not_before = datetime.datetime.strptime(cert.get_notBefore().decode("utf-8"), "%Y%m%d%H%M%SZ")
-	if ca_cert_not_before > cert_not_before:
-		raise X509StoreContextError(
-			f"CA is not valid before {ca_cert_not_before} but certificate is valid before {cert_not_before}", ca_cert
-		)
+	ca_cert_not_before = ca_cert.get_notBefore()
+	cert_not_before = cert.get_notBefore()
+	if ca_cert_not_before and cert_not_before:
+		dt_ca_cert_not_before = datetime.datetime.strptime(ca_cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
+		dt_cert_not_before = datetime.datetime.strptime(cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
+		if dt_ca_cert_not_before > dt_cert_not_before:
+			raise X509StoreContextError(
+				f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}", ca_cert
+			)
 
 
 def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
@@ -423,20 +427,26 @@ def setup_ssl():
 
 def get_cert_info(cert: X509) -> Dict[str, Any]:
 	alt_names = ""
-	for i in range(0, cert.get_extension_count()):
-		if cert.get_extension(i).get_short_name() == b"subjectAltName":
-			alt_names = cert.get_extension(i)
+	for idx in range(0, cert.get_extension_count()):
+		if cert.get_extension(idx).get_short_name() == b"subjectAltName":
+			alt_names = str(cert.get_extension(idx))
 
-	not_before = datetime.datetime.strptime(cert.get_notBefore().decode("utf-8"), "%Y%m%d%H%M%SZ")
-	not_after = datetime.datetime.strptime(cert.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
-	expiration = (not_after - datetime.datetime.now()).days
+	dt_not_before = None
+	dt_not_after = None
+	expiration = 0
+	not_before = cert.get_notBefore()
+	not_after = cert.get_notAfter()
+	if not_before and not_after:
+		dt_not_before = datetime.datetime.strptime(not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
+		dt_not_after = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
+		expiration = (dt_not_after - datetime.datetime.now()).days
 
 	return {
 		"issuer": cert.get_issuer(),
 		"subject": cert.get_subject(),
 		"serial_number": ":".join((f"{cert.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2)),
-		"not_before": not_before,
-		"not_after": not_after,
+		"not_before": dt_not_before,
+		"not_after": dt_not_after,
 		"expiration": expiration,
 		"alt_names": alt_names,
 	}

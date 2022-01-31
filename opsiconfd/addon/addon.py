@@ -16,13 +16,16 @@ from starlette.types import Receive, Send
 
 
 class Addon:
-	id = None  # pylint: disable=invalid-name
-	name = None
-	version = None
+	id: str = ""  # pylint: disable=invalid-name
+	name: str = ""
+	version: str = ""
 
 	def __init__(self, path: str) -> None:  # pylint: disable=redefined-builtin
 		self.path = path
 		self.data_path = os.path.join(self.path, "data")
+		for attr in ("id", "name", "version"):
+			if not getattr(self, attr):
+				raise ValueError(f"Attribute '{attr}' is not set")
 
 	@property
 	def router_prefix(self):

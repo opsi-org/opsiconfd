@@ -12,7 +12,7 @@ import ssl
 import copy
 import time
 from datetime import datetime
-from typing import List
+from typing import List, Union
 from operator import itemgetter
 from urllib.parse import urlparse
 
@@ -81,7 +81,7 @@ async def grafana_dashboard(request: Request):  # pylint: disable=unused-argumen
 			auth = aiohttp.BasicAuth(url.username, url.password)
 
 	base_url = f"{url.scheme}://{url.netloc.split('@', 1)[-1]}"
-	ssl_context = ssl.create_default_context(cafile=config.ssl_trusted_certs)
+	ssl_context: Union[ssl.SSLContext, bool] = ssl.create_default_context(cafile=config.ssl_trusted_certs)
 	if not config.grafana_verify_cert:
 		ssl_context = False
 	async with aiohttp.ClientSession(auth=auth, headers=headers) as session:
@@ -257,9 +257,9 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 
 			if metric.time_related and metric.aggregation == "sum":
 				# Time series data is stored aggregated in 5 second intervals
-				res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]
+				res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
 			else:
-				res["datapoints"] = [[float(r[1]) if b"." in r[1] else int(r[1]), align_timestamp(r[0])] for r in rows]
+				res["datapoints"] = [[float(r[1]) if b"." in r[1] else int(r[1]), align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
 			logger.trace("Grafana query result: %s", res)
 			results.append(res)
 	return results

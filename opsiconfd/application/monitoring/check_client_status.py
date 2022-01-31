@@ -12,7 +12,7 @@ import datetime
 
 from fastapi.responses import JSONResponse
 
-from OPSI.Types import forceProductIdList
+from OPSI.Types import forceProductIdList  # type: ignore[import]
 
 from .utils import State, generate_response
 
@@ -44,7 +44,6 @@ def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, 
 		day = int(last_seen[2].split()[0])
 
 		today = datetime.date.today()
-		delta = None
 
 		if year and month and day:
 			last_seen_date = datetime.date(year, month, day)
@@ -68,7 +67,7 @@ def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, 
 	if exclude_product_list:
 		products_to_exclude = set(forceProductIdList(exclude_product_list))
 	else:
-		products_to_exclude = []
+		products_to_exclude = set()
 
 	failed_products = [product for product in failed_products if product.productId not in products_to_exclude]
 

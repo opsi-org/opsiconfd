@@ -31,6 +31,9 @@
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintCategorySeverity.refactor": "Information",
 		"python.linting.mypyEnabled": true,
+		"python.linting.mypyArgs": [
+			"--show-error-codes"
+		],
 		"files.trimTrailingWhitespace": true,
 		"python.languageServer": "Pylance"
 	},

@@ -33,7 +33,7 @@ class State:  # pylint: disable=too-few-public-methods
 		return cls._stateText[state]
 
 
-def generate_response(state: State, message: str, perfdata=None) -> JSONResponse:
+def generate_response(state: int, message: str, perfdata=None) -> JSONResponse:
 	if perfdata:
 		message = f"{State.text(state)}: {message} | {perfdata}"
 	else:

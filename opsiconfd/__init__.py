@@ -10,15 +10,19 @@ The opsi configuration service.
 
 __version__ = "4.2.0.230"
 
-import contextvars
+from typing import Optional, Dict
 
-contextvar_request_id = contextvars.ContextVar("request_id", default=None)
-contextvar_client_session = contextvars.ContextVar("client_session", default=None)
-contextvar_client_address = contextvars.ContextVar("client_address", default=None)
-contextvar_server_timing = contextvars.ContextVar("server_timing", default=None)
+from contextvars import Context, ContextVar
+
+from .session import OPSISession
+
+contextvar_request_id: ContextVar[Optional[int]] = ContextVar("request_id", default=None)
+contextvar_client_session: ContextVar[Optional[OPSISession]] = ContextVar("client_session", default=None)
+contextvar_client_address: ContextVar[Optional[str]] = ContextVar("client_address", default=None)
+contextvar_server_timing: ContextVar[Dict[str, int]] = ContextVar("server_timing", default={})
 
 
-def set_contextvars_from_contex(context: contextvars.Context) -> None:
+def set_contextvars_from_contex(context: Context) -> None:
 	if not context:
 		return
 	for var, val in context.items():

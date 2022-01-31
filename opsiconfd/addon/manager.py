@@ -12,8 +12,8 @@ import os
 import sys
 import importlib
 from urllib.parse import quote, unquote
-from importlib._bootstrap import BuiltinImporter
-from typing import Dict, List
+from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
+from typing import Dict, List, Optional
 
 from ..config import config
 from ..logging import logger
@@ -34,7 +34,7 @@ class AddonImporter(BuiltinImporter):
 		return importlib.util.spec_from_file_location(fullname, init_path)
 
 
-sys.meta_path.append(AddonImporter)
+sys.meta_path.append(AddonImporter)  # type: ignore[arg-type]
 
 
 class AddonManager(metaclass=Singleton):
@@ -54,7 +54,6 @@ class AddonManager(metaclass=Singleton):
 
 		logger.info("Loading addon from '%s'", addon_path)
 		module_name = self.module_name(addon_path)
-		module = None
 		if module_name in sys.modules:
 			reload = []
 			for sys_module in list(sys.modules):
@@ -69,7 +68,7 @@ class AddonManager(metaclass=Singleton):
 			module = importlib.import_module(module_name)
 
 		for cls in module.__dict__.values():
-			if isinstance(cls, type) and issubclass(cls, Addon) and cls != Addon:
+			if isinstance(cls, type) and issubclass(cls, Addon) and cls != Addon and cls.id:
 				logger.notice("Loading addon '%s' (%s)", cls.id, cls.name)
 				self._addons[cls.id] = cls(addon_path)
 				self._addons[cls.id].on_load(app)
@@ -117,7 +116,7 @@ class AddonManager(metaclass=Singleton):
 		self.unload_addons()
 		self.load_addons()
 
-	def get_addon_by_path(self, path: str) -> Addon:
+	def get_addon_by_path(self, path: str) -> Optional[Addon]:
 		path = path or ""
 		for addon in self.addons:
 			if path.lower().startswith(addon.router_prefix.lower()):

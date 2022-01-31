@@ -18,13 +18,19 @@ import subprocess
 from pathlib import Path
 import psutil
 
-from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP
-from OPSI.setup import setup_users_and_groups as po_setup_users_and_groups, add_user_to_group, create_user, set_primary_group, create_group
-from OPSI.System.Posix import locateDHCPDConfig
-from OPSI.Util.Task.InitializeBackend import initializeBackends
-from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, DirPermission, set_rights
-from OPSI.System import get_subprocess_environment
-from OPSI.Backend.BackendManager import BackendManager
+from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP  # type: ignore[import]
+from OPSI.setup import (  # type: ignore[import]
+	setup_users_and_groups as po_setup_users_and_groups,
+	add_user_to_group,
+	create_user,
+	set_primary_group,
+	create_group,
+)
+from OPSI.System.Posix import locateDHCPDConfig  # type: ignore[import]
+from OPSI.Util.Task.InitializeBackend import initializeBackends  # type: ignore[import]
+from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, DirPermission, set_rights  # type: ignore[import]
+from OPSI.System import get_subprocess_environment  # type: ignore[import]
+from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 
 from .logging import logger
 from .config import config, VAR_ADDON_DIR
@@ -158,7 +164,7 @@ def setup_backend():
 
 	if mysql_used:
 		logger.info("Update mysql backend")
-		from OPSI.Util.Task.UpdateBackend.MySQL import updateMySQLBackend  # pylint: disable=import-outside-toplevel
+		from OPSI.Util.Task.UpdateBackend.MySQL import updateMySQLBackend  # type: ignore[import]  # pylint: disable=import-outside-toplevel
 
 		updateMySQLBackend(backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf"))
 

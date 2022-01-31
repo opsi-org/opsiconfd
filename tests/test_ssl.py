@@ -13,7 +13,7 @@ import time
 import datetime
 import shutil
 import subprocess
-import mock
+import mock  # type: ignore[import]
 import pytest
 
 from OpenSSL.crypto import TYPE_RSA, FILETYPE_PEM, dump_privatekey, X509, X509StoreContextError
@@ -198,7 +198,7 @@ def test_renew_expired_ca(tmpdir):
 	config.ssl_server_key = str(ssl_server_key)
 
 	def mock_gmtime_adj_notBefore(self, amount):  # pylint: disable=invalid-name,unused-argument
-		from OpenSSL._util import lib  # pylint: disable=import-outside-toplevel
+		from OpenSSL._util import lib  # type: ignore[import]  # pylint: disable=import-outside-toplevel
 
 		notBefore = lib.X509_getm_notBefore(self._x509)  # pylint: disable=invalid-name,protected-access
 		lib.X509_gmtime_adj(notBefore, -3600 * 24 * 10)  # 10 days in the past

@@ -21,7 +21,6 @@ from starlette.websockets import WebSocket
 from starlette.types import ASGIApp, Message, Scope, Send, Receive
 from starlette.datastructures import MutableHeaders
 from starlette.concurrency import run_in_threadpool
-from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
 from fastapi.responses import Response, FileResponse, RedirectResponse, StreamingResponse
@@ -29,10 +28,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute, Mount
 from websockets.exceptions import ConnectionClosedOK
 
-from OPSI import __version__ as python_opsi_version
-from .. import __version__
-
-from .. import contextvar_request_id, contextvar_client_address, contextvar_client_session
+from .. import __version__, contextvar_request_id, contextvar_client_address, contextvar_client_session
 from ..logging import logger
 from ..config import config
 from ..worker import init_worker
@@ -41,7 +37,8 @@ from ..statistics import StatisticsMiddleware
 from ..utils import normalize_ip_address, async_redis_client
 from ..ssl import get_ca_cert_as_pem
 from ..addon import AddonManager
-from ..rest import OpsiApiException, RestApiValidationError, rest_api
+from ..rest import OpsiApiException, rest_api
+from . import app
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
 from .webdav import webdav_setup
@@ -50,15 +47,6 @@ from .redisinterface import redis_interface_setup
 from .monitoring.monitoring import monitoring_setup
 from .status import status_setup
 from .messagebroker import messagebroker_setup
-
-
-app = FastAPI(
-	title="opsiconfd",
-	description="",
-	version=f"{__version__} [python-opsi={python_opsi_version}]",
-	responses={422: {"model": RestApiValidationError, "description": "Validation Error"}},
-)
-app.is_shutting_down = False
 
 
 @app.websocket_route("/ws/log_viewer")
@@ -98,6 +86,14 @@ class LoggerWebsocket(WebSocketEndpoint):
 
 	async def on_connect(self, websocket: WebSocket):
 		session = contextvar_client_session.get()
+		if not session:
+			logger.warning(
+				"Access to %s denied, no valid session found",
+				self,
+			)
+			await websocket.close(code=4403)
+			return
+
 		if not session.user_store.isAdmin:
 			logger.warning("Access to %s denied for user '%s'", self, session.user_store.username)
 			await websocket.close(code=4403)
@@ -105,10 +101,11 @@ class LoggerWebsocket(WebSocketEndpoint):
 
 		self._websocket = websocket  # pylint: disable=attribute-defined-outside-init
 		params = urllib.parse.parse_qs(websocket.get("query_string", b"").decode("utf-8"))
-		client = params.get("client", [None])[0]
-		start_id = int(params.get("start_time", [0])[0]) * 1000  # Seconds to millis
-		if start_id <= 0:
-			start_id = "$"
+		client = params.get("client", [""])[0] or None
+		start_id = "$"
+		start_id_param = int(params.get("start_time", ["0"])[0]) * 1000  # Seconds to millis
+		if start_id_param > 0:
+			start_id = str(start_id_param)
 		await self._websocket.accept()
 		await asyncio.get_event_loop().create_task(self._reader(str(start_id), client))
 
@@ -122,6 +119,13 @@ class TestWebsocket(WebSocketEndpoint):
 
 	async def on_connect(self, websocket: WebSocket):
 		session = contextvar_client_session.get()
+		if not session:
+			logger.warning(
+				"Access to %s denied, no valid session found",
+				self,
+			)
+			await websocket.close(code=4403)
+			return
 		if not session.user_store.isAdmin:
 			logger.warning("Access to %s denied for user '%s'", self, session.user_store.username)
 			await websocket.close(code=4403)
@@ -142,7 +146,8 @@ class TestWebsocket(WebSocketEndpoint):
 
 @app.get("/test/random-data")
 async def get_test_random(request: Request):  # pylint: disable=unused-argument
-	if not contextvar_client_session.get().user_store.isAdmin:
+	session = contextvar_client_session.get()
+	if not session or not session.user_store.isAdmin:
 		return Response(status_code=status.HTTP_403_FORBIDDEN)
 	with open("/dev/urandom", mode="rb") as random:
 		return StreamingResponse(random, media_type="application/binary")
@@ -233,16 +238,17 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
-				headers = dict(scope["headers"])
-				host = headers.get(b"host", b"localhost:4447").decode().split(":")[0]
+				req_headers = dict(scope["headers"])
+				host = req_headers.get(b"host", b"localhost:4447").decode().split(":")[0]
 				origin_scheme = "https"
 				origin_port = 4447
 				try:
-					origin = urlparse(headers[b"origin"].decode())
+					origin = urlparse(req_headers[b"origin"].decode())
 					origin_scheme = origin.scheme
 					origin_port = int(origin.port)
 				except Exception:  # pylint: disable=broad-except
 					pass
+
 				headers = MutableHeaders(scope=message)
 				headers.append("Access-Control-Allow-Origin", f"{origin_scheme}://{host}:{origin_port}")
 				headers.append("Access-Control-Allow-Methods", "*")

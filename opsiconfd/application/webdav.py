@@ -11,12 +11,12 @@ webdav
 import os
 from typing import Dict, List, Optional
 
-from wsgidav import util
-import wsgidav.fs_dav_provider
-from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError
-from wsgidav.dav_provider import _DAVResource, DAVCollection, DAVProvider
+from wsgidav import util  # type: ignore[import]
+import wsgidav.fs_dav_provider  # type: ignore[import]
+from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError  # type: ignore[import]
+from wsgidav.dav_provider import _DAVResource, DAVCollection, DAVProvider  # type: ignore[import]
 from wsgidav.fs_dav_provider import FilesystemProvider, FolderResource
-from wsgidav.wsgidav_app import WsgiDAVApp
+from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
 
 
 from .. import __version__

@@ -11,10 +11,10 @@ statistics
 import re
 import time
 import asyncio
-from typing import Dict, List
+from typing import Dict, List, Optional, Generator
 import psutil
 
-import yappi
+import yappi  # type: ignore[import]
 from yappi import YFuncStats
 from aioredis import ResponseError as AioRedisResponseError
 from redis import ResponseError as RedisResponseError
@@ -32,7 +32,7 @@ from .grafana import GrafanaPanelConfig
 
 
 def get_yappi_tag() -> int:
-	return int(contextvar_request_id.get() or -1)
+	return contextvar_request_id.get() or 0
 
 
 def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -78,7 +78,7 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 
 				cmd = f"TS.INFO {orig_key}"
 				info = client.execute_command(cmd)
-				existing_rules = {}
+				existing_rules: Dict[str, Dict[str, str]] = {}
 				for idx, val in enumerate(info):
 					if isinstance(val, bytes) and "rules" in val.decode("utf8"):
 						rules = info[idx + 1]
@@ -99,9 +99,9 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 							raise
 
 					create = True
-					if key in existing_rules:
-						cur_rule = existing_rules[key]
-						if time_bucket == cur_rule.get("time_bucket") and aggregation.lower() == cur_rule.get("aggregation").lower():
+					cur_rule = existing_rules.get(key)
+					if cur_rule:
+						if time_bucket == cur_rule.get("time_bucket") and aggregation.lower() == cur_rule["aggregation"].lower():
 							create = False
 						else:
 							cmd = f"TS.DELETERULE {orig_key} {key}"
@@ -131,7 +131,7 @@ def get_time_bucket(interval: str) -> int:
 	return time_bucket
 
 
-def get_time_bucket_name(time: int) -> str:  # pylint: disable=redefined-outer-name
+def get_time_bucket_name(time: int) -> Optional[str]:  # pylint: disable=redefined-outer-name
 	time_bucket_name = None
 	for name, t in TIME_BUCKETS.items():  # pylint: disable=invalid-name
 		if time >= t:
@@ -243,7 +243,7 @@ class MetricsRegistry(metaclass=Singleton):
 	def get_metric_ids(self):
 		return list(self._metrics_by_id)
 
-	def get_metrics(self, *subject) -> List[Metric]:
+	def get_metrics(self, *subject) -> Generator[Metric, None, None]:
 		for metric in self._metrics_by_id.values():
 			if not subject or metric.subject in subject:
 				yield metric
@@ -407,7 +407,7 @@ metrics_registry.register(
 
 
 class MetricsCollector:  # pylint: disable=too-many-instance-attributes
-	_metric_subjects = []
+	_metric_subjects: List[str] = []
 
 	def __init__(self):
 		self._interval = 5
@@ -513,15 +513,15 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 			await asyncio.sleep(self._interval)
 
 	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels):  # pylint: disable=no-self-use
-		timestamp = timestamp or "*"
+		timestamp_str: str = str(timestamp) or "*"
 		l_labels = [list(pair) for pair in labels.items()]
 
 		# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6
 		if cmd == "ADD":
-			cmd = [
+			ts_cmd = [
 				"TS.ADD",
 				metric.get_redis_key(**labels),
-				timestamp,
+				timestamp_str,
 				value,
 				"RETENTION",
 				metric.retention,
@@ -530,11 +530,11 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 				"LABELS",
 			] + l_labels
 		elif cmd == "INCRBY":
-			cmd = [
+			ts_cmd = [
 				"TS.INCRBY",
 				metric.get_redis_key(**labels),
 				value,
-				timestamp,
+				timestamp_str,
 				"RETENTION",
 				metric.retention,
 				"ON_DUPLICATE",
@@ -543,7 +543,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 			] + l_labels
 		else:
 			raise ValueError(f"Invalid command {cmd}")
-		return " ".join([str(x) for x in cmd])
+		return " ".join([str(x) for x in ts_cmd])
 
 	@staticmethod
 	async def _execute_redis_command(*cmd):
@@ -655,7 +655,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 		# https://github.com/sumerc/yappi/blob/master/doc/api.md
 
 		tag = get_yappi_tag()
-		if tag == -1:
+		if tag <= 0:
 			return
 
 		func_stats = yappi.get_func_stats(filter={"tag": tag})
@@ -724,7 +724,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 
 				content_length = headers.get("Content-Length", None)
 				if content_length is None:
-					if scope["method"] != "OPTIONS" and 200 <= message.get("status") < 300:
+					if scope["method"] != "OPTIONS" and 200 <= message.get("status", 500) < 300:
 						logger.warning("Header 'Content-Length' missing: %s", message)
 				elif metrics_collector:
 					loop.create_task(
@@ -735,12 +735,11 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 						)
 					)
 
-				server_timing = contextvar_server_timing.get() or {}
+				server_timing = contextvar_server_timing.get()
 				if self._profiler_enabled:
 					server_timing.update(self.yappi(scope))
-				server_timing["request_processing"] = 1000 * (time.perf_counter() - start)
-				server_timing = [f"{k};dur={v:.3f}" for k, v in server_timing.items()]
-				headers.append("Server-Timing", ",".join(server_timing))
+				server_timing["request_processing"] = int(1000 * (time.perf_counter() - start))
+				headers.append("Server-Timing", ",".join([f"{k};dur={v:.3f}" for k, v in server_timing.items()]))
 
 			logger.trace(message)
 			await send(message)
@@ -754,8 +753,8 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 							"worker:avg_http_request_duration", end - start, {"node_name": config.node_name, "worker_num": get_worker_num()}
 						)
 					)
-				server_timing = contextvar_server_timing.get() or {}
-				server_timing["total"] = 1000 * (time.perf_counter() - start)
+				server_timing = contextvar_server_timing.get()
+				server_timing["total"] = int(1000 * (time.perf_counter() - start))
 				logger.info(
 					"Server-Timing %s %s: %s",
 					scope["method"],

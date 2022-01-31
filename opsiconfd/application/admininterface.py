@@ -16,7 +16,7 @@ import datetime
 import collections
 import shutil
 import tempfile
-import msgpack
+import msgpack  # type: ignore[import]
 import requests
 import orjson
 
@@ -25,8 +25,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from starlette.concurrency import run_in_threadpool
 
-from OPSI import __version__ as python_opsi_version
-from OPSI.Exceptions import BackendPermissionDeniedError
+from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
 
 from .. import __version__, contextvar_client_session
 from ..session import OPSISession
@@ -209,7 +209,9 @@ def _install_addon(data: bytes):
 	if not addon_installed:
 		raise RuntimeError("Invalid addon")
 
-	os.kill(get_manager_pid(), signal.SIGHUP)
+	manager_pid = get_manager_pid()
+	if manager_pid:
+		os.kill(manager_pid, signal.SIGHUP)
 
 
 @admin_interface_router.post("/addons/install")
@@ -336,9 +338,7 @@ async def get_blocked_clients() -> list:
 def open_grafana(request: Request):
 
 	if request.base_url.hostname != FQDN:
-		url = f"https://{FQDN}:{request.url.port}/admin/grafana"
-		response = RedirectResponse(url=url)
-		return response
+		return RedirectResponse(f"https://{FQDN}:{request.url.port}/admin/grafana")
 
 	auth = None
 	headers = None

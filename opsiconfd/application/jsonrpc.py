@@ -17,9 +17,9 @@ import tempfile
 import urllib.parse
 import gzip
 import zlib
-import lz4.frame
+import lz4.frame  # type: ignore[import]
 import orjson
-import msgpack
+import msgpack  # type: ignore[import]
 
 
 from fastapi import HTTPException, APIRouter
@@ -27,7 +27,7 @@ from fastapi.requests import Request
 from fastapi.responses import Response
 from starlette.concurrency import run_in_threadpool
 
-from OPSI.Util import serialize, deserialize
+from OPSI.Util import serialize, deserialize  # type: ignore[import]
 
 from .. import contextvar_client_session
 from ..logging import logger

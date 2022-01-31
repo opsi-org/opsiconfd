@@ -21,11 +21,11 @@ import certifi
 import psutil
 from dns import resolver, reversename
 from dns.exception import DNSException
-import configargparse
+import configargparse  # type: ignore[import]
 
 from fastapi.templating import Jinja2Templates
 
-from OPSI.Util import getfqdn
+from OPSI.Util import getfqdn  # type: ignore[import]
 
 from .utils import Singleton, running_in_docker, is_manager
 

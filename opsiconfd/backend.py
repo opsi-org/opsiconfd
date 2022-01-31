@@ -14,10 +14,10 @@ from urllib.parse import urlparse
 
 from starlette.concurrency import run_in_threadpool
 
-from OPSI.Exceptions import BackendPermissionDeniedError
-from OPSI.Backend.BackendManager import BackendManager
-from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig
-from OPSI.Backend.Base.Backend import describeInterface
+from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
+from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
+from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig  # type: ignore[import]
+from OPSI.Backend.Base.Backend import describeInterface  # type: ignore[import]
 
 from . import contextvar_client_address, contextvar_client_session
 from .config import config
@@ -133,12 +133,11 @@ def execute_on_secondary_backends(method: str, **kwargs) -> dict:
 				if backend_id not in backend._backends:  # pylint: disable=protected-access
 					continue
 				logger.info("Executing '%s' on secondary backend '%s'", method, backend_id)
-				result[backend_id] = {"data": None, "error": None}
 				meth = getattr(backend._backends[backend_id]["instance"], method)  # pylint: disable=protected-access
 				try:
-					result[backend_id]["data"] = meth(**kwargs)
+					result[backend_id] = {"data": meth(**kwargs), "error": None}
 				except Exception as err:  # pylint: disable=broad-except
-					result[backend_id]["error"] = err
+					result[backend_id] = {"data": None, "error": err}
 				backend._backends[backend_id]["instance"].backend_exit()  # pylint: disable=protected-access
 	return result
 

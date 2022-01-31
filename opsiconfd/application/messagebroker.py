@@ -11,25 +11,23 @@ messagebroker
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, FastAPI
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.websockets import WebSocket
 from websockets.exceptions import ConnectionClosedOK
 
+from . import app
 from .. import contextvar_client_session
 from ..logging import logger
 from ..utils import async_redis_client
 
 
 messagebroker_router = APIRouter()
-_app: Optional[FastAPI] = None  # pylint: disable=invalid-name
 
 
-def messagebroker_setup(app):
-	global _app  # pylint: disable=invalid-name,global-statement
-	_app = app
-	app.include_router(messagebroker_router, prefix="/mq")
+def messagebroker_setup(_app):
+	_app.include_router(messagebroker_router, prefix="/mq")
 
 
 def mq_websocket_parameters(last_id: Optional[str] = Query(default="0", embed=True)):
@@ -56,7 +54,7 @@ async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str =
 			last_id, buf = await run_in_threadpool(read_data, data, channel)
 			await websocket.send_bytes(buf)
 		except Exception as err:  # pylint: disable=broad-except
-			if isinstance(_app, FastAPI) and not _app.is_shutting_down and not isinstance(err, ConnectionClosedOK):
+			if app.is_shutting_down and not isinstance(err, ConnectionClosedOK):
 				logger.error(err, exc_info=True)
 			break
 
@@ -76,7 +74,12 @@ async def messagebroker_index():
 @messagebroker_router.websocket("")
 async def mq_websocket_endpoint(websocket: WebSocket, params: dict = Depends(mq_websocket_parameters)):
 	session = contextvar_client_session.get()
-	if not session.user_store.host or not session.user_store.isAdmin:
+	if not session:
+		logger.warning("Access to mq websocket denied, invalid session")
+		await websocket.close(code=4403)
+		return
+
+	if session.user_store.host or not session.user_store.isAdmin:
 		logger.warning("Access to mq websocket denied for user '%s'", session.user_store.username)
 		await websocket.close(code=4403)
 		return

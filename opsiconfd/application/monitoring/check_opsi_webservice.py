@@ -8,7 +8,7 @@
 monitoring
 """
 
-import msgpack
+import msgpack  # type: ignore[import]
 import orjson
 from fastapi.responses import JSONResponse
 
@@ -43,7 +43,7 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 			if rpc["error"]:
 				error_count += 1
 		if error_count == 0:
-			error_rate = 0
+			error_rate = 0.0
 		else:
 			error_rate = error_count / len(rpc_list) * 100
 
@@ -75,7 +75,7 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 		if state == State.OK:
 			message.append("Opsi Webservice has no Problem.")
 
-		message = " ".join(message)
+		message_str = " ".join(message)
 
 		if perfdata:
 			performance = [
@@ -87,10 +87,9 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 				f"virtmem={await get_mem_allocated(redis)};;;0; ",
 				f"cpu={cpu_avg};;;0;100 ",
 			]
-			return generate_response(state, message, "".join(performance))
-		return generate_response(state, message)
+			return generate_response(state, message_str, "".join(performance))
+		return generate_response(state, message_str)
 
 	except Exception as err:  # pylint: disable=broad-except
 		state = State.UNKNOWN
-		message = f"cannot check webservice state: '{str(err)}'."
-		return generate_response(state, message)
+		return generate_response(state, f"cannot check webservice state: '{str(err)}'.")

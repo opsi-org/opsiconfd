@@ -10,7 +10,10 @@ check depot sync status
 """
 
 from collections import defaultdict
+from typing import Dict
 from fastapi.responses import JSONResponse
+
+from opsicommon.objects import ProductOnDepot  # type: ignore[import]
 
 from .utils import State, generate_response
 
@@ -26,12 +29,12 @@ def check_depot_sync_status(  # pylint: disable=dangerous-default-value, too-man
 		methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids
 	)
 	product_ids = set()
-	product_on_depot_info = defaultdict(dict)
+	product_on_depot_info: Dict[str, Dict[str, ProductOnDepot]] = defaultdict(dict)
 	for pod in product_on_depots:
 		product_ids.add(pod.productId)
 		product_on_depot_info[pod.depotId][pod.productId] = pod
 
-	difference_products = defaultdict(dict)
+	difference_products: Dict[str, Dict[str, str]] = defaultdict(dict)
 	for product_id in product_ids:
 		if product_id in exclude:
 			continue
@@ -70,19 +73,19 @@ def check_depot_sync_status(  # pylint: disable=dangerous-default-value, too-man
 			for product_id in sorted(difference_products):
 				message += f"product '{product_id}': "
 				for depot_id in depot_ids:
-					product_version = None
-					package_version = None
+					depot_product_version = ""
+					depot_package_version = ""
 					try:
 						if difference_products.get(product_id, {}).get(depot_id) == "not installed":
 							message += f"{depot_id} (not installed) \n"
 						else:
-							product_version = product_on_depot_info[depot_id][product_id].productVersion
-							package_version = product_on_depot_info[depot_id][product_id].packageVersion
-							message += f"{depot_id} ({product_version}-{package_version}) \n"
+							depot_product_version = product_on_depot_info[depot_id][product_id].productVersion
+							depot_package_version = product_on_depot_info[depot_id][product_id].packageVersion
+							message += f"{depot_id} ({depot_product_version}-{depot_package_version}) \n"
 					except KeyError:
 						if not product_on_depot_info.get(depot_id, {}).get(product_id, None):
 							continue
-						message += f"{depot_id} ({product_version}-{package_version}) "
+						message += f"{depot_id} ({depot_product_version}-{depot_package_version}) "
 	else:
 		message += f"Syncstate ok for depots {', '.join(depot_ids)}"
 	return generate_response(state, message)

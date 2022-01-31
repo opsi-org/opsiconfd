@@ -15,16 +15,17 @@ import sys
 import time
 import tempfile
 import tracemalloc
+from typing import Any, Optional, Dict
 
 import psutil
-import msgpack
+import msgpack  # type: ignore[import]
 
 from fastapi import Request, APIRouter
 from fastapi.responses import JSONResponse
 
-import objgraph
-from pympler import tracker, classtracker
-from guppy import hpy
+import objgraph  # type: ignore[import]
+from pympler import tracker, classtracker  # type: ignore[import]
+from guppy import hpy  # type: ignore[import]
 from starlette.responses import Response
 
 from ..logging import logger
@@ -33,11 +34,11 @@ from ..utils import async_redis_client
 
 memory_profiler_router = APIRouter()
 
-MEMORY_TRACKER = None
-CLASS_TRACKER = None
+MEMORY_TRACKER: Optional[tracker.SummaryTracker] = None
+CLASS_TRACKER: Optional[classtracker.ClassTracker] = None
 HEAP = None
 
-TRACEMALLOC_PREV_SNAPSHOT = None
+TRACEMALLOC_PREV_SNAPSHOT: Optional[tracemalloc.Snapshot] = None
 TRACEMALLOC_RSS_START = 0
 TRACEMALLOC_RSS_PREV = 0
 
@@ -48,7 +49,7 @@ def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
 	gc.collect()
 	mem_info = psutil.Process().memory_info()
 
-	if not tracemalloc.is_tracing():
+	if not TRACEMALLOC_PREV_SNAPSHOT or not tracemalloc.is_tracing():
 		tracemalloc.start(25)
 		TRACEMALLOC_PREV_SNAPSHOT = tracemalloc.take_snapshot()
 		TRACEMALLOC_RSS_START = mem_info.rss
@@ -66,10 +67,11 @@ def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
 		data["start"]["size"] += stat.size
 		if num <= limit:
 			data["start"]["stats"].append(str(stat))
-	for num, stat in enumerate(current.compare_to(TRACEMALLOC_PREV_SNAPSHOT, "filename"), 1):
-		data["prev"]["size"] += stat.size_diff
+
+	for num, stat_diff in enumerate(current.compare_to(TRACEMALLOC_PREV_SNAPSHOT, "filename"), 1):
+		data["prev"]["size"] += stat_diff.size_diff
 		if num <= limit:
-			data["prev"]["stats"].append(str(stat))
+			data["prev"]["stats"].append(str(stat_diff))
 
 	TRACEMALLOC_PREV_SNAPSHOT = current
 	TRACEMALLOC_RSS_PREV = mem_info.rss
@@ -77,7 +79,7 @@ def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
 	return JSONResponse({"status": 200, "error": None, "data": data})
 
 
-LAST_OBJGRAPH_SNAPSHOT = {}
+LAST_OBJGRAPH_SNAPSHOT: Dict[str, Any] = {}
 
 
 @memory_profiler_router.get("/objgraph-snapshot-new")
@@ -140,8 +142,9 @@ def memory_objgraph_show_backrefs(obj_id: int, output_format: str = "png") -> Re
 	obj_id = int(obj_id)
 	obj = objgraph.at(obj_id)
 	if obj is None:
-		data = f"Object at address {obj_id} not found"
-		return Response(status_code=404, media_type="text/plain", headers={"Content-Length": str(len(data))}, content=data)
+		msg = f"Object at address {obj_id} not found"
+		return Response(status_code=404, media_type="text/plain", headers={"Content-Length": str(len(msg))}, content=msg)
+
 	file = tempfile.NamedTemporaryFile(delete=False, suffix=f".{output_format}")  # pylint: disable=consider-using-with
 	objgraph.show_backrefs([obj], filename=file.name, shortnames=False)
 	data = file.read()
@@ -311,7 +314,8 @@ async def classtracker_summary() -> JSONResponse:
 async def delte_class_tracker() -> JSONResponse:
 
 	global CLASS_TRACKER  # pylint: disable=global-statement
-	CLASS_TRACKER.close()
+	if CLASS_TRACKER:
+		CLASS_TRACKER.close()
 	CLASS_TRACKER = None
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted class tracker."}})
@@ -388,7 +392,7 @@ async def guppy_set_ref() -> JSONResponse:
 
 
 @memory_profiler_router.get("/guppy/diff")
-async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
+async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:  # pylint: disable=too-many-locals
 
 	global HEAP  # pylint: disable=global-statement
 	if not HEAP:
@@ -410,12 +414,12 @@ async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:
 
 	redis_result = await redis.lindex(f"opsiconfd:stats:memory:heap:{node}", start)
 	fn1 = io.StringIO(msgpack.loads(redis_result))
-	snapshot1 = HEAP.load(fn1)
+	snapshot1_heap = HEAP.load(fn1)
 	redis_result = await redis.lindex(f"opsiconfd:stats:memory:heap:{node}", end)
 	fn2 = io.StringIO(msgpack.loads(redis_result))
-	snapshot2 = HEAP.load(fn2)
+	snapshot2_heap = HEAP.load(fn2)
 
-	heap_diff = snapshot2 - snapshot1
+	heap_diff = snapshot2_heap - snapshot1_heap
 
 	logger.debug("Total Objects : %s", heap_diff.count)
 	logger.debug("Total Size : %s Bytes", heap_diff.size)

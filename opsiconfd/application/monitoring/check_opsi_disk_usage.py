@@ -9,8 +9,8 @@
 check opsi disk usage
 """
 
-from OPSI.Types import forceList
-from OPSI.System import getDiskSpaceUsage
+from OPSI.Types import forceList  # type: ignore[import]
+from OPSI.System import getDiskSpaceUsage  # type: ignore[import]
 
 from .utils import State, generate_response
 

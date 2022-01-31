@@ -22,15 +22,15 @@ from logging import LogRecord, Formatter, StreamHandler
 from concurrent.futures import ThreadPoolExecutor
 
 import aioredis
-import msgpack
+import msgpack  # type: ignore[import]
 import colorlog
 
-from aiologger.handlers.streams import AsyncStreamHandler
-from aiologger.handlers.files import AsyncFileHandler
+from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import]
+from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import]
 
-from OPSI.Config import OPSI_ADMIN_GROUP
+from OPSI.Config import OPSI_ADMIN_GROUP  # type: ignore[import]
 
-from opsicommon.logging import (
+from opsicommon.logging import (  # type: ignore[import]
 	logger,
 	secret_filter,
 	handle_log_exception,
@@ -43,8 +43,8 @@ from opsicommon.logging import (
 	DATETIME_FORMAT,
 	OPSI_LEVEL_TO_LEVEL,
 )
-from opsicommon.logging.constants import logging as pylogging
-from opsicommon.logging.logging import add_context_filter_to_loggers
+from opsicommon.logging.constants import logging as pylogging  # type: ignore[import]
+from opsicommon.logging.logging import add_context_filter_to_loggers  # type: ignore[import]
 
 from .utils import retry_redis_call, get_async_redis_connection, get_redis_connection
 from .config import config

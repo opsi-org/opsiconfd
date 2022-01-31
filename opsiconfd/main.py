@@ -22,9 +22,9 @@ import getpass
 from concurrent.futures import ThreadPoolExecutor
 import uvloop
 
-from OPSI import __version__ as python_opsi_version
+from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 
-from opsicommon.logging import set_filter_from_string
+from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 
 from . import __version__
 from .logging import logger, init_logging, secret_filter, AsyncRedisLogAdapter

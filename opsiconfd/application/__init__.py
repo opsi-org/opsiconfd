@@ -8,4 +8,23 @@
 The opsi configuration service.
 """
 
-from .main import app
+from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+
+from fastapi import FastAPI
+
+from .. import __version__
+from ..rest import RestApiValidationError
+
+
+class OpsiconfdApp(FastAPI):
+	def __init__(self):
+		super().__init__(
+			title="opsiconfd",
+			description="",
+			version=f"{__version__} [python-opsi={python_opsi_version}]",
+			responses={422: {"model": RestApiValidationError, "description": "Validation Error"}},
+		)
+		self.is_shutting_down = False
+
+
+app = OpsiconfdApp()

@@ -92,8 +92,6 @@ class AddonManager(metaclass=Singleton):
 					logger.error("Failed to load addon from %s: %s", addon_path, err, exc_info=True)
 
 	def unload_addon(self, addon_id: str) -> None:
-		from ..application import app  # pylint: disable=import-outside-toplevel
-
 		if addon_id not in self._addons:
 			raise ValueError(f"Addon '{addon_id} not loaded")
 		self._addons[addon_id].on_unload(app)

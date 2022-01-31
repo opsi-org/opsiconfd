@@ -9,17 +9,18 @@ login tests
 """
 
 import os
+import time
 import asyncio
 from logging import LogRecord
 
 import pytest
 
 from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT
-from opsicommon.logging.constants import LOG_NONE, LOG_ERROR
+from opsicommon.logging.constants import LOG_NONE, LOG_ERROR, LOG_WARNING, OPSI_LEVEL_TO_LEVEL
 
 from opsiconfd.logging import (
 	Formatter, AsyncFileHandler, AsyncRotatingFileHandler, AsyncRedisLogAdapter, RedisLogHandler,
-	logger
+	logger, enable_slow_callback_logging
 )
 
 from .utils import (  # pylint: disable=unused-import
@@ -164,3 +165,24 @@ async def test_async_redis_log_adapter(tmp_path):
 		assert len(lines) == 5
 		for idx, line in enumerate(lines):
 			assert f"message {idx}" in line
+
+
+@pytest.mark.asyncio
+async def test_slow_callback_logging(tmp_path):
+	log_file = tmp_path / "log"
+	with get_config({"log_file": str(log_file), "log_level_stderr": LOG_NONE, "log_level_file": LOG_WARNING}):
+		redis_log_handler = RedisLogHandler()
+		logger.addHandler(redis_log_handler)
+		adapter = AsyncRedisLogAdapter()
+		logger.setLevel(OPSI_LEVEL_TO_LEVEL[LOG_WARNING])
+		await asyncio.sleep(2)
+
+		enable_slow_callback_logging(0.9)
+		asyncio.get_event_loop().call_soon(time.sleep, 1)
+		await asyncio.sleep(1)
+
+		await adapter.stop()
+		await asyncio.sleep(1)
+
+		with open(log_file, "r", encoding="utf-8") as file:
+			assert "<Handle sleep(1)> took 1.0" in file.read()

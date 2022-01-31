@@ -189,8 +189,8 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 
 	async def stop(self):
 		self._should_stop = True
-		await asyncio.sleep(0.5)
-		self._loop.stop()
+		for file_log in self._file_logs.values():
+			await file_log.close()
 
 	def reload(self):
 		self._read_config()
@@ -327,7 +327,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 			self._running_event.set()
 
 		last_id = "$"
-		while not self._should_stop:  # pylint: disable=too-many-nested-blocks
+		while True:  # pylint: disable=too-many-nested-blocks
 			try:
 				if not self._redis:
 					self._redis = await get_async_redis_connection(config.redis_internal_url)
@@ -335,6 +335,8 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 				data = await self._redis.xread(streams={stream_name: last_id}, block=1000)
 				if not data:
 					continue
+				if self._should_stop:
+					return
 				for stream in data:
 					for entry in stream[1]:
 						last_id = entry[0]

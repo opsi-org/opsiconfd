@@ -161,14 +161,17 @@ async def test_slow_callback_logging(tmp_path):
 		logger.addHandler(redis_log_handler)
 		adapter = AsyncRedisLogAdapter()
 		logger.setLevel(OPSI_LEVEL_TO_LEVEL[LOG_WARNING])
-		await asyncio.sleep(2)
 
-		enable_slow_callback_logging(0.9)
+		await asyncio.sleep(2)
+		logger.error("start")
+		enable_slow_callback_logging(0.5)
 		asyncio.get_event_loop().call_soon(time.sleep, 1)
-		await asyncio.sleep(1)
+		logger.error("stop")
+		await asyncio.sleep(2)
 
 		await adapter.stop()
 		await asyncio.sleep(1)
 
 		with open(log_file, "r", encoding="utf-8") as file:
-			assert "<Handle sleep(1)> took 1.0" in file.read()
+			log = file.read()
+			assert "<Handle sleep(1)> took 1.0" in log

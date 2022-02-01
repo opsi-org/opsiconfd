@@ -512,7 +512,8 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 				logger.error(err, exc_info=True)
 			await asyncio.sleep(self._interval)
 
-	def _redis_ts_cmd(self, metric: Metric, cmd: str, value: float, timestamp: int = None, **labels):  # pylint: disable=no-self-use
+	@staticmethod
+	def _redis_ts_cmd(metric: Metric, cmd: str, value: float, timestamp: int = None, **labels):
 		timestamp_str: str = str(timestamp or "*")
 		l_labels = [list(pair) for pair in labels.items()]
 

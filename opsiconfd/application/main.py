@@ -31,7 +31,7 @@ from websockets.exceptions import ConnectionClosedOK
 from .. import __version__, contextvar_request_id, contextvar_client_address, contextvar_client_session
 from ..logging import logger
 from ..config import config
-from ..worker import init_worker
+from ..worker import Worker
 from ..session import SessionMiddleware
 from ..statistics import StatisticsMiddleware
 from ..utils import normalize_ip_address, async_redis_client
@@ -314,7 +314,7 @@ def application_setup():
 
 async def startup():
 	try:
-		init_worker()
+		Worker()
 		application_setup()
 	except Exception as error:
 		logger.critical("Error during worker startup: %s", error, exc_info=True)

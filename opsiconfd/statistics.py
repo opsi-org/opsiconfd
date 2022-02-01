@@ -23,7 +23,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import contextvar_request_id, contextvar_client_address, contextvar_server_timing
 from .logging import logger
-from .worker import get_metrics_collector as get_worker_metrics_collector, get_worker_num
+from .worker import Worker
 from .config import config
 from .utils import redis_client, ip_address_to_redis_key
 from .grafana import GrafanaPanelConfig
@@ -39,7 +39,6 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 	from .application import jsonrpc  # pylint: disable=import-outside-toplevel,unused-import
 
 	with redis_client() as client:
-
 		for metric in metrics_registry.get_metrics():
 			if not metric.downsampling:
 				continue
@@ -346,20 +345,20 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 
 		start = time.perf_counter()
 		contextvar_server_timing.set({})
-		metrics_collector = get_worker_metrics_collector()
+		worker = Worker()
 
 		# logger.debug("Client Addr: %s", contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
 				# Start of response (first message / package)
-				if metrics_collector:
+				if worker.metrics_collector:
 					loop.create_task(
-						metrics_collector.add_value(
-							"worker:sum_http_request_number", 1, {"node_name": config.node_name, "worker_num": get_worker_num()}
+						worker.metrics_collector.add_value(
+							"worker:sum_http_request_number", 1, {"node_name": config.node_name, "worker_num": worker.worker_num}
 						)
 					)
 					loop.create_task(
-						metrics_collector.add_value(
+						worker.metrics_collector.add_value(
 							"client:sum_http_request_number", 1, {"client_addr": ip_address_to_redis_key(contextvar_client_address.get())}
 						)
 					)
@@ -370,12 +369,12 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 				if content_length is None:
 					if scope["method"] != "OPTIONS" and 200 <= message.get("status", 500) < 300:
 						logger.warning("Header 'Content-Length' missing: %s", message)
-				elif metrics_collector:
+				elif worker.metrics_collector:
 					loop.create_task(
-						metrics_collector.add_value(
+						worker.metrics_collector.add_value(
 							"worker:avg_http_response_bytes",
 							int(content_length),
-							{"node_name": config.node_name, "worker_num": get_worker_num()},
+							{"node_name": config.node_name, "worker_num": worker.worker_num},
 						)
 					)
 
@@ -391,10 +390,12 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 			if message["type"] == "http.response.body" and not message.get("more_body"):
 				# End of response (last message / package)
 				end = time.perf_counter()
-				if metrics_collector:
+				if worker.metrics_collector:
 					loop.create_task(
-						metrics_collector.add_value(
-							"worker:avg_http_request_duration", end - start, {"node_name": config.node_name, "worker_num": get_worker_num()}
+						worker.metrics_collector.add_value(
+							"worker:avg_http_request_duration",
+							end - start,
+							{"node_name": config.node_name, "worker_num": worker.worker_num},
 						)
 					)
 				server_timing = contextvar_server_timing.get()

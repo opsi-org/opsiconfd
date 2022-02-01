@@ -33,7 +33,7 @@ from .. import contextvar_client_session
 from ..logging import logger
 from ..config import config, RPC_DEBUG_DIR
 from ..backend import get_backend, async_backend_call, get_client_backend, get_backend_interface, OpsiconfdBackend, BackendManager
-from ..worker import get_metrics_collector, get_worker_num
+from ..worker import Worker
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
 from ..utils import decode_redis_result, async_redis_client
 
@@ -353,11 +353,12 @@ async def store_in_cache(rpc: Any, result: Dict[str, Any]) -> None:
 
 async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime.datetime, client: str):
 	is_error = bool(result.get("error"))
-	metrics_collector = get_metrics_collector()
+	worker = Worker()
+	metrics_collector = worker.metrics_collector
 	if metrics_collector and not is_error:
 		asyncio.get_event_loop().create_task(
 			metrics_collector.add_value(
-				"worker:avg_jsonrpc_duration", duration, {"node_name": config.node_name, "worker_num": get_worker_num()}
+				"worker:avg_jsonrpc_duration", duration, {"node_name": config.node_name, "worker_num": worker.worker_num}
 			)
 		)
 
@@ -385,6 +386,7 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 		"error": is_error,
 		"num_results": num_results,
 		"duration": duration,
+		"worker": worker.worker_num,
 	}
 	logger.notice(
 		"JSONRPC request: method=%s, num_params=%d, duration=%0.4f, error=%s, num_results=%d",
@@ -516,11 +518,12 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 	if not isinstance(rpcs, list):
 		rpcs = [rpcs]
 
-	metrics_collector = get_metrics_collector()
+	worker = Worker()
+	metrics_collector = worker.metrics_collector
 	if metrics_collector:
 		asyncio.get_event_loop().create_task(
 			metrics_collector.add_value(
-				"worker:sum_jsonrpc_number", len(rpcs), {"node_name": config.node_name, "worker_num": get_worker_num()}
+				"worker:sum_jsonrpc_number", len(rpcs), {"node_name": config.node_name, "worker_num": worker.worker_num}
 			)
 		)
 

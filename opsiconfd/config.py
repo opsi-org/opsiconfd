@@ -46,7 +46,7 @@ SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
 FQDN = getfqdn()
 DEFAULT_NODE_NAME = socket.gethostname()
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
-
+RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
 
 if running_in_docker():
 	try:

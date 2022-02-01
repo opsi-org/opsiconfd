@@ -31,7 +31,7 @@ from OPSI.Util import serialize, deserialize  # type: ignore[import]
 
 from .. import contextvar_client_session
 from ..logging import logger
-from ..config import config
+from ..config import config, RPC_DEBUG_DIR
 from ..backend import get_backend, async_backend_call, get_client_backend, get_backend_interface, OpsiconfdBackend, BackendManager
 from ..worker import get_metrics_collector, get_worker_num
 from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
@@ -208,9 +208,9 @@ def get_request_serialization(request: Request) -> str:
 		logger.debug("No Content-Type defined, assuming json")
 		return "json"
 	content_type = content_type.lower()
-	if content_type == "application/msgpack":
+	if "msgpack" in content_type:
 		return "msgpack"
-	if content_type == "application/json":
+	if "json" in content_type:
 		return "json"
 	logger.debug("Unhandled Content-Type %r, assuming json", content_type)
 	return "json"
@@ -314,13 +314,18 @@ async def load_from_cache(rpc: Any, backend: Union[OpsiconfdBackend, BackendMana
 		redis = await async_redis_client()
 		if cache_outdated:
 			get_backend().config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
-			await redis.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
-			await redis.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
-			await redis.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
+			async with redis.pipeline() as pipe:
+				pipe.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+				pipe.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
+				pipe.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
+				await pipe.execute()
 			return None
 
-		products_uptodate = await redis.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
-		sorted_uptodate = await redis.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
+		async with redis.pipeline() as pipe:
+			pipe.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
+			pipe.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
+			pipe_results = await pipe.execute()
+		products_uptodate, sorted_uptodate = pipe_results
 		if not products_uptodate or not sorted_uptodate:
 			return None
 
@@ -406,7 +411,7 @@ def execute_rpc(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager], requ
 			method_interface = interface_method
 			break
 	if not method_interface:
-		raise ValueError(f"Method {method_name} not found!")
+		raise ValueError(f"Invalid method {method_name!r}")
 
 	keywords = {}
 	if method_interface["keywords"]:
@@ -417,10 +422,11 @@ def execute_rpc(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager], requ
 			parameter_count += len(method_interface["varargs"])
 
 		if len(params) >= parameter_count:
-			kwargs = params.pop(-1)
+			# params needs to be a copy, leave rpc["params"] unchanged
+			kwargs = params[-1]
+			params = params[:-1]
 			if not isinstance(kwargs, dict):
-				raise TypeError(f"kwargs param is not a dict: {params[-1]}")
-
+				raise TypeError(f"kwargs param is not a dict: {type(kwargs)}")
 			for (key, value) in kwargs.items():
 				keywords[str(key)] = deserialize(value)
 	params = deserialize(params)
@@ -440,8 +446,7 @@ def execute_rpc(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager], requ
 
 def write_error_log(rpc: Any, exception: Exception, request: Request) -> None:
 	now = int(time.time() * 1_000_000)
-	directory = "/tmp/opsiconfd-rpc-debug"
-	makedirs(directory, exist_ok=True)
+	makedirs(RPC_DEBUG_DIR, exist_ok=True)
 	msg = {
 		"client": request.client.host,
 		"description": f"Processing request from {request.client.host} ({request.headers.get('user-agent')}) for {rpc.get('method')}",
@@ -449,7 +454,7 @@ def write_error_log(rpc: Any, exception: Exception, request: Request) -> None:
 		"params": rpc.get("params"),
 		"error": str(exception),
 	}
-	with tempfile.NamedTemporaryFile(delete=False, dir=directory, prefix=f"{request.client.host}-{now}-", suffix=".log") as log_file:
+	with tempfile.NamedTemporaryFile(delete=False, dir=RPC_DEBUG_DIR, prefix=f"{request.client.host}-{now}-", suffix=".log") as log_file:
 		logger.notice("Writing rpc error log to: %s", log_file.name)
 		log_file.write(orjson.dumps(msg))  # pylint: disable=no-member
 
@@ -462,7 +467,9 @@ async def process_rpc_error(exception: Exception, request: Request, rpc: Any = N
 			logger.warning(write_err, exc_info=True)
 
 	result = {"id": rpc.get("id", 0) if rpc else 0, "error": {"message": str(exception), "class": exception.__class__.__name__}}
-	if not rpc or not rpc.get("jsonrpc20"):
+	if rpc and rpc.get("jsonrpc") == "2.0":
+		result["jsonrpc"] = "2.0"
+	else:
 		result["result"] = None
 
 	try:
@@ -498,9 +505,10 @@ async def process_rpc(rpc: Any, request: Request):
 		result = await run_in_threadpool(execute_rpc, rpc, backend, request)
 
 	response = {"id": rpc["id"], "result": result, "error": None}
-	if rpc.get("jsonrpc20"):
+	if rpc.get("jsonrpc") == "2.0":
 		response["jsonrpc"] = "2.0"
 		del response["error"]
+
 	return response
 
 
@@ -534,10 +542,13 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 		if not result.get("error") and duration > config.jsonrpc_time_to_cache:
 			await store_in_cache(rpc, result)
 
-		try:
-			asyncio.get_event_loop().create_task(store_rpc_info(rpc, result, duration, date, request.client.host))
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error(err, exc_info=True)
+		async def _store_rpc_info(rpc, result, duration, date, client):
+			try:
+				await store_rpc_info(rpc, result, duration, date, client)
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error(err, exc_info=True)
+
+		asyncio.get_event_loop().create_task(_store_rpc_info(rpc, result, duration, date, request.client.host))
 	return results
 
 
@@ -547,13 +558,17 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
 async def process_request(request: Request, response: Response):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-	serialization = get_request_serialization(request)
-	compression = get_request_compression(request)
+	response_compression = None
+	request_compression = None
+	serialization = "json"
 	try:
+		response_compression = get_response_compression(request)
+		request_compression = get_request_compression(request)
+		serialization = get_request_serialization(request)
 		request_data: Union[bytes, str] = await request.body()
 		if request_data:
-			if compression:
-				request_data = await run_in_threadpool(decompress_data, request_data, compression)
+			if request_compression:
+				request_data = await run_in_threadpool(decompress_data, request_data, request_compression)
 		else:
 			request_data = urllib.parse.unquote(request.url.query)
 		if not request_data:
@@ -575,14 +590,13 @@ async def process_request(request: Request, response: Response):  # pylint: disa
 	data = await run_in_threadpool(serialize_data, results[0] if len(results) == 1 else results, serialization)
 
 	data_len = len(data)
-	compression = get_response_compression(request)
-	if compression and data_len > COMPRESS_MIN_SIZE:
-		response.headers["content-encoding"] = compression
+	if response_compression and data_len > COMPRESS_MIN_SIZE:
+		response.headers["content-encoding"] = response_compression
 		lz4_block_linked = True
 		if request.headers.get("user-agent", "").startswith("opsi config editor"):
 			# lz4-java - RuntimeException: Dependent block stream is unsupported (BLOCK_INDEPENDENCE must be set).
 			lz4_block_linked = False
-		data = await run_in_threadpool(compress_data, data, compression, 0, lz4_block_linked)
+		data = await run_in_threadpool(compress_data, data, response_compression, 0, lz4_block_linked)
 
 	content_length = len(data)
 	response.headers["content-length"] = str(content_length)

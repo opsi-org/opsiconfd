@@ -21,6 +21,7 @@ from .utils import async_redis_client, async_get_redis_info, Singleton
 from .zeroconf import register_opsi_services, unregister_opsi_services
 from .server import Server
 from .ssl import setup_server_cert
+from .metrics import ManagerMetricsCollector
 
 
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
@@ -117,8 +118,6 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 	async def async_main(self):
 		self._async_main_running = True
 		# Create and start MetricsCollector
-		from .statistics import ManagerMetricsCollector  # pylint: disable=import-outside-toplevel
-
 		metrics_collector = ManagerMetricsCollector()
 		self._loop.create_task(metrics_collector.main_loop())
 

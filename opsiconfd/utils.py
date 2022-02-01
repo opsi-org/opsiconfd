@@ -18,6 +18,7 @@ import datetime
 import time
 import codecs
 import asyncio
+import threading
 from typing import Dict, Optional
 from contextlib import contextmanager
 from fastapi import FastAPI, APIRouter
@@ -29,6 +30,8 @@ import aioredis
 
 logger = None  # pylint: disable=invalid-name
 config = None  # pylint: disable=invalid-name
+redis_lock = threading.Lock()
+aioredis_lock = asyncio.Lock()
 REDIS_CONNECTION_POOL = {}
 AIOREDIS_CONNECTION_POOL = {}
 
@@ -185,21 +188,22 @@ def retry_redis_call(func):
 
 def get_redis_connection(url: str, db: int = 0, timeout: int = 0) -> redis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
-	while True:
-		try:
-			con_id = f"{url}/{db}"
-			new_pool = False
-			if con_id not in REDIS_CONNECTION_POOL:
-				new_pool = True
-				REDIS_CONNECTION_POOL[con_id] = redis.ConnectionPool.from_url(url, db=db)
-			client = redis.StrictRedis(connection_pool=REDIS_CONNECTION_POOL[con_id])
-			if new_pool:
-				client.ping()
-			return client
-		except (redis.exceptions.ConnectionError, redis.BusyLoadingError):
-			if timeout and timeout >= time.time() - start:
-				raise
-			time.sleep(2)
+	with redis_lock:
+		while True:
+			try:
+				con_id = f"{url}/{db}"
+				new_pool = False
+				if con_id not in REDIS_CONNECTION_POOL:
+					new_pool = True
+					REDIS_CONNECTION_POOL[con_id] = redis.ConnectionPool.from_url(url, db=db)
+				client = redis.StrictRedis(connection_pool=REDIS_CONNECTION_POOL[con_id])
+				if new_pool:
+					client.ping()
+				return client
+			except (redis.exceptions.ConnectionError, redis.BusyLoadingError):
+				if timeout and timeout >= time.time() - start:
+					raise
+				time.sleep(2)
 
 
 @contextmanager
@@ -215,22 +219,24 @@ def redis_client(timeout: int = 0):
 
 async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0) -> aioredis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
-	while True:
-		try:
-			con_id = f"{id(asyncio.get_event_loop())}/{url}/{db}"
-			new_pool = False
-			if con_id not in AIOREDIS_CONNECTION_POOL:
-				new_pool = True
-				AIOREDIS_CONNECTION_POOL[con_id] = aioredis.ConnectionPool.from_url(url, db=db)
-			# This will return a client (no Exception) even if connection is currently lost
-			client = aioredis.StrictRedis(connection_pool=AIOREDIS_CONNECTION_POOL[con_id])
-			if new_pool:
-				await client.ping()
-			return client
-		except (aioredis.ConnectionError, aioredis.BusyLoadingError):
-			if timeout and timeout >= time.time() - start:
-				raise
-			await asyncio.sleep(2)
+
+	async with aioredis_lock:
+		while True:
+			try:
+				con_id = f"{id(asyncio.get_event_loop())}/{url}/{db}"
+				new_pool = False
+				if con_id not in AIOREDIS_CONNECTION_POOL:
+					new_pool = True
+					AIOREDIS_CONNECTION_POOL[con_id] = aioredis.ConnectionPool.from_url(url, db=db)
+				# This will return a client (no Exception) even if connection is currently lost
+				client = aioredis.StrictRedis(connection_pool=AIOREDIS_CONNECTION_POOL[con_id])
+				if new_pool:
+					await client.ping()
+				return client
+			except (aioredis.ConnectionError, aioredis.BusyLoadingError):
+				if timeout and timeout >= time.time() - start:
+					raise
+				await asyncio.sleep(2)
 
 
 async def async_redis_client(timeout: int = 0) -> aioredis.StrictRedis:

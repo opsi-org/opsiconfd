@@ -8,12 +8,14 @@
 conftest
 """
 
+from importlib.resources import path
 import os
+import pathlib
 import shutil
 import sys
 import asyncio
 import warnings
-from tempfile import mkdtemp
+from tempfile import mkdtemp, gettempdir
 from unittest.mock import patch
 
 import urllib3
@@ -67,6 +69,9 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 @pytest.hookimpl()
 def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argument
 	shutil.rmtree(os.path.dirname(_config.ssl_ca_key))
+	opsiconfd_test_addon = pathlib.Path(gettempdir()) / "opsiconfd_test_addon"
+	if opsiconfd_test_addon.exists():
+		shutil.rmtree(opsiconfd_test_addon)
 
 
 @pytest.hookimpl()

@@ -45,10 +45,11 @@ class Worker(metaclass=Singleton):
 		self.pid = os.getpid()
 		self.is_manager = get_manager_pid() == self.pid
 		self.worker_num = 1
-		self._init_worker_num()
-		self.metrics_collector = WorkerMetricsCollector(self.worker_num)
+		self.metrics_collector = WorkerMetricsCollector(self)
 
-		logger.notice("Init worker %d (pid %s)", self.worker_num, os.getpid())
+	def startup(self):
+		self._init_worker_num()
+		logger.notice("Startup worker %d (pid %s)", self.worker_num, os.getpid())
 		loop = asyncio.get_event_loop()
 		loop.set_debug(config.debug)
 		init_pool_executor(loop)

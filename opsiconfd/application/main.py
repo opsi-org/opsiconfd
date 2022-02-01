@@ -314,7 +314,7 @@ def application_setup():
 
 async def startup():
 	try:
-		Worker()
+		Worker().startup()
 		application_setup()
 	except Exception as error:
 		logger.critical("Error during worker startup: %s", error, exc_info=True)

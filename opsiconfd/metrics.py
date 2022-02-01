@@ -11,7 +11,7 @@ metrics
 import re
 import time
 import asyncio
-from typing import List, Generator
+from typing import List, Generator, TYPE_CHECKING
 import psutil
 
 from aioredis import ResponseError as AioRedisResponseError
@@ -21,6 +21,10 @@ from .logging import logger
 from .config import config
 from .utils import Singleton, async_redis_client
 from .grafana import GrafanaPanelConfig
+
+if TYPE_CHECKING:
+	# Prevent circular import error
+	from .worker import Worker
 
 
 class Metric:  # pylint: disable=too-many-instance-attributes
@@ -358,13 +362,14 @@ class ManagerMetricsCollector(MetricsCollector):
 class WorkerMetricsCollector(MetricsCollector):
 	_metric_subjects = ["worker", "client"]
 
-	def __init__(self, worker_num: int) -> None:
+	def __init__(self, worker: "Worker") -> None:
 		super().__init__()
-		self._worker_num = worker_num
+		self.worker = worker
 		self._proc = None
 
-	def set_worker_num(self, worker_num: int) -> None:
-		self._worker_num = worker_num
+	@property
+	def worker_num(self) -> int:
+		return self.worker.worker_num
 
 	async def _fetch_values(self):
 		if not self._proc:
@@ -379,5 +384,5 @@ class WorkerMetricsCollector(MetricsCollector):
 			# Do not add 0-values
 			if value:
 				asyncio.get_event_loop().create_task(
-					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self._worker_num})
+					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self.worker_num})
 				)

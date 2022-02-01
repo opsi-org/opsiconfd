@@ -139,7 +139,7 @@ def test_get_rpc_list_request(config):  # pylint: disable=redefined-outer-name,u
 	for idx in range(3):
 		assert result[idx].get("rpc_num") == idx + 1
 		assert result[idx].get("error") is False
-		assert result[idx].get("params") == 0
+		assert result[idx].get("params") == 1
 
 
 @pytest.mark.asyncio
@@ -176,7 +176,7 @@ async def test_get_rpc_list(config, admininterface, num_rpcs):  # pylint: disabl
 	for idx in range(0, num_rpcs):
 		assert rpc_list[idx].get("rpc_num") == idx + 1
 		assert rpc_list[idx].get("error") is False
-		assert rpc_list[idx].get("params") == 0
+		assert rpc_list[idx].get("params") == 1
 
 
 @pytest.mark.asyncio

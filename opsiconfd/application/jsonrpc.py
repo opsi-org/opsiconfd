@@ -542,13 +542,7 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 		if not result.get("error") and duration > config.jsonrpc_time_to_cache:
 			await store_in_cache(rpc, result)
 
-		async def _store_rpc_info(rpc, result, duration, date, client):
-			try:
-				await store_rpc_info(rpc, result, duration, date, client)
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error(err, exc_info=True)
-
-		asyncio.get_event_loop().create_task(_store_rpc_info(rpc, result, duration, date, request.client.host))
+		await store_rpc_info(rpc, result, duration, date, request.client.host)
 	return results
 
 

@@ -17,12 +17,13 @@ import pytest
 import pytest_asyncio
 import redis
 import aioredis
-import MySQLdb
+import MySQLdb  # type: ignore[import]
 from requests.cookies import cookiejar_from_dict
 from fastapi.testclient import TestClient
 
-from opsicommon.objects import LocalbootProduct, ProductOnDepot
+from opsicommon.objects import LocalbootProduct, ProductOnDepot  # type: ignore[import]
 
+from opsiconfd.utils import Singleton
 from opsiconfd.config import config as _config
 from opsiconfd.application.main import app
 from opsiconfd.backend import BackendManager
@@ -33,7 +34,7 @@ ADMIN_PASS = "adminuser"
 OPSI_SESSION_KEY = "opsiconfd:sessions"
 
 
-def reset_singleton(cls: type) -> None:
+def reset_singleton(cls: Singleton) -> None:
 	"""Constructor will create a new instance afterwards"""
 	if cls in cls._instances:  # pylint: disable=protected-access
 		del cls._instances[cls]  # pylint: disable=protected-access

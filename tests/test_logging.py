@@ -15,8 +15,8 @@ from logging import LogRecord
 
 import pytest
 
-from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT
-from opsicommon.logging.constants import LOG_NONE, LOG_ERROR, LOG_WARNING, OPSI_LEVEL_TO_LEVEL
+from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT  # type: ignore[import]
+from opsicommon.logging.constants import LOG_NONE, LOG_ERROR, LOG_WARNING, OPSI_LEVEL_TO_LEVEL  # type: ignore[import]
 
 from opsiconfd.logging import (
 	Formatter,

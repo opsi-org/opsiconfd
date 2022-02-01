@@ -8,7 +8,10 @@
 product ordering tests
 """
 
+import time
 import threading
+
+from opsicommon.objects import BoolConfig  # type: ignore[import]
 
 from opsiconfd.utils import decode_redis_result
 
@@ -118,7 +121,7 @@ def test_renew_cache_on_create_products(test_client):  # pylint: disable=redefin
 			assert product["id"] not in result["not_sorted"]
 
 
-def test_getProductOrdering(test_client):  # pylint: disable=invalid-name,redefined-outer-name
+def test_get_product_ordering(test_client):  # pylint: disable=redefined-outer-name
 	depot_id = "test-product-ordering-depot.uib.gmbh"
 	products = [
 		{"id": "test_product1", "name": "Test Product 1", "productVersion": "1.0", "packageVersion": "1", "priority": 95},
@@ -143,6 +146,19 @@ def test_getProductOrdering(test_client):  # pylint: disable=invalid-name,redefi
 				assert product["id"] in result["not_sorted"]
 			assert products_sorted == result["sorted"]
 
+			assert redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
+			assert redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1:uptodate")
+
+			data = redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1", 0, -1)
+			cached_sorted_products = decode_redis_result(data)
+			assert cached_sorted_products == products_sorted
+
+			# Get cached data
+			result = get_product_ordering_jsonrpc(test_client, depot_id)
+			for product in products:
+				assert product["id"] in result["sorted"]
+				assert product["id"] in result["not_sorted"]
+
 			# Mark cache as outdated
 			with redis.pipeline() as pipe:
 				pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
@@ -155,6 +171,28 @@ def test_getProductOrdering(test_client):  # pylint: disable=invalid-name,redefi
 			for product in products:
 				assert product["id"] in result["sorted"]
 				assert product["id"] in result["not_sorted"]
+
+			data = redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1", 0, -1)
+			cached_sorted_products = decode_redis_result(data)
+			assert cached_sorted_products == products_sorted
+
+			# Mark cache as outdated by api
+			uptodate = redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
+			assert uptodate
+			time.sleep(1)
+
+			rpc = {
+				"id": 1,
+				"method": "config_createObjects",
+				"params": [BoolConfig(id=f"opsiconfd.{depot_id}.product.cache.outdated").to_hash()],
+			}
+			test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+
+			get_product_ordering_jsonrpc(test_client, depot_id)
+
+			uptodate2 = redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
+			assert uptodate2
+			assert uptodate2 != uptodate
 
 		# Product are deleted
 		result = get_product_ordering_jsonrpc(test_client, depot_id)

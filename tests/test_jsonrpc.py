@@ -9,291 +9,222 @@ jsonrpc tests
 """
 
 import json
-import datetime
-import requests
-import msgpack
-import pytest
+import time
+from unittest.mock import patch
 
-from opsiconfd.utils import decode_redis_result
+import pytest
+import msgpack  # type: ignore[import]
+
+from opsicommon.objects import OpsiClient  # type: ignore[import]
 from opsiconfd.application.jsonrpc import (
-	store_rpc,
 	get_sort_algorithm,
-	store_product_ordering,
-	set_jsonrpc_cache_outdated,
-	remove_depot_from_jsonrpc_cache,
+	compress_data,
+	decompress_data,
+	serialize_data,
+	deserialize_data,
 )
 
 from .utils import (  # pylint: disable=unused-import
 	config,
+	get_config,
 	clean_redis,
 	async_redis_client,
-	database_connection,
+	sync_redis_client,
 	backend,
+	test_client,
+	get_dummy_products,
+	products_jsonrpc,
 	ADMIN_USER,
 	ADMIN_PASS,
 )
 
 
-@pytest.fixture(name="fill_db")
-def fixture_fill_db(database_connection):  # pylint: disable=unused-argument,redefined-outer-name
-	mysql_data = [
-		{
-			"hostId": "pytest.uib.gmbh",
-			"type": "OpsiClient",
-			"description": "pytest test data description",
-			"notes": "pytest test data notes",
-			"hardwareAddress": "32:58:fd:f7:3b:26",
-			"ipAddress": "192.168.0.12",
-			"inventoryNumber": "0815",
-			"created": "2017-11-14 14:43:48",
-			"lastSeen": "2017-11-14 14:43:48",
-		},
-		{
-			"hostId": "pytest2.uib.gmbh",
-			"type": "OpsiClient",
-			"description": "pytest test data description",
-			"notes": "pytest test data notes",
-			"hardwareAddress": "32:58:fd:f7:3b:26",
-			"ipAddress": "192.168.0.111",
-			"inventoryNumber": "0815",
-			"created": "2017-11-14 14:43:48",
-			"lastSeen": "2017-11-14 14:43:48",
-		},
-		{
-			"hostId": "pytest3.uib.gmbh",
-			"type": "OpsiClient",
-			"description": "pytest test data description",
-			"notes": "pytest test data notes",
-			"hardwareAddress": "32:58:fd:f7:3b:26",
-			"ipAddress": "192.168.0.111",
-			"inventoryNumber": "0815",
-			"created": "2017-11-14 14:43:48",
-			"lastSeen": "2017-11-14 14:43:48",
-		},
-		{
-			"hostId": "pytest4.uib.gmbh",
-			"type": "OpsiClient",
-			"description": "pytest test data description",
-			"notes": "pytest test data notes",
-			"hardwareAddress": "32:58:fd:f7:3b:26",
-			"ipAddress": "192.168.0.111",
-			"inventoryNumber": "0815",
-			"created": "2017-11-14 14:43:48",
-			"lastSeen": "2017-11-14 14:43:48",
-		},
-	]
-
-	# TODO assert mysql results
-	# TODO insert more Data
-	for data in mysql_data:
-		sql_string = f'INSERT INTO HOST (hostId, type, description, notes,  hardwareAddress, ipAddress, inventoryNumber, created, lastSeen) VALUES ("{data["hostId"]}", "{data["type"]}", "{data["description"]}", "{data["notes"]}", "{data["hardwareAddress"]}", "{data["ipAddress"]}", "{data["inventoryNumber"]}", "{data["created"]}",  "{data["lastSeen"]}");'  # pylint: disable=line-too-long
-		database_connection.query(sql_string)
-		database_connection.query(f'SELECT * FROM HOST WHERE ipAddress like "{data["ipAddress"]}";')
-		database_connection.store_result()
-	database_connection.commit()
-
-	yield None
-
-	for data in mysql_data:
-		database_connection.query(f'DELETE FROM HOST WHERE ipAddress like "{data["ipAddress"]}";')
-	database_connection.commit()
-
-
-jsonrpc_test_data = [
-	(
-		{"id": 1, "method": "host_getObjects", "params": [["ipAddress", "id", "notes"], {"ipAddress": "192.168.0.12"}]},
-		{
-			"num_results": 1,
-			"status_code": 200,
-			"method": "host_getObjects",
-			"id": "pytest.uib.gmbh",
-			"ipAddress": "192.168.0.12",
-			"notes": "pytest test data notes",
-			"type": "OpsiClient",
-			"error": None,
-		},
-	),
-	(
-		{"id": 1, "method": "host_getObjects", "params": [["ipAddress"], {"ipAddress": "192.168.0.12"}]},
-		{
-			"num_results": 1,
-			"status_code": 200,
-			"method": "host_getObjects",
-			"id": "pytest.uib.gmbh",
-			"ipAddress": "192.168.0.12",
-			"notes": None,
-			"type": "OpsiClient",
-			"error": None,
-		},
-	),
-	(
-		{"id": 1, "method": "host_getObjects", "params": [["id"], {"ipAddress": "192.168.0.12"}]},
-		{
-			"num_results": 1,
-			"status_code": 200,
-			"method": "host_getObjects",
-			"id": "pytest.uib.gmbh",
-			"ipAddress": None,
-			"notes": None,
-			"type": "OpsiClient",
-			"error": None,
-		},
-	),
-	(
-		{"id": 1, "method": "host_getObjects", "params": [[], {"ipAddress": "192.168.0.12"}]},
-		{
-			"num_results": 1,
-			"status_code": 200,
-			"method": "host_getObjects",
-			"id": "pytest.uib.gmbh",
-			"ipAddress": "192.168.0.12",
-			"notes": "pytest test data notes",
-			"type": "OpsiClient",
-			"error": None,
-		},
-	),
-	(
-		{"id": 1, "method": "host_getObjects", "params": [["bla"], {"ipAddress": "192.168.0.12"}]},
-		{
-			"num_results": 0,
-			"status_code": 200,
-			"method": "host_getObjects",
-			"id": "pytest.uib.gmbh",
-			"ipAddress": "192.168.0.12",
-			"notes": "pytest test data notes",
-			"type": "OpsiClient",
-			"error": {
-				"message": "Invalid attribute 'bla'",
-				"class": "ValueError",
-			},
-		},
-	),
-	(
-		{"id": 1, "method": "host_getObjects", "params": [[], {"notes": "no results for this request"}]},
-		{"num_results": 0, "status_code": 200, "method": "host_getObjects", "error": None},
-	),
-	(
-		{"id": 1, "method": "host_getObjects", "params": [["ipAddress"], {"ipAddress": "192.168.0.111"}]},
-		{
-			"num_results": 3,
-			"status_code": 200,
-			"method": "host_getObjects",
-			"id": "pytest2.uib.gmbh",
-			"ipAddress": "192.168.0.111",
-			"notes": None,
-			"type": "OpsiClient",
-			"error": None,
-		},
-	),
-]
-
-
-@pytest.mark.parametrize("request_data, expected_result", jsonrpc_test_data)
-def test_process_jsonrpc_request(config, fill_db, request_data, expected_result):  # pylint: disable=unused-argument,redefined-outer-name
-	rpc_request_data = json.dumps(request_data)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	result_json = json.loads(res.text)
-
-	assert res.status_code == expected_result.get("status_code")
-
-	if result_json.get("error") is None:
-		assert len(result_json.get("result")) == expected_result.get("num_results")
-		if len(result_json.get("result")) > 0:
-			assert result_json.get("result")[0].get("notes") == expected_result.get("notes")
-			assert result_json.get("result")[0].get("ipAddress") == expected_result.get("ipAddress")
-			assert result_json.get("result")[0].get("id") == expected_result.get("id")
-			assert result_json.get("result")[0].get("type") == expected_result.get("type")
-	else:
-		error = result_json.get("error")
-		expected_error = expected_result.get("error")
-		assert error.get("message") == expected_error.get("message")
-		assert error.get("class") == expected_error.get("class")
-
-
-def test_create_opsi_Client(config, database_connection):  # pylint: disable=invalid-name,redefined-outer-name
-	request_data = {"id": 1, "method": "host_createOpsiClient", "params": ["test.fabian.uib.local"]}
-
-	rpc_request_data = json.dumps(request_data)
-
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	result_json = json.loads(res.text)
-
-	assert result_json.get("error") is None
-	assert res.status_code == 200
-
-	request_data = {"id": 1, "method": "host_getObjects", "params": [[], {"id": "test.fabian.uib.local"}]}
-
-	rpc_request_data = json.dumps(request_data)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	result_json = json.loads(res.text)
-
-	assert len(result_json.get("result")) == 1
-	assert result_json.get("result")[0].get("id") == "test.fabian.uib.local"
-	assert result_json.get("error") is None
-	database_connection.query('DELETE FROM HOST WHERE hostId like "test.fabian.uib.local"')
-	database_connection.commit()
-
-	rpc_request_data = json.dumps(request_data)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	result_json = json.loads(res.text)
-
-	assert len(result_json.get("result")) == 0
-	assert result_json.get("error") is None
-
-
-def test_delete_opsi_client(config, fill_db):  # pylint: disable=unused-argument,invalid-name,redefined-outer-name
-
-	request_data = {"id": 1, "method": "host_getObjects", "params": [[], {"id": "pytest4.uib.gmbh"}]}
-
-	rpc_request_data = json.dumps(request_data)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	result_json = json.loads(res.text)
-
-	assert len(result_json.get("result")) == 1
-	assert result_json.get("result")[0].get("id") == "pytest4.uib.gmbh"
-	assert result_json.get("error") is None
-
-	delete_request = {"id": 1, "method": "host_delete", "params": ["pytest4.uib.gmbh"]}
-	rpc_delete_request = json.dumps(delete_request)
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_delete_request, verify=False)
-	assert res.status_code == 200
-	result_json = json.loads(res.text)
-
-	assert result_json.get("error") is None
-	assert result_json.get("result") is None
-
-	res = requests.post(f"{config.internal_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), data=rpc_request_data, verify=False)
-	result_json = json.loads(res.text)
-
-	assert len(result_json.get("result")) == 0
-	assert result_json.get("error") is None
-
-
-@pytest.mark.asyncio
-async def test_store_rpc():  # pylint: disable=redefined-outer-name
-	data = {
-		"rpc_num": 1,
-		"method": "test",
-		"num_params": 2,
-		"date": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-		"client": "127.0.0.1",
-		"error": None,
-		"num_results": 100,
-		"duration": 0.123,
+def test_request(test_client):  # pylint: disable=redefined-outer-name
+	client_data = {
+		"id": "test-jsonrpc-request.opsi.org",
+		"description": "description",
+		"notes": "notes",
+		"hardwareAddress": "08:00:22:aa:66:ee",
+		"ipAddress": "192.168.10.188",
+		"inventoryNumber": "I01012393278",
 	}
-	for rpc_num in range(7):
-		data["rpc_num"] = rpc_num
-		await store_rpc(data, max_rpcs=5)
+	client = OpsiClient(**client_data)
 
-	async with async_redis_client() as redis:
-		redis_result = await redis.lrange("opsiconfd:stats:rpcs", 0, -1)
-		result = []
-		for value in redis_result:
-			result.append(msgpack.loads(value))
-		assert len(result) == 5
-		for rpc in result:
-			data["rpc_num"] = rpc["rpc_num"]
-			assert rpc == data
+	rpc = {"id": 12345, "method": "host_createObjects", "params": [client.to_hash()]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	result = res.json()
+	assert result["id"] == rpc["id"]
+	assert result["error"] is None
+	assert result["result"] == []
+
+	rpc = {"id": 12346, "method": "host_getObjects", "params": [[], {"id": client.id}]}
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	result = res.json()
+	assert result["id"] == rpc["id"]
+	assert result["error"] is None
+	for attr, val in client_data.items():
+		assert result["result"][0].get(attr) == val
+
+
+def test_multi_request(test_client):  # pylint: disable=redefined-outer-name
+	client1 = OpsiClient(id="test-jsonrpc-request-multi-1.opsi.org")
+	client2 = OpsiClient(id="test-jsonrpc-request-multi-2.opsi.org")
+	rpc = [
+		{"id": 1, "method": "host_createObjects", "params": [client1.to_hash()]},
+		{"id": 2, "method": "host_createObjects", "params": [client2.to_hash()]},
+	]
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	res.raise_for_status()
+	result = res.json()
+	assert len(result) == 2
+	for res in result:
+		assert res["id"] in (rpc[0]["id"], rpc[1]["id"])
+		assert res["error"] is None
+		assert res["result"] == []
+
+
+def test_incomplete_request(test_client):  # pylint: disable=redefined-outer-name
+	rpcs = [
+		{"id": 0, "method": "backend_getInterface"},
+		{"method": "backend_getInterface"},
+	]
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpcs)
+	res.raise_for_status()
+	response = res.json()
+	assert len(response) == 2
+	for result in response:
+		assert result["id"] == 0
+		assert result["result"]
+		assert result["error"] is None
+
+
+def test_jsonrpc20(test_client):  # pylint: disable=redefined-outer-name
+	rpcs = [
+		{"id": 1, "method": "backend_getInterface", "params": []},
+		{"id": 2, "method": "backend_getInterface", "params": [], "jsonrpc": "1.0"},
+		{"id": 3, "method": "backend_getInterface", "params": [], "jsonrpc": "2.0"},
+	]
+	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpcs)
+	res.raise_for_status()
+	response = res.json()
+	assert len(response) == 3
+	for result in response:
+		assert result["id"] in (1, 2, 3)
+		assert result["result"]
+		if result["id"] in (1, 2):
+			assert "jsonrpc" not in result
+			assert result["error"] is None
+		else:
+			assert result["jsonrpc"] == "2.0"
+			assert "error" not in result
+
+
+@pytest.mark.parametrize(
+	"content_type, expected_content_type",
+	(
+		("application/json", "application/json"),
+		("json", "application/json"),
+		("", "application/json"),
+		(None, "application/json"),
+		("xyasdb;dsaoswe3dod", "application/json"),
+		("application/msgpack", "application/msgpack"),
+		("msgpack", "application/msgpack"),
+	),
+)
+def test_serializations(test_client, content_type, expected_content_type):  # pylint: disable=redefined-outer-name
+	products = get_dummy_products(3)
+	product_ids = [p["id"] for p in products]
+	with products_jsonrpc(test_client, "", products):  # Create products
+		rpc = {"id": "serialization", "method": "product_getObjects", "params": [[], {"id": product_ids}]}
+		serialization = expected_content_type.split("/")[-1]
+		res = test_client.post(
+			"/rpc",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			data=serialize_data(rpc, serialization),
+			headers={"Content-Type": content_type},
+			stream=True,
+		)
+		res.raise_for_status()
+		assert res.headers["Content-Type"] == expected_content_type
+		assert deserialize_data(res.raw.read(), serialization)
+
+
+@pytest.mark.parametrize(
+	"content_encoding, accept_encoding, status_code",
+	(
+		("deflate", "deflate", 200),
+		("gzip", "gzip", 200),
+		("lz4", "lz4", 200),
+		("invalid", "lz4", 400),
+		("lz4", "invalid", 400),
+	),
+)
+def test_compression(test_client, content_encoding, accept_encoding, status_code):  # pylint: disable=redefined-outer-name
+	products = get_dummy_products(3)
+	product_ids = [p["id"] for p in products]
+	with (products_jsonrpc(test_client, "", products), patch("opsiconfd.application.jsonrpc.COMPRESS_MIN_SIZE", 0)):
+		rpc = {"id": "compression", "method": "product_getObjects", "params": [[], {"id": product_ids}]}
+		data = serialize_data(rpc, "json")
+		if accept_encoding != "invalid":
+			data = compress_data(data, accept_encoding)
+		res = test_client.post(
+			"/rpc",
+			auth=(ADMIN_USER, ADMIN_PASS),
+			data=data,
+			headers={"Content-Type": "application/json", "Content-Encoding": content_encoding, "Accept-Encoding": accept_encoding},
+			stream=True,
+		)
+		assert res.status_code == status_code
+		if accept_encoding == "invalid":
+			assert res.headers.get("Content-Encoding") is None
+		else:
+			assert res.headers.get("Content-Encoding") == accept_encoding
+		data = res.raw.read()
+		# gzip and deflate transfer-encodings are automatically decoded
+		if "lz4" in accept_encoding:
+			data = decompress_data(data, accept_encoding)
+		assert deserialize_data(data, "json")
+
+
+def test_error_log(test_client, tmp_path):  # pylint: disable=redefined-outer-name
+	with (patch("opsiconfd.application.jsonrpc.RPC_DEBUG_DIR", str(tmp_path)), get_config({"debug_options": "rpc-error-log"})):
+		rpc = {"id": 1, "method": "invalid", "params": [1, 2, 3]}
+		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+		res.raise_for_status()
+		for entry in tmp_path.iterdir():
+			data = json.loads(entry.read_text(encoding="utf-8"))
+			assert data["client"]
+			assert "Processing request from" in data["description"]
+			assert data["method"] == "invalid"
+			assert data["params"] == [1, 2, 3]
+			assert data["error"] == "Invalid method 'invalid'"
+
+
+def test_store_rpc_info(test_client):  # pylint: disable=redefined-outer-name
+	with sync_redis_client() as redis:
+		for num in (1, 2):
+			rpc = {"id": num, "method": "host_getObjects", "params": [["id"], {"type": "OpsiDepotserver"}]}
+			res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+			res.raise_for_status()
+			result = res.json()
+			num_results = len(result["result"])
+			assert num_results > 0
+			time.sleep(3)
+			if num == 2:
+				assert int(redis.get("opsiconfd:stats:num_rpcs")) == 2
+				redis_result = redis.lrange("opsiconfd:stats:rpcs", 0, -1)
+				infos = [msgpack.loads(value) for value in redis_result]
+				assert len(infos) == 2
+				for info in infos:
+					assert info["rpc_num"] in (1, 2)
+					assert info["duration"] > 0
+					assert info["date"]
+					assert info["client"]
+					assert info["error"] is False
+					assert info["num_results"] == num_results
+					assert info["num_params"] == 2
 
 
 @pytest.mark.asyncio
@@ -318,30 +249,3 @@ async def test_get_sort_algorithm(backend):  # pylint: disable=redefined-outer-n
 		multiValue=False,
 	)
 	assert await get_sort_algorithm() == "algorithm1"
-
-
-@pytest.mark.asyncio
-async def test_store_product_ordering():  # pylint: disable=redefined-outer-name
-	result = {"not_sorted": ["7zip", "anydesk", "bitlocker"], "sorted": ["bitlocker", "7zip", "anydesk"]}
-	depot_id = "some.depot.id"
-	algorithm = "algorithm1"
-
-	async with async_redis_client() as redis:
-		await store_product_ordering(result, depot_id, algorithm)
-
-		assert await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
-		assert await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}:uptodate")
-		products = await redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1)
-		products_ordered = await redis.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", 0, -1)
-		assert result == {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}
-
-		await set_jsonrpc_cache_outdated(depot_id)
-
-		assert not await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
-		assert not await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}:uptodate")
-
-		await store_product_ordering(result, depot_id, algorithm)
-		assert await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
-
-		await remove_depot_from_jsonrpc_cache(depot_id)
-		assert not await redis.get(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")

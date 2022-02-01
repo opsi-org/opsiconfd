@@ -28,7 +28,6 @@ from .utils import (  # pylint: disable=unused-import
 	config,
 	get_config,
 	clean_redis,
-	async_redis_client,
 	sync_redis_client,
 	backend,
 	test_client,
@@ -211,7 +210,6 @@ def test_store_rpc_info(test_client):  # pylint: disable=redefined-outer-name
 			result = res.json()
 			num_results = len(result["result"])
 			assert num_results > 0
-			time.sleep(3)
 			if num == 2:
 				assert int(redis.get("opsiconfd:stats:num_rpcs")) == 2
 				redis_result = redis.lrange("opsiconfd:stats:rpcs", 0, -1)

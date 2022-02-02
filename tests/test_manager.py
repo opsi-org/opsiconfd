@@ -42,19 +42,20 @@ def manager():  # pylint: disable=redefined-outer-name
 
 
 def test_manager_signals(manager):  # pylint: disable=redefined-outer-name
+	# signal_handler is replaced in conftest
 	manager._last_reload = 0  # pylint: disable=protected-access
-	os.kill(manager.pid, signal.SIGHUP)
+	manager.orig_signal_handler(signal.SIGHUP, None)
 	assert manager._last_reload != 0  # pylint: disable=protected-access
 
 	def stop(force=False):
 		manager.test_stop = "force" if force else "normal"
 
 	manager._server.stop = stop  # pylint: disable=protected-access
-	manager.signal_handler(signal.SIGKILL, None)
+	manager.orig_signal_handler(signal.SIGKILL, None)
 	assert manager._should_stop is True  # pylint: disable=protected-access
 	assert manager.test_stop == "normal"
 	time.sleep(0.1)
-	manager.signal_handler(signal.SIGKILL, None)
+	manager.orig_signal_handler(signal.SIGKILL, None)
 	assert manager._should_stop is True  # pylint: disable=protected-access
 	assert manager.test_stop == "force"
 

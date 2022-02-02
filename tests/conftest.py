@@ -31,6 +31,7 @@ def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
 	sys.exit(1)
 
 
+Manager.orig_signal_handler = Manager.signal_handler
 Manager.signal_handler = signal_handler
 
 

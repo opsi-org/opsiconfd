@@ -10,6 +10,7 @@ test addon.manager
 
 import os
 import shutil
+import pathlib
 import tempfile
 import pytest
 
@@ -22,10 +23,9 @@ from .utils import config, clean_redis, test_client  # pylint: disable=unused-im
 def cleanup():
 	def _cleanup():
 		AddonManager().unload_addons()
-		for name in ("test1_on_load", "test1_on_unload"):
-			name = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", name)
-			if os.path.exists(name):
-				os.remove(name)
+		opsiconfd_test_addon = pathlib.Path(tempfile.gettempdir()) / "opsiconfd_test_addon"
+		if opsiconfd_test_addon.exists():
+			shutil.rmtree(opsiconfd_test_addon)
 
 	_cleanup()
 	yield

@@ -10,6 +10,7 @@ addon test1
 
 import os
 import tempfile
+import pathlib
 
 from fastapi import FastAPI, APIRouter, status, HTTPException
 from fastapi.requests import HTTPConnection
@@ -57,12 +58,13 @@ class AddonTest1(Addon):
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""
-		marker = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", "test1_on_load")
-		if not os.path.isdir(os.path.dirname(marker)):
-			os.makedirs(os.path.dirname(marker))
-			os.chmod(os.path.dirname(marker), 0o777)
-		with open(marker, mode="w", encoding="utf8"):
-			os.chmod(marker, 0o666)
+		tmp_dir = pathlib.Path(tempfile.gettempdir())
+		(tmp_dir / "opsiconfd_test_addon").mkdir(exist_ok=True)
+		(tmp_dir / "opsiconfd_test_addon").chmod(0o777)
+		marker = tmp_dir / "opsiconfd_test_addon" / "test1_on_load"
+		marker.touch()
+		marker.chmod(0o666)
+
 		router.include_router(api_router, prefix="/api")
 		app.include_router(router, prefix=self.router_prefix)
 		app.mount(
@@ -71,12 +73,13 @@ class AddonTest1(Addon):
 
 	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called before unloading the addon"""
-		marker = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", "test1_on_unload")
-		if not os.path.isdir(os.path.dirname(marker)):
-			os.makedirs(os.path.dirname(marker))
-			os.chmod(os.path.dirname(marker), 0o777)
-		with open(marker, mode="w", encoding="utf8"):
-			os.chmod(marker, 0o666)
+		tmp_dir = pathlib.Path(tempfile.gettempdir())
+		(tmp_dir / "opsiconfd_test_addon").mkdir(exist_ok=True)
+		(tmp_dir / "opsiconfd_test_addon").chmod(0o777)
+		marker = tmp_dir / "opsiconfd_test_addon" / "test1_on_unload"
+		marker.touch()
+		marker.chmod(0o666)
+
 		remove_route_path(app, self.router_prefix)
 
 	async def handle_request(

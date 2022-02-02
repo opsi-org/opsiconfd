@@ -8,14 +8,12 @@
 conftest
 """
 
-from importlib.resources import path
 import os
-import pathlib
 import shutil
 import sys
 import asyncio
 import warnings
-from tempfile import mkdtemp, gettempdir
+from tempfile import mkdtemp
 from unittest.mock import patch
 
 import urllib3
@@ -26,14 +24,14 @@ from opsiconfd.config import config as _config
 from opsiconfd.backend import BackendManager
 from opsiconfd.setup import setup_ssl
 from opsiconfd.application.main import application_setup
-import opsiconfd.manager
+from opsiconfd.manager import Manager
 
 
 def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
 	sys.exit(1)
 
 
-opsiconfd.manager.Manager.signal_hander = signal_handler
+Manager.signal_handler = signal_handler
 
 
 def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
@@ -69,9 +67,6 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 @pytest.hookimpl()
 def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argument
 	shutil.rmtree(os.path.dirname(_config.ssl_ca_key))
-	opsiconfd_test_addon = pathlib.Path(gettempdir()) / "opsiconfd_test_addon"
-	if opsiconfd_test_addon.exists():
-		shutil.rmtree(opsiconfd_test_addon)
 
 
 @pytest.hookimpl()

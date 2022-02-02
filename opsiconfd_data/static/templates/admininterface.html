@@ -92,7 +92,7 @@
 				loadMemoryInfo();
 			}
 			else if (tabName == "log-viewer") {
-				startLog(0, Math.round(Date.now()/1000)-300); // last 5 minutes
+				startLog(0, Math.round(Date.now() / 1000) - 300); // last 5 minutes
 			}
 
 			// Get all elements with class="tabcontent" and hide them
@@ -135,6 +135,7 @@
 			<button class="tablinks" onclick="openTab(event, 'memoryProfiler')">Memory Profiler</button>
 			-->
 			<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
+			<button class="tablinks" onclick="window.open('/dav','_blank')">WebDAV</button>
 			<button class="tablinks" onclick="window.open('/public','_blank')">Public</button>
 			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>
 			<button class="tablinks" onclick="logout()">Logout</button>
@@ -161,7 +162,7 @@
 					<tr>
 						<td align="left"><label>Unblock all clients:</label></td>
 						<td></td>
-					0	<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button></td>
+						0 <td><button id="unblock-all-button" onclick="unblockAll()">Execute</button></td>
 					</tr>
 					<tr>
 						<td align="left">Unblock address:</td>
@@ -211,7 +212,7 @@
 							<td>
 								<select id="method-select" onchange="createParamInputs()">
 									{% for method in interface %}
-									<option>{{	method.get("name") }}</option>
+									<option>{{ method.get("name") }}</option>
 									{% endfor %}
 								</select>
 							</td>
@@ -275,7 +276,7 @@
 			<h3>opsiconfd info</h3>
 			<div class="adminpage-box">
 				<h5 style="margin: 10px">Number of depot servers: {{num_servers}}</h4>
-				<h5 style="margin: 10px">Number of clients: {{num_clients}}</h4>
+					<h5 style="margin: 10px">Number of clients: {{num_clients}}</h4>
 			</div>
 			<div class="adminpage-box">
 				<h4 style="margin: 10px">opsi CA:</h4>
@@ -283,11 +284,13 @@
 					<table style="margin-left: 20px;margin-bottom: 0px;">
 						<tr>
 							<td>issuer:</td>
-							<td>{{ca_info.issuer.C}}, {{ca_info.issuer.ST}}, {{ca_info.issuer.L}}, {{ca_info.issuer.OU}}, {{ca_info.issuer.CN}}</td>
+							<td>{{ca_info.issuer.C}}, {{ca_info.issuer.ST}}, {{ca_info.issuer.L}},
+								{{ca_info.issuer.OU}}, {{ca_info.issuer.CN}}</td>
 						</tr>
 						<tr>
 							<td>subject:</td>
-							<td>{{ca_info.subject.C}}, {{ca_info.subject.ST}}, {{ca_info.subject.L}}, {{ca_info.subject.OU}}, {{ca_info.subject.CN}}</td>
+							<td>{{ca_info.subject.C}}, {{ca_info.subject.ST}}, {{ca_info.subject.L}},
+								{{ca_info.subject.OU}}, {{ca_info.subject.CN}}</td>
 						</tr>
 						<tr>
 							<td>serial number:</td>
@@ -317,11 +320,13 @@
 					<table style="margin-left: 20px;">
 						<tr>
 							<td>issuer:</td>
-							<td>{{cert_info.issuer.C}}, {{cert_info.issuer.ST}}, {{cert_info.issuer.L}}, {{cert_info.issuer.OU}}, {{cert_info.issuer.CN}}</td>
+							<td>{{cert_info.issuer.C}}, {{cert_info.issuer.ST}}, {{cert_info.issuer.L}},
+								{{cert_info.issuer.OU}}, {{cert_info.issuer.CN}}</td>
 						</tr>
 						<tr>
 							<td>subject:</td>
-							<td>{{cert_info.subject.C}}, {{cert_info.subject.ST}}, {{cert_info.subject.L}}, {{cert_info.subject.OU}}, {{cert_info.subject.CN}}</td>
+							<td>{{cert_info.subject.C}}, {{cert_info.subject.ST}}, {{cert_info.subject.L}},
+								{{cert_info.subject.OU}}, {{cert_info.subject.CN}}</td>
 						</tr>
 						<tr>
 							<td>subjectAltName:</td>
@@ -429,7 +434,7 @@
 				<button id="button-tracemalloc-snapshot" onclick="tracemallocSnapshot()">Tracemalloc snapshot</button>
 			</div>
 			<div class="adminpage-box" id="memory-info">
-					<pre class="memory-values" id="memory-values" style="overflow: auto"></pre>
+				<pre class="memory-values" id="memory-values" style="overflow: auto"></pre>
 			</div>
 		</div>
 
@@ -437,15 +442,16 @@
 			<div id="log-settings">
 				<div class="log-setting">
 					<label for="log-level-filter">Filter by level:</label>
-					<input id="log-level-filter" type="number" min="1" max="9" value="9" onchange="applyLevelFilter(this.value);">
+					<input id="log-level-filter" type="number" min="1" max="9" value="9"
+						onchange="applyLevelFilter(this.value);">
 				</div>
 				<div class="log-setting">
 					<label for="log-context-filter">Filter by context:</label>
-					<input id="log-context-filter" type="text" onchange="applyContextFilter(this.value);"/>
+					<input id="log-context-filter" type="text" onchange="applyContextFilter(this.value);" />
 				</div>
 				<div class="log-setting">
 					<label for="log-message-filter">Filter by message:</label>
-					<input id="log-message-filter" type="text" onchange="applyMessageFilter(this.value);"/>
+					<input id="log-message-filter" type="text" onchange="applyMessageFilter(this.value);" />
 				</div>
 				<div class="log-setting">
 					<label for="collapse-all">Collapse multi-line:</label>
@@ -467,4 +473,5 @@
 			</div>
 		</div>
 </body>
+
 </html>

@@ -9,7 +9,6 @@
 Test opsiconfd.manager
 """
 
-import os
 import time
 import signal
 import asyncio

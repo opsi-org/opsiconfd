@@ -230,5 +230,5 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 		app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False)
 	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])
 	app_config["provider_mapping"]["/"] = virt_root_provider
-	app_config["mount_path"] = "/webdav"
-	app.mount("/webdav", WSGIMiddleware(WsgiDAVApp(app_config)))
+	app_config["mount_path"] = "/dav"
+	app.mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config)))

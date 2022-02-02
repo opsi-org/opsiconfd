@@ -143,14 +143,14 @@ def test_webdav_ignore_case_download(test_client, filename, path, exception):  #
 
 def test_webdav_virtual_folder(test_client):  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	res = test_client.get(url="/webdav")
+	res = test_client.get(url="/dav")
 	assert res.status_code == 200
 
-	assert "/webdav/boot" in res.text
-	assert "/webdav/depot" in res.text
-	assert "/webdav/public" in res.text
-	assert "/webdav/repository" in res.text
-	assert "/webdav/workbench" in res.text
+	assert "/dav/boot" in res.text
+	assert "/dav/depot" in res.text
+	assert "/dav/public" in res.text
+	assert "/dav/repository" in res.text
+	assert "/dav/workbench" in res.text
 
 
 def test_webdav_setup_exception(backend):  # pylint: disable=redefined-outer-name

@@ -8,7 +8,7 @@
 The opsi configuration service.
 """
 
-__version__ = "4.2.0.230"
+__version__ = "4.2.0.232"
 
 from typing import Optional, Dict, TYPE_CHECKING
 

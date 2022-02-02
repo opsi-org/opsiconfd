@@ -46,7 +46,13 @@ APP_CONFIG_TEMPLATE = {
 	"lock_storage": True,  # True: use lock_manager.LockManager
 	"block_size": BLOCK_SIZE,  # default = 8192
 	"ssl_certificate": True,  # Prevent warning in log
-	"dir_browser": {"show_user": False, "icon": False, "response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)"},
+	"dir_browser": {
+		"show_user": False,
+		"icon": False,
+		"response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)",
+		"davmount": True,
+		"davmount_links": True,
+	},
 	"cors": {"allow_origin": "*"},
 	"provider_mapping": {},
 	"mount_path": None,

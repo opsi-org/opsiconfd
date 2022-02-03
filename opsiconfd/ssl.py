@@ -428,7 +428,7 @@ def setup_ssl():
 		load_ca_key()
 
 
-def get_cert_info(cert: X509) -> Dict[str, Any]:
+def get_cert_info(cert: X509, renew_days: int) -> Dict[str, Any]:
 	alt_names = ""
 	for idx in range(0, cert.get_extension_count()):
 		if cert.get_extension(idx).get_short_name() == b"subjectAltName":
@@ -436,13 +436,13 @@ def get_cert_info(cert: X509) -> Dict[str, Any]:
 
 	dt_not_before = None
 	dt_not_after = None
-	expiration = 0
+	expires_in_days = 0
 	not_before = cert.get_notBefore()
 	not_after = cert.get_notAfter()
 	if not_before and not_after:
 		dt_not_before = datetime.datetime.strptime(not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
 		dt_not_after = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
-		expiration = (dt_not_after - datetime.datetime.now()).days
+		expires_in_days = (dt_not_after - datetime.datetime.now()).days
 
 	return {
 		"issuer": cert.get_issuer(),
@@ -450,14 +450,15 @@ def get_cert_info(cert: X509) -> Dict[str, Any]:
 		"serial_number": ":".join((f"{cert.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2)),
 		"not_before": dt_not_before,
 		"not_after": dt_not_after,
-		"expiration": expiration,
+		"expires_in_days": expires_in_days,
+		"renewal_in_days": expires_in_days - renew_days,
 		"alt_names": alt_names,
 	}
 
 
 def get_ca_cert_info() -> Dict[str, Any]:
-	return get_cert_info(load_ca_cert())
+	return get_cert_info(load_ca_cert(), config.ssl_ca_cert_renew_days)
 
 
 def get_server_cert_info() -> Dict[str, Any]:
-	return get_cert_info(load_local_server_cert())
+	return get_cert_info(load_local_server_cert(), config.ssl_server_cert_renew_days)

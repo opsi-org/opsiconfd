@@ -57,7 +57,7 @@ async def status_overview() -> PlainTextResponse:
 		f"redis-error: {redis_error}\n"
 		f"redis-mem: {redis_mem}\n"
 		f"redis-mem-total: {redis_mem_total}\n"
-		f"ssl-ca-valid-days: {get_ca_cert_info()['expiration']}\n"
-		f"ssl-cert-valid-days: {get_server_cert_info()['expiration']}\n"
+		f"ssl-ca-valid-days: {get_ca_cert_info()['expires_in_days']}\n"
+		f"ssl-cert-valid-days: {get_server_cert_info()['expires_in_days']}\n"
 	)
 	return PlainTextResponse(data)

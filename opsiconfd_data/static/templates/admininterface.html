@@ -305,8 +305,12 @@
 							<td>{{ca_info.not_after}}</td>
 						</tr>
 						<tr>
-							<td>expiration:</td>
-							<td>{{ca_info.expiration}} days left</td>
+							<td>expires:</td>
+							<td>in {{ca_info.expires_in_days}} days</td>
+						</tr>
+						<tr>
+							<td>renewal:</td>
+							<td>in {{ca_info.renewal_in_days}} days</td>
 						</tr>
 						<tr>
 							<td colspan="2"><a href="/ssl/opsi-ca-cert.pem">Download as PEM</a></td>
@@ -345,8 +349,12 @@
 							<td>{{cert_info.not_after}}</td>
 						</tr>
 						<tr>
-							<td>expiration:</td>
-							<td>{{cert_info.expiration}} days left</td>
+							<td>expires:</td>
+							<td>in {{cert_info.expires_in_days}} days</td>
+						</tr>
+						<tr>
+							<td>renewal:</td>
+							<td>in {{cert_info.renewal_in_days}} days</td>
 						</tr>
 					</table>
 				</div>

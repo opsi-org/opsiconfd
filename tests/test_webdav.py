@@ -26,6 +26,11 @@ def test_webdav_setup():
 	webdav_setup(app)
 
 
+def test_webdav_path_modification(test_client):  # pylint: disable=redefined-outer-name
+	res = test_client.request(method="PROPFIND", url="/dav", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 207
+
+
 def test_webdav_upload_download_delete_with_special_chars(test_client):  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	size = 1 * 1024 * 1024

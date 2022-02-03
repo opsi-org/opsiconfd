@@ -49,6 +49,17 @@ from .status import status_setup
 from .messagebroker import messagebroker_setup
 
 
+PATH_MAPPINGS = {
+	# Some WebDAV-Clients do not accept redirect on initial PROPFIND
+	"/dav": "/dav/",
+	"/boot": "/boot/",
+	"/depot": "/depot/",
+	"/public": "/public/",
+	"/repository": "/repository/",
+	"/workbench": "/workbench/",
+}
+
+
 @app.websocket_route("/ws/log_viewer")
 class LoggerWebsocket(WebSocketEndpoint):
 	encoding = "bytes"
@@ -198,6 +209,10 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		request_id = abs(c_long(request_id).value)
 		scope["request_id"] = request_id
 		contextvar_request_id.set(request_id)
+
+		if scope.get("path") and (new_path := PATH_MAPPINGS.get(scope["path"])):
+			scope["path"] = new_path
+			scope["raw_path"] = new_path.encode("utf-8")
 
 		client_host, client_port = self.get_client_address(scope)
 

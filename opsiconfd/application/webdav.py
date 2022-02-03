@@ -21,7 +21,7 @@ from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
 
 from .. import __version__
 from ..logging import logger
-from ..config import FQDN
+from ..config import config, FQDN
 from ..backend import get_backend
 from ..wsgi import WSGIMiddleware
 
@@ -47,11 +47,10 @@ APP_CONFIG_TEMPLATE = {
 	"block_size": BLOCK_SIZE,  # default = 8192
 	"ssl_certificate": True,  # Prevent warning in log
 	"dir_browser": {
-		"show_user": False,
-		"icon": False,
 		"response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)",
 		"davmount": True,
-		"davmount_links": True,
+		"davmount_links": False,
+		"htdocs_path": os.path.join(config.static_dir, "wsgidav"),
 	},
 	"cors": {"allow_origin": "*"},
 	"provider_mapping": {},

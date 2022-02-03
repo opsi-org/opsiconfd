@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="generator" content="WsgiDAV/{{ version }}">
+	<title>opsiconfd - Index of {{ display_path }} </title>
+	<link rel="shortcut icon" href="/static/favicon.ico">
+	<link rel="stylesheet" href="/static/wsgidav/style.css" />
+	<script src="/static/javascript/common.js"></script>
+	<script src="/static/wsgidav/script.js"></script>
+</head>
+
+<body onload="onLoad()">
+	<h1>
+		<img class="logo" alt="WsgiDAV" title="WsgiDAV" src="/static/opsi_logo.png">
+		Index of {{ display_path }}
+	</h1>
+
+	<p id="mount-instructions">
+	</p>
+
+	<hr>
+
+	<table class="dir-listing" onclick="return onClickTable(event)">
+
+		<colgroup>
+			<col>
+			<col>
+			<col class="right">
+			<col class="right">
+		</colgroup>
+
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Type</th>
+				<th>Size</th>
+				<th>Last modified</th>
+			</tr>
+		</thead>
+
+		<tbody>
+			{%- if parent_url %}
+			<tr class="directory">
+				<td>
+					<a href="{{ parent_url }}">..</a>
+				</td>
+				<td>Directory</td>
+				<td>-</td>
+				<td></td>
+			</tr>
+			{% endif -%}
+
+			{% for row in rows %}
+			<tr class="{{ row.tr_class }}">
+				<td>
+					<a class="{{ row.a_class }}" href="{{row.href}}" {% if row.ofe_prefix %}
+						data-ofe="{{row.ofe_prefix}}" {% endif %}>
+						{{row.display_name}}
+					</a>
+					{%- if row.href_2 %}
+					<a class="{{ row.a_class_2 }}" href="{{row.href_2}}" {% if row.ofe_prefix_2%}
+						data-ofe="{{row.ofe_prefix_2}}" {% endif %}>
+						{{row.display_name_2}}
+					</a>
+					{% endif -%}
+					{%- if row.add_link_html %}
+					{{row.add_link_html}}
+					{% endif -%}
+				</td>
+				<td>{{ row.display_type }}</td>
+				<td>{{ row.str_size }}</td>
+				<td>{{ row.str_modified }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+
+	<hr>
+
+	{% if trailer %}
+	<p class="trailer">{{ trailer }}</p>
+	{% endif %}
+</body>
+
+</html>

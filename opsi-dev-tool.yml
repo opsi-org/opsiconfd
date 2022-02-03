@@ -55,12 +55,8 @@ pyinstaller-poetry:
   data_files:
     - src: opsiconfd_data/**/*
       dst: opsiconfd_data
-    - src: ${VENV_SITE_PACKAGES}/wsgidav/dir_browser/htdocs/*
-      dst: wsgidav/dir_browser/htdocs
   dirname: opsiconfd
   after_script: |
-    cp dist/opsiconfd/opsiconfd_data/static/favicon.ico dist/opsiconfd/wsgidav/dir_browser/htdocs/favicon.ico
-    sed -i s'#<title>WsgiDAV - Index of#<title>opsiconfd - Index of#' dist/opsiconfd/wsgidav/dir_browser/htdocs/template.html
     find dist/opsiconfd -iname "*.c" -delete
     find dist/opsiconfd -iname "*.h" -delete
     find dist/opsiconfd -iname "*.so" -exec chmod -x "{}" \;

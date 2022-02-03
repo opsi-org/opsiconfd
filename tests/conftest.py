@@ -9,8 +9,9 @@ conftest
 """
 
 import os
-import shutil
 import sys
+import shutil
+import pprint
 import asyncio
 import warnings
 from tempfile import mkdtemp
@@ -46,6 +47,9 @@ LogCaptureHandler.emit = emit
 def pytest_sessionstart(session):  # pylint: disable=unused-argument
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()
+
+	print("Config:")
+	pprint.pprint(_config.items(), width=200)
 
 	ssl_dir = mkdtemp()
 	_config.ssl_ca_key = os.path.join(ssl_dir, "opsi-ca-key.pem")

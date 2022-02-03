@@ -276,10 +276,11 @@ def setup_ca() -> bool:
 	if config.ssl_ca_key == config.ssl_ca_cert:
 		raise ValueError("CA key and cert cannot be stored in the same file")
 
-	ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), "opsi-ca.srl")
-	if os.path.exists(ca_srl):
-		# Remove obsolete file
-		os.remove(ca_srl)
+	for name in ("opsi-ca-cert.srl", "opsi-ca.srl"):
+		ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), name)
+		if os.path.exists(ca_srl):
+			# Remove obsolete file
+			os.remove(ca_srl)
 
 	if server_role == "config":
 		return configserver_setup_ca()

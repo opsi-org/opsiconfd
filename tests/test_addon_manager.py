@@ -11,7 +11,6 @@ test addon.manager
 import os
 import shutil
 import pathlib
-import tempfile
 import pytest
 
 from opsiconfd.addon import AddonManager

@@ -9,7 +9,6 @@ addon test1
 """
 
 import os
-import tempfile
 import pathlib
 
 from fastapi import FastAPI, APIRouter, status, HTTPException

@@ -48,14 +48,14 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()
 
-	print("Config:")
-	pprint.pprint(_config.items(), width=200)
-
 	ssl_dir = mkdtemp()
 	_config.ssl_ca_key = os.path.join(ssl_dir, "opsi-ca-key.pem")
 	_config.ssl_ca_cert = os.path.join(ssl_dir, "opsi-ca-cert.pem")
 	_config.ssl_server_key = os.path.join(ssl_dir, "opsiconfd-key.pem")
 	_config.ssl_server_cert = os.path.join(ssl_dir, "opsiconfd-cert.pem")
+
+	print("Config:")
+	pprint.pprint(_config.items(), width=200)
 
 	BackendManager.default_config = {
 		"backendConfigDir": _config.backend_config_dir,

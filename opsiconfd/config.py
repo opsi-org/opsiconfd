@@ -483,6 +483,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--log-max-msg-len",
 			env_var="OPSICONFD_LOG_MAX_MSG_LEN",
+			type=int,
 			default=5000,
 			help=self._expert_help("Set maximum log message length."),
 		)
@@ -556,12 +557,14 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--ssl-ca-cert-valid-days",
 			env_var="OPSICONFD_SSL_CA_CERT_VALID_DAYS",
+			type=int,
 			default=360,
 			help=self._expert_help("The period of validity of the opsi ssl ca certificate in days."),
 		)
 		self._parser.add(
 			"--ssl-ca-cert-renew-days",
 			env_var="OPSICONFD_SSL_CA_CERT_RENEW_DAYS",
+			type=int,
 			default=300,
 			help=self._expert_help("The CA will be renewed if the validity falls below the specified number of days."),
 		)
@@ -586,18 +589,21 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--ssl-server-cert-valid-days",
 			env_var="OPSICONFD_SSL_SERVER_CERT_VALID_DAYS",
+			type=int,
 			default=90,
 			help=self._expert_help("The period of validity of the server certificate in days."),
 		)
 		self._parser.add(
 			"--ssl-server-cert-renew-days",
 			env_var="OPSICONFD_SSL_SERVER_CERT_RENEW_DAYS",
+			type=int,
 			default=30,
 			help=self._expert_help("The server certificate will be renewed if the validity falls below the specified number of days."),
 		)
 		self._parser.add(
 			"--ssl-client-cert-valid-days",
 			env_var="OPSICONFD_SSL_CLIENT_CERT_VALID_DAYS",
+			type=int,
 			default=360,
 			help=self._expert_help("The period of validity of a client certificate in days."),
 		)
@@ -702,8 +708,8 @@ class Config(metaclass=Singleton):
 			"--restart-worker-mem",
 			env_var="OPSICONFD_RESTART_WORKER_MEM",
 			type=int,
-			help="Restart worker if allocated process memory (rss) exceeds this value (in MB).",
 			default=0,
+			help="Restart worker if allocated process memory (rss) exceeds this value (in MB).",
 		)
 
 		self._parser.add("--ex-help", action="store_true", help=self._expert_help("Show expert help message and exit."))

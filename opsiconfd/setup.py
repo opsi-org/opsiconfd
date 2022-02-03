@@ -253,4 +253,4 @@ def setup(full: bool = True):  # pylint: disable=too-many-branches
 			setup_ssl()
 		except Exception as err:  # pylint: disable=broad-except
 			# This can fail if fqdn is not valid
-			logger.error("Failed to setup ssl: %s", err)
+			logger.error("Failed to setup ssl: %s", err, exc_info=True)

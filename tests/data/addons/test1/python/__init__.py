@@ -58,10 +58,10 @@ class AddonTest1(Addon):
 
 	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called after loading the addon"""
-		tmp_dir = pathlib.Path(tempfile.gettempdir())
-		(tmp_dir / "opsiconfd_test_addon").mkdir(exist_ok=True)
-		(tmp_dir / "opsiconfd_test_addon").chmod(0o777)
-		marker = tmp_dir / "opsiconfd_test_addon" / "test1_on_load"
+		marker_dir = pathlib.Path("/var/lib/opsi/opsiconfd_test_addon")
+		marker_dir.mkdir(exist_ok=True)
+		marker_dir.chmod(0o777)
+		marker = marker_dir / "test1_on_load"
 		marker.touch()
 		marker.chmod(0o666)
 
@@ -73,10 +73,10 @@ class AddonTest1(Addon):
 
 	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
 		"""Called before unloading the addon"""
-		tmp_dir = pathlib.Path(tempfile.gettempdir())
-		(tmp_dir / "opsiconfd_test_addon").mkdir(exist_ok=True)
-		(tmp_dir / "opsiconfd_test_addon").chmod(0o777)
-		marker = tmp_dir / "opsiconfd_test_addon" / "test1_on_unload"
+		marker_dir = pathlib.Path("/var/lib/opsi/opsiconfd_test_addon")
+		marker_dir.mkdir(exist_ok=True)
+		marker_dir.chmod(0o777)
+		marker = marker_dir / "test1_on_unload"
 		marker.touch()
 		marker.chmod(0o666)
 

@@ -216,7 +216,7 @@ class Config(metaclass=Singleton):
 			elif arg.startswith("--config-file="):
 				self._args[idx] = f"--config-file={config_file}"
 				return
-		self._args.extend(["--config-file", config_file])
+		self._args = ["--config-file", config_file] + self._args
 
 	def set_config_in_config_file(self, arg: str, value: Union[str, int, float]):
 		config_files = self._parser._open_config_files(self._args)  # pylint: disable=protected-access

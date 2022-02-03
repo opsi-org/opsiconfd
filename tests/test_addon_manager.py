@@ -23,7 +23,7 @@ from .utils import config, clean_redis, test_client  # pylint: disable=unused-im
 def cleanup():
 	def _cleanup():
 		AddonManager().unload_addons()
-		opsiconfd_test_addon = pathlib.Path(tempfile.gettempdir()) / "opsiconfd_test_addon"
+		opsiconfd_test_addon = pathlib.Path("/var/lib/opsi/opsiconfd_test_addon")
 		if opsiconfd_test_addon.exists():
 			shutil.rmtree(opsiconfd_test_addon)
 
@@ -34,7 +34,7 @@ def cleanup():
 
 def test_load_addon(config):  # pylint: disable=redefined-outer-name
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
-	marker_file = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", "test1_on_load")
+	marker_file = "/var/lib/opsi/opsiconfd_test_addon/test1_on_load"
 
 	addon_manager = AddonManager()
 	addon_manager.load_addons()
@@ -56,7 +56,7 @@ def test_load_addon(config):  # pylint: disable=redefined-outer-name
 
 def test_unload_addon(config):  # pylint: disable=redefined-outer-name
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
-	marker_file = os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", "test1_on_unload")
+	marker_file = marker_file = "/var/lib/opsi/opsiconfd_test_addon/test1_on_unload"
 
 	addon_manager = AddonManager()
 	addon_manager.load_addons()

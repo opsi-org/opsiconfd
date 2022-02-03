@@ -28,34 +28,6 @@ from ..wsgi import WSGIMiddleware
 
 PUBLIC_FOLDER = "/var/lib/opsi/public"
 BLOCK_SIZE = 64 * 1024
-APP_CONFIG_TEMPLATE = {
-	"simple_dc": {"user_mapping": {"*": True}},  # anonymous access
-	"hotfixes": {
-		"re_encode_path_info": False,  # Encoding is done in opsiconfd.wsgi
-	},
-	"http_authenticator": {
-		# None: dc.simple_dc.SimpleDomainController(user_mapping)
-		"domain_controller": None,
-		"accept_basic": False,  # Allow basic authentication, True or False
-		"accept_digest": False,  # Allow digest authentication, True or False
-		"trusted_auth_header": None,
-	},
-	"verbose": 1,
-	"logging": {"enable_loggers": []},
-	"property_manager": True,  # True: use property_manager.PropertyManager
-	"lock_storage": True,  # True: use lock_manager.LockManager
-	"block_size": BLOCK_SIZE,  # default = 8192
-	"ssl_certificate": True,  # Prevent warning in log
-	"dir_browser": {
-		"response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)",
-		"davmount": True,
-		"davmount_links": False,
-		"htdocs_path": os.path.join(config.static_dir, "wsgidav"),
-	},
-	"cors": {"allow_origin": "*"},
-	"provider_mapping": {},
-	"mount_path": None,
-}
 
 # Set file buffer size for reading and writing.
 # Sent message chunks will have the same body size.
@@ -144,6 +116,34 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 		logger.warning("Running on host %s which is not a depot server, webdav disabled.", FQDN)
 		return
 
+	app_config_template = {
+		"simple_dc": {"user_mapping": {"*": True}},  # anonymous access
+		"hotfixes": {
+			"re_encode_path_info": False,  # Encoding is done in opsiconfd.wsgi
+		},
+		"http_authenticator": {
+			# None: dc.simple_dc.SimpleDomainController(user_mapping)
+			"domain_controller": None,
+			"accept_basic": False,  # Allow basic authentication, True or False
+			"accept_digest": False,  # Allow digest authentication, True or False
+			"trusted_auth_header": None,
+		},
+		"verbose": 1,
+		"logging": {"enable_loggers": []},
+		"property_manager": True,  # True: use property_manager.PropertyManager
+		"lock_storage": True,  # True: use lock_manager.LockManager
+		"block_size": BLOCK_SIZE,  # default = 8192
+		"ssl_certificate": True,  # Prevent warning in log
+		"dir_browser": {
+			"response_trailer": f"opsiconfd {__version__} (uvicorn/WsgiDAV)",
+			"davmount": True,
+			"davmount_links": False,
+			"htdocs_path": os.path.join(config.static_dir, "wsgidav"),
+		},
+		"cors": {"allow_origin": "*"},
+		"provider_mapping": {},
+		"mount_path": None,
+	}
 	depot = hosts[0]
 	depot_id = depot.getId()
 
@@ -223,13 +223,13 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 			logger.error(err, exc_info=True)
 
 	for name, conf in filesystems.items():
-		app_config = APP_CONFIG_TEMPLATE.copy()
+		app_config = app_config_template.copy()
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
 		app_config["provider_mapping"]["/"] = prov_class(conf["path"], readonly=conf["read_only"])
 		app_config["mount_path"] = f"/{name}"
 		app.mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config)))
 
-	app_config = APP_CONFIG_TEMPLATE.copy()
+	app_config = app_config_template.copy()
 	for name, conf in filesystems.items():
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
 		app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False)

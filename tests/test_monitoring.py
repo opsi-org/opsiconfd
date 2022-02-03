@@ -263,6 +263,7 @@ def test_check_disk_usage(
 @pytest.mark.parametrize("return_value", [(None), ({}), ([])])
 def test_check_disk_usage_no_result(backend, return_value):  # pylint: disable=too-many-arguments,redefined-outer-name
 	def get_info(path):
+		print(path)
 		return return_value
 
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage", get_info):

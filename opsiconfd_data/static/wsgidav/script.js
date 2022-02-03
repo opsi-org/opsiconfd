@@ -6,7 +6,7 @@ function onLoad() {
 	let path = window.location.pathname.split("/")[1];
 	if (!path) path = "dav";
 	if (os == "Windows") {
-		html = `Use address <pre>\\\\${loc.hostname}@SSL@\\${loc.port}\\${path}\\DavWWWRoot</pre> to open in Windows Explorer.`;
+		html = `Use address <pre>\\\\${loc.hostname}@SSL@${loc.port}\\${path}\\DavWWWRoot</pre> to open in Windows Explorer.`;
 	}
 	else if (os == "MacOS") {
 		html = `Use address <pre>https://${loc.hostname}:${loc.port}/${path}</pre> to open in MacOS Finder.`;

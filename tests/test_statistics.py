@@ -83,7 +83,6 @@ async def test_execute_redis_command(
 
 	for idx, cmd in enumerate(cmds):
 		result = await metrics_collector._execute_redis_command(cmd)  # pylint: disable=protected-access
-		print(result)
 		assert result == expected_results[idx]
 
 
@@ -99,7 +98,6 @@ def test_redis_ts_cmd(metrics_registry, metrics_collector, cmd, value, expected_
 	metrics = list(metrics_registry.get_metrics())
 
 	result = metrics_collector._redis_ts_cmd(metrics[-1], cmd, value)  # pylint: disable=protected-access
-	print(result)
 	assert result == expected_result
 
 
@@ -109,7 +107,6 @@ def test_redis_ts_cmd_error(metrics_registry, metrics_collector):
 	with pytest.raises(ValueError) as excinfo:
 		metrics_collector._redis_ts_cmd(metrics[-1], "unknown CMD", 42)  # pylint: disable=protected-access
 
-	print(excinfo)
 	assert excinfo.type == ValueError
 	assert excinfo.value.__str__() == ValueError("Invalid command unknown CMD").__str__()
 
@@ -118,7 +115,6 @@ def test_metric_by_redis_key(metrics_registry):
 
 	metric = metrics_registry.get_metric_by_redis_key("opsiconfd:stats:opsiconfd:pytest:metric")
 
-	print(metric.__dict__)
 	assert metric.get_name() == "opsiconfd pytest metric"
 	assert metric.id == "opsiconfd:pytest:metric"
 	assert metric.get_redis_key() == "opsiconfd:stats:opsiconfd:pytest:metric"

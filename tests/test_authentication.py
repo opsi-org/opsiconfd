@@ -88,6 +88,8 @@ def test_max_sessions(test_client):  # pylint: disable=redefined-outer-name,unus
 		for num in range(1, max_session_per_ip + 1 + over_limit):
 			res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 			if num > max_session_per_ip:
+				print(res.status_code)
+				print(res.text)
 				assert res.status_code == 403
 				assert res.text.startswith("Too many sessions")
 			else:

@@ -102,9 +102,6 @@ def test_create_ca(tmpdir):
 			info = get_ca_cert_info()
 			assert info["serial_number"].replace(":", "").lstrip("0") == openssl_serial.replace(":", "").lstrip("0")
 
-			print(info["not_before"])
-			print(info["alt_names"])
-
 
 def test_ca_key_fallback(tmpdir):
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"

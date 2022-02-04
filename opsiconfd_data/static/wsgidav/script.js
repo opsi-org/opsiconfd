@@ -1,5 +1,5 @@
 function onLoad() {
-	console.log("onLoad");
+	// console.log("onLoad");
 	let html = "";
 	let os = getOS();
 	let loc = window.location;

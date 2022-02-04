@@ -39,8 +39,7 @@ stages:
   echo "log-file = /tmp/opsiconfd.log" >> tests/data/default-opsiconfd.conf
 
   # Installing opsi test modules file
-  # echo "${OPSI_TEST_MODULES}" > /etc/opsi/modules
-  cp ./docker/files/etc/opsi/modules /etc/opsi/modules
+  wget --header="Authorization: Bearer ${OPSILICSRV_TOKEN}" "https://opsi-license-server.uib.gmbh/api/v1/licenses/test?usage=opsiconfd-gitlab-ci" -O /etc/opsi/licenses/test.opsilic
 
   # Create dirs
   mkdir -p /var/log/opsi/clientconnect

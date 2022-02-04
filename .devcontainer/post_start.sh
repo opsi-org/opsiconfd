@@ -2,6 +2,10 @@ echo "* Running as $(whoami)"
 
 /workspace/scripts/setup-hosts.sh
 
+echo "* Fetch a test license"
+sudo mkdir -p /etc/opsi/licenses
+sudo wget --header="Authorization: Bearer ${OPSILICSRV_TOKEN}" "https://opsi-license-server.uib.gmbh/api/v1/licenses/test?usage=opsiconfd-dev-container" -O /etc/opsi/licenses/test.opsilic || true
+
 echo "* Restarting services"
 sudo service redis-server restart
 sudo service mysql restart

@@ -10,3 +10,4 @@ else
 fi
 
 echo JEMALLOC_VERSION=5.2.1 >> .env
+echo OPSILICSRV_TOKEN=  >> .env

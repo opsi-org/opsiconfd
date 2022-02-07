@@ -24,7 +24,10 @@ def cleanup():
 		AddonManager().unload_addons()
 		opsiconfd_test_addon = pathlib.Path("/var/lib/opsi/opsiconfd_test_addon")
 		if opsiconfd_test_addon.exists():
-			shutil.rmtree(opsiconfd_test_addon)
+			try:
+				shutil.rmtree(opsiconfd_test_addon)
+			except PermissionError:
+				pass
 
 	_cleanup()
 	yield

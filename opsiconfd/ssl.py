@@ -356,7 +356,7 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 		try:
 			validate_cert(srv_crt, load_ca_cert())
 		except X509StoreContextError as err:
-			logger.warning("Failed to verify server cert with opsi CA %s, creating new server cert", err)
+			logger.warning("Failed to verify server cert with opsi CA (%s), creating new server cert", err)
 			create = True
 
 	if not create:

@@ -119,7 +119,9 @@ async def unblock_all_clients(response: Response):
 		response = JSONResponse({"status": 200, "error": None, "data": {"clients": list(clients), "redis-keys": list(deleted_keys)}})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}})
+		response = JSONResponse(
+			{"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}}, status_code=500
+		)
 	return response
 
 
@@ -143,7 +145,9 @@ async def unblock_client(request: Request):
 		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "redis-keys": deleted_keys}})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}})
+		response = JSONResponse(
+			{"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}}, status_code=500
+		)
 	return response
 
 

@@ -15,6 +15,7 @@ import json
 import tempfile
 import asyncio
 import pytest
+import mock  # type: ignore[import]
 import aioredis
 
 from fastapi import Response
@@ -142,6 +143,30 @@ async def test_unblock_client(config, admininterface):  # pylint: disable=redefi
 
 	val = await redis_client.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
 	assert not val
+
+
+@pytest.mark.asyncio
+def test_unblock_client_exception(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+	with sync_redis_client() as redis_client:
+		test_ip = "192.168.1.2"
+		set_failed_auth_and_blocked(test_ip)
+		res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": None})
+		print(res)
+		assert res.status_code == 500
+
+		val = redis_client.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+		assert val
+
+
+def test_unblock_all_exception(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
+	for test_ip in addresses:
+		set_failed_auth_and_blocked(test_ip)
+
+	with mock.patch("aioredis.client.Redis.get", side_effect=Exception("ERROR")):
+
+		res = test_client.post("/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS))
+		assert res.status_code == 500
 
 
 def test_get_rpc_list_request(test_client):  # pylint: disable=redefined-outer-name,unused-argument
@@ -482,35 +507,3 @@ def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-na
 		assert addon_routes.get(key) == response.json().get("data", {}).get(key)
 
 	addon_manager.unload_addon("test1")
-
-
-def test_get_confd_conf(test_client, config):  # pylint: disable=redefined-outer-name
-	result = test_client.get("/admin/config", auth=(ADMIN_USER, ADMIN_PASS))
-	assert result.status_code == 200
-	current_conf = result.json().get("data", {}).get("config", {})
-
-	assert current_conf.get("external-url") == config.external_url
-	assert current_conf.get("monitoring-user") == config.monitoring_user
-	assert current_conf.get("log-level") == config.log_level
-	assert current_conf.get("update-ip") == config.update_ip
-	assert current_conf.get("static-dir") == config.static_dir
-	assert current_conf.get("port") == config.port  #
-
-	removed_keys = [
-		"version",
-		"setup",
-		"action",
-		"ex_help",
-		"log_max_msg_len",
-		"debug",
-		"profiler",
-		"server_type",
-		"node_name",
-		"executor_workers",
-		"log_slow_async_callbacks",
-		"ssl_ca_key_passphrase",
-		"ssl_server_key_passphrase",
-	]
-
-	for key in removed_keys:
-		assert current_conf.get(key) is None

@@ -75,17 +75,17 @@ def fixture_admininterface(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-outer-name,unused-argument
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
-	for test_ip in addresses:
-		set_failed_auth_and_blocked(test_ip)
+	with sync_redis_client() as redis:
+		addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
+		for test_ip in addresses:
+			set_failed_auth_and_blocked(test_ip)
 
-	res = test_client.post("/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
+		res = test_client.post("/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS))
+		assert res.status_code == 200
 
-	for test_ip in addresses:
-		val = await redis_client.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
-		assert not val
+		for test_ip in addresses:
+			val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+			assert not val
 
 
 @pytest.mark.asyncio

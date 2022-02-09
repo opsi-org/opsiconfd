@@ -1,3 +1,5 @@
+![pipeline](https://gitlab.uib.gmbh/uib/opsiconfd/badges/devel/pipeline.svg)
+![coverage](https://gitlab.uib.gmbh/uib/opsiconfd/badges/devel/coverage.svg)
 # Configuration
 
 The configuration is based on [ConfigArgParse](https://pypi.org/project/ConfigArgParse/).

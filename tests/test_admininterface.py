@@ -14,7 +14,6 @@ import json
 import asyncio
 import pytest
 import aioredis
-import requests
 
 from fastapi import Response
 from starlette.requests import Request

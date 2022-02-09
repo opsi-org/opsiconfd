@@ -238,39 +238,6 @@ async def test_delete_client_sessions(
 		assert len(response_dict.get("data").get("redis-keys")) == expected_response[3]
 
 
-def test_get_confd_conf(test_client):  # pylint: disable=redefined-outer-name
-	with get_config([]) as test_config:
-		result = test_client.get("/admin/config", auth=(ADMIN_USER, ADMIN_PASS))
-		assert result.status_code == 200
-		current_conf = result.json().get("data", {}).get("config", {})
-
-		assert current_conf.get("external-url") == test_config.external_url
-		assert current_conf.get("monitoring-user") == test_config.monitoring_user
-		assert current_conf.get("log-level") == test_config.log_level
-		assert current_conf.get("update-ip") == test_config.update_ip
-		assert current_conf.get("static-dir") == test_config.static_dir
-		assert current_conf.get("port") == test_config.port  #
-
-		removed_keys = [
-			"version",
-			"setup",
-			"action",
-			"ex_help",
-			"log_max_msg_len",
-			"debug",
-			"profiler",
-			"server_type",
-			"node_name",
-			"executor_workers",
-			"log_slow_async_callbacks",
-			"ssl_ca_key_passphrase",
-			"ssl_server_key_passphrase",
-		]
-
-		for key in removed_keys:
-			assert current_conf.get(key) is None
-
-
 def test_open_grafana(test_client):  # pylint: disable=redefined-outer-name
 	with get_config([]) as test_config:
 		response = test_client.get("/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)

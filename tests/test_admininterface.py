@@ -8,9 +8,11 @@
 test admininterface
 """
 
+import os
 from socket import getfqdn
 import sys
 import json
+import tempfile
 import asyncio
 import pytest
 import aioredis
@@ -19,8 +21,10 @@ from fastapi import Response
 from starlette.requests import Request
 from starlette.datastructures import Headers
 
+from opsiconfd.addon.manager import AddonManager
 from opsiconfd.utils import ip_address_to_redis_key
 
+from .test_addon_manager import cleanup  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
 	config,
 	test_client,
@@ -414,3 +418,67 @@ def test_logout(test_client, user, req_body):  # pylint: disable=redefined-outer
 	assert get_session_count(test_client) == 0
 	# test session count sould be 1
 	assert get_session_count(test_client) == 1
+
+
+def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
+	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
+	assert response.status_code == 200
+	addons = AddonManager().addons
+	assert len(response.json()) == len(addons)
+
+
+def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
+	# uses clean up from addon manager test (auto run is true)
+	response = test_client.get("/admin/routes", auth=(ADMIN_USER, ADMIN_PASS))
+	assert response.status_code == 200
+
+	routes_to_test = {
+		"/": "opsiconfd.application.main.index",
+		"/admin/": "opsiconfd.application.admininterface.admin_interface_index",
+		"/admin/addons": "opsiconfd.application.admininterface.get_addon_list",
+		"/admin/addons/install": "opsiconfd.application.admininterface.install_addon",
+		"/admin/blocked-clients": "opsiconfd.application.admininterface.get_blocked_clients",
+		"/admin/config": "opsiconfd.application.admininterface.get_confd_conf",
+		"/admin/delete-client-sessions": "opsiconfd.application.admininterface.delete_client_sessions",
+		"/admin/grafana": "opsiconfd.application.admininterface.open_grafana",
+		"/admin/locked-products-list": "opsiconfd.application.admininterface.get_locked_products_list",
+		"/admin/logout": "opsiconfd.application.admininterface.logout",
+		"/admin/products/unlock": "opsiconfd.application.admininterface.unlock_all_product",
+		"/admin/products/{product}/unlock": "opsiconfd.application.admininterface.unlock_product",
+		"/admin/reload": "opsiconfd.application.admininterface.reload",
+		"/admin/routes": "opsiconfd.application.admininterface.get_routes",
+		"/admin/rpc-count": "opsiconfd.application.admininterface.get_rpc_count",
+		"/admin/rpc-list": "opsiconfd.application.admininterface.get_rpc_list",
+		"/admin/session-list": "opsiconfd.application.admininterface.get_session_list",
+		"/admin/unblock-all": "opsiconfd.application.admininterface.unblock_all_clients",
+		"/admin/unblock-client": "opsiconfd.application.admininterface.unblock_client",
+	}
+	# test if default routes are in the list
+	for key in routes_to_test:
+		assert key in response.json().get("data", {}).keys()
+		assert routes_to_test.get(key) == response.json().get("data", {}).get(key)
+
+	# load addon
+	config.addon_dirs = [os.path.abspath("tests/data/addons")]
+	os.path.join(tempfile.gettempdir(), "opsiconfd_test_addon", "test1_on_load")
+	addon_manager = AddonManager()
+	addon_manager.load_addons()
+
+	response = test_client.get("/admin/routes", auth=(ADMIN_USER, ADMIN_PASS))
+	assert response.status_code == 200
+
+	addon_routes = {
+		"/addons/test1": "opsiconfd.addon.test1.index",
+		"/addons/test1/api/{any:path}": "opsiconfd.addon.test1.rest.route_get",
+		"/addons/test1/login": "opsiconfd.addon.test1.login",
+		"/addons/test1/logout": "opsiconfd.addon.test1.logout",
+		"/addons/test1/public": "opsiconfd.addon.test1.public",
+		"/addons/test1/static": "starlette.staticfiles",
+	}
+
+	# test if appon routes are in the list
+	for key in addon_routes:
+		assert key in response.json().get("data", {}).keys()
+		assert addon_routes.get(key) == response.json().get("data", {}).get(key)
+
+	addon_manager.unload_addon("test1")

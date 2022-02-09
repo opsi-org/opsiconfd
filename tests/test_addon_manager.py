@@ -18,7 +18,7 @@ from opsiconfd.addon import AddonManager
 from .utils import config, clean_redis, test_client  # pylint: disable=unused-import
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def cleanup():
 	def _cleanup():
 		AddonManager().unload_addons()
@@ -34,7 +34,7 @@ def cleanup():
 	_cleanup()
 
 
-def test_load_addon(config):  # pylint: disable=redefined-outer-name
+def test_load_addon(config, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
 	marker_file = "/var/lib/opsi/opsiconfd_test_addon/test1_on_load"
 
@@ -56,7 +56,7 @@ def test_load_addon(config):  # pylint: disable=redefined-outer-name
 		assert addon_manager.get_addon_by_path(addon.router_prefix) == addon
 
 
-def test_unload_addon(config):  # pylint: disable=redefined-outer-name
+def test_unload_addon(config, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
 	marker_file = marker_file = "/var/lib/opsi/opsiconfd_test_addon/test1_on_unload"
 
@@ -75,7 +75,7 @@ def test_unload_addon(config):  # pylint: disable=redefined-outer-name
 	os.remove(marker_file)
 
 
-def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
+def test_reload_addon(config, cleanup, tmpdir):  # pylint: disable=redefined-outer-name, unused-argument
 	addon_dir = os.path.join(tmpdir, "test1")
 	shutil.copytree(os.path.abspath("tests/data/addons/test1"), addon_dir)
 	config.addon_dirs = [tmpdir]
@@ -111,13 +111,13 @@ def test_reload_addon(config, tmpdir):  # pylint: disable=redefined-outer-name
 	assert len(addon_manager.addons) == 1
 
 
-def test_addon_static_dir(test_client):  # pylint: disable=redefined-outer-name
+def test_addon_static_dir(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1/static/index.html", verify=False)
 	assert res.status_code == 200
 
 
-def test_addon_public_path(test_client):  # pylint: disable=redefined-outer-name
+def test_addon_public_path(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1", verify=False)
 	assert res.status_code == 401
@@ -126,7 +126,7 @@ def test_addon_public_path(test_client):  # pylint: disable=redefined-outer-name
 	assert res.status_code == 200
 
 
-def test_addon_auth(test_client):  # pylint: disable=redefined-outer-name
+def test_addon_auth(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1", verify=False)
 	assert res.status_code == 401
@@ -144,7 +144,7 @@ def test_addon_auth(test_client):  # pylint: disable=redefined-outer-name
 	assert res.status_code == 401
 
 
-def test_addon_exception_handling(test_client):  # pylint: disable=redefined-outer-name
+def test_addon_exception_handling(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
 	AddonManager().load_addons()
 	res = test_client.get("/addons/test1", verify=False)
 	assert res.status_code == 401

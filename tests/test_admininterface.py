@@ -9,7 +9,6 @@ test admininterface
 """
 
 import sys
-from socket import getfqdn
 import json
 import asyncio
 import pytest
@@ -19,7 +18,6 @@ from fastapi import Response
 from starlette.requests import Request
 from starlette.datastructures import Headers
 
-from opsiconfd.addon.manager import AddonManager
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .utils import (  # pylint: disable=unused-import

@@ -482,3 +482,35 @@ def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-na
 		assert addon_routes.get(key) == response.json().get("data", {}).get(key)
 
 	addon_manager.unload_addon("test1")
+
+
+def test_get_confd_conf(test_client, config):  # pylint: disable=redefined-outer-name
+	result = test_client.get("/admin/config", auth=(ADMIN_USER, ADMIN_PASS))
+	assert result.status_code == 200
+	current_conf = result.json().get("data", {}).get("config", {})
+
+	assert current_conf.get("external-url") == config.external_url
+	assert current_conf.get("monitoring-user") == config.monitoring_user
+	assert current_conf.get("log-level") == config.log_level
+	assert current_conf.get("update-ip") == config.update_ip
+	assert current_conf.get("static-dir") == config.static_dir
+	assert current_conf.get("port") == config.port  #
+
+	removed_keys = [
+		"version",
+		"setup",
+		"action",
+		"ex_help",
+		"log_max_msg_len",
+		"debug",
+		"profiler",
+		"server_type",
+		"node_name",
+		"executor_workers",
+		"log_slow_async_callbacks",
+		"ssl_ca_key_passphrase",
+		"ssl_server_key_passphrase",
+	]
+
+	for key in removed_keys:
+		assert current_conf.get(key) is None

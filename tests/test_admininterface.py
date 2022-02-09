@@ -16,7 +16,6 @@ import tempfile
 import asyncio
 import pytest
 import mock  # type: ignore[import]
-import aioredis
 
 from fastapi import Response
 from starlette.requests import Request
@@ -91,58 +90,58 @@ async def test_unblock_all_request(test_client, config):  # pylint: disable=rede
 
 @pytest.mark.asyncio
 async def test_unblock_all(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-	test_response = Response()
-	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
+	with sync_redis_client() as redis:
+		test_response = Response()
+		addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 
-	for test_ip in addresses:
+		for test_ip in addresses:
+			set_failed_auth_and_blocked(test_ip)
+
+		response = await admininterface.unblock_all_clients(test_response)
+
+		assert response.status_code == 200
+		response_body = json.loads(response.body)
+		assert response_body.get("error") is None
+		assert response_body.get("status") == 200
+		assert sorted(response_body["data"]["clients"]) == sorted(addresses)
+
+		for test_ip in addresses:
+			val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+			assert not val
+
+
+@pytest.mark.asyncio
+def test_unblock_client_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
+	with sync_redis_client() as redis:
+		test_ip = "192.168.1.2"
 		set_failed_auth_and_blocked(test_ip)
+		res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": test_ip})
+		assert res.status_code == 200
 
-	response = await admininterface.unblock_all_clients(test_response)
-
-	assert response.status_code == 200
-	response_body = json.loads(response.body)
-	assert response_body.get("error") is None
-	assert response_body.get("status") == 200
-	assert sorted(response_body["data"]["clients"]) == sorted(addresses)
-
-	for test_ip in addresses:
-		val = await redis_client.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+		val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
 		assert not val
 
 
 @pytest.mark.asyncio
-async def test_unblock_client_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-	test_ip = "192.168.1.2"
-	set_failed_auth_and_blocked(test_ip)
-	res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": test_ip})
-	assert res.status_code == 200
-
-	val = await redis_client.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
-	assert not val
-
-
-@pytest.mark.asyncio
 async def test_unblock_client(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-	test_ip = "192.168.1.2"
-	set_failed_auth_and_blocked(test_ip)
+	with sync_redis_client() as redis:
+		test_ip = "192.168.1.2"
+		set_failed_auth_and_blocked(test_ip)
 
-	headers = Headers()
-	scope = {"method": "GET", "type": "http", "headers": headers}
-	test_request = Request(scope=scope)
-	test_request._json = {"client_addr": test_ip}  # pylint: disable=protected-access
-	body = f'{{"client_addr":"{config.external_url}"}}'
-	test_request._body = body.encode()  # pylint: disable=protected-access
+		headers = Headers()
+		scope = {"method": "GET", "type": "http", "headers": headers}
+		test_request = Request(scope=scope)
+		test_request._json = {"client_addr": test_ip}  # pylint: disable=protected-access
+		body = f'{{"client_addr":"{config.external_url}"}}'
+		test_request._body = body.encode()  # pylint: disable=protected-access
 
-	response = await admininterface.unblock_client(test_request)
-	response_dict = json.loads(response.body)
-	assert response_dict.get("status") == 200
-	assert response_dict.get("error") is None
+		response = await admininterface.unblock_client(test_request)
+		response_dict = json.loads(response.body)
+		assert response_dict.get("status") == 200
+		assert response_dict.get("error") is None
 
-	val = await redis_client.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
-	assert not val
+		val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+		assert not val
 
 
 @pytest.mark.asyncio
@@ -233,16 +232,16 @@ async def test_delete_client_sessions(
 ):  # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
 	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	assert res.status_code == 200
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
+	with sync_redis_client() as redis:
 
-	session = res.cookies.get_dict().get("opsiconfd-session")
-	sessions = []
-	local_ip = None
-	async for key in redis_client.scan_iter(f"{OPSI_SESSION_KEY}:*"):
-		addr, sess = key.decode("utf8").split(":")[-2:]
-		sessions.append(sess)
-		if sess == session:
-			local_ip = addr
+		session = res.cookies.get_dict().get("opsiconfd-session")
+		sessions = []
+		local_ip = None
+		for key in redis.scan_iter(f"{OPSI_SESSION_KEY}:*"):
+			addr, sess = key.decode("utf8").split(":")[-2:]
+			sessions.append(sess)
+			if sess == session:
+				local_ip = addr
 
 	rpc_request_data = json.loads(json.dumps(rpc_request_data).replace("<local_ip>", local_ip))
 	expected_response = json.loads(json.dumps(expected_response).replace("<local_ip>", local_ip))

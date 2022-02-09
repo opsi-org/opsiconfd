@@ -266,3 +266,29 @@ def test_get_num_clients(admininterface, backend, test_client):  # pylint: disab
 	):
 		assert admininterface.get_num_clients(backend) == 3
 	assert admininterface.get_num_clients(backend) == 0
+
+
+def test_get_rpc_count(test_client):  # pylint: disable=redefined-outer-name
+	for _idx in range(10):
+		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
+
+	res = test_client.get("/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	assert res.json() == {"rpc_count": 10}
+
+
+def test_get_session_list(test_client):  # pylint: disable=redefined-outer-name
+	addr = test_client.get_client_address()
+	for _idx in range(10):
+		test_client.set_client_address("192.168.36." + str(_idx), _idx * 1000)
+		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
+
+	test_client.set_client_address(addr[0], addr[1])
+	res = test_client.get("/admin/session-list", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	body = res.json()
+	assert len(body) == 10
+	for _idx in range(10):
+		assert body[_idx].get("address") == "192.168.36." + str(_idx)
+		assert body[_idx].get("user_agent") == "testclient"
+		assert body[_idx].get("max_age") == 60

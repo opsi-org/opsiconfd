@@ -65,13 +65,13 @@ def fixture_admininterface(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_unblock_all_request(config):  # pylint: disable=redefined-outer-name,unused-argument
+async def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-outer-name,unused-argument
 	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
 
-	res = requests.post(f"{config.external_url}/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	res = test_client.post("/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 
 	for test_ip in addresses:
@@ -102,13 +102,11 @@ async def test_unblock_all(config, admininterface):  # pylint: disable=redefined
 
 
 @pytest.mark.asyncio
-async def test_unblock_client_request(config):  # pylint: disable=redefined-outer-name,unused-argument
+async def test_unblock_client_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	test_ip = "192.168.1.2"
 	set_failed_auth_and_blocked(test_ip)
-	res = requests.post(
-		f"{config.external_url}/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": test_ip}, verify=False
-	)
+	res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": test_ip})
 	assert res.status_code == 200
 
 	val = await redis_client.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
@@ -151,18 +149,18 @@ def test_get_rpc_list_request(test_client):  # pylint: disable=redefined-outer-n
 
 
 @pytest.mark.asyncio
-async def test_get_blocked_clients_request(config):  # pylint: disable=redefined-outer-name,unused-argument
+async def test_get_blocked_clients_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
 
-	res = requests.get(f"{config.external_url}/admin/blocked-clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	res = test_client.get("/admin/blocked-clients", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert sorted(res.json()) == sorted(addresses)
 
 
 @pytest.mark.asyncio
-async def test_get_blocked_clients(admininterface, config):  # pylint: disable=redefined-outer-name,unused-argument
+async def test_get_blocked_clients(admininterface):  # pylint: disable=redefined-outer-name,unused-argument
 	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)

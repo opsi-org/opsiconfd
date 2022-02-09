@@ -195,9 +195,9 @@ async def test_get_rpc_list(test_client, admininterface, num_rpcs):  # pylint: d
 	],
 )  # pylint: disable=too-many-locals
 async def test_delete_client_sessions(
-	config, admininterface, rpc_request_data, expected_response
+	config, admininterface, test_client, rpc_request_data, expected_response
 ):  # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
-	res = requests.get(config.external_url, auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	assert res.status_code == 200
 	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 

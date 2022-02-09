@@ -21,7 +21,15 @@ from starlette.datastructures import Headers
 
 from opsiconfd.utils import ip_address_to_redis_key
 
-from .utils import config, clean_redis, sync_redis_client, ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY  # pylint: disable=unused-import
+from .utils import (
+	config,
+	test_client,
+	clean_redis,
+	sync_redis_client,
+	ADMIN_USER,
+	ADMIN_PASS,
+	OPSI_SESSION_KEY,
+)  # pylint: disable=unused-import
 
 
 def set_failed_auth_and_blocked(ip_address):  # pylint: disable=redefined-outer-name
@@ -36,9 +44,9 @@ def set_failed_auth_and_blocked(ip_address):  # pylint: disable=redefined-outer-
 		redis.set(f"opsiconfd:stats:client:blocked:{ip_address_redis}", 1)
 
 
-def call_rpc(rpc_request_data: list, expect_error: list, url):
+def call_rpc(client, rpc_request_data: list, expect_error: list):
 	for idx, data in enumerate(rpc_request_data):
-		result = requests.post(f"{url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=data, verify=False)
+		result = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=data)
 		result_json = json.loads(result.text)
 		assert result.status_code == 200
 		if expect_error[idx]:
@@ -129,11 +137,11 @@ async def test_unblock_client(config, admininterface):  # pylint: disable=redefi
 	assert not val
 
 
-def test_get_rpc_list_request(config):  # pylint: disable=redefined-outer-name,unused-argument
+def test_get_rpc_list_request(test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	for _idx in range(3):
-		call_rpc([{"id": 1, "method": "host_getIdents", "params": [None]}], [False], config.external_url)
+		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
 
-	response = requests.get(f"{config.external_url}/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	response = test_client.get("/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	result = response.json()
 	for idx in range(3):
@@ -165,10 +173,10 @@ async def test_get_blocked_clients(admininterface, config):  # pylint: disable=r
 
 @pytest.mark.parametrize("num_rpcs", [1, 3, 5])
 @pytest.mark.asyncio
-async def test_get_rpc_list(config, admininterface, num_rpcs):  # pylint: disable=redefined-outer-name
+async def test_get_rpc_list(test_client, admininterface, num_rpcs):  # pylint: disable=redefined-outer-name
 
 	for _idx in range(num_rpcs):
-		call_rpc([{"id": 1, "method": "host_getIdents", "params": [None]}], [False], config.external_url)
+		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
 
 	await asyncio.sleep(1)
 

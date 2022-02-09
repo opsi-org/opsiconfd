@@ -30,6 +30,7 @@ from .utils import (  # pylint: disable=unused-import
 	backend,
 	client_jsonrpc,
 	depot_jsonrpc,
+	products_jsonrpc,
 	ADMIN_USER,
 	ADMIN_PASS,
 	OPSI_SESSION_KEY,
@@ -292,3 +293,85 @@ def test_get_session_list(test_client):  # pylint: disable=redefined-outer-name
 		assert body[_idx].get("address") == "192.168.36." + str(_idx)
 		assert body[_idx].get("user_agent") == "testclient"
 		assert body[_idx].get("max_age") == 60
+
+
+def test_unlock_product(test_client, backend):  # pylint: disable=redefined-outer-name
+
+	test_products = [
+		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
+		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
+		{"id": "test_product03", "name": "Test Product 03", "productVersion": "1.0", "packageVersion": "1", "priority": 70},
+	]
+	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]
+	products = ["test_product01", "test_product02"]
+
+	with (
+		depot_jsonrpc(test_client, "", test_depots[0]),
+		depot_jsonrpc(test_client, "", test_depots[1]),
+		products_jsonrpc(test_client, "", test_products, test_depots),
+	):
+		locked_products = backend.getProductLocks_hash()
+		# check that no products are locked
+		assert locked_products == {}
+		# lock 2 products and check that the proucts are locked
+		for product in products:
+			backend.lockProduct(product)
+		locked_products = backend.getProductLocks_hash()
+		assert locked_products == {products[0]: test_depots, products[1]: test_depots}
+		# unlock product 1 on one depot and check that product 1 is unlocked on depot 1 and product 2 is still locked
+		result = test_client.post(f"/admin/products/{products[0]}/unlock", auth=(ADMIN_USER, ADMIN_PASS), json={"depots": [test_depots[0]]})
+		assert result.status_code == 200
+		locked_products = backend.getProductLocks_hash()
+		assert locked_products == {products[0]: [test_depots[1]], products[1]: test_depots}
+
+
+def test_unlock_all_products(test_client, backend):  # pylint: disable=redefined-outer-name
+
+	test_products = [
+		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
+		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
+		{"id": "test_product03", "name": "Test Product 03", "productVersion": "1.0", "packageVersion": "1", "priority": 70},
+	]
+	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]
+	product = "test_product03"
+
+	with (
+		depot_jsonrpc(test_client, "", test_depots[0]),
+		depot_jsonrpc(test_client, "", test_depots[1]),
+		products_jsonrpc(test_client, "", test_products, test_depots),
+	):
+		# check that no products are locked
+		locked_products = backend.getProductLocks_hash()
+		assert locked_products == {}
+		# lock product on all depots and check lock status
+		backend.lockProduct(product)
+		locked_products = backend.getProductLocks_hash()
+		assert locked_products == {product: test_depots}
+		# unlock all products on all depots and check that all products are unlocked
+		result = test_client.post("/admin/products/unlock", auth=(ADMIN_USER, ADMIN_PASS))
+		assert result.status_code == 200
+		locked_products = backend.getProductLocks_hash()
+		assert locked_products == {}
+
+
+def test_get_locked_products_list(test_client, backend):  # pylint: disable=redefined-outer-name
+	test_products = [
+		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
+		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
+		{"id": "test_product03", "name": "Test Product 03", "productVersion": "1.0", "packageVersion": "1", "priority": 70},
+	]
+	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]
+	products = ["test_product01", "test_product02"]
+
+	with (
+		depot_jsonrpc(test_client, "", test_depots[0]),
+		depot_jsonrpc(test_client, "", test_depots[1]),
+		products_jsonrpc(test_client, "", test_products, test_depots),
+	):
+		# lock products on depots
+		for product in products:
+			backend.lockProduct(product, test_depots)
+
+		result = test_client.get("/admin/locked-products-list", auth=(ADMIN_USER, ADMIN_PASS))
+		assert result.status_code == 200
+		assert result.json() == {products[0]: test_depots, products[1]: test_depots}

@@ -294,14 +294,16 @@ async def get_locked_products_list() -> list:
 
 
 @admin_interface_router.post("/products/{product}/unlock")
-def unlock_product(product):
+async def unlock_product(request: Request, product: str) -> JSONResponse:
 	backend = get_backend()
+	request_body = await request.json() or {}
+	depots = request_body.get("depots", None)
 	try:
-		backend.unlockProduct(product)  # pylint: disable=no-member
+		backend.unlockProduct(productId=product, depotIds=depots)  # pylint: disable=no-member
 		response = JSONResponse({"status": 200, "error": None, "data": {"product": product, "action": "unlock"}})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while unlocking product", "detail": str(err)}})
+		response = JSONResponse({"status": 500, "error": {"message": "Error while unlocking product", "detail": str(err)}}, status_code=500)
 	return response
 
 

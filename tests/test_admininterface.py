@@ -8,6 +8,7 @@
 test admininterface
 """
 
+from socket import getfqdn
 import sys
 import json
 import asyncio
@@ -234,3 +235,12 @@ async def test_delete_client_sessions(
 	if response_dict.get("status") == 200 and response_dict.get("data").get("client") == local_ip:
 		assert response_dict.get("data").get("sessions") == [session]
 		assert len(response_dict.get("data").get("redis-keys")) == expected_response[3]
+
+
+def test_open_grafana(test_client, config):  # pylint: disable=redefined-outer-name
+	response = test_client.get("/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
+	assert response.status_code == 308
+	assert response.headers.get("location") == f"https://{getfqdn()}:{config.port}/admin/grafana"
+
+	test_client.set_client_address("192.168.1.1", "4447")
+	response = test_client.get("/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)

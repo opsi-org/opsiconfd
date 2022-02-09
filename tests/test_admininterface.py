@@ -9,6 +9,7 @@ test admininterface
 """
 
 import sys
+from socket import getfqdn
 import json
 import asyncio
 import pytest
@@ -19,6 +20,7 @@ from fastapi import Response
 from starlette.requests import Request
 from starlette.datastructures import Headers
 
+from opsiconfd.addon.manager import AddonManager
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .utils import (  # pylint: disable=unused-import
@@ -268,3 +270,20 @@ def test_get_confd_conf(test_client):  # pylint: disable=redefined-outer-name
 
 		for key in removed_keys:
 			assert current_conf.get(key) is None
+
+
+def test_open_grafana(test_client):  # pylint: disable=redefined-outer-name
+	with get_config([]) as test_config:
+		response = test_client.get("/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
+		assert response.status_code == 308
+		assert response.headers.get("location") == f"https://{getfqdn()}:{test_config.port}/admin/grafana"
+
+		test_client.set_client_address("192.168.1.1", "4447")
+		response = test_client.get("/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
+
+
+def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
+	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
+	assert response.status_code == 200
+	addons = AddonManager().addons
+	assert len(response.json()) == len(addons)

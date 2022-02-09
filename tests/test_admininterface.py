@@ -246,10 +246,3 @@ def test_open_grafana(test_client):  # pylint: disable=redefined-outer-name
 
 		test_client.set_client_address("192.168.1.1", "4447")
 		response = test_client.get("/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
-
-
-def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
-	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
-	assert response.status_code == 200
-	addons = AddonManager().addons
-	assert len(response.json()) == len(addons)

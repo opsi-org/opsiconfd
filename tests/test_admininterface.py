@@ -27,6 +27,9 @@ from .utils import (  # pylint: disable=unused-import
 	clean_redis,
 	get_config,
 	sync_redis_client,
+	backend,
+	client_jsonrpc,
+	depot_jsonrpc,
 	ADMIN_USER,
 	ADMIN_PASS,
 	OPSI_SESSION_KEY,
@@ -244,3 +247,22 @@ def test_open_grafana(test_client, config):  # pylint: disable=redefined-outer-n
 
 	test_client.set_client_address("192.168.1.1", "4447")
 	response = test_client.get("/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
+
+
+def test_get_num_servers(admininterface, backend, test_client):  # pylint: disable=redefined-outer-name
+	assert admininterface.get_num_servers(backend) == 1
+	with depot_jsonrpc(test_client, "", "test-depot.uib.local"):
+		assert admininterface.get_num_servers(backend) == 2
+	assert admininterface.get_num_servers(backend) == 1
+
+
+def test_get_num_clients(admininterface, backend, test_client):  # pylint: disable=redefined-outer-name
+	assert admininterface.get_num_clients(backend) == 0
+
+	with (
+		client_jsonrpc(test_client, "", "test-client1.uib.local"),
+		client_jsonrpc(test_client, "", "test-client2.uib.local"),
+		client_jsonrpc(test_client, "", "test-client3.uib.local"),
+	):
+		assert admininterface.get_num_clients(backend) == 3
+	assert admininterface.get_num_clients(backend) == 0

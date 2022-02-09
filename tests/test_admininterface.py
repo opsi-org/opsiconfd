@@ -21,19 +21,19 @@ from starlette.datastructures import Headers
 
 from opsiconfd.utils import ip_address_to_redis_key
 
-from .utils import config, clean_redis, ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY  # pylint: disable=unused-import
+from .utils import config, clean_redis, sync_redis_client, ADMIN_USER, ADMIN_PASS, OPSI_SESSION_KEY  # pylint: disable=unused-import
 
 
-async def set_failed_auth_and_blocked(config, ip_address):  # pylint: disable=redefined-outer-name
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
-	ip_address_redis = ip_address_to_redis_key(ip_address)
-	await redis_client.execute_command(
-		f"ts.create opsiconfd:stats:client:failed_auth:{ip_address_redis} " f"RETENTION 86400000 LABELS client_addr {ip_address}"
-	)
-	await redis_client.execute_command(
-		f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_redis} " f"* 11 RETENTION 86400000 LABELS client_addr {ip_address}"
-	)
-	await redis_client.set(f"opsiconfd:stats:client:blocked:{ip_address_redis}", 1)
+def set_failed_auth_and_blocked(ip_address):  # pylint: disable=redefined-outer-name
+	with sync_redis_client() as redis:
+		ip_address_redis = ip_address_to_redis_key(ip_address)
+		redis.execute_command(
+			f"ts.create opsiconfd:stats:client:failed_auth:{ip_address_redis} " f"RETENTION 86400000 LABELS client_addr {ip_address}"
+		)
+		redis.execute_command(
+			f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_redis} " f"* 11 RETENTION 86400000 LABELS client_addr {ip_address}"
+		)
+		redis.set(f"opsiconfd:stats:client:blocked:{ip_address_redis}", 1)
 
 
 def call_rpc(rpc_request_data: list, expect_error: list, url):
@@ -61,7 +61,7 @@ async def test_unblock_all_request(config):  # pylint: disable=redefined-outer-n
 	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 	for test_ip in addresses:
-		await set_failed_auth_and_blocked(config, test_ip)
+		set_failed_auth_and_blocked(test_ip)
 
 	res = requests.post(f"{config.external_url}/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	assert res.status_code == 200
@@ -78,7 +78,7 @@ async def test_unblock_all(config, admininterface):  # pylint: disable=redefined
 	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 
 	for test_ip in addresses:
-		await set_failed_auth_and_blocked(config, test_ip)
+		set_failed_auth_and_blocked(test_ip)
 
 	response = await admininterface.unblock_all_clients(test_response)
 
@@ -97,7 +97,7 @@ async def test_unblock_all(config, admininterface):  # pylint: disable=redefined
 async def test_unblock_client_request(config):  # pylint: disable=redefined-outer-name,unused-argument
 	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	test_ip = "192.168.1.2"
-	await set_failed_auth_and_blocked(config, test_ip)
+	set_failed_auth_and_blocked(test_ip)
 	res = requests.post(
 		f"{config.external_url}/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": test_ip}, verify=False
 	)
@@ -111,7 +111,7 @@ async def test_unblock_client_request(config):  # pylint: disable=redefined-oute
 async def test_unblock_client(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
 	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
 	test_ip = "192.168.1.2"
-	await set_failed_auth_and_blocked(config, test_ip)
+	set_failed_auth_and_blocked(test_ip)
 
 	headers = Headers()
 	scope = {"method": "GET", "type": "http", "headers": headers}
@@ -146,7 +146,7 @@ def test_get_rpc_list_request(config):  # pylint: disable=redefined-outer-name,u
 async def test_get_blocked_clients_request(config):  # pylint: disable=redefined-outer-name,unused-argument
 	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 	for test_ip in addresses:
-		await set_failed_auth_and_blocked(config, test_ip)
+		set_failed_auth_and_blocked(test_ip)
 
 	res = requests.get(f"{config.external_url}/admin/blocked-clients", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	assert res.status_code == 200
@@ -157,7 +157,7 @@ async def test_get_blocked_clients_request(config):  # pylint: disable=redefined
 async def test_get_blocked_clients(admininterface, config):  # pylint: disable=redefined-outer-name,unused-argument
 	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 	for test_ip in addresses:
-		await set_failed_auth_and_blocked(config, test_ip)
+		set_failed_auth_and_blocked(test_ip)
 
 	blocked_clients = await admininterface.get_blocked_clients()
 	assert sorted(blocked_clients) == sorted(addresses)

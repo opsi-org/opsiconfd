@@ -21,7 +21,7 @@ from starlette.datastructures import Headers
 
 from opsiconfd.utils import ip_address_to_redis_key
 
-from .utils import (
+from .utils import (  # pylint: disable=unused-import
 	config,
 	test_client,
 	clean_redis,
@@ -29,7 +29,7 @@ from .utils import (
 	ADMIN_USER,
 	ADMIN_PASS,
 	OPSI_SESSION_KEY,
-)  # pylint: disable=unused-import
+)
 
 
 def set_failed_auth_and_blocked(ip_address):  # pylint: disable=redefined-outer-name

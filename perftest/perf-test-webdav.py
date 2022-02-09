@@ -6,37 +6,54 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+# pylint: disable=invalid-name
+"""
+webdav performance test util
+"""
+
+import os
 import time
 import shutil
 import argparse
+import tempfile
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--opsiconfd-mount', dest='opsiconfd_mount', action='store', default="", help="Path to WebDav mount")
-parser.add_argument('--apache-mount', dest='apache_mount', action='store', default="", help="Path to WebDav mount")
-parser.add_argument('--folder', dest='folder', action='store', default="7zip", help="folder to copy")
-parser.add_argument('--destination', dest='destination', action='store', default=".", help="destination")
+from OPSI.System import mount, umount
 
-args = parser.parse_args()
-print(args)
 
-apache_mount = args.apache_mount
-opsiconfd_mount = args.opsiconfd_mount
-download_folder = args.folder
-destination = args.destination
+def main():
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--username", default="adminuser", help="Username")
+	parser.add_argument("--password", default="adminuser", help="Password")
+	parser.add_argument("--base-url", default="https://localhost:4447/depot", help="Base webdav url")
+	parser.add_argument("--path", default="/", help="Path to download")
+	parser.add_argument("--iterations", type=int, default=1, help="Download iterations")
 
-print("start test")
+	args = parser.parse_args()
 
-shutil.rmtree(f'{download_folder}-opsiconfd', ignore_errors=True)
+	print("Start test")
 
-start = time.perf_counter()
-shutil.copytree(f"{opsiconfd_mount}/{download_folder}", f"{destination}/{download_folder}-opsiconfd")
-end = time.perf_counter()
-print("opsiconfd: ", end - start)
+	dst_dir = tempfile.mkdtemp()
+	mnt_dir = tempfile.mkdtemp()
+	mount(args.base_url, mnt_dir, username=args.username, password=args.password, verify_server_cert=False)
+	try:
+		start = time.perf_counter()
+		for iternum in range(args.iterations):
+			shutil.copytree(f"{mnt_dir}/{args.path.lstrip('/')}", os.path.join(dst_dir, str(iternum)))
+		elapsed = time.perf_counter() - start
 
-shutil.rmtree(f'{download_folder}-apache', ignore_errors=True)
-start = time.perf_counter()
-shutil.copytree(f"{apache_mount}/{download_folder}", f"{destination}/{download_folder}-apache")
-end = time.perf_counter()
-print("apache: ", end - start)
+		num_files = 0
+		size = 0
+		for root, _dirs, files in os.walk(dst_dir):
+			for name in files:
+				num_files += 1
+				size += os.path.getsize(os.path.join(root, name))
+		avg_size = 0 if num_files == 0 else size / num_files
+		print(f"Fetched {num_files} files with an avgerage size of {avg_size:0.0f} bytes in {elapsed:0.3f} seconds")
+	finally:
+		shutil.rmtree(dst_dir)
+		umount(mnt_dir)
+		os.rmdir(mnt_dir)
 
-print("done")
+
+if __name__ == "__main__":
+	main()

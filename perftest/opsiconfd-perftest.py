@@ -6,6 +6,11 @@
 # All rights reserved.
 # License: AGPL-3.0
 
+# pylint: disable=invalid-name
+"""
+opsiconfd performance test util
+"""
+
 import sys
 import time
 import uuid
@@ -25,16 +30,18 @@ from concurrent.futures import ProcessPoolExecutor
 import uvloop
 import orjson
 import aiohttp
-import lz4.frame
-import msgpack
+import lz4.frame  # type: ignore[import]
+import msgpack  # type: ignore[import]
 
 executor = ProcessPoolExecutor(max_workers=25)
 
 
 class Perftest:  # pylint: disable=too-many-instance-attributes
-	def __init__(self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=None, write_results=None):  # pylint: disable=too-many-arguments
+	def __init__(
+		self, server, username, password, clients, iterations=1, print_responses=False, jsonrpc_methods=None, write_results=None
+	):  # pylint: disable=too-many-arguments
 		url = urlparse(server)
-		self.base_url = "%s://%s:%d" % (url.scheme or 'https', url.hostname or url.path, url.port or 4447)
+		self.base_url = f"{url.scheme or 'https'}://{url.hostname or url.path}:{url.port or 4447}"
 		self.username = username
 		self.password = password
 		self.num_clients = clients if clients and clients > 0 else 1
@@ -43,16 +50,17 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		self.test_cases = []
 		self.write_results = write_results
 		if self.write_results:
-			open(self.write_results, "w").close()
+			with open(self.write_results, "wb"):
+				pass
 
 		if jsonrpc_methods:
 			requests = []
 			for meth in jsonrpc_methods:
-				meth = meth.split('[', 1)
+				meth = meth.split("[", 1)
 				method = meth[0]
 				params = []
 				if len(meth) > 1:
-					params = orjson.loads('[' + meth[1])  # pylint: disable=no-member
+					params = orjson.loads("[" + meth[1])  # pylint: disable=no-member
 				requests.append(["jsonrpc", method, params])
 			self.test_cases = [TestCase(self, "JSONRPC", {"test": requests})]
 
@@ -61,7 +69,7 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 
 	@classmethod
 	def from_file(cls, filename, **kwargs):
-		with codecs.open(filename, 'r', 'utf-8') as file:
+		with codecs.open(filename, "r", "utf-8") as file:
 			perftest = orjson.loads(file.read())  # pylint: disable=no-member
 			for key, var in kwargs.items():
 				if var is None or key == "load":
@@ -82,9 +90,7 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		loop = asyncio.get_event_loop()
 		signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
 		for sig in signals:
-			loop.add_signal_handler(
-				sig, lambda sig=sig: loop.create_task(self.signal_handler(sig))
-			)
+			loop.add_signal_handler(sig, lambda sig=sig: loop.create_task(self.signal_handler(sig)))
 
 		for test_case in self.test_cases:
 			await test_case.run()
@@ -123,10 +129,9 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 
 	async def run(self):
 		width = shutil.get_terminal_size((80, 20))[0]  # fallback: 100, 40
-		if width > 100:
-			width = 100
+		width = min(width, 100)
 		print("")
-		print(f"===[ Running test '{self.name}' on '{self.perftest.base_url}' ]".ljust(width, '='))
+		print(f"===[ Running test '{self.name}' on '{self.perftest.base_url}' ]".ljust(width, "="))
 		print(f" * {self.num_clients} concurrent clients")
 		print(f" * {self.iterations} iterations")
 
@@ -163,18 +168,13 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 		print("")
 
 	def add_result(self, error: None, seconds: float, bytes_sent: int, bytes_received: int):
-		res = {
-			"error": error,
-			"seconds": seconds,
-			"bytes_sent": bytes_sent,
-			"bytes_received": bytes_received
-		}
+		res = {"error": error, "seconds": seconds, "bytes_sent": bytes_sent, "bytes_received": bytes_received}
 		self.results.append(res)
 		if len(self.results) % 10 == 0:
-			sys.stdout.write('.')
+			sys.stdout.write(".")
 			sys.stdout.flush()
 		if len(self.results) % 500 == 0:
-			sys.stdout.write('\n')
+			sys.stdout.write("\n")
 			sys.stdout.flush()
 
 	def calc_results(self):
@@ -188,7 +188,7 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			"avg_requests_per_second": 0,
 			"min_seconds_per_request": 0,
 			"avg_seconds_per_request": 0,
-			"max_seconds_per_request": 0
+			"max_seconds_per_request": 0,
 		}
 
 		for res in self.results:
@@ -225,7 +225,10 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 		print(f" * Errors: {res['errors']}")
 		print(f" * Total seconds: {res['total_seconds']:0.3f}")
 		print(f" * Requests/second: {res['avg_requests_per_second']:0.3f}")
-		print(f" * Request duration: min/avg/max {res['min_seconds_per_request']:0.3f}s/{res['avg_seconds_per_request']:0.3f}s/{res['max_seconds_per_request']:0.3f}s")  # pylint: disable=line-too-long
+		print(
+			" * Request duration: min/avg/max "
+			f"{res['min_seconds_per_request']:0.3f}s/{res['avg_seconds_per_request']:0.3f}s/{res['max_seconds_per_request']:0.3f}s"
+		)  # pylint: disable=line-too-long
 		print(f" * Bytes sent: {res['bytes_sent']/1000/1000:0.2f}MB ({res['avg_bytes_send_per_second']/1000/1000:0.2f}MB/s)")
 		print(f" * Bytes received: {res['bytes_received']/1000/1000:0.2f}MB ({res['avg_bytes_received_per_second']/1000/1000:0.2f}MB/s)")
 		print("")
@@ -256,7 +259,7 @@ class Client:
 			self._session = aiohttp.ClientSession(
 				connector=aiohttp.TCPConnector(ssl=False),
 				auth=aiohttp.BasicAuth(login=self.perftest.username, password=self.perftest.password),
-				cookie_jar=aiohttp.CookieJar(unsafe=True)
+				cookie_jar=aiohttp.CookieJar(unsafe=True),
 			)
 		return self._session
 
@@ -264,12 +267,12 @@ class Client:
 		if self._session:
 			await self._session.close()
 
-	async def random_data_generator(self, size=0, chunk_size=1000 * 1000):
-		tempf = tempfile.TemporaryFile(mode="wb+")
-		# TODO: more randomized data
-		tempf.write(b"o" * size)
-		tempf.seek(0)
-		try:
+	@staticmethod
+	async def random_data_generator(size=0, chunk_size=1000 * 1000):
+		with tempfile.TemporaryFile(mode="wb+") as tempf:
+			# TODO: more randomized data
+			tempf.write(b"o" * size)
+			tempf.seek(0)
 			sent = 0
 			while sent < size:
 				data = tempf.read(chunk_size)
@@ -277,8 +280,6 @@ class Client:
 					break
 				yield data
 				sent += len(data)
-		finally:
-			tempf.close()
 
 	async def execute_requests(self, requests, add_results=True):
 		for request in requests:
@@ -296,7 +297,7 @@ class Client:
 			if isinstance(data, str):
 				data = data.encode("utf-8")
 			if data.startswith(b"{random_data:"):
-				bytes_sent = int(data.split(b':')[1].strip(b'}'))
+				bytes_sent = int(data.split(b":")[1].strip(b"}"))
 				data = self.random_data_generator(bytes_sent)
 			else:
 				bytes_sent = len(data)
@@ -321,19 +322,14 @@ class Client:
 		params = params or []
 		for idx, param in enumerate(params):
 			if isinstance(param, str) and param.startswith("{random_data:"):
-				size = int(param.split(':')[1].strip('}'))
+				size = int(param.split(":")[1].strip("}"))
 				# TODO: more randomized data
 				params[idx] = "o" * size
 			if isinstance(param, str) and param.startswith("{file:"):
-				filename = param.split(':')[1].strip('}')
+				filename = param.split(":")[1].strip("}")
 				with codecs.open(filename, "r", "utf-8") as file:
 					params[idx] = file.read()
-		req = {
-			"jsonrpc": "2.0",
-			"id": 1,
-			"method": method,
-			"params": params
-		}
+		req = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 		headers = {}
 		if self.test_case.encoding == "json":
 			headers["content-type"] = "application/json"
@@ -375,37 +371,37 @@ class Client:
 				else:
 					res = await asyncio.get_event_loop().run_in_executor(executor, orjson.loads, body)  # pylint: disable=no-member
 
-				if res.get('error'):
-					error = res['error']
+				if res.get("error"):
+					error = res["error"]
 			if self.perftest.print_responses:
 				print(f"{response.status} - {body}")
 			elif error:
 				print(error)
 
-			return (error, end - start, data_len, len(body or ''))
+			return (error, end - start, data_len, len(body or ""))
 
 
 def main():
 	arg_parser = argparse.ArgumentParser()
 	arg_parser.add_argument("-s", "--server", action="store", type=str, help="Configserver url / address")
 	arg_parser.add_argument("-u", "--username", action="store", type=str, help="Auth username")
-	arg_parser.add_argument("-p", "--password", action="store", type=str, nargs='?', const="", help="Auth password")
+	arg_parser.add_argument("-p", "--password", action="store", type=str, nargs="?", const="", help="Auth password")
 	arg_parser.add_argument("-c", "--clients", action="store", type=int, help="Number of concurrent clients")
 	arg_parser.add_argument("-i", "--iterations", action="store", type=int, help="Number of test iterations")
 	arg_parser.add_argument("-j", "--jsonrpc-methods", action="store", type=str, nargs="*", help="Execute jsonrpc methods")
 	arg_parser.add_argument("-r", "--print-responses", action="store_true", default=None, help="Print server responses")
-	arg_parser.add_argument("-l", "--load", action="store", nargs='+', metavar="FILE", help="Load test from FILE")
+	arg_parser.add_argument("-l", "--load", action="store", nargs="+", metavar="FILE", help="Load test from FILE")
 	arg_parser.add_argument("-w", "--write-results", action="store", metavar="FILE", help="Write results to FILE")
 	args = arg_parser.parse_args()
 	kwargs = args.__dict__
 
 	perftest = None
 
-	if kwargs.get('password') == "":
-		kwargs['password'] = getpass.getpass('Password: ')
+	if kwargs.get("password") == "":
+		kwargs["password"] = getpass.getpass("Password: ")
 
-	if kwargs.get('load'):
-		for _file in kwargs['load']:
+	if kwargs.get("load"):
+		for _file in kwargs["load"]:
 			perftest = Perftest.from_file(_file, **dict(kwargs))
 	else:
 		del kwargs["load"]
@@ -415,6 +411,6 @@ def main():
 	asyncio.run(perftest.run())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 	main()
 	sys.exit(0)

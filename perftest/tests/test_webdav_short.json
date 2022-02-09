@@ -8,11 +8,20 @@
 		{
 			"name": "WebDAV - write 100MB",
 			"requests": {
-				"test":[
-					["webdav", "PUT", "{http_client_id}.txt", "{random_data:100000000}"]
+				"test": [
+					[
+						"webdav",
+						"PUT",
+						"{http_client_id}.txt",
+						"{random_data:100000000}"
+					]
 				],
-				"teardown":[
-					["webdav", "DELETE", "{http_client_id}.txt"]
+				"teardown": [
+					[
+						"webdav",
+						"DELETE",
+						"{http_client_id}.txt"
+					]
 				]
 			}
 		}

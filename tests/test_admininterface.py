@@ -73,8 +73,7 @@ def fixture_admininterface(monkeypatch):
 	return admininterface
 
 
-@pytest.mark.asyncio
-async def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-outer-name,unused-argument
+def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 		addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 		for test_ip in addresses:
@@ -110,7 +109,6 @@ async def test_unblock_all(config, admininterface):  # pylint: disable=redefined
 			assert not val
 
 
-@pytest.mark.asyncio
 def test_unblock_client_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 		test_ip = "192.168.1.2"
@@ -144,13 +142,11 @@ async def test_unblock_client(config, admininterface):  # pylint: disable=redefi
 		assert not val
 
 
-@pytest.mark.asyncio
 def test_unblock_client_exception(test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis_client:
 		test_ip = "192.168.1.2"
 		set_failed_auth_and_blocked(test_ip)
 		res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": None})
-		print(res)
 		assert res.status_code == 500
 
 		val = redis_client.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
@@ -181,8 +177,7 @@ def test_get_rpc_list_request(test_client):  # pylint: disable=redefined-outer-n
 		assert result[idx].get("params") == 1
 
 
-@pytest.mark.asyncio
-async def test_get_blocked_clients_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_get_blocked_clients_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)

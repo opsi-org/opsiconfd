@@ -1,3 +1,5 @@
+![pipeline](https://gitlab.uib.gmbh/uib/opsiconfd/badges/devel/pipeline.svg)
+![coverage](https://gitlab.uib.gmbh/uib/opsiconfd/badges/devel/coverage.svg)
 # Configuration
 
 The configuration is based on [ConfigArgParse](https://pypi.org/project/ConfigArgParse/).
@@ -26,8 +28,8 @@ Thus, long runinng JSON-RPC requests could block other requests.
 * You can use the default debug settings or you can set the number of worker and the log level by selecting opsiconfd in the debug/run tab.
 
 ## Run Tests
-* Start opsiconfd with `sudo -E poetry run opsiconfd --backend-config-dir tests/opsi-config/backends --dispatch-config-file tests/opsi-config/backendManager/dispatch.conf --addon-dirs tests/data/addons addons --workers=1 --log-level-stderr=5 --jsonrpc-time-to-cache=0`
-* Select "Run Tests" on the Status Bar, use the Test Explorer or run `poetry run pytest -vv tests` in a terminal
+* Start opsiconfd with `sudo -E poetry run opsiconfd -l=5 -c tests/data/default-opsiconfd.conf`
+* Select "Run Tests" on the Status Bar, use the Test Explorer or run `poetry run pytest --cov-append --cov opsiconfd --cov-report term --cov-report xml -vv tests` in a terminal
 
 
 ## Memory usage / profiling

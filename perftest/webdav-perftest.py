@@ -12,6 +12,7 @@ webdav performance test util
 """
 
 import os
+import sys
 import time
 import shutil
 import argparse
@@ -29,6 +30,9 @@ def main():
 	parser.add_argument("--iterations", type=int, default=1, help="Download iterations")
 
 	args = parser.parse_args()
+
+	if os.geteuid() != 0:
+		raise RuntimeError(f"{os.path.basename(sys.argv[0])} requires root privileges")
 
 	print("Start test")
 

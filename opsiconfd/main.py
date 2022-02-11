@@ -63,6 +63,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 
 	if config.action == "setup":
 		init_logging(log_mode="local")
+		logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
 		setup(full=True)
 		return
 

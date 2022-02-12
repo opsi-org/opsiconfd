@@ -578,6 +578,7 @@ async def check_blocked(connection: HTTPConnection) -> None:
 		if "key does not exist" not in str(err):
 			raise
 	except IndexError as err:
+		logger.debug(err)
 		num_failed_auth = 0
 	if num_failed_auth >= config.max_auth_failures:
 		is_blocked = True

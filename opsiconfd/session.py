@@ -577,6 +577,8 @@ async def check_blocked(connection: HTTPConnection) -> None:
 		num_failed_auth = 0
 		if "key does not exist" not in str(err):
 			raise
+	except IndexError as err:
+		num_failed_auth = 0
 	if num_failed_auth >= config.max_auth_failures:
 		is_blocked = True
 		logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time / 60))

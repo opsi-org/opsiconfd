@@ -31,7 +31,7 @@ from OPSI.Util.Task.InitializeBackend import initializeBackends  # type: ignore[
 from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, DirPermission, set_rights  # type: ignore[import]
 from OPSI.System import get_subprocess_environment  # type: ignore[import]
 from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
-from OPSI.Backend.Base.Backend import OPSI_LICENSE_PATH
+from OPSI.Backend.Base.Backend import OPSI_LICENSE_PATH  # type: ignore[import]
 
 from .logging import logger
 from .config import config, VAR_ADDON_DIR

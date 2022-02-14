@@ -39,6 +39,7 @@ from ..ssl import get_ca_cert_as_pem
 from ..addon import AddonManager
 from ..rest import OpsiApiException, rest_api
 from . import app
+from . import terminal  # pylint: disable=unused-import
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
 from .webdav import webdav_setup

@@ -72,19 +72,19 @@ function outputResult(json, id) {
 		data = json["data"]
 		let failedCount = 0;
 		let blockedCount = 0;
-		if(data["redis-keys"] != undefined){
+		if (data["redis-keys"] != undefined) {
 			data["redis-keys"].forEach(element => {
 				// console.log(element);
-				if(element.includes("failed_auth")){
+				if (element.includes("failed_auth")) {
 					failedCount += 1;
 				}
-				else{
+				else {
 					blockedCount += 1;
 				}
 			});
 		}
 		if (data["clients"] != undefined && data["clients"].length != 0) {
-			if (blockedCount == 0){
+			if (blockedCount == 0) {
 				text = "No blocked clients found."
 			}
 			else if (blockedCount == 1) {
@@ -93,9 +93,9 @@ function outputResult(json, id) {
 				text = blockedCount + " clients unblocked.";
 			}
 			if (failedCount == 1) {
-				text = text + " Failed logins for "+ failedCount +" client deleted.";
+				text = text + " Failed logins for " + failedCount + " client deleted.";
 			} else {
-				text = text + " Failed logins for "+ failedCount +" clients deleted.";
+				text = text + " Failed logins for " + failedCount + " clients deleted.";
 			}
 
 		} else if (data["sessions"] != undefined) {
@@ -116,7 +116,7 @@ function outputResult(json, id) {
 	document.getElementById(id).innerHTML = text;
 }
 
-function clearRedisCache(depots =  []) {
+function clearRedisCache(depots = []) {
 	let request = new XMLHttpRequest();
 	request.open("POST", "/redis-interface/clear-product-cache");
 	request.addEventListener('load', function (event) {
@@ -370,7 +370,7 @@ function tracemallocSnapshot() {
 	request.send()
 }
 
-function objgraphSnapshot(update=false) {
+function objgraphSnapshot(update = false) {
 	let max_obj_types = parseInt(document.getElementById("input-objgraph-max-obj-types").value);
 	let max_obj = parseInt(document.getElementById("input-objgraph-max-obj").value);
 
@@ -450,13 +450,13 @@ function diffMemorySnapshots() {
 
 	snapshotNumber1 = document.getElementById("snapshot1").value;
 	snapshotNumber2 = document.getElementById("snapshot2").value;
-	if (snapshotNumber1 == ""){
+	if (snapshotNumber1 == "") {
 		snapshotNumber1 = 1
 	}
-	if (snapshotNumber2 == ""){
+	if (snapshotNumber2 == "") {
 		snapshotNumber2 = -1
 	}
-	url = "/admin/memory/diff?snapshot1="+snapshotNumber1+"&snapshot2="+snapshotNumber2
+	url = "/admin/memory/diff?snapshot1=" + snapshotNumber1 + "&snapshot2=" + snapshotNumber2
 	request.open("GET", url);
 	request.addEventListener('load', function (event) {
 		if (request.status >= 200 && request.status < 300) {
@@ -498,13 +498,13 @@ function diffHeapSnapshots() {
 
 	snapshotNumber1 = document.getElementById("snapshot1").value;
 	snapshotNumber2 = document.getElementById("snapshot2").value;
-	if (snapshotNumber1 == ""){
+	if (snapshotNumber1 == "") {
 		snapshotNumber1 = 1
 	}
-	if (snapshotNumber2 == ""){
+	if (snapshotNumber2 == "") {
 		snapshotNumber2 = -1
 	}
-	url = "/admin/memory/guppy/diff?snapshot1="+snapshotNumber1+"&snapshot2="+snapshotNumber2
+	url = "/admin/memory/guppy/diff?snapshot1=" + snapshotNumber1 + "&snapshot2=" + snapshotNumber2
 	request.open("GET", url);
 	request.addEventListener('load', function (event) {
 		if (request.status >= 200 && request.status < 300) {
@@ -653,16 +653,16 @@ function printLockedProductsTable(data, htmlId) {
 			"<tr>" +
 			"<th class='locked-products-th'>Product</th>" +
 			"<th class='locked-products-th'>Depots</th>"
-			"</tr>";
-		for(var key in data) {
+		"</tr>";
+		for (var key in data) {
 			htmlStr += "<tr>" +
 				"<td class=\"locked-products-td\" class=\"cell-breakWord \">" + key + "</td>" +
 				"<td class=\"locked-products-td\">"
-				data[key].forEach(element => {
-					htmlStr += element + "<br>"
-				});
+			data[key].forEach(element => {
+				htmlStr += element + "<br>"
+			});
 			htmlStr += "</td>"
-			htmlStr += "<td class=\"locked-products-td\"><input type=\"button\" onclick=\"unlockProduct('"+key+"')\" value=\"Unlock\"</td>"
+			htmlStr += "<td class=\"locked-products-td\"><input type=\"button\" onclick=\"unlockProduct('" + key + "')\" value=\"Unlock\"</td>"
 			htmlStr += "</tr>";
 		}
 		htmlStr += "</table>";
@@ -673,7 +673,7 @@ function printLockedProductsTable(data, htmlId) {
 }
 
 
-function unlockProduct(product){
+function unlockProduct(product) {
 	let request = new XMLHttpRequest();
 	request.open("POST", "/admin/products/" + product + "/unlock");
 	request.addEventListener('load', function (event) {
@@ -691,7 +691,7 @@ function unlockProduct(product){
 
 }
 
-function unlockAllProducts(){
+function unlockAllProducts() {
 	let request = new XMLHttpRequest();
 	request.open("POST", "/admin/products/unlock");
 	request.addEventListener('load', function (event) {
@@ -778,11 +778,11 @@ function printRPCTable(data, htmlId) {
 			});
 		} else {
 			keys.forEach(key => {
-				if(key == "date"){
+				if (key == "date") {
 					date = formateDate(new Date(element[key]))
 					htmlStr += "<td class=\"rpc-td\">" + date + "</td>";
 				}
-				else if(key == "duration"){
+				else if (key == "duration") {
 					duration = element[key].toFixed(4)
 					htmlStr += "<td class=\"rpc-td\">" + duration + "</td>";
 				}
@@ -814,7 +814,7 @@ function sortRPCTable(data, sortKey) {
 				return 1;
 			}
 			return 0;
-		} else if (sortKey == "date"){
+		} else if (sortKey == "date") {
 			var dateA = new Date(a[sortKey])
 			var dateB = new Date(b[sortKey])
 			if (dateA < dateB) {
@@ -824,9 +824,9 @@ function sortRPCTable(data, sortKey) {
 				return 1;
 			}
 			return 0;
-		} else if (sortKey == "client"){
-			var numA = Number(a[sortKey].split(".").map((num) => (`000${num}`).slice(-3) ).join(""));
-			var numB = Number(b[sortKey].split(".").map((num) => (`000${num}`).slice(-3) ).join(""));
+		} else if (sortKey == "client") {
+			var numA = Number(a[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
+			var numB = Number(b[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
 			if (numA < numB) {
 				return -1;
 			}
@@ -998,9 +998,9 @@ function decode(html) {
 	return txt.value;
 }
 
-function formateDate(date){
+function formateDate(date) {
 	year = date.getFullYear();
-	month = date.getMonth()+1;
+	month = date.getMonth() + 1;
 	dt = date.getDate();
 	hour = date.getHours();
 	minutes = date.getMinutes();
@@ -1012,15 +1012,65 @@ function formateDate(date){
 	if (month < 10) {
 		month = '0' + month;
 	}
-	if (hour < 10){
+	if (hour < 10) {
 		hour = '0' + hour;
 	}
-	if(minutes < 10){
+	if (minutes < 10) {
 		minutes = '0' + minutes;
 	}
-	if (seconds < 10){
+	if (seconds < 10) {
 		seconds = '0' + seconds;
 	}
-	date = year+'-' + month + '-'+dt+' '+hour+':'+minutes+':'+seconds
+	date = year + '-' + month + '-' + dt + ' ' + hour + ':' + minutes + ':' + seconds
 	return date;
+}
+
+
+var terminal;
+var terminal_ws;
+
+function startTerminal() {
+	terminal = new Terminal({
+		cursorBlink: true,
+		macOptionIsMeta: true,
+		scrollback: 1000,
+		fontSize: 14,
+		//lineHeight: 1.1
+	});
+	const searchAddon = new SearchAddon.SearchAddon();
+	terminal.loadAddon(searchAddon);
+	const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+	terminal.loadAddon(webLinksAddon);
+	const fitAddon = new FitAddon.FitAddon();
+	terminal.loadAddon(fitAddon);
+
+	terminal.open(document.getElementById('terminal-xterm'));
+
+	setTimeout(function () {
+		fitAddon.fit();
+		terminal.focus();
+
+		console.log(`size: ${terminal.cols} columns, ${terminal.rows} rows`);
+
+		let params = [`lines=${terminal.rows}`, `columns=${terminal.cols}`]
+		let loc = window.location;
+		let ws_uri;
+		if (loc.protocol == "https:") {
+			ws_uri = "wss:";
+		} else {
+			ws_uri = "ws:";
+		}
+		ws_uri += "//" + loc.host;
+		terminal_ws = new WebSocket(ws_uri + "/ws/terminal?" + params.join('&'));
+
+		const attachAddon = new AttachAddon.AttachAddon(terminal_ws);
+		terminal.loadAddon(attachAddon);
+	}, 100);
+
+}
+
+
+function stopTerminal() {
+	if (terminal) terminal.dispose();
+	if (terminal_ws) terminal_ws.close();
 }

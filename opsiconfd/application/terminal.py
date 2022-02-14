@@ -9,9 +9,11 @@ application.teminal
 """
 
 import asyncio
+import pathlib
 from typing import Optional
 
-from fastapi import Depends, Query
+from fastapi import Depends, Query, UploadFile, status
+from fastapi.responses import JSONResponse
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
 from pexpect import spawn  # type: ignore[import]
@@ -20,6 +22,7 @@ from OPSI.System import get_subprocess_environment  # type: ignore[import]
 
 from .. import contextvar_client_session
 from ..logging import logger
+from ..config import config
 from . import app
 
 
@@ -33,9 +36,11 @@ def start_pty(shell="bash", lines=30, columns=120, cwd=None):
 
 
 def terminal_websocket_parameters(
-	columns: Optional[int] = Query(default=120, embed=True), lines: Optional[int] = Query(default=30, embed=True)
+	terminal_id: str = Query(default=None, embed=True),
+	columns: Optional[int] = Query(default=120, embed=True),
+	lines: Optional[int] = Query(default=30, embed=True),
 ):
-	return {"columns": columns, "lines": lines}
+	return {"terminal_id": terminal_id, "columns": columns, "lines": lines}
 
 
 async def pty_reader(websocket: WebSocket, pty: spawn):
@@ -86,10 +91,40 @@ async def terminal_websocket_endpoint(websocket: WebSocket, params: dict = Depen
 
 	await websocket.accept()
 
-	columns = params["columns"]
-	lines = params["lines"]
+	logger.info("Websocket client connected to terminal columns=%d, lines=%d", params["columns"], params["lines"])
+	pty = start_pty(shell="bash", lines=params["lines"], columns=params["columns"], cwd="/var/lib/opsi")
 
-	logger.info("Websocket client connected to terminal columns=%d, lines=%d", columns, lines)
-	pty = start_pty(shell="bash", lines=lines, columns=columns, cwd="/var/lib/opsi")
+	terminals = session.get("terminal_ws", {})
+	terminals[params["terminal_id"]] = f"{config.node_name}:{pty.pid}"
+	session.set("terminal_ws", terminals)
+	await session.store()
 
 	await asyncio.gather(websocket_reader(websocket, pty), pty_reader(websocket, pty))
+
+
+@app.post("/admin/terminal/fileupload")
+async def terminal_fileupload(terminal_id: str, file: UploadFile):
+	session = contextvar_client_session.get()
+	if not session:
+		return JSONResponse("Invalid session", status_code=status.HTTP_403_FORBIDDEN)
+	terminals = session.get("terminal_ws")
+	if not terminals or terminal_id not in terminals:
+		return JSONResponse("Invalid terminal id", status_code=status.HTTP_404_NOT_FOUND)
+
+	node_name, tty_pid = terminals[terminal_id].split(":", 1)
+	if node_name != config.node_name:
+		return JSONResponse("Invalid node", status_code=status.HTTP_404_NOT_FOUND)
+
+	cwd = pathlib.Path(f"/proc/{tty_pid}/cwd")
+	if not cwd.exists():
+		return JSONResponse("Invalid terminal id", status_code=status.HTTP_404_NOT_FOUND)
+
+	filename = (cwd.readlink() / file.filename).absolute()
+	orig_name = filename.name
+	ext = 0
+	while filename.exists():
+		ext += 1
+		filename = filename.with_name(f"{orig_name}.{ext}")
+
+	filename.write_bytes(await file.read())  # type: ignore[arg-type]
+	return JSONResponse({"filename": str(filename.name)})

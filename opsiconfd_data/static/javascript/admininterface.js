@@ -1034,8 +1034,7 @@ function startTerminal() {
 		cursorBlink: true,
 		macOptionIsMeta: true,
 		scrollback: 1000,
-		fontSize: 14,
-		//lineHeight: 1.1
+		fontSize: 14
 	});
 	const searchAddon = new SearchAddon.SearchAddon();
 	terminal.loadAddon(searchAddon);
@@ -1052,7 +1051,8 @@ function startTerminal() {
 
 		console.log(`size: ${terminal.cols} columns, ${terminal.rows} rows`);
 
-		let params = [`lines=${terminal.rows}`, `columns=${terminal.cols}`]
+		terminal.terminal_id = crypto.randomUUID();
+		let params = [`terminal_id=${terminal.terminal_id}`, `lines=${terminal.rows}`, `columns=${terminal.cols}`]
 		let loc = window.location;
 		let ws_uri;
 		if (loc.protocol == "https:") {
@@ -1075,10 +1075,43 @@ function startTerminal() {
 
 		const attachAddon = new AttachAddon.AttachAddon(terminal_ws);
 		terminal.loadAddon(attachAddon);
+
+		const el = document.getElementsByClassName("xterm-screen")[0];
+		el.ondragenter = function (event) {
+			return false;
+		};
+		el.ondragover = function (event) {
+			event.preventDefault();
+		}
+		el.ondragleave = function (event) {
+			return false;
+		};
+		el.ondrop = function (event) {
+			event.preventDefault();
+			terminalFileUpload(event.dataTransfer.files[0]);
+		};
+
 	}, 100);
 
 }
 
+function terminalFileUpload(file) {
+	var formData = new FormData();
+	formData.append('file', file);
+	const xhr = new XMLHttpRequest();
+	xhr.responseType = 'json';
+	xhr.open("POST", `/admin/terminal/fileupload?terminal_id=${terminal.terminal_id}`, true);
+	xhr.onload = function (e) {
+		if (this.status == 200) {
+			console.log(`File upload successful: ${JSON.stringify(this.response)}`)
+			terminal_ws.send(this.response.filename);
+		}
+		else {
+			console.error(`File upload failed: ${JSON.stringify(this.response)}`);
+		}
+	};
+	xhr.send(formData);
+}
 
 function stopTerminal() {
 	if (terminal) terminal.dispose();

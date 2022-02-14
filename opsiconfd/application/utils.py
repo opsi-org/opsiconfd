@@ -135,13 +135,15 @@ def parse_list(query_list):
 	return list(filter(None, result_list))
 
 
+# used in webgui backend
 def bool_product_property(value):
 	if value:
-		if value.lower() == "[true]" or str(value) == "1":
+		if value.lower() == "[true]" or str(value) == "1" or value.lower() == "true":
 			return True
 	return False
 
 
+# used in webgui backend
 def unicode_product_property(value):
 	if value and isinstance(value, str):
 		if value.startswith('["'):
@@ -152,7 +154,10 @@ def unicode_product_property(value):
 	return [""]
 
 
-def merge_dicts(dict_a, dict_b, path=None):
+# used in webgui backend
+def merge_dicts(dict_a: dict, dict_b: dict, path=None) -> dict:
+	if not dict_a or not dict_b:
+		raise ValueError("Merge_dicts: At least one of the dicts (a and b) is not set.")
 	if path is None:
 		path = []
 	for key in dict_b:
@@ -160,7 +165,7 @@ def merge_dicts(dict_a, dict_b, path=None):
 			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
 				merge_dicts(dict_a[key], dict_b[key], path + [str(key)])
 			elif isinstance(dict_a[key], list) and isinstance(dict_b[key], list):
-				dict_a[key] = list(set(dict_a[key]))
+				dict_a[key] = list(set(dict_a[key] + dict_b[key]))
 			elif dict_a[key] == dict_b[key]:
 				pass
 			else:

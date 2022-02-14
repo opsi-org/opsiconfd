@@ -59,11 +59,16 @@ class AddonTest1(Addon):
 		"""Called after loading the addon"""
 		marker_dir = pathlib.Path("/var/lib/opsi/opsiconfd_test_addon")
 		marker_dir.mkdir(exist_ok=True)
-		marker_dir.chmod(0o777)
+		try:
+			marker_dir.chmod(0o777)
+		except PermissionError:
+			pass
 		marker = marker_dir / "test1_on_load"
 		marker.touch()
-		marker.chmod(0o666)
-
+		try:
+			marker.chmod(0o666)
+		except PermissionError:
+			pass
 		router.include_router(api_router, prefix="/api")
 		app.include_router(router, prefix=self.router_prefix)
 		app.mount(
@@ -80,8 +85,10 @@ class AddonTest1(Addon):
 			pass
 		marker = marker_dir / "test1_on_unload"
 		marker.touch()
-		marker.chmod(0o666)
-
+		try:
+			marker.chmod(0o666)
+		except PermissionError:
+			pass
 		remove_route_path(app, self.router_prefix)
 
 	async def handle_request(

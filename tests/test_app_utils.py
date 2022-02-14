@@ -10,7 +10,7 @@ test application utils
 
 import pytest
 
-from opsiconfd.application.utils import parse_list, merge_dicts
+from opsiconfd.application.utils import bool_product_property, parse_list, merge_dicts, unicode_product_property
 
 
 @pytest.mark.parametrize(
@@ -54,6 +54,23 @@ def test_parse_list(data, output):
 			None,
 			{"a": {"test": {"end": "hallo"}}, "b": {"test": [1, 2, 3, 4, 5]}},
 		),  # dict in dict with identical string and merged list
+		({"a": [1, 2, 3], "b": [1]}, {"b": [2]}, None, {"a": [1, 2, 3], "b": [1, 2]}),  # key a not in dict b
+		(
+			{
+				"a": [1, 2, 3],
+			},
+			{"a": [1, 2, 3], "b": [2]},
+			None,
+			{"a": [1, 2, 3], "b": [2]},
+		),  # key b not in dict a
+		(
+			{
+				"a": [1, 2, 3],
+			},
+			{"b": [2]},
+			None,
+			{"a": [1, 2, 3], "b": [2]},
+		),  # key b not in dict a and key a not in dict b
 	],
 )
 def test_merge_dicts(dict_a, dict_b, path, output):
@@ -87,3 +104,40 @@ def test_merge_dicts_conflict(dict_a, dict_b, path, output):
 
 	with pytest.raises(Exception):
 		assert merge_dicts(dict_a, dict_b, path) == output
+
+
+@pytest.mark.parametrize(
+	"data, output",
+	[
+		(None, [""]),
+		("", [""]),
+		("Hello World", ["Hello World"]),
+		("[]", [""]),
+		('["test", "value", "Hello World"]', ["test", "value", "Hello World"]),
+	],
+)
+def test_unicode_product_property(data, output):
+
+	assert unicode_product_property(data) == output
+
+
+@pytest.mark.parametrize(
+	"data, output",
+	[
+		(None, False),
+		("", False),
+		("False", False),
+		("[False]", False),
+		("[FALSE]", False),
+		("[false]", False),
+		("Hello", False),
+		("True", True),
+		("true", True),
+		("[true]", True),
+		("[True]", True),
+		("[TRUE]", True),
+	],
+)
+def test_bool_product_property(data, output):
+
+	assert bool_product_property(data) == output

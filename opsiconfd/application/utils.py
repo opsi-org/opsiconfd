@@ -138,7 +138,7 @@ def parse_list(query_list):
 # used in webgui backend
 def bool_product_property(value):
 	if value:
-		if value.lower() == "[true]" or str(value) == "1":
+		if value.lower() == "[true]" or str(value) == "1" or value.lower() == "true":
 			return True
 	return False
 

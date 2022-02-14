@@ -94,9 +94,9 @@ def test_merge_dicts_value_error(dict_a, dict_b, path, output):
 		({"a": [1]}, {"a": {"test": 1}}, None, None),
 		(
 			{"a": {"test": {"end": "hallo"}}, "b": {"test": [1, 2, 4]}},
-			{"a": {"test": {"end": "hallo"}}, "b": {"test": [3, 4, 5]}},
+			{"a": {"test": {"end": "welt"}}, "b": {"test": [3, 4, 5]}},
 			None,
-			{"a": {"test": {"end": "welt"}}, "b": {"test": [1, 2, 3, 4, 5]}},
+			None,
 		),  # confict in test dict
 	],
 )

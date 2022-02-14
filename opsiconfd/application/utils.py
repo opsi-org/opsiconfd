@@ -133,38 +133,3 @@ def parse_list(query_list):
 	result_list = [remove_postfix(n.strip(), '"') for n in result_list]
 
 	return list(filter(None, result_list))
-
-
-def bool_product_property(value):
-	if value:
-		if value.lower() == "[true]" or str(value) == "1":
-			return True
-	return False
-
-
-def unicode_product_property(value):
-	if value and isinstance(value, str):
-		if value.startswith('["'):
-			return orjson.loads(value)  # pylint: disable=no-member
-		if value == "[]":
-			return [""]
-		return value.replace('\\"', '"').split(",")
-	return [""]
-
-
-def merge_dicts(dict_a, dict_b, path=None):
-	if path is None:
-		path = []
-	for key in dict_b:
-		if key in dict_a:
-			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
-				merge_dicts(dict_a[key], dict_b[key], path + [str(key)])
-			elif isinstance(dict_a[key], list) and isinstance(dict_b[key], list):
-				dict_a[key] = list(set(dict_a[key]))
-			elif dict_a[key] == dict_b[key]:
-				pass
-			else:
-				raise Exception(f"Conflict at { '.'.join(path + [str(key)])}")
-		else:
-			dict_a[key] = dict_b[key]
-	return dict_a

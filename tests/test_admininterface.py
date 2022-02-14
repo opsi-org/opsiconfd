@@ -410,13 +410,13 @@ def get_session_count(client) -> int:
 	"user,req_body",
 	[
 		(ADMIN_USER, None),
-		(None, None),
+		("", None),
 		(
 			ADMIN_USER,
 			{"return_401": True},
 		),
 		(ADMIN_USER, {"return_401": False}),
-		(None, {"return_401": True}),
+		("", {"return_401": True}),
 	],
 )
 def test_logout(test_client, user, req_body):  # pylint: disable=redefined-outer-name

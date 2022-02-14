@@ -15,7 +15,7 @@ from fastapi import Depends, Query
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
 from pexpect import spawn  # type: ignore[import]
-from pexpect.exceptions import TIMEOUT  # type: ignore[import]
+from pexpect.exceptions import TIMEOUT, EOF  # type: ignore[import]
 from OPSI.System import get_subprocess_environment  # type: ignore[import]
 
 from .. import contextvar_client_session
@@ -49,6 +49,10 @@ async def pty_reader(websocket: WebSocket, pty: spawn):
 		except TIMEOUT:
 			if websocket.client_state == WebSocketState.DISCONNECTED or app.is_shutting_down:
 				break
+		except EOF:
+			# shell exit
+			await websocket.close()
+			break
 		except (ConnectionClosedOK, WebSocketDisconnect) as err:
 			logger.debug("pty_reader: %s", err)
 			break

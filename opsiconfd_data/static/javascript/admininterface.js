@@ -1062,6 +1062,16 @@ function startTerminal() {
 		}
 		ws_uri += "//" + loc.host;
 		terminal_ws = new WebSocket(ws_uri + "/ws/terminal?" + params.join('&'));
+		terminal_ws.onclose = function () {
+			console.log("Terminal ws connection closed");
+			terminal.writeln("\r\n\033[1;37m> Connection closed <\033[0m");
+			terminal.write("\033[?25l"); // Make cursor invisible
+		};
+		terminal_ws.onerror = function (error) {
+			console.error(`Terminal ws connection error: ${error}`);
+			terminal.writeln("\r\n\033[1;31m> Connection error: " + error + " <\033[0m");
+			terminal.write("\033[?25l"); // Make cursor invisible
+		};
 
 		const attachAddon = new AttachAddon.AttachAddon(terminal_ws);
 		terminal.loadAddon(attachAddon);

@@ -1,10 +1,6 @@
 echo "* Running as $(whoami)"
 
-/workspace/scripts/setup-hosts.sh
-/workspace/scripts/setup-grafana.sh
-/workspace/scripts/setup-mysql.sh
-
-if [ -n "$JEMALLOC_VERSION" ]; then
+function install_jemalloc {
 	echo "* Installing jemalloc"
 	cd /tmp
 	wget https://github.com/jemalloc/jemalloc/releases/download/$JEMALLOC_VERSION/jemalloc-$JEMALLOC_VERSION.tar.bz2
@@ -13,7 +9,13 @@ if [ -n "$JEMALLOC_VERSION" ]; then
 	./configure
 	make
 	sudo make install
-fi
+}
+
+/workspace/scripts/setup-hosts.sh
+/workspace/scripts/setup-grafana.sh
+/workspace/scripts/setup-mysql.sh
+
+# [ -n "$JEMALLOC_VERSION" ] && install_jemalloc
 
 sudo mkdir -p /var/log/opsi
 sudo mkdir -p /var/lib/opsi/depot

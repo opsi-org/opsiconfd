@@ -26,10 +26,10 @@ from . import app
 PTY_READER_BLOCK_SIZE = 16 * 1024
 
 
-def start_pty(shell="bash", lines=30, columns=120):
+def start_pty(shell="bash", lines=30, columns=120, cwd=None):
 	sp_env = get_subprocess_environment()
 	sp_env.update({"TERM": "xterm-256color"})
-	return spawn(shell, dimensions=(lines, columns), env=sp_env)
+	return spawn(shell, dimensions=(lines, columns), env=sp_env, cwd=cwd)
 
 
 def terminal_websocket_parameters(
@@ -50,7 +50,7 @@ async def pty_reader(websocket: WebSocket, pty: spawn):
 			if websocket.client_state == WebSocketState.DISCONNECTED or app.is_shutting_down:
 				break
 		except (ConnectionClosedOK, WebSocketDisconnect) as err:
-			logger.debug("websocket_reader: %s", err)
+			logger.debug("pty_reader: %s", err)
 			break
 
 
@@ -86,6 +86,6 @@ async def terminal_websocket_endpoint(websocket: WebSocket, params: dict = Depen
 	lines = params["lines"]
 
 	logger.info("Websocket client connected to terminal columns=%d, lines=%d", columns, lines)
-	pty = start_pty(shell="bash", lines=lines, columns=columns)
+	pty = start_pty(shell="bash", lines=lines, columns=columns, cwd="/var/lib/opsi")
 
 	await asyncio.gather(websocket_reader(websocket, pty), pty_reader(websocket, pty))

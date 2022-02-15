@@ -127,4 +127,5 @@ async def terminal_fileupload(terminal_id: str, file: UploadFile):
 		filename = filename.with_name(f"{orig_name}.{ext}")
 
 	filename.write_bytes(await file.read())  # type: ignore[arg-type]
+	filename.chmod(0o660)
 	return JSONResponse({"filename": str(filename.name)})

@@ -23,7 +23,7 @@ from opsiconfd.application.monitoring.check_locked_products import check_locked_
 from opsiconfd.application.monitoring.check_short_product_status import check_short_product_status
 from opsiconfd.application.monitoring.check_plugin_on_client import check_plugin_on_client
 
-from .utils import config, clean_redis, database_connection, backend, create_depot_jsonrpc  # pylint: disable=unused-import
+from tests.utils import config, clean_redis, database_connection, backend, create_depot_jsonrpc  # pylint: disable=unused-import
 
 MONITORING_CHECK_DAYS = 31
 

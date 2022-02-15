@@ -1,0 +1,100 @@
+# -*- coding: utf-8 -*-
+
+# opsiconfd is part of the desktop management solution opsi http://www.opsi.org
+# Copyright (c) 2020-2021 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0
+"""
+test application utils
+"""
+
+import json
+from socket import getfqdn
+from fastapi import status
+
+from opsiconfd.application.monitoring.check_client_status import check_client_status
+from tests.utils import (  # pylint: disable=unused-import
+	backend,
+	client_jsonrpc,
+	get_dummy_products,
+	poc_jsonrpc,
+	products_jsonrpc,
+	test_client,
+)
+
+
+def test_check_client_status(backend, test_client):  # pylint: disable=redefined-outer-name
+
+	client_id = "test-client1.uib.local"
+
+	# check client that does not exists -> result sould be UNKNOWN
+	result = check_client_status(backend, client_id=client_id)
+	assert result.status_code == status.HTTP_200_OK
+	body = json.loads(result.body.decode("utf-8"))
+	assert body.get("state") == 3
+	assert body.get("message") == f"UNKNOWN: opsi-client: '{client_id}' not found"
+
+	with client_jsonrpc(test_client, "", client_id):
+		# check client without products -> state sould be OK
+		result = check_client_status(backend, client_id=client_id)
+
+		assert result.status_code == status.HTTP_200_OK
+		body = json.loads(result.body.decode("utf-8"))
+		assert body.get("state") == 0
+		assert body.get("message") == (
+			"OK: opsi-client test-client1.uib.local has been seen today. No failed products and no actions set for client"
+		)
+
+		products = get_dummy_products(3)
+		product_ids = [p["id"] for p in products]
+		with (
+			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
+			poc_jsonrpc(test_client, "", client_id, product_ids[0], install_state="installed"),
+		):
+			result = check_client_status(backend, client_id=client_id)
+			assert result.status_code == status.HTTP_200_OK
+			body = json.loads(result.body.decode("utf-8"))
+			assert body.get("state") == 0
+			assert body.get("message") == (
+				"OK: opsi-client test-client1.uib.local has been seen today. No failed products and no actions set for client"
+			)
+		with (
+			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
+			poc_jsonrpc(test_client, "", client_id, product_ids[0], action_request="setup"),
+		):
+			result = check_client_status(backend, client_id=client_id)
+			assert result.status_code == status.HTTP_200_OK
+			body = json.loads(result.body.decode("utf-8"))
+			print(body)
+			assert body.get("state") == 1
+			assert body.get("message") == (
+				"WARNING: opsi-client test-client1.uib.local has been seen today. Actions set for products: 'dummy-prod-0 (setup)'."
+			)
+		with (
+			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
+			poc_jsonrpc(test_client, "", client_id, product_ids[0], action_result="failed"),
+		):
+			result = check_client_status(backend, client_id=client_id)
+			assert result.status_code == status.HTTP_200_OK
+			body = json.loads(result.body.decode("utf-8"))
+			print(body)
+			assert body.get("state") == 2
+			assert body.get("message") == (
+				"CRITICAL: opsi-client test-client1.uib.local has been seen today. Products: 'dummy-prod-0' are in failed state. "
+			)
+		with (
+			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
+			poc_jsonrpc(test_client, "", client_id, product_ids[0], action_request="setup"),
+			poc_jsonrpc(test_client, "", client_id, product_ids[1], action_result="failed"),
+			poc_jsonrpc(test_client, "", client_id, product_ids[2], action_result="failed"),
+		):
+			result = check_client_status(backend, client_id=client_id)
+			assert result.status_code == status.HTTP_200_OK
+			body = json.loads(result.body.decode("utf-8"))
+			print(body)
+			assert body.get("state") == 2
+			assert body.get("message") == (
+				"CRITICAL: opsi-client test-client1.uib.local has been seen today. "
+				"Products: 'dummy-prod-1, dummy-prod-2' are in failed state. "
+				"Actions set for products: 'dummy-prod-0 (setup)'."
+			)

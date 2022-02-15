@@ -198,6 +198,33 @@ def products_jsonrpc(client, base_url, products, depots=None):
 		delete_products_jsonrpc(client, base_url, products)
 
 
+def create_poc_jsonrpc(
+	http_client, base_url, opsi_client, product_id, install_state=None, action_request=None, action_result=None
+):  # pylint: disable=too-many-arguments
+	product = [product_id, "LocalbootProduct", opsi_client, install_state, action_request, None, None, action_result]
+	rpc = {"id": 1, "method": "productOnClient_create", "params": product}
+	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res.raise_for_status()
+
+
+def delete_poc_jsonrpc(http_client, base_url, opsi_client, product_id):
+	product = [product_id, opsi_client]
+	rpc = {"id": 1, "method": "productOnClient_delete", "params": product}
+	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
+	res.raise_for_status()
+
+
+@contextmanager
+def poc_jsonrpc(
+	http_client, base_url, opsi_client, product_id, install_state=None, action_request=None, action_result=None
+):  # pylint: disable=too-many-arguments
+	create_poc_jsonrpc(http_client, base_url, opsi_client, product_id, install_state, action_request, action_result)
+	try:
+		yield
+	finally:
+		delete_poc_jsonrpc(http_client, base_url, opsi_client, product_id)
+
+
 def get_one_depot_id_jsonrpc(client):
 	rpc = {"id": 1, "method": "host_getIdents", "params": ["str", {"type": "OpsiDepotserver"}]}
 	res = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)

@@ -20,8 +20,8 @@ import requests
 import aioredis
 
 from opsiconfd.application.monitoring.utils import get_workers
-from .utils import config, clean_redis, database_connection, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
-from .test_monitoring import MONITORING_CHECK_DAYS, create_check_data  # pylint: disable=unused-import
+from tests.utils import config, clean_redis, database_connection, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
+from tests.monitoring.test_monitoring import MONITORING_CHECK_DAYS, create_check_data  # pylint: disable=unused-import
 
 
 @pytest.mark.parametrize(

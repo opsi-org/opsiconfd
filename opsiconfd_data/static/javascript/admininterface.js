@@ -1070,8 +1070,8 @@ function startTerminal() {
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
 		terminal_ws.onerror = function (error) {
-			console.error(`Terminal ws connection error: ${error}`);
-			terminal.writeln("\r\n\033[1;31m> Connection error: " + error + " <\033[0m");
+			console.error(`Terminal ws connection error: ${JSON.stringify(error)}`);
+			terminal.writeln("\r\n\033[1;31m> Connection error: " + JSON.stringify(error) + " <\033[0m");
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
 
@@ -1106,7 +1106,12 @@ function terminalFileUpload(file) {
 	xhr.onload = function (e) {
 		if (this.status == 200) {
 			console.log(`File upload successful: ${JSON.stringify(this.response)}`)
-			terminal_ws.send(this.response.filename);
+			const filename = this.response.filename;
+			terminal_ws.send(filename);
+			// Move cursor back
+			setTimeout(function () {
+				terminal.write("\033[" + filename.length + "D");
+			}, 100);
 		}
 		else {
 			console.error(`File upload failed: ${JSON.stringify(this.response)}`);
@@ -1117,5 +1122,4 @@ function terminalFileUpload(file) {
 
 function stopTerminal() {
 	if (terminal) terminal.dispose();
-	if (terminal_ws) terminal_ws.close();
 }

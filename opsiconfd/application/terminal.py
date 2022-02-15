@@ -23,6 +23,7 @@ from OPSI.System import get_subprocess_environment  # type: ignore[import]
 from .. import contextvar_client_session
 from ..logging import logger
 from ..config import config
+from ..session import register_websocket
 from . import app
 
 
@@ -69,7 +70,7 @@ async def websocket_reader(websocket: WebSocket, pty: spawn):
 
 
 @app.websocket("/admin/terminal/ws")
-# async def terminal_websocket_endpoint(websocket: WebSocket, params: dict = Depends(terminal_websocket_parameters)):
+@register_websocket("Admin terminal websocket")
 async def terminal_websocket_endpoint(
 	websocket: WebSocket,
 	terminal_id: str = Query(

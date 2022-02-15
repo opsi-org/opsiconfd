@@ -627,6 +627,7 @@ function printSessionTable(data, htmlId) {
 			"<th class='session-th'>Session ID</th>" +
 			"<th class='session-th'>User-Agent</th>" +
 			"<th class='session-th'>Username</th>" +
+			"<th class='session-th'>Websockets</th>" +
 			"<th class='session-th'>Validity</th>" +
 			"</tr>";
 		data.forEach(element => {
@@ -635,6 +636,7 @@ function printSessionTable(data, htmlId) {
 				"<td class=\"session-td\">" + element.session_id + "</td>" +
 				"<td class=\"session-td\">" + element.user_agent + "</td>" +
 				"<td class=\"session-td\">" + element.username + "</td>" +
+				"<td class=\"session-td\">" + element.websockets + "</td>" +
 				"<td class=\"session-td\">" + Math.round(element.validity) + "</td>" +
 				"</tr>";
 		});

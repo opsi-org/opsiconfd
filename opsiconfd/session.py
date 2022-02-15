@@ -10,7 +10,8 @@ session handling
 
 import time
 import asyncio
-from typing import List, Dict, Optional, Any
+import functools
+from typing import Callable, List, Dict, Optional, Any
 from collections import namedtuple
 import uuid
 import base64
@@ -24,6 +25,7 @@ from fastapi.responses import Response, PlainTextResponse, JSONResponse, Redirec
 from starlette.datastructures import MutableHeaders, Headers
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
+from starlette.websockets import WebSocket
 
 from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp  # type: ignore[import]
@@ -323,6 +325,33 @@ class SessionMiddleware:
 			await self.handle_request_exception(err, connection, receive, send)
 
 
+def register_websocket(description: Optional[str] = None) -> Callable:
+	def decorator(func: Callable) -> Callable:
+		@functools.wraps(func)
+		async def wrapper(*args, **kwargs):
+			websocket = None
+			for val in kwargs.values():
+				if isinstance(val, WebSocket):
+					websocket = val
+					break
+			if not websocket:
+				raise RuntimeError("Failed to get websocket")
+
+			session = contextvar_client_session.get()
+			if not session:
+				raise RuntimeError("Failed to get session")
+
+			try:
+				await session.register_websocket(websocket, description)
+				return await func(*args, **kwargs)
+			finally:
+				await session.unregister_websocket(websocket)
+
+		return wrapper
+
+	return decorator
+
+
 class OPSISession:  # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
@@ -342,6 +371,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.last_used = 0
 		self.user_store = UserStore()
 		self.option_store: Dict[str, Any] = {}
+		self.websockets: Dict[str, Any] = {}
 		self._data: Dict[str, Any] = {}
 		self.is_new_session = True
 
@@ -359,6 +389,9 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 	@property
 	def expired(self) -> bool:
+		if self.websockets:
+			logger.debug("Session will not expire as long as a registered websocket exists")
+			return False
 		return utc_time_timestamp() - self.last_used > self.max_age
 
 	def get_headers(self):
@@ -425,6 +458,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		for key, val in data.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))
 		self.option_store = data.get("option_store", self.option_store)
+		self.websockets = data.get("websockets", self.websockets)
 		self._data = data.get("data", self._data)
 		self.is_new_session = False
 		return True
@@ -444,6 +478,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			"user_agent": self.user_agent,
 			"user_store": serialize(self.user_store.__dict__),
 			"option_store": self.option_store,
+			"websockets": self.websockets,
 			"data": self._data,
 		}
 		# Set is not serializable
@@ -508,6 +543,19 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 				logger.warning("Not accepting session lifetime %d from client", client_max_age)
 		except ValueError:
 			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", client_max_age)
+
+	async def register_websocket(self, websocket: WebSocket, description: Optional[str] = None):
+		"""Register a websocket at the session. Session will not expire as long a registered websocket exists"""
+		wsid = f"{config.node_name}|{websocket.client[0]}|{websocket.client[1]}"
+		self.websockets[wsid] = {"id": id(websocket), "description": description}
+		await self.store(wait=True)
+
+	async def unregister_websocket(self, websocket: WebSocket):
+		wsid = f"{config.node_name}|{websocket.client[0]}|{websocket.client[1]}"
+		if wsid not in self.websockets:
+			return
+		del self.websockets[wsid]
+		await self.store(wait=True)
 
 	def get(self, name: str, default: Any = None) -> Any:
 		return self._data.get(name, default)

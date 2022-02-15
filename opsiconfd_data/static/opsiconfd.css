@@ -179,7 +179,7 @@ li {
 	border: 1px #0068aa solid;
 	text-align: left;
 	padding: 2px 10px 2px 10px;
-	color: #000000
+	color: #000000;
 }
 
 /* Style the tab */
@@ -191,23 +191,23 @@ li {
 }
 
 /* Style the buttons that are used to open the tab content */
-.tab button {
-	background-color: inherit;
+.tablink {
+	color: #000000;
 	float: left;
-	border: none;
-	outline: none;
-	cursor: pointer;
+	font-size: 0.8em;
 	padding: 14px 16px;
 	transition: 0.3s;
 }
-
-/* Change background color of buttons on hover */
-.tab button:hover {
+.tablink:link {
+	color: #000000;
+}
+.tablink:visited {
+	color: #000000;
+}
+.tablink:hover {
 	background-color: #dddddd;
 }
-
-/* Create an active/current tablink class */
-.tab button.active {
+.tablink:active, .tablink.active {
 	background-color: #dddddd;
 }
 

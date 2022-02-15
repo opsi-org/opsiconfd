@@ -19,14 +19,12 @@
 		function onLoad() {
 			let input = document.getElementById("redis-cmd");
 
-			input.addEventListener("keyup", function (event) {
+			input.onkeyup = function (event) {
 				// Number 13 is the "Enter" key on the keyboard
 				if (event.keyCode === 13) {
 					document.getElementById("redis-button").click();
 				}
-			});
-
-			document.getElementById("startTab-button").click()
+			};
 
 			document.getElementById("json-result").style.visibility = 'hidden';
 			document.getElementById("text-result").style.visibility = 'hidden';
@@ -35,6 +33,17 @@
 			document.getElementById("jsonrpc-result").style.visibility = 'hidden';
 			document.getElementById("jsonrpc-request").style.visibility = 'hidden';
 			document.getElementById("memory-info").style.visibility = 'hidden';
+
+			let tab = window.location.hash.replace(/#/, "");
+			if (!tab) tab = "info";
+
+			console.info("onload: " + tab);
+			openTab(tab);
+			/*
+			setTimeout(function () {
+				window.scrollTo(0, 0);
+			}, 1);
+			*/
 		}
 
 		function createParamInputs() {
@@ -66,14 +75,14 @@
 			changeRequestJSON();
 		}
 
-		function openTab(evt, tabName) {
+		function openTab(tabName) {
 			// Declare all variables
 			var i, tabcontent, tablinks;
 
 			stopLog();
 			stopTerminal();
 
-			if (tabName == "rpcInfos") {
+			if (tabName == "rpc-infos") {
 				loadRPCTable("rpc_num", false);
 			}
 			else if (tabName == "clients") {
@@ -83,19 +92,19 @@
 			else if (tabName == "depots") {
 				loadLockedProductsTable();
 			}
-			else if (tabName == "rpcInterface") {
+			else if (tabName == "rpc-interface") {
 				createParamInputs();
 			}
 			else if (tabName == "redisInfo") {
 				loadRedisInfo();
 			}
-			else if (tabName == "confdInfo") {
-				loadConfdInfo();
+			else if (tabName == "info") {
+				loadInfo();
 			}
 			else if (tabName == "addons") {
 				loadAddons();
 			}
-			else if (tabName == "memoryProfiler") {
+			else if (tabName == "memory-profiler") {
 				loadMemoryInfo();
 			}
 			else if (tabName == "log-viewer") {
@@ -112,14 +121,14 @@
 			}
 
 			// Get all elements with class="tablinks" and remove the class "active"
-			tablinks = document.getElementsByClassName("tablinks");
+			tablinks = document.getElementsByClassName("tablink");
 			for (i = 0; i < tablinks.length; i++) {
 				tablinks[i].classList.remove("active");
 			}
+			document.getElementById("tablink-" + tabName).classList.add("active");
 
 			// Show the current tab, and add an "active" class to the button that opened the tab
-			document.getElementById(tabName).style.display = "inherit";
-			evt.currentTarget.classList.add("active");
+			document.getElementById("tab-" + tabName).style.display = "inherit";
 		}
 	</script>
 </head>
@@ -132,27 +141,30 @@
 	<div class="content">
 
 		<div class="tab">
-			<button class="tablinks" id="startTab-button" onclick="openTab(event, 'confdInfo')">Info</button>
-			<button class="tablinks" onclick="openTab(event, 'clients')">Clients</button>
-			<button class="tablinks" onclick="openTab(event, 'depots')">Depots</button>
-			<button class="tablinks" onclick="openTab(event, 'rpcInfos')">RPC-Infos</button>
-			<button class="tablinks" onclick="openTab(event, 'rpcInterface')">RPC-Interface</button>
-			<button class="tablinks" onclick="openTab(event, 'redisInterface')">Redis-Interface</button>
-			<button class="tablinks" onclick="openTab(event, 'addons')">Addons</button>
-			<button class="tablinks" onclick="openTab(event, 'log-viewer')">Log Viewer</button>
-			<button class="tablinks" onclick="openTab(event, 'terminal')">Terminal</button>
+			<a href="#info" id="tablink-info" class="tablink" onclick="openTab('info');">Info</a>
+			<a href="#clients" id="tablink-clients" class="tablink" onclick="openTab('clients');">Clients</a>
+			<a href="#depots" id="tablink-depots" class="tablink" onclick="openTab('depots');">Depots</a>
+			<a href="#rpc-infos" id="tablink-rpc-infos" class="tablink" onclick="openTab('rpc-infos');">RPC-Infos</a>
+			<a href="#rpc-interface" id="tablink-rpc-interface" class="tablink"
+				onclick="openTab('rpc-interface');">RPC-Interface</a>
+			<a href="#redis-interface" id="tablink-redis-interface" class="tablink"
+				onclick="openTab('redis-interface');">Redis-Interface</a>
+			<a href="#addons" id="tablink-addons" class="tablink" onclick="openTab('addons');">Addons</a>
+			<a href="#log-viewer" id="tablink-log-viewer" class="tablink" onclick="openTab('log-viewer');">Log
+				Viewer</a>
+			<a href="#terminal" id="tablink-terminal" class="tablink" onclick="openTab('terminal');">Terminal</a>
 
 			<!--
-			<button class="tablinks" onclick="openTab(event, 'memoryProfiler')">Memory Profiler</button>
+			<a href="#memory-profiler" id="tablink-memory-profiler" class="tablink" onclick="openTab('memory-profiler');">Memory Profiler</a>
 			-->
-			<button class="tablinks" onclick="window.open('/admin/grafana','_blank')">Grafana</button>
-			<button class="tablinks" onclick="window.open('/dav','_blank')">WebDAV</button>
-			<button class="tablinks" onclick="window.open('/public','_blank')">Public</button>
-			<button class="tablinks" onclick="downloadConfiged()">Opsi configed</button>
-			<button class="tablinks" onclick="logout()">Logout</button>
+			<a href="/admin/grafana" target="_blank" class="tablink">Grafana</a>
+			<a href="/dav" target="_blank" class="tablink">WebDAV</a>
+			<a href="/public" target="_blank" class="tablink">Public</a>
+			<a href="#" class="tablink" onclick="downloadConfiged()">Opsi configed</a>
+			<a href="#" class="tablink" onclick="logout()">Logout</a>
 		</div>
 
-		<div id="clients" class="tabcontent">
+		<div id="tab-clients" class="tabcontent">
 			<div class="adminpage-box" id="sessions">
 				<h4>Sessions:</h4>
 				<div id="session-table-div">
@@ -195,7 +207,7 @@
 			</div>
 		</div>
 
-		<div id="depots" class="tabcontent">
+		<div id="tab-depots" class="tabcontent">
 			<div class="adminpage-box" id="sessions">
 				<h4>Locked Products:</h4>
 				<div id="locked-products-table-div">
@@ -206,7 +218,7 @@
 
 		</div>
 
-		<div id="rpcInfos" class="tabcontent">
+		<div id="tab-rpc-infos" class="tabcontent">
 			<div class="adminpage-box">
 				<div id="rpc-table-div">
 					loading...
@@ -214,7 +226,7 @@
 			</div>
 		</div>
 
-		<div id="rpcInterface" class="tabcontent">
+		<div id="tab-rpc-interface" class="tabcontent">
 			<div class="adminpage-box">
 				<div>
 					<table id="jsonrpc-request-table">
@@ -243,7 +255,7 @@
 			</div>
 		</div>
 
-		<div id="redisInterface" class="tabcontent">
+		<div id="tab-redis-interface" class="tabcontent">
 			<div class="adminpage-box">
 				<h4>Redis</h4>
 				<input type="text" id="redis-cmd" name="redis-cmd" size=50 />
@@ -270,7 +282,7 @@
 			</div>
 		</div>
 
-		<div id="addons" class="tabcontent">
+		<div id="tab-addons" class="tabcontent">
 			<div class="adminpage-box" id="addons">
 				<h4>Addons:</h4>
 				<div id="addon-table-div">
@@ -283,7 +295,7 @@
 			</div>
 		</div>
 
-		<div id="confdInfo" class="tabcontent">
+		<div id="tab-info" class="tabcontent">
 			<h3>opsiconfd info</h3>
 			<div class="adminpage-box">
 				<h5 style="margin: 10px">Number of depot servers: {{num_servers}}</h4>
@@ -387,7 +399,7 @@
 			</div>
 		</div>
 
-		<div id="memoryProfiler" class="tabcontent">
+		<div id="tab-memory-profiler" class="tabcontent">
 			<div class="adminpage-box">
 
 				<!--
@@ -457,7 +469,7 @@
 			</div>
 		</div>
 
-		<div id="log-viewer" class="tabcontent">
+		<div id="tab-log-viewer" class="tabcontent">
 			<div id="log-settings">
 				<div class="log-setting">
 					<label for="log-level-filter">Filter by level:</label>
@@ -492,7 +504,7 @@
 			</div>
 		</div>
 
-		<div id="terminal" class="tabcontent">
+		<div id="tab-terminal" class="tabcontent">
 			<div id="terminal-xterm">
 			</div>
 		</div>

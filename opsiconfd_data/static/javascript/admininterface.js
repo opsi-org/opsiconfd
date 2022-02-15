@@ -317,7 +317,7 @@ function installAddon() {
 }
 
 
-function loadConfdInfo() {
+function loadInfo() {
 	let request1 = new XMLHttpRequest();
 	request1.open("GET", "/admin/config");
 	request1.addEventListener('load', function (event) {
@@ -912,7 +912,7 @@ function createRequestJSON() {
 
 	let option = document.getElementById("method-select");
 	let method = option.options[option.selectedIndex].text;
-	let inputs = document.getElementById("rpcInterface").getElementsByTagName("input");
+	let inputs = document.getElementById("tab-rpc-interface").getElementsByTagName("input");
 	let parameter = [];
 
 	apiJSON.method = method;
@@ -945,7 +945,7 @@ function changeRequestJSON(name, value) {
 }
 
 function callJSONRPC() {
-	let inputs = document.getElementById("rpcInterface").getElementsByTagName("input");
+	let inputs = document.getElementById("rpc-interface").getElementsByTagName("input");
 	for (i = 0; i < inputs.length; i++) {
 		let name = inputs[i].name.trim();
 		let value = inputs[i].value.trim();

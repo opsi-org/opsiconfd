@@ -1061,7 +1061,7 @@ function startTerminal() {
 			ws_uri = "ws:";
 		}
 		ws_uri += "//" + loc.host;
-		terminal_ws = new WebSocket(ws_uri + "/ws/terminal?" + params.join('&'));
+		terminal_ws = new WebSocket(ws_uri + "/admin/terminal/ws?" + params.join('&'));
 		terminal_ws.onclose = function () {
 			console.log("Terminal ws connection closed");
 			terminal.writeln("\r\n\033[1;37m> Connection closed <\033[0m");

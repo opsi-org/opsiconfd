@@ -461,13 +461,16 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		# redis = await async_redis_client()
 		# await redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
 
-	async def store(self) -> None:
+	async def store(self, wait: Optional[bool] = None) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now
-		task = run_in_threadpool(self._store)
-		if self.is_new_session:
+		if wait is None and self.is_new_session:
 			# Session not yet stored in redis.
 			# Wait for store to complete to ensure that the
 			# session can be loaded at the next request.
+			wait = True
+
+		task = run_in_threadpool(self._store)
+		if wait:
 			await task
 		else:
 			asyncio.get_event_loop().create_task(task)

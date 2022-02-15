@@ -8,8 +8,11 @@
 test application.terminal
 """
 
+import os
+import uuid
 import pytest
 from starlette.websockets import WebSocketDisconnect
+from starlette.status import WS_1008_POLICY_VIOLATION
 
 from .utils import (  # pylint: disable=unused-import
 	clean_redis,
@@ -26,20 +29,72 @@ from .utils import (  # pylint: disable=unused-import
 
 def test_connect(test_client):  # pylint: disable=redefined-outer-name
 	with pytest.raises(WebSocketDisconnect) as excinfo:
-		with test_client.websocket_connect("/ws/terminal"):
+		with test_client.websocket_connect("/admin/terminal/ws"):
 			pass
-
 	assert excinfo.value.code == 401
 
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with test_client.websocket_connect("/ws/terminal"):
+	with pytest.raises(WebSocketDisconnect) as excinfo:
+		with test_client.websocket_connect("/admin/terminal/ws?terminal_id=123"):
+			pass
+	assert excinfo.value.code == WS_1008_POLICY_VIOLATION
+
+	with test_client.websocket_connect("/admin/terminal/ws", params={"terminal_id": str(uuid.uuid4())}):
 		pass
 
 
-def test_comand(test_client):  # pylint: disable=redefined-outer-name
+def test_command(test_client):  # pylint: disable=redefined-outer-name
+	terminal_id = str(uuid.uuid4())
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with test_client.websocket_connect("/ws/terminal") as websocket:
+	with test_client.websocket_connect("/admin/terminal/ws", params={"terminal_id": terminal_id}) as websocket:
 		data = websocket.receive()
 		websocket.send_text("echo test\r\n")
 		data = websocket.receive()
 		assert data["bytes"].startswith(b"echo test\r\ntest\r\n")
+
+
+def test_params(test_client):  # pylint: disable=redefined-outer-name
+	terminal_id = str(uuid.uuid4())
+	columns = 30
+	lines = 10
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with test_client.websocket_connect(f"/admin/terminal/ws?terminal_id={terminal_id}&columns={columns}&lines={lines}") as websocket:
+		data = websocket.receive()
+		websocket.send_text("echo :${COLUMNS}:${LINES}:\r\n")
+		data = websocket.receive()
+		assert f":{columns}:{lines}:" in data["bytes"].decode("utf-8")
+
+
+def test_file_upload_auth_and_terminal_id(test_client):  # pylint: disable=redefined-outer-name
+	terminal_id = str(uuid.uuid4())
+	files = {"file": ("filename.txt", b"file-content")}
+	res = test_client.post("/admin/terminal/fileupload", params={"terminal_id": terminal_id}, files=files)
+	assert res.status_code == 401
+
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	res = test_client.post("/admin/terminal/fileupload", files=files)
+	assert res.status_code == 422
+
+	res = test_client.post("/admin/terminal/fileupload", params={"terminal_id": terminal_id}, files=files)
+	assert res.status_code == 404
+	assert "Invalid terminal id" in res.text
+
+
+def test_file_upload_to_tmp(test_client):  # pylint: disable=redefined-outer-name
+	terminal_id = str(uuid.uuid4())
+	filename = str(uuid.uuid4())
+	files = {"file": (filename, b"file-content")}
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	res = test_client.get("/admin")  # Get a session cookie
+	cookie = list(test_client.cookies)[0]
+	with test_client.websocket_connect(
+		f"/admin/terminal/ws?terminal_id={terminal_id}", headers={"Cookie": f"{cookie.name}={cookie.value}"}
+	) as websocket:
+		websocket.receive()
+		websocket.send_text("cd /tmp\r\n")
+		websocket.receive()
+		res = test_client.post("/admin/terminal/fileupload", params={"terminal_id": terminal_id}, files=files)
+		res.raise_for_status()
+		file = os.path.join("/tmp", filename)
+		assert os.path.exists(file)
+		os.unlink(file)

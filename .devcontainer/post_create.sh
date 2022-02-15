@@ -1,6 +1,6 @@
 echo "* Running as $(whoami)"
 
-function install_jemalloc {
+install_jemalloc() {
 	echo "* Installing jemalloc"
 	cd /tmp
 	wget https://github.com/jemalloc/jemalloc/releases/download/$JEMALLOC_VERSION/jemalloc-$JEMALLOC_VERSION.tar.bz2

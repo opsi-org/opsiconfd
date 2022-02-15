@@ -12,7 +12,7 @@ import asyncio
 import pathlib
 from typing import Optional
 
-from fastapi import Depends, Query, UploadFile, status
+from fastapi import Query, UploadFile, status
 from fastapi.responses import JSONResponse
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
@@ -33,14 +33,6 @@ def start_pty(shell="bash", lines=30, columns=120, cwd=None):
 	sp_env = get_subprocess_environment()
 	sp_env.update({"TERM": "xterm-256color"})
 	return spawn(shell, dimensions=(lines, columns), env=sp_env, cwd=cwd)
-
-
-def terminal_websocket_parameters(
-	terminal_id: str = Query(default=None, embed=True),
-	columns: Optional[int] = Query(default=120, embed=True),
-	lines: Optional[int] = Query(default=30, embed=True),
-):
-	return {"terminal_id": terminal_id, "columns": columns, "lines": lines}
 
 
 async def pty_reader(websocket: WebSocket, pty: spawn):
@@ -76,8 +68,19 @@ async def websocket_reader(websocket: WebSocket, pty: spawn):
 			break
 
 
-@app.websocket("/ws/terminal")
-async def terminal_websocket_endpoint(websocket: WebSocket, params: dict = Depends(terminal_websocket_parameters)):
+@app.websocket("/admin/terminal/ws")
+# async def terminal_websocket_endpoint(websocket: WebSocket, params: dict = Depends(terminal_websocket_parameters)):
+async def terminal_websocket_endpoint(
+	websocket: WebSocket,
+	terminal_id: str = Query(
+		default=None,
+		min_length=36,
+		max_length=36,
+		regex="^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
+	),
+	columns: Optional[int] = Query(default=120, embed=True),
+	lines: Optional[int] = Query(default=30, embed=True),
+):
 	session = contextvar_client_session.get()
 	if not session:
 		logger.warning("Access to terminal websocket denied, invalid session")
@@ -91,14 +94,14 @@ async def terminal_websocket_endpoint(websocket: WebSocket, params: dict = Depen
 
 	await websocket.accept()
 
-	logger.info("Websocket client connected to terminal columns=%d, lines=%d", params["columns"], params["lines"])
-	pty = start_pty(shell="bash", lines=params["lines"], columns=params["columns"], cwd="/var/lib/opsi")
+	logger.info("Websocket client connected to terminal columns=%d, lines=%d", columns, lines)
+	pty = start_pty(shell="bash", lines=lines, columns=columns, cwd="/var/lib/opsi")
 
 	terminals = session.get("terminal_ws", {})
-	terminals[params["terminal_id"]] = f"{config.node_name}:{pty.pid}"
+	terminals[terminal_id] = f"{config.node_name}:{pty.pid}"
 	session.set("terminal_ws", terminals)
-	await session.store()
-
+	await session.store(wait=True)
+	terminals = session.get("terminal_ws")
 	await asyncio.gather(websocket_reader(websocket, pty), pty_reader(websocket, pty))
 
 

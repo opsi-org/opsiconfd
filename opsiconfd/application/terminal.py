@@ -70,7 +70,7 @@ async def websocket_reader(websocket: WebSocket, pty: spawn):
 
 
 @app.websocket("/admin/terminal/ws")
-@register_websocket("Admin terminal websocket")
+@register_websocket("Admin terminal")
 async def terminal_websocket_endpoint(
 	websocket: WebSocket,
 	terminal_id: str = Query(

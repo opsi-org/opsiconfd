@@ -330,9 +330,9 @@ def register_websocket(description: Optional[str] = None) -> Callable:
 		@functools.wraps(func)
 		async def wrapper(*args, **kwargs):
 			websocket = None
-			for val in kwargs.values():
-				if isinstance(val, WebSocket):
-					websocket = val
+			for arg in list(args) + list(kwargs.values()):
+				if isinstance(arg, WebSocket):
+					websocket = arg
 					break
 			if not websocket:
 				raise RuntimeError("Failed to get websocket")
@@ -546,6 +546,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 	async def register_websocket(self, websocket: WebSocket, description: Optional[str] = None):
 		"""Register a websocket at the session. Session will not expire as long a registered websocket exists"""
+		self._update_last_used()
 		wsid = f"{config.node_name}|{websocket.client[0]}|{websocket.client[1]}"
 		self.websockets[wsid] = {"id": id(websocket), "description": description}
 		await self.store(wait=True)
@@ -554,6 +555,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		wsid = f"{config.node_name}|{websocket.client[0]}|{websocket.client[1]}"
 		if wsid not in self.websockets:
 			return
+		self._update_last_used()
 		del self.websockets[wsid]
 		await self.store(wait=True)
 

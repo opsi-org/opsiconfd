@@ -274,7 +274,7 @@ class SessionMiddleware:
 				)
 				logger.debug(cmd)
 				redis = await async_redis_client()
-				asyncio.get_event_loop().create_task(redis.execute_command(cmd))
+				await redis.execute_command(cmd)
 				await asyncio.sleep(0.2)
 
 		elif isinstance(err, ConnectionRefusedError):

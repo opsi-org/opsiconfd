@@ -43,8 +43,8 @@
 		"ryanluker.vscode-coverage-gutters"
 	],
 	"forwardPorts": [
-		4447,
-		3000
+		3000,
+		"4448:4447"
 	],
 	"remoteUser": "${localEnv:USER}"
 }

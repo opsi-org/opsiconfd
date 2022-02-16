@@ -945,7 +945,7 @@ function changeRequestJSON(name, value) {
 }
 
 function callJSONRPC() {
-	let inputs = document.getElementById("rpc-interface").getElementsByTagName("input");
+	let inputs = document.getElementById("tab-rpc-interface").getElementsByTagName("input");
 	for (i = 0; i < inputs.length; i++) {
 		let name = inputs[i].name.trim();
 		let value = inputs[i].value.trim();

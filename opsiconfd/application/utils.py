@@ -8,100 +8,15 @@
 application utils
 """
 
-import orjson
+from starlette import status
+from starlette.types import Message
+from starlette.endpoints import WebSocketEndpoint
+from starlette.websockets import WebSocket
+from fastapi import HTTPException
+from fastapi.dependencies.utils import solve_dependencies, get_dependant
+from fastapi.exceptions import WebSocketRequestValidationError
 
-from opsiconfd import contextvar_client_session
-from opsiconfd.config import FQDN
-from opsiconfd.logging import logger
-from opsiconfd.backend import get_mysql
-
-
-def get_configserver_id():
-	return FQDN
-
-
-def get_username():
-	client_session = contextvar_client_session.get()
-	if not client_session:
-		raise RuntimeError("Session invalid")
-	return client_session.user_store.username
-
-
-def get_user_privileges():
-	username = get_username()
-	privileges = {}
-	mysql = get_mysql()  # pylint: disable=invalid-name
-	with mysql.session() as session:
-		for row in session.execute(
-			"""
-			SELECT
-				cs.configId,
-				cs.values
-			FROM
-				CONFIG_STATE AS cs
-			WHERE
-				cs.configId LIKE :config_id_filter
-			GROUP BY
-				cs.configId
-			ORDER BY
-				cs.configId
-			""",
-			{"config_id_filter": f"user.{{{username}}}.privilege.%"},
-		).fetchall():
-			try:
-				priv = ".".join(row["configId"].split(".")[3:])
-				vals = [val for val in orjson.loads(row["values"]) if val != ""]  # pylint: disable=no-member
-				privileges[priv] = vals
-			except orjson.JSONDecodeError as err:  # pylint: disable=no-member
-				logger.error("Failed to parse privilege %s: %s", row, err)
-
-		return privileges
-
-
-def get_allowed_objects():
-	allowed = {"product_groups": ..., "host_groups": ...}
-	privileges = get_user_privileges()
-	if True in privileges.get("product.groupaccess.configured", [False]):
-		allowed["product_groups"] = privileges.get("product.groupaccess.productgroups", [])
-	if True in privileges.get("host.groupaccess.configured", [False]):
-		allowed["host_groups"] = privileges.get("host.groupaccess.productgroups", [])
-	return allowed
-
-
-def build_tree(group, groups, allowed, processed=None):
-	if not processed:
-		processed = []
-	processed.append(group["id"])
-
-	is_root_group = group["parent"] == "#"  # or group["id"] == "clientdirectory"
-	group["allowed"] = is_root_group or allowed == ... or group["id"] in allowed
-
-	children = {}
-	for grp in groups:
-		if grp["id"] == group["id"]:
-			continue
-		if grp["parent"] == group["id"]:
-			if grp["id"] in processed:
-				logger.error("Loop: %s %s", grp["id"], processed)
-			else:
-				children[grp["id"]] = build_tree(grp, groups, allowed, processed)
-	if children:
-		if "children" not in group:
-			group["children"] = {}
-		group["children"].update(children)
-	else:
-		if group["type"] == "HostGroup":
-			group["children"] = None
-
-	if not is_root_group and group.get("children"):
-		for child in group["children"].values():
-			# Correct id for webgui
-			child["id"] = f'{child["id"]};{group["id"]}'
-			if child.get("allowed"):
-				# Allow parent if child is allowed
-				group["allowed"] = True
-
-	return group
+from ..logging import logger
 
 
 def parse_list(query_list):
@@ -135,41 +50,62 @@ def parse_list(query_list):
 	return list(filter(None, result_list))
 
 
-# used in webgui backend
-def bool_product_property(value):
-	if value:
-		if value.lower() == "[true]" or str(value) == "1" or value.lower() == "true":
-			return True
-	return False
+class OpsiconfdWebSocket(WebSocket):
+	async def receive(self) -> Message:
+		await self.scope["session"].update_last_used()
+		return await super().receive()
+
+	async def send(self, message: Message) -> None:
+		await self.scope["session"].update_last_used()
+		return await super().send(message)
 
 
-# used in webgui backend
-def unicode_product_property(value):
-	if value and isinstance(value, str):
-		if value.startswith('["'):
-			return orjson.loads(value)  # pylint: disable=no-member
-		if value == "[]":
-			return [""]
-		return value.replace('\\"', '"').split(",")
-	return [""]
+class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
+	admin_only = False
 
+	async def _check_authorization(self) -> None:
+		if not self.scope.get("session"):
+			raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Access to {self}, no valid session found")
 
-# used in webgui backend
-def merge_dicts(dict_a: dict, dict_b: dict, path=None) -> dict:
-	if not dict_a or not dict_b:
-		raise ValueError("Merge_dicts: At least one of the dicts (a and b) is not set.")
-	if path is None:
-		path = []
-	for key in dict_b:
-		if key in dict_a:
-			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
-				merge_dicts(dict_a[key], dict_b[key], path + [str(key)])
-			elif isinstance(dict_a[key], list) and isinstance(dict_b[key], list):
-				dict_a[key] = list(set(dict_a[key] + dict_b[key]))
-			elif dict_a[key] == dict_b[key]:
-				pass
-			else:
-				raise Exception(f"Conflict at { '.'.join(path + [str(key)])}")
-		else:
-			dict_a[key] = dict_b[key]
-	return dict_a
+		if self.admin_only and not self.scope["session"].user_store.isAdmin:
+			raise HTTPException(
+				status_code=status.HTTP_403_FORBIDDEN,
+				detail=f"Access to {self} denied for user {self.scope['session'].user_store.username!r}",
+			)
+
+	async def dispatch(self) -> None:
+		websocket = OpsiconfdWebSocket(self.scope, receive=self.receive, send=self.send)
+		try:
+			await self._check_authorization()
+		except HTTPException:
+			await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+			raise
+
+		dependant = get_dependant(path="", call=self.on_connect)
+		solved_result = await solve_dependencies(request=websocket, dependant=dependant)
+		values, errors, *_ = solved_result
+		if errors:
+			logger.info(errors)
+			await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+			raise WebSocketRequestValidationError(errors)
+
+		await websocket.accept()
+
+		await self.on_connect(**values)
+
+		close_code = status.WS_1000_NORMAL_CLOSURE
+
+		try:
+			while True:
+				message = await websocket.receive()
+				if message["type"] == "websocket.receive":
+					data = await self.decode(websocket, message)
+					await self.on_receive(websocket, data)
+				elif message["type"] == "websocket.disconnect":
+					close_code = int(message.get("code", status.WS_1000_NORMAL_CLOSURE))
+					break
+		except Exception as exc:
+			close_code = status.WS_1011_INTERNAL_ERROR
+			raise exc
+		finally:
+			await self.on_disconnect(websocket, close_code)

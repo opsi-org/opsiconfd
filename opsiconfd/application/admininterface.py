@@ -275,13 +275,8 @@ async def get_session_list() -> list:
 		session = msgpack.loads(data)
 		tmp = redis_key.decode().split(":")
 		validity = session["max_age"] - (utc_time_timestamp() - session["last_used"])
-		websocket_info = ""
-		websockets = session.get("websockets")
-		if websockets:
-			validity = session["max_age"]
-			websocket_info = ", ".join(
-				[f"{val['id']}{':' + val['description'] if val['description'] else ''}" for key, val in websockets.items()]
-			)
+		if validity <= 0:
+			continue
 		session_list.append(
 			{
 				"created": session["created"],
@@ -293,7 +288,6 @@ async def get_session_list() -> list:
 				"username": session["user_store"].get("username"),
 				"address": ip_address_from_redis_key(tmp[-2]),
 				"session_id": tmp[-1][:6] + "...",
-				"websockets": websocket_info,
 			}
 		)
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))

@@ -10,25 +10,23 @@ application main
 
 import os
 import asyncio
-import urllib
 from urllib.parse import urlparse
-import datetime
 from ctypes import c_long
 
 from starlette import status
-from starlette.endpoints import WebSocketEndpoint
-from starlette.websockets import WebSocket
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from starlette.types import ASGIApp, Message, Scope, Send, Receive
 from starlette.datastructures import MutableHeaders
 from starlette.concurrency import run_in_threadpool
+from fastapi import Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.requests import Request
-from fastapi.responses import Response, FileResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import Response, FileResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute, Mount
-from websockets.exceptions import ConnectionClosedOK
+from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 
-from .. import __version__, contextvar_request_id, contextvar_client_address, contextvar_client_session
+from .. import __version__, contextvar_request_id, contextvar_client_address
 from ..logging import logger
 from ..config import config
 from ..worker import Worker
@@ -39,6 +37,7 @@ from ..ssl import get_ca_cert_as_pem
 from ..addon import AddonManager
 from ..rest import OpsiApiException, rest_api
 from . import app
+from .utils import OpsiconfdWebSocketEndpoint
 from . import terminal  # pylint: disable=unused-import
 from .metrics import metrics_setup
 from .jsonrpc import jsonrpc_setup
@@ -62,10 +61,16 @@ PATH_MAPPINGS = {
 
 
 @app.websocket_route("/ws/log_viewer")
-class LoggerWebsocket(WebSocketEndpoint):
+class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 	encoding = "bytes"
+	admin_only = True
 
-	async def _reader(self, start_id="$", client=None):
+	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
+		super().__init__(scope, receive, send)
+		self._log_reader_task: asyncio.Task
+
+	@staticmethod
+	async def _log_reader(websocket: WebSocket, start_id="$", client=None):
 		stream_name = f"opsiconfd:log:{config.node_name}"
 		logger.info(
 			"Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client
@@ -90,82 +95,27 @@ class LoggerWebsocket(WebSocketEndpoint):
 				if not data:
 					continue
 				last_id, buf = await run_in_threadpool(read_data, data)
-				await self._websocket.send_text(buf)
+				await websocket.send_text(buf)
+			except (ConnectionClosedOK, ConnectionClosedError, WebSocketDisconnect):
+				break
 			except Exception as err:  # pylint: disable=broad-except
-				if not app.is_shutting_down and not isinstance(err, ConnectionClosedOK):
-					logger.error(err, exc_info=True)
+				logger.error(err, exc_info=True)
 				break
 
-	async def on_connect(self, websocket: WebSocket):
-		session = contextvar_client_session.get()
-		if not session:
-			logger.warning(
-				"Access to %s denied, no valid session found",
-				self,
-			)
-			await websocket.close(code=4403)
-			return
-
-		if not session.user_store.isAdmin:
-			logger.warning("Access to %s denied for user '%s'", self, session.user_store.username)
-			await websocket.close(code=4403)
-			return
-
-		await session.register_websocket(websocket, "log viewer")
-		self._websocket = websocket  # pylint: disable=attribute-defined-outside-init
-		params = urllib.parse.parse_qs(websocket.get("query_string", b"").decode("utf-8"))
-		client = params.get("client", [""])[0] or None
+	async def on_connect(  # pylint: disable=arguments-differ
+		self,
+		websocket: WebSocket,
+		client: str = Query(default=None),
+		start_time: int = Query(default=0),
+	):
 		start_id = "$"
-		start_id_param = int(params.get("start_time", ["0"])[0]) * 1000  # Seconds to millis
-		if start_id_param > 0:
-			start_id = str(start_id_param)
-		await self._websocket.accept()
-		await asyncio.get_event_loop().create_task(self._reader(str(start_id), client))
+		if start_time > 0:
+			start_id = str(start_time)
+		self._log_reader_task = asyncio.get_event_loop().create_task(self._log_reader(websocket, start_id, client))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
-		session = contextvar_client_session.get()
-		if session:
-			await session.unregister_websocket(websocket)
-
-
-@app.websocket_route("/test/ws")
-class TestWebsocket(WebSocketEndpoint):
-	encoding = "bytes"
-
-	async def on_connect(self, websocket: WebSocket):
-		session = contextvar_client_session.get()
-		if not session:
-			logger.warning(
-				"Access to %s denied, no valid session found",
-				self,
-			)
-			await websocket.close(code=4403)
-			return
-		if not session.user_store.isAdmin:
-			logger.warning("Access to %s denied for user '%s'", self, session.user_store.username)
-			await websocket.close(code=4403)
-			return
-		# params = urllib.parse.parse_qs(websocket.get('query_string', b'').decode('utf-8'))
-		# client = params.get("client", [None])[0]
-		await websocket.accept()
-		while True:
-			current_time = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-			text = f"current utc time: {current_time}"
-			logger.info("Sending '%s'", text)
-			await websocket.send_text(text)
-			await asyncio.sleep(10)
-
-	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
-		pass
-
-
-@app.get("/test/random-data")
-async def get_test_random(request: Request):  # pylint: disable=unused-argument
-	session = contextvar_client_session.get()
-	if not session or not session.user_store.isAdmin:
-		return Response(status_code=status.HTTP_403_FORBIDDEN)
-	with open("/dev/urandom", mode="rb") as random:
-		return StreamingResponse(random, media_type="application/binary")
+		if self._log_reader_task:
+			self._log_reader_task.cancel()
 
 
 @app.get("/")

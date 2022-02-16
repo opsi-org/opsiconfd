@@ -10,8 +10,7 @@ session handling
 
 import time
 import asyncio
-import functools
-from typing import Callable, List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any
 from collections import namedtuple
 import uuid
 import base64
@@ -25,7 +24,6 @@ from fastapi.responses import Response, PlainTextResponse, JSONResponse, Redirec
 from starlette.datastructures import MutableHeaders, Headers
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
-from starlette.websockets import WebSocket
 
 from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
 from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp  # type: ignore[import]
@@ -291,7 +289,7 @@ class SessionMiddleware:
 			error = str(err)
 
 		if scope["type"] == "websocket":
-			return await send({"type": "websocket.close", "code": status_code})
+			return  # await send({"type": "websocket.close", "code": status_code})
 
 		headers = headers or {}
 		if scope.get("session"):
@@ -325,33 +323,6 @@ class SessionMiddleware:
 			await self.handle_request_exception(err, connection, receive, send)
 
 
-def register_websocket(description: Optional[str] = None) -> Callable:
-	def decorator(func: Callable) -> Callable:
-		@functools.wraps(func)
-		async def wrapper(*args, **kwargs):
-			websocket = None
-			for arg in list(args) + list(kwargs.values()):
-				if isinstance(arg, WebSocket):
-					websocket = arg
-					break
-			if not websocket:
-				raise RuntimeError("Failed to get websocket")
-
-			session = contextvar_client_session.get()
-			if not session:
-				raise RuntimeError("Failed to get session")
-
-			try:
-				await session.register_websocket(websocket, description)
-				return await func(*args, **kwargs)
-			finally:
-				await session.unregister_websocket(websocket)
-
-		return wrapper
-
-	return decorator
-
-
 class OPSISession:  # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
@@ -369,11 +340,13 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.deleted = False
 		self.persistent = True
 		self.last_used = 0
+		self.last_stored = 0
 		self.user_store = UserStore()
 		self.option_store: Dict[str, Any] = {}
-		self.websockets: Dict[str, Any] = {}
 		self._data: Dict[str, Any] = {}
 		self.is_new_session = True
+		self._redis_expiration_seconds = 3600
+		self._store_interval = 30
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
@@ -389,10 +362,11 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 	@property
 	def expired(self) -> bool:
-		if self.websockets:
-			logger.debug("Session will not expire as long as a registered websocket exists")
-			return False
-		return utc_time_timestamp() - self.last_used > self.max_age
+		return self.validity <= 0
+
+	@property
+	def validity(self) -> int:
+		return int(self.max_age - (utc_time_timestamp() - self.last_used))
 
 	def get_headers(self):
 		if not self.session_id or self.deleted or not self.persistent:
@@ -414,20 +388,25 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
 				await self.init_new_session()
 
-		self._update_last_used()
+		await self.update_last_used(False)
 
 	def _init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
 		self.is_new_session = True
-		redis_session_keys = []
+		session_count = 0
 		try:
 			with redis_client() as redis:
-				for key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
-					redis_session_keys.append(key.decode("utf8"))
-			# redis = await async_redis_client()
-			# async for key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
-			#   redis_session_keys.append(key.decode("utf8"))
-			if self._max_session_per_ip > 0 and len(redis_session_keys) + 1 > self._max_session_per_ip:
+				now = utc_time_timestamp()
+				for redis_key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
+					data = redis.get(redis_key)
+					sess = msgpack.loads(data)
+					validity = sess["max_age"] - (now - sess["last_used"])
+					if validity > 0:
+						session_count += 1
+					else:
+						redis.delete(redis_key)
+
+			if self._max_session_per_ip > 0 and session_count + 1 > self._max_session_per_ip:
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {self._max_session_per_ip}"
 				logger.warning(error)
 				raise ConnectionRefusedError(error)
@@ -458,7 +437,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		for key, val in data.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))
 		self.option_store = data.get("option_store", self.option_store)
-		self.websockets = data.get("websockets", self.websockets)
+		self.last_stored = data.get("last_stored", utc_time_timestamp())
 		self._data = data.get("data", self._data)
 		self.is_new_session = False
 		return True
@@ -470,15 +449,16 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def _store(self) -> None:
 		if self.deleted or not self.persistent:
 			return
+		self.last_stored = utc_time_timestamp()
 		self._update_max_age()
 		data = {
 			"created": self.created,
 			"last_used": self.last_used,
+			"last_stored": self.last_stored,
 			"max_age": self.max_age,
 			"user_agent": self.user_agent,
 			"user_store": serialize(self.user_store.__dict__),
 			"option_store": self.option_store,
-			"websockets": self.websockets,
 			"data": self._data,
 		}
 		# Set is not serializable
@@ -488,13 +468,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		if "password" in data["user_store"]:
 			del data["user_store"]["password"]
 		with redis_client() as redis:
-			# start = time.perf_counter()
-			redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
-			# ms = (time.perf_counter() - start) * 1000
-			# if ms > 100:
-			#   logger.warning("Session storing to redis took %0.2fms", ms)
-		# redis = await async_redis_client()
-		# await redis.set(self.redis_key, msgpack.dumps(data), ex=self.max_age)
+			redis.set(self.redis_key, msgpack.dumps(data), ex=self._redis_expiration_seconds)
 
 	async def store(self, wait: Optional[bool] = None) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now
@@ -524,10 +498,13 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	async def delete(self) -> None:
 		return await run_in_threadpool(self.sync_delete)
 
-	def _update_last_used(self):
-		self.last_used = utc_time_timestamp()
+	async def update_last_used(self, store: Optional[bool] = None) -> None:
+		now = utc_time_timestamp()
+		if store or (store is None and now - self.last_stored > self._store_interval):
+			await self.store()
+		self.last_used = now
 
-	def _update_max_age(self):
+	def _update_max_age(self) -> None:
 		if not self.user_store or not self.user_store.authenticated:
 			return
 		client_max_age = self._connection.headers.get("x-opsi-session-lifetime")
@@ -543,21 +520,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 				logger.warning("Not accepting session lifetime %d from client", client_max_age)
 		except ValueError:
 			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", client_max_age)
-
-	async def register_websocket(self, websocket: WebSocket, description: Optional[str] = None):
-		"""Register a websocket at the session. Session will not expire as long a registered websocket exists"""
-		self._update_last_used()
-		wsid = f"{config.node_name}|{websocket.client[0]}|{websocket.client[1]}"
-		self.websockets[wsid] = {"id": id(websocket), "description": description}
-		await self.store(wait=True)
-
-	async def unregister_websocket(self, websocket: WebSocket):
-		wsid = f"{config.node_name}|{websocket.client[0]}|{websocket.client[1]}"
-		if wsid not in self.websockets:
-			return
-		self._update_last_used()
-		del self.websockets[wsid]
-		await self.store(wait=True)
 
 	def get(self, name: str, default: Any = None) -> Any:
 		return self._data.get(name, default)

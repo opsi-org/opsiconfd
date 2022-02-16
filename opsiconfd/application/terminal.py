@@ -10,10 +10,11 @@ application.teminal
 
 import asyncio
 import pathlib
-from typing import Optional
+from typing import Optional, Any
 
 from fastapi import Query, UploadFile, status
 from fastapi.responses import JSONResponse
+from starlette.types import Scope, Receive, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
 from pexpect import spawn  # type: ignore[import]
@@ -23,9 +24,8 @@ from OPSI.System import get_subprocess_environment  # type: ignore[import]
 from .. import contextvar_client_session
 from ..logging import logger
 from ..config import config
-from ..session import register_websocket
 from . import app
-
+from .utils import OpsiconfdWebSocketEndpoint
 
 PTY_READER_BLOCK_SIZE = 16 * 1024
 
@@ -36,78 +36,69 @@ def start_pty(shell="bash", lines=30, columns=120, cwd=None):
 	return spawn(shell, dimensions=(lines, columns), env=sp_env, cwd=cwd)
 
 
-async def pty_reader(websocket: WebSocket, pty: spawn):
-	loop = asyncio.get_event_loop()
-	while True:
-		try:
-			logger.trace("Read from pty")
-			data: bytes = await loop.run_in_executor(None, pty.read_nonblocking, PTY_READER_BLOCK_SIZE, 0.01)
-			logger.trace("=>>> %s", data)
-			await websocket.send_bytes(data)
-		except TIMEOUT:
-			if websocket.client_state == WebSocketState.DISCONNECTED or app.is_shutting_down:
+@app.websocket_route("/admin/terminal/ws")
+class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
+	encoding = "text"
+	admin_only = True
+
+	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
+		super().__init__(scope, receive, send)
+		self._pty: spawn
+		self._pty_reader_task: asyncio.Task
+
+	async def pty_reader(self, websocket: WebSocket):
+		loop = asyncio.get_event_loop()
+		while True:
+			try:
+				logger.trace("Read from pty")
+				data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, PTY_READER_BLOCK_SIZE, 0.01)
+				logger.trace("=>>> %s", data)
+				await websocket.send_bytes(data)
+			except TIMEOUT:
+				if websocket.client_state == WebSocketState.DISCONNECTED or app.is_shutting_down:
+					break
+			except EOF:
+				# shell exit
+				await websocket.close()
 				break
-		except EOF:
-			# shell exit
-			await websocket.close()
-			break
-		except (ConnectionClosedOK, WebSocketDisconnect) as err:
-			logger.debug("pty_reader: %s", err)
-			break
+			except (ConnectionClosedOK, WebSocketDisconnect) as err:
+				logger.debug("pty_reader: %s", err)
+				break
 
+	async def on_receive(self, websocket: WebSocket, data: Any) -> None:
+		# logger.trace(data.encode("ascii").hex())
+		await asyncio.get_event_loop().run_in_executor(None, self._pty.write, data)
 
-async def websocket_reader(websocket: WebSocket, pty: spawn):
-	loop = asyncio.get_event_loop()
-	while True:
-		try:
-			logger.trace("Read from websocket")
-			data = await websocket.receive_text()
-			logger.trace("<<<= %s", data)
-			await loop.run_in_executor(None, pty.write, data)
-		except (ConnectionClosedOK, WebSocketDisconnect) as err:
-			logger.debug("websocket_reader: %s", err)
-			break
+	async def on_connect(  # pylint: disable=arguments-differ
+		self,
+		websocket: WebSocket,
+		terminal_id: str = Query(
+			default=None,
+			regex="^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
+		),
+		columns: Optional[int] = Query(default=120, embed=True),
+		lines: Optional[int] = Query(default=30, embed=True),
+	):
 
+		if "terminal" in config.admin_interface_disabled_features:
+			logger.warning("Access to terminal websocket denied, terminal disabled")
+			await websocket.close(code=4403)
 
-@app.websocket("/admin/terminal/ws")
-@register_websocket("Admin terminal")
-async def terminal_websocket_endpoint(
-	websocket: WebSocket,
-	terminal_id: str = Query(
-		default=None,
-		min_length=36,
-		max_length=36,
-		regex="^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
-	),
-	columns: Optional[int] = Query(default=120, embed=True),
-	lines: Optional[int] = Query(default=30, embed=True),
-):
-	if "terminal" in config.admin_interface_disabled_features:
-		logger.warning("Access to terminal websocket denied, terminal disabled")
-		await websocket.close(code=4403)
+		logger.info("Websocket client connected to terminal columns=%d, lines=%d", columns, lines)
+		self._pty = start_pty(shell="bash", lines=lines, columns=columns, cwd="/var/lib/opsi")
 
-	session = contextvar_client_session.get()
-	if not session:
-		logger.warning("Access to terminal websocket denied, invalid session")
-		await websocket.close(code=4403)
-		return
+		session = self.scope["session"]
+		terminals = session.get("terminal_ws", {})
+		terminals[terminal_id] = f"{config.node_name}:{self._pty.pid}"
+		session.set("terminal_ws", terminals)
+		await session.store(wait=True)
+		terminals = session.get("terminal_ws")
 
-	if session.user_store.host or not session.user_store.isAdmin:
-		logger.warning("Access to terminal websocket denied for user '%s'", session.user_store.username)
-		await websocket.close(code=4403)
-		return
+		self._pty_reader_task = asyncio.get_event_loop().create_task(self.pty_reader(websocket))
 
-	await websocket.accept()
-
-	logger.info("Websocket client connected to terminal columns=%d, lines=%d", columns, lines)
-	pty = start_pty(shell="bash", lines=lines, columns=columns, cwd="/var/lib/opsi")
-
-	terminals = session.get("terminal_ws", {})
-	terminals[terminal_id] = f"{config.node_name}:{pty.pid}"
-	session.set("terminal_ws", terminals)
-	await session.store(wait=True)
-	terminals = session.get("terminal_ws")
-	await asyncio.gather(websocket_reader(websocket, pty), pty_reader(websocket, pty))
+	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
+		if self._pty_reader_task:
+			self._pty_reader_task.cancel()
 
 
 @app.post("/admin/terminal/fileupload")

@@ -192,6 +192,8 @@ class Config(metaclass=Singleton):
 		if self._config.ssl_server_key and self._config.ssl_server_cert:
 			scheme = "https"
 
+		os.putenv("SSL_CERT_FILE", self._config.ssl_trusted_certs)
+
 		if not self._config.internal_url:
 			self._config.internal_url = f"{scheme}://{FQDN}:{self._config.port}"
 		if not self._config.external_url:
@@ -199,7 +201,11 @@ class Config(metaclass=Singleton):
 		if not self._config.grafana_data_source_url:
 			self._config.grafana_data_source_url = f"{scheme}://{FQDN}:{self._config.port}"
 
-		os.putenv("SSL_CERT_FILE", self._config.ssl_trusted_certs)
+		if not self._config.skip_setup:
+			self._config.skip_setup = []
+
+		if not self._config.admin_interface_disabled_features:
+			self._config.admin_interface_disabled_features = []
 
 	def reload(self):
 		self._parse_args()
@@ -671,6 +677,20 @@ class Config(metaclass=Singleton):
 				"(tasks: all, limits, users, groups, grafana, backend, ssl, systemd, "
 				"files, file_permissions, log_files, metric_downsampling)."
 			),
+			choices=[
+				"all",
+				"limits",
+				"users",
+				"groups",
+				"grafana",
+				"backend",
+				"ssl",
+				"systemd",
+				"files",
+				"file_permissions",
+				"log_files",
+				"metric_downsampling",
+			],
 		)
 		self._parser.add(
 			"--redis-internal-url",
@@ -778,6 +798,14 @@ class Config(metaclass=Singleton):
 			default=0.5,
 			type=float,
 			help=self._expert_help("Minimum time in seconds that a jsonrpc must take before the data is cached."),
+		)
+		self._parser.add(
+			"--admin-interface-disabled-features",
+			nargs="+",
+			env_var="OPSICONFD_ADMIN_INTERFACE_DISABLED_FEATURES",
+			default=None,
+			help=("A list of admin interface features to disable (features: terminal, rpc-interface)."),
+			choices=["terminal", "rpc-interface"],
 		)
 		if self._pytest:
 			self._parser.add("args", nargs="*")

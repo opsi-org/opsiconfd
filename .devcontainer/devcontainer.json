@@ -42,9 +42,5 @@
 		"ms-python.vscode-pylance",
 		"ryanluker.vscode-coverage-gutters"
 	],
-	"forwardPorts": [
-		3000,
-		"4448:4447"
-	],
 	"remoteUser": "${localEnv:USER}"
 }

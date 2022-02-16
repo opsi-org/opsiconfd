@@ -72,6 +72,7 @@ async def admin_interface_index(request: Request):
 		"cert_info": get_server_cert_info(),
 		"num_servers": get_num_servers(backend),
 		"num_clients": get_num_clients(backend),
+		"disabled_features": config.admin_interface_disabled_features,
 	}
 	return config.jinja_templates.TemplateResponse("admininterface.html", context)
 

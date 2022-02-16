@@ -201,18 +201,17 @@ def cleanup_log_files():
 def setup(full: bool = True):  # pylint: disable=too-many-branches
 	logger.notice("Running opsiconfd setup")
 
-	skip_setup = config.skip_setup or []
-	if skip_setup:
-		logger.notice("Skipping setup tasks: %s", ", ".join(skip_setup))
+	if config.skip_setup:
+		logger.notice("Skipping setup tasks: %s", ", ".join(config.skip_setup))
 
-	if "all" in skip_setup:
+	if "all" in config.skip_setup:
 		return
 
 	if not config.run_as_user:
 		config.run_as_user = getpass.getuser()
-	if "limits" not in skip_setup:
+	if "limits" not in config.skip_setup:
 		setup_limits()
-	if "backend" not in skip_setup:
+	if "backend" not in config.skip_setup:
 		try:
 			setup_backend()
 		except Exception as err:  # pylint: disable=broad-except
@@ -221,35 +220,35 @@ def setup(full: bool = True):  # pylint: disable=too-many-branches
 			logger.debug("Failed to setup backend: %s", err, exc_info=True)
 			logger.warning("Failed to setup backend: %s", err)
 	if full:
-		if "users" not in skip_setup and "groups" not in skip_setup:
+		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			po_setup_users_and_groups(ignore_errors=True)
 			setup_users_and_groups()
-		if "files" not in skip_setup:
+		if "files" not in config.skip_setup:
 			setup_files()
 		# po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
-		if "systemd" not in skip_setup:
+		if "systemd" not in config.skip_setup:
 			setup_systemd()
 	else:
-		if "users" not in skip_setup and "groups" not in skip_setup:
+		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			setup_users_and_groups()
-	if "file_permissions" not in skip_setup:
+	if "file_permissions" not in config.skip_setup:
 		# Always correct file permissions (run_as_user could be changed)
 		setup_file_permissions()
-	if "log_files" not in skip_setup:
+	if "log_files" not in config.skip_setup:
 		cleanup_log_files()
-	if "grafana" not in skip_setup:
+	if "grafana" not in config.skip_setup:
 		try:
 			setup_grafana()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning("Failed to setup grafana: %s", err)
 
-	if "metric_downsampling" not in skip_setup:
+	if "metric_downsampling" not in config.skip_setup:
 		try:
 			setup_metric_downsampling()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning("Failed to setup redis downsampling: %s", err)
 
-	if "ssl" not in skip_setup:
+	if "ssl" not in config.skip_setup:
 		try:
 			setup_ssl()
 		except Exception as err:  # pylint: disable=broad-except

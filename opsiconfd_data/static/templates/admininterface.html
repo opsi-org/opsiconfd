@@ -145,15 +145,18 @@
 			<a href="#clients" id="tablink-clients" class="tablink" onclick="openTab('clients');">Clients</a>
 			<a href="#depots" id="tablink-depots" class="tablink" onclick="openTab('depots');">Depots</a>
 			<a href="#rpc-infos" id="tablink-rpc-infos" class="tablink" onclick="openTab('rpc-infos');">RPC-Infos</a>
+			{% if "rpc-interface" not in disabled_features %}
 			<a href="#rpc-interface" id="tablink-rpc-interface" class="tablink"
 				onclick="openTab('rpc-interface');">RPC-Interface</a>
+			{% endif %}
 			<a href="#redis-interface" id="tablink-redis-interface" class="tablink"
 				onclick="openTab('redis-interface');">Redis-Interface</a>
 			<a href="#addons" id="tablink-addons" class="tablink" onclick="openTab('addons');">Addons</a>
 			<a href="#log-viewer" id="tablink-log-viewer" class="tablink" onclick="openTab('log-viewer');">Log
 				Viewer</a>
+			{% if "terminal" not in disabled_features %}
 			<a href="#terminal" id="tablink-terminal" class="tablink" onclick="openTab('terminal');">Terminal</a>
-
+			{% endif %}
 			<!--
 			<a href="#memory-profiler" id="tablink-memory-profiler" class="tablink" onclick="openTab('memory-profiler');">Memory Profiler</a>
 			-->

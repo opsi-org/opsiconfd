@@ -82,6 +82,10 @@ async def terminal_websocket_endpoint(
 	columns: Optional[int] = Query(default=120, embed=True),
 	lines: Optional[int] = Query(default=30, embed=True),
 ):
+	if "terminal" in config.admin_interface_disabled_features:
+		logger.warning("Access to terminal websocket denied, terminal disabled")
+		await websocket.close(code=4403)
+
 	session = contextvar_client_session.get()
 	if not session:
 		logger.warning("Access to terminal websocket denied, invalid session")
@@ -108,6 +112,9 @@ async def terminal_websocket_endpoint(
 
 @app.post("/admin/terminal/fileupload")
 async def terminal_fileupload(terminal_id: str, file: UploadFile):
+	if "terminal" in config.admin_interface_disabled_features:
+		return JSONResponse("Terminal disabled", status_code=status.HTTP_403_FORBIDDEN)
+
 	session = contextvar_client_session.get()
 	if not session:
 		return JSONResponse("Invalid session", status_code=status.HTTP_403_FORBIDDEN)

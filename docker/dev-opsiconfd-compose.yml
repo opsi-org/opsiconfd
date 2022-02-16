@@ -13,9 +13,9 @@ services:
         - UID
     volumes:
       - ..:/workspace:cached
-    #ports:
-    #  - "4447:4447"
-    #  - "3000:3000"
+    ports:
+      - 4448:4447
+      - 3000:3000
     environment:
       GF_INSTALL_PLUGINS: grafana-simple-json-datasource
       GF_SECURITY_ADMIN_USER: adminuser

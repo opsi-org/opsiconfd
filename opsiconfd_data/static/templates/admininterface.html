@@ -16,6 +16,8 @@
 	<script src="/static/xterm/xterm-addon-web-links.js"></script>
 
 	<script>
+		var reloadTimer;
+
 		function onLoad() {
 			let input = document.getElementById("redis-cmd");
 
@@ -37,15 +39,16 @@
 			let tab = window.location.hash.replace(/#/, "");
 			if (!tab) tab = "info";
 
-			console.info("onload: " + tab);
+			//console.info("onload: " + tab);
 			openTab(tab);
-			/*
-			setTimeout(function () {
-				window.scrollTo(0, 0);
-			}, 1);
-			*/
 		}
 
+		function stopReloadTimer() {
+			if (reloadTimer) {
+				clearInterval(reloadTimer);
+				reloadTimer = null;
+			}
+		}
 		function createParamInputs() {
 			let value = document.getElementById("method-select").value;
 			// !!! use '' because json uses "" !!!
@@ -79,6 +82,7 @@
 			// Declare all variables
 			var i, tabcontent, tablinks;
 
+			stopReloadTimer();
 			stopLog();
 			stopTerminal();
 
@@ -88,6 +92,7 @@
 			else if (tabName == "clients") {
 				loadSessionTable();
 				loadClientTable();
+				reloadTimer = setInterval(loadSessionTable, 5000);
 			}
 			else if (tabName == "depots") {
 				loadLockedProductsTable();

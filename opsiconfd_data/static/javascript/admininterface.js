@@ -621,13 +621,13 @@ function printSessionTable(data, htmlId) {
 	if (data.length == 0) {
 		htmlStr = "<p>No sessions found.</p>";
 	} else {
+		data.sort((a, b) => (a.session_id > b.session_id) ? 1 : -1);
 		htmlStr = "<table class=\"session-table\" id=\"session-table\">" +
 			"<tr>" +
 			"<th class='session-th'>Address</th>" +
 			"<th class='session-th'>Session ID</th>" +
 			"<th class='session-th'>User-Agent</th>" +
 			"<th class='session-th'>Username</th>" +
-			"<th class='session-th'>Websockets</th>" +
 			"<th class='session-th'>Validity</th>" +
 			"</tr>";
 		data.forEach(element => {
@@ -636,7 +636,6 @@ function printSessionTable(data, htmlId) {
 				"<td class=\"session-td\">" + element.session_id + "</td>" +
 				"<td class=\"session-td\">" + element.user_agent + "</td>" +
 				"<td class=\"session-td\">" + element.username + "</td>" +
-				"<td class=\"session-td\">" + element.websockets + "</td>" +
 				"<td class=\"session-td\">" + Math.round(element.validity) + "</td>" +
 				"</tr>";
 		});
@@ -1048,6 +1047,8 @@ function startTerminal() {
 	terminal.open(document.getElementById('terminal-xterm'));
 
 	setTimeout(function () {
+		document.getElementsByClassName('xterm-viewport')[0].setAttribute("style", "");
+
 		fitAddon.fit();
 		terminal.focus();
 
@@ -1098,20 +1099,18 @@ function startTerminal() {
 }
 
 function terminalFileUpload(file) {
+	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
 	var formData = new FormData();
 	formData.append('file', file);
 	const xhr = new XMLHttpRequest();
 	xhr.responseType = 'json';
 	xhr.open("POST", `/admin/terminal/fileupload?terminal_id=${terminal.terminal_id}`, true);
 	xhr.onload = function (e) {
+		document.getElementsByClassName('xterm-selection-layer')[0].classList.remove("upload-active");
 		if (this.status == 200) {
 			console.log(`File upload successful: ${JSON.stringify(this.response)}`)
 			const filename = this.response.filename;
-			terminal_ws.send(filename);
-			// Move cursor back
-			setTimeout(function () {
-				terminal.write("\033[" + filename.length + "D");
-			}, 100);
+			terminal_ws.send(filename + "\033[D".repeat(filename.length));
 		}
 		else {
 			console.error(`File upload failed: ${JSON.stringify(this.response)}`);

@@ -336,6 +336,24 @@ li {
 	margin-top: 10px;
 }
 
+.upload-active {
+	animation-name: upload-bg-color;
+	animation-duration: 1s;
+	animation-iteration-count: infinite;
+}
+
+@keyframes upload-bg-color {
+	0% {
+		background-color: #00000000;
+	}
+	50% {
+		background-color: #68693f33;
+	}
+	100% {
+		background-color: #00000000;
+	}
+}
+
 table tbody tr td {
 	font-size: 15px;
 }

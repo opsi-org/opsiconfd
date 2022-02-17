@@ -27,7 +27,7 @@ pytest_asyncio.plugin._hypothesis_test_wraps_coroutine = _hypothesis_test_wraps_
 
 @pytest.fixture
 def get_schemathesis(config):  # pylint: disable=redefined-outer-name
-	return schemathesis.from_uri(f"{config.external_url}/openapi.json", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	return schemathesis.from_uri(f"{config.internal_url}/openapi.json", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 
 
 schema = schemathesis.from_pytest_fixture("get_schemathesis")

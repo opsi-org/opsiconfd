@@ -39,11 +39,11 @@ def test_command(test_client):  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client.websocket_connect("/admin/terminal/ws", params={"terminal_id": terminal_id}) as websocket:
 		data = websocket.receive()
-		websocket.send_text("echo test\r\n")
 		for _ in range(3):
+			websocket.send_text("echo test\r\n")
 			time.sleep(1)
 		data = websocket.receive()
-		assert data["bytes"].startswith(b"echo test\r\ntest\r\n")
+		assert b"echo test\r\ntest\r\n" in data["bytes"]
 
 
 def test_params(test_client):  # pylint: disable=redefined-outer-name

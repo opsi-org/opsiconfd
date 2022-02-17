@@ -7,6 +7,12 @@ project:
         All rights reserved.
         License: {license}
 
+git:
+  hooks:
+    pre-push: |
+      poetry run pylint --disable=R,fixme opsiconfd tests
+      poetry run flake8 opsiconfd tests
+
 pyinstaller-poetry:
   one_file: no
   hidden_imports:

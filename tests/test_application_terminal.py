@@ -9,22 +9,13 @@ test application.terminal
 """
 
 import os
+import time
 import uuid
 import pytest
 from starlette.websockets import WebSocketDisconnect
 from starlette.status import WS_1008_POLICY_VIOLATION
 
-from .utils import (  # pylint: disable=unused-import
-	clean_redis,
-	config,
-	get_config,
-	test_client,
-	ADMIN_USER,
-	ADMIN_PASS,
-	products_jsonrpc,
-	depot_jsonrpc,
-	get_product_ordering_jsonrpc,
-)
+from .utils import clean_redis, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
 
 
 def test_connect(test_client):  # pylint: disable=redefined-outer-name
@@ -49,6 +40,7 @@ def test_command(test_client):  # pylint: disable=redefined-outer-name
 	with test_client.websocket_connect("/admin/terminal/ws", params={"terminal_id": terminal_id}) as websocket:
 		data = websocket.receive()
 		websocket.send_text("echo test\r\n")
+		time.sleep(1)
 		data = websocket.receive()
 		assert data["bytes"].startswith(b"echo test\r\ntest\r\n")
 

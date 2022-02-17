@@ -10,7 +10,7 @@ redisinterface
 
 import traceback
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from ..logging import logger
@@ -38,7 +38,7 @@ async def redis_command(request: Request, response: Response):
 		trace_back = traceback.format_exc()
 		error = {"message": str(err), "class": err.__class__.__name__}
 		error["details"] = str(trace_back)
-		response = JSONResponse({"status": 500, "error": error, "data": {"result": None}})
+		response = JSONResponse({"status": 500, "error": error, "data": {"result": None}}, status.HTTP_500_INTERNAL_SERVER_ERROR)
 	return response
 
 
@@ -50,7 +50,10 @@ async def get_redis_stats():  # pylint: disable=too-many-locals
 		response = JSONResponse({"status": 200, "error": None, "data": redis_info})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
+		response = JSONResponse(
+			{"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}},
+			status.HTTP_500_INTERNAL_SERVER_ERROR,
+		)
 	return response
 
 
@@ -61,7 +64,10 @@ def get_depot_cache():
 		response = JSONResponse({"status": 200, "error": None, "data": {"depots": list(depots)}})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
+		response = JSONResponse(
+			{"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}},
+			status.HTTP_500_INTERNAL_SERVER_ERROR,
+		)
 	return response
 
 
@@ -88,7 +94,10 @@ def get_products(depot_id: str = None):
 		return JSONResponse({"status": 200, "error": None, "data": data})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		return JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
+		return JSONResponse(
+			{"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}},
+			status.HTTP_500_INTERNAL_SERVER_ERROR,
+		)
 
 
 @redis_interface_router.post("/clear-product-cache")
@@ -111,5 +120,7 @@ async def clear_product_cache(request: Request, response: Response):
 		response = JSONResponse({"status": 200, "error": None, "data": data})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}})
+		response = JSONResponse(
+			{"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}}, status_code=500
+		)
 	return response

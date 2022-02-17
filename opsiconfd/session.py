@@ -21,6 +21,7 @@ import aioredis
 from fastapi import HTTPException, status
 from fastapi.requests import HTTPConnection
 from fastapi.responses import Response, PlainTextResponse, JSONResponse, RedirectResponse
+from fastapi.exceptions import ValidationError
 from starlette.datastructures import MutableHeaders, Headers
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
@@ -279,6 +280,10 @@ class SessionMiddleware:
 			status_code = status.HTTP_403_FORBIDDEN
 			error = str(err)
 
+		elif isinstance(err, ValidationError):
+			status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+			error = str(err)
+
 		elif isinstance(err, HTTPException):
 			status_code = err.status_code  # pylint: disable=no-member
 			headers = err.headers  # pylint: disable=no-member
@@ -289,7 +294,10 @@ class SessionMiddleware:
 			error = str(err)
 
 		if scope["type"] == "websocket":
-			return  # await send({"type": "websocket.close", "code": status_code})
+			websocket_close_code = status.WS_1008_POLICY_VIOLATION
+			if status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
+				websocket_close_code = status.WS_1011_INTERNAL_ERROR
+			await send({"type": "websocket.close", "code": websocket_close_code})
 
 		headers = headers or {}
 		if scope.get("session"):

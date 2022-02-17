@@ -31,7 +31,7 @@ def test_connect(test_client):  # pylint: disable=redefined-outer-name
 	with pytest.raises(WebSocketDisconnect) as excinfo:
 		with test_client.websocket_connect("/admin/terminal/ws"):
 			pass
-	assert excinfo.value.code == 401
+	assert excinfo.value.code == WS_1008_POLICY_VIOLATION
 
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with pytest.raises(WebSocketDisconnect) as excinfo:

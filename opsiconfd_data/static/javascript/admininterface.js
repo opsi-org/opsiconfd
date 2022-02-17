@@ -1033,7 +1033,6 @@ var terminal_ws;
 function startTerminal() {
 	terminal = new Terminal({
 		cursorBlink: true,
-		macOptionIsMeta: true,
 		scrollback: 1000,
 		fontSize: 14
 	});

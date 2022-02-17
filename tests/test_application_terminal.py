@@ -40,7 +40,8 @@ def test_command(test_client):  # pylint: disable=redefined-outer-name
 	with test_client.websocket_connect("/admin/terminal/ws", params={"terminal_id": terminal_id}) as websocket:
 		data = websocket.receive()
 		websocket.send_text("echo test\r\n")
-		time.sleep(1)
+		for _ in range(3):
+			time.sleep(1)
 		data = websocket.receive()
 		assert data["bytes"].startswith(b"echo test\r\ntest\r\n")
 

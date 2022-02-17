@@ -5,7 +5,7 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-test application utils
+test application check client status
 """
 
 import json

@@ -9,7 +9,11 @@ stages:
   export DEBIAN_FRONTEND=noninteractive
   apt update
   apt -y install debhelper osc tar wget
-  wget "$OPSIDEVTOOLS_URL_LINUX_X64" -O opsi-dev-tools.tar.gz
+  if [ "$(dpkg --print-architecture)" = "amd64" ]; then
+    wget "$OPSIDEVTOOLS_URL_LINUX_X64" -O opsi-dev-tools.tar.gz
+  else
+    wget "$OPSIDEVTOOLS_URL_LINUX_ARM64" -O opsi-dev-tools.tar.gz
+  fi
   tar -xvf opsi-dev-tools.tar.gz
 
 .prepare_tests: &prepare_tests |

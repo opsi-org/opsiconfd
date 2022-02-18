@@ -1,0 +1,23 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 10,
+	"iterations": 10,
+	"test_cases": [
+		{
+			"name": "Websocket - echo",
+			"requests": {
+				"test": [
+					[
+						"websocket",
+						"/ws/echo",
+						{},
+						"hello opsi",
+						1000
+					]
+				]
+			}
+		}
+	]
+}

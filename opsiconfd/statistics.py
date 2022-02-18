@@ -349,7 +349,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 
 		# logger.debug("Client Addr: %s", contextvar_client_address.get())
 		async def send_wrapper(message: Message) -> None:
-			if message["type"] == "http.response.start":
+			if scope["type"] == "http" and message["type"] == "http.response.start":
 				# Start of response (first message / package)
 				if worker.metrics_collector:
 					loop.create_task(
@@ -387,7 +387,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 			logger.trace(message)
 			await send(message)
 
-			if message["type"] == "http.response.body" and not message.get("more_body"):
+			if scope["type"] == "http" and message["type"] == "http.response.body" and not message.get("more_body"):
 				# End of response (last message / package)
 				end = time.perf_counter()
 				if worker.metrics_collector:

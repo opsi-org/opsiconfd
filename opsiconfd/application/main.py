@@ -10,6 +10,7 @@ application main
 
 import os
 import asyncio
+from typing import Any
 from urllib.parse import urlparse
 from ctypes import c_long
 
@@ -58,6 +59,33 @@ PATH_MAPPINGS = {
 	"/repository": "/repository/",
 	"/workbench": "/workbench/",
 }
+
+
+@app.get("/")
+async def index(request: Request, response: Response):  # pylint: disable=unused-argument
+	return RedirectResponse("/admin", status_code=status.HTTP_301_MOVED_PERMANENTLY)
+
+
+@app.get("/favicon.ico")
+async def favicon(request: Request, response: Response):  # pylint: disable=unused-argument
+	return RedirectResponse("/static/favicon.ico", status_code=status.HTTP_301_MOVED_PERMANENTLY)
+
+
+@app.get("/ssl/opsi-ca-cert.pem")
+def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument
+	return Response(
+		content=get_ca_cert_as_pem(),
+		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'},
+	)
+
+
+@app.websocket_route("/ws/echo")
+class EchoWebsocket(OpsiconfdWebSocketEndpoint):
+	encoding = "text"
+	admin_only = True
+
+	async def on_receive(self, websocket: WebSocket, data: Any) -> None:
+		await websocket.send_text(data)
 
 
 @app.websocket_route("/ws/log_viewer")
@@ -116,24 +144,6 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		if self._log_reader_task:
 			self._log_reader_task.cancel()
-
-
-@app.get("/")
-async def index(request: Request, response: Response):  # pylint: disable=unused-argument
-	return RedirectResponse("/admin", status_code=status.HTTP_301_MOVED_PERMANENTLY)
-
-
-@app.get("/favicon.ico")
-async def favicon(request: Request, response: Response):  # pylint: disable=unused-argument
-	return RedirectResponse("/static/favicon.ico", status_code=status.HTTP_301_MOVED_PERMANENTLY)
-
-
-@app.get("/ssl/opsi-ca-cert.pem")
-def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument
-	return Response(
-		content=get_ca_cert_as_pem(),
-		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'},
-	)
 
 
 class BaseMiddleware:  # pylint: disable=too-few-public-methods

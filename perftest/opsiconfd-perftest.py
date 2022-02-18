@@ -167,8 +167,16 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			self.write_results()
 		print("")
 
-	def add_result(self, error: None, seconds: float, bytes_sent: int, bytes_received: int):
-		res = {"error": error, "seconds": seconds, "bytes_sent": bytes_sent, "bytes_received": bytes_received}
+	def add_result(  # pylint: disable=too-many-arguments
+		self, error: None, seconds: float, bytes_sent: int, bytes_received: int, round_trip_time: float
+	):
+		res = {
+			"error": error,
+			"seconds": seconds,
+			"bytes_sent": bytes_sent,
+			"bytes_received": bytes_received,
+			"round_trip_time": round_trip_time,
+		}
 		self.results.append(res)
 		if len(self.results) % 10 == 0:
 			sys.stdout.write(".")
@@ -186,11 +194,15 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			"bytes_sent": 0,
 			"bytes_received": 0,
 			"avg_requests_per_second": 0,
-			"min_seconds_per_request": 0,
-			"avg_seconds_per_request": 0,
-			"max_seconds_per_request": 0,
+			"min_seconds_per_request": 0.0,
+			"avg_seconds_per_request": 0.0,
+			"max_seconds_per_request": 0.0,
+			"min_round_trip_time": 0.0,
+			"avg_round_trip_time": 0.0,
+			"max_round_trip_time": 0.0,
 		}
 
+		sum_round_trip_time = 0.0
 		for res in self.results:
 			result["requests"] += 1
 			if res["error"]:
@@ -202,11 +214,17 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 				result["min_seconds_per_request"] = res["seconds"]
 			if result["max_seconds_per_request"] == 0 or result["max_seconds_per_request"] < res["seconds"]:
 				result["max_seconds_per_request"] = res["seconds"]
+			sum_round_trip_time += res["round_trip_time"]
+			if result["min_round_trip_time"] == 0 or result["min_round_trip_time"] > res["round_trip_time"]:
+				result["min_round_trip_time"] = res["round_trip_time"]
+			if result["max_round_trip_time"] == 0 or result["max_round_trip_time"] < res["round_trip_time"]:
+				result["max_round_trip_time"] = res["round_trip_time"]
 
 		result["avg_seconds_per_request"] = result["total_request_seconds"] / result["requests"]
 		result["avg_requests_per_second"] = result["requests"] / result["total_seconds"]
 		result["avg_bytes_received_per_second"] = result["bytes_received"] / result["total_seconds"]
 		result["avg_bytes_send_per_second"] = result["bytes_sent"] / result["total_seconds"]
+		result["avg_round_trip_time"] = sum_round_trip_time / len(self.results)
 		return result
 
 	def write_results(self):
@@ -228,7 +246,11 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 		print(
 			" * Request duration: min/avg/max "
 			f"{res['min_seconds_per_request']:0.3f}s/{res['avg_seconds_per_request']:0.3f}s/{res['max_seconds_per_request']:0.3f}s"
-		)  # pylint: disable=line-too-long
+		)
+		print(
+			" * Round trip time: min/avg/max "
+			f"{res['min_round_trip_time']*1000:0.3f}ms/{res['avg_round_trip_time']*1000:0.3f}ms/{res['max_round_trip_time']*1000:0.3f}ms"
+		)
 		print(f" * Bytes sent: {res['bytes_sent']/1000/1000:0.2f}MB ({res['avg_bytes_send_per_second']/1000/1000:0.2f}MB/s)")
 		print(f" * Bytes received: {res['bytes_received']/1000/1000:0.2f}MB ({res['avg_bytes_received_per_second']/1000/1000:0.2f}MB/s)")
 		print("")
@@ -289,9 +311,50 @@ class Client:
 			if add_results:
 				self.test_case.add_result(*result)
 
+	async def websocket(self, path, params=None, data=None, send_data_count=1):  # pylint: disable=too-many-branches,too-many-locals
+		url = f"{self.perftest.base_url}/{path.lstrip('/')}"
+		bytes_sent = 0
+		if data:
+			if isinstance(data, str):
+				bytes_sent = len(data.encode("utf-8"))
+			bytes_sent = len(data)
+		bytes_sent *= send_data_count
+
+		start = time.perf_counter()
+		data_received = None
+		bytes_received = 0
+		error = None
+		try:
+			async with self.session.ws_connect(url=url, params=params) as websocket:
+				for _ in range(send_data_count):
+					if data:
+						if isinstance(data, str):
+							await websocket.send_str(data)
+						elif isinstance(data, bytes):
+							await websocket.send_bytes(data)
+						else:
+							await websocket.send_json(data)
+
+					msg = await websocket.receive()
+					if data_received is None:
+						data_received = msg.data
+					else:
+						data_received += msg.data
+
+		except aiohttp.WSServerHandshakeError as err:
+			error = str(err)
+		bytes_received = len(data_received)
+		end = time.perf_counter()
+		if self.perftest.print_responses or error:
+			if error:
+				print(f"Error: {error}")
+			else:
+				print(f"Data received: {data_received}")
+
+		return (error, end - start, bytes_sent, bytes_received, (end - start) / send_data_count)
+
 	async def webdav(self, method, filename, data=None):
 		url = f"{self.perftest.base_url}/repository/{filename}"
-		start = time.perf_counter()
 		bytes_sent = 0
 		if data:
 			if isinstance(data, str):
@@ -302,21 +365,23 @@ class Client:
 			else:
 				bytes_sent = len(data)
 
+		start = time.perf_counter()
 		headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(bytes_sent)}
 		async with self.session.request(method, url=url, allow_redirects=False, data=data, headers=headers) as response:
-			data = None
-			bytes_received = 0
+			data_received = b""
 			async for data in response.content.iter_chunked(64 * 1024):
-				bytes_received += len(data)
+				data_received += data
+			bytes_received = len(data_received)
 			end = time.perf_counter()
 			error = None
 			if response.status not in (200, 201, 204):
 				error = f"{response.status} - {data}"
-			if self.perftest.print_responses:
-				print(f"{response.status} - {bytes_received} bytes body")
-			elif error:
-				print(error)
-			return (error, end - start, bytes_sent, bytes_received)
+			if self.perftest.print_responses or error:
+				if error:
+					print(f"Error: {error}")
+				else:
+					print(f"Resonse: {response.status} - {bytes_received} bytes body")
+			return (error, end - start, bytes_sent, bytes_received, end - start)
 
 	async def jsonrpc(self, method, params=None):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		params = params or []
@@ -373,12 +438,13 @@ class Client:
 
 				if res.get("error"):
 					error = res["error"]
-			if self.perftest.print_responses:
-				print(f"{response.status} - {body}")
-			elif error:
-				print(error)
+			if self.perftest.print_responses or error:
+				if error:
+					print(f"Error: {error}")
+				else:
+					print(f"Response: {response.status} - {body}")
 
-			return (error, end - start, data_len, len(body or ""))
+			return (error, end - start, data_len, len(body or ""), end - start)
 
 
 def main():

@@ -237,3 +237,6 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 			raise exc
 		finally:
 			await self.on_disconnect(websocket, close_code)
+
+	async def on_connect(self, websocket: WebSocket) -> None:
+		pass

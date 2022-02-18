@@ -52,11 +52,11 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			try:
 				logger.trace("Read from pty")
 				data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, PTY_READER_BLOCK_SIZE, 0.01)
+				# data: bytes = self._pty.read_nonblocking(PTY_READER_BLOCK_SIZE, 0.001)
 				logger.trace("=>>> %s", data)
 				await websocket.send_bytes(data)
 			except TIMEOUT:
-				if websocket.client_state == WebSocketState.DISCONNECTED or app.is_shutting_down:
-					break
+				pass
 			except EOF:
 				# shell exit
 				await websocket.close()
@@ -67,7 +67,8 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 
 	async def on_receive(self, websocket: WebSocket, data: Any) -> None:
 		# logger.trace(data.encode("ascii").hex())
-		await asyncio.get_event_loop().run_in_executor(None, self._pty.write, data)
+		# Do not wait for completion to minimize rtt
+		asyncio.get_event_loop().run_in_executor(None, self._pty.write, data)
 
 	async def on_connect(  # pylint: disable=arguments-differ
 		self,

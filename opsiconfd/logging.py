@@ -16,7 +16,7 @@ import shutil
 import socket
 import threading
 import asyncio
-from typing import Callable, Dict
+from typing import Any, Callable, Dict
 from queue import Queue, Empty
 from logging import LogRecord, Formatter, StreamHandler
 from concurrent.futures import ThreadPoolExecutor
@@ -414,8 +414,11 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 	def stop(self):
 		self._should_stop = True
 
-	def log_record_to_dict(self, record):
-		msg = record.getMessage()
+	def log_record_to_dict(self, record: LogRecord) -> Dict[str, Any]:
+		try:
+			msg = record.getMessage()
+		except TypeError:
+			msg = record.msg
 		for secret in secret_filter.secrets:
 			msg = msg.replace(secret, SECRET_REPLACEMENT_STRING)
 		if self._max_msg_len and len(msg) > self._max_msg_len:

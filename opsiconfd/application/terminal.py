@@ -15,7 +15,7 @@ from typing import Optional, Any
 from fastapi import Query, UploadFile, status
 from fastapi.responses import JSONResponse
 from starlette.types import Scope, Receive, Send
-from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from websockets.exceptions import ConnectionClosedOK
 from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import TIMEOUT, EOF  # type: ignore[import]

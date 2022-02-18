@@ -3,7 +3,7 @@
 	"username": "adminuser",
 	"password": "adminuser",
 	"clients": 10,
-	"iterations": 10,
+	"iterations": 2,
 	"test_cases": [
 		{
 			"name": "Websocket - echo",
@@ -14,7 +14,7 @@
 						"/ws/echo",
 						{},
 						"hello opsi",
-						1000
+						500
 					]
 				]
 			}

@@ -343,7 +343,7 @@ class Client:
 
 		except aiohttp.WSServerHandshakeError as err:
 			error = str(err)
-		bytes_received = len(data_received)
+		bytes_received = len(data_received) if data_received else 0
 		end = time.perf_counter()
 		if self.perftest.print_responses or error:
 			if error:

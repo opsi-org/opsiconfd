@@ -1098,7 +1098,6 @@ function startTerminal() {
 }
 
 function terminalFileUpload(file) {
-	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
 	var formData = new FormData();
 	formData.append('file', file);
 	const xhr = new XMLHttpRequest();
@@ -1115,6 +1114,7 @@ function terminalFileUpload(file) {
 			console.error(`File upload failed: ${JSON.stringify(this.response)}`);
 		}
 	};
+	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
 	xhr.send(formData);
 }
 

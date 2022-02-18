@@ -84,14 +84,15 @@ def is_manager(proc) -> bool:
 	return manager
 
 
-def get_manager_pid(ignore_self: bool = False) -> Optional[int]:
+def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> Optional[int]:
 	manager_pid = None
 	ignore_pids = []
 	if ignore_self:
 		our_pid = os.getpid()
 		our_proc = psutil.Process(our_pid)
-		ignore_pids = [our_pid]
+		ignore_pids += [our_pid]
 		ignore_pids += [p.pid for p in our_proc.children(recursive=True)]
+	if ignore_parents:
 		ignore_pids += [p.pid for p in our_proc.parents()]
 
 	for proc in psutil.process_iter():

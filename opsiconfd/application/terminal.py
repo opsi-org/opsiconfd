@@ -8,8 +8,6 @@
 application.teminal
 """
 
-import os
-import pwd
 import asyncio
 import pathlib
 from typing import Optional, Any

@@ -82,7 +82,7 @@ def test_file_upload_auth_and_terminal_id(test_client):  # pylint: disable=redef
 	assert res.status_code == 422
 
 	res = test_client.post("/admin/terminal/fileupload", params={"terminal_id": terminal_id}, files=files)
-	assert res.status_code == 404
+	assert res.status_code == 403
 	assert "Invalid terminal id" in res.text
 
 

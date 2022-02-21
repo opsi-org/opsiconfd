@@ -8,6 +8,8 @@
 application.teminal
 """
 
+import os
+import pwd
 import asyncio
 import pathlib
 from typing import Optional, Any
@@ -86,7 +88,9 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			await websocket.close(code=4403)
 
 		logger.info("Websocket client connected to terminal columns=%d, lines=%d", columns, lines)
-		self._pty = start_pty(shell=config.admin_interface_terminal_shell, lines=lines, columns=columns)
+
+		cwd = pwd.getpwuid(os.getuid()).pw_dir
+		self._pty = start_pty(shell=config.admin_interface_terminal_shell, lines=lines, columns=columns, cwd=cwd)
 
 		session = self.scope["session"]
 		terminals = session.get("terminal_ws", {})
@@ -103,32 +107,35 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 
 
 @app.post("/admin/terminal/fileupload")
-async def terminal_fileupload(terminal_id: str, file: UploadFile):
+async def terminal_fileupload(terminal_id: str, file: UploadFile):  # pylint: disable=too-many-return-statements
 	if "terminal" in config.admin_interface_disabled_features:
-		return JSONResponse("Terminal disabled", status_code=status.HTTP_403_FORBIDDEN)
+		return JSONResponse("Terminal disabled", status_code=status.HTTP_404_NOT_FOUND)
 
 	session = contextvar_client_session.get()
 	if not session:
 		return JSONResponse("Invalid session", status_code=status.HTTP_403_FORBIDDEN)
 	terminals = session.get("terminal_ws")
 	if not terminals or terminal_id not in terminals:
-		return JSONResponse("Invalid terminal id", status_code=status.HTTP_404_NOT_FOUND)
+		return JSONResponse("Invalid terminal id", status_code=status.HTTP_403_FORBIDDEN)
 
 	node_name, tty_pid = terminals[terminal_id].split(":", 1)
 	if node_name != config.node_name:
-		return JSONResponse("Invalid node", status_code=status.HTTP_404_NOT_FOUND)
+		return JSONResponse("Invalid node", status_code=status.HTTP_403_FORBIDDEN)
 
 	cwd = pathlib.Path(f"/proc/{tty_pid}/cwd")
 	if not cwd.exists():
-		return JSONResponse("Invalid terminal id", status_code=status.HTTP_404_NOT_FOUND)
+		return JSONResponse("Invalid process id", status_code=status.HTTP_403_FORBIDDEN)
 
-	filename = (cwd.readlink() / file.filename).absolute()
-	orig_name = filename.name
-	ext = 0
-	while filename.exists():
-		ext += 1
-		filename = filename.with_name(f"{orig_name}.{ext}")
+	try:
+		filename = (cwd.readlink() / file.filename).absolute()
+		orig_name = filename.name
+		ext = 0
+		while filename.exists():
+			ext += 1
+			filename = filename.with_name(f"{orig_name}.{ext}")
 
-	filename.write_bytes(await file.read())  # type: ignore[arg-type]
-	filename.chmod(0o660)
-	return JSONResponse({"filename": str(filename.name)})
+		filename.write_bytes(await file.read())  # type: ignore[arg-type]
+		filename.chmod(0o660)
+		return JSONResponse({"filename": str(filename.name)})
+	except PermissionError as err:
+		return JSONResponse(str(err), status_code=status.HTTP_403_FORBIDDEN)

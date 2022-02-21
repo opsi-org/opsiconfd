@@ -336,6 +336,10 @@ li {
 	margin-top: 10px;
 }
 
+#terminal-upload {
+	padding: 5px 0px 25px 0px;
+}
+
 .upload-active {
 	animation-name: upload-bg-color;
 	animation-duration: 1s;

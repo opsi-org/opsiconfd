@@ -11,6 +11,7 @@ admininterface
 from urllib.parse import urlparse
 from operator import itemgetter
 import os
+import json
 import signal
 import datetime
 import collections
@@ -302,10 +303,16 @@ async def get_locked_products_list() -> list:
 
 
 @admin_interface_router.post("/products/{product}/unlock")
-async def unlock_product(product: str) -> JSONResponse:
+async def unlock_product(request: Request, product: str) -> JSONResponse:
 	backend = get_backend()
+	depots = None
 	try:
-		backend.unlockProduct(productId=product, depotIds=None)  # pylint: disable=no-member
+		request_body = await request.json()
+		depots = request_body.get("depots", None)
+	except json.decoder.JSONDecodeError:
+		pass
+	try:
+		backend.unlockProduct(productId=product, depotIds=depots)  # pylint: disable=no-member
 		response = JSONResponse({"status": 200, "error": None, "data": {"product": product, "action": "unlock"}})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)

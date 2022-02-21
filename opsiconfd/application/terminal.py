@@ -32,9 +32,7 @@ from .utils import OpsiconfdWebSocketEndpoint
 PTY_READER_BLOCK_SIZE = 16 * 1024
 
 
-def start_pty(lines=30, columns=120, shell=None, cwd=None):
-	if shell is None:
-		shell = pwd.getpwuid(os.getuid()).pw_shell
+def start_pty(shell, lines=30, columns=120, cwd=None):
 	sp_env = get_subprocess_environment()
 	sp_env.update({"TERM": "xterm-256color"})
 	return spawn(shell, dimensions=(lines, columns), env=sp_env, cwd=cwd)
@@ -90,7 +88,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			await websocket.close(code=4403)
 
 		logger.info("Websocket client connected to terminal columns=%d, lines=%d", columns, lines)
-		self._pty = start_pty(lines=lines, columns=columns, cwd="/var/lib/opsi")
+		self._pty = start_pty(shell=config.admin_interface_terminal_shell, lines=lines, columns=columns)
 
 		session = self.scope["session"]
 		terminals = session.get("terminal_ws", {})

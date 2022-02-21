@@ -807,6 +807,12 @@ class Config(metaclass=Singleton):
 			help=("A list of admin interface features to disable (features: terminal, rpc-interface)."),
 			choices=["terminal", "rpc-interface"],
 		)
+		self._parser.add(
+			"--admin-interface-terminal-shell",
+			env_var="OPSICONFD_ADMIN_INTERFACE_TERMINAL_SHELL",
+			default="/bin/sh",
+			help=("Shell command for admin interface terminal"),
+		)
 		if self._pytest:
 			self._parser.add("args", nargs="*")
 		else:

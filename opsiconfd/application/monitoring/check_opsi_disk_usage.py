@@ -61,7 +61,7 @@ def check_opsi_disk_usage(
 		for resource in resources:
 			path = dirs.get(resource)
 			if path and path.startswith("file://"):
-				path.replace("file://", "")
+				path = path.replace("file://", "")
 				results[resource] = getDiskSpaceUsage(path)
 	except Exception as err:  # pylint: disable=broad-except
 		message = f"Not able to check DiskUsage: {err}"

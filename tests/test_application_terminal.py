@@ -9,7 +9,6 @@ test application.terminal
 """
 
 import os
-import time
 import uuid
 import pytest
 from starlette.websockets import WebSocketDisconnect

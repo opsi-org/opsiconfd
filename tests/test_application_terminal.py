@@ -15,7 +15,7 @@ import pytest
 from starlette.websockets import WebSocketDisconnect
 from starlette.status import WS_1008_POLICY_VIOLATION
 
-from .utils import clean_redis, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
+from .utils import get_config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
 
 
 def test_connect(test_client):  # pylint: disable=redefined-outer-name
@@ -34,18 +34,28 @@ def test_connect(test_client):  # pylint: disable=redefined-outer-name
 		pass
 
 
+def test_shell_config(test_client):  # pylint: disable=redefined-outer-name
+	terminal_id = str(uuid.uuid4())
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	with get_config({"admin_interface_terminal_shell": "/bin/echo testshell"}):
+		with test_client.websocket_connect("/admin/terminal/ws", params={"terminal_id": terminal_id}) as websocket:
+			data = websocket.receive()
+			print(f"received: >>>{data}<<<")
+			assert b"testshell" in data["bytes"]
+
+
 def test_command(test_client):  # pylint: disable=redefined-outer-name
 	terminal_id = str(uuid.uuid4())
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with test_client.websocket_connect("/admin/terminal/ws", params={"terminal_id": terminal_id}) as websocket:
-		time.sleep(1)
-		data = websocket.receive()
-		time.sleep(1)
-		websocket.send_text("echo test\r\n")
-		time.sleep(1)
-		data = websocket.receive()
-		print(f"received: >>>{data}<<<")
-		assert b"echo test\r\ntest\r\n" in data["bytes"]
+
+	with get_config({"admin_interface_terminal_shell": "/bin/bash"}):
+		with test_client.websocket_connect("/admin/terminal/ws", params={"terminal_id": terminal_id}) as websocket:
+			data = websocket.receive()
+			websocket.send_text("echo test\r\n")
+			data = websocket.receive()
+			print(f"received: >>>{data}<<<")
+			assert b"echo testtest" in data["bytes"].replace(b"\r\n", b"")
 
 
 def test_params(test_client):  # pylint: disable=redefined-outer-name
@@ -53,11 +63,13 @@ def test_params(test_client):  # pylint: disable=redefined-outer-name
 	columns = 30
 	lines = 10
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	with test_client.websocket_connect(f"/admin/terminal/ws?terminal_id={terminal_id}&columns={columns}&lines={lines}") as websocket:
-		data = websocket.receive()
-		websocket.send_text("echo :${COLUMNS}:${LINES}:\r\n")
-		data = websocket.receive()
-		assert f":{columns}:{lines}:" in data["bytes"].decode("utf-8")
+	with get_config({"admin_interface_terminal_shell": "/bin/bash"}):
+		with test_client.websocket_connect(f"/admin/terminal/ws?terminal_id={terminal_id}&columns={columns}&lines={lines}") as websocket:
+			data = websocket.receive()
+			websocket.send_text("echo :${COLUMNS}:${LINES}:\r\n")
+			data = websocket.receive()
+			print(f"received: >>>{data}<<<")
+			assert f":{columns}:{lines}:" in data["bytes"].decode("utf-8")
 
 
 def test_file_upload_auth_and_terminal_id(test_client):  # pylint: disable=redefined-outer-name

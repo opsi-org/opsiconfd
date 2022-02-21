@@ -810,7 +810,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--admin-interface-terminal-shell",
 			env_var="OPSICONFD_ADMIN_INTERFACE_TERMINAL_SHELL",
-			default="/bin/sh",
+			default="/bin/bash",
 			help=("Shell command for admin interface terminal"),
 		)
 		if self._pytest:

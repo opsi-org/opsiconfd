@@ -1111,7 +1111,9 @@ function terminalFileUpload(file) {
 			terminal_ws.send(filename + "\033[D".repeat(filename.length));
 		}
 		else {
-			console.error(`File upload failed: ${JSON.stringify(this.response)}`);
+			let error = `File upload failed: ${JSON.stringify(this.response)}`;
+			console.error(error);
+			alert(error);
 		}
 	};
 	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");

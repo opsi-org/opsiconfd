@@ -14,6 +14,7 @@ import asyncio
 import pathlib
 from typing import Optional, Any
 
+import psutil
 from fastapi import Query, UploadFile, status
 from fastapi.responses import JSONResponse
 from starlette.types import Scope, Receive, Send
@@ -122,20 +123,34 @@ async def terminal_fileupload(terminal_id: str, file: UploadFile):  # pylint: di
 	if node_name != config.node_name:
 		return JSONResponse("Invalid node", status_code=status.HTTP_403_FORBIDDEN)
 
-	cwd = pathlib.Path(f"/proc/{tty_pid}/cwd")
-	if not cwd.exists():
+	try:
+		proc = psutil.Process(int(tty_pid))
+	except (psutil.NoSuchProcess, ValueError):
 		return JSONResponse("Invalid process id", status_code=status.HTTP_403_FORBIDDEN)
 
-	try:
-		filename = (cwd.readlink() / file.filename).absolute()
-		orig_name = filename.name
-		ext = 0
-		while filename.exists():
-			ext += 1
-			filename = filename.with_name(f"{orig_name}.{ext}")
+	dst_dir = proc.cwd()
+	return_absolute_path = False
+	for child in proc.children(recursive=True):
+		try:
+			dst_dir = child.cwd()
+		except psutil.AccessDenied:
+			# Child owned by an other user (su)
+			return_absolute_path = True
+			dst_dir = "/var/lib/opsi"
+			if not os.path.exists(dst_dir):
+				dst_dir = pwd.getpwuid(os.getuid()).pw_dir
 
-		filename.write_bytes(await file.read())  # type: ignore[arg-type]
-		filename.chmod(0o660)
-		return JSONResponse({"filename": str(filename.name)})
+	dst_path = pathlib.Path(dst_dir)
+	try:
+		dst_file = (dst_path / file.filename).absolute()
+		orig_name = dst_file.name
+		ext = 0
+		while dst_file.exists():
+			ext += 1
+			dst_file = dst_file.with_name(f"{orig_name}.{ext}")
+
+		dst_file.write_bytes(await file.read())  # type: ignore[arg-type]
+		dst_file.chmod(0o660)
+		return JSONResponse({"filename": str(dst_file if return_absolute_path else dst_file.name)})
 	except PermissionError as err:
 		return JSONResponse(str(err), status_code=status.HTTP_403_FORBIDDEN)

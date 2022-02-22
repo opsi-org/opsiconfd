@@ -1023,15 +1023,17 @@ function formateDate(date) {
 }
 
 
-var terminal;
-var terminal_ws;
+var terminals = {};
 
 function startTerminal() {
-	terminal = new Terminal({
+	let terminal = new Terminal({
 		cursorBlink: true,
 		scrollback: 1000,
 		fontSize: 14
 	});
+	terminal.terminal_id = crypto.randomUUID();
+	terminals[terminal.terminal_id] = terminal;
+
 	const searchAddon = new SearchAddon.SearchAddon();
 	terminal.loadAddon(searchAddon);
 	const webLinksAddon = new WebLinksAddon.WebLinksAddon();
@@ -1049,7 +1051,6 @@ function startTerminal() {
 
 		console.log(`size: ${terminal.cols} columns, ${terminal.rows} rows`);
 
-		terminal.terminal_id = crypto.randomUUID();
 		let params = [`terminal_id=${terminal.terminal_id}`, `lines=${terminal.rows}`, `columns=${terminal.cols}`]
 		let loc = window.location;
 		let ws_uri;
@@ -1059,19 +1060,19 @@ function startTerminal() {
 			ws_uri = "ws:";
 		}
 		ws_uri += "//" + loc.host;
-		terminal_ws = new WebSocket(ws_uri + "/admin/terminal/ws?" + params.join('&'));
-		terminal_ws.onclose = function () {
+		terminal.websocket = new WebSocket(ws_uri + "/admin/terminal/ws?" + params.join('&'));
+		terminal.websocket.onclose = function () {
 			console.log("Terminal ws connection closed");
 			terminal.writeln("\r\n\033[1;37m> Connection closed <\033[0m");
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
-		terminal_ws.onerror = function (error) {
+		terminal.websocket.onerror = function (error) {
 			console.error(`Terminal ws connection error: ${JSON.stringify(error)}`);
 			terminal.writeln("\r\n\033[1;31m> Connection error: " + JSON.stringify(error) + " <\033[0m");
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
 
-		const attachAddon = new AttachAddon.AttachAddon(terminal_ws);
+		const attachAddon = new AttachAddon.AttachAddon(terminal.websocket);
 		terminal.loadAddon(attachAddon);
 
 		const el = document.getElementsByClassName("xterm-screen")[0];
@@ -1117,5 +1118,9 @@ function terminalFileUpload(file) {
 }
 
 function stopTerminal() {
-	if (terminal) terminal.dispose();
+	for (const [terminal_id, terminal] of Object.entries(terminals)) {
+		terminal.dispose();
+		terminal.websocket.close();
+		delete terminals[terminal_id];
+	}
 }

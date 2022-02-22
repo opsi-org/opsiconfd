@@ -105,6 +105,8 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		if self._pty_reader_task:
 			self._pty_reader_task.cancel()
+		if self._pty:
+			self._pty.close()
 
 
 @app.post("/admin/terminal/fileupload")

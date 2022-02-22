@@ -12,9 +12,12 @@ import traceback
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
+from aioredis.exceptions import ResponseError
 
+from .. import contextvar_client_session
 from ..logging import logger
 from ..utils import decode_redis_result, async_get_redis_info, redis_client, async_redis_client
+
 
 redis_interface_router = APIRouter()
 
@@ -33,12 +36,13 @@ async def redis_command(request: Request, response: Response):
 		redis_result = await redis.execute_command(redis_cmd)
 
 		response = JSONResponse({"status": 200, "error": None, "data": {"result": decode_redis_result(redis_result)}})
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error(err, exc_info=True)
-		trace_back = traceback.format_exc()
+	except ResponseError as err:  # pylint: disable=broad-except
+		logger.info(err, exc_info=True)
 		error = {"message": str(err), "class": err.__class__.__name__}
-		error["details"] = str(trace_back)
-		response = JSONResponse({"status": 500, "error": error, "data": {"result": None}}, status.HTTP_500_INTERNAL_SERVER_ERROR)
+		session = contextvar_client_session.get()
+		if session and session.user_store.isAdmin:
+			error["details"] = str(traceback.format_exc())
+		response = JSONResponse({"status": 422, "error": error, "data": {"result": None}}, status.HTTP_422_UNPROCESSABLE_ENTITY)
 	return response
 
 

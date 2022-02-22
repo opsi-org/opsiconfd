@@ -879,26 +879,22 @@ function logout() {
 	});
 	request.send('{"return_401": true}');
 }
-
 function callRedis() {
-	let request = new XMLHttpRequest();
-	request.open("POST", "/redis-interface");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result, "redis-result");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
+	let xhr = new XMLHttpRequest();
+	xhr.open("POST", "/redis-interface");
+	xhr.responseType = 'json';
+	xhr.onload = function (e) {
+		console.error(this.response);
+		if (this.status == 200) {
+			console.log(`Redis command successful: ${JSON.stringify(this.response)}`)
+			outputToHTML(this.response, "redis-result");
 		}
-	});
-	cmd = document.getElementById("redis-cmd").value;
-	body = {
-		"cmd": cmd
-	}
-	request.send(JSON.stringify(body));
+		else {
+			console.error(this.response.error);
+			outputToHTML(this.response, "redis-result");
+		}
+	};
+	xhr.send(JSON.stringify({ "cmd": document.getElementById("redis-cmd").value }));
 }
 
 function createRequestJSON() {

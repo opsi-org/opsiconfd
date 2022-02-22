@@ -14,7 +14,6 @@ from typing import List, Dict, Optional, Any
 from collections import namedtuple
 import uuid
 import base64
-import orjson
 import msgpack  # type: ignore[import]
 import aioredis
 
@@ -434,11 +433,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			data = redis.get(self.redis_key)
 		if not data:
 			return False
-		try:
-			data = msgpack.loads(data)
-		except msgpack.exceptions.ExtraData:
-			# Was json encoded before, can be removed in the future
-			data = orjson.loads(data)  # pylint: disable=no-member
+		data = msgpack.loads(data)
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
 		self.max_age = data.get("max_age", self.max_age)
@@ -459,23 +454,31 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			return
 		self.last_stored = utc_time_timestamp()
 		self._update_max_age()
-		data = {
-			"created": self.created,
-			"last_used": self.last_used,
-			"last_stored": self.last_stored,
-			"max_age": self.max_age,
-			"user_agent": self.user_agent,
-			"user_store": serialize(self.user_store.__dict__),
-			"option_store": self.option_store,
-			"data": self._data,
-		}
-		# Set is not serializable
-		if "userGroups" in data["user_store"]:
-			data["user_store"]["userGroups"] = list(data["user_store"]["userGroups"])
-		# Do not store password
-		if "password" in data["user_store"]:
-			del data["user_store"]["password"]
+		# Remember that the session data in redis may have been
+		# changed by another worker process since the last load.
+		# Read session from redis if available and update session data.
 		with redis_client() as redis:
+			data = redis.get(self.redis_key) or {}
+			data.update(
+				{
+					"created": data["created"] or self.created,
+					"last_used": self.last_used,
+					"last_stored": self.last_stored,
+					"max_age": self.max_age,
+					"user_agent": self.user_agent,
+					"user_store": serialize(self.user_store.__dict__),
+					"option_store": self.option_store,
+					"data": data["data"] or {},
+				}
+			)
+			data["data"].update(self._data)
+			# Set is not serializable
+			if "userGroups" in data["user_store"]:
+				data["user_store"]["userGroups"] = list(data["user_store"]["userGroups"])
+			# Do not store password
+			if "password" in data["user_store"]:
+				del data["user_store"]["password"]
+
 			redis.set(self.redis_key, msgpack.dumps(data), ex=self._redis_expiration_seconds)
 
 	async def store(self, wait: Optional[bool] = None) -> None:

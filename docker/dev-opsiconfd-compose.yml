@@ -5,6 +5,8 @@ services:
     hostname: ${OPSI_HOSTNAME}
     env_file:
       ../.env
+    cap_add:
+      - SYS_PTRACE
     build:
       context: ..
       dockerfile: docker/Dockerfile.dev

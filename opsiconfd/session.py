@@ -458,28 +458,31 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		# changed by another worker process since the last load.
 		# Read session from redis if available and update session data.
 		with redis_client() as redis:
-			data = redis.get(self.redis_key) or {}
-			data.update(
+			session_data = {}
+			data = redis.get(self.redis_key)
+			if data:
+				session_data = msgpack.loads(data)
+			session_data.update(
 				{
-					"created": data["created"] or self.created,
+					"created": session_data.get("created", self.created),
 					"last_used": self.last_used,
 					"last_stored": self.last_stored,
 					"max_age": self.max_age,
 					"user_agent": self.user_agent,
 					"user_store": serialize(self.user_store.__dict__),
 					"option_store": self.option_store,
-					"data": data["data"] or {},
+					"data": session_data.get("data", {}),
 				}
 			)
-			data["data"].update(self._data)
+			session_data["data"].update(self._data)
 			# Set is not serializable
-			if "userGroups" in data["user_store"]:
-				data["user_store"]["userGroups"] = list(data["user_store"]["userGroups"])
+			if "userGroups" in session_data["user_store"]:
+				session_data["user_store"]["userGroups"] = list(session_data["user_store"]["userGroups"])
 			# Do not store password
-			if "password" in data["user_store"]:
-				del data["user_store"]["password"]
+			if "password" in session_data["user_store"]:
+				del session_data["user_store"]["password"]
 
-			redis.set(self.redis_key, msgpack.dumps(data), ex=self._redis_expiration_seconds)
+			redis.set(self.redis_key, msgpack.dumps(session_data), ex=self._redis_expiration_seconds)
 
 	async def store(self, wait: Optional[bool] = None) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now

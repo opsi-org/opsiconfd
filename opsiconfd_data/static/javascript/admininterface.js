@@ -1095,6 +1095,7 @@ function startTerminal() {
 }
 
 function terminalFileUpload(file) {
+	let terminal = Object.values(terminals)[0];
 	var formData = new FormData();
 	formData.append('file', file);
 	const xhr = new XMLHttpRequest();
@@ -1105,7 +1106,7 @@ function terminalFileUpload(file) {
 		if (this.status == 200) {
 			console.log(`File upload successful: ${JSON.stringify(this.response)}`)
 			const filename = this.response.filename;
-			terminal_ws.send(filename + "\033[D".repeat(filename.length));
+			terminal.websocket.send(filename + "\033[D".repeat(filename.length));
 		}
 		else {
 			let error = `File upload failed: ${JSON.stringify(this.response)}`;

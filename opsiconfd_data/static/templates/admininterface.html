@@ -116,7 +116,7 @@
 				startLog(0, Math.round(Date.now() / 1000) - 300); // last 5 minutes
 			}
 			else if (tabName == "terminal") {
-				startTerminal();
+				setTimeout(startTerminal, 500);
 			}
 
 			// Get all elements with class="tabcontent" and hide them

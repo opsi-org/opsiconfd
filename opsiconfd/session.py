@@ -189,12 +189,12 @@ class SessionMiddleware:
 			contextvar_client_session.set(scope["session"])
 			started_authenticated = scope["session"].user_store.authenticated
 
-		if connection.headers.get("user-agent", "").startswith("curl/"):
-			# Zsync2 will send "curl/<curl-version>" as User-Agent.
-			# Do not keep zsync2 sessions because zsync2 will never send a session id.
-			# If we keep the session, we may reach the maximum number of sessions per ip.
-			scope["session"].persistent = False
-			logger.debug("Not keeping session for client %s (%s)", connection.client.host, connection.headers.get("user-agent"))
+			if connection.headers.get("user-agent", "").startswith("curl/"):
+				# Zsync2 will send "curl/<curl-version>" as User-Agent.
+				# Do not keep zsync2 sessions because zsync2 will never send a session id.
+				# If we keep the session, we may reach the maximum number of sessions per ip.
+				scope["session"].persistent = False
+				logger.debug("Not keeping session for client %s (%s)", connection.client.host, connection.headers.get("user-agent"))
 
 		# Addon request processing
 		if scope["path"].startswith("/addons"):

@@ -737,7 +737,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "hypothesis"
-version = "6.37.1"
+version = "6.37.2"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
@@ -1816,7 +1816,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.2.0.273"
+version = "4.2.0.275"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -2379,7 +2379,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "types-requests"
-version = "2.27.10"
+version = "2.27.11"
 description = "Typing stubs for requests"
 category = "dev"
 optional = false
@@ -3177,8 +3177,8 @@ hyperlink = [
     {file = "hyperlink-21.0.0.tar.gz", hash = "sha256:427af957daa58bc909471c6c40f74c5450fa123dd093fc53efd2e91d2705a56b"},
 ]
 hypothesis = [
-    {file = "hypothesis-6.37.1-py3-none-any.whl", hash = "sha256:c0098b3fedffd97636accf70d4bd45047e386ec67bac4587d3dc2a2e52f7d67d"},
-    {file = "hypothesis-6.37.1.tar.gz", hash = "sha256:cbc8bda86856987ca83fb429d0a65dcac9c503253384628b9f723084b9513c1b"},
+    {file = "hypothesis-6.37.2-py3-none-any.whl", hash = "sha256:1c1777ccd3074fcca768d7594a284a41501c99843089d37e3235d38319e3f217"},
+    {file = "hypothesis-6.37.2.tar.gz", hash = "sha256:79321035b9174ffa506d724ca5e8af375d7bf532c80e4f602bd433792c527e6c"},
 ]
 hypothesis-graphql = [
     {file = "hypothesis-graphql-0.5.1.tar.gz", hash = "sha256:ba878305dae2f6df99d2fb390f49028695976a28114e4860c1a7d8e37f417222"},
@@ -3800,8 +3800,8 @@ python-opsi = [
     {file = "python_opsi-4.2.0.273-py3-none-any.whl", hash = "sha256:407ad26add78194ce250878f42f9cd17190ad0f657eb22a78488d328103abe8f"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.273.tar.gz", hash = "sha256:dab8fbaad32f04e7e5f095532772f1e5766228e99926745afb16bb674551a8ff"},
-    {file = "python_opsi_common-4.2.0.273-py3-none-any.whl", hash = "sha256:d9d311fbe178bd24cf4ae110572c5c187df3c890cef0cf8d2119aff3558b5597"},
+    {file = "python-opsi-common-4.2.0.275.tar.gz", hash = "sha256:2a8b8f05e4eab6f67903aaaeb4a908ee533cc6a85722ab91191a1521822c8135"},
+    {file = "python_opsi_common-4.2.0.275-py3-none-any.whl", hash = "sha256:e8f67b794bfbe9c9f41ee4e5408632166882084cb3b6a42db5781b28e9255ff5"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},
@@ -4031,8 +4031,8 @@ types-redis = [
     {file = "types_redis-4.1.16-py3-none-any.whl", hash = "sha256:a529fbae3b6c95e6790522d35a3065dc92ee29698c6b163ab573992b6144b41a"},
 ]
 types-requests = [
-    {file = "types-requests-2.27.10.tar.gz", hash = "sha256:5dcb088fcaa778efeee6b7fc46967037e983fbfb9fec02594578bd33fd75e555"},
-    {file = "types_requests-2.27.10-py3-none-any.whl", hash = "sha256:6cb4fb0bbcbc585c57eeee6ffe5a47638dc89706b8d290ec89a77213fc5bad1a"},
+    {file = "types-requests-2.27.11.tar.gz", hash = "sha256:6a7ed24b21780af4a5b5e24c310b2cd885fb612df5fd95584d03d87e5f2a195a"},
+    {file = "types_requests-2.27.11-py3-none-any.whl", hash = "sha256:506279bad570c7b4b19ac1f22e50146538befbe0c133b2cea66a9b04a533a859"},
 ]
 types-urllib3 = [
     {file = "types-urllib3-1.26.9.tar.gz", hash = "sha256:abd2d4857837482b1834b4817f0587678dcc531dbc9abe4cde4da28cef3f522c"},

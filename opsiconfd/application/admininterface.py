@@ -380,15 +380,15 @@ def open_grafana(request: Request):
 	if response.status_code == 404:
 		logger.debug("Create new user opsidashboard")
 
-		data = {"name": "opsidashboard", "email": "opsidashboard@admin", "login": "opsidashboard", "password": password, "OrgId": 1}
-		response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/api/admin/users", headers=headers, auth=auth, data=data)
+		data = {"name": "opsidashboard", "email": "opsidashboard@admin", "login": "opsidashboard", "password": password}
+		response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/api/admin/users", headers=headers, auth=auth, json=data)
 		if response.status_code != 200:
 			logger.error("Failed to create user opsidashboard: %s - %s", response.status_code, response.text)
 	else:
 		logger.debug("change opsidashboard password")
 		data = {"password": password}
 		user_id = response.json().get("id")
-		response = session.put(f"{config.grafana_internal_url}/api/admin/users/{user_id}/password", headers=headers, auth=auth, data=data)
+		response = session.put(f"{config.grafana_internal_url}/api/admin/users/{user_id}/password", headers=headers, auth=auth, json=data)
 		if response.status_code != 200:
 			logger.error("Failed to update password for user opsidashboard: %s - %s", response.status_code, response.text)
 

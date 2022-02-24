@@ -1780,7 +1780,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.273"
+version = "4.2.0.275"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -1800,7 +1800,7 @@ psutil = ">=5.8,<6.0"
 pyasn1 = ">=0.4,<0.5"
 pycryptodome = ">=3.10,<4.0"
 pyopenssl = ">=22.0,<23.0"
-python-opsi-common = ">=4.2.0.272,<5.0.0.0"
+python-opsi-common = ">=4.2.0.275,<5.0.0.0"
 python-pam = ">=1.8,<2.0"
 pywin32 = {version = ">=303,<304", markers = "sys_platform == \"win32\""}
 ruyaml = ">=0.91,<0.92"
@@ -2366,7 +2366,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "types-redis"
-version = "4.1.16"
+version = "4.1.17"
 description = "Typing stubs for redis"
 category = "dev"
 optional = false
@@ -3796,8 +3796,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.273.tar.gz", hash = "sha256:1f99602aed46fdbd54746aba3100277f8f5d0df7bb969a969fb34a508a902162"},
-    {file = "python_opsi-4.2.0.273-py3-none-any.whl", hash = "sha256:407ad26add78194ce250878f42f9cd17190ad0f657eb22a78488d328103abe8f"},
+    {file = "python-opsi-4.2.0.275.tar.gz", hash = "sha256:ce06927b50d58eca6f4cfd99ea603a924825c413b75f8f5f0049551eda53e6a0"},
+    {file = "python_opsi-4.2.0.275-py3-none-any.whl", hash = "sha256:3c307dab0b786e4d1b9bbc89da0319113a83e9de7c56f40b20c0d251700d3f04"},
 ]
 python-opsi-common = [
     {file = "python-opsi-common-4.2.0.275.tar.gz", hash = "sha256:2a8b8f05e4eab6f67903aaaeb4a908ee533cc6a85722ab91191a1521822c8135"},
@@ -4027,8 +4027,8 @@ types-pyopenssl = [
     {file = "types_pyOpenSSL-22.0.0-py3-none-any.whl", hash = "sha256:da685f57b864979f36df0157895139c8244ad4aad19b551f1678206fbad0108a"},
 ]
 types-redis = [
-    {file = "types-redis-4.1.16.tar.gz", hash = "sha256:a913521c1f008775fc3816813a5981f9da3b0dd3f3b2578b0a0464a84ac5f4d4"},
-    {file = "types_redis-4.1.16-py3-none-any.whl", hash = "sha256:a529fbae3b6c95e6790522d35a3065dc92ee29698c6b163ab573992b6144b41a"},
+    {file = "types-redis-4.1.17.tar.gz", hash = "sha256:5c8707423c60e70ba6ff9a5f01baacbb6c871e44f6a2bd562790cee9edd5b5b1"},
+    {file = "types_redis-4.1.17-py3-none-any.whl", hash = "sha256:7e98c567f0e279b47b0a0ddee8c0180a086e4a5f1b95e6890b40b2a84dc97fb6"},
 ]
 types-requests = [
     {file = "types-requests-2.27.11.tar.gz", hash = "sha256:6a7ed24b21780af4a5b5e24c310b2cd885fb612df5fd95584d03d87e5f2a195a"},

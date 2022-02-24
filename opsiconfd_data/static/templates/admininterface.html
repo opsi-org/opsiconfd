@@ -118,6 +118,9 @@
 			else if (tabName == "terminal") {
 				setTimeout(startTerminal, 500);
 			}
+			else if (tabName == "licensing") {
+				loadLicensingInfo();
+			}
 
 			// Get all elements with class="tabcontent" and hide them
 			tabcontent = document.getElementsByClassName("tabcontent");
@@ -162,6 +165,7 @@
 			{% if "terminal" not in disabled_features %}
 			<a href="#terminal" id="tablink-terminal" class="tablink" onclick="openTab('terminal');">Terminal</a>
 			{% endif %}
+			<a href="#licensing" id="tablink-licensing" class="tablink" onclick="openTab('licensing');">Licensing</a>
 			<!--
 			<a href="#memory-profiler" id="tablink-memory-profiler" class="tablink" onclick="openTab('memory-profiler');">Memory Profiler</a>
 			-->
@@ -519,6 +523,17 @@
 				To upload a file to the current working directory, drop it in the terminal window or use this
 				button:
 				<input type="file" onchange="terminalFileUpload(this.files[0]); this.value='';">
+			</div>
+		</div>
+
+		<div id="tab-licensing" class="tabcontent">
+			<div id="licensing-info">
+			</div>
+			<div id="licensing-dates">
+			</div>
+			<div id="license-upload">
+				Upload license files:
+				<input type="file" multiple accept=".opsilic" onchange="licenseUpload(this.files); this.value='';">
 			</div>
 		</div>
 </body>

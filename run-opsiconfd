@@ -8,13 +8,14 @@ freeze_support()
 
 try:
 	from opsiconfd.__main__ import main
+
 	main()
-except SystemExit:
-	pass
+except SystemExit as err:
+	sys.exit(err.code)
 except KeyboardInterrupt:
 	print("Interrupted", file=sys.stderr)
 	sys.exit(1)
-except Exception as e:
+except Exception:  # pylint: disable=broad-except
 	# Do not let pyinstaller handle exceptions and print:
 	# "Failed to execute script run-opsiconfd"
 	traceback.print_exc()

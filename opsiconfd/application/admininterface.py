@@ -9,6 +9,7 @@ admininterface
 """
 
 import os
+import re
 import json
 import signal
 import shutil
@@ -16,16 +17,18 @@ import tempfile
 import datetime
 import collections
 from operator import itemgetter
+from typing import Dict, List
 
 import msgpack  # type: ignore[import]
 import requests
 import orjson
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request, Response, UploadFile, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from starlette.concurrency import run_in_threadpool
 
+from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
 
@@ -442,6 +445,67 @@ def get_routes(request: Request) -> JSONResponse:  # pylint: disable=redefined-b
 			routes[route.path] = route.__class__.__name__
 
 	return JSONResponse({"status": 200, "error": None, "data": collections.OrderedDict(sorted(routes.items()))})
+
+
+@admin_interface_router.get("/licensing_info")
+def get_licensing_info() -> JSONResponse:
+	info = get_backend().backend_getLicensingInfo(True, False, True)  # pylint: disable=no-member
+	active_date = None
+	modules: Dict[str, dict] = {}
+	previous: Dict[str, dict] = {}
+	for at_date, date_info in info.get("dates", {}).items():
+		at_date = datetime.date.fromisoformat(at_date)
+		if (at_date <= datetime.date.today()) and (not active_date or at_date > active_date):
+			active_date = at_date
+
+		for module_id, module in date_info["modules"].items():
+			if module_id not in modules:
+				modules[module_id] = {}
+			modules[module_id][at_date.strftime("%Y-%m-%d")] = module
+			module["changed"] = True
+			if module_id in previous:
+				module["changed"] = (
+					module["state"] != previous[module_id]["state"]
+					or module["license_ids"] != previous[module_id]["license_ids"]
+					or module["client_number"] != previous[module_id]["client_number"]
+				)
+			previous[module_id] = module
+
+	lic = (info.get("licenses") or [{}])[0]
+	return JSONResponse(
+		{
+			"status": 200,
+			"error": None,
+			"data": {
+				"info": {
+					"customer_name": lic.get("customer_name", ""),
+					"customer_address": lic.get("customer_address", ""),
+					"checksum": info["licenses_checksum"],
+				},
+				"module_dates": modules,
+				"active_date": str(active_date) if active_date else None,
+			},
+		}
+	)
+
+
+@admin_interface_router.post("/license_upload")
+async def license_upload(files: List[UploadFile]):
+	try:
+		for file in files:
+			if not re.match(r"^\w[\w -]*\.opsilic$", file.filename):
+				raise ValueError(f"Invalid filename {file.filename!r}")
+			olf = OpsiLicenseFile(os.path.join("/etc/opsi/licenses", file.filename))
+			olf.read_string((await file.read()).decode("utf-8"))  # type: ignore[union-attr]
+			if not olf.licenses:
+				raise ValueError(f"No license found in {file.filename!r}")
+			logger.notice("Writing opsi license file %r", olf.filename)
+			olf.write()
+			os.chmod(olf.filename, 0o660)
+		return JSONResponse({"status": 201, "error": None, "data": f"{len(files)} opsi license files imported"}, status.HTTP_201_CREATED)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.warning(err, exc_info=True)
+		return JSONResponse({"status": 422, "error": f"Invalid license file: {err}", "data": None}, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def get_num_servers(backend):

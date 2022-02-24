@@ -759,7 +759,6 @@ function printClientTable(data, htmlId) {
 	div = document.getElementById(htmlId);
 	div.innerHTML = htmlStr;
 	return htmlStr;
-
 }
 
 function printRPCTable(data, htmlId) {
@@ -879,6 +878,7 @@ function logout() {
 	});
 	request.send('{"return_401": true}');
 }
+
 function callRedis() {
 	let xhr = new XMLHttpRequest();
 	xhr.open("POST", "/redis-interface");
@@ -1124,4 +1124,83 @@ function stopTerminal() {
 		terminal.websocket.close();
 		delete terminals[terminal_id];
 	}
+}
+
+function generateLiceningInfoTable(info, htmlId) {
+	htmlStr = "<table id=\"licensing-info-table\">";
+	for (const [key, val] of Object.entries(info)) {
+		htmlStr += `<tr><td class="licensing-info-key">${key}</td><td>${val}</td></tr>`;
+	}
+	htmlStr += "</table>";
+	div = document.getElementById(htmlId).innerHTML = htmlStr;
+}
+
+function generateLiceningDatesTable(dates, activeDate, htmlId) {
+	htmlStr = "<table id=\"licensing-dates-table\"><tr><th>Module</th>";
+	for (const date of Object.keys(Object.values(dates)[0])) {
+		htmlStr += `<th>${date}</th>`;
+	}
+	htmlStr += "</tr>";
+	for (const [moduleId, dateData] of Object.entries(dates)) {
+		htmlStr += `<tr><td>${moduleId}</td>`;
+		for (const [date, moduleData] of Object.entries(dateData)) {
+			let title = "";
+			for (const [k, v] of Object.entries(moduleData)) {
+				title += `${k}: ${v}&#010;`;
+			}
+			const changed = moduleData['changed'] ? 'changed' : '';
+			const active = date == activeDate ? 'active' : 'inactive';
+			const text = moduleData['client_number'] == 999999999 ? 'unlimited' : moduleData['client_number'];
+			htmlStr += `<td title="${title}" class="${changed} ${moduleData['state']} ${active}">${text}</td>`;
+		}
+		htmlStr += "</tr>";
+	}
+	htmlStr += "</table>";
+	div = document.getElementById(htmlId).innerHTML = htmlStr;
+}
+
+function loadLicensingInfo() {
+	let xhr = new XMLHttpRequest();
+	xhr.open("GET", "/admin/licensing_info");
+	xhr.responseType = 'json';
+	xhr.onload = function (e) {
+		console.error(this.response);
+		if (this.status == 200) {
+			console.log("Licensing info:");
+			console.log(this.response);
+			if (Object.keys(this.response.data.module_dates).length > 0) {
+				generateLiceningInfoTable(this.response.data.info, "licensing-info");
+				generateLiceningDatesTable(this.response.data.module_dates, this.response.data.active_date, "licensing-dates");
+			} else {
+				div = document.getElementById("licensing-info").innerHTML = "<p>No licenses available.</p>";
+				div = document.getElementById("licensing-dates").innerHTML = "";
+			}
+		}
+		else {
+			console.error(this.response.error);
+		}
+	};
+	xhr.send();
+}
+
+function licenseUpload(files) {
+	var formData = new FormData();
+	for (var i = 0; i < files.length; i++) {
+		formData.append("files", files[i]);
+	}
+	const xhr = new XMLHttpRequest();
+	xhr.responseType = 'json';
+	xhr.open("POST", "/admin/license_upload", true);
+	xhr.onload = function (e) {
+		if (this.status == 201) {
+			console.log(`File upload successful: ${JSON.stringify(this.response)}`)
+			loadLicensingInfo();
+		}
+		else {
+			let error = `File upload failed: ${JSON.stringify(this.response)}`;
+			console.error(error);
+			alert(error);
+		}
+	};
+	xhr.send(formData);
 }

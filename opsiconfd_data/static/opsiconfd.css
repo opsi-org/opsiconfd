@@ -398,3 +398,86 @@ button.loading {
 		height: 140px;
 	}
 }
+
+table#licensing-info-table {
+	table-layout: auto;
+	border-spacing: 0px;
+	border-collapse: collapse;
+}
+
+table#licensing-info-table td {
+	font-size: 15px;
+	border: 1px #333 solid;
+	text-align: left;
+	padding: 2px 10px 2px 10px;
+	color: #333;
+	background-color: #fff;
+}
+
+td.licensing-info-key {
+	font-weight: bold;
+}
+
+.lic-state-valid {
+	color: #3a3a3a;
+}
+
+.lic-state-replaced_by_non_core {
+	color: #bd1e1e;
+}
+
+.lic-state-expired {
+	color: #bd1e1e;
+}
+
+.lic-state-not_yet_valid {
+	color: #bd781e;
+}
+
+.lic-state-revoked {
+	color: #c24747;
+}
+
+.lic-state-invalid_signature {
+	color: #bd1e1e;
+}
+
+table#licensing-dates-table {
+	table-layout: auto;
+	border-spacing: 0px;
+	border-collapse: collapse;
+}
+
+div#licensing-info, div#license-upload {
+	padding-top: 25px;
+	padding-bottom: 25px;
+}
+
+table#licensing-dates-table td, table#licensing-dates-table th {
+	font-size: 15px;
+	border: 1px #333 solid;
+	text-align: left;
+	padding: 2px 10px 2px 10px;
+	color: #333;
+	background-color: #fff;
+}
+
+table#licensing-dates-table tr:hover td {
+	background: #eee;
+}
+
+table#licensing-dates-table td.licensed {
+	color: #40853d;
+}
+
+table#licensing-dates-table td.free {
+	color: #3d8582;
+}
+
+table#licensing-dates-table td.changed {
+	font-weight: bold;
+}
+
+table#licensing-dates-table th.active, table#licensing-dates-table td.active {
+	background-color: #f5ffec;
+}

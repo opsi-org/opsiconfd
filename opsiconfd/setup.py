@@ -240,13 +240,13 @@ def setup(full: bool = True):  # pylint: disable=too-many-branches
 		try:
 			setup_grafana()
 		except Exception as err:  # pylint: disable=broad-except
-			logger.warning("Failed to setup grafana: %s", err)
+			logger.warning("Failed to setup grafana: %s", err, exc_info=True)
 
 	if "metric_downsampling" not in config.skip_setup:
 		try:
 			setup_metric_downsampling()
 		except Exception as err:  # pylint: disable=broad-except
-			logger.warning("Failed to setup redis downsampling: %s", err)
+			logger.warning("Failed to setup redis downsampling: %s", err, exc_info=True)
 
 	if "ssl" not in config.skip_setup:
 		try:

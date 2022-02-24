@@ -11,27 +11,28 @@ grafana
 
 import os
 import re
-import ssl
 import codecs
-import json
 import copy
-import base64
 import sqlite3
-import random
-import string
 import hashlib
 import datetime
 import subprocess
-from typing import Dict, Any, Union
+from typing import Tuple, Dict, Any
 from urllib.parse import urlparse
 from packaging.version import Version
-import aiohttp
+import requests
+from requests.auth import AuthBase, HTTPBasicAuth
 
 from .logging import logger
 from .config import config
 from .utils import get_random_string
 
 API_KEY_NAME = "opsiconfd"
+GRAFANA_CLI = "/usr/sbin/grafana-cli"
+GRAFANA_DB = "/var/lib/grafana/grafana.db"
+PLUGIN_DIR = "/var/lib/grafana/plugins"
+PLUGIN_ID = "grafana-simple-json-datasource"
+PLUGIN_MIN_VERSION = "1.4.2"
 
 GRAFANA_DATASOURCE_TEMPLATE = {
 	"orgId": 1,
@@ -209,109 +210,107 @@ class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
 		return panel
 
 
-def setup_grafana():
-	grafana_plugin_dir = "/var/lib/grafana/plugins"
-	grafana_cli = "/usr/sbin/grafana-cli"
-	grafana_db = "/var/lib/grafana/grafana.db"
-	plugin_id = "grafana-simple-json-datasource"
-	plugin_min_version = "1.4.2"
-
+def grafana_is_local():
 	url = urlparse(config.grafana_internal_url)
 	if url.hostname not in ("localhost", "127.0.0.1", "::1"):
+		return False
+
+	for path in (GRAFANA_CLI, GRAFANA_DB):
+		if not os.path.exists(path):
+			return False
+
+	return True
+
+
+class HTTPBearerAuth(AuthBase):  # pylint: disable=too-few-public-methods
+	def __init__(self, token):
+		self.token = token
+
+	def __call__(self, r):
+		r.headers["authorization"] = f"Bearer {self.token}"
+		return r
+
+
+def grafana_admin_session() -> Tuple[str, requests.Session]:
+	url = urlparse(config.grafana_internal_url)
+
+	session = requests.Session()
+	session.verify = config.ssl_trusted_certs
+	if not config.grafana_verify_cert:
+		session.verify = False
+
+	if url.username is not None:
+		if url.password is None:
+			# Username only, assuming this is an api key
+			logger.debug("Using api key for grafana authorization")
+			session.auth = HTTPBearerAuth(url.username)
+		else:
+			logger.debug("Using username %s and password grafana authorization", url.username)
+			session.auth = HTTPBasicAuth(url.username, url.password)
+
+	return f"{url.scheme}://{url.hostname}:{url.port}", session
+
+
+def setup_grafana():
+	if not grafana_is_local():
 		return
 
-	if not os.path.exists(grafana_cli):
-		return
-
-	for file in (grafana_plugin_dir, grafana_db):
-		if not os.path.exists(file):
-			raise FileNotFoundError(f"'{file}' not found")
-
-	plugin_action = None
-	manifest = os.path.join(grafana_plugin_dir, plugin_id, "MANIFEST.txt")
-	if os.path.exists(manifest):
-		with codecs.open(manifest, "r", "utf-8") as file:
-			match = re.search(r'"version"\s*:\s*"([^"]+)"', file.read())
-			plugin_version = match.group(1)
-			logger.debug("Grafana plugin %s version: %s", plugin_id, plugin_version)
-			if Version(plugin_version) < Version(plugin_min_version):
-				logger.notice("Grafana plugin %s version %s to old", plugin_id, plugin_version)
-				plugin_action = "upgrade"
+	plugin_action = "install"
+	if os.path.exists(PLUGIN_DIR):
+		manifest = os.path.join(PLUGIN_DIR, PLUGIN_ID, "MANIFEST.txt")
+		if os.path.exists(manifest):
+			with codecs.open(manifest, "r", "utf-8") as file:
+				match = re.search(r'"version"\s*:\s*"([^"]+)"', file.read())
+				plugin_version = match.group(1)
+				logger.debug("Grafana plugin %s version: %s", PLUGIN_ID, plugin_version)
+				if Version(plugin_version) < Version(PLUGIN_MIN_VERSION):
+					logger.notice("Grafana plugin %s version %s to old", PLUGIN_ID, plugin_version)
+					plugin_action = "upgrade"
+				else:
+					plugin_action = None
 	else:
-		plugin_action = "install"
+		logger.warning("Grafana plugin dir %r not found", PLUGIN_DIR)
 
 	if plugin_action:
 		try:
-			logger.notice("Setup grafana plugin %s (%s)", plugin_id, plugin_action)
-			for cmd in (["grafana-cli", "plugins", plugin_action, plugin_id], ["service", "grafana-server", "restart"]):
+			logger.notice("Setup grafana plugin %s (%s)", PLUGIN_ID, plugin_action)
+			for cmd in (["grafana-cli", "plugins", plugin_action, PLUGIN_ID], ["service", "grafana-server", "restart"]):
 				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)
 				logger.debug("output of command %s: %s", cmd, out)
 		except subprocess.CalledProcessError as err:
 			logger.warning("Could not %s grafana plugin via grafana-cli: %s", plugin_action, err)
 
-	if url.username is not None:
-		return
+	if urlparse(config.grafana_internal_url).username is not None:
+		base_url, session = grafana_admin_session()
+		try:
+			response = session.get(f"{base_url}/api/users/lookup", params={"loginOrEmail": "opsiconfd"}, timeout=3)
+		except requests.RequestException as err:
+			logger.warning("Failed to connect to grafana api %r: %s", base_url, err)
+			return
 
-	create_opsiconfd_user(grafana_db)
+		logger.debug("Grafana opsiconfd user lookup response: %s - %s", response.status_code, response.text)
+		if response.status_code == 200:
+			return
 
-
-async def create_or_update_api_key_by_api(admin_username: str, admin_password: str):
-	auth = aiohttp.BasicAuth(admin_username, admin_password)
-	ssl_context: Union[ssl.SSLContext, bool] = ssl.create_default_context(cafile=config.ssl_trusted_certs)
-	if not config.grafana_verify_cert:
-		ssl_context = False
-	async with aiohttp.ClientSession(auth=auth) as session:
-		resp = await session.get(f"{config.grafana_internal_url}/api/auth/keys", ssl=ssl_context)
-		for key in await resp.json():
-			if key["name"] == API_KEY_NAME:
-				await session.delete(f"{config.grafana_internal_url}/api/auth/keys/{key['id']}", ssl=ssl_context)
-		data = {"name": API_KEY_NAME, "role": "Admin", "secondsToLive": None}
-		resp = await session.post(f"{config.grafana_internal_url}/api/auth/keys", json=data, ssl=ssl_context)
-		api_key = (await resp.json())["key"]
-		return api_key
+	create_opsiconfd_user(recreate=True)
 
 
-def create_or_update_api_key_in_grafana_db(db_file: str):
-	key = "".join(random.choices(string.ascii_letters + string.digits, k=32))
-
-	conn = sqlite3.connect(db_file)
-	cur = conn.cursor()
-	cur.execute("SELECT id FROM org")
-	res = cur.fetchone()
-	if not res:
-		raise RuntimeError(f"Failed to get org_id from {db_file}")
-	org_id = res[0]
-
-	db_key = hashlib.pbkdf2_hmac("sha256", key.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50)
-	now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-
-	cur.execute("SELECT id FROM api_key WHERE org_id = ? AND name = ?", [org_id, API_KEY_NAME])
-	res = cur.fetchone()
-	if res:
-		cur.execute("UPDATE api_key SET key = ?, role = ?, updated = ? WHERE id = ?", [db_key.hex(), "Admin", now, res[0]])
-	else:
-		cur.execute(
-			"INSERT INTO api_key(org_id, name, key, role, created, updated, expires) VALUES (?, ?, ?, ?, ?, ?, ?)",
-			[org_id, API_KEY_NAME, db_key.hex(), "Admin", now, now, None],
-		)
-
-	conn.commit()
-	conn.close()
-
-	api_key = {"id": org_id, "n": API_KEY_NAME, "k": key}
-	return base64.b64encode(json.dumps(api_key).encode("utf-8")).decode("utf-8")
-
-
-def create_opsiconfd_user(db_file: str):
+def create_opsiconfd_user(recreate: bool = False) -> None:
 	logger.notice("Setup grafana opsiconfd user")
 
-	conn = sqlite3.connect(db_file)
-	cur = conn.cursor()
+	con = sqlite3.connect(GRAFANA_DB)
+	cur = con.cursor()
+	try:
+		cur.execute("SELECT id FROM user WHERE user.login='opsiconfd';")
+		user_id = cur.fetchone()
 
-	cur.execute("SELECT id FROM user WHERE user.login='opsiconfd';")
-	user_id = cur.fetchone()
+		if user_id and not recreate:
+			return
 
-	if not user_id:
+		if user_id:
+			cur.execute("DELETE FROM org_user WHERE user_id = ?", [user_id[0]])
+			cur.execute("DELETE FROM user WHERE id = ?", [user_id[0]])
+
 		password = get_random_string(8)
 		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
 		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -324,10 +323,12 @@ def create_opsiconfd_user(db_file: str):
 		cur.execute(
 			"INSERT INTO org_user(org_id, user_id, role, created, updated) VALUES (?, ?, ?, ?, ?)", [1, user_id[0], "Admin", now, now]
 		)
-		conn.commit()
-		conn.close()
+		con.commit()
 
 		url = urlparse(config.grafana_internal_url)
 		grafana_internal_url = f"{url.scheme}://opsiconfd:{password}@{url.hostname}:{url.port}{url.path}"
+		config.grafana_internal_url = grafana_internal_url
 		config.set_config_in_config_file("grafana-internal-url", grafana_internal_url)
 		config.reload()
+	finally:
+		con.close()

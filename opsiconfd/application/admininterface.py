@@ -8,15 +8,15 @@
 admininterface
 """
 
-from urllib.parse import urlparse
-from operator import itemgetter
 import os
 import json
 import signal
-import datetime
-import collections
 import shutil
 import tempfile
+import datetime
+import collections
+from operator import itemgetter
+
 import msgpack  # type: ignore[import]
 import requests
 import orjson
@@ -30,6 +30,7 @@ from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
 
 from .. import __version__, contextvar_client_session
+from ..grafana import grafana_admin_session
 from ..session import OPSISession
 from ..logging import logger
 from ..config import config, FQDN, VAR_ADDON_DIR
@@ -355,50 +356,44 @@ def open_grafana(request: Request):
 	if request.base_url.hostname != FQDN:
 		return RedirectResponse(f"https://{FQDN}:{request.url.port}/admin/grafana")
 
-	auth = None
-	headers = None
-	url = urlparse(config.grafana_internal_url)
-	if url.username is not None:
-		if url.password is None:
-			# Username only, assuming this is an api key
-			logger.debug("Using api key for grafana authorization")
-			headers = {"Authorization": f"Bearer {url.username}"}
-		else:
-			logger.debug("Using username %s and password grafana authorization", url.username)
-			auth = (url.username, url.password)
+	base_url, session = grafana_admin_session()
+	redirect_response = RedirectResponse("/metrics/grafana/dashboard")
+	try:
+		response = session.get(f"{base_url}/api/users/lookup", params={"loginOrEmail": "opsidashboard"})
+		if response.status_code not in (200, 404):
+			response.raise_for_status()
+	except requests.RequestException as err:
+		logger.error("Failed to connect to grafana api %r: %s", base_url, err)
+		return redirect_response
 
-	session = requests.Session()
-	session.verify = config.ssl_trusted_certs
-	if not config.grafana_verify_cert:
-		session.verify = False
-
-	response = session.get(
-		f"{url.scheme}://{url.hostname}:{url.port}/api/users/lookup?loginOrEmail=opsidashboard", headers=headers, auth=auth
-	)
-
-	password = get_random_string(8)
+	password = get_random_string(16)
 	if response.status_code == 404:
 		logger.debug("Create new user opsidashboard")
-
 		data = {"name": "opsidashboard", "email": "opsidashboard@admin", "login": "opsidashboard", "password": password}
-		response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/api/admin/users", headers=headers, auth=auth, json=data)
+		response = session.post(f"{base_url}/api/admin/users", json=data)
 		if response.status_code != 200:
 			logger.error("Failed to create user opsidashboard: %s - %s", response.status_code, response.text)
+			password = None
 	else:
 		logger.debug("change opsidashboard password")
 		data = {"password": password}
 		user_id = response.json().get("id")
-		response = session.put(f"{config.grafana_internal_url}/api/admin/users/{user_id}/password", headers=headers, auth=auth, json=data)
+		response = session.put(f"{base_url}/api/admin/users/{user_id}/password", json=data)
 		if response.status_code != 200:
 			logger.error("Failed to update password for user opsidashboard: %s - %s", response.status_code, response.text)
+			password = None
 
-	redirect_response = RedirectResponse("/metrics/grafana/dashboard")
+	if not password:
+		return redirect_response
+
+	user_session = requests.Session()
 	data = {"password": password, "user": "opsidashboard"}
-	response = session.post(f"{url.scheme}://{url.hostname}:{url.port}/login", json=data)
+	response = user_session.post(f"{base_url}/login", json=data)
 	if response.status_code != 200:
 		logger.error("Grafana login failed: %s - %s", response.status_code, response.text)
-	else:
-		redirect_response.set_cookie(key="grafana_session", value=session.cookies.get_dict().get("grafana_session"))
+		return redirect_response
+
+	redirect_response.set_cookie(key="grafana_session", value=user_session.cookies.get_dict().get("grafana_session"))
 	return redirect_response
 
 

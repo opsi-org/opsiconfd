@@ -259,7 +259,7 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 				# Time series data is stored aggregated in 5 second intervals
 				res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
 			else:
-				res["datapoints"] = [[float(r[1]) if b"." in r[1] else int(r[1]), align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
+				res["datapoints"] = [[float(r[1]), align_timestamp(r[0])] for r in rows]  # type: ignore[misc]
 			logger.trace("Grafana query result: %s", res)
 			results.append(res)
 	return results

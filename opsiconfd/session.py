@@ -405,9 +405,11 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			with redis_client() as redis:
 				now = utc_time_timestamp()
 				for redis_key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
+					validity = 0
 					data = redis.get(redis_key)
-					sess = msgpack.loads(data)
-					validity = sess["max_age"] - (now - sess["last_used"])
+					if data:
+						sess = msgpack.loads(data)
+						validity = sess["max_age"] - (now - sess["last_used"])
 					if validity > 0:
 						session_count += 1
 					else:

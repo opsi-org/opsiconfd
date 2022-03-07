@@ -128,6 +128,7 @@ def setup_file_permissions():
 		"/var/lib/opsi/ntfs-images",
 		"/var/lib/opsi/repository",
 		"/var/lib/opsi/public",
+		"/var/lib/opsi/workbench",
 		VAR_ADDON_DIR,
 	):
 		try:

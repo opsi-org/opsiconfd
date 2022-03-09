@@ -449,11 +449,16 @@ def execute_rpc(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager], requ
 def write_error_log(rpc: Any, exception: Exception, request: Request) -> None:
 	now = int(time.time() * 1_000_000)
 	makedirs(RPC_DEBUG_DIR, exist_ok=True)
+	method = None
+	params = None
+	if rpc:
+		method = rpc.get("method")
+		params = rpc.get("params")
 	msg = {
 		"client": request.client.host,
-		"description": f"Processing request from {request.client.host} ({request.headers.get('user-agent')}) for {rpc.get('method')}",
-		"method": rpc.get("method"),
-		"params": rpc.get("params"),
+		"description": f"Processing request from {request.client.host!r} ({request.headers.get('user-agent')}) for method {method!r}",
+		"method": method,
+		"params": params,
 		"error": str(exception),
 	}
 	with tempfile.NamedTemporaryFile(delete=False, dir=RPC_DEBUG_DIR, prefix=f"{request.client.host}-{now}-", suffix=".log") as log_file:

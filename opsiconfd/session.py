@@ -351,7 +351,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.user_store = UserStore()
 		self.option_store: Dict[str, Any] = {}
 		self._data: Dict[str, Any] = {}
-		self.is_new_session = True
 		self._redis_expiration_seconds = 3600
 		self._store_interval = 30
 
@@ -399,7 +398,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 	def _init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
-		self.is_new_session = True
 		session_count = 0
 		try:
 			with redis_client() as redis:
@@ -444,7 +442,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.option_store = data.get("option_store", self.option_store)
 		self.last_stored = data.get("last_stored", utc_time_timestamp())
 		self._data = data.get("data", self._data)
-		self.is_new_session = False
 		return True
 
 	async def load(self) -> bool:
@@ -486,14 +483,8 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 			redis.set(self.redis_key, msgpack.dumps(session_data), ex=self._redis_expiration_seconds)
 
-	async def store(self, wait: Optional[bool] = None) -> None:
+	async def store(self, wait: Optional[bool] = True) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now
-		if wait is None and self.is_new_session:
-			# Session not yet stored in redis.
-			# Wait for store to complete to ensure that the
-			# session can be loaded at the next request.
-			wait = True
-
 		task = run_in_threadpool(self._store)
 		if wait:
 			await task

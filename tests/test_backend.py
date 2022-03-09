@@ -8,6 +8,7 @@
 webdav tests
 """
 
+import requests
 from OpenSSL.crypto import FILETYPE_PEM, load_privatekey, load_certificate
 
 from opsiconfd import set_contextvars_from_contex
@@ -158,3 +159,89 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(test_client):  # pyli
 		finally:
 			test_client.reset_cookies()
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+
+def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-many-statements
+	option_defaults = {
+		"addProductOnClientDefaults": False,
+		"addProductPropertyStateDefaults": False,
+		"addConfigStateDefaults": False,
+		"deleteConfigStateIfDefault": False,
+		"returnObjectsOnUpdateAndCreate": False,
+		"addDependentProductOnClients": False,
+		"processProductOnClientSequence": False,
+		"additionalReferentialIntegrityChecks": True,
+	}
+
+	rpc = {"id": 1, "method": "backend_getOptions", "params": []}
+	res = client.post(f"{base_url}/rpc", json=rpc)
+	res.raise_for_status()
+	res = res.json()
+	cookie = list(client.cookies)[0]
+	session_id = cookie.value
+	assert res["result"] == option_defaults
+
+	rpc = {"id": 2, "method": "configState_getObjects", "params": [[], {"objectId": host_id}]}
+	res = client.post(f"{base_url}/rpc", json=rpc)
+	res.raise_for_status()
+	res = res.json()
+	cookie = list(client.cookies)[0]
+	assert session_id == cookie.value
+	assert res["result"] == []
+
+	rpc = {"id": 3, "method": "backend_setOptions", "params": [{"addConfigStateDefaults": True}]}
+	res = client.post(f"{base_url}/rpc", json=rpc)
+	res.raise_for_status()
+	res = res.json()
+	cookie = list(client.cookies)[0]
+	assert session_id == cookie.value
+
+	options = option_defaults.copy()
+	options["addConfigStateDefaults"] = True
+	rpc = {"id": 4, "method": "backend_getOptions", "params": []}
+	res = client.post(f"{base_url}/rpc", json=rpc)
+	res.raise_for_status()
+	res = res.json()
+	cookie = list(client.cookies)[0]
+	assert session_id == cookie.value
+	assert res["result"] == options
+
+	rpc = {"id": 5, "method": "configState_getObjects", "params": [[], {"objectId": host_id}]}
+	res = client.post(f"{base_url}/rpc", json=rpc)
+	res.raise_for_status()
+	res = res.json()
+	assert res["result"]
+	for config_state in res["result"]:
+		assert config_state["_is_generated_default"]
+		assert config_state["objectId"] == host_id
+
+	# Delete session (and option store)
+	rpc = {"id": 6, "method": "backend_exit", "params": []}
+	res = client.post(f"{base_url}/rpc", json=rpc)
+	res.raise_for_status()
+	res = res.json()
+
+	rpc = {"id": 7, "method": "backend_getOptions", "params": []}
+	res = client.post(f"{base_url}/rpc", json=rpc)
+	res.raise_for_status()
+	res = res.json()
+	cookie = list(client.cookies)[0]
+	assert session_id != cookie.value
+	assert res["result"] == option_defaults
+
+
+def test_backend_options_test_client(test_client):  # pylint: disable=redefined-outer-name
+	host_id = "test-client-options-tc.opsi.org"
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with client_jsonrpc(test_client, "", host_id):
+		for _ in range(20):
+			_test_backend_options(test_client, "", host_id)
+
+
+def test_backend_options_requests():
+	host_id = "test-client-options-rq.opsi.org"
+	session = requests.session()
+	session.auth = (ADMIN_USER, ADMIN_PASS)
+	with client_jsonrpc(session, "https://localhost:4447", host_id):
+		for _ in range(20):
+			_test_backend_options(session, "https://localhost:4447", host_id)

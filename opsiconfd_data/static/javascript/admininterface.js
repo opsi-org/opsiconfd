@@ -1024,6 +1024,11 @@ function formateDate(date) {
 
 
 var terminals = {};
+window.onresize = function () {
+	for (const [terminal_id, terminal] of Object.entries(terminals)) {
+		terminal.fitAddon.fit();
+	}
+};
 
 function startTerminal() {
 	let terminal = new Terminal({
@@ -1038,20 +1043,20 @@ function startTerminal() {
 	terminal.loadAddon(searchAddon);
 	const webLinksAddon = new WebLinksAddon.WebLinksAddon();
 	terminal.loadAddon(webLinksAddon);
-	const fitAddon = new FitAddon.FitAddon();
-	terminal.loadAddon(fitAddon);
+	terminal.fitAddon = new FitAddon.FitAddon();
+	terminal.loadAddon(terminal.fitAddon);
 
 	terminal.open(document.getElementById('terminal-xterm'));
 
 	setTimeout(function () {
 		document.getElementsByClassName('xterm-viewport')[0].setAttribute("style", "");
 
-		fitAddon.fit();
+		terminal.fitAddon.fit();
 		terminal.focus();
 
-		console.log(`size: ${terminal.cols} columns, ${terminal.rows} rows`);
+		console.log(`size: ${terminal.cols} cols, ${terminal.rows} rows`);
 
-		let params = [`terminal_id=${terminal.terminal_id}`, `lines=${terminal.rows}`, `columns=${terminal.cols}`]
+		let params = [`terminal_id=${terminal.terminal_id}`, `rows=${terminal.rows}`, `cols=${terminal.cols}`]
 		let loc = window.location;
 		let ws_uri;
 		if (loc.protocol == "https:") {
@@ -1096,6 +1101,11 @@ function startTerminal() {
 			let message = msgpack.serialize({ "type": "terminal-write", "payload": data });
 			terminal.websocket.send(message);
 		})
+		terminal.onResize(function (event) {
+			//console.log("Resize:")
+			//console.log(event);
+			terminal.websocket.send(msgpack.serialize({ "type": "terminal-resize", "payload": { "rows": event.rows, "cols": event.cols } }));
+		});
 
 		const el = document.getElementsByClassName("xterm-screen")[0];
 		el.ondragenter = function (event) {
@@ -1112,6 +1122,13 @@ function startTerminal() {
 			terminalFileUpload(event.dataTransfer.files[0]);
 		}
 	}, 100);
+}
+
+function toggleFullscreenTerminal() {
+	var elem = document.getElementById('terminal-xterm');
+	if (elem.requestFullscreen) {
+		elem.requestFullscreen();
+	}
 }
 
 function stopTerminal() {

@@ -517,12 +517,14 @@
 		</div>
 
 		<div id="tab-terminal" class="tabcontent">
-			<div id="terminal-xterm">
-			</div>
-			<div id="terminal-upload">
+			<div id="terminal-control">
+				<button style="margin-top: 10px; margin-right: 50px;"
+					onclick="toggleFullscreenTerminal();">Fullscreen</button>
 				To upload a file to the current working directory, drop it in the terminal window or use this
 				button:
 				<input type="file" onchange="terminalFileUpload(this.files[0]); this.value='';">
+			</div>
+			<div id="terminal-xterm">
 			</div>
 		</div>
 

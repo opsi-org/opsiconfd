@@ -17,8 +17,7 @@ from typing import Dict, Optional, Any
 import msgpack  # type: ignore[import]
 
 import psutil
-from fastapi import Query, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi import Query
 from starlette.types import Scope, Receive, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from websockets.exceptions import ConnectionClosedOK
@@ -26,7 +25,6 @@ from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import TIMEOUT, EOF  # type: ignore[import]
 from OPSI.System import get_subprocess_environment  # type: ignore[import]
 
-from .. import contextvar_client_session
 from ..logging import logger
 from ..config import config
 from . import app
@@ -35,10 +33,10 @@ from .utils import OpsiconfdWebSocketEndpoint
 PTY_READER_BLOCK_SIZE = 16 * 1024
 
 
-def start_pty(shell, lines=30, columns=120, cwd=None):
+def start_pty(shell, rows=30, cols=120, cwd=None):
 	sp_env = get_subprocess_environment()
 	sp_env.update({"TERM": "xterm-256color"})
-	return spawn(shell, dimensions=(lines, columns), env=sp_env, cwd=cwd)
+	return spawn(shell, dimensions=(rows, cols), env=sp_env, cwd=cwd)
 
 
 @app.websocket_route("/admin/terminal/ws")
@@ -76,11 +74,14 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 	async def on_receive(self, websocket: WebSocket, data: Any) -> None:
 		message = await asyncio.get_event_loop().run_in_executor(None, msgpack.loads, data)
 		logger.trace(message)
+		payload = message.get("payload")
 		if message.get("type") == "terminal-write":
 			# Do not wait for completion to minimize rtt
-			asyncio.get_event_loop().run_in_executor(None, self._pty.write, message.get("payload"))
+			asyncio.get_event_loop().run_in_executor(None, self._pty.write, payload)
+		elif message.get("type") == "terminal-resize":
+			asyncio.get_event_loop().run_in_executor(None, self._pty.setwinsize, payload.get("rows"), payload.get("cols"))
 		elif message.get("type") == "file-transfer":
-			response = await asyncio.get_event_loop().run_in_executor(None, self._handle_file_transfer, message.get("payload"))
+			response = await asyncio.get_event_loop().run_in_executor(None, self._handle_file_transfer, payload)
 			if response:
 				await websocket.send_bytes(
 					await asyncio.get_event_loop().run_in_executor(
@@ -97,18 +98,18 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			default=None,
 			regex="^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
 		),
-		columns: Optional[int] = Query(default=120, embed=True),
-		lines: Optional[int] = Query(default=30, embed=True),
+		cols: Optional[int] = Query(default=120, embed=True),
+		rows: Optional[int] = Query(default=30, embed=True),
 	):
 
 		if "terminal" in config.admin_interface_disabled_features:
 			logger.warning("Access to terminal websocket denied, terminal disabled")
 			await websocket.close(code=4403)
 
-		logger.info("Websocket client connected to terminal columns=%d, lines=%d", columns, lines)
+		logger.info("Websocket client connected to terminal cols=%d, rows=%d", cols, rows)
 
 		cwd = pwd.getpwuid(os.getuid()).pw_dir
-		self._pty = start_pty(shell=config.admin_interface_terminal_shell, lines=lines, columns=columns, cwd=cwd)
+		self._pty = start_pty(shell=config.admin_interface_terminal_shell, rows=rows, cols=cols, cwd=cwd)
 
 		session = self.scope["session"]
 		terminals = session.get("terminal_ws", {})

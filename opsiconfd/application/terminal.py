@@ -11,8 +11,10 @@ application.teminal
 import os
 import pwd
 import asyncio
+import time
 import pathlib
-from typing import Optional, Any
+from typing import Dict, Optional, Any
+import msgpack  # type: ignore[import]
 
 import psutil
 from fastapi import Query, UploadFile, status
@@ -41,13 +43,14 @@ def start_pty(shell, lines=30, columns=120, cwd=None):
 
 @app.websocket_route("/admin/terminal/ws")
 class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
-	encoding = "text"
+	encoding = "bytes"
 	admin_only = True
 
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
 		self._pty: spawn
 		self._pty_reader_task: asyncio.Task
+		self._file_transfers: Dict[str, Dict[str, Any]] = {}
 
 	async def pty_reader(self, websocket: WebSocket):
 		loop = asyncio.get_event_loop()
@@ -56,8 +59,10 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 				logger.trace("Read from pty")
 				data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, PTY_READER_BLOCK_SIZE, 0.01)
 				# data: bytes = self._pty.read_nonblocking(PTY_READER_BLOCK_SIZE, 0.001)
-				logger.trace("=>>> %s", data)
-				await websocket.send_bytes(data)
+				logger.trace(data)
+				await websocket.send_bytes(
+					await asyncio.get_event_loop().run_in_executor(None, msgpack.dumps, {"type": "terminal-read", "payload": data})
+				)
 			except TIMEOUT:
 				pass
 			except EOF:
@@ -69,9 +74,21 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 				break
 
 	async def on_receive(self, websocket: WebSocket, data: Any) -> None:
-		# logger.trace(data.encode("ascii").hex())
-		# Do not wait for completion to minimize rtt
-		asyncio.get_event_loop().run_in_executor(None, self._pty.write, data)
+		message = await asyncio.get_event_loop().run_in_executor(None, msgpack.loads, data)
+		logger.trace(message)
+		if message.get("type") == "terminal-write":
+			# Do not wait for completion to minimize rtt
+			asyncio.get_event_loop().run_in_executor(None, self._pty.write, message.get("payload"))
+		elif message.get("type") == "file-transfer":
+			response = await asyncio.get_event_loop().run_in_executor(None, self._handle_file_transfer, message.get("payload"))
+			if response:
+				await websocket.send_bytes(
+					await asyncio.get_event_loop().run_in_executor(
+						None, msgpack.dumps, {"rid": message.get("id"), "type": "file-transfer-result", "payload": response}
+					)
+				)
+		else:
+			logger.warning("Received invalid message type %r", message.get("type"))
 
 	async def on_connect(  # pylint: disable=arguments-differ
 		self,
@@ -108,51 +125,58 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		if self._pty:
 			self._pty.close()
 
+	def _handle_file_transfer(self, payload: Dict[str, Any]):
+		if not payload.get("file_id"):
+			return {"result": None, "error": "Payload incomplete"}
 
-@app.post("/admin/terminal/fileupload")
-async def terminal_fileupload(terminal_id: str, file: UploadFile):  # pylint: disable=too-many-return-statements
-	if "terminal" in config.admin_interface_disabled_features:
-		return JSONResponse("Terminal disabled", status_code=status.HTTP_404_NOT_FOUND)
+		if payload["file_id"] not in self._file_transfers:
+			if not payload.get("name"):
+				return {"result": None, "error": "Payload incomplete"}
 
-	session = contextvar_client_session.get()
-	if not session:
-		return JSONResponse("Invalid session", status_code=status.HTTP_403_FORBIDDEN)
-	terminals = session.get("terminal_ws")
-	if not terminals or terminal_id not in terminals:
-		return JSONResponse("Invalid terminal id", status_code=status.HTTP_403_FORBIDDEN)
+			try:
+				proc = psutil.Process(int(self._pty.pid))
+			except (psutil.NoSuchProcess, ValueError):
+				return {"result": None, "error": "Invalid process id"}
 
-	node_name, tty_pid = terminals[terminal_id].split(":", 1)
-	if node_name != config.node_name:
-		return JSONResponse("Invalid node", status_code=status.HTTP_403_FORBIDDEN)
+			dst_dir = proc.cwd()
+			return_absolute_path = False
+			for child in proc.children(recursive=True):
+				try:
+					dst_dir = child.cwd()
+				except psutil.AccessDenied:
+					# Child owned by an other user (su)
+					return_absolute_path = True
+					dst_dir = "/var/lib/opsi"
+					if not os.path.exists(dst_dir):
+						dst_dir = pwd.getpwuid(os.getuid()).pw_dir
 
-	try:
-		proc = psutil.Process(int(tty_pid))
-	except (psutil.NoSuchProcess, ValueError):
-		return JSONResponse("Invalid process id", status_code=status.HTTP_403_FORBIDDEN)
+			dst_path = pathlib.Path(dst_dir)
+			try:
+				dst_file: pathlib.Path = (dst_path / payload["name"]).absolute()
+				orig_name = dst_file.name
+				ext = 0
+				while dst_file.exists():
+					ext += 1
+					dst_file = dst_file.with_name(f"{orig_name}.{ext}")
 
-	dst_dir = proc.cwd()
-	return_absolute_path = False
-	for child in proc.children(recursive=True):
-		try:
-			dst_dir = child.cwd()
-		except psutil.AccessDenied:
-			# Child owned by an other user (su)
-			return_absolute_path = True
-			dst_dir = "/var/lib/opsi"
-			if not os.path.exists(dst_dir):
-				dst_dir = pwd.getpwuid(os.getuid()).pw_dir
+				dst_file.touch()
+				dst_file.chmod(0o660)
+				self._file_transfers[payload["file_id"]] = {
+					"started": time.time(),
+					"file": dst_file,
+					"return_path": str(dst_file if return_absolute_path else dst_file.name),
+				}
 
-	dst_path = pathlib.Path(dst_dir)
-	try:
-		dst_file = (dst_path / file.filename).absolute()
-		orig_name = dst_file.name
-		ext = 0
-		while dst_file.exists():
-			ext += 1
-			dst_file = dst_file.with_name(f"{orig_name}.{ext}")
+			except PermissionError:
+				return {"result": None, "error": "Permission denied"}
 
-		dst_file.write_bytes(await file.read())  # type: ignore[arg-type]
-		dst_file.chmod(0o660)
-		return JSONResponse({"filename": str(dst_file if return_absolute_path else dst_file.name)})
-	except PermissionError as err:
-		return JSONResponse(str(err), status_code=status.HTTP_403_FORBIDDEN)
+		if payload.get("data"):
+			with open(self._file_transfers[payload["file_id"]]["file"], mode="ab") as file:
+				file.write(payload["data"])
+
+		if not payload.get("more_data"):
+			result = {"result": {"path": self._file_transfers[payload["file_id"]]["return_path"]}, "error": None}
+			del self._file_transfers[payload["file_id"]]
+			return result
+
+		return None

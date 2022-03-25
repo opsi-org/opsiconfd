@@ -217,8 +217,8 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 			logger.info(errors)
 			raise WebSocketRequestValidationError(errors)
 
-		# Set session max age to 1h
-		self.scope["session"].max_age = 3600
+		## Set session max age to 1h
+		# self.scope["session"].max_age = 3600
 
 		await websocket.accept()
 

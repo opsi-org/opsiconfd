@@ -296,7 +296,7 @@ class SessionMiddleware:
 			websocket_close_code = status.WS_1008_POLICY_VIOLATION
 			if status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
 				websocket_close_code = status.WS_1011_INTERNAL_ERROR
-			await send({"type": "websocket.close", "code": websocket_close_code})
+			return await send({"type": "websocket.close", "code": websocket_close_code})
 
 		headers = headers or {}
 		if scope.get("session"):

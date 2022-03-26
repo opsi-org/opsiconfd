@@ -94,10 +94,6 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 	async def on_connect(  # pylint: disable=arguments-differ
 		self,
 		websocket: WebSocket,
-		terminal_id: str = Query(
-			default=None,
-			regex="^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
-		),
 		cols: Optional[int] = Query(default=120, embed=True),
 		rows: Optional[int] = Query(default=30, embed=True),
 	):
@@ -111,20 +107,14 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		cwd = pwd.getpwuid(os.getuid()).pw_dir
 		self._pty = start_pty(shell=config.admin_interface_terminal_shell, rows=rows, cols=cols, cwd=cwd)
 
-		session = self.scope["session"]
-		terminals = session.get("terminal_ws", {})
-		terminals[terminal_id] = f"{config.node_name}:{self._pty.pid}"
-		session.set("terminal_ws", terminals)
-		await session.store(wait=True)
-		terminals = session.get("terminal_ws")
-
 		self._pty_reader_task = asyncio.get_event_loop().create_task(self.pty_reader(websocket))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
+		logger.info("Terminal connection closed")
 		if self._pty_reader_task:
 			self._pty_reader_task.cancel()
 		if self._pty:
-			self._pty.close()
+			self._pty.close(True)
 
 	def _handle_file_transfer(self, payload: Dict[str, Any]):
 		if not payload.get("file_id"):

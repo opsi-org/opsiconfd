@@ -1023,21 +1023,17 @@ function formateDate(date) {
 }
 
 
-var terminals = {};
+var terminal;
 window.onresize = function () {
-	for (const [terminal_id, terminal] of Object.entries(terminals)) {
-		terminal.fitAddon.fit();
-	}
+	if (terminal) terminal.fitAddon.fit();
 };
 
 function startTerminal() {
-	let terminal = new Terminal({
+	terminal = new Terminal({
 		cursorBlink: true,
 		scrollback: 1000,
 		fontSize: 14
 	});
-	terminal.terminal_id = crypto.randomUUID();
-	terminals[terminal.terminal_id] = terminal;
 
 	const searchAddon = new SearchAddon.SearchAddon();
 	terminal.loadAddon(searchAddon);
@@ -1056,7 +1052,7 @@ function startTerminal() {
 
 		console.log(`size: ${terminal.cols} cols, ${terminal.rows} rows`);
 
-		let params = [`terminal_id=${terminal.terminal_id}`, `rows=${terminal.rows}`, `cols=${terminal.cols}`]
+		let params = [`rows=${terminal.rows}`, `cols=${terminal.cols}`]
 		let loc = window.location;
 		let ws_uri;
 		if (loc.protocol == "https:") {
@@ -1126,27 +1122,27 @@ function startTerminal() {
 
 
 function toggleFullscreenTerminal() {
+	if (!terminal) return;
 	var elem = document.getElementById('terminal-xterm');
 	if (elem.requestFullscreen) {
 		elem.requestFullscreen();
 	}
-	for (const [terminal_id, terminal] of Object.entries(terminals)) {
-		terminal.fitAddon.fit();
-	}
+	terminal.fitAddon.fit();
 }
 
 function stopTerminal() {
-	for (const [terminal_id, terminal] of Object.entries(terminals)) {
-		terminal.dispose();
-		terminal.websocket.close();
-		delete terminals[terminal_id];
-	}
+	if (!terminal) return;
+	terminal.dispose();
+	terminal.websocket.close();
 }
 
 function terminalFileUpload(file) {
 	console.log("terminalFileUpload:")
 	console.log(file);
-	let terminal = Object.values(terminals)[0];
+	if (!terminal) {
+		console.error("No terminal connected")
+		return;
+	}
 
 	let chunkSize = 100000;
 	let fileId = crypto.randomUUID();
@@ -1298,9 +1294,7 @@ function toggleTabFullscreen() {
 	for (i = 0; i < buttons.length; i++) {
 		buttons[i].innerHTML = buttonText;
 	}
-	for (const [terminal_id, terminal] of Object.entries(terminals)) {
-		terminal.fitAddon.fit();
-	}
+	if (terminal) terminal.fitAddon.fit();
 }
 
 document.onkeydown = function (evt) {

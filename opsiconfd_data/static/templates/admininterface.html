@@ -146,7 +146,7 @@
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
 		<h1>opsiconfd {{opsi_version}} running on {{node_name}} ({{username}})</h1>
 	</div>
-	<div class="content">
+	<div id="content" class="content">
 
 		<div class="tab">
 			<a href="#info" id="tablink-info" class="tablink" onclick="openTab('info');">Info</a>
@@ -481,8 +481,11 @@
 			</div>
 		</div>
 
-		<div id="tab-log-viewer" class="tabcontent">
+		<div id="tab-log-viewer" class="tabcontent fitheight">
 			<div id="log-settings">
+				<div class="log-setting">
+					<button class="tab-fullscreen" onclick="toggleTabFullscreen();">Maximize</button>
+				</div>
 				<div class="log-setting">
 					<label for="log-level-filter">Filter by level:</label>
 					<input id="log-level-filter" type="number" min="1" max="9" value="9"
@@ -516,8 +519,10 @@
 			</div>
 		</div>
 
-		<div id="tab-terminal" class="tabcontent">
+		<div id="tab-terminal" class="tabcontent fitheight">
 			<div id="terminal-control">
+				<button class="tab-fullscreen" style="margin-top: 10px; margin-right: 50px;"
+					onclick="toggleTabFullscreen();">Maximize</button>
 				<button style="margin-top: 10px; margin-right: 50px;"
 					onclick="toggleFullscreenTerminal();">Fullscreen</button>
 				To upload a file to the current working directory, drop it in the terminal window or use this

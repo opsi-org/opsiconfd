@@ -1124,10 +1124,14 @@ function startTerminal() {
 	}, 100);
 }
 
+
 function toggleFullscreenTerminal() {
 	var elem = document.getElementById('terminal-xterm');
 	if (elem.requestFullscreen) {
 		elem.requestFullscreen();
+	}
+	for (const [terminal_id, terminal] of Object.entries(terminals)) {
+		terminal.fitAddon.fit();
 	}
 }
 
@@ -1274,3 +1278,34 @@ function licenseUpload(files) {
 	};
 	xhr.send(formData);
 }
+
+function toggleTabFullscreen() {
+	tabcontent = document.getElementsByClassName("tabcontent");
+	let buttonText = "Maximize";
+	for (i = 0; i < tabcontent.length; i++) {
+		if (tabcontent[i].style.display == "none") {
+			continue;
+		}
+		if (tabcontent[i].classList.contains("fullscreen")) {
+			tabcontent[i].classList.remove("fullscreen");
+		}
+		else {
+			tabcontent[i].classList.add("fullscreen");
+			buttonText = "Normal size";
+		}
+	}
+	buttons = document.getElementsByClassName("tab-fullscreen");
+	for (i = 0; i < buttons.length; i++) {
+		buttons[i].innerHTML = buttonText;
+	}
+	for (const [terminal_id, terminal] of Object.entries(terminals)) {
+		terminal.fitAddon.fit();
+	}
+}
+
+document.onkeydown = function (evt) {
+	evt = evt || window.event;
+	if (evt.ctrlKey && evt.key == "F11") {
+		toggleTabFullscreen();
+	}
+};

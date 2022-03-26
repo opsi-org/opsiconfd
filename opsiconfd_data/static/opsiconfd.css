@@ -8,7 +8,6 @@ html {
 
 body {
 	width: 100%;
-	height: calc(100vh - 10px);
 	margin: 0px;
 	padding: 0px;
 	background-color: #eeeeee;
@@ -58,6 +57,7 @@ li {
 
 .header {
 	width: 90%;
+	height: 100px;
 	margin-left: auto;
 	margin-right: auto;
 	margin-top: 10px;
@@ -214,9 +214,21 @@ li {
 /* Style the tab content */
 .tabcontent {
 	display: none;
-	height: calc(100vh - 170px);
-	margin: 1px;
 	padding-bottom: 25px;
+}
+
+.fitheight {
+	height: calc(100vh - 220px);
+}
+
+.fullscreen {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: calc(100vw - 10px);
+	height: calc(100vh - 40px);
+	padding-left: 10px;
+	background-color: #f1f1f1;
 }
 
 .json_string { color: green; }
@@ -338,6 +350,10 @@ li {
 
 #terminal-upload {
 	padding: 5px 0px 25px 0px;
+}
+
+#terminal-control {
+	font-size: 0.9em;
 }
 
 .upload-active {

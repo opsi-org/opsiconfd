@@ -11,15 +11,22 @@ test application.terminal
 import os
 import time
 import uuid
-import pytest
-from typing import Any, Dict, Generator
+from queue import Empty, Queue
 from threading import Thread
-from queue import Queue, Empty
-from starlette.websockets import WebSocketDisconnect
-from starlette.status import WS_1008_POLICY_VIOLATION
-import msgpack  # type: ignore[import]
+from typing import Any, Dict, Generator
 
-from .utils import get_config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
+import msgpack  # type: ignore[import]
+import pytest
+from starlette.status import WS_1008_POLICY_VIOLATION
+from starlette.websockets import WebSocketDisconnect
+
+from .utils import (  # pylint: disable=unused-import
+	ADMIN_PASS,
+	ADMIN_USER,
+	clean_redis,
+	get_config,
+	test_client,
+)
 
 
 class WebSocketMessageReader(Thread):

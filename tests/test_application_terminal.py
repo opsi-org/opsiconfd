@@ -46,8 +46,8 @@ def test_command(test_client):  # pylint: disable=redefined-outer-name
 	with get_config({"admin_interface_terminal_shell": "/bin/bash"}):
 		with test_client.websocket_connect("/admin/terminal/ws") as websocket:
 			data = websocket.receive()
-			websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo test\r\n"}))
-			time.sleep(1)
+			websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo test\r"}))
+			time.sleep(3)
 			data = websocket.receive()
 			data = msgpack.loads(data["bytes"])
 			print(f"received: >>>{data}<<<")
@@ -62,8 +62,8 @@ def test_params(test_client):  # pylint: disable=redefined-outer-name
 	with get_config({"admin_interface_terminal_shell": "/bin/bash"}):
 		with test_client.websocket_connect(f"/admin/terminal/ws?cols={cols}&rows={rows}") as websocket:
 			data = websocket.receive()
-			websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo :${COLUMNS}:${LINES}:\r\n"}))
-			time.sleep(1)
+			websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo :${COLUMNS}:${LINES}:\r"}))
+			time.sleep(3)
 			data = websocket.receive()
 			data = msgpack.loads(data["bytes"])
 			print(f"received: >>>{data}<<<")
@@ -76,8 +76,8 @@ def test_file_upload_to_tmp(test_client):  # pylint: disable=redefined-outer-nam
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client.websocket_connect("/admin/terminal/ws") as websocket:
 		websocket.receive()
-		websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "cd /tmp\r\n"}))
-		time.sleep(1)
+		websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "cd /tmp\r"}))
+		time.sleep(3)
 		websocket.receive()
 		ft_msg = {
 			"id": str(uuid.uuid4()),
@@ -93,7 +93,7 @@ def test_file_upload_to_tmp(test_client):  # pylint: disable=redefined-outer-nam
 			},
 		}
 		websocket.send_bytes(msgpack.dumps(ft_msg))
-		time.sleep(1)
+		time.sleep(3)
 		data = websocket.receive()
 		data = msgpack.loads(data["bytes"])
 		print(f"received: >>>{data}<<<")

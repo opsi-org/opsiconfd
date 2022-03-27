@@ -85,7 +85,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			if response:
 				await websocket.send_bytes(
 					await asyncio.get_event_loop().run_in_executor(
-						None, msgpack.dumps, {"rid": message.get("id"), "type": "file-transfer-result", "payload": response}
+						None, msgpack.dumps, {"type": "file-transfer-result", "payload": response}
 					)
 				)
 		else:
@@ -122,12 +122,12 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 
 		if payload["file_id"] not in self._file_transfers:
 			if not payload.get("name"):
-				return {"result": None, "error": "Payload incomplete"}
+				return {"file_id": payload["file_id"], "result": None, "error": "Payload incomplete"}
 
 			try:
 				proc = psutil.Process(int(self._pty.pid))
 			except (psutil.NoSuchProcess, ValueError):
-				return {"result": None, "error": "Invalid process id"}
+				return {"file_id": payload["file_id"], "result": None, "error": "Invalid process id"}
 
 			dst_dir = proc.cwd()
 			return_absolute_path = False
@@ -159,14 +159,18 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 				}
 
 			except PermissionError:
-				return {"result": None, "error": "Permission denied"}
+				return {"file_id": payload["file_id"], "result": None, "error": "Permission denied"}
 
 		if payload.get("data"):
 			with open(self._file_transfers[payload["file_id"]]["file"], mode="ab") as file:
 				file.write(payload["data"])
 
 		if not payload.get("more_data"):
-			result = {"result": {"path": self._file_transfers[payload["file_id"]]["return_path"]}, "error": None}
+			result = {
+				"file_id": payload["file_id"],
+				"result": {"path": self._file_transfers[payload["file_id"]]["return_path"]},
+				"error": None,
+			}
 			del self._file_transfers[payload["file_id"]]
 			return result
 

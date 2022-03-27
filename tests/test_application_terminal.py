@@ -12,11 +12,48 @@ import os
 import time
 import uuid
 import pytest
+from typing import Any, Dict, Generator
+from threading import Thread
+from queue import Queue, Empty
 from starlette.websockets import WebSocketDisconnect
 from starlette.status import WS_1008_POLICY_VIOLATION
-import msgpack
+import msgpack  # type: ignore[import]
 
 from .utils import get_config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
+
+
+class WebSocketMessageReader(Thread):
+	def __init__(self, websocket) -> None:
+		super().__init__()
+		self.daemon = True
+		self.websocket = websocket
+		self.messages: Queue[Dict[str, Any]] = Queue()
+		self.should_stop = False
+
+	def __enter__(self):
+		self.start()
+		return self
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self.stop()
+
+	def run(self):
+		while not self.should_stop:
+			data = self.websocket.receive()
+			if data:
+				msg = msgpack.loads(data["bytes"])
+				print(f"received: >>>{msg}<<<")
+				self.messages.put(msg)
+
+	def stop(self):
+		self.should_stop = True
+
+	def get_messages(self) -> Generator[Dict[str, Any], None, None]:
+		try:
+			while True:
+				yield self.messages.get_nowait()
+		except Empty:
+			pass
 
 
 def test_connect(test_client):  # pylint: disable=redefined-outer-name
@@ -35,9 +72,10 @@ def test_shell_config(test_client):  # pylint: disable=redefined-outer-name
 
 	with get_config({"admin_interface_terminal_shell": "/bin/echo testshell"}):
 		with test_client.websocket_connect("/admin/terminal/ws") as websocket:
-			data = websocket.receive()
-			print(f"received: >>>{data}<<<")
-			assert b"testshell" in data["bytes"]
+			with WebSocketMessageReader(websocket) as reader:
+				time.sleep(3)
+				msg = list(reader.get_messages())[-1]
+				assert b"testshell" in msg["payload"]
 
 
 def test_command(test_client):  # pylint: disable=redefined-outer-name
@@ -45,14 +83,12 @@ def test_command(test_client):  # pylint: disable=redefined-outer-name
 
 	with get_config({"admin_interface_terminal_shell": "/bin/bash"}):
 		with test_client.websocket_connect("/admin/terminal/ws") as websocket:
-			data = websocket.receive()
-			websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo test\r"}))
-			time.sleep(3)
-			data = websocket.receive()
-			data = msgpack.loads(data["bytes"])
-			print(f"received: >>>{data}<<<")
-			assert data["type"] == "terminal-read"
-			assert b"echo test" in data["payload"]
+			with WebSocketMessageReader(websocket) as reader:
+				websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo test\r"}))
+				time.sleep(3)
+				msg = list(reader.get_messages())[-1]
+				assert msg["type"] == "terminal-read"
+				assert b"echo test" in msg["payload"]
 
 
 def test_params(test_client):  # pylint: disable=redefined-outer-name
@@ -61,13 +97,11 @@ def test_params(test_client):  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with get_config({"admin_interface_terminal_shell": "/bin/bash"}):
 		with test_client.websocket_connect(f"/admin/terminal/ws?cols={cols}&rows={rows}") as websocket:
-			data = websocket.receive()
-			websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo :${COLUMNS}:${LINES}:\r"}))
-			time.sleep(3)
-			data = websocket.receive()
-			data = msgpack.loads(data["bytes"])
-			print(f"received: >>>{data}<<<")
-			assert f":{cols}:{rows}:" in data["payload"].decode("utf-8")
+			with WebSocketMessageReader(websocket) as reader:
+				websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo :${COLUMNS}:${LINES}:\r"}))
+				time.sleep(3)
+				msg = list(reader.get_messages())[-1]
+				assert f":{cols}:{rows}:" in msg["payload"].decode("utf-8")
 
 
 def test_file_upload_to_tmp(test_client):  # pylint: disable=redefined-outer-name
@@ -75,34 +109,32 @@ def test_file_upload_to_tmp(test_client):  # pylint: disable=redefined-outer-nam
 	content = b"file-content"
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client.websocket_connect("/admin/terminal/ws") as websocket:
-		websocket.receive()
-		websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "cd /tmp\r"}))
-		time.sleep(3)
-		websocket.receive()
-		ft_msg = {
-			"id": str(uuid.uuid4()),
-			"type": "file-transfer",
-			"payload": {
-				"file_id": str(uuid.uuid4()),
-				"chunk": 1,
-				"name": filename,
-				"size": len(content),
-				"modified": time.time(),
-				"data": content,
-				"more_data": False,
-			},
-		}
-		websocket.send_bytes(msgpack.dumps(ft_msg))
-		time.sleep(3)
-		data = websocket.receive()
-		data = msgpack.loads(data["bytes"])
-		print(f"received: >>>{data}<<<")
-		assert data["type"] == "file-transfer-result"
-		assert data["payload"]["file_id"] == ft_msg["payload"]["file_id"]
-		assert data["payload"]["error"] is None
-		assert data["payload"]["result"]["path"] == filename
-		filename = os.path.join("/tmp", filename)
-		assert os.path.exists(filename)
-		with open(filename, "rb") as file:
-			assert file.read() == content
-		os.unlink(filename)
+		with WebSocketMessageReader(websocket) as reader:
+			websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "cd /tmp\r"}))
+			time.sleep(3)
+			ft_msg = {
+				"id": str(uuid.uuid4()),
+				"type": "file-transfer",
+				"payload": {
+					"file_id": str(uuid.uuid4()),
+					"chunk": 1,
+					"name": filename,
+					"size": len(content),
+					"modified": time.time(),
+					"data": content,
+					"more_data": False,
+				},
+			}
+			websocket.send_bytes(msgpack.dumps(ft_msg))
+			time.sleep(3)
+
+			msg = list(reader.get_messages())[-1]
+			assert msg["type"] == "file-transfer-result"
+			assert msg["payload"]["file_id"] == ft_msg["payload"]["file_id"]
+			assert msg["payload"]["error"] is None
+			assert msg["payload"]["result"]["path"] == filename
+			filename = os.path.join("/tmp", filename)
+			assert os.path.exists(filename)
+			with open(filename, "rb") as file:
+				assert file.read() == content
+			os.unlink(filename)

@@ -8,47 +8,46 @@
 application main
 """
 
-import os
 import asyncio
+import os
+from ctypes import c_long
 from typing import Any
 from urllib.parse import urlparse
-from ctypes import c_long
 
-from starlette import status
-from starlette.websockets import WebSocket, WebSocketDisconnect
-from starlette.types import ASGIApp, Message, Scope, Send, Receive
-from starlette.datastructures import MutableHeaders
-from starlette.concurrency import run_in_threadpool
 from fastapi import Query
-from fastapi.staticfiles import StaticFiles
-from fastapi.requests import Request
-from fastapi.responses import Response, FileResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.requests import Request
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
-from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
+from fastapi.staticfiles import StaticFiles
+from starlette import status
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.websockets import WebSocket, WebSocketDisconnect
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
-from .. import __version__, contextvar_request_id, contextvar_client_address
-from ..logging import logger
-from ..config import config
-from ..worker import Worker
-from ..session import SessionMiddleware
-from ..statistics import StatisticsMiddleware
-from ..utils import normalize_ip_address, async_redis_client
-from ..ssl import get_ca_cert_as_pem
+from .. import __version__, contextvar_client_address, contextvar_request_id
 from ..addon import AddonManager
+from ..config import config
+from ..logging import logger
 from ..rest import OpsiApiException, rest_api
-from . import app
-from .utils import OpsiconfdWebSocketEndpoint
+from ..session import SessionMiddleware
+from ..ssl import get_ca_cert_as_pem
+from ..statistics import StatisticsMiddleware
+from ..utils import async_redis_client, normalize_ip_address
+from ..worker import Worker
 from . import terminal  # pylint: disable=unused-import
-from .metrics import metrics_setup
-from .jsonrpc import jsonrpc_setup
-from .webdav import webdav_setup
+from . import app
 from .admininterface import admin_interface_setup
-from .redisinterface import redis_interface_setup
-from .monitoring.monitoring import monitoring_setup
-from .status import status_setup
+from .jsonrpc import jsonrpc_setup
 from .messagebroker import messagebroker_setup
-
+from .metrics import metrics_setup
+from .monitoring.monitoring import monitoring_setup
+from .redisinterface import redis_interface_setup
+from .status import status_setup
+from .utils import OpsiconfdWebSocketEndpoint
+from .webdav import webdav_setup
 
 PATH_MAPPINGS = {
 	# Some WebDAV-Clients do not accept redirect on initial PROPFIND
@@ -63,6 +62,11 @@ PATH_MAPPINGS = {
 
 @app.get("/")
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument
+	logger.devel(config.welcome_page)
+	if config.welcome_page:
+		# config.welcome_page = False
+		# config.set_config_in_config_file("welcome-page", "false")
+		return RedirectResponse("/welcome", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 	return RedirectResponse("/admin", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 
@@ -255,7 +259,9 @@ def application_setup():
 	#    ExceptionMiddleware
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-	app.add_middleware(SessionMiddleware, public_path=["/metrics/grafana", "/ssl/opsi-ca-cert.pem", "/status", "/public", "/static"])
+	app.add_middleware(
+		SessionMiddleware, public_path=["/metrics/grafana", "/ssl/opsi-ca-cert.pem", "/status", "/public", "/static", "/welcome"]
+	)
 	# app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	app.add_middleware(BaseMiddleware)

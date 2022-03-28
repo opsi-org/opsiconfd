@@ -8,35 +8,55 @@
 session handling
 """
 
-import time
 import asyncio
-from typing import List, Dict, Optional, Any
-from collections import namedtuple
-import uuid
 import base64
-import msgpack  # type: ignore[import]
+import time
+import uuid
+from collections import namedtuple
+from typing import Any, Dict, List, Optional
+
 import aioredis
-
+import msgpack  # type: ignore[import]
 from fastapi import HTTPException, status
-from fastapi.requests import HTTPConnection
-from fastapi.responses import Response, PlainTextResponse, JSONResponse, RedirectResponse
 from fastapi.exceptions import ValidationError
-from starlette.datastructures import MutableHeaders, Headers
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from starlette.concurrency import run_in_threadpool
-
+from fastapi.requests import HTTPConnection
+from fastapi.responses import (
+	JSONResponse,
+	PlainTextResponse,
+	RedirectResponse,
+	Response,
+)
 from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
-from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp  # type: ignore[import]
-from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError  # type: ignore[import]
-from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP  # type: ignore[import]
-
-from opsicommon.logging import logger, secret_filter, set_context  # type: ignore[import]
+from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
+from OPSI.Exceptions import (  # type: ignore[import]
+	BackendAuthenticationError,
+	BackendPermissionDeniedError,
+)
+from OPSI.Util import (  # type: ignore[import]
+	deserialize,
+	ipAddressInNetwork,
+	serialize,
+	timestamp,
+)
+from opsicommon.logging import (  # type: ignore[import]
+	logger,
+	secret_filter,
+	set_context,
+)
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import Headers, MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import contextvar_client_session, contextvar_server_timing
-from .backend import get_client_backend
-from .config import config, FQDN
-from .utils import redis_client, async_redis_client, ip_address_to_redis_key, utc_time_timestamp
 from .addon import AddonManager
+from .backend import get_client_backend
+from .config import FQDN, config
+from .utils import (
+	async_redis_client,
+	ip_address_to_redis_key,
+	redis_client,
+	utc_time_timestamp,
+)
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -102,8 +122,7 @@ class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
 		self.session_cookie_name = "opsiconfd-session"
-		# self.security_flags = "httponly; samesite=lax; secure"
-		self.security_flags = ""
+		self.session_cookie_attributes = ["SameSite=Strict", "Secure"]
 		self._public_path = public_path or []
 		# Store ip addresses of depots with last access time
 		self._depot_addresses: Dict[str, float] = {}
@@ -362,6 +381,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		return self._session_middelware.session_cookie_name
 
 	@property
+	def session_cookie_attributes(self):
+		return self._session_middelware.session_cookie_attributes
+
+	@property
 	def redis_key(self) -> str:
 		assert self.session_id
 		return f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:{self.session_id}"
@@ -377,7 +400,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def get_headers(self):
 		if not self.session_id or self.deleted or not self.persistent:
 			return {}
-		return {"Set-Cookie": f"{self.session_cookie_name}={self.session_id}; path=/; Max-Age={self.max_age}"}
+		attrs = "; ".join(self.session_cookie_attributes)
+		if attrs:
+			attrs += "; "
+		return {"Set-Cookie": f"{self.session_cookie_name}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"}
 
 	async def init(self) -> None:
 		if self.session_id is None:

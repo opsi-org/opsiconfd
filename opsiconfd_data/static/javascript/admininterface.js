@@ -1052,7 +1052,7 @@ function startTerminal() {
 
 		console.log(`size: ${terminal.cols} cols, ${terminal.rows} rows`);
 
-		let params = [`rows=${terminal.rows}`, `cols=${terminal.cols}`]
+		let params = ["set_cookie_interval=30", `rows=${terminal.rows}`, `cols=${terminal.cols}`]
 		let loc = window.location;
 		let ws_uri;
 		if (loc.protocol == "https:") {
@@ -1074,10 +1074,14 @@ function startTerminal() {
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
 		terminal.websocket.onmessage = function (event) {
-			const message = msgpack.deserialize(event.data, true)[0];
+			const message = msgpack.deserialize(event.data);
 			//console.log(message);
 			if (message.type == "terminal-read") {
 				terminal.write(message.payload);
+			}
+			else if (message.type == "set-cookie") {
+				console.log("Set-Cookie");
+				document.cookie = message.payload;
 			}
 			else if (message.type == "file-transfer-result") {
 				document.getElementsByClassName('xterm-selection-layer')[0].classList.remove("upload-active");

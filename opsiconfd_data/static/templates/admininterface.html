@@ -113,7 +113,7 @@
 				loadMemoryInfo();
 			}
 			else if (tabName == "log-viewer") {
-				startLog(0, Math.round(Date.now() / 1000) - 300); // last 5 minutes
+				startLog();
 			}
 			else if (tabName == "terminal") {
 				setTimeout(startTerminal, 500);

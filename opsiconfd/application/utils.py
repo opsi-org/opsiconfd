@@ -8,20 +8,29 @@
 application utils
 """
 
-from starlette import status
-from starlette.types import Message
-from starlette.endpoints import WebSocketEndpoint
-from starlette.websockets import WebSocket
-from fastapi import HTTPException
-from fastapi.dependencies.utils import solve_dependencies, get_dependant
-from fastapi.exceptions import WebSocketRequestValidationError
+import asyncio
+from inspect import Parameter
+from typing import Optional
 
+import msgpack  # type: ignore[import]
 import orjson
+from fastapi import HTTPException, params
+from fastapi.dependencies.utils import (
+	get_dependant,
+	get_param_field,
+	solve_dependencies,
+)
+from fastapi.exceptions import WebSocketRequestValidationError
+from starlette import status
+from starlette.endpoints import WebSocketEndpoint
+from starlette.types import Message, Receive, Scope, Send
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
+from websockets.exceptions import ConnectionClosedOK
 
 from .. import contextvar_client_session
+from ..backend import get_mysql
 from ..config import FQDN
 from ..logging import logger
-from ..backend import get_mysql
 
 
 def get_configserver_id():
@@ -196,6 +205,11 @@ class OpsiconfdWebSocket(WebSocket):
 class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 	admin_only = False
 
+	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
+		super().__init__(scope, receive, send)
+		self._set_cookie_task: asyncio.Task
+		self._check_session_task: asyncio.Task
+
 	async def _check_authorization(self) -> None:
 		if not self.scope.get("session"):
 			raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Access to {self}, no valid session found")
@@ -206,22 +220,54 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 				detail=f"Access to {self} denied for user {self.scope['session'].user_store.username!r}",
 			)
 
+	async def set_cookie_task(self, websocket: WebSocket, set_cookie_interval: int):
+		try:
+			while True:
+				await asyncio.sleep(set_cookie_interval)
+				if websocket.client_state != WebSocketState.CONNECTED:
+					break
+				logger.debug("Send set-cookie")
+				await websocket.send_bytes(
+					msgpack.dumps({"type": "set-cookie", "payload": self.scope["session"].get_headers()["Set-Cookie"]})
+				)
+		except (ConnectionClosedOK, WebSocketDisconnect) as err:
+			logger.debug("set_cookie_task: %s", err)
+
+	async def check_session_task(self, websocket: WebSocket):
+		try:
+			while True:
+				await asyncio.sleep(15)
+				if websocket.client_state != WebSocketState.CONNECTED:
+					break
+				if self.scope["session"].expired:
+					logger.info("Session expired")
+					await websocket.close(code=status.WS_1000_NORMAL_CLOSURE)
+		except (ConnectionClosedOK, WebSocketDisconnect) as err:
+			logger.debug("check_session_task: %s", err)
+
 	async def dispatch(self) -> None:
 		websocket = OpsiconfdWebSocket(self.scope, receive=self.receive, send=self.send)
 		await self._check_authorization()
 
 		dependant = get_dependant(path="", call=self.on_connect)
+
+		param = Parameter("set_cookie_interval", default=0, annotation=Optional[int], kind=Parameter.KEYWORD_ONLY)
+
+		dependant.query_params.append(get_param_field(param=param, default_field_info=params.Query, param_name=param.name))
 		solved_result = await solve_dependencies(request=websocket, dependant=dependant)
 		values, errors, *_ = solved_result
 		if errors:
 			logger.info(errors)
 			raise WebSocketRequestValidationError(errors)
 
-		# Set session max age to 1h
-		# self.scope["session"].max_age = 3600
-
 		await websocket.accept()
 
+		self._check_session_task = asyncio.get_event_loop().create_task(self.check_session_task(websocket))
+
+		set_cookie_interval = values.pop("set_cookie_interval")
+		if set_cookie_interval > 0:
+			logger.debug("set_cookie_interval is %d", set_cookie_interval)
+			self._set_cookie_task = asyncio.get_event_loop().create_task(self.set_cookie_task(websocket, set_cookie_interval))
 		await self.on_connect(**values)
 
 		close_code = status.WS_1000_NORMAL_CLOSURE

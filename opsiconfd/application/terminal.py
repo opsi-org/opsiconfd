@@ -8,25 +8,25 @@
 application.teminal
 """
 
-import os
-import pwd
 import asyncio
-import time
+import os
 import pathlib
-from typing import Dict, Optional, Any
-import msgpack  # type: ignore[import]
+import pwd
+import time
+from typing import Any, Dict, Optional
 
+import msgpack  # type: ignore[import]
 import psutil
 from fastapi import Query
-from starlette.types import Scope, Receive, Send
-from starlette.websockets import WebSocket, WebSocketDisconnect
-from websockets.exceptions import ConnectionClosedOK
-from pexpect import spawn  # type: ignore[import]
-from pexpect.exceptions import TIMEOUT, EOF  # type: ignore[import]
 from OPSI.System import get_subprocess_environment  # type: ignore[import]
+from pexpect import spawn  # type: ignore[import]
+from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
+from starlette.types import Receive, Scope, Send
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
+from websockets.exceptions import ConnectionClosedOK
 
-from ..logging import logger
 from ..config import config
+from ..logging import logger
 from . import app
 from .utils import OpsiconfdWebSocketEndpoint
 
@@ -52,7 +52,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 
 	async def pty_reader(self, websocket: WebSocket):
 		loop = asyncio.get_event_loop()
-		while True:
+		while websocket.client_state == WebSocketState.CONNECTED:
 			try:
 				logger.trace("Read from pty")
 				data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, PTY_READER_BLOCK_SIZE, 0.01)

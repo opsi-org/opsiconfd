@@ -2,21 +2,74 @@
 <html>
 
 <head>
-    <meta charset='utf-8'>
-    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
-    <title>Welcome</title>
-    <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <link rel='stylesheet' type='text/css' media='screen' href='main.css'>
-    <script src='main.js'></script>
+	<meta charset='utf-8'>
+	<meta http-equiv='X-UA-Compatible' content='IE=edge'>
+	<title>Welcome</title>
+	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
+	<script src="/static/javascript/admininterface.js"></script>
+
 </head>
 
 <body>
+	<div class="header">
+		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
+		<h1>Welcome to Opsi</h1>
+	</div>
 
-    <h1>Welcome to Opsi</h1>
+	<div class="content">
 
-    Now you can....
+
+		<div class="adminpage-box" id="sessions">
+
+			<br>
+			Now you can download the <a href="/admin#configed">opsiconfiged </a> and create clients.
+
+			<br><br><br><br><br>
+			...
+			<br><br><br><br><br>
+			...
+
+		</div>
+
+
+		<button id="continue-button" onclick="redirectToAdminPage()">Continue</button>
+		<br>
+
+		<h5> <input type="checkbox" id="skip" name="skip"> Don't show this page again.</h5>
+
+	</div>
+
+
 
 
 </body>
 
 </html>
+
+<script>
+	function redirectToAdminPage() {
+
+		let skip = document.getElementById("skip");
+		console.log(skip.checked);
+		if (skip.checked == true) {
+			let request = new XMLHttpRequest();
+			request.open("POST", "/welcome/deactivate");
+			request.addEventListener('load', function (event) {
+				if (request.status >= 200 && request.status < 300) {
+					result = request.responseText;
+					result = JSON.parse(result);
+					console.log(result);
+					return result;
+				} else {
+					console.warn(request.statusText, request.responseText);
+					return request.statusText;
+				}
+			});
+			request.send()
+		}
+		window.open("/admin")
+
+	}
+
+
+</script>

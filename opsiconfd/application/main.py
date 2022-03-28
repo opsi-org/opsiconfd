@@ -62,10 +62,7 @@ PATH_MAPPINGS = {
 
 @app.get("/")
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument
-	logger.devel(config.welcome_page)
 	if config.welcome_page:
-		# config.welcome_page = False
-		# config.set_config_in_config_file("welcome-page", "false")
 		return RedirectResponse("/welcome", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 	return RedirectResponse("/admin", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 

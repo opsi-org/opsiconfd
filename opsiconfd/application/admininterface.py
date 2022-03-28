@@ -80,7 +80,7 @@ async def welcome_interface_index(request: Request):
 	return config.jinja_templates.TemplateResponse("welcome.html", context)
 
 
-@welcome_interface_router.get("/deactivate")
+@welcome_interface_router.post("/deactivate")
 async def welcome_interface_deactivate():
 	config.welcome_page = False
 	config.set_config_in_config_file("welcome-page", "false")

@@ -8,47 +8,46 @@
 application main
 """
 
-import os
 import asyncio
+import os
+from ctypes import c_long
 from typing import Any
 from urllib.parse import urlparse
-from ctypes import c_long
 
-from starlette import status
-from starlette.websockets import WebSocket, WebSocketDisconnect
-from starlette.types import ASGIApp, Message, Scope, Send, Receive
-from starlette.datastructures import MutableHeaders
-from starlette.concurrency import run_in_threadpool
+import msgpack  # type: ignore[import]
 from fastapi import Query
-from fastapi.staticfiles import StaticFiles
-from fastapi.requests import Request
-from fastapi.responses import Response, FileResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.requests import Request
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
-from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
+from fastapi.staticfiles import StaticFiles
+from starlette import status
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
-from .. import __version__, contextvar_request_id, contextvar_client_address
-from ..logging import logger
-from ..config import config
-from ..worker import Worker
-from ..session import SessionMiddleware
-from ..statistics import StatisticsMiddleware
-from ..utils import normalize_ip_address, async_redis_client
-from ..ssl import get_ca_cert_as_pem
+from .. import __version__, contextvar_client_address, contextvar_request_id
 from ..addon import AddonManager
+from ..config import config
+from ..logging import logger
 from ..rest import OpsiApiException, rest_api
-from . import app
-from .utils import OpsiconfdWebSocketEndpoint
+from ..session import SessionMiddleware
+from ..ssl import get_ca_cert_as_pem
+from ..statistics import StatisticsMiddleware
+from ..utils import async_redis_client, normalize_ip_address
+from ..worker import Worker
 from . import terminal  # pylint: disable=unused-import
-from .metrics import metrics_setup
-from .jsonrpc import jsonrpc_setup
-from .webdav import webdav_setup
+from . import app
 from .admininterface import admin_interface_setup
-from .redisinterface import redis_interface_setup
-from .monitoring.monitoring import monitoring_setup
-from .status import status_setup
+from .jsonrpc import jsonrpc_setup
 from .messagebroker import messagebroker_setup
-
+from .metrics import metrics_setup
+from .monitoring.monitoring import monitoring_setup
+from .redisinterface import redis_interface_setup
+from .status import status_setup
+from .utils import OpsiconfdWebSocketEndpoint
+from .webdav import webdav_setup
 
 PATH_MAPPINGS = {
 	# Some WebDAV-Clients do not accept redirect on initial PROPFIND
@@ -96,34 +95,47 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
 		self._log_reader_task: asyncio.Task
+		self._last_id = "$"
+		self._client = None
+		self._max_message_size = 1_000_000
 
-	@staticmethod
-	async def _log_reader(websocket: WebSocket, start_id="$", client=None):
+	async def read_data(self, data):
+		for stream in data:
+			for dat in stream[1]:
+				self._last_id = dat[0]
+				if self._client and self._client != dat[1].get("client", b"").decode("utf-8"):
+					continue
+				yield dat[1][b"record"]
+
+	async def _log_reader(self, websocket: WebSocket, start_id="$", client=None):
 		stream_name = f"opsiconfd:log:{config.node_name}"
 		logger.info(
 			"Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client
 		)
-		last_id = start_id
-
-		def read_data(data):
-			buf = bytearray()
-			for stream in data:
-				for dat in stream[1]:
-					last_id = dat[0]
-					if client and client != dat[1].get("client", b"").decode("utf-8"):
-						continue
-					buf += dat[1][b"record"]
-			return (last_id, buf)
+		self._last_id = start_id
+		self._client = client
 
 		while True:
+			if websocket.client_state != WebSocketState.CONNECTED:
+				break
 			try:
 				redis = await async_redis_client()
 				# It is also possible to specify multiple streams
-				data = await redis.xread(streams={stream_name: last_id}, block=1000)
+				data = await redis.xread(streams={stream_name: self._last_id}, block=1000)
 				if not data:
 					continue
-				last_id, buf = await run_in_threadpool(read_data, data)
-				await websocket.send_text(buf)
+				message_header = bytearray(msgpack.dumps({"type": "log-records"}))
+				message = message_header.copy()
+				num_records = 0
+				async for record in self.read_data(data):
+					num_records += 1
+					message += record
+					if len(message) >= self._max_message_size:
+						await websocket.send_bytes(message)
+						message = message_header.copy()
+						num_records = 0
+				if num_records > 0:
+					await websocket.send_bytes(message)
 			except (ConnectionClosedOK, ConnectionClosedError, WebSocketDisconnect):
 				break
 			except Exception as err:  # pylint: disable=broad-except
@@ -131,14 +143,11 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 				break
 
 	async def on_connect(  # pylint: disable=arguments-differ
-		self,
-		websocket: WebSocket,
-		client: str = Query(default=None),
-		start_time: int = Query(default=0),
+		self, websocket: WebSocket, client: str = Query(default=None), start_time: int = Query(default=0)
 	):
 		start_id = "$"
 		if start_time > 0:
-			start_id = str(start_time)
+			start_id = str(start_time * 1000)
 		self._log_reader_task = asyncio.get_event_loop().create_task(self._log_reader(websocket, start_id, client))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:

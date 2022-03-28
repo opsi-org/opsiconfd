@@ -105,9 +105,9 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			sys.exit(1)
 		return
 
-	# if manager_pid:
-	# 	print(f"Another opsiconfd manager process is already running (pid {manager_pid})", file=sys.stderr)
-	# 	sys.exit(1)
+	if manager_pid:
+		print(f"Another opsiconfd manager process is already running (pid {manager_pid})", file=sys.stderr)
+		sys.exit(1)
 
 	if config.use_jemalloc and getattr(sys, "frozen", False):
 		try:

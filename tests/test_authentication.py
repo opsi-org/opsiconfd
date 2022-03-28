@@ -9,20 +9,20 @@ login tests
 """
 
 import time
+
 import pytest
 
 from .utils import (  # pylint: disable=unused-import
-	config,
-	get_config,
-	clean_redis,
-	database_connection,
-	ADMIN_USER,
 	ADMIN_PASS,
+	ADMIN_USER,
 	OPSI_SESSION_KEY,
+	clean_redis,
+	config,
+	database_connection,
+	get_config,
 	sync_redis_client,
 	test_client,
 )
-
 
 login_test_data = [
 	(None, 401, "Authorization header missing"),
@@ -45,7 +45,7 @@ def test_login_error(test_client, auth_data, expected_status_code, expected_text
 def test_login_success(test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
-	assert res.url.rstrip("/") == f"{test_client.base_url}/admin"
+	assert res.url.rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
 
 
 def test_networks(test_client):  # pylint: disable=redefined-outer-name

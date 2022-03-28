@@ -8,31 +8,36 @@
 opsiconfd main
 """
 
-import os
-import re
-import sys
-import pwd
-import time
 import asyncio
-import threading
-import signal
-import pprint
-import subprocess
 import getpass
+import os
+import pprint
+import pwd
+import re
+import signal
+import subprocess
+import sys
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
+
 import uvloop
-
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
-
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 
 from . import __version__
-from .logging import logger, init_logging, shutdown_logging, secret_filter, AsyncRedisLogAdapter
 from .config import config
-from .setup import setup
-from .patch import apply_patches
-from .utils import get_manager_pid
+from .logging import (
+	AsyncRedisLogAdapter,
+	init_logging,
+	logger,
+	secret_filter,
+	shutdown_logging,
+)
 from .manager import Manager
+from .patch import apply_patches
+from .setup import setup
+from .utils import get_manager_pid
 
 
 def run_with_jemlalloc():
@@ -100,9 +105,9 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			sys.exit(1)
 		return
 
-	if manager_pid:
-		print(f"Another opsiconfd manager process is already running (pid {manager_pid})", file=sys.stderr)
-		sys.exit(1)
+	# if manager_pid:
+	# 	print(f"Another opsiconfd manager process is already running (pid {manager_pid})", file=sys.stderr)
+	# 	sys.exit(1)
 
 	if config.use_jemalloc and getattr(sys, "frozen", False):
 		try:

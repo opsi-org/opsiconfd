@@ -731,6 +731,13 @@ class Config(metaclass=Singleton):
 			default=0,
 			help="Restart worker if allocated process memory (rss) exceeds this value (in MB).",
 		)
+		self._parser.add(
+			"--welcome-page",
+			env_var="OPSICONFD_WELCOME_PAGE",
+			action='store_true',
+			default=False,
+			help="Show welcome page on index.",
+		)
 
 		self._parser.add("--ex-help", action="store_true", help=self._expert_help("Show expert help message and exit."))
 		self._parser.add(

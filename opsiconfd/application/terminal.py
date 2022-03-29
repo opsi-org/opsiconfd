@@ -11,13 +11,16 @@ application.teminal
 import asyncio
 import os
 import pathlib
-import pwd
 import time
+from asyncio import get_event_loop
+from os import getuid
+from pwd import getpwuid
 from typing import Any, Dict, Optional
 
-import msgpack  # type: ignore[import]
 import psutil
 from fastapi import Query
+from msgpack import dumps as msgpack_dumps  # type: ignore[import]
+from msgpack import loads as msgpack_loads  # type: ignore[import]
 from OPSI.System import get_subprocess_environment  # type: ignore[import]
 from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
@@ -51,42 +54,42 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		self._file_transfers: Dict[str, Dict[str, Any]] = {}
 
 	async def pty_reader(self, websocket: WebSocket):
-		loop = asyncio.get_event_loop()
-		while websocket.client_state == WebSocketState.CONNECTED:
-			try:
-				logger.trace("Read from pty")
-				data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, PTY_READER_BLOCK_SIZE, 0.01)
-				# data: bytes = self._pty.read_nonblocking(PTY_READER_BLOCK_SIZE, 0.001)
-				logger.trace(data)
-				await websocket.send_bytes(
-					await asyncio.get_event_loop().run_in_executor(None, msgpack.dumps, {"type": "terminal-read", "payload": data})
-				)
-			except TIMEOUT:
-				pass
-			except EOF:
-				# shell exit
-				await websocket.close()
-				break
-			except (ConnectionClosedOK, WebSocketDisconnect) as err:
-				logger.debug("pty_reader: %s", err)
-				break
+		loop = get_event_loop()
+		pty_reader_block_size = PTY_READER_BLOCK_SIZE
+		try:
+			while websocket.client_state == WebSocketState.CONNECTED:
+				try:  # pylint: disable=loop-try-except-usage
+					logger.trace("Read from pty")
+					data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, pty_reader_block_size, 0.01)
+					# data: bytes = self._pty.read_nonblocking(pty_reader_block_size, 0.001)
+					logger.trace(data)
+					await websocket.send_bytes(
+						await loop.run_in_executor(
+							None, msgpack_dumps, {"type": "terminal-read", "payload": data}  # pylint: disable=loop-invariant-statement
+						)  # pylint: disable=loop-invariant-statement
+					)
+				except TIMEOUT:  # pylint: disable=loop-invariant-statement
+					pass
+		except EOF:
+			# shell exit
+			await websocket.close()
+		except (ConnectionClosedOK, WebSocketDisconnect) as err:
+			logger.debug("pty_reader: %s", err)
 
 	async def on_receive(self, websocket: WebSocket, data: Any) -> None:
-		message = await asyncio.get_event_loop().run_in_executor(None, msgpack.loads, data)
+		message = await get_event_loop().run_in_executor(None, msgpack_loads, data)
 		logger.trace(message)
 		payload = message.get("payload")
 		if message.get("type") == "terminal-write":
 			# Do not wait for completion to minimize rtt
-			asyncio.get_event_loop().run_in_executor(None, self._pty.write, payload)
+			get_event_loop().run_in_executor(None, self._pty.write, payload)
 		elif message.get("type") == "terminal-resize":
-			asyncio.get_event_loop().run_in_executor(None, self._pty.setwinsize, payload.get("rows"), payload.get("cols"))
+			get_event_loop().run_in_executor(None, self._pty.setwinsize, payload.get("rows"), payload.get("cols"))
 		elif message.get("type") == "file-transfer":
-			response = await asyncio.get_event_loop().run_in_executor(None, self._handle_file_transfer, payload)
+			response = await get_event_loop().run_in_executor(None, self._handle_file_transfer, payload)
 			if response:
 				await websocket.send_bytes(
-					await asyncio.get_event_loop().run_in_executor(
-						None, msgpack.dumps, {"type": "file-transfer-result", "payload": response}
-					)
+					await get_event_loop().run_in_executor(None, msgpack_dumps, {"type": "file-transfer-result", "payload": response})
 				)
 		else:
 			logger.warning("Received invalid message type %r", message.get("type"))
@@ -104,10 +107,10 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 
 		logger.info("Websocket client connected to terminal cols=%d, rows=%d", cols, rows)
 
-		cwd = pwd.getpwuid(os.getuid()).pw_dir
+		cwd = getpwuid(getuid()).pw_dir
 		self._pty = start_pty(shell=config.admin_interface_terminal_shell, rows=rows, cols=cols, cwd=cwd)
 
-		self._pty_reader_task = asyncio.get_event_loop().create_task(self.pty_reader(websocket))
+		self._pty_reader_task = get_event_loop().create_task(self.pty_reader(websocket))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		logger.info("Terminal connection closed")
@@ -131,15 +134,17 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 
 			dst_dir = proc.cwd()
 			return_absolute_path = False
+			psutil_access_denied = psutil.AccessDenied
+			os_path_exists = os.path.exists
 			for child in proc.children(recursive=True):
-				try:
+				try:  # pylint: disable=loop-try-except-usage
 					dst_dir = child.cwd()
-				except psutil.AccessDenied:
+				except psutil_access_denied:
 					# Child owned by an other user (su)
 					return_absolute_path = True
 					dst_dir = "/var/lib/opsi"
-					if not os.path.exists(dst_dir):
-						dst_dir = pwd.getpwuid(os.getuid()).pw_dir
+					if not os_path_exists(dst_dir):
+						dst_dir = getpwuid(getuid()).pw_dir
 
 			dst_path = pathlib.Path(dst_dir)
 			try:

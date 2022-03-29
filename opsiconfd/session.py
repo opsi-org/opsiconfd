@@ -13,10 +13,10 @@ import base64
 import time
 import uuid
 from collections import namedtuple
+from time import sleep as time_sleep
 from typing import Any, Dict, List, Optional
 
 import aioredis
-import msgpack  # type: ignore[import]
 from fastapi import HTTPException, status
 from fastapi.exceptions import ValidationError
 from fastapi.requests import HTTPConnection
@@ -26,6 +26,8 @@ from fastapi.responses import (
 	RedirectResponse,
 	Response,
 )
+from msgpack import dumps as msgpack_dumps  # type: ignore[import]
+from msgpack import loads as msgpack_loads  # type: ignore[import]
 from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
 from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
 from OPSI.Exceptions import (  # type: ignore[import]
@@ -173,11 +175,13 @@ class SessionMiddleware:
 				return
 
 		# Set default access role
-		scope["required_access_role"] = ACCESS_ROLE_ADMIN
+		required_access_role = ACCESS_ROLE_ADMIN
+		access_role_public = ACCESS_ROLE_PUBLIC
 		for pub_path in self._public_path:
 			if scope["path"].startswith(pub_path):
-				scope["required_access_role"] = ACCESS_ROLE_PUBLIC
+				required_access_role = access_role_public
 				break
+		scope["required_access_role"] = required_access_role
 
 		if scope["path"].startswith(("/rpc", "/monitoring")) or (
 			scope["path"].startswith("/depot") and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
@@ -248,8 +252,7 @@ class SessionMiddleware:
 				if scope["session"] and not scope["session"].deleted and scope["session"].persistent:
 					await scope["session"].store()
 					headers = MutableHeaders(scope=message)
-					for key, val in scope["session"].get_headers().items():
-						headers.append(key, val)
+					headers.update(scope["session"].get_headers().items())
 			await send(message)
 
 		await self.app(scope, receive, send_wrapper)
@@ -428,11 +431,12 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		try:
 			with redis_client() as redis:
 				now = utc_time_timestamp()
-				for redis_key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
+				session_key = f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"
+				for redis_key in redis.scan_iter(session_key):
 					validity = 0
 					data = redis.get(redis_key)
 					if data:
-						sess = msgpack.loads(data)
+						sess = msgpack_loads(data)
 						validity = sess["max_age"] - (now - sess["last_used"])
 					if validity > 0:
 						session_count += 1
@@ -459,7 +463,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			data = redis.get(self.redis_key)
 		if not data:
 			return False
-		data = msgpack.loads(data)
+		data = msgpack_loads(data)
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
 		self.max_age = data.get("max_age", self.max_age)
@@ -486,7 +490,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			session_data = {}
 			data = redis.get(self.redis_key)
 			if data:
-				session_data = msgpack.loads(data)
+				session_data = msgpack_loads(data)
 			session_data.update(
 				{
 					"created": session_data.get("created", self.created),
@@ -507,7 +511,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			if "password" in session_data["user_store"]:
 				del session_data["user_store"]["password"]
 
-			redis.set(self.redis_key, msgpack.dumps(session_data), ex=self._redis_expiration_seconds)
+			redis.set(self.redis_key, msgpack_dumps(session_data), ex=self._redis_expiration_seconds)
 
 	async def store(self, wait: Optional[bool] = True) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now
@@ -521,7 +525,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		with redis_client() as redis:
 			for _ in range(10):
 				redis.delete(self.redis_key)
-				time.sleep(0.01)
+				time_sleep(0.01)
 				# Be sure to delete key
 				if not redis.exists(self.redis_key):
 					break

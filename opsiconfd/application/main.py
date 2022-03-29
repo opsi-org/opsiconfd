@@ -14,13 +14,13 @@ from ctypes import c_long
 from typing import Any
 from urllib.parse import urlparse
 
-import msgpack  # type: ignore[import]
 from fastapi import Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
+from msgpack import dumps as msgpack_dumps  # type: ignore[import]
 from starlette import status
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -115,16 +115,17 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 		self._last_id = start_id
 		self._client = client
 
-		while True:
-			if websocket.client_state != WebSocketState.CONNECTED:
-				break
-			try:
+		message_header = bytearray(msgpack_dumps({"type": "log-records"}))
+		try:
+			while True:
+				if websocket.client_state != WebSocketState.CONNECTED:
+					break
+
 				redis = await async_redis_client()
 				# It is also possible to specify multiple streams
 				data = await redis.xread(streams={stream_name: self._last_id}, block=1000)
 				if not data:
 					continue
-				message_header = bytearray(msgpack.dumps({"type": "log-records"}))
 				message = message_header.copy()
 				num_records = 0
 				async for record in self.read_data(data):
@@ -136,11 +137,10 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 						num_records = 0
 				if num_records > 0:
 					await websocket.send_bytes(message)
-			except (ConnectionClosedOK, ConnectionClosedError, WebSocketDisconnect):
-				break
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error(err, exc_info=True)
-				break
+		except (ConnectionClosedOK, ConnectionClosedError, WebSocketDisconnect):
+			pass
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
 
 	async def on_connect(  # pylint: disable=arguments-differ
 		self, websocket: WebSocket, client: str = Query(default=None), start_time: int = Query(default=0)
@@ -286,7 +286,7 @@ def application_setup():
 
 	logger.debug("Routing:")
 	routes = {}
-	for route in app.routes:
+	for route in app.routes:  # pylint: disable=use-dict-comprehension
 		if isinstance(route, Mount):
 			routes[route.path] = str(route.app.__module__)
 		elif isinstance(route, APIRoute):

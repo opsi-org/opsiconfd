@@ -252,7 +252,7 @@ class SessionMiddleware:
 				if scope["session"] and not scope["session"].deleted and scope["session"].persistent:
 					await scope["session"].store()
 					headers = MutableHeaders(scope=message)
-					headers.update(scope["session"].get_headers().items())
+					headers.update(scope["session"].get_headers())
 			await send(message)
 
 		await self.app(scope, receive, send_wrapper)

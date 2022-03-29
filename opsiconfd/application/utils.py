@@ -184,7 +184,7 @@ def merge_dicts(dict_a: dict, dict_b: dict, path=None) -> dict:
 	if not dict_a or not dict_b:
 		raise ValueError("Merge_dicts: At least one of the dicts (a and b) is not set.")
 	if path is None:
-		path = tuple()
+		path = []  # pylint: disable=use-tuple-over-list
 	for key in dict_b:
 		if key in dict_a:
 			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):

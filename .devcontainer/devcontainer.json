@@ -32,6 +32,10 @@
 		"python.linting.flake8Enabled": true,
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintCategorySeverity.refactor": "Information",
+		"python.linting.pylintArgs": [
+			"--load-plugins",
+			"perflint"
+		],
 		"python.linting.mypyEnabled": true,
 		"python.linting.mypyArgs": [
 			"--show-error-codes"

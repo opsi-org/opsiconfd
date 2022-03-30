@@ -60,23 +60,15 @@ def admin_interface_setup(app):
 
 @welcome_interface_router.get("/")
 async def welcome_interface_index(request: Request):
-	backend = get_backend()
-	username = ""
-	session = contextvar_client_session.get()
-	if session and session.user_store:
-		username = session.user_store.username
-	context = {
-		"request": request,
-		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
-		"node_name": config.node_name,
-		"username": username,
-		"interface": get_backend_interface(),
-		"ca_info": get_ca_cert_info(),
-		"cert_info": get_server_cert_info(),
-		"num_servers": get_num_servers(backend),
-		"num_clients": get_num_clients(backend),
-		"disabled_features": config.admin_interface_disabled_features,
-	}
+
+	try:
+		with open("/etc/lsb-release", encoding="utf8") as lsb_relase:
+			if "univention" in lsb_relase.read():
+				ucs_server = True
+	except FileNotFoundError:
+		ucs_server = False
+
+	context = {"request": request, "opsi_version": f"{__version__} [python-opsi={python_opsi_version}]", "ucs-server": ucs_server or False}
 	return config.jinja_templates.TemplateResponse("welcome.html", context)
 
 

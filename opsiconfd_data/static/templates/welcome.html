@@ -15,28 +15,76 @@
 	<div class="header">
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
 		<h1>Welcome to Opsi</h1>
+		<h1>opsiconfd {{opsi_version}}</h1>
 	</div>
 
 	<div class="content">
+		<br>
 
+		<p>Here you find some links to get you started:</p>
 
 		<div class="adminpage-box" id="sessions">
 
-			<br>
-			Now you can download the <a href="#" onclick="downloadConfiged()">Opsi configed</a> and create clients.
+			<ul>
+				<li>
+					<p>
+						Now you can download the <a href="#" onclick="downloadConfiged()">Opsi configed</a> and create
+						clients.
 
-			<br><br><br><br><br>
-			...
-			<br><br><br><br><br>
-			...
+						<a href="https://download.uib.de/opsi4.2/documentation/html/en/opsi-getting-started-v4.2/opsi-getting-started-v4.2.html#opsi-getting-started-firststeps-osinstall-create-client"
+							target="_blank" rel="noopener noreferrer">
+							Chapter 6.1
+						</a>
+						in our getting-started describes how to create opsi clients.
+					</p>
+				</li>
+				<li>
+					<p>You can go to the
+						<a href="/admin/#terminal" target="_blank" rel="noopener noreferrer">opsi admin terminal</a> and
+						install
+						opsi products (<a
+							href="https://download.uib.de/opsi4.2/documentation/html/opsi-getting-started-v4.2/opsi-getting-started-v4.2.html#opsi-getting-started-installation-config-get-essential-products"
+							target="_blank" rel="noopener noreferrer">
+							documentation
+						</a> on how to install opsi products on the server).
+
+					</p>
+					<ul>
+						<li>
+							<code class="language-bash">
+								opsi-package-updater -v install
+							</code>
+						</li>
+					</ul>
+				</li>
+				<li>
+					<p>
+						The opsi-Community meets on the <a href="https://forum.opsi.org/index.php" target="_blank"
+							rel="noopener noreferrer">opsi-forum</a> on opsi.org. There is also a wiki site you can
+						visit.
+					</p>
+				</li>
+
+				{% if ucs_server %}
+				<li>
+					<p>
+						<a href="https://download.uib.de/opsi4.2/documentation/html/opsi-getting-started-v4.2/opsi-getting-started-v4.2.html#opsi-getting-started-installation-base-ucs"
+							target="_blank" rel="noopener noreferrer">
+							Here
+						</a> you can find some information regarding opsi on UCS.
+					</p>
+					{% endif %}
+				</li>
+				<li>
+					<p>
+						Go to the <a href="#" onclick="redirectToAdminPage()">opsi admin interface</a>
+					</p>
+				</li>
+			</ul>
 
 		</div>
 
-
-		<button id="continue-button" onclick="redirectToAdminPage()">Continue</button>
-		<br>
-
-		<h5> <input type="checkbox" id="skip" name="skip"> Don't show this page again.</h5>
+		<h5> <input type="checkbox" id="skip" name="skip"> Do not show this page again.</h5>
 
 	</div>
 

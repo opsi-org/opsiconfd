@@ -72,6 +72,14 @@ li {
 	color: #0068aa;
 }
 
+.header > h2 {
+	display: inline-block;
+	vertical-align: bottom;
+	margin-left: 25px;
+	font-size: 14px;
+	color: #0068aa;
+}
+
 .content {
 	width: 90%;
 	margin-left: auto;

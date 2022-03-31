@@ -8,45 +8,43 @@
 	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
 	<script src="/static/javascript/common.js"></script>
 	<script src="/static/javascript/admininterface.js"></script>
+	<script src="/static/javascript/welcome.js"></script>
 
 </head>
 
 <body>
 	<div class="header">
 		<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
-		<h1>Welcome to Opsi</h1>
-		<h1>opsiconfd {{opsi_version}}</h1>
+		<h1>Welcome to opsi</h1>
+
+		<h2 style="float: right;">opsiconfd {{opsi_version}}</h2>
 	</div>
 
 	<div class="content">
 		<br>
 
-		<p>Here you find some links to get you started:</p>
+		<p>Here are some links to get you started:</p>
 
 		<div class="adminpage-box" id="sessions">
 
 			<ul>
 				<li>
 					<p>
-						Now you can download the <a href="#" onclick="downloadConfiged()">Opsi configed</a> and create
-						clients.
-
+						Now you can download the <a href="#" onclick="downloadConfiged()">opsi configed</a> and
 						<a href="https://download.uib.de/opsi4.2/documentation/html/en/opsi-getting-started-v4.2/opsi-getting-started-v4.2.html#opsi-getting-started-firststeps-osinstall-create-client"
 							target="_blank" rel="noopener noreferrer">
-							Chapter 6.1
-						</a>
-						in our getting-started describes how to create opsi clients.
+							create
+							clients
+						</a>.
 					</p>
 				</li>
 				<li>
 					<p>You can go to the
 						<a href="/admin/#terminal" target="_blank" rel="noopener noreferrer">opsi admin terminal</a> and
-						install
-						opsi products (<a
-							href="https://download.uib.de/opsi4.2/documentation/html/opsi-getting-started-v4.2/opsi-getting-started-v4.2.html#opsi-getting-started-installation-config-get-essential-products"
+						<a href="https://download.uib.de/opsi4.2/documentation/html/opsi-getting-started-v4.2/opsi-getting-started-v4.2.html#opsi-getting-started-installation-config-get-essential-products"
 							target="_blank" rel="noopener noreferrer">
-							documentation
-						</a> on how to install opsi products on the server).
+							install opsi products
+						</a>.
 
 					</p>
 					<ul>
@@ -77,7 +75,7 @@
 				</li>
 				<li>
 					<p>
-						Go to the <a href="#" onclick="redirectToAdminPage()">opsi admin interface</a>
+						Continue to the <a href="#" onclick="redirectToAdminPage()">opsi admin interface</a>
 					</p>
 				</li>
 			</ul>
@@ -87,38 +85,6 @@
 		<h5> <input type="checkbox" id="skip" name="skip"> Do not show this page again.</h5>
 
 	</div>
-
-
-
-
 </body>
 
 </html>
-
-<script>
-	function redirectToAdminPage() {
-
-		let skip = document.getElementById("skip");
-		console.log(skip.checked);
-		if (skip.checked == true) {
-			let request = new XMLHttpRequest();
-			request.open("POST", "/welcome/deactivate");
-			request.addEventListener('load', function (event) {
-				if (request.status >= 200 && request.status < 300) {
-					result = request.responseText;
-					result = JSON.parse(result);
-					console.log(result);
-					return result;
-				} else {
-					console.warn(request.statusText, request.responseText);
-					return request.statusText;
-				}
-			});
-			request.send()
-		}
-		window.open("/admin")
-
-	}
-
-
-</script>

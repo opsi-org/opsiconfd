@@ -47,7 +47,11 @@ class WebSocketMessageReader(Thread):
 	def run(self):
 		while not self.should_stop:
 			data = self.websocket.receive()
-			if data:
+			if not data:
+				continue
+			if data["type"] == "websocket.close":
+				break
+			if data["type"] == "websocket.send":
 				msg = msgpack.loads(data["bytes"])
 				print(f"received: >>>{msg}<<<")
 				self.messages.put(msg)

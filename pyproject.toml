@@ -80,6 +80,7 @@ use-tabs = true
 
 [tool.isort]
 profile = "black"
+indent = "\t"
 
 [build-system]
 requires = ["poetry>=0.12"]

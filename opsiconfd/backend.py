@@ -46,7 +46,7 @@ def get_session():
 	global get_session_from_context  # pylint: disable=invalid-name, global-statement,global-variable-not-assigned
 	if not get_session_from_context:
 		from .session import (  # pylint: disable=import-outside-toplevel, redefined-outer-name
-		    get_session_from_context,
+			get_session_from_context,
 		)
 	return get_session_from_context()
 
@@ -221,11 +221,11 @@ class OpsiconfdBackend(metaclass=Singleton):
 				logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
 
 		from .ssl import (  # pylint: disable=import-outside-toplevel
-		    as_pem,
-		    create_server_cert,
-		    get_domain,
-		    load_ca_cert,
-		    load_ca_key,
+			as_pem,
+			create_server_cert,
+			get_domain,
+			load_ca_cert,
+			load_ca_key,
 		)
 
 		domain = get_domain()

@@ -8,56 +8,74 @@
 admininterface
 """
 
+import collections
+import datetime
+import json
 import os
 import re
-import json
-import signal
 import shutil
+import signal
 import tempfile
-import datetime
-import collections
 from operator import itemgetter
 from typing import Dict, List
 
 import msgpack  # type: ignore[import]
-import requests
 import orjson
-
+import requests
 from fastapi import APIRouter, Request, Response, UploadFile, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.routing import APIRoute, Mount
-from starlette.concurrency import run_in_threadpool
-
-from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
+from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
+from starlette.concurrency import run_in_threadpool
 
 from .. import __version__, contextvar_client_session
-from ..grafana import grafana_admin_session
-from ..session import OPSISession
-from ..logging import logger
-from ..config import config, FQDN, VAR_ADDON_DIR
-from ..backend import get_backend_interface, get_backend
-from ..utils import (
-	utc_time_timestamp,
-	get_random_string,
-	get_manager_pid,
-	async_redis_client,
-	ip_address_to_redis_key,
-	ip_address_from_redis_key,
-)
-from ..ssl import get_ca_cert_info, get_server_cert_info
 from ..addon import AddonManager
-
+from ..backend import get_backend, get_backend_interface
+from ..config import FQDN, VAR_ADDON_DIR, config
+from ..grafana import grafana_admin_session
+from ..logging import logger
+from ..session import OPSISession
+from ..ssl import get_ca_cert_info, get_server_cert_info
+from ..utils import (
+	async_redis_client,
+	get_manager_pid,
+	get_random_string,
+	ip_address_from_redis_key,
+	ip_address_to_redis_key,
+	utc_time_timestamp,
+)
 from .memoryprofiler import memory_profiler_router
 
-
 admin_interface_router = APIRouter()
+welcome_interface_router = APIRouter()
 
 
 def admin_interface_setup(app):
 	app.include_router(router=admin_interface_router, prefix="/admin")
 	app.include_router(router=memory_profiler_router, prefix="/admin/memory")
+	app.include_router(router=welcome_interface_router, prefix="/welcome")
+
+
+@welcome_interface_router.get("/")
+async def welcome_interface_index(request: Request):
+
+	try:
+		with open("/etc/lsb-release", encoding="utf8") as lsb_relase:
+			if "univention" in lsb_relase.read():
+				ucs_server = True
+	except FileNotFoundError:
+		ucs_server = False
+
+	context = {"request": request, "opsi_version": f"{__version__} [python-opsi={python_opsi_version}]", "ucs-server": ucs_server or False}
+	return config.jinja_templates.TemplateResponse("welcome.html", context)
+
+
+@welcome_interface_router.post("/deactivate")
+async def welcome_interface_deactivate():
+	config.welcome_page = False
+	config.set_config_in_config_file("welcome-page", "false")
 
 
 @admin_interface_router.get("/")

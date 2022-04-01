@@ -74,14 +74,15 @@
 				</li>
 				<li>
 					<p>
-						Continue to the <a href="#" onclick="redirectToAdminPage()">opsiconfd admin interface</a>.
+						Continue to the <a href="/admin">opsiconfd admin interface</a>.
 					</p>
 				</li>
 			</ul>
 
 		</div>
 
-		<h5><input type="checkbox" id="skip" name="skip" />Do not show this page again.</h5>
+		<h5><input type="checkbox" id="skip" name="skip" onchange="if (this.checked) deactivateWelcomePage();" />Do not
+			show this page again.</h5>
 
 	</div>
 </body>

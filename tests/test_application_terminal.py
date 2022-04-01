@@ -99,7 +99,7 @@ def test_command(test_client):  # pylint: disable=redefined-outer-name
 				time.sleep(3)
 				msg = list(reader.get_messages())[-1]
 				assert msg["type"] == "terminal-read"
-				assert b"echo test" in msg["payload"]
+				assert b"test" in msg["payload"]
 
 
 def test_params(test_client):  # pylint: disable=redefined-outer-name

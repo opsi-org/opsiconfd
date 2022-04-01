@@ -307,8 +307,7 @@ def application_setup():
 
 async def startup():
 	try:
-		worker = Worker()
-		await run_in_threadpool(worker.startup)
+		await Worker().startup()
 		await run_in_threadpool(application_setup)
 	except Exception as error:
 		logger.critical("Error during worker startup: %s", error, exc_info=True)

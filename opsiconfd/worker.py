@@ -18,6 +18,8 @@ from signal import SIGHUP, SIGINT, SIGTERM, signal
 from types import FrameType
 from typing import Optional
 
+from starlette.concurrency import run_in_threadpool
+
 from . import ssl
 from .addon import AddonManager
 from .application import app
@@ -48,7 +50,7 @@ class Worker(metaclass=Singleton):
 		self.worker_num = 1
 		self.metrics_collector = WorkerMetricsCollector(self)
 
-	def startup(self):
+	async def startup(self):
 		self._init_worker_num()
 		logger.notice("Startup worker %d (pid %s)", self.worker_num, os.getpid())
 		loop = asyncio.get_event_loop()
@@ -62,8 +64,8 @@ class Worker(metaclass=Singleton):
 		loop.create_task(self.metrics_collector.main_loop())
 
 		# Create BackendManager instances
-		get_backend(timeout=60)
-		get_client_backend()
+		await run_in_threadpool(get_backend, 60)
+		await run_in_threadpool(get_client_backend)
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__} {self.worker_num} (pid: {self.pid}>"

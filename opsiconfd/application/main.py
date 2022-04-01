@@ -22,6 +22,7 @@ from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
 from msgpack import dumps as msgpack_dumps  # type: ignore[import]
 from starlette import status
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
@@ -306,8 +307,9 @@ def application_setup():
 
 async def startup():
 	try:
-		Worker().startup()
-		application_setup()
+		worker = Worker()
+		await run_in_threadpool(worker.startup)
+		await run_in_threadpool(application_setup)
 	except Exception as error:
 		logger.critical("Error during worker startup: %s", error, exc_info=True)
 		# Wait a second before raising error (which will terminate the worker process)

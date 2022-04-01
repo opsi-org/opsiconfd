@@ -8,26 +8,25 @@
 global config
 """
 
-import os
-import re
-import sys
 import codecs
 import getpass
-import socket
 import ipaddress
+import os
+import re
+import socket
+import sys
+from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, ArgumentTypeError, HelpFormatter
 from typing import Union
-from argparse import HelpFormatter, ArgumentTypeError, SUPPRESS, OPTIONAL, ZERO_OR_MORE
+
 import certifi
+import configargparse  # type: ignore[import]
 import psutil
 from dns import resolver, reversename
 from dns.exception import DNSException
-import configargparse  # type: ignore[import]
-
 from fastapi.templating import Jinja2Templates
-
 from OPSI.Util import getfqdn  # type: ignore[import]
 
-from .utils import Singleton, running_in_docker, is_manager
+from .utils import Singleton, is_manager, running_in_docker
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
 CONFIG_FILE_HEADER = """
@@ -730,6 +729,13 @@ class Config(metaclass=Singleton):
 			type=int,
 			default=0,
 			help="Restart worker if allocated process memory (rss) exceeds this value (in MB).",
+		)
+		self._parser.add(
+			"--welcome-page",
+			env_var="OPSICONFD_WELCOME_PAGE",
+			type=bool,
+			default=True,
+			help="Show welcome page on index.",
 		)
 
 		self._parser.add("--ex-help", action="store_true", help=self._expert_help("Show expert help message and exit."))

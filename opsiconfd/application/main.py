@@ -62,6 +62,8 @@ PATH_MAPPINGS = {
 
 @app.get("/")
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument
+	if config.welcome_page:
+		return RedirectResponse("/welcome", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 	return RedirectResponse("/admin", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 
@@ -264,7 +266,9 @@ def application_setup():
 	#    ExceptionMiddleware
 	#
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
-	app.add_middleware(SessionMiddleware, public_path=["/metrics/grafana", "/ssl/opsi-ca-cert.pem", "/status", "/public", "/static"])
+	app.add_middleware(
+		SessionMiddleware, public_path=["/metrics/grafana", "/ssl/opsi-ca-cert.pem", "/status", "/public", "/static", "/welcome"]
+	)
 	# app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
 	app.add_middleware(BaseMiddleware)

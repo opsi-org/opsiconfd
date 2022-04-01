@@ -9,40 +9,47 @@ jsonrpc
 """
 
 import asyncio
-import datetime
-from os import makedirs
-from typing import Any, Optional, Union, Dict, List
+import gzip
+import tempfile
 import time
 import traceback
-import tempfile
 import urllib.parse
-import gzip
 import zlib
-import lz4.frame  # type: ignore[import]
-import orjson
-import msgpack  # type: ignore[import]
+from datetime import datetime
+from os import makedirs
+from time import perf_counter
+from typing import Any, Dict, List, Optional, Union
 
-from fastapi import HTTPException, APIRouter
+import lz4.frame  # type: ignore[import]
+import msgpack  # type: ignore[import]
+import orjson
+from fastapi import APIRouter, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
+from OPSI.Util import deserialize, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
-from OPSI.Util import serialize, deserialize  # type: ignore[import]
-
 from .. import contextvar_client_session
+from ..backend import (
+	BackendManager,
+	OpsiconfdBackend,
+	async_backend_call,
+	get_backend,
+	get_backend_interface,
+	get_client_backend,
+)
+from ..config import RPC_DEBUG_DIR, config
 from ..logging import logger
-from ..config import config, RPC_DEBUG_DIR
-from ..backend import get_backend, async_backend_call, get_client_backend, get_backend_interface, OpsiconfdBackend, BackendManager
+from ..statistics import GrafanaPanelConfig, Metric, metrics_registry
+from ..utils import async_redis_client, decode_redis_result
 from ..worker import Worker
-from ..statistics import metrics_registry, Metric, GrafanaPanelConfig
-from ..utils import decode_redis_result, async_redis_client
 
 # time in seconds
 EXPIRE = 24 * 3600
 EXPIRE_UPTODATE = 24 * 3600
 COMPRESS_MIN_SIZE = 10000
 
-PRODUCT_METHODS = [
+PRODUCT_METHODS = (
 	"createProduct",
 	"createNetBootProduct",
 	"createLocalBootProduct",
@@ -65,7 +72,7 @@ PRODUCT_METHODS = [
 	"productOnDepot_insertObject",
 	"productOnDepot_updateObject",
 	"productOnDepot_updateObjects",
-]
+)
 
 jsonrpc_router = APIRouter()
 
@@ -124,15 +131,17 @@ async def store_product_ordering(result, depot_id, sort_algorithm=None):
 		sort_algorithm = await get_sort_algorithm(sort_algorithm)
 		redis = await async_redis_client()
 		async with redis.pipeline() as pipe:
-			pipe.unlink(f"opsiconfd:jsonrpccache:{depot_id}:products")
-			pipe.unlink(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}")
+			sort_algorithm_key = f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}"
+			products_key = f"opsiconfd:jsonrpccache:{depot_id}:products"
+			pipe.unlink(products_key)
+			pipe.unlink(sort_algorithm_key)
 			for val in result.get("not_sorted"):
-				pipe.zadd(f"opsiconfd:jsonrpccache:{depot_id}:products", {val: 1})
-			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products", EXPIRE)
+				pipe.zadd(products_key, {val: 1})
+			pipe.expire(products_key, EXPIRE)
 			for idx, val in enumerate(result.get("sorted")):
-				pipe.zadd(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}", {val: idx})
-			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}", EXPIRE)
-			now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+				pipe.zadd(sort_algorithm_key, {val: idx})
+			pipe.expire(sort_algorithm_key, EXPIRE)
+			now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 			pipe.set(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate", now)
 			pipe.set(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}:uptodate", now)
 			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate", EXPIRE_UPTODATE)
@@ -148,10 +157,8 @@ async def store_product_ordering(result, depot_id, sort_algorithm=None):
 async def set_jsonrpc_cache_outdated(params):
 	redis = await async_redis_client()
 	saved_depots = decode_redis_result(await redis.smembers("opsiconfd:jsonrpccache:depots"))
-	depots = []
-	for depot in saved_depots:
-		if str(params).find(depot) != -1:
-			depots.append(depot)
+	str_params = str(params)
+	depots = [depot for depot in saved_depots if str_params.find(depot) != -1]
 	if len(depots) == 0:
 		depots = saved_depots
 
@@ -351,7 +358,7 @@ async def store_in_cache(rpc: Any, result: Dict[str, Any]) -> None:
 			await store_product_ordering(result["result"], *rpc["params"])
 
 
-async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime.datetime, client: str):
+async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client: str):
 	is_error = bool(result.get("error"))
 	worker = Worker()
 	metrics_collector = worker.metrics_collector
@@ -429,8 +436,7 @@ def execute_rpc(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager], requ
 			params = params[:-1]
 			if not isinstance(kwargs, dict):
 				raise TypeError(f"kwargs param is not a dict: {type(kwargs)}")
-			for (key, value) in kwargs.items():
-				keywords[str(key)] = deserialize(value)
+			keywords = {str(key): deserialize(value) for key, value in kwargs.items()}
 	params = deserialize(params)
 
 	if method_name in OpsiconfdBackend().method_names:
@@ -521,7 +527,7 @@ async def process_rpc(rpc: Any, request: Request):
 
 async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 	if not isinstance(rpcs, list):
-		rpcs = [rpcs]
+		rpcs = (rpcs,)
 
 	worker = Worker()
 	metrics_collector = worker.metrics_collector
@@ -534,15 +540,15 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 
 	results = []
 	for rpc in rpcs:
-		date = datetime.datetime.utcnow()
-		start = time.perf_counter()
-		try:
+		date = datetime.utcnow()
+		start = perf_counter()
+		try:  # pylint: disable=loop-try-except-usage
 			result = await process_rpc(rpc, request)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 			result = await process_rpc_error(err, request, rpc)
 
-		duration = time.perf_counter() - start
+		duration = perf_counter() - start
 
 		logger.trace(result)
 		results.append(result)
@@ -585,7 +591,7 @@ async def process_request(request: Request, response: Response):  # pylint: disa
 		raise
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
-		results = [await process_rpc_error(err, request)]
+		results = [await process_rpc_error(err, request)]  # pylint: disable=use-tuple-over-list
 		response.status_code = 400
 
 	response.headers["content-type"] = f"application/{serialization}"

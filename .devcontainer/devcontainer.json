@@ -11,7 +11,6 @@
 		"DEV_UID": "${localEnv:UID}"
 	},
 	"settings": {
-		"terminal.integrated.shell.linux": "/bin/bash",
 		"python.pythonPath": ".venv/bin/python",
 		"editor.formatOnSave": true,
 		"editor.codeActionsOnSave": {
@@ -33,6 +32,10 @@
 		"python.linting.flake8Enabled": true,
 		"python.linting.pylintEnabled": true,
 		"python.linting.pylintCategorySeverity.refactor": "Information",
+		"python.linting.pylintArgs": [
+			"--load-plugins",
+			"perflint"
+		],
 		"python.linting.mypyEnabled": true,
 		"python.linting.mypyArgs": [
 			"--show-error-codes"

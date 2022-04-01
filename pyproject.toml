@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "opsiconfd"
-version = "4.2.0.246"
+version = "4.2.0.248"
 description = "opsi configuration service"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
@@ -68,6 +68,7 @@ tan = "^21.14"
 types-psutil = "^5.8.20"
 types-pyopenssl = "^22.0.0"
 isort = "^5.10"
+perflint = "^0.7.0"
 
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"

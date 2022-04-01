@@ -100,7 +100,7 @@ stages:
   echo "---------------------------------------"
   echo "Run pylint"
   echo "---------------------------------------"
-  poetry run pylint --disable=R,fixme opsiconfd tests
+  poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
   poetry run flake8 opsiconfd tests
 
 test:perftest:

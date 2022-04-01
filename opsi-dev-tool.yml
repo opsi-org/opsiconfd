@@ -11,7 +11,7 @@ git:
   hooks:
     pre-push: |
       echo "Running pylint..."
-      poetry run pylint --disable=R,fixme opsiconfd tests
+      poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
       echo "Running flake8..."
       poetry run flake8 opsiconfd tests
 

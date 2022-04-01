@@ -132,13 +132,13 @@ function collapseAll(col) {
 	collapsed = col;
 	let container = document.getElementById("log-container");
 	if (collapsed) {
-		container.querySelectorAll(".log-line-multiline").forEach(function(el) {
+		container.querySelectorAll(".log-line-multiline").forEach(function (el) {
 			el.classList.remove("log-line-multiline");
 			el.classList.add("log-line-multiline-collapsed");
 		});
 	}
 	else {
-		container.querySelectorAll(".log-line-multiline-collapsed").forEach(function(el) {
+		container.querySelectorAll(".log-line-multiline-collapsed").forEach(function (el) {
 			el.classList.remove("log-line-multiline-collapsed");
 			el.classList.add("log-line-multiline");
 		});
@@ -152,12 +152,12 @@ function setAutoScroll(auto) {
 		let container = document.getElementById("log-line-container");
 		let element = container.lastChild;
 		if (element) {
-			element.scrollIntoView({block: "end", behavior: "smooth"});
+			element.scrollIntoView({ block: "end", behavior: "smooth" });
 		}
 	}
 }
 
-function applyContextFilter(filter=null) {
+function applyContextFilter(filter = null) {
 	if (filter) {
 		contextFilterRegex = new RegExp(filter, 'i');
 	}
@@ -167,7 +167,7 @@ function applyContextFilter(filter=null) {
 	applyFilter();
 }
 
-function applyMessageFilter(filter=null) {
+function applyMessageFilter(filter = null) {
 	if (filter) {
 		messageFilterRegex = new RegExp(filter, 'i');
 	}
@@ -177,7 +177,7 @@ function applyMessageFilter(filter=null) {
 	applyFilter();
 }
 
-function applyLevelFilter(filter=null) {
+function applyLevelFilter(filter = null) {
 	if (filter) {
 		levelFilter = parseInt(filter);
 		if (levelFilter < 1) levelFilter = 1;
@@ -193,28 +193,28 @@ function applyFilter() {
 	let container = document.getElementById("log-line-container");
 	let filteredIds = [];
 	if (levelFilter && levelFilter < 9) {
-		container.querySelectorAll(".log-record-opsilevel").forEach(function(el) {
+		container.querySelectorAll(".log-record-opsilevel").forEach(function (el) {
 			if (parseInt(el.innerText.replace(/\D/g, '')) > levelFilter && !filteredIds.includes(el.parentElement.parentElement.id)) {
 				filteredIds.push(el.parentElement.parentElement.id);
 			}
 		});
 	}
 	if (contextFilterRegex) {
-		container.querySelectorAll(".log-record-context").forEach(function(el) {
+		container.querySelectorAll(".log-record-context").forEach(function (el) {
 			if (!el.innerText.match(contextFilterRegex) && !filteredIds.includes(el.parentElement.parentElement.id)) {
 				filteredIds.push(el.parentElement.parentElement.id);
 			}
 		});
 	}
 	if (messageFilterRegex) {
-		container.querySelectorAll(".log-record-message").forEach(function(el) {
+		container.querySelectorAll(".log-record-message").forEach(function (el) {
 			if (!el.innerText.match(messageFilterRegex) && !filteredIds.includes(el.parentElement.parentElement.id)) {
 				filteredIds.push(el.parentElement.parentElement.id);
 			}
 		});
 	}
 
-	container.querySelectorAll(".log-line").forEach(function(el) {
+	container.querySelectorAll(".log-line").forEach(function (el) {
 		if (filteredIds.includes(el.id)) {
 			el.classList.add("log-line-hidden");
 		}
@@ -237,8 +237,9 @@ function setMessage(text = "", className = "LEVEL_INFO") {
 	con.className = className;
 }
 
-function startLog(numRecords=0, startTime=0) {
+function startLog() {
 	stopLog();
+	startTime = Math.round(Date.now() / 1000) - 300; // last 5 minutes
 
 	setMessage("Connecting...");
 	if (reconnectTimer) {
@@ -247,15 +248,12 @@ function startLog(numRecords=0, startTime=0) {
 	}
 	logLineId = 0;
 	var client = null;
-	var params = []
+	var params = ["set_cookie_interval=30"]
 	if (startTime) {
 		params.push("start_time=" + startTime);
 	}
 	if (client) {
 		params.push("client=" + client);
-	}
-	if (numRecords > 0) {
-		params.push("num_records=" + numRecords);
 	}
 
 	var loc = window.location;
@@ -267,32 +265,41 @@ function startLog(numRecords=0, startTime=0) {
 	}
 	ws_uri += "//" + loc.host;
 	ws = new WebSocket(ws_uri + "/ws/log_viewer?" + params.join('&'));
+	ws.binaryType = 'arraybuffer';
 
-	ws.onopen = function() {
+	ws.onopen = function () {
 		// websocket is connected
 		document.getElementById("log-line-container").innerHTML = "";
 		setMessage("");
 		//ws.send(msg);
 	};
 
-	ws.onmessage = function (message) {
-		//console.log(message.data);
-		message.data.arrayBuffer().then(function(buffer) {
-			let container = document.getElementById("log-line-container");
-			buffer = new Uint8Array(buffer, 0);
-			var records = msgpack.deserialize(buffer, true);
-			var element;
-			for (let i=0; i<records.length; i++) {
-				element = addRecordToLog(records[i]);
+	ws.onmessage = function (event) {
+		var message = msgpack.deserialize(event.data, true);
+		//console.log(message);
+		if (message[0].type == "log-records") {
+			let element;
+			if (message.payload) {
+				for (let i = 0; i < message.payload.length; i++) {
+					element = addRecordToLog(message.payload[i]);
+				}
+			}
+			if (message.length > 1) {
+				for (let i = 1; i < message.length; i++) {
+					element = addRecordToLog(message[i]);
+				}
 			}
 			if (autoScroll && element) {
-				element.scrollIntoView({block: "end", behavior: "smooth"});
+				element.scrollIntoView({ block: "end", behavior: "smooth" });
 			}
-		});
-
+		}
+		else if (message[0].type == "set-cookie") {
+			console.log("Set-Cookie");
+			document.cookie = message[0].payload;
+		}
 	};
 
-	ws.onclose = function(event) {
+	ws.onclose = function (event) {
 		// websocket is closed.
 		console.log("Websocket conection closed");
 		if (event.code == 1000) {
@@ -317,8 +324,8 @@ function changeFontSize(val) {
 	cont.style.fontSize = String(size) + "px";
 }
 
-function stopLog(){
-	if (ws != undefined){
+function stopLog() {
+	if (ws != undefined) {
 		console.log("Closing websocket");
 		ws.close(1000, "LogViewer closed.")
 	}

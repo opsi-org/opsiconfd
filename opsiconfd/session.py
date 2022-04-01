@@ -8,35 +8,57 @@
 session handling
 """
 
-import time
 import asyncio
-from typing import List, Dict, Optional, Any
-from collections import namedtuple
-import uuid
 import base64
-import msgpack  # type: ignore[import]
+import time
+import uuid
+from collections import namedtuple
+from time import sleep as time_sleep
+from typing import Any, Dict, List, Optional
+
 import aioredis
-
 from fastapi import HTTPException, status
-from fastapi.requests import HTTPConnection
-from fastapi.responses import Response, PlainTextResponse, JSONResponse, RedirectResponse
 from fastapi.exceptions import ValidationError
-from starlette.datastructures import MutableHeaders, Headers
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from starlette.concurrency import run_in_threadpool
-
+from fastapi.requests import HTTPConnection
+from fastapi.responses import (
+	JSONResponse,
+	PlainTextResponse,
+	RedirectResponse,
+	Response,
+)
+from msgpack import dumps as msgpack_dumps  # type: ignore[import]
+from msgpack import loads as msgpack_loads  # type: ignore[import]
 from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
-from OPSI.Util import serialize, deserialize, ipAddressInNetwork, timestamp  # type: ignore[import]
-from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError  # type: ignore[import]
-from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP  # type: ignore[import]
-
-from opsicommon.logging import logger, secret_filter, set_context  # type: ignore[import]
+from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
+from OPSI.Exceptions import (  # type: ignore[import]
+	BackendAuthenticationError,
+	BackendPermissionDeniedError,
+)
+from OPSI.Util import (  # type: ignore[import]
+	deserialize,
+	ipAddressInNetwork,
+	serialize,
+	timestamp,
+)
+from opsicommon.logging import (  # type: ignore[import]
+	logger,
+	secret_filter,
+	set_context,
+)
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import Headers, MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import contextvar_client_session, contextvar_server_timing
-from .backend import get_client_backend
-from .config import config, FQDN
-from .utils import redis_client, async_redis_client, ip_address_to_redis_key, utc_time_timestamp
 from .addon import AddonManager
+from .backend import get_client_backend
+from .config import FQDN, config
+from .utils import (
+	async_redis_client,
+	ip_address_to_redis_key,
+	redis_client,
+	utc_time_timestamp,
+)
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #
@@ -102,8 +124,7 @@ class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
 		self.session_cookie_name = "opsiconfd-session"
-		# self.security_flags = "httponly; samesite=lax; secure"
-		self.security_flags = ""
+		self.session_cookie_attributes = ["SameSite=Strict", "Secure"]
 		self._public_path = public_path or []
 		# Store ip addresses of depots with last access time
 		self._depot_addresses: Dict[str, float] = {}
@@ -154,11 +175,13 @@ class SessionMiddleware:
 				return
 
 		# Set default access role
-		scope["required_access_role"] = ACCESS_ROLE_ADMIN
+		required_access_role = ACCESS_ROLE_ADMIN
+		access_role_public = ACCESS_ROLE_PUBLIC
 		for pub_path in self._public_path:
 			if scope["path"].startswith(pub_path):
-				scope["required_access_role"] = ACCESS_ROLE_PUBLIC
+				required_access_role = access_role_public
 				break
+		scope["required_access_role"] = required_access_role
 
 		if scope["path"].startswith(("/rpc", "/monitoring")) or (
 			scope["path"].startswith("/depot") and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
@@ -229,8 +252,7 @@ class SessionMiddleware:
 				if scope["session"] and not scope["session"].deleted and scope["session"].persistent:
 					await scope["session"].store()
 					headers = MutableHeaders(scope=message)
-					for key, val in scope["session"].get_headers().items():
-						headers.append(key, val)
+					headers.update(scope["session"].get_headers())
 			await send(message)
 
 		await self.app(scope, receive, send_wrapper)
@@ -296,7 +318,7 @@ class SessionMiddleware:
 			websocket_close_code = status.WS_1008_POLICY_VIOLATION
 			if status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
 				websocket_close_code = status.WS_1011_INTERNAL_ERROR
-			await send({"type": "websocket.close", "code": websocket_close_code})
+			return await send({"type": "websocket.close", "code": websocket_close_code})
 
 		headers = headers or {}
 		if scope.get("session"):
@@ -362,6 +384,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		return self._session_middelware.session_cookie_name
 
 	@property
+	def session_cookie_attributes(self):
+		return self._session_middelware.session_cookie_attributes
+
+	@property
 	def redis_key(self) -> str:
 		assert self.session_id
 		return f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:{self.session_id}"
@@ -377,7 +403,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def get_headers(self):
 		if not self.session_id or self.deleted or not self.persistent:
 			return {}
-		return {"Set-Cookie": f"{self.session_cookie_name}={self.session_id}; path=/; Max-Age={self.max_age}"}
+		attrs = "; ".join(self.session_cookie_attributes)
+		if attrs:
+			attrs += "; "
+		return {"Set-Cookie": f"{self.session_cookie_name}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"}
 
 	async def init(self) -> None:
 		if self.session_id is None:
@@ -402,11 +431,12 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		try:
 			with redis_client() as redis:
 				now = utc_time_timestamp()
-				for redis_key in redis.scan_iter(f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"):
+				session_key = f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"
+				for redis_key in redis.scan_iter(session_key):
 					validity = 0
 					data = redis.get(redis_key)
 					if data:
-						sess = msgpack.loads(data)
+						sess = msgpack_loads(data)
 						validity = sess["max_age"] - (now - sess["last_used"])
 					if validity > 0:
 						session_count += 1
@@ -433,7 +463,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			data = redis.get(self.redis_key)
 		if not data:
 			return False
-		data = msgpack.loads(data)
+		data = msgpack_loads(data)
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
 		self.max_age = data.get("max_age", self.max_age)
@@ -460,7 +490,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			session_data = {}
 			data = redis.get(self.redis_key)
 			if data:
-				session_data = msgpack.loads(data)
+				session_data = msgpack_loads(data)
 			session_data.update(
 				{
 					"created": session_data.get("created", self.created),
@@ -481,7 +511,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			if "password" in session_data["user_store"]:
 				del session_data["user_store"]["password"]
 
-			redis.set(self.redis_key, msgpack.dumps(session_data), ex=self._redis_expiration_seconds)
+			redis.set(self.redis_key, msgpack_dumps(session_data), ex=self._redis_expiration_seconds)
 
 	async def store(self, wait: Optional[bool] = True) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now
@@ -495,7 +525,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		with redis_client() as redis:
 			for _ in range(10):
 				redis.delete(self.redis_key)
-				time.sleep(0.01)
+				time_sleep(0.01)
 				# Be sure to delete key
 				if not redis.exists(self.redis_key):
 					break

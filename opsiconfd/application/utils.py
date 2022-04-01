@@ -8,20 +8,34 @@
 application utils
 """
 
-from starlette import status
-from starlette.types import Message
-from starlette.endpoints import WebSocketEndpoint
-from starlette.websockets import WebSocket
-from fastapi import HTTPException
-from fastapi.dependencies.utils import solve_dependencies, get_dependant
-from fastapi.exceptions import WebSocketRequestValidationError
+from asyncio import Task, get_event_loop, sleep
+from inspect import Parameter
+from typing import Optional
 
-import orjson
+from fastapi import HTTPException, params
+from fastapi.dependencies.utils import (
+	get_dependant,
+	get_param_field,
+	solve_dependencies,
+)
+from fastapi.exceptions import WebSocketRequestValidationError
+from msgpack import dumps as msgpack_dumps  # type: ignore[import]
+from orjson import JSONDecodeError, loads  # pylint: disable=no-name-in-module
+from starlette.endpoints import WebSocketEndpoint
+from starlette.status import (
+	HTTP_401_UNAUTHORIZED,
+	HTTP_403_FORBIDDEN,
+	WS_1000_NORMAL_CLOSURE,
+	WS_1011_INTERNAL_ERROR,
+)
+from starlette.types import Message, Receive, Scope, Send
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
+from websockets.exceptions import ConnectionClosedOK
 
 from .. import contextvar_client_session
+from ..backend import get_mysql
 from ..config import FQDN
 from ..logging import logger
-from ..backend import get_mysql
 
 
 def get_configserver_id():
@@ -39,6 +53,7 @@ def get_user_privileges():
 	username = get_username()
 	privileges = {}
 	mysql = get_mysql()  # pylint: disable=invalid-name
+	filter_ = {"config_id_filter": f"user.{{{username}}}.privilege.%"}
 	with mysql.session() as session:
 		for row in session.execute(
 			"""
@@ -54,13 +69,12 @@ def get_user_privileges():
 			ORDER BY
 				cs.configId
 			""",
-			{"config_id_filter": f"user.{{{username}}}.privilege.%"},
+			filter_,
 		).fetchall():
-			try:
+			try:  # pylint: disable=loop-try-except-usage
 				priv = ".".join(row["configId"].split(".")[3:])
-				vals = [val for val in orjson.loads(row["values"]) if val != ""]  # pylint: disable=no-member
-				privileges[priv] = vals
-			except orjson.JSONDecodeError as err:  # pylint: disable=no-member
+				privileges[priv] = [val for val in loads(row["values"]) if val != ""]  # pylint: disable=loop-invariant-statement
+			except JSONDecodeError as err:
 				logger.error("Failed to parse privilege %s: %s", row, err)
 
 		return privileges
@@ -77,18 +91,19 @@ def get_allowed_objects():
 
 
 def build_tree(group, groups, allowed, processed=None):
+	group_id = group["id"]
 	if not processed:
 		processed = []
-	processed.append(group["id"])
+	processed.append(group_id)
 
-	is_root_group = group["parent"] == "#"  # or group["id"] == "clientdirectory"
-	group["allowed"] = is_root_group or allowed == ... or group["id"] in allowed
+	is_root_group = group["parent"] == "#"  # or group_id == "clientdirectory"
+	group["allowed"] = is_root_group or allowed == ... or group_id in allowed  # pylint: disable=unnecessary-ellipsis
 
 	children = {}
 	for grp in groups:
-		if grp["id"] == group["id"]:
+		if grp["id"] == group_id:
 			continue
-		if grp["parent"] == group["id"]:
+		if grp["parent"] == group_id:
 			if grp["id"] in processed:
 				logger.error("Loop: %s %s", grp["id"], processed)
 			else:
@@ -101,13 +116,15 @@ def build_tree(group, groups, allowed, processed=None):
 		if group["type"] == "HostGroup":
 			group["children"] = None
 
+	group_allowed = group["allowed"]
 	if not is_root_group and group.get("children"):
 		for child in group["children"].values():
 			# Correct id for webgui
-			child["id"] = f'{child["id"]};{group["id"]}'
+			child["id"] = f'{child["id"]};{group_id}'
 			if child.get("allowed"):
 				# Allow parent if child is allowed
-				group["allowed"] = True
+				group_allowed = True
+	group["allowed"] = group_allowed
 
 	return group
 
@@ -155,7 +172,7 @@ def bool_product_property(value):
 def unicode_product_property(value):
 	if value and isinstance(value, str):
 		if value.startswith('["'):
-			return orjson.loads(value)  # pylint: disable=no-member
+			return loads(value)  # pylint: disable=no-member
 		if value == "[]":
 			return [""]
 		return value.replace('\\"', '"').split(",")
@@ -167,7 +184,7 @@ def merge_dicts(dict_a: dict, dict_b: dict, path=None) -> dict:
 	if not dict_a or not dict_b:
 		raise ValueError("Merge_dicts: At least one of the dicts (a and b) is not set.")
 	if path is None:
-		path = []
+		path = []  # pylint: disable=use-tuple-over-list
 	for key in dict_b:
 		if key in dict_a:
 			if isinstance(dict_a[key], dict) and isinstance(dict_b[key], dict):
@@ -196,35 +213,72 @@ class OpsiconfdWebSocket(WebSocket):
 class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 	admin_only = False
 
+	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
+		super().__init__(scope, receive, send)
+		self._set_cookie_task: Task
+		self._check_session_task: Task
+
 	async def _check_authorization(self) -> None:
 		if not self.scope.get("session"):
-			raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Access to {self}, no valid session found")
+			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=f"Access to {self}, no valid session found")
 
 		if self.admin_only and not self.scope["session"].user_store.isAdmin:
 			raise HTTPException(
-				status_code=status.HTTP_403_FORBIDDEN,
+				status_code=HTTP_403_FORBIDDEN,
 				detail=f"Access to {self} denied for user {self.scope['session'].user_store.username!r}",
 			)
+
+	async def set_cookie_task(self, websocket: WebSocket, set_cookie_interval: int):
+		try:
+			session = self.scope["session"]
+			while True:
+				await sleep(set_cookie_interval)
+				if websocket.client_state != WebSocketState.CONNECTED:
+					break
+				logger.debug("Send set-cookie")
+				await websocket.send_bytes(msgpack_dumps({"type": "set-cookie", "payload": session.get_headers()["Set-Cookie"]}))
+		except (ConnectionClosedOK, WebSocketDisconnect) as err:
+			logger.debug("set_cookie_task: %s", err)
+
+	async def check_session_task(self, websocket: WebSocket):
+		try:
+			session = self.scope["session"]
+			while True:
+				await sleep(15)
+				if websocket.client_state != WebSocketState.CONNECTED:
+					break
+				if session.expired:
+					logger.info("Session expired")
+					await websocket.close(code=WS_1000_NORMAL_CLOSURE)
+		except (ConnectionClosedOK, WebSocketDisconnect) as err:
+			logger.debug("check_session_task: %s", err)
 
 	async def dispatch(self) -> None:
 		websocket = OpsiconfdWebSocket(self.scope, receive=self.receive, send=self.send)
 		await self._check_authorization()
 
 		dependant = get_dependant(path="", call=self.on_connect)
+
+		param = Parameter("set_cookie_interval", default=0, annotation=Optional[int], kind=Parameter.KEYWORD_ONLY)
+
+		dependant.query_params.append(get_param_field(param=param, default_field_info=params.Query, param_name=param.name))
 		solved_result = await solve_dependencies(request=websocket, dependant=dependant)
 		values, errors, *_ = solved_result
 		if errors:
 			logger.info(errors)
 			raise WebSocketRequestValidationError(errors)
 
-		# Set session max age to 1h
-		self.scope["session"].max_age = 3600
-
 		await websocket.accept()
 
+		self._check_session_task = get_event_loop().create_task(self.check_session_task(websocket))
+
+		set_cookie_interval = values.pop("set_cookie_interval")
+		if set_cookie_interval > 0:
+			logger.debug("set_cookie_interval is %d", set_cookie_interval)
+			self._set_cookie_task = get_event_loop().create_task(self.set_cookie_task(websocket, set_cookie_interval))
 		await self.on_connect(**values)
 
-		close_code = status.WS_1000_NORMAL_CLOSURE
+		close_code = WS_1000_NORMAL_CLOSURE
 
 		try:
 			while True:
@@ -233,10 +287,10 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 					data = await self.decode(websocket, message)
 					await self.on_receive(websocket, data)
 				elif message["type"] == "websocket.disconnect":
-					close_code = int(message.get("code", status.WS_1000_NORMAL_CLOSURE))
+					close_code = int(message.get("code", WS_1000_NORMAL_CLOSURE))
 					break
 		except Exception as exc:
-			close_code = status.WS_1011_INTERNAL_ERROR
+			close_code = WS_1011_INTERNAL_ERROR
 			raise exc
 		finally:
 			await self.on_disconnect(websocket, close_code)

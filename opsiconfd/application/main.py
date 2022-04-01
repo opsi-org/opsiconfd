@@ -20,11 +20,11 @@ from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
+from msgpack import dumps as msgpack_dumps  # type: ignore[import]
 from starlette import status
-from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
-from starlette.websockets import WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from .. import __version__, contextvar_client_address, contextvar_request_id
@@ -97,49 +97,59 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
 		self._log_reader_task: asyncio.Task
+		self._last_id = "$"
+		self._client = None
+		self._max_message_size = 1_000_000
 
-	@staticmethod
-	async def _log_reader(websocket: WebSocket, start_id="$", client=None):
+	async def read_data(self, data):
+		for stream in data:
+			for dat in stream[1]:
+				self._last_id = dat[0]
+				if self._client and self._client != dat[1].get("client", b"").decode("utf-8"):
+					continue
+				yield dat[1][b"record"]
+
+	async def _log_reader(self, websocket: WebSocket, start_id="$", client=None):
 		stream_name = f"opsiconfd:log:{config.node_name}"
 		logger.info(
 			"Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client
 		)
-		last_id = start_id
+		self._last_id = start_id
+		self._client = client
 
-		def read_data(data):
-			buf = bytearray()
-			for stream in data:
-				for dat in stream[1]:
-					last_id = dat[0]
-					if client and client != dat[1].get("client", b"").decode("utf-8"):
-						continue
-					buf += dat[1][b"record"]
-			return (last_id, buf)
+		message_header = bytearray(msgpack_dumps({"type": "log-records"}))
+		try:
+			while True:
+				if websocket.client_state != WebSocketState.CONNECTED:
+					break
 
-		while True:
-			try:
 				redis = await async_redis_client()
 				# It is also possible to specify multiple streams
-				data = await redis.xread(streams={stream_name: last_id}, block=1000)
+				data = await redis.xread(streams={stream_name: self._last_id}, block=1000)
 				if not data:
 					continue
-				last_id, buf = await run_in_threadpool(read_data, data)
-				await websocket.send_text(buf)
-			except (ConnectionClosedOK, ConnectionClosedError, WebSocketDisconnect):
-				break
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error(err, exc_info=True)
-				break
+				message = message_header.copy()
+				num_records = 0
+				async for record in self.read_data(data):
+					num_records += 1
+					message += record
+					if len(message) >= self._max_message_size:
+						await websocket.send_bytes(message)
+						message = message_header.copy()
+						num_records = 0
+				if num_records > 0:
+					await websocket.send_bytes(message)
+		except (ConnectionClosedOK, ConnectionClosedError, WebSocketDisconnect):
+			pass
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
 
 	async def on_connect(  # pylint: disable=arguments-differ
-		self,
-		websocket: WebSocket,
-		client: str = Query(default=None),
-		start_time: int = Query(default=0),
+		self, websocket: WebSocket, client: str = Query(default=None), start_time: int = Query(default=0)
 	):
 		start_id = "$"
 		if start_time > 0:
-			start_id = str(start_time)
+			start_id = str(start_time * 1000)
 		self._log_reader_task = asyncio.get_event_loop().create_task(self._log_reader(websocket, start_id, client))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
@@ -280,7 +290,7 @@ def application_setup():
 
 	logger.debug("Routing:")
 	routes = {}
-	for route in app.routes:
+	for route in app.routes:  # pylint: disable=use-dict-comprehension
 		if isinstance(route, Mount):
 			routes[route.path] = str(route.app.__module__)
 		elif isinstance(route, APIRoute):

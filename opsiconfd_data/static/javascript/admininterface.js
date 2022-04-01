@@ -1023,35 +1023,36 @@ function formateDate(date) {
 }
 
 
-var terminals = {};
+var terminal;
+window.onresize = function () {
+	if (terminal) terminal.fitAddon.fit();
+};
 
 function startTerminal() {
-	let terminal = new Terminal({
+	terminal = new Terminal({
 		cursorBlink: true,
 		scrollback: 1000,
 		fontSize: 14
 	});
-	terminal.terminal_id = crypto.randomUUID();
-	terminals[terminal.terminal_id] = terminal;
 
 	const searchAddon = new SearchAddon.SearchAddon();
 	terminal.loadAddon(searchAddon);
 	const webLinksAddon = new WebLinksAddon.WebLinksAddon();
 	terminal.loadAddon(webLinksAddon);
-	const fitAddon = new FitAddon.FitAddon();
-	terminal.loadAddon(fitAddon);
+	terminal.fitAddon = new FitAddon.FitAddon();
+	terminal.loadAddon(terminal.fitAddon);
 
 	terminal.open(document.getElementById('terminal-xterm'));
 
 	setTimeout(function () {
 		document.getElementsByClassName('xterm-viewport')[0].setAttribute("style", "");
 
-		fitAddon.fit();
+		terminal.fitAddon.fit();
 		terminal.focus();
 
-		console.log(`size: ${terminal.cols} columns, ${terminal.rows} rows`);
+		console.log(`size: ${terminal.cols} cols, ${terminal.rows} rows`);
 
-		let params = [`terminal_id=${terminal.terminal_id}`, `lines=${terminal.rows}`, `columns=${terminal.cols}`]
+		let params = ["set_cookie_interval=30", `rows=${terminal.rows}`, `cols=${terminal.cols}`]
 		let loc = window.location;
 		let ws_uri;
 		if (loc.protocol == "https:") {
@@ -1061,6 +1062,7 @@ function startTerminal() {
 		}
 		ws_uri += "//" + loc.host;
 		terminal.websocket = new WebSocket(ws_uri + "/admin/terminal/ws?" + params.join('&'));
+		terminal.websocket.binaryType = 'arraybuffer';
 		terminal.websocket.onclose = function () {
 			console.log("Terminal ws connection closed");
 			terminal.writeln("\r\n\033[1;37m> Connection closed <\033[0m");
@@ -1071,9 +1073,39 @@ function startTerminal() {
 			terminal.writeln("\r\n\033[1;31m> Connection error: " + JSON.stringify(error) + " <\033[0m");
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
+		terminal.websocket.onmessage = function (event) {
+			const message = msgpack.deserialize(event.data);
+			//console.log(message);
+			if (message.type == "terminal-read") {
+				terminal.write(message.payload);
+			}
+			else if (message.type == "set-cookie") {
+				console.log("Set-Cookie");
+				document.cookie = message.payload;
+			}
+			else if (message.type == "file-transfer-result") {
+				document.getElementsByClassName('xterm-selection-layer')[0].classList.remove("upload-active");
+				if (message.payload.error) {
+					const error = `File upload failed: ${JSON.stringify(message.payload)}`;
+					console.error(error);
+				}
+				else {
+					console.log(`File upload successful: ${JSON.stringify(message.payload)}`)
+					const path = message.payload.result.path;
+					terminal.websocket.send(msgpack.serialize({ "type": "terminal-write", "payload": path + "\033[D".repeat(path.length) }));
+				}
+			}
+		}
 
-		const attachAddon = new AttachAddon.AttachAddon(terminal.websocket);
-		terminal.loadAddon(attachAddon);
+		terminal.onData(function (data) {
+			let message = msgpack.serialize({ "type": "terminal-write", "payload": data });
+			terminal.websocket.send(message);
+		})
+		terminal.onResize(function (event) {
+			//console.log("Resize:")
+			//console.log(event);
+			terminal.websocket.send(msgpack.serialize({ "type": "terminal-resize", "payload": { "rows": event.rows, "cols": event.cols } }));
+		});
 
 		const el = document.getElementsByClassName("xterm-screen")[0];
 		el.ondragenter = function (event) {
@@ -1088,42 +1120,84 @@ function startTerminal() {
 		el.ondrop = function (event) {
 			event.preventDefault();
 			terminalFileUpload(event.dataTransfer.files[0]);
-		};
-
+		}
 	}, 100);
-
 }
 
-function terminalFileUpload(file) {
-	let terminal = Object.values(terminals)[0];
-	var formData = new FormData();
-	formData.append('file', file);
-	const xhr = new XMLHttpRequest();
-	xhr.responseType = 'json';
-	xhr.open("POST", `/admin/terminal/fileupload?terminal_id=${terminal.terminal_id}`, true);
-	xhr.onload = function (e) {
-		document.getElementsByClassName('xterm-selection-layer')[0].classList.remove("upload-active");
-		if (this.status == 200) {
-			console.log(`File upload successful: ${JSON.stringify(this.response)}`)
-			const filename = this.response.filename;
-			terminal.websocket.send(filename + "\033[D".repeat(filename.length));
-		}
-		else {
-			let error = `File upload failed: ${JSON.stringify(this.response)}`;
-			console.error(error);
-			alert(error);
-		}
-	};
-	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
-	xhr.send(formData);
+
+function toggleFullscreenTerminal() {
+	if (!terminal) return;
+	var elem = document.getElementById('terminal-xterm');
+	if (elem.requestFullscreen) {
+		elem.requestFullscreen();
+	}
+	terminal.fitAddon.fit();
 }
 
 function stopTerminal() {
-	for (const [terminal_id, terminal] of Object.entries(terminals)) {
-		terminal.dispose();
-		terminal.websocket.close();
-		delete terminals[terminal_id];
+	if (!terminal) return;
+	terminal.dispose();
+	terminal.websocket.close();
+}
+
+function terminalFileUpload(file) {
+	console.log("terminalFileUpload:")
+	console.log(file);
+	if (!terminal) {
+		console.error("No terminal connected")
+		return;
 	}
+
+	let chunkSize = 100000;
+	let fileId = crypto.randomUUID();
+	let chunk = 0;
+	let offset = 0;
+
+	var readChunk = function () {
+		var reader = new FileReader();
+		var blob = file.slice(offset, offset + chunkSize);
+		reader.onload = function () {
+			//console.log(offset);
+			offset += chunkSize;
+			chunk += 1;
+			const more_data = (offset < file.size);
+			let message = msgpack.serialize({
+				"id": crypto.randomUUID(),
+				"type": "file-transfer",
+				"payload": {
+					"file_id": fileId,
+					"chunk": chunk,
+					"data": new Uint8Array(reader.result),
+					"more_data": more_data
+				}
+			});
+			document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
+			terminal.websocket.send(message);
+
+			if (more_data) {
+				readChunk();
+			}
+		}
+		reader.readAsArrayBuffer(blob);
+	}
+
+	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
+	let message = msgpack.serialize({
+		"id": crypto.randomUUID(),
+		"type": "file-transfer",
+		"payload": {
+			"file_id": fileId,
+			"chunk": chunk,
+			"name": file.name,
+			"size": file.size,
+			"modified": file.lastModified,
+			"data": null,
+			"more_data": true
+		}
+	});
+	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
+	terminal.websocket.send(message);
+	readChunk();
 }
 
 function generateLiceningInfoTable(info, htmlId) {
@@ -1204,3 +1278,32 @@ function licenseUpload(files) {
 	};
 	xhr.send(formData);
 }
+
+function toggleTabFullscreen() {
+	tabcontent = document.getElementsByClassName("tabcontent");
+	let buttonText = "Maximize";
+	for (i = 0; i < tabcontent.length; i++) {
+		if (tabcontent[i].style.display == "none") {
+			continue;
+		}
+		if (tabcontent[i].classList.contains("fullscreen")) {
+			tabcontent[i].classList.remove("fullscreen");
+		}
+		else {
+			tabcontent[i].classList.add("fullscreen");
+			buttonText = "Normal size";
+		}
+	}
+	buttons = document.getElementsByClassName("tab-fullscreen");
+	for (i = 0; i < buttons.length; i++) {
+		buttons[i].innerHTML = buttonText;
+	}
+	if (terminal) terminal.fitAddon.fit();
+}
+
+document.onkeydown = function (evt) {
+	evt = evt || window.event;
+	if (evt.ctrlKey && evt.key == "F11") {
+		toggleTabFullscreen();
+	}
+};

@@ -7,23 +7,23 @@
 """
 backend
 """
-import threading
 import socket
-import ipaddress
+import threading
+from ipaddress import ip_address
+from time import sleep, time
 from urllib.parse import urlparse
 
-from starlette.concurrency import run_in_threadpool
-
-from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
 from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
-from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig  # type: ignore[import]
 from OPSI.Backend.Base.Backend import describeInterface  # type: ignore[import]
+from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig  # type: ignore[import]
+from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from starlette.concurrency import run_in_threadpool
 
 from . import contextvar_client_address, contextvar_client_session
 from .config import config
-from .utils import Singleton
 from .logging import logger
-
+from .utils import Singleton
 
 BackendManager.default_config = {
 	"dispatchConfigFile": config.dispatch_config_file,
@@ -45,7 +45,9 @@ get_session_from_context = None  # pylint: disable=invalid-name
 def get_session():
 	global get_session_from_context  # pylint: disable=invalid-name, global-statement,global-variable-not-assigned
 	if not get_session_from_context:
-		from .session import get_session_from_context  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .session import (  # pylint: disable=import-outside-toplevel, redefined-outer-name
+			get_session_from_context,
+		)
 	return get_session_from_context()
 
 
@@ -77,11 +79,23 @@ backend_manager_lock = threading.Lock()
 backend_manager = None  # pylint: disable=invalid-name
 
 
-def get_backend():
+def get_backend(timeout: int = -1):
 	global backend_manager  # pylint: disable=invalid-name, global-statement
 	with backend_manager_lock:
 		if not backend_manager:
-			backend_manager = BackendManager(depotBackend=True)
+			start_time = time()
+			while True:
+				try:  # pylint: disable=loop-try-except-usage
+					backend_manager = BackendManager(depotBackend=True)
+					break
+				except RequestsConnectionError as err:
+					# JSONRPCBackend, config service connection error
+					if timeout < 0:  # pylint: disable=loop-invariant-statement
+						raise
+					if timeout > 0 and time() - start_time >= timeout:  # pylint: disable=loop-invariant-statement,chained-comparison
+						raise
+					logger.warning("Failed to get backend, will retry in 10 seconds: %s", err)
+					sleep(10)
 	return backend_manager
 
 
@@ -115,7 +129,7 @@ def get_mysql():
 	while getattr(backend, "_backend", None):
 		backend = backend._backend  # pylint: disable=protected-access
 		if backend.__class__.__name__ == "BackendDispatcher":
-			try:
+			try:  # pylint: disable=loop-try-except-usage
 				return backend._backends["mysql"]["instance"]._sql  # pylint: disable=protected-access
 			except KeyError:
 				# No mysql backend
@@ -134,10 +148,10 @@ def execute_on_secondary_backends(method: str, **kwargs) -> dict:
 					continue
 				logger.info("Executing '%s' on secondary backend '%s'", method, backend_id)
 				meth = getattr(backend._backends[backend_id]["instance"], method)  # pylint: disable=protected-access
-				try:
-					result[backend_id] = {"data": meth(**kwargs), "error": None}
+				try:  # pylint: disable=loop-try-except-usage
+					result[backend_id] = {"data": meth(**kwargs), "error": None}  # pylint: disable=loop-invariant-statement
 				except Exception as err:  # pylint: disable=broad-except
-					result[backend_id] = {"data": None, "error": err}
+					result[backend_id] = {"data": None, "error": err}  # pylint: disable=loop-invariant-statement
 				backend._backends[backend_id]["instance"].backend_exit()  # pylint: disable=protected-access
 	return result
 
@@ -187,7 +201,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 		hostnames = {"localhost", common_name}
 		if host.ipAddress:
 			try:
-				ip_addresses.add(ipaddress.ip_address(host.ipAddress).compressed)
+				ip_addresses.add(ip_address(host.ipAddress).compressed)
 			except ValueError as err:
 				logger.error("Invalid host ip address '%s': %s", host.ipAddress, err)
 
@@ -196,8 +210,8 @@ class OpsiconfdBackend(metaclass=Singleton):
 				if getattr(host, url_type):
 					address = urlparse(getattr(host, url_type)).hostname
 					if address:
-						try:
-							ip_addresses.add(ipaddress.ip_address(address).compressed)
+						try:  # pylint: disable=loop-try-except-usage
+							ip_addresses.add(ip_address(address).compressed)
 						except ValueError:
 							# Not an ip address
 							hostnames.add(address)
@@ -206,7 +220,13 @@ class OpsiconfdBackend(metaclass=Singleton):
 			except socket.error as err:
 				logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
 
-		from .ssl import create_server_cert, as_pem, load_ca_key, load_ca_cert, get_domain  # pylint: disable=import-outside-toplevel
+		from .ssl import (  # pylint: disable=import-outside-toplevel
+			as_pem,
+			create_server_cert,
+			get_domain,
+			load_ca_cert,
+			load_ca_key,
+		)
 
 		domain = get_domain()
 		cert, key = create_server_cert(

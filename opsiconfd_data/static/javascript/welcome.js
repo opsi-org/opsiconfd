@@ -2,12 +2,12 @@
 
 function onLoad() {
     let userLang = navigator.language || navigator.userLanguage;
-    let langToHide = "en"
+    let lang = "en"
     if (userLang == "de-DE") {
-        langToHide = "de"
+        lang = "de"
     }
 
-    content = document.getElementsByClassName(langToHide)
+    content = document.getElementsByClassName(lang)
     console.log(content);
     console.log(typeof (content));
     for (var i = 0; i < content.length; i++) {

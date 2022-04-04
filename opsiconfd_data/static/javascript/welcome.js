@@ -1,4 +1,22 @@
 // opsi welcome.js
+
+function onLoad() {
+    let userLang = navigator.language || navigator.userLanguage;
+    let langToHide = "en"
+    if (userLang == "de-DE") {
+        langToHide = "de"
+    }
+
+    content = document.getElementsByClassName(langToHide)
+    console.log(content);
+    console.log(typeof (content));
+    for (var i = 0; i < content.length; i++) {
+        content[i].style.visibility = "visible";
+        content[i].style.display = "block";
+    }
+}
+
+
 function deactivateWelcomePage() {
     let request = new XMLHttpRequest();
     request.open("POST", "/welcome/deactivate");

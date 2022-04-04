@@ -67,8 +67,13 @@ async def welcome_interface_index(request: Request):
 				ucs_server = True
 	except FileNotFoundError:
 		ucs_server = False
-
-	context = {"request": request, "opsi_version": f"{__version__} [python-opsi={python_opsi_version}]", "ucs-server": ucs_server or False}
+	welcome_page = config.welcome_page
+	context = {
+		"request": request,
+		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
+		"ucs_server": ucs_server or False,
+		"welcome_page": welcome_page
+	}
 	return config.jinja_templates.TemplateResponse("welcome.html", context)
 
 

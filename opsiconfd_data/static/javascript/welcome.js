@@ -3,13 +3,11 @@
 function onLoad() {
 	let userLang = navigator.language || navigator.userLanguage;
 	let lang = "en"
-	if (userLang == "de-DE") {
+	if (userLang.startsWith("de")) {
 		lang = "de"
 	}
 
 	content = document.getElementsByClassName(lang)
-	console.log(content);
-	console.log(typeof (content));
 	for (var i = 0; i < content.length; i++) {
 		content[i].style.visibility = "visible";
 		content[i].style.display = "block";

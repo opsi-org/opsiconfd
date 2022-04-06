@@ -97,7 +97,6 @@ def test_command(test_client):  # pylint: disable=redefined-outer-name
 			with WebSocketMessageReader(websocket) as reader:
 				websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo test\r"}))
 				time.sleep(3)
-				msg = list(reader.get_messages())[-1]
 				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
 				assert "test" in payload
 

@@ -85,8 +85,8 @@ def test_shell_config(test_client):  # pylint: disable=redefined-outer-name
 		with test_client.websocket_connect("/admin/terminal/ws") as websocket:
 			with WebSocketMessageReader(websocket) as reader:
 				time.sleep(3)
-				msg = list(reader.get_messages())[-1]
-				assert b"testshell" in msg["payload"]
+				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
+				assert b"testshell" in payload
 
 
 def test_command(test_client):  # pylint: disable=redefined-outer-name
@@ -98,8 +98,8 @@ def test_command(test_client):  # pylint: disable=redefined-outer-name
 				websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo test\r"}))
 				time.sleep(3)
 				msg = list(reader.get_messages())[-1]
-				assert msg["type"] == "terminal-read"
-				assert b"test" in msg["payload"]
+				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
+				assert "test" in payload
 
 
 def test_params(test_client):  # pylint: disable=redefined-outer-name
@@ -111,8 +111,8 @@ def test_params(test_client):  # pylint: disable=redefined-outer-name
 			with WebSocketMessageReader(websocket) as reader:
 				websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo :${COLUMNS}:${LINES}:\r"}))
 				time.sleep(3)
-				msg = list(reader.get_messages())[-1]
-				assert f":{cols}:{rows}:" in msg["payload"].decode("utf-8")
+				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
+				assert f":{cols}:{rows}:" in payload
 
 
 def test_file_upload_to_tmp(test_client):  # pylint: disable=redefined-outer-name

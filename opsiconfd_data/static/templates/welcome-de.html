@@ -1,0 +1,87 @@
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+    <title>Willkommen</title>
+    <link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
+    <script src="/static/javascript/common.js"></script>
+    <script src="/static/javascript/admininterface.js"></script>
+    <script src="/static/javascript/welcome.js"></script>
+</head>
+
+
+<body>
+    <div class="header">
+        <img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
+        <h1>Willkommen bei opsi</h1>
+
+        <h2 style="float: right;">opsiconfd {{opsi_version}}</h2>
+    </div>
+
+    <div class="content">
+        <br>
+
+        <p>Hier finden Sie Links, die beim Einstieg helfen:</p>
+
+        <div class="adminpage-box" id="sessions">
+
+            <ul>
+                <li>
+                    <p>
+                        Als Erstes können Sie den <a href="#" onclick="downloadConfiged()">opsi configed</a>
+                        herrunterladen und
+                        <a href="https://docs.opsi.org/opsi-docs-en/4.2/getting-started/adding-clients.html"
+                            target="_blank" rel="noopener noreferrer">
+                            Clients anlegen
+                        </a>.
+                    </p>
+                </li>
+                <li>
+                    <p>Über das
+                        <a href="/admin/#terminal" target="_blank" rel="noopener noreferrer">opsi admin terminal</a>
+                        können Sie
+                        <a href="https://docs.opsi.org/opsi-docs-en/4.2/getting-started/server/minimal-products.html"
+                            target="_blank" rel="noopener noreferrer">
+                            opsi Produkte installieren
+                        </a>.
+
+                    </p>
+                    <ul>
+                        <li>
+                            <code class="language-bash">
+								opsi-package-updater -v install
+							</code>
+                        </li>
+                    </ul>
+                </li>
+                <li>
+                    <p>
+                        Die opsi-Community trifft sich im <a href="https://forum.opsi.org/index.php" target="_blank"
+                            rel="noopener noreferrer">opsi-forum</a> auf opsi.org. Hier finden Sie auch den Link zum
+                        Wiki.
+                    </p>
+                </li>
+
+                {% if ucs_server %}
+                <li>
+                    <p>
+                        <a href="https://docs.opsi.org/opsi-docs-en/4.2/getting-started/server/base-installation.html#opsi-getting-started-installation-base-ucs"
+                            target="_blank" rel="noopener noreferrer">
+                            Hier
+                        </a> finden Sie Informationen zu opsi auf UCS.
+                    </p>
+                    {% endif %}
+                </li>
+                <li>
+                    <p>
+                        Weiter zum <a href="/admin">opsiconfd admin interface</a>.
+                    </p>
+                </li>
+            </ul>
+
+        </div>
+        {% if welcome_page %}
+        <h5><input type="checkbox" id="skip" name="skip" onchange="if (this.checked) deactivateWelcomePage();" />Diese
+            Seite nicht mehr anzeigen.</h5>
+        {% endif %}
+    </div>
+</body>

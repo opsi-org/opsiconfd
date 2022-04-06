@@ -86,7 +86,7 @@ def test_shell_config(test_client):  # pylint: disable=redefined-outer-name
 			with WebSocketMessageReader(websocket) as reader:
 				time.sleep(3)
 				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
-				assert b"testshell" in payload
+				assert "testshell" in payload
 
 
 def test_command(test_client):  # pylint: disable=redefined-outer-name

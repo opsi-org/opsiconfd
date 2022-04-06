@@ -1,20 +1,5 @@
 // opsi welcome.js
 
-function onLoad() {
-	let userLang = navigator.language || navigator.userLanguage;
-	let lang = "en"
-	if (userLang.startsWith("de")) {
-		lang = "de"
-	}
-
-	content = document.getElementsByClassName(lang)
-	for (var i = 0; i < content.length; i++) {
-		content[i].style.visibility = "visible";
-		content[i].style.display = "block";
-	}
-}
-
-
 function deactivateWelcomePage() {
 	let request = new XMLHttpRequest();
 	request.open("POST", "/welcome/deactivate");

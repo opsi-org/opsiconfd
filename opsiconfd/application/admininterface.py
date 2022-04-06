@@ -68,8 +68,13 @@ async def welcome_interface_index(request: Request):
 	except FileNotFoundError:
 		ucs_server = False
 	welcome_page = config.welcome_page
+
+	client_lang = "en"
+	if request.headers.get("accept-language", "").startswith("de"):
+		client_lang = "de"
 	context = {
 		"request": request,
+		"client_lang": client_lang,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
 		"ucs_server": ucs_server or False,
 		"welcome_page": welcome_page

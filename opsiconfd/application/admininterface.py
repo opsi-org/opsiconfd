@@ -467,7 +467,7 @@ def get_routes(request: Request) -> JSONResponse:  # pylint: disable=redefined-b
 
 @admin_interface_router.get("/licensing_info")
 def get_licensing_info() -> JSONResponse:
-	info = get_backend().backend_getLicensingInfo(True, False, True)  # pylint: disable=no-member
+	info = get_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)  # pylint: disable=no-member
 	active_date = None
 	modules: Dict[str, dict] = {}
 	previous: Dict[str, dict] = {}

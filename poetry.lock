@@ -1816,7 +1816,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.280"
+version = "4.2.0.281"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -1836,7 +1836,7 @@ psutil = ">=5.8,<6.0"
 pyasn1 = ">=0.4,<0.5"
 pycryptodome = ">=3.10,<4.0"
 pyopenssl = ">=22.0,<23.0"
-python-opsi-common = ">=4.2.0.275,<5.0.0.0"
+python-opsi-common = ">=4.2.0.281,<5.0.0.0"
 python-pam = ">=1.8,<2.0"
 pywin32 = {version = ">=303,<304", markers = "sys_platform == \"win32\""}
 ruyaml = ">=0.91,<0.92"
@@ -1852,7 +1852,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.2.0.280"
+version = "4.2.0.281"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -2657,7 +2657,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<3.11"
-content-hash = "b1f40736835f3799abc3993f0f02860fd5f878fe153f5925c596b6db97fdda1f"
+content-hash = "c33fbd5d5c62fe7f8c1552d84de94cbd7448ae3c7b65dcc302ce5cae5f7a839a"
 
 [metadata.files]
 aiofiles = [
@@ -3812,12 +3812,12 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.280.tar.gz", hash = "sha256:ce2914bb4fa7725fdbe3c22f2d5e58f5ffe014d454e8dbb6a1c4f059552e3757"},
-    {file = "python_opsi-4.2.0.280-py3-none-any.whl", hash = "sha256:c6bc30b812c005902af32a3f8437c615c051a733d7aa9e1d960f8e39a0b0e7b1"},
+    {file = "python-opsi-4.2.0.281.tar.gz", hash = "sha256:230560005206d61d209a6d77f26d10dc708e99131f36aba4a740f9d809c0a09b"},
+    {file = "python_opsi-4.2.0.281-py3-none-any.whl", hash = "sha256:8e13735e4bd59d10ab087ad30a28425de810353d62ffe9bf4f6f173a475c4be9"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.280.tar.gz", hash = "sha256:c783a40017fe1b3f6d1460b77cc2261b042ba9bccc77df09a9d16185dfb95ee4"},
-    {file = "python_opsi_common-4.2.0.280-py3-none-any.whl", hash = "sha256:67950d98cf9f97d9970d9252cb26873889ee051df6dcaeab9bd2be172db3b411"},
+    {file = "python-opsi-common-4.2.0.281.tar.gz", hash = "sha256:18e09316298cefa453445feccae0c9b6c04b01fe11d2f5c08f69eedcdab4be9d"},
+    {file = "python_opsi_common-4.2.0.281-py3-none-any.whl", hash = "sha256:9647d8e894cda03908fb6f648ea60b47f0eac7b5717f59f0102de1cf4121e00a"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

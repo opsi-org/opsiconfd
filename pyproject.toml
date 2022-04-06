@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "opsiconfd"
-version = "4.2.0.249"
+version = "4.2.0.250"
 description = "opsi configuration service"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
@@ -20,9 +20,9 @@ url = "https://pypi.uib.gmbh/simple"
 python = ">=3.7,<3.11"
 # Get the latest python-opsi from branch 4.2
 #python-opsi = { git = "git@gitlab.uib.local:uib/python-opsi.git", branch = "v4.2" }
-#python-opsi = {path = "python-opsi"}
-python-opsi = "^4.2.0.263"
-python-opsi-common = "^4.2.0.263"
+#python-opsi = {path = "python-opsi", develop = true}
+python-opsi = "^4.2.0.281"
+python-opsi-common = "^4.2.0.281"
 aiofiles = "^0.8"
 aiohttp = "^3.7"
 aiologger = "^0.6"

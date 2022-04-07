@@ -58,6 +58,10 @@ li {
 	list-style-type: none;
 }
 
+div#welcome ul li {
+	list-style-type: disc;
+}
+
 .header {
 	width: 90%;
 	height: 100px;

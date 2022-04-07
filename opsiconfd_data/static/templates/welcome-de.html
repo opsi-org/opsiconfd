@@ -12,7 +12,7 @@
 <body>
     <div class="header">
         <img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
-        <h1>Willkommen bei opsi</h1>
+        <h1>Willkommen bei opsi!</h1>
 
         <h2 style="float: right;">opsiconfd {{opsi_version}}</h2>
     </div>
@@ -20,16 +20,25 @@
     <div class="content">
         <br>
 
-        <p>Hier finden Sie Links, die beim Einstieg helfen:</p>
+        <p>Hier finden Sie Links, die Ihnen beim Einstieg helfen:</p>
 
-        <div class="adminpage-box" id="sessions">
+        <div class="adminpage-box" id="welcome">
 
             <ul>
                 <li>
                     <p>
-                        Als Erstes können Sie den <a href="#" onclick="downloadConfiged()">opsi configed</a>
-                        herrunterladen und
-                        <a href="https://docs.opsi.org/opsi-docs-en/4.2/getting-started/adding-clients.html"
+                        <a href="https://docs.opsi.org/opsi-docs-de/4.2/getting-started/getting-started.html"
+                            target="_blank" rel="noopener noreferrer">Hier</a> finden Sie das
+                        opsi-Getting-Started-Handbuch</a>.
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        Laden Sie die Management-Oberfläche <a href="#" onclick="downloadConfiged()">opsi-configed</a>
+                        herunter.
+                        <br />
+                        Über den opsi-configed können Sie dann Ihr opsi-System konfigurieren und die ersten
+                        <a href="https://docs.opsi.org/opsi-docs-de/4.2/getting-started/adding-clients.html"
                             target="_blank" rel="noopener noreferrer">
                             Clients anlegen
                         </a>.
@@ -37,27 +46,21 @@
                 </li>
                 <li>
                     <p>Über das
-                        <a href="/admin/#terminal" target="_blank" rel="noopener noreferrer">opsi admin terminal</a>
+                        <a href="/admin/#terminal" target="_blank" rel="noopener noreferrer">opsiconfd admin
+                            terminal</a>
                         können Sie
-                        <a href="https://docs.opsi.org/opsi-docs-en/4.2/getting-started/server/minimal-products.html"
+                        <a href="https://docs.opsi.org/opsi-docs-de/4.2/getting-started/server/minimal-products.html"
                             target="_blank" rel="noopener noreferrer">
-                            opsi Produkte installieren
+                            opsi-Pakete auf Ihrem Server installieren
                         </a>.
 
                     </p>
-                    <ul>
-                        <li>
-                            <code class="language-bash">
-								opsi-package-updater -v install
-							</code>
-                        </li>
-                    </ul>
                 </li>
                 <li>
                     <p>
                         Die opsi-Community trifft sich im <a href="https://forum.opsi.org/index.php" target="_blank"
-                            rel="noopener noreferrer">opsi-forum</a> auf opsi.org. Hier finden Sie auch den Link zum
-                        Wiki.
+                            rel="noopener noreferrer">opsi-Forum</a>. Dort finden Sie auch den Link zum
+                        opsi-Wiki.
                     </p>
                 </li>
 

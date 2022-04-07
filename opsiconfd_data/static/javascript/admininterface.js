@@ -1143,7 +1143,7 @@ function stopTerminal() {
 function terminalFileUpload(file) {
 	console.log("terminalFileUpload:")
 	console.log(file);
-	if (!terminal) {
+	if (!terminal || !terminal.websocket) {
 		console.error("No terminal connected")
 		return;
 	}
@@ -1238,7 +1238,6 @@ function loadLicensingInfo() {
 	xhr.open("GET", "/admin/licensing_info");
 	xhr.responseType = 'json';
 	xhr.onload = function (e) {
-		console.error(this.response);
 		if (this.status == 200) {
 			console.log("Licensing info:");
 			console.log(this.response);

@@ -137,13 +137,13 @@ def get_mysql():
 	raise RuntimeError("MySQL backend not active")
 
 
-def execute_on_secondary_backends(method: str, **kwargs) -> dict:
+def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs) -> dict:
 	result = {}
 	backend = get_client_backend()
 	while getattr(backend, "_backend", None):
 		backend = backend._backend  # pylint: disable=protected-access
 		if backend.__class__.__name__ == "BackendDispatcher":
-			for backend_id in ("opsipxeconfd", "dhcpd"):
+			for backend_id in backends:
 				if backend_id not in backend._backends:  # pylint: disable=protected-access
 					continue
 				logger.info("Executing '%s' on secondary backend '%s'", method, backend_id)

@@ -733,7 +733,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--welcome-page",
 			env_var="OPSICONFD_WELCOME_PAGE",
-			type=bool,
+			type=str2bool,
 			default=True,
 			help="Show welcome page on index.",
 		)

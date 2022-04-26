@@ -84,7 +84,7 @@ def test_create_ca(tmpdir):
 			key = load_key(config.ssl_ca_key, "secret")
 			key = load_ca_key()
 			assert key.type() == TYPE_RSA
-			with pytest.raises(RuntimeError, match=r".*PEM_read_bio_PrivateKey.*"):
+			with pytest.raises(RuntimeError, match=r".*pkcs12 cipherfinal error.*"):
 				key = load_key(config.ssl_ca_key, "wrong")
 			cert = load_ca_cert()
 			assert isinstance(cert, X509)
@@ -114,7 +114,7 @@ def test_ca_key_fallback(tmpdir):
 		store_ca_key(ca_key)
 		store_ca_cert(ca_crt)
 
-		with pytest.raises(RuntimeError, match=r".*PEM_read_bio_PrivateKey.*"):
+		with pytest.raises(RuntimeError, match=r".*pkcs12 cipherfinal error.*"):
 			load_key(config.ssl_ca_key, "wrong")
 
 		config.ssl_ca_key_passphrase = "wrong"
@@ -142,7 +142,7 @@ def test_server_key_fallback(tmpdir):
 			store_local_server_key(srv_key)
 			store_local_server_cert(srv_crt)
 
-			with pytest.raises(RuntimeError, match=r".*PEM_read_bio_PrivateKey.*"):
+			with pytest.raises(RuntimeError, match=r".*pkcs12 cipherfinal error.*"):
 				load_key(config.ssl_server_key, "wrong")
 
 			config.ssl_server_key_passphrase = "wrong"
@@ -271,7 +271,7 @@ def test_create_local_server_cert(tmpdir):
 			key = load_key(config.ssl_server_key, "secret")
 			key = load_local_server_key()
 			assert key.type() == TYPE_RSA
-			with pytest.raises(RuntimeError, match=r".*PEM_read_bio_PrivateKey.*"):
+			with pytest.raises(RuntimeError, match=r".*pkcs12 cipherfinal error.*"):
 				key = load_key(config.ssl_server_key, "wrong")
 			cert = load_local_server_cert()
 			assert isinstance(cert, X509)

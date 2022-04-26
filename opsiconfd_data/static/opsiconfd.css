@@ -581,3 +581,34 @@ table#licensing-dates-table th.active,
 table#licensing-dates-table td.active {
 	background-color: #f5ffec;
 }
+
+
+.alert {
+	padding: 20px;
+	background-color: #ff0800;
+	color: white;
+	margin-bottom: 15px;
+}
+
+.success {
+	padding: 20px;
+	background-color: #8ae234;
+	color: white;
+	margin-bottom: 15px;
+}
+
+
+.closebtn {
+	margin-left: 15px;
+	color: white;
+	font-weight: bold;
+	float: right;
+	font-size: 22px;
+	line-height: 20px;
+	cursor: pointer;
+	transition: 0.3s;
+}
+
+.closebtn:hover {
+	color: black;
+}

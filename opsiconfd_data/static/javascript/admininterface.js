@@ -309,8 +309,10 @@ function installAddon() {
 		}
 		if (request.status >= 200 && request.status < 300) {
 			loadAddons();
+			document.getElementById("alerts").innerHTML += "<div class='success'> <span class=\"closebtn\" onclick=\"this.parentNode.remove()\">&times;</span>Addon installed</div>"
 		} else {
 			console.warn(request.statusText, request.responseText);
+			document.getElementById("alerts").innerHTML += "<div class='alert'> <span class=\"closebtn\" onclick=\"this.parentNode.remove()\">&times;</span>" + request.responseText + "</div>"
 		}
 	});
 	request.send(formData);
@@ -1306,3 +1308,4 @@ document.onkeydown = function (evt) {
 		toggleTabFullscreen();
 	}
 };
+

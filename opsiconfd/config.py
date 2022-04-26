@@ -172,8 +172,10 @@ class Config(metaclass=Singleton):
 
 	def _parse_args(self):
 		if is_opsiconfd(psutil.Process(os.getpid())):
+			self._parser.exit_on_error = True
 			self._config = self._parser.parse_args(self._args)
 		else:
+			self._parser.exit_on_error = False
 			self._config, _unknown = self._parser.parse_known_args(self._args)
 
 		self.jinja_templates = Jinja2Templates(directory=os.path.join(self.static_dir, "templates"))

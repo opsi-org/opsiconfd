@@ -167,17 +167,17 @@ class Config(metaclass=Singleton):
 			self._upgrade_config_files()
 			self._update_config_files()
 
-		if is_opsiconfd(proc):
-			self._parse_args()
+		self._parse_args()
 
 	def _expert_help(self, help_text: str) -> str:
 		return help_text if self._ex_help else SUPPRESS
 
 	def _parse_args(self):
-		if self._pytest:
-			self._config, _unknown = self._parser.parse_known_args(self._args)
-		else:
+		if is_opsiconfd:
 			self._config = self._parser.parse_args(self._args)
+		else:
+			self._config, _unknown = self._parser.parse_known_args(self._args)
+
 
 		self.jinja_templates = Jinja2Templates(directory=os.path.join(self.static_dir, "templates"))
 

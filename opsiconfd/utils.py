@@ -76,6 +76,7 @@ def is_opsiconfd(proc) -> bool:
 		proc.name() in ("python", "python3") and ("opsiconfd" in proc.cmdline() or "opsiconfd.__main__" in " ".join(proc.cmdline()))
 	)
 
+
 def is_manager(proc) -> bool:
 	manager = False
 	if is_opsiconfd(proc):

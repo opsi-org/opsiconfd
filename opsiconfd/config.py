@@ -161,9 +161,7 @@ class Config(metaclass=Singleton):
 			self._args.append("--help")
 		self._init_parser()
 
-		pid = os.getpid()
-		proc = psutil.Process(pid)
-		if is_manager(proc):
+		if is_manager(psutil.Process(os.getpid())):
 			self._upgrade_config_files()
 			self._update_config_files()
 
@@ -173,7 +171,7 @@ class Config(metaclass=Singleton):
 		return help_text if self._ex_help else SUPPRESS
 
 	def _parse_args(self):
-		if is_opsiconfd:
+		if is_opsiconfd(psutil.Process(os.getpid())):
 			self._config = self._parser.parse_args(self._args)
 		else:
 			self._config, _unknown = self._parser.parse_known_args(self._args)

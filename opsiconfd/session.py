@@ -124,8 +124,13 @@ class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
 		self.session_cookie_name = "opsiconfd-session"
-		self.session_cookie_attributes = ["SameSite=Strict", "Secure"]
+		self.session_cookie_attributes = ("SameSite=Strict", "Secure")
 		self._public_path = public_path or []
+		# Zsync2 will send "curl/<curl-version>" as User-Agent.
+		# RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
+		# Do not keep sessions because they will never send a cookie (session id).
+		# If we keep the session, we may reach the maximum number of sessions per ip.
+		self._session_unaware_user_agents = ("libdnf", "curl")
 		# Store ip addresses of depots with last access time
 		self._depot_addresses: Dict[str, float] = {}
 
@@ -212,10 +217,7 @@ class SessionMiddleware:
 			contextvar_client_session.set(scope["session"])
 			started_authenticated = scope["session"].user_store.authenticated
 
-			if connection.headers.get("user-agent", "").startswith("curl/"):
-				# Zsync2 will send "curl/<curl-version>" as User-Agent.
-				# Do not keep zsync2 sessions because zsync2 will never send a session id.
-				# If we keep the session, we may reach the maximum number of sessions per ip.
+			if connection.headers.get("user-agent", "").startswith(self._session_unaware_user_agents):
 				scope["session"].persistent = False
 				logger.debug("Not keeping session for client %s (%s)", connection.client.host, connection.headers.get("user-agent"))
 

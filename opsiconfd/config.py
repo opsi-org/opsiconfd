@@ -176,7 +176,6 @@ class Config(metaclass=Singleton):
 		else:
 			self._config, _unknown = self._parser.parse_known_args(self._args)
 
-
 		self.jinja_templates = Jinja2Templates(directory=os.path.join(self.static_dir, "templates"))
 
 		if not self._config.ssl_ca_key_passphrase:

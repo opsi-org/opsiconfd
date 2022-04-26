@@ -26,7 +26,7 @@ from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
 from OPSI.Util import getfqdn  # type: ignore[import]
 
-from .utils import Singleton, is_manager, running_in_docker
+from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
 CONFIG_FILE_HEADER = """
@@ -134,7 +134,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 
 class Config(metaclass=Singleton):
-	def __init__(self, args=None):
+	def __init__(self):
 		self._pytest = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
 		self._args = []
 		self._ex_help = False
@@ -142,7 +142,7 @@ class Config(metaclass=Singleton):
 		self._config = None
 		self.jinja_templates = None
 
-		self._set_args(args)
+		self._set_args()
 
 	def __getattr__(self, name):
 		if not name.startswith("_") and self._config:
@@ -167,7 +167,8 @@ class Config(metaclass=Singleton):
 			self._upgrade_config_files()
 			self._update_config_files()
 
-		self._parse_args()
+		if is_opsiconfd(proc):
+			self._parse_args()
 
 	def _expert_help(self, help_text: str) -> str:
 		return help_text if self._ex_help else SUPPRESS

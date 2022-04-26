@@ -71,11 +71,14 @@ def running_in_docker():
 	return False
 
 
+def is_opsiconfd(proc) -> bool:
+	return proc.name() == "opsiconfd" or (
+		proc.name() in ("python", "python3") and ("opsiconfd" in proc.cmdline() or "opsiconfd.__main__" in " ".join(proc.cmdline()))
+	)
+
 def is_manager(proc) -> bool:
 	manager = False
-	if proc.name() == "opsiconfd" or (
-		proc.name() in ("python", "python3") and ("opsiconfd" in proc.cmdline() or "opsiconfd.__main__" in " ".join(proc.cmdline()))
-	):
+	if is_opsiconfd(proc):
 		manager = True
 		for arg in proc.cmdline():
 			if "multiprocessing" in arg or "log-viewer" in arg:

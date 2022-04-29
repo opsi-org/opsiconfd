@@ -33,8 +33,10 @@ function addRecordToLog(record) {
 	let context = "";
 	if (record.context) {
 		for (key in record.context) {
-			if (context != "") context = context + ",";
-			context = context + record.context[key];
+			if (key != "logger") {
+				if (context != "") context = context + ",";
+				context = context + record.context[key];
+			}
 		}
 	}
 

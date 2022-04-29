@@ -61,7 +61,6 @@ redis_log_adapter_thread = None  # pylint: disable=invalid-name
 root_logger = get_logger()
 root_logger.setLevel(pylogging.ERROR)
 logger = get_logger("opsiconfd.general")
-ContextSecretFormatter.logger_name_in_context_string = True
 
 
 class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-instance-attributes

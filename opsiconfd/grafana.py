@@ -253,8 +253,10 @@ def grafana_admin_session() -> Tuple[str, requests.Session]:
 
 
 def setup_grafana():
+	logger.info("Setup grafana")
+
 	if not grafana_is_local():
-		logger.info("Grafana is not local, skipping setup")
+		logger.debug("Grafana is not local, skipping setup")
 		return
 
 	plugin_action = "install"

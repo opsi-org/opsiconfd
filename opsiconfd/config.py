@@ -421,7 +421,7 @@ class Config(metaclass=Singleton):
 			help=self._expert_help(
 				"Set the log levels of individual loggers. "
 				"<logger-regex>:<level>[,<logger-regex-2>:<level-2>]"
-				r'Example: --log-levels="\.*=4,opsiconfd\.headers=8"'
+				r'Example: --log-levels=".*=4,opsiconfd\.headers=8"'
 			),
 		)
 		self._parser.add(

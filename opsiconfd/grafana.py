@@ -9,22 +9,23 @@
 grafana
 """
 
-import os
-import re
 import codecs
 import copy
-import sqlite3
-import hashlib
 import datetime
+import hashlib
+import os
+import re
+import sqlite3
 import subprocess
-from typing import Tuple, Dict, Any
+from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
-from packaging.version import Version
+
 import requests
+from packaging.version import Version
 from requests.auth import AuthBase, HTTPBasicAuth
 
-from .logging import logger
 from .config import config
+from .logging import logger
 from .utils import get_random_string
 
 API_KEY_NAME = "opsiconfd"
@@ -253,6 +254,7 @@ def grafana_admin_session() -> Tuple[str, requests.Session]:
 
 def setup_grafana():
 	if not grafana_is_local():
+		logger.info("Grafana is not local, skipping setup")
 		return
 
 	plugin_action = "install"

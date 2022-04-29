@@ -80,7 +80,7 @@ async def welcome_interface_index(request: Request):
 		"client_lang": client_lang,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
 		"ucs_server": ucs_server,
-		"welcome_page": welcome_page
+		"welcome_page": welcome_page,
 	}
 	return config.jinja_templates.TemplateResponse("welcome.html", context)
 

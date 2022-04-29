@@ -40,11 +40,7 @@ from OPSI.Util import (  # type: ignore[import]
 	serialize,
 	timestamp,
 )
-from opsicommon.logging import (  # type: ignore[import]
-	logger,
-	secret_filter,
-	set_context,
-)
+from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -53,6 +49,7 @@ from . import contextvar_client_session, contextvar_server_timing
 from .addon import AddonManager
 from .backend import get_client_backend
 from .config import FQDN, config
+from .logging import logger
 from .utils import (
 	async_redis_client,
 	ip_address_to_redis_key,

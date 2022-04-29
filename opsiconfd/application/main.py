@@ -11,6 +11,7 @@ application main
 import asyncio
 import os
 from ctypes import c_long
+from logging import TRACE
 from typing import Any
 from urllib.parse import urlparse
 
@@ -31,7 +32,7 @@ from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 from .. import __version__, contextvar_client_address, contextvar_request_id
 from ..addon import AddonManager
 from ..config import config
-from ..logging import logger
+from ..logging import get_logger, logger
 from ..rest import OpsiApiException, rest_api
 from ..session import SessionMiddleware
 from ..ssl import get_ca_cert_as_pem
@@ -59,6 +60,8 @@ PATH_MAPPINGS = {
 	"/repository": "/repository/",
 	"/workbench": "/workbench/",
 }
+
+header_logger = get_logger("opsiconfd.headers")
 
 
 @app.get("/")
@@ -185,6 +188,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		request_id = abs(c_long(request_id).value)
 		scope["request_id"] = request_id
 		contextvar_request_id.set(request_id)
+		req_headers = dict(scope["headers"])
 
 		if scope.get("path") and (new_path := PATH_MAPPINGS.get(scope["path"])):
 			scope["path"] = new_path
@@ -192,21 +196,23 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 
 		client_host, client_port = self.get_client_address(scope)
 
+		if scope.get("http_version") and scope["http_version"] != "1.1":
+			logger.warning(
+				"Client %s (%s) is using http version %s",
+				client_host,
+				scope["headers"].get("user-agent"),
+				scope.get("http_version"),
+			)
+
 		if client_host in config.trusted_proxies:
 			proxy_host = client_host
 			# from uvicorn/middleware/proxy_headers.py
-			headers = dict(scope["headers"])
-			# if b"x-forwarded-proto" in headers:
-			# # Determine if the incoming request was http or https based on
-			# # the X-Forwarded-Proto header.
-			# x_forwarded_proto = headers[b"x-forwarded-proto"].decode("ascii")
-			# scope["scheme"] = x_forwarded_proto.strip()
 
-			if b"x-forwarded-for" in headers:
+			if b"x-forwarded-for" in req_headers:
 				# Determine the client address from the last trusted IP in the
 				# X-Forwarded-For header. We've lost the connecting client's port
 				# information by now, so only include the host.
-				x_forwarded_for = headers[b"x-forwarded-for"].decode("ascii")
+				x_forwarded_for = req_headers[b"x-forwarded-for"].decode("ascii")
 				client_host = x_forwarded_for.split(",")[-1].strip()
 				client_port = 0
 				logger.debug("Accepting x-forwarded-for header (host=%s) from trusted proxy %s", client_host, proxy_host)
@@ -216,7 +222,6 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
-				req_headers = dict(scope["headers"])
 				host = req_headers.get(b"host", b"localhost:4447").decode().split(":")[0]
 				origin_scheme = "https"
 				origin_port = 4447
@@ -235,6 +240,13 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime",
 				)
 				headers.append("Access-Control-Allow-Credentials", "true")
+				if header_logger.isEnabledFor(TRACE):
+					header_logger.trace("<<< HTTP/%s %s %s", scope.get("http_version"), scope.get("method"), scope.get("path"))
+					for header, value in req_headers.items():
+						header_logger.trace("<<< %s: %s", header.decode("utf-8", "replace"), value.decode("utf-8", "replace"))
+					header_logger.trace(">>> HTTP/%s %s", scope.get("http_version"), message.get("status"))
+					for header, value in dict(headers).items():
+						header_logger.trace(">>> %s: %s", header, value)
 
 			self.before_send(scope, receive, send)
 			await send(message)

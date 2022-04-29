@@ -414,6 +414,17 @@ class Config(metaclass=Singleton):
 			),
 		)
 		self._parser.add(
+			"--log-levels",
+			env_var="OPSICONFD_LOG_LEVELS",
+			type=str,
+			default="",
+			help=self._expert_help(
+				"Set the log levels of individual loggers. "
+				"<logger-regex>:<level>[,<logger-regex-2>:<level-2>]"
+				r'Example: --log-levels="\.*=4,opsiconfd\.headers=8"'
+			),
+		)
+		self._parser.add(
 			"--log-file",
 			env_var="OPSICONFD_LOG_FILE",
 			default="/var/log/opsi/opsiconfd/%m.log",

@@ -8,46 +8,48 @@
 opsiconfd - logging
 """
 
-import os
-import sys
-import time
+import asyncio
 import glob
+import logging as pylogging
+import os
+import re
 import shutil
 import socket
+import sys
 import threading
-import asyncio
-from typing import Any, Callable, Dict
-from queue import Queue, Empty
-from logging import LogRecord, Formatter, StreamHandler
+import time
 from concurrent.futures import ThreadPoolExecutor
+from logging import Formatter, LogRecord, StreamHandler
+from queue import Empty, Queue
+from typing import Any, Callable, Dict
 
 import aioredis
-import msgpack  # type: ignore[import]
 import colorlog
-
-from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import]
+import msgpack  # type: ignore[import]
 from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import]
-
+from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import]
 from OPSI.Config import OPSI_ADMIN_GROUP  # type: ignore[import]
-
 from opsicommon.logging import (  # type: ignore[import]
-	logger,
-	secret_filter,
-	handle_log_exception,
-	set_format,
-	set_filter_from_string,
-	context_filter,
-	ContextSecretFormatter,
-	SECRET_REPLACEMENT_STRING,
-	LOG_COLORS,
 	DATETIME_FORMAT,
+	LOG_COLORS,
 	OPSI_LEVEL_TO_LEVEL,
+	SECRET_REPLACEMENT_STRING,
+	ContextSecretFormatter,
+	context_filter,
+	get_all_loggers,
+	get_logger,
+	handle_log_exception,
+	secret_filter,
+	set_filter_from_string,
+	set_format,
 )
 from opsicommon.logging.constants import logging as pylogging  # type: ignore[import]
-from opsicommon.logging.logging import add_context_filter_to_loggers  # type: ignore[import]
+from opsicommon.logging.logging import (
+	add_context_filter_to_loggers,  # type: ignore[import]
+)
 
-from .utils import retry_redis_call, get_async_redis_connection, get_redis_connection
 from .config import config
+from .utils import get_async_redis_connection, get_redis_connection, retry_redis_call
 
 # 1 log record ~= 550 bytes
 LOG_STREAM_MAX_RECORDS = 50000
@@ -56,7 +58,10 @@ redis_log_handler = None  # pylint: disable=invalid-name
 redis_log_adapter_thread = None  # pylint: disable=invalid-name
 
 # Set default log level to ERROR early
-logger.setLevel(pylogging.ERROR)
+root_logger = get_logger()
+root_logger.setLevel(pylogging.ERROR)
+logger = get_logger("opsiconfd.general")
+ContextSecretFormatter.logger_name_in_context_string = True
 
 
 class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-instance-attributes
@@ -469,7 +474,9 @@ def enable_slow_callback_logging(slow_callback_duration=None):
 	asyncio.events.Handle._run = _run  # pylint: disable=protected-access
 
 
-def init_logging(log_mode: str = "redis", is_worker: bool = False):  # pylint: disable=too-many-branches
+def init_logging(
+	log_mode: str = "redis", is_worker: bool = False
+):  # pylint: disable=too-many-branches,too-many-statements,too-many-nested-blocks
 	redis_error = None
 	try:
 		if log_mode not in ("redis", "local"):
@@ -495,18 +502,33 @@ def init_logging(log_mode: str = "redis", is_worker: bool = False):  # pylint: d
 			log_handler = StreamHandler(stream=sys.stderr)
 
 		log_handler.setLevel(log_level)
-		logger.handlers = [log_handler]
-		logger.setLevel(log_level)
+		root_logger.handlers = [log_handler]
+		root_logger.setLevel(log_level)
 		set_format(stderr_format=config.log_format_stderr, file_format=config.log_format_file)
 
 		if config.log_filter:
 			set_filter_from_string(config.log_filter)
 
 		for logger_name in ("asyncio", "uvicorn.error", "uvicorn.access", "wsgidav"):
-			_logger = pylogging.getLogger(logger_name)
-			_logger.setLevel(log_level)
-			_logger.handlers = [log_handler]
-			_logger.propagate = False
+			logger_ = pylogging.getLogger(logger_name)
+			logger_.propagate = False
+
+		if config.log_levels:
+			loggers = {logger_.name: logger_ for logger_ in list(pylogging.Logger.manager.loggerDict.values()) if hasattr(logger_, "name")}
+			logger_level_configs = {}
+			for entry in [entry.strip() for entry in config.log_levels.split(",") if entry.strip()]:
+				logger_re, level = entry.rsplit(":", 1)
+				logger_level_configs[logger_re.strip()] = int(level.strip())
+
+			# Sort by regex length so the closest match will be applied at last
+			for logger_re in sorted(logger_level_configs, key=len):
+				level = logger_level_configs[logger_re]
+				logger_re = re.compile(logger_re)
+				for logger_name, logger_ in loggers.items():
+					if logger_re.match(logger_name):
+						if level < 10:
+							level = OPSI_LEVEL_TO_LEVEL[level]
+						logger_.setLevel(level)
 
 		add_context_filter_to_loggers()
 

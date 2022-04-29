@@ -156,14 +156,6 @@ class SessionMiddleware:
 		scope["session"] = None
 		logger.trace("SessionMiddleware %s", scope)
 
-		if scope.get("http_version") and scope["http_version"] != "1.1":
-			logger.warning(
-				"Client %s (%s) is using http version %s",
-				connection.client.host,
-				connection.headers.get("user-agent"),
-				scope.get("http_version"),
-			)
-
 		await check_network(connection)
 
 		if scope["type"] not in ("http", "websocket"):
@@ -254,7 +246,7 @@ class SessionMiddleware:
 				if scope["session"] and not scope["session"].deleted and scope["session"].persistent:
 					await scope["session"].store()
 					headers = MutableHeaders(scope=message)
-					headers.update(scope["session"].get_headers())
+					scope["session"].add_cookie_to_headers(headers)
 			await send(message)
 
 		await self.app(scope, receive, send_wrapper)
@@ -324,7 +316,7 @@ class SessionMiddleware:
 
 		headers = headers or {}
 		if scope.get("session"):
-			headers.update(scope["session"].get_headers())
+			scope["session"].add_cookie_to_headers(headers)
 
 		response: Optional[Response] = None
 		if scope["path"].startswith("/rpc"):
@@ -402,13 +394,19 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def validity(self) -> int:
 		return int(self.max_age - (utc_time_timestamp() - self.last_used))
 
-	def get_headers(self):
+	def get_cookie(self) -> Optional[str]:
 		if not self.session_id or self.deleted or not self.persistent:
-			return {}
+			return None
 		attrs = "; ".join(self.session_cookie_attributes)
 		if attrs:
 			attrs += "; "
-		return {"Set-Cookie": f"{self.session_cookie_name}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"}
+		return f"{self.session_cookie_name}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"
+
+	def add_cookie_to_headers(self, headers: dict):
+		cookie = self.get_cookie()
+		# Keep current set-cookie header if already set
+		if cookie and "set-cookie" not in headers:
+			headers["set-cookie"] = cookie
 
 	async def init(self) -> None:
 		if self.session_id is None:

@@ -236,7 +236,7 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 				if websocket.client_state != WebSocketState.CONNECTED:
 					break
 				logger.debug("Send set-cookie")
-				await websocket.send_bytes(msgpack_dumps({"type": "set-cookie", "payload": session.get_headers()["Set-Cookie"]}))
+				await websocket.send_bytes(msgpack_dumps({"type": "set-cookie", "payload": session.get_cookie()}))
 		except (ConnectionClosedOK, WebSocketDisconnect) as err:
 			logger.debug("set_cookie_task: %s", err)
 

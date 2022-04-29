@@ -36,7 +36,6 @@ from opsicommon.logging import (  # type: ignore[import]
 	SECRET_REPLACEMENT_STRING,
 	ContextSecretFormatter,
 	context_filter,
-	get_all_loggers,
 	get_logger,
 	handle_log_exception,
 	secret_filter,

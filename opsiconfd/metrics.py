@@ -11,7 +11,7 @@ metrics
 import asyncio
 import re
 import time
-from typing import TYPE_CHECKING, Generator, List
+from typing import TYPE_CHECKING, Generator, List, Tuple
 
 import psutil
 from aioredis import ResponseError as AioRedisResponseError
@@ -108,8 +108,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		vars = {}  # pylint: disable=redefined-builtin
 		if self.vars:
 			values = redis_key[len(self.redis_key_prefix) + 1 :].split(":")
-			for i, value in enumerate(values):
-				vars[self.vars[i]] = value
+			vars = {self.vars[i]: value for i, value in enumerate(values)}
 		return vars
 
 	def get_name_by_redis_key(self, redis_key):
@@ -159,7 +158,7 @@ metrics_registry = MetricsRegistry()
 
 
 class MetricsCollector:  # pylint: disable=too-many-instance-attributes
-	_metric_subjects: List[str] = []
+	_metric_subjects: Tuple = ()
 
 	def __init__(self):
 		self._interval = 5
@@ -203,7 +202,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 			if key_string not in self._values[metric.id]:
 				self._values[metric.id][key_string] = {}
 
-	async def main_loop(self):  # pylint: disable=too-many-branches
+	async def main_loop(self):  # pylint: disable=too-many-branches,too-many-locals
 		try:
 			self._init_vars()
 		except Exception as err:  # pylint: disable=broad-except
@@ -212,7 +211,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		while True:
 			cmd = None
 
-			try:
+			try:  # pylint: disable=loop-try-except-usage
 				await self._fetch_values()
 				timestamp = self._get_timestamp()
 				cmds = []
@@ -360,14 +359,14 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 
 
 class ManagerMetricsCollector(MetricsCollector):
-	_metric_subjects = ["node"]
+	_metric_subjects = ("node",)
 
 	async def _fetch_values(self):
 		asyncio.get_event_loop().create_task(self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name}))
 
 
 class WorkerMetricsCollector(MetricsCollector):
-	_metric_subjects = ["worker", "client"]
+	_metric_subjects = ("worker", "client")
 
 	def __init__(self, worker: "Worker") -> None:
 		super().__init__()
@@ -390,6 +389,6 @@ class WorkerMetricsCollector(MetricsCollector):
 		):
 			# Do not add 0-values
 			if value:
-				asyncio.get_event_loop().create_task(
+				asyncio.get_event_loop().create_task(  # pylint: disable=dotted-import-in-loop
 					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self.worker_num})
 				)

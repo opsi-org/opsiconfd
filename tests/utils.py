@@ -8,26 +8,24 @@
 test utils
 """
 
-from typing import Dict, Any, Union, List
-from contextlib import contextmanager, asynccontextmanager
 import contextvars
+from contextlib import asynccontextmanager, contextmanager
+from typing import Any, Dict, List, Union
 from unittest.mock import patch
 
+import aioredis
+import MySQLdb  # type: ignore[import]
 import pytest
 import pytest_asyncio
 import redis
-import aioredis
-import MySQLdb  # type: ignore[import]
-from requests.cookies import cookiejar_from_dict
 from fastapi.testclient import TestClient
-
 from opsicommon.objects import LocalbootProduct, ProductOnDepot  # type: ignore[import]
+from requests.cookies import cookiejar_from_dict
 
-from opsiconfd.utils import Singleton
-from opsiconfd.config import config as _config
 from opsiconfd.application.main import app
 from opsiconfd.backend import BackendManager
-
+from opsiconfd.config import config as _config
+from opsiconfd.utils import Singleton
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
@@ -61,7 +59,7 @@ def get_config(values: Union[Dict[str, Any], List[str]]):
 		_config._args = args  # pylint: disable=protected-access
 
 
-CLEAN_REDIS_KEYS = [
+CLEAN_REDIS_KEYS = (
 	OPSI_SESSION_KEY,
 	"opsiconfd:stats:client:failed_auth",
 	"opsiconfd:stats:client:blocked",
@@ -70,7 +68,7 @@ CLEAN_REDIS_KEYS = [
 	"opsiconfd:stats:num_rpcs",
 	"opsiconfd:stats:rpc",
 	"opsiconfd:jsonrpccache:*:products",
-]
+)
 
 
 @asynccontextmanager
@@ -201,14 +199,14 @@ def products_jsonrpc(client, base_url, products, depots=None):
 def create_poc_jsonrpc(
 	http_client, base_url, opsi_client, product_id, install_state=None, action_request=None, action_result=None
 ):  # pylint: disable=too-many-arguments
-	product = [product_id, "LocalbootProduct", opsi_client, install_state, action_request, None, None, action_result]
+	product = [product_id, "LocalbootProduct", opsi_client, install_state, action_request, None, None, action_result]  # pylint: disable=use-tuple-over-list
 	rpc = {"id": 1, "method": "productOnClient_create", "params": product}
 	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
 	res.raise_for_status()
 
 
 def delete_poc_jsonrpc(http_client, base_url, opsi_client, product_id):
-	product = [product_id, opsi_client]
+	product = [product_id, opsi_client]  # pylint: disable=use-tuple-over-list
 	rpc = {"id": 1, "method": "productOnClient_delete", "params": product}
 	res = http_client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc, verify=False)
 	res.raise_for_status()

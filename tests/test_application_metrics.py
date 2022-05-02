@@ -11,8 +11,6 @@ test application.metrics
 import asyncio
 import datetime
 import time
-from random import sample
-from sqlite3 import Timestamp
 
 import pytest
 
@@ -126,6 +124,7 @@ async def create_ts_data(node_name: str, start: int, end: int, value: float):
 	#      ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]
 
 	redis = await async_redis_client()
+	redis_key = f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1"
 	async for key in redis.scan_iter("opsiconfd:stats:worker:avg_cpu_percent:*"):
 		await redis.delete(key)
 	await redis.delete("opsiconfd:stats:worker:avg_cpu_percent")
@@ -139,7 +138,7 @@ async def create_ts_data(node_name: str, start: int, end: int, value: float):
 		timestamp = start + second
 		cmd = (
 			"TS.ADD",
-			f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1",
+			redis_key,
 			timestamp * 1000,
 			value,
 			"RETENTION",
@@ -152,9 +151,7 @@ async def create_ts_data(node_name: str, start: int, end: int, value: float):
 			"worker_num",
 			1,
 		)
-		cmd = " ".join([str(x) for x in cmd])
-		await pipeline.execute_command(cmd)
-		timestamp += 1
+		await pipeline.execute_command(" ".join([str(x) for x in cmd]))
 	await pipeline.execute()
 
 

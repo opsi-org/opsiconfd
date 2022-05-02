@@ -10,7 +10,6 @@ metrics
 
 import copy
 import ssl
-import time
 from datetime import datetime
 from operator import itemgetter
 from typing import List, Union

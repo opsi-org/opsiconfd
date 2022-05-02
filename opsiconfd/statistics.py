@@ -8,26 +8,25 @@
 statistics
 """
 
+import asyncio
 import re
 import time
-import asyncio
 from typing import Dict, Optional
 
 import yappi  # type: ignore[import]
-from yappi import YFuncStats
 from redis import ResponseError as RedisResponseError
-
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from yappi import YFuncStats
 
-from . import contextvar_request_id, contextvar_client_address, contextvar_server_timing
-from .logging import logger
-from .worker import Worker
+from . import contextvar_client_address, contextvar_request_id, contextvar_server_timing
 from .config import config
-from .utils import redis_client, ip_address_to_redis_key
 from .grafana import GrafanaPanelConfig
+from .logging import logger
 from .metrics import Metric, metrics_registry
+from .utils import ip_address_to_redis_key, redis_client
+from .worker import Worker
 
 
 def get_yappi_tag() -> int:
@@ -36,7 +35,9 @@ def get_yappi_tag() -> int:
 
 def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 	# Add metrics from jsonrpc to metrics_registry
-	from .application import jsonrpc  # pylint: disable=import-outside-toplevel,unused-import
+	from .application import (
+		jsonrpc,  # pylint: disable=import-outside-toplevel,unused-import
+	)
 
 	with redis_client() as client:
 		for metric in metrics_registry.get_metrics():
@@ -87,7 +88,7 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 
 				for rule in metric.downsampling:
 					retention, retention_time, aggregation = rule
-					time_bucket = get_time_bucket(retention)
+					time_bucket = get_time_bucket_duration(retention)
 					key = f"{orig_key}:{retention}"
 					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
 					try:
@@ -111,7 +112,7 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 						client.execute_command(cmd)
 
 
-TIME_BUCKETS = {
+TIME_BUCKET_DURATIONS_MS = {
 	"second": 1000,
 	"minute": 60 * 1000,
 	"hour": 3600 * 1000,
@@ -122,19 +123,11 @@ TIME_BUCKETS = {
 }
 
 
-def get_time_bucket(interval: str) -> int:
-	time_bucket = TIME_BUCKETS.get(interval)
-	if time_bucket is None:
-		raise ValueError(f"Invalid interval: {interval}")
-	return time_bucket
-
-
-def get_time_bucket_name(time: int) -> Optional[str]:  # pylint: disable=redefined-outer-name
-	time_bucket_name = None
-	for name, t in TIME_BUCKETS.items():  # pylint: disable=invalid-name
-		if time >= t:
-			time_bucket_name = name
-	return time_bucket_name
+def get_time_bucket_duration(name: str) -> int:
+	duration_ms = TIME_BUCKET_DURATIONS_MS.get(name)
+	if duration_ms is None:
+		raise ValueError(f"Invalid name: {name}")
+	return duration_ms
 
 
 metrics_registry.register(

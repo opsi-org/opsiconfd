@@ -53,7 +53,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 			Variables used for redis key and labels (i.e. ["node_name", "worker_num"]). \
 			Values for these vars has to pe passed to param "labels" as dict when calling MetricsCollector.add_value().
 		:type vars: List[str]
-		:param retention: Redis retention time in milliseconds.
+		:param retention: Redis retention period (maximum age for samples compared to last event time) in milliseconds.
 		:type retention: int
 		:param aggregation: Aggregation to use before adding values to the time series database (`sum` or `avg`).
 		:type aggregation: str
@@ -68,7 +68,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		:type subject: str
 		:param subject: A GrafanaPanelConfig object.
 		:type subject: GrafanaPanelConfig
-		:param downsampling: Downsampling configuration as list of [<time_bucket>, <retention_time>, <aggregation>] pairs.
+		:param downsampling: Downsampling rules as list of [<ts_key_extension>, <retention_time_in_ms>, <aggregation>] pairs.
 		:type downsampling: List
 		"""
 		assert aggregation in ("sum", "avg")

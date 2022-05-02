@@ -10,6 +10,9 @@ test application.metrics
 
 import asyncio
 import datetime
+import time
+from random import sample
+from sqlite3 import Timestamp
 
 import pytest
 
@@ -22,6 +25,7 @@ from opsiconfd.application.metrics import (
 	grafana_search,
 )
 from opsiconfd.metrics import WorkerMetricsCollector
+from opsiconfd.statistics import setup_metric_downsampling
 from opsiconfd.utils import async_redis_client
 from opsiconfd.worker import Worker
 
@@ -29,6 +33,7 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	clean_redis,
+	config,
 	test_client,
 )
 
@@ -112,26 +117,125 @@ async def test_grafana_search():
 		assert f"Average CPU usage of worker {worker['worker_num']} on {worker['node_name']}" in res
 
 
-async def test_grafana_query(test_client):  # pylint: disable=redefined-outer-name
-	worker = Worker()
-	worker.metrics_collector = WorkerMetricsCollector(worker)
-	worker.metrics_collector._interval = 1  # pylint: disable=protected-access
-	loop = asyncio.get_event_loop()
-	loop.create_task(worker.metrics_collector.main_loop())
-	await asyncio.sleep(2)
+async def create_ts_data(node_name: str, start: int, end: int, value: float):
+	# avg_cpu_percent
+	#   retention: 2 * 3600 * 1000 = 7200000
+	#   downsampling:
+	#      ["minute", 24 * 3600 * 1000, "avg"]
+	#      ["hour", 60 * 24 * 3600 * 1000, "avg"]
+	#      ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]
 
+	redis = await async_redis_client()
+	async for key in redis.scan_iter("opsiconfd:stats:worker:avg_cpu_percent:*"):
+		await redis.delete(key)
+	await redis.delete("opsiconfd:stats:worker:avg_cpu_percent")
+	setup_metric_downsampling()
+
+	pipeline = redis.pipeline()
+	interval = end - start
+	samples = int(interval / 5)
+	for sample_num in range(samples):
+		second = sample_num * 5
+		timestamp = start + second
+		cmd = (
+			"TS.ADD",
+			f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1",
+			timestamp * 1000,
+			value,
+			"RETENTION",
+			7200000,
+			"ON_DUPLICATE",
+			"SUM",
+			"LABELS",
+			"node_name",
+			node_name,
+			"worker_num",
+			1,
+		)
+		cmd = " ".join([str(x) for x in cmd])
+		await pipeline.execute_command(cmd)
+		timestamp += 1
+	await pipeline.execute()
+
+
+@pytest.mark.grafana_available
+async def test_grafana_query(test_client, config):  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	_to = datetime.datetime.utcnow()
-	_from = _to - datetime.timedelta(hours=24)
+
+	end = int(time.time())
+	interval = 24 * 3600
+	start = end - interval
+	value = 10
+
+	await create_ts_data(config.node_name, start, end, value)
+
+	seconds = 300
+	_to = datetime.datetime.fromtimestamp(end)
+	_from = _to - datetime.timedelta(seconds=seconds)
 	query = {
 		"app": "dashboard",
-		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": "now-24h", "to": "now"}},
+		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": f"now-{seconds}s", "to": "now"}},
 		"intervalMs": 500,
 		"timezone": "utc",
-		"targets": [{"type": "timeserie", "target": "Average system load on localhost", "refId": "A"}],
+		"targets": [{"type": "timeserie", "target": f"opsiconfd:stats:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}],
 	}
+
 	res = test_client.post("/metrics/grafana/query", json=query)
 	assert res.status_code == 200
 	data = res.json()
-	assert len(data[0]["datapoints"]) > 0
-	assert len(data[0]["datapoints"][0]) == 2
+	num_values = len(data[0]["datapoints"])
+	expected_values = seconds / 5
+
+	assert expected_values - 1 <= num_values <= expected_values + 1
+	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 5) * 1000
+	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 5) * 1000
+	for dat in data[0]["datapoints"]:
+		assert dat[0] == value
+
+	# Downsampling (minute)
+	seconds = 10 * 3600
+	_to = datetime.datetime.fromtimestamp(end)
+	_from = _to - datetime.timedelta(seconds=seconds)
+	query = {
+		"app": "dashboard",
+		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": f"now-{seconds}s", "to": "now"}},
+		"intervalMs": 500,
+		"timezone": "utc",
+		"targets": [{"type": "timeserie", "target": f"opsiconfd:stats:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}],
+	}
+
+	res = test_client.post("/metrics/grafana/query", json=query)
+	assert res.status_code == 200
+	data = res.json()
+	num_values = len(data[0]["datapoints"])
+	expected_values = seconds / 60
+
+	assert expected_values - 1 <= num_values <= expected_values + 1
+	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 5) * 1000
+	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 5) * 1000
+	for dat in data[0]["datapoints"]:
+		assert dat[0] == value
+
+	# minute, end one hour in the past
+	seconds = 10 * 3600
+	_to = datetime.datetime.fromtimestamp(end) - datetime.timedelta(seconds=3600)
+	_from = _to - datetime.timedelta(seconds=seconds)
+	query = {
+		"app": "dashboard",
+		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": f"now-{seconds}s", "to": "now"}},
+		"intervalMs": 500,
+		"timezone": "utc",
+		"targets": [{"type": "timeserie", "target": f"opsiconfd:stats:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}],
+	}
+
+	res = test_client.post("/metrics/grafana/query", json=query)
+	assert res.status_code == 200
+	data = res.json()
+	num_values = len(data[0]["datapoints"])
+	expected_values = seconds / 60
+
+	assert expected_values - 1 <= num_values <= expected_values + 1
+	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 5) * 1000
+	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 5) * 1000
+	for dat in data[0]["datapoints"]:
+		assert dat[0] == value

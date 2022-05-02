@@ -25,7 +25,7 @@ from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from ..config import config
 from ..grafana import GRAFANA_DASHBOARD_TEMPLATE, GRAFANA_DATASOURCE_TEMPLATE
 from ..logging import logger
-from ..statistics import get_time_bucket, metrics_registry
+from ..statistics import get_time_bucket_duration, metrics_registry
 from ..utils import async_redis_client, ip_address_from_redis_key
 
 grafana_metrics_router = APIRouter()
@@ -197,67 +197,66 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 	logger.trace("Grafana query: %s", query)
 	results = []
 	redis = await async_redis_client()
-	now_ms = round(time.time() * 1000)
-	query_time_bucket = max(1, round(query.intervalMs / 1000))
+
+	# Unix timestamp (UTC) in milliseconds
+	from_ms = int(datetime.fromisoformat(query.range.from_.replace("Z", "+00:00")).timestamp()) * 1000
+	to_ms = int(datetime.fromisoformat(query.range.to.replace("Z", "+00:00")).timestamp()) * 1000
+	time_range_ms = to_ms - from_ms
+	query_bucket_duration_ms = max(1000, round(query.intervalMs))
+
 	for target in query.targets:
-		# UTC time values
-		from_time = int((datetime.strptime(query.range.from_, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
-		to_time = int((datetime.strptime(query.range.to, "%Y-%m-%dT%H:%M:%S.%fZ") - datetime(1970, 1, 1)).total_seconds() * 1000)
-		time_diff = to_time - from_time
-		time_bucket = query_time_bucket
-		if target.type == "timeserie":
-			res = {"target": target.target, "datapoints": []}
+		if target.type != "timeserie":
+			logger.warning("Unhandled target type: %s", target.type)
+			continue
+
+		bucket_duration_ms = query_bucket_duration_ms
+
+		try:  # pylint: disable=loop-try-except-usage
+			metric = metrics_registry.get_metric_by_name(target.target)
+			metric_vars = metric.get_vars_by_name(target.target)
+		except ValueError:
 			try:  # pylint: disable=loop-try-except-usage
-				metric = metrics_registry.get_metric_by_name(target.target)
-				metric_vars = metric.get_vars_by_name(target.target)
-			except Exception:  # pylint: disable=broad-except
-				try:  # pylint: disable=loop-try-except-usage
-					metric = metrics_registry.get_metric_by_redis_key(target.target)
-					metric_vars = metric.get_vars_by_redis_key(target.target)
-				except Exception as err:  # pylint: disable=broad-except
-					logger.debug(err)
-					continue
+				metric = metrics_registry.get_metric_by_redis_key(target.target)
+				metric_vars = metric.get_vars_by_redis_key(target.target)
+			except ValueError as err:
+				logger.debug(err)
+				continue
 
-			redis_key = metric.get_redis_key(**metric_vars)
-			retention_time = metric.retention
-			redis_key_extension = None
+		redis_key = metric.get_redis_key(**metric_vars)
+		redis_key_extension = None
+		ts_max_interval_ms = metric.retention
 
-			if metric.downsampling:
-				downsampling = sorted(metric.downsampling, key=lambda x: x[1])
-				if time_diff > retention_time:
-					for time_frame in downsampling:
-						if time_diff <= time_frame[1]:
-							redis_key_extension = time_frame[0]
-							retention_time = time_frame[1]
-							time_bucket = get_time_bucket(redis_key_extension)
-							break
+		if time_range_ms > ts_max_interval_ms and metric.downsampling:
+			# Requested time range is bigger than the metric retention time
+			# Get the best matching downsampling rule
+			# downsampling: [<ts_key_extension>, <retention_time_in_ms>, <aggregation>]
+			# e.g. ["minute", 24 * 3600 * 1000, "avg"]
+			downsampling = sorted(metric.downsampling, key=lambda dsr: dsr[1])
+			for ds_rule in downsampling:
+				if time_range_ms <= ds_rule[1]:
+					redis_key_extension = ds_rule[0]
+					ts_max_interval_ms = ds_rule[1]
+					break
 
-				time_min = now_ms - retention_time
-				if (from_time - time_min + 5000) < 0:
-					for time_frame in downsampling:
-						redis_key_extension = time_frame[0]
-						retention_time = time_frame[1]
-						time_bucket = get_time_bucket(redis_key_extension)
-						time_min = now_ms - retention_time
-						if (from_time - time_min + 5000) >= 0:
-							break
-					logger.warning("Data out of range. Using next higher time bucket (%s).", redis_key_extension)
+		if redis_key_extension:
+			bucket_duration_ms = get_time_bucket_duration(redis_key_extension)
+			redis_key = f"{redis_key}:{redis_key_extension}"
 
-			if redis_key_extension:
-				redis_key = f"{redis_key}:{redis_key_extension}"
+		# https://redis.io/commands/ts.range/
+		# Aggregate results into time buckets, duration of each bucket in milliseconds is bucket_duration_ms
+		cmd = ("TS.RANGE", redis_key, from_ms, to_ms, "AGGREGATION", "avg", bucket_duration_ms)
+		try:  # pylint: disable=loop-try-except-usage
+			rows = await redis.execute_command(*cmd)
+		except aioredis.ResponseError as err:  # pylint: disable=dotted-import-in-loop
+			logger.warning("%s %s", cmd, err)
+			rows = []  # pylint: disable=use-tuple-over-list
 
-			cmd = ("TS.RANGE", redis_key, from_time, to_time, "AGGREGATION", "avg", time_bucket)
-			try:  # pylint: disable=loop-try-except-usage
-				rows = await redis.execute_command(*cmd)
-			except aioredis.ResponseError as exc:  # pylint: disable=dotted-import-in-loop
-				logger.debug("%s %s", cmd, exc)
-				rows = []  # pylint: disable=use-tuple-over-list
-
-			if metric.time_related and metric.aggregation == "sum":
-				# Time series data is stored aggregated in 5 second intervals
-				res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]  # type: ignore[misc] # pylint: disable=loop-invariant-statement
-			else:
-				res["datapoints"] = [[float(r[1]), align_timestamp(r[0])] for r in rows]  # type: ignore[misc] # pylint: disable=loop-invariant-statement
-			logger.trace("Grafana query result: %s", res)
-			results.append(res)
+		res = {"target": target.target, "datapoints": []}
+		if metric.time_related and metric.aggregation == "sum":
+			# Time series data is stored aggregated in 5 second intervals
+			res["datapoints"] = [[float(r[1]) / 5.0, align_timestamp(r[0])] for r in rows]  # type: ignore[misc] # pylint: disable=loop-invariant-statement
+		else:
+			res["datapoints"] = [[float(r[1]), align_timestamp(r[0])] for r in rows]  # type: ignore[misc] # pylint: disable=loop-invariant-statement
+		logger.trace("Grafana query result: %s", res)
+		results.append(res)
 	return results

@@ -91,7 +91,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			for _num in range(10):
 				if self.should_stop:
 					break
-				time.sleep(1)
+				time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 			auto_restart = []
 			with self.worker_update_lock:
@@ -101,14 +101,14 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 
 					elif worker.process.is_alive():
 						if self.worker_restart_time > 0:
-							alive = time.time() - worker.create_time
+							alive = time.time() - worker.create_time  # pylint: disable=dotted-import-in-loop
 							if alive >= self.worker_restart_time:
 								logger.notice("Worker %d (pid %d) has been running for %s seconds", worker.worker_num, worker.pid, alive)
 								auto_restart.append(worker.worker_num)
 
 						if self.worker_restart_mem > 0:
-							now = time.time()
-							mem = psutil.Process(worker.pid).memory_info().rss
+							now = time.time()  # pylint: disable=dotted-import-in-loop
+							mem = psutil.Process(worker.pid).memory_info().rss  # pylint: disable=dotted-import-in-loop
 							if mem >= self.worker_restart_mem:
 								if not hasattr(worker, "max_mem_exceeded_since"):
 									worker.max_mem_exceeded_since = now
@@ -144,7 +144,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				for _snum in range(5):
 					if self.should_stop:
 						break
-					time.sleep(1)
+					time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 			self.update_worker_registry()
 
@@ -152,11 +152,11 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			self.should_restart_workers = False
 
 		while self.workers:
-			time.sleep(1)
+			time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 	def reload(self):
 		for worker in self.workers:
-			os.kill(worker.pid, signal.SIGHUP)
+			os.kill(worker.pid, signal.SIGHUP)  # pylint: disable=dotted-import-in-loop
 
 		self.adjust_worker_count()
 
@@ -183,7 +183,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 
 		logger.notice("New worker %d (pid %d) started", worker_num, worker.pid)
 		while len(self.workers) < worker_num:
-			self.workers.append(None)  # type: ignore[arg-type]
+			self.workers.append(None)  # type: ignore[arg-type] # pylint: disable=loop-invariant-statement
 		self.workers[worker_num - 1] = worker
 
 		if config.ssl_ca_key in ssl.KEY_CACHE:
@@ -201,30 +201,30 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 					worker.process.terminate()
 					if force:
 						# Send twice, uvicorn worker will not wait for connectons to close.
-						time.sleep(1)
+						time.sleep(1)  # pylint: disable=dotted-import-in-loop
 						worker.process.terminate()
 
 		if wait:
 			start_time = time.time()
 			while True:
 				any_alive = False
-				diff = time.time() - start_time
+				diff = time.time() - start_time  # pylint: disable=dotted-import-in-loop
 				for worker in workers:
 					if not worker.process.is_alive():
 						continue
 					any_alive = True
-					if diff < self.worker_stop_timeout:
+					if diff < self.worker_stop_timeout:  # pylint: disable=loop-invariant-statement
 						continue
 					logger.warning(
 						"Timed out after %d seconds while waiting for worker %s to stop, forcing worker to stop", diff, worker.pid
 					)
-					if diff > self.worker_stop_timeout + 5:
+					if diff > self.worker_stop_timeout + 5:  # pylint: disable=loop-invariant-statement
 						worker.process.kill()
 					else:
 						worker.process.terminate()
 				if not any_alive:
 					break
-				time.sleep(1)
+				time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 		if remove_worker:
 			for worker in workers:
@@ -252,12 +252,16 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		with self.worker_update_lock:
 			for worker in self.workers:
 				redis_key = f"opsiconfd:worker_registry:{self.node_name}:{worker.worker_num}"
-				redis.hset(redis_key, key=None, value=None, mapping={"worker_pid": worker.pid, "node_name": self.node_name, "worker_num": worker.worker_num})
+				redis.hset(
+					redis_key, key=None, value=None, mapping={
+						"worker_pid": worker.pid, "node_name": self.node_name, "worker_num": worker.worker_num
+					}
+				)
 				redis.expire(redis_key, 60)
 
-			for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:{self.node_name}:*"):
+			for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:{self.node_name}:*"):  # pylint: disable=loop-invariant-statement
 				redis_key = redis_key.decode("utf-8")
-				try:
+				try:  # pylint: disable=loop-try-except-usage
 					worker_num = int(redis_key.split(":")[-1])
 				except IndexError:
 					worker_num = -1
@@ -369,7 +373,7 @@ class Server:
 			mks = list(modules.keys())
 			mks.sort()
 			for module in mks:
-				if module in ("valid", "signature"):
+				if module in ("valid", "signature"):  # pylint: disable=loop-invariant-statement
 					continue
 				if module in helpermodules:
 					val = helpermodules[module]

@@ -27,3 +27,5 @@ echo ""
 
 curl -XPATCH -H "Content-Type: application/json" -d '{"role":"Admin"}' http://admin:admin@localhost:3000/api/orgs/$ORG_ID/users/$USER_ID
 echo ""
+
+sudo chmod u+rwX,g+rwX,o+rwX -R /var/lib/grafana

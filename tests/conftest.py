@@ -8,24 +8,25 @@
 conftest
 """
 
-import os
-import sys
-import shutil
-import pprint
 import asyncio
+import os
+import pprint
+import shutil
+import sys
 import warnings
 from tempfile import mkdtemp
 from unittest.mock import patch
 
-import urllib3
 import pytest
+import urllib3
 from _pytest.logging import LogCaptureHandler
 
-from opsiconfd.config import config as _config
-from opsiconfd.backend import BackendManager
-from opsiconfd.setup import setup_ssl
 from opsiconfd.application.main import application_setup
+from opsiconfd.backend import BackendManager
+from opsiconfd.config import config as _config
+from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
+from opsiconfd.setup import setup_ssl
 
 
 def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
@@ -80,6 +81,19 @@ def pytest_configure(config):
 	# When the mode is auto, all discovered async tests are considered
 	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
 	config.option.asyncio_mode = "auto"
+	config.addinivalue_line("markers", "grafana_available: mark test to run only if a local grafana instance is available")
+
+
+GRAFANA_AVAILABLE = False
+if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
+	GRAFANA_AVAILABLE = True
+
+
+@pytest.hookimpl()
+def pytest_runtest_setup(item):
+	for marker in item.iter_markers():
+		if marker.name == "grafana_available" and not GRAFANA_AVAILABLE:
+			pytest.skip("Grafana not available")
 
 
 @pytest.fixture(scope="session")

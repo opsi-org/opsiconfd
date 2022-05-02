@@ -11,6 +11,8 @@ test application.metrics
 import asyncio
 import datetime
 
+import pytest
+
 from opsiconfd.application.metrics import (
 	get_clients,
 	get_nodes,
@@ -91,6 +93,7 @@ async def test_get_clients(test_client):  # pylint: disable=redefined-outer-name
 	assert clients == [{"client_addr": "127.0.0.1"}]
 
 
+@pytest.mark.grafana_available
 async def test_grafana_dashboard():
 	res = await grafana_dashboard()
 	assert res.headers["location"].endswith("/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv")
@@ -110,6 +113,13 @@ async def test_grafana_search():
 
 
 async def test_grafana_query(test_client):  # pylint: disable=redefined-outer-name
+	worker = Worker()
+	worker.metrics_collector = WorkerMetricsCollector(worker)
+	worker.metrics_collector._interval = 1  # pylint: disable=protected-access
+	loop = asyncio.get_event_loop()
+	loop.create_task(worker.metrics_collector.main_loop())
+	await asyncio.sleep(2)
+
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	_to = datetime.datetime.utcnow()
 	_from = _to - datetime.timedelta(hours=24)
@@ -117,7 +127,7 @@ async def test_grafana_query(test_client):  # pylint: disable=redefined-outer-na
 		"app": "dashboard",
 		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": "now-24h", "to": "now"}},
 		"intervalMs": 500,
-		"timezone": "browser",
+		"timezone": "utc",
 		"targets": [{"type": "timeserie", "target": "Average system load on localhost", "refId": "A"}],
 	}
 	res = test_client.post("/metrics/grafana/query", json=query)

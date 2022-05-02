@@ -201,7 +201,7 @@ class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
 			panel["stack"] = self.stack
 			panel["decimals"] = self.decimals
 			for i, unit in enumerate(self.units):
-				panel["yaxes"][i]["format"] = unit
+				panel["yaxes"][i]["format"] = unit  # pylint: disable=loop-invariant-statement
 		elif self.type == "heatmap":
 			panel["yAxis"]["format"] = self.units[0]
 			panel["tooltipDecimals"] = self.decimals
@@ -216,8 +216,8 @@ def grafana_is_local():
 	if url.hostname not in ("localhost", "127.0.0.1", "::1"):
 		return False
 
-	for path in (GRAFANA_CLI, GRAFANA_DB):
-		if not os.path.exists(path):
+	for path in (GRAFANA_CLI, GRAFANA_DB):  # pylint: disable=loop-invariant-global-usage
+		if not os.path.exists(path):  # pylint: disable=dotted-import-in-loop
 			return False
 
 	return True
@@ -278,8 +278,11 @@ def setup_grafana():
 	if plugin_action:
 		try:
 			logger.notice("Setup grafana plugin %s (%s)", PLUGIN_ID, plugin_action)
-			for cmd in (["grafana-cli", "plugins", plugin_action, PLUGIN_ID], ["service", "grafana-server", "restart"]):
-				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)
+			for cmd in (
+				["grafana-cli", "plugins", plugin_action, PLUGIN_ID],  # pylint: disable=loop-invariant-global-usage
+				["service", "grafana-server", "restart"],
+			):
+				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)  # pylint: disable=dotted-import-in-loop
 				logger.debug("output of command %s: %s", cmd, out)
 		except subprocess.CalledProcessError as err:
 			logger.warning("Could not %s grafana plugin via grafana-cli: %s", plugin_action, err)

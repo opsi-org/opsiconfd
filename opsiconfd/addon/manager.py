@@ -8,18 +8,19 @@
 opsiconfd - addon manager
 """
 
+import importlib
 import os
 import sys
-import importlib
-from urllib.parse import quote, unquote
 from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
+from os import listdir
+from os.path import abspath, exists, isdir, join
 from typing import Dict, List, Optional
+from urllib.parse import quote, unquote
 
+from ..application import app
 from ..config import config
 from ..logging import logger
 from ..utils import Singleton
-from ..application import app
-
 from .addon import Addon
 
 
@@ -30,7 +31,7 @@ class AddonImporter(BuiltinImporter):
 			return None
 		addon_path = unquote(fullname.split("_", 1)[1])
 		init_path = os.path.join(addon_path, "python", "__init__.py")
-		if not os.path.exists(init_path):
+		if not exists(init_path):
 			return None
 		return importlib.util.spec_from_file_location(fullname, init_path)
 
@@ -54,14 +55,10 @@ class AddonManager(metaclass=Singleton):
 		logger.info("Loading addon from '%s'", addon_path)
 		module_name = self.module_name(addon_path)
 		if module_name in sys.modules:
-			reload = []
-			for sys_module in list(sys.modules):
-				if sys_module.startswith(module_name):
-					reload.append(sys_module)
-					# del sys.modules[sys_module]
+			reload = [sys_module for sys_module in list(sys.modules) if sys_module.startswith(module_name)]
 			reload.sort(reverse=True)
 			for sys_module in reload:
-				importlib.reload(sys.modules[sys_module])
+				importlib.reload(sys.modules[sys_module])  # pylint:disable=dotted-import-in-loop
 			module = sys.modules[module_name]
 		else:
 			module = importlib.import_module(module_name)
@@ -78,15 +75,15 @@ class AddonManager(metaclass=Singleton):
 		logger.debug("Loading addons")
 		self._addons = {}
 		for addon_dir in config.addon_dirs:
-			if not os.path.isdir(addon_dir):
+			if not isdir(addon_dir):
 				logger.debug("Addon dir '%s' not found", addon_dir)
 				continue
 			logger.info("Loading addons from dir '%s'", addon_dir)
-			for entry in os.listdir(addon_dir):
-				addon_path = os.path.abspath(os.path.join(addon_dir, entry))
-				if not os.path.exists(os.path.join(addon_path, "python", "__init__.py")):
+			for entry in listdir(addon_dir):
+				addon_path = abspath(join(addon_dir, entry))  # pylint:disable=dotted-import-in-loop
+				if not exists(join(addon_path, "python", "__init__.py")):
 					continue
-				try:
+				try:  # pylint:disable=loop-try-except-usage
 					self.load_addon(addon_path=addon_path)
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error("Failed to load addon from %s: %s", addon_path, err, exc_info=True)

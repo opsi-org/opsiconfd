@@ -8,19 +8,19 @@
 metrics
 """
 
+import asyncio
 import re
 import time
-import asyncio
-from typing import List, Generator, TYPE_CHECKING
-import psutil
+from typing import TYPE_CHECKING, Generator, List
 
+import psutil
 from aioredis import ResponseError as AioRedisResponseError
 
 from . import contextvar_server_timing
-from .logging import logger
 from .config import config
-from .utils import Singleton, async_redis_client
 from .grafana import GrafanaPanelConfig
+from .logging import logger
+from .utils import Singleton, async_redis_client
 
 if TYPE_CHECKING:
 	# Prevent circular import error
@@ -167,6 +167,10 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		self._values = {}
 		self._values_lock = asyncio.Lock()
 		self._last_timestamp = 0
+		self._should_stop = False
+
+	def stop(self):
+		self._should_stop = True
 
 	def _get_timestamp(self) -> int:  # pylint: disable=no-self-use
 		# return unix timestamp in millis
@@ -262,7 +266,10 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
-			await asyncio.sleep(self._interval)
+			for _ in range(self._interval):
+				if self._should_stop:
+					return
+				await asyncio.sleep(1)
 
 	@staticmethod
 	def _redis_ts_cmd(metric: Metric, cmd: str, value: float, timestamp: int = None, **labels):

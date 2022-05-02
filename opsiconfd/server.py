@@ -8,14 +8,15 @@
 opsiconfd.server
 """
 
+import base64
 import os
-import time
-import threading
 import signal
 import socket
-import base64
-from typing import List, Optional
+import threading
+import time
 from multiprocessing.context import SpawnProcess
+from typing import List, Optional
+
 import psutil
 
 try:
@@ -27,18 +28,16 @@ except ImportError:
 	from Crypto.Hash import MD5
 	from Crypto.Signature import pkcs1_15
 
-from uvicorn.subprocess import get_subprocess  # type: ignore[import]
+from OPSI.Util import getPublicKey  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
+from uvicorn.subprocess import get_subprocess  # type: ignore[import]
 
-from OPSI.Util import getPublicKey  # type: ignore[import]
-
-from .config import config
-from .logging import logger, init_logging
-from .utils import get_redis_connection, retry_redis_call
+from . import __version__, ssl
 from .backend import get_backend
-from . import ssl
-from . import __version__
+from .config import config
+from .logging import init_logging, logger
+from .utils import get_redis_connection, retry_redis_call
 
 
 class WorkerProcess:  # pylint: disable=too-few-public-methods
@@ -253,7 +252,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		with self.worker_update_lock:
 			for worker in self.workers:
 				redis_key = f"opsiconfd:worker_registry:{self.node_name}:{worker.worker_num}"
-				redis.hmset(redis_key, {"worker_pid": worker.pid, "node_name": self.node_name, "worker_num": worker.worker_num})
+				redis.hset(redis_key, key=None, value=None, mapping={"worker_pid": worker.pid, "node_name": self.node_name, "worker_num": worker.worker_num})
 				redis.expire(redis_key, 60)
 
 			for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:{self.node_name}:*"):

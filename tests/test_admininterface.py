@@ -8,36 +8,37 @@
 test admininterface
 """
 
-import os
-from socket import getfqdn
-import sys
-import json
-import tempfile
 import asyncio
-import pytest
-import mock  # type: ignore[import]
+import json
+import os
+import sys
+import tempfile
+from socket import getfqdn
 
+import mock  # type: ignore[import]
+import pytest
 from fastapi import Response
-from starlette.requests import Request
 from starlette.datastructures import Headers
+from starlette.requests import Request
 
 from opsiconfd.addon.manager import AddonManager
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .test_addon_manager import cleanup  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
-	config,
-	test_client,
-	clean_redis,
-	get_config,
-	sync_redis_client,
-	backend,
-	client_jsonrpc,
-	depot_jsonrpc,
-	products_jsonrpc,
-	ADMIN_USER,
 	ADMIN_PASS,
+	ADMIN_USER,
 	OPSI_SESSION_KEY,
+	backend,
+	clean_mysql,
+	clean_redis,
+	client_jsonrpc,
+	config,
+	depot_jsonrpc,
+	get_config,
+	products_jsonrpc,
+	sync_redis_client,
+	test_client,
 )
 
 
@@ -56,7 +57,7 @@ def set_failed_auth_and_blocked(ip_address):  # pylint: disable=redefined-outer-
 def call_rpc(client, rpc_request_data: list, expect_error: list):
 	for idx, data in enumerate(rpc_request_data):
 		result = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=data)
-		result_json = json.loads(result.text)
+		result_json = json.loads(result.text)  # pylint: disable=dotted-import-in-loop
 		assert result.status_code == 200
 		if expect_error[idx]:
 			assert result_json.get("result") is None
@@ -68,14 +69,14 @@ def call_rpc(client, rpc_request_data: list, expect_error: list):
 @pytest.fixture(name="admininterface")
 def fixture_admininterface(monkeypatch):
 	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
-	from opsiconfd.application import admininterface  # pylint: disable=import-outside-toplevel, redefined-outer-name
+	import opsiconfd.application.admininterface as ai  # pylint: disable=import-outside-toplevel
 
-	return admininterface
+	return ai
 
 
 def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
-		addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
+		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 		for test_ip in addresses:
 			set_failed_auth_and_blocked(test_ip)
 
@@ -91,7 +92,7 @@ def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-
 async def test_unblock_all(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 		test_response = Response()
-		addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
+		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 
 		for test_ip in addresses:
 			set_failed_auth_and_blocked(test_ip)
@@ -154,7 +155,7 @@ def test_unblock_client_exception(test_client):  # pylint: disable=redefined-out
 
 
 def test_unblock_all_exception(test_client):  # pylint: disable=redefined-outer-name,unused-argument
-	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
+	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
 
@@ -166,7 +167,9 @@ def test_unblock_all_exception(test_client):  # pylint: disable=redefined-outer-
 
 def test_get_rpc_list_request(test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	for _idx in range(3):
-		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
+		call_rpc(
+			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
+		)
 
 	response = test_client.get("/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
@@ -178,7 +181,7 @@ def test_get_rpc_list_request(test_client):  # pylint: disable=redefined-outer-n
 
 
 def test_get_blocked_clients_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
-	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
+	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
 
@@ -189,7 +192,7 @@ def test_get_blocked_clients_request(config, test_client):  # pylint: disable=re
 
 @pytest.mark.asyncio
 async def test_get_blocked_clients(admininterface):  # pylint: disable=redefined-outer-name,unused-argument
-	addresses = ["10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888"]
+	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
 
@@ -202,7 +205,9 @@ async def test_get_blocked_clients(admininterface):  # pylint: disable=redefined
 async def test_get_rpc_list(test_client, admininterface, num_rpcs):  # pylint: disable=redefined-outer-name
 
 	for _idx in range(num_rpcs):
-		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
+		call_rpc(
+			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
+		)
 
 	await asyncio.sleep(1)
 
@@ -232,10 +237,10 @@ async def test_delete_client_sessions(
 		session = res.cookies.get_dict().get("opsiconfd-session")
 		sessions = []
 		local_ip = None
-		for key in redis.scan_iter(f"{OPSI_SESSION_KEY}:*"):
+		for key in redis.scan_iter(f"{OPSI_SESSION_KEY}:*"):  # pylint: disable=loop-invariant-statement
 			addr, sess = key.decode("utf8").split(":")[-2:]
 			sessions.append(sess)
-			if sess == session:
+			if sess == session:  # pylint: disable=loop-invariant-statement
 				local_ip = addr
 
 	rpc_request_data = json.loads(json.dumps(rpc_request_data).replace("<local_ip>", local_ip))
@@ -273,6 +278,7 @@ def test_open_grafana(test_client, config):  # pylint: disable=redefined-outer-n
 	response = test_client.get("/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
 
 
+@pytest.mark.mysql_backend_available
 def test_get_num_servers(admininterface, backend, test_client):  # pylint: disable=redefined-outer-name
 	assert admininterface.get_num_servers(backend) == 1
 	with depot_jsonrpc(test_client, "", "test-depot.uib.local"):
@@ -280,9 +286,9 @@ def test_get_num_servers(admininterface, backend, test_client):  # pylint: disab
 	assert admininterface.get_num_servers(backend) == 1
 
 
+@pytest.mark.mysql_backend_available
 def test_get_num_clients(admininterface, backend, test_client):  # pylint: disable=redefined-outer-name
 	assert admininterface.get_num_clients(backend) == 0
-
 	with (
 		client_jsonrpc(test_client, "", "test-client1.uib.local"),
 		client_jsonrpc(test_client, "", "test-client2.uib.local"),
@@ -294,7 +300,9 @@ def test_get_num_clients(admininterface, backend, test_client):  # pylint: disab
 
 def test_get_rpc_count(test_client):  # pylint: disable=redefined-outer-name
 	for _idx in range(10):
-		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
+		call_rpc(
+			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
+		)
 
 	res = test_client.get("/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
@@ -305,7 +313,9 @@ def test_get_session_list(test_client):  # pylint: disable=redefined-outer-name
 	addr = test_client.get_client_address()
 	for _idx in range(10):
 		test_client.set_client_address("192.168.36." + str(_idx), _idx * 1000)
-		call_rpc(test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False])
+		call_rpc(
+			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
+		)
 
 	test_client.set_client_address(addr[0], addr[1])
 	res = test_client.get("/admin/session-list", auth=(ADMIN_USER, ADMIN_PASS))
@@ -318,15 +328,16 @@ def test_get_session_list(test_client):  # pylint: disable=redefined-outer-name
 		assert body[_idx].get("max_age") == 60
 
 
+@pytest.mark.mysql_backend_available
 def test_unlock_product(test_client, backend):  # pylint: disable=redefined-outer-name
 
-	test_products = [
+	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 		{"id": "test_product03", "name": "Test Product 03", "productVersion": "1.0", "packageVersion": "1", "priority": 70},
 	]
-	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]
-	products = ["test_product01", "test_product02"]
+	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]  # pylint: disable=use-tuple-over-list
+	products = ["test_product01", "test_product02"]  # pylint: disable=use-tuple-over-list
 
 	with (
 		depot_jsonrpc(test_client, "", test_depots[0]),
@@ -348,14 +359,15 @@ def test_unlock_product(test_client, backend):  # pylint: disable=redefined-oute
 		assert locked_products == {products[0]: [test_depots[1]], products[1]: test_depots}
 
 
+@pytest.mark.mysql_backend_available
 def test_unlock_all_products(test_client, backend):  # pylint: disable=redefined-outer-name
 
-	test_products = [
+	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 		{"id": "test_product03", "name": "Test Product 03", "productVersion": "1.0", "packageVersion": "1", "priority": 70},
 	]
-	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]
+	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]  # pylint: disable=use-tuple-over-list
 	product = "test_product03"
 
 	with (
@@ -377,14 +389,15 @@ def test_unlock_all_products(test_client, backend):  # pylint: disable=redefined
 		assert locked_products == {}
 
 
+@pytest.mark.mysql_backend_available
 def test_get_locked_products_list(test_client, backend):  # pylint: disable=redefined-outer-name
-	test_products = [
+	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 		{"id": "test_product03", "name": "Test Product 03", "productVersion": "1.0", "packageVersion": "1", "priority": 70},
 	]
-	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]
-	products = ["test_product01", "test_product02"]
+	test_depots = ["test-depot.uib.local", "test2-depot.uib.local"]  # pylint: disable=use-tuple-over-list
+	products = ["test_product01", "test_product02"]  # pylint: disable=use-tuple-over-list
 
 	with (
 		depot_jsonrpc(test_client, "", test_depots[0]),

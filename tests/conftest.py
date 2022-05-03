@@ -17,9 +17,9 @@ import warnings
 from tempfile import mkdtemp
 from unittest.mock import patch
 
-import pytest
 import urllib3
 from _pytest.logging import LogCaptureHandler
+from pytest import fixture, hookimpl, skip
 
 from opsiconfd.application.main import application_setup
 from opsiconfd.backend import BackendManager
@@ -28,24 +28,30 @@ from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
 from opsiconfd.setup import setup_ssl
 
+GRAFANA_AVAILABLE = False
+MYSQL_BACKEND_AVAILABLE = False
+
 
 def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
 	sys.exit(1)
 
 
-Manager.orig_signal_handler = Manager.signal_handler
-Manager.signal_handler = signal_handler
+Manager.orig_signal_handler = Manager.signal_handler  # type: ignore[attr-defined]
+Manager.signal_handler = signal_handler  # type: ignore[assignment]
 
 
 def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
 	pass
 
 
-LogCaptureHandler.emit = emit
+LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 
-@pytest.hookimpl()
+@hookimpl()
 def pytest_sessionstart(session):  # pylint: disable=unused-argument
+	global GRAFANA_AVAILABLE  # pylint: disable=global-statement
+	global MYSQL_BACKEND_AVAILABLE  # pylint: disable=global-statement
+
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()
 
@@ -65,38 +71,44 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 		"extend": True,
 	}
 
+	if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
+		GRAFANA_AVAILABLE = True
+
+	MYSQL_BACKEND_AVAILABLE = (
+		"mysql_backend" in BackendManager().backend_getLicensingInfo()["available_modules"]  # pylint: disable=no-member
+	)
 	with (patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None)):
 		setup_ssl()
 	application_setup()
 
 
-@pytest.hookimpl()
+@hookimpl()
 def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argument
 	shutil.rmtree(os.path.dirname(_config.ssl_ca_key))
 
 
-@pytest.hookimpl()
+@hookimpl()
 def pytest_configure(config):
 	# https://pypi.org/project/pytest-asyncio
 	# When the mode is auto, all discovered async tests are considered
 	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
 	config.option.asyncio_mode = "auto"
 	config.addinivalue_line("markers", "grafana_available: mark test to run only if a local grafana instance is available")
+	config.addinivalue_line("markers", "mysql_backend_available: mark test to run only if the mysql backend is available")
 
 
-GRAFANA_AVAILABLE = False
-if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
-	GRAFANA_AVAILABLE = True
-
-
-@pytest.hookimpl()
+@hookimpl()
 def pytest_runtest_setup(item):
+	grafana_available = GRAFANA_AVAILABLE
+	mysql_backend_available = MYSQL_BACKEND_AVAILABLE
 	for marker in item.iter_markers():
-		if marker.name == "grafana_available" and not GRAFANA_AVAILABLE:
-			pytest.skip("Grafana not available")
+		if marker.name == "grafana_available" and not grafana_available:
+			skip("Grafana not available")
+		if marker.name == "mysql_backend_available" and not mysql_backend_available:
+			skip("MySQL backend not available")
 
 
-@pytest.fixture(scope="session")
+@fixture(scope="session")
 def event_loop():
 	"""Create an instance of the default event loop for each test case."""
 	loop = asyncio.get_event_loop_policy().new_event_loop()
@@ -104,12 +116,12 @@ def event_loop():
 	loop.close()
 
 
-@pytest.fixture(autouse=True)
+@fixture(autouse=True)
 def disable_insecure_request_warning():
 	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
 
 
-@pytest.fixture(autouse=True)
+@fixture(autouse=True)
 def disable_aioredis_deprecation_warning():
 	# aioredis/connection.py:668: DeprecationWarning: There is no current event loop
 	warnings.simplefilter("ignore", DeprecationWarning, 668)

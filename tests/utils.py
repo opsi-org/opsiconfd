@@ -23,7 +23,7 @@ from opsicommon.objects import LocalbootProduct, ProductOnDepot  # type: ignore[
 from requests.cookies import cookiejar_from_dict
 
 from opsiconfd.application.main import app
-from opsiconfd.backend import BackendManager
+from opsiconfd.backend import BackendManager, get_mysql
 from opsiconfd.config import config as _config
 from opsiconfd.utils import Singleton
 
@@ -110,6 +110,13 @@ def sync_clean_redis():
 async def clean_redis():  # pylint: disable=redefined-outer-name
 	await async_clean_redis()
 	yield None
+
+
+@pytest_asyncio.fixture(autouse=True)
+def clean_mysql():  # pylint: disable=redefined-outer-name
+	mysql = get_mysql()  # pylint: disable=invalid-name
+	with mysql.session() as session:
+		session.execute("DELETE FROM HOST WHERE type='OpsiClient'")
 
 
 def create_depot_jsonrpc(client, base_url: str, host_id: str, host_key: str = None):

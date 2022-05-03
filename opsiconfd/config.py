@@ -795,15 +795,6 @@ class Config(metaclass=Singleton):
 			help=self._expert_help("Log asyncio callbacks which takes THRESHOLD seconds or more."),
 		)
 		self._parser.add(
-			"--use-jemalloc",
-			env_var="OPSICONFD_USE_JEMALLOC",
-			type=str2bool,
-			nargs="?",
-			const=True,
-			default=False,
-			help=self._expert_help("Use jemalloc if available."),
-		)
-		self._parser.add(
 			"--addon-dirs",
 			nargs="+",
 			env_var="OPSI_ADDON_DIRS",

@@ -13,13 +13,10 @@ import getpass
 import os
 import pprint
 import pwd
-import re
 import signal
-import subprocess
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 import uvloop
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
@@ -38,25 +35,6 @@ from .manager import Manager
 from .patch import apply_patches
 from .setup import setup
 from .utils import get_manager_pid
-
-
-def run_with_jemlalloc():
-	try:
-		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
-			return
-
-		out = subprocess.check_output(["ldconfig", "-p"]).decode("utf-8", "replace")
-		match = re.search(r".*=>\s*(.*libjemalloc.*)\s*", out)
-		if not match:
-			raise RuntimeError("libjemalloc not found")
-
-		new_env = os.environ.copy()
-		new_env["LD_PRELOAD"] = match.group(1)
-		# print(f"Restarting with LD_PRELOAD={new_env['LD_PRELOAD']}")
-
-		os.execve(sys.argv[0], sys.argv, new_env)
-	except Exception as err:  # pylint: disable=broad-except
-		print(err, file=sys.stderr)
 
 
 def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals
@@ -105,29 +83,11 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			sys.exit(1)
 		return
 
-	# if manager_pid:
-	# 	print(f"Another opsiconfd manager process is already running (pid {manager_pid})", file=sys.stderr)
-	# 	sys.exit(1)
-
-	if config.use_jemalloc and getattr(sys, "frozen", False):
-		try:
-			run_with_jemlalloc()
-		except Exception:  # pylint: disable=broad-except
-			pass
-
 	apply_patches()
 
 	try:  # pylint: disable=too-many-nested-blocks
 		init_logging(log_mode=config.log_mode)
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)
-
-		if "libjemalloc" in os.getenv("LD_PRELOAD", ""):
-			logger.notice("Running with %s", os.getenv("LD_PRELOAD"))
-		elif config.use_jemalloc:
-			if getattr(sys, "frozen", False):
-				logger.error("Failed to use jemalloc, please make sure it is installed")
-			else:
-				logger.warning("Not running from binary, not using jemalloc, use LD_PRELOAD if needed")
 
 		setup(full=bool(config.setup))
 

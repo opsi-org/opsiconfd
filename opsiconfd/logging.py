@@ -42,9 +42,8 @@ from opsicommon.logging import (  # type: ignore[import]
 	set_filter_from_string,
 	set_format,
 )
-from opsicommon.logging.constants import logging as pylogging  # type: ignore[import]
-from opsicommon.logging.logging import (
-	add_context_filter_to_loggers,  # type: ignore[import]
+from opsicommon.logging.logging import (  # type: ignore[import]
+	add_context_filter_to_loggers,
 )
 
 from .config import config

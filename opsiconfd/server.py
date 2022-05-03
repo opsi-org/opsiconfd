@@ -174,9 +174,11 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 
 	def start_worker(self, worker_num: int):
 		# Put CA key into environment for worker processes
+
 		if config.ssl_ca_key in ssl.KEY_CACHE:
 			os.putenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", ssl.KEY_CACHE[config.ssl_ca_key])
 		os.putenv("OPSICONFD_WORKER_WORKER_NUM", str(worker_num))
+		os.putenv("OPSICONFD_CONFIG_FILE", config.config_file)
 
 		worker = WorkerProcess(get_subprocess(config=self.uvicorn_config, target=self.server.run, sockets=[self.socket]), worker_num)
 		worker.process.start()

@@ -324,6 +324,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"-c",
 			"--config-file",
+			env_var="OPSICONFD_CONFIG_FILE",
 			required=False,
 			is_config_file=True,
 			default=DEFAULT_CONFIG_FILE if os.path.exists(DEFAULT_CONFIG_FILE) else None,

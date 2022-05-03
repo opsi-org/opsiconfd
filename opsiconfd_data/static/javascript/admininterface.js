@@ -1142,6 +1142,15 @@ function stopTerminal() {
 	terminal.websocket.close();
 }
 
+function changeTerminalFontSize(val) {
+	if (!terminal) return;
+	let size = terminal.getOption("fontSize");
+	size += val;
+	if (size < 1) { size = 1; }
+	terminal.setOption("fontSize", size);
+	terminal.fitAddon.fit();
+}
+
 function terminalFileUpload(file) {
 	console.log("terminalFileUpload:")
 	console.log(file);

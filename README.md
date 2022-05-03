@@ -21,6 +21,7 @@ Thus, long runinng JSON-RPC requests could block other requests.
 # Development in Dev Container
 * Install Remote-Containers: https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers
 * Run task "Create .env file" or run `./scripts/devenv.sh`
+* Set OPSILICSRV_TOKEN in .env file if available
 * Open project in container:
 	* \<F1\> -> Remote-Containers: Reopen in Container
 	* or remote button in bottom left corner -> Reopen in Container

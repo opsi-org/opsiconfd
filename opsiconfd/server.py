@@ -344,6 +344,6 @@ class Server:
 		if config.workers == 1:
 			return
 
-		if "scalability1" not in get_backend().backend_getLicensingInfo()["available_modules"]:
+		if "scalability1" not in get_backend().backend_getLicensingInfo()["available_modules"]:  # pylint: disable=no-member
 			config.workers = 1
-			logger.error("scalability1 missing in modules file. Limiting to %d workers.", config.workers)
+			logger.error("Module 'scalability1' not licensed, limiting to %d workers.", config.workers)

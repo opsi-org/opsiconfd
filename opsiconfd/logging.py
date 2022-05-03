@@ -582,10 +582,13 @@ class RedisLogAdapterThread(threading.Thread):
 					print(f"Unhandled exception in RedisLogAdapterThread asyncio loop: {msg}", file=sys.stderr)
 
 			self._loop.set_exception_handler(handle_asyncio_exception)
-			self._redis_log_adapter = AsyncRedisLogAdapter(running_event=self._running_event)
+			self._loop.create_task(self.create_redis_log_adapter())
 			self._loop.run_forever()
 		except Exception as exc:  # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
+
+	async def create_redis_log_adapter(self):
+		self._redis_log_adapter = AsyncRedisLogAdapter(running_event=self._running_event)
 
 
 def start_redis_log_adapter_thread():

@@ -8,20 +8,20 @@
 manager
 """
 
+import asyncio
 import os
 import signal
-import time
 import threading
-import asyncio
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from .config import config
-from .logging import logger, init_logging
-from .utils import async_redis_client, async_get_redis_info, Singleton
-from .zeroconf import register_opsi_services, unregister_opsi_services
+from .logging import init_logging, logger
+from .metrics import ManagerMetricsCollector
 from .server import Server
 from .ssl import setup_server_cert
-from .metrics import ManagerMetricsCollector
+from .utils import Singleton, async_get_redis_info, async_redis_client
+from .zeroconf import register_opsi_services, unregister_opsi_services
 
 
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes

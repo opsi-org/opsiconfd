@@ -8,7 +8,6 @@
 opsiconfd.server
 """
 
-import base64
 import os
 import signal
 import socket
@@ -18,17 +17,6 @@ from multiprocessing.context import SpawnProcess
 from typing import List, Optional
 
 import psutil
-
-try:
-	# python3-pycryptodome installs into Cryptodome
-	from Cryptodome.Hash import MD5  # type: ignore
-	from Cryptodome.Signature import pkcs1_15  # type: ignore
-except ImportError:
-	# PyCryptodome from pypi installs into Crypto
-	from Crypto.Hash import MD5
-	from Crypto.Signature import pkcs1_15
-
-from OPSI.Util import getPublicKey  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 from uvicorn.subprocess import get_subprocess  # type: ignore[import]

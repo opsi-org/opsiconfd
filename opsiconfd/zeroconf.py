@@ -8,41 +8,26 @@
 zeroconf
 """
 
+import asyncio
 import ipaddress
 import socket
-import asyncio
+
 import netifaces  # type: ignore[import]
 from aiozeroconf import ServiceInfo, Zeroconf  # type: ignore[import]
 
 from . import __version__
+from .backend import get_server_role
+from .config import FQDN, config
 from .logging import logger
-from .config import config, FQDN
 from .utils import get_ip_addresses
-from .backend import get_backend
-
 
 _zeroconf = None  # pylint: disable=invalid-name
 _info = None  # pylint: disable=invalid-name
 
 
-def _is_config_server():
-	try:
-		dispatch_backend = get_backend()
-		while not hasattr(dispatch_backend, "_dispatchConfig"):
-			dispatch_backend = dispatch_backend._backend  # pylint: disable=protected-access
-
-		for _entry in dispatch_backend._dispatchConfig:  # pylint: disable=protected-access
-			if "jsonrpc" in _entry[1]:
-				return False
-		return True
-	except Exception as err:  # pylint: disable=broad-except
-		logger.warning(err)
-	return False
-
-
 async def register_opsi_services():  # pylint: disable=too-many-branches
 	global _zeroconf, _info  # pylint: disable=invalid-name,global-statement
-	if not _is_config_server():
+	if get_server_role() != "config":
 		return
 
 	logger.info("Register zeroconf service")

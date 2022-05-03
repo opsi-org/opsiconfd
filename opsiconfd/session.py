@@ -516,7 +516,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		if wait:
 			await task
 		else:
-			asyncio.get_event_loop().create_task(task)
+			asyncio.get_running_loop().create_task(task)
 
 	def sync_delete(self) -> None:
 		with redis_client() as redis:

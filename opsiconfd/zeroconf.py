@@ -64,7 +64,7 @@ async def register_opsi_services():  # pylint: disable=too-many-branches
 		address_family = [netifaces.AF_INET]  # pylint: disable=c-extension-no-member
 		if isinstance(config.interface, ipaddress.IPv6Address):
 			address_family.append(netifaces.AF_INET6)  # pylint: disable=c-extension-no-member
-		_zeroconf = Zeroconf(asyncio.get_event_loop(), address_family=address_family, iface=iface)
+		_zeroconf = Zeroconf(asyncio.get_running_loop(), address_family=address_family, iface=iface)
 
 	address = None
 	address6 = None

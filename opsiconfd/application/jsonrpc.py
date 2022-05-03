@@ -363,7 +363,7 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 	worker = Worker()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector and not is_error:
-		asyncio.get_event_loop().create_task(
+		asyncio.get_running_loop().create_task(
 			metrics_collector.add_value(
 				"worker:avg_jsonrpc_duration", duration, {"node_name": config.node_name, "worker_num": worker.worker_num}
 			)
@@ -532,7 +532,7 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 	worker = Worker()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector:
-		asyncio.get_event_loop().create_task(
+		asyncio.get_running_loop().create_task(
 			metrics_collector.add_value(
 				"worker:sum_jsonrpc_number", len(rpcs), {"node_name": config.node_name, "worker_num": worker.worker_num}
 			)

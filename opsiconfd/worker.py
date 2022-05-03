@@ -53,7 +53,7 @@ class Worker(metaclass=Singleton):
 	async def startup(self):
 		self._init_worker_num()
 		logger.notice("Startup worker %d (pid %s)", self.worker_num, os.getpid())
-		loop = asyncio.get_event_loop()
+		loop = asyncio.get_running_loop()
 		loop.set_debug(config.debug)
 		init_pool_executor(loop)
 		loop.set_exception_handler(self.handle_asyncio_exception)

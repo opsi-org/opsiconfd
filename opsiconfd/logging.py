@@ -87,7 +87,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		self.last_used = time.time()
 		self.should_stop = False
 
-		self._periodically_test_rollover_task = asyncio.get_event_loop().create_task(self._periodically_test_rollover())
+		self._periodically_test_rollover_task = asyncio.get_running_loop().create_task(self._periodically_test_rollover())
 
 	async def _close_stream(self):
 		try:
@@ -104,14 +104,14 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		if not self.initialized:
 			return
 		self.should_stop = True
-		loop = asyncio.get_event_loop()
+		loop = asyncio.get_running_loop()
 		loop.create_task(self._close_stream())
 		self._initialization_lock = None
 
 	async def _periodically_test_rollover(self):
 		while True:
 			try:
-				if await asyncio.get_event_loop().run_in_executor(None, self.should_rollover):
+				if await asyncio.get_running_loop().run_in_executor(None, self.should_rollover):
 					async with self._rollover_lock:
 						await self.do_rollover()
 						self._rollover_error = None
@@ -131,7 +131,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		return os.path.getsize(self.absolute_file_path) >= self._max_bytes
 
 	async def do_rollover(self):
-		loop = asyncio.get_event_loop()
+		loop = asyncio.get_running_loop()
 		if self.stream:
 			await self.stream.close()
 		if self._keep_rotated > 0:
@@ -175,7 +175,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 			self._stderr_file = sys.stderr
 		self._running_event = running_event
 		self._read_config()
-		self._loop = asyncio.get_event_loop()
+		self._loop = asyncio.get_running_loop()
 		self._redis = None
 		self._file_logs: Dict[str, AsyncFileHandler] = {}
 		self._file_log_active_lifetime = 30
@@ -455,7 +455,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 def enable_slow_callback_logging(slow_callback_duration=None):
 	_run_orig = asyncio.events.Handle._run  # pylint: disable=protected-access
 	if slow_callback_duration is None:
-		slow_callback_duration = asyncio.get_event_loop().slow_callback_duration
+		slow_callback_duration = asyncio.get_running_loop().slow_callback_duration
 
 	def _run(self):
 		start = time.perf_counter()

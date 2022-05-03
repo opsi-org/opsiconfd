@@ -226,7 +226,7 @@ async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0)
 	start = time.time()
 	while True:
 		try:
-			con_id = f"{id(asyncio.get_event_loop())}/{url}/{db}"
+			con_id = f"{id(asyncio.get_running_loop())}/{url}/{db}"
 			new_pool = False
 			async with aioredis_pool_lock:
 				if con_id not in aioredis_connection_pool:

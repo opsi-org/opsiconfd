@@ -12,7 +12,7 @@ import asyncio
 import os
 import pathlib
 import time
-from asyncio import get_event_loop
+from asyncio import get_running_loop
 from os import getuid
 from pwd import getpwuid
 from typing import Any, Dict, Optional
@@ -54,7 +54,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		self._file_transfers: Dict[str, Dict[str, Any]] = {}
 
 	async def pty_reader(self, websocket: WebSocket):
-		loop = get_event_loop()
+		loop = get_running_loop()
 		pty_reader_block_size = PTY_READER_BLOCK_SIZE
 		try:
 			while websocket.client_state == WebSocketState.CONNECTED:
@@ -77,19 +77,19 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			logger.debug("pty_reader: %s", err)
 
 	async def on_receive(self, websocket: WebSocket, data: Any) -> None:
-		message = await get_event_loop().run_in_executor(None, msgpack_loads, data)
+		message = await get_running_loop().run_in_executor(None, msgpack_loads, data)
 		logger.trace(message)
 		payload = message.get("payload")
 		if message.get("type") == "terminal-write":
 			# Do not wait for completion to minimize rtt
-			get_event_loop().run_in_executor(None, self._pty.write, payload)
+			get_running_loop().run_in_executor(None, self._pty.write, payload)
 		elif message.get("type") == "terminal-resize":
-			get_event_loop().run_in_executor(None, self._pty.setwinsize, payload.get("rows"), payload.get("cols"))
+			get_running_loop().run_in_executor(None, self._pty.setwinsize, payload.get("rows"), payload.get("cols"))
 		elif message.get("type") == "file-transfer":
-			response = await get_event_loop().run_in_executor(None, self._handle_file_transfer, payload)
+			response = await get_running_loop().run_in_executor(None, self._handle_file_transfer, payload)
 			if response:
 				await websocket.send_bytes(
-					await get_event_loop().run_in_executor(None, msgpack_dumps, {"type": "file-transfer-result", "payload": response})
+					await get_running_loop().run_in_executor(None, msgpack_dumps, {"type": "file-transfer-result", "payload": response})
 				)
 		else:
 			logger.warning("Received invalid message type %r", message.get("type"))
@@ -110,7 +110,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		cwd = getpwuid(getuid()).pw_dir
 		self._pty = start_pty(shell=config.admin_interface_terminal_shell, rows=rows, cols=cols, cwd=cwd)
 
-		self._pty_reader_task = get_event_loop().create_task(self.pty_reader(websocket))
+		self._pty_reader_task = get_running_loop().create_task(self.pty_reader(websocket))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		logger.info("Terminal connection closed")

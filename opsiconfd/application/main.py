@@ -154,7 +154,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 		start_id = "$"
 		if start_time > 0:
 			start_id = str(start_time * 1000)
-		self._log_reader_task = asyncio.get_event_loop().create_task(self._log_reader(websocket, start_id, client))
+		self._log_reader_task = asyncio.get_running_loop().create_task(self._log_reader(websocket, start_id, client))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
 		if self._log_reader_task:

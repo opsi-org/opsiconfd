@@ -176,7 +176,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		return int(time.time() * 1000)
 
 	async def _fetch_values(self):
-		asyncio.get_event_loop().create_task(self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name}))
+		asyncio.get_running_loop().create_task(self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name}))
 
 	def _init_vars(self):
 		for metric in metrics_registry.get_metrics(*self._metric_subjects):
@@ -362,7 +362,7 @@ class ManagerMetricsCollector(MetricsCollector):
 	_metric_subjects = ("node",)
 
 	async def _fetch_values(self):
-		asyncio.get_event_loop().create_task(self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name}))
+		asyncio.get_running_loop().create_task(self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name}))
 
 
 class WorkerMetricsCollector(MetricsCollector):
@@ -389,6 +389,6 @@ class WorkerMetricsCollector(MetricsCollector):
 		):
 			# Do not add 0-values
 			if value:
-				asyncio.get_event_loop().create_task(  # pylint: disable=dotted-import-in-loop
+				asyncio.get_running_loop().create_task(  # pylint: disable=dotted-import-in-loop
 					self.add_value(metric_id, value, {"node_name": self._node_name, "worker_num": self.worker_num})
 				)

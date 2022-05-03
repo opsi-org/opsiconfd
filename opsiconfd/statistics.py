@@ -330,7 +330,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace("StatisticsMiddleware scope=%s", scope)
-		loop = asyncio.get_event_loop()
+		loop = asyncio.get_running_loop()
 
 		if scope["type"] not in ("http", "websocket"):
 			await self.app(scope, receive, send)

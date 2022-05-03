@@ -76,7 +76,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		try:
 			set_filter_from_string(config.log_filter)
 			AsyncRedisLogAdapter(stderr_file=sys.stdout)
-			loop = asyncio.get_event_loop()
+			loop = asyncio.get_running_loop()
 			loop.run_forever()
 		except KeyboardInterrupt:
 			pass
@@ -118,7 +118,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 	apply_patches()
 
 	try:  # pylint: disable=too-many-nested-blocks
-		asyncio.get_event_loop().set_default_executor(ThreadPoolExecutor(max_workers=5, thread_name_prefix="main-ThreadPoolExecutor"))
+		asyncio.get_running_loop().set_default_executor(ThreadPoolExecutor(max_workers=5, thread_name_prefix="main-ThreadPoolExecutor"))
 
 		init_logging(log_mode=config.log_mode)
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)

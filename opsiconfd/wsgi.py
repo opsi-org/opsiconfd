@@ -127,7 +127,7 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 		# which should be the case most of the time, the send queue will not fill up endlessly.
 		# The original implementation from uvicorn uses a list, which eats up a lot of memory.
 		self.send_queue: Queue = Queue(5)
-		self.loop = asyncio.get_event_loop()
+		self.loop = asyncio.get_running_loop()
 		self.response_started = False
 		self.exc_info = None  # type: typing.Any
 

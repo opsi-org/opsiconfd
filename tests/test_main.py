@@ -8,12 +8,18 @@
 test main
 """
 
+import signal
+import threading
+import time
+from logging import LogRecord
 from unittest.mock import patch
 
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 
 from opsiconfd import __version__
+from opsiconfd.logging import RedisLogHandler
 from opsiconfd.main import main
+from opsiconfd.utils import get_manager_pid
 
 from .utils import get_config
 
@@ -30,3 +36,33 @@ def test_setup():
 		with get_config({"action": "setup"}):
 			main()
 			mock_setup.assert_called_once_with(full=True)
+
+
+def test_log_viewer():
+	with get_config({"action": "log-viewer"}):
+		thread = threading.Thread(target=main)
+		thread.daemon = True
+		thread.start()
+		time.sleep(1)
+		handler = RedisLogHandler()
+		handler.emit(LogRecord(name="test-logger", level=10, pathname="-", lineno=1, msg="test-record", args=[], exc_info=None))
+		time.sleep(1)
+
+
+def test_reload():
+	mpid = get_manager_pid()
+	if mpid:
+		with patch("os.kill") as mock_kill:
+			with get_config({"action": "reload"}):
+				main()
+				mock_kill.assert_called_once_with(mpid, signal.SIGHUP)
+
+
+def test_force_stop():
+	mpid = get_manager_pid()
+	if mpid:
+		with patch("os.kill") as mock_kill:
+			with get_config({"action": "force-stop"}):
+				main()
+				mock_kill.assert_called_with(mpid, signal.SIGINT)
+				assert mock_kill.call_count == 2

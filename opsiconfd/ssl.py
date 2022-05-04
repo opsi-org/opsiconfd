@@ -8,37 +8,48 @@
 opsiconfd.ssl
 """
 
-import os
-import datetime
-import socket
 import codecs
+import datetime
 import ipaddress
-from typing import Dict, Any
+import os
+import socket
+import time
+from typing import Any, Dict, Tuple
 
-from typing import Tuple
-
+from OpenSSL.crypto import FILETYPE_PEM, X509
+from OpenSSL.crypto import Error as CryptoError
 from OpenSSL.crypto import (
-	FILETYPE_PEM,
-	load_privatekey,
-	load_certificate,
-	X509,
 	PKey,
-	dump_publickey,
 	X509Store,
 	X509StoreContext,
 	X509StoreContextError,
+	dump_publickey,
+	load_certificate,
+	load_privatekey,
 )
-from OpenSSL.crypto import Error as CryptoError
-
-from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, set_rights  # type: ignore[import]
 from OPSI.Config import OPSI_ADMIN_GROUP  # type: ignore[import]
+from OPSI.Util.Task.Rights import (  # type: ignore[import]
+	FilePermission,
+	PermissionRegistry,
+	set_rights,
+)
+from opsicommon.ssl import (  # type: ignore[import]
+	as_pem,
+	create_ca,
+	create_server_cert,
+	install_ca,
+)
+from requests.exceptions import ConnectionError
 
-from opsicommon.ssl import install_ca, create_ca, create_server_cert, as_pem  # type: ignore[import]
-
-from .config import config, FQDN, CA_KEY_DEFAULT_PASSPHRASE, SERVER_KEY_DEFAULT_PASSPHRASE
+from .backend import get_backend, get_server_role
+from .config import (
+	CA_KEY_DEFAULT_PASSPHRASE,
+	FQDN,
+	SERVER_KEY_DEFAULT_PASSPHRASE,
+	config,
+)
 from .logging import logger
 from .utils import get_ip_addresses
-from .backend import get_server_role, get_backend
 
 
 def get_ips():
@@ -399,13 +410,21 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 				create = True
 
 	if create:
-		(srv_crt, srv_key) = (None, None)
+		(srv_crt, srv_key, pem) = (None, None, None)
 		if server_role == "config":
 			# It is safer to create a new server cert with a new key pair
 			# For cases where the server key got compromised
 			(srv_crt, srv_key) = create_local_server_cert(renew=False)
 		else:
-			pem = get_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member
+			for attempt in (1, 2, 3, 4, 5):
+				try:  # pylint: disable=loop-try-except-usage
+					logger.info("Ferching certificate from config server (attempt #%d)", attempt)
+					pem = get_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member,loop-invariant-statement
+				except ConnectionError as err:
+					if attempt == 5:
+						raise
+					logger.warning("Failed to fetch certificate from config server: %s, retrying in 5 seconds", err)
+					time.sleep(5)
 			srv_crt = load_certificate(FILETYPE_PEM, pem)
 			srv_key = load_privatekey(FILETYPE_PEM, pem)
 

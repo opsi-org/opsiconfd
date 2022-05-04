@@ -115,7 +115,7 @@ async def test_grafana_search():
 		assert f"Average CPU usage of worker {worker['worker_num']} on {worker['node_name']}" in res
 
 
-async def create_ts_data(node_name: str, start: int, end: int, value: float):
+async def create_ts_data(node_name: str, postfix: str, start: int, end: int, value: float):
 	# avg_cpu_percent
 	#   retention: 2 * 3600 * 1000 = 7200000
 	#   downsampling:
@@ -124,7 +124,11 @@ async def create_ts_data(node_name: str, start: int, end: int, value: float):
 	#      ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]
 
 	redis = await async_redis_client()
-	redis_key = f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1"
+	if postfix:
+		redis_key = f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1:{postfix}"
+	else:
+		redis_key = f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1"
+	print(redis_key)
 	async for key in redis.scan_iter("opsiconfd:stats:worker:avg_cpu_percent:*"):
 		await redis.delete(key)
 	await redis.delete("opsiconfd:stats:worker:avg_cpu_percent")
@@ -164,7 +168,7 @@ async def test_grafana_query(test_client, config):  # pylint: disable=redefined-
 	start = end - interval
 	value = 10
 
-	await create_ts_data(config.node_name, start, end, value)
+	await create_ts_data(config.node_name, "", start, end, value)
 
 	seconds = 300
 	_to = datetime.datetime.fromtimestamp(end)
@@ -236,3 +240,44 @@ async def test_grafana_query(test_client, config):  # pylint: disable=redefined-
 	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 5) * 1000
 	for dat in data[0]["datapoints"]:
 		assert dat[0] == value
+
+
+async def test_grafana_query_interval_in_past(test_client, config):  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	# fill last 35 hours with values
+	end = int(time.time())
+	redis_data_interval = 35 * 3600
+	start = end - redis_data_interval
+	await create_ts_data(config.node_name, "minute", start, end, 20)
+	await create_ts_data(config.node_name, "hour", start, end, 40)
+
+	# Interval (from -> to) is one hour and should use minutes
+	# but 30h ago the minutes should be deleted so hours should be used
+	# grafana seconds: seconds to go back in time (now-grafana seconds)
+	grafana_seconds = 30 * 3600
+	end = int(time.time()) - grafana_seconds
+	seconds = 3600
+	start = end - seconds
+	_to = datetime.datetime.fromtimestamp(end)
+	_from = _to - datetime.timedelta(seconds=seconds)
+
+	query = {
+		"app": "dashboard",
+		"range": {
+			"from": f"{_from.isoformat()}Z",
+			"to": f"{_to.isoformat()}Z",
+			"raw": {"from": f"now-{grafana_seconds + seconds}s", "to": f"now-{grafana_seconds}s"},
+		},
+		"intervalMs": 500,
+		"timezone": "utc",
+		"targets": [{"type": "timeserie", "target": f"opsiconfd:stats:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}],
+	}
+
+	res = test_client.post("/metrics/grafana/query", json=query)
+	assert res.status_code == 200
+	data = res.json()
+
+	assert data[0]["datapoints"] != []
+	for dat in data[0]["datapoints"]:
+		assert dat[0] == 40

@@ -12,6 +12,7 @@ import copy
 import ssl
 from datetime import datetime
 from operator import itemgetter
+from time import time
 from typing import List, Union
 from urllib.parse import urlparse
 
@@ -203,6 +204,7 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 	time_range_ms = to_ms - from_ms
 	query_bucket_duration_ms = max(1000, round(query.intervalMs))
 
+	timestamp_now = round(time() * 1000)
 	for target in query.targets:
 		if target.type != "timeserie":
 			logger.warning("Unhandled target type: %s", target.type)
@@ -237,10 +239,22 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 					ts_max_interval_ms = ds_rule[1]
 					break
 
+		# Get timestamp and subtract the retention time of the metric
+		oldest_possible_timestamp = timestamp_now - ts_max_interval_ms
+		# If there are no timestamps in the interval and the metric has downsampling
+		# we need to use the next "higher" time bucket: minute -> hour -> day
+		if from_ms - oldest_possible_timestamp + 5000 < 0 and metric.downsampling:
+			downsampling = sorted(metric.downsampling, key=lambda dsr: dsr[1])
+			for ds_rule in downsampling:
+				oldest_possible_timestamp = timestamp_now - ts_max_interval_ms
+				if (from_ms - oldest_possible_timestamp + 5000) >= 0:
+					break
+				redis_key_extension = ds_rule[0]
+				ts_max_interval_ms = ds_rule[1]  # ts_max_interval_ms: retention time of downsampling rule
+
 		if redis_key_extension:
 			bucket_duration_ms = get_time_bucket_duration(redis_key_extension)
 			redis_key = f"{redis_key}:{redis_key_extension}"
-
 		# https://redis.io/commands/ts.range/
 		# Aggregate results into time buckets, duration of each bucket in milliseconds is bucket_duration_ms
 		cmd = ("TS.RANGE", redis_key, from_ms, to_ms, "AGGREGATION", "avg", bucket_duration_ms)

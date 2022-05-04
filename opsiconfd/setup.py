@@ -8,36 +8,38 @@
 opsiconfd - setup
 """
 
+import getpass
+import grp
 import os
 import pwd
-import grp
-import time
-import getpass
 import resource
 import subprocess
+import time
 from pathlib import Path
-import psutil
 
-from OPSI.Config import OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP  # type: ignore[import]
-from OPSI.setup import (  # type: ignore[import]
-	setup_users_and_groups as po_setup_users_and_groups,
-	add_user_to_group,
-	create_user,
-	set_primary_group,
-	create_group,
-)
-from OPSI.System.Posix import locateDHCPDConfig  # type: ignore[import]
-from OPSI.Util.Task.InitializeBackend import initializeBackends  # type: ignore[import]
-from OPSI.Util.Task.Rights import PermissionRegistry, FilePermission, DirPermission, set_rights  # type: ignore[import]
-from OPSI.System import get_subprocess_environment  # type: ignore[import]
+import psutil
 from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 from OPSI.Backend.Base.Backend import OPSI_LICENSE_PATH  # type: ignore[import]
+from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
+from OPSI.setup import add_user_to_group, create_group, create_user, set_primary_group
+from OPSI.setup import (
+	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
+)
+from OPSI.System import get_subprocess_environment  # type: ignore[import]
+from OPSI.System.Posix import locateDHCPDConfig  # type: ignore[import]
+from OPSI.Util.Task.InitializeBackend import initializeBackends  # type: ignore[import]
+from OPSI.Util.Task.Rights import (  # type: ignore[import]
+	DirPermission,
+	FilePermission,
+	PermissionRegistry,
+	set_rights,
+)
 
-from .logging import logger
-from .config import config, VAR_ADDON_DIR
+from .config import VAR_ADDON_DIR, config
 from .grafana import setup_grafana
-from .statistics import setup_metric_downsampling
+from .logging import logger
 from .ssl import setup_ssl, setup_ssl_file_permissions
+from .statistics import setup_metric_downsampling
 
 
 def setup_limits():
@@ -166,7 +168,9 @@ def setup_backend():
 
 	if mysql_used:
 		logger.info("Update mysql backend")
-		from OPSI.Util.Task.UpdateBackend.MySQL import updateMySQLBackend  # type: ignore[import]  # pylint: disable=import-outside-toplevel
+		from OPSI.Util.Task.UpdateBackend.MySQL import (
+			updateMySQLBackend,  # type: ignore[import]  # pylint: disable=import-outside-toplevel
+		)
 
 		updateMySQLBackend(backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf"))
 

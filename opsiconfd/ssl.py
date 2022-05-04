@@ -39,7 +39,7 @@ from opsicommon.ssl import (  # type: ignore[import]
 	create_server_cert,
 	install_ca,
 )
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from .backend import get_backend, get_server_role
 from .config import (
@@ -420,11 +420,11 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 				try:  # pylint: disable=loop-try-except-usage
 					logger.info("Ferching certificate from config server (attempt #%d)", attempt)
 					pem = get_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member,loop-invariant-statement
-				except ConnectionError as err:
+				except RequestsConnectionError as err:
 					if attempt == 5:
 						raise
 					logger.warning("Failed to fetch certificate from config server: %s, retrying in 5 seconds", err)
-					time.sleep(5)
+					time.sleep(5)  # pylint: disable=dotted-import-in-loop
 			srv_crt = load_certificate(FILETYPE_PEM, pem)
 			srv_key = load_privatekey(FILETYPE_PEM, pem)
 

@@ -29,8 +29,10 @@ stages:
   mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
 
   /etc/init.d/grafana-server start || true
+  sleep 10
+  ps aux | grep grafana
   tail /var/log/grafana/grafana.log
-  tail /var/log/syslog
+
 
   # Get config files from opsi-server package
   [ -e /etc/opsi ] && rm -r /etc/opsi

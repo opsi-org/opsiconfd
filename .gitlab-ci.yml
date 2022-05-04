@@ -28,7 +28,8 @@ stages:
   # Grant full database access to opsi user
   mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
 
-  /etc/init.d/grafana-server start
+  # /etc/init.d/grafana-server start
+  su grafana -c "/usr/sbin/grafana-server --pidfile=/var/run/grafana-server.pid --config=/etc/grafana/grafana.ini cfg:default.paths.provisioning=/etc/grafana/provisioning cfg:default.paths.data=/var/lib/grafana cfg:default.paths.logs=/var/log/grafana cfg:default.paths.plugins=/var/lib/grafana/plugins"
   ps aux | grep grafana
 
   # Get config files from opsi-server package

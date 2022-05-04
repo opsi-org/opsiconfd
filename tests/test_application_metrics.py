@@ -115,7 +115,9 @@ async def test_grafana_search():
 		assert f"Average CPU usage of worker {worker['worker_num']} on {worker['node_name']}" in res
 
 
-async def create_ts_data(node_name: str, postfix: str, start: int, end: int, value: float):
+async def create_ts_data(
+	node_name: str, postfix: str, start: int, end: int, interval: int, value: float, delete: bool = True
+):  # pylint: disable=too-many-locals,too-many-arguments
 	# avg_cpu_percent
 	#   retention: 2 * 3600 * 1000 = 7200000
 	#   downsampling:
@@ -128,17 +130,21 @@ async def create_ts_data(node_name: str, postfix: str, start: int, end: int, val
 		redis_key = f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1:{postfix}"
 	else:
 		redis_key = f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1"
-	print(redis_key)
-	async for key in redis.scan_iter("opsiconfd:stats:worker:avg_cpu_percent:*"):
-		await redis.delete(key)
-	await redis.delete("opsiconfd:stats:worker:avg_cpu_percent")
-	setup_metric_downsampling()
 
-	pipeline = redis.pipeline()
-	interval = end - start
-	samples = int(interval / 5)
+	if delete:
+		async for key in redis.scan_iter("opsiconfd:stats:worker:avg_cpu_percent:*"):
+			await redis.delete(key)
+		await redis.delete("opsiconfd:stats:worker:avg_cpu_percent")
+
+		await asyncio.sleep(3)
+		setup_metric_downsampling()
+		await asyncio.sleep(3)
+
+	# Do not use a pipeline here (will kill redis-server)
+	seconds = end - start
+	samples = int(seconds / interval)
 	for sample_num in range(samples):
-		second = sample_num * 5
+		second = sample_num * interval
 		timestamp = start + second
 		cmd = (
 			"TS.ADD",
@@ -155,20 +161,18 @@ async def create_ts_data(node_name: str, postfix: str, start: int, end: int, val
 			"worker_num",
 			1,
 		)
-		await pipeline.execute_command(" ".join([str(x) for x in cmd]))
-	await pipeline.execute()
+		await redis.execute_command(" ".join([str(x) for x in cmd]))
 
 
 @pytest.mark.grafana_available
-async def test_grafana_query(test_client, config):  # pylint: disable=redefined-outer-name
+async def test_grafana_query_end_current_time(test_client, config):  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	end = int(time.time())
-	interval = 24 * 3600
-	start = end - interval
 	value = 10
 
-	await create_ts_data(config.node_name, "", start, end, value)
+	await create_ts_data(config.node_name, "", end - 3600, end, 5, value)
+	await create_ts_data(config.node_name, "minute", end - 23 * 3600, end, 60, value, False)
 
 	seconds = 300
 	_to = datetime.datetime.fromtimestamp(end)
@@ -212,8 +216,8 @@ async def test_grafana_query(test_client, config):  # pylint: disable=redefined-
 	expected_values = seconds / 60
 
 	assert expected_values - 1 <= num_values <= expected_values + 1
-	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 5) * 1000
-	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 5) * 1000
+	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 60) * 1000
+	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 60) * 1000
 	for dat in data[0]["datapoints"]:
 		assert dat[0] == value
 
@@ -236,8 +240,8 @@ async def test_grafana_query(test_client, config):  # pylint: disable=redefined-
 	expected_values = seconds / 60
 
 	assert expected_values - 1 <= num_values <= expected_values + 1
-	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 5) * 1000
-	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 5) * 1000
+	assert data[0]["datapoints"][0][1] >= (_from.timestamp() - 60) * 1000
+	assert data[0]["datapoints"][-1][1] <= (_to.timestamp() + 60) * 1000
 	for dat in data[0]["datapoints"]:
 		assert dat[0] == value
 
@@ -245,12 +249,9 @@ async def test_grafana_query(test_client, config):  # pylint: disable=redefined-
 async def test_grafana_query_interval_in_past(test_client, config):  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
-	# fill last 35 hours with values
 	end = int(time.time())
-	redis_data_interval = 35 * 3600
-	start = end - redis_data_interval
-	await create_ts_data(config.node_name, "minute", start, end, 20)
-	await create_ts_data(config.node_name, "hour", start, end, 40)
+	await create_ts_data(config.node_name, "minute", end - 23 * 3600, end, 60, 20)
+	await create_ts_data(config.node_name, "hour", end - 35 * 3600, end, 3600, 40, False)
 
 	# Interval (from -> to) is one hour and should use minutes
 	# but 30h ago the minutes should be deleted so hours should be used
@@ -258,7 +259,7 @@ async def test_grafana_query_interval_in_past(test_client, config):  # pylint: d
 	grafana_seconds = 30 * 3600
 	end = int(time.time()) - grafana_seconds
 	seconds = 3600
-	start = end - seconds
+
 	_to = datetime.datetime.fromtimestamp(end)
 	_from = _to - datetime.timedelta(seconds=seconds)
 

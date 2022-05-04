@@ -508,6 +508,7 @@ def init_logging(
 
 		for logger_name in ("asyncio", "uvicorn.error", "uvicorn.access", "wsgidav"):
 			logger_ = pylogging.getLogger(logger_name)
+			logger_.handlers = [log_handler]
 			logger_.propagate = False
 
 		if config.log_levels:

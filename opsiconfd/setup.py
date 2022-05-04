@@ -168,8 +168,8 @@ def setup_backend():
 
 	if mysql_used:
 		logger.info("Update mysql backend")
-		from OPSI.Util.Task.UpdateBackend.MySQL import (
-			updateMySQLBackend,  # type: ignore[import]  # pylint: disable=import-outside-toplevel
+		from OPSI.Util.Task.UpdateBackend.MySQL import (  # type: ignore[import]  # pylint: disable=import-outside-toplevel
+			updateMySQLBackend,
 		)
 
 		updateMySQLBackend(backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf"))

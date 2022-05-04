@@ -98,12 +98,17 @@ async def admin_interface_index(request: Request):
 	session = contextvar_client_session.get()
 	if session and session.user_store:
 		username = session.user_store.username
+	interface = get_backend_interface()
+	for method in interface:
+		if method["doc"]:
+			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])
+			method["doc"] = method["doc"].replace("\n", "<br />").replace("\t", "&nbsp;&nbsp;&nbsp;")
 	context = {
 		"request": request,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
 		"node_name": config.node_name,
 		"username": username,
-		"interface": get_backend_interface(),
+		"interface": interface,
 		"ca_info": get_ca_cert_info(),
 		"cert_info": get_server_cert_info(),
 		"num_servers": get_num_servers(backend),
@@ -272,11 +277,7 @@ async def get_rpc_list() -> list:
 
 	rpc_list = []
 	for value in redis_result:
-		try:
-			value = msgpack.loads(value)
-		except msgpack.exceptions.ExtraData:
-			# Was json encoded before, can be removed in the future
-			value = orjson.loads(value)  # pylint: disable=no-member
+		value = msgpack.loads(value)
 		rpc = {
 			"rpc_num": value.get("rpc_num"),
 			"method": value.get("method"),

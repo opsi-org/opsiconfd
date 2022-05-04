@@ -957,12 +957,6 @@ function callJSONRPC() {
 	}
 
 	let apiJSON = createRequestJSON();
-	// console.log("apiJSON: ");
-	// console.log(apiJSON);
-	// console.log(window.location.protocol);
-	// console.log(window.location.host);
-	// console.log(window.location.hostname);
-	// console.log(window.location.port);
 	let request = new XMLHttpRequest();
 	request.open("POST", "/rpc");
 

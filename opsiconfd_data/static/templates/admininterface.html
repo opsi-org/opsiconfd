@@ -17,6 +17,7 @@
 
 	<script>
 		var reloadTimer;
+		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
 
 		function onLoad() {
 			let input = document.getElementById("redis-cmd");
@@ -51,18 +52,12 @@
 		}
 		function createParamInputs() {
 			let value = document.getElementById("method-select").value;
-			// !!! use '' because json uses "" !!!
-			let interface = '{{interface|tojson}}';
-
-			interface = JSON.parse(interface);
-			// console.log("get_method: " + value);
-
 			let table = document.getElementById("jsonrpc-request-table");
 			var elements = table.getElementsByClassName("param");
 			while (elements.length > 0) {
 				table.removeChild(elements[0]);
 			}
-			interface.forEach(method => {
+			JSONRPCInterface.forEach(method => {
 				if (method.name == value) {
 					method.params.forEach(param => {
 						let tr = document.createElement("tr");
@@ -73,6 +68,7 @@
 						";
 						table.appendChild(tr);
 					});
+					document.getElementById("jsonrpc-method-doc").innerHTML = method.doc;
 				}
 			});
 			changeRequestJSON();
@@ -241,18 +237,23 @@
 		<div id="tab-rpc-interface" class="tabcontent">
 			<div class="adminpage-box">
 				<div>
-					<table id="jsonrpc-request-table">
-						<tr>
-							<td align="left"><label>Method:</label></td>
-							<td>
-								<select id="method-select" onchange="createParamInputs()">
-									{% for method in interface %}
-									<option>{{ method.get("name") }}</option>
-									{% endfor %}
-								</select>
-							</td>
-						</tr>
-					</table>
+					<div style="float: left">
+						<table id="jsonrpc-request-table">
+							<tr>
+								<td align="left"><label>Method:</label></td>
+								<td>
+									<select id="method-select" onchange="createParamInputs()">
+										{% for method in interface %}
+										<option>{{ method.get("name") }}</option>
+										{% endfor %}
+									</select>
+								</td>
+							</tr>
+						</table>
+					</div>
+					<div style="overflow: hidden">
+						<p id="jsonrpc-method-doc" colspan="2" align="left"></p>
+					</div>
 				</div>
 				<div id="jsonrpc-request-error">
 				</div>

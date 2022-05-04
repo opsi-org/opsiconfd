@@ -20,7 +20,6 @@ from operator import itemgetter
 from typing import Dict, List
 
 import msgpack  # type: ignore[import]
-import orjson
 import requests
 from fastapi import APIRouter, Request, Response, UploadFile, status
 from fastapi.responses import JSONResponse, RedirectResponse

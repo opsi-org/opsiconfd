@@ -28,6 +28,9 @@ stages:
   # Grant full database access to opsi user
   mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
 
+  /etc/init.d/grafana-server start
+  ps aux | grep grafana
+
   # Get config files from opsi-server package
   [ -e /etc/opsi ] && rm -r /etc/opsi
   [ -e ../opsi-server ] && rm -r ../opsi-server
@@ -68,8 +71,6 @@ stages:
   adduser adminuser opsiadmin
   adduser adminuser opsifileadmins
 
-  ps aux | grep grafana
-  /etc/init.d/grafana status
 
 .perftest: &perftest |
   export OPSICONFD_MAX_SESSIONS_PER_IP=20000

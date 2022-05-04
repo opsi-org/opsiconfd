@@ -37,6 +37,13 @@ from .setup import setup
 from .utils import get_manager_pid
 
 
+async def log_viewer():
+	set_filter_from_string(config.log_filter)
+	AsyncRedisLogAdapter(stderr_file=sys.stdout)
+	while True:
+		await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
+
+
 def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals
 	secret_filter.add_secrets(config.ssl_ca_key_passphrase, config.ssl_server_key_passphrase)
 
@@ -52,10 +59,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 
 	if config.action == "log-viewer":
 		try:
-			set_filter_from_string(config.log_filter)
-			AsyncRedisLogAdapter(stderr_file=sys.stdout)
-			loop = asyncio.get_running_loop()
-			loop.run_forever()
+			asyncio.run(log_viewer())
 		except KeyboardInterrupt:
 			pass
 		return

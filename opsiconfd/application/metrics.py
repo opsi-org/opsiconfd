@@ -203,6 +203,7 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 	to_ms = int(datetime.fromisoformat(query.range.to.replace("Z", "+00:00")).timestamp()) * 1000
 	time_range_ms = to_ms - from_ms
 	query_bucket_duration_ms = max(1000, round(query.intervalMs))
+	sorted_downsampling = {}
 
 	timestamp_now = round(time() * 1000)
 	for target in query.targets:
@@ -232,8 +233,9 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 			# Get the best matching downsampling rule
 			# downsampling: [<ts_key_extension>, <retention_time_in_ms>, <aggregation>]
 			# e.g. ["minute", 24 * 3600 * 1000, "avg"]
-			downsampling = sorted(metric.downsampling, key=lambda dsr: dsr[1])
-			for ds_rule in downsampling:
+			if metric.id not in sorted_downsampling:
+				sorted_downsampling[metric.id] = sorted(metric.downsampling, key=lambda dsr: dsr[1])
+			for ds_rule in sorted_downsampling[metric.id]:
 				if time_range_ms <= ds_rule[1]:
 					redis_key_extension = ds_rule[0]
 					ts_max_interval_ms = ds_rule[1]
@@ -244,8 +246,9 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 		# If there are no timestamps in the interval and the metric has downsampling
 		# we need to use the next "higher" time bucket: minute -> hour -> day
 		if from_ms - oldest_possible_timestamp + 5000 < 0 and metric.downsampling:
-			downsampling = sorted(metric.downsampling, key=lambda dsr: dsr[1])
-			for ds_rule in downsampling:
+			if metric.id not in sorted_downsampling:
+				sorted_downsampling[metric.id] = sorted(metric.downsampling, key=lambda dsr: dsr[1])
+			for ds_rule in sorted_downsampling[metric.id]:
 				oldest_possible_timestamp = timestamp_now - ts_max_interval_ms
 				if (from_ms - oldest_possible_timestamp + 5000) >= 0:
 					break

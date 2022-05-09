@@ -78,10 +78,13 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			if config.action == "force-stop":
 				# Wait 5 seconds for processes to terminate or resend signal to force stop
 				for _num in range(5):
-					time.sleep(1)
+					time.sleep(1)  # pylint: disable=dotted-import-in-loop
 					if not get_manager_pid():
 						return
-				os.kill(manager_pid, send_signal)
+				try:
+					os.kill(manager_pid, send_signal)
+				except ProcessLookupError:
+					return
 		else:
 			print("No running opsiconfd manager process found", file=sys.stderr)
 			sys.exit(1)
@@ -120,7 +123,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 		shutdown_logging()
 
 	finally:
-		for thread in threading.enumerate():
+		for thread in threading.enumerate():  # pylint: disable=dotted-import-in-loop
 			if hasattr(thread, "stop"):
 				thread.stop()
 				thread.join(1)

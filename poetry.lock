@@ -170,7 +170,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "astroid"
-version = "2.11.4"
+version = "2.11.5"
 description = "An abstract syntax tree for Python with inference support."
 category = "dev"
 optional = false
@@ -982,7 +982,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "json5"
-version = "0.9.6"
+version = "0.9.8"
 description = "A Python implementation of the JSON5 data format."
 category = "main"
 optional = false
@@ -998,7 +998,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "jsonschema"
-version = "4.4.0"
+version = "4.5.1"
 description = "An implementation of JSON Schema validation for Python"
 category = "dev"
 optional = false
@@ -1246,7 +1246,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "opsi-dev-tools"
-version = "1.1.9"
+version = "1.1.10"
 description = "opsi development tools"
 category = "dev"
 optional = false
@@ -1839,7 +1839,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.290"
+version = "4.2.0.291"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -1875,7 +1875,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.2.0.285"
+version = "4.2.0.286"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -1977,7 +1977,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "redis"
-version = "4.2.2"
+version = "4.3.1"
 description = "Python client for Redis database and key-value store"
 category = "main"
 optional = false
@@ -2022,7 +2022,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "rich"
-version = "12.3.0"
+version = "12.4.1"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 category = "dev"
 optional = false
@@ -2083,7 +2083,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "schemathesis"
-version = "3.15.1"
+version = "3.15.2"
 description = "Property-based testing framework for Open API and GraphQL based apps"
 category = "dev"
 optional = false
@@ -2614,7 +2614,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "types-redis"
-version = "4.2.0"
+version = "4.2.2"
 description = "Typing stubs for redis"
 category = "dev"
 optional = false
@@ -3007,8 +3007,8 @@ asgiref = [
     {file = "asgiref-3.5.1.tar.gz", hash = "sha256:fddeea3c53fa99d0cdb613c3941cc6e52d822491fc2753fba25768fb5bf4e865"},
 ]
 astroid = [
-    {file = "astroid-2.11.4-py3-none-any.whl", hash = "sha256:da0632b7c046d8361dfe1b1abb2e085a38624961fabe2997565a9c06c1be9d9a"},
-    {file = "astroid-2.11.4.tar.gz", hash = "sha256:561dc6015eecce7e696ff7e3b40434bc56831afeff783f0ea853e19c4f635c06"},
+    {file = "astroid-2.11.5-py3-none-any.whl", hash = "sha256:14ffbb4f6aa2cf474a0834014005487f7ecd8924996083ab411e7fa0b508ce0b"},
+    {file = "astroid-2.11.5.tar.gz", hash = "sha256:f4e4ec5294c4b07ac38bab9ca5ddd3914d4bf46f9006eb5c0ae755755061044e"},
 ]
 async-timeout = [
     {file = "async-timeout-4.0.2.tar.gz", hash = "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15"},
@@ -3485,12 +3485,11 @@ jinja2 = [
     {file = "Jinja2-3.1.2.tar.gz", hash = "sha256:31351a702a408a9e7595a8fc6150fc3f43bb6bf7e319770cbc0db9df9437e852"},
 ]
 json5 = [
-    {file = "json5-0.9.6-py2.py3-none-any.whl", hash = "sha256:823e510eb355949bed817e1f3e2d682455dc6af9daf6066d5698d6a2ca4481c2"},
-    {file = "json5-0.9.6.tar.gz", hash = "sha256:9175ad1bc248e22bb8d95a8e8d765958bf0008fef2fe8abab5bc04e0f1ac8302"},
+    {file = "json5-0.9.8.tar.gz", hash = "sha256:0fa6e4d3ef062f93ba9cf2a9103fe8e68c7917dfa33519ae3ac8c7e48e3c84ff"},
 ]
 jsonschema = [
-    {file = "jsonschema-4.4.0-py3-none-any.whl", hash = "sha256:77281a1f71684953ee8b3d488371b162419767973789272434bbc3f29d9c8823"},
-    {file = "jsonschema-4.4.0.tar.gz", hash = "sha256:636694eb41b3535ed608fe04129f26542b59ed99808b4f688aa32dcf55317a83"},
+    {file = "jsonschema-4.5.1-py3-none-any.whl", hash = "sha256:71b5e39324422543546572954ce71c67728922c104902cb7ce252e522235b33f"},
+    {file = "jsonschema-4.5.1.tar.gz", hash = "sha256:7c6d882619340c3347a1bf7315e147e6d3dae439033ae6383d6acb908c101dfc"},
 ]
 junit-xml = [
     {file = "junit_xml-1.9-py2.py3-none-any.whl", hash = "sha256:ec5ca1a55aefdd76d28fcc0b135251d156c7106fa979686a4b48d62b761b4732"},
@@ -3782,8 +3781,8 @@ objgraph = [
     {file = "objgraph-3.5.0.tar.gz", hash = "sha256:4752ca5bcc0e0512e41b8cc4d2780ac2fd3b3eabd03b7e950a5594c06203dfc4"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.1.9.tar.gz", hash = "sha256:c5c44346585d6da48f9f4218da2445105b86e9b76afa6f60fab3df3a5e1a2e91"},
-    {file = "opsi_dev_tools-1.1.9-py3-none-any.whl", hash = "sha256:784a8ef3f200ea5b506ba557701bbd5d65b2ef61feb2e57ce48f951020035c2d"},
+    {file = "opsi-dev-tools-1.1.10.tar.gz", hash = "sha256:a2f4817ae030e6415e6163a9bfea47c2c8b3ff8aa7118a813e1d9984523b6969"},
+    {file = "opsi_dev_tools-1.1.10-py3-none-any.whl", hash = "sha256:f28930091bc10ba06111e4dfd5ccfd916621bee2e767c3861c1e265187a31b91"},
 ]
 orjson = [
     {file = "orjson-3.6.8-cp310-cp310-macosx_10_7_x86_64.whl", hash = "sha256:3a287a650458de2211db03681b71c3e5cb2212b62f17a39df8ad99fc54855d0f"},
@@ -4073,12 +4072,12 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.290.tar.gz", hash = "sha256:e2cf3555856f1350bc8ae001ecce1287b6878295332d6cec63e957e7bf8ffa82"},
-    {file = "python_opsi-4.2.0.290-py3-none-any.whl", hash = "sha256:cf13a731a04a8e493a41b59471e47859013c4dc694bc46ef042b1b436fc1a771"},
+    {file = "python-opsi-4.2.0.291.tar.gz", hash = "sha256:c8cac71ffcaa2a3f4058ea1665b37a9f13fa329d80131b0be4560e833d9c7d32"},
+    {file = "python_opsi-4.2.0.291-py3-none-any.whl", hash = "sha256:1ffc1e9460114402d4e830299fb1ef41d5f921b6ad5b2bbfb5b6f3de1b2b7865"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.285.tar.gz", hash = "sha256:f9a8703fa8bd9844b050aa14ccf6cb7c8e950d0a3c6e572ecaebe37f3ca2c398"},
-    {file = "python_opsi_common-4.2.0.285-py3-none-any.whl", hash = "sha256:b45df7a0b6dfc5699b8082febc234a93e9a652885b49bdbc8b45e02809b117d5"},
+    {file = "python-opsi-common-4.2.0.286.tar.gz", hash = "sha256:8a638e75f317adb3f3b0197fac695a032c4e93d8d661e1046d6d3a21d0fd19aa"},
+    {file = "python_opsi_common-4.2.0.286-py3-none-any.whl", hash = "sha256:49c2c1e966c92cc57f24d288dc0251b6472c56a355d8d715816b751635ba3b25"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},
@@ -4146,16 +4145,16 @@ rarfile = [
     {file = "rarfile-4.0.tar.gz", hash = "sha256:67548769229c5bda0827c1663dce3f54644f9dbfba4ae86d4da2b2afd3e602a1"},
 ]
 redis = [
-    {file = "redis-4.2.2-py3-none-any.whl", hash = "sha256:4e95f4ec5f49e636efcf20061a5a9110c20852f607cfca6865c07aaa8a739ee2"},
-    {file = "redis-4.2.2.tar.gz", hash = "sha256:0107dc8e98a4f1d1d4aa00100e044287f77121a1e6d2085545c4b7fa94a7a27f"},
+    {file = "redis-4.3.1-py3-none-any.whl", hash = "sha256:84316970995a7adb907a56754d2b92d88fc2d252963dc5ac34c88f0f1a22c25d"},
+    {file = "redis-4.3.1.tar.gz", hash = "sha256:94b617b4cd296e94991146f66fc5559756fbefe9493604f0312e4d3298ac63e9"},
 ]
 requests = [
     {file = "requests-2.27.1-py2.py3-none-any.whl", hash = "sha256:f22fa1e554c9ddfd16e6e41ac79759e17be9e492b3587efa038054674760e72d"},
     {file = "requests-2.27.1.tar.gz", hash = "sha256:68d7c56fd5a8999887728ef304a6d12edc7be74f1cfa47714fc8b414525c9a61"},
 ]
 rich = [
-    {file = "rich-12.3.0-py3-none-any.whl", hash = "sha256:0eb63013630c6ee1237e0e395d51cb23513de6b5531235e33889e8842bdf3a6f"},
-    {file = "rich-12.3.0.tar.gz", hash = "sha256:7e8700cda776337036a712ff0495b04052fb5f957c7dfb8df997f88350044b64"},
+    {file = "rich-12.4.1-py3-none-any.whl", hash = "sha256:d13c6c90c42e24eb7ce660db397e8c398edd58acb7f92a2a88a95572b838aaa4"},
+    {file = "rich-12.4.1.tar.gz", hash = "sha256:d239001c0fb7de985e21ec9a4bb542b5150350330bbc1849f835b9cbc8923b91"},
 ]
 rich-click = [
     {file = "rich-click-1.3.0.tar.gz", hash = "sha256:13985c97e723fd156f53b9d3f66418d4dd588161b55661fb60ee52e568341747"},
@@ -4166,8 +4165,8 @@ ruyaml = [
     {file = "ruyaml-0.91.0.tar.gz", hash = "sha256:6ce9de9f4d082d696d3bde264664d1bcdca8f5a9dff9d1a1f1a127969ab871ab"},
 ]
 schemathesis = [
-    {file = "schemathesis-3.15.1-py3-none-any.whl", hash = "sha256:ef0b60f8e216e64a9b6db2ed640b8222eee9054ca51e8b412bd830a5b8aba181"},
-    {file = "schemathesis-3.15.1.tar.gz", hash = "sha256:6dae1159bba2955e4cef48ea0530acc9ad9e27b7ad796c3c0d47ee53ddc3301d"},
+    {file = "schemathesis-3.15.2-py3-none-any.whl", hash = "sha256:ccaf567b54b102fc64b498f30cfe4028a256a34edaeeb84ea66a83d3b7e8893d"},
+    {file = "schemathesis-3.15.2.tar.gz", hash = "sha256:0e7f38e8d31fb9f8168d19974704f8968a7e64449e66e6e89462d6bcea1df199"},
 ]
 service-identity = [
     {file = "service-identity-21.1.0.tar.gz", hash = "sha256:6e6c6086ca271dc11b033d17c3a8bea9f24ebff920c587da090afc9519419d34"},
@@ -4321,8 +4320,8 @@ types-pyopenssl = [
     {file = "types_pyOpenSSL-22.0.3-py3-none-any.whl", hash = "sha256:cfa34b5cb57c2e4336a5f5b388cbab5abfe150bca66a6fa17104e4e3a252ddf8"},
 ]
 types-redis = [
-    {file = "types-redis-4.2.0.tar.gz", hash = "sha256:c9b61894c7621b801db44efd63f843ead93cbbcf034186d7343f7f5771e1106a"},
-    {file = "types_redis-4.2.0-py3-none-any.whl", hash = "sha256:24c0effe59b2eef030733fd352fdcee6647a66611001aa25762475c3f26fb5f1"},
+    {file = "types-redis-4.2.2.tar.gz", hash = "sha256:616e5331e957832321c14a4bd206b41f967657cf360f62419b21588880af3933"},
+    {file = "types_redis-4.2.2-py3-none-any.whl", hash = "sha256:8035a2631591ea2d0484f979f1424789ed757e72b56f0c5d6291a9484540e9c0"},
 ]
 types-requests = [
     {file = "types-requests-2.27.25.tar.gz", hash = "sha256:805ae7e38fd9d157153066dc4381cf585fd34dfa212f2fc1fece248c05aac571"},

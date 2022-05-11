@@ -480,16 +480,16 @@ button.loading {
 	}
 }
 
-@media screen and (max-width: 1050px) {
+@media screen and (max-width: 1350px) {
 	.tab {
 		height: 90px;
 	}
 }
 
-@media screen and (max-width: 650px) {
+@media screen and (max-width: 1050px) {
 	.tab {
 		overflow: auto;
-		height: 140px;
+		height: 90px;
 	}
 }
 

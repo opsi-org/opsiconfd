@@ -20,7 +20,7 @@ from fastapi.dependencies.utils import (
 )
 from fastapi.exceptions import WebSocketRequestValidationError
 from msgpack import dumps as msgpack_dumps  # type: ignore[import]
-from orjson import JSONDecodeError, loads  # pylint: disable=no-name-in-module
+from orjson import loads  # pylint: disable=no-name-in-module
 from starlette.endpoints import WebSocketEndpoint
 from starlette.status import (
 	HTTP_401_UNAUTHORIZED,
@@ -33,7 +33,6 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
 
 from .. import contextvar_client_session
-from ..backend import get_mysql
 from ..config import FQDN
 from ..logging import logger
 
@@ -47,86 +46,6 @@ def get_username():
 	if not client_session:
 		raise RuntimeError("Session invalid")
 	return client_session.user_store.username
-
-
-def get_user_privileges():
-	username = get_username()
-	privileges = {}
-	mysql = get_mysql()  # pylint: disable=invalid-name
-	filter_ = {"config_id_filter": f"user.{{{username}}}.privilege.%"}
-	with mysql.session() as session:
-		for row in session.execute(
-			"""
-			SELECT
-				cs.configId,
-				cs.values
-			FROM
-				CONFIG_STATE AS cs
-			WHERE
-				cs.configId LIKE :config_id_filter
-			GROUP BY
-				cs.configId
-			ORDER BY
-				cs.configId
-			""",
-			filter_,
-		).fetchall():
-			try:  # pylint: disable=loop-try-except-usage
-				priv = ".".join(row["configId"].split(".")[3:])
-				privileges[priv] = [val for val in loads(row["values"]) if val != ""]  # pylint: disable=loop-invariant-statement
-			except JSONDecodeError as err:
-				logger.error("Failed to parse privilege %s: %s", row, err)
-
-		return privileges
-
-
-def get_allowed_objects():
-	allowed = {"product_groups": ..., "host_groups": ...}
-	privileges = get_user_privileges()
-	if True in privileges.get("product.groupaccess.configured", [False]):
-		allowed["product_groups"] = privileges.get("product.groupaccess.productgroups", [])
-	if True in privileges.get("host.groupaccess.configured", [False]):
-		allowed["host_groups"] = privileges.get("host.groupaccess.productgroups", [])
-	return allowed
-
-
-def build_tree(group, groups, allowed, processed=None):
-	group_id = group["id"]
-	if not processed:
-		processed = []
-	processed.append(group_id)
-
-	is_root_group = group["parent"] == "#"  # or group_id == "clientdirectory"
-	group["allowed"] = is_root_group or allowed == ... or group_id in allowed  # pylint: disable=unnecessary-ellipsis
-
-	children = {}
-	for grp in groups:
-		if grp["id"] == group_id:
-			continue
-		if grp["parent"] == group_id:
-			if grp["id"] in processed:
-				logger.error("Loop: %s %s", grp["id"], processed)
-			else:
-				children[grp["id"]] = build_tree(grp, groups, allowed, processed)
-	if children:
-		if "children" not in group:
-			group["children"] = {}
-		group["children"].update(children)
-	else:
-		if group["type"] == "HostGroup":
-			group["children"] = None
-
-	group_allowed = group["allowed"]
-	if not is_root_group and group.get("children"):
-		for child in group["children"].values():
-			# Correct id for webgui
-			child["id"] = f'{child["id"]};{group_id}'
-			if child.get("allowed"):
-				# Allow parent if child is allowed
-				group_allowed = True
-	group["allowed"] = group_allowed
-
-	return group
 
 
 def parse_list(query_list):

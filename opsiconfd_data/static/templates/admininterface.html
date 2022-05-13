@@ -492,7 +492,7 @@
 		<div id="tab-log-viewer" class="tabcontent fitheight">
 			<div id="log-settings">
 				<div class="log-setting">
-					<button class="tab-fullscreen" onclick="toggleTabFullscreen();">Maximize</button>
+					<button class="tab-maximize" onclick="toggleTabMaximize();">Maximize</button>
 				</div>
 				<div class="log-setting">
 					<label for="log-level-filter">Filter by level:</label>
@@ -529,19 +529,19 @@
 
 		<div id="tab-terminal" class="tabcontent fitheight">
 			<div id="terminal-control">
-				<button class="tab-fullscreen" style="margin-top: 10px; margin-right: 50px;"
-					onclick="toggleTabFullscreen();">Maximize</button>
-				<button style="margin-top: 10px; margin-right: 50px;"
+				<button class="tab-maximize" style="margin-top: 10px; margin-right: 25px;"
+					onclick="toggleTabMaximize();">Maximize</button>
+				<button style="margin-top: 10px; margin-right: 25px;"
 					onclick="toggleFullscreenTerminal();">Fullscreen</button>
 
 				<label>Font size:</label>
 				<button id="decrease-terminal-font-size" onclick="changeTerminalFontSize(-1);">-</button>
 				<button id="increase-terminal-font-size" onclick="changeTerminalFontSize(+1);">+</button>
-				<label style="margin-left: 50px;">
-					To upload a file to the current working directory, drop it in the terminal window or use this
-					button:
+				<label for="terminal-file-upload" class="terminal-file-upload" style="margin-left: 25px;">
+					To upload a file to the current working directory, drop it in the terminal window or click here.
 				</label>
-				<input type="file" onchange="terminalFileUpload(this.files[0]); this.value='';">
+				<input id="terminal-file-upload" type="file"
+					onchange="terminalFileUpload(this.files[0]); this.value='';">
 			</div>
 			<div id="terminal-xterm">
 			</div>

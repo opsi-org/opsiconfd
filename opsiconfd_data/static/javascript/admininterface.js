@@ -1283,22 +1283,22 @@ function licenseUpload(files) {
 	xhr.send(formData);
 }
 
-function toggleTabFullscreen() {
+function toggleTabMaximize() {
 	tabcontent = document.getElementsByClassName("tabcontent");
 	let buttonText = "Maximize";
 	for (i = 0; i < tabcontent.length; i++) {
 		if (tabcontent[i].style.display == "none") {
 			continue;
 		}
-		if (tabcontent[i].classList.contains("fullscreen")) {
-			tabcontent[i].classList.remove("fullscreen");
+		if (tabcontent[i].classList.contains("maximize")) {
+			tabcontent[i].classList.remove("maximize");
 		}
 		else {
-			tabcontent[i].classList.add("fullscreen");
+			tabcontent[i].classList.add("maximize");
 			buttonText = "Normal size";
 		}
 	}
-	buttons = document.getElementsByClassName("tab-fullscreen");
+	buttons = document.getElementsByClassName("tab-maximize");
 	for (i = 0; i < buttons.length; i++) {
 		buttons[i].innerHTML = buttonText;
 	}
@@ -1308,7 +1308,7 @@ function toggleTabFullscreen() {
 document.onkeydown = function (evt) {
 	evt = evt || window.event;
 	if (evt.ctrlKey && evt.key == "F11") {
-		toggleTabFullscreen();
+		toggleTabMaximize();
 	}
 };
 

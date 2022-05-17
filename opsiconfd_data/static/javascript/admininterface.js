@@ -1,3 +1,13 @@
+function createUUID() {
+	if (typeof crypto.randomUUID === "function") {
+		return crypto.randomUUID();
+	}
+	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+		var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+		return v.toString(16);
+	});
+}
+
 function unblockAll() {
 	let request = new XMLHttpRequest();
 	request.open("POST", "/admin/unblock-all");
@@ -1154,7 +1164,7 @@ function terminalFileUpload(file) {
 	}
 
 	let chunkSize = 100000;
-	let fileId = crypto.randomUUID();
+	let fileId = createUUID();
 	let chunk = 0;
 	let offset = 0;
 
@@ -1167,7 +1177,7 @@ function terminalFileUpload(file) {
 			chunk += 1;
 			const more_data = (offset < file.size);
 			let message = msgpack.serialize({
-				"id": crypto.randomUUID(),
+				"id": createUUID(),
 				"type": "file-transfer",
 				"payload": {
 					"file_id": fileId,
@@ -1188,7 +1198,7 @@ function terminalFileUpload(file) {
 
 	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
 	let message = msgpack.serialize({
-		"id": crypto.randomUUID(),
+		"id": createUUID(),
 		"type": "file-transfer",
 		"payload": {
 			"file_id": fileId,

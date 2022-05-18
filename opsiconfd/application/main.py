@@ -11,7 +11,6 @@ application main
 import asyncio
 import os
 from ctypes import c_long
-from logging import TRACE
 from typing import Any
 from urllib.parse import urlparse
 
@@ -22,6 +21,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
 from msgpack import dumps as msgpack_dumps  # type: ignore[import]
+from opsicommon.logging.constants import TRACE  # type: ignore[import]
 from starlette import status
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
@@ -46,6 +46,7 @@ from .jsonrpc import jsonrpc_setup
 from .messagebroker import messagebroker_setup
 from .metrics import metrics_setup
 from .monitoring.monitoring import monitoring_setup
+from .proxy import ReverseProxy
 from .redisinterface import redis_interface_setup
 from .status import status_setup
 from .utils import OpsiconfdWebSocketEndpoint
@@ -299,7 +300,7 @@ def application_setup():
 	metrics_setup(app)
 	status_setup(app)
 	messagebroker_setup(app)
-
+	ReverseProxy(app, "/grafana", config.grafana_internal_url, forward_cookies=["grafana_session"])
 	AddonManager().load_addons()
 
 	logger.debug("Routing:")

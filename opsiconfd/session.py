@@ -74,7 +74,7 @@ from .utils import (
 ACCESS_ROLE_PUBLIC = "public"
 ACCESS_ROLE_AUTHENTICATED = "authenticated"
 ACCESS_ROLE_ADMIN = "admin"
-
+SESSION_COOKIE_NAME = "opsiconfd-session"
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 
@@ -120,7 +120,6 @@ def get_session_from_context():
 class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
-		self.session_cookie_name = "opsiconfd-session"
 		self.session_cookie_attributes = ("SameSite=Strict", "Secure")
 		self._public_path = public_path or []
 		# Zsync2 will send "curl/<curl-version>" as User-Agent.
@@ -132,7 +131,7 @@ class SessionMiddleware:
 		self._depot_addresses: Dict[str, float] = {}
 
 	def get_session_id_from_headers(self, headers: Headers) -> Optional[str]:
-		# connection.cookies.get(self.session_cookie_name, None)
+		# connection.cookies.get(SESSION_COOKIE_NAME, None)
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
 		# Workaround:
@@ -141,7 +140,7 @@ class SessionMiddleware:
 			for cookie in cookies.split(";"):
 				cookie = cookie.strip().split("=", 1)
 				if len(cookie) == 2:
-					if cookie[0].strip().lower() == self.session_cookie_name:
+					if cookie[0].strip().lower() == SESSION_COOKIE_NAME:
 						return cookie[1].strip().lower()
 		return None
 
@@ -397,7 +396,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		attrs = "; ".join(self.session_cookie_attributes)
 		if attrs:
 			attrs += "; "
-		return f"{self.session_cookie_name}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"
+		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"
 
 	def add_cookie_to_headers(self, headers: dict):
 		cookie = self.get_cookie()

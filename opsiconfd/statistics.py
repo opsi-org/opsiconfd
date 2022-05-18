@@ -360,7 +360,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 
 				content_length = headers.get("Content-Length", None)
 				if content_length is None:
-					if scope["method"] != "OPTIONS" and 200 <= message.get("status", 500) < 300:
+					if scope["method"] != "OPTIONS" and 200 <= message.get("status", 500) < 300 and not scope.get("reverse_proxy"):
 						logger.warning("Header 'Content-Length' missing: %s", message)
 				elif worker.metrics_collector:
 					loop.create_task(

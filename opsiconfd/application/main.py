@@ -46,7 +46,7 @@ from .jsonrpc import jsonrpc_setup
 from .messagebroker import messagebroker_setup
 from .metrics import metrics_setup
 from .monitoring.monitoring import monitoring_setup
-from .proxy import ReverseProxy
+from .proxy import reverse_proxy_setup
 from .redisinterface import redis_interface_setup
 from .status import status_setup
 from .utils import OpsiconfdWebSocketEndpoint
@@ -300,7 +300,8 @@ def application_setup():
 	metrics_setup(app)
 	status_setup(app)
 	messagebroker_setup(app)
-	ReverseProxy(app, "/grafana", config.grafana_internal_url, forward_cookies=["grafana_session"])
+	reverse_proxy_setup(app)
+
 	AddonManager().load_addons()
 
 	logger.debug("Routing:")

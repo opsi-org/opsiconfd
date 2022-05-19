@@ -18,8 +18,13 @@ from fastapi.responses import Response, StreamingResponse
 from starlette.background import BackgroundTask
 from starlette.types import ASGIApp
 
+from ..config import config
 from ..logging import logger
 from ..session import SESSION_COOKIE_NAME
+
+
+def reverse_proxy_setup(_app):
+	ReverseProxy(_app, "/grafana", config.grafana_internal_url, forward_cookies=["grafana_session"])
 
 
 class ReverseProxy:  # pylint: disable=too-few-public-methods

@@ -15,11 +15,11 @@ import functools
 import ipaddress
 import os
 import random
-import socket
 import string
 import threading
 import time
 from contextlib import contextmanager
+from socket import AF_INET, AF_INET6
 from typing import Dict, Optional
 
 import aioredis
@@ -39,8 +39,8 @@ aioredis_connection_pool = {}
 def get_logger():
 	global logger  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not logger:
-		from .logging import (
-			logger,  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .logging import (  # pylint: disable=import-outside-toplevel, redefined-outer-name
+			logger,
 		)
 	return logger
 
@@ -48,8 +48,8 @@ def get_logger():
 def get_config():
 	global config  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not config:
-		from .config import (
-			config,  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .config import (  # pylint: disable=import-outside-toplevel, redefined-outer-name
+			config,
 		)
 	return config
 
@@ -94,7 +94,7 @@ def is_manager(proc) -> bool:
 
 def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> Optional[int]:
 	manager_pid = None
-	ignore_pids = []
+	ignore_pids = []  # pylint: disable=use-tuple-over-list
 	if ignore_self:
 		our_pid = os.getpid()
 		our_proc = psutil.Process(our_pid)
@@ -103,8 +103,8 @@ def get_manager_pid(ignore_self: bool = False, ignore_parents: bool = False) -> 
 	if ignore_parents:
 		ignore_pids += [p.pid for p in our_proc.parents()]
 
-	for proc in psutil.process_iter():
-		if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:
+	for proc in psutil.process_iter():  # pylint: disable=dotted-import-in-loop
+		if proc.pid in ignore_pids or proc.status() == psutil.STATUS_ZOMBIE:  # pylint: disable=dotted-import-in-loop
 			continue
 		if is_manager(proc) and (not manager_pid or proc.pid > manager_pid):
 			# Do not return, prefer higher pids
@@ -153,21 +153,21 @@ def ip_address_from_redis_key(key):
 
 
 def get_ip_addresses():
-	for interface, snics in psutil.net_if_addrs().items():
+	for interface, snics in psutil.net_if_addrs().items():  # pylint: disable=dotted-import-in-loop
 		for snic in snics:
 			family = None
-			if snic.family == socket.AF_INET:
+			if snic.family == AF_INET:
 				family = "ipv4"
-			elif snic.family == socket.AF_INET6:
+			elif snic.family == AF_INET6:
 				family = "ipv6"
 			else:
 				continue
 
 			ip_address = None
-			try:
-				ip_address = ipaddress.ip_address(snic.address.split("%")[0])
+			try:  # pylint: disable=loop-try-except-usage
+				ip_address = ipaddress.ip_address(snic.address.split("%")[0])  # pylint: disable=dotted-import-in-loop
 			except ValueError:
-				logger.warning("Unrecognised ip address: %r", snic.address)
+				logger.warning("Unrecognised ip address: %r", snic.address)  # pylint: disable=loop-global-usage
 
 			yield {"family": family, "interface": interface, "address": snic.address, "ip_address": ip_address}
 
@@ -182,37 +182,37 @@ def retry_redis_call(func):
 	@functools.wraps(func)
 	def wrapper_retry(*args, **kwargs):  # pylint: disable=inconsistent-return-statements
 		while True:
-			try:
-				return func(*args, **kwargs)
-			except (
-				aioredis.BusyLoadingError,
-				redis.exceptions.BusyLoadingError,
-				aioredis.ConnectionError,
-				redis.exceptions.ConnectionError,
+			try:  # pylint: disable=loop-try-except-usage
+				return func(*args, **kwargs)  # pylint: disable=loop-invariant-statement
+			except (  # pylint: disable=loop-invariant-statement
+				aioredis.BusyLoadingError,  # pylint: disable=dotted-import-in-loop
+				redis.exceptions.BusyLoadingError,  # pylint: disable=dotted-import-in-loop
+				aioredis.ConnectionError,  # pylint: disable=dotted-import-in-loop
+				redis.exceptions.ConnectionError,  # pylint: disable=dotted-import-in-loop
 			):
-				time.sleep(1)
+				time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 	return wrapper_retry
 
 
 def get_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connection: bool = False) -> redis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
+	con_id = f"{url}/{db}"
 	while True:
-		try:
-			con_id = f"{url}/{db}"
+		try:  # pylint: disable=loop-try-except-usage
 			new_pool = False
-			with redis_pool_lock:
-				if con_id not in redis_connection_pool:
+			with redis_pool_lock:  # pylint: disable=loop-global-usage
+				if con_id not in redis_connection_pool:  # pylint: disable=loop-global-usage,loop-invariant-statement
 					new_pool = True
-					redis_connection_pool[con_id] = redis.ConnectionPool.from_url(url, db=db)
-			client = redis.StrictRedis(connection_pool=redis_connection_pool[con_id])
+					redis_connection_pool[con_id] = redis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage,loop-invariant-statement
+			client = redis.StrictRedis(connection_pool=redis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-invariant-statement,loop-global-usage
 			if new_pool or test_connection:
 				client.ping()
 			return client
-		except (redis.exceptions.ConnectionError, redis.BusyLoadingError):
-			if timeout and time.time() - start >= timeout:
+		except (redis.exceptions.ConnectionError, redis.BusyLoadingError):  # pylint: disable=dotted-import-in-loop
+			if timeout and time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
 				raise
-			time.sleep(2)
+			time.sleep(2)  # pylint: disable=dotted-import-in-loop
 
 
 @contextmanager
@@ -229,22 +229,22 @@ def redis_client(timeout: int = 0, test_connection: bool = False):
 async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0, test_connection: bool = False) -> aioredis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
 	while True:
-		try:
-			con_id = f"{id(asyncio.get_running_loop())}/{url}/{db}"
+		try:  # pylint: disable=loop-try-except-usage
+			con_id = f"{id(asyncio.get_running_loop())}/{url}/{db}"  # pylint: disable=dotted-import-in-loop
 			new_pool = False
-			async with aioredis_pool_lock:
-				if con_id not in aioredis_connection_pool:
+			async with aioredis_pool_lock:  # pylint: disable=loop-global-usage
+				if con_id not in aioredis_connection_pool:  # pylint: disable=loop-global-usage
 					new_pool = True
-					aioredis_connection_pool[con_id] = aioredis.ConnectionPool.from_url(url, db=db)
+					aioredis_connection_pool[con_id] = aioredis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage
 			# This will return a client (no Exception) even if connection is currently lost
-			client = aioredis.StrictRedis(connection_pool=aioredis_connection_pool[con_id])
+			client = aioredis.StrictRedis(connection_pool=aioredis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-global-usage
 			if new_pool or test_connection:
 				await client.ping()
 			return client
-		except (aioredis.ConnectionError, aioredis.BusyLoadingError):
-			if timeout and time.time() - start >= timeout:
+		except (aioredis.ConnectionError, aioredis.BusyLoadingError):  # pylint: disable=dotted-import-in-loop
+			if timeout and time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
 				raise
-			await asyncio.sleep(2)
+			await asyncio.sleep(2)  # pylint: disable=dotted-import-in-loop
 
 
 async def async_redis_client(timeout: int = 0, test_connection: bool = False) -> aioredis.StrictRedis:

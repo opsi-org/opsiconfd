@@ -13,10 +13,10 @@ import datetime
 import json
 import os
 import re
-import shutil
 import signal
 import tempfile
 from operator import itemgetter
+from shutil import move, rmtree, unpack_archive
 from typing import Dict, List
 
 import msgpack  # type: ignore[import]
@@ -100,7 +100,7 @@ async def admin_interface_index(request: Request):
 	interface = get_backend_interface()
 	for method in interface:
 		if method["doc"]:
-			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])
+			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])  # pylint: disable=dotted-import-in-loop
 			method["doc"] = method["doc"].replace("\n", "<br />").replace("\t", "&nbsp;&nbsp;&nbsp;").replace('"', "\\u0022")
 	context = {
 		"request": request,
@@ -222,33 +222,33 @@ async def delete_client_sessions(request: Request):
 
 @admin_interface_router.get("/addons")
 async def get_addon_list() -> list:
-	addon_list = []
-	for addon in AddonManager().addons:
-		addon_list.append(
-			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
-		)
+	addon_list = [
+		{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
+		for addon in AddonManager().addons
+	]
 	return sorted(addon_list, key=itemgetter("id"))
 
 
 def _install_addon(data: bytes):
 	addon_installed = None
+	join = os.path.join
+	exists = os.path.exists
+	isdir = os.path.isdir
+	isfile = os.path.isfile
+	listdir = os.listdir
 	with tempfile.TemporaryDirectory() as tmp_dir:
-		addon_file = os.path.join(tmp_dir, "addon.zip")
+		addon_file = join(tmp_dir, "addon.zip")
 		with open(addon_file, "wb") as file:
 			file.write(data)
-		content_dir = os.path.join(tmp_dir, "content")
-		shutil.unpack_archive(filename=addon_file, extract_dir=content_dir)
-		for addon_id in os.listdir(content_dir):
-			addon_dir = os.path.join(content_dir, addon_id)
-			if (
-				os.path.isdir(addon_dir)
-				and os.path.isdir(os.path.join(addon_dir, "python"))
-				and os.path.isfile(os.path.join(addon_dir, "python", "__init__.py"))
-			):
-				target = os.path.join(VAR_ADDON_DIR, addon_id)
-				if os.path.exists(target):
-					shutil.rmtree(target)
-				shutil.move(addon_dir, target)
+		content_dir = join(tmp_dir, "content")
+		unpack_archive(filename=addon_file, extract_dir=content_dir)
+		for addon_id in listdir(content_dir):
+			addon_dir = join(content_dir, addon_id)
+			if isdir(addon_dir) and isdir(join(addon_dir, "python")) and isfile(join(addon_dir, "python", "__init__.py")):
+				target = join(VAR_ADDON_DIR, addon_id)
+				if exists(target):
+					rmtree(target)
+				move(addon_dir, target)
 				addon_installed = addon_id
 
 	if not addon_installed:
@@ -276,13 +276,13 @@ async def get_rpc_list() -> list:
 
 	rpc_list = []
 	for value in redis_result:
-		value = msgpack.loads(value)
+		value = msgpack.loads(value)  # pylint: disable=dotted-import-in-loop
 		rpc = {
 			"rpc_num": value.get("rpc_num"),
 			"method": value.get("method"),
 			"params": value.get("num_params"),
 			"results": value.get("num_results"),
-			"date": value.get("date", datetime.date(2020, 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ")),
+			"date": value.get("date", datetime.date(2020, 1, 1).strftime("%Y-%m-%dT%H:%M:%SZ")),  # pylint: disable=dotted-import-in-loop
 			"client": value.get("client", "0.0.0.0"),
 			"error": value.get("error"),
 			"duration": value.get("duration"),
@@ -358,12 +358,10 @@ async def unlock_product(request: Request, product: str) -> JSONResponse:
 @admin_interface_router.post("/products/unlock")
 def unlock_all_product():
 	backend = get_backend()
-	products = []
-	for pod in backend.productOnDepot_getObjects(depotId=[], locked=True):  # pylint: disable=no-member
-		if pod.productId not in products:
-			products.append(pod.productId)
 	try:
-		for product in products:
+		for product in set(
+			pod.productId for pod in backend.productOnDepot_getObjects(depotId=[], locked=True)  # pylint: disable=no-member
+		):
 			backend.unlockProduct(product)  # pylint: disable=no-member
 		response = JSONResponse({"status": 200, "error": None, "data": None})
 	except Exception as err:  # pylint: disable=broad-except
@@ -434,7 +432,7 @@ def open_grafana(request: Request):
 @admin_interface_router.get("/config")
 def get_confd_conf(all: bool = False) -> JSONResponse:  # pylint: disable=redefined-builtin
 
-	KEYS_TO_REMOVE = [  # pylint: disable=invalid-name
+	keys_to_remove = (
 		"version",
 		"setup",
 		"action",
@@ -448,11 +446,11 @@ def get_confd_conf(all: bool = False) -> JSONResponse:  # pylint: disable=redefi
 		"log_slow_async_callbacks",
 		"ssl_ca_key_passphrase",
 		"ssl_server_key_passphrase",
-	]
+	)
 
 	current_config = config.items().copy()
 	if not all:
-		for key in KEYS_TO_REMOVE:
+		for key in keys_to_remove:
 			if key in current_config:
 				del current_config[key]
 	current_config = {key.replace("_", "-"): value for key, value in sorted(current_config.items())}
@@ -485,8 +483,10 @@ def get_licensing_info() -> JSONResponse:
 	modules: Dict[str, dict] = {}
 	previous: Dict[str, dict] = {}
 	for at_date, date_info in info.get("dates", {}).items():
-		at_date = datetime.date.fromisoformat(at_date)
-		if (at_date <= datetime.date.today()) and (not active_date or at_date > active_date):
+		at_date = datetime.date.fromisoformat(at_date)  # pylint: disable=dotted-import-in-loop
+		if (at_date <= datetime.date.today()) and (  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
+			not active_date or at_date > active_date
+		):
 			active_date = at_date
 
 		for module_id, module in date_info["modules"].items():
@@ -528,15 +528,15 @@ def get_licensing_info() -> JSONResponse:
 async def license_upload(files: List[UploadFile]):
 	try:
 		for file in files:
-			if not re.match(r"^\w[\w -]*\.opsilic$", file.filename):
+			if not re.match(r"^\w[\w -]*\.opsilic$", file.filename):  # pylint: disable=dotted-import-in-loop
 				raise ValueError(f"Invalid filename {file.filename!r}")
-			olf = OpsiLicenseFile(os.path.join("/etc/opsi/licenses", file.filename))
+			olf = OpsiLicenseFile(os.path.join("/etc/opsi/licenses", file.filename))  # pylint: disable=dotted-import-in-loop
 			olf.read_string((await file.read()).decode("utf-8"))  # type: ignore[union-attr]
 			if not olf.licenses:
 				raise ValueError(f"No license found in {file.filename!r}")
 			logger.notice("Writing opsi license file %r", olf.filename)
 			olf.write()
-			os.chmod(olf.filename, 0o660)
+			os.chmod(olf.filename, 0o660)  # pylint: disable=dotted-import-in-loop
 		return JSONResponse({"status": 201, "error": None, "data": f"{len(files)} opsi license files imported"}, status.HTTP_201_CREATED)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.warning(err, exc_info=True)

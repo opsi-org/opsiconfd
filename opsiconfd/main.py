@@ -34,7 +34,9 @@ from .logging import (
 from .manager import Manager
 from .patch import apply_patches
 from .setup import setup
-from .utils import get_manager_pid
+from .utils import get_manager_pid, redis_client
+
+REDIS_CONECTION_TIMEOUT = 30
 
 
 async def log_viewer():
@@ -93,6 +95,11 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 	apply_patches()
 
 	try:  # pylint: disable=too-many-nested-blocks
+		# Test if redis connection available
+		logger.info("Testing redis connection (timeout: %d)", REDIS_CONECTION_TIMEOUT)
+		with redis_client(timeout=REDIS_CONECTION_TIMEOUT, test_connection=True):
+			logger.info("Redis connection is working")
+
 		init_logging(log_mode=config.log_mode)
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)
 

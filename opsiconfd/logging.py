@@ -42,6 +42,7 @@ from opsicommon.logging import (  # type: ignore[import]
 	set_filter_from_string,
 	set_format,
 )
+from opsicommon.logging.constants import NONE  # type: ignore[import]
 from opsicommon.logging.logging import (  # type: ignore[import]
 	add_context_filter_to_loggers,
 )
@@ -183,7 +184,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		self._should_stop = False
 		self._set_log_format_stderr()
 
-		if self._log_level_file != pylogging.NONE:
+		if self._log_level_file != NONE:
 			if self._log_file_template:
 				self.get_file_handler()
 
@@ -216,7 +217,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		self._log_format_file = config.log_format_file
 
 	def _set_log_format_stderr(self):
-		if self._log_level_stderr == pylogging.NONE:
+		if self._log_level_stderr == NONE:
 			self._stderr_handler = None
 			return
 		if sys.stderr.isatty():
@@ -315,7 +316,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 
 	async def _start(self):
 		try:
-			self._redis = await get_async_redis_connection(config.redis_internal_url)
+			self._redis = await get_async_redis_connection(config.redis_internal_url, timeout=30, test_connection=True)
 			stream_name = f"opsiconfd:log:{config.node_name}"
 			await self._redis.xtrim(name=stream_name, maxlen=10000, approximate=True)
 			self._loop.create_task(self._reader(stream_name=stream_name))
@@ -323,6 +324,8 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 
 		except Exception as err:  # pylint: disable=broad-except
 			handle_log_exception(err, stderr=True, temp_file=True)
+			if self._running_event:
+				self._running_event.set()
 
 	async def _reader(self, stream_name):  # pylint: disable=too-many-branches
 		if self._running_event:
@@ -534,7 +537,7 @@ def init_logging(
 			enable_slow_callback_logging(config.log_slow_async_callbacks)
 
 		if not is_worker:
-			if log_mode == "redis" and (config.log_level_stderr != pylogging.NONE or config.log_level_file != pylogging.NONE):
+			if log_mode == "redis" and (config.log_level_stderr != NONE or config.log_level_file != NONE):
 				start_redis_log_adapter_thread()
 			else:
 				stop_redis_log_adapter_thread()

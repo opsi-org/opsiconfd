@@ -8,25 +8,25 @@
 utils
 """
 
-import socket
-import os
-import string
-import random
-import ipaddress
-import functools
-import datetime
-import time
-import codecs
 import asyncio
+import codecs
+import datetime
+import functools
+import ipaddress
+import os
+import random
+import socket
+import string
 import threading
-from typing import Dict, Optional
+import time
 from contextlib import contextmanager
-from fastapi import FastAPI, APIRouter
-from starlette.routing import Route
+from typing import Dict, Optional
+
+import aioredis
 import psutil
 import redis
-import aioredis
-
+from fastapi import APIRouter, FastAPI
+from starlette.routing import Route
 
 logger = None  # pylint: disable=invalid-name
 config = None  # pylint: disable=invalid-name
@@ -39,14 +39,18 @@ aioredis_connection_pool = {}
 def get_logger():
 	global logger  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not logger:
-		from .logging import logger  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .logging import (
+			logger,  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		)
 	return logger
 
 
 def get_config():
 	global config  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not config:
-		from .config import config  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .config import (
+			config,  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		)
 	return config
 
 
@@ -191,7 +195,7 @@ def retry_redis_call(func):
 	return wrapper_retry
 
 
-def get_redis_connection(url: str, db: int = 0, timeout: int = 0) -> redis.StrictRedis:  # pylint: disable=invalid-name
+def get_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connection: bool = False) -> redis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
 	while True:
 		try:
@@ -202,27 +206,27 @@ def get_redis_connection(url: str, db: int = 0, timeout: int = 0) -> redis.Stric
 					new_pool = True
 					redis_connection_pool[con_id] = redis.ConnectionPool.from_url(url, db=db)
 			client = redis.StrictRedis(connection_pool=redis_connection_pool[con_id])
-			if new_pool:
+			if new_pool or test_connection:
 				client.ping()
 			return client
 		except (redis.exceptions.ConnectionError, redis.BusyLoadingError):
-			if timeout and timeout >= time.time() - start:
+			if timeout and time.time() - start >= timeout:
 				raise
 			time.sleep(2)
 
 
 @contextmanager
-def redis_client(timeout: int = 0):
+def redis_client(timeout: int = 0, test_connection: bool = False):
 	con = None
 	try:
-		con = get_redis_connection(url=get_config().redis_internal_url, timeout=timeout)
+		con = get_redis_connection(url=get_config().redis_internal_url, timeout=timeout, test_connection=test_connection)
 		yield con
 	finally:
 		if con:
 			con.close()
 
 
-async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0) -> aioredis.StrictRedis:  # pylint: disable=invalid-name
+async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0, test_connection: bool = False) -> aioredis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
 	while True:
 		try:
@@ -234,17 +238,17 @@ async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0)
 					aioredis_connection_pool[con_id] = aioredis.ConnectionPool.from_url(url, db=db)
 			# This will return a client (no Exception) even if connection is currently lost
 			client = aioredis.StrictRedis(connection_pool=aioredis_connection_pool[con_id])
-			if new_pool:
+			if new_pool or test_connection:
 				await client.ping()
 			return client
 		except (aioredis.ConnectionError, aioredis.BusyLoadingError):
-			if timeout and timeout >= time.time() - start:
+			if timeout and time.time() - start >= timeout:
 				raise
 			await asyncio.sleep(2)
 
 
-async def async_redis_client(timeout: int = 0) -> aioredis.StrictRedis:
-	return await get_async_redis_connection(url=get_config().redis_internal_url, timeout=timeout)
+async def async_redis_client(timeout: int = 0, test_connection: bool = False) -> aioredis.StrictRedis:
+	return await get_async_redis_connection(url=get_config().redis_internal_url, timeout=timeout, test_connection=test_connection)
 
 
 async def async_get_redis_info(client: aioredis.StrictRedis):  # pylint: disable=too-many-locals

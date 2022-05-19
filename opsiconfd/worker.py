@@ -58,7 +58,7 @@ class Worker(metaclass=Singleton):
 		init_pool_executor(loop)
 		loop.set_exception_handler(self.handle_asyncio_exception)
 		# create redis pool
-		loop.create_task(async_redis_client())
+		await async_redis_client(timeout=10, test_connection=True)
 		loop.create_task(self.main_loop())
 		# Start MetricsCollector
 		loop.create_task(self.metrics_collector.main_loop())

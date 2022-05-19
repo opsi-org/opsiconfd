@@ -42,7 +42,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		self.base_url = f"{url.scheme}://{url.netloc.split('@', 1)[-1]}"
 		self.forward_authorization = forward_authorization
 		self.forward_cookies = forward_cookies
-		app.add_route(f"{base_path}/{{path:path}}", self.handle_request, methods)
+		app.add_route(f"{base_path}/{{path:path}}", self.handle_request, methods)  # type: ignore[attr-defined]
 
 	async def handle_request(self, request: Request):
 		path = "/" + request.url.path[len(self.base_path) :].lstrip("/")

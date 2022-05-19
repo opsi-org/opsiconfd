@@ -10,8 +10,7 @@ test application.proxy
 
 import json
 
-import pytest
-from opsicommon.testing.helpers import http_test_server
+from opsicommon.testing.helpers import http_test_server  # type: ignore[import]
 
 from opsiconfd.application import app
 from opsiconfd.application.proxy import ReverseProxy

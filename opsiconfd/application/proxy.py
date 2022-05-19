@@ -56,8 +56,8 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 
 		# TODO: https://tools.ietf.org/html/rfc7239
 		request_headers["x-forwarded-proto"] = "https"
-		request_headers["x-forwared-host"] = request_headers["host"].split(":")[0]
-		request_headers["x-forwared-server"] = request_headers["host"].split(":")[0]
+		request_headers["x-forwarded-host"] = request_headers["host"].split(":")[0]
+		request_headers["x-forwarded-server"] = request_headers["host"].split(":")[0]
 		request_headers["x-forwarded-for"] = request.client.host
 		request_headers["x-real-ip"] = request.client.host
 

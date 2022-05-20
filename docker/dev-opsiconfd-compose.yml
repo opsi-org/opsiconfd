@@ -5,7 +5,11 @@ services:
     hostname: ${OPSI_HOSTNAME}
     env_file:
       ../.env
+    # Needed for mount
+    privileged: true
     cap_add:
+      - SYS_ADMIN
+      - DAC_READ_SEARCH
       - SYS_PTRACE
     build:
       context: ..

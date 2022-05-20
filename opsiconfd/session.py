@@ -130,7 +130,8 @@ class SessionMiddleware:
 		# Store ip addresses of depots with last access time
 		self._depot_addresses: Dict[str, float] = {}
 
-	def get_session_id_from_headers(self, headers: Headers) -> Optional[str]:
+	@staticmethod
+	def get_session_id_from_headers(headers: Headers) -> Optional[str]:
 		# connection.cookies.get(SESSION_COOKIE_NAME, None)
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
@@ -219,13 +220,13 @@ class SessionMiddleware:
 
 		await check_access(connection, receive)
 
-		if scope["session"] and scope["session"].user_store.host:
-			if scope["session"].user_store.host.getType() == "OpsiClient":
-				logger.info("OpsiClient authenticated, updating host object")
-				await run_in_threadpool(update_host_object, connection, scope["session"])
-			elif scope["session"].user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
-				logger.debug("Storing depot server address: %s", connection.client.host)
-				self._depot_addresses[connection.client.host] = time.time()
+		if (
+			scope["session"]
+			and scope["session"].user_store.host
+			and scope["session"].user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver")
+		):
+			logger.debug("Storing depot server address: %s", connection.client.host)
+			self._depot_addresses[connection.client.host] = time.time()
 
 		# Session handling time
 		session_handling_millis = int((time.perf_counter() - start) * 1000)
@@ -655,6 +656,10 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 		await check_blocked(connection)
 		# Authenticate
 		await authenticate(connection, receive)
+
+		if session.user_store.host and session.user_store.host.getType() == "OpsiClient":
+			logger.info("OpsiClient authenticated, updating host object")
+			await run_in_threadpool(update_host_object, connection, session)
 
 		if not session.user_store.host and scope["path"].startswith("/depot") and FILE_ADMIN_GROUP not in session.user_store.userGroups:
 			raise BackendPermissionDeniedError(f"Not a file admin user '{session.user_store.username}'")

@@ -136,12 +136,13 @@ class SessionMiddleware:
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
 		# Workaround:
+		session_cookie_name = SESSION_COOKIE_NAME
 		cookies = headers.get("cookie")
 		if cookies:
 			for cookie in cookies.split(";"):
 				cookie = cookie.strip().split("=", 1)
 				if len(cookie) == 2:
-					if cookie[0].strip().lower() == SESSION_COOKIE_NAME:
+					if cookie[0].strip().lower() == session_cookie_name:
 						return cookie[1].strip().lower()
 		return None
 
@@ -266,9 +267,14 @@ class SessionMiddleware:
 
 		if isinstance(err, (BackendAuthenticationError, BackendPermissionDeniedError)):
 			log = logger.warning
-			if scope.get("method") == "MKCOL" and scope["path"] and scope["path"].lower().endswith("/system volume information"):
-				# Windows WebDAV client is trying to create "System Volume Information"
-				log = logger.debug
+
+			if scope["path"]:
+				if scope.get("method") == "MKCOL" and scope["path"].lower().endswith("/system volume information"):
+					# Windows WebDAV client is trying to create "System Volume Information"
+					log = logger.debug
+				elif scope.get("method") == "PROPFIND" and scope["path"] == "/":
+					# Windows WebDAV client PROPFIND /
+					log = logger.debug
 			log(err)
 
 			status_code = status.HTTP_401_UNAUTHORIZED

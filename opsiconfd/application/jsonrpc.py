@@ -208,19 +208,28 @@ def get_response_compression(request: Request) -> Optional[str]:
 	return get_compression(content_encoding)
 
 
-def get_request_serialization(request: Request) -> str:
+def get_request_serialization(request: Request) -> Optional[str]:
 	content_type = request.headers.get("content-type")
 	logger.debug("Content-Type: %r", content_type)
-	if not content_type:
-		logger.debug("No Content-Type defined, assuming json")
-		return "json"
-	content_type = content_type.lower()
-	if "msgpack" in content_type:
-		return "msgpack"
-	if "json" in content_type:
-		return "json"
-	logger.debug("Unhandled Content-Type %r, assuming json", content_type)
-	return "json"
+	if content_type:
+		content_type = content_type.lower()
+		if "msgpack" in content_type:
+			return "msgpack"
+		if "json" in content_type:
+			return "json"
+	return None
+
+
+def get_response_serialization(request: Request) -> Optional[str]:
+	accept = request.headers.get("accept")
+	logger.debug("Accept: %r", accept)
+	if accept:
+		accept = accept.lower()
+		if "msgpack" in accept:
+			return "msgpack"
+		if "json" in accept:
+			return "json"
+	return None
 
 
 def decompress_data(data: bytes, compression: str) -> bytes:
@@ -566,13 +575,25 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
 async def process_request(request: Request, response: Response):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-	response_compression = None
 	request_compression = None
-	serialization = "json"
+	request_serialization = None
+	response_compression = None
+	response_serialization = None
 	try:
 		response_compression = get_response_compression(request)
 		request_compression = get_request_compression(request)
-		serialization = get_request_serialization(request)
+		request_serialization = get_request_serialization(request)
+		if request_serialization:
+			# Always using same response serialization as request serialization
+			response_serialization = request_serialization
+		else:
+			logger.debug("Unhandled request serialization %r, using json", request_serialization)
+			request_serialization = "json"
+			response_serialization = get_response_serialization(request)
+			if not response_serialization:
+				logger.debug("Unhandled response serialization %r, using json", response_serialization)
+				response_serialization = "json"
+
 		request_data: Union[bytes, str] = await request.body()
 		if request_data:
 			if request_compression:
@@ -582,7 +603,7 @@ async def process_request(request: Request, response: Response):  # pylint: disa
 		if not request_data:
 			raise ValueError("Request data empty")
 
-		rpcs = await run_in_threadpool(deserialize_data, request_data, serialization)
+		rpcs = await run_in_threadpool(deserialize_data, request_data, request_serialization)
 		logger.trace("rpcs: %s", rpcs)
 		results = await process_rpcs(rpcs, request)
 		response.status_code = 200
@@ -594,8 +615,8 @@ async def process_request(request: Request, response: Response):  # pylint: disa
 		results = [await process_rpc_error(err, request)]  # pylint: disable=use-tuple-over-list
 		response.status_code = 400
 
-	response.headers["content-type"] = f"application/{serialization}"
-	data = await run_in_threadpool(serialize_data, results[0] if len(results) == 1 else results, serialization)
+	response.headers["content-type"] = f"application/{response_serialization}"
+	data = await run_in_threadpool(serialize_data, results[0] if len(results) == 1 else results, response_serialization)
 
 	data_len = len(data)
 	if response_compression and data_len > COMPRESS_MIN_SIZE:

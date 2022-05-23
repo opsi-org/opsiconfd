@@ -580,8 +580,6 @@ async def process_request(request: Request, response: Response):  # pylint: disa
 	response_compression = None
 	response_serialization = None
 	try:
-		response_compression = get_response_compression(request)
-		request_compression = get_request_compression(request)
 		request_serialization = get_request_serialization(request)
 		if request_serialization:
 			# Always using same response serialization as request serialization
@@ -591,8 +589,11 @@ async def process_request(request: Request, response: Response):  # pylint: disa
 			request_serialization = "json"
 			response_serialization = get_response_serialization(request)
 			if not response_serialization:
-				logger.debug("Unhandled response serialization %r, using json", response_serialization)
+				logger.debug("test_compression response serialization %r, using json", response_serialization)
 				response_serialization = "json"
+
+		response_compression = get_response_compression(request)
+		request_compression = get_request_compression(request)
 
 		request_data: Union[bytes, str] = await request.body()
 		if request_data:
@@ -615,6 +616,7 @@ async def process_request(request: Request, response: Response):  # pylint: disa
 		results = [await process_rpc_error(err, request)]  # pylint: disable=use-tuple-over-list
 		response.status_code = 400
 
+	response_serialization = response_serialization or "json"
 	response.headers["content-type"] = f"application/{response_serialization}"
 	data = await run_in_threadpool(serialize_data, results[0] if len(results) == 1 else results, response_serialization)
 

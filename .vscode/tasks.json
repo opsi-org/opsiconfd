@@ -10,7 +10,8 @@
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
-			  }
+			},
+			"problemMatcher": []
 		},
 		{
 			"label": "Redis clean",
@@ -19,7 +20,8 @@
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
-			}
+			},
+			"problemMatcher": []
 		},
 		{
 			"label": "Restore Backup",
@@ -28,7 +30,8 @@
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
-			}
+			},
+			"problemMatcher": []
 		},
 		{
 			"label": "Create .env file",
@@ -37,7 +40,8 @@
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
-			}
+			},
+			"problemMatcher": []
 		},
 		{
 			"label": "PyInstaller build",
@@ -46,7 +50,8 @@
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
-			}
+			},
+			"problemMatcher": []
 		}
 	],
 	"inputs": [

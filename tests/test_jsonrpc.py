@@ -11,29 +11,29 @@ jsonrpc tests
 import json
 from unittest.mock import patch
 
-import pytest
 import msgpack  # type: ignore[import]
-
+import pytest
 from opsicommon.objects import OpsiClient  # type: ignore[import]
+
 from opsiconfd.application.jsonrpc import (
-	get_sort_algorithm,
 	compress_data,
 	decompress_data,
-	serialize_data,
 	deserialize_data,
+	get_sort_algorithm,
+	serialize_data,
 )
 
 from .utils import (  # pylint: disable=unused-import
+	ADMIN_PASS,
+	ADMIN_USER,
+	backend,
+	clean_redis,
 	config,
 	get_config,
-	clean_redis,
-	sync_redis_client,
-	backend,
-	test_client,
 	get_dummy_products,
 	products_jsonrpc,
-	ADMIN_USER,
-	ADMIN_PASS,
+	sync_redis_client,
+	test_client,
 )
 
 
@@ -69,25 +69,25 @@ def test_request(test_client):  # pylint: disable=redefined-outer-name
 def test_multi_request(test_client):  # pylint: disable=redefined-outer-name
 	client1 = OpsiClient(id="test-jsonrpc-request-multi-1.opsi.org")
 	client2 = OpsiClient(id="test-jsonrpc-request-multi-2.opsi.org")
-	rpc = [
+	rpc = (
 		{"id": 1, "method": "host_createObjects", "params": [client1.to_hash()]},
 		{"id": 2, "method": "host_createObjects", "params": [client2.to_hash()]},
-	]
+	)
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 	result = res.json()
 	assert len(result) == 2
 	for res in result:
-		assert res["id"] in (rpc[0]["id"], rpc[1]["id"])
+		assert res["id"] in (rpc[0]["id"], rpc[1]["id"])  # pylint: disable=loop-invariant-statement
 		assert res["error"] is None
 		assert res["result"] == []
 
 
 def test_incomplete_request(test_client):  # pylint: disable=redefined-outer-name
-	rpcs = [
+	rpcs = (
 		{"id": 0, "method": "backend_getInterface"},
 		{"method": "backend_getInterface"},
-	]
+	)
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpcs)
 	res.raise_for_status()
 	response = res.json()
@@ -99,11 +99,11 @@ def test_incomplete_request(test_client):  # pylint: disable=redefined-outer-nam
 
 
 def test_jsonrpc20(test_client):  # pylint: disable=redefined-outer-name
-	rpcs = [
+	rpcs = (
 		{"id": 1, "method": "backend_getInterface", "params": []},
 		{"id": 2, "method": "backend_getInterface", "params": [], "jsonrpc": "1.0"},
 		{"id": 3, "method": "backend_getInterface", "params": [], "jsonrpc": "2.0"},
-	]
+	)
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpcs)
 	res.raise_for_status()
 	response = res.json()
@@ -120,33 +120,47 @@ def test_jsonrpc20(test_client):  # pylint: disable=redefined-outer-name
 
 
 @pytest.mark.parametrize(
-	"content_type, expected_content_type",
+	"content_type, accept, expected_content_type",
 	(
-		("application/json", "application/json"),
-		("json", "application/json"),
-		("", "application/json"),
-		(None, "application/json"),
-		("xyasdb;dsaoswe3dod", "application/json"),
-		("application/msgpack", "application/msgpack"),
-		("msgpack", "application/msgpack"),
+		("application/json", None, "application/json"),
+		("json", None, "application/json"),
+		("", None, "application/json"),
+		(None, None, "application/json"),
+		("xyasdb;dsaoswe3dod", None, "application/json"),
+		("application/msgpack", None, "application/msgpack"),
+		("msgpack", None, "application/msgpack"),
+		("application/msgpack", "application/json", "application/msgpack"),  # Content-Type should be preferred
+		(None, None, "application/json"),
+		("", "", "application/json"),
+		("", "msgpack", "application/msgpack"),
+		("msgpack", "xyasdb;dsaoswe3dod", "application/msgpack"),
+		("invalid", "application/msgpack", "application/msgpack"),
+
 	),
 )
-def test_serializations(test_client, content_type, expected_content_type):  # pylint: disable=redefined-outer-name
+def test_serializations(test_client, content_type, accept, expected_content_type):  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
 	with products_jsonrpc(test_client, "", products):  # Create products
 		rpc = {"id": "serialization", "method": "product_getObjects", "params": [[], {"id": product_ids}]}
-		serialization = expected_content_type.split("/")[-1]
+		headers = {}
+		if content_type is not None:
+			headers["Content-Type"] = content_type
+		if accept is not None:
+			headers["Accept"] = accept
+		serialization = (content_type or "").split("/")[-1]
+		if serialization not in ("json", "msgpack"):
+			serialization = "json"
 		res = test_client.post(
 			"/rpc",
 			auth=(ADMIN_USER, ADMIN_PASS),
 			data=serialize_data(rpc, serialization),
-			headers={"Content-Type": content_type},
+			headers=headers,
 			stream=True,
 		)
 		res.raise_for_status()
 		assert res.headers["Content-Type"] == expected_content_type
-		assert deserialize_data(res.raw.read(), serialization)
+		assert deserialize_data(res.raw.read(), expected_content_type.split("/")[-1])
 
 
 @pytest.mark.parametrize(
@@ -192,7 +206,7 @@ def test_error_log(test_client, tmp_path):  # pylint: disable=redefined-outer-na
 		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 		res.raise_for_status()
 		for entry in tmp_path.iterdir():
-			data = json.loads(entry.read_text(encoding="utf-8"))
+			data = json.loads(entry.read_text(encoding="utf-8"))  # pylint: disable=dotted-import-in-loop
 			assert data["client"]
 			assert "Processing request from" in data["description"]
 			assert data["method"] == "invalid"
@@ -203,7 +217,7 @@ def test_error_log(test_client, tmp_path):  # pylint: disable=redefined-outer-na
 def test_store_rpc_info(test_client):  # pylint: disable=redefined-outer-name
 	with sync_redis_client() as redis:
 		for num in (1, 2):
-			rpc = {"id": num, "method": "host_getObjects", "params": [["id"], {"type": "OpsiDepotserver"}]}
+			rpc = {"id": num, "method": "host_getObjects", "params": [["id"], {"type": "OpsiDepotserver"}]}  # pylint: disable=loop-invariant-statement
 			res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 			res.raise_for_status()
 			result = res.json()
@@ -212,7 +226,7 @@ def test_store_rpc_info(test_client):  # pylint: disable=redefined-outer-name
 			if num == 2:
 				assert int(redis.get("opsiconfd:stats:num_rpcs")) == 2
 				redis_result = redis.lrange("opsiconfd:stats:rpcs", 0, -1)
-				infos = [msgpack.loads(value) for value in redis_result]
+				infos = [msgpack.loads(value) for value in redis_result]  # pylint: disable=dotted-import-in-loop
 				assert len(infos) == 2
 				for info in infos:
 					assert info["rpc_num"] in (1, 2)

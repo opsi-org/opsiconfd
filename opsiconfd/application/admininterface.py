@@ -511,6 +511,7 @@ def get_licensing_info() -> JSONResponse:
 				"info": {
 					"customer_name": lic.get("customer_name", ""),
 					"customer_address": lic.get("customer_address", ""),
+					"customer_unit": lic.get("customer_unit", ""),
 					"checksum": info["licenses_checksum"],
 					"macos_clients": info["client_numbers"]["macos"],
 					"linux_clients": info["client_numbers"]["linux"],

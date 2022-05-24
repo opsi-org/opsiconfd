@@ -118,12 +118,15 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 			except Exception as err:
 				raise Exception(f"Failed to run as user '{config.run_as_user}': {err}") from err
 
+		# Subprocesses will inherit file descriptors
+		# Redirectring sys.stdin to prevent S_ISFIFO(stdin) to return true
+		# This is important for subprocesses like opsi-package postinst scripts
+		stdin = open(os.devnull, "rb")  # pylint: disable=consider-using-with
+		os.dup2(stdin.fileno(), sys.stdin.fileno())
+
 		# Do not use uvloop in redis logger thread because aiologger is currently incompatible with uvloop!
 		# https://github.com/b2wdigital/aiologger/issues/38
 		uvloop.install()
-
-		logger.essential("opsiconfd is starting")
-		logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
 
 		manager = Manager()
 		manager.run()

@@ -113,6 +113,10 @@ async def admin_interface_index(request: Request):
 		"num_servers": get_num_servers(backend),
 		"num_clients": get_num_clients(backend),
 		"disabled_features": config.admin_interface_disabled_features,
+		"addons": [
+			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
+			for addon in AddonManager().addons
+		],
 	}
 	return config.jinja_templates.TemplateResponse("admininterface.html", context)
 

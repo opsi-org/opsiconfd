@@ -58,7 +58,8 @@ li {
 	list-style-type: none;
 }
 
-div#welcome ul li {
+div#welcome ul li,
+div#tab-links ul li {
 	list-style-type: disc;
 }
 

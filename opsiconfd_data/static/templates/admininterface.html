@@ -174,7 +174,7 @@
 			<a href="/admin/grafana" target="_blank" class="tablink">Grafana</a>
 			<a href="/dav" target="_blank" class="tablink">WebDAV</a>
 			<a href="/public" target="_blank" class="tablink">Public</a>
-			<a href="#" class="tablink" onclick="downloadConfiged()">Opsi configed</a>
+			<a href="#links" id="tablink-links" class="tablink" onclick="openTab('links');">Links</a>
 			<a href="#" class="tablink" onclick="logout()">Logout</a>
 		</div>
 
@@ -557,6 +557,30 @@
 				<input type="file" multiple accept=".opsilic" onchange="licenseUpload(this.files); this.value='';">
 			</div>
 		</div>
+
+		<div id="tab-links" class="tabcontent">
+			<ul>
+				{% if "webgui" in addons|map(attribute="id") %}
+				<li>
+					Open the web based management interface <a href="/addons/webgui" target="_blank"
+						rel="noopener noreferrer">opsi web ui</a>.
+				</li>
+				{% endif %}
+				<li>
+					Download the standalone management interface <a href="#"
+						onclick="downloadConfiged()">opsi-configed</a>.
+				</li>
+				<li>
+					Open the <a href="https://docs.opsi.org" target="_blank" rel="noopener noreferrer">opsi
+						documentation</a>.
+				</li>
+				<li>
+					Visit the <a href="https://forum.opsi.org/index.php" target="_blank" rel="noopener noreferrer">opsi
+						forum</a>.
+				</li>
+			</ul>
+		</div>
+	</div>
 </body>
 
 </html>

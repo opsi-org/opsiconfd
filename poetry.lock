@@ -767,7 +767,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "hypothesis"
-version = "6.46.7"
+version = "6.46.9"
 description = "A library for property-based testing"
 category = "dev"
 optional = false
@@ -1839,7 +1839,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.292"
+version = "4.2.0.293"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -2022,7 +2022,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "rich"
-version = "12.4.2"
+version = "12.4.4"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
 category = "dev"
 optional = false
@@ -3437,8 +3437,7 @@ hyperlink = [
     {file = "hyperlink-21.0.0.tar.gz", hash = "sha256:427af957daa58bc909471c6c40f74c5450fa123dd093fc53efd2e91d2705a56b"},
 ]
 hypothesis = [
-    {file = "hypothesis-6.46.7-py3-none-any.whl", hash = "sha256:2696cdb9005946bf1d2b215cc91d3fc01625e3342eb8743ddd04b667b2f1882b"},
-    {file = "hypothesis-6.46.7.tar.gz", hash = "sha256:967009fa561b3a3f8363a73d71923357271c37dc7fa27b30c2d21a1b6092b240"},
+    {file = "hypothesis-6.46.9-py3-none-any.whl", hash = "sha256:5a9629e10700e5c93f761fa310baf127f36f8a9e179e7dae087aeb22b3d1f535"},
 ]
 hypothesis-graphql = [
     {file = "hypothesis-graphql-0.9.0.tar.gz", hash = "sha256:7f30e41450f979edbfd951b5161581baea318a04f7a9db56399ee464c313bfae"},
@@ -4072,8 +4071,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.292.tar.gz", hash = "sha256:d97b0bc1336b3f4527ecb74d68f6bc138f8106270ce1893efecedcc39636ea5e"},
-    {file = "python_opsi-4.2.0.292-py3-none-any.whl", hash = "sha256:83b14af6028561dada70c27c0b6ca8631f95338ff6a62c95a8b95cbb205835bc"},
+    {file = "python-opsi-4.2.0.293.tar.gz", hash = "sha256:0fa42bb0e3dc3453841e1d94ba183e32d84e544ae060f54d47d35729549d4039"},
+    {file = "python_opsi-4.2.0.293-py3-none-any.whl", hash = "sha256:ca8cea73480c9fb273ad4371e3efec7a303aa8b4327e5b3dcedbb9af9db837f7"},
 ]
 python-opsi-common = [
     {file = "python-opsi-common-4.2.0.287.tar.gz", hash = "sha256:a11c60b66b8efa1bc4c05b6365b8c4db0d49bdec64d6da4c0dec9fbc8b42c3aa"},
@@ -4153,8 +4152,8 @@ requests = [
     {file = "requests-2.27.1.tar.gz", hash = "sha256:68d7c56fd5a8999887728ef304a6d12edc7be74f1cfa47714fc8b414525c9a61"},
 ]
 rich = [
-    {file = "rich-12.4.2-py3-none-any.whl", hash = "sha256:abcecd4444fa27cf84de412f713305e0d5481c941f12fc202fa4fc6711f80feb"},
-    {file = "rich-12.4.2.tar.gz", hash = "sha256:cd8c809da089740f4bd94fa6d544cf23421d4bad34988569c2d03fdbdb858f0d"},
+    {file = "rich-12.4.4-py3-none-any.whl", hash = "sha256:d2bbd99c320a2532ac71ff6a3164867884357da3e3301f0240090c5d2fdac7ec"},
+    {file = "rich-12.4.4.tar.gz", hash = "sha256:4c586de507202505346f3e32d1363eb9ed6932f0c2f63184dea88983ff4971e2"},
 ]
 rich-click = [
     {file = "rich-click-1.4.tar.gz", hash = "sha256:bcb4662aaf0ac15edf8863e95c72ef3608a1ef346a8cc1a505115ba5eeeb0260"},

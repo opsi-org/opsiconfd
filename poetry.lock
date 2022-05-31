@@ -1597,7 +1597,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "pyinstaller-hooks-contrib"
-version = "2022.5"
+version = "2022.6"
 description = "Community maintained hooks for PyInstaller"
 category = "dev"
 optional = false
@@ -1839,7 +1839,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.293"
+version = "4.2.0.294"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -2083,7 +2083,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "schemathesis"
-version = "3.15.2"
+version = "3.15.3"
 description = "Property-based testing framework for Open API and GraphQL based apps"
 category = "dev"
 optional = false
@@ -2614,7 +2614,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "types-redis"
-version = "4.2.5"
+version = "4.2.6"
 description = "Typing stubs for redis"
 category = "dev"
 optional = false
@@ -2627,7 +2627,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "types-requests"
-version = "2.27.27"
+version = "2.27.29"
 description = "Typing stubs for requests"
 category = "dev"
 optional = false
@@ -2643,7 +2643,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "types-urllib3"
-version = "1.26.14"
+version = "1.26.15"
 description = "Typing stubs for urllib3"
 category = "dev"
 optional = false
@@ -3438,6 +3438,7 @@ hyperlink = [
 ]
 hypothesis = [
     {file = "hypothesis-6.46.9-py3-none-any.whl", hash = "sha256:5a9629e10700e5c93f761fa310baf127f36f8a9e179e7dae087aeb22b3d1f535"},
+    {file = "hypothesis-6.46.9.tar.gz", hash = "sha256:8b1349dab58cf9bc85687e2721c008e99f23a32fb70e688779c81b0298904160"},
 ]
 hypothesis-graphql = [
     {file = "hypothesis-graphql-0.9.0.tar.gz", hash = "sha256:7f30e41450f979edbfd951b5161581baea318a04f7a9db56399ee464c313bfae"},
@@ -3997,8 +3998,8 @@ pyinstaller = [
     {file = "pyinstaller-5.1.tar.gz", hash = "sha256:9596c70c860cbce19537354db95b180351959b4cd14a70db6ab1d1432668c313"},
 ]
 pyinstaller-hooks-contrib = [
-    {file = "pyinstaller-hooks-contrib-2022.5.tar.gz", hash = "sha256:90a05207ceea2f8c166f12c3add46e24c0ed6a78234e5f99320f8683d56e0dec"},
-    {file = "pyinstaller_hooks_contrib-2022.5-py2.py3-none-any.whl", hash = "sha256:d0ff4c13eda0104db6eb43c60641c19cdf2bc2d6a2a1f0855d26629c3dacc8b7"},
+    {file = "pyinstaller-hooks-contrib-2022.6.tar.gz", hash = "sha256:9dc611cf6667301e95384b4a0631b032bbffa16a0688f4cfa014d0c1e751d276"},
+    {file = "pyinstaller_hooks_contrib-2022.6-py2.py3-none-any.whl", hash = "sha256:e38bf9266c57be19647762ee63b012683beb6919c6bc2ecdc66ca174edec44a0"},
 ]
 pylint = [
     {file = "pylint-2.13.9-py3-none-any.whl", hash = "sha256:705c620d388035bdd9ff8b44c5bcdd235bfb49d276d488dd2c8ff1736aa42526"},
@@ -4071,8 +4072,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.293.tar.gz", hash = "sha256:0fa42bb0e3dc3453841e1d94ba183e32d84e544ae060f54d47d35729549d4039"},
-    {file = "python_opsi-4.2.0.293-py3-none-any.whl", hash = "sha256:ca8cea73480c9fb273ad4371e3efec7a303aa8b4327e5b3dcedbb9af9db837f7"},
+    {file = "python-opsi-4.2.0.294.tar.gz", hash = "sha256:da4bbe632a6171104cc2d40fabb7599318d968638f850ed3f94d5ba4454dbf68"},
+    {file = "python_opsi-4.2.0.294-py3-none-any.whl", hash = "sha256:9f3103a4149a54ed06ad0d9244d30bf5c38f8f4d531880f1a4c403c717f34671"},
 ]
 python-opsi-common = [
     {file = "python-opsi-common-4.2.0.287.tar.gz", hash = "sha256:a11c60b66b8efa1bc4c05b6365b8c4db0d49bdec64d6da4c0dec9fbc8b42c3aa"},
@@ -4164,8 +4165,8 @@ ruyaml = [
     {file = "ruyaml-0.91.0.tar.gz", hash = "sha256:6ce9de9f4d082d696d3bde264664d1bcdca8f5a9dff9d1a1f1a127969ab871ab"},
 ]
 schemathesis = [
-    {file = "schemathesis-3.15.2-py3-none-any.whl", hash = "sha256:ccaf567b54b102fc64b498f30cfe4028a256a34edaeeb84ea66a83d3b7e8893d"},
-    {file = "schemathesis-3.15.2.tar.gz", hash = "sha256:0e7f38e8d31fb9f8168d19974704f8968a7e64449e66e6e89462d6bcea1df199"},
+    {file = "schemathesis-3.15.3-py3-none-any.whl", hash = "sha256:ea7bb9c76968c4efe1a32f8b3dcd5e96017982bc333db04467fbbff1aa700c04"},
+    {file = "schemathesis-3.15.3.tar.gz", hash = "sha256:b5b3b210e7320f12cbcd074b00dee75597e807d3b121ff1d0191d96ae2e8e305"},
 ]
 service-identity = [
     {file = "service-identity-21.1.0.tar.gz", hash = "sha256:6e6c6086ca271dc11b033d17c3a8bea9f24ebff920c587da090afc9519419d34"},
@@ -4319,16 +4320,16 @@ types-pyopenssl = [
     {file = "types_pyOpenSSL-22.0.3-py3-none-any.whl", hash = "sha256:cfa34b5cb57c2e4336a5f5b388cbab5abfe150bca66a6fa17104e4e3a252ddf8"},
 ]
 types-redis = [
-    {file = "types-redis-4.2.5.tar.gz", hash = "sha256:88f04d99f20c20c3d0129c37601f9e70c01b71f1faef473766cfa3dddbd5e5d5"},
-    {file = "types_redis-4.2.5-py3-none-any.whl", hash = "sha256:c0123db52d9b1a887cd3c7bc0d9cb03893dc3873969ffc55a99c9a9ad9d32a79"},
+    {file = "types-redis-4.2.6.tar.gz", hash = "sha256:d6adc77185cf40b300816767a64c0ee9ee0b21dc174e8e5c23b7e83d43189cb8"},
+    {file = "types_redis-4.2.6-py3-none-any.whl", hash = "sha256:1136af954ade0be33b487f440c8cbcbee29f089a83e685484ec91f363c6c69fe"},
 ]
 types-requests = [
-    {file = "types-requests-2.27.27.tar.gz", hash = "sha256:d618d9809fa32f514cf17cea8460814da671c56366fb1c908accca8bf183112b"},
-    {file = "types_requests-2.27.27-py3-none-any.whl", hash = "sha256:6d8463ffe1f6edcf2e5361740a6140e7a16d427c267d83c7c1d3d1298f4e67c5"},
+    {file = "types-requests-2.27.29.tar.gz", hash = "sha256:fb453b3a76a48eca66381cea8004feaaea12835e838196f5c7ac87c75c5c19ef"},
+    {file = "types_requests-2.27.29-py3-none-any.whl", hash = "sha256:014f4f82db7b96c41feea9adaea30e68cd64c230eeab34b70c29bebb26ec74ac"},
 ]
 types-urllib3 = [
-    {file = "types-urllib3-1.26.14.tar.gz", hash = "sha256:2a2578e4b36341ccd240b00fccda9826988ff0589a44ba4a664bbd69ef348d27"},
-    {file = "types_urllib3-1.26.14-py3-none-any.whl", hash = "sha256:5d2388aa76395b1e3999ff789ea5b3283677dad8e9bcf3d9117ba19271fd35d9"},
+    {file = "types-urllib3-1.26.15.tar.gz", hash = "sha256:c89283541ef92e344b7f59f83ea9b5a295b16366ceee3f25ecfc5593c79f794e"},
+    {file = "types_urllib3-1.26.15-py3-none-any.whl", hash = "sha256:6011befa13f901fc934f59bb1fd6973be6f3acf4ebfce427593a27e7f492918f"},
 ]
 typing-extensions = [
     {file = "typing_extensions-4.2.0-py3-none-any.whl", hash = "sha256:6657594ee297170d19f67d55c05852a874e7eb634f4f753dbd667855e07c1708"},

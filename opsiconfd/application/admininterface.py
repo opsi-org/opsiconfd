@@ -395,7 +395,7 @@ def open_grafana(request: Request):
 		"localhost",
 		FQDN,
 	):
-		url = f"{request.base_url.scheme}://{FQDN}:{request.base_url.port}{request.base_url.path}"
+		url = f"{request.base_url.scheme}://{FQDN}:{request.base_url.port}{request.scope['path']}"
 		logger.info("Redirecting %s to %s (%s)", request.base_url.hostname, FQDN, url)
 		return RedirectResponse(url)
 

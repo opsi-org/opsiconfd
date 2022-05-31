@@ -20,12 +20,7 @@ import aioredis
 from fastapi import HTTPException, status
 from fastapi.exceptions import ValidationError
 from fastapi.requests import HTTPConnection
-from fastapi.responses import (
-	JSONResponse,
-	PlainTextResponse,
-	RedirectResponse,
-	Response,
-)
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from msgpack import dumps as msgpack_dumps  # type: ignore[import]
 from msgpack import loads as msgpack_loads  # type: ignore[import]
 from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
@@ -48,7 +43,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from . import contextvar_client_session, contextvar_server_timing
 from .addon import AddonManager
 from .backend import get_client_backend
-from .config import FQDN, config
+from .config import config
 from .logging import logger
 from .utils import (
 	async_redis_client,
@@ -159,15 +154,6 @@ class SessionMiddleware:
 		if scope["type"] not in ("http", "websocket"):
 			await self.app(scope, receive, send)
 			return
-
-		# Process redirects
-		if scope["path"].startswith("/admin/grafana") and connection.base_url.hostname not in ("127.0.0.1", "::1", "0.0.0.0", "localhost"):
-			if connection.base_url.hostname != FQDN:
-				url = f'https://{FQDN}:{connection.base_url.port}{scope["path"]}'
-				logger.info("Redirecting %s to %s (%s)", connection.base_url.hostname, FQDN, url)
-				response = RedirectResponse(url, status_code=308)
-				await response(scope, receive, send)
-				return
 
 		# Set default access role
 		required_access_role = ACCESS_ROLE_ADMIN

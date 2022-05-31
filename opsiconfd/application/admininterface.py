@@ -388,9 +388,16 @@ async def get_blocked_clients() -> list:
 
 @admin_interface_router.get("/grafana")
 def open_grafana(request: Request):
-
-	if request.base_url.hostname != FQDN:
-		return RedirectResponse(f"https://{FQDN}:{request.url.port}/admin/grafana")
+	if request.base_url.hostname not in (
+		"127.0.0.1",
+		"::1",
+		"0.0.0.0",
+		"localhost",
+		FQDN,
+	):
+		url = f"{request.base_url.scheme}://{FQDN}:{request.base_url.port}{request.base_url.path}"
+		logger.info("Redirecting %s to %s (%s)", request.base_url.hostname, FQDN, url)
+		return RedirectResponse(url)
 
 	base_url, session = grafana_admin_session()
 	redirect_response = RedirectResponse("/metrics/grafana/dashboard")

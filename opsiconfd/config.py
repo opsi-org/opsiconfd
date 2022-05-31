@@ -8,7 +8,6 @@
 global config
 """
 
-import codecs
 import getpass
 import ipaddress
 import os
@@ -37,7 +36,7 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
 # update-ip = true
 """
-DEPRECATED = ["monitoring-debug", "verify-ip"]
+DEPRECATED = ("monitoring-debug", "verify-ip")
 
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
@@ -93,11 +92,11 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		# Delay its import for speeding up the common usage of argparse.
 		text = text.replace("[env var: ", "\n[env var: ")
 		text = text.replace("(default: ", "\n(default: ")
-		lines = []
-		import textwrap  # pylint: disable=import-outside-toplevel
+		lines = []  # pylint: disable=use-tuple-over-list
+		from textwrap import wrap  # pylint: disable=import-outside-toplevel
 
 		for line in text.split("\n"):
-			lines += textwrap.wrap(line, width)
+			lines += wrap(line, width)
 		return lines
 
 	def format_help(self):
@@ -125,7 +124,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		text = action.help
 		if "passphrase" not in action.dest and "%(default)" not in action.help:
 			if action.default is not SUPPRESS:
-				defaulting_nargs = [OPTIONAL, ZERO_OR_MORE]
+				defaulting_nargs = (OPTIONAL, ZERO_OR_MORE)
 				if action.dest == "config_file":
 					text += f" (default: {DEFAULT_CONFIG_FILE})"
 				elif action.option_strings or action.nargs in defaulting_nargs:
@@ -219,7 +218,7 @@ class Config(metaclass=Singleton):
 					self._args[idx + 1] = config_file
 					return
 			elif arg.startswith("--config-file="):
-				self._args[idx] = f"--config-file={config_file}"
+				self._args[idx] = f"--config-file={config_file}"  # pylint: disable=loop-invariant-statement
 				return
 		self._args = ["--config-file", config_file] + self._args
 
@@ -248,13 +247,11 @@ class Config(metaclass=Singleton):
 				lines.pop()
 			lines.append(conf_line)
 			lines.append("")
-		with codecs.open(config_file.name, "w", "utf-8") as file:
+		with open(config_file.name, "w", encoding="utf-8") as file:
 			file.write("\n".join(lines))
 
 	def _upgrade_config_files(self):
-		defaults = {}
-		for action in self._parser._actions:  # pylint: disable=protected-access
-			defaults[action.dest] = action.default
+		defaults = {action.dest: action.default for action in self._parser._actions}  # pylint: disable=protected-access
 		# Do not migrate ssl key/cert
 		mapping = {
 			"backend config dir": "backend-config-dir",
@@ -273,6 +270,8 @@ class Config(metaclass=Singleton):
 			"max authentication failures": "max-auth-failures",
 			"max sessions per ip": "max-session-per-ip",
 		}
+
+		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 		for config_file in self._parser._open_config_files(self._args):  # pylint: disable=protected-access
 			data = config_file.read()
 			config_file.close()
@@ -280,9 +279,8 @@ class Config(metaclass=Singleton):
 				# Config file not in opsi 4.1 format
 				continue
 
-			re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-			with codecs.open(config_file.name, "w", "utf-8") as file:
-				file.write(CONFIG_FILE_HEADER.lstrip())
+			with open(config_file.name, "w", encoding="utf-8") as file:
+				file.write(CONFIG_FILE_HEADER.lstrip())  # pylint: disable=loop-global-usage
 				for line in data.split("\n"):
 					match = re_opt.match(line)
 					if match:
@@ -303,20 +301,20 @@ class Config(metaclass=Singleton):
 				file.write("\n")
 
 	def _update_config_files(self):
+		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=")
 		for config_file in self._parser._open_config_files(self._args):  # pylint: disable=protected-access
 			data = config_file.read()
 			config_file.close()
-			re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=")
 			new_data = ""
 			for idx, line in enumerate(data.split("\n")):
 				match = re_opt.match(line)
-				if match and match.group(1).strip().lower() in DEPRECATED:
+				if match and match.group(1).strip().lower() in DEPRECATED:  # pylint: disable=loop-global-usage
 					continue
 				new_data += line
 				if idx < len(data.split("\n")) - 1:
 					new_data += "\n"
 			if data != new_data:
-				with codecs.open(config_file.name, "w", "utf-8") as file:
+				with open(config_file.name, "w", encoding="utf-8") as file:
 					file.write(new_data)
 
 	def _init_parser(self):  # pylint: disable=too-many-statements

@@ -244,10 +244,12 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 				if header_logger.isEnabledFor(TRACE):
 					header_logger.trace("<<< HTTP/%s %s %s", scope.get("http_version"), scope.get("method"), scope.get("path"))
 					for header, value in req_headers.items():
-						header_logger.trace("<<< %s: %s", header.decode("utf-8", "replace"), value.decode("utf-8", "replace"))
+						header_logger.trace(  # pylint: disable=loop-global-usage
+							"<<< %s: %s", header.decode("utf-8", "replace"), value.decode("utf-8", "replace")
+						)
 					header_logger.trace(">>> HTTP/%s %s", scope.get("http_version"), message.get("status"))
 					for header, value in dict(headers).items():
-						header_logger.trace(">>> %s: %s", header, value)
+						header_logger.trace(">>> %s: %s", header, value)  # pylint: disable=loop-global-usage
 
 			self.before_send(scope, receive, send)
 			await send(message)

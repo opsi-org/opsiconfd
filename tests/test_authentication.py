@@ -38,7 +38,7 @@ login_test_data = (
 
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
 def test_login_error(test_client, auth_data, expected_status_code, expected_text):  # pylint: disable=redefined-outer-name,unused-argument
-	res = test_client.get("/", auth=(auth_data))
+	res = test_client.get("/session/authenticated", auth=(auth_data))
 	assert res.status_code == expected_status_code
 	assert res.text == expected_text
 	assert res.headers.get("set-cookie", None) is not None

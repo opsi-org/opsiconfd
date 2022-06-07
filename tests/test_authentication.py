@@ -188,7 +188,7 @@ def test_max_auth_failures(test_client):  # pylint: disable=redefined-outer-name
 				# print("=== num_failed_auth ==>>>", num_failed_auth)
 
 			res = test_client.get("/session/authenticated", auth=("client.domain.tld", "hostkey"))
-			# print("===>>>", num, max_auth_failures, res.status_code)
+			print("Auth: ", num, max_auth_failures, res.status_code)
 			if num > max_auth_failures:
 				assert res.status_code == 403
 				assert "blocked" in res.text

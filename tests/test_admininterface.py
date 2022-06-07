@@ -420,39 +420,6 @@ def get_session_count(client) -> int:
 	return len(res.json())
 
 
-@pytest.mark.parametrize(
-	"user,req_body",
-	[
-		(ADMIN_USER, None),
-		("", None),
-		(
-			ADMIN_USER,
-			{"return_401": True},
-		),
-		(ADMIN_USER, {"return_401": False}),
-		("", {"return_401": True}),
-	],
-)
-def test_logout(test_client, user, req_body):  # pylint: disable=redefined-outer-name
-	addr = test_client.get_client_address()
-	test_client.set_client_address("192.168.36.1", 1111)
-	# call server to create a session
-	res = test_client.get("/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
-	assert get_session_count(test_client) == 1
-	# logout client 192.168.36.1
-	res = test_client.post("/admin/logout", auth=(user, ADMIN_PASS), json=req_body)
-	if req_body and req_body.get("return_401"):
-		assert res.status_code == 401
-	else:
-		assert res.status_code == 200
-	# test session count sould be 0
-	test_client.set_client_address(addr[0], addr[1])
-	assert get_session_count(test_client) == 0
-	# test session count sould be 1
-	assert get_session_count(test_client) == 1
-
-
 def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
 	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200

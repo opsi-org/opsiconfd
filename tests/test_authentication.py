@@ -66,6 +66,25 @@ def test_login_endpoint(test_client):  # pylint: disable=redefined-outer-name,un
 	assert res.status_code == 200
 
 
+def test_logout_endpoint(test_client):  # pylint: disable=redefined-outer-name
+	with sync_redis_client() as redis:
+		client_addr = "192.168.1.1"
+		test_client.set_client_address(client_addr, 12345)
+
+		res = test_client.get("/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
+		assert res.status_code == 200
+
+		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
+		assert len(keys) == 1
+		assert keys[0].startswith(f"opsiconfd:sessions:{ip_address_to_redis_key(client_addr)}:")
+
+		res = test_client.get("/logout")
+		assert res.status_code == 200
+
+		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
+		assert len(keys) == 0
+
+
 def test_change_session_ip(test_client):  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 		client_addr = "192.168.1.1"

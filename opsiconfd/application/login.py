@@ -9,7 +9,7 @@ login
 """
 
 from fastapi import APIRouter, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
 from opsiconfd.config import config
 from opsiconfd.rest import rest_api

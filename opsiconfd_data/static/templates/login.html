@@ -17,6 +17,7 @@
 				let ajax = new XMLHttpRequest();
 				ajax.open("POST", "/session/login");
 				ajax.setRequestHeader("Content-Type", "application/json");
+				ajax.setRequestHeader("x-opsi-session-lifetime", "900");
 				ajax.onreadystatechange = function () {
 					if (ajax.readyState === 4) {
 						button.disabled = false;

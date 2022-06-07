@@ -343,7 +343,12 @@ class SessionMiddleware:
 			if connection.headers.get("accept") and "application/json" in connection.headers.get("accept"):
 				logger.debug("Returning json response because of accept header")
 				response = JSONResponse(status_code=status_code, content={"error": error}, headers=headers)
-		if not response and status_code == status.HTTP_401_UNAUTHORIZED and scope["path"] and scope["path"].lower().startswith("/admin"):
+		if (
+			not response
+			and status_code == status.HTTP_401_UNAUTHORIZED
+			and scope["path"]
+			and scope["path"].lower().split("#", 1)[0].rstrip("/") == "/admin"
+		):
 			response = RedirectResponse("/login", headers=headers)
 		if not response:
 			logger.debug("Returning plaintext response")

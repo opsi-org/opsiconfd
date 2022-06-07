@@ -113,7 +113,7 @@ class AddonManager(metaclass=Singleton):
 		self.unload_addons()
 		self.load_addons()
 
-	@lru_cache(maxsize=100)
+	@lru_cache(maxsize=50)
 	def get_addon_by_path(self, path: str) -> Optional[Addon]:
 		path = path or ""
 		for addon in self.addons:

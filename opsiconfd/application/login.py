@@ -9,12 +9,10 @@ login
 """
 
 from fastapi import APIRouter, Request, status
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from opsiconfd.config import config
-from opsiconfd.logging import logger
-from opsiconfd.rest import OpsiApiException, rest_api
+from opsiconfd.rest import rest_api
 from opsiconfd.session import authenticate, get_session
 
 login_router = APIRouter()
@@ -53,7 +51,7 @@ async def login(request: Request, login_data: LoginData):
 
 @logout_router.get("")
 @logout_router.get("/")
-@rest_api()
+@rest_api
 async def logout(request: Request):
 	if request.scope["session"]:
 		await request.scope["session"].delete()

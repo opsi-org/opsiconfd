@@ -13,7 +13,7 @@ import asyncio
 import math
 import traceback
 from functools import wraps
-from typing import List, Optional
+from typing import Callable, List, Optional, Union
 
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
@@ -93,8 +93,14 @@ def common_query_parameters(
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 
 
-def rest_api(default_error_status_code: Optional[int] = status.HTTP_500_INTERNAL_SERVER_ERROR):
-	def decorator(func):
+def rest_api(default_error_status_code: Union[Callable, int, None] = None):
+	_func = None
+	if callable(default_error_status_code):
+		# Decorator used as @rest_api not @rest_api(...)
+		_func = default_error_status_code
+		default_error_status_code = None
+
+	def decorator(func: Callable):
 		name = func.__qualname__
 
 		async def exec_func(func, *args, **kwargs):
@@ -151,7 +157,7 @@ def rest_api(default_error_status_code: Optional[int] = status.HTTP_500_INTERNAL
 					content = {
 						"class": err.__class__.__name__,
 						"code": None,
-						"status": default_error_status_code,
+						"status": default_error_status_code or status.HTTP_500_INTERNAL_SERVER_ERROR,
 						"message": str(err),
 						"details": str(traceback.format_exc()),
 					}
@@ -164,4 +170,7 @@ def rest_api(default_error_status_code: Optional[int] = status.HTTP_500_INTERNAL
 					del content["details"]
 				return JSONResponse(content=content, status_code=content["status"])
 		return create_response
+
+	if _func:
+		return decorator(_func)
 	return decorator

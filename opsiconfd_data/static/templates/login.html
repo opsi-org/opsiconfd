@@ -5,46 +5,48 @@
 	<title>Login</title>
 	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
 	<script>
-		window.addEventListener("keydown", function (event) {
-			if (event.keyCode === 13) {
-				document.getElementById("login_button").click();
-			}
-		});
+		function onLoad() {
+			document.getElementById('login_form').onsubmit = function (event) {
+				event.preventDefault();
 
-		function login() {
-			let username = document.getElementById("login_username").value;
-			let password = document.getElementById("login_password").value;
-			let button = document.getElementById("login_button");
-			button.disabled = true;
-			let ajax = new XMLHttpRequest();
-			ajax.open("POST", "/session/login");
-			ajax.setRequestHeader("Content-Type", "application/json");
-			ajax.onreadystatechange = function () {
-				if (ajax.readyState === 4) {
-					button.disabled = false;
-					let response = JSON.parse(ajax.responseText);
-					if (ajax.status == 200) {
-						location.href = "/admin" + window.location.hash;
+				let username = document.getElementById("login_username").value;
+				let password = document.getElementById("login_password").value;
+				let button = document.getElementById("login_button");
+				button.disabled = true;
+
+				let ajax = new XMLHttpRequest();
+				ajax.open("POST", "/session/login");
+				ajax.setRequestHeader("Content-Type", "application/json");
+				ajax.onreadystatechange = function () {
+					if (ajax.readyState === 4) {
+						button.disabled = false;
+						let response = JSON.parse(ajax.responseText);
+						if (ajax.status == 200) {
+							location.href = "/admin" + window.location.hash;
+						}
+						else {
+							console.error(response);
+							document.getElementById("login_error").innerHTML = response.message;
+						}
 					}
-					else {
-						console.error(response);
-						document.getElementById("login_error").innerHTML = response.message;
-					}
-				}
-			};
-			ajax.send(
-				JSON.stringify({ username: username, password: password })
-			);
+				};
+				ajax.send(
+					JSON.stringify({ username: username, password: password })
+				);
+			}
 		}
 	</script>
 </head>
 
-<body id="login">
+<body id="login" onload="onLoad()">
 	<div class="login-form">
 		<h1>opsiconfd login</h1>
-		<input id="login_username" type="text" placeholder="Username" required>
-		<input id="login_password" type="password" placeholder="Password" required>
-		<button id="login_button" type="submit" onclick="login();">Login</button>
+		<form id="login_form" action="/login" method="post">
+			<input id="login_username" type="text" placeholder="Username" autocomplete="username" autocorrect="off"
+				required>
+			<input id="login_password" type="password" placeholder="Password" autocomplete="current-password" required>
+			<button id="login_button" type="submit">Login</button>
+		</form>
 		<div id="login_error"></div>
 	</div>
 </body>

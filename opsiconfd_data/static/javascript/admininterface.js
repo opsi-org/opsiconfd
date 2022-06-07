@@ -877,11 +877,7 @@ function logout() {
 	let request = new XMLHttpRequest();
 	request.open("GET", "/session/logout");
 	request.addEventListener('load', function (event) {
-		cookieStore.getAll().then(cookies => cookies.forEach(cookie => {
-			if (cookie.name.toLowerCase().includes("opsi")) {
-				cookieStore.delete(cookie.name);
-			}
-		}));
+		document.cookie = "opsiconfd-session=; SameSite=Strict; Secure; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 		location.href = "/login";
 	});
 	request.send();

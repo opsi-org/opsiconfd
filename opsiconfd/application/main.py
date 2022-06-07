@@ -300,6 +300,7 @@ def application_setup():
 			"/metrics/grafana",
 			"/public",
 			"/session/login",
+			"/session/logout",
 			"/ssl/opsi-ca-cert.pem",
 			"/status",
 			"/static",

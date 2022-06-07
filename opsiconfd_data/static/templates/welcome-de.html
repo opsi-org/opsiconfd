@@ -1,94 +1,93 @@
 <head>
-    <meta charset='utf-8'>
-    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
-    <title>Willkommen</title>
-    <link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
-    <script src="/static/javascript/common.js"></script>
-    <script src="/static/javascript/admininterface.js"></script>
-    <script src="/static/javascript/welcome.js"></script>
+	<meta charset='utf-8'>
+	<meta http-equiv='X-UA-Compatible' content='IE=edge'>
+	<title>Willkommen</title>
+	<link rel="stylesheet" type="text/css" href="/static/opsiconfd.css">
+	<script src="/static/javascript/common.js"></script>
+	<script src="/static/javascript/admininterface.js"></script>
+	<script src="/static/javascript/welcome.js"></script>
 </head>
 
-
 <body>
-    <div class="header">
-        <div style="width: 120px; float: left">
-            <img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
-        </div>
-        <div style="overflow: hidden; display: flex; height: 100%;">
-            <div style="display: inline-block; align-self: flex-end;">
-                <h1>Willkommen bei opsi!</h1>
-            </div>
-        </div>
-    </div>
+	<div class="header">
+		<div style="width: 120px; float: left">
+			<img id="interface-logo" src="/static/opsi_logo.png" alt="opsi logo">
+		</div>
+		<div style="overflow: hidden; display: flex; height: 100%;">
+			<div style="display: inline-block; align-self: flex-end;">
+				<h1>Willkommen bei opsi!</h1>
+			</div>
+		</div>
+	</div>
 
-    <div class="content">
-        <br>
+	<div class="content">
+		<br>
 
-        <p>Hier finden Sie Links, die Ihnen beim Einstieg helfen:</p>
+		<p>Hier finden Sie Links, die Ihnen beim Einstieg helfen:</p>
 
-        <div class="adminpage-box" id="welcome">
+		<div class="adminpage-box" id="welcome">
 
-            <ul>
-                <li>
-                    <p>
-                        <a href="https://docs.opsi.org/opsi-docs-de/4.2/getting-started/getting-started.html"
-                            target="_blank" rel="noopener noreferrer">Hier</a> finden Sie das
-                        opsi-Getting-Started-Handbuch</a>.
-                    </p>
-                </li>
-                <li>
-                    <p>
-                        Laden Sie die Management-Oberfläche <a href="#" onclick="downloadConfiged()">opsi-configed</a>
-                        herunter.
-                        <br />
-                        Über den opsi-configed können Sie dann Ihr opsi-System konfigurieren und die ersten
-                        <a href="https://docs.opsi.org/opsi-docs-de/4.2/getting-started/adding-clients.html"
-                            target="_blank" rel="noopener noreferrer">
-                            Clients anlegen
-                        </a>.
-                    </p>
-                </li>
-                <li>
-                    <p>Über das
-                        <a href="/admin/#terminal" target="_blank" rel="noopener noreferrer">opsiconfd admin
-                            terminal</a>
-                        können Sie
-                        <a href="https://docs.opsi.org/opsi-docs-de/4.2/getting-started/server/minimal-products.html"
-                            target="_blank" rel="noopener noreferrer">
-                            opsi-Pakete auf Ihrem Server installieren
-                        </a>.
+			<ul>
+				<li>
+					<p>
+						<a href="https://docs.opsi.org/opsi-docs-de/4.2/getting-started/getting-started.html"
+							target="_blank" rel="noopener noreferrer">Hier</a> finden Sie das
+						opsi-Getting-Started-Handbuch</a>.
+					</p>
+				</li>
+				<li>
+					<p>
+						Laden Sie die Management-Oberfläche <a href="#" onclick="downloadConfiged()">opsi-configed</a>
+						herunter.
+						<br />
+						Über den opsi-configed können Sie dann Ihr opsi-System konfigurieren und die ersten
+						<a href="https://docs.opsi.org/opsi-docs-de/4.2/getting-started/adding-clients.html"
+							target="_blank" rel="noopener noreferrer">
+							Clients anlegen
+						</a>.
+					</p>
+				</li>
+				<li>
+					<p>Über das
+						<a href="/admin/#terminal" target="_blank" rel="noopener noreferrer">opsiconfd admin
+							terminal</a>
+						können Sie
+						<a href="https://docs.opsi.org/opsi-docs-de/4.2/getting-started/server/minimal-products.html"
+							target="_blank" rel="noopener noreferrer">
+							opsi-Pakete auf Ihrem Server installieren
+						</a>.
 
-                    </p>
-                </li>
-                <li>
-                    <p>
-                        Die opsi-Community trifft sich im <a href="https://forum.opsi.org/index.php" target="_blank"
-                            rel="noopener noreferrer">opsi-Forum</a>. Dort finden Sie auch den Link zum
-                        opsi-Wiki.
-                    </p>
-                </li>
+					</p>
+				</li>
+				<li>
+					<p>
+						Die opsi-Community trifft sich im <a href="https://forum.opsi.org/index.php" target="_blank"
+							rel="noopener noreferrer">opsi-Forum</a>. Dort finden Sie auch den Link zum
+						opsi-Wiki.
+					</p>
+				</li>
 
-                {% if ucs_server %}
-                <li>
-                    <p>
-                        <a href="https://docs.opsi.org/opsi-docs-en/4.2/getting-started/server/base-installation.html#opsi-getting-started-installation-base-ucs"
-                            target="_blank" rel="noopener noreferrer">
-                            Hier
-                        </a> finden Sie Informationen zu opsi auf UCS.
-                    </p>
-                    {% endif %}
-                </li>
-                <li>
-                    <p>
-                        Weiter zum <a href="/admin">opsiconfd admin interface</a>.
-                    </p>
-                </li>
-            </ul>
+				{% if ucs_server %}
+				<li>
+					<p>
+						<a href="https://docs.opsi.org/opsi-docs-en/4.2/getting-started/server/base-installation.html#opsi-getting-started-installation-base-ucs"
+							target="_blank" rel="noopener noreferrer">
+							Hier
+						</a> finden Sie Informationen zu opsi auf UCS.
+					</p>
+					{% endif %}
+				</li>
+				<li>
+					<p>
+						Weiter zum <a href="/admin">opsiconfd admin interface</a>.
+					</p>
+				</li>
+			</ul>
 
-        </div>
-        {% if welcome_page %}
-        <h5><input type="checkbox" id="skip" name="skip" onchange="if (this.checked) deactivateWelcomePage();" />Diese
-            Seite nicht mehr anzeigen.</h5>
-        {% endif %}
-    </div>
+		</div>
+		{% if welcome_page %}
+		<h5><input type="checkbox" id="skip" name="skip" onchange="if (this.checked) deactivateWelcomePage();" />Diese
+			Seite nicht mehr anzeigen.</h5>
+		{% endif %}
+	</div>
 </body>

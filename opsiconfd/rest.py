@@ -9,19 +9,20 @@ opsiconfd rest utils
 """
 
 
+import asyncio
 import math
 import traceback
-from typing import Optional, List
 from functools import wraps
+from typing import List, Optional
 
-from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import asc, desc, column  # type: ignore[import]
+from pydantic import BaseModel  # pylint: disable=no-name-in-module
+from sqlalchemy import asc, column, desc  # type: ignore[import]
 
 from . import contextvar_client_session
-from .logging import logger
 from .application.utils import parse_list
+from .logging import logger
 
 
 class RestApiValidationError(BaseModel):  # pylint: disable=too-few-public-methods
@@ -55,13 +56,11 @@ def order_by(query, params):
 	func = asc
 	if params.get("sortDesc", False):
 		func = desc
-	sort_list = []
+	sort_list = None
 	if isinstance(params["sortBy"], list):
-		for col in params["sortBy"]:
-			sort_list.append(func(column(col)))
+		sort_list = [func(column(col)) for col in params["sortBy"]]
 	else:
-		for col in params["sortBy"].split(","):
-			sort_list.append(func(column(col)))
+		sort_list = [func(column(col)) for col in params["sortBy"].split(",")]
 	return query.order_by(*sort_list)
 
 
@@ -97,12 +96,17 @@ def common_query_parameters(
 def rest_api(func):
 	name = func.__qualname__
 
+	async def exec_func(func, *args, **kwargs):
+		if asyncio.iscoroutinefunction(func):
+			return await func(*args, **kwargs)
+		return func(*args, **kwargs)
+
 	@wraps(func)
-	def create_response(*args, **kwargs):  # pylint: disable=too-many-branches,too-many-locals
+	async def create_response(*args, **kwargs):  # pylint: disable=too-many-branches,too-many-locals
 		logger.debug("rest_api method name: %s", name)
 		content = {}
 		try:  # pylint: disable=too-many-branches,too-many-nested-blocks
-			result = func(*args, **kwargs)
+			result = await exec_func(func, *args, **kwargs)
 			headers = result.get("headers", {})
 			headers["Access-Control-Expose-Headers"] = "x-total-count"
 			http_status = result.get("http_status", status.HTTP_200_OK)
@@ -133,10 +137,8 @@ def rest_api(func):
 			return JSONResponse(content=content if content else None, status_code=http_status, headers=headers)
 
 		except Exception as err:  # pylint: disable=broad-except
-			status_code = None
 			content = {}
 			if isinstance(err, OpsiApiException):
-				status_code = err.http_status
 				content = {
 					"class": err.error_class,
 					"code": err.code,
@@ -159,6 +161,6 @@ def rest_api(func):
 				is_admin = session.user_store.isAdmin
 			if not is_admin:
 				del content["details"]
-			return JSONResponse(content=content, status_code=status_code)
+			return JSONResponse(content=content, status_code=content["status_code"])
 
 	return create_response

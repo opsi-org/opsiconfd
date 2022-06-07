@@ -11,6 +11,7 @@ opsiconfd - addon manager
 import importlib
 import os
 import sys
+from functools import lru_cache
 from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
 from os import listdir
 from os.path import abspath, exists, isdir, join
@@ -70,6 +71,7 @@ class AddonManager(metaclass=Singleton):
 				self._addons[cls.id].on_load(app)
 				# Only one class per module
 				break
+		self.get_addon_by_path.cache_clear()
 
 	def load_addons(self) -> None:
 		logger.debug("Loading addons")
@@ -93,6 +95,7 @@ class AddonManager(metaclass=Singleton):
 			raise ValueError(f"Addon '{addon_id} not loaded")
 		self._addons[addon_id].on_unload(app)
 		del self._addons[addon_id]
+		self.get_addon_by_path.cache_clear()
 
 	def unload_addons(self) -> None:
 		for addon in list(self._addons.values()):
@@ -110,6 +113,7 @@ class AddonManager(metaclass=Singleton):
 		self.unload_addons()
 		self.load_addons()
 
+	@lru_cache(maxsize=100)
 	def get_addon_by_path(self, path: str) -> Optional[Addon]:
 		path = path or ""
 		for addon in self.addons:

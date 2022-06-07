@@ -455,7 +455,7 @@ def execute_rpc(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager], requ
 
 	if getattr(method, "deprecated", False):
 		logger.warning(
-			"Client %s (%s) is calling deprecated method '%s'", request.client.host, request.headers.get("user-agent", ""), method_name
+			"Client %s (%s) is calling deprecated method '%s'", request.scope["client"][0], request.headers.get("user-agent", ""), method_name
 		)
 
 	return serialize(method(*params, **keywords))
@@ -470,13 +470,13 @@ def write_error_log(rpc: Any, exception: Exception, request: Request) -> None:
 		method = rpc.get("method")
 		params = rpc.get("params")
 	msg = {
-		"client": request.client.host,
-		"description": f"Processing request from {request.client.host!r} ({request.headers.get('user-agent')}) for method {method!r}",
+		"client": request.scope["client"][0],
+		"description": f"Processing request from {request.scope['client'][0]!r} ({request.headers.get('user-agent')}) for method {method!r}",
 		"method": method,
 		"params": params,
 		"error": str(exception),
 	}
-	with tempfile.NamedTemporaryFile(delete=False, dir=RPC_DEBUG_DIR, prefix=f"{request.client.host}-{now}-", suffix=".log") as log_file:
+	with tempfile.NamedTemporaryFile(delete=False, dir=RPC_DEBUG_DIR, prefix=f"{request.scope['client'][0]}-{now}-", suffix=".log") as log_file:
 		logger.notice("Writing rpc error log to: %s", log_file.name)
 		log_file.write(orjson.dumps(msg))  # pylint: disable=no-member
 
@@ -518,7 +518,7 @@ async def process_rpc(rpc: Any, request: Request):
 		backend = get_client_backend()
 
 	user_agent = request.headers.get("user-agent")
-	logger.debug("Processing request from %s (%s) for %s", request.client.host, user_agent, rpc["method"])
+	logger.debug("Processing request from %s (%s) for %s", request.scope["client"][0], user_agent, rpc["method"])
 	logger.debug("Method '%s', params (short): %.250s", rpc["method"], rpc["params"])
 	logger.trace("Method '%s', params (full): %s", rpc["method"], rpc["params"])
 
@@ -565,7 +565,7 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 		if not result.get("error") and duration > config.jsonrpc_time_to_cache:
 			await store_in_cache(rpc, result)
 
-		await store_rpc_info(rpc, result, duration, date, request.client.host)
+		await store_rpc_info(rpc, result, duration, date, request.scope["client"][0])
 	return results
 
 

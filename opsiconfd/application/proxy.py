@@ -64,8 +64,8 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		request_headers["x-forwarded-proto"] = "https"
 		request_headers["x-forwarded-host"] = request_headers["host"].split(":")[0]
 		request_headers["x-forwarded-server"] = request_headers["host"].split(":")[0]
-		request_headers["x-forwarded-for"] = request.client.host
-		request_headers["x-real-ip"] = request.client.host
+		request_headers["x-forwarded-for"] = request.scope["client"][0]
+		request_headers["x-real-ip"] = request.scope["client"][0]
 
 		remove_headers = []
 		if not self.preserve_host:

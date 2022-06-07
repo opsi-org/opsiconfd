@@ -70,6 +70,14 @@ ACCESS_ROLE_PUBLIC = "public"
 ACCESS_ROLE_AUTHENTICATED = "authenticated"
 ACCESS_ROLE_ADMIN = "admin"
 SESSION_COOKIE_NAME = "opsiconfd-session"
+SESSION_COOKIE_ATTRIBUTES = ("SameSite=Strict", "Secure")
+# Zsync2 will send "curl/<curl-version>" as User-Agent.
+# RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
+# Do not keep sessions because they will never send a cookie (session id).
+# If we keep the session, we may reach the maximum number of sessions per ip.
+SESSION_UNAWARE_USER_AGENTS = ("libdnf", "curl")
+# Store ip addresses of depots with last access time
+depot_addresses: Dict[str, float] = {}
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 
@@ -112,18 +120,56 @@ def get_session_from_context():
 	return None
 
 
+async def get_session(client_addr: str, headers: Headers, session_id: Optional[str] = None) -> "OPSISession":
+
+	max_session_per_ip = config.max_session_per_ip
+	if config.max_sessions_excludes and client_addr in config.max_sessions_excludes:
+		logger.debug("Disable max_session_per_ip for address: %s", client_addr)
+		max_session_per_ip = 0
+	elif client_addr in depot_addresses:
+		# Connection from a known depot server address
+		if time.time() - depot_addresses[client_addr] <= config.session_lifetime:
+			logger.debug("Disable max_session_per_ip for depot server: %s", client_addr)
+			max_session_per_ip = 0
+		else:
+			# Address information is outdated
+			del depot_addresses[client_addr]
+
+	client_max_age = None
+	x_opsi_session_lifetime = headers.get("x-opsi-session-lifetime")
+	if x_opsi_session_lifetime:
+		try:
+			client_max_age = int(x_opsi_session_lifetime)
+		except ValueError:
+			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
+
+	session = OPSISession(
+		client_addr=client_addr,
+		user_agent=headers.get("user-agent"),
+		session_id=session_id,
+		client_max_age=client_max_age,
+		max_session_per_ip=max_session_per_ip,
+	)
+	await session.init()
+	assert session.client_addr == client_addr
+
+	contextvar_client_session.set(session)
+
+	if session.user_agent and session.user_agent.startswith(SESSION_UNAWARE_USER_AGENTS):
+		session.persistent = False
+		logger.debug("Not keeping session for client %s (%s)", client_addr, session.user_agent)
+
+	if session.user_store.host and session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+		logger.debug("Storing depot server address: %s", client_addr)
+		depot_addresses[client_addr] = time.time()
+
+	return session
+
+
 class SessionMiddleware:
 	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
 		self.app = app
-		self.session_cookie_attributes = ("SameSite=Strict", "Secure")
 		self._public_path = public_path or []
-		# Zsync2 will send "curl/<curl-version>" as User-Agent.
-		# RedHat / Alma / Rocky package manager will send "libdnf (<os-version>)".
-		# Do not keep sessions because they will never send a cookie (session id).
-		# If we keep the session, we may reach the maximum number of sessions per ip.
-		self._session_unaware_user_agents = ("libdnf", "curl")
-		# Store ip addresses of depots with last access time
-		self._depot_addresses: Dict[str, float] = {}
 
 	@staticmethod
 	def get_session_id_from_headers(headers: Headers) -> Optional[str]:
@@ -131,13 +177,12 @@ class SessionMiddleware:
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
 		# Workaround:
-		session_cookie_name = SESSION_COOKIE_NAME
 		cookies = headers.get("cookie")
 		if cookies:
 			for cookie in cookies.split(";"):
 				cookie = cookie.strip().split("=", 1)
 				if len(cookie) == 2:
-					if cookie[0].strip().lower() == session_cookie_name:
+					if cookie[0].strip().lower() == SESSION_COOKIE_NAME:
 						return cookie[1].strip().lower()
 		return None
 
@@ -149,7 +194,7 @@ class SessionMiddleware:
 		scope["session"] = None
 		logger.trace("SessionMiddleware %s", scope)
 
-		await check_network(connection)
+		await check_network(scope["client"][0])
 
 		if scope["type"] not in ("http", "websocket"):
 			await self.app(scope, receive, send)
@@ -170,50 +215,21 @@ class SessionMiddleware:
 			scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
 		# Get session
-		started_authenticated = False
 		session_id = self.get_session_id_from_headers(connection.headers)
 		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
-			max_session_per_ip = config.max_session_per_ip
-			if config.max_sessions_excludes and connection.client.host in config.max_sessions_excludes:
-				logger.debug("Disable max_session_per_ip for address: %s", connection.client.host)
-				max_session_per_ip = 0
-			elif connection.client.host in self._depot_addresses:
-				# Connection from a known depot server address
-				if time.time() - self._depot_addresses[connection.client.host] <= config.session_lifetime:
-					logger.debug("Disable max_session_per_ip for depot server: %s", connection.client.host)
-					max_session_per_ip = 0
-				else:
-					# Address information is outdated
-					del self._depot_addresses[connection.client.host]
+			scope["session"] = await get_session(client_addr=scope["client"][0], headers=connection.headers, session_id=session_id)
 
-			scope["session"] = OPSISession(self, session_id, connection, max_session_per_ip=max_session_per_ip)
-			await scope["session"].init()
-
-		if scope["session"]:
-			contextvar_client_session.set(scope["session"])
-			started_authenticated = scope["session"].user_store.authenticated
-
-			if connection.headers.get("user-agent", "").startswith(self._session_unaware_user_agents):
-				scope["session"].persistent = False
-				logger.debug("Not keeping session for client %s (%s)", connection.client.host, connection.headers.get("user-agent"))
+		started_authenticated = scope["session"] and scope["session"].user_store.authenticated
 
 		# Addon request processing
 		if scope["path"].startswith("/addons"):
-			addon = AddonManager().get_addon_by_path(scope["path"])
+			addon = AddonManager().get_addon_by_path("/".join(scope["path"].split("/", 3)[:3]))
 			if addon:
 				logger.debug("Calling %s.handle_request for path '%s'", addon, scope["path"])
 				if await addon.handle_request(connection, receive, send):
 					return
 
-		await check_access(connection, receive)
-
-		if (
-			scope["session"]
-			and scope["session"].user_store.host
-			and scope["session"].user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver")
-		):
-			logger.debug("Storing depot server address: %s", connection.client.host)
-			self._depot_addresses[connection.client.host] = time.time()
+		await check_access(connection)
 
 		# Session handling time
 		session_handling_millis = int((time.perf_counter() - start) * 1000)
@@ -272,8 +288,8 @@ class SessionMiddleware:
 
 			if isinstance(err, BackendAuthenticationError) or not scope["session"] or not scope["session"].user_store.authenticated:
 				cmd = (
-					f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
-					f"* 1 RETENTION 86400000 LABELS client_addr {connection.client.host}"
+					f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
+					f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
 				)
 				logger.debug(cmd)
 				redis = await async_redis_client()
@@ -329,7 +345,7 @@ class SessionMiddleware:
 	) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 		try:
 			connection = HTTPConnection(scope)
-			set_context({"client_address": connection.client.host})
+			set_context({"client_address": scope["client"][0]})
 			await self.handle_request(connection, receive, send)
 		except Exception as err:  # pylint: disable=broad-except
 			await self.handle_request_exception(err, connection, receive, send)
@@ -338,16 +354,20 @@ class SessionMiddleware:
 class OPSISession:  # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
 
-	def __init__(
-		self, session_middelware: SessionMiddleware, session_id: Optional[str], connection: HTTPConnection, max_session_per_ip: int = None
+	def __init__(  # pylint: disable=too-many-arguments
+		self,
+		client_addr: str,
+		user_agent: Optional[str] = None,
+		session_id: Optional[str] = None,
+		client_max_age: Optional[int] = None,
+		max_session_per_ip: int = None,
 	) -> None:
-		self._session_middelware = session_middelware
-		self._connection = connection
 		self._max_session_per_ip = config.max_session_per_ip if max_session_per_ip is None else max_session_per_ip
 		self.session_id = session_id or None
-		self.client_addr = self._connection.client.host
-		self.user_agent = self._connection.headers.get("user-agent")
+		self.client_addr = client_addr
+		self.user_agent = user_agent or ""
 		self.max_age = config.session_lifetime
+		self.client_max_age = client_max_age
 		self.created = 0
 		self.deleted = False
 		self.persistent = True
@@ -361,14 +381,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 	def __repr__(self):
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
-
-	@property
-	def session_cookie_name(self):
-		return self._session_middelware.session_cookie_name
-
-	@property
-	def session_cookie_attributes(self):
-		return self._session_middelware.session_cookie_attributes
 
 	@property
 	def redis_key(self) -> str:
@@ -386,7 +398,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def get_cookie(self) -> Optional[str]:
 		if not self.session_id or self.deleted or not self.persistent:
 			return None
-		attrs = "; ".join(self.session_cookie_attributes)
+		attrs = "; ".join(SESSION_COOKIE_ATTRIBUTES)
 		if attrs:
 			attrs += "; "
 		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"
@@ -531,21 +543,15 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.last_used = now
 
 	def _update_max_age(self) -> None:
-		if not self.user_store or not self.user_store.authenticated:
+		if not self.user_store or not self.user_store.authenticated or not self.client_max_age:
 			return
-		client_max_age = self._connection.headers.get("x-opsi-session-lifetime")
-		if not client_max_age:
-			return
-		try:
-			client_max_age = int(client_max_age)
-			if 0 < client_max_age <= 3600 * 24:
-				if client_max_age != self.max_age:
-					logger.info("Accepting session lifetime %d from client", client_max_age)
-					self.max_age = client_max_age
-			else:
-				logger.warning("Not accepting session lifetime %d from client", client_max_age)
-		except ValueError:
-			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", client_max_age)
+
+		if 0 < self.client_max_age <= 3600 * 24:
+			if self.client_max_age != self.max_age:
+				logger.info("Accepting session lifetime %d from client", self.client_max_age)
+				self.max_age = self.client_max_age
+		else:
+			logger.warning("Not accepting session lifetime %d from client", self.client_max_age)
 
 	def get(self, name: str, default: Any = None) -> Any:
 		return self._data.get(name, default)
@@ -554,32 +560,28 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self._data[key] = value
 
 
-def update_host_object(connection: HTTPConnection, session: OPSISession) -> None:
-	hosts = get_client_backend().host_getObjects(["ipAddress", "lastSeen"], id=session.user_store.host.id)  # pylint: disable=no-member
+def update_host_object(host_id: str, ip_address: str) -> None:
+	hosts = get_client_backend().host_getObjects(["ipAddress", "lastSeen"], id=host_id)  # pylint: disable=no-member
 	if not hosts:
-		logger.error("Host %s not found in backend while trying to update ip address and lastseen", session.user_store.host.id)
+		logger.error("Host %s not found in backend while trying to update ip address and lastseen", host_id)
 		return
 	host = hosts[0]
 	if host.getType() != "OpsiClient":
 		return
 	host.setLastSeen(timestamp())
-	if config.update_ip and connection.client.host not in (None, "127.0.0.1", "::1", host.ipAddress):
-		host.setIpAddress(connection.client.host)
+	if config.update_ip and ip_address not in (None, "127.0.0.1", "::1", host.ipAddress):
+		host.setIpAddress(ip_address)
 	else:
 		# Value None on update means no change!
 		host.ipAddress = None
 	get_client_backend().host_updateObjects(host)  # pylint: disable=no-member
 
 
-async def authenticate(connection: HTTPConnection, receive: Receive) -> None:  # pylint: disable=unused-argument
-	logger.info("Start authentication of client %s", connection.client.host)
-	session = connection.scope["session"]
-	username = None
-	password = None
+async def authenticate(session: OPSISession, username: str, password: str) -> None:  # pylint: disable=unused-argument
+	logger.info("Start authentication of client %s", session.client_addr)
 
-	auth = get_basic_auth(connection.headers)
-	username = auth.username
-	password = auth.password
+	# Check if host address is blocked
+	await check_blocked(session.client_addr)
 
 	auth_type = None
 	if username == config.monitoring_user:
@@ -589,24 +591,28 @@ async def authenticate(connection: HTTPConnection, receive: Receive) -> None:  #
 		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)
-	logger.debug("Client %s authenticated, username: %s", connection.client.host, session.user_store.username)
+	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.user_store.username)
 
 	if username == config.monitoring_user:
 		session.user_store.isAdmin = False
 		session.user_store.isReadOnly = True
 
+	if session.user_store.host and session.user_store.host.getType() == "OpsiClient":
+		logger.info("OpsiClient authenticated, updating host object")
+		await run_in_threadpool(update_host_object, session.user_store.host.id, session.client_addr)
 
-async def check_blocked(connection: HTTPConnection) -> None:
-	logger.info("Checking if client '%s' is blocked", connection.client.host)
+
+async def check_blocked(ip_address: str) -> None:
+	logger.info("Checking if client '%s' is blocked", ip_address)
 	redis = await async_redis_client()
-	is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}"))
+	is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(ip_address)}"))
 	if is_blocked:
-		logger.info("Client '%s' is blocked", connection.client.host)
-		raise ConnectionRefusedError(f"Client '{connection.client.host}' is blocked")
+		logger.info("Client '%s' is blocked", ip_address)
+		raise ConnectionRefusedError(f"Client '{ip_address}' is blocked")
 
 	now = round(time.time()) * 1000
 	cmd = (
-		f"ts.range opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(connection.client.host)} "
+		f"ts.range opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(ip_address)} "
 		f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
 	)
 	logger.debug(cmd)
@@ -623,35 +629,34 @@ async def check_blocked(connection: HTTPConnection) -> None:
 		num_failed_auth = 0
 	if num_failed_auth >= config.max_auth_failures:
 		is_blocked = True
-		logger.warning("Blocking client '%s' for %0.2f minutes", connection.client.host, (config.client_block_time / 60))
-		await redis.setex(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(connection.client.host)}", config.client_block_time, 1)
+		logger.warning("Blocking client '%s' for %0.2f minutes", ip_address, (config.client_block_time / 60))
+		await redis.setex(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(ip_address)}", config.client_block_time, 1)
 
 
-async def check_network(connection: HTTPConnection) -> None:
+async def check_network(client_addr: str) -> None:
 	if not config.networks:
 		return
 	for network in config.networks:
-		if ipAddressInNetwork(connection.client.host, network):
+		if ipAddressInNetwork(client_addr, network):
 			return
-	raise ConnectionRefusedError(f"Host '{connection.client.host}' is not allowed to connect")
+	raise ConnectionRefusedError(f"Host '{client_addr}' is not allowed to connect")
 
 
-async def check_access(connection: HTTPConnection, receive: Receive) -> None:
+async def check_access(connection: HTTPConnection) -> None:
 	scope = connection.scope
 	if scope["required_access_role"] == ACCESS_ROLE_PUBLIC:
 		return
 
 	session = connection.scope["session"]
+	client_addr = scope["client"][0]
 
 	if not session.user_store.username or not session.user_store.authenticated:
-		# Check if host address is blocked
-		await check_blocked(connection)
-		# Authenticate
-		await authenticate(connection, receive)
 
-		if session.user_store.host and session.user_store.host.getType() == "OpsiClient":
-			logger.info("OpsiClient authenticated, updating host object")
-			await run_in_threadpool(update_host_object, connection, session)
+		auth = get_basic_auth(connection.headers)
+		await authenticate(session, auth.username, auth.password)
+
+		if not session.user_store.username or not session.user_store.authenticated:
+			raise BackendPermissionDeniedError("Not authenticated")
 
 		if not session.user_store.host and scope["path"].startswith("/depot") and FILE_ADMIN_GROUP not in session.user_store.userGroups:
 			raise BackendPermissionDeniedError(f"Not a file admin user '{session.user_store.username}'")
@@ -659,7 +664,7 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 		if session.user_store.isAdmin and config.admin_networks:
 			is_admin_network = False
 			for network in config.admin_networks:
-				if ipAddressInNetwork(connection.client.host, network):
+				if ipAddressInNetwork(client_addr, network):
 					is_admin_network = True
 					break
 
@@ -667,7 +672,7 @@ async def check_access(connection: HTTPConnection, receive: Receive) -> None:
 				logger.warning(
 					"User '%s' from '%s' not in admin network '%s'",
 					session.user_store.username,
-					connection.client.host,
+					client_addr,
 					config.admin_networks,
 				)
 				session.user_store.isAdmin = False

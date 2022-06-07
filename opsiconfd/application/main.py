@@ -284,7 +284,7 @@ def application_setup():
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
 	app.add_middleware(
 		SessionMiddleware,
-		public_path=["/metrics/grafana", "/ssl/opsi-ca-cert.pem", "/status", "/public", "/dav/public", "/static", "/welcome"],
+		public_path=["/metrics/grafana", "/ssl/opsi-ca-cert.pem", "/status", "/public", "/dav/public", "/static", "/welcome", "/login"],
 	)
 	# app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)

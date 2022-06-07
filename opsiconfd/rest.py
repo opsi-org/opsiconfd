@@ -93,74 +93,75 @@ def common_query_parameters(
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 
 
-def rest_api(func):
-	name = func.__qualname__
+def rest_api(default_error_status_code: Optional[int] = status.HTTP_500_INTERNAL_SERVER_ERROR):
+	def decorator(func):
+		name = func.__qualname__
 
-	async def exec_func(func, *args, **kwargs):
-		if asyncio.iscoroutinefunction(func):
-			return await func(*args, **kwargs)
-		return func(*args, **kwargs)
+		async def exec_func(func, *args, **kwargs):
+			if asyncio.iscoroutinefunction(func):
+				return await func(*args, **kwargs)
+			return func(*args, **kwargs)
 
-	@wraps(func)
-	async def create_response(*args, **kwargs):  # pylint: disable=too-many-branches,too-many-locals
-		logger.debug("rest_api method name: %s", name)
-		content = {}
-		try:  # pylint: disable=too-many-branches,too-many-nested-blocks
-			result = await exec_func(func, *args, **kwargs)
-			headers = result.get("headers", {})
-			headers["Access-Control-Expose-Headers"] = "x-total-count"
-			http_status = result.get("http_status", status.HTTP_200_OK)
-
-			if result.get("data"):
-				content = result.get("data")
-
-			# add header with total amount of Objects
-			if result.get("total"):
-				total = result.get("total")
-				headers["X-Total-Count"] = str(total)
-				# add link header next and last
-				if kwargs.get("commons") and kwargs.get("request"):
-					per_page = kwargs.get("commons", {}).get("perPage", 1)
-					if total / per_page > 1:
-						page_number = kwargs.get("commons", {}).get("pageNumber", 1)
-						req = kwargs.get("request")
-						url = req.url
-						link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
-						for param in url.query.split("&"):
-							if param.startswith("pageNumber"):
-								continue
-							link += param + "&"
-						headers[
-							"Link"
-						] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
-
-			return JSONResponse(content=content if content else None, status_code=http_status, headers=headers)
-
-		except Exception as err:  # pylint: disable=broad-except
+		@wraps(func)
+		async def create_response(*args, **kwargs):  # pylint: disable=too-many-branches,too-many-locals
+			logger.debug("rest_api method name: %s", name)
 			content = {}
-			if isinstance(err, OpsiApiException):
-				content = {
-					"class": err.error_class,
-					"code": err.code,
-					"status": err.http_status,
-					"message": err.message,
-					"details": err.details,
-				}
-			else:
-				content = {
-					"class": err.__class__.__name__,
-					"code": None,
-					"status": status.HTTP_500_INTERNAL_SERVER_ERROR,
-					"message": str(err),
-					"details": str(traceback.format_exc()),
-				}
+			try:  # pylint: disable=too-many-branches,too-many-nested-blocks
+				result = await exec_func(func, *args, **kwargs)
+				headers = result.get("headers", {})
+				headers["Access-Control-Expose-Headers"] = "x-total-count"
+				http_status = result.get("http_status", status.HTTP_200_OK)
 
-			is_admin = False
-			session = contextvar_client_session.get()
-			if session and session.user_store:
-				is_admin = session.user_store.isAdmin
-			if not is_admin:
-				del content["details"]
-			return JSONResponse(content=content, status_code=content["status_code"])
+				if result.get("data"):
+					content = result.get("data")
 
-	return create_response
+				# add header with total amount of Objects
+				if result.get("total"):
+					total = result.get("total")
+					headers["X-Total-Count"] = str(total)
+					# add link header next and last
+					if kwargs.get("commons") and kwargs.get("request"):
+						per_page = kwargs.get("commons", {}).get("perPage", 1)
+						if total / per_page > 1:
+							page_number = kwargs.get("commons", {}).get("pageNumber", 1)
+							req = kwargs.get("request")
+							url = req.url
+							link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
+							for param in url.query.split("&"):
+								if param.startswith("pageNumber"):
+									continue
+								link += param + "&"
+							headers[
+								"Link"
+							] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+
+				return JSONResponse(content=content if content else None, status_code=http_status, headers=headers)
+
+			except Exception as err:  # pylint: disable=broad-except
+				content = {}
+				if isinstance(err, OpsiApiException):
+					content = {
+						"class": err.error_class,
+						"code": err.code,
+						"status": err.http_status,
+						"message": err.message,
+						"details": err.details,
+					}
+				else:
+					content = {
+						"class": err.__class__.__name__,
+						"code": None,
+						"status": default_error_status_code,
+						"message": str(err),
+						"details": str(traceback.format_exc()),
+					}
+
+				is_admin = False
+				session = contextvar_client_session.get()
+				if session and session.user_store:
+					is_admin = session.user_store.isAdmin
+				if not is_admin:
+					del content["details"]
+				return JSONResponse(content=content, status_code=content["status"])
+		return create_response
+	return decorator

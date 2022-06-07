@@ -43,6 +43,7 @@ from . import terminal  # pylint: disable=unused-import
 from . import app
 from .admininterface import admin_interface_setup
 from .jsonrpc import jsonrpc_setup
+from .login import login_setup
 from .messagebroker import messagebroker_setup
 from .metrics import metrics_setup
 from .monitoring.monitoring import monitoring_setup
@@ -295,6 +296,7 @@ def application_setup():
 		logger.warning("Static dir '%s' not found", config.static_dir)
 
 	jsonrpc_setup(app)
+	login_setup(app)
 	admin_interface_setup(app)
 	redis_interface_setup(app)
 	monitoring_setup(app)

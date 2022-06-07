@@ -121,22 +121,6 @@ async def admin_interface_index(request: Request):
 	return config.jinja_templates.TemplateResponse("admininterface.html", context)
 
 
-@admin_interface_router.post("/logout")
-async def logout(request: Request):
-	return_401 = False
-	try:
-		request_body = await request.json()
-		return_401 = request_body["return_401"]
-	except Exception:  # pylint: disable=broad-except
-		pass
-	client_session = contextvar_client_session.get()
-	if client_session:
-		await client_session.delete()
-	if return_401:
-		raise BackendPermissionDeniedError("Session deleted")
-	return JSONResponse({"status": 200, "error": None, "data": "session deleted"})
-
-
 @admin_interface_router.post("/reload")
 async def reload():
 	os.kill(get_manager_pid(), signal.SIGHUP)

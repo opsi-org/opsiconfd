@@ -623,3 +623,47 @@ table#licensing-dates-table td.active {
 .closebtn:hover {
 	color: black;
 }
+
+body.login {
+	height: 100%;
+	width: 100%;
+}
+
+div.login-form {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	margin-right: -50%;
+	transform: translate(-50%, -50%);
+	width: 350px;
+	border: 1px solid #ccc;
+	padding: 35px;
+	background-color: #fff;
+}
+
+div.login-form h1 {
+	margin-left: 0;
+
+}
+
+div.login-form input {
+	font-size: 16px;
+	display: block;
+	width: 340px;
+	margin-top: 15px;
+	padding: 5px 5px;
+	border: 1px solid #c2c0ca;
+	outline: none;
+}
+
+div.login-form button {
+	font-size: 16px;
+	margin-top: 25px;
+	padding: 5px;
+	width: 350px;
+}
+
+div#login_error {
+	margin-top: 25px;
+	color: #ff0800;
+}

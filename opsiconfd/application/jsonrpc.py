@@ -476,7 +476,9 @@ def write_error_log(rpc: Any, exception: Exception, request: Request) -> None:
 		"params": params,
 		"error": str(exception),
 	}
-	with tempfile.NamedTemporaryFile(delete=False, dir=RPC_DEBUG_DIR, prefix=f"{request.scope['client'][0]}-{now}-", suffix=".log") as log_file:
+	with tempfile.NamedTemporaryFile(
+		delete=False, dir=RPC_DEBUG_DIR, prefix=f"{request.scope['client'][0]}-{now}-", suffix=".log"
+	) as log_file:
 		logger.notice("Writing rpc error log to: %s", log_file.name)
 		log_file.write(orjson.dumps(msg))  # pylint: disable=no-member
 
@@ -547,6 +549,7 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 			)
 		)
 
+	client_addr = request.scope["client"][0]
 	results = []
 	for rpc in rpcs:
 		date = datetime.utcnow()
@@ -565,7 +568,7 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 		if not result.get("error") and duration > config.jsonrpc_time_to_cache:
 			await store_in_cache(rpc, result)
 
-		await store_rpc_info(rpc, result, duration, date, request.scope["client"][0])
+		await store_rpc_info(rpc, result, duration, date, client_addr)
 	return results
 
 

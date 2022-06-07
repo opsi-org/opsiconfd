@@ -875,20 +875,16 @@ function reload() {
 
 function logout() {
 	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/logout");
+	request.open("GET", "/logout");
 	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			console.debug(request.statusText, request.responseText);
-		} else {
-			console.warn(request.statusText, request.responseText);
-		}
 		cookieStore.getAll().then(cookies => cookies.forEach(cookie => {
 			if (cookie.name.toLowerCase().includes("opsi")) {
 				cookieStore.delete(cookie.name);
 			}
 		}));
+		location.href = "/login";
 	});
-	request.send('{"return_401": true}');
+	request.send();
 }
 
 function callRedis() {

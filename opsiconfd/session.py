@@ -20,7 +20,12 @@ import aioredis
 from fastapi import HTTPException, status
 from fastapi.exceptions import ValidationError
 from fastapi.requests import HTTPConnection
-from fastapi.responses import JSONResponse, PlainTextResponse, Response
+from fastapi.responses import (
+	JSONResponse,
+	PlainTextResponse,
+	RedirectResponse,
+	Response,
+)
 from msgpack import dumps as msgpack_dumps  # type: ignore[import]
 from msgpack import loads as msgpack_loads  # type: ignore[import]
 from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
@@ -177,12 +182,13 @@ class SessionMiddleware:
 		# Not working for opsi-script, which sometimes sends:
 		# 'NULL; opsiconfd-session=7b9efe97a143438684267dfb71cbace2'
 		# Workaround:
+		session_cookie_name = SESSION_COOKIE_NAME
 		cookies = headers.get("cookie")
 		if cookies:
 			for cookie in cookies.split(";"):
 				cookie = cookie.strip().split("=", 1)
 				if len(cookie) == 2:
-					if cookie[0].strip().lower() == SESSION_COOKIE_NAME:
+					if cookie[0].strip().lower() == session_cookie_name:
 						return cookie[1].strip().lower()
 		return None
 
@@ -279,13 +285,6 @@ class SessionMiddleware:
 					log = logger.debug
 			log(err)
 
-			status_code = status.HTTP_401_UNAUTHORIZED
-			headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
-
-			error = "Authentication error"
-			if isinstance(err, BackendPermissionDeniedError):
-				error = "Permission denied"
-
 			if isinstance(err, BackendAuthenticationError) or not scope["session"] or not scope["session"].user_store.authenticated:
 				cmd = (
 					f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
@@ -295,6 +294,12 @@ class SessionMiddleware:
 				redis = await async_redis_client()
 				await redis.execute_command(cmd)
 				await asyncio.sleep(0.2)
+
+			status_code = status.HTTP_401_UNAUTHORIZED
+			headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+			error = "Authentication error"
+			if isinstance(err, BackendPermissionDeniedError):
+				error = "Permission denied"
 
 		elif isinstance(err, ConnectionRefusedError):
 			status_code = status.HTTP_403_FORBIDDEN
@@ -335,6 +340,8 @@ class SessionMiddleware:
 			if connection.headers.get("accept") and "application/json" in connection.headers.get("accept"):
 				logger.debug("Returning json response because of accept header")
 				response = JSONResponse(status_code=status_code, content={"error": error}, headers=headers)
+		if not response and status_code == status.HTTP_401_UNAUTHORIZED and scope["path"] and scope["path"].lower().startswith("/admin"):
+			response = RedirectResponse("/login", headers=headers)
 		if not response:
 			logger.debug("Returning plaintext response")
 			response = PlainTextResponse(status_code=status_code, content=error, headers=headers)

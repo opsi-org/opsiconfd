@@ -24,7 +24,7 @@
 					button.disabled = false;
 					let response = JSON.parse(ajax.responseText);
 					if (ajax.status == 200) {
-						location.href = "/admin";
+						location.href = "/admin" + window.location.hash;
 					}
 					else {
 						console.error(response);

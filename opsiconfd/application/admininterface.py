@@ -25,7 +25,6 @@ from fastapi import APIRouter, Request, Response, UploadFile, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
-from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 

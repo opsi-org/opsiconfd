@@ -8,9 +8,8 @@
 The opsi configuration service.
 """
 
-from OPSI import __version__ as python_opsi_version  # type: ignore[import]
-
 from fastapi import FastAPI
+from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 
 from .. import __version__
 from ..rest import RestApiValidationError

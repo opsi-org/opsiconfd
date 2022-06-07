@@ -209,10 +209,13 @@ class SessionMiddleware:
 		# Set default access role
 		required_access_role = ACCESS_ROLE_ADMIN
 		access_role_public = ACCESS_ROLE_PUBLIC
-		for pub_path in self._public_path:
-			if scope["path"].startswith(pub_path):
+		if scope["path"]:
+			if scope["path"] == "/":
 				required_access_role = access_role_public
-				break
+			for pub_path in self._public_path:
+				if scope["path"].startswith(pub_path):
+					required_access_role = access_role_public
+					break
 		scope["required_access_role"] = required_access_role
 
 		if scope["path"].startswith(("/rpc", "/monitoring")) or (

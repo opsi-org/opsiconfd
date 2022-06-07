@@ -442,7 +442,6 @@ def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-na
 		"/admin/delete-client-sessions": "opsiconfd.application.admininterface.delete_client_sessions",
 		"/admin/grafana": "opsiconfd.application.admininterface.open_grafana",
 		"/admin/locked-products-list": "opsiconfd.application.admininterface.get_locked_products_list",
-		"/admin/logout": "opsiconfd.application.admininterface.logout",
 		"/admin/products/unlock": "opsiconfd.application.admininterface.unlock_all_product",
 		"/admin/products/{product}/unlock": "opsiconfd.application.admininterface.unlock_product",
 		"/admin/reload": "opsiconfd.application.admininterface.reload",

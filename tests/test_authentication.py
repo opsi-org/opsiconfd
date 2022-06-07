@@ -51,18 +51,21 @@ def test_basic_auth(test_client):  # pylint: disable=redefined-outer-name,unused
 
 
 def test_login_endpoint(test_client):  # pylint: disable=redefined-outer-name,unused-argument
-	res = test_client.post("/login/", json={"username": ADMIN_USER, "password": "invalid"})
+	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": "invalid"})
 	assert res.status_code == 401
 	assert "Authentication failed for user" in res.json()["message"]
 
-	res = test_client.get("/admin")
+	res = test_client.get("/session/authenticated")
 	assert res.status_code == 401
 
-	res = test_client.post("/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
+	res = test_client.get("/admin", allow_redirects=False)
+	assert res.status_code == 307
+
+	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": ADMIN_PASS})
 	assert res.json()["session_id"]
 	assert res.status_code == 200
 
-	res = test_client.get("/admin")
+	res = test_client.get("/session/authenticated")
 	assert res.status_code == 200
 
 
@@ -71,14 +74,14 @@ def test_logout_endpoint(test_client):  # pylint: disable=redefined-outer-name
 		client_addr = "192.168.1.1"
 		test_client.set_client_address(client_addr, 12345)
 
-		res = test_client.get("/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
+		res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
 		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
 		assert len(keys) == 1
 		assert keys[0].startswith(f"opsiconfd:sessions:{ip_address_to_redis_key(client_addr)}:")
 
-		res = test_client.get("/logout")
+		res = test_client.get("/session/logout")
 		assert res.status_code == 200
 
 		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
@@ -98,10 +101,10 @@ def test_change_session_ip(test_client):  # pylint: disable=redefined-outer-name
 
 		client_addr = "192.168.2.2"
 		test_client.set_client_address(client_addr, 12345)
-		res = test_client.get("/admin")
+		res = test_client.get("/session/authenticated")
 		assert res.status_code == 401
 
-		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
+		res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
 		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
@@ -184,7 +187,7 @@ def test_max_auth_failures(test_client):  # pylint: disable=redefined-outer-name
 				num_failed_auth = int(num_failed_auth[-1][1])
 				# print("=== num_failed_auth ==>>>", num_failed_auth)
 
-			res = test_client.get("/admin/", auth=("client.domain.tld", "hostkey"))
+			res = test_client.get("/session/authenticated", auth=("client.domain.tld", "hostkey"))
 			# print("===>>>", num, max_auth_failures, res.status_code)
 			if num > max_auth_failures:
 				assert res.status_code == 403
@@ -226,14 +229,14 @@ def test_session_expire(test_client):  # pylint: disable=redefined-outer-name,un
 	# Keep session alive
 	for _ in range(lifetime + 3):
 		time.sleep(1)  # pylint: disable=dotted-import-in-loop
-		res = test_client.get("/admin/")
+		res = test_client.get("/session/authenticated")
 		assert res.status_code == 200
 		cookie = list(test_client.cookies)[0]
 		assert session_id == cookie.value
 
 	# Let session expire
 	time.sleep(lifetime + 1)
-	res = test_client.get("/admin/")
+	res = test_client.get("/session/authenticated")
 	assert res.status_code == 401
 
 

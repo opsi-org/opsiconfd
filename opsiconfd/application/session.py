@@ -5,32 +5,20 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-login
+session
 """
 
 from fastapi import APIRouter, Request, status
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
-from opsiconfd.config import config
 from opsiconfd.rest import rest_api
 from opsiconfd.session import authenticate, get_session
 
-login_router = APIRouter()
-logout_router = APIRouter()
+session_router = APIRouter()
 
 
-def login_setup(app):
-	app.include_router(router=login_router, prefix="/login")
-	app.include_router(router=logout_router, prefix="/logout")
-
-
-@login_router.get("")
-@login_router.get("/")
-async def login_index(request: Request):
-	context = {
-		"request": request,
-	}
-	return config.jinja_templates.TemplateResponse("login.html", context)
+def session_setup(app):
+	app.include_router(router=session_router, prefix="/session")
 
 
 class LoginData(BaseModel):
@@ -38,8 +26,7 @@ class LoginData(BaseModel):
 	password: str
 
 
-@login_router.post("")
-@login_router.post("/")
+@session_router.post("/login")
 @rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
 async def login(request: Request, login_data: LoginData):
 	if not request.scope["session"]:
@@ -49,10 +36,18 @@ async def login(request: Request, login_data: LoginData):
 	return {"data": {"session_id": request.scope["session"].session_id}}
 
 
-@logout_router.get("")
-@logout_router.get("/")
+@session_router.get("/logout")
+@session_router.post("/logout")
 @rest_api
 async def logout(request: Request):
 	if request.scope["session"]:
 		await request.scope["session"].delete()
 	return {"data": "session deleted"}
+
+
+@session_router.get("/authenticated")
+@rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
+async def authenticated(request: Request):
+	if request.scope["session"] and request.scope["session"].user_store.authenticated:
+		return {"data": True}
+	return {"data": False, "http_status": status.HTTP_401_UNAUTHORIZED}

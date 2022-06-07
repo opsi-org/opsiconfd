@@ -5,30 +5,41 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-login tests
+logging tests
 """
 
+import asyncio
 import os
 import time
-import asyncio
 from logging import LogRecord
 
 import pytest
-
 from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT  # type: ignore[import]
-from opsicommon.logging.constants import LOG_NONE, LOG_ERROR, LOG_WARNING, OPSI_LEVEL_TO_LEVEL  # type: ignore[import]
-
-from opsiconfd.logging import (
-	Formatter,
-	AsyncFileHandler,
-	AsyncRotatingFileHandler,
-	AsyncRedisLogAdapter,
-	RedisLogHandler,
-	logger,
-	enable_slow_callback_logging,
+from opsicommon.logging.constants import (  # type: ignore[import]
+	LOG_ERROR,
+	LOG_NONE,
+	LOG_WARNING,
+	OPSI_LEVEL_TO_LEVEL,
 )
 
-from .utils import config, get_config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
+from opsiconfd.logging import (
+	AsyncFileHandler,
+	AsyncRedisLogAdapter,
+	AsyncRotatingFileHandler,
+	Formatter,
+	RedisLogHandler,
+	enable_slow_callback_logging,
+	logger,
+)
+
+from .utils import (  # pylint: disable=unused-import
+	ADMIN_PASS,
+	ADMIN_USER,
+	clean_redis,
+	config,
+	get_config,
+	test_client,
+)
 
 
 def test_log_hard_limit(test_client):  # pylint: disable=redefined-outer-name,unused-argument

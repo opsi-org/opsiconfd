@@ -875,7 +875,7 @@ function reload() {
 
 function logout() {
 	let request = new XMLHttpRequest();
-	request.open("GET", "/logout");
+	request.open("GET", "/session/logout");
 	request.addEventListener('load', function (event) {
 		cookieStore.getAll().then(cookies => cookies.forEach(cookie => {
 			if (cookie.name.toLowerCase().includes("opsi")) {

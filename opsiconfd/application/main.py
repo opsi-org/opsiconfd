@@ -43,12 +43,12 @@ from . import terminal  # pylint: disable=unused-import
 from . import app
 from .admininterface import admin_interface_setup
 from .jsonrpc import jsonrpc_setup
-from .login import login_setup
 from .messagebroker import messagebroker_setup
 from .metrics import metrics_setup
 from .monitoring.monitoring import monitoring_setup
 from .proxy import reverse_proxy_setup
 from .redisinterface import redis_interface_setup
+from .session import session_setup
 from .status import status_setup
 from .utils import OpsiconfdWebSocketEndpoint
 from .webdav import webdav_setup
@@ -69,8 +69,16 @@ header_logger = get_logger("opsiconfd.headers")
 @app.get("/")
 async def index(request: Request, response: Response):  # pylint: disable=unused-argument
 	if config.welcome_page:
-		return RedirectResponse("/welcome", status_code=status.HTTP_301_MOVED_PERMANENTLY)
-	return RedirectResponse("/admin", status_code=status.HTTP_301_MOVED_PERMANENTLY)
+		return RedirectResponse("/welcome")
+	return RedirectResponse("/admin")
+
+
+@app.get("/login")
+async def login_index(request: Request):
+	context = {
+		"request": request,
+	}
+	return config.jinja_templates.TemplateResponse("login.html", context)
 
 
 @app.get("/favicon.ico")
@@ -285,7 +293,18 @@ def application_setup():
 	# Exceptions raised from user middleware will not be catched by ExceptionMiddleware
 	app.add_middleware(
 		SessionMiddleware,
-		public_path=["/metrics/grafana", "/ssl/opsi-ca-cert.pem", "/status", "/public", "/dav/public", "/static", "/welcome", "/login"],
+		public_path=[
+			"/dav/public",
+			"/favicon.ico",
+			"/login",
+			"/metrics/grafana",
+			"/public",
+			"/session/login",
+			"/ssl/opsi-ca-cert.pem",
+			"/status",
+			"/static",
+			"/welcome",
+		],
 	)
 	# app.add_middleware(GZipMiddleware, minimum_size=1000)
 	app.add_middleware(StatisticsMiddleware, profiler_enabled=config.profiler, log_func_stats=config.profiler)
@@ -296,7 +315,7 @@ def application_setup():
 		logger.warning("Static dir '%s' not found", config.static_dir)
 
 	jsonrpc_setup(app)
-	login_setup(app)
+	session_setup(app)
 	admin_interface_setup(app)
 	redis_interface_setup(app)
 	monitoring_setup(app)

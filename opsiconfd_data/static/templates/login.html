@@ -17,7 +17,7 @@
 			let button = document.getElementById("login_button");
 			button.disabled = true;
 			let ajax = new XMLHttpRequest();
-			ajax.open("POST", "/login");
+			ajax.open("POST", "/session/login");
 			ajax.setRequestHeader("Content-Type", "application/json");
 			ajax.onreadystatechange = function () {
 				if (ajax.readyState === 4) {

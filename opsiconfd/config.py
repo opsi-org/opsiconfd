@@ -747,7 +747,13 @@ class Config(metaclass=Singleton):
 			default=True,
 			help="Show welcome page on index.",
 		)
-
+		self._parser.add(
+			"--zeroconf",
+			env_var="OPSICONFD_ZEROCONF",
+			type=str2bool,
+			default=True,
+			help="Publish opsiconfd service via zeroconf.",
+		)
 		self._parser.add("--ex-help", action="store_true", help=self._expert_help("Show expert help message and exit."))
 		self._parser.add(
 			"--debug",

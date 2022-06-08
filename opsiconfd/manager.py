@@ -121,10 +121,11 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		metrics_collector = ManagerMetricsCollector()
 		self._loop.create_task(metrics_collector.main_loop())
 
-		try:
-			await register_opsi_services()
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
+		if config.zeroconf:
+			try:
+				await register_opsi_services()
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
 
 		while not self._should_stop:
 			try:
@@ -140,9 +141,10 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 					break
 				await asyncio.sleep(1)
 
-		try:
-			await unregister_opsi_services()
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
+		if config.zeroconf:
+			try:
+				await unregister_opsi_services()
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
 
 		self._async_main_running = False

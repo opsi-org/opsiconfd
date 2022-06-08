@@ -18,12 +18,12 @@ from aioredis import ResponseError as AioRedisResponseError
 
 from . import contextvar_server_timing
 from .config import config
-from .grafana import GrafanaPanelConfig
 from .logging import logger
 from .utils import Singleton, async_redis_client
 
 if TYPE_CHECKING:
 	# Prevent circular import error
+	from .statistics import GrafanaPanelConfig
 	from .worker import Worker
 
 
@@ -39,7 +39,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		time_related: bool = False,
 		subject: str = "worker",
 		server_timing_header_factor: int = None,
-		grafana_config: GrafanaPanelConfig = None,
+		grafana_config: "GrafanaPanelConfig" = None,
 		downsampling: List = None,
 	):
 		"""
@@ -179,7 +179,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		asyncio.get_running_loop().create_task(self.add_value("node:avg_load", psutil.getloadavg()[0], {"node_name": self._node_name}))
 
 	def _init_vars(self):
-		for metric in metrics_registry.get_metrics(*self._metric_subjects):
+		for metric in metrics_registry.get_metrics(*self._metric_subjects):  # pylint: disable=loop-global-usage
 			if metric.zero_if_missing != "continuous":
 				continue
 
@@ -216,7 +216,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 				timestamp = self._get_timestamp()
 				cmds = []
 				async with self._values_lock:
-					for metric in metrics_registry.get_metrics(*self._metric_subjects):
+					for metric in metrics_registry.get_metrics(*self._metric_subjects):  # pylint: disable=loop-global-usage
 						if metric.id not in self._values:
 							continue
 

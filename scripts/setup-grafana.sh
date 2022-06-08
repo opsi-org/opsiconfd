@@ -15,6 +15,11 @@ sudo chmod u+rwX,g+rwX,o+rwX -R /var/lib/grafana
 echo "* Stopping grafana server"
 sudo supervisorctl stop grafana-server
 
+echo "* Configure grafana server"
+sudo grep -v "^root_url" /etc/grafana/grafana.ini > /tmp/grafana.ini
+sudo mv /tmp/grafana.ini /etc/grafana/grafana.ini
+sudo sed -i '/^;root_url/!b;n;croot_url = %(protocol)s://%(domain)s:%(http_port)s/grafana' /etc/grafana/grafana.ini
+
 echo "* Installing grafana plugins"
 sudo grafana-cli plugins install $GF_INSTALL_PLUGINS
 

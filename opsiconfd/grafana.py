@@ -10,16 +10,17 @@ grafana
 """
 
 import codecs
-import copy
 import datetime
 import hashlib
 import os
 import re
 import sqlite3
 import subprocess
-from typing import Any, Dict, Tuple
+from contextlib import asynccontextmanager, contextmanager
+from typing import AsyncGenerator, Generator, Tuple, Union
 from urllib.parse import urlparse
 
+import aiohttp
 import requests
 from packaging.version import Version
 from requests.auth import AuthBase, HTTPBasicAuth
@@ -35,188 +36,13 @@ PLUGIN_DIR = "/var/lib/grafana/plugins"
 PLUGIN_ID = "grafana-simple-json-datasource"
 PLUGIN_MIN_VERSION = "1.4.2"
 
-GRAFANA_DATASOURCE_TEMPLATE = {
-	"orgId": 1,
-	"name": "opsiconfd",
-	"type": "grafana-simple-json-datasource",
-	"typeLogoUrl": "public/plugins/grafana-simple-json-datasource/img/simpleJson_logo.svg",
-	"access": "proxy",
-	"url": None,
-	"password": "",
-	"user": "",
-	"database": "",
-	"basicAuth": True,
-	"isDefault": False,
-	"jsonData": {"tlsSkipVerify": True},
-	"readOnly": False,
-}
-
-GRAFANA_DASHBOARD_TEMPLATE: Dict[str, Any] = {
-	"id": None,
-	"uid": "opsiconfd_main",
-	"annotations": {
-		"list": [
-			{
-				"builtIn": 1,
-				"datasource": "-- Grafana --",
-				"enable": True,
-				"hide": True,
-				"iconColor": "rgba(0, 211, 255, 1)",
-				"name": "Annotations & Alerts",
-				"type": "dashboard",
-			}
-		]
-	},
-	"timezone": "browser",  # "utc", "browser" or "" (default)
-	"title": "opsiconfd main dashboard",
-	"editable": True,
-	"gnetId": None,
-	"graphTooltip": 0,
-	"links": [],
-	"panels": [],
-	"refresh": "1m",
-	"schemaVersion": 22,
-	"version": 12,
-	"style": "dark",
-	"tags": [],
-	"templating": {"list": []},
-	"time": {"from": "now-5m", "to": "now"},
-	"timepicker": {"refresh_intervals": ["1s", "5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]},
-	"variables": {"list": []},
-}
-
-GRAFANA_GRAPH_PANEL_TEMPLATE = {
-	"aliasColors": {},
-	"bars": False,
-	"dashLength": 10,
-	"dashes": False,
-	"datasource": "opsiconfd",
-	"decimals": 0,
-	"description": "",
-	"fill": 1,
-	"fillGradient": 0,
-	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
-	"hiddenSeries": False,
-	"id": None,
-	"legend": {
-		"alignAsTable": True,
-		"avg": True,
-		"current": True,
-		"hideEmpty": True,
-		"hideZero": False,
-		"max": True,
-		"min": True,
-		"show": True,
-		"total": False,
-		"values": True,
-	},
-	"lines": True,
-	"linewidth": 1,
-	"nullPointMode": "null",
-	"options": {"dataLinks": []},
-	"percentage": False,
-	"pointradius": 2,
-	"points": False,
-	"renderer": "flot",
-	"seriesOverrides": [],
-	"spaceLength": 10,
-	"stack": True,
-	"steppedLine": False,
-	"targets": [],
-	"thresholds": [],
-	"timeFrom": None,
-	"timeRegions": [],
-	"timeShift": None,
-	"title": "",
-	"tooltip": {"shared": True, "sort": 0, "value_type": "individual"},
-	"type": "graph",
-	"xaxis": {"buckets": None, "mode": "time", "name": None, "show": True, "values": []},
-	"yaxes": [
-		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
-		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
-	],
-	"yaxis": {"align": False, "alignLevel": None},
-}
-
-GRAFANA_HEATMAP_PANEL_TEMPLATE = {
-	"datasource": "opsiconfd",
-	"description": "",
-	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
-	"id": None,
-	"targets": [],
-	"timeFrom": None,
-	"timeShift": None,
-	"title": "Duration of remote procedure calls",
-	"type": "heatmap",
-	"heatmap": {},
-	"cards": {"cardPadding": None, "cardRound": None},
-	"color": {
-		"mode": "opacity",
-		"cardColor": "#73BF69",
-		"colorScale": "sqrt",
-		"exponent": 0.5,
-		# "colorScheme": "interpolateSpectral",
-		"min": None,
-	},
-	"legend": {"show": False},
-	"dataFormat": "timeseries",
-	"yBucketBound": "auto",
-	"reverseYBuckets": False,
-	"xAxis": {"show": True},
-	"yAxis": {"show": True, "format": "s", "decimals": 2, "logBase": 2, "splitFactor": None, "min": "0", "max": None},
-	"xBucketSize": None,
-	"xBucketNumber": None,
-	"yBucketSize": None,
-	"yBucketNumber": None,
-	"tooltip": {"show": False, "showHistogram": False},
-	"highlightCards": True,
-	"hideZeroBuckets": False,
-	"tooltipDecimals": 0,
-}
-
-
-class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
-	def __init__(
-		self, type="graph", title="", units=None, decimals=0, stack=False, yaxis_min="auto"
-	):  # pylint: disable=too-many-arguments, redefined-builtin
-		self.type = type
-		self.title = title
-		self.units = units or ["short", "short"]
-		self.decimals = decimals
-		self.stack = stack
-		self._template = ""
-		self.yaxis_min = yaxis_min
-		if self.type == "graph":
-			self._template = GRAFANA_GRAPH_PANEL_TEMPLATE
-		elif self.type == "heatmap":
-			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE
-
-	def get_panel(self, panel_id=1, pos_x=0, pos_y=0):
-		panel = copy.deepcopy(self._template)
-		panel["id"] = panel_id
-		panel["gridPos"]["x"] = pos_x
-		panel["gridPos"]["y"] = pos_y
-		panel["title"] = self.title
-		if self.type == "graph":
-			panel["stack"] = self.stack
-			panel["decimals"] = self.decimals
-			for i, unit in enumerate(self.units):
-				panel["yaxes"][i]["format"] = unit  # pylint: disable=loop-invariant-statement
-		elif self.type == "heatmap":
-			panel["yAxis"]["format"] = self.units[0]
-			panel["tooltipDecimals"] = self.decimals
-		if self.yaxis_min != "auto":
-			for axis in panel["yaxes"]:
-				axis["min"] = self.yaxis_min
-		return panel
-
 
 def grafana_is_local():
 	url = urlparse(config.grafana_internal_url)
 	if url.hostname not in ("localhost", "127.0.0.1", "::1"):
 		return False
 
-	for path in (GRAFANA_CLI, GRAFANA_DB):  # pylint: disable=loop-invariant-global-usage
+	for path in (GRAFANA_CLI, GRAFANA_DB):  # pylint: disable=loop-global-usage
 		if not os.path.exists(path):  # pylint: disable=dotted-import-in-loop
 			return False
 
@@ -232,24 +58,56 @@ class HTTPBearerAuth(AuthBase):  # pylint: disable=too-few-public-methods
 		return r
 
 
-def grafana_admin_session() -> Tuple[str, requests.Session]:
+@contextmanager
+def grafana_admin_session() -> Generator[Tuple[str, requests.Session], None, None]:
+	auth: Union[HTTPBearerAuth, HTTPBasicAuth, None] = None
 	url = urlparse(config.grafana_internal_url)
-
-	session = requests.Session()
-	session.verify = config.ssl_trusted_certs
-	if not config.grafana_verify_cert:
-		session.verify = False
-
 	if url.username is not None:
 		if url.password is None:
 			# Username only, assuming this is an api key
 			logger.debug("Using api key for grafana authorization")
-			session.auth = HTTPBearerAuth(url.username)
+			auth = HTTPBearerAuth(url.username)
 		else:
 			logger.debug("Using username %s and password grafana authorization", url.username)
-			session.auth = HTTPBasicAuth(url.username, url.password)
+			auth = HTTPBasicAuth(url.username, url.password)
 
-	return f"{url.scheme}://{url.hostname}:{url.port}", session
+	try:
+		session = requests.Session()
+		session.auth = auth
+		session.verify = config.ssl_trusted_certs
+		if not config.grafana_verify_cert:
+			session.verify = False
+
+		yield f"{url.scheme}://{url.hostname}:{url.port}", session
+	finally:
+		session.close()
+
+
+@asynccontextmanager
+async def async_grafana_session(username: str = None, password: str = None) -> AsyncGenerator[Tuple[str, aiohttp.ClientSession], None]:
+	auth = None
+	headers = None
+	if username is not None:
+		if password is None:
+			# Username only, assuming this is an api key
+			logger.debug("Using api key for grafana authorization")
+			headers = {"Authorization": f"Bearer {username}"}
+		else:
+			logger.debug("Using username %s and password grafana authorization", username)
+			auth = aiohttp.BasicAuth(username, password)
+
+	connector = aiohttp.TCPConnector(verify_ssl=config.grafana_verify_cert)
+
+	url = urlparse(config.grafana_internal_url)
+	async with aiohttp.ClientSession(connector=connector, auth=auth, headers=headers) as session:
+		yield f"{url.scheme}://{url.hostname}:{url.port}", session
+
+
+@asynccontextmanager
+async def async_grafana_admin_session() -> AsyncGenerator[Tuple[str, aiohttp.ClientSession], None]:
+	url = urlparse(config.grafana_internal_url)
+	async with async_grafana_session(url.username, url.password) as (base_url, session):
+		yield (base_url, session)
 
 
 def setup_grafana():
@@ -279,7 +137,7 @@ def setup_grafana():
 		try:
 			logger.notice("Setup grafana plugin %s (%s)", PLUGIN_ID, plugin_action)
 			for cmd in (
-				["grafana-cli", "plugins", plugin_action, PLUGIN_ID],  # pylint: disable=loop-invariant-global-usage
+				["grafana-cli", "plugins", plugin_action, PLUGIN_ID],  # pylint: disable=loop-global-usage
 				["service", "grafana-server", "restart"],
 			):
 				out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, timeout=20)  # pylint: disable=dotted-import-in-loop
@@ -288,16 +146,16 @@ def setup_grafana():
 			logger.warning("Could not %s grafana plugin via grafana-cli: %s", plugin_action, err)
 
 	if urlparse(config.grafana_internal_url).username is not None:
-		base_url, session = grafana_admin_session()
-		try:
-			response = session.get(f"{base_url}/api/users/lookup", params={"loginOrEmail": "opsiconfd"}, timeout=3)
-		except requests.RequestException as err:
-			logger.warning("Failed to connect to grafana api %r: %s", base_url, err)
-			return
+		with grafana_admin_session() as (base_url, session):
+			try:
+				response = session.get(f"{base_url}/api/users/lookup", params={"loginOrEmail": "opsiconfd"}, timeout=3)
+			except requests.RequestException as err:
+				logger.warning("Failed to connect to grafana api %r: %s", base_url, err)
+				return
 
-		logger.debug("Grafana opsiconfd user lookup response: %s - %s", response.status_code, response.text)
-		if response.status_code == 200:
-			return
+			logger.debug("Grafana opsiconfd user lookup response: %s - %s", response.status_code, response.text)
+			if response.status_code == 200:
+				return
 
 	create_opsiconfd_user(recreate=True)
 
@@ -339,3 +197,31 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 		config.reload()
 	finally:
 		con.close()
+
+
+async def create_dashboard_user() -> Tuple[str, str]:
+	username = "opsidashboard"
+	async with async_grafana_admin_session() as (base_url, session):
+		try:
+			response = await session.get(f"{base_url}/api/users/lookup", params={"loginOrEmail": username})
+			if response.status not in (200, 404):
+				response.raise_for_status()
+		except aiohttp.ClientError as err:
+			raise RuntimeError(f"Failed to connect to grafana api {base_url!r}: {err}") from err
+
+		password = get_random_string(16)
+		if response.status == 404:
+			logger.debug("Create new user %s", username)
+			data = {"name": username, "email": f"{username}@admin", "login": username, "password": password}
+			response = await session.post(f"{base_url}/api/admin/users", json=data)
+			if response.status != 200:
+				raise RuntimeError(f"Failed to create user {username!r}: {response.status} - {await response.text()}")
+		else:
+			logger.debug("Change password of user %s", username)
+			data = {"password": password}
+			user_id = (await response.json()).get("id")
+			response = await session.put(f"{base_url}/api/admin/users/{user_id}/password", json=data)
+			if response.status != 200:
+				raise RuntimeError(f"Failed to update password for user {username!r}: {response.status} - {await response.text()}")
+
+		return username, password

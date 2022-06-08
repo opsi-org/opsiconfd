@@ -9,24 +9,31 @@ metrics
 """
 
 import copy
-import ssl
 from datetime import datetime
 from operator import itemgetter
 from time import time
-from typing import List, Union
-from urllib.parse import urlparse
+from typing import List
 
-import aiohttp
 import aioredis
 from fastapi import APIRouter
-from fastapi.responses import RedirectResponse
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
 from ..config import config
-from ..grafana import GRAFANA_DASHBOARD_TEMPLATE, GRAFANA_DATASOURCE_TEMPLATE
+from ..grafana import async_grafana_admin_session
 from ..logging import logger
-from ..statistics import get_time_bucket_duration, metrics_registry
+from ..metrics import metrics_registry
+from ..statistics import (
+	GRAFANA_DASHBOARD_TEMPLATE,
+	GRAFANA_DATASOURCE_TEMPLATE,
+	get_time_bucket_duration,
+)
 from ..utils import async_redis_client, ip_address_from_redis_key
+
+# / should return 200 ok. Used for "Test connection" on the datasource config page.
+# /search used by the find metric options on the query tab in panels.
+# /query should return metrics based on input.
+# /annotations should return annotations.
+
 
 grafana_metrics_router = APIRouter()
 
@@ -65,43 +72,6 @@ async def grafana_index():
 	return None
 
 
-@grafana_metrics_router.get("/dashboard")
-async def grafana_dashboard():
-	auth = None
-	headers = None
-	url = urlparse(config.grafana_internal_url)
-	if url.username is not None:
-		if url.password is None:
-			# Username only, assuming this is an api key
-			logger.debug("Using api key for grafana authorization")
-			headers = {"Authorization": f"Bearer {url.username}"}
-		else:
-			logger.debug("Using username %s and password grafana authorization", url.username)
-			auth = aiohttp.BasicAuth(url.username, url.password)
-
-	base_url = f"{url.scheme}://{url.netloc.split('@', 1)[-1]}"
-	ssl_context: Union[ssl.SSLContext, bool] = ssl.create_default_context(cafile=config.ssl_trusted_certs)
-	if not config.grafana_verify_cert:
-		ssl_context = False
-	async with aiohttp.ClientSession(auth=auth, headers=headers) as session:
-		json = GRAFANA_DATASOURCE_TEMPLATE
-		json["url"] = f"{config.grafana_data_source_url}/metrics/grafana/"
-		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}", ssl=ssl_context)
-		if resp.status == 200:
-			_id = (await resp.json())["id"]
-			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json, ssl=ssl_context)
-		else:
-			resp = await session.post(f"{base_url}/api/datasources", json=json, ssl=ssl_context)
-
-		if resp.status == 200:
-			json = {"folderId": 0, "overwrite": True, "dashboard": await grafana_dashboard_config()}
-			resp = await session.post(f"{base_url}/api/dashboards/db", json=json, ssl=ssl_context)
-		else:
-			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
-	return RedirectResponse(url=f"{config.grafana_external_url}/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv")
-
-
-@grafana_metrics_router.get("/dashboard/config")
 async def grafana_dashboard_config():  # pylint: disable=too-many-locals
 	workers = await get_workers()
 	nodes = await get_nodes()
@@ -141,6 +111,24 @@ async def grafana_dashboard_config():  # pylint: disable=too-many-locals
 
 	dashboard["panels"] = panels
 	return dashboard
+
+
+async def create_grafana_datasource():
+	json = GRAFANA_DATASOURCE_TEMPLATE
+	json["url"] = f"{config.grafana_data_source_url}/metrics/grafana/"
+	async with async_grafana_admin_session() as (base_url, session):
+		resp = await session.get(f"{base_url}/api/datasources/name/{json['name']}")
+		if resp.status == 200:
+			_id = (await resp.json())["id"]
+			resp = await session.put(f"{base_url}/api/datasources/{_id}", json=json)
+		else:
+			resp = await session.post(f"{base_url}/api/datasources", json=json)
+
+		if resp.status == 200:
+			json = {"folderId": 0, "overwrite": True, "dashboard": await grafana_dashboard_config()}
+			resp = await session.post(f"{base_url}/api/dashboards/db", json=json)
+		else:
+			logger.error("Failed to create grafana datasource: %s - %s", resp.status, await resp.text())
 
 
 @grafana_metrics_router.get("/search")

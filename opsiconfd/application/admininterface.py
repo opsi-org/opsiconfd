@@ -20,7 +20,6 @@ from shutil import move, rmtree, unpack_archive
 from typing import Dict, List
 
 import msgpack  # type: ignore[import]
-import requests
 from fastapi import APIRouter, Request, Response, UploadFile, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.routing import APIRoute, Mount
@@ -32,19 +31,20 @@ from .. import __version__, contextvar_client_session
 from ..addon import AddonManager
 from ..backend import get_backend, get_backend_interface
 from ..config import FQDN, VAR_ADDON_DIR, config
-from ..grafana import grafana_admin_session
+from ..grafana import async_grafana_session, create_dashboard_user
 from ..logging import logger
 from ..session import OPSISession
 from ..ssl import get_ca_cert_info, get_server_cert_info
+from ..statistics import GRAFANA_DASHBOARD_UID
 from ..utils import (
 	async_redis_client,
 	get_manager_pid,
-	get_random_string,
 	ip_address_from_redis_key,
 	ip_address_to_redis_key,
 	utc_time_timestamp,
 )
 from .memoryprofiler import memory_profiler_router
+from .metrics import create_grafana_datasource
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -370,8 +370,8 @@ async def get_blocked_clients() -> list:
 
 
 @admin_interface_router.get("/grafana")
-def open_grafana(request: Request):
-	if request.base_url.hostname not in (
+async def open_grafana(request: Request):
+	if not config.grafana_external_url.startswith("/") and request.base_url.hostname not in (
 		"127.0.0.1",
 		"::1",
 		"0.0.0.0",
@@ -382,44 +382,25 @@ def open_grafana(request: Request):
 		logger.info("Redirecting %s to %s (%s)", request.base_url.hostname, FQDN, url)
 		return RedirectResponse(url)
 
-	base_url, session = grafana_admin_session()
-	redirect_response = RedirectResponse("/metrics/grafana/dashboard")
+	redirect_response = RedirectResponse(url=f"{config.grafana_external_url}/d/{GRAFANA_DASHBOARD_UID}/opsiconfd-main-dashboard?kiosk=tv")
 	try:
-		response = session.get(f"{base_url}/api/users/lookup", params={"loginOrEmail": "opsidashboard"})
-		if response.status_code not in (200, 404):
-			response.raise_for_status()
-	except requests.RequestException as err:
-		logger.error("Failed to connect to grafana api %r: %s", base_url, err)
-		return redirect_response
+		await create_grafana_datasource()
+		username, password = await create_dashboard_user()
+		async with async_grafana_session(username, password) as (base_url, session):
+			data = {"password": password, "user": "opsidashboard"}
+			response = await session.post(f"{base_url}/login", json=data)
+			if response.status != 200:
+				logger.error("Grafana login failed: %s - %s", response.status, await response.text())
+			else:
+				match = re.search(r"grafana_session=([0-9a-f]+)", response.headers.get("Set-Cookie", ""))
+				if match:
+					redirect_response.set_cookie(key="grafana_session", value=match.group(1))
+				else:
+					logger.error("Failed to get grafana_session cookie")
 
-	password = get_random_string(16)
-	if response.status_code == 404:
-		logger.debug("Create new user opsidashboard")
-		data = {"name": "opsidashboard", "email": "opsidashboard@admin", "login": "opsidashboard", "password": password}
-		response = session.post(f"{base_url}/api/admin/users", json=data)
-		if response.status_code != 200:
-			logger.error("Failed to create user opsidashboard: %s - %s", response.status_code, response.text)
-			password = None
-	else:
-		logger.debug("change opsidashboard password")
-		data = {"password": password}
-		user_id = response.json().get("id")
-		response = session.put(f"{base_url}/api/admin/users/{user_id}/password", json=data)
-		if response.status_code != 200:
-			logger.error("Failed to update password for user opsidashboard: %s - %s", response.status_code, response.text)
-			password = None
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error(err, exc_info=True)
 
-	if not password:
-		return redirect_response
-
-	user_session = requests.Session()
-	data = {"password": password, "user": "opsidashboard"}
-	response = user_session.post(f"{base_url}/login", json=data)
-	if response.status_code != 200:
-		logger.error("Grafana login failed: %s - %s", response.status_code, response.text)
-		return redirect_response
-
-	redirect_response.set_cookie(key="grafana_session", value=user_session.cookies.get_dict().get("grafana_session"))
 	return redirect_response
 
 

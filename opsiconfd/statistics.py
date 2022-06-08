@@ -9,9 +9,10 @@ statistics
 """
 
 import asyncio
+import copy
 import re
 import time
-from typing import Dict
+from typing import Any, Dict
 
 import yappi  # type: ignore[import]
 from redis import ResponseError as RedisResponseError
@@ -22,11 +23,187 @@ from yappi import YFuncStats
 
 from . import contextvar_client_address, contextvar_request_id, contextvar_server_timing
 from .config import config
-from .grafana import GrafanaPanelConfig
 from .logging import logger
 from .metrics import Metric, metrics_registry
 from .utils import ip_address_to_redis_key, redis_client
 from .worker import Worker
+
+GRAFANA_DASHBOARD_UID = "opsiconfd_main"
+
+GRAFANA_DATASOURCE_TEMPLATE = {
+	"orgId": 1,
+	"name": "opsiconfd",
+	"type": "grafana-simple-json-datasource",
+	"typeLogoUrl": "public/plugins/grafana-simple-json-datasource/img/simpleJson_logo.svg",
+	"access": "proxy",
+	"url": None,
+	"password": "",
+	"user": "",
+	"database": "",
+	"basicAuth": True,
+	"isDefault": False,
+	"jsonData": {"tlsSkipVerify": True},
+	"readOnly": False,
+}
+
+GRAFANA_DASHBOARD_TEMPLATE: Dict[str, Any] = {
+	"id": None,
+	"uid": GRAFANA_DASHBOARD_UID,
+	"annotations": {
+		"list": [
+			{
+				"builtIn": 1,
+				"datasource": "-- Grafana --",
+				"enable": True,
+				"hide": True,
+				"iconColor": "rgba(0, 211, 255, 1)",
+				"name": "Annotations & Alerts",
+				"type": "dashboard",
+			}
+		]
+	},
+	"timezone": "browser",  # "utc", "browser" or "" (default)
+	"title": "opsiconfd main dashboard",
+	"editable": True,
+	"gnetId": None,
+	"graphTooltip": 0,
+	"links": [],
+	"panels": [],
+	"refresh": "1m",
+	"schemaVersion": 22,
+	"version": 12,
+	"style": "dark",
+	"tags": [],
+	"templating": {"list": []},
+	"time": {"from": "now-5m", "to": "now"},
+	"timepicker": {"refresh_intervals": ["1s", "5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]},
+	"variables": {"list": []},
+}
+
+GRAFANA_GRAPH_PANEL_TEMPLATE = {
+	"aliasColors": {},
+	"bars": False,
+	"dashLength": 10,
+	"dashes": False,
+	"datasource": "opsiconfd",
+	"decimals": 0,
+	"description": "",
+	"fill": 1,
+	"fillGradient": 0,
+	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
+	"hiddenSeries": False,
+	"id": None,
+	"legend": {
+		"alignAsTable": True,
+		"avg": True,
+		"current": True,
+		"hideEmpty": True,
+		"hideZero": False,
+		"max": True,
+		"min": True,
+		"show": True,
+		"total": False,
+		"values": True,
+	},
+	"lines": True,
+	"linewidth": 1,
+	"nullPointMode": "null",
+	"options": {"dataLinks": []},
+	"percentage": False,
+	"pointradius": 2,
+	"points": False,
+	"renderer": "flot",
+	"seriesOverrides": [],
+	"spaceLength": 10,
+	"stack": True,
+	"steppedLine": False,
+	"targets": [],
+	"thresholds": [],
+	"timeFrom": None,
+	"timeRegions": [],
+	"timeShift": None,
+	"title": "",
+	"tooltip": {"shared": True, "sort": 0, "value_type": "individual"},
+	"type": "graph",
+	"xaxis": {"buckets": None, "mode": "time", "name": None, "show": True, "values": []},
+	"yaxes": [
+		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
+		{"format": "short", "label": None, "logBase": 1, "max": None, "min": None, "show": True},
+	],
+	"yaxis": {"align": False, "alignLevel": None},
+}
+
+GRAFANA_HEATMAP_PANEL_TEMPLATE = {
+	"datasource": "opsiconfd",
+	"description": "",
+	"gridPos": {"h": 12, "w": 8, "x": 0, "y": 0},
+	"id": None,
+	"targets": [],
+	"timeFrom": None,
+	"timeShift": None,
+	"title": "Duration of remote procedure calls",
+	"type": "heatmap",
+	"heatmap": {},
+	"cards": {"cardPadding": None, "cardRound": None},
+	"color": {
+		"mode": "opacity",
+		"cardColor": "#73BF69",
+		"colorScale": "sqrt",
+		"exponent": 0.5,
+		# "colorScheme": "interpolateSpectral",
+		"min": None,
+	},
+	"legend": {"show": False},
+	"dataFormat": "timeseries",
+	"yBucketBound": "auto",
+	"reverseYBuckets": False,
+	"xAxis": {"show": True},
+	"yAxis": {"show": True, "format": "s", "decimals": 2, "logBase": 2, "splitFactor": None, "min": "0", "max": None},
+	"xBucketSize": None,
+	"xBucketNumber": None,
+	"yBucketSize": None,
+	"yBucketNumber": None,
+	"tooltip": {"show": False, "showHistogram": False},
+	"highlightCards": True,
+	"hideZeroBuckets": False,
+	"tooltipDecimals": 0,
+}
+
+
+class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
+	def __init__(
+		self, type="graph", title="", units=None, decimals=0, stack=False, yaxis_min="auto"
+	):  # pylint: disable=too-many-arguments, redefined-builtin
+		self.type = type
+		self.title = title
+		self.units = units or ["short", "short"]
+		self.decimals = decimals
+		self.stack = stack
+		self._template = ""
+		self.yaxis_min = yaxis_min
+		if self.type == "graph":
+			self._template = GRAFANA_GRAPH_PANEL_TEMPLATE
+		elif self.type == "heatmap":
+			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE
+
+	def get_panel(self, panel_id=1, pos_x=0, pos_y=0):
+		panel = copy.deepcopy(self._template)
+		panel["id"] = panel_id
+		panel["gridPos"]["x"] = pos_x
+		panel["gridPos"]["y"] = pos_y
+		panel["title"] = self.title
+		if self.type == "graph":
+			panel["stack"] = self.stack
+			panel["decimals"] = self.decimals
+			for i, unit in enumerate(self.units):
+				panel["yaxes"][i]["format"] = unit  # pylint: disable=loop-invariant-statement
+		elif self.type == "heatmap":
+			panel["yAxis"]["format"] = self.units[0]
+			panel["tooltipDecimals"] = self.decimals
+		if self.yaxis_min != "auto":
+			for axis in panel["yaxes"]:
+				axis["min"] = self.yaxis_min
+		return panel
 
 
 def get_yappi_tag() -> int:
@@ -41,24 +218,25 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 
 	with redis_client() as client:
 		for metric in metrics_registry.get_metrics():
+			subject_is_worker = metric.subject == "worker"
 			if not metric.downsampling:
 				continue
 
 			iterations = 1
-			if metric.subject == "worker":
+			if subject_is_worker:
 				iterations = config.workers
 
 			for iteration in range(iterations):
 				node_name = config.node_name
 				worker_num = None
-				if metric.subject == "worker":
+				if subject_is_worker:
 					worker_num = iteration + 1
 
 				logger.debug("Iteration=%s, node_name=%s, worker_num=%s", iteration, node_name, worker_num)
 
 				orig_key = None
 				cmd = None
-				if metric.subject == "worker":
+				if subject_is_worker:
 					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
 				elif metric.subject == "node":
@@ -322,10 +500,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 		func_stats: Dict[str, YFuncStats] = {
 			stat_name: yappi.get_func_stats(filter={"name": function, "tag": tag}) for function, stat_name in self._profile_methods.items()
 		}
-		server_timing = {}
-		for stat_name, stats in func_stats.items():
-			if not stats.empty():
-				server_timing[stat_name] = stats.pop().ttot * 1000
+		server_timing = {stat_name: stats.pop().ttot * 1000 for stat_name, stats in func_stats.items() if not stats.empty()}
 		return server_timing
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:

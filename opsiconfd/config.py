@@ -41,7 +41,7 @@ DEPRECATED = ("monitoring-debug", "verify-ip")
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
 
-FQDN = getfqdn()
+FQDN = getfqdn().lower()
 DEFAULT_NODE_NAME = socket.gethostname()
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"

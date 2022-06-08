@@ -18,6 +18,7 @@ import tempfile
 from operator import itemgetter
 from shutil import move, rmtree, unpack_archive
 from typing import Dict, List
+from urllib.parse import urlparse
 
 import msgpack  # type: ignore[import]
 from fastapi import APIRouter, Request, Response, UploadFile, status
@@ -371,18 +372,27 @@ async def get_blocked_clients() -> list:
 
 @admin_interface_router.get("/grafana")
 async def open_grafana(request: Request):
-	if not config.grafana_external_url.startswith("/") and request.base_url.hostname not in (
+	url = urlparse(config.grafana_external_url)
+	local_addreses = (
 		"127.0.0.1",
 		"::1",
-		"0.0.0.0",
 		"localhost",
 		FQDN,
+	)
+	if (
+		url.scheme
+		and url.hostname
+		and request.base_url.hostname
+		and url.hostname.lower() in local_addreses
+		and url.hostname.lower() != request.base_url.hostname.lower()
 	):
-		url = f"{request.base_url.scheme}://{FQDN}:{request.base_url.port}{request.scope['path']}"
-		logger.info("Redirecting %s to %s (%s)", request.base_url.hostname, FQDN, url)
-		return RedirectResponse(url)
+		redirect_url = f"{request.base_url.scheme}://{url.hostname}:{request.base_url.port}{request.scope['path']}"
+		logger.info("Redirecting %s to %s (%s)", request.base_url.hostname, url.hostname, redirect_url)
+		return RedirectResponse(redirect_url)
 
-	redirect_response = RedirectResponse(url=f"{config.grafana_external_url}/d/{GRAFANA_DASHBOARD_UID}/opsiconfd-main-dashboard?kiosk=tv")
+	redirect_response = RedirectResponse(
+		url=f"{config.grafana_external_url.rstrip('/')}/d/{GRAFANA_DASHBOARD_UID}/opsiconfd-main-dashboard?kiosk=tv"
+	)
 	try:
 		await create_grafana_datasource()
 		username, password = await create_dashboard_user()

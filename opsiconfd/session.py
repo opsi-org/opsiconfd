@@ -347,9 +347,9 @@ class SessionMiddleware:
 			not response
 			and status_code == status.HTTP_401_UNAUTHORIZED
 			and scope["path"]
-			and scope["path"].lower().split("#", 1)[0].rstrip("/") == "/admin"
+			and scope["path"].lower().split("#", 1)[0].rstrip("/") in ("/admin", "/admin/grafana")
 		):
-			response = RedirectResponse("/login", headers=headers)
+			response = RedirectResponse(f"/login?redirect={scope['path']}", headers=headers)
 		if not response:
 			logger.debug("Returning plaintext response")
 			response = PlainTextResponse(status_code=status_code, content=error, headers=headers)

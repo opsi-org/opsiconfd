@@ -8,6 +8,16 @@ function createUUID() {
 	});
 }
 
+function monitorSession() {
+	if (document.cookie && document.cookie.indexOf('opsiconfd-session=') != -1) {
+		setTimeout(monitorSession, 1000);
+	}
+	else {
+		console.info('Session expired')
+		location.href = "/login";
+	}
+}
+
 function unblockAll() {
 	let request = new XMLHttpRequest();
 	request.open("POST", "/admin/unblock-all");

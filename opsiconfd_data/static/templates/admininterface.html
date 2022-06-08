@@ -21,6 +21,8 @@
 		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
 
 		function onLoad() {
+			monitorSession();
+
 			let input = document.getElementById("redis-cmd");
 
 			input.onkeyup = function (event) {
@@ -51,6 +53,7 @@
 				reloadTimer = null;
 			}
 		}
+
 		function createParamInputs() {
 			let value = document.getElementById("method-select").value;
 			let table = document.getElementById("jsonrpc-request-table");
@@ -76,9 +79,6 @@
 		}
 
 		function openTab(tabName) {
-			// Declare all variables
-			var i, tabcontent, tablinks;
-
 			stopReloadTimer();
 			stopLog();
 			stopTerminal();
@@ -120,14 +120,14 @@
 			}
 
 			// Get all elements with class="tabcontent" and hide them
-			tabcontent = document.getElementsByClassName("tabcontent");
-			for (i = 0; i < tabcontent.length; i++) {
+			let tabcontent = document.getElementsByClassName("tabcontent");
+			for (let i = 0; i < tabcontent.length; i++) {
 				tabcontent[i].style.display = "none";
 			}
 
 			// Get all elements with class="tablinks" and remove the class "active"
-			tablinks = document.getElementsByClassName("tablink");
-			for (i = 0; i < tablinks.length; i++) {
+			let tablinks = document.getElementsByClassName("tablink");
+			for (let i = 0; i < tablinks.length; i++) {
 				tablinks[i].classList.remove("active");
 			}
 			document.getElementById("tablink-" + tabName).classList.add("active");

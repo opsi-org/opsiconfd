@@ -169,7 +169,8 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 					proxy_logger.info("Client disconnect: %s %s", client_websocket.scope["client"][0], client_websocket.url.path)
 				except TypeError:
 					proxy_logger.info("Server disconnect: %s %s", client_websocket.scope["client"][0], client_websocket.url.path)
-				await client_websocket.close()
+				if client_websocket.client_state == WebSocketState.CONNECTED:
+					await client_websocket.close()
 				await server_websocket.close()
 		except ClientConnectorError as err:
 			proxy_logger.error(err)

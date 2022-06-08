@@ -17,7 +17,7 @@ from opsicommon.testing.helpers import http_test_server  # type: ignore[import]
 from opsiconfd.application import app
 from opsiconfd.application.proxy import ReverseProxy
 
-from .utils import (
+from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	WebSocketMessageReader,

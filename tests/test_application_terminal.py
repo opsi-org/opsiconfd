@@ -11,9 +11,6 @@ test application.terminal
 import os
 import time
 import uuid
-from queue import Empty, Queue
-from threading import Thread
-from typing import Any, Dict, Generator
 
 import msgpack  # type: ignore[import]
 import pytest
@@ -23,48 +20,11 @@ from starlette.websockets import WebSocketDisconnect
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	WebSocketMessageReader,
 	clean_redis,
 	get_config,
 	test_client,
 )
-
-
-class WebSocketMessageReader(Thread):
-	def __init__(self, websocket) -> None:
-		super().__init__()
-		self.daemon = True
-		self.websocket = websocket
-		self.messages: Queue[Dict[str, Any]] = Queue()
-		self.should_stop = False
-
-	def __enter__(self):
-		self.start()
-		return self
-
-	def __exit__(self, exc_type, exc_val, exc_tb):
-		self.stop()
-
-	def run(self):
-		while not self.should_stop:
-			data = self.websocket.receive()
-			if not data:
-				continue
-			if data["type"] == "websocket.close":
-				break
-			if data["type"] == "websocket.send":
-				msg = msgpack.loads(data["bytes"])
-				print(f"received: >>>{msg}<<<")
-				self.messages.put(msg)
-
-	def stop(self):
-		self.should_stop = True
-
-	def get_messages(self) -> Generator[Dict[str, Any], None, None]:
-		try:
-			while True:
-				yield self.messages.get_nowait()
-		except Empty:
-			pass
 
 
 def test_connect(test_client):  # pylint: disable=redefined-outer-name

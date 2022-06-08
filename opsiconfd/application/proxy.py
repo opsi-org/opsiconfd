@@ -78,8 +78,8 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 			remove_headers.append("host")
 		if not self.forward_authorization:
 			remove_headers.append("authorization")
+		cookies = []
 		if self.forward_cookies:
-			cookies = []
 			send_all = "*" in self.forward_cookies
 			for cookie in _request_headers.get("cookie", "").split(";"):
 				cookie = cookie.strip()
@@ -89,8 +89,8 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 					continue
 				if send_all or name in self.forward_cookies:
 					cookies.append(cookie)
-			if cookies:
-				_request_headers["cookie"] = "; ".join(cookies)
+		if cookies:
+			_request_headers["cookie"] = "; ".join(cookies)
 		else:
 			remove_headers.append("cookie")
 		for header in remove_headers:

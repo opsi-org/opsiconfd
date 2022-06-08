@@ -14,6 +14,7 @@ import os
 import sys
 import tempfile
 from socket import getfqdn
+from urllib.parse import urlparse
 
 import mock  # type: ignore[import]
 import pytest
@@ -276,7 +277,8 @@ def test_open_grafana(test_client, config):  # pylint: disable=redefined-outer-n
 
 	response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
 	assert response.status_code == 307
-	assert response.headers.get("location") == "/metrics/grafana/dashboard"
+	url = urlparse(config.grafana_external_url)
+	assert response.headers.get("location") == f"https://{url.hostname}:{config.port}/admin/grafana"
 
 
 @pytest.mark.mysql_backend_available

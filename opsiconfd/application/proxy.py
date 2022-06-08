@@ -9,15 +9,19 @@ proxy
 """
 
 
-from typing import List
+from asyncio import gather
+from typing import Callable, List
 from urllib.parse import urljoin, urlparse
 
-import aiohttp
+from aiohttp import ClientConnectorError, ClientSession
+from fastapi import status
 from fastapi.requests import Request
 from fastapi.responses import Response, StreamingResponse
 from opsicommon.logging.constants import TRACE  # type: ignore[import]
 from starlette.background import BackgroundTask
+from starlette.datastructures import Headers
 from starlette.types import ASGIApp
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from ..config import config
 from ..logging import get_logger
@@ -49,23 +53,25 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		self.forward_cookies = forward_cookies
 		self.preserve_host = preserve_host
 		app.add_route(f"{base_path}/{{path:path}}", self.handle_request, methods)  # type: ignore[attr-defined]
+		app.add_websocket_route(f"{base_path}/{{path:path}}", self.handle_websocket_request)  # type: ignore[attr-defined]
 
-	async def handle_request(self, request: Request):  # pylint: disable=too-many-branches
-		path = "/" + request.url.path[len(self.base_path) :].lstrip("/")
-		full_url = urljoin(self.base_url, path)
+	def _get_path(self, path: str):
+		_path = "/" + path[len(self.base_path) :].lstrip("/")
+		full_url = urljoin(self.base_url, _path)
 		if not full_url.startswith(self.base_url):
-			proxy_logger.error("Invalid path: %s", request.url.path)
-			return Response(content="Not found", status_code=404)
+			proxy_logger.error("Invalid path: %s", path)
+			return None
+		return _path
 
-		client = aiohttp.ClientSession(self.base_url, auto_decompress=False)
-		request_headers = dict(request.headers)
+	def _request_headers(self, request_headers: Headers, client_address: str):
+		_request_headers = dict(request_headers)
 
 		# TODO: https://tools.ietf.org/html/rfc7239
-		request_headers["x-forwarded-proto"] = "https"
-		request_headers["x-forwarded-host"] = request_headers["host"].split(":")[0]
-		request_headers["x-forwarded-server"] = request_headers["host"].split(":")[0]
-		request_headers["x-forwarded-for"] = request.scope["client"][0]
-		request_headers["x-real-ip"] = request.scope["client"][0]
+		_request_headers["x-forwarded-proto"] = "https"
+		_request_headers["x-forwarded-host"] = _request_headers["host"].split(":")[0]
+		_request_headers["x-forwarded-server"] = _request_headers["host"].split(":")[0]
+		_request_headers["x-forwarded-for"] = client_address
+		_request_headers["x-real-ip"] = client_address
 
 		remove_headers = []
 		if not self.preserve_host:
@@ -75,7 +81,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		if self.forward_cookies:
 			cookies = []
 			send_all = "*" in self.forward_cookies
-			for cookie in request_headers.get("cookie", "").split(";"):
+			for cookie in _request_headers.get("cookie", "").split(";"):
 				cookie = cookie.strip()
 				name = cookie.split("=", 1)[0]
 				if name == SESSION_COOKIE_NAME:
@@ -84,21 +90,37 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 				if send_all or name in self.forward_cookies:
 					cookies.append(cookie)
 			if cookies:
-				request_headers["cookie"] = "; ".join(cookies)
+				_request_headers["cookie"] = "; ".join(cookies)
 		else:
 			remove_headers.append("cookie")
 		for header in remove_headers:
-			if header in request_headers:
-				del request_headers[header]
+			if header in _request_headers:
+				del _request_headers[header]
 
+		return _request_headers
+
+	async def handle_request(self, request: Request):  # pylint: disable=too-many-branches
+		path = self._get_path(request.url.path)
+		if not path:
+			return Response(content="Not found", status_code=404)
+
+		client = ClientSession(self.base_url, auto_decompress=False)
+
+		request_headers = self._request_headers(request.headers, request.scope["client"][0])
 		if proxy_logger.isEnabledFor(TRACE):
 			proxy_logger.trace(">>> %s %s", request.method, path)
 			for header, value in request_headers.items():
 				proxy_logger.trace(">>> %s: %s", header, value)  # pylint: disable=loop-global-usage
 
-		resp = await client._request(  # pylint: disable=protected-access
-			method=request.method, headers=request_headers, str_or_url=path, data=request.stream(), allow_redirects=False
-		)
+		try:
+			resp = await client._request(  # pylint: disable=protected-access
+				method=request.method, headers=request_headers, str_or_url=path, data=request.stream(), allow_redirects=False
+			)
+		except ClientConnectorError as err:
+			proxy_logger.error(err)
+			await client.close()
+			return Response(status_code=status.HTTP_502_BAD_GATEWAY, content=str(err))
+
 		proxy_logger.debug("Got response: %s", resp)
 
 		response_headers = dict(resp.headers)
@@ -110,8 +132,47 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 
 		request.scope["reverse_proxy"] = True
 		return StreamingResponse(
-			content=resp.content.iter_any(),
 			status_code=resp.status,
 			headers=response_headers,
+			content=resp.content.iter_any(),
 			background=BackgroundTask(client.close),
 		)
+
+	async def _websocket_reader(self, name: str, reader: Callable, writer: Callable, state: WebSocketState):  # pylint: disable=no-self-use
+		trace_log = proxy_logger.isEnabledFor(TRACE)
+		while state == WebSocketState.CONNECTED:
+			data = await reader()
+			if trace_log:
+				proxy_logger.trace("%s: %s", name, data)  # pylint: disable=loop-global-usage
+			await writer(data)
+
+	async def handle_websocket_request(self, client_websocket: WebSocket):  # pylint: disable=too-many-branches
+		path = self._get_path(client_websocket.url.path)
+		if not path:
+			return Response(content="Not found", status_code=status.HTTP_404_NOT_FOUND)
+
+		client = ClientSession(self.base_url, auto_decompress=False)
+		try:
+			request_headers = self._request_headers(client_websocket.headers, client_websocket.scope["client"][0])
+
+			await client_websocket.accept()
+			async with client.ws_connect(url=path, headers=request_headers) as server_websocket:
+				server_websocket_reader = self._websocket_reader(
+					"<<<", server_websocket.receive_str, client_websocket.send_text, client_websocket.client_state
+				)
+				client_websocket_reader = self._websocket_reader(
+					">>>", client_websocket.receive_text, server_websocket.send_str, client_websocket.client_state
+				)
+				try:
+					await gather(server_websocket_reader, client_websocket_reader)
+				except WebSocketDisconnect:
+					proxy_logger.info("Client disconnect: %s %s", client_websocket.scope["client"][0], client_websocket.url.path)
+				except TypeError:
+					proxy_logger.info("Server disconnect: %s %s", client_websocket.scope["client"][0], client_websocket.url.path)
+				await client_websocket.close()
+				await server_websocket.close()
+		except ClientConnectorError as err:
+			proxy_logger.error(err)
+			await client_websocket.close(status.WS_1014_BAD_GATEWAY)
+		finally:
+			await client.close()

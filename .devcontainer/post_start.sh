@@ -9,10 +9,10 @@ sudo wget --header="Authorization: Bearer ${OPSILICSRV_TOKEN}" "https://opsi-lic
 echo "* Upgrade opsi-dev-tool"
 sudo opsi-dev-tool --self-upgrade || true
 
-echo "* Restarting services"
-sudo service redis-server restart
-sudo service mysql restart
-sudo service grafana-server restart
+echo "* Start services"
+sudo supervisorctl status redis-server | grep RUNNING >/dev/null || sudo supervisorctl start redis-server
+sudo supervisorctl status mariadb-server | grep RUNNING >/dev/null || sudo supervisorctl start mariadb-server
+sudo supervisorctl status grafana-server | grep RUNNING >/dev/null || sudo supervisorctl start grafana-server
 
 sudo chown -R $DEV_USER /workspace
 sudo opsi-set-rights

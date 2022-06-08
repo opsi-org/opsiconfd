@@ -3,6 +3,7 @@
 set -o errexit
 set -o nounset
 
-cmd="sleep infinity"
+cmd="/usr/bin/supervisord -c /etc/supervisor/supervisord.conf"
+#cmd="sleep infinity"
 
 exec $cmd

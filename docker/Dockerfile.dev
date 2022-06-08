@@ -34,39 +34,24 @@ RUN apt-get update \
 		sudo \
 		git \
 		bash-completion \
-		nano
-
-# grafana
-RUN wget -q -O - https://packages.grafana.com/gpg.key |  apt-key add - \
-	&& echo "deb https://packages.grafana.com/oss/deb stable main" | tee -a /etc/apt/sources.list.d/grafana.list
-
-RUN apt-get update \
+		nano \
+		netcat \
+		supervisor \
+	&& echo "deb https://packages.grafana.com/oss/deb stable main" > /etc/apt/sources.list.d/grafana.list \
+	&& wget -q -O - https://packages.grafana.com/gpg.key | apt-key add - \
+	&& echo "deb $OPSI_REPO /" > /etc/apt/sources.list.d/opsi.list \
+	&& wget -q -O - ${OPSI_REPO}Release.key | apt-key add - \
+	&& apt-get update \
 	&& apt-get --yes install \
 		apt-transport-https \
 		software-properties-common \
-		grafana
-
-# mysql
-RUN apt-get update \
-	&& apt-get --yes install \
-		mariadb-server
-
-# redis:
-RUN  echo "deb $OPSI_REPO /" > /etc/apt/sources.list.d/opsi.list
-
-RUN wget -nv ${OPSI_REPO}Release.key -O Release.key \
-	&& apt-key add - < Release.key
-
-RUN apt-get update \
-	&& apt-get --yes install \
+		grafana \
+		mariadb-server \
 		redis-tools \
 		redis-server \
-		redis-timeseries
-
-# opsi-utils
-RUN apt-get update \
-	&& apt-get --yes install \
-		opsi-utils
+		redis-timeseries \
+		opsi-utils \
+	&& apt-get clean
 
 COPY docker/files/ /
 
@@ -89,11 +74,8 @@ RUN useradd --create-home -s /bin/bash ${DEV_USER} \
 	&& chown -R ${DEV_USER}:${DEV_USER} /home/${DEV_USER}/ \
 	&& echo "${DEV_USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
 	&& cp -r /root/.bash* /home/adminuser/ \
-	&& cp -r /root/.bash* /home/${DEV_USER}/
-
-RUN chmod g+rw -R .
-
-RUN chmod +x "/docker-entrypoint.sh" \
+	&& cp -r /root/.bash* /home/${DEV_USER}/ \
+	&& chmod g+rw -R . \
+	&& chmod +x "/docker-entrypoint.sh" \
 	&& mkdir tftpboot \
 	&& chown -R $DEV_USER /workspace
-

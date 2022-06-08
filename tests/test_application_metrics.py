@@ -18,7 +18,6 @@ from opsiconfd.application.metrics import (
 	get_clients,
 	get_nodes,
 	get_workers,
-	grafana_dashboard,
 	grafana_dashboard_config,
 	grafana_search,
 )
@@ -94,13 +93,6 @@ async def test_get_clients(test_client):  # pylint: disable=redefined-outer-name
 	await asyncio.sleep(1)
 	clients = await get_clients("client:sum_http_request_number")
 	assert clients == [{"client_addr": "127.0.0.1"}]
-
-
-@pytest.mark.grafana_available
-async def test_grafana_dashboard():
-	res = await grafana_dashboard()
-	assert res.headers["location"].endswith("/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv")
-	assert res.status_code == 307
 
 
 async def test_grafana_dashboard_config():

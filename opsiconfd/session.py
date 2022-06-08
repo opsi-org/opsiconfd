@@ -252,7 +252,7 @@ class SessionMiddleware:
 
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
-				if scope["session"] and not scope["session"].deleted and scope["session"].persistent:
+				if scope["session"]:
 					await scope["session"].store()
 					headers = MutableHeaders(scope=message)
 					scope["session"].add_cookie_to_headers(headers)
@@ -411,12 +411,15 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		return int(self.max_age - (utc_time_timestamp() - self.last_used))
 
 	def get_cookie(self) -> Optional[str]:
-		if not self.session_id or self.deleted or not self.persistent:
+		if not self.session_id or not self.persistent:
 			return None
 		attrs = "; ".join(SESSION_COOKIE_ATTRIBUTES)
 		if attrs:
 			attrs += "; "
-		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={self.max_age}"
+
+		# A zero or negative number will expire the cookie immediately
+		max_age = 0 if self.deleted else self.max_age
+		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={max_age}"
 
 	def add_cookie_to_headers(self, headers: dict):
 		cookie = self.get_cookie()
@@ -545,7 +548,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 				# Be sure to delete key
 				if not redis.exists(self.redis_key):
 					break
-		self.session_id = None
 		self.deleted = True
 
 	async def delete(self) -> None:

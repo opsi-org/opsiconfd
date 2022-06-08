@@ -83,7 +83,8 @@ def test_logout_endpoint(test_client):  # pylint: disable=redefined-outer-name
 
 		res = test_client.get("/session/logout")
 		assert res.status_code == 200
-
+		assert "opsiconfd-session" in res.headers["set-cookie"]
+		assert "Max-Age=0" in res.headers["set-cookie"]
 		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
 		assert len(keys) == 0
 

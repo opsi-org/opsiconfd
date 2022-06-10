@@ -21,7 +21,7 @@
 		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
 
 		function onLoad() {
-			monitorSession();
+			setTimeout(monitorSession, 5000);
 
 			let input = document.getElementById("redis-cmd");
 

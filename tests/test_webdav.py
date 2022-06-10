@@ -15,15 +15,30 @@ from unittest.mock import patch
 
 import pytest
 
-from opsiconfd.config import FQDN
 from opsiconfd.application.main import app
 from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
+from opsiconfd.config import FQDN
 
-from .utils import app, backend, config, clean_redis, test_client, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
+from .utils import (  # pylint: disable=unused-import
+	ADMIN_PASS,
+	ADMIN_USER,
+	app,
+	backend,
+	clean_redis,
+	config,
+	test_client,
+)
 
 
 def test_webdav_setup():
 	webdav_setup(app)
+
+
+def test_options_request_for_index(test_client):  # pylint: disable=redefined-outer-name
+	# Windows WebDAV client send OPTIONS request for /
+	res = test_client.request(method="OPTIONS", url="/")
+	assert res.status_code == 200
+	assert res.headers["Allow"] == "OPTIONS, GET, HEAD"
 
 
 def test_webdav_path_modification(test_client):  # pylint: disable=redefined-outer-name

@@ -76,7 +76,7 @@ async def index():
 @app.options("/")
 async def index_options():
 	# Windows WebDAV client send OPTIONS request for /
-	return Response()
+	return Response(headers={"Allow": "OPTIONS, GET, HEAD"})
 
 
 @app.get("/login")

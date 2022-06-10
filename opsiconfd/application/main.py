@@ -67,10 +67,16 @@ header_logger = get_logger("opsiconfd.headers")
 
 
 @app.get("/")
-async def index(request: Request, response: Response):  # pylint: disable=unused-argument
+async def index():
 	if config.welcome_page:
 		return RedirectResponse("/welcome")
 	return RedirectResponse("/admin")
+
+
+@app.options("/")
+async def index_options():
+	# Windows WebDAV client send OPTIONS request for /
+	return Response()
 
 
 @app.get("/login")

@@ -8,15 +8,8 @@
 redisinterface
 """
 
-import traceback
+from fastapi import APIRouter, Request, status
 
-from aioredis.exceptions import ResponseError
-from fastapi import APIRouter, Request, Response, status
-from fastapi.responses import JSONResponse
-
-from opsiconfd import rest
-
-from .. import contextvar_client_session
 from ..logging import logger
 from ..rest import OpsiApiException, rest_api
 from ..utils import (

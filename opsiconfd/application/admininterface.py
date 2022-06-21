@@ -18,7 +18,6 @@ import tempfile
 from operator import itemgetter
 from shutil import move, rmtree, unpack_archive
 from typing import Dict, List
-from urllib import response
 from urllib.parse import urlparse
 
 import msgpack  # type: ignore[import]

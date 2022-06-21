@@ -352,6 +352,7 @@ async def unlock_product(request: Request, product: str):
 
 
 @admin_interface_router.post("/products/unlock")
+@rest_api
 def unlock_all_product():
 	backend = get_backend()
 	try:
@@ -359,11 +360,10 @@ def unlock_all_product():
 			pod.productId for pod in backend.productOnDepot_getObjects(depotId=[], locked=True)  # pylint: disable=no-member
 		):
 			backend.unlockProduct(product)  # pylint: disable=no-member
-		response = JSONResponse({"status": 200, "error": None, "data": None})
+		return {"data": None}
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while unlocking products", "detail": str(err)}})
-	return response
+		raise OpsiApiException(message="Error while unlocking products", error=err) from err
 
 
 @admin_interface_router.get("/blocked-clients", response_model=List[str])

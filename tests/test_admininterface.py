@@ -137,7 +137,7 @@ async def test_unblock_client(config, admininterface):  # pylint: disable=redefi
 
 		response = await admininterface.unblock_client(test_request)
 		response_dict = json.loads(response.body)
-		assert response_dict.get("status") == 200
+		assert response.status_code == 200
 		assert response_dict.get("error") is None
 
 		val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
@@ -197,8 +197,10 @@ async def test_get_blocked_clients(admininterface):  # pylint: disable=redefined
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
 
-	blocked_clients = await admininterface.get_blocked_clients()
-	assert sorted(blocked_clients) == sorted(addresses)
+	result = await admininterface.get_blocked_clients()
+	print(result)
+	print(json.loads(result.body))
+	assert sorted(json.loads(result.body)) == sorted(addresses)
 
 
 @pytest.mark.parametrize("num_rpcs", [1, 3, 5])
@@ -259,10 +261,6 @@ async def test_delete_client_sessions(
 	response = await admininterface.delete_client_sessions(test_request)
 
 	response_dict = json.loads(response.body)
-	print(response.__dict__)
-	print("############")
-	print(response_dict)
-	print("############")
 	assert response.status_code == expected_response[0]
 
 	if expected_response[1]:
@@ -432,7 +430,8 @@ def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
 	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	addons = AddonManager().addons
-	assert len(response.json()) == len(addons)
+	response_body = json.loads(response.content)
+	assert len(response_body) == len(addons)
 
 
 def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
@@ -461,9 +460,11 @@ def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-na
 		"/admin/unblock-client": "opsiconfd.application.admininterface.unblock_client",
 	}
 	# test if default routes are in the list
+	response_body = json.loads(response.content)
+	print(response_body)
 	for key in routes_to_test:
-		assert key in response.json().get("data", {}).keys()
-		assert routes_to_test.get(key) == response.json().get("data", {}).get(key)
+		assert key in response_body.keys()
+		assert routes_to_test.get(key) == response_body.get(key)
 
 	# load addon
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
@@ -484,8 +485,9 @@ def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-na
 	}
 
 	# test if appon routes are in the list
+	response_body = json.loads(response.content)
 	for key in addon_routes:
-		assert key in response.json().get("data", {}).keys()
-		assert addon_routes.get(key) == response.json().get("data", {}).get(key)
+		assert key in response_body.keys()
+		assert addon_routes.get(key) == response_body.get(key)
 
 	addon_manager.unload_addon("test1")

@@ -23,14 +23,13 @@ function downloadConfiged() {
 }
 
 function doReq(method, url, body, handleError = true, requestInfos = false) {
-	console.debug("method: ", method);
-	console.debug("url: ", url);
-	console.debug("body: ", body);
+	// console.debug("method: ", method);
+	// console.debug("url: ", url);
+	// console.debug("body: ", body);
 	return new Promise(function (resolve, reject) {
 		let req = new XMLHttpRequest();
 		req.open(method, url);
 		req.onload = function () {
-			console.log(req);
 			if (req.status >= 200 && req.status < 300) {
 				result = req.responseText;
 				result = JSON.parse(result);
@@ -52,8 +51,6 @@ function doReq(method, url, body, handleError = true, requestInfos = false) {
 				}
 			}
 		};
-		console.log(typeof body);
-		console.log(body instanceof FormData);
 		if (body instanceof FormData) {
 			req.send(body)
 		}

@@ -21,3 +21,52 @@ function downloadConfiged() {
 	url = CONFIGED_DOWNLOAD_LINKS[os];
 	window.open(url);
 }
+
+function doReq(method, url, body, handleError = true, requestInfos = false) {
+	console.debug("method: ", method);
+	console.debug("url: ", url);
+	console.debug("body: ", body);
+	return new Promise(function (resolve, reject) {
+		let req = new XMLHttpRequest();
+		req.open(method, url);
+		req.onload = function () {
+			console.log(req);
+			if (req.status >= 200 && req.status < 300) {
+				result = req.responseText;
+				result = JSON.parse(result);
+				if (requestInfos == true) {
+					serverTiming = req.getResponseHeader("server-timing")
+					resolve({ "data": result, "requestInfo": { "serverTiming": serverTiming } })
+				}
+				resolve(result);
+			} else {
+				console.warn("Request Status: ", req.status);
+				if (req.responseText) {
+					result = JSON.parse(req.responseText);
+					console.log(result.message);
+					reject(result);
+				}
+				else {
+					console.log("Unknown Error");
+					reject(req.status, "Unknown Error")
+				}
+			}
+		};
+		console.log(typeof body);
+		console.log(body instanceof FormData);
+		if (body instanceof FormData) {
+			req.send(body)
+		}
+		else if (body) {
+			req.send(JSON.stringify(body))
+		}
+		else {
+			req.send();
+		}
+	}).catch((error) => {
+		console.debug(error);
+		if (handleError == false) {
+			throw error;
+		}
+	});
+}

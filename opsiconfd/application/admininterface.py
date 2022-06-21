@@ -18,6 +18,7 @@ import tempfile
 from operator import itemgetter
 from shutil import move, rmtree, unpack_archive
 from typing import Dict, List
+from urllib import response
 from urllib.parse import urlparse
 
 import msgpack  # type: ignore[import]
@@ -34,6 +35,7 @@ from ..backend import get_backend, get_backend_interface
 from ..config import FQDN, VAR_ADDON_DIR, config
 from ..grafana import async_grafana_session, create_dashboard_user
 from ..logging import logger
+from ..rest import OpsiApiException, rest_api
 from ..session import OPSISession
 from ..ssl import get_ca_cert_info, get_server_cert_info
 from ..statistics import GRAFANA_DASHBOARD_UID
@@ -122,9 +124,10 @@ async def admin_interface_index(request: Request):
 
 
 @admin_interface_router.post("/reload")
+@rest_api
 async def reload():
 	os.kill(get_manager_pid(), signal.SIGHUP)
-	return JSONResponse({"status": 200, "error": None, "data": "reload sent"})
+	return {"data": "reload sent"}
 
 
 @admin_interface_router.post("/unblock-all")
@@ -155,6 +158,7 @@ async def unblock_all_clients(response: Response):
 
 
 @admin_interface_router.post("/unblock-client")
+@rest_api
 async def unblock_client(request: Request):
 	try:
 		request_body = await request.json()
@@ -171,16 +175,14 @@ async def unblock_client(request: Request):
 		if redis_code == 1:
 			deleted_keys.append(f"opsiconfd:stats:client:blocked:{client_addr_redis}")
 
-		response = JSONResponse({"status": 200, "error": None, "data": {"client": client_addr, "redis-keys": deleted_keys}})
+		return {"data": {"client": client_addr, "redis-keys": deleted_keys}}
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
-		response = JSONResponse(
-			{"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}}, status_code=500
-		)
-	return response
+		raise OpsiApiException(error=err, message="Error while removing redis client keys.") from err
 
 
 @admin_interface_router.post("/delete-client-sessions")
+@rest_api
 async def delete_client_sessions(request: Request):
 	try:
 		request_body = await request.json() or {}
@@ -199,22 +201,21 @@ async def delete_client_sessions(request: Request):
 					await pipe.delete(key)
 				await pipe.execute()
 
-		response = JSONResponse(
-			{"status": 200, "error": None, "data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}}
-		)
+		return {"data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}}
+
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}})
-	return response
+		raise OpsiApiException(error=err, message="Error while removing redis client keys") from err
 
 
 @admin_interface_router.get("/addons")
-async def get_addon_list() -> list:
+@rest_api
+async def get_addon_list() -> dict:
 	addon_list = [
 		{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
 		for addon in AddonManager().addons
 	]
-	return sorted(addon_list, key=itemgetter("id"))
+	return {"data": sorted(addon_list, key=itemgetter("id"))}
 
 
 def _install_addon(data: bytes):
@@ -248,12 +249,14 @@ def _install_addon(data: bytes):
 
 
 @admin_interface_router.post("/addons/install")
-async def install_addon(request: Request) -> list:
+@rest_api
+async def install_addon(request: Request) -> dict:
 	form = await request.form()
 	if isinstance(form["addonfile"], str):
 		raise RuntimeError("Invalid addon")
 	data = await form["addonfile"].read()
 	await run_in_threadpool(_install_addon, data)
+	return {"data": "Addon installed"}
 
 
 @admin_interface_router.get("/rpc-list")
@@ -318,15 +321,17 @@ async def get_session_list() -> list:
 	return session_list
 
 
-@admin_interface_router.get("/locked-products-list")
-async def get_locked_products_list() -> list:
+@admin_interface_router.get("/locked-products-list", response_model=List[str])
+@rest_api
+async def get_locked_products_list():
 	backend = get_backend()
 	products = backend.getProductLocks_hash()  # pylint: disable=no-member
-	return products
+	return {"data": products}
 
 
 @admin_interface_router.post("/products/{product}/unlock")
-async def unlock_product(request: Request, product: str) -> JSONResponse:
+@rest_api
+async def unlock_product(request: Request, product: str):
 	backend = get_backend()
 	depots = None
 	try:
@@ -336,11 +341,14 @@ async def unlock_product(request: Request, product: str) -> JSONResponse:
 		pass
 	try:
 		backend.unlockProduct(productId=product, depotIds=depots)  # pylint: disable=no-member
-		response = JSONResponse({"status": 200, "error": None, "data": {"product": product, "action": "unlock"}})
+		return {"data": {"product": product, "action": "unlock"}}
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
-		response = JSONResponse({"status": 500, "error": {"message": "Error while unlocking product", "detail": str(err)}}, status_code=500)
-	return response
+		raise OpsiApiException(
+			message="Error while unlocking product",
+			http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			error=err,
+		) from err
 
 
 @admin_interface_router.post("/products/unlock")
@@ -358,16 +366,16 @@ def unlock_all_product():
 	return response
 
 
-@admin_interface_router.get("/blocked-clients")
-async def get_blocked_clients() -> list:
+@admin_interface_router.get("/blocked-clients", response_model=List[str])
+@rest_api
+async def get_blocked_clients():
 	redis = await async_redis_client()
 	redis_keys = redis.scan_iter("opsiconfd:stats:client:blocked:*")
 
 	blocked_clients = []
 	async for key in redis_keys:
-		logger.debug("redis key to delete: %s", key)
 		blocked_clients.append(ip_address_from_redis_key(key.decode("utf8").split(":")[-1]))
-	return blocked_clients
+	return {"data": blocked_clients, "total": len(blocked_clients)}
 
 
 @admin_interface_router.get("/grafana")
@@ -415,7 +423,8 @@ async def open_grafana(request: Request):
 
 
 @admin_interface_router.get("/config")
-def get_confd_conf(all: bool = False) -> JSONResponse:  # pylint: disable=redefined-builtin
+@rest_api
+def get_confd_conf(all: bool = False) -> dict:  # pylint: disable=redefined-builtin
 
 	keys_to_remove = (
 		"version",
@@ -440,11 +449,12 @@ def get_confd_conf(all: bool = False) -> JSONResponse:  # pylint: disable=redefi
 				del current_config[key]
 	current_config = {key.replace("_", "-"): value for key, value in sorted(current_config.items())}
 
-	return JSONResponse({"status": 200, "error": None, "data": {"config": current_config}})
+	return {"data": {"config": current_config}}
 
 
 @admin_interface_router.get("/routes")
-def get_routes(request: Request) -> JSONResponse:  # pylint: disable=redefined-builtin
+@rest_api
+def get_routes(request: Request) -> dict:  # pylint: disable=redefined-builtin
 	app = request.app
 	routes = {}
 	for route in app.routes:
@@ -458,11 +468,12 @@ def get_routes(request: Request) -> JSONResponse:  # pylint: disable=redefined-b
 		else:
 			routes[route.path] = route.__class__.__name__
 
-	return JSONResponse({"status": 200, "error": None, "data": collections.OrderedDict(sorted(routes.items()))})
+	return {"data": collections.OrderedDict(sorted(routes.items()))}
 
 
 @admin_interface_router.get("/licensing_info")
-def get_licensing_info() -> JSONResponse:
+@rest_api
+def get_licensing_info() -> dict:
 	info = get_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)  # pylint: disable=no-member
 	active_date = None
 	modules: Dict[str, dict] = {}
@@ -488,29 +499,26 @@ def get_licensing_info() -> JSONResponse:
 			previous[module_id] = module
 
 	lic = (info.get("licenses") or [{}])[0]
-	return JSONResponse(
-		{
-			"status": 200,
-			"error": None,
-			"data": {
-				"info": {
-					"customer_name": lic.get("customer_name", ""),
-					"customer_address": lic.get("customer_address", ""),
-					"customer_unit": lic.get("customer_unit", ""),
-					"checksum": info["licenses_checksum"],
-					"macos_clients": info["client_numbers"]["macos"],
-					"linux_clients": info["client_numbers"]["linux"],
-					"windows_clients": info["client_numbers"]["windows"],
-					"all_clients": info["client_numbers"]["all"],
-				},
-				"module_dates": modules,
-				"active_date": str(active_date) if active_date else None,
+	return {
+		"data": {
+			"info": {
+				"customer_name": lic.get("customer_name", ""),
+				"customer_address": lic.get("customer_address", ""),
+				"customer_unit": lic.get("customer_unit", ""),
+				"checksum": info["licenses_checksum"],
+				"macos_clients": info["client_numbers"]["macos"],
+				"linux_clients": info["client_numbers"]["linux"],
+				"windows_clients": info["client_numbers"]["windows"],
+				"all_clients": info["client_numbers"]["all"],
 			},
+			"module_dates": modules,
+			"active_date": str(active_date) if active_date else None,
 		}
-	)
+	}
 
 
 @admin_interface_router.post("/license_upload")
+@rest_api
 async def license_upload(files: List[UploadFile]):
 	try:
 		for file in files:
@@ -523,10 +531,10 @@ async def license_upload(files: List[UploadFile]):
 			logger.notice("Writing opsi license file %r", olf.filename)
 			olf.write()
 			os.chmod(olf.filename, 0o660)  # pylint: disable=dotted-import-in-loop
-		return JSONResponse({"status": 201, "error": None, "data": f"{len(files)} opsi license files imported"}, status.HTTP_201_CREATED)
+		return {"http_status": status.HTTP_201_CREATED, "data": f"{len(files)} opsi license files imported"}
 	except Exception as err:  # pylint: disable=broad-except
 		logger.warning(err, exc_info=True)
-		return JSONResponse({"status": 422, "error": f"Invalid license file: {err}", "data": None}, status.HTTP_422_UNPROCESSABLE_ENTITY)
+		raise OpsiApiException(http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, message="Invalid license file.", error=err) from err
 
 
 def get_num_servers(backend):

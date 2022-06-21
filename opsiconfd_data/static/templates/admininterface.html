@@ -8,6 +8,7 @@
 
 	<script src="/static/javascript/common.js"></script>
 	<script src="/static/javascript/admininterface.js"></script>
+	<script src="/static/javascript/memory_profiler.js"></script>
 	<script src="/static/javascript/msgpack.js"></script>
 	<script src="/static/javascript/log_viewer.js"></script>
 	<script src="/static/xterm/xterm.js"></script>
@@ -404,13 +405,14 @@
 				</div>
 			</div>
 
-			<h3>opsiconfd config</h3>
+			<h3 style="margin-top: 25px">opsiconfd config</h3>
+			<button style="margin-top: 5px" id="reload-button" onclick="reload()">Service reload</button>
 			<div class="adminpage-box">
 				<div id="config">
 					<pre class="config-values" id="config-values"></pre>
 				</div>
 			</div>
-			<button style="margin-bottom: 25px" id="reload-button" onclick="reload()">Service reload</button>
+
 
 			<h3>routes</h3>
 			<div class="adminpage-box">

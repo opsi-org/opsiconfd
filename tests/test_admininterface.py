@@ -225,7 +225,7 @@ async def test_get_rpc_list(test_client, admininterface, num_rpcs):  # pylint: d
 	[
 		({"client_addr": "<local_ip>"}, [200, None, "<local_ip>", 1]),
 		({"client_addr": "192.168.2.1"}, [200, None, "192.168.2.1", 0]),
-		(None, [500, {"detail": "client_addr missing", "message": "Error while removing redis client keys"}, None, 1]),
+		(None, [500, {"message": "client_addr missing"}, None, 1]),
 	],
 )  # pylint: disable=too-many-locals
 async def test_delete_client_sessions(
@@ -259,15 +259,21 @@ async def test_delete_client_sessions(
 	response = await admininterface.delete_client_sessions(test_request)
 
 	response_dict = json.loads(response.body)
-	assert response_dict.get("status") == expected_response[0]
-	assert response_dict.get("error") == expected_response[1]
+	print(response.__dict__)
+	print("############")
+	print(response_dict)
+	print("############")
+	assert response.status_code == expected_response[0]
 
-	if response_dict.get("error") is None:
-		assert response_dict.get("data").get("client") == expected_response[2]
+	if expected_response[1]:
+		assert response_dict.get("message", None) == expected_response[1].get("message")
 
-	if response_dict.get("status") == 200 and response_dict.get("data").get("client") == local_ip:
-		assert response_dict.get("data").get("sessions") == [session]
-		assert len(response_dict.get("data").get("redis-keys")) == expected_response[3]
+	if response_dict.get("message") is None:
+		assert response_dict.get("client") == expected_response[2]
+
+	if response.status_code == 200 and response_dict.get("client") == local_ip:
+		assert response_dict.get("sessions") == [session]
+		assert len(response_dict.get("redis-keys")) == expected_response[3]
 
 
 def test_open_grafana(test_client, config):  # pylint: disable=redefined-outer-name

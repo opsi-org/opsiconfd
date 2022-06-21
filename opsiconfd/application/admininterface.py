@@ -183,28 +183,24 @@ async def unblock_client(request: Request):
 @admin_interface_router.post("/delete-client-sessions")
 @rest_api
 async def delete_client_sessions(request: Request):
-	try:
-		request_body = await request.json() or {}
-		client_addr = request_body.get("client_addr")
-		if not request_body:
-			raise ValueError("client_addr missing")
-		redis = await async_redis_client()
-		sessions = []
-		deleted_keys = []
-		keys = redis.scan_iter(f"{OPSISession.redis_key_prefix}:{ip_address_to_redis_key(client_addr)}:*")
-		if keys:
-			async with redis.pipeline(transaction=False) as pipe:
-				async for key in keys:
-					sessions.append(key.decode("utf8").split(":")[-1])
-					deleted_keys.append(key.decode("utf8"))
-					await pipe.delete(key)
-				await pipe.execute()
+	# try:
+	request_body = await request.json() or {}
+	client_addr = request_body.get("client_addr")
+	if not request_body:
+		raise ValueError("client_addr missing")
+	redis = await async_redis_client()
+	sessions = []
+	deleted_keys = []
+	keys = redis.scan_iter(f"{OPSISession.redis_key_prefix}:{ip_address_to_redis_key(client_addr)}:*")
+	if keys:
+		async with redis.pipeline(transaction=False) as pipe:
+			async for key in keys:
+				sessions.append(key.decode("utf8").split(":")[-1])
+				deleted_keys.append(key.decode("utf8"))
+				await pipe.delete(key)
+			await pipe.execute()
 
-		return {"data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}}
-
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error("Error while removing redis session keys: %s", err)
-		raise OpsiApiException(error=err, message="Error while removing redis client keys") from err
+	return {"data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}}
 
 
 @admin_interface_router.get("/addons")

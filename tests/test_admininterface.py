@@ -430,8 +430,7 @@ def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
 	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	addons = AddonManager().addons
-	response_body = json.loads(response.content)
-	assert len(response_body) == len(addons)
+	assert len(response.json()) == len(addons)
 
 
 def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument

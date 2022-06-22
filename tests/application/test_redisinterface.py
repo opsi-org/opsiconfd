@@ -59,12 +59,12 @@ def test_clear_product_cache(test_client):  # pylint: disable=redefined-outer-na
 
 			time.sleep(5)
 
-			keys_to_check = [
+			keys_to_check = (
 				f"opsiconfd:jsonrpccache:{depot_id}:products",
 				f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1",
 				f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate",
 				f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1:uptodate",
-			]
+			)
 
 			for key in keys_to_check:
 				assert redis.exists(key) == 1
@@ -126,11 +126,11 @@ def test_clear_product_cache_error(test_client):  # pylint: disable=redefined-ou
 
 async def test_get_depot_cache(test_client):  # pylint: disable=redefined-outer-name
 	depot_id = "test-get.depot.cache"
-	products = [
+	products = (
 		{"id": "test_product1", "name": "Test Product 1", "productVersion": "1.0", "packageVersion": "1", "priority": 95},
 		{"id": "test_product2", "name": "Test Product 2", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 		{"id": "test_product3", "name": "Test Product 3", "productVersion": "1.0", "packageVersion": "1", "priority": 90},
-	]
+	)
 	with (
 		get_config({"jsonrpc_time_to_cache": 0}),
 		depot_jsonrpc(test_client, "", depot_id),  # Create depot

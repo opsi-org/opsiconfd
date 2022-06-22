@@ -23,6 +23,7 @@ from starlette.datastructures import Headers
 from starlette.requests import Request
 
 from opsiconfd.addon.manager import AddonManager
+from opsiconfd.backend import get_backend
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .test_addon_manager import cleanup  # pylint: disable=unused-import
@@ -492,3 +493,33 @@ def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-na
 		assert addon_routes.get(key) == response_body.get(key)
 
 	addon_manager.unload_addon("test1")
+
+
+def test_licensing_info(test_client):  # pylint: disable=redefined-outer-name
+	response = test_client.get("/admin/licensing_info", auth=(ADMIN_USER, ADMIN_PASS))
+	assert response.status_code == 200
+	lic_data = response.json()
+	print(response.json())
+	assert isinstance(lic_data.get("info"), dict)
+	assert lic_data.get("info").get("customer_name") is not None
+
+	for clients in ("macos_clients", "linux_clients", "windows_clients", "all_clients"):
+		assert isinstance(lic_data.get("info").get(clients), int)
+
+
+def test_welcome_page(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
+	res = test_client.get("/welcome", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	assert "<h1>Welcome to opsi!</h1>" in res.content.decode("utf8")
+
+
+def test_get_confd_conf(config, test_client):  # pylint: disable=redefined-outer-name
+	config.welcome_page = False
+	config.log_level_file = 6
+	res = test_client.get("/admin/config", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	print(res.json())
+	assert isinstance(res.json().get("config"), dict)
+	assert res.json().get("config").get("welcome-page") is False
+	assert res.json().get("config").get("log-level-file") == 6
+	config.log_level_file = 4

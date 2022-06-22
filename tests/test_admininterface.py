@@ -429,7 +429,9 @@ def get_session_count(client) -> int:
 def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
 	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
+	print(response.json())
 	addons = AddonManager().addons
+	print(addons)
 	assert len(response.json()) == len(addons)
 
 

@@ -13,6 +13,7 @@ import codecs
 import datetime
 import functools
 import ipaddress
+import json
 import os
 import random
 import string
@@ -318,3 +319,11 @@ def remove_route_path(app: FastAPI, path: str):
 		for route in app.routes:
 			if isinstance(route, Route) and route.path.lower().startswith(path.lower()):
 				app.routes.remove(route)
+
+
+def is_json_serializable(value):
+	try:
+		json.dumps(value)
+		return True
+	except (TypeError, OverflowError):
+		return False

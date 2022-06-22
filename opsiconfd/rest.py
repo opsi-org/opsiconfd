@@ -23,6 +23,7 @@ from sqlalchemy import asc, column, desc  # type: ignore[import]
 from . import contextvar_client_session
 from .application.utils import parse_list
 from .logging import logger
+from .utils import is_json_serializable
 
 
 class RestApiValidationError(BaseModel):  # pylint: disable=too-few-public-methods
@@ -111,37 +112,39 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):
 		@wraps(func)
 		async def create_response(*args, **kwargs):  # pylint: disable=too-many-branches,too-many-locals
 			logger.debug("rest_api method name: %s", name)
-			content = {}
+			content = None
 			try:  # pylint: disable=too-many-branches,too-many-nested-blocks
 				result = await exec_func(func, *args, **kwargs)
 				headers = result.get("headers", {})
 				headers["Access-Control-Expose-Headers"] = "x-total-count"
 				http_status = result.get("http_status", status.HTTP_200_OK)
-
-				if result.get("data"):
+				if isinstance(result, dict):
 					content = result.get("data")
+					# add header with total amount of Objects
+					if result.get("total"):
+						total = result.get("total")
+						headers["X-Total-Count"] = str(total)
+						# add link header next and last
+						if kwargs.get("commons") and kwargs.get("request"):
+							per_page = kwargs.get("commons", {}).get("perPage", 1)
+							if total / per_page > 1:
+								page_number = kwargs.get("commons", {}).get("pageNumber", 1)
+								req = kwargs.get("request")
+								url = req.url
+								link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
+								for param in url.query.split("&"):
+									if param.startswith("pageNumber"):
+										continue
+									link += param + "&"
+								headers[
+									"Link"
+								] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+				elif is_json_serializable(result):
+					content = result
+				else:
+					logger.debug("opsi rest api could not serialize result. Content will be 'None'.")
 
-				# add header with total amount of Objects
-				if result.get("total"):
-					total = result.get("total")
-					headers["X-Total-Count"] = str(total)
-					# add link header next and last
-					if kwargs.get("commons") and kwargs.get("request"):
-						per_page = kwargs.get("commons", {}).get("perPage", 1)
-						if total / per_page > 1:
-							page_number = kwargs.get("commons", {}).get("pageNumber", 1)
-							req = kwargs.get("request")
-							url = req.url
-							link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
-							for param in url.query.split("&"):
-								if param.startswith("pageNumber"):
-									continue
-								link += param + "&"
-							headers[
-								"Link"
-							] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
-
-				return JSONResponse(content=content if content else None, status_code=http_status, headers=headers)
+				return JSONResponse(content=content, status_code=http_status, headers=headers)
 
 			except Exception as err:  # pylint: disable=broad-except
 				content = {}

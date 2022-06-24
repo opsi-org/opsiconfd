@@ -25,7 +25,7 @@ from dns import resolver, reversename
 from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
 from OPSI.Util import getfqdn  # type: ignore[import]
-from opsicommon.logging import secret_filter
+from opsicommon.logging import secret_filter  # type: ignore[import]
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 

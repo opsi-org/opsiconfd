@@ -34,7 +34,7 @@ from ..backend import get_backend, get_backend_interface
 from ..config import FQDN, VAR_ADDON_DIR, config
 from ..grafana import async_grafana_session, create_dashboard_user
 from ..logging import logger
-from ..rest import OpsiApiException, rest_api
+from ..rest import OpsiApiException, RESTErrorResponse, RESTResponse, rest_api
 from ..session import OPSISession
 from ..ssl import get_ca_cert_info, get_server_cert_info
 from ..statistics import GRAFANA_DASHBOARD_UID
@@ -124,13 +124,14 @@ async def admin_interface_index(request: Request):
 
 @admin_interface_router.post("/reload")
 @rest_api
-async def reload():
+async def reload() -> RESTResponse:
 	os.kill(get_manager_pid(), signal.SIGHUP)
-	return {"data": "reload sent"}
+	return RESTResponse("reload sent")
 
 
 @admin_interface_router.post("/unblock-all")
-async def unblock_all_clients(response: Response):
+@rest_api
+async def unblock_all_clients(response: Response) -> RESTResponse:
 	redis = await async_redis_client()
 
 	try:
@@ -147,18 +148,15 @@ async def unblock_all_clients(response: Response):
 					logger.debug("redis key to delete: %s", key_str)
 					await pipe.delete(key)
 			await pipe.execute()
-		response = JSONResponse({"status": 200, "error": None, "data": {"clients": list(clients), "redis-keys": list(deleted_keys)}})
+		return RESTResponse({"clients": list(clients), "redis-keys": list(deleted_keys)})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
-		response = JSONResponse(
-			{"status": 500, "error": {"message": "Error while removing redis client keys", "detail": str(err)}}, status_code=500
-		)
-	return response
+		return RESTErrorResponse(message="Error while removing redis client keys", details=err)
 
 
 @admin_interface_router.post("/unblock-client")
 @rest_api
-async def unblock_client(request: Request):
+async def unblock_client(request: Request) -> RESTResponse:
 	try:
 		request_body = await request.json()
 		client_addr = request_body.get("client_addr")
@@ -174,10 +172,10 @@ async def unblock_client(request: Request):
 		if redis_code == 1:
 			deleted_keys.append(f"opsiconfd:stats:client:blocked:{client_addr_redis}")
 
-		return {"data": {"client": client_addr, "redis-keys": deleted_keys}}
+		return RESTResponse({"client": client_addr, "redis-keys": deleted_keys})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
-		raise OpsiApiException(error=err, message="Error while removing redis client keys.") from err
+		raise OpsiApiException(message="Error while removing redis client keys.", error=err) from err
 
 
 @admin_interface_router.post("/delete-client-sessions")
@@ -321,7 +319,7 @@ async def get_session_list() -> list:
 async def get_locked_products_list():
 	backend = get_backend()
 	products = backend.getProductLocks_hash()  # pylint: disable=no-member
-	return {"data": products}
+	return RESTResponse(products)
 
 
 @admin_interface_router.post("/products/{product}/unlock")
@@ -370,7 +368,7 @@ async def get_blocked_clients():
 	blocked_clients = []
 	async for key in redis_keys:
 		blocked_clients.append(ip_address_from_redis_key(key.decode("utf8").split(":")[-1]))
-	return {"data": blocked_clients, "total": len(blocked_clients)}
+	return RESTResponse(data=blocked_clients, total=len(blocked_clients))
 
 
 @admin_interface_router.get("/grafana")
@@ -419,7 +417,7 @@ async def open_grafana(request: Request):
 
 @admin_interface_router.get("/config")
 @rest_api
-def get_confd_conf(all: bool = False) -> dict:  # pylint: disable=redefined-builtin
+def get_confd_conf(all: bool = False) -> RESTResponse:  # pylint: disable=redefined-builtin
 
 	keys_to_remove = (
 		"version",
@@ -444,12 +442,12 @@ def get_confd_conf(all: bool = False) -> dict:  # pylint: disable=redefined-buil
 				del current_config[key]
 	current_config = {key.replace("_", "-"): value for key, value in sorted(current_config.items())}
 
-	return {"data": {"config": current_config}}
+	return RESTResponse({"config": current_config})
 
 
 @admin_interface_router.get("/routes")
 @rest_api
-def get_routes(request: Request) -> dict:  # pylint: disable=redefined-builtin
+def get_routes(request: Request) -> RESTResponse:  # pylint: disable=redefined-builtin
 	app = request.app
 	routes = {}
 	for route in app.routes:
@@ -463,7 +461,7 @@ def get_routes(request: Request) -> dict:  # pylint: disable=redefined-builtin
 		else:
 			routes[route.path] = route.__class__.__name__
 
-	return {"data": collections.OrderedDict(sorted(routes.items()))}
+	return RESTResponse(collections.OrderedDict(sorted(routes.items())))
 
 
 @admin_interface_router.get("/licensing_info")

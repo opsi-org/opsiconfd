@@ -12,8 +12,12 @@ opsiconfd rest utils
 import asyncio
 import math
 import traceback
+import warnings
+from ast import Dict
 from functools import wraps
-from typing import Callable, List, Optional, Union
+from logging import warning
+from types import NoneType
+from typing import Any, Callable, List, Optional, Type, Union
 
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
@@ -21,7 +25,7 @@ from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import asc, column, desc  # type: ignore[import]
 
 from . import contextvar_client_session
-from .application.utils import parse_list
+from .application.utils import merge_dicts, parse_list
 from .logging import logger
 from .utils import is_json_serializable
 
@@ -49,6 +53,96 @@ class OpsiApiException(Exception):
 		self.details = str(error)
 		# self.details = traceback.format_exc()
 		super().__init__(self.message)
+
+
+class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance-attributes
+
+	def __init__(
+		self,
+		data: Union[NoneType, int, str, list, dict] = None,
+		total: Union[NoneType, int] = None,
+		http_status: int = status.HTTP_200_OK,
+		headers: dict = None
+	):
+		self.status = http_status
+		self.content = data
+		self.total = total
+		self.headers = headers
+
+	@property
+	def content(self) -> Union[NoneType, int, str, list, dict]:
+		return self._content
+
+	@content.setter
+	def content(self, data: Union[NoneType, int, str, list, dict]):
+		try:
+			if is_json_serializable(data):
+				self._content = data
+				self._content_type = type(data)
+		except (TypeError, OverflowError) as err:
+			logger.error("Content of RESTResponse must be json serializable")
+			raise TypeError("Content of RESTResponse must be json serializable.") from err
+
+	@property
+	def status(self):
+		return self._status
+
+	@status.setter
+	def status(self, http_status):
+		if not isinstance(http_status, int):
+			raise TypeError("RESTResponse http status must be integer.")
+		self._status = http_status
+
+	@property
+	def total(self):
+		return self._total
+
+	@total.setter
+	def total(self, total):
+		if not isinstance(total, (int, NoneType)):
+			raise TypeError("RESTResponse total must be integer.")
+		self._total = total
+
+	@property
+	def headers(self):
+		return self._headers
+
+	@headers.setter
+	def headers(self, headers={}):  # pylint: disable=dangerous-default-value
+		self._headers = headers
+
+	@property
+	def type(self):
+		return self._content_type
+
+	def to_jsonresponse(self):
+		return JSONResponse(content=self._content, status_code=self._status, headers=self._headers)
+
+
+class RESTErrorResponse(RESTResponse):
+
+	def __init__(
+		self,
+		message: str = "An unknown error occurred.",
+		details: Union[str, Exception] = None,
+		error_class: str = None,
+		code: str = None,
+		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+		headers: dict = None
+	):  # pylint: disable=too-many-arguments
+		super().__init__(http_status=http_status, headers=headers)
+
+		if isinstance(details, Exception):
+			error_class = details.__class__.__name__
+			details = str(details)
+
+		self.content = {
+			"class": error_class,
+			"code": code,
+			"status": http_status,
+			"message": message,
+			"details": details,
+		}
 
 
 def order_by(query, params):
@@ -94,14 +188,14 @@ def common_query_parameters(
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 
 
-def rest_api(default_error_status_code: Union[Callable, int, None] = None):
+def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # pylint: disable=too-many-statements
 	_func = None
 	if callable(default_error_status_code):
 		# Decorator used as @rest_api not @rest_api(...)
 		_func = default_error_status_code
 		default_error_status_code = None
 
-	def decorator(func: Callable):
+	def decorator(func: Callable):  # pylint: disable=too-many-statements
 		name = func.__qualname__
 
 		async def exec_func(func, *args, **kwargs):
@@ -110,16 +204,48 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):
 			return func(*args, **kwargs)
 
 		@wraps(func)
-		async def create_response(*args, **kwargs):  # pylint: disable=too-many-branches,too-many-locals
+		async def create_response(*args, **kwargs):  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
 			logger.debug("rest_api method name: %s", name)
 			content = None
+			http_status = status.HTTP_200_OK
+			headers = {}
 			try:  # pylint: disable=too-many-branches,too-many-nested-blocks
 				result = await exec_func(func, *args, **kwargs)
-				headers = result.get("headers", {})
-				headers["Access-Control-Expose-Headers"] = "x-total-count"
-				http_status = result.get("http_status", status.HTTP_200_OK)
-				if isinstance(result, dict):
-					content = result.get("data")
+				if isinstance(result, RESTResponse):  # pylint: disable=no-else-return
+					# content = result.content
+					# http_status = result.status
+					# headers = result.headers or {}
+					# total = result.total
+					# headers["Access-Control-Expose-Headers"] = "x-total-count"
+					total = result.total
+					if total:
+						headers["X-Total-Count"] = str(total)
+						# add link header next and last
+						if kwargs.get("commons") and kwargs.get("request"):
+							per_page = kwargs.get("commons", {}).get("perPage", 1)
+							if total / per_page > 1:
+								page_number = kwargs.get("commons", {}).get("pageNumber", 1)
+								req = kwargs.get("request")
+								url = req.url
+								link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
+								for param in url.query.split("&"):
+									if param.startswith("pageNumber"):
+										continue
+									link += param + "&"
+								headers[
+									"Link"
+								] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+						if result.headers:
+							result.headers = merge_dicts(result.headers, headers)
+						else:
+							result.headers = headers
+					return result.to_jsonresponse()
+				elif isinstance(result, dict) and result.get("data"):
+					headers["Access-Control-Expose-Headers"] = "x-total-count"
+					warnings.warn("opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning)
+					if result.get("data"):
+						content = result.get("data")
+
 					# add header with total amount of Objects
 					if result.get("total"):
 						total = result.get("total")
@@ -139,10 +265,8 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):
 								headers[
 									"Link"
 								] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
-				elif is_json_serializable(result):
-					content = result
 				else:
-					logger.debug("opsi rest api could not serialize result. Content will be 'None'.")
+					content = result
 
 				return JSONResponse(content=content, status_code=http_status, headers=headers)
 

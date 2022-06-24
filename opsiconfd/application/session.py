@@ -11,7 +11,7 @@ session
 from fastapi import APIRouter, Request, status
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
-from opsiconfd.rest import rest_api
+from opsiconfd.rest import RESTResponse, rest_api
 from opsiconfd.session import authenticate, get_session
 
 session_router = APIRouter()
@@ -33,7 +33,7 @@ async def login(request: Request, login_data: LoginData):
 		request.scope["session"] = await get_session(client_addr=request.scope["client"][0], headers=request.headers)
 
 	await authenticate(request.scope["session"], username=login_data.username, password=login_data.password)
-	return {"data": {"session_id": request.scope["session"].session_id}}
+	return RESTResponse({"session_id": request.scope["session"].session_id})
 
 
 @session_router.get("/logout")
@@ -42,7 +42,7 @@ async def login(request: Request, login_data: LoginData):
 async def logout(request: Request):
 	if request.scope["session"]:
 		await request.scope["session"].delete()
-	return {"data": "session deleted"}
+	return RESTResponse("session deleted")
 
 
 @session_router.get("/authenticated")
@@ -50,4 +50,4 @@ async def logout(request: Request):
 async def authenticated(request: Request):
 	if request.scope["session"] and request.scope["session"].user_store.authenticated:
 		return {"data": True}
-	return {"data": False, "http_status": status.HTTP_401_UNAUTHORIZED}
+	return RESTResponse(False, http_status=status.HTTP_401_UNAUTHORIZED)

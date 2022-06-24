@@ -22,7 +22,7 @@ from urllib.parse import urlparse
 
 import msgpack  # type: ignore[import]
 from fastapi import APIRouter, Request, UploadFile, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
@@ -175,13 +175,12 @@ async def unblock_client(request: Request) -> RESTResponse:
 		return RESTResponse({"client": client_addr, "redis-keys": deleted_keys})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis client keys: %s", err)
-		raise OpsiApiException(message="Error while removing redis client keys.", error=err) from err
+		return RESTErrorResponse(message="Error while removing redis client keys.", details=err)
 
 
 @admin_interface_router.post("/delete-client-sessions")
 @rest_api
-async def delete_client_sessions(request: Request):
-	# try:
+async def delete_client_sessions(request: Request) -> RESTResponse:
 	request_body = await request.json() or {}
 	client_addr = request_body.get("client_addr")
 	if not request_body:
@@ -197,18 +196,17 @@ async def delete_client_sessions(request: Request):
 				deleted_keys.append(key.decode("utf8"))
 				await pipe.delete(key)
 			await pipe.execute()
-
-	return {"data": {"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys}}
+	return RESTResponse({"client": client_addr, "sessions": sessions, "redis-keys": deleted_keys})
 
 
 @admin_interface_router.get("/addons")
 @rest_api
-async def get_addon_list() -> dict:
+async def get_addon_list() -> RESTResponse:
 	addon_list = [
 		{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
 		for addon in AddonManager().addons
 	]
-	return {"data": sorted(addon_list, key=itemgetter("id"))}
+	return RESTResponse(sorted(addon_list, key=itemgetter("id")))
 
 
 def _install_addon(data: bytes):
@@ -243,17 +241,18 @@ def _install_addon(data: bytes):
 
 @admin_interface_router.post("/addons/install")
 @rest_api
-async def install_addon(request: Request) -> dict:
+async def install_addon(request: Request) -> RESTResponse:
 	form = await request.form()
 	if isinstance(form["addonfile"], str):
 		raise RuntimeError("Invalid addon")
 	data = await form["addonfile"].read()
 	await run_in_threadpool(_install_addon, data)
-	return {"data": "Addon installed"}
+	return RESTResponse("Addon installed")
 
 
 @admin_interface_router.get("/rpc-list")
-async def get_rpc_list() -> list:
+@rest_api
+async def get_rpc_list() -> RESTResponse:
 
 	redis = await async_redis_client()
 	redis_result = await redis.lrange("opsiconfd:stats:rpcs", 0, -1)
@@ -274,16 +273,15 @@ async def get_rpc_list() -> list:
 		rpc_list.append(rpc)
 
 	rpc_list = sorted(rpc_list, key=itemgetter("rpc_num"))
-	return rpc_list
+	return RESTResponse(rpc_list)
 
 
 @admin_interface_router.get("/rpc-count")
-async def get_rpc_count():
+@rest_api
+async def get_rpc_count() -> RESTResponse:
 	redis = await async_redis_client()
 	count = await redis.llen("opsiconfd:stats:rpcs")
-
-	response = JSONResponse({"rpc_count": count})
-	return response
+	return RESTResponse({"rpc_count": count})
 
 
 @admin_interface_router.get("/session-list")

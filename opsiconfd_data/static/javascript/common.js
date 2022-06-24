@@ -39,10 +39,10 @@ function doReq(method, url, body, handleError = true, requestInfos = false) {
 				}
 				resolve(result);
 			} else {
-				console.warn("Request Status: ", req.status);
+				console.error("Request Status: ", req.status);
 				if (req.responseText) {
 					result = JSON.parse(req.responseText);
-					console.log(result.message);
+					console.error(result.message);
 					reject(result);
 				}
 				else {

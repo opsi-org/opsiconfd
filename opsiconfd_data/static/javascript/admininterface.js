@@ -23,6 +23,7 @@ function monitorSession() {
 function unblockAll() {
 	let req = doReq("POST", "/admin/unblock-all");
 	req.then((result) => {
+		console.log(result);
 		outputToHTML(result, "json-result");
 		outputResult(result, "text-result");
 		loadClientTable()
@@ -278,6 +279,9 @@ function licenseUpload(files) {
 
 
 function outputResult(json, id) {
+	if (json == undefined) {
+		return
+	}
 	let text = "";
 	if (json["status"] == 200) {
 		data = json["data"]
@@ -615,6 +619,9 @@ function changeRequestJSON(name, value) {
 
 
 function outputToHTML(json, id) {
+	if (json == undefined) {
+		return
+	}
 	jsonStr = JSON.stringify(json, undefined, 2);
 	jsonStr = syntaxHighlight(jsonStr);
 	document.getElementById(id).style.visibility = 'visible'

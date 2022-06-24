@@ -16,6 +16,7 @@ import socket
 import sys
 from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, ArgumentTypeError, HelpFormatter
 from typing import Union
+from urllib.parse import urlparse
 
 import certifi
 import configargparse  # type: ignore[import]
@@ -25,6 +26,7 @@ from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
 from OPSI.Util import getfqdn  # type: ignore[import]
 
+from .logging import secret_filter
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 
 DEFAULT_CONFIG_FILE = "/etc/opsi/opsiconfd.conf"
@@ -198,7 +200,10 @@ class Config(metaclass=Singleton):
 			self._config.external_url = f"{scheme}://{FQDN}:{self._config.port}"
 		if not self._config.grafana_data_source_url:
 			self._config.grafana_data_source_url = f"{scheme}://{FQDN}:{self._config.port}"
-
+		if self._config.grafana_internal_url:
+			url = urlparse(self._config.grafana_internal_url)
+			if url.password:
+				secret_filter.add_secrets(url.password)
 		if not self._config.skip_setup:
 			self._config.skip_setup = []
 

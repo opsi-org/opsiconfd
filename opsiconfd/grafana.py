@@ -26,7 +26,7 @@ from packaging.version import Version
 from requests.auth import AuthBase, HTTPBasicAuth
 
 from .config import config
-from .logging import logger
+from .logging import logger, secret_filter
 from .utils import get_random_string
 
 API_KEY_NAME = "opsiconfd"
@@ -177,6 +177,8 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 			cur.execute("DELETE FROM user WHERE id = ?", [user_id[0]])
 
 		password = get_random_string(8)
+		secret_filter.add_secrets(password)
+
 		pw_hash = hashlib.pbkdf2_hmac("sha256", password.encode("ascii"), API_KEY_NAME.encode("utf-8"), 10000, 50).hex()
 		now = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 		cur.execute(

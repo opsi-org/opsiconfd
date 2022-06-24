@@ -34,7 +34,7 @@ from ..backend import get_backend, get_backend_interface
 from ..config import FQDN, VAR_ADDON_DIR, config
 from ..grafana import async_grafana_session, create_dashboard_user
 from ..logging import logger
-from ..rest import OpsiApiException, RESTErrorResponse, RESTResponse, rest_api
+from ..rest import RESTErrorResponse, RESTResponse, rest_api
 from ..session import OPSISession
 from ..ssl import get_ca_cert_info, get_server_cert_info
 from ..statistics import GRAFANA_DASHBOARD_UID
@@ -285,7 +285,8 @@ async def get_rpc_count() -> RESTResponse:
 
 
 @admin_interface_router.get("/session-list")
-async def get_session_list() -> list:
+@rest_api
+async def get_session_list() -> RESTResponse:
 	redis = await async_redis_client()
 	session_list = []
 	async for redis_key in redis.scan_iter("opsiconfd:sessions:*"):
@@ -309,7 +310,7 @@ async def get_session_list() -> list:
 			}
 		)
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))
-	return session_list
+	return RESTResponse(session_list)
 
 
 @admin_interface_router.get("/locked-products-list", response_model=List[str])
@@ -322,7 +323,7 @@ async def get_locked_products_list():
 
 @admin_interface_router.post("/products/{product}/unlock")
 @rest_api
-async def unlock_product(request: Request, product: str):
+async def unlock_product(request: Request, product: str) -> RESTResponse:
 	backend = get_backend()
 	depots = None
 	try:
@@ -332,34 +333,34 @@ async def unlock_product(request: Request, product: str):
 		pass
 	try:
 		backend.unlockProduct(productId=product, depotIds=depots)  # pylint: disable=no-member
-		return {"data": {"product": product, "action": "unlock"}}
+		return RESTResponse({"product": product, "action": "unlock"})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
-		raise OpsiApiException(
+		return RESTErrorResponse(
 			message="Error while unlocking product",
 			http_status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			error=err,
-		) from err
+			details=err,
+		)
 
 
 @admin_interface_router.post("/products/unlock")
 @rest_api
-def unlock_all_product():
+def unlock_all_product() -> RESTResponse:
 	backend = get_backend()
 	try:
 		for product in set(
 			pod.productId for pod in backend.productOnDepot_getObjects(depotId=[], locked=True)  # pylint: disable=no-member
 		):
 			backend.unlockProduct(product)  # pylint: disable=no-member
-		return {"data": None}
+		return RESTResponse()
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
-		raise OpsiApiException(message="Error while unlocking products", error=err) from err
+		return RESTErrorResponse(message="Error while unlocking products", details=err)
 
 
 @admin_interface_router.get("/blocked-clients", response_model=List[str])
 @rest_api
-async def get_blocked_clients():
+async def get_blocked_clients() -> RESTResponse:
 	redis = await async_redis_client()
 	redis_keys = redis.scan_iter("opsiconfd:stats:client:blocked:*")
 
@@ -464,7 +465,7 @@ def get_routes(request: Request) -> RESTResponse:  # pylint: disable=redefined-b
 
 @admin_interface_router.get("/licensing_info")
 @rest_api
-def get_licensing_info() -> dict:
+def get_licensing_info() -> RESTResponse:
 	info = get_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)  # pylint: disable=no-member
 	active_date = None
 	modules: Dict[str, dict] = {}
@@ -490,8 +491,8 @@ def get_licensing_info() -> dict:
 			previous[module_id] = module
 
 	lic = (info.get("licenses") or [{}])[0]
-	return {
-		"data": {
+	return RESTResponse(
+		{
 			"info": {
 				"customer_name": lic.get("customer_name", ""),
 				"customer_address": lic.get("customer_address", ""),
@@ -505,12 +506,12 @@ def get_licensing_info() -> dict:
 			"module_dates": modules,
 			"active_date": str(active_date) if active_date else None,
 		}
-	}
+	)
 
 
 @admin_interface_router.post("/license_upload")
 @rest_api
-async def license_upload(files: List[UploadFile]):
+async def license_upload(files: List[UploadFile]) -> RESTResponse:
 	try:
 		for file in files:
 			if not re.match(r"^\w[\w -]*\.opsilic$", file.filename):  # pylint: disable=dotted-import-in-loop
@@ -522,10 +523,10 @@ async def license_upload(files: List[UploadFile]):
 			logger.notice("Writing opsi license file %r", olf.filename)
 			olf.write()
 			os.chmod(olf.filename, 0o660)  # pylint: disable=dotted-import-in-loop
-		return {"http_status": status.HTTP_201_CREATED, "data": f"{len(files)} opsi license files imported"}
+		return RESTResponse(data=f"{len(files)} opsi license files imported", http_status=status.HTTP_201_CREATED)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.warning(err, exc_info=True)
-		raise OpsiApiException(http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, message="Invalid license file.", error=err) from err
+		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, message="Invalid license file.", details=err)
 
 
 def get_num_servers(backend):

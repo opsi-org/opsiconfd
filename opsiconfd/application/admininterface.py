@@ -21,7 +21,7 @@ from typing import Dict, List
 from urllib.parse import urlparse
 
 import msgpack  # type: ignore[import]
-from fastapi import APIRouter, Request, Response, UploadFile, status
+from fastapi import APIRouter, Request, UploadFile, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
@@ -131,7 +131,7 @@ async def reload() -> RESTResponse:
 
 @admin_interface_router.post("/unblock-all")
 @rest_api
-async def unblock_all_clients(response: Response) -> RESTResponse:
+async def unblock_all_clients() -> RESTResponse:
 	redis = await async_redis_client()
 
 	try:

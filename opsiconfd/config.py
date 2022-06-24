@@ -25,6 +25,7 @@ from dns import resolver, reversename
 from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
 from OPSI.Util import getfqdn  # type: ignore[import]
+from opsicommon.logging import secret_filter
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
 
@@ -202,8 +203,6 @@ class Config(metaclass=Singleton):
 		if self._config.grafana_internal_url:
 			url = urlparse(self._config.grafana_internal_url)
 			if url.password:
-				from .logging import secret_filter  # pylint: disable=import-outside-toplevel
-
 				secret_filter.add_secrets(url.password)
 		if not self._config.skip_setup:
 			self._config.skip_setup = []

@@ -73,13 +73,12 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 
 	@content.setter
 	def content(self, data: Union[NoneType, int, str, list, dict]):
-		try:
-			if is_json_serializable(data):
-				self._content = data
-				self._content_type = type(data)
-		except (TypeError, OverflowError) as err:
-			logger.error("Content of RESTResponse must be json serializable")
-			raise TypeError("Content of RESTResponse must be json serializable.") from err
+		if is_json_serializable(data):
+			self._content = data
+			self._content_type = type(data)
+		else:
+			logger.error("Content of RESTResponse must be json serializable.")
+			raise TypeError("Content of RESTResponse must be json serializable.")
 
 	@property
 	def status(self):
@@ -133,6 +132,13 @@ class RESTErrorResponse(RESTResponse):
 		if isinstance(details, Exception):
 			error_class = details.__class__.__name__
 			details = str(details)
+
+		is_admin = False
+		session = contextvar_client_session.get()
+		if session and session.user_store:
+			is_admin = session.user_store.isAdmin
+		if not is_admin:
+			details = None
 
 		self.content = {
 			"class": error_class,
@@ -210,11 +216,6 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 			try:  # pylint: disable=too-many-branches,too-many-nested-blocks
 				result = await exec_func(func, *args, **kwargs)
 				if isinstance(result, RESTResponse):  # pylint: disable=no-else-return
-					# content = result.content
-					# http_status = result.status
-					# headers = result.headers or {}
-					# total = result.total
-					# headers["Access-Control-Expose-Headers"] = "x-total-count"
 					total = result.total
 					if total:
 						headers["X-Total-Count"] = str(total)
@@ -238,12 +239,12 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 						else:
 							result.headers = headers
 					return result.to_jsonresponse()
+				# Deprecated dict response.
 				elif isinstance(result, dict) and result.get("data"):
 					headers["Access-Control-Expose-Headers"] = "x-total-count"
 					warnings.warn("opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning)
 					if result.get("data"):
 						content = result.get("data")
-
 					# add header with total amount of Objects
 					if result.get("total"):
 						total = result.get("total")

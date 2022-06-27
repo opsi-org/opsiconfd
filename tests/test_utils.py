@@ -12,17 +12,7 @@ import pytest
 
 from opsiconfd.utils import is_json_serializable
 
-
-class TestClass:  # pylint: disable=too-few-public-methods
-	member1: int
-	member2: str
-
-	def __init__(self, integer, string):
-		self.member1 = integer
-		self.member2 = string
-
-	def print(self):
-		print("m1:", self.member1, "m2", self.member2)
+from .utils import TestClass
 
 
 @pytest.mark.parametrize(

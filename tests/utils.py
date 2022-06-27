@@ -348,3 +348,15 @@ class WebSocketMessageReader(Thread):
 				yield self.messages.get_nowait()
 		except Empty:
 			pass
+
+
+class TestClass:  # pylint: disable=too-few-public-methods
+	member1: int
+	member2: str
+
+	def __init__(self, integer, string):
+		self.member1 = integer
+		self.member2 = string
+
+	def print(self):
+		print("m1:", self.member1, "m2", self.member2)

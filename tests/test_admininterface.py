@@ -510,15 +510,3 @@ def test_welcome_page(config, test_client):  # pylint: disable=redefined-outer-n
 	res = test_client.get("/welcome", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert "<h1>Welcome to opsi!</h1>" in res.content.decode("utf8")
-
-
-def test_get_confd_conf(config, test_client):  # pylint: disable=redefined-outer-name
-	config.welcome_page = False
-	config.log_level_file = 6
-	res = test_client.get("/admin/config", auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
-	print(res.json())
-	assert isinstance(res.json().get("config"), dict)
-	assert res.json().get("config").get("welcome-page") is False
-	assert res.json().get("config").get("log-level-file") == 6
-	config.log_level_file = 4

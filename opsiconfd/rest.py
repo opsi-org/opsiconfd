@@ -21,6 +21,7 @@ from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import asc, column, desc  # type: ignore[import]
+from starlette.datastructures import URL
 
 from . import contextvar_client_session
 from .application.utils import merge_dicts, parse_list
@@ -60,8 +61,8 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 		data: Union[None, int, str, list, dict] = None,
 		total: Union[None, int] = None,
 		http_status: int = status.HTTP_200_OK,
-		headers: dict = None
-	):
+		headers: dict = {}
+	):  # pylint: disable=dangerous-default-value
 		self.status = http_status
 		self.content = data
 		self.total = total
@@ -106,7 +107,12 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 
 	@headers.setter
 	def headers(self, headers: dict = {}):  # pylint: disable=dangerous-default-value
+		if not isinstance(headers, dict):
+			headers = {}
 		self._headers = headers
+		if self._total:
+			self._headers["Access-Control-Expose-Headers"] = "x-total-count"
+			self._headers["X-Total-Count"] = str(self._total)
 
 	@property
 	def type(self) -> type:
@@ -194,6 +200,24 @@ def common_query_parameters(
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 
 
+def create_link_header(total: int, commons: dict, url: URL) -> dict:
+	# add link header next and last
+	headers = {}
+	if commons and url:
+		per_page = commons.get("perPage", 1)
+		if total / per_page > 1:
+			page_number = commons.get("pageNumber", 1)
+			link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
+			for param in url.query.split("&"):
+				if param.startswith("pageNumber"):
+					continue
+				link += param + "&"
+			headers[
+				"Link"
+			] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+	return headers
+
+
 def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # pylint: disable=too-many-statements
 	_func = None
 	if callable(default_error_status_code):
@@ -218,57 +242,20 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 			try:  # pylint: disable=too-many-branches,too-many-nested-blocks
 				result = await exec_func(func, *args, **kwargs)
 				if isinstance(result, RESTResponse):  # pylint: disable=no-else-return
-					total = result.total
-					if total:
-						headers["X-Total-Count"] = str(total)
-						# add link header next and last
-						if kwargs.get("commons") and kwargs.get("request"):
-							per_page = kwargs.get("commons", {}).get("perPage", 1)
-							if total / per_page > 1:
-								page_number = kwargs.get("commons", {}).get("pageNumber", 1)
-								req = kwargs.get("request")
-								url = req.url
-								link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
-								for param in url.query.split("&"):
-									if param.startswith("pageNumber"):
-										continue
-									link += param + "&"
-								headers[
-									"Link"
-								] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
-						if result.headers:
-							result.headers = merge_dicts(result.headers, headers)
-						else:
-							result.headers = headers
+					headers = create_link_header(result.total, kwargs.get("commons"), kwargs.get("request"))
+					if result.headers and headers:
+						result.headers = merge_dicts(result.headers, headers)
+					else:
+						result.headers = headers
 					return result.to_jsonresponse()
 				# Deprecated dict response.
 				elif isinstance(result, dict) and result.get("data"):
-					headers["Access-Control-Expose-Headers"] = "x-total-count"
 					warnings.warn("opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning)
 					if result.get("data"):
 						content = result.get("data")
-					# add header with total amount of Objects
-					if result.get("total"):
-						total = result.get("total")
-						headers["X-Total-Count"] = str(total)
-						# add link header next and last
-						if kwargs.get("commons") and kwargs.get("request"):
-							per_page = kwargs.get("commons", {}).get("perPage", 1)
-							if total / per_page > 1:
-								page_number = kwargs.get("commons", {}).get("pageNumber", 1)
-								req = kwargs.get("request")
-								url = req.url
-								link = f"{url.scheme}://{url.hostname}:{url.port}{url.path}?"
-								for param in url.query.split("&"):
-									if param.startswith("pageNumber"):
-										continue
-									link += param + "&"
-								headers[
-									"Link"
-								] = f'<{link}pageNumber={page_number+1}>; rel="next", <{link}pageNumber={math.ceil(total/per_page)}>; rel="last"'
+					headers = create_link_header(result.total, kwargs.get("commons"), kwargs.get("request"))
 				else:
 					content = result
-
 				return JSONResponse(content=content, status_code=http_status, headers=headers)
 
 			except Exception as err:  # pylint: disable=broad-except

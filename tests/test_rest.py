@@ -25,11 +25,11 @@ from .utils import TestClass
 	[
 		(
 			{"content": None},
-			{"content": None, "total": None, "http_status": status.HTTP_200_OK, "headers": None, "type": NoneType},
+			{"content": None, "total": None, "http_status": status.HTTP_200_OK, "headers": {}, "type": NoneType},
 		),
 		(
 			{"content": {"test": 1}, "http_status": status.HTTP_201_CREATED},
-			{"content": {"test": 1}, "total": None, "http_status": status.HTTP_201_CREATED, "headers": None, "type": dict},
+			{"content": {"test": 1}, "total": None, "http_status": status.HTTP_201_CREATED, "headers": {}, "type": dict},
 		),
 	],
 )
@@ -78,7 +78,7 @@ def test_restresponse_toral_error():
 			{
 				"total": None,
 				"http_status": status.HTTP_500_INTERNAL_SERVER_ERROR,
-				"headers": None,
+				"headers": {},
 				"code": None,
 				"error_class": None,
 				"message": "An unknown error occurred.",
@@ -90,7 +90,7 @@ def test_restresponse_toral_error():
 			{
 				"total": None,
 				"http_status": status.HTTP_500_INTERNAL_SERVER_ERROR,
-				"headers": None,
+				"headers": {},
 				"code": None,
 				"error_class": None,
 				"message": "Test Error",
@@ -106,7 +106,7 @@ def test_restresponse_toral_error():
 			{
 				"total": None,
 				"http_status": status.HTTP_422_UNPROCESSABLE_ENTITY,
-				"headers": None,
+				"headers": {},
 				"code": None,
 				"error_class": "ValueError",
 				"message": "This is a error message.",

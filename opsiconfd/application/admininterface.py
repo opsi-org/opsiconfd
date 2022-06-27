@@ -317,7 +317,7 @@ async def get_session_list() -> RESTResponse:
 @rest_api
 async def get_locked_products_list():
 	backend = get_backend()
-	products = backend.getProductLocks_hash()  # pylint: disable=no-member
+	products = await run_in_threadpool(backend.getProductLocks_hash)  # pylint: disable=no-member
 	return RESTResponse(products)
 
 
@@ -332,7 +332,7 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 	except json.decoder.JSONDecodeError:
 		pass
 	try:
-		backend.unlockProduct(productId=product, depotIds=depots)  # pylint: disable=no-member
+		await run_in_threadpool(backend.unlockProduct, product, depots)  # pylint: disable=no-member
 		return RESTResponse({"product": product, "action": "unlock"})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)
@@ -345,13 +345,13 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 
 @admin_interface_router.post("/products/unlock")
 @rest_api
-def unlock_all_product() -> RESTResponse:
+async def unlock_all_product() -> RESTResponse:
 	backend = get_backend()
 	try:
 		for product in set(
 			pod.productId for pod in backend.productOnDepot_getObjects(depotId=[], locked=True)  # pylint: disable=no-member
 		):
-			backend.unlockProduct(product)  # pylint: disable=no-member
+			await run_in_threadpool(backend.unlockProduct, product)  # pylint: disable=no-member
 		return RESTResponse()
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while removing redis session keys: %s", err)

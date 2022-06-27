@@ -18,7 +18,6 @@ from urllib.parse import urlparse
 
 import mock  # type: ignore[import]
 import pytest
-from fastapi import Response
 from starlette.datastructures import Headers
 from starlette.requests import Request
 
@@ -92,19 +91,19 @@ def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-
 @pytest.mark.asyncio
 async def test_unblock_all(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
-		test_response = Response()
+
 		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 
 		for test_ip in addresses:
 			set_failed_auth_and_blocked(test_ip)
 
-		response = await admininterface.unblock_all_clients(test_response)
-
+		response = await admininterface.unblock_all_clients()
+		print(response)
+		print(response.__dict__)
 		assert response.status_code == 200
 		response_body = json.loads(response.body)
 		assert response_body.get("error") is None
-		assert response_body.get("status") == 200
-		assert sorted(response_body["data"]["clients"]) == sorted(addresses)
+		assert sorted(response_body["clients"]) == sorted(addresses)
 
 		for test_ip in addresses:
 			val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
@@ -214,7 +213,8 @@ async def test_get_rpc_list(test_client, admininterface, num_rpcs):  # pylint: d
 
 	await asyncio.sleep(1)
 
-	rpc_list = await admininterface.get_rpc_list()
+	rpc_list_response = await admininterface.get_rpc_list()
+	rpc_list = json.loads(rpc_list_response.body)
 	for idx in range(0, num_rpcs):
 		assert rpc_list[idx].get("rpc_num") == idx + 1
 		assert rpc_list[idx].get("error") is False

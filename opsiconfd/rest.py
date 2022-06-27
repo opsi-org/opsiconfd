@@ -57,8 +57,8 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 
 	def __init__(
 		self,
-		data: Union[NoneType, int, str, list, dict] = None,
-		total: Union[NoneType, int] = None,
+		data: Union[None, int, str, list, dict] = None,
+		total: Union[None, int] = None,
 		http_status: int = status.HTTP_200_OK,
 		headers: dict = None
 	):
@@ -81,38 +81,38 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 			raise TypeError("Content of RESTResponse must be json serializable.")
 
 	@property
-	def status(self):
+	def status(self) -> int:
 		return self._status
 
 	@status.setter
-	def status(self, http_status):
+	def status(self, http_status: int):
 		if not isinstance(http_status, int):
 			raise TypeError("RESTResponse http status must be integer.")
 		self._status = http_status
 
 	@property
-	def total(self):
+	def total(self) -> int:
 		return self._total
 
 	@total.setter
-	def total(self, total):
+	def total(self, total: int):
 		if not isinstance(total, (int, NoneType)):
 			raise TypeError("RESTResponse total must be integer.")
 		self._total = total
 
 	@property
-	def headers(self):
+	def headers(self) -> dict:
 		return self._headers
 
 	@headers.setter
-	def headers(self, headers={}):  # pylint: disable=dangerous-default-value
+	def headers(self, headers: dict = {}):  # pylint: disable=dangerous-default-value
 		self._headers = headers
 
 	@property
-	def type(self):
+	def type(self) -> type:
 		return self._content_type
 
-	def to_jsonresponse(self):
+	def to_jsonresponse(self) -> JSONResponse:
 		return JSONResponse(content=self._content, status_code=self._status, headers=self._headers)
 
 
@@ -127,7 +127,6 @@ class RESTErrorResponse(RESTResponse):
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
 		headers: dict = None
 	):  # pylint: disable=too-many-arguments
-		super().__init__(http_status=http_status, headers=headers)
 
 		if isinstance(details, Exception):
 			error_class = details.__class__.__name__
@@ -139,14 +138,17 @@ class RESTErrorResponse(RESTResponse):
 			is_admin = session.user_store.isAdmin
 		if not is_admin:
 			details = None
-
-		self.content = {
-			"class": error_class,
-			"code": code,
-			"status": http_status,
-			"message": message,
-			"details": details,
-		}
+		super().__init__(
+			data={
+				"class": error_class,
+				"code": code,
+				"status": http_status,
+				"message": message,
+				"details": details,
+			},
+			http_status=http_status,
+			headers=headers
+		)
 
 
 def order_by(query, params):

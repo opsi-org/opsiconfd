@@ -23,7 +23,6 @@ function monitorSession() {
 function unblockAll() {
 	let req = doReq("POST", "/admin/unblock-all");
 	req.then((result) => {
-		console.log(result);
 		outputToHTML(result, "json-result");
 		outputResult(result, "text-result");
 		loadClientTable()
@@ -143,7 +142,6 @@ function installAddon() {
 
 	let req = doReq("POST", "/admin/addons/install", formData, handleError = false);
 	req.then((result) => {
-		console.log(result);
 		if (button) {
 			button.classList.remove("loading");
 		}
@@ -179,7 +177,6 @@ function deleteClientSessions() {
 
 
 function loadInfo() {
-	let request1 = new XMLHttpRequest();
 	let config_req = doReq("GET", "/admin/config");
 	config_req.then((result) => {
 		outputToHTML(result, "config-values");
@@ -252,8 +249,6 @@ function callJSONRPC() {
 function loadLicensingInfo() {
 	let req = doReq("GET", "/admin/licensing_info");
 	req.then(() => {
-		console.log("Licensing info:");
-		console.log(result);
 		if (typeof result.module_dates != "undefined" && Object.keys(result.module_dates).length > 0) {
 			generateLiceningInfoTable(result.info, "licensing-info");
 			generateLiceningDatesTable(result.module_dates, result.active_date, "licensing-dates");

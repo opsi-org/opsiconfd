@@ -248,7 +248,7 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 					warnings.warn("opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning)
 					if result.get("data"):
 						content = result.get("data")
-					headers = create_link_header(result.total, kwargs.get("commons"), kwargs.get("request"))
+					headers = create_link_header(result.get("total"), kwargs.get("commons"), kwargs.get("request"))
 				else:
 					content = result
 				return JSONResponse(content=content, status_code=http_status, headers=headers)

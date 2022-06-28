@@ -17,8 +17,6 @@ from fastapi.responses import JSONResponse
 
 from opsiconfd.rest import RESTErrorResponse, RESTResponse
 
-from .utils import TestClass
-
 
 @pytest.mark.parametrize(
 	"data, output",
@@ -58,11 +56,6 @@ def test_restresponse(data, output):
 def test_restresponse_status_error():
 	with pytest.raises(TypeError, match="RESTResponse http status must be integer."):
 		RESTResponse(http_status="test")
-
-
-def test_restresponse_content_error():
-	with pytest.raises(TypeError, match="Content of RESTResponse must be json serializable."):
-		RESTResponse(data=TestClass("one", 1))
 
 
 def test_restresponse_toral_error():

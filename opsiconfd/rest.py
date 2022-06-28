@@ -74,12 +74,8 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 
 	@content.setter
 	def content(self, data: Union[NoneType, int, str, list, dict]):
-		if is_json_serializable(data):
-			self._content = data
-			self._content_type = type(data)
-		else:
-			logger.error("Content of RESTResponse must be json serializable.")
-			raise TypeError("Content of RESTResponse must be json serializable.")
+		self._content = data
+		self._content_type = type(data)
 
 	@property
 	def status(self) -> int:

@@ -11,7 +11,7 @@ redisinterface
 from fastapi import APIRouter, Request, status
 
 from ..logging import logger
-from ..rest import OpsiApiException, RESTErrorResponse, RESTResponse, rest_api
+from ..rest import RESTErrorResponse, RESTResponse, rest_api
 from ..utils import (
 	async_get_redis_info,
 	async_redis_client,

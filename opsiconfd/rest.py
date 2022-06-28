@@ -26,7 +26,6 @@ from starlette.datastructures import URL
 from . import contextvar_client_session
 from .application.utils import merge_dicts, parse_list
 from .logging import logger
-from .utils import is_json_serializable
 
 
 class RestApiValidationError(BaseModel):  # pylint: disable=too-few-public-methods

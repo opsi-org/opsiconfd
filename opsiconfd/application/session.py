@@ -28,7 +28,7 @@ class LoginData(BaseModel):
 
 @session_router.post("/login")
 @rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
-async def login(request: Request, login_data: LoginData):
+async def login(request: Request, login_data: LoginData) -> RESTResponse:
 	if not request.scope["session"]:
 		request.scope["session"] = await get_session(client_addr=request.scope["client"][0], headers=request.headers)
 
@@ -39,7 +39,7 @@ async def login(request: Request, login_data: LoginData):
 @session_router.get("/logout")
 @session_router.post("/logout")
 @rest_api
-async def logout(request: Request):
+async def logout(request: Request) -> RESTResponse:
 	if request.scope["session"]:
 		await request.scope["session"].delete()
 	return RESTResponse("session deleted")
@@ -47,7 +47,7 @@ async def logout(request: Request):
 
 @session_router.get("/authenticated")
 @rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
-async def authenticated(request: Request):
+async def authenticated(request: Request) -> RESTResponse:
 	if request.scope["session"] and request.scope["session"].user_store.authenticated:
-		return {"data": True}
+		return RESTResponse(True)
 	return RESTResponse(False, http_status=status.HTTP_401_UNAUTHORIZED)

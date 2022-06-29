@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from opsiconfd.config import network_address, ip_address, str2bool
+from opsiconfd.config import ip_address, network_address, str2bool
 
 from .utils import get_config
 
@@ -227,13 +227,13 @@ def test_upgrade_config_files(tmp_path):
 
 def test_update_config_files(tmp_path):
 	config_file = tmp_path / "opsiconfd.conf"
-	config_file.write_text(("# comment\n" "log-level = 1\n" "monitoring-debug = yes\n" "\n"), encoding="utf-8")
+	config_file.write_text(("# comment\nlog-level = 1\nmonitoring-debug = yes\n\n"), encoding="utf-8")
 
 	with get_config(["--config-file", str(config_file)]) as conf:
 		conf._update_config_files()  # pylint: disable=protected-access
 
 	data = config_file.read_text(encoding="utf-8")
-	assert data == ("# comment\n" "log-level = 1\n" "\n")
+	assert data == ("# comment\nlog-level = 1\n\n")
 
 
 def test_set_config_in_config_file(tmp_path):

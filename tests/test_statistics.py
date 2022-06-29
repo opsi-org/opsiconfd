@@ -8,10 +8,11 @@
 statistic tests
 """
 
-import sys
 import asyncio
-import redis
+import sys
+
 import pytest
+import redis
 
 from .utils import clean_redis  # pylint: disable=unused-import
 
@@ -27,7 +28,9 @@ def fixture_config(monkeypatch):
 @pytest.fixture(name="metrics_collector")
 def fixture_metrics_collector(monkeypatch):
 	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
-	from opsiconfd.metrics import WorkerMetricsCollector  # pylint: disable=import-outside-toplevel
+	from opsiconfd.metrics import (
+		WorkerMetricsCollector,  # pylint: disable=import-outside-toplevel
+	)
 
 	return WorkerMetricsCollector(1)
 
@@ -35,7 +38,10 @@ def fixture_metrics_collector(monkeypatch):
 @pytest.fixture(name="metrics_registry")
 def fixture_metrics_registry(monkeypatch):
 	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
-	from opsiconfd.metrics import MetricsRegistry, Metric  # pylint: disable=import-outside-toplevel
+	from opsiconfd.metrics import (  # pylint: disable=import-outside-toplevel
+		Metric,
+		MetricsRegistry,
+	)
 
 	metrics_registry = MetricsRegistry()
 	metrics_registry.register(
@@ -108,7 +114,7 @@ def test_redis_ts_cmd_error(metrics_registry, metrics_collector):
 		metrics_collector._redis_ts_cmd(metrics[-1], "unknown CMD", 42)  # pylint: disable=protected-access
 
 	assert excinfo.type == ValueError
-	assert excinfo.value.__str__() == ValueError("Invalid command unknown CMD").__str__()
+	assert str(excinfo.value) == "Invalid command unknown CMD"
 
 
 def test_metric_by_redis_key(metrics_registry):
@@ -126,7 +132,4 @@ def test_metric_by_redis_key_error(metrics_registry):
 		metrics_registry.get_metric_by_redis_key("opsiconfd:stats:opsiconfd:notinredis:metric")
 
 	assert excinfo.type == ValueError
-	assert excinfo.value.__str__() == ValueError("Metric with redis key 'opsiconfd:stats:opsiconfd:notinredis:metric' not found").__str__()
-	# print(excinfo.value.__eq__(ValueError("Metric with redis key 'opsiconfd:stats:opsiconfd:notinredis:metric' not found")))
-	# print(type(excinfo.value))
-	# print(type(ValueError("Metric with redis key 'opsiconfd:stats:opsiconfd:notinredis:metric' not found")))
+	assert str(excinfo.value) == "Metric with redis key 'opsiconfd:stats:opsiconfd:notinredis:metric' not found"

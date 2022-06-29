@@ -49,6 +49,9 @@ function doReq(method, url, body, handleError = true, requestInfos = false) {
 					console.log("Unknown Error");
 					reject(req.status, "Unknown Error")
 				}
+				if (req.status == 401) {
+					location.href = "/login";
+				}
 			}
 		};
 		if (body instanceof FormData) {

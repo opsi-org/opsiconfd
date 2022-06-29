@@ -236,15 +236,18 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 			try:  # pylint: disable=too-many-branches,too-many-nested-blocks
 				result = await exec_func(func, *args, **kwargs)
 				if isinstance(result, RESTResponse):  # pylint: disable=no-else-return
-					headers = create_link_header(result.total, kwargs.get("commons"), kwargs.get("request"))
-					result.headers.update(headers)
+					if result.total and kwargs.get("request"):
+						headers = create_link_header(result.total, kwargs.get("commons"), kwargs.get("request").url)
+						result.headers.update(headers)
 					return result.to_jsonresponse()
 				# Deprecated dict response.
 				elif isinstance(result, dict) and result.get("data"):
+					headers = {}
 					warnings.warn("opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning)
 					if result.get("data"):
 						content = result.get("data")
-					headers = create_link_header(result.get("total"), kwargs.get("commons"), kwargs.get("request"))
+					if result.get("total") and kwargs.get("request"):
+						headers = create_link_header(int(result.get("total")), kwargs.get("commons"), kwargs.get("request").url)
 				else:
 					content = result
 				return JSONResponse(content=content, status_code=http_status, headers=headers)

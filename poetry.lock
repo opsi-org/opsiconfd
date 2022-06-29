@@ -1800,7 +1800,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "pytest-subtests"
-version = "0.7.0"
+version = "0.8.0"
 description = "unittest subTest() support and subtests fixture"
 category = "dev"
 optional = false
@@ -2018,20 +2018,20 @@ reference = "uibpypi"
 
 [[package]]
 name = "requests"
-version = "2.27.1"
+version = "2.28.0"
 description = "Python HTTP for Humans."
 category = "main"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
+python-versions = ">=3.7, <4"
 
 [package.dependencies]
 certifi = ">=2017.4.17"
-charset-normalizer = {version = ">=2.0.0,<2.1.0", markers = "python_version >= \"3\""}
-idna = {version = ">=2.5,<4", markers = "python_version >= \"3\""}
+charset-normalizer = ">=2.0.0,<2.1.0"
+idna = ">=2.5,<4"
 urllib3 = ">=1.21.1,<1.27"
 
 [package.extras]
-socks = ["PySocks (>=1.5.6,!=1.5.7)", "win-inet-pton"]
+socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use_chardet_on_py3 = ["chardet (>=3.0.2,<5)"]
 
 [package.source]
@@ -2102,31 +2102,31 @@ reference = "uibpypi"
 
 [[package]]
 name = "schemathesis"
-version = "3.15.6"
+version = "3.14.2"
 description = "Property-based testing framework for Open API and GraphQL based apps"
 category = "dev"
 optional = false
 python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
-attrs = ">=19.2,<=21.4"
+attrs = ">=19.2"
 click = ">=7.0,<9.0"
 colorama = ">=0.4,<0.5"
 curlify = ">=2.2.1,<3.0.0"
-hypothesis = ">=6.13.3,<7.0.0"
-hypothesis_graphql = ">=0.9.0,<0.10.0"
-hypothesis_jsonschema = ">=0.22.0,<0.23.0"
+hypothesis = ">=6.13.3,<7.0"
+hypothesis_graphql = ">=0.5.0"
+hypothesis_jsonschema = ">=0.22.0"
 jsonschema = ">=4.3.2,<5.0.0"
 junit-xml = ">=1.9,<2.0"
-pytest = ">4.6.4,<8"
-pytest-subtests = ">=0.2.1,<0.8.0"
+pytest = ">4.6.4"
+pytest-subtests = ">=0.2.1,<1.0"
 PyYAML = ">=5.1,<7.0"
-requests = ">=2.22,<2.28.0"
+requests = ">=2.22,<3.0"
 starlette = ">=0.13,<1"
 tomli = ">=2.0.1,<3.0.0"
 tomli-w = ">=1.0.0,<2.0.0"
 typing-extensions = ">=3.7,<5"
-werkzeug = ">=0.16.0,<2.2"
+werkzeug = ">=0.16.0"
 yarl = ">=1.5,<2.0"
 
 [package.source]
@@ -4119,8 +4119,8 @@ pytest-cov = [
     {file = "pytest_cov-3.0.0-py3-none-any.whl", hash = "sha256:578d5d15ac4a25e5f961c938b85a05b09fdaae9deef3bb6de9a6e766622ca7a6"},
 ]
 pytest-subtests = [
-    {file = "pytest-subtests-0.7.0.tar.gz", hash = "sha256:95c44c77e3fbede9848bb88ca90b384815fcba8090ef9a9f55659ab163b1681c"},
-    {file = "pytest_subtests-0.7.0-py3-none-any.whl", hash = "sha256:2e3691caedea0c464fe96ffffd14bf872df1406b88d1930971dafe1966095bad"},
+    {file = "pytest-subtests-0.8.0.tar.gz", hash = "sha256:46eb376022e926950816ccc23502de3277adcc1396652ddb3328ce0289052c4d"},
+    {file = "pytest_subtests-0.8.0-py3-none-any.whl", hash = "sha256:4e28ca52cf7a46645c1ded7933745b69334cdc97a412ed4431f7be7cef9a0994"},
 ]
 python-gettext = [
     {file = "python-gettext-4.0.tar.gz", hash = "sha256:626b501a51ac892fc3460cf550e60dca121f544eaa46eb69c90ce4682fc7ec02"},
@@ -4133,8 +4133,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.298.tar.gz", hash = "sha256:ed8468c3fbea47eff36c3d3ba51bb611a173625602c5ed3b473811604458c5a8"},
-    {file = "python_opsi-4.2.0.298-py3-none-any.whl", hash = "sha256:93ff2fc762ac95627986ffde3a6ed7891e556ee9d03c4427df0f17ea1116bd0d"},
+    {file = "python-opsi-4.2.0.298.tar.gz", hash = "sha256:5367d0d377c008180a74859eca182cf1b6eabac3399367ab1b8698a0e97546c9"},
+    {file = "python_opsi-4.2.0.298-py3-none-any.whl", hash = "sha256:aa8993217a02e6fee0b83ce2bf8e786fb8227b42dc3c4ccef046aa578048b38a"},
 ]
 python-opsi-common = [
     {file = "python-opsi-common-4.2.0.287.tar.gz", hash = "sha256:a11c60b66b8efa1bc4c05b6365b8c4db0d49bdec64d6da4c0dec9fbc8b42c3aa"},
@@ -4210,8 +4210,8 @@ redis = [
     {file = "redis-4.3.4.tar.gz", hash = "sha256:ddf27071df4adf3821c4f2ca59d67525c3a82e5f268bed97b813cb4fabf87880"},
 ]
 requests = [
-    {file = "requests-2.27.1-py2.py3-none-any.whl", hash = "sha256:f22fa1e554c9ddfd16e6e41ac79759e17be9e492b3587efa038054674760e72d"},
-    {file = "requests-2.27.1.tar.gz", hash = "sha256:68d7c56fd5a8999887728ef304a6d12edc7be74f1cfa47714fc8b414525c9a61"},
+    {file = "requests-2.28.0-py3-none-any.whl", hash = "sha256:bc7861137fbce630f17b03d3ad02ad0bf978c844f3536d0edda6499dafce2b6f"},
+    {file = "requests-2.28.0.tar.gz", hash = "sha256:d568723a7ebd25875d8d1eaf5dfa068cd2fc8194b2e483d7b1f7c81918dbec6b"},
 ]
 rich = [
     {file = "rich-12.4.4-py3-none-any.whl", hash = "sha256:d2bbd99c320a2532ac71ff6a3164867884357da3e3301f0240090c5d2fdac7ec"},
@@ -4226,8 +4226,8 @@ ruyaml = [
     {file = "ruyaml-0.91.0.tar.gz", hash = "sha256:6ce9de9f4d082d696d3bde264664d1bcdca8f5a9dff9d1a1f1a127969ab871ab"},
 ]
 schemathesis = [
-    {file = "schemathesis-3.15.6-py3-none-any.whl", hash = "sha256:8688030cb75e49a2c904446bfc332857a31c38f42892ef6ee81b1f7d74ff5087"},
-    {file = "schemathesis-3.15.6.tar.gz", hash = "sha256:46d998bc7b51a903480b47956d0163dad43b3580fe914197ca729d5e1da61be7"},
+    {file = "schemathesis-3.14.2-py3-none-any.whl", hash = "sha256:11dc899ac41d1bf7bb2f92b454609889e55f3fc8c14a13d220c927a67eb745a1"},
+    {file = "schemathesis-3.14.2.tar.gz", hash = "sha256:324aae9a44beadf8eac35996920c7483d5860b41ce9957decb1f9f2b83198323"},
 ]
 service-identity = [
     {file = "service-identity-21.1.0.tar.gz", hash = "sha256:6e6c6086ca271dc11b033d17c3a8bea9f24ebff920c587da090afc9519419d34"},

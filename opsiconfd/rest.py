@@ -24,7 +24,7 @@ from sqlalchemy import asc, column, desc  # type: ignore[import]
 from starlette.datastructures import URL
 
 from . import contextvar_client_session
-from .application.utils import merge_dicts, parse_list
+from .application.utils import parse_list
 from .logging import logger
 
 
@@ -238,10 +238,7 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 				result = await exec_func(func, *args, **kwargs)
 				if isinstance(result, RESTResponse):  # pylint: disable=no-else-return
 					headers = create_link_header(result.total, kwargs.get("commons"), kwargs.get("request"))
-					if result.headers and headers:
-						result.headers = merge_dicts(result.headers, headers)
-					else:
-						result.headers = headers
+					result.headers.update(headers)
 					return result.to_jsonresponse()
 				# Deprecated dict response.
 				elif isinstance(result, dict) and result.get("data"):

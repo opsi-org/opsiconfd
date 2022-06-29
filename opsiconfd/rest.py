@@ -233,7 +233,6 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 			logger.debug("rest_api method name: %s", name)
 			content = None
 			http_status = status.HTTP_200_OK
-			headers = {}
 			try:  # pylint: disable=too-many-branches,too-many-nested-blocks
 				result = await exec_func(func, *args, **kwargs)
 				if isinstance(result, RESTResponse):  # pylint: disable=no-else-return

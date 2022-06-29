@@ -13,7 +13,6 @@ import codecs
 import datetime
 import functools
 import ipaddress
-import json
 import os
 import random
 import string

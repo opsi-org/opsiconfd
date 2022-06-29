@@ -238,14 +238,14 @@ def test_update_config_files(tmp_path):
 
 def test_set_config_in_config_file(tmp_path):
 	config_file = tmp_path / "opsiconfd.conf"
-	config_file.write_text(("# comment\n" "log-level = 1\n" "\n"), encoding="utf-8")
+	config_file.write_text(("# comment\nlog-level = 1\n\n"), encoding="utf-8")
 
 	grafana_internal_url = "redis://username:password@hostname:123/path"
 	with get_config(["--config-file", str(config_file)]) as conf:
 		conf.set_config_in_config_file("grafana-internal-url", grafana_internal_url)
 
 		data = config_file.read_text(encoding="utf-8")
-		assert data == ("# comment\n" "log-level = 1\n" "\n" f"grafana-internal-url = {grafana_internal_url}\n")
+		assert data == ("# comment\nlog-level = 1\n\n" f"grafana-internal-url = {grafana_internal_url}\n")
 
 	grafana_internal_url = "redis://username:password@hostname:123/new-path"
 	with get_config(["--config-file", str(config_file)]) as conf:

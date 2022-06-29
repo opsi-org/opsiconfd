@@ -774,7 +774,7 @@ class Config(metaclass=Singleton):
 			nargs="+",
 			env_var="OPSICONFD_DEBUG_OPTIONS",
 			default=None,
-			help=self._expert_help("A list of debug options" "(options: rpc-error-log)"),
+			help=self._expert_help("A list of debug options (possible options are: rpc-error-log)"),
 		)
 		self._parser.add(
 			"--profiler",

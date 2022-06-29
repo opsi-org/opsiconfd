@@ -8,16 +8,16 @@
 redisinterface
 """
 
-import traceback
+from fastapi import APIRouter, Request, status
 
-from fastapi import APIRouter, Request, Response, status
-from fastapi.responses import JSONResponse
-from aioredis.exceptions import ResponseError
-
-from .. import contextvar_client_session
 from ..logging import logger
-from ..utils import decode_redis_result, async_get_redis_info, redis_client, async_redis_client
-
+from ..rest import RESTErrorResponse, RESTResponse, rest_api
+from ..utils import (
+	async_get_redis_info,
+	async_redis_client,
+	decode_redis_result,
+	redis_client,
+)
 
 redis_interface_router = APIRouter()
 
@@ -28,51 +28,36 @@ def redis_interface_setup(app):
 
 @redis_interface_router.post("")
 @redis_interface_router.post("/")
-async def redis_command(request: Request, response: Response):
+@rest_api(default_error_status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+async def redis_command(request: Request) -> RESTResponse:
 	redis = await async_redis_client()
-	try:
-		request_body = await request.json()
-		redis_cmd = request_body.get("cmd")
-		redis_result = await redis.execute_command(redis_cmd)
-
-		response = JSONResponse({"status": 200, "error": None, "data": {"result": decode_redis_result(redis_result)}})
-	except ResponseError as err:  # pylint: disable=broad-except
-		logger.info(err, exc_info=True)
-		error = {"message": str(err), "class": err.__class__.__name__}
-		session = contextvar_client_session.get()
-		if session and session.user_store.isAdmin:
-			error["details"] = str(traceback.format_exc())
-		response = JSONResponse({"status": 422, "error": error, "data": {"result": None}}, status.HTTP_422_UNPROCESSABLE_ENTITY)
-	return response
+	request_body = await request.json()
+	redis_cmd = request_body.get("cmd")
+	redis_result = await redis.execute_command(redis_cmd)
+	return RESTResponse({"result": decode_redis_result(redis_result)})
 
 
 @redis_interface_router.get("/redis-stats")
-async def get_redis_stats():  # pylint: disable=too-many-locals
+@rest_api
+async def get_redis_stats() -> RESTResponse:  # pylint: disable=too-many-locals
 	redis = await async_redis_client()
 	try:
 		redis_info = await async_get_redis_info(redis)
-		response = JSONResponse({"status": 200, "error": None, "data": redis_info})
+		return RESTResponse(redis_info)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse(
-			{"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}},
-			status.HTTP_500_INTERNAL_SERVER_ERROR,
-		)
-	return response
+		return RESTErrorResponse(details=err, message="Error while reading redis data")
 
 
 @redis_interface_router.get("/depot-cache")
-def get_depot_cache():
+@rest_api
+def get_depot_cache() -> RESTResponse:
 	try:
 		depots = _get_depots()
-		response = JSONResponse({"status": 200, "error": None, "data": {"depots": list(depots)}})
+		return RESTResponse({"depots": list(depots)})
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse(
-			{"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}},
-			status.HTTP_500_INTERNAL_SERVER_ERROR,
-		)
-	return response
+		return RESTErrorResponse(details=err, message="Error while reading redis data")
 
 
 def _get_depots():
@@ -83,7 +68,8 @@ def _get_depots():
 
 
 @redis_interface_router.get("/products")
-def get_products(depot_id: str = None):
+@rest_api
+def get_products(depot_id: str = None) -> RESTResponse:
 	try:
 		data = {}
 		with redis_client() as redis:
@@ -95,17 +81,15 @@ def get_products(depot_id: str = None):
 			for dep_id in depot_ids:
 				products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{dep_id}:products", 0, -1))
 				data[dep_id] = products
-		return JSONResponse({"status": 200, "error": None, "data": data})
+		return RESTResponse(data)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		return JSONResponse(
-			{"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}},
-			status.HTTP_500_INTERNAL_SERVER_ERROR,
-		)
+		return RESTErrorResponse(details=err, message="Error while reading redis data")
 
 
 @redis_interface_router.post("/clear-product-cache")
-async def clear_product_cache(request: Request, response: Response):
+@rest_api
+async def clear_product_cache(request: Request) -> RESTResponse:
 	try:
 		request_body = await request.json()
 		depots = request_body.get("depots")
@@ -121,10 +105,7 @@ async def clear_product_cache(request: Request, response: Response):
 				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
 				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
 			data = await pipe.execute()
-		response = JSONResponse({"status": 200, "error": None, "data": data})
+		return RESTResponse(data)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Error while reading redis data: %s", err)
-		response = JSONResponse(
-			{"status": 500, "error": {"message": "Error while reading redis data", "detail": str(err)}}, status_code=500
-		)
-	return response
+		return RESTErrorResponse(details=err, message="Error while reading redis data")

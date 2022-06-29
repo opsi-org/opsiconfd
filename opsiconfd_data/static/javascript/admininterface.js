@@ -8,6 +8,7 @@ function createUUID() {
 	});
 }
 
+
 function monitorSession() {
 	if (document.cookie && document.cookie.indexOf('opsiconfd-session=') != -1) {
 		setTimeout(monitorSession, 1000);
@@ -18,75 +19,264 @@ function monitorSession() {
 	}
 }
 
+
 function unblockAll() {
-	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/unblock-all");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText
-			result = JSON.parse(result);
+	let req = doReq("POST", "/admin/unblock-all");
+	req.then((result) => {
+		outputToHTML(result, "json-result");
+		outputResult(result, "text-result");
+		loadClientTable()
+		return result
+	});
+}
+
+
+function unblockClient(ip) {
+	if (ValidateIPaddress(ip)) {
+		let req = doReq("POST", "/admin/unblock-client", { "client_addr": ip });
+		req.then((result) => {
 			outputToHTML(result, "json-result");
 			outputResult(result, "text-result");
 			loadClientTable()
-			return result;
-
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send();
-}
-
-function unblockClient(ip) {
-	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/unblock-client");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText
-			result = JSON.parse(result);
-			outputToHTML(result, "json-result");
-			outputResult(result, "text-result");
-			loadClientTable();
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	body = {
-		"client_addr": ip
-	}
-	if (ValidateIPaddress(ip)) {
-		request.send(JSON.stringify(body));
+			return result
+		});
 	}
 }
+
+
+function clearRedisCache(depots = []) {
+	let req = doReq("POST", "/redis-interface/clear-product-cache", { "depots": depots });
+	req.then((result) => {
+		outputToHTML(result, "redis-result");
+		return result
+	});
+}
+
+
+function loadClientTable() {
+	let req = doReq("GET", "/admin/blocked-clients");
+	req.then((result) => {
+		printClientTable(result, "blocked-clients-div");
+		return result
+	});
+}
+
+
+function loadLockedProductsTable() {
+	let req = doReq("GET", "/admin/locked-products-list");
+	req.then((result) => {
+		printLockedProductsTable(result, "locked-products-table-div");
+		return result
+	});
+}
+
+
+function unlockProduct(product) {
+	let req = doReq("POST", "/admin/products/" + product + "/unlock");
+	req.then((result) => {
+		loadLockedProductsTable();
+		return result
+	});
+}
+
+
+function unlockAllProducts() {
+	let req = doReq("POST", "/admin/products/unlock");
+	req.then((result) => {
+		loadLockedProductsTable();
+		return result
+	});
+}
+
+
+function loadRedisInfo() {
+	let req = doReq("GET", "/redis-interface/redis-stats");
+	req.then((result) => {
+		outputToHTML(result, "redis-result");
+		return result
+	});
+}
+
+
+function loadSessionTable() {
+	let req = doReq("GET", "/admin/session-list");
+	req.then((result) => {
+		printSessionTable(result, "session-table-div");
+		return result
+	});
+}
+
+function loadRPCTable(sortKey, sort) {
+	let req = doReq("GET", "/admin/rpc-list");
+	req.then((result) => {
+		if (result.length == 0) {
+			document.getElementById("rpc-table-div").innerHTML = "No rpcs found.";
+			return null
+		}
+		if (sort) {
+			result = sortRPCTable(result, sortKey);
+		}
+		printRPCTable(result, "rpc-table-div");
+		return result;
+	});
+}
+
+
+function loadAddons() {
+	let req = doReq("GET", "/admin/addons");
+	req.then((result) => {
+		printAddonTable(result, "addon-table-div");
+		return result
+	});
+}
+
+
+function installAddon() {
+	let button = null;
+	if (window.event.currentTarget && window.event.currentTarget.tagName.toLowerCase() == "button") {
+		button = window.event.currentTarget;
+		button.classList.add("loading");
+	}
+	let formData = new FormData();
+	formData.append("addonfile", document.getElementById("addon-file").files[0]);
+
+	let req = doReq("POST", "/admin/addons/install", formData, handleError = false);
+	req.then((result) => {
+		if (button) {
+			button.classList.remove("loading");
+		}
+		loadAddons();
+		document.getElementById("alerts").innerHTML += "<div class='success'> <span class=\"closebtn\" onclick=\"this.parentNode.remove()\">&times;</span>Addon installed</div>"
+	}, (error) => {
+		if (button) {
+			button.classList.remove("loading");
+		}
+		console.log(error);
+		console.warn(error.status, error.details);
+		document.getElementById("alerts").innerHTML += "<div class='alert'> <span class=\"closebtn\" onclick=\"this.parentNode.remove()\">&times;</span>" + error.message + "</div>"
+	});
+}
+
 
 function deleteClientSessions() {
-	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/delete-client-sessions");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText
-			result = JSON.parse(result);
-			outputToHTML(result, "json-result");
-			outputResult(result, "text-result");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
 	body = {
 		"client_addr": sessionAddr.value
 	};
 	if (ValidateIPaddress(sessionAddr.value)) {
-		request.send(JSON.stringify(body));
-	}
+		let req = doReq("POST", "/admin/delete-client-sessions", body);
+		req.then((result) => {
+			outputToHTML(result, "json-result");
+			outputResult(result, "text-result");
+			return result
 
+		}, (error) => {
+			console.log(error);
+		});
+	}
 }
 
+
+function loadInfo() {
+	let config_req = doReq("GET", "/admin/config");
+	config_req.then((result) => {
+		outputToHTML(result, "config-values");
+		return result;
+	});
+	let routes_req = doReq("GET", "/admin/routes");
+	routes_req.then((result) => {
+		outputToHTML(result, "route-values");
+		return result;
+	});
+}
+
+
+function reload() {
+	let req = doReq("POST", "/admin/reload");
+	req.then((result) => {
+		console.debug(result);
+		return result
+	});
+}
+
+
+function logout() {
+	let req = doReq("POST", "/admin/logout");
+	req.then(() => {
+		location.href = "/login";
+	});
+}
+
+function callRedis() {
+	let req = doReq("POST", "/redis-interface", { "cmd": document.getElementById("redis-cmd").value }, handleError = false);
+	req.then((result) => {
+		console.debug(`Redis command successful: ${JSON.stringify(result)}`)
+		outputToHTML(result, "redis-result");
+	}, (error) => {
+		console.error(error);
+		outputToHTML(error, "redis-result");
+	});
+}
+
+
+function callJSONRPC() {
+	let inputs = document.getElementById("tab-rpc-interface").getElementsByTagName("input");
+	for (i = 0; i < inputs.length; i++) {
+		let name = inputs[i].name.trim();
+		let value = inputs[i].value.trim();
+
+		if (!value && name.substring(0, 1) != "*") {
+
+			alert("mandatory field empty");
+			return {
+				"error": "mandatory field empty"
+			};
+		}
+	}
+
+	let apiJSON = createRequestJSON();
+	let req = doReq("POST", "/rpc", apiJSON, true, true);
+	document.getElementById("jsonrpc-execute-button").disabled = true;
+	req.then((result) => {
+		document.getElementById("jsonrpc-response-info").innerHTML = "Server-Timing: " + result.requestInfo.serverTiming// request.getResponseHeader("server-timing")
+		outputToHTML(result.data, "jsonrpc-result");
+		return result;
+	}).finally(() => {
+		document.getElementById("jsonrpc-execute-button").disabled = false;
+	});
+}
+
+
+function loadLicensingInfo() {
+	let req = doReq("GET", "/admin/licensing_info");
+	req.then(() => {
+		if (typeof result.module_dates != "undefined" && Object.keys(result.module_dates).length > 0) {
+			generateLiceningInfoTable(result.info, "licensing-info");
+			generateLiceningDatesTable(result.module_dates, result.active_date, "licensing-dates");
+		} else {
+			div = document.getElementById("licensing-info").innerHTML = "<p>No licenses available.</p>";
+			div = document.getElementById("licensing-dates").innerHTML = "";
+		}
+	});
+}
+
+
+function licenseUpload(files) {
+	var formData = new FormData();
+	for (var i = 0; i < files.length; i++) {
+		formData.append("files", files[i]);
+	}
+	let req = doReq("POST", "/admin/license_upload", formData);
+	req.then((result) => {
+		console.log(`File upload successful: ${JSON.stringify(result)}`)
+		loadLicensingInfo();
+	});
+}
+
+
 function outputResult(json, id) {
+	if (json == undefined) {
+		return
+	}
 	let text = "";
 	if (json["status"] == 200) {
 		data = json["data"]
@@ -136,27 +326,6 @@ function outputResult(json, id) {
 	document.getElementById(id).innerHTML = text;
 }
 
-function clearRedisCache(depots = []) {
-	let request = new XMLHttpRequest();
-	request.open("POST", "/redis-interface/clear-product-cache");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText
-			result = JSON.parse(result);
-			outputToHTML(result, "redis-result");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	body = {
-		"depots": depots
-	};
-
-	request.send(JSON.stringify(body));
-
-}
 
 // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
 function syntaxHighlight(json) {
@@ -192,452 +361,6 @@ function ValidateIPaddress(ipaddress) {
 	return (false)
 }
 
-function loadClientTable() {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/admin/blocked-clients");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			printClientTable(result, "blocked-clients-div");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function loadLockedProductsTable() {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/admin/locked-products-list");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			printLockedProductsTable(result, "locked-products-table-div");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function loadSessionTable(sortKey, sort) {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/admin/session-list");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			printSessionTable(result, "session-table-div");
-		} else {
-			console.warn(request.statusText, request.responseText);
-		}
-	});
-	request.send();
-}
-
-function loadRPCTable(sortKey, sort) {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/admin/rpc-list");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			if (result.length == 0) {
-				document.getElementById("rpc-table-div").innerHTML = "No rpcs found.";
-				return null
-			}
-			if (sort) {
-				result = sortRPCTable(result, sortKey);
-			}
-			printRPCTable(result, "rpc-table-div");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send();
-	let request_count = new XMLHttpRequest();
-	request_count.open("GET", "/admin/rpc-count");
-	request_count.addEventListener('load', function (event) {
-		if (request_count.status >= 200 && request_count.status < 300) {
-			result = request_count.responseText;
-			result = JSON.parse(result);
-			date = new Date(result["date_first_rpc"])
-			// printRPCCount(result["rpc_count"], date)
-			return result;
-		} else {
-			console.warn(request_count.statusText, request_count.responseText);
-			return request_count.statusText;
-		}
-	});
-	request_count.send();
-}
-
-
-function loadRedisInfo() {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/redis-interface/redis-stats");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result, "redis-result");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function loadAddons() {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/admin/addons");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			printAddonTable(result, "addon-table-div");
-		} else {
-			console.warn(request.statusText, request.responseText);
-		}
-	});
-	request.send()
-}
-
-function installAddon() {
-	let button = null;
-	if (window.event.currentTarget && window.event.currentTarget.tagName.toLowerCase() == "button") {
-		button = window.event.currentTarget;
-		button.classList.add("loading");
-	}
-	let formData = new FormData();
-	formData.append("addonfile", document.getElementById("addon-file").files[0]);
-	var request = new XMLHttpRequest();
-	request.open("POST", "/admin/addons/install");
-	request.addEventListener('load', function (event) {
-		if (button) {
-			button.classList.remove("loading");
-		}
-		if (request.status >= 200 && request.status < 300) {
-			loadAddons();
-			document.getElementById("alerts").innerHTML += "<div class='success'> <span class=\"closebtn\" onclick=\"this.parentNode.remove()\">&times;</span>Addon installed</div>"
-		} else {
-			console.warn(request.statusText, request.responseText);
-			document.getElementById("alerts").innerHTML += "<div class='alert'> <span class=\"closebtn\" onclick=\"this.parentNode.remove()\">&times;</span>" + request.responseText + "</div>"
-		}
-	});
-	request.send(formData);
-}
-
-
-function loadInfo() {
-	let request1 = new XMLHttpRequest();
-	request1.open("GET", "/admin/config");
-	request1.addEventListener('load', function (event) {
-		if (request1.status >= 200 && request1.status < 300) {
-			result = request1.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "config-values");
-			return result;
-		} else {
-			console.warn(request1.statusText, request1.responseText);
-			return request1.statusText;
-		}
-	});
-	request1.send()
-
-	request2 = new XMLHttpRequest();
-	request2.open("GET", "/admin/routes");
-	request2.addEventListener('load', function (event) {
-		if (request2.status >= 200 && request2.status < 300) {
-			result = request2.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "route-values");
-			return result;
-		} else {
-			console.warn(request2.statusText, request2.responseText);
-			return request2.statusText;
-		}
-	});
-	request2.send()
-}
-
-function tracemallocSnapshot() {
-	let limit = 25;
-	document.getElementById("button-tracemalloc-snapshot").disabled = true;
-	let request = new XMLHttpRequest();
-	request.open("GET", `/admin/memory/tracemalloc-snapshot-new?limit=${limit}`);
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			document.getElementById("button-tracemalloc-snapshot").disabled = false;
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			document.getElementById("button-tracemalloc-snapshot").disabled = false;
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function objgraphSnapshot(update = false) {
-	let max_obj_types = parseInt(document.getElementById("input-objgraph-max-obj-types").value);
-	let max_obj = parseInt(document.getElementById("input-objgraph-max-obj").value);
-
-	document.getElementById("button-objgraph-snapshot-new").disabled = true;
-	document.getElementById("button-objgraph-snapshot-update").disabled = true;
-	let request = new XMLHttpRequest();
-	if (update) {
-		request.open("GET", "/admin/memory/objgraph-snapshot-update");
-	}
-	else {
-		request.open("GET", `/admin/memory/objgraph-snapshot-new?max_obj_types=${max_obj_types}&max_obj=${max_obj}`);
-	}
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			document.getElementById("button-objgraph-snapshot-new").disabled = false;
-			document.getElementById("button-objgraph-snapshot-update").disabled = false;
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			document.getElementById("button-objgraph-snapshot-new").disabled = false;
-			document.getElementById("button-objgraph-snapshot-update").disabled = false;
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function objgraphShowBackrefs() {
-	let obj_id = document.getElementById("input-objgraph-obj-id").value;
-	let win = window.open("/admin/memory/objgraph-show-backrefs?obj_id=" + obj_id, '_blank');
-	win.focus();
-}
-
-function loadMemoryInfo() {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/admin/memory-summary");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function takeMemorySnapshot() {
-	document.getElementById("memory-info").style.visibility = 'visible';
-	document.getElementById("memory-values").innerHTML = "loading...";
-	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/memory/snapshot");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function diffMemorySnapshots() {
-	document.getElementById("memory-info").style.visibility = 'visible';
-	document.getElementById("memory-values").innerHTML = "loading...";
-	let request = new XMLHttpRequest();
-
-	snapshotNumber1 = document.getElementById("snapshot1").value;
-	snapshotNumber2 = document.getElementById("snapshot2").value;
-	if (snapshotNumber1 == "") {
-		snapshotNumber1 = 1
-	}
-	if (snapshotNumber2 == "") {
-		snapshotNumber2 = -1
-	}
-	url = "/admin/memory/diff?snapshot1=" + snapshotNumber1 + "&snapshot2=" + snapshotNumber2
-	request.open("GET", url);
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function takeHeapSnapshot() {
-	document.getElementById("memory-info").style.visibility = 'visible';
-	document.getElementById("memory-values").innerHTML = "loading...";
-	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/memory/guppy");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function diffHeapSnapshots() {
-	document.getElementById("memory-info").style.visibility = 'visible';
-	document.getElementById("memory-values").innerHTML = "loading...";
-	let request = new XMLHttpRequest();
-
-	snapshotNumber1 = document.getElementById("snapshot1").value;
-	snapshotNumber2 = document.getElementById("snapshot2").value;
-	if (snapshotNumber1 == "") {
-		snapshotNumber1 = 1
-	}
-	if (snapshotNumber2 == "") {
-		snapshotNumber2 = -1
-	}
-	url = "/admin/memory/guppy/diff?snapshot1=" + snapshotNumber1 + "&snapshot2=" + snapshotNumber2
-	request.open("GET", url);
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function takeClassSnapshot() {
-	document.getElementById("memory-info").style.visibility = 'visible';
-	document.getElementById("memory-values").innerHTML = "loading...";
-	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/memory/classtracker");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	className = document.getElementById("class-name").value;
-	moduleName = document.getElementById("module-name").value;
-	description = document.getElementById("description").value;
-	body = {
-		"module": moduleName,
-		"class": className,
-		"description": description
-	}
-	request.send(JSON.stringify(body));
-}
-
-function classSummary() {
-	document.getElementById("memory-info").style.visibility = 'visible';
-	document.getElementById("memory-values").innerHTML = "loading...";
-	let request = new XMLHttpRequest();
-	request.open("GET", "/admin/memory/classtracker/summary");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function deleteMemorySnapshots() {
-	let request = new XMLHttpRequest();
-	request.open("DELETE", "/admin/memory/snapshot");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function deleteHeapSnapshots() {
-	let request = new XMLHttpRequest();
-	request.open("DELETE", "/admin/memory/guppy");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
-
-function deleteClassTracker() {
-	let request = new XMLHttpRequest();
-	request.open("DELETE", "/admin/memory/classtracker");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText;
-			result = JSON.parse(result);
-			outputToHTML(result.data, "memory-values");
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send()
-}
 
 function printSessionTable(data, htmlId) {
 	if (data.length == 0) {
@@ -668,8 +391,12 @@ function printSessionTable(data, htmlId) {
 	return htmlStr;
 }
 
+
 function printLockedProductsTable(data, htmlId) {
-	if (Object.keys(data).length === 0) {
+	if (data == undefined) {
+		htmlStr = "<p>No locked Products found.</p>";
+	}
+	else if (Object.keys(data).length === 0) {
 		htmlStr = "<p>No locked Products found.</p>";
 	} else {
 		htmlStr = "<table class=\"locked-products-table\" id=\"session-table\">" +
@@ -696,44 +423,11 @@ function printLockedProductsTable(data, htmlId) {
 }
 
 
-function unlockProduct(product) {
-	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/products/" + product + "/unlock");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText
-			result = JSON.parse(result);
-			loadLockedProductsTable()
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send();
-
-}
-
-function unlockAllProducts() {
-	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/products/unlock");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText
-			result = JSON.parse(result);
-			loadLockedProductsTable()
-			return result;
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	request.send();
-
-}
-
 function printAddonTable(data, htmlId) {
-	if (data.length == 0) {
+	if (data == undefined) {
+		htmlStr = "<p>No addons loaded.</p>";
+	}
+	else if (data.length == 0) {
 		htmlStr = "<p>No addons loaded.</p>";
 	} else {
 		htmlStr = "<table class=\"addon-table\" id=\"addon-table\">" +
@@ -760,6 +454,9 @@ function printAddonTable(data, htmlId) {
 
 
 function printClientTable(data, htmlId) {
+	if (data == undefined) {
+		data = []
+	}
 	if (data.length == 0) {
 		htmlStr = "<p>No clients are blocked by the server.</p>";
 	} else {
@@ -782,6 +479,7 @@ function printClientTable(data, htmlId) {
 	div.innerHTML = htmlStr;
 	return htmlStr;
 }
+
 
 function printRPCTable(data, htmlId) {
 	let htmlStr = "<table class=\"rpc-table\">";
@@ -822,8 +520,8 @@ function printRPCTable(data, htmlId) {
 	return htmlStr;
 }
 
-var desc = true;
 
+var desc = true;
 function sortRPCTable(data, sortKey) {
 	data = result.sort((a, b) => {
 		if (sortKey == "method") {
@@ -870,45 +568,6 @@ function sortRPCTable(data, sortKey) {
 
 }
 
-function reload() {
-	let request = new XMLHttpRequest();
-	request.open("POST", "/admin/reload");
-	request.addEventListener('load', function (event) {
-		if (request.status >= 200 && request.status < 300) {
-			console.debug(request.statusText, request.responseText);
-		} else {
-			console.warn(request.statusText, request.responseText);
-		}
-	});
-	request.send();
-}
-
-function logout() {
-	let request = new XMLHttpRequest();
-	request.open("GET", "/session/logout");
-	request.addEventListener('load', function (event) {
-		location.href = "/login";
-	});
-	request.send();
-}
-
-function callRedis() {
-	let xhr = new XMLHttpRequest();
-	xhr.open("POST", "/redis-interface");
-	xhr.responseType = 'json';
-	xhr.onload = function (e) {
-		console.error(this.response);
-		if (this.status == 200) {
-			console.log(`Redis command successful: ${JSON.stringify(this.response)}`)
-			outputToHTML(this.response, "redis-result");
-		}
-		else {
-			console.error(this.response.error);
-			outputToHTML(this.response, "redis-result");
-		}
-	};
-	xhr.send(JSON.stringify({ "cmd": document.getElementById("redis-cmd").value }));
-}
 
 function createRequestJSON() {
 	let apiJSON = {
@@ -952,44 +611,12 @@ function changeRequestJSON(name, value) {
 	outputToHTML(apiJSON, "jsonrpc-request");
 }
 
-function callJSONRPC() {
-	let inputs = document.getElementById("tab-rpc-interface").getElementsByTagName("input");
-	for (i = 0; i < inputs.length; i++) {
-		let name = inputs[i].name.trim();
-		let value = inputs[i].value.trim();
 
-		if (!value && name.substr(0, 1) != "*") {
-
-			alert("mandatory field empty");
-			return {
-				"error": "mandatory field empty"
-			};
-		}
-	}
-
-	let apiJSON = createRequestJSON();
-	let request = new XMLHttpRequest();
-	request.open("POST", "/rpc");
-
-	request.addEventListener('load', function (event) {
-		document.getElementById("jsonrpc-execute-button").disabled = false;
-		document.getElementById("jsonrpc-response-info").innerHTML = "Server-Timing: " + request.getResponseHeader("server-timing");
-		if (request.status >= 200 && request.status < 300) {
-			result = request.responseText
-			result = JSON.parse(result);
-			outputToHTML(result, "jsonrpc-result");
-			return result;
-
-		} else {
-			console.warn(request.statusText, request.responseText);
-			return request.statusText;
-		}
-	});
-	document.getElementById("jsonrpc-execute-button").disabled = true;
-	request.send(JSON.stringify(apiJSON));
-}
 
 function outputToHTML(json, id) {
+	if (json == undefined) {
+		return
+	}
 	jsonStr = JSON.stringify(json, undefined, 2);
 	jsonStr = syntaxHighlight(jsonStr);
 	document.getElementById(id).style.visibility = 'visible'
@@ -1216,6 +843,7 @@ function terminalFileUpload(file) {
 	readChunk();
 }
 
+
 function generateLiceningInfoTable(info, htmlId) {
 	htmlStr = "<table id=\"licensing-info-table\">";
 	for (const [key, val] of Object.entries(info)) {
@@ -1249,50 +877,6 @@ function generateLiceningDatesTable(dates, activeDate, htmlId) {
 	div = document.getElementById(htmlId).innerHTML = htmlStr;
 }
 
-function loadLicensingInfo() {
-	let xhr = new XMLHttpRequest();
-	xhr.open("GET", "/admin/licensing_info");
-	xhr.responseType = 'json';
-	xhr.onload = function (e) {
-		if (this.status == 200) {
-			console.log("Licensing info:");
-			console.log(this.response);
-			if (Object.keys(this.response.data.module_dates).length > 0) {
-				generateLiceningInfoTable(this.response.data.info, "licensing-info");
-				generateLiceningDatesTable(this.response.data.module_dates, this.response.data.active_date, "licensing-dates");
-			} else {
-				div = document.getElementById("licensing-info").innerHTML = "<p>No licenses available.</p>";
-				div = document.getElementById("licensing-dates").innerHTML = "";
-			}
-		}
-		else {
-			console.error(this.response.error);
-		}
-	};
-	xhr.send();
-}
-
-function licenseUpload(files) {
-	var formData = new FormData();
-	for (var i = 0; i < files.length; i++) {
-		formData.append("files", files[i]);
-	}
-	const xhr = new XMLHttpRequest();
-	xhr.responseType = 'json';
-	xhr.open("POST", "/admin/license_upload", true);
-	xhr.onload = function (e) {
-		if (this.status == 201) {
-			console.log(`File upload successful: ${JSON.stringify(this.response)}`)
-			loadLicensingInfo();
-		}
-		else {
-			let error = `File upload failed: ${JSON.stringify(this.response)}`;
-			console.error(error);
-			alert(error);
-		}
-	};
-	xhr.send(formData);
-}
 
 function toggleTabMaximize() {
 	tabcontent = document.getElementsByClassName("tabcontent");
@@ -1322,4 +906,3 @@ document.onkeydown = function (evt) {
 		toggleTabMaximize();
 	}
 };
-

@@ -18,7 +18,6 @@ from urllib.parse import urlparse
 
 import mock  # type: ignore[import]
 import pytest
-from fastapi import Response
 from starlette.datastructures import Headers
 from starlette.requests import Request
 
@@ -92,19 +91,19 @@ def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-
 @pytest.mark.asyncio
 async def test_unblock_all(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
-		test_response = Response()
+
 		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 
 		for test_ip in addresses:
 			set_failed_auth_and_blocked(test_ip)
 
-		response = await admininterface.unblock_all_clients(test_response)
-
+		response = await admininterface.unblock_all_clients()
+		print(response)
+		print(response.__dict__)
 		assert response.status_code == 200
 		response_body = json.loads(response.body)
 		assert response_body.get("error") is None
-		assert response_body.get("status") == 200
-		assert sorted(response_body["data"]["clients"]) == sorted(addresses)
+		assert sorted(response_body["clients"]) == sorted(addresses)
 
 		for test_ip in addresses:
 			val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
@@ -137,7 +136,7 @@ async def test_unblock_client(config, admininterface):  # pylint: disable=redefi
 
 		response = await admininterface.unblock_client(test_request)
 		response_dict = json.loads(response.body)
-		assert response_dict.get("status") == 200
+		assert response.status_code == 200
 		assert response_dict.get("error") is None
 
 		val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
@@ -197,8 +196,10 @@ async def test_get_blocked_clients(admininterface):  # pylint: disable=redefined
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
 
-	blocked_clients = await admininterface.get_blocked_clients()
-	assert sorted(blocked_clients) == sorted(addresses)
+	result = await admininterface.get_blocked_clients()
+	print(result)
+	print(json.loads(result.body))
+	assert sorted(json.loads(result.body)) == sorted(addresses)
 
 
 @pytest.mark.parametrize("num_rpcs", [1, 3, 5])
@@ -212,7 +213,8 @@ async def test_get_rpc_list(test_client, admininterface, num_rpcs):  # pylint: d
 
 	await asyncio.sleep(1)
 
-	rpc_list = await admininterface.get_rpc_list()
+	rpc_list_response = await admininterface.get_rpc_list()
+	rpc_list = json.loads(rpc_list_response.body)
 	for idx in range(0, num_rpcs):
 		assert rpc_list[idx].get("rpc_num") == idx + 1
 		assert rpc_list[idx].get("error") is False
@@ -225,7 +227,7 @@ async def test_get_rpc_list(test_client, admininterface, num_rpcs):  # pylint: d
 	[
 		({"client_addr": "<local_ip>"}, [200, None, "<local_ip>", 1]),
 		({"client_addr": "192.168.2.1"}, [200, None, "192.168.2.1", 0]),
-		(None, [500, {"detail": "client_addr missing", "message": "Error while removing redis client keys"}, None, 1]),
+		(None, [500, {"message": "client_addr missing"}, None, 1]),
 	],
 )  # pylint: disable=too-many-locals
 async def test_delete_client_sessions(
@@ -259,15 +261,17 @@ async def test_delete_client_sessions(
 	response = await admininterface.delete_client_sessions(test_request)
 
 	response_dict = json.loads(response.body)
-	assert response_dict.get("status") == expected_response[0]
-	assert response_dict.get("error") == expected_response[1]
+	assert response.status_code == expected_response[0]
 
-	if response_dict.get("error") is None:
-		assert response_dict.get("data").get("client") == expected_response[2]
+	if expected_response[1]:
+		assert response_dict.get("message", None) == expected_response[1].get("message")
 
-	if response_dict.get("status") == 200 and response_dict.get("data").get("client") == local_ip:
-		assert response_dict.get("data").get("sessions") == [session]
-		assert len(response_dict.get("data").get("redis-keys")) == expected_response[3]
+	if response_dict.get("message") is None:
+		assert response_dict.get("client") == expected_response[2]
+
+	if response.status_code == 200 and response_dict.get("client") == local_ip:
+		assert response_dict.get("sessions") == [session]
+		assert len(response_dict.get("redis-keys")) == expected_response[3]
 
 
 def test_open_grafana(test_client, config):  # pylint: disable=redefined-outer-name
@@ -425,7 +429,9 @@ def get_session_count(client) -> int:
 def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
 	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
+	print(response.json())
 	addons = AddonManager().addons
+	print(addons)
 	assert len(response.json()) == len(addons)
 
 
@@ -455,9 +461,11 @@ def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-na
 		"/admin/unblock-client": "opsiconfd.application.admininterface.unblock_client",
 	}
 	# test if default routes are in the list
+	response_body = json.loads(response.content)
+	print(response_body)
 	for key in routes_to_test:
-		assert key in response.json().get("data", {}).keys()
-		assert routes_to_test.get(key) == response.json().get("data", {}).get(key)
+		assert key in response_body.keys()
+		assert routes_to_test.get(key) == response_body.get(key)
 
 	# load addon
 	config.addon_dirs = [os.path.abspath("tests/data/addons")]
@@ -478,8 +486,27 @@ def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-na
 	}
 
 	# test if appon routes are in the list
+	response_body = json.loads(response.content)
 	for key in addon_routes:
-		assert key in response.json().get("data", {}).keys()
-		assert addon_routes.get(key) == response.json().get("data", {}).get(key)
+		assert key in response_body.keys()
+		assert addon_routes.get(key) == response_body.get(key)
 
 	addon_manager.unload_addon("test1")
+
+
+def test_licensing_info(test_client):  # pylint: disable=redefined-outer-name
+	response = test_client.get("/admin/licensing_info", auth=(ADMIN_USER, ADMIN_PASS))
+	assert response.status_code == 200
+	lic_data = response.json()
+	print(response.json())
+	assert isinstance(lic_data.get("info"), dict)
+	assert lic_data.get("info").get("customer_name") is not None
+
+	for clients in ("macos_clients", "linux_clients", "windows_clients", "all_clients"):
+		assert isinstance(lic_data.get("info").get(clients), int)
+
+
+def test_welcome_page(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
+	res = test_client.get("/welcome", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	assert "<h1>Welcome to opsi!</h1>" in res.content.decode("utf8")

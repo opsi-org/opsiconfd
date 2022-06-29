@@ -8,40 +8,38 @@
 test application redis interface
 """
 
-from socket import getfqdn
 import time
+from socket import getfqdn
 from unittest import mock
 
 from fastapi import status
 
+from opsiconfd.utils import decode_redis_result
 from tests.utils import (  # pylint: disable=unused-import
-	ADMIN_USER,
 	ADMIN_PASS,
+	ADMIN_USER,
+	depot_jsonrpc,
+	get_config,
+	get_dummy_products,
+	get_product_ordering_jsonrpc,
+	products_jsonrpc,
 	sync_redis_client,
 	test_client,
-	depot_jsonrpc,
-	get_dummy_products,
-	products_jsonrpc,
-	get_product_ordering_jsonrpc,
-	get_config,
 )
-
-from opsiconfd.utils import decode_redis_result
 
 
 def test_redis_command(test_client):  # pylint: disable=redefined-outer-name
 	res = test_client.post("/redis-interface", auth=(ADMIN_USER, ADMIN_PASS), json={"cmd": "ping"})
 	res.raise_for_status()
-	assert res.json() == {"status": 200, "error": None, "data": {"result": True}}
+	assert res.json() == {"result": True}
 
 
 def test_redis_stats(test_client):  # pylint: disable=redefined-outer-name
 	res = test_client.get("/redis-interface/redis-stats", auth=(ADMIN_USER, ADMIN_PASS))
 	res.raise_for_status()
+	assert res.status_code == 200
 	res = res.json()
-	assert res["status"] == 200
-	assert res["data"]
-	assert res["data"]["key_info"]
+	assert res["key_info"]
 
 
 def test_clear_product_cache(test_client):  # pylint: disable=redefined-outer-name
@@ -61,12 +59,12 @@ def test_clear_product_cache(test_client):  # pylint: disable=redefined-outer-na
 
 			time.sleep(5)
 
-			keys_to_check = [
+			keys_to_check = (
 				f"opsiconfd:jsonrpccache:{depot_id}:products",
 				f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1",
 				f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate",
 				f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1:uptodate",
-			]
+			)
 
 			for key in keys_to_check:
 				assert redis.exists(key) == 1
@@ -117,16 +115,22 @@ def test_clear_product_cache_error(test_client):  # pylint: disable=redefined-ou
 		with mock.patch("aioredis.client.Redis.pipeline", side_effect=Exception("Redis test error")):
 			res = test_client.post("/redis-interface/clear-product-cache", auth=(ADMIN_USER, ADMIN_PASS), json=body)
 		assert res.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-		assert res.json() == {"status": 500, "error": {"message": "Error while reading redis data", "detail": "Redis test error"}}
+		assert res.json() == {
+			"status": 500,
+			"class": "Exception",
+			"code": None,
+			"message": "Error while reading redis data",
+			"details": "Redis test error",
+		}
 
 
 async def test_get_depot_cache(test_client):  # pylint: disable=redefined-outer-name
 	depot_id = "test-get.depot.cache"
-	products = [
+	products = (
 		{"id": "test_product1", "name": "Test Product 1", "productVersion": "1.0", "packageVersion": "1", "priority": 95},
 		{"id": "test_product2", "name": "Test Product 2", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
 		{"id": "test_product3", "name": "Test Product 3", "productVersion": "1.0", "packageVersion": "1", "priority": 90},
-	]
+	)
 	with (
 		get_config({"jsonrpc_time_to_cache": 0}),
 		depot_jsonrpc(test_client, "", depot_id),  # Create depot
@@ -137,12 +141,12 @@ async def test_get_depot_cache(test_client):  # pylint: disable=redefined-outer-
 		res = test_client.get("/redis-interface/depot-cache", auth=(ADMIN_USER, ADMIN_PASS))
 		res.raise_for_status()
 		res = res.json()
-		assert depot_id in res["data"]["depots"]
+		assert depot_id in res["depots"]
 
 		res = test_client.get("/redis-interface/products", auth=(ADMIN_USER, ADMIN_PASS))
 		res.raise_for_status()
 		res = res.json()
-		assert len(res["data"][depot_id]) == len(products)
+		assert len(res[depot_id]) == len(products)
 
 
 def test_get_depot_cache_confgserver(test_client):  # pylint: disable=redefined-outer-name
@@ -158,7 +162,7 @@ def test_get_depot_cache_confgserver(test_client):  # pylint: disable=redefined-
 
 		res = test_client.get("/redis-interface/depot-cache", auth=(ADMIN_USER, ADMIN_PASS), json=body)
 		assert res.status_code == status.HTTP_200_OK
-		assert res.json() == {"status": 200, "error": None, "data": {"depots": [configserver]}}
+		assert res.json() == {"depots": [configserver]}
 
 
 def test_get_depot_cache_error(test_client):  # pylint: disable=redefined-outer-name
@@ -174,7 +178,13 @@ def test_get_depot_cache_error(test_client):  # pylint: disable=redefined-outer-
 		with mock.patch("opsiconfd.utils.decode_redis_result", side_effect=Exception("Redis test error")):
 			res = test_client.get("/redis-interface/depot-cache", auth=(ADMIN_USER, ADMIN_PASS), json=body)
 		assert res.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-		assert res.json() == {"status": 500, "error": {"message": "Error while reading redis data", "detail": "Redis test error"}}
+		assert res.json() == {
+			"status": 500,
+			"class": "Exception",
+			"code": None,
+			"message": "Error while reading redis data",
+			"details": "Redis test error",
+		}
 
 
 def test_get_products(test_client):  # pylint: disable=redefined-outer-name
@@ -190,11 +200,17 @@ def test_get_products(test_client):  # pylint: disable=redefined-outer-name
 		body = {"depots": [configserver]}
 		res = test_client.get("/redis-interface/products", auth=(ADMIN_USER, ADMIN_PASS), json=body)
 		assert res.status_code == status.HTTP_200_OK
-		assert res.json() == {"status": 200, "error": None, "data": {configserver: product_ids}}
+		assert res.json() == {configserver: product_ids}
 
 
 def test_get_products_error(test_client):  # pylint: disable=redefined-outer-name
 	with mock.patch("opsiconfd.utils.decode_redis_result", side_effect=Exception("Redis test error")):
 		res = test_client.get("/redis-interface/products", auth=(ADMIN_USER, ADMIN_PASS), json={})
 	assert res.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-	assert res.json() == {"status": 500, "error": {"message": "Error while reading redis data", "detail": "Redis test error"}}
+	assert res.json() == {
+		"status": 500,
+		"class": "Exception",
+		"code": None,
+		"message": "Error while reading redis data",
+		"details": "Redis test error",
+	}

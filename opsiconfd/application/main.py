@@ -216,7 +216,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 			logger.warning(
 				"Client %s (%s) is using http version %s",
 				client_host,
-				scope["headers"].get("user-agent"),
+				req_headers.get("user-agent"),
 				scope.get("http_version"),
 			)
 

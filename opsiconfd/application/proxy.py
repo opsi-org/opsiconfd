@@ -53,8 +53,8 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		self.forward_authorization = forward_authorization
 		self.forward_cookies = forward_cookies
 		self.preserve_host = preserve_host
-		app.add_route(f"{mount_path}/{{path:path}}", self.handle_request, methods)  # type: ignore[attr-defined]
-		app.add_websocket_route(f"{mount_path}/{{path:path}}", self.handle_websocket_request)  # type: ignore[attr-defined]
+		app.add_route(f"{mount_path}{{path:path}}", self.handle_request, methods)  # type: ignore[attr-defined]
+		app.add_websocket_route(f"{mount_path}{{path:path}}", self.handle_websocket_request)  # type: ignore[attr-defined]
 
 	def _get_path(self, path: str):
 		_path = self.base_path + "/" + path[len(self.mount_path) :].lstrip("/")

@@ -104,7 +104,8 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		path = self._get_path(request.url.path)
 		if not path:
 			return Response(content="Not found", status_code=404)
-
+		if request.url.query:
+			path = f"{path}?{request.url.query}"
 		client = ClientSession(self.base_url, auto_decompress=False)
 
 		request_headers = self._request_headers(request.headers, request.scope["client"][0])

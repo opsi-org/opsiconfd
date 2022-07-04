@@ -39,24 +39,25 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 	def __init__(  # pylint: disable=too-many-arguments
 		self,
 		app: ASGIApp,
-		base_path: str,
+		mount_path: str,
 		base_url: str,
 		methods: tuple = ("GET", "POST"),
 		forward_authorization: bool = False,
 		forward_cookies: List[str] = None,
 		preserve_host: bool = False,
 	) -> None:
-		self.base_path = base_path
+		self.mount_path = mount_path
 		url = urlparse(base_url)
 		self.base_url = f"{url.scheme}://{url.netloc.split('@', 1)[-1]}"
+		self.base_path = (url.path or "").rstrip("/")
 		self.forward_authorization = forward_authorization
 		self.forward_cookies = forward_cookies
 		self.preserve_host = preserve_host
-		app.add_route(f"{base_path}/{{path:path}}", self.handle_request, methods)  # type: ignore[attr-defined]
-		app.add_websocket_route(f"{base_path}/{{path:path}}", self.handle_websocket_request)  # type: ignore[attr-defined]
+		app.add_route(f"{mount_path}/{{path:path}}", self.handle_request, methods)  # type: ignore[attr-defined]
+		app.add_websocket_route(f"{mount_path}/{{path:path}}", self.handle_websocket_request)  # type: ignore[attr-defined]
 
 	def _get_path(self, path: str):
-		_path = "/" + path[len(self.base_path) :].lstrip("/")
+		_path = self.base_path + "/" + path[len(self.mount_path) :].lstrip("/")
 		full_url = urljoin(self.base_url, _path)
 		if not full_url.startswith(self.base_url):
 			proxy_logger.error("Invalid path: %s", path)

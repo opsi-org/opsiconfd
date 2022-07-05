@@ -180,6 +180,7 @@ build:arm64-pyinstaller:
     - arm64
   script:
     - *install_tools
+    - source $HOME/.cargo/env
     - poetry lock --no-update
     - poetry install
     - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build

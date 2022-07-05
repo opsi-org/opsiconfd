@@ -25,6 +25,7 @@ from fastapi import APIRouter, Request, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from OPSI.System.Posix import isUCS
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
@@ -60,16 +61,6 @@ def admin_interface_setup(app):
 
 @welcome_interface_router.get("/")
 async def welcome_interface_index(request: Request):
-
-	ucs_server = False
-	try:
-		with open("/etc/lsb-release", encoding="utf8") as lsb_relase:
-			logger.debug("Checking if we are on UCS.")
-			if "univention" in lsb_relase.read():
-				ucs_server = True
-	except FileNotFoundError:
-		logger.debug("No /etc/lsb-release found.")
-
 	welcome_page = config.welcome_page
 
 	client_lang = "en"
@@ -79,7 +70,7 @@ async def welcome_interface_index(request: Request):
 		"request": request,
 		"client_lang": client_lang,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
-		"ucs_server": ucs_server,
+		"ucs_server": isUCS(),
 		"welcome_page": welcome_page,
 	}
 	return config.jinja_templates.TemplateResponse("welcome.html", context)

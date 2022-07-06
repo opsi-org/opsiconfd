@@ -243,12 +243,13 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 					return result.to_jsonresponse()
 				# Deprecated dict response.
 				elif isinstance(result, dict) and result.get("data"):
-
 					warnings.warn("opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning)
 					if result.get("data"):
 						content = result.get("data")
 					if result.get("total") and kwargs.get("request"):
 						headers = create_link_header(int(result.get("total")), kwargs.get("commons"), kwargs.get("request").url)
+						headers["Access-Control-Expose-Headers"] = "x-total-count"
+						headers["X-Total-Count"] = str(result.get("total"))
 				else:
 					content = result
 				return JSONResponse(content=content, status_code=http_status, headers=headers)

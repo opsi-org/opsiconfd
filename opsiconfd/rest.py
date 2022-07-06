@@ -242,7 +242,7 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 						result.headers.update(headers)
 					return result.to_jsonresponse()
 				# Deprecated dict response.
-				elif isinstance(result, dict) and result.get("data"):
+				elif isinstance(result, dict) and result.get("data") is not None:
 					warnings.warn("opsi REST api data dict ist deprecated. All opsi api functions should return a RESTResponse.", DeprecationWarning)
 					if result.get("data"):
 						content = result.get("data")

@@ -21,7 +21,7 @@ function monitorSession() {
 
 
 function unblockAll() {
-	let req = doReq("POST", "/admin/unblock-all");
+	let req = ajaxRequest("POST", "/admin/unblock-all");
 	req.then((result) => {
 		outputToHTML(result, "json-result");
 		outputResult(result, "text-result");
@@ -33,7 +33,7 @@ function unblockAll() {
 
 function unblockClient(ip) {
 	if (ValidateIPaddress(ip)) {
-		let req = doReq("POST", "/admin/unblock-client", { "client_addr": ip });
+		let req = ajaxRequest("POST", "/admin/unblock-client", { "client_addr": ip });
 		req.then((result) => {
 			outputToHTML(result, "json-result");
 			outputResult(result, "text-result");
@@ -45,7 +45,7 @@ function unblockClient(ip) {
 
 
 function clearRedisCache(depots = []) {
-	let req = doReq("POST", "/redis-interface/clear-product-cache", { "depots": depots });
+	let req = ajaxRequest("POST", "/redis-interface/clear-product-cache", { "depots": depots });
 	req.then((result) => {
 		outputToHTML(result, "redis-result");
 		return result
@@ -54,7 +54,7 @@ function clearRedisCache(depots = []) {
 
 
 function loadClientTable() {
-	let req = doReq("GET", "/admin/blocked-clients");
+	let req = ajaxRequest("GET", "/admin/blocked-clients");
 	req.then((result) => {
 		printClientTable(result, "blocked-clients-div");
 		return result
@@ -63,7 +63,7 @@ function loadClientTable() {
 
 
 function loadLockedProductsTable() {
-	let req = doReq("GET", "/admin/locked-products-list");
+	let req = ajaxRequest("GET", "/admin/locked-products-list");
 	req.then((result) => {
 		printLockedProductsTable(result, "locked-products-table-div");
 		return result
@@ -72,7 +72,7 @@ function loadLockedProductsTable() {
 
 
 function unlockProduct(product) {
-	let req = doReq("POST", "/admin/products/" + product + "/unlock");
+	let req = ajaxRequest("POST", "/admin/products/" + product + "/unlock");
 	req.then((result) => {
 		loadLockedProductsTable();
 		return result
@@ -81,7 +81,7 @@ function unlockProduct(product) {
 
 
 function unlockAllProducts() {
-	let req = doReq("POST", "/admin/products/unlock");
+	let req = ajaxRequest("POST", "/admin/products/unlock");
 	req.then((result) => {
 		loadLockedProductsTable();
 		return result
@@ -90,7 +90,7 @@ function unlockAllProducts() {
 
 
 function loadRedisInfo() {
-	let req = doReq("GET", "/redis-interface/redis-stats");
+	let req = ajaxRequest("GET", "/redis-interface/redis-stats");
 	req.then((result) => {
 		outputToHTML(result, "redis-result");
 		return result
@@ -99,7 +99,7 @@ function loadRedisInfo() {
 
 
 function loadSessionTable() {
-	let req = doReq("GET", "/admin/session-list");
+	let req = ajaxRequest("GET", "/admin/session-list");
 	req.then((result) => {
 		printSessionTable(result, "session-table-div");
 		return result
@@ -107,7 +107,7 @@ function loadSessionTable() {
 }
 
 function loadRPCTable(sortKey, sort) {
-	let req = doReq("GET", "/admin/rpc-list");
+	let req = ajaxRequest("GET", "/admin/rpc-list");
 	req.then((result) => {
 		if (result.length == 0) {
 			document.getElementById("rpc-table-div").innerHTML = "No rpcs found.";
@@ -123,7 +123,7 @@ function loadRPCTable(sortKey, sort) {
 
 
 function loadAddons() {
-	let req = doReq("GET", "/admin/addons");
+	let req = ajaxRequest("GET", "/admin/addons");
 	req.then((result) => {
 		printAddonTable(result, "addon-table-div");
 		return result
@@ -140,7 +140,7 @@ function installAddon() {
 	let formData = new FormData();
 	formData.append("addonfile", document.getElementById("addon-file").files[0]);
 
-	let req = doReq("POST", "/admin/addons/install", formData, handleError = false);
+	let req = ajaxRequest("POST", "/admin/addons/install", formData);
 	req.then((result) => {
 		if (button) {
 			button.classList.remove("loading");
@@ -163,7 +163,7 @@ function deleteClientSessions() {
 		"client_addr": sessionAddr.value
 	};
 	if (ValidateIPaddress(sessionAddr.value)) {
-		let req = doReq("POST", "/admin/delete-client-sessions", body);
+		let req = ajaxRequest("POST", "/admin/delete-client-sessions", body);
 		req.then((result) => {
 			outputToHTML(result, "json-result");
 			outputResult(result, "text-result");
@@ -177,12 +177,12 @@ function deleteClientSessions() {
 
 
 function loadInfo() {
-	let config_req = doReq("GET", "/admin/config");
+	let config_req = ajaxRequest("GET", "/admin/config");
 	config_req.then((result) => {
 		outputToHTML(result, "config-values");
 		return result;
 	});
-	let routes_req = doReq("GET", "/admin/routes");
+	let routes_req = ajaxRequest("GET", "/admin/routes");
 	routes_req.then((result) => {
 		outputToHTML(result, "route-values");
 		return result;
@@ -191,7 +191,7 @@ function loadInfo() {
 
 
 function reload() {
-	let req = doReq("POST", "/admin/reload");
+	let req = ajaxRequest("POST", "/admin/reload");
 	req.then((result) => {
 		console.debug(result);
 		return result
@@ -200,14 +200,14 @@ function reload() {
 
 
 function logout() {
-	let req = doReq("POST", "/admin/logout");
+	let req = ajaxRequest("POST", "/admin/logout");
 	req.then(() => {
 		location.href = "/login";
 	});
 }
 
 function callRedis() {
-	let req = doReq("POST", "/redis-interface", { "cmd": document.getElementById("redis-cmd").value }, handleError = false);
+	let req = ajaxRequest("POST", "/redis-interface", { "cmd": document.getElementById("redis-cmd").value });
 	req.then((result) => {
 		console.debug(`Redis command successful: ${JSON.stringify(result)}`)
 		outputToHTML(result, "redis-result");
@@ -234,7 +234,7 @@ function callJSONRPC() {
 	}
 
 	let apiJSON = createRequestJSON();
-	let req = doReq("POST", "/rpc", apiJSON, true, true);
+	let req = ajaxRequest("POST", "/rpc", apiJSON, true, true);
 	document.getElementById("jsonrpc-execute-button").disabled = true;
 	req.then((result) => {
 		document.getElementById("jsonrpc-response-info").innerHTML = "Server-Timing: " + result.requestInfo.serverTiming// request.getResponseHeader("server-timing")
@@ -247,7 +247,7 @@ function callJSONRPC() {
 
 
 function loadLicensingInfo() {
-	let req = doReq("GET", "/admin/licensing_info");
+	let req = ajaxRequest("GET", "/admin/licensing_info");
 	req.then(() => {
 		if (typeof result.module_dates != "undefined" && Object.keys(result.module_dates).length > 0) {
 			generateLiceningInfoTable(result.info, "licensing-info");
@@ -265,7 +265,7 @@ function licenseUpload(files) {
 	for (var i = 0; i < files.length; i++) {
 		formData.append("files", files[i]);
 	}
-	let req = doReq("POST", "/admin/license_upload", formData);
+	let req = ajaxRequest("POST", "/admin/license_upload", formData);
 	req.then((result) => {
 		console.log(`File upload successful: ${JSON.stringify(result)}`)
 		loadLicensingInfo();

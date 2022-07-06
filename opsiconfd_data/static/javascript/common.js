@@ -22,7 +22,7 @@ function downloadConfiged() {
 	window.open(url);
 }
 
-function doReq(method, url, body, handleError = true, requestInfos = false) {
+function ajaxRequest(method, url, body, requestInfos = false) {
 	// console.debug("method: ", method);
 	// console.debug("url: ", url);
 	// console.debug("body: ", body);
@@ -30,7 +30,7 @@ function doReq(method, url, body, handleError = true, requestInfos = false) {
 		let req = new XMLHttpRequest();
 		req.open(method, url);
 		req.onload = function () {
-			if (req.status >= 200 && req.status < 300) {
+			if (req.status === 0 || (req.status >= 200 && req.status < 400)) {
 				result = req.responseText;
 				result = JSON.parse(result);
 				if (requestInfos == true) {
@@ -39,18 +39,22 @@ function doReq(method, url, body, handleError = true, requestInfos = false) {
 				}
 				resolve(result);
 			} else {
-				console.error("Request Status: ", req.status);
-				if (req.responseText) {
-					result = JSON.parse(req.responseText);
-					console.error(result.message);
-					reject(result);
-				}
-				else {
-					console.log("Unknown Error");
-					reject(req.status, "Unknown Error")
-				}
+				console.error(`Request failed: ${req.status} - ${req.responseText}`);
 				if (req.status == 401) {
 					location.href = "/login";
+				}
+				if (req.responseText) {
+					try {
+						result = JSON.parse(req.responseText);
+						console.error(result.message);
+						reject(result);
+					} catch {
+						reject(req.responseText);
+					}
+				}
+				else {
+					console.log(`Error ${req.status}`);
+					reject(`Error ${req.status}`)
 				}
 			}
 		};
@@ -62,11 +66,6 @@ function doReq(method, url, body, handleError = true, requestInfos = false) {
 		}
 		else {
 			req.send();
-		}
-	}).catch((error) => {
-		console.debug(error);
-		if (handleError == false) {
-			throw error;
 		}
 	});
 }

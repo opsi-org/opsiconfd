@@ -1,7 +1,7 @@
 function tracemallocSnapshot() {
 	let limit = 25;
 	document.getElementById("button-tracemalloc-snapshot").disabled = true;
-	let req = doReq("GET", `/admin/memory/tracemalloc-snapshot-new?limit=${limit}`, handleError = false);
+	let req = ajaxRequest("GET", `/admin/memory/tracemalloc-snapshot-new?limit=${limit}`);
 	req.then((result) => {
 		result = request.responseText;
 		result = JSON.parse(result);
@@ -26,7 +26,7 @@ function objgraphSnapshot(update = false) {
 	if (update) {
 		url = "/admin/memory/objgraph-snapshot-update";
 	}
-	let req = doReq("GET", url, handleError = false);
+	let req = ajaxRequest("GET", url);
 
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
@@ -48,7 +48,7 @@ function objgraphShowBackrefs() {
 }
 
 function loadMemoryInfo() {
-	let req = doReq("GET", "/admin/memory-summary");
+	let req = ajaxRequest("GET", "/admin/memory-summary");
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result
@@ -58,7 +58,7 @@ function loadMemoryInfo() {
 function takeMemorySnapshot() {
 	document.getElementById("memory-info").style.visibility = 'visible';
 	document.getElementById("memory-values").innerHTML = "loading...";
-	let req = doReq("POST", "/admin/memory/snapshot");
+	let req = ajaxRequest("POST", "/admin/memory/snapshot");
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result
@@ -78,7 +78,7 @@ function diffMemorySnapshots() {
 		snapshotNumber2 = -1
 	}
 	url = "/admin/memory/diff?snapshot1=" + snapshotNumber1 + "&snapshot2=" + snapshotNumber2
-	let req = doReq("GET", url);
+	let req = ajaxRequest("GET", url);
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result
@@ -88,7 +88,7 @@ function diffMemorySnapshots() {
 function takeHeapSnapshot() {
 	document.getElementById("memory-info").style.visibility = 'visible';
 	document.getElementById("memory-values").innerHTML = "loading...";
-	let req = doReq("POST", "/admin/memory/guppy");
+	let req = ajaxRequest("POST", "/admin/memory/guppy");
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result
@@ -108,7 +108,7 @@ function diffHeapSnapshots() {
 		snapshotNumber2 = -1
 	}
 	url = "/admin/memory/guppy/diff?snapshot1=" + snapshotNumber1 + "&snapshot2=" + snapshotNumber2
-	let req = doReq("GET", url);
+	let req = ajaxRequest("GET", url);
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result
@@ -126,7 +126,7 @@ function takeClassSnapshot() {
 		"class": className,
 		"description": description
 	}
-	let req = doReq("POST", "/admin/memory/classtracker", body);
+	let req = ajaxRequest("POST", "/admin/memory/classtracker", body);
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result
@@ -136,7 +136,7 @@ function takeClassSnapshot() {
 function classSummary() {
 	document.getElementById("memory-info").style.visibility = 'visible';
 	document.getElementById("memory-values").innerHTML = "loading...";
-	let req = doReq("GET", "/admin/memory/classtracker/summary");
+	let req = ajaxRequest("GET", "/admin/memory/classtracker/summary");
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result
@@ -144,7 +144,7 @@ function classSummary() {
 }
 
 function deleteMemorySnapshots() {
-	let req = doReq("DELETE", "/admin/memory/snapshot");
+	let req = ajaxRequest("DELETE", "/admin/memory/snapshot");
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result
@@ -152,7 +152,7 @@ function deleteMemorySnapshots() {
 }
 
 function deleteHeapSnapshots() {
-	let req = doReq("DELETE", "/admin/memory/guppy");
+	let req = ajaxRequest("DELETE", "/admin/memory/guppy");
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result
@@ -160,7 +160,7 @@ function deleteHeapSnapshots() {
 }
 
 function deleteClassTracker() {
-	let req = doReq("DELETE", "/admin/memory/classtracker");
+	let req = ajaxRequest("DELETE", "/admin/memory/classtracker");
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result

@@ -305,7 +305,7 @@ class SessionMiddleware:
 
 			status_code = status.HTTP_401_UNAUTHORIZED
 			if connection.headers.get("X-Requested-With", "").lower() != "xmlhttprequest":
-				headers = ({"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'},)
+				headers = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
 			error = "Authentication error"
 			if isinstance(err, BackendPermissionDeniedError):
 				error = "Permission denied"

@@ -9,6 +9,7 @@ login tests
 """
 
 import time
+from email import header
 
 import pytest
 
@@ -42,6 +43,16 @@ def test_login_error(test_client, auth_data, expected_status_code, expected_text
 	assert res.status_code == expected_status_code
 	assert res.text == expected_text
 	assert res.headers.get("set-cookie", None) is not None
+
+
+def test_x_requested_with_header(test_client):  # pylint: disable=redefined-outer-name
+	res = test_client.get("/session/authenticated")
+	assert res.status_code == 401
+	assert res.headers.get("www-authenticate", None) is not None
+
+	res = test_client.get("/session/authenticated", headers={"X-Requested-With": "XMLHttpRequest"})
+	assert res.status_code == 401
+	assert res.headers.get("www-authenticate", None) is None
 
 
 def test_basic_auth(test_client):  # pylint: disable=redefined-outer-name,unused-argument

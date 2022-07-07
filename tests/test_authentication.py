@@ -9,7 +9,6 @@ login tests
 """
 
 import time
-from email import header
 
 import pytest
 

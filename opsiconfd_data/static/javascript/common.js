@@ -29,6 +29,7 @@ function ajaxRequest(method, url, body, requestInfos = false) {
 	return new Promise(function (resolve, reject) {
 		let req = new XMLHttpRequest();
 		req.open(method, url);
+		req.setRequestHeader("X-Requested-With", "XMLHttpRequest");
 		req.onload = function () {
 			if (req.status === 0 || (req.status >= 200 && req.status < 400)) {
 				result = req.responseText;

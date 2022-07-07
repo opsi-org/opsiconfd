@@ -253,7 +253,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 				headers.append("Access-Control-Allow-Methods", "*")
 				headers.append(
 					"Access-Control-Allow-Headers",
-					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime",
+					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime,X-Requested-With",
 				)
 				headers.append("Access-Control-Allow-Credentials", "true")
 				if header_logger.isEnabledFor(TRACE):

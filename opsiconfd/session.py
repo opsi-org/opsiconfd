@@ -89,16 +89,23 @@ BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 
 def get_basic_auth(headers: Headers):
 	auth_header = headers.get("authorization")
+
+	headers_401 = {}
+	if headers.get("X-Requested-With", "").lower() != "xmlhttprequest":
+		headers_401 = {"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'}
+
 	if not auth_header:
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail="Authorization header missing",
+			headers=headers_401,
 		)
 
 	if not auth_header.startswith("Basic "):
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail="Authorization method unsupported",
+			headers=headers_401,
 		)
 
 	encoded_auth = auth_header[6:]  # Stripping "Basic "
@@ -297,6 +304,8 @@ class SessionMiddleware:
 				await asyncio.sleep(0.2)
 
 			status_code = status.HTTP_401_UNAUTHORIZED
+			if connection.headers.get("X-Requested-With", "").lower() != "xmlhttprequest":
+				headers = ({"WWW-Authenticate": 'Basic realm="opsi", charset="UTF-8"'},)
 			error = "Authentication error"
 			if isinstance(err, BackendPermissionDeniedError):
 				error = "Permission denied"

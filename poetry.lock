@@ -1858,7 +1858,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.300"
+version = "4.2.0.301"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -1894,7 +1894,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.2.0.288"
+version = "4.2.0.289"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -2659,7 +2659,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "types-requests"
-version = "2.28.0"
+version = "2.28.1"
 description = "Typing stubs for requests"
 category = "dev"
 optional = false
@@ -4147,12 +4147,12 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.300.tar.gz", hash = "sha256:405ceb3023c98c1a1caa6b94b8ff98db770e395b2d361779e09af74c36c227a3"},
-    {file = "python_opsi-4.2.0.300-py3-none-any.whl", hash = "sha256:567d31bacab18b0d9bfcb96127f18f7d937735c5bd0b000a79533bab4df30e96"},
+    {file = "python-opsi-4.2.0.301.tar.gz", hash = "sha256:c5b7b065df85974b6b83d0ffc1138124b7cddec4d74abf5580721be343372393"},
+    {file = "python_opsi-4.2.0.301-py3-none-any.whl", hash = "sha256:00383b386daf7a872eb6c6f4c64e28cbd743350082825da091bb191e8cf33820"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.288.tar.gz", hash = "sha256:e0af7e2c83a6385fd4a575d0f54ccc5a46ca55dcf2855a2dba87f26baba3ae99"},
-    {file = "python_opsi_common-4.2.0.288-py3-none-any.whl", hash = "sha256:0a375fd4982d44670d8ca644a0ca956b1d1deaabc645bdb2c8c6ec03420aa06d"},
+    {file = "python-opsi-common-4.2.0.289.tar.gz", hash = "sha256:e76c469ccd914b8cfb163310afb7d62d72e9a87bea7b1a91300eb63b3c0afd6e"},
+    {file = "python_opsi_common-4.2.0.289-py3-none-any.whl", hash = "sha256:04c154e4bc991bdd945c4b95aa23cdad914bdac978a5bfc717f2a0b34b981e84"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},
@@ -4403,8 +4403,8 @@ types-redis = [
     {file = "types_redis-4.3.4-py3-none-any.whl", hash = "sha256:f84dfe570ac729fb51735357f807a9e59b4732ddd7050708a7a7e32782b91047"},
 ]
 types-requests = [
-    {file = "types-requests-2.28.0.tar.gz", hash = "sha256:9863d16dfbb3fa55dcda64fa3b989e76e8859033b26c1e1623e30465cfe294d3"},
-    {file = "types_requests-2.28.0-py3-none-any.whl", hash = "sha256:85383b4ef0535f639c3f06c5bbb6494bbf59570c4cd88bbcf540f0b2ac1b49ab"},
+    {file = "types-requests-2.28.1.tar.gz", hash = "sha256:acd8ed78509d27bdf04cddcc05f7066dfde4d30dd7dba67b808cdb1141d62ffe"},
+    {file = "types_requests-2.28.1-py3-none-any.whl", hash = "sha256:b097692e124001f0ed5e4490245bb090f5e8e929819972f9ace84f9c3e146e8c"},
 ]
 types-urllib3 = [
     {file = "types-urllib3-1.26.16.tar.gz", hash = "sha256:8bb3832c684c30cbed40b96e28bc04703becb2b97d82ac65ba4b968783453b0e"},

@@ -14,6 +14,7 @@ import tempfile
 import time
 import traceback
 import urllib.parse
+import warnings
 import zlib
 from datetime import datetime
 from os import makedirs
@@ -454,8 +455,10 @@ def execute_rpc(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager], requ
 		method = getattr(backend, method_name)
 
 	if getattr(method, "deprecated", False):
-		logger.warning(
-			"Client %s (%s) is calling deprecated method '%s'", request.scope["client"][0], request.headers.get("user-agent", ""), method_name
+		warnings.warn(
+			f"Client {request.scope['client'][0]!r} ({request.headers.get('user-agent', '')!r}) "
+			f"is calling deprecated method {method_name!r}",
+			DeprecationWarning
 		)
 
 	return serialize(method(*params, **keywords))

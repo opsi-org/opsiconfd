@@ -517,8 +517,6 @@ def init_logging(
 		root_logger.handlers = [log_handler]
 		root_logger.setLevel(log_level)
 		set_format(stderr_format=config.log_format_stderr, file_format=config.log_format_file)
-		# warn filter: https://docs.python.org/3/library/warnings.html#the-warnings-filter
-		warnings.simplefilter("default")
 
 		if config.log_filter:
 			set_filter_from_string(config.log_filter)

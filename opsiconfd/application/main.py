@@ -10,6 +10,7 @@ application main
 
 import asyncio
 import os
+import warnings
 from ctypes import c_long
 from typing import Any
 from urllib.parse import urlparse
@@ -213,11 +214,9 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		client_host, client_port = self.get_client_address(scope)
 
 		if scope.get("http_version") and scope["http_version"] != "1.1":
-			logger.warning(
-				"Client %s (%s) is using http version %s",
-				client_host,
-				req_headers.get("user-agent"),
-				scope.get("http_version"),
+			warnings.warn(
+				f"Client {client_host!r} ({req_headers.get('user-agent', '')!r}) is using http version {scope.get('http_version')}",
+				RuntimeWarning,
 			)
 
 		if client_host in config.trusted_proxies:

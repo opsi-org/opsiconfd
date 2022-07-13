@@ -265,7 +265,7 @@ class SessionMiddleware:
 
 		await self.app(scope, receive, send_wrapper)
 
-	async def handle_request_exception(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,no-self-use
+	async def handle_request_exception(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
 	) -> None:
 		logger.debug("Handle request exception %s: %s", err.__class__.__name__, err, exc_info=True)

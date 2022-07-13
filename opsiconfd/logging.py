@@ -18,7 +18,6 @@ import socket
 import sys
 import threading
 import time
-import warnings
 from asyncio import get_running_loop
 from concurrent.futures import ThreadPoolExecutor
 from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
@@ -237,7 +236,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 			self._stderr_handler = AsyncStreamHandler(stream=self._stderr_file, formatter=ContextSecretFormatter(console_formatter))
 		self._stderr_handler.add_filter(context_filter.filter)
 
-	def _log_format_no_color(self, log_format):  # pylint: disable=no-self-use
+	def _log_format_no_color(self, log_format):
 		return log_format.replace("%(log_color)s", "").replace("%(reset)s", "")
 
 	async def _create_client_log_file_symlink(self, ip_address):

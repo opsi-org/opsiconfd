@@ -20,8 +20,8 @@ url = "https://pypi.uib.gmbh/simple"
 python = ">=3.8,<3.11"
 # Get the latest python-opsi from branch 4.2
 #python-opsi = { git = "git@gitlab.uib.local:uib/python-opsi.git", branch = "v4.2" }
-#python-opsi = {path = "python-opsi", develop = true}
-python-opsi = "^4.2.0.281"
+python-opsi = {path = "python-opsi", develop = true}
+#python-opsi = "^4.2.0.281"
 python-opsi-common = "^4.2.0.281"
 aiofiles = "^0.8"
 aiohttp = "^3.7"
@@ -54,7 +54,7 @@ hypothesis = "^6.32"
 idna = "^3.3"
 mock = "^4.0"
 opsi-dev-tools = "^1.1.8"
-pyinstaller = "^5.0"
+pyinstaller = "^5.2"
 pylint = "^2.12"
 pytest = "^7.1"
 pytest-asyncio = "^0.18"

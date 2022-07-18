@@ -18,11 +18,17 @@ import random
 import string
 import threading
 import time
+import warnings
 from contextlib import contextmanager
 from socket import AF_INET, AF_INET6
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Optional
 
-import aioredis
+with warnings.catch_warnings():
+	# Ignore warning 'distutils Version classes are deprecated. Use packaging.version instead.'
+	# aioredis/connection.py
+	warnings.simplefilter("ignore")
+	import aioredis
+
 import psutil
 import redis
 from fastapi import APIRouter, FastAPI

@@ -21,7 +21,12 @@ import psutil
 from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 from OPSI.Backend.Base.Backend import OPSI_LICENSE_PATH  # type: ignore[import]
 from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
-from OPSI.setup import add_user_to_group, create_group, create_user, set_primary_group
+from OPSI.setup import (  # type: ignore[import]
+	add_user_to_group,
+	create_group,
+	create_user,
+	set_primary_group,
+)
 from OPSI.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
 )
@@ -42,7 +47,7 @@ from .ssl import setup_ssl, setup_ssl_file_permissions
 from .statistics import setup_metric_downsampling
 
 
-def setup_limits():
+def setup_limits() -> None:
 	logger.info("Setup system limits")
 	# The hard limit is the maximum value that is allowed for the soft limit. Any changes to the hard limit require root access.
 	# The soft limit is the value that Linux uses to limit the system resources for running processes.
@@ -59,7 +64,7 @@ def setup_limits():
 	logger.info("Maximum number of open file descriptors: %s", soft_limit)
 
 
-def setup_users_and_groups():
+def setup_users_and_groups() -> None:
 	logger.info("Setup users and groups")
 
 	if config.run_as_user == "root":
@@ -81,12 +86,12 @@ def setup_users_and_groups():
 	gids = os.getgrouplist(user.pw_name, user.pw_gid)
 	for groupname in ("shadow", OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP):
 		logger.debug("Processing group %s", groupname)
-		try:
-			group = grp.getgrnam(groupname)
+		try:  # pylint: disable=loop-try-except-usage
+			group = grp.getgrnam(groupname)  # pylint: disable=dotted-import-in-loop
 			if group.gr_gid not in gids:
 				add_user_to_group(config.run_as_user, groupname)
 			if groupname == FILE_ADMIN_GROUP and user.pw_gid != group.gr_gid:
-				try:
+				try:  # pylint: disable=loop-try-except-usage
 					set_primary_group(user.pw_name, FILE_ADMIN_GROUP)
 				except Exception as err:  # pylint: disable=broad-except
 					# Could be a user in active directory / ldap
@@ -95,13 +100,13 @@ def setup_users_and_groups():
 			logger.debug("Group not found: %s", groupname)
 
 
-def setup_files():
-	for _dir in (os.path.dirname(config.log_file), VAR_ADDON_DIR, OPSI_LICENSE_PATH):
-		if not os.path.isdir(_dir):
-			os.makedirs(_dir)
+def setup_files() -> None:
+	for _dir in (os.path.dirname(config.log_file), VAR_ADDON_DIR, OPSI_LICENSE_PATH):  # pylint: disable=dotted-import-in-loop
+		if not os.path.isdir(_dir):  # pylint: disable=dotted-import-in-loop
+			os.makedirs(_dir)  # pylint: disable=dotted-import-in-loop
 
 
-def setup_file_permissions():
+def setup_file_permissions() -> None:
 	logger.info("Setup file permissions")
 
 	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
@@ -120,7 +125,7 @@ def setup_file_permissions():
 	set_rights("/etc/opsi")
 	setup_ssl_file_permissions()
 
-	for path in (
+	for path_str in (
 		"/var/log/opsi/bootimage",
 		"/var/log/opsi/clientconnect",
 		"/var/log/opsi/instlog",
@@ -133,17 +138,17 @@ def setup_file_permissions():
 		"/var/lib/opsi/workbench",
 		VAR_ADDON_DIR,
 	):
-		try:
-			path = Path(path)
+		try:  # pylint: disable=loop-try-except-usage
+			path = Path(path_str)
 			if path.is_dir() and path.owner() != config.run_as_user:
 				set_rights(str(path))
 		except KeyError as err:
 			logger.warning("Failed to set permissions on '%s': %s", str(path), err)
 
 
-def setup_systemd():
+def setup_systemd() -> None:
 	systemd_running = False
-	for proc in psutil.process_iter():
+	for proc in psutil.process_iter():  # pylint: disable=dotted-import-in-loop
 		if proc.name() == "systemd":
 			systemd_running = True
 			break
@@ -156,7 +161,7 @@ def setup_systemd():
 	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment())
 
 
-def setup_backend():
+def setup_backend() -> None:
 	logger.info("Setup backend")
 	initializeBackends()
 	backend = BackendManager()
@@ -175,7 +180,7 @@ def setup_backend():
 		updateMySQLBackend(backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf"))
 
 
-def cleanup_log_files():
+def cleanup_log_files() -> None:
 	logger.info("Cleanup log files")
 	now = time.time()
 	min_mtime = now - 3600 * 24 * 30  # 30 days
@@ -183,27 +188,27 @@ def cleanup_log_files():
 	if not os.path.isdir(log_dir):
 		return
 	links = []
-	for filename in os.listdir(log_dir):
-		try:
-			file = os.path.join(log_dir, filename)
-			if os.path.islink(file):
+	for filename in os.listdir(log_dir):  # pylint: disable=dotted-import-in-loop
+		try:  # pylint: disable=loop-try-except-usage
+			file = os.path.join(log_dir, filename)  # pylint: disable=dotted-import-in-loop
+			if os.path.islink(file):  # pylint: disable=dotted-import-in-loop
 				links.append(file)
-			elif os.path.isfile(file) and os.path.getmtime(file) < min_mtime:
+			elif os.path.isfile(file) and os.path.getmtime(file) < min_mtime:  # pylint: disable=dotted-import-in-loop
 				logger.info("Deleting old log file: %s", file)
-				os.remove(file)
+				os.remove(file)  # pylint: disable=dotted-import-in-loop
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err)
 
 	for link in links:
-		try:
-			dst = os.path.realpath(link)
-			if not os.path.exists(dst):
-				os.unlink(link)
+		try:  # pylint: disable=loop-try-except-usage
+			dst = os.path.realpath(link)  # pylint: disable=dotted-import-in-loop
+			if not os.path.exists(dst):  # pylint: disable=dotted-import-in-loop
+				os.unlink(link)  # pylint: disable=dotted-import-in-loop
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err)
 
 
-def setup(full: bool = True):  # pylint: disable=too-many-branches
+def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 	logger.notice("Running opsiconfd setup")
 
 	if config.skip_setup:

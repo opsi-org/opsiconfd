@@ -9,7 +9,10 @@
 check short product status
 """
 
+from typing import Dict
+
 from fastapi.responses import JSONResponse
+from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 
 from opsiconfd.logging import logger
 
@@ -17,9 +20,10 @@ from .utils import State, generate_response, remove_percent
 
 
 def check_short_product_status(  # pylint: disable=too-many-statements, dangerous-default-value, too-many-locals, too-many-branches
-	backend, product_id=None, thresholds={}
+	backend: BackendManager, product_id: str | None = None, thresholds: Dict[str, str] | None = None
 ) -> JSONResponse:
 
+	thresholds = thresholds or {}
 	if isinstance(product_id, list):
 		try:
 			product_id = product_id[0]
@@ -42,8 +46,8 @@ def check_short_product_status(  # pylint: disable=too-many-statements, dangerou
 
 	warning = thresholds.get("warning", "20")
 	critical = thresholds.get("critical", "20")
-	warning = float(remove_percent(warning))
-	critical = float(remove_percent(critical))
+	warning_flt = float(remove_percent(warning))
+	critical_flt = float(remove_percent(critical))
 
 	logger.debug("Checking shortly the productStates on Clients")
 	config_server = backend._executeMethod(methodName="host_getObjects", type="OpsiConfigserver")[0]  # pylint: disable=protected-access
@@ -87,7 +91,7 @@ def check_short_product_status(  # pylint: disable=too-many-statements, dangerou
 	)
 	if uptodate_clients:
 		message.append(f"{len(uptodate_clients)} Clients are up to date")
-	if action_request_on_clients and len(action_request_on_clients) * 100 / len(product_on_clients) > warning:
+	if action_request_on_clients and len(action_request_on_clients) * 100 / len(product_on_clients) > warning_flt:
 		state = State.WARNING
 		message.append(f"ActionRequest set on {len(action_request_on_clients)} clients")
 	if product_problems_on_clients:
@@ -96,7 +100,7 @@ def check_short_product_status(  # pylint: disable=too-many-statements, dangerou
 		message.append(f"Version difference found on {len(product_version_problems_on_clients)} clients")
 
 	problem_clients_count = len(product_problems_on_clients) + len(product_version_problems_on_clients)
-	if problem_clients_count * 100 / len(product_on_clients) > critical:
+	if problem_clients_count * 100 / len(product_on_clients) > critical_flt:
 		state = State.CRITICAL
 
 	return generate_response(state, "; ".join(message))

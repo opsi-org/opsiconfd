@@ -25,7 +25,7 @@ _zeroconf = None  # pylint: disable=invalid-name
 _info = None  # pylint: disable=invalid-name
 
 
-async def register_opsi_services():  # pylint: disable=too-many-branches
+async def register_opsi_services() -> None:  # pylint: disable=too-many-branches
 	global _zeroconf, _info  # pylint: disable=invalid-name,global-statement
 	if get_server_role() != "config":
 		return
@@ -37,18 +37,20 @@ async def register_opsi_services():  # pylint: disable=too-many-branches
 		if str(config.interface) not in ("0.0.0.0", "::"):
 			if_address = ipaddress.ip_address(config.interface)
 			iface = netifaces.interfaces()[0]  # pylint: disable=c-extension-no-member
-			for _iface in netifaces.interfaces():  # pylint: disable=c-extension-no-member
-				for addr_type in (netifaces.AF_INET, netifaces.AF_INET6):  # pylint: disable=c-extension-no-member
-					for addr in netifaces.ifaddresses(_iface).get(addr_type, []):  # pylint: disable=c-extension-no-member
-						try:
-							if if_address == ipaddress.ip_address(addr["addr"]):
+			for _iface in netifaces.interfaces():  # pylint: disable=c-extension-no-member,dotted-import-in-loop
+				for addr_type in (netifaces.AF_INET, netifaces.AF_INET6):  # pylint: disable=c-extension-no-member,dotted-import-in-loop
+					for addr in netifaces.ifaddresses(_iface).get(  # pylint: disable=c-extension-no-member,dotted-import-in-loop
+						addr_type, []
+					):  # pylint: disable=c-extension-no-member,dotted-import-in-loop
+						try:  # pylint: disable=loop-try-except-usage
+							if if_address == ipaddress.ip_address(addr["addr"]):  # pylint: disable=dotted-import-in-loop
 								iface = _iface
 						except ValueError:
 							continue
 
-		address_family = [netifaces.AF_INET]  # pylint: disable=c-extension-no-member
+		address_family = [netifaces.AF_INET]  # pylint: disable=c-extension-no-member,dotted-import-in-loop
 		if isinstance(config.interface, ipaddress.IPv6Address):
-			address_family.append(netifaces.AF_INET6)  # pylint: disable=c-extension-no-member
+			address_family.append(netifaces.AF_INET6)  # pylint: disable=c-extension-no-member,dotted-import-in-loop
 		_zeroconf = Zeroconf(asyncio.get_running_loop(), address_family=address_family, iface=iface)
 
 	address = None
@@ -87,7 +89,7 @@ async def register_opsi_services():  # pylint: disable=too-many-branches
 	await _zeroconf.register_service(_info)
 
 
-async def unregister_opsi_services():
+async def unregister_opsi_services() -> None:
 	global _zeroconf, _info  # pylint: disable=invalid-name,global-statement,global-variable-not-assigned
 	if not _zeroconf or not _info:
 		return

@@ -28,26 +28,24 @@ class Addon:
 				raise ValueError(f"Attribute '{attr}' is not set")
 
 	@property
-	def router_prefix(self):
+	def router_prefix(self) -> str:
 		return f"/addons/{self.id}"
 
-	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use,unused-argument
+	def on_load(self, app: FastAPI) -> None:  # pylint: disable=unused-argument
 		"""Called after loading the addon"""
 		return
 
-	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use,unused-argument
+	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=unused-argument
 		"""Called before unloading the addon"""
 		return
 
-	async def handle_request(  # pylint: disable=no-self-use
-		self, connection: HTTPConnection, receive: Receive, send: Send  # pylint: disable=unused-argument
-	) -> bool:
+	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:  # pylint: disable=unused-argument
 		"""Called on every request where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 		return False
 
-	async def handle_request_exception(  # pylint: disable=no-self-use
-		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send  # pylint: disable=unused-argument
+	async def handle_request_exception(  # pylint: disable=unused-argument
+		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
 	) -> bool:
 		"""Called on every request exception where the path matches the addons router prefix.
 		Return true to skip further request processing."""

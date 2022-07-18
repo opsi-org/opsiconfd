@@ -8,31 +8,31 @@
 monitoring
 """
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from opsiconfd.logging import logger
 from opsiconfd.backend import get_backend
+from opsiconfd.logging import logger
 
-from .utils import State
 from .check_client_status import check_client_status
-from .check_short_product_status import check_short_product_status
-from .check_product_status import check_product_status
 from .check_depot_sync_status import check_depot_sync_status
-from .check_plugin_on_client import check_plugin_on_client
-from .check_opsi_webservice import check_opsi_webservice
 from .check_locked_products import check_locked_products
 from .check_opsi_disk_usage import check_opsi_disk_usage
+from .check_opsi_webservice import check_opsi_webservice
+from .check_plugin_on_client import check_plugin_on_client
+from .check_product_status import check_product_status
+from .check_short_product_status import check_short_product_status
+from .utils import State
 
 monitoring_router = APIRouter()
 
 
-def monitoring_setup(app):
+def monitoring_setup(app: FastAPI) -> None:
 	app.include_router(monitoring_router, prefix="/monitoring")
 
 
 @monitoring_router.post("{any:path}")
-async def monitoring(request: Request):  # pylint: disable=too-many-branches
+async def monitoring(request: Request) -> JSONResponse:  # pylint: disable=too-many-branches
 	backend = get_backend()
 	request_data = await request.json()
 	task = None

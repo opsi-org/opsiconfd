@@ -8,7 +8,9 @@
 redisinterface
 """
 
-from fastapi import APIRouter, Request, status
+from typing import Any, Dict
+
+from fastapi import APIRouter, FastAPI, Request, status
 
 from ..logging import logger
 from ..rest import RESTErrorResponse, RESTResponse, rest_api
@@ -22,7 +24,7 @@ from ..utils import (
 redis_interface_router = APIRouter()
 
 
-def redis_interface_setup(app):
+def redis_interface_setup(app: FastAPI) -> None:
 	app.include_router(redis_interface_router, prefix="/redis-interface")
 
 
@@ -33,7 +35,7 @@ async def redis_command(request: Request) -> RESTResponse:
 	redis = await async_redis_client()
 	request_body = await request.json()
 	redis_cmd = request_body.get("cmd")
-	redis_result = await redis.execute_command(redis_cmd)
+	redis_result = await redis.execute_command(redis_cmd)  # type: ignore[no-untyped-call]
 	return RESTResponse({"result": decode_redis_result(redis_result)})
 
 
@@ -60,7 +62,7 @@ def get_depot_cache() -> RESTResponse:
 		return RESTErrorResponse(details=err, message="Error while reading redis data")
 
 
-def _get_depots():
+def _get_depots() -> Dict[str, Any]:
 	depots = {}
 	with redis_client() as redis:
 		depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))

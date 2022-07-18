@@ -39,14 +39,14 @@ from .utils import get_manager_pid, redis_client
 REDIS_CONECTION_TIMEOUT = 30
 
 
-async def log_viewer():
+async def log_viewer() -> None:
 	set_filter_from_string(config.log_filter)
 	AsyncRedisLogAdapter(stderr_file=sys.stdout)
 	while True:
 		await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 
-def main():  # pylint: disable=too-many-statements, too-many-branches too-many-locals
+def main() -> None:  # pylint: disable=too-many-statements, too-many-branches too-many-locals
 	secret_filter.add_secrets(config.ssl_ca_key_passphrase, config.ssl_server_key_passphrase)
 
 	if config.version:
@@ -134,6 +134,7 @@ def main():  # pylint: disable=too-many-statements, too-many-branches too-many-l
 
 	finally:
 		for thread in threading.enumerate():  # pylint: disable=dotted-import-in-loop
-			if hasattr(thread, "stop"):
-				thread.stop()
+			stop = getattr(thread, "stop", None)
+			if stop:
+				stop()
 				thread.join(1)

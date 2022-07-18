@@ -8,7 +8,7 @@
 The opsi configuration service.
 """
 
-__version__ = "4.2.0.278"
+__version__ = "4.2.0.279"
 
 from contextvars import Context, ContextVar
 from typing import TYPE_CHECKING, Dict, Optional
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 contextvar_request_id: ContextVar[Optional[int]] = ContextVar("request_id", default=None)
 contextvar_client_session: ContextVar[Optional["OPSISession"]] = ContextVar("client_session", default=None)
 contextvar_client_address: ContextVar[Optional[str]] = ContextVar("client_address", default=None)
-contextvar_server_timing: ContextVar[Dict[str, int]] = ContextVar("server_timing", default={})
+contextvar_server_timing: ContextVar[Dict[str, float]] = ContextVar("server_timing", default={})
 
 
 def set_contextvars_from_contex(context: Context) -> None:

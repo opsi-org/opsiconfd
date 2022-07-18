@@ -12,13 +12,14 @@ import asyncio
 import copy
 import re
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import yappi  # type: ignore[import]
+from fastapi import FastAPI
 from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import Message, Receive, Scope, Send
 from yappi import YFuncStats
 
 from . import contextvar_client_address, contextvar_request_id, contextvar_server_timing
@@ -171,37 +172,43 @@ GRAFANA_HEATMAP_PANEL_TEMPLATE = {
 
 
 class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
-	def __init__(
-		self, type="graph", title="", units=None, decimals=0, stack=False, yaxis_min="auto"
-	):  # pylint: disable=too-many-arguments, redefined-builtin
+	def __init__(  # pylint: disable=too-many-arguments
+		self,
+		type: str = "graph",  # pylint: disable=redefined-builtin
+		title: str = "",
+		units: List[str] | None = None,
+		decimals: int = 0,
+		stack: bool = False,
+		yaxis_min: int | str = "auto",
+	) -> None:
 		self.type = type
 		self.title = title
 		self.units = units or ["short", "short"]
 		self.decimals = decimals
 		self.stack = stack
-		self._template = ""
+		self._template = {}
 		self.yaxis_min = yaxis_min
 		if self.type == "graph":
 			self._template = GRAFANA_GRAPH_PANEL_TEMPLATE
 		elif self.type == "heatmap":
-			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE
+			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE  # type: ignore[assignment]
 
-	def get_panel(self, panel_id=1, pos_x=0, pos_y=0):
+	def get_panel(self, panel_id: int = 1, pos_x: int = 0, pos_y: int = 0) -> Dict[str, Any]:
 		panel = copy.deepcopy(self._template)
 		panel["id"] = panel_id
-		panel["gridPos"]["x"] = pos_x
-		panel["gridPos"]["y"] = pos_y
+		panel["gridPos"]["x"] = pos_x  # type: ignore[index]
+		panel["gridPos"]["y"] = pos_y  # type: ignore[index]
 		panel["title"] = self.title
 		if self.type == "graph":
 			panel["stack"] = self.stack
 			panel["decimals"] = self.decimals
 			for i, unit in enumerate(self.units):
-				panel["yaxes"][i]["format"] = unit  # pylint: disable=loop-invariant-statement
+				panel["yaxes"][i]["format"] = unit  # type: ignore[index]  # pylint: disable=loop-invariant-statement
 		elif self.type == "heatmap":
-			panel["yAxis"]["format"] = self.units[0]
+			panel["yAxis"]["format"] = self.units[0]  # type: ignore[index]
 			panel["tooltipDecimals"] = self.decimals
 		if self.yaxis_min != "auto":
-			for axis in panel["yaxes"]:
+			for axis in panel["yaxes"]:  # type: ignore[attr-defined]
 				axis["min"] = self.yaxis_min
 		return panel
 
@@ -239,7 +246,7 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 				if subject_is_worker:
 					orig_key = metric.redis_key.format(node_name=node_name, worker_num=worker_num)
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name} worker_num {worker_num}"
-				elif metric.subject == "node":
+				elif metric.subject == "node":  # pylint: disable=loop-invariant-statement
 					orig_key = metric.redis_key.format(node_name=node_name)
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention} LABELS node_name {node_name}"
 				else:
@@ -247,31 +254,30 @@ def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too
 					cmd = f"TS.CREATE {orig_key} RETENTION {metric.retention}"
 
 				logger.debug("redis command: %s", cmd)
-				try:
+				try:  # pylint: disable=loop-try-except-usage
 					client.execute_command(cmd)
-				except RedisResponseError as err:
-					if str(err) != "TSDB: key already exists":
+				except RedisResponseError as err:  # pylint: disable=loop-invariant-statement
+					if str(err) != "TSDB: key already exists":  # pylint: disable=loop-invariant-statement
 						raise
 
 				cmd = f"TS.INFO {orig_key}"
 				info = client.execute_command(cmd)
-				existing_rules: Dict[str, Dict[str, str]] = {}
+				existing_rules: Dict[str, Dict[str, str]] = {}  # pylint: disable=loop-invariant-statement
 				for idx, val in enumerate(info):
 					if isinstance(val, bytes) and "rules" in val.decode("utf8"):
 						rules = info[idx + 1]
 						for rule in rules:
 							key = rule[0].decode("utf8")
-							# retention = key.split(":")[-1]
 							existing_rules[key] = {"time_bucket": rule[1], "aggregation": rule[2].decode("utf8")}
 
 				for rule in metric.downsampling:
 					retention, retention_time, aggregation = rule
 					time_bucket = get_time_bucket_duration(retention)
-					key = f"{orig_key}:{retention}"
+					key = f"{orig_key}:{retention}"  # pylint: disable=loop-invariant-statement
 					cmd = f"TS.CREATE {key} RETENTION {retention_time} LABELS node_name {node_name} worker_num {worker_num}"
-					try:
+					try:  # pylint: disable=loop-try-except-usage
 						client.execute_command(cmd)
-					except RedisResponseError as err:
+					except RedisResponseError as err:  # pylint: disable=loop-invariant-statement
 						if str(err) != "TSDB: key already exists":
 							raise
 
@@ -446,7 +452,7 @@ metrics_registry.register(
 
 
 class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-method
-	def __init__(self, app: ASGIApp, profiler_enabled=False, log_func_stats=False) -> None:
+	def __init__(self, app: FastAPI, profiler_enabled: bool = False, log_func_stats: bool = False) -> None:
 		super().__init__(app)
 
 		self._profiler_enabled = profiler_enabled
@@ -465,12 +471,12 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 			# TODO: Schedule some kind of periodic profiler cleanup with clear_stats()
 			yappi.start()
 
-	def yappi(self, scope):  # pylint: disable=inconsistent-return-statements
+	def yappi(self, scope: Scope) -> Dict[str, float]:  # pylint: disable=inconsistent-return-statements
 		# https://github.com/sumerc/yappi/blob/master/doc/api.md
 
 		tag = get_yappi_tag()
 		if tag <= 0:
-			return
+			return {}
 
 		func_stats = yappi.get_func_stats(filter={"tag": tag})
 		# func_stats.sort("ttot", sort_order="desc").debug_print()
@@ -489,18 +495,20 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 				"---------------------------------------------------------------------------------------------------------------------------------"
 			)  # pylint: disable=line-too-long
 			for stat_num, stat in enumerate(func_stats.sort("ttot", sort_order="desc")):
-				module = re.sub(r".*(site-packages|python3\.\d|python-opsi)/", "", stat.module)
-				logger.essential(f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}")
+				module = re.sub(r".*(site-packages|python3\.\d|python-opsi)/", "", stat.module)  # pylint: disable=dotted-import-in-loop
+				logger.essential(
+					f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}"  # pylint: disable=loop-invariant-statement
+				)
 				if stat_num >= 500:
 					break
 			logger.essential(
 				"---------------------------------------------------------------------------------------------------------------------------------"
 			)  # pylint: disable=line-too-long
 
-		func_stats: Dict[str, YFuncStats] = {
+		funs: Dict[str, YFuncStats] = {
 			stat_name: yappi.get_func_stats(filter={"name": function, "tag": tag}) for function, stat_name in self._profile_methods.items()
 		}
-		server_timing = {stat_name: stats.pop().ttot * 1000 for stat_name, stats in func_stats.items() if not stats.empty()}
+		server_timing = {stat_name: stats.pop().ttot * 1000 for stat_name, stats in funs.items() if not stats.empty()}
 		return server_timing
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -525,11 +533,13 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 							"worker:sum_http_request_number", 1, {"node_name": config.node_name, "worker_num": worker.worker_num}
 						)
 					)
-					loop.create_task(
-						worker.metrics_collector.add_value(
-							"client:sum_http_request_number", 1, {"client_addr": ip_address_to_redis_key(contextvar_client_address.get())}
+					ip_addr = contextvar_client_address.get()
+					if ip_addr:
+						loop.create_task(
+							worker.metrics_collector.add_value(
+								"client:sum_http_request_number", 1, {"client_addr": ip_address_to_redis_key(ip_addr)}
+							)
 						)
-					)
 
 				headers = MutableHeaders(scope=message)
 

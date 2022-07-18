@@ -8,7 +8,7 @@
 session
 """
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, FastAPI, Request, status
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
 from opsiconfd.rest import RESTResponse, rest_api
@@ -17,7 +17,7 @@ from opsiconfd.session import authenticate, get_session
 session_router = APIRouter()
 
 
-def session_setup(app):
+def session_setup(app: FastAPI) -> None:
 	app.include_router(router=session_router, prefix="/session")
 
 

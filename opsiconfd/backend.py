@@ -11,14 +11,18 @@ import socket
 import threading
 from ipaddress import ip_address
 from time import sleep, time
+from typing import Any, Callable, Dict, List, Union
 from urllib.parse import urlparse
 
 from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 from OPSI.Backend.Base.Backend import describeInterface  # type: ignore[import]
 from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig  # type: ignore[import]
+from OPSI.Backend.MySQL import MySQL  # type: ignore[import]
 from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from starlette.concurrency import run_in_threadpool
+
+from opsiconfd.session import OPSISession, UserStore
 
 from . import contextvar_client_address, contextvar_client_session
 from .config import config
@@ -39,10 +43,10 @@ BackendManager.default_config = {
 	"keep_rotated_logs": config.keep_rotated_logs,
 }
 
-get_session_from_context = None  # pylint: disable=invalid-name
+get_session_from_context: Callable = lambda: None  # pylint: disable=invalid-name
 
 
-def get_session():
+def get_session() -> Union[OPSISession, None]:
 	global get_session_from_context  # pylint: disable=invalid-name, global-statement,global-variable-not-assigned
 	if not get_session_from_context:
 		from .session import (  # pylint: disable=import-outside-toplevel, redefined-outer-name
@@ -51,19 +55,25 @@ def get_session():
 	return get_session_from_context()
 
 
-def get_user_store():
-	return get_session().user_store
+def get_user_store() -> UserStore:
+	session = get_session()
+	if not session:
+		raise RuntimeError("Session not found")
+	return session.user_store
 
 
-def get_option_store():
-	return get_session().option_store
+def get_option_store() -> Dict[str, Any]:
+	session = get_session()
+	if not session:
+		raise RuntimeError("Session not found")
+	return session.option_store
 
 
 client_backend_manager_lock = threading.Lock()
 client_backend_manager = None  # pylint: disable=invalid-name
 
 
-def get_client_backend():
+def get_client_backend() -> BackendManager:
 	global client_backend_manager  # pylint: disable=invalid-name, global-statement
 	with client_backend_manager_lock:
 		if not client_backend_manager:
@@ -79,7 +89,7 @@ backend_manager_lock = threading.Lock()
 backend_manager = None  # pylint: disable=invalid-name
 
 
-def get_backend(timeout: int = -1):
+def get_backend(timeout: int = -1) -> BackendManager:
 	global backend_manager  # pylint: disable=invalid-name, global-statement
 	with backend_manager_lock:
 		if not backend_manager:
@@ -99,32 +109,32 @@ def get_backend(timeout: int = -1):
 	return backend_manager
 
 
-async def async_backend_call(method, **kwargs):
-	def _backend_call(method, kwargs):
+async def async_backend_call(method: str, **kwargs: Any) -> Any:
+	def _backend_call(method: str, **kwargs: Any) -> Any:
 		meth = getattr(get_backend(), method)
 		return meth(**kwargs)
 
-	return await run_in_threadpool(_backend_call, method, kwargs)
+	return await run_in_threadpool(_backend_call, method, **kwargs)
 
 
 backend_interface = None  # pylint: disable=invalid-name
 
 
-def get_backend_interface():
+def get_backend_interface() -> List[Dict[str, Any]]:
 	global backend_interface  # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
 		backend_interface = get_client_backend().backend_getInterface()
 	return backend_interface
 
 
-def get_server_role():
+def get_server_role() -> str:
 	for _method, backends in _loadDispatchConfig(config.dispatch_config_file):
 		if "jsonrpc" in backends:
 			return "depot"
 	return "config"
 
 
-def get_mysql():
+def get_mysql() -> MySQL:
 	backend = get_backend()
 	while getattr(backend, "_backend", None):
 		backend = backend._backend  # pylint: disable=protected-access
@@ -137,7 +147,7 @@ def get_mysql():
 	raise RuntimeError("MySQL backend not active")
 
 
-def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs) -> dict:
+def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs: Any) -> dict:
 	result = {}
 	backend = get_client_backend()
 	while getattr(backend, "_backend", None):
@@ -157,12 +167,12 @@ def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd"
 
 
 class OpsiconfdBackend(metaclass=Singleton):
-	def __init__(self):
+	def __init__(self) -> None:
 		self._interface = describeInterface(self)
 		self._backend = get_client_backend()
 		self.method_names = [meth["name"] for meth in self._interface]
 
-	def backend_exit(self) -> None:  # pylint: disable=no-self-use
+	def backend_exit(self) -> None:
 		session = contextvar_client_session.get()
 		if session:
 			session.sync_delete()
@@ -180,7 +190,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 			logger.debug("Failed to get domain by client address: %s", err)
 		return self._backend.getDomain()  # pylint: disable=no-member
 
-	def getOpsiCACert(self):  # pylint: disable=invalid-name,no-self-use
+	def getOpsiCACert(self) -> str:  # pylint: disable=invalid-name
 		from .ssl import get_ca_cert_as_pem  # pylint: disable=import-outside-toplevel
 
 		return get_ca_cert_as_pem()

@@ -12,10 +12,10 @@ import asyncio
 import os
 import warnings
 from ctypes import c_long
-from typing import Any
+from typing import Any, AsyncGenerator, List, Tuple
 from urllib.parse import urlparse
 
-from fastapi import Query
+from fastapi import FastAPI, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
@@ -26,7 +26,7 @@ from opsicommon.logging.constants import TRACE  # type: ignore[import]
 from starlette import status
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import Message, Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
@@ -68,20 +68,20 @@ header_logger = get_logger("opsiconfd.headers")
 
 
 @app.get("/")
-async def index():
+async def index() -> RedirectResponse:
 	if config.welcome_page:
 		return RedirectResponse("/welcome")
 	return RedirectResponse("/admin")
 
 
 @app.options("/")
-async def index_options():
+async def index_options() -> Response:
 	# Windows WebDAV client send OPTIONS request for /
 	return Response(headers={"Allow": "OPTIONS, GET, HEAD"})
 
 
 @app.get("/login")
-async def login_index(request: Request):
+async def login_index(request: Request) -> Response:
 	context = {
 		"request": request,
 	}
@@ -89,12 +89,12 @@ async def login_index(request: Request):
 
 
 @app.get("/favicon.ico")
-async def favicon(request: Request, response: Response):  # pylint: disable=unused-argument
+async def favicon(request: Request, response: Response) -> RedirectResponse:  # pylint: disable=unused-argument
 	return RedirectResponse("/static/favicon.ico", status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
 
 @app.get("/ssl/opsi-ca-cert.pem")
-def get_ssl_ca_cert(request: Request):  # pylint: disable=unused-argument
+def get_ssl_ca_cert(request: Request) -> Response:  # pylint: disable=unused-argument
 	return Response(
 		content=get_ca_cert_as_pem(),
 		headers={"Content-Type": "application/x-pem-file", "Content-Disposition": 'attachment; filename="opsi-ca-cert.pem"'},
@@ -119,10 +119,10 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 		super().__init__(scope, receive, send)
 		self._log_reader_task: asyncio.Task
 		self._last_id = "$"
-		self._client = None
+		self._client: str | None = None
 		self._max_message_size = 1_000_000
 
-	async def read_data(self, data):
+	async def read_data(self, data: List[List[Any]]) -> AsyncGenerator[bytes, None]:
 		for stream in data:
 			for dat in stream[1]:
 				self._last_id = dat[0]
@@ -130,7 +130,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 					continue
 				yield dat[1][b"record"]
 
-	async def _log_reader(self, websocket: WebSocket, start_id="$", client=None):
+	async def _log_reader(self, websocket: WebSocket, start_id: str = "$", client: str = None) -> None:
 		stream_name = f"opsiconfd:log:{config.node_name}"
 		logger.info(
 			"Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client
@@ -167,7 +167,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 
 	async def on_connect(  # pylint: disable=arguments-differ
 		self, websocket: WebSocket, client: str = Query(default=None), start_time: int = Query(default=0)
-	):
+	) -> None:
 		start_id = "$"
 		if start_time > 0:
 			start_id = str(start_time * 1000)
@@ -179,11 +179,11 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 
 
 class BaseMiddleware:  # pylint: disable=too-few-public-methods
-	def __init__(self, app: ASGIApp) -> None:  # pylint: disable=redefined-outer-name
+	def __init__(self, app: FastAPI) -> None:  # pylint: disable=redefined-outer-name
 		self.app = app
 
 	@staticmethod
-	def get_client_address(scope: Scope):
+	def get_client_address(scope: Scope) -> Tuple[str | None, int]:
 		"""Get sanitized client address"""
 		host, port = scope.get("client", (None, 0))
 		if host:
@@ -191,7 +191,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		return host, port
 
 	@staticmethod
-	def before_send(scope: Scope, receive: Receive, send: Send):
+	def before_send(scope: Scope, receive: Receive, send: Send) -> None:
 		pass
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -273,11 +273,11 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 
 @app.exception_handler(RequestValidationError)
 @rest_api
-def validation_exception_handler(request, exc):
+def validation_exception_handler(request: Request, exc: Exception) -> None:
 	raise OpsiApiException(message=f"Validation error: {exc}", http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, error=exc)
 
 
-def application_setup():
+def application_setup() -> None:
 	FileResponse.chunk_size = 32 * 1024  # Speeds up transfer of big files massively, original value is 4*1024
 
 	# Every Starlette application automatically includes two pieces of middleware by default:
@@ -343,13 +343,13 @@ def application_setup():
 			if module.startswith("opsiconfd.addon_"):
 				module = f"opsiconfd.addon.{module.split('/')[-1]}"
 			routes[route.path] = f"{module}.{route.endpoint.__qualname__}"
-		else:
-			routes[route.path] = route.__class__.__name__
+		elif hasattr(route, "path"):
+			routes[getattr(route, "path", "")] = route.__class__.__name__
 	for path in sorted(routes):
 		logger.debug("%s: %s", path, routes[path])
 
 
-async def startup():
+async def startup() -> None:
 	try:
 		await Worker().startup()
 		await run_in_threadpool(application_setup)

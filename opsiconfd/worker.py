@@ -50,7 +50,7 @@ class Worker(metaclass=Singleton):
 		self.worker_num = 1
 		self.metrics_collector = WorkerMetricsCollector(self)
 
-	async def startup(self):
+	async def startup(self) -> None:
 		self._init_worker_num()
 		logger.notice("Startup worker %d (pid %s)", self.worker_num, os.getpid())
 		loop = asyncio.get_running_loop()
@@ -67,7 +67,7 @@ class Worker(metaclass=Singleton):
 		await run_in_threadpool(get_backend, 60)
 		await run_in_threadpool(get_client_backend)
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"<{self.__class__.__name__} {self.worker_num} (pid: {self.pid}>"
 
 	__str__ = __repr__
@@ -107,7 +107,7 @@ class Worker(metaclass=Singleton):
 		# msg = context.get("exception", context["message"])
 		logger.error("Unhandled exception in worker %s asyncio loop '%s': %s", self, loop, context)
 
-	async def main_loop(self) -> None:  # pylint: disable=no-self-use
+	async def main_loop(self) -> None:
 		while True:
 			await asyncio_sleep(120)
 			memory_cleanup()

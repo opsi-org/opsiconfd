@@ -9,57 +9,57 @@ messagebroker
 """
 
 import asyncio
-from typing import Optional
+from typing import Dict, Tuple
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, FastAPI, Query
 from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.websockets import WebSocket
 from websockets.exceptions import ConnectionClosedOK
 
-from . import app
 from .. import contextvar_client_session
 from ..logging import logger
 from ..utils import async_redis_client
-
+from . import app
 
 messagebroker_router = APIRouter()
 
 
-def messagebroker_setup(_app):
+def messagebroker_setup(_app: FastAPI) -> None:
 	_app.include_router(messagebroker_router, prefix="/mq")
 
 
-def mq_websocket_parameters(last_id: Optional[str] = Query(default="0", embed=True)):
+def mq_websocket_parameters(last_id: str | None = Query(default="0", embed=True)) -> Dict[str, str | None]:
 	return {"last_id": last_id}
 
 
-async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str = "0"):
-	def read_data(data, channel):
+async def mq_websocket_writer(websocket: WebSocket, channel: str, last_id: str = "0") -> None:
+	def read_data(data: Dict[bytes, Tuple[str, bytes]], channel: str) -> Tuple[str, bytearray]:
 		b_channel = channel.encode("utf-8")
 		buf = bytearray()
 		for dat in data[b_channel]:
-			last_id = dat[0]
-			buf += dat[1]  # [b"record"]
+			last_id = str(dat[0])
+			buf += dat[1]  # type: ignore[arg-type]
 		return (last_id, buf)
 
+	data: Dict[bytes, Tuple[str, bytes]] = {}
 	redis = await async_redis_client()
 	while True:
-		try:
+		try:  # pylint: disable=loop-try-except-usage
 			# redis = await async_redis_client()
 			# It is also possible to specify multiple streams
 			data = await redis.xread(streams={channel: last_id}, block=1000, count=10)
-			if not data:
+			if not data:  # pylint: disable=loop-invariant-statement
 				continue
 			last_id, buf = await run_in_threadpool(read_data, data, channel)
 			await websocket.send_bytes(buf)
 		except Exception as err:  # pylint: disable=broad-except
-			if app.is_shutting_down and not isinstance(err, ConnectionClosedOK):
+			if app.is_shutting_down and not isinstance(err, ConnectionClosedOK):  # pylint: disable=loop-invariant-statement
 				logger.error(err, exc_info=True)
 			break
 
 
-async def mq_websocket_reader(websocket: WebSocket):
+async def mq_websocket_reader(websocket: WebSocket) -> None:
 	try:
 		await websocket.receive_bytes()
 	except Exception as err:  # pylint: disable=broad-except
@@ -67,12 +67,12 @@ async def mq_websocket_reader(websocket: WebSocket):
 
 
 @messagebroker_router.get("/")
-async def messagebroker_index():
+async def messagebroker_index() -> HTMLResponse:
 	return HTMLResponse("<h1>messagebroker</h1>")
 
 
 @messagebroker_router.websocket("")
-async def mq_websocket_endpoint(websocket: WebSocket, params: dict = Depends(mq_websocket_parameters)):
+async def mq_websocket_endpoint(websocket: WebSocket, params: dict = Depends(mq_websocket_parameters)) -> None:
 	session = contextvar_client_session.get()
 	if not session:
 		logger.warning("Access to mq websocket denied, invalid session")

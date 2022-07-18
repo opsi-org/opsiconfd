@@ -14,6 +14,7 @@ import signal
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from types import FrameType
 
 from .config import config
 from .logging import init_logging, logger
@@ -25,20 +26,20 @@ from .zeroconf import register_opsi_services, unregister_opsi_services
 
 
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
-	def __init__(self):
-		self.pid = None
+	def __init__(self) -> None:
+		self.pid: int | None = None
 		self.running = False
 		self._async_main_running = False
-		self._loop = None
+		self._loop = asyncio.new_event_loop()
 		self._last_reload = 0
-		self._server = None
+		self._server: Server | None = None
 		self._should_stop = False
 		self._server_cert_check_time = time.time()
 		self._server_cert_check_interval = 24 * 3600
 		self._redis_check_time = time.time()
 		self._redis_check_interval = 300
 
-	def stop(self, force=False):
+	def stop(self, force: bool = False) -> None:
 		logger.notice("Manager stopping force=%s", force)
 		if self._server:
 			self._server.stop(force)
@@ -46,24 +47,24 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		for _ in range(5):
 			if not self._async_main_running:
 				break
-			time.sleep(1)
+			time.sleep(1)  # pylint: disable=dotted-import-in-loop
 		if self._loop:
 			self._loop.stop()
 			for _ in range(5):
 				if not self._loop.is_running():
 					break
-				time.sleep(1)
+				time.sleep(1)  # pylint: disable=dotted-import-in-loop
 		self.running = False
 
-	def reload(self):
-		self._last_reload = time.time()
+	def reload(self) -> None:
+		self._last_reload = int(time.time())
 		logger.notice("Manager process %s reloading", self.pid)
 		config.reload()
 		init_logging(log_mode=config.log_mode)
 		if self._server:
 			self._server.reload()
 
-	def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
+	def signal_handler(self, signum: int, frame: FrameType | None) -> None:  # pylint: disable=unused-argument
 		# <CTRL>+<C> will send SIGINT to the entire process group on linux.
 		# So child processes will receive the SIGINT too.
 		logger.info("Manager process %s received signal %d", self.pid, signum)
@@ -74,12 +75,12 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			# Force on repetition
 			self.stop(force=self._should_stop)
 
-	def run(self):
+	def run(self) -> None:
 		logger.info("Manager starting")
 		self.running = True
 		self._should_stop = False
 		self.pid = os.getpid()
-		self._last_reload = time.time()
+		self._last_reload = int(time.time())
 		signal.signal(signal.SIGINT, self.signal_handler)  # Unix signal 2. Sent by Ctrl+C. Terminate service.
 		signal.signal(signal.SIGTERM, self.signal_handler)  # Unix signal 15. Sent by `kill <pid>`. Terminate service.
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
@@ -92,15 +93,14 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		except Exception as exc:  # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 
-	def run_loop(self):
-		self._loop = asyncio.new_event_loop()
+	def run_loop(self) -> None:
 		self._loop.set_default_executor(ThreadPoolExecutor(max_workers=10, thread_name_prefix="manager-ThreadPoolExecutor"))
 		self._loop.set_debug(config.debug)
 		asyncio.set_event_loop(self._loop)
 		self._loop.create_task(self.async_main())
 		self._loop.run_forever()
 
-	async def check_server_cert(self):
+	async def check_server_cert(self) -> None:
 		if "ssl" not in (config.skip_setup or []):
 			if setup_server_cert():
 				logger.notice("Server certificate changed, restarting all workers")
@@ -108,14 +108,18 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 					self._server.restart_workers()
 		self._server_cert_check_time = time.time()
 
-	async def check_redis(self):
+	async def check_redis(self) -> None:
 		redis_info = await async_get_redis_info(await async_redis_client())
 		for key_type in redis_info["key_info"]:
-			if redis_info["key_info"][key_type]["memory"] > 100_1000_1000:
-				logger.warning("High redis memory usage for '%s': %s", key_type, redis_info["key_info"][key_type])
+			if redis_info["key_info"][key_type]["memory"] > 100_1000_1000:  # pylint: disable=loop-invariant-statement
+				logger.warning(
+					"High redis memory usage for '%s': %s",
+					key_type,
+					redis_info["key_info"][key_type],  # pylint: disable=loop-invariant-statement
+				)  # pylint: disable=loop-invariant-statement
 		self._redis_check_time = time.time()
 
-	async def async_main(self):
+	async def async_main(self) -> None:
 		self._async_main_running = True
 		# Create and start MetricsCollector
 		metrics_collector = ManagerMetricsCollector()
@@ -128,8 +132,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 				logger.error("Failed to register opsi service via zeroconf: %s", err, exc_info=True)
 
 		while not self._should_stop:
-			try:
-				now = time.time()
+			try:  # pylint: disable=loop-try-except-usage
+				now = time.time()  # pylint: disable=dotted-import-in-loop
 				if now - self._server_cert_check_time > self._server_cert_check_interval:
 					await self.check_server_cert()
 				if now - self._redis_check_time > self._redis_check_interval:
@@ -139,7 +143,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			for _num in range(60):
 				if self._should_stop:
 					break
-				await asyncio.sleep(1)
+				await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 		if config.zeroconf:
 			try:

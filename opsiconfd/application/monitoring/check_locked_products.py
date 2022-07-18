@@ -8,10 +8,18 @@
 opsiconfd.application.monitoring.check_locked_products
 """
 
+from typing import List
+
+from fastapi.responses import JSONResponse
+from OPSI.Backend import BackendManager  # type: ignore[import]
+
 from .utils import State, generate_response
 
 
-def check_locked_products(backend, depot_ids=None, product_ids=[]):  # pylint: disable=dangerous-default-value
+def check_locked_products(
+	backend: BackendManager, depot_ids: List[str] | None = None, product_ids: List[str] | None = None
+) -> JSONResponse:
+	product_ids = product_ids or []
 	if not depot_ids or "all" in depot_ids:
 		depots = backend._executeMethod(methodName="host_getObjects", type="OpsiDepotserver")  # pylint: disable=protected-access
 		depot_ids = [depot.id for depot in depots]
@@ -26,7 +34,6 @@ def check_locked_products(backend, depot_ids=None, product_ids=[]):  # pylint: d
 		for prod_on_depot in locked_products:
 			message += f"\nProduct {prod_on_depot.productId} locked on depot {prod_on_depot.depotId}"
 	else:
-		depot_ids = ",".join(depot_ids)
-		message = f"No products locked on depots: {depot_ids}"
+		message = f"No products locked on depots: {','.join(depot_ids)}"
 
 	return generate_response(state, message)

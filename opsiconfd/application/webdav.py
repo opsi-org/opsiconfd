@@ -11,20 +11,23 @@ webdav
 import os
 from typing import Dict, List, Optional
 
-from wsgidav import util  # type: ignore[import]
 import wsgidav.fs_dav_provider  # type: ignore[import]
+from fastapi import FastAPI
+from wsgidav import util  # type: ignore[import]
 from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError  # type: ignore[import]
-from wsgidav.dav_provider import _DAVResource, DAVCollection, DAVProvider  # type: ignore[import]
+from wsgidav.dav_provider import (  # type: ignore[import]
+	DAVCollection,
+	DAVProvider,
+	_DAVResource,
+)
 from wsgidav.fs_dav_provider import FilesystemProvider, FolderResource
 from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
 
-
 from .. import __version__
-from ..logging import logger
-from ..config import config, FQDN
 from ..backend import get_backend
+from ..config import FQDN, config
+from ..logging import logger
 from ..wsgi import WSGIMiddleware
-
 
 PUBLIC_FOLDER = "/var/lib/opsi/public"
 BLOCK_SIZE = 64 * 1024
@@ -35,7 +38,7 @@ wsgidav.fs_dav_provider.BUFFER_SIZE = BLOCK_SIZE
 
 
 # Prevent warning in log
-def is_share_anonymous(self, path_info):  # pylint: disable=unused-argument
+def is_share_anonymous(self: wsgidav.dc.base_dc.BaseDomainController, path_info: str) -> bool:  # pylint: disable=unused-argument
 	return False
 
 
@@ -43,7 +46,7 @@ wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
 
 
 class IgnoreCaseFilesystemProvider(FilesystemProvider):
-	def _loc_to_file_path(self, path, environ=None):
+	def _loc_to_file_path(self, path: str, environ: Dict[str, str] | None = None) -> str:
 		"""Convert resource path to a unicode absolute file path.
 		Optional environ argument may be useful e.g. in relation to per-user
 		sub-folder chrooting inside root_folder_path.
@@ -59,18 +62,18 @@ class IgnoreCaseFilesystemProvider(FilesystemProvider):
 			cur_path = root_path
 			name_found = None
 			for part in path_parts:
-				cur_path = os.path.join(cur_path, part)
-				if not os.path.exists(cur_path):
+				cur_path = os.path.join(cur_path, part)  # pylint: disable=dotted-import-in-loop
+				if not os.path.exists(cur_path):  # pylint: disable=dotted-import-in-loop
 					part_lower = part.lower()
 					name_found = None
-					for name in os.listdir(os.path.dirname(cur_path)):
+					for name in os.listdir(os.path.dirname(cur_path)):  # pylint: disable=dotted-import-in-loop
 						if name.lower() == part_lower:
 							name_found = name
 							break
 					if not name_found:
 						# Give up
 						break
-					cur_path = os.path.join(os.path.dirname(cur_path), name_found)
+					cur_path = os.path.join(os.path.dirname(cur_path), name_found)  # pylint: disable=dotted-import-in-loop
 			if name_found and cur_path.lower() == file_path.lower():
 				file_path = cur_path
 
@@ -84,7 +87,7 @@ class IgnoreCaseFilesystemProvider(FilesystemProvider):
 
 
 class VirtualRootFilesystemCollection(DAVCollection):
-	def __init__(self, environ: dict, provider):
+	def __init__(self, environ: Dict[str, str], provider: DAVProvider) -> None:
 		DAVCollection.__init__(self, "/", environ)
 		self.provider = provider
 
@@ -110,7 +113,7 @@ class VirtualRootFilesystemProvider(DAVProvider):
 		return root.resolve("", path)
 
 
-def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches, too-many-locals
+def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, too-many-branches, too-many-locals
 	hosts = get_backend().host_getObjects(type="OpsiDepotserver", id=FQDN)  # pylint: disable=no-member
 	if not hosts:
 		logger.warning("Running on host %s which is not a depot server, webdav disabled.", FQDN)
@@ -225,15 +228,15 @@ def webdav_setup(app):  # pylint: disable=too-many-statements, too-many-branches
 	for name, conf in filesystems.items():
 		app_config = app_config_template.copy()
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
-		app_config["provider_mapping"]["/"] = prov_class(conf["path"], readonly=conf["read_only"])
+		app_config["provider_mapping"]["/"] = prov_class(conf["path"], readonly=conf["read_only"])  # type: ignore[index]
 		app_config["mount_path"] = f"/{name}"
 		app.mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config)))
 
 	app_config = app_config_template.copy()
 	for name, conf in filesystems.items():
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
-		app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False)
-	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])
-	app_config["provider_mapping"]["/"] = virt_root_provider
+		app_config["provider_mapping"][f"/{name}"] = prov_class(conf["path"], readonly=False)  # type: ignore[index]  # pylint: disable=loop-invariant-statement
+	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])  # type: ignore[arg-type]
+	app_config["provider_mapping"]["/"] = virt_root_provider  # type: ignore[index]
 	app_config["mount_path"] = "/dav"
 	app.mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config)))

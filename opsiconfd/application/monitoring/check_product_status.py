@@ -9,16 +9,31 @@ opsiconfd.application.monitoring.check_product_status
 """
 
 from collections import defaultdict
+from typing import Dict, List, Set
 
+from fastapi.responses import JSONResponse
+from OPSI.Backend import BackendManager  # type: ignore[import]
 from OPSI.Backend.Backend import temporaryBackendOptions  # type: ignore[import]
 
 from opsiconfd.logging import logger
+
 from .utils import State, generate_response
 
 
-def check_product_status(
-	backend, product_ids=[], product_groups=[], host_group_ids=[], depot_ids=[], exclude=[], verbose=False, strict=False
-):  # pylint: disable=line-too-long, dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+	backend: BackendManager,
+	product_ids: List[str] | Set[str] | None = None,
+	product_groups: List[str] | None = None,
+	host_group_ids: List[str] | None = None,
+	depot_ids: List[str] | None = None,
+	exclude: List[str] | None = None,
+	verbose: bool = False,
+	strict: bool = False,
+) -> JSONResponse:
+	product_groups = product_groups or []
+	host_group_ids = host_group_ids or []
+	depot_ids = depot_ids or []
+	exclude = exclude or []
 	if not product_ids:
 		product_ids = set()
 		for product in backend._executeMethod(  # pylint: disable=protected-access
@@ -38,7 +53,7 @@ def check_product_status(
 	depots_objects = backend._executeMethod(  # pylint: disable=protected-access
 		methodName="host_getObjects", attributes=["id"], type=server_type
 	)
-	depots = set(depot.id for depot in depots_objects)
+	depots = list(set(depot.id for depot in depots_objects))
 	del depots_objects
 	if not depot_ids or depot_ids[0] == "all":
 		depot_ids = depots
@@ -55,7 +70,7 @@ def check_product_status(
 		if object_to_groups:
 			client_ids = [object_to_group.objectId for object_to_group in object_to_groups]
 		else:
-			client_ids = []
+			client_ids = []  # pylint: disable=use-tuple-over-list
 	else:
 		client_ids = backend._executeMethod(methodName="host_getIdents", type="OpsiClient")  # pylint: disable=protected-access
 
@@ -78,16 +93,16 @@ def check_product_status(
 		return generate_response(
 			State.UNKNOWN, f"Depots and clients dont match. Selected depots: {depot_ids}, selected clients: {client_ids}"
 		)
-	product_on_depot_info = defaultdict(dict)
+	product_on_depot_info: Dict[str, Dict[str, Dict[str, str]]] = defaultdict(dict)
 	for pod in backend._executeMethod(  # pylint: disable=protected-access
 		methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids
 	):
 		product_on_depot_info[pod.depotId][pod.productId] = {"productVersion": pod.productVersion, "packageVersion": pod.packageVersion}
 
 	state = State.OK
-	product_version_problems_on_client = defaultdict(lambda: defaultdict(list))
-	product_problems_on_client = defaultdict(lambda: defaultdict(list))
-	action_request_on_client = defaultdict(lambda: defaultdict(list))
+	product_version_problems_on_client: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
+	product_problems_on_client: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
+	action_request_on_client: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
 	missing_products = {}
 	action_requests_to_ignore = set([None, "none", "always"])
 
@@ -106,24 +121,26 @@ def check_product_status(
 				if state != State.CRITICAL:
 					state = State.WARNING
 
-				action_request_on_client[depot_id][poc.productId].append(f"{poc.clientId} ({ poc.actionRequest})")
+				action_request_on_client[depot_id][poc.productId].append(  # pylint: disable=loop-invariant-statement
+					f"{poc.clientId} ({ poc.actionRequest})"
+				)
 
 			if poc.installationStatus != "not_installed" and poc.actionResult != "successful" and poc.actionResult != "none":
 				if state != State.CRITICAL:
 					state = State.CRITICAL
 
-				product_problems_on_client[depot_id][poc.productId].append(
+				product_problems_on_client[depot_id][poc.productId].append(  # pylint: disable=loop-invariant-statement
 					f"{poc.clientId} ({poc.actionResult} lastAction: [{poc.lastAction}])"
 				)
 
 			if not poc.productVersion or not poc.packageVersion:
 				continue
 
-			if depot_id not in product_on_depot_info:
+			if depot_id not in product_on_depot_info:  # pylint: disable=loop-invariant-statement
 				continue
 
-			try:
-				product_on_depot = product_on_depot_info[depot_id][poc.productId]
+			try:  # pylint: disable=loop-try-except-usage
+				product_on_depot = product_on_depot_info[depot_id][poc.productId]  # pylint: disable=loop-invariant-statement
 			except KeyError:
 				logger.debug("Product %s not found on depot %s", poc.productId, depot_id)
 				continue
@@ -132,7 +149,7 @@ def check_product_status(
 				if state != State.CRITICAL:
 					state = State.WARNING
 
-				product_version_problems_on_client[depot_id][poc.productId].append(
+				product_version_problems_on_client[depot_id][poc.productId].append(  # pylint: disable=loop-invariant-statement
 					f"{poc.clientId} ({poc.productVersion}-{poc.packageVersion})"
 				)
 
@@ -197,9 +214,7 @@ def check_product_status(
 
 	if state == State.OK:
 		if product_groups:
-			product_groups = ",".join(product_groups)
-			message = f"No Problem found for product groups '{product_groups}'"
+			message = f"No Problem found for product groups '{','.join(product_groups)}'"
 		else:
-			products = ",".join(product_ids)
-			message = f"No Problem found for productIds '{products}'"
+			message = f"No Problem found for productIds '{','.join(product_ids)}'"
 	return generate_response(state, message)

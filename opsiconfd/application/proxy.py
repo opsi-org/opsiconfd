@@ -10,17 +10,16 @@ proxy
 
 
 from asyncio import gather
-from typing import Callable, List
+from typing import Callable, Dict, List
 from urllib.parse import urljoin, urlparse
 
 from aiohttp import ClientConnectorError, ClientSession
-from fastapi import status
+from fastapi import FastAPI, status
 from fastapi.requests import Request
 from fastapi.responses import Response, StreamingResponse
 from opsicommon.logging.constants import TRACE  # type: ignore[import]
 from starlette.background import BackgroundTask
 from starlette.datastructures import Headers
-from starlette.types import ASGIApp
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from ..config import config
@@ -28,7 +27,7 @@ from ..logging import get_logger
 from ..session import SESSION_COOKIE_NAME
 
 
-def reverse_proxy_setup(_app):
+def reverse_proxy_setup(_app: FastAPI) -> None:
 	ReverseProxy(_app, "/grafana", config.grafana_internal_url, forward_cookies=["grafana_session"], preserve_host=True)
 
 
@@ -38,7 +37,7 @@ proxy_logger = get_logger("opsiconfd.reverse_proxy")
 class ReverseProxy:  # pylint: disable=too-few-public-methods
 	def __init__(  # pylint: disable=too-many-arguments
 		self,
-		app: ASGIApp,
+		app: FastAPI,
 		mount_path: str,
 		base_url: str,
 		methods: tuple = ("GET", "POST"),
@@ -53,10 +52,10 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		self.forward_authorization = forward_authorization
 		self.forward_cookies = forward_cookies
 		self.preserve_host = preserve_host
-		app.add_route(f"{mount_path}{{path:path}}", self.handle_request, methods)  # type: ignore[attr-defined]
+		app.add_route(f"{mount_path}{{path:path}}", self.handle_request, list(methods))  # type: ignore[attr-defined]
 		app.add_websocket_route(f"{mount_path}{{path:path}}", self.handle_websocket_request)  # type: ignore[attr-defined]
 
-	def _get_path(self, path: str):
+	def _get_path(self, path: str) -> str | None:
 		_path = self.base_path + "/" + path[len(self.mount_path) :].lstrip("/")
 		full_url = urljoin(self.base_url, _path)
 		if not full_url.startswith(self.base_url):
@@ -64,7 +63,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 			return None
 		return _path
 
-	def _request_headers(self, request_headers: Headers, client_address: str):
+	def _request_headers(self, request_headers: Headers, client_address: str) -> Dict[str, str]:
 		_request_headers = dict(request_headers)
 
 		# TODO: https://tools.ietf.org/html/rfc7239
@@ -100,7 +99,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 
 		return _request_headers
 
-	async def handle_request(self, request: Request):  # pylint: disable=too-many-branches
+	async def handle_request(self, request: Request) -> Response:  # pylint: disable=too-many-branches
 		path = self._get_path(request.url.path)
 		if not path:
 			return Response(content="Not found", status_code=404)
@@ -140,7 +139,9 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 			background=BackgroundTask(client.close),
 		)
 
-	async def _websocket_reader(self, name: str, reader: Callable, writer: Callable, state: WebSocketState):  # pylint: disable=no-self-use
+	async def _websocket_reader(
+		self, name: str, reader: Callable, writer: Callable, state: WebSocketState
+	) -> None:  # pylint: disable=no-self-use
 		trace_log = proxy_logger.isEnabledFor(TRACE)
 		while state == WebSocketState.CONNECTED:
 			data = await reader()
@@ -148,10 +149,11 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 				proxy_logger.trace("%s: %s", name, data)  # pylint: disable=loop-global-usage
 			await writer(data)
 
-	async def handle_websocket_request(self, client_websocket: WebSocket):  # pylint: disable=too-many-branches
+	async def handle_websocket_request(self, client_websocket: WebSocket) -> None:  # pylint: disable=too-many-branches
 		path = self._get_path(client_websocket.url.path)
 		if not path:
-			return Response(content="Not found", status_code=status.HTTP_404_NOT_FOUND)
+			await client_websocket.close(status.WS_1008_POLICY_VIOLATION)
+			return
 
 		client = ClientSession(self.base_url, auto_decompress=False)
 		try:

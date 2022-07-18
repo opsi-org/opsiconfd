@@ -14,10 +14,10 @@ import time
 import uuid
 from collections import namedtuple
 from time import sleep as time_sleep
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import aioredis
-from fastapi import HTTPException, status
+from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import ValidationError
 from fastapi.requests import HTTPConnection
 from fastapi.responses import (
@@ -43,7 +43,7 @@ from OPSI.Util import (  # type: ignore[import]
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import Message, Receive, Scope, Send
 
 from . import contextvar_client_session, contextvar_server_timing
 from .addon import AddonManager
@@ -87,7 +87,7 @@ depot_addresses: Dict[str, float] = {}
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 
 
-def get_basic_auth(headers: Headers):
+def get_basic_auth(headers: Headers) -> BasicAuth:
 	auth_header = headers.get("authorization")
 
 	headers_401 = {}
@@ -122,7 +122,7 @@ def get_basic_auth(headers: Headers):
 	return BasicAuth(username, password)
 
 
-def get_session_from_context():
+def get_session_from_context() -> Union["OPSISession", None]:
 	try:
 		return contextvar_client_session.get()
 	except LookupError as exc:
@@ -177,7 +177,7 @@ async def get_session(client_addr: str, headers: Headers, session_id: Optional[s
 
 
 class SessionMiddleware:
-	def __init__(self, app: ASGIApp, public_path: List[str] = None) -> None:
+	def __init__(self, app: FastAPI, public_path: List[str] = None) -> None:
 		self.app = app
 		self._public_path = public_path or []
 
@@ -300,7 +300,7 @@ class SessionMiddleware:
 				)
 				logger.debug(cmd)
 				redis = await async_redis_client()
-				await redis.execute_command(cmd)
+				await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
 				await asyncio.sleep(0.2)
 
 			status_code = status.HTTP_401_UNAUTHORIZED
@@ -400,7 +400,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self._redis_expiration_seconds = 3600
 		self._store_interval = 30
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
 
 	@property
@@ -427,7 +427,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		max_age = 0 if self.deleted else self.max_age
 		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={max_age}"
 
-	def add_cookie_to_headers(self, headers: dict):
+	def add_cookie_to_headers(self, headers: Dict[str, str]) -> None:
 		cookie = self.get_cookie()
 		# Keep current set-cookie header if already set
 		if cookie and "set-cookie" not in headers:
@@ -476,7 +476,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(err)) from err
 
 		self.session_id = str(uuid.uuid4()).replace("-", "")
-		self.created = utc_time_timestamp()
+		self.created = int(utc_time_timestamp())
 		logger.confidential("Generated a new session id %s for %s / %s", self.session_id, self.client_addr, self.user_agent)
 
 	async def init_new_session(self) -> None:
@@ -506,7 +506,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def _store(self) -> None:
 		if self.deleted or not self.persistent:
 			return
-		self.last_stored = utc_time_timestamp()
+		self.last_stored = int(utc_time_timestamp())
 		self._update_max_age()
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
@@ -560,7 +560,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		return await run_in_threadpool(self.sync_delete)
 
 	async def update_last_used(self, store: Optional[bool] = None) -> None:
-		now = utc_time_timestamp()
+		now = int(utc_time_timestamp())
 		if store or (store is None and now - self.last_stored > self._store_interval):
 			await self.store()
 		self.last_used = now
@@ -610,7 +610,7 @@ async def authenticate(session: OPSISession, username: str, password: str) -> No
 	if username == config.monitoring_user:
 		auth_type = "opsi-passwd"
 
-	def sync_auth(username, password, auth_type):
+	def sync_auth(username: str, password: str, auth_type: str) -> None:
 		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)
@@ -640,7 +640,7 @@ async def check_blocked(ip_address: str) -> None:
 	)
 	logger.debug(cmd)
 	try:
-		num_failed_auth = await redis.execute_command(cmd)
+		num_failed_auth = await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
 		num_failed_auth = int(num_failed_auth[-1][1])
 		logger.debug("num_failed_auth: %s", num_failed_auth)
 	except aioredis.ResponseError as err:

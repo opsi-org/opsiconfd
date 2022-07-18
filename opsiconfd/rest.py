@@ -15,12 +15,13 @@ import traceback
 import warnings
 from functools import wraps
 from types import NoneType
-from typing import Callable, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from sqlalchemy import asc, column, desc  # type: ignore[import]
+from sqlalchemy.orm import Query as SQLQuery  # type: ignore[import]
 from starlette.datastructures import URL
 
 from . import contextvar_client_session
@@ -40,7 +41,13 @@ class RestApiValidationError(BaseModel):  # pylint: disable=too-few-public-metho
 
 
 class OpsiApiException(Exception):
-	def __init__(self, message="An unknown error occurred.", http_status=status.HTTP_500_INTERNAL_SERVER_ERROR, code=None, error=None):
+	def __init__(
+		self,
+		message: str = "An unknown error occurred.",
+		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+		code: int = None,
+		error: Exception | str | None = None
+	):
 		self.message = message
 		self.http_status = http_status
 		self.code = code
@@ -57,22 +64,22 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 
 	def __init__(
 		self,
-		data: Union[None, int, str, list, dict] = None,
-		total: Union[None, int] = None,
+		data: None | int | str | list | dict = None,
+		total: None | int = None,
 		http_status: int = status.HTTP_200_OK,
 		headers: dict = {}
 	):  # pylint: disable=dangerous-default-value
 		self.status = http_status
 		self.content = data
-		self.total = total
+		self.total = total or 0
 		self.headers = headers
 
 	@property
-	def content(self) -> Union[NoneType, int, str, list, dict]:
+	def content(self) -> None | int | str | list | dict:
 		return self._content
 
 	@content.setter
-	def content(self, data: Union[NoneType, int, str, list, dict]):
+	def content(self, data: None | int | str | list | dict) -> None:
 		self._content = data
 		self._content_type = type(data)
 
@@ -81,7 +88,7 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 		return self._status
 
 	@status.setter
-	def status(self, http_status: int):
+	def status(self, http_status: int) -> None:
 		if not isinstance(http_status, int):
 			raise TypeError("RESTResponse http status must be integer.")
 		self._status = http_status
@@ -91,7 +98,7 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 		return self._total
 
 	@total.setter
-	def total(self, total: int):
+	def total(self, total: int) -> None:
 		if not isinstance(total, (int, NoneType)):
 			raise TypeError("RESTResponse total must be integer.")
 		self._total = total
@@ -101,7 +108,7 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 		return self._headers
 
 	@headers.setter
-	def headers(self, headers: dict = {}):  # pylint: disable=dangerous-default-value
+	def headers(self, headers: dict = {}) -> None:  # pylint: disable=dangerous-default-value
 		if not isinstance(headers, dict):
 			headers = {}
 		self._headers = headers
@@ -148,11 +155,11 @@ class RESTErrorResponse(RESTResponse):
 				"details": details,
 			},
 			http_status=http_status,
-			headers=headers
+			headers=headers or {}
 		)
 
 
-def order_by(query, params):
+def order_by(query: SQLQuery, params: Dict[str, Any]) -> SQLQuery:
 	if not params.get("sortBy"):
 		return query
 	func = asc
@@ -166,7 +173,7 @@ def order_by(query, params):
 	return query.order_by(*sort_list)
 
 
-def pagination(query, params):
+def pagination(query: SQLQuery, params: Dict[str, Any]) -> SQLQuery:
 	if not params.get("perPage"):
 		return query
 	query = query.limit(params["perPage"])
@@ -176,26 +183,26 @@ def pagination(query, params):
 
 
 def common_parameters(
-	filterQuery: Optional[str] = Body(default=None, embed=True),
-	pageNumber: Optional[int] = Body(default=1, embed=True),
-	perPage: Optional[int] = Body(default=20, embed=True),
-	sortBy: Optional[List[str]] = Body(default=None, embed=True),
-	sortDesc: Optional[bool] = Body(default=True, embed=True),
-):  # pylint: disable=invalid-name
+	filterQuery: Optional[str] = Body(default=None, embed=True),  # pylint: disable=invalid-name
+	pageNumber: Optional[int] = Body(default=1, embed=True),  # pylint: disable=invalid-name
+	perPage: Optional[int] = Body(default=20, embed=True),  # pylint: disable=invalid-name
+	sortBy: Optional[List[str]] = Body(default=None, embed=True),  # pylint: disable=invalid-name
+	sortDesc: Optional[bool] = Body(default=True, embed=True),  # pylint: disable=invalid-name
+) -> Dict[str, Any]:
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": sortBy, "sortDesc": sortDesc}
 
 
 def common_query_parameters(
-	filterQuery: Optional[str] = Query(default=None, embed=True),
-	pageNumber: Optional[int] = Query(default=1, embed=True),
-	perPage: Optional[int] = Query(default=20, embed=True),
-	sortBy: Optional[List[str]] = Query(default=None, embed=True),
-	sortDesc: Optional[bool] = Query(default=True, embed=True),
-):  # pylint: disable=invalid-name
+	filterQuery: Optional[str] = Query(default=None, embed=True),  # pylint: disable=invalid-name
+	pageNumber: Optional[int] = Query(default=1, embed=True),  # pylint: disable=invalid-name
+	perPage: Optional[int] = Query(default=20, embed=True),  # pylint: disable=invalid-name
+	sortBy: Optional[List[str]] = Query(default=None, embed=True),  # pylint: disable=invalid-name
+	sortDesc: Optional[bool] = Query(default=True, embed=True),  # pylint: disable=invalid-name
+) -> Dict[str, Any]:
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 
 
-def create_link_header(total: int, commons: dict, url: URL) -> dict:
+def create_link_header(total: int, commons: Dict[str, Any], url: URL) -> dict:
 	# add link header next and last
 	headers = {}
 	if commons and url:
@@ -213,23 +220,23 @@ def create_link_header(total: int, commons: dict, url: URL) -> dict:
 	return headers
 
 
-def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # pylint: disable=too-many-statements
+def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Callable:  # pylint: disable=too-many-statements
 	_func = None
 	if callable(default_error_status_code):
 		# Decorator used as @rest_api not @rest_api(...)
 		_func = default_error_status_code
 		default_error_status_code = None
 
-	def decorator(func: Callable):  # pylint: disable=too-many-statements
+	def decorator(func: Callable) -> Callable:  # pylint: disable=too-many-statements
 		name = func.__qualname__
 
-		async def exec_func(func, *args, **kwargs):
+		async def exec_func(func: Callable, *args: Any, **kwargs: Any) -> Any:
 			if asyncio.iscoroutinefunction(func):
 				return await func(*args, **kwargs)
 			return func(*args, **kwargs)
 
 		@wraps(func)
-		async def create_response(*args, **kwargs):  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
+		async def create_response(*args: Any, **kwargs: Any) -> JSONResponse:  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
 			logger.debug("rest_api method name: %s", name)
 			content = None
 			http_status = status.HTTP_200_OK
@@ -238,7 +245,7 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 				headers = {}
 				if isinstance(result, RESTResponse):  # pylint: disable=no-else-return
 					if result.total and kwargs.get("request"):
-						headers = create_link_header(result.total, kwargs.get("commons"), kwargs.get("request").url)
+						headers = create_link_header(result.total, kwargs.get("commons", {}), kwargs["request"].url)
 						result.headers.update(headers)
 					return result.to_jsonresponse()
 				# Deprecated dict response.
@@ -247,7 +254,7 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None):  # p
 					if result.get("data"):
 						content = result.get("data")
 					if result.get("total") and kwargs.get("request"):
-						headers = create_link_header(int(result.get("total")), kwargs.get("commons"), kwargs.get("request").url)
+						headers = create_link_header(int(result.get("total", 0)), kwargs.get("commons", {}), kwargs["request"].url)
 						headers["Access-Control-Expose-Headers"] = "x-total-count"
 						headers["X-Total-Count"] = str(result.get("total"))
 				else:

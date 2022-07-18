@@ -13,20 +13,20 @@ import sys
 import typing
 from queue import Queue
 
-from starlette.types import Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
+from starlette.types import Receive, Scope, Send
 
 
 class InputBuffer:
 	"""Input buffer"""
 
-	def __init__(self):
-		self._queue = Queue(5)
-		self._buffer = None
+	def __init__(self) -> None:
+		self._queue: Queue[bytes] = Queue(5)
+		self._buffer = b""
 		self._read_pos = 0
 		self._end_of_data = False
 
-	def end_of_data(self):
+	def end_of_data(self) -> None:
 		self._end_of_data = True
 
 	def write(self, data: bytes) -> int:
@@ -54,7 +54,7 @@ class InputBuffer:
 	def readline(self) -> bytes:
 		return self.read(16 * 1024)
 
-	def close(self):
+	def close(self) -> None:
 		pass
 
 
@@ -147,7 +147,7 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 			if sender and not sender.done():
 				sender.cancel()  # pragma: no cover
 
-	async def receiver(self, receive: Receive, wsgi_input: InputBuffer):  # pylint: disable=no-self-use
+	async def receiver(self, receive: Receive, wsgi_input: InputBuffer) -> None:
 		more_body = True
 		while more_body:
 			message = await receive()

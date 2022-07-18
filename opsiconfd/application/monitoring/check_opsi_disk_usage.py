@@ -9,24 +9,28 @@
 check opsi disk usage
 """
 
-from OPSI.Types import forceList  # type: ignore[import]
+from typing import Dict, List
+
+from fastapi.responses import JSONResponse
+from OPSI.Backend import BackendManager  # type: ignore[import]
 from OPSI.System import getDiskSpaceUsage  # type: ignore[import]
+from OPSI.Types import forceList  # type: ignore[import]
 
 from .utils import State, generate_response
 
 
-def check_opsi_disk_usage(
-	backend, thresholds={}, opsiresource=None
-):  # pylint: disable=dangerous-default-value, too-many-branches, too-many-locals, too-many-statements
+def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
+	backend: BackendManager, thresholds: Dict[str, str] | None = None, opsiresource: List[str] | None = None
+) -> JSONResponse:
+	thresholds = thresholds or {}
+	opsiresource = opsiresource or []
 	warning = thresholds.get("warning", "5G")
 	critical = thresholds.get("critical", "1G")
 
 	try:
 		config_server = backend.host_getObjects(type="OpsiConfigserver")[0]
 	except IndexError:
-		state = State.UNKNOWN
-		message = "Could not get OpsiConfigserver object."
-		return generate_response(state, message)
+		return generate_response(State.UNKNOWN, "Could not get OpsiConfigserver object.")
 
 	workbench_path = config_server.workbenchLocalUrl
 	depot_path = config_server.depotLocalUrl
@@ -40,22 +44,24 @@ def check_opsi_disk_usage(
 		resources = ["workbench", "depot", "repository"]
 		resources.sort()
 
+	warning_flt = 0.0
+	critical_flt = 0.0
 	if warning.lower().endswith("g"):
 		unit = "GB"
-		warning = float(warning[:-1])
-		critical = float(critical[:-1])
+		warning_flt = float(warning[:-1])
+		critical_flt = float(critical[:-1])
 	elif warning.lower().endswith("%"):
 		unit = "%"
-		warning = float(warning[:-1])
-		critical = float(critical[:-1])
+		warning_flt = float(warning[:-1])
+		critical_flt = float(critical[:-1])
 	else:
 		unit = "%"
-		warning = float(warning)
-		critical = float(critical)
+		warning_flt = float(warning)
+		critical_flt = float(critical)
 
 	results = {}
 	state = State.OK
-	message = []
+	message: List[str] = []
 
 	try:
 		for resource in resources:
@@ -64,37 +70,47 @@ def check_opsi_disk_usage(
 				path = path.replace("file://", "")
 				results[resource] = getDiskSpaceUsage(path)
 	except Exception as err:  # pylint: disable=broad-except
-		message = f"Not able to check DiskUsage: {err}"
-		return generate_response(State.UNKNOWN, message)
+		return generate_response(State.UNKNOWN, f"Not able to check DiskUsage: {err}")
 
 	if results:
 		state = State.OK
 		for result, info in results.items():
 			available = float(info["available"]) / 1073741824  # Byte to GB
 			usage = info["usage"] * 100
-			if unit == "GB":
-				if available <= critical:
+			if unit == "GB":  # pylint: disable=loop-invariant-statement
+				if available <= critical_flt:
 					state = State.CRITICAL
-					message.append(f"DiskUsage from ressource: '{result}' is critical (available: {available:.2f}GB).")
-				elif available <= warning:
+					message.append(
+						f"DiskUsage from ressource: '{result}' is critical (available: {available:.2f}GB)."  # pylint: disable=loop-invariant-statement
+					)
+				elif available <= warning_flt:
 					if state != State.CRITICAL:
 						state = State.WARNING
-					message.append(f"DiskUsage warning from ressource: '{result}' (available: {available:.2f}GB).")
+					message.append(
+						f"DiskUsage warning from ressource: '{result}' (available: {available:.2f}GB)."  # pylint: disable=loop-invariant-statement
+					)
 				else:
-					message.append(f"DiskUsage from ressource '{result}' is ok. (available:  {available:.2f}GB).")
-			elif unit == "%":
+					message.append(
+						f"DiskUsage from ressource '{result}' is ok. (available:  {available:.2f}GB)."  # pylint: disable=loop-invariant-statement
+					)
+			elif unit == "%":  # pylint: disable=loop-invariant-statement
 				free_space = 100 - usage
 				if free_space <= critical:
 					state = State.CRITICAL
-					message.append(f"DiskUsage from ressource: '{result}' is critical (available: {free_space:.2f}%).")
+					message.append(
+						f"DiskUsage from ressource: '{result}' is critical (available: {free_space:.2f}%)."  # pylint: disable=loop-invariant-statement
+					)
 
 				elif free_space <= warning:
 					if state != State.CRITICAL:
 						state = State.WARNING
-					message.append(f"DiskUsage warning from ressource: '{result}' (available: {free_space:.2f}%).")
-
+					message.append(
+						f"DiskUsage warning from ressource: '{result}' (available: {free_space:.2f}%)."  # pylint: disable=loop-invariant-statement
+					)
 				else:
-					message.append(f"DiskUsage from ressource: '{result}' is ok. (available: {free_space:.2f}%).")
+					message.append(
+						f"DiskUsage from ressource: '{result}' is ok. (available: {free_space:.2f}%)."  # pylint: disable=loop-invariant-statement
+					)
 	else:
 		state = State.UNKNOWN
 		message.append("No results get. Nothing to check.")

@@ -35,14 +35,16 @@ class WorkerProcess:  # pylint: disable=too-few-public-methods
 		self.create_time = time.time()
 
 	@property
-	def pid(self):
+	def pid(self) -> int:
+		if not self.process.pid:
+			raise RuntimeError(f"Failed to get pid of {self.process}")
 		return self.process.pid
 
 
 class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branches
 	def __init__(self, server: UvicornServer):
 		self.server = server
-		self.socket = None
+		self.socket: socket.socket | None = None
 		self.node_name = config.node_name
 		self.workers: List[WorkerProcess] = []
 		self.worker_stop_timeout = config.worker_stop_timeout
@@ -57,10 +59,10 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.startup = True
 
 	@property
-	def uvicorn_config(self):
+	def uvicorn_config(self) -> Config:
 		return self.server.config
 
-	def bind_socket(self):
+	def bind_socket(self) -> None:
 		# This is only used for multi worker configs
 		ipv6 = ":" in self.uvicorn_config.host
 		self.socket = socket.socket(family=socket.AF_INET6 if ipv6 else socket.AF_INET)
@@ -72,7 +74,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			raise
 		self.socket.set_inheritable(True)
 
-	def run(self):
+	def run(self) -> None:
 		self.bind_socket()
 		self.adjust_worker_count()
 		while not self.should_stop:
@@ -99,15 +101,15 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 							mem = psutil.Process(worker.pid).memory_info().rss  # pylint: disable=dotted-import-in-loop
 							if mem >= self.worker_restart_mem:
 								if not hasattr(worker, "max_mem_exceeded_since"):
-									worker.max_mem_exceeded_since = now
-								if now - worker.max_mem_exceeded_since >= self.worker_restart_mem_interval:
+									setattr(worker, "max_mem_exceeded_since", now)
+								if now - getattr(worker, "max_mem_exceeded_since") >= self.worker_restart_mem_interval:
 									logger.notice(
 										"Worker %d (pid %d) is using more than %0.2f MB of memory (currently %0.2f MB) since %d seconds",
 										worker.worker_num,
 										worker.pid,
 										self.worker_restart_mem / 1000000,
 										mem / 1000000,
-										now - worker.max_mem_exceeded_since,
+										now - getattr(worker, "max_mem_exceeded_since"),
 									)
 									auto_restart.append(worker.worker_num)
 							elif hasattr(worker, "max_mem_exceeded_since"):
@@ -121,7 +123,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 							break
 
 						logger.warning("Worker %d (pid %d) vanished", worker.worker_num, worker.pid)
-						worker.marked_as_vanished = True
+						setattr(worker, "marked_as_vanished", True)
 						if self.restart_vanished_workers:
 							auto_restart.append(worker.worker_num)
 
@@ -142,13 +144,13 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		while self.workers:
 			time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
-	def reload(self):
+	def reload(self) -> None:
 		for worker in self.workers:
 			os.kill(worker.pid, signal.SIGHUP)  # pylint: disable=dotted-import-in-loop
 
 		self.adjust_worker_count()
 
-	def stop(self, force=False):
+	def stop(self, force: bool = False) -> None:
 		self.should_stop = True
 		logger.notice("Stopping all workers (force=%s)", force)
 		self.stop_worker([worker.pid for worker in self.workers], force=force)
@@ -160,7 +162,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				return worker
 		return None
 
-	def start_worker(self, worker_num: int):
+	def start_worker(self, worker_num: int) -> None:
 		# Put CA key into environment for worker processes
 
 		if config.ssl_ca_key in ssl.KEY_CACHE:
@@ -180,7 +182,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			os.unsetenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY")
 		os.unsetenv("OPSICONFD_WORKER_WORKER_NUM")
 
-	def stop_worker(self, pids: List[int], force: bool = False, wait: bool = True, remove_worker: bool = True):
+	def stop_worker(self, pids: List[int], force: bool = False, wait: bool = True, remove_worker: bool = True) -> None:
 		workers = []
 		for pid in pids:
 			worker = self.get_worker(pid)
@@ -221,7 +223,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				if worker in self.workers:
 					self.workers.remove(worker)
 
-	def restart_worker(self, worker_num: int):
+	def restart_worker(self, worker_num: int) -> None:
 		with self.worker_update_lock:
 			worker = self.workers[worker_num - 1]
 			logger.notice("Restarting worker %d (pid %d)", worker_num, worker.pid)
@@ -229,7 +231,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				self.stop_worker([worker.pid], remove_worker=False)
 			self.start_worker(worker_num=worker_num)
 
-	def adjust_worker_count(self):
+	def adjust_worker_count(self) -> None:
 		with self.worker_update_lock:
 			while len(self.workers) < self.uvicorn_config.workers:
 				self.start_worker(worker_num=len(self.workers) + 1)
@@ -237,7 +239,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				self.stop_worker([self.workers[-1].pid])
 
 	@retry_redis_call
-	def update_worker_registry(self):
+	def update_worker_registry(self) -> None:
 		redis = get_redis_connection(config.redis_internal_url)
 		with self.worker_update_lock:
 			for worker in self.workers:
@@ -249,8 +251,8 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				)
 				redis.expire(redis_key, 60)
 
-			for redis_key in redis.scan_iter(f"opsiconfd:worker_registry:{self.node_name}:*"):  # pylint: disable=loop-invariant-statement
-				redis_key = redis_key.decode("utf-8")
+			for redis_key_b in redis.scan_iter(f"opsiconfd:worker_registry:{self.node_name}:*"):  # pylint: disable=loop-invariant-statement
+				redis_key = redis_key_b.decode("utf-8")
 				try:  # pylint: disable=loop-try-except-usage
 					worker_num = int(redis_key.split(":")[-1])
 				except IndexError:
@@ -263,10 +265,10 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 class Server:
 	def __init__(self) -> None:
 		self.uvicorn_config = None
-		self.uvicorn_server = None
-		self.supervisor = None
+		self.uvicorn_server: UvicornServer | None = None
+		self.supervisor: Supervisor | None = None
 
-	def run(self):
+	def run(self) -> None:
 		self.check_modules()
 		self.create_uvicorn_config()
 
@@ -280,7 +282,7 @@ class Server:
 
 		logger.notice("Server exited")
 
-	def reload(self):
+	def reload(self) -> None:
 		self.check_modules()
 		self.create_uvicorn_config()
 		if self.uvicorn_server:
@@ -292,7 +294,7 @@ class Server:
 		if self.supervisor:
 			self.supervisor.reload()
 
-	def stop(self, force=False):
+	def stop(self, force: bool = False) -> None:
 		logger.notice("Stopping server")
 		if self.supervisor:
 			logger.info("Stopping supervisor")
@@ -303,11 +305,11 @@ class Server:
 			if force:
 				self.uvicorn_server.force_exit = True
 
-	def restart_workers(self):
+	def restart_workers(self) -> None:
 		if self.supervisor:
 			self.supervisor.should_restart_workers = True
 
-	def create_uvicorn_config(self):
+	def create_uvicorn_config(self) -> None:
 		options = {
 			"interface": "asgi3",
 			"http": "h11",  # "httptools"
@@ -328,7 +330,7 @@ class Server:
 
 		self.uvicorn_config = Config("opsiconfd.application:app", **options)
 
-	def check_modules(self):  # pylint: disable=no-self-use,too-many-statements,too-many-branches
+	def check_modules(self) -> None:  # pylint: disable=too-many-statements,too-many-branches
 		if config.workers == 1:
 			return
 

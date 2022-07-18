@@ -37,7 +37,7 @@ PLUGIN_ID = "grafana-simple-json-datasource"
 PLUGIN_MIN_VERSION = "1.4.2"
 
 
-def grafana_is_local():
+def grafana_is_local() -> bool:
 	url = urlparse(config.grafana_internal_url)
 	if url.hostname not in ("localhost", "127.0.0.1", "::1"):
 		return False
@@ -50,10 +50,10 @@ def grafana_is_local():
 
 
 class HTTPBearerAuth(AuthBase):  # pylint: disable=too-few-public-methods
-	def __init__(self, token):
+	def __init__(self, token: str) -> None:
 		self.token = token
 
-	def __call__(self, r):
+	def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
 		r.headers["authorization"] = f"Bearer {self.token}"
 		return r
 
@@ -110,7 +110,7 @@ async def async_grafana_admin_session() -> AsyncGenerator[Tuple[str, aiohttp.Cli
 		yield (base_url, session)
 
 
-def setup_grafana():
+def setup_grafana() -> None:  # pylint: disable=too-many-branches
 	logger.info("Setup grafana")
 
 	if not grafana_is_local():
@@ -123,13 +123,14 @@ def setup_grafana():
 		if os.path.exists(manifest):
 			with codecs.open(manifest, "r", "utf-8") as file:
 				match = re.search(r'"version"\s*:\s*"([^"]+)"', file.read())
-				plugin_version = match.group(1)
-				logger.debug("Grafana plugin %s version: %s", PLUGIN_ID, plugin_version)
-				if Version(plugin_version) < Version(PLUGIN_MIN_VERSION):
-					logger.notice("Grafana plugin %s version %s to old", PLUGIN_ID, plugin_version)
-					plugin_action = "upgrade"
-				else:
-					plugin_action = None
+				if match:
+					plugin_version = match.group(1)
+					logger.debug("Grafana plugin %s version: %s", PLUGIN_ID, plugin_version)
+					if Version(plugin_version) < Version(PLUGIN_MIN_VERSION):
+						logger.notice("Grafana plugin %s version %s to old", PLUGIN_ID, plugin_version)
+						plugin_action = "upgrade"
+					else:
+						plugin_action = ""
 	else:
 		logger.warning("Grafana plugin dir %r not found", PLUGIN_DIR)
 

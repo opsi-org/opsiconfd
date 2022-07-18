@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Union
 import lz4.frame  # type: ignore[import]
 import msgpack  # type: ignore[import]
 import orjson
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
 from OPSI.Util import deserialize, serialize  # type: ignore[import]
@@ -113,11 +113,11 @@ metrics_registry.register(
 )
 
 
-def jsonrpc_setup(app):
+def jsonrpc_setup(app: FastAPI) -> None:
 	app.include_router(jsonrpc_router, prefix="/rpc")
 
 
-async def get_sort_algorithm(algorithm: str = None):
+async def get_sort_algorithm(algorithm: str = None) -> str:
 	if algorithm in ("algorithm1", "algorithm2"):
 		return algorithm
 	algorithm = "algorithm1"
@@ -127,7 +127,7 @@ async def get_sort_algorithm(algorithm: str = None):
 	return algorithm
 
 
-async def store_product_ordering(result, depot_id, sort_algorithm=None):
+async def store_product_ordering(result: Dict[str, Any], depot_id: str, sort_algorithm: str | None = None) -> None:
 	try:
 		sort_algorithm = await get_sort_algorithm(sort_algorithm)
 		redis = await async_redis_client()
@@ -136,10 +136,10 @@ async def store_product_ordering(result, depot_id, sort_algorithm=None):
 			products_key = f"opsiconfd:jsonrpccache:{depot_id}:products"
 			pipe.unlink(products_key)
 			pipe.unlink(sort_algorithm_key)
-			for val in result.get("not_sorted"):
+			for val in result.get("not_sorted", []):
 				pipe.zadd(products_key, {val: 1})
 			pipe.expire(products_key, EXPIRE)
-			for idx, val in enumerate(result.get("sorted")):
+			for idx, val in enumerate(result.get("sorted", [])):
 				pipe.zadd(sort_algorithm_key, {val: idx})
 			pipe.expire(sort_algorithm_key, EXPIRE)
 			now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -155,7 +155,7 @@ async def store_product_ordering(result, depot_id, sort_algorithm=None):
 		)
 
 
-async def set_jsonrpc_cache_outdated(params):
+async def set_jsonrpc_cache_outdated(params: List[Any]) -> None:
 	redis = await async_redis_client()
 	saved_depots = decode_redis_result(await redis.smembers("opsiconfd:jsonrpccache:depots"))
 	str_params = str(params)
@@ -171,7 +171,7 @@ async def set_jsonrpc_cache_outdated(params):
 		await pipe.execute()
 
 
-async def remove_depot_from_jsonrpc_cache(depot_id):
+async def remove_depot_from_jsonrpc_cache(depot_id: str) -> None:
 	redis = await async_redis_client()
 	async with redis.pipeline() as pipe:
 		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products")
@@ -368,7 +368,7 @@ async def store_in_cache(rpc: Any, result: Dict[str, Any]) -> None:
 			await store_product_ordering(result["result"], *rpc["params"])
 
 
-async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client: str):
+async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client: str) -> None:
 	is_error = bool(result.get("error"))
 	worker = Worker()
 	metrics_collector = worker.metrics_collector
@@ -509,7 +509,7 @@ async def process_rpc_error(exception: Exception, request: Request, rpc: Any = N
 	return result
 
 
-async def process_rpc(rpc: Any, request: Request):
+async def process_rpc(rpc: Any, request: Request) -> Dict[str, Any]:
 	if "id" not in rpc:
 		rpc["id"] = 0
 	if "params" not in rpc:
@@ -580,7 +580,7 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 @jsonrpc_router.post("")
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
-async def process_request(request: Request, response: Response):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+async def process_request(request: Request, response: Response) -> Response:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	request_compression = None
 	request_serialization = None
 	response_compression = None

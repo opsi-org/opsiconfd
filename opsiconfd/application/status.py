@@ -10,20 +10,19 @@ status - available without authentication
 
 import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, FastAPI
 from fastapi.responses import PlainTextResponse
-
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 
 from .. import __version__
-from ..config import config, FQDN
-from ..utils import async_get_redis_info, async_redis_client
+from ..config import FQDN, config
 from ..ssl import get_ca_cert_info, get_server_cert_info
+from ..utils import async_get_redis_info, async_redis_client
 
 status_router = APIRouter()
 
 
-def status_setup(app):
+def status_setup(app: FastAPI) -> None:
 	app.include_router(status_router, prefix="/status")
 
 
@@ -40,7 +39,7 @@ async def status_overview() -> PlainTextResponse:
 		redis_info = await async_get_redis_info(redis)
 		redis_mem_total = redis_info["used_memory"]
 		for key_type in redis_info["key_info"]:
-			redis_mem += redis_info["key_info"][key_type]["memory"]
+			redis_mem += redis_info["key_info"][key_type]["memory"]  # pylint: disable=loop-invariant-statement
 		redis_status = "ok"
 	except Exception as err:  # pylint: disable=broad-except
 		redis_status = "error"

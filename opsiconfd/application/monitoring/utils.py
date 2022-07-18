@@ -9,11 +9,12 @@ monitoring
 """
 
 import re
+from typing import Any
 
+from aioredis import StrictRedis
 from fastapi.responses import JSONResponse
 
 from opsiconfd.utils import decode_redis_result
-
 
 ERRORCODE_PATTERN = re.compile(
 	r"\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)"
@@ -26,14 +27,14 @@ class State:  # pylint: disable=too-few-public-methods
 	CRITICAL = 2
 	UNKNOWN = 3
 
-	_stateText = ["OK", "WARNING", "CRITICAL", "UNKNOWN"]
+	_stateText = ("OK", "WARNING", "CRITICAL", "UNKNOWN")
 
 	@classmethod
-	def text(cls, state):
+	def text(cls, state: int) -> str:
 		return cls._stateText[state]
 
 
-def generate_response(state: int, message: str, perfdata=None) -> JSONResponse:
+def generate_response(state: int, message: str, perfdata: Any = None) -> JSONResponse:
 	if perfdata:
 		message = f"{State.text(state)}: {message} | {perfdata}"
 	else:
@@ -41,13 +42,13 @@ def generate_response(state: int, message: str, perfdata=None) -> JSONResponse:
 	return JSONResponse({"state": state, "message": message})
 
 
-def remove_percent(string):
+def remove_percent(string: str) -> str:
 	if string.endswith("%"):
 		return string[:-1]
 	return string
 
 
-async def get_workers(redis) -> list:
+async def get_workers(redis: StrictRedis) -> list:
 	worker_registry = redis.scan_iter("opsiconfd:worker_registry:*")
 	workers = []
 	async for key in worker_registry:
@@ -55,12 +56,14 @@ async def get_workers(redis) -> list:
 	return workers
 
 
-async def get_request_avg(redis):
+async def get_request_avg(redis: StrictRedis) -> float:
 	workers = await get_workers(redis)
 	requests = 0.0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis.execute_command(f"TS.GET opsiconfd:stats:worker:sum_http_request_number:{worker}:minute")
+			await redis.execute_command(  # type: ignore[no-untyped-call]
+				f"TS.GET opsiconfd:stats:worker:sum_http_request_number:{worker}:minute"
+			)
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
@@ -68,7 +71,7 @@ async def get_request_avg(redis):
 	return requests / len(workers) * 100
 
 
-async def get_session_count(redis):
+async def get_session_count(redis: StrictRedis) -> int:
 	count = 0
 	session_keys = redis.scan_iter("opsiconfd:sessions:*")
 	async for _session in session_keys:
@@ -76,22 +79,26 @@ async def get_session_count(redis):
 	return count
 
 
-async def get_thread_count(redis):
+async def get_thread_count(redis: StrictRedis) -> float:
 	workers = await get_workers(redis)
-	threads = 0
+	threads = 0.0
 	for worker in workers:
-		redis_result = decode_redis_result(await redis.execute_command(f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"))
+		redis_result = decode_redis_result(
+			await redis.execute_command(f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute")  # type: ignore[no-untyped-call]
+		)
 		if len(redis_result) == 0:
 			redis_result = 0
 		threads += float(redis_result[1])
 	return threads
 
 
-async def get_mem_allocated(redis):
+async def get_mem_allocated(redis: StrictRedis) -> float:
 	workers = await get_workers(redis)
-	mem_allocated = 0
+	mem_allocated = 0.0
 	for worker in workers:
-		redis_result = decode_redis_result(await redis.execute_command(f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute"))
+		redis_result = decode_redis_result(
+			await redis.execute_command(f"TS.GET opsiconfd:stats:worker:avg_thread_number:{worker}:minute")  # type: ignore[no-untyped-call]
+		)
 		if len(redis_result) == 0:
 			redis_result = 0
 		mem_allocated += float(redis_result[1])

@@ -12,10 +12,10 @@ import copy
 from datetime import datetime
 from operator import itemgetter
 from time import time
-from typing import List
+from typing import Any, Dict, List, Set
 
 import aioredis
-from fastapi import APIRouter
+from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
 from ..config import config
@@ -38,11 +38,11 @@ from ..utils import async_redis_client, ip_address_from_redis_key
 grafana_metrics_router = APIRouter()
 
 
-def metrics_setup(app):
+def metrics_setup(app: FastAPI) -> None:
 	app.include_router(grafana_metrics_router, prefix="/metrics/grafana")
 
 
-async def get_workers():
+async def get_workers() -> List[Dict[str, str | int]]:
 	redis = await async_redis_client()
 	workers = []
 	async for redis_key in redis.scan_iter("opsiconfd:worker_registry:*"):
@@ -52,11 +52,11 @@ async def get_workers():
 	return workers
 
 
-async def get_nodes():
-	return {worker["node_name"] for worker in await get_workers()}
+async def get_nodes() -> Set[str]:
+	return {str(worker["node_name"]) for worker in await get_workers()}
 
 
-async def get_clients(metric_id):
+async def get_clients(metric_id: str) -> List[Dict[str, str]]:
 	redis = await async_redis_client()
 	clients = []
 	async for redis_key in redis.scan_iter(f"opsiconfd:stats:{metric_id}:*"):
@@ -67,12 +67,12 @@ async def get_clients(metric_id):
 
 
 @grafana_metrics_router.get("/")
-async def grafana_index():
+async def grafana_index() -> None:
 	# should return 200 ok. Used for "Test connection" on the datasource config page.
 	return None
 
 
-async def grafana_dashboard_config():  # pylint: disable=too-many-locals
+async def grafana_dashboard_config() -> Dict[str, Any]:  # pylint: disable=too-many-locals
 	workers = await get_workers()
 	nodes = await get_nodes()
 	clients = await get_clients("client:sum_http_request_number")
@@ -113,7 +113,7 @@ async def grafana_dashboard_config():  # pylint: disable=too-many-locals
 	return dashboard
 
 
-async def create_grafana_datasource():
+async def create_grafana_datasource() -> None:
 	json = GRAFANA_DATASOURCE_TEMPLATE
 	json["url"] = f"{config.grafana_data_source_url}/metrics/grafana/"
 	async with async_grafana_admin_session() as (base_url, session):
@@ -133,7 +133,7 @@ async def create_grafana_datasource():
 
 @grafana_metrics_router.get("/search")
 @grafana_metrics_router.post("/search")
-async def grafana_search():
+async def grafana_search() -> List[str]:
 	workers = await get_workers()
 	nodes = await get_nodes()
 	clients = await get_clients("client:sum_http_request_number")
@@ -174,14 +174,14 @@ class GrafanaQuery(BaseModel):  # pylint: disable=too-few-public-methods
 	targets: List[GrafanaQueryTarget]
 
 
-def align_timestamp(timestamp):
+def align_timestamp(timestamp: int | float) -> int:
 	"""Align timestamp to 5 second intervals, needed for stacking in grafana"""
 	return 5000 * round(int(timestamp) / 5000)
 
 
 @grafana_metrics_router.get("/query")
 @grafana_metrics_router.post("/query")
-async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+async def grafana_query(query: GrafanaQuery) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	logger.trace("Grafana query: %s", query)
 	results = []
 	redis = await async_redis_client()
@@ -250,7 +250,7 @@ async def grafana_query(query: GrafanaQuery):  # pylint: disable=too-many-locals
 		# Aggregate results into time buckets, duration of each bucket in milliseconds is bucket_duration_ms
 		cmd = ("TS.RANGE", redis_key, from_ms, to_ms, "AGGREGATION", "avg", bucket_duration_ms)
 		try:  # pylint: disable=loop-try-except-usage
-			rows = await redis.execute_command(*cmd)
+			rows = await redis.execute_command(*cmd)  # type: ignore[no-untyped-call]
 		except aioredis.ResponseError as err:  # pylint: disable=dotted-import-in-loop
 			logger.warning("%s %s", cmd, err)
 			rows = []  # pylint: disable=use-tuple-over-list

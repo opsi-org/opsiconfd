@@ -21,17 +21,17 @@ from typing import Dict, List
 from urllib.parse import urlparse
 
 import msgpack  # type: ignore[import]
-from fastapi import APIRouter, Request, UploadFile, status
+from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
-from OPSI.System.Posix import isUCS
+from OPSI.System.Posix import isUCS  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 from .. import __version__, contextvar_client_session
 from ..addon import AddonManager
-from ..backend import get_backend, get_backend_interface
+from ..backend import BackendManager, get_backend, get_backend_interface
 from ..config import FQDN, VAR_ADDON_DIR, config
 from ..grafana import async_grafana_session, create_dashboard_user
 from ..logging import logger
@@ -53,14 +53,14 @@ admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
 
 
-def admin_interface_setup(app):
+def admin_interface_setup(app: FastAPI) -> None:
 	app.include_router(router=admin_interface_router, prefix="/admin")
 	app.include_router(router=memory_profiler_router, prefix="/admin/memory")
 	app.include_router(router=welcome_interface_router, prefix="/welcome")
 
 
 @welcome_interface_router.get("/")
-async def welcome_interface_index(request: Request):
+async def welcome_interface_index(request: Request) -> Response:
 	welcome_page = config.welcome_page
 
 	client_lang = "en"
@@ -77,13 +77,13 @@ async def welcome_interface_index(request: Request):
 
 
 @welcome_interface_router.post("/deactivate")
-async def welcome_interface_deactivate():
+async def welcome_interface_deactivate() -> None:
 	config.welcome_page = False
 	config.set_config_in_config_file("welcome-page", "false")
 
 
 @admin_interface_router.get("/")
-async def admin_interface_index(request: Request):
+async def admin_interface_index(request: Request) -> Response:
 	backend = get_backend()
 	username = ""
 	session = contextvar_client_session.get()
@@ -116,7 +116,10 @@ async def admin_interface_index(request: Request):
 @admin_interface_router.post("/reload")
 @rest_api
 async def reload() -> RESTResponse:
-	os.kill(get_manager_pid(), signal.SIGHUP)
+	manager_pid = get_manager_pid()
+	if not manager_pid:
+		raise RuntimeError("Manager pid not found")
+	os.kill(manager_pid, signal.SIGHUP)
 	return RESTResponse("reload sent")
 
 
@@ -173,8 +176,10 @@ async def unblock_client(request: Request) -> RESTResponse:
 @rest_api
 async def delete_client_sessions(request: Request) -> RESTResponse:
 	request_body = await request.json() or {}
-	client_addr = request_body.get("client_addr")
 	if not request_body:
+		raise ValueError("request_body missing")
+	client_addr = request_body.get("client_addr")
+	if not client_addr:
 		raise ValueError("client_addr missing")
 	redis = await async_redis_client()
 	sessions = []
@@ -200,7 +205,7 @@ async def get_addon_list() -> RESTResponse:
 	return RESTResponse(sorted(addon_list, key=itemgetter("id")))
 
 
-def _install_addon(data: bytes):
+def _install_addon(data: bytes) -> None:
 	addon_installed = None
 	join = os.path.join
 	exists = os.path.exists
@@ -306,7 +311,7 @@ async def get_session_list() -> RESTResponse:
 
 @admin_interface_router.get("/locked-products-list", response_model=List[str])
 @rest_api
-async def get_locked_products_list():
+async def get_locked_products_list() -> RESTResponse:
 	backend = get_backend()
 	products = await run_in_threadpool(backend.getProductLocks_hash)  # pylint: disable=no-member
 	return RESTResponse(products)
@@ -362,7 +367,7 @@ async def get_blocked_clients() -> RESTResponse:
 
 
 @admin_interface_router.get("/grafana")
-async def open_grafana(request: Request):
+async def open_grafana(request: Request) -> RedirectResponse:
 	url = urlparse(config.grafana_external_url)
 	local_addreses = (
 		"127.0.0.1",
@@ -520,11 +525,11 @@ async def license_upload(files: List[UploadFile]) -> RESTResponse:
 		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, message="Invalid license file.", details=err)
 
 
-def get_num_servers(backend):
+def get_num_servers(backend: BackendManager) -> int:
 	servers = len(backend.host_getIdents(type="OpsiDepotserver"))
 	return servers
 
 
-def get_num_clients(backend):
+def get_num_clients(backend: BackendManager) -> int:
 	clients = len(backend.host_getIdents(type="OpsiClient"))
 	return clients

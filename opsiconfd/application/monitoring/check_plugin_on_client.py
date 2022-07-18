@@ -10,15 +10,24 @@ check plugin on client
 """
 
 from fastapi.responses import JSONResponse
-
+from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 from OPSI.Types import forceList  # type: ignore[import]
 
 from opsiconfd.logging import logger
-from .utils import State, generate_response, ERRORCODE_PATTERN
+
+from .utils import ERRORCODE_PATTERN, State, generate_response
 
 
-def check_plugin_on_client(  # pylint: disable=line-too-long, too-many-arguments, too-many-branches, too-many-locals, too-many-statements
-	backend, host_id, command, timeout=30, wait_for_ending=True, capture_stderr=True, statebefore=None, output=None, encoding=None
+def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals, too-many-statements
+	backend: BackendManager,
+	host_id: str,
+	command: str,
+	timeout: int = 30,
+	wait_for_ending: bool = True,
+	capture_stderr: bool = True,
+	statebefore: bool = None,
+	output: str | None = None,
+	encoding: str | None = None,
 ) -> JSONResponse:
 
 	state = State.OK

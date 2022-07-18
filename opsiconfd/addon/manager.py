@@ -12,7 +12,7 @@ import importlib
 import os
 import sys
 from functools import lru_cache
-from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
+from importlib._bootstrap import BuiltinImporter, ModuleSpec  # type: ignore[import]
 from os import listdir
 from os.path import abspath, exists, isdir, join
 from typing import Dict, List, Optional
@@ -27,7 +27,7 @@ from .addon import Addon
 
 class AddonImporter(BuiltinImporter):
 	@classmethod
-	def find_spec(cls, fullname, path=None, target=None):
+	def find_spec(cls: type, fullname: str, path: str = None, target: str = None) -> ModuleSpec | None:
 		if not fullname.startswith("opsiconfd.addon"):
 			return None
 		addon_path = unquote(fullname.split("_", 1)[1])
@@ -41,7 +41,7 @@ sys.meta_path.append(AddonImporter)  # type: ignore[arg-type]
 
 
 class AddonManager(metaclass=Singleton):
-	def __init__(self):
+	def __init__(self) -> None:
 		self._addons: Dict[str, Addon] = {}
 
 	@classmethod
@@ -109,7 +109,7 @@ class AddonManager(metaclass=Singleton):
 		self.unload_addon(addon_id)
 		self.load_addon(path)
 
-	def reload_addons(self):
+	def reload_addons(self) -> None:
 		self.unload_addons()
 		self.load_addons()
 

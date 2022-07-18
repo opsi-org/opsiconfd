@@ -10,17 +10,25 @@ check depot sync status
 """
 
 from collections import defaultdict
-from typing import Dict
-from fastapi.responses import JSONResponse
+from typing import Dict, List
 
+from fastapi.responses import JSONResponse
+from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 from opsicommon.objects import ProductOnDepot  # type: ignore[import]
 
 from .utils import State, generate_response
 
 
-def check_depot_sync_status(  # pylint: disable=dangerous-default-value, too-many-arguments, too-many-locals, too-many-branches, too-many-statements
-	backend, depot_ids, product_ids=[], exclude=[], strict=False, verbose=False
+def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
+	backend: BackendManager,
+	depot_ids: List[str],
+	product_ids: List[str] | None,
+	exclude: List[str] | None,
+	strict: bool = False,
+	verbose: bool = False,
 ) -> JSONResponse:
+	product_ids = product_ids or []
+	exclude = exclude or []
 	if not depot_ids or "all" in depot_ids:
 		depots = backend.host_getObjects(type="OpsiDepotserver")
 		depot_ids = [depot.id for depot in depots]
@@ -28,14 +36,14 @@ def check_depot_sync_status(  # pylint: disable=dangerous-default-value, too-man
 	product_on_depots = backend._executeMethod(  # pylint: disable=protected-access
 		methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids
 	)
-	product_ids = set()
+	product_ids_set = set()
 	product_on_depot_info: Dict[str, Dict[str, ProductOnDepot]] = defaultdict(dict)
 	for pod in product_on_depots:
-		product_ids.add(pod.productId)
+		product_ids_set.add(pod.productId)
 		product_on_depot_info[pod.depotId][pod.productId] = pod
 
 	difference_products: Dict[str, Dict[str, str]] = defaultdict(dict)
-	for product_id in product_ids:
+	for product_id in product_ids_set:
 		if product_id in exclude:
 			continue
 		differs = False
@@ -44,9 +52,9 @@ def check_depot_sync_status(  # pylint: disable=dangerous-default-value, too-man
 		for depot_id in depot_ids:
 			product_on_depot = product_on_depot_info[depot_id].get(product_id)
 			if not product_on_depot:
-				if not strict:
+				if not strict:  # pylint: disable=loop-invariant-statement
 					continue
-				difference_products[product_id][depot_id] = "not installed"
+				difference_products[product_id][depot_id] = "not installed"  # pylint: disable=loop-invariant-statement
 				continue
 
 			if not product_version:
@@ -60,7 +68,7 @@ def check_depot_sync_status(  # pylint: disable=dangerous-default-value, too-man
 				differs = True
 
 			if differs:
-				difference_products[product_id][depot_id] = "different"
+				difference_products[product_id][depot_id] = "different"  # pylint: disable=loop-invariant-statement
 
 	state = State.OK
 	message = ""
@@ -75,7 +83,7 @@ def check_depot_sync_status(  # pylint: disable=dangerous-default-value, too-man
 				for depot_id in depot_ids:
 					depot_product_version = ""
 					depot_package_version = ""
-					try:
+					try:  # pylint: disable=loop-try-except-usage
 						if difference_products.get(product_id, {}).get(depot_id) == "not installed":
 							message += f"{depot_id} (not installed) \n"
 						else:

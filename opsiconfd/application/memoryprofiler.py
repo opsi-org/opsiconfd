@@ -12,24 +12,24 @@ import gc
 import io
 import os
 import sys
-import time
 import tempfile
+import time
 import tracemalloc
-from typing import Any, Optional, Dict
+from typing import Any, Dict, Optional
 
-import psutil
 import msgpack  # type: ignore[import]
-
-from fastapi import Request, APIRouter
-from fastapi.responses import JSONResponse
-
 import objgraph  # type: ignore[import]
-from pympler import tracker, classtracker  # type: ignore[import]
+import psutil
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 from guppy import hpy  # type: ignore[import]
+from pympler import classtracker, tracker  # type: ignore[import]
+from pympler.classtracker import Snapshot  # type: ignore[import]
+from pympler.classtracker_stats import ConsoleStats  # type: ignore[import]
 from starlette.responses import Response
 
-from ..logging import logger
 from ..config import config
+from ..logging import logger
 from ..utils import async_redis_client
 
 memory_profiler_router = APIRouter()
@@ -64,12 +64,12 @@ def memory_tracemalloc_snapshot_new(limit: int = 25) -> JSONResponse:
 		"prev": {"size": 0, "stats": []},
 	}
 	for num, stat in enumerate(current.statistics("filename"), 1):
-		data["start"]["size"] += stat.size
+		data["start"]["size"] += stat.size  # pylint: disable=loop-invariant-statement
 		if num <= limit:
 			data["start"]["stats"].append(str(stat))
 
-	for num, stat_diff in enumerate(current.compare_to(TRACEMALLOC_PREV_SNAPSHOT, "filename"), 1):
-		data["prev"]["size"] += stat_diff.size_diff
+	for num, stat_diff in enumerate(current.compare_to(TRACEMALLOC_PREV_SNAPSHOT, "filename"), 1):  # pylint: disable=loop-global-usage
+		data["prev"]["size"] += stat_diff.size_diff  # pylint: disable=loop-invariant-statement
 		if num <= limit:
 			data["prev"]["stats"].append(str(stat_diff))
 
@@ -98,20 +98,23 @@ def memory_objgraph_snapshot_new(max_obj_types: int = 25, max_obj: int = 50) -> 
 		obj_types = sorted(new_ids.items(), key=lambda item: len(item[1]), reverse=True)
 
 		for obj_type, ids in obj_types:
-			if len(data["new_ids"]) >= max_obj_types:
+			if len(data["new_ids"]) >= max_obj_types:  # pylint: disable=loop-invariant-statement
 				break
 			if len(ids) == 0:
 				continue
 			logger.debug("obj_type: %s", obj_type)
-			data["new_ids"][obj_type] = {"count": len(ids), "objects": {}}
+			data["new_ids"][obj_type] = {"count": len(ids), "objects": {}}  # pylint: disable=loop-invariant-statement
 			for num, addr in enumerate(ids):
 				if num >= max_obj:
 					break
-				obj = objgraph.at(addr)
+				obj = objgraph.at(addr)  # pylint: disable=dotted-import-in-loop
 				repr_obj = repr(obj)
 				if len(repr_obj) > 250:
 					repr_obj = repr_obj[:249] + "…"
-				data["new_ids"][obj_type]["objects"][addr] = {"size": sys.getsizeof(obj), "repr": repr_obj}
+				data["new_ids"][obj_type]["objects"][addr] = {  # pylint: disable=loop-invariant-statement
+					"size": sys.getsizeof(obj),  # pylint: disable=dotted-import-in-loop
+					"repr": repr_obj,
+				}
 
 	LAST_OBJGRAPH_SNAPSHOT = data
 
@@ -128,10 +131,10 @@ def memory_objgraph_snapshot_update() -> JSONResponse:
 
 	for obj_type in data["new_ids"]:
 		for addr in list(data["new_ids"][obj_type]["objects"]):
-			if objgraph.at(addr) is None:
+			if objgraph.at(addr) is None:  # pylint: disable=dotted-import-in-loop
 				logger.info("Removing id: %s", addr)
-				del data["new_ids"][obj_type]["objects"][addr]
-				data["new_ids"][obj_type]["count"] -= 1
+				del data["new_ids"][obj_type]["objects"][addr]  # pylint: disable=loop-invariant-statement
+				data["new_ids"][obj_type]["count"] -= 1  # pylint: disable=loop-invariant-statement
 
 	return JSONResponse({"status": 200, "error": None, "data": data})
 
@@ -256,7 +259,7 @@ async def classtracker_snapshot(request: Request) -> JSONResponse:
 	module_name = request_body.get("module")
 	description = request_body.get("description")
 
-	def get_class(modulename, classname):
+	def get_class(modulename: str, classname: str) -> type:
 		return getattr(sys.modules.get(modulename), classname)
 
 	global CLASS_TRACKER  # pylint: disable=global-statement
@@ -293,7 +296,7 @@ async def classtracker_summary() -> JSONResponse:
 
 	annotate_snapshots(CLASS_TRACKER.stats)
 
-	for snapshot in CLASS_TRACKER.snapshots:
+	for snapshot in CLASS_TRACKER.snapshots:  # pylint: disable=loop-global-usage
 		classes = []
 		for cls in snapshot.classes:
 			cls_values = snapshot.classes.get(cls)
@@ -342,17 +345,16 @@ async def guppy_snapshot() -> JSONResponse:
 		redis_result = await pipe.execute()
 	logger.debug("redis lpush memory summary: %s", redis_result)
 
-	heap_objects = []
-	for obj in heap_status.stat.get_rows():
-		heap_objects.append(
-			{
-				"index": obj.index,
-				"name": obj.name,
-				"count": obj.count,
-				"size": convert_bytes(obj.size),
-				"cumulsize": convert_bytes(obj.cumulsize),
-			}
-		)
+	heap_objects = [
+		{
+			"index": obj.index,
+			"name": obj.name,
+			"count": obj.count,
+			"size": convert_bytes(obj.size),
+			"cumulsize": convert_bytes(obj.cumulsize),
+		}
+		for obj in heap_status.stat.get_rows()
+	]
 
 	response = JSONResponse(
 		{
@@ -425,17 +427,16 @@ async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:  
 	logger.debug("Total Size : %s Bytes", heap_diff.size)
 	logger.debug("Number of Entries : %s", heap_diff.numrows)
 
-	heap_objects = []
-	for obj in heap_diff.get_rows():
-		heap_objects.append(
-			{
-				"index": obj.index,
-				"name": obj.name,
-				"count": obj.count,
-				"size": convert_bytes(obj.size),
-				"cumulsize": convert_bytes(obj.cumulsize),
-			}
-		)
+	heap_objects = [
+		{
+			"index": obj.index,
+			"name": obj.name,
+			"count": obj.count,
+			"size": convert_bytes(obj.size),
+			"cumulsize": convert_bytes(obj.cumulsize),
+		}
+		for obj in heap_diff.get_rows()
+	]
 
 	response = JSONResponse(
 		{
@@ -461,7 +462,7 @@ def print_class_summary(cls_summary: list) -> None:
 	logger.essential("-" * 79)
 
 
-def annotate_snapshots(stats):
+def annotate_snapshots(stats: ConsoleStats) -> None:
 	"""
 	Annotate all snapshots with class-based summaries.
 	"""
@@ -469,7 +470,7 @@ def annotate_snapshots(stats):
 		annotate_snapshot(stats, snapshot)
 
 
-def annotate_snapshot(stats, snapshot):
+def annotate_snapshot(stats: ConsoleStats, snapshot: Snapshot) -> None:
 	"""
 	Store additional statistical data in snapshot.
 	"""
@@ -484,15 +485,11 @@ def annotate_snapshot(stats, snapshot):
 			total += tobj.get_size_at_time(snapshot.timestamp)
 			if tobj.birth < snapshot.timestamp and (tobj.death is None or tobj.death > snapshot.timestamp):
 				active += 1
-		try:
-			avg = total / active
-		except ZeroDivisionError:
-			avg = 0
-
+		avg = 0 if active == 0 else total / active
 		snapshot.classes[classname] = dict(sum=total, avg=avg, active=active)
 
 
-def convert_bytes(bytes):  # pylint: disable=redefined-builtin
+def convert_bytes(bytes: float) -> str:  # pylint: disable=redefined-builtin
 	unit = "B"
 	for unit in ["B", "KB", "MB", "GB"]:
 		if abs(bytes) < 1024.0 or unit == "GB":

@@ -16,7 +16,7 @@ from ..rest import RestApiValidationError
 
 
 class OpsiconfdApp(FastAPI):
-	def __init__(self):
+	def __init__(self) -> None:
 		super().__init__(
 			title="opsiconfd",
 			description="",
@@ -30,7 +30,7 @@ app = OpsiconfdApp()
 
 
 @app.on_event("startup")
-async def startup_event():
+async def startup_event() -> None:
 	from .main import startup  # pylint: disable=import-outside-toplevel
 
 	await startup()

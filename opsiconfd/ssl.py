@@ -10,11 +10,12 @@ opsiconfd.ssl
 
 import codecs
 import datetime
-import ipaddress
 import os
 import socket
 import time
-from typing import Any, Dict, Tuple
+from ipaddress import ip_address
+from socket import gethostbyaddr
+from typing import Any, Dict, Set, Tuple
 
 from OpenSSL.crypto import FILETYPE_PEM, X509
 from OpenSSL.crypto import Error as CryptoError
@@ -52,38 +53,38 @@ from .logging import logger
 from .utils import get_ip_addresses
 
 
-def get_ips():
+def get_ips() -> Set[str]:
 	ips = {"127.0.0.1", "::1"}
 	for addr in get_ip_addresses():
 		if addr["family"] in ("ipv4", "ipv6") and addr["address"] not in ips:
 			if addr["address"].startswith("fe80"):
 				continue
-			try:
-				ips.add(ipaddress.ip_address(addr["address"]).compressed)
+			try:  # pylint: disable=loop-try-except-usage
+				ips.add(ip_address(addr["address"]).compressed)
 			except ValueError as err:
 				logger.warning(err)
 	return ips
 
 
-def get_server_cn():
+def get_server_cn() -> str:
 	return FQDN
 
 
-def get_hostnames():
+def get_hostnames() -> Set[str]:
 	names = {"localhost"}
 	names.add(get_server_cn())
 	for addr in get_ips():
-		try:
-			(hostname, aliases, _addr) = socket.gethostbyaddr(addr)
+		try:  # pylint: disable=loop-try-except-usage
+			(hostname, aliases, _addr) = gethostbyaddr(addr)
 			names.add(hostname)
 			for alias in aliases:
 				names.add(alias)
-		except socket.error as err:
+		except socket.error as err:  # pylint: disable=dotted-import-in-loop
 			logger.info("No hostname for %s: %s", addr, err)
 	return names
 
 
-def get_domain():
+def get_domain() -> str:
 	return ".".join(get_server_cn().split(".")[1:])
 
 
@@ -288,10 +289,10 @@ def setup_ca() -> bool:
 		raise ValueError("CA key and cert cannot be stored in the same file")
 
 	for name in ("opsi-ca-cert.srl", "opsi-ca.srl"):
-		ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), name)
-		if os.path.exists(ca_srl):
+		ca_srl = os.path.join(os.path.dirname(config.ssl_ca_key), name)  # pylint: disable=dotted-import-in-loop
+		if os.path.exists(ca_srl):  # pylint: disable=dotted-import-in-loop
 			# Remove obsolete file
-			os.remove(ca_srl)
+			os.remove(ca_srl)  # pylint: disable=dotted-import-in-loop
 
 	if server_role == "config":
 		return configserver_setup_ca()
@@ -319,7 +320,7 @@ def validate_cert(cert: X509, ca_cert: X509) -> None:
 			)
 
 
-def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
 	server_role = get_server_role()
 	if server_role not in ("config", "depot"):
@@ -358,33 +359,35 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 			logger.warning("Failed to load server cert (%s), creating new server cert", err)
 			create = True
 
-	if not create:
+	if not create and srv_key and srv_crt:
 		if dump_publickey(FILETYPE_PEM, srv_key) != dump_publickey(FILETYPE_PEM, srv_crt.get_pubkey()):
 			logger.warning("Server cert does not match server key, creating new server cert")
 			create = True
 
-	if not create:
+	if not create and srv_crt:
 		try:
 			validate_cert(srv_crt, load_ca_cert())
 		except X509StoreContextError as err:
 			logger.warning("Failed to verify server cert with opsi CA (%s), creating new server cert", err)
 			create = True
 
-	if not create:
-		enddate = datetime.datetime.strptime(srv_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
-		diff = (enddate - datetime.datetime.now()).days
+	if not create and srv_crt:
+		not_after = srv_crt.get_notAfter()
+		if not_after:
+			enddate = datetime.datetime.strptime(not_after.decode("utf-8"), "%Y%m%d%H%M%SZ")
+			diff = (enddate - datetime.datetime.now()).days
 
-		logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, diff)
-		if diff <= config.ssl_server_cert_renew_days:
-			logger.notice("Server cert '%s' will expire in %d days, recreating", srv_crt.get_subject().CN, diff)
-			create = True
+			logger.info("Server cert '%s' will expire in %d days", srv_crt.get_subject().CN, diff)
+			if diff <= config.ssl_server_cert_renew_days:
+				logger.notice("Server cert '%s' will expire in %d days, recreating", srv_crt.get_subject().CN, diff)
+				create = True
 
-	if not create:
+	if not create and srv_crt:
 		if server_cn != srv_crt.get_subject().CN:
 			logger.notice("Server CN has changed from '%s' to '%s', creating new server cert", srv_crt.get_subject().CN, server_cn)
 			create = True
 
-	if not create and server_role == "config":
+	if not create and server_role == "config" and srv_crt:
 		cert_hns = set()
 		cert_ips = set()
 		for idx in range(srv_crt.get_extension_count()):
@@ -396,8 +399,7 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 						cert_hns.add(alt_name.split(":", 1)[-1].strip())
 					elif alt_name.startswith(("IP:", "IP Address:")):
 						addr = alt_name.split(":", 1)[-1].strip()
-						addr = ipaddress.ip_address(addr)
-						cert_ips.add(addr.compressed)
+						cert_ips.add(ip_address(addr).compressed)
 				break
 		hns = get_hostnames()
 		if cert_hns != hns:
@@ -425,18 +427,21 @@ def setup_server_cert():  # pylint: disable=too-many-branches,too-many-statement
 						raise
 					logger.warning("Failed to fetch certificate from config server: %s, retrying in 5 seconds", err)
 					time.sleep(5)  # pylint: disable=dotted-import-in-loop
-			srv_crt = load_certificate(FILETYPE_PEM, pem)
-			srv_key = load_privatekey(FILETYPE_PEM, pem)
+			if pem:
+				srv_crt = load_certificate(FILETYPE_PEM, pem)
+				srv_key = load_privatekey(FILETYPE_PEM, pem)
 
-		store_local_server_key(srv_key)
-		store_local_server_cert(srv_crt)
+		if srv_key:
+			store_local_server_key(srv_key)
+		if srv_crt:
+			store_local_server_cert(srv_crt)
 		return True
 
 	logger.info("Server cert is up to date")
 	return False
 
 
-def setup_ssl():
+def setup_ssl() -> None:
 	logger.info("Setup ssl")
 	server_role = get_server_role()
 	setup_ca()

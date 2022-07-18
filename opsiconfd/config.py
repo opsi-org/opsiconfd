@@ -14,8 +14,15 @@ import os
 import re
 import socket
 import sys
-from argparse import OPTIONAL, SUPPRESS, ZERO_OR_MORE, ArgumentTypeError, HelpFormatter
-from typing import Union
+from argparse import (
+	OPTIONAL,
+	SUPPRESS,
+	ZERO_OR_MORE,
+	Action,
+	ArgumentTypeError,
+	HelpFormatter,
+)
+from typing import Any, Dict, Iterable, List, Union
 from urllib.parse import urlparse
 
 import certifi
@@ -57,21 +64,21 @@ if running_in_docker():
 		pass
 
 
-def network_address(value):
+def network_address(value: str) -> ipaddress._BaseNetwork:
 	try:
 		return ipaddress.ip_network(value).compressed
 	except ValueError as err:
 		raise ArgumentTypeError(f"Invalid network address '{value}: {err}") from err
 
 
-def ip_address(value):
+def ip_address(value: str) -> ipaddress._BaseAddress:
 	try:
 		return ipaddress.ip_address(value).compressed
 	except ValueError as err:
 		raise ArgumentTypeError(f"Invalid ip address: {value}: {err}") from err
 
 
-def str2bool(value):
+def str2bool(value: str) -> bool:
 	if isinstance(value, bool):
 		return value
 	return str(value).lower() in ("yes", "true", "y", "1")
@@ -89,7 +96,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		CW = "\033[1;39;49m"
 		CY = "\033[0;33;49m"
 
-	def _split_lines(self, text, width):
+	def _split_lines(self, text: str, width: int) -> List[str]:
 		# The textwrap module is used only for formatting help.
 		# Delay its import for speeding up the common usage of argparse.
 		text = text.replace("[env var: ", "\n[env var: ")
@@ -101,30 +108,30 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 			lines += wrap(line, width)
 		return lines
 
-	def format_help(self):
+	def format_help(self) -> str:
 		text = HelpFormatter.format_help(self)
 		text = re.sub(r"usage:\s+(\S+)\s+", rf"Usage: {self.CW}\g<1>{self.CN} ", text)
 		return text
 
-	def _format_actions_usage(self, actions, groups):
+	def _format_actions_usage(self, actions: Iterable[Action], groups: Iterable) -> str:
 		text = HelpFormatter._format_actions_usage(self, actions, groups)
 		text = re.sub(r"(--?\S+)", rf"{self.CW}\g<1>{self.CN}", text)
 		text = re.sub(r"([A-Z_]{2,})", rf"{self.CC}\g<1>{self.CN}", text)
 		return text
 
-	def _format_action_invocation(self, action):
+	def _format_action_invocation(self, action: Action) -> str:
 		text = HelpFormatter._format_action_invocation(self, action)
 		text = re.sub(r"(--?\S+)", rf"{self.CW}\g<1>{self.CN}", text)
 		text = re.sub(r"([A-Z_]{2,})", rf"{self.CC}\g<1>{self.CN}", text)
 		return text
 
-	def _format_args(self, action, default_metavar):
+	def _format_args(self, action: Action, default_metavar: str) -> str:
 		text = HelpFormatter._format_args(self, action, default_metavar)
 		return f"{self.CC}{text}{self.CN}"
 
-	def _get_help_string(self, action):
-		text = action.help
-		if "passphrase" not in action.dest and "%(default)" not in action.help:
+	def _get_help_string(self, action: Action) -> str:
+		text = action.help or ""
+		if "passphrase" not in action.dest and "%(default)" not in (action.help or ""):
 			if action.default is not SUPPRESS:
 				defaulting_nargs = (OPTIONAL, ZERO_OR_MORE)
 				if action.dest == "config_file":
@@ -135,27 +142,27 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 
 class Config(metaclass=Singleton):
-	def __init__(self):
+	def __init__(self) -> None:
 		self._pytest = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
-		self._args = []
+		self._args: List[str] = []
 		self._ex_help = False
-		self._parser = None
-		self._config = None
-		self.jinja_templates = None
+		self._parser: configargparse.ArgParser | None = None
+		self._config: Any = None
+		self.jinja_templates = Jinja2Templates(directory="")
 
 		self._set_args()
 
-	def __getattr__(self, name):
+	def __getattr__(self, name: str) -> Any:
 		if not name.startswith("_") and self._config:
 			return getattr(self._config, name)
 		raise AttributeError()
 
-	def __setattr__(self, name, value):
+	def __setattr__(self, name: str, value: Any) -> None:
 		if not name.startswith("_") and hasattr(self._config, name):
 			return setattr(self._config, name, value)
 		return super().__setattr__(name, value)
 
-	def _set_args(self, args=None):
+	def _set_args(self, args: List[str] | None = None) -> None:
 		self._args = sys.argv[1:] if args is None else args
 		self._ex_help = "--ex-help" in self._args
 		if self._ex_help and "--help" not in self._args:
@@ -171,7 +178,9 @@ class Config(metaclass=Singleton):
 	def _expert_help(self, help_text: str) -> str:
 		return help_text if self._ex_help else SUPPRESS
 
-	def _parse_args(self):
+	def _parse_args(self) -> None:  # pylint: disable=too-many-branches
+		if not self._parser:
+			raise RuntimeError("Parser not initialized")
 		if is_opsiconfd(psutil.Process(os.getpid())):
 			self._parser.exit_on_error = True
 			self._config = self._parser.parse_args(self._args)
@@ -210,13 +219,13 @@ class Config(metaclass=Singleton):
 		if not self._config.admin_interface_disabled_features:
 			self._config.admin_interface_disabled_features = []
 
-	def reload(self):
+	def reload(self) -> None:
 		self._parse_args()
 
-	def items(self):
+	def items(self) -> Dict[str, Any]:
 		return self._config.__dict__
 
-	def set_config_file(self, config_file):
+	def set_config_file(self, config_file: str) -> None:
 		for idx, arg in enumerate(self._args):
 			if arg in ("-c", "--config-file"):
 				if len(self._args) > idx + 1:
@@ -227,7 +236,9 @@ class Config(metaclass=Singleton):
 				return
 		self._args = ["--config-file", config_file] + self._args
 
-	def set_config_in_config_file(self, arg: str, value: Union[str, int, float]):
+	def set_config_in_config_file(self, arg: str, value: Union[str, int, float]) -> None:
+		if not self._parser:
+			raise RuntimeError("Parser not initialized")
 		config_files = self._parser._open_config_files(self._args)  # pylint: disable=protected-access
 		if not config_files:
 			raise RuntimeError("No config file defined")
@@ -255,7 +266,9 @@ class Config(metaclass=Singleton):
 		with open(config_file.name, "w", encoding="utf-8") as file:
 			file.write("\n".join(lines))
 
-	def _upgrade_config_files(self):
+	def _upgrade_config_files(self) -> None:
+		if not self._parser:
+			raise RuntimeError("Parser not initialized")
 		defaults = {action.dest: action.default for action in self._parser._actions}  # pylint: disable=protected-access
 		# Do not migrate ssl key/cert
 		mapping = {
@@ -305,7 +318,9 @@ class Config(metaclass=Singleton):
 						file.write(f"{mapping[opt]} = {val}\n")
 				file.write("\n")
 
-	def _update_config_files(self):
+	def _update_config_files(self) -> None:
+		if not self._parser:
+			raise RuntimeError("Parser not initialized")
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=")
 		for config_file in self._parser._open_config_files(self._args):  # pylint: disable=protected-access
 			data = config_file.read()
@@ -322,7 +337,7 @@ class Config(metaclass=Singleton):
 				with open(config_file.name, "w", encoding="utf-8") as file:
 					file.write(new_data)
 
-	def _init_parser(self):  # pylint: disable=too-many-statements
+	def _init_parser(self) -> None:  # pylint: disable=too-many-statements
 		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(prog, max_help_position=30, width=100))
 		self._parser.add(
 			"-c",

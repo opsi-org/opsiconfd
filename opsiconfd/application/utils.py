@@ -10,7 +10,7 @@ application utils
 
 from asyncio import Task, get_running_loop, sleep
 from inspect import Parameter
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import HTTPException, params
 from fastapi.dependencies.utils import (
@@ -37,22 +37,22 @@ from ..config import FQDN
 from ..logging import logger
 
 
-def get_configserver_id():
+def get_configserver_id() -> str:
 	return FQDN
 
 
-def get_username():
+def get_username() -> str:
 	client_session = contextvar_client_session.get()
 	if not client_session:
 		raise RuntimeError("Session invalid")
 	return client_session.user_store.username
 
 
-def parse_list(query_list):
-	def remove_prefix(value: str, prefix: str):
+def parse_list(query_list: List[str] | None) -> List[str] | None:
+	def remove_prefix(value: str, prefix: str) -> str:
 		return value[value.startswith(prefix) and len(prefix) :]
 
-	def remove_postfix(value: str, postfix: str):
+	def remove_postfix(value: str, postfix: str) -> str:
 		if value.endswith(postfix):
 			value = value[: -len(postfix)]
 		return value
@@ -80,7 +80,7 @@ def parse_list(query_list):
 
 
 # used in webgui backend
-def bool_product_property(value):
+def bool_product_property(value: str | None) -> bool:
 	if value:
 		if value.lower() == "[true]" or str(value) == "1" or value.lower() == "true":
 			return True
@@ -88,7 +88,7 @@ def bool_product_property(value):
 
 
 # used in webgui backend
-def unicode_product_property(value):
+def unicode_product_property(value: str | None) -> List[str]:
 	if value and isinstance(value, str):
 		if value.startswith('["'):
 			return loads(value)  # pylint: disable=no-member
@@ -99,7 +99,7 @@ def unicode_product_property(value):
 
 
 # used in webgui backend
-def merge_dicts(dict_a: dict, dict_b: dict, path=None) -> dict:
+def merge_dicts(dict_a: dict, dict_b: dict, path: List[str] | None = None) -> dict:
 	if not dict_a or not dict_b:
 		raise ValueError("Merge_dicts: At least one of the dicts (a and b) is not set.")
 	if path is None:
@@ -147,7 +147,7 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 				detail=f"Access to {self} denied for user {self.scope['session'].user_store.username!r}",
 			)
 
-	async def set_cookie_task(self, websocket: WebSocket, set_cookie_interval: int):
+	async def set_cookie_task(self, websocket: WebSocket, set_cookie_interval: int) -> None:
 		try:
 			session = self.scope["session"]
 			while True:
@@ -159,7 +159,7 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 		except (ConnectionClosedOK, WebSocketDisconnect) as err:
 			logger.debug("set_cookie_task: %s", err)
 
-	async def check_session_task(self, websocket: WebSocket):
+	async def check_session_task(self, websocket: WebSocket) -> None:
 		try:
 			session = self.scope["session"]
 			while True:

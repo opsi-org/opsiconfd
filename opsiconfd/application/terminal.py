@@ -36,7 +36,9 @@ from .utils import OpsiconfdWebSocketEndpoint
 PTY_READER_BLOCK_SIZE = 16 * 1024
 
 
-def start_pty(shell, rows=30, cols=120, cwd=None):
+def start_pty(shell: str, rows: int | None = 30, cols: int | None = 120, cwd: str | None = None) -> spawn:
+	rows = rows or 30
+	cols = cols or 120
 	sp_env = get_subprocess_environment()
 	sp_env.update({"TERM": "xterm-256color"})
 	return spawn(shell, dimensions=(rows, cols), env=sp_env, cwd=cwd)
@@ -53,7 +55,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		self._pty_reader_task: asyncio.Task
 		self._file_transfers: Dict[str, Dict[str, Any]] = {}
 
-	async def pty_reader(self, websocket: WebSocket):
+	async def pty_reader(self, websocket: WebSocket) -> None:
 		loop = get_running_loop()
 		pty_reader_block_size = PTY_READER_BLOCK_SIZE
 		try:
@@ -99,7 +101,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		websocket: WebSocket,
 		cols: Optional[int] = Query(default=120, embed=True),
 		rows: Optional[int] = Query(default=30, embed=True),
-	):
+	) -> None:
 
 		if "terminal" in config.admin_interface_disabled_features:
 			logger.warning("Access to terminal websocket denied, terminal disabled")
@@ -119,7 +121,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		if self._pty:
 			self._pty.close(True)
 
-	def _handle_file_transfer(self, payload: Dict[str, Any]):
+	def _handle_file_transfer(self, payload: Dict[str, Any]) -> Dict[str, Any]:
 		if not payload.get("file_id"):
 			return {"result": None, "error": "Payload incomplete"}
 
@@ -179,4 +181,4 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			del self._file_transfers[payload["file_id"]]
 			return result
 
-		return None
+		return {}

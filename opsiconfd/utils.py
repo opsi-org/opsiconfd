@@ -29,11 +29,12 @@ from fastapi import APIRouter, FastAPI
 from opsicommon.logging.logging import OPSILogger  # type: ignore[import]
 from starlette.routing import Route
 
+logger: OPSILogger | None = None  # pylint: disable=invalid-name
+config = None  # pylint: disable=invalid-name
 if TYPE_CHECKING:
 	from config import Config  # type: ignore[import]
+	config: "Config" | None = None  # type: ignore[no-redef]  # pylint: disable=invalid-name
 
-logger: OPSILogger | None = None  # pylint: disable=invalid-name
-config: "Config" | None = None  # pylint: disable=invalid-name
 redis_pool_lock = threading.Lock()
 aioredis_pool_lock = asyncio.Lock()
 redis_connection_pool = {}
@@ -52,7 +53,7 @@ def get_logger() -> OPSILogger:
 def get_config() -> "Config":
 	global config  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not config:
-		from .config import (  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .config import (  # type: ignore[misc]  # pylint: disable=import-outside-toplevel, redefined-outer-name
 			config,
 		)
 	return config

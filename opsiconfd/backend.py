@@ -55,17 +55,17 @@ def get_session() -> Union[OPSISession, None]:
 	return get_session_from_context()
 
 
-def get_user_store() -> UserStore:
+def get_user_store() -> UserStore | None:
 	session = get_session()
 	if not session:
-		raise RuntimeError("Session not found")
+		return None
 	return session.user_store
 
 
-def get_option_store() -> Dict[str, Any]:
+def get_option_store() -> Dict[str, Any] | None:
 	session = get_session()
 	if not session:
-		raise RuntimeError("Session not found")
+		return None
 	return session.option_store
 
 

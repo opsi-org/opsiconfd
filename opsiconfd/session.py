@@ -47,7 +47,6 @@ from starlette.types import Message, Receive, Scope, Send
 
 from . import contextvar_client_session, contextvar_server_timing
 from .addon import AddonManager
-from .backend import get_client_backend
 from .config import config
 from .logging import logger
 from .utils import (
@@ -584,6 +583,8 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 
 def update_host_object(host_id: str, ip_address: str) -> None:
+	from .backend import get_client_backend  # pylint: disable=import-outside-toplevel
+
 	hosts = get_client_backend().host_getObjects(["ipAddress", "lastSeen"], id=host_id)  # pylint: disable=no-member
 	if not hosts:
 		logger.error("Host %s not found in backend while trying to update ip address and lastseen", host_id)
@@ -601,6 +602,8 @@ def update_host_object(host_id: str, ip_address: str) -> None:
 
 
 async def authenticate(session: OPSISession, username: str, password: str) -> None:  # pylint: disable=unused-argument
+	from .backend import get_client_backend  # pylint: disable=import-outside-toplevel
+
 	logger.info("Start authentication of client %s", session.client_addr)
 
 	# Check if host address is blocked

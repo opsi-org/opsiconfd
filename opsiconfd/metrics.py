@@ -174,7 +174,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 	def stop(self) -> None:
 		self._should_stop = True
 
-	def _get_timestamp(self) -> int:  # pylint: disable=no-self-use
+	def _get_timestamp(self) -> int:
 		# return unix timestamp in millis
 		return int(time.time() * 1000)
 

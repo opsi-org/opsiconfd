@@ -12,11 +12,14 @@
 	},
 	"settings": {
 		"python.pythonPath": ".venv/bin/python",
+		"editor.formatOnType": true,
+		"editor.formatOnPaste": true,
 		"editor.formatOnSave": true,
 		"editor.codeActionsOnSave": {
 			"source.organizeImports": true
 		},
-		"editor.formatOnType": true,
+		"files.trimTrailingWhitespace": true,
+		"files.autoSave": "onFocusChange",
 		"python.formatting.provider": "black",
 		"python.formatting.blackPath": ".venv/bin/tan",
 		"python.terminal.activateEnvironment": false,

@@ -14,6 +14,8 @@ git:
       poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
       echo "Running flake8..."
       poetry run flake8 opsiconfd tests
+      echo "Running mypy..."
+      poetry run mypy opsiconfd
 
 pyinstaller-poetry:
   one_file: no

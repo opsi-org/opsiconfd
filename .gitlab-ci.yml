@@ -103,12 +103,13 @@ stages:
   fi
   poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport.xml --cov-append --cov opsiconfd --cov-report term --cov-report xml -v tests/test_config.py
 
-.pylint: &pylint |
+.run_linters: &run_linters |
   echo "---------------------------------------"
-  echo "Run pylint"
+  echo "Run linters"
   echo "---------------------------------------"
   poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
   poetry run flake8 opsiconfd tests
+  poetry run mypy opsiconfd
 
 test:perftest:
   services:
@@ -144,7 +145,7 @@ test:pylint-pytest:
   stage: test
   script:
     - *prepare_tests
-    - *pylint
+    - *run_linters
     - *pytest
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:

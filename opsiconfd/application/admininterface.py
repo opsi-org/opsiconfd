@@ -177,7 +177,7 @@ async def unblock_client(request: Request) -> RESTResponse:
 async def delete_client_sessions(request: Request) -> RESTResponse:
 	request_body = await request.json() or {}
 	if not request_body:
-		raise ValueError("request_body missing")
+		raise ValueError("client_addr missing")
 	client_addr = request_body.get("client_addr")
 	if not client_addr:
 		raise ValueError("client_addr missing")

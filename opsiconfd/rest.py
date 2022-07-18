@@ -71,7 +71,7 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 	):  # pylint: disable=dangerous-default-value
 		self.status = http_status
 		self.content = data
-		self.total = total or 0
+		self.total = total
 		self.headers = headers
 
 	@property
@@ -94,7 +94,7 @@ class RESTResponse:  # pylint: disable=too-few-public-methods, too-many-instance
 		self._status = http_status
 
 	@property
-	def total(self) -> int:
+	def total(self) -> int | None:
 		return self._total
 
 	@total.setter

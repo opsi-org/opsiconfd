@@ -11,7 +11,7 @@ import socket
 import threading
 from ipaddress import ip_address
 from time import sleep, time
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List
 from urllib.parse import urlparse
 
 from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
@@ -43,29 +43,32 @@ BackendManager.default_config = {
 	"keep_rotated_logs": config.keep_rotated_logs,
 }
 
-get_session_from_context: Callable = lambda: None  # pylint: disable=invalid-name
+get_session_from_context: Callable | None = None  # pylint: disable=invalid-name
 
 
-def get_session() -> Union[OPSISession, None]:
+def get_session() -> OPSISession | None:
 	global get_session_from_context  # pylint: disable=invalid-name, global-statement,global-variable-not-assigned
 	if not get_session_from_context:
 		from .session import (  # pylint: disable=import-outside-toplevel, redefined-outer-name
 			get_session_from_context,
 		)
+
+	if get_session_from_context is None:
+		return None
 	return get_session_from_context()
 
 
-def get_user_store() -> UserStore | None:
+def get_user_store() -> UserStore:
 	session = get_session()
 	if not session:
-		return None
+		return UserStore()
 	return session.user_store
 
 
-def get_option_store() -> Dict[str, Any] | None:
+def get_option_store() -> Dict[str, Any]:
 	session = get_session()
 	if not session:
-		return None
+		return {}
 	return session.option_store
 
 

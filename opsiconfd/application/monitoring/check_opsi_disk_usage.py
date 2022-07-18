@@ -95,13 +95,13 @@ def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals
 					)
 			elif unit == "%":  # pylint: disable=loop-invariant-statement
 				free_space = 100 - usage
-				if free_space <= critical:
+				if free_space <= critical_flt:
 					state = State.CRITICAL
 					message.append(
 						f"DiskUsage from ressource: '{result}' is critical (available: {free_space:.2f}%)."  # pylint: disable=loop-invariant-statement
 					)
 
-				elif free_space <= warning:
+				elif free_space <= warning_flt:
 					if state != State.CRITICAL:
 						state = State.WARNING
 					message.append(

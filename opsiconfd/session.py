@@ -130,7 +130,6 @@ def get_session_from_context() -> Union["OPSISession", None]:
 
 
 async def get_session(client_addr: str, headers: Headers, session_id: Optional[str] = None) -> "OPSISession":
-
 	max_session_per_ip = config.max_session_per_ip
 	if config.max_sessions_excludes and client_addr in config.max_sessions_excludes:
 		logger.debug("Disable max_session_per_ip for address: %s", client_addr)
@@ -167,10 +166,6 @@ async def get_session(client_addr: str, headers: Headers, session_id: Optional[s
 	if session.user_agent and session.user_agent.startswith(SESSION_UNAWARE_USER_AGENTS):
 		session.persistent = False
 		logger.debug("Not keeping session for client %s (%s)", client_addr, session.user_agent)
-
-	if session.user_store.host and session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
-		logger.debug("Storing depot server address: %s", client_addr)
-		depot_addresses[client_addr] = time.time()
 
 	return session
 
@@ -683,6 +678,10 @@ async def check_access(connection: HTTPConnection) -> None:
 
 		if not session.user_store.username or not session.user_store.authenticated:
 			raise BackendPermissionDeniedError("Not authenticated")
+
+		if session.user_store.host and session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+			logger.debug("Storing depot server address: %s", client_addr)
+			depot_addresses[client_addr] = time.time()
 
 		if not session.user_store.host and scope["path"].startswith("/depot") and FILE_ADMIN_GROUP not in session.user_store.userGroups:
 			raise BackendPermissionDeniedError(f"Not a file admin user '{session.user_store.username}'")

@@ -9,8 +9,10 @@ login tests
 """
 
 import time
+from typing import Tuple
 
 import pytest
+from MySQLdb.connections import Connection  # type: ignore[import]
 
 from opsiconfd.utils import ip_address_to_redis_key
 
@@ -18,9 +20,11 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OPSI_SESSION_KEY,
+	OpsiconfdTestClient,
 	clean_redis,
 	config,
 	database_connection,
+	depot_jsonrpc,
 	get_config,
 	sync_redis_client,
 	test_client,
@@ -37,14 +41,19 @@ login_test_data = (
 
 
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
-def test_login_error(test_client, auth_data, expected_status_code, expected_text):  # pylint: disable=redefined-outer-name,unused-argument
+def test_login_error(
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+	auth_data: Tuple[str, str],
+	expected_status_code: int,
+	expected_text: str,
+) -> None:
 	res = test_client.get("/session/authenticated", auth=(auth_data))
 	assert res.status_code == expected_status_code
 	assert res.text == expected_text
 	assert res.headers.get("set-cookie", None) is not None
 
 
-def test_x_requested_with_header(test_client):  # pylint: disable=redefined-outer-name
+def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	res = test_client.get("/session/authenticated")
 	assert res.status_code == 401
 	assert res.headers.get("www-authenticate", None) is not None
@@ -54,13 +63,13 @@ def test_x_requested_with_header(test_client):  # pylint: disable=redefined-oute
 	assert res.headers.get("www-authenticate", None) is None
 
 
-def test_basic_auth(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert res.url.rstrip("/") in [f"{test_client.base_url}/admin", f"{test_client.base_url}/welcome"]
 
 
-def test_login_endpoint(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	res = test_client.post("/session/login", json={"username": ADMIN_USER, "password": "invalid"})
 	assert res.status_code == 401
 	assert "Authentication failed for user" in res.json()["message"]
@@ -79,7 +88,7 @@ def test_login_endpoint(test_client):  # pylint: disable=redefined-outer-name,un
 	assert res.status_code == 200
 
 
-def test_logout_endpoint(test_client):  # pylint: disable=redefined-outer-name
+def test_logout_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with sync_redis_client() as redis:
 		client_addr = "192.168.1.1"
 		test_client.set_client_address(client_addr, 12345)
@@ -99,7 +108,7 @@ def test_logout_endpoint(test_client):  # pylint: disable=redefined-outer-name
 		assert len(keys) == 0
 
 
-def test_change_session_ip(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_change_session_ip(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 		client_addr = "192.168.1.1"
 		test_client.set_client_address(client_addr, 12345)
@@ -123,7 +132,7 @@ def test_change_session_ip(test_client):  # pylint: disable=redefined-outer-name
 		assert keys[1].startswith(f"opsiconfd:sessions:{ip_address_to_redis_key(client_addr)}:")
 
 
-def test_networks(test_client):  # pylint: disable=redefined-outer-name
+def test_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
@@ -134,7 +143,7 @@ def test_networks(test_client):  # pylint: disable=redefined-outer-name
 		assert res.status_code == 403
 
 
-def test_admin_networks(test_client):  # pylint: disable=redefined-outer-name
+def test_admin_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.set_client_address("1.2.3.4", 12345)
 	with get_config({"networks": ["0.0.0.0/0"], "admin_networks": ["0.0.0.0/0"]}):
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
@@ -145,17 +154,17 @@ def test_admin_networks(test_client):  # pylint: disable=redefined-outer-name
 		assert res.status_code == 403
 
 
-def test_public_access_get(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_public_access_get(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	res = test_client.get("/public")
 	assert res.status_code == 200
 
 
-def test_public_access_put(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_public_access_put(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	res = test_client.put("/public/test.bin", data=b"test")
 	assert res.status_code == 405
 
 
-def test_max_sessions(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_max_sessions_limit(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	test_client.set_client_address("192.168.1.1", 12345)
 	max_session_per_ip = 10
 	over_limit = 3
@@ -182,7 +191,30 @@ def test_max_sessions(test_client):  # pylint: disable=redefined-outer-name,unus
 		assert res.status_code == 200
 
 
-def test_max_auth_failures(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_max_sessions_not_for_depot(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	test_client.set_client_address("192.168.11.1", 12345)
+	max_session_per_ip = 3
+	over_limit = 30
+	redis_key = f"{OPSI_SESSION_KEY}:*"
+	depot_id = "test-depot-max-sessions.uib.local"
+	depot_key = "29124776768a560d5e45d3c50889ec51"
+	with depot_jsonrpc(test_client, "", depot_id, depot_key):
+		test_client.reset_cookies()
+		with (get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis):
+			for _ in range(1, max_session_per_ip + 1 + over_limit):
+				res = test_client.get("/depot", auth=(depot_id, depot_key))
+				assert res.status_code == 200
+				test_client.reset_cookies()
+
+		session_keys = list(redis.scan_iter(redis_key))
+		assert len(session_keys) >= max_session_per_ip + over_limit
+
+		# Delete sessions
+		for key in session_keys:
+			redis.delete(key)
+
+
+def test_max_auth_failures(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	over_limit = 3
 	max_auth_failures = 10
 	with (get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis):
@@ -209,7 +241,7 @@ def test_max_auth_failures(test_client):  # pylint: disable=redefined-outer-name
 			time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
 
 
-def test_session_expire(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	lifetime = 5  # 5 seconds
 	lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
 
@@ -218,7 +250,7 @@ def test_session_expire(test_client):  # pylint: disable=redefined-outer-name,un
 	cookie = list(test_client.cookies)[0]
 	session_id = cookie.value
 	assert res.status_code == 200
-	remain = cookie.expires - time.time()
+	remain = cookie.expires - time.time()  # type: ignore[operator]
 	assert remain <= lifetime
 	assert remain >= lifetime - 2
 
@@ -231,7 +263,7 @@ def test_session_expire(test_client):  # pylint: disable=redefined-outer-name,un
 	assert res.status_code == 200
 	assert session_id != cookie.value
 
-	remain = cookie.expires - time.time()
+	remain = cookie.expires - time.time()  # type: ignore[operator]
 	assert remain <= lifetime
 	assert remain >= lifetime - 2
 
@@ -251,7 +283,9 @@ def test_session_expire(test_client):  # pylint: disable=redefined-outer-name,un
 	assert res.status_code == 401
 
 
-def test_onetime_password_host_id(test_client, database_connection):  # pylint: disable=redefined-outer-name,unused-argument
+def test_onetime_password_host_id(
+	test_client: OpsiconfdTestClient, database_connection: Connection  # pylint: disable=redefined-outer-name
+) -> None:
 	database_connection.query(
 		"""
 		INSERT INTO HOST
@@ -275,7 +309,9 @@ def test_onetime_password_host_id(test_client, database_connection):  # pylint: 
 		database_connection.commit()
 
 
-def test_onetime_password_hardware_address(test_client, database_connection):  # pylint: disable=redefined-outer-name,unused-argument
+def test_onetime_password_hardware_address(
+	test_client: OpsiconfdTestClient, database_connection: Connection  # pylint: disable=redefined-outer-name
+) -> None:
 	database_connection.query(
 		"""
 		INSERT INTO HOST

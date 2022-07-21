@@ -485,8 +485,11 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			return False
 		data = msgpack_loads(data)
 		self.created = data.get("created", self.created)
-		self.last_used = data.get("last_used", self.last_used)
 		self.max_age = data.get("max_age", self.max_age)
+		self.last_used = data.get("last_used", self.last_used)
+		if self.expired:
+			# Expired, do not set other attributes
+			return True
 		self.client_max_age = data.get("client_max_age", self.client_max_age)
 		for key, val in data.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))

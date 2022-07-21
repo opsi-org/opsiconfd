@@ -103,11 +103,11 @@ def get_ssl_ca_cert(request: Request) -> Response:  # pylint: disable=unused-arg
 
 @app.websocket_route("/ws/echo")
 class EchoWebsocket(OpsiconfdWebSocketEndpoint):
-	encoding = "text"
+	encoding = "bytes"
 	admin_only = True
 
 	async def on_receive(self, websocket: WebSocket, data: Any) -> None:
-		await websocket.send_text(data)
+		await websocket.send_bytes(data)
 
 
 @app.websocket_route("/ws/log_viewer")

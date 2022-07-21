@@ -20,6 +20,7 @@ from starlette.websockets import WebSocketDisconnect
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	OpsiconfdTestClient,
 	WebSocketMessageReader,
 	clean_redis,
 	get_config,
@@ -27,7 +28,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_connect(test_client):  # pylint: disable=redefined-outer-name
+def test_connect(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with pytest.raises(WebSocketDisconnect) as excinfo:
 		with test_client.websocket_connect("/admin/terminal/ws"):
 			pass
@@ -38,7 +39,7 @@ def test_connect(test_client):  # pylint: disable=redefined-outer-name
 		pass
 
 
-def test_shell_config(test_client):  # pylint: disable=redefined-outer-name
+def test_shell_config(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	with get_config({"admin_interface_terminal_shell": "/bin/echo testshell"}):
@@ -49,7 +50,7 @@ def test_shell_config(test_client):  # pylint: disable=redefined-outer-name
 				assert "testshell" in payload
 
 
-def test_command(test_client):  # pylint: disable=redefined-outer-name
+def test_command(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	with get_config({"admin_interface_terminal_shell": "/bin/bash"}):
@@ -61,7 +62,7 @@ def test_command(test_client):  # pylint: disable=redefined-outer-name
 				assert "test" in payload
 
 
-def test_params(test_client):  # pylint: disable=redefined-outer-name
+def test_params(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	cols = 30
 	rows = 10
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
@@ -74,7 +75,7 @@ def test_params(test_client):  # pylint: disable=redefined-outer-name
 				assert f":{cols}:{rows}:" in payload
 
 
-def test_file_upload_to_tmp(test_client):  # pylint: disable=redefined-outer-name
+def test_file_upload_to_tmp(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	filename = f"{uuid.uuid4()}.txt"
 	content = b"file-content"
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
@@ -100,7 +101,7 @@ def test_file_upload_to_tmp(test_client):  # pylint: disable=redefined-outer-nam
 
 			msg = list(reader.get_messages())[-1]
 			assert msg["type"] == "file-transfer-result"
-			assert msg["payload"]["file_id"] == ft_msg["payload"]["file_id"]
+			assert msg["payload"]["file_id"] == ft_msg["payload"]["file_id"]  # type: ignore[index]
 			assert msg["payload"]["error"] is None
 			assert msg["payload"]["result"]["path"] == filename
 			filename = os.path.join("/tmp", filename)

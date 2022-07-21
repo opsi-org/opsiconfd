@@ -368,6 +368,7 @@ class SessionMiddleware:
 
 class OPSISession:  # pylint: disable=too-many-instance-attributes
 	redis_key_prefix = "opsiconfd:sessions"
+	_store_interval = 30
 
 	def __init__(  # pylint: disable=too-many-arguments
 		self,
@@ -392,7 +393,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.option_store: Dict[str, Any] = {}
 		self._data: Dict[str, Any] = {}
 		self._redis_expiration_seconds = 3600
-		self._store_interval = 30
 
 	def __repr__(self) -> str:
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
@@ -446,6 +446,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 	def _init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
+		self.user_store = UserStore()
 		session_count = 0
 		try:
 			with redis_client() as redis:
@@ -486,6 +487,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.created = data.get("created", self.created)
 		self.last_used = data.get("last_used", self.last_used)
 		self.max_age = data.get("max_age", self.max_age)
+		self.client_max_age = data.get("client_max_age", self.client_max_age)
 		for key, val in data.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))
 		self.option_store = data.get("option_store", self.option_store)
@@ -516,6 +518,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 					"last_used": self.last_used,
 					"last_stored": self.last_stored,
 					"max_age": self.max_age,
+					"client_max_age": self.client_max_age,
 					"user_agent": self.user_agent,
 					"user_store": serialize(self.user_store.__dict__),
 					"option_store": self.option_store,
@@ -554,10 +557,9 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		return await run_in_threadpool(self.sync_delete)
 
 	async def update_last_used(self, store: Optional[bool] = None) -> None:
-		now = int(utc_time_timestamp())
-		if store or (store is None and now - self.last_stored > self._store_interval):
+		self.last_used = int(utc_time_timestamp())
+		if store or (store is None and self.last_used - self.last_stored > self._store_interval):
 			await self.store()
-		self.last_used = now
 
 	def _update_max_age(self) -> None:
 		if not self.user_store or not self.user_store.authenticated or not self.client_max_age:

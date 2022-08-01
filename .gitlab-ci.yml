@@ -164,7 +164,7 @@ build:linux-pyinstaller:
     - *install_tools
     - poetry lock --no-update
     - poetry install
-    - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
+    - poetry run ./opsi-dev-tool -l debug --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-amd64
     # Check if binary is working
@@ -184,7 +184,7 @@ build:arm64-pyinstaller:
     - source $HOME/.cargo/env
     - poetry lock --no-update
     - poetry install
-    - poetry run opsi-dev-tool -l debug --pyinstaller-poetry-build
+    - poetry run ./opsi-dev-tool -l debug --pyinstaller-poetry-build
     - mv opsiconfd opsiconfd.src
     - mv dist/opsiconfd ./opsiconfd-arm64
     # Check if binary is working

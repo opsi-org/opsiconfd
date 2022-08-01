@@ -16,8 +16,7 @@ name = "uibpypi"
 url = "https://pypi.uib.gmbh/simple"
 
 [tool.poetry.dependencies]
-# We need python 3.7 for contextvars in combination with asyncio
-python = ">=3.8,<3.11"
+python = ">=3.10,<3.11"
 # Get the latest python-opsi from branch 4.2
 #python-opsi = { git = "git@gitlab.uib.local:uib/python-opsi.git", branch = "v4.2" }
 #python-opsi = {path = "python-opsi", develop = true}
@@ -53,7 +52,6 @@ flake8 = "^4.0"
 hypothesis = "^6.32"
 idna = "^3.3"
 mock = "^4.0"
-opsi-dev-tools = "^1.1.8"
 pyinstaller = "^5.2"
 pylint = "^2.12"
 pytest = "^7.1"

@@ -35,7 +35,6 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._server: Server | None = None
 		self._should_stop = False
 		self._server_cert_check_time = time.time()
-		self._server_cert_check_interval = config.ssl_server_cert_check_interval
 		self._redis_check_time = time.time()
 		self._redis_check_interval = 300
 
@@ -134,7 +133,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		while not self._should_stop:
 			try:  # pylint: disable=loop-try-except-usage
 				now = time.time()  # pylint: disable=dotted-import-in-loop
-				if now - self._server_cert_check_time > self._server_cert_check_interval:
+				if now - self._server_cert_check_time > config.ssl_server_cert_check_interval:
 					await self.check_server_cert()
 				if now - self._redis_check_time > self._redis_check_interval:
 					await self.check_redis()

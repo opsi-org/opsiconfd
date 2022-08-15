@@ -412,7 +412,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 				create = True
 
 	if create:
-		logger.notice("Creating new server cert")
+		logger.info("Creating new server cert")
 		(srv_crt, srv_key, pem) = (None, None, None)
 		if server_role == "config":
 			# It is safer to create a new server cert with a new key pair
@@ -433,10 +433,10 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 				srv_key = load_privatekey(FILETYPE_PEM, pem)
 
 		if srv_key:
-			logger.info("Storing new server key %r", srv_key)
 			store_local_server_key(srv_key)
 		if srv_crt:
-			logger.info("Storing new server cert %r", srv_crt)
+			serial = ":".join((f"{srv_crt.get_serial_number():x}").zfill(36)[i : i + 2] for i in range(0, 36, 2))
+			logger.info("Storing new server cert with serial %s", serial)
 			store_local_server_cert(srv_crt)
 		return True
 

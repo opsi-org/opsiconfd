@@ -35,7 +35,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._server: Server | None = None
 		self._should_stop = False
 		self._server_cert_check_time = time.time()
-		self._server_cert_check_interval = 24 * 3600
+		self._server_cert_check_interval = config.ssl_server_cert_check_interval
 		self._redis_check_time = time.time()
 		self._redis_check_interval = 300
 

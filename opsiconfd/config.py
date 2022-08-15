@@ -643,6 +643,13 @@ class Config(metaclass=Singleton):
 			help=self._expert_help("The period of validity of a client certificate in days."),
 		)
 		self._parser.add(
+			"--ssl-server-cert-check-interval",
+			env_var="OPSICONFD_SSL_SERVER_CERT_CHECK_INTERVAL",
+			type=int,
+			default=86400,
+			help=self._expert_help("The interval in seconds at which the server certificate is checked for validity."),
+		)
+		self._parser.add(
 			"--update-ip",
 			env_var="OPSICONFD_UPDATE_IP",
 			type=str2bool,

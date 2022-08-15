@@ -412,6 +412,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 				create = True
 
 	if create:
+		logger.notice("Creating new server cert")
 		(srv_crt, srv_key, pem) = (None, None, None)
 		if server_role == "config":
 			# It is safer to create a new server cert with a new key pair

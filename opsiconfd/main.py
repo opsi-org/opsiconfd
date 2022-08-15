@@ -105,6 +105,8 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 
 		setup(full=bool(config.setup))
 
+		logger.essential("Opsiconfd version %s starting", __version__)
+
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)
 			try:

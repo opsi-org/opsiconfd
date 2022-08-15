@@ -3536,7 +3536,7 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.307.tar.gz", hash = "sha256:9bc84119a1814cac9e8a892471ad4b3035c1ca8c20f1d9559a4b1fe363cacf29"},
+    {file = "python-opsi-4.2.0.307.tar.gz", hash = "sha256:e83b7f439d5976b46a6b038a4cbf299eb8b26e4d64c7da4681d248c1ff634057"},
     {file = "python_opsi-4.2.0.307-py3-none-any.whl", hash = "sha256:84a0090bd6ddbf3e25d8d789ae0ca22d3e2af41735e97356830af5af6b1376a6"},
 ]
 python-opsi-common = [

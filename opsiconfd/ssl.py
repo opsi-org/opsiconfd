@@ -420,7 +420,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 		else:
 			for attempt in (1, 2, 3, 4, 5):
 				try:  # pylint: disable=loop-try-except-usage
-					logger.info("Ferching certificate from config server (attempt #%d)", attempt)
+					logger.info("Fetching certificate from config server (attempt #%d)", attempt)
 					pem = get_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member,loop-invariant-statement
 				except RequestsConnectionError as err:
 					if attempt == 5:
@@ -432,8 +432,10 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 				srv_key = load_privatekey(FILETYPE_PEM, pem)
 
 		if srv_key:
+			logger.info("Storing new server key %r", srv_key)
 			store_local_server_key(srv_key)
 		if srv_crt:
+			logger.info("Storing new server cert %r", srv_crt)
 			store_local_server_cert(srv_crt)
 		return True
 

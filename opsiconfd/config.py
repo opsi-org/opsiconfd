@@ -447,7 +447,7 @@ class Config(metaclass=Singleton):
 			"--log-file",
 			env_var="OPSICONFD_LOG_FILE",
 			default="/var/log/opsi/opsiconfd/%m.log",
-			help=("The macro %%m can be used to create use a separate log file for each client. " "%%m will be replaced by <client-ip>"),
+			help=("The macro %%m can be used to create use a separate log file for each client. %%m will be replaced by <client-ip>"),
 		)
 		self._parser.add(
 			"--symlink-logs",
@@ -563,7 +563,7 @@ class Config(metaclass=Singleton):
 			"--ssl-ciphers",
 			env_var="OPSICONFD_SSL_CIPHERS",
 			default="TLSv1.2",
-			help=("TLS cipher suites to enable " "(OpenSSL cipher list format https://www.openssl.org/docs/man1.0.2/man1/ciphers.html)."),
+			help=("TLS cipher suites to enable (OpenSSL cipher list format https://www.openssl.org/docs/man1.0.2/man1/ciphers.html)."),
 		)
 		self._parser.add(
 			"--ssl-ca-subject-cn",

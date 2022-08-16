@@ -84,7 +84,9 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 
 @hookimpl()
 def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argument
-	shutil.rmtree(os.path.dirname(_config.ssl_ca_key))
+	ssl_dir = os.path.dirname(_config.ssl_ca_key)
+	if os.path.exists(ssl_dir):
+		shutil.rmtree(ssl_dir)
 
 
 @hookimpl()

@@ -9,16 +9,16 @@
 Test opsiconfd.manager
 """
 
-import time
-import signal
 import asyncio
+import signal
+import time
 from unittest.mock import patch
 
 import pytest
 
 from opsiconfd.manager import Manager
 
-from .utils import reset_singleton
+from .utils import get_config, reset_singleton
 
 
 @pytest.fixture()
@@ -68,6 +68,6 @@ def test_check_server_cert(manager, cert_changed):  # pylint: disable=redefined-
 		patch("opsiconfd.server.Server.restart_workers", restart_workers),
 		patch("opsiconfd.manager.setup_server_cert", lambda: cert_changed),
 	):
-		manager._server_cert_check_interval = 0.0000001  # pylint: disable=protected-access
-		time.sleep(2)
-		assert getattr(manager._server, "test_restarted", False) == cert_changed  # pylint: disable=protected-access
+		with get_config({"ssl_server_cert_check_interval": 0.00001}):
+			time.sleep(2)
+			assert getattr(manager._server, "test_restarted", False) == cert_changed  # pylint: disable=protected-access

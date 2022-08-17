@@ -129,6 +129,7 @@ class TestManager:  # pylint: disable=too-few-public-methods
 			"sum": round(sum(self.request_stats) * 1000),
 			"mean": round(mean(self.request_stats) * 1000),
 			"median": round(median(self.request_stats) * 1000),
+			"real": round((end - start).total_seconds() * 1000),
 			"cpu": worker_cpu_usage,
 		}
 

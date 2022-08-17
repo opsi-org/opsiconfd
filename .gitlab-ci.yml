@@ -84,15 +84,15 @@ stages:
   [ $(grep errors= /tmp/perftest-result | cut -d '=' -f2) -gt 0 ] && ( cat /tmp/perftest-result; echo 'Errors in perftest' >&2; exit 1 )
   # Average request time has to be faster than 10 ms
   echo "$(grep avg_seconds_per_request= /tmp/perftest-result | cut -d '=' -f2)<0.01" | bc > /tmp/bc-result
-  [ $(cat /tmp/bc-result) = "1" ] || ( cat /tmp/perftest-result; echo 'Average seconds per request >= 10 ms' >&2; exit 1 )
+  [ $(cat /tmp/bc-result) = "1" ] || ( echo 'Average seconds per request >= 10 ms' >&2; exit 1 )
 
   echo "---------------------------------------"
   echo "Run opsiconfd-backend-perftest"
   echo "---------------------------------------"
   poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 > /tmp/perftest-result
   cat /tmp/perftest-result
-  echo "$(grep real= /tmp/perftest-result | cut -d '=' -f2)<15000" | bc > /tmp/bc-result
-  [ $(cat /tmp/bc-result) = "1" ] || ( cat /tmp/perftest-result; echo 'Required time >= 15 s' >&2; exit 1 )
+  echo "$(grep real= /tmp/perftest-result | cut -d '=' -f2)<30000" | bc > /tmp/bc-result
+  [ $(cat /tmp/bc-result) = "1" ] || ( echo 'Required time >= 30 s' >&2; exit 1 )
 
 .pytest: &pytest |
   [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log

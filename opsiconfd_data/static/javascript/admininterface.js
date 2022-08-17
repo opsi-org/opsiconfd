@@ -200,7 +200,7 @@ function reload() {
 
 
 function logout() {
-	let req = ajaxRequest("POST", "/admin/logout");
+	let req = ajaxRequest("POST", "/session/logout");
 	req.then(() => {
 		location.href = "/login";
 	});

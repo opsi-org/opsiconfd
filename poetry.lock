@@ -927,7 +927,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "jsonschema"
-version = "4.10.0"
+version = "4.10.1"
 description = "An implementation of JSON Schema validation for Python"
 category = "dev"
 optional = false
@@ -3048,8 +3048,8 @@ json5 = [
     {file = "json5-0.9.9.tar.gz", hash = "sha256:2ace77117c068c5f1f23f97e530a0d49bc09a46039521b6daa74aa39524e02a2"},
 ]
 jsonschema = [
-    {file = "jsonschema-4.10.0-py3-none-any.whl", hash = "sha256:92128509e5b700bf0f1fd08a7d018252b16a1454465dfa6b899558eeae584241"},
-    {file = "jsonschema-4.10.0.tar.gz", hash = "sha256:8ff7b44c6a99c6bfd55ca9ac45261c649cefd40aaba1124c29aaef1bcb378d84"},
+    {file = "jsonschema-4.10.1-py3-none-any.whl", hash = "sha256:dfe58bed8554d619a719aa535e9c4269b26170aa9c520a1768745eb791825b19"},
+    {file = "jsonschema-4.10.1.tar.gz", hash = "sha256:79a1eec5a40a79bc9e0791e110d1474bf453aff02df4e8a33ad1f4046e549e9d"},
 ]
 junit-xml = [
     {file = "junit_xml-1.9-py2.py3-none-any.whl", hash = "sha256:ec5ca1a55aefdd76d28fcc0b135251d156c7106fa979686a4b48d62b761b4732"},
@@ -3643,12 +3643,12 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.309.tar.gz", hash = "sha256:76a1e93514559b32d8f29533ca96f531b3edd8c15975dcaaaa311ce9636b8243"},
-    {file = "python_opsi-4.2.0.309-py3-none-any.whl", hash = "sha256:dbfb5f08ae31e3e0957341a79eed461a929a27f5225ebf556304e160bdfb2ffc"},
+    {file = "python-opsi-4.2.0.309.tar.gz", hash = "sha256:5613956361d238614de376457ba4e65df463003278bf4f395c76ff33cc766986"},
+    {file = "python_opsi-4.2.0.309-py3-none-any.whl", hash = "sha256:3202493e85ebbc877349a90fd79af721b8f3fde8289724cf4ef28b1c93adafca"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.294.tar.gz", hash = "sha256:c17bea6d98193a19382cd7e2d530424d2e3c71d69ac9528a0648474b06ce3596"},
-    {file = "python_opsi_common-4.2.0.294-py3-none-any.whl", hash = "sha256:a79c5e69726cb84a84f4f7f513b3b7b8f61a256d998f610c91fa28edcc9f1d0c"},
+    {file = "python-opsi-common-4.2.0.294.tar.gz", hash = "sha256:1a0976edc6a3effe5279b80e1bb4097521e4319b75d8d8c96d9c064ff0bec3eb"},
+    {file = "python_opsi_common-4.2.0.294-py3-none-any.whl", hash = "sha256:8df419d33db9cac53796a4eebdba4be7ea2737feaeb11d9da9a1086bea151350"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},

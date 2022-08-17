@@ -89,14 +89,14 @@ stages:
   echo "---------------------------------------"
   echo "Run opsiconfd-backend-perftest"
   echo "---------------------------------------"
-  poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 1000 --iterations 5 > /tmp/perftest-result
+  poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 100 --iterations 5 > /tmp/perftest-result
   cat /tmp/perftest-result
-  echo "$(grep sum= /tmp/perftest-result | cut -d '=' -f2)<60000" | bc > /tmp/bc-result
-  [ $(cat /tmp/bc-result) = "1" ] || ( cat /tmp/perftest-result; echo 'Sum request duration >= 60000 ms' >&2; exit 1 )
+  echo "$(grep real= /tmp/perftest-result | cut -d '=' -f2)<15000" | bc > /tmp/bc-result
+  [ $(cat /tmp/bc-result) = "1" ] || ( cat /tmp/perftest-result; echo 'Required time >= 15 s' >&2; exit 1 )
 
 .pytest: &pytest |
   [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log
-  poetry run opsiconfd -c tests/data/default-opsiconfd.conf  &
+  poetry run opsiconfd -c tests/data/default-opsiconfd.conf &
   sleep 10
   echo "---------------------------------------"
   echo "Run tests"

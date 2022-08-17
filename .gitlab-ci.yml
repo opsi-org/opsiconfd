@@ -73,17 +73,26 @@ stages:
 
 
 .perftest: &perftest |
-  export OPSICONFD_MAX_SESSIONS_PER_IP=20000
-  poetry run opsiconfd -c tests/data/default-opsiconfd.conf &
+  poetry run opsiconfd -c tests/data/default-opsiconfd.conf --workers=1 --max-sessions-per-ip=20000 &
   sleep 10
+
   echo "---------------------------------------"
-  echo "Run perftest"
+  echo "Run opsiconfd-perftest"
   echo "---------------------------------------"
   poetry run ./perftest/opsiconfd-perftest.py -l perftest/tests/test_session_loading.json -w /tmp/perftest-result
+  cat /tmp/perftest-result
   [ $(grep errors= /tmp/perftest-result | cut -d '=' -f2) -gt 0 ] && ( cat /tmp/perftest-result; echo 'Errors in perftest' >&2; exit 1 )
   # Average request time has to be faster than 10 ms
   echo "$(grep avg_seconds_per_request= /tmp/perftest-result | cut -d '=' -f2)<0.01" | bc > /tmp/bc-result
   [ $(cat /tmp/bc-result) = "1" ] || ( cat /tmp/perftest-result; echo 'Average seconds per request >= 10 ms' >&2; exit 1 )
+
+  echo "---------------------------------------"
+  echo "Run opsiconfd-backend-perftest"
+  echo "---------------------------------------"
+  poetry run ./perftest/opsiconfd-backend-perftest.py --products 100 --clients 1000 --iterations 5 > /tmp/perftest-result
+  cat /tmp/perftest-result
+  echo "$(grep sum= /tmp/perftest-result | cut -d '=' -f2)<60000" | bc > /tmp/bc-result
+  [ $(cat /tmp/bc-result) = "1" ] || ( cat /tmp/perftest-result; echo 'Sum request duration >= 60000 ms' >&2; exit 1 )
 
 .pytest: &pytest |
   [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log

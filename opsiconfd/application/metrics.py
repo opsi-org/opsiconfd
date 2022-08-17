@@ -190,7 +190,7 @@ async def grafana_query(query: GrafanaQuery) -> List[Dict[str, Any]]:  # pylint:
 	from_ms = int(datetime.fromisoformat(query.range.from_.replace("Z", "+00:00")).timestamp()) * 1000
 	to_ms = int(datetime.fromisoformat(query.range.to.replace("Z", "+00:00")).timestamp()) * 1000
 	time_range_ms = to_ms - from_ms
-	query_bucket_duration_ms = max(1000, round(query.intervalMs))
+	query_bucket_duration_ms = round(query.intervalMs)
 	sorted_downsampling = {}
 
 	timestamp_now = round(time() * 1000)

@@ -175,7 +175,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		self._should_stop = True
 
 	def _get_timestamp(self) -> int:
-		# return unix timestamp in millis
+		# Return unix timestamp (UTC) in millis
 		return int(time.time() * 1000)
 
 	async def _fetch_values(self) -> None:

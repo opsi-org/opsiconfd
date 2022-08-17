@@ -3647,8 +3647,8 @@ python-opsi = [
     {file = "python_opsi-4.2.0.309-py3-none-any.whl", hash = "sha256:dbfb5f08ae31e3e0957341a79eed461a929a27f5225ebf556304e160bdfb2ffc"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.294.tar.gz", hash = "sha256:b5a352bfa26691cd22de8697154f2c5cc2ad6ccb2deb65dc078f2c982e4d9cb9"},
-    {file = "python_opsi_common-4.2.0.294-py3-none-any.whl", hash = "sha256:012a96566de77b6d6486bb30556f5fd213b46f4c9b8157fe3ffbdad22c19302f"},
+    {file = "python-opsi-common-4.2.0.294.tar.gz", hash = "sha256:c17bea6d98193a19382cd7e2d530424d2e3c71d69ac9528a0648474b06ce3596"},
+    {file = "python_opsi_common-4.2.0.294-py3-none-any.whl", hash = "sha256:a79c5e69726cb84a84f4f7f513b3b7b8f61a256d998f610c91fa28edcc9f1d0c"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},

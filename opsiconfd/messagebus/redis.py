@@ -11,7 +11,7 @@ opsiconfd.messagebus.redis
 from asyncio.exceptions import CancelledError
 from typing import Any, AsyncGenerator, Tuple
 
-from msgpack import dumps, loads
+from msgpack import dumps, loads  # type: ignore[import]
 
 from ..utils import async_redis_client
 from .types import Message

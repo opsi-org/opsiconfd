@@ -28,7 +28,7 @@ from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
 from opsicommon.utils import deserialize, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
-from .. import contextvar_client_session, contextvar_user_store
+from .. import contextvar_user_store
 from ..backend import (
 	BackendManager,
 	OpsiconfdBackend,

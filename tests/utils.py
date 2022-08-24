@@ -52,7 +52,7 @@ class WorkerMainLoopThread(Thread):
 	def __init__(self) -> None:
 		super().__init__()
 
-		from opsiconfd.worker import Worker
+		from opsiconfd.worker import Worker  # pylint: disable=import-outside-toplevel
 		self.worker = Worker()
 
 		self.loop = asyncio.new_event_loop()

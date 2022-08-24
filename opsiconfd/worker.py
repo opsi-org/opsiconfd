@@ -108,14 +108,16 @@ class Worker(metaclass=Singleton):
 		# msg = context.get("exception", context["message"])
 		logger.error("Unhandled exception in worker %s asyncio loop '%s': %s", self, loop, context)
 
-	def stop(self):
-		self._should_stop = True
+	def stop(self) -> None:
 		app.is_shutting_down = True
+		self._should_stop = True
 
 	async def main_loop(self) -> None:
-		self._should_stop = False
 		app.is_shutting_down = False
-		from .application.jsonrpc import messagebus_jsonrpc_request_worker
+		self._should_stop = False
+		from .application.jsonrpc import (  # pylint: disable=import-outside-toplevel
+			messagebus_jsonrpc_request_worker,
+		)
 
 		messagebus_jsonrpc_request_worker_task = asyncio.create_task(messagebus_jsonrpc_request_worker())
 		while not self._should_stop:

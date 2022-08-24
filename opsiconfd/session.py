@@ -613,7 +613,7 @@ async def authenticate(session: OPSISession, username: str, password: str) -> No
 	if username == config.monitoring_user:
 		auth_type = "opsi-passwd"
 
-	def sync_auth(username: str, password: str, auth_type: str) -> None:
+	def sync_auth(username: str, password: str, auth_type: str = None) -> None:
 		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)

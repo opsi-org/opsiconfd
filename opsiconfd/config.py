@@ -64,14 +64,14 @@ if running_in_docker():
 		pass
 
 
-def network_address(value: str) -> ipaddress._BaseNetwork:
+def network_address(value: str) -> str:
 	try:
 		return ipaddress.ip_network(value).compressed
 	except ValueError as err:
 		raise ArgumentTypeError(f"Invalid network address '{value}: {err}") from err
 
 
-def ip_address(value: str) -> ipaddress._BaseAddress:
+def ip_address(value: str) -> str:
 	try:
 		return ipaddress.ip_address(value).compressed
 	except ValueError as err:

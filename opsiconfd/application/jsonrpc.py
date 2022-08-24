@@ -9,19 +9,16 @@ jsonrpc
 """
 
 import asyncio
-import gzip
 import tempfile
 import time
 import traceback
 import urllib.parse
 import warnings
-import zlib
 from datetime import datetime
 from os import makedirs
 from time import perf_counter
 from typing import Any, Dict, List, Optional, Union
 
-import lz4.frame  # type: ignore[import]
 import msgpack  # type: ignore[import]
 import orjson
 from fastapi import APIRouter, FastAPI, HTTPException

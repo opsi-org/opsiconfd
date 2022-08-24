@@ -217,7 +217,7 @@ class SessionMiddleware:
 					break
 		scope["required_access_role"] = required_access_role
 
-		if scope["path"].startswith(("/rpc", "/monitoring")) or (
+		if scope["path"].startswith(("/rpc", "/monitoring", "/messagebus")) or (
 			scope["path"].startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
 		):
 			scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED

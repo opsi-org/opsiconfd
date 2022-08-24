@@ -42,7 +42,12 @@ from ..backend import (
 from ..config import RPC_DEBUG_DIR, config
 from ..logging import logger
 from ..statistics import GrafanaPanelConfig, Metric, metrics_registry
-from ..utils import async_redis_client, decode_redis_result
+from ..utils import (
+	async_redis_client,
+	compress_data,
+	decode_redis_result,
+	decompress_data,
+)
 from ..worker import Worker
 
 # time in seconds
@@ -231,58 +236,6 @@ def get_response_serialization(request: Request) -> Optional[str]:
 		if "json" in accept:
 			return "json"
 	return None
-
-
-def decompress_data(data: bytes, compression: str) -> bytes:
-	compressed_size = len(data)
-
-	decompress_start = time.perf_counter()
-	if compression == "lz4":
-		data = lz4.frame.decompress(data)
-	elif compression == "deflate":
-		data = zlib.decompress(data)
-	elif compression == "gzip":
-		data = gzip.decompress(data)
-	else:
-		raise ValueError(f"Unhandled compression {compression!r}")
-	decompress_end = time.perf_counter()
-
-	uncompressed_size = len(data)
-	logger.debug(
-		"%s decompression ratio: %d => %d = %0.2f%%, time: %0.2fms",
-		compression,
-		compressed_size,
-		uncompressed_size,
-		100 - 100 * (compressed_size / uncompressed_size),
-		1000 * (decompress_end - decompress_start),
-	)
-	return data
-
-
-def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4_block_linked: bool = True) -> bytes:
-	uncompressed_size = len(data)
-
-	compress_start = time.perf_counter()
-	if compression == "lz4":
-		data = lz4.frame.compress(data, compression_level=compression_level, block_linked=lz4_block_linked)
-	elif compression == "deflate":
-		data = zlib.compress(data)
-	elif compression == "gzip":
-		data = gzip.compress(data)
-	else:
-		raise ValueError(f"Unhandled compression {compression!r}")
-	compress_end = time.perf_counter()
-
-	compressed_size = len(data)
-	logger.debug(
-		"%s compression ratio: %d => %d = %0.2f%%, time: %0.2fms",
-		compression,
-		uncompressed_size,
-		compressed_size,
-		100 - 100 * (compressed_size / uncompressed_size),
-		1000 * (compress_end - compress_start),
-	)
-	return data
 
 
 def deserialize_data(data: Union[bytes, str], serialization: str) -> Any:

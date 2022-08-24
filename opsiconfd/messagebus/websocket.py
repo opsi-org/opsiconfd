@@ -17,7 +17,7 @@ from msgpack import loads as msgpack_loads  # type: ignore[import]
 from opsicommon.utils import serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
-from starlette.websockets import WebSocket
+from starlette.websockets import WebSocket, WebSocketState
 
 from ..application.utils import OpsiconfdWebSocketEndpoint
 from ..logging import logger
@@ -58,6 +58,11 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 				data = message.to_msgpack()
 				if self._compression:
 					data = await run_in_threadpool(compress_data, data, self._compression)
+
+				if websocket.client_state != WebSocketState.CONNECTED:
+					logger.warning("Websocket client not connected")
+					return
+
 				await websocket.send_bytes(data)
 				# ACK message
 				# asyncio.create_task(cgmr.ack_message(redis_id))
@@ -81,8 +86,8 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			message = Message.from_dict(msg_dict)
 			await send_message(message, serialize(self.scope["session"].user_store.__dict__))
 		except Exception as err:  # pylint: disable=broad-except
-			logger.error(err, exc_info=True)
 			logger.warning(err)
+			await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA, reason=str(err))
 
 	async def on_connect(  # pylint: disable=arguments-differ
 		self, websocket: WebSocket, compression: Union[str, None] = Query(default=None, embed=True)

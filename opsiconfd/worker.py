@@ -49,6 +49,7 @@ class Worker(metaclass=Singleton):
 		self.is_manager = get_manager_pid() == self.pid
 		self.worker_num = 1
 		self.metrics_collector = WorkerMetricsCollector(self)
+		self._should_stop = False
 
 	async def startup(self) -> None:
 		self._init_worker_num()
@@ -100,14 +101,27 @@ class Worker(metaclass=Singleton):
 			memory_cleanup()
 			AddonManager().reload_addons()
 		else:
-			app.is_shutting_down = True
+			self.stop()
 
 	def handle_asyncio_exception(self, loop: asyncio.AbstractEventLoop, context: dict) -> None:
 		# context["message"] will always be there but context["exception"] may not
 		# msg = context.get("exception", context["message"])
 		logger.error("Unhandled exception in worker %s asyncio loop '%s': %s", self, loop, context)
 
+	def stop(self):
+		self._should_stop = True
+		app.is_shutting_down = True
+
 	async def main_loop(self) -> None:
-		while True:
-			await asyncio_sleep(120)
+		self._should_stop = False
+		app.is_shutting_down = False
+		from .application.jsonrpc import messagebus_jsonrpc_request_worker
+
+		messagebus_jsonrpc_request_worker_task = asyncio.create_task(messagebus_jsonrpc_request_worker())
+		while not self._should_stop:
+			for _ in range(120):
+				if self._should_stop:
+					break
+				await asyncio_sleep(1)
 			memory_cleanup()
+		messagebus_jsonrpc_request_worker_task.cancel()

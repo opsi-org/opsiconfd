@@ -25,10 +25,11 @@ from .utils import (  # pylint: disable=unused-import
 	clean_redis,
 	client_jsonrpc,
 	test_client,
+	worker_main_loop,
 )
 
 
-def inactive_test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
 	with client_jsonrpc(test_client, "", host_id=host_id, host_key=host_key):
@@ -49,7 +50,7 @@ def inactive_test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None: 
 
 
 @pytest.mark.parametrize("compression", ("lz4", "gzip"))
-def inactive_test_messagebus_compression(test_client: OpsiconfdTestClient, compression: str) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: str) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client.websocket_connect(f"/messagebus/v1?compression={compression}") as websocket:
 		with WebSocketMessageReader(websocket, decode=False) as reader:
@@ -62,5 +63,5 @@ def inactive_test_messagebus_compression(test_client: OpsiconfdTestClient, compr
 			jsonrpc_response_message = Message.from_msgpack(decompress_data(raw_data, compression))  # type: ignore[arg-type]
 			assert isinstance(jsonrpc_response_message, JSONRPCResponseMessage)
 			assert jsonrpc_response_message.rpc_id == jsonrpc_request_message.rpc_id
-			# assert jsonrpc_response_message.result is True
+			assert jsonrpc_response_message.result is True
 			assert jsonrpc_response_message.error is None

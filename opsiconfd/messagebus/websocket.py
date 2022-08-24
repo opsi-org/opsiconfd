@@ -14,6 +14,7 @@ from typing import Union
 from fastapi import APIRouter, FastAPI, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from msgpack import loads as msgpack_loads  # type: ignore[import]
+from opsicommon.utils import serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket
@@ -53,7 +54,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			channel=self._messagebus_user_id, consumer_group=self._messagebus_user_id, consumer_name=self._messagebus_user_id
 		)
 		try:
-			async for message in message_generator:
+			async for message, _context in message_generator:
 				data = message.to_msgpack()
 				if self._compression:
 					data = await run_in_threadpool(compress_data, data, self._compression)
@@ -77,7 +78,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			msg_dict["sender"] = self._messagebus_user_id
 			self._check_channel_access(msg_dict["channel"])
 			message = Message.from_dict(msg_dict)
-			await send_message(message)
+			await send_message(message, serialize(self.scope["session"].user_store.__dict__))
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 			logger.warning(err)

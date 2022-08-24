@@ -14,7 +14,7 @@ import time
 import types
 from contextlib import asynccontextmanager, contextmanager
 from queue import Empty, Queue
-from threading import Thread
+from threading import Event, Thread
 from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Type, Union
 from unittest.mock import patch
 
@@ -46,6 +46,36 @@ def reset_singleton(cls: Singleton) -> None:
 	"""Constructor will create a new instance afterwards"""
 	if cls in cls._instances:  # pylint: disable=protected-access
 		del cls._instances[cls]  # pylint: disable=protected-access
+
+
+class WorkerMainLoopThread(Thread):
+	def __init__(self) -> None:
+		super().__init__()
+
+		from opsiconfd.worker import Worker
+		self.worker = Worker()
+
+		self.loop = asyncio.new_event_loop()
+		self.daemon = True
+		self.stopped = Event()
+
+	def stop(self) -> None:
+		self.worker.stop()
+		self.stopped.wait()
+
+	def run(self) -> None:
+		asyncio.set_event_loop(self.loop)
+		self.loop.set_debug(True)
+		asyncio.run(self.worker.main_loop())
+		self.stopped.set()
+
+
+@pytest_asyncio.fixture(autouse=True)
+def worker_main_loop() -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
+	wmlt = WorkerMainLoopThread()
+	wmlt.start()
+	yield None
+	wmlt.stop()
 
 
 class OpsiconfdTestClient(TestClient):
@@ -112,6 +142,7 @@ CLEAN_REDIS_KEYS = (
 	"opsiconfd:stats:num_rpcs",
 	"opsiconfd:stats:rpc",
 	"opsiconfd:jsonrpccache:*:products",
+	"opsiconfd:messagebus:*",
 )
 
 
@@ -372,7 +403,7 @@ class WebSocketMessageReader(Thread):
 				msg = data["bytes"]
 				if self.decode:
 					msg = msgpack.loads(msg)  # pylint: disable=dotted-import-in-loop
-				print(f"received: >>>{msg}<<<")
+				# print(f"received: >>>{msg}<<<")
 				self.messages.put(msg)
 
 	def stop(self) -> None:

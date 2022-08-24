@@ -8,6 +8,7 @@
 test utils
 """
 
+import asyncio
 import contextvars
 import time
 import types

@@ -238,7 +238,7 @@ def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[r
 			con.close()
 
 
-async def get_async_redis_connection(url: str, db: str = None, timeout: int = 0, test_connection: bool = False) -> aioredis.StrictRedis:  # pylint: disable=invalid-name
+async def get_async_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connection: bool = False) -> aioredis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
 	while True:
 		try:  # pylint: disable=loop-try-except-usage

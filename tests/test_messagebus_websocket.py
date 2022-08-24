@@ -28,7 +28,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def inactive_test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
 	with client_jsonrpc(test_client, "", host_id=host_id, host_key=host_key):
@@ -49,7 +49,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 
 
 @pytest.mark.parametrize("compression", ("lz4", "gzip"))
-def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: str) -> None:  # pylint: disable=redefined-outer-name
+def inactive_test_messagebus_compression(test_client: OpsiconfdTestClient, compression: str) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client.websocket_connect(f"/messagebus/v1?compression={compression}") as websocket:
 		with WebSocketMessageReader(websocket, decode=False) as reader:

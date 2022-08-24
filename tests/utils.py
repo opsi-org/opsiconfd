@@ -9,6 +9,7 @@ test utils
 """
 
 import contextvars
+import time
 import types
 from contextlib import asynccontextmanager, contextmanager
 from queue import Empty, Queue
@@ -339,8 +340,9 @@ def backend() -> BackendManager:
 
 
 class WebSocketMessageReader(Thread):
-	def __init__(self, websocket: WebSocketTestSession) -> None:
+	def __init__(self, websocket: WebSocketTestSession, decode: bool = True) -> None:
 		super().__init__()
+		self.decode = decode
 		self.daemon = True
 		self.websocket = websocket
 		self.messages: Queue[Dict[str, Any]] = Queue()
@@ -366,14 +368,34 @@ class WebSocketMessageReader(Thread):
 			if data["type"] == "websocket.close":
 				break
 			if data["type"] == "websocket.send":
-				msg = msgpack.loads(data["bytes"])  # pylint: disable=dotted-import-in-loop
+				msg = data["bytes"]
+				if self.decode:
+					msg = msgpack.loads(msg)  # pylint: disable=dotted-import-in-loop
 				print(f"received: >>>{msg}<<<")
 				self.messages.put(msg)
 
 	def stop(self) -> None:
 		self.should_stop = True
 
-	def get_messages(self) -> Generator[Dict[str, Any], None, None]:
+	def wait_for_message(self, timeout: float = 5.0) -> None:
+		start = time.time()
+		while True:
+			if not self.messages.empty():
+				return
+			if time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
+				raise RuntimeError("timed out")  # pylint: disable=loop-invariant-statement
+			time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+
+	async def async_wait_for_message(self, timeout: float = 5.0) -> None:
+		start = time.time()
+		while True:
+			if not self.messages.empty():
+				return
+			if time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
+				raise RuntimeError("timed out")  # pylint: disable=loop-invariant-statement
+			await asyncio.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+
+	def get_messages(self) -> Generator[Union[Dict[str, Any], bytes], None, None]:
 		try:
 			while True:
 				yield self.messages.get_nowait()

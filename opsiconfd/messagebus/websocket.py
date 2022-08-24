@@ -28,7 +28,7 @@ from .types import Message
 messagebus_router = APIRouter()
 
 
-async def messagebus_setup(_app: FastAPI) -> None:
+def messagebus_setup(_app: FastAPI) -> None:
 	_app.include_router(messagebus_router, prefix="/messagebus")
 
 

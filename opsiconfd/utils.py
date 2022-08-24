@@ -12,6 +12,7 @@ import asyncio
 import codecs
 import datetime
 import functools
+import gzip
 import ipaddress
 import os
 import random
@@ -19,9 +20,12 @@ import string
 import threading
 import time
 import warnings
+import zlib
 from contextlib import contextmanager
 from socket import AF_INET, AF_INET6
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Optional
+
+import lz4.frame  # type: ignore[import]
 
 with warnings.catch_warnings():
 	# Ignore warning 'distutils Version classes are deprecated. Use packaging.version instead.'
@@ -43,8 +47,8 @@ if TYPE_CHECKING:
 
 redis_pool_lock = threading.Lock()
 aioredis_pool_lock = asyncio.Lock()
-redis_connection_pool = {}
-aioredis_connection_pool = {}
+redis_connection_pool: Dict[str, redis.ConnectionPool] = {}
+aioredis_connection_pool: Dict[str, aioredis.ConnectionPool] = {}
 
 
 def get_logger() -> OPSILogger:
@@ -330,3 +334,55 @@ def remove_route_path(app: FastAPI, path: str) -> None:
 		for route in app.routes:
 			if isinstance(route, Route) and route.path.lower().startswith(path.lower()):
 				app.routes.remove(route)
+
+
+def decompress_data(data: bytes, compression: str) -> bytes:
+	compressed_size = len(data)
+
+	decompress_start = time.perf_counter()
+	if compression == "lz4":
+		data = lz4.frame.decompress(data)
+	elif compression == "deflate":
+		data = zlib.decompress(data)
+	elif compression == "gzip":
+		data = gzip.decompress(data)
+	else:
+		raise ValueError(f"Unhandled compression {compression!r}")
+	decompress_end = time.perf_counter()
+
+	uncompressed_size = len(data)
+	get_logger().debug(
+		"%s decompression ratio: %d => %d = %0.2f%%, time: %0.2fms",
+		compression,
+		compressed_size,
+		uncompressed_size,
+		100 - 100 * (compressed_size / uncompressed_size),
+		1000 * (decompress_end - decompress_start),
+	)
+	return data
+
+
+def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4_block_linked: bool = True) -> bytes:
+	uncompressed_size = len(data)
+
+	compress_start = time.perf_counter()
+	if compression == "lz4":
+		data = lz4.frame.compress(data, compression_level=compression_level, block_linked=lz4_block_linked)
+	elif compression == "deflate":
+		data = zlib.compress(data)
+	elif compression == "gzip":
+		data = gzip.compress(data)
+	else:
+		raise ValueError(f"Unhandled compression {compression!r}")
+	compress_end = time.perf_counter()
+
+	compressed_size = len(data)
+	get_logger().debug(
+		"%s compression ratio: %d => %d = %0.2f%%, time: %0.2fms",
+		compression,
+		uncompressed_size,
+		compressed_size,
+		100 - 100 * (compressed_size / uncompressed_size),
+		1000 * (compress_end - compress_start),
+	)
+	return data

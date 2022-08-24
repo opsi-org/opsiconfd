@@ -67,6 +67,8 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 		return
 
 	manager_pid = get_manager_pid(ignore_self=True)
+	if config.action == "start" and manager_pid:
+		raise RuntimeError(f"Opsiconfd manager process already running (pid {manager_pid})")
 
 	if config.action in ("restart", "status"):
 		os.execvp("systemctl", ["systemctl", "--no-pager", "--lines", "0", config.action, "opsiconfd"])

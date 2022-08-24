@@ -23,7 +23,7 @@ from ..application.utils import OpsiconfdWebSocketEndpoint
 from ..logging import logger
 from ..utils import compress_data, decompress_data
 from . import get_messagebus_user_id_for_host, get_messagebus_user_id_for_user
-from .redis import consumer_group_message_reader, send_message
+from .redis import ConsumerGroupMessageReader, send_message
 from .types import Message
 
 messagebus_router = APIRouter()
@@ -50,17 +50,18 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		self._messagebus_reader_task = Union[asyncio.Task, None]
 
 	async def messagebus_reader(self, websocket: WebSocket) -> None:
-		message_generator = consumer_group_message_reader(
+		cgmr = ConsumerGroupMessageReader(
 			channel=self._messagebus_user_id, consumer_group=self._messagebus_user_id, consumer_name=self._messagebus_user_id
 		)
 		try:
-			async for message, _context in message_generator:
+			async for redis_id, message, _context in cgmr.get_messages():
 				data = message.to_msgpack()
 				if self._compression:
 					data = await run_in_threadpool(compress_data, data, self._compression)
 				await websocket.send_bytes(data)
 				# ACK message
-				await message_generator.asend(True)
+				# asyncio.create_task(cgmr.ack_message(redis_id))
+				await cgmr.ack_message(redis_id)
 		except StopAsyncIteration:
 			pass
 
@@ -86,13 +87,14 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 	async def on_connect(  # pylint: disable=arguments-differ
 		self, websocket: WebSocket, compression: Union[str, None] = Query(default=None, embed=True)
 	) -> None:
-
 		logger.info("Websocket client connected to messagebus")
 		if compression:
 			if compression not in ("lz4", "gzip"):
+				msg = f"Invalid compression {compression!r}, valid compressions are lz4 and gzip"
+				logger.error(msg)
 				raise HTTPException(
 					status_code=status.HTTP_400_BAD_REQUEST,
-					detail=f"Invalid compression {compression!r}, valid compressions are lz4 and gzip",
+					detail=msg,
 				)
 			self._compression = compression
 

@@ -77,6 +77,7 @@ class Message:
 class JSONRPCRequestMessage(Message):
 
 	type: str = MessageTypes.JSONRPC_REQUEST.value
+	api_version: str = "1"
 	rpc_id: str = field(default_factory=lambda: str(uuid4()))
 	method: str
 	params: Tuple[Any, ...] = tuple()

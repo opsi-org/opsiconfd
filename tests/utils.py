@@ -409,19 +409,19 @@ class WebSocketMessageReader(Thread):
 	def stop(self) -> None:
 		self.should_stop = True
 
-	def wait_for_message(self, timeout: float = 5.0) -> None:
+	def wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
 		start = time.time()
 		while True:
-			if not self.messages.empty():
+			if self.messages.qsize() >= count:  # pylint: disable=loop-invariant-statement
 				return
 			if time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
 				raise RuntimeError("timed out")  # pylint: disable=loop-invariant-statement
 			time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
 
-	async def async_wait_for_message(self, timeout: float = 5.0) -> None:
+	async def async_wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
 		start = time.time()
 		while True:
-			if not self.messages.empty():
+			if self.messages.qsize() >= count:  # pylint: disable=loop-invariant-statement
 				return
 			if time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
 				raise RuntimeError("timed out")  # pylint: disable=loop-invariant-statement

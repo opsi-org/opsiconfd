@@ -40,8 +40,8 @@ from ..backend import (
 )
 from ..config import RPC_DEBUG_DIR, config
 from ..logging import logger
-from ..messagebus.redis import consumer_group_message_reader, send_message
-from ..messagebus.types import JSONRPCRequestMessage, JSONRPCResponseMessage
+from ..messagebus.redis import ConsumerGroupMessageReader, send_message
+from ..messagebus.types import JSONRPCRequestMessage, JSONRPCResponseMessage, Message
 from ..statistics import GrafanaPanelConfig, Metric, metrics_registry
 from ..utils import (
 	async_redis_client,
@@ -596,45 +596,60 @@ async def process_request(request: Request, response: Response) -> Response:  # 
 	return response
 
 
+async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, message: Message, context: Any) -> None:
+	if not isinstance(message, JSONRPCRequestMessage):
+		logger.error("Wrong message type: %s", type(message))
+		# ACK Message
+		asyncio.create_task(cgmr.ack_message(redis_id))
+		return
+
+	if context:
+		user_store = UserStore()
+		for key, val in deserialize(context).items():
+			setattr(user_store, key, val)
+		contextvar_user_store.set(user_store)
+
+	client_info = message.sender
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": message.rpc_id,
+		"method": message.method,
+		"params": message.params
+	}
+
+	try:
+		result = await anext(process_rpcs(client_info, rpc))
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error(err, exc_info=True)
+		result = await process_rpc_error(client_info, err)
+
+	response_message = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+		sender=cgmr.consumer_name,
+		channel=message.sender,
+		rpc_id=result["id"],
+		result=result.get("result"),
+		error=result.get("error")
+	)
+
+	# asyncio.create_task(send_message(response_message))
+	await send_message(response_message)
+	# ACK Message
+	# asyncio.create_task(cgmr.ack_message(redis_id))
+	await cgmr.ack_message(redis_id)
+
+
 async def _messagebus_jsonrpc_request_worker() -> None:
 	worker = Worker()
 	channel = "service:config:jsonrpc"
 	consumer_group = "jsonrpc_workers"
 	consumer_name = f"service:worker:{config.node_name}:{worker.worker_num}"
 
-	message_generator = consumer_group_message_reader(channel=channel, consumer_group=consumer_group, consumer_name=consumer_name)
-	async for message, context in message_generator:
-		if not isinstance(message, JSONRPCRequestMessage):
-			logger.error("Wrong message type: %s", type(message))
-			# ACK Message
-			await message_generator.asend(True)
-			continue
-
-		if context:
-			user_store = UserStore()
-			for key, val in deserialize(context).items():
-				setattr(user_store, key, val)
-			contextvar_user_store.set(user_store)
-
-		client_info = message.sender
-		rpc = {
-			"jsonrpc": "2.0",
-			"id": message.rpc_id,
-			"method": message.method,
-			"params": message.params
-		}
-
-		result = await anext(process_rpcs(client_info, rpc))
-		response_message = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-			sender=consumer_name,
-			channel=message.sender,
-			rpc_id=result["id"],
-			result=result.get("result"),
-			error=result.get("error")
-		)
-		await send_message(response_message)
-		# ACK Message
-		await message_generator.asend(True)
+	cgmr = ConsumerGroupMessageReader(channel=channel, consumer_group=consumer_group, consumer_name=consumer_name)
+	async for redis_id, message, context in cgmr.get_messages():
+		try:
+			await _process_message(cgmr, redis_id, message, context)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
 
 
 async def messagebus_jsonrpc_request_worker() -> None:

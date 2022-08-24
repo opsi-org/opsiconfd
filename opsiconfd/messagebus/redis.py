@@ -34,40 +34,60 @@ async def send_message(message: Message, context: Any = None) -> None:
 	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
 
 
-async def consumer_group_message_reader(  # pylint: disable=too-many-locals
-	channel: str, consumer_group: str, consumer_name: str, start_id: str = ">"
-) -> AsyncGenerator[Tuple[Message, Any], bool]:
-	stream = f"{PREFIX}:{channel}"
-	b_consumer_group = consumer_group.encode("utf-8")
-	redis = await async_redis_client()
-	consumer_group_exists = False
-	stream_exists = await redis.exists(stream)
-	if stream_exists:
-		for group in await redis.xinfo_groups(stream):
-			if group["name"] == b_consumer_group:
-				consumer_group_exists = True
-				break
+class ConsumerGroupMessageReader:
+	def __init__(self, channel: str, consumer_group: str, consumer_name: str, start_id: str = "0"):
+		"""
+		ID ">" means that the consumer want to receive only messages that were never delivered to any other consumer.
+		Any other ID, that is, 0 or any other valid ID will have the effect of returning entries that are pending
+		for the consumer sending the command with IDs greater than the one provided.
+		So basically if the ID is not ">", then the command will just let the client access its pending entries:
+		messages delivered to it, but not yet acknowledged.
+		"""
+		self.stream = f"{PREFIX}:{channel}"
+		self.consumer_group = consumer_group
+		self.consumer_name = consumer_name
+		self.start_id = start_id
+		self.current_id = start_id
 
-	if not consumer_group_exists:
-		await redis.xgroup_create(stream, consumer_group, id="0", mkstream=not stream_exists)
+	async def _setup(self) -> None:
+		redis = await async_redis_client()
+		consumer_group_exists = False
+		stream_exists = await redis.exists(self.stream)
+		if stream_exists:
+			consumer_group_utf8 = self.consumer_group.encode("utf-8")
+			for group in await redis.xinfo_groups(self.stream):
+				if group["name"] == consumer_group_utf8:
+					consumer_group_exists = True
+					break
 
-	# pending = await redis.xpending(stream, consumer_group)
-	# print(pending)
-	# stream_info = await redis.xinfo_stream(stream)
-	# print(stream_info)
+		if not consumer_group_exists:
+			await redis.xgroup_create(self.stream, self.consumer_group, id="0", mkstream=not stream_exists)
 
-	try:
-		while True:
-			data = await redis.xreadgroup(consumer_group, consumer_name, streams={stream: start_id}, block=1000, count=10)
-			for stream_data in data:
-				for dat in stream_data[1]:
-					msg_id = dat[0]
-					context = None
-					context_data = dat[1].get(b"context")
-					if context_data:
-						context = loads(context_data)
-					ack = yield Message.from_msgpack(dat[1][b"message"]), context
-					if ack:
-						await redis.xack(stream, consumer_group, msg_id)
-	except CancelledError:
-		pass
+	async def ack_message(self, redis_id: str) -> None:
+		redis = await async_redis_client()
+		await redis.xack(self.stream, self.consumer_group, redis_id)
+
+	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:
+		await self._setup()
+		try:
+			redis = await async_redis_client()
+			while True:
+				# stream_info = await redis.xinfo_stream(self.stream)
+				# logger.trace(stream_info)
+				# pending = await redis.xpending(self.stream, self.consumer_group)
+				# logger.trace(pending)
+				stream_entries = await redis.xreadgroup(
+					self.consumer_group, self.consumer_name, streams={self.stream: self.current_id}, block=1000, count=10
+				)
+				for stream_entry in stream_entries:
+					for message in stream_entry[1]:
+						redis_id = message[0]
+						context = None
+						context_data = message[1].get(b"context")
+						if context_data:
+							context = loads(context_data)
+						yield redis_id, Message.from_msgpack(message[1][b"message"]), context
+				# After the first read, fetch pending entires only
+				self.current_id = ">"  # pylint: disable=loop-invariant-statement
+		except CancelledError:
+			pass

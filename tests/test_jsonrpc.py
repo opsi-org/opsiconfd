@@ -102,21 +102,36 @@ def test_jsonrpc20(test_client):  # pylint: disable=redefined-outer-name
 	rpcs = (
 		{"id": 1, "method": "backend_getInterface", "params": []},
 		{"id": 2, "method": "backend_getInterface", "params": [], "jsonrpc": "1.0"},
-		{"id": 3, "method": "backend_getInterface", "params": [], "jsonrpc": "2.0"},
+		{"id": 3, "method": "invalid", "params": []},
+		{"id": 4, "method": "backend_getInterface", "params": [], "jsonrpc": "2.0"},
+		{"id": 5, "method": "invalid", "params": [], "jsonrpc": "2.0"},
 	)
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpcs)
 	res.raise_for_status()
 	response = res.json()
-	assert len(response) == 3
+	assert len(response) == 5
 	for result in response:
-		assert result["id"] in (1, 2, 3)
-		assert result["result"]
+		assert result["id"] in (1, 2, 3, 4, 5)
 		if result["id"] in (1, 2):
 			assert "jsonrpc" not in result
+			assert result["result"] is not None
 			assert result["error"] is None
-		else:
+		elif result["id"] == 3:
+			assert "jsonrpc" not in result
+			assert result["result"] is None
+			assert result["error"]["message"] == "Invalid method 'invalid'"
+			assert result["error"]["class"] == "ValueError"
+			assert "Traceback" in result["error"]["details"]
+		elif result["id"] == 4:
 			assert result["jsonrpc"] == "2.0"
+			assert result["result"] is not None
 			assert "error" not in result
+		elif result["id"] == 5:
+			assert result["jsonrpc"] == "2.0"
+			assert result["error"]["code"] == 0
+			assert result["error"]["message"] == "Invalid method 'invalid'"
+			assert result["error"]["data"]["class"] == "ValueError"
+			assert "Traceback" in result["error"]["data"]["details"]
 
 
 @pytest.mark.parametrize(

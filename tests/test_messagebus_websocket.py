@@ -68,7 +68,11 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 				assert isinstance(responses[2], JSONRPCResponseMessage)
 				assert responses[2].rpc_id == jsonrpc_request_message3.rpc_id
 				assert responses[2].result is None
-				assert responses[2].error == {"message": "Invalid method 'invalid'", "class": "ValueError"}
+				assert responses[2].error == {
+					"code": 0,
+					"message": "Invalid method 'invalid'",
+					"data": {"class": "ValueError", "details": None},
+				}
 
 
 @pytest.mark.parametrize("compression", ("", "lz4", "gzip"))

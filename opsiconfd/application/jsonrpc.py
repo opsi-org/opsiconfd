@@ -446,20 +446,37 @@ async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[st
 		except Exception as write_err:  # pylint: disable=broad-except
 			logger.warning(write_err, exc_info=True)
 
-	result = {"id": rpc.get("id", 0) if rpc else 0, "error": {"message": str(exception), "class": exception.__class__.__name__}}
-	if rpc and rpc.get("jsonrpc") == "2.0":
-		result["jsonrpc"] = "2.0"
-	else:
-		result["result"] = None
-
+	_id = rpc.get("id") if rpc else None
+	message = str(exception)
+	_class = exception.__class__.__name__
+	details = None
 	try:
 		user_store = get_user_store()
 		if user_store and user_store.isAdmin:
-			result["error"]["details"] = str(traceback.format_exc())
+			details = str(traceback.format_exc())
 	except Exception as sess_err:  # pylint: disable=broad-except
 		logger.warning(sess_err, exc_info=True)
 
-	return result
+	if rpc and rpc.get("jsonrpc") == "2.0":
+		return {
+			"jsonrpc": "2.0",
+			"id": _id,
+			"error": {
+				"code": 0,  # TODO
+				"message": message,
+				"data": {"class": _class, "details": details}
+			}
+		}
+
+	return {
+		"id": 0 if _id is None else _id,
+		"result": None,
+		"error": {
+			"message": message,
+			"class": _class,
+			"details": details
+		}
+	}
 
 
 async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
@@ -482,12 +499,10 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 	if result is None:
 		result = await run_in_threadpool(execute_rpc, client_info, rpc, backend)
 
-	response = {"id": rpc["id"], "result": result, "error": None}
 	if rpc.get("jsonrpc") == "2.0":
-		response["jsonrpc"] = "2.0"
-		del response["error"]
+		return {"jsonrpc": "2.0", "id": rpc["id"], "result": result}
 
-	return response
+	return {"id": rpc["id"], "result": result, "error": None}
 
 
 async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerator[Dict[str, Any], None]:

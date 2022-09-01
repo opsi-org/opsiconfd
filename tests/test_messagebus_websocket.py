@@ -9,12 +9,12 @@ opsiconfd.messagebus tests
 """
 
 import pytest
-
-from opsiconfd.messagebus.types import (
+from opsicommon.messagebus import (  # type: ignore[import]
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
 )
+
 from opsiconfd.utils import compress_data, decompress_data
 
 from .utils import (  # pylint: disable=unused-import

@@ -25,6 +25,11 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
 from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
+from opsicommon.messagebus import (  # type: ignore[import]
+	JSONRPCRequestMessage,
+	JSONRPCResponseMessage,
+	Message,
+)
 from opsicommon.utils import deserialize, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
@@ -41,7 +46,6 @@ from ..backend import (
 from ..config import RPC_DEBUG_DIR, config
 from ..logging import logger
 from ..messagebus.redis import ConsumerGroupMessageReader, send_message
-from ..messagebus.types import JSONRPCRequestMessage, JSONRPCResponseMessage, Message
 from ..statistics import GrafanaPanelConfig, Metric, metrics_registry
 from ..utils import (
 	async_redis_client,

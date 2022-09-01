@@ -14,6 +14,7 @@ from typing import Union
 from fastapi import APIRouter, FastAPI, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from msgpack import loads as msgpack_loads  # type: ignore[import]
+from opsicommon.messagebus import Message
 from opsicommon.utils import serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
@@ -24,7 +25,6 @@ from ..logging import logger
 from ..utils import compress_data, decompress_data
 from . import get_messagebus_user_id_for_host, get_messagebus_user_id_for_user
 from .redis import ConsumerGroupMessageReader, send_message
-from .types import Message
 
 messagebus_router = APIRouter()
 

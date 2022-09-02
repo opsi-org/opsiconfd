@@ -104,9 +104,9 @@ class Worker(metaclass=Singleton):
 			self.stop()
 
 	def handle_asyncio_exception(self, loop: asyncio.AbstractEventLoop, context: dict) -> None:
-		# context["message"] will always be there but context["exception"] may not
-		# msg = context.get("exception", context["message"])
-		logger.error("Unhandled exception in worker %s asyncio loop '%s': %s", self, loop, context)
+		logger.error(
+			"Unhandled exception in worker %s asyncio loop '%s': %s", self, loop, context.get("message"), exc_info=context.get("exception")
+		)
 
 	def stop(self) -> None:
 		app.is_shutting_down = True
@@ -115,15 +115,28 @@ class Worker(metaclass=Singleton):
 	async def main_loop(self) -> None:
 		app.is_shutting_down = False
 		self._should_stop = False
+
 		from .application.jsonrpc import (  # pylint: disable=import-outside-toplevel
 			messagebus_jsonrpc_request_worker,
 		)
 
 		messagebus_jsonrpc_request_worker_task = asyncio.create_task(messagebus_jsonrpc_request_worker())
+
+		messagebus_terminal_request_worker_task = None
+		if "terminal" not in config.admin_interface_disabled_features:
+			from .application.terminal import (  # pylint: disable=import-outside-toplevel
+				messagebus_terminal_request_worker,
+			)
+
+			messagebus_terminal_request_worker_task = asyncio.create_task(messagebus_terminal_request_worker())
+
 		while not self._should_stop:
 			for _ in range(120):
 				if self._should_stop:
 					break
 				await asyncio_sleep(1)
 			memory_cleanup()
+
 		messagebus_jsonrpc_request_worker_task.cancel()
+		if messagebus_terminal_request_worker_task:
+			messagebus_terminal_request_worker_task.cancel()

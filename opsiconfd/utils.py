@@ -248,7 +248,7 @@ async def get_async_redis_connection(url: str, db: int = 0, timeout: int = 0, te
 		try:  # pylint: disable=loop-try-except-usage
 			con_id = f"{id(asyncio.get_running_loop())}/{url}/{db}"  # pylint: disable=dotted-import-in-loop
 			new_pool = False
-			async with aioredis_pool_lock:  # pylint: disable=loop-globals-usage
+			async with aioredis_pool_lock:  # pylint: disable=loop-global-usage
 				if con_id not in aioredis_connection_pool:  # pylint: disable=loop-global-usage
 					new_pool = True
 					aioredis_connection_pool[con_id] = aioredis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage

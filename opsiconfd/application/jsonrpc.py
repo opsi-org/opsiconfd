@@ -33,6 +33,8 @@ from opsicommon.messagebus import (  # type: ignore[import]
 from opsicommon.utils import deserialize, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
+
 from .. import contextvar_user_store
 from ..backend import (
 	BackendManager,
@@ -659,11 +661,10 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 
 async def _messagebus_jsonrpc_request_worker() -> None:
 	worker = Worker()
+	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 	channel = "service:config:jsonrpc"
-	consumer_group = "jsonrpc_workers"
-	consumer_name = f"service:worker:{config.node_name}:{worker.worker_num}"
 
-	cgmr = ConsumerGroupMessageReader(channel=channel, consumer_group=consumer_group, consumer_name=consumer_name)
+	cgmr = ConsumerGroupMessageReader(channel=channel, consumer_group=channel, consumer_name=messagebus_worker_id)
 	async for redis_id, message, context in cgmr.get_messages():
 		try:
 			await _process_message(cgmr, redis_id, message, context)

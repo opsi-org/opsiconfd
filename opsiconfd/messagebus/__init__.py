@@ -15,3 +15,11 @@ def get_messagebus_user_id_for_host(host_id: str) -> str:
 
 def get_messagebus_user_id_for_user(user_id: str) -> str:
 	return f"user:{user_id}"
+
+
+def get_messagebus_user_id_for_service_node(node_name: str) -> str:
+	return f"service_node:{node_name}"
+
+
+def get_messagebus_user_id_for_service_worker(node_name: str, worker_num: int) -> str:
+	return f"service_worker:{node_name}:{worker_num}"

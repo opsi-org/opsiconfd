@@ -9,6 +9,7 @@ opsiconfd.messagebus.redis
 """
 
 from asyncio.exceptions import CancelledError
+from time import time
 from typing import Any, AsyncGenerator, Tuple
 
 from msgpack import dumps, loads  # type: ignore[import]
@@ -32,6 +33,36 @@ async def send_message(message: Message, context: Any = None) -> None:
 	if context:
 		context_data = dumps(context)
 	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
+
+
+class MessageReader:  # pylint: disable=too-few-public-methods
+	def __init__(self, channel: str, start_id: str = "$"):
+		"""
+		ID "$" means that we only want new messages.
+		"""
+		self.stream = f"{PREFIX}:{channel}"
+		self.start_id = start_id
+		self.current_id = start_id
+
+	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:
+		try:
+			redis = await async_redis_client()
+			while True:
+				now = time()
+				stream_entries = await redis.xread(streams={self.stream: self.current_id}, block=1000, count=10)
+				for stream_entry in stream_entries:
+					for message in stream_entry[1]:
+						redis_id = message[0]
+						context = None
+						context_data = message[1].get(b"context")
+						if context_data:
+							context = loads(context_data)
+						msg = Message.from_msgpack(message[1][b"message"])
+						if msg.expires and msg.expires <= now:
+							continue
+						yield redis_id, msg, context
+		except CancelledError:
+			pass
 
 
 class ConsumerGroupMessageReader:
@@ -76,6 +107,7 @@ class ConsumerGroupMessageReader:
 				# logger.trace(stream_info)
 				# pending = await redis.xpending(self.stream, self.consumer_group)
 				# logger.trace(pending)
+				now = time()
 				stream_entries = await redis.xreadgroup(
 					self.consumer_group, self.consumer_name, streams={self.stream: self.current_id}, block=1000, count=10
 				)
@@ -86,7 +118,10 @@ class ConsumerGroupMessageReader:
 						context_data = message[1].get(b"context")
 						if context_data:
 							context = loads(context_data)
-						yield redis_id, Message.from_msgpack(message[1][b"message"]), context
+						msg = Message.from_msgpack(message[1][b"message"])
+						if msg.expires and msg.expires <= now:
+							continue
+						yield redis_id, msg, context
 				# After the first read, fetch pending entires only
 				self.current_id = ">"  # pylint: disable=loop-invariant-statement
 		except CancelledError:

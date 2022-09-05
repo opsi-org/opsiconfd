@@ -17,9 +17,9 @@ from multiprocessing.context import SpawnProcess
 from typing import List, Optional
 
 import psutil
+from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
-from uvicorn.subprocess import get_subprocess  # type: ignore[import]
 
 from . import __version__, ssl
 from .backend import get_backend

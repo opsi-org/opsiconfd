@@ -604,6 +604,8 @@ async def process_request(request: Request, response: Response) -> Response:  # 
 		request_data: Union[bytes, str] = await request.body()
 		if request_data:
 			if request_compression:
+				if not isinstance(request_data, bytes):
+					raise ValueError("Request data must be bytes")
 				request_data = await run_in_threadpool(decompress_data, request_data, request_compression)
 		else:
 			request_data = urllib.parse.unquote(request.url.query)

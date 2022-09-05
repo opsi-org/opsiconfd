@@ -107,6 +107,9 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			self._messagebus_user_id = get_messagebus_user_id_for_host(self.scope["session"].user_store.host.id)
 		elif self.scope["session"].user_store.isAdmin:
 			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].user_store.username)
+
+		if True:  # TODO: param ?
+			self._messagebus_user_id = f"{self._messagebus_user_id}:{self.scope['session'].session_id}"
 		self._messagebus_reader_task = asyncio.get_running_loop().create_task(self.messagebus_reader(websocket))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:

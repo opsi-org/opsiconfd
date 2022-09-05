@@ -210,10 +210,12 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	default_cols = 120
 	max_cols = 300
 
-	def __init__(self, sender_id: str, receiver_id: str, rows: int = None, cols: int = None) -> None:
-		self.id = str(uuid4())  # pylint: disable=invalid-name
-		self._sender_id = sender_id
-		self._receiver_id = receiver_id
+	def __init__(  # pylint: disable=too-many-arguments
+		self, id: str, sender_id: str, receiver_id: str, rows: int = None, cols: int = None
+	) -> None:
+		self.id = id  # str(uuid4())  # pylint: disable=invalid-name
+		self.sender_id = sender_id
+		self.receiver_id = receiver_id
 		self.rows = self.default_rows
 		self.cols = self.default_cols
 		self._loop = get_running_loop()
@@ -237,10 +239,9 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 					data = await self._loop.run_in_executor(  # pylint: disable=loop-invariant-statement
 						None, self._pty.read_nonblocking, pty_reader_block_size, 0.01
 					)
-					# data: bytes = self._pty.read_nonblocking(pty_reader_block_size, 0.001)
 					logger.trace(data)
 					message = TerminalDataRead(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-						sender=self._sender_id, channel=self._receiver_id, terminal_id=self.id, data=data
+						sender=self.sender_id, channel=self.receiver_id, terminal_id=self.id, data=data
 					)
 					await send_message(message)
 				except TIMEOUT:  # pylint: disable=loop-invariant-statement
@@ -262,8 +263,8 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			self.cols = message.cols
 			await self._loop.run_in_executor(None, self._pty.setwinsize, self.rows, self.cols)
 			message = TerminalResizeEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=self._sender_id,
-				channel=self._receiver_id,
+				sender=self.sender_id,
+				channel=self.receiver_id,
 				terminal_id=self.id,
 				rows=self.rows,
 				cols=self.cols,
@@ -283,7 +284,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			if self._pty_reader_task:
 				self._pty_reader_task.cancel()
 			message = TerminalCloseEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=self._sender_id, channel=self._receiver_id, terminal_id=self.id
+				sender=self.sender_id, channel=self.receiver_id, terminal_id=self.id
 			)
 			await send_message(message)
 			if self._pty:
@@ -296,13 +297,19 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 terminals: Dict[str, "Terminal"] = {}
 
 
-# TODO: expire terminal, cleanup terminals, set expire in messages?
+# TODO: test message values like terminal_id, expire terminal, cleanup terminals, set expire in messages, access control (terminal owner)
 async def _process_message(message: Message) -> None:
+	terminal = terminals.get(message.terminal_id)
+	if terminal and terminal.receiver_id != message.sender:
+		return
 	if message.type == MessageType.TERMINAL_OPEN_REQUEST:
-		worker = Worker()
-		messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
-		terminal = Terminal(sender_id=messagebus_worker_id, receiver_id=message.sender, rows=message.rows, cols=message.cols)
-		terminals[terminal.id] = terminal
+		if not terminal:
+			worker = Worker()
+			messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
+			terminal = Terminal(
+				id=message.terminal_id, sender_id=messagebus_worker_id, receiver_id=message.sender, rows=message.rows, cols=message.cols
+			)
+			terminals[terminal.id] = terminal
 		msg = TerminalOpenEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 			sender=messagebus_worker_id,
 			channel=message.sender,
@@ -313,9 +320,8 @@ async def _process_message(message: Message) -> None:
 		)
 		await send_message(msg)
 	else:
-		term = terminals.get(message.terminal_id)
-		if term:
-			await term.process_message(message)
+		if terminal:
+			await terminal.process_message(message)
 		else:
 			msg = TerminalCloseEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 				sender=message.sender, channel=message.sender, terminal_id=message.terminal_id

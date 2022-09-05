@@ -141,8 +141,11 @@ CLEAN_REDIS_KEYS = (
 	"opsiconfd:stats:rpcs",
 	"opsiconfd:stats:num_rpcs",
 	"opsiconfd:stats:rpc",
+	"opsiconfd:stats:node",
+	"opsiconfd:stats:worker",
+	"opsiconfd:log",
 	"opsiconfd:jsonrpccache:*:products",
-	"opsiconfd:messagebus:*",
+	"opsiconfd:messagebus",
 )
 
 

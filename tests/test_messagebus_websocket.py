@@ -8,8 +8,6 @@
 opsiconfd.messagebus tests
 """
 
-import time
-from typing import Any, List
 from uuid import uuid4
 
 import pytest

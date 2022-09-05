@@ -8,6 +8,7 @@
 opsiconfd.messagebus.redis
 """
 
+from asyncio import sleep
 from asyncio.exceptions import CancelledError
 from time import time
 from typing import Any, AsyncGenerator, Tuple
@@ -15,6 +16,7 @@ from typing import Any, AsyncGenerator, Tuple
 from msgpack import dumps, loads  # type: ignore[import]
 from opsicommon.messagebus import Message  # type: ignore[import]
 
+from ..logging import logger
 from ..utils import async_redis_client
 
 PREFIX = "opsiconfd:messagebus"
@@ -36,31 +38,44 @@ async def send_message(message: Message, context: Any = None) -> None:
 
 
 class MessageReader:  # pylint: disable=too-few-public-methods
-	def __init__(self, channel: str, start_id: str = "$"):
+	def __init__(self, channel: str, start_id: str = "auto"):
 		"""
 		ID "$" means that we only want new messages.
 		"""
 		self.stream = f"{PREFIX}:{channel}"
-		self.start_id = start_id
-		self.current_id = start_id
+		self.stream_info_key = f"{PREFIX}:{channel}:info"
+		self.start_id = start_id or "auto"
+		self.current_id = ""
 
 	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:
-		try:
-			redis = await async_redis_client()
+		redis = await async_redis_client()
+		if self.start_id == "auto":
+			start_id = await redis.hget(self.stream_info_key, "last-delivered-id")
+			if start_id:
+				self.start_id = start_id.decode("utf-8")
+			else:
+				self.start_id = "0"
+		self.current_id = self.start_id
+		try:  # pylint: disable=too-many-nested-blocks
 			while True:
-				now = time()
-				stream_entries = await redis.xread(streams={self.stream: self.current_id}, block=1000, count=10)
-				for stream_entry in stream_entries:
-					for message in stream_entry[1]:
-						redis_id = message[0]
-						context = None
-						context_data = message[1].get(b"context")
-						if context_data:
-							context = loads(context_data)
-						msg = Message.from_msgpack(message[1][b"message"])
-						if msg.expires and msg.expires <= now:
-							continue
-						yield redis_id, msg, context
+				try:  # pylint: disable=loop-try-except-usage
+					now = time()
+					stream_entries = await redis.xread(streams={self.stream: self.current_id}, block=1000, count=10)
+					for stream_entry in stream_entries:
+						for message in stream_entry[1]:
+							self.current_id = message[0]
+							context = None
+							context_data = message[1].get(b"context")
+							if context_data:
+								context = loads(context_data)
+							msg = Message.from_msgpack(message[1][b"message"])
+							if msg.expires and msg.expires <= now:
+								continue
+							yield self.current_id, msg, context
+							await redis.hset(self.stream_info_key, "last-delivered-id", self.current_id)
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error(err, exc_info=True)
+					await sleep(3)
 		except CancelledError:
 			pass
 
@@ -100,29 +115,33 @@ class ConsumerGroupMessageReader:
 
 	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:
 		await self._setup()
-		try:
-			redis = await async_redis_client()
+		redis = await async_redis_client()
+		try:  # pylint: disable=too-many-nested-blocks
 			while True:
-				# stream_info = await redis.xinfo_stream(self.stream)
-				# logger.trace(stream_info)
-				# pending = await redis.xpending(self.stream, self.consumer_group)
-				# logger.trace(pending)
-				now = time()
-				stream_entries = await redis.xreadgroup(
-					self.consumer_group, self.consumer_name, streams={self.stream: self.current_id}, block=1000, count=10
-				)
-				for stream_entry in stream_entries:
-					for message in stream_entry[1]:
-						redis_id = message[0]
-						context = None
-						context_data = message[1].get(b"context")
-						if context_data:
-							context = loads(context_data)
-						msg = Message.from_msgpack(message[1][b"message"])
-						if msg.expires and msg.expires <= now:
-							continue
-						yield redis_id, msg, context
-				# After the first read, fetch pending entires only
-				self.current_id = ">"  # pylint: disable=loop-invariant-statement
+				try:  # pylint: disable=loop-try-except-usage
+					# stream_info = await redis.xinfo_stream(self.stream)
+					# logger.trace(stream_info)
+					# pending = await redis.xpending(self.stream, self.consumer_group)
+					# logger.trace(pending)
+					now = time()
+					stream_entries = await redis.xreadgroup(
+						self.consumer_group, self.consumer_name, streams={self.stream: self.current_id}, block=1000, count=10
+					)
+					for stream_entry in stream_entries:
+						for message in stream_entry[1]:
+							redis_id = message[0]
+							context = None
+							context_data = message[1].get(b"context")
+							if context_data:
+								context = loads(context_data)
+							msg = Message.from_msgpack(message[1][b"message"])
+							if msg.expires and msg.expires <= now:
+								continue
+							yield redis_id, msg, context
+					# After the first read, fetch pending entires only
+					self.current_id = ">"  # pylint: disable=loop-invariant-statement
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error(err, exc_info=True)
+					await sleep(3)
 		except CancelledError:
 			pass

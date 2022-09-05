@@ -24,7 +24,7 @@ from ..application.utils import OpsiconfdWebSocketEndpoint
 from ..logging import logger
 from ..utils import compress_data, decompress_data
 from . import get_messagebus_user_id_for_host, get_messagebus_user_id_for_user
-from .redis import ConsumerGroupMessageReader, send_message
+from .redis import MessageReader, send_message
 
 messagebus_router = APIRouter()
 
@@ -50,11 +50,9 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		self._messagebus_reader_task = Union[asyncio.Task, None]
 
 	async def messagebus_reader(self, websocket: WebSocket) -> None:
-		cgmr = ConsumerGroupMessageReader(
-			channel=self._messagebus_user_id, consumer_group=self._messagebus_user_id, consumer_name=self._messagebus_user_id
-		)
+		reader = MessageReader(channel=self._messagebus_user_id)
 		try:
-			async for redis_id, message, _context in cgmr.get_messages():
+			async for redis_id, message, _context in reader.get_messages():
 				data = message.to_msgpack()
 				if self._compression:
 					data = await run_in_threadpool(compress_data, data, self._compression)
@@ -64,14 +62,16 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 					return
 
 				await websocket.send_bytes(data)
-				# ACK message
-				# asyncio.create_task(cgmr.ack_message(redis_id))
-				await cgmr.ack_message(redis_id)
+				# ACK message (set last-delivered-id)
+				# asyncio.create_task(reader.ack_message(redis_id))
+				await reader.ack_message(redis_id)
 		except StopAsyncIteration:
 			pass
 
 	def _check_channel_access(self, channel: str) -> None:
 		if channel == "service:config:jsonrpc":
+			return
+		if channel == self._messagebus_user_id:
 			return
 		if not self.scope["session"].user_store.isAdmin:
 			raise RuntimeError(f"Access to channel {channel!r} denied")
@@ -83,8 +83,9 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			msg_dict = msgpack_loads(data)
 			msg_dict["sender"] = self._messagebus_user_id
 			self._check_channel_access(msg_dict["channel"])
+			# self._check_channel_access(msg_dict["back_channel"])
 			message = Message.from_dict(msg_dict)
-			await send_message(message, serialize(self.scope["session"].user_store.__dict__))
+			await send_message(message, serialize(vars(self.scope["session"].user_store)))
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err)
 			await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA, reason=str(err))
@@ -108,8 +109,8 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		elif self.scope["session"].user_store.isAdmin:
 			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].user_store.username)
 
-		if True:  # TODO: param ?
-			self._messagebus_user_id = f"{self._messagebus_user_id}:{self.scope['session'].session_id}"
+		self._messagebus_user_id = f"{self._messagebus_user_id}:{self.scope['session'].session_id}"
+		# self._messagebus_user_id = f"{self._messagebus_user_id}"
 		self._messagebus_reader_task = asyncio.get_running_loop().create_task(self.messagebus_reader(websocket))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:

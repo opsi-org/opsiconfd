@@ -8,6 +8,10 @@
 opsiconfd.messagebus tests
 """
 
+import time
+from typing import Any, List
+from uuid import uuid4
+
 import pytest
 from opsicommon.messagebus import (  # type: ignore[import]
 	JSONRPCRequestMessage,
@@ -59,6 +63,39 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 			assert jsonrpc_response_message.error is None
 
 
+def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	host_id = "msgbus-test-client.opsi.test"
+	host_key = "92aa768a259dec1856013c4e458507d5"
+	with client_jsonrpc(test_client, "", host_id=host_id, host_key=host_key):
+		test_client.auth = (host_id, host_key)
+		with (test_client.websocket_connect("/messagebus/v1") as websocket1, test_client.websocket_connect("/messagebus/v1") as websocket2):
+			with (WebSocketMessageReader(websocket1) as reader1, WebSocketMessageReader(websocket2) as reader2):
+				message = Message(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+					type="test_multi_client", sender="*", channel="host:msgbus-test-client.opsi.test", id="1"
+				)
+				websocket1.send_bytes(message.to_msgpack())
+				for reader in (reader1, reader2):
+					reader.wait_for_message(count=1)
+					messages = list(reader.get_messages())
+					assert len(messages) == 1
+					assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
+					assert messages[0]["id"] == "1"  # type: ignore[call-overload]
+
+				# print(list(reader2.get_messages()))
+				with test_client.websocket_connect("/messagebus/v1") as websocket3:
+					with WebSocketMessageReader(websocket3) as reader3:
+						message = Message(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+							type="test_multi_client", sender="*", channel="host:msgbus-test-client.opsi.test", id="2"
+						)
+						websocket1.send_bytes(message.to_msgpack())
+						for reader in (reader1, reader2, reader3):
+							reader.wait_for_message(count=1)
+							messages = list(reader.get_messages())
+							assert len(messages) == 1
+							assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
+							assert messages[0]["id"] == "2"  # type: ignore[call-overload]
+
+
 def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
@@ -105,14 +142,15 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 				}
 
 
-def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	messagebus_node_id = get_messagebus_user_id_for_service_node(config.node_name)
 
 	with test_client.websocket_connect("/messagebus/v1") as websocket:
 		with WebSocketMessageReader(websocket) as reader:
+			terminal_id = str(uuid4())
 			message = TerminalOpenRequest(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender="*", channel=f"{messagebus_node_id}:terminal", rows=20, cols=100
+				sender="*", channel=f"{messagebus_node_id}:terminal", terminal_id=terminal_id, rows=20, cols=100
 			)
 			websocket.send_bytes(message.to_msgpack())
 
@@ -126,8 +164,7 @@ def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylin
 			assert responses[0].rows
 			assert responses[0].cols
 
-			terminal_id = responses[0].terminal_id
-			assert terminal_id
+			assert responses[0].terminal_id == terminal_id
 			terminal_channel = responses[0].terminal_channel
 			assert terminal_channel
 

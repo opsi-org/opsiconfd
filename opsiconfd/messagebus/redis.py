@@ -72,12 +72,15 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 							if msg.expires and msg.expires <= now:
 								continue
 							yield self.current_id, msg, context
-							await redis.hset(self.stream_info_key, "last-delivered-id", self.current_id)
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error(err, exc_info=True)
 					await sleep(3)
 		except CancelledError:
 			pass
+
+	async def ack_message(self, redis_id: str) -> None:
+		redis = await async_redis_client()
+		await redis.hset(self.stream_info_key, "last-delivered-id", redis_id)
 
 
 class ConsumerGroupMessageReader:

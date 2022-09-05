@@ -662,8 +662,6 @@ async def authenticate(session: OPSISession, username: str, password: str) -> No
 				# Remove admin group from groups because acl.conf currently does not support isAdmin
 				session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
 
-	await session.store()
-
 
 async def check_blocked(ip_address: str) -> None:
 	logger.info("Checking if client '%s' is blocked", ip_address)

@@ -11,8 +11,9 @@ opsiconfd.messagebus.redis
 from asyncio import sleep
 from asyncio.exceptions import CancelledError
 from time import time
-from typing import Any, AsyncGenerator, Tuple
+from typing import Any, AsyncGenerator, Dict, Tuple
 
+from aioredis.client import StreamIdT
 from msgpack import dumps, loads  # type: ignore[import]
 from opsicommon.messagebus import Message  # type: ignore[import]
 
@@ -38,32 +39,63 @@ async def send_message(message: Message, context: Any = None) -> None:
 
 
 class MessageReader:  # pylint: disable=too-few-public-methods
-	def __init__(self, channel: str, start_id: str = "auto"):
+	_prefix = PREFIX
+	_info_suffix = b":info"
+
+	def __init__(self, channels: Dict[str, StreamIdT]):
 		"""
-		ID "$" means that we only want new messages.
+		channels:
+			A dict of channel names to stream IDs, where
+			IDs indicate the last ID already seen.
+			Special IDs:
+			ID ">" means that we want to receive messages all undelivered messages.
+			ID "$" means that we only want new messages (added after reader was started).
 		"""
-		self.stream = f"{PREFIX}:{channel}"
-		self.stream_info_key = f"{PREFIX}:{channel}:info"
-		self.start_id = start_id or "auto"
-		self.current_id = ""
+		self._channels = channels
+		self._streams: Dict[bytes, StreamIdT] = {}
+
+	async def _update_streams(self) -> None:
+		redis = await async_redis_client()
+		stream_keys = []
+		for channel, redis_msg_id in self._channels.items():
+			stream_key = f"{self._prefix}:{channel}".encode("utf-8")
+			if not redis_msg_id or redis_msg_id == ">":
+				last_delivered_id = await redis.hget(stream_key + self._info_suffix, "last-delivered-id")
+				if last_delivered_id:
+					redis_msg_id = last_delivered_id.decode("utf-8")
+				else:
+					redis_msg_id = "0"
+			self._streams[stream_key] = redis_msg_id
+			stream_keys.append(stream_key)
+
+		for stream_key in list(self._streams):
+			if stream_key not in stream_keys:
+				del self._streams[stream_key]
+
+	async def add_channel(self, channel: str, redis_msg_id: StreamIdT = ">") -> None:
+		if channel in self._channels:
+			raise ValueError("Channel already in use")
+		self._channels[channel] = redis_msg_id
+		await self._update_streams()
+
+	async def remove_channel(self, channel: str) -> None:
+		if channel not in self._channels:
+			raise ValueError("Channel not in use")
+		del self._channels[channel]
+		await self._update_streams()
 
 	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:
+		await self._update_streams()
+
 		redis = await async_redis_client()
-		if self.start_id == "auto":
-			start_id = await redis.hget(self.stream_info_key, "last-delivered-id")
-			if start_id:
-				self.start_id = start_id.decode("utf-8")
-			else:
-				self.start_id = "0"
-		self.current_id = self.start_id
 		try:  # pylint: disable=too-many-nested-blocks
 			while True:
 				try:  # pylint: disable=loop-try-except-usage
 					now = time()
-					stream_entries = await redis.xread(streams={self.stream: self.current_id}, block=1000, count=10)
-					for stream_entry in stream_entries:
-						for message in stream_entry[1]:
-							self.current_id = message[0]
+					stream_entries = await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
+					for stream_key, messages in stream_entries:
+						for message in messages:
+							redis_msg_id = message[0].decode("utf-8")
 							context = None
 							context_data = message[1].get(b"context")
 							if context_data:
@@ -71,20 +103,24 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 							msg = Message.from_msgpack(message[1][b"message"])
 							if msg.expires and msg.expires <= now:
 								continue
-							yield self.current_id, msg, context
+							yield redis_msg_id, msg, context
+							self._streams[stream_key] = redis_msg_id  # pylint: disable=loop-invariant-statement
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error(err, exc_info=True)
 					await sleep(3)
 		except CancelledError:
 			pass
 
-	async def ack_message(self, redis_id: str) -> None:
+	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		redis = await async_redis_client()
-		await redis.hset(self.stream_info_key, "last-delivered-id", redis_id)
+		stream_key = f"{PREFIX}:{channel}".encode("utf-8")
+		if stream_key not in self._streams:
+			raise ValueError(f"Invalid channel: {channel!r}")
+		await redis.hset(stream_key + self._info_suffix, "last-delivered-id", redis_msg_id)
 
 
 class ConsumerGroupMessageReader:
-	def __init__(self, channel: str, consumer_group: str, consumer_name: str, start_id: str = "0"):
+	def __init__(self, channel: str, consumer_group: str, consumer_name: str, start_id: StreamIdT = "0"):
 		"""
 		ID ">" means that the consumer want to receive only messages that were never delivered to any other consumer.
 		Any other ID, that is, 0 or any other valid ID will have the effect of returning entries that are pending
@@ -111,10 +147,6 @@ class ConsumerGroupMessageReader:
 
 		if not consumer_group_exists:
 			await redis.xgroup_create(self.stream, self.consumer_group, id="0", mkstream=not stream_exists)
-
-	async def ack_message(self, redis_id: str) -> None:
-		redis = await async_redis_client()
-		await redis.xack(self.stream, self.consumer_group, redis_id)
 
 	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:
 		await self._setup()
@@ -148,3 +180,7 @@ class ConsumerGroupMessageReader:
 					await sleep(3)
 		except CancelledError:
 			pass
+
+	async def ack_message(self, redis_msg_id: str) -> None:
+		redis = await async_redis_client()
+		await redis.xack(self.stream, self.consumer_group, redis_msg_id)

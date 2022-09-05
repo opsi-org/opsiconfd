@@ -237,7 +237,14 @@ class SessionMiddleware:
 				if await addon.handle_request(connection, receive, send):
 					return
 
-		await check_access(connection)
+		if (
+			scope["session"]
+			and required_access_role == ACCESS_ROLE_ADMIN
+			and not scope["session"].user_store.host
+			and scope["path"].startswith("/depot")
+			and FILE_ADMIN_GROUP not in scope["session"].user_store.userGroups
+		):
+			raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].user_store.username}'")
 
 		# Session handling time
 		session_handling_millis = int((time.perf_counter() - start) * 1000)
@@ -617,6 +624,10 @@ async def authenticate(session: OPSISession, username: str, password: str) -> No
 		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)
+
+	if not session.user_store.username or not session.user_store.authenticated:
+		raise BackendPermissionDeniedError("Not authenticated")
+
 	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.user_store.username)
 
 	if username == config.monitoring_user:
@@ -626,6 +637,30 @@ async def authenticate(session: OPSISession, username: str, password: str) -> No
 	if session.user_store.host and session.user_store.host.getType() == "OpsiClient":
 		logger.info("OpsiClient authenticated, updating host object")
 		await run_in_threadpool(update_host_object, session.user_store.host.id, session.client_addr)
+
+	if session.user_store.host and session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+		logger.debug("Storing depot server address: %s", session.client_addr)
+		depot_addresses[session.client_addr] = time.time()
+
+	if session.user_store.isAdmin and config.admin_networks:
+		is_admin_network = False
+		for network in config.admin_networks:
+			if ipAddressInNetwork(session.client_addr, network):
+				is_admin_network = True
+				break
+
+		if not is_admin_network:
+			logger.warning(
+				"User '%s' from '%s' not in admin network '%s'",
+				session.user_store.username,
+				session.client_addr,
+				config.admin_networks,
+			)
+			session.user_store.isAdmin = False
+			if OPSI_ADMIN_GROUP in session.user_store.userGroups:
+				# Remove admin group from groups because acl.conf currently does not support isAdmin
+				session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
+			await session.store()
 
 
 async def check_blocked(ip_address: str) -> None:
@@ -674,42 +709,10 @@ async def check_access(connection: HTTPConnection) -> None:
 		return
 
 	session = connection.scope["session"]
-	client_addr = scope["client"][0]
 
 	if not session.user_store.username or not session.user_store.authenticated:
-
 		auth = get_basic_auth(connection.headers)
 		await authenticate(session, auth.username, auth.password)
-
-		if not session.user_store.username or not session.user_store.authenticated:
-			raise BackendPermissionDeniedError("Not authenticated")
-
-		if session.user_store.host and session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
-			logger.debug("Storing depot server address: %s", client_addr)
-			depot_addresses[client_addr] = time.time()
-
-		if not session.user_store.host and scope["path"].startswith("/depot") and FILE_ADMIN_GROUP not in session.user_store.userGroups:
-			raise BackendPermissionDeniedError(f"Not a file admin user '{session.user_store.username}'")
-
-		if session.user_store.isAdmin and config.admin_networks:
-			is_admin_network = False
-			for network in config.admin_networks:
-				if ipAddressInNetwork(client_addr, network):
-					is_admin_network = True
-					break
-
-			if not is_admin_network:
-				logger.warning(
-					"User '%s' from '%s' not in admin network '%s'",
-					session.user_store.username,
-					client_addr,
-					config.admin_networks,
-				)
-				session.user_store.isAdmin = False
-				if OPSI_ADMIN_GROUP in session.user_store.userGroups:
-					# Remove admin group from groups because acl.conf currently does not support isAdmin
-					session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
-				await session.store()
 
 	if scope["required_access_role"] == ACCESS_ROLE_ADMIN and not session.user_store.isAdmin:
 		raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope.get('method')} {scope.get('path')}")

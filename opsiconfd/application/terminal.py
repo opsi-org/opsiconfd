@@ -210,7 +210,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	max_cols = 300
 
 	def __init__(  # pylint: disable=too-many-arguments
-		self, id: str, sender_id: str, receiver_id: str, rows: int = None, cols: int = None  # pylint: disable=invalid-name
+		self, id: str, sender_id: str, receiver_id: str, rows: int = None, cols: int = None  # pylint: disable=invalid-name,redefined-builtin
 	) -> None:
 		self.id = id  # pylint: disable=invalid-name
 		self.sender_id = sender_id

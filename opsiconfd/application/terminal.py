@@ -334,8 +334,8 @@ async def _messagebus_terminal_instance_worker() -> None:
 	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 	channel = f"{messagebus_worker_id}:terminal"
 
-	cgmr = MessageReader(channel=channel)
-	async for _redis_id, message, _context in cgmr.get_messages():
+	reader = MessageReader(channels={channel: "$"})
+	async for _redis_id, message, _context in reader.get_messages():
 		try:
 			await _process_message(message)
 		except Exception as err:  # pylint: disable=broad-except

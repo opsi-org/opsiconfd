@@ -50,7 +50,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		self._messagebus_reader_task = Union[asyncio.Task, None]
 
 	async def messagebus_reader(self, websocket: WebSocket) -> None:
-		reader = MessageReader(channel=self._messagebus_user_id)
+		reader = MessageReader(channels={self._messagebus_user_id: ">"})
 		try:
 			async for redis_id, message, _context in reader.get_messages():
 				data = message.to_msgpack()
@@ -64,7 +64,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 				await websocket.send_bytes(data)
 				# ACK message (set last-delivered-id)
 				# asyncio.create_task(reader.ack_message(redis_id))
-				await reader.ack_message(redis_id)
+				await reader.ack_message(message.channel, redis_id)
 		except StopAsyncIteration:
 			pass
 
@@ -109,8 +109,8 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		elif self.scope["session"].user_store.isAdmin:
 			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].user_store.username)
 
-		self._messagebus_user_id = f"{self._messagebus_user_id}:{self.scope['session'].session_id}"
-		# self._messagebus_user_id = f"{self._messagebus_user_id}"
+		# self._messagebus_user_id = f"{self._messagebus_user_id}:{self.scope['session'].session_id}"
+		self._messagebus_user_id = f"{self._messagebus_user_id}"
 		self._messagebus_reader_task = asyncio.get_running_loop().create_task(self.messagebus_reader(websocket))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:

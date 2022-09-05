@@ -237,6 +237,7 @@ class SessionMiddleware:
 				if await addon.handle_request(connection, receive, send):
 					return
 
+		await check_access(connection)
 		if (
 			scope["session"]
 			and required_access_role == ACCESS_ROLE_ADMIN
@@ -660,7 +661,8 @@ async def authenticate(session: OPSISession, username: str, password: str) -> No
 			if OPSI_ADMIN_GROUP in session.user_store.userGroups:
 				# Remove admin group from groups because acl.conf currently does not support isAdmin
 				session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
-			await session.store()
+
+	await session.store()
 
 
 async def check_blocked(ip_address: str) -> None:

@@ -15,12 +15,19 @@ import shutil
 import sys
 import warnings
 from tempfile import mkdtemp
+from types import FrameType
+from typing import Any, Generator
 from unittest.mock import patch
 
 import urllib3
+from _pytest.config import Config
 from _pytest.logging import LogCaptureHandler
+from _pytest.main import Session
+from _pytest.nodes import Item
 from pytest import fixture, hookimpl, skip
 
+import opsiconfd.config
+import opsiconfd.messagebus.redis
 from opsiconfd.application.main import application_setup
 from opsiconfd.backend import BackendManager
 from opsiconfd.config import config as _config
@@ -32,7 +39,7 @@ GRAFANA_AVAILABLE = False
 MYSQL_BACKEND_AVAILABLE = False
 
 
-def signal_handler(self, signum, frame):  # pylint: disable=unused-argument
+def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:  # pylint: disable=unused-argument
 	sys.exit(1)
 
 
@@ -40,7 +47,7 @@ Manager.orig_signal_handler = Manager.signal_handler  # type: ignore[attr-define
 Manager.signal_handler = signal_handler  # type: ignore[assignment]
 
 
-def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
+def emit(*args: Any, **kwargs: Any) -> None:  # pylint: disable=unused-argument
 	pass
 
 
@@ -48,9 +55,11 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 
 @hookimpl()
-def pytest_sessionstart(session):  # pylint: disable=unused-argument
+def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-argument
 	global GRAFANA_AVAILABLE  # pylint: disable=global-statement
 	global MYSQL_BACKEND_AVAILABLE  # pylint: disable=global-statement
+
+	opsiconfd.config.REDIS_PREFIX_MESSAGEBUS = opsiconfd.messagebus.redis.REDIS_PREFIX_MESSAGEBUS = "opsiconfd:test_messagebus"
 
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()
@@ -83,14 +92,14 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 
 
 @hookimpl()
-def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argument
+def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: disable=unused-argument
 	ssl_dir = os.path.dirname(_config.ssl_ca_key)
 	if os.path.exists(ssl_dir):
 		shutil.rmtree(ssl_dir)
 
 
 @hookimpl()
-def pytest_configure(config):
+def pytest_configure(config: Config) -> None:
 	# https://pypi.org/project/pytest-asyncio
 	# When the mode is auto, all discovered async tests are considered
 	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
@@ -100,7 +109,7 @@ def pytest_configure(config):
 
 
 @hookimpl()
-def pytest_runtest_setup(item):
+def pytest_runtest_setup(item: Item) -> None:
 	grafana_available = GRAFANA_AVAILABLE
 	mysql_backend_available = MYSQL_BACKEND_AVAILABLE
 	for marker in item.iter_markers():
@@ -111,7 +120,7 @@ def pytest_runtest_setup(item):
 
 
 @fixture(scope="session")
-def event_loop():
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
 	"""Create an instance of the default event loop for each test case."""
 	loop = asyncio.get_event_loop_policy().new_event_loop()
 	yield loop
@@ -119,11 +128,11 @@ def event_loop():
 
 
 @fixture(autouse=True)
-def disable_insecure_request_warning():
+def disable_insecure_request_warning() -> None:
 	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
 
 
 @fixture(autouse=True)
-def disable_aioredis_deprecation_warning():
+def disable_aioredis_deprecation_warning() -> None:
 	# aioredis/connection.py:668: DeprecationWarning: There is no current event loop
 	warnings.simplefilter("ignore", DeprecationWarning, 668)

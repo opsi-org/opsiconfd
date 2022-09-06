@@ -14,6 +14,7 @@ from typing import Any
 from aioredis import StrictRedis
 from fastapi.responses import JSONResponse
 
+from opsiconfd.config import REDIS_PREFIX_SESSION
 from opsiconfd.utils import decode_redis_result
 
 ERRORCODE_PATTERN = re.compile(
@@ -73,7 +74,7 @@ async def get_request_avg(redis: StrictRedis) -> float:
 
 async def get_session_count(redis: StrictRedis) -> int:
 	count = 0
-	session_keys = redis.scan_iter("opsiconfd:sessions:*")
+	session_keys = redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*")
 	async for _session in session_keys:
 		count += 1
 	return count

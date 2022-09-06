@@ -268,6 +268,9 @@ async def async_redis_client(timeout: int = 0, test_connection: bool = False) ->
 
 
 async def async_get_redis_info(client: aioredis.StrictRedis) -> Dict[str, Any]:  # pylint: disable=too-many-locals
+	from opsiconfd.config import (  # pylint: disable=import-outside-toplevel
+		REDIS_PREFIX_SESSION,
+	)
 	stats_keys = []
 	sessions_keys = []
 	log_keys = []
@@ -281,7 +284,7 @@ async def async_get_redis_info(client: aioredis.StrictRedis) -> Dict[str, Any]: 
 			rpc_keys.append(key)
 		elif key.startswith("opsiconfd:stats"):
 			stats_keys.append(key)
-		elif key.startswith("opsiconfd:sessions"):
+		elif key.startswith(REDIS_PREFIX_SESSION):
 			sessions_keys.append(key)
 		elif key.startswith("opsiconfd:log"):
 			log_keys.append(key)

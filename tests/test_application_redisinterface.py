@@ -18,6 +18,7 @@ from opsiconfd.utils import decode_redis_result
 from tests.utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	OpsiconfdTestClient,
 	depot_jsonrpc,
 	get_config,
 	get_dummy_products,
@@ -28,21 +29,20 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-def test_redis_command(test_client):  # pylint: disable=redefined-outer-name
+def test_redis_command(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	res = test_client.post("/redis-interface", auth=(ADMIN_USER, ADMIN_PASS), json={"cmd": "ping"})
 	res.raise_for_status()
 	assert res.json() == {"result": True}
 
 
-def test_redis_stats(test_client):  # pylint: disable=redefined-outer-name
+def test_redis_stats(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	res = test_client.get("/redis-interface/redis-stats", auth=(ADMIN_USER, ADMIN_PASS))
 	res.raise_for_status()
 	assert res.status_code == 200
-	res = res.json()
-	assert res["key_info"]
+	assert res.json()["key_info"]
 
 
-def test_clear_product_cache(test_client):  # pylint: disable=redefined-outer-name
+def test_clear_product_cache(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(10)
 	depot_id = "test-depot.uib.local"
 	configserver = getfqdn()
@@ -103,7 +103,7 @@ def test_clear_product_cache(test_client):  # pylint: disable=redefined-outer-na
 		assert depots == {configserver}
 
 
-def test_clear_product_cache_error(test_client):  # pylint: disable=redefined-outer-name
+def test_clear_product_cache_error(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(10)
 	configserver = getfqdn()
 	with (
@@ -124,7 +124,7 @@ def test_clear_product_cache_error(test_client):  # pylint: disable=redefined-ou
 		}
 
 
-async def test_get_depot_cache(test_client):  # pylint: disable=redefined-outer-name
+async def test_get_depot_cache(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	depot_id = "test-get.depot.cache"
 	products = (
 		{"id": "test_product1", "name": "Test Product 1", "productVersion": "1.0", "packageVersion": "1", "priority": 95},
@@ -134,22 +134,20 @@ async def test_get_depot_cache(test_client):  # pylint: disable=redefined-outer-
 	with (
 		get_config({"jsonrpc_time_to_cache": 0}),
 		depot_jsonrpc(test_client, "", depot_id),  # Create depot
-		products_jsonrpc(test_client, "", products, [depot_id]),  # Create products
+		products_jsonrpc(test_client, "", list(products), [depot_id]),  # Create products
 	):
 		get_product_ordering_jsonrpc(test_client, depot_id)
 
 		res = test_client.get("/redis-interface/depot-cache", auth=(ADMIN_USER, ADMIN_PASS))
 		res.raise_for_status()
-		res = res.json()
-		assert depot_id in res["depots"]
+		assert depot_id in res.json()["depots"]
 
 		res = test_client.get("/redis-interface/products", auth=(ADMIN_USER, ADMIN_PASS))
 		res.raise_for_status()
-		res = res.json()
-		assert len(res[depot_id]) == len(products)
+		assert len(res.json()[depot_id]) == len(products)
 
 
-def test_get_depot_cache_confgserver(test_client):  # pylint: disable=redefined-outer-name
+def test_get_depot_cache_confgserver(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(10)
 	configserver = getfqdn()
 	with (
@@ -165,7 +163,7 @@ def test_get_depot_cache_confgserver(test_client):  # pylint: disable=redefined-
 		assert res.json() == {"depots": [configserver]}
 
 
-def test_get_depot_cache_error(test_client):  # pylint: disable=redefined-outer-name
+def test_get_depot_cache_error(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(10)
 	configserver = getfqdn()
 	with (
@@ -187,7 +185,7 @@ def test_get_depot_cache_error(test_client):  # pylint: disable=redefined-outer-
 		}
 
 
-def test_get_products(test_client):  # pylint: disable=redefined-outer-name
+def test_get_products(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(10)
 	configserver = getfqdn()
 	product_ids = [p["id"] for p in products]
@@ -203,7 +201,7 @@ def test_get_products(test_client):  # pylint: disable=redefined-outer-name
 		assert res.json() == {configserver: product_ids}
 
 
-def test_get_products_error(test_client):  # pylint: disable=redefined-outer-name
+def test_get_products_error(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with mock.patch("opsiconfd.utils.decode_redis_result", side_effect=Exception("Redis test error")):
 		res = test_client.get("/redis-interface/products", auth=(ADMIN_USER, ADMIN_PASS), json={})
 	assert res.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -17,10 +17,9 @@ from aioredis.client import StreamIdT
 from msgpack import dumps, loads  # type: ignore[import]
 from opsicommon.messagebus import Message  # type: ignore[import]
 
+from ..config import REDIS_PREFIX_MESSAGEBUS
 from ..logging import logger
 from ..utils import async_redis_client
-
-PREFIX = "opsiconfd:messagebus"
 
 
 async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes = None) -> None:
@@ -28,7 +27,7 @@ async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: 
 	fields = {"message": msgpack_data}
 	if context_data:
 		fields["context"] = context_data
-	await redis.xadd(f"{PREFIX}:{channel}", fields=fields)  # type: ignore[arg-type]
+	await redis.xadd(f"{REDIS_PREFIX_MESSAGEBUS}:{channel}", fields=fields)  # type: ignore[arg-type]
 
 
 async def send_message(message: Message, context: Any = None) -> None:
@@ -39,7 +38,6 @@ async def send_message(message: Message, context: Any = None) -> None:
 
 
 class MessageReader:  # pylint: disable=too-few-public-methods
-	_prefix = PREFIX
 	_info_suffix = b":info"
 
 	def __init__(self, channels: Dict[str, StreamIdT]):
@@ -58,7 +56,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		redis = await async_redis_client()
 		stream_keys = []
 		for channel, redis_msg_id in self._channels.items():
-			stream_key = f"{self._prefix}:{channel}".encode("utf-8")
+			stream_key = f"{REDIS_PREFIX_MESSAGEBUS}:{channel}".encode("utf-8")  # pylint: disable=loop-global-usage
 			if not redis_msg_id or redis_msg_id == ">":
 				last_delivered_id = await redis.hget(stream_key + self._info_suffix, "last-delivered-id")
 				if last_delivered_id:
@@ -113,7 +111,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		redis = await async_redis_client()
-		stream_key = f"{PREFIX}:{channel}".encode("utf-8")
+		stream_key = f"{REDIS_PREFIX_MESSAGEBUS}:{channel}".encode("utf-8")
 		if stream_key not in self._streams:
 			raise ValueError(f"Invalid channel: {channel!r}")
 		await redis.hset(stream_key + self._info_suffix, "last-delivered-id", redis_msg_id)
@@ -128,7 +126,7 @@ class ConsumerGroupMessageReader:
 		So basically if the ID is not ">", then the command will just let the client access its pending entries:
 		messages delivered to it, but not yet acknowledged.
 		"""
-		self.stream = f"{PREFIX}:{channel}"
+		self.stream = f"{REDIS_PREFIX_MESSAGEBUS}:{channel}"
 		self.consumer_group = consumer_group
 		self.consumer_name = consumer_name
 		self.start_id = start_id

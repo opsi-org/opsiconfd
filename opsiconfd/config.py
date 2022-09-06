@@ -54,6 +54,9 @@ FQDN = getfqdn().lower()
 DEFAULT_NODE_NAME = socket.gethostname()
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
+REDIS_PREFIX_MESSAGEBUS = "opsiconfd:messagebus"
+REDIS_PREFIX_SESSION = "opsiconfd:session"
+
 
 if running_in_docker():
 	try:

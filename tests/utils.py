@@ -33,13 +33,12 @@ from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application.main import BaseMiddleware, app
 from opsiconfd.backend import BackendManager, get_mysql
-from opsiconfd.config import Config
+from opsiconfd.config import REDIS_PREFIX_MESSAGEBUS, REDIS_PREFIX_SESSION, Config
 from opsiconfd.config import config as _config
 from opsiconfd.utils import Singleton
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
-OPSI_SESSION_KEY = "opsiconfd:sessions"
 
 
 def reset_singleton(cls: Singleton) -> None:
@@ -133,20 +132,21 @@ def get_config(values: Union[Dict[str, Any], List[str]]) -> Generator[Config, No
 		_config._args = args  # pylint: disable=protected-access
 
 
-CLEAN_REDIS_KEYS = (
-	OPSI_SESSION_KEY,
-	"opsiconfd:stats:client:failed_auth",
-	"opsiconfd:stats:client:blocked",
-	"opsiconfd:stats:client",
-	"opsiconfd:stats:rpcs",
-	"opsiconfd:stats:num_rpcs",
-	"opsiconfd:stats:rpc",
-	# "opsiconfd:stats:node",
-	# "opsiconfd:stats:worker",
-	"opsiconfd:log",
-	"opsiconfd:jsonrpccache:*:products",
-	"opsiconfd:messagebus",
-)
+def clean_redis_keys() -> Tuple[str, ...]:
+	return (
+		"opsiconfd:stats:client:failed_auth",
+		"opsiconfd:stats:client:blocked",
+		"opsiconfd:stats:client",
+		"opsiconfd:stats:rpcs",
+		"opsiconfd:stats:num_rpcs",
+		"opsiconfd:stats:rpc",
+		# "opsiconfd:stats:node",
+		# "opsiconfd:stats:worker",
+		"opsiconfd:log",
+		"opsiconfd:jsonrpccache:*:products",
+		REDIS_PREFIX_SESSION,
+		REDIS_PREFIX_MESSAGEBUS
+	)
 
 
 @asynccontextmanager
@@ -169,7 +169,7 @@ def sync_redis_client() -> Generator[redis.StrictRedis, None, None]:  # pylint: 
 
 async def async_clean_redis() -> None:
 	async with async_redis_client() as redis_client:
-		for redis_key in CLEAN_REDIS_KEYS:  # pylint: disable=loop-global-usage
+		for redis_key in clean_redis_keys():  # pylint: disable=loop-global-usage
 			async for key in redis_client.scan_iter(f"{redis_key}:*"):
 				await redis_client.delete(key)
 			await redis_client.delete(redis_key)
@@ -177,7 +177,7 @@ async def async_clean_redis() -> None:
 
 def sync_clean_redis() -> None:
 	with sync_redis_client() as redis_client:
-		for redis_key in CLEAN_REDIS_KEYS:  # pylint: disable=loop-global-usage
+		for redis_key in clean_redis_keys():  # pylint: disable=loop-global-usage
 			for key in redis_client.scan_iter(f"{redis_key}:*"):  # pylint: disable=loop-invariant-statement
 				redis_client.delete(key)
 			redis_client.delete(redis_key)

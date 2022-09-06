@@ -10,18 +10,27 @@ Tests for the opsiconfd monitoring module
 using https requests
 """
 
-import time
+import asyncio
 import json
 import socket
-import asyncio
+import time
 
+import aioredis
 import pytest
 import requests
-import aioredis
 
 from opsiconfd.application.monitoring.utils import get_workers
-from tests.utils import config, clean_redis, database_connection, ADMIN_USER, ADMIN_PASS  # pylint: disable=unused-import
-from tests.monitoring.test_monitoring import MONITORING_CHECK_DAYS, create_check_data  # pylint: disable=unused-import
+from tests.monitoring.test_monitoring import (  # pylint: disable=unused-import
+	MONITORING_CHECK_DAYS,
+	create_check_data,
+)
+from tests.utils import (  # pylint: disable=unused-import
+	ADMIN_PASS,
+	ADMIN_USER,
+	clean_redis,
+	config,
+	database_connection,
+)
 
 
 @pytest.mark.parametrize(

@@ -63,6 +63,11 @@ def admin_interface_setup(app: FastAPI) -> None:
 async def welcome_interface_index(request: Request) -> Response:
 	welcome_page = config.welcome_page
 
+	webgui = False
+	for addon in AddonManager().addons:
+		if addon.id == "webgui":
+			webgui = True
+
 	client_lang = "en"
 	if request.headers.get("accept-language", "").startswith("de"):
 		client_lang = "de"
@@ -71,6 +76,7 @@ async def welcome_interface_index(request: Request) -> Response:
 		"client_lang": client_lang,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
 		"ucs_server": isUCS(),
+		"webgui": webgui,
 		"welcome_page": welcome_page,
 	}
 	return config.jinja_templates.TemplateResponse("welcome.html", context)

@@ -36,10 +36,7 @@ from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
 
-from opsiconfd.messagebus import (
-	get_messagebus_user_id_for_service_node,
-	get_messagebus_user_id_for_service_worker,
-)
+from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
 from opsiconfd.messagebus.redis import (
 	ConsumerGroupMessageReader,
 	MessageReader,
@@ -210,11 +207,18 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	max_cols = 300
 
 	def __init__(  # pylint: disable=too-many-arguments
-		self, id: str, sender_id: str, receiver_id: str, rows: int = None, cols: int = None  # pylint: disable=invalid-name,redefined-builtin
+		self,
+		id: str,  # pylint: disable=invalid-name,redefined-builtin
+		owner: str,
+		sender: str,
+		channel: str,
+		rows: int = None,
+		cols: int = None,
 	) -> None:
 		self.id = id  # pylint: disable=invalid-name
-		self.sender_id = sender_id
-		self.receiver_id = receiver_id
+		self.owner = owner
+		self.sender = sender
+		self.channel = channel
 		self.rows = self.default_rows
 		self.cols = self.default_cols
 		self._loop = get_running_loop()
@@ -240,7 +244,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 					)
 					logger.trace(data)
 					message = TerminalDataRead(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-						sender=self.sender_id, channel=self.receiver_id, terminal_id=self.id, data=data
+						sender=self.sender, channel=self.channel, terminal_id=self.id, data=data
 					)
 					await send_message(message)
 				except TIMEOUT:  # pylint: disable=loop-invariant-statement
@@ -262,8 +266,8 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			self.cols = message.cols
 			await self._loop.run_in_executor(None, self._pty.setwinsize, self.rows, self.cols)
 			message = TerminalResizeEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=self.sender_id,
-				channel=self.receiver_id,
+				sender=self.sender,
+				channel=self.channel,
 				terminal_id=self.id,
 				rows=self.rows,
 				cols=self.cols,
@@ -283,7 +287,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			if self._pty_reader_task:
 				self._pty_reader_task.cancel()
 			message = TerminalCloseEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=self.sender_id, channel=self.receiver_id, terminal_id=self.id
+				sender=self.sender, channel=self.channel, terminal_id=self.id
 			)
 			await send_message(message)
 			if self._pty:
@@ -299,21 +303,26 @@ terminals: Dict[str, "Terminal"] = {}
 # TODO: test message values like terminal_id, expire terminal, cleanup terminals, set expire in messages, access control (terminal owner)
 async def _process_message(message: Message) -> None:
 	terminal = terminals.get(message.terminal_id)
-	if terminal and terminal.receiver_id != message.sender:
+	if terminal and terminal.owner != message.sender:
 		return
 	if message.type == MessageType.TERMINAL_OPEN_REQUEST:
+		worker = Worker()
+		messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 		if not terminal:
-			worker = Worker()
-			messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 			terminal = Terminal(
-				id=message.terminal_id, sender_id=messagebus_worker_id, receiver_id=message.sender, rows=message.rows, cols=message.cols
+				id=message.terminal_id,
+				owner=message.sender,
+				sender=messagebus_worker_id,
+				channel=message.back_channel,
+				rows=message.rows,
+				cols=message.cols,
 			)
 			terminals[terminal.id] = terminal
 		msg = TerminalOpenEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 			sender=messagebus_worker_id,
-			channel=message.sender,
+			channel=message.back_channel,
 			terminal_id=terminal.id,
-			terminal_channel=f"{messagebus_worker_id}:terminal",
+			back_channel=f"{messagebus_worker_id}:terminal",
 			rows=terminal.rows,
 			cols=terminal.cols,
 		)
@@ -322,8 +331,10 @@ async def _process_message(message: Message) -> None:
 		if terminal:
 			await terminal.process_message(message)
 		else:
+			worker = Worker()
+			messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 			msg = TerminalCloseEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=message.sender, channel=message.sender, terminal_id=message.terminal_id
+				sender=messagebus_worker_id, channel=message.back_channel, terminal_id=message.terminal_id
 			)
 			await send_message(msg)
 
@@ -343,11 +354,16 @@ async def _messagebus_terminal_instance_worker() -> None:
 
 async def _messagebus_terminal_request_worker() -> None:
 	worker = Worker()
-	messagebus_node_id = get_messagebus_user_id_for_service_node(config.node_name)
 	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
-	channel = f"{messagebus_node_id}:terminal"
-	consumer_group = f"{messagebus_node_id}:terminal"
-	cgmr = ConsumerGroupMessageReader(channel=channel, consumer_group=consumer_group, consumer_name=messagebus_worker_id)
+	channel = "service:config:terminal"
+	# messagebus_node_id = get_messagebus_user_id_for_service_node(config.node_name)
+	# channel = f"{messagebus_node_id}:terminal"
+
+	cgmr = ConsumerGroupMessageReader(
+		consumer_group=channel,
+		consumer_name=messagebus_worker_id,
+		channels={channel: "0"},
+	)
 	async for redis_id, message, _context in cgmr.get_messages():
 		try:
 			await _process_message(message)
@@ -355,7 +371,7 @@ async def _messagebus_terminal_request_worker() -> None:
 			logger.error(err, exc_info=True)
 		# ACK Message
 		# asyncio.create_task(cgmr.ack_message(redis_id))
-		await cgmr.ack_message(redis_id)
+		await cgmr.ack_message(message.channel, redis_id)
 
 
 async def messagebus_terminal_request_worker() -> None:

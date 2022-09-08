@@ -11,15 +11,19 @@ opsiconfd.messagebus.redis
 from asyncio import sleep
 from asyncio.exceptions import CancelledError
 from time import time
-from typing import Any, AsyncGenerator, Dict, Tuple
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
+from aioredis import StrictRedis
 from aioredis.client import StreamIdT
+from aioredis.exceptions import ResponseError
 from msgpack import dumps, loads  # type: ignore[import]
 from opsicommon.messagebus import Message  # type: ignore[import]
 
 from ..config import REDIS_PREFIX_MESSAGEBUS
-from ..logging import logger
+from ..logging import get_logger
 from ..utils import async_redis_client
+
+logger = get_logger("opsiconfd.messagebus")
 
 
 async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes = None) -> None:
@@ -34,35 +38,48 @@ async def send_message(message: Message, context: Any = None) -> None:
 	context_data = None
 	if context:
 		context_data = dumps(context)
+	logger.debug("Message to redis: %r", message)
 	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
 
 
 class MessageReader:  # pylint: disable=too-few-public-methods
 	_info_suffix = b":info"
 
-	def __init__(self, channels: Dict[str, StreamIdT]):
+	def __init__(self, channels: Dict[str, Optional[StreamIdT]] = None, default_stream_id: str = "$") -> None:
 		"""
 		channels:
 			A dict of channel names to stream IDs, where
 			IDs indicate the last ID already seen.
 			Special IDs:
-			ID ">" means that we want to receive messages all undelivered messages.
+			ID ">" means that we want to receive all undelivered messages.
 			ID "$" means that we only want new messages (added after reader was started).
 		"""
-		self._channels = channels
+		self._channels = channels or {}
+		self._default_stream_id = default_stream_id
 		self._streams: Dict[bytes, StreamIdT] = {}
+		self._key_prefix = f"{REDIS_PREFIX_MESSAGEBUS}:channels"
+
+	def __repr__(self) -> str:
+		return f"{self.__class__.__name__}({','.join(self._channels)})"
+
+	__str__ = __repr__
 
 	async def _update_streams(self) -> None:
 		redis = await async_redis_client()
-		stream_keys = []
+		stream_keys: List[bytes] = []
 		for channel, redis_msg_id in self._channels.items():
-			stream_key = f"{REDIS_PREFIX_MESSAGEBUS}:{channel}".encode("utf-8")  # pylint: disable=loop-global-usage
-			if not redis_msg_id or redis_msg_id == ">":
+			stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
+			redis_msg_id = redis_msg_id or self._streams.get(stream_key) or self._default_stream_id
+			if redis_msg_id == ">":
 				last_delivered_id = await redis.hget(stream_key + self._info_suffix, "last-delivered-id")
 				if last_delivered_id:
 					redis_msg_id = last_delivered_id.decode("utf-8")
 				else:
 					redis_msg_id = "0"
+
+			if not redis_msg_id:
+				raise ValueError("No redis message id")  # pylint: disable=loop-invariant-statement
+
 			self._streams[stream_key] = redis_msg_id
 			stream_keys.append(stream_key)
 
@@ -70,28 +87,47 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 			if stream_key not in stream_keys:
 				del self._streams[stream_key]
 
-	async def add_channel(self, channel: str, redis_msg_id: StreamIdT = ">") -> None:
-		if channel in self._channels:
-			raise ValueError("Channel already in use")
-		self._channels[channel] = redis_msg_id
+	async def get_channel_names(self) -> List[str]:
+		return list(self._channels)
+
+	async def set_channels(self, channels: Dict[str, Optional[StreamIdT]]) -> None:
+		self._channels = channels
 		await self._update_streams()
 
-	async def remove_channel(self, channel: str) -> None:
-		if channel not in self._channels:
-			raise ValueError("Channel not in use")
-		del self._channels[channel]
+	async def add_channels(self, channels: Dict[str, Optional[StreamIdT]]) -> None:
+		self._channels.update(channels)
 		await self._update_streams()
+
+	async def remove_channels(self, channels: List[str]) -> None:
+		for channel in channels:
+			if channel in self._channels:
+				del self._channels[channel]
+		await self._update_streams()
+
+	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
+		return await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
 
 	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:
-		await self._update_streams()
+		if not self._channels:
+			raise ValueError("No channels to read from")
+
+		_logger = logger
+		try:
+			await self._update_streams()
+		except Exception as err:
+			logger.error(err, exc_info=True)
+			raise
+
+		_logger.debug("%s: getting messages", self)
 
 		redis = await async_redis_client()
 		try:  # pylint: disable=too-many-nested-blocks
 			while True:
 				try:  # pylint: disable=loop-try-except-usage
 					now = time()
-					stream_entries = await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
+					stream_entries = await self._get_stream_entries(redis)
 					for stream_key, messages in stream_entries:
+						last_redis_msg_id = ">"
 						for message in messages:
 							redis_msg_id = message[0].decode("utf-8")
 							context = None
@@ -99,26 +135,30 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 							if context_data:
 								context = loads(context_data)
 							msg = Message.from_msgpack(message[1][b"message"])
+							_logger.debug("Message from redis: %r", msg)
 							if msg.expires and msg.expires <= now:
 								continue
 							yield redis_msg_id, msg, context
-							self._streams[stream_key] = redis_msg_id  # pylint: disable=loop-invariant-statement
+							last_redis_msg_id = redis_msg_id
+						self._streams[stream_key] = last_redis_msg_id
 				except Exception as err:  # pylint: disable=broad-except
-					logger.error(err, exc_info=True)
+					_logger.error(err, exc_info=True)
 					await sleep(3)
 		except CancelledError:
 			pass
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		redis = await async_redis_client()
-		stream_key = f"{REDIS_PREFIX_MESSAGEBUS}:{channel}".encode("utf-8")
+		stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
 		if stream_key not in self._streams:
 			raise ValueError(f"Invalid channel: {channel!r}")
 		await redis.hset(stream_key + self._info_suffix, "last-delivered-id", redis_msg_id)
 
 
-class ConsumerGroupMessageReader:
-	def __init__(self, channel: str, consumer_group: str, consumer_name: str, start_id: StreamIdT = "0"):
+class ConsumerGroupMessageReader(MessageReader):
+	def __init__(
+		self, consumer_group: str, consumer_name: str, channels: Dict[str, Optional[StreamIdT]] = None, default_stream_id: str = "0"
+	) -> None:
 		"""
 		ID ">" means that the consumer want to receive only messages that were never delivered to any other consumer.
 		Any other ID, that is, 0 or any other valid ID will have the effect of returning entries that are pending
@@ -126,59 +166,47 @@ class ConsumerGroupMessageReader:
 		So basically if the ID is not ">", then the command will just let the client access its pending entries:
 		messages delivered to it, but not yet acknowledged.
 		"""
-		self.stream = f"{REDIS_PREFIX_MESSAGEBUS}:{channel}"
-		self.consumer_group = consumer_group
-		self.consumer_name = consumer_name
-		self.start_id = start_id
-		self.current_id = start_id
+		super().__init__(channels, default_stream_id)
+		self._consumer_group = consumer_group.encode("utf-8")
+		self._consumer_name = consumer_name.encode("utf-8")
 
-	async def _setup(self) -> None:
+	@property
+	def consumer_name(self) -> str:
+		return self._consumer_name.decode("utf-8")
+
+	@property
+	def consumer_group(self) -> str:
+		return self._consumer_group.decode("utf-8")
+
+	async def _update_streams(self) -> None:
 		redis = await async_redis_client()
-		consumer_group_exists = False
-		stream_exists = await redis.exists(self.stream)
-		if stream_exists:
-			consumer_group_utf8 = self.consumer_group.encode("utf-8")
-			for group in await redis.xinfo_groups(self.stream):
-				if group["name"] == consumer_group_utf8:
-					consumer_group_exists = True
-					break
+		stream_keys: List[bytes] = []
+		for channel, redis_msg_id in self._channels.items():
+			stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
+			try:  # pylint: disable=loop-try-except-usage
+				await redis.xgroup_create(stream_key, self._consumer_group, id="0", mkstream=True)
+			except ResponseError as err:  # pylint: disable=loop-invariant-statement
+				if str(err).startswith("BUSYGROUP"):
+					# Consumer Group name already exists
+					pass
+				else:
+					raise
 
-		if not consumer_group_exists:
-			await redis.xgroup_create(self.stream, self.consumer_group, id="0", mkstream=not stream_exists)
+			self._streams[stream_key] = redis_msg_id or "0"
+			stream_keys.append(stream_key)
 
-	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:
-		await self._setup()
+		for stream_key in list(self._streams):
+			if stream_key not in stream_keys:
+				del self._streams[stream_key]
+
+	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
+		return await redis.xreadgroup(
+			self._consumer_group, self._consumer_name, streams=self._streams, block=1000, count=10  # type: ignore[arg-type]
+		)
+
+	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		redis = await async_redis_client()
-		try:  # pylint: disable=too-many-nested-blocks
-			while True:
-				try:  # pylint: disable=loop-try-except-usage
-					# stream_info = await redis.xinfo_stream(self.stream)
-					# logger.trace(stream_info)
-					# pending = await redis.xpending(self.stream, self.consumer_group)
-					# logger.trace(pending)
-					now = time()
-					stream_entries = await redis.xreadgroup(
-						self.consumer_group, self.consumer_name, streams={self.stream: self.current_id}, block=1000, count=10
-					)
-					for stream_entry in stream_entries:
-						for message in stream_entry[1]:
-							redis_id = message[0]
-							context = None
-							context_data = message[1].get(b"context")
-							if context_data:
-								context = loads(context_data)
-							msg = Message.from_msgpack(message[1][b"message"])
-							if msg.expires and msg.expires <= now:
-								continue
-							yield redis_id, msg, context
-					# After the first read, fetch pending entires only
-					self.current_id = ">"  # pylint: disable=loop-invariant-statement
-				except Exception as err:  # pylint: disable=broad-except
-					logger.error(err, exc_info=True)
-					await sleep(3)
-		except CancelledError:
-			pass
-
-	async def ack_message(self, redis_msg_id: str) -> None:
-		redis = await async_redis_client()
-		await redis.xack(self.stream, self.consumer_group, redis_msg_id)
+		stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
+		if stream_key not in self._streams:
+			raise ValueError(f"Invalid channel: {channel!r}")
+		await redis.xack(stream_key, self._consumer_group, redis_msg_id)

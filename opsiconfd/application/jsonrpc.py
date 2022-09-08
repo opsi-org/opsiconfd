@@ -621,7 +621,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 	if not isinstance(message, JSONRPCRequestMessage):
 		logger.error("Wrong message type: %s", type(message))
 		# ACK Message
-		asyncio.create_task(cgmr.ack_message(redis_id))
+		await cgmr.ack_message(message.channel, redis_id)
 		return
 
 	if context:
@@ -646,7 +646,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 
 	response_message = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 		sender=cgmr.consumer_name,
-		channel=message.sender,
+		channel=message.back_channel,
 		rpc_id=result["id"],
 		result=result.get("result"),
 		error=result.get("error")
@@ -656,7 +656,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 	await send_message(response_message)
 	# ACK Message
 	# asyncio.create_task(cgmr.ack_message(redis_id))
-	await cgmr.ack_message(redis_id)
+	await cgmr.ack_message(message.channel, redis_id)
 
 
 async def _messagebus_jsonrpc_request_worker() -> None:
@@ -664,7 +664,7 @@ async def _messagebus_jsonrpc_request_worker() -> None:
 	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 	channel = "service:config:jsonrpc"
 
-	cgmr = ConsumerGroupMessageReader(channel=channel, consumer_group=channel, consumer_name=messagebus_worker_id)
+	cgmr = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=messagebus_worker_id, channels={channel: "0"})
 	async for redis_id, message, context in cgmr.get_messages():
 		try:
 			await _process_message(cgmr, redis_id, message, context)

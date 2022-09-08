@@ -69,7 +69,7 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 		with (test_client.websocket_connect("/messagebus/v1") as websocket1, test_client.websocket_connect("/messagebus/v1") as websocket2):
 			with (WebSocketMessageReader(websocket1) as reader1, WebSocketMessageReader(websocket2) as reader2):
 				message = Message(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-					type="test_multi_client", sender="*", channel="host:msgbus-test-client.opsi.test", id="1"
+					type="test_multi_client", sender="*", channel="host:msgbus-test-client.opsi.test:main", id="1"
 				)
 				websocket1.send_bytes(message.to_msgpack())
 				for reader in (reader1, reader2):
@@ -83,7 +83,7 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 				with test_client.websocket_connect("/messagebus/v1") as websocket3:
 					with WebSocketMessageReader(websocket3) as reader3:
 						message = Message(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-							type="test_multi_client", sender="*", channel="host:msgbus-test-client.opsi.test", id="2"
+							type="test_multi_client", sender="*", channel="host:msgbus-test-client.opsi.test:main", id="2"
 						)
 						websocket1.send_bytes(message.to_msgpack())
 						for reader in (reader1, reader2, reader3):

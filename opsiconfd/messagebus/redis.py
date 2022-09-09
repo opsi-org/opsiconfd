@@ -86,6 +86,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		for stream_key in list(self._streams):
 			if stream_key not in stream_keys:
 				del self._streams[stream_key]
+		logger.debug("%s updated streams: %s", self, self._streams)
 
 	async def get_channel_names(self) -> List[str]:
 		return list(self._channels)

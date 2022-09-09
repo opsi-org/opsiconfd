@@ -20,6 +20,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionRequestMessage,
 	GeneralErrorMessage,
 	Message,
+	TerminalOpenRequest,
 )
 from opsicommon.utils import serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
@@ -81,26 +82,28 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		await websocket.send_bytes(data)
 
 	async def messagebus_reader(self, websocket: WebSocket) -> None:
-		reader = MessageReader(
+		self._messagebus_reader = MessageReader(
 			channels={
 				self._main_channel: ">",
 				self._session_channel: ">",
 			}
 		)
 		try:
-			async for redis_id, message, _context in reader.get_messages():
+			async for redis_id, message, _context in self._messagebus_reader.get_messages():
 				await self._send_message_to_websocket(websocket, message)
 				if message.channel.startswith(f"{self._messagebus_user_id}:"):
 					# ACK message (set last-delivered-id)
 					# asyncio.create_task(reader.ack_message(redis_id))
-					await reader.ack_message(message.channel, redis_id)
+					await self._messagebus_reader.ack_message(message.channel, redis_id)
 		except StopAsyncIteration:
 			pass
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
 
 	def _check_channel_access(self, channel: str) -> bool:
 		if channel == "service:config:jsonrpc":
 			return True
-		if channel.startswith(f"{self._messagebus_user_id}:"):
+		if channel == self._messagebus_user_id:
 			return True
 		if self.scope["session"].user_store.isAdmin:
 			return True
@@ -164,9 +167,14 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			if isinstance(message, ChannelSubscriptionRequestMessage):
 				await self._process_channel_subscription_message(websocket, message)
 			else:
+				if isinstance(message, TerminalOpenRequest):
+					if not message.terminal_id:
+						raise ValueError("Terminal id is missing")
+					await self._messagebus_reader.add_channels({f"terminal:{message.terminal_id}": "$"})
+					# TODO: ChannelSubscriptionEventMessage
 				await send_message(message, serialize(vars(self.scope["session"].user_store)))
 		except Exception as err:  # pylint: disable=broad-except
-			logger.warning(err)
+			logger.warning(err, exc_info=True)
 			await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA, reason=str(err))
 
 	async def on_connect(  # pylint: disable=arguments-differ

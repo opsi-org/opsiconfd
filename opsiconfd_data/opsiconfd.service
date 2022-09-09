@@ -5,6 +5,7 @@ After=network-online.target
 After=redis-server.service
 After=mysql.service
 After=mariadb.service
+After=univention-directory-listener.service
 Requires=local-fs.target
 Wants=network-online.target
 

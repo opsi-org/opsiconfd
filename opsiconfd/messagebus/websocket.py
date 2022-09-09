@@ -188,8 +188,8 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		elif self.scope["session"].user_store.isAdmin:
 			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].user_store.username)
 
-		self._main_channel = f"{self._messagebus_user_id}:main"
-		self._session_channel = f"{self._messagebus_user_id}:session:{self.scope['session'].session_id}"
+		self._main_channel = self._messagebus_user_id
+		self._session_channel = f"session:{self.scope['session'].session_id}"
 
 		self._messagebus_reader_task = asyncio.create_task(self.messagebus_reader(websocket))
 

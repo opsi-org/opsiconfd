@@ -31,7 +31,7 @@ async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: 
 	fields = {"message": msgpack_data}
 	if context_data:
 		fields["context"] = context_data
-	await redis.xadd(f"{REDIS_PREFIX_MESSAGEBUS}:{channel}", fields=fields)  # type: ignore[arg-type]
+	await redis.xadd(f"{REDIS_PREFIX_MESSAGEBUS}:channels:{channel}", fields=fields)  # type: ignore[arg-type]
 
 
 async def send_message(message: Message, context: Any = None) -> None:

@@ -19,11 +19,45 @@ from aioredis.exceptions import ResponseError
 from msgpack import dumps, loads  # type: ignore[import]
 from opsicommon.messagebus import Message  # type: ignore[import]
 
-from ..config import REDIS_PREFIX_MESSAGEBUS
+from ..config import REDIS_PREFIX_MESSAGEBUS, REDIS_PREFIX_SESSION
 from ..logging import get_logger
 from ..utils import async_redis_client
 
 logger = get_logger("opsiconfd.messagebus")
+
+
+TERMINAL_CHANNEL_MAX_IDLE = 3600
+
+
+async def cleanup_channels() -> None:
+	logger.debug("Cleaning up messagebus channels")
+	redis = await async_redis_client()
+	now = time()
+	debug = logger.debug
+	remove_channels = []
+
+	active_sessions = []
+	async for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):
+		active_sessions.append(key.decode("utf-8").rsplit(":", 1)[-1])
+
+	async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:session:*"):
+		session_id = key.decode("utf-8").rsplit(":", 1)[-1]
+		if session_id not in active_sessions:
+			debug("Removing %s (session not found)", key)
+			remove_channels.append(key)
+
+	async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:terminal:*"):
+		info = await redis.xinfo_stream(key)
+		timestamp = int(info["last-generated-id"].decode("utf-8").split("-")[0]) / 1000
+		if now - timestamp > TERMINAL_CHANNEL_MAX_IDLE:
+			debug("Removing %s (last-generated-id: %s)", key, info["last-generated-id"])
+			remove_channels.append(key)
+
+	if remove_channels:
+		pipeline = redis.pipeline()
+		for channel in remove_channels:
+			pipeline.delete(channel)
+		await pipeline.execute()
 
 
 async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes = None) -> None:
@@ -72,7 +106,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 			redis_msg_id = redis_msg_id or self._streams.get(stream_key) or self._default_stream_id
 			if redis_msg_id == ">":
 				last_delivered_id = await redis.hget(stream_key + self._info_suffix, "last-delivered-id")
-				logger.debug("Last delivered id of channel %r: %r", channel, last_delivered_id)
+				logger.debug("Last delivered id of channel %r: %r", channel, last_delivered_id)  # pylint: disable=loop-global-usage
 				if last_delivered_id:
 					redis_msg_id = last_delivered_id.decode("utf-8")
 				else:

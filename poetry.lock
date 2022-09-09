@@ -1704,24 +1704,24 @@ description = "The opsi python common library"
 category = "main"
 optional = false
 python-versions = ">=3.8,<3.11"
-develop = true
 
 [package.dependencies]
-colorlog = "^6.6"
-distro = "^1.6"
-lz4 = "^4.0"
-msgpack = "^1.0"
-orjson = "^3.8.0"
-psutil = "^5.8"
-pycryptodome = "^3.10"
-pyopenssl = "^22.0"
-pywin32 = {version = "^303", markers = "sys_platform == \"win32\""}
-requests = "^2.26"
-websocket-client = "^1.4.0"
+colorlog = ">=6.6,<7.0"
+distro = ">=1.6,<2.0"
+lz4 = ">=4.0,<5.0"
+msgpack = ">=1.0,<2.0"
+orjson = ">=3.8.0,<4.0.0"
+psutil = ">=5.8,<6.0"
+pycryptodome = ">=3.10,<4.0"
+pyopenssl = ">=22.0,<23.0"
+pywin32 = {version = ">=303,<304", markers = "sys_platform == \"win32\""}
+requests = ">=2.26,<3.0"
+websocket-client = ">=1.4.0,<2.0.0"
 
 [package.source]
-type = "directory"
-url = "python-opsi-common"
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
 
 [[package]]
 name = "python-pam"
@@ -2519,7 +2519,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10,<3.11"
-content-hash = "76ff9a98ef3d0bddb1f853e1dd4341e0c680d8c6241519f5ec87a4f765b38cb5"
+content-hash = "afeac8905a3d6d0df953b87087f7e5e585a810a4fdd5b65f0bdca35004d72cf3"
 
 [metadata.files]
 aiofiles = [
@@ -3717,7 +3717,10 @@ python-opsi = [
     {file = "python-opsi-4.2.0.311.tar.gz", hash = "sha256:49f5a2386cd37f3330c371a07eed58075ea26e09beb1e0c15c97b060a3d50b7a"},
     {file = "python_opsi-4.2.0.311-py3-none-any.whl", hash = "sha256:6401d12e1c0f33e87d5f52649f2be7e97c5046d469763ff76951d2f22343a000"},
 ]
-python-opsi-common = []
+python-opsi-common = [
+    {file = "python-opsi-common-4.2.0.295.tar.gz", hash = "sha256:e430c7d240aded44d0b8dc058973584e96656cacc5c972317111a214d755c970"},
+    {file = "python_opsi_common-4.2.0.295-py3-none-any.whl", hash = "sha256:1c137d339260574c5d9d08d3a4e66198d9b44f1dd03cef200f717e03decec5b7"},
+]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},
     {file = "python_pam-2.0.2-py3-none-any.whl", hash = "sha256:4ac51dd8953ac59aa45505882b565eef6a22e0423dcf25d63369902080416c20"},

@@ -46,12 +46,12 @@ async def test_message_reader() -> None:  # pylint: disable=redefined-outer-name
 		assert reader.received[0][1].type == "test"
 		assert reader.received[0][1].id == "1"
 
-		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
+		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
 		assert last_id is None
 
 		await reader.ack_message("host:test-123", reader.received[0][0])
 
-		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
+		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
 		assert last_id.decode("utf-8") == reader.received[0][0]
 
 		await send_message(Message(id="2", type="test", sender="*", channel="host:test-123"), context=b"context_data")
@@ -70,7 +70,7 @@ async def test_message_reader() -> None:  # pylint: disable=redefined-outer-name
 		assert reader.received[2][1].id == "4"
 
 		await reader.ack_message("host:test-123", reader.received[2][0])
-		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
+		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
 		assert last_id.decode("utf-8") == reader.received[2][0]
 		reader.received = []
 

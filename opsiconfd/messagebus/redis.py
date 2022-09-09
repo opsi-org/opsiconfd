@@ -72,6 +72,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 			redis_msg_id = redis_msg_id or self._streams.get(stream_key) or self._default_stream_id
 			if redis_msg_id == ">":
 				last_delivered_id = await redis.hget(stream_key + self._info_suffix, "last-delivered-id")
+				logger.debug("Last delivered id of channel %r: %r", channel, last_delivered_id)
 				if last_delivered_id:
 					redis_msg_id = last_delivered_id.decode("utf-8")
 				else:
@@ -149,6 +150,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 			pass
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
+		logger.trace("ACK channel %r, message %r", channel, redis_msg_id)
 		redis = await async_redis_client()
 		stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
 		if stream_key not in self._streams:

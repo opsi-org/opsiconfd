@@ -21,8 +21,8 @@ python = ">=3.10,<3.11"
 #python-opsi = { git = "git@gitlab.uib.local:uib/python-opsi.git", branch = "v4.2" }
 #python-opsi = {path = "python-opsi", develop = true}
 python-opsi = "^4.2.0.281"
-#python-opsi-common = "^4.2.0.295"
-python-opsi-common = {path = "python-opsi-common", develop = true}
+python-opsi-common = "^4.2.0.295"
+#python-opsi-common = {path = "python-opsi-common", develop = true}
 aiofiles = "^22.1"
 aiohttp = "^3.7"
 aiologger = "^0.6"

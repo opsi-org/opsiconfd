@@ -63,7 +63,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		worker = Worker()
 		self._messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 		self._messagebus_user_id = ""
-		self._main_channel = ""
+		self._user_channel = ""
 		self._session_channel = ""
 		self._compression: Union[str, None] = None
 		self._messagebus_reader_task = Union[asyncio.Task, None]
@@ -84,14 +84,14 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 	async def messagebus_reader(self, websocket: WebSocket) -> None:
 		self._messagebus_reader = MessageReader(
 			channels={
-				self._main_channel: ">",
+				self._user_channel: ">",
 				self._session_channel: ">",
 			}
 		)
 		try:
 			async for redis_id, message, _context in self._messagebus_reader.get_messages():
 				await self._send_message_to_websocket(websocket, message)
-				if message.channel.startswith(f"{self._messagebus_user_id}:"):
+				if message.channel == self._messagebus_user_id:
 					# ACK message (set last-delivered-id)
 					# asyncio.create_task(reader.ack_message(redis_id))
 					await self._messagebus_reader.ack_message(message.channel, redis_id)
@@ -145,10 +145,10 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			msg_dict["sender"] = self._messagebus_user_id
 
 			message = Message.from_dict(msg_dict)
-			if not message.back_channel or message.back_channel == "S":
+			if not message.back_channel or message.back_channel == "$":
 				message.back_channel = self._session_channel
-			elif message.back_channel == "M":
-				message.back_channel = self._main_channel
+			elif message.back_channel == "@":
+				message.back_channel = self._user_channel
 
 			if not self._check_channel_access(message.channel):
 				await self._send_message_to_websocket(
@@ -196,7 +196,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		elif self.scope["session"].user_store.isAdmin:
 			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].user_store.username)
 
-		self._main_channel = self._messagebus_user_id
+		self._user_channel = self._messagebus_user_id
 		self._session_channel = f"session:{self.scope['session'].session_id}"
 
 		self._messagebus_reader_task = asyncio.create_task(self.messagebus_reader(websocket))

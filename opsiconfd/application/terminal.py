@@ -313,7 +313,6 @@ async def _process_message(message: Message) -> None:
 				id=message.terminal_id,
 				owner=message.sender,
 				sender=messagebus_worker_id,
-				#channel=message.back_channel,
 				channel=f"terminal:{message.terminal_id}",
 				rows=message.rows,
 				cols=message.cols,

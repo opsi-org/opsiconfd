@@ -103,15 +103,20 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 	def _check_channel_access(self, channel: str) -> bool:
 		if channel == "service:config:jsonrpc":
 			return True
+		if channel == "service:messagebus":
+			return True
+		if channel == f"session:{self.scope['session'].session_id}":
+			return True
 		if channel == self._messagebus_user_id:
 			return True
 		if self.scope["session"].user_store.isAdmin:
 			return True
+		logger.warning("Access to channel %s denied for %s", channel, self.scope["session"].user_store.username, exc_info=True)
 		return False
 
 	async def _process_channel_subscription_message(self, websocket: WebSocket, message: Message) -> None:
 		response = ChannelSubscriptionEventMessage(
-			sender=self._messagebus_worker_id, channel=self._messagebus_user_id, subscribed_channels=[], error=None
+			sender=self._messagebus_worker_id, channel=message.back_channel, subscribed_channels=[], error=None
 		)
 		for channel in message.channels:
 			if not self._check_channel_access(channel):

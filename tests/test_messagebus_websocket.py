@@ -8,10 +8,12 @@
 opsiconfd.messagebus tests
 """
 
+from sqlite3 import OperationalError
 from uuid import uuid4
 
 import pytest
 from opsicommon.messagebus import (  # type: ignore[import]
+	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
@@ -68,6 +70,17 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 		test_client.auth = (host_id, host_key)
 		with (test_client.websocket_connect("/messagebus/v1") as websocket1, test_client.websocket_connect("/messagebus/v1") as websocket2):
 			with (WebSocketMessageReader(websocket1) as reader1, WebSocketMessageReader(websocket2) as reader2):
+				for reader, websocket in ((reader1, websocket1), (reader2, websocket2)):
+					message = ChannelSubscriptionRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+						sender="*", channel="service:messagebus", channels=["host:msgbus-test-client.opsi.test"], operation="add"
+					)
+					websocket.send_bytes(message.to_msgpack())
+					reader.wait_for_message(count=1)
+					messages = list(reader.get_messages())
+					assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+					assert len(messages[0]["subscribed_channels"]) == 2
+					assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]
+
 				message = Message(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 					type="test_multi_client", sender="*", channel="host:msgbus-test-client.opsi.test", id="1"
 				)
@@ -75,6 +88,7 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 				for reader in (reader1, reader2):
 					reader.wait_for_message(count=1)
 					messages = list(reader.get_messages())
+					# print(messages)
 					assert len(messages) == 1
 					assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
 					assert messages[0]["id"] == "1"  # type: ignore[call-overload]

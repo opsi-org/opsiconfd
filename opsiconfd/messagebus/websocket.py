@@ -176,7 +176,12 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 					if not message.terminal_id:
 						raise ValueError("Terminal id is missing")
 					await self._messagebus_reader.add_channels({f"terminal:{message.terminal_id}": "$"})
-					# TODO: ChannelSubscriptionEventMessage
+					channel_subscription_event = ChannelSubscriptionEventMessage(
+						sender=self._messagebus_worker_id,
+						channel=message.back_channel,
+						subscribed_channels=await self._messagebus_reader.get_channel_names()
+					)
+					await self._send_message_to_websocket(websocket, channel_subscription_event)
 				await send_message(message, serialize(vars(self.scope["session"].user_store)))
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err, exc_info=True)

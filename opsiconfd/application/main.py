@@ -34,6 +34,7 @@ from .. import __version__, contextvar_client_address, contextvar_request_id
 from ..addon import AddonManager
 from ..config import config
 from ..logging import get_logger, logger
+from ..messagebus.websocket import messagebus_setup
 from ..rest import OpsiApiException, rest_api
 from ..session import SessionMiddleware
 from ..ssl import get_ca_cert_as_pem
@@ -44,7 +45,6 @@ from . import terminal  # pylint: disable=unused-import
 from . import app
 from .admininterface import admin_interface_setup
 from .jsonrpc import jsonrpc_setup
-from .messagebroker import messagebroker_setup
 from .metrics import metrics_setup
 from .monitoring.monitoring import monitoring_setup
 from .proxy import reverse_proxy_setup
@@ -328,7 +328,7 @@ def application_setup() -> None:
 	webdav_setup(app)
 	metrics_setup(app)
 	status_setup(app)
-	messagebroker_setup(app)
+	messagebus_setup(app)
 	reverse_proxy_setup(app)
 
 	AddonManager().load_addons()

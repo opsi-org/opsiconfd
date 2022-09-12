@@ -8,12 +8,14 @@
 monitoring
 """
 
+from datetime import datetime
 from typing import Dict
 
 import msgpack  # type: ignore[import]
 import orjson
 from fastapi.responses import JSONResponse
 
+from opsiconfd.application.jsonrpc import store_rpc_info
 from opsiconfd.logging import logger
 from opsiconfd.utils import async_redis_client, decode_redis_result
 
@@ -42,6 +44,14 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 	redis = await async_redis_client()
 
 	try:
+		for idx in range(100):
+			await store_rpc_info(
+				rpc={"id": idx, "jsonrpc": "2.0", "method": "accessControl_authenticated", "params": []},
+				result={"jsonrpc": "2.0", "id": idx, "result": True},
+				duration=0.00235,
+				date=datetime.utcnow(),
+				client_info="127.0.0.1/test-client",
+			)
 		rpc_list = await redis.lrange("opsiconfd:stats:rpcs", 0, 9999)
 		error_count = 0
 		for rpc in rpc_list:

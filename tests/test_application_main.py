@@ -11,20 +11,23 @@ test application.main
 import warnings
 from unittest.mock import patch
 
+from starlette.types import Receive, Scope, Send
+
 from opsiconfd.application.main import BaseMiddleware
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	OpsiconfdTestClient,
 	clean_redis,
 	test_client,
 )
 
 
-def test_http_1_0_warning(test_client):  # pylint: disable=redefined-outer-name
+def test_http_1_0_warning(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	orig_call = BaseMiddleware.__call__
 
-	async def mock_call(self, scope, receive, send):
+	async def mock_call(self: BaseMiddleware, scope: Scope, receive: Receive, send: Send) -> None:
 		scope["http_version"] = "1.0"
 		return await orig_call(self, scope, receive, send)
 

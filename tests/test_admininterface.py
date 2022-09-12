@@ -14,6 +14,8 @@ import os
 import sys
 import tempfile
 from socket import getfqdn
+from types import ModuleType
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 import mock  # type: ignore[import]
@@ -22,13 +24,15 @@ from starlette.datastructures import Headers
 from starlette.requests import Request
 
 from opsiconfd.addon.manager import AddonManager
+from opsiconfd.config import REDIS_PREFIX_SESSION, Config
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .test_addon_manager import cleanup  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	OPSI_SESSION_KEY,
+	BackendManager,
+	OpsiconfdTestClient,
 	backend,
 	clean_mysql,
 	clean_redis,
@@ -42,7 +46,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def set_failed_auth_and_blocked(ip_address):  # pylint: disable=redefined-outer-name
+def set_failed_auth_and_blocked(ip_address: str) -> None:  # pylint: disable=redefined-outer-name
 	with sync_redis_client() as redis:
 		ip_address_redis = ip_address_to_redis_key(ip_address)
 		redis.execute_command(
@@ -54,7 +58,7 @@ def set_failed_auth_and_blocked(ip_address):  # pylint: disable=redefined-outer-
 		redis.set(f"opsiconfd:stats:client:blocked:{ip_address_redis}", 1)
 
 
-def call_rpc(client, rpc_request_data: list, expect_error: list):
+def call_rpc(client: OpsiconfdTestClient, rpc_request_data: list, expect_error: list) -> None:
 	for idx, data in enumerate(rpc_request_data):
 		result = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=data)
 		result_json = json.loads(result.text)  # pylint: disable=dotted-import-in-loop
@@ -67,14 +71,16 @@ def call_rpc(client, rpc_request_data: list, expect_error: list):
 
 
 @pytest.fixture(name="admininterface")
-def fixture_admininterface(monkeypatch):
+def fixture_admininterface(monkeypatch: Any) -> ModuleType:
 	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
 	import opsiconfd.application.admininterface as ai  # pylint: disable=import-outside-toplevel
 
 	return ai
 
 
-def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-outer-name,unused-argument
+def test_unblock_all_request(
+	test_client: OpsiconfdTestClient, config: Config  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	with sync_redis_client() as redis:
 		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 		for test_ip in addresses:
@@ -89,7 +95,7 @@ def test_unblock_all_request(test_client, config):  # pylint: disable=redefined-
 
 
 @pytest.mark.asyncio
-async def test_unblock_all(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
+async def test_unblock_all(config: Config, admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 
 		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
@@ -110,7 +116,9 @@ async def test_unblock_all(config, admininterface):  # pylint: disable=redefined
 			assert not val
 
 
-def test_unblock_client_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_unblock_client_request(
+	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	with sync_redis_client() as redis:
 		test_ip = "192.168.1.2"
 		set_failed_auth_and_blocked(test_ip)
@@ -122,7 +130,7 @@ def test_unblock_client_request(config, test_client):  # pylint: disable=redefin
 
 
 @pytest.mark.asyncio
-async def test_unblock_client(config, admininterface):  # pylint: disable=redefined-outer-name,unused-argument
+async def test_unblock_client(config: Config, admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 		test_ip = "192.168.1.2"
 		set_failed_auth_and_blocked(test_ip)
@@ -143,7 +151,7 @@ async def test_unblock_client(config, admininterface):  # pylint: disable=redefi
 		assert not val
 
 
-def test_unblock_client_exception(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_unblock_client_exception(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis_client:
 		test_ip = "192.168.1.2"
 		set_failed_auth_and_blocked(test_ip)
@@ -154,7 +162,7 @@ def test_unblock_client_exception(test_client):  # pylint: disable=redefined-out
 		assert val
 
 
-def test_unblock_all_exception(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_unblock_all_exception(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
@@ -165,7 +173,7 @@ def test_unblock_all_exception(test_client):  # pylint: disable=redefined-outer-
 		assert res.status_code == 500
 
 
-def test_get_rpc_list_request(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_get_rpc_list_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	for _idx in range(3):
 		call_rpc(
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
@@ -180,7 +188,9 @@ def test_get_rpc_list_request(test_client):  # pylint: disable=redefined-outer-n
 		assert result[idx].get("params") == 1
 
 
-def test_get_blocked_clients_request(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_get_blocked_clients_request(  # pylint: disable=redefined-outer-name,unused-argument
+	config: Config, test_client: OpsiconfdTestClient
+) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
@@ -191,7 +201,7 @@ def test_get_blocked_clients_request(config, test_client):  # pylint: disable=re
 
 
 @pytest.mark.asyncio
-async def test_get_blocked_clients(admininterface):  # pylint: disable=redefined-outer-name,unused-argument
+async def test_get_blocked_clients(admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
@@ -204,8 +214,9 @@ async def test_get_blocked_clients(admininterface):  # pylint: disable=redefined
 
 @pytest.mark.parametrize("num_rpcs", [1, 3, 5])
 @pytest.mark.asyncio
-async def test_get_rpc_list(test_client, admininterface, num_rpcs):  # pylint: disable=redefined-outer-name
-
+async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
+	test_client: OpsiconfdTestClient, admininterface: ModuleType, num_rpcs: int
+) -> None:
 	for _idx in range(num_rpcs):
 		call_rpc(
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
@@ -230,24 +241,24 @@ async def test_get_rpc_list(test_client, admininterface, num_rpcs):  # pylint: d
 		(None, [500, {"message": "client_addr missing"}, None, 1]),
 	],
 )  # pylint: disable=too-many-locals
-async def test_delete_client_sessions(
-	config, admininterface, test_client, rpc_request_data, expected_response
-):  # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
+async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
+	config: Config, admininterface: ModuleType, test_client: OpsiconfdTestClient, rpc_request_data: Any, expected_response: Any
+) -> None:
 	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
 	assert res.status_code == 200
 	with sync_redis_client() as redis:
 
-		session = res.cookies.get_dict().get("opsiconfd-session")
+		session = res.cookies.get_dict().get("opsiconfd-session")  # type: ignore[no-untyped-call]
 		sessions = []
 		local_ip = None
-		for key in redis.scan_iter(f"{OPSI_SESSION_KEY}:*"):  # pylint: disable=loop-invariant-statement
+		for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):  # pylint: disable=loop-invariant-statement
 			addr, sess = key.decode("utf8").split(":")[-2:]
 			sessions.append(sess)
 			if sess == session:  # pylint: disable=loop-invariant-statement
 				local_ip = addr
 
-	rpc_request_data = json.loads(json.dumps(rpc_request_data).replace("<local_ip>", local_ip))
-	expected_response = json.loads(json.dumps(expected_response).replace("<local_ip>", local_ip))
+	rpc_request_data = json.loads(json.dumps(rpc_request_data).replace("<local_ip>", local_ip or ""))
+	expected_response = json.loads(json.dumps(expected_response).replace("<local_ip>", local_ip or ""))
 
 	assert session in sessions
 
@@ -274,7 +285,7 @@ async def test_delete_client_sessions(
 		assert len(response_dict.get("redis-keys")) == expected_response[3]
 
 
-def test_open_grafana(test_client, config):  # pylint: disable=redefined-outer-name
+def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name
 	response = test_client.get(f"https://192.168.1.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
 	assert response.status_code == 307
 	assert response.headers.get("location") == f"https://{getfqdn()}:{config.port}/admin/grafana"
@@ -286,7 +297,9 @@ def test_open_grafana(test_client, config):  # pylint: disable=redefined-outer-n
 
 
 @pytest.mark.mysql_backend_available
-def test_get_num_servers(admininterface, backend, test_client):  # pylint: disable=redefined-outer-name
+def test_get_num_servers(
+	admininterface: ModuleType, backend: BackendManager, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
+) -> None:
 	assert admininterface.get_num_servers(backend) == 1
 	with depot_jsonrpc(test_client, "", "test-depot.uib.local"):
 		assert admininterface.get_num_servers(backend) == 2
@@ -294,7 +307,9 @@ def test_get_num_servers(admininterface, backend, test_client):  # pylint: disab
 
 
 @pytest.mark.mysql_backend_available
-def test_get_num_clients(admininterface, backend, test_client):  # pylint: disable=redefined-outer-name
+def test_get_num_clients(
+	admininterface: ModuleType, backend: BackendManager, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
+) -> None:
 	assert admininterface.get_num_clients(backend) == 0
 	with (
 		client_jsonrpc(test_client, "", "test-client1.uib.local"),
@@ -305,7 +320,7 @@ def test_get_num_clients(admininterface, backend, test_client):  # pylint: disab
 	assert admininterface.get_num_clients(backend) == 0
 
 
-def test_get_rpc_count(test_client):  # pylint: disable=redefined-outer-name
+def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	for _idx in range(10):
 		call_rpc(
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
@@ -316,7 +331,7 @@ def test_get_rpc_count(test_client):  # pylint: disable=redefined-outer-name
 	assert res.json() == {"rpc_count": 10}
 
 
-def test_get_session_list(test_client):  # pylint: disable=redefined-outer-name
+def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	addr = test_client.get_client_address()
 	for _idx in range(10):
 		test_client.set_client_address("192.168.36." + str(_idx), _idx * 1000)
@@ -336,7 +351,7 @@ def test_get_session_list(test_client):  # pylint: disable=redefined-outer-name
 
 
 @pytest.mark.mysql_backend_available
-def test_unlock_product(test_client, backend):  # pylint: disable=redefined-outer-name
+def test_unlock_product(test_client: OpsiconfdTestClient, backend: BackendManager) -> None:  # pylint: disable=redefined-outer-name
 
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
@@ -367,7 +382,7 @@ def test_unlock_product(test_client, backend):  # pylint: disable=redefined-oute
 
 
 @pytest.mark.mysql_backend_available
-def test_unlock_all_products(test_client, backend):  # pylint: disable=redefined-outer-name
+def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: BackendManager) -> None:  # pylint: disable=redefined-outer-name
 
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
@@ -397,7 +412,9 @@ def test_unlock_all_products(test_client, backend):  # pylint: disable=redefined
 
 
 @pytest.mark.mysql_backend_available
-def test_get_locked_products_list(test_client, backend):  # pylint: disable=redefined-outer-name
+def test_get_locked_products_list(
+	test_client: OpsiconfdTestClient, backend: BackendManager  # pylint: disable=redefined-outer-name
+) -> None:
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},
@@ -420,13 +437,7 @@ def test_get_locked_products_list(test_client, backend):  # pylint: disable=rede
 		assert result.json() == {products[0]: test_depots, products[1]: test_depots}
 
 
-def get_session_count(client) -> int:
-	res = client.get("/admin/session-list", auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
-	return len(res.json())
-
-
-def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
+def test_get_addon_list(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	response = test_client.get("/admin/addons", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	print(response.json())
@@ -435,7 +446,9 @@ def test_get_addon_list(test_client):  # pylint: disable=redefined-outer-name
 	assert len(response.json()) == len(addons)
 
 
-def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-name, unused-argument
+def test_get_routes(  # pylint: disable=redefined-outer-name, unused-argument
+	config: Config, test_client: OpsiconfdTestClient, cleanup: Callable
+) -> None:
 	# uses clean up from addon manager test (auto run is true)
 	response = test_client.get("/admin/routes", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
@@ -494,7 +507,7 @@ def test_get_routes(test_client, cleanup):  # pylint: disable=redefined-outer-na
 	addon_manager.unload_addon("test1")
 
 
-def test_licensing_info(test_client):  # pylint: disable=redefined-outer-name
+def test_licensing_info(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	response = test_client.get("/admin/licensing_info", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	lic_data = response.json()
@@ -506,7 +519,7 @@ def test_licensing_info(test_client):  # pylint: disable=redefined-outer-name
 		assert isinstance(lic_data.get("info").get(clients), int)
 
 
-def test_welcome_page(config, test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_welcome_page(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	res = test_client.get("/welcome", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert "<h1>Welcome to opsi!</h1>" in res.content.decode("utf8")

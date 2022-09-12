@@ -14,12 +14,12 @@ from typing import Tuple
 import pytest
 from MySQLdb.connections import Connection  # type: ignore[import]
 
+from opsiconfd.config import REDIS_PREFIX_SESSION
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	OPSI_SESSION_KEY,
 	OpsiconfdTestClient,
 	clean_redis,
 	config,
@@ -96,15 +96,15 @@ def test_logout_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 		res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
-		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
+		keys = sorted([key.decode() for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*")])
 		assert len(keys) == 1
-		assert keys[0].startswith(f"opsiconfd:sessions:{ip_address_to_redis_key(client_addr)}:")
+		assert keys[0].startswith(f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(client_addr)}:")
 
 		res = test_client.get("/session/logout")
 		assert res.status_code == 200
 		assert "opsiconfd-session" in res.headers["set-cookie"]
 		assert "Max-Age=0" in res.headers["set-cookie"]
-		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
+		keys = sorted([key.decode() for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*")])
 		assert len(keys) == 0
 
 
@@ -115,9 +115,9 @@ def test_change_session_ip(test_client: OpsiconfdTestClient) -> None:  # pylint:
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
-		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
+		keys = sorted([key.decode() for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*")])
 		assert len(keys) == 1
-		assert keys[0].startswith(f"opsiconfd:sessions:{ip_address_to_redis_key(client_addr)}:")
+		assert keys[0].startswith(f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(client_addr)}:")
 
 		client_addr = "192.168.2.2"
 		test_client.set_client_address(client_addr, 12345)
@@ -127,9 +127,9 @@ def test_change_session_ip(test_client: OpsiconfdTestClient) -> None:  # pylint:
 		res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
-		keys = sorted([key.decode() for key in redis.scan_iter("opsiconfd:sessions:*")])
+		keys = sorted([key.decode() for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*")])
 		assert len(keys) == 2
-		assert keys[1].startswith(f"opsiconfd:sessions:{ip_address_to_redis_key(client_addr)}:")
+		assert keys[1].startswith(f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(client_addr)}:")
 
 
 def test_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -168,7 +168,7 @@ def test_max_sessions_limit(test_client: OpsiconfdTestClient) -> None:  # pylint
 	test_client.set_client_address("192.168.1.1", 12345)
 	max_session_per_ip = 10
 	over_limit = 3
-	redis_key = f"{OPSI_SESSION_KEY}:*"
+	redis_key = f"{REDIS_PREFIX_SESSION}:*"
 	with (get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis):
 		for num in range(1, max_session_per_ip + 1 + over_limit):
 			res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
@@ -195,7 +195,7 @@ def test_max_sessions_not_for_depot(test_client: OpsiconfdTestClient) -> None:  
 	test_client.set_client_address("192.168.11.1", 12345)
 	max_session_per_ip = 3
 	over_limit = 30
-	redis_key = f"{OPSI_SESSION_KEY}:*"
+	redis_key = f"{REDIS_PREFIX_SESSION}:*"
 	depot_id = "test-depot-max-sessions.uib.local"
 	depot_key = "29124776768a560d5e45d3c50889ec51"
 	with depot_jsonrpc(test_client, "", depot_id, depot_key):

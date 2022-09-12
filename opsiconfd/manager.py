@@ -18,6 +18,7 @@ from types import FrameType
 
 from .config import config
 from .logging import init_logging, logger
+from .messagebus.redis import cleanup_channels
 from .metrics import ManagerMetricsCollector
 from .server import Server
 from .ssl import setup_server_cert
@@ -37,6 +38,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._server_cert_check_time = time.time()
 		self._redis_check_time = time.time()
 		self._redis_check_interval = 300
+		self._messagebus_channel_cleanup_time = 0.0
+		self._messagebus_channel_cleanup_interval = 180
 
 	def stop(self, force: bool = False) -> None:
 		logger.notice("Manager stopping force=%s", force)
@@ -137,6 +140,9 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 					await self.check_server_cert()
 				if now - self._redis_check_time > self._redis_check_interval:
 					await self.check_redis()
+				if now - self._messagebus_channel_cleanup_time > self._messagebus_channel_cleanup_interval:
+					await cleanup_channels()
+					self._messagebus_channel_cleanup_time = now
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
 			for _num in range(60):

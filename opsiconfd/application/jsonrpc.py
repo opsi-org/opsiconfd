@@ -9,28 +9,33 @@ jsonrpc
 """
 
 import asyncio
-import gzip
 import tempfile
 import time
 import traceback
 import urllib.parse
 import warnings
-import zlib
 from datetime import datetime
 from os import makedirs
 from time import perf_counter
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 
-import lz4.frame  # type: ignore[import]
 import msgpack  # type: ignore[import]
 import orjson
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
-from OPSI.Util import deserialize, serialize  # type: ignore[import]
+from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
+from opsicommon.messagebus import (  # type: ignore[import]
+	JSONRPCRequestMessage,
+	JSONRPCResponseMessage,
+	Message,
+)
+from opsicommon.utils import deserialize, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
-from .. import contextvar_client_session
+from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
+
+from .. import contextvar_user_store
 from ..backend import (
 	BackendManager,
 	OpsiconfdBackend,
@@ -38,11 +43,18 @@ from ..backend import (
 	get_backend,
 	get_backend_interface,
 	get_client_backend,
+	get_user_store,
 )
 from ..config import RPC_DEBUG_DIR, config
 from ..logging import logger
+from ..messagebus.redis import ConsumerGroupMessageReader, send_message
 from ..statistics import GrafanaPanelConfig, Metric, metrics_registry
-from ..utils import async_redis_client, decode_redis_result
+from ..utils import (
+	async_redis_client,
+	compress_data,
+	decode_redis_result,
+	decompress_data,
+)
 from ..worker import Worker
 
 # time in seconds
@@ -233,58 +245,6 @@ def get_response_serialization(request: Request) -> Optional[str]:
 	return None
 
 
-def decompress_data(data: bytes, compression: str) -> bytes:
-	compressed_size = len(data)
-
-	decompress_start = time.perf_counter()
-	if compression == "lz4":
-		data = lz4.frame.decompress(data)
-	elif compression == "deflate":
-		data = zlib.decompress(data)
-	elif compression == "gzip":
-		data = gzip.decompress(data)
-	else:
-		raise ValueError(f"Unhandled compression {compression!r}")
-	decompress_end = time.perf_counter()
-
-	uncompressed_size = len(data)
-	logger.debug(
-		"%s decompression ratio: %d => %d = %0.2f%%, time: %0.2fms",
-		compression,
-		compressed_size,
-		uncompressed_size,
-		100 - 100 * (compressed_size / uncompressed_size),
-		1000 * (decompress_end - decompress_start),
-	)
-	return data
-
-
-def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4_block_linked: bool = True) -> bytes:
-	uncompressed_size = len(data)
-
-	compress_start = time.perf_counter()
-	if compression == "lz4":
-		data = lz4.frame.compress(data, compression_level=compression_level, block_linked=lz4_block_linked)
-	elif compression == "deflate":
-		data = zlib.compress(data)
-	elif compression == "gzip":
-		data = gzip.compress(data)
-	else:
-		raise ValueError(f"Unhandled compression {compression!r}")
-	compress_end = time.perf_counter()
-
-	compressed_size = len(data)
-	logger.debug(
-		"%s compression ratio: %d => %d = %0.2f%%, time: %0.2fms",
-		compression,
-		uncompressed_size,
-		compressed_size,
-		100 - 100 * (compressed_size / uncompressed_size),
-		1000 * (compress_end - compress_start),
-	)
-	return data
-
-
 def deserialize_data(data: Union[bytes, str], serialization: str) -> Any:
 	deserialize_start = time.perf_counter()
 	if serialization == "msgpack":
@@ -368,7 +328,7 @@ async def store_in_cache(rpc: Any, result: Dict[str, Any]) -> None:
 			await store_product_ordering(result["result"], *rpc["params"])
 
 
-async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client: str) -> None:
+async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client_info: str) -> None:
 	is_error = bool(result.get("error"))
 	worker = Worker()
 	metrics_collector = worker.metrics_collector
@@ -399,7 +359,7 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 		"method": rpc.get("method"),
 		"num_params": num_params,
 		"date": date.strftime("%Y-%m-%dT%H:%M:%SZ"),
-		"client": client,
+		"client": client_info,
 		"error": is_error,
 		"num_results": num_results,
 		"duration": duration,
@@ -421,7 +381,7 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 		await pipe.execute()
 
 
-def execute_rpc(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager], request: Request) -> Any:
+def execute_rpc(client_info: str, rpc: Dict[str, Any], backend: Union[OpsiconfdBackend, BackendManager]) -> Any:
 	method_name = rpc["method"]
 	params = rpc["params"]
 	method_interface = None
@@ -456,15 +416,14 @@ def execute_rpc(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager], requ
 
 	if getattr(method, "deprecated", False):
 		warnings.warn(
-			f"Client {request.scope['client'][0]!r} ({request.headers.get('user-agent', '')!r}) "
-			f"is calling deprecated method {method_name!r}",
+			f"Client {client_info} is calling deprecated method {method_name!r}",
 			DeprecationWarning
 		)
 
 	return serialize(method(*params, **keywords))
 
 
-def write_error_log(rpc: Any, exception: Exception, request: Request) -> None:
+def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] = None) -> None:
 	now = int(time.time() * 1_000_000)
 	makedirs(RPC_DEBUG_DIR, exist_ok=True)
 	method = None
@@ -473,43 +432,60 @@ def write_error_log(rpc: Any, exception: Exception, request: Request) -> None:
 		method = rpc.get("method")
 		params = rpc.get("params")
 	msg = {
-		"client": request.scope["client"][0],
-		"description": f"Processing request from {request.scope['client'][0]!r} ({request.headers.get('user-agent')}) for method {method!r}",
+		"client": client_info,
+		"description": f"Processing request from {client_info} for method {method!r}",
 		"method": method,
 		"params": params,
 		"error": str(exception),
 	}
 	with tempfile.NamedTemporaryFile(
-		delete=False, dir=RPC_DEBUG_DIR, prefix=f"{request.scope['client'][0]}-{now}-", suffix=".log"
+		delete=False, dir=RPC_DEBUG_DIR, prefix=f"{client_info}-{now}-", suffix=".log"
 	) as log_file:
 		logger.notice("Writing rpc error log to: %s", log_file.name)
 		log_file.write(orjson.dumps(msg))  # pylint: disable=no-member
 
 
-async def process_rpc_error(exception: Exception, request: Request, rpc: Any = None) -> Any:
+async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[str, Any] = None) -> Any:
 	if config.debug_options and "rpc-error-log" in config.debug_options:
 		try:
-			await run_in_threadpool(write_error_log, rpc, exception, request)
+			await run_in_threadpool(write_error_log, client_info, exception, rpc)
 		except Exception as write_err:  # pylint: disable=broad-except
 			logger.warning(write_err, exc_info=True)
 
-	result = {"id": rpc.get("id", 0) if rpc else 0, "error": {"message": str(exception), "class": exception.__class__.__name__}}
-	if rpc and rpc.get("jsonrpc") == "2.0":
-		result["jsonrpc"] = "2.0"
-	else:
-		result["result"] = None
-
+	_id = rpc.get("id") if rpc else None
+	message = str(exception)
+	_class = exception.__class__.__name__
+	details = None
 	try:
-		session = contextvar_client_session.get()
-		if session and session.user_store.isAdmin:
-			result["error"]["details"] = str(traceback.format_exc())
+		user_store = get_user_store()
+		if user_store and user_store.isAdmin:
+			details = str(traceback.format_exc())
 	except Exception as sess_err:  # pylint: disable=broad-except
 		logger.warning(sess_err, exc_info=True)
 
-	return result
+	if rpc and rpc.get("jsonrpc") == "2.0":
+		return {
+			"jsonrpc": "2.0",
+			"id": _id,
+			"error": {
+				"code": 0,  # TODO
+				"message": message,
+				"data": {"class": _class, "details": details}
+			}
+		}
+
+	return {
+		"id": 0 if _id is None else _id,
+		"result": None,
+		"error": {
+			"message": message,
+			"class": _class,
+			"details": details
+		}
+	}
 
 
-async def process_rpc(rpc: Any, request: Request) -> Dict[str, Any]:
+async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 	if "id" not in rpc:
 		rpc["id"] = 0
 	if "params" not in rpc:
@@ -522,27 +498,20 @@ async def process_rpc(rpc: Any, request: Request) -> Dict[str, Any]:
 	else:
 		backend = get_client_backend()
 
-	user_agent = request.headers.get("user-agent")
-	logger.debug("Processing request from %s (%s) for %s", request.scope["client"][0], user_agent, rpc["method"])
 	logger.debug("Method '%s', params (short): %.250s", rpc["method"], rpc["params"])
 	logger.trace("Method '%s', params (full): %s", rpc["method"], rpc["params"])
 
 	result = await load_from_cache(rpc, backend)
 	if result is None:
-		result = await run_in_threadpool(execute_rpc, rpc, backend, request)
+		result = await run_in_threadpool(execute_rpc, client_info, rpc, backend)
 
-	response = {"id": rpc["id"], "result": result, "error": None}
 	if rpc.get("jsonrpc") == "2.0":
-		response["jsonrpc"] = "2.0"
-		del response["error"]
+		return {"jsonrpc": "2.0", "id": rpc["id"], "result": result}
 
-	return response
+	return {"id": rpc["id"], "result": result, "error": None}
 
 
-async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
-	if not isinstance(rpcs, list):
-		rpcs = (rpcs,)
-
+async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerator[Dict[str, Any], None]:
 	worker = Worker()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector:
@@ -552,27 +521,25 @@ async def process_rpcs(rpcs: Any, request: Request) -> List[Dict[str, Any]]:
 			)
 		)
 
-	client_addr = request.scope["client"][0]
-	results = []
 	for rpc in rpcs:
 		date = datetime.utcnow()
 		start = perf_counter()
 		try:  # pylint: disable=loop-try-except-usage
-			result = await process_rpc(rpc, request)
+			logger.debug("Processing request from %s for %s", client_info, rpc["method"])
+			result = await process_rpc(client_info, rpc)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
-			result = await process_rpc_error(err, request, rpc)
+			result = await process_rpc_error(client_info, err, rpc)
 
 		duration = perf_counter() - start
 
 		logger.trace(result)
-		results.append(result)
+		yield result
 
 		if not result.get("error") and duration > config.jsonrpc_time_to_cache:
 			await store_in_cache(rpc, result)
 
-		await store_rpc_info(rpc, result, duration, date, client_addr)
-	return results
+		await store_rpc_info(rpc, result, duration, date, client_info)
 
 
 # Some clients are using /rpc/rpc
@@ -585,6 +552,7 @@ async def process_request(request: Request, response: Response) -> Response:  # 
 	request_serialization = None
 	response_compression = None
 	response_serialization = None
+	client_info = ""
 	try:
 		request_serialization = get_request_serialization(request)
 		if request_serialization:
@@ -614,14 +582,19 @@ async def process_request(request: Request, response: Response) -> Response:  # 
 
 		rpcs = await run_in_threadpool(deserialize_data, request_data, request_serialization)
 		logger.trace("rpcs: %s", rpcs)
-		results = await process_rpcs(rpcs, request)
+		client_info = f"{request.scope['client'][0]}/{request.headers.get('user-agent', '')}"
+		if isinstance(rpcs, list):
+			coro = process_rpcs(client_info, *rpcs)
+		else:
+			coro = process_rpcs(client_info, rpcs)
+		results = [result async for result in coro]
 		response.status_code = 200
 	except HTTPException as err:  # pylint: disable=broad-except
 		logger.error(err)
 		raise
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
-		results = [await process_rpc_error(err, request)]  # pylint: disable=use-tuple-over-list
+		results = [await process_rpc_error(client_info, err)]  # pylint: disable=use-tuple-over-list
 		response.status_code = 400
 
 	response_serialization = response_serialization or "json"
@@ -642,3 +615,67 @@ async def process_request(request: Request, response: Response) -> Response:  # 
 	response.body = data
 	logger.debug("Sending result (len: %d)", content_length)
 	return response
+
+
+async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, message: Message, context: Any) -> None:
+	if not isinstance(message, JSONRPCRequestMessage):
+		logger.error("Wrong message type: %s", type(message))
+		# ACK Message
+		await cgmr.ack_message(message.channel, redis_id)
+		return
+
+	if context:
+		user_store = UserStore()
+		for key, val in deserialize(context).items():
+			setattr(user_store, key, val)
+		contextvar_user_store.set(user_store)
+
+	client_info = message.sender
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": message.rpc_id,
+		"method": message.method,
+		"params": message.params
+	}
+
+	try:
+		result = await anext(process_rpcs(client_info, rpc))
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error(err, exc_info=True)
+		result = await process_rpc_error(client_info, err)
+
+	response_message = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+		sender=cgmr.consumer_name,
+		channel=message.back_channel,
+		rpc_id=result["id"],
+		result=result.get("result"),
+		error=result.get("error")
+	)
+
+	# asyncio.create_task(send_message(response_message))
+	await send_message(response_message)
+	# ACK Message
+	# asyncio.create_task(cgmr.ack_message(redis_id))
+	await cgmr.ack_message(message.channel, redis_id)
+
+
+async def _messagebus_jsonrpc_request_worker() -> None:
+	worker = Worker()
+	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
+	channel = "service:config:jsonrpc"
+
+	cgmr = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=messagebus_worker_id, channels={channel: "0"})
+	async for redis_id, message, context in cgmr.get_messages():
+		try:
+			await _process_message(cgmr, redis_id, message, context)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
+
+
+async def messagebus_jsonrpc_request_worker() -> None:
+	try:
+		await _messagebus_jsonrpc_request_worker()
+	except StopAsyncIteration:
+		pass
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error(err, exc_info=True)

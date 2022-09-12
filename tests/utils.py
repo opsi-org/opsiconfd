@@ -8,11 +8,13 @@
 test utils
 """
 
+import asyncio
 import contextvars
+import time
 import types
 from contextlib import asynccontextmanager, contextmanager
 from queue import Empty, Queue
-from threading import Thread
+from threading import Event, Thread
 from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Type, Union
 from unittest.mock import patch
 
@@ -31,19 +33,48 @@ from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application.main import BaseMiddleware, app
 from opsiconfd.backend import BackendManager, get_mysql
-from opsiconfd.config import Config
+from opsiconfd.config import REDIS_PREFIX_MESSAGEBUS, REDIS_PREFIX_SESSION, Config
 from opsiconfd.config import config as _config
 from opsiconfd.utils import Singleton
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
-OPSI_SESSION_KEY = "opsiconfd:sessions"
 
 
 def reset_singleton(cls: Singleton) -> None:
 	"""Constructor will create a new instance afterwards"""
 	if cls in cls._instances:  # pylint: disable=protected-access
 		del cls._instances[cls]  # pylint: disable=protected-access
+
+
+class WorkerMainLoopThread(Thread):
+	def __init__(self) -> None:
+		super().__init__()
+
+		from opsiconfd.worker import Worker  # pylint: disable=import-outside-toplevel
+		self.worker = Worker()
+
+		self.loop = asyncio.new_event_loop()
+		self.daemon = True
+		self.stopped = Event()
+
+	def stop(self) -> None:
+		self.worker.stop()
+		self.stopped.wait()
+
+	def run(self) -> None:
+		asyncio.set_event_loop(self.loop)
+		self.loop.set_debug(True)
+		asyncio.run(self.worker.main_loop())
+		self.stopped.set()
+
+
+@pytest_asyncio.fixture(autouse=True)
+def worker_main_loop() -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
+	wmlt = WorkerMainLoopThread()
+	wmlt.start()
+	yield None
+	wmlt.stop()
 
 
 class OpsiconfdTestClient(TestClient):
@@ -101,16 +132,21 @@ def get_config(values: Union[Dict[str, Any], List[str]]) -> Generator[Config, No
 		_config._args = args  # pylint: disable=protected-access
 
 
-CLEAN_REDIS_KEYS = (
-	OPSI_SESSION_KEY,
-	"opsiconfd:stats:client:failed_auth",
-	"opsiconfd:stats:client:blocked",
-	"opsiconfd:stats:client",
-	"opsiconfd:stats:rpcs",
-	"opsiconfd:stats:num_rpcs",
-	"opsiconfd:stats:rpc",
-	"opsiconfd:jsonrpccache:*:products",
-)
+def clean_redis_keys() -> Tuple[str, ...]:
+	return (
+		"opsiconfd:stats:client:failed_auth",
+		"opsiconfd:stats:client:blocked",
+		"opsiconfd:stats:client",
+		"opsiconfd:stats:rpcs",
+		"opsiconfd:stats:num_rpcs",
+		"opsiconfd:stats:rpc",
+		# "opsiconfd:stats:node",
+		# "opsiconfd:stats:worker",
+		"opsiconfd:log",
+		"opsiconfd:jsonrpccache:*:products",
+		REDIS_PREFIX_SESSION,
+		REDIS_PREFIX_MESSAGEBUS
+	)
 
 
 @asynccontextmanager
@@ -133,7 +169,7 @@ def sync_redis_client() -> Generator[redis.StrictRedis, None, None]:  # pylint: 
 
 async def async_clean_redis() -> None:
 	async with async_redis_client() as redis_client:
-		for redis_key in CLEAN_REDIS_KEYS:  # pylint: disable=loop-global-usage
+		for redis_key in clean_redis_keys():  # pylint: disable=loop-global-usage
 			async for key in redis_client.scan_iter(f"{redis_key}:*"):
 				await redis_client.delete(key)
 			await redis_client.delete(redis_key)
@@ -141,7 +177,7 @@ async def async_clean_redis() -> None:
 
 def sync_clean_redis() -> None:
 	with sync_redis_client() as redis_client:
-		for redis_key in CLEAN_REDIS_KEYS:  # pylint: disable=loop-global-usage
+		for redis_key in clean_redis_keys():  # pylint: disable=loop-global-usage
 			for key in redis_client.scan_iter(f"{redis_key}:*"):  # pylint: disable=loop-invariant-statement
 				redis_client.delete(key)
 			redis_client.delete(redis_key)
@@ -339,8 +375,9 @@ def backend() -> BackendManager:
 
 
 class WebSocketMessageReader(Thread):
-	def __init__(self, websocket: WebSocketTestSession) -> None:
+	def __init__(self, websocket: WebSocketTestSession, decode: bool = True) -> None:
 		super().__init__()
+		self.decode = decode
 		self.daemon = True
 		self.websocket = websocket
 		self.messages: Queue[Dict[str, Any]] = Queue()
@@ -366,14 +403,34 @@ class WebSocketMessageReader(Thread):
 			if data["type"] == "websocket.close":
 				break
 			if data["type"] == "websocket.send":
-				msg = msgpack.loads(data["bytes"])  # pylint: disable=dotted-import-in-loop
-				print(f"received: >>>{msg}<<<")
+				msg = data["bytes"]
+				if self.decode:
+					msg = msgpack.loads(msg)  # pylint: disable=dotted-import-in-loop
+				# print(f"received: >>>{msg}<<<")
 				self.messages.put(msg)
 
 	def stop(self) -> None:
 		self.should_stop = True
 
-	def get_messages(self) -> Generator[Dict[str, Any], None, None]:
+	def wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
+		start = time.time()
+		while True:
+			if self.messages.qsize() >= count:  # pylint: disable=loop-invariant-statement
+				return
+			if time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
+				raise RuntimeError("timed out")  # pylint: disable=loop-invariant-statement
+			time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+
+	async def async_wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
+		start = time.time()
+		while True:
+			if self.messages.qsize() >= count:  # pylint: disable=loop-invariant-statement
+				return
+			if time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
+				raise RuntimeError("timed out")  # pylint: disable=loop-invariant-statement
+			await asyncio.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+
+	def get_messages(self) -> Generator[Union[Dict[str, Any], bytes], None, None]:
 		try:
 			while True:
 				yield self.messages.get_nowait()

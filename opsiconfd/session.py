@@ -47,7 +47,7 @@ from starlette.types import Message, Receive, Scope, Send
 
 from . import contextvar_client_session, contextvar_server_timing
 from .addon import AddonManager
-from .config import config
+from .config import REDIS_PREFIX_SESSION, config
 from .logging import logger
 from .utils import (
 	async_redis_client,
@@ -375,7 +375,6 @@ class SessionMiddleware:
 
 
 class OPSISession:  # pylint: disable=too-many-instance-attributes
-	redis_key_prefix = "opsiconfd:sessions"
 	_store_interval = 30
 
 	def __init__(  # pylint: disable=too-many-arguments
@@ -408,7 +407,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	@property
 	def redis_key(self) -> str:
 		assert self.session_id
-		return f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:{self.session_id}"
+		return f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(self.client_addr)}:{self.session_id}"
 
 	@property
 	def expired(self) -> bool:
@@ -459,7 +458,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		try:
 			with redis_client() as redis:
 				now = utc_time_timestamp()
-				session_key = f"{self.redis_key_prefix}:{ip_address_to_redis_key(self.client_addr)}:*"
+				session_key = f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(self.client_addr)}:*"
 				for redis_key in redis.scan_iter(session_key):
 					validity = 0
 					data = redis.get(redis_key)

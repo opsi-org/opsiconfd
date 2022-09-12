@@ -32,11 +32,10 @@ from starlette.concurrency import run_in_threadpool
 from .. import __version__, contextvar_client_session
 from ..addon import AddonManager
 from ..backend import BackendManager, get_backend, get_backend_interface
-from ..config import FQDN, VAR_ADDON_DIR, config
+from ..config import FQDN, REDIS_PREFIX_SESSION, VAR_ADDON_DIR, config
 from ..grafana import async_grafana_session, create_dashboard_user
 from ..logging import logger
 from ..rest import RESTErrorResponse, RESTResponse, rest_api
-from ..session import OPSISession
 from ..ssl import get_ca_cert_info, get_server_cert_info
 from ..statistics import GRAFANA_DASHBOARD_UID
 from ..utils import (
@@ -190,7 +189,7 @@ async def delete_client_sessions(request: Request) -> RESTResponse:
 	redis = await async_redis_client()
 	sessions = []
 	deleted_keys = []
-	keys = redis.scan_iter(f"{OPSISession.redis_key_prefix}:{ip_address_to_redis_key(client_addr)}:*")
+	keys = redis.scan_iter(f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(client_addr)}:*")
 	if keys:
 		async with redis.pipeline(transaction=False) as pipe:
 			async for key in keys:
@@ -291,7 +290,7 @@ async def get_rpc_count() -> RESTResponse:
 async def get_session_list() -> RESTResponse:
 	redis = await async_redis_client()
 	session_list = []
-	async for redis_key in redis.scan_iter("opsiconfd:sessions:*"):
+	async for redis_key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):
 		data = await redis.get(redis_key)
 		session = msgpack.loads(data)
 		tmp = redis_key.decode().split(":")

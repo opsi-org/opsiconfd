@@ -24,7 +24,11 @@ from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.session import OPSISession, UserStore
 
-from . import contextvar_client_address, contextvar_client_session
+from . import (
+	contextvar_client_address,
+	contextvar_client_session,
+	contextvar_user_store,
+)
 from .config import config
 from .logging import logger
 from .utils import Singleton
@@ -60,9 +64,12 @@ def get_session() -> OPSISession | None:
 
 def get_user_store() -> UserStore:
 	session = get_session()
-	if not session:
-		return UserStore()
-	return session.user_store
+	if session:
+		return session.user_store
+	user_store = contextvar_user_store.get()
+	if user_store:
+		return user_store
+	return UserStore()
 
 
 def get_option_store() -> Dict[str, Any]:

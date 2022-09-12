@@ -8,7 +8,6 @@
 opsiconfd.messagebus tests
 """
 
-from sqlite3 import OperationalError
 from uuid import uuid4
 
 import pytest

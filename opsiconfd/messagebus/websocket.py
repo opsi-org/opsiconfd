@@ -150,7 +150,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			elif message.back_channel == "@":
 				message.back_channel = self._user_channel
 
-			if not self._check_channel_access(message.channel):
+			if not self._check_channel_access(message.channel) or not self._check_channel_access(message.back_channel):
 				await self._send_message_to_websocket(
 					websocket,
 					GeneralErrorMessage(

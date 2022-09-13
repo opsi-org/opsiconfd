@@ -193,6 +193,7 @@ def test_upgrade_config_files(tmp_path):
 			"acl-file = /acl/file\n"
 			"admin-networks = 10.10.0.0/16\n"
 			"log-file = /log/file\n"
+			"symlink-logs = false\n"
 			"log-level = 1\n"
 			"monitoring-user = mu\n"
 			"interface = 10.10.1.1\n"

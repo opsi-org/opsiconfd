@@ -458,7 +458,7 @@ class Config(metaclass=Singleton):
 			type=str2bool,
 			nargs="?",
 			const=True,
-			default=False,
+			default=True,
 			help=(
 				"If separate log files are used and this option is enabled "
 				"opsiconfd will create a symlink in the log dir which points "

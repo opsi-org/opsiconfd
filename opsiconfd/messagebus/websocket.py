@@ -91,7 +91,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		try:
 			async for redis_id, message, _context in self._messagebus_reader.get_messages():
 				await self._send_message_to_websocket(websocket, message)
-				if message.channel == self._messagebus_user_id:
+				if message.channel == self._user_channel:
 					# ACK message (set last-delivered-id)
 					# asyncio.create_task(reader.ack_message(redis_id))
 					await self._messagebus_reader.ack_message(message.channel, redis_id)
@@ -105,9 +105,9 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			return True
 		if channel == "service:messagebus":
 			return True
-		if channel == f"session:{self.scope['session'].session_id}":
+		if channel == self._session_channel:
 			return True
-		if channel == self._messagebus_user_id:
+		if channel == self._user_channel:
 			return True
 		if self.scope["session"].user_store.isAdmin:
 			return True
@@ -118,7 +118,11 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		response = ChannelSubscriptionEventMessage(
 			sender=self._messagebus_worker_id, channel=message.back_channel, subscribed_channels=[], error=None
 		)
-		for channel in message.channels:
+		for idx, channel in enumerate(message.channels):
+			if channel == "@":
+				message.channels[idx] = channel = self._user_channel
+			elif channel == "$":
+				message.channels[idx] = channel = self._session_channel
 			if not self._check_channel_access(channel):
 				response.error = {  # pylint: disable=loop-invariant-statement
 					"code": 0,
@@ -160,7 +164,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 					websocket,
 					GeneralErrorMessage(
 						sender=self._messagebus_worker_id,
-						channel=self._messagebus_user_id,
+						channel=self._session_channel,
 						ref_message_id=message.id,
 						error={"code": 0, "message": f"Access to channel {message.channel!r} denied", "details": None},  # TODO: code
 					),

@@ -20,6 +20,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionOperation,
 	ChannelSubscriptionRequestMessage,
 	GeneralErrorMessage,
+	JSONRPCResponseMessage,
 	Message,
 	TerminalOpenRequest,
 )
@@ -101,7 +102,9 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
-	def _check_channel_access(self, channel: str) -> bool:
+	def _check_channel_access(self, channel: str, message: Message) -> bool:  # pylint: disable=too-many-return-statements
+		if isinstance(message, JSONRPCResponseMessage):
+			return True
 		if channel == "service:config:jsonrpc":
 			return True
 		if channel == "service:messagebus":
@@ -124,7 +127,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 				message.channels[idx] = channel = self._user_channel
 			elif channel == "$":
 				message.channels[idx] = channel = self._session_channel
-			if not self._check_channel_access(channel):
+			if not self._check_channel_access(channel, message):
 				response.error = {  # pylint: disable=loop-invariant-statement
 					"code": 0,
 					"message": f"Access to channel {channel!r} denied",
@@ -165,7 +168,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			elif message.back_channel == "@":
 				message.back_channel = self._user_channel
 
-			if not self._check_channel_access(message.channel) or not self._check_channel_access(message.back_channel):
+			if not self._check_channel_access(message.channel, message) or not self._check_channel_access(message.back_channel, message):
 				raise RuntimeError(f"Access to channel {message.channel!r} denied")
 
 			logger.debug("Message from websocket: %r", message)

@@ -606,11 +606,11 @@ function createRequestJSON() {
 	return apiJSON;
 }
 
+
 function changeRequestJSON(name, value) {
 	let apiJSON = createRequestJSON();
 	outputToHTML(apiJSON, "jsonrpc-request");
 }
-
 
 
 function outputToHTML(json, id) {
@@ -623,11 +623,13 @@ function outputToHTML(json, id) {
 	document.getElementById(id).innerHTML = jsonStr;
 }
 
+
 function decode(html) {
 	var txt = document.createElement('textarea');
 	txt.innerHTML = html;
 	return txt.value;
 }
+
 
 function formateDate(date) {
 	year = date.getFullYear();
@@ -657,10 +659,109 @@ function formateDate(date) {
 }
 
 
+var messagebusWS;
+function messagebusConnect() {
+	let params = []
+	let loc = window.location;
+	let ws_uri;
+	if (loc.protocol == "https:") {
+		ws_uri = "wss:";
+	} else {
+		ws_uri = "ws:";
+	}
+	ws_uri += "//" + loc.host;
+	messagebusWS = new WebSocket(ws_uri + "/messagebus/v1?" + params.join('&'));
+	messagebusWS.binaryType = 'arraybuffer';
+	messagebusWS.onopen = function () {
+		console.log("Messagebus websocket opened");
+		document.getElementById("messagebus-connect-disconnect").innerHTML = "Disconnect";
+	};
+	messagebusWS.onclose = function () {
+		console.log("Messagebus websocket closed");
+		messagebusWS = null;
+		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
+	};
+	messagebusWS.onerror = function (error) {
+		console.error(`Messagebus websocket connection error: ${JSON.stringify(error)}`);
+		messagebusWS = null;
+		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
+	}
+	messagebusWS.onmessage = function (event) {
+		const message = msgpack.deserialize(event.data);
+		document.getElementById("messagebus-message-in").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
+		if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
+			let el = document.getElementById('messagebus-message-in');
+			el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+		}
+	}
+}
+
+
+function messagebusDisconnect() {
+	if (!messagebusWS) {
+		return;
+	}
+	messagebusWS.close();
+	messagebusWS = null;
+}
+
+
+function messagebusToggleConnect() {
+	if (messagebusWS) {
+		messagebusDisconnect();
+	}
+	else {
+		messagebusConnect();
+	}
+}
+
+
+function messagebusInsertMessageTemplate() {
+	const message = {
+		type: "<type>",
+		id: createUUID(),
+		sender: "@",
+		channel: "<channel>",
+		created: Date.now(),
+		expires: Date.now() + 300000
+	}
+	document.getElementById('messagebus-message-out').value = JSON.stringify(message, undefined, 2);
+}
+
+
+function messagebusSend(message) {
+	if (!messagebusWS) {
+		alert("Messagebus not connected");
+		return;
+	}
+	try {
+		messagebusWS.send(msgpack.serialize(JSON.parse(message)));
+	}
+	catch (error) {
+		console.error(error);
+		alert(error);
+	}
+}
+
+
+function messagebusSendMessage() {
+	messagebusSend(document.getElementById('messagebus-message-out').value);
+}
+
+
+function messagebusToggleAutoScroll() {
+	if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
+		let el = document.getElementById('messagebus-message-in');
+		el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+	}
+}
+
+
 var terminal;
 window.onresize = function () {
 	if (terminal) terminal.fitAddon.fit();
 };
+
 
 function startTerminal() {
 	terminal = new Terminal({
@@ -768,11 +869,13 @@ function toggleFullscreenTerminal() {
 	terminal.fitAddon.fit();
 }
 
+
 function stopTerminal() {
 	if (!terminal) return;
 	terminal.dispose();
 	terminal.websocket.close();
 }
+
 
 function changeTerminalFontSize(val) {
 	if (!terminal) return;
@@ -782,6 +885,7 @@ function changeTerminalFontSize(val) {
 	terminal.setOption("fontSize", size);
 	terminal.fitAddon.fit();
 }
+
 
 function terminalFileUpload(file) {
 	console.log("terminalFileUpload:")
@@ -853,6 +957,7 @@ function generateLiceningInfoTable(info, htmlId) {
 	div = document.getElementById(htmlId).innerHTML = htmlStr;
 }
 
+
 function generateLiceningDatesTable(dates, activeDate, htmlId) {
 	htmlStr = "<table id=\"licensing-dates-table\"><tr><th>Module</th>";
 	for (const date of Object.keys(Object.values(dates)[0])) {
@@ -899,6 +1004,7 @@ function toggleTabMaximize() {
 	}
 	if (terminal) terminal.fitAddon.fit();
 }
+
 
 document.onkeydown = function (evt) {
 	evt = evt || window.event;

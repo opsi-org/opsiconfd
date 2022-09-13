@@ -131,7 +131,10 @@
 			for (let i = 0; i < tablinks.length; i++) {
 				tablinks[i].classList.remove("active");
 			}
-			document.getElementById("tablink-" + tabName).classList.add("active");
+			let tabLink = document.getElementById("tablink-" + tabName);
+			if (tabLink) {
+				tabLink.classList.add("active");
+			}
 
 			// Show the current tab, and add an "active" class to the button that opened the tab
 			document.getElementById("tab-" + tabName).style.display = "inherit";
@@ -547,6 +550,28 @@
 					onchange="terminalFileUpload(this.files[0]); this.value='';">
 			</div>
 			<div id="terminal-xterm">
+			</div>
+		</div>
+
+		<div id="tab-messagebus" class="tabcontent fitheight">
+			<h4>Messagebus</h4>
+			<button id="messagebus-connect-disconnect" onclick="messagebusToggleConnect()">Connect</button>
+			<div class="adminpage-box" style="display: flex; height: 560px;">
+				<div style="flex-basis: 45%; margin-right: 25px">
+					Message out:
+					<textarea id="messagebus-message-out"></textarea>
+					<br />
+					<button id="messagebus-insert-message-template" onclick="messagebusInsertMessageTemplate()">Insert
+						template</button>
+					<button id="messagebus-message-send" onclick="messagebusSendMessage()">Send</button>
+				</div>
+				<div style="flex-basis: 45%">
+					Messages in:
+					<textarea id="messagebus-message-in"></textarea>
+					<br />
+					Autoscroll <input type="checkbox" id="messagebus-message-in-auto-scroll"
+						onclick="messagebusToggleAutoScroll()">
+				</div>
 			</div>
 		</div>
 

@@ -9,6 +9,7 @@ messagebus.websocket
 """
 
 import asyncio
+import traceback
 from typing import Union
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query, status
@@ -147,10 +148,15 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		await self._send_message_to_websocket(websocket, response)
 
 	async def on_receive(self, websocket: WebSocket, data: bytes) -> None:
+		message_id = None
 		try:
 			if self._compression:
 				data = await run_in_threadpool(decompress_data, data, self._compression)
 			msg_dict = msgpack_loads(data)
+			if not isinstance(msg_dict, dict):
+				raise ValueError("Invalid message received")
+
+			message_id = msg_dict["id"]
 			msg_dict["sender"] = self._messagebus_user_id
 
 			message = Message.from_dict(msg_dict)
@@ -160,16 +166,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 				message.back_channel = self._user_channel
 
 			if not self._check_channel_access(message.channel) or not self._check_channel_access(message.back_channel):
-				await self._send_message_to_websocket(
-					websocket,
-					GeneralErrorMessage(
-						sender=self._messagebus_worker_id,
-						channel=self._session_channel,
-						ref_message_id=message.id,
-						error={"code": 0, "message": f"Access to channel {message.channel!r} denied", "details": None},  # TODO: code
-					),
-				)
-				return
+				raise RuntimeError(f"Access to channel {message.channel!r} denied")
 
 			logger.debug("Message from websocket: %r", message)
 
@@ -189,7 +186,19 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 				await send_message(message, serialize(vars(self.scope["session"].user_store)))
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err, exc_info=True)
-			await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA, reason=str(err))
+			await self._send_message_to_websocket(
+				websocket,
+				GeneralErrorMessage(
+					sender=self._messagebus_worker_id,
+					channel=self._session_channel,
+					ref_message_id=message_id,
+					error={
+						"code": 0,
+						"message": str(err),
+						"details": str(traceback.format_exc()) if self.scope["session"].user_store.isAdmin else None
+					},
+				)
+			)
 
 	async def on_connect(  # pylint: disable=arguments-differ
 		self, websocket: WebSocket, compression: Union[str, None] = Query(default=None, embed=True)

@@ -11,6 +11,7 @@ messagebus.websocket
 import asyncio
 import traceback
 from typing import Union
+from uuid import uuid4
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
@@ -40,7 +41,7 @@ from . import (
 	get_messagebus_user_id_for_service_worker,
 	get_messagebus_user_id_for_user,
 )
-from .redis import MessageReader, send_message
+from .redis import MessageReader, create_messagebus_session_channel, send_message
 
 messagebus_router = APIRouter()
 logger = get_logger("opsiconfd.messagebus")
@@ -223,11 +224,11 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].user_store.username)
 
 		self._user_channel = self._messagebus_user_id
-		self._session_channel = f"session:{self.scope['session'].session_id}"
+		self._session_channel = await create_messagebus_session_channel(self.scope["session"].session_id)
 
 		self._messagebus_reader_task = asyncio.create_task(self.messagebus_reader(websocket))
 
-	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:
+	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:  # pylint: disable=unused-argument
 		logger.info("Websocket client disconnected from messagebus")
 		if isinstance(self._messagebus_reader_task, asyncio.Task):
 			self._messagebus_reader_task.cancel()

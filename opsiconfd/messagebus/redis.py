@@ -12,6 +12,7 @@ from asyncio import sleep
 from asyncio.exceptions import CancelledError
 from time import time
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from uuid import uuid4
 
 from aioredis import StrictRedis
 from aioredis.client import StreamIdT
@@ -27,6 +28,7 @@ logger = get_logger("opsiconfd.messagebus")
 
 
 TERMINAL_CHANNEL_MAX_IDLE = 3600
+CHANNEL_INFO_SUFFIX = b":info"
 
 
 async def cleanup_channels() -> None:
@@ -41,7 +43,7 @@ async def cleanup_channels() -> None:
 		active_sessions.append(key.decode("utf-8").rsplit(":", 1)[-1])
 
 	async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:session:*"):
-		session_id = key.decode("utf-8").rsplit(":", 1)[-1]
+		session_id = await redis.hget(key + CHANNEL_INFO_SUFFIX, "session-id")
 		if session_id not in active_sessions:
 			debug("Removing %s (session not found)", key)
 			remove_channels.append(key)
@@ -76,8 +78,16 @@ async def send_message(message: Message, context: Any = None) -> None:
 	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
 
 
+async def create_messagebus_session_channel(session_id: str) -> str:
+	redis = await async_redis_client()
+	channel = f"session:{uuid4()}"
+	stream_key = f"{REDIS_PREFIX_MESSAGEBUS}:channels:{channel}".encode("utf-8")
+	await redis.hset(stream_key + CHANNEL_INFO_SUFFIX, "session-id", session_id)
+	return channel
+
+
 class MessageReader:  # pylint: disable=too-few-public-methods
-	_info_suffix = b":info"
+	_info_suffix = CHANNEL_INFO_SUFFIX
 
 	def __init__(self, channels: Dict[str, Optional[StreamIdT]] = None, default_stream_id: str = "$") -> None:
 		"""

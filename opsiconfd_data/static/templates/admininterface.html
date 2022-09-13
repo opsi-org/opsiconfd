@@ -556,7 +556,7 @@
 		<div id="tab-messagebus" class="tabcontent fitheight">
 			<h4>Messagebus</h4>
 			<button id="messagebus-connect-disconnect" onclick="messagebusToggleConnect()">Connect</button>
-			<div class="adminpage-box" style="display: flex; height: 560px;">
+			<div class="adminpage-box" style="display: flex;">
 				<div style="flex-basis: 45%; margin-right: 25px">
 					Message out:
 					<textarea id="messagebus-message-out"></textarea>
@@ -569,7 +569,7 @@
 					Messages in:
 					<textarea id="messagebus-message-in"></textarea>
 					<br />
-					Autoscroll <input type="checkbox" id="messagebus-message-in-auto-scroll"
+					Autoscroll <input type="checkbox" id="messagebus-message-in-auto-scroll" checked="checked"
 						onclick="messagebusToggleAutoScroll()">
 				</div>
 			</div>

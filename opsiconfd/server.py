@@ -319,9 +319,9 @@ class Server:
 			"log_config": None,
 			"debug": config.debug,
 			"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"]],
+			"ws_ping_interval": 15,
+			"ws_ping_timeout": 10
 		}
-		# if config.workers == 1 and config.interface == "::":
-		#   options["host"] = ["::", "0.0.0.0"]
 		if config.ssl_server_key and config.ssl_server_cert:
 			options["ssl_keyfile"] = config.ssl_server_key
 			options["ssl_keyfile_password"] = config.ssl_server_key_passphrase

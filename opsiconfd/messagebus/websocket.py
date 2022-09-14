@@ -21,7 +21,6 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionRequestMessage,
 	GeneralErrorMessage,
 	Message,
-	TerminalOpenRequest,
 )
 from opsicommon.utils import serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool

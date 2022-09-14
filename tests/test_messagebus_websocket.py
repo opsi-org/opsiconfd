@@ -139,7 +139,7 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 			test_client.auth = (host_id, host_key)
 			with (test_client.websocket_connect("/messagebus/v1") as websocket1, test_client.websocket_connect("/messagebus/v1") as websocket2):
 				with (WebSocketMessageReader(websocket1) as reader1, WebSocketMessageReader(websocket2) as reader2):
-					for reader, websocket in ((reader1, websocket1), (reader2, websocket2)):
+					for reader, _websocket in ((reader1, websocket1), (reader2, websocket2)):
 						reader.wait_for_message(count=1)
 						messages = list(reader.get_messages())
 						assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]

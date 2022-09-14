@@ -20,7 +20,7 @@ from aioredis.exceptions import ResponseError
 from msgpack import dumps, loads  # type: ignore[import]
 from opsicommon.messagebus import Message  # type: ignore[import]
 
-from ..config import REDIS_PREFIX_MESSAGEBUS, REDIS_PREFIX_SESSION
+from ..config import REDIS_PREFIX_MESSAGEBUS
 from ..logging import get_logger
 from ..utils import async_redis_client
 
@@ -34,8 +34,8 @@ CHANNEL_INFO_SUFFIX = b":info"
 async def cleanup_channels() -> None:
 	logger.debug("Cleaning up messagebus channels")
 	redis = await async_redis_client()
-	now = time()
-	debug = logger.debug
+	# now = time()
+	# debug = logger.debug
 	remove_channels = []
 
 	#active_sessions = []
@@ -43,7 +43,8 @@ async def cleanup_channels() -> None:
 	#	active_sessions.append(key.decode("utf-8").rsplit(":", 1)[-1])
 
 	async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:session:*"):
-		reader_count = await redis.hget(key + CHANNEL_INFO_SUFFIX, "reader-count")
+		pass
+		# reader_count = await redis.hget(key + CHANNEL_INFO_SUFFIX, "reader-count")
 		#if session_id not in active_sessions:
 		#	debug("Removing %s (session not found)", key)
 		#	remove_channels.append(key)

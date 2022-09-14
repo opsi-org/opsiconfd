@@ -46,6 +46,9 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with test_client.websocket_connect(f"/messagebus/v1?compression={compression}") as websocket:
 		with WebSocketMessageReader(websocket, decode=False) as reader:
+			reader.wait_for_message()
+			next(reader.get_messages())
+
 			jsonrpc_request_message = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 				sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 			)
@@ -54,7 +57,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				data = compress_data(data, compression)
 			websocket.send_bytes(data)
 
-			reader.wait_for_message(timeout=5.0)
+			reader.wait_for_message()
 			raw_data = next(reader.get_messages())
 			if compression:
 				raw_data = decompress_data(raw_data, compression)  # type: ignore[arg-type]
@@ -190,6 +193,9 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 		test_client.auth = (host_id, host_key)
 		with test_client.websocket_connect("/messagebus/v1") as websocket:
 			with WebSocketMessageReader(websocket) as reader:
+				reader.wait_for_message(count=1)
+				assert next(reader.get_messages())["type"] == "channel_subscription_event"
+
 				jsonrpc_request_message1 = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 					sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 				)

@@ -8,6 +8,7 @@
 opsiconfd.messagebus tests
 """
 
+from time import sleep
 from uuid import uuid4
 
 import pytest
@@ -24,6 +25,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 
 from opsiconfd.config import config
 from opsiconfd.messagebus import get_messagebus_user_id_for_service_node
+from opsiconfd.messagebus.redis import REDIS_PREFIX_MESSAGEBUS
 from opsiconfd.utils import compress_data, decompress_data
 
 from .utils import (  # pylint: disable=unused-import
@@ -33,6 +35,7 @@ from .utils import (  # pylint: disable=unused-import
 	WebSocketMessageReader,
 	clean_redis,
 	client_jsonrpc,
+	sync_redis_client,
 	test_client,
 	worker_main_loop,
 )
@@ -44,7 +47,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 	with test_client.websocket_connect(f"/messagebus/v1?compression={compression}") as websocket:
 		with WebSocketMessageReader(websocket, decode=False) as reader:
 			jsonrpc_request_message = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender="*", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
+				sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 			)
 			data = jsonrpc_request_message.to_msgpack()
 			if compression:
@@ -62,49 +65,122 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 			assert jsonrpc_response_message.error is None
 
 
+def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	with test_client.websocket_connect("/messagebus/v1") as websocket:
+		with WebSocketMessageReader(websocket, decode=False) as reader:
+			reader.wait_for_message(count=1)
+			message = Message.from_msgpack(next(reader.get_messages()))
+			assert message.type == "channel_subscription_event"  # type: ignore[call-overload]
+			assert len(message.subscribed_channels) == 2
+			user_channel = None
+			session_channel = None
+			for channel in message.subscribed_channels:
+				if channel.startswith("session:"):
+					session_channel = channel
+				else:
+					user_channel = channel
+			assert user_channel == f"user:{ADMIN_USER}"
+			assert session_channel
+
+			message = Message(type="test", sender="@", channel=session_channel, id="1")
+			websocket.send_bytes(message.to_msgpack())
+			message = Message(type="test", sender="@", channel=user_channel, id="2")
+			websocket.send_bytes(message.to_msgpack())
+
+			reader.wait_for_message(count=2)
+			messages = [Message.from_msgpack(msg) for msg in list(reader.get_messages())]
+			assert len(messages) == 2
+
+			assert sorted([msg.id for msg in messages]) == ["1", "2"]
+
+			# Subscribe for 2 new session channels
+			other_channel1 = "session:11111111-1111-1111-1111-111111111111"
+			other_channel2 = "session:22222222-2222-2222-2222-222222222222"
+			message = ChannelSubscriptionRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+				sender="@", channel="service:messagebus", channels=[other_channel1, other_channel2], operation="add"
+			)
+			websocket.send_bytes(message.to_msgpack())
+
+			reader.wait_for_message(count=1)
+			message = Message.from_msgpack(next(reader.get_messages()))
+			assert message.type == "channel_subscription_event"  # type: ignore[call-overload]
+			assert len(message.subscribed_channels) == 4
+
+			assert user_channel in message.subscribed_channels
+			assert session_channel in message.subscribed_channels
+			assert other_channel1 in message.subscribed_channels
+			assert other_channel2 in message.subscribed_channels
+
+			message = Message(type="test", sender="@", channel=session_channel, id="3")
+			websocket.send_bytes(message.to_msgpack())
+			message = Message(type="test", sender="@", channel=user_channel, id="4")
+			websocket.send_bytes(message.to_msgpack())
+			message = Message(type="test", sender="@", channel=other_channel1, id="5")
+			websocket.send_bytes(message.to_msgpack())
+			message = Message(type="test", sender="@", channel=other_channel2, id="6")
+			websocket.send_bytes(message.to_msgpack())
+
+			reader.wait_for_message(count=4)
+			messages = [Message.from_msgpack(msg) for msg in list(reader.get_messages())]
+			assert len(messages) == 4
+			assert sorted([msg.id for msg in messages]) == ["3", "4", "5", "6"]
+
+
 def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
-	with client_jsonrpc(test_client, "", host_id=host_id, host_key=host_key):
-		test_client.auth = (host_id, host_key)
-		with (test_client.websocket_connect("/messagebus/v1") as websocket1, test_client.websocket_connect("/messagebus/v1") as websocket2):
-			with (WebSocketMessageReader(websocket1) as reader1, WebSocketMessageReader(websocket2) as reader2):
-				for reader, websocket in ((reader1, websocket1), (reader2, websocket2)):
-					message = ChannelSubscriptionRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-						sender="*", channel="service:messagebus", channels=["host:msgbus-test-client.opsi.test"], operation="add"
+	with sync_redis_client() as redis:
+		assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") is None
+		with client_jsonrpc(test_client, "", host_id=host_id, host_key=host_key):
+			test_client.auth = (host_id, host_key)
+			with (test_client.websocket_connect("/messagebus/v1") as websocket1, test_client.websocket_connect("/messagebus/v1") as websocket2):
+				with (WebSocketMessageReader(websocket1) as reader1, WebSocketMessageReader(websocket2) as reader2):
+					for reader, websocket in ((reader1, websocket1), (reader2, websocket2)):
+						reader.wait_for_message(count=1)
+						messages = list(reader.get_messages())
+						assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+						assert len(messages[0]["subscribed_channels"]) == 2
+						assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]
+
+					assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"2"
+
+					message = Message(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+						type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="1"
 					)
-					websocket.send_bytes(message.to_msgpack())
-					reader.wait_for_message(count=1)
-					messages = list(reader.get_messages())
-					assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-					assert len(messages[0]["subscribed_channels"]) == 2
-					assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]
+					websocket1.send_bytes(message.to_msgpack())
+					for reader in (reader1, reader2):
+						reader.wait_for_message(count=1)
+						messages = list(reader.get_messages())
+						# print(messages)
+						assert len(messages) == 1
+						assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
+						assert messages[0]["id"] == "1"  # type: ignore[call-overload]
 
-				message = Message(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-					type="test_multi_client", sender="*", channel="host:msgbus-test-client.opsi.test", id="1"
-				)
-				websocket1.send_bytes(message.to_msgpack())
-				for reader in (reader1, reader2):
-					reader.wait_for_message(count=1)
-					messages = list(reader.get_messages())
-					# print(messages)
-					assert len(messages) == 1
-					assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
-					assert messages[0]["id"] == "1"  # type: ignore[call-overload]
+					# print(list(reader2.get_messages()))
+					with test_client.websocket_connect("/messagebus/v1") as websocket3:
+						with WebSocketMessageReader(websocket3) as reader3:
+							reader3.wait_for_message(count=1)
+							messages = list(reader3.get_messages())
+							assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
+							assert len(messages[0]["subscribed_channels"]) == 2
+							assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]
 
-				# print(list(reader2.get_messages()))
-				with test_client.websocket_connect("/messagebus/v1") as websocket3:
-					with WebSocketMessageReader(websocket3) as reader3:
-						message = Message(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-							type="test_multi_client", sender="*", channel="host:msgbus-test-client.opsi.test", id="2"
-						)
-						websocket1.send_bytes(message.to_msgpack())
-						for reader in (reader1, reader2, reader3):
-							reader.wait_for_message(count=1)
-							messages = list(reader.get_messages())
-							assert len(messages) == 1
-							assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
-							assert messages[0]["id"] == "2"  # type: ignore[call-overload]
+							assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"3"
+							message = Message(
+								type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="2"
+							)
+							websocket1.send_bytes(message.to_msgpack())
+							for reader in (reader1, reader2, reader3):
+								reader.wait_for_message(count=1)
+								messages = list(reader.get_messages())
+								assert len(messages) == 1
+								assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
+								assert messages[0]["id"] == "2"  # type: ignore[call-overload]
+					sleep(1)
+					assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"2"
+			sleep(1)
+			assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"0"
 
 
 def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -115,15 +191,15 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 		with test_client.websocket_connect("/messagebus/v1") as websocket:
 			with WebSocketMessageReader(websocket) as reader:
 				jsonrpc_request_message1 = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-					sender="*", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
+					sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 				)
 				websocket.send_bytes(jsonrpc_request_message1.to_msgpack())
 				jsonrpc_request_message2 = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-					sender="*", channel="service:config:jsonrpc", rpc_id="2", method="config_create", params=("test", "descr")
+					sender="@", channel="service:config:jsonrpc", rpc_id="2", method="config_create", params=("test", "descr")
 				)
 				websocket.send_bytes(jsonrpc_request_message2.to_msgpack())
 				jsonrpc_request_message3 = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-					sender="*", channel="service:config:jsonrpc", rpc_id="3", method="invalid", params=(1, 2, 3)
+					sender="@", channel="service:config:jsonrpc", rpc_id="3", method="invalid", params=(1, 2, 3)
 				)
 				websocket.send_bytes(jsonrpc_request_message3.to_msgpack())
 
@@ -161,7 +237,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 		with WebSocketMessageReader(websocket) as reader:
 			terminal_id = str(uuid4())
 			message = TerminalOpenRequest(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender="*", channel=f"{messagebus_node_id}:terminal", terminal_id=terminal_id, rows=20, cols=100
+				sender="@", channel=f"{messagebus_node_id}:terminal", terminal_id=terminal_id, rows=20, cols=100
 			)
 			websocket.send_bytes(message.to_msgpack())
 
@@ -184,7 +260,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 			assert responses[1].data
 
 			message = TerminalDataWrite(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender="*", channel=terminal_channel, terminal_id=terminal_id, data="echo test\r"
+				sender="@", channel=terminal_channel, terminal_id=terminal_id, data="echo test\r"
 			)
 			websocket.send_bytes(message.to_msgpack())
 
@@ -198,7 +274,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 			assert "echo test\r\ntest\r\n" in responses[0].data.decode("utf-8")
 
 			message = TerminalResizeRequest(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender="*", channel=terminal_channel, terminal_id=terminal_id, rows=10, cols=20
+				sender="@", channel=terminal_channel, terminal_id=terminal_id, rows=10, cols=20
 			)
 			websocket.send_bytes(message.to_msgpack())
 

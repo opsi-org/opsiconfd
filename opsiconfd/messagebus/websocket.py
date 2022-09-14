@@ -11,7 +11,6 @@ messagebus.websocket
 import asyncio
 import traceback
 from typing import Union
-from uuid import uuid4
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
@@ -21,7 +20,6 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionOperation,
 	ChannelSubscriptionRequestMessage,
 	GeneralErrorMessage,
-	JSONRPCResponseMessage,
 	Message,
 	TerminalOpenRequest,
 )
@@ -85,11 +83,18 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		await websocket.send_bytes(data)
 
 	async def messagebus_reader(self, websocket: WebSocket) -> None:
-		self._messagebus_reader = MessageReader(
+		self._messagebus_reader = MessageReader()
+		await self._messagebus_reader.add_channels(
 			channels={
 				self._user_channel: ">",
 				self._session_channel: ">",
 			}
+		)
+		await self._send_message_to_websocket(
+			websocket,
+			ChannelSubscriptionEventMessage(
+				sender=self._messagebus_worker_id, channel=self._session_channel, subscribed_channels=[self._user_channel, self._session_channel]
+			)
 		)
 		try:
 			async for redis_id, message, _context in self._messagebus_reader.get_messages():
@@ -103,15 +108,15 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
-	def _check_channel_access(self, channel: str, message: Message) -> bool:  # pylint: disable=too-many-return-statements
-		if isinstance(message, JSONRPCResponseMessage):
+	def _check_channel_access(self, channel: str) -> bool:  # pylint: disable=too-many-return-statements
+		if channel.startswith("session:"):
 			return True
 		if channel == "service:config:jsonrpc":
 			return True
 		if channel == "service:messagebus":
 			return True
-		if channel == self._session_channel:
-			return True
+		# if channel == self._session_channel:
+		# 	return True
 		if channel == self._user_channel:
 			return True
 		if self.scope["session"].user_store.isAdmin:
@@ -128,13 +133,17 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 				message.channels[idx] = channel = self._user_channel
 			elif channel == "$":
 				message.channels[idx] = channel = self._session_channel
-			if not self._check_channel_access(channel, message):
+
+			if not self._check_channel_access(channel):
 				response.error = {  # pylint: disable=loop-invariant-statement
 					"code": 0,
 					"message": f"Access to channel {channel!r} denied",
 					"details": None,
 				}
 				break
+
+			if channel.startswith("session:"):
+				await create_messagebus_session_channel(owner_id=self._messagebus_user_id, session_id=channel.split(":", 2)[1], exists_ok=True)
 
 		if not response.error:
 			if message.operation == ChannelSubscriptionOperation.SET:
@@ -169,7 +178,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			elif message.back_channel == "@":
 				message.back_channel = self._user_channel
 
-			if not self._check_channel_access(message.channel, message) or not self._check_channel_access(message.back_channel, message):
+			if not self._check_channel_access(message.channel) or not self._check_channel_access(message.back_channel):
 				raise RuntimeError(f"Access to channel {message.channel!r} denied")
 
 			logger.debug("Message from websocket: %r", message)
@@ -177,16 +186,16 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			if isinstance(message, ChannelSubscriptionRequestMessage):
 				await self._process_channel_subscription_message(websocket, message)
 			else:
-				if isinstance(message, TerminalOpenRequest):
-					if not message.terminal_id:
-						raise ValueError("Terminal id is missing")
-					await self._messagebus_reader.add_channels({f"terminal:{message.terminal_id}": "$"})
-					channel_subscription_event = ChannelSubscriptionEventMessage(
-						sender=self._messagebus_worker_id,
-						channel=message.back_channel,
-						subscribed_channels=await self._messagebus_reader.get_channel_names()
-					)
-					await self._send_message_to_websocket(websocket, channel_subscription_event)
+				# if isinstance(message, TerminalOpenRequest):
+				# 	if not message.terminal_id:
+				# 		raise ValueError("Terminal id is missing")
+				# 	await self._messagebus_reader.add_channels({f"terminal:{message.terminal_id}": "$"})
+				# 	channel_subscription_event = ChannelSubscriptionEventMessage(
+				# 		sender=self._messagebus_worker_id,
+				# 		channel=message.back_channel,
+				# 		subscribed_channels=await self._messagebus_reader.get_channel_names()
+				# 	)
+				# 	await self._send_message_to_websocket(websocket, channel_subscription_event)
 				await send_message(message, serialize(vars(self.scope["session"].user_store)))
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err, exc_info=True)
@@ -224,11 +233,11 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].user_store.username)
 
 		self._user_channel = self._messagebus_user_id
-		self._session_channel = await create_messagebus_session_channel(self.scope["session"].session_id)
+		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=False)
 
 		self._messagebus_reader_task = asyncio.create_task(self.messagebus_reader(websocket))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:  # pylint: disable=unused-argument
 		logger.info("Websocket client disconnected from messagebus")
-		if isinstance(self._messagebus_reader_task, asyncio.Task):
-			self._messagebus_reader_task.cancel()
+		if self._messagebus_reader:
+			self._messagebus_reader.stop()

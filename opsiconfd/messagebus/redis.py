@@ -12,7 +12,7 @@ from asyncio import sleep
 from asyncio.exceptions import CancelledError
 from time import time
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from aioredis import StrictRedis
 from aioredis.client import StreamIdT
@@ -38,22 +38,22 @@ async def cleanup_channels() -> None:
 	debug = logger.debug
 	remove_channels = []
 
-	active_sessions = []
-	async for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):
-		active_sessions.append(key.decode("utf-8").rsplit(":", 1)[-1])
+	#active_sessions = []
+	#async for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):
+	#	active_sessions.append(key.decode("utf-8").rsplit(":", 1)[-1])
 
 	async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:session:*"):
-		session_id = await redis.hget(key + CHANNEL_INFO_SUFFIX, "session-id")
-		if session_id not in active_sessions:
-			debug("Removing %s (session not found)", key)
-			remove_channels.append(key)
+		reader_count = await redis.hget(key + CHANNEL_INFO_SUFFIX, "reader-count")
+		#if session_id not in active_sessions:
+		#	debug("Removing %s (session not found)", key)
+		#	remove_channels.append(key)
 
-	async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:terminal:*"):
-		info = await redis.xinfo_stream(key)
-		timestamp = int(info["last-generated-id"].decode("utf-8").split("-")[0]) / 1000
-		if now - timestamp > TERMINAL_CHANNEL_MAX_IDLE:
-			debug("Removing %s (last-generated-id: %s)", key, info["last-generated-id"])
-			remove_channels.append(key)
+	# async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:terminal:*"):
+	# 	info = await redis.xinfo_stream(key)
+	# 	timestamp = int(info["last-generated-id"].decode("utf-8").split("-")[0]) / 1000
+	# 	if now - timestamp > TERMINAL_CHANNEL_MAX_IDLE:
+	# 		debug("Removing %s (last-generated-id: %s)", key, info["last-generated-id"])
+	# 		remove_channels.append(key)
 
 	if remove_channels:
 		pipeline = redis.pipeline()
@@ -78,11 +78,20 @@ async def send_message(message: Message, context: Any = None) -> None:
 	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
 
 
-async def create_messagebus_session_channel(session_id: str) -> str:
+async def create_messagebus_session_channel(owner_id: str, session_id: str = None, exists_ok: bool = True) -> str:
 	redis = await async_redis_client()
-	channel = f"session:{uuid4()}"
+	session_id = str(UUID(session_id) if session_id else uuid4())
+	channel = f"session:{session_id}"
 	stream_key = f"{REDIS_PREFIX_MESSAGEBUS}:channels:{channel}".encode("utf-8")
-	await redis.hset(stream_key + CHANNEL_INFO_SUFFIX, "session-id", session_id)
+	exists = await redis.exists(stream_key)
+	if exists:
+		if not exists_ok:
+			raise RuntimeError("Already exists")
+	else:
+		pipeline = redis.pipeline()
+		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, "owner-id", owner_id)
+		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, "reader-count", 0)
+		await pipeline.execute()
 	return channel
 
 
@@ -102,6 +111,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		self._default_stream_id = default_stream_id
 		self._streams: Dict[bytes, StreamIdT] = {}
 		self._key_prefix = f"{REDIS_PREFIX_MESSAGEBUS}:channels"
+		self._should_stop = False
 
 	def __repr__(self) -> str:
 		return f"{self.__class__.__name__}({','.join(self._channels)})"
@@ -111,6 +121,8 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 	async def _update_streams(self) -> None:
 		redis = await async_redis_client()
 		stream_keys: List[bytes] = []
+		redis_time = await redis.time()
+		redis_time_id = str(int(redis_time[0] * 1000 + redis_time[1] / 1000))
 		for channel, redis_msg_id in self._channels.items():
 			stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
 			redis_msg_id = redis_msg_id or self._streams.get(stream_key) or self._default_stream_id
@@ -122,14 +134,23 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 				else:
 					redis_msg_id = "0"
 
+			if redis_msg_id == "$":
+				# Reading will start slightly later
+				# Use current timestamp instead of $ to do not miss messages
+				redis_msg_id = redis_time_id
+
 			if not redis_msg_id:
 				raise ValueError("No redis message id")  # pylint: disable=loop-invariant-statement
+
+			if stream_key not in self._streams:
+				await redis.hincrby(stream_key + self._info_suffix, "reader-count", 1)
 
 			self._streams[stream_key] = redis_msg_id
 			stream_keys.append(stream_key)
 
 		for stream_key in list(self._streams):
 			if stream_key not in stream_keys:
+				await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
 				del self._streams[stream_key]
 		logger.debug("%s updated streams: %s", self, self._streams)
 
@@ -168,7 +189,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 
 		redis = await async_redis_client()
 		try:  # pylint: disable=too-many-nested-blocks
-			while True:
+			while not self._should_stop:
 				try:  # pylint: disable=loop-try-except-usage
 					now = time()
 					stream_entries = await self._get_stream_entries(redis)
@@ -193,6 +214,11 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		except CancelledError:
 			pass
 
+		pipeline = redis.pipeline()
+		for stream_key in list(self._streams):
+			pipeline.hincrby(stream_key + self._info_suffix, "reader-count", -1)
+		await pipeline.execute()
+
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		logger.trace("ACK channel %r, message %r", channel, redis_msg_id)
 		redis = await async_redis_client()
@@ -200,6 +226,9 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		if stream_key not in self._streams:
 			raise ValueError(f"Invalid channel: {channel!r}")
 		await redis.hset(stream_key + self._info_suffix, "last-delivered-id", redis_msg_id)
+
+	def stop(self) -> None:
+		self._should_stop = True
 
 
 class ConsumerGroupMessageReader(MessageReader):

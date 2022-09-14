@@ -33,21 +33,20 @@ CHANNEL_INFO_SUFFIX = b":info"
 
 async def cleanup_channels() -> None:
 	logger.debug("Cleaning up messagebus channels")
-	redis = await async_redis_client()
+	# redis = await async_redis_client()
 	# now = time()
 	# debug = logger.debug
-	remove_channels = []
+	# remove_channels = []
 
-	#active_sessions = []
-	#async for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):
-	#	active_sessions.append(key.decode("utf-8").rsplit(":", 1)[-1])
+	# active_sessions = []
+	# async for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):
+	# 	active_sessions.append(key.decode("utf-8").rsplit(":", 1)[-1])
 
-	async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:session:*"):
-		pass
-		# reader_count = await redis.hget(key + CHANNEL_INFO_SUFFIX, "reader-count")
-		#if session_id not in active_sessions:
-		#	debug("Removing %s (session not found)", key)
-		#	remove_channels.append(key)
+	# async for _key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:session:*"):
+	# 	reader_count = await redis.hget(key + CHANNEL_INFO_SUFFIX, "reader-count")
+	# 	if session_id not in active_sessions:
+	# 		debug("Removing %s (session not found)", key)
+	# 		remove_channels.append(key)
 
 	# async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:terminal:*"):
 	# 	info = await redis.xinfo_stream(key)
@@ -56,11 +55,11 @@ async def cleanup_channels() -> None:
 	# 		debug("Removing %s (last-generated-id: %s)", key, info["last-generated-id"])
 	# 		remove_channels.append(key)
 
-	if remove_channels:
-		pipeline = redis.pipeline()
-		for channel in remove_channels:
-			pipeline.delete(channel)
-		await pipeline.execute()
+	# if remove_channels:
+	# 	pipeline = redis.pipeline()
+	# 	for channel in remove_channels:
+	# 		pipeline.delete(channel)
+	# 	await pipeline.execute()
 
 
 async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes = None) -> None:

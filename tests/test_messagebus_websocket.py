@@ -200,11 +200,11 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 				jsonrpc_request_message1 = JSONRPCRequestMessage(
 					sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 				)
-				websocket.send_bytes(jsonrpc_request_message1.tomsgpack())
+				websocket.send_bytes(jsonrpc_request_message1.to_msgpack())
 				jsonrpc_request_message2 = JSONRPCRequestMessage(
 					sender="@", channel="service:config:jsonrpc", rpc_id="2", method="config_create", params=("test", "descr")
 				)
-				websocket.send_bytes(jsonrpc_request_message2.tomsgpack())
+				websocket.send_bytes(jsonrpc_request_message2.to_msgpack())
 				jsonrpc_request_message3 = JSONRPCRequestMessage(
 					sender="@", channel="service:config:jsonrpc", rpc_id="3", method="invalid", params=(1, 2, 3)
 				)
@@ -319,7 +319,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 				sender="@",
 				channel="$",
 				req_id=message2.id,
-				req_trace=message2.trace, trace={"sender_ws_send": int(time() * 1000)},
+				req_trace=message2.trace, trace={"sender_ws_send": timestamp()},
 				payload=message2.payload
 			)
 			websocket.send_bytes(message3.to_msgpack())
@@ -341,7 +341,6 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 				<= trc["broker_redis_receive"] <= trc["broker_ws_send"] <= trc["recipient_ws_receive"]
 			)
 
-			message4.payload = None
-			print(message4.to_dict())
-			import json
-			print(json.dumps(message4.to_dict(), indent="\t"))
+			# message4.payload = None
+			# import json
+			# print(json.dumps(message4.to_dict(), indent="\t"))

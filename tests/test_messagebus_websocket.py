@@ -292,6 +292,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 			assert responses[0].rows == 10
 			assert responses[0].cols == 20
 
+
 def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 

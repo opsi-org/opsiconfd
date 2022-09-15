@@ -18,7 +18,12 @@ from aioredis import StrictRedis
 from aioredis.client import StreamIdT
 from aioredis.exceptions import ResponseError
 from msgpack import dumps, loads  # type: ignore[import]
-from opsicommon.messagebus import Message  # type: ignore[import]
+from opsicommon.messagebus import (  # type: ignore[import]
+	Message,
+	TraceRequestMessage,
+	TraceResponseMessage,
+	timestamp,
+)
 
 from ..config import REDIS_PREFIX_MESSAGEBUS
 from ..logging import get_logger
@@ -71,6 +76,8 @@ async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: 
 
 
 async def send_message(message: Message, context: Any = None) -> None:
+	if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
+		message.trace["broker_redis_send"] = timestamp()
 	context_data = None
 	if context:
 		context_data = dumps(context)
@@ -205,6 +212,8 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 							_logger.debug("Message from redis: %r", msg)
 							if msg.expires and msg.expires <= now:
 								continue
+							if isinstance(msg, (TraceRequestMessage, TraceResponseMessage)):  # pylint: disable=loop-invariant-statement
+								msg.trace["broker_redis_receive"] = timestamp()  # pylint: disable=loop-invariant-statement
 							yield redis_msg_id, msg, context
 							last_redis_msg_id = redis_msg_id
 						self._streams[stream_key] = last_redis_msg_id

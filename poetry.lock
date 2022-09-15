@@ -236,7 +236,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "certifi"
-version = "2022.6.15.2"
+version = "2022.9.14"
 description = "Python package for providing Mozilla's CA Bundle."
 category = "main"
 optional = false
@@ -1699,7 +1699,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.2.0.295"
+version = "4.2.0.296"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -2647,8 +2647,8 @@ backoff = [
     {file = "backoff-2.1.2.tar.gz", hash = "sha256:407f1bc0f22723648a8880821b935ce5df8475cf04f7b6b5017ae264d30f6069"},
 ]
 certifi = [
-    {file = "certifi-2022.6.15.2-py3-none-any.whl", hash = "sha256:0aa1a42fbd57645fabeb6290a7687c21755b0344ecaeaa05f4e9f6207ae2e9a8"},
-    {file = "certifi-2022.6.15.2.tar.gz", hash = "sha256:aa08c101214127b9b0472ca6338315113c9487d45376fd3e669201b477c71003"},
+    {file = "certifi-2022.9.14-py3-none-any.whl", hash = "sha256:e232343de1ab72c2aa521b625c80f699e356830fd0e2c620b465b304b17b0516"},
+    {file = "certifi-2022.9.14.tar.gz", hash = "sha256:36973885b9542e6bd01dea287b2b4b3b21236307c56324fcc3f1160f2d655ed5"},
 ]
 cffi = [
     {file = "cffi-1.15.1-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:a66d3508133af6e8548451b25058d5812812ec3798c886bf38ed24a98216fab2"},
@@ -3718,8 +3718,8 @@ python-opsi = [
     {file = "python_opsi-4.2.0.311-py3-none-any.whl", hash = "sha256:6401d12e1c0f33e87d5f52649f2be7e97c5046d469763ff76951d2f22343a000"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.295.tar.gz", hash = "sha256:e430c7d240aded44d0b8dc058973584e96656cacc5c972317111a214d755c970"},
-    {file = "python_opsi_common-4.2.0.295-py3-none-any.whl", hash = "sha256:1c137d339260574c5d9d08d3a4e66198d9b44f1dd03cef200f717e03decec5b7"},
+    {file = "python-opsi-common-4.2.0.296.tar.gz", hash = "sha256:c6d2999dfd349e46e082dd0fcb964f1dab8b751d25ed27439bc40baae011c9d1"},
+    {file = "python_opsi_common-4.2.0.296-py3-none-any.whl", hash = "sha256:e208ba6f3a3a747479458e6684ef3860f37fe49411daf92f09e7df3d4801d520"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},

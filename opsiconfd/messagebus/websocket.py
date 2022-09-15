@@ -21,6 +21,9 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionRequestMessage,
 	GeneralErrorMessage,
 	Message,
+	TraceRequestMessage,
+	TraceResponseMessage,
+	timestamp,
 )
 from opsicommon.utils import serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
@@ -70,6 +73,9 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		self._messagebus_reader = MessageReader()
 
 	async def _send_message_to_websocket(self, websocket: WebSocket, message: Message) -> None:
+		if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
+			message.trace["broker_ws_send"] = timestamp()
+
 		data = message.to_msgpack()
 		if self._compression:
 			data = await run_in_threadpool(compress_data, data, self._compression)
@@ -162,6 +168,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 	async def on_receive(self, websocket: WebSocket, data: bytes) -> None:
 		message_id = None
 		try:
+			receive_timestamp = timestamp()
 			if self._compression:
 				data = await run_in_threadpool(decompress_data, data, self._compression)
 			msg_dict = msgpack_loads(data)
@@ -177,6 +184,11 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			elif message.back_channel == "@":
 				message.back_channel = self._user_channel
 
+			if message.channel == "$":
+				message.channel = self._session_channel
+			elif message.channel == "@":
+				message.channel = self._user_channel
+
 			if not self._check_channel_access(message.channel) or not self._check_channel_access(message.back_channel):
 				raise RuntimeError(f"Access to channel {message.channel!r} denied")
 
@@ -185,6 +197,9 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			if isinstance(message, ChannelSubscriptionRequestMessage):
 				await self._process_channel_subscription_message(websocket, message)
 			else:
+				if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
+					message.trace["broker_ws_receive"] = receive_timestamp
+
 				# if isinstance(message, TerminalOpenRequest):
 				# 	if not message.terminal_id:
 				# 		raise ValueError("Terminal id is missing")

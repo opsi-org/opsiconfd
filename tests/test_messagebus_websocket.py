@@ -8,7 +8,8 @@
 opsiconfd.messagebus tests
 """
 
-from time import sleep
+from random import randbytes
+from time import sleep, time
 from uuid import uuid4
 
 import pytest
@@ -21,6 +22,9 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TerminalDataWrite,
 	TerminalOpenRequest,
 	TerminalResizeRequest,
+	TraceRequestMessage,
+	TraceResponseMessage,
+	timestamp,
 )
 
 from opsiconfd.config import config
@@ -48,8 +52,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 		with WebSocketMessageReader(websocket, decode=False) as reader:
 			reader.wait_for_message()
 			next(reader.get_messages())
-
-			jsonrpc_request_message = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+			jsonrpc_request_message = JSONRPCRequestMessage(
 				sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 			)
 			data = jsonrpc_request_message.to_msgpack()
@@ -99,8 +102,8 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 
 			# Subscribe for 2 new session channels
 			other_channel1 = "session:11111111-1111-1111-1111-111111111111"
-			other_channel2 = "session:22222222-2222-2222-2222-222222222222"
-			message = ChannelSubscriptionRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+			other_channel2 = "session:22222222-2222-222-2222-222222222222"
+			message = ChannelSubscriptionRequestMessage(
 				sender="@", channel="service:messagebus", channels=[other_channel1, other_channel2], operation="add"
 			)
 			websocket.send_bytes(message.to_msgpack())
@@ -147,8 +150,7 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 						assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]
 
 					assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"2"
-
-					message = Message(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+					message = Message(
 						type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="1"
 					)
 					websocket1.send_bytes(message.to_msgpack())
@@ -195,16 +197,15 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 			with WebSocketMessageReader(websocket) as reader:
 				reader.wait_for_message(count=1)
 				assert next(reader.get_messages())["type"] == "channel_subscription_event"
-
-				jsonrpc_request_message1 = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+				jsonrpc_request_message1 = JSONRPCRequestMessage(
 					sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 				)
-				websocket.send_bytes(jsonrpc_request_message1.to_msgpack())
-				jsonrpc_request_message2 = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+				websocket.send_bytes(jsonrpc_request_message1.tomsgpack())
+				jsonrpc_request_message2 = JSONRPCRequestMessage(
 					sender="@", channel="service:config:jsonrpc", rpc_id="2", method="config_create", params=("test", "descr")
 				)
-				websocket.send_bytes(jsonrpc_request_message2.to_msgpack())
-				jsonrpc_request_message3 = JSONRPCRequestMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+				websocket.send_bytes(jsonrpc_request_message2.tomsgpack())
+				jsonrpc_request_message3 = JSONRPCRequestMessage(
 					sender="@", channel="service:config:jsonrpc", rpc_id="3", method="invalid", params=(1, 2, 3)
 				)
 				websocket.send_bytes(jsonrpc_request_message3.to_msgpack())
@@ -242,7 +243,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 	with test_client.websocket_connect("/messagebus/v1") as websocket:
 		with WebSocketMessageReader(websocket) as reader:
 			terminal_id = str(uuid4())
-			message = TerminalOpenRequest(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+			message = TerminalOpenRequest(
 				sender="@", channel=f"{messagebus_node_id}:terminal", terminal_id=terminal_id, rows=20, cols=100
 			)
 			websocket.send_bytes(message.to_msgpack())
@@ -264,8 +265,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 			assert responses[1].type == MessageType.TERMINAL_DATA_READ
 			assert responses[1].terminal_id == terminal_id
 			assert responses[1].data
-
-			message = TerminalDataWrite(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+			message = TerminalDataWrite(
 				sender="@", channel=terminal_channel, terminal_id=terminal_id, data="echo test\r"
 			)
 			websocket.send_bytes(message.to_msgpack())
@@ -278,8 +278,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 			assert responses[0].type == MessageType.TERMINAL_DATA_READ
 			assert responses[0].terminal_id == terminal_id
 			assert "echo test\r\ntest\r\n" in responses[0].data.decode("utf-8")
-
-			message = TerminalResizeRequest(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
+			message = TerminalResizeRequest(
 				sender="@", channel=terminal_channel, terminal_id=terminal_id, rows=10, cols=20
 			)
 			websocket.send_bytes(message.to_msgpack())
@@ -292,3 +291,57 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 			assert responses[0].terminal_id == terminal_id
 			assert responses[0].rows == 10
 			assert responses[0].cols == 20
+
+def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	with test_client.websocket_connect("/messagebus/v1") as websocket:
+		with WebSocketMessageReader(websocket) as reader:
+			reader.wait_for_message(count=1)
+			next(reader.get_messages())
+
+			payload = randbytes(16 * 1024)
+			message1 = TraceRequestMessage(
+				sender="@",
+				channel="$",
+				trace={"sender_ws_send": int(time() * 1000)},
+				payload=payload
+			)
+			assert round(message1.created / 1000) == round(time())
+			websocket.send_bytes(message1.to_msgpack())
+
+			reader.wait_for_message(count=1)
+			message2 = TraceRequestMessage.from_dict(next(reader.get_messages()))
+			message2.trace["recipient_ws_receive"] = timestamp()
+			assert message2.created == message1.created
+
+			message3 = TraceResponseMessage(
+				sender="@",
+				channel="$",
+				req_id=message2.id,
+				req_trace=message2.trace, trace={"sender_ws_send": int(time() * 1000)},
+				payload=message2.payload
+			)
+			websocket.send_bytes(message3.to_msgpack())
+
+			reader.wait_for_message(count=1)
+			message4 = TraceResponseMessage.from_dict(next(reader.get_messages()))
+			message4.trace["recipient_ws_receive"] = timestamp()
+
+			assert message4.req_id == message1.id
+			assert message4.payload == message1.payload
+			trc = message4.req_trace
+			assert (
+				message1.created <= trc["sender_ws_send"] <= trc["broker_ws_receive"] <= trc["broker_redis_send"]
+				<= trc["broker_redis_receive"] <= trc["broker_ws_send"] <= trc["recipient_ws_receive"]
+			)
+			trc = message4.trace
+			assert (
+				message4.created <= trc["sender_ws_send"] <= trc["broker_ws_receive"] <= trc["broker_redis_send"]
+				<= trc["broker_redis_receive"] <= trc["broker_ws_send"] <= trc["recipient_ws_receive"]
+			)
+
+			message4.payload = None
+			print(message4.to_dict())
+			import json
+			print(json.dumps(message4.to_dict(), indent="\t"))

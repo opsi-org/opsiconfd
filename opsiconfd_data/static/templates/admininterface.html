@@ -580,6 +580,15 @@
 						onclick="document.getElementById('messagebus-message-in').innerHTML='';">Clear</button>
 				</div>
 			</div>
+			<div class="adminpage-box" style="width: 900px; height: 420px;">
+				<label>Channel:</label><input type="text" id="messagebus-terminal-channel"
+					style="width: 300px;"></input>
+				<label>Terminal id:</label><input type="text" id="messagebus-terminal-id" style="width: 300px;"></input>
+				<button id="messagebus-terminal-connect" onclick="messagebusConnectTerminal()">Connect</button>
+				<div id="messagebus-terminal-xterm" style="margin-top: 10px;">
+				</div>
+			</div>
+			<br /><br /><br /><br /><br /><br /><br /><br /><br />
 		</div>
 
 		<div id="tab-licensing" class="tabcontent">

@@ -660,6 +660,7 @@ function formateDate(date) {
 
 
 var messagebusWS;
+var mbTerminal;
 function messagebusConnect() {
 	let params = []
 	let loc = window.location;
@@ -688,10 +689,17 @@ function messagebusConnect() {
 	}
 	messagebusWS.onmessage = function (event) {
 		const message = msgpack.deserialize(event.data);
-		document.getElementById("messagebus-message-in").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
-		if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
-			let el = document.getElementById('messagebus-message-in');
-			el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+		if (message.type.startsWith("terminal_") && mbTerminal) {
+			if (message.type == "terminal_data_read") {
+				mbTerminal.write(message.data);
+			}
+		}
+		else {
+			document.getElementById("messagebus-message-in").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
+			if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
+				let el = document.getElementById('messagebus-message-in');
+				el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+			}
 		}
 	}
 }
@@ -755,7 +763,7 @@ function messagebusSend(message) {
 		return;
 	}
 	try {
-		messagebusWS.send(msgpack.serialize(JSON.parse(message)));
+		messagebusWS.send(msgpack.serialize(message));
 	}
 	catch (error) {
 		console.error(error);
@@ -765,7 +773,7 @@ function messagebusSend(message) {
 
 
 function messagebusSendMessage() {
-	messagebusSend(document.getElementById('messagebus-message-out').value);
+	messagebusSend(JSON.parse(document.getElementById('messagebus-message-out').value));
 }
 
 
@@ -774,6 +782,106 @@ function messagebusToggleAutoScroll() {
 		let el = document.getElementById('messagebus-message-in');
 		el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 	}
+}
+
+function messagebusConnectTerminal() {
+	if (!messagebusWS) {
+		alert("Messagebus not connected");
+		return;
+	}
+	let terminalChannel = document.getElementById("messagebus-terminal-channel").value;
+	if (!terminalChannel) {
+		alert("Invalid channel");
+		return;
+	}
+
+	let terminalId = document.getElementById("messagebus-terminal-id").value;
+	if (!terminalId) {
+		terminalId = createUUID();
+		document.getElementById("messagebus-terminal-id").value = terminalId;
+	}
+	let terminalSessionChannel = `session:${terminalId}`;
+
+	mbTerminal = new Terminal({
+		cursorBlink: true,
+		scrollback: 1000,
+		fontSize: 14
+	});
+
+	const searchAddon = new SearchAddon.SearchAddon();
+	mbTerminal.loadAddon(searchAddon);
+	const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+	mbTerminal.loadAddon(webLinksAddon);
+	mbTerminal.fitAddon = new FitAddon.FitAddon();
+	mbTerminal.loadAddon(mbTerminal.fitAddon);
+
+	mbTerminal.open(document.getElementById('messagebus-terminal-xterm'));
+
+	setTimeout(function () {
+		let message = {
+			type: "channel_subscription_request",
+			id: createUUID(),
+			sender: "@",
+			channel: "service:messagebus",
+			created: Date.now(),
+			expires: Date.now() + 10000,
+			operation: "add",
+			channels: [terminalSessionChannel]
+		}
+		messagebusSend(message);
+
+		// document.getElementsByClassName('xterm-viewport')[0].setAttribute("style", "");
+
+		mbTerminal.fitAddon.fit();
+		mbTerminal.focus();
+
+		console.log(`size: ${mbTerminal.cols} cols, ${mbTerminal.rows} rows`);
+
+		message = {
+			type: "terminal_open_request",
+			id: createUUID(),
+			sender: "@",
+			channel: terminalChannel,
+			back_channel: terminalSessionChannel,
+			created: Date.now(),
+			expires: Date.now() + 10000,
+			terminal_id: terminalId,
+			cols: mbTerminal.cols,
+			rows: mbTerminal.rows
+		}
+		messagebusSend(message);
+
+		mbTerminal.onData(function (data) {
+			let utf8Encode = new TextEncoder();
+			let message = {
+				type: "terminal_data_write",
+				id: createUUID(),
+				sender: "@",
+				channel: terminalChannel,
+				created: Date.now(),
+				expires: Date.now() + 10000,
+				terminal_id: terminalId,
+				data: utf8Encode.encode(data)
+			}
+			messagebusSend(message);
+		})
+		mbTerminal.onResize(function (event) {
+			//console.log("Resize:")
+			//console.log(event);
+			let message = {
+				type: "terminal_resize_request",
+				id: createUUID(),
+				sender: "@",
+				channel: terminalChannel,
+				created: Date.now(),
+				expires: Date.now() + 10000,
+				terminal_id: terminalId,
+				rows: event.rows,
+				cols: event.cols
+			}
+			messagebusSend(message);
+		});
+	}, 100);
 }
 
 

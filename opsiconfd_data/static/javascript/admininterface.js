@@ -717,13 +717,33 @@ function messagebusToggleConnect() {
 
 
 function messagebusInsertMessageTemplate() {
-	const message = {
-		type: "<type>",
+	let select = document.getElementById("messagebus-message-template-select");
+	let val = select.value;
+	select.value = "Insert message template";
+	let message = {
+		type: "",
 		id: createUUID(),
 		sender: "@",
-		channel: "<channel>",
+		channel: "$",
 		created: Date.now(),
 		expires: Date.now() + 300000
+	}
+	if (val == "channel_subscription_request") {
+		message.type = "channel_subscription_request"
+		message.channel = "service:messagebus"
+		message.operation = "add"
+		message.channels = ["@", "$"]
+	}
+	else if (val == "trace_request") {
+		message.type = "trace_request"
+		message.trace = {}
+		message.payload = ""
+	}
+	else if (val == "jsonrpc_request") {
+		message.type = "jsonrpc_request"
+		message.rpc_id = "1"
+		message.method = ""
+		message.params = []
 	}
 	document.getElementById('messagebus-message-out').value = JSON.stringify(message, undefined, 2);
 }

@@ -561,8 +561,13 @@
 					Message out:
 					<textarea id="messagebus-message-out"></textarea>
 					<br />
-					<button id="messagebus-insert-message-template" onclick="messagebusInsertMessageTemplate()">Insert
-						template</button>
+					<select id="messagebus-message-template-select" style="width: 200px;"
+						onchange="messagebusInsertMessageTemplate()">
+						<option>Insert message template</option>
+						<option>channel_subscription_request</option>
+						<option>trace_request</option>
+						<option>jsonrpc_request</option>
+					</select>
 					<button id="messagebus-message-send" onclick="messagebusSendMessage()">Send</button>
 				</div>
 				<div style="flex-basis: 45%">
@@ -571,6 +576,8 @@
 					<br />
 					Autoscroll <input type="checkbox" id="messagebus-message-in-auto-scroll" checked="checked"
 						onclick="messagebusToggleAutoScroll()">
+					<button id="messagebus-message-in-clear"
+						onclick="document.getElementById('messagebus-message-in').innerHTML='';">Clear</button>
 				</div>
 			</div>
 		</div>

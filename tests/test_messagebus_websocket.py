@@ -102,7 +102,7 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 
 			# Subscribe for 2 new session channels
 			other_channel1 = "session:11111111-1111-1111-1111-111111111111"
-			other_channel2 = "session:22222222-2222-222-2222-222222222222"
+			other_channel2 = "session:22222222-2222-2222-2222-222222222222"
 			message = ChannelSubscriptionRequestMessage(
 				sender="@", channel="service:messagebus", channels=[other_channel1, other_channel2], operation="add"
 			)
@@ -110,6 +110,7 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 
 			reader.wait_for_message(count=1)
 			message = Message.from_msgpack(next(reader.get_messages()))
+			print(message.to_dict())
 			assert message.type == "channel_subscription_event"  # type: ignore[call-overload]
 			assert len(message.subscribed_channels) == 4
 

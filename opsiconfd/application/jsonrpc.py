@@ -438,8 +438,9 @@ def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] 
 		"params": params,
 		"error": str(exception),
 	}
+	prefix = f"{client_info}-{now}-".replace("/", "_").replace(".", "_")
 	with tempfile.NamedTemporaryFile(
-		delete=False, dir=RPC_DEBUG_DIR, prefix=f"{client_info}-{now}-", suffix=".log"
+		delete=False, dir=RPC_DEBUG_DIR, prefix=prefix, suffix=".log"
 	) as log_file:
 		logger.notice("Writing rpc error log to: %s", log_file.name)
 		log_file.write(orjson.dumps(msg))  # pylint: disable=no-member

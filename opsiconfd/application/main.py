@@ -208,6 +208,9 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		req_headers = dict(scope["headers"])
 
 		# scope["path"] can change while processing, keep original value in scope["full_path"]
+		# Wrong path will still appear in log: GET /boot/ HTTP/1.1" 200   (h11_impl.py:477)
+		# Remove full_path and replace with path when the following issue is fixed:
+		# https://github.com/encode/starlette/issues/1336
 		scope["full_path"] = scope.get("path")
 		if scope["full_path"] and (new_path := PATH_MAPPINGS.get(scope["full_path"])):
 			scope["full_path"] = scope["path"] = new_path

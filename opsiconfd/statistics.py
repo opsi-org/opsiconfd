@@ -581,7 +581,7 @@ class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-meth
 				logger.info(
 					"Server-Timing %s %s: %s",
 					scope["method"],
-					scope["path"],
+					scope["full_path"],
 					", ".join([f"{k}={v:.1f}ms" for k, v in server_timing.items()]),
 				)
 

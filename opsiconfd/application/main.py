@@ -207,8 +207,10 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		contextvar_request_id.set(request_id)
 		req_headers = dict(scope["headers"])
 
-		if scope.get("path") and (new_path := PATH_MAPPINGS.get(scope["path"])):
-			scope["path"] = new_path
+		# scope["path"] can change while processing, keep original value in scope["full_path"]
+		scope["full_path"] = scope.get("path")
+		if scope["full_path"] and (new_path := PATH_MAPPINGS.get(scope["full_path"])):
+			scope["full_path"] = scope["path"] = new_path
 			scope["raw_path"] = new_path.encode("utf-8")
 
 		client_host, client_port = self.get_client_address(scope)
@@ -255,6 +257,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 					"Accept,Accept-Encoding,Authorization,Connection,Content-Type,Encoding,Host,Origin,X-opsi-session-lifetime,X-Requested-With",
 				)
 				headers.append("Access-Control-Allow-Credentials", "true")
+
 				if header_logger.isEnabledFor(TRACE):
 					header_logger.trace("<<< HTTP/%s %s %s", scope.get("http_version"), scope.get("method"), scope.get("path"))
 					for header, value in req_headers.items():
@@ -266,6 +269,16 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 						header_logger.trace(">>> %s: %s", header, value)  # pylint: disable=loop-global-usage
 
 			self.before_send(scope, receive, send)
+
+			if (
+				"headers" in message
+				and scope["full_path"]
+				and scope["full_path"].startswith("/public/boot")
+				and req_headers.get("user-agent", "").startswith("UefiHttpBoot")
+			):
+				# Grub 2.06 needs titled headers (Content-Length instead of content-length)
+				message["headers"] = [(k.title(), v) for k, v in message["headers"] if k not in (b"date", b"server")]
+
 			await send(message)
 
 		return await self.app(scope, receive, send_wrapper)

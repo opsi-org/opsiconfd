@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 
 import wsgidav.fs_dav_provider  # type: ignore[import]
 from fastapi import FastAPI
+from fastapi.routing import Mount
 from wsgidav import util  # type: ignore[import]
 from wsgidav.dav_error import HTTP_FORBIDDEN, DAVError  # type: ignore[import]
 from wsgidav.dav_provider import (  # type: ignore[import]
@@ -230,7 +231,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		prov_class = IgnoreCaseFilesystemProvider if conf["ignore_case"] else FilesystemProvider
 		app_config["provider_mapping"]["/"] = prov_class(conf["path"], readonly=conf["read_only"])  # type: ignore[index]
 		app_config["mount_path"] = f"/{name}"
-		app.mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config)))
+		app.routes.append(Mount(f"/{name}", WSGIMiddleware(WsgiDAVApp(app_config))))
 
 	app_config = app_config_template.copy()
 	for name, conf in filesystems.items():
@@ -239,4 +240,4 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	virt_root_provider = VirtualRootFilesystemProvider(app_config["provider_mapping"])  # type: ignore[arg-type]
 	app_config["provider_mapping"]["/"] = virt_root_provider  # type: ignore[index]
 	app_config["mount_path"] = "/dav"
-	app.mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config)))
+	app.routes.append(Mount("/dav", WSGIMiddleware(WsgiDAVApp(app_config))))

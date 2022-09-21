@@ -64,8 +64,8 @@ def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # p
 
 
 def test_basic_auth_creates_session_on_public_path(
-	test_client: OpsiconfdTestClient,
-) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+) -> None:
 	res = test_client.get("/public")
 	assert res.status_code == 200
 	# No auth header and public path => no session

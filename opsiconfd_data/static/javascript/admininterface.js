@@ -809,7 +809,8 @@ function messagebusConnectTerminal() {
 	mbTerminal = new Terminal({
 		cursorBlink: true,
 		scrollback: 1000,
-		fontSize: 14
+		fontSize: 14,
+		allowProposedApi: true
 	});
 	mbTerminal.terminalId = terminalId;
 
@@ -821,6 +822,9 @@ function messagebusConnectTerminal() {
 	mbTerminal.loadAddon(mbTerminal.fitAddon);
 
 	mbTerminal.open(document.getElementById('messagebus-terminal-xterm'));
+
+	const webglAddon = new WebglAddon.WebglAddon();
+	mbTerminal.loadAddon(webglAddon);
 
 	setTimeout(function () {
 		let message = {
@@ -900,7 +904,8 @@ function startTerminal() {
 	terminal = new Terminal({
 		cursorBlink: true,
 		scrollback: 1000,
-		fontSize: 14
+		fontSize: 14,
+		allowProposedApi: true
 	});
 
 	const searchAddon = new SearchAddon.SearchAddon();
@@ -911,6 +916,9 @@ function startTerminal() {
 	terminal.loadAddon(terminal.fitAddon);
 
 	terminal.open(document.getElementById('terminal-xterm'));
+
+	const webglAddon = new WebglAddon.WebglAddon();
+	terminal.loadAddon(webglAddon);
 
 	setTimeout(function () {
 		document.getElementsByClassName('xterm-viewport')[0].setAttribute("style", "");

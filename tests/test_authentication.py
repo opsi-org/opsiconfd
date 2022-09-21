@@ -63,6 +63,20 @@ def test_x_requested_with_header(test_client: OpsiconfdTestClient) -> None:  # p
 	assert res.headers.get("www-authenticate", None) is None
 
 
+def test_basic_auth_creates_session_on_public_path(
+	test_client: OpsiconfdTestClient,
+) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	res = test_client.get("/public")
+	assert res.status_code == 200
+	# No auth header and public path => no session
+	assert res.headers.get("set-cookie", None) is None
+
+	res = test_client.get("/public", auth=(ADMIN_USER, ADMIN_PASS))
+	assert res.status_code == 200
+	# Auth header and public path => session
+	assert res.headers.get("set-cookie", None) is not None
+
+
 def test_basic_auth(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	res = test_client.get("/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200

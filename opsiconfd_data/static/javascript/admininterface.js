@@ -689,8 +689,8 @@ function messagebusConnect() {
 	}
 	messagebusWS.onmessage = function (event) {
 		const message = msgpack.deserialize(event.data);
-		if (message.type.startsWith("terminal_") && mbTerminal) {
-			if (message.type == "terminal_data_read") {
+		if (message.type.startsWith("terminal_")) {
+			if (mbTerminal && mbTerminal.terminalId == message.terminal_id && message.type == "terminal_data_read") {
 				mbTerminal.write(message.data);
 			}
 		}
@@ -802,11 +802,16 @@ function messagebusConnectTerminal() {
 	}
 	let terminalSessionChannel = `session:${terminalId}`;
 
+	if (mbTerminal) {
+		mbTerminal.dispose();
+	}
+
 	mbTerminal = new Terminal({
 		cursorBlink: true,
 		scrollback: 1000,
 		fontSize: 14
 	});
+	mbTerminal.terminalId = terminalId;
 
 	const searchAddon = new SearchAddon.SearchAddon();
 	mbTerminal.loadAddon(searchAddon);
@@ -845,7 +850,7 @@ function messagebusConnectTerminal() {
 			back_channel: terminalSessionChannel,
 			created: Date.now(),
 			expires: Date.now() + 10000,
-			terminal_id: terminalId,
+			terminal_id: mbTerminal.terminalId,
 			cols: mbTerminal.cols,
 			rows: mbTerminal.rows
 		}
@@ -860,7 +865,7 @@ function messagebusConnectTerminal() {
 				channel: terminalChannel,
 				created: Date.now(),
 				expires: Date.now() + 10000,
-				terminal_id: terminalId,
+				terminal_id: mbTerminal.terminalId,
 				data: utf8Encode.encode(data)
 			}
 			messagebusSend(message);
@@ -875,7 +880,7 @@ function messagebusConnectTerminal() {
 				channel: terminalChannel,
 				created: Date.now(),
 				expires: Date.now() + 10000,
-				terminal_id: terminalId,
+				terminal_id: mbTerminal.terminalId,
 				rows: event.rows,
 				cols: event.cols
 			}

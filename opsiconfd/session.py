@@ -498,6 +498,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			# Expired, do not set other attributes
 			return True
 		self.client_max_age = data.get("client_max_age", self.client_max_age)
+		self._update_max_age()
 		for key, val in data.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))
 		self.option_store = data.get("option_store", self.option_store)

@@ -13,7 +13,7 @@ from asyncio import Task, create_task, sleep
 from time import time
 from typing import Union
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query, status
+from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
 from msgpack import loads as msgpack_loads  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]

@@ -8,8 +8,9 @@
 messagebus.websocket
 """
 
-import asyncio
 import traceback
+from asyncio import Task, create_task, sleep
+from time import time
 from typing import Union
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query, status
@@ -27,12 +28,17 @@ from opsicommon.messagebus import (  # type: ignore[import]
 )
 from opsicommon.utils import serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
+from starlette.endpoints import WebSocketEndpoint
+from starlette.status import (
+	HTTP_401_UNAUTHORIZED,
+	WS_1000_NORMAL_CLOSURE,
+	WS_1011_INTERNAL_ERROR,
+)
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketState
 
 from opsiconfd.worker import Worker
 
-from ..application.utils import OpsiconfdWebSocketEndpoint
 from ..config import config
 from ..logging import get_logger
 from ..utils import compress_data, decompress_data
@@ -57,9 +63,8 @@ async def messagebroker_index() -> HTMLResponse:
 
 
 @messagebus_router.websocket_route("/v1")
-class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
+class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instance-attributes
 	encoding = "bytes"
-	admin_only = False
 
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
@@ -69,8 +74,15 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		self._user_channel = ""
 		self._session_channel = ""
 		self._compression: Union[str, None] = None
-		self._messagebus_reader_task = Union[asyncio.Task, None]
+		self._messagebus_reader_task = Union[Task, None]
 		self._messagebus_reader = MessageReader()
+		self._manager_task = Union[Task, None]
+
+	async def _check_authorization(self) -> None:
+		if not self.scope.get("session"):
+			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Access to messagebus denied, no valid session found")
+		if not self.scope["session"].user_store or not self.scope["session"].user_store.authenticated:
+			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Access to messagebus denied, not authenticated")
 
 	async def _send_message_to_websocket(self, websocket: WebSocket, message: Message) -> None:
 		if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
@@ -87,6 +99,16 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		logger.debug("Message to websocket: %r", message)
 		await websocket.send_bytes(data)
 
+	async def manager_task(self, websocket: WebSocket) -> None:
+		update_session_interval = 5.0
+		update_session_time = time()
+		while websocket.client_state == WebSocketState.CONNECTED:
+			await sleep(1.0)
+			now = time()
+			if update_session_time + update_session_interval <= now:
+				update_session_time = now
+				await self.scope["session"].update_last_used()  # pylint: disable=loop-invariant-statement
+
 	async def messagebus_reader(self, websocket: WebSocket) -> None:
 		self._messagebus_reader = MessageReader()
 		await self._messagebus_reader.add_channels(
@@ -98,15 +120,17 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		await self._send_message_to_websocket(
 			websocket,
 			ChannelSubscriptionEventMessage(
-				sender=self._messagebus_worker_id, channel=self._session_channel, subscribed_channels=[self._user_channel, self._session_channel]
-			)
+				sender=self._messagebus_worker_id,
+				channel=self._session_channel,
+				subscribed_channels=[self._user_channel, self._session_channel],
+			),
 		)
 		try:
 			async for redis_id, message, _context in self._messagebus_reader.get_messages():
 				await self._send_message_to_websocket(websocket, message)
 				if message.channel == self._user_channel:
 					# ACK message (set last-delivered-id)
-					# asyncio.create_task(reader.ack_message(redis_id))
+					# create_task(reader.ack_message(redis_id))
 					await self._messagebus_reader.ack_message(message.channel, redis_id)
 		except StopAsyncIteration:
 			pass
@@ -148,7 +172,9 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 				break
 
 			if channel.startswith("session:"):
-				await create_messagebus_session_channel(owner_id=self._messagebus_user_id, session_id=channel.split(":", 2)[1], exists_ok=True)
+				await create_messagebus_session_channel(
+					owner_id=self._messagebus_user_id, session_id=channel.split(":", 2)[1], exists_ok=True
+				)
 
 		if not response.error:
 			if message.operation == ChannelSubscriptionOperation.SET:
@@ -164,6 +190,43 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 			response.subscribed_channels = await self._messagebus_reader.get_channel_names()
 
 		await self._send_message_to_websocket(websocket, response)
+
+	async def dispatch(self) -> None:
+		websocket = WebSocket(self.scope, receive=self.receive, send=self.send)
+		await self._check_authorization()
+
+		compression = websocket.query_params.get("compression")
+		if compression:
+			if compression not in ("lz4", "gzip"):
+				msg = f"Invalid compression {compression!r}, valid compressions are lz4 and gzip"
+				logger.error(msg)
+				raise HTTPException(
+					status_code=status.HTTP_400_BAD_REQUEST,
+					detail=msg,
+				)
+			self._compression = compression
+
+		await websocket.accept()
+
+		self._manager_task = create_task(self.manager_task(websocket))
+
+		await self.on_connect(websocket)
+
+		close_code = WS_1000_NORMAL_CLOSURE
+		try:
+			while True:
+				message = await websocket.receive()
+				if message["type"] == "websocket.receive":
+					data = await self.decode(websocket, message)
+					await self.on_receive(websocket, data)
+				elif message["type"] == "websocket.disconnect":
+					close_code = int(message.get("code", WS_1000_NORMAL_CLOSURE))
+					break
+		except Exception as exc:
+			close_code = WS_1011_INTERNAL_ERROR
+			raise exc
+		finally:
+			await self.on_disconnect(websocket, close_code)
 
 	async def on_receive(self, websocket: WebSocket, data: bytes) -> None:
 		message_id = None
@@ -222,24 +285,13 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 					error={
 						"code": 0,
 						"message": str(err),
-						"details": str(traceback.format_exc()) if self.scope["session"].user_store.isAdmin else None
+						"details": str(traceback.format_exc()) if self.scope["session"].user_store.isAdmin else None,
 					},
-				)
+				),
 			)
 
-	async def on_connect(  # pylint: disable=arguments-differ
-		self, websocket: WebSocket, compression: Union[str, None] = Query(default=None, embed=True)
-	) -> None:
+	async def on_connect(self, websocket: WebSocket) -> None:  # pylint: disable=arguments-differ
 		logger.info("Websocket client connected to messagebus")
-		if compression:
-			if compression not in ("lz4", "gzip"):
-				msg = f"Invalid compression {compression!r}, valid compressions are lz4 and gzip"
-				logger.error(msg)
-				raise HTTPException(
-					status_code=status.HTTP_400_BAD_REQUEST,
-					detail=msg,
-				)
-			self._compression = compression
 
 		if self.scope["session"].user_store.host:
 			self._messagebus_user_id = get_messagebus_user_id_for_host(self.scope["session"].user_store.host.id)
@@ -249,7 +301,7 @@ class MessagebusWebsocket(OpsiconfdWebSocketEndpoint):
 		self._user_channel = self._messagebus_user_id
 		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=False)
 
-		self._messagebus_reader_task = asyncio.create_task(self.messagebus_reader(websocket))
+		self._messagebus_reader_task = create_task(self.messagebus_reader(websocket))
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:  # pylint: disable=unused-argument
 		logger.info("Websocket client disconnected from messagebus")

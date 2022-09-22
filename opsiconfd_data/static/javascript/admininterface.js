@@ -694,6 +694,9 @@ function messagebusConnect() {
 				mbTerminal.write(message.data);
 			}
 		}
+		if (message.type == "file_upload_result") {
+			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
+		}
 		if ((!message.type.startsWith("terminal_")) || document.getElementById('messagebus-message-in-show-terminal-messages').checked) {
 			document.getElementById("messagebus-message-in").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
 			if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
@@ -758,6 +761,7 @@ function messagebusInsertMessageTemplate() {
 
 
 function messagebusSend(message) {
+	console.debug(message);
 	if (!messagebusWS) {
 		alert("Messagebus not connected");
 		return;
@@ -813,6 +817,7 @@ function messagebusConnectTerminal() {
 		allowProposedApi: true
 	});
 	mbTerminal.terminalId = terminalId;
+	mbTerminal.terminalChannel = terminalChannel;
 
 	const searchAddon = new SearchAddon.SearchAddon();
 	mbTerminal.loadAddon(searchAddon);
@@ -850,7 +855,7 @@ function messagebusConnectTerminal() {
 			type: "terminal_open_request",
 			id: createUUID(),
 			sender: "@",
-			channel: terminalChannel,
+			channel: mbTerminal.terminalChannel,
 			back_channel: terminalSessionChannel,
 			created: Date.now(),
 			expires: Date.now() + 10000,
@@ -890,7 +895,78 @@ function messagebusConnectTerminal() {
 			}
 			messagebusSend(message);
 		});
+
+		const el = document.querySelector('#messagebus-terminal-xterm .xterm-screen');
+		el.ondragenter = function (event) {
+			return false;
+		};
+		el.ondragover = function (event) {
+			event.preventDefault();
+		}
+		el.ondragleave = function (event) {
+			return false;
+		};
+		el.ondrop = function (event) {
+			event.preventDefault();
+			messagebusFileUpload(event.dataTransfer.files[0], mbTerminal.terminalChannel, mbTerminal.terminalId);
+		}
 	}, 100);
+}
+
+function messagebusFileUpload(file, channel, terminalId = null) {
+	console.log("messagebusFileUpload:", file, channel);
+
+	let chunkSize = 100000;
+	let fileId = createUUID();
+	let chunk = 0;
+	let offset = 0;
+
+	var readChunk = function () {
+		var reader = new FileReader();
+		var blob = file.slice(offset, offset + chunkSize);
+		reader.onload = function () {
+			//console.log(offset);
+			offset += chunkSize;
+			chunk += 1;
+			const last = (offset >= file.size);
+
+			let message = {
+				type: "file_chunk",
+				id: createUUID(),
+				sender: "@",
+				channel: channel,
+				created: Date.now(),
+				expires: Date.now() + 10000,
+				file_id: fileId,
+				number: chunk,
+				data: new Uint8Array(reader.result),
+				last: last
+			}
+			messagebusSend(message);
+
+			if (!last) {
+				readChunk();
+			}
+		}
+		reader.readAsArrayBuffer(blob);
+	}
+
+	document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
+	let message = {
+		type: "file_upload_request",
+		id: createUUID(),
+		sender: "@",
+		channel: channel,
+		created: Date.now(),
+		expires: Date.now() + 10000,
+		file_id: fileId,
+		content_type: "application/octet-stream",
+		name: file.name,
+		size: file.size,
+		terminal_id: terminalId
+	}
+	messagebusSend(message);
+	readChunk();
 }
 
 var resizeObserver = new ResizeObserver(entries => {
@@ -970,7 +1046,7 @@ function startTerminal() {
 				document.cookie = message.payload;
 			}
 			else if (message.type == "file-transfer-result") {
-				document.getElementsByClassName('xterm-selection-layer')[0].classList.remove("upload-active");
+				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 				if (message.payload.error) {
 					const error = `File upload failed: ${JSON.stringify(message.payload)}`;
 					console.error(error);
@@ -993,7 +1069,7 @@ function startTerminal() {
 			terminal.websocket.send(msgpack.serialize({ "type": "terminal-resize", "payload": { "rows": event.rows, "cols": event.cols } }));
 		});
 
-		const el = document.getElementsByClassName("xterm-screen")[0];
+		const el = document.querySelector('#terminal-xterm .xterm-screen');
 		el.ondragenter = function (event) {
 			return false;
 		};
@@ -1069,7 +1145,6 @@ function terminalFileUpload(file) {
 					"more_data": more_data
 				}
 			});
-			document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
 			terminal.websocket.send(message);
 
 			if (more_data) {
@@ -1079,7 +1154,7 @@ function terminalFileUpload(file) {
 		reader.readAsArrayBuffer(blob);
 	}
 
-	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
+	document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
 	let message = msgpack.serialize({
 		"id": createUUID(),
 		"type": "file-transfer",
@@ -1093,7 +1168,6 @@ function terminalFileUpload(file) {
 			"more_data": true
 		}
 	});
-	document.getElementsByClassName('xterm-selection-layer')[0].classList.add("upload-active");
 	terminal.websocket.send(message);
 	readChunk();
 }

@@ -47,6 +47,8 @@
 
 			//console.info("onload: " + tab);
 			openTab(tab);
+
+			resizeObserver.observe(document.getElementById("messagebus-terminal"));
 		}
 
 		function stopReloadTimer() {
@@ -577,16 +579,18 @@
 					<br />
 					Autoscroll <input type="checkbox" id="messagebus-message-in-auto-scroll" checked="checked"
 						onclick="messagebusToggleAutoScroll()">
+					Show terminal messages <input type="checkbox" id="messagebus-message-in-show-terminal-messages">
 					<button id="messagebus-message-in-clear"
 						onclick="document.getElementById('messagebus-message-in').innerHTML='';">Clear</button>
 				</div>
 			</div>
-			<div class="adminpage-box" style="width: 900px; height: 450px;">
+			<div class="adminpage-box" id="messagebus-terminal"
+				style="width: 900px; height: 450px; resize: both; overflow: hidden; padding-bottom: 50px;">
 				<label>Channel:</label><input type="text" id="messagebus-terminal-channel"
 					style="width: 300px;"></input>
 				<label>Terminal id:</label><input type="text" id="messagebus-terminal-id" style="width: 300px;"></input>
 				<button id="messagebus-terminal-connect" onclick="messagebusConnectTerminal()">Connect</button>
-				<div id="messagebus-terminal-xterm" style="margin-top: 10px;">
+				<div id="messagebus-terminal-xterm" style="margin-top: 10px; width: 100%; height: 100%;">
 				</div>
 			</div>
 			<br /><br /><br /><br /><br /><br /><br /><br /><br />

@@ -694,16 +694,16 @@ function messagebusConnect() {
 				mbTerminal.write(message.data);
 			}
 		}
-		else {
+		if ((!message.type.startsWith("terminal_")) || document.getElementById('messagebus-message-in-show-terminal-messages').checked) {
 			document.getElementById("messagebus-message-in").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
 			if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
 				let el = document.getElementById('messagebus-message-in');
 				el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 			}
+
 		}
 	}
 }
-
 
 function messagebusDisconnect() {
 	if (!messagebusWS) {
@@ -892,6 +892,16 @@ function messagebusConnectTerminal() {
 		});
 	}, 100);
 }
+
+var resizeObserver = new ResizeObserver(entries => {
+	for (let entry of entries) {
+		if (entry.target.id == "messagebus-terminal") {
+			if (mbTerminal) {
+				mbTerminal.fitAddon.fit();
+			}
+		}
+	}
+});
 
 
 var terminal;

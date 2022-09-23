@@ -150,6 +150,7 @@ async def get_session(client_addr: str, headers: Headers, session_id: Optional[s
 			client_max_age = int(x_opsi_session_lifetime)
 		except ValueError:
 			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
+
 	session = OPSISession(
 		client_addr=client_addr,
 		user_agent=headers.get("user-agent"),
@@ -223,8 +224,7 @@ class SessionMiddleware:
 
 		# Get session
 		session_id = self.get_session_id_from_headers(connection.headers)
-
-		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id or connection.headers.get("authorization"):
+		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 			scope["session"] = await get_session(client_addr=scope["client"][0], headers=connection.headers, session_id=session_id)
 
 		started_authenticated = scope["session"] and scope["session"].user_store.authenticated
@@ -449,7 +449,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
 				await self.init_new_session()
 		await self.update_last_used(False)
-		# await self.update_last_used(True)
 
 	def _init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
@@ -705,7 +704,7 @@ async def check_network(client_addr: str) -> None:
 
 async def check_access(connection: HTTPConnection) -> None:
 	scope = connection.scope
-	if scope["required_access_role"] == ACCESS_ROLE_PUBLIC and not connection.headers.get("authorization"):
+	if scope["required_access_role"] == ACCESS_ROLE_PUBLIC:
 		return
 
 	session = connection.scope["session"]

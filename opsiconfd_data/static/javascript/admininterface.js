@@ -925,6 +925,7 @@ function messagebusFileUpload(file, channel, terminalId = null) {
 		var reader = new FileReader();
 		var blob = file.slice(offset, offset + chunkSize);
 		reader.onload = function () {
+			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.add("upload-active");
 			//console.log(offset);
 			offset += chunkSize;
 			chunk += 1;

@@ -448,7 +448,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			else:
 				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
 				await self.init_new_session()
-
 		await self.update_last_used(False)
 
 	def _init_new_session(self) -> None:
@@ -491,19 +490,19 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		if not data:
 			return False
 		data = msgpack_loads(data)
-		self.created = data.get("created", self.created)
-		self.max_age = data.get("max_age", self.max_age)
-		self.last_used = data.get("last_used", self.last_used)
+		self.created = data.get("created") or self.created
+		self.max_age = data.get("max_age") or self.max_age
+		self.last_used = data.get("last_used") or self.last_used
 		if self.expired:
 			# Expired, do not set other attributes
 			return True
-		self.client_max_age = data.get("client_max_age", self.client_max_age)
+		self.client_max_age = data.get("client_max_age") or self.client_max_age
 		self._update_max_age()
 		for key, val in data.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))
 		self.option_store = data.get("option_store", self.option_store)
 		self.last_stored = data.get("last_stored", utc_time_timestamp())
-		self._data = data.get("data", self._data)
+		self._data = data.get("data") or self._data
 		return True
 
 	async def load(self) -> bool:

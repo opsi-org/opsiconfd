@@ -145,13 +145,11 @@ async def get_session(client_addr: str, headers: Headers, session_id: Optional[s
 
 	client_max_age = None
 	x_opsi_session_lifetime = headers.get("x-opsi-session-lifetime")
-	logger.devel("x_opsi_session_lifetime: %s", x_opsi_session_lifetime)
 	if x_opsi_session_lifetime:
 		try:
 			client_max_age = int(x_opsi_session_lifetime)
 		except ValueError:
 			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
-	logger.devel("---> client_max_age: %s", client_max_age)
 	session = OPSISession(
 		client_addr=client_addr,
 		user_agent=headers.get("user-agent"),
@@ -225,14 +223,8 @@ class SessionMiddleware:
 
 		# Get session
 		session_id = self.get_session_id_from_headers(connection.headers)
-		# logger.devel("session_id: %s", session_id)
-		# logger.devel("full_path: %s", scope["full_path"])
-		# logger.devel("authorization: %s", connection.headers.get("authorization"))
-		# logger.devel("session lifetime: %s", connection.headers.get("x-opsi-session-lifetime"))
 
 		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id or connection.headers.get("authorization"):
-			# if scope["session"]:
-			# 	logger.devel(scope["session"].get("client_max_age"))
 			scope["session"] = await get_session(client_addr=scope["client"][0], headers=connection.headers, session_id=session_id)
 
 		started_authenticated = scope["session"] and scope["session"].user_store.authenticated
@@ -393,7 +385,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		client_max_age: Optional[int] = None,
 		max_session_per_ip: int = None,
 	) -> None:
-		logger.devel("client_max_age: %s", client_max_age)
 		self._max_session_per_ip = config.max_session_per_ip if max_session_per_ip is None else max_session_per_ip
 		self.session_id = session_id or None
 		self.client_addr = client_addr
@@ -409,7 +400,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.option_store: Dict[str, Any] = {}
 		self._data: Dict[str, Any] = {}
 		self._redis_expiration_seconds = 3600
-		logger.devel("__init__ client_max_age: %s", self.client_max_age)
 
 	def __repr__(self) -> str:
 		return f"<{self.__class__.__name__} at {hex(id(self))} created={self.created} last_used={self.last_used}>"
@@ -445,25 +435,19 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			headers["set-cookie"] = cookie
 
 	async def init(self) -> None:
-		logger.devel("init 1 client_max_age: %s", self.client_max_age)
 		if self.session_id is None:
 			logger.debug("Session id missing (%s / %s)", self.client_addr, self.user_agent)
 			await self.init_new_session()
 		else:
 			if await self.load():
-				logger.devel("init 2 client_max_age: %s", self.client_max_age)
 				if self.expired:
-					logger.devel("Session expired: %s (%s / %s)", self, self.client_addr, self.user_agent)
 					logger.debug("Session expired: %s (%s / %s)", self, self.client_addr, self.user_agent)
 					await self.init_new_session()
 				else:
-					logger.devel("Reusing session: %s (%s / %s)", self, self.client_addr, self.user_agent)
 					logger.debug("Reusing session: %s (%s / %s)", self, self.client_addr, self.user_agent)
 			else:
-				logger.devel("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
 				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
 				await self.init_new_session()
-		logger.devel("init 3 client_max_age: %s", self.client_max_age)
 		await self.update_last_used(False)
 		# await self.update_last_used(True)
 
@@ -515,12 +499,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			return True
 		if not self.client_max_age:
 			self.client_max_age = data.get("client_max_age", self.client_max_age)
-		logger.devel("#######")
-		logger.devel(data.get("client_max_age", self.client_max_age))
-		logger.devel(self.client_max_age)
 		self._update_max_age()
-		logger.devel(self.client_max_age)
-		logger.devel("#######")
 		for key, val in data.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))
 		self.option_store = data.get("option_store", self.option_store)
@@ -558,8 +537,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 					"data": session_data.get("data", {}),
 				}
 			)
-			logger.devel(session_data.get("max_age"))
-			logger.devel(session_data.get("client_max_age"))
 			session_data["data"].update(self._data)
 			# Set is not serializable
 			if "userGroups" in session_data["user_store"]:

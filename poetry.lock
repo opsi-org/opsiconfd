@@ -570,7 +570,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "graphql-core"
-version = "3.2.1"
+version = "3.2.3"
 description = "GraphQL implementation for Python, a port of GraphQL.js, the JavaScript reference implementation for GraphQL."
 category = "dev"
 optional = false
@@ -2046,7 +2046,7 @@ uvloop = ["uvloop (>=0.15.2)"]
 type = "git"
 url = "https://github.com/jleclanche/tan.git"
 reference = "master"
-resolved_reference = "03df6f5b828625fc6b7ce0c50eea27e2dbf30e19"
+resolved_reference = "2786518e5aa463164793125d46f93af627a387ea"
 
 [[package]]
 name = "tomli"
@@ -2880,8 +2880,8 @@ future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
 ]
 graphql-core = [
-    {file = "graphql-core-3.2.1.tar.gz", hash = "sha256:9d1bf141427b7d54be944587c8349df791ce60ade2e3cccaf9c56368c133c201"},
-    {file = "graphql_core-3.2.1-py3-none-any.whl", hash = "sha256:f83c658e4968998eed1923a2e3e3eddd347e005ac0315fbb7ca4d70ea9156323"},
+    {file = "graphql-core-3.2.3.tar.gz", hash = "sha256:06d2aad0ac723e35b1cb47885d3e5c45e956a53bc1b209a9fc5369007fe46676"},
+    {file = "graphql_core-3.2.3-py3-none-any.whl", hash = "sha256:5766780452bd5ec8ba133f8bf287dc92713e3868ddd83aee4faab9fc3e303dc3"},
 ]
 graphviz = [
     {file = "graphviz-0.20.1-py3-none-any.whl", hash = "sha256:587c58a223b51611c0cf461132da386edd896a029524ca61a1462b880bf97977"},

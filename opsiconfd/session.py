@@ -224,7 +224,7 @@ class SessionMiddleware:
 
 		# Get session
 		session_id = self.get_session_id_from_headers(connection.headers)
-		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id or connection.headers.get("authorization"):
+		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 			scope["session"] = await get_session(client_addr=scope["client"][0], headers=connection.headers, session_id=session_id)
 
 		started_authenticated = scope["session"] and scope["session"].user_store.authenticated
@@ -705,7 +705,7 @@ async def check_network(client_addr: str) -> None:
 
 async def check_access(connection: HTTPConnection) -> None:
 	scope = connection.scope
-	if scope["required_access_role"] == ACCESS_ROLE_PUBLIC and not connection.headers.get("authorization"):
+	if scope["required_access_role"] == ACCESS_ROLE_PUBLIC:
 		return
 
 	session = connection.scope["session"]

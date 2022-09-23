@@ -141,7 +141,10 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 		assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") is None
 		with client_jsonrpc(test_client, "", host_id=host_id, host_key=host_key):
 			test_client.auth = (host_id, host_key)
-			with (test_client.websocket_connect("/messagebus/v1") as websocket1, test_client.websocket_connect("/messagebus/v1") as websocket2):
+			with (
+				test_client.websocket_connect("/messagebus/v1") as websocket1,
+				test_client.websocket_connect("/messagebus/v1") as websocket2,
+			):
 				with (WebSocketMessageReader(websocket1) as reader1, WebSocketMessageReader(websocket2) as reader2):
 					for reader, _websocket in ((reader1, websocket1), (reader2, websocket2)):
 						reader.wait_for_message(count=1)
@@ -151,9 +154,7 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 						assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]
 
 					assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"2"
-					message = Message(
-						type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="1"
-					)
+					message = Message(type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="1")
 					websocket1.send_bytes(message.to_msgpack())
 					for reader in (reader1, reader2):
 						reader.wait_for_message(count=1)
@@ -172,10 +173,11 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 							assert len(messages[0]["subscribed_channels"]) == 2
 							assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]
 
-							assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"3"
-							message = Message(
-								type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="2"
+							assert (
+								redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count")
+								== b"3"
 							)
+							message = Message(type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="2")
 							websocket1.send_bytes(message.to_msgpack())
 							for reader in (reader1, reader2, reader3):
 								reader.wait_for_message(count=1)
@@ -244,9 +246,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 	with test_client.websocket_connect("/messagebus/v1") as websocket:
 		with WebSocketMessageReader(websocket) as reader:
 			terminal_id = str(uuid4())
-			message = TerminalOpenRequest(
-				sender="@", channel=f"{messagebus_node_id}:terminal", terminal_id=terminal_id, rows=20, cols=100
-			)
+			message = TerminalOpenRequest(sender="@", channel=f"{messagebus_node_id}:terminal", terminal_id=terminal_id, rows=20, cols=100)
 			websocket.send_bytes(message.to_msgpack())
 
 			reader.wait_for_message(count=2)
@@ -266,9 +266,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 			assert responses[1].type == MessageType.TERMINAL_DATA_READ
 			assert responses[1].terminal_id == terminal_id
 			assert responses[1].data
-			message = TerminalDataWrite(
-				sender="@", channel=terminal_channel, terminal_id=terminal_id, data="echo test\r"
-			)
+			message = TerminalDataWrite(sender="@", channel=terminal_channel, terminal_id=terminal_id, data="echo test\r")
 			websocket.send_bytes(message.to_msgpack())
 
 			reader.wait_for_message(count=1)
@@ -279,9 +277,7 @@ def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # p
 			assert responses[0].type == MessageType.TERMINAL_DATA_READ
 			assert responses[0].terminal_id == terminal_id
 			assert "echo test\r\ntest\r\n" in responses[0].data.decode("utf-8")
-			message = TerminalResizeRequest(
-				sender="@", channel=terminal_channel, terminal_id=terminal_id, rows=10, cols=20
-			)
+			message = TerminalResizeRequest(sender="@", channel=terminal_channel, terminal_id=terminal_id, rows=10, cols=20)
 			websocket.send_bytes(message.to_msgpack())
 
 			reader.wait_for_message(count=1)
@@ -303,13 +299,9 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			next(reader.get_messages())
 
 			payload = randbytes(16 * 1024)
-			message1 = TraceRequestMessage(
-				sender="@",
-				channel="$",
-				trace={"sender_ws_send": int(time() * 1000)},
-				payload=payload
-			)
+			message1 = TraceRequestMessage(sender="@", channel="$", payload=payload)
 			assert round(message1.created / 1000) == round(time())
+			message1.trace = {"sender_ws_send": int(time() * 1000)}
 			websocket.send_bytes(message1.to_msgpack())
 
 			reader.wait_for_message(count=1)
@@ -321,8 +313,9 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 				sender="@",
 				channel="$",
 				req_id=message2.id,
-				req_trace=message2.trace, trace={"sender_ws_send": timestamp()},
-				payload=message2.payload
+				req_trace=message2.trace,
+				trace={"sender_ws_send": timestamp()},
+				payload=message2.payload,
 			)
 			websocket.send_bytes(message3.to_msgpack())
 
@@ -334,13 +327,23 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			assert message4.payload == message1.payload
 			trc = message4.req_trace
 			assert (
-				message1.created <= trc["sender_ws_send"] <= trc["broker_ws_receive"] <= trc["broker_redis_send"]
-				<= trc["broker_redis_receive"] <= trc["broker_ws_send"] <= trc["recipient_ws_receive"]
+				message1.created
+				<= trc["sender_ws_send"]
+				<= trc["broker_ws_receive"]
+				<= trc["broker_redis_send"]
+				<= trc["broker_redis_receive"]
+				<= trc["broker_ws_send"]
+				<= trc["recipient_ws_receive"]
 			)
 			trc = message4.trace
 			assert (
-				message4.created <= trc["sender_ws_send"] <= trc["broker_ws_receive"] <= trc["broker_redis_send"]
-				<= trc["broker_redis_receive"] <= trc["broker_ws_send"] <= trc["recipient_ws_receive"]
+				message4.created
+				<= trc["sender_ws_send"]
+				<= trc["broker_ws_receive"]
+				<= trc["broker_redis_send"]
+				<= trc["broker_redis_receive"]
+				<= trc["broker_ws_send"]
+				<= trc["recipient_ws_receive"]
 			)
 
 			# message4.payload = None

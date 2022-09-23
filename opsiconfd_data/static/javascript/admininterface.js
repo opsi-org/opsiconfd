@@ -946,7 +946,11 @@ function messagebusFileUpload(file, channel, terminalId = null) {
 			messagebusSend(message);
 
 			if (!last) {
-				readChunk();
+				// Do not send the next chunk immediately
+				// to keep some resources for further messages
+				setTimeout(function () {
+					readChunk();
+				}, 5);
 			}
 		}
 		reader.readAsArrayBuffer(blob);

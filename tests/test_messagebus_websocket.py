@@ -150,8 +150,8 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 						reader.wait_for_message(count=1)
 						messages = list(reader.get_messages())
 						assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-						assert len(messages[0]["subscribed_channels"]) == 2
-						assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]
+						assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
+						assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
 					assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"2"
 					message = Message(type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="1")
@@ -170,8 +170,8 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 							reader3.wait_for_message(count=1)
 							messages = list(reader3.get_messages())
 							assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-							assert len(messages[0]["subscribed_channels"]) == 2
-							assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]
+							assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
+							assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
 							assert (
 								redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count")
@@ -199,7 +199,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 		with test_client.websocket_connect("/messagebus/v1") as websocket:
 			with WebSocketMessageReader(websocket) as reader:
 				reader.wait_for_message(count=1)
-				assert next(reader.get_messages())["type"] == "channel_subscription_event"
+				assert next(reader.get_messages())["type"] == "channel_subscription_event"  # type: ignore[call-overload]
 				jsonrpc_request_message1 = JSONRPCRequestMessage(
 					sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 				)

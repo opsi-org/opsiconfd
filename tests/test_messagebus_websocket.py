@@ -299,9 +299,9 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			next(reader.get_messages())
 
 			payload = randbytes(16 * 1024)
-			message1 = TraceRequestMessage(sender="@", channel="$", payload=payload)
+			message1 = TraceRequestMessage(sender="@", channel="$", payload=payload, trace={})
 			assert round(message1.created / 1000) == round(time())
-			message1.trace = {"sender_ws_send": int(time() * 1000)}
+			message1.trace["sender_ws_send"] = int(time() * 1000)
 			websocket.send_bytes(message1.to_msgpack())
 
 			reader.wait_for_message(count=1)

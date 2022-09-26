@@ -298,6 +298,32 @@ def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	assert res.status_code == 401
 
 
+def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	lifetime = 60
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	res = test_client.get("/admin/")
+	# res = test_client.get("/admin/", headers=lt_headers)
+	assert res.status_code == 200
+	cookie = list(test_client.cookies)[0]
+	session_id = cookie.value
+	remain = cookie.expires - time.time()  # type: ignore[operator]#
+	print(remain)
+	assert remain <= lifetime
+
+	# wait for redis to store session info
+	time.sleep(10)
+
+	lifetime = 60 * 15  # 15 min
+	lt_headers = {"x-opsi-session-lifetime": str(lifetime)}
+	res = test_client.get("/admin/", headers=lt_headers)
+	assert res.status_code == 200
+	cookie = list(test_client.cookies)[0]
+	remain = cookie.expires - time.time()  # type: ignore[operator]
+	assert remain <= lifetime
+	assert remain >= 100
+	assert session_id == cookie.value
+
+
 def test_onetime_password_host_id(
 	test_client: OpsiconfdTestClient, database_connection: Connection  # pylint: disable=redefined-outer-name
 ) -> None:

@@ -327,8 +327,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			assert message4.payload == message1.payload
 			trc = message4.req_trace
 			assert (
-				message1.created
-				<= trc["sender_ws_send"]
+				trc["sender_ws_send"]
 				<= trc["broker_ws_receive"]
 				<= trc["broker_redis_send"]
 				<= trc["broker_redis_receive"]
@@ -337,15 +336,10 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			)
 			trc = message4.trace
 			assert (
-				message4.created
-				<= trc["sender_ws_send"]
+				trc["sender_ws_send"]
 				<= trc["broker_ws_receive"]
 				<= trc["broker_redis_send"]
 				<= trc["broker_redis_receive"]
 				<= trc["broker_ws_send"]
 				<= trc["recipient_ws_receive"]
 			)
-
-			# message4.payload = None
-			# import json
-			# print(json.dumps(message4.to_dict(), indent="\t"))

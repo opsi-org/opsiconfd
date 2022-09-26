@@ -10,7 +10,7 @@ function createUUID() {
 
 
 function monitorSession() {
-	if (document.cookie && document.cookie.indexOf('opsiconfd-session=') != -1) {
+	if ((document.cookie && document.cookie.indexOf('opsiconfd-session=') != -1) || messagebusWS) {
 		setTimeout(monitorSession, 1000);
 	}
 	else {

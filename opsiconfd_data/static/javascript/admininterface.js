@@ -691,8 +691,13 @@ function messagebusConnect() {
 		const message = msgpack.deserialize(event.data);
 		console.debug(message);
 		if (message.type.startsWith("terminal_")) {
-			if (mbTerminal && mbTerminal.terminalId == message.terminal_id && message.type == "terminal_data_read") {
-				mbTerminal.write(message.data);
+			if (mbTerminal && mbTerminal.terminalId == message.terminal_id) {
+				if (message.type == "terminal_open_event") {
+					document.getElementById("messagebus-terminal-channel").value = mbTerminal.terminalChannel = message.back_channel;
+				}
+				else if (message.type == "terminal_data_read") {
+					mbTerminal.write(message.data);
+				}
 			}
 		}
 		if (message.type == "file_upload_result") {
@@ -872,7 +877,7 @@ function messagebusConnectTerminal() {
 				type: "terminal_data_write",
 				id: createUUID(),
 				sender: "@",
-				channel: terminalChannel,
+				channel: mbTerminal.terminalChannel,
 				created: Date.now(),
 				expires: Date.now() + 10000,
 				terminal_id: mbTerminal.terminalId,
@@ -887,7 +892,7 @@ function messagebusConnectTerminal() {
 				type: "terminal_resize_request",
 				id: createUUID(),
 				sender: "@",
-				channel: terminalChannel,
+				channel: mbTerminal.terminalChannel,
 				created: Date.now(),
 				expires: Date.now() + 10000,
 				terminal_id: mbTerminal.terminalId,

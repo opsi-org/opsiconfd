@@ -317,7 +317,6 @@ def validate_cert(cert: X509, ca_cert: X509) -> None:
 		if dt_ca_cert_not_before > dt_cert_not_before:
 			raise X509StoreContextError(
 				message=f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}",
-				errors=[],
 				certificate=ca_cert,
 			)
 

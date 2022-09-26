@@ -8,7 +8,7 @@
 The opsi configuration service.
 """
 
-__version__ = "4.2.0.287"
+__version__ = "4.2.0.288"
 
 from contextvars import Context, ContextVar
 from typing import TYPE_CHECKING, Dict, Optional

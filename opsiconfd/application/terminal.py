@@ -8,13 +8,15 @@
 application.teminal
 """
 
+from __future__ import annotations
+
 import asyncio
 import os
 import pathlib
-import time
 from asyncio import get_running_loop
 from os import getuid
 from pwd import getpwuid
+from time import time
 from typing import Any, Dict, Optional
 
 import psutil
@@ -28,6 +30,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TerminalCloseEvent,
 	TerminalDataRead,
 	TerminalOpenEvent,
+	TerminalOpenRequest,
 	TerminalResizeEvent,
 )
 from pexpect import spawn  # type: ignore[import]
@@ -60,6 +63,16 @@ def start_pty(shell: str, rows: int | None = 30, cols: int | None = 120, cwd: st
 	return spawn(shell, dimensions=(rows, cols), env=sp_env, cwd=cwd)
 
 
+messagebus_worker_id = ""  # pylint: disable=invalid-name
+
+
+def get_messagebus_worker_id() -> str:
+	global messagebus_worker_id  # pylint: disable=invalid-name,global-statement
+	if not messagebus_worker_id:
+		messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, Worker().worker_num)
+	return messagebus_worker_id
+
+
 @app.websocket_route("/admin/terminal/ws")
 class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 	encoding = "bytes"
@@ -78,8 +91,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			while websocket.client_state == WebSocketState.CONNECTED:
 				try:  # pylint: disable=loop-try-except-usage
 					logger.trace("Read from pty")
-					data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, pty_reader_block_size, 0.01)
-					# data: bytes = self._pty.read_nonblocking(pty_reader_block_size, 0.001)
+					data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, pty_reader_block_size, 1.0)
 					logger.trace(data)
 					await websocket.send_bytes(
 						await loop.run_in_executor(
@@ -176,7 +188,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 				dst_file.touch()
 				dst_file.chmod(0o660)
 				self._file_transfers[payload["file_id"]] = {
-					"started": time.time(),
+					"started": time(),
 					"file": dst_file,
 					"return_path": str(dst_file if return_absolute_path else dst_file.name),
 				}
@@ -205,33 +217,34 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	max_rows = 100
 	default_cols = 120
 	max_cols = 300
+	idle_timeout = 600
 
-	def __init__(  # pylint: disable=too-many-arguments
-		self,
-		id: str,  # pylint: disable=invalid-name,redefined-builtin
-		owner: str,
-		sender: str,
-		channel: str,
-		rows: int = None,
-		cols: int = None,
-	) -> None:
-		self.id = id  # pylint: disable=invalid-name
-		self.owner = owner
-		self.sender = sender
-		self.channel = channel
-		self.rows = self.default_rows
-		self.cols = self.default_cols
+	def __init__(self, terminal_open_request: TerminalOpenRequest, sender: str) -> None:  # pylint: disable=too-many-arguments
+		self._terminal_open_request = terminal_open_request
+		self._sender = sender
+		self._last_usage = time()
 		self._loop = get_running_loop()
 
-		self.set_size(rows, cols)
+		self.set_size(terminal_open_request.rows, terminal_open_request.cols, False)
+
 		cwd = getpwuid(getuid()).pw_dir
 		self._pty = start_pty(shell=config.admin_interface_terminal_shell, rows=self.rows, cols=self.cols, cwd=cwd)
 		self._pty_reader_task = self._loop.create_task(self._pty_reader())
 		self._closing = False
 
-	def set_size(self, rows: int = None, cols: int = None) -> None:
+	@property
+	def terminal_id(self) -> str:
+		return self._terminal_open_request.terminal_id
+
+	@property
+	def back_channel(self) -> str:
+		return self._terminal_open_request.back_channel
+
+	def set_size(self, rows: int = None, cols: int = None, pty_set_size: bool = True) -> None:
 		self.rows = min(max(1, int(rows or self.default_rows)), self.max_rows)
 		self.cols = min(max(1, int(cols or self.default_cols)), self.max_cols)
+		if pty_set_size:
+			self._pty.setwinsize(self.rows, self.cols)
 
 	async def _pty_reader(self) -> None:
 		pty_reader_block_size = PTY_READER_BLOCK_SIZE
@@ -240,15 +253,16 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 				try:  # pylint: disable=loop-try-except-usage
 					logger.trace("Read from pty")
 					data = await self._loop.run_in_executor(  # pylint: disable=loop-invariant-statement
-						None, self._pty.read_nonblocking, pty_reader_block_size, 0.01
+						None, self._pty.read_nonblocking, pty_reader_block_size, 1.0
 					)
 					logger.trace(data)
-					message = TerminalDataRead(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-						sender=self.sender, channel=self.channel, terminal_id=self.id, data=data
-					)
+					self._last_usage = time()
+					message = TerminalDataRead(sender=self._sender, channel=self.back_channel, terminal_id=self.terminal_id, data=data)
 					await send_message(message)
 				except TIMEOUT:  # pylint: disable=loop-invariant-statement
-					pass
+					if time() > self._last_usage + self.idle_timeout:
+						logger.notice("Terminal timed out")
+						await self.close()
 		except EOF:
 			# shell exit
 			await self.close()
@@ -262,13 +276,11 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			if not self._closing:
 				self._loop.run_in_executor(None, self._pty.write, message.data)
 		elif message.type == MessageType.TERMINAL_RESIZE_REQUEST:
-			self.rows = message.rows
-			self.cols = message.cols
-			await self._loop.run_in_executor(None, self._pty.setwinsize, self.rows, self.cols)
-			message = TerminalResizeEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=self.sender,
-				channel=self.channel,
-				terminal_id=self.id,
+			self.set_size(message.rows, message.cols)
+			message = TerminalResizeEvent(
+				sender=self._sender,
+				channel=self.back_channel,
+				terminal_id=self.terminal_id,
 				rows=self.rows,
 				cols=self.cols,
 			)
@@ -286,9 +298,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		try:
 			if self._pty_reader_task:
 				self._pty_reader_task.cancel()
-			message = TerminalCloseEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=self.sender, channel=self.channel, terminal_id=self.id
-			)
+			message = TerminalCloseEvent(sender=self._sender, channel=self.back_channel, terminal_id=self.terminal_id)
 			await send_message(message)
 			if self._pty:
 				self._pty.close(True)
@@ -297,53 +307,45 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			logger.error(err, exc_info=True)
 
 
-terminals: Dict[str, "Terminal"] = {}
+terminals: Dict[str, Terminal] = {}
 
 
-# TODO: test message values like terminal_id, expire terminal, cleanup terminals, set expire in messages, access control (terminal owner)
 async def _process_message(message: Message) -> None:
 	terminal = terminals.get(message.terminal_id)
-	if terminal and terminal.owner != message.sender:
-		return
-	if message.type == MessageType.TERMINAL_OPEN_REQUEST:
-		worker = Worker()
-		messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
-		if not terminal:
-			terminal = Terminal(
-				id=message.terminal_id,
-				owner=message.sender,
-				sender=messagebus_worker_id,
-				channel=f"terminal:{message.terminal_id}",
-				rows=message.rows,
-				cols=message.cols,
-			)
-			terminals[terminal.id] = terminal
-		msg = TerminalOpenEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-			sender=messagebus_worker_id,
-			channel=message.back_channel,
-			terminal_id=terminal.id,
-			back_channel=f"{messagebus_worker_id}:terminal",
-			rows=terminal.rows,
-			cols=terminal.cols,
-		)
-		await send_message(msg)
-	else:
-		if terminal:
+
+	try:
+		if isinstance(message, TerminalOpenRequest):
+			if not terminal:
+				terminal = Terminal(terminal_open_request=message, sender=messagebus_worker_id)
+				terminals[message.terminal_id] = terminal
+				msg = TerminalOpenEvent(
+					sender=get_messagebus_worker_id(),
+					channel=message.back_channel,
+					terminal_id=message.terminal_id,
+					back_channel=f"{get_messagebus_worker_id()}:terminal",
+					rows=terminal.rows,
+					cols=terminal.cols,
+				)
+				await send_message(msg)
+			else:
+				# Resize to redraw screen
+				terminals[message.terminal_id].set_size(message.rows - 1, message.cols)
+				terminals[message.terminal_id].set_size(message.rows, message.cols)
+		elif terminal:
 			await terminal.process_message(message)
 		else:
-			worker = Worker()
-			messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
-			msg = TerminalCloseEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=messagebus_worker_id, channel=message.back_channel, terminal_id=message.terminal_id
-			)
+			raise RuntimeError("Invalid terminal id")
+	except Exception as err:  # pylint: disable=broad-except
+		logger.warning(err, exc_info=True)
+		if terminal:
+			await terminal.close()
+		else:
+			msg = TerminalCloseEvent(sender=get_messagebus_worker_id(), channel=message.back_channel, terminal_id=message.terminal_id)
 			await send_message(msg)
 
 
 async def _messagebus_terminal_instance_worker() -> None:
-	worker = Worker()
-	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
-	channel = f"{messagebus_worker_id}:terminal"
-
+	channel = f"{get_messagebus_worker_id()}:terminal"
 	reader = MessageReader(channels={channel: "$"})
 	async for _redis_id, message, _context in reader.get_messages():
 		try:
@@ -353,15 +355,10 @@ async def _messagebus_terminal_instance_worker() -> None:
 
 
 async def _messagebus_terminal_request_worker() -> None:
-	worker = Worker()
-	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 	channel = "service:config:terminal"
-	# messagebus_node_id = get_messagebus_user_id_for_service_node(config.node_name)
-	# channel = f"{messagebus_node_id}:terminal"
-
 	cgmr = ConsumerGroupMessageReader(
 		consumer_group=channel,
-		consumer_name=messagebus_worker_id,
+		consumer_name=get_messagebus_worker_id(),
 		channels={channel: "0"},
 	)
 	async for redis_id, message, _context in cgmr.get_messages():
@@ -370,7 +367,6 @@ async def _messagebus_terminal_request_worker() -> None:
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 		# ACK Message
-		# asyncio.create_task(cgmr.ack_message(redis_id))
 		await cgmr.ack_message(message.channel, redis_id)
 
 

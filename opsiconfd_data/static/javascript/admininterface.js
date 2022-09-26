@@ -689,6 +689,7 @@ function messagebusConnect() {
 	}
 	messagebusWS.onmessage = function (event) {
 		const message = msgpack.deserialize(event.data);
+		console.debug(message);
 		if (message.type.startsWith("terminal_")) {
 			if (mbTerminal && mbTerminal.terminalId == message.terminal_id && message.type == "terminal_data_read") {
 				mbTerminal.write(message.data);

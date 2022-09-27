@@ -124,7 +124,7 @@ class Worker(metaclass=Singleton):
 
 		messagebus_terminal_request_worker_task = None
 		if "terminal" not in config.admin_interface_disabled_features:
-			from .application.terminal import (  # pylint: disable=import-outside-toplevel
+			from .messagebus.terminal import (  # pylint: disable=import-outside-toplevel
 				messagebus_terminal_request_worker,
 			)
 

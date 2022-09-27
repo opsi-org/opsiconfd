@@ -559,7 +559,7 @@
 		<div id="tab-messagebus" class="tabcontent fitheight">
 			<h4>Messagebus</h4>
 			<button id="messagebus-connect-disconnect" onclick="messagebusToggleConnect()">Connect</button>
-			<div class="adminpage-box" style="display: grid; column-gap: 25px; row-gap: 5px; overflow: hidden">
+			<div class="adminpage-box" id="messagebus-container">
 				<div style="grid-area: 1 / 1 / span 1 / span 1;">
 					Send message:
 					<textarea id="messagebus-message-send"></textarea>
@@ -576,14 +576,14 @@
 				</div>
 				<div style="grid-area: 2 / 1 / span 1 / span 1;">
 					Messages out:
-					<textarea id="messagebus-message-out"></textarea>
+					<pre id="messagebus-message-out"></pre>
 					<br />
 					<button id="messagebus-message-out-clear"
 						onclick="document.getElementById('messagebus-message-out').innerHTML='';">Clear</button>
 				</div>
 				<div style="grid-area: 2 / 2 / span 1 / span 1;">
 					Messages in:
-					<textarea id="messagebus-message-in"></textarea>
+					<pre id="messagebus-message-in"></pre>
 					<br />
 					<button id="messagebus-message-in-clear"
 						onclick="document.getElementById('messagebus-message-in').innerHTML='';">Clear</button>

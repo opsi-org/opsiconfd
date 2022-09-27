@@ -668,13 +668,53 @@ div#login_error {
 	color: #ff0800;
 }
 
+
+#messagebus-container {
+	grid-auto-columns: 1fr;
+	grid-auto-flow: column;
+	display: grid;
+	column-gap: 25px;
+	row-gap: 5px;
+	overflow: hidden"
+
+}
+
 #messagebus-message-send,
 #messagebus-message-out,
 #messagebus-message-in {
 	width: 100%;
-	height: 500px;
 	margin: 5px 0px 5px 0px;
-	background-color: black;
+	background-color: #1e1e1e;
 	color: white;
 	font-weight: 500;
+	overflow: auto;
+}
+
+#messagebus-message-out,
+#messagebus-message-in {
+	height: 500px;
+}
+
+#messagebus-message-send {
+	height: 300px;
+}
+
+.message_string {
+	color: #ce714d;
+}
+
+.message_number {
+	color: #90d16d;
+}
+
+.message_boolean {
+	color: #3fddbe;
+}
+
+.message_null {
+	color: #a03232;
+}
+
+.message_key {
+	color: #4ebdf8;
 }

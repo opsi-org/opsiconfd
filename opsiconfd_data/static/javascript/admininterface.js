@@ -661,6 +661,32 @@ function formateDate(date) {
 
 var messagebusWS;
 var mbTerminal;
+
+// https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
+function syntaxHighlightMessage(message) {
+	if (typeof message != 'string') {
+		message = JSON.stringify(message, undefined, 2);
+	}
+	message = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	return message.replace(
+		/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+		function (match) {
+			var cls = 'message_number';
+			if (/^"/.test(match)) {
+				if (/:$/.test(match)) {
+					cls = 'message_key';
+				} else {
+					cls = 'message_string';
+				}
+			} else if (/true|false/.test(match)) {
+				cls = 'message_boolean';
+			} else if (/null/.test(match)) {
+				cls = 'message_null';
+			}
+			return '<span class="' + cls + '">' + match + '</span>';
+		});
+}
+
 function messagebusConnect() {
 	let params = []
 	let loc = window.location;
@@ -707,7 +733,7 @@ function messagebusConnect() {
 			(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&
 			(!message.type.startsWith("file_chunk") || document.getElementById('messagebus-message-show-file-chunk-messages').checked)
 		) {
-			document.getElementById("messagebus-message-in").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
+			document.getElementById("messagebus-message-in").innerHTML += "\n" + syntaxHighlightMessage(message);
 			if (document.getElementById('messagebus-message-auto-scroll').checked) {
 				let el = document.getElementById('messagebus-message-in');
 				el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
@@ -778,7 +804,7 @@ function messagebusSend(message) {
 		(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&
 		(!message.type.startsWith("file_chunk") || document.getElementById('messagebus-message-show-file-chunk-messages').checked)
 	) {
-		document.getElementById("messagebus-message-out").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
+		document.getElementById("messagebus-message-out").innerHTML += "\n" + syntaxHighlightMessage(message);
 		if (document.getElementById('messagebus-message-auto-scroll').checked) {
 			let el = document.getElementById('messagebus-message-out');
 			el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });

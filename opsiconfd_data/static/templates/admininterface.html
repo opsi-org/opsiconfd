@@ -559,7 +559,7 @@
 		<div id="tab-messagebus" class="tabcontent fitheight">
 			<h4>Messagebus</h4>
 			<button id="messagebus-connect-disconnect" onclick="messagebusToggleConnect()">Connect</button>
-			<div class="adminpage-box" style="display: grid; column-gap: 25px; row-gap: 25px; overflow: hidden">
+			<div class="adminpage-box" style="display: grid; column-gap: 25px; row-gap: 5px; overflow: hidden">
 				<div style="grid-area: 1 / 1 / span 1 / span 1;">
 					Send message:
 					<textarea id="messagebus-message-send"></textarea>
@@ -572,25 +572,26 @@
 						<option>jsonrpc_request</option>
 					</select>
 					<button id="messagebus-message-send-button" onclick="messagebusSendMessage()">Send</button>
+					<br /><br />
 				</div>
-				<div style="grid-area: 2 / 1 / span 1 / span 2;">
-					Autoscroll: <input type="checkbox" id="messagebus-message-auto-scroll" checked="checked"
-						onclick="messagebusToggleAutoScroll()" style="margin-right: 25px;">
-					Show terminal messages: <input type="checkbox" id="messagebus-message-show-terminal-messages">
-				</div>
-				<div style="grid-area: 3 / 1 / span 1 / span 1;">
+				<div style="grid-area: 2 / 1 / span 1 / span 1;">
 					Messages out:
 					<textarea id="messagebus-message-out"></textarea>
 					<br />
 					<button id="messagebus-message-out-clear"
 						onclick="document.getElementById('messagebus-message-out').innerHTML='';">Clear</button>
 				</div>
-				<div style="grid-area: 3 / 2 / span 1 / span 1;">
+				<div style="grid-area: 2 / 2 / span 1 / span 1;">
 					Messages in:
 					<textarea id="messagebus-message-in"></textarea>
 					<br />
 					<button id="messagebus-message-in-clear"
 						onclick="document.getElementById('messagebus-message-in').innerHTML='';">Clear</button>
+				</div>
+				<div style="grid-area: 3 / 1 / span 1 / span 2;">
+					Autoscroll: <input type="checkbox" id="messagebus-message-auto-scroll" checked="checked"
+						onclick="messagebusToggleAutoScroll()" style="margin-right: 25px;">
+					Show terminal messages: <input type="checkbox" id="messagebus-message-show-terminal-messages">
 				</div>
 			</div>
 			<div class="adminpage-box" id="messagebus-terminal"

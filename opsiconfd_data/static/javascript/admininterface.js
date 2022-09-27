@@ -728,6 +728,18 @@ function messagebusConnect() {
 		}
 		if (message.type == "file_upload_result") {
 			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
+			let utf8Encode = new TextEncoder();
+			let dataMessage = {
+				type: "terminal_data_write",
+				id: createUUID(),
+				sender: "@",
+				channel: mbTerminal.terminalChannel,
+				created: Date.now(),
+				expires: Date.now() + 10000,
+				terminal_id: mbTerminal.terminalId,
+				data: utf8Encode.encode(message.path + "\033[D".repeat(message.path.length))
+			}
+			messagebusSend(dataMessage);
 		}
 		if (
 			(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&

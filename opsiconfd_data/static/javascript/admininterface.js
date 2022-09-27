@@ -703,9 +703,9 @@ function messagebusConnect() {
 		if (message.type == "file_upload_result") {
 			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 		}
-		if ((!message.type.startsWith("terminal_")) || document.getElementById('messagebus-message-in-show-terminal-messages').checked) {
+		if ((!message.type.startsWith("terminal_")) || document.getElementById('messagebus-message-show-terminal-messages').checked) {
 			document.getElementById("messagebus-message-in").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
-			if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
+			if (document.getElementById('messagebus-message-auto-scroll').checked) {
 				let el = document.getElementById('messagebus-message-in');
 				el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 			}
@@ -762,7 +762,7 @@ function messagebusInsertMessageTemplate() {
 		message.method = ""
 		message.params = []
 	}
-	document.getElementById('messagebus-message-out').value = JSON.stringify(message, undefined, 2);
+	document.getElementById('messagebus-message-send').value = JSON.stringify(message, undefined, 2);
 }
 
 
@@ -771,6 +771,14 @@ function messagebusSend(message) {
 	if (!messagebusWS) {
 		alert("Messagebus not connected");
 		return;
+	}
+	if ((!message.type.startsWith("terminal_")) || document.getElementById('messagebus-message-show-terminal-messages').checked) {
+		document.getElementById("messagebus-message-out").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
+		if (document.getElementById('messagebus-message-auto-scroll').checked) {
+			let el = document.getElementById('messagebus-message-out');
+			el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+		}
+
 	}
 	try {
 		messagebusWS.send(msgpack.serialize(message));
@@ -783,13 +791,15 @@ function messagebusSend(message) {
 
 
 function messagebusSendMessage() {
-	messagebusSend(JSON.parse(document.getElementById('messagebus-message-out').value));
+	messagebusSend(JSON.parse(document.getElementById('messagebus-message-send').value));
 }
 
 
 function messagebusToggleAutoScroll() {
-	if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
+	if (document.getElementById('messagebus-message-auto-scroll').checked) {
 		let el = document.getElementById('messagebus-message-in');
+		el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+		el = document.getElementById('messagebus-message-out');
 		el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 	}
 }

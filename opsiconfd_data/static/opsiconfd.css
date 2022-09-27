@@ -668,6 +668,7 @@ div#login_error {
 	color: #ff0800;
 }
 
+#messagebus-message-send,
 #messagebus-message-out,
 #messagebus-message-in {
 	width: 100%;

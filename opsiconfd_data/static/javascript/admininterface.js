@@ -1151,13 +1151,15 @@ function startTerminal() {
 }
 
 
-function toggleFullscreenTerminal() {
-	if (!terminal) return;
-	var elem = document.getElementById('terminal-xterm');
+function toggleFullscreenTerminal(elementId, term) {
+	if (!term) return;
+	var elem = document.getElementById(elementId);
 	if (elem.requestFullscreen) {
 		elem.requestFullscreen();
 	}
-	terminal.fitAddon.fit();
+	setTimeout(function () {
+		term.fitAddon.fit();
+	}, 100);
 }
 
 

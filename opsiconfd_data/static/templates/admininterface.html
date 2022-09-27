@@ -541,7 +541,7 @@
 				<button class="tab-maximize" style="margin-top: 10px; margin-right: 25px;"
 					onclick="toggleTabMaximize();">Maximize</button>
 				<button style="margin-top: 10px; margin-right: 25px;"
-					onclick="toggleFullscreenTerminal();">Fullscreen</button>
+					onclick="toggleFullscreenTerminal('terminal-xterm', terminal);">Fullscreen</button>
 
 				<label>Font size:</label>
 				<button id="decrease-terminal-font-size" onclick="changeTerminalFontSize(-1);">-</button>
@@ -597,11 +597,13 @@
 				</div>
 			</div>
 			<div class="adminpage-box" id="messagebus-terminal"
-				style="width: 900px; height: 450px; resize: both; overflow: hidden; padding-bottom: 50px;">
+				style="width: 1000px; height: 450px; resize: both; overflow: hidden; padding-bottom: 50px;">
 				<label>Channel:</label><input type="text" id="messagebus-terminal-channel"
 					style="width: 300px;"></input>
 				<label>Terminal id:</label><input type="text" id="messagebus-terminal-id" style="width: 300px;"></input>
-				<button id="messagebus-terminal-connect" onclick="messagebusConnectTerminal()">Connect</button>
+				<button id="messagebus-terminal-connect" onclick="messagebusConnectTerminal()"
+					style="margin-right: 25px;">Connect</button>
+				<button onclick="toggleFullscreenTerminal('messagebus-terminal-xterm', mbTerminal);">Fullscreen</button>
 				<div id="messagebus-terminal-xterm" style="margin-top: 10px; width: 100%; height: 100%;">
 				</div>
 			</div>

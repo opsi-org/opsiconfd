@@ -670,7 +670,7 @@ div#login_error {
 
 
 #messagebus-container {
-	grid-auto-columns: 1fr;
+	grid-auto-columns: minmax(40%, 1fr);
 	grid-auto-flow: column;
 	display: grid;
 	column-gap: 25px;

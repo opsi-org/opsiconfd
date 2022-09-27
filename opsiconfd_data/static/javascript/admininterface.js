@@ -703,13 +703,15 @@ function messagebusConnect() {
 		if (message.type == "file_upload_result") {
 			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 		}
-		if ((!message.type.startsWith("terminal_")) || document.getElementById('messagebus-message-show-terminal-messages').checked) {
+		if (
+			(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&
+			(!message.type.startsWith("file_chunk") || document.getElementById('messagebus-message-show-file-chunk-messages').checked)
+		) {
 			document.getElementById("messagebus-message-in").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
 			if (document.getElementById('messagebus-message-auto-scroll').checked) {
 				let el = document.getElementById('messagebus-message-in');
 				el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 			}
-
 		}
 	}
 }
@@ -772,7 +774,10 @@ function messagebusSend(message) {
 		alert("Messagebus not connected");
 		return;
 	}
-	if ((!message.type.startsWith("terminal_")) || document.getElementById('messagebus-message-show-terminal-messages').checked) {
+	if (
+		(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&
+		(!message.type.startsWith("file_chunk") || document.getElementById('messagebus-message-show-file-chunk-messages').checked)
+	) {
 		document.getElementById("messagebus-message-out").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
 		if (document.getElementById('messagebus-message-auto-scroll').checked) {
 			let el = document.getElementById('messagebus-message-out');

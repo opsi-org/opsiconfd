@@ -10,7 +10,7 @@ function createUUID() {
 
 
 function monitorSession() {
-	if (document.cookie && document.cookie.indexOf('opsiconfd-session=') != -1) {
+	if ((document.cookie && document.cookie.indexOf('opsiconfd-session=') != -1) || messagebusWS) {
 		setTimeout(monitorSession, 1000);
 	}
 	else {
@@ -661,6 +661,32 @@ function formateDate(date) {
 
 var messagebusWS;
 var mbTerminal;
+
+// https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
+function syntaxHighlightMessage(message) {
+	if (typeof message != 'string') {
+		message = JSON.stringify(message, undefined, 2);
+	}
+	message = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	return message.replace(
+		/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+		function (match) {
+			var cls = 'message_number';
+			if (/^"/.test(match)) {
+				if (/:$/.test(match)) {
+					cls = 'message_key';
+				} else {
+					cls = 'message_string';
+				}
+			} else if (/true|false/.test(match)) {
+				cls = 'message_boolean';
+			} else if (/null/.test(match)) {
+				cls = 'message_null';
+			}
+			return '<span class="' + cls + '">' + match + '</span>';
+		});
+}
+
 function messagebusConnect() {
 	let params = []
 	let loc = window.location;
@@ -689,21 +715,41 @@ function messagebusConnect() {
 	}
 	messagebusWS.onmessage = function (event) {
 		const message = msgpack.deserialize(event.data);
+		console.debug(message);
 		if (message.type.startsWith("terminal_")) {
-			if (mbTerminal && mbTerminal.terminalId == message.terminal_id && message.type == "terminal_data_read") {
-				mbTerminal.write(message.data);
+			if (mbTerminal && mbTerminal.terminalId == message.terminal_id) {
+				if (message.type == "terminal_open_event") {
+					document.getElementById("messagebus-terminal-channel").value = mbTerminal.terminalChannel = message.back_channel;
+				}
+				else if (message.type == "terminal_data_read") {
+					mbTerminal.write(message.data);
+				}
 			}
 		}
 		if (message.type == "file_upload_result") {
 			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
+			let utf8Encode = new TextEncoder();
+			let dataMessage = {
+				type: "terminal_data_write",
+				id: createUUID(),
+				sender: "@",
+				channel: mbTerminal.terminalChannel,
+				created: Date.now(),
+				expires: Date.now() + 10000,
+				terminal_id: mbTerminal.terminalId,
+				data: utf8Encode.encode(message.path + "\033[D".repeat(message.path.length))
+			}
+			messagebusSend(dataMessage);
 		}
-		if ((!message.type.startsWith("terminal_")) || document.getElementById('messagebus-message-in-show-terminal-messages').checked) {
-			document.getElementById("messagebus-message-in").innerHTML += "\n" + JSON.stringify(message, undefined, 2);
-			if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
+		if (
+			(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&
+			(!message.type.startsWith("file_chunk") || document.getElementById('messagebus-message-show-file-chunk-messages').checked)
+		) {
+			document.getElementById("messagebus-message-in").innerHTML += "\n" + syntaxHighlightMessage(message);
+			if (document.getElementById('messagebus-message-auto-scroll').checked) {
 				let el = document.getElementById('messagebus-message-in');
 				el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 			}
-
 		}
 	}
 }
@@ -756,7 +802,7 @@ function messagebusInsertMessageTemplate() {
 		message.method = ""
 		message.params = []
 	}
-	document.getElementById('messagebus-message-out').value = JSON.stringify(message, undefined, 2);
+	document.getElementById('messagebus-message-send').value = JSON.stringify(message, undefined, 2);
 }
 
 
@@ -765,6 +811,17 @@ function messagebusSend(message) {
 	if (!messagebusWS) {
 		alert("Messagebus not connected");
 		return;
+	}
+	if (
+		(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&
+		(!message.type.startsWith("file_chunk") || document.getElementById('messagebus-message-show-file-chunk-messages').checked)
+	) {
+		document.getElementById("messagebus-message-out").innerHTML += "\n" + syntaxHighlightMessage(message);
+		if (document.getElementById('messagebus-message-auto-scroll').checked) {
+			let el = document.getElementById('messagebus-message-out');
+			el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+		}
+
 	}
 	try {
 		messagebusWS.send(msgpack.serialize(message));
@@ -777,13 +834,15 @@ function messagebusSend(message) {
 
 
 function messagebusSendMessage() {
-	messagebusSend(JSON.parse(document.getElementById('messagebus-message-out').value));
+	messagebusSend(JSON.parse(document.getElementById('messagebus-message-send').value));
 }
 
 
 function messagebusToggleAutoScroll() {
-	if (document.getElementById('messagebus-message-in-auto-scroll').checked) {
+	if (document.getElementById('messagebus-message-auto-scroll').checked) {
 		let el = document.getElementById('messagebus-message-in');
+		el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+		el = document.getElementById('messagebus-message-out');
 		el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 	}
 }
@@ -871,7 +930,7 @@ function messagebusConnectTerminal() {
 				type: "terminal_data_write",
 				id: createUUID(),
 				sender: "@",
-				channel: terminalChannel,
+				channel: mbTerminal.terminalChannel,
 				created: Date.now(),
 				expires: Date.now() + 10000,
 				terminal_id: mbTerminal.terminalId,
@@ -886,7 +945,7 @@ function messagebusConnectTerminal() {
 				type: "terminal_resize_request",
 				id: createUUID(),
 				sender: "@",
-				channel: terminalChannel,
+				channel: mbTerminal.terminalChannel,
 				created: Date.now(),
 				expires: Date.now() + 10000,
 				terminal_id: mbTerminal.terminalId,
@@ -946,7 +1005,11 @@ function messagebusFileUpload(file, channel, terminalId = null) {
 			messagebusSend(message);
 
 			if (!last) {
-				readChunk();
+				// Do not send the next chunk immediately
+				// to keep some resources for further messages
+				setTimeout(function () {
+					readChunk();
+				}, 5);
 			}
 		}
 		reader.readAsArrayBuffer(blob);
@@ -1088,13 +1151,15 @@ function startTerminal() {
 }
 
 
-function toggleFullscreenTerminal() {
-	if (!terminal) return;
-	var elem = document.getElementById('terminal-xterm');
+function toggleFullscreenTerminal(elementId, term) {
+	if (!term) return;
+	var elem = document.getElementById(elementId);
 	if (elem.requestFullscreen) {
 		elem.requestFullscreen();
 	}
-	terminal.fitAddon.fit();
+	setTimeout(function () {
+		term.fitAddon.fit();
+	}, 100);
 }
 
 

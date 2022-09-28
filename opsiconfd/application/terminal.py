@@ -8,13 +8,15 @@
 application.teminal
 """
 
+from __future__ import annotations
+
 import asyncio
 import os
-import pathlib
-import time
 from asyncio import get_running_loop
 from os import getuid
+from pathlib import Path
 from pwd import getpwuid
+from time import time
 from typing import Any, Dict, Optional
 
 import psutil
@@ -22,27 +24,11 @@ from fastapi import Query
 from msgpack import dumps as msgpack_dumps  # type: ignore[import]
 from msgpack import loads as msgpack_loads  # type: ignore[import]
 from OPSI.System import get_subprocess_environment  # type: ignore[import]
-from opsicommon.messagebus import (  # type: ignore[import]
-	Message,
-	MessageType,
-	TerminalCloseEvent,
-	TerminalDataRead,
-	TerminalOpenEvent,
-	TerminalResizeEvent,
-)
 from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
-
-from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
-from opsiconfd.messagebus.redis import (
-	ConsumerGroupMessageReader,
-	MessageReader,
-	send_message,
-)
-from opsiconfd.worker import Worker
 
 from ..config import config
 from ..logging import logger
@@ -78,8 +64,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			while websocket.client_state == WebSocketState.CONNECTED:
 				try:  # pylint: disable=loop-try-except-usage
 					logger.trace("Read from pty")
-					data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, pty_reader_block_size, 0.01)
-					# data: bytes = self._pty.read_nonblocking(pty_reader_block_size, 0.001)
+					data: bytes = await loop.run_in_executor(None, self._pty.read_nonblocking, pty_reader_block_size, 1.0)
 					logger.trace(data)
 					await websocket.send_bytes(
 						await loop.run_in_executor(
@@ -164,9 +149,9 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 					if not os_path_exists(dst_dir):
 						dst_dir = getpwuid(getuid()).pw_dir
 
-			dst_path = pathlib.Path(dst_dir)
+			dst_path = Path(dst_dir)
 			try:
-				dst_file: pathlib.Path = (dst_path / payload["name"]).absolute()
+				dst_file: Path = (dst_path / payload["name"]).absolute()
 				orig_name = dst_file.name
 				ext = 0
 				while dst_file.exists():
@@ -176,7 +161,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 				dst_file.touch()
 				dst_file.chmod(0o660)
 				self._file_transfers[payload["file_id"]] = {
-					"started": time.time(),
+					"started": time(),
 					"file": dst_file,
 					"return_path": str(dst_file if return_absolute_path else dst_file.name),
 				}
@@ -198,186 +183,3 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			return result
 
 		return {}
-
-
-class Terminal:  # pylint: disable=too-many-instance-attributes
-	default_rows = 30
-	max_rows = 100
-	default_cols = 120
-	max_cols = 300
-
-	def __init__(  # pylint: disable=too-many-arguments
-		self,
-		id: str,  # pylint: disable=invalid-name,redefined-builtin
-		owner: str,
-		sender: str,
-		channel: str,
-		rows: int = None,
-		cols: int = None,
-	) -> None:
-		self.id = id  # pylint: disable=invalid-name
-		self.owner = owner
-		self.sender = sender
-		self.channel = channel
-		self.rows = self.default_rows
-		self.cols = self.default_cols
-		self._loop = get_running_loop()
-
-		self.set_size(rows, cols)
-		cwd = getpwuid(getuid()).pw_dir
-		self._pty = start_pty(shell=config.admin_interface_terminal_shell, rows=self.rows, cols=self.cols, cwd=cwd)
-		self._pty_reader_task = self._loop.create_task(self._pty_reader())
-		self._closing = False
-
-	def set_size(self, rows: int = None, cols: int = None) -> None:
-		self.rows = min(max(1, int(rows or self.default_rows)), self.max_rows)
-		self.cols = min(max(1, int(cols or self.default_cols)), self.max_cols)
-
-	async def _pty_reader(self) -> None:
-		pty_reader_block_size = PTY_READER_BLOCK_SIZE
-		try:
-			while self._pty and not self._closing:
-				try:  # pylint: disable=loop-try-except-usage
-					logger.trace("Read from pty")
-					data = await self._loop.run_in_executor(  # pylint: disable=loop-invariant-statement
-						None, self._pty.read_nonblocking, pty_reader_block_size, 0.01
-					)
-					logger.trace(data)
-					message = TerminalDataRead(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-						sender=self.sender, channel=self.channel, terminal_id=self.id, data=data
-					)
-					await send_message(message)
-				except TIMEOUT:  # pylint: disable=loop-invariant-statement
-					pass
-		except EOF:
-			# shell exit
-			await self.close()
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error(err, exc_info=True)
-			await self.close()
-
-	async def process_message(self, message: Message) -> None:
-		if message.type == MessageType.TERMINAL_DATA_WRITE:
-			# Do not wait for completion to minimize rtt
-			if not self._closing:
-				self._loop.run_in_executor(None, self._pty.write, message.data)
-		elif message.type == MessageType.TERMINAL_RESIZE_REQUEST:
-			self.rows = message.rows
-			self.cols = message.cols
-			await self._loop.run_in_executor(None, self._pty.setwinsize, self.rows, self.cols)
-			message = TerminalResizeEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=self.sender,
-				channel=self.channel,
-				terminal_id=self.id,
-				rows=self.rows,
-				cols=self.cols,
-			)
-			await send_message(message)
-		elif message.type == MessageType.TERMINAL_CLOSE_REQUEST:
-			await self.close()
-		else:
-			logger.warning("Received invalid message type %r", message.type)
-
-	async def close(self) -> None:
-		if self._closing:
-			return
-		logger.info("Close terminal")
-		self._closing = True
-		try:
-			if self._pty_reader_task:
-				self._pty_reader_task.cancel()
-			message = TerminalCloseEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=self.sender, channel=self.channel, terminal_id=self.id
-			)
-			await send_message(message)
-			if self._pty:
-				self._pty.close(True)
-
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error(err, exc_info=True)
-
-
-terminals: Dict[str, "Terminal"] = {}
-
-
-# TODO: test message values like terminal_id, expire terminal, cleanup terminals, set expire in messages, access control (terminal owner)
-async def _process_message(message: Message) -> None:
-	terminal = terminals.get(message.terminal_id)
-	if terminal and terminal.owner != message.sender:
-		return
-	if message.type == MessageType.TERMINAL_OPEN_REQUEST:
-		worker = Worker()
-		messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
-		if not terminal:
-			terminal = Terminal(
-				id=message.terminal_id,
-				owner=message.sender,
-				sender=messagebus_worker_id,
-				channel=f"terminal:{message.terminal_id}",
-				rows=message.rows,
-				cols=message.cols,
-			)
-			terminals[terminal.id] = terminal
-		msg = TerminalOpenEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-			sender=messagebus_worker_id,
-			channel=message.back_channel,
-			terminal_id=terminal.id,
-			back_channel=f"{messagebus_worker_id}:terminal",
-			rows=terminal.rows,
-			cols=terminal.cols,
-		)
-		await send_message(msg)
-	else:
-		if terminal:
-			await terminal.process_message(message)
-		else:
-			worker = Worker()
-			messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
-			msg = TerminalCloseEvent(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
-				sender=messagebus_worker_id, channel=message.back_channel, terminal_id=message.terminal_id
-			)
-			await send_message(msg)
-
-
-async def _messagebus_terminal_instance_worker() -> None:
-	worker = Worker()
-	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
-	channel = f"{messagebus_worker_id}:terminal"
-
-	reader = MessageReader(channels={channel: "$"})
-	async for _redis_id, message, _context in reader.get_messages():
-		try:
-			await _process_message(message)
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error(err, exc_info=True)
-
-
-async def _messagebus_terminal_request_worker() -> None:
-	worker = Worker()
-	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
-	channel = "service:config:terminal"
-	# messagebus_node_id = get_messagebus_user_id_for_service_node(config.node_name)
-	# channel = f"{messagebus_node_id}:terminal"
-
-	cgmr = ConsumerGroupMessageReader(
-		consumer_group=channel,
-		consumer_name=messagebus_worker_id,
-		channels={channel: "0"},
-	)
-	async for redis_id, message, _context in cgmr.get_messages():
-		try:
-			await _process_message(message)
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error(err, exc_info=True)
-		# ACK Message
-		# asyncio.create_task(cgmr.ack_message(redis_id))
-		await cgmr.ack_message(message.channel, redis_id)
-
-
-async def messagebus_terminal_request_worker() -> None:
-	try:
-		await asyncio.gather(_messagebus_terminal_request_worker(), _messagebus_terminal_instance_worker())
-	except StopAsyncIteration:
-		pass
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error(err, exc_info=True)

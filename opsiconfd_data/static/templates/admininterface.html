@@ -541,7 +541,7 @@
 				<button class="tab-maximize" style="margin-top: 10px; margin-right: 25px;"
 					onclick="toggleTabMaximize();">Maximize</button>
 				<button style="margin-top: 10px; margin-right: 25px;"
-					onclick="toggleFullscreenTerminal();">Fullscreen</button>
+					onclick="toggleFullscreenTerminal('terminal-xterm', terminal);">Fullscreen</button>
 
 				<label>Font size:</label>
 				<button id="decrease-terminal-font-size" onclick="changeTerminalFontSize(-1);">-</button>
@@ -559,10 +559,10 @@
 		<div id="tab-messagebus" class="tabcontent fitheight">
 			<h4>Messagebus</h4>
 			<button id="messagebus-connect-disconnect" onclick="messagebusToggleConnect()">Connect</button>
-			<div class="adminpage-box" style="display: flex;">
-				<div style="flex-basis: 45%; margin-right: 25px">
-					Message out:
-					<textarea id="messagebus-message-out"></textarea>
+			<div class="adminpage-box" id="messagebus-container">
+				<div style="grid-area: 1 / 1 / span 1 / span 1;">
+					Send message:
+					<textarea id="messagebus-message-send"></textarea>
 					<br />
 					<select id="messagebus-message-template-select" style="width: 200px;"
 						onchange="messagebusInsertMessageTemplate()">
@@ -571,25 +571,39 @@
 						<option>trace_request</option>
 						<option>jsonrpc_request</option>
 					</select>
-					<button id="messagebus-message-send" onclick="messagebusSendMessage()">Send</button>
+					<button id="messagebus-message-send-button" onclick="messagebusSendMessage()">Send</button>
+					<br /><br />
 				</div>
-				<div style="flex-basis: 45%">
-					Messages in:
-					<textarea id="messagebus-message-in"></textarea>
+				<div style="grid-area: 2 / 1 / span 1 / span 1;">
+					Messages out:
+					<pre id="messagebus-message-out"></pre>
 					<br />
-					Autoscroll <input type="checkbox" id="messagebus-message-in-auto-scroll" checked="checked"
-						onclick="messagebusToggleAutoScroll()">
-					Show terminal messages <input type="checkbox" id="messagebus-message-in-show-terminal-messages">
+					<button id="messagebus-message-out-clear"
+						onclick="document.getElementById('messagebus-message-out').innerHTML='';">Clear</button>
+				</div>
+				<div style="grid-area: 2 / 2 / span 1 / span 1;">
+					Messages in:
+					<pre id="messagebus-message-in"></pre>
+					<br />
 					<button id="messagebus-message-in-clear"
 						onclick="document.getElementById('messagebus-message-in').innerHTML='';">Clear</button>
 				</div>
+				<div style="grid-area: 3 / 1 / span 1 / span 2;">
+					Autoscroll: <input type="checkbox" id="messagebus-message-auto-scroll" checked="checked"
+						onclick="messagebusToggleAutoScroll()" style="margin-right: 25px;">
+					Show terminal data messages: <input type="checkbox"
+						id="messagebus-message-show-terminal-data-messages" style="margin-right: 25px;">
+					Show file chunk messages: <input type="checkbox" id="messagebus-message-show-file-chunk-messages">
+				</div>
 			</div>
 			<div class="adminpage-box" id="messagebus-terminal"
-				style="width: 900px; height: 450px; resize: both; overflow: hidden; padding-bottom: 50px;">
+				style="width: 1000px; height: 450px; resize: both; overflow: hidden; padding-bottom: 50px;">
 				<label>Channel:</label><input type="text" id="messagebus-terminal-channel"
 					style="width: 300px;"></input>
 				<label>Terminal id:</label><input type="text" id="messagebus-terminal-id" style="width: 300px;"></input>
-				<button id="messagebus-terminal-connect" onclick="messagebusConnectTerminal()">Connect</button>
+				<button id="messagebus-terminal-connect" onclick="messagebusConnectTerminal()"
+					style="margin-right: 25px;">Connect</button>
+				<button onclick="toggleFullscreenTerminal('messagebus-terminal-xterm', mbTerminal);">Fullscreen</button>
 				<div id="messagebus-terminal-xterm" style="margin-top: 10px; width: 100%; height: 100%;">
 				</div>
 			</div>

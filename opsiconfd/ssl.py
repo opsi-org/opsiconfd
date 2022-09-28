@@ -315,8 +315,10 @@ def validate_cert(cert: X509, ca_cert: X509) -> None:
 		dt_ca_cert_not_before = datetime.datetime.strptime(ca_cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
 		dt_cert_not_before = datetime.datetime.strptime(cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
 		if dt_ca_cert_not_before > dt_cert_not_before:
-			raise X509StoreContextError(
-				f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}", ca_cert
+			raise X509StoreContextError(  # type: ignore[call-arg]
+				message=f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}",
+				errors=[],
+				certificate=ca_cert,
 			)
 
 

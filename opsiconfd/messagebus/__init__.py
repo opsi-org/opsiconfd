@@ -8,6 +8,29 @@
 opsiconfd.messagebus
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Dict
+
+from opsiconfd.worker import Worker
+
+from ..config import config
+
+if TYPE_CHECKING:
+	from .filetransfer import FileUpload
+	from .terminal import Terminal
+
+file_uploads: Dict[str, FileUpload] = {}
+terminals: Dict[str, Terminal] = {}
+messagebus_worker_id = ""  # pylint: disable=invalid-name
+
+
+def get_messagebus_worker_id() -> str:
+	global messagebus_worker_id  # pylint: disable=invalid-name,global-statement
+	if not messagebus_worker_id:
+		messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, Worker().worker_num)
+	return messagebus_worker_id
+
 
 def get_messagebus_user_id_for_host(host_id: str) -> str:
 	return f"host:{host_id}"

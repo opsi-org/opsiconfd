@@ -212,7 +212,7 @@ publish:obs_int:
     - build:arm64-pyinstaller
   script:
     - *install_tools
-    - ./opsi-dev-tool -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.2:development
+    - ./opsi-dev-tool -l info --obs-update-package https://obs.uib.gmbh home:uibmz:opsi:4.3:development
   only:
     - tags
 
@@ -223,6 +223,6 @@ publish:obs_int:
 #     - build:arm64-pyinstaller
 #   script:
 #     - *install_tools
-#     - ./opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
+#     - ./opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.3:development
 #   only:
 #     - tags

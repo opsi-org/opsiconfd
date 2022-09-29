@@ -154,6 +154,8 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			await send_message(message)
 			if self._pty:
 				self._pty.close(True)
+			if self.terminal_id in terminals:
+				del terminals[self.terminal_id]
 
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
@@ -178,8 +180,8 @@ async def _process_message(message: Message) -> None:
 				await send_message(msg)
 			else:
 				# Resize to redraw screen
-				terminals[message.terminal_id].set_size(message.rows - 1, message.cols)
-				terminals[message.terminal_id].set_size(message.rows, message.cols)
+				terminal.set_size(terminal.rows - 1, terminal.cols)
+				terminal.set_size(terminal.rows, terminal.cols)
 		elif terminal:
 			await terminal.process_message(message)
 		else:

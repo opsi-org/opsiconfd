@@ -718,11 +718,16 @@ function messagebusConnect() {
 		console.debug(message);
 		if (message.type.startsWith("terminal_")) {
 			if (mbTerminal && mbTerminal.terminalId == message.terminal_id) {
-				if (message.type == "terminal_open_event") {
+				if (message.type == "terminal_data_read") {
+					mbTerminal.write(message.data);
+				}
+				else if (message.type == "terminal_open_event") {
 					document.getElementById("messagebus-terminal-channel").value = mbTerminal.terminalChannel = message.back_channel;
 				}
-				else if (message.type == "terminal_data_read") {
-					mbTerminal.write(message.data);
+				else if (message.type == "terminal_close_event") {
+					console.log("Terminal closed");
+					mbTerminal.writeln("\r\n\033[1;37m> Terminal closed <\033[0m");
+					mbTerminal.write("\033[?25l"); // Make cursor invisible
 				}
 			}
 		}

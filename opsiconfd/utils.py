@@ -101,7 +101,7 @@ def is_manager(proc: psutil.Process) -> bool:
 	if is_opsiconfd(proc):
 		manager = True
 		for arg in proc.cmdline():
-			if "multiprocessing" in arg or "log-viewer" in arg:
+			if "multiprocessing" in arg or "log-viewer" in arg or "debugpy" in arg:
 				manager = False
 				break
 	return manager

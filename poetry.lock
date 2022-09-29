@@ -1649,7 +1649,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi"
-version = "4.2.0.311"
+version = "4.2.0.312"
 description = "The opsi python library"
 category = "main"
 optional = false
@@ -2076,7 +2076,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "tomlkit"
-version = "0.11.4"
+version = "0.11.5"
 description = "Style preserving TOML library"
 category = "dev"
 optional = false
@@ -3674,8 +3674,8 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python-opsi-4.2.0.311.tar.gz", hash = "sha256:49f5a2386cd37f3330c371a07eed58075ea26e09beb1e0c15c97b060a3d50b7a"},
-    {file = "python_opsi-4.2.0.311-py3-none-any.whl", hash = "sha256:6401d12e1c0f33e87d5f52649f2be7e97c5046d469763ff76951d2f22343a000"},
+    {file = "python-opsi-4.2.0.312.tar.gz", hash = "sha256:238fb67357c69c141a789cc920daf4fdfcb6ada6fc2e1ef5db0237dacbfd1138"},
+    {file = "python_opsi-4.2.0.312-py3-none-any.whl", hash = "sha256:2289311e7e6889d0f2be467cbe4b62038eae40e498ba2223132f47fe487b6056"},
 ]
 python-opsi-common = [
     {file = "python-opsi-common-4.2.0.296.tar.gz", hash = "sha256:54c9d7abc161e74ed7786b929e7e336c3c891de12cbca79f747d9a56cd47400b"},
@@ -3842,8 +3842,8 @@ tomli-w = [
     {file = "tomli_w-1.0.0.tar.gz", hash = "sha256:f463434305e0336248cac9c2dc8076b707d8a12d019dd349f5c1e382dd1ae1b9"},
 ]
 tomlkit = [
-    {file = "tomlkit-0.11.4-py3-none-any.whl", hash = "sha256:25d4e2e446c453be6360c67ddfb88838cfc42026322770ba13d1fbd403a93a5c"},
-    {file = "tomlkit-0.11.4.tar.gz", hash = "sha256:3235a9010fae54323e727c3ac06fb720752fe6635b3426e379daec60fbd44a83"},
+    {file = "tomlkit-0.11.5-py3-none-any.whl", hash = "sha256:f2ef9da9cef846ee027947dc99a45d6b68a63b0ebc21944649505bf2e8bc5fe7"},
+    {file = "tomlkit-0.11.5.tar.gz", hash = "sha256:571854ebbb5eac89abcb4a2e47d7ea27b89bf29e09c35395da6f03dd4ae23d1c"},
 ]
 twisted = [
     {file = "Twisted-22.8.0-py3-none-any.whl", hash = "sha256:8d4718d1e48dcc28933f8beb48dc71cfe77a125e37ad1eb7a3d0acc49baf6c99"},

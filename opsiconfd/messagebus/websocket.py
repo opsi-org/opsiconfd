@@ -281,7 +281,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				GeneralErrorMessage(
 					sender=self._messagebus_worker_id,
 					channel=self._session_channel,
-					ref_message_id=message_id,
+					ref_id=message_id,
 					error={
 						"code": 0,
 						"message": str(err),

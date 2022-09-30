@@ -15,7 +15,7 @@ from pathlib import Path
 from time import time
 
 from opsicommon.messagebus import (  # type: ignore[import]
-	FileChunk,
+	FileChunkMessage,
 	FileUploadRequestMessage,
 	FileUploadResultMessage,
 	Message,
@@ -100,7 +100,7 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 			del file_uploads[self.file_id]
 
 	async def process_message(self, message: Message) -> None:
-		if not isinstance(message, FileChunk):
+		if not isinstance(message, FileChunkMessage):
 			raise ValueError(f"Received invalid message type {message.type}")
 
 		self._last_chunk_time = time()

@@ -7,13 +7,42 @@
 	"test_cases": [
 		{
 			"name": "JSONRPC",
-			"compression": "deflate",
+			"compression": "lz4",
 			"requests": {
 				"test": [
-					["jsonrpc", "authenticated", []],
-					["jsonrpc", "productOnClient_getObjects", [[],{"clientId":"pctest.uib.local"}]],
-					["jsonrpc", "productOnDepot_getObjects", [[],{}]],
-					["jsonrpc", "product_getObjects", [[],{"id":"opsi-client-agent"}]]
+					[
+						"jsonrpc",
+						"authenticated",
+						[]
+					],
+					[
+						"jsonrpc",
+						"productOnClient_getObjects",
+						[
+							[],
+							{
+								"clientId": "pctest.uib.local"
+							}
+						]
+					],
+					[
+						"jsonrpc",
+						"productOnDepot_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"product_getObjects",
+						[
+							[],
+							{
+								"id": "opsi-client-agent"
+							}
+						]
+					]
 				]
 			}
 		}

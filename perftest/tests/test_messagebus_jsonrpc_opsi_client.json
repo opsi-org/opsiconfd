@@ -1,0 +1,50 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 50,
+	"iterations": 1,
+	"test_cases": [
+		{
+			"name": "Message Bus JSONRPC",
+			"compression": "lz4",
+			"requests": {
+				"test": [
+					[
+						"messagebus_jsonrpc",
+						"authenticated",
+						[]
+					],
+					[
+						"messagebus_jsonrpc",
+						"productOnClient_getObjects",
+						[
+							[],
+							{
+								"clientId": "pctest.uib.local"
+							}
+						]
+					],
+					[
+						"messagebus_jsonrpc",
+						"productOnDepot_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"messagebus_jsonrpc",
+						"product_getObjects",
+						[
+							[],
+							{
+								"id": "opsi-client-agent"
+							}
+						]
+					]
+				]
+			}
+		}
+	]
+}

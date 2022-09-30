@@ -1,0 +1,21 @@
+{
+	"server": "https://localhost:4447",
+	"username": "adminuser",
+	"password": "adminuser",
+	"clients": 100,
+	"iterations": 100,
+	"test_cases": [
+		{
+			"name": "Message Bus JSONRPC",
+			"requests": {
+				"test": [
+					[
+						"messagebus_jsonrpc",
+						"accessControl_authenticated",
+						[]
+					]
+				]
+			}
+		}
+	]
+}

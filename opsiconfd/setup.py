@@ -258,9 +258,8 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning("Failed to setup redis downsampling: %s", err, exc_info=True)
 
-	if "ssl" not in config.skip_setup:
-		try:
-			setup_ssl()
-		except Exception as err:  # pylint: disable=broad-except
-			# This can fail if fqdn is not valid
-			logger.error("Failed to setup ssl: %s", err, exc_info=True)
+	try:
+		setup_ssl()
+	except Exception as err:  # pylint: disable=broad-except
+		# This can fail if fqdn is not valid
+		logger.error("Failed to setup ssl: %s", err, exc_info=True)

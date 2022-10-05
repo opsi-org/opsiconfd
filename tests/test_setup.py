@@ -11,6 +11,8 @@ setup tests
 import os
 import resource
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Generator
 from unittest.mock import patch
 
 from opsiconfd.setup import cleanup_log_files
@@ -20,7 +22,7 @@ from opsiconfd.setup import setup_file_permissions, setup_limits, setup_systemd
 from .utils import get_config
 
 
-def test_setup_limits():
+def test_setup_limits() -> None:
 	(soft_limit, hard_limit) = resource.getrlimit(resource.RLIMIT_NOFILE)
 	soft_limit = 1000
 	resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, max(hard_limit, soft_limit)))
@@ -29,7 +31,7 @@ def test_setup_limits():
 	assert soft_limit == 10000
 
 
-def test_setup_file_permissions():
+def test_setup_file_permissions() -> None:
 	with (
 		patch("OPSI.Util.Task.Rights.FilePermission.chmod") as mock_file_chmod,
 		patch("OPSI.Util.Task.Rights.FilePermission.chown") as mock_file_chown,
@@ -41,12 +43,12 @@ def test_setup_file_permissions():
 		mock_file_chown.assert_called()
 
 
-def test_setup_systemd():
+def test_setup_systemd() -> None:
 	with patch("subprocess.check_output"):
 		setup_systemd()
 
 
-def test_cleanup_log_files(tmp_path):
+def test_cleanup_log_files(tmp_path: Path) -> None:
 	invalid_link = tmp_path / "invalid_link.log"
 	log_file = tmp_path / "opsiconfd.log"
 	log_file_old = tmp_path / "opsiconfd.1.log"
@@ -62,7 +64,7 @@ def test_cleanup_log_files(tmp_path):
 
 
 @contextmanager
-def mock_all():
+def mock_all() -> Generator[dict, None, None]:
 	with (
 		patch("opsiconfd.setup.setup_limits") as mock_setup_limits,
 		patch("opsiconfd.setup.setup_backend") as mock_setup_backend,
@@ -91,15 +93,36 @@ def mock_all():
 		}
 
 
-def test_setup_skip_all():
+def test_setup_skip_all() -> None:
 	with mock_all() as funcs:
-		with get_config({"skip_setup": ["all"]}):
+		with get_config({"skip_setup": ["all"]}) as config:
 			opsiconfd_setup()
+			assert config.skip_setup == [
+				"all",
+				"limits",
+				"users",
+				"groups",
+				"grafana",
+				"backend",
+				"ssl",
+				"server_cert",
+				"opsi_ca",
+				"systemd",
+				"files",
+				"file_permissions",
+				"log_files",
+				"metric_downsampling",
+			]
 			for mock in funcs.values():
 				mock.assert_not_called()
 
 
-def test_setup_skip_users_and_files():
+def test_setup_skip_ssl() -> None:
+	with get_config({"skip_setup": ["ssl", "log_files"]}) as config:
+		assert config.skip_setup == ["ssl", "log_files", "opsi_ca", "server_cert"]
+
+
+def test_setup_skip_users_and_files() -> None:
 	with mock_all() as funcs:
 		with get_config({"skip_setup": ["users", "files"]}):
 			opsiconfd_setup(full=True)
@@ -109,7 +132,7 @@ def test_setup_skip_users_and_files():
 			funcs["setup_ssl"].assert_called()
 
 
-def test_setup_full():
+def test_setup_full() -> None:
 	with mock_all() as funcs:
 		opsiconfd_setup(full=False)
 		funcs["setup_files"].assert_not_called()

@@ -123,6 +123,7 @@ def get_config(values: Union[Dict[str, Any], List[str]]) -> Generator[Config, No
 	try:
 		if isinstance(values, dict):
 			_config._config.__dict__.update(values)  # pylint: disable=protected-access
+			_config._update_config()  # pylint: disable=protected-access
 		else:
 			_config._set_args(values)  # pylint: disable=protected-access
 			_config._parse_args()  # pylint: disable=protected-access

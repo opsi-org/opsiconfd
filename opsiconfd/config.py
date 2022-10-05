@@ -181,7 +181,7 @@ class Config(metaclass=Singleton):
 	def _expert_help(self, help_text: str) -> str:
 		return help_text if self._ex_help else SUPPRESS
 
-	def _parse_args(self) -> None:  # pylint: disable=too-many-branches
+	def _parse_args(self) -> None:
 		if not self._parser:
 			raise RuntimeError("Parser not initialized")
 		if is_opsiconfd(psutil.Process(os.getpid())):
@@ -190,7 +190,9 @@ class Config(metaclass=Singleton):
 		else:
 			self._parser.exit_on_error = False
 			self._config, _unknown = self._parser.parse_known_args(self._args)
+		self._update_config()
 
+	def _update_config(self) -> None:  # pylint: disable=too-many-branches
 		self.jinja_templates = Jinja2Templates(directory=os.path.join(self.static_dir, "templates"))
 
 		if not self._config.ssl_ca_key_passphrase:
@@ -218,12 +220,16 @@ class Config(metaclass=Singleton):
 				secret_filter.add_secrets(url.password)
 		if not self._config.skip_setup:
 			self._config.skip_setup = []
-			if "ssl" in self._config.skip_setup:
-				if "opsi_ca" not in self._config.skip_setup:
-					self._config.skip_setup.append("opsi_ca")
-				if "server_cert" not in self._config.skip_setup:
-					self._config.skip_setup.append("server_cert")
-
+		if self._parser and "all" in self._config.skip_setup:
+			for action in self._parser._actions:  # pylint: disable=protected-access
+				if action.dest == "skip_setup":
+					self._config.skip_setup = action.choices
+					break
+		elif "ssl" in self._config.skip_setup:
+			if "opsi_ca" not in self._config.skip_setup:
+				self._config.skip_setup.append("opsi_ca")
+			if "server_cert" not in self._config.skip_setup:
+				self._config.skip_setup.append("server_cert")
 		if not self._config.admin_interface_disabled_features:
 			self._config.admin_interface_disabled_features = []
 

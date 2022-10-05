@@ -327,6 +327,8 @@ class Server:
 			options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
 			options["ssl_certfile"] = config.ssl_server_cert
 			options["ssl_ciphers"] = config.ssl_ciphers
+			if config.ssl_ca_cert and os.path.exists(config.ssl_ca_cert):
+				options["ssl_ca_certs"] = config.ssl_ca_cert
 
 		self.uvicorn_config = Config("opsiconfd.application:app", **options)
 

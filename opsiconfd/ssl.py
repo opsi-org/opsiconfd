@@ -303,7 +303,7 @@ def setup_ca() -> bool:
 	raise ValueError(f"Invalid server role: {server_role}")
 
 
-def validate_cert(cert: X509, ca_cert: X509) -> None:
+def validate_cert(cert: X509, ca_cert: X509 = None) -> None:
 	"""Will throw a X509StoreContextError if cert is invalid"""
 	store = X509Store()
 
@@ -315,7 +315,9 @@ def validate_cert(cert: X509, ca_cert: X509) -> None:
 				except Exception as err:  # pylint: disable=broad-except
 					logger.error("Failed to load certificate from %r: %s", config.ssl_trusted_certs, err, exc_info=True)
 
-	store.add_cert(ca_cert)
+	if ca_cert:
+		store.add_cert(ca_cert)
+
 	store_ctx = X509StoreContext(store, cert)
 	store_ctx.verify_certificate()
 
@@ -340,6 +342,19 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 
 	if config.ssl_server_key == config.ssl_server_cert:
 		raise ValueError("SSL server key and cert cannot be stored in the same file")
+
+	ca_cert = load_ca_cert()
+	if ca_cert.get_issuer().CN != ca_cert.get_subject().CN:
+		# opsi CA is not self-signed. opsi CA is an intermediate CA.
+		try:
+			validate_cert(ca_cert)
+		except X509StoreContextError as err:
+			issuer_subject = str(ca_cert.get_issuer()).split("'")[1]
+			raise RuntimeError(
+				f"Opsi CA is an intermediate CA, issuer is {issuer_subject!r}, {err}. "
+				f"Make sure issuer certficate is in {config.ssl_trusted_certs!r} "
+				"or specify a certificate database containing the issuer certificate via --ssl-trusted-certs."
+			) from err
 
 	create = False
 
@@ -378,7 +393,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 
 	if not create and srv_crt:
 		try:
-			validate_cert(srv_crt, load_ca_cert())
+			validate_cert(srv_crt, ca_cert)
 		except X509StoreContextError as err:
 			logger.warning("Failed to verify server cert with opsi CA (%s), creating new server cert", err)
 			create = True

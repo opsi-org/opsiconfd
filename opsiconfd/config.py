@@ -218,6 +218,11 @@ class Config(metaclass=Singleton):
 				secret_filter.add_secrets(url.password)
 		if not self._config.skip_setup:
 			self._config.skip_setup = []
+			if "ssl" in self._config.skip_setup:
+				if "opsi_ca" not in self._config.skip_setup:
+					self._config.skip_setup.append("opsi_ca")
+				if "server_cert" not in self._config.skip_setup:
+					self._config.skip_setup.append("server_cert")
 
 		if not self._config.admin_interface_disabled_features:
 			self._config.admin_interface_disabled_features = []
@@ -713,8 +718,8 @@ class Config(metaclass=Singleton):
 			default=None,
 			help=(
 				"A list of setup tasks to skip "
-				"(tasks: all, limits, users, groups, grafana, backend, ssl, systemd, "
-				"files, file_permissions, log_files, metric_downsampling)."
+				"(tasks: all, limits, users, groups, grafana, backend, ssl, server_cert, opsi_ca, "
+				"systemd, files, file_permissions, log_files, metric_downsampling)."
 			),
 			choices=[
 				"all",
@@ -724,6 +729,8 @@ class Config(metaclass=Singleton):
 				"grafana",
 				"backend",
 				"ssl",
+				"server_cert",
+				"opsi_ca",
 				"systemd",
 				"files",
 				"file_permissions",

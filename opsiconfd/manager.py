@@ -103,7 +103,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._loop.run_forever()
 
 	async def check_server_cert(self) -> None:
-		if "ssl" not in (config.skip_setup or []):
+		if "server_cert" not in config.skip_setup:
 			if setup_server_cert():
 				logger.notice("Server certificate changed, restarting all workers")
 				if self._server:

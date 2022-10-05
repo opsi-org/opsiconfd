@@ -449,8 +449,10 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 def setup_ssl() -> None:
 	logger.info("Setup ssl")
 	server_role = get_server_role()
-	setup_ca()
-	setup_server_cert()
+	if "opsi_ca" not in config.skip_setup:
+		setup_ca()
+	if "server_cert" not in config.skip_setup:
+		setup_server_cert()
 	if server_role == "config":
 		# Read CA key as root to fill key cache
 		# so run_as_user can use key from cache

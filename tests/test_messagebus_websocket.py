@@ -312,7 +312,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			message3 = TraceResponseMessage(
 				sender="@",
 				channel="$",
-				req_id=message2.id,
+				ref_id=message2.id,
 				req_trace=message2.trace,
 				trace={"sender_ws_send": timestamp()},
 				payload=message2.payload,
@@ -323,7 +323,7 @@ def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=red
 			message4 = TraceResponseMessage.from_dict(next(reader.get_messages()))
 			message4.trace["recipient_ws_receive"] = timestamp()
 
-			assert message4.req_id == message1.id
+			assert message4.ref_id == message1.id
 			assert message4.payload == message1.payload
 			trc = message4.req_trace
 			assert (

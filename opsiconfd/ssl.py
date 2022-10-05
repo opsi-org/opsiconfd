@@ -321,17 +321,18 @@ def validate_cert(cert: X509, ca_cert: X509 = None) -> None:
 	store_ctx = X509StoreContext(store, cert)
 	store_ctx.verify_certificate()
 
-	ca_cert_not_before = ca_cert.get_notBefore()
-	cert_not_before = cert.get_notBefore()
-	if ca_cert_not_before and cert_not_before:
-		dt_ca_cert_not_before = datetime.datetime.strptime(ca_cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
-		dt_cert_not_before = datetime.datetime.strptime(cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
-		if dt_ca_cert_not_before > dt_cert_not_before:
-			raise X509StoreContextError(  # type: ignore[call-arg]
-				message=f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}",
-				errors=[],
-				certificate=ca_cert,
-			)
+	if ca_cert:
+		ca_cert_not_before = ca_cert.get_notBefore()
+		cert_not_before = cert.get_notBefore()
+		if ca_cert_not_before and cert_not_before:
+			dt_ca_cert_not_before = datetime.datetime.strptime(ca_cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
+			dt_cert_not_before = datetime.datetime.strptime(cert_not_before.decode("utf-8"), "%Y%m%d%H%M%SZ")
+			if dt_ca_cert_not_before > dt_cert_not_before:
+				raise X509StoreContextError(  # type: ignore[call-arg]
+					message=f"CA is not valid before {dt_ca_cert_not_before} but certificate is valid before {dt_cert_not_before}",
+					errors=[],
+					certificate=ca_cert,
+				)
 
 
 def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals

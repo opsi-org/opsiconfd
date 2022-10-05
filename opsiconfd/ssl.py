@@ -14,6 +14,7 @@ import os
 import socket
 import time
 from ipaddress import ip_address
+from re import DOTALL, finditer
 from socket import gethostbyaddr
 from typing import Any, Dict, Set, Tuple
 
@@ -305,6 +306,15 @@ def setup_ca() -> bool:
 def validate_cert(cert: X509, ca_cert: X509) -> None:
 	"""Will throw a X509StoreContextError if cert is invalid"""
 	store = X509Store()
+
+	if os.path.exists(config.ssl_trusted_certs):
+		with open(config.ssl_trusted_certs, "r", encoding="utf-8") as file:
+			for match in finditer(r"(-+BEGIN CERTIFICATE-+.*?-+END CERTIFICATE-+)", file.read(), DOTALL):
+				try:  # pylint: disable=loop-try-except-usage
+					store.add_cert(load_certificate(FILETYPE_PEM, match.group(1).encode("ascii")))
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error("Failed to load certificate from %r: %s", config.ssl_trusted_certs, err, exc_info=True)
+
 	store.add_cert(ca_cert)
 	store_ctx = X509StoreContext(store, cert)
 	store_ctx.verify_certificate()

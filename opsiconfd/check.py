@@ -12,22 +12,34 @@ import re
 import subprocess
 from typing import List
 
+import redis
 import requests
 from packaging.version import parse
+from redis.exceptions import ConnectionError
 
+from opsiconfd.utils import (
+	async_get_redis_info,
+	async_redis_client,
+	decode_redis_result,
+)
+
+from .config import config
 from .logging import logger
 
+# TODO change to stable
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_11/"
 
 
 def health_check() -> None:
 	logger.notice("Started health check...")
 	check_system_packages()
+	check_redis()
 	logger.notice("Health check done...")
 
 
 def check_system_packages() -> None:
-	packages = ["opsiconfd", "opsi-utils", "opsipxeconfd", "opsi-server"]
+	logger.notice("Checking packages...")
+	packages = ["opsiconfd", "opsi-utils", "opsipxeconfd"]
 	package_versions = {}
 	for package in packages:
 		package_versions[package] = {"version": "0", "version_found": "0", "status": None}
@@ -49,19 +61,29 @@ def check_system_packages() -> None:
 	logger.info(package_versions)
 
 	for package, info in package_versions.items():
-		if parse(info.get("version", "0")) < parse(info.get("version_found", "0")):  # type: ignore
+		if info.get("status") != "ii":
+			logger.error("Package %s should be installed.", package)
+		elif parse(info.get("version", "0")) > parse(info.get("version_found", "0")):  # type: ignore
 			logger.warning(
 				"Package %s is outdated. Installed version: %s - avalible Version: %s",
 				package,
-				info.get("version", "0"),
 				info.get("version_found", "0"),
+				info.get("version", "0"),
 			)
-		elif info.get("status") != "ii":
-			logger.error("Package %s should be installed.", package)
+
 		else:
 			logger.info("Package %s is up to date", package)
 
-	# logger.devel(result.content)
+
+def check_redis() -> None:
+	logger.notice("Checking redis...")
+	try:
+		redis_client = redis.StrictRedis.from_url(config.redis_internal_url)
+		redis_info = decode_redis_result(redis_client.execute_command("INFO"))
+		logger.info(redis_info)
+	except ConnectionError as err:
+		logger.error("Cannot connect to redis!")
+		logger.info(str(err))
 
 
 def run_command(cmd: List[str], shell: bool = False, log_command: bool = True, log_output: bool = True) -> str:

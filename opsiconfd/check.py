@@ -10,9 +10,13 @@ health check
 
 import re
 import subprocess
-from distutils.version import LooseVersion
+
+import requests
+from packaging import version
 
 from .logging import logger
+
+REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_11/"
 
 
 def health_check():
@@ -22,12 +26,18 @@ def health_check():
 
 
 def check_system_packages():
-	packages = ["opsiconfd", "opsi-utils"]
+	packages = ["opsiconfd", "opsi-utils", "opsipxeconfd", "opsi-server"]
 	package_versions = {}
 	for package in packages:
-		package_versions[package] = {"version_found": None, "status": None}
+		package_versions[package] = {"version": "0", "version_found": "0", "status": None}
+		repo_data = requests.get(REPO_URL)
+		match = re.search(f"{package}_(.+?).tar.gz", repo_data.text)
+		if match:
+			found = match.group(1)
+			package_versions[package]["version"] = found
+			logger.debug(found)
 	regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
-	for line in run_command(["dpkg", "-l"]).split("\n"):
+	for line in run_command(["dpkg", "-l"], shell=False, log_command=True, log_output=False).split("\n"):
 		match = regex.search(line)
 		if not match:
 			continue
@@ -35,7 +45,22 @@ def check_system_packages():
 			logger.info("Package '%s' found: version '%s', status '%s'", match.group(2), match.group(3), match.group(1))
 			package_versions[match.group(2)]["version_found"] = match.group(3)
 			package_versions[match.group(2)]["status"] = match.group(1)
-	logger.devel(package_versions)
+	logger.info(package_versions)
+
+	for package, info in package_versions.items():
+		if version.parse(info.get("version", "0")) < version.parse(info.get("version_found", "0")):
+			logger.warning(
+				"Package %s is outdated. Installed version: %s - avalible Version: %s",
+				package,
+				info.get("version", "0"),
+				info.get("version_found", "0"),
+			)
+		elif info.get("status") != "ii":
+			logger.error("Package %s should be installed.", package)
+		else:
+			logger.info("Package %s is up to date", package)
+
+	# logger.devel(result.content)
 
 
 def run_command(cmd, shell=False, log_command=True, log_output=True):

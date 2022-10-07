@@ -69,7 +69,7 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 
 	if config.action == "health-check":
 		init_logging(log_mode="local")
-		logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
+		# logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
 		health_check()
 		return
 

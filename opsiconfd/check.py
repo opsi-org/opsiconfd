@@ -10,27 +10,28 @@ health check
 
 import re
 import subprocess
+from typing import List
 
 import requests
-from packaging import version
+from packaging.version import parse
 
 from .logging import logger
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_11/"
 
 
-def health_check():
+def health_check() -> None:
 	logger.notice("Started health check...")
 	check_system_packages()
 	logger.notice("Health check done...")
 
 
-def check_system_packages():
+def check_system_packages() -> None:
 	packages = ["opsiconfd", "opsi-utils", "opsipxeconfd", "opsi-server"]
 	package_versions = {}
 	for package in packages:
 		package_versions[package] = {"version": "0", "version_found": "0", "status": None}
-		repo_data = requests.get(REPO_URL)
+		repo_data = requests.get(REPO_URL, timeout=60)
 		match = re.search(f"{package}_(.+?).tar.gz", repo_data.text)
 		if match:
 			found = match.group(1)
@@ -48,7 +49,7 @@ def check_system_packages():
 	logger.info(package_versions)
 
 	for package, info in package_versions.items():
-		if version.parse(info.get("version", "0")) < version.parse(info.get("version_found", "0")):
+		if parse(info.get("version", "0")) < parse(info.get("version_found", "0")):  # type: ignore
 			logger.warning(
 				"Package %s is outdated. Installed version: %s - avalible Version: %s",
 				package,
@@ -63,7 +64,7 @@ def check_system_packages():
 	# logger.devel(result.content)
 
 
-def run_command(cmd, shell=False, log_command=True, log_output=True):
+def run_command(cmd: List[str], shell: bool = False, log_command: bool = True, log_output: bool = True) -> str:
 	if log_command:
 		logger.info("Executing: %s", cmd)
 

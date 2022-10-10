@@ -11,7 +11,6 @@ health check
 
 import re
 import subprocess
-from typing import List
 
 import redis
 from OPSI.System.Posix import (  # type: ignore[import]
@@ -144,5 +143,5 @@ def check_mysql() -> dict:
 			shell=False,
 		)
 		return {"status": "ok"}
-	except subprocess.CalledProcessError as err:
-		return {"status": "error", "details": err.output.decode("utf-8", "replace")}
+	except RuntimeError as err:
+		return {"status": "error", "details": str(err).split("\n")[1]}

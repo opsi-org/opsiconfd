@@ -22,6 +22,7 @@ from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd.check import health_check
 from opsiconfd.session import OPSISession, UserStore
 
 from . import (
@@ -130,10 +131,10 @@ async def async_backend_call(method: str, **kwargs: Any) -> Any:
 backend_interface = None  # pylint: disable=invalid-name
 
 
-def get_backend_interface() -> List[Dict[str, Any]]:
+def get_backend_interface() -> tuple[Dict[str, Any]]:
 	global backend_interface  # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
-		backend_interface = get_client_backend().backend_getInterface()
+		backend_interface = (*get_client_backend().backend_getInterface(), *OpsiconfdBackend().get_interface())
 	return backend_interface
 
 
@@ -182,10 +183,16 @@ class OpsiconfdBackend(metaclass=Singleton):
 		self._backend = get_client_backend()
 		self.method_names = [meth["name"] for meth in self._interface]
 
+	def get_interface(self) -> List[Dict[str, Any]]:
+		return self._interface
+
 	def backend_exit(self) -> None:
 		session = contextvar_client_session.get()
 		if session:
 			session.sync_delete()
+
+	def check_server_health(self) -> dict:
+		return health_check()
 
 	def getDomain(self) -> str:  # pylint: disable=invalid-name
 		try:

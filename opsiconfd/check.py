@@ -27,8 +27,7 @@ from opsiconfd.utils import decode_redis_result
 from .config import config as opsiconfd_config
 from .logging import logger
 
-# TODO change to stable
-REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/development/Debian_11/"
+REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 
 
 def health_check() -> dict:

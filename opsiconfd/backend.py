@@ -135,9 +135,10 @@ def get_backend_interface() -> List[Dict[str, Any]]:
 	global backend_interface  # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
 		backend_interface = get_client_backend().backend_getInterface()
-		for method in OpsiconfdBackend().get_interface():  # pylint: disable=use-list-comprehension
-			if method not in backend_interface:  # pylint: disable=loop-global-usage
-				backend_interface.append(method)  # pylint: disable=loop-global-usage
+		backend_methods = [method["name"] for method in backend_interface]
+		for opsiconfd_method in OpsiconfdBackend().get_interface():  # pylint: disable=use-list-comprehension
+			if opsiconfd_method["name"] not in backend_methods:  # pylint: disable=loop-global-usage
+				backend_interface.append(opsiconfd_method)  # pylint: disable=loop-global-usage
 	return backend_interface  # type: ignore
 
 

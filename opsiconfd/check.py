@@ -81,7 +81,7 @@ def check_system_packages() -> dict:  # pylint: disable=too-many-branches
 	for package, info in package_versions.items():
 		result[package] = {}
 		if info.get("status") != "ii":
-			result[package] = {"status": "not installed"}
+			result[package] = {"status": "error"}
 			logger.error("Package %s should be installed.", package)
 		elif parse(info.get("version", "0")) > parse(info.get("version_found", "0")):  # type: ignore
 			logger.warning(
@@ -91,13 +91,13 @@ def check_system_packages() -> dict:  # pylint: disable=too-many-branches
 				info.get("version", "0"),
 			)
 			result[package] = {
-				"status": "outdated",
+				"status": "warn",
 				"details": f"Installed version: {info.get('version_found')} - avalible version: {info.get('version')}",
 			}
 
 		else:
 			logger.info("Package %s is up to date", package)
-			result[package] = {"status": "up to date"}
+			result[package] = {"status": "ok"}
 	return result
 
 
@@ -106,8 +106,10 @@ def check_redis() -> dict:
 	try:
 		redis_client = redis.StrictRedis.from_url(opsiconfd_config.redis_internal_url)
 		redis_info = decode_redis_result(redis_client.execute_command("INFO"))
-		# TODO test if redis-timeseries is loaded
 		logger.info(redis_info)
+		modules = [module["name"] for module in redis_info["modules"]]
+		if "timeseries" not in modules:
+			return {"status": "err", "details": "Redis-Timeseries not loaded."}
 		return {"status": "ok"}
 	except RedisConnectionError as err:
 		logger.error("Cannot connect to redis!")

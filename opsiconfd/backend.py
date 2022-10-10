@@ -131,11 +131,14 @@ async def async_backend_call(method: str, **kwargs: Any) -> Any:
 backend_interface = None  # pylint: disable=invalid-name
 
 
-def get_backend_interface() -> tuple[Dict[str, Any]]:
+def get_backend_interface() -> List[Dict[str, Any]]:
 	global backend_interface  # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
-		backend_interface = (*get_client_backend().backend_getInterface(), *OpsiconfdBackend().get_interface())
-	return backend_interface
+		backend_interface = get_client_backend().backend_getInterface()
+		for method in OpsiconfdBackend().get_interface():  # pylint: disable=use-list-comprehension
+			if method not in backend_interface:  # pylint: disable=loop-global-usage
+				backend_interface.append(method)  # pylint: disable=loop-global-usage
+	return backend_interface  # type: ignore
 
 
 def get_server_role() -> str:

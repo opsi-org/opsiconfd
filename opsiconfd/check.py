@@ -10,7 +10,6 @@ health check
 
 
 import re
-import subprocess
 
 import redis
 from OPSI.System.Posix import (  # type: ignore[import]

@@ -14,7 +14,12 @@ import subprocess
 from typing import List
 
 import redis
-from OPSI.System.Posix import isOpenSUSE, isRHEL, isSLES  # type: ignore[import]
+from OPSI.System.Posix import (  # type: ignore[import]
+	execute,
+	isOpenSUSE,
+	isRHEL,
+	isSLES,
+)
 from packaging.version import parse
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
@@ -56,7 +61,7 @@ def check_system_packages() -> dict:  # pylint: disable=too-many-branches
 	if isOpenSUSE() or isRHEL() or isSLES():
 		cmd = ["yum", "list", "installed"]
 		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+).*$")
-		for line in run_command(cmd, shell=False, log_command=True, log_output=False).split("\n"):
+		for line in execute(cmd, shell=False):
 			match = regex.search(line)
 			if not match:
 				continue
@@ -68,7 +73,7 @@ def check_system_packages() -> dict:  # pylint: disable=too-many-branches
 	else:
 		cmd = ["dpkg", "-l"]  # pylint: disable=use-tuple-over-list
 		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
-		for line in run_command(cmd, shell=False, log_command=True, log_output=False).split("\n"):
+		for line in execute(cmd, shell=False):
 			match = regex.search(line)
 			if not match:
 				continue
@@ -126,7 +131,7 @@ def check_mysql() -> dict:
 
 	mysql_config = mysql_data["config"]
 	try:
-		run_command(
+		execute(
 			[
 				"mysql",
 				f"--user={mysql_config.get('username')}",  # type: ignore[attr-defined]
@@ -137,26 +142,7 @@ def check_mysql() -> dict:
 				"SHOW TABLES;",
 			],
 			shell=False,
-			log_command=True,
-			log_output=True,
 		)
 		return {"status": "ok"}
 	except subprocess.CalledProcessError as err:
 		return {"status": "error", "details": err.output.decode("utf-8", "replace")}
-
-
-def run_command(cmd: List[str], shell: bool = False, log_command: bool = True, log_output: bool = True) -> str:
-	if log_command:
-		logger.info("Executing: %s", cmd)
-
-	try:
-		out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=shell).decode("utf-8").strip()
-		if log_output:
-			logger.debug(out)
-	except subprocess.CalledProcessError as err:
-		out = err.output.decode("utf-8", "replace")
-		logger.error("Command failed: %s", err)
-		if log_output:
-			logger.error(out)
-		raise
-	return out

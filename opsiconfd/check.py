@@ -103,12 +103,21 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 				continue
 			p_name = match.group(1).split(".")[0]
 			if p_name in package_versions:
-				print("Package '%s' found: version '%s', status '%s'", p_name, match.group(2), "ii")
+				logger.info("Package '%s' found: version '%s', status '%s'", p_name, match.group(2), "ii")
 				package_versions[p_name]["version_found"] = match.group(2)
 				package_versions[p_name]["status"] = "ii"
 	elif isOpenSUSE():
-		# TODO zypper...
-		logger.devel("not implemented...")
+		cmd = ["zypper", "search", "-is", "opsi*"]
+		regex = re.compile(r"^[^S]\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+).*$")
+		for line in execute(cmd, shell=False):
+			match = regex.search(line)
+			if not match:
+				continue
+			p_name = match.group(1)
+			if p_name in package_versions:
+				logger.info("Package '%s' found: version '%s', status '%s'", p_name, match.group(3), "ii")
+				package_versions[p_name]["version_found"] = match.group(3)
+				package_versions[p_name]["status"] = "ii"
 	else:
 		cmd = ["dpkg", "-l"]  # pylint: disable=use-tuple-over-list
 		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")

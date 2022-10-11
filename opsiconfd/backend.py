@@ -195,7 +195,7 @@ class OpsiconfdBackend(metaclass=Singleton):
 		if session:
 			session.sync_delete()
 
-	def check_server_health(self) -> dict:
+	def server_checkHealth(self) -> dict:  # pylint: disable=invalid-name
 		return health_check()
 
 	def getDomain(self) -> str:  # pylint: disable=invalid-name

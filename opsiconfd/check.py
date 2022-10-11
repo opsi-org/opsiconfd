@@ -109,7 +109,6 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 	elif isOpenSUSE():
 		# TODO zypper...
 		logger.devel("not implemented...")
-		pass
 	else:
 		cmd = ["dpkg", "-l"]  # pylint: disable=use-tuple-over-list
 		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")

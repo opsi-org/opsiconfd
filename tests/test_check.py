@@ -156,23 +156,24 @@ def test_get_repo_versions() -> None:
 			assert result.get(package, {}).get("version") == "4.2.0.183-1"
 
 
-def test_check_system_packages() -> None:
-	# return outdated versions
+def test_check_system_packages_debian() -> None:
 	packages = {
 		"opsiconfd": "4.2.0.200-1",
 		"opsi-utils": "4.2.0.180-1"
 	}
 	dpkg_lines = []
-	# {"opsi-utils": {"version": "4.2.0.180-1", "status": None}, "opsiconfd": {"version": "4.2.0.200-1", "status": None}}
-	package_versions = {}
+	test_package_versions = {}
 
 	for name, version in packages.items():
 		dpkg_lines.append(f"ii  {name}                         {version}                       amd64        Package description")
-		package_versions[name] = {"version": version, "status": None}
+		test_package_versions[name] = {"version": version, "status": None}
 
 	with (
-		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=package_versions)),
-		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines))
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
+		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
+		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
+		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
+		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False))
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 
@@ -185,3 +186,73 @@ def test_check_system_packages() -> None:
 			assert data.get(name, {}).get("status") is not None
 			assert data[name]["status"] == "ok"
 			assert data[name]["details"] == f"Installed version: {version}"
+
+
+def test_check_system_packages_open_suse() -> None:
+	packages = {
+		"opsiconfd": "4.2.0.200-1",
+		"opsi-utils": "4.2.0.180-1"
+	}
+
+	zypper_lines = [
+		"S  | Name                 | Typ   | Version             | Arch   | Repository",
+		"---+----------------------+-------+---------------------+--------+------------------------------"
+	]
+	test_package_versions = {}
+
+	for name, version in packages.items():
+		zypper_lines.append(f"i  | {name}            | Paket | {version} | x86_64 | opsi 4.2 (openSUSE_Leap_15.2)")
+		test_package_versions[name] = {"version": version, "status": None}
+
+	with (
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
+		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=zypper_lines)),
+		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=True)),
+		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
+		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False))
+	):
+		result2 = captured_function_output(check_system_packages, {"print_messages": True})
+
+		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		for name, version in packages.items():
+			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
+		assert result2.get("captured_output") == text
+		data2 = result2.get("data", {})
+		for name, version in packages.items():
+			assert data2.get(name, {}).get("status") is not None
+			assert data2[name]["status"] == "ok"
+			assert data2[name]["details"] == f"Installed version: {version}"
+
+
+def test_check_system_packages_redhat() -> None:
+	packages = {
+		"opsiconfd": "4.2.0.200-1",
+		"opsi-utils": "4.2.0.180-1"
+	}
+
+	yum_lines = [
+		"Subscription Management Repositorys werden aktualisiert.",
+		"Installierte Pakete"
+	]
+	test_package_versions = {}
+
+	for name, version in packages.items():
+		yum_lines.append(f"{name}.x86_64     {version}    @home_uibmz_opsi_4.2_stable ")
+		test_package_versions[name] = {"version": version, "status": None}
+
+	with (
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
+		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=yum_lines)),
+		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=True))
+	):
+		result2 = captured_function_output(check_system_packages, {"print_messages": True})
+
+		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		for name, version in packages.items():
+			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
+		assert result2.get("captured_output") == text
+		data2 = result2.get("data", {})
+		for name, version in packages.items():
+			assert data2.get(name, {}).get("status") is not None
+			assert data2[name]["status"] == "ok"
+			assert data2[name]["details"] == f"Installed version: {version}"

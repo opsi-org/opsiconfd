@@ -14,10 +14,11 @@ import sys
 from typing import Any, Callable, Dict
 from unittest import mock
 
+import requests
 from colorama import Fore, Style  # type: ignore[import]
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from opsiconfd.check import check_mysql, check_redis
+from opsiconfd.check import PACKAGES, check_mysql, check_redis, get_repo_versions
 
 
 def captured_function_output(func: Callable, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -126,3 +127,24 @@ def test_check_mysql_error() -> None:
 		assert data.get("status") is not None
 		assert data["status"] == "error"
 		assert data["details"] == "Mysql test error"
+
+
+def test_get_repo_versions() -> None:
+	result = get_repo_versions()
+	for package in PACKAGES:
+		assert package in result
+
+	packages = ("opsiconfd", "opsi-utils")
+	with open("tests/data/check/repo.html", "r", encoding="utf-8") as html_file:
+		html_str = html_file.read()
+	res = requests.Response()
+	res.status_code = 200
+	type(res).text = mock.PropertyMock(return_value=html_str)  # type: ignore[assignment]
+	result = get_repo_versions()
+
+	for package in packages:
+		assert package in result
+		if package == "opsiconfd":
+			assert result.get(package, {}).get("version") == "4.2.0.286-1"
+		if package == "opsi-utils":
+			assert result.get(package, {}).get("version") == "4.2.0.183-1"

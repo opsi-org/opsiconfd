@@ -33,6 +33,8 @@ from .logging import logger
 from .utils import redis_client
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
+PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
+
 
 MT_INFO = "info"
 MT_SUCCESS = "success"
@@ -52,21 +54,20 @@ def health_check(print_messages: bool = False) -> dict:
 	return result
 
 
-def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-branches, too-many-statements
-	if print_messages:
-		show_message("Checking packages...")
-	packages = ("opsiconfd", "opsi-utils", "opsipxeconfd")
-	package_versions: Dict[str, Dict[str, Any]] = {}
-	result: Dict[str, Dict[str, Any]] = {}
+def get_repo_versions() -> Dict[str, Any]:
 	url = REPO_URL
+	packages = PACKAGES
 	repo_data = None
+
+	package_versions: Dict[str, Dict[str, Any]] = {}
+
 	try:
 		repo_data = get(url, timeout=10)
 	except (RequestConnectionError, ConnectTimeout) as err:
 		logger.error(str(err))
 	if not repo_data or repo_data.status_code >= 400:
 		logger.error("Could not get package versions from repository.")
-		return result
+		return {}
 	for package in packages:
 		package_versions[package] = {"version": "0", "status": None}
 
@@ -75,6 +76,15 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 			version = match.group(1)
 			package_versions[package]["version"] = version
 			logger.debug("Available version for %s: %s.", package, version)
+	return package_versions
+
+
+def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-branches, too-many-statements
+	if print_messages:
+		show_message("Checking packages...")
+	result: Dict[str, Dict[str, Any]] = {}
+
+	package_versions = get_repo_versions()
 
 	if isRHEL() or isSLES():
 		cmd = ["yum", "list", "installed"]
@@ -182,12 +192,14 @@ def check_mysql(print_messages: bool = False) -> dict:
 			shell=False,
 		)
 		if print_messages:
-			show_message("Connection to mysql ist working.", MT_SUCCESS)
+			show_message("Connection to mysql is working.", MT_SUCCESS)
 		return {"status": "ok", "details": "Connection to mysql is working."}
 	except RuntimeError as err:
+		logger.debug(err)
+		error = str(err).split("\n")[1]
 		if print_messages:
-			show_message(str(err).split("\n")[1], MT_ERROR)
-		return {"status": "error", "details": str(err).split("\n")[1]}
+			show_message(f"Could not connect to mysql: {error}", MT_ERROR)
+		return {"status": "error", "details": error}
 
 
 def show_message(message: str, msg_type: str = MT_INFO, newline: bool = True, msg_format: Optional[str] = None, log: bool = False) -> None:

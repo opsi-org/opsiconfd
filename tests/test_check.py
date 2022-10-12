@@ -24,6 +24,7 @@ from opsiconfd.check import (
 	check_redis,
 	check_system_packages,
 	get_repo_versions,
+	health_check,
 )
 
 
@@ -256,3 +257,12 @@ def test_check_system_packages_redhat() -> None:
 			assert data2.get(name, {}).get("status") is not None
 			assert data2[name]["status"] == "ok"
 			assert data2[name]["details"] == f"Installed version: {version}"
+
+
+def test_health_check() -> None:
+	result = health_check()
+	assert result.get("system_packages") is not None
+	assert result.get("redis") is not None
+	assert result["redis"]["status"] == "ok"
+	assert result.get("mysql") is not None
+	assert result["mysql"]["status"] == "ok"

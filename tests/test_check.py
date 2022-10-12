@@ -13,7 +13,6 @@ import io
 import sys
 from unittest import mock
 
-import pytest
 from colorama import Fore, Style  # type: ignore[import]
 from redis.exceptions import ConnectionError as RedisConnectionError
 

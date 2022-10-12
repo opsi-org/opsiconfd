@@ -157,22 +157,31 @@ def test_get_repo_versions() -> None:
 
 
 def test_check_system_packages() -> None:
-	with mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value={"opsi-utils": {"version": "0", "status": None}})):
+	# return outdated versions
+	packages = {
+		"opsiconfd": "4.2.0.200-1",
+		"opsi-utils": "4.2.0.180-1"
+	}
+	dpkg_lines = []
+	# {"opsi-utils": {"version": "4.2.0.180-1", "status": None}, "opsiconfd": {"version": "4.2.0.200-1", "status": None}}
+	package_versions = {}
+
+	for name, version in packages.items():
+		dpkg_lines.append(f"ii  {name}                         {version}                       amd64        Package description")
+		package_versions[name] = {"version": version, "status": None}
+
+	with (
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=package_versions)),
+		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines))
+	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
-		assert (
-			result.get("captured_output")
-			== Fore.WHITE
-			+ Style.BRIGHT
-			+ "Checking system packages..."
-			+ Style.RESET_ALL
-			+ "\n"
-			+ Fore.GREEN
-			+ Style.BRIGHT
-			+ "Package opsi-utils is up to date. Installed version: "
-			+ Style.RESET_ALL
-			+ "\n"
-		)
+
+		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		for name, version in packages.items():
+			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
+		assert result.get("captured_output") == text
 		data = result.get("data", {})
-		assert data.get("status") is not None
-		assert data["status"] == "ok"
-		assert data["details"] == "Connection to mysql is working."
+		for name, version in packages.items():
+			assert data.get(name, {}).get("status") is not None
+			assert data[name]["status"] == "ok"
+			assert data[name]["details"] == f"Installed version: {version}"

@@ -29,6 +29,7 @@ from requests.exceptions import ConnectTimeout
 
 from opsiconfd.utils import decode_redis_result
 
+from .config import config as opsi_config
 from .logging import logger
 from .utils import redis_client
 
@@ -81,7 +82,7 @@ def get_repo_versions() -> Dict[str, Any]:
 
 def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-branches, too-many-statements
 	if print_messages:
-		show_message("Checking packages...")
+		show_message("Checking system packages...")
 	result: Dict[str, Dict[str, Any]] = {}
 
 	package_versions = get_repo_versions()
@@ -174,7 +175,7 @@ def check_mysql(print_messages: bool = False) -> dict:
 		show_message("Checking mysql...")
 	mysql_data = {"module": "", "config": {}}
 
-	with open("/etc/opsi/backends/mysql.conf", encoding="utf-8") as config_file:
+	with open(os.path.join(opsi_config.backend_config_dir, "mysql.conf"), encoding="utf-8") as config_file:
 		exec(config_file.read(), mysql_data)  # pylint: disable=exec-used
 
 	mysql_config = mysql_data["config"]

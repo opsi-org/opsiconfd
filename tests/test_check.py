@@ -18,7 +18,13 @@ import requests
 from colorama import Fore, Style  # type: ignore[import]
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from opsiconfd.check import PACKAGES, check_mysql, check_redis, get_repo_versions
+from opsiconfd.check import (
+	PACKAGES,
+	check_mysql,
+	check_redis,
+	check_system_packages,
+	get_repo_versions,
+)
 
 
 def captured_function_output(func: Callable, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -140,7 +146,6 @@ def test_get_repo_versions() -> None:
 	res = requests.Response()
 	res.status_code = 200
 	with mock.patch("requests.Response.text", mock.PropertyMock(return_value=html_str)):
-		# type(res).text =   # type: ignore[assignment]
 		result = get_repo_versions()
 
 	for package in packages:
@@ -149,3 +154,25 @@ def test_get_repo_versions() -> None:
 			assert result.get(package, {}).get("version") == "4.2.0.286-1"
 		if package == "opsi-utils":
 			assert result.get(package, {}).get("version") == "4.2.0.183-1"
+
+
+def test_check_system_packages() -> None:
+	with mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value={"opsi-utils": {"version": "0", "status": None}})):
+		result = captured_function_output(check_system_packages, {"print_messages": True})
+		assert (
+			result.get("captured_output")
+			== Fore.WHITE
+			+ Style.BRIGHT
+			+ "Checking system packages..."
+			+ Style.RESET_ALL
+			+ "\n"
+			+ Fore.GREEN
+			+ Style.BRIGHT
+			+ "Package opsi-utils is up to date. Installed version: "
+			+ Style.RESET_ALL
+			+ "\n"
+		)
+		data = result.get("data", {})
+		assert data.get("status") is not None
+		assert data["status"] == "ok"
+		assert data["details"] == "Connection to mysql is working."

@@ -14,7 +14,7 @@ import re
 import sys
 from typing import Any, Dict, Optional
 
-from colorama import Fore, Style
+from colorama import Fore, Style  # type: ignore[import]
 from OPSI.System.Posix import (  # type: ignore[import]
 	execute,
 	isOpenSUSE,

@@ -12,7 +12,7 @@ health check
 import os
 import re
 import sys
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import redis
 from OPSI.System.Posix import (  # type: ignore[import]
@@ -24,6 +24,8 @@ from OPSI.System.Posix import (  # type: ignore[import]
 from packaging.version import parse
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
+from requests.exceptions import ConnectionError as RequestConnectionError
+from requests.exceptions import ConnectTimeout
 
 from opsiconfd.utils import decode_redis_result
 
@@ -70,7 +72,7 @@ def health_check(print_messages: bool = False) -> dict:
 	if print_messages:
 		show_message("Started health check...")
 	result = {}
-	result["system-packages"] = check_system_packages(print_messages)
+	result["system_packages"] = check_system_packages(print_messages)
 	result["redis"] = check_redis(print_messages)
 	result["mysql"] = check_mysql(print_messages)
 	if print_messages:
@@ -78,21 +80,29 @@ def health_check(print_messages: bool = False) -> dict:
 	return result
 
 
-def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-branches
+def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-branches, too-many-statements
 	if print_messages:
 		show_message("Checking packages...")
 	packages = ("opsiconfd", "opsi-utils", "opsipxeconfd")
-	package_versions = {}  # type: ignore[var-annotated]
-	result = {}  # type: ignore[var-annotated]
+	package_versions: Dict[str, Dict[str, Any]] = {}
+	result: Dict[str, Dict[str, Any]] = {}
 	url = REPO_URL
+	repo_data = None
+	try:
+		repo_data = get(url, timeout=10)
+	except (RequestConnectionError, ConnectTimeout) as err:
+		logger.error(str(err))
+	if not repo_data or repo_data.status_code >= 400:
+		logger.error("Could not get package versions from repository.")
+		return result
 	for package in packages:
 		package_versions[package] = {"version": "0", "version_found": "0", "status": None}
-		repo_data = get(url, timeout=60)
+
 		match = re.search(f"{package}_(.+?).tar.gz", repo_data.text)  # pylint: disable=dotted-import-in-loop
 		if match:
-			found = match.group(1)
-			package_versions[package]["version"] = found
-			logger.debug(found)
+			version = match.group(1)
+			package_versions[package]["version"] = version
+			logger.debug("Available version for %s: %s.", package, version)
 
 	if isRHEL() or isSLES():
 		cmd = ["yum", "list", "installed"]
@@ -103,9 +113,8 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 				continue
 			p_name = match.group(1).split(".")[0]
 			if p_name in package_versions:
-				logger.info("Package '%s' found: version '%s', status '%s'", p_name, match.group(2), "ii")
+				logger.info("Package '%s' found: version '%s'", p_name, match.group(2))
 				package_versions[p_name]["version_found"] = match.group(2)
-				package_versions[p_name]["status"] = "ii"
 	elif isOpenSUSE():
 		cmd = ["zypper", "search", "-is", "opsi*"]
 		regex = re.compile(r"^[^S]\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+).*$")
@@ -115,9 +124,8 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 				continue
 			p_name = match.group(1)
 			if p_name in package_versions:
-				logger.info("Package '%s' found: version '%s', status '%s'", p_name, match.group(3), "ii")
+				logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
 				package_versions[p_name]["version_found"] = match.group(3)
-				package_versions[p_name]["status"] = "ii"
 	else:
 		cmd = ["dpkg", "-l"]  # pylint: disable=use-tuple-over-list
 		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
@@ -126,21 +134,21 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 			if not match:
 				continue
 			if match.group(2) in package_versions:
-				logger.info("Package '%s' found: version '%s', status '%s'", match.group(2), match.group(3), match.group(1))
-				package_versions[match.group(2)]["version_found"] = match.group(3)
-				package_versions[match.group(2)]["status"] = match.group(1)
-	logger.info(package_versions)
+				logger.info("Package '%s' found: version '%s'", match.group(2), match.group(3))
+				if match.group(1) == "ii":
+					package_versions[match.group(2)]["version_found"] = match.group(3)
+	logger.info("Installed packages: %s", package_versions)
 
 	for package, info in package_versions.items():
 		result[package] = {}
-		if info.get("status") != "ii":
+		if "version_found" not in info:
 			result[package] = {"status": "error", "details": f"Package '{package}' is not installed."}
 			if print_messages:
 				show_message(f"Package {package} should be installed.", MT_ERROR)  # pylint: disable=loop-global-usage
-		elif parse(info.get("version", "0")) > parse(info.get("version_found", "0")):  # type: ignore
+		elif parse(info.get("version", "0")) > parse(info.get("version_found", "0")):
 			if print_messages:
 				show_message(
-					f"Package {package} is outdated. Installed version: {info.get('version_found')} - available version: info.get('version')",
+					f"Package {package} is outdated. Installed version: {info.get('version_found')} - available version: {info.get('version')}",
 					MT_WARNING,  # pylint: disable=loop-global-usage
 				)
 			result[package] = {
@@ -150,8 +158,9 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 		else:
 			if print_messages:
 				show_message(
-					f"Package {package} is up to date. Installed version: {info.get('version_found')}", MT_SUCCESS
-				)  # pylint: disable=loop-global-usage
+					f"Package {package} is up to date. Installed version: {info.get('version_found')}",
+					MT_SUCCESS,  # pylint: disable=loop-global-usage
+				)
 			result[package] = {"status": "ok", "details": f"Installed version: {info.get('version_found')}"}
 	return result
 

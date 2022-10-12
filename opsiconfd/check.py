@@ -12,8 +12,9 @@ health check
 import os
 import re
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
+from colorama import Fore, Style
 from OPSI.System.Posix import (  # type: ignore[import]
 	execute,
 	isOpenSUSE,
@@ -30,34 +31,6 @@ from opsiconfd.utils import decode_redis_result
 
 from .logging import logger
 from .utils import redis_client
-
-ATTRIBUTES = dict(list(zip(["bold", "dark", "", "underline", "blink", "", "reverse", "concealed"], list(range(1, 9)))))
-del ATTRIBUTES[""]
-
-HIGHLIGHTS = dict(
-	list(zip(["on_grey", "on_red", "on_green", "on_yellow", "on_blue", "on_magenta", "on_cyan", "on_white"], list(range(40, 48))))
-)
-
-COLORS = dict(
-	list(
-		zip(
-			[
-				"grey",
-				"red",
-				"green",
-				"yellow",
-				"blue",
-				"magenta",
-				"cyan",
-				"white",
-			],
-			list(range(30, 38)),
-		)
-	)
-)
-
-RESET = "\033[0m"
-
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 
@@ -95,7 +68,7 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 		logger.error("Could not get package versions from repository.")
 		return result
 	for package in packages:
-		package_versions[package] = {"version": "0", "version_found": "0", "status": None}
+		package_versions[package] = {"version": "0", "status": None}
 
 		match = re.search(f"{package}_(.+?).tar.gz", repo_data.text)  # pylint: disable=dotted-import-in-loop
 		if match:
@@ -227,50 +200,20 @@ def show_message(message: str, msg_type: str = MT_INFO, newline: bool = True, ms
 		exc_info = msg_type == MT_ERROR
 		getattr(logger, log_level)(message, exc_info=exc_info)
 
-	color = "white"
-	attrs = ["bold"]  # pylint: disable=use-tuple-over-list
+	# colorama: color and style https://github.com/tartley/colorama
+	color = Fore.WHITE
 	if msg_type == MT_WARNING:
-		color = "yellow"
+		color = Fore.YELLOW
 	elif msg_type == MT_ERROR:
-		color = "red"
+		color = Fore.RED
 	elif msg_type == MT_SUCCESS:
-		color = "green"
+		color = Fore.GREEN
 	if msg_format:
 		message = msg_format % message
-	message = colored(message, color, attrs=attrs)
+	if os.getenv("ANSI_COLORS_DISABLED") is None:
+		message = color + Style.BRIGHT + message + Style.RESET_ALL
+
 	sys.stdout.write(message)
 	if newline:
 		sys.stdout.write("\n")
 	sys.stdout.flush()
-
-
-def colored(text: str, color: Optional[str] = None, on_color: Optional[str] = None, attrs: Optional[List[str]] = None) -> str:
-	"""Colorize text.
-
-	Available text colors:
-		red, green, yellow, blue, magenta, cyan, white.
-
-	Available text highlights:
-		on_red, on_green, on_yellow, on_blue, on_magenta, on_cyan, on_white.
-
-	Available attributes:
-		bold, dark, underline, blink, reverse, concealed.
-
-	Example:
-		colored('Hello, World!', 'red', 'on_grey', ['blue', 'blink'])
-		colored('Hello, World!', 'green')
-	"""
-	if os.getenv("ANSI_COLORS_DISABLED") is None:
-		fmt_str = "\033[%dm%s"
-		if color is not None:
-			text = fmt_str % (COLORS[color], text)
-
-		if on_color is not None:
-			text = fmt_str % (HIGHLIGHTS[on_color], text)
-
-		if attrs is not None:
-			for attr in attrs:
-				text = fmt_str % (ATTRIBUTES[attr], text)  # pylint: disable=loop-global-usage
-
-		text += RESET
-	return text

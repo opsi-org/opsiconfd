@@ -14,7 +14,6 @@ import re
 import sys
 from typing import Any, Dict, List, Optional
 
-import redis
 from OPSI.System.Posix import (  # type: ignore[import]
 	execute,
 	isOpenSUSE,
@@ -29,8 +28,8 @@ from requests.exceptions import ConnectTimeout
 
 from opsiconfd.utils import decode_redis_result
 
-from .config import config as opsiconfd_config
 from .logging import logger
+from .utils import redis_client
 
 ATTRIBUTES = dict(list(zip(["bold", "dark", "", "underline", "blink", "", "reverse", "concealed"], list(range(1, 9)))))
 del ATTRIBUTES[""]
@@ -169,17 +168,17 @@ def check_redis(print_messages: bool = False) -> dict:
 	if print_messages:
 		show_message("Checking redis...")
 	try:
-		redis_client = redis.StrictRedis.from_url(opsiconfd_config.redis_internal_url)
-		redis_info = decode_redis_result(redis_client.execute_command("INFO"))
-		logger.info(redis_info)
-		modules = [module["name"] for module in redis_info["modules"]]
-		if "timeseries" not in modules:
+		with redis_client(timeout=5, test_connection=True) as redis:
+			redis_info = decode_redis_result(redis.execute_command("INFO"))
+			logger.info(redis_info)
+			modules = [module["name"] for module in redis_info["modules"]]
+			if "timeseries" not in modules:
+				if print_messages:
+					show_message("Redis-Timeseries not loaded.", MT_ERROR)
+				return {"status": "err", "details": "Redis-Timeseries not loaded."}
 			if print_messages:
-				show_message("Redis-Timeseries not loaded.", MT_ERROR)
-			return {"status": "err", "details": "Redis-Timeseries not loaded."}
-		if print_messages:
-			show_message("Redis is running and Redis-Timeseries is loaded.", MT_SUCCESS)
-		return {"status": "ok", "details": "Redis is running and Redis-Timeseries is loaded."}
+				show_message("Redis is running and Redis-Timeseries is loaded.", MT_SUCCESS)
+			return {"status": "ok", "details": "Redis is running and Redis-Timeseries is loaded."}
 	except RedisConnectionError as err:
 		logger.info(str(err))
 		if print_messages:

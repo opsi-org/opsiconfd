@@ -139,8 +139,9 @@ def test_get_repo_versions() -> None:
 		html_str = html_file.read()
 	res = requests.Response()
 	res.status_code = 200
-	type(res).text = mock.PropertyMock(return_value=html_str)  # type: ignore[assignment]
-	result = get_repo_versions()
+	with mock.patch("requests.Response.text", mock.PropertyMock(return_value=html_str)):
+		# type(res).text =   # type: ignore[assignment]
+		result = get_repo_versions()
 
 	for package in packages:
 		assert package in result

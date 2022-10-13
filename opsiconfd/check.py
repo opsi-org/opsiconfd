@@ -65,9 +65,11 @@ def get_repo_versions() -> Dict[str, Any]:
 	try:
 		repo_data = get(url, timeout=10)
 	except (RequestConnectionError, ConnectTimeout) as err:
-		logger.error(str(err))
-	if not repo_data or repo_data.status_code >= 400:
 		logger.error("Could not get package versions from repository.")
+		logger.error(str(err))
+		return {}
+	if repo_data.status_code >= 400:
+		logger.error("Could not get package versions from repository: %d - %s.", repo_data.status_code, repo_data.text)
 		return {}
 	for package in packages:
 		package_versions[package] = {"version": "0", "status": None}
@@ -86,40 +88,44 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 	result: Dict[str, Dict[str, Any]] = {}
 
 	package_versions = get_repo_versions()
-
-	if isRHEL() or isSLES():
-		cmd = ["yum", "list", "installed"]
-		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+).*$")
-		for line in execute(cmd, shell=False):
-			match = regex.search(line)
-			if not match:
-				continue
-			p_name = match.group(1).split(".")[0]
-			if p_name in package_versions:
-				logger.info("Package '%s' found: version '%s'", p_name, match.group(2))
-				package_versions[p_name]["version_found"] = match.group(2)
-	elif isOpenSUSE():
-		cmd = ["zypper", "search", "-is", "opsi*"]
-		regex = re.compile(r"^[^S]\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+).*$")
-		for line in execute(cmd, shell=False):
-			match = regex.search(line)
-			if not match:
-				continue
-			p_name = match.group(1)
-			if p_name in package_versions:
-				logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
-				package_versions[p_name]["version_found"] = match.group(3)
-	else:
-		cmd = ["dpkg", "-l"]  # pylint: disable=use-tuple-over-list
-		regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
-		for line in execute(cmd, shell=False):
-			match = regex.search(line)
-			if not match:
-				continue
-			if match.group(2) in package_versions:
-				logger.info("Package '%s' found: version '%s'", match.group(2), match.group(3))
-				if match.group(1) == "ii":
-					package_versions[match.group(2)]["version_found"] = match.group(3)
+	try:
+		if isRHEL() or isSLES():
+			cmd = ["yum", "list", "installed"]
+			regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+).*$")
+			for line in execute(cmd, shell=False, timeout=10):
+				match = regex.search(line)
+				if not match:
+					continue
+				p_name = match.group(1).split(".")[0]
+				if p_name in package_versions:
+					logger.info("Package '%s' found: version '%s'", p_name, match.group(2))
+					package_versions[p_name]["version_found"] = match.group(2)
+		elif isOpenSUSE():
+			cmd = ["zypper", "search", "-is", "opsi*"]
+			regex = re.compile(r"^[^S]\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+).*$")
+			for line in execute(cmd, shell=False, timeout=10):
+				match = regex.search(line)
+				if not match:
+					continue
+				p_name = match.group(1)
+				if p_name in package_versions:
+					logger.info("Package '%s' found: version '%s'", p_name, match.group(3))
+					package_versions[p_name]["version_found"] = match.group(3)
+		else:
+			cmd = ["dpkg", "-l"]  # pylint: disable=use-tuple-over-list
+			regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
+			for line in execute(cmd, shell=False, timeout=10):
+				match = regex.search(line)
+				if not match:
+					continue
+				if match.group(2) in package_versions:
+					logger.info("Package '%s' found: version '%s'", match.group(2), match.group(3))
+					if match.group(1) == "ii":
+						package_versions[match.group(2)]["version_found"] = match.group(3)
+	except RuntimeError as err:
+		logger.error("Could not get package versions from system.")
+		logger.error(err)
+		return {}
 	logger.info("Installed packages: %s", package_versions)
 
 	for package, info in package_versions.items():
@@ -128,23 +134,23 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 			result[package] = {"status": "error", "details": f"Package '{package}' is not installed."}
 			if print_messages:
 				show_message(f"Package {package} should be installed.", MT_ERROR)  # pylint: disable=loop-global-usage
-		elif parse(info.get("version", "0")) > parse(info.get("version_found", "0")):
+		elif parse(info["version"]) > parse(info["version_found"]):
 			if print_messages:
 				show_message(
-					f"Package {package} is outdated. Installed version: {info.get('version_found')} - available version: {info.get('version')}",
+					f"Package {package} is outdated. Installed version: {info['version_found']} - available version: {info['version']}",
 					MT_WARNING,  # pylint: disable=loop-global-usage
 				)
 			result[package] = {
 				"status": "warn",
-				"details": f"Package {package} is outdated. Installed version: {info.get('version_found')} - available version: {info.get('version')}",
+				"details": f"Package {package} is outdated. Installed version: {info['version_found']} - available version: {info['version']}",
 			}
 		else:
 			if print_messages:
 				show_message(
-					f"Package {package} is up to date. Installed version: {info.get('version_found')}",
+					f"Package {package} is up to date. Installed version: {info['version_found']}",
 					MT_SUCCESS,  # pylint: disable=loop-global-usage
 				)
-			result[package] = {"status": "ok", "details": f"Installed version: {info.get('version_found')}"}
+			result[package] = {"status": "ok", "details": f"Installed version: {info['version_found']}"}
 	return result
 
 

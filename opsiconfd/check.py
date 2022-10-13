@@ -15,7 +15,7 @@ import sys
 from typing import Any, Dict, Optional
 
 from colorama import Fore, Style  # type: ignore[import]
-from MySQLdb import OperationalError as MySQLdbOperationalError
+from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from OPSI.System.Posix import (  # type: ignore[import]
 	execute,
 	isOpenSUSE,
@@ -27,7 +27,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
-from sqlalchemy.exc import OperationalError as SqlalchemyOperationalError
+from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
 from opsiconfd.backend import get_mysql
 from opsiconfd.logging import logger
@@ -179,7 +179,7 @@ def check_mysql(print_messages: bool = False) -> dict:
 		if print_messages:
 			show_message("Connection to mysql is working.", MT_SUCCESS)
 		return {"status": "ok", "details": "Connection to mysql is working."}
-	except (RuntimeError, MySQLdbOperationalError, SqlalchemyOperationalError) as err:
+	except (RuntimeError, MySQLdbOperationalError, OperationalError) as err:
 		logger.debug(err)
 		error = str(err)
 		if print_messages:

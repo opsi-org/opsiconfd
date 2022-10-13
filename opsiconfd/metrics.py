@@ -14,7 +14,7 @@ import time
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Tuple
 
 import psutil
-from aioredis import ResponseError as AioRedisResponseError
+from redis import ResponseError
 
 from . import contextvar_server_timing
 from .config import config
@@ -257,7 +257,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 
 				try:  # pylint: disable=loop-try-except-usage
 					await self._execute_redis_command(*cmds)
-				except AioRedisResponseError as err:  # pylint: disable=broad-except
+				except ResponseError as err:  # pylint: disable=broad-except
 					if str(err).lower().startswith("unknown command"):  # pylint: disable=loop-invariant-statement
 						logger.error("RedisTimeSeries module missing, metrics collector ending")
 						return

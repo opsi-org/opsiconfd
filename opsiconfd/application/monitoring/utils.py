@@ -11,7 +11,7 @@ monitoring
 import re
 from typing import Any
 
-from aioredis import StrictRedis
+from redis.asyncio import StrictRedis
 from fastapi.responses import JSONResponse
 
 from opsiconfd.config import REDIS_PREFIX_SESSION

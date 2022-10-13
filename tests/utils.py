@@ -18,7 +18,7 @@ from threading import Event, Thread
 from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Type, Union
 from unittest.mock import patch
 
-import aioredis
+from redis import asyncio as aioredis
 import msgpack  # type: ignore[import]
 import MySQLdb  # type: ignore[import]
 import pytest

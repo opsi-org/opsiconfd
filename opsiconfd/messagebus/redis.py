@@ -14,9 +14,9 @@ from time import time
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
-from aioredis import StrictRedis
-from aioredis.client import StreamIdT
-from aioredis.exceptions import ResponseError
+from redis.asyncio import StrictRedis
+from redis.typing import StreamIdT
+from redis.exceptions import ResponseError
 from msgpack import dumps, loads  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]
 	Message,

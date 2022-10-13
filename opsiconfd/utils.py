@@ -31,7 +31,7 @@ with warnings.catch_warnings():
 	# Ignore warning 'distutils Version classes are deprecated. Use packaging.version instead.'
 	# aioredis/connection.py
 	warnings.simplefilter("ignore")
-	import aioredis
+	from redis import asyncio as aioredis
 
 import psutil
 import redis

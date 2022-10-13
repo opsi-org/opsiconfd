@@ -15,7 +15,7 @@ import json
 import socket
 import time
 
-import aioredis
+from redis import asyncio as aioredis
 import pytest
 import requests
 

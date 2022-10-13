@@ -14,7 +14,7 @@ from operator import itemgetter
 from time import time
 from typing import Any, Dict, List, Set
 
-import aioredis
+from redis import asyncio as aioredis
 from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 

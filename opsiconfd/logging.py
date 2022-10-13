@@ -24,7 +24,7 @@ from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
 from queue import Empty, Queue
 from typing import Any, Callable, Dict, TextIO
 
-import aioredis
+from redis import asyncio as aioredis
 import colorlog
 import msgpack  # type: ignore[import]
 from aiofiles.threadpool import AsyncTextIOWrapper  # type: ignore[import]

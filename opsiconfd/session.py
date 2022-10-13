@@ -16,7 +16,7 @@ from collections import namedtuple
 from time import sleep as time_sleep
 from typing import Any, Dict, List, Optional, Union
 
-import aioredis
+from redis import asyncio as aioredis
 from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import ValidationError
 from fastapi.requests import HTTPConnection

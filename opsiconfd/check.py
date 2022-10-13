@@ -15,6 +15,7 @@ import sys
 from typing import Any, Dict, Optional
 
 from colorama import Fore, Style  # type: ignore[import]
+from MySQLdb import OperationalError as MySQLdbOperationalError
 from OPSI.System.Posix import (  # type: ignore[import]
 	execute,
 	isOpenSUSE,
@@ -26,12 +27,11 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
+from sqlalchemy.exc import OperationalError as SqlalchemyOperationalError
 
-from opsiconfd.utils import decode_redis_result
-
-from .config import config as opsi_config
-from .logging import logger
-from .utils import redis_client
+from opsiconfd.backend import get_mysql
+from opsiconfd.logging import logger
+from opsiconfd.utils import decode_redis_result, redis_client
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
@@ -173,31 +173,15 @@ def check_redis(print_messages: bool = False) -> dict:
 def check_mysql(print_messages: bool = False) -> dict:
 	if print_messages:
 		show_message("Checking mysql...")
-	mysql_data = {"module": "", "config": {}}
-
-	with open(os.path.join(opsi_config.backend_config_dir, "mysql.conf"), encoding="utf-8") as config_file:
-		exec(config_file.read(), mysql_data)  # pylint: disable=exec-used
-
-	mysql_config = mysql_data["config"]
 	try:
-		execute(
-			[
-				"mysql",
-				f"--user={mysql_config.get('username')}",  # type: ignore[attr-defined]
-				f"--password={mysql_config.get('password')}",  # type: ignore[attr-defined]
-				f"--host={mysql_config.get('address')}",  # type: ignore[attr-defined]
-				f"--database={mysql_config.get('database')}",  # type: ignore[attr-defined]
-				"-e",
-				"SHOW TABLES;",
-			],
-			shell=False,
-		)
+		with get_mysql().session() as mysql_client:
+			mysql_client.execute("SHOW TABLES;")
 		if print_messages:
 			show_message("Connection to mysql is working.", MT_SUCCESS)
 		return {"status": "ok", "details": "Connection to mysql is working."}
-	except RuntimeError as err:
+	except (RuntimeError, MySQLdbOperationalError, SqlalchemyOperationalError) as err:
 		logger.debug(err)
-		error = str(err).split("\n")[1]
+		error = str(err)
 		if print_messages:
 			show_message(f"Could not connect to mysql: {error}", MT_ERROR)
 		return {"status": "error", "details": error}

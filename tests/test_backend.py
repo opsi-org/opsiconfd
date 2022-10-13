@@ -9,29 +9,30 @@ webdav tests
 """
 
 import requests
-from OpenSSL.crypto import FILETYPE_PEM, load_privatekey, load_certificate
+from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
 
 from opsiconfd import set_contextvars_from_contex
 from opsiconfd.backend import (
-	get_session,
-	get_user_store,
-	get_option_store,
+	execute_on_secondary_backends,
 	get_backend,
 	get_client_backend,
-	get_backend_interface,
-	get_server_role,
 	get_mysql,
-	execute_on_secondary_backends,
+	get_option_store,
+	get_server_role,
+	get_session,
+	get_user_store,
 )
+from opsiconfd.backend.interface import get_backend_interface
+
 from .utils import (  # pylint: disable=unused-import
+	ADMIN_PASS,
+	ADMIN_USER,
 	clean_redis,
+	client_jsonrpc,
 	config,
+	depot_jsonrpc,
 	get_config,
 	test_client,
-	depot_jsonrpc,
-	client_jsonrpc,
-	ADMIN_USER,
-	ADMIN_PASS,
 )
 
 

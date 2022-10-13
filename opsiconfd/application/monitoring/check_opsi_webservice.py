@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Dict
 
 import msgpack  # type: ignore[import]
-import orjson
+import orjson  # type: ignore[import]
 from fastapi.responses import JSONResponse
 
 from opsiconfd.application.jsonrpc import store_rpc_info

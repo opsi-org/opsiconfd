@@ -14,9 +14,6 @@ from time import time
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
-from redis.asyncio import StrictRedis
-from redis.typing import StreamIdT
-from redis.exceptions import ResponseError
 from msgpack import dumps, loads  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]
 	Message,
@@ -24,6 +21,9 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TraceResponseMessage,
 	timestamp,
 )
+from redis.asyncio import StrictRedis
+from redis.exceptions import ResponseError
+from redis.typing import StreamIdT
 
 from ..config import REDIS_PREFIX_MESSAGEBUS
 from ..logging import get_logger
@@ -294,4 +294,4 @@ class ConsumerGroupMessageReader(MessageReader):
 		stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
 		if stream_key not in self._streams:
 			raise ValueError(f"Invalid channel: {channel!r}")
-		await redis.xack(stream_key, self._consumer_group, redis_msg_id)
+		await redis.xack(stream_key, self._consumer_group, redis_msg_id)  # type: ignore[no-untyped-call]

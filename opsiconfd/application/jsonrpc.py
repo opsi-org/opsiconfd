@@ -20,7 +20,7 @@ from time import perf_counter
 from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 
 import msgpack  # type: ignore[import]
-import orjson
+import orjson  # type: ignore[import]
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response

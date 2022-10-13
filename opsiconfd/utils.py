@@ -253,7 +253,7 @@ async def get_async_redis_connection(url: str, db: int = 0, timeout: int = 0, te
 					new_pool = True
 					aioredis_connection_pool[con_id] = aioredis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage
 			# This will return a client (no Exception) even if connection is currently lost
-			client = aioredis.StrictRedis(connection_pool=aioredis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-global-usage
+			client: aioredis.StrictRedis = aioredis.StrictRedis(connection_pool=aioredis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-global-usage
 			if new_pool or test_connection:
 				await client.ping()
 			return client

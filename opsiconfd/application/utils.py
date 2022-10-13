@@ -20,7 +20,7 @@ from fastapi.dependencies.utils import (
 )
 from fastapi.exceptions import WebSocketRequestValidationError
 from msgpack import dumps as msgpack_dumps  # type: ignore[import]
-from orjson import loads  # pylint: disable=no-name-in-module
+from orjson import loads  # type: ignore[import] # pylint: disable=no-name-in-module
 from starlette.endpoints import WebSocketEndpoint
 from starlette.status import (
 	HTTP_401_UNAUTHORIZED,

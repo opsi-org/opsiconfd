@@ -123,8 +123,7 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 					if match.group(1) == "ii":
 						package_versions[match.group(2)]["version_found"] = match.group(3)
 	except RuntimeError as err:
-		logger.error("Could not get package versions from system.")
-		logger.error(err)
+		logger.error("Could not get package versions from system: %s", err)
 		return {}
 	logger.info("Installed packages: %s", package_versions)
 

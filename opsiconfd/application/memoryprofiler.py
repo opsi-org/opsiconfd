@@ -22,7 +22,6 @@ import objgraph  # type: ignore[import]
 import psutil
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from guppy import hpy  # type: ignore[import]
 from pympler import classtracker, tracker  # type: ignore[import]
 from pympler.classtracker import Snapshot  # type: ignore[import]
 from pympler.classtracker_stats import ConsoleStats  # type: ignore[import]
@@ -322,129 +321,6 @@ async def delte_class_tracker() -> JSONResponse:
 	CLASS_TRACKER = None
 
 	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted class tracker."}})
-	return response
-
-
-@memory_profiler_router.post("/guppy")
-async def guppy_snapshot() -> JSONResponse:
-
-	global HEAP  # pylint: disable=global-statement
-	if not HEAP:
-		HEAP = hpy()
-
-	heap_status = HEAP.heap()
-	fn = io.StringIO()  # pylint: disable=invalid-name
-	heap_status.dump(fn)
-
-	redis = await async_redis_client()
-	node = config.node_name
-
-	async with redis.pipeline() as pipe:
-		await pipe.lpush(f"opsiconfd:stats:memory:heap:{node}", msgpack.dumps(fn.getvalue()))
-		await pipe.ltrim(f"opsiconfd:stats:memory:heap:{node}", 0, 9)
-		redis_result = await pipe.execute()
-	logger.debug("redis lpush memory summary: %s", redis_result)
-
-	heap_objects = [
-		{
-			"index": obj.index,
-			"name": obj.name,
-			"count": obj.count,
-			"size": convert_bytes(obj.size),
-			"cumulsize": convert_bytes(obj.cumulsize),
-		}
-		for obj in heap_status.stat.get_rows()
-	]
-
-	response = JSONResponse(
-		{
-			"status": 200,
-			"error": None,
-			"data": {"objects": heap_status.stat.count, "total_size": convert_bytes(heap_status.stat.size), "heap_status": heap_objects},
-		}
-	)
-	return response
-
-
-@memory_profiler_router.delete("/guppy")
-async def delte_guppy_snapshot() -> JSONResponse:
-
-	redis = await async_redis_client()
-	node = config.node_name
-
-	await redis.delete(f"opsiconfd:stats:memory:heap:{node}")
-
-	global HEAP  # pylint: disable=global-statement
-	HEAP = None
-
-	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Deleted all guppy heap snapshots."}})
-	return response
-
-
-@memory_profiler_router.get("/guppy/setref")
-async def guppy_set_ref() -> JSONResponse:
-
-	global HEAP  # pylint: disable=global-statement
-	if not HEAP:
-		HEAP = hpy()
-	HEAP.setref()
-
-	response = JSONResponse({"status": 200, "error": None, "data": {"msg": "Set new ref point"}})
-	return response
-
-
-@memory_profiler_router.get("/guppy/diff")
-async def guppy_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONResponse:  # pylint: disable=too-many-locals
-
-	global HEAP  # pylint: disable=global-statement
-	if not HEAP:
-		HEAP = hpy()
-
-	redis = await async_redis_client()
-	node = config.node_name
-	snapshot_count = await redis.llen(f"opsiconfd:stats:memory:heap:{node}")
-
-	if snapshot1 < 0:
-		start = abs(snapshot1) - 1
-	else:
-		start = snapshot_count - snapshot1
-
-	if snapshot2 < 0:
-		end = abs(snapshot2) - 1
-	else:
-		end = snapshot_count - snapshot2
-
-	redis_result = await redis.lindex(f"opsiconfd:stats:memory:heap:{node}", start)
-	fn1 = io.StringIO(msgpack.loads(redis_result))
-	snapshot1_heap = HEAP.load(fn1)
-	redis_result = await redis.lindex(f"opsiconfd:stats:memory:heap:{node}", end)
-	fn2 = io.StringIO(msgpack.loads(redis_result))
-	snapshot2_heap = HEAP.load(fn2)
-
-	heap_diff = snapshot2_heap - snapshot1_heap
-
-	logger.debug("Total Objects : %s", heap_diff.count)
-	logger.debug("Total Size : %s Bytes", heap_diff.size)
-	logger.debug("Number of Entries : %s", heap_diff.numrows)
-
-	heap_objects = [
-		{
-			"index": obj.index,
-			"name": obj.name,
-			"count": obj.count,
-			"size": convert_bytes(obj.size),
-			"cumulsize": convert_bytes(obj.cumulsize),
-		}
-		for obj in heap_diff.get_rows()
-	]
-
-	response = JSONResponse(
-		{
-			"status": 200,
-			"error": None,
-			"data": {"objects": heap_diff.count, "total_size": convert_bytes(heap_diff.size), "heap_diff": heap_objects},
-		}
-	)
 	return response
 
 

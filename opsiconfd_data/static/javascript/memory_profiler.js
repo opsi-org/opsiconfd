@@ -85,36 +85,6 @@ function diffMemorySnapshots() {
 	});
 }
 
-function takeHeapSnapshot() {
-	document.getElementById("memory-info").style.visibility = 'visible';
-	document.getElementById("memory-values").innerHTML = "loading...";
-	let req = ajaxRequest("POST", "/admin/memory/guppy");
-	req.then((result) => {
-		outputToHTML(result, "memory-values");
-		return result
-	});
-}
-
-function diffHeapSnapshots() {
-	document.getElementById("memory-info").style.visibility = 'visible';
-	document.getElementById("memory-values").innerHTML = "loading...";
-
-	snapshotNumber1 = document.getElementById("snapshot1").value;
-	snapshotNumber2 = document.getElementById("snapshot2").value;
-	if (snapshotNumber1 == "") {
-		snapshotNumber1 = 1
-	}
-	if (snapshotNumber2 == "") {
-		snapshotNumber2 = -1
-	}
-	url = "/admin/memory/guppy/diff?snapshot1=" + snapshotNumber1 + "&snapshot2=" + snapshotNumber2
-	let req = ajaxRequest("GET", url);
-	req.then((result) => {
-		outputToHTML(result, "memory-values");
-		return result
-	});
-}
-
 function takeClassSnapshot() {
 	document.getElementById("memory-info").style.visibility = 'visible';
 	document.getElementById("memory-values").innerHTML = "loading...";
@@ -145,14 +115,6 @@ function classSummary() {
 
 function deleteMemorySnapshots() {
 	let req = ajaxRequest("DELETE", "/admin/memory/snapshot");
-	req.then((result) => {
-		outputToHTML(result, "memory-values");
-		return result
-	});
-}
-
-function deleteHeapSnapshots() {
-	let req = ajaxRequest("DELETE", "/admin/memory/guppy");
 	req.then((result) => {
 		outputToHTML(result, "memory-values");
 		return result

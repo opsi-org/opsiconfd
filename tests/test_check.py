@@ -16,6 +16,7 @@ from unittest import mock
 
 import requests
 from colorama import Fore, Style  # type: ignore[import]
+from MySQLdb import OperationalError  # type: ignore[import]
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from opsiconfd.check import (
@@ -114,7 +115,10 @@ def test_check_mysql() -> None:
 
 def test_check_mysql_error() -> None:
 
-	with mock.patch("opsiconfd.check.execute", side_effect=RuntimeError("Command '[...]' failed (1):\nMysql test error")):
+	with mock.patch(
+		"opsiconfd.check.get_mysql",
+		side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
+	):
 		result = captured_function_output(check_mysql, {"print_messages": True})
 
 		assert (
@@ -126,14 +130,14 @@ def test_check_mysql_error() -> None:
 			+ "\n"
 			+ Fore.RED
 			+ Style.BRIGHT
-			+ "Could not connect to mysql: Mysql test error"
+			+ 'Could not connect to mysql: (MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
 			+ Style.RESET_ALL
 			+ "\n"
 		)
 		data = result.get("data", {})
 		assert data.get("status") is not None
 		assert data["status"] == "error"
-		assert data["details"] == "Mysql test error"
+		assert data["details"] == '(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
 
 
 def test_get_repo_versions() -> None:

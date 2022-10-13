@@ -162,6 +162,7 @@ def test_get_repo_versions() -> None:
 
 
 def test_check_system_packages_debian() -> None:
+	# test up to date packages - status sould be ok and output should be green
 	packages = {
 		"opsiconfd": "4.2.0.200-1",
 		"opsi-utils": "4.2.0.180-1"
@@ -192,6 +193,43 @@ def test_check_system_packages_debian() -> None:
 			assert data[name]["status"] == "ok"
 			assert data[name]["details"] == f"Installed version: {version}"
 
+	# test outdated packages - status sould be warn and output sould be in yellow
+	packages = {
+		"opsiconfd": "4.2.0.100-1",
+		"opsi-utils": "4.2.0.100-1"
+	}
+	dpkg_lines = []
+	for name, version in packages.items():  # pylint: disable=use-list-copy
+		dpkg_lines.append(f"ii  {name}                         {version}                       amd64        Package description")
+
+	with (
+		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
+		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
+		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
+		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
+		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False))
+	):
+		result = captured_function_output(check_system_packages, {"print_messages": True})
+		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		for name, version in packages.items():
+			text = (
+				text
+				+ Fore.YELLOW
+				+ Style.BRIGHT
+				+ f"Package {name} is outdated. Installed version: {version} - available version: {test_package_versions[name]['version']}"
+				+ Style.RESET_ALL
+				+ "\n"
+			)
+		assert result.get("captured_output") == text
+		data = result.get("data", {})
+		for name, version in packages.items():
+			assert data.get(name, {}).get("status") is not None
+			assert data[name]["status"] == "warn"
+			assert (
+				data[name]["details"] ==
+				f"Package {name} is outdated. Installed version: {version} - available version: {test_package_versions[name]['version']}"
+			)
+
 
 def test_check_system_packages_open_suse() -> None:
 	packages = {
@@ -216,17 +254,17 @@ def test_check_system_packages_open_suse() -> None:
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False))
 	):
-		result2 = captured_function_output(check_system_packages, {"print_messages": True})
+		result = captured_function_output(check_system_packages, {"print_messages": True})
 
 		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
 		for name, version in packages.items():
 			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
-		assert result2.get("captured_output") == text
-		data2 = result2.get("data", {})
+		assert result.get("captured_output") == text
+		data = result.get("data", {})
 		for name, version in packages.items():
-			assert data2.get(name, {}).get("status") is not None
-			assert data2[name]["status"] == "ok"
-			assert data2[name]["details"] == f"Installed version: {version}"
+			assert data.get(name, {}).get("status") is not None
+			assert data[name]["status"] == "ok"
+			assert data[name]["details"] == f"Installed version: {version}"
 
 
 def test_check_system_packages_redhat() -> None:
@@ -250,17 +288,17 @@ def test_check_system_packages_redhat() -> None:
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=yum_lines)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=True))
 	):
-		result2 = captured_function_output(check_system_packages, {"print_messages": True})
+		result = captured_function_output(check_system_packages, {"print_messages": True})
 
 		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
 		for name, version in packages.items():
 			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
-		assert result2.get("captured_output") == text
-		data2 = result2.get("data", {})
+		assert result.get("captured_output") == text
+		data = result.get("data", {})
 		for name, version in packages.items():
-			assert data2.get(name, {}).get("status") is not None
-			assert data2[name]["status"] == "ok"
-			assert data2[name]["details"] == f"Installed version: {version}"
+			assert data.get(name, {}).get("status") is not None
+			assert data[name]["status"] == "ok"
+			assert data[name]["details"] == f"Installed version: {version}"
 
 
 def test_health_check() -> None:

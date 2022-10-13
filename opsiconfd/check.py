@@ -136,7 +136,7 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 				)
 			result[package] = {
 				"status": "warn",
-				"details": f"Installed version: {info.get('version_found')} - available version: {info.get('version')}",
+				"details": f"Package {package} is outdated. Installed version: {info.get('version_found')} - available version: {info.get('version')}",
 			}
 		else:
 			if print_messages:

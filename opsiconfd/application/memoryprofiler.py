@@ -9,7 +9,6 @@ memoryprofiler
 """
 
 import gc
-import io
 import os
 import sys
 import tempfile

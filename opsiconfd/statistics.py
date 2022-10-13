@@ -10,7 +10,6 @@ statistics
 
 import asyncio
 import copy
-import re
 import time
 from typing import Any, Dict, List
 
@@ -20,7 +19,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import Message, Receive, Scope, Send
 
-from . import contextvar_client_address, contextvar_request_id, contextvar_server_timing
+from . import contextvar_client_address, contextvar_server_timing
 from .config import config
 from .logging import logger
 from .metrics import Metric, metrics_registry

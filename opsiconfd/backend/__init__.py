@@ -155,6 +155,3 @@ def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd"
 					result[backend_id] = {"data": None, "error": err}  # pylint: disable=loop-invariant-statement
 				backend._backends[backend_id]["instance"].backend_exit()  # pylint: disable=protected-access
 	return result
-
-
-

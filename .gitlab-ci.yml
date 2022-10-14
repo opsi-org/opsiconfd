@@ -17,6 +17,8 @@ stages:
   tar -xvf opsi-dev-tools.tar.gz
 
 .prepare_tests: &prepare_tests |
+  source $HOME/.cargo/env
+
   # Install debian packages
   export DEBIAN_FRONTEND=noninteractive
   wget -q -O - https://packages.grafana.com/gpg.key | apt-key add -

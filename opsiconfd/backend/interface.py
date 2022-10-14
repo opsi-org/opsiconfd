@@ -14,10 +14,11 @@ from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from OPSI.Backend.Base.Backend import describeInterface  # type: ignore[import]
-from OPSI.Exceptions import BackendPermissionDeniedError  # type: ignore[import]
+from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
 from opsiconfd.backend import get_client_backend
+from opsiconfd.backup import create_backup
 from opsiconfd.check import health_check
 from opsiconfd.config import config
 from opsiconfd.logging import logger
@@ -43,6 +44,18 @@ class OpsiconfdBackend(metaclass=Singleton):
 		self._backend = get_client_backend()
 		self.method_names = [meth["name"] for meth in self._interface]
 
+	def _check_role(self, required_role: str) -> None:
+		session = contextvar_client_session.get()
+		if not session or not session.user_store:
+			raise BackendPermissionDeniedError("Invalid session")
+
+		if required_role == "admin":
+			if session.user_store.isAdmin:
+				return
+			raise BackendPermissionDeniedError("Insufficient permissions")
+
+		raise ValueError(f"Invalid role {required_role!r}")
+
 	def get_interface(self) -> List[Dict[str, Any]]:
 		return self._interface
 
@@ -52,7 +65,12 @@ class OpsiconfdBackend(metaclass=Singleton):
 			session.sync_delete()
 
 	def server_checkHealth(self) -> dict:  # pylint: disable=invalid-name
+		self._check_role("admin")
 		return health_check()
+
+	def server_createBackup(self) -> dict:  # pylint: disable=invalid-name
+		self._check_role("admin")
+		return create_backup()
 
 	def getDomain(self) -> str:  # pylint: disable=invalid-name
 		try:

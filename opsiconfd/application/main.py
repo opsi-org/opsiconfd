@@ -44,6 +44,7 @@ from ..worker import Worker
 from . import terminal  # pylint: disable=unused-import
 from . import app
 from .admininterface import admin_interface_setup
+from .filetransfer import filetransfer_setup
 from .jsonrpc import jsonrpc_setup
 from .metrics import metrics_setup
 from .monitoring.monitoring import monitoring_setup
@@ -342,6 +343,7 @@ def application_setup() -> None:
 	redis_interface_setup(app)
 	monitoring_setup(app)
 	webdav_setup(app)
+	filetransfer_setup(app)
 	metrics_setup(app)
 	status_setup(app)
 	messagebus_setup(app)

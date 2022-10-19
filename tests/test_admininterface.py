@@ -167,7 +167,7 @@ def test_unblock_all_exception(test_client: OpsiconfdTestClient) -> None:  # pyl
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(test_ip)
 
-	with mock.patch("aioredis.client.Redis.get", side_effect=Exception("ERROR")):
+	with mock.patch("redis.asyncio.client.Redis.get", side_effect=Exception("ERROR")):
 
 		res = test_client.post("/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 500

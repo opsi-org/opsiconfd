@@ -29,7 +29,7 @@ def test_status_overview(test_client):  # pylint: disable=redefined-outer-name
 
 def test_status_overview_redis_error(test_client):  # pylint: disable=redefined-outer-name
 
-	with mock.patch("aioredis.client.Redis.execute_command", side_effect=Exception("Redis test error")):
+	with mock.patch("redis.asyncio.client.Redis.execute_command", side_effect=Exception("Redis test error")):
 		status = test_client.get("/status")
 	assert status.status_code == 200
 

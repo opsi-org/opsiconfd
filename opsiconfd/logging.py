@@ -24,7 +24,7 @@ from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
 from queue import Empty, Queue
 from typing import Any, Callable, Dict, TextIO
 
-from redis import asyncio as aioredis
+from redis import ConnectionError as RedisConnectionError, BusyLoadingError as RedisBusyLoadingError
 import colorlog
 import msgpack  # type: ignore[import]
 from aiofiles.threadpool import AsyncTextIOWrapper  # type: ignore[import]
@@ -374,7 +374,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 				raise
 			except EOFError:
 				break
-			except (aioredis.ConnectionError, aioredis.BusyLoadingError):  # pylint: disable=dotted-import-in-loop, loop-invariant-statement
+			except (RedisConnectionError, RedisBusyLoadingError):  # pylint: disable=dotted-import-in-loop, loop-invariant-statement
 				self._redis = None
 			except Exception as err:  # pylint: disable=broad-except
 				handle_log_exception(err, stderr=True, temp_file=True)

@@ -11,14 +11,14 @@ redis tests
 import asyncio
 import pytest
 
-from opsiconfd.utils import async_redis_client, aioredis_connection_pool, redis_client, redis_connection_pool
+from opsiconfd.utils import async_redis_client, async_redis_connection_pool, redis_client, redis_connection_pool
 
 
 @pytest.mark.asyncio
 async def test_async_redis_pool():
 	num_connections = 1000
 	redis = await async_redis_client()
-	pool = list(aioredis_connection_pool.values())[0]
+	pool = list(async_redis_connection_pool.values())[0]
 	coroutines = []
 	for _ in range(num_connections):
 		redis = await async_redis_client()

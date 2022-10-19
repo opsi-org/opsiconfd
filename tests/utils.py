@@ -18,7 +18,7 @@ from threading import Event, Thread
 from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Type, Union
 from unittest.mock import patch
 
-from redis import asyncio as aioredis
+from redis import asyncio as async_redis
 import msgpack  # type: ignore[import]
 import MySQLdb  # type: ignore[import]
 import pytest
@@ -151,8 +151,8 @@ def clean_redis_keys() -> Tuple[str, ...]:
 
 
 @asynccontextmanager
-async def async_redis_client() -> AsyncGenerator[aioredis.StrictRedis, None]:  # pylint: disable=redefined-outer-name
-	redis_client = aioredis.StrictRedis.from_url(_config.redis_internal_url)
+async def async_redis_client() -> AsyncGenerator[async_redis.StrictRedis, None]:  # pylint: disable=redefined-outer-name
+	redis_client = async_redis.StrictRedis.from_url(_config.redis_internal_url)
 	try:
 		yield redis_client
 	finally:

@@ -16,7 +16,7 @@ from collections import namedtuple
 from time import sleep as time_sleep
 from typing import Any, Dict, List, Optional, Union
 
-from redis import asyncio as aioredis
+from redis import ResponseError as RedisResponseError
 from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import ValidationError
 from fastapi.requests import HTTPConnection
@@ -680,7 +680,7 @@ async def check_blocked(ip_address: str) -> None:
 		num_failed_auth = await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
 		num_failed_auth = int(num_failed_auth[-1][1])
 		logger.debug("num_failed_auth: %s", num_failed_auth)
-	except aioredis.ResponseError as err:
+	except RedisResponseError as err:
 		num_failed_auth = 0
 		if "key does not exist" not in str(err):
 			raise

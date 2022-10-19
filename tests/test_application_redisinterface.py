@@ -112,7 +112,7 @@ def test_clear_product_cache_error(test_client: OpsiconfdTestClient) -> None:  #
 	):
 
 		body = {"depots": [configserver]}
-		with mock.patch("aioredis.client.Redis.pipeline", side_effect=Exception("Redis test error")):
+		with mock.patch("redis.asyncio.client.Redis.pipeline", side_effect=Exception("Redis test error")):
 			res = test_client.post("/redis-interface/clear-product-cache", auth=(ADMIN_USER, ADMIN_PASS), json=body)
 		assert res.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 		assert res.json() == {

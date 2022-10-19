@@ -15,7 +15,7 @@ import json
 import socket
 import time
 
-from redis import asyncio as aioredis
+from redis import asyncio as async_redis
 import pytest
 import requests
 
@@ -565,7 +565,7 @@ async def test_check_opsi_webservice_cpu(
 		}
 	)
 
-	redis_client = aioredis.StrictRedis.from_url(config.redis_internal_url)
+	redis_client = async_redis.StrictRedis.from_url(config.redis_internal_url)
 
 	workers = await get_workers(redis_client)
 	timestamp = int(time.time() - 100)

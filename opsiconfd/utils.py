@@ -19,7 +19,6 @@ import random
 import string
 import threading
 import time
-import warnings
 import zlib
 from contextlib import contextmanager
 from socket import AF_INET, AF_INET6
@@ -27,14 +26,12 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Optional
 
 import lz4.frame  # type: ignore[import]
 
-with warnings.catch_warnings():
-	# Ignore warning 'distutils Version classes are deprecated. Use packaging.version instead.'
-	# aioredis/connection.py
-	warnings.simplefilter("ignore")
-	from redis import asyncio as aioredis
+from redis import asyncio as async_redis
 
 import psutil
 import redis
+from redis import ConnectionError as RedisConnectionError, BusyLoadingError as RedisBusyLoadingError
+
 from fastapi import APIRouter, FastAPI
 from opsicommon.logging.logging import OPSILogger  # type: ignore[import]
 from starlette.routing import Route
@@ -46,9 +43,9 @@ if TYPE_CHECKING:
 	config: "Config" | None = None  # type: ignore[no-redef]  # pylint: disable=invalid-name
 
 redis_pool_lock = threading.Lock()
-aioredis_pool_lock = asyncio.Lock()
+async_redis_pool_lock = asyncio.Lock()
 redis_connection_pool: Dict[str, redis.ConnectionPool] = {}
-aioredis_connection_pool: Dict[str, aioredis.ConnectionPool] = {}
+async_redis_connection_pool: Dict[str, async_redis.ConnectionPool] = {}
 
 
 def get_logger() -> OPSILogger:
@@ -201,10 +198,8 @@ def retry_redis_call(func: Callable) -> Callable:
 			try:  # pylint: disable=loop-try-except-usage
 				return func(*args, **kwargs)  # pylint: disable=loop-invariant-statement
 			except (  # pylint: disable=loop-invariant-statement
-				aioredis.BusyLoadingError,  # pylint: disable=dotted-import-in-loop
-				redis.exceptions.BusyLoadingError,  # pylint: disable=dotted-import-in-loop
-				aioredis.ConnectionError,  # pylint: disable=dotted-import-in-loop
-				redis.exceptions.ConnectionError,  # pylint: disable=dotted-import-in-loop
+				RedisBusyLoadingError,
+				RedisConnectionError,
 			):
 				time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
@@ -242,32 +237,32 @@ def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[r
 			con.close()
 
 
-async def get_async_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connection: bool = False) -> aioredis.StrictRedis:  # pylint: disable=invalid-name
+async def get_async_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connection: bool = False) -> async_redis.StrictRedis:  # pylint: disable=invalid-name
 	start = time.time()
 	while True:
 		try:  # pylint: disable=loop-try-except-usage
 			con_id = f"{id(asyncio.get_running_loop())}/{url}/{db}"  # pylint: disable=dotted-import-in-loop
 			new_pool = False
-			async with aioredis_pool_lock:  # pylint: disable=loop-global-usage
-				if con_id not in aioredis_connection_pool:  # pylint: disable=loop-global-usage
+			async with async_redis_pool_lock:  # pylint: disable=loop-global-usage
+				if con_id not in async_redis_connection_pool:  # pylint: disable=loop-global-usage
 					new_pool = True
-					aioredis_connection_pool[con_id] = aioredis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage
+					async_redis_connection_pool[con_id] = async_redis.ConnectionPool.from_url(url, db=db)  # pylint: disable=dotted-import-in-loop,loop-global-usage
 			# This will return a client (no Exception) even if connection is currently lost
-			client: aioredis.StrictRedis = aioredis.StrictRedis(connection_pool=aioredis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-global-usage
+			client: async_redis.StrictRedis = async_redis.StrictRedis(connection_pool=async_redis_connection_pool[con_id])  # pylint: disable=dotted-import-in-loop,loop-global-usage
 			if new_pool or test_connection:
 				await client.ping()
 			return client
-		except (aioredis.ConnectionError, aioredis.BusyLoadingError):  # pylint: disable=dotted-import-in-loop
+		except (RedisConnectionError, RedisBusyLoadingError):  # pylint: disable=loop-invariant-statement
 			if timeout and time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
 				raise
 			await asyncio.sleep(2)  # pylint: disable=dotted-import-in-loop
 
 
-async def async_redis_client(timeout: int = 0, test_connection: bool = False) -> aioredis.StrictRedis:
+async def async_redis_client(timeout: int = 0, test_connection: bool = False) -> async_redis.StrictRedis:
 	return await get_async_redis_connection(url=get_config().redis_internal_url, timeout=timeout, test_connection=test_connection)
 
 
-async def async_get_redis_info(client: aioredis.StrictRedis) -> Dict[str, Any]:  # pylint: disable=too-many-locals
+async def async_get_redis_info(client: async_redis.StrictRedis) -> Dict[str, Any]:  # pylint: disable=too-many-locals
 	from opsiconfd.config import (  # pylint: disable=import-outside-toplevel
 		REDIS_PREFIX_SESSION,
 	)

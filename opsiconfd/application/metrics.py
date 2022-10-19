@@ -14,7 +14,7 @@ from operator import itemgetter
 from time import time
 from typing import Any, Dict, List, Set
 
-from redis import asyncio as aioredis
+from redis import ResponseError as RedisResponseError
 from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
@@ -251,7 +251,7 @@ async def grafana_query(query: GrafanaQuery) -> List[Dict[str, Any]]:  # pylint:
 		cmd = ("TS.RANGE", redis_key, from_ms, to_ms, "AGGREGATION", "avg", bucket_duration_ms)
 		try:  # pylint: disable=loop-try-except-usage
 			rows = await redis.execute_command(*cmd)  # type: ignore[no-untyped-call]
-		except aioredis.ResponseError as err:  # pylint: disable=dotted-import-in-loop
+		except RedisResponseError as err:  # pylint: disable=dotted-import-in-loop
 			logger.warning("%s %s", cmd, err)
 			rows = []  # pylint: disable=use-tuple-over-list
 

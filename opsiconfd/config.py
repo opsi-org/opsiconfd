@@ -763,7 +763,7 @@ class Config(metaclass=Singleton):
 		self._parser.add(
 			"--grafana-external-url",
 			env_var="OPSICONFD_GRAFANA_EXTERNAL_URL",
-			default=f"http://{FQDN}:3000",
+			default="/grafana",
 			help="External grafana base url.",
 		)
 		self._parser.add(

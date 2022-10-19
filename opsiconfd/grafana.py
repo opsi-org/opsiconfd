@@ -10,7 +10,6 @@ grafana
 """
 
 import codecs
-from dataclasses import replace
 import datetime
 import fileinput
 import hashlib
@@ -18,7 +17,6 @@ import os
 import re
 import sqlite3
 import subprocess
-import configparser
 from contextlib import asynccontextmanager, contextmanager
 import sys
 from typing import AsyncGenerator, Generator, Tuple, Union
@@ -242,7 +240,7 @@ def set_grafana_root_url() -> None:
 	logger.devel("Notice changing root_url in %s", GRAFANA_INI)
 	search_str = ";root_url = %(protocol)s://%(domain)s:%(http_port)s/"
 	replace_str = "root_url = %(protocol)s://%(domain)s:%(http_port)s/grafana"
-	for line in fileinput.input(GRAFANA_INI, inplace=1):  # pylint: disable=dotted-import-in-loop, loop-global-usage
+	for line in fileinput.input(GRAFANA_INI, inplace=1):  # type: ignore # pylint: disable=dotted-import-in-loop, loop-global-usage
 		if search_str in line:
 			sys.stdout.write(line.replace(search_str, replace_str))  # pylint: disable=dotted-import-in-loop
 		else:

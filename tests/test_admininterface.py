@@ -13,10 +13,8 @@ import json
 import os
 import sys
 import tempfile
-from socket import getfqdn
 from types import ModuleType
 from typing import Any, Callable
-from urllib.parse import urlparse
 
 import mock  # type: ignore[import]
 import pytest

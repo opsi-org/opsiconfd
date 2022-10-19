@@ -11,12 +11,14 @@ grafana
 
 import codecs
 import datetime
+import fileinput
 import hashlib
 import os
 import re
 import sqlite3
 import subprocess
 from contextlib import asynccontextmanager, contextmanager
+import sys
 from typing import AsyncGenerator, Generator, Tuple, Union
 from urllib.parse import urlparse
 
@@ -32,6 +34,7 @@ from .utils import get_random_string
 API_KEY_NAME = "opsiconfd"
 GRAFANA_CLI = "/usr/sbin/grafana-cli"
 GRAFANA_DB = "/var/lib/grafana/grafana.db"
+GRAFANA_INI = "/etc/grafana/grafana.ini"
 PLUGIN_DIR = "/var/lib/grafana/plugins"
 PLUGIN_ID = "grafana-simple-json-datasource"
 PLUGIN_MIN_VERSION = "1.4.2"
@@ -116,6 +119,8 @@ def setup_grafana() -> None:  # pylint: disable=too-many-branches
 	if not grafana_is_local():
 		logger.debug("Grafana is not local, skipping setup")
 		return
+
+	set_grafana_root_url()
 
 	plugin_action = "install"
 	if os.path.exists(PLUGIN_DIR):
@@ -228,3 +233,15 @@ async def create_dashboard_user() -> Tuple[str, str]:
 				raise RuntimeError(f"Failed to update password for user {username!r}: {response.status} - {await response.text()}")
 
 		return username, password
+
+
+def set_grafana_root_url() -> None:
+	# configparser does not keep comments
+	logger.devel("Notice changing root_url in %s", GRAFANA_INI)
+	search_str = ";root_url = %(protocol)s://%(domain)s:%(http_port)s/"
+	replace_str = "root_url = %(protocol)s://%(domain)s:%(http_port)s/grafana"
+	for line in fileinput.input(GRAFANA_INI, inplace=1):  # type: ignore # pylint: disable=dotted-import-in-loop, loop-global-usage
+		if search_str in line:
+			sys.stdout.write(line.replace(search_str, replace_str))  # pylint: disable=dotted-import-in-loop
+		else:
+			sys.stdout.write(line)  # pylint: disable=dotted-import-in-loop

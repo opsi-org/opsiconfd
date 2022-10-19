@@ -2,83 +2,114 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name":"opsiconfd default",
-			"type":"python",
-			"request":"launch",
-			"module":"opsiconfd",
-			"args": ["--workers=1","--log-level=5","--log-level-stderr=5","--log-mode=redis", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"name": "opsiconfd default",
+			"type": "python",
+			"request": "launch",
+			"module": "opsiconfd",
+			"args": [
+				"--workers=1",
+				"--log-level=5",
+				"--log-level-stderr=5",
+				"--log-mode=redis",
+				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
+			],
 			"sudo": true,
 			"justMyCode": false
 		},
 		{
-			"name":"opsiconfd",
-			"type":"python",
-			"request":"launch",
-			"module":"opsiconfd",
-			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--log-level-file=${input:loglevelfile}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
-			"sudo": true,
-		},
-		{
-			"name":"opsiconfd test",
-			"type":"python",
+			"name": "opsiconfd",
+			"type": "python",
 			"request": "launch",
-			"module":"opsiconfd",
-			"args": ["--backend-config-dir=tests/opsi-config/backends", "--dispatch-config-file=tests/opsi-config/backendManager/dispatch.conf", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--log-level-file=${input:loglevelfile}", "--static-dir=${workspaceFolder}/opsiconfd_data/static", "--jsonrpc-time-to-cache=0"],
+			"module": "opsiconfd",
+			"args": [
+				"--workers=${input:worker}",
+				"--log-level-stderr=${input:loglevel}",
+				"--log-level-file=${input:loglevelfile}",
+				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
+			],
 			"sudo": true,
 		},
 		{
-			"name":"opsiconfd jemalloc",
-			"type":"python",
-			"request":"launch",
-			"module":"opsiconfd",
-			"args": ["--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
+			"name": "opsiconfd test",
+			"type": "python",
+			"request": "launch",
+			"module": "opsiconfd",
+			"args": [
+				"--backend-config-dir=tests/opsi-config/backends",
+				"--dispatch-config-file=tests/opsi-config/backendManager/dispatch.conf",
+				"--workers=${input:worker}",
+				"--log-level-stderr=${input:loglevel}",
+				"--log-level-file=${input:loglevelfile}",
+				"--static-dir=${workspaceFolder}/opsiconfd_data/static",
+				"--jsonrpc-time-to-cache=0"
+			],
 			"sudo": true,
-			"env": {"LD_PRELOAD":"/usr/lib/x86_64-linux-gnu/libjemalloc.so.2"}
 		},
 		{
-			"name":"opsiconfd setup",
-			"type":"python",
-			"request":"launch",
-			"module":"opsiconfd",
-			"args": ["setup", "--workers=${input:worker}","--log-level-stderr=${input:loglevel}", "--static-dir=${workspaceFolder}/opsiconfd_data/static"],
-			"sudo": true
+			"name": "opsiconfd jemalloc",
+			"type": "python",
+			"request": "launch",
+			"module": "opsiconfd",
+			"args": [
+				"--workers=${input:worker}",
+				"--log-level-stderr=${input:loglevel}",
+				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
+			],
+			"sudo": true,
+			"env": {
+				"LD_PRELOAD": "/usr/lib/x86_64-linux-gnu/libjemalloc.so.2"
+			}
+		},
+		{
+			"name": "opsiconfd setup",
+			"type": "python",
+			"request": "launch",
+			"module": "opsiconfd",
+			"args": [
+				"setup",
+				"--workers=1",
+				"--log-level=5",
+				"--log-level-stderr=5",
+				"--log-mode=redis",
+				"--static-dir=${workspaceFolder}/opsiconfd_data/static"
+			],
+			"sudo": true,
+			"justMyCode": true
 		},
 		{
 			"name": "Python: Attach",
 			"type": "python",
 			"request": "attach",
 			"connect": {
-			  "host": "localhost",
-			  "port": 5678
+				"host": "localhost",
+				"port": 5678
 			}
-		  }
-
+		}
 	],
 	"inputs": [
 		{
-		"id": "loglevel",
-		"type": "promptString",
-		"description": "Set LogLevel Stderr.",
-		"default": "5"
+			"id": "loglevel",
+			"type": "promptString",
+			"description": "Set LogLevel Stderr.",
+			"default": "5"
 		},
 		{
 			"id": "loglevelfile",
 			"type": "promptString",
 			"description": "Set LogLevel File.",
 			"default": "5"
-			},
+		},
 		{
 			"id": "worker",
 			"type": "promptString",
 			"description": "Number of opsiconfd worker to start",
 			"default": "1"
-		}
-		,
+		},
 		{
 			"id": "options",
 			"type": "promptString",
 			"description": "other options",
 			"default": "start"
 		}
-	  ]
+	]
 }

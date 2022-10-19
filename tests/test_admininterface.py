@@ -288,12 +288,11 @@ async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,u
 def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name
 	response = test_client.get(f"https://192.168.1.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
 	assert response.status_code == 307
-	assert response.headers.get("location") == f"https://{getfqdn()}:{config.port}/admin/grafana"
+	assert response.headers.get("location") == "/grafana/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
 
 	response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
 	assert response.status_code == 307
-	url = urlparse(config.grafana_external_url)
-	assert response.headers.get("location") == f"https://{url.hostname}:{config.port}/admin/grafana"
+	assert response.headers.get("location") == "/grafana/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
 
 
 @pytest.mark.mysql_backend_available

@@ -148,6 +148,7 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 					f"Package {package} is outdated. Installed version: {info['version_found']} - available version: {info['version']}",
 					MT_WARNING,  # pylint: disable=loop-global-usage
 				)
+			result["status"] = "warn"  # pylint: disable=loop-invariant-statement
 			result["partial_checks"][package] = {  # pylint: disable=loop-invariant-statement
 				"status": "warn",
 				"details": f"Package {package} is outdated. Installed version: {info['version_found']} - available version: {info['version']}",
@@ -165,7 +166,7 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 		if not_installed > 0 or outdated > 0:
 			result[  # pylint: disable=loop-invariant-statement
 				"details"
-			] = f"Out of {len(package_versions.keys())} packages checked, {not_installed} are not installed and {outdated} are out of dated."
+			] = f"Out of {len(package_versions.keys())} packages checked, {not_installed} are not installed and {outdated} are out of date."
 	return result
 
 

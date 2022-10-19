@@ -12,7 +12,7 @@ health check
 import os
 import re
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from colorama import Fore, Style  # type: ignore[import]
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
@@ -85,8 +85,9 @@ def get_repo_versions() -> Dict[str, Any]:
 def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-branches, too-many-statements
 	if print_messages:
 		show_message("Checking system packages...")
-	result: Dict[str, Dict[str, Any]] = {}
 
+	result: Union[Dict[str, Any], str] = {}
+	result = {"status": "ok", "details": "All packages up to date.", "partial_checks": {}}
 	package_versions = get_repo_versions()
 	try:
 		if isRHEL() or isSLES():
@@ -127,19 +128,27 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 		return {}
 	logger.info("Installed packages: %s", package_versions)
 
+	not_installed = 0
+	outdated = 0
 	for package, info in package_versions.items():
-		result[package] = {}
+		result["partial_checks"][package] = {}  # pylint: disable=loop-invariant-statement
 		if "version_found" not in info:
-			result[package] = {"status": "error", "details": f"Package '{package}' is not installed."}
+			result["partial_checks"][package] = {  # pylint: disable=loop-invariant-statement
+				"status": "error",
+				"details": f"Package '{package}' is not installed.",
+			}  # type: ignore[assignment]
+			result["status"] = "error"  # pylint: disable=loop-invariant-statement
+			not_installed = not_installed + 1
 			if print_messages:
 				show_message(f"Package {package} should be installed.", MT_ERROR)  # pylint: disable=loop-global-usage
 		elif parse(info["version"]) > parse(info["version_found"]):
+			outdated = outdated + 1
 			if print_messages:
 				show_message(
 					f"Package {package} is outdated. Installed version: {info['version_found']} - available version: {info['version']}",
 					MT_WARNING,  # pylint: disable=loop-global-usage
 				)
-			result[package] = {
+			result["partial_checks"][package] = {  # pylint: disable=loop-invariant-statement
 				"status": "warn",
 				"details": f"Package {package} is outdated. Installed version: {info['version_found']} - available version: {info['version']}",
 			}
@@ -149,7 +158,14 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 					f"Package {package} is up to date. Installed version: {info['version_found']}",
 					MT_SUCCESS,  # pylint: disable=loop-global-usage
 				)
-			result[package] = {"status": "ok", "details": f"Installed version: {info['version_found']}"}
+			result["partial_checks"][package] = {  # pylint: disable=loop-invariant-statement
+				"status": "ok",
+				"details": f"Installed version: {info['version_found']}",
+			}
+		if not_installed > 0 or outdated > 0:
+			result[  # pylint: disable=loop-invariant-statement
+				"details"
+			] = f"Out of {len(package_versions.keys())} packages checked, {not_installed} are not installed and {outdated} are out of dated."
 	return result
 
 

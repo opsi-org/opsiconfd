@@ -188,10 +188,16 @@ def test_check_system_packages_debian() -> None:
 			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
 		assert result.get("captured_output") == text
 		data = result.get("data", {})
+		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get(name, {}).get("status") is not None
-			assert data[name]["status"] == "ok"
-			assert data[name]["details"] == f"Installed version: {version}"
+			assert data.get("details") == "All packages up to date."
+			assert data.get("status") == "ok"
+			assert partial_check.get(name, {}).get("status") is not None
+			assert partial_check.get(name, {}).get("status") == "ok"
+			assert (
+				partial_check[name]["details"] ==
+				f"Installed version: {version}"
+			)
 
 	# test outdated packages - status sould be warn and output sould be in yellow
 	packages = {
@@ -222,11 +228,14 @@ def test_check_system_packages_debian() -> None:
 			)
 		assert result.get("captured_output") == text
 		data = result.get("data", {})
+		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get(name, {}).get("status") is not None
-			assert data[name]["status"] == "warn"
+			assert data.get("details") == "Out of 2 packages checked, 0 are not installed and 2 are out of date."
+			assert data.get("status") == "warn"
+			assert partial_check.get(name, {}).get("status") is not None
+			assert partial_check.get(name, {}).get("status") == "warn"
 			assert (
-				data[name]["details"] ==
+				partial_check[name]["details"] ==
 				f"Package {name} is outdated. Installed version: {version} - available version: {test_package_versions[name]['version']}"
 			)
 
@@ -261,10 +270,16 @@ def test_check_system_packages_open_suse() -> None:
 			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
 		assert result.get("captured_output") == text
 		data = result.get("data", {})
+		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get(name, {}).get("status") is not None
-			assert data[name]["status"] == "ok"
-			assert data[name]["details"] == f"Installed version: {version}"
+			assert data.get("details") == "All packages up to date."
+			assert data.get("status") == "ok"
+			assert partial_check.get(name, {}).get("status") is not None
+			assert partial_check.get(name, {}).get("status") == "ok"
+			assert (
+				partial_check[name]["details"] ==
+				f"Installed version: {version}"
+			)
 
 
 def test_check_system_packages_redhat() -> None:
@@ -295,10 +310,16 @@ def test_check_system_packages_redhat() -> None:
 			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
 		assert result.get("captured_output") == text
 		data = result.get("data", {})
+		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get(name, {}).get("status") is not None
-			assert data[name]["status"] == "ok"
-			assert data[name]["details"] == f"Installed version: {version}"
+			assert data.get("details") == "All packages up to date."
+			assert data.get("status") == "ok"
+			assert partial_check.get(name, {}).get("status") is not None
+			assert partial_check.get(name, {}).get("status") == "ok"
+			assert (
+				partial_check[name]["details"] ==
+				f"Installed version: {version}"
+			)
 
 
 def test_health_check() -> None:

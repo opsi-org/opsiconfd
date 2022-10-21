@@ -10,15 +10,17 @@ grafana
 """
 
 import codecs
+import configparser
 import datetime
 import fileinput
 import hashlib
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
-from contextlib import asynccontextmanager, contextmanager
 import sys
+from contextlib import asynccontextmanager, contextmanager
 from typing import AsyncGenerator, Generator, Tuple, Union
 from urllib.parse import urlparse
 
@@ -237,11 +239,11 @@ async def create_dashboard_user() -> Tuple[str, str]:
 
 def set_grafana_root_url() -> None:
 	# configparser does not keep comments
-	logger.devel("Notice changing root_url in %s", GRAFANA_INI)
-	search_str = ";root_url = %(protocol)s://%(domain)s:%(http_port)s/"
-	replace_str = "root_url = %(protocol)s://%(domain)s:%(http_port)s/grafana"
-	for line in fileinput.input(GRAFANA_INI, inplace=1):  # type: ignore # pylint: disable=dotted-import-in-loop, loop-global-usage
-		if search_str in line:
-			sys.stdout.write(line.replace(search_str, replace_str))  # pylint: disable=dotted-import-in-loop
-		else:
-			sys.stdout.write(line)  # pylint: disable=dotted-import-in-loop
+	if not os.path.isfile(f"{GRAFANA_INI}.orig"):
+		shutil.copy(GRAFANA_INI, f"{GRAFANA_INI}.orig")
+	logger.notice("Changing root_url in %s", GRAFANA_INI)
+	grafana_config = configparser.ConfigParser()
+	grafana_config.read(GRAFANA_INI)
+	grafana_config["server"]["root_url"] = "%(protocol)s://%(domain)s:%(http_port)s/grafana"
+	with open(GRAFANA_INI, "w", encoding="utf-8") as config_file:
+		grafana_config.write(config_file)

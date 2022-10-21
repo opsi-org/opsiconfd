@@ -12,14 +12,12 @@ grafana
 import codecs
 import configparser
 import datetime
-import fileinput
 import hashlib
 import os
 import re
 import shutil
 import sqlite3
 import subprocess
-import sys
 from contextlib import asynccontextmanager, contextmanager
 from typing import AsyncGenerator, Generator, Tuple, Union
 from urllib.parse import urlparse

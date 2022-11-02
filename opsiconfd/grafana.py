@@ -14,7 +14,6 @@ import datetime
 import hashlib
 import os
 import re
-import shutil
 import sqlite3
 import subprocess
 from contextlib import asynccontextmanager, contextmanager

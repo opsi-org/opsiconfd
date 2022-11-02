@@ -299,6 +299,22 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
+name = "configupdater"
+version = "3.1.1"
+description = "Parser like ConfigParser but for updating configuration files"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.extras]
+testing = ["flake8", "pytest", "pytest-cov", "pytest-virtualenv", "pytest-xdist", "sphinx"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
 name = "constantly"
 version = "15.1.0"
 description = "Symbolic constants in Python"
@@ -2385,7 +2401,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.12"
-content-hash = "3f93f599fdca70572ed12dd19042485320180c5e10fa7f7285bd285040ebff9b"
+content-hash = "d6c511d13ef14e23c5c2b86d54dfda3e29e345c3e38c267e424da7f47c31e3cf"
 
 [metadata.files]
 aiofiles = [
@@ -2604,6 +2620,10 @@ colorlog = [
 configargparse = [
     {file = "ConfigArgParse-1.5.3-py3-none-any.whl", hash = "sha256:18f6535a2db9f6e02bd5626cc7455eac3e96b9ab3d969d366f9aafd5c5c00fe7"},
     {file = "ConfigArgParse-1.5.3.tar.gz", hash = "sha256:1b0b3cbf664ab59dada57123c81eff3d9737e0d11d8cf79e3d6eb10823f1739f"},
+]
+configupdater = [
+    {file = "ConfigUpdater-3.1.1-py2.py3-none-any.whl", hash = "sha256:805986dbeba317886c7a8d348b2e34986dc9e3128cd3761ecc35decbd372b286"},
+    {file = "ConfigUpdater-3.1.1.tar.gz", hash = "sha256:46f0c74d73efa723776764b43c9739f68052495dd3d734319c1d0eb58511f15b"},
 ]
 constantly = [
     {file = "constantly-15.1.0-py2.py3-none-any.whl", hash = "sha256:dd2fa9d6b1a51a83f0d7dd76293d734046aa176e384bf6e33b7e44880eb37c5d"},
@@ -3564,7 +3584,7 @@ python-opsi = [
 ]
 python-opsi-common = [
     {file = "python_opsi_common-4.3.0.0-py3-none-any.whl", hash = "sha256:20c7746f974574f7baa43c4b0cdb8fd8221d38ff20b38ea4cc54198dbfec382e"},
-    {file = "python_opsi_common-4.3.0.0.tar.gz", hash = "sha256:0a07ee3e036b3107030f4da78a2a373918835e1d36535e4d1b92b93289d5bdac"},
+    {file = "python_opsi_common-4.3.0.0.tar.gz", hash = "sha256:f662e691ad19ba929f399a6ed297d67fbd781fa738b028772a2f980e8e0c63ff"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},

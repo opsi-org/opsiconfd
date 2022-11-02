@@ -10,7 +10,6 @@ grafana
 """
 
 import codecs
-import configparser
 import datetime
 import hashlib
 import os
@@ -24,6 +23,7 @@ from urllib.parse import urlparse
 
 import aiohttp
 import requests
+from configupdater import ConfigUpdater
 from packaging.version import Version
 from requests.auth import AuthBase, HTTPBasicAuth
 
@@ -236,12 +236,21 @@ async def create_dashboard_user() -> Tuple[str, str]:
 
 
 def set_grafana_root_url() -> None:
-	# configparser does not keep comments
-	if not os.path.isfile(f"{GRAFANA_INI}.orig"):
-		shutil.copy(GRAFANA_INI, f"{GRAFANA_INI}.orig")
+	root_url = r"%(protocol)s://%(domain)s:%(http_port)s/grafana"
+
+	grafana_config = ConfigUpdater()
+	data = "[DEFAULT]\n"
+	with open(GRAFANA_INI, "r", encoding="utf-8") as config_file:
+		data += config_file.read()
+	grafana_config.read_string(data)
+	try:
+		if grafana_config["server"]["root_url"].value == root_url:
+			return
+	except KeyError:
+		pass
+
 	logger.notice("Changing root_url in %s", GRAFANA_INI)
-	grafana_config = configparser.ConfigParser()
-	grafana_config.read(GRAFANA_INI)
 	grafana_config["server"]["root_url"] = "%(protocol)s://%(domain)s:%(http_port)s/grafana"
+	data = str(grafana_config)
 	with open(GRAFANA_INI, "w", encoding="utf-8") as config_file:
-		grafana_config.write(config_file)
+		config_file.write(data.split("\n", 1)[1])

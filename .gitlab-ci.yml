@@ -17,8 +17,6 @@ stages:
   tar -xvf opsi-dev-tools.tar.gz
 
 .prepare_tests: &prepare_tests |
-  ###### source $HOME/.cargo/env
-
   # Install debian packages
   export DEBIAN_FRONTEND=noninteractive
   wget -q -O - https://packages.grafana.com/gpg.key | apt-key add -
@@ -173,7 +171,6 @@ build:linux-pyinstaller:
   stage: build
   script:
     - *install_tools
-    #####- source $HOME/.cargo/env
     - poetry lock --no-update
     - poetry install
     - poetry run ./opsi-dev-tool -l debug --pyinstaller-poetry-build
@@ -193,7 +190,6 @@ build:arm64-pyinstaller:
     - arm64
   script:
     - *install_tools
-    ######- source $HOME/.cargo/env
     - poetry lock --no-update
     - poetry install
     - poetry run ./opsi-dev-tool -l debug --pyinstaller-poetry-build

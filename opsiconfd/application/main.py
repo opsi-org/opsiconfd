@@ -34,6 +34,7 @@ from .. import __version__, contextvar_client_address, contextvar_request_id
 from ..addon import AddonManager
 from ..config import config
 from ..logging import get_logger, logger
+from ..messagebus.terminal import async_terminal_shutdown, async_terminal_startup
 from ..messagebus.websocket import messagebus_setup
 from ..metrics.statistics import StatisticsMiddleware
 from ..rest import OpsiApiException, rest_api
@@ -44,7 +45,7 @@ from . import terminal  # pylint: disable=unused-import
 from . import app
 from .admininterface import admin_interface_setup
 from .filetransfer import filetransfer_setup
-from .jsonrpc import jsonrpc_setup
+from .jsonrpc import async_jsonrpc_shutdown, async_jsonrpc_startup, jsonrpc_setup
 from .metrics import metrics_setup
 from .monitoring.monitoring import monitoring_setup
 from .proxy import reverse_proxy_setup
@@ -366,12 +367,32 @@ def application_setup() -> None:
 		logger.debug("%s: %s", path, routes[path])
 
 
+async def async_application_startup() -> None:
+	await async_jsonrpc_startup()
+	await async_terminal_startup()
+
+
+async def async_application_shutdown() -> None:
+	await async_jsonrpc_shutdown()
+	await async_terminal_shutdown()
+
+
 async def startup() -> None:
+	logger.info("Processing startup event")
 	try:
 		await run_in_threadpool(application_setup)
-	except Exception as error:
+		await async_application_startup()
+	except Exception as error:  # pylint: disable=broad-except
 		logger.critical("Error during application startup: %s", error, exc_info=True)
 		# Wait a second before raising error (which will terminate the worker process)
 		# to give the logger time to send log messages to redis
 		await asyncio.sleep(1)
 		raise error
+
+
+async def shutdown() -> None:
+	logger.info("Processing shutdown event")
+	try:
+		await async_application_shutdown()
+	except Exception as error:  # pylint: disable=broad-except
+		logger.critical("Error during application shutdown: %s", error, exc_info=True)

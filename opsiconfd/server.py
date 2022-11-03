@@ -13,14 +13,11 @@ import signal
 import socket
 import threading
 import time
-
-# from multiprocessing.context import SpawnProcess
 from typing import List, Optional
 
 import psutil
-from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 
-from . import __version__, ssl
+from . import __version__
 from .backend import get_backend
 from .config import config
 from .logging import init_logging, logger
@@ -84,7 +81,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 					if self.should_restart_workers:
 						auto_restart.append(worker.worker_num)
 
-					elif worker.process.is_alive():
+					elif worker.process and worker.process.is_alive():
 						if self.worker_restart_time > 0:
 							alive = time.time() - worker.create_time  # pylint: disable=dotted-import-in-loop
 							if alive >= self.worker_restart_time:
@@ -159,13 +156,6 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		return None
 
 	def start_worker(self, worker_num: int) -> None:
-		# Put CA key into environment for worker processes
-
-		if config.ssl_ca_key in ssl.KEY_CACHE:
-			os.putenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", ssl.KEY_CACHE[config.ssl_ca_key])
-		os.putenv("OPSICONFD_WORKER_WORKER_NUM", str(worker_num))
-		os.putenv("OPSICONFD_CONFIG_FILE", config.config_file)
-
 		if not self.socket:
 			raise RuntimeError("Socket not initialized")
 
@@ -177,17 +167,13 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 			self.workers.append(None)  # type: ignore[arg-type] # pylint: disable=loop-invariant-statement
 		self.workers[worker_num - 1] = worker
 
-		if config.ssl_ca_key in ssl.KEY_CACHE:
-			os.unsetenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY")
-		os.unsetenv("OPSICONFD_WORKER_WORKER_NUM")
-
 	def stop_worker(self, pids: List[int], force: bool = False, wait: bool = True, remove_worker: bool = True) -> None:
 		workers = []
 		for pid in pids:
 			worker = self.get_worker(pid)
 			if worker:
 				workers.append(worker)
-				if worker.process.is_alive():
+				if worker.process and worker.process.is_alive():
 					logger.notice("Stopping worker %d (pid %d) (force=%s)", worker.worker_num, worker.pid, force)
 					worker.process.terminate()
 					if force:
@@ -201,7 +187,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 				any_alive = False
 				diff = time.time() - start_time  # pylint: disable=dotted-import-in-loop
 				for worker in workers:
-					if not worker.process.is_alive():
+					if not worker.process or not worker.process.is_alive():
 						continue
 					any_alive = True
 					if diff < self.worker_stop_timeout:  # pylint: disable=loop-invariant-statement
@@ -226,7 +212,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		with self.worker_update_lock:
 			worker = self.workers[worker_num - 1]
 			logger.notice("Restarting worker %d (pid %d)", worker_num, worker.pid)
-			if worker.process.is_alive():
+			if worker.process and worker.process.is_alive():
 				self.stop_worker([worker.pid], remove_worker=False)
 			self.start_worker(worker_num=worker_num)
 

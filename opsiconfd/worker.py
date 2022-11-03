@@ -80,9 +80,6 @@ class Worker(UvicornServer):
 		self.create_time = time.time()
 		UvicornServer.__init__(self, uvicorn_config())
 		self._metrics_collector: WorkerMetricsCollector | None = None
-		self._metrics_collector_task: asyncio.Task | None = None
-		self._messagebus_jsonrpc_request_worker_task: asyncio.Task | None = None
-		self._messagebus_terminal_request_worker_task: asyncio.Task | None = None
 		self.process: SpawnProcess | None = None
 
 	def start_server_process(self, sockets: List[socket.socket]) -> None:
@@ -125,27 +122,6 @@ class Worker(UvicornServer):
 				await asyncio_sleep(1)
 			memory_cleanup()
 
-	async def worker_tasks(self) -> None:
-		asyncio.create_task(self.memory_cleanup_task())
-		self._metrics_collector_task = asyncio.create_task(self.metrics_collector.main_loop())
-
-		from .application.jsonrpc import (  # pylint: disable=import-outside-toplevel
-			messagebus_jsonrpc_request_worker,
-		)
-		self._messagebus_jsonrpc_request_worker_task = asyncio.create_task(messagebus_jsonrpc_request_worker())
-		if "terminal" not in config.admin_interface_disabled_features:
-			from .messagebus.terminal import (  # pylint: disable=import-outside-toplevel
-				messagebus_terminal_request_worker,
-			)
-
-			self._messagebus_terminal_request_worker_task = asyncio.create_task(messagebus_terminal_request_worker())
-
-	def stop_worker_tasks(self) -> None:
-		if self._messagebus_jsonrpc_request_worker_task:
-			self._messagebus_jsonrpc_request_worker_task.cancel()
-		if self._messagebus_terminal_request_worker_task:
-			self._messagebus_terminal_request_worker_task.cancel()
-
 	def run(self, sockets: Optional[List[socket.socket]] = None) -> None:
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)
@@ -154,7 +130,6 @@ class Worker(UvicornServer):
 		super().run(sockets=sockets)
 
 	async def serve(self, sockets: Optional[List[socket.socket]] = None) -> None:
-
 		loop = asyncio.get_running_loop()
 		loop.set_debug(config.debug)
 		init_pool_executor(loop)
@@ -167,12 +142,12 @@ class Worker(UvicornServer):
 		await run_in_threadpool(get_backend, 60)
 		await run_in_threadpool(get_client_backend)
 
-		loop.create_task(self.worker_tasks())
+		asyncio.create_task(self.memory_cleanup_task())
+		asyncio.create_task(self.metrics_collector.main_loop())
 
 		await super().serve(sockets=sockets)
 
 	async def shutdown(self, sockets: Optional[List[socket.socket]] = None) -> None:
-		self.stop_worker_tasks()
 		await super().shutdown(sockets=sockets)
 
 	def install_signal_handlers(self) -> None:

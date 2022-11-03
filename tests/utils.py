@@ -14,7 +14,7 @@ import time
 import types
 from contextlib import asynccontextmanager, contextmanager
 from queue import Empty, Queue
-from threading import Event, Thread
+from threading import Thread
 from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Type, Union
 from unittest.mock import patch
 
@@ -45,41 +45,6 @@ def reset_singleton(cls: Singleton) -> None:
 	"""Constructor will create a new instance afterwards"""
 	if cls in cls._instances:  # pylint: disable=protected-access
 		del cls._instances[cls]  # pylint: disable=protected-access
-
-
-class WorkerTasksThread(Thread):
-	def __init__(self) -> None:
-		super().__init__()
-
-		from opsiconfd.worker import Worker  # pylint: disable=import-outside-toplevel
-		self.worker = Worker.get_instance()
-		self.loop = asyncio.new_event_loop()
-		self.daemon = True
-		self.should_stop = asyncio.Event()
-		self.stopped = Event()
-
-	def stop(self) -> None:
-		self.should_stop.set()
-		self.stopped.wait()
-
-	async def arun(self) -> None:
-		asyncio.create_task(self.worker.worker_tasks())
-		await self.should_stop.wait()
-		self.worker.stop_worker_tasks()
-
-	def run(self) -> None:
-		asyncio.set_event_loop(self.loop)
-		self.loop.set_debug(True)
-		asyncio.run(self.arun())
-		self.stopped.set()
-
-
-@pytest_asyncio.fixture(autouse=True)
-def worker_tasks() -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
-	wmlt = WorkerTasksThread()
-	wmlt.start()
-	yield None
-	wmlt.stop()
 
 
 class OpsiconfdTestClient(TestClient):

@@ -92,6 +92,19 @@ def jsonrpc_setup(app: FastAPI) -> None:
 	app.include_router(jsonrpc_router, prefix="/rpc")
 
 
+_messagebus_jsonrpc_request_worker_task = None  # pylint: disable=invalid-name
+
+
+async def async_jsonrpc_startup() -> None:
+	global _messagebus_jsonrpc_request_worker_task  # pylint: disable=invalid-name,global-statement
+	_messagebus_jsonrpc_request_worker_task = asyncio.create_task(messagebus_jsonrpc_request_worker())
+
+
+async def async_jsonrpc_shutdown() -> None:
+	if _messagebus_jsonrpc_request_worker_task:
+		_messagebus_jsonrpc_request_worker_task.cancel()
+
+
 async def get_sort_algorithm(algorithm: str = None) -> str:
 	if algorithm in ("algorithm1", "algorithm2"):
 		return algorithm

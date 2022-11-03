@@ -41,6 +41,20 @@ from .redis import ConsumerGroupMessageReader, MessageReader, send_message
 PTY_READER_BLOCK_SIZE = 16 * 1024
 
 
+_messagebus_terminal_request_worker_task = None  # pylint: disable=invalid-name
+
+
+async def async_terminal_startup() -> None:
+	global _messagebus_terminal_request_worker_task  # pylint: disable=invalid-name,global-statement
+	if "terminal" not in config.admin_interface_disabled_features:
+		_messagebus_terminal_request_worker_task = asyncio.create_task(messagebus_terminal_request_worker())
+
+
+async def async_terminal_shutdown() -> None:
+	if _messagebus_terminal_request_worker_task:
+		_messagebus_terminal_request_worker_task.cancel()
+
+
 def start_pty(shell: str, rows: int | None = 30, cols: int | None = 120, cwd: str | None = None) -> spawn:
 	rows = rows or 30
 	cols = cols or 120

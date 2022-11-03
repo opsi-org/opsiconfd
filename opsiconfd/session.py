@@ -16,7 +16,6 @@ from collections import namedtuple
 from time import sleep as time_sleep
 from typing import Any, Dict, List, Optional, Union
 
-from redis import ResponseError as RedisResponseError
 from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import ValidationError
 from fastapi.requests import HTTPConnection
@@ -41,6 +40,7 @@ from OPSI.Util import (  # type: ignore[import]
 	timestamp,
 )
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
+from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
@@ -366,6 +366,8 @@ class SessionMiddleware:
 	async def __call__(
 		self, scope: Scope, receive: Receive, send: Send
 	) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+		if scope["type"] == "lifespan":
+			return await self.app(scope, receive, send)
 		try:
 			connection = HTTPConnection(scope)
 			set_context({"client_address": scope["client"][0]})

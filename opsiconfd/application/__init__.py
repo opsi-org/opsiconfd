@@ -30,14 +30,5 @@ app = OpsiconfdApp()
 
 
 @app.on_event("startup")
-async def startup_event() -> None:
-	from .main import startup  # pylint: disable=import-outside-toplevel
-
-	await startup()
-
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-	from .main import shutdown  # pylint: disable=import-outside-toplevel
-
-	await shutdown()
+async def startup() -> None:
+	from . import main  # pylint: disable=import-outside-toplevel,unused-import

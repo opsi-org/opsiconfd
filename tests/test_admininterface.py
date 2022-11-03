@@ -14,7 +14,7 @@ import os
 import sys
 import tempfile
 from types import ModuleType
-from typing import Any, Callable
+from typing import Any, Callable, Tuple
 
 import mock  # type: ignore[import]
 import pytest
@@ -22,7 +22,7 @@ from starlette.datastructures import Headers
 from starlette.requests import Request
 
 from opsiconfd.addon.manager import AddonManager
-from opsiconfd.config import REDIS_PREFIX_SESSION, Config
+from opsiconfd.config import FQDN, REDIS_PREFIX_SESSION, Config
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .test_addon_manager import cleanup  # pylint: disable=unused-import
@@ -284,13 +284,34 @@ async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,u
 
 
 def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name
-	response = test_client.get(f"https://192.168.1.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
-	assert response.status_code == 307
-	assert response.headers.get("location") == "/grafana/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
+	async def create_dashboard_user() -> Tuple[str, str]:
+		return "", ""
 
-	response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", auth=(ADMIN_USER, ADMIN_PASS), allow_redirects=False)
-	assert response.status_code == 307
-	assert response.headers.get("location") == "/grafana/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
+	with mock.patch("opsiconfd.application.admininterface.create_dashboard_user", create_dashboard_user):
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+		with get_config({"grafana_external_url": "https://grafana.test/"}):
+			# External grafana server
+			response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", allow_redirects=False)
+			assert response.status_code == 307
+			assert response.headers.get("location") == "https://grafana.test/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
+
+		with get_config({"grafana_external_url": f"https://{FQDN}:3000"}):
+			# Same server, different port
+			response = test_client.get(f"https://{FQDN}:{config.port}/admin/grafana", allow_redirects=False)
+			assert response.status_code == 307
+			assert response.headers.get("location") == f"https://{FQDN}:3000/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
+
+			# Same server, different port, request to different address (first redirect to fqdn)
+			response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", allow_redirects=False)
+			assert response.status_code == 307
+			assert response.headers.get("location") == f"https://{FQDN}:{config.port}/admin/grafana"
+
+		with get_config({"grafana_external_url": "/grafana-proxy"}):
+			# opsiconfd as reverse proxy for grafana
+			response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", allow_redirects=False)
+			assert response.status_code == 307
+			assert response.headers.get("location") == "/grafana-proxy/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
 
 
 @pytest.mark.mysql_backend_available

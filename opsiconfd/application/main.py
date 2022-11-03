@@ -377,6 +377,7 @@ async def async_application_shutdown() -> None:
 	await async_terminal_shutdown()
 
 
+@app.on_event("startup")
 async def startup() -> None:
 	logger.info("Processing startup event")
 	try:
@@ -390,6 +391,7 @@ async def startup() -> None:
 		raise error
 
 
+@app.on_event("shutdown")
 async def shutdown() -> None:
 	logger.info("Processing shutdown event")
 	try:

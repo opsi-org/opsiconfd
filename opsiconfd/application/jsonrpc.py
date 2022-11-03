@@ -47,7 +47,6 @@ from .. import contextvar_user_store
 from ..config import RPC_DEBUG_DIR, config
 from ..logging import logger
 from ..messagebus.redis import ConsumerGroupMessageReader, send_message
-from ..statistics import GrafanaPanelConfig, Metric, metrics_registry
 from ..utils import (
 	async_redis_client,
 	compress_data,
@@ -87,41 +86,6 @@ PRODUCT_METHODS = (
 )
 
 jsonrpc_router = APIRouter()
-
-metrics_registry.register(
-	Metric(
-		id="worker:sum_jsonrpc_number",
-		name="Average RPCs processed by worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
-		aggregation="sum",
-		zero_if_missing="continuous",
-		time_related=True,
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", units=["short"], decimals=0, stack=True, yaxis_min=0),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="worker:avg_jsonrpc_duration",
-		name="Average duration of RPCs processed by worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
-		aggregation="avg",
-		zero_if_missing="one",
-		subject="worker",
-		server_timing_header_factor=1000,
-		grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", units=["s"], decimals=0),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-)
 
 
 def jsonrpc_setup(app: FastAPI) -> None:
@@ -329,7 +293,7 @@ async def store_in_cache(rpc: Any, result: Dict[str, Any]) -> None:
 
 async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client_info: str) -> None:
 	is_error = bool(result.get("error"))
-	worker = Worker()
+	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector and not is_error:
 		asyncio.get_running_loop().create_task(
@@ -365,12 +329,13 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 		"worker": worker.worker_num,
 	}
 	logger.notice(
-		"JSONRPC request: method=%s, num_params=%d, duration=%0.4f, error=%s, num_results=%d",
+		"JSONRPC request: method=%s, num_params=%d, duration=%0.4f, error=%s, num_results=%d, worker=%d",
 		data["method"],
 		data["num_params"],
 		data["duration"],
 		data["error"],
 		data["num_results"],
+		worker.worker_num
 	)
 
 	max_rpcs = 9999
@@ -512,7 +477,7 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerator[Dict[str, Any], None]:
-	worker = Worker()
+	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector:
 		asyncio.get_running_loop().create_task(
@@ -661,7 +626,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 
 
 async def _messagebus_jsonrpc_request_worker() -> None:
-	worker = Worker()
+	worker = Worker.get_instance()
 	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 	channel = "service:config:jsonrpc"
 

@@ -14,19 +14,19 @@ from operator import itemgetter
 from time import time
 from typing import Any, Dict, List, Set
 
-from redis import ResponseError as RedisResponseError
 from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
+from redis import ResponseError as RedisResponseError
 
 from ..config import config
-from ..grafana import async_grafana_admin_session
-from ..logging import logger
-from ..metrics import metrics_registry
-from ..statistics import (
+from ..grafana import (
 	GRAFANA_DASHBOARD_TEMPLATE,
 	GRAFANA_DATASOURCE_TEMPLATE,
-	get_time_bucket_duration,
+	async_grafana_admin_session,
 )
+from ..logging import logger
+from ..metrics.registry import MetricsRegistry
+from ..metrics.statistics import get_time_bucket_duration
 from ..utils import async_redis_client, ip_address_from_redis_key
 
 # / should return 200 ok. Used for "Test connection" on the datasource config page.
@@ -81,7 +81,7 @@ async def grafana_dashboard_config() -> Dict[str, Any]:  # pylint: disable=too-m
 	panels = []
 	pos_x = 0
 	pos_y = 0
-	for panel_id, metric in enumerate(metrics_registry.get_metrics()):
+	for panel_id, metric in enumerate(MetricsRegistry().get_metrics()):
 		if not metric.grafana_config:
 			continue
 		panel_id += 1
@@ -139,7 +139,7 @@ async def grafana_search() -> List[str]:
 	clients = await get_clients("client:sum_http_request_number")
 
 	names = []
-	for metric in metrics_registry.get_metrics():
+	for metric in MetricsRegistry().get_metrics():
 		if metric.subject == "worker":
 			names += [metric.get_name(**worker) for worker in workers]  # pylint: disable=loop-invariant-statement
 		elif metric.subject == "node":
@@ -202,11 +202,11 @@ async def grafana_query(query: GrafanaQuery) -> List[Dict[str, Any]]:  # pylint:
 		bucket_duration_ms = query_bucket_duration_ms
 
 		try:  # pylint: disable=loop-try-except-usage
-			metric = metrics_registry.get_metric_by_name(target.target)
+			metric = MetricsRegistry().get_metric_by_name(target.target)
 			metric_vars = metric.get_vars_by_name(target.target)
 		except ValueError:
 			try:  # pylint: disable=loop-try-except-usage
-				metric = metrics_registry.get_metric_by_redis_key(target.target)
+				metric = MetricsRegistry().get_metric_by_redis_key(target.target)
 				metric_vars = metric.get_vars_by_redis_key(target.target)
 			except ValueError as err:
 				logger.debug(err)

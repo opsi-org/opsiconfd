@@ -35,12 +35,11 @@ from ..addon import AddonManager
 from ..config import config
 from ..logging import get_logger, logger
 from ..messagebus.websocket import messagebus_setup
+from ..metrics.statistics import StatisticsMiddleware
 from ..rest import OpsiApiException, rest_api
 from ..session import SessionMiddleware
 from ..ssl import get_ca_cert_as_pem
-from ..statistics import StatisticsMiddleware
 from ..utils import async_redis_client, normalize_ip_address
-from ..worker import Worker
 from . import terminal  # pylint: disable=unused-import
 from . import app
 from .admininterface import admin_interface_setup
@@ -369,10 +368,9 @@ def application_setup() -> None:
 
 async def startup() -> None:
 	try:
-		await Worker().startup()
 		await run_in_threadpool(application_setup)
 	except Exception as error:
-		logger.critical("Error during worker startup: %s", error, exc_info=True)
+		logger.critical("Error during application startup: %s", error, exc_info=True)
 		# Wait a second before raising error (which will terminate the worker process)
 		# to give the logger time to send log messages to redis
 		await asyncio.sleep(1)

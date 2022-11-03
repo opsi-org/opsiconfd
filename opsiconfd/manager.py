@@ -19,7 +19,7 @@ from types import FrameType
 from .config import config
 from .logging import init_logging, logger
 from .messagebus.redis import cleanup_channels
-from .metrics import ManagerMetricsCollector
+from .metrics.collector import ManagerMetricsCollector
 from .server import Server
 from .ssl import setup_server_cert
 from .utils import Singleton, async_get_redis_info, async_redis_client

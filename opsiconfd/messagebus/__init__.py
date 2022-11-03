@@ -28,7 +28,7 @@ messagebus_worker_id = ""  # pylint: disable=invalid-name
 def get_messagebus_worker_id() -> str:
 	global messagebus_worker_id  # pylint: disable=invalid-name,global-statement
 	if not messagebus_worker_id:
-		messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, Worker().worker_num)
+		messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, Worker.get_instance().worker_num)
 	return messagebus_worker_id
 
 

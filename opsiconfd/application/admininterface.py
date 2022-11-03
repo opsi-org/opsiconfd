@@ -35,11 +35,14 @@ from opsiconfd.backend.interface import get_backend_interface
 from .. import __version__, contextvar_client_session
 from ..addon import AddonManager
 from ..config import FQDN, REDIS_PREFIX_SESSION, VAR_ADDON_DIR, config
-from ..grafana import async_grafana_session, create_dashboard_user
+from ..grafana import (
+	GRAFANA_DASHBOARD_UID,
+	async_grafana_session,
+	create_dashboard_user,
+)
 from ..logging import logger
 from ..rest import RESTErrorResponse, RESTResponse, rest_api
 from ..ssl import get_ca_cert_info, get_server_cert_info
-from ..statistics import GRAFANA_DASHBOARD_UID
 from ..utils import (
 	async_redis_client,
 	get_manager_pid,

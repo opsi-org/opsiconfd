@@ -18,7 +18,6 @@ from threading import Event, Thread
 from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Type, Union
 from unittest.mock import patch
 
-from redis import asyncio as async_redis
 import msgpack  # type: ignore[import]
 import MySQLdb  # type: ignore[import]
 import pytest
@@ -27,6 +26,7 @@ import redis
 from fastapi.testclient import TestClient
 from MySQLdb.connections import Connection  # type: ignore[import]
 from opsicommon.objects import LocalbootProduct, ProductOnDepot  # type: ignore[import]
+from redis import asyncio as async_redis
 from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession, _ASGIAdapter
 from starlette.types import Receive, Scope, Send
@@ -47,31 +47,36 @@ def reset_singleton(cls: Singleton) -> None:
 		del cls._instances[cls]  # pylint: disable=protected-access
 
 
-class WorkerMainLoopThread(Thread):
+class WorkerTasksThread(Thread):
 	def __init__(self) -> None:
 		super().__init__()
 
 		from opsiconfd.worker import Worker  # pylint: disable=import-outside-toplevel
-		self.worker = Worker()
-
+		self.worker = Worker.get_instance()
 		self.loop = asyncio.new_event_loop()
 		self.daemon = True
+		self.should_stop = asyncio.Event()
 		self.stopped = Event()
 
 	def stop(self) -> None:
-		self.worker.stop()
+		self.should_stop.set()
 		self.stopped.wait()
+
+	async def arun(self) -> None:
+		asyncio.create_task(self.worker.worker_tasks())
+		await self.should_stop.wait()
+		self.worker.stop_worker_tasks()
 
 	def run(self) -> None:
 		asyncio.set_event_loop(self.loop)
 		self.loop.set_debug(True)
-		asyncio.run(self.worker.main_loop())
+		asyncio.run(self.arun())
 		self.stopped.set()
 
 
 @pytest_asyncio.fixture(autouse=True)
-def worker_main_loop() -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
-	wmlt = WorkerMainLoopThread()
+def worker_tasks() -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
+	wmlt = WorkerTasksThread()
 	wmlt.start()
 	yield None
 	wmlt.stop()

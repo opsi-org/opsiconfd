@@ -8,26 +8,32 @@
 worker
 """
 
+from __future__ import annotations
+
 import asyncio
 import ctypes
 import gc
 import os
+import socket
+import time
 from asyncio import sleep as asyncio_sleep
 from concurrent.futures import ThreadPoolExecutor
-from signal import SIGHUP, SIGINT, SIGTERM, signal
-from types import FrameType
-from typing import Optional
+from multiprocessing.context import SpawnProcess
+from signal import SIGHUP
+from typing import List, Optional
 
 from starlette.concurrency import run_in_threadpool
+from uvicorn._subprocess import get_subprocess  # type: ignore[import]
+from uvicorn.config import Config  # type: ignore[import]
+from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
-from . import ssl
+from . import __version__
 from .addon import AddonManager
-from .application import app
 from .backend import get_backend, get_client_backend
 from .config import config
 from .logging import init_logging, logger
-from .metrics import WorkerMetricsCollector
-from .utils import Singleton, async_redis_client, get_manager_pid
+from .metrics.collector import WorkerMetricsCollector
+from .utils import async_redis_client
 
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
@@ -43,100 +49,145 @@ def memory_cleanup() -> None:
 	ctypes.CDLL("libc.so.6").malloc_trim(0)
 
 
-class Worker(metaclass=Singleton):
-	def __init__(self) -> None:
-		self.pid = os.getpid()
-		self.is_manager = get_manager_pid() == self.pid
-		self.worker_num = 1
-		self.metrics_collector = WorkerMetricsCollector(self)
-		self._should_stop = False
+def uvicorn_config() -> Config:
+	options = {
+		"interface": "asgi3",
+		"http": "h11",  # "httptools"
+		"host": config.interface,
+		"port": config.port,
+		"workers": config.workers,
+		"log_config": None,
+		"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"]],
+		"ws_ping_interval": 15,
+		"ws_ping_timeout": 10
+	}
+	if config.ssl_server_key and config.ssl_server_cert:
+		options["ssl_keyfile"] = config.ssl_server_key
+		options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
+		options["ssl_certfile"] = config.ssl_server_cert
+		options["ssl_ciphers"] = config.ssl_ciphers
+		if config.ssl_ca_cert and os.path.exists(config.ssl_ca_cert):
+			options["ssl_ca_certs"] = config.ssl_ca_cert
 
-	async def startup(self) -> None:
-		self._init_worker_num()
-		logger.notice("Startup worker %d (pid %s)", self.worker_num, os.getpid())
-		loop = asyncio.get_running_loop()
-		loop.set_debug(config.debug)
-		init_pool_executor(loop)
-		loop.set_exception_handler(self.handle_asyncio_exception)
-		# create redis pool
-		await async_redis_client(timeout=10, test_connection=True)
-		loop.create_task(self.main_loop())
-		# Start MetricsCollector
-		loop.create_task(self.metrics_collector.main_loop())
+	return Config("opsiconfd.application:app", **options)
 
-		# Create BackendManager instances
-		await run_in_threadpool(get_backend, 60)
-		await run_in_threadpool(get_client_backend)
+
+class Worker(UvicornServer):
+	_instance = None
+
+	def __init__(self, worker_num: int) -> None:
+		self.worker_num = worker_num
+		self.create_time = time.time()
+		UvicornServer.__init__(self, uvicorn_config())
+		self._metrics_collector: WorkerMetricsCollector | None = None
+		self._metrics_collector_task: asyncio.Task | None = None
+		self._messagebus_jsonrpc_request_worker_task: asyncio.Task | None = None
+		self._messagebus_terminal_request_worker_task: asyncio.Task | None = None
+		self.process: SpawnProcess | None = None
+
+	def start_server_process(self, sockets: List[socket.socket]) -> None:
+		self.process = get_subprocess(config=self.config, target=self.run, sockets=sockets)
+		self.process.start()
+
+	@classmethod
+	def get_instance(cls) -> Worker:
+		if not Worker._instance:
+			raise RuntimeError("Failed to get worker instance")
+		return Worker._instance
 
 	def __repr__(self) -> str:
 		return f"<{self.__class__.__name__} {self.worker_num} (pid: {self.pid}>"
 
 	__str__ = __repr__
 
-	def _init_worker_num(self) -> None:
-		if self.is_manager:
-			return
+	@property
+	def pid(self) -> int:
+		if not self.process or not self.process.pid:
+			return os.getpid()
+		return self.process.pid
 
-		worker_num = int(os.getenv("OPSICONFD_WORKER_WORKER_NUM", "0"))
-		if worker_num > 0:
-			self.worker_num = worker_num
-		else:
-			logger.error("Failed to get worker number from env")
-
-		# Only if this process is a worker only process (multiprocessing)
-		for sig in SIGHUP, SIGINT, SIGTERM:
-			signal(sig, self.signal_handler)
-		init_logging(log_mode=config.log_mode, is_worker=True)
-		opsi_ca_key = os.getenv("OPSICONFD_WORKER_OPSI_SSL_CA_KEY", None)
-		if opsi_ca_key:
-			ssl.KEY_CACHE[config.ssl_ca_key] = opsi_ca_key
-			del os.environ["OPSICONFD_WORKER_OPSI_SSL_CA_KEY"]
-
-	def signal_handler(self, signum: int, frame: Optional[FrameType]) -> None:  # pylint: disable=unused-argument
-		logger.info("Worker process %d (pid %d) received signal %d", self.worker_num, self.pid, signum)
-		if signum == SIGHUP:
-			logger.notice("Worker process %d (pid %d) reloading", self.worker_num, self.pid)
-			config.reload()
-			init_logging(log_mode=config.log_mode, is_worker=True)
-			memory_cleanup()
-			AddonManager().reload_addons()
-		else:
-			self.stop()
+	@property
+	def metrics_collector(self) -> WorkerMetricsCollector:
+		if not self._metrics_collector:
+			self._metrics_collector = WorkerMetricsCollector(self)
+		return self._metrics_collector
 
 	def handle_asyncio_exception(self, loop: asyncio.AbstractEventLoop, context: dict) -> None:
 		logger.error(
 			"Unhandled exception in worker %s asyncio loop '%s': %s", self, loop, context.get("message"), exc_info=context.get("exception")
 		)
 
-	def stop(self) -> None:
-		app.is_shutting_down = True
-		self._should_stop = True
+	async def memory_cleanup_task(self) -> None:
+		while not self.should_exit:
+			for _ in range(120):
+				if self.should_exit:
+					break
+				await asyncio_sleep(1)
+			memory_cleanup()
 
-	async def main_loop(self) -> None:
-		app.is_shutting_down = False
-		self._should_stop = False
+	async def worker_tasks(self) -> None:
+		asyncio.create_task(self.memory_cleanup_task())
+		self._metrics_collector_task = asyncio.create_task(self.metrics_collector.main_loop())
 
 		from .application.jsonrpc import (  # pylint: disable=import-outside-toplevel
 			messagebus_jsonrpc_request_worker,
 		)
-
-		messagebus_jsonrpc_request_worker_task = asyncio.create_task(messagebus_jsonrpc_request_worker())
-
-		messagebus_terminal_request_worker_task = None
+		self._messagebus_jsonrpc_request_worker_task = asyncio.create_task(messagebus_jsonrpc_request_worker())
 		if "terminal" not in config.admin_interface_disabled_features:
 			from .messagebus.terminal import (  # pylint: disable=import-outside-toplevel
 				messagebus_terminal_request_worker,
 			)
 
-			messagebus_terminal_request_worker_task = asyncio.create_task(messagebus_terminal_request_worker())
+			self._messagebus_terminal_request_worker_task = asyncio.create_task(messagebus_terminal_request_worker())
 
-		while not self._should_stop:
-			for _ in range(120):
-				if self._should_stop:
-					break
-				await asyncio_sleep(1)
-			memory_cleanup()
+	def stop_worker_tasks(self) -> None:
+		if self._messagebus_jsonrpc_request_worker_task:
+			self._messagebus_jsonrpc_request_worker_task.cancel()
+		if self._messagebus_terminal_request_worker_task:
+			self._messagebus_terminal_request_worker_task.cancel()
 
-		messagebus_jsonrpc_request_worker_task.cancel()
-		if messagebus_terminal_request_worker_task:
-			messagebus_terminal_request_worker_task.cancel()
+	def run(self, sockets: Optional[List[socket.socket]] = None) -> None:
+		Worker._instance = self
+		init_logging(log_mode=config.log_mode, is_worker=True)
+		logger.notice("Startup worker %d (pid %s)", self.worker_num, self.pid)
+		self._metrics_collector = WorkerMetricsCollector(self)
+		super().run(sockets=sockets)
+
+	async def serve(self, sockets: Optional[List[socket.socket]] = None) -> None:
+
+		loop = asyncio.get_running_loop()
+		loop.set_debug(config.debug)
+		init_pool_executor(loop)
+		loop.set_exception_handler(self.handle_asyncio_exception)
+
+		# Create redis pool
+		await async_redis_client(timeout=10, test_connection=True)
+
+		# Create BackendManager instances
+		await run_in_threadpool(get_backend, 60)
+		await run_in_threadpool(get_client_backend)
+
+		loop.create_task(self.worker_tasks())
+
+		await super().serve(sockets=sockets)
+
+	async def shutdown(self, sockets: Optional[List[socket.socket]] = None) -> None:
+		self.stop_worker_tasks()
+		await super().shutdown(sockets=sockets)
+
+	def install_signal_handlers(self) -> None:
+		loop = asyncio.get_event_loop()
+		loop.add_signal_handler(SIGHUP, self.handle_sighup)
+		super().install_signal_handlers()
+
+	def handle_sighup(self) -> None:
+		logger.notice("Worker process %d (pid %d) reloading", self.worker_num, self.pid)
+		config.reload()
+		for key, value in uvicorn_config().__dict__.items():
+			# Do not replace the whole config object, because uvicorn
+			# server adds additional keys like "encoded_headers" on start
+			if value is not None:
+				setattr(self.config, key, value)
+		init_logging(log_mode=config.log_mode, is_worker=True)
+		memory_cleanup()
+		AddonManager().reload_addons()

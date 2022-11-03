@@ -41,7 +41,7 @@ from .utils import (  # pylint: disable=unused-import
 	client_jsonrpc,
 	sync_redis_client,
 	test_client,
-	worker_main_loop,
+	worker_tasks,
 )
 
 

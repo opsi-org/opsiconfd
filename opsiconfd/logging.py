@@ -24,7 +24,6 @@ from logging import Formatter, LogRecord, PlaceHolder, StreamHandler
 from queue import Empty, Queue
 from typing import Any, Callable, Dict, TextIO
 
-from redis import ConnectionError as RedisConnectionError, BusyLoadingError as RedisBusyLoadingError
 import colorlog
 import msgpack  # type: ignore[import]
 from aiofiles.threadpool import AsyncTextIOWrapper  # type: ignore[import]
@@ -48,6 +47,8 @@ from opsicommon.logging.constants import NONE  # type: ignore[import]
 from opsicommon.logging.logging import (  # type: ignore[import]
 	add_context_filter_to_loggers,
 )
+from redis import BusyLoadingError as RedisBusyLoadingError
+from redis import ConnectionError as RedisConnectionError
 
 from .config import config
 from .utils import get_async_redis_connection, get_redis_connection, retry_redis_call

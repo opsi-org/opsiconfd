@@ -13,40 +13,26 @@ import signal
 import socket
 import threading
 import time
-from multiprocessing.context import SpawnProcess
+
+# from multiprocessing.context import SpawnProcess
 from typing import List, Optional
 
 import psutil
 from uvicorn._subprocess import get_subprocess  # type: ignore[import]
-from uvicorn.config import Config  # type: ignore[import]
-from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
 from . import __version__, ssl
 from .backend import get_backend
 from .config import config
 from .logging import init_logging, logger
 from .utils import get_redis_connection, retry_redis_call
+from .worker import Worker
 
 
-class WorkerProcess:  # pylint: disable=too-few-public-methods
-	def __init__(self, process: SpawnProcess, worker_num: int) -> None:
-		self.process = process
-		self.worker_num = worker_num
-		self.create_time = time.time()
-
-	@property
-	def pid(self) -> int:
-		if not self.process.pid:
-			raise RuntimeError(f"Failed to get pid of {self.process}")
-		return self.process.pid
-
-
-class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branches
-	def __init__(self, server: UvicornServer):
-		self.server = server
+class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
+	def __init__(self) -> None:
 		self.socket: socket.socket | None = None
 		self.node_name = config.node_name
-		self.workers: List[WorkerProcess] = []
+		self.workers: List[Worker] = []
 		self.worker_stop_timeout = config.worker_stop_timeout
 		self.worker_restart_time = 0
 		self.worker_restart_mem = config.restart_worker_mem * 1000000
@@ -58,23 +44,32 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.pid = os.getpid()
 		self.startup = True
 
-	@property
-	def uvicorn_config(self) -> Config:
-		return self.server.config
+	def restart_workers(self) -> None:
+		self.should_restart_workers = True
+
+	def check_modules(self) -> None:  # pylint: disable=too-many-statements,too-many-branches
+		if config.workers == 1:
+			return
+
+		if "scalability1" not in get_backend().backend_getLicensingInfo()["available_modules"]:  # pylint: disable=no-member
+			config.workers = 1
+			logger.error("Module 'scalability1' not licensed, limiting to %d workers.", config.workers)
 
 	def bind_socket(self) -> None:
-		# This is only used for multi worker configs
-		ipv6 = ":" in self.uvicorn_config.host
+		ipv6 = ":" in config.interface
 		self.socket = socket.socket(family=socket.AF_INET6 if ipv6 else socket.AF_INET)
 		self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		try:
-			self.socket.bind((self.uvicorn_config.host, self.uvicorn_config.port))
+			self.socket.bind((config.interface, config.port))
 		except OSError as exc:
 			logger.error(exc)
 			raise
 		self.socket.set_inheritable(True)
 
 	def run(self) -> None:
+		logger.notice("Starting server")
+		init_logging(config.log_mode)
+		self.check_modules()
 		self.bind_socket()
 		self.adjust_worker_count()
 		while not self.should_stop:
@@ -145,6 +140,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 	def reload(self) -> None:
+		self.check_modules()
 		for worker in self.workers:
 			os.kill(worker.pid, signal.SIGHUP)  # pylint: disable=dotted-import-in-loop
 
@@ -156,7 +152,7 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		self.stop_worker([worker.pid for worker in self.workers], force=force)
 		logger.info("All workers stopped")
 
-	def get_worker(self, pid: int) -> Optional[WorkerProcess]:
+	def get_worker(self, pid: int) -> Optional[Worker]:
 		for worker in self.workers:
 			if worker.pid == pid:
 				return worker
@@ -170,8 +166,11 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 		os.putenv("OPSICONFD_WORKER_WORKER_NUM", str(worker_num))
 		os.putenv("OPSICONFD_CONFIG_FILE", config.config_file)
 
-		worker = WorkerProcess(get_subprocess(config=self.uvicorn_config, target=self.server.run, sockets=[self.socket]), worker_num)
-		worker.process.start()
+		if not self.socket:
+			raise RuntimeError("Socket not initialized")
+
+		worker = Worker(worker_num)
+		worker.start_server_process([self.socket])
 
 		logger.notice("New worker %d (pid %d) started", worker_num, worker.pid)
 		while len(self.workers) < worker_num:
@@ -233,9 +232,9 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 
 	def adjust_worker_count(self) -> None:
 		with self.worker_update_lock:
-			while len(self.workers) < self.uvicorn_config.workers:
+			while len(self.workers) < config.workers:
 				self.start_worker(worker_num=len(self.workers) + 1)
-			while len(self.workers) > self.uvicorn_config.workers:
+			while len(self.workers) > config.workers:
 				self.stop_worker([self.workers[-1].pid])
 
 	@retry_redis_call
@@ -245,9 +244,10 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 			for worker in self.workers:
 				redis_key = f"opsiconfd:worker_registry:{self.node_name}:{worker.worker_num}"
 				redis.hset(
-					redis_key, key=None, value=None, mapping={
-						"worker_pid": worker.pid, "node_name": self.node_name, "worker_num": worker.worker_num
-					}
+					redis_key,
+					key=None,
+					value=None,
+					mapping={"worker_pid": worker.pid, "node_name": self.node_name, "worker_num": worker.worker_num},
 				)
 				redis.expire(redis_key, 60)
 
@@ -260,82 +260,3 @@ class Supervisor:  # pylint: disable=too-many-instance-attributes,too-many-branc
 				if worker_num == -1 or worker_num > len(self.workers):
 					# Delete obsolete worker entry
 					redis.delete(redis_key)
-
-
-class Server:
-	def __init__(self) -> None:
-		self.uvicorn_config = None
-		self.uvicorn_server: UvicornServer | None = None
-		self.supervisor: Supervisor | None = None
-
-	def run(self) -> None:
-		self.check_modules()
-		self.create_uvicorn_config()
-
-		logger.notice("Starting server")
-		self.uvicorn_server = UvicornServer(config=self.uvicorn_config)
-
-		init_logging(config.log_mode)
-
-		self.supervisor = Supervisor(server=self.uvicorn_server)
-		self.supervisor.run()
-
-		logger.notice("Server exited")
-
-	def reload(self) -> None:
-		self.check_modules()
-		self.create_uvicorn_config()
-		if self.uvicorn_server:
-			for key, value in self.uvicorn_config.__dict__.items():
-				# Do not replace the whole config object, because uvicorn
-				# server adds additional keys like "encoded_headers" on start
-				if value is not None:
-					setattr(self.uvicorn_server.config, key, value)
-		if self.supervisor:
-			self.supervisor.reload()
-
-	def stop(self, force: bool = False) -> None:
-		logger.notice("Stopping server")
-		if self.supervisor:
-			logger.info("Stopping supervisor")
-			self.supervisor.stop(force)
-		elif self.uvicorn_server:
-			logger.info("Stopping single uvicorn server")
-			self.uvicorn_server.should_exit = True
-			if force:
-				self.uvicorn_server.force_exit = True
-
-	def restart_workers(self) -> None:
-		if self.supervisor:
-			self.supervisor.should_restart_workers = True
-
-	def create_uvicorn_config(self) -> None:
-		options = {
-			"interface": "asgi3",
-			"http": "h11",  # "httptools"
-			"host": config.interface,
-			"port": config.port,
-			"workers": config.workers,
-			"log_config": None,
-			"debug": config.debug,
-			"headers": [["Server", f"opsiconfd {__version__} (uvicorn)"]],
-			"ws_ping_interval": 15,
-			"ws_ping_timeout": 10
-		}
-		if config.ssl_server_key and config.ssl_server_cert:
-			options["ssl_keyfile"] = config.ssl_server_key
-			options["ssl_keyfile_password"] = config.ssl_server_key_passphrase
-			options["ssl_certfile"] = config.ssl_server_cert
-			options["ssl_ciphers"] = config.ssl_ciphers
-			if config.ssl_ca_cert and os.path.exists(config.ssl_ca_cert):
-				options["ssl_ca_certs"] = config.ssl_ca_cert
-
-		self.uvicorn_config = Config("opsiconfd.application:app", **options)
-
-	def check_modules(self) -> None:  # pylint: disable=too-many-statements,too-many-branches
-		if config.workers == 1:
-			return
-
-		if "scalability1" not in get_backend().backend_getLicensingInfo()["available_modules"]:  # pylint: disable=no-member
-			config.workers = 1
-			logger.error("Module 'scalability1' not licensed, limiting to %d workers.", config.workers)

@@ -68,7 +68,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
-		worker = Worker()
+		worker = Worker.get_instance()
 		self._messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 		self._messagebus_user_id = ""
 		self._user_channel = ""

@@ -43,8 +43,8 @@ from OPSI.Util.Task.Rights import (  # type: ignore[import]
 from .config import VAR_ADDON_DIR, config
 from .grafana import setup_grafana
 from .logging import logger
+from .metrics.statistics import setup_metric_downsampling
 from .ssl import setup_ssl, setup_ssl_file_permissions
-from .statistics import setup_metric_downsampling
 
 
 def setup_limits() -> None:

@@ -102,6 +102,7 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 
 	apply_patches()
 
+	stdin = None
 	try:  # pylint: disable=too-many-nested-blocks
 		# Test if redis connection available
 		logger.info("Testing redis connection (timeout: %d)", REDIS_CONECTION_TIMEOUT)
@@ -143,6 +144,8 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 		shutdown_logging()
 
 	finally:
+		if stdin:
+			stdin.close()
 		for thread in threading.enumerate():  # pylint: disable=dotted-import-in-loop
 			stop = getattr(thread, "stop", None)
 			if stop:

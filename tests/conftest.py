@@ -34,6 +34,7 @@ from opsiconfd.config import config as _config
 from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
 from opsiconfd.setup import setup_ssl
+from opsiconfd.worker import Worker
 
 GRAFANA_AVAILABLE = False
 MYSQL_BACKEND_AVAILABLE = False
@@ -88,6 +89,8 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	)
 	with (patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None)):
 		setup_ssl()
+
+	Worker._instance = Worker(1)  # pylint: disable=protected-access
 	application_setup()
 
 

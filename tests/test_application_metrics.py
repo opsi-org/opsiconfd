@@ -21,8 +21,8 @@ from opsiconfd.application.metrics import (
 	grafana_dashboard_config,
 	grafana_search,
 )
-from opsiconfd.metrics import WorkerMetricsCollector
-from opsiconfd.statistics import setup_metric_downsampling
+from opsiconfd.metrics.collector import WorkerMetricsCollector
+from opsiconfd.metrics.statistics import setup_metric_downsampling
 from opsiconfd.utils import async_redis_client
 from opsiconfd.worker import Worker
 
@@ -55,7 +55,7 @@ async def _register_workers():
 	return workers
 
 
-async def test_get_workers():
+async def test_get_workers() -> None:
 	workers = await _register_workers()
 	_workers = await get_workers()
 	for worker in workers:
@@ -71,15 +71,15 @@ async def test_get_workers():
 			raise Exception(f"Worker {worker} not found")
 
 
-async def test_get_nodes():
+async def test_get_nodes() -> None:
 	workers = await _register_workers()
 	nodes = await get_nodes()
 	for worker in workers:
 		assert worker["node_name"] in nodes
 
 
-async def test_get_clients(test_client):  # pylint: disable=redefined-outer-name
-	worker = Worker()
+async def test_get_clients(test_client) -> None:  # pylint: disable=redefined-outer-name
+	worker = Worker.get_instance()
 	worker.metrics_collector = WorkerMetricsCollector(worker)
 	worker.metrics_collector._interval = 1  # pylint: disable=protected-access
 	loop = asyncio.get_event_loop()
@@ -95,12 +95,12 @@ async def test_get_clients(test_client):  # pylint: disable=redefined-outer-name
 	assert clients == [{"client_addr": "127.0.0.1"}]
 
 
-async def test_grafana_dashboard_config():
+async def test_grafana_dashboard_config() -> None:
 	conf = await grafana_dashboard_config()
 	assert len(conf["panels"]) == 10
 
 
-async def test_grafana_search():
+async def test_grafana_search() -> None:
 	workers = await _register_workers()
 	res = await grafana_search()
 	for worker in workers:
@@ -109,7 +109,7 @@ async def test_grafana_search():
 
 async def create_ts_data(
 	node_name: str, postfix: str, start: int, end: int, interval: int, value: float, delete: bool = True
-):  # pylint: disable=too-many-locals,too-many-arguments
+) -> None:  # pylint: disable=too-many-locals,too-many-arguments
 	# avg_cpu_percent
 	#   retention: 2 * 3600 * 1000 = 7200000
 	#   downsampling:
@@ -157,7 +157,7 @@ async def create_ts_data(
 
 
 @pytest.mark.grafana_available
-async def test_grafana_query_end_current_time(test_client, config):  # pylint: disable=redefined-outer-name
+async def test_grafana_query_end_current_time(test_client, config) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	end = int(time.time())
@@ -238,7 +238,7 @@ async def test_grafana_query_end_current_time(test_client, config):  # pylint: d
 		assert dat[0] == value
 
 
-async def test_grafana_query_interval_in_past(test_client, config):  # pylint: disable=redefined-outer-name
+async def test_grafana_query_interval_in_past(test_client, config) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	end = int(time.time())

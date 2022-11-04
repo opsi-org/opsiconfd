@@ -11,8 +11,7 @@ monitoring
 from datetime import datetime
 from typing import Dict
 
-import msgpack  # type: ignore[import]
-import orjson  # type: ignore[import]
+import msgspec
 from fastapi.responses import JSONResponse
 
 from opsiconfd.application.jsonrpc import store_rpc_info
@@ -55,11 +54,7 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 		rpc_list = await redis.lrange("opsiconfd:stats:rpcs", 0, 9999)
 		error_count = 0
 		for rpc in rpc_list:
-			try:  # pylint: disable=loop-try-except-usage
-				rpc = msgpack.loads(rpc)  # pylint: disable=dotted-import-in-loop
-			except msgpack.exceptions.ExtraData:  # pylint: disable=dotted-import-in-loop
-				# Was json encoded before, can be removed in the future
-				rpc = orjson.loads(rpc)  # pylint: disable=no-member,dotted-import-in-loop
+			rpc = msgspec.msgpack.decode(rpc)  # pylint: disable=dotted-import-in-loop
 			if rpc["error"]:
 				error_count += 1
 		if error_count == 0:

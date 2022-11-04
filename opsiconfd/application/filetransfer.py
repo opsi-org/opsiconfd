@@ -14,9 +14,9 @@ from typing import Tuple
 from uuid import UUID, uuid4
 
 import aiofiles  # type: ignore[import]
+import msgspec
 from fastapi import APIRouter, FastAPI, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
-from msgpack import dumps, loads  # type: ignore[import]
 from werkzeug.http import parse_options_header
 
 from .. import contextvar_client_session
@@ -41,7 +41,7 @@ def prepare_upload(filename: str = None, content_type: str = None) -> Tuple[str,
 	file_path = storage_dir / file_id
 	meta_path = file_path.with_suffix(".meta")
 	meta_path.write_bytes(
-		dumps(
+		msgspec.msgpack.encode(
 			{
 				"created": int(time()),
 				"expires": int(time() + 3600),
@@ -95,7 +95,7 @@ async def post_file_multipart(file: UploadFile) -> JSONResponse:
 async def get_file(file_id: UUID) -> FileResponse:
 	file_path = Path(STORAGE_DIR) / str(file_id)
 	meta_path = file_path.with_suffix(".meta")
-	meta = loads(meta_path.read_bytes())
+	meta = msgspec.msgpack.decode(meta_path.read_bytes())
 	return FileResponse(path=file_path, filename=meta["filename"], media_type=meta["content_type"])
 
 

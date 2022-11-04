@@ -20,7 +20,7 @@ from shutil import move, rmtree, unpack_archive
 from typing import Dict, List
 from urllib.parse import urlparse
 
-import msgpack  # type: ignore[import]
+import msgspec
 from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
@@ -265,7 +265,7 @@ async def get_rpc_list() -> RESTResponse:
 
 	rpc_list = []
 	for value in redis_result:
-		value = msgpack.loads(value)  # pylint: disable=dotted-import-in-loop
+		value = msgspec.msgpack.decode(value)  # pylint: disable=dotted-import-in-loop
 		rpc = {
 			"rpc_num": value.get("rpc_num"),
 			"method": value.get("method"),
@@ -297,7 +297,9 @@ async def get_session_list() -> RESTResponse:
 	session_list = []
 	async for redis_key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):
 		data = await redis.get(redis_key)
-		session = msgpack.loads(data)
+		if not data:
+			continue
+		session = msgspec.msgpack.decode(data)
 		tmp = redis_key.decode().split(":")
 		validity = session["max_age"] - (utc_time_timestamp() - session["last_used"])
 		if validity <= 0:

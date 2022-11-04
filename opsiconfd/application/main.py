@@ -15,13 +15,13 @@ from ctypes import c_long
 from typing import Any, AsyncGenerator, List, Tuple
 from urllib.parse import urlparse
 
+import msgspec
 from fastapi import FastAPI, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
-from msgpack import dumps as msgpack_dumps  # type: ignore[import]
 from opsicommon.logging.constants import TRACE  # type: ignore[import]
 from starlette import status
 from starlette.concurrency import run_in_threadpool
@@ -139,7 +139,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 		self._last_id = start_id
 		self._client = client
 
-		message_header = bytearray(msgpack_dumps({"type": "log-records"}))
+		message_header = bytearray(msgspec.msgpack.encode({"type": "log-records"}))
 		try:
 			while True:
 				if websocket.client_state != WebSocketState.CONNECTED:

@@ -19,10 +19,9 @@ from pwd import getpwuid
 from time import time
 from typing import Any, Dict, Optional
 
+import msgspec
 import psutil
 from fastapi import Query
-from msgpack import dumps as msgpack_dumps  # type: ignore[import]
-from msgpack import loads as msgpack_loads  # type: ignore[import]
 from OPSI.System import get_subprocess_environment  # type: ignore[import]
 from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
@@ -56,6 +55,8 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		self._pty: spawn
 		self._pty_reader_task: asyncio.Task
 		self._file_transfers: Dict[str, Dict[str, Any]] = {}
+		self._msgpack_encoder = msgspec.msgpack.Encoder()
+		self._msgpack_decoder = msgspec.msgpack.Decoder()
 
 	async def pty_reader(self, websocket: WebSocket) -> None:
 		loop = get_running_loop()
@@ -68,7 +69,9 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 					logger.trace(data)
 					await websocket.send_bytes(
 						await loop.run_in_executor(
-							None, msgpack_dumps, {"type": "terminal-read", "payload": data}  # pylint: disable=loop-invariant-statement
+							None,
+							self._msgpack_encoder.encode,
+							{"type": "terminal-read", "payload": data},  # pylint: disable=loop-invariant-statement
 						)  # pylint: disable=loop-invariant-statement
 					)
 				except TIMEOUT:  # pylint: disable=loop-invariant-statement
@@ -80,7 +83,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			logger.debug("pty_reader: %s", err)
 
 	async def on_receive(self, websocket: WebSocket, data: Any) -> None:
-		message = await get_running_loop().run_in_executor(None, msgpack_loads, data)
+		message = await get_running_loop().run_in_executor(None, self._msgpack_decoder.decode, data)
 		logger.trace(message)
 		payload = message.get("payload")
 		if message.get("type") == "terminal-write":
@@ -92,7 +95,9 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 			response = await get_running_loop().run_in_executor(None, self._handle_file_transfer, payload)
 			if response:
 				await websocket.send_bytes(
-					await get_running_loop().run_in_executor(None, msgpack_dumps, {"type": "file-transfer-result", "payload": response})
+					await get_running_loop().run_in_executor(
+						None, self._msgpack_encoder.encode, {"type": "file-transfer-result", "payload": response}
+					)
 				)
 		else:
 			logger.warning("Received invalid message type %r", message.get("type"))

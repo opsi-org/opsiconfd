@@ -12,6 +12,7 @@ from asyncio import Task, get_running_loop, sleep
 from inspect import Parameter
 from typing import List, Optional
 
+import msgspec
 from fastapi import HTTPException, params
 from fastapi.dependencies.utils import (
 	get_dependant,
@@ -19,8 +20,6 @@ from fastapi.dependencies.utils import (
 	solve_dependencies,
 )
 from fastapi.exceptions import WebSocketRequestValidationError
-from msgpack import dumps as msgpack_dumps  # type: ignore[import]
-from orjson import loads  # type: ignore[import] # pylint: disable=no-name-in-module
 from starlette.endpoints import WebSocketEndpoint
 from starlette.status import (
 	HTTP_401_UNAUTHORIZED,
@@ -91,7 +90,7 @@ def bool_product_property(value: str | None) -> bool:
 def unicode_product_property(value: str | None) -> List[str]:
 	if value and isinstance(value, str):
 		if value.startswith('["'):
-			return loads(value)  # pylint: disable=no-member
+			return msgspec.json.decode(value.encode("utf-8"))  # pylint: disable=no-member
 		if value == "[]":
 			return [""]
 		return value.replace('\\"', '"').split(",")
@@ -155,7 +154,7 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 				if websocket.client_state != WebSocketState.CONNECTED:
 					break
 				logger.debug("Send set-cookie")
-				await websocket.send_bytes(msgpack_dumps({"type": "set-cookie", "payload": session.get_cookie()}))
+				await websocket.send_bytes(msgspec.msgpack.encode({"type": "set-cookie", "payload": session.get_cookie()}))  # pylint: disable=dotted-import-in-loop
 		except (ConnectionClosedOK, WebSocketDisconnect) as err:
 			logger.debug("set_cookie_task: %s", err)
 

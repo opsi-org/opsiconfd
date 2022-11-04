@@ -13,9 +13,9 @@ from asyncio import Task, create_task, sleep
 from time import time
 from typing import Union
 
+import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.responses import HTMLResponse
-from msgpack import loads as msgpack_loads  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionOperation,
@@ -77,6 +77,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		self._messagebus_reader_task = Union[Task, None]
 		self._messagebus_reader = MessageReader()
 		self._manager_task = Union[Task, None]
+		self._message_decoder = msgspec.msgpack.Decoder()
 
 	async def _check_authorization(self) -> None:
 		if not self.scope.get("session"):
@@ -234,7 +235,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			receive_timestamp = timestamp()
 			if self._compression:
 				data = await run_in_threadpool(decompress_data, data, self._compression)
-			msg_dict = msgpack_loads(data)
+			msg_dict = self._message_decoder.decode(data)
 			if not isinstance(msg_dict, dict):
 				raise ValueError("Invalid message received")
 

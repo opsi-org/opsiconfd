@@ -25,7 +25,7 @@ from queue import Empty, Queue
 from typing import Any, Callable, Dict, TextIO
 
 import colorlog
-import msgpack  # type: ignore[import]
+import msgspec
 from aiofiles.threadpool import AsyncTextIOWrapper  # type: ignore[import]
 from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import]
 from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import]
@@ -343,6 +343,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		if self._running_event:
 			self._running_event.set()
 
+		msgpack_decoder = msgspec.msgpack.Decoder()
 		last_id = "$"
 		while True:  # pylint: disable=too-many-nested-blocks
 			try:  # pylint: disable=loop-try-except-usage
@@ -358,7 +359,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 					for entry in stream[1]:
 						last_id = entry[0]
 						client = entry[1].get(b"client_address", b"").decode("utf-8")
-						record_dict = msgpack.unpackb(entry[1][b"record"])  # pylint: disable=dotted-import-in-loop
+						record_dict = msgpack_decoder.decode(entry[1][b"record"])  # pylint: disable=dotted-import-in-loop
 						record_dict.update({"scope": None, "exc_info": None, "args": None})
 						record = pylogging.makeLogRecord(record_dict)  # pylint: disable=dotted-import-in-loop
 						# workaround for problem in aiologger.formatters.base.Formatter.format
@@ -381,7 +382,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 				handle_log_exception(err, stderr=True, temp_file=True)
 
 
-class RedisLogHandler(pylogging.Handler, threading.Thread):
+class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=too-many-instance-attributes
 	"""
 	Will collect log messages in pipeline and send collected
 	log messages at once to redis in regular intervals.
@@ -397,6 +398,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 		self._redis = get_redis_connection(config.redis_internal_url)
 		self._queue: Queue = Queue()
 		self._should_stop = False
+		self._msgpack_encoder = msgspec.msgpack.Encoder()
 		self.start()
 
 	@property
@@ -463,7 +465,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):
 			context = getattr(record, "context", None)
 			if context:
 				entry = dict(context)
-			entry["record"] = msgpack.packb(self.log_record_to_dict(record))
+			entry["record"] = self._msgpack_encoder.encode(self.log_record_to_dict(record))
 			self._queue.put(entry)
 		except (KeyboardInterrupt, SystemExit):  # pylint: disable=try-except-raise
 			raise

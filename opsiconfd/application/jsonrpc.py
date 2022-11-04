@@ -19,8 +19,7 @@ from os import makedirs
 from time import perf_counter
 from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 
-import msgpack  # type: ignore[import]
-import orjson  # type: ignore[import]
+import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import Response
@@ -218,19 +217,16 @@ def get_response_serialization(request: Request) -> Optional[str]:
 	return None
 
 
-def deserialize_data(data: Union[bytes, str], serialization: str) -> Any:
+msgpack_decoder = msgspec.msgpack.Decoder()
+json_decoder = msgspec.json.Decoder()
+
+
+def deserialize_data(data: bytes, serialization: str) -> Any:
 	deserialize_start = time.perf_counter()
 	if serialization == "msgpack":
-		result = msgpack.loads(data)
+		result = msgpack_decoder.decode(data)
 	elif serialization == "json":
-		if isinstance(data, bytes):
-			# workaround for "JSONDecodeError: str is not valid UTF-8: surrogates not allowed".
-			# opsi-script produces invalid UTF-8.
-			# Therefore we do not pass bytes to orjson.loads but
-			# decoding with "replace" first and passing unicode to orjson.loads.
-			# See orjson documentation for details.
-			data = data.decode("utf-8", "replace")
-		result = orjson.loads(data)  # pylint: disable=no-member
+		result = json_decoder.decode(data)
 	else:
 		raise ValueError(f"Unhandled serialization {serialization!r}")
 	deserialize_end = time.perf_counter()
@@ -242,11 +238,15 @@ def deserialize_data(data: Union[bytes, str], serialization: str) -> Any:
 	return result
 
 
+msgpack_encoder = msgspec.msgpack.Encoder()
+json_encoder = msgspec.json.Encoder()
+
+
 def serialize_data(data: Any, serialization: str) -> bytes:
 	if serialization == "msgpack":
-		return msgpack.dumps(data)
+		return msgpack_encoder.encode(data)
 	if serialization == "json":
-		return orjson.dumps(data)  # pylint: disable=no-member
+		return json_encoder.encode(data)  # pylint: disable=no-member
 	raise ValueError(f"Unhandled serialization {serialization!r}")
 
 
@@ -350,7 +350,7 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 
 	max_rpcs = 9999
 	async with redis.pipeline() as pipe:
-		pipe.lpush("opsiconfd:stats:rpcs", msgpack.dumps(data))  # pylint: disable=c-extension-no-member
+		pipe.lpush("opsiconfd:stats:rpcs", msgspec.msgpack.encode(data))  # pylint: disable=c-extension-no-member
 		pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs - 1)
 		await pipe.execute()
 
@@ -417,7 +417,7 @@ def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] 
 		delete=False, dir=RPC_DEBUG_DIR, prefix=prefix, suffix=".log"
 	) as log_file:
 		logger.notice("Writing rpc error log to: %s", log_file.name)
-		log_file.write(orjson.dumps(msg))  # pylint: disable=no-member
+		log_file.write(msgspec.json.encode(msg))  # pylint: disable=no-member
 
 
 async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[str, Any] = None) -> Any:
@@ -544,14 +544,14 @@ async def process_request(request: Request, response: Response) -> Response:  # 
 		response_compression = get_response_compression(request)
 		request_compression = get_request_compression(request)
 
-		request_data: Union[bytes, str] = await request.body()
+		request_data = await request.body()
+		if not isinstance(request_data, bytes):
+			raise ValueError("Request data must be bytes")
 		if request_data:
 			if request_compression:
-				if not isinstance(request_data, bytes):
-					raise ValueError("Request data must be bytes")
 				request_data = await run_in_threadpool(decompress_data, request_data, request_compression)
 		else:
-			request_data = urllib.parse.unquote(request.url.query)
+			request_data = urllib.parse.unquote(request.url.query).encode("utf-8")
 		if not request_data:
 			raise ValueError("Request data empty")
 

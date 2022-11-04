@@ -16,6 +16,7 @@ from collections import namedtuple
 from time import sleep as time_sleep
 from typing import Any, Dict, List, Optional, Union
 
+import msgspec
 from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import ValidationError
 from fastapi.requests import HTTPConnection
@@ -25,8 +26,6 @@ from fastapi.responses import (
 	RedirectResponse,
 	Response,
 )
-from msgpack import dumps as msgpack_dumps  # type: ignore[import]
-from msgpack import loads as msgpack_loads  # type: ignore[import]
 from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
 from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
 from OPSI.Exceptions import (  # type: ignore[import]
@@ -82,6 +81,9 @@ SESSION_COOKIE_ATTRIBUTES = ("SameSite=Strict", "Secure")
 SESSION_UNAWARE_USER_AGENTS = ("libdnf", "curl")
 # Store ip addresses of depots with last access time
 depot_addresses: Dict[str, float] = {}
+
+session_data_msgpack_encoder = msgspec.msgpack.Encoder()
+session_data_msgpack_decoder = msgspec.msgpack.Decoder()
 
 BasicAuth = namedtuple("BasicAuth", ["username", "password"])
 
@@ -464,7 +466,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 					validity = 0
 					data = redis.get(redis_key)
 					if data:
-						sess = msgpack_loads(data)
+						sess = session_data_msgpack_decoder.decode(data)  # pylint: disable=loop-global-usage
 						validity = sess["max_age"] - (now - sess["last_used"])
 					if validity > 0:
 						session_count += 1
@@ -491,20 +493,20 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			data = redis.get(self.redis_key)
 		if not data:
 			return False
-		data = msgpack_loads(data)
-		self.created = data.get("created") or self.created
-		self.max_age = data.get("max_age") or self.max_age
-		self.last_used = data.get("last_used") or self.last_used
+		sess = session_data_msgpack_decoder.decode(data)
+		self.created = sess.get("created") or self.created
+		self.max_age = sess.get("max_age") or self.max_age
+		self.last_used = sess.get("last_used") or self.last_used
 		if self.expired:
 			# Expired, do not set other attributes
 			return True
-		self.client_max_age = data.get("client_max_age") or self.client_max_age
+		self.client_max_age = sess.get("client_max_age") or self.client_max_age
 		self._update_max_age()
-		for key, val in data.get("user_store", {}).items():
+		for key, val in sess.get("user_store", {}).items():
 			setattr(self.user_store, key, deserialize(val))
-		self.option_store = data.get("option_store", self.option_store)
-		self.last_stored = data.get("last_stored", utc_time_timestamp())
-		self._data = data.get("data") or self._data
+		self.option_store = sess.get("option_store", self.option_store)
+		self.last_stored = sess.get("last_stored", utc_time_timestamp())
+		self._data = sess.get("data") or self._data
 		return True
 
 	async def load(self) -> bool:
@@ -523,7 +525,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			session_data = {}
 			data = redis.get(self.redis_key)
 			if data:
-				session_data = msgpack_loads(data)
+				session_data = session_data_msgpack_decoder.decode(data)
 			session_data.update(
 				{
 					"created": session_data.get("created", self.created),
@@ -545,7 +547,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			if "password" in session_data["user_store"]:
 				del session_data["user_store"]["password"]
 
-			redis.set(self.redis_key, msgpack_dumps(session_data), ex=self._redis_expiration_seconds)
+			redis.set(self.redis_key, session_data_msgpack_encoder.encode(session_data), ex=self._redis_expiration_seconds)
 
 	async def store(self, wait: Optional[bool] = True) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now

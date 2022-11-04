@@ -14,7 +14,7 @@ from time import time
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
-from msgpack import dumps, loads  # type: ignore[import]
+import msgspec
 from opsicommon.messagebus import (  # type: ignore[import]
 	Message,
 	TraceRequestMessage,
@@ -75,12 +75,15 @@ async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: 
 	await redis.xadd(f"{REDIS_PREFIX_MESSAGEBUS}:channels:{channel}", fields=fields)  # type: ignore[arg-type]
 
 
+_context_encoder = msgspec.msgpack.Encoder()
+
+
 async def send_message(message: Message, context: Any = None) -> None:
 	if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
 		message.trace["broker_redis_send"] = timestamp()
 	context_data = None
 	if context:
-		context_data = dumps(context)
+		context_data = _context_encoder.encode(context)
 	logger.debug("Message to redis: %r", message)
 	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
 
@@ -119,6 +122,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		self._streams: Dict[bytes, StreamIdT] = {}
 		self._key_prefix = f"{REDIS_PREFIX_MESSAGEBUS}:channels"
 		self._should_stop = False
+		self._context_decoder = msgspec.msgpack.Decoder()
 
 	def __repr__(self) -> str:
 		return f"{self.__class__.__name__}({','.join(self._channels)})"
@@ -207,7 +211,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 							context = None
 							context_data = message[1].get(b"context")
 							if context_data:
-								context = loads(context_data)
+								context = self._context_decoder.decode(context_data)
 							msg = Message.from_msgpack(message[1][b"message"])
 							_logger.debug("Message from redis: %r", msg)
 							if msg.expires and msg.expires <= now:

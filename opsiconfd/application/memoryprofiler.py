@@ -16,7 +16,7 @@ import time
 import tracemalloc
 from typing import Any, Dict, Optional
 
-import msgpack  # type: ignore[import]
+import msgspec
 import objgraph  # type: ignore[import]
 import psutil
 from fastapi import APIRouter, Request
@@ -169,7 +169,7 @@ async def memory_info() -> JSONResponse:
 	node = config.node_name
 
 	async with redis.pipeline() as pipe:
-		value = msgpack.dumps({"memory_summary": memory_summary, "timestamp": timestamp})  # pylint: disable=c-extension-no-member
+		value = msgspec.msgpack.encode({"memory_summary": memory_summary, "timestamp": timestamp})  # pylint: disable=c-extension-no-member
 		await pipe.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
 		await pipe.ltrim(f"opsiconfd:stats:memory:summary:{node}", 0, 9)
 		redis_result = await pipe.execute()
@@ -231,9 +231,9 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 		end = snapshot_count - snapshot2
 
 	redis_result = await redis.lindex(f"opsiconfd:stats:memory:summary:{node}", start)
-	snapshot1 = msgpack.loads(redis_result).get("memory_summary")  # pylint: disable=c-extension-no-member
+	snapshot1 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")  # pylint: disable=c-extension-no-member
 	redis_result = await redis.lindex(f"opsiconfd:stats:memory:summary:{node}", end)
-	snapshot2 = msgpack.loads(redis_result).get("memory_summary")  # pylint: disable=c-extension-no-member
+	snapshot2 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")  # pylint: disable=c-extension-no-member
 	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
 
 	count = 0

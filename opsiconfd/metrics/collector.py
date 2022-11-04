@@ -170,7 +170,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 		return " ".join([str(x) for x in ts_cmd] + [p for pairs in labels.items() for p in pairs])
 
 	@staticmethod
-	async def _execute_redis_command(*cmd: str) -> None:
+	async def _execute_redis_command(*cmd: str) -> Any:
 		def str_cmd(cmd_obj: Any) -> str:
 			if isinstance(cmd_obj, list):
 				return " ".join([str(x) for x in cmd_obj])

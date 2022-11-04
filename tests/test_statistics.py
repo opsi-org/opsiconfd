@@ -9,40 +9,26 @@ statistic tests
 """
 
 import asyncio
-import sys
+from typing import AsyncGenerator, List
 
 import pytest
-import redis
+from redis import StrictRedis
+
+from opsiconfd.config import config
+from opsiconfd.metrics.collector import WorkerMetricsCollector
+from opsiconfd.metrics.registry import Metric, MetricsRegistry
+from opsiconfd.worker import Worker
 
 from .utils import clean_redis  # pylint: disable=unused-import
 
 
-@pytest.fixture(name="config")
-def fixture_config(monkeypatch):
-	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
-	from opsiconfd.config import config  # pylint: disable=import-outside-toplevel
-
-	return config
-
-
 @pytest.fixture(name="metrics_collector")
-def fixture_metrics_collector(monkeypatch):
-	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
-	from opsiconfd.metrics import (  # pylint: disable=import-outside-toplevel
-		WorkerMetricsCollector,
-	)
-
-	return WorkerMetricsCollector(1)
+def fixture_metrics_collector() -> WorkerMetricsCollector:
+	return WorkerMetricsCollector(Worker.get_instance())
 
 
 @pytest.fixture(name="metrics_registry")
-def fixture_metrics_registry(monkeypatch):
-	monkeypatch.setattr(sys, "argv", ["opsiconfd"])
-	from opsiconfd.metrics import (  # pylint: disable=import-outside-toplevel
-		Metric,
-		MetricsRegistry,
-	)
-
+def fixture_metrics_registry() -> MetricsRegistry:
 	metrics_registry = MetricsRegistry()
 	metrics_registry.register(
 		Metric(
@@ -59,8 +45,8 @@ def fixture_metrics_registry(monkeypatch):
 
 @pytest.fixture(name="redis_client")
 @pytest.mark.asyncio
-async def fixture_redis_client(config):
-	redis_client = redis.StrictRedis.from_url(config.redis_internal_url)  # pylint: disable=redefined-outer-name
+async def fixture_redis_client() -> AsyncGenerator[StrictRedis, None]:
+	redis_client = StrictRedis.from_url(config.redis_internal_url)  # pylint: disable=redefined-outer-name
 	redis_client.set("opsiconfd:stats:num_rpcs", 5)
 	await asyncio.sleep(2)
 	yield redis_client
@@ -84,8 +70,10 @@ async def fixture_redis_client(config):
 )
 @pytest.mark.asyncio
 async def test_execute_redis_command(
-	metrics_collector, redis_client, cmds, expected_results
-):  # pylint: disable=redefined-outer-name,unused-argument
+	metrics_collector: WorkerMetricsCollector,
+	cmds: List[str],
+	expected_results: List[bytes],
+) -> None:
 
 	for idx, cmd in enumerate(cmds):
 		result = await metrics_collector._execute_redis_command(cmd)  # pylint: disable=protected-access
@@ -99,7 +87,9 @@ async def test_execute_redis_command(
 		("INCRBY", 4711, "TS.INCRBY opsiconfd:stats:opsiconfd:pytest:metric 4711 * RETENTION 86400000 ON_DUPLICATE SUM LABELS"),
 	],
 )
-def test_redis_ts_cmd(metrics_registry, metrics_collector, cmd, value, expected_result):
+def test_redis_ts_cmd(
+	metrics_registry: MetricsRegistry, metrics_collector: WorkerMetricsCollector, cmd: str, value: int, expected_result: str
+) -> None:
 
 	metrics = list(metrics_registry.get_metrics())
 
@@ -107,7 +97,7 @@ def test_redis_ts_cmd(metrics_registry, metrics_collector, cmd, value, expected_
 	assert result == expected_result
 
 
-def test_redis_ts_cmd_error(metrics_registry, metrics_collector):
+def test_redis_ts_cmd_error(metrics_registry: MetricsRegistry, metrics_collector: WorkerMetricsCollector) -> None:
 	metrics = list(metrics_registry.get_metrics())
 
 	with pytest.raises(ValueError) as excinfo:
@@ -117,7 +107,7 @@ def test_redis_ts_cmd_error(metrics_registry, metrics_collector):
 	assert str(excinfo.value) == "Invalid command unknown CMD"
 
 
-def test_metric_by_redis_key(metrics_registry):
+def test_metric_by_redis_key(metrics_registry: MetricsRegistry) -> None:
 
 	metric = metrics_registry.get_metric_by_redis_key("opsiconfd:stats:opsiconfd:pytest:metric")
 
@@ -126,7 +116,7 @@ def test_metric_by_redis_key(metrics_registry):
 	assert metric.get_redis_key() == "opsiconfd:stats:opsiconfd:pytest:metric"
 
 
-def test_metric_by_redis_key_error(metrics_registry):
+def test_metric_by_redis_key_error(metrics_registry: MetricsRegistry) -> None:
 
 	with pytest.raises(ValueError) as excinfo:
 		metrics_registry.get_metric_by_redis_key("opsiconfd:stats:opsiconfd:notinredis:metric")

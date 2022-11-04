@@ -11,6 +11,7 @@ test application.metrics
 import asyncio
 import datetime
 import time
+from typing import Dict, Tuple, Union
 
 import pytest
 
@@ -29,15 +30,17 @@ from opsiconfd.worker import Worker
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	Config,
+	OpsiconfdTestClient,
 	clean_redis,
 	config,
 	test_client,
 )
 
 
-async def _register_workers():
+async def _register_workers() -> Tuple[Dict[str, Union[str, int]], ...]:
 	node_name = "testnode"
-	workers = (
+	workers: Tuple[Dict[str, Union[str, int]], ...] = (
 		{"node_name": node_name, "pid": 121, "worker_num": 1},
 		{"node_name": node_name, "pid": 122, "worker_num": 2},
 		{"node_name": node_name, "pid": 123, "worker_num": 3},
@@ -78,9 +81,9 @@ async def test_get_nodes() -> None:
 		assert worker["node_name"] in nodes
 
 
-async def test_get_clients(test_client) -> None:  # pylint: disable=redefined-outer-name
+async def test_get_clients(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	worker = Worker.get_instance()
-	worker.metrics_collector = WorkerMetricsCollector(worker)
+	worker._metrics_collector = WorkerMetricsCollector(worker)  # pylint: disable=protected-access
 	worker.metrics_collector._interval = 1  # pylint: disable=protected-access
 	loop = asyncio.get_event_loop()
 	loop.create_task(worker.metrics_collector.main_loop())
@@ -107,16 +110,9 @@ async def test_grafana_search() -> None:
 		assert f"Average CPU usage of worker {worker['worker_num']} on {worker['node_name']}" in res
 
 
-async def create_ts_data(
+async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 	node_name: str, postfix: str, start: int, end: int, interval: int, value: float, delete: bool = True
-) -> None:  # pylint: disable=too-many-locals,too-many-arguments
-	# avg_cpu_percent
-	#   retention: 2 * 3600 * 1000 = 7200000
-	#   downsampling:
-	#      ["minute", 24 * 3600 * 1000, "avg"]
-	#      ["hour", 60 * 24 * 3600 * 1000, "avg"]
-	#      ["day", 4 * 365 * 24 * 3600 * 1000, "avg"]
-
+) -> None:
 	redis = await async_redis_client()
 	if postfix:
 		redis_key = f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1:{postfix}"
@@ -153,11 +149,13 @@ async def create_ts_data(
 			"worker_num",
 			1,
 		)
-		await redis.execute_command(" ".join([str(x) for x in cmd]))
+		await redis.execute_command(" ".join([str(x) for x in cmd]))  # type: ignore[no-untyped-call] #  pylint: disable=loop-invariant-statement
 
 
 @pytest.mark.grafana_available
-async def test_grafana_query_end_current_time(test_client, config) -> None:  # pylint: disable=redefined-outer-name
+async def test_grafana_query_end_current_time(
+	test_client: OpsiconfdTestClient, config: Config  # pylint: disable=redefined-outer-name
+) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	end = int(time.time())
@@ -238,7 +236,9 @@ async def test_grafana_query_end_current_time(test_client, config) -> None:  # p
 		assert dat[0] == value
 
 
-async def test_grafana_query_interval_in_past(test_client, config) -> None:  # pylint: disable=redefined-outer-name
+async def test_grafana_query_interval_in_past(
+	test_client: OpsiconfdTestClient, config: Config  # pylint: disable=redefined-outer-name
+) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	end = int(time.time())

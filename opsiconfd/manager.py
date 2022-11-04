@@ -33,13 +33,13 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._async_main_running = False
 		self._loop = asyncio.new_event_loop()
 		self._last_reload = 0
-		self._server: Server | None = None
 		self._should_stop = False
 		self._server_cert_check_time = time.time()
 		self._redis_check_time = time.time()
 		self._redis_check_interval = 300
 		self._messagebus_channel_cleanup_time = 0.0
 		self._messagebus_channel_cleanup_interval = 180
+		self._server = Server()
 
 	def stop(self, force: bool = False) -> None:
 		logger.notice("Manager stopping force=%s", force)
@@ -88,10 +88,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 		try:
 			threading.Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop).start()
-
-			self._server = Server()
 			self._server.run()
-
 		except Exception as exc:  # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
 

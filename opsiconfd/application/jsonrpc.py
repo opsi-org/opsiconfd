@@ -86,23 +86,20 @@ PRODUCT_METHODS = (
 )
 
 jsonrpc_router = APIRouter()
+jsonrpc_message_reader = None  # pylint: disable=invalid-name
 
 
 def jsonrpc_setup(app: FastAPI) -> None:
 	app.include_router(jsonrpc_router, prefix="/rpc")
 
 
-_messagebus_jsonrpc_request_worker_task = None  # pylint: disable=invalid-name
-
-
 async def async_jsonrpc_startup() -> None:
-	global _messagebus_jsonrpc_request_worker_task  # pylint: disable=invalid-name,global-statement
-	_messagebus_jsonrpc_request_worker_task = asyncio.create_task(messagebus_jsonrpc_request_worker())
+	asyncio.create_task(messagebus_jsonrpc_request_worker())
 
 
 async def async_jsonrpc_shutdown() -> None:
-	if _messagebus_jsonrpc_request_worker_task:
-		_messagebus_jsonrpc_request_worker_task.cancel()
+	if jsonrpc_message_reader:
+		jsonrpc_message_reader.stop()
 
 
 async def get_sort_algorithm(algorithm: str = None) -> str:
@@ -638,23 +635,16 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 	await cgmr.ack_message(message.channel, redis_id)
 
 
-async def _messagebus_jsonrpc_request_worker() -> None:
+async def messagebus_jsonrpc_request_worker() -> None:
+	global jsonrpc_message_reader  # pylint: disable=invalid-name,global-statement
+
 	worker = Worker.get_instance()
 	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
 	channel = "service:config:jsonrpc"
 
-	cgmr = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=messagebus_worker_id, channels={channel: "0"})
-	async for redis_id, message, context in cgmr.get_messages():
+	jsonrpc_message_reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=messagebus_worker_id, channels={channel: "0"})
+	async for redis_id, message, context in jsonrpc_message_reader.get_messages():
 		try:
-			await _process_message(cgmr, redis_id, message, context)
+			await _process_message(jsonrpc_message_reader, redis_id, message, context)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
-
-
-async def messagebus_jsonrpc_request_worker() -> None:
-	try:
-		await _messagebus_jsonrpc_request_worker()
-	except StopAsyncIteration:
-		pass
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error(err, exc_info=True)

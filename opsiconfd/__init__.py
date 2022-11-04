@@ -11,7 +11,7 @@ The opsi configuration service.
 __version__ = "4.3.0.1"
 
 from contextvars import Context, ContextVar
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
 	# Prevent circular import error
@@ -24,9 +24,26 @@ contextvar_client_address: ContextVar[Optional[str]] = ContextVar("client_addres
 contextvar_server_timing: ContextVar[Dict[str, float]] = ContextVar("server_timing", default={})
 
 
+def get_contextvars() -> Dict[str, Any]:
+	return {
+		var.name: var.get()  # type: ignore[attr-defined]
+		for var in (
+			contextvar_request_id,
+			contextvar_client_session,
+			contextvar_user_store,
+			contextvar_client_address,
+			contextvar_server_timing,
+		)
+	}
+
+
+def set_contextvars(values: Dict[str, Any]) -> None:
+	for var, val in values.items():
+		try:  # pylint: disable=loop-try-except-usage
+			globals()[f"contextvar_{var}"].set(val)
+		except KeyError:
+			pass
+
+
 def set_contextvars_from_contex(context: Context) -> None:
-	if not context:
-		return
-	for var, val in context.items():
-		if var.name in ("request_id", "client_session", "user_store", "client_address", "server_timing"):
-			globals()[f"contextvar_{var.name}"].set(val)
+	set_contextvars({var.name: val for var, val in context.items()})

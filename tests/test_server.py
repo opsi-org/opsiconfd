@@ -14,10 +14,10 @@ import psutil
 
 from opsiconfd.server import Server
 
-from .utils import backend, get_config  # pylint: disable=unused-import
+from .utils import BackendManager, backend, get_config  # pylint: disable=unused-import
 
 
-def test_server_and_workers():
+def test_server_and_workers() -> None:
 	with get_config({"port": 4444, "workers": 1, "log_mode": "local"}):
 		server = Server()
 		server_thread = threading.Thread(target=server.run)
@@ -25,22 +25,22 @@ def test_server_and_workers():
 
 		time.sleep(3)
 
-		assert len(server.supervisor.workers) == 1
-		assert server.supervisor.workers[0].worker_num == 1
-		proc = psutil.Process(server.supervisor.workers[0].pid)
+		assert len(server.workers) == 1
+		assert server.workers[0].worker_num == 1
+		proc = psutil.Process(server.workers[0].pid)
 		assert proc.is_running()
 
-		worker_pid = server.supervisor.workers[0].pid
+		worker_pid = server.workers[0].pid
 		server.restart_workers()
 
 		time.sleep(10)
 
-		assert len(server.supervisor.workers) == 1
-		assert server.supervisor.workers[0].worker_num == 1
-		proc = psutil.Process(server.supervisor.workers[0].pid)
+		assert len(server.workers) == 1
+		assert server.workers[0].worker_num == 1
+		proc = psutil.Process(server.workers[0].pid)
 		assert proc.is_running()
 
-		assert worker_pid != server.supervisor.workers[0].pid
+		assert worker_pid != server.workers[0].pid
 
 		time.sleep(3)
 
@@ -48,7 +48,7 @@ def test_server_and_workers():
 		server_thread.join()
 
 
-def test_check_modules(backend):  # pylint: disable=redefined-outer-name
+def test_check_modules(backend: BackendManager) -> None:  # pylint: disable=redefined-outer-name
 	scalability_available = "scalability1" in backend.backend_getLicensingInfo()["available_modules"]
 	with get_config({"port": 4444, "workers": 2, "log_mode": "local"}) as config:
 		server = Server()

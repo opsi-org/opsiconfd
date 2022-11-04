@@ -25,7 +25,7 @@ from .utils import async_redis_client, clean_redis  # pylint: disable=unused-imp
 
 
 @pytest.mark.asyncio
-async def test_message_reader() -> None:  # pylint: disable=redefined-outer-name
+async def test_message_reader_processing() -> None:  # pylint: disable=redefined-outer-name
 	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
 			self.received: List[Tuple[str, Message, bytes]] = []
@@ -52,7 +52,7 @@ async def test_message_reader() -> None:  # pylint: disable=redefined-outer-name
 		await reader.ack_message("host:test-123", reader.received[0][0])
 
 		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
-		assert last_id.decode("utf-8") == reader.received[0][0]
+		assert last_id.decode("utf-8") == reader.received[0][0]  # type: ignore[union-attr]
 
 		await send_message(Message(id="2", type="test", sender="*", channel="host:test-123"), context=b"context_data")
 		await send_message(Message(id="3", type="test", sender="*", channel="host:test-123"), context=b"context_data")
@@ -71,7 +71,7 @@ async def test_message_reader() -> None:  # pylint: disable=redefined-outer-name
 
 		await reader.ack_message("host:test-123", reader.received[2][0])
 		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
-		assert last_id.decode("utf-8") == reader.received[2][0]
+		assert last_id.decode("utf-8") == reader.received[2][0]  # type: ignore[union-attr]
 		reader.received = []
 
 		await reader.add_channels({"other-channel": ">"})
@@ -91,7 +91,7 @@ async def test_message_reader() -> None:  # pylint: disable=redefined-outer-name
 		assert len(reader.received) == 1
 		assert reader.received[0][1].id == "6"
 
-		_reader_task.cancel()
+		reader.stop()
 
 
 @pytest.mark.asyncio
@@ -110,17 +110,18 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 				await reader.ack_message(message.channel, redis_id)
 
 	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"})
-	reader_task1 = asyncio.create_task(reader_task(reader1))
+	asyncio.create_task(reader_task(reader1))
 
 	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"})
-	reader_task2 = asyncio.create_task(reader_task(reader2))
+	asyncio.create_task(reader_task(reader2))
 
 	for idx in range(1, 101):
 		await send_message(Message(id=str(idx), type="test", sender="*", channel="service:config:jsonrpc"), context=b"context_data")
 
 	await asyncio.sleep(3)
-	reader_task1.cancel()
-	reader_task2.cancel()
+	reader1.stop()
+	reader2.stop()
+	await asyncio.sleep(2)
 
 	assert len(reader1.received) >= 10
 	assert len(reader2.received) >= 10
@@ -138,15 +139,16 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 
 	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"})
 	reader1.ack = False
-	reader_task1 = asyncio.create_task(reader_task(reader1))
+	asyncio.create_task(reader_task(reader1))
 
 	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"})
 	reader2.ack = True
-	reader_task2 = asyncio.create_task(reader_task(reader2))
+	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)
-	reader_task1.cancel()
-	reader_task2.cancel()
+	reader1.stop()
+	reader2.stop()
+	await asyncio.sleep(2)
 
 	assert len(reader1.received) >= 10
 	assert len(reader2.received) >= 10
@@ -158,14 +160,15 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 
 	# Restart readers
 	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"})
-	reader_task1 = asyncio.create_task(reader_task(reader1))
+	asyncio.create_task(reader_task(reader1))
 
 	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"})
-	reader_task2 = asyncio.create_task(reader_task(reader2))
+	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)
-	reader_task1.cancel()
-	reader_task2.cancel()
+	reader1.stop()
+	reader2.stop()
+	await asyncio.sleep(2)
 
 	assert len(reader1.received) == len(reader1_received_ids)
 	assert len(reader2.received) == 0
@@ -174,14 +177,15 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 
 	# Restart readers
 	reader1 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker1", channels={"service:config:jsonrpc": "0"})
-	reader_task1 = asyncio.create_task(reader_task(reader1))
+	asyncio.create_task(reader_task(reader1))
 
 	reader2 = MyMessageReader(consumer_group="service:config:jsonrpc", consumer_name="test:worker2", channels={"service:config:jsonrpc": "0"})
-	reader_task2 = asyncio.create_task(reader_task(reader2))
+	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)
-	reader_task1.cancel()
-	reader_task2.cancel()
+	reader1.stop()
+	reader2.stop()
+	await asyncio.sleep(2)
 
 	assert len(reader1.received) == 0
 	assert len(reader2.received) == 0
@@ -200,7 +204,7 @@ async def test_message_reader_survives_recreate_channel() -> None:  # pylint: di
 
 	async with async_redis_client() as redis_client:
 		reader = MyMessageReader(channels={"host:test-123": ">", "terminal:123": "$", "invalid": "$"})
-		_reader_task = asyncio.create_task(reader_task(reader))
+		asyncio.create_task(reader_task(reader))
 		await asyncio.sleep(2)
 		await send_message(Message(id="1", type="test", sender="*", channel="host:test-123"))
 		await send_message(Message(id="2", type="test", sender="*", channel="terminal:123"))
@@ -234,4 +238,4 @@ async def test_message_reader_survives_recreate_channel() -> None:  # pylint: di
 		assert reader.received[0][1].id == "5"
 		assert reader.received[1][1].id == "6"
 
-		_reader_task.cancel()
+		reader.stop()

@@ -67,6 +67,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				if compression:
 					raw_data = decompress_data(raw_data, compression)  # type: ignore[arg-type]
 				jsonrpc_response_message = Message.from_msgpack(raw_data)  # type: ignore[arg-type]
+
 				assert isinstance(jsonrpc_response_message, JSONRPCResponseMessage)
 				assert jsonrpc_response_message.rpc_id == jsonrpc_request_message.rpc_id
 				assert jsonrpc_response_message.result is True

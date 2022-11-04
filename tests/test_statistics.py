@@ -43,41 +43,17 @@ def fixture_metrics_registry() -> MetricsRegistry:
 	return MetricsRegistry()
 
 
-@pytest.fixture(name="redis_client")
-@pytest.mark.asyncio
-async def fixture_redis_client() -> AsyncGenerator[StrictRedis, None]:
-	redis_client = StrictRedis.from_url(config.redis_internal_url)  # pylint: disable=redefined-outer-name
-	redis_client.set("opsiconfd:stats:num_rpcs", 5)
-	await asyncio.sleep(2)
-	yield redis_client
-	redis_client.delete("opsiconfd:stats:num_rpcs")
-
-
-@pytest.mark.parametrize(
-	"cmds, expected_results",
-	[
-		(["GET opsiconfd:stats:num_rpcs", "SET opsiconfd:stats:num_rpcs 10", "GET opsiconfd:stats:num_rpcs"], [b"5", b"OK", b"10"]),
-		(
-			[
-				"GET opsiconfd:stats:num_rpcs",
-				"SET opsiconfd:stats:num_rpcs 111",
-				"DEL opsiconfd:stats:num_rpcs",
-				"DEL opsiconfd:stats:num_rpcs",
-			],
-			[b"5", b"OK", 1, 0],
-		),
-	],
-)
-@pytest.mark.asyncio
-async def test_execute_redis_command(
-	metrics_collector: WorkerMetricsCollector,
-	cmds: List[str],
-	expected_results: List[bytes],
-) -> None:
-
-	for idx, cmd in enumerate(cmds):
+async def test_execute_redis_command(metrics_collector: WorkerMetricsCollector) -> None:
+	for cmd, res in (
+		("SET opsiconfd:stats:num_rpcs 5", b"OK"),
+		("GET opsiconfd:stats:num_rpcs", b"5"),
+		("SET opsiconfd:stats:num_rpcs 10", b"OK"),
+		("GET opsiconfd:stats:num_rpcs", b"10"),
+		("DEL opsiconfd:stats:num_rpcs", 1),
+		("DEL opsiconfd:stats:num_rpcs", 0),
+	):
 		result = await metrics_collector._execute_redis_command(cmd)  # pylint: disable=protected-access
-		assert result == expected_results[idx]
+		assert result == res
 
 
 @pytest.mark.parametrize(

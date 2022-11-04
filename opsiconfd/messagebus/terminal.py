@@ -40,19 +40,21 @@ from .redis import ConsumerGroupMessageReader, MessageReader, send_message
 
 PTY_READER_BLOCK_SIZE = 16 * 1024
 
-
-_messagebus_terminal_request_worker_task = None  # pylint: disable=invalid-name
+terminal_instance_reader = None  # pylint: disable=invalid-name
+terminal_request_reader = None  # pylint: disable=invalid-name
 
 
 async def async_terminal_startup() -> None:
-	global _messagebus_terminal_request_worker_task  # pylint: disable=invalid-name,global-statement
 	if "terminal" not in config.admin_interface_disabled_features:
-		_messagebus_terminal_request_worker_task = asyncio.create_task(messagebus_terminal_request_worker())
+		asyncio.create_task(_messagebus_terminal_request_worker())
+		asyncio.create_task(_messagebus_terminal_instance_worker())
 
 
 async def async_terminal_shutdown() -> None:
-	if _messagebus_terminal_request_worker_task:
-		_messagebus_terminal_request_worker_task.cancel()
+	if terminal_request_reader:
+		terminal_request_reader.stop()
+	if terminal_instance_reader:
+		terminal_instance_reader.stop()
 
 
 def start_pty(shell: str, rows: int | None = 30, cols: int | None = 120, cwd: str | None = None) -> spawn:
@@ -210,9 +212,11 @@ async def _process_message(message: Message) -> None:
 
 
 async def _messagebus_terminal_instance_worker() -> None:
+	global terminal_instance_reader  # pylint: disable=invalid-name,global-statement
+
 	channel = f"{get_messagebus_worker_id()}:terminal"
-	reader = MessageReader(channels={channel: "$"})
-	async for _redis_id, message, _context in reader.get_messages():
+	terminal_instance_reader = MessageReader(channels={channel: "$"})
+	async for _redis_id, message, _context in terminal_instance_reader.get_messages():
 		try:
 			if message.type.startswith("file_"):
 				await process_file_message(message)
@@ -223,25 +227,18 @@ async def _messagebus_terminal_instance_worker() -> None:
 
 
 async def _messagebus_terminal_request_worker() -> None:
+	global terminal_request_reader  # pylint: disable=invalid-name,global-statement
+
 	channel = "service:config:terminal"
-	cgmr = ConsumerGroupMessageReader(
+	terminal_request_reader = ConsumerGroupMessageReader(
 		consumer_group=channel,
 		consumer_name=get_messagebus_worker_id(),
 		channels={channel: "0"},
 	)
-	async for redis_id, message, _context in cgmr.get_messages():
+	async for redis_id, message, _context in terminal_request_reader.get_messages():
 		try:
 			await _process_message(message)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 		# ACK Message
-		await cgmr.ack_message(message.channel, redis_id)
-
-
-async def messagebus_terminal_request_worker() -> None:
-	try:
-		await asyncio.gather(_messagebus_terminal_request_worker(), _messagebus_terminal_instance_worker())
-	except StopAsyncIteration:
-		pass
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error(err, exc_info=True)
+		await terminal_request_reader.ack_message(message.channel, redis_id)

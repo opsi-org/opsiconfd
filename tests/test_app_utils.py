@@ -8,9 +8,16 @@
 test application utils
 """
 
+from typing import Any, List
+
 import pytest
 
-from opsiconfd.application.utils import bool_product_property, parse_list, merge_dicts, unicode_product_property
+from opsiconfd.application.utils import (
+	bool_product_property,
+	merge_dicts,
+	parse_list,
+	unicode_product_property,
+)
 
 
 @pytest.mark.parametrize(
@@ -24,10 +31,7 @@ from opsiconfd.application.utils import bool_product_property, parse_list, merge
 		(["one"], ["one"]),
 	],
 )
-def test_parse_list(data, output):
-
-	print(data)
-	print(output)
+def test_parse_list(data: Any, output: Any) -> None:
 	assert parse_list(data) == output
 
 
@@ -73,8 +77,7 @@ def test_parse_list(data, output):
 		),  # key b not in dict a and key a not in dict b
 	],
 )
-def test_merge_dicts(dict_a, dict_b, path, output):
-
+def test_merge_dicts(dict_a: dict, dict_b: dict, path: List[str] | None, output: dict) -> None:
 	assert merge_dicts(dict_a, dict_b, path) == output
 
 
@@ -82,8 +85,7 @@ def test_merge_dicts(dict_a, dict_b, path, output):
 	"dict_a, dict_b, path, output",
 	[(None, None, None, None), ("", "", None, None)],
 )
-def test_merge_dicts_value_error(dict_a, dict_b, path, output):
-
+def test_merge_dicts_value_error(dict_a: dict, dict_b: dict, path: List[str] | None, output: dict) -> None:
 	with pytest.raises(ValueError):
 		assert merge_dicts(dict_a, dict_b, path) == output
 
@@ -100,7 +102,7 @@ def test_merge_dicts_value_error(dict_a, dict_b, path, output):
 		),  # confict in test dict
 	],
 )
-def test_merge_dicts_conflict(dict_a, dict_b, path, output):
+def test_merge_dicts_conflict(dict_a: dict, dict_b: dict, path: List[str] | None, output: dict) -> None:
 
 	with pytest.raises(Exception):
 		assert merge_dicts(dict_a, dict_b, path) == output
@@ -116,8 +118,7 @@ def test_merge_dicts_conflict(dict_a, dict_b, path, output):
 		('["test", "value", "Hello World"]', ["test", "value", "Hello World"]),
 	],
 )
-def test_unicode_product_property(data, output):
-
+def test_unicode_product_property(data: Any, output: Any) -> None:
 	assert unicode_product_property(data) == output
 
 
@@ -138,6 +139,5 @@ def test_unicode_product_property(data, output):
 		("[TRUE]", True),
 	],
 )
-def test_bool_product_property(data, output):
-
+def test_bool_product_property(data: Any, output: Any) -> None:
 	assert bool_product_property(data) == output

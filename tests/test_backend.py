@@ -8,10 +8,12 @@
 webdav tests
 """
 
+from pathlib import Path
+
 import requests
 from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
 
-from opsiconfd import set_contextvars_from_contex
+from opsiconfd import get_contextvars, set_contextvars, set_contextvars_from_contex
 from opsiconfd.backend import (
 	execute_on_secondary_backends,
 	get_backend,
@@ -27,6 +29,7 @@ from opsiconfd.backend.interface import get_backend_interface
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	OpsiconfdTestClient,
 	clean_redis,
 	client_jsonrpc,
 	config,
@@ -36,29 +39,38 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_get_session(test_client):  # pylint: disable=redefined-outer-name
+def test_get_session(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.get("/")
-	set_contextvars_from_contex(None)
-	set_contextvars_from_contex(test_client.context)
-	assert get_session()
-	assert get_user_store()
-	get_option_store()
+	cvars = get_contextvars()
+	try:
+		if test_client.context:
+			set_contextvars_from_contex(test_client.context)
+		assert get_session()
+		assert get_user_store()
+		get_option_store()
+	finally:
+		set_contextvars(cvars)
 
 
-def test_get_client_backend(test_client):  # pylint: disable=redefined-outer-name
+def test_get_client_backend(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.get("/")
-	set_contextvars_from_contex(test_client.context)
-	backend = get_client_backend()
-	assert backend
-	idents = backend.host_getIdents()  # pylint: disable=no-member
-	assert len(idents) > 0
+	cvars = get_contextvars()
+	try:
+		if test_client.context:
+			set_contextvars_from_contex(test_client.context)
+		backend = get_client_backend()
+		assert backend
+		idents = backend.host_getIdents()  # pylint: disable=no-member
+		assert len(idents) > 0
+	finally:
+		set_contextvars(cvars)
 
 
-def test_get_backend_interface():
+def test_get_backend_interface() -> None:
 	assert len(get_backend_interface()) > 50
 
 
-def test_get_server_role(tmp_path):
+def test_get_server_role(tmp_path: Path) -> None:
 	dispatch_config_file = tmp_path / "dispatch_mysql.conf"
 	dispatch_config_file.write_text(".*         : mysql\n")
 	with get_config({"dispatch_config_file": str(dispatch_config_file)}):
@@ -70,21 +82,21 @@ def test_get_server_role(tmp_path):
 		assert get_server_role() == "depot"
 
 
-def test_get_mysql():
+def test_get_mysql() -> None:
 	mysql = get_mysql()  # pylint: disable=invalid-name
 	with mysql.session() as session:
 		host_ids = session.execute("SELECT hostId FROM HOST").fetchall()
 		assert len(host_ids) > 0
 
 
-def test_execute_on_secondary_backends():
+def test_execute_on_secondary_backends() -> None:
 	# TODO: load a secondary backend
 	backend = get_backend()
 	host = backend.host_getObjects()[0]  # pylint: disable=no-member
 	execute_on_secondary_backends("host_updateObjects", hosts=[host])
 
 
-def test_opsiconfd_backend_get_domain(test_client):  # pylint: disable=redefined-outer-name
+def test_opsiconfd_backend_get_domain(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client_id = "test-client-dom.opsi.org"
 	host_key = "76768a28560d5924e4587dec5913c501"
@@ -100,7 +112,7 @@ def test_opsiconfd_backend_get_domain(test_client):  # pylint: disable=redefined
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 
-def test_opsiconfd_backend_host_get_tls_certificate_depot(test_client):  # pylint: disable=redefined-outer-name
+def test_opsiconfd_backend_host_get_tls_certificate_depot(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	host_id = "test-depot-cert.opsi.org"
 	host_key = "aa768a25913c507dec18560d5924e458"
@@ -115,17 +127,19 @@ def test_opsiconfd_backend_host_get_tls_certificate_depot(test_client):  # pylin
 			rpc = {"id": 1, "method": "host_getTLSCertificate", "params": [host_id]}
 			res = test_client.post("/rpc", json=rpc)
 			res.raise_for_status()
-			res = res.json()
+			res_dict = res.json()
 
-			load_privatekey(FILETYPE_PEM, res["result"])
-			cert = load_certificate(FILETYPE_PEM, res["result"])
+			load_privatekey(FILETYPE_PEM, res_dict["result"])
+			cert = load_certificate(FILETYPE_PEM, res_dict["result"])
 			assert cert.get_subject().CN == host_id
 		finally:
 			test_client.reset_cookies()
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 
-def test_opsiconfd_backend_host_get_tls_certificate_client(test_client):  # pylint: disable=redefined-outer-name
+def test_opsiconfd_backend_host_get_tls_certificate_client(
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
+) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	host_id = "test-client-cert.opsi.org"
 	host_key = "07dec1856aa768a25913c50d5924e458"
@@ -141,10 +155,10 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(test_client):  # pyli
 			rpc = {"id": 1, "method": "host_getTLSCertificate", "params": [host_id]}
 			res = test_client.post("/rpc", json=rpc)
 			res.raise_for_status()
-			res = res.json()
+			res_dict = res.json()
 
-			load_privatekey(FILETYPE_PEM, res["result"])
-			cert = load_certificate(FILETYPE_PEM, res["result"])
+			load_privatekey(FILETYPE_PEM, res_dict["result"])
+			cert = load_certificate(FILETYPE_PEM, res_dict["result"])
 			sub_alt_name = ""
 			for idx in range(cert.get_extension_count()):
 				ext = cert.get_extension(idx)
@@ -155,14 +169,14 @@ def test_opsiconfd_backend_host_get_tls_certificate_client(test_client):  # pyli
 			rpc = {"id": 1, "method": "host_getTLSCertificate", "params": ["test-client2-cert.opsi.org"]}
 			res = test_client.post("/rpc", json=rpc)
 			res.raise_for_status()
-			res = res.json()
-			assert res["error"]["class"] == "BackendPermissionDeniedError"
+			res_dict = res.json()
+			assert res_dict["error"]["class"] == "BackendPermissionDeniedError"
 		finally:
 			test_client.reset_cookies()
 			test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 
-def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-many-statements
+def _test_backend_options(client: OpsiconfdTestClient, base_url: str, host_id: str) -> None:  # pylint: disable=too-many-statements
 	option_defaults = {
 		"addProductOnClientDefaults": False,
 		"addProductPropertyStateDefaults": False,
@@ -177,23 +191,23 @@ def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-man
 	rpc = {"id": 1, "method": "backend_getOptions", "params": []}
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
-	res = res.json()
+	res_dict = res.json()
 	cookie = list(client.cookies)[0]
 	session_id = cookie.value
-	assert res["result"] == option_defaults
+	assert res_dict["result"] == option_defaults
 
 	rpc = {"id": 2, "method": "configState_getObjects", "params": [[], {"objectId": host_id}]}
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
-	res = res.json()
+	res_dict = res.json()
 	cookie = list(client.cookies)[0]
 	assert session_id == cookie.value
-	assert res["result"] == []
+	assert res_dict["result"] == []
 
 	rpc = {"id": 3, "method": "backend_setOptions", "params": [{"addConfigStateDefaults": True}]}
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
-	res = res.json()
+	res_dict = res.json()
 	cookie = list(client.cookies)[0]
 	assert session_id == cookie.value
 
@@ -202,17 +216,17 @@ def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-man
 	rpc = {"id": 4, "method": "backend_getOptions", "params": []}
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
-	res = res.json()
+	res_dict = res.json()
 	cookie = list(client.cookies)[0]
 	assert session_id == cookie.value
-	assert res["result"] == options
+	assert res_dict["result"] == options
 
 	rpc = {"id": 5, "method": "configState_getObjects", "params": [[], {"objectId": host_id}]}
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
-	res = res.json()
-	assert res["result"]
-	for config_state in res["result"]:
+	res_dict = res.json()
+	assert res_dict["result"]
+	for config_state in res_dict["result"]:
 		assert config_state["_is_generated_default"]
 		assert config_state["objectId"] == host_id
 
@@ -225,13 +239,13 @@ def _test_backend_options(client, base_url, host_id):  # pylint: disable=too-man
 	rpc = {"id": 7, "method": "backend_getOptions", "params": []}
 	res = client.post(f"{base_url}/rpc", json=rpc)
 	res.raise_for_status()
-	res = res.json()
+	res_dict = res.json()
 	cookie = list(client.cookies)[0]
 	assert session_id != cookie.value
-	assert res["result"] == option_defaults
+	assert res_dict["result"] == option_defaults
 
 
-def test_backend_options_test_client(test_client):  # pylint: disable=redefined-outer-name
+def test_backend_options_test_client(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	host_id = "test-client-options-tc.opsi.org"
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with client_jsonrpc(test_client, "", host_id):
@@ -239,10 +253,10 @@ def test_backend_options_test_client(test_client):  # pylint: disable=redefined-
 			_test_backend_options(test_client, "", host_id)
 
 
-def test_backend_options_requests():
+def test_backend_options_requests() -> None:
 	host_id = "test-client-options-rq.opsi.org"
 	session = requests.session()
 	session.auth = (ADMIN_USER, ADMIN_PASS)
-	with client_jsonrpc(session, "https://localhost:4447", host_id):
+	with client_jsonrpc(session, "https://localhost:4447", host_id):  # type: ignore[arg-type]
 		for _ in range(20):
-			_test_backend_options(session, "https://localhost:4447", host_id)
+			_test_backend_options(session, "https://localhost:4447", host_id)  # type: ignore[arg-type]

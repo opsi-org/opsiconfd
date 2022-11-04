@@ -98,7 +98,10 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: disable=unused-argument
 	ssl_dir = os.path.dirname(_config.ssl_ca_key)
 	if os.path.exists(ssl_dir):
-		shutil.rmtree(ssl_dir)
+		try:
+			shutil.rmtree(ssl_dir)
+		except PermissionError:
+			pass
 
 
 @hookimpl()
@@ -136,6 +139,8 @@ def disable_insecure_request_warning() -> None:
 
 
 @fixture(autouse=True)
-def disable_aioredis_deprecation_warning() -> None:
-	# aioredis/connection.py:668: DeprecationWarning: There is no current event loop
-	warnings.simplefilter("ignore", DeprecationWarning, 668)
+def disable_redis_asyncio_deprecation_warning() -> None:
+	# message="There is no current event loop", category=DeprecationWarning, module="redis.asyncio.connection", lineno=677
+	warnings.filterwarnings(
+		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
+	)

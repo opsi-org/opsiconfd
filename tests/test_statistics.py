@@ -8,13 +8,9 @@
 statistic tests
 """
 
-import asyncio
-from typing import AsyncGenerator, List
 
 import pytest
-from redis import StrictRedis
 
-from opsiconfd.config import config
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.metrics.registry import Metric, MetricsRegistry
 from opsiconfd.worker import Worker

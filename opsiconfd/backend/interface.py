@@ -15,14 +15,18 @@ from urllib.parse import urlparse
 
 from OPSI.Backend.Base.Backend import describeInterface  # type: ignore[import]
 from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
+from sqlalchemy import column, func, select, table
+from sqlalchemy.sql import text
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
-from opsiconfd.backend import get_client_backend
 from opsiconfd.backup import create_backup
 from opsiconfd.check import health_check
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.utils import Singleton
+
+from . import get_client_backend
+from .mysql import MySQLBackend
 
 backend_interface = None  # pylint: disable=invalid-name
 
@@ -42,6 +46,8 @@ class OpsiconfdBackend(metaclass=Singleton):
 	def __init__(self) -> None:
 		self._interface = describeInterface(self)
 		self._backend = get_client_backend()
+		self._mysql = MySQLBackend()
+		self._mysql.connect()
 		self.method_names = [meth["name"] for meth in self._interface]
 
 	def _check_role(self, required_role: str) -> None:
@@ -58,6 +64,9 @@ class OpsiconfdBackend(metaclass=Singleton):
 
 	def get_interface(self) -> List[Dict[str, Any]]:
 		return self._interface
+
+	def host_getObjects(self, attributes: List[str] = None, **filter) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+		return self._mysql.host_getObjects(attributes, **filter)
 
 	def backend_exit(self) -> None:
 		session = contextvar_client_session.get()

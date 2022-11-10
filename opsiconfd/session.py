@@ -632,6 +632,12 @@ async def authenticate(session: OPSISession, username: str, password: str) -> No
 	if not session.user_store.username or not session.user_store.authenticated:
 		raise BackendPermissionDeniedError("Not authenticated")
 
+	# user_type = "user"
+	# if session.user_store.host:
+	# 	user_type = "client"
+	# 	if session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+	# 		user_type = "depot"
+
 	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.user_store.username)
 
 	if username == config.monitoring_user:

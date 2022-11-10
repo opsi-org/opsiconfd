@@ -9,14 +9,13 @@ opsiconfd backend interface
 """
 
 import socket
+from inspect import getfullargspec, getmembers, ismethod, signature
 from ipaddress import ip_address
-from typing import Any, Dict, List
+from textwrap import dedent
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-from OPSI.Backend.Base.Backend import describeInterface  # type: ignore[import]
 from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
-from sqlalchemy import column, func, select, table
-from sqlalchemy.sql import text
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
 from opsiconfd.backup import create_backup
@@ -26,7 +25,11 @@ from opsiconfd.logging import logger
 from opsiconfd.utils import Singleton
 
 from . import get_client_backend
-from .mysql import MySQLBackend
+from .auth import RPCACE, read_acl_file
+from .mysql import MySQLConnection
+from .rpc.config import RPCConfigMixin
+from .rpc.config_state import RPCConfigStateMixin
+from .rpc.host import RPCHostMixin
 
 backend_interface = None  # pylint: disable=invalid-name
 
@@ -42,13 +45,110 @@ def get_backend_interface() -> List[Dict[str, Any]]:
 	return backend_interface  # type: ignore
 
 
-class OpsiconfdBackend(metaclass=Singleton):
+def describe_interface(instance: Any) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
+	"""
+	Describes what public methods are available and the signatures they use.
+
+	These methods are represented as a dict with the following keys: \
+	*name*, *params*, *args*, *varargs*, *keywords*, *defaults*.
+
+	:rtype: [{},]
+	"""
+	methods = {}
+	for _, function in getmembers(instance, ismethod):
+		method_name = function.__name__
+		if not getattr(function, "rpc_method", False):
+			continue
+
+		spec = getfullargspec(function)
+		sig = signature(function)
+		args = spec.args
+		defaults = spec.defaults
+		params = [arg for arg in args if arg != "self"]  # pylint: disable=loop-invariant-statement
+		annotations = {}
+		for param in params:
+			str_param = str(sig.parameters[param])
+			if ": " in str_param:
+				annotations[param] = str_param.split(": ", 1)[1].split(" = ", 1)[0]
+
+		if defaults is not None:
+			offset = len(params) - len(defaults)
+			for i in range(len(defaults)):
+				index = offset + i
+				params[index] = f"*{params[index]}"
+
+		for index, element in enumerate((spec.varargs, spec.varkw), start=1):
+			if element:
+				stars = "*" * index
+				params.extend([f"{stars}{arg}" for arg in (element if isinstance(element, list) else [element])])
+
+		logger.trace("%s interface method: name %s, params %s", instance.__class__.__name__, method_name, params)
+		doc = function.__doc__
+		if doc:
+			doc = dedent(doc).lstrip() or None
+
+		methods[method_name] = {
+			"name": method_name,
+			"params": params,
+			"args": args,
+			"varargs": spec.varargs,
+			"keywords": spec.varkw,
+			"defaults": defaults,
+			"deprecated": getattr(function, "deprecated", False),
+			"alternative_method": getattr(function, "alternative_method", None),
+			"doc": doc,
+			"annotations": annotations,
+		}
+
+	return [methods[name] for name in sorted(list(methods.keys()))]
+
+
+class OpsiconfdBackend(RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, metaclass=Singleton):
 	def __init__(self) -> None:
-		self._interface = describeInterface(self)
+		self._interface = describe_interface(self)
 		self._backend = get_client_backend()
-		self._mysql = MySQLBackend()
+		self._mysql = MySQLConnection()
 		self._mysql.connect()
 		self.method_names = [meth["name"] for meth in self._interface]
+		self._acl: Dict[str, List[RPCACE]] = {}
+		self._read_acl_file()
+
+	def _read_acl_file(self) -> None:
+		acl = read_acl_file(config.acl_file)
+		for method_name in self.method_names:
+			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
+
+	def _get_ace(self, method: str) -> Optional[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("No session")
+
+		user_type = "user"
+		if session.user_store.host:
+			user_type = "client"
+			if session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+				user_type = "depot"
+
+		for ace in self._acl.get(method, []):
+			if ace.type == "all":
+				return ace
+			if user_type == "user":  # pylint: disable=loop-invariant-statement
+				if ace.type == "sys_user":
+					if not ace.id or ace.id == session.user_store.username:
+						return ace
+				elif ace.type == "sys_group":
+					if not ace.id or ace.id in session.user_store.userGroups:
+						return ace
+				continue
+			if ace.type == "self" and user_type in ("client", "depot"):  # pylint: disable=loop-invariant-statement
+				return ace
+			if user_type == "client" and ace.type == "opsi_client":  # pylint: disable=loop-invariant-statement
+				if not ace.id or ace.id == session.user_store.username:
+					return ace
+			if user_type == "depot" and ace.type == "opsi_depotserver":  # pylint: disable=loop-invariant-statement
+				if not ace.id or ace.id == session.user_store.username:
+					return ace
+		raise BackendPermissionDeniedError("No permission")
 
 	def _check_role(self, required_role: str) -> None:
 		session = contextvar_client_session.get()
@@ -64,9 +164,6 @@ class OpsiconfdBackend(metaclass=Singleton):
 
 	def get_interface(self) -> List[Dict[str, Any]]:
 		return self._interface
-
-	def host_getObjects(self, attributes: List[str] = None, **filter) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
-		return self._mysql.host_getObjects(attributes, **filter)
 
 	def backend_exit(self) -> None:
 		session = contextvar_client_session.get()

@@ -21,7 +21,7 @@ def session_setup(app: FastAPI) -> None:
 	app.include_router(router=session_router, prefix="/session")
 
 
-class LoginData(BaseModel):
+class LoginData(BaseModel):  # pylint: disable=too-few-public-methods
 	username: str
 	password: str
 

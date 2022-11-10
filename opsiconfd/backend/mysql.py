@@ -512,9 +512,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			obj = OBJECT_CLASSES[obj["type"]].fromHash(obj)
 		obj.setDefaults()
 		data = obj.to_hash()
-		ident: Tuple[str, ...] = tuple()
+		ident_attrs = []
 		if not create:
-			ident = obj.getIdent("tuple")
+			ident_attrs = list(obj.getIdent("dict"))
 		columns = self._get_columns([table], ace=ace)
 
 		allowed_client_ids = self.get_allowed_client_ids(ace)
@@ -531,7 +531,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				if data.get(attr) not in allowed_client_ids:
 					raise BackendPermissionDeniedError(f"No permission for {column}/{attr}: {data.get(attr)}")
 
-			if attr in ident:
+			if attr in ident_attrs:
 				where.append(f"`{column.split('.')[1]}` = :{attr}")
 			if not set_null and data.get(attr) is None:
 				continue
@@ -545,6 +545,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		if create:
 			query = f"INSERT INTO `{table}` ({','.join(cols)}) VALUES ({','.join(vals)}) ON DUPLICATE KEY UPDATE {','.join(updates)}"
 		else:
+			if not where:
+				raise RuntimeError("No where")
 			query = f"UPDATE `{table}` SET {','.join(updates)} WHERE {' AND '.join(where)}"
 		with self.session() as session:
 			session.execute(query, params=data)

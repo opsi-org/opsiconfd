@@ -10,7 +10,15 @@ opsiconfd.backend.rpc.host
 
 from typing import Any, List
 
-from opsicommon.objects import Host  # type: ignore[import]
+from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
+from opsicommon.objects import (  # type: ignore[import]
+	Host,
+	OpsiClient,
+	OpsiConfigserver,
+	OpsiDepotserver,
+)
+
+from opsiconfd.logging import logger
 
 from ..mysql import BackendProtocol, IdentType
 from . import rpc_method
@@ -24,7 +32,6 @@ class RPCHostMixin:
 		If the Host object already exists, it will be completely overwritten with the new values.
 		Attributes that are not passed (or passed with the value 'null') will be set to 'null' in the backend.
 		"""
-		# {"id":"testx1.uib.local","type":"OpsiClient"}
 		self._mysql.insert_object(table="HOST", obj=host, ace=self._get_ace("host_insertObject"), create=True, set_null=True)
 
 	@rpc_method
@@ -34,7 +41,6 @@ class RPCHostMixin:
 		Attributes that are not passed (or passed with the value 'null'), will not be changed in the backend.
 		If the object does not exist, no change takes place, no object is created.
 		"""
-		# {"id":"testx1.uib.local","type":"OpsiClient"}
 		self._mysql.insert_object(table="HOST", obj=host, ace=self._get_ace("host_updateObject"), create=False, set_null=False)
 
 	@rpc_method
@@ -71,3 +77,93 @@ class RPCHostMixin:
 		return self._mysql.get_objects(
 			table="HOST", ace=self._get_ace("host_getObjects"), return_type="object", attributes=attributes, filter=filter
 		)
+
+	@rpc_method
+	def host_deleteObjects(self: BackendProtocol, hosts: List[dict | Host]) -> None:  # pylint: disable=invalid-name
+		ace = self._get_ace("host_deleteObjects")
+		host_ids = [host.id if isinstance(host, Host) else host["id"] for host in hosts]
+		if ace and ace.type == "self":
+			allowed_client_ids = self._mysql.get_allowed_client_ids(ace)
+			if allowed_client_ids is not None:
+				for host_id in host_ids:
+					if host_id not in allowed_client_ids:
+						raise BackendPermissionDeniedError(f"No permission to delete host {host_id}")
+
+		with self._mysql.session() as session:
+			logger.info("Deleting hosts: %s", host_ids)
+			session.execute("DELETE FROM `HOST` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
+			for table in self._mysql.tables:
+				if table.startswith("HARDWARE_CONFIG_"):
+					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
+
+	@rpc_method
+	def host_delete(self, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+		self.host_deleteObjects({"id": id})
+
+	@rpc_method
+	def host_createOpsiClient(  # pylint: disable=too-many-arguments,invalid-name
+		self,
+		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		opsiHostKey: str = None,  # pylint: disable=unused-argument
+		description: str = None,  # pylint: disable=unused-argument
+		notes: str = None,  # pylint: disable=unused-argument
+		hardwareAddress: str = None,  # pylint: disable=unused-argument
+		ipAddress: str = None,  # pylint: disable=unused-argument
+		inventoryNumber: str = None,  # pylint: disable=unused-argument
+		oneTimePassword: str = None,  # pylint: disable=unused-argument
+		created: str = None,  # pylint: disable=unused-argument
+		lastSeen: str = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.host_createObjects(OpsiClient.fromHash(_hash))
+
+	def host_createOpsiDepotserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
+		self,
+		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		opsiHostKey: str = None,  # pylint: disable=unused-argument
+		depotLocalUrl: str = None,  # pylint: disable=unused-argument
+		depotRemoteUrl: str = None,  # pylint: disable=unused-argument
+		depotWebdavUrl: str = None,  # pylint: disable=unused-argument
+		repositoryLocalUrl: str = None,  # pylint: disable=unused-argument
+		repositoryRemoteUrl: str = None,  # pylint: disable=unused-argument
+		description: str = None,  # pylint: disable=unused-argument
+		notes: str = None,  # pylint: disable=unused-argument
+		hardwareAddress: str = None,  # pylint: disable=unused-argument
+		ipAddress: str = None,  # pylint: disable=unused-argument
+		inventoryNumber: str = None,  # pylint: disable=unused-argument
+		networkAddress: str = None,  # pylint: disable=unused-argument
+		maxBandwidth: str = None,  # pylint: disable=unused-argument
+		isMasterDepot: bool = None,  # pylint: disable=unused-argument
+		masterDepotId: str = None,  # pylint: disable=unused-argument
+		workbenchLocalUrl: str = None,  # pylint: disable=unused-argument
+		workbenchRemoteUrl: str = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.host_createObjects(OpsiDepotserver.fromHash(_hash))
+
+	def host_createOpsiConfigserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
+		self,
+		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		opsiHostKey: str = None,  # pylint: disable=unused-argument
+		depotLocalUrl: str = None,  # pylint: disable=unused-argument
+		depotRemoteUrl: str = None,  # pylint: disable=unused-argument
+		depotWebdavUrl: str = None,  # pylint: disable=unused-argument
+		repositoryLocalUrl: str = None,  # pylint: disable=unused-argument
+		repositoryRemoteUrl: str = None,  # pylint: disable=unused-argument
+		description: str = None,  # pylint: disable=unused-argument
+		notes: str = None,  # pylint: disable=unused-argument
+		hardwareAddress: str = None,  # pylint: disable=unused-argument
+		ipAddress: str = None,  # pylint: disable=unused-argument
+		inventoryNumber: str = None,  # pylint: disable=unused-argument
+		networkAddress: str = None,  # pylint: disable=unused-argument
+		maxBandwidth: str = None,  # pylint: disable=unused-argument
+		isMasterDepot: bool = None,  # pylint: disable=unused-argument
+		masterDepotId: str = None,  # pylint: disable=unused-argument
+		workbenchLocalUrl: str = None,  # pylint: disable=unused-argument
+		workbenchRemoteUrl: str = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.host_createObjects(OpsiConfigserver.fromHash(_hash))

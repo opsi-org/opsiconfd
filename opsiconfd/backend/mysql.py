@@ -98,12 +98,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self._connection_pool_timeout = 30
 		self._connection_pool_recycling_seconds = -1
 		self._unique_hardware_addresses = True
-		self._log_queries = True
+		self._log_queries = False
 
 		self._Session: scoped_session | None = lambda: None  # pylint: disable=invalid-name
 		self._session_factory = None
 		self._engine = None
-		self._tables: Dict[str, Dict[str, Type]] = {}
+		self.tables: Dict[str, Dict[str, Type]] = {}
 
 		self._read_config_file()
 		secret_filter.add_secrets(self._password)
@@ -235,11 +235,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			self._Session.remove()  # pylint: disable=no-member
 
 	def _get_tables(self) -> None:
-		self._tables = {}
+		self.tables = {}
 		with self.session() as session:
 			for trow in session.execute("SHOW TABLES").fetchall():
 				table_name = trow[0].upper()
-				self._tables[table_name] = {}
+				self.tables[table_name] = {}
 				for row in session.execute(f"SHOW COLUMNS FROM `{table_name}`"):  # pylint: disable=loop-invariant-statement
 					mysql_type = row["Type"].lower()
 					py_type: Type = str
@@ -257,11 +257,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 						py_type = datetime
 					else:
 						logger.error("Failed to get python type for: %s", mysql_type)
-					self._tables[table_name][row["Field"]] = py_type  # pylint: disable=loop-invariant-statement
+					self.tables[table_name][row["Field"]] = py_type  # pylint: disable=loop-invariant-statement
 
 	def _get_select(self, table: str, ace: RPCACE = None, attributes: Union[List[str], Tuple[str, ...]] = None) -> str:
 		select = []
-		for col in self._tables[table]:
+		for col in self.tables[table]:
 			attr = self._column_to_attribute.get(table, {}).get(col, col)
 			if ace and ace.allowed_attributes and attr not in ace.allowed_attributes:
 				continue
@@ -282,7 +282,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def _get_columns(self, tables: List[str], ace: RPCACE = None, attributes: Union[List[str], Tuple[str, ...]] = None) -> Dict[str, str]:
 		res = {}
 		for table in tables:
-			for col in self._tables[table]:
+			for col in self.tables[table]:
 				attr = self._column_to_attribute.get(table, {}).get(col, col)
 				if ace and ace.allowed_attributes and attr not in ace.allowed_attributes:
 					continue
@@ -297,12 +297,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self, columns: Dict[str, str], ace: RPCACE = None, filter: Dict[str, Any] = None  # pylint: disable=redefined-builtin
 	) -> Tuple[str, Dict[str, Any]]:
 		filter = filter or {}
-		allowed_client_ids = None
-		if ace and ace.type == "self":
-			allowed_client_ids = []
-			session = contextvar_client_session.get()
-			if session and session.user_store.host:
-				allowed_client_ids = [session.user_store.host.id]  # pylint: disable=use-tuple-over-list
+		allowed_client_ids = self.get_allowed_client_ids(ace)
 
 		conditions = []
 		params: Dict[str, Any] = {}
@@ -418,6 +413,15 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		}
 		return object_type(**kwargs)
 
+	def get_allowed_client_ids(self, ace: RPCACE = None) -> Optional[List[str]]:
+		allowed_client_ids = None
+		if ace and ace.type == "self":
+			allowed_client_ids = []
+			session = contextvar_client_session.get()
+			if session and session.user_store.host:
+				allowed_client_ids = [session.user_store.host.id]  # pylint: disable=use-tuple-over-list
+		return allowed_client_ids
+
 	@overload
 	def get_objects(  # pylint: disable=too-many-arguments
 		self,
@@ -472,7 +476,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		where, params = self._get_where(columns=columns, ace=ace, filter=filter)
 		with self.session() as session:
 			query = f"{query} {where} {'GROUP BY id' if aggregates else ''}"
-			print(query)
 			result = session.execute(query, params=params).fetchall()
 			if not result:
 				return []
@@ -514,6 +517,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			ident = obj.getIdent("tuple")
 		columns = self._get_columns([table], ace=ace)
 
+		allowed_client_ids = self.get_allowed_client_ids(ace)
+
 		cols = []
 		vals = []
 		where = []
@@ -521,6 +526,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		for attr, column in columns.items():
 			if attr not in data:
 				continue
+
+			if allowed_client_ids and column.split(".")[1] in ("clientId", "hostId"):
+				if data.get(attr) not in allowed_client_ids:
+					raise BackendPermissionDeniedError(f"No permission for {column}/{attr}: {data.get(attr)}")
+
 			if attr in ident:
 				where.append(f"`{column.split('.')[1]}` = :{attr}")
 			if not set_null and data.get(attr) is None:

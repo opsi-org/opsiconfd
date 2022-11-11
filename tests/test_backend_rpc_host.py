@@ -40,10 +40,11 @@ def cleanup_database(database_connection: Connection) -> Generator[None, None, N
 def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 	_acl_file = tmp_path / "acl.conf"
 	data = (
-		f"host_getObjects   : sys_user({ADMIN_USER}); self; opsi_client(attributes(!opsiHostKey,!hardwareAddress,!inventoryNumber))\n"
-		f"host_insertObject : sys_user({ADMIN_USER}); self\n"
-		f"host_updateObject : sys_user({ADMIN_USER}); self\n"
-		f".*                : sys_user({ADMIN_USER})\n"
+		f"host_getObjects    : sys_user({ADMIN_USER}); self; opsi_client(attributes(!opsiHostKey,!hardwareAddress,!inventoryNumber))\n"
+		f"host_insertObject  : sys_user({ADMIN_USER}); self\n"
+		f"host_updateObject  : sys_user({ADMIN_USER}); self\n"
+		f"host_deleteObjects : sys_user({ADMIN_USER}); self\n"
+		f".*                 : sys_user({ADMIN_USER})\n"
 	)
 	_acl_file.write_text(data=data, encoding="utf-8")
 	with get_config({"acl_file": str(_acl_file)}):
@@ -56,7 +57,7 @@ def test_host_insertObject(  # pylint: disable=invalid-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
 		"type": "OpsiClient",
-		"id": "test-backend-rpc-host-insert-1.opsi.test",
+		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
 		"description": "description",
 		"notes": "notes",
@@ -64,7 +65,7 @@ def test_host_insertObject(  # pylint: disable=invalid-name
 	}
 	client2 = {
 		"type": "OpsiClient",
-		"id": "test-backend-rpc-host-insert-2.opsi.test",
+		"id": "test-backend-rpc-host-2.opsi.test",
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
 		"description": "description",
 		"oneTimePassword": "secret",
@@ -126,7 +127,7 @@ def test_host_updateObject(  # pylint: disable=invalid-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
 		"type": "OpsiClient",
-		"id": "test-backend-rpc-host-update-1.opsi.test",
+		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
 		"description": "description",
 		"notes": "notes",
@@ -134,7 +135,7 @@ def test_host_updateObject(  # pylint: disable=invalid-name
 	}
 	client2 = {
 		"type": "OpsiClient",
-		"id": "test-backend-rpc-host-update-2.opsi.test",
+		"id": "test-backend-rpc-host-2.opsi.test",
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
 		"description": "description",
 		"oneTimePassword": "secret",
@@ -197,7 +198,7 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	client1 = {
 		"type": "OpsiClient",
-		"id": "test-backend-rpc-host-create-1.opsi.test",
+		"id": "test-backend-rpc-host-1.opsi.test",
 		"opsiHostKey": "4587dec5913c501a28560d576768924e",
 		"description": "description",
 		"notes": "notes",
@@ -205,7 +206,7 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 	}
 	client2 = {
 		"type": "OpsiClient",
-		"id": "test-backend-rpc-host-create-2.opsi.test",
+		"id": "test-backend-rpc-host-2.opsi.test",
 		"opsiHostKey": "7dec5913c501a28545860d576768924e",
 		"description": "description",
 		"oneTimePassword": "secret",
@@ -223,8 +224,8 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 	clients = res.json()["result"]
 
 	assert len(clients) == 2
-	assert clients[0]["id"].startswith("test-backend-rpc-host-create")
-	assert clients[1]["id"].startswith("test-backend-rpc-host-create")
+	assert clients[0]["id"].startswith("test-backend-rpc-host-")
+	assert clients[1]["id"].startswith("test-backend-rpc-host-")
 	assert clients[0]["oneTimePassword"] == "secret"
 	assert clients[1]["oneTimePassword"] == "secret"
 
@@ -247,8 +248,8 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 	clients = res.json()["result"]
 	assert len(clients) == 2
 
-	assert clients[0]["id"].startswith("test-backend-rpc-host-create")
-	assert clients[1]["id"].startswith("test-backend-rpc-host-create")
+	assert clients[0]["id"].startswith("test-backend-rpc-host-")
+	assert clients[1]["id"].startswith("test-backend-rpc-host-")
 	assert clients[0]["oneTimePassword"] is None
 	assert clients[1]["oneTimePassword"] is None
 	assert clients[0]["notes"] == ""
@@ -264,13 +265,326 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 	res = test_client.post("/rpc", json=rpc)
 	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
 
+	for method in ("host_getObjects", "host_getHashes"):
+		rpc = {
+			"jsonrpc": "2.0",
+			"id": 1,
+			"method": method,
+			"params": [None, {"id": [client1["id"], client2["id"]]}],  # pylint: disable=loop-invariant-statement
+		}
+		res = test_client.post("/rpc", json=rpc)
+		assert "error" not in res.json()
+		clients = res.json()["result"]
+		assert len(clients) == 2
+		for client in clients:
+			if client["id"] == client1["id"]:  # pylint: disable=loop-invariant-statement
+				assert client["opsiHostKey"] == client1["opsiHostKey"]  # pylint: disable=loop-invariant-statement
+			else:
+				assert client["opsiHostKey"] is None
+
+
+def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
+	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client1 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-1.opsi.test",
+		"opsiHostKey": "4587dec5913c501a28560d576768924e",
+		"description": "description",
+		"notes": "notes",
+		"oneTimePassword": "secret",
+	}
+	client2 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-2.opsi.test",
+		"opsiHostKey": "7dec5913c501a28545860d576768924e",
+		"description": "description",
+		"oneTimePassword": "secret",
+	}
+
+	# Create clients with updateObjects
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client1, client2]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	# Get clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client1["id"], client2["id"]]}]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	clients = res.json()["result"]
+
+	assert len(clients) == 2
+	assert clients[0]["id"].startswith("test-backend-rpc-host-")
+	assert clients[1]["id"].startswith("test-backend-rpc-host-")
+	assert clients[0]["oneTimePassword"] == "secret"
+	assert clients[1]["oneTimePassword"] == "secret"
+
+	# Delete client2
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client2["id"]}]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	clients = res.json()["result"]
+
+	# Get clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client1["id"], client2["id"]]}]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	clients = res.json()["result"]
+	assert len(clients) == 1
+
+	# Update client1, create client2
+	client1["oneTimePassword"] = None  # type: ignore[assignment]
+	client1["description"] = "new desc"
+	client2["oneTimePassword"] = None  # type: ignore[assignment]
+	client2["description"] = "new desc"
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client1, client2]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	# Get clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client1["id"], client2["id"]]}]}
 	res = test_client.post("/rpc", json=rpc)
 	assert "error" not in res.json()
 	clients = res.json()["result"]
 	assert len(clients) == 2
+
 	for client in clients:
+		assert client["description"] == "new desc"
 		if client["id"] == client1["id"]:  # pylint: disable=loop-invariant-statement
-			assert client["opsiHostKey"] == client1["opsiHostKey"]  # pylint: disable=loop-invariant-statement
+			# Updated
+			assert client["oneTimePassword"] == "secret"
 		else:
-			assert client["opsiHostKey"] is None
+			# Created
+			assert client["oneTimePassword"] is None
+
+	# Test client permissions
+	test_client.reset_cookies()
+	test_client.auth = (client1["id"], client1["opsiHostKey"])
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client1]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client2]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
+
+
+def test_host_getIdents(  # pylint: disable=invalid-name,too-many-statements
+	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client1 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-1.opsi.test",
+		"opsiHostKey": "4587dec5913c501a28560d576768924e",
+		"description": "description",
+		"notes": "notes",
+		"oneTimePassword": "secret",
+	}
+	client2 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-2.opsi.test",
+		"opsiHostKey": "7dec5913c501a28545860d576768924e",
+		"description": "description",
+		"oneTimePassword": "secret",
+	}
+
+	# Create clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	# Get client idents
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": [client1["id"], client2["id"]]}]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	assert res.json()["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}, {"id": "test-backend-rpc-host-2.opsi.test"}]
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	assert res.json()["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}]
+
+	# Test client permissions
+	test_client.reset_cookies()
+	test_client.auth = (client1["id"], client1["opsiHostKey"])
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": [client1["id"], client2["id"]]}]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	assert res.json()["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}, {"id": "test-backend-rpc-host-2.opsi.test"}]
+
+
+def test_host_deleteObjects(  # pylint: disable=invalid-name,too-many-statements
+	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	client1 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-1.opsi.test",
+		"opsiHostKey": "4587dec5913c501a28560d576768924e",
+		"description": "description",
+		"notes": "notes",
+		"oneTimePassword": "secret",
+	}
+	client2 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-2.opsi.test",
+		"opsiHostKey": "7dec5913c501a28545860d576768924e",
+		"description": "description",
+		"oneTimePassword": "secret",
+	}
+
+	# Create clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	# Test client permissions
+	test_client.reset_cookies()
+	test_client.auth = (client1["id"], client1["opsiHostKey"])
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client1["id"]}, {"id": client2["id"]}]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client2["id"]}]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
+
+	# Delete clients
+	test_client.reset_cookies()
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client1["id"]}, {"id": client2["id"]}]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	# Get client idents
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["list"]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	result = res.json()["result"]
+	assert len(result) > 0
+	assert isinstance(result[0], list)
+	assert len(result[0]) == 1
+	assert [client1["id"]] not in result
+	assert [client2["id"]] not in result
+
+	# Create clients
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	# Delete client1
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_delete", "params": [client1["id"]]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": client1["id"]}]}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	assert res.json()["result"] == []
+
+
+def test_host_createOpsiClient(  # pylint: disable=invalid-name,too-many-statements
+	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	# Create client
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_createOpsiClient",
+		"params": ["test-backend-rpc-host-client.opsi.test", None, "description", "notes", "00:00:00:01:01:01", None, "inventory number"],
+	}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_getObjects",
+		"params": [None, {"type": "OpsiClient", "id": "test-backend-rpc-host-client.opsi.test"}],
+	}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	client = res.json()["result"][0]
+	assert client["opsiHostKey"]
+	assert client["created"]
+	assert client["hardwareAddress"] == "00:00:00:01:01:01"
+	assert client["notes"] == "notes"
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_getObjects",
+		"params": [["description", "notes"], {"id": "test-backend-rpc-host-client.opsi.test"}],
+	}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	client = res.json()["result"][0]
+	assert not client["opsiHostKey"]
+	assert not client["created"]
+	assert not client["hardwareAddress"]
+	assert client["description"] == "description"
+	assert client["notes"] == "notes"
+
+
+def test_host_createOpsiDepotserver(  # pylint: disable=invalid-name,too-many-statements
+	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	# Create depot
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_createOpsiDepotserver",
+		"params": ["test-backend-rpc-host-depot.opsi.test", None, "file:///depot/local/url", "webdavs://depot.remote/url"],
+	}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_getObjects",
+		"params": [None, {"type": "OpsiDepotserver", "id": "test-backend-rpc-host-depot.opsi.test"}],
+	}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	depot = res.json()["result"][0]
+	assert depot["opsiHostKey"]
+	assert depot["depotLocalUrl"] == "file:///depot/local/url"
+	assert depot["depotRemoteUrl"] == "webdavs://depot.remote/url"
+
+
+def test_host_createOpsiConfigserver(  # pylint: disable=invalid-name,too-many-statements
+	acl_file: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	# Create depot
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_createOpsiConfigserver",
+		"params": ["test-backend-rpc-host-server.opsi.test", None, "file:///depot/local/url", "webdavs://depot.remote/url"],
+	}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "host_getObjects",
+		"params": [None, {"type": "OpsiConfigserver", "id": "test-backend-rpc-host-server.opsi.test"}],
+	}
+	res = test_client.post("/rpc", json=rpc)
+	assert "error" not in res.json()
+	depot = res.json()["result"][0]
+	assert depot["opsiHostKey"]
+	assert depot["depotLocalUrl"] == "file:///depot/local/url"
+	assert depot["depotRemoteUrl"] == "webdavs://depot.remote/url"

@@ -270,7 +270,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		for table in tables:
 			for col in self.tables[table]:
 				attr = self._column_to_attribute.get(table, {}).get(col, col)
-				if attributes and attr not in attributes:
+				if attributes and attr not in attributes and attr != "type":
 					continue
 				for _ace in sorted(ace, key=lambda a: a.type == "self"):
 					if _ace.allowed_attributes and attr not in _ace.allowed_attributes:
@@ -370,10 +370,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def _row_to_dict(  # pylint: disable=too-many-arguments
 		self, table: str, row: Row, object_type: Type[BaseObject] = None, ident_type: IdentType = None, aggregates: List[str] = None
 	) -> Dict[str, Any]:
-		if not object_type and row.type:
-			object_type = OBJECT_CLASSES.get(row.type)
+		if row.type:
+			obj_type = OBJECT_CLASSES.get(row.type)
+			if obj_type:
+				object_type = obj_type
 		if not object_type:
 			raise ValueError(f"Missing object type for {table!r} in row: {dict(row)}")
+
 		ident_attributes = self._get_ident_attributes(object_type.__name__)
 		possible_attributes = self._get_possible_class_attributes(object_type.__name__)
 		conversions = self._get_conversions(object_type.__name__)
@@ -399,10 +402,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		return data
 
 	def _row_to_object(self, row: Row, object_type: Type[BaseObject] = None, aggregates: List[str] = None) -> BaseObject:
-		if not object_type and row.type:
-			object_type = OBJECT_CLASSES.get(row.type)
+		if row.type:
+			obj_type = OBJECT_CLASSES.get(row.type)
+			if obj_type:
+				object_type = obj_type
 		if not object_type:
 			raise ValueError(f"Missing object type in row: {dict(row)}")
+
 		possible_attributes = self._get_possible_class_attributes(object_type.__name__)
 		kwargs = {
 			key: val.split(self.record_separator) if val and aggregates and key in aggregates else val
@@ -428,9 +434,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def get_objects(  # pylint: disable=too-many-arguments
 		self,
 		table: str,
+		object_type: Type[BaseObject],
 		aggregates: Dict[str, str] = None,
 		ace: List[RPCACE] = None,
-		object_type: Type[BaseObject] = None,
 		ident_type: IdentType = "str",
 		return_type: Literal["object"] = "object",
 		attributes: List[str] | Tuple[str, ...] | None = None,
@@ -442,9 +448,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def get_objects(  # pylint: disable=too-many-arguments
 		self,
 		table: str,
+		object_type: Type[BaseObject],
 		aggregates: Dict[str, str] = None,
 		ace: List[RPCACE] = None,
-		object_type: Type[BaseObject] = None,
 		ident_type: IdentType = "str",
 		return_type: Literal["dict"] = "dict",
 		attributes: List[str] | Tuple[str, ...] | None = None,
@@ -455,9 +461,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def get_objects(  # pylint: disable=too-many-arguments,too-many-locals
 		self,
 		table: str,
+		object_type: Type[BaseObject],
 		aggregates: Dict[str, str] = None,
 		ace: List[RPCACE] = None,
-		object_type: Type[BaseObject] = None,
 		ident_type: IdentType = "str",
 		return_type: Literal["object", "dict"] = "object",
 		attributes: List[str] | Tuple[str, ...] | None = None,
@@ -468,6 +474,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		if not table.lstrip().upper().startswith("FROM"):
 			table = f"FROM {table}"
 		tables = re.findall(r"(?:FROM|JOIN)\s+`?([a-zA-Z_]+)`?", table)
+		if attributes:
+			attributes = list(attributes)
+			for attr in self._get_ident_attributes(object_type.__name__):  # pylint: disable=use-list-comprehension
+				if attr not in attributes:
+					attributes.append(attr)
 		columns = self._get_columns(tables=tables, ace=ace, attributes=attributes)
 		aggs = [f"{agg} AS `{name}`" for name, agg in aggregates.items()] if aggregates else ""
 		query = (

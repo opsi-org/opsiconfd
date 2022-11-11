@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from opsiconfd.auth import read_acl_file
+from opsiconfd.backend.auth import read_acl_file
 
 
 def test_read_acl_file(tmp_path: Path) -> None:  # pylint: disable=too-many-statements

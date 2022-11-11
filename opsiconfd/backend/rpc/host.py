@@ -17,6 +17,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	OpsiConfigserver,
 	OpsiDepotserver,
 )
+from opsicommon.types import forceList  # type: ignore[import]
 
 from opsiconfd.logging import logger
 
@@ -44,50 +45,49 @@ class RPCHostMixin:
 		self._mysql.insert_object(table="HOST", obj=host, ace=self._get_ace("host_updateObject"), create=False, set_null=False)
 
 	@rpc_method
-	def host_createObjects(self: BackendProtocol, hosts: List[dict] | List[Host]) -> None:  # pylint: disable=invalid-name
+	def host_createObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		"""
 		An object or a list of objects can be passed. Each object is passed internally to 'insertObject'.
 		"""
-		for host in hosts:
+		for host in forceList(hosts):
 			self._mysql.insert_object(table="HOST", obj=host, ace=self._get_ace("host_createObjects"), create=True, set_null=True)
 
 	@rpc_method
-	def host_updateObjects(self: BackendProtocol, hosts: List[dict] | List[Host]) -> None:  # pylint: disable=invalid-name
+	def host_updateObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		"""
 		An object or a list of objects can be passed.
 		Each object will be updated if it exists or created if it does not exist yet.
 		"""
-		for host in hosts:
+		for host in forceList(hosts):
 			self._mysql.insert_object(table="HOST", obj=host, ace=self._get_ace("host_updateObjects"), create=True, set_null=False)
 
 	@rpc_method
 	def host_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
 	) -> List[str] | List[dict] | List[list] | List[tuple]:
-		return self._mysql.get_idents(table="HOST", object_type=Host, ace=self._get_ace("host_getIdents"), ident_type=returnType, filter=filter)
+		return self._mysql.get_idents(table="HOST", object_type=Host, ace=self._get_ace("host_getObjects"), ident_type=returnType, filter=filter)
 
 	@rpc_method
 	def host_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		return self._mysql.get_objects(
-			table="HOST", ace=self._get_ace("host_getObjects"), return_type="dict", attributes=attributes, filter=filter
+			table="HOST", object_type=Host, ace=self._get_ace("host_getObjects"), return_type="dict", attributes=attributes, filter=filter
 		)
 
 	@rpc_method
 	def host_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[Host]:  # pylint: disable=redefined-builtin,invalid-name
 		return self._mysql.get_objects(
-			table="HOST", ace=self._get_ace("host_getObjects"), return_type="object", attributes=attributes, filter=filter
+			table="HOST", object_type=Host, ace=self._get_ace("host_getObjects"), return_type="object", attributes=attributes, filter=filter
 		)
 
 	@rpc_method
-	def host_deleteObjects(self: BackendProtocol, hosts: List[dict | Host]) -> None:  # pylint: disable=invalid-name
+	def host_deleteObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_deleteObjects")
-		host_ids = [host.id if isinstance(host, Host) else host["id"] for host in hosts]
-		if ace and ace.type == "self":
-			allowed_client_ids = self._mysql.get_allowed_client_ids(ace)
-			if allowed_client_ids is not None:
-				for host_id in host_ids:
-					if host_id not in allowed_client_ids:
-						raise BackendPermissionDeniedError(f"No permission to delete host {host_id}")
+		host_ids = [host.id if isinstance(host, Host) else host["id"] for host in forceList(hosts)]
+		allowed_client_ids = self._mysql.get_allowed_client_ids(ace)
+		if allowed_client_ids is not None:
+			for host_id in host_ids:
+				if host_id not in allowed_client_ids:
+					raise BackendPermissionDeniedError(f"No permission to delete host {host_id}")
 
 		with self._mysql.session() as session:
 			logger.info("Deleting hosts: %s", host_ids)
@@ -98,7 +98,7 @@ class RPCHostMixin:
 
 	@rpc_method
 	def host_delete(self, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.host_deleteObjects({"id": id})
+		self.host_deleteObjects([{"id": id}])
 
 	@rpc_method
 	def host_createOpsiClient(  # pylint: disable=too-many-arguments,invalid-name
@@ -116,8 +116,9 @@ class RPCHostMixin:
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
-		self.host_createObjects(OpsiClient.fromHash(_hash))
+		self.host_createObjects([OpsiClient.fromHash(_hash)])
 
+	@rpc_method
 	def host_createOpsiDepotserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
 		self,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
@@ -141,8 +142,9 @@ class RPCHostMixin:
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
-		self.host_createObjects(OpsiDepotserver.fromHash(_hash))
+		self.host_createObjects([OpsiDepotserver.fromHash(_hash)])
 
+	@rpc_method
 	def host_createOpsiConfigserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
 		self,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
@@ -166,4 +168,4 @@ class RPCHostMixin:
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
-		self.host_createObjects(OpsiConfigserver.fromHash(_hash))
+		self.host_createObjects([OpsiConfigserver.fromHash(_hash)])

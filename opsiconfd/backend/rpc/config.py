@@ -60,6 +60,7 @@ class RPCConfigMixin:
 		}
 		return self._mysql.get_objects(
 			table="CONFIG LEFT JOIN CONFIG_VALUE ON CONFIG.configId = CONFIG_VALUE.configId",
+			object_type=Config,
 			aggregates=aggregates,
 			ace=self._get_ace("config_getObjects"), attributes=attributes, filter=filter
 		)

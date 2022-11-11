@@ -11,20 +11,16 @@ auth
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Literal, Optional, Set, Tuple
+from typing import List, Literal, Optional, Set
 
 from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
-from sqlalchemy.orm.query import Query
 
 from opsiconfd.config import config
-from opsiconfd.logging import logger
-from opsiconfd.utils import Singleton
 
 
 @dataclass(frozen=True, kw_only=True)
 class RPCACE:
 	"""RPC Access Control Entry"""
-	# __slots__ = ('method_re', 'type', 'id', 'allowed_attributes', 'denied_attributes')
 	method_re: re.Pattern
 	type: Literal['all', 'self', 'opsi_depotserver', 'opsi_client', 'sys_group', 'sys_user']
 	id: Optional[str] = None  # pylint: disable=invalid-name
@@ -124,57 +120,3 @@ def read_acl_file(acl_file: Path | str) -> List[RPCACE]:  # pylint: disable=too-
 			else:
 				acl.append(ace)
 	return acl
-
-'''
-@dataclass(frozen=True, kw_only=True)
-class RPCPermissions:
-	"""
-	RPC permissions
-	allowed_* = None  means no restricitions
-	allowed_* = {}    means no permssions
-	"""
-	__slots__ = ('allowed_user_ids', 'allowed_client_ids', 'allowed_depot_ids', 'allowed_attributes', 'denied_attributes')
-
-	allowed_user_ids: Set[str] = set()
-	allowed_client_ids: Set[str] = set()
-	allowed_depot_ids: Set[str] = set()
-	allowed_attributes: Set[str] = set()
-	denied_attributes: Set[str] = set()
-
-
-class RPCAccessControl(metaclass=Singleton):
-	def __init__(self) -> None:
-		self._acl = []
-
-	def read_acl_file(self) -> None:
-		self._acl = []
-		# acl example:
-		#    <method>: <aclType>[(aclTypeParam[(aclTypeParamValue,...)];...)]
-		#    xyz_.*:   opsi_depotserver(attributes(id,name))
-		#    abc:      self(attributes(!opsiHostKey));sys_group(admin, group 2, attributes(!opsiHostKey))
-		acl_entry_regex = re.compile(r'^([^:]+)+\s*:\s*(\S.*)$')
-
-		acls = {}
-		with open(config.acl_file, encoding="utf-8") as file:
-			for line in file.readlines():
-				line = line.strip()
-				if not line or line.startswith("#"):
-					continue
-				match = acl_entry_regex.search(line)
-				if not match:
-					raise ValueError(f"Bad formatted line '{line}' in acl file '{config.acl_file}'")
-
-	def get_rpc_permissions(user_type: Literal["user", "client", "depot"], user: str, groups: Set[str]):
-		return RPCPermissions(
-			allowed_user_ids=set(),
-			allowed_client_ids=set(),
-			allowed_depot_ids=set(),
-			allowed_attributes={},
-			denied_attributes={}
-		)
-
-	#def get_ace(user_type) -> RPCACE:
-
-	#def adjust_query(query: Query) -> Query:
-	#	return query
-'''

@@ -8,6 +8,8 @@
 backup
 """
 
+from typing import Dict, List
+
 from opsiconfd.backend import get_backend
 
 OBJECT_CLASSES = (

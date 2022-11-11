@@ -12,7 +12,7 @@ import socket
 from inspect import getfullargspec, getmembers, ismethod, signature
 from ipaddress import ip_address
 from textwrap import dedent
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
@@ -118,10 +118,10 @@ class OpsiconfdBackend(RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, metacl
 		for method_name in self.method_names:
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
 
-	def _get_ace(self, method: str) -> Optional[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
+	def _get_ace(self, method: str) -> List[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
 		session = contextvar_client_session.get()
-		if not session:
-			raise BackendPermissionDeniedError("No session")
+		if not session or not session.user_store:
+			raise BackendPermissionDeniedError("Invalid session")
 
 		user_type = "user"
 		if session.user_store.host:
@@ -129,25 +129,31 @@ class OpsiconfdBackend(RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, metacl
 			if session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
 				user_type = "depot"
 
+		ace_list = []
 		for ace in self._acl.get(method, []):
 			if ace.type == "all":
-				return ace
-			if user_type == "user":  # pylint: disable=loop-invariant-statement
+				ace_list.append(ace)
+			elif user_type == "user":  # pylint: disable=loop-invariant-statement
 				if ace.type == "sys_user":
 					if not ace.id or ace.id == session.user_store.username:
-						return ace
+						ace_list.append(ace)
 				elif ace.type == "sys_group":
 					if not ace.id or ace.id in session.user_store.userGroups:
-						return ace
-				continue
-			if ace.type == "self" and user_type in ("client", "depot"):  # pylint: disable=loop-invariant-statement
-				return ace
-			if user_type == "client" and ace.type == "opsi_client":  # pylint: disable=loop-invariant-statement
+						ace_list.append(ace)
+			elif ace.type == "self" and user_type in ("client", "depot"):  # pylint: disable=loop-invariant-statement
+				kwargs = ace.__dict__
+				kwargs["id"] = session.user_store.username
+				ace_list.append(RPCACE(**kwargs))
+			elif user_type == "client" and ace.type == "opsi_client":  # pylint: disable=loop-invariant-statement
 				if not ace.id or ace.id == session.user_store.username:
-					return ace
-			if user_type == "depot" and ace.type == "opsi_depotserver":  # pylint: disable=loop-invariant-statement
+					ace_list.append(ace)
+			elif user_type == "depot" and ace.type == "opsi_depotserver":  # pylint: disable=loop-invariant-statement
 				if not ace.id or ace.id == session.user_store.username:
-					return ace
+					ace_list.append(ace)
+
+		if ace_list:
+			return ace_list
+
 		raise BackendPermissionDeniedError("No permission")
 
 	def _check_role(self, required_role: str) -> None:

@@ -39,11 +39,11 @@
 			"--load-plugins",
 			"perflint"
 		],
+		"python.linting.mypyPath": ".venv/bin/mypy",
 		"python.linting.mypyEnabled": true,
 		"python.linting.mypyArgs": [
 			"--show-error-codes"
 		],
-		"files.trimTrailingWhitespace": true,
 		"python.languageServer": "Pylance"
 	},
 	"extensions": [

@@ -62,7 +62,7 @@ class BackendProtocol(Protocol):  # pylint: disable=too-few-public-methods
 	def _mysql(self) -> MySQLConnection:
 		...
 
-	def _get_ace(self, method: str) -> Optional[RPCACE]:
+	def _get_ace(self, method: str) -> List[RPCACE]:
 		...
 
 
@@ -84,6 +84,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		"LICENSE_CONTRACT": {"id": "licenseContractId"},
 		"SOFTWARE_LICENSE": {"id": "softwareLicenseId"},
 		"LICENSE_POOL": {"id": "licensePoolId"},
+	}
+	_client_id_column = {
+		"HOST": "hostId"
 	}
 	record_separator = "␞"
 
@@ -259,42 +262,37 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 						logger.error("Failed to get python type for: %s", mysql_type)
 					self.tables[table_name][row["Field"]] = py_type  # pylint: disable=loop-invariant-statement
 
-	def _get_select(self, table: str, ace: RPCACE = None, attributes: Union[List[str], Tuple[str, ...]] = None) -> str:
-		select = []
-		for col in self.tables[table]:
-			attr = self._column_to_attribute.get(table, {}).get(col, col)
-			if ace and ace.allowed_attributes and attr not in ace.allowed_attributes:
-				continue
-			if ace and ace.denied_attributes and attr in ace.denied_attributes:
-				continue
-
-			if attributes and attr not in attributes:
-				continue
-			if col == attr:
-				select.append(f"`{col}`")
-			else:
-				select.append(f"`{col}` AS `{attr}`")
-
-		if not select:
-			raise BackendPermissionDeniedError(f"Access to {table} denied")
-		return f"SELECT {','.join(select)} FROM `{table}` "
-
-	def _get_columns(self, tables: List[str], ace: RPCACE = None, attributes: Union[List[str], Tuple[str, ...]] = None) -> Dict[str, str]:
-		res = {}
+	def _get_columns(
+		self, tables: List[str], ace: List[RPCACE], attributes: Union[List[str], Tuple[str, ...]] = None
+	) -> Dict[str, Dict[str, str | bool]]:
+		res: Dict[str, Dict[str, str | bool]] = {}
+		client_id_column = self._client_id_column.get(tables[0])
 		for table in tables:
 			for col in self.tables[table]:
 				attr = self._column_to_attribute.get(table, {}).get(col, col)
-				if ace and ace.allowed_attributes and attr not in ace.allowed_attributes:
-					continue
-				if ace and ace.denied_attributes and attr in ace.denied_attributes:
-					continue
 				if attributes and attr not in attributes:
 					continue
-				res[attr] = f"{table}.{col}"
+				for _ace in sorted(ace, key=lambda a: a.type == "self"):
+					if _ace.allowed_attributes and attr not in _ace.allowed_attributes:
+						continue
+					if _ace.denied_attributes and attr in _ace.denied_attributes:
+						continue
+					res[attr] = {  # pylint: disable=loop-invariant-statement
+						"table": table,
+						"column": col,
+						"client_id_column": table == tables[0] and col == client_id_column
+					}
+					if _ace.type == "self":
+						if not client_id_column:  # pylint: disable=loop-invariant-statement
+							raise RuntimeError(f"No client id attribute defined for table {tables[0]}")  # pylint: disable=loop-invariant-statement
+						res[attr]["select"] = f"IF(`{tables[0]}`.`{client_id_column}`='{_ace.id}',`{table}`.`{col}`,NULL)"  # pylint: disable=loop-invariant-statement
+					else:
+						res[attr]["select"] = f"`{table}`.`{col}`"  # pylint: disable=loop-invariant-statement
+					break
 		return res
 
 	def _get_where(  # pylint: disable=too-many-locals,too-many-branches
-		self, columns: Dict[str, str], ace: RPCACE = None, filter: Dict[str, Any] = None  # pylint: disable=redefined-builtin
+		self, columns: Dict[str, Dict[str, str | bool]], ace: List[RPCACE], filter: Dict[str, Any] = None  # pylint: disable=redefined-builtin
 	) -> Tuple[str, Dict[str, Any]]:
 		filter = filter or {}
 		allowed_client_ids = self.get_allowed_client_ids(ace)
@@ -322,26 +320,25 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					new_values.append(val)
 				values = new_values
 
-			tab, col = columns[f_attr].split(".")
+			col = columns[f_attr]
 			cond = []
 			if operator == "IN":
 				param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
-				cond = [f"`{tab}`.`{col}` {operator} :{param}"]
+				cond = [f"`{col['table']}`.`{col['column']}` {operator} :{param}"]
 				params[param] = values
 			else:
 				for val in values:
 					param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
-					cond.append(f"`{tab}`.`{col}` {operator} :{param}")
+					cond.append(f"`{col['table']}`.`{col['column']}` {operator} :{param}")
 					params[param] = val
 
 			conditions.append(" OR ".join(cond))
 
 		if allowed_client_ids is not None:
-			for attr, col in columns.items():
-				tab, col = columns[attr].split(".")
-				if col.split(".")[1] in ("clientId", "hostId"):
+			for col in columns.values():
+				if col["client_id_column"]:
 					param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
-					conditions.append(f"type != 'OpsiClient' OR `{tab}`.`{col}` IN :{param}")
+					conditions.append(f"`{col['table']}`.`{col['column']}` IN :{param}")
 					params[param] = allowed_client_ids
 					break
 
@@ -413,13 +410,18 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		}
 		return object_type(**kwargs)
 
-	def get_allowed_client_ids(self, ace: RPCACE = None) -> Optional[List[str]]:
-		allowed_client_ids = None
-		if ace and ace.type == "self":
-			allowed_client_ids = []
-			session = contextvar_client_session.get()
-			if session and session.user_store.host:
-				allowed_client_ids = [session.user_store.host.id]  # pylint: disable=use-tuple-over-list
+	def get_allowed_client_ids(self, ace: List[RPCACE]) -> List[str] | None:
+		allowed_client_ids: List[str] | None = None
+		for _ace in ace:
+			if _ace.type == "self":
+				allowed_client_ids = []
+				session = contextvar_client_session.get()
+				if session and session.user_store.host:
+					allowed_client_ids = [session.user_store.host.id]  # pylint: disable=use-tuple-over-list
+			else:
+				# All client_ids allowed
+				allowed_client_ids = None
+				break
 		return allowed_client_ids
 
 	@overload
@@ -427,7 +429,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self,
 		table: str,
 		aggregates: Dict[str, str] = None,
-		ace: RPCACE = None,
+		ace: List[RPCACE] = None,
 		object_type: Type[BaseObject] = None,
 		ident_type: IdentType = "str",
 		return_type: Literal["object"] = "object",
@@ -441,7 +443,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self,
 		table: str,
 		aggregates: Dict[str, str] = None,
-		ace: RPCACE = None,
+		ace: List[RPCACE] = None,
 		object_type: Type[BaseObject] = None,
 		ident_type: IdentType = "str",
 		return_type: Literal["dict"] = "dict",
@@ -454,13 +456,14 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self,
 		table: str,
 		aggregates: Dict[str, str] = None,
-		ace: RPCACE = None,
+		ace: List[RPCACE] = None,
 		object_type: Type[BaseObject] = None,
 		ident_type: IdentType = "str",
 		return_type: Literal["object", "dict"] = "object",
 		attributes: List[str] | Tuple[str, ...] | None = None,
 		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
 	) -> List[dict] | List[BaseObject]:
+		ace = ace or []
 		aggregates = aggregates or {}
 		if not table.lstrip().upper().startswith("FROM"):
 			table = f"FROM {table}"
@@ -469,8 +472,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		aggs = [f"{agg} AS `{name}`" for name, agg in aggregates.items()] if aggregates else ""
 		query = (
 			"SELECT "
-			f"{','.join(aggs) + ',' if aggs else ''}"
-			f"""{','.join([f"`{c.split('.')[0]}`.`{c.split('.')[1]}` AS `{a}`" for a, c in columns.items()])}"""
+			f"{', '.join(aggs) + ', ' if aggs else ''}"
+			f"""{', '.join([f"{c['select']} AS `{a}`" for a, c in columns.items()])}"""
 			f" {table}"
 		)
 		where, params = self._get_where(columns=columns, ace=ace, filter=filter)
@@ -487,7 +490,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			return [self._row_to_object(row=row, object_type=object_type, aggregates=list(aggregates)) for row in result]
 
 	def get_idents(  # pylint: disable=too-many-arguments
-		self, table: str, object_type: Type[BaseObject], ace: RPCACE = None, ident_type: IdentType = "str", filter: Dict[str, Any] = None  # pylint: disable=redefined-builtin
+		self, table: str, object_type: Type[BaseObject], ace: List[RPCACE], ident_type: IdentType = "str", filter: Dict[str, Any] = None  # pylint: disable=redefined-builtin
 	) -> List[dict]:
 		attributes = self._get_ident_attributes(object_type.__name__)
 		if not attributes:
@@ -506,13 +509,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		]
 
 	def insert_object(  # pylint: disable=too-many-locals,too-many-arguments
-		self, table: str, obj: BaseObject, ace: RPCACE = None, create: bool = True, set_null: bool = True
+		self, table: str, obj: BaseObject, ace: List[RPCACE], create: bool = True, set_null: bool = True
 	) -> None:
 		if not isinstance(obj, BaseObject):
 			obj = OBJECT_CLASSES[obj["type"]].fromHash(obj)
 		obj.setDefaults()
 		data = obj.to_hash()
-		ident_attrs = []
+		ident_attrs = []  # pylint: disable=use-tuple-over-list
 		if not create:
 			ident_attrs = list(obj.getIdent("dict"))
 		columns = self._get_columns([table], ace=ace)
@@ -527,17 +530,17 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if attr not in data:
 				continue
 
-			if allowed_client_ids and column.split(".")[1] in ("clientId", "hostId"):
+			if allowed_client_ids and column["client_id_column"]:
 				if data.get(attr) not in allowed_client_ids:
 					raise BackendPermissionDeniedError(f"No permission for {column}/{attr}: {data.get(attr)}")
 
 			if attr in ident_attrs:
-				where.append(f"`{column.split('.')[1]}` = :{attr}")
+				where.append(f"`{column['column']}` = :{attr}")
 			if not set_null and data.get(attr) is None:
 				continue
-			cols.append(f"`{column.split('.')[1]}`")
+			cols.append(f"`{column['column']}`")
 			vals.append(f":{attr}")
-			updates.append(f"`{column.split('.')[1]}` = :{attr}")
+			updates.append(f"`{column['column']}` = :{attr}")
 
 		if not updates:
 			return

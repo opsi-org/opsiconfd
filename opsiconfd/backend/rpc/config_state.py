@@ -10,13 +10,15 @@ opsiconfd.backend.rpc.config_state
 
 from typing import Any, List
 
+from opsicommon.objects import ConfigState  # type: ignore[import]
+
 from ..mysql import BackendProtocol
 from . import rpc_method
-
-# from opsicommon.objects import ConfigState  # type: ignore[import]
 
 
 class RPCConfigStateMixin:
 	@rpc_method
 	def configState_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
-		return self._mysql.get_objects(table="CONFIG_STATE", ace=self._get_ace("configState_getObjects"), attributes=attributes, filter=filter)
+		return self._mysql.get_objects(
+			table="CONFIG_STATE", ace=self._get_ace("configState_getObjects"), object_type=ConfigState, attributes=attributes, filter=filter
+		)

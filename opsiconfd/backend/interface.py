@@ -29,6 +29,7 @@ from .auth import RPCACE, read_acl_file
 from .mysql import MySQLConnection
 from .rpc.config import RPCConfigMixin
 from .rpc.config_state import RPCConfigStateMixin
+from .rpc.extender import RPCExtenderMixin
 from .rpc.host import RPCHostMixin
 
 backend_interface = None  # pylint: disable=invalid-name
@@ -103,8 +104,9 @@ def describe_interface(instance: Any) -> List[Dict[str, Any]]:  # pylint: disabl
 	return [methods[name] for name in sorted(list(methods.keys()))]
 
 
-class OpsiconfdBackend(RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, metaclass=Singleton):
+class OpsiconfdBackend(RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCExtenderMixin, metaclass=Singleton):
 	def __init__(self) -> None:
+		super().__init__()
 		self._interface = describe_interface(self)
 		self._backend = get_client_backend()
 		self._mysql = MySQLConnection()

@@ -30,7 +30,7 @@ from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import BackendManager, get_backend
-from opsiconfd.backend.rpc.interface import get_backend_interface
+from opsiconfd.backend.rpc.opsiconfd import get_backend_interface
 
 from .. import __version__, contextvar_client_session
 from ..addon import AddonManager

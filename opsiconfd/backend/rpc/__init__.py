@@ -8,8 +8,25 @@
 backend.rpc
 """
 
+from __future__ import annotations
+
 from functools import partial
-from typing import Callable
+from typing import TYPE_CHECKING, Callable, List, Literal, Protocol
+
+if TYPE_CHECKING:
+	from ..auth import RPCACE
+	from ..mysql import MySQLConnection
+
+IdentType = Literal["unicode", "str", "dict", "hash", "list", "tuple"]
+
+
+class BackendProtocol(Protocol):  # pylint: disable=too-few-public-methods
+	@property
+	def _mysql(self) -> MySQLConnection:
+		...
+
+	def _get_ace(self, method: str) -> List[RPCACE]:
+		...
 
 
 def rpc_method(func: Callable) -> Callable:

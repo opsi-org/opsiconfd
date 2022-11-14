@@ -40,6 +40,10 @@ def get_configserver_id() -> str:
 	return FQDN
 
 
+def get_depot_server_id() -> str:
+	return FQDN
+
+
 def get_username() -> str:
 	client_session = contextvar_client_session.get()
 	if not client_session:

@@ -39,7 +39,7 @@ from opsiconfd.backend import (
 	get_client_backend,
 	get_user_store,
 )
-from opsiconfd.backend.rpc.interface import OpsiconfdBackend, get_backend_interface
+from opsiconfd.backend.rpc.opsiconfd import OpsiconfdBackend, get_backend_interface
 from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
 
 from .. import contextvar_user_store

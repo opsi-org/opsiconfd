@@ -25,7 +25,6 @@ from typing import (
 	List,
 	Literal,
 	Optional,
-	Protocol,
 	Tuple,
 	Type,
 	Union,
@@ -53,17 +52,7 @@ from opsiconfd.config import config
 from opsiconfd.logging import logger
 
 from .auth import RPCACE
-
-IdentType = Literal["unicode", "str", "dict", "hash", "list", "tuple"]
-
-
-class BackendProtocol(Protocol):  # pylint: disable=too-few-public-methods
-	@property
-	def _mysql(self) -> MySQLConnection:
-		...
-
-	def _get_ace(self, method: str) -> List[RPCACE]:
-		...
+from .rpc import IdentType
 
 
 class MySQLConnection:  # pylint: disable=too-many-instance-attributes

@@ -24,7 +24,7 @@ from opsiconfd.backend import (
 	get_session,
 	get_user_store,
 )
-from opsiconfd.backend.rpc.interface import get_backend_interface
+from opsiconfd.backend.rpc.opsiconfd import get_backend_interface
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,

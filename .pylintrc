@@ -1,6 +1,0 @@
-[BASIC]
-no-docstring-rgx=.*   # default=^_
-
-[FORMAT]
-indent-string='\t'    # default='    '
-max-line-length=140   # default=100

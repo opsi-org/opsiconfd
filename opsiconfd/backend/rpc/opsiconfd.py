@@ -10,23 +10,28 @@ opsiconfd backend interface
 
 import socket
 from inspect import getfullargspec, getmembers, ismethod, signature
-from ipaddress import ip_address
 from textwrap import dedent
 from typing import Any, Dict, List
-from urllib.parse import urlparse
 
 from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
 from opsiconfd.backup import create_backup
 from opsiconfd.check import health_check
-from opsiconfd.config import config
+from opsiconfd.config import FQDN, config
 from opsiconfd.logging import logger
-from opsiconfd.utils import Singleton
 
 from .. import get_client_backend
 from ..auth import RPCACE, read_acl_file
 from ..mysql import MySQLConnection
+from .ext_admin_tasks import RPCExtAdminTasksMixin
+from .ext_deprecated import RPCExtDeprecatedMixin
+from .ext_dynamic_depot import RPCExtDynamicDepotMixin
+from .ext_easy import RPCExtEasyMixin
+from .ext_kiosk import RPCExtKioskMixin
+from .ext_legacy import RPCExtLegacyMixin
+from .ext_ssh_commands import RPCExtSSHCommandsMixin
+from .ext_wan import RPCExtWANMixin
 from .ext_wim import RPCExtWIMMixin
 from .extender import RPCExtenderMixin
 from .obj_config import RPCConfigMixin
@@ -105,7 +110,19 @@ def describe_interface(instance: Any) -> List[Dict[str, Any]]:  # pylint: disabl
 	return [methods[name] for name in sorted(list(methods.keys()))]
 
 
-class OpsiconfdBackend(RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCExtWIMMixin, RPCExtenderMixin, metaclass=Singleton):
+class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
+	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin,
+	RPCExtLegacyMixin, RPCExtAdminTasksMixin, RPCExtDeprecatedMixin,
+	RPCExtDynamicDepotMixin, RPCExtEasyMixin, RPCExtKioskMixin,
+	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin, RPCExtenderMixin
+):
+	_instance = None
+
+	def __new__(cls, *args: Any, **kwargs: Any) -> "OpsiconfdBackend":
+		if not cls._instance:
+			cls._instance = super().__new__(cls, *args, **kwargs)
+		return cls._instance
+
 	def __init__(self) -> None:
 		super().__init__()
 		self._interface = describe_interface(self)
@@ -198,7 +215,8 @@ class OpsiconfdBackend(RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCExt
 					return ".".join(names[0].split(".")[1:])
 		except Exception as err:  # pylint: disable=broad-except
 			logger.debug("Failed to get domain by client address: %s", err)
-		return self._backend.getDomain()  # pylint: disable=no-member
+
+		return ".".join(FQDN.split(".")[1:])
 
 	def getOpsiCACert(self) -> str:  # pylint: disable=invalid-name
 		from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
@@ -206,57 +224,3 @@ class OpsiconfdBackend(RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCExt
 		)
 
 		return get_ca_cert_as_pem()
-
-	def host_getTLSCertificate(self, hostId: str) -> str:  # pylint: disable=invalid-name,too-many-locals
-		session = contextvar_client_session.get()
-		if not session:
-			raise BackendPermissionDeniedError("Invalid session")
-		host = self._backend.host_getObjects(id=hostId)  # pylint: disable=no-member
-		if not host or not host[0] or host[0].getType() not in ("OpsiDepotserver", "OpsiClient"):
-			raise BackendPermissionDeniedError(f"Invalid host: {hostId}")
-		host = host[0]
-		if not session.user_store.isAdmin and session.user_store.username != host.id:
-			raise BackendPermissionDeniedError("Insufficient permissions")
-
-		common_name = host.id
-		ip_addresses = {"127.0.0.1", "::1"}
-		hostnames = {"localhost", common_name}
-		if host.ipAddress:
-			try:
-				ip_addresses.add(ip_address(host.ipAddress).compressed)
-			except ValueError as err:
-				logger.error("Invalid host ip address '%s': %s", host.ipAddress, err)
-
-		if host.getType() == "OpsiDepotserver":
-			for url_type in ("depotRemoteUrl", "depotWebdavUrl", "repositoryRemoteUrl", "workbenchRemoteUrl"):
-				if getattr(host, url_type):
-					address = urlparse(getattr(host, url_type)).hostname
-					if address:
-						try:  # pylint: disable=loop-try-except-usage
-							ip_addresses.add(ip_address(address).compressed)
-						except ValueError:
-							# Not an ip address
-							hostnames.add(address)
-			try:
-				ip_addresses.add(socket.gethostbyname(host.id))
-			except socket.error as err:
-				logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
-
-		from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
-			as_pem,
-			create_server_cert,
-			get_domain,
-			load_ca_cert,
-			load_ca_key,
-		)
-
-		domain = get_domain()
-		cert, key = create_server_cert(
-			subject={"CN": common_name, "OU": f"opsi@{domain}", "emailAddress": f"opsi@{domain}"},
-			valid_days=(config.ssl_client_cert_valid_days if host.getType() == "OpsiClient" else config.ssl_server_cert_valid_days),
-			ip_addresses=ip_addresses,
-			hostnames=hostnames,
-			ca_key=load_ca_key(),
-			ca_cert=load_ca_cert(),
-		)
-		return as_pem(key) + as_pem(cert)

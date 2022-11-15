@@ -18,6 +18,7 @@ from functools import lru_cache
 from inspect import signature
 from pathlib import Path
 from typing import (
+	TYPE_CHECKING,
 	Any,
 	Callable,
 	Dict,
@@ -52,7 +53,9 @@ from opsiconfd.config import config
 from opsiconfd.logging import logger
 
 from .auth import RPCACE
-from .rpc import IdentType
+
+if TYPE_CHECKING:
+	from .rpc.protocol import IdentType
 
 
 class MySQLConnection:  # pylint: disable=too-many-instance-attributes

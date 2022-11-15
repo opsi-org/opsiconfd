@@ -72,6 +72,9 @@ perflint = "^0.7.0"
 [tool.poetry.scripts]
 opsiconfd = "opsiconfd.__main__:main"
 
+[tool.poetry.group.dev.dependencies]
+pylint-pydantic = "^0.1.4"
+
 [tool.black]
 line-length = 140
 target-version = ['py310']

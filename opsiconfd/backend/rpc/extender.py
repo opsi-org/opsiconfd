@@ -11,7 +11,7 @@ opsiconfd.backend.rpc.extender
 from inspect import isfunction
 from pathlib import Path
 from types import MethodType
-from typing import Any, Dict
+from typing import Any, Dict, Protocol
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger
@@ -20,7 +20,7 @@ from opsiconfd.logging import logger
 from . import deprecated, rpc_method  # pylint: disable=unused-import
 
 
-class RPCExtenderMixin:  # pylint: disable=too-few-public-methods
+class RPCExtenderMixin(Protocol):  # pylint: disable=too-few-public-methods
 	def __init__(self) -> None:
 		for file in sorted(Path(config.extension_config_dir).glob("*.conf")):
 			logger.info("Reading rpc extension methods from '%s'", file)

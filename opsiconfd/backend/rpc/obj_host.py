@@ -8,7 +8,12 @@
 opsiconfd.backend.rpc.host
 """
 
-from typing import Any, List
+from __future__ import annotations
+
+import socket
+from ipaddress import ip_address
+from typing import TYPE_CHECKING, Any, List, Protocol
+from urllib.parse import urlparse
 
 from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
 from opsicommon.objects import (  # type: ignore[import]
@@ -19,12 +24,24 @@ from opsicommon.objects import (  # type: ignore[import]
 )
 from opsicommon.types import forceList  # type: ignore[import]
 
+from opsiconfd import contextvar_client_session
+from opsiconfd.config import config
 from opsiconfd.logging import logger
+from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
+	as_pem,
+	create_server_cert,
+	get_domain,
+	load_ca_cert,
+	load_ca_key,
+)
 
-from . import BackendProtocol, IdentType, rpc_method
+from . import rpc_method
+
+if TYPE_CHECKING:
+	from .protocol import BackendProtocol, IdentType
 
 
-class RPCHostMixin:
+class RPCHostMixin(Protocol):
 	@rpc_method
 	def host_insertObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		"""
@@ -96,12 +113,12 @@ class RPCHostMixin:
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
 
 	@rpc_method
-	def host_delete(self, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+	def host_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		self.host_deleteObjects([{"id": id}])
 
 	@rpc_method
 	def host_createOpsiClient(  # pylint: disable=too-many-arguments,invalid-name
-		self,
+		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
 		opsiHostKey: str = None,  # pylint: disable=unused-argument
 		description: str = None,  # pylint: disable=unused-argument
@@ -119,7 +136,7 @@ class RPCHostMixin:
 
 	@rpc_method
 	def host_createOpsiDepotserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
-		self,
+		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
 		opsiHostKey: str = None,  # pylint: disable=unused-argument
 		depotLocalUrl: str = None,  # pylint: disable=unused-argument
@@ -145,7 +162,7 @@ class RPCHostMixin:
 
 	@rpc_method
 	def host_createOpsiConfigserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
-		self,
+		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
 		opsiHostKey: str = None,  # pylint: disable=unused-argument
 		depotLocalUrl: str = None,  # pylint: disable=unused-argument
@@ -168,3 +185,50 @@ class RPCHostMixin:
 		_hash = locals()
 		del _hash["self"]
 		self.host_createObjects([OpsiConfigserver.fromHash(_hash)])
+
+	@rpc_method
+	def host_getTLSCertificate(self: BackendProtocol, hostId: str) -> str:  # pylint: disable=invalid-name,too-many-locals
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Invalid session")
+		host = self.host_getObjects(id=hostId)  # pylint: disable=no-member
+		if not host or not host[0] or host[0].getType() not in ("OpsiDepotserver", "OpsiClient"):
+			raise BackendPermissionDeniedError(f"Invalid host: {hostId}")
+		host = host[0]
+		if not session.user_store.isAdmin and session.user_store.username != host.id:
+			raise BackendPermissionDeniedError("Insufficient permissions")
+
+		common_name = host.id
+		ip_addresses = {"127.0.0.1", "::1"}
+		hostnames = {"localhost", common_name}
+		if host.ipAddress:
+			try:
+				ip_addresses.add(ip_address(host.ipAddress).compressed)
+			except ValueError as err:
+				logger.error("Invalid host ip address '%s': %s", host.ipAddress, err)
+
+		if host.getType() == "OpsiDepotserver":
+			for url_type in ("depotRemoteUrl", "depotWebdavUrl", "repositoryRemoteUrl", "workbenchRemoteUrl"):
+				if getattr(host, url_type):
+					address = urlparse(getattr(host, url_type)).hostname
+					if address:
+						try:  # pylint: disable=loop-try-except-usage
+							ip_addresses.add(ip_address(address).compressed)
+						except ValueError:
+							# Not an ip address
+							hostnames.add(address)
+			try:
+				ip_addresses.add(socket.gethostbyname(host.id))
+			except socket.error as err:
+				logger.warning("Failed to get ip address of host '%s': %s", host.id, err)
+
+		domain = get_domain()
+		cert, key = create_server_cert(
+			subject={"CN": common_name, "OU": f"opsi@{domain}", "emailAddress": f"opsi@{domain}"},
+			valid_days=(config.ssl_client_cert_valid_days if host.getType() == "OpsiClient" else config.ssl_server_cert_valid_days),
+			ip_addresses=ip_addresses,
+			hostnames=hostnames,
+			ca_key=load_ca_key(),
+			ca_cert=load_ca_cert(),
+		)
+		return as_pem(key) + as_pem(cert)

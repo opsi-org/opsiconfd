@@ -1426,6 +1426,23 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
+name = "pylint-pydantic"
+version = "0.1.4"
+description = "A Pylint plugin to help Pylint understand the Pydantic"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+pydantic = "<2.0"
+pylint = ">2.0,<3.0"
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
 name = "pympler"
 version = "1.0.1"
 description = "A development tool to measure, monitor and analyze the memory behavior of Python objects."
@@ -2398,7 +2415,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.12"
-content-hash = "8a0abbeb0b46648398ee74661accdfc79039e7ab09e761a9562149f6b3565111"
+content-hash = "e944487d28eb9f0b1af1574fe92b947e9f178d468d82805f6c9b32e66d4d62a7"
 
 [metadata.files]
 aiofiles = [
@@ -3536,6 +3553,9 @@ pyinstaller-hooks-contrib = [
 pylint = [
     {file = "pylint-2.15.5-py3-none-any.whl", hash = "sha256:c2108037eb074334d9e874dc3c783752cc03d0796c88c9a9af282d0f161a1004"},
     {file = "pylint-2.15.5.tar.gz", hash = "sha256:3b120505e5af1d06a5ad76b55d8660d44bf0f2fc3c59c2bdd94e39188ee3a4df"},
+]
+pylint-pydantic = [
+    {file = "pylint_pydantic-0.1.4-py3-none-any.whl", hash = "sha256:d42d9e95255b2f70f82a674cec159f417263363c7da0e28998964d83d7330c72"},
 ]
 pympler = [
     {file = "Pympler-1.0.1-py3-none-any.whl", hash = "sha256:d260dda9ae781e1eab6ea15bacb84015849833ba5555f141d2d9b7b7473b307d"},

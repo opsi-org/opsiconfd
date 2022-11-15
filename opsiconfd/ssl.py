@@ -86,7 +86,7 @@ def get_hostnames() -> Set[str]:
 
 
 def get_domain() -> str:
-	return ".".join(get_server_cn().split(".")[1:])
+	return ".".join(FQDN.split(".")[1:])
 
 
 def setup_ssl_file_permissions() -> None:

@@ -7,10 +7,11 @@
 """
 rpc methods wim
 """
+from __future__ import annotations
 
 import itertools
 import os
-from typing import Set
+from typing import TYPE_CHECKING, Protocol, Set
 
 from OPSI.Util.WIM import parseWIM, writeImageInformation  # type: ignore[import]
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
@@ -19,10 +20,14 @@ from opsicommon.types import forceProductId  # type: ignore[import]
 from opsiconfd.application.utils import get_depot_server_id
 from opsiconfd.logging import logger
 
-from . import BackendProtocol
+from . import rpc_method
+
+if TYPE_CHECKING:
+	from .protocol import BackendProtocol
 
 
-class RPCExtWIMMixin:  # pylint: disable=too-few-public-methods
+class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
+	@rpc_method
 	def updateWIMConfig(self: BackendProtocol, productId: str) -> None:  # pylint: disable=invalid-name
 		"""
 		Update the configuration of a Windows netboot product based on the information in it's install.wim.
@@ -31,14 +36,14 @@ class RPCExtWIMMixin:  # pylint: disable=too-few-public-methods
 		"""
 		product_id = forceProductId(productId)
 
-		if not self.product_getObjects(id=product_id):  # type: ignore[attr-defined]
+		if not self.product_getObjects(id=product_id):
 			raise BackendMissingDataError(f"No product with ID {product_id!r}")
 
 		depot_id = get_depot_server_id()
-		if not self.productOnDepot_getObjects(depotId=depot_id, productId=product_id):  # type: ignore[attr-defined]
+		if not self.productOnDepot_getObjects(depotId=depot_id, productId=product_id):
 			raise BackendMissingDataError(f"No product {product_id!r} on {depot_id!r}")
 
-		depot = self.host_getObjects(id=depot_id, type="OpsiDepotserver")  # type: ignore[attr-defined]
+		depot = self.host_getObjects(id=depot_id, type="OpsiDepotserver")
 		depot = depot[0]
 		logger.debug("Working with %s", depot)
 
@@ -60,8 +65,9 @@ class RPCExtWIMMixin:  # pylint: disable=too-few-public-methods
 		else:
 			raise IOError(f"Unable to find install.wim / install.esd in {wim_search_path!r}")  # pylint: disable=loop-invariant-statement
 
-		self.updateWIMConfigFromPath(wim_path, product_id)  # type: ignore[attr-defined]
+		self.updateWIMConfigFromPath(wim_path, product_id)
 
+	@rpc_method
 	def updateWIMConfigFromPath(self: BackendProtocol, path: str, targetProductId: str) -> None:  # pylint: disable=invalid-name
 		"""
 		Update the configuration of `targetProductId` based on the information in the install.wim at the given `path`.

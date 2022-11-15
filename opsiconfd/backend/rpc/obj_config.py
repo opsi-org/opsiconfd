@@ -7,15 +7,19 @@
 """
 opsiconfd.backend.rpc.config
 """
+from __future__ import annotations
 
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, List, Protocol
 
 from opsicommon.objects import OBJECT_CLASSES, Config  # type: ignore[import]
 
-from . import BackendProtocol, rpc_method
+from . import rpc_method
+
+if TYPE_CHECKING:
+	from .protocol import BackendProtocol
 
 
-class RPCConfigMixin:
+class RPCConfigMixin(Protocol):
 	@rpc_method
 	def config_insertObject(self: BackendProtocol, config: dict | Config) -> None:  # pylint: disable=invalid-name
 		"""
@@ -52,7 +56,7 @@ class RPCConfigMixin:
 		# self._mysql.insert_object(tables=["CONFIG", "CONFIG_VALUE"], obj=config, ace=self._get_ace("config_insertObject"))
 
 	@rpc_method
-	def config_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def config_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[Config]:  # pylint: disable=redefined-builtin,invalid-name
 		aggregates = {
 			"possibleValues": f'GROUP_CONCAT(`value` SEPARATOR "{self._mysql.record_separator}")',
 			"defaultValues": f'GROUP_CONCAT(IF(`isDefault`, `value`, NULL) SEPARATOR "{self._mysql.record_separator}")'

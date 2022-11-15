@@ -40,14 +40,16 @@ class SSHCommand(BaseModel):
 	buildIn: bool = False
 
 	@validator("menuText", always=True)
-	def validate_menu_text(cls, value: str) -> None:
+	def validate_menu_text(cls, value: str) -> str:
 		if not value:
 			raise ValueError("menuText must not be empty")
+		return value
 
 	@validator("commands", always=True)
-	def validate_commands(cls, value: List[str]) -> None:
+	def validate_commands(cls, value: List[str]) -> List[str]:
 		if not value:
 			raise ValueError("'commands' has to be a non empty list")
+		return value
 
 	@root_validator
 	def validate_id(cls, values: Dict[str, Any]) -> Dict[str, Any]:
@@ -123,7 +125,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 
 	def _write_custom_ssh_command_file(self, commands: List[SSHCommand]) -> None:
 		Path(self.ssh_commands_custom_file).write_text(
-			"".join([json.dumps(c.conf_dict) + "\n" for c in commands if not c.buildIn]), encoding="utf-8"
+			"".join([json.dumps(c.conf_dict()) + "\n" for c in commands if not c.buildIn]), encoding="utf-8"
 		)
 
 	@rpc_method

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Literal, Protocol
 
+from .depotserver import RPCDepotserverMixin
 from .ext_admin_tasks import RPCExtAdminTasksMixin
 from .ext_deprecated import RPCExtDeprecatedMixin
 from .ext_dynamic_depot import RPCExtDynamicDepotMixin
@@ -47,9 +48,10 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCExtEasyMixin,
 	RPCExtWANMixin,
 	RPCExtWIMMixin,
-	RPCExtenderMixin,
 	RPCExtKioskMixin,
 	RPCExtSSHCommandsMixin,
+	RPCDepotserverMixin,
+	RPCExtenderMixin,
 	Protocol,
 ):
 	@property

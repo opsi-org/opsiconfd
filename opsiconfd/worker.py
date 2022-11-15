@@ -30,6 +30,7 @@ from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 from . import __version__
 from .addon import AddonManager
 from .backend import get_backend, get_client_backend
+from .backend.rpc.opsiconfd import OpsiconfdBackend, get_backend_interface
 from .config import config
 from .logging import init_logging, logger
 from .metrics.collector import WorkerMetricsCollector
@@ -141,6 +142,8 @@ class Worker(UvicornServer):
 		# Create BackendManager instances
 		await run_in_threadpool(get_backend, 60)
 		await run_in_threadpool(get_client_backend)
+		OpsiconfdBackend()
+		get_backend_interface()
 
 		asyncio.create_task(self.memory_cleanup_task())
 		asyncio.create_task(self.metrics_collector.main_loop())

@@ -8,6 +8,9 @@
 opsiconfd backend interface
 """
 
+from __future__ import annotations
+
+import re
 import socket
 from inspect import getfullargspec, getmembers, ismethod, signature
 from textwrap import dedent
@@ -24,6 +27,7 @@ from opsiconfd.logging import logger
 from .. import get_client_backend
 from ..auth import RPCACE, read_acl_file
 from ..mysql import MySQLConnection
+from .depotserver import RPCDepotserverMixin
 from .ext_admin_tasks import RPCExtAdminTasksMixin
 from .ext_deprecated import RPCExtDeprecatedMixin
 from .ext_dynamic_depot import RPCExtDynamicDepotMixin
@@ -44,12 +48,15 @@ backend_interface = None  # pylint: disable=invalid-name
 def get_backend_interface() -> List[Dict[str, Any]]:
 	global backend_interface  # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
+		opsiconfd_interface = OpsiconfdBackend().get_interface()
 		backend_interface = get_client_backend().backend_getInterface()
 		backend_methods = [method["name"] for method in backend_interface]
-		for opsiconfd_method in OpsiconfdBackend().get_interface():  # pylint: disable=use-list-comprehension
+		for opsiconfd_method in opsiconfd_interface:  # pylint: disable=use-list-comprehension
 			if opsiconfd_method["name"] not in backend_methods:  # pylint: disable=loop-global-usage
 				backend_interface.append(opsiconfd_method)  # pylint: disable=loop-global-usage
-	return backend_interface  # type: ignore
+		backend_interface.sort(key=lambda x: x["name"])
+
+	return backend_interface
 
 
 def describe_interface(instance: Any) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
@@ -114,23 +121,31 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin,
 	RPCExtLegacyMixin, RPCExtAdminTasksMixin, RPCExtDeprecatedMixin,
 	RPCExtDynamicDepotMixin, RPCExtEasyMixin, RPCExtKioskMixin,
-	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin, RPCExtenderMixin
+	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin,
+	RPCDepotserverMixin, RPCExtenderMixin
 ):
-	_instance = None
+	__instance = None
+	__initialized = False
 
-	def __new__(cls, *args: Any, **kwargs: Any) -> "OpsiconfdBackend":
-		if not cls._instance:
-			cls._instance = super().__new__(cls, *args, **kwargs)
-		return cls._instance
+	def __new__(cls, *args: Any, **kwargs: Any) -> OpsiconfdBackend:
+		if not cls.__instance:
+			cls.__instance = super().__new__(cls, *args, **kwargs)
+		return cls.__instance
 
 	def __init__(self) -> None:
-		super().__init__()
-		self._interface = describe_interface(self)
-		self._backend = get_client_backend()
+		if self.__initialized:
+			return
+		self.__initialized = True
 		self._mysql = MySQLConnection()
 		self._mysql.connect()
-		self.method_names = [meth["name"] for meth in self._interface]
 		self._acl: Dict[str, List[RPCACE]] = {}
+
+		for base in self.__class__.__bases__:
+			base.__init__(self)  # type: ignore[misc]
+
+		self._interface = describe_interface(self)
+		self._backend = get_client_backend()
+		self.method_names = [meth["name"] for meth in self._interface]
 		self._read_acl_file()
 
 	def _read_acl_file(self) -> None:
@@ -139,6 +154,12 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
 
 	def _get_ace(self, method: str) -> List[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
+		"""
+		Get list of ACEs.
+		"""
+		if not contextvar_client_address.get():
+			# Local call, no restrictions
+			return [RPCACE(method_re=re.compile(".*"), type="all")]
 		session = contextvar_client_session.get()
 		if not session or not session.user_store:
 			raise BackendPermissionDeniedError("Invalid session")
@@ -174,7 +195,7 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 		if ace_list:
 			return ace_list
 
-		raise BackendPermissionDeniedError("No permission")
+		raise BackendPermissionDeniedError(f"No permission for method {method!r}")
 
 	def _check_role(self, required_role: str) -> None:
 		session = contextvar_client_session.get()

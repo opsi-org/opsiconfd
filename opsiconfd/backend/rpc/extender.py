@@ -28,7 +28,7 @@ class RPCExtenderMixin(Protocol):  # pylint: disable=too-few-public-methods
 			if file.is_file():
 				exec(compile(file.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
 			for function_name, function in loc.items():
-				if isfunction(function):
+				if not function_name.startswith("_") and isfunction(function):
 					logger.info("Adding rpc extension method '%s'", function_name)
 					rpc_method(function)
 					setattr(self, function_name, MethodType(function, self))

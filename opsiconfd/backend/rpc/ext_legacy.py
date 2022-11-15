@@ -1410,15 +1410,15 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		# TODO: add defaults
 		result = {}
-		add_product_property_state_defaults = self._backend.backend_getOptions().get("addProductPropertyStateDefaults", False)
+		add_product_property_state_defaults = self.backend_getOptions().get("addProductPropertyStateDefaults", False)
 		try:
-			self._backend.backend_setOptions({"addProductPropertyStateDefaults": True})
+			self.backend_setOptions({"addProductPropertyStateDefaults": True})
 			for product_property_state in self.productPropertyState_getObjects(  # pylint: disable=use-dict-comprehension
 				productId=productId, objectId=objectId
 			):
 				result[product_property_state.getPropertyId()] = ",".join(forceUnicodeList(product_property_state.getValues()))
 		finally:
-			self._backend.backend_setOptions({"addProductPropertyStateDefaults": add_product_property_state_defaults})
+			self.backend_setOptions({"addProductPropertyStateDefaults": add_product_property_state_defaults})
 
 		return result
 

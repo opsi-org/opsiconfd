@@ -46,6 +46,7 @@ from sqlalchemy import create_engine  # type: ignore[import]
 from sqlalchemy.engine.base import Connection  # type: ignore[import]
 from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
 
 from opsiconfd import contextvar_client_session
@@ -482,7 +483,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		where, params = self._get_where(columns=columns, ace=ace, filter=filter)
 		with self.session() as session:
 			query = f"{query} {where} {'GROUP BY id' if aggregates else ''}"
-			result = session.execute(query, params=params).fetchall()
+			try:
+				result = session.execute(query, params=params).fetchall()
+			except ProgrammingError as err:
+				logger.error("Query %r failed: %s", query, err)
+				raise
 			if not result:
 				return []
 			if return_type == "dict":

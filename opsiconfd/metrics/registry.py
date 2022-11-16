@@ -18,6 +18,8 @@ from ..utils import Singleton
 
 
 class Metric:  # pylint: disable=too-many-instance-attributes
+	_initialized = False
+
 	def __init__(  # pylint: disable=too-many-arguments, redefined-builtin, dangerous-default-value
 		self,
 		id: str,  # pylint: disable=invalid-name
@@ -61,6 +63,9 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		:param downsampling: Downsampling rules as list of [<ts_key_extension>, <retention_time_in_ms>, <aggregation>] pairs.
 		:type downsampling: List
 		"""
+		if self._initialized:
+			return
+		self._initialized = True
 		assert aggregation in ("sum", "avg")
 		assert subject in ("node", "worker", "client")
 		assert zero_if_missing in (None, "one", "continuous")

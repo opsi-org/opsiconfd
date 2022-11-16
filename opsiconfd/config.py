@@ -145,7 +145,12 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 
 class Config(metaclass=Singleton):
+	_initialized = False
+
 	def __init__(self) -> None:
+		if self._initialized:
+			return
+		self._initialized = True
 		self._pytest = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
 		self._args: List[str] = []
 		self._ex_help = False

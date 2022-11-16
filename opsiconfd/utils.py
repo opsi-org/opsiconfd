@@ -25,15 +25,13 @@ from socket import AF_INET, AF_INET6
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Optional
 
 import lz4.frame  # type: ignore[import]
-
-from redis import asyncio as async_redis
-
 import psutil
 import redis
-from redis import ConnectionError as RedisConnectionError, BusyLoadingError as RedisBusyLoadingError
-
 from fastapi import APIRouter, FastAPI
 from opsicommon.logging.logging import OPSILogger  # type: ignore[import]
+from redis import BusyLoadingError as RedisBusyLoadingError
+from redis import ConnectionError as RedisConnectionError
+from redis import asyncio as async_redis
 from starlette.routing import Route
 
 logger: OPSILogger | None = None  # pylint: disable=invalid-name

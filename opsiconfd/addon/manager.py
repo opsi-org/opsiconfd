@@ -41,7 +41,12 @@ sys.meta_path.append(AddonImporter)  # type: ignore[arg-type]
 
 
 class AddonManager(metaclass=Singleton):
+	_initialized = False
+
 	def __init__(self) -> None:
+		if self._initialized:
+			return
+		self._initialized = True
 		self._addons: Dict[str, Addon] = {}
 
 	@classmethod

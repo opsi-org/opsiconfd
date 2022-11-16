@@ -27,7 +27,7 @@ from opsiconfd.logging import logger
 from .. import get_client_backend
 from ..auth import RPCACE, read_acl_file
 from ..mysql import MySQLConnection
-from .depotserver import RPCDepotserverMixin
+from .depot import RPCDepotserverMixin
 from .ext_admin_tasks import RPCExtAdminTasksMixin
 from .ext_deprecated import RPCExtDeprecatedMixin
 from .ext_dynamic_depot import RPCExtDynamicDepotMixin

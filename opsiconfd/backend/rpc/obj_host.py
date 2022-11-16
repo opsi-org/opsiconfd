@@ -11,18 +11,23 @@ opsiconfd.backend.rpc.host
 from __future__ import annotations
 
 import socket
+from copy import deepcopy
 from ipaddress import ip_address
 from typing import TYPE_CHECKING, Any, List, Protocol
 from urllib.parse import urlparse
 
-from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
+from opsicommon.exceptions import (  # type: ignore[import]
+	BackendError,
+	BackendMissingDataError,
+	BackendPermissionDeniedError,
+)
 from opsicommon.objects import (  # type: ignore[import]
 	Host,
 	OpsiClient,
 	OpsiConfigserver,
 	OpsiDepotserver,
 )
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import forceHostId, forceList  # type: ignore[import]
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import config
@@ -232,3 +237,231 @@ class RPCHostMixin(Protocol):
 			ca_cert=load_ca_cert(),
 		)
 		return as_pem(key) + as_pem(cert)
+
+	@rpc_method
+	def host_renameOpsiClient(  # pylint: disable=redefined-builtin,invalid-name,too-many-locals,too-many-branches,too-many-statements
+		self, id: str, newId: str
+	) -> None:
+		cur_client_id = forceHostId(id)  # pylint: disable=invalid-name
+		new_client_id = forceHostId(newId)
+
+		logger.info("Renaming client %s to %s...", cur_client_id, new_client_id)
+
+		clients = self.host_getObjects(type="OpsiClient", id=cur_client_id)
+		try:
+			client = clients[0]
+		except IndexError as err:
+			raise BackendMissingDataError(f"Cannot rename: client '{cur_client_id}' not found") from err
+
+		if self.host_getObjects(id=new_client_id):
+			raise BackendError(f"Cannot rename: host '{new_client_id}' already exists")
+
+		logger.info("Processing group mappings...")
+		object_to_groups = []
+		for object_to_group in self.objectToGroup_getObjects(groupType="HostGroup", objectId=client.id):
+			object_to_group.setObjectId(new_client_id)
+			object_to_groups.append(object_to_group)
+
+		logger.info("Processing products on client...")
+		product_on_clients = []
+		for product_on_client in self.productOnClient_getObjects(clientId=client.id):
+			product_on_client.setClientId(new_client_id)
+			product_on_clients.append(product_on_client)
+
+		logger.info("Processing product property states...")
+		product_property_states = []
+		for product_property_state in self.productPropertyState_getObjects(objectId=client.id):
+			product_property_state.setObjectId(new_client_id)
+			product_property_states.append(product_property_state)
+
+		logger.info("Processing config states...")
+		config_states = []
+		for config_state in self.configState_getObjects(objectId=client.id):
+			config_state.setObjectId(new_client_id)
+			config_states.append(config_state)
+
+		logger.info("Processing software audit data...")
+		audit_software_on_clients = []
+		for audit_software_on_client in self.auditSoftwareOnClient_getObjects(clientId=client.id):
+			audit_software_on_client.setClientId(new_client_id)
+			audit_software_on_clients.append(audit_software_on_client)
+
+		logger.info("Processing hardware audit data...")
+		audit_hardware_on_hosts = []
+		for audit_hardware_on_host in self.auditHardwareOnHost_getObjects(hostId=client.id):
+			audit_hardware_on_host.setHostId(new_client_id)
+			audit_hardware_on_hosts.append(audit_hardware_on_host)
+
+		logger.info("Processing license data...")
+		license_on_clients = []
+		for license_on_client in self.licenseOnClient_getObjects(clientId=client.id):
+			license_on_client.setClientId(new_client_id)
+			license_on_clients.append(license_on_client)
+
+		logger.info("Processing software licenses...")
+		software_licenses = []
+		for software_license in self.softwareLicense_getObjects(boundToHost=client.id):
+			software_license.setBoundToHost(new_client_id)
+			software_licenses.append(software_license)
+
+		logger.debug("Deleting client %s", client)
+		self.host_deleteObjects([client])
+
+		logger.info("Updating client %s...", client.id)
+		client.setId(new_client_id)
+		self.host_createObjects([client])
+
+		if object_to_groups:
+			logger.info("Updating group mappings...")
+			self.objectToGroup_createObjects(object_to_groups)
+		if product_on_clients:
+			logger.info("Updating products on client...")
+			self.productOnClient_createObjects(product_on_clients)
+		if product_property_states:
+			logger.info("Updating product property states...")
+			self.productPropertyState_createObjects(product_property_states)
+		if config_states:
+			logger.info("Updating config states...")
+			self.configState_createObjects(config_states)
+		if audit_software_on_clients:
+			logger.info("Updating software audit data...")
+			self.auditSoftwareOnClient_createObjects(audit_software_on_clients)
+		if audit_hardware_on_hosts:
+			logger.info("Updating hardware audit data...")
+			self.auditHardwareOnHost_createObjects(audit_hardware_on_hosts)
+		if license_on_clients:
+			logger.info("Updating license data...")
+			self.licenseOnClient_createObjects(license_on_clients)
+		if software_licenses:
+			logger.info("Updating software licenses...")
+			self.softwareLicense_createObjects(software_licenses)
+
+	def host_renameOpsiDepotserver(self, oldId: str, newId: str) -> None:  # pylint: disable=invalid-name,too-many-branches,too-many-statements,too-many-locals
+		"""
+		Rename OpsiDepotserver with id `oldId` to `newId`.
+
+		References to the old id will be changed aswell.
+
+		:raises BackendMissingDataError: If no depot `oldId` is found.
+		:raises BackendError: If depot `newId` already exists.
+		:param oldId: ID of the server to change.
+		:type oldId: str
+		:param oldId: New ID.
+		:type newId: str
+		"""
+		cur_server_id = forceHostId(oldId)
+		new_server_id = forceHostId(newId)
+		cur_hostname = cur_server_id.split(".")[0]
+		new_hostname = new_server_id.split(".")[0]
+
+		depots = self.host_getObjects(type="OpsiDepotserver", id=cur_server_id)
+		try:
+			depot = depots[0]
+		except IndexError as err:
+			raise BackendMissingDataError(f"Cannot rename: depot '{cur_server_id}' not found") from err
+
+		if self.host_getObjects(id=new_server_id):
+			raise BackendError(f"Cannot rename: host '{new_server_id}' already exists")
+
+		logger.info("Renaming depot %s to %s", cur_server_id, new_server_id)
+
+		logger.info("Processing ProductOnDepots...")
+		product_on_depots = []
+		for product_on_depot in self.productOnDepot_getObjects(depotId=cur_server_id):
+			product_on_depot.setDepotId(new_server_id)
+			product_on_depots.append(product_on_depot)
+
+		def replace_server_id(some_list: List[str]) -> bool:
+			"""
+			Replaces occurrences of `oldId` with `newId` in `some_list`.
+
+			If some_list is the wrong type or no change was made `False`
+			will be returned.
+
+			:type some_list: list
+			:returns: `True` if a change was made.
+			:rtype: bool
+			"""
+			try:
+				some_list.remove(cur_server_id)
+				some_list.append(new_server_id)
+				return True
+			except (ValueError, AttributeError):
+				return False
+
+		logger.info("Processing ProductProperties...")
+		modified_product_properties = []
+		for product_property in self.productProperty_getObjects():
+			changed = replace_server_id(product_property.possibleValues)
+			changed = replace_server_id(product_property.defaultValues) or changed
+
+			if changed:
+				modified_product_properties.append(product_property)
+
+		if modified_product_properties:
+			logger.info("Updating ProductProperties...")
+			self.productProperty_updateObjects(modified_product_properties)
+
+		logger.info("Processing ProductPropertyStates...")
+		product_property_states = []
+		for product_property_state in self.productPropertyState_getObjects(objectId=cur_server_id):
+			product_property_state.setObjectId(new_server_id)
+			replace_server_id(product_property_state.values)
+			product_property_states.append(product_property_state)
+
+		logger.info("Processing Configs...")
+		modified_configs = []
+		for conf in self.config_getObjects():
+			changed = replace_server_id(conf.possibleValues)
+			changed = replace_server_id(conf.defaultValues) or changed
+
+			if changed:
+				modified_configs.append(conf)
+
+		if modified_configs:
+			logger.info("Updating Configs...")
+			self.config_updateObjects(modified_configs)
+
+		logger.info("Processing ConfigStates...")
+		config_states = []
+		for config_state in self.configState_getObjects(objectId=cur_server_id):
+			config_state.setObjectId(new_server_id)
+			replace_server_id(config_state.values)
+			config_states.append(config_state)
+
+		def change_address(value: str) -> str:
+			new_value = value.replace(cur_server_id, new_server_id)
+			new_value = new_value.replace(cur_hostname, new_hostname)
+			logger.debug("Changed %s to %s", value, new_value)
+			return new_value
+
+		old_depot = deepcopy(depot)
+		if old_depot.hardwareAddress:
+			# Hardware address needs to be unique
+			old_depot.hardwareAddress = None
+			self.host_createObjects([old_depot])
+
+		logger.info("Updating depot and it's urls...")
+		depot.setId(new_server_id)
+		if depot.repositoryRemoteUrl:
+			depot.setRepositoryRemoteUrl(change_address(depot.repositoryRemoteUrl))
+		if depot.depotRemoteUrl:
+			depot.setDepotRemoteUrl(change_address(depot.depotRemoteUrl))
+		if depot.depotWebdavUrl:
+			depot.setDepotWebdavUrl(change_address(depot.depotWebdavUrl))
+		if depot.workbenchRemoteUrl:
+			depot.setWorkbenchRemoteUrl(change_address(depot.workbenchRemoteUrl))
+		self.host_createObjects([depot])
+
+		if product_on_depots:
+			logger.info("Updating ProductOnDepots...")
+			self.productOnDepot_createObjects(product_on_depots)
+		if product_property_states:
+			logger.info("Updating ProductPropertyStates...")
+			self.productPropertyState_createObjects(product_property_states)
+		if config_states:
+			logger.info("Updating ConfigStates...")
+			self.configState_createObjects(config_states)
+
+		logger.info("Deleting old depot %s", old_depot)
+		self.host_deleteObjects([old_depot])

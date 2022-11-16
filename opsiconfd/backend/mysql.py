@@ -46,7 +46,7 @@ from sqlalchemy import create_engine  # type: ignore[import]
 from sqlalchemy.engine.base import Connection  # type: ignore[import]
 from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import ProgrammingError  # type: ignore[import]
 from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
 
 from opsiconfd import contextvar_client_session

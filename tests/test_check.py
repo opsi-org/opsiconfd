@@ -29,13 +29,8 @@ from opsiconfd.check import (
 	health_check,
 )
 
-from .utils import (
-	ADMIN_PASS,
-	ADMIN_USER,
-	OpsiconfdTestClient,
-	sync_clean_redis,
-	test_client,
-)
+from .utils import test_client  # pylint: disable=unused-import
+from .utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, sync_clean_redis
 
 DEPRECATED_METHOD = "getClientIds_list"
 
@@ -379,4 +374,3 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 	assert data["details"][DEPRECATED_METHOD]["calls"] == "1"
 	assert isinstance(data["details"][DEPRECATED_METHOD]["clients"], set)
 	assert data["details"][DEPRECATED_METHOD]["clients"] == {'testclient'}
-

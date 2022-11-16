@@ -225,7 +225,7 @@ def check_deprecated_calls(print_messages: bool = False) -> dict:
 
 			if print_messages:
 				show_message(f"Deprecated method '{method_name}' was called {calls} times.", MT_WARNING)
-				show_message(f"The method was called from:", MT_WARNING)
+				show_message("The method was called from:", MT_WARNING)
 				for client in clients:
 					show_message(f"\t- {client}", MT_WARNING)
 				show_message(f"Last call was {last_call}", MT_WARNING)

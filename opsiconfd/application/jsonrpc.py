@@ -508,17 +508,17 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 	else:
 		backend = get_client_backend()
 
-	method = getattr(backend, rpc["method"])
-
-	if getattr(method, "deprecated", False):
-		await store_deprecated_call(rpc["method"], client_info)
-
 	logger.debug("Method '%s', params (short): %.250s", rpc["method"], rpc["params"])
 	logger.trace("Method '%s', params (full): %s", rpc["method"], rpc["params"])
 
 	result = await load_from_cache(rpc, backend)
 	if result is None:
 		result = await run_in_threadpool(execute_rpc, client_info, rpc, backend)
+
+	method = getattr(backend, rpc["method"])
+
+	if getattr(method, "deprecated", False):
+		await store_deprecated_call(rpc["method"], client_info)
 
 	if rpc.get("jsonrpc") == "2.0":
 		return {"jsonrpc": "2.0", "id": rpc["id"], "result": result}

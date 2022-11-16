@@ -230,9 +230,11 @@ def check_deprecated_calls(print_messages: bool = False) -> dict:
 					show_message(f"\t- {client}", MT_WARNING)
 				show_message(f"Last call was {last_call}", MT_WARNING)
 	if not deprecated_calls:
+		if print_messages:
+			show_message("No deprecated method calls found.", MT_SUCCESS)
 		return {"status": "ok", "details": "No deprecated method calls found."}
-	else:
-		return {"status": "warn", "details": deprecated_calls}
+	logger.devel(deprecated_calls)
+	return {"status": "warn", "details": deprecated_calls}
 
 
 def show_message(message: str, msg_type: str = MT_INFO, newline: bool = True, msg_format: Optional[str] = None, log: bool = False) -> None:

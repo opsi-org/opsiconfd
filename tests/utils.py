@@ -135,6 +135,7 @@ def get_config(values: Union[Dict[str, Any], List[str]]) -> Generator[Config, No
 
 def clean_redis_keys() -> Tuple[str, ...]:
 	return (
+		"opsiconfd:stats:rpcs:deprecated:*",
 		"opsiconfd:stats:client:failed_auth",
 		"opsiconfd:stats:client:blocked",
 		"opsiconfd:stats:client",

@@ -33,18 +33,17 @@ from opsicommon.messagebus import (  # type: ignore[import]
 from opsicommon.utils import deserialize, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
-
-from .. import contextvar_user_store
-from ..backend import (
+from opsiconfd.backend import (
 	BackendManager,
-	OpsiconfdBackend,
 	async_backend_call,
 	get_backend,
-	get_backend_interface,
 	get_client_backend,
 	get_user_store,
 )
+from opsiconfd.backend.interface import OpsiconfdBackend, get_backend_interface
+from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
+
+from .. import contextvar_user_store
 from ..config import RPC_DEBUG_DIR, config
 from ..logging import logger
 from ..messagebus.redis import ConsumerGroupMessageReader, send_message
@@ -381,6 +380,16 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 		await pipe.execute()
 
 
+async def store_deprecated_call(method_name: str, client: str) -> None:
+	redis = await async_redis_client()
+	async with redis.pipeline() as pipe:
+		pipe.sadd("opsiconfd:stats:rpcs:deprecated:methods", method_name)
+		pipe.incr(f"opsiconfd:stats:rpcs:deprecated:{method_name}:count")
+		pipe.sadd(f"opsiconfd:stats:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
+		pipe.set(f"opsiconfd:stats:rpcs:deprecated:{method_name}:last_call", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+		await pipe.execute()
+
+
 def execute_rpc(client_info: str, rpc: Dict[str, Any], backend: Union[OpsiconfdBackend, BackendManager]) -> Any:
 	method_name = rpc["method"]
 	params = rpc["params"]
@@ -498,6 +507,11 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 		backend = OpsiconfdBackend()
 	else:
 		backend = get_client_backend()
+
+	method = getattr(backend, rpc["method"])
+
+	if getattr(method, "deprecated", False):
+		await store_deprecated_call(rpc["method"], client_info)
 
 	logger.debug("Method '%s', params (short): %.250s", rpc["method"], rpc["params"])
 	logger.trace("Method '%s', params (full): %s", rpc["method"], rpc["params"])

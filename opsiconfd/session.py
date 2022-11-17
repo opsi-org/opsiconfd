@@ -621,7 +621,7 @@ async def authenticate(scope: Scope, username: str, password: str) -> None:  # p
 	)
 
 	if not scope["session"]:
-		scope["session"] = await get_session(client_addr=scope["client"][0], headers=scope["headers"])
+		scope["session"] = await get_session(client_addr=scope["client"][0], headers=MutableHeaders(scope=scope))
 	session = scope["session"]
 
 	logger.info("Start authentication of client %s", session.client_addr)
@@ -639,7 +639,9 @@ async def authenticate(scope: Scope, username: str, password: str) -> None:  # p
 				hosts = get_backend().host_getObjects(**host_filter)  # pylint: disable=no-member
 				if len(hosts) == 1:
 					username = hosts[0].id
-					scope["response-headers"] = {"x-opsi-host-id": username}
+					if not scope.get("response-headers"):
+						scope["response-headers"] = {}
+					scope["response-headers"]["x-opsi-host-id"] = username
 		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)

@@ -869,6 +869,15 @@ class Config(metaclass=Singleton):
 			default="/bin/bash",
 			help=("Shell command for admin interface terminal"),
 		)
+		self._parser.add(
+			"--allow-host-key-only-auth",
+			env_var="OPSICONFD_HOST_KEY_AUTH_ONLY",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._expert_help("Minimum time in seconds that a jsonrpc must take before the data is cached."),
+		)
 		if self._pytest:
 			self._parser.add("args", nargs="*")
 		else:

@@ -30,6 +30,7 @@ import opsiconfd.config
 import opsiconfd.messagebus.redis
 from opsiconfd.application.main import application_setup
 from opsiconfd.backend import BackendManager
+from opsiconfd.backend.rpc.opsiconfd import OpsiconfdBackend, get_backend_interface
 from opsiconfd.config import config as _config
 from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
@@ -91,6 +92,8 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 		setup_ssl()
 
 	Worker._instance = Worker(1)  # pylint: disable=protected-access
+	OpsiconfdBackend()
+	get_backend_interface()
 	application_setup()
 
 

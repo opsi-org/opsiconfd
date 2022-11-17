@@ -336,6 +336,7 @@ class RPCHostMixin(Protocol):
 			logger.info("Updating software licenses...")
 			self.softwareLicense_createObjects(software_licenses)
 
+	@rpc_method
 	def host_renameOpsiDepotserver(self, oldId: str, newId: str) -> None:  # pylint: disable=invalid-name,too-many-branches,too-many-statements,too-many-locals
 		"""
 		Rename OpsiDepotserver with id `oldId` to `newId`.

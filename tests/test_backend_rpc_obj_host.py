@@ -72,19 +72,19 @@ def test_host_insertObject(  # pylint: disable=invalid-name
 	}
 	# Create client 1
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Create client 2
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client2]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Client 1 should be created
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	client = res.json()["result"][0]
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
 	for attr, val in client1.items():
 		assert val == client[attr]
 
@@ -93,14 +93,14 @@ def test_host_insertObject(  # pylint: disable=invalid-name
 	client1["notes"] = ""
 	client1["oneTimePassword"] = None  # type: ignore[assignment]
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# All values should be updated
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	client = res.json()["result"][0]
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
 	for attr, val in client1.items():
 		assert val == client[attr]
 
@@ -111,14 +111,14 @@ def test_host_insertObject(  # pylint: disable=invalid-name
 	# Client can edit self
 	client1["description"] = "client changed"
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Client has no permission to create or change other hosts
 	client2["description"] = "client changed"
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client2]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	res = test_client.post("/rpc", json=rpc).json()
+	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
 
 
 def test_host_updateObject(  # pylint: disable=invalid-name
@@ -142,38 +142,38 @@ def test_host_updateObject(  # pylint: disable=invalid-name
 	}
 	# Call update
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Should not be created
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	client = res.json()["result"] == []
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"] == []
 
 	# Create client 1
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Create client 2
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client2]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Update client 1
 	client1["description"] = "new"
 	client1["oneTimePassword"] = None  # type: ignore[assignment]
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# oneTimePassword should not be update because it is null
 	# notes should not be update because not passed
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": client1["id"]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	client = res.json()["result"][0]
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
 	assert client["description"] == client1["description"]
 	assert client["notes"] == "notes"
 	assert client["oneTimePassword"] == "secret"
@@ -183,13 +183,13 @@ def test_host_updateObject(  # pylint: disable=invalid-name
 	test_client.auth = (client1["id"], client1["opsiHostKey"])
 	client1["description"] = "client changed"
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client1]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	client2["description"] = "client changed"
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObject", "params": [client2]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	res = test_client.post("/rpc", json=rpc).json()
+	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
 
 
 def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
@@ -214,13 +214,13 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 
 	# Create clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Get clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 	clients = res.json()["result"]
 
 	assert len(clients) == 2
@@ -238,13 +238,13 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 	del client2["description"]
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Get clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 	clients = res.json()["result"]
 	assert len(clients) == 2
 
@@ -262,8 +262,8 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 	test_client.auth = (client1["id"], client1["opsiHostKey"])
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	res = test_client.post("/rpc", json=rpc).json()
+	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
 
 	for method in ("host_getObjects", "host_getHashes"):
 		rpc = {
@@ -272,8 +272,8 @@ def test_host_createObjects(  # pylint: disable=invalid-name,too-many-statements
 			"method": method,
 			"params": [None, {"id": [client1["id"], client2["id"]]}],  # pylint: disable=loop-invariant-statement
 		}
-		res = test_client.post("/rpc", json=rpc)
-		assert "error" not in res.json()
+		res = test_client.post("/rpc", json=rpc).json()
+		assert "error" not in res
 		clients = res.json()["result"]
 		assert len(clients) == 2
 		for client in clients:
@@ -305,13 +305,13 @@ def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
 
 	# Create clients with updateObjects
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Get clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 	clients = res.json()["result"]
 
 	assert len(clients) == 2
@@ -322,14 +322,14 @@ def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
 
 	# Delete client2
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client2["id"]}]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 	clients = res.json()["result"]
 
 	# Get clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 	clients = res.json()["result"]
 	assert len(clients) == 1
 
@@ -340,13 +340,13 @@ def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
 	client2["description"] = "new desc"
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Get clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getObjects", "params": [None, {"id": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 	clients = res.json()["result"]
 	assert len(clients) == 2
 
@@ -364,12 +364,12 @@ def test_host_updateObjects(  # pylint: disable=invalid-name,too-many-statements
 	test_client.auth = (client1["id"], client1["opsiHostKey"])
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client1]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_updateObjects", "params": [[client2]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	res = test_client.post("/rpc", json=rpc).json()
+	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
 
 
 def test_host_getIdents(  # pylint: disable=invalid-name,too-many-statements
@@ -394,28 +394,28 @@ def test_host_getIdents(  # pylint: disable=invalid-name,too-many-statements
 
 	# Create clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Get client idents
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	assert res.json()["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}, {"id": "test-backend-rpc-host-2.opsi.test"}]
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert res["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}, {"id": "test-backend-rpc-host-2.opsi.test"}]
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": client1["id"]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	assert res.json()["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}]
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert res["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}]
 
 	# Test client permissions
 	test_client.reset_cookies()
 	test_client.auth = (client1["id"], client1["opsiHostKey"])
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": [client1["id"], client2["id"]]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	assert res.json()["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}, {"id": "test-backend-rpc-host-2.opsi.test"}]
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert res["result"] == [{"id": "test-backend-rpc-host-1.opsi.test"}, {"id": "test-backend-rpc-host-2.opsi.test"}]
 
 
 def test_host_deleteObjects(  # pylint: disable=invalid-name,too-many-statements
@@ -440,34 +440,34 @@ def test_host_deleteObjects(  # pylint: disable=invalid-name,too-many-statements
 
 	# Create clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Test client permissions
 	test_client.reset_cookies()
 	test_client.auth = (client1["id"], client1["opsiHostKey"])
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client1["id"]}, {"id": client2["id"]}]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	res = test_client.post("/rpc", json=rpc).json()
+	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client2["id"]}]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.json()["error"]["data"]["class"] == "BackendPermissionDeniedError"
+	res = test_client.post("/rpc", json=rpc).json()
+	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
 
 	# Delete clients
 	test_client.reset_cookies()
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_deleteObjects", "params": [[{"id": client1["id"]}, {"id": client2["id"]}]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Get client idents
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["list"]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	result = res.json()["result"]
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	result = res["result"]
 	assert len(result) > 0
 	assert isinstance(result[0], list)
 	assert len(result[0]) == 1
@@ -476,18 +476,18 @@ def test_host_deleteObjects(  # pylint: disable=invalid-name,too-many-statements
 
 	# Create clients
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_createObjects", "params": [[client1, client2]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	# Delete client1
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_delete", "params": [client1["id"]]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_getIdents", "params": ["dict", {"id": client1["id"]}]}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	assert res.json()["result"] == []
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	assert res["result"] == []
 
 
 def test_host_createOpsiClient(  # pylint: disable=invalid-name,too-many-statements
@@ -501,8 +501,8 @@ def test_host_createOpsiClient(  # pylint: disable=invalid-name,too-many-stateme
 		"method": "host_createOpsiClient",
 		"params": ["test-backend-rpc-host-client.opsi.test", None, "description", "notes", "00:00:00:01:01:01", None, "inventory number"],
 	}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	rpc = {
 		"jsonrpc": "2.0",
@@ -510,9 +510,9 @@ def test_host_createOpsiClient(  # pylint: disable=invalid-name,too-many-stateme
 		"method": "host_getObjects",
 		"params": [None, {"type": "OpsiClient", "id": "test-backend-rpc-host-client.opsi.test"}],
 	}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	client = res.json()["result"][0]
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
 	assert client["opsiHostKey"]
 	assert client["created"]
 	assert client["hardwareAddress"] == "00:00:00:01:01:01"
@@ -524,9 +524,9 @@ def test_host_createOpsiClient(  # pylint: disable=invalid-name,too-many-stateme
 		"method": "host_getObjects",
 		"params": [["description", "notes"], {"id": "test-backend-rpc-host-client.opsi.test"}],
 	}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
-	client = res.json()["result"][0]
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	client = res["result"][0]
 	assert not client["opsiHostKey"]
 	assert not client["created"]
 	assert not client["hardwareAddress"]
@@ -545,8 +545,8 @@ def test_host_createOpsiDepotserver(  # pylint: disable=invalid-name,too-many-st
 		"method": "host_createOpsiDepotserver",
 		"params": ["test-backend-rpc-host-depot.opsi.test", None, "file:///depot/local/url", "webdavs://depot.remote/url"],
 	}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	rpc = {
 		"jsonrpc": "2.0",
@@ -554,8 +554,8 @@ def test_host_createOpsiDepotserver(  # pylint: disable=invalid-name,too-many-st
 		"method": "host_getObjects",
 		"params": [None, {"type": "OpsiDepotserver", "id": "test-backend-rpc-host-depot.opsi.test"}],
 	}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 	depot = res.json()["result"][0]
 	assert depot["opsiHostKey"]
 	assert depot["depotLocalUrl"] == "file:///depot/local/url"
@@ -573,8 +573,8 @@ def test_host_createOpsiConfigserver(  # pylint: disable=invalid-name,too-many-s
 		"method": "host_createOpsiConfigserver",
 		"params": ["test-backend-rpc-host-server.opsi.test", None, "file:///depot/local/url", "webdavs://depot.remote/url"],
 	}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
 	rpc = {
 		"jsonrpc": "2.0",
@@ -582,8 +582,8 @@ def test_host_createOpsiConfigserver(  # pylint: disable=invalid-name,too-many-s
 		"method": "host_getObjects",
 		"params": [None, {"type": "OpsiConfigserver", "id": "test-backend-rpc-host-server.opsi.test"}],
 	}
-	res = test_client.post("/rpc", json=rpc)
-	assert "error" not in res.json()
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 	depot = res.json()["result"][0]
 	assert depot["opsiHostKey"]
 	assert depot["depotLocalUrl"] == "file:///depot/local/url"

@@ -516,9 +516,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			)
 		]
 
-	def insert_object(  # pylint: disable=too-many-locals,too-many-arguments
+	def insert_query(  # pylint: disable=too-many-locals,too-many-arguments
 		self, table: str, obj: BaseObject, ace: List[RPCACE], create: bool = True, set_null: bool = True
-	) -> None:
+	) -> Tuple[str, Dict[str, Any]]:
 		if not isinstance(obj, BaseObject):
 			obj = OBJECT_CLASSES[obj["type"]].fromHash(obj)
 		obj.setDefaults()
@@ -551,7 +551,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			updates.append(f"`{column['column']}` = :{attr}")
 
 		if not updates:
-			return
+			return "", {}
 
 		if create:
 			query = f"INSERT INTO `{table}` ({','.join(cols)}) VALUES ({','.join(vals)}) ON DUPLICATE KEY UPDATE {','.join(updates)}"
@@ -559,5 +559,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if not where:
 				raise RuntimeError("No where")
 			query = f"UPDATE `{table}` SET {','.join(updates)} WHERE {' AND '.join(where)}"
-		with self.session() as session:
-			session.execute(query, params=data)
+		return query, data
+
+	def insert_object(  # pylint: disable=too-many-locals,too-many-arguments
+		self, table: str, obj: BaseObject, ace: List[RPCACE], create: bool = True, set_null: bool = True
+	) -> None:
+		query, data = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null)
+		if query:
+			with self.session() as session:
+				session.execute(query, params=data)

@@ -12,7 +12,7 @@ from fastapi import APIRouter, FastAPI, Request, status
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 
 from opsiconfd.rest import RESTResponse, rest_api
-from opsiconfd.session import authenticate, get_session
+from opsiconfd.session import authenticate
 
 session_router = APIRouter()
 

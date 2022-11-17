@@ -620,10 +620,11 @@ async def authenticate(scope: Scope, username: str, password: str) -> None:  # p
 		get_client_backend,
 	)
 
+	if not scope["session"]:
+		scope["session"] = await get_session(client_addr=scope["client"][0], headers=scope["headers"])
 	session = scope["session"]
 
 	logger.info("Start authentication of client %s", session.client_addr)
-
 	# Check if host address is blocked
 	await check_blocked(session.client_addr)
 
@@ -632,7 +633,6 @@ async def authenticate(scope: Scope, username: str, password: str) -> None:  # p
 		auth_type = "opsi-passwd"
 
 	def sync_auth(username: str, password: str, auth_type: str = None) -> None:
-		logger.devel(scope)
 		if config.allow_host_key_only_auth:
 			if (re.search(r"^[^.]+\.[^.]+\.\S+$", username) or re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", username) or not username):
 				host_filter = {"opsiHostKey": password}

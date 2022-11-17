@@ -29,9 +29,6 @@ class LoginData(BaseModel):
 @session_router.post("/login")
 @rest_api(default_error_status_code=status.HTTP_401_UNAUTHORIZED)
 async def login(request: Request, login_data: LoginData) -> RESTResponse:
-	if not request.scope["session"]:
-		request.scope["session"] = await get_session(client_addr=request.scope["client"][0], headers=request.headers)
-
 	await authenticate(request.scope, username=login_data.username, password=login_data.password)
 	return RESTResponse({"session_id": request.scope["session"].session_id})
 

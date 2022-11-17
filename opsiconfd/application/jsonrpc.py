@@ -53,6 +53,7 @@ from ..utils import (
 	compress_data,
 	decode_redis_result,
 	decompress_data,
+	redis_client,
 )
 from ..worker import Worker
 
@@ -380,14 +381,14 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 		await pipe.execute()
 
 
-async def store_deprecated_call(method_name: str, client: str) -> None:
-	redis = await async_redis_client()
-	async with redis.pipeline() as pipe:
-		pipe.sadd("opsiconfd:stats:rpcs:deprecated:methods", method_name)
-		pipe.incr(f"opsiconfd:stats:rpcs:deprecated:{method_name}:count")
-		pipe.sadd(f"opsiconfd:stats:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
-		pipe.set(f"opsiconfd:stats:rpcs:deprecated:{method_name}:last_call", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
-		await pipe.execute()
+def store_deprecated_call(method_name: str, client: str) -> None:
+	with redis_client() as redis:
+		with redis.pipeline() as pipe:
+			pipe.sadd("opsiconfd:stats:rpcs:deprecated:methods", method_name)
+			pipe.incr(f"opsiconfd:stats:rpcs:deprecated:{method_name}:count")
+			pipe.sadd(f"opsiconfd:stats:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
+			pipe.set(f"opsiconfd:stats:rpcs:deprecated:{method_name}:last_call", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+			pipe.execute()
 
 
 def execute_rpc(client_info: str, rpc: Dict[str, Any], backend: Union[OpsiconfdBackend, BackendManager]) -> Any:
@@ -428,6 +429,7 @@ def execute_rpc(client_info: str, rpc: Dict[str, Any], backend: Union[OpsiconfdB
 			f"Client {client_info} is calling deprecated method {method_name!r}",
 			DeprecationWarning
 		)
+		store_deprecated_call(method_name, client_info)
 
 	return serialize(method(*params, **keywords))
 
@@ -514,11 +516,6 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 	result = await load_from_cache(rpc, backend)
 	if result is None:
 		result = await run_in_threadpool(execute_rpc, client_info, rpc, backend)
-
-	method = getattr(backend, rpc["method"])
-
-	if getattr(method, "deprecated", False):
-		await store_deprecated_call(rpc["method"], client_info)
 
 	if rpc.get("jsonrpc") == "2.0":
 		return {"jsonrpc": "2.0", "id": rpc["id"], "result": result}

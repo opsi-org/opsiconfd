@@ -9,6 +9,7 @@ opsiconfd main
 """
 
 import asyncio
+import gc
 import getpass
 import os
 import pprint
@@ -24,7 +25,7 @@ from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 
 from . import __version__
 from .check import health_check
-from .config import config
+from .config import GC_THRESHOLDS, config
 from .logging import (
 	AsyncRedisLogAdapter,
 	init_logging,
@@ -101,6 +102,9 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 		return
 
 	apply_patches()
+
+	logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)
+	gc.set_threshold(*GC_THRESHOLDS)
 
 	stdin = None
 	try:  # pylint: disable=too-many-nested-blocks

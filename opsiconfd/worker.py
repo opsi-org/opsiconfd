@@ -31,7 +31,7 @@ from . import __version__
 from .addon import AddonManager
 from .backend import get_backend, get_client_backend
 from .backend.rpc.opsiconfd import OpsiconfdBackend, get_backend_interface
-from .config import config
+from .config import GC_THRESHOLDS, config
 from .logging import init_logging, logger
 from .metrics.collector import WorkerMetricsCollector
 from .utils import async_redis_client
@@ -127,6 +127,10 @@ class Worker(UvicornServer):
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		logger.notice("Startup worker %d (pid %s)", self.worker_num, self.pid)
+
+		logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)
+		gc.set_threshold(*GC_THRESHOLDS)
+
 		self._metrics_collector = WorkerMetricsCollector(self)
 		super().run(sockets=sockets)
 

@@ -94,7 +94,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-few-public-methods
 
 	@deprecated_rpc_method
 	def backend_setOptions(self: BackendProtocol, options: dict) -> None:  # pylint: disable=invalid-name
-		pass
+		return None
 
 	@deprecated_rpc_method
 	def backend_getOptions(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name

@@ -56,7 +56,7 @@ VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
 REDIS_PREFIX_MESSAGEBUS = "opsiconfd:messagebus"
 REDIS_PREFIX_SESSION = "opsiconfd:session"
-
+GC_THRESHOLDS = (150_000, 50, 100)
 
 if running_in_docker():
 	try:

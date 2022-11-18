@@ -273,8 +273,8 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-few-public-methods
 
 		if os.path.exists(self.opsi_modules_file):
 			try:
-				with open(self.opsi_modules_file, encoding="utf-8") as modulesFile:
-					for line in modulesFile:
+				with open(self.opsi_modules_file, encoding="utf-8") as modules_file:
+					for line in modules_file:
 						line = line.strip()
 						if "=" not in line:
 							logger.error("Found bad line '%s' in modules file '%s'", line, self.opsi_modules_file)

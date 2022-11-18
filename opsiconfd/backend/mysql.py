@@ -276,11 +276,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					}
 					if _ace.type == "self":
 						if not client_id_column:  # pylint: disable=loop-invariant-statement
-							raise RuntimeError(
-								f"No client id attribute defined for table {tables[0]}"
-							)  # pylint: disable=loop-invariant-statement
-						res[attr][
-							"select"
+							raise RuntimeError(  # pylint: disable=loop-invariant-statement
+								f"No client id attribute defined for table {tables[0]}"  # pylint: disable=loop-invariant-statement
+							)
+						res[attr][  # pylint: disable=loop-invariant-statement
+							"select"  # pylint: disable=loop-invariant-statement
 						] = f"IF(`{tables[0]}`.`{client_id_column}`='{_ace.id}',`{table}`.`{col}`,NULL)"  # pylint: disable=loop-invariant-statement
 					else:
 						res[attr]["select"] = f"`{table}`.`{col}`"  # pylint: disable=loop-invariant-statement
@@ -370,7 +370,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def _get_object_type(self, object_type: str) -> Type[BaseObject] | None:
 		return OBJECT_CLASSES.get(object_type)
 
-	def _get_ident(self, data: Dict[str, Any], ident_attributes: Tuple[str, ...], ident_type: IdentType) -> str | dict | list | tuple:
+	def get_ident(
+		self, data: Dict[str, Any], ident_attributes: Tuple[str, ...] | List[str], ident_type: IdentType
+	) -> str | dict | list | tuple:
 		ident = {a: data[a] for a in ident_attributes}
 		if ident_type in ("dict", "hash"):
 			return ident
@@ -407,7 +409,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			res[key] = val
 
 		if ident_type:
-			res["ident"] = self._get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type)
+			res["ident"] = self.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type)
 
 		return res
 
@@ -535,7 +537,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if not result:
 				return []
 			if return_type == "ident":
-				return [self._get_ident(data=dict(row), ident_attributes=ident_attributes, ident_type=ident_type) for row in result]
+				return [self.get_ident(data=dict(row), ident_attributes=ident_attributes, ident_type=ident_type) for row in result]
 			if return_type == "dict":
 				conversions = self._get_conversions(object_type)  # type: ignore[arg-type]
 				return [
@@ -658,8 +660,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					raise ValueError(f"No value for ident attribute {attr!r}")
 
 				if (
-					col["client_id_column"] and allowed_client_ids is not None and val not in allowed_client_ids
-				):  # pylint: disable=loop-invariant-statement
+					col["client_id_column"]
+					and allowed_client_ids is not None  # pylint: disable=loop-invariant-statement
+					and val not in allowed_client_ids
+				):
 					# No permission
 					break
 

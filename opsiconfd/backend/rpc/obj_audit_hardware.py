@@ -70,18 +70,18 @@ class RPCAuditHardwareMixin(Protocol):
 		super().__init__()
 		self._set_audit_hardware_config(self.auditHardware_getConfig())
 
-	def _set_audit_hardware_config(self, config: List[Dict[str, Dict[str, Any]]]) -> None:
+	def _set_audit_hardware_config(self, config: List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]) -> None:
 		self._audit_hardware_config = {}
 		for conf in config:
-			hw_class = conf["Class"]["Opsi"]
+			hw_class = conf["Class"]["Opsi"]  # type: ignore
 			self._audit_hardware_config[hw_class] = {}
 			for value in conf["Values"]:
-				self._audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # pylint: disable=loop-invariant-statement
+				self._audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore  # pylint: disable=loop-invariant-statement
 		AuditHardware.setHardwareConfig(config)
 		AuditHardwareOnHost.setHardwareConfig(config)
 
 	@rpc_method
-	def auditHardware_getConfig(self: BackendProtocol, language: str = None) -> List[Dict[str, Dict[str, Any]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+	def auditHardware_getConfig(self: BackendProtocol, language: str = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
 		self._get_ace("auditHardware_getConfig")
 
 		if not language:
@@ -183,7 +183,8 @@ class RPCAuditHardwareMixin(Protocol):
 
 	def _audit_hardware_get(  # pylint: disable=redefined-builtin,too-many-branches,too-many-locals,too-many-statements,too-many-arguments
 		self: BackendProtocol,
-		ace=List[RPCACE], return_hardware_ids: bool = False,
+		ace: List[RPCACE],
+		return_hardware_ids: bool = False,
 		return_type: Literal["object", "dict", "ident"] = "object",
 		ident_type: IdentType = "str",
 		attributes: List[str] = None, filter: Dict[str, Any] = None
@@ -230,7 +231,7 @@ class RPCAuditHardwareMixin(Protocol):
 				if attributes and return_hardware_ids and "hardware_id" not in attributes:
 					attributes.append("hardware_id")
 
-				if return_type == "ident":
+				if return_type == "ident":  # pylint: disable=loop-invariant-statement
 					attributes = ident_attributes
 
 				if not class_filter and filter:
@@ -247,14 +248,7 @@ class RPCAuditHardwareMixin(Protocol):
 					if return_type == "object":  # pylint: disable=loop-invariant-statement
 						results.append(AuditHardware(hardwareClass=hardware_class, **data))
 					elif return_type == "ident":  # pylint: disable=loop-invariant-statement
-						if ident_type in ("unicode", "str"):
-							results.append(",".join([v or "" for v in data.values()]))
-						elif ident_type == "list":
-							results.append(list(data.values()))
-						elif ident_type == "tuple":
-							results.append(tuple(data.values()))
-						else:
-							results.append(data)
+						results.append(self._mysql.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type))
 					else:
 						results.append(data)
 		return results

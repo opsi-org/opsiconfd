@@ -29,9 +29,11 @@ from OPSI.System.Posix import isUCS  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd.backend import BackendManager, get_backend
+from opsiconfd.backend.interface import get_backend_interface
+
 from .. import __version__, contextvar_client_session
 from ..addon import AddonManager
-from ..backend import BackendManager, get_backend, get_backend_interface
 from ..config import FQDN, REDIS_PREFIX_SESSION, VAR_ADDON_DIR, config
 from ..grafana import async_grafana_session, create_dashboard_user
 from ..logging import logger

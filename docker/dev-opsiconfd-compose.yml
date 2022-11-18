@@ -1,7 +1,7 @@
 version: '3.3'
 
 services:
-  opsiconfd-dev:
+  opsiconfd-dev-42:
     hostname: ${OPSI_HOSTNAME}
     env_file:
       ../.env

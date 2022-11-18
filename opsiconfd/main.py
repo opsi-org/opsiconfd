@@ -23,6 +23,7 @@ from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 
 from . import __version__
+from .check import health_check
 from .config import config
 from .logging import (
 	AsyncRedisLogAdapter,
@@ -64,6 +65,11 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 			asyncio.run(log_viewer())
 		except KeyboardInterrupt:
 			pass
+		return
+
+	if config.action == "health-check":
+		init_logging(log_mode="local")
+		health_check(print_messages=True)
 		return
 
 	manager_pid = get_manager_pid(ignore_self=True)

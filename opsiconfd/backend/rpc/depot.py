@@ -10,6 +10,7 @@ opsiconfd.backend.rpc.extender
 
 from __future__ import annotations
 
+import grp
 import os
 from contextlib import contextmanager
 from pathlib import Path
@@ -61,9 +62,6 @@ from opsiconfd.logging import logger
 
 # deprecated can be used in extension config files
 from . import rpc_method  # pylint: disable=unused-import
-
-if os.name == "posix":
-	import grp
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol

@@ -11,7 +11,6 @@ opsiconfd backend interface
 from __future__ import annotations
 
 import re
-import socket
 from inspect import getfullargspec, getmembers, ismethod, signature
 from textwrap import dedent
 from typing import Any, Dict, List
@@ -19,9 +18,7 @@ from typing import Any, Dict, List
 from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
-from opsiconfd.backup import create_backup
-from opsiconfd.check import health_check
-from opsiconfd.config import FQDN, config
+from opsiconfd.config import config
 from opsiconfd.logging import logger
 
 from .. import get_client_backend
@@ -34,13 +31,26 @@ from .ext_dynamic_depot import RPCExtDynamicDepotMixin
 from .ext_easy import RPCExtEasyMixin
 from .ext_kiosk import RPCExtKioskMixin
 from .ext_legacy import RPCExtLegacyMixin
+from .ext_opsi import RPCExtOpsiMixin
 from .ext_ssh_commands import RPCExtSSHCommandsMixin
 from .ext_wan import RPCExtWANMixin
 from .ext_wim import RPCExtWIMMixin
 from .extender import RPCExtenderMixin
+from .general import RPCGeneralMixin
+from .obj_audit_hardware import RPCAuditHardwareMixin
+from .obj_audit_software import RPCAuditSoftwareMixin
+from .obj_audit_software_on_client import RPCAuditSoftwareOnClientMixin
 from .obj_config import RPCConfigMixin
 from .obj_config_state import RPCConfigStateMixin
+from .obj_group import RPCGroupMixin
 from .obj_host import RPCHostMixin
+from .obj_object_to_group import RPCObjectToGroupMixin
+from .obj_product import RPCProductMixin
+from .obj_product_dependency import RPCProductDependencyMixin
+from .obj_product_on_client import RPCProductOnClientMixin
+from .obj_product_on_depot import RPCProductOnDepotMixin
+from .obj_product_property import RPCProductPropertyMixin
+from .obj_product_property_state import RPCProductPropertyStateMixin
 
 backend_interface = None  # pylint: disable=invalid-name
 
@@ -48,13 +58,14 @@ backend_interface = None  # pylint: disable=invalid-name
 def get_backend_interface() -> List[Dict[str, Any]]:
 	global backend_interface  # pylint: disable=invalid-name, global-statement
 	if backend_interface is None:
-		opsiconfd_interface = OpsiconfdBackend().get_interface()
-		backend_interface = get_client_backend().backend_getInterface()
-		backend_methods = [method["name"] for method in backend_interface]
-		for opsiconfd_method in opsiconfd_interface:  # pylint: disable=use-list-comprehension
-			if opsiconfd_method["name"] not in backend_methods:  # pylint: disable=loop-global-usage
-				backend_interface.append(opsiconfd_method)  # pylint: disable=loop-global-usage
-		backend_interface.sort(key=lambda x: x["name"])
+		backend_interface = OpsiconfdBackend().get_interface()
+		if False:
+			legacy_interface = get_client_backend().backend_getInterface()
+			backend_methods = [method["name"] for method in backend_interface]
+			for legacy_method in legacy_interface:  # pylint: disable=use-list-comprehension
+				if legacy_method["name"] not in backend_methods:  # pylint: disable=loop-global-usage
+					backend_interface.append(legacy_method)  # pylint: disable=loop-global-usage
+			backend_interface.sort(key=lambda x: x["name"])
 
 	return backend_interface
 
@@ -118,10 +129,16 @@ def describe_interface(instance: Any) -> List[Dict[str, Any]]:  # pylint: disabl
 
 
 class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
-	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin,
+	RPCGeneralMixin,
+	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCGroupMixin,
+	RPCObjectToGroupMixin, RPCProductMixin, RPCProductDependencyMixin,
+	RPCProductPropertyMixin, RPCProductPropertyStateMixin,
+	RPCProductOnDepotMixin, RPCProductOnClientMixin,
+	RPCAuditSoftwareMixin, RPCAuditSoftwareOnClientMixin,
+	RPCAuditHardwareMixin,
 	RPCExtLegacyMixin, RPCExtAdminTasksMixin, RPCExtDeprecatedMixin,
 	RPCExtDynamicDepotMixin, RPCExtEasyMixin, RPCExtKioskMixin,
-	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin,
+	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin, RPCExtOpsiMixin,
 	RPCDepotserverMixin, RPCExtenderMixin
 ):
 	__instance = None
@@ -146,9 +163,9 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 		self._interface = describe_interface(self)
 		self._backend = get_client_backend()
 		self.method_names = [meth["name"] for meth in self._interface]
-		self._read_acl_file()
+		self.read_acl_file()
 
-	def _read_acl_file(self) -> None:
+	def read_acl_file(self) -> None:
 		acl = read_acl_file(config.acl_file)
 		for method_name in self.method_names:
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
@@ -211,37 +228,3 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 
 	def get_interface(self) -> List[Dict[str, Any]]:
 		return self._interface
-
-	def backend_exit(self) -> None:
-		session = contextvar_client_session.get()
-		if session:
-			session.sync_delete()
-
-	def server_checkHealth(self) -> dict:  # pylint: disable=invalid-name
-		self._check_role("admin")
-		return health_check()
-
-	def server_createBackup(self) -> dict:  # pylint: disable=invalid-name
-		self._check_role("admin")
-		return create_backup()
-
-	def getDomain(self) -> str:  # pylint: disable=invalid-name
-		try:
-			client_address = contextvar_client_address.get()
-			if not client_address:
-				raise ValueError("Failed to get client address")
-			if client_address not in ("127.0.0.1", "::1"):
-				names = socket.gethostbyaddr(client_address)
-				if names[0] and names[0].count(".") >= 2:
-					return ".".join(names[0].split(".")[1:])
-		except Exception as err:  # pylint: disable=broad-except
-			logger.debug("Failed to get domain by client address: %s", err)
-
-		return ".".join(FQDN.split(".")[1:])
-
-	def getOpsiCACert(self) -> str:  # pylint: disable=invalid-name
-		from opsiconfd.ssl import (  # pylint: disable=import-outside-toplevel
-			get_ca_cert_as_pem,
-		)
-
-		return get_ca_cert_as_pem()

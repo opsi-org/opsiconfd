@@ -172,6 +172,8 @@ def get_compression(content_encoding: str) -> Optional[str]:
 	if not content_encoding:
 		return None
 	content_encoding = content_encoding.lower()
+	if content_encoding == "identity":
+		return None
 	if "lz4" in content_encoding:
 		return "lz4"
 	if "deflate" in content_encoding:
@@ -364,6 +366,7 @@ def execute_rpc(client_info: str, rpc: Dict[str, Any], backend: Union[OpsiconfdB
 			method_interface = interface_method
 			break
 	if not method_interface:
+		logger.warning("Invalid method %r", method_name)
 		raise ValueError(f"Invalid method {method_name!r}")
 
 	keywords = {}

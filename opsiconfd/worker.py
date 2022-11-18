@@ -168,4 +168,5 @@ class Worker(UvicornServer):
 				setattr(self.config, key, value)
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()
+		OpsiconfdBackend().read_acl_file()
 		AddonManager().reload_addons()

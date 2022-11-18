@@ -73,7 +73,7 @@ class RPCExtOpsiMixin(Protocol):
 
 		pocExists = False
 		found_product_on_clients = []
-		for poc in self._backend.productOnClient_getObjects(clientId=clientId):
+		for poc in self.productOnClient_getObjects(clientId=clientId):
 			if poc.productId == productId:
 				logger.debug("productOnClient for requested product found, updating")
 				if poc.getActionRequest() != actionRequest:
@@ -93,27 +93,32 @@ class RPCExtOpsiMixin(Protocol):
 				)
 			)
 
-		product_on_clients = self._backend.productOnClient_addDependencies(found_product_on_clients)
+		product_on_clients = self.productOnClient_addDependencies(found_product_on_clients)
 		pocsToUpdate = [poc for poc in product_on_clients if poc.getActionRequest() not in (None, "none")]
 		if pocsToUpdate:
-			self._backend.productOnClient_updateObjects(pocsToUpdate)
+			self.productOnClient_updateObjects(pocsToUpdate)
 
+	@rpc_method
 	def userIsReadOnlyUser(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
 		return self.accessControl_userIsReadOnlyUser()
 
+	@rpc_method
 	def getServiceTime(self: BackendProtocol, utctime: bool = False) -> str:  # pylint: disable=invalid-name
 		if utctime:
 			return str(datetime.datetime.utcnow())
 		return str(datetime.datetime.now())
 
+	@rpc_method
 	def getSoftwareAuditDataCount(self: BackendProtocol) -> int:  # pylint: disable=invalid-name
 		"""Get the count of data relevant to the software audit."""
 		return len(self.auditSoftware_getObjects()) + len(self.auditSoftwareOnClient_getObjects())
 
+	@rpc_method
 	def getHardwareAuditDataCount(self: BackendProtocol) -> int:  # pylint: disable=invalid-name
 		"""Get the count of data relevant to the hardware audit."""
 		return len(self.auditHardware_getObjects()) + len(self.auditHardwareOnHost_getObjects())
 
+	@rpc_method
 	def getProductOrdering(  # pylint: disable=invalid-name,too-many-branches
 		self: BackendProtocol, depotId: str, sortAlgorithm: str = None
 	) -> Dict[str, list]:
@@ -178,6 +183,7 @@ class RPCExtOpsiMixin(Protocol):
 
 		return {"not_sorted": productIds, "sorted": sortedList}
 
+	@rpc_method
 	def setRights(self: BackendProtocol, path: str = None) -> str:  # pylint: disable=invalid-name
 		"""
 		Setting rights for a specified path.

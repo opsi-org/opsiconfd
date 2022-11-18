@@ -871,7 +871,7 @@ class Config(metaclass=Singleton):
 		)
 		self._parser.add(
 			"--allow-host-key-only-auth",
-			env_var="OPSICONFD_HOST_KEY_AUTH_ONLY",
+			env_var="OPSICONFD_ALLOW_HOST_KEY_ONLY_AUTH",
 			type=str2bool,
 			nargs="?",
 			const=True,

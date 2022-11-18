@@ -876,7 +876,7 @@ class Config(metaclass=Singleton):
 			nargs="?",
 			const=True,
 			default=False,
-			help=self._expert_help("Minimum time in seconds that a jsonrpc must take before the data is cached."),
+			help=self._expert_help("Clients are allowed to login with the host key only."),
 		)
 		if self._pytest:
 			self._parser.add("args", nargs="*")

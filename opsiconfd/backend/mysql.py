@@ -79,9 +79,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		"SOFTWARE_LICENSE": {"id": "softwareLicenseId"},
 		"LICENSE_POOL": {"id": "licensePoolId"},
 	}
-	_client_id_column = {
-		"HOST": "hostId"
-	}
+	_client_id_column = {"HOST": "hostId"}
 	record_separator = "␞"
 
 	def __init__(self) -> None:
@@ -274,19 +272,26 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					res[attr] = {  # pylint: disable=loop-invariant-statement
 						"table": table,
 						"column": col,
-						"client_id_column": table == tables[0] and col == client_id_column
+						"client_id_column": table == tables[0] and col == client_id_column,
 					}
 					if _ace.type == "self":
 						if not client_id_column:  # pylint: disable=loop-invariant-statement
-							raise RuntimeError(f"No client id attribute defined for table {tables[0]}")  # pylint: disable=loop-invariant-statement
-						res[attr]["select"] = f"IF(`{tables[0]}`.`{client_id_column}`='{_ace.id}',`{table}`.`{col}`,NULL)"  # pylint: disable=loop-invariant-statement
+							raise RuntimeError(
+								f"No client id attribute defined for table {tables[0]}"
+							)  # pylint: disable=loop-invariant-statement
+						res[attr][
+							"select"
+						] = f"IF(`{tables[0]}`.`{client_id_column}`='{_ace.id}',`{table}`.`{col}`,NULL)"  # pylint: disable=loop-invariant-statement
 					else:
 						res[attr]["select"] = f"`{table}`.`{col}`"  # pylint: disable=loop-invariant-statement
 					break
 		return res
 
 	def get_where(  # pylint: disable=too-many-locals,too-many-branches
-		self, columns: Dict[str, Dict[str, str | bool]], ace: List[RPCACE], filter: Dict[str, Any] = None  # pylint: disable=redefined-builtin
+		self,
+		columns: Dict[str, Dict[str, str | bool]],
+		ace: List[RPCACE],
+		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
 	) -> Tuple[str, Dict[str, Any]]:
 		filter = filter or {}
 		allowed_client_ids = self.get_allowed_client_ids(ace)
@@ -340,37 +345,16 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			return "WHERE " + " AND ".join([f"({c})" for c in conditions]), params
 		return "", {}
 
-	""" @lru_cache(maxsize=0)
-	def _get_conversions(self, object_type: str) -> Dict[str, Callable]:
-		conversions: Dict[str, Callable] = {}
-		sig = signature(getattr(OBJECT_CLASSES[object_type], "__init__"))
-		for name, param in sig.parameters.items():
-			if param.annotation is bool:
-				conversions[name] = bool
-			elif param.annotation is datetime:
-				conversions[name] = lambda v: v.isoformat().replace("T", " ")
-			elif name == "values":
-				conversions[name] = json.loads  # pylint: disable=dotted-import-in-loop
-		return conversions
-
-	@lru_cache(maxsize=0)
-	def _get_possible_class_attributes(self, object_type: str) -> Dict[str, Type]:
-		return get_possible_class_attributes(OBJECT_CLASSES[object_type])
-
-	@lru_cache(maxsize=0)
-	def _get_ident_attributes(self, object_type: str) -> Tuple[str, ...]:
-		return get_ident_attributes(OBJECT_CLASSES[object_type]) """
-
 	@lru_cache(maxsize=0)
 	def _get_conversions(self, object_type: Type[BaseObject]) -> Dict[str, Callable]:
 		conversions: Dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
-		for name, param in sig.parameters.items():
-			if param.annotation is bool:
-				conversions[name] = bool
-			elif param.annotation is datetime:
-				conversions[name] = lambda v: v.isoformat().replace("T", " ")
-			elif name == "values":
+		for name, param in sig.parameters.items():  # pylint: disable=use-dict-comprehension,unused-variable
+			# if param.annotation is bool:
+			# 	conversions[name] = bool
+			# elif param.annotation is datetime:
+			# 	conversions[name] = lambda v: v.isoformat().replace("T", " ")
+			if name == "values":
 				conversions[name] = json.loads  # pylint: disable=dotted-import-in-loop
 		return conversions
 
@@ -427,28 +411,24 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 		return res
 
-	def _row_to_object(self, row: Row, object_type: Type[BaseObject] = None, aggregates: List[str] = None) -> BaseObject:
+	def _row_to_object(
+		self, row: Row, object_type: Type[BaseObject] = None, conversions: Dict[str, Callable] = None, aggregates: List[str] = None
+	) -> BaseObject:
 		data = dict(row)
-		try:
-			object_type = self._get_object_type(data["type"]) or object_type
-		except KeyError:
-			pass
 
-		possible_attributes = self._get_possible_class_attributes(object_type)  # type: ignore
-		conversions = self._get_conversions(object_type)  # type: ignore
-
-		kwargs = {}
-		for key, val in data.items():
-			if key == "type" or key not in possible_attributes:
-				continue
-			if aggregates and key in aggregates:
-				val = val.split(self.record_separator) if val else []
-			conv = conversions.get(key)
-			if conv:
-				val = conv(val)
-			kwargs[key] = val
-
-		return object_type(**kwargs)  # type: ignore[misc]
+		if aggregates:
+			for attr in aggregates:
+				try:  # pylint: disable=loop-try-except-usage
+					data[attr] = data[attr].split(self.record_separator) if data[attr] else []
+				except KeyError:
+					pass
+		if conversions:
+			for attr, func in conversions.items():
+				try:  # pylint: disable=loop-try-except-usage
+					data[attr] = func(data[attr])
+				except KeyError:
+					pass
+		return object_type.fromHash(data)  # type: ignore
 
 	def get_allowed_client_ids(self, ace: List[RPCACE]) -> List[str] | None:
 		allowed_client_ids: List[str] | None = None
@@ -535,9 +515,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		group_by = ""
 		if aggregates:
 			# Use first table for performance!
-			group_by = "GROUP BY " + ", ".join([
-				f"`{tables[0]}`.`{col['column']}`" for attr, col in columns.items() if attr in ident_attributes
-			])
+			group_by = "GROUP BY " + ", ".join(
+				[f"`{tables[0]}`.`{col['column']}`" for attr, col in columns.items() if attr in ident_attributes]
+			)
 
 		with self.session() as session:
 			query = f"{query} {where} {group_by}"
@@ -555,25 +535,39 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if not result:
 				return []
 			if return_type == "ident":
-				return [
-					self._get_ident(data=dict(row), ident_attributes=ident_attributes, ident_type=ident_type) for row in result
-				]
+				return [self._get_ident(data=dict(row), ident_attributes=ident_attributes, ident_type=ident_type) for row in result]
 			if return_type == "dict":
+				conversions = self._get_conversions(object_type)  # type: ignore[arg-type]
 				return [
-					self._row_to_dict(row=row, object_type=object_type, ident_type=None, aggregates=l_aggregates)
+					self._row_to_object(row=row, object_type=object_type, conversions=conversions, aggregates=l_aggregates).to_hash()
 					for row in result
 				]
+				# return [self._row_to_dict(row=row, object_type=object_type, ident_type=None, aggregates=l_aggregates) for row in result]
 
-			return [self._row_to_object(row=row, object_type=object_type, aggregates=l_aggregates) for row in result]
+			conversions = self._get_conversions(object_type)  # type: ignore[arg-type]
+			return [
+				self._row_to_object(row=row, object_type=object_type, conversions=conversions, aggregates=l_aggregates) for row in result
+			]
 
 	def get_idents(  # pylint: disable=too-many-arguments
-		self, table: str, object_type: Type[BaseObject], ace: List[RPCACE], ident_type: IdentType = "str", filter: Dict[str, Any] = None  # pylint: disable=redefined-builtin
+		self,
+		table: str,
+		object_type: Type[BaseObject],
+		ace: List[RPCACE],
+		ident_type: IdentType = "str",
+		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
 	) -> List[dict]:
 		ident_attributes = self._get_ident_attributes(object_type)  # type: ignore[arg-type]
 		if not ident_attributes:
 			raise ValueError(f"Failed to get ident attributes for {object_type}")
 		return self.get_objects(  # type: ignore[call-overload]
-			table=table, ace=ace, object_type=object_type, ident_type=ident_type, return_type="ident", attributes=ident_attributes, filter=filter
+			table=table,
+			ace=ace,
+			object_type=object_type,
+			ident_type=ident_type,
+			return_type="ident",
+			attributes=ident_attributes,
+			filter=filter,
 		)
 
 	def insert_query(  # pylint: disable=too-many-locals,too-many-arguments
@@ -635,9 +629,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		table: str,
 		object_type: Type[BaseObject],
 		obj: List[BaseObject] | BaseObject | List[Dict[str, Any]] | Dict[str, Any],
-		ace: List[RPCACE]
+		ace: List[RPCACE],
 	) -> Tuple[str, Dict[str, Any], List[Dict[str, Any]]]:
-		ident_attributes = self._get_ident_attributes(object_type.__name__)
+		ident_attributes = self._get_ident_attributes(object_type)  # type: ignore[arg-type]
 		columns = self.get_columns(tables=[table], ace=ace, attributes=ident_attributes)
 		if len(columns) < len(ident_attributes):
 			raise BackendPermissionDeniedError("No permission")
@@ -663,7 +657,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 						continue
 					raise ValueError(f"No value for ident attribute {attr!r}")
 
-				if col["client_id_column"] and allowed_client_ids is not None and val not in allowed_client_ids:  # pylint: disable=loop-invariant-statement
+				if (
+					col["client_id_column"] and allowed_client_ids is not None and val not in allowed_client_ids
+				):  # pylint: disable=loop-invariant-statement
 					# No permission
 					break
 
@@ -685,7 +681,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		table: str,
 		object_type: Type[BaseObject],
 		obj: List[BaseObject] | BaseObject | List[Dict[str, Any]] | Dict[str, Any],
-		ace: List[RPCACE]
+		ace: List[RPCACE],
 	) -> None:
 		query, params, _idents = self.delete_query(table=table, object_type=object_type, obj=obj, ace=ace)
 		with self.session() as session:

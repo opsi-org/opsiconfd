@@ -69,7 +69,9 @@ class RPCProductOnDepotMixin(Protocol):
 		return self._mysql.get_idents(table="PRODUCT_ON_DEPOT", object_type=ProductOnDepot, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method
-	def productOnDepot_deleteObjects(self: BackendProtocol, productOnDepots: List[dict] | List[ProductOnDepot] | dict | ProductOnDepot) -> None:  # pylint: disable=invalid-name
+	def productOnDepot_deleteObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, productOnDepots: List[dict] | List[ProductOnDepot] | dict | ProductOnDepot
+	) -> None:
 		ace = self._get_ace("productOnDepot_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_ON_DEPOT", object_type=ProductOnDepot, obj=productOnDepots, ace=ace)
 

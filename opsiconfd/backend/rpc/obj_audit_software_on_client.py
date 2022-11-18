@@ -69,7 +69,9 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		return self._mysql.get_idents(table="SOFTWARE_CONFIG", object_type=AuditSoftwareOnClient, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method
-	def auditSoftwareOnClient_deleteObjects(self: BackendProtocol, auditSoftwareOnClients: List[dict] | List[AuditSoftwareOnClient] | dict | AuditSoftwareOnClient) -> None:  # pylint: disable=invalid-name
+	def auditSoftwareOnClient_deleteObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, auditSoftwareOnClients: List[dict] | List[AuditSoftwareOnClient] | dict | AuditSoftwareOnClient
+	) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_deleteObjects")
 		self._mysql.delete_objects(table="SOFTWARE_CONFIG", object_type=AuditSoftwareOnClient, obj=auditSoftwareOnClients, ace=ace)
 

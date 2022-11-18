@@ -9,9 +9,8 @@ opsiconfd.backend.rpc.object_to_group
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Protocol
+from typing import TYPE_CHECKING, Any, List, Protocol
 
-from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
 from opsicommon.objects import ObjectToGroup  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
 

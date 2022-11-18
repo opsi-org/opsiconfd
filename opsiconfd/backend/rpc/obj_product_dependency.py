@@ -69,7 +69,9 @@ class RPCProductDependencyMixin(Protocol):
 		return self._mysql.get_idents(table="PRODUCT_DEPENDENCY", object_type=ProductDependency, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method
-	def productDependency_deleteObjects(self: BackendProtocol, productDependencies: List[dict] | List[ProductDependency] | dict | ProductDependency) -> None:  # pylint: disable=invalid-name
+	def productDependency_deleteObjects(  # pylint: disable=invalid-name
+		self: BackendProtocol, productDependencies: List[dict] | List[ProductDependency] | dict | ProductDependency
+	) -> None:
 		ace = self._get_ace("productDependency_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_DEPENDENCY", object_type=ProductDependency, obj=productDependencies, ace=ace)
 

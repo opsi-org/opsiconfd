@@ -83,7 +83,7 @@ class RPCProductPropertyStateMixin(Protocol):
 		ace = self._get_ace("productPropertyState_getObjects")
 		return self._mysql.get_idents(
 			table="PRODUCT_PROPERTY_STATE", object_type=ProductPropertyState, ace=ace, ident_type=returnType, filter=filter
-	)
+		)
 
 	@rpc_method
 	def productPropertyState_deleteObjects(  # pylint: disable=invalid-name

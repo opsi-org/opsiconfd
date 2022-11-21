@@ -641,7 +641,7 @@ async def authenticate(scope: Scope, username: str, password: str) -> None:  # p
 					username = hosts[0].id
 					if not scope.get("response-headers"):
 						scope["response-headers"] = {}
-					scope["response-headers"]["x-opsi-host-id"] = username
+					scope["response-headers"]["x-opsi-new-host-id"] = username
 		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)

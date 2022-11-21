@@ -445,8 +445,8 @@ def test_auth_only_hostkey_id_header(
 
 		res = test_client.post("/rpc", auth=("", host_key), data=data)
 		assert res.status_code == 200
-		assert res.headers.get("x-opsi-host-id")
-		assert res.headers["x-opsi-host-id"] == "onlyhostkey.uib.gmbh"
+		assert res.headers.get("x-opsi-new-host-id")
+		assert res.headers["x-opsi-new-host-id"] == "onlyhostkey.uib.gmbh"
 
 	finally:
 		database_connection.query('DELETE FROM HOST WHERE hostId = "onlyhostkey.uib.gmbh"')

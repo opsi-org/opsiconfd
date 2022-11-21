@@ -10,6 +10,7 @@ session handling
 
 import asyncio
 import base64
+import re
 import time
 import uuid
 from collections import namedtuple
@@ -258,11 +259,16 @@ class SessionMiddleware:
 		contextvar_server_timing.set(server_timing)
 
 		async def send_wrapper(message: Message) -> None:
+
 			if message["type"] == "http.response.start":
+				headers = MutableHeaders(scope=message)
 				if scope["session"]:
 					await scope["session"].store()
-					headers = MutableHeaders(scope=message)
 					scope["session"].add_cookie_to_headers(headers)
+				if scope.get("response-headers"):
+					for key, value in scope["response-headers"].items():  # pylint: disable=use-list-copy
+						headers.append(key, value)
+
 			await send(message)
 
 		await self.app(scope, receive, send_wrapper)
@@ -608,11 +614,17 @@ def update_host_object(host_id: str, ip_address: str) -> None:
 	get_client_backend().host_updateObjects(host)  # pylint: disable=no-member
 
 
-async def authenticate(session: OPSISession, username: str, password: str) -> None:  # pylint: disable=unused-argument
-	from .backend import get_client_backend  # pylint: disable=import-outside-toplevel
+async def authenticate(scope: Scope, username: str, password: str) -> None:  # pylint: disable=unused-argument
+	from .backend import (  # pylint: disable=import-outside-toplevel
+		get_backend,
+		get_client_backend,
+	)
+
+	if not scope["session"]:
+		scope["session"] = await get_session(client_addr=scope["client"][0], headers=MutableHeaders(scope=scope))
+	session = scope["session"]
 
 	logger.info("Start authentication of client %s", session.client_addr)
-
 	# Check if host address is blocked
 	await check_blocked(session.client_addr)
 
@@ -621,6 +633,15 @@ async def authenticate(session: OPSISession, username: str, password: str) -> No
 		auth_type = "opsi-passwd"
 
 	def sync_auth(username: str, password: str, auth_type: str = None) -> None:
+		if config.allow_host_key_only_auth:
+			if (re.search(r"^[^.]+\.[^.]+\.\S+$", username) or re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", username) or not username):
+				host_filter = {"opsiHostKey": password}
+				hosts = get_backend().host_getObjects(**host_filter)  # pylint: disable=no-member
+				if len(hosts) == 1:
+					username = hosts[0].id
+					if not scope.get("response-headers"):
+						scope["response-headers"] = {}
+					scope["response-headers"]["x-opsi-new-host-id"] = username
 		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
 
 	await run_in_threadpool(sync_auth, username, password, auth_type)
@@ -711,7 +732,7 @@ async def check_access(connection: HTTPConnection) -> None:
 
 	if not session.user_store.username or not session.user_store.authenticated:
 		auth = get_basic_auth(connection.headers)
-		await authenticate(session, auth.username, auth.password)
+		await authenticate(connection.scope, auth.username, auth.password)
 
 	if scope["required_access_role"] == ACCESS_ROLE_ADMIN and not session.user_store.isAdmin:
 		raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope.get('method')} {scope.get('path')}")

@@ -12,8 +12,10 @@ health check
 import os
 import re
 import sys
+from re import findall
 from typing import Any, Dict, Optional, Union
 
+import requests
 from colorama import Fore, Style  # type: ignore[import]
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from OPSI.System.Posix import (  # type: ignore[import]
@@ -22,19 +24,22 @@ from OPSI.System.Posix import (  # type: ignore[import]
 	isRHEL,
 	isSLES,
 )
-from packaging.version import parse
+from packaging.version import parse as parse_version
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
-from opsiconfd.backend import get_mysql
+from opsiconfd.backend import get_backend, get_mysql
 from opsiconfd.logging import logger
 from opsiconfd.utils import decode_redis_result, redis_client
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
+OPSI_REPO = "https://download.uib.de"
+OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
+OPSI_PACKAGES = {"opsi-script": "0.0", "opsi-client-agent": "0.0"}
 
 
 MT_INFO = "info"
@@ -48,6 +53,7 @@ def health_check(print_messages: bool = False) -> dict:
 		show_message("Started health check...")
 	result = {}
 	result["system_packages"] = check_system_packages(print_messages)
+	result["opsi_packages"] = check_opsi_packages(print_messages)
 	result["redis"] = check_redis(print_messages)
 	result["mysql"] = check_mysql(print_messages)
 	result["deprecated_calls"] = check_deprecated_calls(print_messages)
@@ -142,7 +148,7 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 			not_installed = not_installed + 1
 			if print_messages:
 				show_message(f"Package {package} should be installed.", MT_ERROR)  # pylint: disable=loop-global-usage
-		elif parse(info["version"]) > parse(info["version_found"]):
+		elif parse_version(info["version"]) > parse_version(info["version_found"]):
 			outdated = outdated + 1
 			if print_messages:
 				show_message(
@@ -224,17 +230,108 @@ def check_deprecated_calls(print_messages: bool = False) -> dict:
 			deprecated_calls[method_name] = {"calls": calls, "last_call": last_call, "clients": clients}
 
 			if print_messages:
-				show_message(f"Deprecated method '{method_name}' was called {calls} times.", MT_WARNING)
-				show_message("The method was called from:", MT_WARNING)
+				show_message(
+					f"Deprecated method '{method_name}' was called {calls} times.", MT_WARNING  # pylint: disable=loop-global-usage
+				)  # pylint: disable=loop-global-usage
+				show_message("The method was called from:", MT_WARNING)  # pylint: disable=loop-global-usage
 				for client in clients:
-					show_message(f"\t- {client}", MT_WARNING)
-				show_message(f"Last call was {last_call}", MT_WARNING)
+					show_message(f"\t- {client}", MT_WARNING)  # pylint: disable=loop-global-usage
+				show_message(f"Last call was {last_call}", MT_WARNING)  # pylint: disable=loop-global-usage
 	if not deprecated_calls:
 		if print_messages:
 			show_message("No deprecated method calls found.", MT_SUCCESS)
 		return {"status": "ok", "details": "No deprecated method calls found."}
 	logger.devel(deprecated_calls)
 	return {"status": "warn", "details": deprecated_calls}
+
+
+def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-local-variables,too-many-branches
+	if print_messages:
+		show_message("Checking opsi packages...")
+	res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
+
+	avalible_packages = OPSI_PACKAGES
+	result = {"status": "ok", "details": "All packages up to date.", "partial_checks": {}}
+	partial_checks: Dict[str, Any] = {}
+	backend = get_backend()
+
+	not_installed = 0
+	outdated = 0
+
+	for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', res.text):
+		name, avalible_version = split_name_and_version(filename)
+
+		if name in avalible_packages:  # pylint: disable=loop-invariant-statement
+			avalible_packages[name] = avalible_version  # pylint: disable=loop-invariant-statement
+
+	depots = backend.host_getIdents(type="OpsiDepotserver")  # pylint: disable=no-member
+	for depot in depots:
+		if print_messages:
+			show_message(f"Checking versions on depot {depot}")
+		partial_checks[depot] = {}
+		for package, avalible_version in avalible_packages.items():
+			try:  # pylint: disable=loop-try-except-usage
+				product_on_depot = backend.productOnDepot_getObjects(productId=package, depotId=depot)[0]  # pylint: disable=no-member
+				not_installed = not_installed + 1
+			except IndexError as error:
+				logger.debug(error)
+				msg = f"Package '{package}' is not installed."
+				if print_messages:
+					show_message(
+						f"	{msg}",
+						MT_ERROR,  # pylint: disable=loop-global-usage
+					)
+				result["status"] = "error"  #  pylint: disable=loop-invariant-statement
+				partial_checks[depot][package] = {
+					"status": "error",
+					"details": msg,
+				}
+				continue
+			if parse_version(avalible_version) > parse_version(f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"):
+				msg = (
+					f"Package '{package}' is outdated. Installed version: {product_on_depot.productVersion}-{product_on_depot.packageVersion}"
+					f"- avalible Version: {avalible_version}"
+				)
+				if print_messages:
+					show_message(
+						f"	{msg}",
+						MT_ERROR,  # pylint: disable=loop-global-usage
+					)
+				result["status"] = "error"  #  pylint: disable=loop-invariant-statement
+				partial_checks[depot][package] = {  #  pylint: disable=loop-invariant-statement
+					"status": "error",
+					"details": msg,
+				}
+				outdated = outdated + 1
+			else:
+				if print_messages:
+					show_message(
+						f"	Package {package} on is up to date. Installed version: {product_on_depot.productVersion}-{product_on_depot.packageVersion}",
+						MT_SUCCESS,  # pylint: disable=loop-global-usage
+					)
+				partial_checks[depot][package] = {  #  pylint: disable=loop-invariant-statement
+					"status": "ok",
+					"details": f"Installed version: {product_on_depot.productVersion}-{product_on_depot.packageVersion}.",
+				}
+
+	if not_installed > 0 or outdated > 0:
+		result["details"] = (
+			f"Out of {len(OPSI_PACKAGES.keys())} packages on {len(depots)} depots checked, "
+			f"{not_installed} are not installed and {outdated} are out of date."
+		)
+	else:
+		if print_messages:
+			show_message("No deprecated method calls found.", MT_SUCCESS)
+
+	result["partial_checks"] = partial_checks
+	return result
+
+
+def split_name_and_version(filename: str) -> tuple:
+	match = re.search(r"(?P<name>[\w_-]+)_(?P<version>.+-.+)\.opsi", filename)
+	if not match:
+		raise ValueError(f"Unable to split software name and version from {filename}")
+	return (match.group("name"), match.group("version"))
 
 
 def show_message(message: str, msg_type: str = MT_INFO, newline: bool = True, msg_format: Optional[str] = None, log: bool = False) -> None:

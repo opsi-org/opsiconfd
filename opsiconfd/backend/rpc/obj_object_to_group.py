@@ -74,7 +74,7 @@ class RPCObjectToGroupMixin(Protocol):
 		self._mysql.delete_objects(table="OBJECT_TO_GROUP", object_type=ObjectToGroup, obj=objectToGroups, ace=ace)
 
 	@rpc_method
-	def objectToGroup_create(self: BackendProtocol, groupType: str, groupId: str, objectId: str) -> None:  # pylint: disable=unused-argument
+	def objectToGroup_create(self: BackendProtocol, groupType: str, groupId: str, objectId: str) -> None:  # pylint: disable=invalid-name
 		_hash = locals()
 		del _hash["self"]
 		self.objectToGroup_createObjects(ObjectToGroup.fromHash(_hash))

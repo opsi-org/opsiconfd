@@ -76,5 +76,53 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		self._mysql.delete_objects(table="SOFTWARE_CONFIG", object_type=AuditSoftwareOnClient, obj=auditSoftwareOnClients, ace=ace)
 
 	@rpc_method
-	def auditSoftwareOnClient_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.auditSoftwareOnClient_deleteObjects([{"id": id}])
+	def auditSoftwareOnClient_create(  # pylint: disable=invalid-name,too-many-arguments,too-many-locals
+		self: BackendProtocol,
+		name: str,  # pylint: disable=unused-argument
+		version: str,  # pylint: disable=unused-argument
+		subVersion: str,  # pylint: disable=invalid-name,unused-argument
+		language: str,  # pylint: disable=unused-argument
+		architecture: str,  # pylint: disable=unused-argument
+		clientId: str,  # pylint: disable=invalid-name,unused-argument
+		uninstallString: str = None,  # pylint: disable=invalid-name,unused-argument
+		binaryName: str = None,  # pylint: disable=invalid-name,unused-argument
+		firstseen: str = None,  # pylint: disable=unused-argument
+		lastseen: str = None,  # pylint: disable=unused-argument
+		state: int = None,  # pylint: disable=unused-argument
+		usageFrequency: int = None,  # pylint: disable=invalid-name,unused-argument
+		lastUsed: str = None,  # pylint: disable=invalid-name,unused-argument
+		licenseKey: str = None,  # pylint: disable=invalid-name,unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		return self.auditSoftwareOnClient_createObjects(AuditSoftwareOnClient.fromHash(_hash))
+
+	def auditSoftwareOnClient_delete(  # pylint: disable=invalid-name,too-many-arguments
+		self: BackendProtocol, name: str, version: str, subVersion: str, language: str, architecture: str, clientId: str
+	) -> None:
+		if name is None:
+			name = []  # pylint: disable=use-tuple-over-list
+		if version is None:
+			version = []  # pylint: disable=use-tuple-over-list
+		if subVersion is None:
+			subVersion = []  # pylint: disable=use-tuple-over-list
+		if language is None:
+			language = []  # pylint: disable=use-tuple-over-list
+		if architecture is None:
+			architecture = []  # pylint: disable=use-tuple-over-list
+		if clientId is None:
+			clientId = []  # pylint: disable=use-tuple-over-list
+
+		self.auditSoftwareOnClient_deleteObjects(
+			self.auditSoftwareOnClient_getIdents(
+				returnType="dict", name=name, version=version, subVersion=subVersion, language=language, architecture=architecture, clientId=clientId
+			)
+		)
+
+	@rpc_method
+	def auditSoftwareOnClient_setObsolete(self: BackendProtocol, clientId: List[str] | str) -> None:  # pylint: disable=invalid-name
+		self.auditSoftwareOnClient_deleteObjects(
+			self.auditSoftwareOnClient_getIdents(
+				returnType="dict", clientId=clientId
+			)
+		)

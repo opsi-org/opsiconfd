@@ -28,6 +28,9 @@ class RPCACE:
 	denied_attributes: Set[str] = field(default_factory=set)
 
 
+RPCACE_ALLOW_ALL = RPCACE(method_re=re.compile(".*"), type="all")
+
+
 def read_acl_file(acl_file: Path | str) -> List[RPCACE]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	acl = []
 	# acl example:

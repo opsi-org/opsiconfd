@@ -27,6 +27,7 @@ from .ext_wim import RPCExtWIMMixin
 from .extender import RPCExtenderMixin
 from .general import RPCGeneralMixin
 from .obj_audit_hardware import RPCAuditHardwareMixin
+from .obj_audit_hardware_on_host import RPCAuditHardwareOnHostMixin
 from .obj_audit_software import RPCAuditSoftwareMixin
 from .obj_audit_software_on_client import RPCAuditSoftwareOnClientMixin
 from .obj_config import RPCConfigMixin
@@ -65,6 +66,7 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCAuditSoftwareMixin,
 	RPCAuditSoftwareOnClientMixin,
 	RPCAuditHardwareMixin,
+	RPCAuditHardwareOnHostMixin,
 	RPCExtLegacyMixin,
 	RPCExtAdminTasksMixin,
 	RPCExtDeprecatedMixin,

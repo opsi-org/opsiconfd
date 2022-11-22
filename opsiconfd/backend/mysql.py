@@ -79,7 +79,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		"SOFTWARE_LICENSE": {"id": "softwareLicenseId"},
 		"LICENSE_POOL": {"id": "licensePoolId"},
 	}
-	_client_id_column = {"HOST": "hostId"}
+	_client_id_column = {
+		"HOST": "hostId",
+		"PRODUCT_ON_CLIENT": "clientId",
+		"CONFIG_STATE": "objectId",
+		"PRODUCT_PROPERTY_STATE": "objectId",
+		"SOFTWARE_CONFIG": "clientId",
+	}
 	record_separator = "␞"
 
 	def __init__(self) -> None:
@@ -253,43 +259,53 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					else:
 						logger.error("Failed to get python type for: %s", mysql_type)
 					self.tables[table_name][row["Field"]] = py_type  # pylint: disable=loop-invariant-statement
+				if table_name.startswith("HARDWARE_CONFIG_"):
+					self._client_id_column[table_name] = "hostId"
+				if table_name.startswith("HARDWARE_DEVICE_"):
+					self._client_id_column[table_name] = ""
 
 	def get_columns(
 		self, tables: List[str], ace: List[RPCACE], attributes: Union[List[str], Tuple[str, ...]] = None
-	) -> Dict[str, Dict[str, str | bool]]:
-		res: Dict[str, Dict[str, str | bool]] = {}
+	) -> Dict[str, Dict[str, str | bool | None]]:
+		res: Dict[str, Dict[str, str | bool | None]] = {}
 		client_id_column = self._client_id_column.get(tables[0])
 		for table in tables:
 			for col in self.tables[table]:
 				attr = self._column_to_attribute.get(table, {}).get(col, col)
+				selected = True
 				if attributes and attr not in attributes and attr != "type":
-					continue
+					selected = False
+				self_ace = None
 				for _ace in sorted(ace, key=lambda a: a.type == "self"):
+					self_ace = _ace
 					if _ace.allowed_attributes and attr not in _ace.allowed_attributes:
-						continue
+						selected = False
+						break
 					if _ace.denied_attributes and attr in _ace.denied_attributes:
-						continue
-					res[attr] = {  # pylint: disable=loop-invariant-statement
-						"table": table,
-						"column": col,
-						"client_id_column": table == tables[0] and col == client_id_column,
-					}
-					if _ace.type == "self":
-						if not client_id_column:  # pylint: disable=loop-invariant-statement
-							raise RuntimeError(  # pylint: disable=loop-invariant-statement
-								f"No client id attribute defined for table {tables[0]}"  # pylint: disable=loop-invariant-statement
-							)
+						selected = False
+						break
+				res[attr] = {  # pylint: disable=loop-invariant-statement
+					"table": table,
+					"column": col,
+					"client_id_column": table == tables[0] and col == client_id_column,  # pylint: disable=loop-invariant-statement
+					"select": None,
+				}
+				if selected:
+					if self_ace and client_id_column is None:  # pylint: disable=loop-invariant-statement
+						raise RuntimeError(  # pylint: disable=loop-invariant-statement
+							f"No client id attribute defined for table {tables[0]}"  # pylint: disable=loop-invariant-statement
+						)
+					if self_ace and client_id_column:
 						res[attr][  # pylint: disable=loop-invariant-statement
 							"select"  # pylint: disable=loop-invariant-statement
-						] = f"IF(`{tables[0]}`.`{client_id_column}`='{_ace.id}',`{table}`.`{col}`,NULL)"  # pylint: disable=loop-invariant-statement
+						] = f"IF(`{tables[0]}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,NULL)"  # pylint: disable=loop-invariant-statement
 					else:
 						res[attr]["select"] = f"`{table}`.`{col}`"  # pylint: disable=loop-invariant-statement
-					break
 		return res
 
 	def get_where(  # pylint: disable=too-many-locals,too-many-branches
 		self,
-		columns: Dict[str, Dict[str, str | bool]],
+		columns: Dict[str, Dict[str, str | bool | None]],
 		ace: List[RPCACE],
 		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
 	) -> Tuple[str, Dict[str, Any]]:
@@ -364,7 +380,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 	@lru_cache(maxsize=0)
 	def _get_ident_attributes(self, object_type: Type[BaseObject]) -> Tuple[str, ...]:
-		return get_ident_attributes(object_type)
+		ident_attributes = get_ident_attributes(object_type)
+		if "hardwareClass" in ident_attributes:
+			ident_attributes = tuple([a for a in ident_attributes if a != "hardwareClass"])  # pylint: disable=consider-using-generator
+		return ident_attributes
 
 	@lru_cache(maxsize=0)
 	def _get_object_type(self, object_type: str) -> Type[BaseObject] | None:
@@ -510,7 +529,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		query = (
 			"SELECT "
 			f"{', '.join(aggs) + ', ' if aggs else ''}"
-			f"""{', '.join([f"{c['select']} AS `{a}`" for a, c in columns.items()])}"""
+			f"""{', '.join([f"{c['select']} AS `{a}`" for a, c in columns.items() if c['select']])}"""
 			f" {table}"
 		)
 		where, params = self.get_where(columns=columns, ace=ace, filter=filter)
@@ -572,8 +591,14 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			filter=filter,
 		)
 
-	def insert_query(  # pylint: disable=too-many-locals,too-many-arguments
-		self, table: str, obj: BaseObject, ace: List[RPCACE], create: bool = True, set_null: bool = True
+	def insert_query(  # pylint: disable=too-many-locals,too-many-arguments,too-many-branches
+		self,
+		table: str,
+		obj: BaseObject,
+		ace: List[RPCACE],
+		create: bool = True,
+		set_null: bool = True,
+		additional_data: Dict[str, Any] = None,
 	) -> Tuple[str, Dict[str, Any]]:
 		if not isinstance(obj, BaseObject):
 			obj = OBJECT_CLASSES[obj["type"]].fromHash(obj)
@@ -606,6 +631,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			vals.append(f":{attr}")
 			updates.append(f"`{column['column']}` = :{attr}")
 
+		if additional_data:
+			for col, val in additional_data.items():
+				cols.append(f"`{col}`")
+				vals.append(f":{col}")
+				updates.append(f"`{col}` = :{col}")
+				data[col] = val
+
 		if not updates:
 			return "", {}
 
@@ -618,13 +650,19 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		return query, data
 
 	def insert_object(  # pylint: disable=too-many-locals,too-many-arguments
-		self, table: str, obj: BaseObject, ace: List[RPCACE], create: bool = True, set_null: bool = True
-	) -> int:
-		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null)
+		self,
+		table: str,
+		obj: BaseObject,
+		ace: List[RPCACE],
+		create: bool = True,
+		set_null: bool = True,
+		additional_data: Dict[str, Any] = None,
+	) -> Any:
+		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
 		if query:
 			with self.session() as session:
-				return session.execute(query, params=params).rowcount
-		return 0
+				return session.execute(query, params=params).lastrowid
+		return None
 
 	def delete_query(  # pylint: disable=too-many-locals
 		self,
@@ -648,7 +686,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		for entry in obj:
 			cond = []
 			ident = {}
-			for attr, col in columns.items():
+			for attr in ident_attributes:
+				col = columns[attr]
 				val = None
 				if isinstance(entry, dict):
 					val = entry.get(attr)
@@ -657,7 +696,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				if not val:
 					if attr == "type":
 						continue
-					raise ValueError(f"No value for ident attribute {attr!r}")
+					if val is None:
+						# Empty string allowed
+						raise ValueError(f"No value for ident attribute {attr!r}")
 
 				if (
 					col["client_id_column"]

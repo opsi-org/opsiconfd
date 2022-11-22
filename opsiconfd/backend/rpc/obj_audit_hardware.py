@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections import defaultdict
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol
 
@@ -79,6 +80,23 @@ class RPCAuditHardwareMixin(Protocol):
 				self._audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore  # pylint: disable=loop-invariant-statement
 		AuditHardware.setHardwareConfig(config)
 		AuditHardwareOnHost.setHardwareConfig(config)
+
+	def _audit_hardware_by_hardware_class(
+		self: BackendProtocol,
+		audit_hardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
+	) -> Dict[str, List[AuditHardware]]:
+		by_hardware_class = defaultdict(list)
+		for ahoh in forceList(audit_hardwares):  # pylint: disable=use-list-copy
+			if not isinstance(ahoh, AuditHardware):
+				ahoh = AuditHardware.fromHash(ahoh)
+			by_hardware_class[ahoh.hardwareClass].append(ahoh)
+		return by_hardware_class
+
+	def auditHardware_deleteAll(self: BackendProtocol) -> None:  # pylint: disable=invalid-name
+		with self._mysql.session() as session:
+			for hardware_class in self._audit_hardware_config:
+				session.execute(f"TRUNCATE TABLE `HARDWARE_CONFIG_{hardware_class}`")
+				session.execute(f"TRUNCATE TABLE `HARDWARE_DEVICE_{hardware_class}`")
 
 	@rpc_method
 	def auditHardware_getConfig(self: BackendProtocol, language: str = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
@@ -158,28 +176,34 @@ class RPCAuditHardwareMixin(Protocol):
 	@rpc_method
 	def auditHardware_insertObject(self: BackendProtocol, auditHardware: dict | AuditHardware) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("auditHardware_insertObject")
-		self._mysql.insert_object(table="AUDIT_HARDWARE", obj=auditHardware, ace=ace, create=True, set_null=True)
+		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardware).items():
+			for obj in auh:
+				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=True)
 
 	@rpc_method
 	def auditHardware_updateObject(self: BackendProtocol, auditHardware: dict | AuditHardware) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("auditHardware_updateObject")
-		self._mysql.insert_object(table="AUDIT_HARDWARE", obj=auditHardware, ace=ace, create=False, set_null=False)
+		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardware).items():
+			for obj in auh:
+				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=False, set_null=False)
 
 	@rpc_method
 	def auditHardware_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
 	) -> None:
 		ace = self._get_ace("auditHardware_createObjects")
-		for auditHardware in forceList(auditHardwares):
-			self._mysql.insert_object(table="AUDIT_HARDWARE", obj=auditHardware, ace=ace, create=True, set_null=True)
+		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
+			for obj in auh:
+				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=True)
 
 	@rpc_method
 	def auditHardware_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
 	) -> None:
 		ace = self._get_ace("auditHardware_updateObjects")
-		for auditHardware in forceList(auditHardwares):
-			self._mysql.insert_object(table="AUDIT_HARDWARE", obj=auditHardware, ace=ace, create=True, set_null=False)
+		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
+			for obj in auh:
+				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=False)
 
 	def _audit_hardware_get(  # pylint: disable=redefined-builtin,too-many-branches,too-many-locals,too-many-statements,too-many-arguments
 		self: BackendProtocol,
@@ -225,7 +249,7 @@ class RPCAuditHardwareMixin(Protocol):
 						ident_attributes.append(attr)
 						if attr in filter:
 							class_filter[attr] = filter[attr]
-						if attributes and attr not in attributes:
+						if attributes and return_type != "dict" and attr not in attributes:  # pylint: disable=loop-invariant-statement
 							attributes.append(attr)
 
 				if attributes and return_hardware_ids and "hardware_id" not in attributes:
@@ -242,7 +266,7 @@ class RPCAuditHardwareMixin(Protocol):
 				if not return_hardware_ids and "hardware_id" in columns:
 					del columns["hardware_id"]
 				where, params = self._mysql.get_where(columns=columns, ace=ace, filter=class_filter)
-				query = f"""SELECT {', '.join([f"{c['select']} AS `{a}`" for a, c in columns.items()])} FROM `{table}` {where}"""  # pylint: disable=loop-invariant-statement
+				query = f"""SELECT {', '.join([f"{c['select']} AS `{a}`" for a, c in columns.items() if c['select']])} FROM `{table}` {where}"""  # pylint: disable=loop-invariant-statement
 				for row in session.execute(query, params=params).fetchall():
 					data = dict(row)
 					if return_type == "object":  # pylint: disable=loop-invariant-statement

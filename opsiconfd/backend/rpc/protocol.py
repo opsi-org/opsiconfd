@@ -35,6 +35,9 @@ from .obj_config import RPCConfigMixin
 from .obj_config_state import RPCConfigStateMixin
 from .obj_group import RPCGroupMixin
 from .obj_host import RPCHostMixin
+from .obj_license_contract import RPCLicenseContractMixin
+from .obj_license_on_client import RPCLicenseOnClientMixin
+from .obj_license_pool import RPCLicensePoolMixin
 from .obj_object_to_group import RPCObjectToGroupMixin
 from .obj_product import RPCProductMixin
 from .obj_product_dependency import RPCProductDependencyMixin
@@ -42,6 +45,8 @@ from .obj_product_on_client import RPCProductOnClientMixin
 from .obj_product_on_depot import RPCProductOnDepotMixin
 from .obj_product_property import RPCProductPropertyMixin
 from .obj_product_property_state import RPCProductPropertyStateMixin
+from .obj_software_license import RPCSoftwareLicenseMixin
+from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
 
 if TYPE_CHECKING:
 	from ..auth import RPCACE
@@ -64,6 +69,11 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCProductPropertyStateMixin,
 	RPCProductOnDepotMixin,
 	RPCProductOnClientMixin,
+	RPCLicenseContractMixin,
+	RPCLicenseOnClientMixin,
+	RPCLicensePoolMixin,
+	RPCSoftwareLicenseToLicensePoolMixin,
+	RPCSoftwareLicenseMixin,
 	RPCAuditSoftwareMixin,
 	RPCAuditSoftwareOnClientMixin,
 	RPCAuditHardwareMixin,
@@ -92,6 +102,9 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 		...
 
 	def _check_role(self, required_role: str) -> None:
+		...
+
+	def _check_module(self, module: str) -> None:
 		...
 
 	def get_interface(self) -> List[Dict[str, Any]]:

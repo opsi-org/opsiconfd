@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 class RPCProductMixin(Protocol):
 	@rpc_method
 	def product_insertObject(self: BackendProtocol, product: dict | Product) -> None:  # pylint: disable=invalid-name
+		self._check_module("mysql_backend")
 		ace = self._get_ace("product_insertObject")
 		self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=True)
 
@@ -35,6 +36,7 @@ class RPCProductMixin(Protocol):
 	def product_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, products: List[dict] | List[Product] | dict | Product
 	) -> None:
+		self._check_module("mysql_backend")
 		ace = self._get_ace("product_createObjects")
 		for product in forceList(products):
 			self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=True)

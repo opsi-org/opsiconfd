@@ -15,7 +15,10 @@ from inspect import getfullargspec, getmembers, ismethod, signature
 from textwrap import dedent
 from typing import Any, Dict, List
 
-from opsicommon.exceptions import BackendPermissionDeniedError  # type: ignore[import]
+from opsicommon.exceptions import (  # type: ignore[import]
+	BackendModuleDisabledError,
+	BackendPermissionDeniedError,
+)
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
 from opsiconfd.config import config
@@ -46,6 +49,9 @@ from .obj_config import RPCConfigMixin
 from .obj_config_state import RPCConfigStateMixin
 from .obj_group import RPCGroupMixin
 from .obj_host import RPCHostMixin
+from .obj_license_contract import RPCLicenseContractMixin
+from .obj_license_on_client import RPCLicenseOnClientMixin
+from .obj_license_pool import RPCLicensePoolMixin
 from .obj_object_to_group import RPCObjectToGroupMixin
 from .obj_product import RPCProductMixin
 from .obj_product_dependency import RPCProductDependencyMixin
@@ -53,6 +59,8 @@ from .obj_product_on_client import RPCProductOnClientMixin
 from .obj_product_on_depot import RPCProductOnDepotMixin
 from .obj_product_property import RPCProductPropertyMixin
 from .obj_product_property_state import RPCProductPropertyStateMixin
+from .obj_software_license import RPCSoftwareLicenseMixin
+from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
 
 backend_interface = None  # pylint: disable=invalid-name
 
@@ -128,6 +136,8 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 	RPCObjectToGroupMixin, RPCProductMixin, RPCProductDependencyMixin,
 	RPCProductPropertyMixin, RPCProductPropertyStateMixin,
 	RPCProductOnDepotMixin, RPCProductOnClientMixin,
+	RPCLicenseContractMixin, RPCLicenseOnClientMixin, RPCLicensePoolMixin,
+	RPCSoftwareLicenseToLicensePoolMixin, RPCSoftwareLicenseMixin,
 	RPCAuditSoftwareMixin, RPCAuditSoftwareOnClientMixin,
 	RPCAuditHardwareMixin, RPCAuditHardwareOnHostMixin,
 	RPCExtLegacyMixin, RPCExtAdminTasksMixin, RPCExtDeprecatedMixin,
@@ -157,12 +167,17 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 		self._interface = describe_interface(self)
 		self._backend = get_client_backend()
 		self.method_names = [meth["name"] for meth in self._interface]
+		self.avaliable_modules = self.backend_getLicensingInfo()["available_modules"]
 		self.read_acl_file()
 
 	def read_acl_file(self) -> None:
 		acl = read_acl_file(config.acl_file)
 		for method_name in self.method_names:
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
+
+	def _check_module(self, module: str) -> None:
+		if module not in self.avaliable_modules:
+			raise BackendModuleDisabledError(f"Module {module!r} not available")
 
 	def _get_ace(self, method: str) -> List[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
 		"""

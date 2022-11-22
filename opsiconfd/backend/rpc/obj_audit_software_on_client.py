@@ -98,7 +98,13 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		return self.auditSoftwareOnClient_createObjects(AuditSoftwareOnClient.fromHash(_hash))
 
 	def auditSoftwareOnClient_delete(  # pylint: disable=invalid-name,too-many-arguments
-		self: BackendProtocol, name: str, version: str, subVersion: str, language: str, architecture: str, clientId: str
+		self: BackendProtocol,
+		name: list[str] | str | None,
+		version: list[str] | str | None,
+		subVersion: list[str] | str | None,
+		language: list[str] | str | None,
+		architecture: list[str] | str | None,
+		clientId: list[str] | str | None
 	) -> None:
 		if name is None:
 			name = []  # pylint: disable=use-tuple-over-list

@@ -34,9 +34,9 @@ class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
 		:rtype: set([str, ...])
 		"""
 		group_ids = set()
-		for values in self._get_config_state_values_with_defaults(
-			config_ids=["software-on-demand.product-group-ids"], object_id=client_id
-		).values():
+		for values in self.configState_getValues(config_ids=["software-on-demand.product-group-ids"], object_ids=[client_id])[
+			client_id
+		].values():
 			for value in values:
 				for group_id in str(value).split(","):
 					group_id = group_id.strip()
@@ -73,7 +73,11 @@ class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
 			product_on_clients = {poc.productId: poc for poc in self.productOnClient_getObjects(clientId=clientId, productId=product_ids)}
 			products = self.product_getObjects(id=product_ids)
 			if addConfigs:
-				config_state_values = self._get_config_state_values_with_defaults(config_ids=["software-on-demand.*"], object_id=clientId)
+				config_state_values = []  # pylint: disable=use-tuple-over-list
+				cst = self.configState_getValues(config_ids=["software-on-demand.*"], object_ids=[clientId])
+				if cst:
+					config_state_values = list(cst.get(clientId, {}).values())
+
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 			raise RuntimeError(f"Failed to collect kiosk data: {err}") from err

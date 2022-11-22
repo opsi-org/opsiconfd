@@ -175,7 +175,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if objectId:
 			return {
 				config_id: ",".join([str(v) for v in values])
-				for config_id, values in self._get_config_state_values_with_defaults(config_ids=[], object_id=objectId).items()
+				for config_id, values in self.configState_getValues(config_ids=[], object_ids=[objectId])[objectId].items()
 			}
 		return {config.id: ",".join([str(v) for v in config.defaultValues]) for config in self.config_getObjects()}
 

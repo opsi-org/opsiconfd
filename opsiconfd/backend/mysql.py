@@ -277,7 +277,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					selected = False
 				self_ace = None
 				for _ace in sorted(ace, key=lambda a: a.type == "self"):
-					self_ace = _ace
+					if _ace.type == "self":
+						self_ace = _ace
 					if _ace.allowed_attributes and attr not in _ace.allowed_attributes:
 						selected = False
 						break
@@ -293,7 +294,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				if selected:
 					if self_ace and client_id_column is None:  # pylint: disable=loop-invariant-statement
 						raise RuntimeError(  # pylint: disable=loop-invariant-statement
-							f"No client id attribute defined for table {tables[0]}"  # pylint: disable=loop-invariant-statement
+							f"No client id attribute defined for table {tables[0]} using ace {self_ace}"  # pylint: disable=loop-invariant-statement
 						)
 					if self_ace and client_id_column:
 						res[attr][  # pylint: disable=loop-invariant-statement
@@ -319,6 +320,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				continue
 
 			values = f_val if isinstance(f_val, list) else [f_val]
+			if len(values) == 0:
+				continue
+
+			if f_attr == "type" and "OpsiDepotserver" in values and "OpsiConfigserver" not in values:
+				values.append("OpsiConfigserver")
 
 			operator = "IN" if len(values) > 1 else "="
 			if values[0] is None:

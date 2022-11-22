@@ -26,6 +26,7 @@ from .ext_wan import RPCExtWANMixin
 from .ext_wim import RPCExtWIMMixin
 from .extender import RPCExtenderMixin
 from .general import RPCGeneralMixin
+from .host_control import RPCHostControlMixin
 from .obj_audit_hardware import RPCAuditHardwareMixin
 from .obj_audit_hardware_on_host import RPCAuditHardwareOnHostMixin
 from .obj_audit_software import RPCAuditSoftwareMixin
@@ -79,6 +80,7 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCExtKioskMixin,
 	RPCExtSSHCommandsMixin,
 	RPCDepotserverMixin,
+	RPCHostControlMixin,
 	RPCExtenderMixin,
 	Protocol,
 ):

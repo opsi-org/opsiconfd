@@ -37,6 +37,7 @@ from .ext_wan import RPCExtWANMixin
 from .ext_wim import RPCExtWIMMixin
 from .extender import RPCExtenderMixin
 from .general import RPCGeneralMixin
+from .host_control import RPCHostControlMixin
 from .obj_audit_hardware import RPCAuditHardwareMixin
 from .obj_audit_hardware_on_host import RPCAuditHardwareOnHostMixin
 from .obj_audit_software import RPCAuditSoftwareMixin
@@ -132,7 +133,7 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 	RPCExtLegacyMixin, RPCExtAdminTasksMixin, RPCExtDeprecatedMixin,
 	RPCExtDynamicDepotMixin, RPCExtEasyMixin, RPCExtKioskMixin,
 	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin, RPCExtOpsiMixin,
-	RPCDepotserverMixin, RPCExtenderMixin
+	RPCDepotserverMixin, RPCHostControlMixin, RPCExtenderMixin
 ):
 	__instance = None
 	__initialized = False

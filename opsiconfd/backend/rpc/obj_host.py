@@ -224,7 +224,7 @@ class RPCHostMixin(Protocol):
 
 	@rpc_method
 	def host_renameOpsiClient(  # pylint: disable=redefined-builtin,invalid-name,too-many-locals,too-many-branches,too-many-statements
-		self, id: str, newId: str
+		self: BackendProtocol, id: str, newId: str
 	) -> None:
 		cur_client_id = forceHostId(id)  # pylint: disable=invalid-name
 		new_client_id = forceHostId(newId)
@@ -321,7 +321,7 @@ class RPCHostMixin(Protocol):
 			self.softwareLicense_createObjects(software_licenses)
 
 	@rpc_method
-	def host_renameOpsiDepotserver(self, oldId: str, newId: str) -> None:  # pylint: disable=invalid-name,too-many-branches,too-many-statements,too-many-locals
+	def host_renameOpsiDepotserver(self: BackendProtocol, oldId: str, newId: str) -> None:  # pylint: disable=invalid-name,too-many-branches,too-many-statements,too-many-locals
 		"""
 		Rename OpsiDepotserver with id `oldId` to `newId`.
 

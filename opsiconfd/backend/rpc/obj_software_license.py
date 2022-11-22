@@ -11,7 +11,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List, Protocol
 
-from opsicommon.objects import SoftwareLicense  # type: ignore[import]
+from opsicommon.objects import (  # type: ignore[import]
+	ConcurrentSoftwareLicense,
+	OEMSoftwareLicense,
+	RetailSoftwareLicense,
+	SoftwareLicense,
+	VolumeSoftwareLicense,
+)
 from opsicommon.types import forceList  # type: ignore[import]
 
 from . import rpc_method
@@ -80,3 +86,55 @@ class RPCSoftwareLicenseMixin(Protocol):
 	@rpc_method
 	def softwareLicense_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		self.softwareLicense_deleteObjects([{"id": id}])
+
+	@rpc_method
+	def softwareLicense_createRetail(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		licenseContractId: str,  # pylint: disable=unused-argument
+		maxInstallations: int = None,  # pylint: disable=unused-argument
+		boundToHost: str = None,  # pylint: disable=unused-argument
+		expirationDate: str = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.softwareLicense_createObjects(RetailSoftwareLicense.fromHash(_hash))
+
+	@rpc_method
+	def softwareLicense_createOEM(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		licenseContractId: str,  # pylint: disable=unused-argument
+		maxInstallations: int = None,  # pylint: disable=unused-argument
+		boundToHost: str = None,  # pylint: disable=unused-argument
+		expirationDate: str = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.softwareLicense_createObjects(OEMSoftwareLicense.fromHash(_hash))
+
+	@rpc_method
+	def softwareLicense_createVolume(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		licenseContractId: str,  # pylint: disable=unused-argument
+		maxInstallations: int = None,  # pylint: disable=unused-argument
+		boundToHost: str = None,  # pylint: disable=unused-argument
+		expirationDate: str = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.softwareLicense_createObjects(VolumeSoftwareLicense.fromHash(_hash))
+
+	@rpc_method
+	def softwareLicense_createConcurrent(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		licenseContractId: str,  # pylint: disable=unused-argument
+		maxInstallations: int = None,  # pylint: disable=unused-argument
+		boundToHost: str = None,  # pylint: disable=unused-argument
+		expirationDate: str = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.softwareLicense_createObjects(ConcurrentSoftwareLicense.fromHash(_hash))

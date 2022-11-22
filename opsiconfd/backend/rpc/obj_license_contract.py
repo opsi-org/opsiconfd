@@ -80,3 +80,18 @@ class RPCLicenseContractMixin(Protocol):
 	@rpc_method
 	def licenseContract_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		self.licenseContract_deleteObjects([{"id": id}])
+
+	@rpc_method
+	def licenseContract_create(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		description: str = None,  # pylint: disable=unused-argument
+		notes: str = None,  # pylint: disable=unused-argument
+		partner: str = None,  # pylint: disable=unused-argument
+		conclusionDate: str = None,  # pylint: disable=unused-argument
+		notificationDate: str = None,  # pylint: disable=unused-argument
+		expirationDate: str = None,  # pylint: disable=redefined-builtin,unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.licenseContract_createObjects(LicenseContract.fromHash(_hash))

@@ -78,9 +78,13 @@ PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
 LOG_SIZE_HARD_LIMIT = 10000000
 
 
-class RPCGeneralMixin(Protocol):  # pylint: disable=too-few-public-methods
+class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	opsi_modules_file: str = "/etc/opsi/modules"
 	opsi_license_path: str = "/etc/opsi/licenses"
+
+	@rpc_method
+	def backend_createBase(self) -> None:  # pylint: disable=invalid-name
+		return None
 
 	@rpc_method
 	def backend_getInterface(self: BackendProtocol) -> List[Dict[str, Any]]:  # pylint: disable=invalid-name

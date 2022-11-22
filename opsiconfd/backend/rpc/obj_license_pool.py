@@ -76,5 +76,11 @@ class RPCLicensePoolMixin(Protocol):
 		self._mysql.delete_objects(table="LICENSE_POOL", object_type=LicensePool, obj=licensePools, ace=ace)
 
 	@rpc_method
+	def licensePool_create(self: BackendProtocol, id: str, description: str = None, productIds: list[str] = None) -> None:  # pylint: disable=redefined-builtin,unused-argument,invalid-name
+		_hash = locals()
+		del _hash["self"]
+		self.licensePool_createObjects(LicensePool.fromHash(_hash))
+
+	@rpc_method
 	def licensePool_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		self.licensePool_deleteObjects([{"id": id}])

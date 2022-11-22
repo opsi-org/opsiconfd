@@ -31,6 +31,7 @@ from .obj_audit_hardware import RPCAuditHardwareMixin
 from .obj_audit_hardware_on_host import RPCAuditHardwareOnHostMixin
 from .obj_audit_software import RPCAuditSoftwareMixin
 from .obj_audit_software_on_client import RPCAuditSoftwareOnClientMixin
+from .obj_audit_software_to_license_pool import RPCAuditSoftwareToLicensePoolMixin
 from .obj_config import RPCConfigMixin
 from .obj_config_state import RPCConfigStateMixin
 from .obj_group import RPCGroupMixin
@@ -74,6 +75,7 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCLicensePoolMixin,
 	RPCSoftwareLicenseToLicensePoolMixin,
 	RPCSoftwareLicenseMixin,
+	RPCAuditSoftwareToLicensePoolMixin,
 	RPCAuditSoftwareMixin,
 	RPCAuditSoftwareOnClientMixin,
 	RPCAuditHardwareMixin,

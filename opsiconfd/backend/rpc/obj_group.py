@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List, Protocol
 
-from opsicommon.objects import Group  # type: ignore[import]
+from opsicommon.objects import Group, HostGroup  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
 
 from . import rpc_method
@@ -72,6 +72,14 @@ class RPCGroupMixin(Protocol):
 	def group_deleteObjects(self: BackendProtocol, groups: List[dict] | List[Group] | dict | Group) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("group_deleteObjects")
 		self._mysql.delete_objects(table="GROUP", object_type=Group, obj=groups, ace=ace)
+
+	@rpc_method
+	def group_createHostGroup(  # pylint: disable=invalid-name
+		self: BackendProtocol, id: str, description: str = None, notes: str = None, parentGroupId: str = None  # pylint: disable=redefined-builtin,unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.group_createObjects(HostGroup.fromHash(_hash))
 
 	@rpc_method
 	def group_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name

@@ -75,6 +75,23 @@ class RPCProductDependencyMixin(Protocol):
 		ace = self._get_ace("productDependency_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_DEPENDENCY", object_type=ProductDependency, obj=productDependencies, ace=ace)
 
+	def productDependency_create(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		productId: str,  # pylint: disable=unused-argument
+		productVersion: str,  # pylint: disable=unused-argument
+		packageVersion: str,  # pylint: disable=unused-argument
+		productAction: str,  # pylint: disable=unused-argument
+		requiredProductId: str = None,  # pylint: disable=unused-argument
+		requiredProductVersion: str = None,  # pylint: disable=unused-argument
+		requiredPackageVersion: str = None,  # pylint: disable=unused-argument
+		requiredAction: str = None,  # pylint: disable=unused-argument
+		requiredInstallationStatus: str = None,  # pylint: disable=unused-argument
+		requirementType: str = None,  # pylint: disable=unused-argument
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.productDependency_createObjects(ProductDependency.fromHash(_hash))
+
 	@rpc_method
 	def productDependency_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		self.productDependency_deleteObjects([{"id": id}])

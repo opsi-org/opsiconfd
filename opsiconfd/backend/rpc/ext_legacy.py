@@ -144,7 +144,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@deprecated_rpc_method(alternative_method="dispatcher_getConfig")
 	def getBackendInfos_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
-		return [{config[0]: config[1]} for config in self.dispatcher_getConfig()]
+		return [{}]
 
 	@deprecated_rpc_method(alternative_method="backend_getInterface")
 	def getPossibleMethods_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
@@ -1686,7 +1686,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def createSoftwareLicense(  # pylint: disable=invalid-name,too-many-arguments
-		self,
+		self: BackendProtocol,
 		softwareLicenseId: str = "",
 		licenseContractId: str = "",
 		licenseType: str = "",

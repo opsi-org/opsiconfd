@@ -122,7 +122,7 @@ class RPCExtGroupActionsMixin(Protocol):
 			objectId=clients_in_group, productId=product_id, propertyId=property_id
 		)
 
-		products_with_clients = {}
+		products_with_clients: dict[str, set[str]] = {}
 		for product_property_state in product_property_states:
 			for key in product_property_state.values:
 				if "," in key:

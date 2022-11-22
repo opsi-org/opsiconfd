@@ -100,5 +100,13 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method
+	def softwareLicenseToLicensePool_create(  # pylint: disable=unused-argument,invalid-name
+		self: BackendProtocol, softwareLicenseId: str, licensePoolId: str, licenseKey: str = None
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.softwareLicenseToLicensePool_createObjects(SoftwareLicenseToLicensePool.fromHash(_hash))
+
+	@rpc_method
 	def softwareLicenseToLicensePool_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		self.softwareLicenseToLicensePool_deleteObjects([{"id": id}])

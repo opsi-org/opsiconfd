@@ -52,7 +52,7 @@ class RPCExtDeprecatedMixin(Protocol):
 
 	@deprecated_rpc_method
 	def deleteProductDependency(  # pylint: disable=invalid-name,too-many-arguments
-		self,
+		self: BackendProtocol,
 		productId: str,
 		action: str = "",
 		requiredProductId: str = "",
@@ -89,7 +89,7 @@ class RPCExtDeprecatedMixin(Protocol):
 
 	@deprecated_rpc_method(alternative_method="getClients")
 	def getClients_listOfHashes(  # pylint: disable=invalid-name,too-many-arguments
-		self,
+		self: BackendProtocol,
 		serverId: str = None,
 		depotIds: List[str] = None,
 		groupId: str = None,
@@ -117,7 +117,7 @@ class RPCExtDeprecatedMixin(Protocol):
 
 	@deprecated_rpc_method(alternative_method="getClientIDs")
 	def getClientIds_list(  # pylint: disable=invalid-name,too-many-arguments
-		self,
+		self: BackendProtocol,
 		serverId: str = None,
 		depotIds: List[str] = None,
 		groupId: str = None,

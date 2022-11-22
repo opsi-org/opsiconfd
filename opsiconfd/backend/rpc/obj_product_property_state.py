@@ -93,5 +93,13 @@ class RPCProductPropertyStateMixin(Protocol):
 		self._mysql.delete_objects(table="PRODUCT_PROPERTY_STATE", object_type=ProductPropertyState, obj=productPropertyStates, ace=ace)
 
 	@rpc_method
+	def productPropertyState_create(  # pylint: disable=invalid-name
+		self: BackendProtocol, productId: str, propertyId: str, objectId: str, values: list[Any] = None
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.productPropertyState_createObjects(ProductPropertyState.fromHash(_hash))
+
+	@rpc_method
 	def productPropertyState_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		self.productProperty_deleteObjects([{"id": id}])

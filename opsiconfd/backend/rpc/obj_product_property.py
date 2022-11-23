@@ -127,15 +127,9 @@ class RPCProductPropertyMixin(Protocol):
 	def productProperty_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productProperties: List[dict] | List[ProductProperty] | dict | ProductProperty
 	) -> None:
-		# TODO: Add ON DELETE CASCADE to schema?
+		# PRODUCT_PROPERTY_VALUE will be deleted by CASCADE
 		ace = self._get_ace("productProperty_deleteObjects")
-		query, params, idents = self._mysql.delete_query(table="PRODUCT_PROPERTY", object_type=ProductProperty, obj=productProperties, ace=ace)
-		with self._mysql.session() as session:
-			session.execute(
-				"DELETE FROM `PRODUCT_PROPERTY_VALUE` WHERE productPropertyId = :productProperty_ids",
-				params={"productProperty_ids": [ident["productPropertyId"] for ident in idents]}
-			)
-			session.execute(query, params=params)
+		self._mysql.delete_query(table="PRODUCT_PROPERTY", object_type=ProductProperty, obj=productProperties, ace=ace)
 
 	@rpc_method
 	def productProperty_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name

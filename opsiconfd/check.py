@@ -142,7 +142,7 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 		if "version_found" not in info:
 			result["partial_checks"][package] = {  # pylint: disable=loop-invariant-statement
 				"status": "error",
-				"details": f"Package '{package}' is not installed.",
+				"message": f"Package '{package}' is not installed.",
 			}  # type: ignore[assignment]
 			result["status"] = "error"  # pylint: disable=loop-invariant-statement
 			not_installed = not_installed + 1
@@ -158,7 +158,7 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 			result["status"] = "warn"  # pylint: disable=loop-invariant-statement
 			result["partial_checks"][package] = {  # pylint: disable=loop-invariant-statement
 				"status": "warn",
-				"details": f"Package {package} is outdated. Installed version: {info['version_found']} - available version: {info['version']}",
+				"message": f"Package {package} is outdated. Installed version: {info['version_found']} - available version: {info['version']}",
 			}
 		else:
 			if print_messages:
@@ -168,12 +168,13 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 				)
 			result["partial_checks"][package] = {  # pylint: disable=loop-invariant-statement
 				"status": "ok",
-				"details": f"Installed version: {info['version_found']}",
+				"message": f"Installed version: {info['version_found']}",
 			}
-		if not_installed > 0 or outdated > 0:
-			result[  # pylint: disable=loop-invariant-statement
-				"details"
-			] = f"Out of {len(package_versions.keys())} packages checked, {not_installed} are not installed and {outdated} are out of date."
+	result["details"] = {"packages": len(package_versions.keys()), "not_installed": not_installed, "outdated": outdated}
+	if not_installed > 0 or outdated > 0:
+		result[
+			"message"
+		] = f"Out of {len(package_versions.keys())} packages checked, {not_installed} are not installed and {outdated} are out of date."
 	return result
 
 
@@ -188,15 +189,15 @@ def check_redis(print_messages: bool = False) -> dict:
 			if "timeseries" not in modules:
 				if print_messages:
 					show_message("Redis-Timeseries not loaded.", MT_ERROR)
-				return {"status": "err", "details": "Redis-Timeseries not loaded."}
+				return {"status": "err", "message": "Redis-Timeseries not loaded."}
 			if print_messages:
 				show_message("Redis is running and Redis-Timeseries is loaded.", MT_SUCCESS)
-			return {"status": "ok", "details": "Redis is running and Redis-Timeseries is loaded."}
+			return {"status": "ok", "message": "Redis is running and Redis-Timeseries is loaded."}
 	except RedisConnectionError as err:
 		logger.info(str(err))
 		if print_messages:
 			show_message("Cannot connect to redis!", MT_ERROR)
-		return {"status": "error", "details": str(err)}
+		return {"status": "error", "message": str(err)}
 
 
 def check_mysql(print_messages: bool = False) -> dict:
@@ -207,13 +208,13 @@ def check_mysql(print_messages: bool = False) -> dict:
 			mysql_client.execute("SHOW TABLES;")
 		if print_messages:
 			show_message("Connection to mysql is working.", MT_SUCCESS)
-		return {"status": "ok", "details": "Connection to mysql is working."}
+		return {"status": "ok", "message": "Connection to mysql is working."}
 	except (RuntimeError, MySQLdbOperationalError, OperationalError) as err:
 		logger.debug(err)
 		error = str(err)
 		if print_messages:
 			show_message(f"Could not connect to mysql: {error}", MT_ERROR)
-		return {"status": "error", "details": error}
+		return {"status": "error", "message": error}
 
 
 def check_deprecated_calls(print_messages: bool = False) -> dict:
@@ -240,9 +241,9 @@ def check_deprecated_calls(print_messages: bool = False) -> dict:
 	if not deprecated_calls:
 		if print_messages:
 			show_message("No deprecated method calls found.", MT_SUCCESS)
-		return {"status": "ok", "details": "No deprecated method calls found."}
+		return {"status": "ok", "message": "No deprecated method calls found."}
 	logger.devel(deprecated_calls)
-	return {"status": "warn", "details": deprecated_calls}
+	return {"status": "warn", "message": deprecated_calls}
 
 
 def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-local-variables,too-many-branches
@@ -281,10 +282,10 @@ def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disabl
 						f"	{msg}",
 						MT_ERROR,  # pylint: disable=loop-global-usage
 					)
-				result["status"] = "error"  #  pylint: disable=loop-invariant-statement
+				result["status"] = "error"  # pylint: disable=loop-invariant-statement
 				partial_checks[depot][package] = {
 					"status": "error",
-					"details": msg,
+					"message": msg,
 				}
 				continue
 			if parse_version(avalible_version) > parse_version(f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"):
@@ -297,11 +298,8 @@ def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disabl
 						f"	{msg}",
 						MT_ERROR,  # pylint: disable=loop-global-usage
 					)
-				result["status"] = "error"  #  pylint: disable=loop-invariant-statement
-				partial_checks[depot][package] = {  #  pylint: disable=loop-invariant-statement
-					"status": "error",
-					"details": msg,
-				}
+				result["status"] = "error"  # pylint: disable=loop-invariant-statement
+				partial_checks[depot][package] = {"status": "error", "message": msg}  # pylint: disable=loop-invariant-statement
 				outdated = outdated + 1
 			else:
 				if print_messages:
@@ -309,13 +307,13 @@ def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disabl
 						f"	Package {package} on is up to date. Installed version: {product_on_depot.productVersion}-{product_on_depot.packageVersion}",
 						MT_SUCCESS,  # pylint: disable=loop-global-usage
 					)
-				partial_checks[depot][package] = {  #  pylint: disable=loop-invariant-statement
+				partial_checks[depot][package] = {  # pylint: disable=loop-invariant-statement
 					"status": "ok",
-					"details": f"Installed version: {product_on_depot.productVersion}-{product_on_depot.packageVersion}.",
+					"message": f"Installed version: {product_on_depot.productVersion}-{product_on_depot.packageVersion}.",
 				}
-
+	result["details"] = {"packages": len(OPSI_PACKAGES.keys()), "depots": len(depots), "not_installed": not_installed, "outdated": outdated}
 	if not_installed > 0 or outdated > 0:
-		result["details"] = (
+		result["message"] = (
 			f"Out of {len(OPSI_PACKAGES.keys())} packages on {len(depots)} depots checked, "
 			f"{not_installed} are not installed and {outdated} are out of date."
 		)

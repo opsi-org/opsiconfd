@@ -54,23 +54,33 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		set_null: bool
 	) -> None:
 		for hardware_class, ahohs in self._audit_hardware_on_host_by_hardware_class(audit_hardware_on_hosts).items():
+			audit_hardware_indent_attributes = set(AuditHardware.hardware_attributes[hardware_class])
+			ahoh_only_ident_attributes = set(AuditHardwareOnHost.hardware_attributes[hardware_class]) - audit_hardware_indent_attributes
+
 			for audit_hardware_on_host in ahohs:
 				audit_hardware = self._audit_hardware_on_host_to_audit_hardware(audit_hardware_on_host)
 				hardware_id, config_id = None, None
 				with self._mysql.session() as session:
 					params: dict[str, Any] = {}  # pylint: disable=loop-invariant-statement
+
 					conditions = []
-					for attr, val in audit_hardware.getIdent("dict").items():
-						if attr == "hardwareClass":
-							continue
+					for attr in audit_hardware_indent_attributes:
+						val = getattr(audit_hardware, attr)
 						param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
 						params[param] = val
-						conditions.append(f"`hd`.`{attr}` = :{param}")
-					params["hostId"] = audit_hardware_on_host.hostId  # pylint: disable=loop-invariant-statement
+						conditions.append(f"`hd`.`{attr}` {'IS' if val is None else '='} :{param}")
+
+					join_conditions = ["`hd`.`hardware_id` = `hc`.`hardware_id`"]
+					for attr in ahoh_only_ident_attributes:
+						val = getattr(audit_hardware_on_host, attr)
+						param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
+						params[param] = val
+						join_conditions.append(f"`hc`.`{attr}` {'IS' if val is None else '='} :{param}")
+
 					query = (
 						f"SELECT hd.hardware_id, hc.config_id"
 						f" FROM HARDWARE_DEVICE_{hardware_class} AS hd LEFT JOIN HARDWARE_CONFIG_{hardware_class} AS hc"
-						" ON hd.hardware_id = hc.hardware_id AND hc.hostId = :hostId"
+						f" ON {' AND '.join(join_conditions)}"
 						f" WHERE {' AND '.join(conditions)}"
 					)
 					res = session.execute(query, params=params).fetchone()

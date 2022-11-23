@@ -88,11 +88,13 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	}
 	record_separator = "␞"
 
+	schema_version = 8
+
 	def __init__(self) -> None:
 		self._address = "localhost"
 		self._username = "opsi"
 		self._password = "opsi"
-		self._database = "opsi"
+		self.database = "opsi"
 		self._database_charset = "utf8"
 		self._connection_pool_size = 20
 		self._connection_pool_max_overflow = 10
@@ -104,7 +106,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self._Session: scoped_session | None = lambda: None  # pylint: disable=invalid-name
 		self._session_factory = None
 		self._engine = None
-		self.tables: Dict[str, Dict[str, Type]] = {}
+		self.tables: dict[str, dict[str, dict[str, str | bool | None]]] = {}
 
 		self._read_config_file()
 		secret_filter.add_secrets(self._password)
@@ -164,7 +166,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 		params = f"?{urlencode(properties)}" if properties else ""
 
-		uri = f"mysql://{quote(self._username)}:{password}@{address}/{self._database}{params}"
+		uri = f"mysql://{quote(self._username)}:{password}@{address}/{self.database}{params}"
 		logger.info("Connecting to %s", uri)
 
 		self._engine = create_engine(
@@ -242,23 +244,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				table_name = trow[0].upper()
 				self.tables[table_name] = {}
 				for row in session.execute(f"SHOW COLUMNS FROM `{table_name}`"):  # pylint: disable=loop-invariant-statement
-					mysql_type = row["Type"].lower()
-					py_type: Type = str
-					if mysql_type == "tinyint(1)":
-						py_type = bool
-					elif "int" in mysql_type:
-						py_type = int
-					elif "double" in mysql_type:
-						py_type = float
-					elif "text" in mysql_type:
-						py_type = str
-					elif "varchar" in mysql_type:
-						py_type = str
-					elif "timestamp" in mysql_type:
-						py_type = datetime
-					else:
-						logger.error("Failed to get python type for: %s", mysql_type)
-					self.tables[table_name][row["Field"]] = py_type  # pylint: disable=loop-invariant-statement
+					row_dict = {k.lower(): v for k, v in dict(row).items()}
+					row_dict["null"] = row_dict["null"].upper() == "YES"
+					row_dict["key"] = (row_dict["key"] or "").upper()
+					row_dict["type"] = row_dict["type"].lower()
+					self.tables[table_name][row_dict["field"]] = row_dict  # pylint: disable=loop-invariant-statement
 				if table_name.startswith("HARDWARE_CONFIG_"):
 					self._client_id_column[table_name] = "hostId"
 				if table_name.startswith("HARDWARE_DEVICE_"):

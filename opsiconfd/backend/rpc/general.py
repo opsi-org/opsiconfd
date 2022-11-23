@@ -55,7 +55,15 @@ from opsicommon.types import (  # type: ignore[import]
 from opsiconfd import contextvar_client_address, contextvar_client_session
 from opsiconfd.backup import create_backup
 from opsiconfd.check import health_check
-from opsiconfd.config import FQDN, config
+from opsiconfd.config import (
+	FQDN,
+	LOG_DIR,
+	LOG_SIZE_HARD_LIMIT,
+	OPSI_LICENSE_PATH,
+	OPSI_MODULES_PATH,
+	OPSI_PASSWD_FILE,
+	config,
+)
 from opsiconfd.logging import logger
 from opsiconfd.ssl import get_ca_cert_as_pem
 
@@ -64,8 +72,6 @@ from . import deprecated_rpc_method, rpc_method
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
 
-OPSI_PASSWD_FILE = "/etc/opsi/passwd"
-LOG_DIR = "/var/log/opsi"
 LOG_TYPES = {  # key = logtype, value = requires objectId for read
 	"bootimage": True,
 	"clientconnect": True,
@@ -75,12 +81,11 @@ LOG_TYPES = {  # key = logtype, value = requires objectId for read
 	"winpe": True,
 }
 PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
-LOG_SIZE_HARD_LIMIT = 10000000
 
 
 class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
-	opsi_modules_file: str = "/etc/opsi/modules"
-	opsi_license_path: str = "/etc/opsi/licenses"
+	opsi_modules_file: str = OPSI_MODULES_PATH
+	opsi_license_path: str = OPSI_LICENSE_PATH
 
 	@rpc_method
 	def backend_createBase(self) -> None:  # pylint: disable=invalid-name

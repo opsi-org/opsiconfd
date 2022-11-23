@@ -57,6 +57,11 @@ RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
 REDIS_PREFIX_MESSAGEBUS = "opsiconfd:messagebus"
 REDIS_PREFIX_SESSION = "opsiconfd:session"
 GC_THRESHOLDS = (150_000, 50, 100)
+OPSI_PASSWD_FILE = "/etc/opsi/passwd"
+LOG_DIR = "/var/log/opsi"
+LOG_SIZE_HARD_LIMIT = 10000000
+OPSI_LICENSE_PATH = "/etc/opsi/licenses"
+OPSI_MODULES_PATH = "/etc/opsi/modules"
 
 if running_in_docker():
 	try:

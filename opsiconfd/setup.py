@@ -18,8 +18,6 @@ import time
 from pathlib import Path
 
 import psutil
-from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
-from OPSI.Backend.Base.Backend import OPSI_LICENSE_PATH  # type: ignore[import]
 from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
 from OPSI.setup import (  # type: ignore[import]
 	add_user_to_group,
@@ -32,7 +30,6 @@ from OPSI.setup import (
 )
 from OPSI.System import get_subprocess_environment  # type: ignore[import]
 from OPSI.System.Posix import locateDHCPDConfig  # type: ignore[import]
-from OPSI.Util.Task.InitializeBackend import initializeBackends  # type: ignore[import]
 from OPSI.Util.Task.Rights import (  # type: ignore[import]
 	DirPermission,
 	FilePermission,
@@ -40,7 +37,9 @@ from OPSI.Util.Task.Rights import (  # type: ignore[import]
 	set_rights,
 )
 
-from .config import VAR_ADDON_DIR, config
+from .backend.mysql import MySQLConnection
+from .backend.mysql.schema import update_database
+from .config import OPSI_LICENSE_PATH, VAR_ADDON_DIR, config
 from .grafana import setup_grafana
 from .logging import logger
 from .metrics.statistics import setup_metric_downsampling
@@ -163,21 +162,10 @@ def setup_systemd() -> None:
 
 def setup_backend() -> None:
 	logger.info("Setup backend")
-	initializeBackends()
-	backend = BackendManager()
-	mysql_used = False
-	for entry in backend.dispatcher_getConfig():  # pylint: disable=no-member
-		if "mysql" in entry[1]:
-			mysql_used = True
-			break
-
-	if mysql_used:
-		logger.info("Update mysql backend")
-		from OPSI.Util.Task.UpdateBackend.MySQL import (  # type: ignore[import]  # pylint: disable=import-outside-toplevel
-			updateMySQLBackend,
-		)
-
-		updateMySQLBackend(backendConfigFile=os.path.join(config.backend_config_dir, "mysql.conf"))
+	mysql = MySQLConnection()
+	mysql.connect()
+	update_database(mysql)
+	mysql.disconnect()
 
 
 def cleanup_log_files() -> None:

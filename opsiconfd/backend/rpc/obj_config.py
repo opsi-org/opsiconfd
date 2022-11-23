@@ -97,7 +97,7 @@ class RPCConfigMixin(Protocol):
 
 	@rpc_method
 	def config_deleteObjects(self: BackendProtocol, configs: List[dict] | List[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
-		# TODO: Add ON DELETE CASCADE to schema
+		# TODO: Add ON DELETE CASCADE to schema?
 		ace = self._get_ace("config_deleteObjects")
 		query, params, idents = self._mysql.delete_query(table="CONFIG", object_type=Config, obj=configs, ace=ace)
 		with self._mysql.session() as session:

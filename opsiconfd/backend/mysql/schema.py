@@ -33,7 +33,41 @@ def read_schema_version(session: Session) -> int | None:
 	return None
 
 
-def update_database(mysql: MySQLConnection) -> None:
+def get_index_columns(session: Session, database: str, table: str, index: str) -> list[str]:
+	res = session.execute(
+		"SELECT GROUP_CONCAT(`COLUMN_NAME` ORDER BY `SEQ_IN_INDEX` ASC) FROM `INFORMATION_SCHEMA`.`STATISTICS`"
+		" WHERE `TABLE_SCHEMA` = :database AND `TABLE_NAME` = :table AND `INDEX_NAME` = :index",
+		params={"database": database, "table": table, "index": index},
+	).fetchone()
+	if not res or not res[0]:
+		return []
+	return res[0].split(",")
+
+
+def create_index(session: Session, database: str, table: str, index: str, columns: list[str]) -> None:
+	index_columns = get_index_columns(session=session, database=database, table=table, index=index)
+	if index_columns != columns:
+		key = ",".join([f"`{c}`" for c in columns])
+		if index == "PRIMARY":
+			logger.notice("Setting new PRIMARY KEY on table %r", table)
+			if index_columns:
+				session.execute(f"ALTER TABLE `{table}` DROP PRIMARY KEY")
+			session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")
+		else:
+			logger.notice("Setting new index %r on table %r", index, table)
+			if index_columns:
+				session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
+			session.execute(f"CREATE INDEX `{index}` on `{table}` ({key})")
+
+
+def remove_index(session: Session, database: str, table: str, index: str) -> None:
+	index_columns = get_index_columns(session=session, database=database, table=table, index=index)
+	if index_columns:
+		logger.notice("Removing index %r on table %r", index, table)
+		session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
+
+
+def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	with mysql.session() as session:
 
 		schema_version = read_schema_version(session)
@@ -46,84 +80,270 @@ def update_database(mysql: MySQLConnection) -> None:
 		logger.info("Running opsi 4.1 updates")
 
 		if "BOOT_CONFIGURATION" in mysql.tables:
-			logger.info("Dropping table BOOT_CONFIGURATION")
+			logger.notice("Dropping table BOOT_CONFIGURATION")
 			session.execute("DROP TABLE IF EXISTS `BOOT_CONFIGURATION`")
 
-		if not session.execute(
-			"SELECT 1 FROM `INFORMATION_SCHEMA`.`STATISTICS`"
-			" WHERE `TABLE_SCHEMA` = :database AND `TABLE_NAME` = 'PRODUCT_PROPERTY_VALUE' AND `INDEX_NAME` = 'index_product_property_value'",
-			params={"database": mysql.database},
-		).first():
-			logger.info("Creating index index_product_property_value on table PRODUCT_PROPERTY_VALUE")
-			session.execute(
-				"CREATE INDEX `index_product_property_value` on `PRODUCT_PROPERTY_VALUE`"
-				" (`productId`, `propertyId`, `productVersion`, `packageVersion`)"
-			)
-
 		if "workbenchLocalUrl" not in mysql.tables["HOST"]:
-			logger.info("Adding column 'workbenchLocalUrl' on table HOST.")
+			logger.notice("Adding column 'workbenchLocalUrl' on table HOST.")
 			session.execute("ALTER TABLE `HOST` add `workbenchLocalUrl` varchar(128)")
 
 		if "workbenchRemoteUrl" not in mysql.tables["HOST"]:
-			logger.info("Adding column 'workbenchRemoteUrl' on table HOST.")
+			logger.notice("Adding column 'workbenchRemoteUrl' on table HOST.")
 			session.execute("ALTER TABLE `HOST` add `workbenchRemoteUrl` varchar(255)")
 
 		if mysql.tables["OBJECT_TO_GROUP"]["groupId"]["type"] != "varchar(255)":
-			logger.info("Changing size of column 'groupId' on table OBJECT_TO_GROUP")
+			logger.notice("Changing size of column 'groupId' on table OBJECT_TO_GROUP")
 			session.execute("ALTER TABLE `OBJECT_TO_GROUP` MODIFY COLUMN `groupId` varchar(255) NOT NULL")
 
 		if mysql.tables["HOST"]["inventoryNumber"]["type"] != "varchar(64)":
-			logger.info("Changing size of column 'inventoryNumber' on table HOST")
+			logger.notice("Changing size of column 'inventoryNumber' on table HOST")
 			session.execute('ALTER TABLE `HOST` MODIFY COLUMN `inventoryNumber` varchar(64) NOT NULL DEFAULT ""')
 
-		if "bigint" not in mysql.tables["SOFTWARE_CONFIG"]["config_id"]["type"]:  # type: ignore[operator]
-			logger.info("Changing the type of SOFTWARE_CONFIG.config_id to bigint")
-			session.execute("ALTER TABLE `SOFTWARE_CONFIG` MODIFY COLUMN `config_id` bigint auto_increment;")
+		# if "bigint" not in mysql.tables["SOFTWARE_CONFIG"]["config_id"]["type"]:  # type: ignore[operator]
+		# 	logger.notice("Changing the type of SOFTWARE_CONFIG.config_id to bigint")
+		# 	session.execute("ALTER TABLE `SOFTWARE_CONFIG` MODIFY COLUMN `config_id` bigint auto_increment;")
 
-		if not session.execute(
-			"SELECT 1 FROM `INFORMATION_SCHEMA`.`STATISTICS`"
-			" WHERE `TABLE_SCHEMA` = :database AND `TABLE_NAME` = 'WINDOWS_SOFTWARE_ID_TO_PRODUCT' AND `INDEX_NAME` = 'index_productId'",
-			params={"database": mysql.database},
-		).first():
-			logger.info("Creating index index_productId on table WINDOWS_SOFTWARE_ID_TO_PRODUCT")
-			session.execute("CREATE INDEX `index_productId` on `WINDOWS_SOFTWARE_ID_TO_PRODUCT` (`productId`)")
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="WINDOWS_SOFTWARE_ID_TO_PRODUCT",
+			index="index_productId",
+			columns=["productId"],
+		)
 
-		if not session.execute(
-			"SELECT 1 FROM `INFORMATION_SCHEMA`.`STATISTICS`"
-			" WHERE `TABLE_SCHEMA` = :database AND `TABLE_NAME` = 'PRODUCT' AND `INDEX_NAME` = 'index_productId'",
-			params={"database": mysql.database},
-		).first():
-			logger.info("Creating index index_productId on table PRODUCT")
-			session.execute("CREATE INDEX `index_productId` on `PRODUCT` (`productId`)")
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT",
+			index="index_productId",
+			columns=["productId"],
+		)
 
 		logger.info("Running opsi 4.2 updates")
 
 		if mysql.tables["HOST"]["ipAddress"]["type"] != "varchar(255)":
-			logger.info("Changing size of column 'ipAddress' on table HOST")
+			logger.notice("Changing size of column 'ipAddress' on table HOST")
 			session.execute("ALTER TABLE `HOST` MODIFY COLUMN `ipAddress` varchar(255)")
 
 		logger.info("Running opsi 4.3 updates")
 
+		for row in session.execute(
+			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM  `INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` = :database",
+			params={"database": mysql.database},
+		).fetchall():
+			row_dict = dict(row)
+			if row_dict["ENGINE"] != "InnoDB":
+				logger.notice("Changing table %s to InnoDB engine", row_dict["TABLE_NAME"])
+				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` ENGINE = InnoDB")
+			if row_dict["TABLE_COLLATION"] != "utf8_general_ci":
+				logger.notice("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
+				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
+
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_PROPERTY_VALUE",
+			index="index_product_property_value",
+			columns=["productId", "propertyId", "productVersion", "packageVersion"],
+		)
+
+		res = session.execute(
+			"SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`"
+			" INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2` ON `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`"
+			" WHERE `t1`.`REFERENCED_TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_PROPERTY_VALUE'"
+			" AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT_PROPERTY'",
+			params={"database": mysql.database},
+		).fetchone()
+		if not res or res[1] == "RESTRICT":
+			if res:
+				logger.notice("Removing FK to PRODUCT_PROPERTY on table PRODUCT_PROPERTY_VALUE with RESTRICT")
+				session.execute(f"ALTER TABLE `PRODUCT_PROPERTY_VALUE` DROP FOREIGN KEY `{res[0]}`")
+
+			logger.notice("Creating FK to PRODUCT_PROPERTY on table PRODUCT_PROPERTY_VALUE with CASCADE")
+			session.execute(
+				"ALTER TABLE `PRODUCT_PROPERTY_VALUE` ADD CONSTRAINT `FK_PRODUCT_PROPERTY`"
+				" FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`) "
+				" REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`) "
+				" ON UPDATE CASCADE ON DELETE CASCADE"
+			)
+
+		res = session.execute(
+			"SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`"
+			" INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2` ON `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`"
+			" WHERE `t1`.`REFERENCED_TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'CONFIG_VALUE'"
+			" AND `t1`.`REFERENCED_TABLE_NAME` = 'CONFIG'",
+			params={"database": mysql.database},
+		).fetchone()
+		if not res or res[1] == "RESTRICT":
+			if res:
+				logger.notice("Removing FK to CONFIG on table CONFIG_VALUE with RESTRICT")
+				session.execute(f"ALTER TABLE `CONFIG_VALUE` DROP FOREIGN KEY `{res[0]}`")
+
+			logger.notice("Creating FK to CONFIG on table CONFIG_VALUE with CASCADE")
+			session.execute(
+				"ALTER TABLE `CONFIG_VALUE` ADD CONSTRAINT `FK_CONFIG`"
+				" FOREIGN KEY (`configId`) "
+				" REFERENCES `CONFIG` (`configId`) "
+				" ON UPDATE CASCADE ON DELETE CASCADE"
+			)
+
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="AUDIT_SOFTWARE_TO_LICENSE_POOL",
+			index="PRIMARY",
+			columns=["licensePoolId", "name", "version", "subVersion", "language", "architecture"],
+		)
+
 		if "config_state_id" in mysql.tables["CONFIG_STATE"]:
-			logger.info("Removing duplicates from table CONFIG_STATE")
+			logger.notice("Removing duplicates from table CONFIG_STATE")
 			duplicates = []
 			for row in session.execute(
-				"SELECT GROUP_CONCAT(`config_state_id`) AS config_state_ids, `configId`, `objectId`, `values`, COUNT(*) AS num"
+				"SELECT GROUP_CONCAT(`config_state_id`) AS ids, COUNT(*) AS num"
 				" FROM `CONFIG_STATE` GROUP BY `configId`, `objectId` HAVING num > 1"
 			).fetchall():
-				config_state_ids = dict(row)["config_state_ids"].split(",")
-				duplicates.extend(config_state_ids[1:])
+				ids = dict(row)["ids"].split(",")
+				duplicates.extend(ids[1:])
 			if duplicates:
-				logger.info("Deleting duplicate config_state_ids: %s", duplicates)
-				session.execute(
-					"DELETE FROM `CONFIG_STATE` WHERE `config_state_id` IN :config_state_id", params={"config_state_id": duplicates}
-				)
+				logger.notice("Deleting duplicate config_state_ids: %s", duplicates)
+				session.execute("DELETE FROM `CONFIG_STATE` WHERE `config_state_id` IN :ids", params={"ids": duplicates})
 
-			logger.info("Dropping column 'config_state_id' from table CONFIG_STATE")
+			logger.notice("Dropping column 'config_state_id' from table CONFIG_STATE")
 			session.execute("ALTER TABLE `CONFIG_STATE` DROP COLUMN `config_state_id`")
 
-			logger.info("Adding new PRIMARY KEY to table CONFIG_STATE (`configId`, `objectId`)")
-			session.execute("ALTER TABLE `CONFIG_STATE` ADD PRIMARY KEY (`configId`, `objectId`)")
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="CONFIG_STATE",
+			index="PRIMARY",
+			columns=["configId", "objectId"],
+		)
+
+		if "license_on_client_id" in mysql.tables["LICENSE_ON_CLIENT"]:
+			session.execute("DELETE FROM `LICENSE_ON_CLIENT` WHERE `clientId` IS NULL")
+			session.execute("ALTER TABLE `LICENSE_ON_CLIENT` MODIFY COLUMN `clientId` varchar(255) NOT NULL")
+
+			logger.notice("Removing duplicates from table LICENSE_ON_CLIENT")
+			duplicates = []
+			for row in session.execute(
+				"SELECT GROUP_CONCAT(`license_on_client_id`) AS ids, COUNT(*) AS num"
+				" FROM `LICENSE_ON_CLIENT` GROUP BY `softwareLicenseId`, `licensePoolId`, `clientId` HAVING num > 1"
+			).fetchall():
+				ids = dict(row)["ids"].split(",")
+				duplicates.extend(ids[1:])
+			if duplicates:
+				logger.notice("Deleting duplicate license_on_client_ids: %s", duplicates)
+				session.execute(
+					"DELETE FROM `LICENSE_ON_CLIENT` WHERE `license_on_client_id` IN :ids",
+					params={"ids": duplicates},
+				)
+
+			logger.notice("Dropping column 'license_on_client_id' from table LICENSE_ON_CLIENT")
+			session.execute("ALTER TABLE `LICENSE_ON_CLIENT` DROP COLUMN `license_on_client_id`")
+
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="LICENSE_ON_CLIENT",
+			index="PRIMARY",
+			columns=["softwareLicenseId", "licensePoolId", "clientId"],
+		)
+
+		if "object_to_group_id" in mysql.tables["OBJECT_TO_GROUP"]:
+			logger.notice("Removing duplicates from table OBJECT_TO_GROUP")
+			duplicates = []
+			for row in session.execute(
+				"SELECT GROUP_CONCAT(`object_to_group_id`) AS ids, COUNT(*) AS num"
+				" FROM `OBJECT_TO_GROUP` GROUP BY `groupType`, `groupId`, `objectId` HAVING num > 1"
+			).fetchall():
+				ids = dict(row)["ids"].split(",")
+				duplicates.extend(ids[1:])
+			if duplicates:
+				logger.notice("Deleting duplicate object_to_group_ids: %s", duplicates)
+				session.execute(
+					"DELETE FROM `OBJECT_TO_GROUP` WHERE `object_to_group_id` IN :ids",
+					params={"ids": duplicates},
+				)
+
+			logger.notice("Dropping column 'object_to_group_id' from table OBJECT_TO_GROUP")
+			session.execute("ALTER TABLE `OBJECT_TO_GROUP` DROP COLUMN `object_to_group_id`")
+
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="OBJECT_TO_GROUP",
+			index="PRIMARY",
+			columns=["groupType", "groupId", "objectId"],
+		)
+
+		if "product_property_state_id" in mysql.tables["PRODUCT_PROPERTY_STATE"]:
+			session.execute("DELETE FROM `PRODUCT_PROPERTY_STATE` WHERE `productId` IS NULL")
+			session.execute("ALTER TABLE `PRODUCT_PROPERTY_STATE` MODIFY COLUMN `productId` varchar(255) NOT NULL")
+
+			logger.notice("Removing duplicates from table PRODUCT_PROPERTY_STATE")
+			duplicates = []
+			for row in session.execute(
+				"SELECT GROUP_CONCAT(`product_property_state_id`) AS ids, COUNT(*) AS num"
+				" FROM `PRODUCT_PROPERTY_STATE` GROUP BY `productId`, `propertyId`, `objectId` HAVING num > 1"
+			).fetchall():
+				ids = dict(row)["ids"].split(",")
+				duplicates.extend(ids[1:])
+			if duplicates:
+				logger.notice("Deleting duplicate product_property_state_ids: %s", duplicates)
+				session.execute(
+					"DELETE FROM `PRODUCT_PROPERTY_STATE` WHERE `product_property_state_id` IN :ids",
+					params={"ids": duplicates},
+				)
+
+			logger.notice("Dropping column 'product_property_state_id' from table PRODUCT_PROPERTY_STATE")
+			session.execute("ALTER TABLE `PRODUCT_PROPERTY_STATE` DROP COLUMN `product_property_state_id`")
+
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_PROPERTY_STATE",
+			index="PRIMARY",
+			columns=["productId", "propertyId", "objectId"],
+		)
+
+		if "config_id" in mysql.tables["SOFTWARE_CONFIG"]:
+			logger.notice("Removing duplicates from table SOFTWARE_CONFIG")
+			duplicates = []
+			for row in session.execute(
+				"SELECT GROUP_CONCAT(`config_id`) AS ids, COUNT(*) AS num"
+				" FROM `SOFTWARE_CONFIG` GROUP BY `clientId`, `name`, `version`, `subVersion`, `language`, `architecture` HAVING num > 1"
+			).fetchall():
+				ids = dict(row)["ids"].split(",")
+				duplicates.extend(ids[1:])
+			if duplicates:
+				logger.notice("Deleting duplicate config_ids: %s", duplicates)
+				session.execute(
+					"DELETE FROM `SOFTWARE_CONFIG` WHERE `config_id` IN :ids",
+					params={"ids": duplicates},
+				)
+
+			logger.notice("Dropping column 'config_id' from table SOFTWARE_CONFIG")
+			session.execute("ALTER TABLE `SOFTWARE_CONFIG` DROP COLUMN `config_id`")
+
+		create_index(
+			session=session,
+			database=mysql.database,
+			table="SOFTWARE_CONFIG",
+			index="PRIMARY",
+			columns=["clientId", "name", "version", "subVersion", "language", "architecture"],
+		)
+
+		if "LOG_CONFIG_VALUE" in mysql.tables:
+			logger.notice("Dropping table LOG_CONFIG_VALUE")
+			session.execute("DROP TABLE IF EXISTS `LOG_CONFIG_VALUE`")
+
+		if "LOG_CONFIG" in mysql.tables:
+			logger.notice("Dropping table LOG_CONFIG")
+			session.execute("DROP TABLE IF EXISTS `LOG_CONFIG`")
+
+		if "CONFIG_STATE_LOG" in mysql.tables:
+			logger.notice("Dropping table CONFIG_STATE_LOG")
+			session.execute("DROP TABLE IF EXISTS `CONFIG_STATE_LOG`")
 
 		logger.info("All updates completed")
 

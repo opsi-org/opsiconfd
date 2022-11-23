@@ -216,7 +216,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 			# This can happen during package installation
 			# where backend config files are missing
 			logger.debug("Failed to setup backend: %s", err, exc_info=True)
-			logger.warning("Failed to setup backend: %s", err)
+			logger.warning("Failed to setup backend: %s", err, exc_info=True)
 	if full:
 		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			po_setup_users_and_groups(ignore_errors=True)

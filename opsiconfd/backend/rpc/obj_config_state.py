@@ -32,14 +32,14 @@ if TYPE_CHECKING:
 class RPCConfigStateMixin(Protocol):
 	@rpc_method
 	def configState_getValues(  # pylint: disable=invalid-name
-		self: BackendProtocol, config_ids: List[str] | str, object_ids: List[str] | str, with_defaults: bool = True
+		self: BackendProtocol, config_ids: List[str] | str | None = None, object_ids: List[str] | str | None = None, with_defaults: bool = True
 	) -> dict[str, dict[str, list[Any]]]:
-		config_ids = forceUnicodeList(config_ids)
-		object_ids = forceObjectIdList(object_ids)
+		config_ids = forceUnicodeList(config_ids or [])
+		object_ids = forceObjectIdList(object_ids or [])
 		res: dict[str, dict[str, list[Any]]] = {}
 		if with_defaults:
-			defaults = {config.id: config.defaultValues if with_defaults else None for config in self.config_getObjects(id=config_ids)}
-			res = {host_id: defaults.copy() for host_id in self.host_getIdents(returnType="str", id=object_ids)}
+			defaults = {c.id: c.defaultValues for c in self.config_getObjects(id=config_ids)}
+			res = {h: defaults.copy() for h in self.host_getIdents(returnType="str", id=object_ids)}
 		for config_state in self.configState_getObjects(configId=config_ids, objectId=object_ids):
 			if config_state.objectId not in res:
 				res[config_state.objectId] = {}
@@ -50,11 +50,13 @@ class RPCConfigStateMixin(Protocol):
 	def configState_insertObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_insertObject")
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=True, set_null=True)
+		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method
 	def configState_updateObject(self: BackendProtocol, configState: dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_updateObject")
 		self._mysql.insert_object(table="CONFIG_STATE", obj=configState, ace=ace, create=False, set_null=False)
+		self.dhcpd_control_config_states_updated(configState)
 
 	@rpc_method
 	def configState_createObjects(  # pylint: disable=invalid-name
@@ -63,6 +65,7 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_createObjects")
 		for config_state in forceList(configStates):
 			self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True)
+		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method
 	def configState_updateObjects(  # pylint: disable=invalid-name
@@ -71,6 +74,7 @@ class RPCConfigStateMixin(Protocol):
 		ace = self._get_ace("configState_updateObjects")
 		for config_state in forceList(configStates):
 			self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=False)
+		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method
 	def configState_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[ConfigState]:  # pylint: disable=redefined-builtin,invalid-name

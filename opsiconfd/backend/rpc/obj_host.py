@@ -51,23 +51,27 @@ class RPCHostMixin(Protocol):
 	def host_insertObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_insertObject")
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
+		self.dhcpd_control_hosts_updated(host)
 
 	@rpc_method
 	def host_updateObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObject")
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
+		self.dhcpd_control_hosts_updated(host)
 
 	@rpc_method
 	def host_createObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_createObjects")
 		for host in forceList(hosts):
 			self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
+		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method
 	def host_updateObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObjects")
 		for host in forceList(hosts):
 			self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False)
+		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method
 	def host_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[Host]:  # pylint: disable=redefined-builtin,invalid-name
@@ -100,6 +104,7 @@ class RPCHostMixin(Protocol):
 			for table in self._mysql.tables:
 				if table.startswith("HARDWARE_CONFIG_"):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
+		self.dhcpd_control_hosts_deleted(hosts)
 
 	@rpc_method
 	def host_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name

@@ -1408,19 +1408,15 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if not objectId:
 			return {ppd["name"]: ppd["default"] for ppd in self.getProductPropertyDefinitions_listOfHashes(productId=productId)}
 
-		# TODO: add defaults
-		result = {}
-		add_product_property_state_defaults = self.backend_getOptions().get("addProductPropertyStateDefaults", False)
-		try:
-			self.backend_setOptions({"addProductPropertyStateDefaults": True})
-			for product_property_state in self.productPropertyState_getObjects(  # pylint: disable=use-dict-comprehension
-				productId=productId, objectId=objectId
-			):
-				result[product_property_state.getPropertyId()] = ",".join(forceUnicodeList(product_property_state.getValues()))
-		finally:
-			self.backend_setOptions({"addProductPropertyStateDefaults": add_product_property_state_defaults})
-
-		return result
+		return {
+			p: ",".join(forceUnicodeList(v))
+			for p, v in self.productPropertyState_getValues(
+				product_ids=[productId], property_ids=[], object_ids=[objectId], with_defaults=True
+			)
+			.get(objectId, {})
+			.get(productId, {})
+			.items()
+		}
 
 	@rpc_method
 	def setProductProperties(  # pylint: disable=invalid-name,too-many-locals

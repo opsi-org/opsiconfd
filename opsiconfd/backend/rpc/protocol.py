@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol
 
 from .depot import RPCDepotserverMixin
+from .dhcpd_control import RPCDHCPDControlMixin
 from .ext_admin_tasks import RPCExtAdminTasksMixin
 from .ext_deprecated import RPCExtDeprecatedMixin
 from .ext_dynamic_depot import RPCExtDynamicDepotMixin
@@ -93,11 +94,20 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCExtSSHCommandsMixin,
 	RPCDepotserverMixin,
 	RPCHostControlMixin,
+	RPCDHCPDControlMixin,
 	RPCExtenderMixin,
 	Protocol,
 ):
 	@property
 	def _mysql(self) -> MySQLConnection:
+		...
+
+	@property
+	def _depot_id(self) -> str:
+		...
+
+	@property
+	def _opsi_host_key(self) -> str:
 		...
 
 	def _get_ace(self, method: str) -> List[RPCACE]:

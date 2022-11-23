@@ -5,18 +5,18 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-backend.mysql
+opsiconfd.backend.mysql
 """
 
 from __future__ import annotations
 
-import json
 import re
 import time
 from contextlib import contextmanager
 from datetime import datetime
 from functools import lru_cache
 from inspect import signature
+from json import JSONDecodeError, dumps, loads
 from pathlib import Path
 from typing import (
 	TYPE_CHECKING,
@@ -54,10 +54,10 @@ from opsiconfd import contextvar_client_session
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 
-from .auth import RPCACE
+from ..auth import RPCACE
 
 if TYPE_CHECKING:
-	from .rpc.protocol import IdentType
+	from ..rpc.protocol import IdentType
 
 
 class MySQLConnection:  # pylint: disable=too-many-instance-attributes
@@ -368,7 +368,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		return "", {}
 
 	@lru_cache(maxsize=0)
-	def _get_conversions(self, object_type: Type[BaseObject]) -> Dict[str, Callable]:
+	def _get_read_conversions(self, object_type: Type[BaseObject]) -> Dict[str, Callable]:
 		conversions: Dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
 		for name, param in sig.parameters.items():  # pylint: disable=use-dict-comprehension,unused-variable
@@ -377,7 +377,16 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			# elif param.annotation is datetime:
 			# 	conversions[name] = lambda v: v.isoformat().replace("T", " ")
 			if name == "values":
-				conversions[name] = json.loads  # pylint: disable=dotted-import-in-loop
+				conversions[name] = loads
+		return conversions
+
+	@lru_cache(maxsize=0)
+	def _get_write_conversions(self, object_type: Type[BaseObject]) -> Dict[str, Callable]:
+		conversions: Dict[str, Callable] = {}
+		sig = signature(getattr(object_type, "__init__"))
+		for name, param in sig.parameters.items():  # pylint: disable=use-dict-comprehension,unused-variable
+			if name == "values":
+				conversions[name] = dumps
 		return conversions
 
 	@lru_cache(maxsize=0)
@@ -420,7 +429,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 		ident_attributes = self._get_ident_attributes(object_type)  # type: ignore
 		possible_attributes = self._get_possible_class_attributes(object_type)  # type: ignore
-		conversions = self._get_conversions(object_type)  # type: ignore
+		conversions = self._get_read_conversions(object_type)  # type: ignore
 
 		res = {}
 		for key, val in data.items():
@@ -455,6 +464,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					data[attr] = func(data[attr])
 				except KeyError:
 					pass
+				except JSONDecodeError as err:
+					logger.warning(err)
 		return object_type.fromHash(data)  # type: ignore
 
 	def get_allowed_client_ids(self, ace: List[RPCACE]) -> List[str] | None:
@@ -564,14 +575,14 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if return_type == "ident":
 				return [self.get_ident(data=dict(row), ident_attributes=ident_attributes, ident_type=ident_type) for row in result]
 			if return_type == "dict":
-				conversions = self._get_conversions(object_type)  # type: ignore[arg-type]
+				conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
 				return [
 					self._row_to_object(row=row, object_type=object_type, conversions=conversions, aggregates=l_aggregates).to_hash()
 					for row in result
 				]
 				# return [self._row_to_dict(row=row, object_type=object_type, ident_type=None, aggregates=l_aggregates) for row in result]
 
-			conversions = self._get_conversions(object_type)  # type: ignore[arg-type]
+			conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
 			return [
 				self._row_to_object(row=row, object_type=object_type, conversions=conversions, aggregates=l_aggregates) for row in result
 			]
@@ -614,6 +625,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		if not create:
 			ident_attrs = list(obj.getIdent("dict"))
 		columns = self.get_columns([table], ace=ace)
+		conversions = self._get_write_conversions(type(obj))  # type: ignore[arg-type]
 
 		allowed_client_ids = self.get_allowed_client_ids(ace)
 
@@ -633,6 +645,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				where.append(f"`{column['column']}` = :{attr}")
 			if not set_null and data.get(attr) is None:
 				continue
+
+			try:  # pylint: disable=loop-try-except-usage
+				data[attr] = conversions[attr](data[attr])
+			except KeyError:
+				pass
+
 			cols.append(f"`{column['column']}`")
 			vals.append(f":{attr}")
 			updates.append(f"`{column['column']}` = :{attr}")

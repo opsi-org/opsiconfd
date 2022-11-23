@@ -9,10 +9,15 @@ opsiconfd.backend.rpc.product_property_state
 """
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Dict, List, Protocol
 
 from opsicommon.objects import ProductPropertyState  # type: ignore[import]
-from opsicommon.types import forceList  # type: ignore[import]
+from opsicommon.types import (  # type: ignore[import]
+	forceList,
+	forceObjectIdList,
+	forceUnicodeList,
+)
 
 from . import rpc_method
 
@@ -34,6 +39,49 @@ class RPCProductPropertyStateMixin(Protocol):
 				for product_property_state in self.productPropertyState_getObjects(product_propertyId=product_property_ids, objectId=object_id)
 			}
 		)
+		return res
+
+	@rpc_method
+	def productPropertyState_getValues(  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		product_ids: List[str] | str | None = None,
+		property_ids: List[str] | str | None = None,
+		object_ids: List[str] | str | None = None,
+		with_defaults: bool = True
+	) -> dict[str, dict[str, dict[str, list[Any]]]]:
+		product_ids = forceUnicodeList(product_ids or [])
+		property_ids = forceUnicodeList(property_ids or [])
+		object_ids = forceObjectIdList(object_ids or [])
+
+		res: dict[str, dict[str, dict[str, list[Any]]]] = {}
+		if with_defaults:
+			client_id_to_depot_id = {
+				ctd["clientId"]: ctd["depotId"]
+				for ctd in self.configState_getClientToDepotserver(clientIds=object_ids, masterOnly=True)
+			}
+			depot_values: dict[str, dict[str, dict[str, list[Any]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+			depot_ids = list(set(client_id_to_depot_id.values()))
+			if depot_ids:
+				for pps in self.productPropertyState_getObjects(
+					productId=product_ids, propertyId=property_ids, objectId=depot_ids
+				):
+					depot_values[pps.objectId][pps.productId][pps.propertyId] = pps.values
+
+			for host_id in self.host_getIdents(returnType="str", id=object_ids):
+				res[host_id] = {}
+				depot_id = client_id_to_depot_id.get(host_id)
+				if depot_id and depot_id in depot_values:
+					res[host_id] = depot_values[depot_id].copy()
+
+		for pps in self.productPropertyState_getObjects(
+			productId=product_ids, propertyId=property_ids, objectId=object_ids
+		):
+			if pps.objectId not in res:
+				res[pps.objectId] = {}
+			if pps.productId not in res[pps.objectId]:
+				res[pps.objectId][pps.productId] = {}
+			res[pps.objectId][pps.productId][pps.propertyId] = pps.values
+
 		return res
 
 	@rpc_method

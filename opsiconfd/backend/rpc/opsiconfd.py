@@ -21,13 +21,14 @@ from opsicommon.exceptions import (  # type: ignore[import]
 )
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
+from opsiconfd.application.utils import get_depot_server_id
 from opsiconfd.config import config
-from opsiconfd.logging import logger
+from opsiconfd.logging import logger, secret_filter
 
-from .. import get_client_backend
 from ..auth import RPCACE, read_acl_file
 from ..mysql import MySQLConnection
 from .depot import RPCDepotserverMixin
+from .dhcpd_control import RPCDHCPDControlMixin
 from .ext_admin_tasks import RPCExtAdminTasksMixin
 from .ext_deprecated import RPCExtDeprecatedMixin
 from .ext_dynamic_depot import RPCExtDynamicDepotMixin
@@ -131,7 +132,7 @@ def describe_interface(instance: Any) -> List[Dict[str, Any]]:  # pylint: disabl
 	return [methods[name] for name in sorted(list(methods.keys()))]
 
 
-class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
+class OpsiconfdBackend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
 	RPCGeneralMixin,
 	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCGroupMixin,
 	RPCObjectToGroupMixin, RPCProductMixin, RPCProductDependencyMixin,
@@ -145,7 +146,7 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 	RPCExtLegacyMixin, RPCExtAdminTasksMixin, RPCExtDeprecatedMixin,
 	RPCExtDynamicDepotMixin, RPCExtEasyMixin, RPCExtKioskMixin,
 	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin, RPCExtOpsiMixin,
-	RPCDepotserverMixin, RPCHostControlMixin, RPCExtenderMixin
+	RPCDepotserverMixin, RPCHostControlMixin, RPCDHCPDControlMixin, RPCExtenderMixin
 ):
 	__instance = None
 	__initialized = False
@@ -159,6 +160,9 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 		if self.__initialized:
 			return
 		self.__initialized = True
+
+		self._depot_id: str = get_depot_server_id()
+
 		self._mysql = MySQLConnection()
 		self._mysql.connect()
 		self._acl: Dict[str, List[RPCACE]] = {}
@@ -167,9 +171,16 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors
 			base.__init__(self)  # type: ignore[misc]
 
 		self._interface = describe_interface(self)
-		self._backend = get_client_backend()
 		self.method_names = [meth["name"] for meth in self._interface]
 		self.avaliable_modules = self.backend_getLicensingInfo()["available_modules"]
+
+		hosts = self.host_getObjects(id=self._depot_id)
+		if hosts:
+			self._opsi_host_key = hosts[0].opsiHostKey
+			secret_filter.add_secrets(self._opsi_host_key)
+		else:
+			logger.error("Depot %r not found in backend", self._depot_id)
+
 		self.read_acl_file()
 
 	def read_acl_file(self) -> None:

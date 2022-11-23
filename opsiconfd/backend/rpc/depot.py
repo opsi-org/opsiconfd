@@ -57,7 +57,6 @@ from opsicommon.types import (
 	forceProductId as typeForceProductId,  # type: ignore[import]
 )
 
-from opsiconfd.application.utils import get_depot_server_id
 from opsiconfd.logging import logger
 
 # deprecated can be used in extension config files
@@ -69,18 +68,17 @@ if TYPE_CHECKING:
 
 class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 	ssh_rsa_public_key_file: str = "/etc/ssh/ssh_host_rsa_key.pub"
-	depot_id: str = get_depot_server_id()
 	_package_manager: DepotserverPackageManager
 
 	def __init__(self: BackendProtocol) -> None:
-		if not self.host_getIdents(id=self.depot_id):  # pylint: disable=maybe-no-member
-			logger.error("Depot %r not found in backend", self.depot_id)
+		if not self.host_getIdents(id=self._depot_id):  # pylint: disable=maybe-no-member
+			logger.error("Depot %r not found in backend", self._depot_id)
 			# Mark methods as not available
 			for val in RPCDepotserverMixin.__dict__.values():
 				if callable(val) and hasattr(val, "rpc_method"):
 					delattr(val, "rpc_method")
 		else:
-			self._package_manager = DepotserverPackageManager(self, self.depot_id)
+			self._package_manager = DepotserverPackageManager(self, self._depot_id)
 
 	@rpc_method
 	def depot_getHostRSAPublicKey(self: BackendProtocol) -> str:  # pylint: disable=invalid-name
@@ -181,7 +179,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		An existing file will be overriden.
 		"""
 		client_data_path = Path(
-			self.host_getObjects(id=self.depot_id)[0].getDepotLocalUrl().replace("file://", "")
+			self.host_getObjects(id=self._depot_id)[0].getDepotLocalUrl().replace("file://", "")
 		)  # pylint: disable=protected-access
 		product_path = client_data_path / productId
 		if not product_path.is_dir():
@@ -233,7 +231,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		The full path to the created opsi package is returned.
 		"""
 		package_path = Path(package_dir)
-		workbench_path = Path(self.host_getObjects(id=self.depot_id)[0].getWorkbenchLocalUrl().replace("file://", ""))
+		workbench_path = Path(self.host_getObjects(id=self._depot_id)[0].getWorkbenchLocalUrl().replace("file://", ""))
 		if not package_path.is_absolute():
 			package_path = workbench_path / package_path
 		package_path = package_path.resolve()
@@ -264,7 +262,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		an opsi package is automatically created and then installed.
 		"""
 		package_path = Path(package_file_or_dir)
-		workbench_path = Path(self.host_getObjects(id=self.depot_id)[0].getWorkbenchLocalUrl().replace("file://", ""))
+		workbench_path = Path(self.host_getObjects(id=self._depot_id)[0].getWorkbenchLocalUrl().replace("file://", ""))
 		if not package_path.is_absolute():
 			package_path = workbench_path / package_path
 		package_path = package_path.resolve()
@@ -282,7 +280,7 @@ class DepotserverPackageManager:
 
 	def __init__(self, backend: BackendProtocol, depot_id: str) -> None:
 		self.backend = backend
-		self.depot_id = depot_id
+		self._depot_id = depot_id
 
 	def install_package(  # pylint: disable=too-many-arguments,too-many-locals,too-many-branches,too-many-statements
 		self,
@@ -463,9 +461,9 @@ class DepotserverPackageManager:
 		logger.info("=================================================================================================")
 		if force_product_id:
 			force_product_id = typeForceProductId(force_product_id)
-			logger.notice("Installing package file '%s' as '%s' on depot '%s'", filename, force_product_id, self.depot_id)
+			logger.notice("Installing package file '%s' as '%s' on depot '%s'", filename, force_product_id, self._depot_id)
 		else:
-			logger.notice("Installing package file '%s' on depot '%s'", filename, self.depot_id)
+			logger.notice("Installing package file '%s' on depot '%s'", filename, self._depot_id)
 
 		try:
 			filename = forceFilename(filename)
@@ -486,7 +484,7 @@ class DepotserverPackageManager:
 				raise BackendIOError(f"Read access denied for package file '{filename}'")
 
 			try:
-				with product_package_file(filename, temp_dir, self.depot_id) as ppf:
+				with product_package_file(filename, temp_dir, self._depot_id) as ppf:
 					product = ppf.packageControlFile.getProduct()
 					if force_product_id:
 						logger.info("Forcing product id '%s'", force_product_id)
@@ -497,7 +495,7 @@ class DepotserverPackageManager:
 					old_product_version = ""
 					old_package_version = ""
 					try:
-						product_on_depot = self.backend.productOnDepot_getObjects(depotId=self.depot_id, productId=product_id)[0]
+						product_on_depot = self.backend.productOnDepot_getObjects(depotId=self._depot_id, productId=product_id)[0]
 						old_product_version = product_on_depot.getProductVersion()
 						old_package_version = product_on_depot.getPackageVersion()
 					except Exception as err:  # pylint: disable=broad-except
@@ -506,12 +504,12 @@ class DepotserverPackageManager:
 					logger.info("Creating product in backend")
 					self.backend.product_createObjects(product)
 
-					with lock_product(product, self.depot_id, force) as product_on_depot:
+					with lock_product(product, self._depot_id, force) as product_on_depot:
 						logger.info("Checking package dependencies")
 						self.check_dependencies(ppf)
 
 						env = {
-							"DEPOT_ID": self.depot_id,
+							"DEPOT_ID": self._depot_id,
 							"OLD_PRODUCT_VERSION": old_product_version,
 							"OLD_PACKAGE_VERSION": old_package_version,
 						}
@@ -580,9 +578,9 @@ class DepotserverPackageManager:
 							if current_product_properties:
 								self.backend.productProperty_deleteObjects(list(current_product_properties.values()))
 
-							logger.info("Deleting product property states of product %s on depot '%s'", product_id, self.depot_id)
+							logger.info("Deleting product property states of product %s on depot '%s'", product_id, self._depot_id)
 							self.backend.productPropertyState_deleteObjects(
-								self.backend.productPropertyState_getObjects(productId=product_id, objectId=self.depot_id)
+								self.backend.productPropertyState_getObjects(productId=product_id, objectId=self._depot_id)
 							)
 
 							logger.info("Deleting not needed property states of product %s", product_id)
@@ -604,7 +602,7 @@ class DepotserverPackageManager:
 								ProductPropertyState(
 									productId=product_id,
 									propertyId=productProperty.propertyId,
-									objectId=self.depot_id,
+									objectId=self._depot_id,
 									values=productProperty.defaultValues,
 								)
 								for productProperty in product_properties
@@ -629,25 +627,25 @@ class DepotserverPackageManager:
 							logger.debug("Suppressed generation of package content file")
 
 				clean_up_products(product_on_depot.productId)
-				clean_up_product_property_states(product_properties, self.depot_id, product_on_depot)
+				clean_up_product_property_states(product_properties, self._depot_id, product_on_depot)
 			except Exception as err:
 				logger.debug("Failed to install the package %s", filename)
 				logger.debug(err, exc_info=True)
 				raise err
 		except Exception as err:
 			logger.error(err, exc_info=True)
-			raise BackendError(f"Failed to install package '{filename}' on depot '{self.depot_id}': {err}") from err
+			raise BackendError(f"Failed to install package '{filename}' on depot '{self._depot_id}': {err}") from err
 
 	def uninstall_package(  # pylint: disable=too-many-branches,too-many-locals,too-many-statements
 		self, product_id: str, force: bool = False, delete_files: bool = True
 	) -> None:
 		logger.info("=================================================================================================")
-		logger.notice("Uninstalling product '%s' on depot '%s'", product_id, self.depot_id)
+		logger.notice("Uninstalling product '%s' on depot '%s'", product_id, self._depot_id)
 		try:  # pylint: disable=too-many-nested-blocks
 			product_id = typeForceProductId(product_id)
 			force = forceBool(force)
 			delete_files = forceBool(delete_files)
-			depot = self.backend.host_getObjects(type="OpsiDepotserver", id=self.depot_id)[0]
+			depot = self.backend.host_getObjects(type="OpsiDepotserver", id=self._depot_id)[0]
 			allow_remove_used = True
 			try:
 				allow_remove_used = forceBool(
@@ -660,7 +658,8 @@ class DepotserverPackageManager:
 
 			if not allow_remove_used:
 				client_ids = [
-					clientToDepot["clientId"] for clientToDepot in self.backend.configState_getClientToDepotserver(depotIds=[self.depot_id])
+					clientToDepot["clientId"]
+					for clientToDepot in self.backend.configState_getClientToDepotserver(depotIds=[self._depot_id])
 				]
 				if client_ids:
 					product_on_clients = self.backend.productOnClient_getObjects(productId=product_id, clientId=client_ids)
@@ -691,21 +690,21 @@ class DepotserverPackageManager:
 								action_requests,
 							)
 
-			product_on_depots = self.backend.productOnDepot_getObjects(depotId=self.depot_id, productId=product_id)
+			product_on_depots = self.backend.productOnDepot_getObjects(depotId=self._depot_id, productId=product_id)
 			try:
 				product_on_depot = product_on_depots[0]
 			except IndexError as err:
-				raise BackendBadValueError(f"Product '{product_id}' is not installed on depot '{self.depot_id}'") from err
+				raise BackendBadValueError(f"Product '{product_id}' is not installed on depot '{self._depot_id}'") from err
 
 			if product_on_depot.getLocked():
-				logger.notice("Product '%s' currently locked on depot '%s'", product_id, self.depot_id)
+				logger.notice("Product '%s' currently locked on depot '%s'", product_id, self._depot_id)
 				if not force:
 					raise BackendTemporaryError(
-						f"Product '{product_id}' currently locked on depot '{self.depot_id}', use argument 'force' to ignore"
+						f"Product '{product_id}' currently locked on depot '{self._depot_id}', use argument 'force' to ignore"
 					)
 				logger.warning("Uninstall of locked product '%s' forced", product_id)
 
-			logger.notice("Locking product '%s' on depot '%s'", product_id, self.depot_id)
+			logger.notice("Locking product '%s' on depot '%s'", product_id, self._depot_id)
 			product_on_depot.setLocked(True)
 			self.backend.productOnDepot_updateObject(product_on_depot)
 
@@ -728,12 +727,12 @@ class DepotserverPackageManager:
 			self.backend.productOnDepot_deleteObjects(product_on_depot)
 		except Exception as err:
 			logger.error(err, exc_info=True)
-			raise BackendError(f"Failed to uninstall product '{product_id}' on depot '{self.depot_id}': {err}") from err
+			raise BackendError(f"Failed to uninstall product '{product_id}' on depot '{self._depot_id}': {err}") from err
 
 	def check_dependencies(self, product_package_file: ProductPackageFile) -> None:
 		for dependency in product_package_file.packageControlFile.getPackageDependencies():
 			product_on_depots = self.backend.productOnDepot_getObjects(  # pylint: disable=protected-access
-				depotId=self.depot_id, productId=dependency["package"]  # pylint: disable=protected-access
+				depotId=self._depot_id, productId=dependency["package"]  # pylint: disable=protected-access
 			)
 			if not product_on_depots:
 				raise BackendUnaccomplishableError(f"Dependent package '{dependency['package']}' not installed")

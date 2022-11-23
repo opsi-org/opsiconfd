@@ -59,7 +59,7 @@ from opsiconfd.config import FQDN, config
 from opsiconfd.logging import logger
 from opsiconfd.ssl import get_ca_cert_as_pem
 
-from . import deprecated_rpc_method, rpc_method  # pylint: disable=unused-import
+from . import deprecated_rpc_method, rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
@@ -497,12 +497,12 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if not result["password"]:
 			raise BackendMissingDataError(f"Username '{username}' not found in '{OPSI_PASSWD_FILE}'")
 
-		depot = self.host_getObjects(id=self.depot_id)
+		depot = self.host_getObjects(id=self._depot_id)
 		if not depot:
-			raise BackendMissingDataError(f"Depot '{self.depot_id}'' not found in backend")
+			raise BackendMissingDataError(f"Depot '{self._depot_id}'' not found in backend")
 		depot = depot[0]
 		if not depot.opsiHostKey:
-			raise BackendMissingDataError(f"Host key for depot '{self.depot_id}' not found")
+			raise BackendMissingDataError(f"Host key for depot '{self._depot_id}' not found")
 
 		result["password"] = blowfishDecrypt(depot.opsiHostKey, result["password"])
 
@@ -542,9 +542,9 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			raise ValueError("Character '\"' not allowed in password")
 
 		try:
-			depot = self.host_getObjects(id=self.depot_id)[0]
+			depot = self.host_getObjects(id=self._depot_id)[0]
 		except IndexError as err:
-			raise BackendMissingDataError(f"Depot {self.depot_id} not found in backend") from err
+			raise BackendMissingDataError(f"Depot {self._depot_id} not found in backend") from err
 
 		encoded_password = blowfishEncrypt(depot.opsiHostKey, password)
 

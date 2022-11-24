@@ -52,7 +52,10 @@ MT_ERROR = "error"
 def messages(message: str, width: int) -> Callable:
 	def message_decorator(function: Callable) -> Callable:
 		def wrapper(*args: Any, **kwargs: Dict[str, Any]) -> Any:
-			print_messages = args[0]
+			try:
+				print_messages = args[0]
+			except IndexError:
+				print_messages = kwargs.get("print_messages")
 			if print_messages:
 				show_message("	- " + message + ":", newline=False, msg_format="%-" + str(width) + "s")
 			result = function(*args, **kwargs)
@@ -62,7 +65,7 @@ def messages(message: str, width: int) -> Callable:
 				elif result.get("status") == "warn":
 					show_message("warning", MT_WARNING)
 				else:
-					show_message("error", MT_ERROR)
+					show_message("ERROR", MT_ERROR)
 				if config.log_level_stderr == 5:
 					if function.__name__ == "check_system_packages":
 						print_check_system_packages_result(result)
@@ -232,17 +235,17 @@ def check_redis(print_messages: bool = False) -> dict:  # pylint: disable=unused
 			return {"status": "ok", "message": "Redis is running and Redis-Timeseries is loaded."}
 	except RedisConnectionError as err:
 		logger.info(str(err))
-		return {"status": "error", "message": str(err) , "details": {"connection": False, "timeseries": False}}
+		return {"status": "error", "message": str(err) , "details": {"connection": False, "timeseries": False, "error": str(err)}}
 
 
 def print_check_redis_result(check_result: dict) -> None:
 	if check_result["status"] == "ok":
 		show_message("		Redis is running and Redis-Timeseries is loaded.", MT_SUCCESS)
 	else:
-		if check_result["status"]["details"]["connection"]:
+		if check_result["details"]["connection"]:
 			show_message("		Redis-Timeseries not loaded.", MT_ERROR)
 		else:
-			show_message("		Redis is running and Redis-Timeseries is loaded.", MT_SUCCESS)
+			show_message(f"		Cannot connect to redis!", MT_ERROR)
 
 
 @messages("Checking mysql", MSG_WIDTH)

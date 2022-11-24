@@ -28,9 +28,16 @@ from opsiconfd.check import (
 	get_repo_versions,
 	health_check,
 )
+from opsiconfd.config import Config
 
-from .utils import test_client  # pylint: disable=unused-import
-from .utils import ADMIN_PASS, ADMIN_USER, OpsiconfdTestClient, sync_clean_redis
+from .utils import (  # pylint: disable=unused-import
+	ADMIN_PASS,
+	ADMIN_USER,
+	OpsiconfdTestClient,
+	config,
+	sync_clean_redis,
+	test_client,
+)
 
 DEPRECATED_METHOD = "getClientIds_list"
 
@@ -38,34 +45,39 @@ DEPRECATED_METHOD = "getClientIds_list"
 def captured_function_output(func: Callable, args: Dict[str, Any]) -> Dict[str, Any]:
 	captured_output = io.StringIO()
 	sys.stdout = captured_output
-	result = func(**args)
+	result = func(*args)
 	sys.stdout = sys.__stdout__
 
 	return {"captured_output": captured_output.getvalue(), "data": result}
 
 
-def test_check_redis() -> None:
-
+def test_check_redis(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	config.log_level_stderr = 5
 	result = captured_function_output(check_redis, {"print_messages": True})
 
 	assert (
 		result.get("captured_output")
 		== Fore.WHITE
 		+ Style.BRIGHT
-		+ "Checking redis..."
+		+ "\t- Checking redis:                                "
+		+ Style.RESET_ALL
+		+ Fore.GREEN
+		+ Style.BRIGHT
+		+ "OK"
 		+ Style.RESET_ALL
 		+ "\n"
 		+ Fore.GREEN
 		+ Style.BRIGHT
-		+ "Redis is running and Redis-Timeseries is loaded."
+		+ "		Redis is running and Redis-Timeseries is loaded."
 		+ Style.RESET_ALL
 		+ "\n"
 	)
+
 	data = result.get("data", {})
 	assert data.get("status") is not None
 	assert data["status"] == "ok"
 
-	result = captured_function_output(check_redis, {"print_messages": False})
+	result = captured_function_output(check_redis, {})
 
 	assert result.get("captured_output") == ""
 	data = result.get("data", {})
@@ -81,49 +93,56 @@ def test_check_redis_error() -> None:
 			result.get("captured_output")
 			== Fore.WHITE
 			+ Style.BRIGHT
-			+ "Checking redis..."
+			+ "\t- Checking redis:                                "
+			+ Style.RESET_ALL
+			+ Fore.RED
+			+ Style.BRIGHT
+			+ "ERROR"
 			+ Style.RESET_ALL
 			+ "\n"
 			+ Fore.RED
 			+ Style.BRIGHT
-			+ "Cannot connect to redis!"
+			+ "\t\tCannot connect to redis!"
 			+ Style.RESET_ALL
 			+ "\n"
 		)
 		data = result.get("data", {})
 		assert data.get("status") is not None
 		assert data["status"] == "error"
-		assert data["details"] == "Redis test error"
+		assert data["message"] == "Redis test error"
 
 
-def test_check_mysql() -> None:
-
+def test_check_mysql(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	config.log_level_stderr = 5
 	result = captured_function_output(check_mysql, {"print_messages": True})
 
 	assert (
 		result.get("captured_output")
 		== Fore.WHITE
 		+ Style.BRIGHT
-		+ "Checking mysql..."
+		+ "\t- Checking mysql:                                "
+		+ Style.RESET_ALL
+		+ Fore.GREEN
+		+ Style.BRIGHT
+		+ "OK"
 		+ Style.RESET_ALL
 		+ "\n"
 		+ Fore.GREEN
 		+ Style.BRIGHT
-		+ "Connection to mysql is working."
+		+ "\t\tConnection to mysql is working."
 		+ Style.RESET_ALL
 		+ "\n"
 	)
 	data = result.get("data", {})
 	assert data.get("status") is not None
 	assert data["status"] == "ok"
-	assert data["details"] == "Connection to mysql is working."
+	assert data["message"] == "Connection to mysql is working."
 
 
-def test_check_mysql_error() -> None:
-
+def test_check_mysql_error(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	config.log_level_stderr = 5
 	with mock.patch(
-		"opsiconfd.check.get_mysql",
-		side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
+		"opsiconfd.check.get_mysql", side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
 	):
 		result = captured_function_output(check_mysql, {"print_messages": True})
 
@@ -131,19 +150,39 @@ def test_check_mysql_error() -> None:
 			result.get("captured_output")
 			== Fore.WHITE
 			+ Style.BRIGHT
-			+ "Checking mysql..."
+			+ "\t- Checking mysql:                                "
+			+ Style.RESET_ALL
+			+ Fore.RED
+			+ Style.BRIGHT
+			+ "ERROR"
 			+ Style.RESET_ALL
 			+ "\n"
 			+ Fore.RED
 			+ Style.BRIGHT
-			+ 'Could not connect to mysql: (MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
+			+ '\t\tCould not connect to mysql: (MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
 			+ Style.RESET_ALL
 			+ "\n"
 		)
 		data = result.get("data", {})
 		assert data.get("status") is not None
 		assert data["status"] == "error"
-		assert data["details"] == '(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
+		assert data["message"] == '(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
+
+		config.log_level_stderr = 4
+		result = captured_function_output(check_mysql, {"print_messages": True})
+
+		assert (
+			result.get("captured_output")
+			== Fore.WHITE
+			+ Style.BRIGHT
+			+ "\t- Checking mysql:                                "
+			+ Style.RESET_ALL
+			+ Fore.RED
+			+ Style.BRIGHT
+			+ "ERROR"
+			+ Style.RESET_ALL
+			+ "\n"
+		)
 
 
 def test_get_repo_versions() -> None:
@@ -167,12 +206,10 @@ def test_get_repo_versions() -> None:
 			assert result.get(package, {}).get("version") == "4.2.0.183-1"
 
 
-def test_check_system_packages_debian() -> None:
+def test_check_system_packages_debian(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	config.log_level_stderr = 5
 	# test up to date packages - status sould be ok and output should be green
-	packages = {
-		"opsiconfd": "4.2.0.200-1",
-		"opsi-utils": "4.2.0.180-1"
-	}
+	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	dpkg_lines = []
 	test_package_versions = {}
 
@@ -185,31 +222,33 @@ def test_check_system_packages_debian() -> None:
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
 		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False))
+		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 
-		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		text = Fore.WHITE + Style.BRIGHT + "\t- Checking system packages:                      " + Style.RESET_ALL
+		text = text + Fore.GREEN + Style.BRIGHT + "OK" + Style.RESET_ALL + "\n"
 		for name, version in packages.items():
-			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
+			text = (
+				text
+				+ Fore.GREEN
+				+ Style.BRIGHT
+				+ f"\t\tPackage {name} is up to date. Installed version: {version}"
+				+ Style.RESET_ALL
+				+ "\n"
+			)
 		assert result.get("captured_output") == text
 		data = result.get("data", {})
 		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get("details") == "All packages up to date."
+			assert data.get("message") == "All packages up to date."
 			assert data.get("status") == "ok"
 			assert partial_check.get(name, {}).get("status") is not None
 			assert partial_check.get(name, {}).get("status") == "ok"
-			assert (
-				partial_check[name]["details"] ==
-				f"Installed version: {version}"
-			)
+			assert partial_check[name]["message"] == f"Installed version: {version}"
 
 	# test outdated packages - status sould be warn and output sould be in yellow
-	packages = {
-		"opsiconfd": "4.2.0.100-1",
-		"opsi-utils": "4.2.0.100-1"
-	}
+	packages = {"opsiconfd": "4.2.0.100-1", "opsi-utils": "4.2.0.100-1"}
 	dpkg_lines = []
 	for name, version in packages.items():  # pylint: disable=use-list-copy
 		dpkg_lines.append(f"ii  {name}                         {version}                       amd64        Package description")
@@ -219,16 +258,17 @@ def test_check_system_packages_debian() -> None:
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
 		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False))
+		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
-		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		text = Fore.WHITE + Style.BRIGHT + "\t- Checking system packages:                      " + Style.RESET_ALL
+		text = text + Fore.YELLOW + Style.BRIGHT + "WARNING" + Style.RESET_ALL + "\n"
 		for name, version in packages.items():
 			text = (
 				text
 				+ Fore.YELLOW
 				+ Style.BRIGHT
-				+ f"Package {name} is outdated. Installed version: {version} - available version: {test_package_versions[name]['version']}"
+				+ f"\t\tPackage {name} is outdated. Installed version: {version} - available version: {test_package_versions[name]['version']}"
 				+ Style.RESET_ALL
 				+ "\n"
 			)
@@ -236,25 +276,23 @@ def test_check_system_packages_debian() -> None:
 		data = result.get("data", {})
 		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get("details") == "Out of 2 packages checked, 0 are not installed and 2 are out of date."
+			assert data.get("message") == "Out of 2 packages checked, 0 are not installed and 2 are out of date."
 			assert data.get("status") == "warn"
 			assert partial_check.get(name, {}).get("status") is not None
 			assert partial_check.get(name, {}).get("status") == "warn"
 			assert (
-				partial_check[name]["details"] ==
-				f"Package {name} is outdated. Installed version: {version} - available version: {test_package_versions[name]['version']}"
+				partial_check[name]["message"]
+				== f"Package {name} is outdated. Installed version: {version} - available version: {test_package_versions[name]['version']}"
 			)
 
 
-def test_check_system_packages_open_suse() -> None:
-	packages = {
-		"opsiconfd": "4.2.0.200-1",
-		"opsi-utils": "4.2.0.180-1"
-	}
+def test_check_system_packages_open_suse(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	config.log_level_stderr = 5
+	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
 	zypper_lines = [
 		"S  | Name                 | Typ   | Version             | Arch   | Repository",
-		"---+----------------------+-------+---------------------+--------+------------------------------"
+		"---+----------------------+-------+---------------------+--------+------------------------------",
 	]
 	test_package_versions = {}
 
@@ -267,37 +305,37 @@ def test_check_system_packages_open_suse() -> None:
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=zypper_lines)),
 		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=True)),
 		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False))
+		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 
-		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		text = Fore.WHITE + Style.BRIGHT + "\t- Checking system packages:                      " + Style.RESET_ALL
+		text = text + Fore.GREEN + Style.BRIGHT + "OK" + Style.RESET_ALL + "\n"
 		for name, version in packages.items():
-			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
+			text = (
+				text
+				+ Fore.GREEN
+				+ Style.BRIGHT
+				+ f"\t\tPackage {name} is up to date. Installed version: {version}"
+				+ Style.RESET_ALL
+				+ "\n"
+			)
 		assert result.get("captured_output") == text
 		data = result.get("data", {})
 		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get("details") == "All packages up to date."
+			assert data.get("message") == "All packages up to date."
 			assert data.get("status") == "ok"
 			assert partial_check.get(name, {}).get("status") is not None
 			assert partial_check.get(name, {}).get("status") == "ok"
-			assert (
-				partial_check[name]["details"] ==
-				f"Installed version: {version}"
-			)
+			assert partial_check[name]["message"] == f"Installed version: {version}"
 
 
-def test_check_system_packages_redhat() -> None:
-	packages = {
-		"opsiconfd": "4.2.0.200-1",
-		"opsi-utils": "4.2.0.180-1"
-	}
+def test_check_system_packages_redhat(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	config.log_level_stderr = 5
+	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
-	yum_lines = [
-		"Subscription Management Repositorys werden aktualisiert.",
-		"Installierte Pakete"
-	]
+	yum_lines = ["Subscription Management Repositorys werden aktualisiert.", "Installierte Pakete"]
 	test_package_versions = {}
 
 	for name, version in packages.items():
@@ -307,25 +345,30 @@ def test_check_system_packages_redhat() -> None:
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
 		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=yum_lines)),
-		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=True))
+		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=True)),
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 
-		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		text = Fore.WHITE + Style.BRIGHT + "\t- Checking system packages:                      " + Style.RESET_ALL
+		text = text + Fore.GREEN + Style.BRIGHT + "OK" + Style.RESET_ALL + "\n"
 		for name, version in packages.items():
-			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
+			text = (
+				text
+				+ Fore.GREEN
+				+ Style.BRIGHT
+				+ f"\t\tPackage {name} is up to date. Installed version: {version}"
+				+ Style.RESET_ALL
+				+ "\n"
+			)
 		assert result.get("captured_output") == text
 		data = result.get("data", {})
 		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get("details") == "All packages up to date."
+			assert data.get("message") == "All packages up to date."
 			assert data.get("status") == "ok"
 			assert partial_check.get(name, {}).get("status") is not None
 			assert partial_check.get(name, {}).get("status") == "ok"
-			assert (
-				partial_check[name]["details"] ==
-				f"Installed version: {version}"
-			)
+			assert partial_check[name]["message"] == f"Installed version: {version}"
 
 
 def test_health_check() -> None:
@@ -337,8 +380,10 @@ def test_health_check() -> None:
 	assert result["mysql"]["status"] == "ok"
 
 
-def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-
+def test_check_deprecated_calls(
+	test_client: OpsiconfdTestClient, config: Config  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	config.log_level_stderr = 5
 	sync_clean_redis()
 
 	result = captured_function_output(check_deprecated_calls, {"print_messages": True})
@@ -347,12 +392,16 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 		result.get("captured_output")
 		== Fore.WHITE
 		+ Style.BRIGHT
-		+ "Checking calls of deprecated methods..."
+		+ "\t- Checking calls of deprecated methods:          "
+		+ Style.RESET_ALL
+		+ Fore.GREEN
+		+ Style.BRIGHT
+		+ "OK"
 		+ Style.RESET_ALL
 		+ "\n"
 		+ Fore.GREEN
 		+ Style.BRIGHT
-		+ "No deprecated method calls found."
+		+ "\t\tNo deprecated method calls found."
 		+ Style.RESET_ALL
 		+ "\n"
 	)
@@ -373,4 +422,4 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 	assert data["details"][DEPRECATED_METHOD] is not None
 	assert data["details"][DEPRECATED_METHOD]["calls"] == "1"
 	assert isinstance(data["details"][DEPRECATED_METHOD]["clients"], set)
-	assert data["details"][DEPRECATED_METHOD]["clients"] == {'testclient'}
+	assert data["details"][DEPRECATED_METHOD]["clients"] == {"testclient"}

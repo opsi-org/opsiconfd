@@ -296,8 +296,6 @@ def print_check_deprecated_calls_result(check_result: dict) -> None:
 
 @messages("Checking opsi packages", MSG_WIDTH)
 def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-locals,too-many-branches,unused-argument
-	# if print_messages:
-	# 	show_message("Checking opsi packages...")
 	res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
 
 	avalible_packages = OPSI_PACKAGES

@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING
 
 from opsiconfd.logging import logger
 
+from .cleanup import remove_orphans_config_value, remove_orphans_product_property_value
+
 if TYPE_CHECKING:
 	from . import MySQLConnection, Session
 
@@ -148,10 +150,12 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		)
 
 		res = session.execute(
-			"SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`"
-			" INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2` ON `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`"
-			" WHERE `t1`.`REFERENCED_TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_PROPERTY_VALUE'"
-			" AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT_PROPERTY'",
+			"""
+			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
+			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2` ON `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+			WHERE `t1`.`REFERENCED_TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_PROPERTY_VALUE'
+			AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT_PROPERTY'
+			""",
 			params={"database": mysql.database},
 		).fetchone()
 		if not res or res[1] == "RESTRICT":
@@ -159,32 +163,40 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				logger.notice("Removing FK to PRODUCT_PROPERTY on table PRODUCT_PROPERTY_VALUE with RESTRICT")
 				session.execute(f"ALTER TABLE `PRODUCT_PROPERTY_VALUE` DROP FOREIGN KEY `{res[0]}`")
 
+			remove_orphans_product_property_value(session=session, dry_run=False)
 			logger.notice("Creating FK to PRODUCT_PROPERTY on table PRODUCT_PROPERTY_VALUE with CASCADE")
 			session.execute(
-				"ALTER TABLE `PRODUCT_PROPERTY_VALUE` ADD CONSTRAINT `FK_PRODUCT_PROPERTY`"
-				" FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`) "
-				" REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`) "
-				" ON UPDATE CASCADE ON DELETE CASCADE"
+				"""
+				ALTER TABLE `PRODUCT_PROPERTY_VALUE` ADD CONSTRAINT `FK_PRODUCT_PROPERTY`
+				FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`)
+				REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`)
+				ON UPDATE CASCADE ON DELETE CASCADE
+				"""
 			)
 
 		res = session.execute(
-			"SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`"
-			" INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2` ON `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`"
-			" WHERE `t1`.`REFERENCED_TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'CONFIG_VALUE'"
-			" AND `t1`.`REFERENCED_TABLE_NAME` = 'CONFIG'",
+			"""
+			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
+			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2` ON `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+			WHERE `t1`.`REFERENCED_TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'CONFIG_VALUE'
+			AND `t1`.`REFERENCED_TABLE_NAME` = 'CONFIG'
+			""",
 			params={"database": mysql.database},
 		).fetchone()
 		if not res or res[1] == "RESTRICT":
+			remove_orphans_config_value(session=session, dry_run=False)
 			if res:
 				logger.notice("Removing FK to CONFIG on table CONFIG_VALUE with RESTRICT")
 				session.execute(f"ALTER TABLE `CONFIG_VALUE` DROP FOREIGN KEY `{res[0]}`")
 
 			logger.notice("Creating FK to CONFIG on table CONFIG_VALUE with CASCADE")
 			session.execute(
-				"ALTER TABLE `CONFIG_VALUE` ADD CONSTRAINT `FK_CONFIG`"
-				" FOREIGN KEY (`configId`) "
-				" REFERENCES `CONFIG` (`configId`) "
-				" ON UPDATE CASCADE ON DELETE CASCADE"
+				"""
+				ALTER TABLE `CONFIG_VALUE` ADD CONSTRAINT `FK_CONFIG`
+				FOREIGN KEY (`configId`)
+				REFERENCES `CONFIG` (`configId`)
+				ON UPDATE CASCADE ON DELETE CASCADE
+				"""
 			)
 
 		create_index(
@@ -199,8 +211,10 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			logger.notice("Removing duplicates from table CONFIG_STATE")
 			duplicates = []
 			for row in session.execute(
-				"SELECT GROUP_CONCAT(`config_state_id`) AS ids, COUNT(*) AS num"
-				" FROM `CONFIG_STATE` GROUP BY `configId`, `objectId` HAVING num > 1"
+				"""
+				SELECT GROUP_CONCAT(`config_state_id`) AS ids, COUNT(*) AS num
+				FROM `CONFIG_STATE` GROUP BY `configId`, `objectId` HAVING num > 1
+				"""
 			).fetchall():
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
@@ -226,8 +240,10 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			logger.notice("Removing duplicates from table LICENSE_ON_CLIENT")
 			duplicates = []
 			for row in session.execute(
-				"SELECT GROUP_CONCAT(`license_on_client_id`) AS ids, COUNT(*) AS num"
-				" FROM `LICENSE_ON_CLIENT` GROUP BY `softwareLicenseId`, `licensePoolId`, `clientId` HAVING num > 1"
+				"""
+				SELECT GROUP_CONCAT(`license_on_client_id`) AS ids, COUNT(*) AS num
+				FROM `LICENSE_ON_CLIENT` GROUP BY `softwareLicenseId`, `licensePoolId`, `clientId` HAVING num > 1
+				"""
 			).fetchall():
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
@@ -253,8 +269,10 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			logger.notice("Removing duplicates from table OBJECT_TO_GROUP")
 			duplicates = []
 			for row in session.execute(
-				"SELECT GROUP_CONCAT(`object_to_group_id`) AS ids, COUNT(*) AS num"
-				" FROM `OBJECT_TO_GROUP` GROUP BY `groupType`, `groupId`, `objectId` HAVING num > 1"
+				"""
+				SELECT GROUP_CONCAT(`object_to_group_id`) AS ids, COUNT(*) AS num
+				FROM `OBJECT_TO_GROUP` GROUP BY `groupType`, `groupId`, `objectId` HAVING num > 1
+				"""
 			).fetchall():
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
@@ -283,8 +301,10 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			logger.notice("Removing duplicates from table PRODUCT_PROPERTY_STATE")
 			duplicates = []
 			for row in session.execute(
-				"SELECT GROUP_CONCAT(`product_property_state_id`) AS ids, COUNT(*) AS num"
-				" FROM `PRODUCT_PROPERTY_STATE` GROUP BY `productId`, `propertyId`, `objectId` HAVING num > 1"
+				"""
+				SELECT GROUP_CONCAT(`product_property_state_id`) AS ids, COUNT(*) AS num
+				FROM `PRODUCT_PROPERTY_STATE` GROUP BY `productId`, `propertyId`, `objectId` HAVING num > 1
+				"""
 			).fetchall():
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
@@ -310,8 +330,10 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			logger.notice("Removing duplicates from table SOFTWARE_CONFIG")
 			duplicates = []
 			for row in session.execute(
-				"SELECT GROUP_CONCAT(`config_id`) AS ids, COUNT(*) AS num"
-				" FROM `SOFTWARE_CONFIG` GROUP BY `clientId`, `name`, `version`, `subVersion`, `language`, `architecture` HAVING num > 1"
+				"""
+				SELECT GROUP_CONCAT(`config_id`) AS ids, COUNT(*) AS num
+				FROM `SOFTWARE_CONFIG` GROUP BY `clientId`, `name`, `version`, `subVersion`, `language`, `architecture` HAVING num > 1
+				"""
 			).fetchall():
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
@@ -332,6 +354,60 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			index="PRIMARY",
 			columns=["clientId", "name", "version", "subVersion", "language", "architecture"],
 		)
+
+		res = session.execute(
+			"""
+			SELECT DISTINCT `CONSTRAINT_NAME` FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE`
+			WHERE `REFERENCED_TABLE_SCHEMA` = :database AND `TABLE_NAME` = 'SOFTWARE_CONFIG'
+			AND `REFERENCED_TABLE_NAME` = 'SOFTWARE'
+			""",
+			params={"database": mysql.database},
+		).fetchall()
+		fk_names = []  # pylint: disable=use-tuple-over-list
+		if res:
+			fk_names = [r[0] for r in res]
+		if "FK_HOST" not in fk_names or "FK_SOFTWARE" not in fk_names:
+			res = session.execute(
+				"""
+				SELECT c.name, c.version, c.subVersion, c.`language`, c.architecture
+				FROM SOFTWARE_CONFIG AS c
+				LEFT JOIN SOFTWARE AS s ON
+					s.name = c.name AND s.version = c.version AND s.subVersion = c.subVersion AND
+					s.`language` = c.`language` AND	s.architecture = c.architecture
+				LEFT JOIN HOST AS h ON h.hostId = c.clientId
+				WHERE s.name IS NULL OR h.hostId IS NULL
+				"""
+			).fetchall()
+			if res:
+				logger.notice("Removing orphan entries from SOFTWARE_CONFIG")
+				for row in res:
+					session.execute(
+						"""
+						DELETE FROM SOFTWARE_CONFIG
+						WHERE name = :name AND version = :version AND subVersion = :subVersion
+							AND `language` = :language AND architecture = :architecture
+						""",
+						params=dict(row),
+					)
+
+			if "FK_SOFTWARE" not in fk_names:
+				session.execute(
+					"""
+					ALTER TABLE `SOFTWARE_CONFIG` ADD CONSTRAINT `FK_SOFTWARE`
+					FOREIGN KEY (`name`, `version`, `subVersion`, `language`, `architecture`)
+					REFERENCES `SOFTWARE` (`name`, `version`, `subVersion`, `language`, `architecture`)
+					ON UPDATE CASCADE ON DELETE CASCADE
+					"""
+				)
+			if "FK_HOST" not in fk_names:
+				session.execute(
+					"""
+					ALTER TABLE `SOFTWARE_CONFIG` ADD CONSTRAINT `FK_HOST`
+					FOREIGN KEY (`clientId`)
+					REFERENCES `HOST` (`hostId`)
+					ON UPDATE CASCADE ON DELETE CASCADE
+					"""
+				)
 
 		if "LOG_CONFIG_VALUE" in mysql.tables:
 			logger.notice("Dropping table LOG_CONFIG_VALUE")

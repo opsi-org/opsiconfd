@@ -17,7 +17,7 @@ import signal
 import tempfile
 from operator import itemgetter
 from shutil import move, rmtree, unpack_archive
-from typing import Dict, List
+from typing import TYPE_CHECKING, Dict, List
 from urllib.parse import urlparse
 
 import msgspec
@@ -29,8 +29,7 @@ from OPSI.System.Posix import isUCS  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd.backend import BackendManager, get_backend
-from opsiconfd.backend.rpc.opsiconfd import get_backend_interface
+from opsiconfd.backend import get_backend, get_unrestricted_backend
 
 from .. import __version__, contextvar_client_session
 from ..addon import AddonManager
@@ -52,6 +51,9 @@ from ..utils import (
 )
 from .memoryprofiler import memory_profiler_router
 from .metrics import create_grafana_datasource
+
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.opsiconfd import UnrestrictedBackend
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -94,12 +96,11 @@ async def welcome_interface_deactivate() -> None:
 
 @admin_interface_router.get("/")
 async def admin_interface_index(request: Request) -> Response:
-	backend = get_backend()
 	username = ""
 	session = contextvar_client_session.get()
 	if session and session.user_store:
 		username = session.user_store.username
-	interface = get_backend_interface()
+	interface = get_backend().get_interface()
 	for method in interface:
 		if method["doc"]:
 			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])  # pylint: disable=dotted-import-in-loop
@@ -112,8 +113,8 @@ async def admin_interface_index(request: Request) -> Response:
 		"interface": interface,
 		"ca_info": get_ca_cert_info(),
 		"cert_info": get_server_cert_info(),
-		"num_servers": get_num_servers(backend),
-		"num_clients": get_num_clients(backend),
+		"num_servers": get_num_servers(),
+		"num_clients": get_num_clients(),
 		"disabled_features": config.admin_interface_disabled_features,
 		"addons": [
 			{"id": addon.id, "name": addon.name, "version": addon.version, "install_path": addon.path, "path": addon.router_prefix}
@@ -324,7 +325,7 @@ async def get_session_list() -> RESTResponse:
 @admin_interface_router.get("/locked-products-list", response_model=List[str])
 @rest_api
 async def get_locked_products_list() -> RESTResponse:
-	backend = get_backend()
+	backend = get_unrestricted_backend()
 	products = await run_in_threadpool(backend.getProductLocks_hash)  # pylint: disable=no-member
 	return RESTResponse(products)
 
@@ -332,7 +333,7 @@ async def get_locked_products_list() -> RESTResponse:
 @admin_interface_router.post("/products/{product}/unlock")
 @rest_api
 async def unlock_product(request: Request, product: str) -> RESTResponse:
-	backend = get_backend()
+	backend = get_unrestricted_backend()
 	depots = None
 	try:
 		request_body = await request.json()
@@ -354,7 +355,7 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 @admin_interface_router.post("/products/unlock")
 @rest_api
 async def unlock_all_product() -> RESTResponse:
-	backend = get_backend()
+	backend = get_unrestricted_backend()
 	try:
 		for product in set(
 			pod.productId for pod in backend.productOnDepot_getObjects(depotId=[], locked=True)  # pylint: disable=no-member
@@ -474,7 +475,7 @@ def get_routes(request: Request) -> RESTResponse:  # pylint: disable=redefined-b
 @admin_interface_router.get("/licensing_info")
 @rest_api
 def get_licensing_info() -> RESTResponse:
-	info = get_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)  # pylint: disable=no-member
+	info = get_unrestricted_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)  # pylint: disable=no-member
 	active_date = None
 	modules: Dict[str, dict] = {}
 	previous: Dict[str, dict] = {}
@@ -537,11 +538,11 @@ async def license_upload(files: List[UploadFile]) -> RESTResponse:
 		return RESTErrorResponse(http_status=status.HTTP_422_UNPROCESSABLE_ENTITY, message="Invalid license file.", details=err)
 
 
-def get_num_servers(backend: BackendManager) -> int:
-	servers = len(backend.host_getIdents(type="OpsiDepotserver"))
+def get_num_servers() -> int:
+	servers = len(get_unrestricted_backend().host_getIdents(type="OpsiDepotserver"))
 	return servers
 
 
-def get_num_clients(backend: BackendManager) -> int:
-	clients = len(backend.host_getIdents(type="OpsiClient"))
+def get_num_clients() -> int:
+	clients = len(get_unrestricted_backend().host_getIdents(type="OpsiClient"))
 	return clients

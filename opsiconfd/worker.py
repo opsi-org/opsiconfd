@@ -22,15 +22,13 @@ from multiprocessing.context import SpawnProcess
 from signal import SIGHUP
 from typing import List, Optional
 
-from starlette.concurrency import run_in_threadpool
 from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
 from . import __version__
 from .addon import AddonManager
-from .backend import get_backend, get_client_backend
-from .backend.rpc.opsiconfd import OpsiconfdBackend, get_backend_interface
+from .backend import get_backend, get_unrestricted_backend
 from .config import GC_THRESHOLDS, config
 from .logging import init_logging, logger
 from .metrics.collector import WorkerMetricsCollector
@@ -143,11 +141,9 @@ class Worker(UvicornServer):
 		# Create redis pool
 		await async_redis_client(timeout=10, test_connection=True)
 
-		# Create BackendManager instances
-		await run_in_threadpool(get_backend, 60)
-		await run_in_threadpool(get_client_backend)
-		OpsiconfdBackend()
-		get_backend_interface()
+		# Create Backend instance
+		get_unrestricted_backend()
+		get_backend()
 
 		asyncio.create_task(self.memory_cleanup_task())
 		asyncio.create_task(self.metrics_collector.main_loop())
@@ -172,5 +168,5 @@ class Worker(UvicornServer):
 				setattr(self.config, key, value)
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()
-		OpsiconfdBackend().read_acl_file()
+		get_backend().read_acl_file()
 		AddonManager().reload_addons()

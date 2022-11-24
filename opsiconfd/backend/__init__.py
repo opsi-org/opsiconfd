@@ -8,21 +8,27 @@
 opsiconfd.backend.rpc
 """
 
+from __future__ import annotations
 
 import threading
-from time import sleep, time
-from typing import Any, Callable, Dict, List
+from typing import TYPE_CHECKING, Any, Callable, Dict
 
 from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig  # type: ignore[import]
-from OPSI.Backend.MySQL import MySQL  # type: ignore[import]
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_user_store
 from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.session import OPSISession, UserStore
+
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.opsiconfd import (
+		Backend,
+		MySQLConnection,
+		UnrestrictedBackend,
+	)
+	from opsiconfd.session import OPSISession, UserStore
 
 BackendManager.default_config = {
 	"dispatchConfigFile": config.dispatch_config_file,
@@ -86,36 +92,16 @@ def get_client_backend() -> BackendManager:
 	return client_backend_manager
 
 
-backend_manager_lock = threading.Lock()
-backend_manager = None  # pylint: disable=invalid-name
+def get_backend() -> Backend:
+	from .rpc.opsiconfd import Backend  # pylint: disable=import-outside-toplevel
+	return Backend()
 
 
-def get_backend(timeout: int = -1) -> BackendManager:
-	global backend_manager  # pylint: disable=invalid-name, global-statement
-	with backend_manager_lock:
-		if not backend_manager:
-			start_time = time()
-			while True:
-				try:  # pylint: disable=loop-try-except-usage
-					backend_manager = BackendManager(depotBackend=True)
-					break
-				except RequestsConnectionError as err:
-					# JSONRPCBackend, config service connection error
-					if timeout < 0:  # pylint: disable=loop-invariant-statement
-						raise
-					if timeout > 0 and time() - start_time >= timeout:  # pylint: disable=loop-invariant-statement,chained-comparison
-						raise
-					logger.warning("Failed to get backend, will retry in 10 seconds: %s", err)
-					sleep(10)
-	return backend_manager
-
-
-async def async_backend_call(method: str, **kwargs: Any) -> Any:
-	def _backend_call(method: str, **kwargs: Any) -> Any:
-		meth = getattr(get_backend(), method)
-		return meth(**kwargs)
-
-	return await run_in_threadpool(_backend_call, method, **kwargs)
+def get_unrestricted_backend() -> UnrestrictedBackend:
+	from .rpc.opsiconfd import (  # pylint: disable=import-outside-toplevel
+		UnrestrictedBackend,
+	)
+	return UnrestrictedBackend()
 
 
 def get_server_role() -> str:
@@ -125,17 +111,8 @@ def get_server_role() -> str:
 	return "config"
 
 
-def get_mysql() -> MySQL:
-	backend = get_backend()
-	while getattr(backend, "_backend", None):
-		backend = backend._backend  # pylint: disable=protected-access
-		if backend.__class__.__name__ == "BackendDispatcher":
-			try:  # pylint: disable=loop-try-except-usage
-				return backend._backends["mysql"]["instance"]._sql  # pylint: disable=protected-access
-			except KeyError:
-				# No mysql backend
-				pass
-	raise RuntimeError("MySQL backend not active")
+def get_mysql() -> MySQLConnection:
+	return get_backend()._mysql  # pylint: disable=protected-access
 
 
 def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs: Any) -> dict:

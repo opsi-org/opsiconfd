@@ -17,7 +17,7 @@ import warnings
 from datetime import datetime
 from os import makedirs
 from time import perf_counter
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException
@@ -32,14 +32,8 @@ from opsicommon.messagebus import (  # type: ignore[import]
 from opsicommon.utils import deserialize, serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd.backend import (
-	BackendManager,
-	async_backend_call,
-	get_backend,
-	get_client_backend,
-	get_user_store,
-)
-from opsiconfd.backend.rpc.opsiconfd import OpsiconfdBackend, get_backend_interface
+from opsiconfd import contextvar_client_session, server_timing
+from opsiconfd.backend import get_backend, get_unrestricted_backend
 from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
 
 from .. import contextvar_user_store
@@ -105,7 +99,7 @@ async def get_sort_algorithm(algorithm: str = None) -> str:
 	if algorithm in ("algorithm1", "algorithm2"):
 		return algorithm
 	algorithm = "algorithm1"
-	result = await async_backend_call("config_getObjects", id="product_sort_algorithm")
+	result = await get_unrestricted_backend().async_call("config_getObjects", id="product_sort_algorithm")
 	if result and "algorithm2" in result[0].getDefaultValues():
 		algorithm = "algorithm2"
 	return algorithm
@@ -224,20 +218,11 @@ json_decoder = msgspec.json.Decoder()
 
 
 def deserialize_data(data: bytes, serialization: str) -> Any:
-	deserialize_start = time.perf_counter()
 	if serialization == "msgpack":
-		result = msgpack_decoder.decode(data)
-	elif serialization == "json":
-		result = json_decoder.decode(data)
-	else:
-		raise ValueError(f"Unhandled serialization {serialization!r}")
-	deserialize_end = time.perf_counter()
-	logger.debug(
-		"%s deserialization time: %0.2fms",
-		serialization,
-		1000 * (deserialize_end - deserialize_start),
-	)
-	return result
+		return msgpack_decoder.decode(data)
+	if serialization == "json":
+		return json_decoder.decode(data)
+	raise ValueError(f"Unhandled serialization {serialization!r}")
 
 
 msgpack_encoder = msgspec.msgpack.Encoder()
@@ -252,7 +237,7 @@ def serialize_data(data: Any, serialization: str) -> bytes:
 	raise ValueError(f"Unhandled serialization {serialization!r}")
 
 
-async def load_from_cache(rpc: Any, backend: Union[OpsiconfdBackend, BackendManager]) -> Optional[Any]:
+async def load_from_cache(rpc: Any) -> Optional[Any]:
 	if rpc["method"] in PRODUCT_METHODS:
 		await set_jsonrpc_cache_outdated(rpc["params"])
 		return None
@@ -261,11 +246,12 @@ async def load_from_cache(rpc: Any, backend: Union[OpsiconfdBackend, BackendMana
 		return None
 	if rpc["method"] == "getProductOrdering":
 		depot = rpc["params"][0]
+		backend = get_unrestricted_backend()
 		cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")  # type: ignore[union-attr]  # pylint: disable=no-member
 		algorithm = await get_sort_algorithm(rpc["params"])
 		redis = await async_redis_client()
 		if cache_outdated:
-			get_backend().config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
+			backend.config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
 			async with redis.pipeline() as pipe:
 				pipe.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
 				pipe.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
@@ -308,10 +294,8 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector
 	if metrics_collector and not is_error:
-		asyncio.get_running_loop().create_task(
-			metrics_collector.add_value(
-				"worker:avg_jsonrpc_duration", duration, {"node_name": config.node_name, "worker_num": worker.worker_num}
-			)
+		await metrics_collector.add_value(
+			"worker:avg_jsonrpc_duration", duration, {"node_name": config.node_name, "worker_num": worker.worker_num}
 		)
 
 	redis = await async_redis_client()
@@ -357,39 +341,35 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 		await pipe.execute()
 
 
-def execute_rpc(client_info: str, rpc: Dict[str, Any], backend: Union[OpsiconfdBackend, BackendManager]) -> Any:
+def execute_rpc(client_info: str, rpc: Dict[str, Any]) -> Any:
 	method_name = rpc["method"]
 	params = rpc["params"]
-	method_interface = None
-	for interface_method in get_backend_interface():
-		if method_name == interface_method["name"]:
-			method_interface = interface_method
-			break
+	backend = get_backend()
+
+	method_interface = backend.get_method_interface(method_name)
 	if not method_interface:
 		logger.warning("Invalid method %r", method_name)
 		raise ValueError(f"Invalid method {method_name!r}")
 
-	keywords = {}
-	if method_interface["keywords"]:
-		parameter_count = 0
-		if method_interface["args"]:
-			parameter_count += len(method_interface["args"])
-		if method_interface["varargs"]:
-			parameter_count += len(method_interface["varargs"])
+	with server_timing("deserialize_objects"):
+		keywords = {}
+		if method_interface["keywords"]:
+			parameter_count = 0
+			if method_interface["args"]:
+				parameter_count += len(method_interface["args"])
+			if method_interface["varargs"]:
+				parameter_count += len(method_interface["varargs"])
 
-		if len(params) >= parameter_count:
-			# params needs to be a copy, leave rpc["params"] unchanged
-			kwargs = params[-1]
-			params = params[:-1]
-			if not isinstance(kwargs, dict):
-				raise TypeError(f"kwargs param is not a dict: {type(kwargs)}")
-			keywords = {str(key): deserialize(value) for key, value in kwargs.items()}
-	params = deserialize(params)
+			if len(params) >= parameter_count:
+				# params needs to be a copy, leave rpc["params"] unchanged
+				kwargs = params[-1]
+				params = params[:-1]
+				if not isinstance(kwargs, dict):
+					raise TypeError(f"kwargs param is not a dict: {type(kwargs)}")
+				keywords = {str(key): deserialize(value) for key, value in kwargs.items()}
+		params = deserialize(params)
 
-	if method_name in OpsiconfdBackend().method_names:
-		method = getattr(OpsiconfdBackend(), method_name)
-	else:
-		method = getattr(backend, method_name)
+	method = getattr(backend, method_name)
 
 	if getattr(method, "deprecated", False):
 		warnings.warn(
@@ -397,7 +377,11 @@ def execute_rpc(client_info: str, rpc: Dict[str, Any], backend: Union[OpsiconfdB
 			DeprecationWarning
 		)
 
-	return serialize(method(*params, **keywords))
+	with server_timing("method_execution"):
+		result = method(*params, **keywords)
+
+	with server_timing("serialize_objects"):
+		return serialize(result)
 
 
 def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] = None) -> None:
@@ -435,8 +419,11 @@ async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[st
 	_class = exception.__class__.__name__
 	details = None
 	try:
-		user_store = get_user_store()
-		if user_store and user_store.isAdmin:
+		is_admin = False
+		session = contextvar_client_session.get()
+		if session and session.user_store:
+			is_admin = session.user_store.isAdmin
+		if is_admin:
 			details = str(traceback.format_exc())
 	except Exception as sess_err:  # pylint: disable=broad-except
 		logger.warning(sess_err, exc_info=True)
@@ -471,17 +458,12 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 	if "method" not in rpc:
 		raise ValueError("Key 'method' missing in rpc")
 
-	if rpc["method"] in OpsiconfdBackend().method_names:
-		backend = OpsiconfdBackend()
-	else:
-		backend = get_client_backend()
-
 	logger.debug("Method '%s', params (short): %.250s", rpc["method"], rpc["params"])
 	logger.trace("Method '%s', params (full): %s", rpc["method"], rpc["params"])
 
-	result = await load_from_cache(rpc, backend)
+	result = await load_from_cache(rpc)
 	if result is None:
-		result = await run_in_threadpool(execute_rpc, client_info, rpc, backend)
+		result = await run_in_threadpool(execute_rpc, client_info, rpc)
 
 	if rpc.get("jsonrpc") == "2.0":
 		return {"jsonrpc": "2.0", "id": rpc["id"], "result": result}
@@ -517,7 +499,7 @@ async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerato
 		if not result.get("error") and duration > config.jsonrpc_time_to_cache:
 			await store_in_cache(rpc, result)
 
-		await store_rpc_info(rpc, result, duration, date, client_info)
+		asyncio.create_task(store_rpc_info(rpc, result, duration, date, client_info))  # pylint: disable=dotted-import-in-loop
 
 
 # Some clients are using /rpc/rpc
@@ -526,73 +508,78 @@ async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerato
 @jsonrpc_router.get("{any:path}")
 @jsonrpc_router.post("{any:path}")
 async def process_request(request: Request, response: Response) -> Response:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-	request_compression = None
-	request_serialization = None
-	response_compression = None
-	response_serialization = None
-	client_info = ""
-	try:
-		request_serialization = get_request_serialization(request)
-		if request_serialization:
-			# Always using same response serialization as request serialization
-			response_serialization = request_serialization
-		else:
-			logger.debug("Unhandled request serialization %r, using json", request_serialization)
-			request_serialization = "json"
-			response_serialization = get_response_serialization(request)
-			if not response_serialization:
-				logger.debug("test_compression response serialization %r, using json", response_serialization)
-				response_serialization = "json"
+	with server_timing("rpc_processing"):
+		request_compression = None
+		request_serialization = None
+		response_compression = None
+		response_serialization = None
+		client_info = ""
+		try:
+			request_serialization = get_request_serialization(request)
+			if request_serialization:
+				# Always using same response serialization as request serialization
+				response_serialization = request_serialization
+			else:
+				logger.debug("Unhandled request serialization %r, using json", request_serialization)
+				request_serialization = "json"
+				response_serialization = get_response_serialization(request)
+				if not response_serialization:
+					logger.debug("test_compression response serialization %r, using json", response_serialization)
+					response_serialization = "json"
 
-		response_compression = get_response_compression(request)
-		request_compression = get_request_compression(request)
+			response_compression = get_response_compression(request)
+			request_compression = get_request_compression(request)
 
-		request_data = await request.body()
-		if not isinstance(request_data, bytes):
-			raise ValueError("Request data must be bytes")
-		if request_data:
-			if request_compression:
-				request_data = await run_in_threadpool(decompress_data, request_data, request_compression)
-		else:
-			request_data = urllib.parse.unquote(request.url.query).encode("utf-8")
-		if not request_data:
-			raise ValueError("Request data empty")
+			request_data = await request.body()
+			if not isinstance(request_data, bytes):
+				raise ValueError("Request data must be bytes")
+			if request_data:
+				if request_compression:
+					with server_timing("decompression"):
+						request_data = await run_in_threadpool(decompress_data, request_data, request_compression)
+			else:
+				request_data = urllib.parse.unquote(request.url.query).encode("utf-8")
+			if not request_data:
+				raise ValueError("Request data empty")
 
-		rpcs = await run_in_threadpool(deserialize_data, request_data, request_serialization)
-		logger.trace("rpcs: %s", rpcs)
-		client_info = f"{request.scope['client'][0]}/{request.headers.get('user-agent', '')}"
-		if isinstance(rpcs, list):
-			coro = process_rpcs(client_info, *rpcs)
-		else:
-			coro = process_rpcs(client_info, rpcs)
-		results = [result async for result in coro]
-		response.status_code = 200
-	except HTTPException as err:  # pylint: disable=broad-except
-		logger.error(err)
-		raise
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error(err, exc_info=True)
-		results = [await process_rpc_error(client_info, err)]  # pylint: disable=use-tuple-over-list
-		response.status_code = 400
+			with server_timing("deserialization"):
+				rpcs = await run_in_threadpool(deserialize_data, request_data, request_serialization)
+			logger.trace("rpcs: %s", rpcs)
+			client_info = f"{request.scope['client'][0]}/{request.headers.get('user-agent', '')}"
+			if isinstance(rpcs, list):
+				coro = process_rpcs(client_info, *rpcs)
+			else:
+				coro = process_rpcs(client_info, rpcs)
+			results = [result async for result in coro]
+			response.status_code = 200
+		except HTTPException as err:  # pylint: disable=broad-except
+			logger.error(err)
+			raise
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err, exc_info=True)
+			results = [await process_rpc_error(client_info, err)]  # pylint: disable=use-tuple-over-list
+			response.status_code = 400
 
-	response_serialization = response_serialization or "json"
-	response.headers["content-type"] = f"application/{response_serialization}"
-	data = await run_in_threadpool(serialize_data, results[0] if len(results) == 1 else results, response_serialization)
+		response_serialization = response_serialization or "json"
+		response.headers["content-type"] = f"application/{response_serialization}"
+		with server_timing("serialization"):
+			data = await run_in_threadpool(serialize_data, results[0] if len(results) == 1 else results, response_serialization)
 
-	data_len = len(data)
-	if response_compression and data_len > COMPRESS_MIN_SIZE:
-		response.headers["content-encoding"] = response_compression
-		lz4_block_linked = True
-		if request.headers.get("user-agent", "").startswith("opsi config editor"):
-			# lz4-java - RuntimeException: Dependent block stream is unsupported (BLOCK_INDEPENDENCE must be set).
-			lz4_block_linked = False
-		data = await run_in_threadpool(compress_data, data, response_compression, 0, lz4_block_linked)
+		data_len = len(data)
+		if response_compression and data_len > COMPRESS_MIN_SIZE:
+			response.headers["content-encoding"] = response_compression
+			lz4_block_linked = True
+			if request.headers.get("user-agent", "").startswith("opsi config editor"):
+				# lz4-java - RuntimeException: Dependent block stream is unsupported (BLOCK_INDEPENDENCE must be set).
+				lz4_block_linked = False
+			with server_timing("compression"):
+				data = await run_in_threadpool(compress_data, data, response_compression, 0, lz4_block_linked)
 
-	content_length = len(data)
-	response.headers["content-length"] = str(content_length)
-	response.body = data
-	logger.debug("Sending result (len: %d)", content_length)
-	return response
+		content_length = len(data)
+		response.headers["content-length"] = str(content_length)
+		response.body = data
+		logger.debug("Sending result (len: %d)", content_length)
+		return response
 
 
 async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, message: Message, context: Any) -> None:

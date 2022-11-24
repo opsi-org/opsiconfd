@@ -11,9 +11,7 @@ opsiconfd.backend.mysql
 from __future__ import annotations
 
 import re
-import time
 from contextlib import contextmanager
-from datetime import datetime
 from functools import lru_cache
 from inspect import signature
 from json import JSONDecodeError, dumps, loads
@@ -45,12 +43,13 @@ from opsicommon.objects import (  # type: ignore[import]
 )
 from sqlalchemy import create_engine  # type: ignore[import]
 from sqlalchemy.engine.base import Connection  # type: ignore[import]
+from sqlalchemy.engine.result import Result  # type: ignore[import]
 from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
 from sqlalchemy.exc import ProgrammingError  # type: ignore[import]
 from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
 
-from opsiconfd import contextvar_client_session
+from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 
@@ -362,10 +361,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		conversions: Dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
 		for name, param in sig.parameters.items():  # pylint: disable=use-dict-comprehension,unused-variable
-			# if param.annotation is bool:
-			# 	conversions[name] = bool
-			# elif param.annotation is datetime:
-			# 	conversions[name] = lambda v: v.isoformat().replace("T", " ")
 			if name == "values":
 				conversions[name] = loads
 		return conversions
@@ -456,7 +451,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					pass
 				except JSONDecodeError as err:
 					logger.warning(err)
-		return object_type.fromHash(data)  # type: ignore
+		return object_type.from_hash(data)  # type: ignore
 
 	def get_allowed_client_ids(self, ace: List[RPCACE]) -> List[str] | None:
 		allowed_client_ids: List[str] | None = None
@@ -549,15 +544,15 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 		with self.session() as session:
 			query = f"{query} {where} {group_by}"
-			start = time.time()
 			try:
-				result = session.execute(query, params=params).fetchall()
+				with server_timing("database") as timing:
+					result = session.execute(query, params=params).fetchall()
+				logger.trace("Query %r took %0.2f ms", timing["database"])
 			except ProgrammingError as err:
 				logger.error("Query %r failed: %s", query, err)
 				raise
 
-			logger.trace("Query %r took %0.5f seconds", query, time.time() - start)
-
+			# TODO: Optimize
 			l_aggregates = list(aggregates)
 
 			if not result:
@@ -675,7 +670,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
 		if query:
 			with self.session() as session:
-				return session.execute(query, params=params).lastrowid
+				with server_timing("database") as timing:
+					result = session.execute(query, params=params).fetchall()
+					logger.trace("Query %r took %0.2f ms", timing["database"])
+					return result.lastrowid
 		return None
 
 	def delete_query(  # pylint: disable=too-many-locals
@@ -744,4 +742,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	) -> None:
 		query, params, _idents = self.delete_query(table=table, object_type=object_type, obj=obj, ace=ace)
 		with self.session() as session:
-			session.execute(query, params=params)
+			with server_timing("database") as timing:
+				session.execute(query, params=params).fetchall()
+				logger.trace("Query %r took %0.2f ms", timing["database"])

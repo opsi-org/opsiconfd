@@ -10,8 +10,11 @@ The opsi configuration service.
 
 __version__ = "4.3.0.1"
 
+from contextlib import contextmanager
 from contextvars import Context, ContextVar
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from fractions import Fraction
+from time import perf_counter
+from typing import TYPE_CHECKING, Any, Dict, Generator, Optional
 
 if TYPE_CHECKING:
 	# Prevent circular import error
@@ -47,3 +50,13 @@ def set_contextvars(values: Dict[str, Any]) -> None:
 
 def set_contextvars_from_contex(context: Context) -> None:
 	set_contextvars({var.name: val for var, val in context.items()})
+
+
+@contextmanager
+def server_timing(timing_name: str) -> Generator[dict[str, float], None, None]:
+	val = contextvar_server_timing.get()  # or {}
+	start = perf_counter()
+	yield val
+	end = perf_counter()
+	val[timing_name] = (end - start) * 1000
+	contextvar_server_timing.set(val)

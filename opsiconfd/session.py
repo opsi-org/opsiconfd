@@ -44,8 +44,9 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
-from . import contextvar_client_session, contextvar_server_timing
+from . import contextvar_client_session, server_timing
 from .addon import AddonManager
+from .backend import get_unrestricted_backend
 from .config import REDIS_PREFIX_SESSION, config
 from .logging import logger
 from .utils import (
@@ -196,68 +197,61 @@ class SessionMiddleware:
 	async def handle_request(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		self, connection: HTTPConnection, receive: Receive, send: Send
 	) -> None:
-		start = time.perf_counter()
-		scope = connection.scope
-		scope["session"] = None
-		logger.trace("SessionMiddleware %s", scope)
+		with server_timing("session_handling") as timing:
+			scope = connection.scope
+			scope["session"] = None
+			logger.trace("SessionMiddleware %s", scope)
 
-		await check_network(scope["client"][0])
+			await check_network(scope["client"][0])
 
-		if scope["type"] not in ("http", "websocket"):
-			await self.app(scope, receive, send)
-			return
+			if scope["type"] not in ("http", "websocket"):
+				await self.app(scope, receive, send)
+				return
 
-		# Set default access role
-		required_access_role = ACCESS_ROLE_ADMIN
-		access_role_public = ACCESS_ROLE_PUBLIC
-		if scope["full_path"]:
-			if scope["full_path"] == "/":
-				required_access_role = access_role_public
-			for pub_path in self._public_path:
-				if scope["full_path"].startswith(pub_path):
+			# Set default access role
+			required_access_role = ACCESS_ROLE_ADMIN
+			access_role_public = ACCESS_ROLE_PUBLIC
+			if scope["full_path"]:
+				if scope["full_path"] == "/":
 					required_access_role = access_role_public
-					break
-		scope["required_access_role"] = required_access_role
+				for pub_path in self._public_path:
+					if scope["full_path"].startswith(pub_path):
+						required_access_role = access_role_public
+						break
+			scope["required_access_role"] = required_access_role
 
-		if scope["full_path"].startswith(("/rpc", "/monitoring", "/messagebus")) or (
-			scope["full_path"].startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
-		):
-			scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
+			if scope["full_path"].startswith(("/rpc", "/monitoring", "/messagebus")) or (
+				scope["full_path"].startswith(("/depot", "/boot")) and scope.get("method") in ("GET", "HEAD", "OPTIONS", "PROPFIND")
+			):
+				scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
 
-		# Get session
-		session_id = self.get_session_id_from_headers(connection.headers)
-		if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
-			scope["session"] = await get_session(client_addr=scope["client"][0], headers=connection.headers, session_id=session_id)
+			# Get session
+			session_id = self.get_session_id_from_headers(connection.headers)
+			if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
+				scope["session"] = await get_session(client_addr=scope["client"][0], headers=connection.headers, session_id=session_id)
 
-		started_authenticated = scope["session"] and scope["session"].user_store.authenticated
+			started_authenticated = scope["session"] and scope["session"].user_store.authenticated
 
-		# Addon request processing
-		if scope["full_path"].startswith("/addons"):
-			addon = AddonManager().get_addon_by_path("/".join(scope["full_path"].split("/", 3)[:3]))
-			if addon:
-				logger.debug("Calling %s.handle_request for path '%s'", addon, scope["full_path"])
-				if await addon.handle_request(connection, receive, send):
-					return
+			# Addon request processing
+			if scope["full_path"].startswith("/addons"):
+				addon = AddonManager().get_addon_by_path("/".join(scope["full_path"].split("/", 3)[:3]))
+				if addon:
+					logger.debug("Calling %s.handle_request for path '%s'", addon, scope["full_path"])
+					if await addon.handle_request(connection, receive, send):
+						return
 
-		await check_access(connection)
-		if (
-			scope["session"]
-			and required_access_role == ACCESS_ROLE_ADMIN
-			and not scope["session"].user_store.host
-			and scope["full_path"].startswith("/depot")
-			and FILE_ADMIN_GROUP not in scope["session"].user_store.userGroups
-		):
-			raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].user_store.username}'")
+			await check_access(connection)
+			if (
+				scope["session"]
+				and required_access_role == ACCESS_ROLE_ADMIN
+				and not scope["session"].user_store.host
+				and scope["full_path"].startswith("/depot")
+				and FILE_ADMIN_GROUP not in scope["session"].user_store.userGroups
+			):
+				raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].user_store.username}'")
 
-		# Session handling time
-		session_handling_millis = int((time.perf_counter() - start) * 1000)
-		if started_authenticated and session_handling_millis > 1000:
-			logger.warning("Session handling took %0.2fms", session_handling_millis)
-
-		server_timing = contextvar_server_timing.get()
-		if server_timing:
-			server_timing["session_handling"] = session_handling_millis
-		contextvar_server_timing.set(server_timing)
+		if started_authenticated and timing["session_handling"] > 1000:
+			logger.warning("Session handling took %0.2fms", timing["session_handling"])
 
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
@@ -370,6 +364,7 @@ class SessionMiddleware:
 	) -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
 		if scope["type"] == "lifespan":
 			return await self.app(scope, receive, send)
+
 		try:
 			connection = HTTPConnection(scope)
 			set_context({"client_address": scope["client"][0]})
@@ -594,9 +589,9 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 
 
 def update_host_object(host_id: str, ip_address: str) -> None:
-	from .backend import get_client_backend  # pylint: disable=import-outside-toplevel
+	backend = get_unrestricted_backend()
 
-	hosts = get_client_backend().host_getObjects(["ipAddress", "lastSeen"], id=host_id)  # pylint: disable=no-member
+	hosts = backend.host_getObjects(["ipAddress", "lastSeen"], id=host_id)  # pylint: disable=no-member
 	if not hosts:
 		logger.error("Host %s not found in backend while trying to update ip address and lastseen", host_id)
 		return
@@ -609,7 +604,7 @@ def update_host_object(host_id: str, ip_address: str) -> None:
 	else:
 		# Value None on update means no change!
 		host.ipAddress = None
-	get_client_backend().host_updateObjects(host)  # pylint: disable=no-member
+	backend.host_updateObjects(host)  # pylint: disable=no-member
 
 
 async def authenticate(session: OPSISession, username: str, password: str) -> None:  # pylint: disable=unused-argument

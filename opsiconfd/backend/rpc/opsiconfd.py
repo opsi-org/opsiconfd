@@ -19,13 +19,14 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendModuleDisabledError,
 	BackendPermissionDeniedError,
 )
+from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
 from opsiconfd.application.utils import get_depot_server_id
 from opsiconfd.config import config
 from opsiconfd.logging import logger, secret_filter
 
-from ..auth import RPCACE, read_acl_file
+from ..auth import RPCACE, RPCACE_ALLOW_ALL, read_acl_file
 from ..mysql import MySQLConnection
 from .depot import RPCDepotserverMixin
 from .dhcpd_control import RPCDHCPDControlMixin
@@ -64,17 +65,8 @@ from .obj_product_property_state import RPCProductPropertyStateMixin
 from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
 
-backend_interface = None  # pylint: disable=invalid-name
 
-
-def get_backend_interface() -> List[Dict[str, Any]]:
-	global backend_interface  # pylint: disable=invalid-name, global-statement
-	if backend_interface is None:
-		backend_interface = OpsiconfdBackend().get_interface()
-	return backend_interface
-
-
-def describe_interface(instance: Any) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals
+def describe_interface(instance: Any) -> Dict[str, Any]:  # pylint: disable=too-many-locals
 	"""
 	Describes what public methods are available and the signatures they use.
 
@@ -129,10 +121,10 @@ def describe_interface(instance: Any) -> List[Dict[str, Any]]:  # pylint: disabl
 			"annotations": annotations,
 		}
 
-	return [methods[name] for name in sorted(list(methods.keys()))]
+	return methods
 
 
-class OpsiconfdBackend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
+class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
 	RPCGeneralMixin,
 	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCGroupMixin,
 	RPCObjectToGroupMixin, RPCProductMixin, RPCProductDependencyMixin,
@@ -151,7 +143,7 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors, too-many-instance
 	__instance = None
 	__initialized = False
 
-	def __new__(cls, *args: Any, **kwargs: Any) -> OpsiconfdBackend:
+	def __new__(cls, *args: Any, **kwargs: Any) -> Backend:
 		if not cls.__instance:
 			cls.__instance = super().__new__(cls, *args, **kwargs)
 		return cls.__instance
@@ -171,7 +163,7 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors, too-many-instance
 			base.__init__(self)  # type: ignore[misc]
 
 		self._interface = describe_interface(self)
-		self.method_names = [meth["name"] for meth in self._interface]
+		self._interface_list = [self._interface[name] for name in sorted(list(self._interface.keys()))]
 		self.avaliable_modules = self.backend_getLicensingInfo()["available_modules"]
 
 		hosts = self.host_getObjects(id=self._depot_id)
@@ -185,7 +177,7 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors, too-many-instance
 
 	def read_acl_file(self) -> None:
 		acl = read_acl_file(config.acl_file)
-		for method_name in self.method_names:
+		for method_name in list(self._interface):
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
 
 	def _check_module(self, module: str) -> None:
@@ -248,5 +240,19 @@ class OpsiconfdBackend(  # pylint: disable=too-many-ancestors, too-many-instance
 
 		raise ValueError(f"Invalid role {required_role!r}")
 
+	def get_method_interface(self, method: str) -> Dict[str, Any] | None:
+		return self._interface.get(method)
+
 	def get_interface(self) -> List[Dict[str, Any]]:
-		return self._interface
+		return self._interface_list
+
+	async def async_call(self, method: str, **kwargs: Any) -> Any:
+		return await run_in_threadpool(getattr(self, method), **kwargs)
+
+
+class UnrestrictedBackend(Backend):  # pylint: disable=too-many-ancestors
+	def _get_ace(self, method: str) -> List[RPCACE]:
+		return [RPCACE_ALLOW_ALL]
+
+	def _check_role(self, required_role: str) -> None:
+		return None

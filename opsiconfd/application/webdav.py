@@ -24,8 +24,9 @@ from wsgidav.dav_provider import (  # type: ignore[import]
 from wsgidav.fs_dav_provider import FilesystemProvider, FolderResource
 from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
 
+from opsiconfd.backend import get_unrestricted_backend
+
 from .. import __version__
-from ..backend import get_backend
 from ..config import FQDN, config
 from ..logging import logger
 from ..wsgi import WSGIMiddleware
@@ -115,7 +116,7 @@ class VirtualRootFilesystemProvider(DAVProvider):
 
 
 def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, too-many-branches, too-many-locals
-	hosts = get_backend().host_getObjects(type="OpsiDepotserver", id=FQDN)  # pylint: disable=no-member
+	hosts = get_unrestricted_backend().host_getObjects(type="OpsiDepotserver", id=FQDN)  # pylint: disable=no-member
 	if not hosts:
 		logger.warning("Running on host %s which is not a depot server, webdav disabled.", FQDN)
 		return
@@ -149,16 +150,16 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		"mount_path": None,
 	}
 	depot = hosts[0]
-	depot_id = depot.getId()
+	depot_id = depot.id
 
 	filesystems = {}
 	try:
 		logger.notice(f"Running on depot server '{depot_id}', exporting repository directory")
-		if not depot.getRepositoryLocalUrl():
+		if not depot.repositoryLocalUrl:
 			raise Exception(f"Repository local url for depot '{depot_id}' not found")
-		if not depot.getRepositoryLocalUrl().startswith("file:///"):
-			raise Exception(f"Invalid repository local url '{depot.getRepositoryLocalUrl()}'")
-		path = depot.getRepositoryLocalUrl()[7:]
+		if not depot.repositoryLocalUrl.startswith("file:///"):
+			raise Exception(f"Invalid repository local url '{depot.repositoryLocalUrl}'")
+		path = depot.repositoryLocalUrl[7:]
 		logger.debug("Repository local path is '%s'", path)
 		if not os.path.isdir(path):
 			raise Exception(f"Cannot add webdav content 'repository': directory '{path}' does not exist.")
@@ -171,11 +172,11 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 
 	try:
 		logger.notice(f"Running on depot server '{depot_id}', exporting depot directory")
-		if not depot.getDepotLocalUrl():
+		if not depot.depotLocalUrl:
 			raise Exception(f"Repository local url for depot '{depot_id}' not found")
-		if not depot.getDepotLocalUrl().startswith("file:///"):
-			raise Exception(f"Invalid repository local url '{depot.getDepotLocalUrl()}' not allowed")
-		path = depot.getDepotLocalUrl()[7:]
+		if not depot.depotLocalUrl.startswith("file:///"):
+			raise Exception(f"Invalid repository local url '{depot.depotLocalUrl}' not allowed")
+		path = depot.depotLocalUrl[7:]
 		logger.debug("Depot local path is '%s'", path)
 		if not os.path.isdir(path):
 			raise Exception(f"Cannot add webdav content 'depot': directory '{path}' does not exist.")
@@ -188,11 +189,11 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 
 	try:
 		logger.notice(f"Running on depot server '{depot_id}', exporting workbench directory")
-		if not depot.getWorkbenchLocalUrl():
+		if not depot.workbenchLocalUrl:
 			raise Exception(f"Workbench local url for depot '{depot_id}' not found")
-		if not depot.getWorkbenchLocalUrl().startswith("file:///"):
-			raise Exception(f"Invalid workbench local url '{depot.getWorkbenchLocalUrl()}' not allowed")
-		path = depot.getWorkbenchLocalUrl()[7:]
+		if not depot.workbenchLocalUrl.startswith("file:///"):
+			raise Exception(f"Invalid workbench local url '{depot.workbenchLocalUrl}' not allowed")
+		path = depot.workbenchLocalUrl[7:]
 		logger.debug("Workbench local path is '%s'", path)
 		if not os.path.isdir(path):
 			raise Exception(f"Cannot add webdav content 'workbench': directory '{path}' does not exist.")

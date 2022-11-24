@@ -8,7 +8,7 @@
 backup
 """
 
-from opsiconfd.backend import get_backend
+from opsiconfd.backend import get_unrestricted_backend
 
 OBJECT_CLASSES = (
 	"Host",
@@ -35,7 +35,7 @@ OBJECT_CLASSES = (
 
 
 def create_backup() -> dict:
-	backend = get_backend()
+	backend = get_unrestricted_backend()
 	data = {}
 	for obj_class in OBJECT_CLASSES:  # pylint: disable=loop-global-usage
 		method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_getObjects")

@@ -101,10 +101,6 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			logger.notice("Changing size of column 'inventoryNumber' on table HOST")
 			session.execute('ALTER TABLE `HOST` MODIFY COLUMN `inventoryNumber` varchar(64) NOT NULL DEFAULT ""')
 
-		# if "bigint" not in mysql.tables["SOFTWARE_CONFIG"]["config_id"]["type"]:  # type: ignore[operator]
-		# 	logger.notice("Changing the type of SOFTWARE_CONFIG.config_id to bigint")
-		# 	session.execute("ALTER TABLE `SOFTWARE_CONFIG` MODIFY COLUMN `config_id` bigint auto_increment;")
-
 		create_index(
 			session=session,
 			database=mysql.database,
@@ -359,13 +355,13 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			"""
 			SELECT DISTINCT `CONSTRAINT_NAME` FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE`
 			WHERE `REFERENCED_TABLE_SCHEMA` = :database AND `TABLE_NAME` = 'SOFTWARE_CONFIG'
-			AND `REFERENCED_TABLE_NAME` = 'SOFTWARE'
 			""",
 			params={"database": mysql.database},
 		).fetchall()
 		fk_names = []  # pylint: disable=use-tuple-over-list
 		if res:
 			fk_names = [r[0] for r in res]
+
 		if "FK_HOST" not in fk_names or "FK_SOFTWARE" not in fk_names:
 			res = session.execute(
 				"""

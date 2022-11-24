@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any, Dict, Tuple
 import psutil
 from redis import ResponseError
 
-from .. import contextvar_server_timing
 from ..config import config
 from ..logging import logger
 from ..utils import async_redis_client
@@ -200,12 +199,6 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 			else:
 				key_string = f"{key_string}:{labels[var]}"
 
-		if metric.server_timing_header_factor:
-			server_timing = contextvar_server_timing.get()
-			if isinstance(server_timing, dict):
-				# Only if dict (initialized)
-				server_timing[metric_id.split(":")[-1]] = value * metric.server_timing_header_factor
-				contextvar_server_timing.set(server_timing)
 		if not timestamp:
 			timestamp = self._get_timestamp()
 		async with self._values_lock:

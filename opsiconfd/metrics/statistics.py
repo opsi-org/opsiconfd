@@ -15,7 +15,6 @@ from typing import Dict
 from fastapi import FastAPI
 from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import Message, Receive, Scope, Send
 
 from .. import contextvar_client_address, contextvar_server_timing
@@ -119,20 +118,12 @@ def get_time_bucket_duration(name: str) -> int:
 	return duration_ms
 
 
-class StatisticsMiddleware(BaseHTTPMiddleware):  # pylint: disable=abstract-method
+class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 	def __init__(self, app: FastAPI, profiler_enabled: bool = False, log_func_stats: bool = False) -> None:
-		super().__init__(app)
-
+		self.app = app
 		self._profiler_enabled = profiler_enabled
 		self._log_func_stats = log_func_stats
 		self._write_callgrind_file = True
-		self._profile_methods: Dict[str, str] = {
-			"BackendManager._executeMethod": "backend",
-			"MySQL.execute": "mysql",
-			"Response.render": "render",
-			# "serialize": "opsi_serialize",
-			# "deserialize": "opsi_deserialize",
-		}
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace("StatisticsMiddleware scope=%s", scope)

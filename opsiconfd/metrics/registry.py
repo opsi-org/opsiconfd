@@ -30,7 +30,6 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		zero_if_missing: str = None,
 		time_related: bool = False,
 		subject: str = "worker",
-		server_timing_header_factor: int = None,
 		grafana_config: GrafanaPanelConfig = None,
 		downsampling: List = None,
 	):
@@ -77,7 +76,6 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		self.zero_if_missing = zero_if_missing
 		self.time_related = time_related
 		self.subject = subject
-		self.server_timing_header_factor = server_timing_header_factor
 		self.grafana_config = grafana_config
 		self.redis_key = self.redis_key_prefix = f"opsiconfd:stats:{id}"
 		self.downsampling = downsampling
@@ -142,7 +140,6 @@ METRICS = (
 		aggregation="avg",
 		zero_if_missing="one",
 		subject="worker",
-		server_timing_header_factor=1000,
 		grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", units=["s"], decimals=0),
 		downsampling=[
 			["minute", 24 * 3600 * 1000, "avg"],

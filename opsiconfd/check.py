@@ -63,7 +63,7 @@ def messages(message: str, width: int) -> Callable:
 				if result.get("status") == "ok":
 					show_message("OK", MT_SUCCESS)
 				elif result.get("status") == "warn":
-					show_message("warning", MT_WARNING)
+					show_message("WARNING", MT_WARNING)
 				else:
 					show_message("ERROR", MT_ERROR)
 				if config.log_level_stderr == 5:
@@ -127,7 +127,7 @@ def get_repo_versions() -> Dict[str, Any]:
 @messages("Checking system packages", MSG_WIDTH)
 def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-branches, too-many-statements, unused-argument
 	result: Union[Dict[str, Any], str] = {}
-	result = {"status": "ok", "details": "All packages up to date.", "partial_checks": {}}
+	result = {"status": "ok", "message": "All packages up to date.", "partial_checks": {}}
 	package_versions = get_repo_versions()
 	try:
 		if isRHEL() or isSLES():

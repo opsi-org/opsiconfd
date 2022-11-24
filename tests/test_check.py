@@ -28,6 +28,7 @@ from opsiconfd.check import (
 	get_repo_versions,
 	health_check,
 )
+from opsiconfd.config import Config
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -50,7 +51,7 @@ def captured_function_output(func: Callable, args: Dict[str, Any]) -> Dict[str, 
 	return {"captured_output": captured_output.getvalue(), "data": result}
 
 
-def test_check_redis(config) -> None:
+def test_check_redis(config: Config) -> None:
 	config.log_level_stderr = 5
 	result = captured_function_output(check_redis, {"print_messages": True})
 
@@ -111,7 +112,7 @@ def test_check_redis_error() -> None:
 		assert data["message"] == "Redis test error"
 
 
-def test_check_mysql(config) -> None:
+def test_check_mysql(config: Config) -> None:
 	config.log_level_stderr = 5
 	result = captured_function_output(check_mysql, {"print_messages": True})
 
@@ -138,7 +139,7 @@ def test_check_mysql(config) -> None:
 	assert data["message"] == "Connection to mysql is working."
 
 
-def test_check_mysql_error(config) -> None:
+def test_check_mysql_error(config: Config) -> None:
 	config.log_level_stderr = 5
 	with mock.patch(
 		"opsiconfd.check.get_mysql", side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
@@ -205,7 +206,7 @@ def test_get_repo_versions() -> None:
 			assert result.get(package, {}).get("version") == "4.2.0.183-1"
 
 
-def test_check_system_packages_debian(config) -> None:
+def test_check_system_packages_debian(config: Config) -> None:
 	config.log_level_stderr = 5
 	# test up to date packages - status sould be ok and output should be green
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
@@ -285,7 +286,8 @@ def test_check_system_packages_debian(config) -> None:
 			)
 
 
-def test_check_system_packages_open_suse() -> None:
+def test_check_system_packages_open_suse(config: Config) -> None:
+	config.log_level_stderr = 5
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
 	zypper_lines = [
@@ -307,21 +309,30 @@ def test_check_system_packages_open_suse() -> None:
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 
-		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		text = Fore.WHITE + Style.BRIGHT + "\t- Checking system packages:                      " + Style.RESET_ALL
+		text = text + Fore.GREEN + Style.BRIGHT + "OK" + Style.RESET_ALL + "\n"
 		for name, version in packages.items():
-			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
+			text = (
+				text
+				+ Fore.GREEN
+				+ Style.BRIGHT
+				+ f"\t\tPackage {name} is up to date. Installed version: {version}"
+				+ Style.RESET_ALL
+				+ "\n"
+			)
 		assert result.get("captured_output") == text
 		data = result.get("data", {})
 		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get("details") == "All packages up to date."
+			assert data.get("message") == "All packages up to date."
 			assert data.get("status") == "ok"
 			assert partial_check.get(name, {}).get("status") is not None
 			assert partial_check.get(name, {}).get("status") == "ok"
-			assert partial_check[name]["details"] == f"Installed version: {version}"
+			assert partial_check[name]["message"] == f"Installed version: {version}"
 
 
-def test_check_system_packages_redhat() -> None:
+def test_check_system_packages_redhat(config: Config) -> None:
+	config.log_level_stderr = 5
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
 	yum_lines = ["Subscription Management Repositorys werden aktualisiert.", "Installierte Pakete"]
@@ -338,18 +349,26 @@ def test_check_system_packages_redhat() -> None:
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 
-		text = Fore.WHITE + Style.BRIGHT + "Checking system packages..." + Style.RESET_ALL + "\n"
+		text = Fore.WHITE + Style.BRIGHT + "\t- Checking system packages:                      " + Style.RESET_ALL
+		text = text + Fore.GREEN + Style.BRIGHT + "OK" + Style.RESET_ALL + "\n"
 		for name, version in packages.items():
-			text = text + Fore.GREEN + Style.BRIGHT + f"Package {name} is up to date. Installed version: {version}" + Style.RESET_ALL + "\n"
+			text = (
+				text
+				+ Fore.GREEN
+				+ Style.BRIGHT
+				+ f"\t\tPackage {name} is up to date. Installed version: {version}"
+				+ Style.RESET_ALL
+				+ "\n"
+			)
 		assert result.get("captured_output") == text
 		data = result.get("data", {})
 		partial_check = data.get("partial_checks", {})
 		for name, version in packages.items():
-			assert data.get("details") == "All packages up to date."
+			assert data.get("message") == "All packages up to date."
 			assert data.get("status") == "ok"
 			assert partial_check.get(name, {}).get("status") is not None
 			assert partial_check.get(name, {}).get("status") == "ok"
-			assert partial_check[name]["details"] == f"Installed version: {version}"
+			assert partial_check[name]["message"] == f"Installed version: {version}"
 
 
 def test_health_check() -> None:

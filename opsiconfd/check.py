@@ -245,7 +245,7 @@ def print_check_redis_result(check_result: dict) -> None:
 		if check_result["details"]["connection"]:
 			show_message("		Redis-Timeseries not loaded.", MT_ERROR)
 		else:
-			show_message(f"		Cannot connect to redis!", MT_ERROR)
+			show_message("		Cannot connect to redis!", MT_ERROR)
 
 
 @messages("Checking mysql", MSG_WIDTH)
@@ -285,7 +285,7 @@ def check_deprecated_calls(print_messages: bool = False) -> dict:  # pylint: dis
 
 def print_check_deprecated_calls_result(check_result: dict) -> None:
 	if check_result.get("status") == "ok":
-		show_message("No deprecated method calls found.", MT_SUCCESS)
+		show_message("		No deprecated method calls found.", MT_SUCCESS)
 	else:
 		for method, data in check_result.get("details", {}).items():
 			show_message(

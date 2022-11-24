@@ -51,7 +51,7 @@ def captured_function_output(func: Callable, args: Dict[str, Any]) -> Dict[str, 
 	return {"captured_output": captured_output.getvalue(), "data": result}
 
 
-def test_check_redis(config: Config) -> None:
+def test_check_redis(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	config.log_level_stderr = 5
 	result = captured_function_output(check_redis, {"print_messages": True})
 
@@ -112,7 +112,7 @@ def test_check_redis_error() -> None:
 		assert data["message"] == "Redis test error"
 
 
-def test_check_mysql(config: Config) -> None:
+def test_check_mysql(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	config.log_level_stderr = 5
 	result = captured_function_output(check_mysql, {"print_messages": True})
 
@@ -139,7 +139,7 @@ def test_check_mysql(config: Config) -> None:
 	assert data["message"] == "Connection to mysql is working."
 
 
-def test_check_mysql_error(config: Config) -> None:
+def test_check_mysql_error(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	config.log_level_stderr = 5
 	with mock.patch(
 		"opsiconfd.check.get_mysql", side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
@@ -206,7 +206,7 @@ def test_get_repo_versions() -> None:
 			assert result.get(package, {}).get("version") == "4.2.0.183-1"
 
 
-def test_check_system_packages_debian(config: Config) -> None:
+def test_check_system_packages_debian(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	config.log_level_stderr = 5
 	# test up to date packages - status sould be ok and output should be green
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
@@ -286,7 +286,7 @@ def test_check_system_packages_debian(config: Config) -> None:
 			)
 
 
-def test_check_system_packages_open_suse(config: Config) -> None:
+def test_check_system_packages_open_suse(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	config.log_level_stderr = 5
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
@@ -331,7 +331,7 @@ def test_check_system_packages_open_suse(config: Config) -> None:
 			assert partial_check[name]["message"] == f"Installed version: {version}"
 
 
-def test_check_system_packages_redhat(config: Config) -> None:
+def test_check_system_packages_redhat(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	config.log_level_stderr = 5
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
@@ -380,8 +380,10 @@ def test_health_check() -> None:
 	assert result["mysql"]["status"] == "ok"
 
 
-def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-
+def test_check_deprecated_calls(
+	test_client: OpsiconfdTestClient, config: Config  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	config.log_level_stderr = 5
 	sync_clean_redis()
 
 	result = captured_function_output(check_deprecated_calls, {"print_messages": True})
@@ -390,12 +392,16 @@ def test_check_deprecated_calls(test_client: OpsiconfdTestClient) -> None:  # py
 		result.get("captured_output")
 		== Fore.WHITE
 		+ Style.BRIGHT
-		+ "Checking calls of deprecated methods..."
+		+ "\t- Checking calls of deprecated methods:          "
+		+ Style.RESET_ALL
+		+ Fore.GREEN
+		+ Style.BRIGHT
+		+ "OK"
 		+ Style.RESET_ALL
 		+ "\n"
 		+ Fore.GREEN
 		+ Style.BRIGHT
-		+ "No deprecated method calls found."
+		+ "\t\tNo deprecated method calls found."
 		+ Style.RESET_ALL
 		+ "\n"
 	)

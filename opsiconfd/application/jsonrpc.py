@@ -525,7 +525,7 @@ async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerato
 				logger.error(err, exc_info=True)
 				result = await process_rpc_error(client_info, err, rpc)
 
-		duration = svt["rpc_processing"]  # pylint: disable=loop-invariant-statement
+		duration = svt["rpc_processing"] / 1000  # pylint: disable=loop-invariant-statement
 
 		logger.trace(result)
 		yield result

@@ -237,7 +237,12 @@ function callJSONRPC() {
 	let req = ajaxRequest("POST", "/rpc", apiJSON, true, true);
 	document.getElementById("jsonrpc-execute-button").disabled = true;
 	req.then((result) => {
-		document.getElementById("jsonrpc-response-info").innerHTML = "Server-Timing: " + result.requestInfo.serverTiming// request.getResponseHeader("server-timing")
+		let serverTimings = {};
+		result.requestInfo.serverTiming.split(",").forEach(function (item) {
+			let tmp = item.split(";");
+			serverTimings[tmp[0]] = parseFloat(tmp[1].split("=")[1]);
+		})
+		document.getElementById("jsonrpc-response-info").innerHTML = `Request processing: ${serverTimings.request_processing} ms`;
 		outputToHTML(result.data, "jsonrpc-result");
 		return result;
 	}).finally(() => {

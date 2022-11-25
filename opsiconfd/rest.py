@@ -140,11 +140,8 @@ class RESTErrorResponse(RESTResponse):
 			error_class = details.__class__.__name__
 			details = str(details)
 
-		is_admin = False
 		session = contextvar_client_session.get()
-		if session and session.user_store:
-			is_admin = session.user_store.isAdmin
-		if not is_admin:
+		if not session or not session.is_admin:
 			details = None
 		super().__init__(
 			data={
@@ -280,11 +277,8 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Ca
 						"details": str(traceback.format_exc()),
 					}
 
-				is_admin = False
 				session = contextvar_client_session.get()
-				if session and session.user_store:
-					is_admin = session.user_store.isAdmin
-				if not is_admin:
+				if not session or not session.is_admin:
 					del content["details"]
 				return JSONResponse(content=content, status_code=content["status"])
 		return create_response

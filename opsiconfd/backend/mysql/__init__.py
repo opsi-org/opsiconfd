@@ -422,6 +422,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				continue
 			if aggregates and key in aggregates:
 				val = val.split(self.record_separator) if val else []
+
 			conv = conversions.get(key)
 			if conv:
 				val = conv(val)
@@ -459,8 +460,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if _ace.type == "self":
 				allowed_client_ids = []
 				session = contextvar_client_session.get()
-				if session and session.user_store.host:
-					allowed_client_ids = [session.user_store.host.id]  # pylint: disable=use-tuple-over-list
+				if session and session.host:
+					allowed_client_ids = [session.host.id]  # pylint: disable=use-tuple-over-list
 			else:
 				# All client_ids allowed
 				allowed_client_ids = None
@@ -552,7 +553,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				logger.error("Query %r failed: %s", query, err)
 				raise
 
-			# TODO: Optimize
 			l_aggregates = list(aggregates)
 
 			if not result:
@@ -566,7 +566,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					for row in result
 				]
 				# return [self._row_to_dict(row=row, object_type=object_type, ident_type=None, aggregates=l_aggregates) for row in result]
-
 			conversions = self._get_read_conversions(object_type)  # type: ignore[arg-type]
 			return [
 				self._row_to_object(row=row, object_type=object_type, conversions=conversions, aggregates=l_aggregates) for row in result

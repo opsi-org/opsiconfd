@@ -32,7 +32,7 @@ def filetransfer_setup(app: FastAPI) -> None:
 
 def prepare_upload(filename: str = None, content_type: str = None) -> Tuple[str, Path]:
 	session = contextvar_client_session.get()
-	if not session or not session.user_store or not session.user_store.username:
+	if not session or not session.username:
 		raise PermissionError()
 
 	file_id = str(uuid4())
@@ -45,7 +45,7 @@ def prepare_upload(filename: str = None, content_type: str = None) -> Tuple[str,
 			{
 				"created": int(time()),
 				"expires": int(time() + 3600),
-				"username": session.user_store.username,
+				"username": session.username,
 				"filename": filename,
 				"content_type": content_type,
 			}

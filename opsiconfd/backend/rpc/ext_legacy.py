@@ -88,7 +88,6 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self._hash_values_none_to_empty_string(result)
 
 	def _get_product_states_hash(self: BackendProtocol, client_ids: List[str] = None, product_type: str = None) -> Dict[str, list]:
-		# TODO: add defaults
 		client_ids = client_ids or []
 		product_type = product_type or None
 

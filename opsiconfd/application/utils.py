@@ -48,7 +48,7 @@ def get_username() -> str:
 	client_session = contextvar_client_session.get()
 	if not client_session:
 		raise RuntimeError("Session invalid")
-	return client_session.user_store.username
+	return client_session.username
 
 
 def parse_list(query_list: List[str] | None) -> List[str] | None:
@@ -144,10 +144,10 @@ class OpsiconfdWebSocketEndpoint(WebSocketEndpoint):
 		if not self.scope.get("session"):
 			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail=f"Access to {self}, no valid session found")
 
-		if self.admin_only and not self.scope["session"].user_store.isAdmin:
+		if self.admin_only and not self.scope["session"].is_admin:
 			raise HTTPException(
 				status_code=HTTP_403_FORBIDDEN,
-				detail=f"Access to {self} denied for user {self.scope['session'].user_store.username!r}",
+				detail=f"Access to {self} denied for user {self.scope['session'].username!r}",
 			)
 
 	async def set_cookie_task(self, websocket: WebSocket, set_cookie_interval: int) -> None:

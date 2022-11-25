@@ -8,8 +8,11 @@
 session handling
 """
 
+from __future__ import annotations
+
 import asyncio
 import base64
+import re
 import time
 import uuid
 from collections import namedtuple
@@ -26,19 +29,24 @@ from fastapi.responses import (
 	RedirectResponse,
 	Response,
 )
-from OPSI.Backend.Manager.AccessControl import UserStore  # type: ignore[import]
+from OPSI.Backend.Manager.Authentication import (  # type: ignore[import]
+	AuthenticationModule,
+)
+from OPSI.Backend.Manager.Authentication.LDAP import (  # type: ignore[import]
+	LDAPAuthentication,
+)
+from OPSI.Backend.Manager.Authentication.PAM import (  # type: ignore[import]
+	PAMAuthentication,
+)
 from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
 from OPSI.Exceptions import (  # type: ignore[import]
 	BackendAuthenticationError,
 	BackendPermissionDeniedError,
 )
-from OPSI.Util import (  # type: ignore[import]
-	deserialize,
-	ipAddressInNetwork,
-	serialize,
-	timestamp,
-)
+from OPSI.Util import ipAddressInNetwork, timestamp  # type: ignore[import]
+from OPSI.Util.File.Opsi import OpsiConfFile  # type: ignore[import]
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
+from opsicommon.objects import Host  # type: ignore[import]
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
@@ -46,7 +54,7 @@ from starlette.types import Message, Receive, Scope, Send
 
 from . import contextvar_client_session, server_timing
 from .addon import AddonManager
-from .backend import get_unrestricted_backend
+from .backend import get_unrestricted_backend  # pylint: disable=import-outside-toplevel
 from .config import REDIS_PREFIX_SESSION, config
 from .logging import logger
 from .utils import (
@@ -230,7 +238,7 @@ class SessionMiddleware:
 			if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
 				scope["session"] = await get_session(client_addr=scope["client"][0], headers=connection.headers, session_id=session_id)
 
-			started_authenticated = scope["session"] and scope["session"].user_store.authenticated
+			started_authenticated = scope["session"] and scope["session"].authenticated
 
 			# Addon request processing
 			if scope["full_path"].startswith("/addons"):
@@ -244,21 +252,24 @@ class SessionMiddleware:
 			if (
 				scope["session"]
 				and required_access_role == ACCESS_ROLE_ADMIN
-				and not scope["session"].user_store.host
+				and not scope["session"].host
 				and scope["full_path"].startswith("/depot")
-				and FILE_ADMIN_GROUP not in scope["session"].user_store.userGroups
+				and FILE_ADMIN_GROUP not in scope["session"].user_groups
 			):
-				raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].user_store.username}'")
+				raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].username}'")
 
 		if started_authenticated and timing["session_handling"] > 1000:
 			logger.warning("Session handling took %0.2fms", timing["session_handling"])
 
 		async def send_wrapper(message: Message) -> None:
 			if message["type"] == "http.response.start":
+				headers = MutableHeaders(scope=message)
 				if scope["session"]:
 					await scope["session"].store()
-					headers = MutableHeaders(scope=message)
 					scope["session"].add_cookie_to_headers(headers)
+				if scope.get("response-headers"):
+					for key, value in scope["response-headers"].items():  # pylint: disable=use-list-copy
+						headers.append(key, value)
 			await send(message)
 
 		await self.app(scope, receive, send_wrapper)
@@ -291,7 +302,7 @@ class SessionMiddleware:
 					log = logger.debug
 			log(err)
 
-			if isinstance(err, BackendAuthenticationError) or not scope["session"] or not scope["session"].user_store.authenticated:
+			if isinstance(err, BackendAuthenticationError) or not scope["session"] or not scope["session"].authenticated:
 				cmd = (
 					f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
 					f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
@@ -385,7 +396,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		max_session_per_ip: int = None,
 	) -> None:
 		self._max_session_per_ip = config.max_session_per_ip if max_session_per_ip is None else max_session_per_ip
-		self.session_id = session_id or None
+		self.session_id: str | None = session_id or None
 		self.client_addr = client_addr
 		self.user_agent = user_agent or ""
 		self.max_age = config.session_lifetime
@@ -395,9 +406,13 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		self.persistent = True
 		self.last_used = 0
 		self.last_stored = 0
-		self.user_store = UserStore()
-		self.option_store: Dict[str, Any] = {}
-		self._data: Dict[str, Any] = {}
+		self.username: str | None = None
+		self.password: str | None = None
+		self.user_groups: set[str] = set()
+		self.host: Host | None = None
+		self.authenticated = False
+		self.is_admin = False
+		self.is_read_only = False
 		self._redis_expiration_seconds = 3600
 
 	def __repr__(self) -> str:
@@ -415,6 +430,31 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	@property
 	def validity(self) -> int:
 		return int(self.max_age - (utc_time_timestamp() - self.last_used))
+
+	def serialize(self) -> dict[str, Any]:
+		ser = {k: v for k, v in self.__dict__.items() if k[0] != "_" and k != "password"}
+		ser["host"] = ser["host"].to_hash() if ser["host"] else None
+		ser["user_groups"] = list(ser["user_groups"])
+		return ser
+
+	@classmethod
+	def deserialize(cls, data: dict[str, Any]) -> dict[str, Any]:
+		des = {}
+		for attr, val in data.items():
+			if attr == "host" and val:
+				val = Host.fromHash(val)
+			if attr == "user_groups":
+				val = set(val)
+			des[attr] = val
+		return des
+
+	@classmethod
+	def from_serialized(cls, data: dict[str, Any]) -> OPSISession:
+		data = cls.deserialize(data)
+		obj = cls(data["client_addr"])
+		for attr, val in data.items():
+			setattr(obj, attr, val)
+		return obj
 
 	def get_cookie(self) -> Optional[str]:
 		if not self.session_id or not self.persistent:
@@ -449,9 +489,19 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 				await self.init_new_session()
 		await self.update_last_used(False)
 
+	def _reset_auth_data(self) -> None:
+		self.username = None
+		self.password = None
+		self.user_groups = set()
+		self.host = None
+		self.authenticated = False
+		self.is_admin = False
+		self.is_read_only = False
+
 	def _init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
-		self.user_store = UserStore()
+		self._reset_auth_data()
+
 		session_count = 0
 		try:
 			with redis_client() as redis:
@@ -462,7 +512,10 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 					data = redis.get(redis_key)
 					if data:
 						sess = session_data_msgpack_decoder.decode(data)  # pylint: disable=loop-global-usage
-						validity = sess["max_age"] - (now - sess["last_used"])
+						try:  # pylint: disable=loop-try-except-usage
+							validity = sess["max_age"] - (now - sess["last_used"])
+						except Exception as err:  # pylint: disable=broad-except
+							logger.debug(err)
 					if validity > 0:
 						session_count += 1
 					else:
@@ -483,25 +536,22 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		await run_in_threadpool(self._init_new_session)
 
 	def _load(self) -> bool:
-		self._data = {}
 		with redis_client() as redis:
-			data = redis.get(self.redis_key)
-		if not data:
+			msgpack_data = redis.get(self.redis_key)
+		if not msgpack_data:
 			return False
-		sess = session_data_msgpack_decoder.decode(data)
-		self.created = sess.get("created") or self.created
-		self.max_age = sess.get("max_age") or self.max_age
-		self.last_used = sess.get("last_used") or self.last_used
-		if self.expired:
-			# Expired, do not set other attributes
-			return True
-		self.client_max_age = sess.get("client_max_age") or self.client_max_age
+
+		data = self.deserialize(session_data_msgpack_decoder.decode(msgpack_data))
+		for attr, val in data.items():
+			try:  # pylint: disable=loop-try-except-usage
+				setattr(self, attr, val)
+			except AttributeError:
+				pass
+
 		self._update_max_age()
-		for key, val in sess.get("user_store", {}).items():
-			setattr(self.user_store, key, deserialize(val))
-		self.option_store = sess.get("option_store", self.option_store)
-		self.last_stored = sess.get("last_stored", utc_time_timestamp())
-		self._data = sess.get("data") or self._data
+		if not self.last_stored:
+			self.last_stored = int(utc_time_timestamp())
+
 		return True
 
 	async def load(self) -> bool:
@@ -521,28 +571,9 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			data = redis.get(self.redis_key)
 			if data:
 				session_data = session_data_msgpack_decoder.decode(data)
-			session_data.update(
-				{
-					"created": session_data.get("created", self.created),
-					"last_used": self.last_used,
-					"last_stored": self.last_stored,
-					"max_age": self.max_age,
-					"client_max_age": self.client_max_age,
-					"user_agent": self.user_agent,
-					"user_store": serialize(self.user_store.__dict__),
-					"option_store": self.option_store,
-					"data": session_data.get("data", {}),
-				}
-			)
-			session_data["data"].update(self._data)
-			# Set is not serializable
-			if "userGroups" in session_data["user_store"]:
-				session_data["user_store"]["userGroups"] = list(session_data["user_store"]["userGroups"])
-			# Do not store password
-			if "password" in session_data["user_store"]:
-				del session_data["user_store"]["password"]
-
-			redis.set(self.redis_key, session_data_msgpack_encoder.encode(session_data), ex=self._redis_expiration_seconds)
+			new_data = self.serialize()
+			new_data["created"] = session_data.get("created", new_data["created"])
+			redis.set(self.redis_key, session_data_msgpack_encoder.encode(new_data), ex=self._redis_expiration_seconds)
 
 	async def store(self, wait: Optional[bool] = True) -> None:
 		# aioredis is sometimes slow ~300ms load, using redis for now
@@ -571,7 +602,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			await self.store()
 
 	def _update_max_age(self) -> None:
-		if not self.user_store or not self.user_store.authenticated or not self.client_max_age:
+		if not self.authenticated or not self.client_max_age:
 			return
 
 		if 0 < self.client_max_age <= 3600 * 24:
@@ -581,90 +612,197 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		else:
 			logger.warning("Not accepting session lifetime %d from client", self.client_max_age)
 
-	def get(self, name: str, default: Any = None) -> Any:
-		return self._data.get(name, default)
 
-	def set(self, key: str, value: Any) -> None:
-		self._data[key] = value
+auth_module = None  # pylint: disable=invalid-name
 
 
-def update_host_object(host_id: str, ip_address: str) -> None:
+def get_auth_module() -> AuthenticationModule:
+	global auth_module  # pylint: disable=invalid-name,global-statement
+
+	if not auth_module:
+		try:
+			ldap_conf = OpsiConfFile().get_ldap_auth_config()
+			if ldap_conf:
+				logger.debug("Using LDAP auth with config: %s", ldap_conf)
+				if "directory-connector" in get_unrestricted_backend().available_modules:
+					auth_module = LDAPAuthentication(**ldap_conf)
+				else:
+					logger.error("Disabling LDAP authentication: directory-connector module not available")
+		except Exception as err:  # pylint: disable=broad-except
+			logger.debug(err)
+
+		if not auth_module:
+			auth_module = PAMAuthentication()
+
+	return auth_module.get_instance()
+
+
+async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-branches,too-many-statements
+	session = scope["session"]
 	backend = get_unrestricted_backend()
 
-	hosts = backend.host_getObjects(["ipAddress", "lastSeen"], id=host_id)  # pylint: disable=no-member
-	if not hosts:
-		logger.error("Host %s not found in backend while trying to update ip address and lastseen", host_id)
-		return
-	host = hosts[0]
-	if host.getType() != "OpsiClient":
-		return
-	host.setLastSeen(timestamp())
-	if config.update_ip and ip_address not in (None, "127.0.0.1", "::1", host.ipAddress):
-		host.setIpAddress(ip_address)
+	hosts = []
+	host_filter = {}
+	if config.allow_host_key_only_auth:
+		session.username = "<host-key-only-auth>"
+		logger.debug("Trying to authenticate host by opsi host key only")
+		host_filter["opsiHostKey"] = session.password
+	elif re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", session.username):
+		logger.debug("Trying to authenticate host by mac address and opsi host key")
+		host_filter["hardwareAddress"] = session.username
 	else:
-		# Value None on update means no change!
-		host.ipAddress = None
-	backend.host_updateObjects(host)  # pylint: disable=no-member
+		logger.debug("Trying to authenticate host by host id and opsi host key")
+		session.username = session.username.rstrip(".")
+		host_filter["id"] = session.username
 
+	hosts = await backend.async_call("host_getObjects", **host_filter)
+	if not hosts:
+		raise BackendPermissionDeniedError(f"Host not found '{session.username}'")
+	if len(hosts) > 1:
+		raise BackendPermissionDeniedError(f"More than one matching host object found '{session.username}'")
+	host = hosts[0]
+	if not host.opsiHostKey:
+		raise BackendPermissionDeniedError(f"OpsiHostKey missing for host '{host.id}'")
 
-async def authenticate(session: OPSISession, username: str, password: str) -> None:  # pylint: disable=unused-argument
-	from .backend import get_client_backend  # pylint: disable=import-outside-toplevel
+	logger.confidential(
+		"Host '%s' authentication: password sent '%s', host key '%s', onetime password '%s'",
+		host.id,
+		session.password,
+		host.opsiHostKey,
+		host.oneTimePassword,
+	)
 
-	logger.info("Start authentication of client %s", session.client_addr)
+	if host.opsiHostKey and session.password == host.opsiHostKey:
+		logger.info("Host '%s' authenticated by host key", host.id)
+	elif host.oneTimePassword and session.password == host.oneTimePassword:
+		logger.info("Host '%s' authenticated by onetime password", host.id)
+		host.oneTimePassword = ""
+		await backend.async_call("host_updateObject", host=host)
+	else:
+		raise BackendAuthenticationError(f"Authentication of host '{host.id}' failed")
 
-	# Check if host address is blocked
-	await check_blocked(session.client_addr)
+	session.host = host
+	session.authenticated = True
+	session.is_read_only = False
+	session.is_admin = host.getType() in ("OpsiConfigserver", "OpsiDepotserver")
+	if session.username != host.id:
+		session.username = host.id
+		if not scope.get("response-headers"):
+			scope["response-headers"] = {}
+		scope["response-headers"]["x-opsi-new-host-id"] = session.username
 
-	auth_type = None
-	if username == config.monitoring_user:
-		auth_type = "opsi-passwd"
-
-	def sync_auth(username: str, password: str, auth_type: str = None) -> None:
-		get_client_backend().backendAccessControl.authenticate(username, password, auth_type=auth_type)
-
-	await run_in_threadpool(sync_auth, username, password, auth_type)
-
-	if not session.user_store.username or not session.user_store.authenticated:
-		raise BackendPermissionDeniedError("Not authenticated")
-
-	# user_type = "user"
-	# if session.user_store.host:
-	# 	user_type = "client"
-	# 	if session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
-	# 		user_type = "depot"
-
-	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.user_store.username)
-
-	if username == config.monitoring_user:
-		session.user_store.isAdmin = False
-		session.user_store.isReadOnly = True
-
-	if session.user_store.host and session.user_store.host.getType() == "OpsiClient":
+	if host.getType() == "OpsiClient":
 		logger.info("OpsiClient authenticated, updating host object")
-		await run_in_threadpool(update_host_object, session.user_store.host.id, session.client_addr)
+		host.setLastSeen(timestamp())
+		if config.update_ip and host.ipAddress not in (None, "127.0.0.1", "::1", host.ipAddress):
+			host.setIpAddress(host.ipAddress)
+		else:
+			# Value None on update means no change!
+			host.ipAddress = None
+		await backend.async_call("host_updateObject", host=host)
 
-	if session.user_store.host and session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+	elif host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
 		logger.debug("Storing depot server address: %s", session.client_addr)
 		depot_addresses[session.client_addr] = time.time()
 
-	if session.user_store.isAdmin and config.admin_networks:
-		is_admin_network = False
-		for network in config.admin_networks:
-			if ipAddressInNetwork(session.client_addr, network):
-				is_admin_network = True
-				break
 
-		if not is_admin_network:
-			logger.warning(
-				"User '%s' from '%s' not in admin network '%s'",
-				session.user_store.username,
-				session.client_addr,
-				config.admin_networks,
-			)
-			session.user_store.isAdmin = False
-			if OPSI_ADMIN_GROUP in session.user_store.userGroups:
-				# Remove admin group from groups because acl.conf currently does not support isAdmin
-				session.user_store.userGroups.remove(OPSI_ADMIN_GROUP)
+async def authenticate_user_passwd(scope: Scope) -> None:
+	session = scope["session"]
+	backend = get_unrestricted_backend()
+	credentials = await backend.async_call("user_getCredentials", username=session.username)
+	if credentials and session.password == credentials.get("password"):
+		session.authenticated = True
+		session.is_read_only = False
+		session.is_admin = False
+	else:
+		raise BackendAuthenticationError(f"Authentication failed for user {session.username}")
+
+
+async def authenticate_user_auth_module(scope: Scope) -> None:
+	session = scope["session"]
+	authm = get_auth_module()
+
+	if not authm:
+		raise BackendAuthenticationError("Authentication module unavailable")
+
+	logger.debug("Trying to authenticate by user authentication module %s", authm)
+
+	try:
+		await run_in_threadpool(authm.authenticate, session.username, session.password)
+	except Exception as err:
+		raise BackendAuthenticationError(f"Authentication failed for user '{session.username}': {err}") from err
+
+	# Authentication did not throw exception => authentication successful
+	session.authenticated = True
+	session.user_groups = authm.get_groupnames(session.username)
+	session.is_admin = authm.user_is_admin(session.username)
+	session.is_read_only = authm.user_is_read_only(session.username)
+
+	logger.info(
+		"Authentication successful for user '%s', groups '%s', "
+		"admin group is '%s', admin: %s, readonly groups %s, readonly: %s",
+		session.username,
+		",".join(session.user_groups),
+		authm.get_admin_groupname(),
+		session.is_admin,
+		authm.get_read_only_groupnames(),
+		session.is_read_only,
+	)
+
+
+async def authenticate(scope: Scope, username: str, password: str) -> None:  # pylint: disable=unused-argument
+	if not scope["session"]:
+		scope["session"] = await get_session(client_addr=scope["client"][0], headers=Headers(scope=scope))
+	session = scope["session"]
+	session.authenticated = False
+
+	# Check if client address is blocked
+	await check_blocked(session.client_addr)
+
+	session.username = (username or "").lower()
+	session.password = password or ""
+
+	logger.info("Start authentication of client %s", session.client_addr)
+
+	if not session.password:
+		raise BackendAuthenticationError("No password specified")
+
+	if username == config.monitoring_user:
+		await authenticate_user_passwd(scope=scope)
+	elif re.search(r"^[^.]+\.[^.]+\.\S+$", username) or re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", username):
+		await authenticate_host(scope=scope)
+	else:
+		await authenticate_user_auth_module(scope=scope)
+
+	if not session.username or not session.authenticated:
+		raise BackendPermissionDeniedError("Not authenticated")
+
+	logger.debug("Client %s authenticated, username: %s", session.client_addr, session.username)
+
+	await check_admin_networks(session)
+
+
+async def check_admin_networks(session: OPSISession) -> None:
+	if not session.is_admin or not config.admin_networks:
+		return
+
+	is_admin_network = False
+	for network in config.admin_networks:
+		if ipAddressInNetwork(session.client_addr, network):
+			is_admin_network = True
+			break
+
+	if not is_admin_network:
+		logger.warning(
+			"User '%s' from '%s' not in admin network '%s'",
+			session.username,
+			session.client_addr,
+			config.admin_networks,
+		)
+		session.is_admin = False
+		if OPSI_ADMIN_GROUP in session.user_groups:
+			# Remove admin group from groups because acl.conf currently does not support is_admin
+			session.user_groups.remove(OPSI_ADMIN_GROUP)
 
 
 async def check_blocked(ip_address: str) -> None:
@@ -714,9 +852,9 @@ async def check_access(connection: HTTPConnection) -> None:
 
 	session = connection.scope["session"]
 
-	if not session.user_store.username or not session.user_store.authenticated:
+	if not session.username or not session.authenticated:
 		auth = get_basic_auth(connection.headers)
-		await authenticate(session, auth.username, auth.password)
+		await authenticate(connection.scope, auth.username, auth.password)
 
-	if scope["required_access_role"] == ACCESS_ROLE_ADMIN and not session.user_store.isAdmin:
-		raise BackendPermissionDeniedError(f"Not an admin user '{session.user_store.username}' {scope.get('method')} {scope.get('path')}")
+	if scope["required_access_role"] == ACCESS_ROLE_ADMIN and not session.is_admin:
+		raise BackendPermissionDeniedError(f"Not an admin user '{session.username}' {scope.get('method')} {scope.get('path')}")

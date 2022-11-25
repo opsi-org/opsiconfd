@@ -98,8 +98,8 @@ async def welcome_interface_deactivate() -> None:
 async def admin_interface_index(request: Request) -> Response:
 	username = ""
 	session = contextvar_client_session.get()
-	if session and session.user_store:
-		username = session.user_store.username
+	if session and session.username:
+		username = session.username
 	interface = get_backend().get_interface()
 	for method in interface:
 		if method["doc"]:
@@ -312,8 +312,8 @@ async def get_session_list() -> RESTResponse:
 				"validity": validity,
 				"max_age": session["max_age"],
 				"user_agent": session["user_agent"],
-				"authenticated": session["user_store"].get("authenticated"),
-				"username": session["user_store"].get("username"),
+				"authenticated": session["authenticated"],
+				"username": session["username"],
 				"address": ip_address_from_redis_key(tmp[-2]),
 				"session_id": tmp[-1][:6] + "...",
 			}

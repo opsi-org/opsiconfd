@@ -26,7 +26,6 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TraceResponseMessage,
 	timestamp,
 )
-from opsicommon.utils import serialize  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 from starlette.endpoints import WebSocketEndpoint
 from starlette.status import (
@@ -82,7 +81,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 	async def _check_authorization(self) -> None:
 		if not self.scope.get("session"):
 			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Access to messagebus denied, no valid session found")
-		if not self.scope["session"].user_store or not self.scope["session"].user_store.authenticated:
+		if not self.scope["session"].authenticated:
 			raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Access to messagebus denied, not authenticated")
 
 	async def _send_message_to_websocket(self, websocket: WebSocket, message: Message) -> None:
@@ -149,9 +148,9 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		# 	return True
 		if channel == self._user_channel:
 			return True
-		if self.scope["session"].user_store.isAdmin:
+		if self.scope["session"].is_admin:
 			return True
-		logger.warning("Access to channel %s denied for %s", channel, self.scope["session"].user_store.username, exc_info=True)
+		logger.warning("Access to channel %s denied for %s", channel, self.scope["session"].username, exc_info=True)
 		return False
 
 	async def _process_channel_subscription_message(self, websocket: WebSocket, message: Message) -> None:
@@ -274,7 +273,9 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				# 		subscribed_channels=await self._messagebus_reader.get_channel_names()
 				# 	)
 				# 	await self._send_message_to_websocket(websocket, channel_subscription_event)
-				await send_message(message, serialize(vars(self.scope["session"].user_store)))
+
+				await send_message(message, self.scope["session"].serialize())
+
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning(err, exc_info=True)
 			await self._send_message_to_websocket(
@@ -286,7 +287,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					error={
 						"code": 0,
 						"message": str(err),
-						"details": str(traceback.format_exc()) if self.scope["session"].user_store.isAdmin else None,
+						"details": str(traceback.format_exc()) if self.scope["session"].is_admin else None,
 					},
 				),
 			)
@@ -294,10 +295,10 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 	async def on_connect(self, websocket: WebSocket) -> None:  # pylint: disable=arguments-differ
 		logger.info("Websocket client connected to messagebus")
 
-		if self.scope["session"].user_store.host:
-			self._messagebus_user_id = get_messagebus_user_id_for_host(self.scope["session"].user_store.host.id)
-		elif self.scope["session"].user_store.isAdmin:
-			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].user_store.username)
+		if self.scope["session"].host:
+			self._messagebus_user_id = get_messagebus_user_id_for_host(self.scope["session"].host.id)
+		elif self.scope["session"].is_admin:
+			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].username)
 
 		self._user_channel = self._messagebus_user_id
 		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=False)

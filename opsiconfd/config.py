@@ -879,6 +879,15 @@ class Config(metaclass=Singleton):
 			default="/bin/bash",
 			help=("Shell command for admin interface terminal"),
 		)
+		self._parser.add(
+			"--allow-host-key-only-auth",
+			env_var="OPSICONFD_ALLOW_HOST_KEY_ONLY_AUTH",
+			type=str2bool,
+			nargs="?",
+			const=True,
+			default=False,
+			help=self._expert_help("Clients are allowed to login with the host key only."),
+		)
 		if self._pytest:
 			self._parser.add("args", nargs="*")
 		else:

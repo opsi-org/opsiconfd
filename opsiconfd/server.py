@@ -48,7 +48,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		if config.workers == 1:
 			return
 
-		if "scalability1" not in get_unrestricted_backend().avaliable_modules:  # pylint: disable=no-member
+		if "scalability1" not in get_unrestricted_backend().available_modules:  # pylint: disable=no-member
 			config.workers = 1
 			logger.error("Module 'scalability1' not licensed, limiting to %d workers.", config.workers)
 

@@ -112,30 +112,30 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def accessControl_authenticated(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
 		session = contextvar_client_session.get()
-		if not session or not session.user_store or not session.user_store.authenticated:
+		if not session or not session.authenticated:
 			raise BackendAuthenticationError("Not authenticated")
 		return True
 
 	@rpc_method
 	def accessControl_userIsAdmin(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
 		session = contextvar_client_session.get()
-		if not session or not session.user_store:
+		if not session:
 			raise BackendPermissionDeniedError("Access denied")
-		return session.user_store.isAdmin
+		return session.is_admin
 
 	@rpc_method
 	def accessControl_userIsReadOnlyUser(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
 		session = contextvar_client_session.get()
-		if not session or not session.user_store:
+		if not session:
 			raise BackendPermissionDeniedError("Access denied")
-		return session.user_store.isReadOnly
+		return session.is_read_only
 
 	@rpc_method
 	def accessControl_getUserGroups(self: BackendProtocol) -> List[str]:  # pylint: disable=invalid-name
 		session = contextvar_client_session.get()
-		if not session or not session.user_store:
+		if not session:
 			raise BackendPermissionDeniedError("Access denied")
-		return session.user_store.userGroups
+		return session.user_groups
 
 	@rpc_method
 	def server_checkHealth(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name

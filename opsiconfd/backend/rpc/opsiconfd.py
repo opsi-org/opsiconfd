@@ -164,7 +164,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 
 		self._interface = describe_interface(self)
 		self._interface_list = [self._interface[name] for name in sorted(list(self._interface.keys()))]
-		self.avaliable_modules = self.backend_getLicensingInfo()["available_modules"]
+		self.available_modules = self.backend_getLicensingInfo()["available_modules"]
 
 		hosts = self.host_getObjects(id=self._depot_id)
 		if hosts:
@@ -181,7 +181,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
 
 	def _check_module(self, module: str) -> None:
-		if module not in self.avaliable_modules:
+		if module not in self.available_modules:
 			raise BackendModuleDisabledError(f"Module {module!r} not available")
 
 	def _get_ace(self, method: str) -> List[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
@@ -192,13 +192,13 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			# Local call, no restrictions
 			return [RPCACE(method_re=re.compile(".*"), type="all")]
 		session = contextvar_client_session.get()
-		if not session or not session.user_store:
+		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
 
 		user_type = "user"
-		if session.user_store.host:
+		if session.host:
 			user_type = "client"
-			if session.user_store.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+			if session.host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
 				user_type = "depot"
 
 		ace_list = []
@@ -207,20 +207,20 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 				ace_list.append(ace)
 			elif user_type == "user":  # pylint: disable=loop-invariant-statement
 				if ace.type == "sys_user":
-					if not ace.id or ace.id == session.user_store.username:
+					if not ace.id or ace.id == session.username:
 						ace_list.append(ace)
 				elif ace.type == "sys_group":
-					if not ace.id or ace.id in session.user_store.userGroups:
+					if not ace.id or ace.id in session.user_groups:
 						ace_list.append(ace)
 			elif ace.type == "self" and user_type in ("client", "depot"):  # pylint: disable=loop-invariant-statement
 				kwargs = ace.__dict__
-				kwargs["id"] = session.user_store.username
+				kwargs["id"] = session.username
 				ace_list.append(RPCACE(**kwargs))
 			elif user_type == "client" and ace.type == "opsi_client":  # pylint: disable=loop-invariant-statement
-				if not ace.id or ace.id == session.user_store.username:
+				if not ace.id or ace.id == session.username:
 					ace_list.append(ace)
 			elif user_type == "depot" and ace.type == "opsi_depotserver":  # pylint: disable=loop-invariant-statement
-				if not ace.id or ace.id == session.user_store.username:
+				if not ace.id or ace.id == session.username:
 					ace_list.append(ace)
 
 		if ace_list:
@@ -230,11 +230,11 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 
 	def _check_role(self, required_role: str) -> None:
 		session = contextvar_client_session.get()
-		if not session or not session.user_store:
+		if not session:
 			raise BackendPermissionDeniedError("Invalid session")
 
 		if required_role == "admin":
-			if session.user_store.isAdmin:
+			if session.is_admin:
 				return
 			raise BackendPermissionDeniedError("Insufficient permissions")
 

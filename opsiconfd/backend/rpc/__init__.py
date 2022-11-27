@@ -90,3 +90,14 @@ def deprecated_rpc_method(func: Callable = None, *, alternative_method: str = No
 
 
 deprecated = deprecated_rpc_method
+
+
+def backend_event(event: str) -> Callable:
+	if event != "shutdown":
+		raise ValueError(f"Invalid event: {event}")
+
+	def decorator(func: Callable) -> Callable:
+		setattr(func, f"backend_event_{event}", True)
+		return func
+
+	return decorator

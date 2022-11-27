@@ -10,7 +10,7 @@ opsiconfd backend interface
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Protocol
 
 from .depot import RPCDepotserverMixin
 from .dhcpd_control import RPCDHCPDControlMixin
@@ -49,8 +49,11 @@ from .obj_product_property import RPCProductPropertyMixin
 from .obj_product_property_state import RPCProductPropertyStateMixin
 from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
+from .opsipxeconfd import RPCOpsiPXEConfdMixin
 
 if TYPE_CHECKING:
+	from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
+
 	from ..auth import RPCACE
 	from ..mysql import MySQLConnection
 
@@ -95,6 +98,7 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCDepotserverMixin,
 	RPCHostControlMixin,
 	RPCDHCPDControlMixin,
+	RPCOpsiPXEConfdMixin,
 	RPCExtenderMixin,
 	Protocol,
 ):
@@ -110,6 +114,10 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	def _opsi_host_key(self) -> str:
 		...
 
+	@property
+	def _shutting_down(self) -> bool:
+		...
+
 	def _get_ace(self, method: str) -> List[RPCACE]:
 		...
 
@@ -117,6 +125,12 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 		...
 
 	def _check_module(self, module: str) -> None:
+		...
+
+	def _get_depot_jsonrpc_connection(self, depot_id: str) -> JSONRPCClient:
+		...
+
+	def _get_responsible_depot_id(self, client_id: str) -> str | None:
 		...
 
 	def get_interface(self) -> List[Dict[str, Any]]:

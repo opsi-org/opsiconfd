@@ -32,6 +32,7 @@ from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from .. import __version__, contextvar_client_address, contextvar_request_id
 from ..addon import AddonManager
+from ..backend import get_backend, get_unrestricted_backend
 from ..config import config
 from ..logging import get_logger, logger
 from ..messagebus.terminal import async_terminal_shutdown, async_terminal_startup
@@ -295,6 +296,10 @@ def validation_exception_handler(request: Request, exc: Exception) -> None:
 
 
 def application_setup() -> None:
+	# Create Backend instance
+	get_unrestricted_backend()
+	get_backend()
+
 	FileResponse.chunk_size = 32 * 1024  # Speeds up transfer of big files massively, original value is 4*1024
 
 	# Every Starlette application automatically includes two pieces of middleware by default:
@@ -368,8 +373,16 @@ def application_setup() -> None:
 
 
 async def async_application_startup() -> None:
+	# Create redis pool
+	await async_redis_client(timeout=10, test_connection=True)
+
 	await async_jsonrpc_startup()
 	await async_terminal_startup()
+
+
+def application_shutdown() -> None:
+	get_unrestricted_backend().shutdown()
+	get_backend().shutdown()
 
 
 async def async_application_shutdown() -> None:
@@ -395,6 +408,7 @@ async def startup() -> None:
 async def shutdown() -> None:
 	logger.info("Processing shutdown event")
 	try:
+		await run_in_threadpool(application_shutdown)
 		await async_application_shutdown()
 	except Exception as error:  # pylint: disable=broad-except
 		logger.critical("Error during application shutdown: %s", error, exc_info=True)

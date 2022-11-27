@@ -15,10 +15,12 @@ from inspect import getfullargspec, getmembers, ismethod, signature
 from textwrap import dedent
 from typing import Any, Dict, List
 
+from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
 from opsicommon.exceptions import (  # type: ignore[import]
 	BackendModuleDisabledError,
 	BackendPermissionDeniedError,
 )
+from opsicommon.types import forceHostId  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
@@ -64,6 +66,7 @@ from .obj_product_property import RPCProductPropertyMixin
 from .obj_product_property_state import RPCProductPropertyStateMixin
 from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
+from .opsipxeconfd import RPCOpsiPXEConfdMixin
 
 
 def describe_interface(instance: Any) -> Dict[str, Any]:  # pylint: disable=too-many-locals
@@ -138,10 +141,13 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 	RPCExtLegacyMixin, RPCExtAdminTasksMixin, RPCExtDeprecatedMixin,
 	RPCExtDynamicDepotMixin, RPCExtEasyMixin, RPCExtKioskMixin,
 	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin, RPCExtOpsiMixin,
-	RPCDepotserverMixin, RPCHostControlMixin, RPCDHCPDControlMixin, RPCExtenderMixin
+	RPCDepotserverMixin, RPCHostControlMixin, RPCDHCPDControlMixin, RPCOpsiPXEConfdMixin,
+	RPCExtenderMixin
 ):
 	__instance = None
 	__initialized = False
+	_depot_connections: dict[str, JSONRPCClient]
+	_shutting_down: bool = False
 
 	def __new__(cls, *args: Any, **kwargs: Any) -> Backend:
 		if not cls.__instance:
@@ -153,6 +159,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			return
 		self.__initialized = True
 
+		self._depot_connections: dict[str, JSONRPCClient] = {}
 		self._depot_id: str = get_depot_server_id()
 
 		self._mysql = MySQLConnection()
@@ -173,6 +180,18 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		else:
 			logger.error("Depot %r not found in backend", self._depot_id)
 
+		self.read_acl_file()
+
+	def shutdown(self) -> None:
+		self._shutting_down = True
+		for jsonrpc_client in self._depot_connections.values():
+			jsonrpc_client.disconnect()
+		for base in self.__class__.__bases__:
+			for method in base.__dict__.values():
+				if callable(method) and hasattr(method, "backend_event_shutdown"):
+					method(self)
+
+	def reload_config(self) -> None:
 		self.read_acl_file()
 
 	def read_acl_file(self) -> None:
@@ -239,6 +258,27 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			raise BackendPermissionDeniedError("Insufficient permissions")
 
 		raise ValueError(f"Invalid role {required_role!r}")
+
+	def _get_depot_jsonrpc_connection(self, depot_id: str) -> JSONRPCClient:
+		depot_id = forceHostId(depot_id)
+		if depot_id == self._depot_id:
+			raise ValueError("Is local depot")
+
+		if depot_id not in self._depot_connections:
+			try:
+				self._depot_connections[depot_id] = JSONRPCClient(
+					address=f"https://{depot_id}:4447/rpc", username=self._depot_id, password=self._opsi_host_key
+				)
+			except Exception as err:
+				raise ConnectionError(f"Failed to connect to depot '{depot_id}': {err}") from err
+		return self._depot_connections[depot_id]
+
+	def _get_responsible_depot_id(self, client_id: str) -> str | None:
+		"""This method returns the depot a client is assigned to."""
+		try:
+			return self.configState_getClientToDepotserver(clientIds=[client_id])[0]["depotId"]
+		except (IndexError, KeyError):
+			return None
 
 	def get_method_interface(self, method: str) -> Dict[str, Any] | None:
 		return self._interface.get(method)

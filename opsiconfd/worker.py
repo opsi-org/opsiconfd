@@ -28,11 +28,10 @@ from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
 from . import __version__
 from .addon import AddonManager
-from .backend import get_backend, get_unrestricted_backend
+from .backend import get_backend
 from .config import GC_THRESHOLDS, config
 from .logging import init_logging, logger
 from .metrics.collector import WorkerMetricsCollector
-from .utils import async_redis_client
 
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
@@ -138,13 +137,6 @@ class Worker(UvicornServer):
 		init_pool_executor(loop)
 		loop.set_exception_handler(self.handle_asyncio_exception)
 
-		# Create redis pool
-		await async_redis_client(timeout=10, test_connection=True)
-
-		# Create Backend instance
-		get_unrestricted_backend()
-		get_backend()
-
 		asyncio.create_task(self.memory_cleanup_task())
 		asyncio.create_task(self.metrics_collector.main_loop())
 
@@ -168,5 +160,5 @@ class Worker(UvicornServer):
 				setattr(self.config, key, value)
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()
-		get_backend().read_acl_file()
+		get_backend().reload_config()
 		AddonManager().reload_addons()

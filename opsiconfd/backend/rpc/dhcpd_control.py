@@ -20,31 +20,26 @@ from pathlib import Path
 from time import sleep, time
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
 
-from OPSI.Exceptions import (  # type: ignore[import]
-	BackendIOError,
-	BackendUnableToConnectError,
-)
+from OPSI.Exceptions import BackendIOError  # type: ignore[import]
 from OPSI.Object import ConfigState, Host, OpsiClient  # type: ignore[import]
 from OPSI.System import execute  # type: ignore[import]
 from OPSI.System.Posix import (  # type: ignore[import]
 	getDHCPDRestartCommand,
 	locateDHCPDConfig,
 )
-from OPSI.Types import (  # type: ignore[import]
+from OPSI.Util.File import DHCPDConfFile  # type: ignore[import]
+from opsicommon.types import (  # type: ignore[import]
 	forceBool,
 	forceDict,
-	forceHostId,
 	forceList,
 	forceObjectClass,
 	forceObjectClassList,
 )
-from OPSI.Util.File import DHCPDConfFile  # type: ignore[import]
-from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
 
 from opsiconfd.config import FQDN, config
 from opsiconfd.logging import logger
 
-from . import rpc_method
+from . import backend_event, rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
@@ -91,6 +86,7 @@ class ReloadThread(threading.Thread):
 
 	def __init__(self, reload_config_command: str) -> None:
 		threading.Thread.__init__(self)
+		self.daemon = True
 		self._reload_config_command = reload_config_command
 		self._reload_event = threading.Event()
 		self._is_reloading = False
@@ -132,7 +128,6 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	_dhcpd_control_dhcpd_on_depot: bool = False
 	_dhcpd_control_dhcpd_conf_file: DHCPDConfFile
 	_dhcpd_control_reload_thread: ReloadThread | None
-	_dhcpd_control_depot_connections: dict[str, JSONRPCClient]
 
 	def __init__(self) -> None:
 		# TODO:
@@ -141,6 +136,14 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		self._dhcpd_control_dhcpd_config_file = locateDHCPDConfig(self._dhcpd_control_dhcpd_config_file)
 		self._dhcpd_control_reload_config_command = f"/usr/bin/sudo {getDHCPDRestartCommand(default='/etc/init.d/dhcp3-server restart')}"
 		self._read_dhcpd_control_config_file()
+
+	@backend_event("shutdown")
+	def _dhcpd_control_shutdown(self) -> None:
+		if self._dhcpd_control_reload_thread and self._dhcpd_control_reload_thread.is_busy:
+			logger.info("Waiting for reload thread")
+			for _ in range(3):
+				if self._dhcpd_control_reload_thread.is_busy:
+					sleep(1)
 
 	def _read_dhcpd_control_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "dhcpd.conf"
@@ -164,7 +167,6 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			self._dhcpd_control_enabled = False
 
 		self._dhcpd_control_reload_thread: ReloadThread | None = None
-		self._dhcpd_control_depot_connections: dict[str, JSONRPCClient] = {}
 
 	def _dhcpd_control_start_reload_thread(self) -> None:
 		if not self._dhcpd_control_reload_config_command:
@@ -179,37 +181,8 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		if self._dhcpd_control_reload_thread:
 			self._dhcpd_control_reload_thread.trigger_reload()
 
-	def _get_depot_jsonrpc_connection(self: BackendProtocol, depot_id: str) -> JSONRPCClient:
-		depot_id = forceHostId(depot_id)
-		if depot_id == self._depot_id:
-			raise ValueError("Is local depot")
-
-		if depot_id not in self._dhcpd_control_depot_connections:
-			try:
-				self._dhcpd_control_depot_connections[depot_id] = JSONRPCClient(
-					address=f"https://{depot_id}:4447/rpc/backend/dhcpd", username=self._depot_id, password=self._opsi_host_key
-				)
-			except Exception as err:
-				raise BackendUnableToConnectError(f"Failed to connect to depot '{depot_id}': {err}") from err
-		return self._dhcpd_control_depot_connections[depot_id]
-
-	def _get_responsible_depot_id(self: BackendProtocol, client_id: str) -> str | None:
-		"""This method returns the depot a client is assigned to."""
-		try:
-			return self.configState_getClientToDepotserver(clientIds=[client_id])[0]["depotId"]
-		except (IndexError, KeyError):
-			return None
-
-	def backend_exit(self) -> None:
-		# TODO
-		if self._dhcpd_control_reload_thread:
-			logger.info("Waiting for reload thread")
-			for _ in range(10):
-				if self._dhcpd_control_reload_thread.is_busy:
-					sleep(1)
-
 	def dhcpd_control_hosts_updated(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:
-		if not self._dhcpd_control_enabled:
+		if not self._dhcpd_control_enabled or self._shutting_down:
 			return
 		hosts = forceObjectClassList(hosts, Host)
 		delete_hosts = []
@@ -234,7 +207,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			self.dhcpd_control_hosts_deleted(delete_hosts)
 
 	def dhcpd_control_hosts_deleted(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:
-		if not self._dhcpd_control_enabled:
+		if not self._dhcpd_control_enabled or self._shutting_down:
 			return
 		hosts = forceObjectClassList(hosts, Host)
 		for host in hosts:
@@ -251,7 +224,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	def dhcpd_control_config_states_updated(
 		self: BackendProtocol, config_states: List[dict] | List[ConfigState] | dict | ConfigState
 	) -> None:
-		if not self._dhcpd_control_enabled:
+		if not self._dhcpd_control_enabled or self._shutting_down:
 			return
 		object_ids = set()
 		for config_state in forceList(config_states):

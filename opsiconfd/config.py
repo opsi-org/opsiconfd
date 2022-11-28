@@ -45,7 +45,7 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
 # update-ip = true
 """
-DEPRECATED = ("monitoring-debug", "verify-ip")
+DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file")
 
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"

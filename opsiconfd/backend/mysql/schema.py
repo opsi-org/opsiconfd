@@ -20,6 +20,420 @@ if TYPE_CHECKING:
 	from . import MySQLConnection, Session
 
 
+CREATE_TABLES_SQL = """
+CREATE TABLE IF NOT EXISTS `CONFIG` (
+	`configId` varchar(200) NOT NULL,
+	`type` varchar(30) NOT NULL,
+	`description` varchar(256) DEFAULT NULL,
+	`multiValue` tinyint(1) NOT NULL,
+	`editable` tinyint(1) NOT NULL,
+	PRIMARY KEY (`configId`),
+	KEY `index_config_type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `CONFIG_STATE` (
+	`configId` varchar(200) NOT NULL,
+	`objectId` varchar(255) NOT NULL,
+	`values` text,
+	PRIMARY KEY (`configId`,`objectId`),
+	KEY `index_config_state_configId` (`configId`),
+	KEY `index_config_state_objectId` (`objectId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `CONFIG_VALUE` (
+	`config_value_id` int(11) NOT NULL AUTO_INCREMENT,
+	`configId` varchar(200) NOT NULL,
+	`value` text,
+	`isDefault` tinyint(1) DEFAULT NULL,
+	PRIMARY KEY (`config_value_id`),
+	KEY `configId` (`configId`),
+	FOREIGN KEY (`configId`) REFERENCES `CONFIG` (`configId`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=526 DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `GROUP` (
+	`type` varchar(30) NOT NULL,
+	`groupId` varchar(255) NOT NULL,
+	`parentGroupId` varchar(255) DEFAULT NULL,
+	`description` varchar(100) DEFAULT NULL,
+	`notes` varchar(500) DEFAULT NULL,
+	PRIMARY KEY (`type`,`groupId`),
+	KEY `index_group_parentGroupId` (`parentGroupId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `HOST` (
+	`hostId` varchar(255) NOT NULL,
+	`type` varchar(30) DEFAULT NULL,
+	`description` varchar(100) DEFAULT NULL,
+	`notes` varchar(500) DEFAULT NULL,
+	`hardwareAddress` varchar(17) DEFAULT NULL,
+	`ipAddress` varchar(255) DEFAULT NULL,
+	`inventoryNumber` varchar(64) DEFAULT NULL,
+	`created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`lastSeen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`opsiHostKey` varchar(32) DEFAULT NULL,
+	`oneTimePassword` varchar(32) DEFAULT NULL,
+	`maxBandwidth` int(11) DEFAULT NULL,
+	`depotLocalUrl` varchar(128) DEFAULT NULL,
+	`depotRemoteUrl` varchar(255) DEFAULT NULL,
+	`depotWebdavUrl` varchar(255) DEFAULT NULL,
+	`repositoryLocalUrl` varchar(128) DEFAULT NULL,
+	`repositoryRemoteUrl` varchar(255) DEFAULT NULL,
+	`networkAddress` varchar(31) DEFAULT NULL,
+	`isMasterDepot` tinyint(1) DEFAULT NULL,
+	`masterDepotId` varchar(255) DEFAULT NULL,
+	`workbenchLocalUrl` varchar(128) DEFAULT NULL,
+	`workbenchRemoteUrl` varchar(255) DEFAULT NULL,
+	PRIMARY KEY (`hostId`),
+	KEY `index_host_type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `LICENSE_CONTRACT` (
+	`licenseContractId` varchar(100) NOT NULL,
+	`type` varchar(30) NOT NULL,
+	`description` varchar(100) DEFAULT NULL,
+	`notes` varchar(1000) DEFAULT NULL,
+	`partner` varchar(100) DEFAULT NULL,
+	`conclusionDate` timestamp NULL DEFAULT NULL,
+	`notificationDate` timestamp NULL DEFAULT NULL,
+	`expirationDate` timestamp NULL DEFAULT NULL,
+	PRIMARY KEY (`licenseContractId`),
+	KEY `index_license_contract_type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `LICENSE_POOL` (
+	`licensePoolId` varchar(100) NOT NULL,
+	`type` varchar(30) NOT NULL,
+	`description` varchar(200) DEFAULT NULL,
+	PRIMARY KEY (`licensePoolId`),
+	KEY `index_license_pool_type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `OBJECT_TO_GROUP` (
+	`groupType` varchar(30) NOT NULL,
+	`groupId` varchar(255) NOT NULL,
+	`objectId` varchar(255) NOT NULL,
+	PRIMARY KEY (`groupType`,`groupId`,`objectId`),
+	KEY `groupType` (`groupType`,`groupId`),
+	KEY `index_object_to_group_objectId` (`objectId`),
+	FOREIGN KEY (`groupType`, `groupId`) REFERENCES `GROUP` (`type`, `groupId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `OPSI_SCHEMA` (
+	`version` int(11) NOT NULL,
+	`updateStarted` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`updateEnded` timestamp NULL DEFAULT NULL,
+	PRIMARY KEY (`version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `PRODUCT` (
+	`productId` varchar(255) NOT NULL,
+	`productVersion` varchar(32) NOT NULL,
+	`packageVersion` varchar(16) NOT NULL,
+	`type` varchar(32) NOT NULL,
+	`name` varchar(128) NOT NULL,
+	`licenseRequired` varchar(50) DEFAULT NULL,
+	`setupScript` varchar(50) DEFAULT NULL,
+	`uninstallScript` varchar(50) DEFAULT NULL,
+	`updateScript` varchar(50) DEFAULT NULL,
+	`alwaysScript` varchar(50) DEFAULT NULL,
+	`onceScript` varchar(50) DEFAULT NULL,
+	`customScript` varchar(50) DEFAULT NULL,
+	`userLoginScript` varchar(50) DEFAULT NULL,
+	`priority` int(11) DEFAULT NULL,
+	`description` text,
+	`advice` text,
+	`pxeConfigTemplate` varchar(50) DEFAULT NULL,
+	`changelog` text,
+	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`),
+	KEY `index_product_type` (`type`),
+	KEY `index_productId` (`productId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `PRODUCT_DEPENDENCY` (
+	`productId` varchar(255) NOT NULL,
+	`productVersion` varchar(32) NOT NULL,
+	`packageVersion` varchar(16) NOT NULL,
+	`productAction` varchar(16) NOT NULL,
+	`requiredProductId` varchar(255) NOT NULL,
+	`requiredProductVersion` varchar(32) DEFAULT NULL,
+	`requiredPackageVersion` varchar(16) DEFAULT NULL,
+	`requiredAction` varchar(16) DEFAULT NULL,
+	`requiredInstallationStatus` varchar(16) DEFAULT NULL,
+	`requirementType` varchar(16) DEFAULT NULL,
+	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`,`productAction`,`requiredProductId`),
+	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`) REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `PRODUCT_ID_TO_LICENSE_POOL` (
+	`licensePoolId` varchar(100) NOT NULL,
+	`productId` varchar(255) NOT NULL,
+	PRIMARY KEY (`licensePoolId`,`productId`),
+	FOREIGN KEY (`licensePoolId`) REFERENCES `LICENSE_POOL` (`licensePoolId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `PRODUCT_ON_CLIENT` (
+	`productId` varchar(255) NOT NULL,
+	`clientId` varchar(255) NOT NULL,
+	`productType` varchar(16) NOT NULL,
+	`targetConfiguration` varchar(16) DEFAULT NULL,
+	`installationStatus` varchar(16) DEFAULT NULL,
+	`actionRequest` varchar(16) DEFAULT NULL,
+	`actionProgress` varchar(255) DEFAULT NULL,
+	`actionResult` varchar(16) DEFAULT NULL,
+	`lastAction` varchar(16) DEFAULT NULL,
+	`productVersion` varchar(32) DEFAULT NULL,
+	`packageVersion` varchar(16) DEFAULT NULL,
+	`modificationTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (`productId`,`clientId`),
+	KEY `FK_PRODUCT_ON_CLIENT_HOST` (`clientId`),
+	FOREIGN KEY (`clientId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `PRODUCT_ON_DEPOT` (
+	`productId` varchar(255) NOT NULL,
+	`productVersion` varchar(32) NOT NULL,
+	`packageVersion` varchar(16) NOT NULL,
+	`depotId` varchar(255) NOT NULL,
+	`productType` varchar(16) NOT NULL,
+	`locked` tinyint(1) DEFAULT NULL,
+	PRIMARY KEY (`productId`,`depotId`),
+	KEY `productId` (`productId`,`productVersion`,`packageVersion`),
+	KEY `depotId` (`depotId`),
+	KEY `index_product_on_depot_productType` (`productType`),
+	FOREIGN KEY (`depotId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`) REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY` (
+	`productId` varchar(255) NOT NULL,
+	`productVersion` varchar(32) NOT NULL,
+	`packageVersion` varchar(16) NOT NULL,
+	`propertyId` varchar(200) NOT NULL,
+	`type` varchar(30) NOT NULL,
+	`description` text,
+	`multiValue` tinyint(1) NOT NULL,
+	`editable` tinyint(1) NOT NULL,
+	PRIMARY KEY (`productId`,`productVersion`,`packageVersion`,`propertyId`),
+	KEY `index_product_property_type` (`type`),
+	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`) REFERENCES `PRODUCT` (`productId`, `productVersion`, `packageVersion`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY_STATE` (
+	`productId` varchar(255) NOT NULL,
+	`propertyId` varchar(200) NOT NULL,
+	`objectId` varchar(255) NOT NULL,
+	`values` text,
+	PRIMARY KEY (`productId`,`propertyId`,`objectId`),
+	KEY `index_product_property_state_objectId` (`objectId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `PRODUCT_PROPERTY_VALUE` (
+	`product_property_id` int(11) NOT NULL AUTO_INCREMENT,
+	`productId` varchar(255) NOT NULL,
+	`productVersion` varchar(32) NOT NULL,
+	`packageVersion` varchar(16) NOT NULL,
+	`propertyId` varchar(200) NOT NULL,
+	`value` text,
+	`isDefault` tinyint(1) DEFAULT NULL,
+	PRIMARY KEY (`product_property_id`),
+	KEY `productId` (`productId`,`productVersion`,`packageVersion`,`propertyId`),
+	KEY `index_product_property_value` (`productId`,`propertyId`,`productVersion`,`packageVersion`),
+	FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`) REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=11237 DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `SOFTWARE` (
+	`name` varchar(100) NOT NULL,
+	`version` varchar(100) NOT NULL,
+	`subVersion` varchar(100) NOT NULL,
+	`language` varchar(10) NOT NULL,
+	`architecture` varchar(3) NOT NULL,
+	`windowsSoftwareId` varchar(100) DEFAULT NULL,
+	`windowsDisplayName` varchar(100) DEFAULT NULL,
+	`windowsDisplayVersion` varchar(100) DEFAULT NULL,
+	`type` varchar(30) NOT NULL,
+	`installSize` bigint(20) DEFAULT NULL,
+	PRIMARY KEY (`name`,`version`,`subVersion`,`language`,`architecture`),
+	KEY `index_software_windowsSoftwareId` (`windowsSoftwareId`),
+	KEY `index_software_type` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `SOFTWARE_CONFIG` (
+	`clientId` varchar(255) NOT NULL,
+	`name` varchar(100) NOT NULL,
+	`version` varchar(100) NOT NULL,
+	`subVersion` varchar(100) NOT NULL,
+	`language` varchar(10) NOT NULL,
+	`architecture` varchar(3) NOT NULL,
+	`uninstallString` varchar(200) DEFAULT NULL,
+	`binaryName` varchar(100) DEFAULT NULL,
+	`firstseen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`lastseen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`state` tinyint(4) NOT NULL,
+	`usageFrequency` int(11) NOT NULL DEFAULT '-1',
+	`lastUsed` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`licenseKey` varchar(1024) DEFAULT NULL,
+	PRIMARY KEY (`clientId`,`name`,`version`,`subVersion`,`language`,`architecture`),
+	KEY `index_software_config_clientId` (`clientId`),
+	KEY `index_software_config_nvsla` (`name`,`version`,`subVersion`,`language`,`architecture`),
+	FOREIGN KEY (`clientId`) REFERENCES `HOST` (`hostId`) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (`name`, `version`, `subVersion`, `language`, `architecture`) REFERENCES `SOFTWARE` (`name`, `version`, `subVersion`, `language`, `architecture`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE` (
+	`softwareLicenseId` varchar(100) NOT NULL,
+	`licenseContractId` varchar(100) NOT NULL,
+	`type` varchar(30) NOT NULL,
+	`boundToHost` varchar(255) DEFAULT NULL,
+	`maxInstallations` int(11) DEFAULT NULL,
+	`expirationDate` timestamp NULL DEFAULT NULL,
+	PRIMARY KEY (`softwareLicenseId`),
+	KEY `licenseContractId` (`licenseContractId`),
+	KEY `index_software_license_type` (`type`),
+	KEY `index_software_license_boundToHost` (`boundToHost`),
+	FOREIGN KEY (`licenseContractId`) REFERENCES `LICENSE_CONTRACT` (`licenseContractId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `SOFTWARE_LICENSE_TO_LICENSE_POOL` (
+	`softwareLicenseId` varchar(100) NOT NULL,
+	`licensePoolId` varchar(100) NOT NULL,
+	`licenseKey` varchar(1024) DEFAULT NULL,
+	PRIMARY KEY (`softwareLicenseId`,`licensePoolId`),
+	KEY `licensePoolId` (`licensePoolId`),
+	FOREIGN KEY (`softwareLicenseId`) REFERENCES `SOFTWARE_LICENSE` (`softwareLicenseId`),
+	FOREIGN KEY (`licensePoolId`) REFERENCES `LICENSE_POOL` (`licensePoolId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `WINDOWS_SOFTWARE_ID_TO_PRODUCT` (
+	`windowsSoftwareId` varchar(100) NOT NULL,
+	`productId` varchar(255) NOT NULL,
+	PRIMARY KEY (`windowsSoftwareId`,`productId`),
+	KEY `index_windows_software_id_to_product_productId` (`productId`),
+	KEY `index_productId` (`productId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `LICENSE_ON_CLIENT` (
+	`softwareLicenseId` varchar(100) NOT NULL,
+	`licensePoolId` varchar(100) NOT NULL,
+	`clientId` varchar(255) NOT NULL,
+	`licenseKey` varchar(1024) DEFAULT NULL,
+	`notes` varchar(1024) DEFAULT NULL,
+	PRIMARY KEY (`softwareLicenseId`,`licensePoolId`,`clientId`),
+	KEY `softwareLicenseId` (`softwareLicenseId`,`licensePoolId`),
+	KEY `index_license_on_client_clientId` (`clientId`),
+	FOREIGN KEY (`softwareLicenseId`, `licensePoolId`) REFERENCES `SOFTWARE_LICENSE_TO_LICENSE_POOL` (`softwareLicenseId`, `licensePoolId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `AUDIT_SOFTWARE_TO_LICENSE_POOL` (
+	`licensePoolId` varchar(100) NOT NULL,
+	`name` varchar(100) NOT NULL,
+	`version` varchar(100) NOT NULL,
+	`subVersion` varchar(100) NOT NULL,
+	`language` varchar(10) NOT NULL,
+	`architecture` varchar(3) NOT NULL,
+	PRIMARY KEY (`licensePoolId`,`name`,`version`,`subVersion`,`language`,`architecture`),
+	KEY `licensePoolId` (`licensePoolId`),
+	FOREIGN KEY (`licensePoolId`) REFERENCES `LICENSE_POOL` (`licensePoolId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+"""
+
+
+def create_audit_hardware_tables(  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+	session: Session, tables: dict[str, dict[str, dict[str, str | bool | None]]]
+) -> None:
+	from opsiconfd.backend.rpc.obj_audit_hardware import (  # pylint: disable=import-outside-toplevel
+		get_audit_hardware_database_config,
+	)
+
+	existing_tables = set(tables.keys())
+
+	for (hw_class, values) in get_audit_hardware_database_config().items():  # pylint: disable=too-many-nested-blocks
+		logger.debug("Processing hardware class '%s'", hw_class)
+		hardware_device_table_name = f"HARDWARE_DEVICE_{hw_class}"
+		hardware_config_table_name = f"HARDWARE_CONFIG_{hw_class}"
+
+		hardware_device_table_exists = hardware_device_table_name in existing_tables
+		hardware_config_table_exists = hardware_config_table_name in existing_tables
+
+		if hardware_device_table_exists:
+			hardware_device_table = f"ALTER TABLE `{hardware_device_table_name}`\n"
+		else:
+			hardware_device_table = f"CREATE TABLE `{hardware_device_table_name}` (\n" f"`hardware_id` INTEGER NOT NULL AUTO_INCREMENT,\n"
+
+		if hardware_config_table_exists:
+			hardware_config_table = f"ALTER TABLE `{hardware_config_table_name}`\n"
+		else:
+			hardware_config_table = (
+				f"CREATE TABLE `{hardware_config_table_name}` (\n"
+				f"`config_id` INTEGER NOT NULL AUTO_INCREMENT,\n"
+				"`hostId` varchar(255) NOT NULL,\n"
+				"`hardware_id` INTEGER NOT NULL,\n"
+				"`firstseen` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n"
+				"`lastseen` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n"
+				"`state` TINYINT NOT NULL,\n"
+			)
+
+		hardware_device_values_processed = 0
+		hardware_config_values_processed = 0
+		for (value, value_info) in values.items():
+			logger.debug("  Processing value '%s'", value)
+			if value_info["Scope"] == "g":
+				if hardware_device_table_exists:
+					if value in tables[hardware_device_table_name]:  # pylint: disable=loop-invariant-statement
+						# Column exists => change
+						hardware_device_table += f"CHANGE `{value}` `{value}` {value_info['Type']} NULL,\n"
+					else:
+						# Column does not exist => add
+						hardware_device_table += f'ADD `{value}` {value_info["Type"]} NULL,\n'
+				else:
+					hardware_device_table += f'`{value}` {value_info["Type"]} NULL,\n'
+				hardware_device_values_processed += 1
+			elif value_info["Scope"] == "i":
+				if hardware_config_table_exists:
+					if value in tables[hardware_config_table_name]:  # pylint: disable=loop-invariant-statement
+						# Column exists => change
+						hardware_config_table += f'CHANGE `{value}` `{value}` {value_info["Type"]} NULL,\n'
+					else:
+						# Column does not exist => add
+						hardware_config_table += f'ADD `{value}` {value_info["Type"]} NULL,\n'
+				else:
+					hardware_config_table += f'`{value}` {value_info["Type"]} NULL,\n'
+				hardware_config_values_processed += 1
+
+		if not hardware_device_table_exists:
+			hardware_device_table += "PRIMARY KEY (`hardware_id`)\n"
+		if not hardware_config_table_exists:
+			hardware_config_table += "PRIMARY KEY (`config_id`)\n"
+
+		# Remove leading and trailing whitespace
+		hardware_device_table = hardware_device_table.strip()
+		hardware_config_table = hardware_config_table.strip()
+
+		# Remove trailing comma
+		if hardware_device_table.endswith(","):
+			hardware_device_table = hardware_device_table[:-1]
+		if hardware_config_table.endswith(","):
+			hardware_config_table = hardware_config_table[:-1]
+
+		# Finish sql query
+		if hardware_device_table_exists:
+			hardware_device_table += " ;\n"
+		else:
+			hardware_device_table += "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n"
+
+		if hardware_config_table_exists:
+			hardware_config_table += " ;\n"
+		else:
+			hardware_config_table += "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8;\n"
+
+		# Execute sql query
+		if hardware_device_values_processed or not hardware_device_table_exists:
+			logger.debug(hardware_device_table)
+			session.execute(hardware_device_table)
+		if hardware_config_values_processed or not hardware_config_table_exists:
+			logger.debug(hardware_config_table)
+			session.execute(hardware_config_table)
+
+
 def read_schema_version(session: Session) -> int | None:
 	"""
 	Read the version of the schema from the database.
@@ -28,7 +442,7 @@ def read_schema_version(session: Session) -> int | None:
 		# Remove migration markers for failed migrations
 		session.execute("DELETE FROM `OPSI_SCHEMA` WHERE `updateEnded` IS NULL OR `updateEnded` = '0000-00-00 00:00:00'")
 		row = session.execute("SELECT MAX(`version`) FROM `OPSI_SCHEMA`").fetchone()
-		if row:
+		if row and row[0] is not None:
 			return int(row[0])
 	except Exception as err:  # pylint: disable=broad-except
 		logger.warning("Reading database schema version failed: %s", err)
@@ -71,6 +485,11 @@ def remove_index(session: Session, database: str, table: str, index: str) -> Non
 
 def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	with mysql.session() as session:
+
+		session.execute(CREATE_TABLES_SQL)
+		create_audit_hardware_tables(session, mysql.tables)
+
+		mysql.read_tables()
 
 		schema_version = read_schema_version(session)
 		logger.info("Current database schema version is %r", schema_version)
@@ -126,7 +545,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		logger.info("Running opsi 4.3 updates")
 
 		for row in session.execute(
-			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM  `INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` = :database",
+			"SELECT `TABLE_NAME`, `ENGINE`, `TABLE_COLLATION` FROM	`INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA` = :database",
 			params={"database": mysql.database},
 		).fetchall():
 			row_dict = dict(row)
@@ -136,6 +555,56 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			if row_dict["TABLE_COLLATION"] != "utf8_general_ci":
 				logger.notice("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
+
+		res = session.execute(
+			"""
+			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
+			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
+			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_ON_CLIENT'
+			AND `t1`.`REFERENCED_TABLE_NAME` = 'HOST'
+			""",
+			params={"database": mysql.database},
+		).fetchone()
+		if not res or res[1] == "RESTRICT":
+			if res:
+				logger.notice("Removing FK to HOST on table PRODUCT_ON_CLIENT with RESTRICT")
+				session.execute(f"ALTER TABLE `PRODUCT_ON_CLIENT` DROP FOREIGN KEY `{res[0]}`")
+
+			logger.notice("Creating FK to HOST on table PRODUCT_ON_CLIENT with CASCADE")
+			session.execute(
+				"""
+				ALTER TABLE `PRODUCT_ON_CLIENT` ADD
+				FOREIGN KEY (`clientId`)
+				REFERENCES `HOST` (`hostId`)
+				ON UPDATE CASCADE ON DELETE CASCADE
+				"""
+			)
+
+		res = session.execute(
+			"""
+			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
+			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
+			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_ON_DEPOT'
+			AND `t1`.`REFERENCED_TABLE_NAME` = 'HOST'
+			""",
+			params={"database": mysql.database},
+		).fetchone()
+		if not res or res[1] == "RESTRICT":
+			if res:
+				logger.notice("Removing FK to HOST on table PRODUCT_ON_DEPOT with RESTRICT")
+				session.execute(f"ALTER TABLE `PRODUCT_ON_DEPOT` DROP FOREIGN KEY `{res[0]}`")
+
+			logger.notice("Creating FK to HOST on table PRODUCT_ON_DEPOT with CASCADE")
+			session.execute(
+				"""
+				ALTER TABLE `PRODUCT_ON_DEPOT` ADD
+				FOREIGN KEY (`depotId`)
+				REFERENCES `HOST` (`hostId`)
+				ON UPDATE CASCADE ON DELETE CASCADE
+				"""
+			)
 
 		create_index(
 			session=session,
@@ -148,8 +617,9 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		res = session.execute(
 			"""
 			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2` ON `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-			WHERE `t1`.`REFERENCED_TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_PROPERTY_VALUE'
+			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
+			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_PROPERTY_VALUE'
 			AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT_PROPERTY'
 			""",
 			params={"database": mysql.database},
@@ -163,7 +633,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			logger.notice("Creating FK to PRODUCT_PROPERTY on table PRODUCT_PROPERTY_VALUE with CASCADE")
 			session.execute(
 				"""
-				ALTER TABLE `PRODUCT_PROPERTY_VALUE` ADD CONSTRAINT `FK_PRODUCT_PROPERTY`
+				ALTER TABLE `PRODUCT_PROPERTY_VALUE` ADD
 				FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`)
 				REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`)
 				ON UPDATE CASCADE ON DELETE CASCADE
@@ -173,8 +643,9 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		res = session.execute(
 			"""
 			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2` ON `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-			WHERE `t1`.`REFERENCED_TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'CONFIG_VALUE'
+			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
+			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'CONFIG_VALUE'
 			AND `t1`.`REFERENCED_TABLE_NAME` = 'CONFIG'
 			""",
 			params={"database": mysql.database},
@@ -188,7 +659,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			logger.notice("Creating FK to CONFIG on table CONFIG_VALUE with CASCADE")
 			session.execute(
 				"""
-				ALTER TABLE `CONFIG_VALUE` ADD CONSTRAINT `FK_CONFIG`
+				ALTER TABLE `CONFIG_VALUE` ADD
 				FOREIGN KEY (`configId`)
 				REFERENCES `CONFIG` (`configId`)
 				ON UPDATE CASCADE ON DELETE CASCADE
@@ -354,7 +825,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		res = session.execute(
 			"""
 			SELECT DISTINCT `CONSTRAINT_NAME` FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE`
-			WHERE `REFERENCED_TABLE_SCHEMA` = :database AND `TABLE_NAME` = 'SOFTWARE_CONFIG'
+			WHERE `TABLE_SCHEMA` = :database AND `TABLE_NAME` = 'SOFTWARE_CONFIG'
 			""",
 			params={"database": mysql.database},
 		).fetchall()
@@ -389,7 +860,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			if "FK_SOFTWARE" not in fk_names:
 				session.execute(
 					"""
-					ALTER TABLE `SOFTWARE_CONFIG` ADD CONSTRAINT `FK_SOFTWARE`
+					ALTER TABLE `SOFTWARE_CONFIG` ADD
 					FOREIGN KEY (`name`, `version`, `subVersion`, `language`, `architecture`)
 					REFERENCES `SOFTWARE` (`name`, `version`, `subVersion`, `language`, `architecture`)
 					ON UPDATE CASCADE ON DELETE CASCADE
@@ -398,7 +869,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			if "FK_HOST" not in fk_names:
 				session.execute(
 					"""
-					ALTER TABLE `SOFTWARE_CONFIG` ADD CONSTRAINT `FK_HOST`
+					ALTER TABLE `SOFTWARE_CONFIG` ADD
 					FOREIGN KEY (`clientId`)
 					REFERENCES `HOST` (`hostId`)
 					ON UPDATE CASCADE ON DELETE CASCADE

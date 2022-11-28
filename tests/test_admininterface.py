@@ -29,7 +29,7 @@ from .test_addon_manager import cleanup  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	BackendManager,
+	Backend,
 	OpsiconfdTestClient,
 	backend,
 	clean_mysql,
@@ -315,7 +315,7 @@ def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:
 
 
 def test_get_num_servers(
-	admininterface: ModuleType, backend: BackendManager, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
+	admininterface: ModuleType, backend: Backend, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
 ) -> None:
 	assert admininterface.get_num_servers(backend) == 1
 	with depot_jsonrpc(test_client, "", "test-depot.uib.local"):
@@ -324,7 +324,7 @@ def test_get_num_servers(
 
 
 def test_get_num_clients(
-	admininterface: ModuleType, backend: BackendManager, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
+	admininterface: ModuleType, backend: Backend, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
 ) -> None:
 	assert admininterface.get_num_clients(backend) == 0
 	with (
@@ -366,7 +366,7 @@ def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 		assert body[_idx].get("max_age") == 60
 
 
-def test_unlock_product(test_client: OpsiconfdTestClient, backend: BackendManager) -> None:  # pylint: disable=redefined-outer-name
+def test_unlock_product(test_client: OpsiconfdTestClient, backend: Backend) -> None:  # pylint: disable=redefined-outer-name
 
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
@@ -396,7 +396,7 @@ def test_unlock_product(test_client: OpsiconfdTestClient, backend: BackendManage
 		assert locked_products == {products[0]: [test_depots[1]], products[1]: test_depots}
 
 
-def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: BackendManager) -> None:  # pylint: disable=redefined-outer-name
+def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: Backend) -> None:  # pylint: disable=redefined-outer-name
 
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
@@ -425,9 +425,7 @@ def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: BackendM
 		assert locked_products == {}
 
 
-def test_get_locked_products_list(
-	test_client: OpsiconfdTestClient, backend: BackendManager  # pylint: disable=redefined-outer-name
-) -> None:
+def test_get_locked_products_list(test_client: OpsiconfdTestClient, backend: Backend) -> None:  # pylint: disable=redefined-outer-name
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},

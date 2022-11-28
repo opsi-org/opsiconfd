@@ -148,7 +148,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		if hardware_class not in ([], None):
 			for hwc in forceList(hardware_class):
 				regex = re.compile(f"^{hwc.replace('*', '.*')}$")  # pylint: disable=dotted-import-in-loop
-				for key in self._audit_hardware_config:
+				for key in self._audit_hardware_database_config:
 					if regex.search(key):
 						hardware_classes.add(key)
 
@@ -156,7 +156,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 				return []
 
 		if not hardware_classes:
-			hardware_classes = set(self._audit_hardware_config)
+			hardware_classes = set(self._audit_hardware_database_config)
 
 		for unwanted_key in ("hardwareClass", "type"):
 			try:  # pylint: disable=loop-try-except-usage
@@ -172,7 +172,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 			for hardware_class in hardware_classes:  # pylint: disable=too-many-nested-blocks
 				class_filter = {}
 				ident_attributes = []
-				for attr, info in self._audit_hardware_config[hardware_class].items():  # pylint: disable=use-list-comprehension
+				for attr, info in self._audit_hardware_database_config[hardware_class].items():  # pylint: disable=use-list-comprehension
 					if info.get("Scope") == "g":
 						ident_attributes.append(attr)
 					if attr in filter:

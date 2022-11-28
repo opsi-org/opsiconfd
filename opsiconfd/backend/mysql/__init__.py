@@ -93,7 +93,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self._address = "localhost"
 		self._username = "opsi"
 		self._password = "opsi"
-		self.database = "opsi"
+		self._database = "opsi"
 		self._database_charset = "utf8"
 		self._connection_pool_size = 20
 		self._connection_pool_max_overflow = 10
@@ -127,6 +127,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 		if self._address == "::1":
 			self._address = "[::1]"
+
+	@property
+	def database(self) -> str:
+		return self._database
 
 	@staticmethod
 	def _on_engine_connect(conn: Connection, branch: Optional[Connection]) -> None:  # pylint: disable=unused-argument
@@ -214,7 +218,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			logger.info("Failed to connect to socket (%s), retrying with tcp/ip", err)
 			self._address = "127.0.0.1"
 			self._init_connection()
-		self._get_tables()
+		self.read_tables()
 
 	def disconnect(self) -> None:
 		if self._engine:
@@ -236,7 +240,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		finally:
 			self._Session.remove()  # pylint: disable=no-member
 
-	def _get_tables(self) -> None:
+	def read_tables(self) -> None:
 		self.tables = {}
 		with self.session() as session:
 			for trow in session.execute("SHOW TABLES").fetchall():

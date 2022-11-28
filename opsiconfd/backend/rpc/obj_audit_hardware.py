@@ -13,6 +13,7 @@ import os
 import re
 from collections import defaultdict
 from copy import deepcopy
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol
 
 from OPSI.Util.File import ConfigFile  # type: ignore[import]
@@ -30,6 +31,9 @@ from . import rpc_method
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol, IdentType
 
+
+AUDIT_HARDWARE_CONFIG_FILE: str = "/etc/opsi/hwaudit/opsihwaudit.conf"
+AUDIT_HARDWARE_CONFIG_LOCALES_DIR: str = "/etc/opsi/hwaudit/locales"
 OPSI_HARDWARE_CLASSES: List[Dict[str, Any]] = []
 
 
@@ -62,24 +66,99 @@ def inherit_from_super_classes(classes: List[Dict[str, Any]], _class: Dict[str, 
 				break
 
 
+@lru_cache(maxsize=10)
+def get_audit_hardware_config(language: str = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+
+	if not language:
+		language = "en_US"
+	language = forceLanguageCode(language).replace("-", "_")
+
+	locale_file = os.path.join(AUDIT_HARDWARE_CONFIG_LOCALES_DIR, language or "en_US")
+	if not os.path.exists(locale_file):
+		logger.error("No translation file found for language %s, falling back to en_US", language)
+		language = "en_US"
+		locale_file = os.path.join(AUDIT_HARDWARE_CONFIG_LOCALES_DIR, language)
+
+	locale = {}
+	try:
+		for line in ConfigFile(locale_file).parse():
+			try:  # pylint: disable=loop-try-except-usage
+				identifier, translation = line.split("=", 1)
+				locale[identifier.strip()] = translation.strip()
+			except ValueError as verr:
+				logger.trace("Failed to read translation: %s", verr)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error("Failed to read translation file for language %s: %s", language, err)
+
+	classes: List[Dict[str, Any]] = []
+	try:  # pylint: disable=too-many-nested-blocks
+		with open(AUDIT_HARDWARE_CONFIG_FILE, encoding="utf-8") as hwc_file:
+			exec(hwc_file.read())  # pylint: disable=exec-used
+
+		for cls_idx, current_class_config in enumerate(OPSI_HARDWARE_CLASSES):  # pylint: disable=loop-global-usage
+			opsi_class = current_class_config["Class"]["Opsi"]
+			if current_class_config["Class"]["Type"] == "STRUCTURAL":
+				if locale.get(opsi_class):
+					OPSI_HARDWARE_CLASSES[cls_idx]["Class"]["UI"] = locale[opsi_class]  # pylint: disable=loop-global-usage
+				else:
+					logger.error("No translation for class '%s' found", opsi_class)
+					OPSI_HARDWARE_CLASSES[cls_idx]["Class"]["UI"] = opsi_class  # pylint: disable=loop-global-usage
+
+			for val_idx, current_value in enumerate(current_class_config["Values"]):
+				opsi_property = current_value["Opsi"]
+				try:  # pylint: disable=loop-try-except-usage
+					OPSI_HARDWARE_CLASSES[cls_idx]["Values"][val_idx]["UI"] = locale[f"{opsi_class}.{opsi_property}"]  # pylint: disable=loop-global-usage,loop-invariant-statement
+				except KeyError:
+					pass
+
+		for owc in OPSI_HARDWARE_CLASSES:  # pylint: disable=loop-global-usage
+			try:  # pylint: disable=loop-try-except-usage
+				if owc["Class"].get("Type") == "STRUCTURAL":
+					logger.debug("Found STRUCTURAL hardware class '%s'", owc["Class"].get("Opsi"))
+					ccopy = deepcopy(owc)
+					if "Super" in ccopy["Class"]:
+						inherit_from_super_classes(OPSI_HARDWARE_CLASSES, ccopy)  # pylint: disable=loop-global-usage
+						del ccopy["Class"]["Super"]
+					del ccopy["Class"]["Type"]
+
+					# Fill up empty display names
+					for val_idx, current_value in enumerate(ccopy.get("Values", [])):
+						if not current_value.get("UI"):
+							logger.warning(
+								"No translation found for hardware audit configuration property '%s.%s' in %s",
+								ccopy["Class"]["Opsi"],
+								current_value["Opsi"],
+								locale_file,
+							)
+							ccopy["Values"][val_idx]["UI"] = current_value["Opsi"]
+
+					classes.append(ccopy)
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error("Error in config file '%s': %s", AUDIT_HARDWARE_CONFIG_FILE, err)  # pylint: disable=loop-global-usage
+
+		AuditHardware.setHardwareConfig(classes)
+		AuditHardwareOnHost.setHardwareConfig(classes)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.warning("Failed to read audit hardware configuration from file '%s': %s", AUDIT_HARDWARE_CONFIG_FILE, err)
+
+	return classes
+
+
+def get_audit_hardware_database_config() -> dict[str, dict[str, dict[str, str]]]:
+	audit_hardware_config: dict[str, dict[str, dict[str, str]]] = {}
+	for conf in get_audit_hardware_config():
+		hw_class = conf["Class"]["Opsi"]  # type: ignore
+		audit_hardware_config[hw_class] = {}
+		for value in conf["Values"]:
+			audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore  # pylint: disable=loop-invariant-statement
+	return audit_hardware_config
+
+
 class RPCAuditHardwareMixin(Protocol):
-	_audit_hardware_config: Dict[str, Dict[str, Dict[str, str]]] = {}
-	_audit_hardware_config_file: str = "/etc/opsi/hwaudit/opsihwaudit.conf"
-	_audit_hardware_config_locales_dir: str = "/etc/opsi/hwaudit/locales"
+	_audit_hardware_database_config: Dict[str, Dict[str, Dict[str, str]]] = {}
 
 	def __init__(self) -> None:
-		super().__init__()
-		self._set_audit_hardware_config(self.auditHardware_getConfig())
-
-	def _set_audit_hardware_config(self, config: List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]) -> None:
-		self._audit_hardware_config = {}
-		for conf in config:
-			hw_class = conf["Class"]["Opsi"]  # type: ignore
-			self._audit_hardware_config[hw_class] = {}
-			for value in conf["Values"]:
-				self._audit_hardware_config[hw_class][value["Opsi"]] = {"Type": value["Type"], "Scope": value["Scope"]}  # type: ignore  # pylint: disable=loop-invariant-statement
-		AuditHardware.setHardwareConfig(config)
-		AuditHardwareOnHost.setHardwareConfig(config)
+		self._audit_hardware_database_config = get_audit_hardware_database_config()
 
 	def _audit_hardware_by_hardware_class(
 		self: BackendProtocol,
@@ -94,7 +173,7 @@ class RPCAuditHardwareMixin(Protocol):
 
 	def auditHardware_deleteAll(self: BackendProtocol) -> None:  # pylint: disable=invalid-name
 		with self._mysql.session() as session:
-			for hardware_class in self._audit_hardware_config:
+			for hardware_class in self._audit_hardware_database_config:
 				session.execute(f"TRUNCATE TABLE `HARDWARE_CONFIG_{hardware_class}`")
 				session.execute(f"TRUNCATE TABLE `HARDWARE_DEVICE_{hardware_class}`")
 
@@ -102,76 +181,7 @@ class RPCAuditHardwareMixin(Protocol):
 	def auditHardware_getConfig(self: BackendProtocol, language: str = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
 		self._get_ace("auditHardware_getConfig")
 
-		if not language:
-			language = "en_US"
-		language = forceLanguageCode(language).replace("-", "_")
-
-		locale_file = os.path.join(self._audit_hardware_config_locales_dir, language or "en_US")
-		if not os.path.exists(locale_file):
-			logger.error("No translation file found for language %s, falling back to en_US", language)
-			language = "en_US"
-			locale_file = os.path.join(self._audit_hardware_config_locales_dir, language)
-
-		locale = {}
-		try:
-			for line in ConfigFile(locale_file).parse():
-				try:  # pylint: disable=loop-try-except-usage
-					identifier, translation = line.split("=", 1)
-					locale[identifier.strip()] = translation.strip()
-				except ValueError as verr:
-					logger.trace("Failed to read translation: %s", verr)
-		except Exception as err:  # pylint: disable=broad-except
-			logger.error("Failed to read translation file for language %s: %s", language, err)
-
-		classes: List[Dict[str, Any]] = []
-		try:  # pylint: disable=too-many-nested-blocks
-			with open(self._audit_hardware_config_file, encoding="utf-8") as hwc_file:
-				exec(hwc_file.read())  # pylint: disable=exec-used
-
-			for cls_idx, current_class_config in enumerate(OPSI_HARDWARE_CLASSES):  # pylint: disable=loop-global-usage
-				opsi_class = current_class_config["Class"]["Opsi"]
-				if current_class_config["Class"]["Type"] == "STRUCTURAL":
-					if locale.get(opsi_class):
-						OPSI_HARDWARE_CLASSES[cls_idx]["Class"]["UI"] = locale[opsi_class]  # pylint: disable=loop-global-usage
-					else:
-						logger.error("No translation for class '%s' found", opsi_class)
-						OPSI_HARDWARE_CLASSES[cls_idx]["Class"]["UI"] = opsi_class  # pylint: disable=loop-global-usage
-
-				for val_idx, current_value in enumerate(current_class_config["Values"]):
-					opsi_property = current_value["Opsi"]
-					try:  # pylint: disable=loop-try-except-usage
-						OPSI_HARDWARE_CLASSES[cls_idx]["Values"][val_idx]["UI"] = locale[f"{opsi_class}.{opsi_property}"]  # pylint: disable=loop-global-usage,loop-invariant-statement
-					except KeyError:
-						pass
-
-			for owc in OPSI_HARDWARE_CLASSES:  # pylint: disable=loop-global-usage
-				try:  # pylint: disable=loop-try-except-usage
-					if owc["Class"].get("Type") == "STRUCTURAL":
-						logger.debug("Found STRUCTURAL hardware class '%s'", owc["Class"].get("Opsi"))
-						ccopy = deepcopy(owc)
-						if "Super" in ccopy["Class"]:
-							inherit_from_super_classes(OPSI_HARDWARE_CLASSES, ccopy)  # pylint: disable=loop-global-usage
-							del ccopy["Class"]["Super"]
-						del ccopy["Class"]["Type"]
-
-						# Fill up empty display names
-						for val_idx, current_value in enumerate(ccopy.get("Values", [])):
-							if not current_value.get("UI"):
-								logger.warning(
-									"No translation found for hardware audit configuration property '%s.%s' in %s",
-									ccopy["Class"]["Opsi"],
-									current_value["Opsi"],
-									locale_file,
-								)
-								ccopy["Values"][val_idx]["UI"] = current_value["Opsi"]
-
-						classes.append(ccopy)
-				except Exception as err:  # pylint: disable=broad-except
-					logger.error("Error in config file '%s': %s", self._audit_hardware_config_file, err)
-		except Exception as err:  # pylint: disable=broad-except
-			logger.warning("Failed to read audit hardware configuration from file '%s': %s", self._audit_hardware_config_file, err)
-
-		return classes
+		return get_audit_hardware_config(language)
 
 	@rpc_method
 	def auditHardware_insertObject(self: BackendProtocol, auditHardware: dict | AuditHardware) -> None:  # pylint: disable=invalid-name
@@ -220,7 +230,7 @@ class RPCAuditHardwareMixin(Protocol):
 		if hardware_class not in ([], None):
 			for hwc in forceList(hardware_class):
 				regex = re.compile(f"^{hwc.replace('*', '.*')}$")  # pylint: disable=dotted-import-in-loop
-				for key in self._audit_hardware_config:
+				for key in self._audit_hardware_database_config:
 					if regex.search(key):
 						hardware_classes.add(key)
 
@@ -228,7 +238,7 @@ class RPCAuditHardwareMixin(Protocol):
 				return []
 
 		if not hardware_classes:
-			hardware_classes = set(self._audit_hardware_config)
+			hardware_classes = set(self._audit_hardware_database_config)
 
 		for unwanted_key in ("hardwareClass", "type"):
 			try:  # pylint: disable=loop-try-except-usage
@@ -244,7 +254,7 @@ class RPCAuditHardwareMixin(Protocol):
 			for hardware_class in hardware_classes:  # pylint: disable=too-many-nested-blocks
 				class_filter = {}
 				ident_attributes = []
-				for attr, info in self._audit_hardware_config[hardware_class].items():  # pylint: disable=use-list-comprehension
+				for attr, info in self._audit_hardware_database_config[hardware_class].items():  # pylint: disable=use-list-comprehension
 					if info.get("Scope") == "g":
 						ident_attributes.append(attr)
 						if attr in filter:

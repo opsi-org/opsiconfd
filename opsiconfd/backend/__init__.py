@@ -37,9 +37,10 @@ def get_private_backend() -> PrivateBackend:
 
 
 def get_server_role() -> str:
-	for _method, backends in _loadDispatchConfig(config.dispatch_config_file):
-		if "jsonrpc" in backends:
-			return "depot"
+	# TODO:
+	# for _method, backends in _loadDispatchConfig(config.dispatch_config_file):
+	# 	if "jsonrpc" in backends:
+	# 		return "depot"
 	return "config"
 
 

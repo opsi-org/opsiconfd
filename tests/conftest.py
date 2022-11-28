@@ -29,8 +29,6 @@ from pytest import fixture, hookimpl, skip
 import opsiconfd.config
 import opsiconfd.messagebus.redis
 from opsiconfd.application.main import application_setup
-from opsiconfd.backend import BackendManager
-from opsiconfd.backend.rpc.opsiconfd import OpsiconfdBackend, get_backend_interface
 from opsiconfd.config import config as _config
 from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
@@ -38,7 +36,6 @@ from opsiconfd.setup import setup_ssl
 from opsiconfd.worker import Worker
 
 GRAFANA_AVAILABLE = False
-MYSQL_BACKEND_AVAILABLE = False
 
 
 def signal_handler(self: Manager, signum: int, frame: FrameType | None) -> None:  # pylint: disable=unused-argument
@@ -59,7 +56,6 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 @hookimpl()
 def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-argument
 	global GRAFANA_AVAILABLE  # pylint: disable=global-statement
-	global MYSQL_BACKEND_AVAILABLE  # pylint: disable=global-statement
 
 	opsiconfd.config.REDIS_PREFIX_MESSAGEBUS = opsiconfd.messagebus.redis.REDIS_PREFIX_MESSAGEBUS = "opsiconfd:test_messagebus"
 
@@ -75,25 +71,13 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	print("Config:")
 	pprint.pprint(_config.items(), width=200)
 
-	BackendManager.default_config = {
-		"backendConfigDir": _config.backend_config_dir,
-		"dispatchConfigFile": _config.dispatch_config_file,
-		"extensionConfigDir": _config.extension_config_dir,
-		"extend": True,
-	}
-
 	if grafana_is_local() and os.access(GRAFANA_DB, os.W_OK):
 		GRAFANA_AVAILABLE = True
 
-	MYSQL_BACKEND_AVAILABLE = (
-		"mysql_backend" in BackendManager().backend_getLicensingInfo()["available_modules"]  # pylint: disable=no-member
-	)
 	with (patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None)):
 		setup_ssl()
 
 	Worker._instance = Worker(1)  # pylint: disable=protected-access
-	OpsiconfdBackend()
-	get_backend_interface()
 	application_setup()
 
 
@@ -114,18 +98,14 @@ def pytest_configure(config: Config) -> None:
 	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
 	config.option.asyncio_mode = "auto"
 	config.addinivalue_line("markers", "grafana_available: mark test to run only if a local grafana instance is available")
-	config.addinivalue_line("markers", "mysql_backend_available: mark test to run only if the mysql backend is available")
 
 
 @hookimpl()
 def pytest_runtest_setup(item: Item) -> None:
 	grafana_available = GRAFANA_AVAILABLE
-	mysql_backend_available = MYSQL_BACKEND_AVAILABLE
 	for marker in item.iter_markers():
 		if marker.name == "grafana_available" and not grafana_available:
 			skip("Grafana not available")
-		if marker.name == "mysql_backend_available" and not mysql_backend_available:
-			skip("MySQL backend not available")
 
 
 @fixture()  # scope="session")

@@ -314,7 +314,6 @@ def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:
 			assert response.headers.get("location") == "/grafana-proxy/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
 
 
-@pytest.mark.mysql_backend_available
 def test_get_num_servers(
 	admininterface: ModuleType, backend: BackendManager, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
 ) -> None:
@@ -324,7 +323,6 @@ def test_get_num_servers(
 	assert admininterface.get_num_servers(backend) == 1
 
 
-@pytest.mark.mysql_backend_available
 def test_get_num_clients(
 	admininterface: ModuleType, backend: BackendManager, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
 ) -> None:
@@ -368,7 +366,6 @@ def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 		assert body[_idx].get("max_age") == 60
 
 
-@pytest.mark.mysql_backend_available
 def test_unlock_product(test_client: OpsiconfdTestClient, backend: BackendManager) -> None:  # pylint: disable=redefined-outer-name
 
 	test_products = [  # pylint: disable=use-tuple-over-list
@@ -399,7 +396,6 @@ def test_unlock_product(test_client: OpsiconfdTestClient, backend: BackendManage
 		assert locked_products == {products[0]: [test_depots[1]], products[1]: test_depots}
 
 
-@pytest.mark.mysql_backend_available
 def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: BackendManager) -> None:  # pylint: disable=redefined-outer-name
 
 	test_products = [  # pylint: disable=use-tuple-over-list
@@ -429,7 +425,6 @@ def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: BackendM
 		assert locked_products == {}
 
 
-@pytest.mark.mysql_backend_available
 def test_get_locked_products_list(
 	test_client: OpsiconfdTestClient, backend: BackendManager  # pylint: disable=redefined-outer-name
 ) -> None:

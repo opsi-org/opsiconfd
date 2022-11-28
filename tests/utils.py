@@ -8,6 +8,8 @@
 test utils
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextvars
 import time
@@ -15,7 +17,17 @@ import types
 from contextlib import asynccontextmanager, contextmanager
 from queue import Empty, Queue
 from threading import Thread
-from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Type, Union
+from typing import (
+	TYPE_CHECKING,
+	Any,
+	AsyncGenerator,
+	Dict,
+	Generator,
+	List,
+	Tuple,
+	Type,
+	Union,
+)
 from unittest.mock import patch
 
 import msgpack  # type: ignore[import]
@@ -32,10 +44,13 @@ from starlette.testclient import WebSocketTestSession, _ASGIAdapter
 from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application.main import BaseMiddleware, app
-from opsiconfd.backend import BackendManager, get_mysql
+from opsiconfd.backend import get_mysql, get_private_backend
 from opsiconfd.config import REDIS_PREFIX_MESSAGEBUS, REDIS_PREFIX_SESSION, Config
 from opsiconfd.config import config as _config
 from opsiconfd.utils import Singleton
+
+if TYPE_CHECKING:
+	from opsiconfd.backend import PrivateBackend
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
@@ -341,8 +356,8 @@ def database_connection() -> Generator[Connection, None, None]:
 
 
 @pytest.fixture()
-def backend() -> BackendManager:
-	return BackendManager()
+def backend() -> PrivateBackend:
+	return get_private_backend()
 
 
 class WebSocketMessageReader(Thread):

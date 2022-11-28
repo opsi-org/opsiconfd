@@ -11,7 +11,7 @@ monitoring
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from opsiconfd.backend import get_private_backend
+from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.logging import logger
 
 from .check_client_status import check_client_status
@@ -33,7 +33,7 @@ def monitoring_setup(app: FastAPI) -> None:
 
 @monitoring_router.post("{any:path}")
 async def monitoring(request: Request) -> JSONResponse:  # pylint: disable=too-many-branches
-	backend = get_private_backend()
+	backend = get_unprotected_backend()
 	request_data = await request.json()
 	task = None
 	try:

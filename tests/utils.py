@@ -44,13 +44,13 @@ from starlette.testclient import WebSocketTestSession, _ASGIAdapter
 from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application.main import BaseMiddleware, app
-from opsiconfd.backend import get_mysql, get_private_backend
+from opsiconfd.backend import get_mysql, get_unprotected_backend
 from opsiconfd.config import REDIS_PREFIX_MESSAGEBUS, REDIS_PREFIX_SESSION, Config
 from opsiconfd.config import config as _config
 from opsiconfd.utils import Singleton
 
 if TYPE_CHECKING:
-	from opsiconfd.backend import PrivateBackend
+	from opsiconfd.backend import UnprotectedBackend
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
@@ -356,8 +356,8 @@ def database_connection() -> Generator[Connection, None, None]:
 
 
 @pytest.fixture()
-def backend() -> PrivateBackend:
-	return get_private_backend()
+def backend() -> UnprotectedBackend:
+	return get_unprotected_backend()
 
 
 class WebSocketMessageReader(Thread):

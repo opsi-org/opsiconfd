@@ -32,7 +32,7 @@ from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from .. import __version__, contextvar_client_address, contextvar_request_id
 from ..addon import AddonManager
-from ..backend import get_private_backend, get_public_backend
+from ..backend import get_protected_backend, get_unprotected_backend
 from ..config import config
 from ..logging import get_logger, logger
 from ..messagebus.terminal import async_terminal_shutdown, async_terminal_startup
@@ -297,8 +297,8 @@ def validation_exception_handler(request: Request, exc: Exception) -> None:
 
 def application_setup() -> None:
 	# Create Backend instance
-	get_private_backend()
-	get_public_backend()
+	get_unprotected_backend()
+	get_protected_backend()
 
 	FileResponse.chunk_size = 32 * 1024  # Speeds up transfer of big files massively, original value is 4*1024
 
@@ -381,8 +381,8 @@ async def async_application_startup() -> None:
 
 
 def application_shutdown() -> None:
-	get_private_backend().shutdown()
-	get_public_backend().shutdown()
+	get_unprotected_backend().shutdown()
+	get_protected_backend().shutdown()
 
 
 async def async_application_shutdown() -> None:

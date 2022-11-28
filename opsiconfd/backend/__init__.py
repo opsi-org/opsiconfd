@@ -19,21 +19,23 @@ from opsiconfd.config import config
 if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.opsiconfd import (
 		MySQLConnection,
-		PrivateBackend,
-		PublicBackend,
+		ProtectedBackend,
+		UnprotectedBackend,
 	)
 
 
-def get_public_backend() -> PublicBackend:
-	from .rpc.opsiconfd import PublicBackend  # pylint: disable=import-outside-toplevel
+def get_protected_backend() -> ProtectedBackend:
+	from .rpc.opsiconfd import ProtectedBackend  # pylint: disable=import-outside-toplevel
 
-	return PublicBackend()
+	return ProtectedBackend()
 
 
-def get_private_backend() -> PrivateBackend:
-	from .rpc.opsiconfd import PrivateBackend  # pylint: disable=import-outside-toplevel
+def get_unprotected_backend() -> UnprotectedBackend:
+	from .rpc.opsiconfd import (
+		UnprotectedBackend,  # pylint: disable=import-outside-toplevel
+	)
 
-	return PrivateBackend()
+	return UnprotectedBackend()
 
 
 def get_server_role() -> str:
@@ -45,12 +47,12 @@ def get_server_role() -> str:
 
 
 def get_mysql() -> MySQLConnection:
-	return get_public_backend()._mysql  # pylint: disable=protected-access
+	return get_protected_backend()._mysql  # pylint: disable=protected-access
 
 
 def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs: Any) -> dict:
 	result = {}
-	backend = get_public_backend()
+	backend = get_protected_backend()
 	# TODO:
 	for backend_id in backends:
 		pass

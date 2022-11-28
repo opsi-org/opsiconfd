@@ -127,7 +127,7 @@ def describe_interface(instance: Any) -> Dict[str, Any]:  # pylint: disable=too-
 	return methods
 
 
-class PrivateBackend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
+class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
 	RPCGeneralMixin,
 	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCGroupMixin,
 	RPCObjectToGroupMixin, RPCProductMixin, RPCProductDependencyMixin,
@@ -149,7 +149,7 @@ class PrivateBackend(  # pylint: disable=too-many-ancestors, too-many-instance-a
 	_depot_connections: dict[str, JSONRPCClient]
 	_shutting_down: bool = False
 
-	def __new__(cls, *args: Any, **kwargs: Any) -> PrivateBackend:
+	def __new__(cls, *args: Any, **kwargs: Any) -> Backend:
 		if not cls.__instance:
 			cls.__instance = super().__new__(cls, *args, **kwargs)
 		return cls.__instance
@@ -200,7 +200,7 @@ class PrivateBackend(  # pylint: disable=too-many-ancestors, too-many-instance-a
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
 
 	def _get_ace(self, method: str) -> List[RPCACE]:
-		return [RPCACE_ALLOW_ALL]
+		return []
 
 	def _check_role(self, required_role: str) -> None:
 		return None
@@ -240,7 +240,15 @@ class PrivateBackend(  # pylint: disable=too-many-ancestors, too-many-instance-a
 		return await run_in_threadpool(getattr(self, method), **kwargs)
 
 
-class PublicBackend(PrivateBackend):  # pylint: disable=too-many-ancestors
+class UnprotectedBackend(Backend):  # pylint: disable=too-many-ancestors
+	def _get_ace(self, method: str) -> List[RPCACE]:
+		return [RPCACE_ALLOW_ALL]
+
+	def _check_role(self, required_role: str) -> None:
+		return None
+
+
+class ProtectedBackend(Backend):  # pylint: disable=too-many-ancestors
 	def _get_ace(self, method: str) -> List[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
 		"""
 		Get list of ACEs.

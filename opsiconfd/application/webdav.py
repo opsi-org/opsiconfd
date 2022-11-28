@@ -24,7 +24,7 @@ from wsgidav.dav_provider import (  # type: ignore[import]
 from wsgidav.fs_dav_provider import FilesystemProvider, FolderResource
 from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
 
-from opsiconfd.backend import get_private_backend
+from opsiconfd.backend import get_unprotected_backend
 
 from .. import __version__
 from ..config import FQDN, config
@@ -116,7 +116,7 @@ class VirtualRootFilesystemProvider(DAVProvider):
 
 
 def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, too-many-branches, too-many-locals
-	hosts = get_private_backend().host_getObjects(type="OpsiDepotserver", id=FQDN)  # pylint: disable=no-member
+	hosts = get_unprotected_backend().host_getObjects(type="OpsiDepotserver", id=FQDN)  # pylint: disable=no-member
 	if not hosts:
 		logger.warning("Running on host %s which is not a depot server, webdav disabled.", FQDN)
 		return

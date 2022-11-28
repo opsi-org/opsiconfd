@@ -43,7 +43,7 @@ from opsicommon.ssl import (  # type: ignore[import]
 )
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
-from .backend import get_private_backend, get_server_role
+from .backend import get_server_role, get_unprotected_backend
 from .config import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	FQDN,
@@ -221,7 +221,7 @@ def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]:  # pylint
 
 def depotserver_setup_ca() -> bool:
 	logger.info("Updating CA cert from configserver")
-	ca_crt = load_certificate(FILETYPE_PEM, get_private_backend().getOpsiCACert())  # pylint: disable=no-member
+	ca_crt = load_certificate(FILETYPE_PEM, get_unprotected_backend().getOpsiCACert())  # pylint: disable=no-member
 	store_ca_cert(ca_crt)
 	install_ca(ca_crt)
 	return False
@@ -449,7 +449,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 			for attempt in (1, 2, 3, 4, 5):
 				try:  # pylint: disable=loop-try-except-usage
 					logger.info("Fetching certificate from config server (attempt #%d)", attempt)
-					pem = get_private_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member,loop-invariant-statement
+					pem = get_unprotected_backend().host_getTLSCertificate(server_cn)  # pylint: disable=no-member,loop-invariant-statement
 				except RequestsConnectionError as err:
 					if attempt == 5:
 						raise

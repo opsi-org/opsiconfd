@@ -54,7 +54,7 @@ from starlette.types import Message, Receive, Scope, Send
 
 from . import contextvar_client_session, server_timing
 from .addon import AddonManager
-from .backend import get_private_backend  # pylint: disable=import-outside-toplevel
+from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
 from .config import REDIS_PREFIX_SESSION, config
 from .logging import logger
 from .utils import (
@@ -624,7 +624,7 @@ def get_auth_module() -> AuthenticationModule:
 			ldap_conf = OpsiConfFile().get_ldap_auth_config()
 			if ldap_conf:
 				logger.debug("Using LDAP auth with config: %s", ldap_conf)
-				if "directory-connector" in get_private_backend().available_modules:
+				if "directory-connector" in get_unprotected_backend().available_modules:
 					auth_module = LDAPAuthentication(**ldap_conf)
 				else:
 					logger.error("Disabling LDAP authentication: directory-connector module not available")
@@ -639,7 +639,7 @@ def get_auth_module() -> AuthenticationModule:
 
 async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	session = scope["session"]
-	backend = get_private_backend()
+	backend = get_unprotected_backend()
 
 	hosts = []
 	host_filter = {}
@@ -708,7 +708,7 @@ async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-b
 
 async def authenticate_user_passwd(scope: Scope) -> None:
 	session = scope["session"]
-	backend = get_private_backend()
+	backend = get_unprotected_backend()
 	credentials = await backend.async_call("user_getCredentials", username=session.username)
 	if credentials and session.password == credentials.get("password"):
 		session.authenticated = True

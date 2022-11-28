@@ -29,7 +29,7 @@ from OPSI.System.Posix import isUCS  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd.backend import get_private_backend, get_public_backend
+from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 
 from .. import __version__, contextvar_client_session
 from ..addon import AddonManager
@@ -53,7 +53,7 @@ from .memoryprofiler import memory_profiler_router
 from .metrics import create_grafana_datasource
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.opsiconfd import PrivateBackend
+	from opsiconfd.backend.rpc.opsiconfd import UnprotectedBackend
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -100,7 +100,7 @@ async def admin_interface_index(request: Request) -> Response:
 	session = contextvar_client_session.get()
 	if session and session.username:
 		username = session.username
-	interface = get_public_backend().get_interface()
+	interface = get_protected_backend().get_interface()
 	for method in interface:
 		if method["doc"]:
 			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])  # pylint: disable=dotted-import-in-loop
@@ -325,7 +325,7 @@ async def get_session_list() -> RESTResponse:
 @admin_interface_router.get("/locked-products-list", response_model=List[str])
 @rest_api
 async def get_locked_products_list() -> RESTResponse:
-	backend = get_private_backend()
+	backend = get_unprotected_backend()
 	products = await run_in_threadpool(backend.getProductLocks_hash)  # pylint: disable=no-member
 	return RESTResponse(products)
 
@@ -333,7 +333,7 @@ async def get_locked_products_list() -> RESTResponse:
 @admin_interface_router.post("/products/{product}/unlock")
 @rest_api
 async def unlock_product(request: Request, product: str) -> RESTResponse:
-	backend = get_private_backend()
+	backend = get_unprotected_backend()
 	depots = None
 	try:
 		request_body = await request.json()
@@ -355,7 +355,7 @@ async def unlock_product(request: Request, product: str) -> RESTResponse:
 @admin_interface_router.post("/products/unlock")
 @rest_api
 async def unlock_all_product() -> RESTResponse:
-	backend = get_private_backend()
+	backend = get_unprotected_backend()
 	try:
 		for product in set(
 			pod.productId for pod in backend.productOnDepot_getObjects(depotId=[], locked=True)  # pylint: disable=no-member
@@ -475,7 +475,7 @@ def get_routes(request: Request) -> RESTResponse:  # pylint: disable=redefined-b
 @admin_interface_router.get("/licensing_info")
 @rest_api
 def get_licensing_info() -> RESTResponse:
-	info = get_private_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)  # pylint: disable=no-member
+	info = get_unprotected_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)  # pylint: disable=no-member
 	active_date = None
 	modules: Dict[str, dict] = {}
 	previous: Dict[str, dict] = {}
@@ -539,10 +539,10 @@ async def license_upload(files: List[UploadFile]) -> RESTResponse:
 
 
 def get_num_servers() -> int:
-	servers = len(get_private_backend().host_getIdents(type="OpsiDepotserver"))
+	servers = len(get_unprotected_backend().host_getIdents(type="OpsiDepotserver"))
 	return servers
 
 
 def get_num_clients() -> int:
-	clients = len(get_private_backend().host_getIdents(type="OpsiClient"))
+	clients = len(get_unprotected_backend().host_getIdents(type="OpsiClient"))
 	return clients

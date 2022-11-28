@@ -18,7 +18,7 @@ from typing import List, Optional
 import psutil
 
 from . import __version__
-from .backend import get_private_backend
+from .backend import get_unprotected_backend
 from .config import config
 from .logging import init_logging, logger
 from .utils import get_redis_connection, retry_redis_call
@@ -48,7 +48,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		if config.workers == 1:
 			return
 
-		if "scalability1" not in get_private_backend().available_modules:  # pylint: disable=no-member
+		if "scalability1" not in get_unprotected_backend().available_modules:  # pylint: disable=no-member
 			config.workers = 1
 			logger.error("Module 'scalability1' not licensed, limiting to %d workers.", config.workers)
 

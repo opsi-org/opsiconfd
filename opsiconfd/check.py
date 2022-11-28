@@ -66,7 +66,7 @@ def messages(message: str, width: int) -> Callable:
 					show_message("WARNING", MT_WARNING)
 				else:
 					show_message("ERROR", MT_ERROR)
-				if config.log_level_stderr == 5:
+				if config.detailed:
 					if function.__name__ == "check_system_packages":
 						print_check_system_packages_result(result)
 					elif function.__name__ == "check_redis":
@@ -77,6 +77,8 @@ def messages(message: str, width: int) -> Callable:
 						print_check_deprecated_calls_result(result)
 					elif function.__name__ == "check_opsi_packages":
 						print_check_opsi_packages_result(result)
+					elif function.__name__ == "check_opsi_licenses":
+						print_check_opsi_licenses_results(result)
 
 			return result
 		return wrapper
@@ -91,6 +93,7 @@ def health_check(print_messages: bool = False) -> dict:
 	result["opsi_packages"] = check_opsi_packages(print_messages)
 	result["redis"] = check_redis(print_messages)
 	result["mysql"] = check_mysql(print_messages)
+	result["licenses"] = check_opsi_licenses(print_messages)
 	result["deprecated_calls"] = check_deprecated_calls(print_messages)
 	if print_messages:
 		show_message("Health check done...")
@@ -363,6 +366,55 @@ def print_check_opsi_packages_result(check_result: dict) -> None:
 		f"{check_result['details'].get('not_installed')} are not installed and {check_result['details'].get('outdated')} are out of date."
 	)
 	show_message(msg, msg_type)
+
+
+@messages("Checking licenses", MSG_WIDTH)
+def check_opsi_licenses(print_messages: bool = False) -> dict:
+	result = {"status": "ok", "clients": 0}
+	partial_checks = {}
+
+	backend = get_backend()
+	licensing_info = backend.backend_getLicensingInfo()  # pylint: disable=no-member
+	result["clients"] = licensing_info["client_numbers"]["all"]
+	for module, module_data in licensing_info.get("modules", {}).items():  # pylint: disable=use-dict-comprehension
+		if module_data["state"] == "free":
+			continue
+		if module_data["state"] == "close_to_limit":
+			if result["status"] != "error":  # pylint: disable=loop-invariant-statement
+				result["status"] = "warn"  # pylint: disable=loop-invariant-statement
+			partial_checks[module] = {  # pylint: disable=loop-invariant-statement
+				"status": "warn",
+				"details": {"state": module_data["state"], "client_number": module_data["client_number"]},
+				"message": f"License for module '{module}' is close to the limit."
+			}
+		elif module_data["state"] == "over_limit":
+			result["state"] = "warn"  # pylint: disable=loop-invariant-statement
+			partial_checks[module] = {  # pylint: disable=loop-invariant-statement
+				"status": "error",
+				"details": {"state": module_data["state"], "client_number": module_data["client_number"]},
+				"message": f"License for module '{module}' is over the limit."
+			}
+		else:
+			partial_checks[module] = {  # pylint: disable=loop-invariant-statement
+				"status": "ok",
+				"details": {"state": module_data["state"], "client_number": module_data["client_number"]},
+				"message": f"License for module '{module}' is valid."
+			}
+	result["partial_checks"] = partial_checks
+	return result
+
+
+def print_check_opsi_licenses_results(check_result: dict) -> None:
+	show_message(f"\t\tActive clients: {check_result['clients']}")
+	for module, data in check_result["partial_checks"].items():
+		show_message(f"\t\t{module}:")
+		status = MT_SUCCESS  # pylint: disable=loop-global-usage
+		if data["status"] == "warn":
+			status = MT_WARNING  # pylint: disable=loop-global-usage
+		elif data["status"] == "error":
+			status = MT_ERROR  # pylint: disable=loop-global-usage
+		show_message(f"\t\t\t- {data['message']}", status)
+		show_message(f"\t\t\t- Client limit: {data['details']['client_number']}", status)
 
 
 def split_name_and_version(filename: str) -> tuple:

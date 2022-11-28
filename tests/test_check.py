@@ -23,6 +23,7 @@ from opsiconfd.check import (
 	PACKAGES,
 	check_deprecated_calls,
 	check_mysql,
+	check_opsi_licenses,
 	check_redis,
 	check_system_packages,
 	get_repo_versions,
@@ -52,7 +53,7 @@ def captured_function_output(func: Callable, args: Dict[str, Any]) -> Dict[str, 
 
 
 def test_check_redis(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	config.log_level_stderr = 5
+	config.detailed = True
 	result = captured_function_output(check_redis, {"print_messages": True})
 
 	assert (
@@ -113,7 +114,7 @@ def test_check_redis_error() -> None:
 
 
 def test_check_mysql(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	config.log_level_stderr = 5
+	config.detailed = True
 	result = captured_function_output(check_mysql, {"print_messages": True})
 
 	assert (
@@ -140,7 +141,7 @@ def test_check_mysql(config: Config) -> None:  # pylint: disable=redefined-outer
 
 
 def test_check_mysql_error(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	config.log_level_stderr = 5
+	config.detailed = True
 	with mock.patch(
 		"opsiconfd.check.get_mysql", side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
 	):
@@ -168,7 +169,7 @@ def test_check_mysql_error(config: Config) -> None:  # pylint: disable=redefined
 		assert data["status"] == "error"
 		assert data["message"] == '(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
 
-		config.log_level_stderr = 4
+		config.detailed = False
 		result = captured_function_output(check_mysql, {"print_messages": True})
 
 		assert (
@@ -207,7 +208,7 @@ def test_get_repo_versions() -> None:
 
 
 def test_check_system_packages_debian(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	config.log_level_stderr = 5
+	config.detailed = True
 	# test up to date packages - status sould be ok and output should be green
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	dpkg_lines = []
@@ -287,7 +288,7 @@ def test_check_system_packages_debian(config: Config) -> None:  # pylint: disabl
 
 
 def test_check_system_packages_open_suse(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	config.log_level_stderr = 5
+	config.detailed = True
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
 	zypper_lines = [
@@ -332,7 +333,7 @@ def test_check_system_packages_open_suse(config: Config) -> None:  # pylint: dis
 
 
 def test_check_system_packages_redhat(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	config.log_level_stderr = 5
+	config.detailed = True
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
 	yum_lines = ["Subscription Management Repositorys werden aktualisiert.", "Installierte Pakete"]
@@ -378,12 +379,15 @@ def test_health_check() -> None:
 	assert result["redis"]["status"] == "ok"
 	assert result.get("mysql") is not None
 	assert result["mysql"]["status"] == "ok"
+	assert result.get("opsi_packages") is not None
+	assert result.get("licenses") is not None
+	assert result["licenses"]["status"] == "ok"
 
 
 def test_check_deprecated_calls(
 	test_client: OpsiconfdTestClient, config: Config  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
-	config.log_level_stderr = 5
+	config.detailed = True
 	sync_clean_redis()
 
 	result = captured_function_output(check_deprecated_calls, {"print_messages": True})
@@ -423,3 +427,26 @@ def test_check_deprecated_calls(
 	assert data["details"][DEPRECATED_METHOD]["calls"] == "1"
 	assert isinstance(data["details"][DEPRECATED_METHOD]["clients"], set)
 	assert data["details"][DEPRECATED_METHOD]["clients"] == {"testclient"}
+
+
+def test_check_licenses(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	config.detailed = True
+	sync_clean_redis()
+
+	result = captured_function_output(check_opsi_licenses, {"print_messages": True})
+
+	assert result.get("captured_output").startswith(
+		Fore.WHITE
+		+ Style.BRIGHT
+		+ "\t- Checking licenses:                             "
+		+ Style.RESET_ALL
+		+ Fore.GREEN
+		+ Style.BRIGHT
+		+ "OK"
+		+ Style.RESET_ALL
+		+ "\n"
+	)
+	data = result.get("data", {})
+	assert data.get("status") is not None
+	assert data["status"] == "ok"
+	assert data["partial_checks"] is not None

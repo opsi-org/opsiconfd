@@ -28,7 +28,7 @@ from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
 from . import __version__
 from .addon import AddonManager
-from .backend import get_backend
+from .backend import get_public_backend
 from .config import GC_THRESHOLDS, config
 from .logging import init_logging, logger
 from .metrics.collector import WorkerMetricsCollector
@@ -160,5 +160,5 @@ class Worker(UvicornServer):
 				setattr(self.config, key, value)
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()
-		get_backend().reload_config()
+		get_public_backend().reload_config()
 		AddonManager().reload_addons()

@@ -127,7 +127,7 @@ def describe_interface(instance: Any) -> Dict[str, Any]:  # pylint: disable=too-
 	return methods
 
 
-class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
+class PublicBackend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
 	RPCGeneralMixin,
 	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCGroupMixin,
 	RPCObjectToGroupMixin, RPCProductMixin, RPCProductDependencyMixin,
@@ -290,7 +290,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		return await run_in_threadpool(getattr(self, method), **kwargs)
 
 
-class UnrestrictedBackend(Backend):  # pylint: disable=too-many-ancestors
+class PrivateBackend(Backend):  # pylint: disable=too-many-ancestors
 	def _get_ace(self, method: str) -> List[RPCACE]:
 		return [RPCACE_ALLOW_ALL]
 

@@ -10,35 +10,30 @@ opsiconfd.backend.rpc
 
 from __future__ import annotations
 
-import threading
-from typing import TYPE_CHECKING, Any, Callable, Dict
+from typing import TYPE_CHECKING, Any
 
-from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig  # type: ignore[import]
 
 from opsiconfd.config import config
-from opsiconfd.logging import logger
 
 if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.opsiconfd import (
-		Backend,
 		MySQLConnection,
-		UnrestrictedBackend,
+		PrivateBackend,
+		PublicBackend,
 	)
 
 
-def get_backend() -> Backend:
-	from .rpc.opsiconfd import Backend  # pylint: disable=import-outside-toplevel
+def get_public_backend() -> PublicBackend:
+	from .rpc.opsiconfd import PublicBackend  # pylint: disable=import-outside-toplevel
 
-	return Backend()
+	return PublicBackend()
 
 
-def get_unrestricted_backend() -> UnrestrictedBackend:
-	from .rpc.opsiconfd import (  # pylint: disable=import-outside-toplevel
-		UnrestrictedBackend,
-	)
+def get_private_backend() -> PrivateBackend:
+	from .rpc.opsiconfd import PrivateBackend  # pylint: disable=import-outside-toplevel
 
-	return UnrestrictedBackend()
+	return PrivateBackend()
 
 
 def get_server_role() -> str:
@@ -49,12 +44,12 @@ def get_server_role() -> str:
 
 
 def get_mysql() -> MySQLConnection:
-	return get_backend()._mysql  # pylint: disable=protected-access
+	return get_public_backend()._mysql  # pylint: disable=protected-access
 
 
 def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs: Any) -> dict:
 	result = {}
-	backend = get_backend()
+	backend = get_public_backend()
 	# TODO:
 	for backend_id in backends:
 		pass

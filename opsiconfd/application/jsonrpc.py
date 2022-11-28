@@ -32,7 +32,7 @@ from opsicommon.objects import OBJECT_CLASSES, BaseObject  # type: ignore[import
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
-from opsiconfd.backend import get_backend, get_unrestricted_backend
+from opsiconfd.backend import get_private_backend, get_public_backend
 from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
 from opsiconfd.session import OPSISession
 
@@ -98,7 +98,7 @@ async def get_sort_algorithm(algorithm: str = None) -> str:
 	if algorithm in ("algorithm1", "algorithm2"):
 		return algorithm
 	algorithm = "algorithm1"
-	result = await get_unrestricted_backend().async_call("config_getObjects", id="product_sort_algorithm")
+	result = await get_private_backend().async_call("config_getObjects", id="product_sort_algorithm")
 	if result and "algorithm2" in result[0].getDefaultValues():
 		algorithm = "algorithm2"
 	return algorithm
@@ -245,7 +245,7 @@ async def load_from_cache(rpc: Any) -> Optional[Any]:
 		return None
 	if rpc["method"] == "getProductOrdering":
 		depot = rpc["params"][0]
-		backend = get_unrestricted_backend()
+		backend = get_private_backend()
 		cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")  # type: ignore[union-attr]  # pylint: disable=no-member
 		algorithm = await get_sort_algorithm(rpc["params"])
 		redis = await async_redis_client()
@@ -343,7 +343,7 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 def execute_rpc(client_info: str, rpc: Dict[str, Any]) -> Any:
 	method_name = rpc["method"]
 	params = rpc["params"]
-	backend = get_backend()
+	backend = get_public_backend()
 
 	method_interface = backend.get_method_interface(method_name)
 	if not method_interface:

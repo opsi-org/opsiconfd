@@ -369,7 +369,7 @@ def print_check_opsi_packages_result(check_result: dict) -> None:
 
 
 @messages("Checking licenses", MSG_WIDTH)
-def check_opsi_licenses(print_messages: bool = False) -> dict:
+def check_opsi_licenses(print_messages: bool = False) -> dict:  # pylint: disable=unused-argument
 	result = {"status": "ok", "clients": 0}
 	partial_checks = {}
 

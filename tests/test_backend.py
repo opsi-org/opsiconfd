@@ -16,15 +16,11 @@ from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
 from opsiconfd import get_contextvars, set_contextvars, set_contextvars_from_contex
 from opsiconfd.backend import (
 	execute_on_secondary_backends,
-	get_backend,
-	get_client_backend,
 	get_mysql,
-	get_option_store,
+	get_protected_backend,
 	get_server_role,
-	get_session,
-	get_user_store,
+	get_unprotected_backend,
 )
-from opsiconfd.backend.rpc.opsiconfd import get_backend_interface
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -39,26 +35,13 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_get_session(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_get_protected_backend(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.get("/")
 	cvars = get_contextvars()
 	try:
 		if test_client.context:
 			set_contextvars_from_contex(test_client.context)
-		assert get_session()
-		assert get_user_store()
-		get_option_store()
-	finally:
-		set_contextvars(cvars)
-
-
-def test_get_client_backend(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	test_client.get("/")
-	cvars = get_contextvars()
-	try:
-		if test_client.context:
-			set_contextvars_from_contex(test_client.context)
-		backend = get_client_backend()
+		backend = get_protected_backend()
 		assert backend
 		idents = backend.host_getIdents()  # pylint: disable=no-member
 		assert len(idents) > 0
@@ -67,7 +50,7 @@ def test_get_client_backend(test_client: OpsiconfdTestClient) -> None:  # pylint
 
 
 def test_get_backend_interface() -> None:
-	assert len(get_backend_interface()) > 50
+	assert len(get_unprotected_backend().get_interface()) > 50
 
 
 def test_get_server_role(tmp_path: Path) -> None:
@@ -90,8 +73,8 @@ def test_get_mysql() -> None:
 
 
 def test_execute_on_secondary_backends() -> None:
-	# TODO: load a secondary backend
-	backend = get_backend()
+	# TODO:
+	backend = get_unprotected_backend()
 	host = backend.host_getObjects()[0]  # pylint: disable=no-member
 	execute_on_secondary_backends("host_updateObjects", hosts=[host])
 

@@ -590,7 +590,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			table=table,
 			ace=ace,
 			object_type=object_type,
-			ident_type=ident_type,
+			ident_type=ident_type or "str",
 			return_type="ident",
 			attributes=ident_attributes,
 			filter=filter,
@@ -746,5 +746,5 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		query, params, _idents = self.delete_query(table=table, object_type=object_type, obj=obj, ace=ace)
 		with self.session() as session:
 			with server_timing("database") as timing:
-				session.execute(query, params=params).fetchall()
+				session.execute(query, params=params)
 				logger.trace("Query %r took %0.2f ms", timing["database"])

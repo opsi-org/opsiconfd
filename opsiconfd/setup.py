@@ -39,7 +39,7 @@ from OPSI.Util.Task.Rights import (  # type: ignore[import]
 	PermissionRegistry,
 	set_rights,
 )
-from opsicommon.objects import OpsiConfigserver
+from opsicommon.objects import OpsiConfigserver  # type: ignore[import]
 
 from .application.utils import get_configserver_id
 from .backend import get_server_role

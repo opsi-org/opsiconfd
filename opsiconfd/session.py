@@ -132,14 +132,6 @@ def get_basic_auth(headers: Headers) -> BasicAuth:
 	return BasicAuth(username, password)
 
 
-def get_session_from_context() -> Union["OPSISession", None]:
-	try:
-		return contextvar_client_session.get()
-	except LookupError as exc:
-		logger.debug("Failed to get session from context: %s", exc)
-	return None
-
-
 async def get_session(client_addr: str, headers: Headers, session_id: Optional[str] = None) -> "OPSISession":
 	max_session_per_ip = config.max_session_per_ip
 	if config.max_sessions_excludes and client_addr in config.max_sessions_excludes:
@@ -657,19 +649,19 @@ async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-b
 
 	hosts = await backend.async_call("host_getObjects", **host_filter)
 	if not hosts:
-		raise BackendPermissionDeniedError(f"Host not found '{session.username}'")
+		raise BackendAuthenticationError(f"Host not found '{session.username}'")
 	if len(hosts) > 1:
-		raise BackendPermissionDeniedError(f"More than one matching host object found '{session.username}'")
+		raise BackendAuthenticationError(f"More than one matching host object found '{session.username}'")
 	host = hosts[0]
 	if not host.opsiHostKey:
-		raise BackendPermissionDeniedError(f"OpsiHostKey missing for host '{host.id}'")
+		raise BackendAuthenticationError(f"OpsiHostKey missing for host '{host.id}'")
 
 	logger.confidential(
 		"Host '%s' authentication: password sent '%s', host key '%s', onetime password '%s'",
 		host.id,
 		session.password,
 		host.opsiHostKey,
-		host.oneTimePassword,
+		host.oneTimePassword if host.getType() == "OpsiClient" else "n.a.",
 	)
 
 	if host.opsiHostKey and session.password == host.opsiHostKey:

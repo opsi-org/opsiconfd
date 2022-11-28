@@ -14,6 +14,12 @@ from typing import Tuple
 import pytest
 from MySQLdb.connections import Connection  # type: ignore[import]
 
+from opsiconfd import (
+	contextvar_client_session,
+	get_contextvars,
+	set_contextvars,
+	set_contextvars_from_contex,
+)
 from opsiconfd.config import REDIS_PREFIX_SESSION
 from opsiconfd.utils import ip_address_to_redis_key
 
@@ -38,6 +44,17 @@ login_test_data = (
 	(("", ADMIN_PASS), 401, "Authentication error"),
 	(("123", ADMIN_PASS), 401, "Authentication error"),
 )
+
+
+def test_get_session(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.get("/")
+	cvars = get_contextvars()
+	try:
+		if test_client.context:
+			set_contextvars_from_contex(test_client.context)
+		assert contextvar_client_session.get()
+	finally:
+		set_contextvars(cvars)
 
 
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
@@ -319,6 +336,7 @@ def test_session_max_age(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 	assert res.status_code == 200
 	cookie = list(test_client.cookies)[0]
 	remain = cookie.expires - time.time()  # type: ignore[operator]
+	print(remain)
 	assert remain <= lifetime
 	assert remain >= 100
 	assert session_id == cookie.value

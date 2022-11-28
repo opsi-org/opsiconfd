@@ -51,7 +51,8 @@ def set_contextvars_from_contex(context: Context) -> None:
 
 @contextmanager
 def server_timing(timing_name: str) -> Generator[dict[str, float], None, None]:
-	val = contextvar_server_timing.get()  # or {}
+	val = contextvar_server_timing.get() or {}
+	val[timing_name] = 0.0
 	start = perf_counter()
 	yield val
 	end = perf_counter()

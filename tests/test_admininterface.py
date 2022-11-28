@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 from types import ModuleType
 from typing import Any, Callable, Tuple
 
@@ -59,8 +60,8 @@ def set_failed_auth_and_blocked(ip_address: str) -> None:  # pylint: disable=red
 def call_rpc(client: OpsiconfdTestClient, rpc_request_data: list, expect_error: list) -> None:
 	for idx, data in enumerate(rpc_request_data):
 		result = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=data)
-		result_json = json.loads(result.text)  # pylint: disable=dotted-import-in-loop
 		assert result.status_code == 200
+		result_json = result.json()
 		if expect_error[idx]:
 			assert result_json.get("result") is None
 		else:
@@ -220,7 +221,7 @@ async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
 		)
 
-	await asyncio.sleep(1)
+	await asyncio.sleep(2)
 
 	rpc_list_response = await admininterface.get_rpc_list()
 	rpc_list = json.loads(rpc_list_response.body)
@@ -314,26 +315,22 @@ def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:
 			assert response.headers.get("location") == "/grafana-proxy/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
 
 
-def test_get_num_servers(
-	admininterface: ModuleType, backend: Backend, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
-) -> None:
-	assert admininterface.get_num_servers(backend) == 1
+def test_get_num_servers(admininterface: ModuleType, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	assert admininterface.get_num_servers() == 1
 	with depot_jsonrpc(test_client, "", "test-depot.uib.local"):
-		assert admininterface.get_num_servers(backend) == 2
-	assert admininterface.get_num_servers(backend) == 1
+		assert admininterface.get_num_servers() == 2
+	assert admininterface.get_num_servers() == 1
 
 
-def test_get_num_clients(
-	admininterface: ModuleType, backend: Backend, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
-) -> None:
-	assert admininterface.get_num_clients(backend) == 0
+def test_get_num_clients(admininterface: ModuleType, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	assert admininterface.get_num_clients() == 0
 	with (
 		client_jsonrpc(test_client, "", "test-client1.uib.local"),
 		client_jsonrpc(test_client, "", "test-client2.uib.local"),
 		client_jsonrpc(test_client, "", "test-client3.uib.local"),
 	):
-		assert admininterface.get_num_clients(backend) == 3
-	assert admininterface.get_num_clients(backend) == 0
+		assert admininterface.get_num_clients() == 3
+	assert admininterface.get_num_clients() == 0
 
 
 def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -341,7 +338,7 @@ def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylint: dis
 		call_rpc(
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
 		)
-
+	time.sleep(2)
 	res = test_client.get("/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert res.json() == {"rpc_count": 10}

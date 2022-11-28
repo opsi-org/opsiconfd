@@ -127,7 +127,7 @@ def describe_interface(instance: Any) -> Dict[str, Any]:  # pylint: disable=too-
 	return methods
 
 
-class PublicBackend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
+class PrivateBackend(  # pylint: disable=too-many-ancestors, too-many-instance-attributes
 	RPCGeneralMixin,
 	RPCHostMixin, RPCConfigMixin, RPCConfigStateMixin, RPCGroupMixin,
 	RPCObjectToGroupMixin, RPCProductMixin, RPCProductDependencyMixin,
@@ -149,7 +149,7 @@ class PublicBackend(  # pylint: disable=too-many-ancestors, too-many-instance-at
 	_depot_connections: dict[str, JSONRPCClient]
 	_shutting_down: bool = False
 
-	def __new__(cls, *args: Any, **kwargs: Any) -> Backend:
+	def __new__(cls, *args: Any, **kwargs: Any) -> PrivateBackend:
 		if not cls.__instance:
 			cls.__instance = super().__new__(cls, *args, **kwargs)
 		return cls.__instance
@@ -199,10 +199,48 @@ class PublicBackend(  # pylint: disable=too-many-ancestors, too-many-instance-at
 		for method_name in list(self._interface):
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
 
+	def _get_ace(self, method: str) -> List[RPCACE]:
+		return [RPCACE_ALLOW_ALL]
+
+	def _check_role(self, required_role: str) -> None:
+		return None
+
 	def _check_module(self, module: str) -> None:
 		if module not in self.available_modules:
 			raise BackendModuleDisabledError(f"Module {module!r} not available")
 
+	def _get_depot_jsonrpc_connection(self, depot_id: str) -> JSONRPCClient:
+		depot_id = forceHostId(depot_id)
+		if depot_id == self._depot_id:
+			raise ValueError("Is local depot")
+
+		if depot_id not in self._depot_connections:
+			try:
+				self._depot_connections[depot_id] = JSONRPCClient(
+					address=f"https://{depot_id}:4447/rpc", username=self._depot_id, password=self._opsi_host_key
+				)
+			except Exception as err:
+				raise ConnectionError(f"Failed to connect to depot '{depot_id}': {err}") from err
+		return self._depot_connections[depot_id]
+
+	def _get_responsible_depot_id(self, client_id: str) -> str | None:
+		"""This method returns the depot a client is assigned to."""
+		try:
+			return self.configState_getClientToDepotserver(clientIds=[client_id])[0]["depotId"]
+		except (IndexError, KeyError):
+			return None
+
+	def get_method_interface(self, method: str) -> Dict[str, Any] | None:
+		return self._interface.get(method)
+
+	def get_interface(self) -> List[Dict[str, Any]]:
+		return self._interface_list
+
+	async def async_call(self, method: str, **kwargs: Any) -> Any:
+		return await run_in_threadpool(getattr(self, method), **kwargs)
+
+
+class PublicBackend(PrivateBackend):  # pylint: disable=too-many-ancestors
 	def _get_ace(self, method: str) -> List[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
 		"""
 		Get list of ACEs.
@@ -258,41 +296,3 @@ class PublicBackend(  # pylint: disable=too-many-ancestors, too-many-instance-at
 			raise BackendPermissionDeniedError("Insufficient permissions")
 
 		raise ValueError(f"Invalid role {required_role!r}")
-
-	def _get_depot_jsonrpc_connection(self, depot_id: str) -> JSONRPCClient:
-		depot_id = forceHostId(depot_id)
-		if depot_id == self._depot_id:
-			raise ValueError("Is local depot")
-
-		if depot_id not in self._depot_connections:
-			try:
-				self._depot_connections[depot_id] = JSONRPCClient(
-					address=f"https://{depot_id}:4447/rpc", username=self._depot_id, password=self._opsi_host_key
-				)
-			except Exception as err:
-				raise ConnectionError(f"Failed to connect to depot '{depot_id}': {err}") from err
-		return self._depot_connections[depot_id]
-
-	def _get_responsible_depot_id(self, client_id: str) -> str | None:
-		"""This method returns the depot a client is assigned to."""
-		try:
-			return self.configState_getClientToDepotserver(clientIds=[client_id])[0]["depotId"]
-		except (IndexError, KeyError):
-			return None
-
-	def get_method_interface(self, method: str) -> Dict[str, Any] | None:
-		return self._interface.get(method)
-
-	def get_interface(self) -> List[Dict[str, Any]]:
-		return self._interface_list
-
-	async def async_call(self, method: str, **kwargs: Any) -> Any:
-		return await run_in_threadpool(getattr(self, method), **kwargs)
-
-
-class PrivateBackend(Backend):  # pylint: disable=too-many-ancestors
-	def _get_ace(self, method: str) -> List[RPCACE]:
-		return [RPCACE_ALLOW_ALL]
-
-	def _check_role(self, required_role: str) -> None:
-		return None

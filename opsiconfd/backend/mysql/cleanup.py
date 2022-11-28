@@ -27,7 +27,7 @@ def remove_orphans_config_value(session: Session, dry_run: bool) -> None:
 		WHERE c.configId IS NULL
 		"""
 	).fetchone()
-	if res:
+	if res and res[0]:
 		ids = res[0].split(",")
 		logger.notice("Removing orphan entries from CONFIG_VALUE: %s", ids)
 		if not dry_run:
@@ -44,7 +44,7 @@ def remove_orphans_product_property_value(session: Session, dry_run: bool) -> No
 		WHERE p.productId IS NULL
 		"""
 	).fetchone()
-	if res:
+	if res and res[0]:
 		ids = res[0].split(",")
 		logger.notice("Removing orphan entries from PRODUCT_PROPERTY_VALUE: %s", ids)
 		if not dry_run:

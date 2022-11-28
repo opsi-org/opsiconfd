@@ -27,14 +27,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	OpsiClient,
 	ProductOnClient,
 )
-from opsicommon.types import (  # type: ignore[import]
-	forceBool,
-	forceDict,
-	forceHostId,
-	forcelist,
-	forceObjectClass,
-	forceObjectClassList,
-)
+from opsicommon.types import forceHostId, forceObjectClassList  # type: ignore[import]
 
 from opsiconfd.logging import logger
 

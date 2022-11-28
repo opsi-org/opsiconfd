@@ -21,8 +21,20 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Dict, Generator, Protocol
 
 from OPSI.Util import serialize  # type: ignore[import]
-from opsicommon.objects import ConfigState, ProductOnClient  # type: ignore[import]
-from opsicommon.types import forceHostId  # type: ignore[import]
+from opsicommon.objects import (  # type: ignore[import]
+	ConfigState,
+	Host,
+	OpsiClient,
+	ProductOnClient,
+)
+from opsicommon.types import (  # type: ignore[import]
+	forceBool,
+	forceDict,
+	forceHostId,
+	forcelist,
+	forceObjectClass,
+	forceObjectClassList,
+)
 
 from opsiconfd.logging import logger
 
@@ -32,8 +44,8 @@ if TYPE_CHECKING:
 	from .protocol import BackendProtocol
 
 
-_opsipxeconfd_update_threads: dict[str, OpsiPXEConfdConnectionThread] = {}
-_opsipxeconfd_update_threads_lock: Lock = Lock()
+_opsipxeconfd_connection_threads: dict[str, OpsiPXEConfdConnectionThread] = {}
+_opsipxeconfd_connection_threads_lock: Lock = Lock()
 
 
 class OpsiPXEConfdConnection:  # pylint: disable=too-few-public-methods
@@ -90,7 +102,7 @@ class OpsiPXEConfdConnectionThread(Thread):
 			sleep(delay_reduction)
 			self._delay -= delay_reduction  # pylint: disable=loop-invariant-statement
 
-		with _opsipxeconfd_update_threads_lock:  # pylint: disable=protected-access
+		with _opsipxeconfd_connection_threads_lock:  # pylint: disable=protected-access
 			try:
 				logger.info("Updating pxe boot configuration for client %r", self._client_id)
 				con = OpsiPXEConfdConnection(self._socket_path)
@@ -100,36 +112,28 @@ class OpsiPXEConfdConnectionThread(Thread):
 			except Exception as err:  # pylint: disable=broad-except
 				logger.critical("Failed to update PXE boot configuration for client %r: %s", self._client_id, err)
 			finally:
-				del _opsipxeconfd_update_threads[self._client_id]  # pylint: disable=protected-access
+				del _opsipxeconfd_connection_threads[self._client_id]  # pylint: disable=protected-access
 
-	def delay(self) -> None:
+	def update_command(self, command: str) -> None:
 		self._delay = self._DEFAULT_DELAY
 		logger.debug("Delay reset for OpsiPXEConfdConnectionThread %s", self._client_id)
 
 
 class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attributes,too-few-public-methods
+	_opsipxeconfd_enabled: bool = False
+	_opsipxeconfd_on_depot: bool = False
 	_opsipxeconfd_socket_path: str = "/var/run/opsipxeconfd/opsipxeconfd.socket"
+
+	def __init__(self) -> None:
+		# TODO:
+		self._opsipxeconfd_enabled = True
+		self._opsipxeconfd_on_depot = False
 
 	@backend_event("shutdown")
 	def _opsipxeconfd_shutdown(self) -> None:
-		with _opsipxeconfd_update_threads_lock:
-			for update_thread in _opsipxeconfd_update_threads.values():  # pylint: disable=loop-global-usage
+		with _opsipxeconfd_connection_threads_lock:
+			for update_thread in _opsipxeconfd_connection_threads.values():  # pylint: disable=loop-global-usage
 				update_thread.join(3)
-
-	def _pxe_boot_configuration_update_needed(self: BackendProtocol, product_on_client: ProductOnClient) -> bool:
-		if product_on_client.productType != "NetbootProduct":
-			logger.debug("Not a netboot product: %s, nothing to do", product_on_client.productId)
-			return False
-
-		if not product_on_client.actionRequest:
-			logger.debug(
-				"No action request update for product %s, client %s, nothing to do",
-				product_on_client.productId,
-				product_on_client.clientId,
-			)
-			return False
-
-		return True
 
 	def _collect_data_for_update(  # pylint: disable=too-many-locals,too-many-branches
 		self: BackendProtocol, client_id: str, depot_id: str
@@ -253,27 +257,130 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			logger.debug("Failed to write cahce file '%s': %s", cache_file, err)
 		return None
 
-	def _update_by_product_on_client(self: BackendProtocol, product_on_client: ProductOnClient) -> None:
-		if self._shutting_down or not self._pxe_boot_configuration_update_needed(product_on_client):
+	def _update_pxe_boot_configuration(self: BackendProtocol, client_id: str) -> None:
+		if self._shutting_down:
 			return
 
-		depot_id = self._get_responsible_depot_id(product_on_client.client_id)
-		if not depot_id:
-			logger.error("Failed to gte responsible depot for client %r", product_on_client.client_id)
+		responsible_depot_id = self._get_responsible_depot_id(client_id)
+		if not responsible_depot_id:
+			logger.error("Failed to get responsible depot for client %r", client_id)
 			return
 
 		try:
-			data = self._collect_data_for_update(product_on_client.client_id, depot_id)
+			data = self._collect_data_for_update(client_id, responsible_depot_id)
 		except Exception as err:  # pylint: disable=broad-except
-			logger.error("Failed to collect data for opsipxeconfd (client %r): %s", product_on_client.client_id, err, exc_info=True)
+			logger.error("Failed to collect data for opsipxeconfd (client %r): %s", client_id, err, exc_info=True)
 			return
 
-		if depot_id != self._depot_id:
-			logger.info("Not responsible for client '%s', forwarding request to depot %s", product_on_client.client_id, depot_id)
-			jsonrpc = self._get_depot_jsonrpc_connection(depot_id)
-			jsonrpc.execute_rpc(method="opsipxeconfd_updatePXEBootConfiguration", params=[product_on_client.client_id, data])
+		if self._opsipxeconfd_on_depot and responsible_depot_id != self._depot_id:
+			logger.info("Not responsible for client '%s', forwarding request to depot %s", client_id, responsible_depot_id)
+			jsonrpc = self._get_depot_jsonrpc_connection(responsible_depot_id)
+			jsonrpc.execute_rpc(method="opsipxeconfd_updatePXEBootConfiguration", params=[client_id, data])
 		else:
-			self.opsipxeconfd_updatePXEBootConfiguration(product_on_client.client_id, data)
+			self.opsipxeconfd_updatePXEBootConfiguration(client_id, data)
+
+	def _delete_pxe_boot_configuration(self: BackendProtocol, client_id: str, all_depots: bool = False) -> None:
+		if self._shutting_down:
+			return
+
+		responsible_depot_id = self._get_responsible_depot_id(client_id)
+		if not responsible_depot_id:
+			logger.error("Failed to get responsible depot for client %r", client_id)
+			return
+
+		if self._opsipxeconfd_on_depot:
+			depot_ids = []
+			if all_depots:
+				# Call opsipxeconfd_deletePXEBootConfiguration on all non local depots
+				depot_ids = [did for did in self.host_getIdents(returnType="str", type="OpsiDepotserver") if did != self._depot_id]
+			elif responsible_depot_id != self._depot_id:
+				logger.info("Not responsible for client '%s', forwarding request to depot %s", client_id, responsible_depot_id)
+				depot_ids = [responsible_depot_id]  # pylint: disable=use-tuple-over-list
+
+			logger.info("Forwarding request to depots: %s", depot_ids)
+			for depot_id in depot_ids:
+				self._get_depot_jsonrpc_connection(depot_id).execute_rpc(
+					method="opsipxeconfd_deletePXEBootConfiguration", params=[client_id]
+				)
+
+		if responsible_depot_id == self._depot_id or all_depots:
+			self.opsipxeconfd_deletePXEBootConfiguration(client_id)
+
+	def opsipxeconfd_hosts_updated(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
+		if not self._opsipxeconfd_enabled or self._shutting_down:
+			return
+
+		for host in forceObjectClassList(hosts, Host):
+			if not isinstance(host, OpsiClient):
+				continue
+
+			self._update_pxe_boot_configuration(host.id)
+
+	def opsipxeconfd_hosts_deleted(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
+		if not self._opsipxeconfd_enabled or self._shutting_down:
+			return
+
+		for host in forceObjectClassList(hosts, Host):
+			if not isinstance(host, OpsiClient):
+				continue
+
+			self._delete_pxe_boot_configuration(host.id)
+
+	def opsipxeconfd_product_on_clients_updated(
+		self: BackendProtocol, product_on_clients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
+	) -> None:
+		if not self._opsipxeconfd_enabled or self._shutting_down:
+			return
+
+		client_ids = set()
+		for poc in forceObjectClassList(product_on_clients, ProductOnClient):
+			if poc.productType == "NetbootProduct" and poc.actionRequest:
+				client_ids.add(poc.clientId)
+
+		for client_id in client_ids:
+			self._update_pxe_boot_configuration(client_id)
+
+	def opsipxeconfd_product_on_clients_deleted(
+		self: BackendProtocol, product_on_clients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
+	) -> None:
+		if not self._opsipxeconfd_enabled or self._shutting_down:
+			return
+
+		client_ids = set()
+		for poc in forceObjectClassList(product_on_clients, ProductOnClient):
+			if poc.productType == "NetbootProduct":
+				client_ids.add(poc.clientId)
+
+		for client_id in client_ids:
+			self._update_pxe_boot_configuration(client_id)
+
+	def opsipxeconfd_config_states_updated(
+		self: BackendProtocol, config_states: list[dict] | list[ConfigState] | dict | ConfigState
+	) -> None:
+		if not self._opsipxeconfd_enabled or self._shutting_down:
+			return
+
+		object_ids = set()
+		for config_state in forceObjectClassList(config_states, ConfigState):
+			if config_state.configId != "clientconfig.depot.id":
+				continue
+			if config_state.objectId:
+				object_ids.add(config_state.objectId)
+
+		if not object_ids:
+			return
+
+		clients = self.host_getObjects(type="OpsiClient", id=list(object_ids))
+		if clients:
+			for client in clients:
+				self._delete_pxe_boot_configuration(client.id, all_depots=True)
+			for client in clients:
+				self._update_pxe_boot_configuration(client.id)
+
+	def opsipxeconfd_config_states_deleted(
+		self: BackendProtocol, config_states: list[dict] | list[ConfigState] | dict | ConfigState
+	) -> None:
+		self.opsipxeconfd_config_states_updated(config_states)
 
 	@rpc_method
 	def opsipxeconfd_updatePXEBootConfiguration(  # pylint: disable=invalid-name
@@ -295,65 +402,12 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			if cache_file_path:
 				command = f"{command} {quote(str(cache_file_path))}"
 
-		with _opsipxeconfd_update_threads_lock:
-			if client_id not in _opsipxeconfd_update_threads:
-				updater = OpsiPXEConfdConnectionThread(self._opsipxeconfd_socket_path, client_id, command)
-				_opsipxeconfd_update_threads[client_id] = updater
-				updater.start()
-			else:
-				_opsipxeconfd_update_threads[client_id].delay()
+		self._opsipxeconfd_send_command(client_id, command)
 
-	"""
-	def host_updateObject(self, host: OpsiClient) -> None:
-		if not isinstance(host, OpsiClient):
-			return
+	@rpc_method
+	def opsipxeconfd_deletePXEBootConfiguration(self: BackendProtocol, client_id: str) -> None:  # pylint: disable=invalid-name
+		client_id = forceHostId(client_id)
+		logger.debug("Deleting PXE boot config of %s", client_id)
+		command = f"remove {client_id}"
 
-		if not host.ipAddress and not host.hardwareAddress:
-			# Not of interest
-			return
-
-		self.opsipxeconfd_updatePXEBootConfiguration(host.id)
-
-	def productOnClient_insertObject(self, productOnClient: ProductOnClient) -> None:
-		self._update_by_product_on_client(productOnClient)
-
-	def productOnClient_updateObject(self, productOnClient: ProductOnClient) -> None:
-		self._update_by_product_on_client(productOnClient)
-
-	def productOnClient_deleteObjects(self, productOnClients: List[ProductOnClient]) -> None:
-		errors = []
-		for productOnClient in productOnClients:
-			try:
-				self._update_by_product_on_client(productOnClient)
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error("_update_by_product_on_client failed: %s", err, exc_info=True)
-				errors.append(str(err))
-
-		if errors:
-			raise RuntimeError(", ".join(errors))
-
-	def configState_insertObject(self, configState: ConfigState) -> None:
-		if configState.configId != "clientconfig.depot.id":
-			return
-
-		self.opsipxeconfd_updatePXEBootConfiguration(configState.objectId)
-
-	def configState_updateObject(self, configState: ConfigState) -> None:
-		if configState.configId != "clientconfig.depot.id":
-			return
-
-		self.opsipxeconfd_updatePXEBootConfiguration(configState.objectId)
-
-	def configState_deleteObjects(self, configStates: List[ConfigState]) -> None:
-		hosts = set(configState.objectId for configState in configStates if configState.configId == "clientconfig.depot.id")
-
-		errors = []
-		for host in hosts:
-			try:
-				self.opsipxeconfd_updatePXEBootConfiguration(host)
-			except Exception as err:  # pylint: disable=broad-except
-				errors.append(str(err))
-
-		if errors:
-			raise RuntimeError(", ".join(errors))
-	"""
+		self._opsipxeconfd_send_command(client_id, command)

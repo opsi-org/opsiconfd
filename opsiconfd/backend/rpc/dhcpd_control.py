@@ -135,6 +135,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		self._dhcpd_control_default_client_parameters = {"next-server": FQDN, "filename": "linux/pxelinux.0"}
 		self._dhcpd_control_dhcpd_config_file = locateDHCPDConfig(self._dhcpd_control_dhcpd_config_file)
 		self._dhcpd_control_reload_config_command = f"/usr/bin/sudo {getDHCPDRestartCommand(default='/etc/init.d/dhcp3-server restart')}"
+		self._dhcpd_control_reload_thread: ReloadThread | None = None
 		self._read_dhcpd_control_config_file()
 
 	@backend_event("shutdown")
@@ -146,9 +147,14 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 					sleep(1)
 
 	def _read_dhcpd_control_config_file(self) -> None:
-		mysql_conf = Path(config.backend_config_dir) / "dhcpd.conf"
+		dhcpd_control_conf = Path(config.backend_config_dir) / "dhcpd.conf"
+		if not dhcpd_control_conf.exists():
+			logger.error("Config file '%s' not found, DHCPD control disabled", dhcpd_control_conf)
+			self._dhcpd_control_enabled = False
+			return
+
 		loc: Dict[str, Any] = {}
-		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
+		exec(compile(dhcpd_control_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
 
 		for key, val in loc["config"].items():
 			attr = "_dhcpd_control_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
@@ -165,8 +171,6 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		else:
 			logger.error("DHCPD config file %r not found, DHCPD control disabled", self._dhcpd_control_dhcpd_config_file)
 			self._dhcpd_control_enabled = False
-
-		self._dhcpd_control_reload_thread: ReloadThread | None = None
 
 	def _dhcpd_control_start_reload_thread(self) -> None:
 		if not self._dhcpd_control_reload_config_command:

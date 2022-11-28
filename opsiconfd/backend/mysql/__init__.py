@@ -674,7 +674,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		if query:
 			with self.session() as session:
 				with server_timing("database") as timing:
-					result = session.execute(query, params=params).fetchall()
+					result = session.execute(query, params=params)
 					logger.trace("Query %r took %0.2f ms", timing["database"])
 					return result.lastrowid
 		return None

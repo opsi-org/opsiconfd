@@ -29,17 +29,23 @@ from OPSI.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
 )
 from OPSI.System import get_subprocess_environment  # type: ignore[import]
-from OPSI.System.Posix import locateDHCPDConfig  # type: ignore[import]
+from OPSI.System.Posix import (  # type: ignore[import]
+	getNetworkConfiguration,
+	locateDHCPDConfig,
+)
 from OPSI.Util.Task.Rights import (  # type: ignore[import]
 	DirPermission,
 	FilePermission,
 	PermissionRegistry,
 	set_rights,
 )
+from opsicommon.objects import OpsiConfigserver
 
+from .application.utils import get_configserver_id
+from .backend import get_server_role
 from .backend.mysql import MySQLConnection
 from .backend.mysql.schema import update_database
-from .config import OPSI_LICENSE_PATH, VAR_ADDON_DIR, config
+from .config import FQDN, OPSI_LICENSE_PATH, VAR_ADDON_DIR, config
 from .grafana import setup_grafana
 from .logging import logger
 from .metrics.statistics import setup_metric_downsampling
@@ -161,10 +167,38 @@ def setup_systemd() -> None:
 
 
 def setup_backend() -> None:
-	logger.info("Setup backend")
+	if get_server_role() != "config":
+		return
+
 	mysql = MySQLConnection()
 	mysql.connect()
 	update_database(mysql)
+
+	if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
+		logger.notice("No configserver found in backend, creating")
+		network_config = getNetworkConfiguration()
+		config_server = OpsiConfigserver(
+			id=get_configserver_id(),
+			opsiHostKey=None,
+			depotLocalUrl="file:///var/lib/opsi/depot",
+			depotRemoteUrl=f"smb://{FQDN}/opsi_depot",
+			depotWebdavUrl=f"webdavs://{FQDN}:4447/depot",
+			repositoryLocalUrl="file:///var/lib/opsi/repository",
+			repositoryRemoteUrl=f"webdavs://{FQDN}:4447/repository",
+			workbenchLocalUrl="file:///var/lib/opsi/workbench",
+			workbenchRemoteUrl=f"smb://{FQDN}/opsi_workbench",
+			description=None,
+			notes=None,
+			hardwareAddress=network_config["hardwareAddress"],
+			ipAddress=network_config["ipAddress"],
+			inventoryNumber=None,
+			networkAddress=f"{network_config['subnet']}/{network_config['netmask']}",
+			maxBandwidth=0,
+			isMasterDepot=True,
+			masterDepotId=None,
+		)
+		mysql.insert_object(table="HOST", obj=config_server, ace=[], create=True, set_null=True)
+
 	mysql.disconnect()
 
 

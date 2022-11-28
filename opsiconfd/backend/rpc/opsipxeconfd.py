@@ -108,6 +108,7 @@ class OpsiPXEConfdConnectionThread(Thread):
 				del _opsipxeconfd_connection_threads[self._client_id]  # pylint: disable=protected-access
 
 	def update_command(self, command: str) -> None:
+		self._command = command
 		self._delay = self._DEFAULT_DELAY
 		logger.debug("Delay reset for OpsiPXEConfdConnectionThread %s", self._client_id)
 
@@ -249,6 +250,18 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			logger.debug(err, exc_info=True)
 			logger.debug("Failed to write cahce file '%s': %s", cache_file, err)
 		return None
+
+	def _opsipxeconfd_send_command(self: BackendProtocol, client_id: str, command: str) -> None:
+		with _opsipxeconfd_connection_threads_lock:
+			connection_thread = _opsipxeconfd_connection_threads.get(client_id)
+			if connection_thread:
+				connection_thread.update_command(command)
+			else:
+				connection_thread = OpsiPXEConfdConnectionThread(
+					socket_path=self._opsipxeconfd_socket_path, client_id=client_id, command=command
+				)
+				_opsipxeconfd_connection_threads[client_id] = connection_thread
+				connection_thread.start()
 
 	def _update_pxe_boot_configuration(self: BackendProtocol, client_id: str) -> None:
 		if self._shutting_down:

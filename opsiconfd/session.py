@@ -133,33 +133,10 @@ def get_basic_auth(headers: Headers) -> BasicAuth:
 
 
 async def get_session(client_addr: str, headers: Headers, session_id: Optional[str] = None) -> "OPSISession":
-	max_session_per_ip = config.max_session_per_ip
-	if config.max_sessions_excludes and client_addr in config.max_sessions_excludes:
-		logger.debug("Disable max_session_per_ip for address: %s", client_addr)
-		max_session_per_ip = 0
-	elif client_addr in depot_addresses:
-		# Connection from a known depot server address
-		if time.time() - depot_addresses[client_addr] <= config.session_lifetime:
-			logger.debug("Disable max_session_per_ip for depot server: %s", client_addr)
-			max_session_per_ip = 0
-		else:
-			# Address information is outdated
-			del depot_addresses[client_addr]
-
-	client_max_age = None
-	x_opsi_session_lifetime = headers.get("x-opsi-session-lifetime")
-	if x_opsi_session_lifetime:
-		try:
-			client_max_age = int(x_opsi_session_lifetime)
-		except ValueError:
-			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
-
 	session = OPSISession(
 		client_addr=client_addr,
-		user_agent=headers.get("user-agent"),
-		session_id=session_id,
-		client_max_age=client_max_age,
-		max_session_per_ip=max_session_per_ip,
+		headers=headers,
+		session_id=session_id
 	)
 	await session.init()
 	assert session.client_addr == client_addr
@@ -382,17 +359,15 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def __init__(  # pylint: disable=too-many-arguments
 		self,
 		client_addr: str,
-		user_agent: Optional[str] = None,
-		session_id: Optional[str] = None,
-		client_max_age: Optional[int] = None,
-		max_session_per_ip: int = None,
+		headers: Optional[Headers] = None,
+		session_id: Optional[str] = None
 	) -> None:
-		self._max_session_per_ip = config.max_session_per_ip if max_session_per_ip is None else max_session_per_ip
-		self.session_id: str | None = session_id or None
 		self.client_addr = client_addr
-		self.user_agent = user_agent or ""
+		self._headers = headers or Headers()
+		self.session_id: str | None = session_id or None
+		self.user_agent = self._headers.get("user-agent") or ""
 		self.max_age = config.session_lifetime
-		self.client_max_age = client_max_age
+		self.client_max_age = 0
 		self.created = 0
 		self.deleted = False
 		self.persistent = True
@@ -479,6 +454,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			else:
 				logger.debug("Session not found: %s (%s / %s)", self, self.client_addr, self.user_agent)
 				await self.init_new_session()
+		self._update_max_age()
 		await self.update_last_used(False)
 
 	def _reset_auth_data(self) -> None:
@@ -493,6 +469,20 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def _init_new_session(self) -> None:
 		"""Generate a new session id if number of client sessions is less than max client sessions."""
 		self._reset_auth_data()
+
+		max_session_per_ip = config.max_session_per_ip
+		if config.max_sessions_excludes and self.client_addr in config.max_sessions_excludes:
+			logger.debug("Disable max_session_per_ip for address: %s", self.client_addr)
+			max_session_per_ip = 0
+		elif self.client_addr in depot_addresses:
+			# Connection from a known depot server address
+			if time.time() - depot_addresses[self.client_addr] <= config.session_lifetime:
+				logger.debug("Disable max_session_per_ip for depot server: %s", self.client_addr)
+				max_session_per_ip = 0
+			else:
+				# Address information is outdated
+				del depot_addresses[self.client_addr]
+
 
 		session_count = 0
 		try:
@@ -513,8 +503,8 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 					else:
 						redis.delete(redis_key)
 
-			if self._max_session_per_ip > 0 and session_count + 1 > self._max_session_per_ip:
-				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, configured maximum is: {self._max_session_per_ip}"
+			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:
+				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, maximum is: {max_session_per_ip}"
 				logger.warning(error)
 				raise ConnectionRefusedError(error)
 		except ConnectionRefusedError as err:
@@ -540,7 +530,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			except AttributeError:
 				pass
 
-		self._update_max_age()
 		if not self.last_stored:
 			self.last_stored = int(utc_time_timestamp())
 
@@ -554,7 +543,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		if self.deleted or not self.persistent:
 			return
 		self.last_stored = int(utc_time_timestamp())
-		self._update_max_age()
 		# Remember that the session data in redis may have been
 		# changed by another worker process since the last load.
 		# Read session from redis if available and update session data.
@@ -594,15 +582,19 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			await self.store()
 
 	def _update_max_age(self) -> None:
-		if not self.authenticated or not self.client_max_age:
+		x_opsi_session_lifetime = self._headers.get("x-opsi-session-lifetime")
+		if not x_opsi_session_lifetime:
 			return
 
-		if 0 < self.client_max_age <= 3600 * 24:
-			if self.client_max_age != self.max_age:
-				logger.info("Accepting session lifetime %d from client", self.client_max_age)
-				self.max_age = self.client_max_age
-		else:
-			logger.warning("Not accepting session lifetime %d from client", self.client_max_age)
+		try:
+			session_lifetime = int(x_opsi_session_lifetime)
+			if 0 < session_lifetime <= 3600 * 24:
+				logger.info("Accepting session lifetime %d from client", session_lifetime)
+				self.max_age = session_lifetime
+			else:
+				logger.warning("Not accepting session lifetime %d from client", session_lifetime)
+		except ValueError:
+			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
 
 
 auth_module = None  # pylint: disable=invalid-name

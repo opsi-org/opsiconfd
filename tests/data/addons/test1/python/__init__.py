@@ -11,17 +11,16 @@ addon test1
 import os
 import pathlib
 
-from fastapi import FastAPI, APIRouter, status, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.requests import HTTPConnection
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
 from starlette.types import Receive, Send
 
-from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
-
 from opsiconfd.addon import Addon
+from opsiconfd.session import ACCESS_ROLE_AUTHENTICATED, ACCESS_ROLE_PUBLIC
 from opsiconfd.utils import remove_route_path
-from opsiconfd.session import ACCESS_ROLE_PUBLIC, ACCESS_ROLE_AUTHENTICATED
 
 from .const import ADDON_ID, ADDON_NAME, ADDON_VERSION
 from .rest import api_router
@@ -100,9 +99,9 @@ class AddonTest1(Addon):
 		if connection.scope["path"].startswith((f"{self.router_prefix}/public", f"{self.router_prefix}/static")):
 			connection.scope["required_access_role"] = ACCESS_ROLE_PUBLIC
 		elif connection.scope["path"] == f"{self.router_prefix}/login":
-			connection.scope["session"].user_store.username = "fakeuser"
-			connection.scope["session"].user_store.authenticated = True
-			connection.scope["session"].user_store.isAdmin = False
+			connection.scope["session"].username = "fakeuser"
+			connection.scope["session"].authenticated = True
+			connection.scope["session"].is_admin = False
 			await connection.scope["session"].store()
 		elif connection.scope["path"] == f"{self.router_prefix}/logout":
 			await connection.scope["session"].delete()

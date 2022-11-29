@@ -409,7 +409,7 @@ def deserialize(obj: Any, deep: bool = False) -> Any:  # pylint: disable=invalid
 		try:
 			obj_type = get_object_type(obj["type"])
 			return obj_type.fromHash(obj)  # type: ignore[union-attr]
-		except IndexError:
+		except KeyError:
 			pass
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)

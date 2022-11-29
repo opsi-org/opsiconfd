@@ -20,10 +20,11 @@ from opsicommon.exceptions import (  # type: ignore[import]
 	BackendModuleDisabledError,
 	BackendPermissionDeniedError,
 )
+from opsicommon.objects import OpsiDepotserver  # type: ignore[import]
 from opsicommon.types import forceHostId  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
-from opsiconfd import contextvar_client_address, contextvar_client_session
+from opsiconfd import contextvar_client_session
 from opsiconfd.application.utils import get_depot_server_id
 from opsiconfd.config import config
 from opsiconfd.logging import logger, secret_filter
@@ -173,7 +174,14 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self._interface_list = [self._interface[name] for name in sorted(list(self._interface.keys()))]
 		self.available_modules = self.backend_getLicensingInfo()["available_modules"]
 
-		hosts = self.host_getObjects(id=self._depot_id)
+		hosts = self._mysql.get_objects(
+			table="HOST",
+			object_type=OpsiDepotserver,
+			ace=[],
+			return_type="object",
+			attributes=["id", "opsiHostKey"],
+			filter={"type": "OpsiDepotserver", "id": self._depot_id}
+		)
 		if hosts:
 			self._opsi_host_key = hosts[0].opsiHostKey
 			secret_filter.add_secrets(self._opsi_host_key)
@@ -253,9 +261,6 @@ class ProtectedBackend(Backend):  # pylint: disable=too-many-ancestors
 		"""
 		Get list of ACEs.
 		"""
-		if not contextvar_client_address.get():
-			# Local call, no restrictions
-			return [RPCACE(method_re=re.compile(".*"), type="all")]
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")

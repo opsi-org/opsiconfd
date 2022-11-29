@@ -13,7 +13,7 @@ from typing import Generator
 
 import pytest
 
-from opsiconfd.backend.rpc.opsiconfd import Backend
+from opsiconfd.backend.rpc.opsiconfd import ProtectedBackend
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -50,7 +50,7 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 	)
 	_acl_file.write_text(data=data, encoding="utf-8")
 	with get_config({"acl_file": str(_acl_file)}):
-		Backend().read_acl_file()
+		ProtectedBackend().read_acl_file()
 		yield _acl_file
 
 

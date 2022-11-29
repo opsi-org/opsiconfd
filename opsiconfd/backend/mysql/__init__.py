@@ -11,7 +11,9 @@ opsiconfd.backend.mysql
 from __future__ import annotations
 
 import re
+from collections import namedtuple
 from contextlib import contextmanager
+from dataclasses import dataclass
 from functools import lru_cache
 from inspect import signature
 from json import JSONDecodeError, dumps, loads
@@ -57,6 +59,14 @@ from ..auth import RPCACE
 
 if TYPE_CHECKING:
 	from ..rpc.protocol import IdentType
+
+
+@dataclass(slots=True)
+class ColumnInfo:
+	table: str
+	column: str
+	client_id_column: bool
+	select: str | None
 
 
 class MySQLConnection:  # pylint: disable=too-many-instance-attributes
@@ -209,6 +219,14 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					logger.error(error)
 					raise RuntimeError(error)
 
+	@contextmanager
+	def connection(self) -> Generator[None, None, None]:
+		self.connect()
+		try:
+			yield
+		finally:
+			self.disconnect()
+
 	def connect(self) -> None:
 		try:
 			self._init_connection()
@@ -259,47 +277,51 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 	def get_columns(
 		self, tables: List[str], ace: List[RPCACE], attributes: Union[List[str], Tuple[str, ...]] = None
-	) -> Dict[str, Dict[str, str | bool | None]]:
-		res: Dict[str, Dict[str, str | bool | None]] = {}
+	) -> Dict[str, ColumnInfo]:
+		res: Dict[str, ColumnInfo] = {}
 		client_id_column = self._client_id_column.get(tables[0])
+
 		for table in tables:
 			for col in self.tables[table]:
 				attr = self._column_to_attribute.get(table, {}).get(col, col)
-				selected = True
-				if attributes and attr not in attributes and attr != "type":
-					selected = False
+				res[attr] = ColumnInfo(
+					table=table, column=col, client_id_column=table == tables[0] and col == client_id_column, select=None
+				)
+				if attr == "type":
+					res[attr].select = f"`{table}`.`{col}`"
+					continue
+
+				if attributes and attr not in attributes:
+					continue
+
+				selected = not ace  # select if no ACEs given
+				self_selected = False
 				self_ace = None
-				for _ace in sorted(ace, key=lambda a: a.type == "self"):
+				for _ace in ace:
+					if _ace.allowed_attributes and attr not in _ace.allowed_attributes:
+						continue
+					if _ace.denied_attributes and attr in _ace.denied_attributes:
+						continue
+
 					if _ace.type == "self":
 						self_ace = _ace
-					if _ace.allowed_attributes and attr not in _ace.allowed_attributes:
-						selected = False
-						break
-					if _ace.denied_attributes and attr in _ace.denied_attributes:
-						selected = False
-						break
-				res[attr] = {  # pylint: disable=loop-invariant-statement
-					"table": table,
-					"column": col,
-					"client_id_column": table == tables[0] and col == client_id_column,  # pylint: disable=loop-invariant-statement
-					"select": None,
-				}
-				if selected:
-					if self_ace and client_id_column is None:  # pylint: disable=loop-invariant-statement
-						raise RuntimeError(  # pylint: disable=loop-invariant-statement
-							f"No client id attribute defined for table {tables[0]} using ace {self_ace}"  # pylint: disable=loop-invariant-statement
-						)
-					if self_ace and client_id_column:
-						res[attr][  # pylint: disable=loop-invariant-statement
-							"select"  # pylint: disable=loop-invariant-statement
-						] = f"IF(`{tables[0]}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,NULL)"  # pylint: disable=loop-invariant-statement
+						self_selected = True
 					else:
-						res[attr]["select"] = f"`{table}`.`{col}`"  # pylint: disable=loop-invariant-statement
+						selected = True
+
+				if not selected and not self_selected:
+					continue
+
+				res[attr].select = f"`{table}`.`{col}`" if selected else "NULL"
+				if self_selected and self_ace:
+					if client_id_column is None:
+						raise RuntimeError(f"No client id attribute defined for table {tables[0]} using ace {self_ace}")
+					res[attr].select = f"IF(`{tables[0]}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,{res[attr].select})"
 		return res
 
 	def get_where(  # pylint: disable=too-many-locals,too-many-branches
 		self,
-		columns: Dict[str, Dict[str, str | bool | None]],
+		columns: Dict[str, ColumnInfo],
 		ace: List[RPCACE],
 		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
 	) -> Tuple[str, Dict[str, Any]]:
@@ -338,21 +360,21 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			cond = []
 			if operator == "IN":
 				param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
-				cond = [f"`{col['table']}`.`{col['column']}` {operator} :{param}"]
+				cond = [f"`{col.table}`.`{col.column}` {operator} :{param}"]
 				params[param] = values
 			else:
 				for val in values:
 					param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
-					cond.append(f"`{col['table']}`.`{col['column']}` {operator} :{param}")
+					cond.append(f"`{col.table}`.`{col.column}` {operator} :{param}")
 					params[param] = val
 
 			conditions.append(" OR ".join(cond))
 
 		if allowed_client_ids is not None:
 			for col in columns.values():
-				if col["client_id_column"]:
+				if col.client_id_column:
 					param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
-					conditions.append(f"`{col['table']}`.`{col['column']}` IN :{param}")
+					conditions.append(f"`{col.table}`.`{col.column}` IN :{param}")
 					params[param] = allowed_client_ids
 					break
 
@@ -536,7 +558,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		query = (
 			"SELECT "
 			f"{', '.join(aggs) + ', ' if aggs else ''}"
-			f"""{', '.join([f"{c['select']} AS `{a}`" for a, c in columns.items() if c['select']])}"""
+			f"""{', '.join([f"{c.select} AS `{a}`" for a, c in columns.items() if c.select])}"""
 			f" {table}"
 		)
 		where, params = self.get_where(columns=columns, ace=ace, filter=filter)
@@ -544,7 +566,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		if aggregates:
 			# Use first table for performance!
 			group_by = "GROUP BY " + ", ".join(
-				[f"`{tables[0]}`.`{col['column']}`" for attr, col in columns.items() if attr in ident_attributes]
+				[f"`{tables[0]}`.`{col.column}`" for attr, col in columns.items() if attr in ident_attributes]
 			)
 
 		with self.session() as session:
@@ -625,12 +647,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			if attr not in data:
 				continue
 
-			if allowed_client_ids and column["client_id_column"]:
+			if allowed_client_ids and column.client_id_column:
 				if data.get(attr) not in allowed_client_ids:
 					raise BackendPermissionDeniedError(f"No permission for {column}/{attr}: {data.get(attr)}")
 
 			if attr in ident_attrs:
-				where.append(f"`{column['column']}` = :{attr}")
+				where.append(f"`{column.column}` = :{attr}")
 			if not set_null and data.get(attr) is None:
 				continue
 
@@ -639,9 +661,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			except KeyError:
 				pass
 
-			cols.append(f"`{column['column']}`")
+			cols.append(f"`{column.column}`")
 			vals.append(f":{attr}")
-			updates.append(f"`{column['column']}` = :{attr}")
+			updates.append(f"`{column.column}` = :{attr}")
 
 		if additional_data:
 			for col, val in additional_data.items():
@@ -716,7 +738,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 						raise ValueError(f"No value for ident attribute {attr!r}")
 
 				if (
-					col["client_id_column"]
+					col.client_id_column
 					and allowed_client_ids is not None  # pylint: disable=loop-invariant-statement
 					and val not in allowed_client_ids
 				):
@@ -724,7 +746,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					break
 
 				param = f"p{len(params) + 1}"  # pylint: disable=loop-invariant-statement
-				cond.append(f"`{col['column']}` = :{param}")
+				cond.append(f"`{col.column}` = :{param}")
 				params[param] = val
 				ident[attr] = val
 			if cond and ident:

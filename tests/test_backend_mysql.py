@@ -8,8 +8,10 @@
 test opsiconfd.backend.mysql
 """
 
+import re
 from pathlib import Path
 
+from opsiconfd.backend.auth import RPCACE
 from opsiconfd.backend.mysql import MySQLConnection
 
 from .utils import get_config
@@ -70,6 +72,50 @@ def test_config(tmp_path: Path) -> None:
 
 def test_connect() -> None:
 	con = MySQLConnection()
-	con.connect()
-	with con.session() as session:
-		assert session.execute("SELECT 999").fetchone()[0] == 999
+	with con.connection():
+		with con.session() as session:
+			assert session.execute("SELECT 999").fetchone()[0] == 999
+
+
+def test_get_columns() -> None:
+	allowed_attributes = {"id", "type", "description"}
+	client_id = "client1.opsi.org"
+	ace = [
+		RPCACE(method_re=re.compile(".*"), type="self", id=client_id),
+		RPCACE(method_re=re.compile(".*"), type="opsi_client", allowed_attributes=allowed_attributes),
+	]
+	con = MySQLConnection()
+	with con.connection():
+		selected_attributes = ["id", "type", "description", "opsiHostKey", "notes", "hardwareAddress", "created"]
+		columns = con.get_columns(tables=["HOST"], ace=ace, attributes=selected_attributes)
+		for col, info in columns.items():
+			if col == "type":
+				assert info.select == "`HOST`.`type`"
+			elif col in selected_attributes:
+				if col in allowed_attributes:
+					assert info.select == f"IF(`HOST`.`hostId`='{client_id}',`HOST`.`{info.column}`,`HOST`.`{info.column}`)"
+				else:
+					assert info.select == f"IF(`HOST`.`hostId`='{client_id}',`HOST`.`{info.column}`,NULL)"
+			else:
+				assert info.select is None
+
+	denied_attributes = {"opsiHostKey", "notes"}
+	ace = [
+		RPCACE(method_re=re.compile(".*"), type="self", id=client_id, denied_attributes=denied_attributes),
+		RPCACE(method_re=re.compile(".*"), type="opsi_client", allowed_attributes=allowed_attributes),
+	]
+	with con.connection():
+		selected_attributes = ["id", "type", "description", "opsiHostKey", "notes", "hardwareAddress", "lastSeen"]
+		columns = con.get_columns(tables=["HOST"], ace=ace, attributes=selected_attributes)
+		for col, info in columns.items():
+			if col == "type":
+				assert info.select == "`HOST`.`type`"
+			elif col in selected_attributes:
+				if col in denied_attributes:
+					assert info.select is None
+				elif col in allowed_attributes:
+					assert info.select == f"IF(`HOST`.`hostId`='{client_id}',`HOST`.`{info.column}`,`HOST`.`{info.column}`)"
+				else:
+					assert info.select == f"IF(`HOST`.`hostId`='{client_id}',`HOST`.`{info.column}`,NULL)"
+			else:
+				assert info.select is None

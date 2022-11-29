@@ -753,7 +753,7 @@ async def authenticate(scope: Scope, username: str, password: str) -> None:  # p
 
 	if username == config.monitoring_user:
 		await authenticate_user_passwd(scope=scope)
-	elif re.search(r"^[^.]+\.[^.]+\.\S+$", username) or re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", username):
+	elif re.search(r"^[^.]+\.[^.]+\.\S+$", username) or re.search(r"^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2}){5}$", username) or not username:
 		await authenticate_host(scope=scope)
 	else:
 		await authenticate_user_auth_module(scope=scope)

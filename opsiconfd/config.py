@@ -180,6 +180,7 @@ class Config(metaclass=Singleton):
 		self._ex_help = "--ex-help" in self._args
 		if self._ex_help and "--help" not in self._args:
 			self._args.append("--help")
+		# if "health-check" in self._args():
 		self._init_parser()
 
 		if is_manager(psutil.Process(os.getpid())):
@@ -362,7 +363,11 @@ class Config(metaclass=Singleton):
 					file.write(new_data)
 
 	def _init_parser(self) -> None:  # pylint: disable=too-many-statements
+
 		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(prog, max_help_position=30, width=100))
+		if "health-check" in self._args:
+			self._parser.add("--detailed", action="store_true", help="Print details to each check.")
+
 		self._parser.add(
 			"-c",
 			"--config-file",
@@ -897,7 +902,7 @@ class Config(metaclass=Singleton):
 				choices=("start", "stop", "force-stop", "status", "restart", "reload", "setup", "log-viewer", "health-check"),
 				default="start",
 				metavar="ACTION",
-				help="The ACTION to perform (start / force-stop / stop / status / restart / reload / setup / log-viewer).",
+				help="The ACTION to perform (start / force-stop / stop / status / restart / reload / setup / log-viewer / health-check).",
 			)
 
 

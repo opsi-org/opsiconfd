@@ -1,7 +1,7 @@
 {
-	"name": "opsiconfd",
+	"name": "opsiconfd-43",
 	"dockerComposeFile": "../docker/dev-opsiconfd-compose.yml",
-	"service": "opsiconfd-dev",
+	"service": "opsiconfd-dev-43",
 	"workspaceFolder": "/workspace",
 	"postCreateCommand": ".devcontainer/post_create.sh",
 	"postStartCommand": ".devcontainer/post_start.sh",

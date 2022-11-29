@@ -11,6 +11,7 @@ webdav tests
 import os
 import random
 import shutil
+from typing import Type
 from unittest.mock import patch
 
 import pytest
@@ -22,6 +23,7 @@ from opsiconfd.config import FQDN
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	OpsiconfdTestClient,
 	app,
 	backend,
 	clean_redis,
@@ -30,23 +32,23 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_webdav_setup():
+def test_webdav_setup() -> None:
 	webdav_setup(app)
 
 
-def test_options_request_for_index(test_client):  # pylint: disable=redefined-outer-name
+def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	# Windows WebDAV client send OPTIONS request for /
 	res = test_client.request(method="OPTIONS", url="/")
 	assert res.status_code == 200
 	assert res.headers["Allow"] == "OPTIONS, GET, HEAD"
 
 
-def test_webdav_path_modification(test_client):  # pylint: disable=redefined-outer-name
+def test_webdav_path_modification(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	res = test_client.request(method="PROPFIND", url="/dav", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 207
 
 
-def test_webdav_upload_download_delete_with_special_chars(test_client):  # pylint: disable=redefined-outer-name
+def test_webdav_upload_download_delete_with_special_chars(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	size = 1 * 1024 * 1024
 	rand_bytes = bytearray(random.getrandbits(8) for _ in range(size))
@@ -67,19 +69,19 @@ def test_webdav_upload_download_delete_with_special_chars(test_client):  # pylin
 	res.raise_for_status()
 
 
-def test_webdav_auth(test_client):  # pylint: disable=redefined-outer-name
+def test_webdav_auth(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	url = "/repository/test_file.bin"
 	res = test_client.get(url=url)
 	assert res.status_code == 401
 
 
-def test_client_permission(test_client):  # pylint: disable=redefined-outer-name
+def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	client_id = "webdavtest.uib.local"
 	client_key = "af521906af3c4666bed30a1774639ff8"
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [client_id, client_key]}
-	res = test_client.post("/rpc", json=rpc, auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
-	res = res.json()
+	resp = test_client.post("/rpc", json=rpc, auth=(ADMIN_USER, ADMIN_PASS))
+	assert resp.status_code == 200
+	res = resp.json()
 	assert res.get("error") is None
 	test_client.reset_cookies()
 
@@ -124,7 +126,9 @@ def test_client_permission(test_client):  # pylint: disable=redefined-outer-name
 		("/tEßT/TäsT2/陰陽_Üß.TXt", "/tEßT/täsT2/陰陽_üß.txt", None),
 	),
 )
-def test_webdav_ignore_case_download(test_client, filename, path, exception):  # pylint: disable=redefined-outer-name
+def test_webdav_ignore_case_download(
+	test_client: OpsiconfdTestClient, filename: str, path: str, exception: Type[Exception]  # pylint: disable=redefined-outer-name
+) -> None:
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	base_dir = "/var/lib/opsi/depot"
 	directory, filename = filename.rsplit("/", 1)
@@ -161,16 +165,16 @@ def test_webdav_ignore_case_download(test_client, filename, path, exception):  #
 			os.unlink(abs_filename)
 
 
-def test_webdav_virtual_folder(test_client):  # pylint: disable=redefined-outer-name
+def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	res = test_client.get(url="/dav")
 	assert res.status_code == 200
 
-	assert "./boot" in res.text
-	assert "./depot" in res.text
-	assert "./public" in res.text
-	assert "./repository" in res.text
-	assert "./workbench" in res.text
+	assert "/boot" in res.text
+	assert "/depot" in res.text
+	assert "/public" in res.text
+	assert "/repository" in res.text
+	assert "/workbench" in res.text
 
 
 def test_webdav_setup_exception(backend):  # pylint: disable=redefined-outer-name

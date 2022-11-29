@@ -177,27 +177,27 @@ class RPCAuditHardwareMixin(Protocol):
 				session.execute(f"TRUNCATE TABLE `HARDWARE_CONFIG_{hardware_class}`")
 				session.execute(f"TRUNCATE TABLE `HARDWARE_DEVICE_{hardware_class}`")
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_getConfig(self: BackendProtocol, language: str = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
 		self._get_ace("auditHardware_getConfig")
 
 		return get_audit_hardware_config(language)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_insertObject(self: BackendProtocol, auditHardware: dict | AuditHardware) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("auditHardware_insertObject")
 		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardware).items():
 			for obj in auh:
 				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=True)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_updateObject(self: BackendProtocol, auditHardware: dict | AuditHardware) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("auditHardware_updateObject")
 		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardware).items():
 			for obj in auh:
 				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=False, set_null=False)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
 	) -> None:
@@ -206,7 +206,7 @@ class RPCAuditHardwareMixin(Protocol):
 			for obj in auh:
 				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=True)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
 	) -> None:
@@ -287,28 +287,28 @@ class RPCAuditHardwareMixin(Protocol):
 						results.append(data)
 		return results
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[AuditHardware]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
 	) -> List[str] | List[dict] | List[list] | List[tuple]:
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_deleteObjects(self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("auditHardware_deleteObjects")
 		self._mysql.delete_objects(table="AUDIT_HARDWARE", object_type=AuditHardware, obj=auditHardwares, ace=ace)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def auditHardware_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		self.auditHardware_deleteObjects([{"id": id}])

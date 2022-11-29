@@ -101,11 +101,11 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if session:
 			session.sync_delete()
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def backend_setOptions(self: BackendProtocol, options: dict) -> None:  # pylint: disable=invalid-name
 		return None
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def backend_getOptions(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
 		return {}
 
@@ -252,8 +252,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 				info["dates"][str(at_date)] = {"modules": pool.get_modules(at_date=at_date)}  # pylint: disable=loop-invariant-statement
 		return info
 
-	@rpc_method
-	def backend_getLicensingInfo(  # pylint: disable=invalid-name
+	def get_licensing_info(  # pylint: disable=invalid-name
 		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, allow_cache: bool = True
 	) -> Dict[str, Any]:
 		pool = get_default_opsi_license_pool(
@@ -269,6 +268,12 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			return round(time.time() / seconds)
 
 		return self._get_licensing_info(licenses=licenses, legacy_modules=legacy_modules, dates=dates, ttl_hash=get_ttl_hash())
+
+	@rpc_method
+	def backend_getLicensingInfo(  # pylint: disable=invalid-name
+		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, allow_cache: bool = True
+	) -> Dict[str, Any]:
+		return self.get_licensing_info(licenses=licenses, legacy_modules=legacy_modules, dates=dates, allow_cache=allow_cache)
 
 	@rpc_method
 	def backend_info(self: BackendProtocol) -> Dict[str, Any]:  # pylint: disable=too-many-branches,too-many-statements

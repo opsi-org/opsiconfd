@@ -12,6 +12,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from OPSI.Backend.Manager.Dispatcher import _loadDispatchConfig  # type: ignore[import]
+
+from opsiconfd.config import config
+
 if TYPE_CHECKING:
 	from opsiconfd.backend.rpc.opsiconfd import (
 		MySQLConnection,

@@ -166,11 +166,11 @@ def test_webdav_virtual_folder(test_client):  # pylint: disable=redefined-outer-
 	res = test_client.get(url="/dav")
 	assert res.status_code == 200
 
-	assert "/dav/boot" in res.text
-	assert "/dav/depot" in res.text
-	assert "/dav/public" in res.text
-	assert "/dav/repository" in res.text
-	assert "/dav/workbench" in res.text
+	assert "./boot" in res.text
+	assert "./depot" in res.text
+	assert "./public" in res.text
+	assert "./repository" in res.text
+	assert "./workbench" in res.text
 
 
 def test_webdav_setup_exception(backend):  # pylint: disable=redefined-outer-name

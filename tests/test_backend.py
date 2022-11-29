@@ -17,7 +17,7 @@ from opsiconfd import get_contextvars, set_contextvars, set_contextvars_from_con
 from opsiconfd.backend import (
 	execute_on_secondary_backends,
 	get_mysql,
-	get_protected_backend,
+	get_unprotected_backend,
 	get_server_role,
 	get_unprotected_backend,
 )
@@ -37,7 +37,7 @@ from .utils import (  # pylint: disable=unused-import
 
 def test_get_protected_backend() -> None:
 	# TODO
-	assert len(get_protected_backend().get_interface()) > 50
+	assert len(get_unprotected_backend().get_interface()) > 50
 
 
 def test_get_backend_interface() -> None:

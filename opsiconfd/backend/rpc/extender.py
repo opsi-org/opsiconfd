@@ -16,19 +16,21 @@ from typing import Any, Dict, Protocol
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 
-# deprecated can be used in extension config files
-from . import deprecated, rpc_method  # pylint: disable=unused-import
+from . import rpc_method
 
 
 class RPCExtenderMixin(Protocol):  # pylint: disable=too-few-public-methods
 	def __init__(self) -> None:
 		for file in sorted(Path(config.extension_config_dir).glob("*.conf")):
 			logger.info("Reading rpc extension methods from '%s'", file)
-			loc: Dict[str, Any] = {}  # pylint: disable=loop-invariant-statement
-			if file.is_file():
-				exec(compile(file.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
-			for function_name, function in loc.items():
-				if not function_name.startswith("_") and isfunction(function):
-					logger.info("Adding rpc extension method '%s'", function_name)
-					rpc_method(function)
-					setattr(self, function_name, MethodType(function, self))
+			try:
+				loc: Dict[str, Any] = {}  # pylint: disable=loop-invariant-statement
+				if file.is_file():
+					exec(compile(file.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
+				for function_name, function in loc.items():
+					if not function_name.startswith("_") and isfunction(function):
+						logger.info("Adding rpc extension method '%s'", function_name)
+						rpc_method(function)
+						setattr(self, function_name, MethodType(function, self))
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error("Failed to load extension file '%s' %s", file, err, exc_info=True)

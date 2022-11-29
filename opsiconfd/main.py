@@ -70,8 +70,13 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 
 	if config.action == "health-check":
 		init_logging(log_mode="local")
-		health_check(print_messages=True)
-		return
+		result = health_check(print_messages=True)
+		if result.get("status") == "ok":
+			sys.exit(0)
+		elif result.get("status") == "warn":
+			sys.exit(2)
+		else:
+			sys.exit(1)
 
 	manager_pid = get_manager_pid(ignore_self=True)
 	if config.action == "start" and manager_pid:

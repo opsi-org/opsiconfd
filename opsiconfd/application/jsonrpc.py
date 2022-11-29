@@ -380,8 +380,7 @@ def execute_rpc(client_info: str, rpc: Dict[str, Any]) -> Any:
 		params = deserialize(params)
 
 	method = getattr(backend, method_name)
-
-	if getattr(method, "deprecated", False):
+	if method.rpc_interface.deprecated:
 		warnings.warn(
 			f"Client {client_info} is calling deprecated method {method_name!r}",
 			DeprecationWarning

@@ -100,7 +100,7 @@ async def admin_interface_index(request: Request) -> Response:
 	session = contextvar_client_session.get()
 	if session and session.username:
 		username = session.username
-	interface = [m.as_dict() for m in get_protected_backend().get_interface()]
+	interface = get_protected_backend().get_interface()
 	for method in interface:
 		if method["doc"]:
 			method["doc"] = re.sub(r"(\s*\n\s*)+\n+", "\n\n", method["doc"])  # pylint: disable=dotted-import-in-loop

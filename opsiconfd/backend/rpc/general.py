@@ -135,7 +135,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
-		return session.user_groups
+		return list(session.user_groups)
 
 	@rpc_method
 	def server_checkHealth(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name

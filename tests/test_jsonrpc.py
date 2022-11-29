@@ -9,6 +9,7 @@ jsonrpc tests
 """
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import msgpack  # type: ignore[import]
@@ -26,6 +27,7 @@ from opsiconfd.application.jsonrpc import (
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	OpsiconfdTestClient,
 	backend,
 	clean_redis,
 	config,
@@ -37,7 +39,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_request(test_client):  # pylint: disable=redefined-outer-name
+def test_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	client_data = {
 		"id": "test-jsonrpc-request.opsi.org",
 		"description": "description",
@@ -66,16 +68,16 @@ def test_request(test_client):  # pylint: disable=redefined-outer-name
 		assert result["result"][0].get(attr) == val
 
 
-def test_multi_request(test_client):  # pylint: disable=redefined-outer-name
+def test_multi_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	client1 = OpsiClient(id="test-jsonrpc-request-multi-1.opsi.org")
 	client2 = OpsiClient(id="test-jsonrpc-request-multi-2.opsi.org")
 	rpc = (
 		{"id": 1, "method": "host_createObjects", "params": [client1.to_hash()]},
 		{"id": 2, "method": "host_createObjects", "params": [client2.to_hash()]},
 	)
-	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
-	res.raise_for_status()
-	result = res.json()
+	resp = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
+	resp.raise_for_status()
+	result = resp.json()
 	assert len(result) == 2
 	for res in result:
 		assert res["id"] in (rpc[0]["id"], rpc[1]["id"])  # pylint: disable=loop-invariant-statement
@@ -83,7 +85,7 @@ def test_multi_request(test_client):  # pylint: disable=redefined-outer-name
 		assert res["result"] is None
 
 
-def test_incomplete_request(test_client):  # pylint: disable=redefined-outer-name
+def test_incomplete_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	rpcs = (
 		{"id": 0, "method": "backend_getInterface"},
 		{"method": "backend_getInterface"},
@@ -98,7 +100,7 @@ def test_incomplete_request(test_client):  # pylint: disable=redefined-outer-nam
 		assert result["error"] is None
 
 
-def test_jsonrpc20(test_client):  # pylint: disable=redefined-outer-name
+def test_jsonrpc20(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	rpcs = (
 		{"id": 1, "method": "backend_getInterface", "params": []},
 		{"id": 2, "method": "backend_getInterface", "params": [], "jsonrpc": "1.0"},
@@ -153,7 +155,7 @@ def test_jsonrpc20(test_client):  # pylint: disable=redefined-outer-name
 
 	),
 )
-def test_serializations(test_client, content_type, accept, expected_content_type):  # pylint: disable=redefined-outer-name
+def test_serializations(test_client: OpsiconfdTestClient, content_type: str, accept: str, expected_content_type: str) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
 	with products_jsonrpc(test_client, "", products):  # Create products
@@ -188,7 +190,7 @@ def test_serializations(test_client, content_type, accept, expected_content_type
 		("lz4", "invalid", 400),
 	),
 )
-def test_compression(test_client, content_encoding, accept_encoding, status_code):  # pylint: disable=redefined-outer-name
+def test_compression(test_client: OpsiconfdTestClient, content_encoding: str, accept_encoding: str, status_code: int) -> None:  # pylint: disable=redefined-outer-name
 	products = get_dummy_products(3)
 	product_ids = [p["id"] for p in products]
 	with (products_jsonrpc(test_client, "", products), patch("opsiconfd.application.jsonrpc.COMPRESS_MIN_SIZE", 0)):
@@ -215,7 +217,7 @@ def test_compression(test_client, content_encoding, accept_encoding, status_code
 		assert deserialize_data(data, "json")
 
 
-def test_error_log(test_client, tmp_path):  # pylint: disable=redefined-outer-name
+def test_error_log(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  # pylint: disable=redefined-outer-name
 	with (patch("opsiconfd.application.jsonrpc.RPC_DEBUG_DIR", str(tmp_path)), get_config({"debug_options": "rpc-error-log"})):
 		rpc = {"id": 1, "method": "invalid", "params": [1, 2, 3]}
 		res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
@@ -229,7 +231,7 @@ def test_error_log(test_client, tmp_path):  # pylint: disable=redefined-outer-na
 			assert data["error"] == "Invalid method 'invalid'"
 
 
-def test_store_rpc_info(test_client):  # pylint: disable=redefined-outer-name
+def test_store_rpc_info(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with sync_redis_client() as redis:
 		for num in (1, 2):
 			rpc = {"id": num, "method": "host_getObjects", "params": [["id"], {"type": "OpsiDepotserver"}]}  # pylint: disable=loop-invariant-statement
@@ -254,7 +256,7 @@ def test_store_rpc_info(test_client):  # pylint: disable=redefined-outer-name
 
 
 @pytest.mark.asyncio
-async def test_get_sort_algorithm(backend):  # pylint: disable=redefined-outer-name
+async def test_get_sort_algorithm(backend) -> None:  # pylint: disable=redefined-outer-name
 	assert await get_sort_algorithm("algorithm1") == "algorithm1"
 	assert await get_sort_algorithm("algorithm2") == "algorithm2"
 	backend.config_create(

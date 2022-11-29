@@ -17,7 +17,7 @@ import time
 import uuid
 from collections import namedtuple
 from time import sleep as time_sleep
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import msgspec
 from fastapi import FastAPI, HTTPException, status
@@ -483,7 +483,6 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 				# Address information is outdated
 				del depot_addresses[self.client_addr]
 
-
 		session_count = 0
 		try:
 			with redis_client() as redis:
@@ -503,7 +502,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 					else:
 						redis.delete(redis_key)
 
-			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:
+			if max_session_per_ip > 0 and session_count + 1 > max_session_per_ip:  # pylint: disable=chained-comparison
 				error = f"Too many sessions from {self.client_addr} / {self.user_agent}, maximum is: {max_session_per_ip}"
 				logger.warning(error)
 				raise ConnectionRefusedError(error)

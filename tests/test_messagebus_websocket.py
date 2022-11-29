@@ -216,8 +216,16 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 						sender="@", channel="service:config:jsonrpc", rpc_id="3", method="invalid", params=(1, 2, 3)
 					)
 					websocket.send_bytes(jsonrpc_request_message3.to_msgpack())
+					jsonrpc_request_message4 = JSONRPCRequestMessage(
+						sender="@",
+						channel="service:config:jsonrpc",
+						rpc_id="4",
+						method="hostControl_start",
+						params=(["client.opsi.test"]),
+					)
+					websocket.send_bytes(jsonrpc_request_message4.to_msgpack())
 
-					reader.wait_for_message(count=3)
+					reader.wait_for_message(count=4)
 
 					responses = sorted(
 						[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.rpc_id  # type: ignore[arg-type,attr-defined]
@@ -230,7 +238,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 
 					assert isinstance(responses[1], JSONRPCResponseMessage)
 					assert responses[1].rpc_id == jsonrpc_request_message2.rpc_id
-					assert responses[1].result == []
+					assert responses[1].result is None
 					assert responses[1].error is None
 
 					assert isinstance(responses[2], JSONRPCResponseMessage)
@@ -240,6 +248,15 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 						"code": 0,
 						"message": "Invalid method 'invalid'",
 						"data": {"class": "ValueError", "details": None},
+					}
+
+					assert isinstance(responses[3], JSONRPCResponseMessage)
+					assert responses[3].rpc_id == jsonrpc_request_message4.rpc_id
+					assert responses[3].result is None
+					assert responses[3].error == {
+						"code": 0,
+						"message": "Backend permission denied error: No permission for method 'hostControl_start'",
+						"data": {"class": "BackendPermissionDeniedError", "details": None},
 					}
 
 

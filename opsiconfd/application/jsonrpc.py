@@ -363,12 +363,12 @@ def execute_rpc(client_info: str, rpc: Dict[str, Any]) -> Any:
 
 	with server_timing("deserialize_objects"):
 		keywords = {}
-		if method_interface["keywords"]:
+		if method_interface.keywords:
 			parameter_count = 0
-			if method_interface["args"]:
-				parameter_count += len(method_interface["args"])
-			if method_interface["varargs"]:
-				parameter_count += len(method_interface["varargs"])
+			if method_interface.args:
+				parameter_count += len(method_interface.args)
+			if method_interface.varargs:
+				parameter_count += len(method_interface.varargs)
 
 			if len(params) >= parameter_count:
 				# params needs to be a copy, leave rpc["params"] unchanged

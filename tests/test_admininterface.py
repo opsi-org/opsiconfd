@@ -221,7 +221,7 @@ async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
 		)
 
-	await asyncio.sleep(2)
+	await asyncio.sleep(3)
 
 	rpc_list_response = await admininterface.get_rpc_list()
 	rpc_list = json.loads(rpc_list_response.body)

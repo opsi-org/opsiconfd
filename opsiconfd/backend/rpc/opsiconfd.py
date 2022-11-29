@@ -10,10 +10,8 @@ opsiconfd backend interface
 
 from __future__ import annotations
 
-import re
-from inspect import getfullargspec, getmembers, ismethod, signature
-from textwrap import dedent
-from typing import Any, Dict, List
+from inspect import getmembers, ismethod
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
 from opsicommon.exceptions import (  # type: ignore[import]
@@ -69,8 +67,11 @@ from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
 from .opsipxeconfd import RPCOpsiPXEConfdMixin
 
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc import MethodInterface
 
-def describe_interface(instance: Any) -> Dict[str, Any]:  # pylint: disable=too-many-locals
+
+def describe_interface(instance: Any) -> Dict[str, MethodInterface]:  # pylint: disable=too-many-locals
 	"""
 	Describes what public methods are available and the signatures they use.
 
@@ -81,50 +82,9 @@ def describe_interface(instance: Any) -> Dict[str, Any]:  # pylint: disable=too-
 	"""
 	methods = {}
 	for _, function in getmembers(instance, ismethod):
-		method_name = function.__name__
-		if not getattr(function, "rpc_method", False):
-			continue
-
-		spec = getfullargspec(function)
-		sig = signature(function)
-		args = spec.args
-		defaults = spec.defaults
-		params = [arg for arg in args if arg != "self"]  # pylint: disable=loop-invariant-statement
-		annotations = {}
-		for param in params:
-			str_param = str(sig.parameters[param])
-			if ": " in str_param:
-				annotations[param] = str_param.split(": ", 1)[1].split(" = ", 1)[0]
-
-		if defaults is not None:
-			offset = len(params) - len(defaults)
-			for i in range(len(defaults)):
-				index = offset + i
-				params[index] = f"*{params[index]}"
-
-		for index, element in enumerate((spec.varargs, spec.varkw), start=1):
-			if element:
-				stars = "*" * index
-				params.extend([f"{stars}{arg}" for arg in (element if isinstance(element, list) else [element])])
-
-		logger.trace("%s interface method: name %s, params %s", instance.__class__.__name__, method_name, params)
-		doc = function.__doc__
-		if doc:
-			doc = dedent(doc).lstrip() or None
-
-		methods[method_name] = {
-			"name": method_name,
-			"params": params,
-			"args": args,
-			"varargs": spec.varargs,
-			"keywords": spec.varkw,
-			"defaults": defaults,
-			"deprecated": getattr(function, "deprecated", False),
-			"alternative_method": getattr(function, "alternative_method", None),
-			"doc": doc,
-			"annotations": annotations,
-		}
-
+		rpc_interface: MethodInterface | None = getattr(function, "rpc_interface", None)  # pylint: disable=loop-invariant-statement
+		if rpc_interface:  # pylint: disable=loop-invariant-statement
+			methods[rpc_interface.name] = rpc_interface  # pylint: disable=loop-invariant-statement
 	return methods
 
 
@@ -170,9 +130,9 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		for base in self.__class__.__bases__:
 			base.__init__(self)  # type: ignore[misc]
 
-		self._interface = describe_interface(self)
-		self._interface_list = [self._interface[name] for name in sorted(list(self._interface.keys()))]
-		self.available_modules = self.backend_getLicensingInfo()["available_modules"]
+		self._interface: dict[str, MethodInterface] = describe_interface(self)
+		self._interface_list: list[MethodInterface] = [self._interface[name] for name in sorted(list(self._interface.keys()))]
+		self.available_modules = self.get_licensing_info()["available_modules"]  # type: ignore[misc]
 
 		hosts = self._mysql.get_objects(
 			table="HOST",
@@ -238,10 +198,10 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		except (IndexError, KeyError):
 			return None
 
-	def get_method_interface(self, method: str) -> Dict[str, Any] | None:
+	def get_method_interface(self, method: str) -> MethodInterface | None:
 		return self._interface.get(method)
 
-	def get_interface(self) -> List[Dict[str, Any]]:
+	def get_interface(self) -> List[MethodInterface]:
 		return self._interface_list
 
 	async def async_call(self, method: str, **kwargs: Any) -> Any:

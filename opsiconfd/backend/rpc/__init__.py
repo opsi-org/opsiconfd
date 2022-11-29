@@ -10,8 +10,11 @@ backend.rpc
 
 from __future__ import annotations
 
-from functools import partial
-from typing import Callable
+from dataclasses import asdict, dataclass
+from functools import wraps
+from inspect import getfullargspec, signature
+from textwrap import dedent
+from typing import Any, Callable, Dict, List
 
 DOC_INSERT_OBJECT = """Creates a new object in the backend.
 If the object already exists, it will be completely overwritten with the new values.
@@ -55,41 +58,107 @@ DOC_DELETE = """Deletes the object identified by the specified parameters.
 """
 
 
-def rpc_method(func: Callable) -> Callable:
-	if not func.__doc__:
-		if func.__name__.endswith("_insertObject"):
-			func.__doc__ = DOC_INSERT_OBJECT
-		elif func.__name__.endswith("_updateObject"):
-			func.__doc__ = DOC_UPDATE_OBJECT
-		elif func.__name__.endswith("_createObjects"):
-			func.__doc__ = DOC_CREATE_OBJECTS
-		elif func.__name__.endswith("_updateObjects"):
-			func.__doc__ = DOC_UPDATE_OBJECTS
-		elif func.__name__.endswith("_getObjects"):
-			func.__doc__ = DOC_GET_OBJECTS
-		elif func.__name__.endswith("_getHashes"):
-			func.__doc__ = DOC_GET_HASHES
-		elif func.__name__.endswith("_getIdents"):
-			func.__doc__ = DOC_GET_IDENTS
-		elif func.__name__.endswith("_deleteObjects"):
-			func.__doc__ = DOC_DELETE_OBJECTS
-		elif func.__name__.endswith("_delete"):
-			func.__doc__ = DOC_DELETE
-	setattr(func, "rpc_method", True)
-	return func
+@dataclass(slots=True)
+class MethodInterface:  # pylint: disable=too-many-instance-attributes
+	name: str
+	params: list[str]
+	args: list[str]
+	varargs: str | None
+	keywords: str | None
+	defaults: tuple[Any, ...] | None
+	deprecated: bool
+	alternative_method: str | None
+	doc: str | None
+	annotations: dict[str, str]
+
+	def as_dict(self) -> dict[str, Any]:
+		return asdict(self)
 
 
-def deprecated_rpc_method(func: Callable = None, *, alternative_method: str = None) -> Callable:
+def get_method_interface(  # pylint: disable=too-many-locals
+	func: Callable, deprecated: bool = False, alternative_method: str | None = None
+) -> MethodInterface:
+	spec = getfullargspec(func)
+	sig = signature(func)
+	args = spec.args
+	defaults = spec.defaults
+	params = [arg for arg in args if arg != "self"]  # pylint: disable=loop-invariant-statement
+	annotations = {}
+	for param in params:
+		str_param = str(sig.parameters[param])
+		if ": " in str_param:
+			annotations[param] = str_param.split(": ", 1)[1].split(" = ", 1)[0]
+
+	if defaults is not None:
+		offset = len(params) - len(defaults)
+		for i in range(len(defaults)):
+			index = offset + i
+			params[index] = f"*{params[index]}"
+
+	for index, element in enumerate((spec.varargs, spec.varkw), start=1):
+		if element:
+			stars = "*" * index
+			params.extend([f"{stars}{arg}" for arg in (element if isinstance(element, list) else [element])])
+
+	doc = func.__doc__
+	if doc:
+		doc = dedent(doc).lstrip() or None
+
+	return MethodInterface(
+		name=func.__name__,
+		params=params,
+		args=args,
+		varargs=spec.varargs,
+		keywords=spec.varkw,
+		defaults=defaults,
+		deprecated=deprecated,
+		alternative_method=alternative_method,
+		doc=doc,
+		annotations=annotations,
+	)
+
+
+def rpc_method(
+	func: Callable = None, /, *, check_acl: bool | str = True, deprecated: bool = False, alternative_method: str | None = None
+) -> Callable:
+	def decorator(func: Callable) -> Callable:
+
+		if not func.__doc__:
+			if func.__name__.endswith("_insertObject"):
+				func.__doc__ = DOC_INSERT_OBJECT
+			elif func.__name__.endswith("_updateObject"):
+				func.__doc__ = DOC_UPDATE_OBJECT
+			elif func.__name__.endswith("_createObjects"):
+				func.__doc__ = DOC_CREATE_OBJECTS
+			elif func.__name__.endswith("_updateObjects"):
+				func.__doc__ = DOC_UPDATE_OBJECTS
+			elif func.__name__.endswith("_getObjects"):
+				func.__doc__ = DOC_GET_OBJECTS
+			elif func.__name__.endswith("_getHashes"):
+				func.__doc__ = DOC_GET_HASHES
+			elif func.__name__.endswith("_getIdents"):
+				func.__doc__ = DOC_GET_IDENTS
+			elif func.__name__.endswith("_deleteObjects"):
+				func.__doc__ = DOC_DELETE_OBJECTS
+			elif func.__name__.endswith("_delete"):
+				func.__doc__ = DOC_DELETE
+
+		@wraps(func)
+		def wrapper(*args: Any, **kwargs: Any) -> Any:
+			check_name = check_acl if isinstance(check_acl, str) else func.__name__
+			args[0]._get_ace(check_name)  # pylint: disable=protected-access
+			return func(*args, **kwargs)
+
+		ret = wrapper if check_acl else func
+		setattr(ret, "rpc_interface", get_method_interface(func, deprecated=deprecated, alternative_method=alternative_method))
+		return ret
+
 	if func is None:
-		return partial(deprecated, alternative_method=alternative_method)
+		# Called as @rpc_method() with parens
+		return decorator
 
-	setattr(func, "rpc_method", True)
-	setattr(func, "deprecated", True)
-	setattr(func, "alternative_method", alternative_method)
-	return func
-
-
-deprecated = deprecated_rpc_method
+	# Called as @rpc_method without parens
+	return decorator(func)
 
 
 def backend_event(event: str) -> Callable:

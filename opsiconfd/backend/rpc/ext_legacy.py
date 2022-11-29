@@ -61,7 +61,7 @@ from opsicommon.types import (  # type: ignore[import]
 
 from opsiconfd.logging import logger
 
-from . import deprecated_rpc_method, rpc_method
+from . import rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
@@ -121,41 +121,41 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		return result
 
-	@deprecated_rpc_method(alternative_method="backend_exit")
+	@rpc_method(deprecated=True, alternative_method="backend_exit")
 	def exit(self: BackendProtocol) -> None:
 		self.backend_exit()
 
-	@deprecated_rpc_method(alternative_method="log_write")
+	@rpc_method(deprecated=True, alternative_method="log_write")
 	def writeLog(  # pylint: disable=invalid-name
 		self: BackendProtocol, type: str, data: str, objectId: str = None, append: bool = True  # pylint: disable=redefined-builtin
 	) -> None:
 		self.log_write(logType=type, data=data, objectId=objectId, append=append)
 
-	@deprecated_rpc_method(alternative_method="log_read")
+	@rpc_method(deprecated=True, alternative_method="log_read")
 	def readLog(  # pylint: disable=invalid-name
 		self: BackendProtocol, type: str, objectId: str = None, maxSize: int = 0  # pylint: disable=redefined-builtin
 	) -> str:
 		return self.log_read(logType=type, objectId=objectId, maxSize=maxSize)
 
-	@deprecated_rpc_method(alternative_method="backend_info")
+	@rpc_method(deprecated=True, alternative_method="backend_info")
 	def getOpsiInformation_hash(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
 		return self.backend_info()
 
-	@deprecated_rpc_method(alternative_method="dispatcher_getConfig")
+	@rpc_method(deprecated=True, alternative_method="dispatcher_getConfig")
 	def getBackendInfos_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
 		return [{}]
 
-	@deprecated_rpc_method(alternative_method="backend_getInterface")
+	@rpc_method(deprecated=True, alternative_method="backend_getInterface")
 	def getPossibleMethods_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
 		possible_methods = []
 		for method in self.backend_getInterface():
 			compatible = True
-			for param in method["params"]:
+			for param in method.params:
 				if param.startswith("**"):
 					compatible = False
 					break
 			if compatible:
-				possible_methods.append({"name": method["name"], "params": method["params"]})
+				possible_methods.append({"name": method.name, "params": method.params})
 		return possible_methods
 
 	@rpc_method
@@ -164,7 +164,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			return True
 		raise BackendAuthenticationError("Not authenticated")
 
-	@deprecated_rpc_method(alternative_method="configState_getObjects")
+	@rpc_method(deprecated=True, alternative_method="configState_getObjects")
 	def getGeneralConfig_hash(self: BackendProtocol, objectId: str = None) -> Dict[str, str]:  # pylint: disable=invalid-name
 		if objectId:
 			objectId = forceFqdn(objectId)
@@ -178,11 +178,11 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			}
 		return {config.id: ",".join([str(v) for v in config.defaultValues]) for config in self.config_getObjects()}
 
-	@deprecated_rpc_method(alternative_method="configState_getObjects")
+	@rpc_method(deprecated=True, alternative_method="configState_getObjects")
 	def getGeneralConfigValue(self: BackendProtocol, key: str, objectId: str = None) -> str:  # pylint: disable=invalid-name
 		return self.getGeneralConfig_hash(objectId=objectId).get(key)
 
-	@deprecated_rpc_method(alternative_method="configState_create")
+	@rpc_method(deprecated=True, alternative_method="configState_create")
 	def setGeneralConfig(self: BackendProtocol, config: Dict[str, str], objectId: str = None) -> None:  # pylint: disable=invalid-name
 		if objectId:
 			objectId = forceFqdn(objectId)
@@ -221,23 +221,23 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self.config_createObjects(get_new_configs())
 		self.configState_createObjects(get_new_config_states())
 
-	@deprecated_rpc_method(alternative_method="configState_create")
+	@rpc_method(deprecated=True, alternative_method="configState_create")
 	def setGeneralConfigValue(self: BackendProtocol, key: str, value: str, objectId: str = None) -> None:  # pylint: disable=invalid-name
 		general_config = self.getGeneralConfig_hash(objectId=objectId)
 		general_config[key] = value
 		return self.setGeneralConfig(general_config, objectId=objectId)
 
-	@deprecated_rpc_method(alternative_method="configState_delete")
+	@rpc_method(deprecated=True, alternative_method="configState_delete")
 	def deleteGeneralConfig(self: BackendProtocol, objectId: str) -> None:  # pylint: disable=invalid-name
 		return self.configState_delete(configId=[], objectId=forceObjectId(objectId))
 
-	@deprecated_rpc_method(alternative_method="configState_create")
+	@rpc_method(deprecated=True, alternative_method="configState_create")
 	def setNetworkConfig(self: BackendProtocol, config: Dict[str, str], objectId: str = None) -> None:  # pylint: disable=invalid-name
 		if objectId and "depotId" in config:
 			return self.setGeneralConfigValue("clientconfig.depot.id", config["depotId"], objectId)
 		raise NotImplementedError("Please use general config to change values")
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getNetworkConfig_hash(self: BackendProtocol, objectId: str = None) -> Dict[str, str]:  # pylint: disable=invalid-name
 		config_server_idents = self.host_getIdents(type="OpsiConfigserver", returnType="unicode")
 		if not config_server_idents:
@@ -266,7 +266,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			"winDomain": self.getGeneralConfigValue("clientconfig.windows.domain", objectId=objectId),
 		}
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getNetworkConfigValue(self: BackendProtocol, key: str, objectId: str = None) -> str:  # pylint: disable=invalid-name
 		return self.getNetworkConfig_hash(objectId).get(key)
 
@@ -319,11 +319,11 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			raise ValueError("Hostname required")
 		return f"{hostname}.{self.getDomain()}"
 
-	@deprecated_rpc_method(alternative_method="hostControl_start")
+	@rpc_method(deprecated=True, alternative_method="hostControl_start")
 	def powerOnHost(self: BackendProtocol, hostId: str) -> Dict[str, Any]:  # pylint: disable=invalid-name
 		return self.hostControl_start(hostId)
 
-	@deprecated_rpc_method(alternative_method="host_getObjects")
+	@rpc_method(deprecated=True, alternative_method="host_getObjects")
 	def getIpAddress(self: BackendProtocol, hostId: str) -> str:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		hosts = self.host_getObjects(attributes=["ipAddress"], id=hostId)
@@ -331,7 +331,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			raise BackendMissingDataError(f"Host {hostId!r} not found")
 		return hosts[0].getIpAddress() or ""
 
-	@deprecated_rpc_method(alternative_method="host_createOpsiClient")
+	@rpc_method(deprecated=True, alternative_method="host_createOpsiClient")
 	def createClient(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		clientName: str,
@@ -366,7 +366,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		hosts[0].setNotes(notes)
 		self.host_updateObject(hosts[0])
 
-	@deprecated_rpc_method(alternative_method="auditSoftwareOnClient_getObjects")
+	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects")
 	def getSoftwareInformation_hash(self: BackendProtocol, hostId: str) -> dict:  # pylint: disable=invalid-name
 		audit_softwares: Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, AuditSoftware]]]]] = defaultdict(
 			lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
@@ -411,7 +411,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		result["SCANPROPERTIES"] = {"scantime": time.strftime("%Y-%m-%d %H:%M:%S", scantime)}
 		return result
 
-	@deprecated_rpc_method(alternative_method="auditSoftwareOnClient_getObjects")
+	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects")
 	def getSoftwareInformation_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
 		result = []
 		for audit_software in self.auditSoftware_getObjects():
@@ -442,7 +442,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			result.append(_hash)
 		return result
 
-	@deprecated_rpc_method(alternative_method="auditSoftwareOnClient_updateObjects")
+	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_updateObjects")
 	def setSoftwareInformation(self: BackendProtocol, hostId: str, info: dict) -> None:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		self.auditSoftwareOnClient_delete(name=[], version=[], subVersion=[], language=[], architecture=[], clientId=hostId)
@@ -492,16 +492,16 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			self.auditSoftware_createObjects(AuditSoftware.fromHash(audit_software))
 			self.auditSoftwareOnClient_createObjects(AuditSoftwareOnClient.fromHash(audit_software_on_client))
 
-	@deprecated_rpc_method(alternative_method="auditSoftwareOnClient_delete")
+	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_delete")
 	def deleteSoftwareInformation(self: BackendProtocol, hostId: str) -> None:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		self.auditSoftwareOnClient_delete(clientId=hostId)
 
-	@deprecated_rpc_method(alternative_method="auditHardware_getConfig")
+	@rpc_method(deprecated=True, alternative_method="auditHardware_getConfig")
 	def getOpsiHWAuditConf(self: BackendProtocol, locale: str = None) -> list:  # pylint: disable=invalid-name
 		return self.auditHardware_getConfig(locale)
 
-	@deprecated_rpc_method(alternative_method="auditHardwareOnHost_getObjects")
+	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_getObjects")
 	def getHardwareInformation_hash(self: BackendProtocol, hostId: str) -> dict:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		info: Dict[str, List[Dict[str, Any]]] = {}
@@ -520,7 +520,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		info["SCANPROPERTIES"] = [{"scantime": time.strftime("%Y-%m-%d %H:%M:%S", scantime)}]
 		return info
 
-	@deprecated_rpc_method(alternative_method="auditHardwareOnHost_updateObjects")
+	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_updateObjects")
 	def setHardwareInformation(self: BackendProtocol, hostId: str, info: dict) -> None:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		self.auditHardwareOnHost_setObsolete(hostId)
@@ -536,7 +536,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				audit_hardware_on_hosts.append(AuditHardwareOnHost.fromHash(data))
 		self.auditHardwareOnHost_updateObjects(audit_hardware_on_hosts)
 
-	@deprecated_rpc_method(alternative_method="auditHardwareOnHost_delete")
+	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_delete")
 	def deleteHardwareInformation(self: BackendProtocol, hostId: str) -> None:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		self.auditHardwareOnHost_delete(hostId=hostId, hardwareClass=[])
@@ -561,7 +561,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		del _hash["id"]
 		return self._hash_values_none_to_empty_string(_hash)
 
-	@deprecated_rpc_method(alternative_method="host_getIdents")
+	@rpc_method(deprecated=True, alternative_method="host_getIdents")
 	def getClientIdByMac(self: BackendProtocol, mac: str) -> str:  # pylint: disable=invalid-name
 		hosts = self.host_getObjects(attributes=["id"], type="OpsiClient", hardwareAddress=forceHardwareAddress(mac))
 		if not hosts:
@@ -576,7 +576,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	def getServerId(self: BackendProtocol, clientId: str) -> str:  # pylint: disable=invalid-name
 		return self.host_getIdents(type="OpsiConfigserver")[0]
 
-	@deprecated_rpc_method(alternative_method="host_createOpsiDepotserver")
+	@rpc_method(deprecated=True, alternative_method="host_createOpsiDepotserver")
 	def createDepot(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		depotName: str,
@@ -654,7 +654,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		hosts[0].setOpsiHostKey(opsiHostKey)
 		self.host_updateObject(hosts[0])
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getMacAddresses_list(self: BackendProtocol, hostId: str) -> List[str]:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		hosts = self.host_getObjects(id=hostId)
@@ -664,7 +664,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			return [""]
 		return [hosts[0].hardwareAddress]
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def setMacAddresses(self: BackendProtocol, hostId: str, macs: List[str]) -> None:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		hosts = self.host_getObjects(id=hostId)
@@ -673,11 +673,11 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		hosts[0].setHardwareAddress(macs[0])
 		self.host_updateObject(hosts[0])
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getMacAddress(self: BackendProtocol, hostId: str) -> str:  # pylint: disable=invalid-name
 		return self.getMacAddresses_list(hostId)[0]
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def setMacAddress(self: BackendProtocol, hostId: str, mac: str) -> None:  # pylint: disable=invalid-name
 		self.setMacAddresses(hostId, macs=[mac])
 
@@ -1171,7 +1171,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		return result
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getProductActionRequests_listOfHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, clientId: str, options: dict = None
 	) -> List[dict]:
@@ -1190,25 +1190,25 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	def unsetProductActionRequest(self: BackendProtocol, productId: str, clientId: str) -> None:  # pylint: disable=invalid-name
 		self.setProductActionRequest(productId=productId, clientId=clientId, actionRequest="none")
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getLocalBootProductStates_hash(  # pylint: disable=invalid-name
 		self: BackendProtocol, objectIds: List[str] = None, options: dict = None
 	) -> Dict[str, list]:
 		return self._get_product_states_hash(client_ids=objectIds, product_type="LocalbootProduct")
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getNetBootProductStates_hash(  # pylint: disable=invalid-name
 		self: BackendProtocol, objectIds: List[str] = None, options: dict = None
 	) -> Dict[str, list]:
 		return self._get_product_states_hash(client_ids=objectIds, product_type="NetbootProduct")
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getProductStates_hash(  # pylint: disable=invalid-name
 		self: BackendProtocol, objectIds: List[str] = None, options: dict = None
 	) -> Dict[str, list]:
 		return self._get_product_states_hash(client_ids=objectIds)
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getProductPropertyDefinitions_hash(  # pylint: disable=invalid-name,too-many-branches
 		self: BackendProtocol, depotId: str = None
 	) -> Dict[str, List[Dict[str, Any]]]:
@@ -1270,7 +1270,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				)
 		return result
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getProductPropertyDefinitions_listOfHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, depotId: str = None
 	) -> List[dict]:
@@ -2058,7 +2058,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 		return license_key
 
-	@deprecated_rpc_method
+	@rpc_method(deprecated=True)
 	def getLicenseKey(self: BackendProtocol, productId: str, clientId: str) -> str:  # pylint: disable=invalid-name
 		"""
 		Returns an unused licensekey if available or

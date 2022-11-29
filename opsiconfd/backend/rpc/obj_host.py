@@ -47,54 +47,54 @@ if TYPE_CHECKING:
 
 
 class RPCHostMixin(Protocol):
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_insertObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_insertObject")
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		self.dhcpd_control_hosts_updated(host)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_updateObject(self: BackendProtocol, host: dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObject")
 		self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=False, set_null=False)
 		self.dhcpd_control_hosts_updated(host)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_createObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_createObjects")
 		for host in forceList(hosts):
 			self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
 		self.dhcpd_control_hosts_updated(hosts)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_updateObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObjects")
 		for host in forceList(hosts):
 			self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False)
 		self.dhcpd_control_hosts_updated(hosts)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[Host]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(
 			table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter
 		)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(
 			table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter
 		)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
 	) -> List[str] | List[dict] | List[list] | List[tuple]:
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_idents(table="HOST", object_type=Host, ace=ace, ident_type=returnType, filter=filter)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_deleteObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_deleteObjects")
 		query, params, idents = self._mysql.delete_query(table="HOST", object_type=Host, obj=hosts, ace=ace)
@@ -106,11 +106,11 @@ class RPCHostMixin(Protocol):
 					session.execute(f"DELETE FROM `{table}` WHERE hostId IN :host_ids", params={"host_ids": host_ids})
 		self.dhcpd_control_hosts_deleted(hosts)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
 		self.host_deleteObjects([{"id": id}])
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_createOpsiClient(  # pylint: disable=too-many-arguments,invalid-name
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
@@ -128,7 +128,7 @@ class RPCHostMixin(Protocol):
 		del _hash["self"]
 		self.host_createObjects([OpsiClient.fromHash(_hash)])
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_createOpsiDepotserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
@@ -154,7 +154,7 @@ class RPCHostMixin(Protocol):
 		del _hash["self"]
 		self.host_createObjects([OpsiDepotserver.fromHash(_hash)])
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_createOpsiConfigserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
@@ -180,7 +180,7 @@ class RPCHostMixin(Protocol):
 		del _hash["self"]
 		self.host_createObjects([OpsiConfigserver.fromHash(_hash)])
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_getTLSCertificate(self: BackendProtocol, hostId: str) -> str:  # pylint: disable=invalid-name,too-many-locals
 		session = contextvar_client_session.get()
 		if not session:
@@ -227,7 +227,7 @@ class RPCHostMixin(Protocol):
 		)
 		return as_pem(key) + as_pem(cert)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_renameOpsiClient(  # pylint: disable=redefined-builtin,invalid-name,too-many-locals,too-many-branches,too-many-statements
 		self: BackendProtocol, id: str, newId: str
 	) -> None:
@@ -325,7 +325,7 @@ class RPCHostMixin(Protocol):
 			logger.info("Updating software licenses...")
 			self.softwareLicense_createObjects(software_licenses)
 
-	@rpc_method
+	@rpc_method(check_acl=False)
 	def host_renameOpsiDepotserver(self: BackendProtocol, oldId: str, newId: str) -> None:  # pylint: disable=invalid-name,too-many-branches,too-many-statements,too-many-locals
 		"""
 		Rename OpsiDepotserver with id `oldId` to `newId`.

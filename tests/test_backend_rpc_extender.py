@@ -8,7 +8,7 @@
 test opsiconfd.backend.rpc.extender
 """
 
-from datetime import datetime
+from inspect import getmembers, ismethod
 from pathlib import Path
 
 from opsiconfd.backend.rpc.extender import RPCExtenderMixin
@@ -17,7 +17,12 @@ from .utils import get_config  # pylint: disable=unused-import
 
 
 class Backend(RPCExtenderMixin):  # pylint: disable=too-few-public-methods
-	pass
+	def __init__(self) -> None:
+		super().__init__()
+		self.ace_called: list[str] = []
+
+	def _get_ace(self, method: str) -> None:
+		self.ace_called.append(method)
 
 
 def test_extender_loading(tmp_path: Path) -> None:
@@ -29,11 +34,13 @@ def test_extender_loading(tmp_path: Path) -> None:
 	with get_config({"extension_config_dir": str(tmp_path)}):
 		extender = Backend()
 		count_rpc_methods = 0
-		for val in extender.__dict__.values():
-			if hasattr(val, "rpc_method"):
+		for _, function in getmembers(extender, ismethod):
+			if hasattr(function, "rpc_interface"):
 				count_rpc_methods += 1
 		assert count_rpc_methods == 3
 
 		assert extender.extend1() == 1  # type: ignore[attr-defined]  # pylint: disable=no-member
 		assert extender.extend2("a") == 2  # type: ignore[attr-defined]  # pylint: disable=no-member
 		assert extender.extend3("b") == 3  # type: ignore[attr-defined]  # pylint: disable=no-member
+
+		assert extender.ace_called == ["extend1", "extend2", "extend3"]

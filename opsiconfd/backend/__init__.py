@@ -27,8 +27,8 @@ def get_protected_backend() -> ProtectedBackend:
 
 
 def get_unprotected_backend() -> UnprotectedBackend:
-	from .rpc.opsiconfd import (
-		UnprotectedBackend,  # pylint: disable=import-outside-toplevel
+	from .rpc.opsiconfd import (  # pylint: disable=import-outside-toplevel
+		UnprotectedBackend,
 	)
 
 	return UnprotectedBackend()

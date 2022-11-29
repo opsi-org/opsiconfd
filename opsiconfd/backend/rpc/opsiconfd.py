@@ -131,7 +131,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			base.__init__(self)  # type: ignore[misc]
 
 		self._interface: dict[str, MethodInterface] = describe_interface(self)
-		self._interface_list: list[MethodInterface] = [self._interface[name] for name in sorted(list(self._interface.keys()))]
+		self._interface_list: list[dict[str, Any]] = [self._interface[name].as_dict() for name in sorted(list(self._interface.keys()))]
 		self.available_modules = self.get_licensing_info()["available_modules"]  # type: ignore[misc]
 
 		hosts = self._mysql.get_objects(
@@ -201,7 +201,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 	def get_method_interface(self, method: str) -> MethodInterface | None:
 		return self._interface.get(method)
 
-	def get_interface(self) -> List[MethodInterface]:
+	def get_interface(self) -> list[Dict[str, Any]]:
 		return self._interface_list
 
 	async def async_call(self, method: str, **kwargs: Any) -> Any:

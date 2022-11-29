@@ -61,7 +61,7 @@ from opsicommon.types import (  # type: ignore[import]
 
 from opsiconfd.logging import logger
 
-from . import deprecated_rpc_method, rpc_method
+from . import rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
@@ -150,12 +150,12 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		possible_methods = []
 		for method in self.backend_getInterface():
 			compatible = True
-			for param in method["params"]:
+			for param in method.params:
 				if param.startswith("**"):
 					compatible = False
 					break
 			if compatible:
-				possible_methods.append({"name": method["name"], "params": method["params"]})
+				possible_methods.append({"name": method.name, "params": method.params})
 		return possible_methods
 
 	@rpc_method

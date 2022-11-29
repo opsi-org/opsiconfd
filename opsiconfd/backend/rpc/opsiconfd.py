@@ -10,8 +10,7 @@ opsiconfd backend interface
 
 from __future__ import annotations
 
-from inspect import getfullargspec, getmembers, ismethod, signature
-from textwrap import dedent
+from inspect import getmembers, ismethod
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
@@ -83,7 +82,7 @@ def describe_interface(instance: Any) -> Dict[str, MethodInterface]:  # pylint: 
 	"""
 	methods = {}
 	for _, function in getmembers(instance, ismethod):
-		rpc_interface: MethodInterface | None = getattr(function, "rpc_interface", None)
+		rpc_interface: MethodInterface | None = getattr(function, "rpc_interface", None)  # pylint: disable=loop-invariant-statement
 		if rpc_interface:  # pylint: disable=loop-invariant-statement
 			methods[rpc_interface.name] = rpc_interface  # pylint: disable=loop-invariant-statement
 	return methods
@@ -131,9 +130,9 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		for base in self.__class__.__bases__:
 			base.__init__(self)  # type: ignore[misc]
 
-		self._interface = describe_interface(self)
-		self._interface_list = [self._interface[name] for name in sorted(list(self._interface.keys()))]
-		self.available_modules = self.get_licensing_info()["available_modules"]
+		self._interface: dict[str, MethodInterface] = describe_interface(self)
+		self._interface_list: list[MethodInterface] = [self._interface[name] for name in sorted(list(self._interface.keys()))]
+		self.available_modules = self.get_licensing_info()["available_modules"]  # type: ignore[misc]
 
 		hosts = self._mysql.get_objects(
 			table="HOST",
@@ -202,7 +201,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 	def get_method_interface(self, method: str) -> MethodInterface | None:
 		return self._interface.get(method)
 
-	def get_interface(self) -> List[Dict[str, MethodInterface]]:
+	def get_interface(self) -> List[MethodInterface]:
 		return self._interface_list
 
 	async def async_call(self, method: str, **kwargs: Any) -> Any:

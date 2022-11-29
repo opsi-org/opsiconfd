@@ -10,10 +10,9 @@ backend.rpc
 
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from functools import wraps
-from inspect import getfullargspec, getmembers, ismethod, signature
+from inspect import getfullargspec, signature
 from textwrap import dedent
 from typing import Any, Callable, Dict, List
 
@@ -71,6 +70,9 @@ class MethodInterface:  # pylint: disable=too-many-instance-attributes
 	alternative_method: str | None
 	doc: str | None
 	annotations: dict[str, str]
+
+	def as_dict(self) -> dict[str, Any]:
+		return asdict(self)
 
 
 def get_method_interface(  # pylint: disable=too-many-locals

@@ -67,7 +67,7 @@ from opsiconfd.config import (
 from opsiconfd.logging import logger
 from opsiconfd.ssl import get_ca_cert_as_pem
 
-from . import deprecated_rpc_method, rpc_method
+from . import rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol

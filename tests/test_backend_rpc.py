@@ -11,7 +11,6 @@ test backend.rpc
 from typing import Any
 
 from opsiconfd.backend.rpc import DOC_INSERT_OBJECT, rpc_method
-from opsiconfd.backend.rpc.opsiconfd import describe_interface
 
 
 def test_rpc_method_decorator() -> None:

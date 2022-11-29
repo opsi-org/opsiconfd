@@ -188,7 +188,6 @@ def test_upgrade_config_files(tmp_path):
 		data = re.sub(r"^#.*\n?", "", data, flags=re.MULTILINE)
 		assert data == (
 			"backend-config-dir = /backend/config/dir\n"
-			"dispatch-config-file = /dispatch/config/file\n"
 			"extension-config-dir = /extension/config/dir\n"
 			"acl-file = /acl/file\n"
 			"admin-networks = 10.10.0.0/16\n"
@@ -205,7 +204,6 @@ def test_upgrade_config_files(tmp_path):
 			"\n"
 		)
 		assert conf.backend_config_dir == "/backend/config/dir"
-		assert conf.dispatch_config_file == "/dispatch/config/file"
 		assert conf.extension_config_dir == "/extension/config/dir"
 		assert conf.acl_file == "/acl/file"
 		assert conf.admin_networks == ["10.10.0.0/16"]

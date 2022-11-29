@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol, Tuple
 
-from opsicommon.objects import Config  # type: ignore[import]
+from opsicommon.objects import BoolConfig, Config, UnicodeConfig  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
 
 from ..auth import RPCACE
@@ -100,6 +100,42 @@ class RPCConfigMixin(Protocol):
 		# CONFIG_VALUE will be deleted by CASCADE
 		ace = self._get_ace("config_deleteObjects")
 		self._mysql.delete_query(table="CONFIG", object_type=Config, obj=configs, ace=ace)
+
+	@rpc_method
+	def config_create(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		id: str,  # pylint: disable=redefined-builtin,unused-argument
+		description: str = None,
+		possibleValues: list = None,
+		defaultValues: list = None,
+		editable: bool = None,
+		multiValue: bool = None,
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.config_createObjects(Config.fromHash(_hash))
+
+	@rpc_method
+	def config_createUnicode(  # pylint: disable=too-many-arguments,invalid-name
+		self: BackendProtocol,
+		id: str,  # pylint: disable=redefined-builtin
+		description: str = None,
+		possibleValues: list[str] = None,
+		defaultValues: list[str] = None,
+		editable: bool = None,
+		multiValue: bool = None,
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.config_createObjects(UnicodeConfig.fromHash(_hash))
+
+	@rpc_method
+	def config_createBool(  # pylint: disable=invalid-name
+		self: BackendProtocol, id: str, description: str = None, defaultValues: list[bool] = None  # pylint: disable=redefined-builtin
+	) -> None:
+		_hash = locals()
+		del _hash["self"]
+		self.config_createObjects(BoolConfig.fromHash(_hash))
 
 	@rpc_method
 	def config_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name

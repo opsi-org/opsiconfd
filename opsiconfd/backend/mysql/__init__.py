@@ -478,7 +478,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					pass
 				except JSONDecodeError as err:
 					logger.warning(err)
-		return object_type.from_hash(data)  # type: ignore
+		return object_type.fromHash(data)  # type: ignore
 
 	def get_allowed_client_ids(self, ace: List[RPCACE]) -> List[str] | None:
 		allowed_client_ids: List[str] | None = None

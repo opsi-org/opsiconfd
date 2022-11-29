@@ -177,7 +177,7 @@ def test_get_rpc_list_request(test_client: OpsiconfdTestClient) -> None:  # pyli
 		call_rpc(
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
 		)
-
+	time.sleep(2)
 	response = test_client.get("/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	result = response.json()

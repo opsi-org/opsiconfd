@@ -85,6 +85,9 @@ def test_config_insertObject(  # pylint: disable=invalid-name
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
+	config1.setDefaults()
+	config2.setDefaults()
+
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_getObjects", "params": [None, {"id": [config1.id, config2.id]}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res

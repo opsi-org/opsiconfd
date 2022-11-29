@@ -54,7 +54,7 @@ def test_request(test_client):  # pylint: disable=redefined-outer-name
 	result = res.json()
 	assert result["id"] == rpc["id"]
 	assert result["error"] is None
-	assert result["result"] == []
+	assert result["result"] is None
 
 	rpc = {"id": 12346, "method": "host_getObjects", "params": [[], {"id": client.id}]}
 	res = test_client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
@@ -80,7 +80,7 @@ def test_multi_request(test_client):  # pylint: disable=redefined-outer-name
 	for res in result:
 		assert res["id"] in (rpc[0]["id"], rpc[1]["id"])  # pylint: disable=loop-invariant-statement
 		assert res["error"] is None
-		assert res["result"] == []
+		assert res["result"] is None
 
 
 def test_incomplete_request(test_client):  # pylint: disable=redefined-outer-name

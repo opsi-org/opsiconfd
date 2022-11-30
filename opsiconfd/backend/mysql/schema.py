@@ -893,6 +893,41 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			f_keys=["productId", "productVersion", "packageVersion"],
 		)
 
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			table="OBJECT_TO_GROUP",
+			ref_table="GROUP",
+			f_keys=["groupType", "groupId"],
+			ref_keys=["type", "groupId"],
+		)
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			table="AUDIT_SOFTWARE_TO_LICENSE_POOL",
+			ref_table="LICENSE_POOL",
+			f_keys=["licensePoolId"],
+		)
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			table="LICENSE_ON_CLIENT",
+			ref_table="HOST",
+			f_keys=["clientId"],
+			ref_keys=["hostId"],
+		)
+
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			table="SOFTWARE_LICENSE",
+			ref_table="HOST",
+			f_keys=["boundToHost"],
+			ref_keys=["hostId"],
+		)
+
 		if "LOG_CONFIG_VALUE" in mysql.tables:
 			logger.notice("Dropping table LOG_CONFIG_VALUE")
 			session.execute("DROP TABLE IF EXISTS `LOG_CONFIG_VALUE`")

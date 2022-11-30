@@ -484,7 +484,9 @@ def remove_index(session: Session, database: str, table: str, index: str) -> Non
 
 
 # TODO update rule
-def create_foreign_key(session: Session, database: str, table: str, ref_table: str, f_keys: list[str], ref_keys: list[str] = None) -> None:
+def create_foreign_key(  # pylint: disable=too-many-arguments
+	session: Session, database: str, table: str, ref_table: str, f_keys: list[str], ref_keys: list[str] = None
+) -> None:
 	keys = ",".join([f"`{k}`" for k in f_keys])
 	if ref_keys:
 		refs = ",".join([f"`{k}`" for k in ref_keys])

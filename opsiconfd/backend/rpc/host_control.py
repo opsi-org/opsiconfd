@@ -123,10 +123,12 @@ class ConnectionThread(KillableThread):
 		try:
 			sock = socket(AF_INET, SOCK_STREAM)
 			sock.settimeout(timeout)
-			sock.connect((self.address, self.opsiclientd_port))
-			self.result = True
-			sock.shutdown(SHUT_RDWR)
-			sock.close()
+			try:
+				sock.connect((self.address, self.opsiclientd_port))
+				self.result = True
+				sock.shutdown(SHUT_RDWR)
+			finally:
+				sock.close()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.info(err, exc_info=True)
 		self.ended = time.time()
@@ -453,7 +455,7 @@ class RPCHostControlMixin(Protocol):
 		timeout = forceInt(timeout)
 
 		result = {}
-		threads = []
+		threads: list[ConnectionThread] = []
 		for host in self.host_getObjects(id=hostIds):
 			try:  # pylint: disable=loop-try-except-usage
 				address = self._get_host_address(host)
@@ -471,16 +473,16 @@ class RPCHostControlMixin(Protocol):
 
 		running_threads = 0
 		while threads:  # pylint: disable=too-many-nested-blocks
-			newThreads = []
+			new_threads = []
 			for thread in threads:
 				if thread.ended:
-					result[thread.hostId] = thread.result
+					result[thread.host_id] = thread.result
 					running_threads -= 1
 					continue
 
 				if not thread.started:
 					if running_threads < self._host_control_max_connections:
-						logger.debug("Trying to check host reachable %s", thread.hostId)
+						logger.debug("Trying to check host reachable %s", thread.host_id)
 						thread.start()
 						running_threads += 1
 				else:
@@ -489,11 +491,11 @@ class RPCHostControlMixin(Protocol):
 						# thread still alive 5 seconds after timeout => kill
 						logger.error(
 							"Reachable check to host %s address %s timed out after %0.2f seconds, terminating",
-							thread.hostId,
+							thread.host_id,
 							thread.address,
 							time_running,
 						)
-						result[thread.hostId] = False
+						result[thread.host_id] = False
 						if not thread.ended:
 							try:  # pylint: disable=loop-try-except-usage
 								thread.terminate()
@@ -501,8 +503,8 @@ class RPCHostControlMixin(Protocol):
 								logger.error("Failed to terminate reachable thread: %s", err)
 						running_threads -= 1
 						continue
-				newThreads.append(thread)
-			threads = newThreads
+				new_threads.append(thread)
+			threads = new_threads
 			time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
 		return result
 

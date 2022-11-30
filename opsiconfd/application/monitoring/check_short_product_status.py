@@ -50,17 +50,13 @@ def check_short_product_status(  # pylint: disable=too-many-statements, dangerou
 	critical_flt = float(remove_percent(critical))
 
 	logger.debug("Checking shortly the productStates on Clients")
-	config_server = backend._executeMethod(methodName="host_getObjects", type="OpsiConfigserver")[0]  # pylint: disable=protected-access
+	config_server = backend.host_getObjects(type="OpsiConfigserver")[0]  # pylint: disable=protected-access
 
-	for pod in backend._executeMethod(  # pylint: disable=protected-access
-		methodName="productOnDepot_getObjects", depotId=config_server.id, productId=product_id
-	):
+	for pod in backend.productOnDepot_getObjects(depotId=config_server.id, productId=product_id):
 		target_product_version = pod.productVersion
 		target_packacke_version = pod.packageVersion
 
-	product_on_clients = backend._executeMethod(  # pylint: disable=protected-access
-		methodName="productOnClient_getObjects", productId=product_id
-	)
+	product_on_clients = backend.productOnClient_getObjects(productId=product_id)
 	if not product_on_clients:
 		return generate_response(State.UNKNOWN, f"No ProductStates found for product '{product_id}'")
 

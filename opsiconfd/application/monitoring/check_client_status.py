@@ -26,7 +26,7 @@ def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, 
 	if not client_id:
 		raise Exception("Failed to check: ClientId is needed for checkClientStatus")
 
-	client_obj = backend._executeMethod("host_getObjects", id=client_id)  # pylint: disable=protected-access
+	client_obj = backend.host_getObjects(id=client_id)  # pylint: disable=protected-access
 
 	if not client_obj:
 		state = State.UNKNOWN
@@ -61,9 +61,7 @@ def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, 
 		else:
 			message += f"opsi-client {client_id} has been seen {delta.days} days before. "
 
-	failed_products = backend._executeMethod(  # pylint: disable=protected-access
-		methodName="productOnClient_getObjects", clientId=client_id, actionResult="failed"
-	)
+	failed_products = backend.productOnClient_getObjects(clientId=client_id, actionResult="failed")
 
 	if exclude_product_list:
 		products_to_exclude = set(forceProductIdList(exclude_product_list))
@@ -77,9 +75,7 @@ def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, 
 		products = [product.productId for product in failed_products]
 		message += f"Products: '{', '.join(products)}' are in failed state. "
 
-	action_products = backend._executeMethod(  # pylint: disable=protected-access
-		methodName="productOnClient_getObjects", clientId=client_id, actionRequest=["setup", "update", "uninstall"]
-	)
+	action_products = backend.productOnClient_getObjects(clientId=client_id, actionRequest=["setup", "update", "uninstall"])
 
 	action_products = [product for product in action_products if product.productId not in products_to_exclude]
 

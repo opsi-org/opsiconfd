@@ -483,6 +483,39 @@ def remove_index(session: Session, database: str, table: str, index: str) -> Non
 		session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
 
 
+# TODO update rule
+def create_foreign_key(session: Session, database: str, table: str, ref_table: str, f_keys: list[str], ref_keys: list[str] = None) -> None:
+	keys = ",".join([f"`{k}`" for k in f_keys])
+	if ref_keys:
+		refs = ",".join([f"`{k}`" for k in ref_keys])
+	else:
+		refs = keys
+	res = session.execute(
+		f"""
+		SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
+		INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
+		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+		WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = '{table}'
+		AND `t1`.`REFERENCED_TABLE_NAME` = '{ref_table}'
+		""",
+		params={"database": database},
+	).fetchone()
+	if not res or res[1] == "RESTRICT":
+		if res:
+			logger.notice(f"Removing foreign key to {ref_table} on table {table} with RESTRICT")
+			session.execute(f"ALTER TABLE `{table}` DROP FOREIGN KEY `{res[0]}`")
+
+		logger.notice(f"Creating foreign key to {ref_table} on table {table} with CASCADE")
+		session.execute(
+			f"""
+			ALTER TABLE `{table}` ADD
+			FOREIGN KEY ({keys})
+			REFERENCES `{ref_table}` ({refs})
+			ON UPDATE CASCADE ON DELETE CASCADE
+			"""
+		)
+
+
 def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	with mysql.session() as session:
 
@@ -556,55 +589,13 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				logger.notice("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
 
-		res = session.execute(
-			"""
-			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_ON_CLIENT'
-			AND `t1`.`REFERENCED_TABLE_NAME` = 'HOST'
-			""",
-			params={"database": mysql.database},
-		).fetchone()
-		if not res or res[1] == "RESTRICT":
-			if res:
-				logger.notice("Removing FK to HOST on table PRODUCT_ON_CLIENT with RESTRICT")
-				session.execute(f"ALTER TABLE `PRODUCT_ON_CLIENT` DROP FOREIGN KEY `{res[0]}`")
+		create_foreign_key(
+			session=session, database=mysql.database, table="PRODUCT_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"]
+		)
 
-			logger.notice("Creating FK to HOST on table PRODUCT_ON_CLIENT with CASCADE")
-			session.execute(
-				"""
-				ALTER TABLE `PRODUCT_ON_CLIENT` ADD
-				FOREIGN KEY (`clientId`)
-				REFERENCES `HOST` (`hostId`)
-				ON UPDATE CASCADE ON DELETE CASCADE
-				"""
-			)
-
-		res = session.execute(
-			"""
-			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_ON_DEPOT'
-			AND `t1`.`REFERENCED_TABLE_NAME` = 'HOST'
-			""",
-			params={"database": mysql.database},
-		).fetchone()
-		if not res or res[1] == "RESTRICT":
-			if res:
-				logger.notice("Removing FK to HOST on table PRODUCT_ON_DEPOT with RESTRICT")
-				session.execute(f"ALTER TABLE `PRODUCT_ON_DEPOT` DROP FOREIGN KEY `{res[0]}`")
-
-			logger.notice("Creating FK to HOST on table PRODUCT_ON_DEPOT with CASCADE")
-			session.execute(
-				"""
-				ALTER TABLE `PRODUCT_ON_DEPOT` ADD
-				FOREIGN KEY (`depotId`)
-				REFERENCES `HOST` (`hostId`)
-				ON UPDATE CASCADE ON DELETE CASCADE
-				"""
-			)
+		create_foreign_key(
+			session=session, database=mysql.database, table="PRODUCT_ON_DEPOT", ref_table="HOST", f_keys=["depotId"], ref_keys=["hostId"]
+		)
 
 		create_index(
 			session=session,
@@ -876,80 +867,54 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 					"""
 				)
 
-		res = session.execute(
-			"""
-			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_ON_DEPOT'
-			AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT'
-			""",
-			params={"database": mysql.database},
-		).fetchone()
-		if not res or res[1] == "RESTRICT":
-			if res:
-				logger.notice("Removing FK to PRODUCT on table PRODUCT_ON_DEPOT with RESTRICT")
-				session.execute(f"ALTER TABLE `PRODUCT_ON_DEPOT` DROP FOREIGN KEY `{res[0]}`")
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_ON_DEPOT",
+			ref_table="PRODUCT",
+			f_keys=["productId", "productVersion", "packageVersion"],
+		)
 
-			logger.notice("Creating FK to PRODUCT on table PRODUCT_ON_DEPOT with CASCADE")
-			session.execute(
-				"""
-				ALTER TABLE `PRODUCT_ON_DEPOT` ADD
-				FOREIGN KEY (`productId`,`productVersion`,`packageVersion`)
-				REFERENCES `PRODUCT` (`productId`,`productVersion`,`packageVersion`)
-				ON UPDATE CASCADE ON DELETE CASCADE
-				"""
-			)
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_PROPERTY",
+			ref_table="PRODUCT",
+			f_keys=["productId", "productVersion", "packageVersion"],
+		)
 
-		res = session.execute(
-			"""
-			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_PROPERTY'
-			AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT'
-			""",
-			params={"database": mysql.database},
-		).fetchone()
-		if not res or res[1] == "RESTRICT":
-			if res:
-				logger.notice("Removing FK to PRODUCT on table PRODUCT_PROPERTY with RESTRICT")
-				session.execute(f"ALTER TABLE `PRODUCT_PROPERTY` DROP FOREIGN KEY `{res[0]}`")
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			table="PRODUCT_DEPENDENCY",
+			ref_table="PRODUCT",
+			f_keys=["productId", "productVersion", "packageVersion"],
+		)
 
-			logger.notice("Creating FK to PRODUCT on table PRODUCT_PROPERTY with CASCADE")
-			session.execute(
-				"""
-				ALTER TABLE `PRODUCT_PROPERTY` ADD
-				FOREIGN KEY (`productId`,`productVersion`,`packageVersion`)
-				REFERENCES `PRODUCT` (`productId`,`productVersion`,`packageVersion`)
-				ON UPDATE CASCADE ON DELETE CASCADE
-				"""
-			)
+		# res = session.execute(
+		# 	"""
+		# 	SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
+		# 	INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
+		# 	ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
+		# 	WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_DEPENDENCY'
+		# 	AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT'
+		# 	""",
+		# 	params={"database": mysql.database},
+		# ).fetchone()
+		# if not res or res[1] == "RESTRICT":
+		# 	if res:
+		# 		logger.notice("Removing FK to PRODUCT on table PRODUCT_DEPENDENCY with RESTRICT")
+		# 		session.execute(f"ALTER TABLE `PRODUCT_DEPENDENCY` DROP FOREIGN KEY `{res[0]}`")
 
-		res = session.execute(
-			"""
-			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_DEPENDENCY'
-			AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT'
-			""",
-			params={"database": mysql.database},
-		).fetchone()
-		if not res or res[1] == "RESTRICT":
-			if res:
-				logger.notice("Removing FK to PRODUCT on table PRODUCT_DEPENDENCY with RESTRICT")
-				session.execute(f"ALTER TABLE `PRODUCT_DEPENDENCY` DROP FOREIGN KEY `{res[0]}`")
-
-			logger.notice("Creating FK to PRODUCT on table PRODUCT_DEPENDENCY with CASCADE")
-			session.execute(
-				"""
-				ALTER TABLE `PRODUCT_DEPENDENCY` ADD
-				FOREIGN KEY (`productId`,`productVersion`,`packageVersion`)
-				REFERENCES `PRODUCT` (`productId`,`productVersion`,`packageVersion`)
-				ON UPDATE CASCADE ON DELETE CASCADE
-				"""
-			)
+		# 	logger.notice("Creating FK to PRODUCT on table PRODUCT_DEPENDENCY with CASCADE")
+		# 	session.execute(
+		# 		"""
+		# 		ALTER TABLE `PRODUCT_DEPENDENCY` ADD
+		# 		FOREIGN KEY (`productId`,`productVersion`,`packageVersion`)
+		# 		REFERENCES `PRODUCT` (`productId`,`productVersion`,`packageVersion`)
+		# 		ON UPDATE CASCADE ON DELETE CASCADE
+		# 		"""
+		# 	)
 
 		if "LOG_CONFIG_VALUE" in mysql.tables:
 			logger.notice("Dropping table LOG_CONFIG_VALUE")

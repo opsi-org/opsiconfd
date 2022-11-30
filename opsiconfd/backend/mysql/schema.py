@@ -629,7 +629,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				logger.notice("Removing FK to PRODUCT_PROPERTY on table PRODUCT_PROPERTY_VALUE with RESTRICT")
 				session.execute(f"ALTER TABLE `PRODUCT_PROPERTY_VALUE` DROP FOREIGN KEY `{res[0]}`")
 
-			remove_orphans_product_property_value(session=session, dry_run=False)
+			remove_orphans_product_property_value(session=session)
 			logger.notice("Creating FK to PRODUCT_PROPERTY on table PRODUCT_PROPERTY_VALUE with CASCADE")
 			session.execute(
 				"""
@@ -651,7 +651,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			params={"database": mysql.database},
 		).fetchone()
 		if not res or res[1] == "RESTRICT":
-			remove_orphans_config_value(session=session, dry_run=False)
+			remove_orphans_config_value(session=session)
 			if res:
 				logger.notice("Removing FK to CONFIG on table CONFIG_VALUE with RESTRICT")
 				session.execute(f"ALTER TABLE `CONFIG_VALUE` DROP FOREIGN KEY `{res[0]}`")

@@ -18,40 +18,86 @@ if TYPE_CHECKING:
 	from . import MySQLConnection, Session
 
 
-def remove_orphans_config_value(session: Session, dry_run: bool) -> None:
-	res = session.execute(
+def remove_orphans_config_value(session: Session) -> None:
+	result = session.execute(
 		"""
-		SELECT GROUP_CONCAT(DISTINCT v.config_value_id)
-		FROM CONFIG_VALUE AS v
+		DELETE v.* FROM CONFIG_VALUE AS v
 		LEFT JOIN CONFIG AS c ON v.configId = c.configId
 		WHERE c.configId IS NULL
 		"""
-	).fetchone()
-	if res and res[0]:
-		ids = res[0].split(",")
-		logger.notice("Removing orphan entries from CONFIG_VALUE: %s", ids)
-		if not dry_run:
-			session.execute("DELETE FROM CONFIG_VALUE WHERE config_value_id in :ids", params={"ids": ids})
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from CONFIG_VALUE", result.rowcount)
 
 
-def remove_orphans_product_property_value(session: Session, dry_run: bool) -> None:
-	res = session.execute(
+def remove_orphans_product_property_value(session: Session) -> None:
+	result = session.execute(
 		"""
-		SELECT GROUP_CONCAT(DISTINCT v.product_property_id)
-		FROM PRODUCT_PROPERTY_VALUE AS v
+		DELETE v.* FROM PRODUCT_PROPERTY_VALUE AS v
 		LEFT JOIN PRODUCT_PROPERTY AS p
 		ON v.productId = p.productId AND v.productVersion = p.productVersion AND v.packageVersion = p.packageVersion
 		WHERE p.productId IS NULL
 		"""
-	).fetchone()
-	if res and res[0]:
-		ids = res[0].split(",")
-		logger.notice("Removing orphan entries from PRODUCT_PROPERTY_VALUE: %s", ids)
-		if not dry_run:
-			session.execute("DELETE FROM PRODUCT_PROPERTY_VALUE WHERE product_property_id in :ids", params={"ids": ids})
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from PRODUCT_PROPERTY_VALUE", result.rowcount)
 
 
-def cleanup_database(mysql: MySQLConnection, dry_run: bool = True) -> None:
+def remove_orphans_object_to_group_product(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE FROM OBJECT_TO_GROUP
+		WHERE groupType = "ProductGroup" AND objectId NOT IN
+		(SELECT DISTINCT productId FROM PRODUCT)
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned ProductGroup entries from OBJECT_TO_GROUP", result.rowcount)
+
+
+def remove_orphans_object_to_group_host(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE FROM OBJECT_TO_GROUP
+		WHERE groupType = "HostGroup" AND objectId NOT IN
+		(SELECT DISTINCT hostId FROM HOST)
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned HostGroup entries from OBJECT_TO_GROUP", result.rowcount)
+
+
+def remove_orphans_product_on_client(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE c.* FROM PRODUCT_ON_CLIENT AS c
+		LEFT JOIN PRODUCT AS p
+		ON c.productId = p.productId
+		WHERE p.productId IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from PRODUCT_ON_CLIENT", result.rowcount)
+
+
+def remove_orphans_product_property_state(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE s.* FROM PRODUCT_PROPERTY_STATE AS s
+		LEFT JOIN PRODUCT AS p
+		ON s.productId = p.productId
+		WHERE p.productId IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from PRODUCT_PROPERTY_STATE", result.rowcount)
+
+
+def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
-		remove_orphans_config_value(session=session, dry_run=dry_run)
-		remove_orphans_product_property_value(session=session, dry_run=dry_run)
+		remove_orphans_config_value(session)
+		remove_orphans_product_property_value(session)
+		remove_orphans_object_to_group_host(session)
+		remove_orphans_object_to_group_product(session)
+		remove_orphans_product_on_client(session)
+		remove_orphans_product_property_state(session)

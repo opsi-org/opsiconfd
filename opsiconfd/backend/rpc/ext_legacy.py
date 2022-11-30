@@ -150,12 +150,12 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		possible_methods = []
 		for method in self.backend_getInterface():
 			compatible = True
-			for param in method.params:
+			for param in method["params"]:
 				if param.startswith("**"):
 					compatible = False
 					break
 			if compatible:
-				possible_methods.append({"name": method.name, "params": method.params})
+				possible_methods.append({"name": method["name"], "params": method["params"]})
 		return possible_methods
 
 	@rpc_method

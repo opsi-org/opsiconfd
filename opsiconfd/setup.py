@@ -44,6 +44,7 @@ from opsicommon.objects import OpsiConfigserver  # type: ignore[import]
 from .application.utils import get_configserver_id
 from .backend import get_server_role
 from .backend.mysql import MySQLConnection
+from .backend.mysql.cleanup import cleanup_database
 from .backend.mysql.schema import update_database
 from .config import FQDN, OPSI_LICENSE_PATH, VAR_ADDON_DIR, config
 from .grafana import setup_grafana
@@ -173,6 +174,7 @@ def setup_backend() -> None:
 	mysql = MySQLConnection()
 	mysql.connect()
 	update_database(mysql)
+	cleanup_database(mysql)
 
 	if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
 		logger.notice("No configserver found in backend, creating")

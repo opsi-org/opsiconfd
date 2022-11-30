@@ -14,6 +14,11 @@ from typing import TYPE_CHECKING, Any, List, Protocol
 from opsicommon.objects import Product  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
 
+from ..mysql.cleanup import (
+	remove_orphans_object_to_group_product,
+	remove_orphans_product_on_client,
+	remove_orphans_product_property_state,
+)
 from . import rpc_method
 
 if TYPE_CHECKING:
@@ -74,6 +79,10 @@ class RPCProductMixin(Protocol):
 	def product_deleteObjects(self: BackendProtocol, products: List[dict] | List[Product] | dict | Product) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("product_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT", object_type=Product, obj=products, ace=ace)
+		with self._mysql.session() as session:
+			remove_orphans_object_to_group_product(session)
+			remove_orphans_product_on_client(session)
+			remove_orphans_product_property_state(session)
 
 	@rpc_method(check_acl=False)
 	def product_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name

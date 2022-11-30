@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, List, Protocol
 from opsicommon.objects import Group, HostGroup  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
 
+from ..mysql.cleanup import remove_orphans_object_to_group_host
 from . import rpc_method
 
 if TYPE_CHECKING:
@@ -72,6 +73,8 @@ class RPCGroupMixin(Protocol):
 	def group_deleteObjects(self: BackendProtocol, groups: List[dict] | List[Group] | dict | Group) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("group_deleteObjects")
 		self._mysql.delete_objects(table="GROUP", object_type=Group, obj=groups, ace=ace)
+		with self._mysql.session() as session:
+			remove_orphans_object_to_group_host(session)
 
 	@rpc_method(check_acl=False)
 	def group_createHostGroup(  # pylint: disable=invalid-name

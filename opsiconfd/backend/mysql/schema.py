@@ -10,7 +10,7 @@ opsiconfd.backend.mysql.schema
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from opsiconfd.logging import logger
 
@@ -483,37 +483,79 @@ def remove_index(session: Session, database: str, table: str, index: str) -> Non
 		session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
 
 
-# TODO update rule
-def create_foreign_key(  # pylint: disable=too-many-arguments
-	session: Session, database: str, table: str, ref_table: str, f_keys: list[str], ref_keys: list[str] = None
-) -> None:
-	keys = ",".join([f"`{k}`" for k in f_keys])
-	if ref_keys:
-		refs = ",".join([f"`{k}`" for k in ref_keys])
+class OpsiForeignKey:
+	table: str
+	ref_table: str
+	f_keys: list[str]
+	ref_keys: list[str]
+	update_rule: str
+	delete_rule: str
+	possible_rules = ("RESTRICT", "CASCADE", "NO ACTION", "SET NULL")
+
+	def __init__(
+		self,
+		table: str,
+		ref_table: str,
+		f_keys: List[str],
+		ref_keys: List[str] = [],
+		update_rule: str = None,
+		delete_rule: str = None,
+	):  # pylint: disable=too-many-arguments
+		self.table = table
+		self.ref_table = ref_table
+		self.f_keys = f_keys
+		self.ref_keys = ref_keys
+		if not update_rule:
+			self.update_rule = "CASCADE"
+		elif update_rule.upper() not in self.possible_rules:
+			raise ValueError(f"delete_rule must be in '{self.possible_rules}'")
+		else:
+			self.update_rule = update_rule.upper()
+
+		if not delete_rule:
+			self.delete_rule = self.update_rule
+		elif delete_rule.upper() not in self.possible_rules:
+			raise ValueError(f"delete_rule must be in '{self.possible_rules}'")
+		else:
+			self.delete_rule = delete_rule.upper()
+
+
+def create_foreign_key(
+	session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable = None
+) -> None:  # pylint: disable=too-many-arguments
+	keys = ",".join([f"`{k}`" for k in foreign_key.f_keys])
+	if foreign_key.ref_keys:
+		refs = ",".join([f"`{k}`" for k in foreign_key.ref_keys])
 	else:
 		refs = keys
 	res = session.execute(
 		f"""
-		SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
+		SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.UPDATE_RULE, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
 		INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
 		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-		WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = '{table}'
-		AND `t1`.`REFERENCED_TABLE_NAME` = '{ref_table}'
+		WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = '{foreign_key.table}'
+		AND `t1`.`REFERENCED_TABLE_NAME` = '{foreign_key.ref_table}'
 		""",
 		params={"database": database},
 	).fetchone()
-	if not res or res[1] == "RESTRICT":
+	if not res or res[1] != foreign_key.update_rule or res[2] != foreign_key.delete_rule:
 		if res:
-			logger.notice(f"Removing foreign key to {ref_table} on table {table} with RESTRICT")
-			session.execute(f"ALTER TABLE `{table}` DROP FOREIGN KEY `{res[0]}`")
-
-		logger.notice(f"Creating foreign key to {ref_table} on table {table} with CASCADE")
+			logger.notice(f"Removing foreign key to {foreign_key.ref_table} on table {foreign_key.table}")
+			session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY `{res[0]}`")
+		if cleanup_function:
+			cleanup_function(session=session, dry_run=False)
+		logger.notice(
+			(
+				f"Creating foreign key to {foreign_key.ref_table} on table {foreign_key.table} "
+				f"with ON UPDATE {foreign_key.update_rule} and ON DELETE {foreign_key.delete_rule}"
+			)
+		)
 		session.execute(
 			f"""
-			ALTER TABLE `{table}` ADD
+			ALTER TABLE `{foreign_key.table}` ADD
 			FOREIGN KEY ({keys})
-			REFERENCES `{ref_table}` ({refs})
-			ON UPDATE CASCADE ON DELETE CASCADE
+			REFERENCES `{foreign_key.ref_table}` ({refs})
+			ON UPDATE {foreign_key.update_rule} ON DELETE {foreign_key.delete_rule}
 			"""
 		)
 
@@ -592,11 +634,15 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
 
 		create_foreign_key(
-			session=session, database=mysql.database, table="PRODUCT_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"]
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(table="PRODUCT_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"]),
 		)
 
 		create_foreign_key(
-			session=session, database=mysql.database, table="PRODUCT_ON_DEPOT", ref_table="HOST", f_keys=["depotId"], ref_keys=["hostId"]
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(table="PRODUCT_ON_DEPOT", ref_table="HOST", f_keys=["depotId"], ref_keys=["hostId"]),
 		)
 
 		create_index(
@@ -607,57 +653,27 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			columns=["productId", "propertyId", "productVersion", "packageVersion"],
 		)
 
-		res = session.execute(
-			"""
-			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_PROPERTY_VALUE'
-			AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT_PROPERTY'
-			""",
-			params={"database": mysql.database},
-		).fetchone()
-		if not res or res[1] == "RESTRICT":
-			if res:
-				logger.notice("Removing FK to PRODUCT_PROPERTY on table PRODUCT_PROPERTY_VALUE with RESTRICT")
-				session.execute(f"ALTER TABLE `PRODUCT_PROPERTY_VALUE` DROP FOREIGN KEY `{res[0]}`")
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(
+				table="PRODUCT_PROPERTY_VALUE",
+				ref_table="PRODUCT_PROPERTY",
+				f_keys=["productId", "productVersion", "packageVersion", "propertyId"],
+			),
+			cleanup_function=remove_orphans_product_property_value,
+		)
 
-			remove_orphans_product_property_value(session=session, dry_run=False)
-			logger.notice("Creating FK to PRODUCT_PROPERTY on table PRODUCT_PROPERTY_VALUE with CASCADE")
-			session.execute(
-				"""
-				ALTER TABLE `PRODUCT_PROPERTY_VALUE` ADD
-				FOREIGN KEY (`productId`, `productVersion`, `packageVersion`, `propertyId`)
-				REFERENCES `PRODUCT_PROPERTY` (`productId`, `productVersion`, `packageVersion`, `propertyId`)
-				ON UPDATE CASCADE ON DELETE CASCADE
-				"""
-			)
-
-		res = session.execute(
-			"""
-			SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-			INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-			ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-			WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'CONFIG_VALUE'
-			AND `t1`.`REFERENCED_TABLE_NAME` = 'CONFIG'
-			""",
-			params={"database": mysql.database},
-		).fetchone()
-		if not res or res[1] == "RESTRICT":
-			remove_orphans_config_value(session=session, dry_run=False)
-			if res:
-				logger.notice("Removing FK to CONFIG on table CONFIG_VALUE with RESTRICT")
-				session.execute(f"ALTER TABLE `CONFIG_VALUE` DROP FOREIGN KEY `{res[0]}`")
-
-			logger.notice("Creating FK to CONFIG on table CONFIG_VALUE with CASCADE")
-			session.execute(
-				"""
-				ALTER TABLE `CONFIG_VALUE` ADD
-				FOREIGN KEY (`configId`)
-				REFERENCES `CONFIG` (`configId`)
-				ON UPDATE CASCADE ON DELETE CASCADE
-				"""
-			)
+		create_foreign_key(
+			session=session,
+			database=mysql.database,
+			foreign_key=OpsiForeignKey(
+				table="CONFIG_VALUE",
+				ref_table="CONFIG",
+				f_keys=["configId"],
+			),
+			cleanup_function=remove_orphans_config_value,
+		)
 
 		create_index(
 			session=session,
@@ -872,60 +888,51 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			table="PRODUCT_ON_DEPOT",
-			ref_table="PRODUCT",
-			f_keys=["productId", "productVersion", "packageVersion"],
+			foreign_key=OpsiForeignKey(
+				table="PRODUCT_ON_DEPOT", ref_table="PRODUCT", f_keys=["productId", "productVersion", "packageVersion"]
+			),
 		)
 
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			table="PRODUCT_PROPERTY",
-			ref_table="PRODUCT",
-			f_keys=["productId", "productVersion", "packageVersion"],
+			foreign_key=OpsiForeignKey(
+				table="PRODUCT_PROPERTY", ref_table="PRODUCT", f_keys=["productId", "productVersion", "packageVersion"]
+			),
 		)
 
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			table="PRODUCT_DEPENDENCY",
-			ref_table="PRODUCT",
-			f_keys=["productId", "productVersion", "packageVersion"],
+			foreign_key=OpsiForeignKey(
+				table="PRODUCT_DEPENDENCY", ref_table="PRODUCT", f_keys=["productId", "productVersion", "packageVersion"]
+			),
 		)
 
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			table="OBJECT_TO_GROUP",
-			ref_table="GROUP",
-			f_keys=["groupType", "groupId"],
-			ref_keys=["type", "groupId"],
+			foreign_key=OpsiForeignKey(
+				table="OBJECT_TO_GROUP", ref_table="GROUP", f_keys=["groupType", "groupId"], ref_keys=["type", "groupId"]
+			),
 		)
 
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			table="AUDIT_SOFTWARE_TO_LICENSE_POOL",
-			ref_table="LICENSE_POOL",
-			f_keys=["licensePoolId"],
+			foreign_key=OpsiForeignKey(table="AUDIT_SOFTWARE_TO_LICENSE_POOL", ref_table="LICENSE_POOL", f_keys=["licensePoolId"]),
 		)
 
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			table="LICENSE_ON_CLIENT",
-			ref_table="HOST",
-			f_keys=["clientId"],
-			ref_keys=["hostId"],
+			foreign_key=OpsiForeignKey(table="LICENSE_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"]),
 		)
 
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			table="SOFTWARE_LICENSE",
-			ref_table="HOST",
-			f_keys=["boundToHost"],
-			ref_keys=["hostId"],
+			foreign_key=OpsiForeignKey(table="SOFTWARE_LICENSE", ref_table="HOST", f_keys=["boundToHost"], ref_keys=["hostId"]),
 		)
 
 		if "LOG_CONFIG_VALUE" in mysql.tables:

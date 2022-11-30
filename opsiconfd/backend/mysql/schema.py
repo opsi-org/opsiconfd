@@ -10,7 +10,7 @@ opsiconfd.backend.mysql.schema
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, List, Optional
+from typing import TYPE_CHECKING, Callable, List
 
 from opsiconfd.logging import logger
 
@@ -500,7 +500,7 @@ class OpsiForeignKey:
 		ref_keys: List[str] = [],
 		update_rule: str = None,
 		delete_rule: str = None,
-	):  # pylint: disable=too-many-arguments
+	):
 		self.table = table
 		self.ref_table = ref_table
 		self.f_keys = f_keys
@@ -520,9 +520,7 @@ class OpsiForeignKey:
 			self.delete_rule = delete_rule.upper()
 
 
-def create_foreign_key(
-	session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable = None
-) -> None:  # pylint: disable=too-many-arguments
+def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable = None) -> None:
 	keys = ",".join([f"`{k}`" for k in foreign_key.f_keys])
 	if foreign_key.ref_keys:
 		refs = ",".join([f"`{k}`" for k in foreign_key.ref_keys])

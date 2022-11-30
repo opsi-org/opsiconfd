@@ -254,18 +254,18 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 	# 		'DELETE FROM CONFIG_STATE WHERE objectId like "pytest%";'
 	# 	)
 	# )
-	# cursor.execute(
-	# 	"DELETE FROM PRODUCT_ON_DEPOT;"
-	# 	"DELETE FROM PRODUCT_ON_CLIENT;"
-	# 	"DELETE FROM PRODUCT_PROPERTY_VALUE;"
-	# 	"DELETE FROM PRODUCT_PROPERTY;"
-	# 	"DELETE FROM PRODUCT_DEPENDENCY;"
-	# 	"DELETE FROM OBJECT_TO_GROUP;"
-	# 	"DELETE FROM PRODUCT;"
-	# 	'DELETE FROM HOST WHERE type!="OpsiConfigserver";'
-	# 	"DELETE FROM `GROUP`;"
-	# 	"DELETE FROM CONFIG_STATE;"
-	# )
+	cursor.execute(
+		"DELETE FROM PRODUCT_ON_DEPOT;"
+		"DELETE FROM PRODUCT_ON_CLIENT;"
+		"DELETE FROM PRODUCT_PROPERTY_VALUE;"
+		"DELETE FROM PRODUCT_PROPERTY;"
+		"DELETE FROM PRODUCT_DEPENDENCY;"
+		"DELETE FROM OBJECT_TO_GROUP;"
+		"DELETE FROM PRODUCT;"
+		'DELETE FROM HOST WHERE type!="OpsiConfigserver";'
+		"DELETE FROM `GROUP`;"
+		"DELETE FROM CONFIG_STATE;"
+	)
 
 
 @pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)

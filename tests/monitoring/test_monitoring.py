@@ -9,21 +9,30 @@
 Tests for the opsiconfd monitoring module
 """
 
-import time
 import json
 import socket
-from unittest import mock
+import time
 from datetime import datetime, timedelta
+from unittest import mock
 
-import requests
 import pytest
+import requests
 
-from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
 from opsiconfd.application.monitoring.check_locked_products import check_locked_products
-from opsiconfd.application.monitoring.check_short_product_status import check_short_product_status
-from opsiconfd.application.monitoring.check_plugin_on_client import check_plugin_on_client
-
-from tests.utils import config, clean_redis, database_connection, backend, create_depot_jsonrpc  # pylint: disable=unused-import
+from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
+from opsiconfd.application.monitoring.check_plugin_on_client import (
+	check_plugin_on_client,
+)
+from opsiconfd.application.monitoring.check_short_product_status import (
+	check_short_product_status,
+)
+from tests.utils import (  # pylint: disable=unused-import
+	backend,
+	clean_redis,
+	config,
+	create_depot_jsonrpc,
+	database_connection,
+)
 
 MONITORING_CHECK_DAYS = 31
 
@@ -199,6 +208,7 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 	cursor.execute(
 		"INSERT INTO `GROUP` (type, groupId) VALUES " '("ProductGroup", "pytest-group-1"),' '("ProductGroup", "pytest-group-2");'
 	)
+
 	cursor.execute(
 		"INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) VALUES "
 		'("ProductGroup", "pytest-group-1", "pytest-prod-0"),'
@@ -207,6 +217,17 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 		'("ProductGroup", "pytest-group-2", "pytest-prod-3"),'
 		'("ProductGroup", "pytest-group-2", "pytest-prod-4");'
 	)
+
+	res = cursor.execute('SELECT configId from CONFIG WHERE configId="clientconfig.depot.id";')
+	if res == 0:
+		cursor.execute(
+			"INSERT INTO CONFIG (configId, `type`, description, multiValue, editable) VALUES "
+			'("clientconfig.depot.id", "UnicodeConfig", "ID of the opsi depot to use", 0, 1);'
+		)
+
+		cursor.execute(
+			"INSERT INTO CONFIG_VALUE (configId, value, isDefault) VALUES " f'("clientconfig.depot.id", "{socket.getfqdn()}", 1);'
+		)
 
 	# Clients to Depots
 	cursor.execute(
@@ -233,18 +254,18 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 	# 		'DELETE FROM CONFIG_STATE WHERE objectId like "pytest%";'
 	# 	)
 	# )
-	cursor.execute(
-		"DELETE FROM PRODUCT_ON_DEPOT;"
-		"DELETE FROM PRODUCT_ON_CLIENT;"
-		"DELETE FROM PRODUCT_PROPERTY_VALUE;"
-		"DELETE FROM PRODUCT_PROPERTY;"
-		"DELETE FROM PRODUCT_DEPENDENCY;"
-		"DELETE FROM OBJECT_TO_GROUP;"
-		"DELETE FROM PRODUCT;"
-		'DELETE FROM HOST WHERE type!="OpsiConfigserver";'
-		"DELETE FROM `GROUP`;"
-		"DELETE FROM CONFIG_STATE;"
-	)
+	# cursor.execute(
+	# 	"DELETE FROM PRODUCT_ON_DEPOT;"
+	# 	"DELETE FROM PRODUCT_ON_CLIENT;"
+	# 	"DELETE FROM PRODUCT_PROPERTY_VALUE;"
+	# 	"DELETE FROM PRODUCT_PROPERTY;"
+	# 	"DELETE FROM PRODUCT_DEPENDENCY;"
+	# 	"DELETE FROM OBJECT_TO_GROUP;"
+	# 	"DELETE FROM PRODUCT;"
+	# 	'DELETE FROM HOST WHERE type!="OpsiConfigserver";'
+	# 	"DELETE FROM `GROUP`;"
+	# 	"DELETE FROM CONFIG_STATE;"
+	# )
 
 
 @pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)

@@ -37,7 +37,7 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 	if not product_ids:
 		product_ids = set()
 		for product in backend.objectToGroup_getIdents(groupType="ProductGroup", groupId=product_groups):
-			product = product.split(";")[2]
+			product = product.split(",")[2]
 			if product not in exclude:
 				product_ids.add(product)
 
@@ -69,24 +69,26 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 		client_ids = backend.host_getIdents(type="OpsiClient")
 
 	clients_on_depot = defaultdict(list)
-	with temporaryBackendOptions(backend, addConfigStateDefaults=True):
-		for config_state in backend.configState_getObjects(configId="clientconfig.depot.id", objectId=client_ids):
-			if not config_state.values or not config_state.values[0]:
-				logger.error("No depot server configured for client '%s'", config_state.objectId)
-				continue
+	for config_object, config_state in backend.configState_getValues(
+		config_ids=["clientconfig.depot.id"], object_ids=client_ids, with_defaults=True
+	).items():
+		if not config_state.get("clientconfig.depot.id") or not config_state.get("clientconfig.depot.id")[0]:
+			logger.error("No depot server configured for client '%s'", config_object)
+			continue
 
-			depot_id = config_state.values[0]
-			if depot_id not in depot_ids:
-				continue
+		depot_id = config_state.get("clientconfig.depot.id")[0]
+		if depot_id not in depot_ids:
+			continue
 
-			clients_on_depot[depot_id].append(config_state.objectId)
+		clients_on_depot[depot_id].append(config_object)
 
 	if not clients_on_depot:
 		return generate_response(
 			State.UNKNOWN, f"Depots and clients dont match. Selected depots: {depot_ids}, selected clients: {client_ids}"
 		)
 	product_on_depot_info: Dict[str, Dict[str, Dict[str, str]]] = defaultdict(dict)
-	for pod in backend.productOnDepot_getObjects(depotId=depot_ids, productId=product_ids):
+
+	for pod in backend.productOnDepot_getObjects(depotId=depot_ids, productId=list(product_ids)):
 		product_on_depot_info[pod.depotId][pod.productId] = {"productVersion": pod.productVersion, "packageVersion": pod.packageVersion}
 
 	state = State.OK
@@ -100,7 +102,7 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 		if depot_id not in clients_on_depot.keys():
 			continue
 
-		poducts_on_client = backend.productOnClient_getObjects(productId=product_ids, clientId=clients_on_depot.get(depot_id, None))
+		poducts_on_client = backend.productOnClient_getObjects(productId=list(product_ids), clientId=clients_on_depot.get(depot_id, None))
 
 		not_installed = set(product_ids.copy())
 		for poc in poducts_on_client:  # pylint: disable=protected-access, line-too-long

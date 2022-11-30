@@ -15,9 +15,9 @@ import json
 import socket
 import time
 
-from redis import asyncio as async_redis
 import pytest
 import requests
+from redis import asyncio as async_redis
 
 from opsiconfd.application.monitoring.utils import get_workers
 from tests.monitoring.test_monitoring import (  # pylint: disable=unused-import
@@ -162,8 +162,12 @@ def test_check_product_status(config, products, verbose, strict, expected_result
 			False,
 			{
 				"message": (
-					f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
-					"For product 'pytest-prod-2' problems found on 2 clients!\n"
+					"CRITICAL: \nResult for Depot: 'pytest-test-depot.uib.gmbh':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
+					"For product 'pytest-prod-2' problems found on 1 clients!\n"
+					"\n"
+					"Result for Depot: 'pytest-test-depot2.uib.gmbh':\n"
+					"For product 'pytest-prod-4' action set on 1 clients!\n"
+					"For product 'pytest-prod-4' version difference problems found on 1 clients!\n"
 				),
 				"state": 2,
 			},
@@ -175,8 +179,12 @@ def test_check_product_status(config, products, verbose, strict, expected_result
 			False,
 			{
 				"message": (
-					f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
-					"For product 'pytest-prod-2' problems found on 2 clients!\n"
+					"CRITICAL: \nResult for Depot: 'pytest-test-depot.uib.gmbh':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
+					"For product 'pytest-prod-2' problems found on 1 clients!\n"
+					"\n"
+					"Result for Depot: 'pytest-test-depot2.uib.gmbh':\n"
+					"For product 'pytest-prod-4' action set on 1 clients!\n"
+					"For product 'pytest-prod-4' version difference problems found on 1 clients!\n"
 				),
 				"state": 2,
 			},
@@ -188,8 +196,8 @@ def test_check_product_status(config, products, verbose, strict, expected_result
 			False,
 			{
 				"message": (
-					f"CRITICAL: \nResult for Depot: '{socket.getfqdn()}':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
-					"For product 'pytest-prod-2' problems found on 2 clients!\n"
+					"CRITICAL: \nResult for Depot: 'pytest-test-depot.uib.gmbh':\nFor product 'pytest-prod-1' action set on 1 clients!\n"
+					"For product 'pytest-prod-2' problems found on 1 clients!\n"
 				),
 				"state": 2,
 			},  # pylint: disable=too-many-arguments
@@ -209,6 +217,7 @@ def test_check_product_status_groupids(
 				"user": ADMIN_USER,
 				"productIds": products,
 				"groupIds": group,
+				"depotIds": ["pytest-test-depot.uib.gmbh", "pytest-test-depot2.uib.gmbh"],
 				"verbose": verbose,
 				"strict": strict,
 				"password": ADMIN_PASS,

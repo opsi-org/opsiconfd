@@ -893,31 +893,6 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			f_keys=["productId", "productVersion", "packageVersion"],
 		)
 
-		# res = session.execute(
-		# 	"""
-		# 	SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
-		# 	INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
-		# 	ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-		# 	WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = 'PRODUCT_DEPENDENCY'
-		# 	AND `t1`.`REFERENCED_TABLE_NAME` = 'PRODUCT'
-		# 	""",
-		# 	params={"database": mysql.database},
-		# ).fetchone()
-		# if not res or res[1] == "RESTRICT":
-		# 	if res:
-		# 		logger.notice("Removing FK to PRODUCT on table PRODUCT_DEPENDENCY with RESTRICT")
-		# 		session.execute(f"ALTER TABLE `PRODUCT_DEPENDENCY` DROP FOREIGN KEY `{res[0]}`")
-
-		# 	logger.notice("Creating FK to PRODUCT on table PRODUCT_DEPENDENCY with CASCADE")
-		# 	session.execute(
-		# 		"""
-		# 		ALTER TABLE `PRODUCT_DEPENDENCY` ADD
-		# 		FOREIGN KEY (`productId`,`productVersion`,`packageVersion`)
-		# 		REFERENCES `PRODUCT` (`productId`,`productVersion`,`packageVersion`)
-		# 		ON UPDATE CASCADE ON DELETE CASCADE
-		# 		"""
-		# 	)
-
 		if "LOG_CONFIG_VALUE" in mysql.tables:
 			logger.notice("Dropping table LOG_CONFIG_VALUE")
 			session.execute("DROP TABLE IF EXISTS `LOG_CONFIG_VALUE`")

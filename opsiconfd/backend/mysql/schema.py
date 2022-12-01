@@ -11,7 +11,7 @@ opsiconfd.backend.mysql.schema
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable, Literal
+from typing import TYPE_CHECKING, Callable, List, Literal
 
 from opsiconfd.logging import logger
 
@@ -495,10 +495,15 @@ class OpsiForeignKey:
 	ref_keys: list[str] = field(default_factory=list)
 	update_rule: UpdateRules = "CASCADE"
 	delete_rule: UpdateRules | None = None
+	posible_rules: List[UpdateRules] = ["RESTRICT", "CASCADE", "NO ACTION", "SET NULL"]
 
 	def __post_init__(self) -> None:
+		if self.update_rule not in self.posible_rules:
+			raise ValueError("update_rule is not a valid update rule.")
 		if not self.delete_rule:
 			self.delete_rule = self.update_rule
+		elif self.delete_rule not in self.posible_rules:
+			raise ValueError("delete_rule is not a valid delete rule.")
 
 
 def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable = None) -> None:

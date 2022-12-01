@@ -422,7 +422,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		if ident_type in ("dict", "hash"):
 			return ident
 		if ident_type in ("unicode", "str"):
-			return ",".join(v or "" for v in ident.values())
+			return ";".join(v or "" for v in ident.values())
 		if ident_type == "list":
 			return list(ident.values())
 		if ident_type == "tuple":

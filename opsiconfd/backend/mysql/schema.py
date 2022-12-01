@@ -11,15 +11,11 @@ opsiconfd.backend.mysql.schema
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Literal
 
 from opsiconfd.logging import logger
 
 from .cleanup import remove_orphans_config_value, remove_orphans_product_property_value
-
-# from pydantic.dataclasses import dataclass
-
 
 if TYPE_CHECKING:
 	from . import MySQLConnection, Session
@@ -488,11 +484,7 @@ def remove_index(session: Session, database: str, table: str, index: str) -> Non
 		session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
 
 
-class UpdateRules(StrEnum):
-	RESTRICT = "RESTRICT"
-	CASCADE = "CASCADE"
-	NO_ACTION = "NO ACTION"
-	SET_NULL = "SET NULL"
+UpdateRules = Literal["RESTRICT", "CASCADE", "NO ACTION", "SET NULL"]
 
 
 @dataclass
@@ -501,7 +493,7 @@ class OpsiForeignKey:
 	ref_table: str
 	f_keys: list[str] = field(default_factory=list)
 	ref_keys: list[str] = field(default_factory=list)
-	update_rule: UpdateRules = UpdateRules.CASCADE
+	update_rule: UpdateRules = "CASCADE"
 	delete_rule: UpdateRules | None = None
 
 	def __post_init__(self) -> None:

@@ -11,12 +11,15 @@ opsiconfd.backend.mysql.schema
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum, StrEnum
-from typing import TYPE_CHECKING, Callable, List, Literal
+from enum import StrEnum
+from typing import TYPE_CHECKING, Callable
 
 from opsiconfd.logging import logger
 
 from .cleanup import remove_orphans_config_value, remove_orphans_product_property_value
+
+# from pydantic.dataclasses import dataclass
+
 
 if TYPE_CHECKING:
 	from . import MySQLConnection, Session
@@ -491,10 +494,6 @@ class UpdateRules(StrEnum):
 	NO_ACTION = "NO ACTION"
 	SET_NULL = "SET NULL"
 
-	@classmethod
-	def has_value(cls, value: str) -> bool:
-		return value in cls._value2member_map_
-
 
 @dataclass
 class OpsiForeignKey:
@@ -502,17 +501,12 @@ class OpsiForeignKey:
 	ref_table: str
 	f_keys: list[str] = field(default_factory=list)
 	ref_keys: list[str] = field(default_factory=list)
-	update_rule: Literal["RESTRICT", "CASCADE", "NO ACTION", "SET NULL"] = "CASCADE"
-	delete_rule: Literal["RESTRICT", "CASCADE", "NO ACTION", "SET NULL"] | None = None
+	update_rule: UpdateRules = UpdateRules.CASCADE
+	delete_rule: UpdateRules | None = None
 
 	def __post_init__(self) -> None:
-		if not UpdateRules.has_value(self.update_rule):
-			raise ValueError("update_rule is not a valid update rule.")
-
 		if not self.delete_rule:
 			self.delete_rule = self.update_rule
-		elif UpdateRules.has_value(self.delete_rule):
-			raise ValueError("update_rule is not a valid delete rule.")
 
 
 def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable = None) -> None:
@@ -629,9 +623,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			foreign_key=OpsiForeignKey(
-				table="PRODUCT_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"], update_rule="CASCADE"
-			),
+			foreign_key=OpsiForeignKey(table="PRODUCT_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"]),
 		)
 
 		create_foreign_key(

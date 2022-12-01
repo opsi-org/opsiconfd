@@ -10,7 +10,9 @@ opsiconfd.backend.mysql.schema
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, List
+from dataclasses import dataclass, field
+from enum import Enum, StrEnum
+from typing import TYPE_CHECKING, Callable, List, Literal
 
 from opsiconfd.logging import logger
 
@@ -483,41 +485,34 @@ def remove_index(session: Session, database: str, table: str, index: str) -> Non
 		session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
 
 
+class UpdateRules(StrEnum):
+	RESTRICT = "RESTRICT"
+	CASCADE = "CASCADE"
+	NO_ACTION = "NO ACTION"
+	SET_NULL = "SET NULL"
+
+	@classmethod
+	def has_value(cls, value: str) -> bool:
+		return value in cls._value2member_map_
+
+
+@dataclass
 class OpsiForeignKey:
 	table: str
 	ref_table: str
-	f_keys: list[str]
-	ref_keys: list[str]
-	update_rule: str
-	delete_rule: str
-	possible_rules = ("RESTRICT", "CASCADE", "NO ACTION", "SET NULL")
+	f_keys: list[str] = field(default_factory=list)
+	ref_keys: list[str] = field(default_factory=list)
+	update_rule: Literal["RESTRICT", "CASCADE", "NO ACTION", "SET NULL"] = "CASCADE"
+	delete_rule: Literal["RESTRICT", "CASCADE", "NO ACTION", "SET NULL"] | None = None
 
-	def __init__(
-		self,
-		table: str,
-		ref_table: str,
-		f_keys: List[str],
-		ref_keys: List[str] = [],
-		update_rule: str = None,
-		delete_rule: str = None,
-	):
-		self.table = table
-		self.ref_table = ref_table
-		self.f_keys = f_keys
-		self.ref_keys = ref_keys
-		if not update_rule:
-			self.update_rule = "CASCADE"
-		elif update_rule.upper() not in self.possible_rules:
-			raise ValueError(f"delete_rule must be in '{self.possible_rules}'")
-		else:
-			self.update_rule = update_rule.upper()
+	def __post_init__(self) -> None:
+		if not UpdateRules.has_value(self.update_rule):
+			raise ValueError("update_rule is not a valid update rule.")
 
-		if not delete_rule:
+		if not self.delete_rule:
 			self.delete_rule = self.update_rule
-		elif delete_rule.upper() not in self.possible_rules:
-			raise ValueError(f"delete_rule must be in '{self.possible_rules}'")
-		else:
-			self.delete_rule = delete_rule.upper()
+		elif UpdateRules.has_value(self.delete_rule):
+			raise ValueError("update_rule is not a valid delete rule.")
 
 
 def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable = None) -> None:
@@ -527,19 +522,19 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 	else:
 		refs = keys
 	res = session.execute(
-		f"""
+		"""
 		SELECT DISTINCT `t1`.`CONSTRAINT_NAME`, t2.UPDATE_RULE, t2.DELETE_RULE FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` AS `t1`
 		INNER JOIN `INFORMATION_SCHEMA`.`REFERENTIAL_CONSTRAINTS` AS `t2`
 		ON `t1`.`CONSTRAINT_SCHEMA` = `t2`.`CONSTRAINT_SCHEMA` AND `t1`.`CONSTRAINT_NAME` = `t2`.`CONSTRAINT_NAME`
-		WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = '{foreign_key.table}'
-		AND `t1`.`REFERENCED_TABLE_NAME` = '{foreign_key.ref_table}'
+		WHERE `t1`.`TABLE_SCHEMA` = :database AND `t1`.`TABLE_NAME` = :table
+		AND `t1`.`REFERENCED_TABLE_NAME` = :ref_table
 		""",
-		params={"database": database},
+		params={"database": database, "table": foreign_key.table, "ref_table": foreign_key.ref_table},
 	).fetchone()
 	if not res or res[1] != foreign_key.update_rule or res[2] != foreign_key.delete_rule:
 		if res:
 			logger.notice(f"Removing foreign key to {foreign_key.ref_table} on table {foreign_key.table}")
-			session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY `{res[0]}`")
+			session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY {res[0]}")
 		if cleanup_function:
 			cleanup_function(session=session, dry_run=False)
 		logger.notice(
@@ -553,7 +548,7 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 			ALTER TABLE `{foreign_key.table}` ADD
 			FOREIGN KEY ({keys})
 			REFERENCES `{foreign_key.ref_table}` ({refs})
-			ON UPDATE {foreign_key.update_rule} ON DELETE {foreign_key.delete_rule}
+			ON UPDATE {foreign_key.update_rule} ON DELETE {foreign_key.update_rule}
 			"""
 		)
 
@@ -634,7 +629,9 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			foreign_key=OpsiForeignKey(table="PRODUCT_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"]),
+			foreign_key=OpsiForeignKey(
+				table="PRODUCT_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"], update_rule="CASCADE"
+			),
 		)
 
 		create_foreign_key(

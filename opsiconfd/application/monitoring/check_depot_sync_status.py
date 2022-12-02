@@ -10,17 +10,19 @@ check depot sync status
 """
 
 from collections import defaultdict
-from typing import Dict, List
+from typing import TYPE_CHECKING, Dict, List
 
 from fastapi.responses import JSONResponse
-from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 from opsicommon.objects import ProductOnDepot  # type: ignore[import]
 
 from .utils import State, generate_response
 
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.opsiconfd import Backend
+
 
 def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
-	backend: BackendManager,
+	backend: Backend,
 	depot_ids: List[str],
 	product_ids: List[str] | None,
 	exclude: List[str] | None,

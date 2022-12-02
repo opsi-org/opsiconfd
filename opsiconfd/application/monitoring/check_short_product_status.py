@@ -9,18 +9,20 @@
 check short product status
 """
 
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 from fastapi.responses import JSONResponse
-from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
 
 from opsiconfd.logging import logger
 
 from .utils import State, generate_response, remove_percent
 
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.opsiconfd import Backend
+
 
 def check_short_product_status(  # pylint: disable=too-many-statements, dangerous-default-value, too-many-locals, too-many-branches
-	backend: BackendManager, product_id: str | None = None, thresholds: Dict[str, str] | None = None
+	backend: Backend, product_id: str | None = None, thresholds: Dict[str, str] | None = None
 ) -> JSONResponse:
 
 	thresholds = thresholds or {}

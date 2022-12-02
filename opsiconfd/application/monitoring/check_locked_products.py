@@ -8,17 +8,17 @@
 opsiconfd.application.monitoring.check_locked_products
 """
 
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from fastapi.responses import JSONResponse
-from OPSI.Backend import BackendManager  # type: ignore[import]
 
 from .utils import State, generate_response
 
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.opsiconfd import Backend
 
-def check_locked_products(
-	backend: BackendManager, depot_ids: List[str] | None = None, product_ids: List[str] | None = None
-) -> JSONResponse:
+
+def check_locked_products(backend: Backend, depot_ids: List[str] | None = None, product_ids: List[str] | None = None) -> JSONResponse:
 	product_ids = product_ids or []
 	if not depot_ids or "all" in depot_ids:
 		depots = backend.host_getObjects(type="OpsiDepotserver")

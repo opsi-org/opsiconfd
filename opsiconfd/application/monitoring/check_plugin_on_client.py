@@ -9,17 +9,21 @@
 check plugin on client
 """
 
+from typing import TYPE_CHECKING
+
 from fastapi.responses import JSONResponse
-from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
-from OPSI.Types import forceList  # type: ignore[import]
+from opsicommon.types import forceList  # type: ignore[import]
 
 from opsiconfd.logging import logger
 
 from .utils import ERRORCODE_PATTERN, State, generate_response
 
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.opsiconfd import Backend
+
 
 def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals, too-many-statements
-	backend: BackendManager,
+	backend: Backend,
 	host_id: str,
 	command: str,
 	timeout: int = 30,

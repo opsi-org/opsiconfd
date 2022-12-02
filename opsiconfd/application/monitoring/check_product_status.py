@@ -9,19 +9,20 @@ opsiconfd.application.monitoring.check_product_status
 """
 
 from collections import defaultdict
-from typing import Dict, List, Set
+from typing import TYPE_CHECKING, Dict, List, Set
 
 from fastapi.responses import JSONResponse
-from OPSI.Backend import BackendManager  # type: ignore[import]
-from OPSI.Backend.Backend import temporaryBackendOptions  # type: ignore[import]
 
 from opsiconfd.logging import logger
 
 from .utils import State, generate_response
 
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.opsiconfd import Backend
+
 
 def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
-	backend: BackendManager,
+	backend: Backend,
 	product_ids: List[str] | Set[str] | None = None,
 	product_groups: List[str] | None = None,
 	host_group_ids: List[str] | None = None,

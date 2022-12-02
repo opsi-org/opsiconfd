@@ -9,17 +9,19 @@ opsiconfd.application.monitoring.check_client_status
 """
 
 import datetime
-from typing import List
+from typing import TYPE_CHECKING, List
 
 from fastapi.responses import JSONResponse
-from OPSI.Backend.BackendManager import BackendManager  # type: ignore[import]
-from OPSI.Types import forceProductIdList  # type: ignore[import]
+from opsicommon.types import forceProductIdList  # type: ignore[import]
 
 from .utils import State, generate_response
 
+if TYPE_CHECKING:
+	from opsiconfd.backend.rpc.opsiconfd import Backend
+
 
 def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-	backend: BackendManager, client_id: str, exclude_product_list: List[str] = None
+	backend: Backend, client_id: str, exclude_product_list: List[str] = None
 ) -> JSONResponse:
 	state = State.OK
 

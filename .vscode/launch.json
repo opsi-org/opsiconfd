@@ -35,13 +35,13 @@
 			"request": "launch",
 			"module": "opsiconfd",
 			"args": [
-				"--backend-config-dir=tests/opsi-config/backends",
-				"--dispatch-config-file=tests/opsi-config/backendManager/dispatch.conf",
 				"--workers=${input:worker}",
 				"--log-level-stderr=${input:loglevel}",
 				"--log-level-file=${input:loglevelfile}",
+				"--log-mode=redis",
 				"--static-dir=${workspaceFolder}/opsiconfd_data/static",
-				"--jsonrpc-time-to-cache=0"
+				"--config-file",
+				"tests/data/default-opsiconfd.conf",
 			],
 			"sudo": true,
 		},

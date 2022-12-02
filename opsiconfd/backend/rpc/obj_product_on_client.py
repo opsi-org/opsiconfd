@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 class RPCProductOnClientMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def productOnClient_insertObject(self: BackendProtocol, productOnClient: dict | ProductOnClient) -> None:  # pylint: disable=invalid-name
-		self._check_module("mysq")
+		self._check_module("mysql_backend")
 		ace = self._get_ace("productOnClient_insertObject")
 		self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
 
@@ -49,7 +49,7 @@ class RPCProductOnClientMixin(Protocol):
 	def productOnClient_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: List[dict] | List[ProductOnClient] | dict | ProductOnClient
 	) -> None:
-		self._check_module("mysq")
+		self._check_module("mysql_backend")
 		ace = self._get_ace("productOnClient_createObjects")
 		for productOnClient in forceList(productOnClients):
 			self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)

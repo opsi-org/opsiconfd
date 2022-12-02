@@ -50,11 +50,11 @@ def get_mysql() -> MySQLConnection:
 	return get_protected_backend()._mysql  # pylint: disable=protected-access
 
 
-def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs: Any) -> dict:
-	result = {}
-	backend = get_protected_backend()
+def execute_on_secondary_backends(method: str, backends: tuple = ("opsipxeconfd", "dhcpd"), **kwargs: Any) -> dict:  # pylint: disable=unused-argument
+	result: dict[str, Any] = {}
+	# backend = get_protected_backend()
 	# TODO:
-	for backend_id in backends:
+	for _backend_id in backends:
 		pass
 		# if backend_id not in backend._backends:  # pylint: disable=protected-access
 		# 	continue

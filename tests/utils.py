@@ -45,7 +45,7 @@ from starlette.types import Receive, Scope, Send
 
 from opsiconfd.application.main import BaseMiddleware, app
 from opsiconfd.backend import get_mysql, get_unprotected_backend
-from opsiconfd.backend.rpc.opsiconfd import Backend  # pylint: disbale=unused-import
+from opsiconfd.backend.rpc.opsiconfd import UnprotectedBackend
 from opsiconfd.config import REDIS_PREFIX_MESSAGEBUS, REDIS_PREFIX_SESSION, Config
 from opsiconfd.config import config as _config
 from opsiconfd.utils import Singleton

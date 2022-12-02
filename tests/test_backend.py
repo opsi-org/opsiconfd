@@ -10,15 +10,11 @@ webdav tests
 
 from pathlib import Path
 
-import requests
 from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
 
-from opsiconfd import get_contextvars, set_contextvars, set_contextvars_from_contex
 from opsiconfd.backend import (
 	execute_on_secondary_backends,
 	get_mysql,
-	get_unprotected_backend,
-	get_server_role,
 	get_unprotected_backend,
 )
 

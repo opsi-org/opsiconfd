@@ -10,7 +10,7 @@ opsiconfd backend interface
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol
 
 from .depot import RPCDepotserverMixin
 from .dhcpd_control import RPCDHCPDControlMixin

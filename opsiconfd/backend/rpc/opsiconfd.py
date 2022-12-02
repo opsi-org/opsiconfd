@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from inspect import getmembers, ismethod
 from types import MethodType
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import Any, Dict, List
 
 from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
 from opsicommon.exceptions import (  # type: ignore[import]

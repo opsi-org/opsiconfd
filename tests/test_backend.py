@@ -8,8 +8,6 @@
 webdav tests
 """
 
-from pathlib import Path
-
 from OpenSSL.crypto import FILETYPE_PEM, load_certificate, load_privatekey
 
 from opsiconfd.backend import (

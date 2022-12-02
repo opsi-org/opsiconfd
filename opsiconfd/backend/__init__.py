@@ -38,14 +38,6 @@ def get_unprotected_backend() -> UnprotectedBackend:
 	return UnprotectedBackend()
 
 
-def get_server_role() -> str:
-	# TODO:
-	# for _method, backends in _loadDispatchConfig(config.dispatch_config_file):
-	# 	if "jsonrpc" in backends:
-	# 		return "depot"
-	return "config"
-
-
 def get_mysql() -> MySQLConnection:
 	return get_protected_backend()._mysql  # pylint: disable=protected-access
 

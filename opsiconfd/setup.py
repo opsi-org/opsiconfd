@@ -42,11 +42,10 @@ from OPSI.Util.Task.Rights import (  # type: ignore[import]
 from opsicommon.objects import OpsiConfigserver  # type: ignore[import]
 
 from .application.utils import get_configserver_id
-from .backend import get_server_role
 from .backend.mysql import MySQLConnection
 from .backend.mysql.cleanup import cleanup_database
 from .backend.mysql.schema import update_database
-from .config import FQDN, OPSI_LICENSE_PATH, VAR_ADDON_DIR, config
+from .config import FQDN, OPSI_LICENSE_PATH, VAR_ADDON_DIR, config, opsi_config
 from .grafana import setup_grafana
 from .logging import logger
 from .metrics.statistics import setup_metric_downsampling
@@ -168,7 +167,7 @@ def setup_systemd() -> None:
 
 
 def setup_backend() -> None:
-	if get_server_role() != "config":
+	if opsi_config.get("host", "role") != "configserver":
 		return
 
 	mysql = MySQLConnection()

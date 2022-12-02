@@ -32,6 +32,7 @@ from dns import resolver, reversename
 from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
 from OPSI.Util import getfqdn  # type: ignore[import]
+from opsicommon.config import OpsiConfig
 from opsicommon.logging import secret_filter  # type: ignore[import]
 
 from .utils import Singleton, is_manager, is_opsiconfd, running_in_docker
@@ -62,6 +63,10 @@ LOG_DIR = "/var/log/opsi"
 LOG_SIZE_HARD_LIMIT = 10000000
 OPSI_LICENSE_PATH = "/etc/opsi/licenses"
 OPSI_MODULES_PATH = "/etc/opsi/modules"
+
+
+opsi_config = OpsiConfig()
+
 
 if running_in_docker():
 	try:

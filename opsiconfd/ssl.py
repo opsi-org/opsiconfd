@@ -43,12 +43,13 @@ from opsicommon.ssl import (  # type: ignore[import]
 )
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
-from .backend import get_server_role, get_unprotected_backend
+from .backend import get_unprotected_backend
 from .config import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	FQDN,
 	SERVER_KEY_DEFAULT_PASSPHRASE,
 	config,
+	opsi_config,
 )
 from .logging import logger
 from .utils import get_ip_addresses
@@ -284,7 +285,7 @@ def configserver_setup_ca() -> bool:
 
 
 def setup_ca() -> bool:
-	server_role = get_server_role()
+	server_role = opsi_config.get("host", "role")
 	if config.ssl_ca_key == config.ssl_ca_cert:
 		raise ValueError("CA key and cert cannot be stored in the same file")
 
@@ -294,9 +295,9 @@ def setup_ca() -> bool:
 			# Remove obsolete file
 			os.remove(ca_srl)  # pylint: disable=dotted-import-in-loop
 
-	if server_role == "config":
+	if server_role == "configserver":
 		return configserver_setup_ca()
-	if server_role == "depot":
+	if server_role == "depotserver":
 		return depotserver_setup_ca()
 
 	raise ValueError(f"Invalid server role: {server_role}")
@@ -336,8 +337,8 @@ def validate_cert(cert: X509, ca_cert: X509 = None) -> None:
 
 def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
-	server_role = get_server_role()
-	if server_role not in ("config", "depot"):
+	server_role = opsi_config.get("host", "role")
+	if server_role not in ("configserver", "depotserver"):
 		raise ValueError(f"Invalid server role: {server_role}")
 
 	if config.ssl_server_key == config.ssl_server_cert:
@@ -414,7 +415,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 			logger.notice("Server CN has changed from '%s' to '%s', creating new server cert", srv_crt.get_subject().CN, server_cn)
 			create = True
 
-	if not create and server_role == "config" and srv_crt:
+	if not create and server_role == "configserver" and srv_crt:
 		cert_hns = set()
 		cert_ips = set()
 		for idx in range(srv_crt.get_extension_count()):
@@ -441,7 +442,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 	if create:
 		logger.info("Creating new server cert")
 		(srv_crt, srv_key, pem) = (None, None, None)
-		if server_role == "config":
+		if server_role == "configserver":
 			# It is safer to create a new server cert with a new key pair
 			# For cases where the server key got compromised
 			(srv_crt, srv_key) = create_local_server_cert(renew=False)
@@ -473,12 +474,12 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 
 def setup_ssl() -> None:
 	logger.info("Setup ssl")
-	server_role = get_server_role()
+	server_role = opsi_config.get("host", "role")
 	if "opsi_ca" not in config.skip_setup:
 		setup_ca()
 	if "server_cert" not in config.skip_setup:
 		setup_server_cert()
-	if server_role == "config":
+	if server_role == "configserver":
 		# Read CA key as root to fill key cache
 		# so run_as_user can use key from cache
 		load_ca_key()

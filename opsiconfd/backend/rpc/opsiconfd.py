@@ -25,9 +25,8 @@ from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.application.utils import get_depot_server_id
-from opsiconfd.backend import get_server_role
 from opsiconfd.backend.rpc import MethodInterface
-from opsiconfd.config import config
+from opsiconfd.config import config, opsi_config
 from opsiconfd.logging import logger, secret_filter
 
 from ..auth import RPCACE, RPCACE_ALLOW_ALL, read_acl_file
@@ -130,7 +129,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self._interface_list: list[dict[str, Any]] = []
 		self.available_modules: list[str] = []
 
-		if get_server_role() == "config":
+		if opsi_config.get("host", "role") == "configserver":
 			self._config_server_init()
 		else:
 			self._depot_server_init()

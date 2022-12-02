@@ -10,6 +10,7 @@ test application check client status
 
 import json
 from socket import getfqdn
+
 from fastapi import status
 
 from opsiconfd.application.monitoring.check_client_status import check_client_status
@@ -25,7 +26,7 @@ from tests.utils import (  # pylint: disable=unused-import
 
 def test_check_client_status(backend, test_client):  # pylint: disable=redefined-outer-name
 
-	client_id = "test-client1.uib.local"
+	client_id = "test-client0815.uib.local"
 
 	# check client that does not exists -> result sould be UNKNOWN
 	result = check_client_status(backend, client_id=client_id)
@@ -41,9 +42,7 @@ def test_check_client_status(backend, test_client):  # pylint: disable=redefined
 		assert result.status_code == status.HTTP_200_OK
 		body = json.loads(result.body.decode("utf-8"))
 		assert body.get("state") == 0
-		assert body.get("message") == (
-			"OK: opsi-client test-client1.uib.local has been seen today. No failed products and no actions set for client"
-		)
+		assert body.get("message") == (f"OK: opsi-client {client_id} has been seen today. No failed products and no actions set for client")
 
 		products = get_dummy_products(3)
 		product_ids = [p["id"] for p in products]
@@ -56,7 +55,7 @@ def test_check_client_status(backend, test_client):  # pylint: disable=redefined
 			body = json.loads(result.body.decode("utf-8"))
 			assert body.get("state") == 0
 			assert body.get("message") == (
-				"OK: opsi-client test-client1.uib.local has been seen today. No failed products and no actions set for client"
+				f"OK: opsi-client {client_id} has been seen today. No failed products and no actions set for client"
 			)
 		with (
 			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
@@ -68,7 +67,7 @@ def test_check_client_status(backend, test_client):  # pylint: disable=redefined
 			print(body)
 			assert body.get("state") == 1
 			assert body.get("message") == (
-				"WARNING: opsi-client test-client1.uib.local has been seen today. Actions set for products: 'dummy-prod-0 (setup)'."
+				f"WARNING: opsi-client {client_id} has been seen today. Actions set for products: 'dummy-prod-0 (setup)'."
 			)
 		with (
 			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
@@ -80,7 +79,7 @@ def test_check_client_status(backend, test_client):  # pylint: disable=redefined
 			print(body)
 			assert body.get("state") == 2
 			assert body.get("message") == (
-				"CRITICAL: opsi-client test-client1.uib.local has been seen today. Products: 'dummy-prod-0' are in failed state. "
+				f"CRITICAL: opsi-client {client_id} has been seen today. Products: 'dummy-prod-0' are in failed state. "
 			)
 		with (
 			products_jsonrpc(test_client, "", products, depots=[getfqdn()]),
@@ -94,7 +93,7 @@ def test_check_client_status(backend, test_client):  # pylint: disable=redefined
 			print(body)
 			assert body.get("state") == 2
 			assert body.get("message") == (
-				"CRITICAL: opsi-client test-client1.uib.local has been seen today. "
+				f"CRITICAL: opsi-client {client_id} has been seen today. "
 				"Products: 'dummy-prod-1, dummy-prod-2' are in failed state. "
 				"Actions set for products: 'dummy-prod-0 (setup)'."
 			)

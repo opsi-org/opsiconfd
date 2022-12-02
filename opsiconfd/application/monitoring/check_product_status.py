@@ -37,7 +37,7 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 	if not product_ids:
 		product_ids = set()
 		for product in backend.objectToGroup_getIdents(groupType="ProductGroup", groupId=product_groups):
-			product = product.split(",")[2]
+			product = product.split(";")[2]
 			if product not in exclude:
 				product_ids.add(product)
 

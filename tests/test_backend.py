@@ -40,11 +40,6 @@ def test_get_backend_interface() -> None:
 	assert len(get_unprotected_backend().get_interface()) > 50
 
 
-def test_get_server_role(tmp_path: Path) -> None:
-	# TODO
-	pass
-
-
 def test_get_mysql() -> None:
 	mysql = get_mysql()  # pylint: disable=invalid-name
 	with mysql.session() as session:

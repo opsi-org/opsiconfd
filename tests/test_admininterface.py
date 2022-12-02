@@ -30,8 +30,8 @@ from .test_addon_manager import cleanup  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
-	Backend,
 	OpsiconfdTestClient,
+	UnprotectedBackend,
 	backend,
 	clean_mysql,
 	clean_redis,
@@ -363,7 +363,7 @@ def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: 
 		assert body[_idx].get("max_age") == 60
 
 
-def test_unlock_product(test_client: OpsiconfdTestClient, backend: Backend) -> None:  # pylint: disable=redefined-outer-name
+def test_unlock_product(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
@@ -393,7 +393,7 @@ def test_unlock_product(test_client: OpsiconfdTestClient, backend: Backend) -> N
 		assert locked_products == {products[0]: [test_depots[1]], products[1]: test_depots}
 
 
-def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: Backend) -> None:  # pylint: disable=redefined-outer-name
+def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
@@ -422,7 +422,7 @@ def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: Backend)
 		assert locked_products == {}
 
 
-def test_get_locked_products_list(test_client: OpsiconfdTestClient, backend: Backend) -> None:  # pylint: disable=redefined-outer-name
+def test_get_locked_products_list(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},

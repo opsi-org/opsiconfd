@@ -14,7 +14,11 @@ import psutil
 
 from opsiconfd.server import Server
 
-from .utils import Backend, backend, get_config  # pylint: disable=unused-import
+from .utils import (  # pylint: disable=unused-import
+	UnprotectedBackend,
+	backend,
+	get_config,
+)
 
 
 def test_server_and_workers() -> None:
@@ -48,7 +52,7 @@ def test_server_and_workers() -> None:
 		server_thread.join()
 
 
-def test_check_modules(backend: Backend) -> None:  # pylint: disable=redefined-outer-name
+def test_check_modules(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 	scalability_available = "scalability1" in backend.backend_getLicensingInfo()["available_modules"]
 	with get_config({"port": 4444, "workers": 2, "log_mode": "local"}) as config:
 		server = Server()

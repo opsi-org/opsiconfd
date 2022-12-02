@@ -17,17 +17,7 @@ import types
 from contextlib import asynccontextmanager, contextmanager
 from queue import Empty, Queue
 from threading import Thread
-from typing import (
-	TYPE_CHECKING,
-	Any,
-	AsyncGenerator,
-	Dict,
-	Generator,
-	List,
-	Tuple,
-	Type,
-	Union,
-)
+from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Type, Union
 from unittest.mock import patch
 
 import msgpack  # type: ignore[import]

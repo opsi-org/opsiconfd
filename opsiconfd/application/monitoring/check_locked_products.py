@@ -7,6 +7,7 @@
 """
 opsiconfd.application.monitoring.check_locked_products
 """
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, List
 

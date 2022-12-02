@@ -16,7 +16,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
 
-from OPSI.Config import FILE_ADMIN_GROUP  # type: ignore[import]
 from OPSI.System import getDiskSpaceUsage  # type: ignore[import]
 from OPSI.Util import (  # type: ignore[import]
 	compareVersions,
@@ -57,6 +56,7 @@ from opsicommon.types import (
 	forceProductId as typeForceProductId,  # type: ignore[import]
 )
 
+from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
 
 # deprecated can be used in extension config files
@@ -197,7 +197,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		package_content_file.setClientDataFiles(client_data_files)
 		package_content_file.generate()
 		if os.name == "posix":
-			os.chown(package_content_path, -1, grp.getgrnam(FILE_ADMIN_GROUP)[2])
+			os.chown(package_content_path, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(package_content_path, 0o660)
 
 	@rpc_method
@@ -209,7 +209,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		with open(md5sumFilename, "w", encoding="utf-8") as md5file:
 			md5file.write(md5)
 		if os.name == "posix":
-			os.chown(md5sumFilename, -1, grp.getgrnam(FILE_ADMIN_GROUP)[2])
+			os.chown(md5sumFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(md5sumFilename, 0o660)
 
 	@rpc_method
@@ -220,7 +220,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		zsync_file = ZsyncFile(zsyncFilename)
 		zsync_file.generate(filename)
 		if os.name == "posix":
-			os.chown(zsyncFilename, -1, grp.getgrnam(FILE_ADMIN_GROUP)[2])
+			os.chown(zsyncFilename, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2])
 			os.chmod(zsyncFilename, 0o660)
 
 	@rpc_method
@@ -248,7 +248,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if os.name == "posix":
 			for file in (package_file, f"{package_file}.md5", f"{package_file}.zsync"):
 				try:  # pylint: disable=loop-try-except-usage
-					os.chown(file, -1, grp.getgrnam(FILE_ADMIN_GROUP)[2])  # pylint: disable=dotted-import-in-loop
+					os.chown(
+						file, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2]
+					)  # pylint: disable=dotted-import-in-loop
 					os.chmod(file, 0o660)  # pylint: disable=dotted-import-in-loop
 				except Exception as err:  # pylint: disable=broad-except
 					logger.warning(err)

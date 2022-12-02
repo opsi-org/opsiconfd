@@ -8,6 +8,7 @@
 """
 check depot sync status
 """
+from __future__ import annotations
 
 from collections import defaultdict
 from typing import TYPE_CHECKING, Dict, List

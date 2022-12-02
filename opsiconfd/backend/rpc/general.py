@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
 from Crypto.Hash import MD5
 from Crypto.Signature import pkcs1_15
 from OPSI import __version__ as PYTHON_OPSI_VERSION  # type: ignore[import]
-from OPSI.Config import OPSI_ADMIN_GROUP  # type: ignore[import]
 from OPSI.Util import (  # type: ignore[import]
 	blowfishDecrypt,
 	blowfishEncrypt,
@@ -63,6 +62,7 @@ from opsiconfd.config import (
 	OPSI_MODULES_PATH,
 	OPSI_PASSWD_FILE,
 	config,
+	opsi_config,
 )
 from opsiconfd.logging import logger
 from opsiconfd.ssl import get_ca_cert_as_pem
@@ -419,7 +419,9 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 						dst_file_path = f"{log_file}.{num}"
 						os.rename(src_file_path, dst_file_path)  # pylint: disable=dotted-import-in-loop
 						try:  # pylint: disable=loop-try-except-usage
-							shutil.chown(dst_file_path, -1, OPSI_ADMIN_GROUP)  # pylint: disable=dotted-import-in-loop
+							shutil.chown(  # pylint: disable=dotted-import-in-loop
+								dst_file_path, -1, opsi_config.get("groups", "admingroup")
+							)
 							os.chmod(dst_file_path, 0o644)  # pylint: disable=dotted-import-in-loop
 						except Exception as err:  # pylint: disable=broad-except
 							logger.error("Failed to set file permissions on '%s': %s", dst_file_path, err)
@@ -437,7 +439,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			file.write(bdata)
 
 		try:
-			shutil.chown(log_file, group=OPSI_ADMIN_GROUP)
+			shutil.chown(log_file, group=opsi_config.get("groups", "admingroup"))
 			os.chmod(log_file, 0o640)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("Failed to set file permissions on '%s': %s", log_file, err)

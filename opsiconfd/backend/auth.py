@@ -13,9 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Literal, Optional, Set
 
-from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
-
-from opsiconfd.config import config
+from opsiconfd.config import config, opsi_config
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -108,8 +106,8 @@ def read_acl_file(acl_file: Path | str) -> List[RPCACE]:  # pylint: disable=too-
 						elif ace_type in ('sys_group', 'sys_user', 'opsi_depotserver', 'opsi_client'):  # pylint: disable=loop-invariant-statement
 							val = ace_type_param.strip()
 							if ace_type == 'sys_group':  # pylint: disable=loop-invariant-statement
-								val = val.replace("{admingroup}", OPSI_ADMIN_GROUP)
-								val = val.replace("{fileadmingroup}", FILE_ADMIN_GROUP)
+								val = val.replace("{admingroup}", opsi_config.get("groups", "admingroup"))
+								val = val.replace("{fileadmingroup}", opsi_config.get("groups", "fileadmingroup"))
 							ids.append(val)
 						else:
 							raise ValueError(f"Unhandled acl type param '{ace_type_param}' for acl type '{ace_type}'")

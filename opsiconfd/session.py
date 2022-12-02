@@ -38,7 +38,6 @@ from OPSI.Backend.Manager.Authentication.LDAP import (  # type: ignore[import]
 from OPSI.Backend.Manager.Authentication.PAM import (  # type: ignore[import]
 	PAMAuthentication,
 )
-from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
 from OPSI.Exceptions import (  # type: ignore[import]
 	BackendAuthenticationError,
 	BackendPermissionDeniedError,
@@ -55,7 +54,7 @@ from starlette.types import Message, Receive, Scope, Send
 from . import contextvar_client_session, server_timing
 from .addon import AddonManager
 from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
-from .config import REDIS_PREFIX_SESSION, config
+from .config import REDIS_PREFIX_SESSION, config, opsi_config
 from .logging import logger
 from .utils import (
 	async_redis_client,
@@ -223,7 +222,7 @@ class SessionMiddleware:
 				and required_access_role == ACCESS_ROLE_ADMIN
 				and not scope["session"].host
 				and scope["full_path"].startswith("/depot")
-				and FILE_ADMIN_GROUP not in scope["session"].user_groups
+				and opsi_config.get("groups", "fileadmingroup") not in scope["session"].user_groups
 			):
 				raise BackendPermissionDeniedError(f"Not a file admin user '{scope['session'].username}'")
 
@@ -783,9 +782,10 @@ async def check_admin_networks(session: OPSISession) -> None:
 			config.admin_networks,
 		)
 		session.is_admin = False
-		if OPSI_ADMIN_GROUP in session.user_groups:
+		admin_group = opsi_config.get("groups", "admingroup")
+		if admin_group in session.user_groups:
 			# Remove admin group from groups because acl.conf currently does not support is_admin
-			session.user_groups.remove(OPSI_ADMIN_GROUP)
+			session.user_groups.remove(admin_group)
 
 
 async def check_blocked(ip_address: str) -> None:

@@ -18,7 +18,6 @@ import time
 from pathlib import Path
 
 import psutil
-from OPSI.Config import FILE_ADMIN_GROUP, OPSI_ADMIN_GROUP  # type: ignore[import]
 from OPSI.setup import (  # type: ignore[import]
 	add_user_to_group,
 	create_group,
@@ -80,7 +79,13 @@ def setup_users_and_groups() -> None:
 		user = pwd.getpwnam(config.run_as_user)
 	except KeyError:
 		# User not found
-		create_user(username=config.run_as_user, primary_groupname=FILE_ADMIN_GROUP, home="/var/lib/opsi", shell="/bin/bash", system=True)
+		create_user(
+			username=config.run_as_user,
+			primary_groupname=opsi_config.get("groups", "fileadmingroup"),
+			home="/var/lib/opsi",
+			shell="/bin/bash",
+			system=True,
+		)
 		user = pwd.getpwnam(config.run_as_user)
 
 	try:
@@ -89,18 +94,20 @@ def setup_users_and_groups() -> None:
 		create_group(groupname="shadow", system=True)
 
 	gids = os.getgrouplist(user.pw_name, user.pw_gid)
-	for groupname in ("shadow", OPSI_ADMIN_GROUP, FILE_ADMIN_GROUP):
+	for groupname in ("shadow", opsi_config.get("groups", "admingroup"), opsi_config.get("groups", "fileadmingroup")):
 		logger.debug("Processing group %s", groupname)
 		try:  # pylint: disable=loop-try-except-usage
 			group = grp.getgrnam(groupname)  # pylint: disable=dotted-import-in-loop
 			if group.gr_gid not in gids:
 				add_user_to_group(config.run_as_user, groupname)
-			if groupname == FILE_ADMIN_GROUP and user.pw_gid != group.gr_gid:
+			if groupname == opsi_config.get("groups", "fileadmingroup") and user.pw_gid != group.gr_gid:
 				try:  # pylint: disable=loop-try-except-usage
-					set_primary_group(user.pw_name, FILE_ADMIN_GROUP)
+					set_primary_group(user.pw_name, opsi_config.get("groups", "fileadmingroup"))
 				except Exception as err:  # pylint: disable=broad-except
 					# Could be a user in active directory / ldap
-					logger.debug("Failed to set primary group of %s to %s: %s", user.pw_name, FILE_ADMIN_GROUP, err)
+					logger.debug(
+						"Failed to set primary group of %s to %s: %s", user.pw_name, opsi_config.get("groups", "fileadmingroup"), err
+					)
 		except KeyError:
 			logger.debug("Group not found: %s", groupname)
 
@@ -117,11 +124,11 @@ def setup_file_permissions() -> None:
 	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
 	permissions = (
 		FilePermission("/etc/shadow", None, "shadow", 0o640),
-		FilePermission("/var/log/opsi/opsiconfd/opsiconfd.log", config.run_as_user, OPSI_ADMIN_GROUP, 0o660),
+		FilePermission("/var/log/opsi/opsiconfd/opsiconfd.log", config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660),
 		# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)
 		# This user needs read permission
-		FilePermission(dhcpd_config_file, config.run_as_user, OPSI_ADMIN_GROUP, 0o664),
-		DirPermission(VAR_ADDON_DIR, config.run_as_user, FILE_ADMIN_GROUP, 0o660, 0o770),
+		FilePermission(dhcpd_config_file, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o664),
+		DirPermission(VAR_ADDON_DIR, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770),
 	)
 	PermissionRegistry().register_permission(*permissions)
 	for permission in permissions:

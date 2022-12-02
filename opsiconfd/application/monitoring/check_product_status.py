@@ -8,6 +8,8 @@
 opsiconfd.application.monitoring.check_product_status
 """
 
+from __future__ import annotations
+
 from collections import defaultdict
 from typing import TYPE_CHECKING, Dict, List, Set
 

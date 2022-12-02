@@ -29,7 +29,6 @@ from OpenSSL.crypto import (
 	load_certificate,
 	load_privatekey,
 )
-from OPSI.Config import OPSI_ADMIN_GROUP  # type: ignore[import]
 from OPSI.Util.Task.Rights import (  # type: ignore[import]
 	FilePermission,
 	PermissionRegistry,
@@ -91,11 +90,12 @@ def get_domain() -> str:
 
 
 def setup_ssl_file_permissions() -> None:
+	admin_group = opsi_config.get("groups", "admingroup")
 	permissions = (
-		FilePermission(config.ssl_ca_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o644),
-		FilePermission(config.ssl_ca_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
-		FilePermission(config.ssl_server_cert, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
-		FilePermission(config.ssl_server_key, config.run_as_user, OPSI_ADMIN_GROUP, 0o600),
+		FilePermission(config.ssl_ca_cert, config.run_as_user, admin_group, 0o644),
+		FilePermission(config.ssl_ca_key, config.run_as_user, admin_group, 0o600),
+		FilePermission(config.ssl_server_cert, config.run_as_user, admin_group, 0o600),
+		FilePermission(config.ssl_server_key, config.run_as_user, admin_group, 0o600),
 	)
 	PermissionRegistry().register_permission(*permissions)
 	for permission in permissions:

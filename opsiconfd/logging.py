@@ -29,7 +29,6 @@ import msgspec
 from aiofiles.threadpool import AsyncTextIOWrapper  # type: ignore[import]
 from aiologger.handlers.files import AsyncFileHandler  # type: ignore[import]
 from aiologger.handlers.streams import AsyncStreamHandler  # type: ignore[import]
-from OPSI.Config import OPSI_ADMIN_GROUP  # type: ignore[import]
 from opsicommon.logging import (  # type: ignore[import]
 	DATETIME_FORMAT,
 	LOG_COLORS,
@@ -50,7 +49,7 @@ from opsicommon.logging.logging import (  # type: ignore[import]
 from redis import BusyLoadingError as RedisBusyLoadingError
 from redis import ConnectionError as RedisConnectionError
 
-from .config import config
+from .config import config, opsi_config
 from .utils import get_async_redis_connection, get_redis_connection, retry_redis_call
 
 # 1 log record ~= 550 bytes
@@ -148,7 +147,11 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 				dst_file_path = f"{self.absolute_file_path}.{num}"
 				await loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)  # pylint: disable=dotted-import-in-loop
 				await loop.run_in_executor(
-					None, shutil.chown, dst_file_path, config.run_as_user, OPSI_ADMIN_GROUP  # pylint: disable=dotted-import-in-loop
+					None,
+					shutil.chown,  # pylint: disable=dotted-import-in-loop
+					dst_file_path,
+					config.run_as_user,
+					opsi_config.get("groups", "admingroup"),
 				)
 				await loop.run_in_executor(None, os.chmod, dst_file_path, 0o644)  # pylint: disable=dotted-import-in-loop
 
@@ -164,7 +167,7 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 
 		self.stream = None
 		await self._init_writer()
-		await loop.run_in_executor(None, shutil.chown, self.absolute_file_path, config.run_as_user, OPSI_ADMIN_GROUP)
+		await loop.run_in_executor(None, shutil.chown, self.absolute_file_path, config.run_as_user, opsi_config.get("groups", "admingroup"))
 		await loop.run_in_executor(None, os.chmod, self.absolute_file_path, 0o644)
 
 	async def emit(self, record: LogRecord) -> None:

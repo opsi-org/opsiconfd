@@ -276,7 +276,7 @@ class RPCAuditHardwareMixin(Protocol):
 				if not return_hardware_ids and "hardware_id" in columns:
 					del columns["hardware_id"]
 				where, params = self._mysql.get_where(columns=columns, ace=ace, filter=class_filter)
-				query = f"""SELECT {', '.join([f"{c['select']} AS `{a}`" for a, c in columns.items() if c['select']])} FROM `{table}` {where}"""  # pylint: disable=loop-invariant-statement
+				query = f"""SELECT {', '.join([f"{c.select} AS `{a}`" for a, c in columns.items() if c.select])} FROM `{table}` {where}"""  # pylint: disable=loop-invariant-statement
 				for row in session.execute(query, params=params).fetchall():
 					data = dict(row)
 					if return_type == "object":  # pylint: disable=loop-invariant-statement

@@ -43,7 +43,7 @@ class RPCExtEasyMixin(Protocol):
 			if timestamp is None:
 				return ""
 
-			match = timestamp_regex.search(client.get("created", ""))
+			match = timestamp_regex.search(timestamp)
 			if match:
 				return f"{match.group(1)}{match.group(2)}{match.group(3)}{match.group(4)}{match.group(5)}{match.group(6)}"
 

@@ -46,7 +46,7 @@ def get_depot_server_id() -> str:
 
 def get_username() -> str:
 	client_session = contextvar_client_session.get()
-	if not client_session:
+	if not client_session or not client_session.username:
 		raise RuntimeError("Session invalid")
 	return client_session.username
 

@@ -203,7 +203,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 					del columns["hardware_id"]
 				where, params = self._mysql.get_where(columns=columns, ace=ace, filter=class_filter)
 				query = (
-					f"""SELECT {', '.join([f"{c['select']} AS `{a}`" for a, c in columns.items() if c['select']])} FROM `{device_table}` """  # pylint: disable=loop-invariant-statement
+					f"""SELECT {', '.join([f"{c.select} AS `{a}`" for a, c in columns.items() if c.select])} FROM `{device_table}` """  # pylint: disable=loop-invariant-statement
 					f"""JOIN `{config_table}` ON `{config_table}`.`hardware_id` = `{device_table}`.`hardware_id` {where}"""
 				)
 				for row in session.execute(query, params=params).fetchall():

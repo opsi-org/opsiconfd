@@ -32,7 +32,7 @@ services:
       MYSQL_PASSWORD: opsi
       MYSQL_HOST: localhost
       OPSICONFD_EXTERNAL_URL: https://localhost:4448
-      OPSICONFD_INTERNAL_URL: https://opsiconfd-dev:4447
+      OPSICONFD_INTERNAL_URL: https://opsiconfd-dev-43:4447
       OPSICONFD_STATIC_DIR: /workspace/opsiconfd_data/static
       # OPSICONFD_GRAFANA_INTERNAL_URL: http://adminuser:adminuser@localhost:3000
       # OPSICONFD_GRAFANA_EXTERNAL_URL: "http://localhost:3000"

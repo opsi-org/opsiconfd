@@ -21,7 +21,7 @@ def check_locked_products(
 ) -> JSONResponse:
 	product_ids = product_ids or []
 	if not depot_ids or "all" in depot_ids:
-		depots = backend._executeMethod(methodName="host_getObjects", type="OpsiDepotserver")  # pylint: disable=protected-access
+		depots = backend.host_getObjects(type="OpsiDepotserver")
 		depot_ids = [depot.id for depot in depots]
 
 	locked_products = backend.productOnDepot_getObjects(depotId=depot_ids, productId=product_ids, locked=True)

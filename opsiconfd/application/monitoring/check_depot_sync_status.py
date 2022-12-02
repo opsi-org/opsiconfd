@@ -33,9 +33,7 @@ def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-loc
 		depots = backend.host_getObjects(type="OpsiDepotserver")
 		depot_ids = [depot.id for depot in depots]
 
-	product_on_depots = backend._executeMethod(  # pylint: disable=protected-access
-		methodName="productOnDepot_getObjects", depotId=depot_ids, productId=product_ids
-	)
+	product_on_depots = backend.productOnDepot_getObjects(depotId=depot_ids, productId=product_ids)
 	product_ids_set = set()
 	product_on_depot_info: Dict[str, Dict[str, ProductOnDepot]] = defaultdict(dict)
 	for pod in product_on_depots:

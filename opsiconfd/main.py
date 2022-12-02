@@ -25,7 +25,7 @@ from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 
 from . import __version__
 from .check import health_check
-from .config import GC_THRESHOLDS, config
+from .config import GC_THRESHOLDS, config, opsi_config
 from .logging import (
 	AsyncRedisLogAdapter,
 	init_logging,
@@ -123,7 +123,7 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 
 		setup(full=bool(config.setup))
 
-		logger.essential("Opsiconfd version %s starting", __version__)
+		logger.essential("Opsiconfd version %s starting as %s", __version__, opsi_config.get("host", "role"))
 
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)

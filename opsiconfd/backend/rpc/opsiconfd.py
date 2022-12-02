@@ -137,6 +137,12 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		for base in self.__class__.__bases__:
 			base.__init__(self)  # type: ignore[misc]
 
+	def __str__(self):
+		return f"{self.__class__.__name__}({id(self)})"
+
+	__repr__ = __str__
+
+
 	def _config_server_init(self) -> None:
 		self._mysql.connect()
 

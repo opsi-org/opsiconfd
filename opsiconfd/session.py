@@ -29,27 +29,21 @@ from fastapi.responses import (
 	RedirectResponse,
 	Response,
 )
-from OPSI.Backend.Manager.Authentication import (  # type: ignore[import]
-	AuthenticationModule,
-)
-from OPSI.Backend.Manager.Authentication.LDAP import (  # type: ignore[import]
-	LDAPAuthentication,
-)
-from OPSI.Backend.Manager.Authentication.PAM import (  # type: ignore[import]
-	PAMAuthentication,
-)
-from OPSI.Exceptions import (  # type: ignore[import]
+from OPSI.Util import ipAddressInNetwork, timestamp  # type: ignore[import]
+from opsicommon.exceptions import (  # type: ignore[import]
 	BackendAuthenticationError,
 	BackendPermissionDeniedError,
 )
-from OPSI.Util import ipAddressInNetwork, timestamp  # type: ignore[import]
-from OPSI.Util.File.Opsi import OpsiConfFile  # type: ignore[import]
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
 from opsicommon.objects import Host  # type: ignore[import]
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
+
+from opsiconfd.auth import AuthenticationModule
+from opsiconfd.auth.ldap import LDAPAuthentication
+from opsiconfd.auth.pam import PAMAuthentication
 
 from . import contextvar_client_session, server_timing
 from .addon import AddonManager
@@ -595,7 +589,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 			logger.warning("Invalid x-opsi-session-lifetime header with value '%s' from client", x_opsi_session_lifetime)
 
 
-auth_module = None  # pylint: disable=invalid-name
+auth_module: AuthenticationModule | None = None  # pylint: disable=invalid-name
 
 
 def get_auth_module() -> AuthenticationModule:
@@ -603,8 +597,8 @@ def get_auth_module() -> AuthenticationModule:
 
 	if not auth_module:
 		try:
-			ldap_conf = OpsiConfFile().get_ldap_auth_config()
-			if ldap_conf:
+			ldap_conf = opsi_config.get("ldap_auth")
+			if ldap_conf["ldap_url"]:
 				logger.debug("Using LDAP auth with config: %s", ldap_conf)
 				if "directory-connector" in get_unprotected_backend().available_modules:
 					auth_module = LDAPAuthentication(**ldap_conf)

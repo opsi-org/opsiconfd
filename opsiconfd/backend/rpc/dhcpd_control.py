@@ -20,14 +20,14 @@ from pathlib import Path
 from time import sleep, time
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
 
-from OPSI.Exceptions import BackendIOError  # type: ignore[import]
-from OPSI.Object import ConfigState, Host, OpsiClient  # type: ignore[import]
 from OPSI.System import execute  # type: ignore[import]
 from OPSI.System.Posix import (  # type: ignore[import]
 	getDHCPDRestartCommand,
 	locateDHCPDConfig,
 )
 from OPSI.Util.File import DHCPDConfFile  # type: ignore[import]
+from opsicommon.exceptions import BackendIOError  # type: ignore[import]
+from opsicommon.objects import ConfigState, Host, OpsiClient  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
 	forceBool,
 	forceDict,

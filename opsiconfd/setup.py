@@ -174,7 +174,7 @@ def setup_systemd() -> None:
 
 
 def setup_backend() -> None:
-	if opsi_config.get("host", "role") != "configserver":
+	if opsi_config.get("host", "server-role") != "configserver":
 		return
 
 	mysql = MySQLConnection()

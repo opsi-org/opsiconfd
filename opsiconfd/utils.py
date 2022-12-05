@@ -13,7 +13,6 @@ import codecs
 import datetime
 import functools
 import gzip
-import ipaddress
 import os
 import random
 import string
@@ -21,6 +20,14 @@ import threading
 import time
 import zlib
 from contextlib import contextmanager
+from ipaddress import (
+	IPv4Address,
+	IPv4Network,
+	IPv6Address,
+	IPv6Network,
+	ip_address,
+	ip_network,
+)
 from socket import AF_INET, AF_INET6
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Optional
 
@@ -140,12 +147,12 @@ def decode_redis_result(_obj: Any) -> Any:
 
 
 def normalize_ip_address(address: str, exploded: bool = False) -> str:
-	ip_address = ipaddress.ip_address(address)
-	if isinstance(ip_address, ipaddress.IPv6Address) and ip_address.ipv4_mapped:
-		ip_address = ip_address.ipv4_mapped
+	ipa = ip_address(address)
+	if isinstance(ipa, IPv6Address) and ipa.ipv4_mapped:
+		ipa = ipa.ipv4_mapped
 	if exploded:
-		return ip_address.exploded
-	return ip_address.compressed
+		return ipa.exploded
+	return ipa.compressed
 
 
 def ip_address_to_redis_key(address: str) -> str:
@@ -173,14 +180,36 @@ def get_ip_addresses() -> Generator[Dict[str, Any], None, None]:
 			else:
 				continue
 
-			ip_address = None
+			ipa = None
 			try:  # pylint: disable=loop-try-except-usage
-				ip_address = ipaddress.ip_address(snic.address.split("%")[0])  # pylint: disable=dotted-import-in-loop
+				ipa = ip_address(snic.address.split("%")[0])  # pylint: disable=dotted-import-in-loop
 			except ValueError:
 				if logger:  # pylint: disable=loop-global-usage
 					logger.warning("Unrecognised ip address: %r", snic.address)  # pylint: disable=loop-global-usage
 
-			yield {"family": family, "interface": interface, "address": snic.address, "ip_address": ip_address}
+			yield {"family": family, "interface": interface, "address": snic.address, "ip_address": ipa}
+
+
+def ip_address_in_network(address: str | IPv4Address | IPv6Address, network: str | IPv4Network | IPv6Network) -> bool:
+	"""
+	Checks if the given IP address is in the given network range.
+	Returns ``True`` if the given address is part of the network.
+	Returns ``False`` if the given address is not part of the network.
+
+	:param address: The IP which we check.
+	:type address: str
+	:param network: The network address written with slash notation.
+	:type network: str
+	"""
+	if not isinstance(address, (IPv4Address, IPv6Address)):
+		address = ip_address(address)
+	if isinstance(address, IPv6Address) and address.ipv4_mapped:
+		address = address.ipv4_mapped
+
+	if not isinstance(network, (IPv4Network, IPv6Network)):
+		network = ip_network(network)
+
+	return address in network
 
 
 def get_random_string(length: int) -> str:

@@ -31,7 +31,6 @@ import psutil
 from dns import resolver, reversename
 from dns.exception import DNSException
 from fastapi.templating import Jinja2Templates
-from OPSI.Util import getfqdn  # type: ignore[import]
 from opsicommon.config import OpsiConfig  # type: ignore[import]
 from opsicommon.logging import secret_filter  # type: ignore[import]
 
@@ -51,7 +50,7 @@ DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file")
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
 
-FQDN = getfqdn().lower()
+FQDN = socket.getfqdn().lower()
 DEFAULT_NODE_NAME = socket.gethostname()
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"

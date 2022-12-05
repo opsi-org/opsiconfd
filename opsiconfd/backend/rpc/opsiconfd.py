@@ -129,7 +129,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self._interface_list: list[dict[str, Any]] = []
 		self.available_modules: list[str] = []
 
-		if opsi_config.get("host", "role") == "configserver":
+		if opsi_config.get("host", "server-role") == "configserver":
 			self._config_server_init()
 		else:
 			self._depot_server_init()

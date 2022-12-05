@@ -123,7 +123,7 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 
 		setup(full=bool(config.setup))
 
-		logger.essential("Opsiconfd version %s starting as %s", __version__, opsi_config.get("host", "role"))
+		logger.essential("Opsiconfd version %s starting as %s", __version__, opsi_config.get("host", "server-role"))
 
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)

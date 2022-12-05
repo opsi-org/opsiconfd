@@ -26,7 +26,7 @@ _info = None  # pylint: disable=invalid-name
 
 async def register_opsi_services() -> None:  # pylint: disable=too-many-branches
 	global _zeroconf, _info  # pylint: disable=invalid-name,global-statement
-	if opsi_config.get("host", "role") != "configserver":
+	if opsi_config.get("host", "server-role") != "configserver":
 		return
 
 	logger.info("Register zeroconf service")

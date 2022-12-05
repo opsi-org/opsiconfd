@@ -152,7 +152,10 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 
 	selectedDepot = masterDepot
 	if alternativeDepots:
-		from OPSI.Util import ipAddressInNetwork
+		try:
+			from opsiconfd.utils import ip_address_in_network
+		except ImportError:
+			from OPSI.Util import ipAddressInNetwork as ip_address_in_network
 
 		depots = [masterDepot]
 		depots.extend(alternativeDepots)
@@ -161,7 +164,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 				logger.warning("Network address of depot '%s' not known", depot)
 				continue
 
-			if ipAddressInNetwork(clientConfig['ipAddress'], depot.networkAddress):
+			if ip_address_in_network(clientConfig['ipAddress'], depot.networkAddress):
 				logger.notice("Choosing depot with networkAddress %s for ip %s", depot.networkAddress, clientConfig['ipAddress'])
 				selectedDepot = depot
 				break
@@ -179,7 +182,10 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 	logger.debug("Alternative Depots are: %s", alternativeDepots)
 	selectedDepot = masterDepot
 	if alternativeDepots:
-		from OPSI.Util import ipAddressInNetwork
+		try:
+			from opsiconfd.utils import ip_address_in_network
+		except ImportError:
+			from OPSI.Util import ipAddressInNetwork as ip_address_in_network
 		import ipaddress
 
 		depots = [masterDepot]
@@ -193,7 +199,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 				logger.warning("Network address of depot '%s' not known", depot)
 				continue
 
-			if ipAddressInNetwork(clientConfig['ipAddress'], depot.networkAddress):
+			if ip_address_in_network(clientConfig['ipAddress'], depot.networkAddress):
 				logger.notice("Choosing depot with networkAddress %s for ip %s", depot.networkAddress, clientConfig['ipAddress'])
 				selectedDepot = depot
 				break

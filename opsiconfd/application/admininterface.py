@@ -25,8 +25,8 @@ from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
-from OPSI.System.Posix import isUCS  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
+from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
@@ -81,7 +81,7 @@ async def welcome_interface_index(request: Request) -> Response:
 		"request": request,
 		"client_lang": client_lang,
 		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
-		"ucs_server": isUCS(),
+		"ucs_server": linux_distro_id_like_contains("univention"),
 		"webgui": webgui,
 		"welcome_page": welcome_page,
 	}

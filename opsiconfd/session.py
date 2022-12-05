@@ -29,7 +29,7 @@ from fastapi.responses import (
 	RedirectResponse,
 	Response,
 )
-from OPSI.Util import ipAddressInNetwork, timestamp  # type: ignore[import]
+from OPSI.Util import timestamp  # type: ignore[import]
 from opsicommon.exceptions import (  # type: ignore[import]
 	BackendAuthenticationError,
 	BackendPermissionDeniedError,
@@ -44,6 +44,7 @@ from starlette.types import Message, Receive, Scope, Send
 from opsiconfd.auth import AuthenticationModule
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.pam import PAMAuthentication
+from opsiconfd.utils import ip_address_in_network
 
 from . import contextvar_client_session, server_timing
 from .addon import AddonManager
@@ -52,6 +53,7 @@ from .config import REDIS_PREFIX_SESSION, config, opsi_config
 from .logging import logger
 from .utils import (
 	async_redis_client,
+	ip_address_in_network,
 	ip_address_to_redis_key,
 	redis_client,
 	utc_time_timestamp,
@@ -764,7 +766,7 @@ async def check_admin_networks(session: OPSISession) -> None:
 
 	is_admin_network = False
 	for network in config.admin_networks:
-		if ipAddressInNetwork(session.client_addr, network):
+		if ip_address_in_network(session.client_addr, network):
 			is_admin_network = True
 			break
 
@@ -817,7 +819,7 @@ async def check_network(client_addr: str) -> None:
 	if not config.networks:
 		return
 	for network in config.networks:
-		if ipAddressInNetwork(client_addr, network):
+		if ip_address_in_network(client_addr, network):
 			return
 	raise ConnectionRefusedError(f"Host '{client_addr}' is not allowed to connect")
 

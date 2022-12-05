@@ -285,7 +285,7 @@ def configserver_setup_ca() -> bool:
 
 
 def setup_ca() -> bool:
-	server_role = opsi_config.get("host", "role")
+	server_role = opsi_config.get("host", "server-role")
 	if config.ssl_ca_key == config.ssl_ca_cert:
 		raise ValueError("CA key and cert cannot be stored in the same file")
 
@@ -337,7 +337,7 @@ def validate_cert(cert: X509, ca_cert: X509 = None) -> None:
 
 def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 	logger.info("Checking server cert")
-	server_role = opsi_config.get("host", "role")
+	server_role = opsi_config.get("host", "server-role")
 	if server_role not in ("configserver", "depotserver"):
 		raise ValueError(f"Invalid server role: {server_role}")
 
@@ -474,7 +474,7 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 
 def setup_ssl() -> None:
 	logger.info("Setup ssl")
-	server_role = opsi_config.get("host", "role")
+	server_role = opsi_config.get("host", "server-role")
 	if "opsi_ca" not in config.skip_setup:
 		setup_ca()
 	if "server_cert" not in config.skip_setup:

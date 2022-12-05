@@ -13,17 +13,13 @@ import os
 import re
 import sys
 from re import findall
+from subprocess import run
 from typing import Any, Callable, Dict, Optional, Union
 
 import requests
 from colorama import Fore, Style  # type: ignore[import]
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
-from OPSI.System.Posix import (  # type: ignore[import]
-	execute,
-	isOpenSUSE,
-	isRHEL,
-	isSLES,
-)
+from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
 from packaging.version import parse as parse_version
 from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
@@ -31,7 +27,7 @@ from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
-from opsiconfd.backend import get_unprotected_backend, get_mysql
+from opsiconfd.backend import get_mysql, get_unprotected_backend
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.utils import decode_redis_result, redis_client
@@ -51,7 +47,7 @@ MT_ERROR = "error"
 
 def messages(message: str, width: int) -> Callable:
 	def message_decorator(function: Callable) -> Callable:
-		def wrapper(*args: Any, **kwargs: Dict[str, Any]) -> Any:
+		def wrapper(*args: Any, **kwargs: Dict[str, Any]) -> Any:  # pylint: disable=too-many-branches
 			try:
 				print_messages = args[0]
 			except IndexError:
@@ -133,10 +129,11 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 	result = {"status": "ok", "message": "All packages up to date.", "partial_checks": {}}
 	package_versions = get_repo_versions()
 	try:
-		if isRHEL() or isSLES():
+		if linux_distro_id_like_contains(("sles", "rhel")):
 			cmd = ["yum", "list", "installed"]
 			regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+).*$")
-			for line in execute(cmd, shell=False, timeout=10):
+			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			for line in res.split("\n"):
 				match = regex.search(line)
 				if not match:
 					continue
@@ -144,10 +141,11 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 				if p_name in package_versions:
 					logger.info("Package '%s' found: version '%s'", p_name, match.group(2))
 					package_versions[p_name]["version_found"] = match.group(2)
-		elif isOpenSUSE():
+		elif linux_distro_id_like_contains("opensuse"):
 			cmd = ["zypper", "search", "-is", "opsi*"]
 			regex = re.compile(r"^[^S]\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+)\s+\|\s+(\S+).*$")
-			for line in execute(cmd, shell=False, timeout=10):
+			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			for line in res.split("\n"):
 				match = regex.search(line)
 				if not match:
 					continue
@@ -158,7 +156,8 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 		else:
 			cmd = ["dpkg", "-l"]  # pylint: disable=use-tuple-over-list
 			regex = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+.*$")
-			for line in execute(cmd, shell=False, timeout=10):
+			res = run(cmd, shell=False, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+			for line in res.split("\n"):
 				match = regex.search(line)
 				if not match:
 					continue

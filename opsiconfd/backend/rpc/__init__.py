@@ -16,6 +16,8 @@ from inspect import getfullargspec, signature
 from textwrap import dedent
 from typing import Any, Callable, Dict, List
 
+from .cache import rpc_cache_clear, rpc_cache_load, rpc_cache_store
+
 DOC_INSERT_OBJECT = """Creates a new object in the backend.
 If the object already exists, it will be completely overwritten with the new values.
 Attributes that are not passed (or passed with the value 'null') will be set to 'null' in the backend.
@@ -119,7 +121,14 @@ def get_method_interface(  # pylint: disable=too-many-locals
 
 
 def rpc_method(
-	func: Callable = None, /, *, check_acl: bool | str = True, deprecated: bool = False, alternative_method: str | None = None
+	func: Callable = None,
+	/,
+	*,
+	check_acl: bool | str = True,
+	deprecated: bool = False,
+	alternative_method: str | None = None,
+	use_cache: str | None = None,
+	clear_cache: str | None = None
 ) -> Callable:
 	def decorator(func: Callable) -> Callable:
 
@@ -143,15 +152,27 @@ def rpc_method(
 			elif func.__name__.endswith("_delete"):
 				func.__doc__ = DOC_DELETE
 
+		check_name = None
+		if check_acl:
+			check_name = check_acl if isinstance(check_acl, str) else func.__name__
+
 		@wraps(func)
 		def wrapper(*args: Any, **kwargs: Any) -> Any:
-			check_name = check_acl if isinstance(check_acl, str) else func.__name__
-			args[0]._get_ace(check_name)  # pylint: disable=protected-access
-			return func(*args, **kwargs)
+			if check_name:
+				args[0]._get_ace(check_name)  # pylint: disable=protected-access
+			if clear_cache:
+				rpc_cache_clear(clear_cache)
+			if use_cache:
+				result = rpc_cache_load(use_cache, *args[1:], **kwargs)
+				if result is not None:
+					return result
+			result = func(*args, **kwargs)
+			if use_cache:
+				rpc_cache_store(use_cache, result, *args[1:], **kwargs)
+			return result
 
-		ret = wrapper if check_acl else func
-		setattr(ret, "rpc_interface", get_method_interface(func, deprecated=deprecated, alternative_method=alternative_method))
-		return ret
+		setattr(wrapper, "rpc_interface", get_method_interface(func, deprecated=deprecated, alternative_method=alternative_method))
+		return wrapper
 
 	if func is None:
 		# Called as @rpc_method() with parens

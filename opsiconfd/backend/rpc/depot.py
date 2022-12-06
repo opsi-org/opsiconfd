@@ -5,7 +5,7 @@
 # All rights reserved.
 # License: AGPL-3.0
 """
-opsiconfd.backend.rpc.extender
+opsiconfd.backend.rpc.depot
 """
 
 from __future__ import annotations

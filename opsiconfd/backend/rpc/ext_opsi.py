@@ -118,7 +118,7 @@ class RPCExtOpsiMixin(Protocol):
 		"""Get the count of data relevant to the hardware audit."""
 		return len(self.auditHardware_getObjects()) + len(self.auditHardwareOnHost_getObjects())
 
-	@rpc_method
+	@rpc_method(use_cache="product_ordering")
 	def getProductOrdering(  # pylint: disable=invalid-name,too-many-branches
 		self: BackendProtocol, depotId: str, sortAlgorithm: str = None
 	) -> Dict[str, list]:

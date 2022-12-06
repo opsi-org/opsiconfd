@@ -119,6 +119,7 @@ def clean_redis_keys() -> Tuple[str, ...]:
 		# "opsiconfd:stats:worker",
 		"opsiconfd:log",
 		"opsiconfd:jsonrpccache:*:products",
+		"opsiconfd:test_rpccache",
 		REDIS_PREFIX_SESSION,
 		REDIS_PREFIX_MESSAGEBUS
 	)

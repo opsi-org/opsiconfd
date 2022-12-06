@@ -22,6 +22,7 @@ from multiprocessing.context import SpawnProcess
 from signal import SIGHUP
 from typing import List, Optional
 
+from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
 from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
@@ -125,6 +126,7 @@ class Worker(UvicornServer):
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		logger.notice("Startup worker %d (pid %s)", self.worker_num, self.pid)
 
+		monkeypatch_subprocess_for_frozen()
 		logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)
 		gc.set_threshold(*GC_THRESHOLDS)
 

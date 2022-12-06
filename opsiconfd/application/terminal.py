@@ -22,7 +22,6 @@ from typing import Any, Dict, Optional
 import msgspec
 import psutil
 from fastapi import Query
-from OPSI.System import get_subprocess_environment  # type: ignore[import]
 from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
 from starlette.types import Receive, Scope, Send
@@ -40,7 +39,7 @@ PTY_READER_BLOCK_SIZE = 16 * 1024
 def start_pty(shell: str, rows: int | None = 30, cols: int | None = 120, cwd: str | None = None) -> spawn:
 	rows = rows or 30
 	cols = cols or 120
-	sp_env = get_subprocess_environment()
+	sp_env = os.environ.copy()
 	sp_env.update({"TERM": "xterm-256color"})
 	return spawn(shell, dimensions=(rows, cols), env=sp_env, cwd=cwd)
 

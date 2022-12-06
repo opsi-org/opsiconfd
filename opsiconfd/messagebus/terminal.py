@@ -11,6 +11,7 @@ application.teminal
 from __future__ import annotations
 
 import asyncio
+import os
 from asyncio import get_running_loop
 from os import getuid
 from pathlib import Path
@@ -18,7 +19,6 @@ from pwd import getpwuid
 from time import time
 from typing import Optional
 
-from OPSI.System import get_subprocess_environment  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]
 	Message,
 	MessageType,
@@ -60,7 +60,7 @@ async def async_terminal_shutdown() -> None:
 def start_pty(shell: str, rows: int | None = 30, cols: int | None = 120, cwd: str | None = None) -> spawn:
 	rows = rows or 30
 	cols = cols or 120
-	sp_env = get_subprocess_environment()
+	sp_env = os.environ.copy()
 	sp_env.update({"TERM": "xterm-256color"})
 	return spawn(shell, dimensions=(rows, cols), env=sp_env, cwd=cwd)
 

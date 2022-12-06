@@ -18,27 +18,26 @@ import time
 from pathlib import Path
 
 import psutil
-from OPSI.setup import (  # type: ignore[import]
-	add_user_to_group,
-	create_group,
-	create_user,
-	set_primary_group,
-)
-from OPSI.setup import (
-	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
-)
-from OPSI.System import get_subprocess_environment  # type: ignore[import]
 from OPSI.System.Posix import (  # type: ignore[import]
 	getNetworkConfiguration,
 	locateDHCPDConfig,
 )
-from OPSI.Util.Task.Rights import (  # type: ignore[import]
+from opsicommon.objects import OpsiConfigserver  # type: ignore[import]
+from opsicommon.server.rights import (  # type: ignore[import]
 	DirPermission,
 	FilePermission,
 	PermissionRegistry,
 	set_rights,
 )
-from opsicommon.objects import OpsiConfigserver  # type: ignore[import]
+from opsicommon.server.setup import (  # type: ignore[import]
+	add_user_to_group,
+	create_group,
+	create_user,
+	set_primary_group,
+)
+from opsicommon.server.setup import (
+	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
+)
 
 from .application.utils import get_configserver_id
 from .backend.mysql import MySQLConnection
@@ -169,8 +168,8 @@ def setup_systemd() -> None:
 		return
 
 	logger.info("Setup systemd")
-	subprocess.check_output(["systemctl", "daemon-reload"], env=get_subprocess_environment())
-	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"], env=get_subprocess_environment())
+	subprocess.check_output(["systemctl", "daemon-reload"])
+	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"])
 
 
 def setup_backend() -> None:

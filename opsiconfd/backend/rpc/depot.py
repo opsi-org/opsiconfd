@@ -248,9 +248,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if os.name == "posix":
 			for file in (package_file, f"{package_file}.md5", f"{package_file}.zsync"):
 				try:  # pylint: disable=loop-try-except-usage
-					os.chown(
-						file, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2]
-					)  # pylint: disable=dotted-import-in-loop
+					os.chown(  # pylint: disable=dotted-import-in-loop
+						file, -1, grp.getgrnam(opsi_config.get("groups", "fileadmingroup"))[2]  # pylint: disable=dotted-import-in-loop
+					)
 					os.chmod(file, 0o660)  # pylint: disable=dotted-import-in-loop
 				except Exception as err:  # pylint: disable=broad-except
 					logger.warning(err)

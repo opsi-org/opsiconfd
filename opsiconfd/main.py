@@ -22,6 +22,7 @@ import time
 import uvloop
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
+from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
 
 from . import __version__
 from .check import health_check
@@ -50,6 +51,7 @@ async def log_viewer() -> None:
 
 def main() -> None:  # pylint: disable=too-many-statements, too-many-branches too-many-locals, too-many-return-statements
 	secret_filter.add_secrets(config.ssl_ca_key_passphrase, config.ssl_server_key_passphrase)
+	monkeypatch_subprocess_for_frozen()
 
 	if config.version:
 		print(f"{__version__} [python-opsi={python_opsi_version}]")

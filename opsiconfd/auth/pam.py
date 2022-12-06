@@ -17,13 +17,8 @@ from os import getgrouplist
 from typing import Set
 
 import pam  # type: ignore[import]
-from OPSI.System.Posix import (  # type: ignore[import]
-	isCentOS,
-	isOpenSUSE,
-	isRHEL,
-	isSLES,
-)
 from opsicommon.exceptions import BackendAuthenticationError  # type: ignore[import]
+from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
 
 from ..logging import logger
 from . import AuthenticationModule
@@ -37,9 +32,9 @@ class PAMAuthentication(AuthenticationModule):
 			if os.path.exists("/etc/pam.d/opsi-auth"):
 				# Prefering our own - if present.
 				self._pam_service = "opsi-auth"
-			elif isSLES() or isOpenSUSE():
+			elif linux_distro_id_like_contains(("sles", "opensuse")):
 				self._pam_service = "sshd"
-			elif isCentOS() or isRHEL():
+			elif linux_distro_id_like_contains(("rhel", "centos")):
 				self._pam_service = "system-auth"
 			else:
 				self._pam_service = "common-auth"

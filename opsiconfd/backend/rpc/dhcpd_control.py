@@ -17,10 +17,10 @@ import threading
 from contextlib import contextmanager
 from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from pathlib import Path
+from subprocess import CalledProcessError, run
 from time import sleep, time
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
 
-from OPSI.System import execute  # type: ignore[import]
 from OPSI.System.Posix import (  # type: ignore[import]
 	getDHCPDRestartCommand,
 	locateDHCPDConfig,
@@ -110,12 +110,17 @@ class ReloadThread(threading.Thread):
 					self._reload_event.clear()
 					try:  # pylint: disable=loop-try-except-usage
 						logger.notice("Reloading dhcpd config using command: '%s'", self._reload_config_command)
-						result = execute(self._reload_config_command)
-						for line in result:
-							if "error" in line:
-								raise RuntimeError("\n".join(result))  # pylint: disable=loop-invariant-statement
-					except Exception as err:  # pylint: disable=broad-except
-						logger.critical("Failed to reload dhcpd config: %s", err)
+						run(
+							self._reload_config_command,
+							shell=True,
+							check=True,
+							capture_output=True,
+							text=True,
+							encoding="utf-8",
+							timeout=5,
+						)
+					except CalledProcessError as err:
+						logger.error("Failed to reload dhcpd config: %s", err.output)
 					self._is_reloading = False  # pylint: disable=loop-invariant-statement
 
 

@@ -29,7 +29,7 @@ from OpenSSL.crypto import (
 	load_certificate,
 	load_privatekey,
 )
-from OPSI.Util.Task.Rights import (  # type: ignore[import]
+from opsicommon.server.rights import (  # type: ignore[import]
 	FilePermission,
 	PermissionRegistry,
 	set_rights,

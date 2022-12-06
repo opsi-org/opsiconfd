@@ -29,13 +29,13 @@ from fastapi.responses import (
 	RedirectResponse,
 	Response,
 )
-from OPSI.Util import timestamp  # type: ignore[import]
 from opsicommon.exceptions import (  # type: ignore[import]
 	BackendAuthenticationError,
 	BackendPermissionDeniedError,
 )
 from opsicommon.logging import secret_filter, set_context  # type: ignore[import]
 from opsicommon.objects import Host  # type: ignore[import]
+from opsicommon.utils import timestamp  # type: ignore[import]
 from redis import ResponseError as RedisResponseError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders

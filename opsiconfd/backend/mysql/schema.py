@@ -495,7 +495,7 @@ class OpsiForeignKey:
 	ref_keys: list[str] = field(default_factory=list)
 	update_rule: UpdateRules = "CASCADE"
 	delete_rule: UpdateRules | None = None
-	posible_rules: List[UpdateRules] = ("RESTRICT", "CASCADE", "NO ACTION", "SET NULL")
+	posible_rules: tuple[UpdateRules, ...] = ("RESTRICT", "CASCADE", "NO ACTION", "SET NULL")
 
 	def __post_init__(self) -> None:
 		if self.update_rule not in self.posible_rules:

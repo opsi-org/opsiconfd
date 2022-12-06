@@ -218,12 +218,13 @@ def test_check_system_packages_debian(config: Config) -> None:  # pylint: disabl
 		dpkg_lines.append(f"ii  {name}                         {version}                       amd64        Package description")
 		test_package_versions[name] = {"version": version, "status": None}
 
+	class Proc:  # pylint: disable=too-few-public-methods
+		stdout = "\n".join(dpkg_lines) + "\n"
+
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
-		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
-		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
+		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
+		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"debian"})),
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 
@@ -254,12 +255,12 @@ def test_check_system_packages_debian(config: Config) -> None:  # pylint: disabl
 	for name, version in packages.items():  # pylint: disable=use-list-copy
 		dpkg_lines.append(f"ii  {name}                         {version}                       amd64        Package description")
 
+	Proc.stdout = "\n".join(dpkg_lines) + "\n"
+
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
-		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=dpkg_lines)),
-		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
+		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
+		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"debian"})),
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 		text = Fore.WHITE + Style.BRIGHT + "\t- Checking system packages:                      " + Style.RESET_ALL
@@ -301,12 +302,13 @@ def test_check_system_packages_open_suse(config: Config) -> None:  # pylint: dis
 		zypper_lines.append(f"i  | {name}            | Paket | {version} | x86_64 | opsi 4.2 (openSUSE_Leap_15.2)")
 		test_package_versions[name] = {"version": version, "status": None}
 
+	class Proc:  # pylint: disable=too-few-public-methods
+		stdout = "\n".join(zypper_lines) + "\n"
+
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
-		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=zypper_lines)),
-		mock.patch("opsiconfd.check.isOpenSUSE", mock.PropertyMock(return_value=True)),
-		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=False)),
-		mock.patch("opsiconfd.check.isSLES", mock.PropertyMock(return_value=False)),
+		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
+		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"opensuse"})),
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 
@@ -343,10 +345,13 @@ def test_check_system_packages_redhat(config: Config) -> None:  # pylint: disabl
 		yum_lines.append(f"{name}.x86_64     {version}    @home_uibmz_opsi_4.2_stable ")
 		test_package_versions[name] = {"version": version, "status": None}
 
+	class Proc:  # pylint: disable=too-few-public-methods
+		stdout = "\n".join(yum_lines) + "\n"
+
 	with (
 		mock.patch("opsiconfd.check.get_repo_versions", mock.PropertyMock(return_value=test_package_versions)),
-		mock.patch("opsiconfd.check.execute", mock.PropertyMock(return_value=yum_lines)),
-		mock.patch("opsiconfd.check.isRHEL", mock.PropertyMock(return_value=True)),
+		mock.patch("opsiconfd.check.run", mock.PropertyMock(return_value=Proc())),
+		mock.patch("opsicommon.system.info.linux_distro_id_like", mock.PropertyMock(return_value={"rhel"})),
 	):
 		result = captured_function_output(check_system_packages, {"print_messages": True})
 
@@ -435,7 +440,7 @@ def test_check_licenses(test_client: OpsiconfdTestClient, config: Config) -> Non
 
 	result = captured_function_output(check_opsi_licenses, {"print_messages": True})
 
-	assert result.get("captured_output").startswith(
+	assert result.get("captured_output", "").startswith(
 		Fore.WHITE
 		+ Style.BRIGHT
 		+ "\t- Checking licenses:                             "

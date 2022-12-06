@@ -11,7 +11,7 @@ opsiconfd.backend.mysql.schema
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable, List, Literal
+from typing import TYPE_CHECKING, Callable, Literal
 
 from opsiconfd.logging import logger
 

@@ -11,6 +11,7 @@ webdav tests
 import os
 import random
 import shutil
+from string import ascii_letters
 from typing import Type
 from unittest.mock import patch
 
@@ -51,12 +52,12 @@ def test_webdav_path_modification(test_client: OpsiconfdTestClient) -> None:  # 
 def test_webdav_upload_download_delete_with_special_chars(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	size = 1 * 1024 * 1024
-	rand_bytes = bytearray(random.getrandbits(8) for _ in range(size))
+	rand_bytes = ("".join(random.choice(ascii_letters) for i in range(size))).encode("ascii")
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 	filename = "陰陽_üß.bin"
 
 	url = f"/repository/{filename}"
-	res = test_client.put(url=url, headers=headers, data=rand_bytes)
+	res = test_client.put(url=url, headers=headers, content=rand_bytes)
 	res.raise_for_status()
 
 	assert os.path.exists(os.path.join("/var/lib/opsi/repository", filename))
@@ -91,7 +92,7 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	for path in ("workbench", "repository", "depot"):
 		url = f"/{path}/test_file_client.bin"
 
-		res = test_client.put(url=url, data=data, headers=headers, auth=(ADMIN_USER, ADMIN_PASS))
+		res = test_client.put(url=url, content=data, headers=headers, auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code in (201, 204)
 		test_client.reset_cookies()
 

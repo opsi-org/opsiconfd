@@ -146,7 +146,7 @@ async def get_session(client_addr: str, headers: Headers, session_id: Optional[s
 
 
 class SessionMiddleware:
-	def __init__(self, app: FastAPI, public_path: List[str] = None) -> None:
+	def __init__(self, app: FastAPI, public_path: List[str] | None = None) -> None:
 		self.app = app
 		self._public_path = public_path or []
 
@@ -160,10 +160,10 @@ class SessionMiddleware:
 		cookies = headers.get("cookie")
 		if cookies:
 			for cookie in cookies.split(";"):
-				cookie = cookie.strip().split("=", 1)
-				if len(cookie) == 2:
-					if cookie[0].strip().lower() == session_cookie_name:
-						return cookie[1].strip().lower()
+				cookie_l = cookie.strip().split("=", 1)
+				if len(cookie_l) == 2:
+					if cookie_l[0].strip().lower() == session_cookie_name:
+						return cookie_l[1].strip().lower()
 		return None
 
 	async def handle_request(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
@@ -319,7 +319,7 @@ class SessionMiddleware:
 				del content["result"]
 			response = JSONResponse(status_code=status_code, content=content, headers=headers)
 		if not response:
-			if connection.headers.get("accept") and "application/json" in connection.headers.get("accept"):
+			if connection.headers.get("accept") and "application/json" in connection.headers.get("accept", ""):
 				logger.debug("Returning json response because of accept header")
 				response = JSONResponse(status_code=status_code, content={"error": error}, headers=headers)
 		if (

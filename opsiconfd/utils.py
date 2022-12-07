@@ -65,7 +65,7 @@ def get_logger() -> OPSILogger:
 def get_config() -> "Config":
 	global config  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not config:
-		from .config import (  # type: ignore[misc]  # pylint: disable=import-outside-toplevel, redefined-outer-name
+		from .config import (  # type: ignore[assignment]  # pylint: disable=import-outside-toplevel, redefined-outer-name
 			config,
 		)
 	return config

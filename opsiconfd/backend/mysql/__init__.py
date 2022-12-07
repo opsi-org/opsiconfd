@@ -276,17 +276,17 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					self._client_id_column[table_name] = ""
 
 	def get_columns(
-		self, tables: List[str], ace: List[RPCACE], attributes: Union[List[str], Tuple[str, ...]] = None
+		self, tables: List[str], ace: List[RPCACE], attributes: Union[List[str], Tuple[str, ...]] | None = None
 	) -> Dict[str, ColumnInfo]:
 		res: Dict[str, ColumnInfo] = {}
-		client_id_column = self._client_id_column.get(tables[0])
+		first_table = tables[0]
+		client_id_column = self._client_id_column.get(first_table)
 
 		for table in tables:
+			is_first_table = table == first_table
 			for col in self.tables[table]:
 				attr = self._column_to_attribute.get(table, {}).get(col, col)
-				res[attr] = ColumnInfo(
-					table=table, column=col, client_id_column=table == tables[0] and col == client_id_column, select=None
-				)
+				res[attr] = ColumnInfo(table=table, column=col, client_id_column=is_first_table and col == client_id_column, select=None)
 				if attr == "type":
 					res[attr].select = f"`{table}`.`{col}`"
 					continue
@@ -314,16 +314,16 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 				res[attr].select = f"`{table}`.`{col}`" if selected else "NULL"
 				if self_selected and self_ace:
-					if client_id_column is None:
-						raise RuntimeError(f"No client id attribute defined for table {tables[0]} using ace {self_ace}")
-					res[attr].select = f"IF(`{tables[0]}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,{res[attr].select})"
+					if client_id_column is None:  # pylint: disable=loop-invariant-statement
+						raise RuntimeError(f"No client id attribute defined for table {first_table} using ace {self_ace}")
+					res[attr].select = f"IF(`{first_table}`.`{client_id_column}`='{self_ace.id}',`{table}`.`{col}`,{res[attr].select})"
 		return res
 
 	def get_where(  # pylint: disable=too-many-locals,too-many-branches
 		self,
 		columns: Dict[str, ColumnInfo],
 		ace: List[RPCACE],
-		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
+		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
 	) -> Tuple[str, Dict[str, Any]]:
 		filter = filter or {}
 		allowed_client_ids = self.get_allowed_client_ids(ace)
@@ -430,7 +430,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		raise ValueError(f"Invalid ident type {ident_type!r}")
 
 	def _row_to_dict(
-		self, row: Row, object_type: Type[BaseObject] = None, ident_type: IdentType = None, aggregates: List[str] = None
+		self,
+		row: Row,
+		object_type: Type[BaseObject] | None = None,
+		ident_type: IdentType | None = None,
+		aggregates: List[str] | None = None,
 	) -> Dict[str, Any]:
 		data = dict(row)
 		try:
@@ -460,7 +464,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		return res
 
 	def _row_to_object(
-		self, row: Row, object_type: Type[BaseObject] = None, conversions: Dict[str, Callable] = None, aggregates: List[str] = None
+		self,
+		row: Row,
+		object_type: Type[BaseObject] | None = None,
+		conversions: Dict[str, Callable] | None = None,
+		aggregates: List[str] | None = None,
 	) -> BaseObject:
 		data = dict(row)
 
@@ -499,12 +507,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self,
 		table: str,
 		object_type: Type[BaseObject],
-		aggregates: Dict[str, str] = None,
-		ace: List[RPCACE] = None,
+		aggregates: Dict[str, str] | None = None,
+		ace: List[RPCACE] | None = None,
 		ident_type: IdentType = "str",
 		return_type: Literal["object"] = "object",
 		attributes: List[str] | Tuple[str, ...] | None = None,
-		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
+		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
 	) -> List[BaseObject]:
 		return []
 
@@ -513,12 +521,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self,
 		table: str,
 		object_type: Type[BaseObject],
-		aggregates: Dict[str, str] = None,
-		ace: List[RPCACE] = None,
+		aggregates: Dict[str, str] | None = None,
+		ace: List[RPCACE] | None = None,
 		ident_type: IdentType = "str",
 		return_type: Literal["dict"] = "dict",
 		attributes: List[str] | Tuple[str, ...] | None = None,
-		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
+		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
 	) -> List[dict]:
 		return []
 
@@ -526,12 +534,12 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self,
 		table: str,
 		object_type: Type[BaseObject],
-		aggregates: Dict[str, str] = None,
-		ace: List[RPCACE] = None,
+		aggregates: Dict[str, str] | None = None,
+		ace: List[RPCACE] | None = None,
 		ident_type: IdentType = "str",
 		return_type: Literal["object", "dict", "ident"] = "object",
 		attributes: List[str] | Tuple[str, ...] | None = None,
-		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
+		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
 	) -> List[dict] | List[BaseObject]:
 		ace = ace or []
 		aggregates = aggregates or {}
@@ -603,7 +611,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		object_type: Type[BaseObject],
 		ace: List[RPCACE],
 		ident_type: IdentType = "str",
-		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
+		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
 	) -> List[dict]:
 		ident_attributes = self._get_ident_attributes(object_type)  # type: ignore[arg-type]
 		if not ident_attributes:
@@ -625,7 +633,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		ace: List[RPCACE],
 		create: bool = True,
 		set_null: bool = True,
-		additional_data: Dict[str, Any] = None,
+		additional_data: Dict[str, Any] | None = None,
 	) -> Tuple[str, Dict[str, Any]]:
 		if not isinstance(obj, BaseObject):
 			obj = OBJECT_CLASSES[obj["type"]].fromHash(obj)
@@ -690,7 +698,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		ace: List[RPCACE],
 		create: bool = True,
 		set_null: bool = True,
-		additional_data: Dict[str, Any] = None,
+		additional_data: Dict[str, Any] | None = None,
 	) -> Any:
 		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
 		if query:

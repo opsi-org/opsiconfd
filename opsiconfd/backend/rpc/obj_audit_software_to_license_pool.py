@@ -61,7 +61,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareToLicensePool_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: List[str] = None, **filter: Any  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: List[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin,invalid-name
 	) -> List[AuditSoftwareToLicensePool]:
 		ace = self._get_ace("auditSoftwareToLicensePool_getObjects")
 		return self._mysql.get_objects(
@@ -69,7 +69,7 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftwareToLicensePool_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditSoftwareToLicensePool_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditSoftwareToLicensePool_getObjects")
 		return self._mysql.get_objects(
 			table="AUDIT_SOFTWARE_TO_LICENSE_POOL",

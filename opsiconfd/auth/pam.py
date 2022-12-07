@@ -25,7 +25,7 @@ from . import AuthenticationModule
 
 
 class PAMAuthentication(AuthenticationModule):
-	def __init__(self, pam_service: str = None):
+	def __init__(self, pam_service: str | None = None):
 		super().__init__()
 		self._pam_service = pam_service
 		if not self._pam_service:

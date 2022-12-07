@@ -98,7 +98,7 @@ class RPCExtEasyMixin(Protocol):
 		]
 
 	@rpc_method
-	def getClientsWithProducts(self: BackendProtocol, productIds: List[str], installationStatus: str = None) -> List[str]:  # pylint: disable=invalid-name
+	def getClientsWithProducts(self: BackendProtocol, productIds: List[str], installationStatus: str | None = None) -> List[str]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client IDs with the given productIds independent from
 		their status.

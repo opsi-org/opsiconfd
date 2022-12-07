@@ -120,7 +120,7 @@ class RPCExtOpsiMixin(Protocol):
 
 	@rpc_method(use_cache="product_ordering")
 	def getProductOrdering(  # pylint: disable=invalid-name,too-many-branches
-		self: BackendProtocol, depotId: str, sortAlgorithm: str = None
+		self: BackendProtocol, depotId: str, sortAlgorithm: str | None = None
 	) -> Dict[str, list]:
 		if sortAlgorithm and sortAlgorithm != "algorithm1":
 			raise ValueError(f"Invalid sort algorithm {sortAlgorithm!r}")
@@ -171,7 +171,7 @@ class RPCExtOpsiMixin(Protocol):
 		return {"not_sorted": productIds, "sorted": sortedList}
 
 	@rpc_method
-	def setRights(self: BackendProtocol, path: str = None) -> str:  # pylint: disable=invalid-name
+	def setRights(self: BackendProtocol, path: str | None = None) -> str:  # pylint: disable=invalid-name
 		"""
 		Setting rights for a specified path.
 		If no path is given it will try to set the rights for the current depot.

@@ -137,7 +137,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 				await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 	@staticmethod
-	def _redis_ts_cmd(metric: Metric, cmd: str, value: float, timestamp: int = None, **labels: str) -> str:
+	def _redis_ts_cmd(metric: Metric, cmd: str, value: float, timestamp: int | None = None, **labels: str) -> str:
 		timestamp_str: str = str(timestamp or "*")
 		# ON_DUPLICATE SUM needs Redis Time Series >= 1.4.6
 		if cmd == "ADD":
@@ -187,7 +187,7 @@ class MetricsCollector:  # pylint: disable=too-many-instance-attributes
 			logger.debug("Executing redis pipe (%d commands)", len(cmd))
 			return await pipe.execute()
 
-	async def add_value(self, metric_id: str, value: float, labels: dict = None, timestamp: int = None) -> None:
+	async def add_value(self, metric_id: str, value: float, labels: dict | None = None, timestamp: int | None = None) -> None:
 		if labels is None:
 			labels = {}
 		metric = MetricsRegistry().get_metric_by_id(metric_id)

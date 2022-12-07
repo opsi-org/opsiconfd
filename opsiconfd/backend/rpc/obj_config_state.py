@@ -77,14 +77,14 @@ class RPCConfigStateMixin(Protocol):
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)
-	def configState_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[ConfigState]:  # pylint: disable=redefined-builtin,invalid-name
+	def configState_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[ConfigState]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_objects(
 			table="CONFIG_STATE", ace=ace, object_type=ConfigState, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def configState_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def configState_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_objects(
 			table="CONFIG_STATE", object_type=ConfigState, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -103,7 +103,7 @@ class RPCConfigStateMixin(Protocol):
 		self._mysql.delete_objects(table="CONFIG_STATE", object_type=ConfigState, obj=configStates, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def configState_create(self: BackendProtocol, configId: str, objectId: str, values: List[Any] = None) -> None:  # pylint: disable=invalid-name,unused-argument
+	def configState_create(self: BackendProtocol, configId: str, objectId: str, values: List[Any] | None = None) -> None:  # pylint: disable=invalid-name,unused-argument
 		_hash = locals()
 		del _hash["self"]
 		self.configState_createObjects(ConfigState.fromHash(_hash))
@@ -115,10 +115,10 @@ class RPCConfigStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def configState_getClientToDepotserver(  # pylint: disable=invalid-name,too-many-locals,too-many-branches
 		self: BackendProtocol,
-		depotIds: list[str] = None,  # pylint: disable=invalid-name
-		clientIds: list[str] = None,  # pylint: disable=invalid-name
+		depotIds: list[str] | None = None,  # pylint: disable=invalid-name
+		clientIds: list[str] | None = None,  # pylint: disable=invalid-name
 		masterOnly: bool = True,  # pylint: disable=invalid-name
-		productIds: list[str] = None  # pylint: disable=invalid-name
+		productIds: list[str] | None = None  # pylint: disable=invalid-name
 	) -> list[dict[str, Any]]:
 		"""
 		Get a mapping of client and depots.

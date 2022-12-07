@@ -59,10 +59,10 @@ class RPCConfigMixin(Protocol):
 
 	def _config_get(  # pylint: disable=too-many-arguments,too-many-locals
 		self: BackendProtocol,
-		ace: List[RPCACE] = None,
+		ace: List[RPCACE] | None = None,
 		return_type: Literal["object", "dict"] = "object",
 		attributes: List[str] | Tuple[str, ...] | None = None,
-		filter: Dict[str, Any] = None,  # pylint: disable=redefined-builtin
+		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
 	) -> List[dict] | List[Config]:
 		aggregates = {
 			"possibleValues": f'GROUP_CONCAT(`value` SEPARATOR "{self._mysql.record_separator}")',
@@ -79,12 +79,12 @@ class RPCConfigMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def config_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[Config]:  # pylint: disable=redefined-builtin,invalid-name
+	def config_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[Config]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("config_getObjects")
 		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def config_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def config_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("config_getObjects")
 		return self._config_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)
 
@@ -105,11 +105,11 @@ class RPCConfigMixin(Protocol):
 	def config_create(  # pylint: disable=too-many-arguments,invalid-name
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		description: str = None,
-		possibleValues: list = None,
-		defaultValues: list = None,
-		editable: bool = None,
-		multiValue: bool = None,
+		description: str | None = None,
+		possibleValues: list | None = None,
+		defaultValues: list | None = None,
+		editable: bool | None = None,
+		multiValue: bool | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -119,11 +119,11 @@ class RPCConfigMixin(Protocol):
 	def config_createUnicode(  # pylint: disable=too-many-arguments,invalid-name
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin
-		description: str = None,
-		possibleValues: list[str] = None,
-		defaultValues: list[str] = None,
-		editable: bool = None,
-		multiValue: bool = None,
+		description: str | None = None,
+		possibleValues: list[str] | None = None,
+		defaultValues: list[str] | None = None,
+		editable: bool | None = None,
+		multiValue: bool | None = None,
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -131,7 +131,7 @@ class RPCConfigMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def config_createBool(  # pylint: disable=invalid-name
-		self: BackendProtocol, id: str, description: str = None, defaultValues: list[bool] = None  # pylint: disable=redefined-builtin
+		self: BackendProtocol, id: str, description: str | None = None, defaultValues: list[bool] | None = None  # pylint: disable=redefined-builtin
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

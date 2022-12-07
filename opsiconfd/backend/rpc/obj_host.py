@@ -74,14 +74,14 @@ class RPCHostMixin(Protocol):
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)
-	def host_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[Host]:  # pylint: disable=redefined-builtin,invalid-name
+	def host_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[Host]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(
 			table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def host_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def host_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(
 			table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -114,15 +114,15 @@ class RPCHostMixin(Protocol):
 	def host_createOpsiClient(  # pylint: disable=too-many-arguments,invalid-name
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		opsiHostKey: str = None,  # pylint: disable=unused-argument
-		description: str = None,  # pylint: disable=unused-argument
-		notes: str = None,  # pylint: disable=unused-argument
-		hardwareAddress: str = None,  # pylint: disable=unused-argument
-		ipAddress: str = None,  # pylint: disable=unused-argument
-		inventoryNumber: str = None,  # pylint: disable=unused-argument
-		oneTimePassword: str = None,  # pylint: disable=unused-argument
-		created: str = None,  # pylint: disable=unused-argument
-		lastSeen: str = None,  # pylint: disable=unused-argument
+		opsiHostKey: str | None = None,  # pylint: disable=unused-argument
+		description: str | None = None,  # pylint: disable=unused-argument
+		notes: str | None = None,  # pylint: disable=unused-argument
+		hardwareAddress: str | None = None,  # pylint: disable=unused-argument
+		ipAddress: str | None = None,  # pylint: disable=unused-argument
+		inventoryNumber: str | None = None,  # pylint: disable=unused-argument
+		oneTimePassword: str | None = None,  # pylint: disable=unused-argument
+		created: str | None = None,  # pylint: disable=unused-argument
+		lastSeen: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -132,23 +132,23 @@ class RPCHostMixin(Protocol):
 	def host_createOpsiDepotserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		opsiHostKey: str = None,  # pylint: disable=unused-argument
-		depotLocalUrl: str = None,  # pylint: disable=unused-argument
-		depotRemoteUrl: str = None,  # pylint: disable=unused-argument
-		depotWebdavUrl: str = None,  # pylint: disable=unused-argument
-		repositoryLocalUrl: str = None,  # pylint: disable=unused-argument
-		repositoryRemoteUrl: str = None,  # pylint: disable=unused-argument
-		description: str = None,  # pylint: disable=unused-argument
-		notes: str = None,  # pylint: disable=unused-argument
-		hardwareAddress: str = None,  # pylint: disable=unused-argument
-		ipAddress: str = None,  # pylint: disable=unused-argument
-		inventoryNumber: str = None,  # pylint: disable=unused-argument
-		networkAddress: str = None,  # pylint: disable=unused-argument
-		maxBandwidth: str = None,  # pylint: disable=unused-argument
-		isMasterDepot: bool = None,  # pylint: disable=unused-argument
-		masterDepotId: str = None,  # pylint: disable=unused-argument
-		workbenchLocalUrl: str = None,  # pylint: disable=unused-argument
-		workbenchRemoteUrl: str = None,  # pylint: disable=unused-argument
+		opsiHostKey: str | None = None,  # pylint: disable=unused-argument
+		depotLocalUrl: str | None = None,  # pylint: disable=unused-argument
+		depotRemoteUrl: str | None = None,  # pylint: disable=unused-argument
+		depotWebdavUrl: str | None = None,  # pylint: disable=unused-argument
+		repositoryLocalUrl: str | None = None,  # pylint: disable=unused-argument
+		repositoryRemoteUrl: str | None = None,  # pylint: disable=unused-argument
+		description: str | None = None,  # pylint: disable=unused-argument
+		notes: str | None = None,  # pylint: disable=unused-argument
+		hardwareAddress: str | None = None,  # pylint: disable=unused-argument
+		ipAddress: str | None = None,  # pylint: disable=unused-argument
+		inventoryNumber: str | None = None,  # pylint: disable=unused-argument
+		networkAddress: str | None = None,  # pylint: disable=unused-argument
+		maxBandwidth: str | None = None,  # pylint: disable=unused-argument
+		isMasterDepot: bool | None = None,  # pylint: disable=unused-argument
+		masterDepotId: str | None = None,  # pylint: disable=unused-argument
+		workbenchLocalUrl: str | None = None,  # pylint: disable=unused-argument
+		workbenchRemoteUrl: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -158,23 +158,23 @@ class RPCHostMixin(Protocol):
 	def host_createOpsiConfigserver(  # pylint: disable=too-many-arguments,invalid-name,too-many-locals
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		opsiHostKey: str = None,  # pylint: disable=unused-argument
-		depotLocalUrl: str = None,  # pylint: disable=unused-argument
-		depotRemoteUrl: str = None,  # pylint: disable=unused-argument
-		depotWebdavUrl: str = None,  # pylint: disable=unused-argument
-		repositoryLocalUrl: str = None,  # pylint: disable=unused-argument
-		repositoryRemoteUrl: str = None,  # pylint: disable=unused-argument
-		description: str = None,  # pylint: disable=unused-argument
-		notes: str = None,  # pylint: disable=unused-argument
-		hardwareAddress: str = None,  # pylint: disable=unused-argument
-		ipAddress: str = None,  # pylint: disable=unused-argument
-		inventoryNumber: str = None,  # pylint: disable=unused-argument
-		networkAddress: str = None,  # pylint: disable=unused-argument
-		maxBandwidth: str = None,  # pylint: disable=unused-argument
-		isMasterDepot: bool = None,  # pylint: disable=unused-argument
-		masterDepotId: str = None,  # pylint: disable=unused-argument
-		workbenchLocalUrl: str = None,  # pylint: disable=unused-argument
-		workbenchRemoteUrl: str = None,  # pylint: disable=unused-argument
+		opsiHostKey: str | None = None,  # pylint: disable=unused-argument
+		depotLocalUrl: str | None = None,  # pylint: disable=unused-argument
+		depotRemoteUrl: str | None = None,  # pylint: disable=unused-argument
+		depotWebdavUrl: str | None = None,  # pylint: disable=unused-argument
+		repositoryLocalUrl: str | None = None,  # pylint: disable=unused-argument
+		repositoryRemoteUrl: str | None = None,  # pylint: disable=unused-argument
+		description: str | None = None,  # pylint: disable=unused-argument
+		notes: str | None = None,  # pylint: disable=unused-argument
+		hardwareAddress: str | None = None,  # pylint: disable=unused-argument
+		ipAddress: str | None = None,  # pylint: disable=unused-argument
+		inventoryNumber: str | None = None,  # pylint: disable=unused-argument
+		networkAddress: str | None = None,  # pylint: disable=unused-argument
+		maxBandwidth: str | None = None,  # pylint: disable=unused-argument
+		isMasterDepot: bool | None = None,  # pylint: disable=unused-argument
+		masterDepotId: str | None = None,  # pylint: disable=unused-argument
+		workbenchLocalUrl: str | None = None,  # pylint: disable=unused-argument
+		workbenchRemoteUrl: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

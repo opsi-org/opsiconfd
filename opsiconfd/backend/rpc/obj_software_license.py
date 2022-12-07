@@ -56,14 +56,14 @@ class RPCSoftwareLicenseMixin(Protocol):
 			self._mysql.insert_object(table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[SoftwareLicense]:  # pylint: disable=redefined-builtin,invalid-name
+	def softwareLicense_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[SoftwareLicense]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("softwareLicense_getObjects")
 		return self._mysql.get_objects(
 			table="SOFTWARE_LICENSE", ace=ace, object_type=SoftwareLicense, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def softwareLicense_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def softwareLicense_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("softwareLicense_getObjects")
 		return self._mysql.get_objects(
 			table="SOFTWARE_LICENSE", object_type=SoftwareLicense, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -92,9 +92,9 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
 		licenseContractId: str,  # pylint: disable=unused-argument
-		maxInstallations: int = None,  # pylint: disable=unused-argument
-		boundToHost: str = None,  # pylint: disable=unused-argument
-		expirationDate: str = None,  # pylint: disable=unused-argument
+		maxInstallations: int | None = None,  # pylint: disable=unused-argument
+		boundToHost: str | None = None,  # pylint: disable=unused-argument
+		expirationDate: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -105,9 +105,9 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
 		licenseContractId: str,  # pylint: disable=unused-argument
-		maxInstallations: int = None,  # pylint: disable=unused-argument
-		boundToHost: str = None,  # pylint: disable=unused-argument
-		expirationDate: str = None,  # pylint: disable=unused-argument
+		maxInstallations: int | None = None,  # pylint: disable=unused-argument
+		boundToHost: str | None = None,  # pylint: disable=unused-argument
+		expirationDate: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -118,9 +118,9 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
 		licenseContractId: str,  # pylint: disable=unused-argument
-		maxInstallations: int = None,  # pylint: disable=unused-argument
-		boundToHost: str = None,  # pylint: disable=unused-argument
-		expirationDate: str = None,  # pylint: disable=unused-argument
+		maxInstallations: int | None = None,  # pylint: disable=unused-argument
+		boundToHost: str | None = None,  # pylint: disable=unused-argument
+		expirationDate: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -131,9 +131,9 @@ class RPCSoftwareLicenseMixin(Protocol):
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
 		licenseContractId: str,  # pylint: disable=unused-argument
-		maxInstallations: int = None,  # pylint: disable=unused-argument
-		boundToHost: str = None,  # pylint: disable=unused-argument
-		expirationDate: str = None,  # pylint: disable=unused-argument
+		maxInstallations: int | None = None,  # pylint: disable=unused-argument
+		boundToHost: str | None = None,  # pylint: disable=unused-argument
+		expirationDate: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

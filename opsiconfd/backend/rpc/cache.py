@@ -45,7 +45,7 @@ def rpc_cache_load(cache_name: str, *args: Any, **kwargs: Any) -> Any:
 	return None
 
 
-def rpc_cache_clear(cache_name: str = None) -> Any:
+def rpc_cache_clear(cache_name: str | None = None) -> Any:
 	redis_key = REDIS_PREFIX_RPC_CACHE
 	if cache_name:
 		redis_key = f"{redis_key}:{cache_name}"

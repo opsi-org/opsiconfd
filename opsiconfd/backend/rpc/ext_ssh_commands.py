@@ -63,11 +63,11 @@ class SSHCommand(BaseModel):
 
 	def update(  # pylint: disable=invalid-name,too-many-arguments
 		self,
-		commands: List[str] = None,
-		position: int = None,
-		needSudo: bool = None,
-		tooltipText: str = None,
-		parentMenuText: str = None,
+		commands: List[str] | None = None,
+		position: int | None = None,
+		needSudo: bool | None = None,
+		tooltipText: str | None = None,
+		parentMenuText: str | None = None,
 	) -> None:
 		if commands is not None:
 			self.commands = commands
@@ -102,7 +102,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 				try:  # pylint: disable=loop-try-except-usage
 					entry = json.loads(line)  # pylint: disable=dotted-import-in-loop
 					ssh_command = SSHCommand.parse_obj(entry)
-					ssh_command.buildIn = build_in
+					ssh_command.buildIn = build_in  # pylint: disable=invalid-name
 					logger.trace("Read ssh command from '%s': %s", file_path, entry)
 					commands.append(ssh_command)
 				except Exception as err:  # pylint: disable=broad-except
@@ -155,7 +155,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 		position: int = 0,
 		needSudo: bool = False,
 		tooltipText: str = "",
-		parentMenuText: str = None,
+		parentMenuText: str | None = None,
 	) -> None:
 		ssh_commands = self._read_ssh_commands_files()
 		cmd = SSHCommand(
@@ -180,7 +180,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 		position: int = 0,
 		needSudo: bool = False,
 		tooltipText: str = "",
-		parentMenuText: str = None,
+		parentMenuText: str | None = None,
 	) -> None:
 		ssh_commands = self._read_ssh_commands_files()
 		if menuText in ssh_commands:

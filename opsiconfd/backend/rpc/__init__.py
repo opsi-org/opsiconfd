@@ -121,7 +121,7 @@ def get_method_interface(  # pylint: disable=too-many-locals
 
 
 def rpc_method(
-	func: Callable = None,
+	func: Callable | None = None,
 	/,
 	*,
 	check_acl: bool | str = True,

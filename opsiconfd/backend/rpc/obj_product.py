@@ -55,14 +55,14 @@ class RPCProductMixin(Protocol):
 			self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def product_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[Product]:  # pylint: disable=redefined-builtin,invalid-name
+	def product_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[Product]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("product_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT", ace=ace, object_type=Product, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def product_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def product_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("product_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT", object_type=Product, ace=ace, return_type="dict", attributes=attributes, filter=filter

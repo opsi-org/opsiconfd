@@ -50,14 +50,14 @@ class RPCLicenseContractMixin(Protocol):
 			self._mysql.insert_object(table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=True, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def licenseContract_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[LicenseContract]:  # pylint: disable=redefined-builtin,invalid-name
+	def licenseContract_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[LicenseContract]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("licenseContract_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_CONTRACT", ace=ace, object_type=LicenseContract, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def licenseContract_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def licenseContract_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("licenseContract_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_CONTRACT", object_type=LicenseContract, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -85,12 +85,12 @@ class RPCLicenseContractMixin(Protocol):
 	def licenseContract_create(  # pylint: disable=too-many-arguments,invalid-name
 		self: BackendProtocol,
 		id: str,  # pylint: disable=redefined-builtin,unused-argument
-		description: str = None,  # pylint: disable=unused-argument
-		notes: str = None,  # pylint: disable=unused-argument
-		partner: str = None,  # pylint: disable=unused-argument
-		conclusionDate: str = None,  # pylint: disable=unused-argument
-		notificationDate: str = None,  # pylint: disable=unused-argument
-		expirationDate: str = None,  # pylint: disable=redefined-builtin,unused-argument
+		description: str | None = None,  # pylint: disable=unused-argument
+		notes: str | None = None,  # pylint: disable=unused-argument
+		partner: str | None = None,  # pylint: disable=unused-argument
+		conclusionDate: str | None = None,  # pylint: disable=unused-argument
+		notificationDate: str | None = None,  # pylint: disable=unused-argument
+		expirationDate: str | None = None,  # pylint: disable=redefined-builtin,unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

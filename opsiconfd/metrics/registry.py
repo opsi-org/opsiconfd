@@ -27,11 +27,11 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		vars: List[str] = [],
 		aggregation: str = "avg",
 		retention: int = 0,
-		zero_if_missing: str = None,
+		zero_if_missing: str | None = None,
 		time_related: bool = False,
 		subject: str = "worker",
-		grafana_config: GrafanaPanelConfig = None,
-		downsampling: List = None,
+		grafana_config: GrafanaPanelConfig | None = None,
+		downsampling: List | None = None,
 	):
 		"""
 		Metric constructor

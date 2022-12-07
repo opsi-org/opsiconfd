@@ -11,7 +11,7 @@ opsiconfd.messagebus.redis
 from asyncio import sleep
 from asyncio.exceptions import CancelledError
 from time import time
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from typing import Any, AsyncGenerator, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import msgspec
@@ -67,7 +67,7 @@ async def cleanup_channels() -> None:
 	# 	await pipeline.execute()
 
 
-async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes = None) -> None:
+async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes | None = None) -> None:
 	redis = await async_redis_client()
 	fields = {"message": msgpack_data}
 	if context_data:
@@ -88,7 +88,7 @@ async def send_message(message: Message, context: Any = None) -> None:
 	await send_message_msgpack(message.channel, message.to_msgpack(), context_data)
 
 
-async def create_messagebus_session_channel(owner_id: str, session_id: str = None, exists_ok: bool = True) -> str:
+async def create_messagebus_session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> str:
 	redis = await async_redis_client()
 	session_id = str(UUID(session_id) if session_id else uuid4())
 	channel = f"session:{session_id}"
@@ -108,7 +108,7 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str = Non
 class MessageReader:  # pylint: disable=too-few-public-methods
 	_info_suffix = CHANNEL_INFO_SUFFIX
 
-	def __init__(self, channels: Dict[str, Optional[StreamIdT]] = None, default_stream_id: str = "$") -> None:
+	def __init__(self, channels: dict[str, Optional[StreamIdT]] | None = None, default_stream_id: str = "$") -> None:
 		"""
 		channels:
 			A dict of channel names to stream IDs, where
@@ -119,7 +119,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		"""
 		self._channels = channels or {}
 		self._default_stream_id = default_stream_id
-		self._streams: Dict[bytes, StreamIdT] = {}
+		self._streams: dict[bytes, StreamIdT] = {}
 		self._key_prefix = f"{REDIS_PREFIX_MESSAGEBUS}:channels"
 		self._should_stop = False
 		self._context_decoder = msgspec.msgpack.Decoder()
@@ -168,11 +168,11 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 	async def get_channel_names(self) -> List[str]:
 		return list(self._channels)
 
-	async def set_channels(self, channels: Dict[str, Optional[StreamIdT]]) -> None:
+	async def set_channels(self, channels: dict[str, Optional[StreamIdT]]) -> None:
 		self._channels = channels
 		await self._update_streams()
 
-	async def add_channels(self, channels: Dict[str, Optional[StreamIdT]]) -> None:
+	async def add_channels(self, channels: dict[str, Optional[StreamIdT]]) -> None:
 		self._channels.update(channels)
 		await self._update_streams()
 
@@ -246,7 +246,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 
 class ConsumerGroupMessageReader(MessageReader):
 	def __init__(
-		self, consumer_group: str, consumer_name: str, channels: Dict[str, Optional[StreamIdT]] = None, default_stream_id: str = "0"
+		self, consumer_group: str, consumer_name: str, channels: dict[str, Optional[StreamIdT]] | None = None, default_stream_id: str = "0"
 	) -> None:
 		"""
 		ID ">" means that the consumer want to receive only messages that were never delivered to any other consumer.

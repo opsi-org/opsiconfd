@@ -32,7 +32,7 @@ class RPCExtDeprecatedMixin(Protocol):
 
 	@rpc_method(deprecated=True, alternative_method="host_createOpsiConfigserver")
 	def createServer(  # pylint: disable=invalid-name
-		self: BackendProtocol, serverName: str, domain: str, description: str = None, notes: str = None
+		self: BackendProtocol, serverName: str, domain: str, description: str | None = None, notes: str | None = None
 	) -> str:
 		host_id = forceHostId(".".join((forceHostname(serverName), forceDomain(domain))))
 		self.host_createOpsiConfigserver(id=host_id, description=description, notes=notes)
@@ -58,7 +58,7 @@ class RPCExtDeprecatedMixin(Protocol):
 		requiredProductId: str = "",
 		requiredProductClassId: str = "",
 		requirementType: str = "",
-		depotIds: List[str] = None,
+		depotIds: List[str] | None = None,
 	) -> None:
 		if requiredProductClassId:
 			warnings.warn("The argument 'requiredProductClassId' is obsolete and has no effect.", DeprecationWarning)
@@ -90,15 +90,15 @@ class RPCExtDeprecatedMixin(Protocol):
 	@rpc_method(deprecated=True, alternative_method="getClients")
 	def getClients_listOfHashes(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
-		serverId: str = None,
-		depotIds: List[str] = None,
-		groupId: str = None,
-		productId: str = None,
-		installationStatus: str = None,
-		actionRequest: str = None,
-		productVersion: str = None,
-		packageVersion: str = None,
-		hwFilter: dict = None,
+		serverId: str | None = None,
+		depotIds: List[str] | None = None,
+		groupId: str | None = None,
+		productId: str | None = None,
+		installationStatus: str | None = None,
+		actionRequest: str | None = None,
+		productVersion: str | None = None,
+		packageVersion: str | None = None,
+		hwFilter: dict | None = None,
 	) -> List[Dict[str, Any]]:
 		if (
 			serverId  # pylint: disable=too-many-boolean-expressions
@@ -118,15 +118,15 @@ class RPCExtDeprecatedMixin(Protocol):
 	@rpc_method(deprecated=True, alternative_method="getClientIDs")
 	def getClientIds_list(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
-		serverId: str = None,
-		depotIds: List[str] = None,
-		groupId: str = None,
-		productId: str = None,
-		installationStatus: str = None,
-		actionRequest: str = None,
-		productVersion: str = None,
-		packageVersion: str = None,
-		hwFilter: dict = None,
+		serverId: str | None = None,
+		depotIds: List[str] | None = None,
+		groupId: str | None = None,
+		productId: str | None = None,
+		installationStatus: str | None = None,
+		actionRequest: str | None = None,
+		productVersion: str | None = None,
+		packageVersion: str | None = None,
+		hwFilter: dict | None = None,
 	) -> List[str]:
 		if not (
 			serverId

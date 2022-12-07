@@ -42,7 +42,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		base_url: str,
 		methods: tuple = ("GET", "POST"),
 		forward_authorization: bool = False,
-		forward_cookies: List[str] = None,
+		forward_cookies: List[str] | None = None,
 		preserve_host: bool = False,
 	) -> None:
 		self.mount_path = mount_path
@@ -139,9 +139,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 			background=BackgroundTask(client.close),
 		)
 
-	async def _websocket_reader(
-		self, name: str, reader: Callable, writer: Callable, state: WebSocketState
-	) -> None:  # pylint: disable=no-self-use
+	async def _websocket_reader(self, name: str, reader: Callable, writer: Callable, state: WebSocketState) -> None:
 		trace_log = proxy_logger.isEnabledFor(TRACE)
 		while state == WebSocketState.CONNECTED:
 			data = await reader()

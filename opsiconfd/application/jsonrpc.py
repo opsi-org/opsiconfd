@@ -280,7 +280,7 @@ def deserialize(obj: Any, deep: bool = False) -> Any:  # pylint: disable=invalid
 	return obj
 
 
-def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] = None) -> None:
+def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] | None = None) -> None:
 	now = int(time.time() * 1_000_000)
 	makedirs(RPC_DEBUG_DIR, exist_ok=True)
 	method = None
@@ -303,7 +303,7 @@ def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] 
 		log_file.write(msgspec.json.encode(msg))  # pylint: disable=no-member
 
 
-async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[str, Any] = None) -> Any:
+async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[str, Any] | None = None) -> Any:
 	if config.debug_options and "rpc-error-log" in config.debug_options:
 		try:
 			await run_in_threadpool(write_error_log, client_info, exception, rpc)

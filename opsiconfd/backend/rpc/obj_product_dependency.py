@@ -48,14 +48,14 @@ class RPCProductDependencyMixin(Protocol):
 			self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def productDependency_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[ProductDependency]:  # pylint: disable=redefined-builtin,invalid-name
+	def productDependency_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[ProductDependency]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_DEPENDENCY", ace=ace, object_type=ProductDependency, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def productDependency_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def productDependency_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_DEPENDENCY", object_type=ProductDependency, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -81,12 +81,12 @@ class RPCProductDependencyMixin(Protocol):
 		productVersion: str,  # pylint: disable=unused-argument
 		packageVersion: str,  # pylint: disable=unused-argument
 		productAction: str,  # pylint: disable=unused-argument
-		requiredProductId: str = None,  # pylint: disable=unused-argument
-		requiredProductVersion: str = None,  # pylint: disable=unused-argument
-		requiredPackageVersion: str = None,  # pylint: disable=unused-argument
-		requiredAction: str = None,  # pylint: disable=unused-argument
-		requiredInstallationStatus: str = None,  # pylint: disable=unused-argument
-		requirementType: str = None,  # pylint: disable=unused-argument
+		requiredProductId: str | None = None,  # pylint: disable=unused-argument
+		requiredProductVersion: str | None = None,  # pylint: disable=unused-argument
+		requiredPackageVersion: str | None = None,  # pylint: disable=unused-argument
+		requiredAction: str | None = None,  # pylint: disable=unused-argument
+		requiredInstallationStatus: str | None = None,  # pylint: disable=unused-argument
+		requirementType: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

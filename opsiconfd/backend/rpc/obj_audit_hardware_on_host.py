@@ -139,7 +139,8 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		return_hardware_ids: bool = False,
 		return_type: Literal["object", "dict", "ident"] = "object",
 		ident_type: IdentType = "str",
-		attributes: List[str] = None, filter: Dict[str, Any] = None
+		attributes: List[str] | None = None,
+		filter: Dict[str, Any] | None = None
 	) -> List[Dict[str, Any]]:
 		attributes = attributes or []
 		filter = filter or {}
@@ -217,12 +218,12 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		return results
 
 	@rpc_method(check_acl=False)
-	def auditHardwareOnHost_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[AuditHardwareOnHost]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardwareOnHost_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[AuditHardwareOnHost]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def auditHardwareOnHost_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardwareOnHost_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
 		return self._audit_hardware_on_host_get(ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter)
 
@@ -246,9 +247,9 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		self: BackendProtocol,
 		hostId: str,  # pylint: disable=unused-argument
 		hardwareClass: str,  # pylint: disable=unused-argument
-		firstseen: str = None,  # pylint: disable=unused-argument
-		lastseen: str = None,  # pylint: disable=unused-argument
-		state: int = None,  # pylint: disable=unused-argument
+		firstseen: str | None = None,  # pylint: disable=unused-argument
+		lastseen: str | None = None,  # pylint: disable=unused-argument
+		state: int | None = None,  # pylint: disable=unused-argument
 		**kwargs: Any  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()

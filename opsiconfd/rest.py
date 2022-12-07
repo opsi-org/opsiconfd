@@ -45,7 +45,7 @@ class OpsiApiException(Exception):
 		self,
 		message: str = "An unknown error occurred.",
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-		code: int = None,
+		code: int | None = None,
 		error: Exception | str | None = None
 	):
 		self.message = message
@@ -129,11 +129,11 @@ class RESTErrorResponse(RESTResponse):
 	def __init__(
 		self,
 		message: str = "An unknown error occurred.",
-		details: Union[str, Exception] = None,
-		error_class: str = None,
-		code: str = None,
+		details: Union[str, Exception] | None = None,
+		error_class: str | None = None,
+		code: str | None = None,
 		http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-		headers: dict = None
+		headers: dict | None = None
 	):  # pylint: disable=too-many-arguments
 
 		if isinstance(details, Exception):

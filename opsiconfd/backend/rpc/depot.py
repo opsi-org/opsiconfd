@@ -148,9 +148,9 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		self: BackendProtocol,
 		filename: str,
 		force: bool = False,
-		propertyDefaultValues: Dict[str, Any] = None,
-		tempDir: str = None,
-		forceProductId: str = None,
+		propertyDefaultValues: Dict[str, Any] | None = None,
+		tempDir: str | None = None,
+		forceProductId: str | None = None,
 		suppressPackageContentFileGeneration: bool = False,
 	) -> None:
 		"""
@@ -288,9 +288,9 @@ class DepotserverPackageManager:
 		self,
 		filename: str,
 		force: bool = False,
-		property_default_values: Dict[str, Any] = None,
-		temp_dir: str = None,
-		force_product_id: str = None,
+		property_default_values: Dict[str, Any] | None = None,
+		temp_dir: str | None = None,
+		force_product_id: str | None = None,
 		suppress_package_content_file_generation: bool = False,
 	) -> None:
 		property_default_values = property_default_values or {}
@@ -367,7 +367,7 @@ class DepotserverPackageManager:
 			self.backend.productOnDepot_updateObject(product_on_depot)
 
 		@contextmanager
-		def run_package_scripts(product_package_file: ProductPackageFile, env: Dict[str, Any] = None) -> Generator[None, None, None]:
+		def run_package_scripts(product_package_file: ProductPackageFile, env: Dict[str, Any] | None = None) -> Generator[None, None, None]:
 			logger.info("Running preinst script")
 			for line in product_package_file.runPreinst(env=env or {}):
 				logger.info("[preinst] %s", line)

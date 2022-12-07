@@ -48,14 +48,14 @@ class RPCAuditSoftwareMixin(Protocol):
 			self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[AuditSoftware]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditSoftware_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[AuditSoftware]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditSoftware_getObjects")
 		return self._mysql.get_objects(
 			table="SOFTWARE", ace=ace, object_type=AuditSoftware, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def auditSoftware_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditSoftware_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditSoftware_getObjects")
 		return self._mysql.get_objects(
 			table="SOFTWARE", object_type=AuditSoftware, ace=ace, return_type="dict", attributes=attributes, filter=filter

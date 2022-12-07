@@ -30,7 +30,7 @@ def filetransfer_setup(app: FastAPI) -> None:
 	app.include_router(filetransfer_router, prefix="/file-transfer")
 
 
-def prepare_upload(filename: str = None, content_type: str = None) -> Tuple[str, Path]:
+def prepare_upload(filename: str | None = None, content_type: str | None = None) -> Tuple[str, Path]:
 	session = contextvar_client_session.get()
 	if not session or not session.username:
 		raise PermissionError()

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 def check_client_status(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-	backend: Backend, client_id: str, exclude_product_list: List[str] = None
+	backend: Backend, client_id: str, exclude_product_list: List[str] | None = None
 ) -> JSONResponse:
 	state = State.OK
 

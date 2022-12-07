@@ -370,7 +370,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def log_write(  # pylint: disable=invalid-name,too-many-branches
-		self: BackendProtocol, logType: str, data: str, objectId: str = None, append: bool = False
+		self: BackendProtocol, logType: str, data: str, objectId: str | None = None, append: bool = False
 	) -> None:
 		"""
 		Write log data into the corresponding log file.
@@ -445,7 +445,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			logger.error("Failed to set file permissions on '%s': %s", log_file, err)
 
 	@rpc_method
-	def log_read(self: BackendProtocol, logType: str, objectId: str = None, maxSize: int = 0) -> str:  # pylint: disable=invalid-name
+	def log_read(self: BackendProtocol, logType: str, objectId: str | None = None, maxSize: int = 0) -> str:  # pylint: disable=invalid-name
 		"""
 		Return the content of a log.
 
@@ -480,7 +480,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def user_getCredentials(  # pylint: disable=invalid-name
-		self: BackendProtocol, username: str = "pcpatch", hostId: str = None
+		self: BackendProtocol, username: str = "pcpatch", hostId: str | None = None
 	) -> Dict[str, str]:
 		"""
 		Get the credentials of an opsi user.

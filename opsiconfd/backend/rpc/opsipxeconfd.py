@@ -390,7 +390,7 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 
 	@rpc_method
 	def opsipxeconfd_updatePXEBootConfiguration(  # pylint: disable=invalid-name
-		self: BackendProtocol, client_id: str, data: Dict[str, Any] = None
+		self: BackendProtocol, client_id: str, data: Dict[str, Any] | None = None
 	) -> None:
 		"""
 		Update the boot configuration of a specific client.

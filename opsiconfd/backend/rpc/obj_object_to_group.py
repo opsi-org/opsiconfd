@@ -48,14 +48,14 @@ class RPCObjectToGroupMixin(Protocol):
 			self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def objectToGroup_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[ObjectToGroup]:  # pylint: disable=redefined-builtin,invalid-name
+	def objectToGroup_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[ObjectToGroup]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("objectToGroup_getObjects")
 		return self._mysql.get_objects(
 			table="OBJECT_TO_GROUP", ace=ace, object_type=ObjectToGroup, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def objectToGroup_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def objectToGroup_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("objectToGroup_getObjects")
 		return self._mysql.get_objects(
 			table="OBJECT_TO_GROUP", object_type=ObjectToGroup, ace=ace, return_type="dict", attributes=attributes, filter=filter

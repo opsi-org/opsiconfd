@@ -506,7 +506,7 @@ class OpsiForeignKey:
 			raise ValueError("delete_rule is not a valid delete rule.")
 
 
-def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable = None) -> None:
+def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeignKey, cleanup_function: Callable | None = None) -> None:
 	keys = ",".join([f"`{k}`" for k in foreign_key.f_keys])
 	if foreign_key.ref_keys:
 		refs = ",".join([f"`{k}`" for k in foreign_key.ref_keys])

@@ -61,7 +61,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: List[str] = None, **filter: Any  # pylint: disable=redefined-builtin,invalid-name
+		self: BackendProtocol, attributes: List[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin,invalid-name
 	) -> List[SoftwareLicenseToLicensePool]:
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_objects(
@@ -69,7 +69,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def softwareLicenseToLicensePool_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def softwareLicenseToLicensePool_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_objects(
 			table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
@@ -101,7 +101,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_create(  # pylint: disable=unused-argument,invalid-name
-		self: BackendProtocol, softwareLicenseId: str, licensePoolId: str, licenseKey: str = None
+		self: BackendProtocol, softwareLicenseId: str, licensePoolId: str, licenseKey: str | None = None
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

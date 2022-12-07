@@ -21,7 +21,7 @@ from . import AuthenticationModule
 
 
 class LDAPAuthentication(AuthenticationModule):
-	def __init__(self, ldap_url: str, bind_user: str = None, group_filter: str = None) -> None:
+	def __init__(self, ldap_url: str, bind_user: str | None = None, group_filter: str | None = None) -> None:
 		"""
 		Authentication module using LDAP.
 

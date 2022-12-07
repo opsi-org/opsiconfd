@@ -37,7 +37,7 @@ AUDIT_HARDWARE_CONFIG_LOCALES_DIR: str = "/etc/opsi/hwaudit/locales"
 OPSI_HARDWARE_CLASSES: List[Dict[str, Any]] = []
 
 
-def inherit_from_super_classes(classes: List[Dict[str, Any]], _class: Dict[str, Any], scname: str = None) -> None:  # pylint: disable=unused-private-member
+def inherit_from_super_classes(classes: List[Dict[str, Any]], _class: Dict[str, Any], scname: str | None = None) -> None:  # pylint: disable=unused-private-member
 	if not scname:  # pylint: disable=too-many-nested-blocks
 		for _scname in _class["Class"].get("Super", []):
 			inherit_from_super_classes(classes, _class, _scname)
@@ -67,7 +67,7 @@ def inherit_from_super_classes(classes: List[Dict[str, Any]], _class: Dict[str, 
 
 
 @lru_cache(maxsize=10)
-def get_audit_hardware_config(language: str = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+def get_audit_hardware_config(language: str | None = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
 
 	if not language:
 		language = "en_US"
@@ -178,7 +178,7 @@ class RPCAuditHardwareMixin(Protocol):
 				session.execute(f"TRUNCATE TABLE `HARDWARE_DEVICE_{hardware_class}`")
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getConfig(self: BackendProtocol, language: str = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+	def auditHardware_getConfig(self: BackendProtocol, language: str | None = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
 		self._get_ace("auditHardware_getConfig")
 
 		return get_audit_hardware_config(language)
@@ -221,7 +221,8 @@ class RPCAuditHardwareMixin(Protocol):
 		return_hardware_ids: bool = False,
 		return_type: Literal["object", "dict", "ident"] = "object",
 		ident_type: IdentType = "str",
-		attributes: List[str] = None, filter: Dict[str, Any] = None
+		attributes: List[str] | None = None,
+		filter: Dict[str, Any] | None = None
 	) -> List[Dict[str, Any]]:
 		attributes = attributes or []
 		filter = filter or {}
@@ -288,12 +289,12 @@ class RPCAuditHardwareMixin(Protocol):
 		return results
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[AuditHardware]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardware_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[AuditHardware]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardware_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter)
 

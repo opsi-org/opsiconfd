@@ -61,14 +61,14 @@ class RPCLicenseOnClientMixin(Protocol):
 			self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[LicenseOnClient]:  # pylint: disable=redefined-builtin,invalid-name
+	def licenseOnClient_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[LicenseOnClient]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("licenseOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_ON_CLIENT", ace=ace, object_type=LicenseOnClient, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def licenseOnClient_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def licenseOnClient_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("licenseOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="LICENSE_ON_CLIENT", object_type=LicenseOnClient, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -94,8 +94,8 @@ class RPCLicenseOnClientMixin(Protocol):
 		softwareLicenseId: str,
 		licensePoolId: str,
 		clientId: str,
-		licenseKey: str = None,
-		notes: str = None
+		licenseKey: str | None = None,
+		notes: str | None = None
 	) -> None:
 		_hash = locals()
 		del _hash["self"]
@@ -107,7 +107,7 @@ class RPCLicenseOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def licenseOnClient_getOrCreateObject(  # pylint: disable=invalid-name,too-many-branches
-		self: BackendProtocol, clientId: str, licensePoolId: str = None, productId: str = None, windowsSoftwareId: str = None
+		self: BackendProtocol, clientId: str, licensePoolId: str | None = None, productId: str | None = None, windowsSoftwareId: str | None = None
 	) -> LicenseOnClient:
 		clientId = forceHostId(clientId)
 		if licensePoolId:

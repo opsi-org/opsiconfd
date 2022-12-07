@@ -69,7 +69,7 @@ class RpcThread(KillableThread):  # pylint: disable=too-many-instance-attributes
 		host_rpc_timeout: int,
 		opsiclientd_port: int,
 		method: str,
-		params: List = None,
+		params: List | None = None,
 	) -> None:
 		KillableThread.__init__(self)
 		self.host_id = forceHostId(host_id)
@@ -208,7 +208,7 @@ class RPCHostControlMixin(Protocol):
 		return address
 
 	def _opsiclientd_rpc(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-		self: BackendProtocol, host_ids: List[str], method: str, params: List[Any] = None, timeout: int = None
+		self: BackendProtocol, host_ids: List[str], method: str, params: List[Any] | None = None, timeout: int | None = None
 	) -> dict[str, dict[str, Any]]:
 		if not host_ids:
 			raise BackendMissingDataError("No matching host ids found")
@@ -321,7 +321,7 @@ class RPCHostControlMixin(Protocol):
 				yield (broadcast.compressed, ports)
 
 	@rpc_method
-	def hostControl_start(self: BackendProtocol, hostIds: List[str] = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControl_start(self: BackendProtocol, hostIds: List[str] | None = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
 		"""Switches on remote computers using WOL."""
 		hosts = self.host_getObjects(attributes=["hardwareAddress", "ipAddress"], id=hostIds or [])
 		result = {}
@@ -359,7 +359,7 @@ class RPCHostControlMixin(Protocol):
 		return result
 
 	@rpc_method
-	def hostControl_shutdown(self: BackendProtocol, hostIds: List[str] = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControl_shutdown(self: BackendProtocol, hostIds: List[str] | None = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
 		if not hostIds:
 			raise BackendMissingDataError("No host ids given")
 		hostIds = self.host_getIdents(id=hostIds or [], returnType="str")
@@ -368,7 +368,7 @@ class RPCHostControlMixin(Protocol):
 		return self._opsiclientd_rpc(host_ids=hostIds, method="shutdown", params=[])
 
 	@rpc_method
-	def hostControl_reboot(self: BackendProtocol, hostIds: List[str] = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControl_reboot(self: BackendProtocol, hostIds: List[str] | None = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
 		if not hostIds:
 			raise BackendMissingDataError("No host ids given")
 		hostIds = self.host_getIdents(id=hostIds or [], returnType="str")
@@ -378,7 +378,7 @@ class RPCHostControlMixin(Protocol):
 
 	@rpc_method
 	def hostControl_fireEvent(  # pylint: disable=invalid-name
-		self: BackendProtocol, event: str, hostIds: List[str] = None  # pylint: disable=invalid-name
+		self: BackendProtocol, event: str, hostIds: List[str] | None = None  # pylint: disable=invalid-name
 	) -> Dict[str, Any]:
 		event = str(event)
 		hostIds = self.host_getIdents(id=hostIds or [], returnType="str")
@@ -390,10 +390,10 @@ class RPCHostControlMixin(Protocol):
 	def hostControl_showPopup(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		message: str,
-		hostIds: List[str] = None,  # pylint: disable=invalid-name
+		hostIds: List[str] | None = None,  # pylint: disable=invalid-name
 		mode: str = "prepend",
 		addTimestamp: bool = True,  # pylint: disable=invalid-name
-		displaySeconds: float = None,  # pylint: disable=invalid-name
+		displaySeconds: float | None = None,  # pylint: disable=invalid-name
 	) -> Dict[str, Any]:
 		"""
 		This rpc-call creates a popup-Window with a message on given clients.
@@ -415,14 +415,16 @@ class RPCHostControlMixin(Protocol):
 		return self._opsiclientd_rpc(host_ids=hostIds, method="showPopup", params=params)
 
 	@rpc_method
-	def hostControl_uptime(self: BackendProtocol, hostIds: List[str] = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControl_uptime(self: BackendProtocol, hostIds: List[str] | None = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
 		hostIds = self.host_getIdents(id=hostIds or [], returnType="str")
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return self._opsiclientd_rpc(host_ids=hostIds, method="uptime", params=[])
 
 	@rpc_method
-	def hostControl_getActiveSessions(self: BackendProtocol, hostIds: List[str] = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControl_getActiveSessions(  # pylint: disable=invalid-name
+		self: BackendProtocol, hostIds: List[str] | None = None
+	) -> Dict[str, Any]:
 		hostIds = self.host_getIdents(id=hostIds or [], returnType="str")
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
@@ -432,9 +434,9 @@ class RPCHostControlMixin(Protocol):
 	def hostControl_opsiclientdRpc(  # pylint: disable=invalid-name
 		self: BackendProtocol,
 		method: str,
-		params: List[Any] = None,
-		hostIds: List[str] = None,
-		timeout: int = None,  # pylint: disable=invalid-name
+		params: List[Any] | None = None,
+		hostIds: List[str] | None = None,
+		timeout: int | None = None,  # pylint: disable=invalid-name
 	) -> Dict[str, Any]:
 		hostIds = self.host_getIdents(id=hostIds or [], returnType="str")
 		if not hostIds:
@@ -443,7 +445,7 @@ class RPCHostControlMixin(Protocol):
 
 	@rpc_method
 	def hostControl_reachable(  # pylint: disable=invalid-name,too-many-branches
-		self: BackendProtocol, hostIds: List[str] = None, timeout: int = None  # pylint: disable=invalid-name
+		self: BackendProtocol, hostIds: List[str] | None = None, timeout: int | None = None  # pylint: disable=invalid-name
 	) -> Dict[str, Any]:  # pylint: disable=too-many-branches
 		hostIds = self.host_getIdents(id=hostIds or [], returnType="str")
 		if not hostIds:
@@ -512,10 +514,10 @@ class RPCHostControlMixin(Protocol):
 	def hostControl_execute(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		command: str,
-		hostIds: List[str] = None,  # pylint: disable=invalid-name
+		hostIds: List[str] | None = None,  # pylint: disable=invalid-name
 		waitForEnding: bool = True,  # pylint: disable=invalid-name
 		captureStderr: bool = True,  # pylint: disable=invalid-name
-		encoding: str = None,
+		encoding: str | None = None,
 		timeout: int = 300,
 	) -> Dict[str, Any]:
 		command = str(command)
@@ -525,27 +527,27 @@ class RPCHostControlMixin(Protocol):
 		return self._opsiclientd_rpc(host_ids=hostIds, method="execute", params=[command, waitForEnding, captureStderr, encoding, timeout])
 
 	@rpc_method(check_acl="hostControl_start")
-	def hostControlSafe_start(self: BackendProtocol, hostIds: List[str] = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControlSafe_start(self: BackendProtocol, hostIds: List[str] | None = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
 		"""Switches on remote computers using WOL."""
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return self.hostControl_start(hostIds)
 
 	@rpc_method(check_acl="hostControl_shutdown")
-	def hostControlSafe_shutdown(self: BackendProtocol, hostIds: List[str] = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControlSafe_shutdown(self: BackendProtocol, hostIds: List[str] | None = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return self.hostControl_shutdown(hostIds)
 
 	@rpc_method(check_acl="hostControl_reboot")
-	def hostControlSafe_reboot(self: BackendProtocol, hostIds: List[str] = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControlSafe_reboot(self: BackendProtocol, hostIds: List[str] | None = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return self.hostControl_reboot(hostIds)
 
 	@rpc_method(check_acl="hostControl_fireEvent")
 	def hostControlSafe_fireEvent(  # pylint: disable=invalid-name
-		self: BackendProtocol, event: str, hostIds: List[str] = None
+		self: BackendProtocol, event: str, hostIds: List[str] | None = None
 	) -> Dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
@@ -555,7 +557,7 @@ class RPCHostControlMixin(Protocol):
 	def hostControlSafe_showPopup(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		message: str,
-		hostIds: List[str] = None,
+		hostIds: List[str] | None = None,
 		mode: str = "prepend",
 		addTimestamp: bool = True,
 		displaySeconds: float = 0,
@@ -565,14 +567,14 @@ class RPCHostControlMixin(Protocol):
 		return self.hostControl_showPopup(message, hostIds, mode, addTimestamp, displaySeconds)
 
 	@rpc_method(check_acl="hostControl_uptime")
-	def hostControlSafe_uptime(self: BackendProtocol, hostIds: List[str] = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def hostControlSafe_uptime(self: BackendProtocol, hostIds: List[str] | None = None) -> Dict[str, Any]:  # pylint: disable=invalid-name
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		return self.hostControl_uptime(hostIds)
 
 	@rpc_method(check_acl="hostControl_getActiveSessions")
 	def hostControlSafe_getActiveSessions(  # pylint: disable=invalid-name
-		self: BackendProtocol, hostIds: List[str] = None
+		self: BackendProtocol, hostIds: List[str] | None = None
 	) -> Dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
@@ -580,7 +582,7 @@ class RPCHostControlMixin(Protocol):
 
 	@rpc_method(check_acl="hostControl_opsiclientdRpc")
 	def hostControlSafe_opsiclientdRpc(  # pylint: disable=invalid-name
-		self: BackendProtocol, method: str, params: List = None, hostIds: List[str] = None, timeout: int = None
+		self: BackendProtocol, method: str, params: List | None = None, hostIds: List[str] | None = None, timeout: int | None = None
 	) -> Dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
@@ -588,7 +590,7 @@ class RPCHostControlMixin(Protocol):
 
 	@rpc_method(check_acl="hostControl_reachable")
 	def hostControlSafe_reachable(  # pylint: disable=invalid-name
-		self: BackendProtocol, hostIds: List[str] = None, timeout: int = None
+		self: BackendProtocol, hostIds: List[str] | None = None, timeout: int | None = None
 	) -> Dict[str, Any]:
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
@@ -598,10 +600,10 @@ class RPCHostControlMixin(Protocol):
 	def hostControlSafe_execute(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		command: str,
-		hostIds: List[str] = None,
+		hostIds: List[str] | None = None,
 		waitForEnding: bool = True,
 		captureStderr: bool = True,
-		encoding: str = None,
+		encoding: str | None = None,
 		timeout: int = 300,
 	) -> Dict[str, Any]:
 		if not hostIds:

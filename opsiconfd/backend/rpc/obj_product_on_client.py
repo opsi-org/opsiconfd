@@ -60,14 +60,14 @@ class RPCProductOnClientMixin(Protocol):
 			self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def productOnClient_getObjects(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[ProductOnClient]:  # pylint: disable=redefined-builtin,invalid-name
+	def productOnClient_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[ProductOnClient]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_ON_CLIENT", ace=ace, object_type=ProductOnClient, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def productOnClient_getHashes(self: BackendProtocol, attributes: List[str] = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def productOnClient_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("productOnClient_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_ON_CLIENT", object_type=ProductOnClient, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -93,14 +93,14 @@ class RPCProductOnClientMixin(Protocol):
 		productId: str,  # pylint: disable=unused-argument
 		productType: str,  # pylint: disable=unused-argument
 		clientId: str,  # pylint: disable=unused-argument
-		installationStatus: str = None,  # pylint: disable=unused-argument
-		actionRequest: str = None,  # pylint: disable=unused-argument
-		lastAction: str = None,  # pylint: disable=unused-argument
-		actionProgress: str = None,  # pylint: disable=unused-argument
-		actionResult: str = None,  # pylint: disable=unused-argument
-		productVersion: str = None,  # pylint: disable=unused-argument
-		packageVersion: str = None,  # pylint: disable=unused-argument
-		modificationTime: str = None,  # pylint: disable=unused-argument
+		installationStatus: str | None = None,  # pylint: disable=unused-argument
+		actionRequest: str | None = None,  # pylint: disable=unused-argument
+		lastAction: str | None = None,  # pylint: disable=unused-argument
+		actionProgress: str | None = None,  # pylint: disable=unused-argument
+		actionResult: str | None = None,  # pylint: disable=unused-argument
+		productVersion: str | None = None,  # pylint: disable=unused-argument
+		packageVersion: str | None = None,  # pylint: disable=unused-argument
+		modificationTime: str | None = None,  # pylint: disable=unused-argument
 	) -> None:
 		_hash = locals()
 		del _hash["self"]

@@ -314,7 +314,7 @@ def get_one_depot_id_jsonrpc(client: OpsiconfdTestClient) -> str:
 
 
 def get_product_ordering_jsonrpc(client: OpsiconfdTestClient, depot_id: str) -> Dict[str, List[str]]:
-	rpc = {"id": 1, "method": "getProductOrdering", "params": [depot_id, "algorithm1"]}
+	rpc = {"id": 1, "method": "getProductOrdering", "params": [depot_id]}
 	res = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 	return res.json()["result"]

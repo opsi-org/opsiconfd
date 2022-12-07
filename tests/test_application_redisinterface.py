@@ -10,7 +10,6 @@ test application redis interface
 
 import time
 from socket import getfqdn
-from unittest import mock
 
 from fastapi import status
 
@@ -46,7 +45,6 @@ def test_clear_rpc_cache(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	with (
-		mock.patch("opsiconfd.backend.rpc.cache.REDIS_PREFIX", "opsiconfd:test_rpccache"),
 		depot_jsonrpc(test_client, "", depot_id),
 		products_jsonrpc(test_client, "", products, depots=[configserver, depot_id]),
 	):

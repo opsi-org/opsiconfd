@@ -14,17 +14,17 @@ from typing import Any
 
 from msgspec.msgpack import decode, encode
 
+from opsiconfd.config import REDIS_PREFIX_RPC_CACHE
 from opsiconfd.logging import logger
 from opsiconfd.utils import redis_client
 
 CACHE_EXPIRATION = 24 * 3600  # In seconds
-REDIS_PREFIX = "opsiconfd:rpccache"
 
 
 def redis_key_for_params(cache_name: str, *args: Any, **kwargs: Any) -> str:
 	hash_base = encode(args) + encode(dict(sorted(kwargs.items())))
 	param_hash = sha256(hash_base).hexdigest()
-	return f"{REDIS_PREFIX}:{cache_name}:{param_hash}"
+	return f"{REDIS_PREFIX_RPC_CACHE}:{cache_name}:{param_hash}"
 
 
 def rpc_cache_store(cache_name: str, result: Any, *args: Any, **kwargs: Any) -> None:
@@ -46,9 +46,9 @@ def rpc_cache_load(cache_name: str, *args: Any, **kwargs: Any) -> Any:
 
 
 def rpc_cache_clear(cache_name: str = None) -> Any:
-	redis_key = REDIS_PREFIX
+	redis_key = REDIS_PREFIX_RPC_CACHE
 	if cache_name:
-		redis_key = f"{REDIS_PREFIX}:{cache_name}"
+		redis_key = f"{redis_key}:{cache_name}"
 	wildcard = f"{redis_key}:*"
 	with redis_client() as redis:
 		with redis.pipeline() as pipeline:
@@ -61,7 +61,7 @@ def rpc_cache_clear(cache_name: str = None) -> Any:
 
 def rpc_cache_info() -> dict[str, int]:
 	info: dict[str, int] = defaultdict(int)
-	prefix = f"{REDIS_PREFIX}:"
+	prefix = f"{REDIS_PREFIX_RPC_CACHE}:"
 	with redis_client() as redis:
 		for key in redis.scan_iter(f"{prefix}*"):  # pylint: disable=loop-invariant-statement
 			rel = key.decode("utf-8").removeprefix(prefix)

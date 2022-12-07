@@ -56,6 +56,7 @@ VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
 REDIS_PREFIX_MESSAGEBUS = "opsiconfd:messagebus"
 REDIS_PREFIX_SESSION = "opsiconfd:session"
+REDIS_PREFIX_RPC_CACHE = "opsiconfd:rpccache"
 GC_THRESHOLDS = (150_000, 50, 100)
 OPSI_PASSWD_FILE = "/etc/opsi/passwd"
 LOG_DIR = "/var/log/opsi"

@@ -26,6 +26,7 @@ from _pytest.main import Session
 from _pytest.nodes import Item
 from pytest import fixture, hookimpl, skip
 
+import opsiconfd.backend.rpc.cache
 import opsiconfd.config
 import opsiconfd.messagebus.redis
 from opsiconfd.application.main import application_setup
@@ -58,6 +59,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	global GRAFANA_AVAILABLE  # pylint: disable=global-statement
 
 	opsiconfd.config.REDIS_PREFIX_MESSAGEBUS = opsiconfd.messagebus.redis.REDIS_PREFIX_MESSAGEBUS = "opsiconfd:test_messagebus"
+	opsiconfd.config.REDIS_PREFIX_RPC_CACHE = opsiconfd.backend.rpc.cache.REDIS_PREFIX_RPC_CACHE = "opsiconfd:test_rpccache"
 
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()

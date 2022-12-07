@@ -242,12 +242,12 @@ def setup_configs() -> None:
 
 	backend = get_unprotected_backend()
 
-	config_idents = set(backend.config_getIdents(returnType="str"))
+	config_ids = set(backend.config_getIdents(returnType="str"))
 	remove_configs = []
-	if "product_sort_algorithm" in config_idents:
-		logger.info("Removing config product_sort_algorithm")
-		remove_configs.append({"id": "product_sort_algorithm"})
-
+	for config_id in config_ids:
+		if config_id.endswith(".product.cache.outdated") or config_id == "product_sort_algorithm":
+			logger.info("Removing config %r", config_id)
+			remove_configs.append({"id": config_id})
 	backend.config_deleteObjects(remove_configs)
 
 

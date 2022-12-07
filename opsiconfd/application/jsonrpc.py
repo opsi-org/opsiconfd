@@ -32,51 +32,18 @@ from opsicommon.objects import OBJECT_CLASSES, BaseObject  # type: ignore[import
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
-from opsiconfd.backend import get_protected_backend, get_unprotected_backend
+from opsiconfd.backend import get_protected_backend
 from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
 from opsiconfd.session import OPSISession
 
 from ..config import RPC_DEBUG_DIR, config
 from ..logging import logger
 from ..messagebus.redis import ConsumerGroupMessageReader, send_message
-from ..utils import (
-	async_redis_client,
-	compress_data,
-	decode_redis_result,
-	decompress_data,
-	redis_client,
-)
+from ..utils import async_redis_client, compress_data, decompress_data, redis_client
 from ..worker import Worker
 
-# time in seconds
-EXPIRE = 24 * 3600
-EXPIRE_UPTODATE = 24 * 3600
 COMPRESS_MIN_SIZE = 10000
 
-PRODUCT_METHODS = (
-	"createProduct",
-	"createNetBootProduct",
-	"createLocalBootProduct",
-	"createProductDependency",
-	"deleteProductDependency",
-	"product_delete",
-	"product_deleteObjects",
-	"product_createObjects",
-	"product_insertObject",
-	"product_updateObject",
-	"product_updateObjects",
-	"productDependency_create",
-	"productDependency_createObjects",
-	"productDependency_delete",
-	"productDependency_deleteObjects",
-	"productOnDepot_delete",
-	"productOnDepot_create",
-	"productOnDepot_deleteObjects",
-	"productOnDepot_createObjects",
-	"productOnDepot_insertObject",
-	"productOnDepot_updateObject",
-	"productOnDepot_updateObjects",
-)
 
 jsonrpc_router = APIRouter()
 jsonrpc_message_reader = None  # pylint: disable=invalid-name
@@ -93,73 +60,6 @@ async def async_jsonrpc_startup() -> None:
 async def async_jsonrpc_shutdown() -> None:
 	if jsonrpc_message_reader:
 		jsonrpc_message_reader.stop()
-
-
-async def get_sort_algorithm(algorithm: str = None) -> str:
-	if algorithm in ("algorithm1", "algorithm2"):
-		return algorithm
-	algorithm = "algorithm1"
-	result = await get_unprotected_backend().async_call("config_getObjects", id="product_sort_algorithm")
-	if result and "algorithm2" in result[0].getDefaultValues():
-		algorithm = "algorithm2"
-	return algorithm
-
-
-async def store_product_ordering(result: Dict[str, Any], depot_id: str, sort_algorithm: str | None = None) -> None:
-	try:
-		sort_algorithm = await get_sort_algorithm(sort_algorithm)
-		redis = await async_redis_client()
-		async with redis.pipeline() as pipe:
-			sort_algorithm_key = f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}"
-			products_key = f"opsiconfd:jsonrpccache:{depot_id}:products"
-			pipe.unlink(products_key)
-			pipe.unlink(sort_algorithm_key)
-			for val in result.get("not_sorted", []):
-				pipe.zadd(products_key, {val: 1})
-			pipe.expire(products_key, EXPIRE)
-			for idx, val in enumerate(result.get("sorted", [])):
-				pipe.zadd(sort_algorithm_key, {val: idx})
-			pipe.expire(sort_algorithm_key, EXPIRE)
-			now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-			pipe.set(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate", now)
-			pipe.set(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}:uptodate", now)
-			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate", EXPIRE_UPTODATE)
-			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:{sort_algorithm}:uptodate", EXPIRE_UPTODATE)
-			pipe.sadd("opsiconfd:jsonrpccache:depots", depot_id)
-			await pipe.execute()
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error(
-			"Failed to store product ordering cache depot_id=%s, sort_algorithm=%s: %s", depot_id, sort_algorithm, err, exc_info=True
-		)
-
-
-async def set_jsonrpc_cache_outdated(params: List[Any]) -> None:
-	redis = await async_redis_client()
-	saved_depots = decode_redis_result(await redis.smembers("opsiconfd:jsonrpccache:depots"))
-	str_params = str(params)
-	depots = [depot for depot in saved_depots if str_params.find(depot) != -1]
-	if len(depots) == 0:
-		depots = saved_depots
-
-	async with redis.pipeline() as pipe:
-		for depot_id in depots:
-			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
-			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1:uptodate")
-			pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm2:uptodate")
-		await pipe.execute()
-
-
-async def remove_depot_from_jsonrpc_cache(depot_id: str) -> None:
-	redis = await async_redis_client()
-	async with redis.pipeline() as pipe:
-		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products")
-		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:uptodate")
-		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1")
-		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm1:uptodate")
-		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm2")
-		pipe.delete(f"opsiconfd:jsonrpccache:{depot_id}:products:algorithm2:uptodate")
-		pipe.srem("opsiconfd:jsonrpccache:depots", depot_id)
-		await pipe.execute()
 
 
 def get_compression(content_encoding: str) -> Optional[str]:
@@ -235,58 +135,6 @@ def serialize_data(data: Any, serialization: str) -> bytes:
 	if serialization == "json":
 		return json_encoder.encode(data)  # pylint: disable=no-member
 	raise ValueError(f"Unhandled serialization {serialization!r}")
-
-
-async def load_from_cache(rpc: Any) -> Optional[Any]:
-	if rpc["method"] in PRODUCT_METHODS:
-		await set_jsonrpc_cache_outdated(rpc["params"])
-		return None
-	if rpc["method"] in ("deleteDepot", "host_delete"):
-		await remove_depot_from_jsonrpc_cache(rpc["params"][0])
-		return None
-	if rpc["method"] == "getProductOrdering":
-		depot = rpc["params"][0]
-		backend = get_unprotected_backend()
-		cache_outdated = backend.config_getIdents(id=f"opsiconfd.{depot}.product.cache.outdated")  # type: ignore[union-attr]  # pylint: disable=no-member
-		algorithm = await get_sort_algorithm(rpc["params"])
-		redis = await async_redis_client()
-		if cache_outdated:
-			backend.config_delete(id=f"opsiconfd.{depot}.product.cache.outdated")  # pylint: disable=no-member
-			async with redis.pipeline() as pipe:
-				pipe.unlink(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
-				pipe.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
-				pipe.unlink(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
-				await pipe.execute()
-			return None
-
-		async with redis.pipeline() as pipe:
-			pipe.get(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
-			pipe.get(f"opsiconfd:jsonrpccache:{depot}:products:{algorithm}:uptodate")
-			pipe_results = await pipe.execute()
-		products_uptodate, sorted_uptodate = pipe_results
-		if not products_uptodate or not sorted_uptodate:
-			return None
-
-		depot_id = rpc["params"][0]
-		algorithm = await get_sort_algorithm(rpc["params"])
-		redis = await async_redis_client()
-		async with redis.pipeline() as pipe:
-			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products", 0, -1)
-			pipe.zrange(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", 0, -1)
-			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products", EXPIRE)
-			pipe.expire(f"opsiconfd:jsonrpccache:{depot_id}:products:{algorithm}", EXPIRE)
-			pipe_results = await pipe.execute()
-		products = pipe_results[0]
-		products_ordered = pipe_results[1]
-		return {"not_sorted": decode_redis_result(products), "sorted": decode_redis_result(products_ordered)}
-	return None
-
-
-async def store_in_cache(rpc: Any, result: Dict[str, Any]) -> None:
-	if rpc["method"] == "getProductOrdering":
-		if 1 <= len(rpc["params"]) <= 2 and len(result["result"].get("sorted", [])) > 0:
-			logger.debug("Storing product ordering in cache")
-			await store_product_ordering(result["result"], *rpc["params"])
 
 
 async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client_info: str) -> None:
@@ -506,9 +354,7 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 	logger.debug("Method '%s', params (short): %.250s", rpc["method"], rpc["params"])
 	logger.trace("Method '%s', params (full): %s", rpc["method"], rpc["params"])
 
-	result = await load_from_cache(rpc)
-	if result is None:
-		result = await run_in_threadpool(execute_rpc, client_info, rpc)
+	result = await run_in_threadpool(execute_rpc, client_info, rpc)
 
 	if rpc.get("jsonrpc") == "2.0":
 		return {"jsonrpc": "2.0", "id": rpc["id"], "result": result}
@@ -540,9 +386,6 @@ async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerato
 
 		logger.trace(result)
 		yield result
-
-		if not result.get("error") and duration > config.jsonrpc_time_to_cache:
-			await store_in_cache(rpc, result)
 
 		asyncio.create_task(store_rpc_info(rpc, result, duration, date, client_info))  # pylint: disable=dotted-import-in-loop
 

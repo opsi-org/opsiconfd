@@ -26,18 +26,18 @@ if TYPE_CHECKING:
 
 
 class RPCProductMixin(Protocol):
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def product_insertObject(self: BackendProtocol, product: dict | Product) -> None:  # pylint: disable=invalid-name
 		self._check_module("mysql_backend")
 		ace = self._get_ace("product_insertObject")
 		self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=True)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def product_updateObject(self: BackendProtocol, product: dict | Product) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("product_updateObject")
 		self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=False, set_null=False)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def product_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, products: List[dict] | List[Product] | dict | Product
 	) -> None:
@@ -46,7 +46,7 @@ class RPCProductMixin(Protocol):
 		for product in forceList(products):
 			self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=True)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def product_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, products: List[dict] | List[Product] | dict | Product
 	) -> None:
@@ -75,7 +75,7 @@ class RPCProductMixin(Protocol):
 		ace = self._get_ace("product_getObjects")
 		return self._mysql.get_idents(table="PRODUCT", object_type=Product, ace=ace, ident_type=returnType, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def product_deleteObjects(self: BackendProtocol, products: List[dict] | List[Product] | dict | Product) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("product_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT", object_type=Product, obj=products, ace=ace)

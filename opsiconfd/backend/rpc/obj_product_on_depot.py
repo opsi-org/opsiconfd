@@ -21,17 +21,17 @@ if TYPE_CHECKING:
 
 
 class RPCProductOnDepotMixin(Protocol):
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_insertObject(self: BackendProtocol, productOnDepot: dict | ProductOnDepot) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productOnDepot_insertObject")
 		self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=True)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_updateObject(self: BackendProtocol, productOnDepot: dict | ProductOnDepot) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productOnDepot_updateObject")
 		self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=False, set_null=False)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnDepots: List[dict] | List[ProductOnDepot] | dict | ProductOnDepot
 	) -> None:
@@ -39,7 +39,7 @@ class RPCProductOnDepotMixin(Protocol):
 		for productOnDepot in forceList(productOnDepots):
 			self._mysql.insert_object(table="PRODUCT_ON_DEPOT", obj=productOnDepot, ace=ace, create=True, set_null=True)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnDepots: List[dict] | List[ProductOnDepot] | dict | ProductOnDepot
 	) -> None:
@@ -68,7 +68,7 @@ class RPCProductOnDepotMixin(Protocol):
 		ace = self._get_ace("productOnDepot_getObjects")
 		return self._mysql.get_idents(table="PRODUCT_ON_DEPOT", object_type=ProductOnDepot, ace=ace, ident_type=returnType, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productOnDepot_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnDepots: List[dict] | List[ProductOnDepot] | dict | ProductOnDepot
 	) -> None:

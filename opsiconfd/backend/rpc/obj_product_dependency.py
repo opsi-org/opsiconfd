@@ -21,17 +21,17 @@ if TYPE_CHECKING:
 
 
 class RPCProductDependencyMixin(Protocol):
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_insertObject(self: BackendProtocol, productDependency: dict | ProductDependency) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productDependency_insertObject")
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_updateObject(self: BackendProtocol, productDependency: dict | ProductDependency) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("productDependency_updateObject")
 		self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=False, set_null=False)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productDependencies: List[dict] | List[ProductDependency] | dict | ProductDependency
 	) -> None:
@@ -39,7 +39,7 @@ class RPCProductDependencyMixin(Protocol):
 		for productDependency in forceList(productDependencies):
 			self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productDependencies: List[dict] | List[ProductDependency] | dict | ProductDependency
 	) -> None:
@@ -68,7 +68,7 @@ class RPCProductDependencyMixin(Protocol):
 		ace = self._get_ace("productDependency_getObjects")
 		return self._mysql.get_idents(table="PRODUCT_DEPENDENCY", object_type=ProductDependency, ace=ace, ident_type=returnType, filter=filter)
 
-	@rpc_method(check_acl=False)
+	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productDependencies: List[dict] | List[ProductDependency] | dict | ProductDependency
 	) -> None:

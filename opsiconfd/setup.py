@@ -237,6 +237,20 @@ def cleanup_log_files() -> None:
 			logger.warning(err)
 
 
+def setup_configs() -> None:
+	from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
+
+	backend = get_unprotected_backend()
+
+	config_idents = set(backend.config_getIdents(returnType="str"))
+	remove_configs = []
+	if "product_sort_algorithm" in config_idents:
+		logger.info("Removing config product_sort_algorithm")
+		remove_configs.append({"id": "product_sort_algorithm"})
+
+	backend.config_deleteObjects(remove_configs)
+
+
 def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 	logger.notice("Running opsiconfd setup")
 
@@ -248,8 +262,10 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 
 	if not config.run_as_user:
 		config.run_as_user = getpass.getuser()
+
 	if "limits" not in config.skip_setup:
 		setup_limits()
+
 	if "backend" not in config.skip_setup:
 		try:
 			setup_backend()
@@ -262,19 +278,26 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			po_setup_users_and_groups(ignore_errors=True)
 			setup_users_and_groups()
+
 		if "files" not in config.skip_setup:
 			setup_files()
+
 		# po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
 		if "systemd" not in config.skip_setup:
 			setup_systemd()
 	else:
 		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			setup_users_and_groups()
+
 	if "file_permissions" not in config.skip_setup:
 		# Always correct file permissions (run_as_user could be changed)
 		setup_file_permissions()
+
 	if "log_files" not in config.skip_setup:
 		cleanup_log_files()
+
+	setup_configs()
+
 	if "grafana" not in config.skip_setup:
 		try:
 			setup_grafana()

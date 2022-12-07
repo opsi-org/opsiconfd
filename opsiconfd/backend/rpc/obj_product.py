@@ -18,6 +18,7 @@ from ..mysql.cleanup import (
 	remove_orphans_object_to_group_product,
 	remove_orphans_product_on_client,
 	remove_orphans_product_property_state,
+	remove_orphans_windows_software_id_to_product,
 )
 from . import rpc_method
 
@@ -83,6 +84,7 @@ class RPCProductMixin(Protocol):
 			remove_orphans_object_to_group_product(session)
 			remove_orphans_product_on_client(session)
 			remove_orphans_product_property_state(session)
+			remove_orphans_windows_software_id_to_product(session)
 
 	@rpc_method(check_acl=False)
 	def product_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name

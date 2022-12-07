@@ -122,16 +122,8 @@ class RPCExtOpsiMixin(Protocol):
 	def getProductOrdering(  # pylint: disable=invalid-name,too-many-branches
 		self: BackendProtocol, depotId: str, sortAlgorithm: str = None
 	) -> Dict[str, list]:
-		if not sortAlgorithm:
-			sortAlgorithm = "algorithm1"
-			configs = self.config_getObjects(id="product_sort_algorithm")
-			try:
-				if "algorithm2" in configs[0].getDefaultValues():
-					sortAlgorithm = "algorithm2"
-			except IndexError:
-				pass
-
-		logger.debug("Using sort algorithm %s", sortAlgorithm)
+		if sortAlgorithm and sortAlgorithm != "algorithm1":
+			raise ValueError(f"Invalid sort algorithm {sortAlgorithm!r}")
 
 		products_by_id_and_version: Dict[str, Dict[str, Dict[str, LocalbootProduct]]] = {}
 		for product in self.product_getObjects(type="LocalbootProduct"):
@@ -175,12 +167,7 @@ class RPCExtOpsiMixin(Protocol):
 			)
 
 		productIds.sort()
-
-		if sortAlgorithm == "algorithm1":
-			sortedList = OPSI.SharedAlgorithm.generateProductSequence_algorithm1(available_products, product_dependencies)
-		else:
-			sortedList = OPSI.SharedAlgorithm.generateProductSequence_algorithm2(available_products, product_dependencies)
-
+		sortedList = OPSI.SharedAlgorithm.generateProductSequence_algorithm1(available_products, product_dependencies)
 		return {"not_sorted": productIds, "sorted": sortedList}
 
 	@rpc_method

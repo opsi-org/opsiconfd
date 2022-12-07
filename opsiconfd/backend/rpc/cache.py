@@ -8,6 +8,7 @@
 opsiconfd.backend.rpc.cache
 """
 
+from collections import defaultdict
 from hashlib import sha256
 from typing import Any
 
@@ -44,8 +45,10 @@ def rpc_cache_load(cache_name: str, *args: Any, **kwargs: Any) -> Any:
 	return None
 
 
-def rpc_cache_clear(cache_name: str) -> Any:
-	redis_key = f"{REDIS_PREFIX}:{cache_name}"
+def rpc_cache_clear(cache_name: str = None) -> Any:
+	redis_key = REDIS_PREFIX
+	if cache_name:
+		redis_key = f"{REDIS_PREFIX}:{cache_name}"
 	wildcard = f"{redis_key}:*"
 	with redis_client() as redis:
 		with redis.pipeline() as pipeline:
@@ -54,3 +57,15 @@ def rpc_cache_clear(cache_name: str) -> Any:
 			pipeline.delete(redis_key)
 			logger.debug("RPC cache clear: %s", redis_key)
 			pipeline.execute()
+
+
+def rpc_cache_info() -> dict[str, int]:
+	info: dict[str, int] = defaultdict(int)
+	prefix = f"{REDIS_PREFIX}:"
+	with redis_client() as redis:
+		for key in redis.scan_iter(f"{prefix}*"):  # pylint: disable=loop-invariant-statement
+			rel = key.decode("utf-8").removeprefix(prefix)
+			if ":" in rel:
+				cache_name, _ = rel.split(":", 1)
+				info[cache_name] += 1  # pylint: disable=loop-invariant-statement
+	return info

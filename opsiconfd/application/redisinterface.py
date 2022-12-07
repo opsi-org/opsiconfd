@@ -8,18 +8,13 @@
 redisinterface
 """
 
-from typing import Any, Dict
-
 from fastapi import APIRouter, FastAPI, Request, status
+from starlette.concurrency import run_in_threadpool
 
+from ..backend.rpc.cache import rpc_cache_clear, rpc_cache_info
 from ..logging import logger
 from ..rest import RESTErrorResponse, RESTResponse, rest_api
-from ..utils import (
-	async_get_redis_info,
-	async_redis_client,
-	decode_redis_result,
-	redis_client,
-)
+from ..utils import async_get_redis_info, async_redis_client, decode_redis_result
 
 redis_interface_router = APIRouter()
 
@@ -51,63 +46,16 @@ async def get_redis_stats() -> RESTResponse:  # pylint: disable=too-many-locals
 		return RESTErrorResponse(details=err, message="Error while reading redis data")
 
 
-@redis_interface_router.get("/depot-cache")
+@redis_interface_router.get("/load-rpc-cache-info")
 @rest_api
-def get_depot_cache() -> RESTResponse:
-	try:
-		depots = _get_depots()
-		return RESTResponse({"depots": list(depots)})
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error("Error while reading redis data: %s", err)
-		return RESTErrorResponse(details=err, message="Error while reading redis data")
+def load_rpc_cache_info() -> RESTResponse:
+	return RESTResponse({"result": rpc_cache_info()})
 
 
-def _get_depots() -> Dict[str, Any]:
-	depots = {}
-	with redis_client() as redis:
-		depots = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
-	return depots
-
-
-@redis_interface_router.get("/products")
+@redis_interface_router.post("/clear-rpc-cache")
 @rest_api
-def get_products(depot_id: str = None) -> RESTResponse:
-	try:
-		data = {}
-		with redis_client() as redis:
-			depot_ids = []
-			if depot_id:
-				depot_ids.append(depot_id)
-			else:
-				depot_ids = decode_redis_result(redis.smembers("opsiconfd:jsonrpccache:depots"))
-			for dep_id in depot_ids:
-				products = decode_redis_result(redis.zrange(f"opsiconfd:jsonrpccache:{dep_id}:products", 0, -1))
-				data[dep_id] = products
-		return RESTResponse(data)
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error("Error while reading redis data: %s", err)
-		return RESTErrorResponse(details=err, message="Error while reading redis data")
-
-
-@redis_interface_router.post("/clear-product-cache")
-@rest_api
-async def clear_product_cache(request: Request) -> RESTResponse:
-	try:
-		request_body = await request.json()
-		depots = request_body.get("depots")
-		if not depots:
-			depots = _get_depots()
-		redis = await async_redis_client()
-		async with redis.pipeline() as pipe:
-			for depot in depots:
-				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products")
-				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1")
-				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2")
-				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:uptodate")
-				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm1:uptodate")
-				pipe.delete(f"opsiconfd:jsonrpccache:{depot}:products:algorithm2:uptodate")
-			data = await pipe.execute()
-		return RESTResponse(data)
-	except Exception as err:  # pylint: disable=broad-except
-		logger.error("Error while reading redis data: %s", err)
-		return RESTErrorResponse(details=err, message="Error while reading redis data")
+async def clear_rpc_cache(request: Request) -> RESTResponse:
+	params = await request.json()
+	cache_name = (params.get("cache_name") if params else None) or None
+	await run_in_threadpool(rpc_cache_clear, cache_name)
+	return RESTResponse({"result": "OK"})

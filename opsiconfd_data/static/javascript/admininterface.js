@@ -43,12 +43,17 @@ function unblockClient(ip) {
 	}
 }
 
-
-function clearRedisCache(depots = []) {
-	let req = ajaxRequest("POST", "/redis-interface/clear-product-cache", { "depots": depots });
+function loadRPCCacheInfo() {
+	let req = ajaxRequest("GET", "/redis-interface/load-rpc-cache-info");
 	req.then((result) => {
-		outputToHTML(result, "redis-result");
-		return result
+		printRPCCacheInfoTable(result.result, "rpc-cache-info-div");
+	});
+}
+
+function clearRPCCache(cacheName = null) {
+	let req = ajaxRequest("POST", "/redis-interface/clear-rpc-cache", { "cache_name": cacheName });
+	req.then((result) => {
+		loadRPCCacheInfo();
 	});
 }
 
@@ -485,6 +490,31 @@ function printClientTable(data, htmlId) {
 	return htmlStr;
 }
 
+
+function printRPCCacheInfoTable(data, htmlId) {
+	if (Object.keys(data).length === 0) {
+		htmlStr = "<p>RPC cache is empty.</p>";
+	} else {
+		htmlStr = "<table class=\"rpc-cache-table\" id=\"rpc-cache-table\">" +
+			"<tr>" +
+			"<th class='rpc-cache-th'>Cache name</th>" +
+			"<th class='rpc-cache-th'>Num results</th>" +
+			"<th class='rpc-cache-th'>Clear</th>" +
+			"</tr>";
+		Object.keys(data).forEach(cacheName => {
+			htmlStr += "<tr>";
+			htmlStr += "<td class=\"rpc-cache-td\">" + cacheName + "</td>";
+			htmlStr += "<td class=\"rpc-cache-td\">" + data[cacheName] + "</td>";
+			htmlStr += "<td class=\"rpc-cache-td\"><button onclick=\"clearRPCCache('" + cacheName + "\')\">Clear</button></td>";
+			htmlStr += "</tr>";
+
+		});
+		htmlStr += "</table>";
+	}
+	div = document.getElementById(htmlId);
+	div.innerHTML = htmlStr;
+	return htmlStr;
+}
 
 function printRPCTable(data, htmlId) {
 	let htmlStr = "<table class=\"rpc-table\">";

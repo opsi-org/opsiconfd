@@ -20,7 +20,6 @@ from opsiconfd.application.jsonrpc import (
 	compress_data,
 	decompress_data,
 	deserialize_data,
-	get_sort_algorithm,
 	serialize_data,
 )
 
@@ -241,7 +240,7 @@ def test_store_rpc_info(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 			num_results = len(result["result"])
 			assert num_results > 0
 			if num == 2:
-				assert int(redis.get("opsiconfd:stats:num_rpcs")) == 2
+				assert int(redis.get("opsiconfd:stats:num_rpcs") or 0) == 2
 				redis_result = redis.lrange("opsiconfd:stats:rpcs", 0, -1)
 				infos = [msgpack.loads(value) for value in redis_result]  # pylint: disable=dotted-import-in-loop
 				assert len(infos) == 2
@@ -253,27 +252,3 @@ def test_store_rpc_info(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 					assert info["error"] is False
 					assert info["num_results"] == num_results
 					assert info["num_params"] == 2
-
-
-@pytest.mark.asyncio
-async def test_get_sort_algorithm(backend) -> None:  # pylint: disable=redefined-outer-name
-	assert await get_sort_algorithm("algorithm1") == "algorithm1"
-	assert await get_sort_algorithm("algorithm2") == "algorithm2"
-	backend.config_create(
-		id="product_sort_algorithm",
-		description="Product sorting algorithm",
-		possibleValues=["algorithm1", "algorithm2"],
-		defaultValues=["algorithm2"],
-		editable=False,
-		multiValue=False,
-	)
-	assert await get_sort_algorithm("invalid") == "algorithm2"
-	backend.config_create(
-		id="product_sort_algorithm",
-		description="Product sorting algorithm",
-		possibleValues=["algorithm1", "algorithm2"],
-		defaultValues=["algorithm1"],
-		editable=False,
-		multiValue=False,
-	)
-	assert await get_sort_algorithm() == "algorithm1"

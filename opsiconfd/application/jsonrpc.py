@@ -17,7 +17,7 @@ import warnings
 from datetime import datetime
 from functools import lru_cache
 from os import makedirs
-from typing import Any, AsyncGenerator, Dict, List, Optional, Type
+from typing import Any, AsyncGenerator, Dict, Optional, Type
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException

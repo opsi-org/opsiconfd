@@ -233,7 +233,7 @@ class RPCExtDynamicDepotMixin(Protocol):
 
 	@rpc_method
 	def getDepotSelectionAlgorithm(self) -> str:  # pylint: disable=invalid-name
-		"""Returns the selected depot selection algorythm."""
+		"""Returns the selected depot selection algorithm."""
 		# return self.getDepotSelectionAlgorithmByMasterDepotAndLatency()
 		# return self.getDepotSelectionAlgorithmByLatency()
 		return self.getDepotSelectionAlgorithmByNetworkAddress()

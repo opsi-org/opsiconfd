@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Any, Callable, List, Protocol
 from OPSI.SharedAlgorithm import (  # type: ignore[import]
 	addDependentProductOnClients,
 	generateProductOnClientSequence_algorithm1,
-	generateProductOnClientSequence_algorithm2,
 )
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
 from opsicommon.objects import (  # type: ignore[import]
@@ -24,8 +23,6 @@ from opsicommon.objects import (  # type: ignore[import]
 	ProductOnClient,
 )
 from opsicommon.types import forceList  # type: ignore[import]
-
-from opsiconfd.logging import logger
 
 from . import rpc_method
 
@@ -219,20 +216,7 @@ class RPCProductOnClientMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productOnClient_generateSequence(self: BackendProtocol, productOnClients: List[ProductOnClient]) -> List[ProductOnClient]:  # pylint: disable=invalid-name
-		configs = self.config_getObjects(id="product_sort_algorithm")
-		try:
-			defaults = configs[0].getDefaultValues()
-		except IndexError:
-			defaults = []  # pylint: disable=use-tuple-over-list
-
-		if "algorithm2" in defaults:
-			logger.info("Generating productOnClient sequence with algorithm 2")
-			gen_product_on_client_sequence = generateProductOnClientSequence_algorithm2
-		else:
-			logger.info("Generating productOnClient sequence with algorithm 1")
-			gen_product_on_client_sequence = generateProductOnClientSequence_algorithm1
-
-		return self._product_on_client_process_with_function(productOnClients, gen_product_on_client_sequence)
+		return self._product_on_client_process_with_function(productOnClients, generateProductOnClientSequence_algorithm1)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_addDependencies(self: BackendProtocol, productOnClients: List[ProductOnClient]) -> List[ProductOnClient]:  # pylint: disable=invalid-name

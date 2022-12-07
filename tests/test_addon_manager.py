@@ -130,7 +130,7 @@ def test_addon_static_dir(  # pylint: disable=redefined-outer-name, unused-argum
 	test_client: OpsiconfdTestClient, cleanup: FixtureFunction
 ) -> None:
 	AddonManager().load_addons()
-	res = test_client.get("/addons/test1/static/index.html", verify=False)
+	res = test_client.get("/addons/test1/static/index.html")
 	assert res.status_code == 200
 
 
@@ -138,10 +138,10 @@ def test_addon_public_path(  # pylint: disable=redefined-outer-name, unused-argu
 	test_client: OpsiconfdTestClient, cleanup: FixtureFunction
 ) -> None:
 	AddonManager().load_addons()
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 401
 
-	res = test_client.get("/addons/test1/public", verify=False)
+	res = test_client.get("/addons/test1/public")
 	assert res.status_code == 200
 
 
@@ -149,19 +149,19 @@ def test_addon_auth(  # pylint: disable=redefined-outer-name, unused-argument
 	test_client: OpsiconfdTestClient, cleanup: FixtureFunction
 ) -> None:
 	AddonManager().load_addons()
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 401
 
-	res = test_client.get("/addons/test1/login", verify=False)
+	res = test_client.get("/addons/test1/login")
 	assert res.status_code == 200
 
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 200
 
-	res = test_client.get("/addons/test1/logout", verify=False)
+	res = test_client.get("/addons/test1/logout")
 	assert res.status_code == 200
 
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 401
 
 
@@ -169,7 +169,7 @@ def test_addon_exception_handling(  # pylint: disable=redefined-outer-name, unus
 	test_client: OpsiconfdTestClient, cleanup: FixtureFunction
 ) -> None:
 	AddonManager().load_addons()
-	res = test_client.get("/addons/test1", verify=False)
+	res = test_client.get("/addons/test1")
 	assert res.status_code == 401
 	assert res.text == "addon_test1_error"
 	assert res.headers.get("x-addon") == "test1"

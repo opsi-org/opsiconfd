@@ -170,13 +170,12 @@ def test_serializations(test_client: OpsiconfdTestClient, content_type: str, acc
 		res = test_client.post(
 			"/rpc",
 			auth=(ADMIN_USER, ADMIN_PASS),
-			data=serialize_data(rpc, serialization),
-			headers=headers,
-			stream=True,
+			content=serialize_data(rpc, serialization),
+			headers=headers
 		)
 		res.raise_for_status()
 		assert res.headers["Content-Type"] == expected_content_type
-		assert deserialize_data(res.raw.read(), expected_content_type.split("/")[-1])
+		assert deserialize_data(res.content, expected_content_type.split("/")[-1])
 
 
 @pytest.mark.parametrize(
@@ -200,16 +199,16 @@ def test_compression(test_client: OpsiconfdTestClient, content_encoding: str, ac
 		res = test_client.post(
 			"/rpc",
 			auth=(ADMIN_USER, ADMIN_PASS),
-			data=data,
+			content=data,
 			headers={"Content-Type": "application/json", "Content-Encoding": content_encoding, "Accept-Encoding": accept_encoding},
-			stream=True,
+
 		)
 		assert res.status_code == status_code
 		if accept_encoding == "invalid":
 			assert res.headers.get("Content-Encoding") is None
 		else:
 			assert res.headers.get("Content-Encoding") == accept_encoding
-		data = res.raw.read()
+		data = res.content
 		# gzip and deflate transfer-encodings are automatically decoded
 		if "lz4" in accept_encoding:
 			data = decompress_data(data, accept_encoding)

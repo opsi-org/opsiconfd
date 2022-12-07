@@ -33,10 +33,10 @@ def test_setup_limits() -> None:
 
 def test_setup_file_permissions() -> None:
 	with (
-		patch("OPSI.Util.Task.Rights.FilePermission.chmod") as mock_file_chmod,
-		patch("OPSI.Util.Task.Rights.FilePermission.chown") as mock_file_chown,
-		patch("OPSI.Util.Task.Rights.DirPermission.chmod"),
-		patch("OPSI.Util.Task.Rights.DirPermission.chown"),
+		patch("opsicommon.server.rights.FilePermission.chmod") as mock_file_chmod,
+		patch("opsicommon.server.rights.FilePermission.chown") as mock_file_chown,
+		patch("opsicommon.server.rights.DirPermission.chmod"),
+		patch("opsicommon.server.rights.DirPermission.chown"),
 	):
 		setup_file_permissions()
 		mock_file_chmod.assert_called()

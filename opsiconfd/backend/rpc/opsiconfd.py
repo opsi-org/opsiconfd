@@ -248,10 +248,10 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 	def reload_config(self) -> None:
 		pass
 
-	def _get_ace(self, method: str) -> List[RPCACE]:
+	def _get_ace(self, method: str) -> List[RPCACE]:  # pylint: disable=unused-argument
 		return []
 
-	def _check_role(self, required_role: str) -> None:
+	def _check_role(self, required_role: str) -> None:  # pylint: disable=unused-argument
 		return None
 
 	def _check_module(self, module: str) -> None:

@@ -177,7 +177,8 @@ def test_get_rpc_list_request(test_client: OpsiconfdTestClient) -> None:  # pyli
 		call_rpc(
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
 		)
-	time.sleep(2)
+	for _ in range(30):
+		time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
 	response = test_client.get("/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	result = response.json()
@@ -206,8 +207,6 @@ async def test_get_blocked_clients(admininterface: ModuleType) -> None:  # pylin
 		set_failed_auth_and_blocked(test_ip)
 
 	result = await admininterface.get_blocked_clients()
-	print(result)
-	print(json.loads(result.body))
 	assert sorted(json.loads(result.body)) == sorted(addresses)
 
 
@@ -243,11 +242,10 @@ async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,unused-argument,too-many-locals
 	config: Config, admininterface: ModuleType, test_client: OpsiconfdTestClient, rpc_request_data: Any, expected_response: Any
 ) -> None:
-	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS), verify=False)
+	res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	with sync_redis_client() as redis:
-
-		session = res.cookies.get_dict().get("opsiconfd-session")  # type: ignore[no-untyped-call]
+		session = dict(res.cookies.items()).get("opsiconfd-session")  # type: ignore[no-untyped-call]
 		sessions = []
 		local_ip = None
 		for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):  # pylint: disable=loop-invariant-statement
@@ -293,24 +291,24 @@ def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:
 
 		with get_config({"grafana_external_url": "https://grafana.test/"}):
 			# External grafana server
-			response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", allow_redirects=False)
+			response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", follow_redirects=False)
 			assert response.status_code == 307
 			assert response.headers.get("location") == "https://grafana.test/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
 
 		with get_config({"grafana_external_url": f"https://{FQDN}:3000"}):
 			# Same server, different port
-			response = test_client.get(f"https://{FQDN}:{config.port}/admin/grafana", allow_redirects=False)
+			response = test_client.get(f"https://{FQDN}:{config.port}/admin/grafana", follow_redirects=False)
 			assert response.status_code == 307
 			assert response.headers.get("location") == f"https://{FQDN}:3000/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
 
 			# Same server, different port, request to different address (first redirect to fqdn)
-			response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", allow_redirects=False)
+			response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", follow_redirects=False)
 			assert response.status_code == 307
 			assert response.headers.get("location") == f"https://{FQDN}:{config.port}/admin/grafana"
 
 		with get_config({"grafana_external_url": "/grafana-proxy"}):
 			# opsiconfd as reverse proxy for grafana
-			response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", allow_redirects=False)
+			response = test_client.get(f"https://127.0.0.1:{config.port}/admin/grafana", follow_redirects=False)
 			assert response.status_code == 307
 			assert response.headers.get("location") == "/grafana-proxy/d/opsiconfd_main/opsiconfd-main-dashboard?kiosk=tv"
 
@@ -422,7 +420,9 @@ def test_unlock_all_products(test_client: OpsiconfdTestClient, backend: Unprotec
 		assert locked_products == {}
 
 
-def test_get_locked_products_list(test_client: OpsiconfdTestClient, backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
+def test_get_locked_products_list(
+	test_client: OpsiconfdTestClient, backend: UnprotectedBackend  # pylint: disable=redefined-outer-name
+) -> None:
 	test_products = [  # pylint: disable=use-tuple-over-list
 		{"id": "test_product01", "name": "Test Product 01", "productVersion": "1.0", "packageVersion": "1", "priority": 80},
 		{"id": "test_product02", "name": "Test Product 02", "productVersion": "1.0", "packageVersion": "1", "priority": 81},

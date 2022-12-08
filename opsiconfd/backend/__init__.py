@@ -19,19 +19,24 @@ if TYPE_CHECKING:
 		UnprotectedBackend,
 	)
 
-
+protected_backend = None  # pylint: disable=invalid-name
 def get_protected_backend() -> ProtectedBackend:
-	from .rpc.opsiconfd import ProtectedBackend  # pylint: disable=import-outside-toplevel
+	global protected_backend  # pylint: disable=invalid-name,global-statement
+	if not protected_backend:
+		from .rpc.opsiconfd import ProtectedBackend  # pylint: disable=import-outside-toplevel
+		protected_backend = ProtectedBackend()
+	return protected_backend
 
-	return ProtectedBackend()
 
-
+unprotected_backend = None  # pylint: disable=invalid-name
 def get_unprotected_backend() -> UnprotectedBackend:
-	from .rpc.opsiconfd import (  # pylint: disable=import-outside-toplevel
-		UnprotectedBackend,
-	)
-
-	return UnprotectedBackend()
+	global unprotected_backend  # pylint: disable=invalid-name,global-statement
+	if not unprotected_backend:
+		from .rpc.opsiconfd import (  # pylint: disable=import-outside-toplevel
+			UnprotectedBackend,
+		)
+		unprotected_backend = UnprotectedBackend()
+	return unprotected_backend
 
 
 def get_mysql() -> MySQLConnection:

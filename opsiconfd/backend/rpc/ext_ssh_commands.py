@@ -21,6 +21,7 @@ from pydantic import (  # pylint: disable=no-name-in-module
 	validator,
 )
 
+from opsiconfd.config import SSH_COMMANDS_CUSTOM_FILE, SSH_COMMANDS_DEFAULT_FILE
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -82,8 +83,8 @@ class SSHCommand(BaseModel):
 
 
 class RPCExtSSHCommandsMixin(Protocol):
-	ssh_commands_default_file: str = "/etc/opsi/server_commands_default.conf"
-	ssh_commands_custom_file: str = "/var/lib/opsi/server_commands_custom.conf"
+	ssh_commands_default_file: str = SSH_COMMANDS_DEFAULT_FILE
+	ssh_commands_custom_file: str = SSH_COMMANDS_CUSTOM_FILE
 
 	def _read_ssh_commands_file(self: BackendProtocol, filename: str) -> List[SSHCommand]:
 		logger.debug("Reading SSH commands file '%s'", filename)

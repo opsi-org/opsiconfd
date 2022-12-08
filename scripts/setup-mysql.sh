@@ -20,11 +20,11 @@ sudo mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO ${MYSQL_USER}@localhost ID
 sudo mysql -u root -e "FLUSH PRIVILEGES"
 
 echo "* Create opsi db"
-sudo mysql -u root -e "CREATE DATABASE ${MYSQL_DATABASE};"
+sudo mysql -u root -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};"
 
 echo "* Create opsi test db"
 sudo mysql -u root -e "DROP DATABASE IF EXISTS opsitest;"
-sudo mysql -u root -e "CREATE DATABASE opsitest;"
+sudo mysql -u root -e "CREATE DATABASE IF NOT EXISTS opsitest;"
 
 echo "* Fill opsi database with dev data"
 echo ${OPSI_HOSTNAME}

@@ -544,12 +544,20 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 		)
 
 
+def create_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-branches,too-many-statements
+	with mysql.session() as session:
+		session.execute(f"CREATE DATABASE IF NOT EXISTS `{mysql.database}`")
+
+
+def drop_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-branches,too-many-statements
+	with mysql.session() as session:
+		session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
+
+
 def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	with mysql.session() as session:
-
 		session.execute(CREATE_TABLES_SQL)
 		create_audit_hardware_tables(session, mysql.tables)
-
 		mysql.read_tables()
 
 		schema_version = read_schema_version(session)

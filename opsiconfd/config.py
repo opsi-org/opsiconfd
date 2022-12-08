@@ -63,7 +63,8 @@ LOG_DIR = "/var/log/opsi"
 LOG_SIZE_HARD_LIMIT = 10000000
 OPSI_LICENSE_PATH = "/etc/opsi/licenses"
 OPSI_MODULES_PATH = "/etc/opsi/modules"
-
+SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
+SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
 
 opsi_config = OpsiConfig()
 

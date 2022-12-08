@@ -42,7 +42,7 @@ from opsicommon.server.setup import (
 from .application.utils import get_configserver_id
 from .backend.mysql import MySQLConnection
 from .backend.mysql.cleanup import cleanup_database
-from .backend.mysql.schema import update_database
+from .backend.mysql.schema import create_database, update_database
 from .config import FQDN, OPSI_LICENSE_PATH, VAR_ADDON_DIR, config, opsi_config
 from .grafana import setup_grafana
 from .logging import logger
@@ -178,6 +178,7 @@ def setup_backend() -> None:
 
 	mysql = MySQLConnection()
 	mysql.connect()
+	create_database(mysql)
 	update_database(mysql)
 	cleanup_database(mysql)
 
@@ -248,7 +249,8 @@ def setup_configs() -> None:
 		if config_id.endswith(".product.cache.outdated") or config_id == "product_sort_algorithm":
 			logger.info("Removing config %r", config_id)
 			remove_configs.append({"id": config_id})
-	backend.config_deleteObjects(remove_configs)
+	if remove_configs:
+		backend.config_deleteObjects(remove_configs)
 
 
 def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches

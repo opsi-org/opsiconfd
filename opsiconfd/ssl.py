@@ -376,6 +376,9 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 	if not create:
 		try:
 			srv_key = load_local_server_key()
+		except PermissionError as err:
+			logger.error(err, exc_info=True)
+			raise
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning("Failed to load server key (%s), creating new server cert", err)
 			create = True
@@ -383,6 +386,9 @@ def setup_server_cert() -> bool:  # pylint: disable=too-many-branches,too-many-s
 	if not create:
 		try:
 			srv_crt = load_local_server_cert()
+		except PermissionError as err:
+			logger.error(err, exc_info=True)
+			raise
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning("Failed to load server cert (%s), creating new server cert", err)
 			create = True

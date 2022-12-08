@@ -53,8 +53,8 @@ def rpc_cache_clear(cache_name: str | None = None) -> Any:
 	with redis_client() as redis:
 		with redis.pipeline() as pipeline:
 			for key in redis.scan_iter(wildcard):
-				pipeline.delete(key.decode())
-			pipeline.delete(redis_key)
+				pipeline.unlink(key.decode())
+			pipeline.unlink(redis_key)
 			logger.debug("RPC cache clear: %s", redis_key)
 			pipeline.execute()
 

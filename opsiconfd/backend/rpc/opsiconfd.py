@@ -299,14 +299,10 @@ class UnprotectedBackend(Backend):  # pylint: disable=too-many-ancestors
 
 
 class ProtectedBackend(Backend):  # pylint: disable=too-many-ancestors
-	__initialized = False
-
 	def __init__(self) -> None:
-		if self.__initialized:
-			return
-		self.__initialized = True
 		super().__init__()
-		self._read_acl_file()
+		if not self._acl:
+			self._read_acl_file()
 
 	def reload_config(self) -> None:
 		super().reload_config()

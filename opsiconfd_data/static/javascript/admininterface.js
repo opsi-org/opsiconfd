@@ -614,31 +614,29 @@ function printRPCTable(data, htmlId) {
 	htmlStr += "<tr>";
 	keys = Object.keys(data[0]);
 	Object.keys(data[0]).forEach(element => {
-		htmlStr += "<th class=\"rpc-th\" onclick=\"loadRPCTable('" + element + "', " + true + ")\" onmouseover=\"\" style=\"cursor: pointer;\">" + element + "</th>";
+		htmlStr += `<th class="rpc-th" onclick="loadRPCTable('${element}', true)" title="sort" style="cursor: pointer;">${element}</th>`;
 	});
 	htmlStr += "</tr>";
 
 	data.forEach((element, idx) => {
 		htmlStr += "<tr>";
+		tdClass = "rpc-td"
 		if (element["error"]) {
-			keys.forEach(key => {
-				htmlStr += "<td class=\"rpc-error-td\">" + element[key] + "</td>";
-			});
-		} else {
-			keys.forEach(key => {
-				if (key == "date") {
-					date = formateDate(new Date(element[key]))
-					htmlStr += "<td class=\"rpc-td\">" + date + "</td>";
-				}
-				else if (key == "duration") {
-					duration = element[key].toFixed(4)
-					htmlStr += "<td class=\"rpc-td\">" + duration + "</td>";
-				}
-				else {
-					htmlStr += "<td class=\"rpc-td\">" + element[key] + "</td>";
-				}
-			});
+			tdClass = "rpc-error-td"
 		}
+		keys.forEach(key => {
+			if (key == "date") {
+				date = formateDate(new Date(element[key]))
+				htmlStr += `<td class="${tdClass}">${date}</td>`;
+			}
+			else if (key == "duration") {
+				duration = element[key].toFixed(4)
+				htmlStr += `<td class="${tdClass}">${duration}</td>`;
+			}
+			else {
+				htmlStr += `<td class="${tdClass}">${element[key]}</td>`;
+			}
+		});
 		htmlStr += "</tr>";
 	});
 

@@ -131,6 +131,12 @@ def restore_backup(data: dict[str, dict[str, Any]], config_files: bool = True) -
 	if version != "1":
 		raise ValueError(f"Invalid backup version: {version!r}")
 
+	if config_files and data.get("config_files"):
+		for name, file in get_config_files().items():
+			backup_file = data["config_files"].get(name)
+			if backup_file and backup_file["content"] is not None:
+				file.write_text(backup_file["content"], encoding="utf-8")
+
 	mysql = MySQLConnection()
 	mysql.connect()
 	drop_database(mysql)

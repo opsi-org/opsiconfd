@@ -26,5 +26,5 @@ def test_create_backup(config: Config) -> None:  # pylint: disable=redefined-out
 
 
 def test_restore_backup() -> None:
-	backup = create_backup(config_files=False)
-	restore_backup(backup, config_files=False)
+	backup = create_backup(config_files=True)
+	restore_backup(backup, config_files=True)

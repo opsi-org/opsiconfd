@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 	)
 
 protected_backend = None  # pylint: disable=invalid-name
+unprotected_backend = None  # pylint: disable=invalid-name
+
+
 def get_protected_backend() -> ProtectedBackend:
 	global protected_backend  # pylint: disable=invalid-name,global-statement
 	if not protected_backend:
@@ -28,7 +31,6 @@ def get_protected_backend() -> ProtectedBackend:
 	return protected_backend
 
 
-unprotected_backend = None  # pylint: disable=invalid-name
 def get_unprotected_backend() -> UnprotectedBackend:
 	global unprotected_backend  # pylint: disable=invalid-name,global-statement
 	if not unprotected_backend:

@@ -336,7 +336,8 @@ def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylint: dis
 		call_rpc(
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
 		)
-	time.sleep(2)
+	for _ in range(50):
+		time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
 	res = test_client.get("/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert res.json() == {"rpc_count": 10}

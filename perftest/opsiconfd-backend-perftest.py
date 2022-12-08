@@ -159,7 +159,7 @@ class TestClient:  # pylint: disable=too-few-public-methods
 		)
 
 	async def run(self) -> None:
-		await self.test_manager.jsonrpc_request(self.client, self.test_manager.args.jsonrpc_url, "authenticated")
+		await self.test_manager.jsonrpc_request(self.client, self.test_manager.args.jsonrpc_url, "accessControl_authenticated")
 		res = await self.test_manager.jsonrpc_request(self.client, self.test_manager.args.jsonrpc_url, "product_getObjects")
 		assert res
 		res = await self.test_manager.jsonrpc_request(

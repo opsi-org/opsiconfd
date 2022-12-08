@@ -118,7 +118,7 @@ stages:
   echo "---------------------------------------"
   poetry run pylint --disable=R,fixme,E0012 opsiconfd tests
   poetry run flake8 opsiconfd tests
-  poetry run mypy opsiconfd
+  poetry run mypy opsiconfd tests
 
 test:perftest:
   services:

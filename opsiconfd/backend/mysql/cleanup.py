@@ -93,6 +93,19 @@ def remove_orphans_product_property_state(session: Session) -> None:
 		logger.notice("Removed %d orphaned entries from PRODUCT_PROPERTY_STATE", result.rowcount)
 
 
+def remove_orphans_windows_software_id_to_product(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE wsi.* FROM WINDOWS_SOFTWARE_ID_TO_PRODUCT AS wsi
+		LEFT JOIN PRODUCT AS p
+		ON wsi.productId = p.productId
+		WHERE p.productId IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from WINDOWS_SOFTWARE_ID_TO_PRODUCT", result.rowcount)
+
+
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		remove_orphans_config_value(session)
@@ -101,3 +114,4 @@ def cleanup_database(mysql: MySQLConnection) -> None:
 		remove_orphans_object_to_group_product(session)
 		remove_orphans_product_on_client(session)
 		remove_orphans_product_property_state(session)
+		remove_orphans_windows_software_id_to_product(session)

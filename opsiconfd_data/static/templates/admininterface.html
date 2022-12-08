@@ -58,30 +58,6 @@
 			}
 		}
 
-		function createParamInputs() {
-			let value = document.getElementById("method-select").value;
-			let table = document.getElementById("jsonrpc-request-table");
-			var elements = table.getElementsByClassName("param");
-			while (elements.length > 0) {
-				table.removeChild(elements[0]);
-			}
-			JSONRPCInterface.forEach(method => {
-				if (method.name == value) {
-					method.params.forEach(param => {
-						let tr = document.createElement("tr");
-						tr.className = "param";
-						tr.innerHTML = "\
-							<td align=\"left\"><label>" + param + ": </label></td> \
-							<td><input type=\"text\" id=\"" + param + "\" name=\"" + param + "\" oninput=\"changeRequestJSON(this.name,this.value)\" /></td> \
-						";
-						table.appendChild(tr);
-					});
-					document.getElementById("jsonrpc-method-doc").innerHTML = method.doc;
-				}
-			});
-			changeRequestJSON();
-		}
-
 		function openTab(tabName) {
 			stopReloadTimer();
 			stopLog();
@@ -99,7 +75,7 @@
 				loadLockedProductsTable();
 			}
 			else if (tabName == "rpc-interface") {
-				createParamInputs();
+				fillRPCMethodSelect();
 			}
 			else if (tabName == "redis-interface") {
 				loadRPCCacheInfo();
@@ -254,13 +230,19 @@
 					<div style="float: left">
 						<table id="jsonrpc-request-table">
 							<tr>
+								<td></td>
+								<td>
+									<input type="checkbox" id="jsonrpc-deprecated-methods"
+										onchange="fillRPCMethodSelect();" />
+									<label>Show deprecated methods</label>
+								</td>
+							</tr>
+							<tr>
 								<td align="left"><label>Method:</label></td>
 								<td>
-									<select id="method-select" onchange="createParamInputs()">
-										{% for method in interface %}
-										<option>{{ method.get("name") }}</option>
-										{% endfor %}
+									<select id="jsonrpc-method-select" onchange="onRPCInterfaceMethodSelected();">
 									</select>
+
 								</td>
 							</tr>
 						</table>

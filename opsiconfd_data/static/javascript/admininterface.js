@@ -223,6 +223,99 @@ function callRedis() {
 }
 
 
+function fillRPCMethodSelect() {
+	const addDeprecated = document.getElementById("jsonrpc-deprecated-methods").checked;
+	const select = document.getElementById("jsonrpc-method-select");
+	select.innerHTML = "";
+	JSONRPCInterface.forEach(method => {
+		if (!method.deprecated || addDeprecated) {
+			const option = document.createElement("option");
+			option.text = method.name;
+			select.appendChild(option);
+		}
+	});
+	onRPCInterfaceMethodSelected();
+}
+
+function onRPCInterfaceMethodSelected() {
+	let value = document.getElementById("jsonrpc-method-select").value;
+	let table = document.getElementById("jsonrpc-request-table");
+	var elements = table.getElementsByClassName("param");
+	while (elements.length > 0) {
+		table.removeChild(elements[0]);
+	}
+	JSONRPCInterface.forEach(method => {
+		if (method.name == value) {
+			method.params.forEach(param => {
+				let tr = document.createElement("tr");
+				tr.className = "param";
+				tr.innerHTML = "\
+							<td align=\"left\"><label>" + param + ": </label></td> \
+							<td><input class=\"jsonrpc-param-input\" type=\"text\" id=\"" + param + "\" name=\"" + param + "\" oninput=\"changeRequestJSON(this.name,this.value)\" /></td> \
+						";
+				table.appendChild(tr);
+			});
+			let doc = "";
+			if (method.deprecated) {
+				doc += '<span class="jsonrpc-deprecated-method">This method is deprecated and will be removed in one of the next versions.</span><br />';
+				if (method.alternative_method) {
+					doc += `Please use the method '<strong>${method.alternative_method}</strong>' instead.<br />`
+				}
+			}
+			if (method.doc) {
+				doc += method.doc;
+			}
+			document.getElementById("jsonrpc-method-doc").innerHTML = doc;
+		}
+	});
+	changeRequestJSON();
+}
+
+
+function createRequestJSON() {
+	let apiJSON = {
+		"id": 1,
+		"jsonrpc": "2.0",
+		"method": "",
+		"params": []
+	}
+
+	let option = document.getElementById("jsonrpc-method-select");
+	let method = option.options[option.selectedIndex].text;
+	let inputs = document.getElementsByClassName("jsonrpc-param-input");
+	let parameter = [];
+
+	apiJSON.method = method;
+
+	document.getElementById("jsonrpc-request-error").innerHTML = "";
+	for (i = 0; i < inputs.length; i++) {
+		let name = null;
+		let value = null;
+		try {
+			name = inputs[i].name.trim();
+			value = inputs[i].value.trim();
+			if (value) {
+				parameter.push(JSON.parse(value));
+			} else if (!name.startsWith("*")) {
+				parameter.push(null);
+			}
+		} catch (e) {
+			console.warn(`${name}: ${e}`);
+			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e}`;
+		}
+	}
+
+	apiJSON.params = parameter;
+	return apiJSON;
+}
+
+
+function changeRequestJSON(name, value) {
+	let apiJSON = createRequestJSON();
+	outputToHTML(apiJSON, "jsonrpc-request");
+}
+
+
 function callJSONRPC() {
 	let inputs = document.getElementById("tab-rpc-interface").getElementsByTagName("input");
 	for (i = 0; i < inputs.length; i++) {
@@ -601,50 +694,6 @@ function sortRPCTable(data, sortKey) {
 	}
 	return data;
 
-}
-
-
-function createRequestJSON() {
-	let apiJSON = {
-		"id": 1,
-		"jsonrpc": "2.0",
-		"method": "",
-		"params": []
-	}
-
-	let option = document.getElementById("method-select");
-	let method = option.options[option.selectedIndex].text;
-	let inputs = document.getElementById("tab-rpc-interface").getElementsByTagName("input");
-	let parameter = [];
-
-	apiJSON.method = method;
-
-	document.getElementById("jsonrpc-request-error").innerHTML = "";
-	for (i = 0; i < inputs.length; i++) {
-		let name = null;
-		let value = null;
-		try {
-			name = inputs[i].name.trim();
-			value = inputs[i].value.trim();
-			if (value) {
-				parameter.push(JSON.parse(value));
-			} else if (!name.startsWith("*")) {
-				parameter.push(null);
-			}
-		} catch (e) {
-			console.warn(`${name}: ${e}`);
-			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e}`;
-		}
-	}
-
-	apiJSON.params = parameter;
-	return apiJSON;
-}
-
-
-function changeRequestJSON(name, value) {
-	let apiJSON = createRequestJSON();
-	outputToHTML(apiJSON, "jsonrpc-request");
 }
 
 

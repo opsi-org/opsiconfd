@@ -101,6 +101,10 @@ h2 {
 	font-size: 13px;
 }
 
+.jsonrpc-deprecated-method {
+	color: #dc322b;
+}
+
 #jsonrpc-request-table>tr>td {
 	padding-right: 5px;
 }

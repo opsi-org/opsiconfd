@@ -111,10 +111,28 @@ def setup_users_and_groups() -> None:
 			logger.debug("Group not found: %s", groupname)
 
 
+def _get_default_dirs() -> list[str]:
+	return [
+		"/var/log/opsi/bootimage",
+		"/var/log/opsi/clientconnect",
+		"/var/log/opsi/instlog",
+		os.path.dirname(config.log_file),
+		"/var/log/opsi/userlogin",
+		"/var/lib/opsi/depot",
+		"/var/lib/opsi/ntfs-images",
+		"/var/lib/opsi/repository",
+		"/var/lib/opsi/public",
+		"/var/lib/opsi/workbench",
+		VAR_ADDON_DIR,
+		OPSI_LICENSE_PATH,
+	]
+
+
 def setup_files() -> None:
-	for _dir in (os.path.dirname(config.log_file), VAR_ADDON_DIR, OPSI_LICENSE_PATH):  # pylint: disable=dotted-import-in-loop
+	for _dir in _get_default_dirs():
 		if not os.path.isdir(_dir):  # pylint: disable=dotted-import-in-loop
 			os.makedirs(_dir)  # pylint: disable=dotted-import-in-loop
+			set_rights(_dir)
 
 
 def setup_file_permissions() -> None:
@@ -136,19 +154,7 @@ def setup_file_permissions() -> None:
 	set_rights("/etc/opsi")
 	setup_ssl_file_permissions()
 
-	for path_str in (
-		"/var/log/opsi/bootimage",
-		"/var/log/opsi/clientconnect",
-		"/var/log/opsi/instlog",
-		"/var/log/opsi/opsiconfd",
-		"/var/log/opsi/userlogin",
-		"/var/lib/opsi/depot",
-		"/var/lib/opsi/ntfs-images",
-		"/var/lib/opsi/repository",
-		"/var/lib/opsi/public",
-		"/var/lib/opsi/workbench",
-		VAR_ADDON_DIR,
-	):
+	for path_str in _get_default_dirs():
 		try:  # pylint: disable=loop-try-except-usage
 			path = Path(path_str)
 			if path.is_dir() and path.owner() != config.run_as_user:

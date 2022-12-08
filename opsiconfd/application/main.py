@@ -33,7 +33,7 @@ from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 from .. import __version__, contextvar_client_address, contextvar_request_id
 from ..addon import AddonManager
 from ..backend import get_protected_backend, get_unprotected_backend
-from ..config import config
+from ..config import config, opsi_config
 from ..logging import get_logger, logger
 from ..messagebus.terminal import async_terminal_shutdown, async_terminal_startup
 from ..messagebus.websocket import messagebus_setup
@@ -346,13 +346,15 @@ def application_setup() -> None:
 	session_setup(app)
 	admin_interface_setup(app)
 	redis_interface_setup(app)
-	monitoring_setup(app)
 	webdav_setup(app)
 	filetransfer_setup(app)
-	metrics_setup(app)
 	status_setup(app)
-	messagebus_setup(app)
-	reverse_proxy_setup(app)
+
+	if opsi_config.get("host", "server-role") == "configserver":
+		monitoring_setup(app)
+		metrics_setup(app)
+		messagebus_setup(app)
+		reverse_proxy_setup(app)
 
 	AddonManager().load_addons()
 

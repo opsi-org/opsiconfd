@@ -118,8 +118,8 @@ async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None
 	handled_record = None
 
 	async def handle_file_handler_error(
-		file_handler: AsyncFileHandler, record: LogRecord, exception: Exception
-	) -> None:  # pylint: disable=unused-argument
+		file_handler: AsyncFileHandler, record: LogRecord, exception: Exception  # pylint: disable=unused-argument
+	) -> None:
 		nonlocal handled_exception
 		handled_exception = exception
 		nonlocal handled_record

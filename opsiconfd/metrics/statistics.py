@@ -162,15 +162,16 @@ class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 				"---------------------------------------------------------------------------------------------------------------------------------"
 			)
 			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope['method']} {scope['path']}")
-			logger.essential(f"{'module':<45} | {'function':<60} | {'calls':>5} | {'total time':>10}")
+			logger.essential(f"{'module':<55} | {'function':<45} | {'calls':>5} | {'total time':>10} | {'nosub time':>10}")
 			logger.essential(
 				"---------------------------------------------------------------------------------------------------------------------------------"
 			)
 			regex = re.compile(r".+(site-packages|python3\.\d|python-opsi)/")
-			for stat_num, stat in enumerate(func_stats.sort("ttot", sort_order="desc")):
+			# sort: ncall / ttot / tsub / tavg
+			for stat_num, stat in enumerate(func_stats.sort("ttot", sort_order="asc")):
 				module = regex.sub("", stat.module)
 				logger.essential(
-					f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}"  # pylint: disable=loop-invariant-statement
+					f"{module:<55} | {stat.name:<45} | {stat.ncall:>5} |   {stat.ttot:0.6f} |   {stat.tsub:0.6f}"  # pylint: disable=loop-invariant-statement
 				)
 				if stat_num >= 500:
 					break

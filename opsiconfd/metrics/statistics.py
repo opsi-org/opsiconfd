@@ -9,20 +9,32 @@ statistics
 """
 
 import asyncio
+import re
 import time
 from typing import Dict
 
+import yappi  # type: ignore[import]
 from fastapi import FastAPI
 from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
-from .. import contextvar_client_address, contextvar_server_timing
+from .. import (
+	contextvar_client_address,
+	contextvar_request_id,
+	contextvar_server_timing,
+)
 from ..config import config
 from ..logging import logger
 from ..utils import ip_address_to_redis_key, redis_client
 from ..worker import Worker
 from .registry import MetricsRegistry
+
+
+def get_yappi_tag() -> int:
+	if not contextvar_request_id:
+		return 0
+	return contextvar_request_id.get() or 0
 
 
 def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -125,6 +137,47 @@ class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 		self._log_func_stats = log_func_stats
 		self._write_callgrind_file = True
 
+		if self._profiler_enabled:
+			yappi.set_tag_callback(get_yappi_tag)
+			yappi.set_clock_type("wall")
+			# TODO: Schedule some kind of periodic profiler cleanup with clear_stats()
+			yappi.start()
+
+	def yappi(self, scope: Scope) -> None:
+		# https://github.com/sumerc/yappi/blob/master/doc/api.md
+
+		tag = get_yappi_tag()
+		if tag <= 0:
+			return
+
+		func_stats = yappi.get_func_stats(filter={"tag": tag})
+		# func_stats.sort("ttot", sort_order="desc").debug_print()
+
+		if self._write_callgrind_file:
+			# Use i.e. kcachegrind to visualize
+			func_stats.save(f"/tmp/callgrind.out.opsiconfd-yappi-{tag}", type="callgrind")  # pylint: disable=no-member
+
+		if self._log_func_stats:
+			logger.essential(
+				"---------------------------------------------------------------------------------------------------------------------------------"
+			)
+			logger.essential(f"{scope['request_id']} - {scope['client'][0]} - {scope['method']} {scope['path']}")
+			logger.essential(f"{'module':<45} | {'function':<60} | {'calls':>5} | {'total time':>10}")
+			logger.essential(
+				"---------------------------------------------------------------------------------------------------------------------------------"
+			)
+			regex = re.compile(r".+(site-packages|python3\.\d|python-opsi)/")
+			for stat_num, stat in enumerate(func_stats.sort("ttot", sort_order="desc")):
+				module = regex.sub("", stat.module)
+				logger.essential(
+					f"{module:<45} | {stat.name:<60} | {stat.ncall:>5} |   {stat.ttot:0.6f}"  # pylint: disable=loop-invariant-statement
+				)
+				if stat_num >= 500:
+					break
+			logger.essential(
+				"---------------------------------------------------------------------------------------------------------------------------------"
+			)
+
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		logger.trace("StatisticsMiddleware scope=%s", scope)
 		loop = asyncio.get_running_loop()
@@ -173,6 +226,8 @@ class StatisticsMiddleware:  # pylint: disable=too-few-public-methods
 				server_timing = contextvar_server_timing.get()
 				server_timing["request_processing"] = int(1000 * (time.perf_counter() - start))
 				headers.append("Server-Timing", ",".join([f"{k};dur={v:.3f}" for k, v in server_timing.items()]))
+				if self._profiler_enabled:
+					self.yappi(scope)
 
 			logger.trace(message)
 			await send(message)

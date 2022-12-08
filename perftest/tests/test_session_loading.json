@@ -9,7 +9,11 @@
 			"name": "JSONRPC",
 			"requests": {
 				"test": [
-					["jsonrpc", "accessControl_authenticated", []]
+					[
+						"jsonrpc",
+						"accessControl_authenticated",
+						[]
+					]
 				]
 			}
 		}

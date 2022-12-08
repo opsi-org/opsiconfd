@@ -13,10 +13,10 @@ import json
 import socket
 import time
 from datetime import datetime, timedelta
+from typing import Any, Generator
 from unittest import mock
 
 import pytest
-import requests
 
 from opsiconfd.application.monitoring.check_locked_products import check_locked_products
 from opsiconfd.application.monitoring.check_opsi_disk_usage import check_opsi_disk_usage
@@ -27,16 +27,21 @@ from opsiconfd.application.monitoring.check_short_product_status import (
 	check_short_product_status,
 )
 from tests.utils import (  # pylint: disable=unused-import
+	Config,
+	Connection,
+	OpsiconfdTestClient,
+	UnprotectedBackend,
 	backend,
 	clean_redis,
 	config,
 	create_depot_jsonrpc,
 	database_connection,
+	test_client,
 )
 
 MONITORING_CHECK_DAYS = 31
 
-test_data = [
+test_data: tuple[tuple[Any, Any, Any, Any], ...] = (
 	(
 		{"capacity": 107374182400, "available": 21474836480, "used": 85899345920, "usage": 0.80},
 		"workbench",
@@ -116,11 +121,13 @@ test_data = [
 			),
 		},
 	),
-]
+)
 
 
 @pytest.fixture(autouse=True)
-def create_check_data(config, database_connection):  # pylint: disable=redefined-outer-name
+def create_check_data(
+	test_client: OpsiconfdTestClient, config: Config, database_connection: Connection  # pylint: disable=redefined-outer-name
+) -> Generator[None, None, None]:
 	mysql = database_connection
 	mysql.autocommit(True)
 
@@ -155,7 +162,7 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 		)
 		cursor.execute(
 			f"INSERT INTO PRODUCT_ON_DEPOT (productId, productVersion, packageVersion, depotId, productType) VALUES "
-			f'("pytest-prod-{i}", "1.0", "1", "{socket.getfqdn()}", "LocalbootProduct");'
+			f'("pytest-prod-{i}", "1.0", "1", "{socket.getfqdn()}", "LocalbootProduct");'  # pylint: disable=dotted-import-in-loop
 		)
 
 	cursor.execute(
@@ -172,8 +179,8 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 		f'("pytest-lost-client-fp2.uib.local", "OpsiClient", "{now}", "{now-timedelta(days=MONITORING_CHECK_DAYS)}");'
 	)
 
-	create_depot_jsonrpc(requests, config.internal_url, "pytest-test-depot.uib.gmbh")
-	create_depot_jsonrpc(requests, config.internal_url, "pytest-test-depot2.uib.gmbh")
+	create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot.uib.gmbh")
+	create_depot_jsonrpc(test_client, config.internal_url, "pytest-test-depot2.uib.gmbh")
 
 	# Product on client
 	cursor.execute(
@@ -205,9 +212,7 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 	)
 
 	# Product Group
-	cursor.execute(
-		"INSERT INTO `GROUP` (type, groupId) VALUES " '("ProductGroup", "pytest-group-1"),' '("ProductGroup", "pytest-group-2");'
-	)
+	cursor.execute('INSERT INTO `GROUP` (type, groupId) VALUES ("ProductGroup", "pytest-group-1"), ("ProductGroup", "pytest-group-2");')
 
 	cursor.execute(
 		"INSERT INTO OBJECT_TO_GROUP (groupType, groupId, objectId) VALUES "
@@ -269,10 +274,10 @@ def create_check_data(config, database_connection):  # pylint: disable=redefined
 
 
 @pytest.mark.parametrize("info, opsiresource, thresholds, expected_result", test_data)
-def test_check_disk_usage(
-	backend, info, opsiresource, thresholds, expected_result
-):  # pylint: disable=too-many-arguments,redefined-outer-name
-	def get_info(path):  # pylint: disable=unused-argument
+def test_check_disk_usage(  # pylint: disable=too-many-arguments,redefined-outer-name
+	backend: UnprotectedBackend, info: Any, opsiresource: Any, thresholds: Any, expected_result: Any
+) -> None:
+	def get_info(path: str) -> Any:  # pylint: disable=unused-argument
 		return info
 
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage", get_info):
@@ -282,18 +287,21 @@ def test_check_disk_usage(
 
 
 @pytest.mark.parametrize("return_value", [(None), ({}), ([])])
-def test_check_disk_usage_no_result(backend, return_value):  # pylint: disable=too-many-arguments,redefined-outer-name
-	def get_info(path):
-		print(path)
+def test_check_disk_usage_no_result(  # pylint: disable=too-many-arguments,redefined-outer-name
+	backend: UnprotectedBackend, return_value: Any
+) -> None:
+	def get_info(path: str) -> Any:  # pylint: disable=unused-argument
 		return return_value
 
 	with mock.patch("opsiconfd.application.monitoring.check_opsi_disk_usage.getDiskSpaceUsage", get_info):
-		result = check_opsi_disk_usage(backend, opsiresource="not-a-resource")
+		result = check_opsi_disk_usage(backend, opsiresource=["not-a-resource"])
 
 	assert json.loads(result.body) == {"message": ("UNKNOWN: No results get. Nothing to check."), "state": 3}
 
 
-def test_check_locked_products(backend, database_connection):  # pylint: disable=redefined-outer-name
+def test_check_locked_products(
+	backend: UnprotectedBackend, database_connection: Connection  # pylint: disable=redefined-outer-name
+) -> None:
 
 	result = check_locked_products(backend, depot_ids=["pytest-test-depot.uib.gmbh"])
 	assert json.loads(result.body) == {"message": "OK: No products locked on depots: pytest-test-depot.uib.gmbh", "state": 0}
@@ -359,7 +367,7 @@ def test_check_locked_products(backend, database_connection):  # pylint: disable
 		"state": 1,
 	}
 
-	result = check_locked_products(backend, depot_ids="all", product_ids=["pytest-prod-2"])
+	result = check_locked_products(backend, depot_ids=["all"], product_ids=["pytest-prod-2"])
 	assert json.loads(result.body) == {
 		"message": ("WARNING: 1 products are in locked state.\n" "Product pytest-prod-2 locked on depot pytest-test-depot.uib.gmbh"),
 		"state": 1,
@@ -442,9 +450,9 @@ def test_check_locked_products(backend, database_connection):  # pylint: disable
 		),
 	],
 )
-def test_check_short_product_status(
-	backend, product_id, thresholds, expected_result
-):  # pylint: disable=too-many-arguments,redefined-outer-name
+def test_check_short_product_status(  # pylint: disable=too-many-arguments
+	backend: UnprotectedBackend, product_id: str, thresholds: dict, expected_result: Any  # pylint: disable=redefined-outer-name
+) -> None:
 	result = check_short_product_status(backend, product_id=product_id, thresholds=thresholds)
 	assert json.loads(result.body) == expected_result
 
@@ -487,15 +495,24 @@ def test_check_short_product_status(
 		),
 	],
 )
-def test_check_client_plugin(
-	backend, params, reachable, command_result, expected_result
-):  # pylint: disable=too-many-arguments,redefined-outer-name
-	def host_control_safe_reachable(hostIds):  # pylint: disable=invalid-name
+def test_check_client_plugin(  # pylint: disable=too-many-arguments
+	backend: UnprotectedBackend,  # pylint: disable=redefined-outer-name
+	params: dict,
+	reachable: bool,
+	command_result: dict,
+	expected_result: dict,
+) -> None:
+	def host_control_safe_reachable(hostIds: list[str]) -> dict:  # pylint: disable=invalid-name
 		return {hostIds[0]: reachable}
 
-	def host_control_safe_execute(
-		command, hostIds, waitForEnding, captureStderr, encoding, timeout
-	):  # pylint: disable=unused-argument, invalid-name, too-many-arguments
+	def host_control_safe_execute(  # pylint: disable=too-many-arguments
+		command: str,  # pylint: disable=unused-argument
+		hostIds: list[str],  # pylint: disable=invalid-name
+		waitForEnding: bool,  # pylint: disable=unused-argument,invalid-name
+		captureStderr: bool,  # pylint: disable=unused-argument,invalid-name
+		encoding: str,  # pylint: disable=unused-argument
+		timeout: float,  # pylint: disable=unused-argument
+	) -> dict:
 		return {hostIds[0]: command_result}
 
 	mock_backend = mock.Mock(backend)
@@ -504,9 +521,9 @@ def test_check_client_plugin(
 
 	result = check_plugin_on_client(
 		mock_backend,
-		host_id=params.get("host_id"),
-		command=params.get("command"),
-		timeout=params.get("timeout"),
+		host_id=str(params.get("host_id")),
+		command=str(params.get("command")),
+		timeout=int(params.get("timeout", 0)),
 	)
 
 	assert json.loads(result.body) == expected_result

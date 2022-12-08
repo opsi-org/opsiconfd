@@ -173,11 +173,11 @@ def test_unblock_all_exception(test_client: OpsiconfdTestClient) -> None:  # pyl
 
 
 def test_get_rpc_list_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
-	for _idx in range(3):
+	for _ in range(3):
 		call_rpc(
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
 		)
-	for _ in range(30):
+	for _ in range(100):
 		time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
 	response = test_client.get("/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200

@@ -11,6 +11,8 @@ config tests
 import os
 import re
 from argparse import ArgumentTypeError
+from pathlib import Path
+from typing import Any, Type
 from unittest.mock import patch
 
 import pytest
@@ -31,7 +33,7 @@ from .utils import get_config
 		("2001:0db8:1234:0000:0000:0000:0000:0000/48", "2001:db8:1234::/48", None),
 	],
 )
-def test_network_address(value, expexted_value, exception):
+def test_network_address(value: Any, expexted_value: Any, exception: Type[Exception] | None) -> None:
 	if exception:
 		with pytest.raises(exception):
 			network_address(value)
@@ -49,7 +51,7 @@ def test_network_address(value, expexted_value, exception):
 		("127.0.0.1", "127.0.0.1", None),
 	],
 )
-def test_ip_address(value, expexted_value, exception):
+def test_ip_address(value: Any, expexted_value: Any, exception: Type[Exception] | None) -> None:
 	if exception:
 		with pytest.raises(exception):
 			ip_address(value)
@@ -61,7 +63,7 @@ def test_ip_address(value, expexted_value, exception):
 	"value, expexted_value",
 	[("yes", True), ("y", True), ("true", True), ("1", True), (True, True), ("0", False), ("no", False), ("false", False), (False, False)],
 )
-def test_str2bool(value, expexted_value):
+def test_str2bool(value: Any, expexted_value: bool) -> None:
 	assert str2bool(value) is expexted_value
 
 
@@ -75,7 +77,7 @@ def test_str2bool(value, expexted_value):
 		(["--symlink-logs"], "symlink_logs", True),
 	],
 )
-def test_cmdline(arguments, config_name, expexted_value):
+def test_cmdline(arguments: list[str], config_name: str, expexted_value: Any) -> None:
 	with get_config(arguments) as conf:
 		assert getattr(conf, config_name) == expexted_value
 
@@ -92,7 +94,7 @@ def test_cmdline(arguments, config_name, expexted_value):
 		("OPSICONFD_SSL_SERVER_KEY_PASSPHRASE", "", "ssl_server_key_passphrase", None),
 	],
 )
-def test_environment_vars(varname, value, config_name, expexted_value):
+def test_environment_vars(varname: str, value: str, config_name: str, expexted_value: Any) -> None:
 	os.environ[varname] = value
 	with get_config([]) as conf:
 		try:
@@ -113,17 +115,17 @@ def test_environment_vars(varname, value, config_name, expexted_value):
 		("symlink-logs", "no", "symlink_logs", False),
 	],
 )
-def test_config_file(tmp_path, varname, value, config_name, expexted_value):
+def test_config_file(tmp_path: Path, varname: str, value: str, config_name: str, expexted_value: Any) -> None:
 	conf_file = tmp_path / "opsiconfd.conf"
 	conf_file.write_text(f"{varname} = {value}")
 	with get_config(["--config-file", str(conf_file)]) as conf:
 		assert getattr(conf, config_name) == expexted_value
 
 
-def test_help():
+def test_help() -> None:
 	text = ""
 
-	def print_message(self, message, file=None):  # pylint: disable=unused-argument
+	def print_message(self: Any, message: str, file: Any = None) -> None:  # pylint: disable=unused-argument
 		nonlocal text
 		text = message
 
@@ -140,7 +142,7 @@ def test_help():
 		assert "Set maximum log message length" in text
 
 
-def test_upgrade_config_files(tmp_path):
+def test_upgrade_config_files(tmp_path: Path) -> None:
 	config_file = tmp_path / "opsiconfd.conf"
 	config_file.write_text(
 		(
@@ -224,7 +226,7 @@ def test_upgrade_config_files(tmp_path):
 		assert config_file.read_text(encoding="utf-8") == "xxx\nyyy\n"
 
 
-def test_update_config_files(tmp_path):
+def test_update_config_files(tmp_path: Path) -> None:
 	config_file = tmp_path / "opsiconfd.conf"
 	config_file.write_text(("# comment\nlog-level = 1\nmonitoring-debug = yes\n\n"), encoding="utf-8")
 
@@ -235,7 +237,7 @@ def test_update_config_files(tmp_path):
 	assert data == ("# comment\nlog-level = 1\n\n")
 
 
-def test_set_config_in_config_file(tmp_path):
+def test_set_config_in_config_file(tmp_path: Path) -> None:
 	config_file = tmp_path / "opsiconfd.conf"
 	config_file.write_text(("# comment\nlog-level = 1\n\n"), encoding="utf-8")
 

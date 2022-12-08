@@ -12,6 +12,7 @@ import asyncio
 import os
 import time
 from logging import LogRecord
+from pathlib import Path
 
 import pytest
 from OPSI.Backend.Base.ConfigData import LOG_SIZE_HARD_LIMIT  # type: ignore[import]
@@ -35,6 +36,7 @@ from opsiconfd.logging import (
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	OpsiconfdTestClient,
 	clean_redis,
 	config,
 	get_config,
@@ -42,32 +44,32 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_log_hard_limit(test_client):  # pylint: disable=redefined-outer-name,unused-argument
+def test_log_hard_limit(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	client_id = "logtest.uib.local"
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [client_id]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.status_code == 200
+	resp = test_client.post("/rpc", json=rpc)
+	assert resp.status_code == 200
 
 	log_line = "log_line_" * 100
 	log_data = ""
 	expected_size = 0
-	while len(log_data) < LOG_SIZE_HARD_LIMIT + len(log_line) * 10:
+	while len(log_data) < LOG_SIZE_HARD_LIMIT + len(log_line) * 10:  # pylint: disable=loop-invariant-statement
 		if len(log_data) < LOG_SIZE_HARD_LIMIT:
 			expected_size = len(log_data)
-		log_data += log_line + "\n"
+		log_data += log_line + "\n"  # pylint: disable=loop-invariant-statement
 
 	rpc = {"id": 1, "method": "log_write", "params": ["clientconnect", log_data, client_id, False]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.status_code == 200
-	res = res.json()
+	resp = test_client.post("/rpc", json=rpc)
+	assert resp.status_code == 200
+	res = resp.json()
 	assert res.get("error") is None
 
 	rpc = {"id": 1, "method": "log_read", "params": ["clientconnect", client_id]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.status_code == 200
-	res = res.json()
+	resp = test_client.post("/rpc", json=rpc)
+	assert resp.status_code == 200
+	res = resp.json()
 	assert res.get("error") is None
 
 	assert len(res["result"]) == expected_size
@@ -76,12 +78,12 @@ def test_log_hard_limit(test_client):  # pylint: disable=redefined-outer-name,un
 		assert line == log_line
 
 	rpc = {"id": 1, "method": "host_delete", "params": [client_id]}
-	res = test_client.post("/rpc", json=rpc)
-	assert res.status_code == 200
+	resp = test_client.post("/rpc", json=rpc)
+	assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_async_rotating_file_handler_rotation(tmp_path):
+async def test_async_rotating_file_handler_rotation(tmp_path: Path) -> None:
 	max_log_file_size = 1
 	keep_rotated_log_files = 3
 	log_file = tmp_path / "test.log"
@@ -109,7 +111,7 @@ async def test_async_rotating_file_handler_rotation(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_async_rotating_file_handler_error_handler(tmp_path):
+async def test_async_rotating_file_handler_error_handler(tmp_path: Path) -> None:
 	log_file = tmp_path / "test.log"
 
 	handled_exception = None
@@ -117,7 +119,7 @@ async def test_async_rotating_file_handler_error_handler(tmp_path):
 
 	async def handle_file_handler_error(
 		file_handler: AsyncFileHandler, record: LogRecord, exception: Exception
-	):  # pylint: disable=unused-argument
+	) -> None:  # pylint: disable=unused-argument
 		nonlocal handled_exception
 		handled_exception = exception
 		nonlocal handled_record
@@ -143,7 +145,7 @@ async def test_async_rotating_file_handler_error_handler(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_async_redis_log_adapter(tmp_path):
+async def test_async_redis_log_adapter(tmp_path: Path) -> None:
 	log_file = tmp_path / "log"
 	with get_config({"log_file": str(log_file), "log_level_stderr": LOG_NONE, "log_level_file": LOG_ERROR}):
 		redis_log_handler = RedisLogHandler()
@@ -165,7 +167,7 @@ async def test_async_redis_log_adapter(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_slow_callback_logging(tmp_path):
+async def test_slow_callback_logging(tmp_path: Path) -> None:
 	log_file = tmp_path / "log"
 	with get_config({"log_file": str(log_file), "log_level_stderr": LOG_NONE, "log_level_file": LOG_WARNING}):
 		redis_log_handler = RedisLogHandler()

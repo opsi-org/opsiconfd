@@ -41,11 +41,11 @@ def test_websocket_keep_session_valid(test_client: OpsiconfdTestClient) -> None:
 					time.sleep(1)  # pylint: disable=dotted-import-in-loop
 				received = list(reader.get_messages())
 
-			assert len([msg for msg in received if msg["type"] == "data"]) >= 7
-			set_cookie = [msg for msg in received if msg["type"] == "set-cookie"]
+			assert len([msg for msg in received if msg["type"] == "data"]) >= 7  # type: ignore[call-overload]
+			set_cookie = [msg for msg in received if msg["type"] == "set-cookie"]  # type: ignore[call-overload]
 			assert len(set_cookie) >= 7
 			for msg in set_cookie:
-				assert msg["payload"].endswith("Max-Age=5")
+				assert msg["payload"].endswith("Max-Age=5")  # type: ignore[call-overload]
 
 		# Test if session is valid
 		test_client.auth = None

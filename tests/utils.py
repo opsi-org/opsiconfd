@@ -26,7 +26,7 @@ import pytest
 import pytest_asyncio
 import redis
 from fastapi.testclient import TestClient
-from httpx._auth import Auth, BasicAuth
+from httpx._auth import BasicAuth
 from MySQLdb.connections import Connection  # type: ignore[import]
 from opsicommon.objects import LocalbootProduct, ProductOnDepot  # type: ignore[import]
 from redis import asyncio as async_redis
@@ -211,7 +211,9 @@ def create_depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: st
 
 
 @contextmanager
-def depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str | None = None) -> Generator[Dict[str, Any], None, None]:
+def depot_jsonrpc(
+	client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str | None = None
+) -> Generator[dict[str, Any], None, None]:
 	depot = create_depot_jsonrpc(client, base_url, host_id, host_key)
 	try:
 		yield depot
@@ -222,7 +224,12 @@ def depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: str, host
 
 @contextmanager
 def client_jsonrpc(  # pylint: disable=too-many-arguments
-	client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str | None = None, hardware_address: str | None = None, ip_address: str | None = None
+	client: OpsiconfdTestClient,
+	base_url: str,
+	host_id: str,
+	host_key: str | None = None,
+	hardware_address: str | None = None,
+	ip_address: str | None = None
 ) -> Generator[Dict[str, Any], None, None]:
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [host_id, host_key, "", "", hardware_address, ip_address]}
 	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)

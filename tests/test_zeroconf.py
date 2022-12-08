@@ -11,7 +11,11 @@ zeroconf tests
 import asyncio
 import socket
 
-from aiozeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
+from aiozeroconf import (  # type: ignore[import]
+	ServiceBrowser,
+	ServiceStateChange,
+	Zeroconf,
+)
 
 from opsiconfd import __version__
 from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
@@ -21,11 +25,11 @@ from .utils import get_config  # pylint: disable=unused-import
 services = {}
 
 
-def on_service_state_change(zeroconf, service_type, name, state_change):
+def on_service_state_change(zeroconf: Zeroconf, service_type: str, name: str, state_change: str) -> None:
 	asyncio.ensure_future(on_service_state_change_process(zeroconf, service_type, name, state_change))
 
 
-async def on_service_state_change_process(zeroconf, service_type, name, state_change):
+async def on_service_state_change_process(zeroconf: Zeroconf, service_type: str, name: str, state_change: str) -> None:
 	# print("==================================================================================")
 	# print(f"Service {name} of type {service_type} state changed: {state_change}")
 	info = await zeroconf.get_service_info(service_type, name)
@@ -38,7 +42,7 @@ async def on_service_state_change_process(zeroconf, service_type, name, state_ch
 			del services[key]
 
 
-async def test_register_opsi_services():
+async def test_register_opsi_services() -> None:
 	services.clear()
 	with get_config({"interface": "127.0.0.1"}) as config:
 		loop = asyncio.get_running_loop()

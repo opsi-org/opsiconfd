@@ -46,7 +46,9 @@ def test_shell_config(test_client: OpsiconfdTestClient) -> None:  # pylint: disa
 		with test_client.websocket_connect("/admin/terminal/ws") as websocket:
 			with WebSocketMessageReader(websocket) as reader:
 				time.sleep(3)
-				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
+				payload = "".join(
+					[m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"]  # type: ignore[call-overload]
+				)
 				assert "testshell" in payload
 
 
@@ -58,7 +60,11 @@ def test_command(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=r
 			with WebSocketMessageReader(websocket) as reader:
 				websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo test\r"}))
 				time.sleep(3)
-				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
+				payload = "".join(
+					[
+						m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"  # type: ignore[call-overload]
+					]
+				)
 				assert "test" in payload
 
 
@@ -71,7 +77,11 @@ def test_params(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=re
 			with WebSocketMessageReader(websocket) as reader:
 				websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo :${COLUMNS}:${LINES}:\r"}))
 				time.sleep(3)
-				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
+				payload = "".join(
+					[
+						m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"  # type: ignore[call-overload]
+					]
+				)
 				assert f":{cols}:{rows}:" in payload
 
 
@@ -100,6 +110,7 @@ def test_file_upload_to_tmp(test_client: OpsiconfdTestClient) -> None:  # pylint
 			time.sleep(3)
 
 			msg = list(reader.get_messages())[-1]
+			assert isinstance(msg, dict)
 			assert msg["type"] == "file-transfer-result"
 			assert msg["payload"]["file_id"] == ft_msg["payload"]["file_id"]  # type: ignore[index]
 			assert msg["payload"]["error"] is None

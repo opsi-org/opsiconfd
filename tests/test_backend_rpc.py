@@ -26,11 +26,11 @@ def test_rpc_method_decorator() -> None:
 			return arg1
 
 		@rpc_method(check_acl="func2_other")
-		def func2(self, arg1: str = None) -> str | None:  # pylint: disable=unused-argument
+		def func2(self, arg1: str | None = None) -> str | None:  # pylint: disable=unused-argument
 			return arg1
 
 		@rpc_method(check_acl=False)
-		def func3(self, arg1: str = None) -> str | None:  # pylint: disable=unused-argument
+		def func3(self, arg1: str | None = None) -> str | None:  # pylint: disable=unused-argument
 			return arg1
 
 		@rpc_method

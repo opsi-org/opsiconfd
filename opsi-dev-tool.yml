@@ -15,7 +15,7 @@ git:
       echo "Running flake8..."
       poetry run flake8 opsiconfd tests
       echo "Running mypy..."
-      poetry run mypy opsiconfd
+      poetry run mypy opsiconfd tests
 
 pyinstaller-poetry:
   one_file: no

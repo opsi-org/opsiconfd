@@ -25,6 +25,7 @@ from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
+	UnprotectedBackend,
 	app,
 	backend,
 	clean_redis,
@@ -87,7 +88,7 @@ def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	test_client.reset_cookies()
 
 	size = 1024
-	data = bytearray(random.getrandbits(8) for _ in range(size))
+	data = ("".join(random.choice(ascii_letters) for i in range(size))).encode("ascii")
 	headers = {"Content-Type": "binary/octet-stream", "Content-Length": str(size)}
 	for path in ("workbench", "repository", "depot"):
 		url = f"/{path}/test_file_client.bin"
@@ -153,12 +154,12 @@ def test_webdav_ignore_case_download(
 			assert file_path == f"{base_dir}/{directory + '/' if directory else ''}{filename}"
 
 		url = f"/depot/{path}"
-		res = test_client.get(url=url, stream=True)
+		res = test_client.get(url=url)
 		if exception:
 			assert res.status_code == 404
 		else:
 			res.raise_for_status()
-			assert res.raw.read().decode("utf-8") == filename
+			assert res.content.decode("utf-8") == filename
 	finally:
 		if directory:
 			shutil.rmtree(os.path.join(base_dir, directory.split("/")[0]))
@@ -178,7 +179,7 @@ def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # pyl
 	assert "/workbench" in res.text
 
 
-def test_webdav_setup_exception(backend):  # pylint: disable=redefined-outer-name
+def test_webdav_setup_exception(backend: UnprotectedBackend) -> None:  # pylint: disable=redefined-outer-name
 	host = backend.host_getObjects(type="OpsiDepotserver", id=FQDN)[0]  # pylint: disable=no-member
 	repo_url = host.getRepositoryLocalUrl()
 	depot_url = host.getDepotLocalUrl()

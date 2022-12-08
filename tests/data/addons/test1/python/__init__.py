@@ -15,7 +15,10 @@ from fastapi import APIRouter, FastAPI, HTTPException, status
 from fastapi.requests import HTTPConnection
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from OPSI.Exceptions import BackendAuthenticationError, BackendPermissionDeniedError
+from OPSI.Exceptions import (  # type: ignore[import]
+	BackendAuthenticationError,
+	BackendPermissionDeniedError,
+)
 from starlette.types import Receive, Send
 
 from opsiconfd.addon import Addon
@@ -29,22 +32,22 @@ router = APIRouter()
 
 
 @router.get("")
-def index():
+def index() -> PlainTextResponse:
 	return PlainTextResponse("Hello from addon test1")
 
 
 @router.get("/public")
-def public():
+def public() -> PlainTextResponse:
 	return PlainTextResponse("Public addon test1")
 
 
 @router.get("/login")
-def login():
+def login() -> PlainTextResponse:
 	return PlainTextResponse("login")
 
 
 @router.get("/logout")
-def logout():
+def logout() -> PlainTextResponse:
 	return PlainTextResponse("logout")
 
 
@@ -54,7 +57,7 @@ class AddonTest1(Addon):
 	version = ADDON_VERSION
 	api_router = api_router
 
-	def on_load(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
+	def on_load(self, app: FastAPI) -> None:
 		"""Called after loading the addon"""
 		marker_dir = pathlib.Path("/var/lib/opsi/opsiconfd_test_addon")
 		marker_dir.mkdir(exist_ok=True)
@@ -74,7 +77,7 @@ class AddonTest1(Addon):
 			path=f"{self.router_prefix}/static", app=StaticFiles(directory=os.path.join(self.data_path, "static"), html=True), name="static"
 		)
 
-	def on_unload(self, app: FastAPI) -> None:  # pylint: disable=no-self-use
+	def on_unload(self, app: FastAPI) -> None:
 		"""Called before unloading the addon"""
 		marker_dir = pathlib.Path("/var/lib/opsi/opsiconfd_test_addon")
 		marker_dir.mkdir(exist_ok=True)
@@ -92,7 +95,7 @@ class AddonTest1(Addon):
 
 	async def handle_request(
 		self, connection: HTTPConnection, receive: Receive, send: Send
-	) -> bool:  # pylint: disable=no-self-use,unused-argument
+	) -> bool:
 		"""Called on every request where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 		connection.scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
@@ -109,7 +112,7 @@ class AddonTest1(Addon):
 
 	async def handle_request_exception(
 		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
-	) -> bool:  # pylint: disable=no-self-use,unused-argument
+	) -> bool:
 		"""Called on every request exception where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 

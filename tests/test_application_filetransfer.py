@@ -27,9 +27,9 @@ from .utils import (  # pylint: disable=unused-import
 def test_raw_file_upload_download_delete(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	data = b"file-data"
-	res = test_client.post("/file-transfer/raw", data=data)
-	assert res.status_code == 201
-	file_id = res.json()["file_id"]
+	resp = test_client.post("/file-transfer/raw", content=data)
+	assert resp.status_code == 201
+	file_id = resp.json()["file_id"]
 	assert file_id
 	file_path = Path(STORAGE_DIR) / file_id
 	meta_path = file_path.with_suffix(".meta")
@@ -37,13 +37,13 @@ def test_raw_file_upload_download_delete(test_client: OpsiconfdTestClient) -> No
 	meta = msgpack.loads(meta_path.read_bytes())
 	assert abs(time() - meta["created"]) < 10
 
-	res = test_client.get(f"/file-transfer/{file_id}")
-	assert res.status_code == 200
-	assert res.content == data
+	resp = test_client.get(f"/file-transfer/{file_id}")
+	assert resp.status_code == 200
+	assert resp.content == data
 
-	res = test_client.delete(f"/file-transfer/{file_id}")
-	assert res.status_code == 200
-	assert res.json()["file_id"] == file_id
+	resp = test_client.delete(f"/file-transfer/{file_id}")
+	assert resp.status_code == 200
+	assert resp.json()["file_id"] == file_id
 
 	assert not file_path.exists()
 	assert not meta_path.exists()

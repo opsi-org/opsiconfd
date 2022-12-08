@@ -7,69 +7,77 @@
 """
 ssl tests
 """
+import datetime
 import os
 import re
-import time
-import datetime
 import shutil
 import subprocess
+import time
+from pathlib import Path
+from typing import Any
+
 import mock  # type: ignore[import]
 import pytest
+from OpenSSL.crypto import (
+	FILETYPE_PEM,
+	TYPE_RSA,
+	X509,
+	X509StoreContextError,
+	dump_privatekey,
+)
 
-from OpenSSL.crypto import TYPE_RSA, FILETYPE_PEM, dump_privatekey, X509, X509StoreContextError
-
-from opsiconfd.config import config
 import opsiconfd.ssl
+from opsiconfd.config import config
 from opsiconfd.ssl import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	SERVER_KEY_DEFAULT_PASSPHRASE,
-	get_ips,
-	get_hostnames,
-	load_key,
-	load_cert,
 	create_ca,
-	store_ca_key,
-	store_ca_cert,
-	load_ca_key,
-	load_ca_cert,
-	store_local_server_key,
-	load_local_server_key,
 	create_local_server_cert,
-	store_local_server_cert,
-	load_local_server_cert,
-	setup_server_cert,
-	setup_ca,
 	get_ca_cert_info,
+	get_hostnames,
+	get_ips,
 	get_server_cert_info,
+	load_ca_cert,
+	load_ca_key,
+	load_cert,
+	load_key,
+	load_local_server_cert,
+	load_local_server_key,
+	setup_ca,
+	setup_server_cert,
+	store_ca_cert,
+	store_ca_key,
+	store_local_server_cert,
+	store_local_server_key,
 	validate_cert,
 )
 
 
-def test_get_ips():
+def test_get_ips() -> None:
 	ips = get_ips()
 	assert "::1" in ips
 	assert "0:0:0:0:0:0:0:1" not in ips
 	assert "127.0.0.1" in ips
 
 
-def test_get_hostnames():
+def test_get_hostnames() -> None:
 	hns = get_hostnames()
 	assert "localhost" in hns
 
 
-def test_ssl_ca_cert_and_key_in_different_files():
+def test_ssl_ca_cert_and_key_in_different_files() -> None:
 	config.ssl_ca_cert = config.ssl_ca_key = "opsi-ca.pem"
 	with pytest.raises(ValueError, match=r".*cannot be stored in the same file.*"):
 		setup_ca()
 
 
-def test_ssl_server_cert_and_key_in_different_files():
+def test_ssl_server_cert_and_key_in_different_files() -> None:
 	config.ssl_server_cert = config.ssl_server_key = "opsiconfd.pem"
 	with pytest.raises(ValueError, match=r".*cannot be stored in the same file.*"):
 		setup_server_cert()
 
 
-def test_create_ca(tmpdir):
+def test_create_ca(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
@@ -92,18 +100,19 @@ def test_create_ca(tmpdir):
 			assert isinstance(cert, X509)
 
 			ca_crt = load_ca_cert()
-			enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
+			enddate = datetime.datetime.strptime((ca_crt.get_notAfter() or b"").decode("utf-8"), "%Y%m%d%H%M%SZ")
 			assert (enddate - datetime.datetime.now()).days == config.ssl_ca_cert_valid_days - 1
 
 			out = subprocess.check_output(["openssl", "x509", "-noout", "-text", "-in", config.ssl_ca_cert]).decode("utf-8")
 			match = re.search(r"Serial Number:\s*\n\s*([a-f0-9:]+)", out)
+			assert match
 			openssl_serial = match.group(1)
 
 			info = get_ca_cert_info()
 			assert info["serial_number"].replace(":", "").lstrip("0") == openssl_serial.replace(":", "").lstrip("0")
 
 
-def test_ca_key_fallback(tmpdir):
+def test_ca_key_fallback(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
@@ -122,7 +131,7 @@ def test_ca_key_fallback(tmpdir):
 		load_ca_key()
 
 
-def test_server_key_fallback(tmpdir):
+def test_server_key_fallback(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
@@ -150,7 +159,7 @@ def test_server_key_fallback(tmpdir):
 			load_local_server_key()
 
 
-def test_recreate_ca(tmpdir):
+def test_recreate_ca(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
@@ -182,7 +191,7 @@ def test_recreate_ca(tmpdir):
 		assert dump_privatekey(FILETYPE_PEM, ca_key) != dump_privatekey(FILETYPE_PEM, key1)
 
 
-def test_renew_expired_ca(tmpdir):
+def test_renew_expired_ca(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	ssl_server_cert = tmpdir / "opsiconfd-cert.pem"
@@ -194,8 +203,10 @@ def test_renew_expired_ca(tmpdir):
 	config.ssl_server_cert = str(ssl_server_cert)
 	config.ssl_server_key = str(ssl_server_key)
 
-	def mock_gmtime_adj_notBefore(self, amount):  # pylint: disable=invalid-name,unused-argument
-		from OpenSSL._util import lib  # type: ignore[import]  # pylint: disable=import-outside-toplevel
+	def mock_gmtime_adj_notBefore(self: Any, amount: int) -> None:  # pylint: disable=invalid-name,unused-argument
+		from OpenSSL._util import (  # type: ignore[import]  # pylint: disable=import-outside-toplevel
+			lib,
+		)
 
 		notBefore = lib.X509_getm_notBefore(self._x509)  # pylint: disable=invalid-name,protected-access
 		lib.X509_gmtime_adj(notBefore, -3600 * 24 * 10)  # 10 days in the past
@@ -209,12 +220,12 @@ def test_renew_expired_ca(tmpdir):
 			# Check CA
 			assert (datetime.datetime.now() - get_ca_cert_info()["not_before"]).days >= 10
 			ca_crt = load_ca_cert()
-			enddate = datetime.datetime.strptime(ca_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
+			enddate = datetime.datetime.strptime((ca_crt.get_notAfter() or b"").decode("utf-8"), "%Y%m%d%H%M%SZ")
 			assert (enddate - datetime.datetime.now()).days == 299
 
 			assert os.path.exists(config.ssl_ca_key)
 			assert os.path.exists(config.ssl_ca_cert)
-			mtime = ssl_ca_cert.lstat().mtime
+			mtime = ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
 			ca_key = load_ca_key()
 
 			# Check server_cert
@@ -226,7 +237,7 @@ def test_renew_expired_ca(tmpdir):
 			# Recreation not needed
 			time.sleep(2)
 			setup_ca()
-			assert mtime == ssl_ca_cert.lstat().mtime
+			assert mtime == ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
 			# Key must stay the same
 			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
 
@@ -236,7 +247,7 @@ def test_renew_expired_ca(tmpdir):
 			setup_ca()
 			assert (datetime.datetime.now() - get_ca_cert_info()["not_before"]).days == 0
 			ca_crt = load_ca_cert()
-			assert mtime != ssl_ca_cert.lstat().mtime
+			assert mtime != ssl_ca_cert.lstat().mtime  # type: ignore[attr-defined]
 			# Key must stay the same
 			assert dump_privatekey(FILETYPE_PEM, load_ca_key()) == dump_privatekey(FILETYPE_PEM, ca_key)
 
@@ -249,7 +260,7 @@ def test_renew_expired_ca(tmpdir):
 			validate_cert(server_crt, ca_crt)
 
 
-def test_create_local_server_cert(tmpdir):
+def test_create_local_server_cert(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
@@ -279,11 +290,11 @@ def test_create_local_server_cert(tmpdir):
 			assert isinstance(cert, X509)
 
 			srv_crt = load_local_server_cert()
-			enddate = datetime.datetime.strptime(srv_crt.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%SZ")
+			enddate = datetime.datetime.strptime((srv_crt.get_notAfter() or b"").decode("utf-8"), "%Y%m%d%H%M%SZ")
 			assert (enddate - datetime.datetime.now()).days == config.ssl_server_cert_valid_days - 1
 
 
-def test_recreate_server_key(tmpdir):
+def test_recreate_server_key(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
@@ -319,7 +330,7 @@ def test_recreate_server_key(tmpdir):
 			assert dump_privatekey(FILETYPE_PEM, srv_key) != dump_privatekey(FILETYPE_PEM, key1)
 
 
-def test_key_cache(tmpdir):
+def test_key_cache(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
@@ -360,7 +371,7 @@ def test_key_cache(tmpdir):
 			assert dump_privatekey(FILETYPE_PEM, srv_key) == dump_privatekey(FILETYPE_PEM, key2)
 
 
-def test_change_hostname(tmpdir):
+def test_change_hostname(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)
@@ -410,7 +421,7 @@ def test_change_hostname(tmpdir):
 				assert dump_privatekey(FILETYPE_PEM, key2) != dump_privatekey(FILETYPE_PEM, key1)
 
 
-def test_change_ip(tmpdir):
+def test_change_ip(tmpdir: Path) -> None:
 	ssl_ca_cert = tmpdir / "opsi-ca-cert.pem"
 	ssl_ca_key = tmpdir / "opsi-ca-key.pem"
 	config.ssl_ca_cert = str(ssl_ca_cert)

@@ -14,6 +14,7 @@ import time
 from logging import LogRecord
 from unittest.mock import patch
 
+from _pytest.capture import CaptureFixture
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 
 from opsiconfd import __version__
@@ -24,32 +25,32 @@ from opsiconfd.utils import get_manager_pid
 from .utils import get_config
 
 
-def test_version(capsys):
+def test_version(capsys: CaptureFixture[str]) -> None:
 	with get_config({"version": True}):
 		main()
 	captured = capsys.readouterr()
 	assert captured.out == f"{__version__} [python-opsi={python_opsi_version}]\n"
 
 
-def test_setup():
+def test_setup() -> None:
 	with patch("opsiconfd.main.setup") as mock_setup:
 		with get_config({"action": "setup"}):
 			main()
 			mock_setup.assert_called_once_with(full=True)
 
 
-def test_log_viewer():
+def test_log_viewer() -> None:
 	with get_config({"action": "log-viewer"}):
 		thread = threading.Thread(target=main)
 		thread.daemon = True
 		thread.start()
 		time.sleep(1)
 		handler = RedisLogHandler()
-		handler.emit(LogRecord(name="test-logger", level=10, pathname="-", lineno=1, msg="test-record", args=[], exc_info=None))
+		handler.emit(LogRecord(name="test-logger", level=10, pathname="-", lineno=1, msg="test-record", args=None, exc_info=None))
 		time.sleep(1)
 
 
-def test_reload():
+def test_reload() -> None:
 	mpid = get_manager_pid()
 	if mpid:
 		with patch("os.kill") as mock_kill:
@@ -58,7 +59,7 @@ def test_reload():
 				mock_kill.assert_called_once_with(mpid, signal.SIGHUP)
 
 
-def test_force_stop():
+def test_force_stop() -> None:
 	mpid = get_manager_pid()
 	if mpid:
 		with patch("os.kill") as mock_kill:

@@ -15,6 +15,8 @@ from fastapi import status
 
 from opsiconfd.application.monitoring.check_client_status import check_client_status
 from tests.utils import (  # pylint: disable=unused-import
+	OpsiconfdTestClient,
+	UnprotectedBackend,
 	backend,
 	client_jsonrpc,
 	get_dummy_products,
@@ -24,7 +26,7 @@ from tests.utils import (  # pylint: disable=unused-import
 )
 
 
-def test_check_client_status(backend, test_client):  # pylint: disable=redefined-outer-name
+def test_check_client_status(backend: UnprotectedBackend, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 
 	client_id = "test-client0815.uib.local"
 

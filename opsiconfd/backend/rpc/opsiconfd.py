@@ -352,6 +352,7 @@ class ProtectedBackend(Backend):  # pylint: disable=too-many-ancestors
 		if ace_list:
 			return ace_list
 
+		logger.info("No permission for method %r (user=%r, acl-file=%r)", method, session.username, config.acl_file)
 		raise BackendPermissionDeniedError(f"No permission for method {method!r}")
 
 	def _check_role(self, required_role: str) -> None:

@@ -524,14 +524,17 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 	).fetchone()
 	if not res or res[1] != foreign_key.update_rule or res[2] != foreign_key.delete_rule:
 		if res:
-			logger.notice(f"Removing foreign key to {foreign_key.ref_table} on table {foreign_key.table}")
+			logger.info("Removing foreign key to %s on table %s", foreign_key.ref_table, foreign_key.table)
 			session.execute(f"ALTER TABLE `{foreign_key.table}` DROP FOREIGN KEY {res[0]}")
 		if cleanup_function:
 			cleanup_function(session=session)
-		logger.notice(
+		logger.info(
 			(
-				f"Creating foreign key to {foreign_key.ref_table} on table {foreign_key.table} "
-				f"with ON UPDATE {foreign_key.update_rule} and ON DELETE {foreign_key.delete_rule}"
+				"Creating foreign key to %s on table %s with ON UPDATE %s and ON DELETE %s",
+				foreign_key.ref_table,
+				foreign_key.table,
+				foreign_key.update_rule,
+				foreign_key.delete_rule,
 			)
 		)
 		session.execute(

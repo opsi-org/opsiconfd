@@ -312,6 +312,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			is_first_table = table == first_table
 			for col in self.tables[table]:
 				attr = self._column_to_attribute.get(table, {}).get(col, col)
+				if attr in res:
+					# Prefer first table (needed for LEFT JOIN)
+					continue
 				res[attr] = ColumnInfo(table=table, column=col, client_id_column=is_first_table and col == client_id_column, select=None)
 				if attr == "type":
 					res[attr].select = f"`{table}`.`{col}`"

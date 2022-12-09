@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 
 import uvloop
-from msgspec.msgpack import decode, encode
+from msgspec import json, msgpack
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 from opsicommon.logging.constants import NONE  # type: ignore[import]
@@ -79,7 +79,11 @@ def backup_main() -> None:
 		if backup_file.exists():
 			raise FileExistsError(f"Backup file '{str(backup_file)}' already exists")
 		with open(config.backup_file, "wb") as file:
-			file.write(encode(create_backup()))
+			data = create_backup()
+			if backup_file.suffix == ".json":
+				file.write(json.encode(data))
+			else:
+				file.write(msgpack.encode(data))
 		print(f"Backup file '{str(backup_file)}' succesfully created.")
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
@@ -96,7 +100,11 @@ def restore_main() -> None:
 		if not backup_file.exists():
 			raise FileExistsError(f"Backup file '{str(backup_file)}' not found")
 		with open(config.backup_file, "rb") as file:
-			restore_backup(decode(file.read()))
+			data = file.read()
+			if data.startswith(b"{"):
+				restore_backup(json.decode(data))
+			else:
+				restore_backup(msgpack.decode(data))
 		print(f"Backup file '{str(backup_file)}' succesfully restored.")
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)

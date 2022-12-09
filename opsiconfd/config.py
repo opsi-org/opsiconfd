@@ -19,8 +19,10 @@ from argparse import (
 	SUPPRESS,
 	ZERO_OR_MORE,
 	Action,
+	ArgumentParser,
 	ArgumentTypeError,
 	HelpFormatter,
+	_ArgumentGroup,
 )
 from typing import Any, Dict, Iterable, List, Union
 from urllib.parse import urlparse
@@ -95,6 +97,9 @@ def str2bool(value: str) -> bool:
 	return str(value).lower() in ("yes", "true", "y", "1")
 
 
+configargparse.ArgumentParser.format_help = ArgumentParser.format_help
+
+
 class OpsiconfdHelpFormatter(HelpFormatter):
 	CN = ""
 	CB = ""
@@ -106,6 +111,10 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		CC = "\033[1;36;49m"
 		CW = "\033[1;39;49m"
 		CY = "\033[0;33;49m"
+
+	def __init__(self, sub_command: str | None = None) -> None:
+		super().__init__("opsiconfd", max_help_position=30, width=100)
+		self._sub_command = sub_command
 
 	def _split_lines(self, text: str, width: int) -> List[str]:
 		# The textwrap module is used only for formatting help.
@@ -121,7 +130,20 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 
 	def format_help(self) -> str:
 		text = HelpFormatter.format_help(self)
-		text = re.sub(r"usage:\s+(\S+)\s+", rf"Usage: {self.CW}\g<1>{self.CN} ", text)
+		if not self._sub_command:
+			text += (
+				"\n"
+				"Arguments can also be set in the configuration file.\n"
+				"Config file syntax allows: option=value, flag=true, list-option=[a,b,c].\n"
+				"For details, see syntax at https://goo.gl/R74nmi.\n"
+				"\n"
+			)
+		return text
+
+	def _format_usage(self, usage: str | None, actions: Iterable[Action], groups: Iterable[_ArgumentGroup], prefix: str | None) -> str:
+		text = super()._format_usage(usage, actions, groups, prefix)
+		sub = f" {self._sub_command}" if self._sub_command else ""
+		text = re.sub(r"usage:\s+(\S+)\s+", rf"Usage: {self.CW}\g<1>{sub}{self.CN} ", text)
 		return text
 
 	def _format_actions_usage(self, actions: Iterable[Action], groups: Iterable) -> str:
@@ -163,7 +185,7 @@ class Config(metaclass=Singleton):
 		self._args: List[str] = []
 		self._ex_help = False
 		self._parser: configargparse.ArgParser | None = None
-		self._mode = "opsiconfd"
+		self._sub_command = "opsiconfd"
 		self._config: Any = None
 		self.jinja_templates = Jinja2Templates(directory="")
 
@@ -184,9 +206,10 @@ class Config(metaclass=Singleton):
 		self._ex_help = "--ex-help" in self._args
 		if self._ex_help and "--help" not in self._args:
 			self._args.append("--help")
-		if "health-check" in self._args:
-			self._mode = "health-check"
 
+		self._init_parser()
+		conf = self._parser.parse_known_args(self._args, ignore_help_args=True)  # type: ignore[union-attr]
+		self._sub_command = conf[0].action if conf[0].action in ("health-check", "log-viewer") else None
 		self._init_parser()
 
 		if is_manager(psutil.Process(os.getpid())):
@@ -197,12 +220,12 @@ class Config(metaclass=Singleton):
 
 	def _help(self, help_type: str, help_text: str) -> str:
 		if help_type == "expert":
-			return help_text if self._ex_help and self._mode == "opsiconfd" else SUPPRESS
+			return help_text if self._ex_help and self._sub_command is None else SUPPRESS
 
-		if help_type == "all":
+		if help_type == "all" or not self._sub_command:
 			return help_text
 
-		return help_text if help_type == self._mode else SUPPRESS
+		return help_text if help_type == self._sub_command else SUPPRESS
 
 	def _parse_args(self) -> None:
 		if not self._parser:
@@ -380,8 +403,9 @@ class Config(metaclass=Singleton):
 					file.write(new_data)
 
 	def _init_parser(self) -> None:  # pylint: disable=too-many-statements
-
-		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(prog, max_help_position=30, width=100))
+		#  {self._sub_command}
+		# _prog_prefix
+		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))
 
 		self._parser.add("--detailed", action="store_true", help=self._help("health-check", "Print details to each check."))
 		self._parser.add(

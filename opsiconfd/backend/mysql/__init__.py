@@ -582,7 +582,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			try:
 				with server_timing("database") as timing:
 					result = session.execute(query, params=params).fetchall()
-				logger.trace("Query %r took %0.2f ms", timing["database"])
+				logger.trace("Query %r took %0.2f ms", query, timing["database"])
 			except ProgrammingError as err:
 				logger.error("Query %r failed: %s", query, err)
 				raise
@@ -705,7 +705,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			with self.session() as session:
 				with server_timing("database") as timing:
 					result = session.execute(query, params=params)
-					logger.trace("Query %r took %0.2f ms", timing["database"])
+					logger.trace("Query %r took %0.2f ms", query, timing["database"])
 					return result.lastrowid
 		return None
 
@@ -777,4 +777,4 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		with self.session() as session:
 			with server_timing("database") as timing:
 				session.execute(query, params=params)
-				logger.trace("Query %r took %0.2f ms", timing["database"])
+				logger.trace("Query %r took %0.2f ms", query, timing["database"])

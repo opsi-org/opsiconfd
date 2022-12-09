@@ -7,6 +7,7 @@
 """
 global config
 """
+# pylint: disable=too-many-lines
 
 import getpass
 import ipaddress
@@ -174,7 +175,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		return text
 
 
-class Config(metaclass=Singleton):
+class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
 	_initialized = False
 
 	def __init__(self) -> None:
@@ -185,7 +186,7 @@ class Config(metaclass=Singleton):
 		self._args: List[str] = []
 		self._ex_help = False
 		self._parser: configargparse.ArgParser | None = None
-		self._sub_command = "opsiconfd"
+		self._sub_command = None
 		self._config: Any = None
 		self.jinja_templates = Jinja2Templates(directory="")
 
@@ -203,13 +204,18 @@ class Config(metaclass=Singleton):
 
 	def _set_args(self, args: List[str] | None = None) -> None:
 		self._args = sys.argv[1:] if args is None else args
-		self._ex_help = "--ex-help" in self._args
-		if self._ex_help and "--help" not in self._args:
-			self._args.append("--help")
 
-		self._init_parser()
-		conf = self._parser.parse_known_args(self._args, ignore_help_args=True)  # type: ignore[union-attr]
-		self._sub_command = conf[0].action if conf[0].action in ("health-check", "log-viewer") else None
+		try:
+			# Pre-parse to get sub_command and ex-help (may fail)
+			self._init_parser()
+			conf = self._parser.parse_known_args(self._args, ignore_help_args=True)  # type: ignore[union-attr]
+			self._ex_help = conf[0].ex_help
+			if self._ex_help and "--help" not in self._args:
+				self._args.append("--help")
+			self._sub_command = conf[0].action if conf[0].action in ("health-check", "log-viewer") else None
+		except BaseException:  # pylint: disable=broad-except
+			pass
+
 		self._init_parser()
 
 		if is_manager(psutil.Process(os.getpid())):

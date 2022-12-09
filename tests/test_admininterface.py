@@ -190,7 +190,7 @@ async def test_get_rpc_list_request(
 			[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
 			[False],
 		)
-	await asyncio.sleep(0.1)
+	await asyncio.sleep(1)
 	response = await run_in_threadpool(test_client.get, "/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	result = response.json()
@@ -237,7 +237,7 @@ async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 			[False],
 		)
 
-	await asyncio.sleep(0.1)
+	await asyncio.sleep(1)
 
 	rpc_list_response = await admininterface.get_rpc_list()
 	rpc_list = json.loads(rpc_list_response.body)
@@ -358,7 +358,7 @@ async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylin
 			[False],
 		)
 
-	await asyncio.sleep(0.1)
+	await asyncio.sleep(1)
 	res = await run_in_threadpool(test_client.get, "/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert res.json() == {"rpc_count": 10}

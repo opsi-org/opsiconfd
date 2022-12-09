@@ -49,9 +49,14 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 		f".*                 : sys_user({ADMIN_USER})\n"
 	)
 	_acl_file.write_text(data=data, encoding="utf-8")
-	with get_config({"acl_file": str(_acl_file)}):
-		ProtectedBackend()._read_acl_file()  # pylint: disable=protected-access
+	backend = ProtectedBackend()
+	try:
+		with get_config({"acl_file": str(_acl_file)}):
+			backend._read_acl_file()  # pylint: disable=protected-access
 		yield _acl_file
+	finally:
+		# Restore original ACL
+		backend._read_acl_file()  # pylint: disable=protected-access
 
 
 def test_host_insertObject(  # pylint: disable=invalid-name

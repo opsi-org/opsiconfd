@@ -22,6 +22,7 @@ import time
 import uvloop
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
+from opsicommon.logging.constants import NONE  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
 
 from . import __version__
@@ -71,6 +72,7 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 		return
 
 	if config.action == "health-check":
+		config.log_level_file = NONE
 		init_logging(log_mode="local")
 		result = health_check(print_messages=True)
 		if result.get("status") == "ok":

@@ -304,7 +304,7 @@ def print_check_deprecated_calls_result(check_result: dict) -> None:
 def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-locals,too-many-branches,unused-argument
 	res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
 
-	avalible_packages = OPSI_PACKAGES
+	available_packages = OPSI_PACKAGES
 	result = {"status": "ok", "details": "All packages up to date.", "partial_checks": {}}
 	partial_checks: Dict[str, Any] = {}
 	backend = get_unprotected_backend()
@@ -313,15 +313,15 @@ def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disabl
 	outdated = 0
 
 	for filename in findall(r'<a href="(?P<file>[\w\d._-]+\.opsi)">(?P=file)</a>', res.text):
-		name, avalible_version = split_name_and_version(filename)
+		name, available_version = split_name_and_version(filename)
 
-		if name in avalible_packages:  # pylint: disable=loop-invariant-statement
-			avalible_packages[name] = avalible_version  # pylint: disable=loop-invariant-statement
+		if name in available_packages:  # pylint: disable=loop-invariant-statement
+			available_packages[name] = available_version  # pylint: disable=loop-invariant-statement
 
 	depots = backend.host_getIdents(type="OpsiDepotserver")  # pylint: disable=no-member
 	for depot in depots:
 		partial_checks[depot] = {}
-		for package, avalible_version in avalible_packages.items():
+		for package, available_version in available_packages.items():
 			try:  # pylint: disable=loop-try-except-usage
 				product_on_depot = backend.productOnDepot_getObjects(productId=package, depotId=depot)[0]  # pylint: disable=no-member
 				not_installed = not_installed + 1
@@ -334,10 +334,10 @@ def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disabl
 					"message": msg,
 				}
 				continue
-			if parse_version(avalible_version) > parse_version(f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"):
+			if parse_version(available_version) > parse_version(f"{product_on_depot.productVersion}-{product_on_depot.packageVersion}"):
 				msg = (
 					f"Package '{package}' is outdated. Installed version: {product_on_depot.productVersion}-{product_on_depot.packageVersion}"
-					f"- avalible Version: {avalible_version}"
+					f"- available version: {available_version}"
 				)
 				result["status"] = "error"  # pylint: disable=loop-invariant-statement
 				partial_checks[depot][package] = {"status": "error", "message": msg}  # pylint: disable=loop-invariant-statement

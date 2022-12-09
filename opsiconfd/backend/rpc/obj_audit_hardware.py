@@ -202,18 +202,20 @@ class RPCAuditHardwareMixin(Protocol):
 		self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
 	) -> None:
 		ace = self._get_ace("auditHardware_createObjects")
-		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
-			for obj in auh:
-				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
+				for obj in auh:
+					self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def auditHardware_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
 	) -> None:
 		ace = self._get_ace("auditHardware_updateObjects")
-		for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
-			for obj in auh:
-				self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for hardware_class, auh in self._audit_hardware_by_hardware_class(auditHardwares).items():
+				for obj in auh:
+					self._mysql.insert_object(table=f"HARDWARE_DEVICE_{hardware_class}", obj=obj, ace=ace, create=True, set_null=False, session=session)
 
 	def _audit_hardware_get(  # pylint: disable=redefined-builtin,too-many-branches,too-many-locals,too-many-statements,too-many-arguments
 		self: BackendProtocol,

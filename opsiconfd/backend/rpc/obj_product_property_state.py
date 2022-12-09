@@ -99,16 +99,22 @@ class RPCProductPropertyStateMixin(Protocol):
 		self: BackendProtocol, productPropertyStates: List[dict] | List[ProductPropertyState] | dict | ProductPropertyState
 	) -> None:
 		ace = self._get_ace("productPropertyState_createObjects")
-		for product_property_state in forceList(productPropertyStates):
-			self._mysql.insert_object(table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for product_property_state in forceList(productPropertyStates):
+				self._mysql.insert_object(
+					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=True, session=session
+				)
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productPropertyStates: List[dict] | List[ProductPropertyState] | dict | ProductPropertyState
 	) -> None:
 		ace = self._get_ace("productPropertyState_updateObjects")
-		for product_property_state in forceList(productPropertyStates):
-			self._mysql.insert_object(table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for product_property_state in forceList(productPropertyStates):
+				self._mysql.insert_object(
+					table="PRODUCT_PROPERTY_STATE", obj=product_property_state, ace=ace, create=True, set_null=False, session=session
+				)
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_getObjects(  # pylint: disable=invalid-name

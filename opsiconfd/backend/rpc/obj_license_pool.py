@@ -38,16 +38,18 @@ class RPCLicensePoolMixin(Protocol):
 	) -> None:
 		self._check_module("license_management")
 		ace = self._get_ace("licensePool_createObjects")
-		for licensePool in forceList(licensePools):
-			self._mysql.insert_object(table="LICENSE_POOL", obj=licensePool, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for licensePool in forceList(licensePools):
+				self._mysql.insert_object(table="LICENSE_POOL", obj=licensePool, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def licensePool_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, licensePools: List[dict] | List[LicensePool] | dict | LicensePool
 	) -> None:
 		ace = self._get_ace("licensePool_updateObjects")
-		for licensePool in forceList(licensePools):
-			self._mysql.insert_object(table="LICENSE_POOL", obj=licensePool, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for licensePool in forceList(licensePools):
+				self._mysql.insert_object(table="LICENSE_POOL", obj=licensePool, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def licensePool_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[LicensePool]:  # pylint: disable=redefined-builtin,invalid-name

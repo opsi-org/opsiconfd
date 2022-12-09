@@ -63,8 +63,9 @@ class RPCConfigStateMixin(Protocol):
 		self: BackendProtocol, configStates: List[dict] | List[ConfigState] | dict | ConfigState
 	) -> None:
 		ace = self._get_ace("configState_createObjects")
-		for config_state in forceList(configStates):
-			self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for config_state in forceList(configStates):
+				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=True, session=session)
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)
@@ -72,8 +73,9 @@ class RPCConfigStateMixin(Protocol):
 		self: BackendProtocol, configStates: List[dict] | List[ConfigState] | dict | ConfigState
 	) -> None:
 		ace = self._get_ace("configState_updateObjects")
-		for config_state in forceList(configStates):
-			self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for config_state in forceList(configStates):
+				self._mysql.insert_object(table="CONFIG_STATE", obj=config_state, ace=ace, create=True, set_null=False, session=session)
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)

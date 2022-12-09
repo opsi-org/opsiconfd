@@ -36,16 +36,18 @@ class RPCAuditSoftwareOnClientMixin(Protocol):
 		self: BackendProtocol, auditSoftwareOnClients: List[dict] | List[AuditSoftwareOnClient] | dict | AuditSoftwareOnClient
 	) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_createObjects")
-		for auditSoftwareOnClient in forceList(auditSoftwareOnClients):
-			self._mysql.insert_object(table="SOFTWARE_CONFIG", obj=auditSoftwareOnClient, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for auditSoftwareOnClient in forceList(auditSoftwareOnClients):
+				self._mysql.insert_object(table="SOFTWARE_CONFIG", obj=auditSoftwareOnClient, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditSoftwareOnClients: List[dict] | List[AuditSoftwareOnClient] | dict | AuditSoftwareOnClient
 	) -> None:
 		ace = self._get_ace("auditSoftwareOnClient_updateObjects")
-		for auditSoftwareOnClient in forceList(auditSoftwareOnClients):
-			self._mysql.insert_object(table="SOFTWARE_CONFIG", obj=auditSoftwareOnClient, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for auditSoftwareOnClient in forceList(auditSoftwareOnClients):
+				self._mysql.insert_object(table="SOFTWARE_CONFIG", obj=auditSoftwareOnClient, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareOnClient_getObjects(  # pylint: disable=invalid-name

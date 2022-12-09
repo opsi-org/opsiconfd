@@ -44,16 +44,18 @@ class RPCSoftwareLicenseMixin(Protocol):
 	) -> None:
 		self._check_module("license_management")
 		ace = self._get_ace("softwareLicense_createObjects")
-		for softwareLicense in forceList(softwareLicenses):
-			self._mysql.insert_object(table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for softwareLicense in forceList(softwareLicenses):
+				self._mysql.insert_object(table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, softwareLicenses: List[dict] | List[SoftwareLicense] | dict | SoftwareLicense
 	) -> None:
 		ace = self._get_ace("softwareLicense_updateObjects")
-		for softwareLicense in forceList(softwareLicenses):
-			self._mysql.insert_object(table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for softwareLicense in forceList(softwareLicenses):
+				self._mysql.insert_object(table="SOFTWARE_LICENSE", obj=softwareLicense, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def softwareLicense_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[SoftwareLicense]:  # pylint: disable=redefined-builtin,invalid-name

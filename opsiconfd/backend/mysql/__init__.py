@@ -269,7 +269,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			self._engine.dispose()
 
 	@contextmanager
-	def session(self, commit: bool = True) -> Generator[Session, None, None]:
+	def session(self, session: Session | None = None, commit: bool = True) -> Generator[Session, None, None]:
+		if session:
+			yield session
+			return
+
 		if not self._Session:
 			raise RuntimeError("Not initialized")
 
@@ -722,10 +726,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		create: bool = True,
 		set_null: bool = True,
 		additional_data: Dict[str, Any] | None = None,
+		session: Session | None = None
 	) -> Any:
 		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
 		if query:
-			with self.session() as session:
+			with self.session(session) as session:
 				result = session.execute(query, params=params)
 				return result.lastrowid
 		return None

@@ -62,15 +62,17 @@ class RPCHostMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def host_createObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_createObjects")
-		for host in forceList(hosts):
-			self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for host in forceList(hosts):
+				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=True, session=session)
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)
 	def host_updateObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObjects")
-		for host in forceList(hosts):
-			self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for host in forceList(hosts):
+				self._mysql.insert_object(table="HOST", obj=host, ace=ace, create=True, set_null=False, session=session)
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)

@@ -36,16 +36,18 @@ class RPCObjectToGroupMixin(Protocol):
 		self: BackendProtocol, objectToGroups: List[dict] | List[ObjectToGroup] | dict | ObjectToGroup
 	) -> None:
 		ace = self._get_ace("objectToGroup_createObjects")
-		for objectToGroup in forceList(objectToGroups):
-			self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for objectToGroup in forceList(objectToGroups):
+				self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, objectToGroups: List[dict] | List[ObjectToGroup] | dict | ObjectToGroup
 	) -> None:
 		ace = self._get_ace("objectToGroup_updateObjects")
-		for objectToGroup in forceList(objectToGroups):
-			self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for objectToGroup in forceList(objectToGroups):
+				self._mysql.insert_object(table="OBJECT_TO_GROUP", obj=objectToGroup, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def objectToGroup_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[ObjectToGroup]:  # pylint: disable=redefined-builtin,invalid-name

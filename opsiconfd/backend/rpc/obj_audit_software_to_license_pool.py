@@ -43,10 +43,11 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		auditSoftwareToLicensePools: List[dict] | List[AuditSoftwareToLicensePool] | dict | AuditSoftwareToLicensePool
 	) -> None:
 		ace = self._get_ace("auditSoftwareToLicensePool_createObjects")
-		for auditSoftwareToLicensePool in forceList(auditSoftwareToLicensePools):
-			self._mysql.insert_object(
-				table="AUDIT_SOFTWARE_TO_LICENSE_POOL", obj=auditSoftwareToLicensePool, ace=ace, create=True, set_null=True
-			)
+		with self._mysql.session() as session:
+			for auditSoftwareToLicensePool in forceList(auditSoftwareToLicensePools):
+				self._mysql.insert_object(
+					table="AUDIT_SOFTWARE_TO_LICENSE_POOL", obj=auditSoftwareToLicensePool, ace=ace, create=True, set_null=True, session=session
+				)
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareToLicensePool_updateObjects(  # pylint: disable=invalid-name
@@ -54,10 +55,11 @@ class RPCAuditSoftwareToLicensePoolMixin(Protocol):
 		auditSoftwareToLicensePools: List[dict] | List[AuditSoftwareToLicensePool] | dict | AuditSoftwareToLicensePool
 	) -> None:
 		ace = self._get_ace("auditSoftwareToLicensePool_updateObjects")
-		for auditSoftwareToLicensePool in forceList(auditSoftwareToLicensePools):
-			self._mysql.insert_object(
-				table="AUDIT_SOFTWARE_TO_LICENSE_POOL", obj=auditSoftwareToLicensePool, ace=ace, create=True, set_null=False
-			)
+		with self._mysql.session() as session:
+			for auditSoftwareToLicensePool in forceList(auditSoftwareToLicensePools):
+				self._mysql.insert_object(
+					table="AUDIT_SOFTWARE_TO_LICENSE_POOL", obj=auditSoftwareToLicensePool, ace=ace, create=True, set_null=False, session=session
+				)
 
 	@rpc_method(check_acl=False)
 	def auditSoftwareToLicensePool_getObjects(  # pylint: disable=invalid-name

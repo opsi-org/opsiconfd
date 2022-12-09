@@ -43,10 +43,11 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 		softwareLicenseToLicensePools: List[dict] | List[SoftwareLicenseToLicensePool] | dict | SoftwareLicenseToLicensePool
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_createObjects")
-		for softwareLicenseToLicensePool in forceList(softwareLicenseToLicensePools):
-			self._mysql.insert_object(
-				table="SOFTWARE_LICENSE_TO_LICENSE_POOL", obj=softwareLicenseToLicensePool, ace=ace, create=True, set_null=True
-			)
+		with self._mysql.session() as session:
+			for softwareLicenseToLicensePool in forceList(softwareLicenseToLicensePools):
+				self._mysql.insert_object(
+					table="SOFTWARE_LICENSE_TO_LICENSE_POOL", obj=softwareLicenseToLicensePool, ace=ace, create=True, set_null=True, session=session
+				)
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_updateObjects(  # pylint: disable=invalid-name
@@ -54,10 +55,11 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 		softwareLicenseToLicensePools: List[dict] | List[SoftwareLicenseToLicensePool] | dict | SoftwareLicenseToLicensePool
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_updateObjects")
-		for softwareLicenseToLicensePool in forceList(softwareLicenseToLicensePools):
-			self._mysql.insert_object(
-				table="SOFTWARE_LICENSE_TO_LICENSE_POOL", obj=softwareLicenseToLicensePool, ace=ace, create=True, set_null=False
-			)
+		with self._mysql.session() as session:
+			for softwareLicenseToLicensePool in forceList(softwareLicenseToLicensePools):
+				self._mysql.insert_object(
+					table="SOFTWARE_LICENSE_TO_LICENSE_POOL", obj=softwareLicenseToLicensePool, ace=ace, create=True, set_null=False, session=session
+				)
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_getObjects(  # pylint: disable=invalid-name

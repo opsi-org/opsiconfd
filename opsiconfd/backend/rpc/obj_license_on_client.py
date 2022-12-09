@@ -49,16 +49,18 @@ class RPCLicenseOnClientMixin(Protocol):
 		self: BackendProtocol, licenseOnClients: List[dict] | List[LicenseOnClient] | dict | LicenseOnClient
 	) -> None:
 		ace = self._get_ace("licenseOnClient_createObjects")
-		for licenseOnClient in forceList(licenseOnClients):
-			self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for licenseOnClient in forceList(licenseOnClients):
+				self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def licenseOnClient_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, licenseOnClients: List[dict] | List[LicenseOnClient] | dict | LicenseOnClient
 	) -> None:
 		ace = self._get_ace("licenseOnClient_updateObjects")
-		for licenseOnClient in forceList(licenseOnClients):
-			self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for licenseOnClient in forceList(licenseOnClients):
+				self._mysql.insert_object(table="LICENSE_ON_CLIENT", obj=licenseOnClient, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def licenseOnClient_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[LicenseOnClient]:  # pylint: disable=redefined-builtin,invalid-name

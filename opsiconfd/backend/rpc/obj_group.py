@@ -37,16 +37,18 @@ class RPCGroupMixin(Protocol):
 		self: BackendProtocol, groups: List[dict] | List[Group] | dict | Group
 	) -> None:
 		ace = self._get_ace("group_createObjects")
-		for group in forceList(groups):
-			self._mysql.insert_object(table="GROUP", obj=group, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for group in forceList(groups):
+				self._mysql.insert_object(table="GROUP", obj=group, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def group_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, groups: List[dict] | List[Group] | dict | Group
 	) -> None:
 		ace = self._get_ace("group_updateObjects")
-		for group in forceList(groups):
-			self._mysql.insert_object(table="GROUP", obj=group, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for group in forceList(groups):
+				self._mysql.insert_object(table="GROUP", obj=group, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def group_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[Group]:  # pylint: disable=redefined-builtin,invalid-name

@@ -36,16 +36,18 @@ class RPCAuditSoftwareMixin(Protocol):
 		self: BackendProtocol, auditSoftwares: List[dict] | List[AuditSoftware] | dict | AuditSoftware
 	) -> None:
 		ace = self._get_ace("auditSoftware_createObjects")
-		for auditSoftware in forceList(auditSoftwares):
-			self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for auditSoftware in forceList(auditSoftwares):
+				self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def auditSoftware_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, auditSoftwares: List[dict] | List[AuditSoftware] | dict | AuditSoftware
 	) -> None:
 		ace = self._get_ace("auditSoftware_updateObjects")
-		for auditSoftware in forceList(auditSoftwares):
-			self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for auditSoftware in forceList(auditSoftwares):
+				self._mysql.insert_object(table="SOFTWARE", obj=auditSoftware, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def auditSoftware_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[AuditSoftware]:  # pylint: disable=redefined-builtin,invalid-name

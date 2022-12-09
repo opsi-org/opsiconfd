@@ -36,16 +36,18 @@ class RPCProductDependencyMixin(Protocol):
 		self: BackendProtocol, productDependencies: List[dict] | List[ProductDependency] | dict | ProductDependency
 	) -> None:
 		ace = self._get_ace("productDependency_createObjects")
-		for productDependency in forceList(productDependencies):
-			self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for productDependency in forceList(productDependencies):
+				self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def productDependency_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productDependencies: List[dict] | List[ProductDependency] | dict | ProductDependency
 	) -> None:
 		ace = self._get_ace("productDependency_updateObjects")
-		for productDependency in forceList(productDependencies):
-			self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for productDependency in forceList(productDependencies):
+				self._mysql.insert_object(table="PRODUCT_DEPENDENCY", obj=productDependency, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def productDependency_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[ProductDependency]:  # pylint: disable=redefined-builtin,invalid-name

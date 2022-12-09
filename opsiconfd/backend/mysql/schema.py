@@ -945,7 +945,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		logger.info("All updates completed")
 
 		if not schema_version or schema_version < mysql.schema_version:
-			logger.notice("Setting updateEnded for schema version %r", mysql.schema_version)
+			logger.notice("Finished update to schema version %r", mysql.schema_version)
 			session.execute(
 				"UPDATE `OPSI_SCHEMA` SET `updateEnded` = CURRENT_TIMESTAMP WHERE version = :version",
 				params={"version": mysql.schema_version},

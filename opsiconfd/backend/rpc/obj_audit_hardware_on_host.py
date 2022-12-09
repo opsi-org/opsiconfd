@@ -46,7 +46,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 			return AuditHardware.fromHash(audit_hardware_on_host.to_hash())
 		return AuditHardware.fromHash(audit_hardware_on_host)
 
-	def _audit_hardware_on_host_insert(  # pylint: disable=too-many-locals
+	def _audit_hardware_on_host_insert(  # pylint: disable=too-many-locals,too-many-arguments
 		self: BackendProtocol,
 		audit_hardware_on_hosts: List[dict] | List[AuditHardwareOnHost] | dict | AuditHardwareOnHost,
 		ace: list[RPCACE],

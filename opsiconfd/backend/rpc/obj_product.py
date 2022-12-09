@@ -44,16 +44,18 @@ class RPCProductMixin(Protocol):
 	) -> None:
 		self._check_module("mysql_backend")
 		ace = self._get_ace("product_createObjects")
-		for product in forceList(products):
-			self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for product in forceList(products):
+				self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def product_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, products: List[dict] | List[Product] | dict | Product
 	) -> None:
 		ace = self._get_ace("product_updateObjects")
-		for product in forceList(products):
-			self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for product in forceList(products):
+				self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def product_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[Product]:  # pylint: disable=redefined-builtin,invalid-name

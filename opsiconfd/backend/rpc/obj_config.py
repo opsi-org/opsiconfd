@@ -18,15 +18,16 @@ from ..auth import RPCACE
 from . import rpc_method
 
 if TYPE_CHECKING:
+	from ..mysql import Session
 	from .protocol import BackendProtocol, IdentType
 
 
 class RPCConfigMixin(Protocol):
-	def _config_insert_object(
-		self: BackendProtocol, config: Config, ace: List[RPCACE], create: bool = True, set_null: bool = True
+	def _config_insert_object(  # pylint: disable=too-many-arguments
+		self: BackendProtocol, config: Config, ace: List[RPCACE], create: bool = True, set_null: bool = True, session: Session | None = None
 	) -> None:
 		query, data = self._mysql.insert_query(table="CONFIG", obj=config, ace=ace, create=create, set_null=set_null)
-		with self._mysql.session() as session:
+		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
 			session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
 			if session.execute(query, params=data).rowcount > 0:
 				for value in data["possibleValues"] or []:
@@ -48,14 +49,16 @@ class RPCConfigMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def config_createObjects(self: BackendProtocol, configs: List[dict] | List[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("config_createObjects")
-		for config in forceList(configs):
-			self._config_insert_object(config=config, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for config in forceList(configs):
+				self._config_insert_object(config=config, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def config_updateObjects(self: BackendProtocol, configs: List[dict] | List[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("config_updateObjects")
-		for config in forceList(configs):
-			self._config_insert_object(config=config, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for config in forceList(configs):
+				self._config_insert_object(config=config, ace=ace, create=True, set_null=False, session=session)
 
 	def _config_get(  # pylint: disable=too-many-arguments,too-many-locals
 		self: BackendProtocol,

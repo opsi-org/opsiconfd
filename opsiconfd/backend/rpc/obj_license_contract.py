@@ -38,16 +38,18 @@ class RPCLicenseContractMixin(Protocol):
 	) -> None:
 		self._check_module("license_management")
 		ace = self._get_ace("licenseContract_createObjects")
-		for licenseContract in forceList(licenseContracts):
-			self._mysql.insert_object(table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for licenseContract in forceList(licenseContracts):
+				self._mysql.insert_object(table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def licenseContract_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, licenseContracts: List[dict] | List[LicenseContract] | dict | LicenseContract
 	) -> None:
 		ace = self._get_ace("licenseContract_updateObjects")
-		for licenseContract in forceList(licenseContracts):
-			self._mysql.insert_object(table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for licenseContract in forceList(licenseContracts):
+				self._mysql.insert_object(table="LICENSE_CONTRACT", obj=licenseContract, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def licenseContract_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[LicenseContract]:  # pylint: disable=redefined-builtin,invalid-name

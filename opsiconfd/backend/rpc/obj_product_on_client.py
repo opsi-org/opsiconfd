@@ -48,16 +48,18 @@ class RPCProductOnClientMixin(Protocol):
 	) -> None:
 		self._check_module("mysql_backend")
 		ace = self._get_ace("productOnClient_createObjects")
-		for productOnClient in forceList(productOnClients):
-			self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True)
+		with self._mysql.session() as session:
+			for productOnClient in forceList(productOnClients):
+				self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol, productOnClients: List[dict] | List[ProductOnClient] | dict | ProductOnClient
 	) -> None:
 		ace = self._get_ace("productOnClient_updateObjects")
-		for productOnClient in forceList(productOnClients):
-			self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False)
+		with self._mysql.session() as session:
+			for productOnClient in forceList(productOnClients):
+				self._mysql.insert_object(table="PRODUCT_ON_CLIENT", obj=productOnClient, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
 	def productOnClient_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[ProductOnClient]:  # pylint: disable=redefined-builtin,invalid-name

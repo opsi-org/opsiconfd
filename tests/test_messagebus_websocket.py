@@ -27,18 +27,18 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 
-from opsiconfd.config import config
 from opsiconfd.messagebus import get_messagebus_user_id_for_service_node
-from opsiconfd.messagebus.redis import REDIS_PREFIX_MESSAGEBUS
 from opsiconfd.utils import compress_data, decompress_data
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	Config,
 	OpsiconfdTestClient,
 	WebSocketMessageReader,
 	clean_redis,
 	client_jsonrpc,
+	config,
 	sync_redis_client,
 	test_client,
 )
@@ -137,11 +137,11 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			assert sorted([msg.id for msg in messages]) == ["3", "4", "5", "6"]
 
 
-def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_multi_client(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	host_id = "msgbus-test-client.opsi.test"
 	host_key = "92aa768a259dec1856013c4e458507d5"
 	with sync_redis_client() as redis:
-		assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") is None
+		assert redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") is None
 		with client_jsonrpc(test_client, "", host_id=host_id, host_key=host_key):
 			test_client.auth = (host_id, host_key)
 			with (
@@ -156,7 +156,10 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 						assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
 						assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
-					assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"2"
+					assert (
+						redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count")
+						== b"2"
+					)
 					message = Message(type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="1")
 					websocket1.send_bytes(message.to_msgpack())
 					for reader in (reader1, reader2):
@@ -177,7 +180,9 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 							assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
 							assert (
-								redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count")
+								redis.hget(
+									f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count"
+								)
 								== b"3"
 							)
 							message = Message(type="test_multi_client", sender="@", channel="host:msgbus-test-client.opsi.test", id="2")
@@ -189,9 +194,12 @@ def test_messagebus_multi_client(test_client: OpsiconfdTestClient) -> None:  # p
 								assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
 								assert messages[0]["id"] == "2"  # type: ignore[call-overload]
 					sleep(1)
-					assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"2"
+					assert (
+						redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count")
+						== b"2"
+					)
 			sleep(1)
-			assert redis.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"0"
+			assert redis.hget(f"{config.redis_key('messagebus')}:channels:host:msgbus-test-client.opsi.test:info", "reader-count") == b"0"
 
 
 def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -260,7 +268,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 					}
 
 
-def xxx_test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def xxx_test_messagebus_terminal(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	messagebus_node_id = get_messagebus_user_id_for_service_node(config.node_name)
 

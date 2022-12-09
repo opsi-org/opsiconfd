@@ -133,7 +133,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 				yield dat[1][b"record"]
 
 	async def _log_reader(self, websocket: WebSocket, start_id: str = "$", client: str | None = None) -> None:
-		stream_name = f"opsiconfd:log:{config.node_name}"
+		stream_name = f"{config.redis_key('log')}:{config.node_name}"
 		logger.info(
 			"Websocket client is starting to read log stream: stream_name=%s, start_id=%s, client=%s", stream_name, start_id, client
 		)

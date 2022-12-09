@@ -33,7 +33,7 @@ from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 
 from .. import __version__, contextvar_client_session
 from ..addon import AddonManager
-from ..config import FQDN, REDIS_PREFIX_SESSION, VAR_ADDON_DIR, config
+from ..config import FQDN, VAR_ADDON_DIR, config
 from ..grafana import (
 	GRAFANA_DASHBOARD_UID,
 	async_grafana_session,
@@ -143,7 +143,7 @@ async def unblock_all_clients() -> RESTResponse:
 		clients = set()
 		deleted_keys = set()
 		async with redis.pipeline(transaction=False) as pipe:
-			for base_key in ("opsiconfd:stats:client:failed_auth", "opsiconfd:stats:client:blocked"):
+			for base_key in (f"{config.redis_key('stats')}:client:failed_auth", f"{config.redis_key('stats')}:client:blocked"):
 
 				async for key in redis.scan_iter(f"{base_key}:*"):
 					key_str = key.decode("utf8")
@@ -170,12 +170,12 @@ async def unblock_client(request: Request) -> RESTResponse:
 		client_addr_redis = ip_address_to_redis_key(client_addr)
 		redis = await async_redis_client()
 		deleted_keys = []
-		redis_code = await redis.delete(f"opsiconfd:stats:client:failed_auth:{client_addr_redis}")
+		redis_code = await redis.delete(f"{config.redis_key('stats')}:client:failed_auth:{client_addr_redis}")
 		if redis_code == 1:
-			deleted_keys.append(f"opsiconfd:stats:client:failed_auth:{client_addr_redis}")
-		redis_code = await redis.delete(f"opsiconfd:stats:client:blocked:{client_addr_redis}")
+			deleted_keys.append(f"{config.redis_key('stats')}:client:failed_auth:{client_addr_redis}")
+		redis_code = await redis.delete(f"{config.redis_key('stats')}:client:blocked:{client_addr_redis}")
 		if redis_code == 1:
-			deleted_keys.append(f"opsiconfd:stats:client:blocked:{client_addr_redis}")
+			deleted_keys.append(f"{config.redis_key('stats')}:client:blocked:{client_addr_redis}")
 
 		return RESTResponse({"client": client_addr, "redis-keys": deleted_keys})
 	except Exception as err:  # pylint: disable=broad-except
@@ -195,7 +195,7 @@ async def delete_client_sessions(request: Request) -> RESTResponse:
 	redis = await async_redis_client()
 	sessions = []
 	deleted_keys = []
-	keys = redis.scan_iter(f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(client_addr)}:*")
+	keys = redis.scan_iter(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:*")
 	if keys:
 		async with redis.pipeline(transaction=False) as pipe:
 			async for key in keys:
@@ -262,7 +262,7 @@ async def install_addon(request: Request) -> RESTResponse:
 async def get_rpc_list() -> RESTResponse:
 
 	redis = await async_redis_client()
-	redis_result = await redis.lrange("opsiconfd:stats:rpcs", 0, -1)
+	redis_result = await redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, -1)
 
 	rpc_list = []
 	for value in redis_result:
@@ -287,7 +287,7 @@ async def get_rpc_list() -> RESTResponse:
 @rest_api
 async def get_rpc_count() -> RESTResponse:
 	redis = await async_redis_client()
-	count = await redis.llen("opsiconfd:stats:rpcs")
+	count = await redis.llen(f"{config.redis_key('stats')}:rpcs")
 	return RESTResponse({"rpc_count": count})
 
 
@@ -296,7 +296,7 @@ async def get_rpc_count() -> RESTResponse:
 async def get_session_list() -> RESTResponse:
 	redis = await async_redis_client()
 	session_list = []
-	async for redis_key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):
+	async for redis_key in redis.scan_iter(f"{config.redis_key('session')}:*"):
 		data = await redis.get(redis_key)
 		if not data:
 			continue
@@ -371,7 +371,7 @@ async def unlock_all_product() -> RESTResponse:
 @rest_api
 async def get_blocked_clients() -> RESTResponse:
 	redis = await async_redis_client()
-	redis_keys = redis.scan_iter("opsiconfd:stats:client:blocked:*")
+	redis_keys = redis.scan_iter(f"{config.redis_key('stats')}:client:blocked:*")
 
 	blocked_clients = []
 	async for key in redis_keys:

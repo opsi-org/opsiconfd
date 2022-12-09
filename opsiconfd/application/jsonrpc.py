@@ -147,7 +147,7 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 		)
 
 	redis = await async_redis_client()
-	rpc_num = await redis.incr("opsiconfd:stats:num_rpcs")
+	rpc_num = await redis.incr(f"{config.redis_key('stats')}:num_rpcs")
 
 	num_params = 0
 	if rpc.get("params"):
@@ -183,19 +183,21 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 	)
 
 	max_rpcs = 9999
+	redis_prefix_stats = config.redis_key('stats')
 	async with redis.pipeline() as pipe:
-		pipe.lpush("opsiconfd:stats:rpcs", msgspec.msgpack.encode(data))  # pylint: disable=c-extension-no-member
-		pipe.ltrim("opsiconfd:stats:rpcs", 0, max_rpcs - 1)
+		pipe.lpush(f"{redis_prefix_stats}:rpcs", msgspec.msgpack.encode(data))  # pylint: disable=c-extension-no-member
+		pipe.ltrim(f"{redis_prefix_stats}:rpcs", 0, max_rpcs - 1)
 		await pipe.execute()
 
 
 def store_deprecated_call(method_name: str, client: str) -> None:
+	redis_prefix_stats = config.redis_key('stats')
 	with redis_client() as redis:
 		with redis.pipeline() as pipe:
-			pipe.sadd("opsiconfd:stats:rpcs:deprecated:methods", method_name)
-			pipe.incr(f"opsiconfd:stats:rpcs:deprecated:{method_name}:count")
-			pipe.sadd(f"opsiconfd:stats:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
-			pipe.set(f"opsiconfd:stats:rpcs:deprecated:{method_name}:last_call", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+			pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)
+			pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")
+			pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
+			pipe.set(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
 			pipe.execute()
 
 

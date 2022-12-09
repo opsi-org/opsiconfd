@@ -26,6 +26,7 @@ from opsiconfd.application.jsonrpc import (
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	Config,
 	OpsiconfdTestClient,
 	backend,
 	clean_redis,
@@ -229,7 +230,7 @@ def test_error_log(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  #
 			assert data["error"] == "Invalid method 'invalid'"
 
 
-def test_store_rpc_info(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_store_rpc_info(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with sync_redis_client() as redis:
 		for num in (1, 2):
 			rpc = {"id": num, "method": "host_getObjects", "params": [["id"], {"type": "OpsiDepotserver"}]}  # pylint: disable=loop-invariant-statement
@@ -239,8 +240,8 @@ def test_store_rpc_info(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 			num_results = len(result["result"])
 			assert num_results > 0
 			if num == 2:
-				assert int(redis.get("opsiconfd:stats:num_rpcs") or 0) == 2
-				redis_result = redis.lrange("opsiconfd:stats:rpcs", 0, -1)
+				assert int(redis.get(f"{config.redis_key('stats')}:num_rpcs") or 0) == 2
+				redis_result = redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, -1)
 				infos = [msgpack.loads(value) for value in redis_result]  # pylint: disable=dotted-import-in-loop
 				assert len(infos) == 2
 				for info in infos:

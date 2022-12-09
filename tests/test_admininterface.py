@@ -19,17 +19,19 @@ from typing import Any, Callable, Tuple
 
 import mock  # type: ignore[import]
 import pytest
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers
 from starlette.requests import Request
 
 from opsiconfd.addon.manager import AddonManager
-from opsiconfd.config import FQDN, REDIS_PREFIX_SESSION, Config
+from opsiconfd.config import FQDN
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .test_addon_manager import cleanup  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	Config,
 	OpsiconfdTestClient,
 	UnprotectedBackend,
 	backend,
@@ -45,16 +47,18 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def set_failed_auth_and_blocked(ip_address: str) -> None:  # pylint: disable=redefined-outer-name
+def set_failed_auth_and_blocked(conf: Config, ip_address: str) -> None:  # pylint: disable=redefined-outer-name
 	with sync_redis_client() as redis:
 		ip_address_redis = ip_address_to_redis_key(ip_address)
 		redis.execute_command(
-			f"ts.create opsiconfd:stats:client:failed_auth:{ip_address_redis} " f"RETENTION 86400000 LABELS client_addr {ip_address}"
+			f"ts.create {conf.redis_key('stats')}:client:failed_auth:{ip_address_redis} "
+			f"RETENTION 86400000 LABELS client_addr {ip_address}"
 		)
 		redis.execute_command(
-			f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_redis} " f"* 11 RETENTION 86400000 LABELS client_addr {ip_address}"
+			f"ts.add {conf.redis_key('stats')}:client:failed_auth:{ip_address_redis} "
+			f"* 11 RETENTION 86400000 LABELS client_addr {ip_address}"
 		)
-		redis.set(f"opsiconfd:stats:client:blocked:{ip_address_redis}", 1)
+		redis.set(f"{conf.redis_key('stats')}:client:blocked:{ip_address_redis}", 1)
 
 
 def call_rpc(client: OpsiconfdTestClient, rpc_request_data: list, expect_error: list) -> None:
@@ -83,13 +87,13 @@ def test_unblock_all_request(
 	with sync_redis_client() as redis:
 		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 		for test_ip in addresses:
-			set_failed_auth_and_blocked(test_ip)
+			set_failed_auth_and_blocked(config, test_ip)
 
 		res = test_client.post("/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
 		for test_ip in addresses:
-			val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+			val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
 			assert not val
 
 
@@ -100,7 +104,7 @@ async def test_unblock_all(config: Config, admininterface: ModuleType) -> None: 
 		addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 
 		for test_ip in addresses:
-			set_failed_auth_and_blocked(test_ip)
+			set_failed_auth_and_blocked(config, test_ip)
 
 		response = await admininterface.unblock_all_clients()
 		print(response)
@@ -111,7 +115,7 @@ async def test_unblock_all(config: Config, admininterface: ModuleType) -> None: 
 		assert sorted(response_body["clients"]) == sorted(addresses)
 
 		for test_ip in addresses:
-			val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+			val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
 			assert not val
 
 
@@ -120,11 +124,11 @@ def test_unblock_client_request(
 ) -> None:
 	with sync_redis_client() as redis:
 		test_ip = "192.168.1.2"
-		set_failed_auth_and_blocked(test_ip)
+		set_failed_auth_and_blocked(config, test_ip)
 		res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": test_ip})
 		assert res.status_code == 200
 
-		val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+		val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
 		assert not val
 
 
@@ -132,7 +136,7 @@ def test_unblock_client_request(
 async def test_unblock_client(config: Config, admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	with sync_redis_client() as redis:
 		test_ip = "192.168.1.2"
-		set_failed_auth_and_blocked(test_ip)
+		set_failed_auth_and_blocked(config, test_ip)
 
 		headers = Headers()
 		scope = {"method": "GET", "type": "http", "headers": headers}
@@ -146,25 +150,29 @@ async def test_unblock_client(config: Config, admininterface: ModuleType) -> Non
 		assert response.status_code == 200
 		assert response_dict.get("error") is None
 
-		val = redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+		val = redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
 		assert not val
 
 
-def test_unblock_client_exception(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_unblock_client_exception(
+	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	with sync_redis_client() as redis_client:
 		test_ip = "192.168.1.2"
-		set_failed_auth_and_blocked(test_ip)
+		set_failed_auth_and_blocked(config, test_ip)
 		res = test_client.post("/admin/unblock-client", auth=(ADMIN_USER, ADMIN_PASS), json={"client_addr": None})
 		assert res.status_code == 500
 
-		val = redis_client.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(test_ip)}")
+		val = redis_client.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(test_ip)}")
 		assert val
 
 
-def test_unblock_all_exception(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_unblock_all_exception(
+	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
-		set_failed_auth_and_blocked(test_ip)
+		set_failed_auth_and_blocked(config, test_ip)
 
 	with mock.patch("redis.asyncio.client.Redis.get", side_effect=Exception("ERROR")):
 
@@ -172,14 +180,19 @@ def test_unblock_all_exception(test_client: OpsiconfdTestClient) -> None:  # pyl
 		assert res.status_code == 500
 
 
-def test_get_rpc_list_request(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+@pytest.mark.asyncio
+async def test_get_rpc_list_request(
+	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	for _ in range(3):
-		call_rpc(
-			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
+		await run_in_threadpool(
+			call_rpc,
+			test_client,
+			[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
+			[False],
 		)
-	for _ in range(100):
-		time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
-	response = test_client.get("/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
+	await asyncio.sleep(0.1)
+	response = await run_in_threadpool(test_client.get, "/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	result = response.json()
 	for idx in range(3):
@@ -193,7 +206,7 @@ def test_get_blocked_clients_request(  # pylint: disable=redefined-outer-name,un
 ) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
-		set_failed_auth_and_blocked(test_ip)
+		set_failed_auth_and_blocked(config, test_ip)
 
 	res = test_client.get("/admin/blocked-clients", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
@@ -201,10 +214,12 @@ def test_get_blocked_clients_request(  # pylint: disable=redefined-outer-name,un
 
 
 @pytest.mark.asyncio
-async def test_get_blocked_clients(admininterface: ModuleType) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+async def test_get_blocked_clients(
+	config: Config, admininterface: ModuleType  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	addresses = ("10.10.1.1", "192.168.1.2", "2001:4860:4860:0000:0000:0000:0000:8888")
 	for test_ip in addresses:
-		set_failed_auth_and_blocked(test_ip)
+		set_failed_auth_and_blocked(config, test_ip)
 
 	result = await admininterface.get_blocked_clients()
 	assert sorted(json.loads(result.body)) == sorted(addresses)
@@ -215,12 +230,15 @@ async def test_get_blocked_clients(admininterface: ModuleType) -> None:  # pylin
 async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient, admininterface: ModuleType, num_rpcs: int
 ) -> None:
-	for _idx in range(num_rpcs):
-		call_rpc(
-			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
+	for _ in range(num_rpcs):
+		await run_in_threadpool(
+			call_rpc,
+			test_client,
+			[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
+			[False],
 		)
 
-	await asyncio.sleep(3)
+	await asyncio.sleep(0.1)
 
 	rpc_list_response = await admininterface.get_rpc_list()
 	rpc_list = json.loads(rpc_list_response.body)
@@ -248,7 +266,7 @@ async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,u
 		session = dict(res.cookies.items()).get("opsiconfd-session")  # type: ignore[no-untyped-call]
 		sessions = []
 		local_ip = None
-		for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):  # pylint: disable=loop-invariant-statement
+		for key in redis.scan_iter(f"{config.redis_key('session')}:*"):  # pylint: disable=loop-invariant-statement
 			addr, sess = key.decode("utf8").split(":")[-2:]
 			sessions.append(sess)
 			if sess == session:  # pylint: disable=loop-invariant-statement
@@ -331,22 +349,26 @@ def test_get_num_clients(admininterface: ModuleType, test_client: OpsiconfdTestC
 	assert admininterface.get_num_clients() == 0
 
 
-def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	for _idx in range(10):
-		call_rpc(
-			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
+@pytest.mark.asyncio
+async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	for _ in range(10):
+		await run_in_threadpool(
+			call_rpc,
+			test_client,
+			[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
+			[False],
 		)
-	for _ in range(50):
-		time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
-	res = test_client.get("/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
+
+	await asyncio.sleep(0.1)
+	res = await run_in_threadpool(test_client.get, "/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert res.json() == {"rpc_count": 10}
 
 
 def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	addr = test_client.get_client_address()
-	for _idx in range(10):
-		test_client.set_client_address("192.168.36." + str(_idx), _idx * 1000)
+	for idx in range(10):
+		test_client.set_client_address("192.168.36." + str(idx), idx * 1000)
 		call_rpc(
 			test_client, [{"id": 1, "method": "host_getIdents", "params": [None]}], [False]  # pylint: disable=loop-invariant-statement
 		)

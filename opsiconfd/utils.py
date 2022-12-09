@@ -290,25 +290,23 @@ async def async_redis_client(timeout: int = 0, test_connection: bool = False) ->
 
 
 async def async_get_redis_info(client: async_redis.StrictRedis) -> Dict[str, Any]:  # pylint: disable=too-many-locals
-	from opsiconfd.config import (  # pylint: disable=import-outside-toplevel
-		REDIS_PREFIX_SESSION,
-	)
+	conf = get_config()
 	stats_keys = []
 	sessions_keys = []
 	log_keys = []
 	rpc_keys = []
 	misc_keys = []
-	redis_keys = client.scan_iter("opsiconfd:*")
+	redis_keys = client.scan_iter(f"{conf.redis_key()}:*")
 
 	async for key in redis_keys:
 		key = key.decode("utf8")
-		if key.startswith("opsiconfd:stats:rpc") or key.startswith("opsiconfd:stats:num_rpc"):
+		if key.startswith(f"{conf.redis_key('stats')}:rpc") or key.startswith(f"{conf.redis_key('stats')}:num_rpc"):
 			rpc_keys.append(key)
-		elif key.startswith("opsiconfd:stats"):
+		elif key.startswith(f"{conf.redis_key('stats')}"):
 			stats_keys.append(key)
-		elif key.startswith(REDIS_PREFIX_SESSION):
+		elif key.startswith(conf.redis_key('session')):
 			sessions_keys.append(key)
-		elif key.startswith("opsiconfd:log"):
+		elif key.startswith(conf.redis_key('log')):
 			log_keys.append(key)
 		else:
 			misc_keys.append(key)

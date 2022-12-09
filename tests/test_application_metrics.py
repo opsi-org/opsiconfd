@@ -38,7 +38,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-async def _register_workers() -> Tuple[Dict[str, Union[str, int]], ...]:
+async def _register_workers(conf: Config) -> Tuple[Dict[str, Union[str, int]], ...]:
 	node_name = "testnode"
 	workers: Tuple[Dict[str, Union[str, int]], ...] = (
 		{"node_name": node_name, "pid": 121, "worker_num": 1},
@@ -47,7 +47,7 @@ async def _register_workers() -> Tuple[Dict[str, Union[str, int]], ...]:
 	)
 	redis = await async_redis_client()
 	for worker in workers:
-		redis_key = f"opsiconfd:worker_registry:{node_name}:{worker['worker_num']}"
+		redis_key = f"{conf.redis_key('status')}:workers:{node_name}:{worker['worker_num']}"
 		await redis.hset(
 			redis_key,
 			key=None,
@@ -58,8 +58,8 @@ async def _register_workers() -> Tuple[Dict[str, Union[str, int]], ...]:
 	return workers
 
 
-async def test_get_workers() -> None:
-	workers = await _register_workers()
+async def test_get_workers(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	workers = await _register_workers(config)
 	_workers = await get_workers()
 	for worker in workers:
 		found = False
@@ -74,8 +74,8 @@ async def test_get_workers() -> None:
 			raise Exception(f"Worker {worker} not found")
 
 
-async def test_get_nodes() -> None:
-	workers = await _register_workers()
+async def test_get_nodes(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	workers = await _register_workers(config)
 	nodes = await get_nodes()
 	for worker in workers:
 		assert worker["node_name"] in nodes
@@ -103,26 +103,26 @@ async def test_grafana_dashboard_config() -> None:
 	assert len(conf["panels"]) == 10
 
 
-async def test_grafana_search() -> None:
-	workers = await _register_workers()
+async def test_grafana_search(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	workers = await _register_workers(config)
 	res = await grafana_search()
 	for worker in workers:
 		assert f"Average CPU usage of worker {worker['worker_num']} on {worker['node_name']}" in res
 
 
 async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
-	node_name: str, postfix: str, start: int, end: int, interval: int, value: float, delete: bool = True
+	conf: Config, postfix: str, start: int, end: int, interval: int, value: float, delete: bool = True
 ) -> None:
 	redis = await async_redis_client()
 	if postfix:
-		redis_key = f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1:{postfix}"
+		redis_key = f"{conf.redis_key('stats')}:worker:avg_cpu_percent:{conf.node_name}:1:{postfix}"
 	else:
-		redis_key = f"opsiconfd:stats:worker:avg_cpu_percent:{node_name}:1"
+		redis_key = f"{conf.redis_key('stats')}:worker:avg_cpu_percent:{conf.node_name}:1"
 
 	if delete:
-		async for key in redis.scan_iter("opsiconfd:stats:worker:avg_cpu_percent:*"):
+		async for key in redis.scan_iter(f"{conf.redis_key('stats')}:worker:avg_cpu_percent:*"):
 			await redis.delete(key)
-		await redis.delete("opsiconfd:stats:worker:avg_cpu_percent")
+		await redis.delete(f"{conf.redis_key('stats')}:worker:avg_cpu_percent")
 
 		await asyncio.sleep(3)
 		setup_metric_downsampling()
@@ -145,7 +145,7 @@ async def create_ts_data(  # pylint: disable=too-many-locals,too-many-arguments
 			"SUM",
 			"LABELS",
 			"node_name",
-			node_name,
+			conf.node_name,
 			"worker_num",
 			1,
 		)
@@ -161,8 +161,8 @@ async def test_grafana_query_end_current_time(
 	end = int(time.time())
 	value = 10
 
-	await create_ts_data(config.node_name, "", end - 3600, end, 5, value)
-	await create_ts_data(config.node_name, "minute", end - 23 * 3600, end, 60, value, False)
+	await create_ts_data(config, "", end - 3600, end, 5, value)
+	await create_ts_data(config, "minute", end - 23 * 3600, end, 60, value, False)
 
 	seconds = 300
 	_to = datetime.datetime.fromtimestamp(end)
@@ -172,7 +172,9 @@ async def test_grafana_query_end_current_time(
 		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": f"now-{seconds}s", "to": "now"}},
 		"intervalMs": 500,
 		"timezone": "utc",
-		"targets": [{"type": "timeserie", "target": f"opsiconfd:stats:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}],
+		"targets": [
+			{"type": "timeserie", "target": f"{config.redis_key('stats')}:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}
+		],
 	}
 
 	res = test_client.post("/metrics/grafana/query", json=query)
@@ -196,7 +198,9 @@ async def test_grafana_query_end_current_time(
 		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": f"now-{seconds}s", "to": "now"}},
 		"intervalMs": 500,
 		"timezone": "utc",
-		"targets": [{"type": "timeserie", "target": f"opsiconfd:stats:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}],
+		"targets": [
+			{"type": "timeserie", "target": f"{config.redis_key('stats')}:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}
+		],
 	}
 
 	res = test_client.post("/metrics/grafana/query", json=query)
@@ -220,7 +224,9 @@ async def test_grafana_query_end_current_time(
 		"range": {"from": f"{_from.isoformat()}Z", "to": f"{_to.isoformat()}Z", "raw": {"from": f"now-{seconds}s", "to": "now"}},
 		"intervalMs": 500,
 		"timezone": "utc",
-		"targets": [{"type": "timeserie", "target": f"opsiconfd:stats:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}],
+		"targets": [
+			{"type": "timeserie", "target": f"{config.redis_key('stats')}:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}
+		],
 	}
 
 	res = test_client.post("/metrics/grafana/query", json=query)
@@ -242,8 +248,8 @@ async def test_grafana_query_interval_in_past(
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 	end = int(time.time())
-	await create_ts_data(config.node_name, "minute", end - 23 * 3600, end, 60, 20)
-	await create_ts_data(config.node_name, "hour", end - 35 * 3600, end, 3600, 40, False)
+	await create_ts_data(config, "minute", end - 23 * 3600, end, 60, 20)
+	await create_ts_data(config, "hour", end - 35 * 3600, end, 3600, 40, False)
 
 	# Interval (from -> to) is one hour and should use minutes
 	# but 30h ago the minutes should be deleted so hours should be used
@@ -264,7 +270,9 @@ async def test_grafana_query_interval_in_past(
 		},
 		"intervalMs": 500,
 		"timezone": "utc",
-		"targets": [{"type": "timeserie", "target": f"opsiconfd:stats:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}],
+		"targets": [
+			{"type": "timeserie", "target": f"{config.redis_key('stats')}:worker:avg_cpu_percent:{config.node_name}:1", "refId": "A"}
+		],
 	}
 
 	res = test_client.post("/metrics/grafana/query", json=query)

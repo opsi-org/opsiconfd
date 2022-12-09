@@ -21,12 +21,12 @@ from opsiconfd import (
 	set_contextvars,
 	set_contextvars_from_contex,
 )
-from opsiconfd.config import REDIS_PREFIX_SESSION, Config
 from opsiconfd.utils import ip_address_to_redis_key
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	Config,
 	OpsiconfdTestClient,
 	clean_redis,
 	config,
@@ -121,7 +121,7 @@ def test_login_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: di
 	assert res.status_code == 200
 
 
-def test_logout_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_logout_endpoint(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	with sync_redis_client() as redis:
 		client_addr = "192.168.1.1"
 		test_client.set_client_address(client_addr, 12345)
@@ -129,28 +129,30 @@ def test_logout_endpoint(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 		res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
-		keys = sorted([key.decode() for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*")])
+		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
 		assert len(keys) == 1
-		assert keys[0].startswith(f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(client_addr)}:")
+		assert keys[0].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
 		res = test_client.get("/session/logout")
 		assert res.status_code == 200
 		assert "opsiconfd-session" in res.headers["set-cookie"]
 		assert "Max-Age=0" in res.headers["set-cookie"]
-		keys = sorted([key.decode() for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*")])
+		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
 		assert len(keys) == 0
 
 
-def test_change_session_ip(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_change_session_ip(
+	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	with sync_redis_client() as redis:
 		client_addr = "192.168.1.1"
 		test_client.set_client_address(client_addr, 12345)
 		res = test_client.get("/admin", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
-		keys = sorted([key.decode() for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*")])
+		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
 		assert len(keys) == 1
-		assert keys[0].startswith(f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(client_addr)}:")
+		assert keys[0].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
 		client_addr = "192.168.2.2"
 		test_client.set_client_address(client_addr, 12345)
@@ -160,9 +162,9 @@ def test_change_session_ip(test_client: OpsiconfdTestClient) -> None:  # pylint:
 		res = test_client.get("/session/authenticated", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 200
 
-		keys = sorted([key.decode() for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*")])
+		keys = sorted([key.decode() for key in redis.scan_iter(f"{config.redis_key('session')}:*")])
 		assert len(keys) == 2
-		assert keys[1].startswith(f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(client_addr)}:")
+		assert keys[1].startswith(f"{config.redis_key('session')}:{ip_address_to_redis_key(client_addr)}:")
 
 
 def test_networks(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
@@ -197,11 +199,13 @@ def test_public_access_put(test_client: OpsiconfdTestClient) -> None:  # pylint:
 	assert res.status_code == 405
 
 
-def test_max_sessions_limit(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_max_sessions_limit(
+	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	test_client.set_client_address("192.168.1.1", 12345)
 	max_session_per_ip = 10
 	over_limit = 3
-	redis_key = f"{REDIS_PREFIX_SESSION}:*"
+	redis_key = f"{config.redis_key('session')}:*"
 	with (get_config({"max_session_per_ip": max_session_per_ip}), sync_redis_client() as redis):
 		for num in range(1, max_session_per_ip + 1 + over_limit):
 			res = test_client.get("/admin/", auth=(ADMIN_USER, ADMIN_PASS))
@@ -224,11 +228,13 @@ def test_max_sessions_limit(test_client: OpsiconfdTestClient) -> None:  # pylint
 		assert res.status_code == 200
 
 
-def test_max_sessions_not_for_depot(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_max_sessions_not_for_depot(
+	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	test_client.set_client_address("192.168.11.1", 12345)
 	max_session_per_ip = 3
 	over_limit = 30
-	redis_key = f"{REDIS_PREFIX_SESSION}:*"
+	redis_key = f"{config.redis_key('session')}:*"
 	depot_id = "test-depot-max-sessions.uib.local"
 	depot_key = "29124776768a560d5e45d3c50889ec51"
 	with depot_jsonrpc(test_client, "", depot_id, depot_key):
@@ -247,13 +253,15 @@ def test_max_sessions_not_for_depot(test_client: OpsiconfdTestClient) -> None:  
 			redis.delete(key)
 
 
-def test_max_auth_failures(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_max_auth_failures(
+	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	over_limit = 3
 	max_auth_failures = 10
 	with (get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis):
 		for num in range(max_auth_failures + over_limit):
 			now = round(time.time()) * 1000  # pylint: disable=dotted-import-in-loop
-			for key in redis.scan_iter("opsiconfd:stats:client:failed_auth:*"):
+			for key in redis.scan_iter(f"{config.redis_key('stats')}:client:failed_auth:*"):
 				# print("=== key ==>>>", key)
 				cmd = (
 					f"ts.range {key.decode()} "

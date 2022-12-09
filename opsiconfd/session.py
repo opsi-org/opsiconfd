@@ -49,7 +49,7 @@ from opsiconfd.utils import ip_address_in_network
 from . import contextvar_client_session, server_timing
 from .addon import AddonManager
 from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
-from .config import REDIS_PREFIX_SESSION, config, opsi_config
+from .config import config, opsi_config
 from .logging import logger
 from .utils import (
 	async_redis_client,
@@ -268,7 +268,7 @@ class SessionMiddleware:
 
 			if isinstance(err, BackendAuthenticationError) or not scope["session"] or not scope["session"].authenticated:
 				cmd = (
-					f"ts.add opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
+					f"ts.add {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(scope['client'][0])} "
 					f"* 1 RETENTION 86400000 LABELS client_addr {scope['client'][0]}"
 				)
 				logger.debug(cmd)
@@ -383,7 +383,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	@property
 	def redis_key(self) -> str:
 		assert self.session_id
-		return f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(self.client_addr)}:{self.session_id}"
+		return f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:{self.session_id}"
 
 	@property
 	def expired(self) -> bool:
@@ -482,7 +482,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		try:
 			with redis_client() as redis:
 				now = utc_time_timestamp()
-				session_key = f"{REDIS_PREFIX_SESSION}:{ip_address_to_redis_key(self.client_addr)}:*"
+				session_key = f"{config.redis_key('session')}:{ip_address_to_redis_key(self.client_addr)}:*"
 				for redis_key in redis.scan_iter(session_key):
 					validity = 0
 					data = redis.get(redis_key)
@@ -787,14 +787,14 @@ async def check_admin_networks(session: OPSISession) -> None:
 async def check_blocked(ip_address: str) -> None:
 	logger.info("Checking if client '%s' is blocked", ip_address)
 	redis = await async_redis_client()
-	is_blocked = bool(await redis.get(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(ip_address)}"))
+	is_blocked = bool(await redis.get(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(ip_address)}"))
 	if is_blocked:
 		logger.info("Client '%s' is blocked", ip_address)
 		raise ConnectionRefusedError(f"Client '{ip_address}' is blocked")
 
 	now = round(time.time()) * 1000
 	cmd = (
-		f"ts.range opsiconfd:stats:client:failed_auth:{ip_address_to_redis_key(ip_address)} "
+		f"ts.range {config.redis_key('stats')}:client:failed_auth:{ip_address_to_redis_key(ip_address)} "
 		f"{(now-(config.auth_failures_interval*1000))} {now} aggregation count {(config.auth_failures_interval*1000)}"
 	)
 	logger.debug(cmd)
@@ -812,7 +812,7 @@ async def check_blocked(ip_address: str) -> None:
 	if num_failed_auth >= config.max_auth_failures:
 		is_blocked = True
 		logger.warning("Blocking client '%s' for %0.2f minutes", ip_address, (config.client_block_time / 60))
-		await redis.setex(f"opsiconfd:stats:client:blocked:{ip_address_to_redis_key(ip_address)}", config.client_block_time, 1)
+		await redis.setex(f"{config.redis_key('stats')}:client:blocked:{ip_address_to_redis_key(ip_address)}", config.client_block_time, 1)
 
 
 async def check_network(client_addr: str) -> None:

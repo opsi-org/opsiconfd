@@ -37,9 +37,10 @@ from starlette.types import Receive, Scope, Send
 from opsiconfd.application.main import BaseMiddleware, app
 from opsiconfd.backend import get_mysql, get_unprotected_backend
 from opsiconfd.backend.rpc.opsiconfd import UnprotectedBackend
-from opsiconfd.config import REDIS_PREFIX_MESSAGEBUS, REDIS_PREFIX_SESSION, Config
+from opsiconfd.config import Config
 from opsiconfd.config import config as _config
 from opsiconfd.utils import Singleton
+from opsiconfd.worker import Worker
 
 ADMIN_USER = "adminuser"
 ADMIN_PASS = "adminuser"
@@ -124,25 +125,6 @@ def get_config(values: Union[Dict[str, Any], List[str]]) -> Generator[Config, No
 		_config._args = args  # pylint: disable=protected-access
 
 
-def clean_redis_keys() -> Tuple[str, ...]:
-	return (
-		"opsiconfd:stats:rpcs:deprecated:*",
-		"opsiconfd:stats:client:failed_auth",
-		"opsiconfd:stats:client:blocked",
-		"opsiconfd:stats:client",
-		"opsiconfd:stats:rpcs",
-		"opsiconfd:stats:num_rpcs",
-		"opsiconfd:stats:rpc",
-		# "opsiconfd:stats:node",
-		# "opsiconfd:stats:worker",
-		"opsiconfd:log",
-		"opsiconfd:jsonrpccache:*:products",
-		"opsiconfd:test_rpccache",
-		REDIS_PREFIX_SESSION,
-		REDIS_PREFIX_MESSAGEBUS
-	)
-
-
 @asynccontextmanager
 async def async_redis_client() -> AsyncGenerator[async_redis.StrictRedis, None]:  # pylint: disable=redefined-outer-name
 	redis_client = async_redis.StrictRedis.from_url(_config.redis_internal_url)
@@ -163,18 +145,14 @@ def sync_redis_client() -> Generator[redis.StrictRedis, None, None]:  # pylint: 
 
 async def async_clean_redis() -> None:
 	async with async_redis_client() as redis_client:
-		for redis_key in clean_redis_keys():  # pylint: disable=loop-global-usage
-			async for key in redis_client.scan_iter(f"{redis_key}:*"):
-				await redis_client.delete(key)
-			await redis_client.delete(redis_key)
+		async for key in redis_client.scan_iter(f"{_config.redis_key()}:*"):
+			await redis_client.delete(key)
 
 
 def sync_clean_redis() -> None:
 	with sync_redis_client() as redis_client:
-		for redis_key in clean_redis_keys():  # pylint: disable=loop-global-usage
-			for key in redis_client.scan_iter(f"{redis_key}:*"):  # pylint: disable=loop-invariant-statement
-				redis_client.delete(key)
-			redis_client.delete(redis_key)
+		for key in redis_client.scan_iter(f"{_config.redis_key()}:*"):
+			redis_client.delete(key)
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -182,6 +160,20 @@ def sync_clean_redis() -> None:
 async def clean_redis() -> AsyncGenerator[None, None]:  # pylint: disable=redefined-outer-name
 	await async_clean_redis()
 	yield None
+
+
+@pytest.fixture
+def worker_status() -> None:
+	worker = Worker._instance  # pylint: disable=protected-access
+	if not worker:
+		raise RuntimeError("No worker instance")
+	with sync_redis_client() as rclient:
+		rclient.hset(
+			f"{_config.redis_key('status')}:workers:{_config.node_name}:{worker.worker_num}",
+			key=None,
+			value=None,
+			mapping={"worker_pid": worker.pid, "node_name": _config.node_name, "worker_num": worker.worker_num},
+		)
 
 
 @pytest_asyncio.fixture(autouse=True)

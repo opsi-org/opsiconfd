@@ -15,17 +15,21 @@ import pytest
 from opsicommon.messagebus import Message  # type: ignore[import]
 
 from opsiconfd.messagebus.redis import (
-	REDIS_PREFIX_MESSAGEBUS,
 	ConsumerGroupMessageReader,
 	MessageReader,
 	send_message,
 )
 
-from .utils import async_redis_client, clean_redis  # pylint: disable=unused-import
+from .utils import (  # pylint: disable=unused-import
+	Config,
+	async_redis_client,
+	clean_redis,
+	config,
+)
 
 
 @pytest.mark.asyncio
-async def test_message_reader_processing() -> None:  # pylint: disable=redefined-outer-name
+async def test_message_reader_processing(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
 			self.received: List[Tuple[str, Message, bytes]] = []
@@ -46,12 +50,12 @@ async def test_message_reader_processing() -> None:  # pylint: disable=redefined
 		assert reader.received[0][1].type == "test"
 		assert reader.received[0][1].id == "1"
 
-		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
+		last_id = await redis_client.hget(f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
 		assert last_id is None
 
 		await reader.ack_message("host:test-123", reader.received[0][0])
 
-		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
+		last_id = await redis_client.hget(f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
 		assert last_id.decode("utf-8") == reader.received[0][0]  # type: ignore[union-attr]
 
 		await send_message(Message(id="2", type="test", sender="*", channel="host:test-123"), context=b"context_data")
@@ -70,7 +74,7 @@ async def test_message_reader_processing() -> None:  # pylint: disable=redefined
 		assert reader.received[2][1].id == "4"
 
 		await reader.ack_message("host:test-123", reader.received[2][0])
-		last_id = await redis_client.hget(f"{REDIS_PREFIX_MESSAGEBUS}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
+		last_id = await redis_client.hget(f"{config.redis_key('messagebus')}:channels:host:test-123:info", "last-delivered-id")  # pylint: disable=protected-access
 		assert last_id.decode("utf-8") == reader.received[2][0]  # type: ignore[union-attr]
 		reader.received = []
 
@@ -192,7 +196,7 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 
 
 @pytest.mark.asyncio
-async def test_message_reader_survives_recreate_channel() -> None:  # pylint: disable=redefined-outer-name
+async def test_message_reader_survives_recreate_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
 			self.received: List[Tuple[str, Message, bytes]] = []
@@ -215,8 +219,8 @@ async def test_message_reader_survives_recreate_channel() -> None:  # pylint: di
 		assert reader.received[1][1].id == "2"
 
 		reader.received = []
-		await redis_client.delete(f"{REDIS_PREFIX_MESSAGEBUS}:channels:terminal:123")
-		assert (await redis_client.exists(f"{REDIS_PREFIX_MESSAGEBUS}:channels:terminal:123")) == 0
+		await redis_client.delete(f"{config.redis_key('messagebus')}:channels:terminal:123")
+		assert (await redis_client.exists(f"{config.redis_key('messagebus')}:channels:terminal:123")) == 0
 
 		await asyncio.sleep(1)
 		await send_message(Message(id="3", type="test", sender="*", channel="host:test-123"))
@@ -231,7 +235,7 @@ async def test_message_reader_survives_recreate_channel() -> None:  # pylint: di
 		await asyncio.sleep(1)
 		await send_message(Message(id="5", type="test", sender="*", channel="host:test-123"))
 		await send_message(Message(id="6", type="test", sender="*", channel="terminal:123"))
-		assert (await redis_client.exists(f"{REDIS_PREFIX_MESSAGEBUS}:channels:terminal:123")) == 1
+		assert (await redis_client.exists(f"{config.redis_key('messagebus')}:channels:terminal:123")) == 1
 		await asyncio.sleep(3)
 
 		assert len(reader.received) == 2

@@ -189,6 +189,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		self._read_config()
 		self._loop = get_running_loop()
 		self._redis = None
+		self._redis_log_stream = f"{config.redis_key('log')}:{config.node_name}"
 		self._file_logs: Dict[str, AsyncFileHandler] = {}
 		self._file_log_active_lifetime = 30
 		self._file_log_lock = threading.Lock()
@@ -332,9 +333,8 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 	async def _start(self) -> None:
 		try:
 			self._redis = await get_async_redis_connection(config.redis_internal_url, timeout=30, test_connection=True)
-			stream_name = f"opsiconfd:log:{config.node_name}"
-			await self._redis.xtrim(name=stream_name, maxlen=10000, approximate=True)
-			self._loop.create_task(self._reader(stream_name=stream_name))
+			await self._redis.xtrim(name=self._redis_log_stream, maxlen=10000, approximate=True)
+			self._loop.create_task(self._reader())
 			self._loop.create_task(self._watch_log_files())
 
 		except Exception as err:  # pylint: disable=broad-except
@@ -342,7 +342,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 			if self._running_event:
 				self._running_event.set()
 
-	async def _reader(self, stream_name: str) -> None:  # pylint: disable=too-many-branches
+	async def _reader(self) -> None:  # pylint: disable=too-many-branches
 		if self._running_event:
 			self._running_event.set()
 
@@ -353,7 +353,9 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 				if not self._redis:
 					self._redis = await get_async_redis_connection(config.redis_internal_url)
 				# It is also possible to specify multiple streams
-				data = await self._redis.xread(streams={stream_name: last_id}, block=1000)  # pylint: disable=loop-invariant-statement
+				data = await self._redis.xread(  # pylint: disable=loop-invariant-statement
+					streams={self._redis_log_stream: last_id}, block=1000
+				)
 				if not data:
 					continue
 				if self._should_stop:
@@ -399,6 +401,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 		self._max_msg_len = max_msg_len
 		self._max_delay = max_delay
 		self._redis = get_redis_connection(config.redis_internal_url)
+		self._redis_log_stream = f"{config.redis_key('log')}:{config.node_name}"
 		self._queue: Queue = Queue()
 		self._should_stop = False
 		self._msgpack_encoder = msgspec.msgpack.Encoder()
@@ -410,17 +413,14 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 
 	def run(self) -> None:
 		try:
-			# Trim legacy stream to zero
-			self._redis.xtrim("opsiconfd:log", maxlen=0, approximate=False)
 			# Trim redis log stream to max size
-			self._redis.xtrim(f"opsiconfd:log:{config.node_name}", maxlen=LOG_STREAM_MAX_RECORDS, approximate=True)
+			self._redis.xtrim(f"{self._redis_log_stream}", maxlen=LOG_STREAM_MAX_RECORDS, approximate=True)
 			self._process_queue()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
 	@retry_redis_call
 	def _process_queue(self) -> None:
-		name = f"opsiconfd:log:{config.node_name}"
 		while not self._should_stop:
 			time.sleep(self._max_delay)  # pylint: disable=dotted-import-in-loop
 			if self._queue.qsize() > 0:  # pylint: disable=loop-invariant-statement
@@ -428,7 +428,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 				try:  # pylint: disable=loop-try-except-usage
 					while True:
 						pipeline.xadd(
-							name,
+							self._redis_log_stream,
 							self._queue.get_nowait(),
 							maxlen=LOG_STREAM_MAX_RECORDS,  # pylint: disable=loop-global-usage
 							approximate=True,

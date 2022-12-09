@@ -15,6 +15,7 @@ import msgspec
 from fastapi.responses import JSONResponse
 
 from opsiconfd.application.jsonrpc import store_rpc_info
+from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.utils import async_redis_client, decode_redis_result
 
@@ -51,7 +52,7 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 				date=datetime.utcnow(),
 				client_info="127.0.0.1/test-client",
 			)
-		rpc_list = await redis.lrange("opsiconfd:stats:rpcs", 0, 9999)
+		rpc_list = await redis.lrange(f"{config.redis_key('stats')}:rpcs", 0, 9999)
 		error_count = 0
 		for rpc in rpc_list:
 			rpc = msgspec.msgpack.decode(rpc)  # pylint: disable=dotted-import-in-loop
@@ -73,7 +74,7 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 		cpu = 0.0
 		for worker in workers:
 			redis_result = decode_redis_result(
-				await redis.execute_command(f"TS.GET opsiconfd:stats:worker:avg_cpu_percent:{worker}:minute")  # type: ignore[no-untyped-call]
+				await redis.execute_command(f"TS.GET {config.redis_key('stats')}:worker:avg_cpu_percent:{worker}:minute")  # type: ignore[no-untyped-call]
 			)
 			cpu += float(redis_result[1]) if redis_result else 0.0
 		cpu_avg = cpu / len(workers)
@@ -106,5 +107,6 @@ async def check_opsi_webservice(  # pylint: disable=too-many-branches, too-many-
 		return generate_response(state, message_str)
 
 	except Exception as err:  # pylint: disable=broad-except
+		logger.error(err, exc_info=True)
 		state = State.UNKNOWN
 		return generate_response(state, f"cannot check webservice state: '{str(err)}'.")

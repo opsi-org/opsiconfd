@@ -54,9 +54,6 @@ FQDN = socket.getfqdn().lower()
 DEFAULT_NODE_NAME = socket.gethostname()
 VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
-REDIS_PREFIX_MESSAGEBUS = "opsiconfd:messagebus"
-REDIS_PREFIX_SESSION = "opsiconfd:session"
-REDIS_PREFIX_RPC_CACHE = "opsiconfd:rpccache"
 GC_THRESHOLDS = (150_000, 50, 100)
 OPSI_PASSWD_FILE = "/etc/opsi/passwd"
 LOG_DIR = "/var/log/opsi"
@@ -249,6 +246,11 @@ class Config(metaclass=Singleton):
 				self._config.skip_setup.append("server_cert")
 		if not self._config.admin_interface_disabled_features:
 			self._config.admin_interface_disabled_features = []
+
+	def redis_key(self, prefix_type: str | None = None) -> str:
+		if not prefix_type:
+			return self._config.redis_prefix
+		return f"{self._config.redis_prefix}:{prefix_type}"
 
 	def reload(self) -> None:
 		self._parse_args()
@@ -774,6 +776,12 @@ class Config(metaclass=Singleton):
 				"rediss://<username>:<password>@redis-server:6379/0\n"
 				"unix:///var/run/redis/redis-server.sock"
 			),
+		)
+		self._parser.add(
+			"--redis-prefix",
+			env_var="OPSICONFD_REDIS_PREFIX",
+			default="opsiconfd",
+			help=self._expert_help("Prefix for redis keys"),
 		)
 		self._parser.add(
 			"--grafana-internal-url",

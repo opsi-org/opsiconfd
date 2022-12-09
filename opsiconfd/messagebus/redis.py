@@ -25,7 +25,7 @@ from redis.asyncio import StrictRedis
 from redis.exceptions import ResponseError
 from redis.typing import StreamIdT
 
-from ..config import REDIS_PREFIX_MESSAGEBUS
+from ..config import config
 from ..logging import get_logger
 from ..utils import async_redis_client
 
@@ -44,16 +44,16 @@ async def cleanup_channels() -> None:
 	# remove_channels = []
 
 	# active_sessions = []
-	# async for key in redis.scan_iter(f"{REDIS_PREFIX_SESSION}:*"):
+	# async for key in redis.scan_iter(f"{config.redis_prefix('session')}:*"):
 	# 	active_sessions.append(key.decode("utf-8").rsplit(":", 1)[-1])
 
-	# async for _key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:session:*"):
+	# async for _key in redis.scan_iter(f"{config.redis_prefix('messagebus')}:channels:session:*"):
 	# 	reader_count = await redis.hget(key + CHANNEL_INFO_SUFFIX, "reader-count")
 	# 	if session_id not in active_sessions:
 	# 		debug("Removing %s (session not found)", key)
 	# 		remove_channels.append(key)
 
-	# async for key in redis.scan_iter(f"{REDIS_PREFIX_MESSAGEBUS}:channels:terminal:*"):
+	# async for key in redis.scan_iter(f"{config.redis_prefix('messagebus')}:channels:terminal:*"):
 	# 	info = await redis.xinfo_stream(key)
 	# 	timestamp = int(info["last-generated-id"].decode("utf-8").split("-")[0]) / 1000
 	# 	if now - timestamp > TERMINAL_CHANNEL_MAX_IDLE:
@@ -72,7 +72,7 @@ async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: 
 	fields = {"message": msgpack_data}
 	if context_data:
 		fields["context"] = context_data
-	await redis.xadd(f"{REDIS_PREFIX_MESSAGEBUS}:channels:{channel}", fields=fields)  # type: ignore[arg-type]
+	await redis.xadd(f"{config.redis_key('messagebus')}:channels:{channel}", fields=fields)  # type: ignore[arg-type]
 
 
 _context_encoder = msgspec.msgpack.Encoder()
@@ -92,7 +92,7 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str | Non
 	redis = await async_redis_client()
 	session_id = str(UUID(session_id) if session_id else uuid4())
 	channel = f"session:{session_id}"
-	stream_key = f"{REDIS_PREFIX_MESSAGEBUS}:channels:{channel}".encode("utf-8")
+	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode("utf-8")
 	exists = await redis.exists(stream_key)
 	if exists:
 		if not exists_ok:
@@ -120,7 +120,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		self._channels = channels or {}
 		self._default_stream_id = default_stream_id
 		self._streams: dict[bytes, StreamIdT] = {}
-		self._key_prefix = f"{REDIS_PREFIX_MESSAGEBUS}:channels"
+		self._key_prefix = f"{config.redis_key('messagebus')}:channels"
 		self._should_stop = False
 		self._context_decoder = msgspec.msgpack.Decoder()
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Generator, List
 
+from ..config import config
 from ..grafana import GrafanaPanelConfig
 from ..utils import Singleton
 
@@ -77,7 +78,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		self.time_related = time_related
 		self.subject = subject
 		self.grafana_config = grafana_config
-		self.redis_key = self.redis_key_prefix = f"opsiconfd:stats:{id}"
+		self.redis_key = self.redis_key_prefix = f"{config.redis_key('stats')}:{id}"
 		self.downsampling = downsampling
 		for var in self.vars:
 			self.redis_key += ":{" + var + "}"
@@ -115,178 +116,179 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		return match.groupdict(match)
 
 
-METRICS = (
-	Metric(
-		id="worker:sum_jsonrpc_number",
-		name="Average RPCs processed by worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
-		aggregation="sum",
-		zero_if_missing="continuous",
-		time_related=True,
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", units=["short"], decimals=0, stack=True, yaxis_min=0),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="worker:avg_jsonrpc_duration",
-		name="Average duration of RPCs processed by worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=24 * 3600 * 1000,
-		aggregation="avg",
-		zero_if_missing="one",
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", units=["s"], decimals=0),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="node:avg_load",
-		name="Average system load on {node_name}",
-		vars=["node_name"],
-		retention=2 * 3600 * 1000,
-		aggregation="avg",
-		zero_if_missing=None,
-		subject="node",
-		grafana_config=GrafanaPanelConfig(title="System load", units=["short"], decimals=2, stack=False),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="worker:avg_mem_allocated",
-		name="Average memory usage of worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=2 * 3600 * 1000,
-		aggregation="avg",
-		zero_if_missing=None,
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], decimals=2, stack=True),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="worker:avg_cpu_percent",
-		name="Average CPU usage of worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=2 * 3600 * 1000,
-		aggregation="avg",
-		zero_if_missing=None,
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Worker CPU usage", units=["percent"], decimals=1, stack=True),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="worker:avg_thread_number",
-		name="Average threads of worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=2 * 3600 * 1000,
-		aggregation="avg",
-		zero_if_missing=None,
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Worker threads", units=["short"], decimals=0, stack=True),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="worker:avg_filehandle_number",
-		name="Average filehandles of worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=2 * 3600 * 1000,
-		aggregation="avg",
-		zero_if_missing=None,
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="Worker filehandles", units=["short"], decimals=0, stack=True),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="worker:sum_http_request_number",
-		name="Average HTTP requests of worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=2 * 3600 * 1000,
-		aggregation="sum",
-		zero_if_missing="continuous",
-		time_related=True,
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="HTTP requests/s", units=["short"], decimals=0, stack=True),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="worker:avg_http_response_bytes",
-		name="Average HTTP response size of worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=2 * 3600 * 1000,
-		aggregation="avg",
-		zero_if_missing="one",
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="worker:avg_http_request_duration",
-		name="Average duration of HTTP requests processed by worker {worker_num} on {node_name}",
-		vars=["node_name", "worker_num"],
-		retention=2 * 3600 * 1000,
-		aggregation="avg",
-		zero_if_missing="one",
-		subject="worker",
-		grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", units=["s"], decimals=0),
-		downsampling=[
-			["minute", 24 * 3600 * 1000, "avg"],
-			["hour", 60 * 24 * 3600 * 1000, "avg"],
-			["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
-		],
-	),
-	Metric(
-		id="client:sum_http_request_number",
-		name="HTTP requests of Client {client_addr}",
-		vars=["client_addr"],
-		retention=24 * 3600 * 1000,
-		aggregation="sum",
-		zero_if_missing="one",
-		time_related=True,
-		subject="client",
-		# Deactivating for now because it slows down grafana a lot in big environments.
-		# grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
+def _get_metrics() -> tuple[Metric, ...]:
+	return (
+		Metric(
+			id="worker:sum_jsonrpc_number",
+			name="Average RPCs processed by worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=24 * 3600 * 1000,
+			aggregation="sum",
+			zero_if_missing="continuous",
+			time_related=True,
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(title="JSONRPCs/s", units=["short"], decimals=0, stack=True, yaxis_min=0),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="worker:avg_jsonrpc_duration",
+			name="Average duration of RPCs processed by worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=24 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing="one",
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(type="heatmap", title="JSONRPC duration", units=["s"], decimals=0),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="node:avg_load",
+			name="Average system load on {node_name}",
+			vars=["node_name"],
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing=None,
+			subject="node",
+			grafana_config=GrafanaPanelConfig(title="System load", units=["short"], decimals=2, stack=False),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="worker:avg_mem_allocated",
+			name="Average memory usage of worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing=None,
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(title="Worker memory usage", units=["decbytes"], decimals=2, stack=True),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="worker:avg_cpu_percent",
+			name="Average CPU usage of worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing=None,
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(title="Worker CPU usage", units=["percent"], decimals=1, stack=True),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="worker:avg_thread_number",
+			name="Average threads of worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing=None,
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(title="Worker threads", units=["short"], decimals=0, stack=True),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="worker:avg_filehandle_number",
+			name="Average filehandles of worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing=None,
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(title="Worker filehandles", units=["short"], decimals=0, stack=True),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="worker:sum_http_request_number",
+			name="Average HTTP requests of worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=2 * 3600 * 1000,
+			aggregation="sum",
+			zero_if_missing="continuous",
+			time_related=True,
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(title="HTTP requests/s", units=["short"], decimals=0, stack=True),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="worker:avg_http_response_bytes",
+			name="Average HTTP response size of worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing="one",
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(title="HTTP response size", units=["decbytes"], stack=True),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="worker:avg_http_request_duration",
+			name="Average duration of HTTP requests processed by worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing="one",
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(type="heatmap", title="HTTP request duration", units=["s"], decimals=0),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="client:sum_http_request_number",
+			name="HTTP requests of Client {client_addr}",
+			vars=["client_addr"],
+			retention=24 * 3600 * 1000,
+			aggregation="sum",
+			zero_if_missing="one",
+			time_related=True,
+			subject="client",
+			# Deactivating for now because it slows down grafana a lot in big environments.
+			# grafana_config=GrafanaPanelConfig(title="Client HTTP requests/s", units=["short"], decimals=0, stack=False)
+		)
 	)
-)
 
 
 class MetricsRegistry(metaclass=Singleton):
 	def __init__(self) -> None:
 		self._metrics_by_id: Dict[str, Metric] = {}
-		self.register(*METRICS)
+		self.register(*_get_metrics())
 
 	def register(self, *metric: Metric) -> None:
 		for met in metric:

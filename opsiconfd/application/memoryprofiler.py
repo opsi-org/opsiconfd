@@ -168,10 +168,11 @@ async def memory_info() -> JSONResponse:
 	timestamp = int(time.time() * 1000)
 	node = config.node_name
 
+	redis_prefix_stats = config.redis_key("stats")
 	async with redis.pipeline() as pipe:
 		value = msgspec.msgpack.encode({"memory_summary": memory_summary, "timestamp": timestamp})  # pylint: disable=c-extension-no-member
-		await pipe.lpush(f"opsiconfd:stats:memory:summary:{node}", value)
-		await pipe.ltrim(f"opsiconfd:stats:memory:summary:{node}", 0, 9)
+		await pipe.lpush(f"{redis_prefix_stats}:memory:summary:{node}", value)
+		await pipe.ltrim(f"{redis_prefix_stats}:memory:summary:{node}", 0, 9)
 		redis_result = await pipe.execute()
 	logger.debug("redis lpush memory summary: %s", redis_result)
 
@@ -200,7 +201,7 @@ async def delte_memory_snapshot() -> JSONResponse:
 	redis = await async_redis_client()
 	node = config.node_name
 
-	await redis.delete(f"opsiconfd:stats:memory:summary:{node}")
+	await redis.delete(f"{config.redis_key('stats')}:memory:summary:{node}")
 
 	global MEMORY_TRACKER  # pylint: disable=global-statement
 	MEMORY_TRACKER = None
@@ -216,9 +217,11 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 	if not MEMORY_TRACKER:
 		MEMORY_TRACKER = tracker.SummaryTracker()
 
+	redis_prefix_stats = config.redis_key("stats")
+
 	redis = await async_redis_client()
 	node = config.node_name
-	snapshot_count = await redis.llen(f"opsiconfd:stats:memory:summary:{node}")
+	snapshot_count = await redis.llen(f"{redis_prefix_stats}:memory:summary:{node}")
 
 	if snapshot1 < 0:
 		start = abs(snapshot1) - 1
@@ -230,9 +233,9 @@ async def get_memory_diff(snapshot1: int = 1, snapshot2: int = -1) -> JSONRespon
 	else:
 		end = snapshot_count - snapshot2
 
-	redis_result = await redis.lindex(f"opsiconfd:stats:memory:summary:{node}", start)
+	redis_result = await redis.lindex(f"{redis_prefix_stats}:memory:summary:{node}", start)
 	snapshot1 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")  # pylint: disable=c-extension-no-member
-	redis_result = await redis.lindex(f"opsiconfd:stats:memory:summary:{node}", end)
+	redis_result = await redis.lindex(f"{redis_prefix_stats}:memory:summary:{node}", end)
 	snapshot2 = msgspec.msgpack.decode(redis_result or b"").get("memory_summary")  # pylint: disable=c-extension-no-member
 	memory_summary = sorted(MEMORY_TRACKER.diff(summary1=snapshot1, summary2=snapshot2), key=lambda x: x[2], reverse=True)
 

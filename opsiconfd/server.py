@@ -21,7 +21,7 @@ from . import __version__
 from .backend import get_unprotected_backend
 from .config import config
 from .logging import init_logging, logger
-from .utils import get_redis_connection, retry_redis_call
+from .utils import redis_client
 from .worker import Worker
 
 
@@ -223,12 +223,10 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 			while len(self.workers) > config.workers:
 				self.stop_worker([self.workers[-1].pid])
 
-	@retry_redis_call
 	def update_worker_registry(self) -> None:
-		redis = get_redis_connection(config.redis_internal_url)
-		with self.worker_update_lock:
+		with (self.worker_update_lock, redis_client() as redis):
 			for worker in self.workers:
-				redis_key = f"opsiconfd:worker_registry:{self.node_name}:{worker.worker_num}"
+				redis_key = f"{config.redis_key('status')}:workers:{self.node_name}:{worker.worker_num}"
 				redis.hset(
 					redis_key,
 					key=None,
@@ -237,7 +235,9 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 				)
 				redis.expire(redis_key, 60)
 
-			for redis_key_b in redis.scan_iter(f"opsiconfd:worker_registry:{self.node_name}:*"):  # pylint: disable=loop-invariant-statement
+			for redis_key_b in redis.scan_iter(
+				f"{config.redis_key('status')}:workers:{self.node_name}:*"
+			):  # pylint: disable=loop-invariant-statement
 				redis_key = redis_key_b.decode("utf-8")
 				try:  # pylint: disable=loop-try-except-usage
 					worker_num = int(redis_key.split(":")[-1])

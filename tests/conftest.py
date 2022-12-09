@@ -26,15 +26,14 @@ from _pytest.main import Session
 from _pytest.nodes import Item
 from pytest import fixture, hookimpl, skip
 
-import opsiconfd.backend.rpc.cache
-import opsiconfd.config
-import opsiconfd.messagebus.redis
 from opsiconfd.application.main import application_setup
 from opsiconfd.config import config as _config
 from opsiconfd.grafana import GRAFANA_DB, grafana_is_local
 from opsiconfd.manager import Manager
 from opsiconfd.setup import setup_ssl
 from opsiconfd.worker import Worker
+
+from .utils import sync_clean_redis
 
 GRAFANA_AVAILABLE = False
 
@@ -58,11 +57,12 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-argument
 	global GRAFANA_AVAILABLE  # pylint: disable=global-statement
 
-	opsiconfd.config.REDIS_PREFIX_MESSAGEBUS = opsiconfd.messagebus.redis.REDIS_PREFIX_MESSAGEBUS = "opsiconfd:test_messagebus"
-	opsiconfd.config.REDIS_PREFIX_RPC_CACHE = opsiconfd.backend.rpc.cache.REDIS_PREFIX_RPC_CACHE = "opsiconfd:test_rpccache"
+	sync_clean_redis()
 
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()
+	# Need to use other redis key prefix to not interfere with an running opsiconfd with same test config
+	_config._config.redis_prefix = "pytest"  # pylint: disable=protected-access
 
 	ssl_dir = mkdtemp()
 	_config.ssl_ca_key = os.path.join(ssl_dir, "opsi-ca-key.pem")
@@ -80,6 +80,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 		setup_ssl()
 
 	Worker._instance = Worker(1)  # pylint: disable=protected-access
+
 	application_setup()
 
 
@@ -91,6 +92,8 @@ def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: 
 			shutil.rmtree(ssl_dir)
 		except PermissionError:
 			pass
+
+	sync_clean_redis()
 
 
 @hookimpl()

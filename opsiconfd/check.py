@@ -271,14 +271,15 @@ def print_check_mysql_result(check_result: dict) -> None:
 
 @messages("Checking calls of deprecated methods", MSG_WIDTH)
 def check_deprecated_calls(print_messages: bool = False) -> dict:  # pylint: disable=unused-argument
+	redis_prefix_stats = config.redis_key('stats')
 	deprecated_calls = {}
 	with redis_client(timeout=5) as redis:
-		methods = redis.smembers("opsiconfd:stats:rpcs:deprecated:methods")
+		methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
 		for method_name in methods:
 			method_name = method_name.decode("utf-8")
-			calls = decode_redis_result(redis.get(f"opsiconfd:stats:rpcs:deprecated:{method_name}:count"))
-			clients = decode_redis_result(redis.smembers(f"opsiconfd:stats:rpcs:deprecated:{method_name}:clients"))
-			last_call = decode_redis_result(redis.get(f"opsiconfd:stats:rpcs:deprecated:{method_name}:last_call"))
+			calls = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count"))
+			clients = decode_redis_result(redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients"))
+			last_call = decode_redis_result(redis.get(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call"))
 			deprecated_calls[method_name] = {"calls": calls, "last_call": last_call, "clients": clients}
 	if not deprecated_calls:
 		return {"status": "ok", "message": "No deprecated method calls found."}

@@ -19,6 +19,8 @@ from opsiconfd.utils import (
 	redis_connection_pool,
 )
 
+from .utils import Config, config  # pylint: disable=unused-import
+
 
 @pytest.mark.asyncio
 async def test_async_redis_pool() -> None:
@@ -44,10 +46,10 @@ async def test_async_redis_pool() -> None:
 
 
 @pytest.mark.asyncio
-async def test_async_redis_pipeline() -> None:
+async def test_async_redis_pipeline(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	redis = await async_redis_client()
 	async with redis.pipeline() as pipe:
-		pipe.scan_iter("opsiconfd:*")
+		pipe.scan_iter(f"{config.redis_key()}:*")
 		await pipe.execute()
 
 

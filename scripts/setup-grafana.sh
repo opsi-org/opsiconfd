@@ -29,6 +29,8 @@ while ! nc -v -z -w3 localhost 3000 >/dev/null 2>&1; do
 	sleep 1
 done
 
+sudo chmod u+rwX,g+rwX,o+rwX -R /var/lib/grafana
+
 # echo "* Updating grafana admin user"
 # curl -XPOST -H "Content-Type: application/json" -d '{
 #   "name":"'${GF_SECURITY_ADMIN_USER}'",

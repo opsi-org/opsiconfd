@@ -25,6 +25,7 @@ from argparse import (
 	HelpFormatter,
 	_ArgumentGroup,
 )
+from datetime import datetime
 from typing import Any, Dict, Iterable, List, Union
 from urllib.parse import urlparse
 
@@ -114,7 +115,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		CY = "\033[0;33;49m"
 
 	def __init__(self, sub_command: str | None = None) -> None:
-		super().__init__("opsiconfd", max_help_position=30, width=100)
+		super().__init__("opsiconfd", max_help_position=10, width=100)
 		self._sub_command = sub_command
 
 	def _split_lines(self, text: str, width: int) -> List[str]:
@@ -212,7 +213,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._ex_help = conf[0].ex_help
 			if self._ex_help and "--help" not in self._args:
 				self._args.append("--help")
-			self._sub_command = conf[0].action if conf[0].action in ("health-check", "log-viewer") else None
+			self._sub_command = conf[0].action if conf[0].action in ("health-check", "log-viewer", "setup", "backup", "restore") else None
 		except BaseException:  # pylint: disable=broad-except
 			pass
 
@@ -224,14 +225,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 
 		self._parse_args()
 
-	def _help(self, help_type: str, help_text: str) -> str:
-		if help_type == "expert":
+	def _help(self, help_type: str | tuple[str, ...], help_text: str) -> str:
+		help_type = help_type if isinstance(help_type, tuple) else (help_type,)
+		if "expert" in help_type:
 			return help_text if self._ex_help and self._sub_command is None else SUPPRESS
 
-		if help_type == "all" or not self._sub_command:
+		if "all" in help_type or not self._sub_command:
 			return help_text
 
-		return help_text if help_type == self._sub_command else SUPPRESS
+		return help_text if self._sub_command in help_type else SUPPRESS
 
 	def _parse_args(self) -> None:
 		if not self._parser:
@@ -253,6 +255,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		if not self._config.ssl_server_key_passphrase:
 			# Use None if empty string
 			self._config.ssl_server_key_passphrase = None
+
+		secret_filter.add_secrets(self._config.ssl_ca_key_passphrase, self._config.ssl_server_key_passphrase)
 
 		scheme = "http"
 		if self._config.ssl_server_key and self._config.ssl_server_cert:
@@ -409,11 +413,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					file.write(new_data)
 
 	def _init_parser(self) -> None:  # pylint: disable=too-many-statements
-		#  {self._sub_command}
-		# _prog_prefix
 		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))
 
-		self._parser.add("--detailed", action="store_true", help=self._help("health-check", "Print details to each check."))
+		self._parser.add("--detailed", action="store_true", help=self._help("health-check", "Print details of each check."))
 		self._parser.add(
 			"-c",
 			"--config-file",
@@ -833,7 +835,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			env_var="OPSICONFD_SKIP_SETUP",
 			default=None,
 			help=self._help(
-				"opsiconfd",
+				("opsiconfd", "setup"),
 				"A list of setup tasks to skip "
 				"(tasks: all, limits, users, groups, grafana, backend, ssl, server_cert, opsi_ca, "
 				"systemd, files, file_permissions, log_files, metric_downsampling).",
@@ -1011,15 +1013,53 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		else:
 			self._parser.add(
 				"action",
-				nargs="?",
-				choices=("start", "stop", "force-stop", "status", "restart", "reload", "setup", "log-viewer", "health-check"),
-				default="start",
+				nargs=None if self._sub_command else "?",
+				choices=(
+					"start",
+					"stop",
+					"force-stop",
+					"status",
+					"restart",
+					"reload",
+					"setup",
+					"log-viewer",
+					"health-check",
+					"backup",
+					"restore",
+				),
+				default=self._sub_command or "start",
 				metavar="ACTION",
 				help=self._help(
 					"opsiconfd",
-					"The ACTION to perform (start / force-stop / stop / status / restart / reload / setup / log-viewer / health-check).",
+					"The ACTION to perform:\n"
+					"start:         Start opsiconfd.\n"
+					"stop:          Stop opsiconfd, wait for connections to complete.\n"
+					"force-stop:    Force stop opsiconfd, close all connections.\n"
+					"status:        Get opsiconfd running status.\n"
+					"restart:       Restart opsiconfd.\n"
+					"reload:        Reload config from file.\n"
+					"setup:         Run setup tasks.\n"
+					"log-viewer:    Show log stream on console.\n"
+					"health-check:  Run a health-check.\n"
+					"backup:        Run backup.\n"
+					"restore:       Restore backup.\n",
 				),
 			)
+			if self._sub_command == "backup":
+				now = datetime.now().strftime("%Y%m%d-%H%M%S")
+				self._parser.add(
+					"backup_file",
+					nargs="?",
+					default=f"opsiconfd-backup-{now}.msgpack",
+					metavar="BACKUP_FILE",
+					help=self._help("backup", "The BACKUP_FILE to write to."),
+				)
+			elif self._sub_command == "restore":
+				self._parser.add(
+					"backup_file",
+					metavar="BACKUP_FILE",
+					help=self._help("backup", "The BACKUP_FILE to restore from."),
+				)
 
 
 config = Config()

@@ -18,23 +18,20 @@ import signal
 import sys
 import threading
 import time
+from pathlib import Path
 
 import uvloop
+from msgspec.msgpack import decode, encode
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 from opsicommon.logging.constants import NONE  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
 
 from . import __version__
+from .backup import create_backup, restore_backup
 from .check import health_check
 from .config import GC_THRESHOLDS, config, opsi_config
-from .logging import (
-	AsyncRedisLogAdapter,
-	init_logging,
-	logger,
-	secret_filter,
-	shutdown_logging,
-)
+from .logging import AsyncRedisLogAdapter, init_logging, logger, shutdown_logging
 from .manager import Manager
 from .patch import apply_patches
 from .setup import setup
@@ -50,37 +47,65 @@ async def log_viewer() -> None:
 		await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 
-def main() -> None:  # pylint: disable=too-many-statements, too-many-branches too-many-locals, too-many-return-statements
-	secret_filter.add_secrets(config.ssl_ca_key_passphrase, config.ssl_server_key_passphrase)
-	monkeypatch_subprocess_for_frozen()
+def setup_main() -> None:
+	init_logging(log_mode="local")
+	logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
+	setup(full=True)
 
-	if config.version:
-		print(f"{__version__} [python-opsi={python_opsi_version}]")
-		return
 
-	if config.action == "setup":
-		init_logging(log_mode="local")
-		logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
-		setup(full=True)
-		return
+def log_viewer_main() -> None:
+	try:
+		asyncio.run(log_viewer())
+	except KeyboardInterrupt:
+		pass
 
-	if config.action == "log-viewer":
-		try:
-			asyncio.run(log_viewer())
-		except KeyboardInterrupt:
-			pass
-		return
 
-	if config.action == "health-check":
+def health_check_main() -> None:
+	config.log_level_file = NONE
+	init_logging(log_mode="local")
+	result = health_check(print_messages=True)
+	if result.get("status") == "ok":
+		sys.exit(0)
+	if result.get("status") == "warn":
+		sys.exit(2)
+	sys.exit(1)
+
+
+def backup_main() -> None:
+	try:
 		config.log_level_file = NONE
 		init_logging(log_mode="local")
-		result = health_check(print_messages=True)
-		if result.get("status") == "ok":
-			sys.exit(0)
-		if result.get("status") == "warn":
-			sys.exit(2)
+		backup_file = Path(config.backup_file)
+		if backup_file.exists():
+			raise FileExistsError(f"Backup file '{str(backup_file)}' already exists")
+		with open(config.backup_file, "wb") as file:
+			file.write(encode(create_backup()))
+		print(f"Backup file '{str(backup_file)}' succesfully created.")
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error(err, exc_info=True)
+		print(f"Failed to create backup file '{str(backup_file)}': {err}.")
 		sys.exit(1)
+	sys.exit(0)
 
+
+def restore_main() -> None:
+	try:
+		config.log_level_file = NONE
+		init_logging(log_mode="local")
+		backup_file = Path(config.backup_file)
+		if not backup_file.exists():
+			raise FileExistsError(f"Backup file '{str(backup_file)}' not found")
+		with open(config.backup_file, "rb") as file:
+			restore_backup(decode(file.read()))
+		print(f"Backup file '{str(backup_file)}' succesfully restored.")
+	except Exception as err:  # pylint: disable=broad-except
+		logger.error(err, exc_info=True)
+		print(f"Failed to restore backup from '{str(backup_file)}': {err}")
+		sys.exit(1)
+	sys.exit(0)
+
+
+def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-branches
 	manager_pid = get_manager_pid(ignore_self=True)
 	if config.action == "start" and manager_pid:
 		raise RuntimeError(f"Opsiconfd manager process already running (pid {manager_pid})")
@@ -163,3 +188,28 @@ def main() -> None:  # pylint: disable=too-many-statements, too-many-branches to
 			if stop:
 				stop()
 				thread.join(1)
+
+
+def main() -> None:  # pylint: disable=too-many-return-statements
+	monkeypatch_subprocess_for_frozen()
+
+	if config.version:
+		print(f"{__version__} [python-opsi={python_opsi_version}]")
+		return None
+
+	if config.action == "setup":
+		return setup_main()
+
+	if config.action == "log-viewer":
+		return log_viewer_main()
+
+	if config.action == "health-check":
+		return health_check_main()
+
+	if config.action == "backup":
+		return backup_main()
+
+	if config.action == "restore":
+		return restore_main()
+
+	return opsiconfd_main()

@@ -146,9 +146,22 @@ def restore_backup(data: dict[str, dict[str, Any]], config_files: bool = True) -
 	update_database(mysql)
 
 	backend = get_unprotected_backend()
+	num_objects = sum(len(objs) for objs in data["objects"].values())
+	object_num = 0
 	for obj_class in OBJECT_CLASSES:  # pylint: disable=loop-global-usage
 		objects = data["objects"].get(obj_class)
 		if not objects:
 			continue
-		method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_createObjects")
-		method(objects)
+
+		# method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_createObjects")
+		# method(objects)
+
+		method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_insertObject")
+		for obj in objects:
+			object_num += 1
+			# print(f"{object_num}/{num_objects}")
+			logger.trace("Insert %s object: %s", obj_class, obj)
+			try:  # pylint: disable=loop-try-except-usage
+				method(obj)
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error(err)

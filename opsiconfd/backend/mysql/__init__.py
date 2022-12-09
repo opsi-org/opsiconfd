@@ -11,7 +11,6 @@ opsiconfd.backend.mysql
 from __future__ import annotations
 
 import re
-from collections import namedtuple
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
@@ -48,8 +47,9 @@ from sqlalchemy.engine.base import Connection  # type: ignore[import]
 from sqlalchemy.engine.result import Result  # type: ignore[import]
 from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
-from sqlalchemy.exc import ProgrammingError  # type: ignore[import]
+from sqlalchemy.exc import DatabaseError  # type: ignore[import]
 from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
+from sqlalchemy.util import EMPTY_DICT, immutabledict
 
 from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.config import config
@@ -67,6 +67,35 @@ class ColumnInfo:
 	column: str
 	client_id_column: bool
 	select: str | None
+
+class MySQLSession(Session):
+	def execute(
+		self,
+		statement: str,
+		params: Any | None = None,
+		execution_options: immutabledict = EMPTY_DICT,
+		bind_arguments: Any | None = None,
+		_parent_execute_state: Any | None = None,
+		_add_event: Any | None = None,
+		**kw: Any
+	) -> Result:
+		with server_timing("database") as timing:
+			try:
+				result = super().execute(
+					statement=statement,
+					params=params,
+					execution_options=execution_options,
+					bind_arguments=bind_arguments,
+					_parent_execute_state=_parent_execute_state,
+					_add_event=_add_event,
+					*kw
+				)
+				logger.trace("Statement %r with params %r took %0.4f ms", statement, params, timing["database"])
+				return result
+			except DatabaseError as err:
+				logger.trace("Failed statement %r with params %r: %s", statement, params, err.__cause__, exc_info=True)
+				raise
+
 
 
 class MySQLConnection:  # pylint: disable=too-many-instance-attributes
@@ -110,7 +139,6 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self._connection_pool_timeout = 30
 		self._connection_pool_recycling_seconds = -1
 		self._unique_hardware_addresses = True
-		self._log_queries = False
 
 		self._Session: scoped_session | None = lambda: None  # pylint: disable=invalid-name
 		self._session_factory = None
@@ -194,11 +222,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		if not self._engine:
 			raise RuntimeError("Failed to create engine")
 
-		self._engine._should_log_info = lambda: self._log_queries  # pylint: disable=protected-access
-
 		listen(self._engine, "engine_connect", self._on_engine_connect)
 
-		self._session_factory = sessionmaker(bind=self._engine, autocommit=False, autoflush=False)
+		self._session_factory = sessionmaker(bind=self._engine, class_=MySQLSession, autocommit=False, autoflush=False)
 		self._Session = scoped_session(self._session_factory)  # pylint: disable=invalid-name
 
 		# Test connection
@@ -579,13 +605,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 		with self.session() as session:
 			query = f"{query} {where} {group_by}"
-			try:
-				with server_timing("database") as timing:
-					result = session.execute(query, params=params).fetchall()
-				logger.trace("Query %r took %0.2f ms", query, timing["database"])
-			except ProgrammingError as err:
-				logger.error("Query %r failed: %s", query, err)
-				raise
+			result = session.execute(query, params=params).fetchall()
 
 			l_aggregates = list(aggregates)
 
@@ -703,10 +723,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
 		if query:
 			with self.session() as session:
-				with server_timing("database") as timing:
-					result = session.execute(query, params=params)
-					logger.trace("Query %r took %0.2f ms", query, timing["database"])
-					return result.lastrowid
+				result = session.execute(query, params=params)
+				return result.lastrowid
 		return None
 
 	def delete_query(  # pylint: disable=too-many-locals
@@ -775,6 +793,5 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	) -> None:
 		query, params, _idents = self.delete_query(table=table, object_type=object_type, obj=obj, ace=ace)
 		with self.session() as session:
-			with server_timing("database") as timing:
-				session.execute(query, params=params)
-				logger.trace("Query %r took %0.2f ms", query, timing["database"])
+			session.execute(query, params=params)
+

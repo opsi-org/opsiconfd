@@ -25,7 +25,7 @@ class RPCProductPropertyMixin(Protocol):
 	def _product_property_insert_object(
 		self: BackendProtocol, product_property: ProductProperty, ace: List[RPCACE], create: bool = True, set_null: bool = True
 	) -> None:
-		query, data = self._mysql.insert_query(table="CONFIG", obj=product_property, ace=ace, create=create, set_null=set_null)
+		query, data = self._mysql.insert_query(table="PRODUCT_PROPERTY", obj=product_property, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session() as session:
 			session.execute(
 				"""

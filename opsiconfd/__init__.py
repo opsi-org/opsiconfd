@@ -56,5 +56,5 @@ def server_timing(timing_name: str) -> Generator[dict[str, float], None, None]:
 	start = perf_counter()
 	yield val
 	end = perf_counter()
-	val[timing_name] = (end - start) * 1000
+	val[timing_name] += (end - start) * 1000
 	contextvar_server_timing.set(val)

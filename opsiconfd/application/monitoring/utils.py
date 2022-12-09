@@ -85,7 +85,9 @@ async def get_thread_count(redis: StrictRedis) -> float:
 	threads = 0.0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis.execute_command(f"TS.GET {config.redis_key('stats')}:worker:avg_thread_number:{worker}:minute")  # type: ignore[no-untyped-call]
+			await redis.execute_command(  # type: ignore[no-untyped-call]
+				f"TS.GET {config.redis_key('stats')}:worker:avg_thread_number:{worker}:minute"
+			)
 		)
 		if len(redis_result) == 0:
 			redis_result = 0
@@ -98,7 +100,9 @@ async def get_mem_allocated(redis: StrictRedis) -> float:
 	mem_allocated = 0.0
 	for worker in workers:
 		redis_result = decode_redis_result(
-			await redis.execute_command(f"TS.GET {config.redis_key('stats')}:worker:avg_thread_number:{worker}:minute")  # type: ignore[no-untyped-call]
+			await redis.execute_command(  # type: ignore[no-untyped-call]
+				f"TS.GET {config.redis_key('stats')}:worker:avg_thread_number:{worker}:minute"
+			)
 		)
 		if len(redis_result) == 0:
 			redis_result = 0

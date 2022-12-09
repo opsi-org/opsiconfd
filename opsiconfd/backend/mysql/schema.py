@@ -15,7 +15,11 @@ from typing import TYPE_CHECKING, Callable, Literal
 
 from opsiconfd.logging import logger
 
-from .cleanup import remove_orphans_config_value, remove_orphans_product_property_value
+from .cleanup import (
+	remove_orphans_config_value,
+	remove_orphans_license_on_client_to_host,
+	remove_orphans_product_property_value,
+)
 
 if TYPE_CHECKING:
 	from . import MySQLConnection, Session
@@ -466,12 +470,12 @@ def create_index(session: Session, database: str, table: str, index: str, column
 	if index_columns != columns:
 		key = ",".join([f"`{c}`" for c in columns])
 		if index == "PRIMARY":
-			logger.notice("Setting new PRIMARY KEY on table %r", table)
+			logger.info("Setting new PRIMARY KEY on table %r", table)
 			if index_columns:
 				session.execute(f"ALTER TABLE `{table}` DROP PRIMARY KEY")
 			session.execute(f"ALTER TABLE `{table}` ADD PRIMARY KEY ({key})")
 		else:
-			logger.notice("Setting new index %r on table %r", index, table)
+			logger.info("Setting new index %r on table %r", index, table)
 			if index_columns:
 				session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
 			session.execute(f"CREATE INDEX `{index}` on `{table}` ({key})")
@@ -480,7 +484,7 @@ def create_index(session: Session, database: str, table: str, index: str, column
 def remove_index(session: Session, database: str, table: str, index: str) -> None:
 	index_columns = get_index_columns(session=session, database=database, table=table, index=index)
 	if index_columns:
-		logger.notice("Removing index %r on table %r", index, table)
+		logger.info("Removing index %r on table %r", index, table)
 		session.execute(f"ALTER TABLE `{table}` DROP INDEX `{index}`")
 
 
@@ -573,23 +577,23 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		logger.info("Running opsi 4.1 updates")
 
 		if "BOOT_CONFIGURATION" in mysql.tables:
-			logger.notice("Dropping table BOOT_CONFIGURATION")
+			logger.info("Dropping table BOOT_CONFIGURATION")
 			session.execute("DROP TABLE IF EXISTS `BOOT_CONFIGURATION`")
 
 		if "workbenchLocalUrl" not in mysql.tables["HOST"]:
-			logger.notice("Adding column 'workbenchLocalUrl' on table HOST.")
+			logger.info("Adding column 'workbenchLocalUrl' on table HOST.")
 			session.execute("ALTER TABLE `HOST` add `workbenchLocalUrl` varchar(128)")
 
 		if "workbenchRemoteUrl" not in mysql.tables["HOST"]:
-			logger.notice("Adding column 'workbenchRemoteUrl' on table HOST.")
+			logger.info("Adding column 'workbenchRemoteUrl' on table HOST.")
 			session.execute("ALTER TABLE `HOST` add `workbenchRemoteUrl` varchar(255)")
 
 		if mysql.tables["OBJECT_TO_GROUP"]["groupId"]["type"] != "varchar(255)":
-			logger.notice("Changing size of column 'groupId' on table OBJECT_TO_GROUP")
+			logger.info("Changing size of column 'groupId' on table OBJECT_TO_GROUP")
 			session.execute("ALTER TABLE `OBJECT_TO_GROUP` MODIFY COLUMN `groupId` varchar(255) NOT NULL")
 
 		if mysql.tables["HOST"]["inventoryNumber"]["type"] != "varchar(64)":
-			logger.notice("Changing size of column 'inventoryNumber' on table HOST")
+			logger.info("Changing size of column 'inventoryNumber' on table HOST")
 			session.execute('ALTER TABLE `HOST` MODIFY COLUMN `inventoryNumber` varchar(64) NOT NULL DEFAULT ""')
 
 		create_index(
@@ -611,7 +615,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		logger.info("Running opsi 4.2 updates")
 
 		if mysql.tables["HOST"]["ipAddress"]["type"] != "varchar(255)":
-			logger.notice("Changing size of column 'ipAddress' on table HOST")
+			logger.info("Changing size of column 'ipAddress' on table HOST")
 			session.execute("ALTER TABLE `HOST` MODIFY COLUMN `ipAddress` varchar(255)")
 
 		logger.info("Running opsi 4.3 updates")
@@ -622,10 +626,10 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		).fetchall():
 			row_dict = dict(row)
 			if row_dict["ENGINE"] != "InnoDB":
-				logger.notice("Changing table %s to InnoDB engine", row_dict["TABLE_NAME"])
+				logger.info("Changing table %s to InnoDB engine", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` ENGINE = InnoDB")
 			if row_dict["TABLE_COLLATION"] != "utf8_general_ci":
-				logger.notice("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
+				logger.info("Changing table %s to utf8_general_ci collation", row_dict["TABLE_NAME"])
 				session.execute(f"ALTER TABLE `{row_dict['TABLE_NAME']}` DEFAULT COLLATE utf8_general_ci")
 
 		create_foreign_key(
@@ -679,7 +683,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		)
 
 		if "config_state_id" in mysql.tables["CONFIG_STATE"]:
-			logger.notice("Removing duplicates from table CONFIG_STATE")
+			logger.info("Removing duplicates from table CONFIG_STATE")
 			duplicates = []
 			for row in session.execute(
 				"""
@@ -690,10 +694,10 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
 			if duplicates:
-				logger.notice("Deleting duplicate config_state_ids: %s", duplicates)
+				logger.info("Deleting duplicate config_state_ids: %s", duplicates)
 				session.execute("DELETE FROM `CONFIG_STATE` WHERE `config_state_id` IN :ids", params={"ids": duplicates})
 
-			logger.notice("Dropping column 'config_state_id' from table CONFIG_STATE")
+			logger.info("Dropping column 'config_state_id' from table CONFIG_STATE")
 			session.execute("ALTER TABLE `CONFIG_STATE` DROP COLUMN `config_state_id`")
 
 		create_index(
@@ -708,7 +712,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			session.execute("DELETE FROM `LICENSE_ON_CLIENT` WHERE `clientId` IS NULL")
 			session.execute("ALTER TABLE `LICENSE_ON_CLIENT` MODIFY COLUMN `clientId` varchar(255) NOT NULL")
 
-			logger.notice("Removing duplicates from table LICENSE_ON_CLIENT")
+			logger.info("Removing duplicates from table LICENSE_ON_CLIENT")
 			duplicates = []
 			for row in session.execute(
 				"""
@@ -719,13 +723,13 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
 			if duplicates:
-				logger.notice("Deleting duplicate license_on_client_ids: %s", duplicates)
+				logger.info("Deleting duplicate license_on_client_ids: %s", duplicates)
 				session.execute(
 					"DELETE FROM `LICENSE_ON_CLIENT` WHERE `license_on_client_id` IN :ids",
 					params={"ids": duplicates},
 				)
 
-			logger.notice("Dropping column 'license_on_client_id' from table LICENSE_ON_CLIENT")
+			logger.info("Dropping column 'license_on_client_id' from table LICENSE_ON_CLIENT")
 			session.execute("ALTER TABLE `LICENSE_ON_CLIENT` DROP COLUMN `license_on_client_id`")
 
 		create_index(
@@ -737,7 +741,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		)
 
 		if "object_to_group_id" in mysql.tables["OBJECT_TO_GROUP"]:
-			logger.notice("Removing duplicates from table OBJECT_TO_GROUP")
+			logger.info("Removing duplicates from table OBJECT_TO_GROUP")
 			duplicates = []
 			for row in session.execute(
 				"""
@@ -748,13 +752,13 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
 			if duplicates:
-				logger.notice("Deleting duplicate object_to_group_ids: %s", duplicates)
+				logger.info("Deleting duplicate object_to_group_ids: %s", duplicates)
 				session.execute(
 					"DELETE FROM `OBJECT_TO_GROUP` WHERE `object_to_group_id` IN :ids",
 					params={"ids": duplicates},
 				)
 
-			logger.notice("Dropping column 'object_to_group_id' from table OBJECT_TO_GROUP")
+			logger.info("Dropping column 'object_to_group_id' from table OBJECT_TO_GROUP")
 			session.execute("ALTER TABLE `OBJECT_TO_GROUP` DROP COLUMN `object_to_group_id`")
 
 		create_index(
@@ -769,7 +773,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			session.execute("DELETE FROM `PRODUCT_PROPERTY_STATE` WHERE `productId` IS NULL")
 			session.execute("ALTER TABLE `PRODUCT_PROPERTY_STATE` MODIFY COLUMN `productId` varchar(255) NOT NULL")
 
-			logger.notice("Removing duplicates from table PRODUCT_PROPERTY_STATE")
+			logger.info("Removing duplicates from table PRODUCT_PROPERTY_STATE")
 			duplicates = []
 			for row in session.execute(
 				"""
@@ -780,13 +784,13 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
 			if duplicates:
-				logger.notice("Deleting duplicate product_property_state_ids: %s", duplicates)
+				logger.info("Deleting duplicate product_property_state_ids: %s", duplicates)
 				session.execute(
 					"DELETE FROM `PRODUCT_PROPERTY_STATE` WHERE `product_property_state_id` IN :ids",
 					params={"ids": duplicates},
 				)
 
-			logger.notice("Dropping column 'product_property_state_id' from table PRODUCT_PROPERTY_STATE")
+			logger.info("Dropping column 'product_property_state_id' from table PRODUCT_PROPERTY_STATE")
 			session.execute("ALTER TABLE `PRODUCT_PROPERTY_STATE` DROP COLUMN `product_property_state_id`")
 
 		create_index(
@@ -798,7 +802,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		)
 
 		if "config_id" in mysql.tables["SOFTWARE_CONFIG"]:
-			logger.notice("Removing duplicates from table SOFTWARE_CONFIG")
+			logger.info("Removing duplicates from table SOFTWARE_CONFIG")
 			duplicates = []
 			for row in session.execute(
 				"""
@@ -809,13 +813,13 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				ids = dict(row)["ids"].split(",")
 				duplicates.extend(ids[1:])
 			if duplicates:
-				logger.notice("Deleting duplicate config_ids: %s", duplicates)
+				logger.info("Deleting duplicate config_ids: %s", duplicates)
 				session.execute(
 					"DELETE FROM `SOFTWARE_CONFIG` WHERE `config_id` IN :ids",
 					params={"ids": duplicates},
 				)
 
-			logger.notice("Dropping column 'config_id' from table SOFTWARE_CONFIG")
+			logger.info("Dropping column 'config_id' from table SOFTWARE_CONFIG")
 			session.execute("ALTER TABLE `SOFTWARE_CONFIG` DROP COLUMN `config_id`")
 
 		create_index(
@@ -850,7 +854,7 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 				"""
 			).fetchall()
 			if res:
-				logger.notice("Removing orphan entries from SOFTWARE_CONFIG")
+				logger.info("Removing orphan entries from SOFTWARE_CONFIG")
 				for row in res:
 					session.execute(
 						"""
@@ -922,30 +926,48 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 			session=session,
 			database=mysql.database,
 			foreign_key=OpsiForeignKey(table="LICENSE_ON_CLIENT", ref_table="HOST", f_keys=["clientId"], ref_keys=["hostId"]),
+			cleanup_function=remove_orphans_license_on_client_to_host,
 		)
+
+		def software_license_set_missing_hosts_to_null(session: Session) -> None:
+			session.execute(
+				"""
+				UPDATE `SOFTWARE_LICENSE` SET `boundToHost` = NULL
+				WHERE boundToHost NOT IN (SELECT hostId FROM HOST)
+				""",
+				params={"version": mysql.schema_version},
+			)
 
 		create_foreign_key(
 			session=session,
 			database=mysql.database,
-			foreign_key=OpsiForeignKey(table="SOFTWARE_LICENSE", ref_table="HOST", f_keys=["boundToHost"], ref_keys=["hostId"]),
+			foreign_key=OpsiForeignKey(
+				table="SOFTWARE_LICENSE",
+				ref_table="HOST",
+				f_keys=["boundToHost"],
+				ref_keys=["hostId"],
+				update_rule="SET NULL",
+				delete_rule="SET NULL",
+			),
+			cleanup_function=software_license_set_missing_hosts_to_null,
 		)
 
 		if "LOG_CONFIG_VALUE" in mysql.tables:
-			logger.notice("Dropping table LOG_CONFIG_VALUE")
+			logger.info("Dropping table LOG_CONFIG_VALUE")
 			session.execute("DROP TABLE IF EXISTS `LOG_CONFIG_VALUE`")
 
 		if "LOG_CONFIG" in mysql.tables:
-			logger.notice("Dropping table LOG_CONFIG")
+			logger.info("Dropping table LOG_CONFIG")
 			session.execute("DROP TABLE IF EXISTS `LOG_CONFIG`")
 
 		if "CONFIG_STATE_LOG" in mysql.tables:
-			logger.notice("Dropping table CONFIG_STATE_LOG")
+			logger.info("Dropping table CONFIG_STATE_LOG")
 			session.execute("DROP TABLE IF EXISTS `CONFIG_STATE_LOG`")
 
-		logger.info("All updates completed")
+		logger.notice("All updates completed")
 
 		if not schema_version or schema_version < mysql.schema_version:
-			logger.notice("Finished update to schema version %r", mysql.schema_version)
+			logger.info("Finished update to schema version %r", mysql.schema_version)
 			session.execute(
 				"UPDATE `OPSI_SCHEMA` SET `updateEnded` = CURRENT_TIMESTAMP WHERE version = :version",
 				params={"version": mysql.schema_version},

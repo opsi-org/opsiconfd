@@ -320,9 +320,12 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		self._args = ["--config-file", self._config.config_file] + self._args
 
 	def _parse_config_file(self) -> dict[str, Any]:
-		data = Path(self._config.config_file).read_text(encoding="utf-8")
-		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 		conf: dict[str, Any] = {}
+		path = Path(self._config.config_file)
+		if not path.exists():
+			return conf
+		data = path.read_text(encoding="utf-8")
+		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
 		for line in data.split("\n"):
 			match = re_opt.match(line)
 			if match:

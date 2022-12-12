@@ -358,7 +358,7 @@ async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylin
 			[False],
 		)
 
-	await asyncio.sleep(1)
+	await asyncio.sleep(3)
 	res = await run_in_threadpool(test_client.get, "/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 200
 	assert res.json() == {"rpc_count": 10}

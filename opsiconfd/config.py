@@ -330,6 +330,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		return conf
 
 	def _generate_config_file(self, conf: dict[str, Any]) -> None:
+		conf = conf.copy()
 		path = Path(self._config.config_file)
 		data = path.read_text(encoding="utf-8")
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
@@ -340,11 +341,16 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				arg = match.group(1).strip().lower()
 				if arg in conf:
 					# Update argumnet value in file
-					line = f"{arg} = {conf[arg]}"
+					line = f"{arg} = {conf.pop(arg)}"
 				else:
 					# Remove argument from file
 					continue
 			new_lines.append(line)
+
+		if conf:
+			# Add new arguments
+			new_lines[-1:-1] = [f"{arg} = {val}" for arg, val in conf.items()]
+
 		path.write_text("\n".join(new_lines), encoding="utf-8")
 
 	def _config_file_contents(self) -> str:

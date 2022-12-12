@@ -47,6 +47,7 @@ stages:
   echo "log-level-stderr = 0" >> tests/data/default-opsiconfd.conf
   echo "log-level-file = 6" >> tests/data/default-opsiconfd.conf
   echo "log-file = /tmp/opsiconfd.log" >> tests/data/default-opsiconfd.conf
+  cat tests/data/default-opsiconfd.conf
 
   # Installing opsi test modules file
   [ -z "${OPSILICSRV_TOKEN}" ] && (echo "OPSILICSRV_TOKEN not set" 1>&2 ; exit 1)
@@ -63,7 +64,7 @@ stages:
   poetry config experimental.new-installer false
   poetry lock --no-update
   poetry install
-  poetry run opsiconfd -c tests/data/default-opsiconfd.conf -l5 setup
+  poetry run opsiconfd -c tests/data/default-opsiconfd.conf -l6 setup
 
   # Create adminuser used in tests
   useradd adminuser

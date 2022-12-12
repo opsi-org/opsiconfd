@@ -26,7 +26,7 @@ stages:
   apt -y install mariadb-client bc grafana
 
   # Grant full database access to opsi user
-  mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON opsitest.* TO 'opsi'@'%';"
+  mysql --host=mysql --user=root --password=${MYSQL_ROOT_PASSWORD} -e "GRANT ALL ON *.* TO 'opsi'@'%';"
 
   # Start grafana (will report failure but works)
   /etc/init.d/grafana-server start || true

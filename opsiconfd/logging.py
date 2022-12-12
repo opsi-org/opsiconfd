@@ -35,6 +35,7 @@ from opsicommon.logging import (  # type: ignore[import]
 	OPSI_LEVEL_TO_LEVEL,
 	SECRET_REPLACEMENT_STRING,
 	ContextSecretFormatter,
+	RichConsoleHandler,
 	context_filter,
 	get_logger,
 	handle_log_exception,
@@ -48,6 +49,7 @@ from opsicommon.logging.logging import (  # type: ignore[import]
 )
 from redis import BusyLoadingError as RedisBusyLoadingError
 from redis import ConnectionError as RedisConnectionError
+from rich.console import Console
 
 from .config import config, opsi_config
 from .utils import get_async_redis_connection, get_redis_connection, retry_redis_call
@@ -496,12 +498,12 @@ def enable_slow_callback_logging(slow_callback_duration: float | None = None) ->
 	asyncio.events.Handle._run = _run  # type: ignore[assignment]  # pylint: disable=protected-access
 
 
-def init_logging(  # pylint: disable=too-many-branches,too-many-statements,too-many-nested-blocks
-	log_mode: str = "redis", is_worker: bool = False
+def init_logging(  # pylint: disable=too-many-branches,too-many-statements,too-many-nested-blocks,too-many-locals
+	log_mode: str = "redis", is_worker: bool = False, console: Console | None = None
 ) -> None:
 	redis_error = None
 	try:
-		if log_mode not in ("redis", "local"):
+		if log_mode not in ("redis", "local", "rich"):
 			raise ValueError(f"Invalid log mode '{log_mode}'")
 
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
@@ -522,6 +524,10 @@ def init_logging(  # pylint: disable=too-many-branches,too-many-statements,too-m
 
 		if log_mode == "local":
 			log_handler = StreamHandler(stream=sys.stderr)
+		elif log_mode == "rich":
+			if not console:
+				console = Console()
+			log_handler = RichConsoleHandler(console=console)
 
 		log_handler.setLevel(log_level)
 		root_logger.handlers = [log_handler]

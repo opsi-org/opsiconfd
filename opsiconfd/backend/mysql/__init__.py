@@ -47,15 +47,16 @@ from sqlalchemy.engine.base import Connection  # type: ignore[import]
 from sqlalchemy.engine.result import Result  # type: ignore[import]
 from sqlalchemy.engine.row import Row  # type: ignore[import]
 from sqlalchemy.event import listen  # type: ignore[import]
-from sqlalchemy.exc import DatabaseError  # type: ignore[import]
+from sqlalchemy.exc import DatabaseError, OperationalError  # type: ignore[import]
 from sqlalchemy.orm import Session, scoped_session, sessionmaker  # type: ignore[import]
-from sqlalchemy.util import EMPTY_DICT, immutabledict
+from sqlalchemy.util import EMPTY_DICT, immutabledict  # type: ignore[import]
 
 from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 
 from ..auth import RPCACE
+from .schema import create_database
 
 if TYPE_CHECKING:
 	from ..rpc.protocol import IdentType
@@ -68,7 +69,8 @@ class ColumnInfo:
 	client_id_column: bool
 	select: str | None
 
-class MySQLSession(Session):
+
+class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 	def execute(
 		self,
 		statement: str,
@@ -79,8 +81,8 @@ class MySQLSession(Session):
 		_add_event: Any | None = None,
 		**kw: Any
 	) -> Result:
-		with server_timing("database") as timing:
-			try:
+		try:
+			with server_timing("database") as timing:
 				result = super().execute(
 					statement=statement,
 					params=params,
@@ -90,12 +92,11 @@ class MySQLSession(Session):
 					_add_event=_add_event,
 					*kw
 				)
-				logger.trace("Statement %r with params %r took %0.4f ms", statement, params, timing["database"])
-				return result
-			except DatabaseError as err:
-				logger.trace("Failed statement %r with params %r: %s", statement, params, err.__cause__, exc_info=True)
-				raise
-
+			logger.trace("Statement %r with params %r took %0.4f ms", statement, params, timing["database"])
+			return result
+		except DatabaseError as err:
+			logger.trace("Failed statement %r with params %r: %s", statement, params, err.__cause__, exc_info=True)
+			raise
 
 
 class MySQLConnection:  # pylint: disable=too-many-instance-attributes
@@ -170,6 +171,24 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def database(self) -> str:
 		return self._database
 
+	def _create_engine(self, uri: str) -> None:
+		self._engine = create_engine(
+			uri,
+			pool_pre_ping=True,  # auto reconnect
+			encoding=self._database_charset,
+			pool_size=self._connection_pool_size,
+			max_overflow=self._connection_pool_max_overflow,
+			pool_timeout=self._connection_pool_timeout,
+			pool_recycle=self._connection_pool_recycling_seconds,
+		)
+		if not self._engine:
+			raise RuntimeError("Failed to create engine")
+
+		self._session_factory = sessionmaker(bind=self._engine, class_=MySQLSession, autocommit=False, autoflush=False)
+		self._Session = scoped_session(self._session_factory)  # pylint: disable=invalid-name
+
+		listen(self._engine, "engine_connect", self._on_engine_connect)
+
 	@staticmethod
 	def _on_engine_connect(conn: Connection, branch: Optional[Connection]) -> None:  # pylint: disable=unused-argument
 		conn.execute(
@@ -208,28 +227,22 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		params = f"?{urlencode(properties)}" if properties else ""
 
 		uri = f"mysql://{quote(self._username)}:{password}@{address}/{self.database}{params}"
+		self._create_engine(uri)
+
 		logger.info("Connecting to %s", uri)
-
-		self._engine = create_engine(
-			uri,
-			pool_pre_ping=True,  # auto reconnect
-			encoding=self._database_charset,
-			pool_size=self._connection_pool_size,
-			max_overflow=self._connection_pool_max_overflow,
-			pool_timeout=self._connection_pool_timeout,
-			pool_recycle=self._connection_pool_recycling_seconds,
-		)
-		if not self._engine:
-			raise RuntimeError("Failed to create engine")
-
-		listen(self._engine, "engine_connect", self._on_engine_connect)
-
-		self._session_factory = sessionmaker(bind=self._engine, class_=MySQLSession, autocommit=False, autoflush=False)
-		self._Session = scoped_session(self._session_factory)  # pylint: disable=invalid-name
-
 		# Test connection
 		with self.session() as session:
-			version_string = session.execute("SELECT @@VERSION").fetchone()[0]
+			try:
+				version_string = session.execute("SELECT @@VERSION").fetchone()[0]
+			except OperationalError as err:
+				if not str(err.orig).startswith("(1049"):
+					raise
+				# 1049 - Unknown database
+				self._create_engine(f"mysql://{quote(self._username)}:{password}@{address}/{params}")
+				create_database(self)
+				self._create_engine(uri)
+				version_string = session.execute("SELECT @@VERSION").fetchone()[0]
+
 			logger.info("Connected to server version: %s", version_string)
 			server_type = "MariaDB" if "maria" in version_string.lower() else "MySQL"
 			match = re.search(r"^([\d\.]+)", version_string)
@@ -256,7 +269,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def connect(self) -> None:
 		try:
 			self._init_connection()
-		except Exception as err:  # pylint: disable=broad-except
+		except OperationalError as err:
 			if self._address != "localhost":
 				raise
 			logger.info("Failed to connect to socket (%s), retrying with tcp/ip", err)
@@ -305,7 +318,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 				if table_name.startswith("HARDWARE_DEVICE_"):
 					self._client_id_column[table_name] = ""
 
-	def get_columns(
+	def get_columns(  # pylint: disable=too-many-branches
 		self, tables: List[str], ace: List[RPCACE], attributes: Union[List[str], Tuple[str, ...]] | None = None
 	) -> Dict[str, ColumnInfo]:
 		res: Dict[str, ColumnInfo] = {}
@@ -730,7 +743,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	) -> Any:
 		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
 		if query:
-			with self.session(session) as session:
+			with self.session(session) as session:  # pylint: disable=redefined-argument-from-local
 				result = session.execute(query, params=params)
 				return result.lastrowid
 		return None
@@ -802,4 +815,3 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		query, params, _idents = self.delete_query(table=table, object_type=object_type, obj=obj, ace=ace)
 		with self.session() as session:
 			session.execute(query, params=params)
-

@@ -102,6 +102,9 @@ def create_backup(
 
 	backend = get_unprotected_backend()
 	now = datetime.utcnow()
+	server_ids = backend.host_getIdents(returnType="str", type="OpsiConfigserver")
+	if not server_ids:
+		raise ValueError("No configserver in database")
 	data: dict[str, dict[str, Any]] = {
 		"meta": {
 			"type": "opsiconfd_backup",
@@ -112,7 +115,7 @@ def create_backup(
 			"node_name": config.node_name,
 			"fqdn": FQDN,
 			"host_id": str(opsi_config.get("host", "id")),
-			"server_id": backend.host_getIdents(returnType="str", type="OpsiConfigserver")[0],
+			"server_id": server_ids[0],
 		},
 		"objects": {},
 		"config_files": {},

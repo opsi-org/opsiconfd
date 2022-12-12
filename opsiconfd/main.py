@@ -79,7 +79,7 @@ def backup_main() -> None:
 			init_logging(log_mode="rich", console=progress.console)
 			backup_file = Path(config.backup_file)
 			if not config.overwrite and backup_file.exists():
-				raise FileExistsError(f"Backup file '{str(backup_file)}' already exists")
+				raise FileExistsError(f"Backup file '{str(backup_file)}' already exists, use --overwrite to replace.")
 
 			suffixes = [s.strip(".") for s in backup_file.suffixes[-2:]]
 			encoding = suffixes[0]
@@ -94,7 +94,7 @@ def backup_main() -> None:
 				if compression not in ("lz4", "gz"):
 					raise ValueError(f"Invalid compression {compression!r}, valid compressions are 'lz4' and 'gz'")
 
-			progress.console.print(f"Backing up to [bold]{backup_file.name}[/bold]")
+			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
 
 			data = create_backup(config_files=not config.no_config_files, progress=progress)
 

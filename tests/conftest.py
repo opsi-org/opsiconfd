@@ -57,12 +57,13 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-argument
 	global GRAFANA_AVAILABLE  # pylint: disable=global-statement
 
-	sync_clean_redis()
-
 	_config.set_config_file("tests/data/default-opsiconfd.conf")
 	_config.reload()
+
 	# Need to use other redis key prefix to not interfere with an running opsiconfd with same test config
 	_config._config.redis_prefix = "pytest"  # pylint: disable=protected-access
+
+	sync_clean_redis()
 
 	ssl_dir = mkdtemp()
 	_config.ssl_ca_key = os.path.join(ssl_dir, "opsi-ca-key.pem")

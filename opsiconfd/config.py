@@ -26,7 +26,8 @@ from argparse import (
 	_ArgumentGroup,
 )
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Union
+from pathlib import Path
+from typing import Any, Iterable
 from urllib.parse import urlparse
 
 import certifi
@@ -118,7 +119,7 @@ class OpsiconfdHelpFormatter(HelpFormatter):
 		super().__init__("opsiconfd", max_help_position=10, width=100)
 		self._sub_command = sub_command
 
-	def _split_lines(self, text: str, width: int) -> List[str]:
+	def _split_lines(self, text: str, width: int) -> list[str]:
 		# The textwrap module is used only for formatting help.
 		# Delay its import for speeding up the common usage of argparse.
 		text = text.replace("[env var: ", "\n[env var: ")
@@ -184,11 +185,12 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			return
 		self._initialized = True
 		self._pytest = sys.argv[0].endswith("/pytest") or "pytest" in sys.argv
-		self._args: List[str] = []
+		self._args: list[str] = []
 		self._ex_help = False
 		self._parser: configargparse.ArgParser | None = None
 		self._sub_command = None
-		self._config: Any = None
+		self._config = configargparse.Namespace()
+		self._config.config_file = DEFAULT_CONFIG_FILE
 		self.jinja_templates = Jinja2Templates(directory="")
 
 		self._set_args()
@@ -203,25 +205,28 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			return setattr(self._config, name, value)
 		return super().__setattr__(name, value)
 
-	def _set_args(self, args: List[str] | None = None) -> None:
+	def _set_args(self, args: list[str] | None = None) -> None:
 		self._args = sys.argv[1:] if args is None else args
 
 		try:
-			# Pre-parse to get sub_command and ex-help (may fail)
+			# Pre-parse command line / env to get sub_command and ex-help (may fail)
 			self._init_parser()
-			conf = self._parser.parse_known_args(self._args, ignore_help_args=True)  # type: ignore[union-attr]
-			self._ex_help = conf[0].ex_help
+			conf, _unknown = self._parser.parse_known_args(self._args, ignore_help_args=True, config_file_contents="")  # type: ignore[union-attr]
+			self._config.config_file = conf.config_file
+			self._ex_help = conf.ex_help
 			if self._ex_help and "--help" not in self._args:
 				self._args.append("--help")
-			self._sub_command = conf[0].action if conf[0].action in ("health-check", "log-viewer", "setup", "backup", "restore") else None
+			self._sub_command = conf.action if conf.action in ("health-check", "log-viewer", "setup", "backup", "restore") else None
+			if self._sub_command:
+				self._args.remove(self._sub_command)
 		except BaseException:  # pylint: disable=broad-except
 			pass
 
 		self._init_parser()
 
 		if is_manager(psutil.Process(os.getpid())):
-			self._upgrade_config_files()
-			self._update_config_files()
+			self._upgrade_config_file()
+			self._update_config_file()
 
 		self._parse_args()
 
@@ -240,13 +245,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			raise RuntimeError("Parser not initialized")
 		if is_opsiconfd(psutil.Process(os.getpid())):
 			self._parser.exit_on_error = True
-			self._config = self._parser.parse_args(self._args)
+			self._config = self._parser.parse_args(self._args, config_file_contents=self._config_file_contents())
 		else:
 			self._parser.exit_on_error = False
-			self._config, _unknown = self._parser.parse_known_args(self._args)
+			self._config, _unknown = self._parser.parse_known_args(self._args, config_file_contents=self._config_file_contents())
 		self._update_config()
 
 	def _update_config(self) -> None:  # pylint: disable=too-many-branches
+		if self._sub_command:
+			self._config.action = self._sub_command
 		self.jinja_templates = Jinja2Templates(directory=os.path.join(self.static_dir, "templates"))
 
 		if not self._config.ssl_ca_key_passphrase:
@@ -297,51 +304,62 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 	def reload(self) -> None:
 		self._parse_args()
 
-	def items(self) -> Dict[str, Any]:
+	def items(self) -> dict[str, Any]:
 		return self._config.__dict__
 
 	def set_config_file(self, config_file: str) -> None:
+		self._config.config_file = config_file
 		for idx, arg in enumerate(self._args):
 			if arg in ("-c", "--config-file"):
 				if len(self._args) > idx + 1:
-					self._args[idx + 1] = config_file
+					self._args[idx + 1] = self._config.config_file
 					return
 			elif arg.startswith("--config-file="):
-				self._args[idx] = f"--config-file={config_file}"  # pylint: disable=loop-invariant-statement
+				self._args[idx] = f"--config-file={self._config.config_file}"  # pylint: disable=loop-invariant-statement
 				return
-		self._args = ["--config-file", config_file] + self._args
+		self._args = ["--config-file", self._config.config_file] + self._args
 
-	def set_config_in_config_file(self, arg: str, value: Union[str, int, float]) -> None:
-		if not self._parser:
-			raise RuntimeError("Parser not initialized")
-		config_files = self._parser._open_config_files(self._args)  # pylint: disable=protected-access
-		if not config_files:
-			raise RuntimeError("No config file defined")
-		config_file = config_files[0]
-
-		arg = arg.lstrip("-").replace("_", "-")
-		data = config_file.read()
-		config_file.close()
-
-		conf_line = f"{arg} = {value}"
+	def _parse_config_file(self) -> dict[str, Any]:
+		data = Path(self._config.config_file).read_text(encoding="utf-8")
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-		lines = []
-		found = False
+		conf: dict[str, Any] = {}
 		for line in data.split("\n"):
 			match = re_opt.match(line)
-			if match and match.group(1).strip().lower() == arg:
-				line = conf_line
-				found = True
-			lines.append(line)
-		if not found:
-			if lines[-1] == "":
-				lines.pop()
-			lines.append(conf_line)
-			lines.append("")
-		with open(config_file.name, "w", encoding="utf-8") as file:
-			file.write("\n".join(lines))
+			if match:
+				conf[match.group(1).strip().lower()] = match.group(2).strip()
+		return conf
 
-	def _upgrade_config_files(self) -> None:
+	def _generate_config_file(self, conf: dict[str, Any]) -> None:
+		path = Path(self._config.config_file)
+		data = path.read_text(encoding="utf-8")
+		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
+		new_lines = []
+		for line in data.split("\n"):
+			match = re_opt.match(line)
+			if match:
+				arg = match.group(1).strip().lower()
+				if arg in conf:
+					# Update argumnet value in file
+					line = f"{arg} = {conf[arg]}"
+				else:
+					# Remove argument from file
+					continue
+			new_lines.append(line)
+		path.write_text("\n".join(new_lines), encoding="utf-8")
+
+	def _config_file_contents(self) -> str:
+		conf = self._parse_config_file()
+		masked_config_file_arguments: tuple[str, ...] = tuple()
+		if self._sub_command:
+			masked_config_file_arguments = ("log-level-stderr", "log-level-file", "log-level")
+		return "\n".join([f"{arg} = {val}" for arg, val in conf.items() if arg not in masked_config_file_arguments])
+
+	def set_config_in_config_file(self, arg: str, value: Any) -> None:
+		conf = self._parse_config_file()
+		conf[arg] = value
+		self._generate_config_file(conf)
+
+	def _upgrade_config_file(self) -> None:
 		if not self._parser:
 			raise RuntimeError("Parser not initialized")
 		defaults = {action.dest: action.default for action in self._parser._actions}  # pylint: disable=protected-access
@@ -364,65 +382,51 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"max sessions per ip": "max-session-per-ip",
 		}
 
+		path = Path(self._config.config_file)
+		data = path.read_text(encoding="utf-8")
+		if "[global]" not in data:
+			# Config file not in opsi 4.1 format
+			return
+
 		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=\s*(\S.*)\s*$")
-		for config_file in self._parser._open_config_files(self._args):  # pylint: disable=protected-access
-			data = config_file.read()
-			config_file.close()
-			if "[global]" not in data:
-				# Config file not in opsi 4.1 format
-				continue
 
-			with open(config_file.name, "w", encoding="utf-8") as file:
-				file.write(CONFIG_FILE_HEADER.lstrip())  # pylint: disable=loop-global-usage
-				for line in data.split("\n"):
-					match = re_opt.match(line)
-					if match:
-						opt = match.group(1).strip().lower()
-						val = match.group(2).strip()
-						if opt not in mapping:
-							continue
-						if val.lower() in ("yes", "no", "true", "false"):
-							val = val.lower() in ("yes", "true")
-						default = defaults.get(mapping[opt].replace("-", "_"))
-						if str(default) == str(val):
-							continue
-						if isinstance(val, bool):
-							val = str(val).lower()
-						if "," in val:
-							val = f"[{val}]"
-						file.write(f"{mapping[opt]} = {val}\n")
-				file.write("\n")
-
-	def _update_config_files(self) -> None:
-		if not self._parser:
-			raise RuntimeError("Parser not initialized")
-		re_opt = re.compile(r"^\s*([^#;\s][^=]+)\s*=")
-		for config_file in self._parser._open_config_files(self._args):  # pylint: disable=protected-access
-			data = config_file.read()
-			config_file.close()
-			new_data = ""
-			for idx, line in enumerate(data.split("\n")):
+		with open(str(path), "w", encoding="utf-8") as file:
+			file.write(CONFIG_FILE_HEADER.lstrip())  # pylint: disable=loop-global-usage
+			for line in data.split("\n"):
 				match = re_opt.match(line)
-				if match and match.group(1).strip().lower() in DEPRECATED:  # pylint: disable=loop-global-usage
-					continue
-				new_data += line
-				if idx < len(data.split("\n")) - 1:
-					new_data += "\n"
-			if data != new_data:
-				with open(config_file.name, "w", encoding="utf-8") as file:
-					file.write(new_data)
+				if match:
+					opt = match.group(1).strip().lower()
+					val = match.group(2).strip()
+					if opt not in mapping:
+						continue
+					if val.lower() in ("yes", "no", "true", "false"):
+						val = val.lower() in ("yes", "true")
+					default = defaults.get(mapping[opt].replace("-", "_"))
+					if str(default) == str(val):
+						continue
+					if isinstance(val, bool):
+						val = str(val).lower()
+					if "," in val:
+						val = f"[{val}]"
+					file.write(f"{mapping[opt]} = {val}\n")
+			file.write("\n")
+
+	def _update_config_file(self) -> None:
+		conf = self._parse_config_file()
+		for deprecated in DEPRECATED:  # pylint: disable=loop-global-usage
+			conf.pop(deprecated, None)
+		self._generate_config_file(conf)
 
 	def _init_parser(self) -> None:  # pylint: disable=too-many-statements
 		self._parser = configargparse.ArgParser(formatter_class=lambda prog: OpsiconfdHelpFormatter(self._sub_command))
 
-		self._parser.add("--detailed", action="store_true", help=self._help("health-check", "Print details of each check."))
 		self._parser.add(
 			"-c",
 			"--config-file",
 			env_var="OPSICONFD_CONFIG_FILE",
 			required=False,
 			is_config_file=True,
-			default=DEFAULT_CONFIG_FILE if os.path.exists(DEFAULT_CONFIG_FILE) else None,
+			default=DEFAULT_CONFIG_FILE,
 			help=self._help("opsiconfd", "Path to config file."),
 		)
 		self._parser.add("--version", action="store_true", help=self._help("opsiconfd", "Show version info and exit."))
@@ -518,7 +522,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--log-level",
 			env_var="OPSICONFD_LOG_LEVEL",
 			type=int,
-			default=5,
+			default=0 if self._sub_command else 5,
 			choices=range(0, 10),
 			help=self._help(
 				"opsiconfd",
@@ -587,7 +591,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--log-level-file",
 			env_var="OPSICONFD_LOG_LEVEL_FILE",
 			type=int,
-			default=4,
+			default=0 if self._sub_command else 4,
 			choices=range(0, 10),
 			help=self._help(
 				"opsiconfd",
@@ -607,7 +611,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			"--log-level-stderr",
 			env_var="OPSICONFD_LOG_LEVEL_STDERR",
 			type=int,
-			default=4,
+			default=0 if self._sub_command else 4,
 			choices=range(0, 10),
 			help=self._help(
 				"all",
@@ -1008,9 +1012,12 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			default=False,
 			help=self._help("expert", "Clients are allowed to login with the host key only."),
 		)
+
 		if self._pytest:
 			self._parser.add("args", nargs="*")
-		else:
+			return
+
+		if not self._sub_command:
 			self._parser.add(
 				"action",
 				nargs=None if self._sub_command else "?",
@@ -1027,7 +1034,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					"backup",
 					"restore",
 				),
-				default=self._sub_command or "start",
+				default="start",
 				metavar="ACTION",
 				help=self._help(
 					"opsiconfd",
@@ -1045,21 +1052,62 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 					"restore:       Restore backup.\n",
 				),
 			)
-			if self._sub_command == "backup":
-				now = datetime.now().strftime("%Y%m%d-%H%M%S")
-				self._parser.add(
-					"backup_file",
-					nargs="?",
-					default=f"opsiconfd-backup-{now}.msgpack",
-					metavar="BACKUP_FILE",
-					help=self._help("backup", "The BACKUP_FILE to write to."),
-				)
-			elif self._sub_command == "restore":
-				self._parser.add(
-					"backup_file",
-					metavar="BACKUP_FILE",
-					help=self._help("backup", "The BACKUP_FILE to restore from."),
-				)
+			return
+
+		if self._sub_command == "health-check":
+			self._parser.add("--detailed", action="store_true", help=self._help("health-check", "Print details of each check."))
+
+		if self._sub_command in ("backup", "restore"):
+			self._parser.add(
+				"--quiet",
+				action="store_true",
+				help=self._help(("backup", "restore"), "Do not show output or progess except errors."),
+			)
+
+		if self._sub_command == "backup":
+			now = datetime.now().strftime("%Y%m%d-%H%M%S")
+			self._parser.add(
+				"--no-config-files",
+				action="store_true",
+				help=self._help("backup", "Do not add config files to backup."),
+			)
+			self._parser.add(
+				"--overwrite",
+				action="store_true",
+				help=self._help("backup", "Overwrite existing backup file."),
+			)
+			self._parser.add(
+				"backup_file",
+				nargs="?",
+				default=f"opsiconfd-backup-{now}.msgpack.lz4",
+				metavar="BACKUP_FILE",
+				help=self._help("backup", "The BACKUP_FILE to write to."),
+			)
+
+		if self._sub_command == "restore":
+			self._parser.add(
+				"--config-files",
+				action="store_true",
+				help=self._help("restore", "Restore config files from backup."),
+			)
+			self._parser.add(
+				"--server-id",
+				env_var="OPSICONFD_SERVER_ID",
+				default="local",
+				help=self._help(
+					"restore",
+					(
+						"The server ID to set. The following special values can be used: \n"
+						"local: Use the locally configured server ID from opsi.conf.\n"
+						"backup: Use the ID of the server from which the backup was created."
+					),
+				),
+			)
+			self._parser.add(
+				"backup_file",
+				metavar="BACKUP_FILE",
+				help=self._help("backup", "The BACKUP_FILE to restore from."),
+			)
 
 
 config = Config()

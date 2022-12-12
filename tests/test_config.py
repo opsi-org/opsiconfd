@@ -222,7 +222,7 @@ def test_upgrade_config_files(tmp_path: Path) -> None:
 
 	config_file.write_text("xxx\nyyy\n")
 	with (patch("opsiconfd.config.is_manager", lambda x: True), get_config(["--config-file", str(config_file)]) as conf):
-		conf._upgrade_config_files()  # pylint: disable=protected-access
+		conf._upgrade_config_file()  # pylint: disable=protected-access
 		assert config_file.read_text(encoding="utf-8") == "xxx\nyyy\n"
 
 
@@ -231,7 +231,7 @@ def test_update_config_files(tmp_path: Path) -> None:
 	config_file.write_text(("# comment\nlog-level = 1\nmonitoring-debug = yes\n\n"), encoding="utf-8")
 
 	with get_config(["--config-file", str(config_file)]) as conf:
-		conf._update_config_files()  # pylint: disable=protected-access
+		conf._update_config_file()  # pylint: disable=protected-access
 
 	data = config_file.read_text(encoding="utf-8")
 	assert data == ("# comment\nlog-level = 1\n\n")

@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from rich.progress import Progress
+
 from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.backend.mysql import MySQLConnection
@@ -35,6 +37,7 @@ from opsiconfd.logging import logger
 OBJECT_CLASSES = (
 	"Host",
 	"Config",
+	"ConfigState",
 	"Product",
 	"ProductProperty",
 	"ProductDependency",
@@ -73,7 +76,7 @@ def get_config_files() -> dict[str, Path]:
 		"jsonrpc_conf": backend_config_dir / "jsonrpc.conf",
 		"mysql_conf": backend_config_dir / "mysql.conf",
 		"opsipxeconfd_conf": backend_config_dir / "opsipxeconfd.conf",
-		"acl_conf": backend_config_dir / "acl.conf",
+		"acl_conf": Path(config.acl_file),
 	}
 	extension_config_dir = Path(config.extension_config_dir)
 	for extension_config_file in extension_config_dir.glob("*.conf"):  # pylint: disable=use-dict-comprehension
@@ -90,7 +93,14 @@ def get_config_files() -> dict[str, Path]:
 	return config_files
 
 
-def create_backup(config_files: bool = True) -> dict[str, dict[str, Any]]:
+def create_backup(
+	config_files: bool = True,
+	progress: Progress | None = None,
+) -> dict[str, dict[str, Any]]:
+	if opsi_config.get("host", "server-role") != "configserver":
+		raise RuntimeError("Not a config server")
+
+	backend = get_unprotected_backend()
 	now = datetime.utcnow()
 	data: dict[str, dict[str, Any]] = {
 		"meta": {
@@ -102,66 +112,173 @@ def create_backup(config_files: bool = True) -> dict[str, dict[str, Any]]:
 			"node_name": config.node_name,
 			"fqdn": FQDN,
 			"host_id": str(opsi_config.get("host", "id")),
-			"server_role": str(opsi_config.get("host", "server-role")),
+			"server_id": backend.host_getIdents(returnType="str", type="OpsiConfigserver")[0],
 		},
 		"objects": {},
 		"config_files": {},
 	}
 
-	backend = get_unprotected_backend()
+	logger.notice("Backing up objects")
+	if progress:
+		progress.console.print("Backing up database objects")
+		backup_task = progress.add_task("Backing up database objects", total=len(OBJECT_CLASSES))
 	for obj_class in OBJECT_CLASSES:  # pylint: disable=loop-global-usage
+		logger.notice("Fetching objects of type %s", obj_class)
+		if progress:
+			progress.console.print(f"Backing up objects of type [bold]{obj_class}[/bold]")
 		method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_getObjects")
 		data["objects"][obj_class] = [o.to_hash() for o in method()]  # pylint: disable=loop-invariant-statement
+		logger.info("Read %d objects of type %s", len(data["objects"][obj_class]), obj_class)  # pylint: disable=loop-invariant-statement
+		if progress:
+			progress.advance(backup_task)
 
 	if config_files:
-		for name, file in get_config_files().items():
+		logger.notice("Backing up config files")
+		conf_files = get_config_files()
+		num_files = len(conf_files)
+		if progress:
+			progress.console.print(f"Backing up {num_files} config files")
+			file_task = progress.add_task("Backing up config files", total=num_files)
+
+		for name, file in conf_files.items():
 			content = None
 			if file.exists():
 				content = file.read_text(encoding="utf-8")
 			else:
 				logger.warning("Config file '%s' not found, skipping in backup", file)
 			data["config_files"][name] = {"path": str(file.absolute()), "content": content}  # pylint: disable=loop-invariant-statement
+			if progress:
+				progress.advance(file_task)
 	return data
 
 
-def restore_backup(data: dict[str, dict[str, Any]], config_files: bool = True) -> None:
+def restore_backup(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+	data: dict[str, dict[str, Any]],
+	config_files: bool = True,
+	server_id: str = "backup",
+	batch: bool = True,
+	progress: Progress | None = None,
+) -> None:
 	if data.get("meta", {}).get("type") != "opsiconfd_backup":
 		raise ValueError("Invalid backup")
 	version = data["meta"].get("version")
 	if version != "1":
 		raise ValueError(f"Invalid backup version: {version!r}")
 
-	if config_files and data.get("config_files"):
-		for name, file in get_config_files().items():
-			backup_file = data["config_files"].get(name)
-			if backup_file and backup_file["content"] is not None:
-				file.write_text(backup_file["content"], encoding="utf-8")
+	backup_server_id = data["meta"].get("server_id")
+	if not backup_server_id:
+		raise ValueError("Server id missing in backup meta data")
+
+	if server_id == "backup":
+		server_id = backup_server_id
+	elif server_id == "local":
+		server_id = str(opsi_config.get("host", "id"))
+
+	logger.notice("Preparing database")
+	if progress:
+		db_task = progress.add_task("Preparing database", total=3)
 
 	mysql = MySQLConnection()
 	mysql.connect()
+
+	if progress:
+		progress.console.print("Dropping database")
+	logger.notice("Dropping database")
 	drop_database(mysql)
+	if progress:
+		progress.advance(db_task)
+		progress.console.print("Creating database")
+	logger.notice("Creating database")
 	create_database(mysql)
+	if progress:
+		progress.advance(db_task)
+		progress.console.print("Updating database")
+	logger.notice("Reconnecting database")
 	mysql.disconnect()
 	mysql.connect()
+	logger.notice("Updating database")
 	update_database(mysql)
+	if progress:
+		progress.advance(db_task)
 
 	backend = get_unprotected_backend()
-	num_objects = sum(len(objs) for objs in data["objects"].values())
-	object_num = 0
+	total_objects = sum(len(objs) for objs in data["objects"].values())
+
+	logger.notice("Restoring %d database objects", total_objects)
+	if progress:
+		restore_task = progress.add_task("Restoring database objects", total=total_objects, refresh_per_second=2)
+
 	for obj_class in OBJECT_CLASSES:  # pylint: disable=loop-global-usage
 		objects = data["objects"].get(obj_class)
 		if not objects:
 			continue
 
-		# method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_createObjects")
-		# method(objects)
+		num_objects = len(objects)
+		logger.notice("Restoring %d objects of type %s", num_objects, obj_class)
+		if progress:
+			progress.console.print(f"Restoring {num_objects} objects of type [bold]{obj_class}[/bold]")
+		host_attr = None
+		check_config = False
+		check_config_state = False
+		if server_id != backup_server_id:  # pylint: disable=loop-invariant-statement
+			if obj_class == "Host":
+				host_attr = "id"
+			if obj_class == "ProductOnDepot":
+				host_attr = "depotId"
+			elif obj_class == "AuditHardwareOnHost":
+				host_attr = "hostId"
+			elif obj_class == ("ObjectToGroup", "ConfigState", "ProductPropertyState"):
+				host_attr = "objectId"
+
+			check_config = obj_class == "Config"
+			check_config_state = obj_class == "ConfigState"
 
 		method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_insertObject")
+		if batch:
+			method = getattr(backend, f"{obj_class[0].lower()}{obj_class[1:]}_createObjects")
+
 		for obj in objects:
-			object_num += 1
-			# print(f"{object_num}/{num_objects}")
+			if host_attr:
+				if obj[host_attr] == backup_server_id:
+					obj[host_attr] = server_id
+			if check_config and obj["id"] == "clientconfig.depot.id":
+				obj["possibleValues"] = [
+					server_id if v == backup_server_id else v for v in obj["possibleValues"]  # pylint: disable=loop-invariant-statement)
+				]
+				obj["defaultValues"] = [
+					server_id if v == backup_server_id else v for v in obj["defaultValues"]  # pylint: disable=loop-invariant-statement)
+				]
+			if check_config_state and obj["configId"] == "clientconfig.depot.id":
+				obj["values"] = [
+					server_id if v == backup_server_id else v for v in obj["values"]  # pylint: disable=loop-invariant-statement)
+				]
+
 			logger.trace("Insert %s object: %s", obj_class, obj)
-			try:  # pylint: disable=loop-try-except-usage
+			if not batch:
 				method(obj)
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error(err)
+				if progress:
+					progress.advance(restore_task)
+
+		if batch:
+			logger.info("Batch inserting %d objects", len(objects))
+			method(objects)
+			if progress:
+				progress.advance(restore_task, advance=num_objects)
+
+	if config_files and data.get("config_files"):
+		logger.notice("Restoring config files")
+		num_files = len([cf for cf in data["config_files"].values() if cf["content"] is not None])
+		if progress:
+			progress.console.print(f"Restoring {num_files} config files")
+			file_task = progress.add_task("Restoring config files", total=num_files)
+		for name, file in get_config_files().items():
+			backup_file = data["config_files"].get(name)
+			if backup_file and backup_file["content"] is not None:
+				logger.info("Restoring config file %r (%s)", name, file)
+				file.write_text(backup_file["content"], encoding="utf-8")
+				if progress:
+					progress.advance(file_task)
+			else:
+				logger.info("Skipping config file %r (%s)", name, file)
+
+	opsi_config.set("host", "id", server_id, persistent=True)

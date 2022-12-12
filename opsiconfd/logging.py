@@ -507,7 +507,7 @@ def init_logging(  # pylint: disable=too-many-branches,too-many-statements,too-m
 			raise ValueError(f"Invalid log mode '{log_mode}'")
 
 		log_level = max(config.log_level, config.log_level_stderr, config.log_level_file)
-		if log_mode == "local":
+		if log_mode in ("local", "rich"):
 			log_level = config.log_level_stderr
 		log_level = OPSI_LEVEL_TO_LEVEL[log_level]
 		log_handler: pylogging.Handler

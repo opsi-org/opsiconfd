@@ -367,7 +367,7 @@ def decompress_data(data: bytes, compression: str) -> bytes:
 		data = lz4.frame.decompress(data)
 	elif compression == "deflate":
 		data = zlib.decompress(data)
-	elif compression == "gzip":
+	elif compression in ("gz", "gzip"):
 		data = gzip.decompress(data)
 	else:
 		raise ValueError(f"Unhandled compression {compression!r}")
@@ -393,7 +393,7 @@ def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4
 		data = lz4.frame.compress(data, compression_level=compression_level, block_linked=lz4_block_linked)
 	elif compression == "deflate":
 		data = zlib.compress(data)
-	elif compression == "gzip":
+	elif compression in ("gz", "gzip"):
 		data = gzip.compress(data)
 	else:
 		raise ValueError(f"Unhandled compression {compression!r}")

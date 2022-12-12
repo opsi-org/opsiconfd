@@ -24,8 +24,10 @@ import uvloop
 from msgspec import json, msgpack
 from OPSI import __version__ as python_opsi_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
-from opsicommon.logging.constants import NONE  # type: ignore[import]
+from opsicommon.types import forceHostId  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
+from rich.console import Console
+from rich.progress import Progress
 
 from . import __version__
 from .backup import create_backup, restore_backup
@@ -35,7 +37,7 @@ from .logging import AsyncRedisLogAdapter, init_logging, logger, shutdown_loggin
 from .manager import Manager
 from .patch import apply_patches
 from .setup import setup
-from .utils import get_manager_pid, redis_client
+from .utils import compress_data, decompress_data, get_manager_pid, redis_client
 
 REDIS_CONECTION_TIMEOUT = 30
 
@@ -61,7 +63,6 @@ def log_viewer_main() -> None:
 
 
 def health_check_main() -> None:
-	config.log_level_file = NONE
 	init_logging(log_mode="local")
 	result = health_check(print_messages=True)
 	if result.get("status") == "ok":
@@ -72,43 +73,104 @@ def health_check_main() -> None:
 
 
 def backup_main() -> None:
+	console = Console(quiet=config.quiet)
 	try:
-		config.log_level_file = NONE
-		init_logging(log_mode="local")
-		backup_file = Path(config.backup_file)
-		if backup_file.exists():
-			raise FileExistsError(f"Backup file '{str(backup_file)}' already exists")
-		with open(config.backup_file, "wb") as file:
-			data = create_backup()
-			if backup_file.suffix == ".json":
-				file.write(json.encode(data))
-			else:
-				file.write(msgpack.encode(data))
-		print(f"Backup file '{str(backup_file)}' succesfully created.")
+		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
+			init_logging(log_mode="rich", console=progress.console)
+			backup_file = Path(config.backup_file)
+			if not config.overwrite and backup_file.exists():
+				raise FileExistsError(f"Backup file '{str(backup_file)}' already exists")
+
+			suffixes = [s.strip(".") for s in backup_file.suffixes[-2:]]
+			encoding = suffixes[0]
+			compression = None
+			if len(suffixes) == 2:
+				compression = suffixes[1]
+
+			if encoding not in ("msgpack", "json"):
+				raise ValueError(f"Invalid encoding {encoding!r}, valid encodings are 'msgpack' and 'json'")
+
+			if compression:
+				if compression not in ("lz4", "gz"):
+					raise ValueError(f"Invalid compression {compression!r}, valid compressions are 'lz4' and 'gz'")
+
+			progress.console.print(f"Backing up to [bold]{backup_file.name}[/bold]")
+
+			data = create_backup(config_files=not config.no_config_files, progress=progress)
+
+			file_task = progress.add_task("Creating backup file", total=None)
+
+			logger.notice("Encoding data to %s", encoding)
+			progress.console.print(f"Encoding data to {encoding}")
+			encode = json.encode if encoding == "json" else msgpack.encode
+			bdata = encode(data)
+
+			if compression:
+				logger.notice("Compressing data with %s", compression)
+				progress.console.print(f"Compressing data with {compression}")
+				bdata = compress_data(bdata, compression=compression)
+
+			logger.notice("Writing data to file %s", backup_file)
+			progress.console.print("Writing data to file")
+			with open(config.backup_file, "wb") as file:
+				file.write(bdata)
+
+			progress.update(file_task, total=1, completed=True)
+
+			progress.console.print(f"Backup file '{str(backup_file)}' succesfully created.")
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
-		print(f"Failed to create backup file '{str(backup_file)}': {err}.")
+		console.quiet = False
+		console.print(f"[bold red]Failed to create backup file '{str(backup_file)}': {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)
 
 
 def restore_main() -> None:
+	console = Console(quiet=config.quiet)
 	try:
-		config.log_level_file = NONE
-		init_logging(log_mode="local")
-		backup_file = Path(config.backup_file)
-		if not backup_file.exists():
-			raise FileExistsError(f"Backup file '{str(backup_file)}' not found")
-		with open(config.backup_file, "rb") as file:
-			data = file.read()
-			if data.startswith(b"{"):
-				restore_backup(json.decode(data))
-			else:
-				restore_backup(msgpack.decode(data))
-		print(f"Backup file '{str(backup_file)}' succesfully restored.")
+		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
+			init_logging(log_mode="rich", console=progress.console)
+			backup_file = Path(config.backup_file)
+			if not backup_file.exists():
+				raise FileExistsError(f"Backup file '{str(backup_file)}' not found")
+
+			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
+			server_id = config.server_id
+			if server_id not in ("local", "backup"):
+				server_id = forceHostId(server_id)
+
+			logger.notice("Reading data from file %s", backup_file)
+			progress.console.print("Reading data from file")
+			file_task = progress.add_task("Processing backup file", total=None)
+			with open(config.backup_file, "rb") as file:
+				bdata = file.read()
+
+			head = bdata[0:4].hex()
+			compression = None
+			if head == "04224d18":
+				compression = "lz4"
+			elif head.startswith("1f8b"):
+				compression = "gz"
+			if compression:
+				logger.notice("Decomressing %s data", compression)
+				progress.console.print(f"Decomressing {compression} data")
+				bdata = decompress_data(bdata, compression=compression)
+
+			encoding = "json" if bdata.startswith(b"{") else "msgpack"
+			logger.notice("Decoding %s data", encoding)
+			progress.console.print(f"Decoding {encoding} data")
+			decode = json.decode if encoding == "json" else msgpack.decode
+			data = decode(bdata)  # type: ignore[operator]
+			progress.update(file_task, total=1, completed=True)
+
+			restore_backup(data, config_files=config.config_files, server_id=server_id, progress=progress)
+
+			progress.console.print(f"Backup file '{str(backup_file)}' succesfully restored.")
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
-		print(f"Failed to restore backup from '{str(backup_file)}': {err}")
+		console.quiet = False
+		console.print(f"[bold red]Failed to restore backup from '{str(backup_file)}': {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)
 

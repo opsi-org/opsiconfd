@@ -19,7 +19,7 @@
 			"source.organizeImports": true
 		},
 		"files.trimTrailingWhitespace": true,
-		"files.autoSave": "onFocusChange",
+		"files.autoSave": "off",
 		"python.formatting.provider": "black",
 		"python.formatting.blackPath": ".venv/bin/tan",
 		"python.terminal.activateEnvironment": false,

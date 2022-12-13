@@ -30,21 +30,21 @@ def test_server_and_workers() -> None:
 		time.sleep(3)
 
 		assert len(server.workers) == 1
-		assert server.workers[0].worker_num == 1
-		proc = psutil.Process(server.workers[0].pid)
+		assert list(server.workers.values())[0].worker_num == 1
+		proc = psutil.Process(list(server.workers.values())[0].pid)
 		assert proc.is_running()
 
-		worker_pid = server.workers[0].pid
+		worker_pid = list(server.workers.values())[0].pid
 		server.restart_workers()
 
 		time.sleep(10)
 
-		assert len(server.workers) == 1
-		assert server.workers[0].worker_num == 1
-		proc = psutil.Process(server.workers[0].pid)
+		assert len(list(server.workers.values())) == 1
+		assert list(server.workers.values())[0].worker_num == 1
+		proc = psutil.Process(list(server.workers.values())[0].pid)
 		assert proc.is_running()
 
-		assert worker_pid != server.workers[0].pid
+		assert worker_pid != list(server.workers.values())[0].pid
 
 		time.sleep(3)
 

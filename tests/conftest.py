@@ -80,7 +80,7 @@ def pytest_sessionstart(session: Session) -> None:  # pylint: disable=unused-arg
 	with (patch("opsiconfd.ssl.setup_ssl_file_permissions", lambda: None), patch("opsiconfd.ssl.install_ca", lambda x: None)):
 		setup_ssl()
 
-	Worker._instance = Worker(1)  # pylint: disable=protected-access
+	Worker._instance = Worker("pytest", 1)  # pylint: disable=protected-access
 
 	application_setup()
 

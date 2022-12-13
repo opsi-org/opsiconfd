@@ -99,7 +99,7 @@ class Worker(UvicornServer):
 	__str__ = __repr__
 
 	@property
-	def id(self) -> str:
+	def id(self) -> str:  # pylint: disable=invalid-name
 		return f"{self.node_name}:{self.worker_num}"
 
 	@property

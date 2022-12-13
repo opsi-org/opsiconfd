@@ -38,7 +38,6 @@ from starlette.websockets import WebSocket, WebSocketState
 
 from opsiconfd.worker import Worker
 
-from ..config import config
 from ..logging import get_logger
 from ..utils import compress_data, decompress_data
 from . import (

@@ -15,8 +15,8 @@ import sys
 import tempfile
 from types import ModuleType
 from typing import Any, Callable, Tuple
+from unittest.mock import patch
 
-import mock  # type: ignore[import]
 import pytest
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers
@@ -173,7 +173,7 @@ def test_unblock_all_exception(
 	for test_ip in addresses:
 		set_failed_auth_and_blocked(config, test_ip)
 
-	with mock.patch("redis.asyncio.client.Redis.get", side_effect=Exception("ERROR")):
+	with patch("redis.asyncio.client.Redis.get", side_effect=Exception("ERROR")):
 
 		res = test_client.post("/admin/unblock-all", auth=(ADMIN_USER, ADMIN_PASS))
 		assert res.status_code == 500
@@ -183,14 +183,14 @@ def test_unblock_all_exception(
 async def test_get_rpc_list_request(
 	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
-	for _ in range(3):
-		await run_in_threadpool(
-			call_rpc,
-			test_client,
-			[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
-			[False],
-		)
-	await asyncio.sleep(1)
+	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
+		for _ in range(3):
+			await run_in_threadpool(
+				call_rpc,
+				test_client,
+				[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
+				[False],
+			)
 	response = await run_in_threadpool(test_client.get, "/admin/rpc-list", auth=(ADMIN_USER, ADMIN_PASS))
 	assert response.status_code == 200
 	result = response.json()
@@ -229,15 +229,14 @@ async def test_get_blocked_clients(
 async def test_get_rpc_list(  # pylint: disable=redefined-outer-name
 	test_client: OpsiconfdTestClient, admininterface: ModuleType, num_rpcs: int
 ) -> None:
-	for _ in range(num_rpcs):
-		await run_in_threadpool(
-			call_rpc,
-			test_client,
-			[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
-			[False],
-		)
-
-	await asyncio.sleep(1)
+	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
+		for _ in range(num_rpcs):
+			await run_in_threadpool(
+				call_rpc,
+				test_client,
+				[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
+				[False],
+			)
 
 	rpc_list_response = await admininterface.get_rpc_list()
 	rpc_list = json.loads(rpc_list_response.body)
@@ -305,7 +304,7 @@ def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:
 	async def create_dashboard_user() -> Tuple[str, str]:
 		return "", ""
 
-	with mock.patch("opsiconfd.application.admininterface.create_dashboard_user", create_dashboard_user):
+	with patch("opsiconfd.application.admininterface.create_dashboard_user", create_dashboard_user):
 		test_client.auth = (ADMIN_USER, ADMIN_PASS)
 
 		with get_config({"grafana_external_url": "https://grafana.test/"}):
@@ -352,19 +351,17 @@ def test_get_num_clients(admininterface: ModuleType, test_client: OpsiconfdTestC
 
 @pytest.mark.asyncio
 async def test_get_rpc_count(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	for _ in range(10):
-		await run_in_threadpool(
-			call_rpc,
-			test_client,
-			[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
-			[False],
-		)
-		await asyncio.sleep(0.3)
-
-	await asyncio.sleep(1)
-	res = await run_in_threadpool(test_client.get, "/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
-	assert res.status_code == 200
-	assert res.json() == {"rpc_count": 10}
+	with patch("opsiconfd.application.jsonrpc.AWAIT_STORE_RPC_INFO", True):
+		for _ in range(10):
+			await run_in_threadpool(
+				call_rpc,
+				test_client,
+				[{"id": 1, "method": "host_getIdents", "params": [None]}],  # pylint: disable=loop-invariant-statement
+				[False],
+			)
+		res = await run_in_threadpool(test_client.get, "/admin/rpc-count", auth=(ADMIN_USER, ADMIN_PASS))
+		assert res.status_code == 200
+		assert res.json() == {"rpc_count": 10}
 
 
 def test_get_session_list(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

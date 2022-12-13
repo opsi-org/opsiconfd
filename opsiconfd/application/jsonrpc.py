@@ -43,7 +43,7 @@ from ..utils import async_redis_client, compress_data, decompress_data, redis_cl
 from ..worker import Worker
 
 COMPRESS_MIN_SIZE = 10000
-
+AWAIT_STORE_RPC_INFO = False
 
 jsonrpc_router = APIRouter()
 jsonrpc_message_reader = None  # pylint: disable=invalid-name
@@ -389,7 +389,12 @@ async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerato
 		logger.trace(result)
 		yield result
 
-		asyncio.create_task(store_rpc_info(rpc, result, duration, date, client_info))  # pylint: disable=dotted-import-in-loop
+		coro = store_rpc_info(rpc, result, duration, date, client_info)
+		if AWAIT_STORE_RPC_INFO:  # pylint: disable=loop-global-usage
+			# Required for pytest
+			await coro
+		else:
+			asyncio.create_task(coro)  # pylint: disable=dotted-import-in-loop
 
 
 # Some clients are using /rpc/rpc

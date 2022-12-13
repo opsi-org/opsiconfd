@@ -264,8 +264,8 @@ def get_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connectio
 
 @contextmanager
 def redis_client(timeout: int = 0, test_connection: bool = False) -> Generator[redis.StrictRedis, None, None]:
+	con = get_redis_connection(url=get_config().redis_internal_url, timeout=timeout, test_connection=test_connection)
 	try:
-		con = get_redis_connection(url=get_config().redis_internal_url, timeout=timeout, test_connection=test_connection)
 		yield con
 	finally:
 		con.close()

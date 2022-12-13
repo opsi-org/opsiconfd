@@ -521,7 +521,7 @@ async def messagebus_jsonrpc_request_worker() -> None:
 	global jsonrpc_message_reader  # pylint: disable=invalid-name,global-statement
 
 	worker = Worker.get_instance()
-	messagebus_worker_id = get_messagebus_user_id_for_service_worker(config.node_name, worker.worker_num)
+	messagebus_worker_id = get_messagebus_user_id_for_service_worker(worker.id)
 	channel = "service:config:jsonrpc"
 
 	jsonrpc_message_reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=messagebus_worker_id, channels={channel: "0"})

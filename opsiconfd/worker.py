@@ -74,8 +74,10 @@ def uvicorn_config() -> Config:
 class Worker(UvicornServer):
 	_instance = None
 
-	def __init__(self, worker_num: int) -> None:
+	def __init__(self, node_name: str, worker_num: int) -> None:
+		self.node_name = node_name
 		self.worker_num = worker_num
+
 		self.create_time = time.time()
 		UvicornServer.__init__(self, uvicorn_config())
 		self._metrics_collector: WorkerMetricsCollector | None = None
@@ -92,9 +94,13 @@ class Worker(UvicornServer):
 		return Worker._instance
 
 	def __repr__(self) -> str:
-		return f"<{self.__class__.__name__} {self.worker_num} (pid: {self.pid}>"
+		return f"<{self.__class__.__name__} {self.id} (pid: {self.pid}>"
 
 	__str__ = __repr__
+
+	@property
+	def id(self) -> str:
+		return f"{self.node_name}:{self.worker_num}"
 
 	@property
 	def pid(self) -> int:
@@ -124,7 +130,7 @@ class Worker(UvicornServer):
 	def run(self, sockets: Optional[List[socket.socket]] = None) -> None:
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)
-		logger.notice("Startup worker %d (pid %s)", self.worker_num, self.pid)
+		logger.notice("Startup worker %s (pid %s)", self.id, self.pid)
 
 		monkeypatch_subprocess_for_frozen()
 		logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)
@@ -153,7 +159,7 @@ class Worker(UvicornServer):
 		super().install_signal_handlers()
 
 	def handle_sighup(self) -> None:
-		logger.notice("Worker process %d (pid %d) reloading", self.worker_num, self.pid)
+		logger.notice("Worker process %s (pid %d) reloading", self.id, self.pid)
 		config.reload()
 		for key, value in uvicorn_config().__dict__.items():
 			# Do not replace the whole config object, because uvicorn

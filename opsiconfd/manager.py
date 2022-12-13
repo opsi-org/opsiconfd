@@ -22,7 +22,7 @@ from .messagebus.redis import cleanup_channels
 from .metrics.collector import ManagerMetricsCollector
 from .server import Server
 from .ssl import setup_server_cert
-from .utils import Singleton, async_get_redis_info, async_redis_client
+from .utils import Singleton, async_get_redis_info, async_redis_client, log_config
 from .zeroconf import register_opsi_services, unregister_opsi_services
 
 
@@ -63,6 +63,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		logger.notice("Manager process %s reloading", self.pid)
 		config.reload()
 		init_logging(log_mode=config.log_mode)
+		log_config()
 		if self._server:
 			self._server.reload()
 

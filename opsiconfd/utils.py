@@ -8,6 +8,8 @@
 utils
 """
 
+from __future__ import annotations
+
 import asyncio
 import codecs
 import datetime
@@ -28,8 +30,10 @@ from ipaddress import (
 	ip_address,
 	ip_network,
 )
+from logging import INFO  # type: ignore[import]
+from pprint import pformat
 from socket import AF_INET, AF_INET6
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
 
 import lz4.frame  # type: ignore[import]
 import psutil
@@ -49,8 +53,8 @@ if TYPE_CHECKING:
 
 redis_pool_lock = threading.Lock()
 async_redis_pool_lock = asyncio.Lock()
-redis_connection_pool: Dict[str, redis.ConnectionPool] = {}
-async_redis_connection_pool: Dict[str, async_redis.ConnectionPool] = {}
+redis_connection_pool: dict[str, redis.ConnectionPool] = {}
+async_redis_connection_pool: dict[str, async_redis.ConnectionPool] = {}
 
 
 def get_logger() -> OPSILogger:
@@ -62,7 +66,7 @@ def get_logger() -> OPSILogger:
 	return logger
 
 
-def get_config() -> "Config":
+def get_config() -> Config:
 	global config  # pylint: disable=global-statement, invalid-name, global-variable-not-assigned
 	if not config:
 		from .config import (  # type: ignore[assignment]  # pylint: disable=import-outside-toplevel, redefined-outer-name
@@ -72,12 +76,17 @@ def get_config() -> "Config":
 
 
 class Singleton(type):
-	_instances: Dict[type, type] = {}
+	_instances: dict[type, type] = {}
 
 	def __call__(cls: "Singleton", *args: Any, **kwargs: Any) -> type:
 		if cls not in cls._instances:
 			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
 		return cls._instances[cls]
+
+
+def log_config(log_level: int = INFO) -> None:
+	conf = "{\n " + pformat(get_config().items(), width=200).strip("{}") + "\n}\n"
+	get_logger().log(log_level, "Config: %s", conf)
 
 
 def utc_time_timestamp() -> float:
@@ -169,7 +178,7 @@ def ip_address_from_redis_key(key: str) -> str:
 	return key
 
 
-def get_ip_addresses() -> Generator[Dict[str, Any], None, None]:
+def get_ip_addresses() -> Generator[dict[str, Any], None, None]:
 	for interface, snics in psutil.net_if_addrs().items():  # pylint: disable=dotted-import-in-loop
 		for snic in snics:
 			family = None
@@ -289,7 +298,7 @@ async def async_redis_client(timeout: int = 0, test_connection: bool = False) ->
 	return await get_async_redis_connection(url=get_config().redis_internal_url, timeout=timeout, test_connection=test_connection)
 
 
-async def async_get_redis_info(client: async_redis.StrictRedis) -> Dict[str, Any]:  # pylint: disable=too-many-locals
+async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any]:  # pylint: disable=too-many-locals
 	conf = get_config()
 	stats_keys = []
 	sessions_keys = []

@@ -12,7 +12,6 @@ import asyncio
 import gc
 import getpass
 import os
-import pprint
 import pwd
 import signal
 import sys
@@ -37,7 +36,13 @@ from .logging import AsyncRedisLogAdapter, init_logging, logger, shutdown_loggin
 from .manager import Manager
 from .patch import apply_patches
 from .setup import setup
-from .utils import compress_data, decompress_data, get_manager_pid, redis_client
+from .utils import (
+	compress_data,
+	decompress_data,
+	get_manager_pid,
+	log_config,
+	redis_client,
+)
 
 REDIS_CONECTION_TIMEOUT = 30
 
@@ -51,7 +56,7 @@ async def log_viewer() -> None:
 
 def setup_main() -> None:
 	init_logging(log_mode="local")
-	logger.info("opsiconfd config:\n%s", pprint.pformat(config.items(), width=100, indent=4))
+	log_config()
 	setup(full=True)
 
 
@@ -219,9 +224,10 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 		init_logging(log_mode=config.log_mode)
 		logger.info("Using trusted certificates database: %s", config.ssl_trusted_certs)
 
-		setup(full=bool(config.setup))
-
 		logger.essential("Opsiconfd version %s starting as %s", __version__, opsi_config.get("host", "server-role"))
+		log_config()
+
+		setup(full=bool(config.setup))
 
 		if config.run_as_user and getpass.getuser() != config.run_as_user:
 			logger.essential("Switching to user %s", config.run_as_user)

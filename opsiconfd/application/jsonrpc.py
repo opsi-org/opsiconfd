@@ -133,11 +133,11 @@ def serialize_data(data: Any, serialization: str) -> bytes:
 	if serialization == "msgpack":
 		return msgpack_encoder.encode(data)
 	if serialization == "json":
-		return json_encoder.encode(data)  # pylint: disable=no-member
+		return json_encoder.encode(data)
 	raise ValueError(f"Unhandled serialization {serialization!r}")
 
 
-async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client_info: str) -> None:
+async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date: datetime, client_info: str) -> None:  # pylint: disable=too-many-locals
 	is_error = bool(result.get("error"))
 	worker = Worker.get_instance()
 	metrics_collector = worker.metrics_collector

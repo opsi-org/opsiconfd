@@ -97,7 +97,7 @@ stages:
 
 .pytest: &pytest |
   [ -e /tmp/opsiconfd.log ] && rm /tmp/opsiconfd.log
-  poetry run opsiconfd -c tests/data/default-opsiconfd.conf &
+  poetry run opsiconfd -c tests/data/default-opsiconfd.conf --max-session-per-ip=20000 &
   sleep 10
   echo "---------------------------------------"
   echo "Run tests"

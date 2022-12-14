@@ -68,6 +68,7 @@
 			}
 			else if (tabName == "maintenance") {
 				getAppState();
+				reloadTimer = setInterval(getAppState, 5000);
 			}
 			else if (tabName == "clients") {
 				loadSessionTable();

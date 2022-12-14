@@ -17,11 +17,13 @@ import pytest
 
 from opsiconfd.application.main import app
 from opsiconfd.application.webdav import IgnoreCaseFilesystemProvider, webdav_setup
+from opsiconfd.backend import BackendManager
 from opsiconfd.config import FQDN
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
+	OpsiconfdTestClient,
 	app,
 	backend,
 	clean_redis,
@@ -30,23 +32,23 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_webdav_setup():
+def test_webdav_setup() -> None:
 	webdav_setup(app)
 
 
-def test_options_request_for_index(test_client):  # pylint: disable=redefined-outer-name
+def test_options_request_for_index(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	# Windows WebDAV client send OPTIONS request for /
 	res = test_client.request(method="OPTIONS", url="/")
 	assert res.status_code == 200
 	assert res.headers["Allow"] == "OPTIONS, GET, HEAD"
 
 
-def test_webdav_path_modification(test_client):  # pylint: disable=redefined-outer-name
+def test_webdav_path_modification(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	res = test_client.request(method="PROPFIND", url="/dav", auth=(ADMIN_USER, ADMIN_PASS))
 	assert res.status_code == 207
 
 
-def test_webdav_upload_download_delete_with_special_chars(test_client):  # pylint: disable=redefined-outer-name
+def test_webdav_upload_download_delete_with_special_chars(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	size = 1 * 1024 * 1024
 	rand_bytes = bytearray(random.getrandbits(8) for _ in range(size))
@@ -67,13 +69,13 @@ def test_webdav_upload_download_delete_with_special_chars(test_client):  # pylin
 	res.raise_for_status()
 
 
-def test_webdav_auth(test_client):  # pylint: disable=redefined-outer-name
+def test_webdav_auth(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	url = "/repository/test_file.bin"
 	res = test_client.get(url=url)
 	assert res.status_code == 401
 
 
-def test_client_permission(test_client):  # pylint: disable=redefined-outer-name
+def test_client_permission(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	client_id = "webdavtest.uib.local"
 	client_key = "af521906af3c4666bed30a1774639ff8"
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [client_id, client_key]}
@@ -124,7 +126,9 @@ def test_client_permission(test_client):  # pylint: disable=redefined-outer-name
 		("/tEßT/TäsT2/陰陽_Üß.TXt", "/tEßT/täsT2/陰陽_üß.txt", None),
 	),
 )
-def test_webdav_ignore_case_download(test_client, filename, path, exception):  # pylint: disable=redefined-outer-name
+def test_webdav_ignore_case_download(
+	test_client: OpsiconfdTestClient, filename: str, path: str, exception: Exception | None
+) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	base_dir = "/var/lib/opsi/depot"
 	directory, filename = filename.rsplit("/", 1)
@@ -161,7 +165,7 @@ def test_webdav_ignore_case_download(test_client, filename, path, exception):  #
 			os.unlink(abs_filename)
 
 
-def test_webdav_virtual_folder(test_client):  # pylint: disable=redefined-outer-name
+def test_webdav_virtual_folder(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	res = test_client.get(url="/dav")
 	assert res.status_code == 200
@@ -173,7 +177,7 @@ def test_webdav_virtual_folder(test_client):  # pylint: disable=redefined-outer-
 	assert "./workbench" in res.text
 
 
-def test_webdav_setup_exception(backend):  # pylint: disable=redefined-outer-name
+def test_webdav_setup_exception(backend: BackendManager) -> None:  # pylint: disable=redefined-outer-name
 	host = backend.host_getObjects(type="OpsiDepotserver", id=FQDN)[0]  # pylint: disable=no-member
 	repo_url = host.getRepositoryLocalUrl()
 	depot_url = host.getDepotLocalUrl()
@@ -188,3 +192,42 @@ def test_webdav_setup_exception(backend):  # pylint: disable=redefined-outer-nam
 			host.setRepositoryLocalUrl(repo_url)
 			host.setDepotLocalUrl(depot_url)
 			host.setWorkbenchLocalUrl(workbench_url)
+
+
+@pytest.mark.parametrize(
+	"filename, directory",
+	(
+		("filename.txt", ""),
+		("filename1.txt", "test"),
+		("陰陽_üß.txt", "täsT2"),
+	),
+)
+def test_public_folder(test_client: OpsiconfdTestClient, filename: str, directory: str) -> None:  # pylint: disable=redefined-outer-name
+
+	base_dir = "/var/lib/opsi/public"
+	abs_dir = os.path.join(base_dir, directory)
+	abs_filename = os.path.join(abs_dir, filename)
+
+	try:
+		if directory:
+			os.makedirs(abs_dir)
+		with open(abs_filename, "w", encoding="utf-8") as file:
+			file.write(filename)
+
+		path = "/public"
+		if directory:
+			path = os.path.join(path, directory)
+
+		res = test_client.get(url=path)
+		assert res.status_code == 200
+		assert filename in res.text
+
+		res = test_client.get(url=f"{path}/{filename}")
+		assert res.status_code == 200
+		assert res.content.decode("utf-8") == filename
+
+	finally:
+		if directory:
+			shutil.rmtree(os.path.join(base_dir, directory.split("/")[0]))
+		else:
+			os.unlink(abs_filename)

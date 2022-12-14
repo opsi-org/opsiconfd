@@ -684,17 +684,17 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			default=certifi.where(),
 			help=self._help("opsiconfd", "Path to the database of trusted certificates"),
 		)
-		# Cipher Strings from https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
+		# Cipher Strings from https://www.openssl.org/docs/man1.1.1/man1/ciphers.html
 		# iPXE 1.20.1 supports these TLS v1.2 cipher suites:
 		# AES128-SHA256 (TLS_RSA_WITH_AES_128_CBC_SHA256, 0x003c)
 		# AES256-SHA256 (TLS_RSA_WITH_AES_256_CBC_SHA256, 0x003d)
 		self._parser.add(
 			"--ssl-ciphers",
 			env_var="OPSICONFD_SSL_CIPHERS",
-			default="TLSv1.2",
+			default="",
 			help=self._help(
 				"opsiconfd",
-				"TLS cipher suites to enable (OpenSSL cipher list format https://www.openssl.org/docs/man1.0.2/man1/ciphers.html).",
+				"TLS cipher suites to enable (OpenSSL cipher list format https://www.openssl.org/docs/man1.1.1/man1/ciphers.html).",
 			),
 		)
 		self._parser.add(

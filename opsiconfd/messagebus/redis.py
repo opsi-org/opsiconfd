@@ -107,6 +107,7 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str | Non
 
 class MessageReader:  # pylint: disable=too-few-public-methods
 	_info_suffix = CHANNEL_INFO_SUFFIX
+	_count_readers = True
 
 	def __init__(self, channels: dict[str, Optional[StreamIdT]] | None = None, default_stream_id: str = "$") -> None:
 		"""
@@ -154,14 +155,14 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 			if not redis_msg_id:
 				raise ValueError("No redis message id")  # pylint: disable=loop-invariant-statement
 
-			if stream_key not in self._streams:
+			if self._count_readers and stream_key not in self._streams:
 				await redis.hincrby(stream_key + self._info_suffix, "reader-count", 1)
 
 			self._streams[stream_key] = redis_msg_id
 			stream_keys.append(stream_key)
 
 		for stream_key in list(self._streams):
-			if stream_key not in stream_keys:
+			if self._count_readers and stream_key not in stream_keys:
 				await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
 				del self._streams[stream_key]
 		logger.debug("%s updated streams: %s", self, self._streams)
@@ -229,10 +230,11 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 			pass
 
 		try:
-			pipeline = redis.pipeline()
-			for stream_key in list(self._streams):
-				pipeline.hincrby(stream_key + self._info_suffix, "reader-count", -1)
-			await pipeline.execute()
+			if self._count_readers:
+				pipeline = redis.pipeline()
+				for stream_key in list(self._streams):
+					pipeline.hincrby(stream_key + self._info_suffix, "reader-count", -1)
+				await pipeline.execute()
 		finally:
 			self._stopped_event.set()
 
@@ -251,6 +253,8 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 
 
 class ConsumerGroupMessageReader(MessageReader):
+	_count_readers = False
+
 	def __init__(
 		self, consumer_group: str, consumer_name: str, channels: dict[str, Optional[StreamIdT]] | None = None, default_stream_id: str = "0"
 	) -> None:

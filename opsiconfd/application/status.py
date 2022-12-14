@@ -12,7 +12,7 @@ import datetime
 
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import PlainTextResponse
-from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 
 from .. import __version__
 from ..config import FQDN, config
@@ -48,7 +48,7 @@ async def status_overview() -> PlainTextResponse:
 
 	data = (
 		f"status: {status}\n"
-		f"version: {__version__} [python-opsi={python_opsi_version}]\n"
+		f"version: {__version__} [python-opsi-common={python_opsi_common_version}]\n"
 		f"date: {datetime.datetime.now().astimezone().replace(microsecond=0).isoformat()}\n"
 		f"node: {config.node_name}\n"
 		f"fqdn: {FQDN}\n"

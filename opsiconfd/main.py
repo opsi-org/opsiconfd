@@ -21,7 +21,7 @@ from pathlib import Path
 
 import uvloop
 from msgspec import json, msgpack
-from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 from opsicommon.types import forceHostId  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
@@ -271,7 +271,7 @@ def main() -> None:  # pylint: disable=too-many-return-statements
 	configure_warnings()
 
 	if config.version:
-		print(f"{__version__} [python-opsi={python_opsi_version}]")
+		print(f"{__version__} [python-opsi-common={python_opsi_common_version}]")
 		return None
 
 	if config.action == "setup":

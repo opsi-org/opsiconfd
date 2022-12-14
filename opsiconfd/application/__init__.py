@@ -17,7 +17,7 @@ from typing import Any, Callable, Type, TypeVar
 
 from fastapi import FastAPI
 from msgspec import msgpack
-from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from starlette._utils import is_async_callable
 from starlette.concurrency import run_in_threadpool
 
@@ -94,7 +94,7 @@ class OpsiconfdApp(FastAPI):
 		super().__init__(
 			title="opsiconfd",
 			description="",
-			version=f"{__version__} [python-opsi={python_opsi_version}]",
+			version=f"{__version__} [python-opsi-common={python_opsi_common_version}]",
 			responses={422: {"model": RestApiValidationError, "description": "Validation Error"}},
 		)
 		self._app_state_handler: set[Callable] = set()

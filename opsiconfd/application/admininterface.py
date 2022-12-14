@@ -24,7 +24,7 @@ import msgspec
 from fastapi import APIRouter, FastAPI, Request, Response, UploadFile, status
 from fastapi.responses import RedirectResponse
 from fastapi.routing import APIRoute, Mount
-from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
@@ -78,7 +78,7 @@ async def welcome_interface_index(request: Request) -> Response:
 	context = {
 		"request": request,
 		"client_lang": client_lang,
-		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
+		"opsi_version": f"{__version__} [python-opsi-common={python_opsi_common_version}]",
 		"ucs_server": linux_distro_id_like_contains("univention"),
 		"webgui": webgui,
 		"welcome_page": welcome_page,
@@ -105,7 +105,7 @@ async def admin_interface_index(request: Request) -> Response:
 			method["doc"] = method["doc"].replace("\n", "<br />").replace("\t", "&nbsp;&nbsp;&nbsp;").replace('"', "\\u0022")
 	context = {
 		"request": request,
-		"opsi_version": f"{__version__} [python-opsi={python_opsi_version}]",
+		"opsi_version": f"{__version__} [python-opsi-common={python_opsi_common_version}]",
 		"node_name": config.node_name,
 		"username": username,
 		"interface": interface,

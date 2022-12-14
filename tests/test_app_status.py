@@ -10,7 +10,7 @@ test application status
 
 from unittest import mock
 
-from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 
 from opsiconfd import __version__
 
@@ -23,7 +23,7 @@ def test_status_overview(test_client: OpsiconfdTestClient) -> None:  # pylint: d
 
 	status_list = status._content.decode("utf-8").split("\n")  # pylint: disable=protected-access
 	assert status_list[0] == "status: ok"
-	assert status_list[1] == f"version: {__version__} [python-opsi={python_opsi_version}]"
+	assert status_list[1] == f"version: {__version__} [python-opsi-common={python_opsi_common_version}]"
 	assert status_list[5] == "redis-status: ok"
 	assert status_list[6] == "redis-error: "
 
@@ -37,6 +37,6 @@ def test_status_overview_redis_error(test_client: OpsiconfdTestClient) -> None: 
 	status_list = status._content.decode("utf-8").split("\n")  # pylint: disable=protected-access
 	print(status_list)
 	assert status_list[0] == "status: error"
-	assert status_list[1] == f"version: {__version__} [python-opsi={python_opsi_version}]"
+	assert status_list[1] == f"version: {__version__} [python-opsi-common={python_opsi_common_version}]"
 	assert status_list[5] == "redis-status: error"
 	assert status_list[6] == "redis-error: Redis test error"

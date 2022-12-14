@@ -82,7 +82,7 @@ class MaintenanceState(AppState):
 		self.address_exceptions = self.address_exceptions or []
 		for idx, address_exception in enumerate(self.address_exceptions):
 			self.address_exceptions[idx] = ip_network(address_exception).compressed
-		self.address_exceptions = list(set(self.address_exceptions))
+		self.address_exceptions = sorted(list(set(self.address_exceptions)))
 
 
 @dataclass(slots=True, kw_only=True)

@@ -15,7 +15,7 @@ from logging import LogRecord
 from unittest.mock import patch
 
 from _pytest.capture import CaptureFixture
-from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 
 from opsiconfd import __version__
 from opsiconfd.logging import RedisLogHandler
@@ -29,7 +29,7 @@ def test_version(capsys: CaptureFixture[str]) -> None:
 	with get_config({"version": True}):
 		main()
 	captured = capsys.readouterr()
-	assert captured.out == f"{__version__} [python-opsi={python_opsi_version}]\n"
+	assert captured.out == f"{__version__} [python-opsi-common={python_opsi_common_version}]\n"
 
 
 def test_setup() -> None:

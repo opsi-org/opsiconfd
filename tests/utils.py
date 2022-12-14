@@ -163,13 +163,13 @@ async def clean_redis() -> AsyncGenerator[None, None]:  # pylint: disable=redefi
 
 
 @pytest.fixture
-def worker_status() -> None:
+def worker_state() -> None:
 	worker = Worker._instance  # pylint: disable=protected-access
 	if not worker:
 		raise RuntimeError("No worker instance")
 	with sync_redis_client() as rclient:
 		rclient.hset(
-			f"{_config.redis_key('status')}:workers:{_config.node_name}:{worker.worker_num}",
+			f"{_config.redis_key('state')}:workers:{_config.node_name}:{worker.worker_num}",
 			key=None,
 			value=None,
 			mapping={"worker_pid": worker.pid, "node_name": _config.node_name, "worker_num": worker.worker_num},

@@ -698,7 +698,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		self._parser.add(
 			"--ssl-ciphers",
 			env_var="OPSICONFD_SSL_CIPHERS",
-			default="",
+			default="TLSv1.2",
 			help=self._help(
 				"opsiconfd",
 				"TLS cipher suites to enable (OpenSSL cipher list format https://www.openssl.org/docs/man1.1.1/man1/ciphers.html).",

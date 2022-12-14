@@ -30,7 +30,7 @@ from rich.progress import Progress
 
 from . import __version__
 from .backup import create_backup, restore_backup
-from .check import health_check
+from .check import health_check_console
 from .config import GC_THRESHOLDS, config, opsi_config
 from .logging import AsyncRedisLogAdapter, init_logging, logger, shutdown_logging
 from .manager import Manager
@@ -69,12 +69,7 @@ def log_viewer_main() -> None:
 
 def health_check_main() -> None:
 	init_logging(log_mode="local")
-	result = health_check(print_messages=True)
-	if result.get("status") == "ok":
-		sys.exit(0)
-	if result.get("status") == "warn":
-		sys.exit(2)
-	sys.exit(1)
+	sys.exit(health_check_console())
 
 
 def backup_main() -> None:

@@ -12,6 +12,7 @@ health check
 import os
 import re
 import sys
+import time
 from re import findall
 from subprocess import run
 from typing import Any, Callable, Dict, Optional, Union
@@ -25,6 +26,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
+from rich.console import Console
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
 from opsiconfd.backend import get_mysql, get_unprotected_backend
@@ -81,18 +83,66 @@ def messages(message: str, width: int) -> Callable:
 	return message_decorator
 
 
+def health_check_console() -> int:
+
+	console = Console(log_time=False)
+
+	checks = {
+		"system packages": {
+			"check_method": check_system_packages,
+			"print_method": print_check_system_packages_result
+		},
+		"opsi packages": {
+			"check_method": check_opsi_packages,
+			"print_method": print_check_opsi_packages_result
+		},
+		"redis": {
+			"check_method": check_redis,
+			"print_method": print_check_redis_result
+		},
+		"MySQL": {
+			"check_method": check_mysql,
+			"print_method": print_check_mysql_result
+		},
+		"opsi licenses": {
+			"check_method": check_opsi_licenses,
+			"print_method": print_check_opsi_licenses_results
+		},
+		"deprecated calls": {
+			"check_method": check_deprecated_calls,
+			"print_method": print_check_deprecated_calls_result,
+		}
+	}
+
+	res = 0
+	console.log("Checking server health...")
+	with console.status("[bold yellow] checking...", spinner="arrow3") as status:
+		for name, check in checks.items():
+			result = check["check_method"]()
+
+			if result.get("status") == "ok":
+				console.log(f"[bold green] {name}: OK ")
+			elif result.get("status") == "warn":
+				console.log(f"[bold yellow] {name}: WARNING ")
+				res = 2
+			else:
+				console.log(f"[bold red] {name}: ERROR ")
+				res = 1
+			check["print_method"](result)
+			time.sleep(1)
+	console.log("Done")
+
+	return res
+
+
 def health_check(print_messages: bool = False) -> dict:
-	if print_messages:
-		show_message("Started health check...")
 	result = {}
-	result["system_packages"] = check_system_packages(print_messages)
-	result["opsi_packages"] = check_opsi_packages(print_messages)
-	result["redis"] = check_redis(print_messages)
-	result["mysql"] = check_mysql(print_messages)
-	result["licenses"] = check_opsi_licenses(print_messages)
-	result["deprecated_calls"] = check_deprecated_calls(print_messages)
-	if print_messages:
-		show_message("Health check done...")
+	result["system_packages"] = check_system_packages()
+	result["opsi_packages"] = check_opsi_packages()
+	result["redis"] = check_redis()
+	result["mysql"] = check_mysql()
+	result["licenses"] = check_opsi_licenses()
+	result["deprecated_calls"] = check_deprecated_calls()
 	return result
 
 
@@ -366,6 +416,15 @@ def print_check_opsi_packages_result(check_result: dict) -> None:
 		f"{check_result['details'].get('not_installed')} are not installed and {check_result['details'].get('outdated')} are out of date."
 	)
 	show_message(msg, msg_type)
+	for depot, depot_results in check_result.get('partial_checks', {}).items():
+		show_message(f"\t\t{depot}:")
+		for res in depot_results.values():
+			msg_type = MT_SUCCESS
+			if res["status"] == "error":
+				msg_type = MT_ERROR
+			elif res["status"] == "warn":
+				msg_type = MT_WARNING
+			show_message(f"\t\t\t{res['message']}", msg_type)
 
 
 @messages("Checking licenses", MSG_WIDTH)

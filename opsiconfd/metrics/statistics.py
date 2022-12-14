@@ -38,7 +38,6 @@ def get_yappi_tag() -> int:
 
 
 def setup_metric_downsampling() -> None:  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
-
 	with redis_client() as client:
 		for metric in MetricsRegistry().get_metrics():
 			subject_is_worker = metric.subject == "worker"

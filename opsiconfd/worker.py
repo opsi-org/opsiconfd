@@ -31,9 +31,10 @@ from . import __version__
 from .addon import AddonManager
 from .application import AppState, MaintenanceState, app
 from .backend import get_protected_backend
-from .config import GC_THRESHOLDS, config
+from .config import GC_THRESHOLDS, config, configure_warnings
 from .logging import init_logging, logger
 from .metrics.collector import WorkerMetricsCollector
+from .utils import async_redis_client
 
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
@@ -73,11 +74,15 @@ def uvicorn_config() -> Config:
 
 
 class WorkerInfo:  # pylint: disable = too-few-public-methods
-	def __init__(self, node_name: str, worker_num: int, create_time: float = 0.0, pid: int = 0) -> None:
+	def __init__(  # pylint: disable = too-many-arguments
+		self, node_name: str, worker_num: int, create_time: float = 0.0, pid: int = 0, app_state: str = ""
+	) -> None:
 		self.node_name = node_name
 		self.worker_num = worker_num
 		self.create_time = create_time
 		self.pid = pid
+		self.app_state = app_state
+		self.redis_state_key_expire = 60
 
 	@classmethod
 	def from_dict(cls, data: dict) -> WorkerInfo:
@@ -102,6 +107,10 @@ class WorkerInfo:  # pylint: disable = too-few-public-methods
 	def id(self) -> str:  # pylint: disable=invalid-name
 		return f"{self.node_name}:{self.worker_num}"
 
+	@property
+	def redis_state_key(self) -> str:  # pylint: disable=invalid-name
+		return f"{config.redis_key('state')}:workers:{self.id}"
+
 	def __repr__(self) -> str:
 		return f"Worker(id={self.id!r} pid={self.pid})"
 
@@ -116,6 +125,7 @@ class Worker(WorkerInfo, UvicornServer):
 		UvicornServer.__init__(self, uvicorn_config())
 		self._metrics_collector: WorkerMetricsCollector | None = None
 		self.process: SpawnProcess | None = None
+		self.app_state = app.app_state.type
 
 	def start_server_process(self, sockets: List[socket.socket]) -> None:
 		self.process = get_subprocess(config=self.config, target=self.run, sockets=sockets)
@@ -148,6 +158,23 @@ class Worker(WorkerInfo, UvicornServer):
 				await asyncio_sleep(1)
 			memory_cleanup()
 
+	async def state_refresh_task(self) -> None:
+		while not self.should_exit:
+			for _ in range(int(self.redis_state_key_expire / 2)):
+				if self.should_exit:
+					return
+				await asyncio_sleep(1)
+			redis = await async_redis_client()
+			await redis.expire(self.redis_state_key, self.redis_state_key_expire)
+
+	async def store_state_in_redis(self) -> None:
+		redis = await async_redis_client()
+		await redis.hset(
+			self.redis_state_key,
+			mapping={"pid": self.pid, "node_name": self.node_name, "worker_num": self.worker_num, "app_state": self.app_state},
+		)
+		await redis.expire(self.redis_state_key, self.redis_state_key_expire)
+
 	def run(self, sockets: Optional[List[socket.socket]] = None) -> None:
 		self.pid = os.getpid()
 		Worker._instance = self
@@ -155,6 +182,8 @@ class Worker(WorkerInfo, UvicornServer):
 		logger.notice("%s started", self)
 
 		monkeypatch_subprocess_for_frozen()
+		configure_warnings()
+
 		logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)
 		gc.set_threshold(*GC_THRESHOLDS)
 
@@ -167,11 +196,18 @@ class Worker(WorkerInfo, UvicornServer):
 		init_pool_executor(loop)
 		loop.set_exception_handler(self.handle_asyncio_exception)
 
+		await self.store_state_in_redis()
+
 		app.register_app_state_handler(self.on_app_state_change)
 		asyncio.create_task(self.memory_cleanup_task())
 		asyncio.create_task(self.metrics_collector.main_loop())
+		asyncio.create_task(self.state_refresh_task())
 
-		await super().serve(sockets=sockets)
+		try:
+			await super().serve(sockets=sockets)
+		finally:
+			redis = await async_redis_client()
+			await redis.delete(self.redis_state_key)
 
 	async def close_connections(self) -> None:
 		for connection in self.server_state.connections:
@@ -202,3 +238,5 @@ class Worker(WorkerInfo, UvicornServer):
 		logger.notice("%s handling %s", self, app_state)
 		if isinstance(app_state, MaintenanceState):
 			await self.close_connections()
+		self.app_state = app_state.type
+		await self.store_state_in_redis()

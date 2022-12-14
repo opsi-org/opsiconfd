@@ -107,7 +107,7 @@ class OpsiconfdApp(FastAPI):
 
 	async def load_app_state_from_redis(self) -> None:
 		redis = await async_redis_client()
-		msgpack_data = await redis.get(f"{config.redis_key('status')}:application:app_state")
+		msgpack_data = await redis.get(f"{config.redis_key('state')}:application:app_state")
 		if not msgpack_data:
 			return
 
@@ -118,7 +118,7 @@ class OpsiconfdApp(FastAPI):
 
 	async def store_app_state_in_redis(self) -> None:
 		redis = await async_redis_client()
-		await redis.set(f"{config.redis_key('status')}:application:app_state", msgpack.encode(self.app_state.to_dict()))
+		await redis.set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(self.app_state.to_dict()))
 
 	async def app_state_manager_task(self) -> None:
 		cur_state = AppState()

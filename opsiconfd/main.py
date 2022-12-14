@@ -31,7 +31,7 @@ from rich.console import Console
 from rich.progress import Progress
 
 from . import __version__
-from .application import AppState, MaintenanceState, app
+from .application import MaintenanceState, app
 from .backup import create_backup, restore_backup
 from .check import health_check
 from .config import GC_THRESHOLDS, config, configure_warnings, opsi_config
@@ -160,6 +160,11 @@ def backup_main() -> None:
 				progress.update(file_task, total=1, completed=True)
 
 			progress.console.print(f"Backup file '{str(backup_file)}' succesfully created.")
+	except KeyboardInterrupt:
+		logger.error("Backup interrupted")
+		console.quiet = False
+		console.print("[bold red]Backup interrupted[/bold red]")
+		sys.exit(2)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		console.quiet = False
@@ -212,6 +217,11 @@ def restore_main() -> None:
 				restore_backup(data, config_files=config.config_files, server_id=server_id, progress=progress)
 
 			progress.console.print(f"Backup file '{str(backup_file)}' succesfully restored.")
+	except KeyboardInterrupt:
+		logger.error("Restore interrupted")
+		console.quiet = False
+		console.print("[bold red]Restore interrupted[/bold red]")
+		sys.exit(2)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		console.quiet = False

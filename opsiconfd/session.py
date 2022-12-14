@@ -17,7 +17,7 @@ import time
 import uuid
 from collections import namedtuple
 from time import sleep as time_sleep
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import msgspec
 from fastapi import FastAPI, HTTPException, status
@@ -48,6 +48,8 @@ from opsiconfd.utils import ip_address_in_network
 
 from . import contextvar_client_session, server_timing
 from .addon import AddonManager
+from .application import MaintenanceState
+from .application import app as opsiconfd_app
 from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
 from .config import config, opsi_config
 from .logging import logger
@@ -84,7 +86,7 @@ SESSION_COOKIE_ATTRIBUTES = ("SameSite=Strict", "Secure")
 # If we keep the session, we may reach the maximum number of sessions per ip.
 SESSION_UNAWARE_USER_AGENTS = ("libdnf", "curl")
 # Store ip addresses of depots with last access time
-depot_addresses: Dict[str, float] = {}
+depot_addresses: dict[str, float] = {}
 
 session_data_msgpack_encoder = msgspec.msgpack.Encoder()
 session_data_msgpack_decoder = msgspec.msgpack.Decoder()
@@ -146,7 +148,7 @@ async def get_session(client_addr: str, headers: Headers, session_id: Optional[s
 
 
 class SessionMiddleware:
-	def __init__(self, app: FastAPI, public_path: List[str] | None = None) -> None:
+	def __init__(self, app: FastAPI, public_path: list[str] | None = None) -> None:
 		self.app = app
 		self._public_path = public_path or []
 
@@ -169,6 +171,19 @@ class SessionMiddleware:
 	async def handle_request(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		self, connection: HTTPConnection, receive: Receive, send: Send
 	) -> None:
+		if isinstance(opsiconfd_app.app_state, MaintenanceState):
+			client_in_exceptions = False
+			for network in opsiconfd_app.app_state.address_exceptions or []:
+				if ip_address_in_network(connection.scope["client"][0], network):  # pylint: disable=loop-invariant-statement
+					client_in_exceptions = True
+					break
+			if not client_in_exceptions:
+				raise HTTPException(
+					status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+					detail=opsiconfd_app.app_state.message,
+					headers={"Retry-After": str(opsiconfd_app.app_state.retry_after)}
+				)
+
 		with server_timing("session_handling") as timing:
 			scope = connection.scope
 			scope["session"] = None
@@ -429,7 +444,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 		max_age = 0 if self.deleted else self.max_age
 		return f"{SESSION_COOKIE_NAME}={self.session_id}; {attrs}path=/; Max-Age={max_age}"
 
-	def add_cookie_to_headers(self, headers: Dict[str, str]) -> None:
+	def add_cookie_to_headers(self, headers: dict[str, str]) -> None:
 		cookie = self.get_cookie()
 		# Keep current set-cookie header if already set
 		if cookie and "set-cookie" not in headers:

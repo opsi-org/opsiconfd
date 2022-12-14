@@ -8,7 +8,7 @@
 opsiconfd.messagebus.redis
 """
 
-from asyncio import sleep
+from asyncio import Event, sleep
 from asyncio.exceptions import CancelledError
 from time import time
 from typing import Any, AsyncGenerator, List, Optional, Tuple
@@ -122,6 +122,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		self._streams: dict[bytes, StreamIdT] = {}
 		self._key_prefix = f"{config.redis_key('messagebus')}:channels"
 		self._should_stop = False
+		self._stopped_event = Event()
 		self._context_decoder = msgspec.msgpack.Decoder()
 
 	def __repr__(self) -> str:
@@ -185,7 +186,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
 		return await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
 
-	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:
+	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:  # pylint: disable=too-many-branches
 		if not self._channels:
 			raise ValueError("No channels to read from")
 
@@ -227,10 +228,13 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		except CancelledError:
 			pass
 
-		pipeline = redis.pipeline()
-		for stream_key in list(self._streams):
-			pipeline.hincrby(stream_key + self._info_suffix, "reader-count", -1)
-		await pipeline.execute()
+		try:
+			pipeline = redis.pipeline()
+			for stream_key in list(self._streams):
+				pipeline.hincrby(stream_key + self._info_suffix, "reader-count", -1)
+			await pipeline.execute()
+		finally:
+			self._stopped_event.set()
 
 	async def ack_message(self, channel: str, redis_msg_id: str) -> None:
 		logger.trace("ACK channel %r, message %r", channel, redis_msg_id)
@@ -240,8 +244,10 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 			raise ValueError(f"Invalid channel: {channel!r}")
 		await redis.hset(stream_key + self._info_suffix, "last-delivered-id", redis_msg_id)
 
-	def stop(self) -> None:
+	async def stop(self, wait: bool = True) -> None:
 		self._should_stop = True
+		if wait:
+			await self._stopped_event.wait()
 
 
 class ConsumerGroupMessageReader(MessageReader):

@@ -52,9 +52,9 @@ async def async_terminal_startup() -> None:
 
 async def async_terminal_shutdown() -> None:
 	if terminal_request_reader:
-		terminal_request_reader.stop()
+		await terminal_request_reader.stop()
 	if terminal_instance_reader:
-		terminal_instance_reader.stop()
+		await terminal_instance_reader.stop()
 
 
 def start_pty(shell: str, rows: int | None = 30, cols: int | None = 120, cwd: str | None = None) -> spawn:

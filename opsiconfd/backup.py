@@ -93,10 +93,7 @@ def get_config_files() -> dict[str, Path]:
 	return config_files
 
 
-def create_backup(
-	config_files: bool = True,
-	progress: Progress | None = None,
-) -> dict[str, dict[str, Any]]:
+def create_backup(config_files: bool = True, progress: Progress | None = None) -> dict[str, dict[str, Any]]:
 	if opsi_config.get("host", "server-role") != "configserver":
 		raise RuntimeError("Not a config server")
 
@@ -200,7 +197,7 @@ def restore_backup(  # pylint: disable=too-many-locals,too-many-branches,too-man
 	mysql.disconnect()
 	mysql.connect()
 	logger.notice("Updating database")
-	update_database(mysql)
+	update_database(mysql, force=True)
 	if progress:
 		progress.advance(db_task)
 

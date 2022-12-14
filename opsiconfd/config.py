@@ -1021,6 +1021,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			default=False,
 			help=self._help("expert", "Clients are allowed to login with the host key only."),
 		)
+		self._parser.add(
+			"--maintenance",
+			nargs="*",
+			env_var="OPSICONFD_MAINTENANCE",
+			default=False,
+			help=self._help("opsicconfd", "Start opsiconfd in maintenance mode, except for these addresses."),
+		)
 
 		if self._pytest:
 			self._parser.add("args", nargs="*")

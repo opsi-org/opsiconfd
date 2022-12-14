@@ -54,9 +54,10 @@ from .opsipxeconfd import RPCOpsiPXEConfdMixin
 if TYPE_CHECKING:
 	from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
 
+	from opsiconfd.application import OpsiconfdApp
+
 	from ..auth import RPCACE
 	from ..mysql import MySQLConnection
-
 
 IdentType = Literal["unicode", "str", "dict", "hash", "list", "tuple"]
 
@@ -102,6 +103,10 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCExtenderMixin,
 	Protocol,
 ):
+	@property
+	def _app(self) -> OpsiconfdApp:
+		...
+
 	@property
 	def _mysql(self) -> MySQLConnection:
 		...

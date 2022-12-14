@@ -22,14 +22,14 @@ from .backend import get_unprotected_backend
 from .config import config
 from .logging import init_logging, logger
 from .utils import redis_client
-from .worker import Worker
+from .worker import Worker, WorkerInfo
 
 
 class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 	def __init__(self) -> None:
 		self.socket: socket.socket | None = None
 		self.node_name = config.node_name
-		self.workers: dict[str, Worker] = {}
+		self.workers: dict[str, WorkerInfo] = {}
 		self.worker_stop_timeout = config.worker_stop_timeout
 		self.worker_restart_time = 0
 		self.worker_restart_mem = config.restart_worker_mem * 1000000
@@ -63,6 +63,12 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 			raise
 		self.socket.set_inheritable(True)
 
+	def get_workers(self) -> list[Worker]:
+		return [w for w in self.workers.values() if isinstance(w, Worker)]
+
+	def get_worker_infos(self) -> list[WorkerInfo]:
+		return list(self.workers.values())
+
 	def run(self) -> None:
 		logger.notice("Starting server")
 		init_logging(config.log_mode)
@@ -77,7 +83,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 
 			auto_restart = []
 			with self.worker_update_lock:
-				for worker in self.workers.values():
+				for worker in self.get_workers():
 					if self.should_restart_workers:
 						auto_restart.append(worker)
 
@@ -85,7 +91,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 						if self.worker_restart_time > 0:
 							alive = time.time() - worker.create_time  # pylint: disable=dotted-import-in-loop
 							if alive >= self.worker_restart_time:
-								logger.notice("Worker %s (pid %d) has been running for %s seconds", worker.id, worker.pid, alive)
+								logger.notice("%s has been running for %s seconds", worker, alive)
 								auto_restart.append(worker)
 
 						if self.worker_restart_mem > 0:
@@ -96,9 +102,8 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 									setattr(worker, "max_mem_exceeded_since", now)
 								if now - getattr(worker, "max_mem_exceeded_since") >= self.worker_restart_mem_interval:
 									logger.notice(
-										"Worker %s (pid %d) is using more than %0.2f MB of memory (currently %0.2f MB) since %d seconds",
-										worker.id,
-										worker.pid,
+										"%s is using more than %0.2f MB of memory (currently %0.2f MB) since %d seconds",
+										worker,
 										self.worker_restart_mem / 1000000,
 										mem / 1000000,
 										now - getattr(worker, "max_mem_exceeded_since"),
@@ -110,11 +115,11 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 					elif not getattr(worker, "marked_as_vanished", False):
 						# Worker crashed / killed
 						if self.startup:
-							logger.critical("Failed to start worker %s (pid %d)", worker.id, worker.pid)
+							logger.critical("Failed to start %s", worker)
 							self.stop(force=True)
 							break
 
-						logger.warning("Worker %s (pid %d) vanished", worker.id, worker.pid)
+						logger.warning("%s vanished", worker)
 						setattr(worker, "marked_as_vanished", True)
 						if self.restart_vanished_workers:
 							auto_restart.append(worker)
@@ -128,7 +133,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 						break
 					time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
-			self.update_worker_registry()
+			self.update_worker_state()
 
 			self.startup = False
 			self.should_restart_workers = False
@@ -138,7 +143,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 
 	def reload(self) -> None:
 		self.check_modules()
-		for worker in self.workers.values():
+		for worker in self.get_workers():
 			os.kill(worker.pid, signal.SIGHUP)  # pylint: disable=dotted-import-in-loop
 
 		self.adjust_worker_count()
@@ -146,11 +151,11 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 	def stop(self, force: bool = False) -> None:
 		self.should_stop = True
 		logger.notice("Stopping all workers (force=%s)", force)
-		self.stop_worker(list(self.workers.values()), force=force)
+		self.stop_worker(self.get_workers(), force=force)
 		logger.info("All workers stopped")
 
 	def get_worker(self, pid: int) -> Optional[Worker]:
-		for worker in self.workers.values():
+		for worker in self.get_workers():
 			if worker.pid == pid:
 				return worker
 		return None
@@ -160,13 +165,13 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 			raise RuntimeError("Socket not initialized")
 
 		if not worker:
-			worker_nums = sorted([w.worker_num for w in self.workers.values() if w.node_name == self.node_name])
+			worker_nums = sorted([w.worker_num for w in self.get_workers()])
 			worker_num = worker_nums[-1] + 1 if worker_nums else 1
 			worker = Worker(self.node_name, worker_num)
 
 		worker.start_server_process([self.socket])
 
-		logger.notice("New worker %s (pid %d) started", worker.id, worker.pid)
+		logger.info("New %s started", worker)
 		self.workers[worker.id] = worker
 
 	def stop_worker(self, workers: List[Worker] | Worker, force: bool = False, wait: bool = True, remove_worker: bool = True) -> None:
@@ -174,7 +179,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 			workers = [workers]  # pylint: disable=use-tuple-over-list
 		for worker in workers:
 			if worker.process and worker.process.is_alive():
-				logger.notice("Stopping worker %s (pid %d) (force=%s)", worker.id, worker.pid, force)
+				logger.notice("Stopping %s (force=%s)", worker, force)
 				worker.process.terminate()
 				if force:
 					# Send twice, uvicorn worker will not wait for connectons to close.
@@ -209,7 +214,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 
 	def restart_worker(self, worker: Worker) -> None:
 		with self.worker_update_lock:
-			logger.notice("Restarting worker %s (pid %d)", worker.id, worker.pid)
+			logger.notice("Restarting %s", worker)
 			if worker.process and worker.process.is_alive():
 				self.stop_worker(worker, remove_worker=False)
 			self.start_worker(worker)
@@ -219,28 +224,27 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 			while len(self.workers) < config.workers:
 				self.start_worker()
 			while len(self.workers) > config.workers:
-				self.stop_worker(list(self.workers.values())[-1])
+				self.stop_worker(self.get_workers()[-1])
 
-	def update_worker_registry(self) -> None:
+	def update_worker_state(self) -> None:
 		with (self.worker_update_lock, redis_client() as redis):
-			for worker in self.workers.values():
-				redis_key = f"{config.redis_key('status')}:workers:{self.node_name}:{worker.id}"
+			for worker in self.get_workers():
+				redis_key = f"{config.redis_key('status')}:workers:{worker.id}"
 				redis.hset(
 					redis_key,
-					key=None,
-					value=None,
-					mapping={"worker_pid": worker.pid, "node_name": self.node_name, "worker_id": worker.id},
+					mapping={"pid": worker.pid, "node_name": worker.node_name, "worker_num": worker.worker_num},
 				)
 				redis.expire(redis_key, 60)
 
-			for redis_key_b in redis.scan_iter(
-				f"{config.redis_key('status')}:workers:{self.node_name}:*"
-			):  # pylint: disable=loop-invariant-statement
-				redis_key = redis_key_b.decode("utf-8")
+			for redis_key_b in redis.scan_iter(f"{config.redis_key('status')}:workers:*"):
 				try:  # pylint: disable=loop-try-except-usage
-					worker_id = int(redis_key.split(":")[-1])
-				except IndexError:
-					worker_id = -1
-				if worker_id == -1 or worker_id > len(self.workers):
-					# Delete obsolete worker entry
-					redis.delete(redis_key)
+					worker_info = WorkerInfo.from_dict(redis.hgetall(redis_key_b))
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error("Failed to read worker info from %r, deleting key: %s", redis_key_b.decode("utf-8"), err)
+					redis.delete(redis_key_b)
+				if worker_info.node_name == self.node_name:
+					if worker_info.id not in self.workers:
+						# Delete obsolete worker entry
+						redis.delete(redis_key_b)
+				else:
+					self.workers[worker_info.id] = worker_info

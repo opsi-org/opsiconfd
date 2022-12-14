@@ -154,7 +154,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 
 	filesystems = {}
 	try:
-		logger.notice(f"Running on depot server '{depot_id}', exporting repository directory")
+		logger.info("Running on depot server %r, exporting repository directory", depot_id)
 		if not depot.repositoryLocalUrl:
 			raise Exception(f"Repository local url for depot '{depot_id}' not found")
 		if not depot.repositoryLocalUrl.startswith("file:///"):
@@ -171,7 +171,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		logger.error(exc, exc_info=True)
 
 	try:
-		logger.notice(f"Running on depot server '{depot_id}', exporting depot directory")
+		logger.info("Running on depot server %r, exporting depot directory", depot_id)
 		if not depot.depotLocalUrl:
 			raise Exception(f"Repository local url for depot '{depot_id}' not found")
 		if not depot.depotLocalUrl.startswith("file:///"):
@@ -188,7 +188,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		logger.error(exc, exc_info=True)
 
 	try:
-		logger.notice(f"Running on depot server '{depot_id}', exporting workbench directory")
+		logger.info("Running on depot server %r, exporting workbench directory", depot_id)
 		if not depot.workbenchLocalUrl:
 			raise Exception(f"Workbench local url for depot '{depot_id}' not found")
 		if not depot.workbenchLocalUrl.startswith("file:///"):
@@ -205,7 +205,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		logger.error(exc, exc_info=True)
 
 	try:
-		logger.notice(f"Running on depot server '{depot_id}', exporting public directory")
+		logger.info("Running on depot server %r, exporting public directory", depot_id)
 		logger.debug("Public path is '%s'", PUBLIC_FOLDER)
 		if not os.path.isdir(PUBLIC_FOLDER):
 			raise Exception(f"Cannot add webdav content 'public': directory '{PUBLIC_FOLDER}' does not exist.")
@@ -219,7 +219,7 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 	if os.path.isdir("/tftpboot"):
 		try:
 			path = "/tftpboot"
-			logger.notice(f"Running on depot server '{depot_id}', exporting boot directory")
+			logger.info("Running on depot server %r, exporting boot directory", depot_id)
 			if not os.access(path, os.R_OK | os.X_OK):
 				raise Exception(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
 

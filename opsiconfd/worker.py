@@ -29,6 +29,7 @@ from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
 from . import __version__
 from .addon import AddonManager
+from .application import AppState, MaintenanceState, app
 from .backend import get_protected_backend
 from .config import GC_THRESHOLDS, config
 from .logging import init_logging, logger
@@ -71,14 +72,47 @@ def uvicorn_config() -> Config:
 	return Config("opsiconfd.application:app", **options)
 
 
-class Worker(UvicornServer):
+class WorkerInfo:  # pylint: disable = too-few-public-methods
+	def __init__(self, node_name: str, worker_num: int, create_time: float = 0.0, pid: int = 0) -> None:
+		self.node_name = node_name
+		self.worker_num = worker_num
+		self.create_time = create_time
+		self.pid = pid
+
+	@classmethod
+	def from_dict(cls, data: dict) -> WorkerInfo:
+		kwargs = {}
+		for key, val in data.items():
+			if isinstance(key, bytes):
+				key = key.decode("utf-8")
+			if isinstance(val, bytes):
+				val = val.decode("utf-8")
+			if key == "node_name":
+				pass
+			elif key in ("worker_num", "pid"):
+				val = int(val)
+			elif key == "create_time":
+				val = float(val)
+			else:
+				continue
+			kwargs[key] = val
+		return WorkerInfo(**kwargs)
+
+	@property
+	def id(self) -> str:  # pylint: disable=invalid-name
+		return f"{self.node_name}:{self.worker_num}"
+
+	def __repr__(self) -> str:
+		return f"Worker(id={self.id!r} pid={self.pid})"
+
+	__str__ = __repr__
+
+
+class Worker(WorkerInfo, UvicornServer):
 	_instance = None
 
 	def __init__(self, node_name: str, worker_num: int) -> None:
-		self.node_name = node_name
-		self.worker_num = worker_num
-
-		self.create_time = time.time()
+		WorkerInfo.__init__(self, node_name, worker_num, time.time())
 		UvicornServer.__init__(self, uvicorn_config())
 		self._metrics_collector: WorkerMetricsCollector | None = None
 		self.process: SpawnProcess | None = None
@@ -86,27 +120,14 @@ class Worker(UvicornServer):
 	def start_server_process(self, sockets: List[socket.socket]) -> None:
 		self.process = get_subprocess(config=self.config, target=self.run, sockets=sockets)
 		self.process.start()
+		if self.process.pid:
+			self.pid = self.process.pid
 
 	@classmethod
 	def get_instance(cls) -> Worker:
 		if not Worker._instance:
 			raise RuntimeError("Failed to get worker instance")
 		return Worker._instance
-
-	def __repr__(self) -> str:
-		return f"<{self.__class__.__name__} {self.id} (pid: {self.pid}>"
-
-	__str__ = __repr__
-
-	@property
-	def id(self) -> str:  # pylint: disable=invalid-name
-		return f"{self.node_name}:{self.worker_num}"
-
-	@property
-	def pid(self) -> int:
-		if not self.process or not self.process.pid:
-			return os.getpid()
-		return self.process.pid
 
 	@property
 	def metrics_collector(self) -> WorkerMetricsCollector:
@@ -123,14 +144,15 @@ class Worker(UvicornServer):
 		while not self.should_exit:
 			for _ in range(120):
 				if self.should_exit:
-					break
+					return
 				await asyncio_sleep(1)
 			memory_cleanup()
 
 	def run(self, sockets: Optional[List[socket.socket]] = None) -> None:
+		self.pid = os.getpid()
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)
-		logger.notice("Startup worker %s (pid %s)", self.id, self.pid)
+		logger.notice("%s started", self)
 
 		monkeypatch_subprocess_for_frozen()
 		logger.info("Setting garbage collector thresholds: %s", GC_THRESHOLDS)
@@ -145,10 +167,15 @@ class Worker(UvicornServer):
 		init_pool_executor(loop)
 		loop.set_exception_handler(self.handle_asyncio_exception)
 
+		app.register_app_state_handler(self.on_app_state_change)
 		asyncio.create_task(self.memory_cleanup_task())
 		asyncio.create_task(self.metrics_collector.main_loop())
 
 		await super().serve(sockets=sockets)
+
+	async def close_connections(self) -> None:
+		for connection in self.server_state.connections:
+			connection.shutdown()
 
 	async def shutdown(self, sockets: Optional[List[socket.socket]] = None) -> None:
 		await super().shutdown(sockets=sockets)
@@ -159,7 +186,7 @@ class Worker(UvicornServer):
 		super().install_signal_handlers()
 
 	def handle_sighup(self) -> None:
-		logger.notice("Worker process %s (pid %d) reloading", self.id, self.pid)
+		logger.notice("%s reloading", self)
 		config.reload()
 		for key, value in uvicorn_config().__dict__.items():
 			# Do not replace the whole config object, because uvicorn
@@ -170,3 +197,8 @@ class Worker(UvicornServer):
 		memory_cleanup()
 		get_protected_backend().reload_config()
 		AddonManager().reload_addons()
+
+	async def on_app_state_change(self, app_state: AppState) -> None:
+		logger.notice("%s handling %s", self, app_state)
+		if isinstance(app_state, MaintenanceState):
+			await self.close_connections()

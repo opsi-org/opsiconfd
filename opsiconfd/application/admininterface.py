@@ -17,7 +17,7 @@ import signal
 import tempfile
 from operator import itemgetter
 from shutil import move, rmtree, unpack_archive
-from typing import TYPE_CHECKING, Dict, List
+from typing import Dict, List
 from urllib.parse import urlparse
 
 import msgspec
@@ -49,11 +49,9 @@ from ..utils import (
 	ip_address_to_redis_key,
 	utc_time_timestamp,
 )
+from . import AppState
 from .memoryprofiler import memory_profiler_router
 from .metrics import create_grafana_datasource
-
-if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.opsiconfd import UnprotectedBackend
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -122,6 +120,24 @@ async def admin_interface_index(request: Request) -> Response:
 		],
 	}
 	return config.jinja_templates.TemplateResponse("admininterface.html", context)
+
+
+@admin_interface_router.get("/app-state")
+@rest_api
+async def get_app_state(request: Request) -> RESTResponse:
+	return RESTResponse(data=request.app.app_state.to_dict())
+
+
+@admin_interface_router.post("/app-state")
+@rest_api
+async def set_app_state(request: Request) -> RESTResponse:
+	params = await request.json()
+	if params.pop("auto_add_to_address_exceptions", False) and params["type"] == "maintenance":
+		params["address_exceptions"] = params.get("address_exceptions", []) + ["127.0.0.1/32", "::1/128"]
+		if request.client:
+			params["address_exceptions"].append(request.client.host)
+	request.app.app_state = AppState.from_dict(params)
+	return RESTResponse(data=request.app.app_state.to_dict())
 
 
 @admin_interface_router.post("/reload")

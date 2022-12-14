@@ -561,7 +561,7 @@ def drop_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-b
 		session.execute(f"DROP DATABASE IF EXISTS `{mysql.database}`")
 
 
-def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many-branches,too-many-statements
+def update_database(mysql: MySQLConnection, force: bool = False) -> None:  # pylint: disable=too-many-branches,too-many-statements
 	with mysql.session() as session:
 		session.execute(CREATE_TABLES_SQL)
 		create_audit_hardware_tables(session, mysql.tables)
@@ -573,6 +573,13 @@ def update_database(mysql: MySQLConnection) -> None:  # pylint: disable=too-many
 		if not schema_version or schema_version < mysql.schema_version:
 			logger.notice("Starting update to schema version %r", mysql.schema_version)
 			session.execute("INSERT INTO `OPSI_SCHEMA` (`version`) VALUES (:version)", params={"version": mysql.schema_version})
+
+		if schema_version and schema_version >= mysql.schema_version:
+			if force:
+				logger.info("Database schema is up-to-date but update is forced")
+			else:
+				logger.info("Database schema is up-to-date")
+				return
 
 		logger.info("Running opsi 4.1 updates")
 

@@ -20,6 +20,39 @@ function monitorSession() {
 }
 
 
+function getAppState() {
+	let req = ajaxRequest("GET", "/admin/app-state");
+	req.then((result) => {
+		outputToHTML(result, "application-state");
+		return result
+	});
+}
+
+
+function setAppState(type) {
+	params = { "type": type }
+	if (type == "maintenance") {
+		params.auto_add_to_address_exceptions = true;
+		let val = document.getElementById("application-state-maintenance-exceptions").value;
+		if (val) {
+			params.address_exceptions = val.replace(/\s/g, "").split(",");
+		}
+		val = document.getElementById("application-state-maintenance-retry-after").value;
+		if (val) {
+			params.retry_after = val;
+		}
+	}
+	let req = ajaxRequest("POST", "/admin/app-state", params);
+	req.then((result) => {
+		outputToHTML(result, "application-state");
+		return result
+	}, (error) => {
+		console.error(error);
+		alert(`Error setting application state:\n${error.message}`);
+	});
+}
+
+
 function unblockAll() {
 	let req = ajaxRequest("POST", "/admin/unblock-all");
 	req.then((result) => {
@@ -43,12 +76,14 @@ function unblockClient(ip) {
 	}
 }
 
+
 function loadRPCCacheInfo() {
 	let req = ajaxRequest("GET", "/redis-interface/load-rpc-cache-info");
 	req.then((result) => {
 		printRPCCacheInfoTable(result.result, "rpc-cache-info-div");
 	});
 }
+
 
 function clearRPCCache(cacheName = null) {
 	let req = ajaxRequest("POST", "/redis-interface/clear-rpc-cache", { "cache_name": cacheName });

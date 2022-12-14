@@ -24,6 +24,7 @@ from opsicommon.types import forceHostId  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session
+from opsiconfd.application import app
 from opsiconfd.application.utils import get_depot_server_id
 from opsiconfd.backend.rpc import MethodInterface
 from opsiconfd.config import config, opsi_config
@@ -119,6 +120,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			return
 		self.__initialized = True
 
+		self._app = app
 		self._acl: Dict[str, List[RPCACE]] = {}
 		self._depot_connections: dict[str, ServiceClient] = {}
 		self._depot_id: str = get_depot_server_id()

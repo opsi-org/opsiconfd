@@ -259,6 +259,7 @@ def rest_api(default_error_status_code: Union[Callable, int, None] = None) -> Ca
 				return JSONResponse(content=content, status_code=http_status, headers=headers)
 
 			except Exception as err:  # pylint: disable=broad-except
+				logger.error(err, exc_info=True)
 				content = {}
 				if isinstance(err, OpsiApiException):
 					content = {

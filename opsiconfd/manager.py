@@ -16,6 +16,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from types import FrameType
 
+from .application import app
 from .config import config
 from .logging import init_logging, logger
 from .messagebus.redis import cleanup_channels

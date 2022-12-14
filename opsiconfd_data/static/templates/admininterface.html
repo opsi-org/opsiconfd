@@ -66,6 +66,9 @@
 			if (tabName == "rpc-infos") {
 				loadRPCTable("rpc_num", false);
 			}
+			else if (tabName == "maintenance") {
+				getAppState();
+			}
 			else if (tabName == "clients") {
 				loadSessionTable();
 				loadClientTable();
@@ -136,6 +139,7 @@
 
 		<div class="tab">
 			<a href="#info" id="tablink-info" class="tablink" onclick="openTab('info');">Info</a>
+			<a href="#maintenance" id="tablink-info" class="tablink" onclick="openTab('maintenance');">Maintenance</a>
 			<a href="#clients" id="tablink-clients" class="tablink" onclick="openTab('clients');">Clients</a>
 			<a href="#depots" id="tablink-depots" class="tablink" onclick="openTab('depots');">Depots</a>
 			<a href="#rpc-infos" id="tablink-rpc-infos" class="tablink" onclick="openTab('rpc-infos');">RPC-Infos</a>
@@ -162,7 +166,30 @@
 			<a href="#" class="tablink" onclick="logout()">Logout</a>
 		</div>
 
-		<div id="tab-clients" class="tabcontent">
+		<div id="tab-maintenance" class="tabcontent">
+			<div class="adminpage-box">
+				<h4>Application state:</h4>
+				<div id="application-state"></div>
+
+				<h4>Set application state:</h4>
+
+				<input type="button" onclick="setAppState('normal')" value="Set application to 'normal' state">
+				<br />
+				<br />
+				<label for="application-state-maintenance-exceptions">Address exceptions (optional):</label>
+				<input id="application-state-maintenance-exceptions" type="text" style="width: 400px"
+					placeholder="Comma separated network address list to exclude from 503">
+				<br />
+				<label for="application-state-maintenance-retry-after">Retry after seconds (optional):</label>
+				<input id="application-state-maintenance-retry-after" type="number" style="width: 400px"
+					placeholder="Wait time in seconds before clients retry connection">
+				<br />
+				<input type="button" onclick="setAppState('maintenance')"
+					value="Set application to 'maintenance' state">
+			</div>
+		</div>
+
+		<div id=" tab-clients" class="tabcontent">
 			<div class="adminpage-box" id="sessions">
 				<h4>Sessions:</h4>
 				<div id="session-table-div">
@@ -183,7 +210,7 @@
 					<tr>
 						<td align="left"><label>Unblock all clients:</label></td>
 						<td></td>
-						0 <td><button id="unblock-all-button" onclick="unblockAll()">Execute</button></td>
+						<td><button id="unblock-all-button" onclick="unblockAll()">Execute</button></td>
 					</tr>
 					<tr>
 						<td align="left">Unblock address:</td>
@@ -206,7 +233,7 @@
 		</div>
 
 		<div id="tab-depots" class="tabcontent">
-			<div class="adminpage-box" id="sessions">
+			<div class="adminpage-box">
 				<h4>Locked Products:</h4>
 				<div id="locked-products-table-div">
 					loading...
@@ -458,14 +485,16 @@
 				<label>Max objects per type: </label>
 				<input id="input-objgraph-max-obj" type="number" value="50" style="width: 50px" />
 				<button id="button-objgraph-snapshot-new" onclick="objgraphSnapshot(false)">Take snapshot</button>
-				<button id="button-objgraph-snapshot-update" onclick="objgraphSnapshot(true)">Update snapshot</button>
+				<button id="button-objgraph-snapshot-update" onclick="objgraphSnapshot(true)">Update
+					snapshot</button>
 				<br />
 				<label>Object id: </label>
 				<input id="input-objgraph-obj-id" type="text" />
 				<button id="button-objgraph-show-backrefs" onclick="objgraphShowBackrefs()">Show backrefs</button>
 
 				<br /><br />
-				<button id="button-tracemalloc-snapshot" onclick="tracemallocSnapshot()">Tracemalloc snapshot</button>
+				<button id="button-tracemalloc-snapshot" onclick="tracemallocSnapshot()">Tracemalloc
+					snapshot</button>
 			</div>
 			<div class="adminpage-box" id="memory-info">
 				<pre class="memory-values" id="memory-values" style="overflow: auto"></pre>

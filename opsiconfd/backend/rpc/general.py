@@ -52,6 +52,7 @@ from opsicommon.types import (  # type: ignore[import]
 )
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
+from opsiconfd.application import AppState
 from opsiconfd.backup import create_backup
 from opsiconfd.check import health_check
 from opsiconfd.config import (
@@ -146,6 +147,12 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	def server_createBackup(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
 		self._check_role("admin")
 		return create_backup()
+
+	@rpc_method
+	def server_setAppState(self: BackendProtocol, app_state: dict[str, Any]) -> dict[str, Any]:  # pylint: disable=invalid-name
+		self._check_role("admin")
+		self._app.app_state = AppState.from_dict(app_state)
+		return self._app.app_state.to_dict()
 
 	@rpc_method
 	def getDomain(self: BackendProtocol) -> str:  # pylint: disable=invalid-name

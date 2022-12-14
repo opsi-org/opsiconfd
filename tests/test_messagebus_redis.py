@@ -95,7 +95,7 @@ async def test_message_reader_processing(config: Config) -> None:  # pylint: dis
 		assert len(reader.received) == 1
 		assert reader.received[0][1].id == "6"
 
-		reader.stop()
+		await reader.stop()
 
 
 @pytest.mark.asyncio
@@ -123,8 +123,8 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 		await send_message(Message(id=str(idx), type="test", sender="*", channel="service:config:jsonrpc"), context=b"context_data")
 
 	await asyncio.sleep(3)
-	reader1.stop()
-	reader2.stop()
+	await reader1.stop()
+	await reader2.stop()
 	await asyncio.sleep(2)
 
 	assert len(reader1.received) >= 10
@@ -150,8 +150,8 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)
-	reader1.stop()
-	reader2.stop()
+	await reader1.stop()
+	await reader2.stop()
 	await asyncio.sleep(2)
 
 	assert len(reader1.received) >= 10
@@ -170,8 +170,8 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)
-	reader1.stop()
-	reader2.stop()
+	await reader1.stop()
+	await reader2.stop()
 	await asyncio.sleep(2)
 
 	assert len(reader1.received) == len(reader1_received_ids)
@@ -187,8 +187,8 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	asyncio.create_task(reader_task(reader2))
 
 	await asyncio.sleep(3)
-	reader1.stop()
-	reader2.stop()
+	await reader1.stop()
+	await reader2.stop()
 	await asyncio.sleep(2)
 
 	assert len(reader1.received) == 0
@@ -242,4 +242,4 @@ async def test_message_reader_survives_recreate_channel(config: Config) -> None:
 		assert reader.received[0][1].id == "5"
 		assert reader.received[1][1].id == "6"
 
-		reader.stop()
+		await reader.stop()

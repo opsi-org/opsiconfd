@@ -59,7 +59,7 @@ async def async_jsonrpc_startup() -> None:
 
 async def async_jsonrpc_shutdown() -> None:
 	if jsonrpc_message_reader:
-		jsonrpc_message_reader.stop()
+		await jsonrpc_message_reader.stop()
 
 
 def get_compression(content_encoding: str) -> Optional[str]:
@@ -259,7 +259,7 @@ def serialize(obj: Any, deep: bool = False) -> Any:
 
 @lru_cache(maxsize=0)
 def get_object_type(object_type: str) -> Type[BaseObject] | None:
-	return OBJECT_CLASSES.get(object_type)
+	return OBJECT_CLASSES[object_type]
 
 
 def deserialize(obj: Any, deep: bool = False) -> Any:  # pylint: disable=invalid-name

@@ -16,14 +16,13 @@ from typing import Any, AsyncGenerator, List, Tuple
 from urllib.parse import urlparse
 
 import msgspec
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.requests import Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.routing import APIRoute, Mount
 from fastapi.staticfiles import StaticFiles
 from opsicommon.logging.constants import TRACE  # type: ignore[import]
-from starlette import status
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
@@ -394,7 +393,6 @@ async def async_application_shutdown() -> None:
 
 @app.on_event("startup")
 async def startup() -> None:
-	logger.info("Processing startup event")
 	try:
 		await run_in_threadpool(application_setup)
 		await async_application_startup()

@@ -307,4 +307,4 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:  # pylint: disable=unused-argument
 		logger.info("Websocket client disconnected from messagebus")
 		if self._messagebus_reader:
-			self._messagebus_reader.stop()
+			await self._messagebus_reader.stop()

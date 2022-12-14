@@ -130,7 +130,7 @@ def _get_default_dirs() -> list[str]:
 
 def setup_files() -> None:
 	for _dir in _get_default_dirs():
-		if not os.path.isdir(_dir):  # pylint: disable=dotted-import-in-loop
+		if not os.path.isdir(_dir) and not os.path.islink(_dir):  # pylint: disable=dotted-import-in-loop
 			os.makedirs(_dir)  # pylint: disable=dotted-import-in-loop
 			set_rights(_dir)
 
@@ -178,14 +178,14 @@ def setup_systemd() -> None:
 	subprocess.check_output(["systemctl", "enable", "opsiconfd.service"])
 
 
-def setup_backend() -> None:
+def setup_backend(full: bool) -> None:
 	if opsi_config.get("host", "server-role") != "configserver":
 		return
 
 	mysql = MySQLConnection()
 	mysql.connect()
 	create_database(mysql)
-	update_database(mysql)
+	update_database(mysql, force=full)
 	cleanup_database(mysql)
 
 	if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
@@ -276,7 +276,7 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 
 	if "backend" not in config.skip_setup:
 		try:
-			setup_backend()
+			setup_backend(full)
 		except Exception as err:  # pylint: disable=broad-except
 			# This can happen during package installation
 			# where backend config files are missing

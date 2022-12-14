@@ -15,6 +15,7 @@ import os
 import re
 import socket
 import sys
+import warnings
 from argparse import (
 	OPTIONAL,
 	SUPPRESS,
@@ -69,6 +70,12 @@ SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
 SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
 
 opsi_config = OpsiConfig()
+
+
+def configure_warnings() -> None:
+	warnings.filterwarnings(
+		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
+	)
 
 
 if running_in_docker():

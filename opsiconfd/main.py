@@ -31,7 +31,7 @@ from rich.progress import Progress
 from . import __version__
 from .backup import create_backup, restore_backup
 from .check import health_check
-from .config import GC_THRESHOLDS, config, opsi_config
+from .config import GC_THRESHOLDS, config, configure_warnings, opsi_config
 from .logging import AsyncRedisLogAdapter, init_logging, logger, shutdown_logging
 from .manager import Manager
 from .patch import apply_patches
@@ -268,6 +268,7 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 
 def main() -> None:  # pylint: disable=too-many-return-statements
 	monkeypatch_subprocess_for_frozen()
+	configure_warnings()
 
 	if config.version:
 		print(f"{__version__} [python-opsi={python_opsi_version}]")

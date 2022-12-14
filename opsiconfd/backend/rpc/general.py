@@ -152,10 +152,12 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
 		if maintenance_mode:
-			self._app.app_state = MaintenanceState(
-				retry_after=300, message="Backup in progress", address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr]
+			self._app.set_app_state(
+				MaintenanceState(
+					retry_after=300, message="Backup in progress", address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr]
+				),
+				wait_accomplished=60.0,
 			)
-			# TODO: Wait for client disconnect
 		try:
 			return create_backup(config_files=config_files)
 		finally:
@@ -170,10 +172,12 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
-		self._app.app_state = MaintenanceState(
-			retry_after=600, message="Restore in progress", address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr]
+		self._app.set_app_state(
+			MaintenanceState(
+				retry_after=600, message="Restore in progress", address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr]
+			),
+			wait_accomplished=60.0,
 		)
-		# TODO: Wait for client disconnect
 		restore_backup(data=data, config_files=config_files, server_id=server_id, batch=batch)
 		self._app.app_state = NormalState()
 

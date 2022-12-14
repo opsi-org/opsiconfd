@@ -1090,6 +1090,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		if self._sub_command == "backup":
 			now = datetime.now().strftime("%Y%m%d-%H%M%S")
 			self._parser.add(
+				"--no-maintenance",
+				action="store_true",
+				help=self._help("backup", "Run backup without maintenance mode."),
+			)
+			self._parser.add(
 				"--no-config-files",
 				action="store_true",
 				help=self._help("backup", "Do not add config files to backup."),

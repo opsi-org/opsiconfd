@@ -236,7 +236,10 @@ class Worker(WorkerInfo, UvicornServer):
 
 	async def on_app_state_change(self, app_state: AppState) -> None:
 		logger.notice("%s handling %s", self, app_state)
+		if app_state.accomplished:
+			return
 		if isinstance(app_state, MaintenanceState):
+			logger.info("%s closing all connections", self)
 			await self.close_connections()
 		self.app_state = app_state.type
 		await self.store_state_in_redis()

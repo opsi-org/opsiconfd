@@ -20,8 +20,8 @@ services:
     volumes:
       - ..:/workspace:cached
     ports:
-      - 4448:4447
-      - 3001:3000
+      - 4449:4447
+      - 3002:3000
     environment:
       GF_INSTALL_PLUGINS: grafana-simple-json-datasource
       GF_SECURITY_ADMIN_USER: adminuser

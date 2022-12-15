@@ -97,7 +97,7 @@ def health_check_main() -> None:
 	}
 	res = 0
 	console.print("Checking server health...")
-	with console.status("Checking...", spinner="arrow3") as status:
+	with console.status("Checking...", spinner="arrow3"):
 		for name, check in checks.items():
 			result = check["check_method"]()  # type: ignore
 			if result.get("status") == CheckStatus.OK:
@@ -110,7 +110,7 @@ def health_check_main() -> None:
 				res = 1
 			if config.detailed:
 				check["print_method"](result, console)  # type: ignore
-			time.sleep(3)
+			time.sleep(1)
 	console.print("Done")
 	sys.exit(res)
 

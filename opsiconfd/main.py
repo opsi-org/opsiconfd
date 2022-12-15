@@ -83,13 +83,11 @@ def log_viewer_main() -> None:
 
 def health_check_main() -> None:
 	init_logging(log_mode="local")
-
 	console = Console(log_time=False)
-
 	checks = {
 		"system packages": {"check_method": check_system_packages, "print_method": print_check_system_packages_result},
 		"opsi packages": {"check_method": check_opsi_packages, "print_method": print_check_opsi_packages_result},
-		"redis": {"check_method": check_redis, "print_method": print_check_redis_result},
+		"Redis": {"check_method": check_redis, "print_method": print_check_redis_result},
 		"MySQL": {"check_method": check_mysql, "print_method": print_check_mysql_result},
 		"opsi licenses": {"check_method": check_opsi_licenses, "print_method": print_check_opsi_licenses_results},
 		"deprecated calls": {
@@ -97,13 +95,11 @@ def health_check_main() -> None:
 			"print_method": print_check_deprecated_calls_result,
 		},
 	}
-
 	res = 0
 	console.print("Checking server health...")
-	with console.status("[bold] checking...", spinner="arrow3"):
+	with console.status("Checking...", spinner="arrow3") as status:
 		for name, check in checks.items():
-			result = check["check_method"]()
-
+			result = check["check_method"]()  # type: ignore
 			if result.get("status") == CheckStatus.OK:
 				console.print(f"[bold green] {name}: OK ")
 			elif result.get("status") == CheckStatus.WARNING:
@@ -112,10 +108,10 @@ def health_check_main() -> None:
 			else:
 				console.print(f"[bold red] {name}: ERROR ")
 				res = 1
-			check["print_method"](result, console)
-			time.sleep(1)
+			if config.detailed:
+				check["print_method"](result, console)  # type: ignore
+			time.sleep(3)
 	console.print("Done")
-
 	sys.exit(res)
 
 

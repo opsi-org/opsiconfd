@@ -8,18 +8,13 @@
 health check
 """
 
-
-import os
 import re
-import sys
-import time
-from enum import Enum, StrEnum
+from enum import StrEnum
 from re import findall
 from subprocess import run
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Dict, Union
 
 import requests
-from colorama import Fore, Style  # type: ignore[import]
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
 from packaging.version import parse as parse_version
@@ -27,10 +22,8 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from requests import get
 from requests.exceptions import ConnectionError as RequestConnectionError
 from requests.exceptions import ConnectTimeout
-from rich import print
 from rich.console import Console
 from rich.padding import Padding
-from rich.pretty import pprint
 from sqlalchemy.exc import OperationalError  # type: ignore[import]
 
 from opsiconfd.backend import get_mysql, get_unprotected_backend
@@ -43,12 +36,6 @@ PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")
 OPSI_REPO = "https://download.uib.de"
 OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
 OPSI_PACKAGES = {"opsi-script": "0.0", "opsi-client-agent": "0.0"}
-
-MSG_WIDTH = 50
-MT_INFO = "info"
-MT_SUCCESS = "success"
-MT_WARNING = "warning"
-MT_ERROR = "error"
 
 INDENT_SIZE = 5
 
@@ -99,7 +86,7 @@ def get_repo_versions() -> Dict[str, Any]:
 
 def check_system_packages() -> dict:  # pylint: disable=too-many-branches, too-many-statements, unused-argument
 	result: Union[Dict[str, Any], str] = {}
-	result = {"status": CheckStatus.OK, "message": "All packages up to date.", "partial_checks": {}}
+	result = {"status": CheckStatus.OK, "message": "All packages are up to date.", "partial_checks": {}}
 	package_versions = get_repo_versions()
 	try:
 		if linux_distro_id_like_contains(("sles", "rhel")):
@@ -163,7 +150,7 @@ def check_system_packages() -> dict:  # pylint: disable=too-many-branches, too-m
 			result["status"] = CheckStatus.WARNING  # pylint: disable=loop-invariant-statement
 			result["partial_checks"][package] = {  # pylint: disable=loop-invariant-statement
 				"status": CheckStatus.WARNING,
-				"message": f"Package {package} is outdated. Installed version: {info['version_found']} - available version: {info['version']}",
+				"message": f"Package {package} is out of date. Installed version: {info['version_found']} - available version: {info['version']}",
 				"details": {"version": info["version_found"], "available_version": info["version"], "outdated": True},
 			}
 		else:
@@ -189,10 +176,10 @@ def check_redis() -> dict:  # pylint: disable=unused-argument
 			if "timeseries" not in modules:
 				return {
 					"status": CheckStatus.ERROR,
-					"message": "Redis-Timeseries not loaded.",
+					"message": "RedisTimeSeries not loaded.",
 					"details": {"connection": True, "timeseries": False},
 				}
-			return {"status": CheckStatus.OK, "message": "Redis is running and Redis-Timeseries is loaded."}
+			return {"status": CheckStatus.OK, "message": "Redis is running and RedisTimeSeries is loaded."}
 	except RedisConnectionError as err:
 		logger.info(str(err))
 		return {"status": CheckStatus.ERROR, "message": str(err), "details": {"connection": False, "timeseries": False, "error": str(err)}}
@@ -202,7 +189,7 @@ def check_mysql() -> dict:  # pylint: disable=unused-argument
 	try:
 		with get_mysql().session() as mysql_client:
 			mysql_client.execute("SHOW TABLES;")
-		return {"status": CheckStatus.OK, "message": "Connection to mysql is working."}
+		return {"status": CheckStatus.OK, "message": "Connection to MySQL is working."}
 	except (RuntimeError, MySQLdbOperationalError, OperationalError) as err:
 		logger.debug(err)
 		error = str(err)
@@ -229,7 +216,7 @@ def check_opsi_packages() -> dict:  # pylint: disable=too-many-locals,too-many-b
 	res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
 
 	available_packages = OPSI_PACKAGES
-	result = {"status": CheckStatus.OK, "details": "All packages up to date.", "partial_checks": {}}
+	result = {"status": CheckStatus.OK, "details": "All packages are up to date.", "partial_checks": {}}
 	partial_checks: Dict[str, Any] = {}
 	backend = get_unprotected_backend()
 
@@ -281,7 +268,7 @@ def check_opsi_packages() -> dict:  # pylint: disable=too-many-locals,too-many-b
 	return result
 
 
-def check_opsi_licenses(print_messages: bool = False) -> dict:  # pylint: disable=unused-argument
+def check_opsi_licenses() -> dict:  # pylint: disable=unused-argument
 	result = {"status": CheckStatus.OK, "clients": 0}
 	partial_checks = {}
 
@@ -383,20 +370,20 @@ def print_check_opsi_packages_result(check_result: dict, console: Console) -> No
 
 def print_check_redis_result(check_result: dict, console: Console) -> None:
 	if check_result["status"] == CheckStatus.OK:
-		msg = Padding("[bold green]Redis is running and Redis-Timeseries is loaded.", (0, INDENT_SIZE))
+		msg = Padding("[bold green]Redis is running and RedisTimeSeries is loaded.", (0, INDENT_SIZE))
 	else:
 		if check_result["details"]["connection"]:
-			msg = Padding("[bold red]Redis-Timeseries not loaded.", (0, INDENT_SIZE))
+			msg = Padding("[bold red]RedisTimeSeries not loaded.", (0, INDENT_SIZE))
 		else:
-			msg = Padding("[bold red]Cannot connect to redis!", (0, INDENT_SIZE))
+			msg = Padding("[bold red]Cannot connect to Redis!", (0, INDENT_SIZE))
 	console.print(msg)
 
 
 def print_check_mysql_result(check_result: dict, console: Console) -> None:
 	if check_result.get("status") == CheckStatus.OK:
-		console.print(Padding("[bold green]Connection to mysql is working.", (0, INDENT_SIZE)))
+		console.print(Padding(f"[bold green]{check_result.get('message')}", (0, INDENT_SIZE)))
 	else:
-		console.print(Padding(f"Could not connect to mysql: {check_result.get('message')}", (0, INDENT_SIZE)))
+		console.print(Padding(f"Could not connect to MySQL: {check_result.get('message')}", (0, INDENT_SIZE)))
 
 
 def print_check_system_packages_result(check_result: dict, console: Console) -> None:

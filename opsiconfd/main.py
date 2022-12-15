@@ -30,7 +30,21 @@ from rich.progress import Progress
 
 from . import __version__
 from .backup import create_backup, restore_backup
-from .check import health_check_console
+from .check import (
+	CheckStatus,
+	check_deprecated_calls,
+	check_mysql,
+	check_opsi_licenses,
+	check_opsi_packages,
+	check_redis,
+	check_system_packages,
+	print_check_deprecated_calls_result,
+	print_check_mysql_result,
+	print_check_opsi_licenses_results,
+	print_check_opsi_packages_result,
+	print_check_redis_result,
+	print_check_system_packages_result,
+)
 from .config import GC_THRESHOLDS, config, opsi_config
 from .logging import AsyncRedisLogAdapter, init_logging, logger, shutdown_logging
 from .manager import Manager
@@ -69,7 +83,40 @@ def log_viewer_main() -> None:
 
 def health_check_main() -> None:
 	init_logging(log_mode="local")
-	sys.exit(health_check_console())
+
+	console = Console(log_time=False)
+
+	checks = {
+		"system packages": {"check_method": check_system_packages, "print_method": print_check_system_packages_result},
+		"opsi packages": {"check_method": check_opsi_packages, "print_method": print_check_opsi_packages_result},
+		"redis": {"check_method": check_redis, "print_method": print_check_redis_result},
+		"MySQL": {"check_method": check_mysql, "print_method": print_check_mysql_result},
+		"opsi licenses": {"check_method": check_opsi_licenses, "print_method": print_check_opsi_licenses_results},
+		"deprecated calls": {
+			"check_method": check_deprecated_calls,
+			"print_method": print_check_deprecated_calls_result,
+		},
+	}
+
+	res = 0
+	console.print("Checking server health...")
+	with console.status("[bold] checking...", spinner="arrow3"):
+		for name, check in checks.items():
+			result = check["check_method"]()
+
+			if result.get("status") == CheckStatus.OK:
+				console.print(f"[bold green] {name}: OK ")
+			elif result.get("status") == CheckStatus.WARNING:
+				console.print(f"[bold yellow] {name}: WARNING ")
+				res = 2
+			else:
+				console.print(f"[bold red] {name}: ERROR ")
+				res = 1
+			check["print_method"](result, console)
+			time.sleep(1)
+	console.print("Done")
+
+	sys.exit(res)
 
 
 def backup_main() -> None:

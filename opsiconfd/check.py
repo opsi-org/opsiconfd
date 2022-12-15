@@ -52,49 +52,14 @@ MT_ERROR = "error"
 
 INDENT_SIZE = 5
 
+
 class CheckStatus(StrEnum):
 	OK = "ok"
 	WARNING = "warning"
 	ERROR = "error"
 
 
-def messages(message: str, width: int) -> Callable:
-	def message_decorator(function: Callable) -> Callable:
-		def wrapper(*args: Any, **kwargs: Dict[str, Any]) -> Any:  # pylint: disable=too-many-branches
-			try:
-				print_messages = args[0]
-			except IndexError:
-				print_messages = kwargs.get("print_messages")
-			if print_messages:
-				show_message("	- " + message + ":", newline=False, msg_format="%-" + str(width) + "s")
-			result = function(*args, **kwargs)
-			if print_messages:
-				if result.get("status") == "ok":
-					show_message("OK", MT_SUCCESS)
-				elif result.get("status") == "warn":
-					show_message("WARNING", MT_WARNING)
-				else:
-					show_message("ERROR", MT_ERROR)
-				if config.detailed:
-					if function.__name__ == "check_system_packages":
-						print_check_system_packages_result(result)
-					elif function.__name__ == "check_redis":
-						print_check_redis_result(result)
-					elif function.__name__ == "check_mysql":
-						print_check_mysql_result(result)
-					elif function.__name__ == "check_deprecated_calls":
-						print_check_deprecated_calls_result(result)
-					elif function.__name__ == "check_opsi_packages":
-						print_check_opsi_packages_result(result)
-					elif function.__name__ == "check_opsi_licenses":
-						print_check_opsi_licenses_results(result)
-
-			return result
-		return wrapper
-	return message_decorator
-
-
-def health_check(print_messages: bool = False) -> dict:
+def health_check() -> dict:
 	result = {}
 	result["system_packages"] = check_system_packages()
 	result["opsi_packages"] = check_opsi_packages()
@@ -132,8 +97,7 @@ def get_repo_versions() -> Dict[str, Any]:
 	return package_versions
 
 
-@messages("Checking system packages", MSG_WIDTH)
-def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-branches, too-many-statements, unused-argument
+def check_system_packages() -> dict:  # pylint: disable=too-many-branches, too-many-statements, unused-argument
 	result: Union[Dict[str, Any], str] = {}
 	result = {"status": CheckStatus.OK, "message": "All packages up to date.", "partial_checks": {}}
 	package_versions = get_repo_versions()
@@ -191,7 +155,7 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 				"details": {"version": None},
 				"status": CheckStatus.ERROR,
 				"message": f"Package '{package}' is not installed.",
-			}  # type: ignore[assignment]
+			}
 			result["status"] = CheckStatus.ERROR  # pylint: disable=loop-invariant-statement
 			not_installed = not_installed + 1
 		elif parse_version(info["version"]) > parse_version(info["version_found"]):
@@ -216,23 +180,25 @@ def check_system_packages(print_messages: bool = False) -> dict:  # pylint: disa
 	return result
 
 
-@messages("Checking redis", MSG_WIDTH)
-def check_redis(print_messages: bool = False) -> dict:  # pylint: disable=unused-argument
+def check_redis() -> dict:  # pylint: disable=unused-argument
 	try:
 		with redis_client(timeout=5, test_connection=True) as redis:
 			redis_info = decode_redis_result(redis.execute_command("INFO"))
 			logger.info(redis_info)
 			modules = [module["name"] for module in redis_info["modules"]]
 			if "timeseries" not in modules:
-				return {"status": CheckStatus.ERROR, "message": "Redis-Timeseries not loaded.", "details": {"connection": True, "timeseries": False}}
+				return {
+					"status": CheckStatus.ERROR,
+					"message": "Redis-Timeseries not loaded.",
+					"details": {"connection": True, "timeseries": False},
+				}
 			return {"status": CheckStatus.OK, "message": "Redis is running and Redis-Timeseries is loaded."}
 	except RedisConnectionError as err:
 		logger.info(str(err))
-		return {"status": CheckStatus.ERROR, "message": str(err) , "details": {"connection": False, "timeseries": False, "error": str(err)}}
+		return {"status": CheckStatus.ERROR, "message": str(err), "details": {"connection": False, "timeseries": False, "error": str(err)}}
 
 
-@messages("Checking mysql", MSG_WIDTH)
-def check_mysql(print_messages: bool = False) -> dict:  # pylint: disable=unused-argument
+def check_mysql() -> dict:  # pylint: disable=unused-argument
 	try:
 		with get_mysql().session() as mysql_client:
 			mysql_client.execute("SHOW TABLES;")
@@ -243,9 +209,8 @@ def check_mysql(print_messages: bool = False) -> dict:  # pylint: disable=unused
 		return {"status": CheckStatus.ERROR, "message": error}
 
 
-@messages("Checking calls of deprecated methods", MSG_WIDTH)
-def check_deprecated_calls(print_messages: bool = False) -> dict:  # pylint: disable=unused-argument
-	redis_prefix_stats = config.redis_key('stats')
+def check_deprecated_calls() -> dict:  # pylint: disable=unused-argument
+	redis_prefix_stats = config.redis_key("stats")
 	deprecated_calls = {}
 	with redis_client(timeout=5) as redis:
 		methods = redis.smembers(f"{redis_prefix_stats}:rpcs:deprecated:methods")
@@ -260,8 +225,7 @@ def check_deprecated_calls(print_messages: bool = False) -> dict:  # pylint: dis
 	return {"status": CheckStatus.WARNING, "details": deprecated_calls}
 
 
-@messages("Checking opsi packages", MSG_WIDTH)
-def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-locals,too-many-branches,unused-argument
+def check_opsi_packages() -> dict:  # pylint: disable=too-many-locals,too-many-branches,unused-argument
 	res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
 
 	available_packages = OPSI_PACKAGES
@@ -317,7 +281,6 @@ def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disabl
 	return result
 
 
-@messages("Checking licenses", MSG_WIDTH)
 def check_opsi_licenses(print_messages: bool = False) -> dict:  # pylint: disable=unused-argument
 	result = {"status": CheckStatus.OK, "clients": 0}
 	partial_checks = {}
@@ -334,20 +297,20 @@ def check_opsi_licenses(print_messages: bool = False) -> dict:  # pylint: disabl
 			partial_checks[module] = {  # pylint: disable=loop-invariant-statement
 				"status": CheckStatus.WARNING,
 				"details": {"state": module_data["state"], "client_number": module_data["client_number"]},
-				"message": f"License for module '{module}' is close to the limit."
+				"message": f"License for module '{module}' is close to the limit.",
 			}
 		elif module_data["state"] == "over_limit":
 			result["state"] = CheckStatus.WARNING  # pylint: disable=loop-invariant-statement
 			partial_checks[module] = {  # pylint: disable=loop-invariant-statement
 				"status": "error",
 				"details": {"state": module_data["state"], "client_number": module_data["client_number"]},
-				"message": f"License for module '{module}' is over the limit."
+				"message": f"License for module '{module}' is over the limit.",
 			}
 		else:
 			partial_checks[module] = {  # pylint: disable=loop-invariant-statement
 				"status": CheckStatus.OK,
 				"details": {"state": module_data["state"], "client_number": module_data["client_number"]},
-				"message": f"License for module '{module}' is valid."
+				"message": f"License for module '{module}' is valid.",
 			}
 	result["partial_checks"] = partial_checks
 	return result
@@ -360,80 +323,62 @@ def split_name_and_version(filename: str) -> tuple:
 	return (match.group("name"), match.group("version"))
 
 
-def show_message(message: str, msg_type: str = MT_INFO, newline: bool = True, msg_format: Optional[str] = None, log: bool = False) -> None:
-	if log:
-		log_level = "info"
-		if msg_type == MT_WARNING:
-			log_level = "warning"
-		elif msg_type == MT_ERROR:
-			log_level = "error"
-		exc_info = msg_type == MT_ERROR
-		getattr(logger, log_level)(message, exc_info=exc_info)
-
-	# colorama: color and style https://github.com/tartley/colorama
-	color = Fore.WHITE
-	if msg_type == MT_WARNING:
-		color = Fore.YELLOW
-	elif msg_type == MT_ERROR:
-		color = Fore.RED
-	elif msg_type == MT_SUCCESS:
-		color = Fore.GREEN
-	if msg_format:
-		message = msg_format % message
-	if os.getenv("ANSI_COLORS_DISABLED") is None:
-		message = color + Style.BRIGHT + message + Style.RESET_ALL
-
-	sys.stdout.write(message)
-	if newline:
-		sys.stdout.write("\n")
-	sys.stdout.flush()
+# check result print functions
 
 
 def print_check_deprecated_calls_result(check_result: dict, console: Console) -> None:
 	if check_result.get("status") == CheckStatus.OK:
-		show_message("		No deprecated method calls found.", MT_SUCCESS)
+		console.print(Padding("No deprecated method calls found.", (0, INDENT_SIZE)))
 	else:
+		msg_style = "[bold yellow]"
 		for method, data in check_result.get("details", {}).items():
-			show_message(
-				f"		Deprecated method '{method}' was called {data.get('calls')} times.", MT_WARNING  # pylint: disable=loop-global-usage
+			console.print(
+				Padding(
+					f"{msg_style}Deprecated method '{method}' was called {data.get('calls')} times.", (0, INDENT_SIZE)
+				)  # pylint: disable=loop-global-usage
 			)
-			show_message("		The method was called from:", MT_WARNING)  # pylint: disable=loop-global-usage
-			for client in data.get('clients'):
-				show_message(f"		\t- {client}", MT_WARNING)  # pylint: disable=loop-global-usage
-			show_message(f"		Last call was {data.get('last_call')}", MT_WARNING)  # pylint: disable=loop-global-usage
+			console.print(Padding(f"{msg_style}The method was called from:", (0, INDENT_SIZE)))  # pylint: disable=loop-global-usage
+			for client in data.get("clients"):
+				console.print(Padding(f"{msg_style}- {client}", (0, INDENT_SIZE * 2)))  # pylint: disable=loop-global-usage
+			console.print(
+				Padding(f"{msg_style}Last call was {data.get('last_call')}", (0, INDENT_SIZE))
+			)  # pylint: disable=loop-global-usage
 
 
 def print_check_opsi_licenses_results(check_result: dict, console: Console) -> None:
-	show_message(f"\t\tActive clients: {check_result['clients']}")
+	console.print(Padding(f"Active clients: {check_result['clients']}", (0, INDENT_SIZE)))
 	for module, data in check_result["partial_checks"].items():
-		show_message(f"\t\t{module}:")
-		status = MT_SUCCESS  # pylint: disable=loop-global-usage
+		console.print(Padding(f"{module}:", (0, INDENT_SIZE)))
+		msg_style = "[bold green]"
 		if data["status"] == CheckStatus.WARNING:
-			status = MT_WARNING  # pylint: disable=loop-global-usage
+			msg_style = "[bold yellow]"
 		elif data["status"] == CheckStatus.ERROR:
-			status = MT_ERROR  # pylint: disable=loop-global-usage
-		show_message(f"\t\t\t- {data['message']}", status)
-		show_message(f"\t\t\t- Client limit: {data['details']['client_number']}", status)
+			msg_style = "[bold red]"
+		console.print(Padding(f"{msg_style}- {data['message']}", (0, INDENT_SIZE * 2)))
+		console.print(Padding(f"{msg_style}- Client limit: {data['details']['client_number']}", (0, INDENT_SIZE * 2)))
 
 
 def print_check_opsi_packages_result(check_result: dict, console: Console) -> None:
-	msg_type = MT_ERROR
+	msg_style = "[bold green]"
 	if check_result.get("status") == CheckStatus.OK:
-		msg_type = MT_SUCCESS
-	msg = (
-		f"		Out of {len(OPSI_PACKAGES.keys())} packages on {len(check_result.get('partial_checks', {}).keys())} depots checked, "
-		f"{check_result['details'].get('not_installed')} are not installed and {check_result['details'].get('outdated')} are out of date."
+		msg_style = "[bold green]"
+	msg = Padding(
+		(
+			f"{msg_style}Out of {len(OPSI_PACKAGES.keys())} packages on {len(check_result.get('partial_checks', {}).keys())} depots checked, "
+			f"{check_result['details'].get('not_installed')} are not installed and {check_result['details'].get('outdated')} are out of date."
+		),
+		(0, INDENT_SIZE),
 	)
-	show_message(msg, msg_type)
-	for depot, depot_results in check_result.get('partial_checks', {}).items():
-		show_message(f"\t\t{depot}:")
+	console.print(msg)
+	for depot, depot_results in check_result.get("partial_checks", {}).items():
+		console.print(Padding(f"{depot}:", (0, INDENT_SIZE)))
 		for res in depot_results.values():
-			msg_type = MT_SUCCESS
+			msg_style = "[bold green]"
 			if res["status"] == CheckStatus.ERROR:
-				msg_type = MT_ERROR
+				msg_style = "[bold red]"
 			elif res["status"] == CheckStatus.WARNING:
-				msg_type = MT_WARNING
-			show_message(f"\t\t\t{res['message']}", msg_type)
+				msg_style = "[bold yellow]"
+			console.print(Padding(f"{msg_style}{res['message']}", (0, INDENT_SIZE * 2)))
 
 
 def print_check_redis_result(check_result: dict, console: Console) -> None:
@@ -449,9 +394,9 @@ def print_check_redis_result(check_result: dict, console: Console) -> None:
 
 def print_check_mysql_result(check_result: dict, console: Console) -> None:
 	if check_result.get("status") == CheckStatus.OK:
-		show_message("		Connection to mysql is working.", MT_SUCCESS)
+		console.print(Padding("[bold green]Connection to mysql is working.", (0, INDENT_SIZE)))
 	else:
-		show_message(f"		Could not connect to mysql: {check_result.get('message')}", MT_ERROR)
+		console.print(Padding(f"Could not connect to mysql: {check_result.get('message')}", (0, INDENT_SIZE)))
 
 
 def print_check_system_packages_result(check_result: dict, console: Console) -> None:
@@ -460,9 +405,12 @@ def print_check_system_packages_result(check_result: dict, console: Console) -> 
 		details = data.get("details", {})
 		if details.get("version"):
 			if details.get("outdated"):
-				msg = Padding(f"[bold  yellow]Package {package} is outdated. Installed version: {details['version']} - available version: {details['available_version']}", (0,  INDENT_SIZE))
+				msg = Padding(
+					f"[bold  yellow]Package {package} is outdated. Installed version: {details['version']} - available version: {details['available_version']}",
+					(0, INDENT_SIZE),
+				)
 			else:
-				msg = Padding(f"[bold  green]Package {package} is up to date. Installed version: {details['version']}", (0,  INDENT_SIZE))
+				msg = Padding(f"[bold  green]Package {package} is up to date. Installed version: {details['version']}", (0, INDENT_SIZE))
 		else:
 			msg = Padding(f"[bold red]Package {package} should be installed.", (0, INDENT_SIZE))
 		console.print(msg)

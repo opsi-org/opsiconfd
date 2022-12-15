@@ -201,6 +201,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 
 		# Generate request id and store in contextvar
 		request_id = id(scope)
+
 		# Longs on Windows are only 32 bits, but memory adresses on 64 bit python are 64 bits
 		# Ensure it fits inside a long, truncating if necessary
 		request_id = abs(c_long(request_id).value)
@@ -295,6 +296,9 @@ def validation_exception_handler(request: Request, exc: Exception) -> None:
 
 
 def application_setup() -> None:
+	if app.application_setup_done:
+		return
+	app.application_setup_done = True
 	# Create Backend instance
 	get_unprotected_backend()
 	get_protected_backend()
@@ -373,17 +377,21 @@ def application_setup() -> None:
 		logger.debug("%s: %s", path, routes[path])
 
 
+def application_startup() -> None:
+	application_setup()
+
+
+def application_shutdown() -> None:
+	get_unprotected_backend().shutdown()
+	get_protected_backend().shutdown()
+
+
 async def async_application_startup() -> None:
 	# Create redis pool
 	await async_redis_client(timeout=10, test_connection=True)
 
 	await async_jsonrpc_startup()
 	await async_terminal_startup()
-
-
-def application_shutdown() -> None:
-	get_unprotected_backend().shutdown()
-	get_protected_backend().shutdown()
 
 
 async def async_application_shutdown() -> None:
@@ -394,7 +402,7 @@ async def async_application_shutdown() -> None:
 @app.on_event("startup")
 async def startup() -> None:
 	try:
-		await run_in_threadpool(application_setup)
+		await run_in_threadpool(application_startup)
 		await async_application_startup()
 	except Exception as error:  # pylint: disable=broad-except
 		logger.critical("Error during application startup: %s", error, exc_info=True)

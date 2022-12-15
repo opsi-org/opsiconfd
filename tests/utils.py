@@ -34,7 +34,8 @@ from requests.cookies import cookiejar_from_dict
 from starlette.testclient import WebSocketTestSession
 from starlette.types import Receive, Scope, Send
 
-from opsiconfd.application.main import BaseMiddleware, app
+from opsiconfd.application import app
+from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_mysql, get_unprotected_backend
 from opsiconfd.backend.rpc.opsiconfd import UnprotectedBackend
 from opsiconfd.config import Config

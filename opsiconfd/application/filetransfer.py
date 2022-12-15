@@ -92,10 +92,14 @@ async def post_file_multipart(file: UploadFile) -> JSONResponse:
 
 @filetransfer_router.get("{file_id}")
 @filetransfer_router.get("/{file_id}")
-async def get_file(file_id: UUID) -> FileResponse:
+async def get_file(file_id: UUID, delete: bool = False) -> FileResponse:
+	print(delete)
 	file_path = Path(STORAGE_DIR) / str(file_id)
 	meta_path = file_path.with_suffix(".meta")
 	meta = msgspec.msgpack.decode(meta_path.read_bytes())
+	# background=None
+	# if delete:
+	# 	background=BackgroundTask(client.close)
 	return FileResponse(path=file_path, filename=meta["filename"], media_type=meta["content_type"])
 
 

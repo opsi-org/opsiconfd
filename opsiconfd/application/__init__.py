@@ -102,6 +102,7 @@ class OpsiconfdApp(FastAPI):
 		)
 		self._app_state_handler: set[Callable] = set()
 		self.app_state: AppState = NormalState()
+		self.application_setup_done = False
 		if config.maintenance is not False:
 			self.app_state = MaintenanceState(address_exceptions=config.maintenance + ["127.0.0.1/32", "::1/128"])
 

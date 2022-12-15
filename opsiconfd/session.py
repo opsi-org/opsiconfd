@@ -814,8 +814,8 @@ async def check_blocked(ip_address: str) -> None:
 	)
 	logger.debug(cmd)
 	try:
-		num_failed_auth = await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
-		num_failed_auth = int(num_failed_auth[-1][1])
+		data = await redis.execute_command(cmd)  # type: ignore[no-untyped-call]
+		num_failed_auth = int(data[-1][1])
 		logger.debug("num_failed_auth: %s", num_failed_auth)
 	except RedisResponseError as err:
 		num_failed_auth = 0

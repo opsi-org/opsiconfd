@@ -406,9 +406,6 @@ async def startup() -> None:
 		await async_application_startup()
 	except Exception as error:  # pylint: disable=broad-except
 		logger.critical("Error during application startup: %s", error, exc_info=True)
-		# Wait a second before raising error (which will terminate the worker process)
-		# to give the logger time to send log messages to redis
-		await asyncio.sleep(1)
 		raise error
 
 

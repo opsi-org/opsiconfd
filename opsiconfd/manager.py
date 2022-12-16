@@ -11,9 +11,9 @@ manager
 import asyncio
 import os
 import signal
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from threading import Event, Thread
 from types import FrameType
 
 from .config import config
@@ -29,34 +29,27 @@ from .zeroconf import register_opsi_services, unregister_opsi_services
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes
 	def __init__(self) -> None:
 		self.pid: int | None = None
-		self.running = False
-		self._async_main_running = False
+		self._async_main_stopped = Event()
 		self._loop = asyncio.new_event_loop()
 		self._last_reload = 0
 		self._should_stop = False
+		self._force_stop = False
 		self._server_cert_check_time = time.time()
 		self._redis_check_time = time.time()
 		self._redis_check_interval = 300
 		self._messagebus_channel_cleanup_time = 0.0
 		self._messagebus_channel_cleanup_interval = 180
+		self._metrics_collector = ManagerMetricsCollector()
 		self._server = Server()
 
-	def stop(self, force: bool = False) -> None:
-		logger.notice("Manager stopping force=%s", force)
-		if self._server:
-			self._server.stop(force)
+	def stop(self, force: bool) -> None:
 		self._should_stop = True
-		for _ in range(5):
-			if not self._async_main_running:
-				break
-			time.sleep(1)  # pylint: disable=dotted-import-in-loop
-		if self._loop:
-			self._loop.stop()
-			for _ in range(5):
-				if not self._loop.is_running():
-					break
-				time.sleep(1)  # pylint: disable=dotted-import-in-loop
-		self.running = False
+		self._force_stop = force
+		logger.notice("Manager stopping force=%s", self._force_stop)
+		self._metrics_collector.stop()
+		if self._server:
+			self._server.stop(self._force_stop)
+		self._async_main_stopped.wait(5.0)
 
 	def reload(self) -> None:
 		self._last_reload = int(time.time())
@@ -75,12 +68,15 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			if time.time() - self._last_reload > 2:
 				self.reload()
 		else:
+			if self._force_stop:
+				# Already forced to stop
+				return
+
 			# Force on repetition
-			self.stop(force=self._should_stop)
+			self.stop(force=bool(self._should_stop))
 
 	def run(self) -> None:
 		logger.info("Manager starting")
-		self.running = True
 		self._should_stop = False
 		self.pid = os.getpid()
 		self._last_reload = int(time.time())
@@ -88,7 +84,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		signal.signal(signal.SIGTERM, self.signal_handler)  # Unix signal 15. Sent by `kill <pid>`. Terminate service.
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
 		try:
-			threading.Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop).start()
+			Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop).start()
 			self._server.run()
 		except Exception as exc:  # pylint: disable=broad-except
 			logger.error(exc, exc_info=True)
@@ -120,10 +116,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._redis_check_time = time.time()
 
 	async def async_main(self) -> None:
-		self._async_main_running = True
-		# Create and start MetricsCollector
-		metrics_collector = ManagerMetricsCollector()
-		self._loop.create_task(metrics_collector.main_loop())
+		# Start MetricsCollector
+		self._loop.create_task(self._metrics_collector.main_loop())
 
 		if config.zeroconf:
 			try:
@@ -154,4 +148,4 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error("Failed to unregister opsi service via zeroconf: %s", err, exc_info=True)
 
-		self._async_main_running = False
+		self._async_main_stopped.set()

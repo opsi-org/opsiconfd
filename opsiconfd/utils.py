@@ -237,7 +237,7 @@ def retry_redis_call(func: Callable) -> Callable:
 				RedisBusyLoadingError,
 				RedisConnectionError,
 			):
-				time.sleep(1)  # pylint: disable=dotted-import-in-loop
+				time.sleep(2)  # pylint: disable=dotted-import-in-loop
 
 	return wrapper_retry
 

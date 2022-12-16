@@ -76,6 +76,7 @@ def configure_warnings() -> None:
 	warnings.filterwarnings(
 		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
 	)
+	warnings.filterwarnings("ignore", category=ResourceWarning, module="asyncio.runners", message="unclosed resource")
 
 
 if running_in_docker():

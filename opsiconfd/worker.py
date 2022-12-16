@@ -32,7 +32,7 @@ from .addon import AddonManager
 from .application import AppState, MaintenanceState, app
 from .backend import get_protected_backend
 from .config import GC_THRESHOLDS, config, configure_warnings
-from .logging import init_logging, logger
+from .logging import init_logging, logger, shutdown_logging
 from .metrics.collector import WorkerMetricsCollector
 from .utils import async_redis_client
 
@@ -175,7 +175,7 @@ class Worker(WorkerInfo, UvicornServer):
 		)
 		await redis.expire(self.redis_state_key, self.redis_state_key_expire)
 
-	def run(self, sockets: Optional[List[socket.socket]] = None) -> None:
+	def _run(self, sockets: Optional[List[socket.socket]] = None) -> None:
 		self.pid = os.getpid()
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)
@@ -188,7 +188,15 @@ class Worker(WorkerInfo, UvicornServer):
 		gc.set_threshold(*GC_THRESHOLDS)
 
 		self._metrics_collector = WorkerMetricsCollector(self)
+
 		super().run(sockets=sockets)
+
+	def run(self, sockets: Optional[List[socket.socket]] = None) -> None:
+		try:
+			self._run(sockets)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error("%s terminated with error: %s", self, err, exc_info=True)
+		shutdown_logging()
 
 	async def serve(self, sockets: Optional[List[socket.socket]] = None) -> None:
 		loop = asyncio.get_running_loop()
@@ -214,7 +222,41 @@ class Worker(WorkerInfo, UvicornServer):
 			connection.shutdown()
 
 	async def shutdown(self, sockets: Optional[List[socket.socket]] = None) -> None:
-		await super().shutdown(sockets=sockets)
+		logger.info("Shutting down")
+		if self._metrics_collector:
+			self._metrics_collector.stop()
+
+		# Stop accepting new connections.
+		logger.info("Stop accepting new connections")
+		if hasattr(self, "servers"):
+			for server in self.servers:
+				server.close()
+			for sock in sockets or []:
+				sock.close()
+			for server in self.servers:
+				await server.wait_closed()
+
+		# Request shutdown on all existing connections.
+		await self.close_connections()
+		await asyncio.sleep(0.1)
+
+		# Wait for existing connections to finish sending responses.
+		if self.server_state.connections and not self.force_exit:
+			logger.info("Waiting for %d connections to close", len(self.server_state.connections))
+			for connection in self.server_state.connections:
+				logger.info(connection)
+			while self.server_state.connections and not self.force_exit:
+				await asyncio.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+
+		# Wait for existing tasks to complete.
+		if self.server_state.tasks and not self.force_exit:
+			logger.info("Waiting for background tasks to complete")
+			while self.server_state.tasks and not self.force_exit:
+				await asyncio.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+
+		# Send the lifespan shutdown event, and wait for application shutdown.
+		if not self.force_exit:
+			await self.lifespan.shutdown()
 
 	def install_signal_handlers(self) -> None:
 		loop = asyncio.get_event_loop()

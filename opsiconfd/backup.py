@@ -265,6 +265,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 				progress.console.print(f"Decomressing {compression} data")
 			bdata = decompress_data(bdata, compression=compression)
 
+		print(bdata)
 		encoding = "json" if bdata.startswith(b"{") else "msgpack"
 		logger.notice("Decoding %s data", encoding)
 		if progress:

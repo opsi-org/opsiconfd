@@ -463,7 +463,8 @@ table tbody tr td {
 	font-size: 15px;
 }
 
-button.loading {
+button.loading,
+input.loading {
 	background-image: linear-gradient(to right, transparent 50%, rgba(0, 0, 0, .05) 50%);
 	background-size: 200% 100%;
 	animation: loading 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;

@@ -53,6 +53,66 @@ function setAppState(type) {
 }
 
 
+function createBackup() {
+	const button = document.getElementById("create-backup-create-button");
+	button.classList.add("loading");
+	const config_files = document.getElementById("create-backup-config-files").checked;
+	const maintenance_mode = document.getElementById("create-backup-maintenance-mode").checked;
+	document.getElementById("create-backup-create-button").disabled = true;
+	const req = ajaxRequest(
+		"POST",
+		"/rpc",
+		{ "id": 1, "method": "service_createBackup", params: [config_files, maintenance_mode, "file_id"] }
+	);
+	req.then((response) => {
+		console.debug(response);
+		document.getElementById("create-backup-create-button").disabled = false;
+		const link = document.createElement('a');
+		link.setAttribute('href', `/file-transfer/${response.result}`);
+		link.style.display = 'none';
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		button.classList.remove("loading");
+	}, (error) => {
+		console.error(error);
+		button.classList.remove("loading");
+	});
+}
+
+
+function restoreBackup() {
+	const button = document.getElementById("restore-backup-create-button");
+	button.classList.add("loading");
+
+	const formData = new FormData();
+	formData.append("file", document.getElementById("restore-backup-file").files[0]);
+
+	const req = ajaxRequest("POST", "/file-transfer/multipart", formData);
+	req.then((response) => {
+		console.debug(response);
+		const config_files = document.getElementById("restore-backup-config-files").checked;
+		const server_id = "backup";
+		const batch = true;
+		const req = ajaxRequest(
+			"POST",
+			"/rpc",
+			{ "id": 1, "method": "service_restoreBackup", params: [response.file_id, config_files, server_id, batch] }
+		);
+		req.then((response) => {
+			console.debug(response);
+			button.classList.remove("loading");
+		}, (error) => {
+			console.error(error);
+			button.classList.remove("loading");
+		});
+	}, (error) => {
+		console.error(error);
+		button.classList.remove("loading");
+	});
+}
+
+
 function unblockAll() {
 	let req = ajaxRequest("POST", "/admin/unblock-all");
 	req.then((result) => {

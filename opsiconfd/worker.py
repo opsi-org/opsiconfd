@@ -18,9 +18,10 @@ import socket
 import time
 from asyncio import sleep as asyncio_sleep
 from concurrent.futures import ThreadPoolExecutor
+from logging import DEBUG
 from multiprocessing.context import SpawnProcess
 from signal import SIGHUP
-from typing import List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
 from uvicorn._subprocess import get_subprocess  # type: ignore[import]
@@ -35,6 +36,12 @@ from .config import GC_THRESHOLDS, config, configure_warnings
 from .logging import init_logging, logger, shutdown_logging
 from .metrics.collector import WorkerMetricsCollector
 from .utils import async_redis_client
+
+if TYPE_CHECKING:
+	from uvicorn.protocols.http.h11_impl import H11Protocol
+	from uvicorn.protocols.http.httptools_impl import HttpToolsProtocol
+	from uvicorn.protocols.websockets.websockets_impl import WebSocketProtocol
+	from uvicorn.protocols.websockets.wsproto_impl import WSProtocol
 
 
 def init_pool_executor(loop: asyncio.AbstractEventLoop) -> None:
@@ -126,8 +133,9 @@ class Worker(WorkerInfo, UvicornServer):
 		self._metrics_collector: WorkerMetricsCollector | None = None
 		self.process: SpawnProcess | None = None
 		self.app_state = app.app_state.type
+		self.connection_close_wait_timeout = 10.0
 
-	def start_server_process(self, sockets: List[socket.socket]) -> None:
+	def start_server_process(self, sockets: list[socket.socket]) -> None:
 		self.process = get_subprocess(config=self.config, target=self.run, sockets=sockets)
 		self.process.start()
 		if self.process.pid:
@@ -175,7 +183,7 @@ class Worker(WorkerInfo, UvicornServer):
 		)
 		await redis.expire(self.redis_state_key, self.redis_state_key_expire)
 
-	def _run(self, sockets: Optional[List[socket.socket]] = None) -> None:
+	def _run(self, sockets: Optional[list[socket.socket]] = None) -> None:
 		self.pid = os.getpid()
 		Worker._instance = self
 		init_logging(log_mode=config.log_mode, is_worker=True)
@@ -191,14 +199,14 @@ class Worker(WorkerInfo, UvicornServer):
 
 		super().run(sockets=sockets)
 
-	def run(self, sockets: Optional[List[socket.socket]] = None) -> None:
+	def run(self, sockets: Optional[list[socket.socket]] = None) -> None:
 		try:
 			self._run(sockets)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error("%s terminated with error: %s", self, err, exc_info=True)
 		shutdown_logging()
 
-	async def serve(self, sockets: Optional[List[socket.socket]] = None) -> None:
+	async def serve(self, sockets: Optional[list[socket.socket]] = None) -> None:
 		loop = asyncio.get_running_loop()
 		loop.set_debug("asyncio" in config.debug_options)
 		init_pool_executor(loop)
@@ -217,15 +225,54 @@ class Worker(WorkerInfo, UvicornServer):
 			redis = await async_redis_client()
 			await redis.delete(self.redis_state_key)
 
-	async def close_connections(self) -> None:
+	async def close_connections(self, wait: bool = True) -> None:
 		for connection in self.server_state.connections:
+			if logger.isEnabledFor(DEBUG):
+				logger.debug("Closing connection: %s", self.get_connection_info(connection))
 			connection.shutdown()
 
-	async def shutdown(self, sockets: Optional[List[socket.socket]] = None) -> None:
-		logger.info("Shutting down")
-		if self._metrics_collector:
-			self._metrics_collector.stop()
+		if not wait:
+			return
 
+		# Wait for existing connections to finish sending responses.
+		if self.server_state.connections and not self.force_exit:
+			logger.info(
+				"Waiting for %d connections to close (timeout=%0.2f seconds)",
+				len(self.server_state.connections), self.connection_close_wait_timeout
+			)
+			if logger.isEnabledFor(DEBUG):
+				for connection in self.server_state.connections:
+					logger.debug("Waiting for connection: %s", self.get_connection_info(connection))
+			start = time.time()
+			while self.server_state.connections and not self.force_exit:
+				if time.time() - start >= self.connection_close_wait_timeout:  # pylint: disable=dotted-import-in-loop
+					logger.notice("Timed out while waiting for connections to close")
+					for connection in self.server_state.connections:
+						logger.notice("Connection was not closed in time: %s", self.get_connection_info(connection))
+					break
+				await asyncio.sleep(0.5)  # pylint: disable=dotted-import-in-loop
+
+		logger.info("All connections closed")
+
+	def get_connection_info(self, connection: H11Protocol | HttpToolsProtocol | WSProtocol | WebSocketProtocol) -> str:
+		info = ""
+		client = connection.client
+		if client:
+			info = f'{client[0]}:{client[1]}'
+		headers = getattr(connection, "headers", None)
+		if headers:
+			for name, val in headers:
+				if name.lower() == b"user-agent":
+					info = f"{info} - {val.decode('utf-8', errors='ignore')}"
+					break
+		scope = connection.scope
+		if connection.scope:
+			method = scope.get("method")
+			info = f'{info} - {method + " " if method else ""}{scope.get("path", "")}'
+		return f"{connection.__class__.__name__}({info})"
+
+	async def shutdown(self, sockets: Optional[list[socket.socket]] = None) -> None:
+		logger.info("Shutting down")
 		# Stop accepting new connections.
 		logger.info("Stop accepting new connections")
 		if hasattr(self, "servers"):
@@ -237,16 +284,11 @@ class Worker(WorkerInfo, UvicornServer):
 				await server.wait_closed()
 
 		# Request shutdown on all existing connections.
-		await self.close_connections()
+		await self.close_connections(wait=not self.force_exit)
 		await asyncio.sleep(0.1)
 
-		# Wait for existing connections to finish sending responses.
-		if self.server_state.connections and not self.force_exit:
-			logger.info("Waiting for %d connections to close", len(self.server_state.connections))
-			for connection in self.server_state.connections:
-				logger.info(connection)
-			while self.server_state.connections and not self.force_exit:
-				await asyncio.sleep(0.1)  # pylint: disable=dotted-import-in-loop
+		if self._metrics_collector:
+			self._metrics_collector.stop()
 
 		# Wait for existing tasks to complete.
 		if self.server_state.tasks and not self.force_exit:
@@ -282,6 +324,6 @@ class Worker(WorkerInfo, UvicornServer):
 			return
 		if isinstance(app_state, MaintenanceState):
 			logger.info("%s closing all connections", self)
-			await self.close_connections()
+			await self.close_connections(wait=True)
 		self.app_state = app_state.type
 		await self.store_state_in_redis()

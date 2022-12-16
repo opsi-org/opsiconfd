@@ -42,7 +42,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._metrics_collector = ManagerMetricsCollector()
 		self._server = Server()
 
-	def stop(self, force: bool) -> None:
+	def stop(self, force: bool = False) -> None:
 		self._should_stop = True
 		self._force_stop = force
 		logger.notice("Manager stopping force=%s", self._force_stop)

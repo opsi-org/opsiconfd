@@ -43,7 +43,7 @@ from opsicommon.logging import (  # type: ignore[import]
 	set_filter_from_string,
 	set_format,
 )
-from opsicommon.logging.constants import NONE  # type: ignore[import]
+from opsicommon.logging.constants import NONE, SECRET  # type: ignore[import]
 from opsicommon.logging.logging import (  # type: ignore[import]
 	add_context_filter_to_loggers,
 )
@@ -241,10 +241,10 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 			console_formatter = colorlog.ColoredFormatter(self._log_format_stderr, log_colors=LOG_COLORS, datefmt=DATETIME_FORMAT)
 		else:
 			console_formatter = Formatter(self._log_format_no_color(self._log_format_stderr), datefmt=DATETIME_FORMAT)
-		if self._stderr_handler:
-			self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)
-		else:
-			self._stderr_handler = AsyncStreamHandler(stream=self._stderr_file, formatter=ContextSecretFormatter(console_formatter))
+		if not self._stderr_handler:
+			self._stderr_handler = AsyncStreamHandler(stream=self._stderr_file)
+		self._stderr_handler.formatter = ContextSecretFormatter(console_formatter)
+		self._stderr_handler.formatter.secret_filter_enabled = False  # Secrets are filtered before records are written to redis
 		self._stderr_handler.add_filter(context_filter.filter)
 
 	def _log_format_no_color(self, log_format: str) -> str:
@@ -285,11 +285,11 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 						os.makedirs(log_dir)
 					# Do not close main opsiconfd log file
 					active_lifetime = 0 if name == "opsiconfd" else self._file_log_active_lifetime
+					formatter = ContextSecretFormatter(Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT))
+					formatter.secret_filter_enabled = False  # Secrets are filtered before records are written to redis
 					self._file_logs[filename] = AsyncRotatingFileHandler(
 						filename=filename,
-						formatter=ContextSecretFormatter(
-							Formatter(self._log_format_no_color(self._log_format_file), datefmt=DATETIME_FORMAT)
-						),
+						formatter=formatter,
 						active_lifetime=active_lifetime,
 						mode="a",
 						encoding="utf-8",
@@ -447,8 +447,9 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 			msg = record.getMessage()
 		except TypeError:
 			msg = record.msg
-		for secret in secret_filter.secrets:
-			msg = msg.replace(secret, SECRET_REPLACEMENT_STRING)
+		if self.level != SECRET:
+			for secret in secret_filter.secrets:
+				msg = msg.replace(secret, SECRET_REPLACEMENT_STRING)
 		if self._max_msg_len and len(msg) > self._max_msg_len:
 			msg = msg[: self._max_msg_len - 1] + "…"
 

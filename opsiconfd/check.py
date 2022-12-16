@@ -426,7 +426,10 @@ def print_check_system_packages_result(check_result: dict, console: Console) -> 
 		if details.get("version"):
 			if details.get("outdated"):
 				msg = Padding(
-					f"[bold  yellow]Package {package} is out of date. Installed version: {details['version']} - available version: {details['available_version']}",
+					(
+						f"[bold  yellow]Package {package} is out of date. Installed version: {details['version']}"
+						"- available version: {details['available_version']}"
+					),
 					(0, INDENT_SIZE),
 				)
 			else:

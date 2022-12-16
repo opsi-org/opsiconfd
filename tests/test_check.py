@@ -11,11 +11,10 @@ check tests
 
 import io
 import sys
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict
 from unittest import mock
 
 import requests
-from colorama import Fore, Style  # type: ignore[import]
 from MySQLdb import OperationalError  # type: ignore[import]
 from redis.exceptions import ConnectionError as RedisConnectionError
 from rich.console import Console
@@ -35,13 +34,11 @@ from opsiconfd.check import (
 	print_check_redis_result,
 	print_check_system_packages_result,
 )
-from opsiconfd.config import Config
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	OpsiconfdTestClient,
-	config,
 	sync_clean_redis,
 	test_client,
 )
@@ -59,8 +56,7 @@ def captured_function_output(func: Callable, args: Dict[str, Any]) -> str:
 	return captured_output.getvalue()
 
 
-def test_check_redis(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	config.detailed = True
+def test_check_redis() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False)
 	result = check_redis()
 	print(result)
@@ -85,8 +81,7 @@ def test_check_redis_error() -> None:
 		assert result["message"] == "Redis test error"
 
 
-def test_check_mysql(config: Config) -> None:  # pylint: disable=redefined-outer-name
-	config.detailed = True
+def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False)
 	result = check_mysql()
 	captured_output = captured_function_output(print_check_mysql_result, {"check_result": result, "console": console})
@@ -97,7 +92,7 @@ def test_check_mysql(config: Config) -> None:  # pylint: disable=redefined-outer
 	assert result["message"] == "Connection to MySQL is working."
 
 
-def test_check_mysql_error(config: Config) -> None:  # pylint: disable=redefined-outer-name
+def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
 
 	with mock.patch(
 		"opsiconfd.check.get_mysql", side_effect=OperationalError('(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")')
@@ -134,7 +129,7 @@ def test_get_repo_versions() -> None:
 			assert result.get(package, {}).get("version") == "4.2.0.183-1"
 
 
-def test_check_system_packages_debian(config: Config) -> None:  # pylint: disable=redefined-outer-name
+def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-outer-name
 	# test up to date packages - status sould be ok and output should be green
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 	dpkg_lines = []
@@ -197,7 +192,7 @@ def test_check_system_packages_debian(config: Config) -> None:  # pylint: disabl
 			)
 
 
-def test_check_system_packages_open_suse(config: Config) -> None:  # pylint: disable=redefined-outer-name
+def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False, width=1000)
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
@@ -233,7 +228,7 @@ def test_check_system_packages_open_suse(config: Config) -> None:  # pylint: dis
 			assert partial_check[name]["message"] == f"Installed version: {version}"
 
 
-def test_check_system_packages_redhat(config: Config) -> None:  # pylint: disable=redefined-outer-name
+def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False, width=1000)
 	packages = {"opsiconfd": "4.2.0.200-1", "opsi-utils": "4.2.0.180-1"}
 
@@ -281,7 +276,7 @@ def test_health_check() -> None:
 
 
 def test_check_deprecated_calls(
-	test_client: OpsiconfdTestClient, config: Config  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	sync_clean_redis()
 	console = Console(log_time=False, width=1000)
@@ -307,7 +302,7 @@ def test_check_deprecated_calls(
 	assert result["details"][DEPRECATED_METHOD]["clients"] == {"testclient"}
 
 
-def test_check_licenses(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+def test_check_licenses(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 
 	result = check_opsi_licenses()
 	assert result.get("status") is not None

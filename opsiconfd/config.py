@@ -51,7 +51,7 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
 # update-ip = true
 """
-DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache")
+DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache", "debug")
 
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
@@ -943,20 +943,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		)
 		self._parser.add("--ex-help", action="store_true", help=self._help("expert", "Show expert help message and exit."))
 		self._parser.add(
-			"--debug",
-			env_var="OPSICONFD_DEBUG",
-			type=str2bool,
-			nargs="?",
-			const=True,
-			default=False,
-			help=self._help("expert", "Turn debug mode on, never use in production."),
-		)
-		self._parser.add(
 			"--debug-options",
 			nargs="+",
 			env_var="OPSICONFD_DEBUG_OPTIONS",
 			default=None,
-			help=self._help("expert", "A list of debug options (possible options are: rpc-error-log)"),
+			help=self._help(
+				"expert",
+				"A list of debug options (possible options are: asyncio, rpc-log, rpc-error-log).",
+			),
+			choices=("asyncio", "rpc-log", "rpc-error-log"),
 		)
 		self._parser.add(
 			"--profiler",
@@ -1011,7 +1006,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				"opsiconfd",
 				"A list of admin interface features to disable (features: terminal, rpc-interface).",
 			),
-			choices=["terminal", "rpc-interface"],
+			choices=("terminal", "rpc-interface"),
 		)
 		self._parser.add(
 			"--admin-interface-terminal-shell",

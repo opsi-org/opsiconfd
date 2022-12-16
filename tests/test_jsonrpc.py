@@ -225,8 +225,9 @@ def test_error_log(test_client: OpsiconfdTestClient, tmp_path: Path) -> None:  #
 			data = json.loads(entry.read_text(encoding="utf-8"))  # pylint: disable=dotted-import-in-loop
 			assert data["client"]
 			assert "Processing request from" in data["description"]
-			assert data["method"] == "invalid"
-			assert data["params"] == [1, 2, 3]
+			assert data["request"]["method"] == "invalid"
+			assert data["request"]["params"] == [1, 2, 3]
+			assert data["response"]["error"]["message"] == "Invalid method 'invalid'"
 			assert data["error"] == "Invalid method 'invalid'"
 
 

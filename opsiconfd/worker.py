@@ -192,7 +192,7 @@ class Worker(WorkerInfo, UvicornServer):
 
 	async def serve(self, sockets: Optional[List[socket.socket]] = None) -> None:
 		loop = asyncio.get_running_loop()
-		loop.set_debug(config.debug)
+		loop.set_debug("asyncio" in config.debug_options)
 		init_pool_executor(loop)
 		loop.set_exception_handler(self.handle_asyncio_exception)
 

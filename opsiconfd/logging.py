@@ -613,7 +613,7 @@ class RedisLogAdapterThread(threading.Thread):
 			self._loop.set_default_executor(
 				ThreadPoolExecutor(max_workers=5, thread_name_prefix="RedisLogAdapterThread-ThreadPoolExecutor")
 			)
-			self._loop.set_debug(config.debug)
+			self._loop.set_debug("asyncio" in config.debug_options)
 			asyncio.set_event_loop(self._loop)
 
 			def handle_asyncio_exception(loop: asyncio.AbstractEventLoop, context: dict) -> None:

@@ -282,20 +282,18 @@ def deserialize(obj: Any, deep: bool = False) -> Any:  # pylint: disable=invalid
 	return obj
 
 
-def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] | None = None) -> None:
+def write_debug_log(
+	client_info: str, request: Dict[str, Any] | None = None, response: Any = None, exception: Exception | None = None
+) -> None:
 	now = int(time.time() * 1_000_000)
 	makedirs(RPC_DEBUG_DIR, exist_ok=True)
-	method = None
-	params = None
-	if rpc:
-		method = rpc.get("method")
-		params = rpc.get("params")
+	method = request.get("method") if request else None
 	msg = {
 		"client": client_info,
 		"description": f"Processing request from {client_info} for method {method!r}",
-		"method": method,
-		"params": params,
-		"error": str(exception),
+		"request": request,
+		"response": response,
+		"error": str(exception) if exception else None,
 	}
 	prefix = f"{client_info}-{now}-".replace("/", "_").replace(".", "_")
 	with tempfile.NamedTemporaryFile(
@@ -306,12 +304,6 @@ def write_error_log(client_info: str, exception: Exception, rpc: Dict[str, Any] 
 
 
 async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[str, Any] | None = None) -> Any:
-	if config.debug_options and "rpc-error-log" in config.debug_options:
-		try:
-			await run_in_threadpool(write_error_log, client_info, exception, rpc)
-		except Exception as write_err:  # pylint: disable=broad-except
-			logger.warning(write_err, exc_info=True)
-
 	_id = rpc.get("id") if rpc else None
 	message = str(exception)
 	_class = exception.__class__.__name__
@@ -320,11 +312,11 @@ async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[st
 		session = contextvar_client_session.get()
 		if session and session.is_admin:
 			details = str(traceback.format_exc())
-	except Exception as sess_err:  # pylint: disable=broad-except
-		logger.warning(sess_err, exc_info=True)
+	except Exception as err:  # pylint: disable=broad-except
+		logger.warning(err, exc_info=True)
 
 	if rpc and rpc.get("jsonrpc") == "2.0":
-		return {
+		response = {
 			"jsonrpc": "2.0",
 			"id": _id,
 			"error": {
@@ -333,16 +325,24 @@ async def process_rpc_error(client_info: str, exception: Exception, rpc: Dict[st
 				"data": {"class": _class, "details": details}
 			}
 		}
-
-	return {
-		"id": 0 if _id is None else _id,
-		"result": None,
-		"error": {
-			"message": message,
-			"class": _class,
-			"details": details
+	else:
+		response = {
+			"id": 0 if _id is None else _id,
+			"result": None,
+			"error": {
+				"message": message,
+				"class": _class,
+				"details": details
+			}
 		}
-	}
+
+	if "rpc-log" in config.debug_options or "rpc-error-log" in config.debug_options:
+		try:
+			await run_in_threadpool(write_debug_log, client_info, rpc, response, exception)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.warning(err, exc_info=True)
+
+	return response
 
 
 async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
@@ -359,9 +359,17 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 	result = await run_in_threadpool(execute_rpc, client_info, rpc)
 
 	if rpc.get("jsonrpc") == "2.0":
-		return {"jsonrpc": "2.0", "id": rpc["id"], "result": result}
+		response = {"jsonrpc": "2.0", "id": rpc["id"], "result": result}
+	else:
+		response = {"id": rpc["id"], "result": result, "error": None}
 
-	return {"id": rpc["id"], "result": result, "error": None}
+	if "rpc-log" in config.debug_options:
+		try:
+			await run_in_threadpool(write_debug_log, client_info, rpc, response, None)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.warning(err, exc_info=True)
+
+	return response
 
 
 async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerator[Dict[str, Any], None]:

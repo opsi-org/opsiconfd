@@ -95,7 +95,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 
 	def run_loop(self) -> None:
 		self._loop.set_default_executor(ThreadPoolExecutor(max_workers=10, thread_name_prefix="manager-ThreadPoolExecutor"))
-		self._loop.set_debug(config.debug)
+		self._loop.set_debug("asyncio" in config.debug_options)
 		asyncio.set_event_loop(self._loop)
 		self._loop.create_task(self.async_main())
 		self._loop.run_forever()

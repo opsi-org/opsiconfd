@@ -28,6 +28,8 @@ from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
+from opsiconfd.utils import ip_address_in_network
+
 from . import __version__
 from .addon import AddonManager
 from .application import AppState, MaintenanceState, app
@@ -225,11 +227,26 @@ class Worker(WorkerInfo, UvicornServer):
 			redis = await async_redis_client()
 			await redis.delete(self.redis_state_key)
 
-	async def close_connections(self, wait: bool = True) -> None:
+	async def close_connections(self, address_exceptions: list[str] | None = None, wait: bool = True) -> None:  # pylint: disable=too-many-branches
+		address_exceptions = address_exceptions or []
+		logger.info("Closing connections, address exceptions: %s", address_exceptions)
+		keep_connections = set()
 		for connection in self.server_state.connections:
-			if logger.isEnabledFor(DEBUG):
-				logger.debug("Closing connection: %s", self.get_connection_info(connection))
-			connection.shutdown()
+			skip = False
+			if address_exceptions:
+				client = connection.client
+				if client:
+					client_ip = client[0]
+					for network in address_exceptions:
+						if ip_address_in_network(client_ip, network):
+							logger.info("Keeping excluded connection %s", connection)
+							keep_connections.add(connection)
+							skip = True
+							break
+			if not skip:
+				if logger.isEnabledFor(DEBUG):
+					logger.debug("Closing connection: %s", self.get_connection_info(connection))
+				connection.shutdown()
 
 		if not wait:
 			return
@@ -238,21 +255,39 @@ class Worker(WorkerInfo, UvicornServer):
 		if self.server_state.connections and not self.force_exit:
 			logger.info(
 				"Waiting for %d connections to close (timeout=%0.2f seconds)",
-				len(self.server_state.connections), self.connection_close_wait_timeout
+				len(self.server_state.connections) - len(keep_connections), self.connection_close_wait_timeout
 			)
 			if logger.isEnabledFor(DEBUG):
 				for connection in self.server_state.connections:
-					logger.debug("Waiting for connection: %s", self.get_connection_info(connection))
+					if connection not in keep_connections:
+						logger.debug("Waiting for connection: %s", self.get_connection_info(connection))
+
 			start = time.time()
-			while self.server_state.connections and not self.force_exit:
+			while not self.force_exit:
+				if not self.server_state.connections:
+					break
+
+				if keep_connections:
+					wait_done = True
+					for con in self.server_state.connections:
+						if con not in keep_connections:
+							wait_done = False
+							break
+					if wait_done:
+						break
+
 				if time.time() - start >= self.connection_close_wait_timeout:  # pylint: disable=dotted-import-in-loop
 					logger.notice("Timed out while waiting for connections to close")
 					for connection in self.server_state.connections:
 						logger.notice("Connection was not closed in time: %s", self.get_connection_info(connection))
 					break
+
 				await asyncio.sleep(0.5)  # pylint: disable=dotted-import-in-loop
 
-		logger.info("All connections closed")
+		if keep_connections:
+			logger.info("All except %d connections closed", len(keep_connections))
+		else:
+			logger.info("All connections closed")
 
 	def get_connection_info(self, connection: H11Protocol | HttpToolsProtocol | WSProtocol | WebSocketProtocol) -> str:
 		info = ""
@@ -324,6 +359,6 @@ class Worker(WorkerInfo, UvicornServer):
 			return
 		if isinstance(app_state, MaintenanceState):
 			logger.info("%s closing all connections", self)
-			await self.close_connections(wait=True)
+			await self.close_connections(address_exceptions=app_state.address_exceptions, wait=True)
 		self.app_state = app_state.type
 		await self.store_state_in_redis()

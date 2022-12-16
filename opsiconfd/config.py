@@ -68,6 +68,7 @@ OPSI_LICENSE_PATH = "/etc/opsi/licenses"
 OPSI_MODULES_PATH = "/etc/opsi/modules"
 SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
 SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
+FILE_TRANSFER_STORAGE_DIR = "/tmp/opsiconfd-file-transfer"
 
 opsi_config = OpsiConfig()
 

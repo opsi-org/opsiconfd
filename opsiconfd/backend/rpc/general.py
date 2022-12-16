@@ -21,7 +21,9 @@ import time
 from datetime import datetime
 from functools import lru_cache
 from hashlib import md5
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
+from uuid import UUID
 
 from Crypto.Hash import MD5
 from Crypto.Signature import pkcs1_15
@@ -52,10 +54,12 @@ from opsicommon.types import (  # type: ignore[import]
 )
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
-from opsiconfd.application import AppState, MaintenanceState, NormalState
+from opsiconfd.application import AppState
+from opsiconfd.application.filetransfer import delete_file, prepare_file
 from opsiconfd.backup import create_backup, restore_backup
 from opsiconfd.check import health_check
 from opsiconfd.config import (
+	FILE_TRANSFER_STORAGE_DIR,
 	FQDN,
 	LOG_DIR,
 	LOG_SIZE_HARD_LIMIT,
@@ -139,50 +143,76 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return list(session.user_groups)
 
 	@rpc_method
-	def server_checkHealth(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
+	def service_checkHealth(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
 		self._check_role("admin")
 		return health_check()
 
 	@rpc_method
-	def server_createBackup(  # pylint: disable=invalid-name
-		self: BackendProtocol, config_files: bool = True, maintenance_mode: bool = True
-	) -> dict:
+	def service_createBackup(  # pylint: disable=invalid-name
+		self: BackendProtocol, config_files: bool = True, maintenance_mode: bool = True, return_type: str = "file_id"
+	) -> dict[str, dict[str, Any]] | str:
 		self._check_role("admin")
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
-		if maintenance_mode:
-			self._app.set_app_state(
-				MaintenanceState(
-					retry_after=300, message="Backup in progress", address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr]
-				),
-				wait_accomplished=60.0,
+
+		file_id = None
+		file_encoding = "msgpack"
+		file_compression = "lz4"
+		backup_file = None
+		if return_type == "file_id":
+			now = datetime.now().strftime("%Y%m%d-%H%M%S")
+			file_id, backup_file = prepare_file(
+				filename=f"opsiconfd-backup-{now}.{file_encoding}.{file_compression}", content_type="binary/octet-stream"
 			)
-		try:
-			return create_backup(config_files=config_files)
-		finally:
-			if maintenance_mode:
-				self._app.app_state = NormalState()
+
+		data = create_backup(
+			config_files=config_files,
+			backup_file=backup_file,
+			file_encoding=file_encoding,  # type: ignore[arg-type]
+			file_compression=file_compression,  # type: ignore[arg-type]
+			maintenance=maintenance_mode,
+			maintenance_address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr],
+		)
+		if file_id:
+			return file_id
+		return data
 
 	@rpc_method
-	def server_restoreBackup(  # pylint: disable=invalid-name
-		self: BackendProtocol, data: dict[str, dict[str, Any]], config_files: bool = False, server_id: str = "backup", batch: bool = True
+	def service_restoreBackup(  # pylint: disable=invalid-name
+		self: BackendProtocol,
+		data_or_file_id: dict[str, dict[str, Any]] | str,
+		config_files: bool = False,
+		server_id: str = "backup",
+		batch: bool = True,
 	) -> None:
 		self._check_role("admin")
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
-		self._app.set_app_state(
-			MaintenanceState(
-				retry_after=600, message="Restore in progress", address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr]
-			),
-			wait_accomplished=60.0,
+
+		data_or_file: dict[str, dict[str, Any]] | Path = {}
+		file_id = None
+		if isinstance(data_or_file_id, str):
+			file_id = UUID(data_or_file_id)
+			data_or_file = Path(FILE_TRANSFER_STORAGE_DIR) / str(file_id)
+			if not data_or_file.exists():
+				raise ValueError("Invalid file ID")
+		else:
+			data_or_file = data_or_file_id
+
+		restore_backup(
+			data_or_file=data_or_file,
+			config_files=config_files,
+			server_id=server_id,
+			batch=batch,
+			maintenance_address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr],
 		)
-		restore_backup(data=data, config_files=config_files, server_id=server_id, batch=batch)
-		self._app.app_state = NormalState()
+		if file_id:
+			delete_file(file_id)
 
 	@rpc_method
-	def server_setAppState(self: BackendProtocol, app_state: dict[str, Any]) -> dict[str, Any]:  # pylint: disable=invalid-name
+	def service_setAppState(self: BackendProtocol, app_state: dict[str, Any]) -> dict[str, Any]:  # pylint: disable=invalid-name
 		self._check_role("admin")
 		self._app.app_state = AppState.from_dict(app_state)
 		return self._app.app_state.to_dict()

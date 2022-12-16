@@ -40,6 +40,7 @@ def manager() -> Generator[Manager, None, None]:  # pylint: disable=redefined-ou
 			man.stop()
 			man._async_main_stopped.wait(5)  # pylint: disable=protected-access
 
+
 def test_manager_signals(manager: Manager) -> None:  # pylint: disable=redefined-outer-name
 	# signal_handler is replaced in conftest
 

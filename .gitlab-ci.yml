@@ -226,3 +226,9 @@ publish:obs_ext:
     - ./opsi-dev-tool -l info --obs-update-package https://build.opensuse.org home:uibmz:opsi:4.2:development
   only:
     - tags
+
+publish:opsi-docker:
+  stage: publish
+  trigger: opsi-docker
+  variables:
+    UPSTREAM_CI_COMMIT_TAG: $CI_COMMIT_TAG

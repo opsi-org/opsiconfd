@@ -48,19 +48,21 @@ async def test_register_opsi_services() -> None:
 		loop = asyncio.get_running_loop()
 		zeroconf = Zeroconf(loop)
 		browser = ServiceBrowser(zeroconf, "_opsics._tcp.local.", handlers=[on_service_state_change])
-		await asyncio.sleep(1)
-		await register_opsi_services()
-		await asyncio.sleep(1)
+		try:
+			await asyncio.sleep(1)
+			await register_opsi_services()
+			await asyncio.sleep(1)
 
-		assert len(services) == 1
-		info = list(services.values())[0]
-		assert info.port == config.port
-		assert info.properties.get(b"version").decode("ascii") == __version__
+			assert len(services) == 1
+			info = list(services.values())[0]
+			assert info.port == config.port
+			assert info.properties.get(b"version").decode("ascii") == __version__
 
-		await asyncio.sleep(1)
-		await unregister_opsi_services()
-		await asyncio.sleep(1)
-		assert len(services) == 0
-
-		browser.cancel()
-		await asyncio.sleep(1)
+			await asyncio.sleep(1)
+			await unregister_opsi_services()
+			await asyncio.sleep(1)
+			assert len(services) == 0
+		finally:
+			browser.cancel()
+			await zeroconf.close()
+			await asyncio.sleep(1)

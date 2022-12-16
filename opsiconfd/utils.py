@@ -299,7 +299,7 @@ async def async_redis_client(timeout: int = 0, test_connection: bool = False) ->
 async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any]:  # pylint: disable=too-many-locals
 	conf = get_config()
 	stats_keys = []
-	sessions_keys = []
+	session_keys = []
 	log_keys = []
 	rpc_keys = []
 	misc_keys = []
@@ -312,7 +312,7 @@ async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any
 		elif key.startswith(f"{conf.redis_key('stats')}"):
 			stats_keys.append(key)
 		elif key.startswith(conf.redis_key('session')):
-			sessions_keys.append(key)
+			session_keys.append(key)
 		elif key.startswith(conf.redis_key('log')):
 			log_keys.append(key)
 		else:
@@ -323,7 +323,7 @@ async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any
 		stats_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0  # type: ignore[no-untyped-call]
 
 	sessions_memory = 0
-	for key in sessions_keys:
+	for key in session_keys:
 		sessions_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0  # type: ignore[no-untyped-call]
 
 	logs_memory = 0
@@ -343,7 +343,7 @@ async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any
 	redis_info = decode_redis_result(await client.execute_command("INFO"))  # type: ignore[no-untyped-call]
 	redis_info["key_info"] = {
 		"stats": {"count": len(stats_keys), "memory": stats_memory},
-		"sessions": {"count": len(sessions_keys), "memory": sessions_memory},
+		"sessions": {"count": len(session_keys), "memory": sessions_memory},
 		"logs": {"count": len(log_keys), "memory": logs_memory, "records": log_records},
 		"rpc": {"count": len(rpc_keys), "memory": rpc_memory},
 		"misc": {"count": len(misc_keys), "memory": misc_memory},

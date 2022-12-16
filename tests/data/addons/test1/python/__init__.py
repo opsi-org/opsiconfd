@@ -93,9 +93,7 @@ class AddonTest1(Addon):
 			pass
 		remove_route_path(app, self.router_prefix)
 
-	async def handle_request(
-		self, connection: HTTPConnection, receive: Receive, send: Send
-	) -> bool:
+	async def handle_request(self, connection: HTTPConnection, receive: Receive, send: Send) -> bool:
 		"""Called on every request where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 		connection.scope["required_access_role"] = ACCESS_ROLE_AUTHENTICATED
@@ -110,9 +108,7 @@ class AddonTest1(Addon):
 			await connection.scope["session"].delete()
 		return False
 
-	async def handle_request_exception(
-		self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send
-	) -> bool:
+	async def handle_request_exception(self, err: Exception, connection: HTTPConnection, receive: Receive, send: Send) -> bool:
 		"""Called on every request exception where the path matches the addons router prefix.
 		Return true to skip further request processing."""
 

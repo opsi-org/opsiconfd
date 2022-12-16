@@ -17,11 +17,13 @@ import signal
 import sys
 import threading
 import time
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
+from typing import Generator
 
 import uvloop
 from msgspec import json, msgpack
-from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from opsicommon.logging import set_filter_from_string  # type: ignore[import]
 from opsicommon.types import forceHostId  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[import]
@@ -29,6 +31,7 @@ from rich.console import Console
 from rich.progress import Progress
 
 from . import __version__
+from .application import MaintenanceState, app
 from .backup import create_backup, restore_backup
 from .check import (
 	CheckStatus,
@@ -45,7 +48,7 @@ from .check import (
 	print_check_redis_result,
 	print_check_system_packages_result,
 )
-from .config import GC_THRESHOLDS, config, opsi_config
+from .config import GC_THRESHOLDS, config, configure_warnings, opsi_config
 from .logging import AsyncRedisLogAdapter, init_logging, logger, shutdown_logging
 from .manager import Manager
 from .patch import apply_patches
@@ -115,6 +118,32 @@ def health_check_main() -> None:
 	sys.exit(res)
 
 
+@contextmanager
+def maintenance_mode(progress: Progress, message: str, wait_accomplished: float) -> Generator[None, None, None]:
+	logger.notice("Entering maintenance mode")
+	maint_task = progress.add_task("Entering maintenance mode", total=None)
+	threading.Thread(target=asyncio.run, args=[app.app_state_manager_task()], daemon=True).start()
+	# Wait for app state to be read from redis
+	time.sleep(3)
+	orig_state = app.app_state
+	if not isinstance(orig_state, MaintenanceState):
+		# Not already in maintenance state
+		app.set_app_state(
+			MaintenanceState(retry_after=300, message=message, address_exceptions=[]),
+			wait_accomplished=wait_accomplished,
+		)
+		progress.update(maint_task, total=1, completed=True)
+	try:
+		yield
+	finally:
+		if not isinstance(orig_state, MaintenanceState):
+			logger.notice("Reentering %s mode", orig_state.type)
+			progress.console.print(f"Reentering {orig_state.type} mode")
+			orig_state.accomplished = False
+			app.app_state = orig_state
+			time.sleep(3)
+
+
 def backup_main() -> None:
 	console = Console(quiet=config.quiet)
 	try:
@@ -124,43 +153,56 @@ def backup_main() -> None:
 			if not config.overwrite and backup_file.exists():
 				raise FileExistsError(f"Backup file '{str(backup_file)}' already exists, use --overwrite to replace.")
 
-			suffixes = [s.strip(".") for s in backup_file.suffixes[-2:]]
-			encoding = suffixes[0]
-			compression = None
-			if len(suffixes) == 2:
-				compression = suffixes[1]
+			ctm = (
+				nullcontext()
+				if config.no_maintenance
+				else maintenance_mode(
+					progress=progress, message="Maintenance mode, backup in progress, please try again later", wait_accomplished=60
+				)
+			)
+			with ctm:
+				suffixes = [s.strip(".") for s in backup_file.suffixes[-2:]]
+				encoding = suffixes[0]
+				compression = None
+				if len(suffixes) == 2:
+					compression = suffixes[1]
 
-			if encoding not in ("msgpack", "json"):
-				raise ValueError(f"Invalid encoding {encoding!r}, valid encodings are 'msgpack' and 'json'")
+				if encoding not in ("msgpack", "json"):
+					raise ValueError(f"Invalid encoding {encoding!r}, valid encodings are 'msgpack' and 'json'")
 
-			if compression:
-				if compression not in ("lz4", "gz"):
-					raise ValueError(f"Invalid compression {compression!r}, valid compressions are 'lz4' and 'gz'")
+				if compression:
+					if compression not in ("lz4", "gz"):
+						raise ValueError(f"Invalid compression {compression!r}, valid compressions are 'lz4' and 'gz'")
 
-			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
+				progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
 
-			data = create_backup(config_files=not config.no_config_files, progress=progress)
+				data = create_backup(config_files=not config.no_config_files, progress=progress)
 
-			file_task = progress.add_task("Creating backup file", total=None)
+				file_task = progress.add_task("Creating backup file", total=None)
 
-			logger.notice("Encoding data to %s", encoding)
-			progress.console.print(f"Encoding data to {encoding}")
-			encode = json.encode if encoding == "json" else msgpack.encode
-			bdata = encode(data)
+				logger.notice("Encoding data to %s", encoding)
+				progress.console.print(f"Encoding data to {encoding}")
+				encode = json.encode if encoding == "json" else msgpack.encode
+				bdata = encode(data)
 
-			if compression:
-				logger.notice("Compressing data with %s", compression)
-				progress.console.print(f"Compressing data with {compression}")
-				bdata = compress_data(bdata, compression=compression)
+				if compression:
+					logger.notice("Compressing data with %s", compression)
+					progress.console.print(f"Compressing data with {compression}")
+					bdata = compress_data(bdata, compression=compression)
 
-			logger.notice("Writing data to file %s", backup_file)
-			progress.console.print("Writing data to file")
-			with open(config.backup_file, "wb") as file:
-				file.write(bdata)
+				logger.notice("Writing data to file %s", backup_file)
+				progress.console.print("Writing data to file")
+				with open(config.backup_file, "wb") as file:
+					file.write(bdata)
 
-			progress.update(file_task, total=1, completed=True)
+				progress.update(file_task, total=1, completed=True)
 
 			progress.console.print(f"Backup file '{str(backup_file)}' succesfully created.")
+	except KeyboardInterrupt:
+		logger.error("Backup interrupted")
+		console.quiet = False
+		console.print("[bold red]Backup interrupted[/bold red]")
+		sys.exit(2)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		console.quiet = False
@@ -178,38 +220,46 @@ def restore_main() -> None:
 			if not backup_file.exists():
 				raise FileExistsError(f"Backup file '{str(backup_file)}' not found")
 
-			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
-			server_id = config.server_id
-			if server_id not in ("local", "backup"):
-				server_id = forceHostId(server_id)
+			with maintenance_mode(
+				progress=progress, message="Maintenance mode, restore in progress, please try again later", wait_accomplished=60
+			):
+				progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
+				server_id = config.server_id
+				if server_id not in ("local", "backup"):
+					server_id = forceHostId(server_id)
 
-			logger.notice("Reading data from file %s", backup_file)
-			progress.console.print("Reading data from file")
-			file_task = progress.add_task("Processing backup file", total=None)
-			with open(config.backup_file, "rb") as file:
-				bdata = file.read()
+				logger.notice("Reading data from file %s", backup_file)
+				progress.console.print("Reading data from file")
+				file_task = progress.add_task("Processing backup file", total=None)
+				with open(config.backup_file, "rb") as file:
+					bdata = file.read()
 
-			head = bdata[0:4].hex()
-			compression = None
-			if head == "04224d18":
-				compression = "lz4"
-			elif head.startswith("1f8b"):
-				compression = "gz"
-			if compression:
-				logger.notice("Decomressing %s data", compression)
-				progress.console.print(f"Decomressing {compression} data")
-				bdata = decompress_data(bdata, compression=compression)
+				head = bdata[0:4].hex()
+				compression = None
+				if head == "04224d18":
+					compression = "lz4"
+				elif head.startswith("1f8b"):
+					compression = "gz"
+				if compression:
+					logger.notice("Decomressing %s data", compression)
+					progress.console.print(f"Decomressing {compression} data")
+					bdata = decompress_data(bdata, compression=compression)
 
-			encoding = "json" if bdata.startswith(b"{") else "msgpack"
-			logger.notice("Decoding %s data", encoding)
-			progress.console.print(f"Decoding {encoding} data")
-			decode = json.decode if encoding == "json" else msgpack.decode
-			data = decode(bdata)  # type: ignore[operator]
-			progress.update(file_task, total=1, completed=True)
+				encoding = "json" if bdata.startswith(b"{") else "msgpack"
+				logger.notice("Decoding %s data", encoding)
+				progress.console.print(f"Decoding {encoding} data")
+				decode = json.decode if encoding == "json" else msgpack.decode
+				data = decode(bdata)  # type: ignore[operator]
+				progress.update(file_task, total=1, completed=True)
 
-			restore_backup(data, config_files=config.config_files, server_id=server_id, progress=progress)
+				restore_backup(data, config_files=config.config_files, server_id=server_id, progress=progress)
 
 			progress.console.print(f"Backup file '{str(backup_file)}' succesfully restored.")
+	except KeyboardInterrupt:
+		logger.error("Restore interrupted")
+		console.quiet = False
+		console.print("[bold red]Restore interrupted[/bold red]")
+		sys.exit(2)
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		console.quiet = False
@@ -306,9 +356,10 @@ def opsiconfd_main() -> None:  # pylint: disable=too-many-statements, too-many-b
 
 def main() -> None:  # pylint: disable=too-many-return-statements
 	monkeypatch_subprocess_for_frozen()
+	configure_warnings()
 
 	if config.version:
-		print(f"{__version__} [python-opsi={python_opsi_version}]")
+		print(f"{__version__} [python-opsi-common={python_opsi_common_version}]")
 		return None
 
 	if config.action == "setup":

@@ -9,8 +9,23 @@
 			"name": "JSONRPC",
 			"requests": {
 				"test": [
-					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]],
-					["jsonrpc", "log_read", ["instlog", "example.uib.local"]]
+					[
+						"jsonrpc",
+						"log_write",
+						[
+							"instlog",
+							"{{random_data:10000000}}",
+							"example.uib.local"
+						]
+					],
+					[
+						"jsonrpc",
+						"log_read",
+						[
+							"instlog",
+							"example.uib.local"
+						]
+					]
 				]
 			}
 		}

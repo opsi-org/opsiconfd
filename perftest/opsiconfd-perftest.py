@@ -28,15 +28,17 @@ import uuid
 import zlib
 from asyncio import sleep
 from concurrent.futures import ProcessPoolExecutor
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, AsyncGenerator, Optional, Type, Union
 from urllib.parse import urlparse
 
 import aiohttp
 import lz4.frame  # type: ignore[import]
-import msgpack  # type: ignore[import]
-import orjson
 import uvloop
-from opsicommon.messagebus import JSONRPCRequestMessage, JSONRPCResponseMessage
+from msgspec import json, msgpack
+from opsicommon.messagebus import (  # type: ignore[import]
+	JSONRPCRequestMessage,
+	JSONRPCResponseMessage,
+)
 
 executor = ProcessPoolExecutor(max_workers=25)
 
@@ -49,10 +51,10 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 		password: str,
 		clients: int,
 		iterations: int = 1,
-		compression: str = None,
+		compression: str | None = None,
 		print_responses: bool = False,
-		jsonrpc_methods: Optional[List[str]] = None,
-		write_results: str = None
+		jsonrpc_methods: Optional[list[str]] = None,
+		write_results: str | None = None
 	) -> None:
 		url = urlparse(server)
 		self.base_url = f"{url.scheme or 'https'}://{url.hostname or url.path}:{url.port or 4447}"
@@ -75,7 +77,7 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 				method = tmp[0]
 				params = []  # pylint: disable=use-tuple-over-list
 				if len(tmp) > 1:
-					params = orjson.loads("[" + tmp[1])  # pylint: disable=no-member,dotted-import-in-loop
+					params = json.decode(("[" + tmp[1]).encode("utf-8"))  # pylint: disable=dotted-import-in-loop
 				requests.append(["jsonrpc", method, params])
 			self.test_cases = [TestCase(self, "JSONRPC", {"test": requests})]
 
@@ -84,8 +86,8 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 
 	@classmethod
 	def from_file(cls: Type, filename: str, **kwargs: Any) -> Perftest:
-		with codecs.open(filename, "r", "utf-8") as file:
-			perftest = orjson.loads(file.read())  # pylint: disable=no-member
+		with open(filename, "rb") as file:
+			perftest = json.decode(file.read())
 			for key, var in kwargs.items():
 				if var is None or key == "load":
 					continue
@@ -116,7 +118,9 @@ class Perftest:  # pylint: disable=too-many-instance-attributes
 
 
 class TestCase:  # pylint: disable=too-many-instance-attributes
-	def __init__(self, perftest: Perftest, name: str, requests: Dict[str, list], compression: str = None, encoding: str = "json"):  # pylint: disable=too-many-arguments
+	def __init__(  # pylint: disable=too-many-arguments
+		self, perftest: Perftest, name: str, requests: dict[str, list], compression: str | None = None, encoding: str = "json"
+	):
 		self.perftest = perftest
 		self.name = name
 		self.requests = requests
@@ -126,11 +130,16 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 		if self.compression == "none":
 			self.compression = None
 		self.encoding = encoding
-		self.clients: List[Client] = []
-		self.results: List[dict] = []
+		self.clients: list[Client] = []
+		self.results: list[dict] = []
 		self.start: float = 0.0
 		self.end: float = 0.0
 		self._should_stop = False
+		self.server_id: str = "none"
+
+	@property
+	def depot_id(self) -> str:
+		return self.server_id
 
 	@property
 	def num_clients(self) -> int:
@@ -147,6 +156,13 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 				await sleep(0.1)
 
 	async def run(self) -> None:
+		client = Client(self)
+		server_ids = (await client.execute_jsonrpc_request(  # type: ignore[index]
+			client.jsonrpc_request("host_getIdents", ["str", {"type": "OpsiConfigserver"}])
+		))[0]["result"]
+		self.server_id = server_ids[0]  # type: ignore[assignment]
+		await client.cleanup()
+
 		width = shutil.get_terminal_size((80, 20))[0]  # fallback: 100, 40
 		width = min(width, 100)
 		print("")
@@ -202,7 +218,7 @@ class TestCase:  # pylint: disable=too-many-instance-attributes
 			sys.stdout.write("\n")
 			sys.stdout.flush()
 
-	def calc_results(self) -> Dict[str, Any]:
+	def calc_results(self) -> dict[str, Any]:
 		result = {
 			"total_seconds": self.end - self.start,
 			"requests": 0,
@@ -298,7 +314,13 @@ class Client:
 		if isinstance(obj, bytes):
 			return obj
 		if isinstance(obj, str):
-			return obj.replace("{http_client_id}", self.http_client_id)
+			return obj.replace(
+				"{{http_client_id}}", self.http_client_id
+			).replace(
+				"{{server_id}}", self.test_case.server_id
+			).replace(
+				"{{depot_id}}", self.test_case.depot_id
+			)
 		if isinstance(obj, list):
 			return [self._fill_placeholders(o) for o in obj]
 		return obj
@@ -333,7 +355,7 @@ class Client:
 				yield data
 				sent += len(data)
 
-	async def execute_requests(self, requests: List[List[Any]], add_results: bool = True) -> None:
+	async def execute_requests(self, requests: list[list[Any]], add_results: bool = True) -> None:
 		for request in requests:
 			method = getattr(self, request[0])
 			params = self._fill_placeholders(request[1:])
@@ -344,10 +366,10 @@ class Client:
 	async def websocket(  # pylint: disable=too-many-branches,too-many-locals
 		self,
 		path: str,
-		params: Dict[str, str] = None,
+		params: dict[str, str] | None = None,
 		data: Any = None,
 		send_data_count: int = 1
-	) -> Tuple[Optional[str], float, int, int, float]:
+	) -> tuple[Optional[str], float, int, int, float]:
 		url = f"{self.perftest.base_url}/{path.lstrip('/')}"
 		bytes_sent = 0
 		if data:
@@ -391,13 +413,13 @@ class Client:
 
 	async def webdav(
 		self, method: str, filename: str, data: Union[AsyncGenerator, bytes, str, None] = None
-	) -> Tuple[Optional[str], float, int, int, float]:
+	) -> tuple[Optional[str], float, int, int, float]:
 		url = f"{self.perftest.base_url}/repository/{filename}"
 		bytes_sent = 0
 		if data:
 			if isinstance(data, str):
 				data = data.encode("utf-8")
-				if data.startswith(b"{random_data:"):
+				if data.startswith(b"{{random_data:"):
 					bytes_sent = int(data.split(b":")[1].strip(b"}"))
 					data = self.random_data_generator(bytes_sent)
 			if isinstance(data, bytes):
@@ -421,10 +443,10 @@ class Client:
 					print(f"Resonse: {response.status} - {bytes_received} bytes body")
 			return (error, end - start, bytes_sent, bytes_received, end - start)
 
-	def _jsonrpc_request(self, method: str, params: List[Any] = None) -> Dict[str, Any]:
+	def jsonrpc_request(self, method: str, params: list[Any] | None = None) -> dict[str, Any]:
 		params = params or []
 		for idx, param in enumerate(params):
-			if isinstance(param, str) and param.startswith("{random_data:"):
+			if isinstance(param, str) and param.startswith("{{random_data:"):
 				size = int(param.split(":")[1].strip("}"))
 				# TODO: more randomized data
 				params[idx] = "o" * size
@@ -434,20 +456,19 @@ class Client:
 					params[idx] = file.read()
 		return {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 
-	async def jsonrpc(self, method: str, params: List[Any] = None) -> Tuple[Optional[str], float, int, int, float]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-		req = self._jsonrpc_request(method, params)
+	async def execute_jsonrpc_request(self, request: dict[str, Any]) -> tuple[Any | None, Any, int, int]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		headers = {}
-		start = time.perf_counter()
+
 		if self.test_case.encoding == "json":
 			headers["content-type"] = "application/json"
-			data = await asyncio.get_event_loop().run_in_executor(executor, orjson.dumps, req)  # pylint: disable=no-member
+			data = await asyncio.get_event_loop().run_in_executor(executor, json.encode, request)
 		elif self.test_case.encoding == "msgpack":
 			headers["content-type"] = "application/msgpack"
-			data = await asyncio.get_event_loop().run_in_executor(executor, msgpack.dumps, req)
+			data = await asyncio.get_event_loop().run_in_executor(executor, msgpack.encode, request)
 		else:
 			raise ValueError(f"Invalid encoding: {self.test_case.encoding}")
 
-		data_len = len(data)
+		request_data_len = len(data)
 		if self.test_case.compression:
 			if self.test_case.compression == "lz4":
 				data = await asyncio.get_event_loop().run_in_executor(executor, lz4.frame.compress, data, 0)
@@ -462,33 +483,41 @@ class Client:
 		else:
 			headers["accept-encoding"] = ""
 
-		async with self.session.post(url=f"{self.perftest.base_url}/rpc", data=data, headers=headers) as response:
-			body = await response.read()
-			if "lz4" in response.headers.get("content-encoding", ""):
+		response = None
+		async with self.session.post(url=f"{self.perftest.base_url}/rpc", data=data, headers=headers) as http_response:
+			body = await http_response.read()
+			if "lz4" in http_response.headers.get("content-encoding", ""):
 				body = await asyncio.get_event_loop().run_in_executor(executor, lz4.frame.decompress, body)
 			error = None
-			if response.status != 200:
-				error = f"{response.status} - {body!r}"
+			if http_response.status != 200:
+				error = f"{http_response.status} - {body!r}"
 			else:
-				res = None
-				if response.headers.get("content-type") == "application/msgpack":
-					res = await asyncio.get_event_loop().run_in_executor(executor, msgpack.loads, body)
+				if http_response.headers.get("content-type") == "application/msgpack":
+					response = await asyncio.get_event_loop().run_in_executor(executor, msgpack.decode, body)
 				else:
-					res = await asyncio.get_event_loop().run_in_executor(executor, orjson.loads, body)  # pylint: disable=no-member
+					response = await asyncio.get_event_loop().run_in_executor(executor, json.decode, body)
+				if response.get("error"):
+					error = response["error"]
 
-				if res.get("error"):
-					error = res["error"]
-			end = time.perf_counter()
-			if self.perftest.print_responses or error:
-				if error:
-					print(f"Error: {error}")
-				else:
-					print(f"Response: {response.status} - {body!r}")
+		if self.perftest.print_responses or error:
+			if error:
+				print(f"Error: {error}")
+			else:
+				print(f"Response: {http_response.status} - {body!r}")
 
-			return (error, end - start, data_len, len(body or ""), end - start)
+		return response, error, request_data_len, len(body or "")
 
-	async def messagebus_jsonrpc(self, method: str, params: List[Any] = None) -> Tuple[Optional[str], float, int, int, float]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-		req = self._jsonrpc_request(method, params)
+	async def jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[Optional[str], float, int, int, float]:
+		params = params or []
+		request = self.jsonrpc_request(method, params)
+		start = time.perf_counter()
+		_response, error, request_data_len, response_data_len = await self.execute_jsonrpc_request(request)
+		end = time.perf_counter()
+		return (error, end - start, request_data_len, response_data_len, end - start)
+
+	async def messagebus_jsonrpc(self, method: str, params: list[Any] | None = None) -> tuple[Optional[str], float, int, int, float]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+		params = params or []
+		req = self.jsonrpc_request(method, params)
 		messagebus_ws = await self.messagebus_ws()
 
 		start = time.perf_counter()

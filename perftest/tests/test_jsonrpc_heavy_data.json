@@ -9,8 +9,23 @@
 			"name": "JSONRPC",
 			"requests": {
 				"test": [
-					["jsonrpc", "product_getObjects", [[],{}]],
-					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+					[
+						"jsonrpc",
+						"product_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"log_write",
+						[
+							"instlog",
+							"{{random_data:10000000}}",
+							"example.uib.local"
+						]
+					]
 				]
 			}
 		},
@@ -19,8 +34,23 @@
 			"compression": "deflate",
 			"requests": {
 				"test": [
-					["jsonrpc", "product_getObjects", [[],{}]],
-					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+					[
+						"jsonrpc",
+						"product_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"log_write",
+						[
+							"instlog",
+							"{{random_data:10000000}}",
+							"example.uib.local"
+						]
+					]
 				]
 			}
 		},
@@ -29,8 +59,23 @@
 			"compression": "lz4",
 			"requests": {
 				"test": [
-					["jsonrpc", "product_getObjects", [[],{}]],
-					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+					[
+						"jsonrpc",
+						"product_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"log_write",
+						[
+							"instlog",
+							"{{random_data:10000000}}",
+							"example.uib.local"
+						]
+					]
 				]
 			}
 		},
@@ -39,8 +84,23 @@
 			"encoding": "msgpack",
 			"requests": {
 				"test": [
-					["jsonrpc", "product_getObjects", [[],{}]],
-					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+					[
+						"jsonrpc",
+						"product_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"log_write",
+						[
+							"instlog",
+							"{{random_data:10000000}}",
+							"example.uib.local"
+						]
+					]
 				]
 			}
 		},
@@ -50,8 +110,23 @@
 			"compression": "deflate",
 			"requests": {
 				"test": [
-					["jsonrpc", "product_getObjects", [[],{}]],
-					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+					[
+						"jsonrpc",
+						"product_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"log_write",
+						[
+							"instlog",
+							"{{random_data:10000000}}",
+							"example.uib.local"
+						]
+					]
 				]
 			}
 		},
@@ -61,8 +136,23 @@
 			"compression": "lz4",
 			"requests": {
 				"test": [
-					["jsonrpc", "product_getObjects", [[],{}]],
-					["jsonrpc", "log_write", ["instlog", "{random_data:10000000}", "example.uib.local"]]
+					[
+						"jsonrpc",
+						"product_getObjects",
+						[
+							[],
+							{}
+						]
+					],
+					[
+						"jsonrpc",
+						"log_write",
+						[
+							"instlog",
+							"{{random_data:10000000}}",
+							"example.uib.local"
+						]
+					]
 				]
 			}
 		}

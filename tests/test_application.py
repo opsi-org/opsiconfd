@@ -25,10 +25,10 @@ def test_app_state_maintenance() -> None:
 	state = MaintenanceState(retry_after=10, message="test", address_exceptions=["::1", "11.11.11.11", "10.10.0.0/16"])
 	assert state.message == "test"
 	assert state.retry_after == 10
-	assert state.address_exceptions == ["::1/128", "11.11.11.11/32", "10.10.0.0/16"]
+	assert state.address_exceptions == ["10.10.0.0/16", "11.11.11.11/32", "::1/128"]
 
 	state = MaintenanceState()
-	assert state.address_exceptions == ["::1/128", "127.0.0.1/32"]
+	assert state.address_exceptions == ["127.0.0.1/32", "::1/128"]
 
 	state = MaintenanceState(address_exceptions=[])
 	assert not state.address_exceptions

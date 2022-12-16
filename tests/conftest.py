@@ -133,3 +133,11 @@ def disable_redis_asyncio_deprecation_warning() -> None:
 	warnings.filterwarnings(
 		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
 	)
+
+
+@fixture(autouse=True)
+def disable_warnings() -> None:
+	# message="There is no current event loop", category=DeprecationWarning, module="redis.asyncio.connection", lineno=677
+	warnings.filterwarnings(
+		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
+	)

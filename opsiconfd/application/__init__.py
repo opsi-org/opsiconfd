@@ -11,13 +11,14 @@ The opsi configuration service.
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import asdict, dataclass, field
 from ipaddress import ip_network
 from typing import Any, Callable, Type, TypeVar
 
 from fastapi import FastAPI
 from msgspec import msgpack
-from OPSI import __version__ as python_opsi_version  # type: ignore[import]
+from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 from starlette._utils import is_async_callable
 from starlette.concurrency import run_in_threadpool
 
@@ -25,13 +26,15 @@ from .. import __version__
 from ..config import config
 from ..logging import logger
 from ..rest import RestApiValidationError
-from ..utils import async_redis_client, redis_client
+from ..utils import async_redis_client
 
 AppStateT = TypeVar('AppStateT', bound='AppState')
 
 
 @dataclass(slots=True, kw_only=True, repr=False)
 class AppState:
+	accomplished: bool = False
+
 	@property
 	def type(self) -> str:
 		return ""
@@ -42,7 +45,7 @@ class AppState:
 		return _dict
 
 	def __repr__(self) -> str:
-		return f"AppState({self.type})"
+		return f"AppState({self.type}/{'accomplished' if self.accomplished else 'pending'})"
 
 	__str__ = __repr__
 
@@ -79,7 +82,7 @@ class MaintenanceState(AppState):
 		self.address_exceptions = self.address_exceptions or []
 		for idx, address_exception in enumerate(self.address_exceptions):
 			self.address_exceptions[idx] = ip_network(address_exception).compressed
-		self.address_exceptions = list(set(self.address_exceptions))
+		self.address_exceptions = sorted(list(set(self.address_exceptions)))
 
 
 @dataclass(slots=True, kw_only=True)
@@ -94,33 +97,61 @@ class OpsiconfdApp(FastAPI):
 		super().__init__(
 			title="opsiconfd",
 			description="",
-			version=f"{__version__} [python-opsi={python_opsi_version}]",
+			version=f"{__version__} [python-opsi-common={python_opsi_common_version}]",
 			responses={422: {"model": RestApiValidationError, "description": "Validation Error"}},
 		)
 		self._app_state_handler: set[Callable] = set()
 		self.app_state: AppState = NormalState()
+		self.application_setup_done = False
 		if config.maintenance is not False:
 			self.app_state = MaintenanceState(address_exceptions=config.maintenance + ["127.0.0.1/32", "::1/128"])
 
 	def register_app_state_handler(self, handler: Callable) -> None:
 		self._app_state_handler.add(handler)
 
+	def set_app_state(self, app_state: AppState, wait_accomplished: float = 0.0) -> None:
+		self.app_state = app_state
+		if wait_accomplished <= 0:
+			return
+		start = time.time()
+		while True:
+			if self.app_state.type == app_state.type and self.app_state.accomplished:  # pylint: disable=loop-invariant-statement
+				return
+			wait_time = time.time() - start  # pylint: disable=dotted-import-in-loop
+			if wait_time >= wait_accomplished:
+				raise TimeoutError(
+					f"Timed out after {wait_time:0.2f} seconds while waiting for app state {app_state.type!r} to be accomplished"  # pylint: disable=loop-invariant-statement
+				)
+			time.sleep(1)  # pylint: disable=dotted-import-in-loop
+
 	async def load_app_state_from_redis(self) -> None:
 		redis = await async_redis_client()
-		msgpack_data = await redis.get(f"{config.redis_key('status')}:application:app_state")
+		msgpack_data = await redis.get(f"{config.redis_key('state')}:application:app_state")
 		if not msgpack_data:
 			return
 
 		try:
 			self.app_state = AppState.from_dict(msgpack.decode(msgpack_data))
+			if not self.app_state.accomplished:
+				accomplished = True
+				async for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
+					if (await redis.hget(redis_key_b, "app_state")) != self.app_state.type.encode("utf-8"):
+						accomplished = False
+						break
+				if accomplished:
+					self.app_state.accomplished = accomplished
+					await self.store_app_state_in_redis()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
 	async def store_app_state_in_redis(self) -> None:
 		redis = await async_redis_client()
-		await redis.set(f"{config.redis_key('status')}:application:app_state", msgpack.encode(self.app_state.to_dict()))
+		state_dict = self.app_state.to_dict()
+		logger.debug("Store app state: %s", state_dict)
+		await redis.set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
 
 	async def app_state_manager_task(self) -> None:
+		interval = 2
 		cur_state = AppState()
 		while not self.app_state.type == "shutdown":
 			if cur_state != self.app_state:
@@ -139,7 +170,7 @@ class OpsiconfdApp(FastAPI):
 					else:
 						await run_in_threadpool(handler, self.app_state)
 
-			await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
+			await asyncio.sleep(interval)  # pylint: disable=dotted-import-in-loop
 
 
 app = OpsiconfdApp()

@@ -17,6 +17,7 @@ import aiofiles  # type: ignore[import]
 import msgspec
 from fastapi import APIRouter, FastAPI, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.background import BackgroundTask
 from werkzeug.http import parse_options_header
 
 from .. import contextvar_client_session
@@ -30,7 +31,7 @@ def filetransfer_setup(app: FastAPI) -> None:
 	app.include_router(filetransfer_router, prefix="/file-transfer")
 
 
-def prepare_upload(filename: str | None = None, content_type: str | None = None) -> Tuple[str, Path]:
+def _prepare_upload(filename: str | None = None, content_type: str | None = None) -> Tuple[str, Path]:
 	session = contextvar_client_session.get()
 	if not session or not session.username:
 		raise PermissionError()
@@ -54,6 +55,13 @@ def prepare_upload(filename: str | None = None, content_type: str | None = None)
 	return file_id, file_path
 
 
+def _delete_file(file_id: UUID) -> None:
+	file_path = Path(STORAGE_DIR) / str(file_id)
+	meta_path = file_path.with_suffix(".meta")
+	file_path.unlink(missing_ok=True)
+	meta_path.unlink(missing_ok=True)
+
+
 @filetransfer_router.post("")
 @filetransfer_router.post("/")
 @filetransfer_router.post("raw")
@@ -64,7 +72,7 @@ async def post_file_raw(request: Request) -> JSONResponse:
 	if content_disposition:
 		filename = parse_options_header(content_disposition)[1].get("filenname") or filename
 	try:
-		file_id, file_path = prepare_upload(filename=filename, content_type=request.headers.get("content-type") or None)
+		file_id, file_path = _prepare_upload(filename=filename, content_type=request.headers.get("content-type") or None)
 	except PermissionError:
 		return JSONResponse({"error": "Permission denied"}, status_code=status.HTTP_403_FORBIDDEN)
 
@@ -79,7 +87,7 @@ async def post_file_raw(request: Request) -> JSONResponse:
 @filetransfer_router.post("/multipart")
 async def post_file_multipart(file: UploadFile) -> JSONResponse:
 	try:
-		file_id, file_path = prepare_upload(filename=file.filename, content_type=file.content_type)
+		file_id, file_path = _prepare_upload(filename=file.filename, content_type=file.content_type)
 	except PermissionError:
 		return JSONResponse({"error": "Permission denied"}, status_code=status.HTTP_403_FORBIDDEN)
 
@@ -92,18 +100,16 @@ async def post_file_multipart(file: UploadFile) -> JSONResponse:
 
 @filetransfer_router.get("{file_id}")
 @filetransfer_router.get("/{file_id}")
-async def get_file(file_id: UUID) -> FileResponse:
+async def get_file(file_id: UUID, delete: bool = False) -> FileResponse:
 	file_path = Path(STORAGE_DIR) / str(file_id)
 	meta_path = file_path.with_suffix(".meta")
 	meta = msgspec.msgpack.decode(meta_path.read_bytes())
-	return FileResponse(path=file_path, filename=meta["filename"], media_type=meta["content_type"])
+	background = BackgroundTask(_delete_file, file_id) if delete else None
+	return FileResponse(path=file_path, filename=meta["filename"], media_type=meta["content_type"], background=background)
 
 
 @filetransfer_router.delete("{file_id}")
 @filetransfer_router.delete("/{file_id}")
 async def delete_file(file_id: UUID) -> JSONResponse:
-	file_path = Path(STORAGE_DIR) / str(file_id)
-	meta_path = file_path.with_suffix(".meta")
-	file_path.unlink(missing_ok=True)
-	meta_path.unlink(missing_ok=True)
+	_delete_file(file_id)
 	return JSONResponse({"file_id": str(file_id)}, status_code=status.HTTP_200_OK)

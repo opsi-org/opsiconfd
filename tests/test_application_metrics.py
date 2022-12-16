@@ -47,7 +47,7 @@ async def _register_workers(conf: Config) -> Tuple[Dict[str, Union[str, int]], .
 	)
 	redis = await async_redis_client()
 	for worker in workers:
-		redis_key = f"{conf.redis_key('status')}:workers:{node_name}:{worker['worker_num']}"
+		redis_key = f"{conf.redis_key('state')}:workers:{node_name}:{worker['worker_num']}"
 		await redis.hset(
 			redis_key,
 			key=None,

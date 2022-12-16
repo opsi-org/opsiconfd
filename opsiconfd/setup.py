@@ -48,6 +48,7 @@ from .grafana import setup_grafana
 from .logging import logger
 from .metrics.statistics import setup_metric_downsampling
 from .ssl import setup_ssl, setup_ssl_file_permissions
+from .utils import redis_client
 
 
 def setup_limits() -> None:
@@ -259,6 +260,18 @@ def setup_configs() -> None:
 		backend.config_deleteObjects(remove_configs)
 
 
+def setup_redis() -> None:
+	with redis_client() as redis:
+		with redis.pipeline() as pipeline:
+			# Delete obsolete keys
+			for delete_key in ("status",):
+				for key in redis.scan_iter(f"{config.redis_prefix}:{delete_key}:*"):
+					logger.info("Unlink %r", key)
+					pipeline.unlink(key)
+			if len(pipeline) > 0:
+				pipeline.execute()
+
+
 def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 	logger.notice("Running opsiconfd setup")
 
@@ -311,6 +324,8 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 			setup_grafana()
 		except Exception as err:  # pylint: disable=broad-except
 			logger.warning("Failed to setup grafana: %s", err, exc_info=True)
+
+	setup_redis()
 
 	if "metric_downsampling" not in config.skip_setup:
 		try:

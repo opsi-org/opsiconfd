@@ -228,15 +228,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 
 	def update_worker_state(self) -> None:
 		with (self.worker_update_lock, redis_client() as redis):
-			for worker in self.get_workers():
-				redis_key = f"{config.redis_key('status')}:workers:{worker.id}"
-				redis.hset(
-					redis_key,
-					mapping={"pid": worker.pid, "node_name": worker.node_name, "worker_num": worker.worker_num},
-				)
-				redis.expire(redis_key, 60)
-
-			for redis_key_b in redis.scan_iter(f"{config.redis_key('status')}:workers:*"):
+			for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
 				try:  # pylint: disable=loop-try-except-usage
 					worker_info = WorkerInfo.from_dict(redis.hgetall(redis_key_b))
 				except Exception as err:  # pylint: disable=broad-except

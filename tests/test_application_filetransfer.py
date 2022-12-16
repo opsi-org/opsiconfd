@@ -49,6 +49,32 @@ def test_raw_file_upload_download_delete(test_client: OpsiconfdTestClient) -> No
 	assert not meta_path.exists()
 
 
+def test_raw_file_upload_download_with_delete(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	data = b"file-data"
+	resp = test_client.post("/file-transfer/raw", content=data)
+	assert resp.status_code == 201
+	file_id = resp.json()["file_id"]
+	assert file_id
+	file_path = Path(STORAGE_DIR) / file_id
+	meta_path = file_path.with_suffix(".meta")
+	assert file_path.read_bytes() == data
+	meta = msgpack.loads(meta_path.read_bytes())
+	assert abs(time() - meta["created"]) < 10
+
+	resp = test_client.get(f"/file-transfer/{file_id}", params={"delete": "false"})
+	assert resp.status_code == 200
+	assert resp.content == data
+	assert file_path.exists()
+	assert meta_path.exists()
+
+	resp = test_client.get(f"/file-transfer/{file_id}", params={"delete": "true"})
+	assert resp.status_code == 200
+	assert resp.content == data
+	assert not file_path.exists()
+	assert not meta_path.exists()
+
+
 def test_multipart_file_upload_download_delete(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	data = b"file-data"

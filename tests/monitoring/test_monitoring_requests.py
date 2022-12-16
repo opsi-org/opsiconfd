@@ -33,7 +33,7 @@ from tests.utils import (  # pylint: disable=unused-import
 	config,
 	database_connection,
 	test_client,
-	worker_status,
+	worker_state,
 )
 
 
@@ -575,7 +575,7 @@ def test_check_depot_sync_status(  # pylint: disable=too-many-arguments,redefine
 	],
 )
 async def test_check_opsi_webservice_cpu(  # pylint: disable=too-many-arguments,redefined-outer-name
-	worker_status: Any,  # pylint: disable=unused-argument
+	worker_state: Any,  # pylint: disable=unused-argument
 	test_client: OpsiconfdTestClient,
 	config: Config,
 	cpu_thresholds: dict[str, int],

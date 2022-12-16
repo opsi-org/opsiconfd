@@ -50,7 +50,7 @@ def remove_percent(string: str) -> str:
 
 
 async def get_workers(redis: StrictRedis) -> list:
-	worker_registry = redis.scan_iter(f"{config.redis_key('status')}:workers:*")
+	worker_registry = redis.scan_iter(f"{config.redis_key('state')}:workers:*")
 	workers = []
 	async for key in worker_registry:
 		workers.append(f"{key.decode('utf8').split(':')[-2]}:{key.decode('utf8').split(':')[-1]}")

@@ -15,6 +15,7 @@ import os
 import re
 import socket
 import sys
+import warnings
 from argparse import (
 	OPTIONAL,
 	SUPPRESS,
@@ -50,7 +51,7 @@ CONFIG_FILE_HEADER = """
 # networks = [192.168.0.0/16, 10.0.0.0/8, ::/0]
 # update-ip = true
 """
-DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache")
+DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache", "debug")
 
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
@@ -69,6 +70,12 @@ SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
 SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
 
 opsi_config = OpsiConfig()
+
+
+def configure_warnings() -> None:
+	warnings.filterwarnings(
+		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
+	)
 
 
 if running_in_docker():
@@ -295,6 +302,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				self._config.skip_setup.append("server_cert")
 		if not self._config.admin_interface_disabled_features:
 			self._config.admin_interface_disabled_features = []
+		if not self._config.debug_options:
+			self._config.debug_options = []
 
 	def redis_key(self, prefix_type: str | None = None) -> str:
 		if not prefix_type:
@@ -691,7 +700,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		self._parser.add(
 			"--ssl-ciphers",
 			env_var="OPSICONFD_SSL_CIPHERS",
-			default="",
+			default="TLSv1.2",
 			help=self._help(
 				"opsiconfd",
 				"TLS cipher suites to enable (OpenSSL cipher list format https://www.openssl.org/docs/man1.1.1/man1/ciphers.html).",
@@ -936,20 +945,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		)
 		self._parser.add("--ex-help", action="store_true", help=self._help("expert", "Show expert help message and exit."))
 		self._parser.add(
-			"--debug",
-			env_var="OPSICONFD_DEBUG",
-			type=str2bool,
-			nargs="?",
-			const=True,
-			default=False,
-			help=self._help("expert", "Turn debug mode on, never use in production."),
-		)
-		self._parser.add(
 			"--debug-options",
 			nargs="+",
 			env_var="OPSICONFD_DEBUG_OPTIONS",
 			default=None,
-			help=self._help("expert", "A list of debug options (possible options are: rpc-error-log)"),
+			help=self._help(
+				"expert",
+				"A list of debug options (possible options are: asyncio, rpc-log, rpc-error-log).",
+			),
+			choices=("asyncio", "rpc-log", "rpc-error-log"),
 		)
 		self._parser.add(
 			"--profiler",
@@ -1004,7 +1008,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				"opsiconfd",
 				"A list of admin interface features to disable (features: terminal, rpc-interface).",
 			),
-			choices=["terminal", "rpc-interface"],
+			choices=("terminal", "rpc-interface"),
 		)
 		self._parser.add(
 			"--admin-interface-terminal-shell",
@@ -1082,6 +1086,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 
 		if self._sub_command == "backup":
 			now = datetime.now().strftime("%Y%m%d-%H%M%S")
+			self._parser.add(
+				"--no-maintenance",
+				action="store_true",
+				help=self._help("backup", "Run backup without maintenance mode."),
+			)
 			self._parser.add(
 				"--no-config-files",
 				action="store_true",

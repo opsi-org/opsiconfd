@@ -52,8 +52,8 @@ from opsicommon.types import (  # type: ignore[import]
 )
 
 from opsiconfd import contextvar_client_address, contextvar_client_session
-from opsiconfd.application import AppState
-from opsiconfd.backup import create_backup
+from opsiconfd.application import AppState, MaintenanceState, NormalState
+from opsiconfd.backup import create_backup, restore_backup
 from opsiconfd.check import health_check
 from opsiconfd.config import (
 	FQDN,
@@ -144,9 +144,42 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return health_check()
 
 	@rpc_method
-	def server_createBackup(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
+	def server_createBackup(  # pylint: disable=invalid-name
+		self: BackendProtocol, config_files: bool = True, maintenance_mode: bool = True
+	) -> dict:
 		self._check_role("admin")
-		return create_backup()
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Access denied")
+		if maintenance_mode:
+			self._app.set_app_state(
+				MaintenanceState(
+					retry_after=300, message="Backup in progress", address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr]
+				),
+				wait_accomplished=60.0,
+			)
+		try:
+			return create_backup(config_files=config_files)
+		finally:
+			if maintenance_mode:
+				self._app.app_state = NormalState()
+
+	@rpc_method
+	def server_restoreBackup(  # pylint: disable=invalid-name
+		self: BackendProtocol, data: dict[str, dict[str, Any]], config_files: bool = False, server_id: str = "backup", batch: bool = True
+	) -> None:
+		self._check_role("admin")
+		session = contextvar_client_session.get()
+		if not session:
+			raise BackendPermissionDeniedError("Access denied")
+		self._app.set_app_state(
+			MaintenanceState(
+				retry_after=600, message="Restore in progress", address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr]
+			),
+			wait_accomplished=60.0,
+		)
+		restore_backup(data=data, config_files=config_files, server_id=server_id, batch=batch)
+		self._app.app_state = NormalState()
 
 	@rpc_method
 	def server_setAppState(self: BackendProtocol, app_state: dict[str, Any]) -> dict[str, Any]:  # pylint: disable=invalid-name

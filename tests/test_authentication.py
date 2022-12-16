@@ -242,7 +242,7 @@ def test_max_auth_failures(
 	config: Config, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:
 	over_limit = 3
-	max_auth_failures = 10
+	max_auth_failures = 5
 	with (get_config({"max_auth_failures": max_auth_failures}) as conf, sync_redis_client() as redis):
 		for num in range(max_auth_failures + over_limit):
 			now = round(time.time()) * 1000  # pylint: disable=dotted-import-in-loop
@@ -264,7 +264,7 @@ def test_max_auth_failures(
 			else:
 				assert res.status_code == 401
 				assert res.text == "Authentication error"
-			time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
+			time.sleep(2)  # pylint: disable=dotted-import-in-loop
 
 
 def test_session_expire(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
@@ -450,15 +450,14 @@ def test_auth_only_hostkey_id_header(
 	database_connection.commit()
 	try:
 
-		data = json.dumps({"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": "onlyhostkey.uib.gmbh"}]})
+		data = {"id": 1, "jsonrpc": "2.0", "method": "host_getObjects", "params": [[], {"id": "onlyhostkey.uib.gmbh"}]}
 
 		config.allow_host_key_only_auth = True
 
-		res = test_client.post("/rpc", auth=("", host_key), content=data)
+		res = test_client.post("/rpc", auth=("", host_key), json=data)
+		print(res.headers)
 		assert res.status_code == 200
-		assert res.headers.get("x-opsi-new-host-id")
 		assert res.headers["x-opsi-new-host-id"] == "onlyhostkey.uib.gmbh"
-
 	finally:
 		database_connection.query('DELETE FROM HOST WHERE hostId = "onlyhostkey.uib.gmbh"')
 		database_connection.commit()

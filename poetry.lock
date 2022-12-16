@@ -1696,6 +1696,7 @@ pycryptodome = ">=3.10,<4.0"
 pyopenssl = ">=22.0,<23.0"
 pywin32 = {version = ">=303,<304", markers = "sys_platform == \"win32\""}
 requests = ">=2.26,<3.0"
+rich = ">=12.6.0,<13.0.0"
 websocket-client = ">=1.4.0,<2.0.0"
 
 [package.source]
@@ -3690,12 +3691,12 @@ python-multipart = [
     {file = "python-multipart-0.0.5.tar.gz", hash = "sha256:f7bb5f611fc600d15fa47b3974c8aa16e93724513b49b5f95c81e6624c83fa43"},
 ]
 python-opsi = [
-    {file = "python_opsi-4.3.0.2-py3-none-any.whl", hash = "sha256:9f406e11f71ca54e49fca6183d433a4bd0d19f9886751cbec7b63465155af1a9"},
-    {file = "python_opsi-4.3.0.2.tar.gz", hash = "sha256:df29d748d68aebf01130ae696a6ca7dce9a9520f769b36936914f2a133292177"},
+    {file = "python_opsi-4.3.0.2-py3-none-any.whl", hash = "sha256:1c7de367c6b0d9d7ce8e50fc36e5888165d82bd7acb6c738e647faf15881d8fc"},
+    {file = "python_opsi-4.3.0.2.tar.gz", hash = "sha256:6764490778f37065f9788da4863bda4f7b80840a7850493e93f6e8bc0b0724e9"},
 ]
 python-opsi-common = [
-    {file = "python_opsi_common-4.3.0.1-py3-none-any.whl", hash = "sha256:0cf5cc5f8da297d514b81dfe20da42a2822eb4eec9c80a5f96cf67192530bc4f"},
-    {file = "python_opsi_common-4.3.0.1.tar.gz", hash = "sha256:0ba5c827189bf04ddb9d82d070e97ca158697e249c5d974a54bf7a264e948584"},
+    {file = "python_opsi_common-4.3.0.1-py3-none-any.whl", hash = "sha256:97eaa190260c1e3b96537f3079039fcf339250750a4352aa199e58402f25de2d"},
+    {file = "python_opsi_common-4.3.0.1.tar.gz", hash = "sha256:8375fa152e44c18575e3679ba8174ca9c2c44bc29dbbda84990eb8433665d29e"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},

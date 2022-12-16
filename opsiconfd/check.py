@@ -57,6 +57,38 @@ def health_check() -> dict:
 	return result
 
 
+def console_health_check() -> int:
+	console = Console(log_time=False)
+	checks = {
+		"system packages": {"check_method": check_system_packages, "print_method": print_check_system_packages_result},
+		"opsi packages": {"check_method": check_opsi_packages, "print_method": print_check_opsi_packages_result},
+		"Redis": {"check_method": check_redis, "print_method": print_check_redis_result},
+		"MySQL": {"check_method": check_mysql, "print_method": print_check_mysql_result},
+		"opsi licenses": {"check_method": check_opsi_licenses, "print_method": print_check_opsi_licenses_results},
+		"deprecated calls": {
+			"check_method": check_deprecated_calls,
+			"print_method": print_check_deprecated_calls_result,
+		},
+	}
+	res = 0
+	console.print("Checking server health...")
+	with console.status("Checking...", spinner="arrow3"):
+		for name, check in checks.items():
+			result = check["check_method"]()  # type: ignore
+			if result.get("status") == CheckStatus.OK:
+				console.print(f"[bold green] {name}: {CheckStatus.OK.upper()} ")
+			elif result.get("status") == CheckStatus.WARNING:
+				console.print(f"[bold yellow] {name}: {CheckStatus.WARNING.upper()} ")
+				res = 2
+			else:
+				console.print(f"[bold red] {name}: {CheckStatus.ERROR.upper()} ")
+				res = 1
+			if config.detailed:
+				check["print_method"](result, console)  # type: ignore
+	console.print("Done")
+	return res
+
+
 def get_repo_versions() -> Dict[str, Any]:
 	url = REPO_URL
 	packages = PACKAGES

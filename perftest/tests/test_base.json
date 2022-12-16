@@ -9,21 +9,38 @@
 			"name": "JSONRPC",
 			"requests": {
 				"test": [
-					["jsonrpc", "authenticated", []]
+					[
+						"jsonrpc",
+						"authenticated",
+						[]
+					]
 				]
 			}
 		},
 		{
 			"name": "WebDAV",
 			"requests": {
-				"setup":[
-					["webdav", "PUT", "{http_client_id}.txt", "{random_data:1}"]
+				"setup": [
+					[
+						"webdav",
+						"PUT",
+						"{{http_client_id}}.txt",
+						"{{random_data:1}}"
+					]
 				],
-				"test":[
-					["webdav", "GET", "{http_client_id}.txt"]
+				"test": [
+					[
+						"webdav",
+						"GET",
+						"{{http_client_id}}.txt"
+					]
 				],
-				"teardown":[
-					["webdav", "DELETE", "{http_client_id}.txt"]
+				"teardown": [
+					[
+						"webdav",
+						"DELETE",
+						"{{http_client_id}}.txt"
+					]
 				]
 			}
 		}

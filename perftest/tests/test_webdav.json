@@ -8,75 +8,141 @@
 		{
 			"name": "WebDAV - write 10kB",
 			"requests": {
-				"test":[
-					["webdav", "PUT", "{http_client_id}.txt", "{random_data:10000}"]
+				"test": [
+					[
+						"webdav",
+						"PUT",
+						"{{http_client_id}}.txt",
+						"{{random_data:10000}}"
+					]
 				],
-				"teardown":[
-					["webdav", "DELETE", "{http_client_id}.txt"]
+				"teardown": [
+					[
+						"webdav",
+						"DELETE",
+						"{{http_client_id}}.txt"
+					]
 				]
 			}
 		},
 		{
 			"name": "WebDAV - read 10kB",
 			"requests": {
-				"setup":[
-					["webdav", "PUT", "{http_client_id}.txt", "{random_data:10000}"]
+				"setup": [
+					[
+						"webdav",
+						"PUT",
+						"{{http_client_id}}.txt",
+						"{{random_data:10000}}"
+					]
 				],
-				"test":[
-					["webdav", "GET", "{http_client_id}.txt"]
+				"test": [
+					[
+						"webdav",
+						"GET",
+						"{{http_client_id}}.txt"
+					]
 				],
-				"teardown":[
-					["webdav", "DELETE", "{http_client_id}.txt"]
+				"teardown": [
+					[
+						"webdav",
+						"DELETE",
+						"{{http_client_id}}.txt"
+					]
 				]
 			}
 		},
 		{
 			"name": "WebDAV - write 1MB",
 			"requests": {
-				"test":[
-					["webdav", "PUT", "{http_client_id}.txt", "{random_data:1000000}"]
+				"test": [
+					[
+						"webdav",
+						"PUT",
+						"{{http_client_id}}.txt",
+						"{{random_data:1000000}}"
+					]
 				],
-				"teardown":[
-					["webdav", "DELETE", "{http_client_id}.txt"]
+				"teardown": [
+					[
+						"webdav",
+						"DELETE",
+						"{{http_client_id}}.txt"
+					]
 				]
 			}
 		},
 		{
 			"name": "WebDAV - read 1MB",
 			"requests": {
-				"setup":[
-					["webdav", "PUT", "{http_client_id}.txt", "{random_data:1000000}"]
+				"setup": [
+					[
+						"webdav",
+						"PUT",
+						"{{http_client_id}}.txt",
+						"{{random_data:1000000}}"
+					]
 				],
-				"test":[
-					["webdav", "GET", "{http_client_id}.txt"]
+				"test": [
+					[
+						"webdav",
+						"GET",
+						"{{http_client_id}}.txt"
+					]
 				],
-				"teardown":[
-					["webdav", "DELETE", "{http_client_id}.txt"]
+				"teardown": [
+					[
+						"webdav",
+						"DELETE",
+						"{{http_client_id}}.txt"
+					]
 				]
 			}
 		},
 		{
 			"name": "WebDAV - write 10MB",
 			"requests": {
-				"test":[
-					["webdav", "PUT", "{http_client_id}.txt", "{random_data:10000000}"]
+				"test": [
+					[
+						"webdav",
+						"PUT",
+						"{{http_client_id}}.txt",
+						"{{random_data:10000000}}"
+					]
 				],
-				"teardown":[
-					["webdav", "DELETE", "{http_client_id}.txt"]
+				"teardown": [
+					[
+						"webdav",
+						"DELETE",
+						"{{http_client_id}}.txt"
+					]
 				]
 			}
 		},
 		{
 			"name": "WebDAV - read 10MB",
 			"requests": {
-				"setup":[
-					["webdav", "PUT", "{http_client_id}.txt", "{random_data:10000000}"]
+				"setup": [
+					[
+						"webdav",
+						"PUT",
+						"{{http_client_id}}.txt",
+						"{{random_data:10000000}}"
+					]
 				],
-				"test":[
-					["webdav", "GET", "{http_client_id}.txt"]
+				"test": [
+					[
+						"webdav",
+						"GET",
+						"{{http_client_id}}.txt"
+					]
 				],
-				"teardown":[
-					["webdav", "DELETE", "{http_client_id}.txt"]
+				"teardown": [
+					[
+						"webdav",
+						"DELETE",
+						"{{http_client_id}}.txt"
+					]
 				]
 			}
 		}

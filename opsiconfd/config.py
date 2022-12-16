@@ -302,6 +302,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				self._config.skip_setup.append("server_cert")
 		if not self._config.admin_interface_disabled_features:
 			self._config.admin_interface_disabled_features = []
+		if not self._config.debug_options:
+			self._config.debug_options = []
 
 	def redis_key(self, prefix_type: str | None = None) -> str:
 		if not prefix_type:

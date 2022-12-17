@@ -227,6 +227,9 @@ class Worker(WorkerInfo, UvicornServer):
 			redis = await async_redis_client()
 			await redis.delete(self.redis_state_key)
 
+	def get_connection_count(self) -> int:
+		return len(self.server_state.connections)
+
 	async def close_connections(self, address_exceptions: list[str] | None = None, wait: bool = True) -> None:  # pylint: disable=too-many-branches
 		address_exceptions = address_exceptions or []
 		logger.info("Closing connections, address exceptions: %s", address_exceptions)

@@ -244,6 +244,7 @@ class WorkerMetricsCollector(MetricsCollector):
 			("worker:avg_cpu_percent", self._proc.cpu_percent()),
 			("worker:avg_thread_number", self._proc.num_threads()),
 			("worker:avg_filehandle_number", self._proc.num_fds()),
+			("worker:avg_connection_number", self.worker.get_connection_count()),
 		):
 			# Do not add 0-values
 			if value:

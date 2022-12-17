@@ -225,6 +225,21 @@ def _get_metrics() -> tuple[Metric, ...]:
 			],
 		),
 		Metric(
+			id="worker:avg_connection_number",
+			name="Average connections of worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing=None,
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(title="Worker connections", units=["short"], decimals=0, stack=True),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
 			id="worker:sum_http_request_number",
 			name="Average HTTP requests of worker {worker_num} on {node_name}",
 			vars=["node_name", "worker_num"],

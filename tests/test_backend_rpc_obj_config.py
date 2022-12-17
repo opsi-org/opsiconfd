@@ -44,12 +44,11 @@ def cleanup_database(database_connection: Connection) -> Generator[None, None, N
 	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
 	database_connection.commit()
 	yield
-	if False:
-		cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-		cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-		cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
-		database_connection.commit()
-		cursor.close()
+	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
+	database_connection.commit()
+	cursor.close()
 
 
 @pytest.fixture()

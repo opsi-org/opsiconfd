@@ -231,10 +231,9 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 
 		try:
 			if self._count_readers:
-				pipeline = redis.pipeline()
+				# Do not run in a pipeline, can result in problems on application shutdown
 				for stream_key in list(self._streams):
-					pipeline.hincrby(stream_key + self._info_suffix, "reader-count", -1)
-				await pipeline.execute()
+					await redis.hincrby(stream_key + self._info_suffix, "reader-count", -1)
 		finally:
 			self._stopped_event.set()
 

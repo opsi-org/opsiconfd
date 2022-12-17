@@ -28,13 +28,14 @@ class RPCConfigMixin(Protocol):
 	) -> None:
 		query, data = self._mysql.insert_query(table="CONFIG", obj=config, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
-			session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
-			if session.execute(query, params=data).rowcount > 0:
-				for value in data["possibleValues"] or []:
-					session.execute(
-						"INSERT INTO `CONFIG_VALUE` (configId, value, isDefault) VALUES (:configId, :value, :isDefault)",
-						params={"configId": data["id"], "value": value, "isDefault": value in (data["defaultValues"] or [])}  # pylint: disable=loop-invariant-statement
-					)
+			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
+				session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
+				if session.execute(query, params=data).rowcount > 0:
+					for value in data["possibleValues"] or []:
+						session.execute(
+							"INSERT INTO `CONFIG_VALUE` (configId, value, isDefault) VALUES (:configId, :value, :isDefault)",
+							params={"configId": data["id"], "value": value, "isDefault": value in (data["defaultValues"] or [])}  # pylint: disable=loop-invariant-statement
+						)
 
 	@rpc_method(check_acl=False)
 	def config_insertObject(self: BackendProtocol, config: dict | Config) -> None:  # pylint: disable=invalid-name

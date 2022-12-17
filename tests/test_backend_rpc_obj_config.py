@@ -9,18 +9,26 @@ test opsiconfd.backend.mysql
 """
 
 from pathlib import Path
+from threading import Thread
+from time import sleep
 from typing import Generator
+from unittest.mock import patch
 
 import pytest
-from opsicommon.objects import OpsiClient, UnicodeConfig  # type: ignore[import]
+from opsicommon.objects import (  # type: ignore[import]
+	BoolConfig,
+	OpsiClient,
+	UnicodeConfig,
+)
 
-from opsiconfd.backend.rpc.opsiconfd import ProtectedBackend
+from opsiconfd.backend.rpc.opsiconfd import ProtectedBackend, UnprotectedBackend
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
 	ADMIN_USER,
 	Connection,
 	OpsiconfdTestClient,
+	backend,
 	clean_redis,
 	database_connection,
 	get_config,
@@ -36,11 +44,12 @@ def cleanup_database(database_connection: Connection) -> Generator[None, None, N
 	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
 	database_connection.commit()
 	yield
-	cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
-	cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
-	database_connection.commit()
-	cursor.close()
+	if False:
+		cursor.execute("DELETE FROM `CONFIG_VALUE` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+		cursor.execute("DELETE FROM `CONFIG` WHERE configId LIKE 'test-backend-rpc-obj-config%'")
+		cursor.execute("DELETE FROM `HOST` WHERE hostId LIKE 'test-backend-rpc-obj-config%'")
+		database_connection.commit()
+		cursor.close()
 
 
 @pytest.fixture()
@@ -54,14 +63,14 @@ def acl_file(tmp_path: Path) -> Generator[Path, None, None]:
 		f".*                   : sys_user({ADMIN_USER}); opsi_depotserver\n"
 	)
 	_acl_file.write_text(data=data, encoding="utf-8")
-	backend = ProtectedBackend()
+	protected_backend = ProtectedBackend()
 	try:
 		with get_config({"acl_file": str(_acl_file)}):
-			backend._read_acl_file()  # pylint: disable=protected-access
+			protected_backend._read_acl_file()  # pylint: disable=protected-access
 		yield _acl_file
 	finally:
 		# Restore original ACL
-		backend._read_acl_file()  # pylint: disable=protected-access
+		protected_backend._read_acl_file()  # pylint: disable=protected-access
 
 
 def test_config_insertObject(  # pylint: disable=invalid-name
@@ -123,7 +132,12 @@ def test_config_updateObject(  # pylint: disable=invalid-name
 	assert "error" not in res
 
 	config1 = UnicodeConfig(
-		id="test-backend-rpc-obj-config-1", possibleValues=["a", "b", "c"], defaultValues=["a", "b"], editable=True, multiValue=True
+		id="test-backend-rpc-obj-config-1",
+		description="test desc",
+		possibleValues=["a", "b", "c"],
+		defaultValues=["a", "b"],
+		editable=True,
+		multiValue=True,
 	)
 
 	# Create config1
@@ -162,3 +176,65 @@ def test_config_updateObject(  # pylint: disable=invalid-name
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_updateObject", "params": [config1.to_hash()]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert res["error"]["data"]["class"] == "BackendPermissionDeniedError"
+
+
+def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  # pylint: disable=invalid-name,redefined-outer-name
+	configs = []
+	for idx in range(10):  # pylint: disable=use-list-copy
+		configs.extend(
+			[
+				UnicodeConfig(
+					id=f"test-backend-rpc-obj-config-{idx*2}",
+					possibleValues=[
+						"clientName",
+						"clientDescription",
+						"clientSessionInfo",
+						"clientConnected",
+						"clientLastSeen",
+						"WANmode",
+						"clientIPAddress",
+						"clientHardwareAddress",
+						"clientInventoryNumber",
+						"UEFIboot",
+						"installByShutdown",
+						"clientCreated",
+						"depotId",
+					],
+					editable=False,
+					description="test unicode config",
+					defaultValues=["clientConnected", "clientDescription", "clientIPAddress", "clientLastSeen", "clientName"],
+					multiValue=True,
+				),
+				BoolConfig(id=f"test-backend-rpc-obj-config-{idx*2+1}", description="test bool config", defaultValues=[True]),
+			]
+		)
+
+	class BThread(Thread):
+		def __init__(self) -> None:
+			super().__init__(daemon=False)
+			self.err: Exception | None = None
+
+		def run(self) -> None:
+			try:
+				sleep(1.0)
+				for _ in range(2):
+					backend.config_updateObjects(configs)
+					sleep(0.1)
+					backend.config_getObjects()
+					sleep(0.1)
+			except Exception as err:  # pylint: disable=broad-except
+				self.err = err
+
+	# Do not retry on "Deadlock found when trying to get lock; try restarting transaction"
+	with patch("opsiconfd.backend.mysql.MySQLSession.execute_attempts", 1):
+		for _ in range(3):
+			threads = [BThread() for _ in range(25)]  # pylint: disable=loop-invariant-statement
+			for thread in threads:
+				thread.start()
+			for thread in threads:
+				thread.join(5)
+			for thread in threads:
+				assert not thread.err
+
+	read_confs = backend.config_getObjects(attributes=[], id=[c.id for c in configs])
+	assert sorted(read_confs, key=lambda c: c.id) == sorted(configs, key=lambda c: c.id)

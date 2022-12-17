@@ -17,6 +17,7 @@ from functools import lru_cache
 from inspect import signature
 from json import JSONDecodeError, dumps, loads
 from pathlib import Path
+from time import sleep
 from typing import (
 	TYPE_CHECKING,
 	Any,
@@ -71,6 +72,8 @@ class ColumnInfo:
 
 
 class MySQLSession(Session):  # pylint: disable=too-few-public-methods
+	execute_attempts = 3
+
 	def execute(
 		self,
 		statement: str,
@@ -81,22 +84,28 @@ class MySQLSession(Session):  # pylint: disable=too-few-public-methods
 		_add_event: Any | None = None,
 		**kw: Any
 	) -> Result:
-		try:
-			with server_timing("database") as timing:
-				result = super().execute(
-					statement=statement,
-					params=params,
-					execution_options=execution_options,
-					bind_arguments=bind_arguments,
-					_parent_execute_state=_parent_execute_state,
-					_add_event=_add_event,
-					*kw
-				)
-			logger.trace("Statement %r with params %r took %0.4f ms", statement, params, timing["database"])
-			return result
-		except DatabaseError as err:
-			logger.trace("Failed statement %r with params %r: %s", statement, params, err.__cause__, exc_info=True)
-			raise
+		attempt = 0
+		retry_wait = 0.01
+		with server_timing("database") as timing:
+			while True:
+				attempt += 1
+				try:  # pylint: disable=loop-try-except-usage
+					result = super().execute(  # pylint: disable=loop-invariant-statement
+						statement=statement,
+						params=params,
+						execution_options=execution_options,
+						bind_arguments=bind_arguments,
+						_parent_execute_state=_parent_execute_state,
+						_add_event=_add_event,
+						*kw
+					)
+					logger.trace("Statement %r with params %r took %0.4f ms", statement, params, timing["database"])  # pylint: disable=loop-invariant-statement
+					return result
+				except DatabaseError as err:
+					logger.trace("Failed statement %r (attempt: %d) with params %r: %s", statement, attempt, params, err.__cause__, exc_info=True)
+					if attempt >= self.execute_attempts or "deadlock" not in str(err).lower():  # pylint: disable=loop-invariant-statement
+						raise
+					sleep(retry_wait)
 
 
 class MySQLConnection:  # pylint: disable=too-many-instance-attributes
@@ -300,6 +309,20 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			raise
 		finally:
 			self._Session.remove()  # pylint: disable=no-member
+
+	@contextmanager
+	def table_lock(self, session: Session, locks: dict[str, str]) -> Generator[None, None, None]:
+		qlock = []
+		for table, lock in locks.items():
+			if lock.upper() not in ("READ", "WRITE"):
+				raise ValueError(f"Invalid lock {lock!r}")
+			qlock.append(f"`{table}` {lock}")
+
+		try:
+			session.execute(f"LOCK TABLES {', '.join(qlock)}")
+			yield
+		finally:
+			session.execute("UNLOCK TABLES")
 
 	def read_tables(self) -> None:
 		self.tables = {}

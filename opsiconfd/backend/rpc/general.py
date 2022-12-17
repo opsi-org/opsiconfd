@@ -212,9 +212,11 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			delete_file(file_id)
 
 	@rpc_method
-	def service_setAppState(self: BackendProtocol, app_state: dict[str, Any]) -> dict[str, Any]:  # pylint: disable=invalid-name
+	def service_setAppState(  # pylint: disable=invalid-name
+		self: BackendProtocol, app_state: dict[str, Any], wait_accomplished: float = 30.0
+	) -> dict[str, Any]:
 		self._check_role("admin")
-		self._app.app_state = AppState.from_dict(app_state)
+		self._app.set_app_state(AppState.from_dict(app_state), wait_accomplished=wait_accomplished)
 		return self._app.app_state.to_dict()
 
 	@rpc_method

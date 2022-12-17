@@ -41,8 +41,7 @@ def test_setup() -> None:
 
 def test_log_viewer() -> None:
 	with get_config({"action": "log-viewer"}):
-		thread = threading.Thread(target=main)
-		thread.daemon = True
+		thread = threading.Thread(target=main, daemon=True)
 		thread.start()
 		time.sleep(1)
 		handler = RedisLogHandler()

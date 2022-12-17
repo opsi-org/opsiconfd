@@ -10,7 +10,13 @@ test application
 
 import time
 
-from opsiconfd.application import AppState, MaintenanceState, NormalState, app
+from opsiconfd.application import (
+	AppState,
+	MaintenanceState,
+	NormalState,
+	ShutdownState,
+	app,
+)
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -35,6 +41,13 @@ def test_app_state_maintenance() -> None:
 
 
 def test_app_state_from_dict() -> None:
+	state: AppState
+	state = ShutdownState()
+	assert str(state) == "AppState(shutdown/pending)"
+	state_dict = state.to_dict()
+	state2 = AppState.from_dict(state_dict)
+	assert type(state) is type(state2)
+
 	state = NormalState()
 	state_dict = state.to_dict()
 	state2 = AppState.from_dict(state_dict)
@@ -56,29 +69,29 @@ def test_maintenance(test_client: OpsiconfdTestClient) -> None:  # pylint: disab
 		response = client.get("/session/authenticated")
 		assert response.status_code == 200
 
-		app.app_state = MaintenanceState(address_exceptions=[], retry_after=11, message="pytest")
+		app.set_app_state(MaintenanceState(address_exceptions=[], retry_after=11, message="pytest"))
 		time.sleep(1)
 		response = client.get("/session/authenticated")
 		assert response.status_code == 503
 		assert response.headers["Retry-After"] == "11"
 		assert response.text == "pytest"
 
-		app.app_state = NormalState()
+		app.set_app_state(NormalState())
 		time.sleep(1)
 		response = client.get("/session/authenticated")
 		assert response.status_code == 200
 
-		app.app_state = MaintenanceState(address_exceptions=[])
+		app.set_app_state(MaintenanceState(address_exceptions=[]))
 		time.sleep(1)
 		response = client.get("/session/authenticated")
 		assert response.status_code == 503
 
-		app.app_state = NormalState()
+		app.set_app_state(NormalState())
 		time.sleep(1)
 		response = client.get("/session/authenticated")
 		assert response.status_code == 200
 
-		app.app_state = MaintenanceState(address_exceptions=["::1/128", "127.0.0.1/32"])
+		app.set_app_state(MaintenanceState(address_exceptions=["::1/128", "127.0.0.1/32"]))
 		time.sleep(1)
 		response = client.get("/session/authenticated")
 		assert response.status_code == 200

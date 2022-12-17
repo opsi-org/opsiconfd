@@ -41,8 +41,19 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		self.pid = os.getpid()
 		self.startup = True
 
-	def restart_workers(self) -> None:
+	def restart_workers(self, wait: bool = False) -> None:
+		pids = [w.pid for w in self.workers.values()]
 		self.should_restart_workers = True
+		if wait:
+			while True:
+				restarted = True
+				for worker in self.workers.values():
+					if worker.pid in pids:
+						restarted = False
+						break
+				if restarted:
+					break
+				time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
 
 	def check_modules(self) -> None:  # pylint: disable=too-many-statements,too-many-branches
 		if config.workers == 1:
@@ -186,6 +197,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 				diff = time.time() - start_time  # pylint: disable=dotted-import-in-loop
 				for worker in workers:
 					if not worker.process or not worker.process.is_alive():
+						worker.pid = 0
 						continue
 					any_alive = True
 					if diff < self.worker_stop_timeout:  # pylint: disable=loop-invariant-statement
@@ -209,7 +221,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		with self.worker_update_lock:
 			logger.notice("Restarting %s", worker)
 			if worker.process and worker.process.is_alive():
-				self.stop_worker(worker, remove_worker=False)
+				self.stop_worker(worker, wait=True, remove_worker=False)
 			self.start_worker(worker)
 
 	def adjust_worker_count(self) -> None:

@@ -35,18 +35,17 @@ def test_server_and_workers() -> None:
 		assert proc.is_running()
 
 		worker_pid = list(server.workers.values())[0].pid
-		server.restart_workers()
-
-		time.sleep(10)
+		server.restart_workers(wait=True)
 
 		assert len(list(server.workers.values())) == 1
 		assert list(server.workers.values())[0].worker_num == 1
 		proc = psutil.Process(list(server.workers.values())[0].pid)
 		assert proc.is_running()
 
+		assert list(server.workers.values())[0].pid != 0
 		assert worker_pid != list(server.workers.values())[0].pid
 
-		time.sleep(3)
+		time.sleep(1)
 
 		server.stop()
 		server_thread.join()

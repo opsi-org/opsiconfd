@@ -7,15 +7,23 @@
 """
 test backup
 """
+import asyncio
+import time
 from os.path import abspath
+from threading import Thread
 
+from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backup import create_backup, restore_backup
 
-from .utils import Config, config  # pylint: disable=unused-import
+from .utils import Config, clean_redis, config  # pylint: disable=unused-import
 
 
 def test_create_backup(config: Config) -> None:  # pylint: disable=redefined-outer-name
+	thread = Thread(target=asyncio.run, args=[app.app_state_manager_task(init_app_state=NormalState())], daemon=True)
+	thread.start()
+	app.app_state_initialized.wait(5)
+
 	backup = create_backup()
 	assert backup["meta"]["version"] == "1"
 	assert len(backup["objects"]["Host"]) > 0
@@ -25,8 +33,15 @@ def test_create_backup(config: Config) -> None:  # pylint: disable=redefined-out
 	backup = create_backup(config_files=False)
 	assert not backup["config_files"]
 
+	app.set_app_state(ShutdownState())
+	thread.join()
+
 
 def test_restore_backup() -> None:
+	thread = Thread(target=asyncio.run, args=[app.app_state_manager_task(init_app_state=MaintenanceState())], daemon=True)
+	thread.start()
+	app.app_state_initialized.wait(5)
+
 	backup = create_backup(config_files=False)
 
 	database = "opsitestbackup"
@@ -48,3 +63,6 @@ def test_restore_backup() -> None:
 		session.execute(f"DROP DATABASE IF EXISTS {database}")
 
 	assert backup["objects"] == backup2["objects"]
+
+	app.set_app_state(ShutdownState())
+	thread.join()

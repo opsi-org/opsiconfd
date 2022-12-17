@@ -28,7 +28,7 @@ from rich.console import Console
 from rich.progress import Progress
 
 from . import __version__
-from .application import app
+from .application import MaintenanceState, NormalState, app
 from .backup import create_backup, restore_backup
 from .check import health_check
 from .config import GC_THRESHOLDS, config, configure_warnings, opsi_config
@@ -96,9 +96,10 @@ def backup_main() -> None:
 			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
 
 			if not config.no_maintenance:
-				threading.Thread(target=asyncio.run, args=[app.app_state_manager_task()], daemon=True).start()
-				# Wait for app state to be read from redis
-				time.sleep(3)
+				threading.Thread(
+					target=asyncio.run, args=[app.app_state_manager_task(init_app_state=(MaintenanceState(), NormalState()))], daemon=True
+				).start()
+				app.app_state_initialized.wait(5)
 
 			create_backup(config_files=not config.no_config_files, backup_file=backup_file, progress=progress)
 
@@ -131,9 +132,10 @@ def restore_main() -> None:
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
 
-			threading.Thread(target=asyncio.run, args=[app.app_state_manager_task()], daemon=True).start()
-			# Wait for app state to be read from redis
-			time.sleep(3)
+			threading.Thread(
+				target=asyncio.run, args=[app.app_state_manager_task(init_app_state=(MaintenanceState(), NormalState()))], daemon=True
+			).start()
+			app.app_state_initialized.wait(5)
 
 			restore_backup(backup_file, config_files=config.config_files, server_id=server_id, progress=progress)
 

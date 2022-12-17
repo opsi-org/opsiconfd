@@ -87,8 +87,7 @@ def maintenance_mode(
 			logger.notice("Reentering %s mode", orig_state.type)
 			if progress:
 				progress.console.print(f"Reentering {orig_state.type} mode")
-			orig_state.accomplished = False
-			app.app_state = orig_state
+			app.set_app_state(orig_state, wait_accomplished=0)
 
 
 def get_config_files() -> dict[str, Path]:
@@ -265,7 +264,6 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 				progress.console.print(f"Decomressing {compression} data")
 			bdata = decompress_data(bdata, compression=compression)
 
-		print(bdata)
 		encoding = "json" if bdata.startswith(b"{") else "msgpack"
 		logger.notice("Decoding %s data", encoding)
 		if progress:

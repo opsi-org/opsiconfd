@@ -100,7 +100,7 @@ async def test_get_clients(test_client: OpsiconfdTestClient) -> None:  # pylint:
 
 async def test_grafana_dashboard_config() -> None:
 	conf = await grafana_dashboard_config()
-	assert len(conf["panels"]) == 10
+	assert len(conf["panels"]) == 11
 
 
 async def test_grafana_search(config: Config) -> None:  # pylint: disable=redefined-outer-name

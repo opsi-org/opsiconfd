@@ -210,7 +210,7 @@ def test_concurrent_config_updateObject(backend: UnprotectedBackend) -> None:  #
 
 	class BThread(Thread):
 		def __init__(self) -> None:
-			super().__init__(daemon=False)
+			super().__init__(daemon=True)
 			self.err: Exception | None = None
 
 		def run(self) -> None:

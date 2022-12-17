@@ -134,14 +134,15 @@ class Worker(WorkerInfo, UvicornServer):
 		UvicornServer.__init__(self, uvicorn_config())
 		self._metrics_collector: WorkerMetricsCollector | None = None
 		self.process: SpawnProcess | None = None
-		self.app_state = app.app_state.type
+		self.app_state = app._app_state.type
 		self.connection_close_wait_timeout = 10.0
 
 	def start_server_process(self, sockets: list[socket.socket]) -> None:
 		self.process = get_subprocess(config=self.config, target=self.run, sockets=sockets)
 		self.process.start()
-		if self.process.pid:
-			self.pid = self.process.pid
+		if not self.process.pid:
+			raise RuntimeError("Failed to start server process")
+		self.pid = self.process.pid
 
 	@classmethod
 	def get_instance(cls) -> Worker:

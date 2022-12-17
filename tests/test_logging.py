@@ -157,6 +157,7 @@ async def test_async_redis_log_adapter(tmp_path: Path) -> None:
 
 		await asyncio.sleep(1)
 		await adapter.stop()
+		redis_log_handler.stop()
 		await asyncio.sleep(1)
 
 		with open(log_file, "r", encoding="utf-8") as file:

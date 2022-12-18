@@ -171,17 +171,17 @@ class SessionMiddleware:
 	async def handle_request(  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 		self, connection: HTTPConnection, receive: Receive, send: Send
 	) -> None:
-		if isinstance(opsiconfd_app._app_state, MaintenanceState):
+		if isinstance(opsiconfd_app.app_state, MaintenanceState):
 			client_in_exceptions = False
-			for network in opsiconfd_app._app_state.address_exceptions or []:
+			for network in opsiconfd_app.app_state.address_exceptions or []:
 				if ip_address_in_network(connection.scope["client"][0], network):  # pylint: disable=loop-invariant-statement
 					client_in_exceptions = True
 					break
 			if not client_in_exceptions:
 				raise HTTPException(
 					status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-					detail=opsiconfd_app._app_state.message,
-					headers={"Retry-After": str(opsiconfd_app._app_state.retry_after)}
+					detail=opsiconfd_app.app_state.message,
+					headers={"Retry-After": str(opsiconfd_app.app_state.retry_after)}
 				)
 
 		with server_timing("session_handling") as timing:

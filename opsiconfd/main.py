@@ -97,7 +97,9 @@ def backup_main() -> None:
 
 			if not config.no_maintenance:
 				threading.Thread(
-					target=asyncio.run, args=[app.app_state_manager_task(init_app_state=(MaintenanceState(), NormalState()))], daemon=True
+					target=asyncio.run,
+					args=[app.app_state_manager_task(manager_mode=True, init_app_state=(MaintenanceState(), NormalState()))],
+					daemon=True,
 				).start()
 				app.app_state_initialized.wait(5)
 
@@ -133,7 +135,9 @@ def restore_main() -> None:
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
 
 			threading.Thread(
-				target=asyncio.run, args=[app.app_state_manager_task(init_app_state=(MaintenanceState(), NormalState()))], daemon=True
+				target=asyncio.run,
+				args=[app.app_state_manager_task(manager_mode=True, init_app_state=(MaintenanceState(), NormalState()))],
+				daemon=True,
 			).start()
 			app.app_state_initialized.wait(5)
 

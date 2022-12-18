@@ -15,7 +15,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from ipaddress import ip_network
 from threading import Event, Lock
-from typing import Any, Callable, Type, TypeVar
+from typing import Any, Callable, Literal, Type, TypeVar
 
 from fastapi import FastAPI
 from msgspec import msgpack
@@ -148,7 +148,7 @@ class OpsiconfdApp(FastAPI):
 		if wait_accomplished is not None and wait_accomplished > 0:
 			self.wait_for_app_state(app_state, wait_accomplished)
 
-	async def load_app_state_from_redis(self) -> AppState | None:
+	async def load_app_state_from_redis(self, update_accomplished: bool = False) -> AppState | None:
 		redis = await async_redis_client()
 		msgpack_data = await redis.get(f"{config.redis_key('state')}:application:app_state")
 		if not msgpack_data:
@@ -156,7 +156,7 @@ class OpsiconfdApp(FastAPI):
 
 		try:
 			app_state = AppState.from_dict(msgpack.decode(msgpack_data))
-			if not app_state.accomplished:
+			if update_accomplished and not app_state.accomplished:
 				accomplished = True
 				async for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
 					if (await redis.hget(redis_key_b, "app_state")) != app_state.type.encode("utf-8"):
@@ -182,19 +182,19 @@ class OpsiconfdApp(FastAPI):
 		with redis_client() as redis:
 			redis.set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
 
-	async def app_state_manager_task(self, init_app_state: AppState | tuple[AppState, ...] | None) -> None:  # pylint: disable=too-many-branches
+	async def app_state_manager_task(self, manager_mode: bool = False, init_app_state: AppState | tuple[AppState, ...] | None = None) -> None:  # pylint: disable=too-many-branches
 		"""
 		init_app_state: If the current app state is not in the list of init app states, the first init app state will be set.
 		"""
-		app_state = await self.load_app_state_from_redis()
-		if init_app_state:
+		if manager_mode and init_app_state:
+			app_state = await self.load_app_state_from_redis(update_accomplished=False)
 			if not isinstance(init_app_state, tuple):
 				init_app_state = (init_app_state,)
 			if not app_state or app_state.type not in [a.type for a in init_app_state]:
 				app_state = init_app_state[0]
 			await self.async_store_app_state_in_redis(app_state)  # type: ignore[arg-type]
-		if app_state:
-			self._app_state = app_state
+			if app_state:
+				self._app_state = app_state
 
 		interval = 2
 		while True:
@@ -204,7 +204,7 @@ class OpsiconfdApp(FastAPI):
 			cur_state = self._app_state
 			await run_in_threadpool(self._app_state_lock.acquire)
 			try:
-				app_state = await self.load_app_state_from_redis()
+				app_state = await self.load_app_state_from_redis(update_accomplished=manager_mode)
 				if app_state:
 					self.app_state_initialized.set()
 					self._app_state = app_state
@@ -229,10 +229,8 @@ app = OpsiconfdApp()
 
 @app.on_event("startup")
 async def startup() -> None:
-	app_state: NormalState | MaintenanceState = NormalState()
-	if config.maintenance is not False:
-		app_state = MaintenanceState(address_exceptions=config.maintenance + ["127.0.0.1/32", "::1/128"])
-	asyncio.create_task(app.app_state_manager_task(init_app_state=app_state))
+	"""This will be run in worker processes"""
+	asyncio.create_task(app.app_state_manager_task(manager_mode=False))
 	from . import main  # pylint: disable=import-outside-toplevel,unused-import
 
 

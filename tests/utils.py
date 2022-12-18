@@ -377,7 +377,7 @@ class WebSocketMessageReader(Thread):
 		self.messages: Queue[Dict[str, Any]] = Queue()
 		self.should_stop = False
 
-	def __enter__(self) -> "WebSocketMessageReader":
+	def __enter__(self) -> WebSocketMessageReader:
 		self.start()
 		return self
 
@@ -392,6 +392,8 @@ class WebSocketMessageReader(Thread):
 	def run(self) -> None:
 		while not self.should_stop:
 			data = self.websocket.receive()
+			if self.should_stop:
+				break
 			if not data:
 				continue
 			if data["type"] == "websocket.close":
@@ -405,6 +407,8 @@ class WebSocketMessageReader(Thread):
 
 	def stop(self) -> None:
 		self.should_stop = True
+		self.websocket._send_queue.put("")  # pylint: disable=protected-access
+		self.join(3)
 
 	def wait_for_message(self, count: int = 1, timeout: float = 5.0) -> None:
 		start = time.time()

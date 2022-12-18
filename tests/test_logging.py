@@ -99,7 +99,7 @@ async def test_async_rotating_file_handler_rotation(tmp_path: Path) -> None:
 	for num in range(5):
 		record = LogRecord("test", 3, "pathname", 1, f"message {num}", None, None)
 		await handler.emit(record)
-		await asyncio.sleep(1)
+		await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop)
 
 	await handler.close()
 	await asyncio.sleep(1)
@@ -184,6 +184,7 @@ async def test_slow_callback_logging(tmp_path: Path) -> None:
 		await asyncio.sleep(2)
 
 		await adapter.stop()
+		redis_log_handler.stop()
 		await asyncio.sleep(1)
 
 		with open(log_file, "r", encoding="utf-8") as file:

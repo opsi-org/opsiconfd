@@ -113,9 +113,9 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 		"""
 		flush / close blocks sometimes, processing as task
 		"""
+		self._should_stop.set()
 		if not self.initialized:
 			return
-		self._should_stop.set()
 		loop = get_running_loop()
 		loop.create_task(self._close_stream())
 		self._initialization_lock = None
@@ -131,7 +131,8 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 				self._rollover_error = err
 				logger.error(err, exc_info=True)  # pylint: disable=loop-global-usage
 			check_interval = 300 if self._rollover_error else self.rollover_check_interval
-			await event_wait(self._should_stop, check_interval)
+			if await event_wait(self._should_stop, check_interval):
+				break
 
 	def should_rollover(self, record: LogRecord | None = None) -> bool:  # pylint: disable=unused-argument
 		if not os.path.exists(self.absolute_file_path):
@@ -201,6 +202,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		self._file_log_lock = threading.Lock()
 		self._stderr_handler = None
 		self._should_stop = Event()
+		self._reader_stopped = asyncio.Event()
 		self._set_log_format_stderr()
 
 		if self._log_level_file != NONE:
@@ -213,6 +215,7 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 		self._should_stop.set()
 		for file_log in self._file_logs.values():
 			await file_log.close()
+		await event_wait(self._reader_stopped, 5.0)
 
 	def reload(self) -> None:
 		self._read_config()
@@ -361,10 +364,10 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 				data = await self._redis.xread(  # pylint: disable=loop-invariant-statement
 					streams={self._redis_log_stream: last_id}, block=1000
 				)
+				if self._should_stop.is_set():
+					break
 				if not data:
 					continue
-				if self._should_stop.is_set():
-					return
 				for stream in data:
 					for entry in stream[1]:
 						last_id = entry[0]
@@ -391,6 +394,8 @@ class AsyncRedisLogAdapter:  # pylint: disable=too-many-instance-attributes
 			except Exception as err:  # pylint: disable=broad-except
 				handle_log_exception(err, stderr=True, temp_file=True)
 
+		self._reader_stopped.set()
+
 
 class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=too-many-instance-attributes
 	"""
@@ -408,6 +413,7 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 		self._redis_log_stream = f"{config.redis_key('log')}:{config.node_name}"
 		self._queue: Queue = Queue()
 		self._should_stop = threading.Event()
+		self._stopped = threading.Event()
 		self._msgpack_encoder = msgspec.msgpack.Encoder()
 		self.start()
 
@@ -441,10 +447,11 @@ class RedisLogHandler(pylogging.Handler, threading.Thread):  # pylint: disable=t
 					pass  # pylint: disable=loop-invariant-statement
 				pipeline.execute()
 			if self._should_stop.is_set():
-				return
+				break
 
 	def stop(self) -> None:
 		self._should_stop.set()
+		self._stopped.wait(3.0)
 
 	def log_record_to_dict(self, record: LogRecord) -> Dict[str, Any]:
 		try:

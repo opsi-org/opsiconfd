@@ -47,6 +47,7 @@ def test_log_viewer() -> None:
 		handler = RedisLogHandler()
 		handler.emit(LogRecord(name="test-logger", level=10, pathname="-", lineno=1, msg="test-record", args=None, exc_info=None))
 		time.sleep(1)
+		handler.stop()
 
 
 def test_reload() -> None:

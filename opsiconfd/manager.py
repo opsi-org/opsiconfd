@@ -16,6 +16,9 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Thread
 from types import FrameType
 
+from starlette.concurrency import run_in_threadpool
+
+from .application import MaintenanceState, NormalState, ShutdownState, app
 from .config import config
 from .logging import init_logging, logger
 from .messagebus.redis import cleanup_channels
@@ -83,6 +86,7 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		signal.signal(signal.SIGINT, self.signal_handler)  # Unix signal 2. Sent by Ctrl+C. Terminate service.
 		signal.signal(signal.SIGTERM, self.signal_handler)  # Unix signal 15. Sent by `kill <pid>`. Terminate service.
 		signal.signal(signal.SIGHUP, self.signal_handler)  # Unix signal 1. Sent by `kill -HUP <pid>`. Reload config.
+
 		try:
 			Thread(name="ManagerAsyncLoop", daemon=True, target=self.run_loop).start()
 			self._server.run()
@@ -90,11 +94,12 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 			logger.error(exc, exc_info=True)
 
 	def run_loop(self) -> None:
-		self._loop.set_default_executor(ThreadPoolExecutor(max_workers=10, thread_name_prefix="manager-ThreadPoolExecutor"))
+		pool_executer = ThreadPoolExecutor(max_workers=10, thread_name_prefix="manager-ThreadPoolExecutor")
+		self._loop.set_default_executor(pool_executer)
 		self._loop.set_debug("asyncio" in config.debug_options)
 		asyncio.set_event_loop(self._loop)
-		self._loop.create_task(self.async_main())
-		self._loop.run_forever()
+		self._loop.run_until_complete(self.async_main())
+		pool_executer.shutdown()
 
 	async def check_server_cert(self) -> None:
 		if "server_cert" not in config.skip_setup:
@@ -118,7 +123,11 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 	async def async_main(self) -> None:
 		# Start MetricsCollector
 		self._loop.create_task(self._metrics_collector.main_loop())
+		app_state: NormalState | MaintenanceState = NormalState()
+		if config.maintenance is not False:
+			app_state = MaintenanceState(address_exceptions=config.maintenance + ["127.0.0.1/32", "::1/128"])
 
+		self._loop.create_task(app.app_state_manager_task(manager_mode=True, init_app_state=app_state))
 		if config.zeroconf:
 			try:
 				await register_opsi_services()
@@ -141,6 +150,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 				if self._should_stop:
 					break
 				await asyncio.sleep(1)  # pylint: disable=dotted-import-in-loop
+
+		await run_in_threadpool(app.set_app_state, ShutdownState())
 
 		if config.zeroconf:
 			try:

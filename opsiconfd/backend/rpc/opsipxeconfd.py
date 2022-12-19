@@ -27,11 +27,16 @@ from opsicommon.objects import (  # type: ignore[import]
 	OpsiClient,
 	ProductOnClient,
 )
-from opsicommon.types import forceHostId, forceObjectClassList  # type: ignore[import]
+from opsicommon.types import (  # type: ignore[import]
+	forceBool,
+	forceHostId,
+	forceObjectClassList,
+)
 
+from opsiconfd.config import config
 from opsiconfd.logging import logger
 
-from . import backend_event, rpc_method
+from . import backend_event, read_backend_config_file, rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
@@ -119,9 +124,23 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	_opsipxeconfd_socket_path: str = "/var/run/opsipxeconfd/opsipxeconfd.socket"
 
 	def __init__(self) -> None:
-		# TODO:
 		self._opsipxeconfd_enabled = True
 		self._opsipxeconfd_on_depot = False
+		self._read_opsipxeconfd_control_config_file()
+
+	def _read_opsipxeconfd_control_config_file(self) -> None:
+		dhcpd_control_conf = Path(config.backend_config_dir) / "opsipxeconfd.conf"
+		if not dhcpd_control_conf.exists():
+			logger.error("Config file '%s' not found, opsipxeconfd control disabled", dhcpd_control_conf)
+			self._opsipxeconfd_enabled = False
+			return
+
+		for key, val in read_backend_config_file(dhcpd_control_conf).items():
+			attr = "_opsipxeconfd_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
+			if attr in ("_opsipxeconfd_opsipxeconfd_on_depot", "_opsipxeconfd_enabled"):
+				val = forceBool(val)
+			if hasattr(self, attr):
+				setattr(self, attr, val)
 
 	@backend_event("shutdown")
 	def _opsipxeconfd_shutdown(self) -> None:

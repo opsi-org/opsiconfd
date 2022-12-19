@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from inspect import getmembers, ismethod
 from types import MethodType
-from typing import Any, Dict, List
+from typing import Any
 
 from opsicommon.client.opsiservice import ServiceClient  # type: ignore[import]
 from opsicommon.exceptions import (  # type: ignore[import]
@@ -71,7 +71,7 @@ from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoo
 from .opsipxeconfd import RPCOpsiPXEConfdMixin
 
 
-def describe_interface(instance: Any) -> Dict[str, MethodInterface]:  # pylint: disable=too-many-locals
+def describe_interface(instance: Any) -> dict[str, MethodInterface]:  # pylint: disable=too-many-locals
 	"""
 	Describes what public methods are available and the signatures they use.
 
@@ -121,7 +121,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self.__initialized = True
 
 		self._app = app
-		self._acl: Dict[str, List[RPCACE]] = {}
+		self._acl: dict[str, list[RPCACE]] = {}
 		self._depot_connections: dict[str, ServiceClient] = {}
 		self._depot_id: str = get_depot_server_id()
 		self._mysql = MySQLConnection()
@@ -136,7 +136,8 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		else:
 			self._depot_server_init()
 
-		for base in self.__class__.__bases__:
+		for base in Backend.__bases__:
+			logger.debug("Init %s", base)
 			base.__init__(self)  # type: ignore[misc]
 
 	def __str__(self) -> str:
@@ -250,7 +251,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 	def reload_config(self) -> None:
 		pass
 
-	def _get_ace(self, method: str) -> List[RPCACE]:  # pylint: disable=unused-argument
+	def _get_ace(self, method: str) -> list[RPCACE]:  # pylint: disable=unused-argument
 		return []
 
 	def _check_role(self, required_role: str) -> None:  # pylint: disable=unused-argument
@@ -268,8 +269,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		if depot_id not in self._depot_connections:
 			try:
 				self._depot_connections[depot_id] = ServiceClient(
-					# TODO: verify
-					address=f"https://{depot_id}:4447/rpc", username=self._depot_id, password=self._opsi_host_key, verify="accept_all"
+					address=f"https://{depot_id}:4447/rpc", username=self._depot_id, password=self._opsi_host_key, verify="strict"
 				)
 			except Exception as err:
 				raise ConnectionError(f"Failed to connect to depot '{depot_id}': {err}") from err
@@ -285,7 +285,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 	def get_method_interface(self, method: str) -> MethodInterface | None:
 		return self._interface.get(method)
 
-	def get_interface(self) -> list[Dict[str, Any]]:
+	def get_interface(self) -> list[dict[str, Any]]:
 		return self._interface_list
 
 	async def async_call(self, method: str, **kwargs: Any) -> Any:
@@ -293,7 +293,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 
 
 class UnprotectedBackend(Backend):  # pylint: disable=too-many-ancestors
-	def _get_ace(self, method: str) -> List[RPCACE]:
+	def _get_ace(self, method: str) -> list[RPCACE]:
 		return [RPCACE_ALLOW_ALL]
 
 	def _check_role(self, required_role: str) -> None:
@@ -315,10 +315,13 @@ class ProtectedBackend(Backend):  # pylint: disable=too-many-ancestors
 		for method_name in list(self._interface):
 			self._acl[method_name] = [ace for ace in acl if ace.method_re.match(method_name)]
 
-	def _get_ace(self, method: str) -> List[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
+	def _get_ace(self, method: str) -> list[RPCACE]:  # pylint: disable=too-many-branches,too-many-statements,too-many-return-statements
 		"""
 		Get list of ACEs.
 		"""
+		if not self._acl:
+			return []
+
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Invalid session")

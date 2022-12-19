@@ -53,7 +53,7 @@ from opsicommon.types import (  # type: ignore[import]
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 
-from . import rpc_method  # pylint: disable=unused-import
+from . import read_backend_config_file, rpc_method  # pylint: disable=unused-import
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
@@ -148,10 +148,8 @@ class RPCHostControlMixin(Protocol):
 
 	def _read_host_control_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "hostcontrol.conf"
-		loc: Dict[str, Any] = {}
-		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
 
-		for key, val in loc["config"].items():
+		for key, val in read_backend_config_file(mysql_conf, add_enabled_option=False).items():
 			attr = "_host_control_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
 			if attr == "_host_control_broadcast_addresses":
 				self._set_broadcast_addresses(val)

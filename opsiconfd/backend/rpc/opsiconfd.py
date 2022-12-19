@@ -68,7 +68,7 @@ from .obj_product_property import RPCProductPropertyMixin
 from .obj_product_property_state import RPCProductPropertyStateMixin
 from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
-from .opsipxeconfd import RPCOpsiPXEConfdMixin
+from .opsipxeconfd import RPCOpsiPXEConfdControlMixin
 
 
 def describe_interface(instance: Any) -> dict[str, MethodInterface]:  # pylint: disable=too-many-locals
@@ -102,7 +102,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 	RPCExtLegacyMixin, RPCExtAdminTasksMixin, RPCExtDeprecatedMixin,
 	RPCExtDynamicDepotMixin, RPCExtEasyMixin, RPCExtKioskMixin,
 	RPCExtSSHCommandsMixin, RPCExtWIMMixin, RPCExtWANMixin, RPCExtOpsiMixin,
-	RPCDepotserverMixin, RPCHostControlMixin, RPCDHCPDControlMixin, RPCOpsiPXEConfdMixin,
+	RPCDepotserverMixin, RPCHostControlMixin, RPCDHCPDControlMixin, RPCOpsiPXEConfdControlMixin,
 	RPCExtenderMixin
 ):
 	__instance = None

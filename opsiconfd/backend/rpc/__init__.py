@@ -196,25 +196,26 @@ def backend_event(event: str) -> Callable:
 	return decorator
 
 
-def read_backend_config_file(config_file: Path) -> dict[str, Any]:
-	config_start_regex = re.compile(r"^\s*config\s*=\s*{")
-	config_regex = re.compile(r'^(\s*)"([^"]+)"\s*:.*$')
-	lines = config_file.read_text(encoding="utf-8").split("\n")
-	add_idx = -1
-	indent = "    "
-	for idx, line in enumerate(lines):
-		if config_start_regex.search(line):
-			add_idx = idx + 1
-			continue
-		match = config_regex.search(line)
-		if match:
-			indent = match.group(1)
-			if match.group(2) == "enabled":
-				add_idx = -1
-				break
-	if add_idx >= 0:
-		lines.insert(add_idx, f'{indent}"enabled": True,')
-		config_file.write_text("\n".join(lines), encoding="utf-8")
+def read_backend_config_file(config_file: Path, add_enabled_option: bool = True) -> dict[str, Any]:
+	if add_enabled_option:
+		config_start_regex = re.compile(r"^\s*config\s*=\s*{")
+		config_regex = re.compile(r'^(\s*)"([^"]+)"\s*:.*$')
+		lines = config_file.read_text(encoding="utf-8").split("\n")
+		add_idx = -1
+		indent = "    "
+		for idx, line in enumerate(lines):
+			if config_start_regex.search(line):
+				add_idx = idx + 1
+				continue
+			match = config_regex.search(line)
+			if match:
+				indent = match.group(1)
+				if match.group(2) == "enabled":
+					add_idx = -1
+					break
+		if add_idx >= 0:
+			lines.insert(add_idx, f'{indent}"enabled": True,')
+			config_file.write_text("\n".join(lines), encoding="utf-8")
 
 	loc: dict[str, Any] = {}
 	exec(compile(config_file.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used

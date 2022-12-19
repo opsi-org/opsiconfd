@@ -533,13 +533,11 @@ def create_foreign_key(session: Session, database: str, foreign_key: OpsiForeign
 		if cleanup_function:
 			cleanup_function(session=session)
 		logger.info(
-			(
-				"Creating foreign key to %s on table %s with ON UPDATE %s and ON DELETE %s",
-				foreign_key.ref_table,
-				foreign_key.table,
-				foreign_key.update_rule,
-				foreign_key.delete_rule,
-			)
+			"Creating foreign key to %s on table %s with ON UPDATE %s and ON DELETE %s",
+			foreign_key.ref_table,
+			foreign_key.table,
+			foreign_key.update_rule,
+			foreign_key.delete_rule,
 		)
 		session.execute(
 			f"""

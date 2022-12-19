@@ -12,7 +12,7 @@ import re
 from enum import StrEnum
 from re import findall
 from subprocess import run
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 import requests
 from MySQLdb import OperationalError as MySQLdbOperationalError  # type: ignore[import]
@@ -37,13 +37,15 @@ OPSI_REPO = "https://download.uib.de"
 OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
 OPSI_PACKAGES = {"opsi-script": "0.0", "opsi-client-agent": "0.0"}
 
-INDENT_SIZE = 5
-
 
 class CheckStatus(StrEnum):
 	OK = "ok"
 	WARNING = "warning"
 	ERROR = "error"
+
+
+STYLES = {CheckStatus.OK: "[bold green]", CheckStatus.WARNING: "[bold yellow]", CheckStatus.ERROR: "[bold red]"}
+INDENT_SIZE = 5
 
 
 def health_check() -> dict:
@@ -345,95 +347,66 @@ def split_name_and_version(filename: str) -> tuple:
 # check result print functions
 
 
+def print(msg: str, console: Console, style: Optional[str] = "", indent_level: int = 0) -> None:
+	indent_size = 5
+	console.print(Padding(f"{style}{msg}", (0, indent_size * indent_level)))  # pylint: disable=loop-global-usage
+
+
 def print_check_deprecated_calls_result(check_result: dict, console: Console) -> None:
 	if check_result.get("status") == CheckStatus.OK:
-		console.print(Padding("No deprecated method calls found.", (0, INDENT_SIZE)))
+		print("No deprecated method calls found.", console, STYLES.get(CheckStatus.OK), 1)
 	else:
-		msg_style = "[bold yellow]"
 		for method, data in check_result.get("details", {}).items():
-			console.print(
-				Padding(
-					f"{msg_style}Deprecated method '{method}' was called {data.get('calls')} times.", (0, INDENT_SIZE)
-				)  # pylint: disable=loop-global-usage
-			)
-			console.print(Padding(f"{msg_style}The method was called from:", (0, INDENT_SIZE)))  # pylint: disable=loop-global-usage
+			print(f"Deprecated method '{method}' was called {data.get('calls')} times.", console, STYLES.get(CheckStatus.WARNING), 1)
+			print("The method was called from:", console, STYLES.get(CheckStatus.WARNING), 1)
 			for client in data.get("clients"):
-				console.print(Padding(f"{msg_style}- {client}", (0, INDENT_SIZE * 2)))  # pylint: disable=loop-global-usage
-			console.print(
-				Padding(f"{msg_style}Last call was {data.get('last_call')}", (0, INDENT_SIZE))
-			)  # pylint: disable=loop-global-usage
+				print(f"- {client}", console, STYLES.get(CheckStatus.WARNING), 2)
+
+			print(f"Last call was {data.get('last_call')}", console, STYLES.get(CheckStatus.WARNING), 1)
 
 
 def print_check_opsi_licenses_results(check_result: dict, console: Console) -> None:
-	console.print(Padding(f"Active clients: {check_result['clients']}", (0, INDENT_SIZE)))
+	print(f"Active clients: {check_result['clients']}", console, indent_level=1)
+
 	for module, data in check_result["partial_checks"].items():
-		console.print(Padding(f"{module}:", (0, INDENT_SIZE)))
-		msg_style = "[bold green]"
-		if data["status"] == CheckStatus.WARNING:
-			msg_style = "[bold yellow]"
-		elif data["status"] == CheckStatus.ERROR:
-			msg_style = "[bold red]"
-		console.print(Padding(f"{msg_style}- {data['message']}", (0, INDENT_SIZE * 2)))
-		console.print(Padding(f"{msg_style}- Client limit: {data['details']['client_number']}", (0, INDENT_SIZE * 2)))
+		print(f"{module}:", console, indent_level=1)
+		print(f"- {data['message']}", console, STYLES.get(data["status"]), 2)
+		print(f"- Client limit: {data['details']['client_number']}", console, STYLES.get(data["status"]), 2)
 
 
 def print_check_opsi_packages_result(check_result: dict, console: Console) -> None:
-	msg_style = "[bold green]"
-	if check_result.get("status") == CheckStatus.OK:
-		msg_style = "[bold green]"
-	msg = Padding(
-		(
-			f"{msg_style}Out of {len(OPSI_PACKAGES.keys())} packages on {len(check_result.get('partial_checks', {}).keys())} depots checked, "
-			f"{check_result['details'].get('not_installed')} are not installed and {check_result['details'].get('outdated')} are out of date."
-		),
-		(0, INDENT_SIZE),
+
+	msg = (
+		f"Out of {len(OPSI_PACKAGES.keys())} packages on {len(check_result.get('partial_checks', {}).keys())} depots checked, "
+		f"{check_result['details'].get('not_installed')} are not installed and {check_result['details'].get('outdated')} are out of date."
 	)
-	console.print(msg)
+	print(msg, console, STYLES.get(check_result["status"]), 1)
 	for depot, depot_results in check_result.get("partial_checks", {}).items():
-		console.print(Padding(f"{depot}:", (0, INDENT_SIZE)))
+		print(f"{depot}:", console, indent_level=1)
 		for res in depot_results.values():
-			msg_style = "[bold green]"
-			if res["status"] == CheckStatus.ERROR:
-				msg_style = "[bold red]"
-			elif res["status"] == CheckStatus.WARNING:
-				msg_style = "[bold yellow]"
-			console.print(Padding(f"{msg_style}{res['message']}", (0, INDENT_SIZE * 2)))
+			print(f"{res['message']}", console, STYLES.get(check_result["status"]), 2)
 
 
 def print_check_redis_result(check_result: dict, console: Console) -> None:
-
-	if check_result["status"] == CheckStatus.OK:
-		msg = Padding("[bold green]Redis is running and RedisTimeSeries is loaded.", (0, INDENT_SIZE))
-	else:
-		if check_result["details"]["connection"]:
-			msg = Padding("[bold red]RedisTimeSeries not loaded.", (0, INDENT_SIZE))
-		else:
-			msg = Padding("[bold red]Cannot connect to Redis!", (0, INDENT_SIZE))
-	console.print(msg)
+	print(check_result["message"], console, STYLES[check_result["status"]], 1)
 
 
 def print_check_mysql_result(check_result: dict, console: Console) -> None:
-	if check_result.get("status") == CheckStatus.OK:
-		console.print(Padding(f"[bold green]{check_result.get('message')}", (0, INDENT_SIZE)))
-	else:
-		console.print(Padding(f"Could not connect to MySQL: {check_result.get('message')}", (0, INDENT_SIZE)))
+	print(check_result["message"], console, STYLES[check_result["status"]], 1)
 
 
 def print_check_system_packages_result(check_result: dict, console: Console) -> None:
 	for package, data in check_result["partial_checks"].items():
-		msg: Padding | str = ""
+		msg: str = ""
 		details = data.get("details", {})
 		if details.get("version"):
 			if details.get("outdated"):
-				msg = Padding(
-					(
-						f"[bold  yellow]Package {package} is out of date. Installed version: {details['version']}"
-						"- available version: {details['available_version']}"
-					),
-					(0, INDENT_SIZE),
+				msg = (
+					f"Package {package} is out of date. Installed version: {details['version']}"
+					"- available version: {details['available_version']}"
 				)
 			else:
-				msg = Padding(f"[bold  green]Package {package} is up to date. Installed version: {details['version']}", (0, INDENT_SIZE))
+				msg = f"Package {package} is up to date. Installed version: {details['version']}"
 		else:
-			msg = Padding(f"[bold red]Package {package} should be installed.", (0, INDENT_SIZE))
-		console.print(msg)
+			msg = f"Package {package} should be installed."
+		print(msg, console, STYLES[data["status"]], 1)

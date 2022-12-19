@@ -200,10 +200,10 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 						content = file.read_text(encoding="utf-8")
 					else:
 						logger.warning("Config file '%s' not found, skipping in backup", file)
-					data["config_files"][name] = {
+					data["config_files"][name] = {  # pylint: disable=loop-invariant-statement
 						"path": str(file.absolute()),
 						"content": content,
-					}  # pylint: disable=loop-invariant-statement
+					}
 					if progress:
 						progress.advance(file_task)
 
@@ -373,16 +373,16 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 							obj[host_attr] = server_id
 					if check_config and obj["id"] == "clientconfig.depot.id":
 						obj["possibleValues"] = [
-							server_id if v == backup_server_id else v  # pylint: disable=loop-invariant-statement)
-							for v in obj["possibleValues"]  # pylint: disable=loop-invariant-statement)
+							server_id if v == backup_server_id else v  # pylint: disable=loop-invariant-statement
+							for v in obj["possibleValues"]  # pylint: disable=loop-invariant-statement
 						]
 						obj["defaultValues"] = [
-							server_id if v == backup_server_id else v
-							for v in obj["defaultValues"]  # pylint: disable=loop-invariant-statement)
+							server_id if v == backup_server_id else v  # pylint: disable=loop-invariant-statement
+							for v in obj["defaultValues"]
 						]
 					if check_config_state and obj["configId"] == "clientconfig.depot.id":
 						obj["values"] = [
-							server_id if v == backup_server_id else v for v in obj["values"]  # pylint: disable=loop-invariant-statement)
+							server_id if v == backup_server_id else v for v in obj["values"]  # pylint: disable=loop-invariant-statement
 						]
 
 					logger.trace("Insert %s object: %s", obj_class, obj)

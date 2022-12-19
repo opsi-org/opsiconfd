@@ -354,41 +354,41 @@ def split_name_and_version(filename: str) -> tuple:
 # check result print functions
 
 
-def print(msg: str, console: Console, style: Optional[str] = "", indent_level: int = 0) -> None:
+def console_print(msg: str, console: Console, style: Optional[str] = "", indent_level: int = 0) -> None:
 	indent_size = 5
 	console.print(Padding(f"{style}{msg}", (0, indent_size * indent_level)))  # pylint: disable=loop-global-usage
 
 
 def print_check_result(check_result: dict, console: Console) -> None:
-	print(check_result["message"], console, STYLES[check_result["status"]], 1)
+	console_print(check_result["message"], console, STYLES[check_result["status"]], 1)
 
 
 def print_check_deprecated_calls_result(check_result: dict, console: Console) -> None:
-	print(check_result["message"], console, STYLES[check_result["status"]], 1)
+	console_print(check_result["message"], console, STYLES[check_result["status"]], 1)
 	for method, data in check_result.get("details", {}).items():
-		print(f"Deprecated method '{method}' was called {data.get('calls')} times.", console, STYLES[check_result["status"]], 1)
-		print("The method was called from:", console, STYLES[check_result["status"]], 1)
+		console_print(f"Deprecated method '{method}' was called {data.get('calls')} times.", console, STYLES[check_result["status"]], 1)
+		console_print("The method was called from:", console, STYLES[check_result["status"]], 1)
 		for client in data.get("clients"):
-			print(f"- {client}", console, STYLES[check_result["status"]], 2)
-		print(f"Last call was {data.get('last_call')}", console, STYLES[check_result["status"]], 1)
+			console_print(f"- {client}", console, STYLES[check_result["status"]], 2)
+		console_print(f"Last call was {data.get('last_call')}", console, STYLES[check_result["status"]], 1)
 
 
 def print_check_opsi_licenses_results(check_result: dict, console: Console) -> None:
-	print(f"Active clients: {check_result['clients']}", console, indent_level=1)
+	console_print(f"Active clients: {check_result['clients']}", console, indent_level=1)
 	for module, data in check_result["partial_checks"].items():
-		print(f"{module}:", console, indent_level=1)
-		print(f"- {data['message']}", console, STYLES.get(data["status"]), 2)
-		print(f"- Client limit: {data['details']['client_number']}", console, STYLES.get(data["status"]), 2)
+		console_print(f"{module}:", console, indent_level=1)
+		console_print(f"- {data['message']}", console, STYLES.get(data["status"]), 2)
+		console_print(f"- Client limit: {data['details']['client_number']}", console, STYLES.get(data["status"]), 2)
 
 
 def print_check_opsi_packages_result(check_result: dict, console: Console) -> None:
-	print(check_result["message"], console, STYLES.get(check_result["status"]), 1)
+	console_print(check_result["message"], console, STYLES.get(check_result["status"]), 1)
 	for depot, depot_results in check_result.get("partial_checks", {}).items():
-		print(f"{depot}:", console, indent_level=1)
+		console_print(f"{depot}:", console, indent_level=1)
 		for res in depot_results.values():
-			print(f"{res['message']}", console, STYLES.get(check_result["status"]), 2)
+			console_print(f"{res['message']}", console, STYLES.get(check_result["status"]), 2)
 
 
 def print_check_system_packages_result(check_result: dict, console: Console) -> None:
 	for data in check_result["partial_checks"].values():
-		print(data.get("message"), console, STYLES[data["status"]], 1)
+		console_print(data.get("message"), console, STYLES[data["status"]], 1)

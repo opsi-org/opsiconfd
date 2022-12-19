@@ -27,9 +27,9 @@ from configupdater import ConfigUpdater
 from packaging.version import Version
 from requests.auth import AuthBase, HTTPBasicAuth
 
-from .config import config
-from .logging import logger, secret_filter
-from .utils import get_random_string
+from opsiconfd.config import config
+from opsiconfd.logging import logger, secret_filter
+from opsiconfd.utils import get_random_string
 
 API_KEY_NAME = "opsiconfd"
 GRAFANA_CLI = "/usr/sbin/grafana-cli"

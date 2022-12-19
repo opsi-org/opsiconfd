@@ -25,9 +25,9 @@ from redis.asyncio import StrictRedis
 from redis.exceptions import ResponseError
 from redis.typing import StreamIdT
 
-from ..config import config
-from ..logging import get_logger
-from ..utils import async_redis_client
+from opsiconfd.config import config
+from opsiconfd.logging import get_logger
+from opsiconfd.redis import async_redis_client
 
 logger = get_logger("opsiconfd.messagebus")
 

@@ -21,7 +21,8 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	Message,
 )
 
-from ..logging import logger
+from opsiconfd.logging import logger
+
 from . import file_uploads, get_messagebus_worker_id, terminals
 from .redis import send_message
 

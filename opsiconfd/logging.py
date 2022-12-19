@@ -51,8 +51,13 @@ from redis import BusyLoadingError as RedisBusyLoadingError
 from redis import ConnectionError as RedisConnectionError
 from rich.console import Console
 
+from opsiconfd.redis import (
+	get_async_redis_connection,
+	get_redis_connection,
+	retry_redis_call,
+)
+
 from .config import config, opsi_config
-from .utils import get_async_redis_connection, get_redis_connection, retry_redis_call
 
 # 1 log record ~= 550 bytes
 LOG_STREAM_MAX_RECORDS = 50000

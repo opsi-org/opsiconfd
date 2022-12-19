@@ -28,16 +28,15 @@ from uvicorn._subprocess import get_subprocess  # type: ignore[import]
 from uvicorn.config import Config  # type: ignore[import]
 from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 
+from opsiconfd import __version__
+from opsiconfd.addon import AddonManager
+from opsiconfd.application import AppState, MaintenanceState, app
+from opsiconfd.backend import get_protected_backend
+from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings
+from opsiconfd.logging import init_logging, logger, shutdown_logging
+from opsiconfd.metrics.collector import WorkerMetricsCollector
+from opsiconfd.redis import async_redis_client
 from opsiconfd.utils import ip_address_in_network
-
-from . import __version__
-from .addon import AddonManager
-from .application import AppState, MaintenanceState, app
-from .backend import get_protected_backend
-from .config import GC_THRESHOLDS, config, configure_warnings
-from .logging import init_logging, logger, shutdown_logging
-from .metrics.collector import WorkerMetricsCollector
-from .utils import async_redis_client
 
 if TYPE_CHECKING:
 	from uvicorn.protocols.http.h11_impl import H11Protocol

@@ -13,9 +13,9 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Generator, List
 
-from ..config import config
-from ..grafana import GrafanaPanelConfig
-from ..utils import Singleton
+from opsiconfd.config import config
+from opsiconfd.grafana import GrafanaPanelConfig
+from opsiconfd.utils import Singleton
 
 
 class Metric:  # pylint: disable=too-many-instance-attributes

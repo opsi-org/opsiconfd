@@ -17,13 +17,13 @@ from typing import TYPE_CHECKING, Any, Dict, Tuple
 import psutil
 from redis import ResponseError
 
-from ..config import config
-from ..logging import logger
-from ..utils import async_redis_client
-from .registry import Metric, MetricsRegistry
+from opsiconfd.config import config
+from opsiconfd.logging import logger
+from opsiconfd.metrics.registry import Metric, MetricsRegistry
+from opsiconfd.redis import async_redis_client
 
 if TYPE_CHECKING:
-	from ..worker import Worker
+	from opsiconfd.worker import Worker
 
 
 class MetricsCollector:  # pylint: disable=too-many-instance-attributes

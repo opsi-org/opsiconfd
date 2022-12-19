@@ -88,7 +88,7 @@ def test_check_redis(config: Config) -> None:  # pylint: disable=redefined-outer
 
 def test_check_redis_error() -> None:
 
-	with mock.patch("opsiconfd.utils.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
+	with mock.patch("opsiconfd.redis.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
 		result = captured_function_output(check_redis, {"print_messages": True})
 		assert (
 			result.get("captured_output")

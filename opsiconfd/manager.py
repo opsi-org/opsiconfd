@@ -18,15 +18,16 @@ from types import FrameType
 
 from starlette.concurrency import run_in_threadpool
 
-from .application import MaintenanceState, NormalState, ShutdownState, app
-from .config import config
-from .logging import init_logging, logger
-from .messagebus.redis import cleanup_channels
-from .metrics.collector import ManagerMetricsCollector
-from .server import Server
-from .ssl import setup_server_cert
-from .utils import Singleton, async_get_redis_info, async_redis_client, log_config
-from .zeroconf import register_opsi_services, unregister_opsi_services
+from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
+from opsiconfd.config import config
+from opsiconfd.logging import init_logging, logger
+from opsiconfd.messagebus.redis import cleanup_channels
+from opsiconfd.metrics.collector import ManagerMetricsCollector
+from opsiconfd.redis import async_get_redis_info, async_redis_client
+from opsiconfd.server import Server
+from opsiconfd.ssl import setup_server_cert
+from opsiconfd.utils import Singleton, log_config
+from opsiconfd.zeroconf import register_opsi_services, unregister_opsi_services
 
 
 class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attributes

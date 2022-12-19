@@ -17,12 +17,12 @@ from typing import List, Optional
 
 import psutil
 
-from . import __version__
-from .backend import get_unprotected_backend
-from .config import config
-from .logging import init_logging, logger
-from .utils import redis_client
-from .worker import Worker, WorkerInfo
+from opsiconfd import __version__
+from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.config import config
+from opsiconfd.logging import init_logging, logger
+from opsiconfd.redis import redis_client
+from opsiconfd.worker import Worker, WorkerInfo
 
 
 class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches

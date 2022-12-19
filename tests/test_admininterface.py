@@ -23,7 +23,7 @@ from starlette.requests import Request
 
 from opsiconfd.addon.manager import AddonManager
 from opsiconfd.config import FQDN
-from opsiconfd.utils import ip_address_to_redis_key
+from opsiconfd.redis import ip_address_to_redis_key
 
 from .test_addon_manager import cleanup  # pylint: disable=unused-import
 from .utils import (  # pylint: disable=unused-import

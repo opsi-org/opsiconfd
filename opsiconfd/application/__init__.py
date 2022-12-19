@@ -23,11 +23,11 @@ from opsicommon import __version__ as python_opsi_common_version  # type: ignore
 from starlette._utils import is_async_callable
 from starlette.concurrency import run_in_threadpool
 
-from .. import __version__
-from ..config import config
-from ..logging import logger
-from ..rest import RestApiValidationError
-from ..utils import async_redis_client, redis_client
+from opsiconfd import __version__
+from opsiconfd.config import config
+from opsiconfd.logging import logger
+from opsiconfd.redis import async_redis_client, redis_client
+from opsiconfd.rest import RestApiValidationError
 
 AppStateT = TypeVar('AppStateT', bound='AppState')
 

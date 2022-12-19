@@ -24,7 +24,7 @@ from opsiconfd.application.metrics import (
 )
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.utils import async_redis_client
+from opsiconfd.redis import async_redis_client
 from opsiconfd.worker import Worker
 
 from .utils import (  # pylint: disable=unused-import

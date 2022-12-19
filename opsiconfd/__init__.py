@@ -12,12 +12,11 @@ __version__ = "4.3.0.1"
 
 from contextlib import contextmanager
 from contextvars import Context, ContextVar
-from fractions import Fraction
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Dict, Generator, Optional
 
 if TYPE_CHECKING:
-	from .session import OPSISession
+	from opsiconfd.session import OPSISession
 
 contextvar_request_id: ContextVar[Optional[int]] = ContextVar("request_id", default=None)
 contextvar_client_session: ContextVar[Optional["OPSISession"]] = ContextVar("client_session", default=None)

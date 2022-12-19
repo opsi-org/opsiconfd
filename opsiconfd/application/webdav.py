@@ -24,14 +24,12 @@ from wsgidav.dav_provider import (  # type: ignore[import]
 from wsgidav.fs_dav_provider import FilesystemProvider, FolderResource
 from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
 
+from opsiconfd import __version__
 from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.config import FQDN, PUBLIC_FOLDER, config
+from opsiconfd.logging import logger
+from opsiconfd.wsgi import WSGIMiddleware
 
-from .. import __version__
-from ..config import FQDN, config
-from ..logging import logger
-from ..wsgi import WSGIMiddleware
-
-PUBLIC_FOLDER = "/var/lib/opsi/public"
 BLOCK_SIZE = 64 * 1024
 
 # Set file buffer size for reading and writing.

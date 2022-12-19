@@ -33,14 +33,14 @@ from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.backend import get_protected_backend
+from opsiconfd.config import RPC_DEBUG_DIR, config
+from opsiconfd.logging import logger
 from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
+from opsiconfd.messagebus.redis import ConsumerGroupMessageReader, send_message
+from opsiconfd.redis import async_redis_client, redis_client
 from opsiconfd.session import OPSISession
-
-from ..config import RPC_DEBUG_DIR, config
-from ..logging import logger
-from ..messagebus.redis import ConsumerGroupMessageReader, send_message
-from ..utils import async_redis_client, compress_data, decompress_data, redis_client
-from ..worker import Worker
+from opsiconfd.utils import compress_data, decompress_data
+from opsiconfd.worker import Worker
 
 COMPRESS_MIN_SIZE = 10000
 AWAIT_STORE_RPC_INFO = False

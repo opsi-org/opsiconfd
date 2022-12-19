@@ -37,6 +37,7 @@ from opsiconfd.config import (
 	opsi_config,
 )
 from opsiconfd.logging import logger
+from opsiconfd.redis import redis_lock
 from opsiconfd.utils import compress_data, decompress_data
 
 OBJECT_CLASSES = (
@@ -167,7 +168,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 		if maintenance
 		else nullcontext()
 	)
-	with ctm:
+	with (redis_lock("backup-restore", acquire_timeout=2.0, lock_timeout=12 * 3600), ctm):
 		logger.notice("Backing up objects")
 		if progress:
 			progress.console.print("Backing up database objects")
@@ -292,11 +293,14 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 	else:
 		server_id = forceHostId(server_id)
 
-	with maintenance_mode(
-		message="Maintenance mode, restore in progress, please try again later",
-		wait_accomplished=30,
-		address_exceptions=maintenance_address_exceptions or [],
-		progress=progress,
+	with (
+		redis_lock("backup-restore", acquire_timeout=2.0, lock_timeout=12 * 3600),
+		maintenance_mode(
+			message="Maintenance mode, restore in progress, please try again later",
+			wait_accomplished=30,
+			address_exceptions=maintenance_address_exceptions or [],
+			progress=progress,
+		),
 	):
 		logger.notice("Preparing database")
 		if progress:

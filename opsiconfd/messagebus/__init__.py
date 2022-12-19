@@ -14,8 +14,6 @@ from typing import TYPE_CHECKING, Dict
 
 from opsiconfd.worker import Worker
 
-from ..config import config
-
 if TYPE_CHECKING:
 	from .filetransfer import FileUpload
 	from .terminal import Terminal

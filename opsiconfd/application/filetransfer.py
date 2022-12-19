@@ -20,9 +20,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.background import BackgroundTask
 from werkzeug.http import parse_options_header
 
+from opsiconfd import contextvar_client_session
 from opsiconfd.config import FILE_TRANSFER_STORAGE_DIR
-
-from .. import contextvar_client_session
 
 filetransfer_router = APIRouter()
 

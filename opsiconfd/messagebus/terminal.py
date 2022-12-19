@@ -32,8 +32,9 @@ from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
 from psutil import AccessDenied, NoSuchProcess, Process  # type: ignore[import]
 
-from ..config import config
-from ..logging import logger
+from opsiconfd.config import config
+from opsiconfd.logging import logger
+
 from . import get_messagebus_worker_id, terminals
 from .filetransfer import process_message as process_file_message
 from .redis import ConsumerGroupMessageReader, MessageReader, send_message

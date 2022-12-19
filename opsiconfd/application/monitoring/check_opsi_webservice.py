@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from opsiconfd.application.jsonrpc import store_rpc_info
 from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.utils import async_redis_client, decode_redis_result
+from opsiconfd.redis import async_redis_client, decode_redis_result
 
 from .utils import (
 	State,

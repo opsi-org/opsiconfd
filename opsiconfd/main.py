@@ -27,16 +27,22 @@ from opsicommon.utils import monkeypatch_subprocess_for_frozen  # type: ignore[i
 from rich.console import Console
 from rich.progress import Progress
 
-from . import __version__
-from .application import MaintenanceState, NormalState, app
-from .backup import create_backup, restore_backup
-from .check import health_check
-from .config import GC_THRESHOLDS, config, configure_warnings, opsi_config
-from .logging import AsyncRedisLogAdapter, init_logging, logger, shutdown_logging
-from .manager import Manager
-from .patch import apply_patches
-from .setup import setup
-from .utils import get_manager_pid, log_config, redis_client
+from opsiconfd import __version__
+from opsiconfd.application import MaintenanceState, NormalState, app
+from opsiconfd.backup import create_backup, restore_backup
+from opsiconfd.check import health_check
+from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, opsi_config
+from opsiconfd.logging import (
+	AsyncRedisLogAdapter,
+	init_logging,
+	logger,
+	shutdown_logging,
+)
+from opsiconfd.manager import Manager
+from opsiconfd.patch import apply_patches
+from opsiconfd.redis import redis_client
+from opsiconfd.setup import setup
+from opsiconfd.utils import get_manager_pid, log_config
 
 REDIS_CONECTION_TIMEOUT = 30
 

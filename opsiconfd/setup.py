@@ -184,37 +184,42 @@ def setup_backend(full: bool) -> None:
 		return
 
 	mysql = MySQLConnection()
-	mysql.connect()
-	create_database(mysql)
-	update_database(mysql, force=full)
-	cleanup_database(mysql)
+	with mysql.connection():
+		create_database(mysql)
+		update_database(mysql, force=full)
+		cleanup_database(mysql)
 
-	if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
-		logger.notice("No configserver found in backend, creating")
-		network_config = getNetworkConfiguration()
-		config_server = OpsiConfigserver(
-			id=get_configserver_id(),
-			opsiHostKey=None,
-			depotLocalUrl="file:///var/lib/opsi/depot",
-			depotRemoteUrl=f"smb://{FQDN}/opsi_depot",
-			depotWebdavUrl=f"webdavs://{FQDN}:4447/depot",
-			repositoryLocalUrl="file:///var/lib/opsi/repository",
-			repositoryRemoteUrl=f"webdavs://{FQDN}:4447/repository",
-			workbenchLocalUrl="file:///var/lib/opsi/workbench",
-			workbenchRemoteUrl=f"smb://{FQDN}/opsi_workbench",
-			description=None,
-			notes=None,
-			hardwareAddress=network_config["hardwareAddress"],
-			ipAddress=network_config["ipAddress"],
-			inventoryNumber=None,
-			networkAddress=f"{network_config['subnet']}/{network_config['netmask']}",
-			maxBandwidth=0,
-			isMasterDepot=True,
-			masterDepotId=None,
+		if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
+			logger.notice("No configserver found in backend, creating")
+			network_config = getNetworkConfiguration()
+			config_server = OpsiConfigserver(
+				id=get_configserver_id(),
+				opsiHostKey=None,
+				depotLocalUrl="file:///var/lib/opsi/depot",
+				depotRemoteUrl=f"smb://{FQDN}/opsi_depot",
+				depotWebdavUrl=f"webdavs://{FQDN}:4447/depot",
+				repositoryLocalUrl="file:///var/lib/opsi/repository",
+				repositoryRemoteUrl=f"webdavs://{FQDN}:4447/repository",
+				workbenchLocalUrl="file:///var/lib/opsi/workbench",
+				workbenchRemoteUrl=f"smb://{FQDN}/opsi_workbench",
+				description=None,
+				notes=None,
+				hardwareAddress=network_config["hardwareAddress"],
+				ipAddress=network_config["ipAddress"],
+				inventoryNumber=None,
+				networkAddress=f"{network_config['subnet']}/{network_config['netmask']}",
+				maxBandwidth=0,
+				isMasterDepot=True,
+				masterDepotId=None,
+			)
+			mysql.insert_object(table="HOST", obj=config_server, ace=[], create=True, set_null=True)
+
+		opsi_config.set(
+			"host",
+			"key",
+			mysql.get_objects(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"})[0].opsiHostKey,
+			persistent=True,
 		)
-		mysql.insert_object(table="HOST", obj=config_server, ace=[], create=True, set_null=True)
-
-	mysql.disconnect()
 
 
 def cleanup_log_files() -> None:

@@ -413,4 +413,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 					else:
 						logger.info("Skipping config file %r (%s)", name, file)
 
-		opsi_config.set("host", "id", server_id, persistent=True)
+			server_key = backend.host_getObjects(returnType="opsiHostKey", type="OpsiConfigserver")[0].opsiHostKey
+			opsi_config.set("host", "id", server_id)
+			opsi_config.set("host", "key", server_key)
+			opsi_config.write_config_file()

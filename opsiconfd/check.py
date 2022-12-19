@@ -377,12 +377,7 @@ def print_check_opsi_licenses_results(check_result: dict, console: Console) -> N
 
 
 def print_check_opsi_packages_result(check_result: dict, console: Console) -> None:
-
-	msg = (
-		f"Out of {len(OPSI_PACKAGES.keys())} packages on {len(check_result.get('partial_checks', {}).keys())} depots checked, "
-		f"{check_result['details'].get('not_installed')} are not installed and {check_result['details'].get('outdated')} are out of date."
-	)
-	print(msg, console, STYLES.get(check_result["status"]), 1)
+	print(check_result["mesaage"], console, STYLES.get(check_result["status"]), 1)
 	for depot, depot_results in check_result.get("partial_checks", {}).items():
 		print(f"{depot}:", console, indent_level=1)
 		for res in depot_results.values():
@@ -398,17 +393,5 @@ def print_check_mysql_result(check_result: dict, console: Console) -> None:
 
 
 def print_check_system_packages_result(check_result: dict, console: Console) -> None:
-	for package, data in check_result["partial_checks"].items():
-		msg: str = ""
-		details = data.get("details", {})
-		if details.get("version"):
-			if details.get("outdated"):
-				msg = (
-					f"Package {package} is out of date. Installed version: {details['version']}"
-					"- available version: {details['available_version']}"
-				)
-			else:
-				msg = f"Package {package} is up to date. Installed version: {details['version']}"
-		else:
-			msg = f"Package {package} should be installed."
-		print(msg, console, STYLES[data["status"]], 1)
+	for data in check_result["partial_checks"].values():
+		print(data.get("message"), console, STYLES[data["status"]], 1)

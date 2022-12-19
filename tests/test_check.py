@@ -30,8 +30,7 @@ from opsiconfd.check import (
 	get_repo_versions,
 	health_check,
 	print_check_deprecated_calls_result,
-	print_check_mysql_result,
-	print_check_redis_result,
+	print_check_result,
 	print_check_system_packages_result,
 )
 
@@ -60,7 +59,7 @@ def test_check_redis() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False)
 	result = check_redis()
 	print(result)
-	captured_output = captured_function_output(print_check_redis_result, {"check_result": result, "console": console})
+	captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
 	print(captured_output)
 	assert "Redis is running and RedisTimeSeries is loaded." in captured_output
 
@@ -73,18 +72,18 @@ def test_check_redis_error() -> None:
 	with mock.patch("opsiconfd.utils.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
 		console = Console(log_time=False)
 		result = check_redis()
-		captured_output = captured_function_output(print_check_redis_result, {"check_result": result, "console": console})
+		captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
 
-		assert "Cannot connect to Redis!" in captured_output
+		assert "Cannot connect to Redis" in captured_output
 		assert result.get("status") is not None
 		assert result["status"] == "error"
-		assert result["message"] == "Redis test error"
+		assert result["message"] == "Cannot connect to Redis: Redis test error"
 
 
 def test_check_mysql() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False)
 	result = check_mysql()
-	captured_output = captured_function_output(print_check_mysql_result, {"check_result": result, "console": console})
+	captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
 
 	assert "Connection to MySQL is working." in captured_output
 	assert result.get("status") is not None
@@ -99,13 +98,13 @@ def test_check_mysql_error() -> None:  # pylint: disable=redefined-outer-name
 	):
 		console = Console(log_time=False)
 		result = check_mysql()
-		captured_output = captured_function_output(print_check_mysql_result, {"check_result": result, "console": console})
+		captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
 
 		assert "Could not connect to MySQL:" in captured_output
 		assert "(MySQLdb.OperationalError)" in captured_output
 		assert result.get("status") is not None
 		assert result["status"] == "error"
-		assert result["message"] == '(MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
+		assert result["message"] == 'Could not connect to MySQL: (MySQLdb.OperationalError) (2005, "Unknown MySQL server host bla (-3)")'
 
 
 def test_get_repo_versions() -> None:
@@ -159,7 +158,7 @@ def test_check_system_packages_debian() -> None:  # pylint: disable=redefined-ou
 			assert result.get("status") == CheckStatus.OK
 			assert partial_check.get(name, {}).get("status") is not None
 			assert partial_check.get(name, {}).get("status") == "ok"
-			assert partial_check[name]["message"] == f"Installed version: {version}"
+			assert partial_check[name]["message"] == f"Package {name} is up to date. Installed version: {version}"
 
 	# test outdated packages - status sould be warn and output sould be in yellow
 	packages = {"opsiconfd": "4.2.0.100-1", "opsi-utils": "4.2.0.100-1"}
@@ -225,7 +224,7 @@ def test_check_system_packages_open_suse() -> None:  # pylint: disable=redefined
 			assert result.get("status") == CheckStatus.OK
 			assert partial_check.get(name, {}).get("status") is not None
 			assert partial_check.get(name, {}).get("status") == CheckStatus.OK
-			assert partial_check[name]["message"] == f"Installed version: {version}"
+			assert partial_check[name]["message"] == f"Package {name} is up to date. Installed version: {version}"
 
 
 def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-outer-name
@@ -258,7 +257,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 			assert result.get("status") == CheckStatus.OK
 			assert partial_check.get(name, {}).get("status") is not None
 			assert partial_check.get(name, {}).get("status") == CheckStatus.OK
-			assert partial_check[name]["message"] == f"Installed version: {version}"
+			assert partial_check[name]["message"] == f"Package {name} is up to date. Installed version: {version}"
 
 
 def test_health_check() -> None:

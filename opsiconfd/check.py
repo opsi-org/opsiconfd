@@ -189,7 +189,7 @@ def check_system_packages() -> dict:  # pylint: disable=too-many-branches, too-m
 		else:
 			result["partial_checks"][package] = {  # pylint: disable=loop-invariant-statement
 				"status": CheckStatus.OK,
-				"message": f"Installed version: {info['version_found']}",
+				"message": f"Package {package} is up to date. Installed version: {info['version_found']}",
 				"details": {"version": info["version_found"]},
 			}
 	result["details"] = {"packages": len(package_versions.keys()), "not_installed": not_installed, "outdated": outdated}
@@ -215,7 +215,11 @@ def check_redis() -> dict:  # pylint: disable=unused-argument
 			return {"status": CheckStatus.OK, "message": "Redis is running and RedisTimeSeries is loaded."}
 	except RedisConnectionError as err:
 		logger.info(str(err))
-		return {"status": CheckStatus.ERROR, "message": str(err), "details": {"connection": False, "timeseries": False, "error": str(err)}}
+		return {
+			"status": CheckStatus.ERROR,
+			"message": "Cannot connect to Redis: " + str(err),
+			"details": {"connection": False, "timeseries": False, "error": str(err)},
+		}
 
 
 def check_mysql() -> dict:  # pylint: disable=unused-argument
@@ -226,7 +230,7 @@ def check_mysql() -> dict:  # pylint: disable=unused-argument
 	except (RuntimeError, MySQLdbOperationalError, OperationalError) as err:
 		logger.debug(err)
 		error = str(err)
-		return {"status": CheckStatus.ERROR, "message": error}
+		return {"status": CheckStatus.ERROR, "message": "Could not connect to MySQL: " + error}
 
 
 def check_deprecated_calls() -> dict:  # pylint: disable=unused-argument

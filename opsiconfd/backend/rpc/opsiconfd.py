@@ -257,6 +257,9 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		return None
 
 	def _check_module(self, module: str) -> None:
+		if app.app_state.type == "maintenance":
+			# Do not check in maintenance mode (backup / restore)
+			return
 		if module not in self.available_modules:
 			raise BackendModuleDisabledError(f"Module {module!r} not available")
 

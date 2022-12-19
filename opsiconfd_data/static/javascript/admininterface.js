@@ -117,6 +117,15 @@ function restoreBackup() {
 		return;
 	}
 
+	const serverIDSelect = document.querySelector('input[name="restore-backup-server-id-select"]:checked').value;
+	const serverID = document.getElementById("restore-backup-server-id").value;
+	if (serverIDSelect == "backup" || serverIDSelect == "local") {
+		serverID = serverIDSelect;
+	}
+	if (!serverID) {
+		showNotifcation(`Server ID not provided`, "error", 3);
+		return;
+	}
 	const button = document.getElementById("restore-backup-create-button");
 	button.classList.add("loading");
 
@@ -126,11 +135,10 @@ function restoreBackup() {
 	const req = ajaxRequest("POST", "/file-transfer/multipart", formData);
 	req.then((response) => {
 		console.debug(response);
-		const config_files = document.getElementById("restore-backup-config-files").checked;
-		const server_id = "backup";
+		const configFiles = document.getElementById("restore-backup-config-files").checked;
 		const batch = true;
 		const req = rpcRequest(
-			"service_restoreBackup", [response.file_id, config_files, server_id, batch]
+			"service_restoreBackup", [response.file_id, configFiles, serverID, batch]
 		);
 		req.then((response) => {
 			console.debug(response);

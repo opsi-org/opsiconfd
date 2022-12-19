@@ -205,6 +205,21 @@
 				<label for="restore-backup-config-files">With config files:</label>
 				<input type="checkbox" id="restore-backup-config-files" checked>
 				<br />
+
+				<label>Server-ID: </label>
+				<input type="radio" id="restore-backup-server-id-backup" name="restore-backup-server-id-select"
+					value="backup" onclick="document.getElementById('restore-backup-server-id').disabled = true;"
+					checked />
+				<label for="restore-backup-server-id-backup">From backup</label>
+				<input type="radio" id="restore-backup-server-id-local" name="restore-backup-server-id-select"
+					value="local" onclick="document.getElementById('restore-backup-server-id').disabled = true;" />
+				<label for="restore-backup-server-id-backup">Keep current</label>
+				<input type="radio" id="restore-backup-server-id-other" name="restore-backup-server-id-select"
+					value="other" onclick="document.getElementById('restore-backup-server-id').disabled = false;" />
+				<label for="restore-backup-server-id-backup">Other: </label>
+				<input type="text" id="restore-backup-server-id" placeholder="hostname.domain.tld" disabled="true"
+					style="width: 200px">
+				<br />
 				<input type="button" id="restore-backup-create-button" onclick="restoreBackup()" value="Restore backup">
 			</div>
 		</div>

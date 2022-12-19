@@ -48,7 +48,7 @@ DEPRECATED_METHOD = "getClientIds_list"
 def captured_function_output(func: Callable, args: Dict[str, Any]) -> str:
 	captured_output = io.StringIO()
 	sys.stdout = captured_output
-	result = func(**args)
+	func(**args)
 	sys.stdout = sys.__stdout__
 	return captured_output.getvalue()
 

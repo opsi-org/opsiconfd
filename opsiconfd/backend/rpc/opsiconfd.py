@@ -25,9 +25,8 @@ from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.application import app
-from opsiconfd.application.utils import get_depot_server_id
 from opsiconfd.backend.rpc import MethodInterface
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import config, get_depotserver_id, opsi_config
 from opsiconfd.logging import logger, secret_filter
 
 from ..auth import RPCACE, RPCACE_ALLOW_ALL, read_acl_file
@@ -123,7 +122,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self._app = app
 		self._acl: dict[str, list[RPCACE]] = {}
 		self._depot_connections: dict[str, ServiceClient] = {}
-		self._depot_id: str = get_depot_server_id()
+		self._depot_id: str = get_depotserver_id()
 		self._mysql = MySQLConnection()
 		self._service_client: ServiceClient | None = None
 		self._opsi_host_key: str | None = None

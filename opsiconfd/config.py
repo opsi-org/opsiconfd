@@ -52,24 +52,28 @@ CONFIG_FILE_HEADER = """
 # update-ip = true
 """
 DEPRECATED = ("monitoring-debug", "verify-ip", "dispatch-config-file", "jsonrpc-time-to-cache", "debug")
-
 CA_KEY_DEFAULT_PASSPHRASE = "Toohoerohpiep8yo"
 SERVER_KEY_DEFAULT_PASSPHRASE = "ye3heiwaiLu9pama"
+GC_THRESHOLDS = (150_000, 50, 100)
+LOG_SIZE_HARD_LIMIT = 10000000
+BOOT_DIR = "/tftpboot"
+DEPOT_DIR = "/var/lib/opsi/depot"
+FILE_TRANSFER_STORAGE_DIR = "/tmp/opsiconfd-file-transfer"
+LOG_DIR = "/var/log/opsi"
+NTFS_IMAGES_DIR = "/var/lib/opsi/ntfs-images"
+OPSI_LICENSE_DIR = "/etc/opsi/licenses"
+OPSI_MODULES_FILE = "/etc/opsi/modules"
+OPSI_PASSWD_FILE = "/etc/opsi/passwd"
+PUBLIC_DIR = "/var/lib/opsi/public"
+REPOSITORY_DIR = "/var/lib/opsi/repository"
+RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
+SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
+SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
+VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
+WORKBENCH_DIR = "/var/lib/opsi/workbench"
 
 FQDN = socket.getfqdn().lower()
 DEFAULT_NODE_NAME = socket.gethostname()
-VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
-RPC_DEBUG_DIR = "/tmp/opsiconfd-rpc-debug"
-GC_THRESHOLDS = (150_000, 50, 100)
-OPSI_PASSWD_FILE = "/etc/opsi/passwd"
-LOG_DIR = "/var/log/opsi"
-LOG_SIZE_HARD_LIMIT = 10000000
-OPSI_LICENSE_PATH = "/etc/opsi/licenses"
-OPSI_MODULES_PATH = "/etc/opsi/modules"
-SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
-SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
-FILE_TRANSFER_STORAGE_DIR = "/tmp/opsiconfd-file-transfer"
-PUBLIC_FOLDER = "/var/lib/opsi/public"
 
 opsi_config = OpsiConfig()
 
@@ -88,6 +92,20 @@ if running_in_docker():
 		DEFAULT_NODE_NAME = str(resolver.resolve(str(rev), "PTR")[0]).split(".", 1)[0].replace("docker_", "")
 	except DNSException:
 		pass
+
+
+def get_configserver_id() -> str:
+	server_role = opsi_config.get("host", "server-role")
+	if server_role != "configserver":
+		raise ValueError(f"Not a configserver (server-role {server_role!r} configured in {opsi_config.config_file!r})")
+	return opsi_config.get("host", "id")
+
+
+def get_depotserver_id() -> str:
+	server_role = opsi_config.get("host", "server-role")
+	if server_role not in ("depotserver", "configserver"):
+		raise ValueError(f"Not a depotsever (no server-role configured in {opsi_config.config_file!r})")
+	return opsi_config.get("host", "id")
 
 
 def network_address(value: str) -> str:
@@ -567,7 +585,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 		self._parser.add(
 			"--log-file",
 			env_var="OPSICONFD_LOG_FILE",
-			default="/var/log/opsi/opsiconfd/%m.log",
+			default=f"{LOG_DIR}/opsiconfd/%m.log",
 			help=self._help(
 				"opsiconfd",
 				"The macro %%m can be used to create use a separate log file for each client. %%m will be replaced by <client-ip>",

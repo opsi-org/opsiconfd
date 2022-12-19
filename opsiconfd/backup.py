@@ -28,8 +28,8 @@ from opsiconfd.backend.mysql.schema import (
 )
 from opsiconfd.config import (
 	FQDN,
-	OPSI_LICENSE_PATH,
-	OPSI_MODULES_PATH,
+	OPSI_LICENSE_DIR,
+	OPSI_MODULES_FILE,
 	OPSI_PASSWD_FILE,
 	SSH_COMMANDS_CUSTOM_FILE,
 	SSH_COMMANDS_DEFAULT_FILE,
@@ -114,11 +114,11 @@ def get_config_files() -> dict[str, Path]:
 	for extension_config_file in extension_config_dir.glob("*.conf"):  # pylint: disable=use-dict-comprehension
 		config_files[f"extension_conf_{extension_config_file.with_suffix('').name}"] = extension_config_file
 
-	modules_file = Path(OPSI_MODULES_PATH)
+	modules_file = Path(OPSI_MODULES_FILE)
 	if modules_file.exists():
 		config_files["modules"] = modules_file
 
-	license_dir = Path(OPSI_LICENSE_PATH)
+	license_dir = Path(OPSI_LICENSE_DIR)
 	for license_file in license_dir.glob("*.opsilic"):  # pylint: disable=use-dict-comprehension
 		config_files[f"opsilic_{license_file.with_suffix('').name}"] = license_file
 

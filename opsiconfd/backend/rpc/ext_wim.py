@@ -17,7 +17,7 @@ from OPSI.Util.WIM import parseWIM, writeImageInformation  # type: ignore[import
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
 from opsicommon.types import forceProductId  # type: ignore[import]
 
-from opsiconfd.application.utils import get_depot_server_id
+from opsiconfd.config import get_depotserver_id
 from opsiconfd.logging import logger
 
 from . import rpc_method
@@ -39,7 +39,7 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 		if not self.product_getObjects(id=product_id):
 			raise BackendMissingDataError(f"No product with ID {product_id!r}")
 
-		depot_id = get_depot_server_id()
+		depot_id = get_depotserver_id()
 		if not self.productOnDepot_getObjects(depotId=depot_id, productId=product_id):
 			raise BackendMissingDataError(f"No product {product_id!r} on {depot_id!r}")
 

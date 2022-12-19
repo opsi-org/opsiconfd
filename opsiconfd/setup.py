@@ -39,11 +39,23 @@ from opsicommon.server.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
 )
 
-from opsiconfd.application.utils import get_configserver_id
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import cleanup_database
 from opsiconfd.backend.mysql.schema import create_database, update_database
-from opsiconfd.config import FQDN, OPSI_LICENSE_PATH, VAR_ADDON_DIR, config, opsi_config
+from opsiconfd.config import (
+	DEPOT_DIR,
+	FQDN,
+	LOG_DIR,
+	NTFS_IMAGES_DIR,
+	OPSI_LICENSE_DIR,
+	PUBLIC_DIR,
+	REPOSITORY_DIR,
+	VAR_ADDON_DIR,
+	WORKBENCH_DIR,
+	config,
+	get_configserver_id,
+	opsi_config,
+)
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
@@ -114,18 +126,18 @@ def setup_users_and_groups() -> None:
 
 def _get_default_dirs() -> list[str]:
 	return [
-		"/var/log/opsi/bootimage",
-		"/var/log/opsi/clientconnect",
-		"/var/log/opsi/instlog",
+		f"/{LOG_DIR}/bootimage",
+		f"/{LOG_DIR}/clientconnect",
+		f"/{LOG_DIR}/instlog",
+		f"/{LOG_DIR}/userlogin",
 		os.path.dirname(config.log_file),
-		"/var/log/opsi/userlogin",
-		"/var/lib/opsi/depot",
-		"/var/lib/opsi/ntfs-images",
-		"/var/lib/opsi/repository",
-		"/var/lib/opsi/public",
-		"/var/lib/opsi/workbench",
+		DEPOT_DIR,
+		NTFS_IMAGES_DIR,
+		REPOSITORY_DIR,
+		PUBLIC_DIR,
+		WORKBENCH_DIR,
 		VAR_ADDON_DIR,
-		OPSI_LICENSE_PATH,
+		OPSI_LICENSE_DIR,
 	]
 
 

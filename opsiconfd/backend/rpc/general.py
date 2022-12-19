@@ -63,8 +63,8 @@ from opsiconfd.config import (
 	FQDN,
 	LOG_DIR,
 	LOG_SIZE_HARD_LIMIT,
-	OPSI_LICENSE_PATH,
-	OPSI_MODULES_PATH,
+	OPSI_LICENSE_DIR,
+	OPSI_MODULES_FILE,
 	OPSI_PASSWD_FILE,
 	config,
 	opsi_config,
@@ -89,8 +89,8 @@ PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
 
 
 class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
-	opsi_modules_file: str = OPSI_MODULES_PATH
-	opsi_license_path: str = OPSI_LICENSE_PATH
+	opsi_modules_file: str = OPSI_MODULES_FILE
+	opsi_license_path: str = OPSI_LICENSE_DIR
 
 	@rpc_method
 	def backend_createBase(self) -> None:  # pylint: disable=invalid-name

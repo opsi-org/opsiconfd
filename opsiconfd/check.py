@@ -64,8 +64,8 @@ def console_health_check() -> int:
 	checks = {
 		"system packages": {"check_method": check_system_packages, "print_method": print_check_system_packages_result},
 		"opsi packages": {"check_method": check_opsi_packages, "print_method": print_check_opsi_packages_result},
-		"Redis": {"check_method": check_redis, "print_method": print_check_redis_result},
-		"MySQL": {"check_method": check_mysql, "print_method": print_check_mysql_result},
+		"Redis": {"check_method": check_redis, "print_method": print_check_result},
+		"MySQL": {"check_method": check_mysql, "print_method": print_check_result},
 		"opsi licenses": {"check_method": check_opsi_licenses, "print_method": print_check_opsi_licenses_results},
 		"deprecated calls": {
 			"check_method": check_deprecated_calls,
@@ -356,6 +356,10 @@ def print(msg: str, console: Console, style: Optional[str] = "", indent_level: i
 	console.print(Padding(f"{style}{msg}", (0, indent_size * indent_level)))  # pylint: disable=loop-global-usage
 
 
+def print_check_result(check_result: dict, console: Console) -> None:
+	print(check_result["message"], console, STYLES[check_result["status"]], 1)
+
+
 def print_check_deprecated_calls_result(check_result: dict, console: Console) -> None:
 	print(check_result["message"], console, STYLES[check_result["status"]], 1)
 	for method, data in check_result.get("details", {}).items():
@@ -375,19 +379,11 @@ def print_check_opsi_licenses_results(check_result: dict, console: Console) -> N
 
 
 def print_check_opsi_packages_result(check_result: dict, console: Console) -> None:
-	print(check_result["mesaage"], console, STYLES.get(check_result["status"]), 1)
+	print(check_result["message"], console, STYLES.get(check_result["status"]), 1)
 	for depot, depot_results in check_result.get("partial_checks", {}).items():
 		print(f"{depot}:", console, indent_level=1)
 		for res in depot_results.values():
 			print(f"{res['message']}", console, STYLES.get(check_result["status"]), 2)
-
-
-def print_check_redis_result(check_result: dict, console: Console) -> None:
-	print(check_result["message"], console, STYLES[check_result["status"]], 1)
-
-
-def print_check_mysql_result(check_result: dict, console: Console) -> None:
-	print(check_result["message"], console, STYLES[check_result["status"]], 1)
 
 
 def print_check_system_packages_result(check_result: dict, console: Console) -> None:

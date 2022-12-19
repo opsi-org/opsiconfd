@@ -78,12 +78,12 @@ def console_health_check() -> int:
 		for name, check in checks.items():
 			result = check["check_method"]()  # type: ignore
 			if result.get("status") == CheckStatus.OK:
-				console.print(f"[bold green] {name}: {CheckStatus.OK.upper()} ")
+				console.print(f"{STYLES[result['status']]} {name}: {CheckStatus.OK.upper()} ")
 			elif result.get("status") == CheckStatus.WARNING:
-				console.print(f"[bold yellow] {name}: {CheckStatus.WARNING.upper()} ")
+				console.print(f"{STYLES[result['status']]} {name}: {CheckStatus.WARNING.upper()} ")
 				res = 2
 			else:
-				console.print(f"[bold red] {name}: {CheckStatus.ERROR.upper()} ")
+				console.print(f"{STYLES[result['status']]} {name}: {CheckStatus.ERROR.upper()} ")
 				res = 1
 			if config.detailed:
 				check["print_method"](result, console)  # type: ignore
@@ -363,13 +363,11 @@ def print_check_deprecated_calls_result(check_result: dict, console: Console) ->
 		print("The method was called from:", console, STYLES[check_result["status"]], 1)
 		for client in data.get("clients"):
 			print(f"- {client}", console, STYLES[check_result["status"]], 2)
-
 		print(f"Last call was {data.get('last_call')}", console, STYLES[check_result["status"]], 1)
 
 
 def print_check_opsi_licenses_results(check_result: dict, console: Console) -> None:
 	print(f"Active clients: {check_result['clients']}", console, indent_level=1)
-
 	for module, data in check_result["partial_checks"].items():
 		print(f"{module}:", console, indent_level=1)
 		print(f"- {data['message']}", console, STYLES.get(data["status"]), 2)

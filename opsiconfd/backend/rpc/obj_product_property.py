@@ -33,31 +33,32 @@ class RPCProductPropertyMixin(Protocol):
 	) -> None:
 		query, data = self._mysql.insert_query(table="PRODUCT_PROPERTY", obj=product_property, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
-			session.execute(
-				"""
-				DELETE FROM `PRODUCT_PROPERTY_VALUE`
-				WHERE productId = :productId AND productVersion = :productVersion AND packageVersion = :packageVersion AND propertyId = :propertyId
-				""",
-				params=data
-			)
-			if session.execute(query, params=data).rowcount > 0:
-				for value in data["possibleValues"] or []:
-					session.execute(
-						"""
-						INSERT INTO `PRODUCT_PROPERTY_VALUE`
-							(productId, productVersion, packageVersion, propertyId, value, isDefault)
-						VALUES
-							(:productId, :productVersion, :packageVersion, :propertyId, :value, :isDefault)
-						""",
-						params={
-							"productId": data["productId"],  # pylint: disable=loop-invariant-statement
-							"productVersion": data["productVersion"],  # pylint: disable=loop-invariant-statement
-							"packageVersion": data["packageVersion"],  # pylint: disable=loop-invariant-statement
-							"propertyId": data["propertyId"],  # pylint: disable=loop-invariant-statement
-							"value": value,
-							"isDefault": value in (data["defaultValues"] or [])  # pylint: disable=loop-invariant-statement
-						}
-					)
+			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
+				session.execute(
+					"""
+					DELETE FROM `PRODUCT_PROPERTY_VALUE`
+					WHERE productId = :productId AND productVersion = :productVersion AND packageVersion = :packageVersion AND propertyId = :propertyId
+					""",
+					params=data
+				)
+				if session.execute(query, params=data).rowcount > 0:
+					for value in data["possibleValues"] or []:
+						session.execute(
+							"""
+							INSERT INTO `PRODUCT_PROPERTY_VALUE`
+								(productId, productVersion, packageVersion, propertyId, value, isDefault)
+							VALUES
+								(:productId, :productVersion, :packageVersion, :propertyId, :value, :isDefault)
+							""",
+							params={
+								"productId": data["productId"],  # pylint: disable=loop-invariant-statement
+								"productVersion": data["productVersion"],  # pylint: disable=loop-invariant-statement
+								"packageVersion": data["packageVersion"],  # pylint: disable=loop-invariant-statement
+								"propertyId": data["propertyId"],  # pylint: disable=loop-invariant-statement
+								"value": value,
+								"isDefault": value in (data["defaultValues"] or [])  # pylint: disable=loop-invariant-statement
+							}
+						)
 
 	@rpc_method(check_acl=False)
 	def productProperty_insertObject(self: BackendProtocol, productProperty: dict | ProductProperty) -> None:  # pylint: disable=invalid-name

@@ -19,16 +19,16 @@ from redis import ResponseError as RedisResponseError
 from starlette.datastructures import MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
-from .. import (
+from opsiconfd import (
 	contextvar_client_address,
 	contextvar_request_id,
 	contextvar_server_timing,
 )
-from ..config import config
-from ..logging import logger
-from ..utils import ip_address_to_redis_key, redis_client
-from ..worker import Worker
-from .registry import MetricsRegistry
+from opsiconfd.config import config
+from opsiconfd.logging import logger
+from opsiconfd.metrics.registry import MetricsRegistry
+from opsiconfd.redis import ip_address_to_redis_key, redis_client
+from opsiconfd.worker import Worker
 
 
 def get_yappi_tag() -> int:

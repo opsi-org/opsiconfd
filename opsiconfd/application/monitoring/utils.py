@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from redis.asyncio import StrictRedis
 
 from opsiconfd.config import config
-from opsiconfd.utils import decode_redis_result
+from opsiconfd.redis import decode_redis_result
 
 ERRORCODE_PATTERN = re.compile(
 	r"\[Errno\s(\d*)\]\sCommand\s(\'.*\')\sfailed\s\(\d*\)\:\s(.*)"

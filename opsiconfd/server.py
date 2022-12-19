@@ -11,18 +11,18 @@ opsiconfd.server
 import os
 import signal
 import socket
-import threading
 import time
+from threading import Event, Lock
 from typing import List, Optional
 
 import psutil
 
-from . import __version__
-from .backend import get_unprotected_backend
-from .config import config
-from .logging import init_logging, logger
-from .utils import redis_client
-from .worker import Worker, WorkerInfo
+from opsiconfd import __version__
+from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.config import config
+from opsiconfd.logging import init_logging, logger
+from opsiconfd.redis import redis_client
+from opsiconfd.worker import Worker, WorkerInfo
 
 
 class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
@@ -35,14 +35,25 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		self.worker_restart_mem = config.restart_worker_mem * 1000000
 		self.worker_restart_mem_interval = 3600
 		self.restart_vanished_workers = True
-		self.worker_update_lock = threading.Lock()
+		self.worker_update_lock = Lock()
 		self.should_restart_workers = False
-		self.should_stop = False
+		self.should_stop = Event()
 		self.pid = os.getpid()
 		self.startup = True
 
-	def restart_workers(self) -> None:
+	def restart_workers(self, wait: bool = False) -> None:
+		pids = [w.pid for w in self.workers.values()]
 		self.should_restart_workers = True
+		if wait:
+			while True:
+				restarted = True
+				for worker in self.workers.values():
+					if worker.pid in pids:
+						restarted = False
+						break
+				if restarted:
+					break
+				time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
 
 	def check_modules(self) -> None:  # pylint: disable=too-many-statements,too-many-branches
 		if config.workers == 1:
@@ -75,12 +86,8 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		self.check_modules()
 		self.bind_socket()
 		self.adjust_worker_count()
-		while not self.should_stop:
-			for _num in range(10):
-				if self.should_stop:
-					break
-				time.sleep(1)  # pylint: disable=dotted-import-in-loop
-
+		while not self.should_stop.is_set():
+			self.should_stop.wait(10.0)
 			auto_restart = []
 			with self.worker_update_lock:
 				for worker in self.get_workers():
@@ -125,13 +132,10 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 							auto_restart.append(worker)
 
 			for worker in auto_restart:
-				if self.should_stop:
+				if self.should_stop.is_set():
 					break
 				self.restart_worker(worker)
-				for _ in range(5):
-					if self.should_stop:
-						break
-					time.sleep(1)  # pylint: disable=dotted-import-in-loop
+				self.should_stop.wait(5.0)
 
 			self.update_worker_state()
 
@@ -139,7 +143,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 			self.should_restart_workers = False
 
 		while self.workers:
-			time.sleep(1)  # pylint: disable=dotted-import-in-loop
+			time.sleep(0.1)  # pylint: disable=dotted-import-in-loop
 
 	def reload(self) -> None:
 		self.check_modules()
@@ -149,10 +153,10 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		self.adjust_worker_count()
 
 	def stop(self, force: bool = False) -> None:
-		self.should_stop = True
+		self.should_stop.set()
 		logger.notice("Stopping all workers (force=%s)", force)
 		self.stop_worker(self.get_workers(), force=force)
-		logger.info("All workers stopped")
+		logger.notice("All workers stopped")
 
 	def get_worker(self, pid: int) -> Optional[Worker]:
 		for worker in self.get_workers():
@@ -193,6 +197,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 				diff = time.time() - start_time  # pylint: disable=dotted-import-in-loop
 				for worker in workers:
 					if not worker.process or not worker.process.is_alive():
+						worker.pid = 0
 						continue
 					any_alive = True
 					if diff < self.worker_stop_timeout:  # pylint: disable=loop-invariant-statement
@@ -206,7 +211,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 						worker.process.terminate()
 				if not any_alive:
 					break
-				time.sleep(1)  # pylint: disable=dotted-import-in-loop
+				time.sleep(0.2)  # pylint: disable=dotted-import-in-loop
 
 		if remove_worker:
 			for worker in workers:
@@ -216,7 +221,7 @@ class Server:  # pylint: disable=too-many-instance-attributes,too-many-branches
 		with self.worker_update_lock:
 			logger.notice("Restarting %s", worker)
 			if worker.process and worker.process.is_alive():
-				self.stop_worker(worker, remove_worker=False)
+				self.stop_worker(worker, wait=True, remove_worker=False)
 			self.start_worker(worker)
 
 	def adjust_worker_count(self) -> None:

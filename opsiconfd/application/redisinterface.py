@@ -11,10 +11,14 @@ redisinterface
 from fastapi import APIRouter, FastAPI, Request, status
 from starlette.concurrency import run_in_threadpool
 
-from ..backend.rpc.cache import rpc_cache_clear, rpc_cache_info
-from ..logging import logger
-from ..rest import RESTErrorResponse, RESTResponse, rest_api
-from ..utils import async_get_redis_info, async_redis_client, decode_redis_result
+from opsiconfd.backend.rpc.cache import rpc_cache_clear, rpc_cache_info
+from opsiconfd.logging import logger
+from opsiconfd.redis import (
+	async_get_redis_info,
+	async_redis_client,
+	decode_redis_result,
+)
+from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
 
 redis_interface_router = APIRouter()
 

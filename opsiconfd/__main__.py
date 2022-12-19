@@ -8,7 +8,7 @@
 opsiconfd.__main__
 """
 
-from .main import main
+from opsiconfd.main import main
 
 if __name__ == "__main__":
 	main()

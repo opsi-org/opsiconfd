@@ -39,16 +39,16 @@ from opsicommon.server.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
 )
 
-from .application.utils import get_configserver_id
-from .backend.mysql import MySQLConnection
-from .backend.mysql.cleanup import cleanup_database
-from .backend.mysql.schema import create_database, update_database
-from .config import FQDN, OPSI_LICENSE_PATH, VAR_ADDON_DIR, config, opsi_config
-from .grafana import setup_grafana
-from .logging import logger
-from .metrics.statistics import setup_metric_downsampling
-from .ssl import setup_ssl, setup_ssl_file_permissions
-from .utils import redis_client
+from opsiconfd.application.utils import get_configserver_id
+from opsiconfd.backend.mysql import MySQLConnection
+from opsiconfd.backend.mysql.cleanup import cleanup_database
+from opsiconfd.backend.mysql.schema import create_database, update_database
+from opsiconfd.config import FQDN, OPSI_LICENSE_PATH, VAR_ADDON_DIR, config, opsi_config
+from opsiconfd.grafana import setup_grafana
+from opsiconfd.logging import logger
+from opsiconfd.metrics.statistics import setup_metric_downsampling
+from opsiconfd.redis import redis_client
+from opsiconfd.ssl import setup_ssl, setup_ssl_file_permissions
 
 
 def setup_limits() -> None:
@@ -265,7 +265,7 @@ def setup_redis() -> None:
 		with redis.pipeline() as pipeline:
 			# Delete obsolete keys
 			for delete_key in ("status",):
-				for key in redis.scan_iter(f"{config.redis_prefix}:{delete_key}:*"):
+				for key in redis.scan_iter(f"{config.redis_prefix}:{delete_key}:*"):  # pylint: disable=loop-invariant-statement
 					logger.info("Unlink %r", key)
 					pipeline.unlink(key)
 			if len(pipeline) > 0:

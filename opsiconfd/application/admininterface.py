@@ -29,29 +29,27 @@ from opsicommon.license import OpsiLicenseFile  # type: ignore[import]
 from opsicommon.system.info import linux_distro_id_like_contains  # type: ignore[import]
 from starlette.concurrency import run_in_threadpool
 
+from opsiconfd import __version__, contextvar_client_session
+from opsiconfd.addon import AddonManager
+from opsiconfd.application import AppState
+from opsiconfd.application.memoryprofiler import memory_profiler_router
+from opsiconfd.application.metrics import create_grafana_datasource
 from opsiconfd.backend import get_protected_backend, get_unprotected_backend
-
-from .. import __version__, contextvar_client_session
-from ..addon import AddonManager
-from ..config import FQDN, VAR_ADDON_DIR, config
-from ..grafana import (
+from opsiconfd.config import FQDN, VAR_ADDON_DIR, config
+from opsiconfd.grafana import (
 	GRAFANA_DASHBOARD_UID,
 	async_grafana_session,
 	create_dashboard_user,
 )
-from ..logging import logger
-from ..rest import RESTErrorResponse, RESTResponse, rest_api
-from ..ssl import get_ca_cert_info, get_server_cert_info
-from ..utils import (
+from opsiconfd.logging import logger
+from opsiconfd.redis import (
 	async_redis_client,
-	get_manager_pid,
 	ip_address_from_redis_key,
 	ip_address_to_redis_key,
-	utc_time_timestamp,
 )
-from . import AppState
-from .memoryprofiler import memory_profiler_router
-from .metrics import create_grafana_datasource
+from opsiconfd.rest import RESTErrorResponse, RESTResponse, rest_api
+from opsiconfd.ssl import get_ca_cert_info, get_server_cert_info
+from opsiconfd.utils import get_manager_pid, utc_time_timestamp
 
 admin_interface_router = APIRouter()
 welcome_interface_router = APIRouter()
@@ -331,7 +329,7 @@ async def get_session_list() -> RESTResponse:
 				"authenticated": session["authenticated"],
 				"username": session["username"],
 				"address": ip_address_from_redis_key(tmp[-2]),
-				"session_id": tmp[-1][:6] + "...",
+				"session_id": tmp[-1][:6] + "opsiconfd..",
 			}
 		)
 	session_list = sorted(session_list, key=itemgetter("address", "validity"))

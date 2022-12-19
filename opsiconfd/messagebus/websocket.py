@@ -36,10 +36,10 @@ from starlette.status import (
 from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketState
 
+from opsiconfd.logging import get_logger
+from opsiconfd.utils import compress_data, decompress_data
 from opsiconfd.worker import Worker
 
-from ..logging import get_logger
-from ..utils import compress_data, decompress_data
 from . import (
 	get_messagebus_user_id_for_host,
 	get_messagebus_user_id_for_service_worker,

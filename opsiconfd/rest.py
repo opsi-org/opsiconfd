@@ -24,9 +24,9 @@ from sqlalchemy import asc, column, desc  # type: ignore[import]
 from sqlalchemy.orm import Query as SQLQuery  # type: ignore[import]
 from starlette.datastructures import URL
 
-from . import contextvar_client_session
-from .application.utils import parse_list
-from .logging import logger
+from opsiconfd import contextvar_client_session
+from opsiconfd.application.utils import parse_list
+from opsiconfd.logging import logger
 
 
 class RestApiValidationError(BaseModel):  # pylint: disable=too-few-public-methods

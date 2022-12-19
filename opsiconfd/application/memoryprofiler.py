@@ -26,9 +26,9 @@ from pympler.classtracker import Snapshot  # type: ignore[import]
 from pympler.classtracker_stats import ConsoleStats  # type: ignore[import]
 from starlette.responses import Response
 
-from ..config import config
-from ..logging import logger
-from ..utils import async_redis_client
+from opsiconfd.config import config
+from opsiconfd.logging import logger
+from opsiconfd.redis import async_redis_client
 
 memory_profiler_router = APIRouter()
 

@@ -18,16 +18,16 @@ from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
 from redis import ResponseError as RedisResponseError
 
-from ..config import config
-from ..grafana import (
+from opsiconfd.config import config
+from opsiconfd.grafana import (
 	GRAFANA_DASHBOARD_TEMPLATE,
 	GRAFANA_DATASOURCE_TEMPLATE,
 	async_grafana_admin_session,
 )
-from ..logging import logger
-from ..metrics.registry import MetricsRegistry
-from ..metrics.statistics import get_time_bucket_duration
-from ..utils import async_redis_client, ip_address_from_redis_key
+from opsiconfd.logging import logger
+from opsiconfd.metrics.registry import MetricsRegistry
+from opsiconfd.metrics.statistics import get_time_bucket_duration
+from opsiconfd.redis import async_redis_client, ip_address_from_redis_key
 
 # / should return 200 ok. Used for "Test connection" on the datasource config page.
 # /search used by the find metric options on the query tab in panels.

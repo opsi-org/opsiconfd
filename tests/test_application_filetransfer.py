@@ -14,7 +14,7 @@ from time import time
 import msgpack  # type: ignore[import]
 from werkzeug.http import parse_options_header
 
-from opsiconfd.application.filetransfer import STORAGE_DIR
+from opsiconfd.application.filetransfer import FILE_TRANSFER_STORAGE_DIR
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -31,7 +31,7 @@ def test_raw_file_upload_download_delete(test_client: OpsiconfdTestClient) -> No
 	assert resp.status_code == 201
 	file_id = resp.json()["file_id"]
 	assert file_id
-	file_path = Path(STORAGE_DIR) / file_id
+	file_path = Path(FILE_TRANSFER_STORAGE_DIR) / file_id
 	meta_path = file_path.with_suffix(".meta")
 	assert file_path.read_bytes() == data
 	meta = msgpack.loads(meta_path.read_bytes())
@@ -56,7 +56,7 @@ def test_raw_file_upload_download_with_delete(test_client: OpsiconfdTestClient) 
 	assert resp.status_code == 201
 	file_id = resp.json()["file_id"]
 	assert file_id
-	file_path = Path(STORAGE_DIR) / file_id
+	file_path = Path(FILE_TRANSFER_STORAGE_DIR) / file_id
 	meta_path = file_path.with_suffix(".meta")
 	assert file_path.read_bytes() == data
 	meta = msgpack.loads(meta_path.read_bytes())
@@ -87,7 +87,7 @@ def test_multipart_file_upload_download_delete(test_client: OpsiconfdTestClient)
 	assert res.status_code == 201
 	file_id = res.json()["file_id"]
 	assert file_id
-	file_path = Path(STORAGE_DIR) / file_id
+	file_path = Path(FILE_TRANSFER_STORAGE_DIR) / file_id
 	meta_path = file_path.with_suffix(".meta")
 	assert file_path.read_bytes() == data
 	meta = msgpack.loads(meta_path.read_bytes())

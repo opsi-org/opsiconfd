@@ -31,9 +31,9 @@ from starlette.types import Message, Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
 
-from .. import contextvar_client_session
-from ..config import opsi_config
-from ..logging import logger
+from opsiconfd import contextvar_client_session
+from opsiconfd.config import opsi_config
+from opsiconfd.logging import logger
 
 
 def get_configserver_id() -> str:

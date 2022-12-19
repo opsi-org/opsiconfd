@@ -14,10 +14,10 @@ from fastapi import APIRouter, FastAPI
 from fastapi.responses import PlainTextResponse
 from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
 
-from .. import __version__
-from ..config import FQDN, config
-from ..ssl import get_ca_cert_info, get_server_cert_info
-from ..utils import async_get_redis_info, async_redis_client
+from opsiconfd import __version__
+from opsiconfd.config import FQDN, config
+from opsiconfd.redis import async_get_redis_info, async_redis_client
+from opsiconfd.ssl import get_ca_cert_info, get_server_cert_info
 
 status_router = APIRouter()
 

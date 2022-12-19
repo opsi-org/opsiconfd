@@ -19,7 +19,7 @@ from fcntl import LOCK_EX, LOCK_NB, LOCK_UN, flock
 from pathlib import Path
 from subprocess import CalledProcessError, run
 from time import sleep, time
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
+from typing import TYPE_CHECKING, Generator, Protocol
 
 from OPSI.System.Posix import (  # type: ignore[import]
 	getDHCPDRestartCommand,
@@ -39,7 +39,7 @@ from opsicommon.types import (  # type: ignore[import]
 from opsiconfd.config import FQDN, config
 from opsiconfd.logging import logger
 
-from . import backend_event, rpc_method
+from . import backend_event, read_backend_config_file, rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
@@ -135,8 +135,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	_dhcpd_control_reload_thread: ReloadThread | None
 
 	def __init__(self) -> None:
-		# TODO:
-		self._dhcpd_control_enabled = True
+		self._dhcpd_control_enabled = False
 		self._dhcpd_control_default_client_parameters = {"next-server": FQDN, "filename": "linux/pxelinux.0"}
 		self._dhcpd_control_dhcpd_config_file = locateDHCPDConfig(self._dhcpd_control_dhcpd_config_file)
 		self._dhcpd_control_reload_config_command = f"/usr/bin/sudo {getDHCPDRestartCommand(default='/etc/init.d/dhcp3-server restart')}"
@@ -158,15 +157,12 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			self._dhcpd_control_enabled = False
 			return
 
-		loc: Dict[str, Any] = {}
-		exec(compile(dhcpd_control_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
-
-		for key, val in loc["config"].items():
+		for key, val in read_backend_config_file(dhcpd_control_conf).items():
 			attr = "_dhcpd_control_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
 			if attr == "_dhcpd_control_fixed_address_format" and val not in ("IP", "FQDN"):
 				logger.error("Bad value %r for fixedAddressFormat, possible values are IP and FQDN", val)
 				continue
-			if attr == "_dhcpd_control_dhcpd_on_depot":
+			if attr in ("_dhcpd_control_dhcpd_on_depot", "_dhcpd_control_enabled"):
 				val = forceBool(val)
 			if hasattr(self, attr):
 				setattr(self, attr, val)
@@ -190,7 +186,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		if self._dhcpd_control_reload_thread:
 			self._dhcpd_control_reload_thread.trigger_reload()
 
-	def dhcpd_control_hosts_updated(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:
+	def dhcpd_control_hosts_updated(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		if not self._dhcpd_control_enabled or self._shutting_down:
 			return
 		hosts = forceObjectClassList(hosts, Host)
@@ -215,7 +211,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		if delete_hosts:
 			self.dhcpd_control_hosts_deleted(delete_hosts)
 
-	def dhcpd_control_hosts_deleted(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:
+	def dhcpd_control_hosts_deleted(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		if not self._dhcpd_control_enabled or self._shutting_down:
 			return
 		hosts = forceObjectClassList(hosts, Host)
@@ -233,7 +229,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			self.dhcpd_deleteHost(host)
 
 	def dhcpd_control_config_states_updated(
-		self: BackendProtocol, config_states: List[dict] | List[ConfigState] | dict | ConfigState
+		self: BackendProtocol, config_states: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
 		if not self._dhcpd_control_enabled or self._shutting_down:
 			return

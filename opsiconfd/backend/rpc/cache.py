@@ -16,7 +16,7 @@ from msgspec.msgpack import decode, encode
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.utils import redis_client
+from opsiconfd.redis import redis_client
 
 CACHE_EXPIRATION = 24 * 3600  # In seconds
 

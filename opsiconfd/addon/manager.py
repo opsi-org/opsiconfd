@@ -18,11 +18,11 @@ from os.path import abspath, exists, isdir, join
 from typing import Dict, List, Optional
 from urllib.parse import quote, unquote
 
-from ..application import app
-from ..config import config
-from ..logging import logger
-from ..utils import Singleton
-from .addon import Addon
+from opsiconfd.addon.addon import Addon
+from opsiconfd.application import app
+from opsiconfd.config import config
+from opsiconfd.logging import logger
+from opsiconfd.utils import Singleton
 
 
 class AddonImporter(BuiltinImporter):

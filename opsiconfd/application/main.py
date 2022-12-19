@@ -29,31 +29,39 @@ from starlette.types import Message, Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
-from .. import __version__, contextvar_client_address, contextvar_request_id
-from ..addon import AddonManager
-from ..backend import get_protected_backend, get_unprotected_backend
-from ..config import config, opsi_config
-from ..logging import get_logger, logger
-from ..messagebus.terminal import async_terminal_shutdown, async_terminal_startup
-from ..messagebus.websocket import messagebus_setup
-from ..metrics.statistics import StatisticsMiddleware
-from ..rest import OpsiApiException, rest_api
-from ..session import SessionMiddleware
-from ..ssl import get_ca_cert_as_pem
-from ..utils import async_redis_client, normalize_ip_address
-from . import terminal  # pylint: disable=unused-import
-from . import app
-from .admininterface import admin_interface_setup
-from .filetransfer import filetransfer_setup
-from .jsonrpc import async_jsonrpc_shutdown, async_jsonrpc_startup, jsonrpc_setup
-from .metrics import metrics_setup
-from .monitoring.monitoring import monitoring_setup
-from .proxy import reverse_proxy_setup
-from .redisinterface import redis_interface_setup
-from .session import session_setup
-from .status import status_setup
-from .utils import OpsiconfdWebSocketEndpoint
-from .webdav import webdav_setup
+from opsiconfd import __version__, contextvar_client_address, contextvar_request_id
+from opsiconfd.addon import AddonManager
+from opsiconfd.application import terminal  # pylint: disable=unused-import
+from opsiconfd.application import app
+from opsiconfd.application.admininterface import admin_interface_setup
+from opsiconfd.application.filetransfer import filetransfer_setup
+from opsiconfd.application.jsonrpc import (
+	async_jsonrpc_shutdown,
+	async_jsonrpc_startup,
+	jsonrpc_setup,
+)
+from opsiconfd.application.metrics import metrics_setup
+from opsiconfd.application.monitoring.monitoring import monitoring_setup
+from opsiconfd.application.proxy import reverse_proxy_setup
+from opsiconfd.application.redisinterface import redis_interface_setup
+from opsiconfd.application.session import session_setup
+from opsiconfd.application.status import status_setup
+from opsiconfd.application.utils import OpsiconfdWebSocketEndpoint
+from opsiconfd.application.webdav import webdav_setup
+from opsiconfd.backend import get_protected_backend, get_unprotected_backend
+from opsiconfd.config import config, opsi_config
+from opsiconfd.logging import get_logger, logger
+from opsiconfd.messagebus.terminal import (
+	async_terminal_shutdown,
+	async_terminal_startup,
+)
+from opsiconfd.messagebus.websocket import messagebus_setup
+from opsiconfd.metrics.statistics import StatisticsMiddleware
+from opsiconfd.redis import async_redis_client
+from opsiconfd.rest import OpsiApiException, rest_api
+from opsiconfd.session import SessionMiddleware
+from opsiconfd.ssl import get_ca_cert_as_pem
+from opsiconfd.utils import normalize_ip_address
 
 PATH_MAPPINGS = {
 	# Some WebDAV-Clients do not accept redirect on initial PROPFIND
@@ -406,9 +414,6 @@ async def startup() -> None:
 		await async_application_startup()
 	except Exception as error:  # pylint: disable=broad-except
 		logger.critical("Error during application startup: %s", error, exc_info=True)
-		# Wait a second before raising error (which will terminate the worker process)
-		# to give the logger time to send log messages to redis
-		await asyncio.sleep(1)
 		raise error
 
 

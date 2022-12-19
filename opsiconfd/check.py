@@ -29,7 +29,7 @@ from sqlalchemy.exc import OperationalError  # type: ignore[import]
 from opsiconfd.backend import get_mysql, get_unprotected_backend
 from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.utils import decode_redis_result, redis_client
+from opsiconfd.redis import decode_redis_result, redis_client
 
 REPO_URL = "https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/"
 PACKAGES = ("opsiconfd", "opsi-utils", "opsipxeconfd")

@@ -27,11 +27,16 @@ from opsicommon.objects import (  # type: ignore[import]
 	OpsiClient,
 	ProductOnClient,
 )
-from opsicommon.types import forceHostId, forceObjectClassList  # type: ignore[import]
+from opsicommon.types import (  # type: ignore[import]
+	forceBool,
+	forceHostId,
+	forceObjectClassList,
+)
 
+from opsiconfd.config import config
 from opsiconfd.logging import logger
 
-from . import backend_event, rpc_method
+from . import backend_event, read_backend_config_file, rpc_method
 
 if TYPE_CHECKING:
 	from .protocol import BackendProtocol
@@ -113,15 +118,29 @@ class OpsiPXEConfdConnectionThread(Thread):
 		logger.debug("Delay reset for OpsiPXEConfdConnectionThread %s", self._client_id)
 
 
-class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attributes,too-few-public-methods
-	_opsipxeconfd_enabled: bool = False
-	_opsipxeconfd_on_depot: bool = False
-	_opsipxeconfd_socket_path: str = "/var/run/opsipxeconfd/opsipxeconfd.socket"
+class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instance-attributes,too-few-public-methods
+	_opsipxeconfd_control_enabled: bool = False
+	_opsipxeconfd_control_on_depot: bool = False
+	_opsipxeconfd_control_socket_path: str = "/var/run/opsipxeconfd/opsipxeconfd.socket"
 
 	def __init__(self) -> None:
-		# TODO:
-		self._opsipxeconfd_enabled = True
-		self._opsipxeconfd_on_depot = False
+		self._opsipxeconfd_control_enabled = True
+		self._opsipxeconfd_control_on_depot = False
+		self._read_opsipxeconfd_control_config_file()
+
+	def _read_opsipxeconfd_control_config_file(self) -> None:
+		dhcpd_control_conf = Path(config.backend_config_dir) / "opsipxeconfd.conf"
+		if not dhcpd_control_conf.exists():
+			logger.error("Config file '%s' not found, opsipxeconfd control disabled", dhcpd_control_conf)
+			self._opsipxeconfd_control_enabled = False
+			return
+
+		for key, val in read_backend_config_file(dhcpd_control_conf).items():
+			attr = "_opsipxeconfd_control_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
+			if attr in ("_opsipxeconfd_control_opsipxeconfd_on_depot", "_opsipxeconfd_control_enabled"):
+				val = forceBool(val)
+			if hasattr(self, attr):
+				setattr(self, attr, val)
 
 	@backend_event("shutdown")
 	def _opsipxeconfd_shutdown(self) -> None:
@@ -258,7 +277,7 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 				connection_thread.update_command(command)
 			else:
 				connection_thread = OpsiPXEConfdConnectionThread(
-					socket_path=self._opsipxeconfd_socket_path, client_id=client_id, command=command
+					socket_path=self._opsipxeconfd_control_socket_path, client_id=client_id, command=command
 				)
 				_opsipxeconfd_connection_threads[client_id] = connection_thread
 				connection_thread.start()
@@ -278,7 +297,7 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			logger.error("Failed to collect data for opsipxeconfd (client %r): %s", client_id, err, exc_info=True)
 			return
 
-		if self._opsipxeconfd_on_depot and responsible_depot_id != self._depot_id:
+		if self._opsipxeconfd_control_on_depot and responsible_depot_id != self._depot_id:
 			logger.info("Not responsible for client '%s', forwarding request to depot %s", client_id, responsible_depot_id)
 			jsonrpc = self._get_depot_jsonrpc_connection(responsible_depot_id)
 			jsonrpc.execute_rpc(method="opsipxeconfd_updatePXEBootConfiguration", params=[client_id, data])
@@ -294,7 +313,7 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			logger.error("Failed to get responsible depot for client %r", client_id)
 			return
 
-		if self._opsipxeconfd_on_depot:
+		if self._opsipxeconfd_control_on_depot:
 			depot_ids = []
 			if all_depots:
 				# Call opsipxeconfd_deletePXEBootConfiguration on all non local depots
@@ -313,7 +332,7 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			self.opsipxeconfd_deletePXEBootConfiguration(client_id)
 
 	def opsipxeconfd_hosts_updated(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
-		if not self._opsipxeconfd_enabled or self._shutting_down:
+		if not self._opsipxeconfd_control_enabled or self._shutting_down:
 			return
 
 		for host in forceObjectClassList(hosts, Host):
@@ -323,7 +342,7 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			self._update_pxe_boot_configuration(host.id)
 
 	def opsipxeconfd_hosts_deleted(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
-		if not self._opsipxeconfd_enabled or self._shutting_down:
+		if not self._opsipxeconfd_control_enabled or self._shutting_down:
 			return
 
 		for host in forceObjectClassList(hosts, Host):
@@ -335,7 +354,7 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	def opsipxeconfd_product_on_clients_updated(
 		self: BackendProtocol, product_on_clients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
-		if not self._opsipxeconfd_enabled or self._shutting_down:
+		if not self._opsipxeconfd_control_enabled or self._shutting_down:
 			return
 
 		client_ids = set()
@@ -349,7 +368,7 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	def opsipxeconfd_product_on_clients_deleted(
 		self: BackendProtocol, product_on_clients: list[dict] | list[ProductOnClient] | dict | ProductOnClient
 	) -> None:
-		if not self._opsipxeconfd_enabled or self._shutting_down:
+		if not self._opsipxeconfd_control_enabled or self._shutting_down:
 			return
 
 		client_ids = set()
@@ -363,7 +382,7 @@ class RPCOpsiPXEConfdMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	def opsipxeconfd_config_states_updated(
 		self: BackendProtocol, config_states: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
-		if not self._opsipxeconfd_enabled or self._shutting_down:
+		if not self._opsipxeconfd_control_enabled or self._shutting_down:
 			return
 
 		object_ids = set()

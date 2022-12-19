@@ -14,7 +14,8 @@ import asyncio
 import time
 from dataclasses import asdict, dataclass, field
 from ipaddress import ip_network
-from typing import Any, Callable, Type, TypeVar
+from threading import Event, Lock
+from typing import Any, Callable, Literal, Type, TypeVar
 
 from fastapi import FastAPI
 from msgspec import msgpack
@@ -22,11 +23,11 @@ from opsicommon import __version__ as python_opsi_common_version  # type: ignore
 from starlette._utils import is_async_callable
 from starlette.concurrency import run_in_threadpool
 
-from .. import __version__
-from ..config import config
-from ..logging import logger
-from ..rest import RestApiValidationError
-from ..utils import async_redis_client
+from opsiconfd import __version__
+from opsiconfd.config import config
+from opsiconfd.logging import logger
+from opsiconfd.redis import async_redis_client, redis_client
+from opsiconfd.rest import RestApiValidationError
 
 AppStateT = TypeVar('AppStateT', bound='AppState')
 
@@ -54,11 +55,24 @@ class AppState:
 		_cls = cls
 		_type = data.pop("type", None)
 		if _cls is AppState:
-			if _type == "normal":
+			if _type == "startup":
+				_cls = StartupState  # type: ignore[assignment]
+			elif _type == "normal":
 				_cls = NormalState  # type: ignore[assignment]
 			elif _type == "maintenance":
 				_cls = MaintenanceState  # type: ignore[assignment]
+			elif _type == "shutdown":
+				_cls = ShutdownState  # type: ignore[assignment]
+			else:
+				raise ValueError(f"Invalid AppState type {_type!r}")
 		return _cls(**data)
+
+
+@dataclass(slots=True, kw_only=True)
+class StartupState(AppState):
+	@property
+	def type(self) -> str:
+		return "startup"
 
 
 @dataclass(slots=True, kw_only=True)
@@ -66,6 +80,13 @@ class NormalState(AppState):
 	@property
 	def type(self) -> str:
 		return "normal"
+
+
+@dataclass(slots=True, kw_only=True)
+class ShutdownState(AppState):
+	@property
+	def type(self) -> str:
+		return "shutdown"
 
 
 @dataclass(slots=True, kw_only=True)
@@ -85,13 +106,6 @@ class MaintenanceState(AppState):
 		self.address_exceptions = sorted(list(set(self.address_exceptions)))
 
 
-@dataclass(slots=True, kw_only=True)
-class ShutdownState(AppState):
-	@property
-	def type(self) -> str:
-		return "shutdown"
-
-
 class OpsiconfdApp(FastAPI):
 	def __init__(self) -> None:
 		super().__init__(
@@ -101,74 +115,111 @@ class OpsiconfdApp(FastAPI):
 			responses={422: {"model": RestApiValidationError, "description": "Validation Error"}},
 		)
 		self._app_state_handler: set[Callable] = set()
-		self.app_state: AppState = NormalState()
+		self._app_state: AppState = StartupState()
+		self._app_state_lock = Lock()
+		self.app_state_initialized = Event()
 		self.application_setup_done = False
-		if config.maintenance is not False:
-			self.app_state = MaintenanceState(address_exceptions=config.maintenance + ["127.0.0.1/32", "::1/128"])
+
+	@property
+	def app_state(self) -> AppState:
+		return self._app_state
 
 	def register_app_state_handler(self, handler: Callable) -> None:
 		self._app_state_handler.add(handler)
 
-	def set_app_state(self, app_state: AppState, wait_accomplished: float = 0.0) -> None:
-		self.app_state = app_state
-		if wait_accomplished <= 0:
-			return
+	def wait_for_app_state(self, app_state: AppState, timeout: float = 0.0) -> None:
 		start = time.time()
 		while True:
-			if self.app_state.type == app_state.type and self.app_state.accomplished:  # pylint: disable=loop-invariant-statement
+			if self._app_state.type == app_state.type and self._app_state.accomplished:  # pylint: disable=loop-invariant-statement
 				return
 			wait_time = time.time() - start  # pylint: disable=dotted-import-in-loop
-			if wait_time >= wait_accomplished:
+			if wait_time >= timeout:
 				raise TimeoutError(
 					f"Timed out after {wait_time:0.2f} seconds while waiting for app state {app_state.type!r} to be accomplished"  # pylint: disable=loop-invariant-statement
 				)
 			time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
-	async def load_app_state_from_redis(self) -> None:
+	def set_app_state(self, app_state: AppState, wait_accomplished: float | None = 30.0) -> None:
+		if app_state.type == self._app_state.type and self._app_state.accomplished:
+			return
+		app_state.accomplished = False
+		with self._app_state_lock:
+			self.store_app_state_in_redis(app_state)
+		if wait_accomplished is not None and wait_accomplished > 0:
+			self.wait_for_app_state(app_state, wait_accomplished)
+
+	async def load_app_state_from_redis(self, update_accomplished: bool = False) -> AppState | None:
 		redis = await async_redis_client()
 		msgpack_data = await redis.get(f"{config.redis_key('state')}:application:app_state")
 		if not msgpack_data:
-			return
+			return None
 
 		try:
-			self.app_state = AppState.from_dict(msgpack.decode(msgpack_data))
-			if not self.app_state.accomplished:
+			app_state = AppState.from_dict(msgpack.decode(msgpack_data))
+			if update_accomplished and not app_state.accomplished:
 				accomplished = True
 				async for redis_key_b in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
-					if (await redis.hget(redis_key_b, "app_state")) != self.app_state.type.encode("utf-8"):
+					if (await redis.hget(redis_key_b, "app_state")) != app_state.type.encode("utf-8"):
 						accomplished = False
 						break
 				if accomplished:
-					self.app_state.accomplished = accomplished
-					await self.store_app_state_in_redis()
+					app_state.accomplished = accomplished
+					await self.async_store_app_state_in_redis(app_state)
+			return app_state
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
+		return None
 
-	async def store_app_state_in_redis(self) -> None:
+	async def async_store_app_state_in_redis(self, app_state: AppState) -> None:
 		redis = await async_redis_client()
-		state_dict = self.app_state.to_dict()
+		state_dict = app_state.to_dict()
 		logger.debug("Store app state: %s", state_dict)
 		await redis.set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
 
-	async def app_state_manager_task(self) -> None:
-		interval = 2
-		cur_state = AppState()
-		while not self.app_state.type == "shutdown":
-			if cur_state != self.app_state:
-				await self.store_app_state_in_redis()
-			else:
-				await self.load_app_state_from_redis()
+	def store_app_state_in_redis(self, app_state: AppState) -> None:
+		state_dict = app_state.to_dict()
+		logger.debug("Store app state: %s", state_dict)
+		with redis_client() as redis:
+			redis.set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
 
-			changed = cur_state != self.app_state
+	async def app_state_manager_task(self, manager_mode: bool = False, init_app_state: AppState | tuple[AppState, ...] | None = None) -> None:  # pylint: disable=too-many-branches
+		"""
+		init_app_state: If the current app state is not in the list of init app states, the first init app state will be set.
+		"""
+		if manager_mode and init_app_state:
+			app_state = await self.load_app_state_from_redis(update_accomplished=False)
+			if not isinstance(init_app_state, tuple):
+				init_app_state = (init_app_state,)
+			if not app_state or app_state.type not in [a.type for a in init_app_state]:
+				app_state = init_app_state[0]
+			await self.async_store_app_state_in_redis(app_state)  # type: ignore[arg-type]
+			if app_state:
+				self._app_state = app_state
+
+		interval = 2
+		while True:
+			if self._app_state.type == "shutdown" and self._app_state.accomplished:
+				self.app_state_initialized.clear()
+				break
+			cur_state = self._app_state
+			await run_in_threadpool(self._app_state_lock.acquire)
+			try:
+				app_state = await self.load_app_state_from_redis(update_accomplished=manager_mode)
+				if app_state:
+					self.app_state_initialized.set()
+					self._app_state = app_state
+			finally:
+				self._app_state_lock.release()
+			changed = cur_state != self._app_state
 			if changed:
-				cur_state = self.app_state
-				logger.info("App state is now: %r", self.app_state)
+				cur_state = self._app_state
+				logger.info("App state is now: %r", self._app_state)
 				for handler in self._app_state_handler:
 					logger.debug("Calling app state handler: %s", handler)
 					if is_async_callable(handler):
-						await handler(self.app_state)
+						await handler(self._app_state)
 					else:
-						await run_in_threadpool(handler, self.app_state)
+						await run_in_threadpool(handler, self._app_state)
 
 			await asyncio.sleep(interval)  # pylint: disable=dotted-import-in-loop
 
@@ -178,10 +229,11 @@ app = OpsiconfdApp()
 
 @app.on_event("startup")
 async def startup() -> None:
-	asyncio.create_task(app.app_state_manager_task())
+	"""This will be run in worker processes"""
+	asyncio.create_task(app.app_state_manager_task(manager_mode=False))
 	from . import main  # pylint: disable=import-outside-toplevel,unused-import
 
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
-	app.app_state = ShutdownState()
+	app.set_app_state(ShutdownState(), wait_accomplished=None)

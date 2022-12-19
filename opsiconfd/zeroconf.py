@@ -15,10 +15,10 @@ import socket
 import netifaces  # type: ignore[import]
 from aiozeroconf import ServiceInfo, Zeroconf  # type: ignore[import]
 
-from . import __version__
-from .config import FQDN, config, opsi_config
-from .logging import logger
-from .utils import get_ip_addresses
+from opsiconfd import __version__
+from opsiconfd.config import FQDN, config, opsi_config
+from opsiconfd.logging import logger
+from opsiconfd.utils import get_ip_addresses
 
 _zeroconf = None  # pylint: disable=invalid-name
 _info = None  # pylint: disable=invalid-name

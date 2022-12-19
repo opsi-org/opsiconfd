@@ -13,6 +13,7 @@ import os
 import pprint
 import shutil
 import sys
+import threading
 import warnings
 from tempfile import mkdtemp
 from types import FrameType
@@ -95,6 +96,10 @@ def pytest_sessionfinish(session: Session, exitstatus: int) -> None:  # pylint: 
 			pass
 
 	sync_clean_redis()
+
+	running_threads = "\n".join([str(t) for t in threading.enumerate()])
+	if running_threads:
+		print(f"\nRunning threads on sessionfinish:\n{running_threads}")
 
 
 @hookimpl()

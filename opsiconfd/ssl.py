@@ -42,16 +42,16 @@ from opsicommon.ssl import (  # type: ignore[import]
 )
 from requests.exceptions import ConnectionError as RequestsConnectionError
 
-from .backend import get_unprotected_backend
-from .config import (
+from opsiconfd.backend import get_unprotected_backend
+from opsiconfd.config import (
 	CA_KEY_DEFAULT_PASSPHRASE,
 	FQDN,
 	SERVER_KEY_DEFAULT_PASSPHRASE,
 	config,
 	opsi_config,
 )
-from .logging import logger
-from .utils import get_ip_addresses
+from opsiconfd.logging import logger
+from opsiconfd.utils import get_ip_addresses
 
 
 def get_ips() -> Set[str]:

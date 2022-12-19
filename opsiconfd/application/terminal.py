@@ -28,10 +28,10 @@ from starlette.types import Receive, Scope, Send
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
 
-from ..config import config
-from ..logging import logger
-from . import app
-from .utils import OpsiconfdWebSocketEndpoint
+from opsiconfd.application import app
+from opsiconfd.application.utils import OpsiconfdWebSocketEndpoint
+from opsiconfd.config import config
+from opsiconfd.logging import logger
 
 PTY_READER_BLOCK_SIZE = 16 * 1024
 

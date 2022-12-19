@@ -68,6 +68,8 @@ OPSI_LICENSE_PATH = "/etc/opsi/licenses"
 OPSI_MODULES_PATH = "/etc/opsi/modules"
 SSH_COMMANDS_DEFAULT_FILE = "/etc/opsi/server_commands_default.conf"
 SSH_COMMANDS_CUSTOM_FILE = "/var/lib/opsi/server_commands_custom.conf"
+FILE_TRANSFER_STORAGE_DIR = "/tmp/opsiconfd-file-transfer"
+PUBLIC_FOLDER = "/var/lib/opsi/public"
 
 opsi_config = OpsiConfig()
 
@@ -76,6 +78,7 @@ def configure_warnings() -> None:
 	warnings.filterwarnings(
 		"ignore", category=DeprecationWarning, module="redis.asyncio.connection", message="There is no current event loop"
 	)
+	warnings.filterwarnings("ignore", category=ResourceWarning, module="asyncio.runners", message="unclosed resource")
 
 
 if running_in_docker():

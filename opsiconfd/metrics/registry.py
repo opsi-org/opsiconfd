@@ -13,9 +13,9 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Generator, List
 
-from ..config import config
-from ..grafana import GrafanaPanelConfig
-from ..utils import Singleton
+from opsiconfd.config import config
+from opsiconfd.grafana import GrafanaPanelConfig
+from opsiconfd.utils import Singleton
 
 
 class Metric:  # pylint: disable=too-many-instance-attributes
@@ -218,6 +218,21 @@ def _get_metrics() -> tuple[Metric, ...]:
 			zero_if_missing=None,
 			subject="worker",
 			grafana_config=GrafanaPanelConfig(title="Worker filehandles", units=["short"], decimals=0, stack=True),
+			downsampling=[
+				["minute", 24 * 3600 * 1000, "avg"],
+				["hour", 60 * 24 * 3600 * 1000, "avg"],
+				["day", 4 * 365 * 24 * 3600 * 1000, "avg"],
+			],
+		),
+		Metric(
+			id="worker:avg_connection_number",
+			name="Average connections of worker {worker_num} on {node_name}",
+			vars=["node_name", "worker_num"],
+			retention=2 * 3600 * 1000,
+			aggregation="avg",
+			zero_if_missing=None,
+			subject="worker",
+			grafana_config=GrafanaPanelConfig(title="Worker connections", units=["short"], decimals=0, stack=True),
 			downsampling=[
 				["minute", 24 * 3600 * 1000, "avg"],
 				["hour", 60 * 24 * 3600 * 1000, "avg"],

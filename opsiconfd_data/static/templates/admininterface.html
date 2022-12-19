@@ -136,6 +136,7 @@
 			</div>
 		</div>
 	</div>
+	<div id="notifications"></div>
 	<div id="content" class="content">
 
 		<div class="tab">
@@ -187,6 +188,24 @@
 				<br />
 				<input type="button" onclick="setAppState('maintenance')"
 					value="Set application to 'maintenance' state">
+			</div>
+			<div class="adminpage-box">
+				<h4>Create backup:</h4>
+				<label for="create-backup-maintenance-mode">In maintenance mode:</label>
+				<input type="checkbox" id="create-backup-maintenance-mode" checked>
+				<br />
+				<label for="create-backup-config-files">With config files:</label>
+				<input type="checkbox" id="create-backup-config-files" checked>
+				<br />
+				<input type="button" id="create-backup-create-button" onclick="createBackup()" value="Create backup">
+
+				<h4>Restore backup:</h4>
+				<input id="restore-backup-file" type="file" name="addon-file" />
+				<br />
+				<label for="restore-backup-config-files">With config files:</label>
+				<input type="checkbox" id="restore-backup-config-files" checked>
+				<br />
+				<input type="button" id="restore-backup-create-button" onclick="restoreBackup()" value="Restore backup">
 			</div>
 		</div>
 
@@ -322,7 +341,6 @@
 					<button id="addon-upload" onclick="installAddon()">Install addon</button>
 				</div>
 			</div>
-			<div id="alerts"></div>
 		</div>
 
 		<div id="tab-info" class="tabcontent">

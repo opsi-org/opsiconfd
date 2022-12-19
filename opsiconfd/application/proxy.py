@@ -22,9 +22,9 @@ from starlette.background import BackgroundTask
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
-from ..config import config
-from ..logging import get_logger
-from ..session import SESSION_COOKIE_NAME
+from opsiconfd.config import config
+from opsiconfd.logging import get_logger
+from opsiconfd.session import SESSION_COOKIE_NAME
 
 
 def reverse_proxy_setup(_app: FastAPI) -> None:

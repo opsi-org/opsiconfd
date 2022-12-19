@@ -24,7 +24,7 @@ from opsiconfd.application.metrics import (
 )
 from opsiconfd.metrics.collector import WorkerMetricsCollector
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.utils import async_redis_client
+from opsiconfd.redis import async_redis_client
 from opsiconfd.worker import Worker
 
 from .utils import (  # pylint: disable=unused-import
@@ -100,7 +100,7 @@ async def test_get_clients(test_client: OpsiconfdTestClient) -> None:  # pylint:
 
 async def test_grafana_dashboard_config() -> None:
 	conf = await grafana_dashboard_config()
-	assert len(conf["panels"]) == 10
+	assert len(conf["panels"]) == 11
 
 
 async def test_grafana_search(config: Config) -> None:  # pylint: disable=redefined-outer-name

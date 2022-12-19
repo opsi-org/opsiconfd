@@ -9,14 +9,17 @@ redis tests
 """
 
 import asyncio
+import time
 
 import pytest
 
-from opsiconfd.utils import (
+from opsiconfd.redis import (
 	async_redis_client,
 	async_redis_connection_pool,
+	async_redis_lock,
 	redis_client,
 	redis_connection_pool,
+	redis_lock,
 )
 
 from .utils import Config, config  # pylint: disable=unused-import
@@ -73,3 +76,26 @@ def test_sync_redis_pool() -> None:
 	for con in connections:
 		pool.release(con)
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
+
+
+def test_redis_lock() -> None:
+	with redis_lock("test-lock", acquire_timeout=1.0):
+		with pytest.raises(TimeoutError):
+			with redis_lock("test-lock", acquire_timeout=2.0):
+				time.sleep(3.0)
+
+	with redis_lock("test-lock", acquire_timeout=1.0, lock_timeout=2.0):
+		with redis_lock("test-lock", acquire_timeout=3.0):
+			time.sleep(4.0)
+
+
+@pytest.mark.asyncio
+async def test_async_redis_lock() -> None:
+	async with async_redis_lock("test-lock", acquire_timeout=1.0):
+		with pytest.raises(TimeoutError):
+			async with async_redis_lock("test-lock", acquire_timeout=2.0):
+				time.sleep(3.0)
+
+	async with async_redis_lock("test-lock", acquire_timeout=1.0, lock_timeout=2.0):
+		async with async_redis_lock("test-lock", acquire_timeout=3.0):
+			time.sleep(4.0)

@@ -41,25 +41,20 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import Message, Receive, Scope, Send
 
+from opsiconfd import contextvar_client_session, server_timing
+from opsiconfd.addon import AddonManager
+from opsiconfd.application import MaintenanceState
+from opsiconfd.application import app as opsiconfd_app
 from opsiconfd.auth import AuthenticationModule
 from opsiconfd.auth.ldap import LDAPAuthentication
 from opsiconfd.auth.pam import PAMAuthentication
-from opsiconfd.utils import ip_address_in_network
-
-from . import contextvar_client_session, server_timing
-from .addon import AddonManager
-from .application import MaintenanceState
-from .application import app as opsiconfd_app
-from .backend import get_unprotected_backend  # pylint: disable=import-outside-toplevel
-from .config import config, opsi_config
-from .logging import logger
-from .utils import (
-	async_redis_client,
-	ip_address_in_network,
-	ip_address_to_redis_key,
-	redis_client,
-	utc_time_timestamp,
+from opsiconfd.backend import (
+	get_unprotected_backend,  # pylint: disable=import-outside-toplevel
 )
+from opsiconfd.config import config, opsi_config
+from opsiconfd.logging import logger
+from opsiconfd.redis import async_redis_client, ip_address_to_redis_key, redis_client
+from opsiconfd.utils import ip_address_in_network, utc_time_timestamp
 
 # https://github.com/tiangolo/fastapi/blob/master/docs/tutorial/middleware.md
 #

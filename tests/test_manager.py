@@ -38,8 +38,6 @@ def manager() -> Generator[Manager, None, None]:  # pylint: disable=redefined-ou
 			yield man
 		finally:
 			man.stop()
-			while man.running:
-				time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 
 def test_manager_signals(manager: Manager) -> None:  # pylint: disable=redefined-outer-name

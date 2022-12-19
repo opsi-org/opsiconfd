@@ -9,6 +9,33 @@ function createUUID() {
 }
 
 
+function showNotifcation(message, type = "success", seconds = 10) {
+	// type: success / error
+	const notifications = document.getElementById("notifications");
+
+	const notifcation = document.createElement("div");
+	//notifcation.setAttribute("id", notificationElId);
+	notifcation.classList.add(type);
+	notifcation.appendChild(document.createTextNode(message));
+
+	const close = document.createElement("span");
+	close.classList.add("close-notification");
+	close.onclick = function () {
+		try {
+			notifications.removeChild(notifcation);
+		} catch { }
+	}
+	notifcation.appendChild(close);
+
+	notifications.appendChild(notifcation);
+	if (seconds > 0) {
+		setTimeout(function () {
+			try { notifications.removeChild(notifcation); } catch { }
+		}, seconds * 1000);
+	}
+}
+
+
 function monitorSession() {
 	if ((document.cookie && document.cookie.indexOf('opsiconfd-session=') != -1) || messagebusWS) {
 		setTimeout(monitorSession, 1000);
@@ -49,6 +76,76 @@ function setAppState(type) {
 	}, (error) => {
 		console.error(error);
 		alert(`Error setting application state:\n${error.message}`);
+	});
+}
+
+
+function createBackup() {
+	const button = document.getElementById("create-backup-create-button");
+	button.classList.add("loading");
+	const config_files = document.getElementById("create-backup-config-files").checked;
+	const maintenance_mode = document.getElementById("create-backup-maintenance-mode").checked;
+	//document.getElementById("create-backup-create-button").disabled = true;
+	const req = rpcRequest("service_createBackup", [config_files, maintenance_mode, "file_id"]);
+	req.then((response) => {
+		console.debug(response);
+		if (response.error) {
+			showNotifcation(`Failed to create backup: ${response.error.message}`, "error", 30);
+		}
+		else {
+			showNotifcation("Backup successfully created", "success", 5);
+			const link = document.createElement('a');
+			link.setAttribute('href', `/file-transfer/${response.result}`);
+			link.style.display = 'none';
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+		}
+		button.classList.remove("loading");
+	}, (error) => {
+		console.error(error);
+		showNotifcation(`Failed to create backup: ${error.message || JSON.stringify(error)}`, "error", 30);
+		button.classList.remove("loading");
+	});
+}
+
+
+function restoreBackup() {
+	const file = document.getElementById("restore-backup-file").files[0];
+	if (!file) {
+		showNotifcation(`Backup file not provided`, "error", 3);
+		return;
+	}
+
+	const button = document.getElementById("restore-backup-create-button");
+	button.classList.add("loading");
+
+	const formData = new FormData();
+	formData.append("file", file);
+
+	const req = ajaxRequest("POST", "/file-transfer/multipart", formData);
+	req.then((response) => {
+		console.debug(response);
+		const config_files = document.getElementById("restore-backup-config-files").checked;
+		const server_id = "backup";
+		const batch = true;
+		const req = rpcRequest(
+			"service_restoreBackup", [response.file_id, config_files, server_id, batch]
+		);
+		req.then((response) => {
+			console.debug(response);
+			if (response.error) {
+				showNotifcation(`Failed to restore backup: ${response.error.message}`, "error", 30);
+			}
+			else {
+				showNotifcation("Backup successfully restored", "success", 5);
+			}
+		});
+		button.classList.remove("loading");
+	}, (error) => {
+		console.error(error);
+		showNotifcation(`Failed to restore backup: ${error.message || JSON.stringify(error)}`, "error", 30);
+		button.classList.remove("loading");
 	});
 }
 
@@ -172,13 +269,20 @@ function loadAddons() {
 
 
 function installAddon() {
+	const file = document.getElementById("addon-file").files[0];
+	if (!file) {
+		showNotifcation(`Addon file not provided`, "error", 3);
+		return;
+	}
+
 	let button = null;
 	if (window.event.currentTarget && window.event.currentTarget.tagName.toLowerCase() == "button") {
 		button = window.event.currentTarget;
 		button.classList.add("loading");
 	}
+
 	let formData = new FormData();
-	formData.append("addonfile", document.getElementById("addon-file").files[0]);
+	formData.append("addonfile", file);
 
 	let req = ajaxRequest("POST", "/admin/addons/install", formData);
 	req.then((result) => {
@@ -186,17 +290,16 @@ function installAddon() {
 			button.classList.remove("loading");
 		}
 		loadAddons();
-		document.getElementById("alerts").innerHTML += "<div class='success'> <span class=\"closebtn\" onclick=\"this.parentNode.remove()\">&times;</span>Addon installed</div>"
+		showNotifcation("success", "Addon successfully installed", 3);
 	}, (error) => {
 		if (button) {
 			button.classList.remove("loading");
 		}
 		console.log(error);
 		console.warn(error.status, error.details);
-		document.getElementById("alerts").innerHTML += "<div class='alert'> <span class=\"closebtn\" onclick=\"this.parentNode.remove()\">&times;</span>" + error.message + "</div>"
+		showNotifcation("error", `Failed to install addon: ${error.message || JSON.stringify(error)}`, 30);
 	});
 }
-
 
 function deleteClientSessions() {
 	body = {
@@ -249,7 +352,7 @@ function logout() {
 function callRedis() {
 	let req = ajaxRequest("POST", "/redis-interface", { "cmd": document.getElementById("redis-cmd").value });
 	req.then((result) => {
-		console.debug(`Redis command successful: ${JSON.stringify(result)}`)
+		console.debug(`Redis command successful: ${JSON.stringify(result)} `)
 		outputToHTML(result, "redis-result");
 	}, (error) => {
 		console.error(error);
@@ -294,7 +397,7 @@ function onRPCInterfaceMethodSelected() {
 			if (method.deprecated) {
 				doc += '<span class="jsonrpc-deprecated-method">This method is deprecated and will be removed in one of the next versions.</span><br />';
 				if (method.alternative_method) {
-					doc += `Please use the method '<strong>${method.alternative_method}</strong>' instead.<br />`
+					doc += `Please use the method '<strong>${method.alternative_method}</strong>' instead.< br /> `
 				}
 			}
 			if (method.doc) {
@@ -335,8 +438,8 @@ function createRequestJSON() {
 				parameter.push(null);
 			}
 		} catch (e) {
-			console.warn(`${name}: ${e}`);
-			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e}`;
+			console.warn(`${name}: ${e} `);
+			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e} `;
 		}
 	}
 
@@ -405,7 +508,7 @@ function licenseUpload(files) {
 	}
 	let req = ajaxRequest("POST", "/admin/license_upload", formData);
 	req.then((result) => {
-		console.log(`File upload successful: ${JSON.stringify(result)}`)
+		console.log(`File upload successful: ${JSON.stringify(result)} `)
 		loadLicensingInfo();
 	});
 }
@@ -649,7 +752,7 @@ function printRPCTable(data, htmlId) {
 	htmlStr += "<tr>";
 	keys = Object.keys(data[0]);
 	Object.keys(data[0]).forEach(element => {
-		htmlStr += `<th class="rpc-th" onclick="loadRPCTable('${element}', true)" title="sort" style="cursor: pointer;">${element}</th>`;
+		htmlStr += `< th class="rpc-th" onclick = "loadRPCTable('${element}', true)" title = "sort" style = "cursor: pointer;" > ${element}</th > `;
 	});
 	htmlStr += "</tr>";
 
@@ -662,14 +765,14 @@ function printRPCTable(data, htmlId) {
 		keys.forEach(key => {
 			if (key == "date") {
 				date = formateDate(new Date(element[key]))
-				htmlStr += `<td class="${tdClass}">${date}</td>`;
+				htmlStr += `< td class="${tdClass}" > ${date}</td > `;
 			}
 			else if (key == "duration") {
 				duration = element[key].toFixed(4)
-				htmlStr += `<td class="${tdClass}">${duration}</td>`;
+				htmlStr += `< td class="${tdClass}" > ${duration}</td > `;
 			}
 			else {
-				htmlStr += `<td class="${tdClass}">${element[key]}</td>`;
+				htmlStr += `< td class="${tdClass}" > ${element[key]}</td > `;
 			}
 		});
 		htmlStr += "</tr>";
@@ -706,8 +809,8 @@ function sortRPCTable(data, sortKey) {
 			}
 			return 0;
 		} else if (sortKey == "client") {
-			var numA = Number(a[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
-			var numB = Number(b[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
+			var numA = Number(a[sortKey].split(".").map((num) => (`000${num} `).slice(-3)).join(""));
+			var numB = Number(b[sortKey].split(".").map((num) => (`000${num} `).slice(-3)).join(""));
 			if (numA < numB) {
 				return -1;
 			}
@@ -826,7 +929,7 @@ function messagebusConnect() {
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	};
 	messagebusWS.onerror = function (error) {
-		console.error(`Messagebus websocket connection error: ${JSON.stringify(error)}`);
+		console.error(`Messagebus websocket connection error: ${JSON.stringify(error)} `);
 		messagebusWS = null;
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	}
@@ -985,7 +1088,7 @@ function messagebusConnectTerminal() {
 		terminalId = createUUID();
 		document.getElementById("messagebus-terminal-id").value = terminalId;
 	}
-	let terminalSessionChannel = `session:${terminalId}`;
+	let terminalSessionChannel = `session:${terminalId} `;
 
 	if (mbTerminal) {
 		mbTerminal.dispose();
@@ -1200,7 +1303,7 @@ function startTerminal() {
 
 		console.log(`size: ${terminal.cols} cols, ${terminal.rows} rows`);
 
-		let params = ["set_cookie_interval=30", `rows=${terminal.rows}`, `cols=${terminal.cols}`]
+		let params = ["set_cookie_interval=30", `rows = ${terminal.rows} `, `cols = ${terminal.cols} `]
 		let loc = window.location;
 		let ws_uri;
 		if (loc.protocol == "https:") {
@@ -1217,7 +1320,7 @@ function startTerminal() {
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
 		terminal.websocket.onerror = function (error) {
-			console.error(`Terminal ws connection error: ${JSON.stringify(error)}`);
+			console.error(`Terminal ws connection error: ${JSON.stringify(error)} `);
 			terminal.writeln("\r\n\033[1;31m> Connection error: " + JSON.stringify(error) + " <\033[0m");
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
@@ -1234,11 +1337,11 @@ function startTerminal() {
 			else if (message.type == "file-transfer-result") {
 				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 				if (message.payload.error) {
-					const error = `File upload failed: ${JSON.stringify(message.payload)}`;
+					const error = `File upload failed: ${JSON.stringify(message.payload)} `;
 					console.error(error);
 				}
 				else {
-					console.log(`File upload successful: ${JSON.stringify(message.payload)}`)
+					console.log(`File upload successful: ${JSON.stringify(message.payload)} `)
 					const path = message.payload.result.path;
 					terminal.websocket.send(msgpack.serialize({ "type": "terminal-write", "payload": path + "\033[D".repeat(path.length) }));
 				}
@@ -1364,7 +1467,7 @@ function terminalFileUpload(file) {
 function generateLiceningInfoTable(info, htmlId) {
 	htmlStr = "<table id=\"licensing-info-table\">";
 	for (const [key, val] of Object.entries(info)) {
-		htmlStr += `<tr><td class="licensing-info-key">${key}</td><td>${val}</td></tr>`;
+		htmlStr += `< tr ><td class="licensing-info-key">${key}</td><td>${val}</td></tr > `;
 	}
 	htmlStr += "</table>";
 	div = document.getElementById(htmlId).innerHTML = htmlStr;
@@ -1374,20 +1477,20 @@ function generateLiceningInfoTable(info, htmlId) {
 function generateLiceningDatesTable(dates, activeDate, htmlId) {
 	htmlStr = "<table id=\"licensing-dates-table\"><tr><th>Module</th>";
 	for (const date of Object.keys(Object.values(dates)[0])) {
-		htmlStr += `<th>${date}</th>`;
+		htmlStr += `< th > ${date}</th > `;
 	}
 	htmlStr += "</tr>";
 	for (const [moduleId, dateData] of Object.entries(dates)) {
-		htmlStr += `<tr><td>${moduleId}</td>`;
+		htmlStr += `< tr > <td>${moduleId}</td>`;
 		for (const [date, moduleData] of Object.entries(dateData)) {
 			let title = "";
 			for (const [k, v] of Object.entries(moduleData)) {
-				title += `${k}: ${v}&#010;`;
+				title += `${k}: ${v}&#010; `;
 			}
 			const changed = moduleData['changed'] ? 'changed' : '';
 			const active = date == activeDate ? 'active' : 'inactive';
 			const text = moduleData['client_number'] == 999999999 ? 'unlimited' : moduleData['client_number'];
-			htmlStr += `<td title="${title}" class="${changed} ${moduleData['state']} ${active}">${text}</td>`;
+			htmlStr += `< td title = "${title}" class="${changed} ${moduleData['state']} ${active}" > ${text}</td > `;
 		}
 		htmlStr += "</tr>";
 	}

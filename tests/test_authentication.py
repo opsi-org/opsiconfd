@@ -21,7 +21,7 @@ from opsiconfd import (
 	set_contextvars,
 	set_contextvars_from_contex,
 )
-from opsiconfd.utils import ip_address_to_redis_key
+from opsiconfd.redis import ip_address_to_redis_key
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,

@@ -272,7 +272,7 @@
 								},
 								{
 									"possibleValues": [
-										"nb-schneider.mz.uib.gmbh"
+										"{{depot_id}}"
 									],
 									"editable": false,
 									"description": "the primary value setting is an empty selection list, but all existing items as option",
@@ -989,7 +989,7 @@
 								},
 								{
 									"possibleValues": [
-										"nb-schneider.mz.uib.gmbh"
+										"{{depot_id}}"
 									],
 									"editable": false,
 									"description": "the primary value setting is an empty selection list, but all existing items as option",

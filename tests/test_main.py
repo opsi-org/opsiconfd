@@ -41,13 +41,13 @@ def test_setup() -> None:
 
 def test_log_viewer() -> None:
 	with get_config({"action": "log-viewer"}):
-		thread = threading.Thread(target=main)
-		thread.daemon = True
+		thread = threading.Thread(target=main, daemon=True)
 		thread.start()
 		time.sleep(1)
 		handler = RedisLogHandler()
 		handler.emit(LogRecord(name="test-logger", level=10, pathname="-", lineno=1, msg="test-record", args=None, exc_info=None))
 		time.sleep(1)
+		handler.stop()
 
 
 def test_reload() -> None:

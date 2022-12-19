@@ -49,7 +49,7 @@ from .obj_product_property import RPCProductPropertyMixin
 from .obj_product_property_state import RPCProductPropertyStateMixin
 from .obj_software_license import RPCSoftwareLicenseMixin
 from .obj_software_license_to_license_pool import RPCSoftwareLicenseToLicensePoolMixin
-from .opsipxeconfd import RPCOpsiPXEConfdMixin
+from .opsipxeconfd import RPCOpsiPXEConfdControlMixin
 
 if TYPE_CHECKING:
 	from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
@@ -99,7 +99,7 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	RPCDepotserverMixin,
 	RPCHostControlMixin,
 	RPCDHCPDControlMixin,
-	RPCOpsiPXEConfdMixin,
+	RPCOpsiPXEConfdControlMixin,
 	RPCExtenderMixin,
 	Protocol,
 ):

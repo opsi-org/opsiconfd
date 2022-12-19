@@ -17,13 +17,13 @@ from typing import TYPE_CHECKING, Any, Dict, Tuple
 import psutil
 from redis import ResponseError
 
-from ..config import config
-from ..logging import logger
-from ..utils import async_redis_client
-from .registry import Metric, MetricsRegistry
+from opsiconfd.config import config
+from opsiconfd.logging import logger
+from opsiconfd.metrics.registry import Metric, MetricsRegistry
+from opsiconfd.redis import async_redis_client
 
 if TYPE_CHECKING:
-	from ..worker import Worker
+	from opsiconfd.worker import Worker
 
 
 class MetricsCollector:  # pylint: disable=too-many-instance-attributes
@@ -244,6 +244,7 @@ class WorkerMetricsCollector(MetricsCollector):
 			("worker:avg_cpu_percent", self._proc.cpu_percent()),
 			("worker:avg_thread_number", self._proc.num_threads()),
 			("worker:avg_filehandle_number", self._proc.num_fds()),
+			("worker:avg_connection_number", self.worker.get_connection_count()),
 		):
 			# Do not add 0-values
 			if value:

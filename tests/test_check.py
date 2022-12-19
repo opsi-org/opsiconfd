@@ -50,17 +50,13 @@ def captured_function_output(func: Callable, args: Dict[str, Any]) -> str:
 	sys.stdout = captured_output
 	result = func(**args)
 	sys.stdout = sys.__stdout__
-	print(result)
-
 	return captured_output.getvalue()
 
 
 def test_check_redis() -> None:  # pylint: disable=redefined-outer-name
 	console = Console(log_time=False)
 	result = check_redis()
-	print(result)
 	captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
-	print(captured_output)
 	assert "Redis is running and RedisTimeSeries is loaded." in captured_output
 
 	assert result.get("status") is not None
@@ -69,7 +65,7 @@ def test_check_redis() -> None:  # pylint: disable=redefined-outer-name
 
 def test_check_redis_error() -> None:
 
-	with mock.patch("opsiconfd.utils.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
+	with mock.patch("opsiconfd.redis.get_redis_connection", side_effect=RedisConnectionError("Redis test error")):
 		console = Console(log_time=False)
 		result = check_redis()
 		captured_output = captured_function_output(print_check_result, {"check_result": result, "console": console})
@@ -292,7 +288,6 @@ def test_check_deprecated_calls(
 	result = check_deprecated_calls()
 	captured_output = captured_function_output(print_check_deprecated_calls_result, {"check_result": result, "console": console})
 
-	assert result.get("status") is not None
 	assert result["status"] == CheckStatus.WARNING
 	assert result["details"] is not None
 	assert result["details"][DEPRECATED_METHOD] is not None

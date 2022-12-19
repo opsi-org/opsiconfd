@@ -204,7 +204,7 @@ def check_redis() -> dict:  # pylint: disable=unused-argument
 	try:
 		with redis_client(timeout=5, test_connection=True) as redis:
 			redis_info = decode_redis_result(redis.execute_command("INFO"))
-			logger.info(redis_info)
+			logger.debug("Redis info: %s", redis_info)
 			modules = [module["name"] for module in redis_info["modules"]]
 			if "timeseries" not in modules:
 				return {

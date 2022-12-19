@@ -30,7 +30,6 @@ from rich.progress import Progress
 from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, app
 from opsiconfd.backup import create_backup, restore_backup
-from opsiconfd.check import health_check
 from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, opsi_config
 from opsiconfd.logging import (
 	AsyncRedisLogAdapter,
@@ -43,6 +42,8 @@ from opsiconfd.patch import apply_patches
 from opsiconfd.redis import redis_client
 from opsiconfd.setup import setup
 from opsiconfd.utils import get_manager_pid, log_config
+
+from .check import console_health_check
 
 REDIS_CONECTION_TIMEOUT = 30
 
@@ -69,12 +70,7 @@ def log_viewer_main() -> None:
 
 def health_check_main() -> None:
 	init_logging(log_mode="local")
-	result = health_check(print_messages=True)
-	if result.get("status") == "ok":
-		sys.exit(0)
-	if result.get("status") == "warn":
-		sys.exit(2)
-	sys.exit(1)
+	sys.exit(console_health_check())
 
 
 def backup_main() -> None:

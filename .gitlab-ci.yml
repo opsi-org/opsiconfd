@@ -49,6 +49,8 @@ stages:
   echo "log-file = /tmp/opsiconfd.log" >> tests/data/default-opsiconfd.conf
   cat tests/data/default-opsiconfd.conf
 
+  sed -i s'/.*address.*/    "address": "mysql",/' tests/data/opsi-config/backends/mysql.conf
+
   # Installing opsi test modules file
   [ -z "${OPSILICSRV_TOKEN}" ] && (echo "OPSILICSRV_TOKEN not set" 1>&2 ; exit 1)
   mkdir -p /etc/opsi/licenses

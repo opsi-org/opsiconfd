@@ -70,3 +70,14 @@ function ajaxRequest(method, url, body, requestInfos = false) {
 		}
 	});
 }
+
+var rpcId = 0;
+
+function rpcRequest(method, params = []) {
+	rpcId += 1;
+	return ajaxRequest(
+		"POST",
+		"/rpc",
+		{ "id": rpcId, "jsonrpc": "2.0", "method": method, "params": params }
+	);
+}

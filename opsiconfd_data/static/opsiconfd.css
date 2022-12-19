@@ -599,18 +599,40 @@ table#licensing-dates-table td.active {
 }
 
 
-.alert {
-	padding: 20px;
-	background-color: #ff0800;
-	color: white;
-	margin-bottom: 15px;
+div#notifications {
+	position: fixed;
+	top: 10px;
+	left: 10px;
+	margin-left: auto;
+	margin-right: auto;
 }
 
-.success {
+span.close-notification {
+	margin-left: 25px;
+	cursor: pointer;
+	font-weight: 900;
+	font-size: 1.2em;
+}
+
+span.close-notification:after {
+	content: "\00d7";
+}
+
+div#notifications div {
 	padding: 20px;
-	background-color: #8ae234;
-	color: white;
 	margin-bottom: 15px;
+	background-color: white;
+	border: 1px solid #cccccc;
+}
+
+div#notifications div.error {
+	background-color: #bd1e1e;
+	color: white;
+}
+
+div#notifications div.success {
+	background-color: #40853d;
+	color: white;
 }
 
 

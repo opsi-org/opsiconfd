@@ -15,6 +15,7 @@ from opsicommon.objects import ProductProperty  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
 
 from ..auth import RPCACE
+from ..mysql.cleanup import remove_orphans_product_property_state
 from . import rpc_method
 
 if TYPE_CHECKING:
@@ -138,7 +139,9 @@ class RPCProductPropertyMixin(Protocol):
 	) -> None:
 		# PRODUCT_PROPERTY_VALUE will be deleted by CASCADE
 		ace = self._get_ace("productProperty_deleteObjects")
-		self._mysql.delete_query(table="PRODUCT_PROPERTY", object_type=ProductProperty, obj=productProperties, ace=ace)
+		self._mysql.delete_objects(table="PRODUCT_PROPERTY", object_type=ProductProperty, obj=productProperties, ace=ace)
+		with self._mysql.session() as session:
+			remove_orphans_product_property_state(session)
 
 	@rpc_method(check_acl=False)
 	def productProperty_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name

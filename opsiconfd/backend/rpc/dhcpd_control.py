@@ -170,7 +170,12 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		if os.path.exists(self._dhcpd_control_dhcpd_config_file):
 			self._dhcpd_control_dhcpd_conf_file = DHCPDConfFile(self._dhcpd_control_dhcpd_config_file)
 		else:
-			logger.error("DHCPD config file %r not found, DHCPD control disabled", self._dhcpd_control_dhcpd_config_file)
+			logger.error(
+				"DHCPD config file %r not found, DHCPD control disabled. "
+				"DHCPD control can be disabled permanently by setting 'enabled' to False in '%s'",
+				self._dhcpd_control_dhcpd_config_file,
+				self._dhcpd_control_dhcpd_config_file,
+			)
 			self._dhcpd_control_enabled = False
 
 	def _dhcpd_control_start_reload_thread(self) -> None:

@@ -15,6 +15,7 @@ from opsicommon.objects import BoolConfig, Config, UnicodeConfig  # type: ignore
 from opsicommon.types import forceList  # type: ignore[import]
 
 from ..auth import RPCACE
+from ..mysql.cleanup import remove_orphans_config_state
 from . import rpc_method
 
 if TYPE_CHECKING:
@@ -103,7 +104,9 @@ class RPCConfigMixin(Protocol):
 	def config_deleteObjects(self: BackendProtocol, configs: List[dict] | List[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
 		# CONFIG_VALUE will be deleted by CASCADE
 		ace = self._get_ace("config_deleteObjects")
-		self._mysql.delete_query(table="CONFIG", object_type=Config, obj=configs, ace=ace)
+		self._mysql.delete_objects(table="CONFIG", object_type=Config, obj=configs, ace=ace)
+		with self._mysql.session() as session:
+			remove_orphans_config_state(session)
 
 	@rpc_method(check_acl=False)
 	def config_create(  # pylint: disable=too-many-arguments,invalid-name

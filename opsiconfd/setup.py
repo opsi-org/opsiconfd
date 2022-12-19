@@ -48,6 +48,7 @@ from opsiconfd.config import (
 	LOG_DIR,
 	NTFS_IMAGES_DIR,
 	OPSI_LICENSE_DIR,
+	OPSICONFD_HOME,
 	PUBLIC_DIR,
 	REPOSITORY_DIR,
 	VAR_ADDON_DIR,
@@ -94,7 +95,7 @@ def setup_users_and_groups() -> None:
 		create_user(
 			username=config.run_as_user,
 			primary_groupname=opsi_config.get("groups", "fileadmingroup"),
-			home="/var/lib/opsi",
+			home=OPSICONFD_HOME,
 			shell="/bin/bash",
 			system=True,
 		)
@@ -138,6 +139,7 @@ def _get_default_dirs() -> list[str]:
 		WORKBENCH_DIR,
 		VAR_ADDON_DIR,
 		OPSI_LICENSE_DIR,
+		OPSICONFD_HOME,
 	]
 
 
@@ -154,10 +156,13 @@ def setup_file_permissions() -> None:
 	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
 	permissions = (
 		FilePermission("/etc/shadow", None, "shadow", 0o640),
-		FilePermission("/var/log/opsi/opsiconfd/opsiconfd.log", config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660),
+		FilePermission(
+			f"{os.path.dirname(config.log_file)}/opsiconfd.log", config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660
+		),
 		# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)
 		# This user needs read permission
 		FilePermission(dhcpd_config_file, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o664),
+		DirPermission(OPSICONFD_HOME, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770),
 		DirPermission(VAR_ADDON_DIR, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770),
 	)
 	PermissionRegistry().register_permission(*permissions)
@@ -207,12 +212,12 @@ def setup_backend(full: bool) -> None:
 			config_server = OpsiConfigserver(
 				id=get_configserver_id(),
 				opsiHostKey=None,
-				depotLocalUrl="file:///var/lib/opsi/depot",
+				depotLocalUrl=f"file://{DEPOT_DIR}",
 				depotRemoteUrl=f"smb://{FQDN}/opsi_depot",
 				depotWebdavUrl=f"webdavs://{FQDN}:4447/depot",
-				repositoryLocalUrl="file:///var/lib/opsi/repository",
+				repositoryLocalUrl=f"file://{REPOSITORY_DIR}",
 				repositoryRemoteUrl=f"webdavs://{FQDN}:4447/repository",
-				workbenchLocalUrl="file:///var/lib/opsi/workbench",
+				workbenchLocalUrl=f"file://{WORKBENCH_DIR}",
 				workbenchRemoteUrl=f"smb://{FQDN}/opsi_workbench",
 				description=None,
 				notes=None,

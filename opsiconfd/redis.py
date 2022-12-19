@@ -148,25 +148,25 @@ def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: floa
 			if time.time() >= end:  # pylint: disable=dotted-import-in-loop
 				raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")  # pylint: disable=loop-invariant-statement
 			time.sleep(0.5)  # pylint: disable=dotted-import-in-loop
-
-		yield identifier
-
-		with client.pipeline(transaction=True) as pipe:
-			while True:
-				try:  # pylint: disable=loop-try-except-usage
-					# Redis will only perform the transaction if the watched keys were not modified.
-					pipe.watch(redis_key)
-					if pipe.get(redis_key) == indentifier_b:
-						# Release lock
-						pipe.multi()
-						pipe.delete(redis_key)
-						pipe.execute()
-					else:
-						# Different identifier, not our lock
-						pipe.unwatch()
-					break
-				except redis.exceptions.WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
-					pass
+		try:
+			yield identifier
+		finally:
+			with client.pipeline(transaction=True) as pipe:
+				while True:
+					try:  # pylint: disable=loop-try-except-usage
+						# Redis will only perform the transaction if the watched keys were not modified.
+						pipe.watch(redis_key)
+						if pipe.get(redis_key) == indentifier_b:
+							# Release lock
+							pipe.multi()
+							pipe.delete(redis_key)
+							pipe.execute()
+						else:
+							# Different identifier, not our lock
+							pipe.unwatch()
+						break
+					except redis.exceptions.WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
+						pass
 
 
 @asynccontextmanager
@@ -186,24 +186,26 @@ async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_t
 		if time.time() >= end:  # pylint: disable=dotted-import-in-loop,
 			raise TimeoutError(f"Failed to acquire {lock_name} lock in {acquire_timeout:0.2f} seconds")  # pylint: disable=loop-invariant-statement
 		await asyncio.sleep(0.5)  # pylint: disable=dotted-import-in-loop
-	yield identifier
 
-	async with client.pipeline(transaction=True) as pipe:
-		while True:
-			try:  # pylint: disable=loop-try-except-usage
-				# Redis will only perform the transaction if the watched keys were not modified.
-				await pipe.watch(redis_key)
-				if await pipe.get(redis_key) == identifier_b:
-					# Release lock
-					pipe.multi()
-					pipe.delete(redis_key)
-					await pipe.execute()
-				else:
-					# Different identifier, not our lock
-					await pipe.unwatch()
-				break
-			except redis.exceptions.WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
-				pass
+	try:
+		yield identifier
+	finally:
+		async with client.pipeline(transaction=True) as pipe:
+			while True:
+				try:  # pylint: disable=loop-try-except-usage
+					# Redis will only perform the transaction if the watched keys were not modified.
+					await pipe.watch(redis_key)
+					if await pipe.get(redis_key) == identifier_b:
+						# Release lock
+						pipe.multi()
+						pipe.delete(redis_key)
+						await pipe.execute()
+					else:
+						# Different identifier, not our lock
+						await pipe.unwatch()
+					break
+				except redis.exceptions.WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
+					pass
 
 
 async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any]:  # pylint: disable=too-many-locals

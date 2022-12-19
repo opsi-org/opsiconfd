@@ -243,7 +243,11 @@ def check_deprecated_calls() -> dict:  # pylint: disable=unused-argument
 			deprecated_calls[method_name] = {"calls": calls, "last_call": last_call, "clients": clients}
 	if not deprecated_calls:
 		return {"status": CheckStatus.OK, "message": "No deprecated method calls found."}
-	return {"status": CheckStatus.WARNING, "details": deprecated_calls}
+	return {
+		"status": CheckStatus.WARNING,
+		"message": f"Use of {len(deprecated_calls)} deprecated methods found.",
+		"details": deprecated_calls,
+	}
 
 
 def check_opsi_packages() -> dict:  # pylint: disable=too-many-locals,too-many-branches,unused-argument
@@ -353,16 +357,14 @@ def print(msg: str, console: Console, style: Optional[str] = "", indent_level: i
 
 
 def print_check_deprecated_calls_result(check_result: dict, console: Console) -> None:
-	if check_result.get("status") == CheckStatus.OK:
-		print("No deprecated method calls found.", console, STYLES.get(CheckStatus.OK), 1)
-	else:
-		for method, data in check_result.get("details", {}).items():
-			print(f"Deprecated method '{method}' was called {data.get('calls')} times.", console, STYLES.get(CheckStatus.WARNING), 1)
-			print("The method was called from:", console, STYLES.get(CheckStatus.WARNING), 1)
-			for client in data.get("clients"):
-				print(f"- {client}", console, STYLES.get(CheckStatus.WARNING), 2)
+	print(check_result["message"], console, STYLES[check_result["status"]], 1)
+	for method, data in check_result.get("details", {}).items():
+		print(f"Deprecated method '{method}' was called {data.get('calls')} times.", console, STYLES[check_result["status"]], 1)
+		print("The method was called from:", console, STYLES[check_result["status"]], 1)
+		for client in data.get("clients"):
+			print(f"- {client}", console, STYLES[check_result["status"]], 2)
 
-			print(f"Last call was {data.get('last_call')}", console, STYLES.get(CheckStatus.WARNING), 1)
+		print(f"Last call was {data.get('last_call')}", console, STYLES[check_result["status"]], 1)
 
 
 def print_check_opsi_licenses_results(check_result: dict, console: Console) -> None:

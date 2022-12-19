@@ -9,12 +9,13 @@ test application.filetransfer
 """
 
 from pathlib import Path
-from time import time
+from time import sleep, time
+from unittest.mock import patch
 
 import msgpack  # type: ignore[import]
 from werkzeug.http import parse_options_header
 
-from opsiconfd.application.filetransfer import FILE_TRANSFER_STORAGE_DIR
+from opsiconfd.application.filetransfer import _prepare_file, cleanup_file_storage
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -24,87 +25,119 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-def test_raw_file_upload_download_delete(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	data = b"file-data"
-	resp = test_client.post("/file-transfer/raw", content=data)
-	assert resp.status_code == 201
-	file_id = resp.json()["file_id"]
-	assert file_id
-	file_path = Path(FILE_TRANSFER_STORAGE_DIR) / file_id
-	meta_path = file_path.with_suffix(".meta")
-	assert file_path.read_bytes() == data
-	meta = msgpack.loads(meta_path.read_bytes())
-	assert abs(time() - meta["created"]) < 10
+def test_raw_file_upload_download_delete(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		data = b"file-data"
+		resp = test_client.post("/file-transfer/raw", content=data)
+		assert resp.status_code == 201
+		file_id = resp.json()["file_id"]
+		assert file_id
+		file_path = tmp_path / file_id
+		meta_path = file_path.with_suffix(".meta")
+		assert file_path.read_bytes() == data
+		meta = msgpack.loads(meta_path.read_bytes())
+		assert abs(time() - meta["created"]) < 10
 
-	resp = test_client.get(f"/file-transfer/{file_id}")
-	assert resp.status_code == 200
-	assert resp.content == data
+		resp = test_client.get(f"/file-transfer/{file_id}")
+		assert resp.status_code == 200
+		assert resp.content == data
 
-	resp = test_client.delete(f"/file-transfer/{file_id}")
-	assert resp.status_code == 200
-	assert resp.json()["file_id"] == file_id
+		resp = test_client.delete(f"/file-transfer/{file_id}")
+		assert resp.status_code == 200
+		assert resp.json()["file_id"] == file_id
 
-	assert not file_path.exists()
-	assert not meta_path.exists()
-
-
-def test_raw_file_upload_download_with_delete(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	data = b"file-data"
-	resp = test_client.post("/file-transfer/raw", content=data)
-	assert resp.status_code == 201
-	file_id = resp.json()["file_id"]
-	assert file_id
-	file_path = Path(FILE_TRANSFER_STORAGE_DIR) / file_id
-	meta_path = file_path.with_suffix(".meta")
-	assert file_path.read_bytes() == data
-	meta = msgpack.loads(meta_path.read_bytes())
-	assert abs(time() - meta["created"]) < 10
-
-	resp = test_client.get(f"/file-transfer/{file_id}", params={"delete": "false"})
-	assert resp.status_code == 200
-	assert resp.content == data
-	assert file_path.exists()
-	assert meta_path.exists()
-
-	resp = test_client.get(f"/file-transfer/{file_id}", params={"delete": "true"})
-	assert resp.status_code == 200
-	assert resp.content == data
-	assert not file_path.exists()
-	assert not meta_path.exists()
+		assert not file_path.exists()
+		assert not meta_path.exists()
 
 
-def test_multipart_file_upload_download_delete(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
-	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	data = b"file-data"
-	filename = "testäöü.txt"
-	content_type = "text/plain"
+def test_raw_file_upload_download_with_delete(
+	tmp_path: Path, test_client: OpsiconfdTestClient  # pylint: disable=redefined-outer-name
+) -> None:
+	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		data = b"file-data"
+		resp = test_client.post("/file-transfer/raw", content=data)
+		assert resp.status_code == 201
+		file_id = resp.json()["file_id"]
+		assert file_id
+		file_path = tmp_path / file_id
+		meta_path = file_path.with_suffix(".meta")
+		assert file_path.read_bytes() == data
+		meta = msgpack.loads(meta_path.read_bytes())
+		assert abs(time() - meta["created"]) < 10
 
-	files = {"file": (filename, data, content_type)}
+		resp = test_client.get(f"/file-transfer/{file_id}", params={"delete": "false"})
+		assert resp.status_code == 200
+		assert resp.content == data
+		assert file_path.exists()
+		assert meta_path.exists()
 
-	res = test_client.post("/file-transfer/multipart", files=files)
-	assert res.status_code == 201
-	file_id = res.json()["file_id"]
-	assert file_id
-	file_path = Path(FILE_TRANSFER_STORAGE_DIR) / file_id
-	meta_path = file_path.with_suffix(".meta")
-	assert file_path.read_bytes() == data
-	meta = msgpack.loads(meta_path.read_bytes())
-	assert abs(time() - meta["created"]) < 10
-	assert meta["filename"] == filename
-	assert meta["content_type"] == content_type
+		resp = test_client.get(f"/file-transfer/{file_id}", params={"delete": "true"})
+		assert resp.status_code == 200
+		assert resp.content == data
+		assert not file_path.exists()
+		assert not meta_path.exists()
 
-	res = test_client.get(f"/file-transfer/{file_id}")
-	assert res.status_code == 200
-	assert res.content == data
 
-	assert res.headers["content-type"].split(";")[0] == content_type
-	assert parse_options_header(res.headers["content-disposition"])[1]["filename"] == filename
+def test_multipart_file_upload_download_delete(  # pylint: disable=redefined-outer-name
+	tmp_path: Path, test_client: OpsiconfdTestClient
+) -> None:
+	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
+		test_client.auth = (ADMIN_USER, ADMIN_PASS)
+		data = b"file-data"
+		filename = "testäöü.txt"
+		content_type = "text/plain"
 
-	res = test_client.delete(f"/file-transfer/{file_id}")
-	assert res.status_code == 200
-	assert res.json()["file_id"] == file_id
+		files = {"file": (filename, data, content_type)}
 
-	assert not file_path.exists()
-	assert not meta_path.exists()
+		res = test_client.post("/file-transfer/multipart", files=files)
+		assert res.status_code == 201
+		file_id = res.json()["file_id"]
+		assert file_id
+		file_path = tmp_path / file_id
+		meta_path = file_path.with_suffix(".meta")
+		assert file_path.read_bytes() == data
+		meta = msgpack.loads(meta_path.read_bytes())
+		assert abs(time() - meta["created"]) < 10
+		assert meta["filename"] == filename
+		assert meta["content_type"] == content_type
+
+		res = test_client.get(f"/file-transfer/{file_id}")
+		assert res.status_code == 200
+		assert res.content == data
+
+		assert res.headers["content-type"].split(";")[0] == content_type
+		assert parse_options_header(res.headers["content-disposition"])[1]["filename"] == filename
+
+		res = test_client.delete(f"/file-transfer/{file_id}")
+		assert res.status_code == 200
+		assert res.json()["file_id"] == file_id
+
+		assert not file_path.exists()
+		assert not meta_path.exists()
+
+
+def test_cleanup_file_storage(tmp_path: Path) -> None:
+	with patch("opsiconfd.application.filetransfer.FILE_TRANSFER_STORAGE_DIR", str(tmp_path)):
+		(tmp_path / "invalid").touch()
+		(tmp_path / "invalid.meta").touch()
+		(tmp_path / ".hidden").touch()
+		(tmp_path / "subdir").mkdir()
+		(tmp_path / "invalid2.meta").write_bytes(b"-")
+		path = _prepare_file("test")[1]
+		path.rename(path.parent / "invalid-uuid-filename")
+		path.with_suffix(".meta").rename(path.parent / "invalid-uuid-filename.meta")
+		_prepare_file("expired", validity=1)  # Valid for 1 second
+		sleep(2)
+
+		valid_files = [_prepare_file("ok")[1], _prepare_file("ok")[1], _prepare_file("ok")[1]]  # pylint: disable=use-tuple-over-list
+		valid_meta = [f.with_suffix(".meta") for f in valid_files]
+		valid_filenames = [f.name for f in valid_files + valid_meta]
+
+		cleanup_file_storage()
+
+		for path in tmp_path.iterdir():
+			if not path.is_file():
+				continue
+			assert path.name in valid_filenames

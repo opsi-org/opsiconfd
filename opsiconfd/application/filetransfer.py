@@ -8,9 +8,10 @@
 filetransfer
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from time import time
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
 from uuid import UUID, uuid4
 
 import aiofiles  # type: ignore[import]
@@ -22,6 +23,12 @@ from werkzeug.http import parse_options_header
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.config import FILE_TRANSFER_STORAGE_DIR
+from opsiconfd.logging import logger
+from opsiconfd.utils import utc_time_timestamp
+
+if TYPE_CHECKING:
+	from opsiconfd.session import OPSISession
+
 
 filetransfer_router = APIRouter()
 
@@ -30,28 +37,72 @@ def filetransfer_setup(app: FastAPI) -> None:
 	app.include_router(filetransfer_router, prefix="/file-transfer")
 
 
-def prepare_file(filename: str | None = None, content_type: str | None = None) -> Tuple[str, Path]:
-	session = contextvar_client_session.get()
-	if not session or not session.username:
-		raise PermissionError()
-
+def _prepare_file(
+	filename: str | None = None, content_type: str | None = None, validity: int = 24 * 3600, session: OPSISession | None = None
+) -> Tuple[str, Path]:
+	now = int(utc_time_timestamp())
+	expires = now + int(validity)
 	file_id = str(uuid4())
 	storage_dir = Path(FILE_TRANSFER_STORAGE_DIR)
 	storage_dir.mkdir(exist_ok=True)
 	file_path = storage_dir / file_id
+	file_path.touch()
 	meta_path = file_path.with_suffix(".meta")
 	meta_path.write_bytes(
 		msgspec.msgpack.encode(
 			{
-				"created": int(time()),
-				"expires": int(time() + 3600),
-				"username": session.username,
+				"created": now,
+				"expires": expires,
+				"username": session.username if session else None,
 				"filename": filename,
 				"content_type": content_type,
 			}
 		)
 	)
 	return file_id, file_path
+
+
+def prepare_file(filename: str | None = None, content_type: str | None = None, validity: int = 24 * 3600) -> Tuple[str, Path]:
+	"""
+	expiry: File expires in given seconds from now
+	"""
+	session = contextvar_client_session.get()
+	if not session or not session.username:
+		raise PermissionError()
+
+	return _prepare_file(filename=filename, content_type=content_type, validity=validity, session=session)
+
+
+def cleanup_file_storage() -> None:
+	now = utc_time_timestamp()
+	all_files = set()
+	keep_files = set()
+	for path in Path(FILE_TRANSFER_STORAGE_DIR).iterdir():
+		if not path.is_file():
+			continue
+
+		all_files.add(path)
+		if path.suffix != ".meta":
+			continue
+
+		try:  # pylint: disable=loop-try-except-usage
+			UUID(path.name)  # Test if filename is valid UUID
+			meta = msgspec.msgpack.decode(path.read_bytes())  # pylint: disable=dotted-import-in-loop
+			if meta["expires"] <= now:
+				# Expired
+				continue
+		except Exception:  # pylint: disable=broad-except
+			# Invalid meta data
+			continue
+
+		keep_files.add(path)
+		keep_files.add(path.with_suffix(""))
+
+	for path in all_files.difference(keep_files):
+		try:  # pylint: disable=loop-try-except-usage
+			path.unlink()
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error(err)
 
 
 def delete_file(file_id: UUID) -> None:
@@ -105,6 +156,8 @@ async def filetransfer_get_file(file_id: UUID, delete: bool = False) -> FileResp
 	if not file_path.exists() or not file_path.exists():
 		raise ValueError("Invalid file ID")
 	meta = msgspec.msgpack.decode(meta_path.read_bytes())
+	if meta["expires"] <= utc_time_timestamp():
+		raise ValueError("Invalid file ID")
 	background = BackgroundTask(delete_file, file_id) if delete else None
 	return FileResponse(path=file_path, filename=meta["filename"], media_type=meta["content_type"], background=background)
 

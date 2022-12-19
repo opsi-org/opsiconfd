@@ -19,6 +19,7 @@ from types import FrameType
 from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, app
+from opsiconfd.application.filetransfer import cleanup_file_storage
 from opsiconfd.config import config
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import cleanup_channels
@@ -43,6 +44,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._redis_check_interval = 300
 		self._messagebus_channel_cleanup_time = 0.0
 		self._messagebus_channel_cleanup_interval = 180
+		self._cleanup_file_storage_time = 0.0
+		self._cleanup_file_storage_interval = 3600
 		self._metrics_collector = ManagerMetricsCollector()
 		self._server = Server()
 
@@ -145,6 +148,9 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 				if now - self._messagebus_channel_cleanup_time > self._messagebus_channel_cleanup_interval:
 					await cleanup_channels()
 					self._messagebus_channel_cleanup_time = now
+				if now - self._cleanup_file_storage_time > self._cleanup_file_storage_interval:
+					await run_in_threadpool(cleanup_file_storage)
+					self._cleanup_file_storage_time = now
 			except Exception as err:  # pylint: disable=broad-except
 				logger.error(err, exc_info=True)
 			for _num in range(60):

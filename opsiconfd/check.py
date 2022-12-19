@@ -45,7 +45,6 @@ class CheckStatus(StrEnum):
 
 
 STYLES = {CheckStatus.OK: "[bold green]", CheckStatus.WARNING: "[bold yellow]", CheckStatus.ERROR: "[bold red]"}
-INDENT_SIZE = 5
 
 
 def health_check() -> dict:

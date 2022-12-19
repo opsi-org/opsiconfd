@@ -73,16 +73,17 @@ def console_health_check() -> int:
 	}
 	res = 0
 	console.print("Checking server health...")
+	style = STYLES
 	with console.status("Checking...", spinner="arrow3"):
 		for name, check in checks.items():
 			result = check["check_method"]()  # type: ignore
 			if result.get("status") == CheckStatus.OK:
-				console.print(f"{STYLES[result['status']]} {name}: {CheckStatus.OK.upper()} ")
+				console.print(f"{style[result['status']]} {name}: {CheckStatus.OK.upper()} ")
 			elif result.get("status") == CheckStatus.WARNING:
-				console.print(f"{STYLES[result['status']]} {name}: {CheckStatus.WARNING.upper()} ")
+				console.print(f"{style[result['status']]} {name}: {CheckStatus.WARNING.upper()} ")
 				res = 2
 			else:
-				console.print(f"{STYLES[result['status']]} {name}: {CheckStatus.ERROR.upper()} ")
+				console.print(f"{style[result['status']]} {name}: {CheckStatus.ERROR.upper()} ")
 				res = 1
 			if config.detailed:
 				check["print_method"](result, console)  # type: ignore
@@ -364,31 +365,35 @@ def print_check_result(check_result: dict, console: Console) -> None:
 
 
 def print_check_deprecated_calls_result(check_result: dict, console: Console) -> None:
+	styles = STYLES
 	console_print(check_result["message"], console, STYLES[check_result["status"]], 1)
 	for method, data in check_result.get("details", {}).items():
-		console_print(f"Deprecated method '{method}' was called {data.get('calls')} times.", console, STYLES[check_result["status"]], 1)
-		console_print("The method was called from:", console, STYLES[check_result["status"]], 1)
-		for client in data.get("clients"):
-			console_print(f"- {client}", console, STYLES[check_result["status"]], 2)
-		console_print(f"Last call was {data.get('last_call')}", console, STYLES[check_result["status"]], 1)
+		console_print(f"Deprecated method '{method}' was called {data.get('calls')} times.", console, styles[check_result["status"]], 1)
+		console_print("The method was called from:", console, styles[check_result["status"]], 1)
+		for client in data.get("clients"):  # pylint: disable=loop-invariant-statement
+			console_print(f"- {client}", console, styles[check_result["status"]], 2)  # pylint: disable=loop-invariant-statement
+		console_print(f"Last call was {data.get('last_call')}", console, styles[check_result["status"]], 1)
 
 
 def print_check_opsi_licenses_results(check_result: dict, console: Console) -> None:
+	styles = STYLES
 	console_print(f"Active clients: {check_result['clients']}", console, indent_level=1)
 	for module, data in check_result["partial_checks"].items():
 		console_print(f"{module}:", console, indent_level=1)
-		console_print(f"- {data['message']}", console, STYLES.get(data["status"]), 2)
-		console_print(f"- Client limit: {data['details']['client_number']}", console, STYLES.get(data["status"]), 2)
+		console_print(f"- {data['message']}", console, styles[data["status"]], 2)  # pylint: disable=loop-invariant-statement
+		console_print(f"- Client limit: {data['details']['client_number']}", console, styles[data["status"]], 2)
 
 
 def print_check_opsi_packages_result(check_result: dict, console: Console) -> None:
-	console_print(check_result["message"], console, STYLES.get(check_result["status"]), 1)
+	styles = STYLES
+	console_print(check_result["message"], console, styles[check_result["status"]], 1)
 	for depot, depot_results in check_result.get("partial_checks", {}).items():
 		console_print(f"{depot}:", console, indent_level=1)
 		for res in depot_results.values():
-			console_print(f"{res['message']}", console, STYLES.get(check_result["status"]), 2)
+			console_print(f"{res['message']}", console, styles[check_result["status"]], 2)  # pylint: disable=loop-invariant-statement
 
 
 def print_check_system_packages_result(check_result: dict, console: Console) -> None:
+	styles = STYLES
 	for data in check_result["partial_checks"].values():
-		console_print(data.get("message"), console, STYLES[data["status"]], 1)
+		console_print(data.get("message"), console, styles[data["status"]], 1)

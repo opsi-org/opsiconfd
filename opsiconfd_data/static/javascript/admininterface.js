@@ -140,8 +140,8 @@ function restoreBackup() {
 			else {
 				showNotifcation("Backup successfully restored", "success", 5);
 			}
+			button.classList.remove("loading");
 		});
-		button.classList.remove("loading");
 	}, (error) => {
 		console.error(error);
 		showNotifcation(`Failed to restore backup: ${error.message || JSON.stringify(error)}`, "error", 30);

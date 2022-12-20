@@ -946,7 +946,9 @@ function messagebusConnect() {
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	};
 	messagebusWS.onerror = function (error) {
-		console.error(`Messagebus websocket connection error: ${JSON.stringify(error)} `);
+		const error = `Messagebus websocket connection error: ${JSON.stringify(error)}`;
+		showNotifcation(error, "error", 5);
+		console.error(error);
 		messagebusWS = null;
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	}
@@ -1337,7 +1339,9 @@ function startTerminal() {
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
 		terminal.websocket.onerror = function (error) {
-			console.error(`Terminal ws connection error: ${JSON.stringify(error)} `);
+			const error = `Terminal ws connection error: ${JSON.stringify(error)}`;
+			console.error(error);
+			showNotifcation(error, "error", 5);
 			terminal.writeln("\r\n\033[1;31m> Connection error: " + JSON.stringify(error) + " <\033[0m");
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
@@ -1427,7 +1431,8 @@ function terminalFileUpload(file) {
 	console.log("terminalFileUpload:")
 	console.log(file);
 	if (!terminal || !terminal.websocket) {
-		console.error("No terminal connected")
+		console.error("No terminal connected");
+		showNotifcation("No terminal connected", "error", 5);
 		return;
 	}
 

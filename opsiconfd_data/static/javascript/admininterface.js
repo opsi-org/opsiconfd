@@ -414,7 +414,7 @@ function onRPCInterfaceMethodSelected() {
 			if (method.deprecated) {
 				doc += '<span class="jsonrpc-deprecated-method">This method is deprecated and will be removed in one of the next versions.</span><br />';
 				if (method.alternative_method) {
-					doc += `Please use the method '<strong>${method.alternative_method}</strong>' instead.< br /> `
+					doc += `Please use the method '<strong>${method.alternative_method}</strong>' instead.<br /> `
 				}
 			}
 			if (method.doc) {
@@ -769,7 +769,7 @@ function printRPCTable(data, htmlId) {
 	htmlStr += "<tr>";
 	keys = Object.keys(data[0]);
 	Object.keys(data[0]).forEach(element => {
-		htmlStr += `< th class="rpc-th" onclick = "loadRPCTable('${element}', true)" title = "sort" style = "cursor: pointer;" > ${element}</th > `;
+		htmlStr += `<th class="rpc-th" onclick="loadRPCTable('${element}', true)" title="sort" style="cursor: pointer;">${element}</th>`;
 	});
 	htmlStr += "</tr>";
 
@@ -782,14 +782,14 @@ function printRPCTable(data, htmlId) {
 		keys.forEach(key => {
 			if (key == "date") {
 				date = formateDate(new Date(element[key]))
-				htmlStr += `< td class="${tdClass}" > ${date}</td > `;
+				htmlStr += `<td class="${tdClass}">${date}</td>`;
 			}
 			else if (key == "duration") {
 				duration = element[key].toFixed(4)
-				htmlStr += `< td class="${tdClass}" > ${duration}</td > `;
+				htmlStr += `<td class="${tdClass}">${duration}</td>`;
 			}
 			else {
-				htmlStr += `< td class="${tdClass}" > ${element[key]}</td > `;
+				htmlStr += `<td class="${tdClass}">${element[key]}</td>`;
 			}
 		});
 		htmlStr += "</tr>";
@@ -1320,7 +1320,7 @@ function startTerminal() {
 
 		console.log(`size: ${terminal.cols} cols, ${terminal.rows} rows`);
 
-		let params = ["set_cookie_interval=30", `rows = ${terminal.rows} `, `cols = ${terminal.cols} `]
+		let params = ["set_cookie_interval=30", `rows=${terminal.rows} `, `cols=${terminal.cols} `]
 		let loc = window.location;
 		let ws_uri;
 		if (loc.protocol == "https:") {
@@ -1354,11 +1354,12 @@ function startTerminal() {
 			else if (message.type == "file-transfer-result") {
 				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 				if (message.payload.error) {
-					const error = `File upload failed: ${JSON.stringify(message.payload)} `;
+					const error = `File upload failed: ${JSON.stringify(message.payload)}.`;
+					showNotifcation(error, "error", 10);
 					console.error(error);
 				}
 				else {
-					console.log(`File upload successful: ${JSON.stringify(message.payload)} `)
+					console.log(`File upload successful: ${JSON.stringify(message.payload)}.`)
 					const path = message.payload.result.path;
 					terminal.websocket.send(msgpack.serialize({ "type": "terminal-write", "payload": path + "\033[D".repeat(path.length) }));
 				}
@@ -1484,7 +1485,7 @@ function terminalFileUpload(file) {
 function generateLiceningInfoTable(info, htmlId) {
 	htmlStr = "<table id=\"licensing-info-table\">";
 	for (const [key, val] of Object.entries(info)) {
-		htmlStr += `< tr ><td class="licensing-info-key">${key}</td><td>${val}</td></tr > `;
+		htmlStr += `<tr><td class="licensing-info-key">${key}</td><td>${val}</td></tr>`;
 	}
 	htmlStr += "</table>";
 	div = document.getElementById(htmlId).innerHTML = htmlStr;
@@ -1494,11 +1495,11 @@ function generateLiceningInfoTable(info, htmlId) {
 function generateLiceningDatesTable(dates, activeDate, htmlId) {
 	htmlStr = "<table id=\"licensing-dates-table\"><tr><th>Module</th>";
 	for (const date of Object.keys(Object.values(dates)[0])) {
-		htmlStr += `< th > ${date}</th > `;
+		htmlStr += `<th>${date}</th>`;
 	}
 	htmlStr += "</tr>";
 	for (const [moduleId, dateData] of Object.entries(dates)) {
-		htmlStr += `< tr > <td>${moduleId}</td>`;
+		htmlStr += `<tr><td>${moduleId}</td>`;
 		for (const [date, moduleData] of Object.entries(dateData)) {
 			let title = "";
 			for (const [k, v] of Object.entries(moduleData)) {
@@ -1507,7 +1508,7 @@ function generateLiceningDatesTable(dates, activeDate, htmlId) {
 			const changed = moduleData['changed'] ? 'changed' : '';
 			const active = date == activeDate ? 'active' : 'inactive';
 			const text = moduleData['client_number'] == 999999999 ? 'unlimited' : moduleData['client_number'];
-			htmlStr += `< td title = "${title}" class="${changed} ${moduleData['state']} ${active}" > ${text}</td > `;
+			htmlStr += `<td title="${title}" class="${changed} ${moduleData['state']} ${active}">${text}</td>`;
 		}
 		htmlStr += "</tr>";
 	}

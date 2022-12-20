@@ -1140,7 +1140,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._parser.add(
 				"--server-id",
 				env_var="OPSICONFD_SERVER_ID",
-				default="local",
+				default="backup",
 				help=self._help(
 					"restore",
 					(

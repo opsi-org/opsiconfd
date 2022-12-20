@@ -96,6 +96,7 @@ def backup_main() -> None:
 					raise ValueError(f"Invalid compression {compression!r}, valid compressions are 'lz4' and 'gz'")
 
 			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
+			progress.console.print(f"Using arguments: config_files={not config.no_config_files} maintenance={not config.no_maintenance}")
 
 			if not config.no_maintenance:
 				threading.Thread(
@@ -135,6 +136,7 @@ def restore_main() -> None:
 				server_id = forceHostId(server_id)
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
+			progress.console.print(f"Using arguments: config_files={config.config_files}, server_id={server_id}")
 
 			threading.Thread(
 				target=asyncio.run,

@@ -116,9 +116,9 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 	state_key = None
 	host = session.host
 	if host:
-		if host.type == "OpsiClient":
+		if host.getType() == "OpsiClient":
 			state_key = f"{config.redis_key('messagebus')}:connections:clients:{host.id}"
-		elif host.type == "OpsiDepotserver":
+		elif host.getType() == "OpsiDepotserver":
 			state_key = f"{config.redis_key('messagebus')}:connections:depots:{host.id}"
 	else:
 		state_key = f"{config.redis_key('messagebus')}:connections:users:{session.username}"

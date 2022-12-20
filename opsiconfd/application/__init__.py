@@ -91,7 +91,7 @@ class ShutdownState(AppState):
 
 @dataclass(slots=True, kw_only=True)
 class MaintenanceState(AppState):
-	retry_after: int = 500
+	retry_after: int = 600
 	message: str = "Maintenance mode, please try again later"
 	address_exceptions: list[str] = field(default_factory=lambda: ["::1/128", "127.0.0.1/32"])
 

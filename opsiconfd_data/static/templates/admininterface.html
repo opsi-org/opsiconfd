@@ -541,7 +541,7 @@
 		<div id="tab-log-viewer" class="tabcontent fitheight">
 			<div id="log-settings">
 				<div class="log-setting">
-					<button class="tab-maximize" onclick="toggleTabMaximize();">Maximize</button>
+					<button class="tab-maximize" onclick="toggleTabMaximize();" style="margin: 0;">Maximize</button>
 				</div>
 				<div class="log-setting">
 					<label for="log-level-filter">Filter by level:</label>
@@ -566,8 +566,8 @@
 				</div>
 				<div class="log-setting">
 					<label>Font size:</label>
-					<button id="decrease-font-size" onclick="changeFontSize(-1);">-</button>
-					<button id="increase-font-size" onclick="changeFontSize(+1);">+</button>
+					<button id="decrease-font-size" onclick="changeFontSize(-1);" style="margin: 0;">-</button>
+					<button id="increase-font-size" onclick="changeFontSize(+1);" style="margin: 0;">+</button>
 				</div>
 			</div>
 			<div id="log-container" onwheel="if (window.event.deltaY < 0) setAutoScroll(false);">

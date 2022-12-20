@@ -946,9 +946,9 @@ function messagebusConnect() {
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	};
 	messagebusWS.onerror = function (error) {
-		const error = `Messagebus websocket connection error: ${JSON.stringify(error)}`;
-		showNotifcation(error, "error", 5);
-		console.error(error);
+		const err = `Messagebus websocket connection error: ${JSON.stringify(error)}`;
+		console.error(err);
+		showNotifcation(err, "error", 5);
 		messagebusWS = null;
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	}
@@ -1339,9 +1339,9 @@ function startTerminal() {
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
 		terminal.websocket.onerror = function (error) {
-			const error = `Terminal ws connection error: ${JSON.stringify(error)}`;
-			console.error(error);
-			showNotifcation(error, "error", 5);
+			const err = `Terminal ws connection error: ${JSON.stringify(error)}`;
+			console.error(err);
+			showNotifcation(err, "error", 5);
 			terminal.writeln("\r\n\033[1;31m> Connection error: " + JSON.stringify(error) + " <\033[0m");
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
@@ -1419,10 +1419,10 @@ function stopTerminal() {
 
 function changeTerminalFontSize(val) {
 	if (!terminal) return;
-	let size = terminal.getOption("fontSize");
+	let size = terminal.options.fontSize;
 	size += val;
 	if (size < 1) { size = 1; }
-	terminal.setOption("fontSize", size);
+	terminal.options.fontSize = size;
 	terminal.fitAddon.fit();
 }
 

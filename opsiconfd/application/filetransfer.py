@@ -77,7 +77,9 @@ def cleanup_file_storage() -> None:
 	now = utc_time_timestamp()
 	all_files = set()
 	keep_files = set()
-	for path in Path(FILE_TRANSFER_STORAGE_DIR).iterdir():
+	storage_dir = Path(FILE_TRANSFER_STORAGE_DIR)
+	storage_dir.mkdir(exist_ok=True)
+	for path in storage_dir.iterdir():
 		if not path.is_file():
 			continue
 

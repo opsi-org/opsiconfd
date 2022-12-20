@@ -8,10 +8,12 @@
 opsiconfd.messagebus.redis
 """
 
+from __future__ import annotations
+
 from asyncio import Event, sleep
 from asyncio.exceptions import CancelledError
 from time import time
-from typing import Any, AsyncGenerator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import msgspec
@@ -22,12 +24,15 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 from redis.asyncio import StrictRedis
-from redis.exceptions import ResponseError
+from redis.exceptions import ResponseError, WatchError
 from redis.typing import StreamIdT
 
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
-from opsiconfd.redis import async_redis_client
+from opsiconfd.redis import async_redis_client, redis_client
+
+if TYPE_CHECKING:
+	from opsiconfd.session import OPSISession
 
 logger = get_logger("opsiconfd.messagebus")
 
@@ -103,6 +108,55 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str | Non
 		pipeline.hset(stream_key + CHANNEL_INFO_SUFFIX, "reader-count", 0)
 		await pipeline.execute()
 	return channel
+
+
+async def update_websocket_count(session: OPSISession, increment: int) -> None:
+	redis = await async_redis_client()
+
+	state_key = None
+	host = session.host
+	if host:
+		if host.type == "OpsiClient":
+			state_key = f"{config.redis_key('messagebus')}:connections:clients:{host.id}"
+		elif host.type == "OpsiDepotserver":
+			state_key = f"{config.redis_key('messagebus')}:connections:depots:{host.id}"
+	else:
+		state_key = f"{config.redis_key('messagebus')}:connections:users:{session.username}"
+
+	if not state_key:
+		return
+
+	async with redis.pipeline(transaction=True) as pipe:
+		attempt = 0
+		while True:
+			attempt += 1
+			try:  # pylint: disable=loop-try-except-usage
+				await pipe.watch(state_key)
+				val = await pipe.hget(state_key, "websocket_count")
+				val = max(0, int(val or 0)) + increment
+				pipe.multi()
+				pipe.hset(state_key, "websocket_count", val)
+				await pipe.execute()
+				break
+			except WatchError:  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
+				pass
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error("Failed to update messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
+				break
+			if attempt >= 10:
+				logger.error("Failed to update messagebus websocket count")  # pylint: disable=loop-global-usage
+			await sleep(0.1)
+
+
+def get_websocket_connected_client_ids() -> Generator[str, None, None]:
+	with redis_client() as client:
+		for state_key in client.scan_iter(f"{config.redis_key('messagebus')}:connections:clients:*"):
+			try:  # pylint: disable=loop-try-except-usage
+				client_id = state_key.rsplit(":", 1)[-1]
+				if int(client.hget(state_key, "websocket_count") or 0) > 0:
+					yield client_id
+			except Exception as err:  # pylint: disable=broad-except
+				logger.error("Failed to read messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
 
 
 class MessageReader:  # pylint: disable=too-few-public-methods

@@ -672,14 +672,14 @@ async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-b
 	session.host = host
 	session.authenticated = True
 	session.is_read_only = False
-	session.is_admin = host.getType() in ("OpsiConfigserver", "OpsiDepotserver")
+	session.is_admin = host.type in ("OpsiConfigserver", "OpsiDepotserver")
 	if session.username != host.id:
 		session.username = host.id
 		if not scope.get("response-headers"):
 			scope["response-headers"] = {}
 		scope["response-headers"]["x-opsi-new-host-id"] = session.username
 
-	if host.getType() == "OpsiClient":
+	if host.type == "OpsiClient":
 		logger.info("OpsiClient authenticated, updating host object")
 		host.setLastSeen(timestamp())
 		if config.update_ip and host.ipAddress not in (None, "127.0.0.1", "::1", host.ipAddress):
@@ -689,7 +689,7 @@ async def authenticate_host(scope: Scope) -> None:  # pylint: disable=too-many-b
 			host.ipAddress = None
 		await backend.async_call("host_updateObject", host=host)
 
-	elif host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+	elif host.type in ("OpsiConfigserver", "OpsiDepotserver"):
 		logger.debug("Storing depot server address: %s", session.client_addr)
 		depot_addresses[session.client_addr] = time.time()
 

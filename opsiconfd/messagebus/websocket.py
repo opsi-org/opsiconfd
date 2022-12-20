@@ -45,7 +45,12 @@ from . import (
 	get_messagebus_user_id_for_service_worker,
 	get_messagebus_user_id_for_user,
 )
-from .redis import MessageReader, create_messagebus_session_channel, send_message
+from .redis import (
+	MessageReader,
+	create_messagebus_session_channel,
+	send_message,
+	update_websocket_count,
+)
 
 messagebus_router = APIRouter()
 logger = get_logger("opsiconfd.messagebus")
@@ -299,6 +304,8 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		elif self.scope["session"].is_admin:
 			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].username)
 
+		await update_websocket_count(self.scope["session"], 1)
+
 		self._user_channel = self._messagebus_user_id
 		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=False)
 
@@ -308,3 +315,5 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		logger.info("Websocket client disconnected from messagebus")
 		if self._messagebus_reader:
 			await self._messagebus_reader.stop()
+
+		await update_websocket_count(self.scope["session"], -1)

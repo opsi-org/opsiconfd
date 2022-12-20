@@ -24,7 +24,11 @@ from opsiconfd.config import config
 from opsiconfd.logging import init_logging, logger
 from opsiconfd.messagebus.redis import cleanup_channels
 from opsiconfd.metrics.collector import ManagerMetricsCollector
-from opsiconfd.redis import async_get_redis_info, async_redis_client
+from opsiconfd.redis import (
+	async_delete_recursively,
+	async_get_redis_info,
+	async_redis_client,
+)
 from opsiconfd.server import Server
 from opsiconfd.ssl import setup_server_cert
 from opsiconfd.utils import Singleton, log_config
@@ -124,14 +128,17 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 				)  # pylint: disable=loop-invariant-statement
 		self._redis_check_time = time.time()
 
-	async def async_main(self) -> None:
+	async def async_main(self) -> None:  # pylint: disable=too-many-branches
 		# Start MetricsCollector
 		self._loop.create_task(self._metrics_collector.main_loop())
+
+		await async_delete_recursively(f"{config.redis_key('messagebus')}:connections")
+
 		app_state: NormalState | MaintenanceState = NormalState()
 		if config.maintenance is not False:
 			app_state = MaintenanceState(address_exceptions=config.maintenance + ["127.0.0.1/32", "::1/128"])
-
 		self._loop.create_task(app.app_state_manager_task(manager_mode=True, init_app_state=app_state))
+
 		if config.zeroconf:
 			try:
 				await register_opsi_services()

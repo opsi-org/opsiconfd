@@ -60,7 +60,7 @@ from opsiconfd.config import (
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import redis_client
+from opsiconfd.redis import delete_recursively
 from opsiconfd.ssl import setup_ssl, setup_ssl_file_permissions
 
 
@@ -283,15 +283,9 @@ def setup_configs() -> None:
 
 
 def setup_redis() -> None:
-	with redis_client() as redis:
-		with redis.pipeline() as pipeline:
-			# Delete obsolete keys
-			for delete_key in ("status",):
-				for key in redis.scan_iter(f"{config.redis_prefix}:{delete_key}:*"):  # pylint: disable=loop-invariant-statement
-					logger.info("Unlink %r", key)
-					pipeline.unlink(key)
-			if len(pipeline) > 0:
-				pipeline.execute()
+	# Delete obsolete keys
+	for delete_key in ("status",):
+		delete_recursively(delete_key)
 
 
 def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches

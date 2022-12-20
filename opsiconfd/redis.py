@@ -132,6 +132,44 @@ async def async_redis_client(timeout: int = 0, test_connection: bool = False) ->
 	return await get_async_redis_connection(url=config.redis_internal_url, timeout=timeout, test_connection=test_connection)
 
 
+def delete_recursively(redis_key: str, piped: bool = True) -> None:
+	with redis_client() as client:
+		delete_keys = []
+		for key in client.scan_iter(f"{redis_key}:*"):  # pylint: disable=loop-invariant-statement
+			if piped:
+				delete_keys.append(key)
+			else:
+				client.unlink(key)
+
+		if piped:
+			with client.pipeline() as pipe:
+				for key in delete_keys:
+					pipe.unlink(key)
+				pipe.unlink(redis_key)
+				pipe.execute()
+		else:
+			client.unlink(redis_key)
+
+
+async def async_delete_recursively(redis_key: str, piped: bool = True) -> None:
+	client = await async_redis_client()
+	delete_keys = []
+	async for key in client.scan_iter(f"{redis_key}:*"):
+		if piped:
+			delete_keys.append(key)
+		else:
+			await client.unlink(key)
+
+	if piped:
+		async with client.pipeline() as pipe:
+			for key in delete_keys:
+				pipe.unlink(key)
+			pipe.unlink(redis_key)
+			await pipe.execute()
+	else:
+		await client.unlink(redis_key)
+
+
 @contextmanager
 def redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_timeout: float | None = None) -> Generator[str, None, None]:
 	conf = config

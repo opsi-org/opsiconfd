@@ -43,6 +43,7 @@ from opsicommon.exceptions import (  # type: ignore[import]
 )
 from opsicommon.objects import Host  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
+	forceBool,
 	forceHostId,
 	forceHostIdList,
 	forceInt,
@@ -52,6 +53,7 @@ from opsicommon.types import (  # type: ignore[import]
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger
+from opsiconfd.messagebus.redis import get_websocket_connected_client_ids
 
 from . import read_backend_config_file, rpc_method  # pylint: disable=unused-import
 
@@ -141,6 +143,7 @@ class RPCHostControlMixin(Protocol):
 	_host_control_resolve_host_address: bool = False
 	_host_control_max_connections: int = 50
 	_host_control_broadcast_addresses: dict[IPv4Network | IPv6Network, dict[IPv4Address | IPv6Address, tuple[int, ...]]] = {}
+	_host_control_use_messagebus: bool = True
 
 	def __init__(self) -> None:
 		self._set_broadcast_addresses({"0.0.0.0/0": {"255.255.255.255": (7, 9, 12287)}})
@@ -153,6 +156,9 @@ class RPCHostControlMixin(Protocol):
 			attr = "_host_control_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
 			if attr == "_host_control_broadcast_addresses":
 				self._set_broadcast_addresses(val)
+			if attr in ("_host_control_resolve_host_address", "_host_control_use_messagebus"):
+				val = forceBool(val)
+
 			elif hasattr(self, attr):
 				setattr(self, attr, val)
 
@@ -449,6 +455,10 @@ class RPCHostControlMixin(Protocol):
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		hostIds = forceHostIdList(hostIds)
+
+		if self._host_control_use_messagebus:
+			connected_client_ids = list(get_websocket_connected_client_ids())
+			return {host_id: host_id in connected_client_ids for host_id in hostIds or []}
 
 		if not timeout:
 			timeout = self._host_control_host_reachable_timeout

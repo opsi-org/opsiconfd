@@ -56,7 +56,10 @@ function getAppState() {
 }
 
 
-function setAppState(type) {
+function setAppState(type, button) {
+	if (button) {
+		button.classList.add("loading");
+	}
 	params = { "type": type }
 	if (type == "maintenance") {
 		params.auto_add_to_address_exceptions = true;
@@ -71,11 +74,18 @@ function setAppState(type) {
 	}
 	let req = ajaxRequest("POST", "/admin/app-state", params);
 	req.then((result) => {
+		if (button) {
+			button.classList.remove("loading");
+		}
+		console.debug(result);
 		outputToHTML(result, "application-state");
 		return result
 	}, (error) => {
+		if (button) {
+			button.classList.remove("loading");
+		}
 		console.error(error);
-		alert(`Error setting application state:\n${error.message}`);
+		showNotifcation(`Error setting application state: ${error.message}`, "error", 10);
 	});
 }
 
@@ -85,7 +95,6 @@ function createBackup() {
 	button.classList.add("loading");
 	const config_files = document.getElementById("create-backup-config-files").checked;
 	const maintenance_mode = document.getElementById("create-backup-maintenance-mode").checked;
-	//document.getElementById("create-backup-create-button").disabled = true;
 	const req = rpcRequest("service_createBackup", [config_files, maintenance_mode, "file_id"]);
 	req.then((response) => {
 		console.debug(response);
@@ -118,7 +127,7 @@ function restoreBackup() {
 	}
 
 	const serverIDSelect = document.querySelector('input[name="restore-backup-server-id-select"]:checked').value;
-	const serverID = document.getElementById("restore-backup-server-id").value;
+	let serverID = document.getElementById("restore-backup-server-id").value;
 	if (serverIDSelect == "backup" || serverIDSelect == "local") {
 		serverID = serverIDSelect;
 	}
@@ -469,10 +478,10 @@ function callJSONRPC() {
 		let value = inputs[i].value.trim();
 
 		if (!value && name.substring(0, 1) != "*") {
-
-			alert("mandatory field empty");
+			const error = `Mandatory field '${inputs[i].name}' is empty`;
+			showNotifcation(error, "error", 3);
 			return {
-				"error": "mandatory field empty"
+				"error": error
 			};
 		}
 	}
@@ -606,7 +615,7 @@ function ValidateIPaddress(ipaddress) {
 		.test(ipaddress)) {
 		return (true)
 	}
-	alert("You have entered an invalid IP address!")
+	showNotifcation("You have entered an invalid IP address.", "error", 3);
 	return (false)
 }
 
@@ -1042,7 +1051,7 @@ function messagebusInsertMessageTemplate() {
 function messagebusSend(message) {
 	console.debug(message);
 	if (!messagebusWS) {
-		alert("Messagebus not connected");
+		showNotifcation("Messagebus not connected.", "error", 3);
 		return;
 	}
 	if (
@@ -1061,7 +1070,7 @@ function messagebusSend(message) {
 	}
 	catch (error) {
 		console.error(error);
-		alert(error);
+		showNotifcation(error, "error", 10);
 	}
 }
 
@@ -1082,12 +1091,12 @@ function messagebusToggleAutoScroll() {
 
 function messagebusConnectTerminal() {
 	if (!messagebusWS) {
-		alert("Messagebus not connected");
+		showNotifcation("Messagebus not connected.", "error", 3);
 		return;
 	}
 	let terminalChannel = document.getElementById("messagebus-terminal-channel").value;
 	if (!terminalChannel) {
-		alert("Invalid channel");
+		showNotifcation("Invalid channel.", "error", 3);
 		return;
 	}
 

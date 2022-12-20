@@ -120,7 +120,10 @@
 			}
 
 			// Show the current tab, and add an "active" class to the button that opened the tab
-			document.getElementById("tab-" + tabName).style.display = "inherit";
+			let currenTab = document.getElementById("tab-" + tabName);
+			if (currenTab) {
+				currenTab.style.display = "inherit";
+			}
 		}
 	</script>
 </head>
@@ -175,7 +178,7 @@
 
 				<h4>Set application state:</h4>
 
-				<input type="button" onclick="setAppState('normal')" value="Set application to 'normal' state">
+				<input type="button" onclick="setAppState('normal', this)" value="Set application to 'normal' state">
 				<br />
 				<br />
 				<label for="application-state-maintenance-exceptions">Address exceptions (optional):</label>
@@ -186,7 +189,7 @@
 				<input id="application-state-maintenance-retry-after" type="number" style="width: 400px"
 					placeholder="Wait time in seconds before clients retry connection">
 				<br />
-				<input type="button" onclick="setAppState('maintenance')"
+				<input type="button" onclick="setAppState('maintenance', this)"
 					value="Set application to 'maintenance' state">
 			</div>
 			<div class="adminpage-box">
@@ -224,7 +227,7 @@
 			</div>
 		</div>
 
-		<div id=" tab-clients" class="tabcontent">
+		<div id="tab-clients" class="tabcontent">
 			<div class="adminpage-box" id="sessions">
 				<h4>Sessions:</h4>
 				<div id="session-table-div">

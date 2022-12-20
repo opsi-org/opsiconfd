@@ -134,7 +134,9 @@ async def set_app_state(request: Request) -> RESTResponse:
 		params["address_exceptions"] = params.get("address_exceptions", []) + ["127.0.0.1/32", "::1/128"]
 		if request.client:
 			params["address_exceptions"].append(request.client.host)
-	request.app.app_state = AppState.from_dict(params)
+		if "retry_after" in params:
+			params["retry_after"] = int(params["retry_after"])
+	await run_in_threadpool(request.app.set_app_state, AppState.from_dict(params))
 	return RESTResponse(data=request.app.app_state.to_dict())
 
 

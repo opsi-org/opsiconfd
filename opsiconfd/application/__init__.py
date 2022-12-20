@@ -100,6 +100,7 @@ class MaintenanceState(AppState):
 		return "maintenance"
 
 	def __post_init__(self) -> None:
+		self.retry_after = int(self.retry_after)
 		self.address_exceptions = self.address_exceptions or []
 		for idx, address_exception in enumerate(self.address_exceptions):
 			self.address_exceptions[idx] = ip_network(address_exception).compressed
@@ -140,9 +141,8 @@ class OpsiconfdApp(FastAPI):
 			time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 	def set_app_state(self, app_state: AppState, wait_accomplished: float | None = 30.0) -> None:
-		if app_state.type == self._app_state.type and self._app_state.accomplished:
-			return
 		app_state.accomplished = False
+		self.app_state.accomplished = False
 		with self._app_state_lock:
 			self.store_app_state_in_redis(app_state)
 		if wait_accomplished is not None and wait_accomplished > 0:

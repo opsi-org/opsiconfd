@@ -257,6 +257,7 @@ def test_check_system_packages_redhat() -> None:  # pylint: disable=redefined-ou
 
 
 def test_health_check() -> None:
+	sync_clean_redis()
 	result = health_check()
 	assert result.get("system_packages") is not None
 	assert result.get("redis") is not None

@@ -258,7 +258,7 @@ def check_opsi_packages() -> dict:  # pylint: disable=too-many-locals,too-many-b
 	res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
 
 	available_packages = OPSI_PACKAGES
-	result = {"status": CheckStatus.OK, "details": "All packages are up to date.", "partial_checks": {}}
+	result = {"status": CheckStatus.OK, "message": "All packages are up to date.", "partial_checks": {}}
 	partial_checks: Dict[str, Any] = {}
 	backend = get_unprotected_backend()
 
@@ -277,8 +277,8 @@ def check_opsi_packages() -> dict:  # pylint: disable=too-many-locals,too-many-b
 		for package, available_version in available_packages.items():
 			try:  # pylint: disable=loop-try-except-usage
 				product_on_depot = backend.productOnDepot_getObjects(productId=package, depotId=depot)[0]  # pylint: disable=no-member
-				not_installed = not_installed + 1
 			except IndexError as error:
+				not_installed = not_installed + 1
 				logger.debug(error)
 				msg = f"Package '{package}' is not installed."
 				result["status"] = CheckStatus.ERROR  # pylint: disable=loop-invariant-statement

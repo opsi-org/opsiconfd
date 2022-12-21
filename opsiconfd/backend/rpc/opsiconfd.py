@@ -248,7 +248,9 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			self._service_client.disconnect()
 
 	def reload_config(self) -> None:
-		pass
+		self._read_dhcpd_control_config_file()  # pylint: disable=no-member
+		self._read_host_control_config_file()  # pylint: disable=no-member
+		self._read_opsipxeconfd_control_config_file()  # pylint: disable=no-member
 
 	def _get_ace(self, method: str) -> list[RPCACE]:  # pylint: disable=unused-argument
 		return []

@@ -21,7 +21,7 @@ from opsicommon.objects import (  # type: ignore[import]
 	UnicodeConfig,
 )
 
-from opsiconfd.backend.rpc.opsiconfd import ProtectedBackend, UnprotectedBackend
+from opsiconfd.backend.rpc.main import ProtectedBackend, UnprotectedBackend
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,

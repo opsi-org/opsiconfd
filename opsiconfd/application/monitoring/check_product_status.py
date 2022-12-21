@@ -20,7 +20,7 @@ from opsiconfd.logging import logger
 from .utils import State, generate_response
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.opsiconfd import Backend
+	from opsiconfd.backend.rpc.main import Backend
 
 
 def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements

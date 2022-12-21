@@ -19,7 +19,7 @@ from opsicommon.types import forceList  # type: ignore[import]
 from .utils import State, generate_response
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.opsiconfd import Backend
+	from opsiconfd.backend.rpc.main import Backend
 
 
 def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals, too-many-statements

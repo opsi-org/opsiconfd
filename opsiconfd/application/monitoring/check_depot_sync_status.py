@@ -19,7 +19,7 @@ from opsicommon.objects import ProductOnDepot  # type: ignore[import]
 from .utils import State, generate_response
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.opsiconfd import Backend
+	from opsiconfd.backend.rpc.main import Backend
 
 
 def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements

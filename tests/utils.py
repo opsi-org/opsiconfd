@@ -37,7 +37,7 @@ from starlette.types import Receive, Scope, Send
 from opsiconfd.application import app
 from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_mysql, get_unprotected_backend
-from opsiconfd.backend.rpc.opsiconfd import UnprotectedBackend
+from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config
 from opsiconfd.config import config as _config
 from opsiconfd.utils import Singleton

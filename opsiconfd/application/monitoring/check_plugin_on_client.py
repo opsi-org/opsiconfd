@@ -20,7 +20,7 @@ from opsiconfd.logging import logger
 from .utils import ERRORCODE_PATTERN, State, generate_response
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.opsiconfd import Backend
+	from opsiconfd.backend.rpc.main import Backend
 
 
 def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals, too-many-statements

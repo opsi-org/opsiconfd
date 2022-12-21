@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from .utils import State, generate_response
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.opsiconfd import Backend
+	from opsiconfd.backend.rpc.main import Backend
 
 
 def check_locked_products(backend: Backend, depot_ids: List[str] | None = None, product_ids: List[str] | None = None) -> JSONResponse:

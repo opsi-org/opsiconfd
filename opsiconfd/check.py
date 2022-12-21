@@ -289,7 +289,7 @@ def check_deprecated_calls() -> dict:  # pylint: disable=unused-argument
 	}
 
 
-def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disable=too-many-locals,too-many-branches,unused-argument
+def check_opsi_packages() -> dict:  # pylint: disable=too-many-locals,too-many-branches,unused-argument
 	res = requests.get(f"{OPSI_REPO}/{OPSI_PACKAGES_PATH}", timeout=5)
 
 	available_packages = OPSI_PACKAGES
@@ -345,7 +345,7 @@ def check_opsi_packages(print_messages: bool = False) -> dict:  # pylint: disabl
 	return result
 
 
-def check_opsi_licenses(print_messages: bool = False) -> dict:  # pylint: disable=unused-argument
+def check_opsi_licenses() -> dict:  # pylint: disable=unused-argument
 	result = {"status": CheckStatus.OK, "clients": 0}
 	partial_checks = {}
 

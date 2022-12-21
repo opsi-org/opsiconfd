@@ -66,7 +66,7 @@ def test_manager_signals(manager: Manager) -> None:  # pylint: disable=redefined
 		nonlocal test_stop
 		test_stop = "force" if force else "normal"
 
-	setattr(manager._server, "stop", stop)  # pylint: disable=protected-access
+	setattr(manager._worker_manager, "stop", stop)  # pylint: disable=protected-access
 	manager.orig_signal_handler(signal.SIGKILL, None)  # type: ignore[attr-defined]
 	assert manager._should_stop is True  # pylint: disable=protected-access
 	assert test_stop == "normal"

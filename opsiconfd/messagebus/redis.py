@@ -86,7 +86,7 @@ async def cleanup_channels(full: bool = False) -> None:
 		return
 
 	for obj in ("service_worker", "service_node"):
-		logger.debug("Deleting object channels for %r", obj)
+		logger.debug("Deleting object channels for %r", obj)  # pylint: disable=loop-global-usage
 		await async_delete_recursively(f"{config.redis_key('messagebus')}:{obj}")
 
 

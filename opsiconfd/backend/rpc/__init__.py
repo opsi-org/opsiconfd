@@ -12,12 +12,15 @@ from __future__ import annotations
 
 import re
 import socket  # Needed for backends/dhcpd.conf # pylint: disable=unused-import
+from asyncio import iscoroutinefunction
 from dataclasses import asdict, dataclass
 from functools import wraps
 from inspect import getfullargspec, signature
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Callable
+
+from starlette.concurrency import run_in_threadpool
 
 from .cache import rpc_cache_clear, rpc_cache_load, rpc_cache_store
 
@@ -173,6 +176,24 @@ def rpc_method(
 			if use_cache:
 				rpc_cache_store(use_cache, result, *args[1:], **kwargs)
 			return result
+
+		@wraps(func)
+		async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+			if check_name:
+				args[0]._get_ace(check_name)  # pylint: disable=protected-access
+			if clear_cache:
+				await run_in_threadpool(rpc_cache_clear, clear_cache)
+			if use_cache:
+				result = await run_in_threadpool(rpc_cache_load, use_cache, *args[1:], **kwargs)
+				if result is not None:
+					return result
+			result = await func(*args, **kwargs)
+			if use_cache:
+				await run_in_threadpool(rpc_cache_store, use_cache, result, *args[1:], **kwargs)
+			return result
+
+		if iscoroutinefunction(func):
+			wrapper = async_wrapper
 
 		setattr(wrapper, "rpc_interface", get_method_interface(func, deprecated=deprecated, alternative_method=alternative_method))
 		return wrapper

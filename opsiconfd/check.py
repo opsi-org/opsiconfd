@@ -43,6 +43,7 @@ OPSI_PACKAGES_PATH = "4.2/stable/packages/windows/localboot/"
 OPSI_PACKAGES = {"opsi-script": "0.0", "opsi-client-agent": "0.0"}
 
 
+# Can be removed with python 3.11
 class StrEnum(str, Enum):
 	"""
 	Enum where members are also (and must be) strings

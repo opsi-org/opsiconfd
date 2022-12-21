@@ -34,6 +34,10 @@ def get_messagebus_user_id_for_host(host_id: str) -> str:
 	return f"host:{host_id}"
 
 
+def get_object_channel_for_host(host_id: str) -> str:
+	return f"host:{host_id}"
+
+
 def get_messagebus_user_id_for_user(user_id: str) -> str:
 	return f"user:{user_id}"
 

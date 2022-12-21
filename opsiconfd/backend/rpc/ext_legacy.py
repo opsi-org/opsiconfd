@@ -160,7 +160,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				possible_methods.append({"name": method["name"], "params": method["params"]})
 		return possible_methods
 
-	@rpc_method
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="accessControl_authenticated")
 	def authenticated(self: BackendProtocol) -> bool:
 		if self.accessControl_authenticated():
 			return True
@@ -634,7 +634,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		_hash["ip"] = _hash["ipAddress"]
 		return self._hash_values_none_to_empty_string(_hash)
 
-	@rpc_method
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="configState_getClientToDepotserver")
 	def getDepotId(self: BackendProtocol, clientId: str) -> str:  # pylint: disable=invalid-name
 		clientId = forceHostId(clientId)
 
@@ -848,7 +848,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			depotIds,
 		)
 
-	@rpc_method
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="product_getObjects")
 	def getProduct_hash(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, depotId: str | None = None  # pylint: disable=invalid-name
 	) -> Dict[str, Any]:
@@ -1412,7 +1412,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if product_property_states:
 			self.productPropertyState_createObjects(product_property_states)
 
-	@rpc_method
+	@rpc_method(check_acl=False, deprecated=True)
 	def getProductProperties_hash(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, objectId: str | None = None
 	) -> Dict[str, Any]:

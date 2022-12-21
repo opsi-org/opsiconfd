@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from asyncio import Event, sleep
 from asyncio.exceptions import CancelledError
+from contextlib import asynccontextmanager
 from time import time
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, AsyncGenerator, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import msgspec
@@ -29,7 +30,7 @@ from redis.typing import StreamIdT
 
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
-from opsiconfd.redis import async_redis_client, redis_client
+from opsiconfd.redis import async_redis_client
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
@@ -110,6 +111,21 @@ async def create_messagebus_session_channel(owner_id: str, session_id: str | Non
 	return channel
 
 
+async def delete_channel(channel: str) -> None:
+	redis = await async_redis_client()
+	stream_key = f"{config.redis_key('messagebus')}:channels:{channel}".encode("utf-8")
+	await redis.unlink(stream_key)
+
+
+@asynccontextmanager
+async def session_channel(owner_id: str, session_id: str | None = None, exists_ok: bool = True) -> AsyncGenerator[str, None]:
+	channel = await create_messagebus_session_channel(owner_id=owner_id, session_id=session_id, exists_ok=exists_ok)
+	try:
+		yield channel
+	finally:
+		await delete_channel(channel)
+
+
 async def update_websocket_count(session: OPSISession, increment: int) -> None:
 	redis = await async_redis_client()
 
@@ -148,15 +164,21 @@ async def update_websocket_count(session: OPSISession, increment: int) -> None:
 			await sleep(0.1)
 
 
-def get_websocket_connected_client_ids() -> Generator[str, None, None]:
-	with redis_client() as client:
-		for state_key in client.scan_iter(f"{config.redis_key('messagebus')}:connections:clients:*"):
-			try:  # pylint: disable=loop-try-except-usage
-				client_id = state_key.rsplit(":", 1)[-1]
-				if int(client.hget(state_key, "websocket_count") or 0) > 0:
-					yield client_id
-			except Exception as err:  # pylint: disable=broad-except
-				logger.error("Failed to read messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
+async def get_websocket_connected_client_ids(client_ids: list[str] | None = None) -> AsyncGenerator[str, None]:
+	redis = await async_redis_client()
+	state_keys = []  # pylint: disable=use-tuple-over-list
+	if client_ids:
+		state_keys = [f"{config.redis_key('messagebus')}:connections:clients:{c}" for c in client_ids]
+	else:
+		state_keys = [k.decode("utf-8") async for k in redis.scan_iter(f"{config.redis_key('messagebus')}:connections:clients:*")]
+
+	for state_key in state_keys:
+		try:  # pylint: disable=loop-try-except-usage
+			client_id = state_key.rsplit(":", 1)[-1]
+			if int(await redis.hget(state_key, "websocket_count") or 0) > 0:
+				yield client_id
+		except Exception as err:  # pylint: disable=broad-except
+			logger.error("Failed to read messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
 
 
 class MessageReader:  # pylint: disable=too-few-public-methods
@@ -241,7 +263,9 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
 		return await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
 
-	async def get_messages(self) -> AsyncGenerator[Tuple[str, Message, Any], None]:  # pylint: disable=too-many-branches
+	async def get_messages(  # pylint: disable=too-many-branches,too-many-locals
+		self, timeout: float = 0.0
+	) -> AsyncGenerator[Tuple[str, Message, Any], None]:
 		if not self._channels:
 			raise ValueError("No channels to read from")
 
@@ -255,11 +279,17 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		_logger.debug("%s: getting messages", self)
 
 		redis = await async_redis_client()
+		start = time()
+		end = start + timeout if timeout else 0.0
 		try:  # pylint: disable=too-many-nested-blocks
 			while not self._should_stop:
 				try:  # pylint: disable=loop-try-except-usage
 					now = time()
 					stream_entries = await self._get_stream_entries(redis)
+					if not stream_entries:
+						if end >= now:
+							return
+						continue
 					for stream_key, messages in stream_entries:
 						last_redis_msg_id = ">"
 						for message in messages:

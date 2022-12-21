@@ -97,6 +97,10 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return None
 
 	@rpc_method
+	def backend_deleteBase(self) -> None:  # pylint: disable=invalid-name
+		return None
+
+	@rpc_method
 	def backend_getInterface(self: BackendProtocol) -> List[Dict[str, Any]]:  # pylint: disable=invalid-name
 		return self.get_interface()
 
@@ -113,6 +117,21 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method(deprecated=True)
 	def backend_getOptions(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
 		return {}
+
+	@rpc_method(check_acl=False)
+	def backend_getSystemConfiguration(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
+		"""
+		Returns current system configuration.
+
+		This holds information about server-side settings that may be relevant for clients.
+
+		Under the key `log` information about log settings will be returned in form of a dict.
+		In it under `size_limit` you will find the amount of bytes currently allowed as maximum log size.
+		Under `types` you will find a list with currently supported log types.
+
+		:rtype: dict
+		"""
+		return {"log": {"size_limit": config.max_log_size, "keep_rotated": config.keep_rotated_logs, "types": list(LOG_TYPES)}}
 
 	@rpc_method(check_acl=False)
 	def accessControl_authenticated(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name

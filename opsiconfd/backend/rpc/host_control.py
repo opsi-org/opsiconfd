@@ -61,8 +61,8 @@ from starlette.concurrency import run_in_threadpool
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 from opsiconfd.messagebus import (
-	get_messagebus_user_id_for_service_worker,
 	get_object_channel_for_host,
+	get_user_id_for_service_worker,
 )
 from opsiconfd.messagebus.redis import (
 	MessageReader,
@@ -255,7 +255,7 @@ class RPCHostControlMixin(Protocol):
 						result[client_id] = {"result": None, "error": "Host currently not connected to messagebus"}
 						continue
 
-		messagebus_user_id = get_messagebus_user_id_for_service_worker(Worker.get_instance().id)
+		messagebus_user_id = get_user_id_for_service_worker(Worker.get_instance().id)
 		rpc_id_to_client_id = {}
 		async with session_channel(owner_id=messagebus_user_id) as channel:
 			message_reader = MessageReader(channels={channel: ">"})

@@ -28,9 +28,12 @@ from redis.asyncio import StrictRedis
 from redis.exceptions import ResponseError, WatchError
 from redis.typing import StreamIdT
 
+from opsiconfd.backend import get_unprotected_backend
 from opsiconfd.config import config
 from opsiconfd.logging import get_logger
-from opsiconfd.redis import async_redis_client
+from opsiconfd.redis import async_delete_recursively, async_redis_client
+
+from . import get_object_channel_for_host
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
@@ -38,39 +41,53 @@ if TYPE_CHECKING:
 logger = get_logger("opsiconfd.messagebus")
 
 
-TERMINAL_CHANNEL_MAX_IDLE = 3600
 CHANNEL_INFO_SUFFIX = b":info"
 
 
-async def cleanup_channels() -> None:
+async def messagebus_cleanup(full: bool = False) -> None:
+	logger.debug("Messagebus cleanup")
+	if full:
+		await async_delete_recursively(f"{config.redis_key('messagebus')}:connections")
+	await cleanup_channels(full)
+
+
+async def cleanup_channels(full: bool = False) -> None:
 	logger.debug("Cleaning up messagebus channels")
-	# redis = await async_redis_client()
-	# now = time()
-	# debug = logger.debug
-	# remove_channels = []
+	backend = get_unprotected_backend()
+	depot_ids = []
+	client_ids = []
+	host_channels = []
+	for host in backend.host_getObjects(attributes=["id"]):
+		if host.getType() in ("OpsiConfigserver", "OpsiDepotserver"):
+			depot_ids.append(host.id)
+		else:
+			client_ids.append(host.id)
+		host_channels.append(get_object_channel_for_host(host.id))
 
-	# active_sessions = []
-	# async for key in redis.scan_iter(f"{config.redis_prefix('session')}:*"):
-	# 	active_sessions.append(key.decode("utf-8").rsplit(":", 1)[-1])
+	redis = await async_redis_client()
 
-	# async for _key in redis.scan_iter(f"{config.redis_prefix('messagebus')}:channels:session:*"):
-	# 	reader_count = await redis.hget(key + CHANNEL_INFO_SUFFIX, "reader-count")
-	# 	if session_id not in active_sessions:
-	# 		debug("Removing %s (session not found)", key)
-	# 		remove_channels.append(key)
+	channel_prefix = f"{config.redis_key('messagebus')}:channels:"
+	channel_prefix_len = len(channel_prefix)
+	remove_keys = []
+	async for key_b in redis.scan_iter(f"{channel_prefix}host:*"):
+		key = key_b.decode("utf-8")
+		host_channel = ":".join(key[channel_prefix_len:].split(":", 2)[:2])
+		if host_channel not in host_channels:
+			logger.devel("Removing key %s (host not found)", key)
+			remove_keys.append(key)
 
-	# async for key in redis.scan_iter(f"{config.redis_prefix('messagebus')}:channels:terminal:*"):
-	# 	info = await redis.xinfo_stream(key)
-	# 	timestamp = int(info["last-generated-id"].decode("utf-8").split("-")[0]) / 1000
-	# 	if now - timestamp > TERMINAL_CHANNEL_MAX_IDLE:
-	# 		debug("Removing %s (last-generated-id: %s)", key, info["last-generated-id"])
-	# 		remove_channels.append(key)
+	if remove_keys:
+		pipeline = redis.pipeline()
+		for key in remove_keys:
+			pipeline.delete(key)
+		await pipeline.execute()
 
-	# if remove_channels:
-	# 	pipeline = redis.pipeline()
-	# 	for channel in remove_channels:
-	# 		pipeline.delete(channel)
-	# 	await pipeline.execute()
+	if not full:
+		return
+
+	for obj in ("service_worker", "service_node"):
+		logger.debug("Deleting object channels for %r", obj)
+		await async_delete_recursively(f"{config.redis_key('messagebus')}:{obj}")
 
 
 async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes | None = None) -> None:

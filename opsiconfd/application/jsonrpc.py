@@ -35,7 +35,7 @@ from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.backend import get_protected_backend
 from opsiconfd.config import RPC_DEBUG_DIR, config
 from opsiconfd.logging import logger
-from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
+from opsiconfd.messagebus import get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import ConsumerGroupMessageReader, send_message
 from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession
@@ -531,7 +531,7 @@ async def messagebus_jsonrpc_request_worker() -> None:
 	global jsonrpc_message_reader  # pylint: disable=invalid-name,global-statement
 
 	worker = Worker.get_instance()
-	messagebus_worker_id = get_messagebus_user_id_for_service_worker(worker.id)
+	messagebus_worker_id = get_user_id_for_service_worker(worker.id)
 	channel = "service:config:jsonrpc"
 
 	jsonrpc_message_reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=messagebus_worker_id, channels={channel: "0"})

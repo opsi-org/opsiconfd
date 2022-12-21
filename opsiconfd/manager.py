@@ -22,13 +22,9 @@ from opsiconfd.application import MaintenanceState, NormalState, ShutdownState, 
 from opsiconfd.application.filetransfer import cleanup_file_storage
 from opsiconfd.config import config
 from opsiconfd.logging import init_logging, logger
-from opsiconfd.messagebus.redis import cleanup_channels
+from opsiconfd.messagebus.redis import messagebus_cleanup
 from opsiconfd.metrics.collector import ManagerMetricsCollector
-from opsiconfd.redis import (
-	async_delete_recursively,
-	async_get_redis_info,
-	async_redis_client,
-)
+from opsiconfd.redis import async_get_redis_info, async_redis_client
 from opsiconfd.server import Server
 from opsiconfd.ssl import setup_server_cert
 from opsiconfd.utils import Singleton, log_config
@@ -46,8 +42,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		self._server_cert_check_time = time.time()
 		self._redis_check_time = time.time()
 		self._redis_check_interval = 300
-		self._messagebus_channel_cleanup_time = 0.0
-		self._messagebus_channel_cleanup_interval = 180
+		self._messagebus_cleanup_time = 0.0
+		self._messagebus_cleanup_interval = 180
 		self._cleanup_file_storage_time = 0.0
 		self._cleanup_file_storage_interval = 3600
 		self._metrics_collector = ManagerMetricsCollector()
@@ -132,7 +128,8 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 		# Start MetricsCollector
 		self._loop.create_task(self._metrics_collector.main_loop())
 
-		await async_delete_recursively(f"{config.redis_key('messagebus')}:connections")
+		# TODO: Multiple managers on different nodes
+		await messagebus_cleanup(full=True)
 
 		app_state: NormalState | MaintenanceState = NormalState()
 		if config.maintenance is not False:
@@ -152,9 +149,9 @@ class Manager(metaclass=Singleton):  # pylint: disable=too-many-instance-attribu
 					await self.check_server_cert()
 				if now - self._redis_check_time > self._redis_check_interval:
 					await self.check_redis()
-				if now - self._messagebus_channel_cleanup_time > self._messagebus_channel_cleanup_interval:
-					await cleanup_channels()
-					self._messagebus_channel_cleanup_time = now
+				if now - self._messagebus_cleanup_time > self._messagebus_cleanup_interval:
+					await messagebus_cleanup(full=False)
+					self._messagebus_cleanup_time = now
 				if now - self._cleanup_file_storage_time > self._cleanup_file_storage_interval:
 					await run_in_threadpool(cleanup_file_storage)
 					self._cleanup_file_storage_time = now

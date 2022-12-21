@@ -41,13 +41,16 @@ from opsiconfd.utils import compress_data, decompress_data
 from opsiconfd.worker import Worker
 
 from . import (
-	get_messagebus_user_id_for_host,
-	get_messagebus_user_id_for_service_worker,
-	get_messagebus_user_id_for_user,
+	get_object_channel_for_host,
+	get_object_channel_for_user,
+	get_user_id_for_host,
+	get_user_id_for_service_worker,
+	get_user_id_for_user,
 )
 from .redis import (
 	MessageReader,
 	create_messagebus_session_channel,
+	delete_channel,
 	send_message,
 	update_websocket_count,
 )
@@ -72,9 +75,9 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
 		worker = Worker.get_instance()
-		self._messagebus_worker_id = get_messagebus_user_id_for_service_worker(worker.id)
+		self._messagebus_worker_id = get_user_id_for_service_worker(worker.id)
 		self._messagebus_user_id = ""
-		self._user_channel = ""
+		self._object_channel = ""
 		self._session_channel = ""
 		self._compression: Union[str, None] = None
 		self._messagebus_reader_task = Union[Task, None]
@@ -117,7 +120,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		self._messagebus_reader = MessageReader()
 		await self._messagebus_reader.add_channels(
 			channels={
-				self._user_channel: ">",
+				self._object_channel: ">",
 				self._session_channel: ">",
 			}
 		)
@@ -126,13 +129,13 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			ChannelSubscriptionEventMessage(
 				sender=self._messagebus_worker_id,
 				channel=self._session_channel,
-				subscribed_channels=[self._user_channel, self._session_channel],
+				subscribed_channels=[self._object_channel, self._session_channel],
 			),
 		)
 		try:
 			async for redis_id, message, _context in self._messagebus_reader.get_messages():
 				await self._send_message_to_websocket(websocket, message)
-				if message.channel == self._user_channel:
+				if message.channel == self._object_channel:
 					# ACK message (set last-delivered-id)
 					# create_task(reader.ack_message(redis_id))
 					await self._messagebus_reader.ack_message(message.channel, redis_id)
@@ -150,7 +153,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			return True
 		# if channel == self._session_channel:
 		# 	return True
-		if channel == self._user_channel:
+		if channel == self._object_channel:
 			return True
 		if self.scope["session"].is_admin:
 			return True
@@ -163,7 +166,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		)
 		for idx, channel in enumerate(message.channels):
 			if channel == "@":
-				message.channels[idx] = channel = self._user_channel
+				message.channels[idx] = channel = self._object_channel
 			elif channel == "$":
 				message.channels[idx] = channel = self._session_channel
 
@@ -249,12 +252,12 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			if not message.back_channel or message.back_channel == "$":
 				message.back_channel = self._session_channel
 			elif message.back_channel == "@":
-				message.back_channel = self._user_channel
+				message.back_channel = self._object_channel
 
 			if message.channel == "$":
 				message.channel = self._session_channel
 			elif message.channel == "@":
-				message.channel = self._user_channel
+				message.channel = self._object_channel
 
 			if not self._check_channel_access(message.channel) or not self._check_channel_access(message.back_channel):
 				raise RuntimeError(f"Access to channel {message.channel!r} denied")
@@ -300,13 +303,14 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		logger.info("Websocket client connected to messagebus")
 
 		if self.scope["session"].host:
-			self._messagebus_user_id = get_messagebus_user_id_for_host(self.scope["session"].host.id)
+			self._messagebus_user_id = get_user_id_for_host(self.scope["session"].host.id)
+			self._object_channel = get_object_channel_for_host(self.scope["session"].host.id)
 		elif self.scope["session"].is_admin:
-			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].username)
+			self._messagebus_user_id = get_user_id_for_user(self.scope["session"].username)
+			self._object_channel = get_object_channel_for_user(self.scope["session"].username)
 
 		await update_websocket_count(self.scope["session"], 1)
 
-		self._user_channel = self._messagebus_user_id
 		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=False)
 
 		self._messagebus_reader_task = create_task(self.messagebus_reader(websocket))
@@ -317,3 +321,4 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			await self._messagebus_reader.stop()
 
 		await update_websocket_count(self.scope["session"], -1)
+		await delete_channel(self._session_channel)

@@ -160,7 +160,7 @@ class RPCHostControlMixin(Protocol):
 	_host_control_resolve_host_address: bool = False
 	_host_control_max_connections: int = 50
 	_host_control_broadcast_addresses: dict[IPv4Network | IPv6Network, dict[IPv4Address | IPv6Address, tuple[int, ...]]] = {}
-	_host_control_use_messagebus: bool = False
+	_host_control_use_messagebus: str | bool = "hybrid"
 
 	def __init__(self) -> None:
 		self._set_broadcast_addresses({"0.0.0.0/0": {"255.255.255.255": (7, 9, 12287)}})
@@ -173,10 +173,15 @@ class RPCHostControlMixin(Protocol):
 			attr = "_host_control_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
 			if attr == "_host_control_broadcast_addresses":
 				self._set_broadcast_addresses(val)
-			if attr in ("_host_control_resolve_host_address", "_host_control_use_messagebus"):
-				val = forceBool(val)
+				continue
 
-			elif hasattr(self, attr):
+			if attr == "_host_control_resolve_host_address":
+				val = forceBool(val)
+			elif attr == "_host_control_use_messagebus":
+				if val != "hybrid":
+					val = forceBool(val)
+
+			if hasattr(self, attr):
 				setattr(self, attr, val)
 
 	def _set_broadcast_addresses(self, value: Any) -> None:
@@ -237,10 +242,18 @@ class RPCHostControlMixin(Protocol):
 		connected_client_ids = [client_id async for client_id in get_websocket_connected_client_ids(client_ids=client_ids)]
 
 		result: dict[str, dict[str, Any]] = {}
-		for client_id in client_ids:  # pylint: disable=use-dict-comprehension
-			if client_id not in connected_client_ids:
-				result[client_id] = {"result": None, "error": "Host currently not connected to messagebus"}
-				continue
+
+		not_connected_client_ids = list(set(client_ids).difference(set(connected_client_ids)))
+		if not_connected_client_ids:
+			if self._host_control_use_messagebus == "hybrid":
+				result = await run_in_threadpool(
+					self._opsiclientd_rpc, host_ids=not_connected_client_ids, method=method, params=params, timeout=int(timeout)
+				)
+			else:
+				for client_id in client_ids:  # pylint: disable=use-dict-comprehension
+					if client_id not in connected_client_ids:
+						result[client_id] = {"result": None, "error": "Host currently not connected to messagebus"}
+						continue
 
 		messagebus_user_id = get_messagebus_user_id_for_service_worker(Worker.get_instance().id)
 		rpc_id_to_client_id = {}
@@ -328,17 +341,17 @@ class RPCHostControlMixin(Protocol):
 			for rpct in rpcts:
 				if rpct.ended:
 					if rpct.error:
-						logger.info("Rpc to host %s failed, error: %s", rpct.hostId, rpct.error)
-						result[rpct.hostId] = {"result": None, "error": rpct.error}
+						logger.info("Rpc to host %s failed, error: %s", rpct.host_id, rpct.error)
+						result[rpct.host_id] = {"result": None, "error": rpct.error}
 					else:
-						logger.info("Rpc to host %s successful, result: %s", rpct.hostId, rpct.result)
-						result[rpct.hostId] = {"result": rpct.result, "error": None}
+						logger.info("Rpc to host %s successful, result: %s", rpct.host_id, rpct.result)
+						result[rpct.host_id] = {"result": rpct.result, "error": None}
 					running_threads -= 1
 					continue
 
 				if not rpct.started:
 					if running_threads < self._host_control_max_connections:
-						logger.debug("Starting rpc to host %s", rpct.hostId)
+						logger.debug("Starting rpc to host %s", rpct.host_id)
 						rpct.start()
 						running_threads += 1
 				else:
@@ -347,11 +360,11 @@ class RPCHostControlMixin(Protocol):
 						# thread still alive 5 seconds after timeout => kill
 						logger.info(
 							"Rpc to host %s (address: %s) timed out after %0.2f seconds, terminating",
-							rpct.hostId,
+							rpct.host_id,
 							rpct.address,
 							time_running,
 						)
-						result[rpct.hostId] = {
+						result[rpct.host_id] = {
 							"result": None,
 							"error": f"timed out after {time_running:0.2f} seconds",  # pylint: disable=loop-invariant-statement
 						}
@@ -540,17 +553,23 @@ class RPCHostControlMixin(Protocol):
 	@rpc_method
 	async def hostControl_reachable(  # pylint: disable=invalid-name,too-many-branches
 		self: BackendProtocol, hostIds: list[str] | None = None, timeout: int | None = None  # pylint: disable=invalid-name
-	) -> dict[str, Any]:  # pylint: disable=too-many-branches
+	) -> dict[str, bool]:  # pylint: disable=too-many-branches
 		hostIds = self.host_getIdents(returnType="str", type="OpsiClient", id=hostIds or [])
 		if not hostIds:
 			raise BackendMissingDataError("No matching host ids found")
 		client_ids: list[str] = forceHostIdList(hostIds)
 		_timeout = forceInt(timeout or self._host_control_host_reachable_timeout)
 
+		result: dict[str, bool] = {}
 		if self._host_control_use_messagebus:
 			connected_client_ids = [client_id async for client_id in get_websocket_connected_client_ids(client_ids=client_ids)]
-			return {client_id: client_id in connected_client_ids for client_id in client_ids}
-		return await run_in_threadpool(self._host_control_reachable, client_ids=client_ids, timeout=_timeout)
+			result = {client_id: client_id in connected_client_ids for client_id in client_ids}
+			if self._host_control_use_messagebus != "hybrid":
+				return result
+			client_ids = list(set(client_ids).difference(set(connected_client_ids)))
+
+		result.update(await run_in_threadpool(self._host_control_reachable, client_ids=client_ids, timeout=_timeout))
+		return result
 
 	def _host_control_reachable(  # pylint: disable=too-many-branches
 		self: BackendProtocol, client_ids: list[str], timeout: int

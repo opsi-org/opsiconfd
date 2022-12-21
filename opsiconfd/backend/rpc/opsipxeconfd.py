@@ -139,6 +139,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			attr = "_opsipxeconfd_control_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
 			if attr in ("_opsipxeconfd_control_opsipxeconfd_on_depot", "_opsipxeconfd_control_enabled"):
 				val = forceBool(val)
+
 			if hasattr(self, attr):
 				setattr(self, attr, val)
 

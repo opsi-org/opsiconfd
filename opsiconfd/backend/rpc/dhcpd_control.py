@@ -162,8 +162,9 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 			if attr == "_dhcpd_control_fixed_address_format" and val not in ("IP", "FQDN"):
 				logger.error("Bad value %r for fixedAddressFormat, possible values are IP and FQDN", val)
 				continue
-			if attr in ("_dhcpd_control_dhcpd_on_depot", "_dhcpd_control_enabled"):
+			elif attr in ("_dhcpd_control_dhcpd_on_depot", "_dhcpd_control_enabled"):
 				val = forceBool(val)
+
 			if hasattr(self, attr):
 				setattr(self, attr, val)
 

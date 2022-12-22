@@ -31,7 +31,6 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	timestamp,
 )
 
-from opsiconfd.messagebus import get_user_id_for_service_node
 from opsiconfd.utils import compress_data, decompress_data
 
 from .utils import (  # pylint: disable=unused-import
@@ -271,9 +270,8 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 					}
 
 
-def test_messagebus_terminal(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_terminal(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	# 	messagebus_node_id = get_user_id_for_service_node(config.node_name)
 	with test_client as client:
 		with client.websocket_connect("/messagebus/v1") as websocket:
 			with WebSocketMessageReader(websocket) as reader:

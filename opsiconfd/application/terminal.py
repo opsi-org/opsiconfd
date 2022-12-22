@@ -17,7 +17,7 @@ from os import getuid
 from pathlib import Path
 from pwd import getpwuid
 from time import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 import msgspec
 import psutil
@@ -104,8 +104,8 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 	async def on_connect(  # pylint: disable=arguments-differ
 		self,
 		websocket: WebSocket,
-		cols: Optional[int] = Query(default=120, embed=True),
-		rows: Optional[int] = Query(default=30, embed=True),
+		cols: int | None = Query(default=120, embed=True),
+		rows: int | None = Query(default=30, embed=True),
 	) -> None:
 
 		if "terminal" in config.admin_interface_disabled_features:

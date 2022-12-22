@@ -53,7 +53,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		super().__init__(scope, receive, send)
 		self._pty: spawn
 		self._pty_reader_task: asyncio.Task
-		self._file_transfers: Dict[str, Dict[str, Any]] = {}
+		self._file_transfers: dict[str, dict[str, Any]] = {}
 		self._msgpack_encoder = msgspec.msgpack.Encoder()
 		self._msgpack_decoder = msgspec.msgpack.Decoder()
 
@@ -126,7 +126,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		if self._pty:
 			self._pty.close(True)
 
-	def _handle_file_transfer(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+	def _handle_file_transfer(self, payload: dict[str, Any]) -> dict[str, Any]:
 		if not payload.get("file_id"):
 			return {"result": None, "error": "Payload incomplete"}
 

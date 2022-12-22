@@ -57,7 +57,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 		with test_client.websocket_connect(f"/messagebus/v1?compression={compression}") as websocket:
 			with WebSocketMessageReader(websocket, decode=False) as reader:
 				reader.wait_for_message()
-				next(reader.get_messages())
+				next(reader.get_raw_messages())
 				jsonrpc_request_message = JSONRPCRequestMessage(
 					sender="@", channel="service:config:jsonrpc", rpc_id="1", method="accessControl_userIsAdmin"
 				)
@@ -273,58 +273,64 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 
 def test_messagebus_terminal(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-	messagebus_node_id = get_user_id_for_service_node(config.node_name)
+	# 	messagebus_node_id = get_user_id_for_service_node(config.node_name)
+	with test_client as client:
+		with client.websocket_connect("/messagebus/v1") as websocket:
+			with WebSocketMessageReader(websocket) as reader:
+				reader.wait_for_message(count=1)
+				message = Message.from_dict(next(reader.get_messages()))
+				assert isinstance(message, ChannelSubscriptionEventMessage)
 
-	with test_client.websocket_connect("/messagebus/v1") as websocket:
-		with WebSocketMessageReader(websocket) as reader:
-			terminal_id = str(uuid4())
-			terminal_open_request = TerminalOpenRequestMessage(
-				sender="@", channel=f"{messagebus_node_id}:terminal", terminal_id=terminal_id, rows=20, cols=100
-			)
-			websocket.send_bytes(terminal_open_request.to_msgpack())
+				terminal_id = str(uuid4())
+				terminal_open_request = TerminalOpenRequestMessage(
+					sender="@", channel="service:config:terminal", terminal_id=terminal_id, rows=20, cols=100
+				)
+				websocket.send_bytes(terminal_open_request.to_msgpack())
 
-			reader.wait_for_message(count=2)
+				reader.wait_for_message(count=2)
 
-			responses = sorted(
-				[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
-			)
+				responses = sorted(
+					[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
+				)
 
-			assert isinstance(responses[0], TerminalOpenEventMessage)
-			assert responses[0].rows
-			assert responses[0].cols
-			assert responses[0].terminal_id == terminal_id
+				assert isinstance(responses[0], TerminalOpenEventMessage)
+				assert responses[0].rows
+				assert responses[0].cols
+				assert responses[0].terminal_id == terminal_id
 
-			back_channel = responses[0].back_channel
-			assert back_channel
+				back_channel = responses[0].back_channel
+				assert back_channel
 
-			assert isinstance(responses[1], TerminalDataReadMessage)
-			assert responses[1].terminal_id == terminal_id
-			assert responses[1].data
-			terminal_data_write = TerminalDataWriteMessage(sender="@", channel=back_channel, terminal_id=terminal_id, data=b"echo test\r")
-			websocket.send_bytes(terminal_data_write.to_msgpack())
+				assert isinstance(responses[1], TerminalDataReadMessage)
+				assert responses[1].terminal_id == terminal_id
+				assert responses[1].data
+				terminal_data_write = TerminalDataWriteMessage(
+					sender="@", channel=back_channel, terminal_id=terminal_id, data=b"echo test\r"
+				)
+				websocket.send_bytes(terminal_data_write.to_msgpack())
 
-			reader.wait_for_message(count=1)
+				reader.wait_for_message(count=1)
 
-			responses = sorted(
-				[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
-			)
-			assert isinstance(responses[0], TerminalDataReadMessage)
-			assert responses[0].terminal_id == terminal_id
-			assert "echo test\r\ntest\r\n" in responses[0].data.decode("utf-8")
-			terminal_resize_request = TerminalResizeRequestMessage(
-				sender="@", channel=back_channel, terminal_id=terminal_id, rows=10, cols=20
-			)
-			websocket.send_bytes(terminal_resize_request.to_msgpack())
+				responses = sorted(
+					[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
+				)
+				assert isinstance(responses[0], TerminalDataReadMessage)
+				assert responses[0].terminal_id == terminal_id
+				assert "echo test\r\ntest\r\n" in responses[0].data.decode("utf-8")
+				terminal_resize_request = TerminalResizeRequestMessage(
+					sender="@", channel=back_channel, terminal_id=terminal_id, rows=10, cols=20
+				)
+				websocket.send_bytes(terminal_resize_request.to_msgpack())
 
-			reader.wait_for_message(count=1)
-			responses = sorted(
-				[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
-			)
-			assert responses[0].type == MessageType.TERMINAL_RESIZE_EVENT
-			assert isinstance(responses[0], TerminalResizeEventMessage)
-			assert responses[0].terminal_id == terminal_id
-			assert responses[0].rows == 10
-			assert responses[0].cols == 20
+				reader.wait_for_message(count=1)
+				responses = sorted(
+					[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
+				)
+				assert responses[0].type == MessageType.TERMINAL_RESIZE_EVENT
+				assert isinstance(responses[0], TerminalResizeEventMessage)
+				assert responses[0].terminal_id == terminal_id
+				assert responses[0].rows == 10
+				assert responses[0].cols == 20
 
 
 def test_trace(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name

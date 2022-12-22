@@ -58,12 +58,16 @@ class OpsiconfdBackend(metaclass=Singleton):
 	def get_interface(self) -> List[Dict[str, Any]]:
 		return self._interface
 
+	# overwrite method from python-opsi to get confd methods
+	def backend_getInterface(self) -> List[Dict[str, Any]]:  # pylint: disable=invalid-name
+		return self.get_interface()
+
 	def backend_exit(self) -> None:
 		session = contextvar_client_session.get()
 		if session:
 			session.sync_delete()
 
-	def server_checkHealth(self) -> dict:  # pylint: disable=invalid-name
+	def service_healthCheck(self) -> dict:  # pylint: disable=invalid-name
 		self._check_role("admin")
 		return health_check()
 

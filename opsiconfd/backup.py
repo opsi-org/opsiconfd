@@ -36,7 +36,7 @@ from opsiconfd.config import (
 	config,
 	opsi_config,
 )
-from opsiconfd.logging import logger
+from opsiconfd.logging import logger, secret_filter
 from opsiconfd.redis import redis_lock
 from opsiconfd.utils import compress_data, decompress_data
 
@@ -414,6 +414,11 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 						logger.info("Skipping config file %r (%s)", name, file)
 
 			server_key = backend.host_getObjects(returnType="opsiHostKey", type="OpsiConfigserver")[0].opsiHostKey
-			opsi_config.set("host", "id", server_id)
-			opsi_config.set("host", "key", server_key)
-			opsi_config.write_config_file()
+			secret_filter.add_secrets(server_key)
+
+			if opsi_config.get("host", "id") != server_id:
+				logger.notice("Setting host.id to %r in %r", server_id, opsi_config.config_file)
+				opsi_config.set("host", "id", server_id, persistent=True)
+			if opsi_config.get("host", "key") != server_key:
+				logger.notice("Updating host.key in %r", opsi_config.config_file)
+				opsi_config.set("host", "key", server_key, persistent=True)

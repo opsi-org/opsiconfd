@@ -1150,7 +1150,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "pathspec"
-version = "0.10.2"
+version = "0.10.3"
 description = "Utility library for gitignore style pattern matching of file paths."
 category = "dev"
 optional = false
@@ -1678,7 +1678,7 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.0.1"
+version = "4.3.0.2"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -2481,7 +2481,7 @@ reference = "uibpypi"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.12"
-content-hash = "6cd292bbdef9ab3a8b376b122fe55028c51a033a2e5647d35733e0dc5138c9ae"
+content-hash = "e2ebc2c8a821d56af3a1c94a737e9a62ed368d2dcc1586444145af00fdb61df9"
 
 [metadata.files]
 aiofiles = [
@@ -3474,8 +3474,8 @@ packaging = [
     {file = "packaging-21.3.tar.gz", hash = "sha256:dd47c42927d89ab911e606518907cc2d3a1f38bbd026385970643f9c5b8ecfeb"},
 ]
 pathspec = [
-    {file = "pathspec-0.10.2-py3-none-any.whl", hash = "sha256:88c2606f2c1e818b978540f73ecc908e13999c6c3a383daf3705652ae79807a5"},
-    {file = "pathspec-0.10.2.tar.gz", hash = "sha256:8f6bf73e5758fd365ef5d58ce09ac7c27d2833a8d7da51712eac6e27e35141b0"},
+    {file = "pathspec-0.10.3-py3-none-any.whl", hash = "sha256:3c95343af8b756205e2aba76e843ba9520a24dd84f68c22b9f93251507509dd6"},
+    {file = "pathspec-0.10.3.tar.gz", hash = "sha256:56200de4077d9d0791465aa9095a01d421861e405b5096955051deefd697d6f6"},
 ]
 pefile = [
     {file = "pefile-2022.5.30.tar.gz", hash = "sha256:a5488a3dd1fd021ce33f969780b88fe0f7eebb76eb20996d7318f307612a045b"},
@@ -3695,8 +3695,8 @@ python-opsi = [
     {file = "python_opsi-4.3.0.2.tar.gz", hash = "sha256:6764490778f37065f9788da4863bda4f7b80840a7850493e93f6e8bc0b0724e9"},
 ]
 python-opsi-common = [
-    {file = "python_opsi_common-4.3.0.1-py3-none-any.whl", hash = "sha256:97eaa190260c1e3b96537f3079039fcf339250750a4352aa199e58402f25de2d"},
-    {file = "python_opsi_common-4.3.0.1.tar.gz", hash = "sha256:8375fa152e44c18575e3679ba8174ca9c2c44bc29dbbda84990eb8433665d29e"},
+    {file = "python_opsi_common-4.3.0.2-py3-none-any.whl", hash = "sha256:ba3ab2929fdb1a77543db332dc9f1bf494f75c62b09f41a87fcd44cce5ffaf6f"},
+    {file = "python_opsi_common-4.3.0.2.tar.gz", hash = "sha256:08742eaab0749a54cb821ba8fa9e3aaba635eb7f1e368a27c5562836628471a5"},
 ]
 python-pam = [
     {file = "python-pam-2.0.2.tar.gz", hash = "sha256:97235235ba9b82dbae8068d1099508455949b275f77273ca22fdbd8b1fb5d950"},

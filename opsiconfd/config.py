@@ -283,6 +283,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 	def _update_config(self) -> None:  # pylint: disable=too-many-branches
 		if self._sub_command:
 			self._config.action = self._sub_command
+
+		opsi_config.config_file = self._config.opsi_config
+
 		self.jinja_templates = Jinja2Templates(directory=os.path.join(self.static_dir, "templates"))
 
 		if not self._config.ssl_ca_key_passphrase:
@@ -520,6 +523,12 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			env_var="OPSICONFD_ACL_FILE",
 			default="/etc/opsi/backendManager/acl.conf",
 			help=self._help("opsiconfd", "Location of the acl file."),
+		)
+		self._parser.add(
+			"--opsi-config",
+			env_var="OPSICONFD_OPSI_CONFIG",
+			default="/etc/opsi/opsi.conf",
+			help=self._help("expert", "Location of the opsi.conf."),
 		)
 		self._parser.add(
 			"--static-dir",

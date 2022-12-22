@@ -33,6 +33,7 @@ from opsicommon.server.setup import (  # type: ignore[import]
 	add_user_to_group,
 	create_group,
 	create_user,
+	modify_user,
 	set_primary_group,
 )
 from opsicommon.server.setup import (
@@ -100,6 +101,18 @@ def setup_users_and_groups() -> None:
 			system=True,
 		)
 		user = pwd.getpwnam(config.run_as_user)
+
+	if user and user.pw_dir != OPSICONFD_HOME:
+		try:
+			modify_user(username=config.run_as_user, home=OPSICONFD_HOME)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.warning(
+				"Failed to change home directory of user %r (%s). Should be %r but is %r, please change manually.",
+				config.run_as_user,
+				err,
+				OPSICONFD_HOME,
+				user.pw_dir,
+			)
 
 	try:
 		grp.getgrnam("shadow")
@@ -231,12 +244,9 @@ def setup_backend(full: bool) -> None:
 			)
 			mysql.insert_object(table="HOST", obj=config_server, ace=[], create=True, set_null=True)
 
-		opsi_config.set(
-			"host",
-			"key",
-			mysql.get_objects(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"})[0].opsiHostKey,
-			persistent=True,
-		)
+		conf_server = mysql.get_objects(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"})[0]
+		if isinstance(conf_server, OpsiConfigserver):
+			opsi_config.set("host", "key", conf_server.opsiHostKey, persistent=True)
 
 
 def cleanup_log_files() -> None:

@@ -179,8 +179,13 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 
 		self.stream = None
 		await self._init_writer()
-		await loop.run_in_executor(None, shutil.chown, self.absolute_file_path, config.run_as_user, opsi_config.get("groups", "admingroup"))
-		await loop.run_in_executor(None, os.chmod, self.absolute_file_path, 0o644)
+		try:
+			await loop.run_in_executor(None, os.chmod, self.absolute_file_path, 0o644)
+			await loop.run_in_executor(
+				None, shutil.chown, self.absolute_file_path, config.run_as_user, opsi_config.get("groups", "admingroup")
+			)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.warning(err)
 
 	async def emit(self, record: LogRecord) -> None:
 		async with self._rollover_lock:

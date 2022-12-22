@@ -700,7 +700,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	) -> Tuple[str, Dict[str, Any]]:
 		if not isinstance(obj, BaseObject):
 			obj = OBJECT_CLASSES[obj["type"]].fromHash(obj)
-		obj.setDefaults()
+		if set_null:
+			obj.setDefaults()
 		data = obj.to_hash()
 		ident_attrs = []  # pylint: disable=use-tuple-over-list
 		if not create:

@@ -74,7 +74,7 @@ VAR_ADDON_DIR = "/var/lib/opsiconfd/addons"
 WORKBENCH_DIR = "/var/lib/opsi/workbench"
 
 FQDN = socket.getfqdn().lower()
-DEFAULT_NODE_NAME = socket.gethostname()
+DEFAULT_NODE_NAME = FQDN.split(".", 1)[0]
 
 opsi_config = OpsiConfig()
 
@@ -88,9 +88,10 @@ def configure_warnings() -> None:
 
 if running_in_docker():
 	try:
-		ip = socket.gethostbyname(socket.getfqdn())  # pylint: disable=invalid-name
-		rev = reversename.from_address(ip)
-		DEFAULT_NODE_NAME = str(resolver.resolve(str(rev), "PTR")[0]).split(".", 1)[0].replace("docker_", "")
+		ip = socket.gethostbyname(FQDN)  # pylint: disable=invalid-name
+		if ip not in ("127.0.0.1", "::1"):
+			rev = reversename.from_address(ip)
+			DEFAULT_NODE_NAME = str(resolver.resolve(str(rev), "PTR")[0]).split(".", 1)[0].replace("docker_", "")
 	except DNSException:
 		pass
 

@@ -73,7 +73,7 @@ async def cleanup_channels(full: bool = False) -> None:
 		key = key_b.decode("utf-8")
 		host_channel = ":".join(key[channel_prefix_len:].split(":", 2)[:2])
 		if host_channel not in host_channels:
-			logger.devel("Removing key %s (host not found)", key)
+			logger.debug("Removing key %s (host not found)", key)
 			remove_keys.append(key)
 
 	if remove_keys:

@@ -135,7 +135,7 @@ def test_setup_skip_users_and_files() -> None:
 def test_setup_full() -> None:
 	with mock_all() as funcs:
 		opsiconfd_setup(full=False)
-		funcs["setup_files"].assert_not_called()
+		funcs["setup_systemd"].assert_not_called()
 	with mock_all() as funcs:
 		opsiconfd_setup(full=True)
-		funcs["setup_files"].assert_called()
+		funcs["setup_systemd"].assert_called()

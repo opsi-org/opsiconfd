@@ -9,7 +9,7 @@ opsiconfd.backend.rpc.product_dependency
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, List, Protocol
 
 from opsicommon.objects import Product  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]

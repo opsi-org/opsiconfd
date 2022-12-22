@@ -9,7 +9,7 @@ opsiconfd.backend.rpc.product_dependency
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Protocol
+from typing import TYPE_CHECKING, Any, List, Optional, Protocol
 
 from opsicommon.objects import Product  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
@@ -90,4 +90,4 @@ class RPCProductMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def product_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.product_deleteObjects([{"id": id}])
+		self.product_deleteObjects(self.product_getObjects(id=id, productVersion=[], packageVersion=[]))

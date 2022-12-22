@@ -23,14 +23,14 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	FileChunkMessage,
 	FileUploadRequestMessage,
 	Message,
-	TerminalCloseEvent,
-	TerminalCloseRequest,
-	TerminalDataRead,
-	TerminalDataWrite,
-	TerminalOpenEvent,
-	TerminalOpenRequest,
-	TerminalResizeEvent,
-	TerminalResizeRequest,
+	TerminalCloseEventMessage,
+	TerminalCloseRequestMessage,
+	TerminalDataReadMessage,
+	TerminalDataWriteMessage,
+	TerminalOpenEventMessage,
+	TerminalOpenRequestMessage,
+	TerminalResizeEventMessage,
+	TerminalResizeRequestMessage,
 )
 from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
@@ -77,7 +77,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	max_cols = 300
 	idle_timeout = 600
 
-	def __init__(self, terminal_open_request: TerminalOpenRequest, sender: str) -> None:  # pylint: disable=too-many-arguments
+	def __init__(self, terminal_open_request: TerminalOpenRequestMessage, sender: str) -> None:  # pylint: disable=too-many-arguments
 		self._terminal_open_request = terminal_open_request
 		self._sender = sender
 		self._last_usage = time()
@@ -131,7 +131,9 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 					)
 					logger.trace(data)
 					self._last_usage = time()
-					message = TerminalDataRead(sender=self._sender, channel=self.back_channel(), terminal_id=self.terminal_id, data=data)
+					message = TerminalDataReadMessage(
+						sender=self._sender, channel=self.back_channel(), terminal_id=self.terminal_id, data=data
+					)
 					await send_message(message)
 				except TIMEOUT:  # pylint: disable=loop-invariant-statement
 					if time() > self._last_usage + self.idle_timeout:
@@ -144,14 +146,14 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			logger.error(err, exc_info=True)
 			await self.close()
 
-	async def process_message(self, message: TerminalDataWrite | TerminalResizeRequest | TerminalCloseRequest) -> None:
-		if isinstance(message, TerminalDataWrite):
+	async def process_message(self, message: TerminalDataWriteMessage | TerminalResizeRequestMessage | TerminalCloseRequestMessage) -> None:
+		if isinstance(message, TerminalDataWriteMessage):
 			# Do not wait for completion to minimize rtt
 			if not self._closing:
 				self._loop.run_in_executor(None, self._pty.write, message.data)
-		elif isinstance(message, TerminalResizeRequest):
+		elif isinstance(message, TerminalResizeRequestMessage):
 			self.set_size(message.rows, message.cols)
-			res_message = TerminalResizeEvent(
+			res_message = TerminalResizeEventMessage(
 				sender=self._sender,
 				channel=self.back_channel(message),
 				ref_id=message.id,
@@ -160,12 +162,12 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 				cols=self.cols,
 			)
 			await send_message(res_message)
-		elif isinstance(message, TerminalCloseRequest):
+		elif isinstance(message, TerminalCloseRequestMessage):
 			await self.close()
 		else:
 			logger.warning("Received invalid message type %r", message.type)
 
-	async def close(self, message: TerminalCloseRequest | None = None) -> None:
+	async def close(self, message: TerminalCloseRequestMessage | None = None) -> None:
 		if self._closing:
 			return
 		logger.info("Close terminal")
@@ -173,7 +175,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		try:
 			if self._pty_reader_task:
 				self._pty_reader_task.cancel()
-			res_message = TerminalCloseEvent(
+			res_message = TerminalCloseEventMessage(
 				sender=self._sender,
 				channel=self.back_channel(message),
 				ref_id=message.id if message else None,
@@ -189,15 +191,17 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			logger.error(err, exc_info=True)
 
 
-async def _process_message(message: TerminalOpenRequest | TerminalDataWrite | TerminalResizeRequest | TerminalCloseRequest) -> None:
+async def _process_message(
+	message: TerminalOpenRequestMessage | TerminalDataWriteMessage | TerminalResizeRequestMessage | TerminalCloseRequestMessage,
+) -> None:
 	terminal = terminals.get(message.terminal_id)
 
 	try:
-		if isinstance(message, TerminalOpenRequest):
+		if isinstance(message, TerminalOpenRequestMessage):
 			if not terminal:
 				terminal = Terminal(terminal_open_request=message, sender=get_messagebus_worker_id())
 				terminals[message.terminal_id] = terminal
-				open_event = TerminalOpenEvent(
+				open_event = TerminalOpenEventMessage(
 					sender=get_messagebus_worker_id(),
 					channel=terminal.back_channel(message),
 					ref_id=message.id,
@@ -220,7 +224,7 @@ async def _process_message(message: TerminalOpenRequest | TerminalDataWrite | Te
 		if terminal:
 			await terminal.close()
 		else:
-			close_event = TerminalCloseEvent(
+			close_event = TerminalCloseEventMessage(
 				sender=get_messagebus_worker_id(), channel=message.back_channel or message.sender, terminal_id=message.terminal_id
 			)
 			await send_message(close_event)
@@ -235,7 +239,9 @@ async def _messagebus_terminal_instance_worker() -> None:
 		try:
 			if isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
 				await process_file_message(message)
-			elif isinstance(message, (TerminalDataWrite, TerminalResizeRequest, TerminalOpenRequest, TerminalCloseRequest)):
+			elif isinstance(
+				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
+			):
 				await _process_message(message)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")
@@ -254,7 +260,9 @@ async def _messagebus_terminal_request_worker() -> None:
 	)
 	async for redis_id, message, _context in terminal_request_reader.get_messages():
 		try:
-			if isinstance(message, (TerminalDataWrite, TerminalResizeRequest, TerminalOpenRequest, TerminalCloseRequest)):
+			if isinstance(
+				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
+			):
 				await _process_message(message)
 			else:
 				raise ValueError(f"Received invalid message type {message.type}")

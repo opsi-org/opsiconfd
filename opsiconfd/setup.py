@@ -244,9 +244,9 @@ def setup_backend(full: bool) -> None:
 			)
 			mysql.insert_object(table="HOST", obj=config_server, ace=[], create=True, set_null=True)
 
-		conf_server = mysql.get_objects(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"})[0]
-		if isinstance(conf_server, OpsiConfigserver):
-			opsi_config.set("host", "key", conf_server.opsiHostKey, persistent=True)
+		conf_servers = list(mysql.get_objects(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}))
+		if conf_servers and isinstance(conf_servers[0], OpsiConfigserver) and conf_servers[0].opsiHostKey:
+			opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)
 
 
 def cleanup_log_files() -> None:

@@ -10,7 +10,7 @@ opsiconfd.backend.rpc.product_property_state
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Dict, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ProductPropertyState  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
@@ -27,9 +27,9 @@ if TYPE_CHECKING:
 
 class RPCProductPropertyStateMixin(Protocol):
 	def _get_product_property_state_values_with_defaults(
-		self: BackendProtocol, product_property_ids: List[str], object_id: str
-	) -> Dict[str, List[Any]]:
-		res: Dict[str, List[Any]] = {
+		self: BackendProtocol, product_property_ids: list[str], object_id: str
+	) -> dict[str, list[Any]]:
+		res: dict[str, list[Any]] = {
 			product_property.id: product_property.defaultValues
 			for product_property in self.productProperty_getObjects(id=product_property_ids)
 		}
@@ -44,9 +44,9 @@ class RPCProductPropertyStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def productPropertyState_getValues(  # pylint: disable=invalid-name
 		self: BackendProtocol,
-		product_ids: List[str] | str | None = None,
-		property_ids: List[str] | str | None = None,
-		object_ids: List[str] | str | None = None,
+		product_ids: list[str] | str | None = None,
+		property_ids: list[str] | str | None = None,
+		object_ids: list[str] | str | None = None,
 		with_defaults: bool = True
 	) -> dict[str, dict[str, dict[str, list[Any]]]]:
 		product_ids = forceUnicodeList(product_ids or [])
@@ -96,7 +96,7 @@ class RPCProductPropertyStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_createObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, productPropertyStates: List[dict] | List[ProductPropertyState] | dict | ProductPropertyState
+		self: BackendProtocol, productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState
 	) -> None:
 		ace = self._get_ace("productPropertyState_createObjects")
 		with self._mysql.session() as session:
@@ -107,7 +107,7 @@ class RPCProductPropertyStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_updateObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, productPropertyStates: List[dict] | List[ProductPropertyState] | dict | ProductPropertyState
+		self: BackendProtocol, productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState
 	) -> None:
 		ace = self._get_ace("productPropertyState_updateObjects")
 		with self._mysql.session() as session:
@@ -118,15 +118,15 @@ class RPCProductPropertyStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: List[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[ProductPropertyState]:
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[ProductPropertyState]:
 		ace = self._get_ace("productPropertyState_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_PROPERTY_STATE", ace=ace, object_type=ProductPropertyState, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def productPropertyState_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def productPropertyState_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("productPropertyState_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT_PROPERTY_STATE", object_type=ProductPropertyState, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -135,7 +135,7 @@ class RPCProductPropertyStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def productPropertyState_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[str] | List[dict] | List[list] | List[tuple]:
+	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("productPropertyState_getObjects")
 		return self._mysql.get_idents(
 			table="PRODUCT_PROPERTY_STATE", object_type=ProductPropertyState, ace=ace, ident_type=returnType, filter=filter
@@ -143,7 +143,7 @@ class RPCProductPropertyStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def productPropertyState_deleteObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, productPropertyStates: List[dict] | List[ProductPropertyState] | dict | ProductPropertyState
+		self: BackendProtocol, productPropertyStates: list[dict] | list[ProductPropertyState] | dict | ProductPropertyState
 	) -> None:
 		ace = self._get_ace("productPropertyState_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT_PROPERTY_STATE", object_type=ProductPropertyState, obj=productPropertyStates, ace=ace)

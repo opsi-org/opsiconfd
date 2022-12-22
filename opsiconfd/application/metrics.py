@@ -12,7 +12,7 @@ import copy
 from datetime import datetime
 from operator import itemgetter
 from time import time
-from typing import Any, Dict, List, Set
+from typing import Any
 
 from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel  # pylint: disable=no-name-in-module
@@ -42,7 +42,7 @@ def metrics_setup(app: FastAPI) -> None:
 	app.include_router(grafana_metrics_router, prefix="/metrics/grafana")
 
 
-async def get_workers() -> List[Dict[str, str | int]]:
+async def get_workers() -> list[dict[str, str | int]]:
 	redis = await async_redis_client()
 	workers = []
 	async for redis_key in redis.scan_iter(f"{config.redis_key('state')}:workers:*"):
@@ -52,11 +52,11 @@ async def get_workers() -> List[Dict[str, str | int]]:
 	return workers
 
 
-async def get_nodes() -> Set[str]:
+async def get_nodes() -> set[str]:
 	return {str(worker["node_name"]) for worker in await get_workers()}
 
 
-async def get_clients(metric_id: str) -> List[Dict[str, str]]:
+async def get_clients(metric_id: str) -> list[dict[str, str]]:
 	redis = await async_redis_client()
 	clients = []
 	async for redis_key in redis.scan_iter(f"{config.redis_key('stats')}:{metric_id}:*"):
@@ -72,7 +72,7 @@ async def grafana_index() -> None:
 	return None
 
 
-async def grafana_dashboard_config() -> Dict[str, Any]:  # pylint: disable=too-many-locals
+async def grafana_dashboard_config() -> dict[str, Any]:  # pylint: disable=too-many-locals
 	workers = await get_workers()
 	nodes = await get_nodes()
 	clients = await get_clients("client:sum_http_request_number")
@@ -133,7 +133,7 @@ async def create_grafana_datasource() -> None:
 
 @grafana_metrics_router.get("/search")
 @grafana_metrics_router.post("/search")
-async def grafana_search() -> List[str]:
+async def grafana_search() -> list[str]:
 	workers = await get_workers()
 	nodes = await get_nodes()
 	clients = await get_clients("client:sum_http_request_number")
@@ -171,7 +171,7 @@ class GrafanaQuery(BaseModel):  # pylint: disable=too-few-public-methods
 	range: GrafanaQueryTargetRange
 	intervalMs: int
 	timezone: str
-	targets: List[GrafanaQueryTarget]
+	targets: list[GrafanaQueryTarget]
 
 
 def align_timestamp(timestamp: int | float) -> int:
@@ -181,7 +181,7 @@ def align_timestamp(timestamp: int | float) -> int:
 
 @grafana_metrics_router.get("/query")
 @grafana_metrics_router.post("/query")
-async def grafana_query(query: GrafanaQuery) -> List[Dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+async def grafana_query(query: GrafanaQuery) -> list[dict[str, Any]]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	logger.trace("Grafana query: %s", query)
 	results = []
 	redis = await async_redis_client()

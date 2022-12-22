@@ -18,7 +18,7 @@ import re
 import sqlite3
 import subprocess
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Union
+from typing import Any, AsyncGenerator, Generator, Union
 from urllib.parse import urlparse
 
 import aiohttp
@@ -57,7 +57,7 @@ GRAFANA_DATASOURCE_TEMPLATE = {
 	"readOnly": False,
 }
 
-GRAFANA_DASHBOARD_TEMPLATE: Dict[str, Any] = {
+GRAFANA_DASHBOARD_TEMPLATE: dict[str, Any] = {
 	"id": None,
 	"uid": GRAFANA_DASHBOARD_UID,
 	"annotations": {
@@ -186,7 +186,7 @@ class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
 		self,
 		type: str = "graph",  # pylint: disable=redefined-builtin
 		title: str = "",
-		units: List[str] | None = None,
+		units: list[str] | None = None,
 		decimals: int = 0,
 		stack: bool = False,
 		yaxis_min: int | str = "auto",
@@ -203,7 +203,7 @@ class GrafanaPanelConfig:  # pylint: disable=too-few-public-methods
 		elif self.type == "heatmap":
 			self._template = GRAFANA_HEATMAP_PANEL_TEMPLATE  # type: ignore[assignment]
 
-	def get_panel(self, panel_id: int = 1, pos_x: int = 0, pos_y: int = 0) -> Dict[str, Any]:
+	def get_panel(self, panel_id: int = 1, pos_x: int = 0, pos_y: int = 0) -> dict[str, Any]:
 		panel = copy.deepcopy(self._template)
 		panel["id"] = panel_id
 		panel["gridPos"]["x"] = pos_x  # type: ignore[index]
@@ -245,7 +245,7 @@ class HTTPBearerAuth(AuthBase):  # pylint: disable=too-few-public-methods
 
 
 @contextmanager
-def grafana_admin_session() -> Generator[Tuple[str, requests.Session], None, None]:
+def grafana_admin_session() -> Generator[tuple[str, requests.Session], None, None]:
 	auth: Union[HTTPBearerAuth, HTTPBasicAuth, None] = None
 	url = urlparse(config.grafana_internal_url)
 	if url.username is not None:
@@ -272,7 +272,7 @@ def grafana_admin_session() -> Generator[Tuple[str, requests.Session], None, Non
 @asynccontextmanager
 async def async_grafana_session(
 	username: str | None = None, password: str | None = None
-) -> AsyncGenerator[Tuple[str, aiohttp.ClientSession], None]:
+) -> AsyncGenerator[tuple[str, aiohttp.ClientSession], None]:
 	auth = None
 	headers = None
 	if username is not None:
@@ -292,7 +292,7 @@ async def async_grafana_session(
 
 
 @asynccontextmanager
-async def async_grafana_admin_session() -> AsyncGenerator[Tuple[str, aiohttp.ClientSession], None]:
+async def async_grafana_admin_session() -> AsyncGenerator[tuple[str, aiohttp.ClientSession], None]:
 	url = urlparse(config.grafana_internal_url)
 	async with async_grafana_session(url.username, url.password) as (base_url, session):
 		yield (base_url, session)
@@ -392,7 +392,7 @@ def create_opsiconfd_user(recreate: bool = False) -> None:
 		con.close()
 
 
-async def create_dashboard_user() -> Tuple[str, str]:
+async def create_dashboard_user() -> tuple[str, str]:
 	username = "opsidashboard"
 	async with async_grafana_admin_session() as (base_url, session):
 		try:

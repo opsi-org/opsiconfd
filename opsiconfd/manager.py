@@ -16,7 +16,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event, Lock, Thread
 from types import FrameType
-from typing import List, Optional
+from typing import Optional
 
 import psutil
 from starlette.concurrency import run_in_threadpool
@@ -190,7 +190,7 @@ class WorkerManager:  # pylint: disable=too-many-instance-attributes,too-many-br
 		logger.info("New %s started", worker)
 		self.workers[worker.id] = worker
 
-	def stop_worker(self, workers: List[Worker] | Worker, force: bool = False, wait: bool = True, remove_worker: bool = True) -> None:
+	def stop_worker(self, workers: list[Worker] | Worker, force: bool = False, wait: bool = True, remove_worker: bool = True) -> None:
 		if not isinstance(workers, list):
 			workers = [workers]  # pylint: disable=use-tuple-over-list
 		for worker in workers:

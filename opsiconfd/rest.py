@@ -15,7 +15,7 @@ import traceback
 import warnings
 from functools import wraps
 from types import NoneType
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 from fastapi import Body, Query, status
 from fastapi.responses import JSONResponse
@@ -156,7 +156,7 @@ class RESTErrorResponse(RESTResponse):
 		)
 
 
-def order_by(query: SQLQuery, params: Dict[str, Any]) -> SQLQuery:
+def order_by(query: SQLQuery, params: dict[str, Any]) -> SQLQuery:
 	if not params.get("sortBy"):
 		return query
 	func = asc
@@ -170,7 +170,7 @@ def order_by(query: SQLQuery, params: Dict[str, Any]) -> SQLQuery:
 	return query.order_by(*sort_list)
 
 
-def pagination(query: SQLQuery, params: Dict[str, Any]) -> SQLQuery:
+def pagination(query: SQLQuery, params: dict[str, Any]) -> SQLQuery:
 	if not params.get("perPage"):
 		return query
 	query = query.limit(params["perPage"])
@@ -183,9 +183,9 @@ def common_parameters(
 	filterQuery: Optional[str] = Body(default=None, embed=True),  # pylint: disable=invalid-name
 	pageNumber: Optional[int] = Body(default=1, embed=True),  # pylint: disable=invalid-name
 	perPage: Optional[int] = Body(default=20, embed=True),  # pylint: disable=invalid-name
-	sortBy: Optional[List[str]] = Body(default=None, embed=True),  # pylint: disable=invalid-name
+	sortBy: Optional[list[str]] = Body(default=None, embed=True),  # pylint: disable=invalid-name
 	sortDesc: Optional[bool] = Body(default=True, embed=True),  # pylint: disable=invalid-name
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": sortBy, "sortDesc": sortDesc}
 
 
@@ -193,13 +193,13 @@ def common_query_parameters(
 	filterQuery: Optional[str] = Query(default=None, embed=True),  # pylint: disable=invalid-name
 	pageNumber: Optional[int] = Query(default=1, embed=True),  # pylint: disable=invalid-name
 	perPage: Optional[int] = Query(default=20, embed=True),  # pylint: disable=invalid-name
-	sortBy: Optional[List[str]] = Query(default=None, embed=True),  # pylint: disable=invalid-name
+	sortBy: Optional[list[str]] = Query(default=None, embed=True),  # pylint: disable=invalid-name
 	sortDesc: Optional[bool] = Query(default=True, embed=True),  # pylint: disable=invalid-name
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
 	return {"filterQuery": filterQuery, "pageNumber": pageNumber, "perPage": perPage, "sortBy": parse_list(sortBy), "sortDesc": sortDesc}
 
 
-def create_link_header(total: int, commons: Dict[str, Any], url: URL) -> dict:
+def create_link_header(total: int, commons: dict[str, Any], url: URL) -> dict:
 	# add link header next and last
 	headers = {}
 	if commons and url:

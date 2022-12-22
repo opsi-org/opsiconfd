@@ -9,7 +9,7 @@ opsiconfd.backend.rpc.group
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import Group, HostGroup  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
@@ -34,7 +34,7 @@ class RPCGroupMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def group_createObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, groups: List[dict] | List[Group] | dict | Group
+		self: BackendProtocol, groups: list[dict] | list[Group] | dict | Group
 	) -> None:
 		ace = self._get_ace("group_createObjects")
 		with self._mysql.session() as session:
@@ -43,7 +43,7 @@ class RPCGroupMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def group_updateObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, groups: List[dict] | List[Group] | dict | Group
+		self: BackendProtocol, groups: list[dict] | list[Group] | dict | Group
 	) -> None:
 		ace = self._get_ace("group_updateObjects")
 		with self._mysql.session() as session:
@@ -51,14 +51,14 @@ class RPCGroupMixin(Protocol):
 				self._mysql.insert_object(table="GROUP", obj=group, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
-	def group_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[Group]:  # pylint: disable=redefined-builtin,invalid-name
+	def group_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[Group]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("group_getObjects")
 		return self._mysql.get_objects(
 			table="GROUP", ace=ace, object_type=Group, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def group_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def group_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("group_getObjects")
 		return self._mysql.get_objects(
 			table="GROUP", object_type=Group, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -67,12 +67,12 @@ class RPCGroupMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def group_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[str] | List[dict] | List[list] | List[tuple]:
+	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("group_getObjects")
 		return self._mysql.get_idents(table="GROUP", object_type=Group, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def group_deleteObjects(self: BackendProtocol, groups: List[dict] | List[Group] | dict | Group) -> None:  # pylint: disable=invalid-name
+	def group_deleteObjects(self: BackendProtocol, groups: list[dict] | list[Group] | dict | Group) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("group_deleteObjects")
 		self._mysql.delete_objects(table="GROUP", object_type=Group, obj=groups, ace=ace)
 		with self._mysql.session() as session:

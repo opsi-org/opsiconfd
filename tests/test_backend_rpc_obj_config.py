@@ -114,6 +114,7 @@ def test_config_insertObject(  # pylint: disable=invalid-name
 
 	# Test client permissions
 	test_client.reset_cookies()
+	assert client1.opsiHostKey
 	test_client.auth = (client1.id, client1.opsiHostKey)
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_insertObject", "params": [config1.to_hash()]}
@@ -170,6 +171,7 @@ def test_config_updateObject(  # pylint: disable=invalid-name
 
 	# Test client permissions
 	test_client.reset_cookies()
+	assert client1.opsiHostKey
 	test_client.auth = (client1.id, client1.opsiHostKey)
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "config_updateObject", "params": [config1.to_hash()]}

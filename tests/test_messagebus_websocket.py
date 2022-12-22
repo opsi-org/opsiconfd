@@ -14,14 +14,18 @@ from uuid import uuid4
 
 import pytest
 from opsicommon.messagebus import (  # type: ignore[import]
+	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
 	MessageType,
-	TerminalDataWrite,
-	TerminalOpenRequest,
-	TerminalResizeRequest,
+	TerminalDataReadMessage,
+	TerminalDataWriteMessage,
+	TerminalOpenEventMessage,
+	TerminalOpenRequestMessage,
+	TerminalResizeEventMessage,
+	TerminalResizeRequestMessage,
 	TraceRequestMessage,
 	TraceResponseMessage,
 	timestamp,
@@ -63,7 +67,7 @@ def test_messagebus_compression(test_client: OpsiconfdTestClient, compression: s
 				websocket.send_bytes(data)
 
 				reader.wait_for_message()
-				raw_data = next(reader.get_messages())
+				raw_data = next(reader.get_raw_messages())
 				if compression:
 					raw_data = decompress_data(raw_data, compression)  # type: ignore[arg-type]
 				jsonrpc_response_message = Message.from_msgpack(raw_data)  # type: ignore[arg-type]
@@ -79,8 +83,8 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 	with test_client.websocket_connect("/messagebus/v1") as websocket:
 		with WebSocketMessageReader(websocket, decode=False) as reader:
 			reader.wait_for_message(count=1)
-			message = Message.from_msgpack(next(reader.get_messages()))
-			assert message.type == "channel_subscription_event"  # type: ignore[call-overload]
+			message = Message.from_msgpack(next(reader.get_raw_messages()))
+			assert isinstance(message, ChannelSubscriptionEventMessage)
 			assert len(message.subscribed_channels) == 2
 			user_channel = None
 			session_channel = None
@@ -98,7 +102,7 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			websocket.send_bytes(message.to_msgpack())
 
 			reader.wait_for_message(count=2)
-			messages = [Message.from_msgpack(msg) for msg in list(reader.get_messages())]
+			messages = [Message.from_msgpack(msg) for msg in list(reader.get_raw_messages())]
 			assert len(messages) == 2
 
 			assert sorted([msg.id for msg in messages]) == ["1", "2"]
@@ -112,9 +116,8 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			websocket.send_bytes(message.to_msgpack())
 
 			reader.wait_for_message(count=1)
-			message = Message.from_msgpack(next(reader.get_messages()))
-			print(message.to_dict())
-			assert message.type == "channel_subscription_event"  # type: ignore[call-overload]
+			message = Message.from_msgpack(next(reader.get_raw_messages()))
+			assert isinstance(message, ChannelSubscriptionEventMessage)
 			assert len(message.subscribed_channels) == 4
 
 			assert user_channel in message.subscribed_channels
@@ -132,7 +135,7 @@ def test_session_channel_subscription(test_client: OpsiconfdTestClient) -> None:
 			websocket.send_bytes(message.to_msgpack())
 
 			reader.wait_for_message(count=4)
-			messages = [Message.from_msgpack(msg) for msg in list(reader.get_messages())]
+			messages = [Message.from_msgpack(msg) for msg in list(reader.get_raw_messages())]
 			assert len(messages) == 4
 			assert sorted([msg.id for msg in messages]) == ["3", "4", "5", "6"]
 
@@ -167,16 +170,16 @@ def test_messagebus_multi_client(config: Config, test_client: OpsiconfdTestClien
 						messages = list(reader.get_messages())
 						# print(messages)
 						assert len(messages) == 1
-						assert messages[0]["type"] == "test_multi_client"  # type: ignore[call-overload]
-						assert messages[0]["id"] == "1"  # type: ignore[call-overload]
+						assert messages[0]["type"] == "test_multi_client"
+						assert messages[0]["id"] == "1"
 
 					# print(list(reader2.get_messages()))
 					with test_client.websocket_connect("/messagebus/v1") as websocket3:
 						with WebSocketMessageReader(websocket3) as reader3:
 							reader3.wait_for_message(count=1)
 							messages = list(reader3.get_messages())
-							assert messages[0]["type"] == "channel_subscription_event"  # type: ignore[call-overload]
-							assert len(messages[0]["subscribed_channels"]) == 2  # type: ignore[call-overload]
+							assert messages[0]["type"] == "channel_subscription_event"
+							assert len(messages[0]["subscribed_channels"]) == 2
 							assert "host:msgbus-test-client.opsi.test" in messages[0]["subscribed_channels"]  # type: ignore[call-overload]
 
 							assert (
@@ -229,7 +232,7 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 						channel="service:config:jsonrpc",
 						rpc_id="4",
 						method="hostControl_start",
-						params=(["client.opsi.test"]),
+						params=("client.opsi.test",),
 					)
 					websocket.send_bytes(jsonrpc_request_message4.to_msgpack())
 
@@ -268,15 +271,17 @@ def test_messagebus_jsonrpc(test_client: OpsiconfdTestClient) -> None:  # pylint
 					}
 
 
-def xxx_test_messagebus_terminal(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
+def test_messagebus_terminal(config: Config, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	messagebus_node_id = get_user_id_for_service_node(config.node_name)
 
 	with test_client.websocket_connect("/messagebus/v1") as websocket:
 		with WebSocketMessageReader(websocket) as reader:
 			terminal_id = str(uuid4())
-			message = TerminalOpenRequest(sender="@", channel=f"{messagebus_node_id}:terminal", terminal_id=terminal_id, rows=20, cols=100)
-			websocket.send_bytes(message.to_msgpack())
+			terminal_open_request = TerminalOpenRequestMessage(
+				sender="@", channel=f"{messagebus_node_id}:terminal", terminal_id=terminal_id, rows=20, cols=100
+			)
+			websocket.send_bytes(terminal_open_request.to_msgpack())
 
 			reader.wait_for_message(count=2)
 
@@ -284,36 +289,39 @@ def xxx_test_messagebus_terminal(config: Config, test_client: OpsiconfdTestClien
 				[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
 			)
 
-			assert responses[0].type == MessageType.TERMINAL_OPEN_EVENT
+			assert isinstance(responses[0], TerminalOpenEventMessage)
 			assert responses[0].rows
 			assert responses[0].cols
-
 			assert responses[0].terminal_id == terminal_id
-			terminal_channel = responses[0].terminal_channel
-			assert terminal_channel
 
-			assert responses[1].type == MessageType.TERMINAL_DATA_READ
+			back_channel = responses[0].back_channel
+			assert back_channel
+
+			assert isinstance(responses[1], TerminalDataReadMessage)
 			assert responses[1].terminal_id == terminal_id
 			assert responses[1].data
-			message = TerminalDataWrite(sender="@", channel=terminal_channel, terminal_id=terminal_id, data="echo test\r")
-			websocket.send_bytes(message.to_msgpack())
+			terminal_data_write = TerminalDataWriteMessage(sender="@", channel=back_channel, terminal_id=terminal_id, data=b"echo test\r")
+			websocket.send_bytes(terminal_data_write.to_msgpack())
 
 			reader.wait_for_message(count=1)
 
 			responses = sorted(
 				[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
 			)
-			assert responses[0].type == MessageType.TERMINAL_DATA_READ
+			assert isinstance(responses[0], TerminalDataReadMessage)
 			assert responses[0].terminal_id == terminal_id
 			assert "echo test\r\ntest\r\n" in responses[0].data.decode("utf-8")
-			message = TerminalResizeRequest(sender="@", channel=terminal_channel, terminal_id=terminal_id, rows=10, cols=20)
-			websocket.send_bytes(message.to_msgpack())
+			terminal_resize_request = TerminalResizeRequestMessage(
+				sender="@", channel=back_channel, terminal_id=terminal_id, rows=10, cols=20
+			)
+			websocket.send_bytes(terminal_resize_request.to_msgpack())
 
 			reader.wait_for_message(count=1)
 			responses = sorted(
 				[Message.from_dict(msg) for msg in reader.get_messages()], key=lambda m: m.created  # type: ignore[arg-type,attr-defined]
 			)
 			assert responses[0].type == MessageType.TERMINAL_RESIZE_EVENT
+			assert isinstance(responses[0], TerminalResizeEventMessage)
 			assert responses[0].terminal_id == terminal_id
 			assert responses[0].rows == 10
 			assert responses[0].cols == 20

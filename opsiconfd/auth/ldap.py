@@ -10,8 +10,6 @@ opsiconfd.auth.ldap
 
 from __future__ import annotations
 
-from typing import Set
-
 import ldap3  # type: ignore[import]
 from ldap3.core.exceptions import LDAPObjectClassError  # type: ignore[import]
 from opsicommon.exceptions import BackendAuthenticationError  # type: ignore[import]
@@ -94,7 +92,7 @@ class LDAPAuthentication(AuthenticationModule):
 			logger.info("LDAP authentication failed for user '%s'", username, exc_info=True)
 			raise BackendAuthenticationError(f"LDAP authentication failed for user '{username}': {err}") from err
 
-	def get_groupnames(self, username: str) -> Set[str]:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
+	def get_groupnames(self, username: str) -> set[str]:  # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 		groupnames = set()
 		if not self._ldap:
 			raise RuntimeError("Failed to get groupnames, not connected to ldap")

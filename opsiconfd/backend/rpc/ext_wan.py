@@ -9,7 +9,7 @@ rpc methods wan
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from opsicommon.types import forceBool, forceHostIdList  # type: ignore[import]
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 class RPCExtWANMixin(Protocol):  # pylint: disable=too-few-public-methods
 	@rpc_method
-	def changeWANConfig(self: BackendProtocol, boolean: bool, clientIds: List[str]) -> None:  # pylint:disable=invalid-name
+	def changeWANConfig(self: BackendProtocol, boolean: bool, clientIds: list[str]) -> None:  # pylint:disable=invalid-name
 		"""
 		Change the WAN configuration.
 

@@ -9,7 +9,7 @@ opsiconfd.backend.rpc.config
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol, Tuple
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.objects import BoolConfig, Config, UnicodeConfig  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
@@ -25,7 +25,12 @@ if TYPE_CHECKING:
 
 class RPCConfigMixin(Protocol):
 	def _config_insert_object(  # pylint: disable=too-many-arguments
-		self: BackendProtocol, config: Config, ace: List[RPCACE], create: bool = True, set_null: bool = True, session: Session | None = None
+		self: BackendProtocol,
+		config: Config | dict,
+		ace: list[RPCACE],
+		create: bool = True,
+		set_null: bool = True,
+		session: Session | None = None
 	) -> None:
 		query, data = self._mysql.insert_query(table="CONFIG", obj=config, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
@@ -49,14 +54,14 @@ class RPCConfigMixin(Protocol):
 		self._config_insert_object(config=config, ace=ace, create=False, set_null=False)
 
 	@rpc_method(check_acl=False)
-	def config_createObjects(self: BackendProtocol, configs: List[dict] | List[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
+	def config_createObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("config_createObjects")
 		with self._mysql.session() as session:
 			for config in forceList(configs):
 				self._config_insert_object(config=config, ace=ace, create=True, set_null=True, session=session)
 
 	@rpc_method(check_acl=False)
-	def config_updateObjects(self: BackendProtocol, configs: List[dict] | List[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
+	def config_updateObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("config_updateObjects")
 		with self._mysql.session() as session:
 			for config in forceList(configs):
@@ -64,11 +69,11 @@ class RPCConfigMixin(Protocol):
 
 	def _config_get(  # pylint: disable=too-many-arguments,too-many-locals
 		self: BackendProtocol,
-		ace: List[RPCACE] | None = None,
+		ace: list[RPCACE] | None = None,
 		return_type: Literal["object", "dict"] = "object",
-		attributes: List[str] | Tuple[str, ...] | None = None,
-		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
-	) -> List[dict] | List[Config]:
+		attributes: list[str] | tuple[str, ...] | None = None,
+		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+	) -> list[dict] | list[Config]:
 		aggregates = {
 			"possibleValues": f'GROUP_CONCAT(`value` SEPARATOR "{self._mysql.record_separator}")',
 			"defaultValues": f'GROUP_CONCAT(IF(`isDefault`, `value`, NULL) SEPARATOR "{self._mysql.record_separator}")'
@@ -84,24 +89,24 @@ class RPCConfigMixin(Protocol):
 		)
 
 	@rpc_method(check_acl=False)
-	def config_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[Config]:  # pylint: disable=redefined-builtin,invalid-name
+	def config_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[Config]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("config_getObjects")
-		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)
+		return self._config_get(ace=ace, return_type="object", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def config_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def config_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("config_getObjects")
-		return self._config_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)
+		return self._config_get(ace=ace, return_type="dict", attributes=attributes, filter=filter)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
 	def config_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[str] | List[dict] | List[list] | List[tuple]:
+	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("config_getObjects")
 		return self._mysql.get_idents("CONFIG", Config, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def config_deleteObjects(self: BackendProtocol, configs: List[dict] | List[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
+	def config_deleteObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
 		# CONFIG_VALUE will be deleted by CASCADE
 		ace = self._get_ace("config_deleteObjects")
 		self._mysql.delete_objects(table="CONFIG", object_type=Config, obj=configs, ace=ace)

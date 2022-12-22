@@ -14,7 +14,7 @@ import re
 from collections import defaultdict
 from copy import deepcopy
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from OPSI.Util.File import ConfigFile  # type: ignore[import]
 from opsicommon.objects import (  # type: ignore[import]
@@ -34,10 +34,10 @@ if TYPE_CHECKING:
 
 AUDIT_HARDWARE_CONFIG_FILE: str = "/etc/opsi/hwaudit/opsihwaudit.conf"
 AUDIT_HARDWARE_CONFIG_LOCALES_DIR: str = "/etc/opsi/hwaudit/locales"
-OPSI_HARDWARE_CLASSES: List[Dict[str, Any]] = []
+OPSI_HARDWARE_CLASSES: list[dict[str, Any]] = []
 
 
-def inherit_from_super_classes(classes: List[Dict[str, Any]], _class: Dict[str, Any], scname: str | None = None) -> None:  # pylint: disable=unused-private-member
+def inherit_from_super_classes(classes: list[dict[str, Any]], _class: dict[str, Any], scname: str | None = None) -> None:  # pylint: disable=unused-private-member
 	if not scname:  # pylint: disable=too-many-nested-blocks
 		for _scname in _class["Class"].get("Super", []):
 			inherit_from_super_classes(classes, _class, _scname)
@@ -67,7 +67,7 @@ def inherit_from_super_classes(classes: List[Dict[str, Any]], _class: Dict[str, 
 
 
 @lru_cache(maxsize=10)
-def get_audit_hardware_config(language: str | None = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+def get_audit_hardware_config(language: str | None = None) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
 
 	if not language:
 		language = "en_US"
@@ -90,7 +90,7 @@ def get_audit_hardware_config(language: str | None = None) -> List[Dict[str, Dic
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error("Failed to read translation file for language %s: %s", language, err)
 
-	classes: List[Dict[str, Any]] = []
+	classes: list[dict[str, Any]] = []
 	try:  # pylint: disable=too-many-nested-blocks
 		with open(AUDIT_HARDWARE_CONFIG_FILE, encoding="utf-8") as hwc_file:
 			exec(hwc_file.read())  # pylint: disable=exec-used
@@ -155,15 +155,15 @@ def get_audit_hardware_database_config() -> dict[str, dict[str, dict[str, str]]]
 
 
 class RPCAuditHardwareMixin(Protocol):
-	_audit_hardware_database_config: Dict[str, Dict[str, Dict[str, str]]] = {}
+	_audit_hardware_database_config: dict[str, dict[str, dict[str, str]]] = {}
 
 	def __init__(self) -> None:
 		self._audit_hardware_database_config = get_audit_hardware_database_config()
 
 	def _audit_hardware_by_hardware_class(
 		self: BackendProtocol,
-		audit_hardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
-	) -> Dict[str, List[AuditHardware]]:
+		audit_hardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
+	) -> dict[str, list[AuditHardware]]:
 		by_hardware_class = defaultdict(list)
 		for ahoh in forceList(audit_hardwares):  # pylint: disable=use-list-copy
 			if not isinstance(ahoh, AuditHardware):
@@ -178,7 +178,7 @@ class RPCAuditHardwareMixin(Protocol):
 				session.execute(f"TRUNCATE TABLE `HARDWARE_DEVICE_{hardware_class}`")
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getConfig(self: BackendProtocol, language: str | None = None) -> List[Dict[str, Dict[str, str] | List[Dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
+	def auditHardware_getConfig(self: BackendProtocol, language: str | None = None) -> list[dict[str, dict[str, str] | list[dict[str, str]]]]:  # pylint: disable=invalid-name,too-many-locals,too-many-branches,too-many-statements
 		self._get_ace("auditHardware_getConfig")
 
 		return get_audit_hardware_config(language)
@@ -199,7 +199,7 @@ class RPCAuditHardwareMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditHardware_createObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
+		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
 	) -> None:
 		ace = self._get_ace("auditHardware_createObjects")
 		with self._mysql.session() as session:
@@ -209,7 +209,7 @@ class RPCAuditHardwareMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditHardware_updateObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware
+		self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware
 	) -> None:
 		ace = self._get_ace("auditHardware_updateObjects")
 		with self._mysql.session() as session:
@@ -219,13 +219,13 @@ class RPCAuditHardwareMixin(Protocol):
 
 	def _audit_hardware_get(  # pylint: disable=redefined-builtin,too-many-branches,too-many-locals,too-many-statements,too-many-arguments
 		self: BackendProtocol,
-		ace: List[RPCACE],
+		ace: list[RPCACE],
 		return_hardware_ids: bool = False,
 		return_type: Literal["object", "dict", "ident"] = "object",
 		ident_type: IdentType = "str",
-		attributes: List[str] | None = None,
-		filter: Dict[str, Any] | None = None
-	) -> List[Dict[str, Any]]:
+		attributes: list[str] | None = None,
+		filter: dict[str, Any] | None = None
+	) -> list[dict[str, Any]]:
 		attributes = attributes or []
 		filter = filter or {}
 		hardware_classes = set()
@@ -285,30 +285,32 @@ class RPCAuditHardwareMixin(Protocol):
 					if return_type == "object":  # pylint: disable=loop-invariant-statement
 						results.append(AuditHardware(hardwareClass=hardware_class, **data))
 					elif return_type == "ident":  # pylint: disable=loop-invariant-statement
-						results.append(self._mysql.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type))
+						results.append(self._mysql.get_ident(data=data, ident_attributes=ident_attributes, ident_type=ident_type))  # type: ignore[arg-type]
 					else:
-						results.append(data)
-		return results
+						results.append(data)  # type: ignore[arg-type]
+		return results  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[AuditHardware]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardware_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[AuditHardware]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardware_getObjects")
-		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter)
+		return self._audit_hardware_get(
+			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
+		)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def auditHardware_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardware_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter)
 
 	@rpc_method(check_acl=False)
 	def auditHardware_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[str] | List[dict] | List[list] | List[tuple]:
+	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("auditHardware_getObjects")
 		return self._audit_hardware_get(ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def auditHardware_deleteObjects(self: BackendProtocol, auditHardwares: List[dict] | List[AuditHardware] | dict | AuditHardware) -> None:  # pylint: disable=invalid-name
+	def auditHardware_deleteObjects(self: BackendProtocol, auditHardwares: list[dict] | list[AuditHardware] | dict | AuditHardware) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("auditHardware_deleteObjects")
 		self._mysql.delete_objects(table="AUDIT_HARDWARE", object_type=AuditHardware, obj=auditHardwares, ace=ace)
 

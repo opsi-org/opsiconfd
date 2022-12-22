@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import itertools
 import os
-from typing import TYPE_CHECKING, Protocol, Set
+from typing import TYPE_CHECKING, Protocol
 
 from OPSI.Util.WIM import parseWIM, writeImageInformation  # type: ignore[import]
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
@@ -78,7 +78,7 @@ class RPCExtWIMMixin(Protocol):  # pylint: disable=too-few-public-methods
 			return
 
 		images = parseWIM(path)
-		default_languages: Set[str] = {image.default_language for image in images if image.default_language}
+		default_languages: set[str] = {image.default_language for image in images if image.default_language}
 		default_language = None
 		if len(default_languages) == 1:
 			default_language = list(default_languages)[0]

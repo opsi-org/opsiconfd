@@ -10,7 +10,7 @@ opsiconfd backend interface
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from .depot import RPCDepotserverMixin
 from .dhcpd_control import RPCDHCPDControlMixin
@@ -123,7 +123,7 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	def _shutting_down(self) -> bool:
 		...
 
-	def _get_ace(self, method: str) -> List[RPCACE]:
+	def _get_ace(self, method: str) -> list[RPCACE]:
 		...
 
 	def _check_role(self, required_role: str) -> None:
@@ -138,5 +138,5 @@ class BackendProtocol(  # pylint: disable=too-many-ancestors
 	def _get_responsible_depot_id(self, client_id: str) -> str | None:
 		...
 
-	def get_interface(self) -> List[Dict[str, Any]]:
+	def get_interface(self) -> list[dict[str, Any]]:
 		...

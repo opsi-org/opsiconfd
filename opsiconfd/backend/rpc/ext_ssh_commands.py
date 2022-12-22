@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 from opsicommon.types import forceList  # type: ignore[import]
 from pydantic import (  # pylint: disable=no-name-in-module
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 class SSHCommand(BaseModel):
 	menuText: str
-	commands: List[str]
+	commands: list[str]
 	id: str | None = None
 	position: int | None = None
 	needSudo: bool = False
@@ -47,24 +47,24 @@ class SSHCommand(BaseModel):
 		return value
 
 	@validator("commands", always=True)
-	def validate_commands(cls, value: List[str]) -> List[str]:
+	def validate_commands(cls, value: list[str]) -> list[str]:
 		if not value:
 			raise ValueError("'commands' has to be a non empty list")
 		return value
 
 	@root_validator
-	def validate_id(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+	def validate_id(cls, values: dict[str, Any]) -> dict[str, Any]:
 		values["id"] = values["menuText"].strip().lower().replace(" ", "_")
 		return values
 
-	def conf_dict(self) -> Dict[str, Any]:
+	def conf_dict(self) -> dict[str, Any]:
 		ret = self.dict()
 		del ret["buildIn"]
 		return ret
 
 	def update(  # pylint: disable=invalid-name,too-many-arguments
 		self,
-		commands: List[str] | None = None,
+		commands: list[str] | None = None,
 		position: int | None = None,
 		needSudo: bool | None = None,
 		tooltipText: str | None = None,
@@ -86,9 +86,9 @@ class RPCExtSSHCommandsMixin(Protocol):
 	ssh_commands_default_file: str = SSH_COMMANDS_DEFAULT_FILE
 	ssh_commands_custom_file: str = SSH_COMMANDS_CUSTOM_FILE
 
-	def _read_ssh_commands_file(self: BackendProtocol, filename: str) -> List[SSHCommand]:
+	def _read_ssh_commands_file(self: BackendProtocol, filename: str) -> list[SSHCommand]:
 		logger.debug("Reading SSH commands file '%s'", filename)
-		commands: List[SSHCommand] = []
+		commands: list[SSHCommand] = []
 		file_path = Path(filename)
 		if not file_path.exists():
 			logger.notice("SSH commands file '%s' not found", file_path)
@@ -116,32 +116,32 @@ class RPCExtSSHCommandsMixin(Protocol):
 			logger.error("Failed to read SSH commands file '%s': %s", file_path, err)
 		return commands
 
-	def _read_ssh_commands_files(self: BackendProtocol) -> Dict[str, SSHCommand]:
-		commands: Dict[str, SSHCommand] = {}
+	def _read_ssh_commands_files(self: BackendProtocol) -> dict[str, SSHCommand]:
+		commands: dict[str, SSHCommand] = {}
 		for filename in (self.ssh_commands_default_file, self.ssh_commands_custom_file):
 			# Custom file overrides commands with the same id
 			for cmd in self._read_ssh_commands_file(filename):  # pylint: disable=use-dict-comprehension
 				commands[cmd.menuText] = cmd
 		return commands
 
-	def _write_custom_ssh_command_file(self, commands: List[SSHCommand]) -> None:
+	def _write_custom_ssh_command_file(self, commands: list[SSHCommand]) -> None:
 		Path(self.ssh_commands_custom_file).write_text(
 			"".join([json.dumps(c.conf_dict()) + "\n" for c in commands if not c.buildIn]), encoding="utf-8"
 		)
 
 	@rpc_method
-	def SSHCommand_getObject(self: BackendProtocol, menuText: str) -> Optional[Dict[str, Any]]:  # pylint: disable=invalid-name
+	def SSHCommand_getObject(self: BackendProtocol, menuText: str) -> Optional[dict[str, Any]]:  # pylint: disable=invalid-name
 		for command in self._read_ssh_commands_files().values():
 			if command.menuText == menuText:
 				return command.dict()
 		return None
 
 	@rpc_method
-	def SSHCommand_getObjects(self: BackendProtocol) -> List[Dict[str, Any]]:  # pylint: disable=invalid-name
+	def SSHCommand_getObjects(self: BackendProtocol) -> list[dict[str, Any]]:  # pylint: disable=invalid-name
 		return [c.dict() for c in self._read_ssh_commands_files().values()]
 
 	@rpc_method
-	def SSHCommand_createObjects(self: BackendProtocol, commandList: List[Dict[str, Any]]) -> None:  # pylint: disable=invalid-name
+	def SSHCommand_createObjects(self: BackendProtocol, commandList: list[dict[str, Any]]) -> None:  # pylint: disable=invalid-name
 		commands = self._read_ssh_commands_files()
 		for cmd_dict in forceList(commandList):
 			cmd = SSHCommand.parse_obj(cmd_dict)
@@ -152,7 +152,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 	def SSHCommand_createObject(  # pylint: disable=invalid-name, too-many-arguments
 		self: BackendProtocol,
 		menuText: str,
-		commands: List[str],
+		commands: list[str],
 		position: int = 0,
 		needSudo: bool = False,
 		tooltipText: str = "",
@@ -177,7 +177,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 	def SSHCommand_updateObject(  # pylint: disable=invalid-name, too-many-arguments
 		self: BackendProtocol,
 		menuText: str,
-		commands: List[str],
+		commands: list[str],
 		position: int = 0,
 		needSudo: bool = False,
 		tooltipText: str = "",
@@ -193,7 +193,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 
 	@rpc_method
 	def SSHCommand_updateObjects(  # pylint: disable=invalid-name, too-many-arguments
-		self: BackendProtocol, commandList: List[Dict[str, Any]]
+		self: BackendProtocol, commandList: list[dict[str, Any]]
 	) -> None:
 		ssh_commands = self._read_ssh_commands_files()
 		modified = False
@@ -215,7 +215,7 @@ class RPCExtSSHCommandsMixin(Protocol):
 			self._write_custom_ssh_command_file(list(ssh_commands.values()))
 
 	@rpc_method
-	def SSHCommand_deleteObjects(self: BackendProtocol, menuTextList: List[str]) -> None:  # pylint: disable=invalid-name
+	def SSHCommand_deleteObjects(self: BackendProtocol, menuTextList: list[str]) -> None:  # pylint: disable=invalid-name
 		ssh_commands = self._read_ssh_commands_files()
 		for menu_text in forceList(menuTextList):
 			if menu_text in ssh_commands:

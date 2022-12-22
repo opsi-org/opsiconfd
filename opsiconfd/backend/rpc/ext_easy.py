@@ -11,7 +11,7 @@ rpc methods wim
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.types import (  # type: ignore[import]
 	forceActionRequestList,
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class RPCExtEasyMixin(Protocol):
 	@rpc_method
-	def getClients(self: BackendProtocol) -> List[Dict[str, Any]]:  # pylint: disable=invalid-name
+	def getClients(self: BackendProtocol) -> list[dict[str, Any]]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client hashes.
 
@@ -70,7 +70,7 @@ class RPCExtEasyMixin(Protocol):
 		return results
 
 	@rpc_method
-	def getClientIDs(self: BackendProtocol) -> List[str]:  # pylint: disable=invalid-name
+	def getClientIDs(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client IDs.
 
@@ -79,7 +79,7 @@ class RPCExtEasyMixin(Protocol):
 		return self.host_getIdents(type="OpsiClient")
 
 	@rpc_method
-	def getClientsOnDepot(self: BackendProtocol, depotIds: List[str]) -> List[str]:  # pylint: disable=invalid-name
+	def getClientsOnDepot(self: BackendProtocol, depotIds: list[str]) -> list[str]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client IDs that can be found on the given depots.
 
@@ -98,7 +98,7 @@ class RPCExtEasyMixin(Protocol):
 		]
 
 	@rpc_method
-	def getClientsWithProducts(self: BackendProtocol, productIds: List[str], installationStatus: str | None = None) -> List[str]:  # pylint: disable=invalid-name
+	def getClientsWithProducts(self: BackendProtocol, productIds: list[str], installationStatus: str | None = None) -> list[str]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client IDs with the given productIds independent from
 		their status.
@@ -118,7 +118,7 @@ class RPCExtEasyMixin(Protocol):
 		if not productIds:
 			raise ValueError("Missing product ids")
 
-		poc_filter = {
+		poc_filter: dict[str, list[str] | str] = {
 			"productId": productIds,
 		}
 		if installationStatus is not None:
@@ -127,7 +127,7 @@ class RPCExtEasyMixin(Protocol):
 		return list({poc.clientId for poc in self.productOnClient_getObjects(**poc_filter)})
 
 	@rpc_method
-	def getClientsWithActionRequest(self: BackendProtocol, actionRequests: List[str]) -> List[str]:  # pylint: disable=invalid-name
+	def getClientsWithActionRequest(self: BackendProtocol, actionRequests: list[str]) -> list[str]:  # pylint: disable=invalid-name
 		"""
 		Returns a list of client IDs that have the given actionRequests set.
 		Each client will only be present once in the list of one of the given action requests match.

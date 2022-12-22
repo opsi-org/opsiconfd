@@ -13,7 +13,7 @@ import os
 import sys
 import tempfile
 from types import ModuleType
-from typing import Any, Callable, Tuple
+from typing import Any, Callable
 from unittest.mock import patch
 
 import pytest
@@ -300,7 +300,7 @@ async def test_delete_client_sessions(  # pylint: disable=redefined-outer-name,u
 
 
 def test_open_grafana(test_client: OpsiconfdTestClient, config: Config) -> None:  # pylint: disable=redefined-outer-name
-	async def create_dashboard_user() -> Tuple[str, str]:
+	async def create_dashboard_user() -> tuple[str, str]:
 		return "", ""
 
 	with patch("opsiconfd.application.admininterface.create_dashboard_user", create_dashboard_user):

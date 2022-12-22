@@ -13,7 +13,7 @@ from __future__ import annotations
 import socket
 from copy import deepcopy
 from ipaddress import ip_address
-from typing import TYPE_CHECKING, Any, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from urllib.parse import urlparse
 
 from opsicommon.exceptions import (  # type: ignore[import]
@@ -60,7 +60,7 @@ class RPCHostMixin(Protocol):
 		self.dhcpd_control_hosts_updated(host)
 
 	@rpc_method(check_acl=False)
-	def host_createObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
+	def host_createObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_createObjects")
 		with self._mysql.session() as session:
 			for host in forceList(hosts):
@@ -68,7 +68,7 @@ class RPCHostMixin(Protocol):
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)
-	def host_updateObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
+	def host_updateObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_updateObjects")
 		with self._mysql.session() as session:
 			for host in forceList(hosts):
@@ -76,14 +76,14 @@ class RPCHostMixin(Protocol):
 		self.dhcpd_control_hosts_updated(hosts)
 
 	@rpc_method(check_acl=False)
-	def host_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[Host]:  # pylint: disable=redefined-builtin,invalid-name
+	def host_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[Host]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(
 			table="HOST", object_type=Host, ace=ace, return_type="object", attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def host_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def host_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_objects(
 			table="HOST", object_type=Host, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -92,12 +92,12 @@ class RPCHostMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def host_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[str] | List[dict] | List[list] | List[tuple]:
+	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("host_getObjects")
 		return self._mysql.get_idents(table="HOST", object_type=Host, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def host_deleteObjects(self: BackendProtocol, hosts: List[dict] | List[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
+	def host_deleteObjects(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("host_deleteObjects")
 		query, params, idents = self._mysql.delete_query(table="HOST", object_type=Host, obj=hosts, ace=ace)
 		host_ids = [ident["id"] for ident in idents]
@@ -363,7 +363,7 @@ class RPCHostMixin(Protocol):
 			product_on_depot.setDepotId(new_server_id)
 			product_on_depots.append(product_on_depot)
 
-		def replace_server_id(some_list: List[str]) -> bool:
+		def replace_server_id(some_list: list[str]) -> bool:
 			"""
 			Replaces occurrences of `oldId` with `newId` in `some_list`.
 

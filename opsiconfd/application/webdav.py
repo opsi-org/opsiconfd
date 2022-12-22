@@ -9,7 +9,7 @@ webdav
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Optional
 
 import wsgidav.fs_dav_provider  # type: ignore[import]
 from fastapi import FastAPI
@@ -53,7 +53,7 @@ wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
 
 
 class IgnoreCaseFilesystemProvider(FilesystemProvider):
-	def _loc_to_file_path(self, path: str, environ: Dict[str, str] | None = None) -> str:
+	def _loc_to_file_path(self, path: str, environ: dict[str, str] | None = None) -> str:
 		"""Convert resource path to a unicode absolute file path.
 		Optional environ argument may be useful e.g. in relation to per-user
 		sub-folder chrooting inside root_folder_path.
@@ -94,11 +94,11 @@ class IgnoreCaseFilesystemProvider(FilesystemProvider):
 
 
 class VirtualRootFilesystemCollection(DAVCollection):
-	def __init__(self, environ: Dict[str, str], provider: DAVProvider) -> None:
+	def __init__(self, environ: dict[str, str], provider: DAVProvider) -> None:
 		DAVCollection.__init__(self, "/", environ)
 		self.provider = provider
 
-	def get_member_names(self) -> List[str]:
+	def get_member_names(self) -> list[str]:
 		return [name.lstrip("/") for name in self.provider.provider_mapping if name != "/"]
 
 	def get_member(self, name: str) -> Optional[FolderResource]:
@@ -110,7 +110,7 @@ class VirtualRootFilesystemCollection(DAVCollection):
 
 
 class VirtualRootFilesystemProvider(DAVProvider):
-	def __init__(self, provider_mapping: Dict[str, FilesystemProvider]) -> None:
+	def __init__(self, provider_mapping: dict[str, FilesystemProvider]) -> None:
 		super().__init__()
 		self.provider_mapping = provider_mapping
 		self.readonly = True

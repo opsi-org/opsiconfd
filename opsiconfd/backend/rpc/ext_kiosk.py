@@ -10,7 +10,7 @@ rpc methods kiosk
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, Set
+from typing import TYPE_CHECKING, Protocol
 
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
 from opsicommon.types import forceBool  # type: ignore[import]
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 class RPCExtKioskMixin(Protocol):  # pylint: disable=too-few-public-methods
-	def _get_software_on_demand_groups(self: BackendProtocol, client_id: str) -> Set[str]:
+	def _get_software_on_demand_groups(self: BackendProtocol, client_id: str) -> set[str]:
 		"""
 		Get the software-on-demand groups for the given client.
 

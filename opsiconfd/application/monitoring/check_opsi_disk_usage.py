@@ -10,7 +10,7 @@ check opsi disk usage
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
 from OPSI.System import getDiskSpaceUsage  # type: ignore[import]
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 
 def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals, too-many-statements
-	backend: Backend, thresholds: Dict[str, str] | None = None, opsiresource: List[str] | None = None
+	backend: Backend, thresholds: dict[str, str] | None = None, opsiresource: list[str] | None = None
 ) -> JSONResponse:
 	thresholds = thresholds or {}
 	opsiresource = opsiresource or []
@@ -64,7 +64,7 @@ def check_opsi_disk_usage(  # pylint: disable=too-many-branches, too-many-locals
 
 	results = {}
 	state = State.OK
-	message: List[str] = []
+	message: list[str] = []
 
 	try:
 		for resource in resources:

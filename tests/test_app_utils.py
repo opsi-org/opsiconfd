@@ -8,7 +8,7 @@
 test application utils
 """
 
-from typing import Any, List
+from typing import Any
 
 import pytest
 
@@ -77,7 +77,7 @@ def test_parse_list(data: Any, output: Any) -> None:
 		),  # key b not in dict a and key a not in dict b
 	],
 )
-def test_merge_dicts(dict_a: dict, dict_b: dict, path: List[str] | None, output: dict) -> None:
+def test_merge_dicts(dict_a: dict, dict_b: dict, path: list[str] | None, output: dict) -> None:
 	assert merge_dicts(dict_a, dict_b, path) == output
 
 
@@ -85,7 +85,7 @@ def test_merge_dicts(dict_a: dict, dict_b: dict, path: List[str] | None, output:
 	"dict_a, dict_b, path, output",
 	[(None, None, None, None), ("", "", None, None)],
 )
-def test_merge_dicts_value_error(dict_a: dict, dict_b: dict, path: List[str] | None, output: dict) -> None:
+def test_merge_dicts_value_error(dict_a: dict, dict_b: dict, path: list[str] | None, output: dict) -> None:
 	with pytest.raises(ValueError):
 		assert merge_dicts(dict_a, dict_b, path) == output
 
@@ -102,7 +102,7 @@ def test_merge_dicts_value_error(dict_a: dict, dict_b: dict, path: List[str] | N
 		),  # confict in test dict
 	],
 )
-def test_merge_dicts_conflict(dict_a: dict, dict_b: dict, path: List[str] | None, output: dict) -> None:
+def test_merge_dicts_conflict(dict_a: dict, dict_b: dict, path: list[str] | None, output: dict) -> None:
 
 	with pytest.raises(Exception):
 		assert merge_dicts(dict_a, dict_b, path) == output

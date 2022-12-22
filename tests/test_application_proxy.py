@@ -33,7 +33,7 @@ def test_reverse_proxy_request(tmp_path: Path, test_client: OpsiconfdTestClient)
 
 	with (
 		mock.patch("opsiconfd.application.proxy.proxy_logger.isEnabledFor", lambda lvl: True),
-		http_test_server(log_file=log_file) as server,
+		http_test_server(log_file=str(log_file)) as server,
 	):
 		ReverseProxy(app, "/test_reverse_proxy_request1", f"http://localhost:{server.port}")
 
@@ -66,7 +66,7 @@ def test_reverse_proxy_request(tmp_path: Path, test_client: OpsiconfdTestClient)
 def test_forward_cookie(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name
 	log_file = tmp_path / "request.log"
 
-	with http_test_server(log_file=log_file) as server:
+	with http_test_server(log_file=str(log_file)) as server:
 		ReverseProxy(app, "/test_forward_cookie1", f"http://localhost:{server.port}", forward_cookies=None)
 
 		headers = {"Cookie": "test-cookie=123"}
@@ -135,7 +135,7 @@ def test_websocket(tmp_path: Path, test_client: OpsiconfdTestClient) -> None:  #
 	log_file = tmp_path / "request.log"
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
 	with get_config({"admin_interface_terminal_shell": "/bin/echo testshell"}):
-		with http_test_server(log_file=log_file) as server:
+		with http_test_server(log_file=str(log_file)) as server:
 			ReverseProxy(app, "/test_websocket", f"http://localhost:{server.port}")
 			with test_client.websocket_connect("/test_websocket/admin/terminal/ws") as websocket:
 				# TODO: Implement websocket server in http_test_server

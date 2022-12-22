@@ -46,9 +46,7 @@ def test_shell_config(test_client: OpsiconfdTestClient) -> None:  # pylint: disa
 		with test_client.websocket_connect("/admin/terminal/ws") as websocket:
 			with WebSocketMessageReader(websocket) as reader:
 				time.sleep(3)
-				payload = "".join(
-					[m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"]  # type: ignore[call-overload]
-				)
+				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
 				assert "testshell" in payload
 
 
@@ -60,11 +58,7 @@ def test_command(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=r
 			with WebSocketMessageReader(websocket) as reader:
 				websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo test\r"}))
 				time.sleep(3)
-				payload = "".join(
-					[
-						m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"  # type: ignore[call-overload]
-					]
-				)
+				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
 				assert "test" in payload
 
 
@@ -77,11 +71,7 @@ def test_params(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=re
 			with WebSocketMessageReader(websocket) as reader:
 				websocket.send_bytes(msgpack.dumps({"type": "terminal-write", "payload": "echo :${COLUMNS}:${LINES}:\r"}))
 				time.sleep(3)
-				payload = "".join(
-					[
-						m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"  # type: ignore[call-overload]
-					]
-				)
+				payload = "".join([m["payload"].decode("utf-8") for m in reader.get_messages() if m["type"] == "terminal-read"])
 				assert f":{cols}:{rows}:" in payload
 
 

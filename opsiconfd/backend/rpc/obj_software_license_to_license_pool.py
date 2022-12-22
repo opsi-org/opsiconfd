@@ -9,7 +9,7 @@ opsiconfd.backend.rpc.software_license_to_license_pool
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import SoftwareLicenseToLicensePool  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
@@ -40,7 +40,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_createObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol,
-		softwareLicenseToLicensePools: List[dict] | List[SoftwareLicenseToLicensePool] | dict | SoftwareLicenseToLicensePool
+		softwareLicenseToLicensePools: list[dict[str, Any]] | list[SoftwareLicenseToLicensePool] | dict[str, Any] | SoftwareLicenseToLicensePool
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_createObjects")
 		with self._mysql.session() as session:
@@ -52,7 +52,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_updateObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol,
-		softwareLicenseToLicensePools: List[dict] | List[SoftwareLicenseToLicensePool] | dict | SoftwareLicenseToLicensePool
+		softwareLicenseToLicensePools: list[dict[str, Any]] | list[SoftwareLicenseToLicensePool] | dict[str, Any] | SoftwareLicenseToLicensePool
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_updateObjects")
 		with self._mysql.session() as session:
@@ -63,15 +63,17 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_getObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, attributes: List[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin,invalid-name
-	) -> List[SoftwareLicenseToLicensePool]:
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin,invalid-name
+	) -> list[SoftwareLicenseToLicensePool]:
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_objects(
 			table="SOFTWARE_LICENSE_TO_LICENSE_POOL", ace=ace, object_type=SoftwareLicenseToLicensePool, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def softwareLicenseToLicensePool_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def softwareLicenseToLicensePool_getHashes(  # pylint: disable=invalid-name
+		self: BackendProtocol, attributes: list[str] | None = None, **filter: Any  # pylint: disable=redefined-builtin
+	) -> list[dict[str, Any]]:
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_objects(
 			table="SOFTWARE_LICENSE_TO_LICENSE_POOL",
@@ -85,7 +87,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[str] | List[dict] | List[list] | List[tuple]:
+	) -> list[str] | list[dict[str, Any]] | list[list] | list[tuple]:
 		ace = self._get_ace("softwareLicenseToLicensePool_getObjects")
 		return self._mysql.get_idents(
 			table="SOFTWARE_LICENSE_TO_LICENSE_POOL", object_type=SoftwareLicenseToLicensePool, ace=ace, ident_type=returnType, filter=filter
@@ -94,7 +96,7 @@ class RPCSoftwareLicenseToLicensePoolMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def softwareLicenseToLicensePool_deleteObjects(  # pylint: disable=invalid-name
 		self: BackendProtocol,
-		softwareLicenseToLicensePools: List[dict] | List[SoftwareLicenseToLicensePool] | dict | SoftwareLicenseToLicensePool
+		softwareLicenseToLicensePools: list[dict[str, Any]] | list[SoftwareLicenseToLicensePool] | dict[str, Any] | SoftwareLicenseToLicensePool
 	) -> None:
 		ace = self._get_ace("softwareLicenseToLicensePool_deleteObjects")
 		self._mysql.delete_objects(

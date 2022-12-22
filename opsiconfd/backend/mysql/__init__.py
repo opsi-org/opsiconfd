@@ -22,12 +22,9 @@ from typing import (
 	TYPE_CHECKING,
 	Any,
 	Callable,
-	Dict,
 	Generator,
-	List,
 	Literal,
 	Optional,
-	Tuple,
 	Type,
 	Union,
 	overload,
@@ -40,6 +37,7 @@ from opsicommon.logging import secret_filter  # type: ignore[import]
 from opsicommon.objects import (  # type: ignore[import]
 	OBJECT_CLASSES,
 	BaseObject,
+	BaseObjectT,
 	get_ident_attributes,
 	get_possible_class_attributes,
 )
@@ -163,7 +161,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 	def _read_config_file(self) -> None:
 		mysql_conf = Path(config.backend_config_dir) / "mysql.conf"
-		loc: Dict[str, Any] = {}
+		loc: dict[str, Any] = {}
 		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
 
 		for key, val in loc["config"].items():
@@ -342,9 +340,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					self._client_id_column[table_name] = ""
 
 	def get_columns(  # pylint: disable=too-many-branches
-		self, tables: List[str], ace: List[RPCACE], attributes: Union[List[str], Tuple[str, ...]] | None = None
-	) -> Dict[str, ColumnInfo]:
-		res: Dict[str, ColumnInfo] = {}
+		self, tables: list[str], ace: list[RPCACE], attributes: Union[list[str], tuple[str, ...]] | None = None
+	) -> dict[str, ColumnInfo]:
+		res: dict[str, ColumnInfo] = {}
 		first_table = tables[0]
 		client_id_column = self._client_id_column.get(first_table)
 
@@ -390,15 +388,15 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 
 	def get_where(  # pylint: disable=too-many-locals,too-many-branches
 		self,
-		columns: Dict[str, ColumnInfo],
-		ace: List[RPCACE],
-		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
-	) -> Tuple[str, Dict[str, Any]]:
+		columns: dict[str, ColumnInfo],
+		ace: list[RPCACE],
+		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+	) -> tuple[str, dict[str, Any]]:
 		filter = filter or {}
 		allowed_client_ids = self.get_allowed_client_ids(ace)
 
 		conditions = []
-		params: Dict[str, Any] = {}
+		params: dict[str, Any] = {}
 		for f_attr, f_val in filter.items():
 			if f_attr not in columns or f_val is None:
 				continue
@@ -452,8 +450,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		return "", {}
 
 	@lru_cache(maxsize=0)
-	def _get_read_conversions(self, object_type: Type[BaseObject]) -> Dict[str, Callable]:
-		conversions: Dict[str, Callable] = {}
+	def _get_read_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
+		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
 		for name, param in sig.parameters.items():  # pylint: disable=use-dict-comprehension,unused-variable
 			if name == "values":
@@ -461,8 +459,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		return conversions
 
 	@lru_cache(maxsize=0)
-	def _get_write_conversions(self, object_type: Type[BaseObject]) -> Dict[str, Callable]:
-		conversions: Dict[str, Callable] = {}
+	def _get_write_conversions(self, object_type: Type[BaseObject]) -> dict[str, Callable]:
+		conversions: dict[str, Callable] = {}
 		sig = signature(getattr(object_type, "__init__"))
 		for name, param in sig.parameters.items():  # pylint: disable=use-dict-comprehension,unused-variable
 			if name == "values":
@@ -470,11 +468,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		return conversions
 
 	@lru_cache(maxsize=0)
-	def _get_possible_class_attributes(self, object_type: Type[BaseObject]) -> Dict[str, Type]:
+	def _get_possible_class_attributes(self, object_type: Type[BaseObject]) -> set[str]:
 		return get_possible_class_attributes(object_type)
 
 	@lru_cache(maxsize=0)
-	def _get_ident_attributes(self, object_type: Type[BaseObject]) -> Tuple[str, ...]:
+	def _get_ident_attributes(self, object_type: Type[BaseObject]) -> tuple[str, ...]:
 		ident_attributes = get_ident_attributes(object_type)
 		if "hardwareClass" in ident_attributes:
 			ident_attributes = tuple([a for a in ident_attributes if a != "hardwareClass"])  # pylint: disable=consider-using-generator
@@ -484,9 +482,33 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def _get_object_type(self, object_type: str) -> Type[BaseObject] | None:
 		return OBJECT_CLASSES.get(object_type)
 
+	@overload
 	def get_ident(
-		self, data: Dict[str, Any], ident_attributes: Tuple[str, ...] | List[str], ident_type: IdentType
-	) -> str | dict | list | tuple:
+		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["unicode", "str"]
+	) -> str:
+		...
+
+	@overload
+	def get_ident(
+		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["dict", "hash"]
+	) -> dict[str, Any]:
+		...
+
+	@overload
+	def get_ident(
+		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["list"]
+	) -> list[Any]:
+		...
+
+	@overload
+	def get_ident(
+		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: Literal["tuple"]
+	) -> tuple[Any, ...]:
+		...
+
+	def get_ident(
+		self, data: dict[str, Any], ident_attributes: tuple[str, ...] | list[str], ident_type: IdentType
+	) -> str | dict[str, Any] | list[Any] | tuple[Any, ...]:
 		ident = {a: data[a] for a in ident_attributes}
 		if ident_type in ("dict", "hash"):
 			return ident
@@ -503,8 +525,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		row: Row,
 		object_type: Type[BaseObject] | None = None,
 		ident_type: IdentType | None = None,
-		aggregates: List[str] | None = None,
-	) -> Dict[str, Any]:
+		aggregates: list[str] | None = None,
+	) -> dict[str, Any]:
 		data = dict(row)
 		try:
 			object_type = self._get_object_type(data["type"]) or object_type
@@ -535,9 +557,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def _row_to_object(
 		self,
 		row: Row,
-		object_type: Type[BaseObject] | None = None,
-		conversions: Dict[str, Callable] | None = None,
-		aggregates: List[str] | None = None,
+		object_type: Type[BaseObjectT] | None = None,
+		conversions: dict[str, Callable] | None = None,
+		aggregates: list[str] | None = None,
 	) -> BaseObject:
 		data = dict(row)
 
@@ -557,8 +579,8 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 					logger.warning(err)
 		return object_type.fromHash(data)  # type: ignore
 
-	def get_allowed_client_ids(self, ace: List[RPCACE]) -> List[str] | None:
-		allowed_client_ids: List[str] | None = None
+	def get_allowed_client_ids(self, ace: list[RPCACE]) -> list[str] | None:
+		allowed_client_ids: list[str] | None = None
 		for _ace in ace:
 			if _ace.type == "self":
 				allowed_client_ids = []
@@ -575,41 +597,41 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def get_objects(  # pylint: disable=too-many-arguments
 		self,
 		table: str,
-		object_type: Type[BaseObject],
-		aggregates: Dict[str, str] | None = None,
-		ace: List[RPCACE] | None = None,
-		ident_type: IdentType = "str",
+		object_type: Type[BaseObjectT],
 		return_type: Literal["object"] = "object",
-		attributes: List[str] | Tuple[str, ...] | None = None,
-		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
-	) -> List[BaseObject]:
-		return []
+		aggregates: dict[str, str] | None = None,
+		ace: list[RPCACE] | None = None,
+		ident_type: IdentType = "str",
+		attributes: list[str] | tuple[str, ...] | None = None,
+		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+	) -> list[BaseObjectT] | list:  # list for empty list
+		...
 
 	@overload
 	def get_objects(  # pylint: disable=too-many-arguments
 		self,
 		table: str,
-		object_type: Type[BaseObject],
-		aggregates: Dict[str, str] | None = None,
-		ace: List[RPCACE] | None = None,
+		object_type: Type[BaseObjectT],
+		return_type: Literal["dict", "ident"],
+		aggregates: dict[str, str] | None = None,
+		ace: list[RPCACE] | None = None,
 		ident_type: IdentType = "str",
-		return_type: Literal["dict"] = "dict",
-		attributes: List[str] | Tuple[str, ...] | None = None,
-		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
-	) -> List[dict]:
-		return []
+		attributes: list[str] | tuple[str, ...] | None = None,
+		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+	) -> list[dict] | list:  # list for empty list
+		...
 
 	def get_objects(  # pylint: disable=too-many-arguments,too-many-locals
 		self,
 		table: str,
-		object_type: Type[BaseObject],
-		aggregates: Dict[str, str] | None = None,
-		ace: List[RPCACE] | None = None,
-		ident_type: IdentType = "str",
+		object_type: Type[BaseObjectT],
 		return_type: Literal["object", "dict", "ident"] = "object",
-		attributes: List[str] | Tuple[str, ...] | None = None,
-		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
-	) -> List[dict] | List[BaseObject]:
+		aggregates: dict[str, str] | None = None,
+		ace: list[RPCACE] | None = None,
+		ident_type: IdentType = "str",
+		attributes: list[str] | tuple[str, ...] | None = None,
+		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+	) -> list[dict] | list[BaseObjectT] | list:  # list for empty list
 		ace = ace or []
 		aggregates = aggregates or {}
 		if not table.lstrip().upper().startswith("FROM"):
@@ -618,7 +640,7 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 			table = f"FROM {table}"
 		tables = re.findall(r"(?:FROM|JOIN)\s+`?([a-zA-Z_]+)`?", table)
 
-		ident_attributes: Tuple[str, ...] = tuple()
+		ident_attributes: tuple[str, ...] = tuple()
 		if return_type == "ident" or attributes or aggregates:
 			ident_attributes = self._get_ident_attributes(object_type)  # type: ignore[arg-type]
 
@@ -672,10 +694,10 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 		self,
 		table: str,
 		object_type: Type[BaseObject],
-		ace: List[RPCACE],
+		ace: list[RPCACE],
 		ident_type: IdentType = "str",
-		filter: Dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
-	) -> List[dict]:
+		filter: dict[str, Any] | None = None,  # pylint: disable=redefined-builtin
+	) -> list[dict]:
 		ident_attributes = self._get_ident_attributes(object_type)  # type: ignore[arg-type]
 		if not ident_attributes:
 			raise ValueError(f"Failed to get ident attributes for {object_type}")
@@ -692,14 +714,16 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def insert_query(  # pylint: disable=too-many-locals,too-many-arguments,too-many-branches
 		self,
 		table: str,
-		obj: BaseObject,
-		ace: List[RPCACE],
+		obj: BaseObject | dict[str, Any],
+		ace: list[RPCACE],
 		create: bool = True,
 		set_null: bool = True,
-		additional_data: Dict[str, Any] | None = None,
-	) -> Tuple[str, Dict[str, Any]]:
+		additional_data: dict[str, Any] | None = None,
+	) -> tuple[str, dict[str, Any]]:
 		if not isinstance(obj, BaseObject):
 			obj = OBJECT_CLASSES[obj["type"]].fromHash(obj)
+		assert isinstance(obj, BaseObject)
+
 		obj.setDefaults()
 		data = obj.to_hash()
 		ident_attrs = []  # pylint: disable=use-tuple-over-list
@@ -757,11 +781,11 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def insert_object(  # pylint: disable=too-many-locals,too-many-arguments
 		self,
 		table: str,
-		obj: BaseObject,
-		ace: List[RPCACE],
+		obj: BaseObject | dict[str, Any],
+		ace: list[RPCACE],
 		create: bool = True,
 		set_null: bool = True,
-		additional_data: Dict[str, Any] | None = None,
+		additional_data: dict[str, Any] | None = None,
 		session: Session | None = None
 	) -> Any:
 		query, params = self.insert_query(table=table, obj=obj, ace=ace, create=create, set_null=set_null, additional_data=additional_data)
@@ -774,23 +798,20 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def delete_query(  # pylint: disable=too-many-locals
 		self,
 		table: str,
-		object_type: Type[BaseObject],
-		obj: List[BaseObject] | BaseObject | List[Dict[str, Any]] | Dict[str, Any],
-		ace: List[RPCACE],
-	) -> Tuple[str, Dict[str, Any], List[Dict[str, Any]]]:
+		object_type: Type[BaseObjectT],
+		obj: list[BaseObjectT] | BaseObjectT | list[dict[str, Any]] | dict[str, Any],
+		ace: list[RPCACE],
+	) -> tuple[str, dict[str, Any], list[dict[str, Any]]]:
 		ident_attributes = self._get_ident_attributes(object_type)  # type: ignore[arg-type]
 		columns = self.get_columns(tables=[table], ace=ace, attributes=ident_attributes)
 		if len(columns) < len(ident_attributes):
 			raise BackendPermissionDeniedError("No permission")
 		allowed_client_ids = self.get_allowed_client_ids(ace)
 
-		if not isinstance(obj, list):
-			obj = [obj]  # pylint: disable=use-tuple-over-list
-
 		conditions = []
-		params: Dict[str, Any] = {}
-		idents: List[Dict[str, Any]] = []
-		for entry in obj:
+		params: dict[str, Any] = {}
+		idents: list[dict[str, Any]] = []
+		for entry in obj if isinstance(obj, list) else [obj]:
 			cond = []
 			ident = {}
 			for attr in ident_attributes:
@@ -831,9 +852,9 @@ class MySQLConnection:  # pylint: disable=too-many-instance-attributes
 	def delete_objects(  # pylint: disable=too-many-locals
 		self,
 		table: str,
-		object_type: Type[BaseObject],
-		obj: List[BaseObject] | BaseObject | List[Dict[str, Any]] | Dict[str, Any],
-		ace: List[RPCACE],
+		object_type: Type[BaseObjectT],
+		obj: list[BaseObjectT] | BaseObjectT | list[dict[str, Any]] | dict[str, Any],
+		ace: list[RPCACE],
 	) -> None:
 		query, params, _idents = self.delete_query(table=table, object_type=object_type, obj=obj, ace=ace)
 		with self.session() as session:

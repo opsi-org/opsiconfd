@@ -14,7 +14,7 @@ from asyncio import Event, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
 from time import time
-from typing import TYPE_CHECKING, Any, AsyncGenerator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Optional
 from uuid import UUID, uuid4
 
 import msgspec
@@ -227,7 +227,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 
 	async def _update_streams(self) -> None:
 		redis = await async_redis_client()
-		stream_keys: List[bytes] = []
+		stream_keys: list[bytes] = []
 		redis_time = await redis.time()
 		redis_time_id = str(int(redis_time[0] * 1000 + redis_time[1] / 1000))
 		for channel, redis_msg_id in self._channels.items():
@@ -261,7 +261,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 				del self._streams[stream_key]
 		logger.debug("%s updated streams: %s", self, self._streams)
 
-	async def get_channel_names(self) -> List[str]:
+	async def get_channel_names(self) -> list[str]:
 		return list(self._channels)
 
 	async def set_channels(self, channels: dict[str, Optional[StreamIdT]]) -> None:
@@ -272,7 +272,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		self._channels.update(channels)
 		await self._update_streams()
 
-	async def remove_channels(self, channels: List[str]) -> None:
+	async def remove_channels(self, channels: list[str]) -> None:
 		for channel in channels:
 			if channel in self._channels:
 				del self._channels[channel]
@@ -283,7 +283,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 
 	async def get_messages(  # pylint: disable=too-many-branches,too-many-locals
 		self, timeout: float = 0.0
-	) -> AsyncGenerator[Tuple[str, Message, Any], None]:
+	) -> AsyncGenerator[tuple[str, Message, Any], None]:
 		if not self._channels:
 			raise ValueError("No channels to read from")
 
@@ -381,7 +381,7 @@ class ConsumerGroupMessageReader(MessageReader):
 
 	async def _update_streams(self) -> None:
 		redis = await async_redis_client()
-		stream_keys: List[bytes] = []
+		stream_keys: list[bytes] = []
 		for channel, redis_msg_id in self._channels.items():
 			stream_key = f"{self._key_prefix}:{channel}".encode("utf-8")
 			try:  # pylint: disable=loop-try-except-usage

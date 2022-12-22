@@ -11,7 +11,7 @@ filetransfer
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import aiofiles  # type: ignore[import]
@@ -39,7 +39,7 @@ def filetransfer_setup(app: FastAPI) -> None:
 
 def _prepare_file(
 	filename: str | None = None, content_type: str | None = None, validity: int = 24 * 3600, session: OPSISession | None = None
-) -> Tuple[str, Path]:
+) -> tuple[str, Path]:
 	now = int(utc_time_timestamp())
 	expires = now + int(validity)
 	file_id = str(uuid4())
@@ -62,7 +62,7 @@ def _prepare_file(
 	return file_id, file_path
 
 
-def prepare_file(filename: str | None = None, content_type: str | None = None, validity: int = 24 * 3600) -> Tuple[str, Path]:
+def prepare_file(filename: str | None = None, content_type: str | None = None, validity: int = 24 * 3600) -> tuple[str, Path]:
 	"""
 	expiry: File expires in given seconds from now
 	"""

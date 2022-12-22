@@ -197,7 +197,7 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 		if not self._dhcpd_control_enabled or self._shutting_down:
 			return
 		hosts = forceObjectClassList(hosts, Host)
-		delete_hosts = []
+		delete_hosts: list[Host] = []
 		for host in hosts:
 			if not isinstance(host, OpsiClient):
 				continue
@@ -221,19 +221,15 @@ class RPCDHCPDControlMixin(Protocol):  # pylint: disable=too-many-instance-attri
 	def dhcpd_control_hosts_deleted(self: BackendProtocol, hosts: list[dict] | list[Host] | dict | Host) -> None:
 		if not self._dhcpd_control_enabled or self._shutting_down:
 			return
-		hosts = forceObjectClassList(hosts, Host)
-		for host in hosts:
-			if not isinstance(host, OpsiClient):
-				continue
-
+		for client in [h for h in forceObjectClassList(hosts, Host) if isinstance(h, OpsiClient)]:
 			if self._dhcpd_control_dhcpd_on_depot:
 				# Call dhcpd_deleteHost on all non local depots
 				depot_ids = [did for did in self.host_getIdents(returnType="str", type="OpsiDepotserver") if did != self._depot_id]
 				logger.info("Forwarding request to depots: %s", depot_ids)
 				for depot_id in depot_ids:
-					self._get_depot_jsonrpc_connection(depot_id).execute_rpc(method="dhcpd_deleteHost", params=[host])
+					self._get_depot_jsonrpc_connection(depot_id).execute_rpc(method="dhcpd_deleteHost", params=[client])
 
-			self.dhcpd_deleteHost(host)
+			self.dhcpd_deleteHost(client)
 
 	def dhcpd_control_config_states_updated(
 		self: BackendProtocol, config_states: list[dict] | list[ConfigState] | dict | ConfigState

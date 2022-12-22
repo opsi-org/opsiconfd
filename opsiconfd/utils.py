@@ -50,7 +50,7 @@ def get_logger() -> OPSILogger:
 		from .logging import (  # pylint: disable=import-outside-toplevel, redefined-outer-name
 			logger,
 		)
-	return logger
+	return logger  # type: ignore[return-value]
 
 
 def get_config() -> Config:

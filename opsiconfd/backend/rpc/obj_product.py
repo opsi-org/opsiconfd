@@ -9,7 +9,7 @@ opsiconfd.backend.rpc.product_dependency
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import Product  # type: ignore[import]
 from opsicommon.types import forceList  # type: ignore[import]
@@ -40,7 +40,7 @@ class RPCProductMixin(Protocol):
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def product_createObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, products: List[dict] | List[Product] | dict | Product
+		self: BackendProtocol, products: list[dict] | list[Product] | dict | Product
 	) -> None:
 		self._check_module("mysql_backend")
 		ace = self._get_ace("product_createObjects")
@@ -50,7 +50,7 @@ class RPCProductMixin(Protocol):
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
 	def product_updateObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, products: List[dict] | List[Product] | dict | Product
+		self: BackendProtocol, products: list[dict] | list[Product] | dict | Product
 	) -> None:
 		ace = self._get_ace("product_updateObjects")
 		with self._mysql.session() as session:
@@ -58,14 +58,14 @@ class RPCProductMixin(Protocol):
 				self._mysql.insert_object(table="PRODUCT", obj=product, ace=ace, create=True, set_null=False, session=session)
 
 	@rpc_method(check_acl=False)
-	def product_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[Product]:  # pylint: disable=redefined-builtin,invalid-name
+	def product_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[Product]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("product_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT", ace=ace, object_type=Product, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def product_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def product_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("product_getObjects")
 		return self._mysql.get_objects(
 			table="PRODUCT", object_type=Product, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -74,12 +74,12 @@ class RPCProductMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def product_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[str] | List[dict] | List[list] | List[tuple]:
+	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("product_getObjects")
 		return self._mysql.get_idents(table="PRODUCT", object_type=Product, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False, clear_cache="product_ordering")
-	def product_deleteObjects(self: BackendProtocol, products: List[dict] | List[Product] | dict | Product) -> None:  # pylint: disable=invalid-name
+	def product_deleteObjects(self: BackendProtocol, products: list[dict] | list[Product] | dict | Product) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("product_deleteObjects")
 		self._mysql.delete_objects(table="PRODUCT", object_type=Product, obj=products, ace=ace)
 		with self._mysql.session() as session:

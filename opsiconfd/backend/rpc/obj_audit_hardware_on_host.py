@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.objects import (  # type: ignore[import]
 	AuditHardware,
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 class RPCAuditHardwareOnHostMixin(Protocol):
 	def _audit_hardware_on_host_by_hardware_class(
 		self: BackendProtocol,
-		audit_hardware_on_hosts: List[dict] | List[AuditHardwareOnHost] | dict | AuditHardwareOnHost
-	) -> Dict[str, List[AuditHardwareOnHost]]:
+		audit_hardware_on_hosts: list[dict] | list[AuditHardwareOnHost] | dict | AuditHardwareOnHost
+	) -> dict[str, list[AuditHardwareOnHost]]:
 		by_hardware_class = defaultdict(list)
 		for ahoh in forceList(audit_hardware_on_hosts):  # pylint: disable=use-list-copy
 			if not isinstance(ahoh, AuditHardwareOnHost):
@@ -48,7 +48,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 
 	def _audit_hardware_on_host_insert(  # pylint: disable=too-many-locals,too-many-arguments
 		self: BackendProtocol,
-		audit_hardware_on_hosts: List[dict] | List[AuditHardwareOnHost] | dict | AuditHardwareOnHost,
+		audit_hardware_on_hosts: list[dict] | list[AuditHardwareOnHost] | dict | AuditHardwareOnHost,
 		ace: list[RPCACE],
 		create: bool,
 		set_null: bool
@@ -121,27 +121,27 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_createObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, auditHardwareOnHosts: List[dict] | List[AuditHardwareOnHost] | dict | AuditHardwareOnHost
+		self: BackendProtocol, auditHardwareOnHosts: list[dict] | list[AuditHardwareOnHost] | dict | AuditHardwareOnHost
 	) -> None:
 		ace = self._get_ace("auditHardwareOnHost_createObjects")
 		self._audit_hardware_on_host_insert(audit_hardware_on_hosts=auditHardwareOnHosts, ace=ace, create=True, set_null=True)
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_updateObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, auditHardwareOnHosts: List[dict] | List[AuditHardwareOnHost] | dict | AuditHardwareOnHost
+		self: BackendProtocol, auditHardwareOnHosts: list[dict] | list[AuditHardwareOnHost] | dict | AuditHardwareOnHost
 	) -> None:
 		ace = self._get_ace("auditHardwareOnHost_updateObjects")
 		self._audit_hardware_on_host_insert(audit_hardware_on_hosts=auditHardwareOnHosts, ace=ace, create=True, set_null=False)
 
 	def _audit_hardware_on_host_get(  # pylint: disable=redefined-builtin,too-many-branches,too-many-locals,too-many-statements,too-many-arguments
 		self: BackendProtocol,
-		ace: List[RPCACE],
+		ace: list[RPCACE],
 		return_hardware_ids: bool = False,
 		return_type: Literal["object", "dict", "ident"] = "object",
 		ident_type: IdentType = "str",
-		attributes: List[str] | None = None,
-		filter: Dict[str, Any] | None = None
-	) -> List[Dict[str, Any]]:
+		attributes: list[str] | None = None,
+		filter: dict[str, Any] | None = None
+	) -> list[AuditHardwareOnHost | str | dict[str, Any] | list[Any] | tuple[Any, ...]] | list:
 		attributes = attributes or []
 		filter = filter or {}
 		hardware_classes = set()
@@ -168,7 +168,7 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		if return_hardware_ids and attributes and "hardware_id" not in attributes:
 			attributes.append("hardware_id")
 
-		results = []
+		results: list[AuditHardwareOnHost | str | dict[str, Any] | list[Any] | tuple[Any, ...]] | list = []
 		with self._mysql.session() as session:
 			for hardware_class in hardware_classes:  # pylint: disable=too-many-nested-blocks
 				class_filter = {}
@@ -218,25 +218,31 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		return results
 
 	@rpc_method(check_acl=False)
-	def auditHardwareOnHost_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[AuditHardwareOnHost]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardwareOnHost_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[AuditHardwareOnHost]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
-		return self._audit_hardware_on_host_get(ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter)
+		return self._audit_hardware_on_host_get(
+			ace=ace, return_hardware_ids=False, return_type="object", attributes=attributes, filter=filter
+		)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
-	def auditHardwareOnHost_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def auditHardwareOnHost_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
-		return self._audit_hardware_on_host_get(ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter)
+		return self._audit_hardware_on_host_get(
+			ace=ace, return_hardware_ids=False, return_type="dict", attributes=attributes, filter=filter
+		)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[str] | List[dict] | List[list] | List[tuple]:
+	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("auditHardwareOnHost_getObjects")
-		return self._audit_hardware_on_host_get(ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter)
+		return self._audit_hardware_on_host_get(
+			ace=ace, return_hardware_ids=False, return_type="ident", ident_type=returnType, filter=filter
+		)  # type: ignore[return-value]
 
 	@rpc_method(check_acl=False)
 	def auditHardwareOnHost_deleteObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, auditHardwareOnHosts: List[dict] | List[AuditHardwareOnHost] | dict | AuditHardwareOnHost
+		self: BackendProtocol, auditHardwareOnHosts: list[dict] | list[AuditHardwareOnHost] | dict | AuditHardwareOnHost
 	) -> None:
 		ace = self._get_ace("auditHardwareOnHost_deleteObjects")
 		for hardware_class, ahoh in self._audit_hardware_on_host_by_hardware_class(auditHardwareOnHosts).items():
@@ -261,9 +267,9 @@ class RPCAuditHardwareOnHostMixin(Protocol):
 		self: BackendProtocol,
 		hostId: str,  # pylint: disable=invalid-name,
 		hardwareClass: str,  # pylint: disable=invalid-name,
-		firstseen: str | List[str] | None = None,
-		lastseen: str | List[str] | None = None,
-		state: int | List[int] | None = None,
+		firstseen: str | list[str] | None = None,
+		lastseen: str | list[str] | None = None,
+		state: int | list[int] | None = None,
 		**kwargs: Any
 	) -> None:
 		if hostId is None:

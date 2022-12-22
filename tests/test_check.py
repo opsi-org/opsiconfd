@@ -11,7 +11,7 @@ check tests
 
 import io
 import sys
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 from unittest import mock
 
 import requests
@@ -45,7 +45,7 @@ from .utils import (  # pylint: disable=unused-import
 DEPRECATED_METHOD = "getClientIds_list"
 
 
-def captured_function_output(func: Callable, args: Dict[str, Any]) -> str:
+def captured_function_output(func: Callable, args: dict[str, Any]) -> str:
 	captured_output = io.StringIO()
 	sys.stdout = captured_output
 	func(**args)

@@ -15,7 +15,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from ipaddress import ip_network
 from threading import Event, Lock
-from typing import Any, Callable, Literal, Type, TypeVar
+from typing import Any, Callable, Type, TypeVar
 
 from fastapi import FastAPI
 from msgspec import msgpack

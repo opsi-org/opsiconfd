@@ -11,7 +11,7 @@ opsiconfd.application.monitoring.check_product_status
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List, Set
+from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
 
@@ -25,11 +25,11 @@ if TYPE_CHECKING:
 
 def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
 	backend: Backend,
-	product_ids: List[str] | Set[str] | None = None,
-	product_groups: List[str] | None = None,
-	host_group_ids: List[str] | None = None,
-	depot_ids: List[str] | None = None,
-	exclude: List[str] | None = None,
+	product_ids: list[str] | set[str] | None = None,
+	product_groups: list[str] | None = None,
+	host_group_ids: list[str] | None = None,
+	depot_ids: list[str] | None = None,
+	exclude: list[str] | None = None,
 	verbose: bool = False,
 	strict: bool = False,
 ) -> JSONResponse:
@@ -89,15 +89,15 @@ def check_product_status(  # pylint: disable=too-many-arguments, too-many-locals
 		return generate_response(
 			State.UNKNOWN, f"Depots and clients dont match. Selected depots: {depot_ids}, selected clients: {client_ids}"
 		)
-	product_on_depot_info: Dict[str, Dict[str, Dict[str, str]]] = defaultdict(dict)
+	product_on_depot_info: dict[str, dict[str, dict[str, str]]] = defaultdict(dict)
 
 	for pod in backend.productOnDepot_getObjects(depotId=depot_ids, productId=list(product_ids)):
 		product_on_depot_info[pod.depotId][pod.productId] = {"productVersion": pod.productVersion, "packageVersion": pod.packageVersion}
 
 	state = State.OK
-	product_version_problems_on_client: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
-	product_problems_on_client: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
-	action_request_on_client: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
+	product_version_problems_on_client: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+	product_problems_on_client: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+	action_request_on_client: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
 	missing_products = {}
 	action_requests_to_ignore = set([None, "none", "always"])
 

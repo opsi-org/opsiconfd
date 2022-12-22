@@ -11,7 +11,7 @@ auth
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Literal, Optional, Set
+from typing import Literal, Optional
 
 from opsiconfd.config import config, opsi_config
 
@@ -22,14 +22,14 @@ class RPCACE:
 	method_re: re.Pattern
 	type: Literal['all', 'self', 'opsi_depotserver', 'opsi_client', 'sys_group', 'sys_user']
 	id: Optional[str] = None  # pylint: disable=invalid-name
-	allowed_attributes: Set[str] = field(default_factory=set)
-	denied_attributes: Set[str] = field(default_factory=set)
+	allowed_attributes: set[str] = field(default_factory=set)
+	denied_attributes: set[str] = field(default_factory=set)
 
 
 RPCACE_ALLOW_ALL = RPCACE(method_re=re.compile(".*"), type="all")
 
 
-def read_acl_file(acl_file: Path | str) -> List[RPCACE]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+def read_acl_file(acl_file: Path | str) -> list[RPCACE]:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 	acl = []
 	# acl example:
 	#    <method>: <aclType>[(aclTypeParam[(aclTypeParamValue,...)];...)]

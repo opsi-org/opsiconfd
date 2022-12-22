@@ -157,7 +157,8 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		)
 		if hosts:
 			self._opsi_host_key = hosts[0].opsiHostKey
-			secret_filter.add_secrets(self._opsi_host_key)
+			if self._opsi_host_key:
+				secret_filter.add_secrets(self._opsi_host_key)
 		else:
 			logger.info("Configserver %r not found in backend", self._depot_id)
 

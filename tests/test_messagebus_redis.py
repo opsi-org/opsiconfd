@@ -9,7 +9,7 @@ opsiconfd.messagebus.redis tests
 """
 
 import asyncio
-from typing import Any, List, Tuple
+from typing import Any
 
 import pytest
 from opsicommon.messagebus import Message  # type: ignore[import]
@@ -32,7 +32,7 @@ from .utils import (  # pylint: disable=unused-import
 async def test_message_reader_processing(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
-			self.received: List[Tuple[str, Message, bytes]] = []
+			self.received: list[tuple[str, Message, bytes]] = []
 			super().__init__(**kwargs)
 
 	async def reader_task(reader: MyMessageReader) -> None:
@@ -103,7 +103,7 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 	class MyMessageReader(ConsumerGroupMessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
 			self.ack = True
-			self.received: List[Tuple[str, Message, bytes]] = []
+			self.received: list[tuple[str, Message, bytes]] = []
 			super().__init__(**kwargs)
 
 	async def reader_task(reader: MyMessageReader) -> None:
@@ -199,7 +199,7 @@ async def test_consumer_group_message_reader() -> None:  # pylint: disable=redef
 async def test_message_reader_survives_recreate_channel(config: Config) -> None:  # pylint: disable=redefined-outer-name
 	class MyMessageReader(MessageReader):  # pylint: disable=too-few-public-methods
 		def __init__(self, **kwargs: Any) -> None:
-			self.received: List[Tuple[str, Message, bytes]] = []
+			self.received: list[tuple[str, Message, bytes]] = []
 			super().__init__(**kwargs)
 
 	async def reader_task(reader: MyMessageReader) -> None:

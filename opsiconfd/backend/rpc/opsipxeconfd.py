@@ -201,7 +201,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			if config_id == "clientconfig.configserver.url":
 				service_address = values[0]
 			elif config_id == "opsi-linux-bootimage.append":
-				bootimage_append = ConfigState(configId=config_id, objectId=client_id, values=values)
+				bootimage_append = ConfigState(configId=config_id, objectId=client_id, values=values)  # type: ignore[assignment]
 			elif config_id == "clientconfig.dhcpd.filename":
 				try:  # pylint: disable=loop-try-except-usage
 					value = values[0]

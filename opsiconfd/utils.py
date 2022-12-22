@@ -10,7 +10,6 @@ utils
 
 from __future__ import annotations
 
-import codecs
 import datetime
 import gzip
 import os
@@ -81,11 +80,7 @@ def utc_time_timestamp() -> float:
 
 
 def running_in_docker() -> bool:
-	with codecs.open("/proc/self/cgroup", "r", "utf-8") as file:
-		for line in file.readlines():
-			if line.split(":")[2].startswith("/docker/"):
-				return True
-	return False
+	return os.path.exists("/.dockerenv")
 
 
 def is_opsiconfd(proc: psutil.Process) -> bool:

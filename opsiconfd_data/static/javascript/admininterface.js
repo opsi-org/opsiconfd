@@ -369,7 +369,7 @@ function logout() {
 function callRedis() {
 	let req = ajaxRequest("POST", "/redis-interface", { "cmd": document.getElementById("redis-cmd").value });
 	req.then((result) => {
-		console.debug(`Redis command successful: ${JSON.stringify(result)} `)
+		console.debug(`Redis command successful: ${JSON.stringify(result)}`)
 		outputToHTML(result, "redis-result");
 	}, (error) => {
 		console.error(error);
@@ -414,7 +414,7 @@ function onRPCInterfaceMethodSelected() {
 			if (method.deprecated) {
 				doc += '<span class="jsonrpc-deprecated-method">This method is deprecated and will be removed in one of the next versions.</span><br />';
 				if (method.alternative_method) {
-					doc += `Please use the method '<strong>${method.alternative_method}</strong>' instead.<br /> `
+					doc += `Please use the method '<strong>${method.alternative_method}</strong>' instead.<br />`
 				}
 			}
 			if (method.doc) {
@@ -455,8 +455,8 @@ function createRequestJSON() {
 				parameter.push(null);
 			}
 		} catch (e) {
-			console.warn(`${name}: ${e} `);
-			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e} `;
+			console.warn(`${name}: ${e}`);
+			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e}`;
 		}
 	}
 
@@ -525,7 +525,7 @@ function licenseUpload(files) {
 	}
 	let req = ajaxRequest("POST", "/admin/license_upload", formData);
 	req.then((result) => {
-		console.log(`File upload successful: ${JSON.stringify(result)} `)
+		console.log(`File upload successful: ${JSON.stringify(result)}`)
 		loadLicensingInfo();
 	});
 }
@@ -826,8 +826,8 @@ function sortRPCTable(data, sortKey) {
 			}
 			return 0;
 		} else if (sortKey == "client") {
-			var numA = Number(a[sortKey].split(".").map((num) => (`000${num} `).slice(-3)).join(""));
-			var numB = Number(b[sortKey].split(".").map((num) => (`000${num} `).slice(-3)).join(""));
+			var numA = Number(a[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
+			var numB = Number(b[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
 			if (numA < numB) {
 				return -1;
 			}
@@ -1107,7 +1107,7 @@ function messagebusConnectTerminal() {
 		terminalId = createUUID();
 		document.getElementById("messagebus-terminal-id").value = terminalId;
 	}
-	let terminalSessionChannel = `session:${terminalId} `;
+	let terminalSessionChannel = `session:${terminalId}`;
 
 	if (mbTerminal) {
 		mbTerminal.dispose();
@@ -1322,7 +1322,7 @@ function startTerminal() {
 
 		console.log(`size: ${terminal.cols} cols, ${terminal.rows} rows`);
 
-		let params = ["set_cookie_interval=30", `rows=${terminal.rows} `, `cols=${terminal.cols} `]
+		let params = ["set_cookie_interval=30", `rows=${terminal.rows}`, `cols=${terminal.cols}`]
 		let loc = window.location;
 		let ws_uri;
 		if (loc.protocol == "https:") {

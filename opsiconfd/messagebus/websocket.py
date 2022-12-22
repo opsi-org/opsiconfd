@@ -162,6 +162,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			sender=self._messagebus_worker_id, channel=message.back_channel or message.sender, subscribed_channels=[], error=None
 		)
 		for idx, channel in enumerate(message.channels):
+			channel = channel.strip()
 			if channel == "@":
 				message.channels[idx] = channel = self._user_channel
 			elif channel == "$":

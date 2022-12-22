@@ -316,15 +316,15 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 			po_setup_users_and_groups(ignore_errors=True)
 			setup_users_and_groups()
 
-		if "files" not in config.skip_setup:
-			setup_files()
-
 		# po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
 		if "systemd" not in config.skip_setup:
 			setup_systemd()
 	else:
 		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			setup_users_and_groups()
+
+	if "files" not in config.skip_setup:
+		setup_files()
 
 	if "file_permissions" not in config.skip_setup:
 		# Always correct file permissions (run_as_user could be changed)

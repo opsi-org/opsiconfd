@@ -33,7 +33,7 @@ from opsiconfd.config import config
 from opsiconfd.logging import get_logger
 from opsiconfd.redis import async_delete_recursively, async_redis_client
 
-from . import get_object_channel_for_host
+from . import get_user_id_for_host
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
@@ -62,7 +62,7 @@ async def cleanup_channels(full: bool = False) -> None:
 			depot_ids.append(host.id)
 		else:
 			client_ids.append(host.id)
-		host_channels.append(get_object_channel_for_host(host.id))
+		host_channels.append(get_user_id_for_host(host.id))
 
 	redis = await async_redis_client()
 
@@ -103,6 +103,7 @@ _context_encoder = msgspec.msgpack.Encoder()
 
 async def send_message(message: Message, context: Any = None) -> None:
 	if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
+		message.trace = message.trace or {}
 		message.trace["broker_redis_send"] = timestamp()
 	context_data = None
 	if context:
@@ -320,6 +321,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 							if msg.expires and msg.expires <= now:
 								continue
 							if isinstance(msg, (TraceRequestMessage, TraceResponseMessage)):  # pylint: disable=loop-invariant-statement
+								msg.trace = msg.trace or {}
 								msg.trace["broker_redis_receive"] = timestamp()  # pylint: disable=loop-invariant-statement
 							yield redis_msg_id, msg, context
 							last_redis_msg_id = redis_msg_id

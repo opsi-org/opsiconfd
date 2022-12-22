@@ -44,19 +44,3 @@ def get_user_id_for_service_node(node_name: str) -> str:
 
 def get_user_id_for_service_worker(worker_id: str) -> str:
 	return f"service_worker:{worker_id}"
-
-
-def get_object_channel_for_host(host_id: str) -> str:
-	return f"host:{host_id}"
-
-
-def get_object_channel_for_user(host_id: str) -> str:
-	return f"user:{host_id}"
-
-
-def get_object_channel_for_service_node(node_name: str) -> str:
-	return f"service_node:{node_name}"
-
-
-def get_object_channel_for_service_worker(worker_id: str) -> str:
-	return f"service_worker:{worker_id}"

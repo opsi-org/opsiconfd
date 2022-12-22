@@ -60,10 +60,7 @@ from starlette.concurrency import run_in_threadpool
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.messagebus import (
-	get_object_channel_for_host,
-	get_user_id_for_service_worker,
-)
+from opsiconfd.messagebus import get_user_id_for_host, get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import (
 	MessageReader,
 	get_websocket_connected_client_ids,
@@ -263,16 +260,16 @@ class RPCHostControlMixin(Protocol):
 			expires = timestamp() + int(timeout * 1000)
 			coros = []
 			for client_id in connected_client_ids:
-				message = JSONRPCRequestMessage(
+				jsonrpc_request = JSONRPCRequestMessage(
 					sender=messagebus_user_id,
-					channel=get_object_channel_for_host(client_id),
+					channel=get_user_id_for_host(client_id),
 					back_channel=channel,
 					expires=expires,
 					method=method,
-					params=list(params or []),
+					params=tuple(params or []),
 				)
-				rpc_id_to_client_id[message.rpc_id] = client_id
-				coros.append(send_message(message))
+				rpc_id_to_client_id[jsonrpc_request.rpc_id] = client_id  # pylint: disable=loop-invariant-statement
+				coros.append(send_message(jsonrpc_request))
 			await asyncio.gather(*coros)
 
 			async for _redis_msg_id, message, _context in message_reader.get_messages(timeout=timeout):

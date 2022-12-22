@@ -513,7 +513,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 
 	response_message = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 		sender=cgmr.consumer_name,
-		channel=message.back_channel,
+		channel=message.back_channel or message.sender,
 		ref_id=message.id,
 		rpc_id=result["id"],
 		result=result.get("result"),

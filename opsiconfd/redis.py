@@ -248,54 +248,42 @@ async def async_redis_lock(lock_name: str, acquire_timeout: float = 10.0, lock_t
 
 async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any]:  # pylint: disable=too-many-locals
 	conf = config
-	stats_keys = []
-	session_keys = []
-	log_keys = []
-	rpc_keys = []
-	misc_keys = []
-	redis_keys = client.scan_iter(f"{conf.redis_key()}:*")
 
-	async for key in redis_keys:
+	key_info: dict[str, dict[str, list | int]] = {
+		"rpc": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:rpc", f"{conf.redis_key('stats')}:num_rpc"]},
+		"stats": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:rpc"]},
+		"session": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:session"]},
+		"logs": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:logs"]},
+		"state": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:state"]},
+		"messagebus": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:messagebus"]},
+		"misc": {"keys": [], "memory": 0, "records": 0, "prefixes": []},
+	}
+
+	async for key in client.scan_iter(f"{conf.redis_key()}:*"):
 		key = key.decode("utf8")
-		if key.startswith(f"{conf.redis_key('stats')}:rpc") or key.startswith(f"{conf.redis_key('stats')}:num_rpc"):
-			rpc_keys.append(key)
-		elif key.startswith(f"{conf.redis_key('stats')}"):
-			stats_keys.append(key)
-		elif key.startswith(conf.redis_key('session')):
-			session_keys.append(key)
-		elif key.startswith(conf.redis_key('log')):
-			log_keys.append(key)
-		else:
-			misc_keys.append(key)
-
-	stats_memory = 0
-	for key in stats_keys:
-		stats_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0  # type: ignore[no-untyped-call]
-
-	sessions_memory = 0
-	for key in session_keys:
-		sessions_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0  # type: ignore[no-untyped-call]
-
-	logs_memory = 0
-	log_records = 0
-	for key in log_keys:
-		logs_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0  # type: ignore[no-untyped-call]
-		log_records += (await client.execute_command(f"XLEN {key}")) or 0  # type: ignore[no-untyped-call]
-
-	rpc_memory = 0
-	for key in rpc_keys:
-		rpc_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0  # type: ignore[no-untyped-call]
-
-	misc_memory = 0
-	for key in misc_keys:
-		misc_memory += (await client.execute_command(f"MEMORY USAGE {key}")) or 0  # type: ignore[no-untyped-call]
+		matched_key_type = ""
+		for key_type, info in key_info.items():
+			for prefix in info["prefixes"]:  # type: ignore[union-attr]
+				if key.startswith(prefix):
+					matched_key_type = key_type
+					break
+		matched_key_type = matched_key_type or "misc"
+		key_info[matched_key_type]["keys"].append(key)  # type: ignore[union-attr]
+		key_info[matched_key_type]["memory"] += (  # type: ignore[union-attr,operator]
+			await client.execute_command(f"MEMORY USAGE {key}")  # type: ignore[no-untyped-call]
+		) or 0
+		if matched_key_type == "logs":
+			key_info[matched_key_type]["records"] += (  # type: ignore[union-attr,operator]
+				await client.execute_command(f"XLEN {key}")  # type: ignore[no-untyped-call]
+			) or 0
 
 	redis_info = decode_redis_result(await client.execute_command("INFO"))  # type: ignore[no-untyped-call]
 	redis_info["key_info"] = {
-		"stats": {"count": len(stats_keys), "memory": stats_memory},
-		"sessions": {"count": len(session_keys), "memory": sessions_memory},
-		"logs": {"count": len(log_keys), "memory": logs_memory, "records": log_records},
-		"rpc": {"count": len(rpc_keys), "memory": rpc_memory},
-		"misc": {"count": len(misc_keys), "memory": misc_memory},
+		key_type: {
+			"keys": len(info["keys"]),  # type: ignore[arg-type]
+			"memory": info["memory"],
+			"records": info["records"]
+		}
+		for key_type, info in key_info.items()
 	}
 	return redis_info

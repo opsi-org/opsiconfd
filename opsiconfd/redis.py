@@ -20,8 +20,9 @@ from typing import Any, AsyncGenerator, Callable, Generator
 from uuid import uuid4
 
 import redis
-from redis import BusyLoadingError as RedisBusyLoadingError
+from redis import BusyLoadingError
 from redis import ConnectionError as RedisConnectionError
+from redis import ResponseError
 from redis import asyncio as async_redis
 
 from opsiconfd.config import config
@@ -70,7 +71,7 @@ def retry_redis_call(func: Callable) -> Callable:
 			try:  # pylint: disable=loop-try-except-usage
 				return func(*args, **kwargs)  # pylint: disable=loop-invariant-statement
 			except (  # pylint: disable=loop-invariant-statement
-				RedisBusyLoadingError,
+				BusyLoadingError,
 				RedisConnectionError,
 			):
 				time.sleep(2)  # pylint: disable=dotted-import-in-loop
@@ -92,7 +93,7 @@ def get_redis_connection(url: str, db: int = 0, timeout: int = 0, test_connectio
 			if new_pool or test_connection:
 				client.ping()
 			return client
-		except (redis.exceptions.ConnectionError, redis.BusyLoadingError):  # pylint: disable=dotted-import-in-loop
+		except (RedisConnectionError, BusyLoadingError):  # pylint: disable=loop-invariant-statement
 			if timeout and time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
 				raise
 			time.sleep(2)  # pylint: disable=dotted-import-in-loop
@@ -122,7 +123,7 @@ async def get_async_redis_connection(url: str, db: int = 0, timeout: int = 0, te
 			if new_pool or test_connection:
 				await client.ping()
 			return client
-		except (RedisConnectionError, RedisBusyLoadingError):  # pylint: disable=loop-invariant-statement
+		except (RedisConnectionError, BusyLoadingError):  # pylint: disable=loop-invariant-statement
 			if timeout and time.time() - start >= timeout:  # pylint: disable=dotted-import-in-loop
 				raise
 			await asyncio.sleep(2)  # pylint: disable=dotted-import-in-loop
@@ -250,13 +251,13 @@ async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any
 	conf = config
 
 	key_info: dict[str, dict[str, list | int]] = {
-		"rpc": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:rpc", f"{conf.redis_key('stats')}:num_rpc"]},
-		"stats": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:rpc"]},
-		"session": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:session"]},
-		"logs": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:logs"]},
-		"state": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:state"]},
-		"messagebus": {"keys": [], "memory": 0, "records": 0, "prefixes": [f"{conf.redis_key('stats')}:messagebus"]},
-		"misc": {"keys": [], "memory": 0, "records": 0, "prefixes": []},
+		"rpc": {"keys": [], "memory": 0, "entries": 0, "prefixes": [f"{conf.redis_key('stats')}:rpc", f"{conf.redis_key('stats')}:num_rpc"]},
+		"stats": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('stats')]},
+		"session": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('session')]},
+		"log": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('log')]},
+		"state": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('state')]},
+		"messagebus": {"keys": [], "memory": 0, "entries": 0, "prefixes": [conf.redis_key('messagebus')]},
+		"misc": {"keys": [], "memory": 0, "entries": 0, "prefixes": []},
 	}
 
 	async for key in client.scan_iter(f"{conf.redis_key()}:*"):
@@ -272,17 +273,20 @@ async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any
 		key_info[matched_key_type]["memory"] += (  # type: ignore[union-attr,operator]
 			await client.execute_command(f"MEMORY USAGE {key}")  # type: ignore[no-untyped-call]
 		) or 0
-		if matched_key_type == "logs":
-			key_info[matched_key_type]["records"] += (  # type: ignore[union-attr,operator]
+		try:
+			key_info[matched_key_type]["entries"] += (  # type: ignore[union-attr,operator]
 				await client.execute_command(f"XLEN {key}")  # type: ignore[no-untyped-call]
 			) or 0
+		except ResponseError:
+			# Wrong key type
+			pass
 
 	redis_info = decode_redis_result(await client.execute_command("INFO"))  # type: ignore[no-untyped-call]
 	redis_info["key_info"] = {
 		key_type: {
 			"keys": len(info["keys"]),  # type: ignore[arg-type]
 			"memory": info["memory"],
-			"records": info["records"]
+			"entries": info["entries"]
 		}
 		for key_type, info in key_info.items()
 	}

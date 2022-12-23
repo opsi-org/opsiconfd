@@ -10,7 +10,7 @@ opsiconfd.messagebus.redis
 
 from __future__ import annotations
 
-from asyncio import Event, sleep
+from asyncio import Event, Lock, sleep
 from asyncio.exceptions import CancelledError
 from contextlib import asynccontextmanager
 from time import time
@@ -37,6 +37,7 @@ from . import get_user_id_for_host
 
 if TYPE_CHECKING:
 	from opsiconfd.session import OPSISession
+
 
 logger = get_logger("opsiconfd.messagebus")
 
@@ -219,6 +220,7 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		self._should_stop = False
 		self._stopped_event = Event()
 		self._context_decoder = msgspec.msgpack.Decoder()
+		self._channels_lock = Lock()
 
 	def __repr__(self) -> str:
 		return f"{self.__class__.__name__}({','.join(self._channels)})"
@@ -262,21 +264,25 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 		logger.debug("%s updated streams: %s", self, self._streams)
 
 	async def get_channel_names(self) -> list[str]:
-		return list(self._channels)
+		async with self._channels_lock:
+			return list(self._channels)
 
 	async def set_channels(self, channels: dict[str, Optional[StreamIdT]]) -> None:
-		self._channels = channels
-		await self._update_streams()
+		async with self._channels_lock:
+			self._channels = channels
+			await self._update_streams()
 
 	async def add_channels(self, channels: dict[str, Optional[StreamIdT]]) -> None:
-		self._channels.update(channels)
-		await self._update_streams()
+		async with self._channels_lock:
+			self._channels.update(channels)
+			await self._update_streams()
 
 	async def remove_channels(self, channels: list[str]) -> None:
-		for channel in channels:
-			if channel in self._channels:
-				del self._channels[channel]
-		await self._update_streams()
+		async with self._channels_lock:
+			for channel in channels:
+				if channel in self._channels:
+					del self._channels[channel]
+			await self._update_streams()
 
 	async def _get_stream_entries(self, redis: StrictRedis) -> dict:
 		return await redis.xread(streams=self._streams, block=1000, count=10)  # type: ignore[arg-type]
@@ -288,11 +294,12 @@ class MessageReader:  # pylint: disable=too-few-public-methods
 			raise ValueError("No channels to read from")
 
 		_logger = logger
-		try:
-			await self._update_streams()
-		except Exception as err:
-			logger.error(err, exc_info=True)
-			raise
+		async with self._channels_lock:
+			try:
+				await self._update_streams()
+			except Exception as err:
+				logger.error(err, exc_info=True)
+				raise
 
 		_logger.debug("%s: getting messages", self)
 

@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 	from .filetransfer import FileUpload
 	from .terminal import Terminal
 
-file_uploads: Dict[str, FileUpload] = {}
-terminals: Dict[str, Terminal] = {}
+file_uploads: dict[str, FileUpload] = {}
+terminals: dict[str, Terminal] = {}
 messagebus_worker_id = ""  # pylint: disable=invalid-name
 
 

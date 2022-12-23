@@ -939,6 +939,17 @@ function messagebusConnect() {
 	messagebusWS.onopen = function () {
 		console.log("Messagebus websocket opened");
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Disconnect";
+		let dataMessage = {
+			type: "channel_subscription_request",
+			id: createUUID(),
+			sender: "@",
+			channel: "service:messagebus",
+			created: Date.now(),
+			expires: Date.now() + 10000,
+			operation: "add",
+			channels: ["event:host_connected", "event:host_disconnected", "event:user_connected", "event:user_disconnected"]
+		}
+		messagebusSend(dataMessage);
 	};
 	messagebusWS.onclose = function () {
 		console.log("Messagebus websocket closed");

@@ -11,7 +11,7 @@ messagebus.websocket
 import traceback
 from asyncio import Task, create_task, sleep
 from time import time
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
@@ -21,6 +21,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionOperation,
 	ChannelSubscriptionRequestMessage,
 	Error,
+	EventMessage,
 	GeneralErrorMessage,
 	Message,
 	TraceRequestMessage,
@@ -50,6 +51,9 @@ from .redis import (
 	update_websocket_count,
 )
 
+if TYPE_CHECKING:
+	from opsiconfd.session import OPSISession
+
 messagebus_router = APIRouter()
 logger = get_logger("opsiconfd.messagebus")
 
@@ -69,8 +73,8 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
-		worker = Worker.get_instance()
-		self._messagebus_worker_id = get_user_id_for_service_worker(worker.id)
+		self._worker = Worker.get_instance()
+		self._messagebus_worker_id = get_user_id_for_service_worker(self._worker.id)
 		self._messagebus_user_id = ""
 		self._session_channel = ""
 		self._compression: Union[str, None] = None
@@ -289,22 +293,76 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 	async def on_connect(self, websocket: WebSocket) -> None:  # pylint: disable=arguments-differ
 		logger.info("Websocket client connected to messagebus")
+		session: OPSISession = self.scope["session"]
 
-		if self.scope["session"].host:
-			self._messagebus_user_id = get_user_id_for_host(self.scope["session"].host.id)
-		elif self.scope["session"].is_admin:
-			self._messagebus_user_id = get_user_id_for_user(self.scope["session"].username)
+		event = EventMessage(
+			sender=self._messagebus_worker_id,
+			channel="",
+			event="",
+			data={
+				"client_address": session.client_addr,
+				"client_port": session.client_port,
+				"worker": self._worker.id,
+			},
+		)
 
-		await update_websocket_count(self.scope["session"], 1)
+		if session.host:
+			self._messagebus_user_id = get_user_id_for_host(session.host.id)
+
+			event.event = "host_connected"
+			event.channel = "event:host_connected"
+			event.data["host"] = {
+				"type": session.host.getType(),
+				"id": session.host.id,
+			}
+		elif session.username and session.is_admin:
+			self._messagebus_user_id = get_user_id_for_user(session.username)
+
+			event.event = "user_connected"
+			event.channel = "event:user_connected"
+			event.data["user"] = {"username": session.username}
+		else:
+			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid session")
+
+		await update_websocket_count(session, 1)
 
 		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=False)
 
 		self._messagebus_reader_task = create_task(self.messagebus_reader(websocket))
+
+		await send_message(event)
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:  # pylint: disable=unused-argument
 		logger.info("Websocket client disconnected from messagebus")
 		if self._messagebus_reader:
 			await self._messagebus_reader.stop()
 
-		await update_websocket_count(self.scope["session"], -1)
+		session: OPSISession = self.scope["session"]
+
+		await update_websocket_count(session, -1)
 		await delete_channel(self._session_channel)
+
+		event = EventMessage(
+			sender=self._messagebus_worker_id,
+			channel="",
+			event="",
+			data={
+				"client_address": session.client_addr,
+				"client_port": session.client_port,
+				"worker": self._worker.id,
+			},
+		)
+
+		if session.host:
+			event.event = "host_disconnected"
+			event.channel = "event:host_disconnected"
+			event.data["host"] = {
+				"type": session.host.getType(),
+				"id": session.host.id,
+			}
+			await send_message(event)
+		elif session.username:
+			event.event = "user_disconnected"
+			event.channel = "event:user_disconnected"
+			event.data["user"] = {"username": session.username}
+			await send_message(event)

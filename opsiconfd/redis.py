@@ -270,9 +270,14 @@ async def async_get_redis_info(client: async_redis.StrictRedis) -> dict[str, Any
 					break
 		matched_key_type = matched_key_type or "misc"
 		key_info[matched_key_type]["keys"].append(key)  # type: ignore[union-attr]
-		key_info[matched_key_type]["memory"] += (  # type: ignore[union-attr,operator]
-			await client.execute_command(f"MEMORY USAGE {key}")  # type: ignore[no-untyped-call]
-		) or 0
+		try:
+			command = f"MEMORY USAGE {key}"
+			key_info[matched_key_type]["memory"] += (  # type: ignore[union-attr,operator]
+				await client.execute_command(command)  # type: ignore[no-untyped-call]
+			) or 0
+		except ResponseError as err:
+			from opsiconfd.logging import logger  # pylint: disable=import-outside-toplevel
+			logger.error("Redis command %r failed: %s", command, err, exc_info=True)
 		try:
 			key_info[matched_key_type]["entries"] += (  # type: ignore[union-attr,operator]
 				await client.execute_command(f"XLEN {key}")  # type: ignore[no-untyped-call]

@@ -23,7 +23,8 @@
 		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
 
 		function onLoad() {
-			setTimeout(monitorSession, 5000);
+			messagebusConnect();
+			//setTimeout(monitorSession, 5000);
 
 			let input = document.getElementById("redis-cmd");
 
@@ -68,7 +69,6 @@
 			}
 			else if (tabName == "maintenance") {
 				getAppState();
-				reloadTimer = setInterval(getAppState, 5000);
 			}
 			else if (tabName == "clients") {
 				loadSessionTable();
@@ -161,6 +161,8 @@
 			{% if "terminal" not in disabled_features %}
 			<a href="#terminal" id="tablink-terminal" class="tablink" onclick="openTab('terminal');">Terminal</a>
 			{% endif %}
+			<a href="#messagebus" id="tablink-messagebus" class="tablink"
+				onclick="openTab('messagebus');">Messagebus</a>
 			<a href="#licensing" id="tablink-licensing" class="tablink" onclick="openTab('licensing');">Licensing</a>
 			<!--
 			<a href="#memory-profiler" id="tablink-memory-profiler" class="tablink" onclick="openTab('memory-profiler');">Memory Profiler</a>

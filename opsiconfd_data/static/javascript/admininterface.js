@@ -9,12 +9,17 @@ function createUUID() {
 }
 
 
-function showNotifcation(message, type = "success", seconds = 10) {
+function showNotifcation(message, group = "", type = "success", seconds = 10) {
 	// type: success / error
 	const notifications = document.getElementById("notifications");
-
 	const notifcation = document.createElement("div");
-	//notifcation.setAttribute("id", notificationElId);
+	if (group) {
+		const el = document.getElementById(`notification-${group}`);
+		if (el) {
+			notifications.removeChild(el);
+		}
+		notifcation.setAttribute("id", `notification-${group}`);
+	}
 	notifcation.classList.add(type);
 	notifcation.appendChild(document.createTextNode(message));
 
@@ -85,7 +90,7 @@ function setAppState(type, button) {
 			button.classList.remove("loading");
 		}
 		console.error(error);
-		showNotifcation(`Error setting application state: ${error.message}`, "error", 10);
+		showNotifcation(`Error setting application state: ${error.message}`, "app-state", "error", 10);
 	});
 }
 
@@ -99,10 +104,10 @@ function createBackup() {
 	req.then((response) => {
 		console.debug(response);
 		if (response.error) {
-			showNotifcation(`Failed to create backup: ${response.error.message}`, "error", 30);
+			showNotifcation(`Failed to create backup: ${response.error.message}`, "backup", "error", 30);
 		}
 		else {
-			showNotifcation("Backup successfully created", "success", 5);
+			showNotifcation("Backup successfully created", "backup", "success", 5);
 			const link = document.createElement('a');
 			link.setAttribute('href', `/file-transfer/${response.result}`);
 			link.style.display = 'none';
@@ -113,7 +118,7 @@ function createBackup() {
 		button.classList.remove("loading");
 	}, (error) => {
 		console.error(error);
-		showNotifcation(`Failed to create backup: ${error.message || JSON.stringify(error)}`, "error", 30);
+		showNotifcation(`Failed to create backup: ${error.message || JSON.stringify(error)}`, "backup", "error", 30);
 		button.classList.remove("loading");
 	});
 }
@@ -122,7 +127,7 @@ function createBackup() {
 function restoreBackup() {
 	const file = document.getElementById("restore-backup-file").files[0];
 	if (!file) {
-		showNotifcation(`Backup file not provided`, "error", 3);
+		showNotifcation(`Backup file not provided`, "restore", "error", 3);
 		return;
 	}
 
@@ -132,7 +137,7 @@ function restoreBackup() {
 		serverID = serverIDSelect;
 	}
 	if (!serverID) {
-		showNotifcation(`Server ID not provided`, "error", 3);
+		showNotifcation(`Server ID not provided`, "restore", "error", 3);
 		return;
 	}
 	const button = document.getElementById("restore-backup-create-button");
@@ -152,16 +157,16 @@ function restoreBackup() {
 		req.then((response) => {
 			console.debug(response);
 			if (response.error) {
-				showNotifcation(`Failed to restore backup: ${response.error.message}`, "error", 30);
+				showNotifcation(`Failed to restore backup: ${response.error.message}`, "restore", "error", 30);
 			}
 			else {
-				showNotifcation("Backup successfully restored", "success", 5);
+				showNotifcation("Backup successfully restored", "restore", "success", 5);
 			}
 			button.classList.remove("loading");
 		});
 	}, (error) => {
 		console.error(error);
-		showNotifcation(`Failed to restore backup: ${error.message || JSON.stringify(error)}`, "error", 30);
+		showNotifcation(`Failed to restore backup: ${error.message || JSON.stringify(error)}`, "restore", "error", 30);
 		button.classList.remove("loading");
 	});
 }
@@ -288,7 +293,7 @@ function loadAddons() {
 function installAddon() {
 	const file = document.getElementById("addon-file").files[0];
 	if (!file) {
-		showNotifcation(`Addon file not provided`, "error", 3);
+		showNotifcation(`Addon file not provided`, "addon", "error", 3);
 		return;
 	}
 
@@ -307,14 +312,14 @@ function installAddon() {
 			button.classList.remove("loading");
 		}
 		loadAddons();
-		showNotifcation("success", "Addon successfully installed", 3);
+		showNotifcation("Addon successfully installed", "addon", "success", 3);
 	}, (error) => {
 		if (button) {
 			button.classList.remove("loading");
 		}
 		console.log(error);
 		console.warn(error.status, error.details);
-		showNotifcation("error", `Failed to install addon: ${error.message || JSON.stringify(error)}`, 30);
+		showNotifcation(`Failed to install addon: ${error.message || JSON.stringify(error)}`, "addon", "error", 30);
 	});
 }
 
@@ -479,7 +484,7 @@ function callJSONRPC() {
 
 		if (!value && name.substring(0, 1) != "*") {
 			const error = `Mandatory field '${inputs[i].name}' is empty`;
-			showNotifcation(error, "error", 3);
+			showNotifcation(error, "jsonrpc", "error", 3);
 			return {
 				"error": error
 			};
@@ -615,7 +620,7 @@ function ValidateIPaddress(ipaddress) {
 		.test(ipaddress)) {
 		return (true)
 	}
-	showNotifcation("You have entered an invalid IP address.", "error", 3);
+	showNotifcation("You have entered an invalid IP address.", "", "error", 3);
 	return (false)
 }
 
@@ -897,6 +902,7 @@ function formateDate(date) {
 
 
 var messagebusWS;
+var messagebusAutoReconnect = true;
 var mbTerminal;
 
 // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
@@ -925,6 +931,7 @@ function syntaxHighlightMessage(message) {
 }
 
 function messagebusConnect() {
+	messagebusAutoReconnect = true;
 	let params = []
 	let loc = window.location;
 	let ws_uri;
@@ -938,6 +945,7 @@ function messagebusConnect() {
 	messagebusWS.binaryType = 'arraybuffer';
 	messagebusWS.onopen = function () {
 		console.log("Messagebus websocket opened");
+		showNotifcation("Connected to messagebus", "messagebus", "success", 2);
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Disconnect";
 		let dataMessage = {
 			type: "channel_subscription_request",
@@ -947,26 +955,40 @@ function messagebusConnect() {
 			created: Date.now(),
 			expires: Date.now() + 10000,
 			operation: "add",
-			channels: ["event:host_connected", "event:host_disconnected", "event:user_connected", "event:user_disconnected"]
+			channels: ["event:host_connected", "event:host_disconnected", "event:user_connected", "event:user_disconnected", "event:app_state_changed"]
 		}
 		messagebusSend(dataMessage);
 	};
 	messagebusWS.onclose = function () {
 		console.log("Messagebus websocket closed");
+		if (messagebusAutoReconnect) {
+			showNotifcation("Messagebus connection lost", "messagebus", "error", 10);
+		}
+		else {
+			showNotifcation("Messagebus connection closed", "messagebus", "success", 2);
+		}
 		messagebusWS = null;
+		if (messagebusAutoReconnect) {
+			setTimeout(messagebusConnect, 5000);
+		}
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	};
 	messagebusWS.onerror = function (error) {
 		const err = `Messagebus websocket connection error: ${JSON.stringify(error)}`;
 		console.error(err);
-		showNotifcation(err, "error", 5);
+		//showNotifcation(err, "messagebus", "error", 5);
 		messagebusWS = null;
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	}
 	messagebusWS.onmessage = function (event) {
 		const message = msgpack.deserialize(event.data);
 		console.debug(message);
-		if (message.type.startsWith("terminal_")) {
+		if (message.type == "event") {
+			if (message.event == "app_state_changed") {
+				outputToHTML(message.data.state, "application-state");
+			}
+		}
+		else if (message.type.startsWith("terminal_")) {
 			if (mbTerminal && mbTerminal.terminalId == message.terminal_id) {
 				if (message.type == "terminal_data_read") {
 					mbTerminal.write(message.data);
@@ -981,7 +1003,7 @@ function messagebusConnect() {
 				}
 			}
 		}
-		if (message.type == "file_upload_result") {
+		else if (message.type == "file_upload_result") {
 			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 			let utf8Encode = new TextEncoder();
 			let dataMessage = {
@@ -996,6 +1018,7 @@ function messagebusConnect() {
 			}
 			messagebusSend(dataMessage);
 		}
+
 		if (
 			(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&
 			(!message.type.startsWith("file_chunk") || document.getElementById('messagebus-message-show-file-chunk-messages').checked)
@@ -1010,6 +1033,7 @@ function messagebusConnect() {
 }
 
 function messagebusDisconnect() {
+	messagebusAutoReconnect = false;
 	if (!messagebusWS) {
 		return;
 	}
@@ -1064,7 +1088,7 @@ function messagebusInsertMessageTemplate() {
 function messagebusSend(message) {
 	console.debug(message);
 	if (!messagebusWS) {
-		showNotifcation("Messagebus not connected.", "error", 3);
+		showNotifcation("Messagebus not connected.", "messagebus", "error", 3);
 		return;
 	}
 	if (
@@ -1083,7 +1107,7 @@ function messagebusSend(message) {
 	}
 	catch (error) {
 		console.error(error);
-		showNotifcation(error, "error", 10);
+		showNotifcation(error, "messagebus", "error", 10);
 	}
 }
 
@@ -1104,12 +1128,12 @@ function messagebusToggleAutoScroll() {
 
 function messagebusConnectTerminal() {
 	if (!messagebusWS) {
-		showNotifcation("Messagebus not connected.", "error", 3);
+		showNotifcation("Messagebus not connected.", "messagebus", "error", 3);
 		return;
 	}
 	let terminalChannel = document.getElementById("messagebus-terminal-channel").value;
 	if (!terminalChannel) {
-		showNotifcation("Invalid channel.", "error", 3);
+		showNotifcation("Invalid channel.", "messagebus", "error", 3);
 		return;
 	}
 
@@ -1352,7 +1376,7 @@ function startTerminal() {
 		terminal.websocket.onerror = function (error) {
 			const err = `Terminal ws connection error: ${JSON.stringify(error)}`;
 			console.error(err);
-			showNotifcation(err, "error", 5);
+			showNotifcation(err, "terminal", "error", 5);
 			terminal.writeln("\r\n\033[1;31m> Connection error: " + JSON.stringify(error) + " <\033[0m");
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
@@ -1370,7 +1394,7 @@ function startTerminal() {
 				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 				if (message.payload.error) {
 					const error = `File upload failed: ${JSON.stringify(message.payload)}.`;
-					showNotifcation(error, "error", 10);
+					showNotifcation(error, "terminal", "error", 10);
 					console.error(error);
 				}
 				else {
@@ -1443,7 +1467,7 @@ function terminalFileUpload(file) {
 	console.log(file);
 	if (!terminal || !terminal.websocket) {
 		console.error("No terminal connected");
-		showNotifcation("No terminal connected", "error", 5);
+		showNotifcation("No terminal connected", "terminal", "error", 5);
 		return;
 	}
 

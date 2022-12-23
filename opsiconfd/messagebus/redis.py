@@ -69,6 +69,13 @@ async def cleanup_channels(full: bool = False) -> None:
 
 	channel_prefix = f"{config.redis_key('messagebus')}:channels:"
 	channel_prefix_len = len(channel_prefix)
+
+	if full:
+		for obj in ("service_worker", "service_node"):
+			logger.debug("Deleting user channels for %r", obj)  # pylint: disable=loop-global-usage
+			await async_delete_recursively(f"{channel_prefix}{obj}")
+		await async_delete_recursively(f"{channel_prefix}session")
+
 	remove_keys = []
 	async for key_b in redis.scan_iter(f"{channel_prefix}host:*"):
 		key = key_b.decode("utf-8")
@@ -82,13 +89,6 @@ async def cleanup_channels(full: bool = False) -> None:
 		for key in remove_keys:
 			pipeline.delete(key)
 		await pipeline.execute()
-
-	if not full:
-		return
-
-	for obj in ("service_worker", "service_node"):
-		logger.debug("Deleting object channels for %r", obj)  # pylint: disable=loop-global-usage
-		await async_delete_recursively(f"{config.redis_key('messagebus')}:{obj}")
 
 
 async def send_message_msgpack(channel: str, msgpack_data: bytes, context_data: bytes | None = None) -> None:
@@ -200,7 +200,7 @@ async def get_websocket_connected_client_ids(client_ids: list[str] | None = None
 			logger.error("Failed to read messagebus websocket count: %s", err, exc_info=True)  # pylint: disable=loop-global-usage
 
 
-class MessageReader:  # pylint: disable=too-few-public-methods
+class MessageReader:  # pylint: disable=too-few-public-methods,too-many-instance-attributes
 	_info_suffix = CHANNEL_INFO_SUFFIX
 	_count_readers = True
 

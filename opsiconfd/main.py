@@ -104,7 +104,7 @@ def backup_main() -> None:
 					args=[app.app_state_manager_task(manager_mode=True, init_app_state=(MaintenanceState(), NormalState()))],
 					daemon=True,
 				).start()
-				app.app_state_initialized.wait(5)
+				app.app_state_updated.wait(5)
 
 			create_backup(config_files=not config.no_config_files, backup_file=backup_file, progress=progress)
 
@@ -143,7 +143,7 @@ def restore_main() -> None:
 				args=[app.app_state_manager_task(manager_mode=True, init_app_state=(MaintenanceState(), NormalState()))],
 				daemon=True,
 			).start()
-			app.app_state_initialized.wait(5)
+			app.app_state_updated.wait(5)
 
 			restore_backup(backup_file, config_files=config.config_files, server_id=server_id, progress=progress)
 

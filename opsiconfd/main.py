@@ -88,6 +88,7 @@ def backup_main() -> None:
 				raise FileExistsError(f"Backup file '{str(backup_file)}' already exists, use --overwrite to replace.")
 
 			suffixes = [s.strip(".") for s in backup_file.suffixes[-3:]]
+
 			if suffixes and suffixes[-1] == "aes":
 				suffixes = suffixes[:-1]
 			encoding = suffixes[0]
@@ -105,9 +106,8 @@ def backup_main() -> None:
 			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
 			progress.console.print(
 				f"Using arguments: config_files={not config.no_config_files} maintenance={not config.no_maintenance}, "
-				f"password={'*****' if config.password else 'none'}"
+				f"encoding={encoding}, compression={compression or 'none'}, encrypt={bool(config.password)}"
 			)
-
 			if not config.no_maintenance:
 				threading.Thread(
 					target=asyncio.run,
@@ -116,9 +116,16 @@ def backup_main() -> None:
 				).start()
 				app.app_state_updated.wait(5)
 
-			create_backup(config_files=not config.no_config_files, backup_file=backup_file, password=config.password, progress=progress)
+			create_backup(
+				config_files=not config.no_config_files,
+				backup_file=backup_file,
+				file_encoding=encoding,  # type: ignore[arg-type]
+				file_compression=compression,  # type: ignore[arg-type]
+				password=config.password,
+				progress=progress,
+			)
 
-			progress.console.print(f"Backup file '{str(backup_file)}' succesfully created.")
+			progress.console.print(f"Backup file '{str(backup_file)}' successfully created.")
 	except KeyboardInterrupt:
 		logger.error("Backup interrupted")
 		console.quiet = False
@@ -147,8 +154,7 @@ def restore_main() -> None:
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
 			progress.console.print(
-				f"Using arguments: config_files={config.config_files}, server_id={server_id}, "
-				f"password={'*****' if config.password else 'none'}"
+				f"Using arguments: config_files={config.config_files}, server_id={server_id}, decrypt={bool(config.password)}"
 			)
 
 			threading.Thread(
@@ -160,7 +166,7 @@ def restore_main() -> None:
 
 			restore_backup(backup_file, config_files=config.config_files, server_id=server_id, password=config.password, progress=progress)
 
-			progress.console.print(f"Backup file '{str(backup_file)}' succesfully restored.")
+			progress.console.print(f"Backup file '{str(backup_file)}' successfully restored.")
 	except KeyboardInterrupt:
 		logger.error("Restore interrupted")
 		console.quiet = False

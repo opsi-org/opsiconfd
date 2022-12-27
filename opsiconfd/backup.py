@@ -79,8 +79,8 @@ def maintenance_mode(
 			MaintenanceState(retry_after=300, message=message, address_exceptions=address_exceptions or []),
 			wait_accomplished=wait_accomplished,
 		)
-		if progress:
-			progress.update(maint_task, total=1, completed=True)
+	if progress:
+		progress.update(maint_task, total=1, completed=True)
 	try:
 		yield
 	finally:

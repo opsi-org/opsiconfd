@@ -100,7 +100,8 @@ function createBackup() {
 	button.classList.add("loading");
 	const config_files = document.getElementById("create-backup-config-files").checked;
 	const maintenance_mode = document.getElementById("create-backup-maintenance-mode").checked;
-	const req = rpcRequest("service_createBackup", [config_files, maintenance_mode, "file_id"]);
+	const password = document.getElementById("create-backup-password").value;
+	const req = rpcRequest("service_createBackup", [config_files, maintenance_mode, password, "file_id"]);
 	req.then((response) => {
 		console.debug(response);
 		if (response.error) {
@@ -140,6 +141,7 @@ function restoreBackup() {
 		showNotifcation(`Server ID not provided`, "restore", "error", 3);
 		return;
 	}
+	const password = document.getElementById("restore-backup-password").value;
 	const button = document.getElementById("restore-backup-create-button");
 	button.classList.add("loading");
 
@@ -152,7 +154,7 @@ function restoreBackup() {
 		const configFiles = document.getElementById("restore-backup-config-files").checked;
 		const batch = true;
 		const req = rpcRequest(
-			"service_restoreBackup", [response.file_id, configFiles, serverID, batch]
+			"service_restoreBackup", [response.file_id, configFiles, serverID, password, batch]
 		);
 		req.then((response) => {
 			console.debug(response);

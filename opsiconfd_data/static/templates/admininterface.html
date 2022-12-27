@@ -200,9 +200,16 @@
 				<label for="create-backup-maintenance-mode">In maintenance mode:</label>
 				<input type="checkbox" id="create-backup-maintenance-mode" checked>
 				<br />
+
 				<label for="create-backup-config-files">With config files:</label>
 				<input type="checkbox" id="create-backup-config-files" checked>
 				<br />
+
+				<label for="create-backup-password">Password: </label>
+				<input type="text" id="create-backup-password" placeholder="Optional encryption password"
+					style="width: 200px">
+				<br />
+
 				<input type="button" id="create-backup-create-button" onclick="createBackup()" value="Create backup">
 
 				<h4>Restore backup:</h4>
@@ -226,6 +233,12 @@
 				<input type="text" id="restore-backup-server-id" placeholder="hostname.domain.tld" disabled="true"
 					style="width: 200px">
 				<br />
+
+				<label for="restore-backup-password">Password: </label>
+				<input type="text" id="restore-backup-password" placeholder="Optional decryption password"
+					style="width: 200px">
+				<br />
+
 				<input type="button" id="restore-backup-create-button" onclick="restoreBackup()" value="Restore backup">
 			</div>
 		</div>

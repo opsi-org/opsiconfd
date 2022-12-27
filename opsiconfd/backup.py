@@ -38,7 +38,7 @@ from opsiconfd.config import (
 )
 from opsiconfd.logging import logger, secret_filter
 from opsiconfd.redis import redis_lock
-from opsiconfd.utils import compress_data, decompress_data
+from opsiconfd.utils import aes_decrypt, aes_encrypt, compress_data, decompress_data
 
 OBJECT_CLASSES = (
 	"Host",
@@ -130,6 +130,7 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 	backup_file: Path | None = None,
 	file_encoding: Literal["msgpack", "json"] = "msgpack",
 	file_compression: Literal["lz4", "gz"] = "lz4",
+	password: str | None = None,
 	maintenance: bool = True,
 	maintenance_address_exceptions: list[str] | None = None,
 	progress: Progress | None = None,
@@ -228,6 +229,13 @@ def create_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-man
 				progress.console.print(f"Compressing data with {file_compression}")
 			bdata = compress_data(bdata, compression=file_compression)
 
+		if password:
+			logger.notice("Encrypting data")
+			if progress:
+				progress.console.print("Encrypting data")
+			ciphertext, key_salt, mac_tag, nonce = aes_encrypt(plaintext=bdata, password=password)
+			bdata = b"{aes-256-gcm-sha256}" + key_salt + mac_tag + nonce + ciphertext
+
 		logger.notice("Writing data to file %s", backup_file)
 		if progress:
 			progress.console.print("Writing data to file")
@@ -243,6 +251,7 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 	data_or_file: dict[str, dict[str, Any]] | Path,
 	config_files: bool = True,
 	server_id: str = "backup",
+	password: str | None = None,
 	batch: bool = True,
 	maintenance_address_exceptions: list[str] | None = None,
 	progress: Progress | None = None,
@@ -259,6 +268,23 @@ def restore_backup(  # pylint: disable=too-many-arguments,too-many-locals,too-ma
 			bdata = backup_file.read_bytes()
 
 			head = bdata[0:4].hex()
+
+			if head == "7b616573":
+				if not password:
+					raise ValueError("Backup file is encrypted, but no password supplied")
+				logger.notice("Decrypting data")
+				if progress:
+					progress.console.print("Decrypting data")
+				pos = bdata.find(b"}")
+				if pos == -1 or pos > 30 or bdata[1:pos] != b"aes-256-gcm-sha256":
+					raise RuntimeError("Failed to decrypt data")
+				pos += 1
+				key_salt = bdata[pos : pos + 32]
+				mac_tag = bdata[pos + 32 : pos + 48]
+				nonce = bdata[pos + 48 : pos + 64]
+				bdata = aes_decrypt(ciphertext=bdata[pos + 64 :], key_salt=key_salt, mac_tag=mac_tag, nonce=nonce, password=password)
+				head = bdata[0:4].hex()
+
 			compression = None
 			if head == "04224d18":
 				compression = "lz4"

@@ -17,6 +17,7 @@ import signal
 import sys
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 import uvloop
@@ -78,11 +79,17 @@ def backup_main() -> None:
 	try:
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
 			init_logging(log_mode="rich", console=progress.console)
+			if not config.backup_file:
+				now = datetime.now().strftime("%Y%m%d-%H%M%S")
+				config.backup_file = f"opsiconfd-backup-{now}.msgpack.lz4{'.aes' if config.password else ''}"
+
 			backup_file = Path(config.backup_file)
 			if not config.overwrite and backup_file.exists():
 				raise FileExistsError(f"Backup file '{str(backup_file)}' already exists, use --overwrite to replace.")
 
-			suffixes = [s.strip(".") for s in backup_file.suffixes[-2:]]
+			suffixes = [s.strip(".") for s in backup_file.suffixes[-3:]]
+			if suffixes and suffixes[-1] == "aes":
+				suffixes = suffixes[:-1]
 			encoding = suffixes[0]
 			compression = None
 			if len(suffixes) == 2:
@@ -96,7 +103,10 @@ def backup_main() -> None:
 					raise ValueError(f"Invalid compression {compression!r}, valid compressions are 'lz4' and 'gz'")
 
 			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
-			progress.console.print(f"Using arguments: config_files={not config.no_config_files} maintenance={not config.no_maintenance}")
+			progress.console.print(
+				f"Using arguments: config_files={not config.no_config_files} maintenance={not config.no_maintenance}, "
+				f"password={'*****' if config.password else 'none'}"
+			)
 
 			if not config.no_maintenance:
 				threading.Thread(
@@ -106,7 +116,7 @@ def backup_main() -> None:
 				).start()
 				app.app_state_updated.wait(5)
 
-			create_backup(config_files=not config.no_config_files, backup_file=backup_file, progress=progress)
+			create_backup(config_files=not config.no_config_files, backup_file=backup_file, password=config.password, progress=progress)
 
 			progress.console.print(f"Backup file '{str(backup_file)}' succesfully created.")
 	except KeyboardInterrupt:
@@ -136,7 +146,10 @@ def restore_main() -> None:
 				server_id = forceHostId(server_id)
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
-			progress.console.print(f"Using arguments: config_files={config.config_files}, server_id={server_id}")
+			progress.console.print(
+				f"Using arguments: config_files={config.config_files}, server_id={server_id}, "
+				f"password={'*****' if config.password else 'none'}"
+			)
 
 			threading.Thread(
 				target=asyncio.run,
@@ -145,7 +158,7 @@ def restore_main() -> None:
 			).start()
 			app.app_state_updated.wait(5)
 
-			restore_backup(backup_file, config_files=config.config_files, server_id=server_id, progress=progress)
+			restore_backup(backup_file, config_files=config.config_files, server_id=server_id, password=config.password, progress=progress)
 
 			progress.console.print(f"Backup file '{str(backup_file)}' succesfully restored.")
 	except KeyboardInterrupt:

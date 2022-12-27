@@ -32,6 +32,11 @@ from typing import TYPE_CHECKING, Any, Generator, Optional
 
 import lz4.frame  # type: ignore[import]
 import psutil
+from Crypto.Cipher import AES
+from Crypto.Cipher._mode_gcm import GcmMode
+from Crypto.Hash import SHA256
+from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Random import get_random_bytes
 from fastapi import APIRouter, FastAPI
 from opsicommon.logging.logging import OPSILogger  # type: ignore[import]
 from starlette.routing import Route
@@ -244,3 +249,34 @@ def compress_data(data: bytes, compression: str, compression_level: int = 0, lz4
 		1000 * (compress_end - compress_start),
 	)
 	return data
+
+
+def aes_encryption_key_from_password(password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
+	if not password:
+		raise ValueError("Empty password")
+	salt = salt or get_random_bytes(32)
+	return PBKDF2(password=password, salt=salt, dkLen=32, count=1_000_000, hmac_hash_module=SHA256), salt
+
+
+def aes_encrypt(plaintext: bytes, password: str) -> tuple[bytes, bytes, bytes, bytes]:
+	if not isinstance(plaintext, bytes):
+		raise TypeError("Plaintext must be bytes")
+	if not isinstance(password, str):
+		raise TypeError("Password must be string")
+	key, key_salt = aes_encryption_key_from_password(password)
+	cipher = AES.new(key=key, mode=AES.MODE_GCM)
+	assert isinstance(cipher, GcmMode)
+	ciphertext, mac_tag = cipher.encrypt_and_digest(plaintext=plaintext)
+	return ciphertext, key_salt, mac_tag, cipher.nonce
+
+
+def aes_decrypt(ciphertext: bytes, key_salt: bytes, mac_tag: bytes, nonce: bytes, password: str) -> bytes:
+	if not isinstance(ciphertext, bytes):
+		raise TypeError("Plaintext must be bytes")
+	if not isinstance(password, str):
+		raise TypeError("Password must be string")
+	key, _key_salt = aes_encryption_key_from_password(password, salt=key_salt)
+	cipher = AES.new(key=key, mode=AES.MODE_GCM, nonce=nonce)
+	assert isinstance(cipher, GcmMode)
+	plaintext = cipher.decrypt_and_verify(ciphertext=ciphertext, received_mac_tag=mac_tag)
+	return plaintext

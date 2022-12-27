@@ -26,7 +26,6 @@ from argparse import (
 	HelpFormatter,
 	_ArgumentGroup,
 )
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import urlparse
@@ -297,6 +296,14 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._config.ssl_server_key_passphrase = None
 
 		secret_filter.add_secrets(self._config.ssl_ca_key_passphrase, self._config.ssl_server_key_passphrase)
+
+		try:
+			if not self._config.password:
+				self._config.password = None
+			else:
+				secret_filter.add_secrets(self._config.password)
+		except AttributeError:
+			pass
 
 		scheme = "http"
 		if self._config.ssl_server_key and self._config.ssl_server_cert:
@@ -1115,9 +1122,12 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 				action="store_true",
 				help=self._help(("backup", "restore"), "Do not show output or progess except errors."),
 			)
+			self._parser.add(
+				"--password",
+				help=self._help(("backup", "restore"), "Password for backup encryption and decryption."),
+			)
 
 		if self._sub_command == "backup":
-			now = datetime.now().strftime("%Y%m%d-%H%M%S")
 			self._parser.add(
 				"--no-maintenance",
 				action="store_true",
@@ -1136,9 +1146,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-many-instance-attribut
 			self._parser.add(
 				"backup_file",
 				nargs="?",
-				default=f"opsiconfd-backup-{now}.msgpack.lz4",
+				default=None,
 				metavar="BACKUP_FILE",
-				help=self._help("backup", "The BACKUP_FILE to write to."),
+				help=self._help(
+					"backup", "The BACKUP_FILE to write to. If omitted, the name of the backup file will be selected automatically."
+				),
 			)
 
 		if self._sub_command == "restore":

@@ -168,7 +168,11 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def service_createBackup(  # pylint: disable=invalid-name
-		self: BackendProtocol, config_files: bool = True, maintenance_mode: bool = True, return_type: str = "file_id"
+		self: BackendProtocol,
+		config_files: bool = True,
+		maintenance_mode: bool = True,
+		password: str | None = None,
+		return_type: str = "file_id",
 	) -> dict[str, dict[str, Any]] | str:
 		self._check_role("admin")
 		session = contextvar_client_session.get()
@@ -182,7 +186,8 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if return_type == "file_id":
 			now = datetime.now().strftime("%Y%m%d-%H%M%S")
 			file_id, backup_file = prepare_file(
-				filename=f"opsiconfd-backup-{now}.{file_encoding}.{file_compression}", content_type="binary/octet-stream"
+				filename=f"opsiconfd-backup-{now}.{file_encoding}.{file_compression}{'.aes' if password else ''}",
+				content_type="binary/octet-stream",
 			)
 
 		data = create_backup(
@@ -190,6 +195,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			backup_file=backup_file,
 			file_encoding=file_encoding,  # type: ignore[arg-type]
 			file_compression=file_compression,  # type: ignore[arg-type]
+			password=password,
 			maintenance=maintenance_mode,
 			maintenance_address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr],
 		)
@@ -198,11 +204,12 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return data
 
 	@rpc_method
-	def service_restoreBackup(  # pylint: disable=invalid-name
+	def service_restoreBackup(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		data_or_file_id: dict[str, dict[str, Any]] | str,
 		config_files: bool = False,
 		server_id: str = "backup",
+		password: str | None = None,
 		batch: bool = True,
 	) -> None:
 		self._check_role("admin")
@@ -224,6 +231,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			data_or_file=data_or_file,
 			config_files=config_files,
 			server_id=server_id,
+			password=password,
 			batch=batch,
 			maintenance_address_exceptions=["::1/128", "127.0.0.1/32", session.client_addr],
 		)

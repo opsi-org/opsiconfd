@@ -278,5 +278,8 @@ def aes_decrypt(ciphertext: bytes, key_salt: bytes, mac_tag: bytes, nonce: bytes
 	key, _key_salt = aes_encryption_key_from_password(password, salt=key_salt)
 	cipher = AES.new(key=key, mode=AES.MODE_GCM, nonce=nonce)
 	assert isinstance(cipher, GcmMode)
-	plaintext = cipher.decrypt_and_verify(ciphertext=ciphertext, received_mac_tag=mac_tag)
+	try:
+		plaintext = cipher.decrypt_and_verify(ciphertext=ciphertext, received_mac_tag=mac_tag)
+	except ValueError as err:
+		raise ValueError(f"Failed to decrypt, password incorrect or file corrupted ({err})") from err
 	return plaintext

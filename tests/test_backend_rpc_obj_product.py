@@ -94,7 +94,7 @@ def test_product_insertObject(  # pylint: disable=invalid-name
 		assert val == product[attr]
 
 	# product 1 should be created
-	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_getObjects", "params": [[], {"name": product1["name"]}]}
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_getObjects", "params": [[], {"name": product2["name"]}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 	print(res)
@@ -249,3 +249,29 @@ def test_product_delete(  # pylint: disable=invalid-name
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_getObjects", "params": [[], {"id": "test-backend-rpc-product*"}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert len(res["result"]) == 0
+
+
+# TODO product_getHashes
+def test_product_get_hashes(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	product1, product2 = create_test_products(test_client)
+
+	# product 1 should be created
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_getHashes", "params": [[], {"name": product1["name"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	print(res)
+	product = res["result"][0]
+	for attr, val in product1.items():
+		assert val == product[attr]
+
+	# product 1 should be created
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_getHashes", "params": [[], {"name": product2["name"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	print(res)
+	product = res["result"][0]
+	for attr, val in product2.items():
+		assert val == product[attr]

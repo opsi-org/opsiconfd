@@ -184,7 +184,7 @@ def test_webdav_setup_exception(backend: UnprotectedBackend) -> None:  # pylint:
 	repo_url = host.getRepositoryLocalUrl()
 	depot_url = host.getDepotLocalUrl()
 	workbench_url = host.getWorkbenchLocalUrl()
-	with patch("opsiconfd.application.webdav.PUBLIC_FOLDER", "/file/not/found"):
+	with patch("opsiconfd.application.webdav.PUBLIC_DIR", "/file/not/found"):
 		try:
 			host.setRepositoryLocalUrl("file:///not/found")
 			host.setDepotLocalUrl("file:///not/found")

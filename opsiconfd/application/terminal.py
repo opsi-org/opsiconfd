@@ -17,7 +17,7 @@ from os import getuid
 from pathlib import Path
 from pwd import getpwuid
 from time import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 import msgspec
 import psutil
@@ -53,7 +53,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		super().__init__(scope, receive, send)
 		self._pty: spawn
 		self._pty_reader_task: asyncio.Task
-		self._file_transfers: Dict[str, Dict[str, Any]] = {}
+		self._file_transfers: dict[str, dict[str, Any]] = {}
 		self._msgpack_encoder = msgspec.msgpack.Encoder()
 		self._msgpack_decoder = msgspec.msgpack.Decoder()
 
@@ -104,8 +104,8 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 	async def on_connect(  # pylint: disable=arguments-differ
 		self,
 		websocket: WebSocket,
-		cols: Optional[int] = Query(default=120, embed=True),
-		rows: Optional[int] = Query(default=30, embed=True),
+		cols: int | None = Query(default=120, embed=True),
+		rows: int | None = Query(default=30, embed=True),
 	) -> None:
 
 		if "terminal" in config.admin_interface_disabled_features:
@@ -126,7 +126,7 @@ class TerminalWebsocket(OpsiconfdWebSocketEndpoint):
 		if self._pty:
 			self._pty.close(True)
 
-	def _handle_file_transfer(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+	def _handle_file_transfer(self, payload: dict[str, Any]) -> dict[str, Any]:
 		if not payload.get("file_id"):
 			return {"result": None, "error": "Payload incomplete"}
 

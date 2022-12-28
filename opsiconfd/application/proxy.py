@@ -10,7 +10,7 @@ proxy
 
 
 from asyncio import gather
-from typing import Callable, Dict, List
+from typing import Callable
 from urllib.parse import urljoin, urlparse
 
 from aiohttp import ClientConnectorError, ClientSession
@@ -42,7 +42,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 		base_url: str,
 		methods: tuple = ("GET", "POST"),
 		forward_authorization: bool = False,
-		forward_cookies: List[str] | None = None,
+		forward_cookies: list[str] | None = None,
 		preserve_host: bool = False,
 	) -> None:
 		self.mount_path = mount_path
@@ -63,7 +63,7 @@ class ReverseProxy:  # pylint: disable=too-few-public-methods
 			return None
 		return _path
 
-	def _request_headers(self, request_headers: Headers, client_address: str) -> Dict[str, str]:
+	def _request_headers(self, request_headers: Headers, client_address: str) -> dict[str, str]:
 		_request_headers = dict(request_headers)
 
 		# TODO: https://tools.ietf.org/html/rfc7239

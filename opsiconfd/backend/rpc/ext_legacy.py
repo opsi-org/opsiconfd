@@ -15,7 +15,7 @@ import re
 import socket
 import time
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
+from typing import TYPE_CHECKING, Any, Generator, Protocol
 
 from opsicommon.exceptions import (  # type: ignore[import]
 	BackendAuthenticationError,
@@ -74,7 +74,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				_hash[key] = ""
 		return _hash
 
-	def _product_to_hash(self: BackendProtocol, product: Product) -> Dict[str, Any]:
+	def _product_to_hash(self: BackendProtocol, product: Product) -> dict[str, Any]:
 		result = product.toHash()
 		result["productId"] = result["id"]
 		del result["id"]
@@ -88,8 +88,8 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self._hash_values_none_to_empty_string(result)
 
 	def _get_product_states_hash(
-		self: BackendProtocol, client_ids: List[str] | None = None, product_type: str | None = None
-	) -> Dict[str, list]:
+		self: BackendProtocol, client_ids: list[str] | None = None, product_type: str | None = None
+	) -> dict[str, list]:
 		client_ids = client_ids or []
 		product_type = product_type or None
 
@@ -144,11 +144,11 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self.backend_info()
 
 	@rpc_method(deprecated=True, alternative_method="dispatcher_getConfig")
-	def getBackendInfos_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
+	def getBackendInfos_listOfHashes(self: BackendProtocol) -> list[dict]:  # pylint: disable=invalid-name
 		return [{}]
 
 	@rpc_method(deprecated=True, alternative_method="backend_getInterface")
-	def getPossibleMethods_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
+	def getPossibleMethods_listOfHashes(self: BackendProtocol) -> list[dict]:  # pylint: disable=invalid-name
 		possible_methods = []
 		for method in self.backend_getInterface():
 			compatible = True
@@ -160,14 +160,14 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				possible_methods.append({"name": method["name"], "params": method["params"]})
 		return possible_methods
 
-	@rpc_method
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="accessControl_authenticated")
 	def authenticated(self: BackendProtocol) -> bool:
 		if self.accessControl_authenticated():
 			return True
 		raise BackendAuthenticationError("Not authenticated")
 
 	@rpc_method(deprecated=True, alternative_method="configState_getObjects")
-	def getGeneralConfig_hash(self: BackendProtocol, objectId: str | None = None) -> Dict[str, str]:  # pylint: disable=invalid-name
+	def getGeneralConfig_hash(self: BackendProtocol, objectId: str | None = None) -> dict[str, str]:  # pylint: disable=invalid-name
 		if objectId:
 			objectId = forceFqdn(objectId)
 			if objectId in self.host_getIdents(type="OpsiDepotserver", returnType="unicode"):
@@ -186,7 +186,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method(deprecated=True, alternative_method="configState_create")
 	def setGeneralConfig(  # pylint: disable=invalid-name
-		self: BackendProtocol, config: Dict[str, str], objectId: str | None = None
+		self: BackendProtocol, config: dict[str, str], objectId: str | None = None
 	) -> None:
 		if objectId:
 			objectId = forceFqdn(objectId)
@@ -209,8 +209,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			for config_id, value in config.items():
 				if has_no_object_id or config_id not in known_config_ids:
 					if value.lower() in bool_values:
-						value = forceBool(value)
-						yield BoolConfig(id=config_id, defaultValues=[value])
+						yield BoolConfig(id=config_id, defaultValues=[forceBool(value)])
 					else:
 						yield UnicodeConfig(id=config_id, defaultValues=[value], possibleValues=[value], editable=True, multiValue=False)
 
@@ -218,9 +217,9 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			if objectId is not None:
 				for config_id, value in config.items():
 					if value.lower() in bool_values:
-						value = forceBool(value)
-
-					yield ConfigState(configId=config_id, objectId=objectId, values=[value])
+						yield ConfigState(configId=config_id, objectId=objectId, values=[forceBool(value)])
+					else:
+						yield ConfigState(configId=config_id, objectId=objectId, values=[value])
 
 		self.config_createObjects(get_new_configs())
 		self.configState_createObjects(get_new_config_states())
@@ -239,14 +238,14 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method(deprecated=True, alternative_method="configState_create")
 	def setNetworkConfig(  # pylint: disable=invalid-name
-		self: BackendProtocol, config: Dict[str, str], objectId: str | None = None
+		self: BackendProtocol, config: dict[str, str], objectId: str | None = None
 	) -> None:
 		if objectId and "depotId" in config:
 			return self.setGeneralConfigValue("clientconfig.depot.id", config["depotId"], objectId)
 		raise NotImplementedError("Please use general config to change values")
 
 	@rpc_method(deprecated=True)
-	def getNetworkConfig_hash(self: BackendProtocol, objectId: str | None = None) -> Dict[str, str]:  # pylint: disable=invalid-name
+	def getNetworkConfig_hash(self: BackendProtocol, objectId: str | None = None) -> dict[str, str]:  # pylint: disable=invalid-name
 		config_server_idents = self.host_getIdents(type="OpsiConfigserver", returnType="unicode")
 		if not config_server_idents:
 			raise BackendMissingDataError("No configserver found")
@@ -279,13 +278,13 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self.getNetworkConfig_hash(objectId).get(key)
 
 	@rpc_method
-	def getGroupIds_list(self: BackendProtocol) -> List[str]:  # pylint: disable=invalid-name
+	def getGroupIds_list(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
 		return self.group_getIdents(returnType="unicode")
 
 	@rpc_method
 	def getHostGroupTree_hash(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
-		groups: Dict[str, dict] = {}
-		childs: Dict[str, dict] = {}
+		groups: dict[str, dict] = {}
+		childs: dict[str, dict] = {}
 		for group in self.group_getObjects(attributes=["id", "parentGroupId"]):
 			if group.getParentGroupId():
 				if group.getParentGroupId() not in childs:
@@ -314,7 +313,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def createGroup(  # pylint: disable=invalid-name
-		self: BackendProtocol, groupId: str, members: List[str] | None = None, description: str = "", parentGroupId: str = ""
+		self: BackendProtocol, groupId: str, members: list[str] | None = None, description: str = "", parentGroupId: str = ""
 	) -> None:
 		members = members or []
 		self.group_createHostGroup(id=groupId, description=description, notes="", parentGroupId=parentGroupId or None)
@@ -328,7 +327,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return f"{hostname}.{self.getDomain()}"
 
 	@rpc_method(deprecated=True, alternative_method="hostControl_start")
-	def powerOnHost(self: BackendProtocol, hostId: str) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def powerOnHost(self: BackendProtocol, hostId: str) -> dict[str, Any]:  # pylint: disable=invalid-name
 		return self.hostControl_start(hostId)
 
 	@rpc_method(deprecated=True, alternative_method="host_getObjects")
@@ -376,7 +375,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects")
 	def getSoftwareInformation_hash(self: BackendProtocol, hostId: str) -> dict:  # pylint: disable=invalid-name
-		audit_softwares: Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, AuditSoftware]]]]] = defaultdict(
+		audit_softwares: dict[str, dict[str, dict[str, dict[str, dict[str, AuditSoftware]]]]] = defaultdict(
 			lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
 		)
 		for aus in self.auditSoftware_getObjects():
@@ -420,7 +419,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return result
 
 	@rpc_method(deprecated=True, alternative_method="auditSoftwareOnClient_getObjects")
-	def getSoftwareInformation_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
+	def getSoftwareInformation_listOfHashes(self: BackendProtocol) -> list[dict]:  # pylint: disable=invalid-name
 		result = []
 		for audit_software in self.auditSoftware_getObjects():
 			_hash = audit_software.toHash()
@@ -512,7 +511,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method(deprecated=True, alternative_method="auditHardwareOnHost_getObjects")
 	def getHardwareInformation_hash(self: BackendProtocol, hostId: str) -> dict:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
-		info: Dict[str, List[Dict[str, Any]]] = {}
+		info: dict[str, list[dict[str, Any]]] = {}
 		scantime = time.strptime("2000-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 		for audit_hardware_on_host in self.auditHardwareOnHost_getObjects(hostId=hostId, state=1):
 			hardware_class = audit_hardware_on_host.getHardwareClass()
@@ -577,7 +576,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return hosts[0].id
 
 	@rpc_method
-	def getServerIds_list(self: BackendProtocol) -> List[str]:  # pylint: disable=invalid-name
+	def getServerIds_list(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
 		return self.host_getIdents(type="OpsiConfigserver")
 
 	@rpc_method
@@ -615,7 +614,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return depot_id
 
 	@rpc_method
-	def getDepotIds_list(self: BackendProtocol) -> List[str]:  # pylint: disable=invalid-name
+	def getDepotIds_list(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
 		return self.host_getIdents(type="OpsiDepotserver", isMasterDepot=True)
 
 	@rpc_method
@@ -634,7 +633,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		_hash["ip"] = _hash["ipAddress"]
 		return self._hash_values_none_to_empty_string(_hash)
 
-	@rpc_method
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="configState_getClientToDepotserver")
 	def getDepotId(self: BackendProtocol, clientId: str) -> str:  # pylint: disable=invalid-name
 		clientId = forceHostId(clientId)
 
@@ -663,7 +662,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self.host_updateObject(hosts[0])
 
 	@rpc_method(deprecated=True)
-	def getMacAddresses_list(self: BackendProtocol, hostId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getMacAddresses_list(self: BackendProtocol, hostId: str) -> list[str]:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
@@ -673,7 +672,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return [hosts[0].hardwareAddress]
 
 	@rpc_method(deprecated=True)
-	def setMacAddresses(self: BackendProtocol, hostId: str, macs: List[str]) -> None:  # pylint: disable=invalid-name
+	def setMacAddresses(self: BackendProtocol, hostId: str, macs: list[str]) -> None:  # pylint: disable=invalid-name
 		hostId = forceHostId(hostId)
 		hosts = self.host_getObjects(id=hostId)
 		if not hosts:
@@ -690,7 +689,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self.setMacAddresses(hostId, macs=[mac])
 
 	@rpc_method
-	def lockProduct(self: BackendProtocol, productId: str, depotIds: List[str] | None = None) -> None:  # pylint: disable=invalid-name
+	def lockProduct(self: BackendProtocol, productId: str, depotIds: list[str] | None = None) -> None:  # pylint: disable=invalid-name
 		depotIds = depotIds or []
 		product_on_depots = self.productOnDepot_getObjects(productId=productId, depotId=depotIds)
 		if not product_on_depots:
@@ -700,7 +699,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self.productOnDepot_updateObjects(product_on_depots)
 
 	@rpc_method
-	def unlockProduct(self: BackendProtocol, productId: str, depotIds: List[str] | None = None) -> None:  # pylint: disable=invalid-name
+	def unlockProduct(self: BackendProtocol, productId: str, depotIds: list[str] | None = None) -> None:  # pylint: disable=invalid-name
 		depotIds = depotIds or []
 		product_on_depots = self.productOnDepot_getObjects(productId=productId, depotId=depotIds)
 		if not product_on_depots:
@@ -711,9 +710,9 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def getProductLocks_hash(  # pylint: disable=invalid-name
-		self: BackendProtocol, depotIds: List[str] | None = None  # pylint: disable=invalid-name
-	) -> Dict[str, List[str]]:
-		result: Dict[str, List[str]] = {}
+		self: BackendProtocol, depotIds: list[str] | None = None  # pylint: disable=invalid-name
+	) -> dict[str, list[str]]:
+		result: dict[str, list[str]] = {}
 		for product_on_depot in self.productOnDepot_getObjects(depotId=depotIds, locked=True):
 			if product_on_depot.productId not in result:
 				result[product_on_depot.productId] = []
@@ -737,10 +736,10 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		priority: int = 0,
 		description: str = "",
 		advice: str = "",
-		productClassNames: List[str] | None = None,
+		productClassNames: list[str] | None = None,
 		pxeConfigTemplate: str = "",
-		windowsSoftwareIds: List[str] | None = None,
-		depotIds: List[str] | None = None,
+		windowsSoftwareIds: list[str] | None = None,
+		depotIds: list[str] | None = None,
 	) -> None:
 		product_dict = locals()
 		del product_dict["productType"]
@@ -781,9 +780,9 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		priority: int = 0,
 		description: str = "",
 		advice: str = "",
-		productClassNames: List[str] | None = None,
-		windowsSoftwareIds: List[str] | None = None,
-		depotIds: List[str] | None = None,
+		productClassNames: list[str] | None = None,
+		windowsSoftwareIds: list[str] | None = None,
+		depotIds: list[str] | None = None,
 	) -> None:
 		self.createProduct(
 			"localboot",
@@ -822,10 +821,10 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		priority: int = 0,
 		description: str = "",
 		advice: str = "",
-		productClassNames: List[str] | None = None,
+		productClassNames: list[str] | None = None,
 		pxeConfigTemplate: str = "",
-		windowsSoftwareIds: List[str] | None = None,
-		depotIds: List[str] | None = None,
+		windowsSoftwareIds: list[str] | None = None,
+		depotIds: list[str] | None = None,
 	) -> None:
 		self.createProduct(
 			"netboot",
@@ -848,10 +847,10 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 			depotIds,
 		)
 
-	@rpc_method
+	@rpc_method(check_acl=False, deprecated=True, alternative_method="product_getObjects")
 	def getProduct_hash(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, depotId: str | None = None  # pylint: disable=invalid-name
-	) -> Dict[str, Any]:
+	) -> dict[str, Any]:
 		if not depotId:
 			products = self.product_getObjects(id=productId)
 			if not products:
@@ -875,15 +874,15 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def getProducts_hash(  # pylint: disable=invalid-name
-		self: BackendProtocol, depotIds: List[str] | None = None
-	) -> Dict[str, Dict[str, Dict[str, Any]]]:
+		self: BackendProtocol, depotIds: list[str] | None = None
+	) -> dict[str, dict[str, dict[str, Any]]]:
 		depotIds = depotIds or self.getDepotIds_list()
-
-		products: Dict[str, Dict[str, Dict[str, Product]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+		none_product = Product(id="", productVersion="", packageVersion="")
+		products: dict[str, dict[str, dict[str, Product]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: none_product)))
 		for product in self.product_getObjects():
 			products[product.id][product.productVersion][product.packageVersion] = product
 
-		result: Dict[str, Dict[str, Dict[str, Any]]] = defaultdict(dict)
+		result: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
 		for product_on_depot in self.productOnDepot_getObjects(depotId=depotIds):
 			product = products[product_on_depot.productId][product_on_depot.productVersion][product_on_depot.packageVersion]
 
@@ -898,7 +897,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return result
 
 	@rpc_method
-	def getProducts_listOfHashes(self: BackendProtocol, depotId: str | None = None) -> List[Dict[str, Any]]:  # pylint: disable=invalid-name
+	def getProducts_listOfHashes(self: BackendProtocol, depotId: str | None = None) -> list[dict[str, Any]]:  # pylint: disable=invalid-name
 		if not depotId:
 			return [self._product_to_hash(product) for product in self.product_getObjects()]
 
@@ -911,7 +910,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def getProductIds_list(  # pylint: disable=invalid-name
 		self: BackendProtocol, productType: str | None = None, objectId: str | None = None, installationStatus: str | None = None
-	) -> List[str]:
+	) -> list[str]:
 		productType = productType or None
 		objectId = objectId or None
 		installationStatus = installationStatus or None
@@ -946,36 +945,36 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def getLocalBootProductIds_list(  # pylint: disable=invalid-name
 		self: BackendProtocol, objectId: str | None = None, installationStatus: str | None = None
-	) -> List[str]:
+	) -> list[str]:
 		return self.getProductIds_list("localboot", objectId, installationStatus)
 
 	@rpc_method
 	def getNetBootProductIds_list(  # pylint: disable=invalid-name
 		self: BackendProtocol, objectId: str | None = None, installationStatus: str | None = None
-	) -> List[str]:
+	) -> list[str]:
 		return self.getProductIds_list("netboot", objectId, installationStatus)
 
 	@rpc_method
-	def getInstallableProductIds_list(self: BackendProtocol, clientId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getInstallableProductIds_list(self: BackendProtocol, clientId: str) -> list[str]:  # pylint: disable=invalid-name
 		depot_id = self.getDepotId(clientId=clientId)
 		return [productOnDepot.productId for productOnDepot in self.productOnDepot_getObjects(depotId=depot_id)]
 
 	@rpc_method
-	def getInstallableLocalBootProductIds_list(self: BackendProtocol, clientId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getInstallableLocalBootProductIds_list(self: BackendProtocol, clientId: str) -> list[str]:  # pylint: disable=invalid-name
 		depot_id = self.getDepotId(clientId=clientId)
 		return [
 			productOnDepot.productId for productOnDepot in self.productOnDepot_getObjects(depotId=depot_id, productType="LocalbootProduct")
 		]
 
 	@rpc_method
-	def getInstallableNetBootProductIds_list(self: BackendProtocol, clientId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getInstallableNetBootProductIds_list(self: BackendProtocol, clientId: str) -> list[str]:  # pylint: disable=invalid-name
 		depot_id = self.getDepotId(clientId=clientId)
 		return [
 			productOnDepot.productId for productOnDepot in self.productOnDepot_getObjects(depotId=depot_id, productType="NetbootProduct")
 		]
 
 	@rpc_method
-	def getInstalledProductIds_list(self: BackendProtocol, objectId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getInstalledProductIds_list(self: BackendProtocol, objectId: str) -> list[str]:  # pylint: disable=invalid-name
 		return [
 			productOnClient.productId
 			for productOnClient in self.productOnClient_getObjects(
@@ -984,7 +983,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		]
 
 	@rpc_method
-	def getInstalledLocalBootProductIds_list(self: BackendProtocol, objectId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getInstalledLocalBootProductIds_list(self: BackendProtocol, objectId: str) -> list[str]:  # pylint: disable=invalid-name
 		return [
 			productOnClient.productId
 			for productOnClient in self.productOnClient_getObjects(
@@ -993,7 +992,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		]
 
 	@rpc_method
-	def getInstalledNetBootProductIds_list(self: BackendProtocol, objectId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getInstalledNetBootProductIds_list(self: BackendProtocol, objectId: str) -> list[str]:  # pylint: disable=invalid-name
 		return [
 			productOnClient.productId
 			for productOnClient in self.productOnClient_getObjects(
@@ -1002,13 +1001,13 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		]
 
 	@rpc_method
-	def getProvidedLocalBootProductIds_list(self: BackendProtocol, depotId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getProvidedLocalBootProductIds_list(self: BackendProtocol, depotId: str) -> list[str]:  # pylint: disable=invalid-name
 		return [
 			productOnDepot.productId for productOnDepot in self.productOnDepot_getObjects(depotId=depotId, productType="LocalbootProduct")
 		]
 
 	@rpc_method
-	def getProvidedNetBootProductIds_list(self: BackendProtocol, depotId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getProvidedNetBootProductIds_list(self: BackendProtocol, depotId: str) -> list[str]:  # pylint: disable=invalid-name
 		return [
 			productOnDepot.productId for productOnDepot in self.productOnDepot_getObjects(depotId=depotId, productType="NetbootProduct")
 		]
@@ -1016,7 +1015,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def getProductInstallationStatus_hash(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, objectId: str
-	) -> Dict[str, Any]:
+	) -> dict[str, Any]:
 		productId = forceProductId(productId)
 		product_on_clients = self.productOnClient_getObjects(productId=productId, clientId=objectId)
 		if not product_on_clients:
@@ -1030,7 +1029,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def getProductInstallationStatus_listOfHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, objectId: str
-	) -> List[Dict[str, Any]]:
+	) -> list[dict[str, Any]]:
 		depot_id = self.getDepotId(clientId=objectId)
 		products = {
 			pod.productId: {
@@ -1138,7 +1137,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def getPossibleProductActions_list(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str | None = None, depotId: str | None = None
-	) -> List[str]:
+	) -> list[str]:
 		if not productId:
 			return ["none", "setup", "uninstall", "update", "always", "once", "custom"]
 
@@ -1186,7 +1185,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method(deprecated=True)
 	def getProductActionRequests_listOfHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, clientId: str, options: dict | None = None
-	) -> List[dict]:
+	) -> list[dict]:
 		return [
 			{"productId": productOnClient.productId, "actionRequest": productOnClient.actionRequest}
 			for productOnClient in self.productOnClient_getObjects(clientId=clientId)
@@ -1204,30 +1203,30 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method(deprecated=True)
 	def getLocalBootProductStates_hash(  # pylint: disable=invalid-name
-		self: BackendProtocol, objectIds: List[str] | None = None, options: dict | None = None
-	) -> Dict[str, list]:
+		self: BackendProtocol, objectIds: list[str] | None = None, options: dict | None = None
+	) -> dict[str, list]:
 		return self._get_product_states_hash(client_ids=objectIds, product_type="LocalbootProduct")
 
 	@rpc_method(deprecated=True)
 	def getNetBootProductStates_hash(  # pylint: disable=invalid-name
-		self: BackendProtocol, objectIds: List[str] | None = None, options: dict | None = None
-	) -> Dict[str, list]:
+		self: BackendProtocol, objectIds: list[str] | None = None, options: dict | None = None
+	) -> dict[str, list]:
 		return self._get_product_states_hash(client_ids=objectIds, product_type="NetbootProduct")
 
 	@rpc_method(deprecated=True)
 	def getProductStates_hash(  # pylint: disable=invalid-name
-		self: BackendProtocol, objectIds: List[str] | None = None, options: dict | None = None
-	) -> Dict[str, list]:
+		self: BackendProtocol, objectIds: list[str] | None = None, options: dict | None = None
+	) -> dict[str, list]:
 		return self._get_product_states_hash(client_ids=objectIds)
 
 	@rpc_method(deprecated=True)
 	def getProductPropertyDefinitions_hash(  # pylint: disable=invalid-name,too-many-branches
 		self: BackendProtocol, depotId: str | None = None
-	) -> Dict[str, List[Dict[str, Any]]]:
+	) -> dict[str, list[dict[str, Any]]]:
 		depotId = depotId or None
-		result: Dict[str, List[Dict[str, Any]]] = {}
-		property_names: Dict[str, Dict[str, int]] = {}
-		product_properties: Dict[str, Dict[str, Dict[str, list]]] = {}
+		result: dict[str, list[dict[str, Any]]] = {}
+		property_names: dict[str, dict[str, int]] = {}
+		product_properties: dict[str, dict[str, dict[str, list]]] = {}
 
 		for product_property in self.productProperty_getObjects():
 			if product_property.productId not in product_properties:
@@ -1240,7 +1239,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				product_property
 			)
 
-		depot_properties: Dict[str, Dict[str, list]] = {}
+		depot_properties: dict[str, dict[str, list]] = {}
 		if depotId:
 			for product_property_state in self.productPropertyState_getObjects(objectId=depotId):
 				if product_property_state.productId not in depot_properties:
@@ -1285,7 +1284,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method(deprecated=True)
 	def getProductPropertyDefinitions_listOfHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, depotId: str | None = None
-	) -> List[dict]:
+	) -> list[dict]:
 		result = []
 		property_names = {}
 		for product_on_depot in self.productOnDepot_getIdents(depotId=depotId, productId=productId, returnType="dict"):
@@ -1327,7 +1326,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def deleteProductPropertyDefinition(  # pylint: disable=invalid-name
-		self: BackendProtocol, productId: str, name: str, depotIds: List[str] | None = None
+		self: BackendProtocol, productId: str, name: str, depotIds: list[str] | None = None
 	) -> None:
 		product_properties = []
 		for productOnDepot in self.productOnDepot_getObjects(productId=productId, depotId=depotIds or []):
@@ -1345,7 +1344,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def deleteProductPropertyDefinitions(  # pylint: disable=invalid-name
-		self: BackendProtocol, productId: str, depotIds: List[str]
+		self: BackendProtocol, productId: str, depotIds: list[str]
 	) -> None:
 		product_properties = []
 		for productOnDepot in self.productOnDepot_getObjects(productId=productId, depotId=depotIds):
@@ -1366,14 +1365,14 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		name: str,
 		description: str | None = None,
 		defaultValue: Any = None,
-		possibleValues: List[Any] | None = None,
-		depotIds: List[str] | None = None,
+		possibleValues: list[Any] | None = None,
+		depotIds: list[str] | None = None,
 	) -> None:
 		possibleValues = possibleValues or []
 		depotIds = depotIds or []
 		product_properties = []
 		product_property_states = []
-		created: Dict[str, List[str]] = {}
+		created: dict[str, list[str]] = {}
 
 		depotIds = self.host_getIdents(type="OpsiDepotserver", id=depotIds, returnType="unicode")
 		if not depotIds:
@@ -1412,10 +1411,10 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		if product_property_states:
 			self.productPropertyState_createObjects(product_property_states)
 
-	@rpc_method
+	@rpc_method(check_acl=False, deprecated=True)
 	def getProductProperties_hash(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str, objectId: str | None = None
-	) -> Dict[str, Any]:
+	) -> dict[str, Any]:
 		if not objectId:
 			return {ppd["name"]: ppd["default"] for ppd in self.getProductPropertyDefinitions_listOfHashes(productId=productId)}
 
@@ -1431,7 +1430,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def setProductProperties(  # pylint: disable=invalid-name,too-many-locals
-		self: BackendProtocol, productId: str, properties: Dict[str, str], objectId: str | None = None
+		self: BackendProtocol, productId: str, properties: dict[str, str], objectId: str | None = None
 	) -> None:
 		"""
 		Set ProductPropertyStates as given.
@@ -1481,7 +1480,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 				new_properties[forceProductPropertyId(property_id)] = new_value
 			elif issubclass(property_type, BoolProductProperty):
 				logger.debug("Property %s is bool.", property_id)
-				new_properties[forceProductPropertyId(property_id)] = forceBool(value)
+				new_properties[forceProductPropertyId(property_id)] = forceBool(value)  # type: ignore[assignment]
 			else:
 				raise ValueError(f"Property type of {property_type!r} currently unhandled")
 
@@ -1512,12 +1511,12 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def getProductDependencies_listOfHashes(  # pylint: disable=invalid-name
 		self: BackendProtocol, productId: str | None = None, depotId: str | None = None
-	) -> List[dict]:
+	) -> list[dict]:
 		productId = productId or None
 		depotId = depotId or None
 		result = []
 		if depotId:
-			product_dependencies: Dict[str, Dict[str, Dict[str, list]]] = {}
+			product_dependencies: dict[str, dict[str, dict[str, list]]] = {}
 			for product_dependency in self.productDependency_getObjects():
 				if productId and product_dependency.productId != productId:
 					continue
@@ -1578,7 +1577,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		requiredAction: str = "",
 		requiredInstallationStatus: str = "",
 		requirementType: str = "",
-		depotIds: List[str] | None = None,
+		depotIds: list[str] | None = None,
 	) -> None:
 		for product_on_depot in self.productOnDepot_getObjects(productId=productId, depotId=depotIds or []):
 			self.productDependency_create(
@@ -1628,7 +1627,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self.licenseContract_getIdents(id=licenseContractId, returnType="unicode")[0]
 
 	@rpc_method
-	def getLicenseContractIds_list(self: BackendProtocol) -> List[str]:  # pylint: disable=invalid-name
+	def getLicenseContractIds_list(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
 		return self.licenseContract_getIdents(returnType="unicode")
 
 	@rpc_method
@@ -1660,7 +1659,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return lc_hash
 
 	@rpc_method
-	def getLicenseContracts_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
+	def getLicenseContracts_listOfHashes(self: BackendProtocol) -> list[dict]:  # pylint: disable=invalid-name
 		license_contracts = []
 		for license_contract in self.licenseContract_getObjects():
 			lc_hash = license_contract.toHash()
@@ -1737,7 +1736,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self.softwareLicense_getIdents(id=softwareLicenseId, returnType="tuple")[0][0]
 
 	@rpc_method
-	def getSoftwareLicenseIds_list(self: BackendProtocol) -> List[str]:  # pylint: disable=invalid-name
+	def getSoftwareLicenseIds_list(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
 		return [ident[0] for ident in self.softwareLicense_getIdents(returnType="unicode")]
 
 	@rpc_method
@@ -1778,7 +1777,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return sl_hash
 
 	@rpc_method
-	def getSoftwareLicenses_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
+	def getSoftwareLicenses_listOfHashes(self: BackendProtocol) -> list[dict]:  # pylint: disable=invalid-name
 		software_licenses = []
 		for software_license in self.softwareLicense_getObjects():
 			sl_hash = software_license.toHash()
@@ -1829,8 +1828,8 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self: BackendProtocol,
 		licensePoolId: str = "",
 		description: str = "",
-		productIds: List[ſtr] | None = None,
-		windowsSoftwareIds: List[str] | None = None,
+		productIds: list[ſtr] | None = None,
+		windowsSoftwareIds: list[str] | None = None,
 	) -> str:
 		if not licensePoolId:
 			# Generate license pool id
@@ -1864,7 +1863,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return pool_idents[0][0]
 
 	@rpc_method
-	def getLicensePoolIds_list(self: BackendProtocol) -> List[str]:  # pylint: disable=invalid-name
+	def getLicensePoolIds_list(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
 		return self.licensePool_getIdents(returnType="unicode")
 
 	@rpc_method
@@ -1895,10 +1894,10 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return lp_hash
 
 	@rpc_method
-	def getLicensePools_listOfHashes(self: BackendProtocol) -> List[dict]:  # pylint: disable=invalid-name
+	def getLicensePools_listOfHashes(self: BackendProtocol) -> list[dict]:  # pylint: disable=invalid-name
 		license_pools = []
 
-		audit_software_to_license_pools_by_license_pool_id: Dict[str, List[AuditSoftwareToLicensePool]] = {}
+		audit_software_to_license_pools_by_license_pool_id: dict[str, list[AuditSoftwareToLicensePool]] = {}
 		for audit_software_to_license_pool in self.auditSoftwareToLicensePool_getObjects():
 			if audit_software_to_license_pool.licensePoolId not in audit_software_to_license_pools_by_license_pool_id:
 				audit_software_to_license_pools_by_license_pool_id[audit_software_to_license_pool.licensePoolId] = []
@@ -1951,7 +1950,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def addProductIdsToLicensePool(  # pylint: disable=invalid-name
-		self: BackendProtocol, productIds: List[str], licensePoolId: str
+		self: BackendProtocol, productIds: list[str], licensePoolId: str
 	) -> None:
 		productIds = forceUnicodeList(productIds)
 		license_pools = self.licensePool_getObjects(id=licensePoolId)
@@ -1963,7 +1962,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def removeProductIdsFromLicensePool(  # pylint: disable=invalid-name
-		self: BackendProtocol, productIds: List[str], licensePoolId: str
+		self: BackendProtocol, productIds: list[str], licensePoolId: str
 	) -> None:
 		productIds = forceUnicodeList(productIds)
 		licensePools = self.licensePool_getObjects(id=licensePoolId)
@@ -1975,7 +1974,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def setWindowsSoftwareIdsToLicensePool(  # pylint: disable=invalid-name
-		self: BackendProtocol, windowsSoftwareIds: List[str], licensePoolId: str
+		self: BackendProtocol, windowsSoftwareIds: list[str], licensePoolId: str
 	) -> None:
 		windowsSoftwareIds = forceUnicodeList(windowsSoftwareIds)
 		license_pool_ids = self.licensePool_getIdents(id=licensePoolId, returnType="unicode")
@@ -2080,8 +2079,8 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	@rpc_method
 	def getSoftwareLicenseUsages_listOfHashes(  # pylint: disable=invalid-name
-		self: BackendProtocol, hostIds: List[str] | None = None, licensePoolIds: List[str] | None = None
-	) -> List[dict]:
+		self: BackendProtocol, hostIds: list[str] | None = None, licensePoolIds: list[str] | None = None
+	) -> list[dict]:
 		hostIds = hostIds or []
 		licensePoolIds = licensePoolIds or []
 		licenseOnClients = []
@@ -2097,7 +2096,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def setSoftwareLicenseUsage(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol, hostId: str, licensePoolId: str, softwareLicenseId: str, licenseKey: str = "", notes: str = ""
-	) -> Dict[str, str]:
+	) -> dict[str, str]:
 		self.licenseOnClient_create(
 			softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId, clientId=hostId, licenseKey=licenseKey, notes=notes
 		)
@@ -2117,11 +2116,11 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		self.licenseOnClient_delete(softwareLicenseId=softwareLicenseId, licensePoolId=licensePoolId, clientId=hostId)
 
 	@rpc_method
-	def deleteAllSoftwareLicenseUsages(self: BackendProtocol, hostIds: List[str]) -> None:  # pylint: disable=invalid-name
+	def deleteAllSoftwareLicenseUsages(self: BackendProtocol, hostIds: list[str]) -> None:  # pylint: disable=invalid-name
 		self.licenseOnClient_delete(clientId=hostIds)
 
 	@rpc_method
-	def getLicenseStatistics_hash(self: BackendProtocol) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def getLicenseStatistics_hash(self: BackendProtocol) -> dict[str, Any]:  # pylint: disable=invalid-name
 		result = {}
 		for license_pool in self.licensePool_getObjects():
 			pool_od = license_pool.getId()
@@ -2182,7 +2181,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return self.depot_librsyncSignature(filename)
 
 	@rpc_method
-	def getDiskSpaceUsage(self: BackendProtocol, path: str) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def getDiskSpaceUsage(self: BackendProtocol, path: str) -> dict[str, Any]:  # pylint: disable=invalid-name
 		return self.depot_getDiskSpaceUsage(path)
 
 	@rpc_method
@@ -2200,7 +2199,7 @@ class RPCExtLegacyMixin(Protocol):  # pylint: disable=too-many-public-methods
 		raise BackendAuthenticationError("User is not an admin")
 
 	@rpc_method
-	def areDepotsSynchronous(self: BackendProtocol, depotIds: List[str] | None = None) -> bool:  # pylint: disable=invalid-name
+	def areDepotsSynchronous(self: BackendProtocol, depotIds: list[str] | None = None) -> bool:  # pylint: disable=invalid-name
 		depotIds = self.host_getIdents(type="OpsiDepotserver", id=depotIds, returnType="unicode")
 		if not depotIds:
 			raise BackendMissingDataError("No depots found")

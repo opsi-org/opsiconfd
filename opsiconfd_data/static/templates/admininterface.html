@@ -23,7 +23,8 @@
 		var JSONRPCInterface = JSON.parse('{{interface|tojson}}');
 
 		function onLoad() {
-			setTimeout(monitorSession, 5000);
+			messagebusConnect();
+			//setTimeout(monitorSession, 5000);
 
 			let input = document.getElementById("redis-cmd");
 
@@ -68,7 +69,6 @@
 			}
 			else if (tabName == "maintenance") {
 				getAppState();
-				reloadTimer = setInterval(getAppState, 5000);
 			}
 			else if (tabName == "clients") {
 				loadSessionTable();
@@ -120,7 +120,10 @@
 			}
 
 			// Show the current tab, and add an "active" class to the button that opened the tab
-			document.getElementById("tab-" + tabName).style.display = "inherit";
+			let currenTab = document.getElementById("tab-" + tabName);
+			if (currenTab) {
+				currenTab.style.display = "inherit";
+			}
 		}
 	</script>
 </head>
@@ -141,7 +144,8 @@
 
 		<div class="tab">
 			<a href="#info" id="tablink-info" class="tablink" onclick="openTab('info');">Info</a>
-			<a href="#maintenance" id="tablink-info" class="tablink" onclick="openTab('maintenance');">Maintenance</a>
+			<a href="#maintenance" id="tablink-maintenance" class="tablink"
+				onclick="openTab('maintenance');">Maintenance</a>
 			<a href="#clients" id="tablink-clients" class="tablink" onclick="openTab('clients');">Clients</a>
 			<a href="#depots" id="tablink-depots" class="tablink" onclick="openTab('depots');">Depots</a>
 			<a href="#rpc-infos" id="tablink-rpc-infos" class="tablink" onclick="openTab('rpc-infos');">RPC-Infos</a>
@@ -157,6 +161,8 @@
 			{% if "terminal" not in disabled_features %}
 			<a href="#terminal" id="tablink-terminal" class="tablink" onclick="openTab('terminal');">Terminal</a>
 			{% endif %}
+			<a href="#messagebus" id="tablink-messagebus" class="tablink"
+				onclick="openTab('messagebus');">Messagebus</a>
 			<a href="#licensing" id="tablink-licensing" class="tablink" onclick="openTab('licensing');">Licensing</a>
 			<!--
 			<a href="#memory-profiler" id="tablink-memory-profiler" class="tablink" onclick="openTab('memory-profiler');">Memory Profiler</a>
@@ -175,7 +181,7 @@
 
 				<h4>Set application state:</h4>
 
-				<input type="button" onclick="setAppState('normal')" value="Set application to 'normal' state">
+				<input type="button" onclick="setAppState('normal', this)" value="Set application to 'normal' state">
 				<br />
 				<br />
 				<label for="application-state-maintenance-exceptions">Address exceptions (optional):</label>
@@ -186,7 +192,7 @@
 				<input id="application-state-maintenance-retry-after" type="number" style="width: 400px"
 					placeholder="Wait time in seconds before clients retry connection">
 				<br />
-				<input type="button" onclick="setAppState('maintenance')"
+				<input type="button" onclick="setAppState('maintenance', this)"
 					value="Set application to 'maintenance' state">
 			</div>
 			<div class="adminpage-box">
@@ -205,11 +211,26 @@
 				<label for="restore-backup-config-files">With config files:</label>
 				<input type="checkbox" id="restore-backup-config-files" checked>
 				<br />
+
+				<label>Server-ID: </label>
+				<input type="radio" id="restore-backup-server-id-backup" name="restore-backup-server-id-select"
+					value="backup" onclick="document.getElementById('restore-backup-server-id').disabled = true;"
+					checked />
+				<label for="restore-backup-server-id-backup">From backup</label>
+				<input type="radio" id="restore-backup-server-id-local" name="restore-backup-server-id-select"
+					value="local" onclick="document.getElementById('restore-backup-server-id').disabled = true;" />
+				<label for="restore-backup-server-id-backup">Keep current</label>
+				<input type="radio" id="restore-backup-server-id-other" name="restore-backup-server-id-select"
+					value="other" onclick="document.getElementById('restore-backup-server-id').disabled = false;" />
+				<label for="restore-backup-server-id-backup">Other: </label>
+				<input type="text" id="restore-backup-server-id" placeholder="hostname.domain.tld" disabled="true"
+					style="width: 200px">
+				<br />
 				<input type="button" id="restore-backup-create-button" onclick="restoreBackup()" value="Restore backup">
 			</div>
 		</div>
 
-		<div id=" tab-clients" class="tabcontent">
+		<div id="tab-clients" class="tabcontent">
 			<div class="adminpage-box" id="sessions">
 				<h4>Sessions:</h4>
 				<div id="session-table-div">
@@ -523,7 +544,7 @@
 		<div id="tab-log-viewer" class="tabcontent fitheight">
 			<div id="log-settings">
 				<div class="log-setting">
-					<button class="tab-maximize" onclick="toggleTabMaximize();">Maximize</button>
+					<button class="tab-maximize" onclick="toggleTabMaximize();" style="margin: 0;">Maximize</button>
 				</div>
 				<div class="log-setting">
 					<label for="log-level-filter">Filter by level:</label>
@@ -548,8 +569,8 @@
 				</div>
 				<div class="log-setting">
 					<label>Font size:</label>
-					<button id="decrease-font-size" onclick="changeFontSize(-1);">-</button>
-					<button id="increase-font-size" onclick="changeFontSize(+1);">+</button>
+					<button id="decrease-font-size" onclick="changeFontSize(-1);" style="margin: 0;">-</button>
+					<button id="increase-font-size" onclick="changeFontSize(+1);" style="margin: 0;">+</button>
 				</div>
 			</div>
 			<div id="log-container" onwheel="if (window.event.deltaY < 0) setAutoScroll(false);">

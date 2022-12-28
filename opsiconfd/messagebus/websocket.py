@@ -11,7 +11,7 @@ messagebus.websocket
 import traceback
 from asyncio import Task, create_task, sleep
 from time import time
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import msgspec
 from fastapi import APIRouter, FastAPI, HTTPException, status
@@ -20,6 +20,8 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionOperation,
 	ChannelSubscriptionRequestMessage,
+	Error,
+	EventMessage,
 	GeneralErrorMessage,
 	Message,
 	TraceRequestMessage,
@@ -40,12 +42,17 @@ from opsiconfd.logging import get_logger
 from opsiconfd.utils import compress_data, decompress_data
 from opsiconfd.worker import Worker
 
-from . import (
-	get_messagebus_user_id_for_host,
-	get_messagebus_user_id_for_service_worker,
-	get_messagebus_user_id_for_user,
+from . import get_user_id_for_host, get_user_id_for_service_worker, get_user_id_for_user
+from .redis import (
+	MessageReader,
+	create_messagebus_session_channel,
+	delete_channel,
+	send_message,
+	update_websocket_count,
 )
-from .redis import MessageReader, create_messagebus_session_channel, send_message
+
+if TYPE_CHECKING:
+	from opsiconfd.session import OPSISession
 
 messagebus_router = APIRouter()
 logger = get_logger("opsiconfd.messagebus")
@@ -66,16 +73,19 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 	def __init__(self, scope: Scope, receive: Receive, send: Send) -> None:
 		super().__init__(scope, receive, send)
-		worker = Worker.get_instance()
-		self._messagebus_worker_id = get_messagebus_user_id_for_service_worker(worker.id)
+		self._worker = Worker.get_instance()
+		self._messagebus_worker_id = get_user_id_for_service_worker(self._worker.id)
 		self._messagebus_user_id = ""
-		self._user_channel = ""
 		self._session_channel = ""
 		self._compression: Union[str, None] = None
 		self._messagebus_reader_task = Union[Task, None]
 		self._messagebus_reader = MessageReader()
 		self._manager_task = Union[Task, None]
 		self._message_decoder = msgspec.msgpack.Decoder()
+
+	@property
+	def _user_channel(self) -> str:
+		return self._messagebus_user_id
 
 	async def _check_authorization(self) -> None:
 		if not self.scope.get("session"):
@@ -85,6 +95,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 
 	async def _send_message_to_websocket(self, websocket: WebSocket, message: Message) -> None:
 		if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
+			message.trace = message.trace or {}
 			message.trace["broker_ws_send"] = timestamp()
 
 		data = message.to_msgpack()
@@ -143,8 +154,6 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			return True
 		if channel == "service:messagebus":
 			return True
-		# if channel == self._session_channel:
-		# 	return True
 		if channel == self._user_channel:
 			return True
 		if self.scope["session"].is_admin:
@@ -152,22 +161,23 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 		logger.warning("Access to channel %s denied for %s", channel, self.scope["session"].username, exc_info=True)
 		return False
 
-	async def _process_channel_subscription_message(self, websocket: WebSocket, message: Message) -> None:
+	async def _process_channel_subscription_message(self, websocket: WebSocket, message: ChannelSubscriptionRequestMessage) -> None:
 		response = ChannelSubscriptionEventMessage(
-			sender=self._messagebus_worker_id, channel=message.back_channel, subscribed_channels=[], error=None
+			sender=self._messagebus_worker_id, channel=message.back_channel or message.sender, subscribed_channels=[], error=None
 		)
 		for idx, channel in enumerate(message.channels):
+			channel = channel.strip()
 			if channel == "@":
 				message.channels[idx] = channel = self._user_channel
 			elif channel == "$":
 				message.channels[idx] = channel = self._session_channel
 
 			if not self._check_channel_access(channel):
-				response.error = {  # pylint: disable=loop-invariant-statement
-					"code": 0,
-					"message": f"Access to channel {channel!r} denied",
-					"details": None,
-				}
+				response.error = Error(  # pylint: disable=loop-invariant-statement
+					code=0,
+					message=f"Access to channel {channel!r} denied",
+					details=None,
+				)
 				break
 
 			if channel.startswith("session:"):
@@ -183,7 +193,7 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 			elif message.operation == ChannelSubscriptionOperation.REMOVE:
 				await self._messagebus_reader.remove_channels(message.channels)
 			else:
-				response.error = {"code": 0, "message": f"Invalid operation {message.operation!r}", "details": None}
+				response.error = Error(code=0, message=f"Invalid operation {message.operation!r}", details=None)
 
 		if not response.error:
 			response.subscribed_channels = await self._messagebus_reader.get_channel_names()
@@ -260,18 +270,8 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 				await self._process_channel_subscription_message(websocket, message)
 			else:
 				if isinstance(message, (TraceRequestMessage, TraceResponseMessage)):
+					message.trace = message.trace or {}
 					message.trace["broker_ws_receive"] = receive_timestamp
-
-				# if isinstance(message, TerminalOpenRequest):
-				# 	if not message.terminal_id:
-				# 		raise ValueError("Terminal id is missing")
-				# 	await self._messagebus_reader.add_channels({f"terminal:{message.terminal_id}": "$"})
-				# 	channel_subscription_event = ChannelSubscriptionEventMessage(
-				# 		sender=self._messagebus_worker_id,
-				# 		channel=message.back_channel,
-				# 		subscribed_channels=await self._messagebus_reader.get_channel_names()
-				# 	)
-				# 	await self._send_message_to_websocket(websocket, channel_subscription_event)
 
 				await send_message(message, self.scope["session"].serialize())
 
@@ -283,28 +283,86 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 					sender=self._messagebus_worker_id,
 					channel=self._session_channel,
 					ref_id=message_id,
-					error={
-						"code": 0,
-						"message": str(err),
-						"details": str(traceback.format_exc()) if self.scope["session"].is_admin else None,
-					},
+					error=Error(
+						code=0,
+						message=str(err),
+						details=str(traceback.format_exc()) if self.scope["session"].is_admin else None,
+					),
 				),
 			)
 
 	async def on_connect(self, websocket: WebSocket) -> None:  # pylint: disable=arguments-differ
 		logger.info("Websocket client connected to messagebus")
+		session: OPSISession = self.scope["session"]
 
-		if self.scope["session"].host:
-			self._messagebus_user_id = get_messagebus_user_id_for_host(self.scope["session"].host.id)
-		elif self.scope["session"].is_admin:
-			self._messagebus_user_id = get_messagebus_user_id_for_user(self.scope["session"].username)
+		event = EventMessage(
+			sender=self._messagebus_worker_id,
+			channel="",
+			event="",
+			data={
+				"client_address": session.client_addr,
+				"client_port": session.client_port,
+				"worker": self._worker.id,
+			},
+		)
 
-		self._user_channel = self._messagebus_user_id
+		if session.host:
+			self._messagebus_user_id = get_user_id_for_host(session.host.id)
+
+			event.event = "host_connected"
+			event.channel = "event:host_connected"
+			event.data["host"] = {
+				"type": session.host.getType(),
+				"id": session.host.id,
+			}
+		elif session.username and session.is_admin:
+			self._messagebus_user_id = get_user_id_for_user(session.username)
+
+			event.event = "user_connected"
+			event.channel = "event:user_connected"
+			event.data["user"] = {"username": session.username}
+		else:
+			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid session")
+
+		await update_websocket_count(session, 1)
+
 		self._session_channel = await create_messagebus_session_channel(owner_id=self._messagebus_user_id, exists_ok=False)
 
 		self._messagebus_reader_task = create_task(self.messagebus_reader(websocket))
+
+		await send_message(event)
 
 	async def on_disconnect(self, websocket: WebSocket, close_code: int) -> None:  # pylint: disable=unused-argument
 		logger.info("Websocket client disconnected from messagebus")
 		if self._messagebus_reader:
 			await self._messagebus_reader.stop()
+
+		session: OPSISession = self.scope["session"]
+
+		await update_websocket_count(session, -1)
+		await delete_channel(self._session_channel)
+
+		event = EventMessage(
+			sender=self._messagebus_worker_id,
+			channel="",
+			event="",
+			data={
+				"client_address": session.client_addr,
+				"client_port": session.client_port,
+				"worker": self._worker.id,
+			},
+		)
+
+		if session.host:
+			event.event = "host_disconnected"
+			event.channel = "event:host_disconnected"
+			event.data["host"] = {
+				"type": session.host.getType(),
+				"id": session.host.id,
+			}
+			await send_message(event)
+		elif session.username:
+			event.event = "user_disconnected"
+			event.channel = "event:user_disconnected"
+			event.data["user"] = {"username": session.username}
+			await send_message(event)

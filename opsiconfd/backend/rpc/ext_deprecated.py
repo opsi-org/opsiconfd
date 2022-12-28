@@ -10,7 +10,7 @@ rpc methods wim
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
@@ -58,7 +58,7 @@ class RPCExtDeprecatedMixin(Protocol):
 		requiredProductId: str = "",
 		requiredProductClassId: str = "",
 		requirementType: str = "",
-		depotIds: List[str] | None = None,
+		depotIds: list[str] | None = None,
 	) -> None:
 		if requiredProductClassId:
 			warnings.warn("The argument 'requiredProductClassId' is obsolete and has no effect.", DeprecationWarning)
@@ -91,7 +91,7 @@ class RPCExtDeprecatedMixin(Protocol):
 	def getClients_listOfHashes(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		serverId: str | None = None,
-		depotIds: List[str] | None = None,
+		depotIds: list[str] | None = None,
 		groupId: str | None = None,
 		productId: str | None = None,
 		installationStatus: str | None = None,
@@ -99,7 +99,7 @@ class RPCExtDeprecatedMixin(Protocol):
 		productVersion: str | None = None,
 		packageVersion: str | None = None,
 		hwFilter: dict | None = None,
-	) -> List[Dict[str, Any]]:
+	) -> list[dict[str, Any]]:
 		if (
 			serverId  # pylint: disable=too-many-boolean-expressions
 			or depotIds
@@ -119,7 +119,7 @@ class RPCExtDeprecatedMixin(Protocol):
 	def getClientIds_list(  # pylint: disable=invalid-name,too-many-arguments
 		self: BackendProtocol,
 		serverId: str | None = None,
-		depotIds: List[str] | None = None,
+		depotIds: list[str] | None = None,
 		groupId: str | None = None,
 		productId: str | None = None,
 		installationStatus: str | None = None,
@@ -127,7 +127,7 @@ class RPCExtDeprecatedMixin(Protocol):
 		productVersion: str | None = None,
 		packageVersion: str | None = None,
 		hwFilter: dict | None = None,
-	) -> List[str]:
+	) -> list[str]:
 		if not (
 			serverId
 			or depotIds

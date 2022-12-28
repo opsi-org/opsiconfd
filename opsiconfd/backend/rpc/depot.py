@@ -14,7 +14,7 @@ import grp
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
+from typing import TYPE_CHECKING, Any, Generator, Protocol
 
 from OPSI.System import getDiskSpaceUsage  # type: ignore[import]
 from OPSI.Util import (  # type: ignore[import]
@@ -135,7 +135,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 			raise BackendIOError(f"Failed to create librsync delta file: {err}") from err
 
 	@rpc_method
-	def depot_getDiskSpaceUsage(self: BackendProtocol, path: str) -> Dict[str, Any]:  # pylint: disable=invalid-name
+	def depot_getDiskSpaceUsage(self: BackendProtocol, path: str) -> dict[str, Any]:  # pylint: disable=invalid-name
 		if os.name != "posix":
 			raise NotImplementedError("Not implemented for non-posix os")
 		try:
@@ -148,7 +148,7 @@ class RPCDepotserverMixin(Protocol):  # pylint: disable=too-few-public-methods
 		self: BackendProtocol,
 		filename: str,
 		force: bool = False,
-		propertyDefaultValues: Dict[str, Any] | None = None,
+		propertyDefaultValues: dict[str, Any] | None = None,
 		tempDir: str | None = None,
 		forceProductId: str | None = None,
 		suppressPackageContentFileGeneration: bool = False,
@@ -288,7 +288,7 @@ class DepotserverPackageManager:
 		self,
 		filename: str,
 		force: bool = False,
-		property_default_values: Dict[str, Any] | None = None,
+		property_default_values: dict[str, Any] | None = None,
 		temp_dir: str | None = None,
 		force_product_id: str | None = None,
 		suppress_package_content_file_generation: bool = False,
@@ -323,7 +323,7 @@ class DepotserverPackageManager:
 					logger.error("Cleanup failed: %s", err)
 
 		@contextmanager
-		def lock_product(product: Product, depot_id: str, force_installation: bool) -> ProductOnDepot:
+		def lock_product(product: Product, depot_id: str, force_installation: bool) -> Generator[ProductOnDepot, None, None]:
 			product_id = product.getId()
 			logger.debug("Checking for locked product '%s' on depot '%s'", product_id, depot_id)
 			product_on_depots = self.backend.productOnDepot_getObjects(depotId=depot_id, productId=product_id)
@@ -367,7 +367,7 @@ class DepotserverPackageManager:
 			self.backend.productOnDepot_updateObject(product_on_depot)
 
 		@contextmanager
-		def run_package_scripts(product_package_file: ProductPackageFile, env: Dict[str, Any] | None = None) -> Generator[None, None, None]:
+		def run_package_scripts(product_package_file: ProductPackageFile, env: dict[str, Any] | None = None) -> Generator[None, None, None]:
 			logger.info("Running preinst script")
 			for line in product_package_file.runPreinst(env=env or {}):
 				logger.info("[preinst] %s", line)
@@ -394,7 +394,7 @@ class DepotserverPackageManager:
 				self.backend.product_deleteObjects(delete_products)
 
 		def clean_up_product_property_states(  # pylint: disable=too-many-locals
-			product_properties: List[ProductProperty], depot_id: str, product_on_depot: ProductOnDepot
+			product_properties: list[ProductProperty], depot_id: str, product_on_depot: ProductOnDepot
 		) -> None:
 			product_properties_to_cleanup = {}
 			for product_property in product_properties:
@@ -423,18 +423,20 @@ class DepotserverPackageManager:
 							product_property = product_properties_to_cleanup[  # pylint: disable=loop-invariant-statement
 								product_property_state.propertyId
 							]  # pylint: disable=loop-invariant-statement
-							if value in product_property.possibleValues:
+							if value in (product_property.possibleValues or []):
 								new_values.append(value)
 								continue
 
-							if product_property.getType() == "BoolProductProperty" and forceBool(value) in product_property.possibleValues:
+							if product_property.getType() == "BoolProductProperty" and forceBool(value) in (
+								product_property.possibleValues or []
+							):
 								new_values.append(forceBool(value))
 								changed = True
 								continue
 
 							if product_property.getType() == "UnicodeProductProperty":
 								new_value = None
-								for possible_value in product_property.possibleValues:
+								for possible_value in product_property.possibleValues or []:
 									if forceUnicodeLower(possible_value) == forceUnicodeLower(value):
 										new_value = possible_value
 										break

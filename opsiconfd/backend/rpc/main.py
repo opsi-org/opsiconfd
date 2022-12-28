@@ -25,9 +25,8 @@ from starlette.concurrency import run_in_threadpool
 
 from opsiconfd import contextvar_client_session
 from opsiconfd.application import app
-from opsiconfd.application.utils import get_depot_server_id
 from opsiconfd.backend.rpc import MethodInterface
-from opsiconfd.config import config, opsi_config
+from opsiconfd.config import config, get_depotserver_id, opsi_config
 from opsiconfd.logging import logger, secret_filter
 
 from ..auth import RPCACE, RPCACE_ALLOW_ALL, read_acl_file
@@ -123,7 +122,7 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		self._app = app
 		self._acl: dict[str, list[RPCACE]] = {}
 		self._depot_connections: dict[str, ServiceClient] = {}
-		self._depot_id: str = get_depot_server_id()
+		self._depot_id: str = get_depotserver_id()
 		self._mysql = MySQLConnection()
 		self._service_client: ServiceClient | None = None
 		self._opsi_host_key: str | None = None
@@ -158,7 +157,8 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		)
 		if hosts:
 			self._opsi_host_key = hosts[0].opsiHostKey
-			secret_filter.add_secrets(self._opsi_host_key)
+			if self._opsi_host_key:
+				secret_filter.add_secrets(self._opsi_host_key)
 		else:
 			logger.info("Configserver %r not found in backend", self._depot_id)
 
@@ -249,7 +249,9 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 			self._service_client.disconnect()
 
 	def reload_config(self) -> None:
-		pass
+		self._read_dhcpd_control_config_file()  # pylint: disable=no-member
+		self._read_host_control_config_file()  # pylint: disable=no-member
+		self._read_opsipxeconfd_control_config_file()  # pylint: disable=no-member
 
 	def _get_ace(self, method: str) -> list[RPCACE]:  # pylint: disable=unused-argument
 		return []
@@ -258,6 +260,9 @@ class Backend(  # pylint: disable=too-many-ancestors, too-many-instance-attribut
 		return None
 
 	def _check_module(self, module: str) -> None:
+		if app.app_state.type == "maintenance":
+			# Do not check in maintenance mode (backup / restore)
+			return
 		if module not in self.available_modules:
 			raise BackendModuleDisabledError(f"Module {module!r} not available")
 

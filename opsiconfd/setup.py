@@ -33,21 +33,35 @@ from opsicommon.server.setup import (  # type: ignore[import]
 	add_user_to_group,
 	create_group,
 	create_user,
+	modify_user,
 	set_primary_group,
 )
 from opsicommon.server.setup import (
 	setup_users_and_groups as po_setup_users_and_groups,  # type: ignore[import]
 )
 
-from opsiconfd.application.utils import get_configserver_id
 from opsiconfd.backend.mysql import MySQLConnection
 from opsiconfd.backend.mysql.cleanup import cleanup_database
 from opsiconfd.backend.mysql.schema import create_database, update_database
-from opsiconfd.config import FQDN, OPSI_LICENSE_PATH, VAR_ADDON_DIR, config, opsi_config
+from opsiconfd.config import (
+	DEPOT_DIR,
+	FQDN,
+	LOG_DIR,
+	NTFS_IMAGES_DIR,
+	OPSI_LICENSE_DIR,
+	OPSICONFD_HOME,
+	PUBLIC_DIR,
+	REPOSITORY_DIR,
+	VAR_ADDON_DIR,
+	WORKBENCH_DIR,
+	config,
+	get_configserver_id,
+	opsi_config,
+)
 from opsiconfd.grafana import setup_grafana
 from opsiconfd.logging import logger
 from opsiconfd.metrics.statistics import setup_metric_downsampling
-from opsiconfd.redis import redis_client
+from opsiconfd.redis import delete_recursively
 from opsiconfd.ssl import setup_ssl, setup_ssl_file_permissions
 
 
@@ -82,11 +96,23 @@ def setup_users_and_groups() -> None:
 		create_user(
 			username=config.run_as_user,
 			primary_groupname=opsi_config.get("groups", "fileadmingroup"),
-			home="/var/lib/opsi",
+			home=OPSICONFD_HOME,
 			shell="/bin/bash",
 			system=True,
 		)
 		user = pwd.getpwnam(config.run_as_user)
+
+	if user and user.pw_dir != OPSICONFD_HOME:
+		try:
+			modify_user(username=config.run_as_user, home=OPSICONFD_HOME)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.warning(
+				"Failed to change home directory of user %r (%s). Should be %r but is %r, please change manually.",
+				config.run_as_user,
+				err,
+				OPSICONFD_HOME,
+				user.pw_dir,
+			)
 
 	try:
 		grp.getgrnam("shadow")
@@ -114,18 +140,19 @@ def setup_users_and_groups() -> None:
 
 def _get_default_dirs() -> list[str]:
 	return [
-		"/var/log/opsi/bootimage",
-		"/var/log/opsi/clientconnect",
-		"/var/log/opsi/instlog",
+		f"/{LOG_DIR}/bootimage",
+		f"/{LOG_DIR}/clientconnect",
+		f"/{LOG_DIR}/instlog",
+		f"/{LOG_DIR}/userlogin",
 		os.path.dirname(config.log_file),
-		"/var/log/opsi/userlogin",
-		"/var/lib/opsi/depot",
-		"/var/lib/opsi/ntfs-images",
-		"/var/lib/opsi/repository",
-		"/var/lib/opsi/public",
-		"/var/lib/opsi/workbench",
+		DEPOT_DIR,
+		NTFS_IMAGES_DIR,
+		REPOSITORY_DIR,
+		PUBLIC_DIR,
+		WORKBENCH_DIR,
 		VAR_ADDON_DIR,
-		OPSI_LICENSE_PATH,
+		OPSI_LICENSE_DIR,
+		OPSICONFD_HOME,
 	]
 
 
@@ -142,10 +169,13 @@ def setup_file_permissions() -> None:
 	dhcpd_config_file = locateDHCPDConfig("/etc/dhcp3/dhcpd.conf")
 	permissions = (
 		FilePermission("/etc/shadow", None, "shadow", 0o640),
-		FilePermission("/var/log/opsi/opsiconfd/opsiconfd.log", config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660),
+		FilePermission(
+			f"{os.path.dirname(config.log_file)}/opsiconfd.log", config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660
+		),
 		# On many systems dhcpd is running as unprivileged user (i.e. dhcpd)
 		# This user needs read permission
 		FilePermission(dhcpd_config_file, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o664),
+		DirPermission(OPSICONFD_HOME, config.run_as_user, opsi_config.get("groups", "admingroup"), 0o660, 0o770),
 		DirPermission(VAR_ADDON_DIR, config.run_as_user, opsi_config.get("groups", "fileadmingroup"), 0o660, 0o770),
 	)
 	PermissionRegistry().register_permission(*permissions)
@@ -184,37 +214,39 @@ def setup_backend(full: bool) -> None:
 		return
 
 	mysql = MySQLConnection()
-	mysql.connect()
-	create_database(mysql)
-	update_database(mysql, force=full)
-	cleanup_database(mysql)
+	with mysql.connection():
+		create_database(mysql)
+		update_database(mysql, force=full)
+		cleanup_database(mysql)
 
-	if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
-		logger.notice("No configserver found in backend, creating")
-		network_config = getNetworkConfiguration()
-		config_server = OpsiConfigserver(
-			id=get_configserver_id(),
-			opsiHostKey=None,
-			depotLocalUrl="file:///var/lib/opsi/depot",
-			depotRemoteUrl=f"smb://{FQDN}/opsi_depot",
-			depotWebdavUrl=f"webdavs://{FQDN}:4447/depot",
-			repositoryLocalUrl="file:///var/lib/opsi/repository",
-			repositoryRemoteUrl=f"webdavs://{FQDN}:4447/repository",
-			workbenchLocalUrl="file:///var/lib/opsi/workbench",
-			workbenchRemoteUrl=f"smb://{FQDN}/opsi_workbench",
-			description=None,
-			notes=None,
-			hardwareAddress=network_config["hardwareAddress"],
-			ipAddress=network_config["ipAddress"],
-			inventoryNumber=None,
-			networkAddress=f"{network_config['subnet']}/{network_config['netmask']}",
-			maxBandwidth=0,
-			isMasterDepot=True,
-			masterDepotId=None,
-		)
-		mysql.insert_object(table="HOST", obj=config_server, ace=[], create=True, set_null=True)
+		if not mysql.get_idents(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}):
+			logger.notice("No configserver found in backend, creating")
+			network_config = getNetworkConfiguration()
+			config_server = OpsiConfigserver(
+				id=get_configserver_id(),
+				opsiHostKey=None,
+				depotLocalUrl=f"file://{DEPOT_DIR}",
+				depotRemoteUrl=f"smb://{FQDN}/opsi_depot",
+				depotWebdavUrl=f"webdavs://{FQDN}:4447/depot",
+				repositoryLocalUrl=f"file://{REPOSITORY_DIR}",
+				repositoryRemoteUrl=f"webdavs://{FQDN}:4447/repository",
+				workbenchLocalUrl=f"file://{WORKBENCH_DIR}",
+				workbenchRemoteUrl=f"smb://{FQDN}/opsi_workbench",
+				description=None,
+				notes=None,
+				hardwareAddress=network_config["hardwareAddress"],
+				ipAddress=network_config["ipAddress"],
+				inventoryNumber=None,
+				networkAddress=f"{network_config['subnet']}/{network_config['netmask']}",
+				maxBandwidth=0,
+				isMasterDepot=True,
+				masterDepotId=None,
+			)
+			mysql.insert_object(table="HOST", obj=config_server, ace=[], create=True, set_null=True)
 
-	mysql.disconnect()
+		conf_servers = list(mysql.get_objects(table="HOST", object_type=OpsiConfigserver, ace=[], filter={"type": "OpsiConfigserver"}))
+		if conf_servers and isinstance(conf_servers[0], OpsiConfigserver) and conf_servers[0].opsiHostKey:
+			opsi_config.set("host", "key", conf_servers[0].opsiHostKey, persistent=True)
 
 
 def cleanup_log_files() -> None:
@@ -261,15 +293,9 @@ def setup_configs() -> None:
 
 
 def setup_redis() -> None:
-	with redis_client() as redis:
-		with redis.pipeline() as pipeline:
-			# Delete obsolete keys
-			for delete_key in ("status",):
-				for key in redis.scan_iter(f"{config.redis_prefix}:{delete_key}:*"):  # pylint: disable=loop-invariant-statement
-					logger.info("Unlink %r", key)
-					pipeline.unlink(key)
-			if len(pipeline) > 0:
-				pipeline.execute()
+	# Delete obsolete keys
+	for delete_key in ("status",):
+		delete_recursively(delete_key)
 
 
 def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
@@ -300,15 +326,15 @@ def setup(full: bool = True) -> None:  # pylint: disable=too-many-branches
 			po_setup_users_and_groups(ignore_errors=True)
 			setup_users_and_groups()
 
-		if "files" not in config.skip_setup:
-			setup_files()
-
 		# po_setup_file_permissions() # takes very long with many files in /var/lib/opsi
 		if "systemd" not in config.skip_setup:
 			setup_systemd()
 	else:
 		if "users" not in config.skip_setup and "groups" not in config.skip_setup:
 			setup_users_and_groups()
+
+	if "files" not in config.skip_setup:
+		setup_files()
 
 	if "file_permissions" not in config.skip_setup:
 		# Always correct file permissions (run_as_user could be changed)

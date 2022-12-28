@@ -10,7 +10,6 @@ login tests
 
 import json
 import time
-from typing import Tuple
 
 import pytest
 from MySQLdb.connections import Connection  # type: ignore[import]
@@ -61,7 +60,7 @@ def test_get_session(test_client: OpsiconfdTestClient) -> None:  # pylint: disab
 @pytest.mark.parametrize("auth_data, expected_status_code, expected_text", login_test_data)
 def test_login_error(
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name
-	auth_data: Tuple[str, str],
+	auth_data: tuple[str, str],
 	expected_status_code: int,
 	expected_text: str,
 ) -> None:

@@ -25,7 +25,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		self,
 		id: str,  # pylint: disable=invalid-name
 		name: str,
-		vars: List[str] = [],
+		vars: list[str] = [],
 		aggregation: str = "avg",
 		retention: int = 0,
 		zero_if_missing: str | None = None,
@@ -44,7 +44,7 @@ class Metric:  # pylint: disable=too-many-instance-attributes
 		:param vars:
 			Variables used for redis key and labels (i.e. ["node_name", "worker_num"]). \
 			Values for these vars has to pe passed to param "labels" as dict when calling MetricsCollector.add_value().
-		:type vars: List[str]
+		:type vars: list[str]
 		:param retention: Redis retention period (maximum age for samples compared to last event time) in milliseconds.
 		:type retention: int
 		:param aggregation: Aggregation to use before adding values to the time series database (`sum` or `avg`).
@@ -309,7 +309,7 @@ class MetricsRegistry(metaclass=Singleton):
 		for met in metric:
 			self._metrics_by_id[met.id] = met
 
-	def get_metric_ids(self) -> List[str]:
+	def get_metric_ids(self) -> list[str]:
 		return list(self._metrics_by_id)
 
 	def get_metrics(self, *subject: str) -> Generator[Metric, None, None]:

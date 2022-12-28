@@ -8,15 +8,22 @@
 opsiconfd.backend.rpc.extender
 """
 
+from functools import partial
 from inspect import isfunction
 from pathlib import Path
 from types import MethodType
-from typing import Any, Dict, Protocol
+from typing import Any, Callable, Dict, Protocol
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger
 
 from . import rpc_method
+
+
+def deprecated(func: Callable | None = None, *, alternative_method: str | None = None) -> Callable:
+	if func is None:
+		return partial(deprecated, alternative_method=alternative_method)
+	return partial(rpc_method, func, deprecated=True, alternative_method=alternative_method)
 
 
 class RPCExtenderMixin(Protocol):  # pylint: disable=too-few-public-methods

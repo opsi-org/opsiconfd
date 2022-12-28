@@ -14,7 +14,6 @@ import os
 import pwd
 from grp import getgrgid
 from os import getgrouplist
-from typing import Set
 
 import pam  # type: ignore[import]
 from opsicommon.exceptions import BackendAuthenticationError  # type: ignore[import]
@@ -65,7 +64,7 @@ class PAMAuthentication(AuthenticationModule):
 		except Exception as err:
 			raise BackendAuthenticationError(f"PAM authentication failed for user '{username}': {err}") from err
 
-	def get_groupnames(self, username: str) -> Set[str]:
+	def get_groupnames(self, username: str) -> set[str]:
 		"""
 		Read the groups of a user.
 

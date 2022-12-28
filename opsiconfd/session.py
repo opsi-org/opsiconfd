@@ -124,9 +124,10 @@ def get_basic_auth(headers: Headers) -> BasicAuth:
 	return BasicAuth(username, password)
 
 
-async def get_session(client_addr: str, headers: Headers, session_id: Optional[str] = None) -> "OPSISession":
+async def get_session(client_addr: str, client_port: int, headers: Headers, session_id: Optional[str] = None) -> "OPSISession":
 	session = OPSISession(
 		client_addr=client_addr,
+		client_port=client_port,
 		headers=headers,
 		session_id=session_id
 	)
@@ -210,7 +211,8 @@ class SessionMiddleware:
 			# Get session
 			session_id = self.get_session_id_from_headers(connection.headers)
 			if scope["required_access_role"] != ACCESS_ROLE_PUBLIC or session_id:
-				scope["session"] = await get_session(client_addr=scope["client"][0], headers=connection.headers, session_id=session_id)
+				addr = scope["client"]
+				scope["session"] = await get_session(client_addr=addr[0], client_port=addr[1], headers=connection.headers, session_id=session_id)
 
 			started_authenticated = scope["session"] and scope["session"].authenticated
 
@@ -364,10 +366,12 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	def __init__(  # pylint: disable=too-many-arguments
 		self,
 		client_addr: str,
+		client_port: int,
 		headers: Optional[Headers] = None,
 		session_id: Optional[str] = None
 	) -> None:
 		self.client_addr = client_addr
+		self.client_port = client_port
 		self._headers = headers or Headers()
 		self.session_id: str | None = session_id or None
 		self.user_agent = self._headers.get("user-agent") or ""
@@ -423,7 +427,7 @@ class OPSISession:  # pylint: disable=too-many-instance-attributes
 	@classmethod
 	def from_serialized(cls, data: dict[str, Any]) -> OPSISession:
 		data = cls.deserialize(data)
-		obj = cls(data["client_addr"])
+		obj = cls(data["client_addr"], data["client_port"])
 		for attr, val in data.items():
 			setattr(obj, attr, val)
 		return obj
@@ -740,7 +744,8 @@ async def authenticate_user_auth_module(scope: Scope) -> None:
 
 async def authenticate(scope: Scope, username: str, password: str) -> None:  # pylint: disable=unused-argument
 	if not scope["session"]:
-		scope["session"] = await get_session(client_addr=scope["client"][0], headers=Headers(scope=scope))
+		addr = scope["client"]
+		scope["session"] = await get_session(client_addr=addr[0], client_port=addr[1], headers=Headers(scope=scope))
 	session = scope["session"]
 	session.authenticated = False
 

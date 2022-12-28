@@ -16,7 +16,7 @@ import time
 from ipaddress import ip_address
 from re import DOTALL, finditer
 from socket import gethostbyaddr
-from typing import Any, Dict, Set, Tuple
+from typing import Any
 
 from OpenSSL.crypto import FILETYPE_PEM, X509
 from OpenSSL.crypto import Error as CryptoError
@@ -54,7 +54,7 @@ from opsiconfd.logging import logger
 from opsiconfd.utils import get_ip_addresses
 
 
-def get_ips() -> Set[str]:
+def get_ips() -> set[str]:
 	ips = {"127.0.0.1", "::1"}
 	for addr in get_ip_addresses():
 		if addr["family"] in ("ipv4", "ipv6") and addr["address"] not in ips:
@@ -71,7 +71,7 @@ def get_server_cn() -> str:
 	return FQDN
 
 
-def get_hostnames() -> Set[str]:
+def get_hostnames() -> set[str]:
 	names = {"localhost"}
 	names.add(get_server_cn())
 	for addr in get_ips():
@@ -199,7 +199,7 @@ def load_local_server_cert() -> X509:
 	return load_cert(config.ssl_server_cert)
 
 
-def create_local_server_cert(renew: bool = True) -> Tuple[X509, PKey]:  # pylint: disable=too-many-locals
+def create_local_server_cert(renew: bool = True) -> tuple[X509, PKey]:  # pylint: disable=too-many-locals
 	ca_key = load_ca_key()
 	ca_cert = load_ca_cert()
 	domain = get_domain()
@@ -491,7 +491,7 @@ def setup_ssl() -> None:
 		load_ca_key()
 
 
-def get_cert_info(cert: X509, renew_days: int) -> Dict[str, Any]:
+def get_cert_info(cert: X509, renew_days: int) -> dict[str, Any]:
 	alt_names = ""
 	for idx in range(0, cert.get_extension_count()):
 		if cert.get_extension(idx).get_short_name() == b"subjectAltName":
@@ -519,9 +519,9 @@ def get_cert_info(cert: X509, renew_days: int) -> Dict[str, Any]:
 	}
 
 
-def get_ca_cert_info() -> Dict[str, Any]:
+def get_ca_cert_info() -> dict[str, Any]:
 	return get_cert_info(load_ca_cert(), config.ssl_ca_cert_renew_days)
 
 
-def get_server_cert_info() -> Dict[str, Any]:
+def get_server_cert_info() -> dict[str, Any]:
 	return get_cert_info(load_local_server_cert(), config.ssl_server_cert_renew_days)

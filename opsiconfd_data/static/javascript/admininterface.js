@@ -9,12 +9,17 @@ function createUUID() {
 }
 
 
-function showNotifcation(message, type = "success", seconds = 10) {
+function showNotifcation(message, group = "", type = "success", seconds = 10) {
 	// type: success / error
 	const notifications = document.getElementById("notifications");
-
 	const notifcation = document.createElement("div");
-	//notifcation.setAttribute("id", notificationElId);
+	if (group) {
+		const el = document.getElementById(`notification-${group}`);
+		if (el) {
+			notifications.removeChild(el);
+		}
+		notifcation.setAttribute("id", `notification-${group}`);
+	}
 	notifcation.classList.add(type);
 	notifcation.appendChild(document.createTextNode(message));
 
@@ -56,7 +61,10 @@ function getAppState() {
 }
 
 
-function setAppState(type) {
+function setAppState(type, button) {
+	if (button) {
+		button.classList.add("loading");
+	}
 	params = { "type": type }
 	if (type == "maintenance") {
 		params.auto_add_to_address_exceptions = true;
@@ -71,11 +79,18 @@ function setAppState(type) {
 	}
 	let req = ajaxRequest("POST", "/admin/app-state", params);
 	req.then((result) => {
+		if (button) {
+			button.classList.remove("loading");
+		}
+		console.debug(result);
 		outputToHTML(result, "application-state");
 		return result
 	}, (error) => {
+		if (button) {
+			button.classList.remove("loading");
+		}
 		console.error(error);
-		alert(`Error setting application state:\n${error.message}`);
+		showNotifcation(`Error setting application state: ${error.message}`, "app-state", "error", 10);
 	});
 }
 
@@ -85,15 +100,14 @@ function createBackup() {
 	button.classList.add("loading");
 	const config_files = document.getElementById("create-backup-config-files").checked;
 	const maintenance_mode = document.getElementById("create-backup-maintenance-mode").checked;
-	//document.getElementById("create-backup-create-button").disabled = true;
 	const req = rpcRequest("service_createBackup", [config_files, maintenance_mode, "file_id"]);
 	req.then((response) => {
 		console.debug(response);
 		if (response.error) {
-			showNotifcation(`Failed to create backup: ${response.error.message}`, "error", 30);
+			showNotifcation(`Failed to create backup: ${response.error.message}`, "backup", "error", 30);
 		}
 		else {
-			showNotifcation("Backup successfully created", "success", 5);
+			showNotifcation("Backup successfully created", "backup", "success", 5);
 			const link = document.createElement('a');
 			link.setAttribute('href', `/file-transfer/${response.result}`);
 			link.style.display = 'none';
@@ -104,7 +118,7 @@ function createBackup() {
 		button.classList.remove("loading");
 	}, (error) => {
 		console.error(error);
-		showNotifcation(`Failed to create backup: ${error.message || JSON.stringify(error)}`, "error", 30);
+		showNotifcation(`Failed to create backup: ${error.message || JSON.stringify(error)}`, "backup", "error", 30);
 		button.classList.remove("loading");
 	});
 }
@@ -113,10 +127,19 @@ function createBackup() {
 function restoreBackup() {
 	const file = document.getElementById("restore-backup-file").files[0];
 	if (!file) {
-		showNotifcation(`Backup file not provided`, "error", 3);
+		showNotifcation(`Backup file not provided`, "restore", "error", 3);
 		return;
 	}
 
+	const serverIDSelect = document.querySelector('input[name="restore-backup-server-id-select"]:checked').value;
+	let serverID = document.getElementById("restore-backup-server-id").value;
+	if (serverIDSelect == "backup" || serverIDSelect == "local") {
+		serverID = serverIDSelect;
+	}
+	if (!serverID) {
+		showNotifcation(`Server ID not provided`, "restore", "error", 3);
+		return;
+	}
 	const button = document.getElementById("restore-backup-create-button");
 	button.classList.add("loading");
 
@@ -126,25 +149,24 @@ function restoreBackup() {
 	const req = ajaxRequest("POST", "/file-transfer/multipart", formData);
 	req.then((response) => {
 		console.debug(response);
-		const config_files = document.getElementById("restore-backup-config-files").checked;
-		const server_id = "backup";
+		const configFiles = document.getElementById("restore-backup-config-files").checked;
 		const batch = true;
 		const req = rpcRequest(
-			"service_restoreBackup", [response.file_id, config_files, server_id, batch]
+			"service_restoreBackup", [response.file_id, configFiles, serverID, batch]
 		);
 		req.then((response) => {
 			console.debug(response);
 			if (response.error) {
-				showNotifcation(`Failed to restore backup: ${response.error.message}`, "error", 30);
+				showNotifcation(`Failed to restore backup: ${response.error.message}`, "restore", "error", 30);
 			}
 			else {
-				showNotifcation("Backup successfully restored", "success", 5);
+				showNotifcation("Backup successfully restored", "restore", "success", 5);
 			}
+			button.classList.remove("loading");
 		});
-		button.classList.remove("loading");
 	}, (error) => {
 		console.error(error);
-		showNotifcation(`Failed to restore backup: ${error.message || JSON.stringify(error)}`, "error", 30);
+		showNotifcation(`Failed to restore backup: ${error.message || JSON.stringify(error)}`, "restore", "error", 30);
 		button.classList.remove("loading");
 	});
 }
@@ -271,7 +293,7 @@ function loadAddons() {
 function installAddon() {
 	const file = document.getElementById("addon-file").files[0];
 	if (!file) {
-		showNotifcation(`Addon file not provided`, "error", 3);
+		showNotifcation(`Addon file not provided`, "addon", "error", 3);
 		return;
 	}
 
@@ -290,14 +312,14 @@ function installAddon() {
 			button.classList.remove("loading");
 		}
 		loadAddons();
-		showNotifcation("success", "Addon successfully installed", 3);
+		showNotifcation("Addon successfully installed", "addon", "success", 3);
 	}, (error) => {
 		if (button) {
 			button.classList.remove("loading");
 		}
 		console.log(error);
 		console.warn(error.status, error.details);
-		showNotifcation("error", `Failed to install addon: ${error.message || JSON.stringify(error)}`, 30);
+		showNotifcation(`Failed to install addon: ${error.message || JSON.stringify(error)}`, "addon", "error", 30);
 	});
 }
 
@@ -352,7 +374,7 @@ function logout() {
 function callRedis() {
 	let req = ajaxRequest("POST", "/redis-interface", { "cmd": document.getElementById("redis-cmd").value });
 	req.then((result) => {
-		console.debug(`Redis command successful: ${JSON.stringify(result)} `)
+		console.debug(`Redis command successful: ${JSON.stringify(result)}`)
 		outputToHTML(result, "redis-result");
 	}, (error) => {
 		console.error(error);
@@ -397,7 +419,7 @@ function onRPCInterfaceMethodSelected() {
 			if (method.deprecated) {
 				doc += '<span class="jsonrpc-deprecated-method">This method is deprecated and will be removed in one of the next versions.</span><br />';
 				if (method.alternative_method) {
-					doc += `Please use the method '<strong>${method.alternative_method}</strong>' instead.< br /> `
+					doc += `Please use the method '<strong>${method.alternative_method}</strong>' instead.<br />`
 				}
 			}
 			if (method.doc) {
@@ -438,8 +460,8 @@ function createRequestJSON() {
 				parameter.push(null);
 			}
 		} catch (e) {
-			console.warn(`${name}: ${e} `);
-			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e} `;
+			console.warn(`${name}: ${e}`);
+			document.getElementById("jsonrpc-request-error").innerHTML = `${name}: ${e}`;
 		}
 	}
 
@@ -461,10 +483,10 @@ function callJSONRPC() {
 		let value = inputs[i].value.trim();
 
 		if (!value && name.substring(0, 1) != "*") {
-
-			alert("mandatory field empty");
+			const error = `Mandatory field '${inputs[i].name}' is empty`;
+			showNotifcation(error, "jsonrpc", "error", 3);
 			return {
-				"error": "mandatory field empty"
+				"error": error
 			};
 		}
 	}
@@ -508,7 +530,7 @@ function licenseUpload(files) {
 	}
 	let req = ajaxRequest("POST", "/admin/license_upload", formData);
 	req.then((result) => {
-		console.log(`File upload successful: ${JSON.stringify(result)} `)
+		console.log(`File upload successful: ${JSON.stringify(result)}`)
 		loadLicensingInfo();
 	});
 }
@@ -598,7 +620,7 @@ function ValidateIPaddress(ipaddress) {
 		.test(ipaddress)) {
 		return (true)
 	}
-	alert("You have entered an invalid IP address!")
+	showNotifcation("You have entered an invalid IP address.", "", "error", 3);
 	return (false)
 }
 
@@ -752,7 +774,7 @@ function printRPCTable(data, htmlId) {
 	htmlStr += "<tr>";
 	keys = Object.keys(data[0]);
 	Object.keys(data[0]).forEach(element => {
-		htmlStr += `< th class="rpc-th" onclick = "loadRPCTable('${element}', true)" title = "sort" style = "cursor: pointer;" > ${element}</th > `;
+		htmlStr += `<th class="rpc-th" onclick="loadRPCTable('${element}', true)" title="sort" style="cursor: pointer;">${element}</th>`;
 	});
 	htmlStr += "</tr>";
 
@@ -765,14 +787,14 @@ function printRPCTable(data, htmlId) {
 		keys.forEach(key => {
 			if (key == "date") {
 				date = formateDate(new Date(element[key]))
-				htmlStr += `< td class="${tdClass}" > ${date}</td > `;
+				htmlStr += `<td class="${tdClass}">${date}</td>`;
 			}
 			else if (key == "duration") {
 				duration = element[key].toFixed(4)
-				htmlStr += `< td class="${tdClass}" > ${duration}</td > `;
+				htmlStr += `<td class="${tdClass}">${duration}</td>`;
 			}
 			else {
-				htmlStr += `< td class="${tdClass}" > ${element[key]}</td > `;
+				htmlStr += `<td class="${tdClass}">${element[key]}</td>`;
 			}
 		});
 		htmlStr += "</tr>";
@@ -809,8 +831,8 @@ function sortRPCTable(data, sortKey) {
 			}
 			return 0;
 		} else if (sortKey == "client") {
-			var numA = Number(a[sortKey].split(".").map((num) => (`000${num} `).slice(-3)).join(""));
-			var numB = Number(b[sortKey].split(".").map((num) => (`000${num} `).slice(-3)).join(""));
+			var numA = Number(a[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
+			var numB = Number(b[sortKey].split(".").map((num) => (`000${num}`).slice(-3)).join(""));
 			if (numA < numB) {
 				return -1;
 			}
@@ -880,6 +902,7 @@ function formateDate(date) {
 
 
 var messagebusWS;
+var messagebusAutoReconnect = true;
 var mbTerminal;
 
 // https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
@@ -908,6 +931,7 @@ function syntaxHighlightMessage(message) {
 }
 
 function messagebusConnect() {
+	messagebusAutoReconnect = true;
 	let params = []
 	let loc = window.location;
 	let ws_uri;
@@ -921,22 +945,50 @@ function messagebusConnect() {
 	messagebusWS.binaryType = 'arraybuffer';
 	messagebusWS.onopen = function () {
 		console.log("Messagebus websocket opened");
+		showNotifcation("Connected to messagebus", "messagebus", "success", 2);
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Disconnect";
+		let dataMessage = {
+			type: "channel_subscription_request",
+			id: createUUID(),
+			sender: "@",
+			channel: "service:messagebus",
+			created: Date.now(),
+			expires: Date.now() + 10000,
+			operation: "add",
+			channels: ["event:host_connected", "event:host_disconnected", "event:user_connected", "event:user_disconnected", "event:app_state_changed"]
+		}
+		messagebusSend(dataMessage);
 	};
 	messagebusWS.onclose = function () {
 		console.log("Messagebus websocket closed");
+		if (messagebusAutoReconnect) {
+			showNotifcation("Messagebus connection lost", "messagebus", "error", 10);
+		}
+		else {
+			showNotifcation("Messagebus connection closed", "messagebus", "success", 2);
+		}
 		messagebusWS = null;
+		if (messagebusAutoReconnect) {
+			setTimeout(messagebusConnect, 5000);
+		}
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	};
 	messagebusWS.onerror = function (error) {
-		console.error(`Messagebus websocket connection error: ${JSON.stringify(error)} `);
+		const err = `Messagebus websocket connection error: ${JSON.stringify(error)}`;
+		console.error(err);
+		//showNotifcation(err, "messagebus", "error", 5);
 		messagebusWS = null;
 		document.getElementById("messagebus-connect-disconnect").innerHTML = "Connect";
 	}
 	messagebusWS.onmessage = function (event) {
 		const message = msgpack.deserialize(event.data);
 		console.debug(message);
-		if (message.type.startsWith("terminal_")) {
+		if (message.type == "event") {
+			if (message.event == "app_state_changed") {
+				outputToHTML(message.data.state, "application-state");
+			}
+		}
+		else if (message.type.startsWith("terminal_")) {
 			if (mbTerminal && mbTerminal.terminalId == message.terminal_id) {
 				if (message.type == "terminal_data_read") {
 					mbTerminal.write(message.data);
@@ -951,7 +1003,7 @@ function messagebusConnect() {
 				}
 			}
 		}
-		if (message.type == "file_upload_result") {
+		else if (message.type == "file_upload_result") {
 			document.querySelector('#messagebus-terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 			let utf8Encode = new TextEncoder();
 			let dataMessage = {
@@ -966,6 +1018,7 @@ function messagebusConnect() {
 			}
 			messagebusSend(dataMessage);
 		}
+
 		if (
 			(!message.type.startsWith("terminal_data") || document.getElementById('messagebus-message-show-terminal-data-messages').checked) &&
 			(!message.type.startsWith("file_chunk") || document.getElementById('messagebus-message-show-file-chunk-messages').checked)
@@ -980,6 +1033,7 @@ function messagebusConnect() {
 }
 
 function messagebusDisconnect() {
+	messagebusAutoReconnect = false;
 	if (!messagebusWS) {
 		return;
 	}
@@ -1034,7 +1088,7 @@ function messagebusInsertMessageTemplate() {
 function messagebusSend(message) {
 	console.debug(message);
 	if (!messagebusWS) {
-		alert("Messagebus not connected");
+		showNotifcation("Messagebus not connected.", "messagebus", "error", 3);
 		return;
 	}
 	if (
@@ -1053,7 +1107,7 @@ function messagebusSend(message) {
 	}
 	catch (error) {
 		console.error(error);
-		alert(error);
+		showNotifcation(error, "messagebus", "error", 10);
 	}
 }
 
@@ -1074,12 +1128,12 @@ function messagebusToggleAutoScroll() {
 
 function messagebusConnectTerminal() {
 	if (!messagebusWS) {
-		alert("Messagebus not connected");
+		showNotifcation("Messagebus not connected.", "messagebus", "error", 3);
 		return;
 	}
 	let terminalChannel = document.getElementById("messagebus-terminal-channel").value;
 	if (!terminalChannel) {
-		alert("Invalid channel");
+		showNotifcation("Invalid channel.", "messagebus", "error", 3);
 		return;
 	}
 
@@ -1088,7 +1142,7 @@ function messagebusConnectTerminal() {
 		terminalId = createUUID();
 		document.getElementById("messagebus-terminal-id").value = terminalId;
 	}
-	let terminalSessionChannel = `session:${terminalId} `;
+	let terminalSessionChannel = `session:${terminalId}`;
 
 	if (mbTerminal) {
 		mbTerminal.dispose();
@@ -1303,7 +1357,7 @@ function startTerminal() {
 
 		console.log(`size: ${terminal.cols} cols, ${terminal.rows} rows`);
 
-		let params = ["set_cookie_interval=30", `rows = ${terminal.rows} `, `cols = ${terminal.cols} `]
+		let params = ["set_cookie_interval=30", `rows=${terminal.rows}`, `cols=${terminal.cols}`]
 		let loc = window.location;
 		let ws_uri;
 		if (loc.protocol == "https:") {
@@ -1320,7 +1374,9 @@ function startTerminal() {
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
 		terminal.websocket.onerror = function (error) {
-			console.error(`Terminal ws connection error: ${JSON.stringify(error)} `);
+			const err = `Terminal ws connection error: ${JSON.stringify(error)}`;
+			console.error(err);
+			showNotifcation(err, "terminal", "error", 5);
 			terminal.writeln("\r\n\033[1;31m> Connection error: " + JSON.stringify(error) + " <\033[0m");
 			terminal.write("\033[?25l"); // Make cursor invisible
 		};
@@ -1337,11 +1393,12 @@ function startTerminal() {
 			else if (message.type == "file-transfer-result") {
 				document.querySelector('#terminal-xterm .xterm-cursor-layer').classList.remove("upload-active");
 				if (message.payload.error) {
-					const error = `File upload failed: ${JSON.stringify(message.payload)} `;
+					const error = `File upload failed: ${JSON.stringify(message.payload)}.`;
+					showNotifcation(error, "terminal", "error", 10);
 					console.error(error);
 				}
 				else {
-					console.log(`File upload successful: ${JSON.stringify(message.payload)} `)
+					console.log(`File upload successful: ${JSON.stringify(message.payload)}.`)
 					const path = message.payload.result.path;
 					terminal.websocket.send(msgpack.serialize({ "type": "terminal-write", "payload": path + "\033[D".repeat(path.length) }));
 				}
@@ -1397,10 +1454,10 @@ function stopTerminal() {
 
 function changeTerminalFontSize(val) {
 	if (!terminal) return;
-	let size = terminal.getOption("fontSize");
+	let size = terminal.options.fontSize;
 	size += val;
 	if (size < 1) { size = 1; }
-	terminal.setOption("fontSize", size);
+	terminal.options.fontSize = size;
 	terminal.fitAddon.fit();
 }
 
@@ -1409,7 +1466,8 @@ function terminalFileUpload(file) {
 	console.log("terminalFileUpload:")
 	console.log(file);
 	if (!terminal || !terminal.websocket) {
-		console.error("No terminal connected")
+		console.error("No terminal connected");
+		showNotifcation("No terminal connected", "terminal", "error", 5);
 		return;
 	}
 
@@ -1467,7 +1525,7 @@ function terminalFileUpload(file) {
 function generateLiceningInfoTable(info, htmlId) {
 	htmlStr = "<table id=\"licensing-info-table\">";
 	for (const [key, val] of Object.entries(info)) {
-		htmlStr += `< tr ><td class="licensing-info-key">${key}</td><td>${val}</td></tr > `;
+		htmlStr += `<tr><td class="licensing-info-key">${key}</td><td>${val}</td></tr>`;
 	}
 	htmlStr += "</table>";
 	div = document.getElementById(htmlId).innerHTML = htmlStr;
@@ -1477,11 +1535,11 @@ function generateLiceningInfoTable(info, htmlId) {
 function generateLiceningDatesTable(dates, activeDate, htmlId) {
 	htmlStr = "<table id=\"licensing-dates-table\"><tr><th>Module</th>";
 	for (const date of Object.keys(Object.values(dates)[0])) {
-		htmlStr += `< th > ${date}</th > `;
+		htmlStr += `<th>${date}</th>`;
 	}
 	htmlStr += "</tr>";
 	for (const [moduleId, dateData] of Object.entries(dates)) {
-		htmlStr += `< tr > <td>${moduleId}</td>`;
+		htmlStr += `<tr><td>${moduleId}</td>`;
 		for (const [date, moduleData] of Object.entries(dateData)) {
 			let title = "";
 			for (const [k, v] of Object.entries(moduleData)) {
@@ -1490,7 +1548,7 @@ function generateLiceningDatesTable(dates, activeDate, htmlId) {
 			const changed = moduleData['changed'] ? 'changed' : '';
 			const active = date == activeDate ? 'active' : 'inactive';
 			const text = moduleData['client_number'] == 999999999 ? 'unlimited' : moduleData['client_number'];
-			htmlStr += `< td title = "${title}" class="${changed} ${moduleData['state']} ${active}" > ${text}</td > `;
+			htmlStr += `<td title="${title}" class="${changed} ${moduleData['state']} ${active}">${text}</td>`;
 		}
 		htmlStr += "</tr>";
 	}

@@ -15,7 +15,7 @@ from functools import lru_cache
 from importlib._bootstrap import BuiltinImporter, ModuleSpec  # type: ignore[import]
 from os import listdir
 from os.path import abspath, exists, isdir, join
-from typing import Dict, List, Optional
+from typing import Optional
 from urllib.parse import quote, unquote
 
 from opsiconfd.addon.addon import Addon
@@ -47,14 +47,14 @@ class AddonManager(metaclass=Singleton):
 		if self._initialized:
 			return
 		self._initialized = True
-		self._addons: Dict[str, Addon] = {}
+		self._addons: dict[str, Addon] = {}
 
 	@classmethod
 	def module_name(cls, addon_path: str) -> str:
 		return f"opsiconfd.addon_{quote(addon_path)}"
 
 	@property
-	def addons(self) -> List[Addon]:
+	def addons(self) -> list[Addon]:
 		return list(self._addons.values())
 
 	def load_addon(self, addon_path: str) -> None:

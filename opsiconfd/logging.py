@@ -158,15 +158,20 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 					continue
 				dst_file_path = f"{self.absolute_file_path}.{num}"
 				await loop.run_in_executor(None, os.rename, src_file_path, dst_file_path)  # pylint: disable=dotted-import-in-loop
-				await loop.run_in_executor(
-					None,
-					shutil.chown,  # pylint: disable=dotted-import-in-loop
-					dst_file_path,
-					config.run_as_user,
-					opsi_config.get("groups", "admingroup"),
-				)
-				await loop.run_in_executor(None, os.chmod, dst_file_path, 0o644)  # pylint: disable=dotted-import-in-loop
-
+				try:  # pylint: disable=loop-try-except-usage
+					await loop.run_in_executor(
+						None,
+						shutil.chown,  # pylint: disable=dotted-import-in-loop
+						dst_file_path,
+						config.run_as_user,
+						opsi_config.get("groups", "admingroup"),
+					)
+				except Exception:  # pylint: disable=broad-except
+					pass
+				try:  # pylint: disable=loop-try-except-usage
+					await loop.run_in_executor(None, os.chmod, dst_file_path, 0o644)  # pylint: disable=dotted-import-in-loop
+				except Exception:  # pylint: disable=broad-except
+					pass
 		for filename in await loop.run_in_executor(
 			None, glob.glob, f"{self.absolute_file_path}.*"  # pylint: disable=dotted-import-in-loop, loop-invariant-statement
 		):
@@ -179,8 +184,13 @@ class AsyncRotatingFileHandler(AsyncFileHandler):  # pylint: disable=too-many-in
 
 		self.stream = None
 		await self._init_writer()
-		await loop.run_in_executor(None, shutil.chown, self.absolute_file_path, config.run_as_user, opsi_config.get("groups", "admingroup"))
-		await loop.run_in_executor(None, os.chmod, self.absolute_file_path, 0o644)
+		try:
+			await loop.run_in_executor(None, os.chmod, self.absolute_file_path, 0o644)
+			await loop.run_in_executor(
+				None, shutil.chown, self.absolute_file_path, config.run_as_user, opsi_config.get("groups", "admingroup")
+			)
+		except Exception as err:  # pylint: disable=broad-except
+			logger.warning(err)
 
 	async def emit(self, record: LogRecord) -> None:
 		async with self._rollover_lock:

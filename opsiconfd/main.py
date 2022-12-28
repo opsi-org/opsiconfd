@@ -30,7 +30,6 @@ from rich.progress import Progress
 from opsiconfd import __version__
 from opsiconfd.application import MaintenanceState, NormalState, app
 from opsiconfd.backup import create_backup, restore_backup
-from opsiconfd.check import health_check
 from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings, opsi_config
 from opsiconfd.logging import (
 	AsyncRedisLogAdapter,
@@ -43,6 +42,8 @@ from opsiconfd.patch import apply_patches
 from opsiconfd.redis import redis_client
 from opsiconfd.setup import setup
 from opsiconfd.utils import get_manager_pid, log_config
+
+from .check import console_health_check
 
 REDIS_CONECTION_TIMEOUT = 30
 
@@ -69,12 +70,7 @@ def log_viewer_main() -> None:
 
 def health_check_main() -> None:
 	init_logging(log_mode="local")
-	result = health_check(print_messages=True)
-	if result.get("status") == "ok":
-		sys.exit(0)
-	if result.get("status") == "warn":
-		sys.exit(2)
-	sys.exit(1)
+	sys.exit(console_health_check())
 
 
 def backup_main() -> None:
@@ -100,6 +96,7 @@ def backup_main() -> None:
 					raise ValueError(f"Invalid compression {compression!r}, valid compressions are 'lz4' and 'gz'")
 
 			progress.console.print(f"Creating backup [bold]{backup_file.name}[/bold]")
+			progress.console.print(f"Using arguments: config_files={not config.no_config_files} maintenance={not config.no_maintenance}")
 
 			if not config.no_maintenance:
 				threading.Thread(
@@ -107,7 +104,7 @@ def backup_main() -> None:
 					args=[app.app_state_manager_task(manager_mode=True, init_app_state=(MaintenanceState(), NormalState()))],
 					daemon=True,
 				).start()
-				app.app_state_initialized.wait(5)
+				app.app_state_updated.wait(5)
 
 			create_backup(config_files=not config.no_config_files, backup_file=backup_file, progress=progress)
 
@@ -139,13 +136,14 @@ def restore_main() -> None:
 				server_id = forceHostId(server_id)
 
 			progress.console.print(f"Restoring from [bold]{backup_file.name}[/bold]")
+			progress.console.print(f"Using arguments: config_files={config.config_files}, server_id={server_id}")
 
 			threading.Thread(
 				target=asyncio.run,
 				args=[app.app_state_manager_task(manager_mode=True, init_app_state=(MaintenanceState(), NormalState()))],
 				daemon=True,
 			).start()
-			app.app_state_initialized.wait(5)
+			app.app_state_updated.wait(5)
 
 			restore_backup(backup_file, config_files=config.config_files, server_id=server_id, progress=progress)
 

@@ -28,7 +28,7 @@ def test_create_backup(
 	thread = Thread(target=asyncio.run, args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState())], daemon=True)
 	thread.start()
 	try:
-		app.app_state_initialized.wait(5)
+		app.app_state_updated.wait(5)
 
 		backup = create_backup()
 		assert backup["meta"]["version"] == "1"
@@ -49,7 +49,7 @@ def test_restore_backup(app_state_reader: AppStateReaderThread) -> None:  # pyli
 	)
 	thread.start()
 	try:
-		app.app_state_initialized.wait(5)
+		app.app_state_updated.wait(5)
 
 		backup = create_backup(config_files=False)
 

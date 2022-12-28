@@ -9,7 +9,7 @@ opsiconfd.backend.rpc.config_state
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.objects import ConfigState, ProductOnDepot  # type: ignore[import]
 from opsicommon.types import (  # type: ignore[import]
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 class RPCConfigStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def configState_getValues(  # pylint: disable=invalid-name
-		self: BackendProtocol, config_ids: List[str] | str | None = None, object_ids: List[str] | str | None = None, with_defaults: bool = True
+		self: BackendProtocol, config_ids: list[str] | str | None = None, object_ids: list[str] | str | None = None, with_defaults: bool = True
 	) -> dict[str, dict[str, list[Any]]]:
 		config_ids = forceUnicodeList(config_ids or [])
 		object_ids = forceObjectIdList(object_ids or [])
@@ -60,7 +60,7 @@ class RPCConfigStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def configState_createObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, configStates: List[dict] | List[ConfigState] | dict | ConfigState
+		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
 		ace = self._get_ace("configState_createObjects")
 		with self._mysql.session() as session:
@@ -70,7 +70,7 @@ class RPCConfigStateMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def configState_updateObjects(  # pylint: disable=invalid-name
-		self: BackendProtocol, configStates: List[dict] | List[ConfigState] | dict | ConfigState
+		self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState
 	) -> None:
 		ace = self._get_ace("configState_updateObjects")
 		with self._mysql.session() as session:
@@ -79,14 +79,14 @@ class RPCConfigStateMixin(Protocol):
 		self.dhcpd_control_config_states_updated(configStates)
 
 	@rpc_method(check_acl=False)
-	def configState_getObjects(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[ConfigState]:  # pylint: disable=redefined-builtin,invalid-name
+	def configState_getObjects(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[ConfigState]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_objects(
 			table="CONFIG_STATE", ace=ace, object_type=ConfigState, attributes=attributes, filter=filter
 		)
 
 	@rpc_method(check_acl=False)
-	def configState_getHashes(self: BackendProtocol, attributes: List[str] | None = None, **filter: Any) -> List[dict]:  # pylint: disable=redefined-builtin,invalid-name
+	def configState_getHashes(self: BackendProtocol, attributes: list[str] | None = None, **filter: Any) -> list[dict]:  # pylint: disable=redefined-builtin,invalid-name
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_objects(
 			table="CONFIG_STATE", object_type=ConfigState, ace=ace, return_type="dict", attributes=attributes, filter=filter
@@ -95,17 +95,17 @@ class RPCConfigStateMixin(Protocol):
 	@rpc_method(check_acl=False)
 	def configState_getIdents(  # pylint: disable=invalid-name
 		self: BackendProtocol, returnType: IdentType = "str", **filter: Any  # pylint: disable=redefined-builtin
-	) -> List[str] | List[dict] | List[list] | List[tuple]:
+	) -> list[str] | list[dict] | list[list] | list[tuple]:
 		ace = self._get_ace("configState_getObjects")
 		return self._mysql.get_idents(table="CONFIG_STATE", object_type=ConfigState, ace=ace, ident_type=returnType, filter=filter)
 
 	@rpc_method(check_acl=False)
-	def configState_deleteObjects(self: BackendProtocol, configStates: List[dict] | List[ConfigState] | dict | ConfigState) -> None:  # pylint: disable=invalid-name
+	def configState_deleteObjects(self: BackendProtocol, configStates: list[dict] | list[ConfigState] | dict | ConfigState) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("configState_deleteObjects")
 		self._mysql.delete_objects(table="CONFIG_STATE", object_type=ConfigState, obj=configStates, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def configState_create(self: BackendProtocol, configId: str, objectId: str, values: List[Any] | None = None) -> None:  # pylint: disable=invalid-name,unused-argument
+	def configState_create(self: BackendProtocol, configId: str, objectId: str, values: list[Any] | None = None) -> None:  # pylint: disable=invalid-name,unused-argument
 		_hash = locals()
 		del _hash["self"]
 		self.configState_createObjects(ConfigState.fromHash(_hash))

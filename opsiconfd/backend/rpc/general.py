@@ -22,7 +22,7 @@ from datetime import datetime
 from functools import lru_cache
 from hashlib import md5
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Protocol
+from typing import TYPE_CHECKING, Any, Generator, Protocol
 from uuid import UUID
 
 from Crypto.Hash import MD5
@@ -63,8 +63,8 @@ from opsiconfd.config import (
 	FQDN,
 	LOG_DIR,
 	LOG_SIZE_HARD_LIMIT,
-	OPSI_LICENSE_PATH,
-	OPSI_MODULES_PATH,
+	OPSI_LICENSE_DIR,
+	OPSI_MODULES_FILE,
 	OPSI_PASSWD_FILE,
 	config,
 	opsi_config,
@@ -89,15 +89,19 @@ PASSWD_LINE_REGEX = re.compile(r"^\s*([^:]+)\s*:\s*(\S+)\s*$")
 
 
 class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
-	opsi_modules_file: str = OPSI_MODULES_PATH
-	opsi_license_path: str = OPSI_LICENSE_PATH
+	opsi_modules_file: str = OPSI_MODULES_FILE
+	opsi_license_path: str = OPSI_LICENSE_DIR
 
 	@rpc_method
 	def backend_createBase(self) -> None:  # pylint: disable=invalid-name
 		return None
 
 	@rpc_method
-	def backend_getInterface(self: BackendProtocol) -> List[Dict[str, Any]]:  # pylint: disable=invalid-name
+	def backend_deleteBase(self) -> None:  # pylint: disable=invalid-name
+		return None
+
+	@rpc_method
+	def backend_getInterface(self: BackendProtocol) -> list[dict[str, Any]]:  # pylint: disable=invalid-name
 		return self.get_interface()
 
 	@rpc_method
@@ -113,6 +117,21 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method(deprecated=True)
 	def backend_getOptions(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
 		return {}
+
+	@rpc_method(check_acl=False)
+	def backend_getSystemConfiguration(self: BackendProtocol) -> dict:  # pylint: disable=invalid-name
+		"""
+		Returns current system configuration.
+
+		This holds information about server-side settings that may be relevant for clients.
+
+		Under the key `log` information about log settings will be returned in form of a dict.
+		In it under `size_limit` you will find the amount of bytes currently allowed as maximum log size.
+		Under `types` you will find a list with currently supported log types.
+
+		:rtype: dict
+		"""
+		return {"log": {"size_limit": config.max_log_size, "keep_rotated": config.keep_rotated_logs, "types": list(LOG_TYPES)}}
 
 	@rpc_method(check_acl=False)
 	def accessControl_authenticated(self: BackendProtocol) -> bool:  # pylint: disable=invalid-name
@@ -136,7 +155,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 		return session.is_read_only
 
 	@rpc_method(check_acl=False)
-	def accessControl_getUserGroups(self: BackendProtocol) -> List[str]:  # pylint: disable=invalid-name
+	def accessControl_getUserGroups(self: BackendProtocol) -> list[str]:  # pylint: disable=invalid-name
 		session = contextvar_client_session.get()
 		if not session:
 			raise BackendPermissionDeniedError("Access denied")
@@ -256,7 +275,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			for row in session.execute(query).fetchall():
 				yield {v.strftime("%Y-%m-%d %H:%M:%S") if isinstance(v, datetime) else v for v in list(row)}
 
-	def _get_client_info(self: BackendProtocol) -> Dict[str, int]:
+	def _get_client_info(self: BackendProtocol) -> dict[str, int]:
 		logger.info("%s fetching client info", self)
 		_all = len(self.host_getObjects(attributes=["id"], type="OpsiClient"))
 		macos = len(
@@ -270,7 +289,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@lru_cache(maxsize=10)
 	def _get_licensing_info(
 		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, ttl_hash: int = 0
-	) -> Dict[str, Any]:
+	) -> dict[str, Any]:
 		"""
 		Returns opsi licensing information.
 		"""
@@ -300,7 +319,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 			client_limit_warning_days = 30
 
 		modules = pool.get_modules()
-		info = {
+		info: dict[str, Any] = {
 			"client_numbers": pool.client_numbers,
 			"known_modules": OPSI_MODULE_IDS,
 			"obsolete_modules": OPSI_OBSOLETE_MODULE_IDS,
@@ -326,7 +345,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 
 	def get_licensing_info(  # pylint: disable=invalid-name
 		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, allow_cache: bool = True
-	) -> Dict[str, Any]:
+	) -> dict[str, Any]:
 		pool = get_default_opsi_license_pool(
 			license_file_path=self.opsi_license_path, modules_file_path=self.opsi_modules_file, client_info=self._get_client_info
 		)
@@ -344,17 +363,17 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def backend_getLicensingInfo(  # pylint: disable=invalid-name
 		self: BackendProtocol, licenses: bool = False, legacy_modules: bool = False, dates: bool = False, allow_cache: bool = True
-	) -> Dict[str, Any]:
+	) -> dict[str, Any]:
 		return self.get_licensing_info(licenses=licenses, legacy_modules=legacy_modules, dates=dates, allow_cache=allow_cache)
 
 	@rpc_method
-	def backend_info(self: BackendProtocol) -> Dict[str, Any]:  # pylint: disable=too-many-branches,too-many-statements
+	def backend_info(self: BackendProtocol) -> dict[str, Any]:  # pylint: disable=too-many-branches,too-many-statements
 		"""
 		Get info about the used opsi version and the licensed modules.
 
 		:rtype: dict
 		"""
-		modules: Dict[str, str | bool] = {"valid": False}
+		modules: dict[str, str | bool] = {"valid": False}
 		helpermodules = {}
 
 		if os.path.exists(self.opsi_modules_file):
@@ -553,7 +572,7 @@ class RPCGeneralMixin(Protocol):  # pylint: disable=too-many-public-methods
 	@rpc_method
 	def user_getCredentials(  # pylint: disable=invalid-name
 		self: BackendProtocol, username: str = "pcpatch", hostId: str | None = None
-	) -> Dict[str, str]:
+	) -> dict[str, str]:
 		"""
 		Get the credentials of an opsi user.
 		The information is stored in ``/etc/opsi/passwd``.

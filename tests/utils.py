@@ -17,7 +17,7 @@ import types
 from contextlib import asynccontextmanager, contextmanager
 from queue import Empty, Queue
 from threading import Thread
-from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple, Type, Union
+from typing import Any, AsyncGenerator, Generator, Type, Union
 from unittest.mock import patch
 
 import msgpack  # type: ignore[import]
@@ -37,7 +37,7 @@ from starlette.types import Receive, Scope, Send
 from opsiconfd.application import app
 from opsiconfd.application.main import BaseMiddleware
 from opsiconfd.backend import get_mysql, get_unprotected_backend
-from opsiconfd.backend.rpc.opsiconfd import UnprotectedBackend
+from opsiconfd.backend.rpc.main import UnprotectedBackend
 from opsiconfd.config import Config
 from opsiconfd.config import config as _config
 from opsiconfd.utils import Singleton
@@ -82,7 +82,7 @@ class OpsiconfdTestClient(TestClient):
 	def set_client_address(self, host: str, port: int) -> None:
 		self._address = (host, port)
 
-	def get_client_address(self) -> Tuple[str, int]:
+	def get_client_address(self) -> tuple[str, int]:
 		return self._address
 
 
@@ -94,7 +94,7 @@ def test_client() -> Generator[OpsiconfdTestClient, None, None]:
 		# Get the context out for later use
 		client.context = contextvars.copy_context()
 
-	def get_client_address(asgi_adapter: Any, scope: Scope) -> Tuple[str, int]:  # pylint: disable=unused-argument
+	def get_client_address(asgi_adapter: Any, scope: Scope) -> tuple[str, int]:  # pylint: disable=unused-argument
 		return client.get_client_address()
 
 	with (
@@ -110,7 +110,7 @@ def config() -> Config:
 
 
 @contextmanager
-def get_config(values: Union[Dict[str, Any], List[str]]) -> Generator[Config, None, None]:
+def get_config(values: Union[dict[str, Any], list[str]]) -> Generator[Config, None, None]:
 	conf = _config._config.__dict__.copy()  # pylint: disable=protected-access
 	args = _config._args.copy()  # pylint: disable=protected-access
 	try:
@@ -184,7 +184,7 @@ def clean_mysql() -> None:  # pylint: disable=redefined-outer-name
 		session.execute("DELETE FROM HOST WHERE type='OpsiClient'")
 
 
-def create_depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str | None = None) -> Dict[str, Any]:
+def create_depot_jsonrpc(client: OpsiconfdTestClient, base_url: str, host_id: str, host_key: str | None = None) -> dict[str, Any]:
 	rpc = {
 		"id": 1,
 		"method": "host_createOpsiDepotserver",
@@ -223,7 +223,7 @@ def client_jsonrpc(  # pylint: disable=too-many-arguments
 	host_key: str | None = None,
 	hardware_address: str | None = None,
 	ip_address: str | None = None
-) -> Generator[Dict[str, Any], None, None]:
+) -> Generator[dict[str, Any], None, None]:
 	rpc = {"id": 1, "method": "host_createOpsiClient", "params": [host_id, host_key, "", "", hardware_address, ip_address]}
 	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
@@ -234,14 +234,14 @@ def client_jsonrpc(  # pylint: disable=too-many-arguments
 		client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 
 
-def create_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products: List[Dict[str, Any]]) -> None:
+def create_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products: list[dict[str, Any]]) -> None:
 	products = [LocalbootProduct(**product).to_hash() for product in products]
 	rpc = {"id": 1, "method": "product_createObjects", "params": [products]}
 	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 
 
-def delete_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products: List[Dict[str, Any]]) -> None:
+def delete_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products: list[dict[str, Any]]) -> None:
 	products = [LocalbootProduct(**product).to_hash() for product in products]
 	rpc = {"id": 1, "method": "product_deleteObjects", "params": [products]}
 	res = client.post(f"{base_url}/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
@@ -252,8 +252,8 @@ def delete_products_jsonrpc(client: OpsiconfdTestClient, base_url: str, products
 def products_jsonrpc(
 	client: OpsiconfdTestClient,
 	base_url: str,
-	products: List[Dict[str, Any]],
-	depots: List[str] | None = None
+	products: list[dict[str, Any]],
+	depots: list[str] | None = None
 ) -> Generator[None, None, None]:
 	create_products_jsonrpc(client, base_url, products)
 	if depots:
@@ -331,14 +331,14 @@ def get_one_depot_id_jsonrpc(client: OpsiconfdTestClient) -> str:
 	return res.json()["result"][0]
 
 
-def get_product_ordering_jsonrpc(client: OpsiconfdTestClient, depot_id: str) -> Dict[str, List[str]]:
+def get_product_ordering_jsonrpc(client: OpsiconfdTestClient, depot_id: str) -> dict[str, list[str]]:
 	rpc = {"id": 1, "method": "getProductOrdering", "params": [depot_id]}
 	res = client.post("/rpc", auth=(ADMIN_USER, ADMIN_PASS), json=rpc)
 	res.raise_for_status()
 	return res.json()["result"]
 
 
-def get_dummy_products(count: int) -> List[Dict[str, Any]]:
+def get_dummy_products(count: int) -> list[dict[str, Any]]:
 	return [
 		{"id": f"dummy-prod-{num}", "productVersion": "1.0", "packageVersion": "1", "name": "Dummy PRODUCT {num}", "priority": num % 8}
 		for num in range(count)
@@ -348,7 +348,7 @@ def get_dummy_products(count: int) -> List[Dict[str, Any]]:
 @pytest.fixture
 def database_connection() -> Generator[Connection, None, None]:
 	with open("tests/data/opsi-config/backends/mysql.conf", mode="r", encoding="utf-8") as conf:
-		_globals: Dict[str, Any] = {}
+		_globals: dict[str, Any] = {}
 		exec(conf.read(), _globals)  # pylint: disable=exec-used
 		mysql_config = _globals["config"]
 
@@ -374,7 +374,7 @@ class WebSocketMessageReader(Thread):
 		self.decode = decode
 		self.daemon = True
 		self.websocket = websocket
-		self.messages: Queue[Dict[str, Any]] = Queue()
+		self.messages: Queue[dict[str, Any] | bytes] = Queue()
 		self.should_stop = False
 
 	def __enter__(self) -> WebSocketMessageReader:
@@ -428,9 +428,20 @@ class WebSocketMessageReader(Thread):
 				raise RuntimeError("timed out")  # pylint: disable=loop-invariant-statement
 			await asyncio.sleep(0.1)  # pylint: disable=dotted-import-in-loop
 
-	def get_messages(self) -> Generator[Union[Dict[str, Any], bytes], None, None]:
+	def get_messages(self) -> Generator[dict[str, Any], None, None]:
 		try:
 			while True:
-				yield self.messages.get_nowait()
+				msg = self.messages.get_nowait()
+				assert isinstance(msg, dict)
+				yield msg
+		except Empty:
+			pass
+
+	def get_raw_messages(self) -> Generator[bytes, None, None]:
+		try:
+			while True:
+				msg = self.messages.get_nowait()
+				assert isinstance(msg, bytes)
+				yield msg
 		except Empty:
 			pass

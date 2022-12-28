@@ -12,7 +12,7 @@ import asyncio
 import os
 import warnings
 from ctypes import c_long
-from typing import Any, AsyncGenerator, List, Tuple
+from typing import Any, AsyncGenerator
 from urllib.parse import urlparse
 
 import msgspec
@@ -131,7 +131,7 @@ class LoggerWebsocket(OpsiconfdWebSocketEndpoint):
 		self._client: str | None = None
 		self._max_message_size = 1_000_000
 
-	async def read_data(self, data: List[List[Any]]) -> AsyncGenerator[bytes, None]:
+	async def read_data(self, data: list[list[Any]]) -> AsyncGenerator[bytes, None]:
 		for stream in data:
 			for dat in stream[1]:
 				self._last_id = dat[0]
@@ -192,7 +192,7 @@ class BaseMiddleware:  # pylint: disable=too-few-public-methods
 		self.app = app
 
 	@staticmethod
-	def get_client_address(scope: Scope) -> Tuple[str | None, int]:
+	def get_client_address(scope: Scope) -> tuple[str | None, int]:
 		"""Get sanitized client address"""
 		host, port = scope.get("client", (None, 0))
 		if host:

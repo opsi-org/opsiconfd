@@ -11,7 +11,7 @@ check depot sync status
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
 from opsicommon.objects import ProductOnDepot  # type: ignore[import]
@@ -19,14 +19,14 @@ from opsicommon.objects import ProductOnDepot  # type: ignore[import]
 from .utils import State, generate_response
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.opsiconfd import Backend
+	from opsiconfd.backend.rpc.main import Backend
 
 
 def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-locals, too-many-branches, too-many-statements
 	backend: Backend,
-	depot_ids: List[str],
-	product_ids: List[str] | None,
-	exclude: List[str] | None,
+	depot_ids: list[str],
+	product_ids: list[str] | None,
+	exclude: list[str] | None,
 	strict: bool = False,
 	verbose: bool = False,
 ) -> JSONResponse:
@@ -38,12 +38,12 @@ def check_depot_sync_status(  # pylint: disable=too-many-arguments, too-many-loc
 
 	product_on_depots = backend.productOnDepot_getObjects(depotId=depot_ids, productId=product_ids)
 	product_ids_set = set()
-	product_on_depot_info: Dict[str, Dict[str, ProductOnDepot]] = defaultdict(dict)
+	product_on_depot_info: dict[str, dict[str, ProductOnDepot]] = defaultdict(dict)
 	for pod in product_on_depots:
 		product_ids_set.add(pod.productId)
 		product_on_depot_info[pod.depotId][pod.productId] = pod
 
-	difference_products: Dict[str, Dict[str, str]] = defaultdict(dict)
+	difference_products: dict[str, dict[str, str]] = defaultdict(dict)
 	for product_id in product_ids_set:
 		if product_id in exclude:
 			continue

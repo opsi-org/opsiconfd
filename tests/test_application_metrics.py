@@ -11,7 +11,7 @@ test application.metrics
 import asyncio
 import datetime
 import time
-from typing import Dict, Tuple, Union
+from typing import Union
 
 import pytest
 
@@ -38,9 +38,9 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-async def _register_workers(conf: Config) -> Tuple[Dict[str, Union[str, int]], ...]:
+async def _register_workers(conf: Config) -> tuple[dict[str, Union[str, int]], ...]:
 	node_name = "testnode"
-	workers: Tuple[Dict[str, Union[str, int]], ...] = (
+	workers: tuple[dict[str, Union[str, int]], ...] = (
 		{"node_name": node_name, "pid": 121, "worker_num": 1},
 		{"node_name": node_name, "pid": 122, "worker_num": 2},
 		{"node_name": node_name, "pid": 123, "worker_num": 3},

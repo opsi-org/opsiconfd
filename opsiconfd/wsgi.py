@@ -10,8 +10,8 @@ opsiconfd.wsgi
 
 import asyncio
 import sys
-import typing
 from queue import Queue
+from typing import Any, Callable
 
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
@@ -107,7 +107,7 @@ def build_environ(scope: Scope) -> dict:
 
 
 class WSGIMiddleware:  # pylint: disable=too-few-public-methods
-	def __init__(self, app: typing.Callable) -> None:
+	def __init__(self, app: Callable) -> None:
 		self.app = app
 
 	async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -117,7 +117,7 @@ class WSGIMiddleware:  # pylint: disable=too-few-public-methods
 
 
 class WSGIResponder:  # pylint: disable=too-many-instance-attributes
-	def __init__(self, app: typing.Callable, scope: Scope) -> None:
+	def __init__(self, app: Callable, scope: Scope) -> None:
 		self.app = app
 		self.scope = scope
 		self.status = None
@@ -129,7 +129,7 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 		self.send_queue: Queue = Queue(5)
 		self.loop = asyncio.get_running_loop()
 		self.response_started = False
-		self.exc_info = None  # type: typing.Any
+		self.exc_info = None  # type: Any
 
 	async def __call__(self, receive: Receive, send: Send) -> None:
 		environ = build_environ(self.scope)
@@ -169,8 +169,8 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 	def start_response(
 		self,
 		status: str,
-		response_headers: typing.List[typing.Tuple[str, str]],
-		exc_info: typing.Any = None,
+		response_headers: list[tuple[str, str]],
+		exc_info: Any = None,
 	) -> None:
 		self.exc_info = exc_info
 		if not self.response_started:
@@ -187,7 +187,7 @@ class WSGIResponder:  # pylint: disable=too-many-instance-attributes
 			)
 			self.loop.call_soon_threadsafe(self.send_event.set)
 
-	def wsgi(self, environ: dict, start_response: typing.Callable) -> None:
+	def wsgi(self, environ: dict, start_response: Callable) -> None:
 		for chunk in self.app(environ, start_response):
 			self.send_queue.put({"type": "http.response.body", "body": chunk, "more_body": True})
 			self.loop.call_soon_threadsafe(self.send_event.set)

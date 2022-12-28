@@ -10,7 +10,7 @@ rpc methods wim
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
 
@@ -23,19 +23,19 @@ if TYPE_CHECKING:
 
 
 class RPCExtGroupActionsMixin(Protocol):
-	def _get_clients_on_depot_by_host_group(self: BackendProtocol, host_group_id: str) -> Dict[str, List[str]]:
+	def _get_clients_on_depot_by_host_group(self: BackendProtocol, host_group_id: str) -> dict[str, list[str]]:
 		clients_in_group = self._get_clients_in_host_group(host_group_id)
 		logger.debug("Group %s has the following clients: %s", host_group_id, clients_in_group)
 		depots_with_clients = self._get_clients_on_depots(clients_in_group)
 		logger.debug("The clients are using the following depots: %s", depots_with_clients)
 		return depots_with_clients
 
-	def _get_clients_in_host_group(self: BackendProtocol, host_group_id: str) -> List[str]:
+	def _get_clients_in_host_group(self: BackendProtocol, host_group_id: str) -> list[str]:
 		return [c.objectId for c in self.objectToGroup_getObjects(groupId=host_group_id, groupType="HostGroup")]
 
-	def _get_clients_on_depots(self: BackendProtocol, client_ids: List[str]) -> Dict[str, List[str]]:
+	def _get_clients_on_depots(self: BackendProtocol, client_ids: list[str]) -> dict[str, list[str]]:
 		"""Returns a dict where the depot is the key and the value a list of clients."""
-		clients_on_depot: Dict[str, List[str]] = {}
+		clients_on_depot: dict[str, list[str]] = {}
 
 		for depot_client_hash in self.configState_getClientToDepotserver(clientIds=client_ids):
 			if not depot_client_hash["depotId"] in clients_on_depot:
@@ -48,7 +48,7 @@ class RPCExtGroupActionsMixin(Protocol):
 	def _is_product_on_depot(self: BackendProtocol, product_id: str, depot_id: str) -> bool:
 		return bool(self.productOnDepot_getObjects(productId=product_id, depotId=depot_id))
 
-	def _update_action_request_on_clients(self: BackendProtocol, clients: List[str], product_id: str, action_request: str) -> None:
+	def _update_action_request_on_clients(self: BackendProtocol, clients: list[str], product_id: str, action_request: str) -> None:
 		product_on_clients = self.productOnClient_getObjects(clientId=clients, productId=product_id)
 		not_updated_clients = set(clients)
 
@@ -108,7 +108,7 @@ class RPCExtGroupActionsMixin(Protocol):
 			self.productPropertyState_create(productId, propertyId, client, values=propertyValue)
 
 	@rpc_method
-	def getPossibleImagefileValuesForHostGroup(self: BackendProtocol, groupId: str) -> List[str]:  # pylint: disable=invalid-name
+	def getPossibleImagefileValuesForHostGroup(self: BackendProtocol, groupId: str) -> list[str]:  # pylint: disable=invalid-name
 		def add_client_to_product(client_id: str, product_id: str) -> None:
 			if product_id not in products_with_clients:
 				products_with_clients[product_id] = set()

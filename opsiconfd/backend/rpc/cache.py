@@ -16,7 +16,7 @@ from msgspec.msgpack import decode, encode
 
 from opsiconfd.config import config
 from opsiconfd.logging import logger
-from opsiconfd.redis import redis_client
+from opsiconfd.redis import delete_recursively, redis_client
 
 CACHE_EXPIRATION = 24 * 3600  # In seconds
 
@@ -49,14 +49,7 @@ def rpc_cache_clear(cache_name: str | None = None) -> Any:
 	redis_key = config.redis_key('rpccache')
 	if cache_name:
 		redis_key = f"{redis_key}:{cache_name}"
-	wildcard = f"{redis_key}:*"
-	with redis_client() as redis:
-		with redis.pipeline() as pipeline:
-			for key in redis.scan_iter(wildcard):
-				pipeline.unlink(key.decode())
-			pipeline.unlink(redis_key)
-			logger.debug("RPC cache clear: %s", redis_key)
-			pipeline.execute()
+	delete_recursively(redis_key)
 
 
 def rpc_cache_info() -> dict[str, int]:

@@ -9,7 +9,7 @@ webdav
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Optional
 
 import wsgidav.fs_dav_provider  # type: ignore[import]
 from fastapi import FastAPI
@@ -25,8 +25,15 @@ from wsgidav.fs_dav_provider import FilesystemProvider, FolderResource
 from wsgidav.wsgidav_app import WsgiDAVApp  # type: ignore[import]
 
 from opsiconfd import __version__
-from opsiconfd.backend import get_unprotected_backend
-from opsiconfd.config import FQDN, PUBLIC_FOLDER, config
+from opsiconfd.config import (
+	BOOT_DIR,
+	DEPOT_DIR,
+	PUBLIC_DIR,
+	REPOSITORY_DIR,
+	WORKBENCH_DIR,
+	config,
+	get_depotserver_id,
+)
 from opsiconfd.logging import logger
 from opsiconfd.wsgi import WSGIMiddleware
 
@@ -46,7 +53,7 @@ wsgidav.dc.base_dc.BaseDomainController.is_share_anonymous = is_share_anonymous
 
 
 class IgnoreCaseFilesystemProvider(FilesystemProvider):
-	def _loc_to_file_path(self, path: str, environ: Dict[str, str] | None = None) -> str:
+	def _loc_to_file_path(self, path: str, environ: dict[str, str] | None = None) -> str:
 		"""Convert resource path to a unicode absolute file path.
 		Optional environ argument may be useful e.g. in relation to per-user
 		sub-folder chrooting inside root_folder_path.
@@ -87,11 +94,11 @@ class IgnoreCaseFilesystemProvider(FilesystemProvider):
 
 
 class VirtualRootFilesystemCollection(DAVCollection):
-	def __init__(self, environ: Dict[str, str], provider: DAVProvider) -> None:
+	def __init__(self, environ: dict[str, str], provider: DAVProvider) -> None:
 		DAVCollection.__init__(self, "/", environ)
 		self.provider = provider
 
-	def get_member_names(self) -> List[str]:
+	def get_member_names(self) -> list[str]:
 		return [name.lstrip("/") for name in self.provider.provider_mapping if name != "/"]
 
 	def get_member(self, name: str) -> Optional[FolderResource]:
@@ -103,7 +110,7 @@ class VirtualRootFilesystemCollection(DAVCollection):
 
 
 class VirtualRootFilesystemProvider(DAVProvider):
-	def __init__(self, provider_mapping: Dict[str, FilesystemProvider]) -> None:
+	def __init__(self, provider_mapping: dict[str, FilesystemProvider]) -> None:
 		super().__init__()
 		self.provider_mapping = provider_mapping
 		self.readonly = True
@@ -114,18 +121,18 @@ class VirtualRootFilesystemProvider(DAVProvider):
 
 
 def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, too-many-branches, too-many-locals
-	hosts = get_unprotected_backend().host_getObjects(type="OpsiDepotserver", id=FQDN)  # pylint: disable=no-member
-	if not hosts:
-		logger.warning("Running on host %s which is not a depot server, webdav disabled.", FQDN)
+	try:
+		depot_id = get_depotserver_id()
+	except Exception as err:  # pylint: disable=broad-except
+		logger.warning("%s, WebDAV disabled.", err)
 		return
 
 	app_config_template = {
-		"simple_dc": {"user_mapping": {"*": True}},  # anonymous access
+		"simple_dc": {"user_mapping": {"*": True}},  # Anonymous access
 		"hotfixes": {
 			"re_encode_path_info": False,  # Encoding is done in opsiconfd.wsgi
 		},
 		"http_authenticator": {
-			# None: dc.simple_dc.SimpleDomainController(user_mapping)
 			"domain_controller": None,
 			"accept_basic": False,  # Allow basic authentication, True or False
 			"accept_digest": False,  # Allow digest authentication, True or False
@@ -147,18 +154,11 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		"provider_mapping": {},
 		"mount_path": None,
 	}
-	depot = hosts[0]
-	depot_id = depot.id
 
 	filesystems = {}
 	try:
-		logger.info("Running on depot server %r, exporting repository directory", depot_id)
-		if not depot.repositoryLocalUrl:
-			raise Exception(f"Repository local url for depot '{depot_id}' not found")
-		if not depot.repositoryLocalUrl.startswith("file:///"):
-			raise Exception(f"Invalid repository local url '{depot.repositoryLocalUrl}'")
-		path = depot.repositoryLocalUrl[7:]
-		logger.debug("Repository local path is '%s'", path)
+		path = REPOSITORY_DIR
+		logger.info("Running on depot server %r, exporting repository directory %r", depot_id, path)
 		if not os.path.isdir(path):
 			raise Exception(f"Cannot add webdav content 'repository': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
@@ -169,13 +169,8 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		logger.error(exc, exc_info=True)
 
 	try:
-		logger.info("Running on depot server %r, exporting depot directory", depot_id)
-		if not depot.depotLocalUrl:
-			raise Exception(f"Repository local url for depot '{depot_id}' not found")
-		if not depot.depotLocalUrl.startswith("file:///"):
-			raise Exception(f"Invalid repository local url '{depot.depotLocalUrl}' not allowed")
-		path = depot.depotLocalUrl[7:]
-		logger.debug("Depot local path is '%s'", path)
+		path = DEPOT_DIR
+		logger.info("Running on depot server %r, exporting depot directory %r", depot_id, path)
 		if not os.path.isdir(path):
 			raise Exception(f"Cannot add webdav content 'depot': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
@@ -186,13 +181,8 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		logger.error(exc, exc_info=True)
 
 	try:
-		logger.info("Running on depot server %r, exporting workbench directory", depot_id)
-		if not depot.workbenchLocalUrl:
-			raise Exception(f"Workbench local url for depot '{depot_id}' not found")
-		if not depot.workbenchLocalUrl.startswith("file:///"):
-			raise Exception(f"Invalid workbench local url '{depot.workbenchLocalUrl}' not allowed")
-		path = depot.workbenchLocalUrl[7:]
-		logger.debug("Workbench local path is '%s'", path)
+		path = WORKBENCH_DIR
+		logger.info("Running on depot server %r, exporting workbench directory %r", depot_id, path)
 		if not os.path.isdir(path):
 			raise Exception(f"Cannot add webdav content 'workbench': directory '{path}' does not exist.")
 		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
@@ -203,21 +193,21 @@ def webdav_setup(app: FastAPI) -> None:  # pylint: disable=too-many-statements, 
 		logger.error(exc, exc_info=True)
 
 	try:
-		logger.info("Running on depot server %r, exporting public directory", depot_id)
-		logger.debug("Public path is '%s'", PUBLIC_FOLDER)
-		if not os.path.isdir(PUBLIC_FOLDER):
-			raise Exception(f"Cannot add webdav content 'public': directory '{PUBLIC_FOLDER}' does not exist.")
-		if not os.access(PUBLIC_FOLDER, os.R_OK | os.W_OK | os.X_OK):
-			raise Exception(f"Cannot add webdav content 'public': permissions on directory '{PUBLIC_FOLDER}' not sufficient.")
+		path = PUBLIC_DIR
+		logger.info("Running on depot server %r, exporting public directory %r", depot_id, path)
+		if not os.path.isdir(path):
+			raise Exception(f"Cannot add webdav content 'public': directory '{path}' does not exist.")
+		if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
+			raise Exception(f"Cannot add webdav content 'public': permissions on directory '{path}' not sufficient.")
 
-		filesystems["public"] = {"path": PUBLIC_FOLDER, "ignore_case": False, "read_only": True}
+		filesystems["public"] = {"path": path, "ignore_case": False, "read_only": True}
 	except Exception as exc:  # pylint: disable=broad-except
 		logger.error(exc, exc_info=True)
 
-	if os.path.isdir("/tftpboot"):
+	if os.path.isdir(BOOT_DIR):
 		try:
-			path = "/tftpboot"
-			logger.info("Running on depot server %r, exporting boot directory", depot_id)
+			path = BOOT_DIR
+			logger.info("Running on depot server %r, exporting boot directory %r", depot_id, path)
 			if not os.access(path, os.R_OK | os.X_OK):
 				raise Exception(f"Cannot add webdav content 'boot': permissions on directory '{path}' not sufficient.")
 

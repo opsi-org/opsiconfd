@@ -15,11 +15,12 @@ import time
 from dataclasses import asdict, dataclass, field
 from ipaddress import ip_network
 from threading import Event, Lock
-from typing import Any, Callable, Literal, Type, TypeVar
+from typing import Any, Callable, Type, TypeVar
 
 from fastapi import FastAPI
 from msgspec import msgpack
 from opsicommon import __version__ as python_opsi_common_version  # type: ignore[import]
+from opsicommon.messagebus import EventMessage
 from starlette._utils import is_async_callable
 from starlette.concurrency import run_in_threadpool
 
@@ -91,7 +92,7 @@ class ShutdownState(AppState):
 
 @dataclass(slots=True, kw_only=True)
 class MaintenanceState(AppState):
-	retry_after: int = 500
+	retry_after: int = 600
 	message: str = "Maintenance mode, please try again later"
 	address_exceptions: list[str] = field(default_factory=lambda: ["::1/128", "127.0.0.1/32"])
 
@@ -100,6 +101,7 @@ class MaintenanceState(AppState):
 		return "maintenance"
 
 	def __post_init__(self) -> None:
+		self.retry_after = int(self.retry_after)
 		self.address_exceptions = self.address_exceptions or []
 		for idx, address_exception in enumerate(self.address_exceptions):
 			self.address_exceptions[idx] = ip_network(address_exception).compressed
@@ -117,7 +119,7 @@ class OpsiconfdApp(FastAPI):
 		self._app_state_handler: set[Callable] = set()
 		self._app_state: AppState = StartupState()
 		self._app_state_lock = Lock()
-		self.app_state_initialized = Event()
+		self.app_state_updated = Event()
 		self.application_setup_done = False
 
 	@property
@@ -130,7 +132,7 @@ class OpsiconfdApp(FastAPI):
 	def wait_for_app_state(self, app_state: AppState, timeout: float = 0.0) -> None:
 		start = time.time()
 		while True:
-			if self._app_state.type == app_state.type and self._app_state.accomplished:  # pylint: disable=loop-invariant-statement
+			if self.app_state_updated.is_set() and self._app_state.type == app_state.type and self._app_state.accomplished:  # pylint: disable=loop-invariant-statement
 				return
 			wait_time = time.time() - start  # pylint: disable=dotted-import-in-loop
 			if wait_time >= timeout:
@@ -140,9 +142,8 @@ class OpsiconfdApp(FastAPI):
 			time.sleep(1)  # pylint: disable=dotted-import-in-loop
 
 	def set_app_state(self, app_state: AppState, wait_accomplished: float | None = 30.0) -> None:
-		if app_state.type == self._app_state.type and self._app_state.accomplished:
-			return
 		app_state.accomplished = False
+		self.app_state_updated.clear()
 		with self._app_state_lock:
 			self.store_app_state_in_redis(app_state)
 		if wait_accomplished is not None and wait_accomplished > 0:
@@ -182,6 +183,24 @@ class OpsiconfdApp(FastAPI):
 		with redis_client() as redis:
 			redis.set(f"{config.redis_key('state')}:application:app_state", msgpack.encode(state_dict))
 
+	async def send_app_state_changed_event(self, prev_state: AppState, state: AppState) -> None:
+		from opsiconfd.messagebus import (  # pylint: disable=import-outside-toplevel
+			get_user_id_for_service_node,
+		)
+		from opsiconfd.messagebus.redis import (  # pylint: disable=import-outside-toplevel
+			send_message,
+		)
+		event = EventMessage(
+			sender=get_user_id_for_service_node(config.node_name),
+			channel="event:app_state_changed",
+			event="app_state_changed",
+			data={
+				"prev_state": prev_state.to_dict(),
+				"state": state.to_dict()
+			},
+		)
+		await send_message(event)
+
 	async def app_state_manager_task(self, manager_mode: bool = False, init_app_state: AppState | tuple[AppState, ...] | None = None) -> None:  # pylint: disable=too-many-branches
 		"""
 		init_app_state: If the current app state is not in the list of init app states, the first init app state will be set.
@@ -196,24 +215,27 @@ class OpsiconfdApp(FastAPI):
 			if app_state:
 				self._app_state = app_state
 
-		interval = 2
+		interval = 1
 		while True:
-			if self._app_state.type == "shutdown" and self._app_state.accomplished:
-				self.app_state_initialized.clear()
-				break
 			cur_state = self._app_state
+
 			await run_in_threadpool(self._app_state_lock.acquire)
 			try:
 				app_state = await self.load_app_state_from_redis(update_accomplished=manager_mode)
 				if app_state:
-					self.app_state_initialized.set()
+					self.app_state_updated.set()
 					self._app_state = app_state
 			finally:
 				self._app_state_lock.release()
-			changed = cur_state != self._app_state
-			if changed:
-				cur_state = self._app_state
+
+			if cur_state != self._app_state:
 				logger.info("App state is now: %r", self._app_state)
+
+				if manager_mode:
+					await self.send_app_state_changed_event(prev_state=cur_state, state=self._app_state)
+
+				cur_state = self._app_state
+
 				for handler in self._app_state_handler:
 					logger.debug("Calling app state handler: %s", handler)
 					if is_async_callable(handler):

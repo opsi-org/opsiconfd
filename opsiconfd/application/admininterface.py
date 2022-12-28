@@ -17,7 +17,6 @@ import signal
 import tempfile
 from operator import itemgetter
 from shutil import move, rmtree, unpack_archive
-from typing import Dict, List
 from urllib.parse import urlparse
 
 import msgspec
@@ -134,7 +133,9 @@ async def set_app_state(request: Request) -> RESTResponse:
 		params["address_exceptions"] = params.get("address_exceptions", []) + ["127.0.0.1/32", "::1/128"]
 		if request.client:
 			params["address_exceptions"].append(request.client.host)
-	request.app.app_state = AppState.from_dict(params)
+		if "retry_after" in params:
+			params["retry_after"] = int(params["retry_after"])
+	await run_in_threadpool(request.app.set_app_state, AppState.from_dict(params))
 	return RESTResponse(data=request.app.app_state.to_dict())
 
 
@@ -336,7 +337,7 @@ async def get_session_list() -> RESTResponse:
 	return RESTResponse(session_list)
 
 
-@admin_interface_router.get("/locked-products-list", response_model=List[str])
+@admin_interface_router.get("/locked-products-list", response_model=list[str])
 @rest_api
 async def get_locked_products_list() -> RESTResponse:
 	backend = get_unprotected_backend()
@@ -381,7 +382,7 @@ async def unlock_all_product() -> RESTResponse:
 		return RESTErrorResponse(message="Error while unlocking products", details=err)
 
 
-@admin_interface_router.get("/blocked-clients", response_model=List[str])
+@admin_interface_router.get("/blocked-clients", response_model=list[str])
 @rest_api
 async def get_blocked_clients() -> RESTResponse:
 	redis = await async_redis_client()
@@ -491,8 +492,8 @@ def get_routes(request: Request) -> RESTResponse:  # pylint: disable=redefined-b
 def get_licensing_info() -> RESTResponse:
 	info = get_unprotected_backend().backend_getLicensingInfo(True, False, True, allow_cache=False)  # pylint: disable=no-member
 	active_date = None
-	modules: Dict[str, dict] = {}
-	previous: Dict[str, dict] = {}
+	modules: dict[str, dict] = {}
+	previous: dict[str, dict] = {}
 	for at_date, date_info in info.get("dates", {}).items():
 		at_date = datetime.date.fromisoformat(at_date)  # pylint: disable=dotted-import-in-loop
 		if (at_date <= datetime.date.today()) and (  # pylint: disable=dotted-import-in-loop,loop-invariant-statement
@@ -534,12 +535,13 @@ def get_licensing_info() -> RESTResponse:
 
 @admin_interface_router.post("/license_upload")
 @rest_api
-async def license_upload(files: List[UploadFile]) -> RESTResponse:
+async def license_upload(files: list[UploadFile]) -> RESTResponse:
 	try:
 		for file in files:
 			if not re.match(r"^\w[\w -]*\.opsilic$", file.filename):  # pylint: disable=dotted-import-in-loop
 				raise ValueError(f"Invalid filename {file.filename!r}")
 			olf = OpsiLicenseFile(os.path.join("/etc/opsi/licenses", file.filename))  # pylint: disable=dotted-import-in-loop
+			assert olf.filename
 			olf.read_string((await file.read()).decode("utf-8"))  # type: ignore[union-attr]
 			if not olf.licenses:
 				raise ValueError(f"No license found in {file.filename!r}")

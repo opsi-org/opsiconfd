@@ -11,7 +11,7 @@ rpc methods admin tasks
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Protocol, Set
+from typing import TYPE_CHECKING, Protocol
 
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
 from opsicommon.objects import ProductOnClient  # type: ignore[import]
@@ -29,7 +29,7 @@ class RPCExtAdminTasksMixin(Protocol):
 	@rpc_method
 	def setActionRequestWhereOutdated(  # pylint: disable=invalid-name
 		self: BackendProtocol, actionRequest: str, productId: str  # pylint: disable=invalid-name
-	) -> Set[str]:
+	) -> set[str]:
 		"""
 		Set the specified `actionRequest` at every client that has not the
 		version of the product with the given `productId` installed.
@@ -52,7 +52,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_update
 
 	@rpc_method
-	def getClientsWithOutdatedProduct(self: BackendProtocol, productId: str) -> Set[str]:  # pylint: disable=invalid-name
+	def getClientsWithOutdatedProduct(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
 		"""
 		Get clients where the product with id `productId` is outdated.
 		This does only take clients into account where the 'installationStatus'
@@ -93,7 +93,7 @@ class RPCExtAdminTasksMixin(Protocol):
 	@rpc_method
 	def setActionRequestWhereOutdatedWithDependencies(  # pylint: disable=invalid-name
 		self: BackendProtocol, actionRequest: str, productId: str
-	) -> Set[str]:
+	) -> set[str]:
 		"""
 		Set the specified `actionRequest` for the given `productId` and
 		dependencies at every client that hasn't got the current version
@@ -117,7 +117,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_update
 
 	@rpc_method
-	def setupWhereNotInstalled(self: BackendProtocol, productId: str) -> Set[str]:  # pylint: disable=invalid-name
+	def setupWhereNotInstalled(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
 		"""
 		Sets the action request for the product with `productId` to 'setup'
 		on all clients where the status of the product is not 'installed'.
@@ -172,7 +172,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_setup
 
 	@rpc_method
-	def updateWhereInstalled(self: BackendProtocol, productId: str) -> Set[str]:  # pylint: disable=invalid-name
+	def updateWhereInstalled(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
 		"""
 		Set the product with the id `productId` to 'update' on every client
 		where the installation status is 'installed'.
@@ -220,7 +220,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_update
 
 	@rpc_method
-	def uninstallWhereInstalled(self: BackendProtocol, productId: str) -> Set[str]:  # pylint: disable=invalid-name
+	def uninstallWhereInstalled(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
 		"""
 		Set the product with the id `productId` to 'uninstall' on every client
 		where the installation status is 'installed'.
@@ -267,7 +267,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_uninstall
 
 	@rpc_method
-	def setupWhereInstalled(self: BackendProtocol, productId: str) -> Set[str]:  # pylint: disable=invalid-name
+	def setupWhereInstalled(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
 		"""
 		Set the product with the id `productId` to 'setup' on every client
 		where the installation status is 'installed'.
@@ -309,6 +309,7 @@ class RPCExtAdminTasksMixin(Protocol):
 					for client_id in (c for c in depot_to_clients[depot] if c in clients_with_product_installed):
 						clients_to_setup.add(client_id)
 
+		assert product_type
 		logger.debug("Clients to 'setup': %s", clients_to_setup)
 		for client_id in clients_to_setup:
 			self.productOnClient_updateObjects(
@@ -318,7 +319,7 @@ class RPCExtAdminTasksMixin(Protocol):
 		return clients_to_setup
 
 	@rpc_method
-	def setupWhereFailed(self: BackendProtocol, productId: str) -> Set[str]:  # pylint: disable=invalid-name
+	def setupWhereFailed(self: BackendProtocol, productId: str) -> set[str]:  # pylint: disable=invalid-name
 		"""
 		Set the product with the id `productId` to 'setup' on every client
 		where the action result is 'failed'.
@@ -361,6 +362,7 @@ class RPCExtAdminTasksMixin(Protocol):
 					for client_id in (c for c in depot_to_clients[depot] if c in clients_with_failed_product):
 						clients_to_setup.add(client_id)
 
+		assert product_type
 		logger.debug("Clients to 'setup': %s", clients_to_setup)
 		for client_id in clients_to_setup:
 			self.productOnClient_updateObjects(

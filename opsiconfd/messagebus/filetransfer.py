@@ -15,6 +15,7 @@ from pathlib import Path
 from time import time
 
 from opsicommon.messagebus import (  # type: ignore[import]
+	Error,
 	FileChunkMessage,
 	FileUploadRequestMessage,
 	FileUploadResultMessage,
@@ -46,7 +47,7 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 
 		destination_dir = None
 		if self._file_upload_request.destination_dir:
-			destination_dir = self._file_upload_request.destination_dir
+			destination_dir = Path(self._file_upload_request.destination_dir)
 		elif self._file_upload_request.terminal_id:
 			terminal = terminals.get(self._file_upload_request.terminal_id)
 			if terminal:
@@ -73,22 +74,24 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 	def file_id(self) -> str:
 		return self._file_upload_request.file_id
 
-	@property
-	def back_channel(self) -> str:
-		return self._file_upload_request.back_channel
+	def back_channel(self, message: Message | None = None) -> str:
+		if message and message.back_channel:
+			return message.back_channel
+		return self._file_upload_request.back_channel or self._file_upload_request.sender
 
-	async def _error(self, error: str) -> None:
-		msg = FileUploadResultMessage(
+	async def _error(self, error: str, message: Message | None = None) -> None:
+		upload_result = FileUploadResultMessage(
 			sender=self._sender,
-			channel=self.back_channel,
+			channel=self.back_channel(message),
+			ref_id=message.id if message else None,
 			file_id=self.file_id,
-			error={
-				"code": 0,
-				"message": error,
-				"details": None,
-			},
+			error=Error(
+				code=0,
+				message=error,
+				details=None,
+			),
 		)
-		await send_message(msg)
+		await send_message(upload_result)
 		self._should_stop = True
 
 	async def _manager(self) -> None:
@@ -100,13 +103,13 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 		if self.file_id in file_uploads:
 			del file_uploads[self.file_id]
 
-	async def process_message(self, message: Message) -> None:
+	async def process_message(self, message: FileChunkMessage) -> None:
 		if not isinstance(message, FileChunkMessage):
 			raise ValueError(f"Received invalid message type {message.type}")
 
 		self._last_chunk_time = time()
 		if message.number != self._chunk_number + 1:
-			await self._error(f"Expected chunk number {self._chunk_number + 1}")
+			await self._error(f"Expected chunk number {self._chunk_number + 1}", message)
 			return
 
 		self._chunk_number = message.number
@@ -115,13 +118,14 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 
 		if message.last:
 			logger.debug("Last chunk received")
-			msg = FileUploadResultMessage(
+			upload_result = FileUploadResultMessage(
 				sender=self._sender,
-				channel=self.back_channel,
+				channel=self.back_channel(message),
+				ref_id=message.id,
 				file_id=self.file_id,
 				path=str(self._file_path),
 			)
-			await send_message(msg)
+			await send_message(upload_result)
 			self._should_stop = True
 
 	def _append_to_file(self, data: bytes) -> None:
@@ -129,7 +133,7 @@ class FileUpload:  # pylint: disable=too-many-instance-attributes
 			file.write(data)
 
 
-async def process_message(message: Message) -> None:
+async def process_message(message: FileUploadRequestMessage | FileChunkMessage) -> None:
 	file_upload = file_uploads.get(message.file_id)
 
 	try:
@@ -146,16 +150,17 @@ async def process_message(message: Message) -> None:
 	except Exception as err:  # pylint: disable=broad-except
 		logger.warning(err, exc_info=True)
 
-		msg = FileUploadResultMessage(
+		upload_result = FileUploadResultMessage(
 			sender=get_messagebus_worker_id(),
-			channel=message.back_channel,
+			channel=message.back_channel or message.sender,
+			ref_id=message.id,
 			file_id=message.file_id,
-			error={
-				"code": 0,
-				"message": str(err),
-				"details": None,
-			},
+			error=Error(
+				code=0,
+				message=str(err),
+				details=None,
+			),
 		)
-		await send_message(msg)
+		await send_message(upload_result)
 		if message.file_id in file_uploads:
 			del file_uploads[message.file_id]

@@ -18,6 +18,19 @@ if TYPE_CHECKING:
 	from . import MySQLConnection, Session
 
 
+def remove_orphans_config_state(session: Session) -> None:
+	result = session.execute(
+		"""
+		DELETE s.* FROM CONFIG_STATE AS s
+		LEFT JOIN CONFIG AS c
+		ON s.configId = c.configId
+		WHERE c.configId IS NULL
+		"""
+	)
+	if result.rowcount > 0:
+		logger.notice("Removed %d orphaned entries from CONFIG_STATE", result.rowcount)
+
+
 def remove_orphans_config_value(session: Session) -> None:
 	result = session.execute(
 		"""
@@ -122,10 +135,11 @@ def remove_orphans_license_on_client_to_host(session: Session) -> None:
 def cleanup_database(mysql: MySQLConnection) -> None:
 	with mysql.session() as session:
 		remove_orphans_config_value(session)
+		remove_orphans_config_state(session)
 		remove_orphans_product_property_value(session)
+		remove_orphans_product_property_state(session)
 		remove_orphans_object_to_group_host(session)
 		remove_orphans_object_to_group_product(session)
 		remove_orphans_product_on_client(session)
-		remove_orphans_product_property_state(session)
 		remove_orphans_windows_software_id_to_product(session)
 		remove_orphans_license_on_client_to_host(session)

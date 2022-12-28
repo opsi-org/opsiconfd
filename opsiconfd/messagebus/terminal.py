@@ -20,13 +20,17 @@ from time import time
 from typing import Optional
 
 from opsicommon.messagebus import (  # type: ignore[import]
+	FileChunkMessage,
+	FileUploadRequestMessage,
 	Message,
-	MessageType,
-	TerminalCloseEvent,
-	TerminalDataRead,
-	TerminalOpenEvent,
-	TerminalOpenRequest,
-	TerminalResizeEvent,
+	TerminalCloseEventMessage,
+	TerminalCloseRequestMessage,
+	TerminalDataReadMessage,
+	TerminalDataWriteMessage,
+	TerminalOpenEventMessage,
+	TerminalOpenRequestMessage,
+	TerminalResizeEventMessage,
+	TerminalResizeRequestMessage,
 )
 from pexpect import spawn  # type: ignore[import]
 from pexpect.exceptions import EOF, TIMEOUT  # type: ignore[import]
@@ -73,7 +77,7 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	max_cols = 300
 	idle_timeout = 600
 
-	def __init__(self, terminal_open_request: TerminalOpenRequest, sender: str) -> None:  # pylint: disable=too-many-arguments
+	def __init__(self, terminal_open_request: TerminalOpenRequestMessage, sender: str) -> None:  # pylint: disable=too-many-arguments
 		self._terminal_open_request = terminal_open_request
 		self._sender = sender
 		self._last_usage = time()
@@ -90,9 +94,10 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 	def terminal_id(self) -> str:
 		return self._terminal_open_request.terminal_id
 
-	@property
-	def back_channel(self) -> str:
-		return self._terminal_open_request.back_channel
+	def back_channel(self, message: Message | None = None) -> str:
+		if message and message.back_channel:
+			return message.back_channel
+		return self._terminal_open_request.back_channel or self._terminal_open_request.sender
 
 	def set_size(self, rows: int | None = None, cols: int | None = None, pty_set_size: bool = True) -> None:
 		self.rows = min(max(1, int(rows or self.default_rows)), self.max_rows)
@@ -126,7 +131,9 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 					)
 					logger.trace(data)
 					self._last_usage = time()
-					message = TerminalDataRead(sender=self._sender, channel=self.back_channel, terminal_id=self.terminal_id, data=data)
+					message = TerminalDataReadMessage(
+						sender=self._sender, channel=self.back_channel(), terminal_id=self.terminal_id, data=data
+					)
 					await send_message(message)
 				except TIMEOUT:  # pylint: disable=loop-invariant-statement
 					if time() > self._last_usage + self.idle_timeout:
@@ -139,27 +146,28 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			logger.error(err, exc_info=True)
 			await self.close()
 
-	async def process_message(self, message: Message) -> None:
-		if message.type == MessageType.TERMINAL_DATA_WRITE:
+	async def process_message(self, message: TerminalDataWriteMessage | TerminalResizeRequestMessage | TerminalCloseRequestMessage) -> None:
+		if isinstance(message, TerminalDataWriteMessage):
 			# Do not wait for completion to minimize rtt
 			if not self._closing:
 				self._loop.run_in_executor(None, self._pty.write, message.data)
-		elif message.type == MessageType.TERMINAL_RESIZE_REQUEST:
+		elif isinstance(message, TerminalResizeRequestMessage):
 			self.set_size(message.rows, message.cols)
-			message = TerminalResizeEvent(
+			res_message = TerminalResizeEventMessage(
 				sender=self._sender,
-				channel=self.back_channel,
+				channel=self.back_channel(message),
+				ref_id=message.id,
 				terminal_id=self.terminal_id,
 				rows=self.rows,
 				cols=self.cols,
 			)
-			await send_message(message)
-		elif message.type == MessageType.TERMINAL_CLOSE_REQUEST:
+			await send_message(res_message)
+		elif isinstance(message, TerminalCloseRequestMessage):
 			await self.close()
 		else:
 			logger.warning("Received invalid message type %r", message.type)
 
-	async def close(self) -> None:
+	async def close(self, message: TerminalCloseRequestMessage | None = None) -> None:
 		if self._closing:
 			return
 		logger.info("Close terminal")
@@ -167,8 +175,13 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 		try:
 			if self._pty_reader_task:
 				self._pty_reader_task.cancel()
-			message = TerminalCloseEvent(sender=self._sender, channel=self.back_channel, terminal_id=self.terminal_id)
-			await send_message(message)
+			res_message = TerminalCloseEventMessage(
+				sender=self._sender,
+				channel=self.back_channel(message),
+				ref_id=message.id if message else None,
+				terminal_id=self.terminal_id,
+			)
+			await send_message(res_message)
 			if self._pty:
 				self._pty.close(True)
 			if self.terminal_id in terminals:
@@ -178,23 +191,26 @@ class Terminal:  # pylint: disable=too-many-instance-attributes
 			logger.error(err, exc_info=True)
 
 
-async def _process_message(message: Message) -> None:
+async def _process_message(
+	message: TerminalOpenRequestMessage | TerminalDataWriteMessage | TerminalResizeRequestMessage | TerminalCloseRequestMessage,
+) -> None:
 	terminal = terminals.get(message.terminal_id)
 
 	try:
-		if isinstance(message, TerminalOpenRequest):
+		if isinstance(message, TerminalOpenRequestMessage):
 			if not terminal:
 				terminal = Terminal(terminal_open_request=message, sender=get_messagebus_worker_id())
 				terminals[message.terminal_id] = terminal
-				msg = TerminalOpenEvent(
+				open_event = TerminalOpenEventMessage(
 					sender=get_messagebus_worker_id(),
-					channel=message.back_channel,
+					channel=terminal.back_channel(message),
+					ref_id=message.id,
 					terminal_id=message.terminal_id,
 					back_channel=f"{get_messagebus_worker_id()}:terminal",
 					rows=terminal.rows,
 					cols=terminal.cols,
 				)
-				await send_message(msg)
+				await send_message(open_event)
 			else:
 				# Resize to redraw screen
 				terminal.set_size(terminal.rows - 1, terminal.cols)
@@ -208,8 +224,10 @@ async def _process_message(message: Message) -> None:
 		if terminal:
 			await terminal.close()
 		else:
-			msg = TerminalCloseEvent(sender=get_messagebus_worker_id(), channel=message.back_channel, terminal_id=message.terminal_id)
-			await send_message(msg)
+			close_event = TerminalCloseEventMessage(
+				sender=get_messagebus_worker_id(), channel=message.back_channel or message.sender, terminal_id=message.terminal_id
+			)
+			await send_message(close_event)
 
 
 async def _messagebus_terminal_instance_worker() -> None:
@@ -219,10 +237,14 @@ async def _messagebus_terminal_instance_worker() -> None:
 	terminal_instance_reader = MessageReader(channels={channel: "$"})
 	async for _redis_id, message, _context in terminal_instance_reader.get_messages():
 		try:
-			if message.type.startswith("file_"):
+			if isinstance(message, (FileChunkMessage, FileUploadRequestMessage)):
 				await process_file_message(message)
-			else:
+			elif isinstance(
+				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
+			):
 				await _process_message(message)
+			else:
+				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
@@ -238,7 +260,12 @@ async def _messagebus_terminal_request_worker() -> None:
 	)
 	async for redis_id, message, _context in terminal_request_reader.get_messages():
 		try:
-			await _process_message(message)
+			if isinstance(
+				message, (TerminalDataWriteMessage, TerminalResizeRequestMessage, TerminalOpenRequestMessage, TerminalCloseRequestMessage)
+			):
+				await _process_message(message)
+			else:
+				raise ValueError(f"Received invalid message type {message.type}")
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 		# ACK Message

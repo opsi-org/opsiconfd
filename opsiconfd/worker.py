@@ -31,7 +31,7 @@ from uvicorn.server import Server as UvicornServer  # type: ignore[import]
 from opsiconfd import __version__
 from opsiconfd.addon import AddonManager
 from opsiconfd.application import AppState, MaintenanceState, app
-from opsiconfd.backend import get_protected_backend
+from opsiconfd.backend import get_protected_backend, get_unprotected_backend
 from opsiconfd.config import GC_THRESHOLDS, config, configure_warnings
 from opsiconfd.logging import init_logging, logger, shutdown_logging
 from opsiconfd.metrics.collector import WorkerMetricsCollector
@@ -354,6 +354,7 @@ class Worker(WorkerInfo, UvicornServer):
 		init_logging(log_mode=config.log_mode, is_worker=True)
 		memory_cleanup()
 		get_protected_backend().reload_config()
+		get_unprotected_backend().reload_config()
 		AddonManager().reload_addons()
 
 	async def on_app_state_change(self, app_state: AppState) -> None:

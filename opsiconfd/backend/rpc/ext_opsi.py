@@ -13,7 +13,7 @@ from __future__ import annotations
 import datetime
 import os
 import subprocess
-from typing import TYPE_CHECKING, Dict, List, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import OPSI.SharedAlgorithm  # type: ignore[import]
 from opsicommon.exceptions import BackendMissingDataError  # type: ignore[import]
@@ -121,11 +121,11 @@ class RPCExtOpsiMixin(Protocol):
 	@rpc_method(use_cache="product_ordering")
 	def getProductOrdering(  # pylint: disable=invalid-name,too-many-branches
 		self: BackendProtocol, depotId: str, sortAlgorithm: str | None = None
-	) -> Dict[str, list]:
+	) -> dict[str, list]:
 		if sortAlgorithm and sortAlgorithm != "algorithm1":
 			raise ValueError(f"Invalid sort algorithm {sortAlgorithm!r}")
 
-		products_by_id_and_version: Dict[str, Dict[str, Dict[str, LocalbootProduct]]] = {}
+		products_by_id_and_version: dict[str, dict[str, dict[str, LocalbootProduct]]] = {}
 		for product in self.product_getObjects(type="LocalbootProduct"):
 			if product.id not in products_by_id_and_version:
 				products_by_id_and_version[product.id] = {}
@@ -134,7 +134,7 @@ class RPCExtOpsiMixin(Protocol):
 
 			products_by_id_and_version[product.id][product.productVersion][product.packageVersion] = product
 
-		products_dependencies_by_id_and_version: Dict[str, Dict[str, Dict[str, List[ProductDependency]]]] = {}
+		products_dependencies_by_id_and_version: dict[str, dict[str, dict[str, list[ProductDependency]]]] = {}
 		for prod_dep in self.productDependency_getObjects(productAction="setup"):
 			if prod_dep.productId not in products_dependencies_by_id_and_version:
 				products_dependencies_by_id_and_version[prod_dep.productId] = {}

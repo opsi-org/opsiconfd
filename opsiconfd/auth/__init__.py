@@ -24,19 +24,19 @@ class AuthenticationModule:
 	def authenticate(self, username: str, password: str) -> None:
 		raise BackendAuthenticationError("Not implemented")
 
-	def get_groupnames(self, username: str) -> Set[str]:  # pylint: disable=unused-argument
+	def get_groupnames(self, username: str) -> set[str]:  # pylint: disable=unused-argument
 		return set()
 
 	def get_admin_groupname(self) -> str:
 		return opsi_config.get("groups", "admingroup")
 
-	def get_read_only_groupnames(self) -> Set[str]:
+	def get_read_only_groupnames(self) -> set[str]:
 		return set(opsi_config.get("groups", "readonly") or [])
 
 	def user_is_admin(self, username: str) -> bool:
 		return self.get_admin_groupname() in self.get_groupnames(username)
 
-	def user_is_read_only(self, username: str, forced_user_groupnames: Set[str] | None = None) -> bool:
+	def user_is_read_only(self, username: str, forced_user_groupnames: set[str] | None = None) -> bool:
 		user_groupnames = set()
 		if forced_user_groupnames is None:
 			user_groupnames = self.get_groupnames(username)

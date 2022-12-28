@@ -13,7 +13,7 @@ from typing import Generator
 
 import pytest
 
-from opsiconfd.backend.rpc.opsiconfd import ProtectedBackend
+from opsiconfd.backend.rpc.main import ProtectedBackend
 
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,

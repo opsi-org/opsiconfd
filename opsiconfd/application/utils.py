@@ -10,7 +10,7 @@ application utils
 
 from asyncio import Task, get_running_loop, sleep
 from inspect import Parameter
-from typing import List, Optional
+from typing import Optional
 
 import msgspec
 from fastapi import HTTPException, params
@@ -32,16 +32,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from websockets.exceptions import ConnectionClosedOK
 
 from opsiconfd import contextvar_client_session
-from opsiconfd.config import opsi_config
 from opsiconfd.logging import logger
-
-
-def get_configserver_id() -> str:
-	return opsi_config.get("host", "id")
-
-
-def get_depot_server_id() -> str:
-	return opsi_config.get("host", "id")
 
 
 def get_username() -> str:
@@ -51,7 +42,7 @@ def get_username() -> str:
 	return client_session.username
 
 
-def parse_list(query_list: List[str] | None) -> List[str] | None:
+def parse_list(query_list: list[str] | None) -> list[str] | None:
 	def remove_prefix(value: str, prefix: str) -> str:
 		return value[value.startswith(prefix) and len(prefix) :]
 
@@ -91,7 +82,7 @@ def bool_product_property(value: str | None) -> bool:
 
 
 # used in webgui backend
-def unicode_product_property(value: str | None) -> List[str]:
+def unicode_product_property(value: str | None) -> list[str]:
 	if value and isinstance(value, str):
 		if value.startswith('["'):
 			return msgspec.json.decode(value.encode("utf-8"))  # pylint: disable=no-member
@@ -102,7 +93,7 @@ def unicode_product_property(value: str | None) -> List[str]:
 
 
 # used in webgui backend
-def merge_dicts(dict_a: dict, dict_b: dict, path: List[str] | None = None) -> dict:
+def merge_dicts(dict_a: dict, dict_b: dict, path: list[str] | None = None) -> dict:
 	if not dict_a or not dict_b:
 		raise ValueError("Merge_dicts: At least one of the dicts (a and b) is not set.")
 	if path is None:

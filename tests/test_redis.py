@@ -14,9 +14,11 @@ import time
 import pytest
 
 from opsiconfd.redis import (
+	async_delete_recursively,
 	async_redis_client,
 	async_redis_connection_pool,
 	async_redis_lock,
+	delete_recursively,
 	redis_client,
 	redis_connection_pool,
 	redis_lock,
@@ -76,6 +78,47 @@ def test_sync_redis_pool() -> None:
 	for con in connections:
 		pool.release(con)
 	assert len(pool._in_use_connections) == 0  # type: ignore[attr-defined]  # pylint: disable=protected-access
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+	"piped",
+	(False, True),
+)
+async def test_async_delete_recursively(config: Config, piped: bool) -> None:  # pylint: disable=redefined-outer-name
+	client = await async_redis_client()
+	base_key = config.redis_key("delete_recursively")
+	for idx in range(10):
+		for idx2 in range(5):
+			await client.set(f"{base_key}:{idx}:{idx2}", b"test")
+
+	keys = [k async for k in client.scan_iter(f"{base_key}:*")]
+	assert len(keys) == 50
+
+	await async_delete_recursively(base_key, piped=piped)
+
+	keys = [k async for k in client.scan_iter(f"{base_key}:*")]
+	assert len(keys) == 0
+
+
+@pytest.mark.parametrize(
+	"piped",
+	(False, True),
+)
+def test_delete_recursively(config: Config, piped: bool) -> None:  # pylint: disable=redefined-outer-name
+	with redis_client() as client:
+		base_key = config.redis_key("delete_recursively")
+		for idx in range(10):
+			for idx2 in range(5):
+				client.set(f"{base_key}:{idx}:{idx2}", b"test")
+
+		keys = list(client.scan_iter(f"{base_key}:*"))
+		assert len(keys) == 50
+
+		delete_recursively(base_key, piped=piped)
+
+		keys = list(client.scan_iter(f"{base_key}:*"))
+		assert len(keys) == 0
 
 
 def test_redis_lock() -> None:

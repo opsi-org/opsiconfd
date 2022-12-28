@@ -139,6 +139,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			attr = "_opsipxeconfd_control_" + "".join([f"_{c.lower()}" if c.isupper() else c for c in key])
 			if attr in ("_opsipxeconfd_control_opsipxeconfd_on_depot", "_opsipxeconfd_control_enabled"):
 				val = forceBool(val)
+
 			if hasattr(self, attr):
 				setattr(self, attr, val)
 
@@ -200,7 +201,7 @@ class RPCOpsiPXEConfdControlMixin(Protocol):  # pylint: disable=too-many-instanc
 			if config_id == "clientconfig.configserver.url":
 				service_address = values[0]
 			elif config_id == "opsi-linux-bootimage.append":
-				bootimage_append = ConfigState(configId=config_id, objectId=client_id, values=values)
+				bootimage_append = ConfigState(configId=config_id, objectId=client_id, values=values)  # type: ignore[assignment]
 			elif config_id == "clientconfig.dhcpd.filename":
 				try:  # pylint: disable=loop-try-except-usage
 					value = values[0]

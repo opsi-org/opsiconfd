@@ -20,12 +20,12 @@ from opsiconfd.logging import logger
 from .utils import ERRORCODE_PATTERN, State, generate_response
 
 if TYPE_CHECKING:
-	from opsiconfd.backend.rpc.opsiconfd import Backend
+	from opsiconfd.backend.rpc.main import Backend
 
 
 def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-branches, too-many-locals, too-many-statements
 	backend: Backend,
-	host_id: str,
+	host_id: str | list[str],
 	command: str,
 	timeout: int = 30,
 	wait_for_ending: bool = True,
@@ -37,20 +37,20 @@ def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-bran
 
 	state = State.OK
 	message = ""
-	host_id = forceList(host_id)
+	host_ids = forceList(host_id)
 
 	try:  # pylint: disable=too-many-nested-blocks
-		result = backend.hostControlSafe_reachable(hostIds=host_id)
-		if result.get(host_id[0], False):
+		result = backend.hostControlSafe_reachable(hostIds=host_ids)
+		if result.get(host_ids[0], False):
 			checkresult = backend.hostControlSafe_execute(
 				command=command,
-				hostIds=host_id,
+				hostIds=host_ids,
 				waitForEnding=wait_for_ending,
 				captureStderr=capture_stderr,
 				encoding=encoding,
 				timeout=timeout,
 			)
-			checkresult = checkresult.get(host_id[0], None)
+			checkresult = checkresult.get(host_ids[0], None)
 			if checkresult:
 				if checkresult.get("result", None):
 					message = checkresult.get("result")[0]
@@ -84,7 +84,7 @@ def check_plugin_on_client(  # pylint: disable=too-many-arguments, too-many-bran
 			elif statebefore and output:
 				return generate_response(int(statebefore), output)
 			else:
-				message = f"Can't check host '{host_id[0]}' is not reachable."
+				message = f"Can't check host '{host_ids[0]}' is not reachable."
 				state = State.UNKNOWN
 	except Exception as err:  # pylint: disable=broad-except
 		state = State.UNKNOWN

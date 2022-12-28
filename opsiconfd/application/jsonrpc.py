@@ -35,9 +35,9 @@ from opsiconfd import contextvar_client_session, server_timing
 from opsiconfd.backend import get_protected_backend
 from opsiconfd.config import RPC_DEBUG_DIR, config
 from opsiconfd.logging import logger
-from opsiconfd.messagebus import get_messagebus_user_id_for_service_worker
+from opsiconfd.messagebus import get_user_id_for_service_worker
 from opsiconfd.messagebus.redis import ConsumerGroupMessageReader, send_message
-from opsiconfd.redis import async_redis_client, redis_client
+from opsiconfd.redis import async_redis_client
 from opsiconfd.session import OPSISession
 from opsiconfd.utils import compress_data, decompress_data
 from opsiconfd.worker import Worker
@@ -190,18 +190,18 @@ async def store_rpc_info(rpc: Any, result: Dict[str, Any], duration: float, date
 		await pipe.execute()
 
 
-def store_deprecated_call(method_name: str, client: str) -> None:
+async def store_deprecated_call(method_name: str, client: str) -> None:
 	redis_prefix_stats = config.redis_key('stats')
-	with redis_client() as redis:
-		with redis.pipeline() as pipe:
-			pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)
-			pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")
-			pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
-			pipe.set(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
-			pipe.execute()
+	redis = await async_redis_client()
+	async with redis.pipeline() as pipe:
+		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:methods", method_name)
+		pipe.incr(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:count")
+		pipe.sadd(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:clients", client[client.index("/") + 1 :])
+		pipe.set(f"{redis_prefix_stats}:rpcs:deprecated:{method_name}:last_call", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
+		await pipe.execute()
 
 
-def execute_rpc(client_info: str, rpc: Dict[str, Any]) -> Any:
+async def execute_rpc(client_info: str, rpc: Dict[str, Any]) -> Any:
 	method_name = rpc["method"]
 	params = rpc["params"]
 	backend = get_protected_backend()
@@ -226,8 +226,8 @@ def execute_rpc(client_info: str, rpc: Dict[str, Any]) -> Any:
 				params = params[:-1]
 				if not isinstance(kwargs, dict):
 					raise TypeError(f"kwargs param is not a dict: {type(kwargs)}")
-				keywords = {str(key): deserialize(value) for key, value in kwargs.items()}
-		params = deserialize(params)
+				keywords = {str(key): await run_in_threadpool(deserialize, value) for key, value in kwargs.items()}
+		params = await run_in_threadpool(deserialize, params)
 
 	method = getattr(backend, method_name)
 	if method.rpc_interface.deprecated:
@@ -235,13 +235,16 @@ def execute_rpc(client_info: str, rpc: Dict[str, Any]) -> Any:
 			f"Client {client_info} is calling deprecated method {method_name!r}",
 			DeprecationWarning
 		)
-		store_deprecated_call(method_name, client_info)
+		await store_deprecated_call(method_name, client_info)
 
 	with server_timing("method_execution"):
-		result = method(*params, **keywords)
+		if asyncio.iscoroutinefunction(method):
+			result = await method(*params, **keywords)
+		else:
+			result = await run_in_threadpool(method, *params, **keywords)
 
 	with server_timing("serialize_objects"):
-		return serialize(result)
+		return await run_in_threadpool(serialize, result)
 
 
 def serialize(obj: Any, deep: bool = False) -> Any:
@@ -356,8 +359,7 @@ async def process_rpc(client_info: str, rpc: Dict[str, Any]) -> Dict[str, Any]:
 	logger.debug("Method '%s', params (short): %.250s", rpc["method"], rpc["params"])
 	logger.trace("Method '%s', params (full): %s", rpc["method"], rpc["params"])
 
-	result = await run_in_threadpool(execute_rpc, client_info, rpc)
-
+	result = await execute_rpc(client_info, rpc)
 	if rpc.get("jsonrpc") == "2.0":
 		response = {"jsonrpc": "2.0", "id": rpc["id"], "result": result}
 	else:
@@ -511,7 +513,7 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 
 	response_message = JSONRPCResponseMessage(  # pylint: disable=unexpected-keyword-arg,no-value-for-parameter
 		sender=cgmr.consumer_name,
-		channel=message.back_channel,
+		channel=message.back_channel or message.sender,
 		ref_id=message.id,
 		rpc_id=result["id"],
 		result=result.get("result"),
@@ -529,7 +531,7 @@ async def messagebus_jsonrpc_request_worker() -> None:
 	global jsonrpc_message_reader  # pylint: disable=invalid-name,global-statement
 
 	worker = Worker.get_instance()
-	messagebus_worker_id = get_messagebus_user_id_for_service_worker(worker.id)
+	messagebus_worker_id = get_user_id_for_service_worker(worker.id)
 	channel = "service:config:jsonrpc"
 
 	jsonrpc_message_reader = ConsumerGroupMessageReader(consumer_group=channel, consumer_name=messagebus_worker_id, channels={channel: "0"})

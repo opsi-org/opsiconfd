@@ -106,7 +106,7 @@ def test_maintenance(
 	thread = Thread(target=asyncio.run, args=[app.app_state_manager_task(manager_mode=True, init_app_state=NormalState())], daemon=True)
 	thread.start()
 	try:
-		app.app_state_initialized.wait(5)
+		app.app_state_updated.wait(5)
 
 		response = test_client.get("/session/authenticated")
 		assert response.status_code == 200

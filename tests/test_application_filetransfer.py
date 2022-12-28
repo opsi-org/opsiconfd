@@ -12,7 +12,7 @@ from pathlib import Path
 from time import sleep, time
 from unittest.mock import patch
 
-import msgpack  # type: ignore[import]
+from msgspec import json
 from werkzeug.http import parse_options_header
 
 from opsiconfd.application.filetransfer import _prepare_file, cleanup_file_storage
@@ -36,7 +36,7 @@ def test_raw_file_upload_download_delete(tmp_path: Path, test_client: OpsiconfdT
 		file_path = tmp_path / file_id
 		meta_path = file_path.with_suffix(".meta")
 		assert file_path.read_bytes() == data
-		meta = msgpack.loads(meta_path.read_bytes())
+		meta = json.decode(meta_path.read_bytes())
 		assert abs(time() - meta["created"]) < 10
 
 		resp = test_client.get(f"/file-transfer/{file_id}")
@@ -64,7 +64,7 @@ def test_raw_file_upload_download_with_delete(
 		file_path = tmp_path / file_id
 		meta_path = file_path.with_suffix(".meta")
 		assert file_path.read_bytes() == data
-		meta = msgpack.loads(meta_path.read_bytes())
+		meta = json.decode(meta_path.read_bytes())
 		assert abs(time() - meta["created"]) < 10
 
 		resp = test_client.get(f"/file-transfer/{file_id}", params={"delete": "false"})
@@ -98,7 +98,7 @@ def test_multipart_file_upload_download_delete(  # pylint: disable=redefined-out
 		file_path = tmp_path / file_id
 		meta_path = file_path.with_suffix(".meta")
 		assert file_path.read_bytes() == data
-		meta = msgpack.loads(meta_path.read_bytes())
+		meta = json.decode(meta_path.read_bytes())
 		assert abs(time() - meta["created"]) < 10
 		assert meta["filename"] == filename
 		assert meta["content_type"] == content_type

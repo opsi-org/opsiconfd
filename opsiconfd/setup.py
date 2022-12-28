@@ -45,6 +45,7 @@ from opsiconfd.backend.mysql.cleanup import cleanup_database
 from opsiconfd.backend.mysql.schema import create_database, update_database
 from opsiconfd.config import (
 	DEPOT_DIR,
+	FILE_TRANSFER_STORAGE_DIR,
 	FQDN,
 	LOG_DIR,
 	NTFS_IMAGES_DIR,
@@ -52,6 +53,7 @@ from opsiconfd.config import (
 	OPSICONFD_HOME,
 	PUBLIC_DIR,
 	REPOSITORY_DIR,
+	TMP_DIR,
 	VAR_ADDON_DIR,
 	WORKBENCH_DIR,
 	config,
@@ -145,6 +147,7 @@ def _get_default_dirs() -> list[str]:
 		f"/{LOG_DIR}/instlog",
 		f"/{LOG_DIR}/userlogin",
 		os.path.dirname(config.log_file),
+		TMP_DIR,
 		DEPOT_DIR,
 		NTFS_IMAGES_DIR,
 		REPOSITORY_DIR,
@@ -153,6 +156,7 @@ def _get_default_dirs() -> list[str]:
 		VAR_ADDON_DIR,
 		OPSI_LICENSE_DIR,
 		OPSICONFD_HOME,
+		FILE_TRANSFER_STORAGE_DIR,
 	]
 
 

@@ -49,7 +49,7 @@ def _prepare_file(
 	file_path.touch()
 	meta_path = file_path.with_suffix(".meta")
 	meta_path.write_bytes(
-		msgspec.msgpack.encode(
+		msgspec.json.encode(
 			{
 				"created": now,
 				"expires": expires,
@@ -89,7 +89,7 @@ def cleanup_file_storage() -> None:
 
 		try:  # pylint: disable=loop-try-except-usage
 			UUID(path.name)  # Test if filename is valid UUID
-			meta = msgspec.msgpack.decode(path.read_bytes())  # pylint: disable=dotted-import-in-loop
+			meta = msgspec.json.decode(path.read_bytes())  # pylint: disable=dotted-import-in-loop
 			if meta["expires"] <= now:
 				# Expired
 				continue
@@ -157,7 +157,7 @@ async def filetransfer_get_file(file_id: UUID, delete: bool = False) -> FileResp
 	meta_path = file_path.with_suffix(".meta")
 	if not file_path.exists() or not file_path.exists():
 		raise ValueError("Invalid file ID")
-	meta = msgspec.msgpack.decode(meta_path.read_bytes())
+	meta = msgspec.json.decode(meta_path.read_bytes())
 	if meta["expires"] <= utc_time_timestamp():
 		raise ValueError("Invalid file ID")
 	background = BackgroundTask(delete_file, file_id) if delete else None

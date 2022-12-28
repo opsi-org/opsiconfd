@@ -251,7 +251,6 @@ def test_product_delete(  # pylint: disable=invalid-name
 	assert len(res["result"]) == 0
 
 
-# TODO product_getHashes
 def test_product_get_hashes(  # pylint: disable=invalid-name
 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
 ) -> None:

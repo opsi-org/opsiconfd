@@ -394,17 +394,17 @@ async def process_rpcs(client_info: str, *rpcs: Dict[str, Any]) -> AsyncGenerato
 				logger.error(err, exc_info=True)
 				result = await process_rpc_error(client_info, err, rpc)
 
-		duration = svt["rpc_processing"] / 1000  # pylint: disable=loop-invariant-statement
-
 		logger.trace(result)
-		yield result
 
+		duration = svt["rpc_processing"] / 1000  # pylint: disable=loop-invariant-statement
 		coro = store_rpc_info(rpc, result, duration, date, client_info)
 		if AWAIT_STORE_RPC_INFO:  # pylint: disable=loop-global-usage
 			# Required for pytest
 			await coro
 		else:
 			asyncio.create_task(coro)  # pylint: disable=dotted-import-in-loop
+
+		yield result
 
 
 # Some clients are using /rpc/rpc
@@ -418,6 +418,9 @@ async def process_request(request: Request, response: Response) -> Response:  # 
 	response_compression = None
 	response_serialization = None
 	client_info = ""
+	session = contextvar_client_session.get()
+	if session:
+		client_info = f"{session.client_addr}/{session.user_agent}"
 	try:
 		request_serialization = get_request_serialization(request)
 		if request_serialization:
@@ -449,7 +452,7 @@ async def process_request(request: Request, response: Response) -> Response:  # 
 		with server_timing("deserialization"):
 			rpcs = await run_in_threadpool(deserialize_data, request_data, request_serialization)
 		logger.trace("rpcs: %s", rpcs)
-		client_info = f"{request.scope['client'][0]}/{request.headers.get('user-agent', '')}"
+
 		if isinstance(rpcs, list):
 			coro = process_rpcs(client_info, *rpcs)
 		else:
@@ -493,11 +496,12 @@ async def _process_message(cgmr: ConsumerGroupMessageReader, redis_id: str, mess
 		await cgmr.ack_message(message.channel, redis_id)
 		return
 
+	client_info = f"messagebus/{message.sender}"
 	if context:
 		session = OPSISession.from_serialized(context)
 		contextvar_client_session.set(session)
+		client_info = f"{session.client_addr}/{session.user_agent}"
 
-	client_info = message.sender
 	rpc = {
 		"jsonrpc": "2.0",
 		"id": message.rpc_id,

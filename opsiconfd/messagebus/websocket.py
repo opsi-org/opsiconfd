@@ -150,10 +150,14 @@ class MessagebusWebsocket(WebSocketEndpoint):  # pylint: disable=too-many-instan
 	def _check_channel_access(self, channel: str) -> bool:  # pylint: disable=too-many-return-statements
 		if channel.startswith("session:"):
 			return True
-		if channel == "service:config:jsonrpc":
-			return True
-		if channel == "service:messagebus":
-			return True
+		if channel.startswith("service:"):
+			if channel == "service:messagebus":
+				return True
+			if channel == "service:config:jsonrpc":
+				return True
+			if channel == "service:config:terminal":
+				return True
+			raise ValueError(f"Invalid channel {channel!r}")
 		if channel == self._user_channel:
 			return True
 		if self.scope["session"].is_admin:

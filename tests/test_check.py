@@ -42,7 +42,7 @@ from .utils import (  # pylint: disable=unused-import
 	test_client,
 )
 
-DEPRECATED_METHOD = "getClientIds_list"
+DEPRECATED_METHOD = "getClients_listOfHashes"
 
 
 def captured_function_output(func: Callable, args: dict[str, Any]) -> str:

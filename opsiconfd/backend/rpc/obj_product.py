@@ -90,4 +90,4 @@ class RPCProductMixin(Protocol):
 
 	@rpc_method(check_acl=False)
 	def product_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.product_deleteObjects([{"id": id}])
+		self.product_deleteObjects(self.product_getObjects(id=id, productVersion=[], packageVersion=[]))

@@ -157,6 +157,7 @@ def test_product_updateObject(  # pylint: disable=invalid-name
 		"params": [
 			{
 				"id": "new-product",
+				"name": "new-product",
 				"productVersion": product1["productVersion"],
 				"packageVersion": product1["packageVersion"],
 				"type": product1["type"],
@@ -180,6 +181,7 @@ def test_product_updateObject(  # pylint: disable=invalid-name
 			[
 				{
 					"id": product1["id"],
+					"name": product1["id"],
 					"productVersion": product1["productVersion"],
 					"packageVersion": product1["packageVersion"],
 					"type": product1["type"],
@@ -187,6 +189,7 @@ def test_product_updateObject(  # pylint: disable=invalid-name
 				},
 				{
 					"id": product2["id"],
+					"name": product2["id"],
 					"productVersion": product2["productVersion"],
 					"packageVersion": product2["packageVersion"],
 					"type": product2["type"],

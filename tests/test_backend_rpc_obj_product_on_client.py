@@ -25,7 +25,7 @@ from .utils import (  # pylint: disable=unused-import
 )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=False)
 def cleanup_database(database_connection: Connection) -> Generator[None, None, None]:  # pylint: disable=redefined-outer-name
 	cursor = database_connection.cursor()
 	cursor.execute("DELETE FROM `PRODUCT_ON_CLIENT` WHERE productId LIKE 'test-backend-rpc-product%'")
@@ -296,40 +296,44 @@ def test_product_on_client_updateObject(  # pylint: disable=invalid-name
 				assert poc[attr] == val
 
 
-# def test_product_on_depot_getIdents(  # pylint: disable=invalid-name
-# 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-# ) -> None:
-# 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-# 	pod1, pod2 = create_test_pods(test_client)
+def test_product_on_client_getIdents(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	poc1, poc2 = create_test_pocs(test_client)
 
-# 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_getIdents", "params": [[], {"productId": "test-backend-rpc-product*"}]}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert "error" not in res
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getIdents", "params": [[], {"productId": "test-backend-rpc-product*"}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
-# 	assert res["result"] == [
-# 		f"{pod1['productId']};{pod1['productType']};{pod1['productVersion']};{pod1['packageVersion']};{pod1['depotId']}",
-# 		f"{pod2['productId']};{pod2['productType']};{pod2['productVersion']};{pod2['packageVersion']};{pod2['depotId']}",
-# 	]
+	assert res["result"] == [
+		f"{poc1['productId']};{poc1['productType']};{poc1['clientId']}",
+		f"{poc2['productId']};{poc2['productType']};{poc2['clientId']}",
+	]
 
 
-# def test_product_on_depot_delete(  # pylint: disable=invalid-name
-# 	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
-# ) -> None:
-# 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
-# 	pod1, pod2 = create_test_pods(test_client)
+def test_product_on_client_delete(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	poc1, poc2 = create_test_pocs(test_client)
 
-# 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_delete", "params": [pod1["productId"], pod1["depotId"]]}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert "error" not in res
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjects", "params": [[], {}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert len(res["result"]) == 2
 
-# 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert len(res["result"]) == 1
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_delete", "params": [poc1["productId"], poc1["clientId"]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
 
-# 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_delete", "params": [pod2["productId"], pod2["depotId"]]}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert "error" not in res
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert len(res["result"]) == 1
 
-# 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnDepot_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
-# 	res = test_client.post("/rpc", json=rpc).json()
-# 	assert len(res["result"]) == 0
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_delete", "params": [poc2["productId"], poc2["clientId"]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert len(res["result"]) == 0

@@ -117,8 +117,8 @@ class RPCProductOnClientMixin(Protocol):
 		self.productOnClient_createObjects(ProductOnClient.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def productOnClient_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.productOnClient_deleteObjects([{"id": id}])
+	def productOnClient_delete(self: BackendProtocol, productId: str, clientId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+		self.productOnClient_deleteObjects([{"productId": productId, "clientId": clientId}])
 
 	def _product_on_client_process_with_function(  # pylint: disable=too-many-locals,too-many-branches
 		self: BackendProtocol, product_on_clients: list[ProductOnClient], function: Callable

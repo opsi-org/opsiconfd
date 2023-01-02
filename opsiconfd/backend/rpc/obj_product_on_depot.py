@@ -86,5 +86,5 @@ class RPCProductOnDepotMixin(Protocol):
 		self._mysql.delete_objects(table="PRODUCT_ON_DEPOT", object_type=ProductOnDepot, obj=productOnDepots, ace=ace)
 
 	@rpc_method(check_acl=False)
-	def productOnDepot_delete(self: BackendProtocol, id: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
-		self.productOnDepot_deleteObjects([{"id": id}])
+	def productOnDepot_delete(self: BackendProtocol, productId: str, depotId: str) -> None:  # pylint: disable=redefined-builtin,invalid-name
+		self.productOnDepot_deleteObjects([{"productId": productId, "depotId": depotId}])

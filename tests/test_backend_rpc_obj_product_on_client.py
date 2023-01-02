@@ -12,8 +12,6 @@ from typing import Generator
 
 import pytest
 
-from opsiconfd.config import FQDN
-
 from .test_backend_rpc_obj_product_on_depot import create_test_pods
 from .utils import (  # pylint: disable=unused-import
 	ADMIN_PASS,
@@ -96,7 +94,7 @@ def create_test_pocs(test_client: OpsiconfdTestClient) -> tuple:  # pylint: disa
 	return (poc1, poc2)
 
 
-def check_products_on_client(test_client: OpsiconfdTestClient, pocs: list) -> None:
+def check_products_on_client(test_client: OpsiconfdTestClient, pocs: list) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	for product_on_client in pocs:
 		rpc = {
 			"jsonrpc": "2.0",

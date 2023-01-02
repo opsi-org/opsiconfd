@@ -118,24 +118,6 @@ def test_product_on_client_insertObject(  # pylint: disable=invalid-name
 
 	check_products_on_client(test_client, [poc1, poc2])
 
-	# # product on client 1 should be created
-	# rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjects", "params": [[], {"productId": poc1["productId"]}]}
-	# res = test_client.post("/rpc", json=rpc).json()
-	# assert "error" not in res
-	# print(res)
-	# poc = res["result"][0]
-	# for attr, val in poc1.items():
-	# 	assert val == poc[attr]
-
-	# # product on client 1 should be created
-	# rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjects", "params": [[], {"productId": poc2["productId"]}]}
-	# res = test_client.post("/rpc", json=rpc).json()
-	# assert "error" not in res
-	# print(res)
-	# poc = res["result"][0]
-	# for attr, val in poc2.items():
-	# 	assert val == poc[attr]
-
 
 def test_product_on_client_create_objects(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
 	test_client.auth = (ADMIN_USER, ADMIN_PASS)
@@ -167,9 +149,9 @@ def test_product_on_client_create_objects(test_client: OpsiconfdTestClient) -> N
 	}
 	poc2 = {
 		"productId": pod2["productId"],
-		"productVersion": pod1["productVersion"],
-		"packageVersion": pod1["packageVersion"],
-		"productType": pod1["productType"],
+		"productVersion": pod2["productVersion"],
+		"packageVersion": pod2["packageVersion"],
+		"productType": pod2["productType"],
 		"clientId": client1["id"],
 		"actionRequest": "none",
 		"actionProgress": "none",
@@ -178,6 +160,68 @@ def test_product_on_client_create_objects(test_client: OpsiconfdTestClient) -> N
 	}
 	# Create pod 1 and 2
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_createObjects", "params": [[poc1, poc2]]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	check_products_on_client(test_client, [poc1, poc2])
+
+
+def test_product_on_client_create(test_client: OpsiconfdTestClient) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	pod1, pod2 = create_test_pods(test_client)
+
+	client1 = {
+		"type": "OpsiClient",
+		"id": "test-backend-rpc-host-1.opsi.test",
+		"opsiHostKey": "4587dec5913c501a28560d576768924e",
+		"description": "description",
+		"notes": "notes",
+		"oneTimePassword": "secret",
+	}
+	# Create client 1
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "host_insertObject", "params": [client1]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	poc1 = {
+		"productId": pod1["productId"],
+		"productType": pod1["productType"],
+		"clientId": client1["id"],
+		"installationStatus": "not_installed",
+		"actionRequest": "none",
+		"lastAction": "none",
+		"actionProgress": "none",
+		"actionResult": "none",
+		"productVersion": pod1["productVersion"],
+		"packageVersion": pod1["packageVersion"],
+	}
+	poc2 = {
+		"productId": pod2["productId"],
+		"productType": pod2["productType"],
+		"clientId": client1["id"],
+		"installationStatus": "not_installed",
+		"actionRequest": "none",
+		"lastAction": "none",
+		"actionProgress": "none",
+		"actionResult": "none",
+		"productVersion": pod2["productVersion"],
+		"packageVersion": pod2["packageVersion"],
+	}
+	# Create pod 1 and 2
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnClient_create",
+		"params": list(poc1.values()),
+	}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	rpc = {
+		"jsonrpc": "2.0",
+		"id": 1,
+		"method": "productOnClient_create",
+		"params": list(poc2.values()),
+	}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert "error" not in res
 
@@ -337,3 +381,26 @@ def test_product_on_client_delete(  # pylint: disable=invalid-name
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getObjects", "params": [[], {"productId": "test-backend-rpc-product*"}]}
 	res = test_client.post("/rpc", json=rpc).json()
 	assert len(res["result"]) == 0
+
+
+def test_product_on_client_get_hashes(  # pylint: disable=invalid-name
+	test_client: OpsiconfdTestClient,  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
+	test_client.auth = (ADMIN_USER, ADMIN_PASS)
+	poc1, poc2 = create_test_pocs(test_client)
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getHashes", "params": [[], {"productId": poc1["productId"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	print(res)
+	poc = res["result"][0]
+	for attr, val in poc1.items():
+		assert val == poc[attr]
+
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productOnClient_getHashes", "params": [[], {"productId": poc2["productId"]}]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+	print(res)
+	poc = res["result"][0]
+	for attr, val in poc2.items():
+		assert val == poc[attr]

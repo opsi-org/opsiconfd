@@ -9,6 +9,7 @@ opsiconfd.backend.rpc.product_property
 """
 from __future__ import annotations
 
+from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.objects import ProductProperty  # type: ignore[import]
@@ -30,11 +31,12 @@ class RPCProductPropertyMixin(Protocol):
 		ace: list[RPCACE],
 		create: bool = True,
 		set_null: bool = True,
-		session: Session | None = None
+		session: Session | None = None,
+		lock: bool = True
 	) -> None:
 		query, data = self._mysql.insert_query(table="PRODUCT_PROPERTY", obj=product_property, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
-			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
+			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}) if lock else nullcontext():
 				session.execute(
 					"""
 					DELETE FROM `PRODUCT_PROPERTY_VALUE`
@@ -77,8 +79,11 @@ class RPCProductPropertyMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productProperty_createObjects")
 		with self._mysql.session() as session:
-			for product_property in forceList(productProperties):
-				self._product_property_insert_object(product_property=product_property, ace=ace, create=True, set_null=True, session=session)
+			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
+				for product_property in forceList(productProperties):
+					self._product_property_insert_object(
+						product_property=product_property, ace=ace, create=True, set_null=True, session=session, lock=False
+					)
 
 	@rpc_method(check_acl=False)
 	def productProperty_updateObjects(  # pylint: disable=invalid-name
@@ -86,8 +91,11 @@ class RPCProductPropertyMixin(Protocol):
 	) -> None:
 		ace = self._get_ace("productProperty_updateObjects")
 		with self._mysql.session() as session:
-			for product_property in forceList(productProperties):
-				self._product_property_insert_object(product_property=product_property, ace=ace, create=True, set_null=False, session=session)
+			with self._mysql.table_lock(session, {"PRODUCT_PROPERTY": "WRITE", "PRODUCT_PROPERTY_VALUE": "WRITE"}):
+				for product_property in forceList(productProperties):
+					self._product_property_insert_object(
+						product_property=product_property, ace=ace, create=True, set_null=False, session=session, lock=False
+					)
 
 	def _product_property_get(  # pylint: disable=too-many-arguments,too-many-locals
 		self: BackendProtocol,

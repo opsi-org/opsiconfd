@@ -9,6 +9,7 @@ opsiconfd.backend.rpc.config
 """
 from __future__ import annotations
 
+from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from opsicommon.objects import BoolConfig, Config, UnicodeConfig  # type: ignore[import]
@@ -30,11 +31,12 @@ class RPCConfigMixin(Protocol):
 		ace: list[RPCACE],
 		create: bool = True,
 		set_null: bool = True,
-		session: Session | None = None
+		session: Session | None = None,
+		lock: bool = True
 	) -> None:
 		query, data = self._mysql.insert_query(table="CONFIG", obj=config, ace=ace, create=create, set_null=set_null)
 		with self._mysql.session(session) as session:  # pylint: disable=redefined-argument-from-local
-			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
+			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}) if lock else nullcontext():
 				session.execute("DELETE FROM `CONFIG_VALUE` WHERE configId = :id", params=data)
 				if session.execute(query, params=data).rowcount > 0:
 					for value in data["possibleValues"] or []:
@@ -57,15 +59,17 @@ class RPCConfigMixin(Protocol):
 	def config_createObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("config_createObjects")
 		with self._mysql.session() as session:
-			for config in forceList(configs):
-				self._config_insert_object(config=config, ace=ace, create=True, set_null=True, session=session)
+			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
+				for config in forceList(configs):
+					self._config_insert_object(config=config, ace=ace, create=True, set_null=True, session=session, lock=False)
 
 	@rpc_method(check_acl=False)
 	def config_updateObjects(self: BackendProtocol, configs: list[dict] | list[Config] | dict | Config) -> None:  # pylint: disable=invalid-name
 		ace = self._get_ace("config_updateObjects")
 		with self._mysql.session() as session:
-			for config in forceList(configs):
-				self._config_insert_object(config=config, ace=ace, create=True, set_null=False, session=session)
+			with self._mysql.table_lock(session, {"CONFIG": "WRITE", "CONFIG_VALUE": "WRITE"}):
+				for config in forceList(configs):
+					self._config_insert_object(config=config, ace=ace, create=True, set_null=False, session=session, lock=False)
 
 	def _config_get(  # pylint: disable=too-many-arguments,too-many-locals
 		self: BackendProtocol,

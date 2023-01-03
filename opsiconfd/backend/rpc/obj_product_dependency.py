@@ -104,7 +104,7 @@ class RPCProductDependencyMixin(Protocol):
 		self.productDependency_createObjects(ProductDependency.fromHash(_hash))
 
 	@rpc_method(check_acl=False)
-	def productDependency_delete( # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
+	def productDependency_delete(  # pylint: disable=redefined-builtin,invalid-name,too-many-arguments
 		self: BackendProtocol,
 		productId: str,
 		productVersion: str,

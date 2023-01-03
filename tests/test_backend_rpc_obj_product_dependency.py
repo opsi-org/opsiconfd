@@ -75,8 +75,8 @@ def create_test_product_dependencies(test_client: OpsiconfdTestClient) -> tuple:
 
 
 def check_products_dependencies(
-	test_client: OpsiconfdTestClient, product_dependencies: list
-) -> None:  # pylint: disable=redefined-outer-name,unused-argument
+	test_client: OpsiconfdTestClient, product_dependencies: list  # pylint: disable=redefined-outer-name,unused-argument
+) -> None:
 	for product_dependency in product_dependencies:
 		rpc = {
 			"jsonrpc": "2.0",
@@ -143,16 +143,26 @@ def test_product_dependency_create(  # pylint: disable=invalid-name
 
 	product1, product2 = create_test_products(test_client)
 
-	product_dependency1 = {
-		"productId": product1["id"],
-		"productVersion": product1["productVersion"],
-		"packageVersion": product1["packageVersion"],
-		"productAction": "setup",
-		"requiredProductId": product2["id"],
-		"requiredProductVersion": product2["productVersion"],
-		"requiredPackageVersion": product2["packageVersion"],
+	product3 = {
+		"name": "test-backend-rpc-product-3",
+		"licenseRequired": False,
+		"setupScript": "setup.opsiscript",
+		"uninstallScript": "uninstall.opsiscript",
+		"updateScript": "update.opsiscript",
+		"priority": -100,
+		"description": "test-backend-rpc-product 2",
+		"advice": "Some advice ",
+		"id": "test-backend-rpc-product-2",
+		"productVersion": "5.3.0",
+		"packageVersion": "2",
+		"type": "LocalbootProduct",
 	}
-	product_dependency2 = {
+	# Create product 3
+	rpc = {"jsonrpc": "2.0", "id": 1, "method": "product_insertObject", "params": [product3]}
+	res = test_client.post("/rpc", json=rpc).json()
+	assert "error" not in res
+
+	product_dependency1 = {
 		"productId": product2["id"],
 		"productVersion": product2["productVersion"],
 		"packageVersion": product2["packageVersion"],
@@ -160,6 +170,15 @@ def test_product_dependency_create(  # pylint: disable=invalid-name
 		"requiredProductId": product1["id"],
 		"requiredProductVersion": product1["productVersion"],
 		"requiredPackageVersion": product1["packageVersion"],
+	}
+	product_dependency2 = {
+		"productId": product1["id"],
+		"productVersion": product1["productVersion"],
+		"packageVersion": product1["packageVersion"],
+		"productAction": "setup",
+		"requiredProductId": product3["id"],
+		"requiredProductVersion": product3["productVersion"],
+		"requiredPackageVersion": product3["packageVersion"],
 	}
 
 	rpc = {"jsonrpc": "2.0", "id": 1, "method": "productDependency_create", "params": list(product_dependency1.values())}

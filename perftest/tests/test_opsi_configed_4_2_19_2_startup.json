@@ -1058,11 +1058,6 @@
 					],
 					[
 						"jsonrpc",
-						"accessControl_userIsReadOnlyUser",
-						[]
-					],
-					[
-						"jsonrpc",
 						"config_updateObjects",
 						[
 							[
@@ -1483,14 +1478,6 @@
 					],
 					[
 						"jsonrpc",
-						"productProperty_getObjects",
-						[
-							[],
-							{}
-						]
-					],
-					[
-						"jsonrpc",
 						"getProductOrdering",
 						[
 							"{{depot_id}}"
@@ -1508,16 +1495,6 @@
 							[],
 							{
 								"type": "ProductGroup"
-							}
-						]
-					],
-					[
-						"jsonrpc",
-						"objectToGroup_getObjects",
-						[
-							[],
-							{
-								"groupType": "ProductGroup"
 							}
 						]
 					],

@@ -9,6 +9,7 @@ jsonrpc
 """
 
 import asyncio
+import re
 import tempfile
 import time
 import traceback
@@ -298,7 +299,7 @@ def write_debug_log(
 		"response": response,
 		"error": str(exception) if exception else None,
 	}
-	prefix = f"{client_info}-{now}-".replace("/", "_").replace(".", "_")
+	prefix = re.sub(r"[\s\./]", "_", f"{client_info}-{now}-")
 	with tempfile.NamedTemporaryFile(
 		delete=False, dir=RPC_DEBUG_DIR, prefix=prefix, suffix=".log"
 	) as log_file:

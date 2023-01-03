@@ -245,6 +245,7 @@ class OpsiconfdApp(FastAPI):
 
 			await asyncio.sleep(interval)  # pylint: disable=dotted-import-in-loop
 
+
 app = OpsiconfdApp()
 
 

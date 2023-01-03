@@ -216,7 +216,7 @@ class OpsiconfdApp(FastAPI):
 				self._app_state = app_state
 
 		interval = 1
-		while True:
+		while self._app_state != ShutdownState(accomplished=True):
 			cur_state = self._app_state
 
 			await run_in_threadpool(self._app_state_lock.acquire)
@@ -244,7 +244,6 @@ class OpsiconfdApp(FastAPI):
 						await run_in_threadpool(handler, self._app_state)
 
 			await asyncio.sleep(interval)  # pylint: disable=dotted-import-in-loop
-
 
 app = OpsiconfdApp()
 

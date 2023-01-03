@@ -75,14 +75,16 @@ def health_check_main() -> None:
 	sys.exit(console_health_check())
 
 
-def backup_main() -> None:
+def backup_main() -> None:  # pylint: disable=too-many-branches
 	console = Console(quiet=config.quiet)
 	backup_file = None
 	try:
 		if config.password is None:
 			# Argument --pasword given without value
 			if config.quiet:
-				raise ValueError("Interactive password prompt not available in quiet mode")
+				raise RuntimeError("Interactive password prompt not available in quiet mode")
+			if not console.file.isatty():
+				raise RuntimeError("Interactive password prompt only available with tty")
 			config.password = Prompt.ask("Please enter password", console=console, password=True)
 
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
@@ -142,15 +144,24 @@ def backup_main() -> None:
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		console.quiet = False
-		baf = f"'{str(backup_file)}'" if backup_file else ""
-		console.print(f"[bold red]Failed to create backup file {baf}: {err}[/bold red]")
+		baf = f" '{str(backup_file)}'" if backup_file else ""
+		console.print(f"[bold red]Failed to create backup file{baf}: {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)
 
 
 def restore_main() -> None:
 	console = Console(quiet=config.quiet)
+	backup_file = None
 	try:
+		if config.password is None:
+			# Argument --pasword given without value
+			if config.quiet:
+				raise RuntimeError("Interactive password prompt not available in quiet mode")
+			if not console.file.isatty():
+				raise RuntimeError("Interactive password prompt only available with tty")
+			config.password = Prompt.ask("Please enter password", console=console, password=True)
+
 		with Progress(console=console, redirect_stdout=False, redirect_stderr=False) as progress:
 			init_logging(log_mode="rich", console=progress.console)
 			backup_file = Path(config.backup_file)
@@ -184,7 +195,8 @@ def restore_main() -> None:
 	except Exception as err:  # pylint: disable=broad-except
 		logger.error(err, exc_info=True)
 		console.quiet = False
-		console.print(f"[bold red]Failed to restore backup from '{str(backup_file)}': {err}[/bold red]")
+		baf = f" from '{str(backup_file)}'" if backup_file else ""
+		console.print(f"[bold red]Failed to restore backup{baf}: {err}[/bold red]")
 		sys.exit(1)
 	sys.exit(0)
 
